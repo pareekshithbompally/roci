@@ -1,0 +1,334 @@
+/**
+ * Markdown Styling for Chat Messages
+ *
+ * Plain CSS — no @apply (Tailwind is CDN-only in this project).
+ * Applied via .markdown-content class on the Streamdown wrapper.
+ *
+ * Code blocks: @streamdown/code handles syntax highlighting + chrome.
+ * This file only styles text, inline code, blockquotes, lists, tables.
+ */
+
+.markdown-content {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #4a453e; /* parchment-800 */
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.dark .markdown-content {
+  color: #d0d5e4; /* night-200 */
+}
+
+/* Headings */
+.markdown-content :is(h1, h2, h3, h4, h5, h6) {
+  font-weight: 600;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  color: #1e1c18; /* parchment-900 */
+}
+
+.dark .markdown-content :is(h1, h2, h3, h4, h5, h6) {
+  color: #e6e9f4; /* night-100 */
+}
+
+.markdown-content h1 { font-size: 1.25em; line-height: 1.2; }
+.markdown-content h2 { font-size: 1.125em; line-height: 1.3; }
+.markdown-content h3 { font-size: 1em; line-height: 1.4; }
+.markdown-content h4 { font-size: 0.9375em; line-height: 1.4; }
+
+/* Paragraphs */
+.markdown-content p {
+  line-height: 1.6;
+  margin-bottom: 1em;
+}
+
+.markdown-content strong {
+  font-weight: 600;
+  color: #1e1c18; /* parchment-900 */
+}
+
+.dark .markdown-content strong {
+  color: #e6e9f4; /* night-100 */
+}
+
+.markdown-content em {
+  font-style: italic;
+}
+
+.markdown-content del {
+  text-decoration: line-through;
+}
+
+/* Lists */
+.markdown-content ul,
+.markdown-content ol {
+  line-height: 1.6;
+  margin-bottom: 1em;
+  padding-left: 1.5em;
+  list-style-position: outside;
+}
+
+.markdown-content ul { list-style-type: disc; }
+.markdown-content ol { list-style-type: decimal; }
+
+.markdown-content li {
+  margin-bottom: 0.5em;
+}
+
+.markdown-content li > p {
+  display: inline;
+  margin: 0;
+}
+
+.markdown-content li > ul,
+.markdown-content li > ol {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.markdown-content li > ul { list-style-type: circle; }
+.markdown-content li > ol { list-style-type: lower-roman; }
+
+/* Blockquotes — visually distinct with accent border + tinted bg */
+.markdown-content blockquote {
+  line-height: 1.6;
+  border-left: 3px solid #60a5fa; /* blue-400 */
+  background-color: rgba(239, 246, 255, 0.5); /* blue-50/50 */
+  padding: 0.5em 1em;
+  margin-left: 0;
+  margin-bottom: 1em;
+  border-radius: 0 6px 6px 0;
+  color: #4a453e; /* parchment-800 */
+}
+
+.dark .markdown-content blockquote {
+  border-left-color: #3b82f6; /* blue-500 */
+  background-color: rgba(23, 37, 84, 0.2); /* blue-950/20 */
+  color: #8b92a8; /* night-400 */
+}
+
+.markdown-content blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* Inline code — only target code NOT inside pre */
+.markdown-content :not(pre) > code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+  background-color: #f0ede5; /* parchment-200 */
+  color: #db2777; /* pink-600 */
+  border: 1px solid #e4e0d6; /* parchment-300 */
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+}
+
+.dark .markdown-content :not(pre) > code {
+  background-color: #1e1e1e; /* night-800 */
+  color: #f472b6; /* pink-400 */
+  border-color: #303440; /* night-650 */
+}
+
+/* Code blocks */
+.markdown-content pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow-x: auto;
+  margin-bottom: 1em;
+}
+
+.markdown-content pre code {
+  background-color: transparent;
+  color: inherit;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  display: block;
+  border-radius: 0;
+}
+
+/* Links */
+.markdown-content a {
+  color: #2563eb; /* blue-600 */
+  text-decoration: none;
+}
+
+.dark .markdown-content a {
+  color: #60a5fa; /* blue-400 */
+}
+
+.markdown-content a:hover {
+  text-decoration: underline;
+}
+
+/* Tables */
+.markdown-content table {
+  width: 100%;
+  margin-bottom: 1em;
+  border-collapse: collapse;
+  border: 1px solid #d5d0c4; /* parchment-400 */
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dark .markdown-content table {
+  border-color: #303440; /* night-650 */
+}
+
+.markdown-content thead {
+  background-color: #f0ede5; /* parchment-200 */
+}
+
+.dark .markdown-content thead {
+  background-color: #1e1e1e; /* night-800 */
+}
+
+.markdown-content th {
+  padding: 0.5em 1em;
+  text-align: left;
+  font-size: 0.875em;
+  font-weight: 600;
+  color: #1e1c18; /* parchment-900 */
+}
+
+.dark .markdown-content th {
+  color: #e6e9f4; /* night-100 */
+}
+
+.markdown-content td {
+  padding: 0.5em 1em;
+  font-size: 0.875em;
+  color: #4a453e; /* parchment-800 */
+  border-top: 1px solid #e4e0d6; /* parchment-300 */
+}
+
+.dark .markdown-content td {
+  color: #d0d5e4; /* night-200 */
+  border-top-color: #303440; /* night-650 */
+}
+
+/* Horizontal rule */
+.markdown-content hr {
+  border: 0;
+  height: 1px;
+  background-color: #d5d0c4; /* parchment-400 */
+  margin: 2em 0;
+}
+
+.dark .markdown-content hr {
+  background-color: #303440; /* night-650 */
+}
+
+/* Images */
+.markdown-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 5px;
+  margin-bottom: 1em;
+}
+
+/* ============================================================
+ * Code block overrides for @streamdown/code
+ *
+ * The plugin uses Tailwind v4 dark-mode classes (dark:bg-(--shiki-dark-bg)!)
+ * and shadcn CSS-variable classes (bg-muted/80, text-muted-foreground, border-border).
+ * Neither works with our CDN v3 setup, so we override everything here.
+ * ============================================================ */
+
+/* --- Light mode: code block overrides for missing shadcn vars --- */
+.markdown-content [data-streamdown="code-block"] {
+  border-color: #e4e0d6 !important; /* parchment-300 */
+}
+
+.markdown-content [data-streamdown="code-block-header"] {
+  background-color: #f7f5ef !important; /* parchment-150 */
+  border-bottom: 1px solid #e4e0d6 !important; /* parchment-300 */
+  color: #6b655c !important; /* parchment-700 */
+  padding: 0.5rem 0.75rem !important; /* thinner header like Jan */
+}
+
+/* --- Dark mode: code block container --- */
+.dark .markdown-content [data-streamdown="code-block"] {
+  border-color: #272a36 !important; /* night-700 */
+}
+
+/* --- Dark mode: header — thin, subtle like Jan --- */
+.dark .markdown-content [data-streamdown="code-block-header"] {
+  background-color: #1a1a1a !important; /* night-850 */
+  border-bottom-color: #272a36 !important; /* night-700 */
+  color: #5c6278 !important; /* night-500 */
+}
+
+.dark .markdown-content [data-streamdown="code-block-header"] button {
+  color: #3e4354 !important; /* night-600 */
+}
+
+.dark .markdown-content [data-streamdown="code-block-header"] button:hover {
+  color: #8b92a8 !important; /* night-400 */
+}
+
+/* --- Dark mode: code body — use Shiki dark theme bg --- */
+.dark .markdown-content [data-streamdown="code-block-body"] {
+  background-color: var(--shiki-dark-bg, #0d1117) !important;
+  color: var(--shiki-dark, #e6edf3) !important;
+}
+
+/* --- Dark mode: token colors from Shiki, transparent bg --- */
+.dark .markdown-content [data-streamdown="code-block-body"] code span {
+  color: var(--shiki-dark) !important;
+  background-color: transparent !important;
+}
+
+/* ============================================================
+ * Inline citation markers (superscript badges within text)
+ *
+ * Rendered by InlineCitationMarker via the rehype citation plugin.
+ * Small non-disruptive pills with favicon + number.
+ * ============================================================ */
+
+.markdown-content .cite-marker-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  vertical-align: super;
+  margin: 0 1px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  background-color: #eff6ff; /* blue-50 */
+  color: #2563eb; /* blue-600 */
+  border: 1px solid rgba(191, 219, 254, 0.6); /* blue-200/60 */
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.markdown-content .cite-marker-btn:hover {
+  background-color: #dbeafe; /* blue-100 */
+}
+
+.dark .markdown-content .cite-marker-btn {
+  background-color: rgba(30, 58, 138, 0.3); /* blue-900/30 */
+  color: #60a5fa; /* blue-400 */
+  border-color: rgba(30, 64, 175, 0.4); /* blue-800/40 */
+}
+
+.dark .markdown-content .cite-marker-btn:hover {
+  background-color: rgba(30, 58, 138, 0.5); /* blue-900/50 */
+}
+
+.markdown-content .cite-marker-favicon {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+/* Streamdown caret */
+.markdown-content *:last-child::after {
+  color: #6b655c !important; /* parchment-700 */
+}
+
+.dark .markdown-content *:last-child::after {
+  color: #8b92a8 !important; /* night-400 */
+}

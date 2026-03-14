@@ -1,0 +1,171 @@
+/**
+ * Storage Configuration
+ * Defines directory structure, file naming, and cache policies
+ */
+
+export const StorageConfig = {
+  /**
+   * Application name for storage directory
+   */
+  appName: 'Kasset AI',
+
+  /**
+   * Directory structure within Application Support
+   */
+  directories: {
+    recordings: 'recordings',
+    transcriptions: 'transcriptions',
+    summaries: 'summaries',
+    chats: 'chats',
+    notes: 'notes',
+    todos: 'todos',
+    cache: 'cache',
+    cacheAudio: 'cache/audio',
+    cacheApi: 'cache/api',
+  },
+
+  /**
+   * Primary content directories to surface in UI
+   */
+  primaryDirectories: ['recordings', 'transcriptions', 'summaries', 'chats'] as const,
+
+  /**
+   * File naming patterns
+   */
+  fileNames: {
+    settings: 'settings.json',
+    history: 'history.json',
+    recordingPrefix: 'rec',
+    transcriptionSuffix: '_transcript.json',
+    summarySuffix: '_summary.json',
+    chatPrefix: 'chat',
+    cacheTempPrefix: 'temp',
+  },
+
+  /**
+   * File format specifications
+   */
+  formats: {
+    recording: {
+      defaultExtension: '.wav',
+      allowedExtensions: ['.wav', '.webm', '.mp3', '.m4a'],
+    },
+    transcription: {
+      extension: '.json',
+      encoding: 'utf-8',
+    },
+    chat: {
+      extension: '.json',
+      encoding: 'utf-8',
+    },
+    settings: {
+      extension: '.json',
+      encoding: 'utf-8',
+    },
+  },
+
+  /**
+   * Cache policies
+   */
+  cache: {
+    audio: {
+      ttlHours: 24,
+      maxSizeMB: -1, // No limit for temp files
+      cleanupOnStart: true,
+    },
+    api: {
+      ttlDays: 7,
+      maxSizeMB: 100,
+      cleanupOnStart: true,
+    },
+    cleanupThresholdPercent: 90, // Start cleanup when 90% full
+  },
+
+  /**
+   * Retry configuration for file operations
+   */
+  retry: {
+    maxAttempts: 3,
+    initialDelayMs: 100,
+    backoffMultiplier: 2,
+  },
+
+  /**
+   * Metadata version for future migrations
+   */
+  metadataVersion: 1,
+
+  /**
+   * Maximum entries to keep in history
+   */
+  maxHistoryEntries: 1000,
+
+  /**
+   * Default settings
+   */
+  defaultSettings: {
+    theme: 'system',
+    autoSave: true,
+    notificationsEnabled: true,
+    recordingQuality: 'high',
+    aiModel: '', // User must select model in Settings > Providers > Model Config
+    chatModel: '', // User must select model in Settings > Providers > Model Config
+    autoTranscribe: true,
+    defaultAudioSource: 'systemAndMicrophone',
+  },
+} as const;
+
+/**
+ * Generate filename for recording
+ */
+export function generateRecordingFilename(extension?: string): string {
+  const timestamp = Date.now();
+  const uuid = crypto.randomUUID().split('-')[0];
+  const ext = extension || StorageConfig.formats.recording.defaultExtension;
+  return `${StorageConfig.fileNames.recordingPrefix}_${timestamp}_${uuid}${ext}`;
+}
+
+/**
+ * Extract a recording ID from a filename
+ */
+export function getRecordingIdFromFilename(filename: string): string {
+  const lastDotIndex = filename.lastIndexOf('.');
+  if (lastDotIndex <= 0) {
+    return filename;
+  }
+  return filename.slice(0, lastDotIndex);
+}
+
+/**
+ * Generate filename for transcription
+ */
+export function generateTranscriptionFilename(recordingId: string): string {
+  return `${recordingId}${StorageConfig.fileNames.transcriptionSuffix}`;
+}
+
+/**
+ * Generate filename for summary
+ */
+export function generateSummaryFilename(recordingId: string): string {
+  return `${recordingId}${StorageConfig.fileNames.summarySuffix}`;
+}
+
+/**
+ * Generate filename for chat thread
+ */
+export function generateChatFilename(): string {
+  const timestamp = Date.now();
+  const uuid = crypto.randomUUID().split('-')[0];
+  return `${StorageConfig.fileNames.chatPrefix}_${timestamp}_${uuid}.json`;
+}
+
+/**
+ * Generate filename for cache entry
+ */
+export function generateCacheFilename(key: string, extension: string = '.cache'): string {
+  const hash = key.split('').reduce((a, b) => {
+    a = ((a << 5) - a) + b.charCodeAt(0);
+    return a & a;
+  }, 0).toString(36);
+  return `${StorageConfig.fileNames.cacheTempPrefix}_${hash}${extension}`;
+}

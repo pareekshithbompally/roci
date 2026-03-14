@@ -1,0 +1,96 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Kasset",
+  "version": "1.0.0",
+  "identifier": "ai.kasset.app",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "beforeBundleCommand": "./scripts/prepare-swift-runtime.sh"
+  },
+  "app": {
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Kasset.ai",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 1024,
+        "minHeight": 640,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true,
+        "transparent": true,
+        "center": false,
+        "hiddenTitle": true,
+        "titleBarStyle": "Overlay",
+        "trafficLightPosition": {
+          "x": 20,
+          "y": 32
+        },
+        "windowEffects": {
+          "effects": ["fullScreenUI", "mica", "tabbed", "blur", "acrylic"],
+          "state": "active"
+        },
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": [
+      "icons/iconTemplate.png",
+      "icons/iconTemplate@2x.png",
+      "icons/iconRecordingTemplate.png",
+      "icons/iconRecordingTemplate@2x.png"
+    ],
+    "publisher": "Kasset.ai",
+    "copyright": "Copyright © 2026 Kasset.ai. All rights reserved.",
+    "category": "Productivity",
+    "shortDescription": "AI-powered voice capture, transcription, and insights",
+    "longDescription": "Kasset.ai is a powerful desktop application for real-time system audio capture, transcription, and intelligent summarization. Perfect for meetings, lectures, podcasts, and any audio content that needs to be transcribed and analyzed.",
+    "macOS": {
+      "minimumSystemVersion": "15.0",
+      "entitlements": "entitlements.plist",
+      "frameworks": [],
+      "files": {
+        "Frameworks": "target/swift-runtime"
+      },
+      "infoPlist": "Info.plist",
+      "dmg": {
+        "background": null,
+        "windowSize": {
+          "width": 660,
+          "height": 400
+        },
+        "appPosition": {
+          "x": 180,
+          "y": 170
+        },
+        "applicationFolderPosition": {
+          "x": 480,
+          "y": 170
+        }
+      }
+    },
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    }
+  }
+}

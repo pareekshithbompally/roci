@@ -1,0 +1,68 @@
+/**
+ * RAG Searcher
+ *
+ * Delegates all search to the Rust vectordb plugin.
+ * The Rust backend performs hybrid search (KNN + FTS5 + Reciprocal Rank Fusion)
+ * and returns results grouped by meeting.
+ */
+
+import { embeddingService } from './embeddings';
+import { vectorDB } from './client';
+import type { SearchHit } from './client';
+import type { SearchOptions } from './types';
+
+const DEFAULT_LIMIT = 5;
+
+export interface MeetingSearchResult {
+  meetingId: string;
+  meetingTitle: string;
+  chunkText: string;
+  chunkType: string;
+  score: number;
+  timestamp: number;
+}
+
+async function searchMeetings(
+  query: string,
+  options: SearchOptions = {},
+): Promise<MeetingSearchResult[]> {
+  const { limit = DEFAULT_LIMIT, mode = 'hybrid' } = options;
+
+  await vectorDB.initialize();
+
+  // For fulltext-only mode, we don't need embeddings
+  let embedding: number[] = [];
+  if (mode !== 'fulltext') {
+    try {
+      embedding = await embeddingService.embed(query);
+    } catch (error) {
+      console.error('[RAGSearcher] Embedding failed, falling back to fulltext:', error);
+      return searchMeetings(query, { ...options, mode: 'fulltext' });
+    }
+  }
+
+  try {
+    const hits: SearchHit[] = await vectorDB.search({
+      embedding,
+      query_text: query,
+      limit,
+      mode,
+    });
+
+    return hits.map((hit) => ({
+      meetingId: hit.meeting_id,
+      meetingTitle: hit.meeting_title,
+      chunkText: hit.chunk_text,
+      chunkType: hit.chunk_type,
+      score: hit.score,
+      timestamp: hit.timestamp,
+    }));
+  } catch (error) {
+    console.error('[RAGSearcher] Search failed:', error);
+    return [];
+  }
+}
+
+export const ragSearcher = {
+  search: searchMeetings,
+};

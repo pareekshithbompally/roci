@@ -1,0 +1,53 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "enables the default permissions",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-title",
+    "core:window:allow-close",
+    "core:window:allow-minimize",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-set-focus",
+    "core:tray:default",
+    "core:menu:default",
+    "core:path:default",
+    "notification:default",
+    "dialog:default",
+    "fs:default",
+    "fs:allow-read-file",
+    "fs:allow-write-file",
+    "fs:allow-mkdir",
+    "fs:allow-exists",
+    "fs:allow-read-dir",
+    "fs:allow-rename",
+    "fs:allow-appdata-read-recursive",
+    "fs:allow-appdata-write-recursive",
+    "fs:allow-copy-file",
+    "fs:allow-remove",
+    "fs:scope-appdata-recursive",
+    "os:default",
+    "process:default",
+    "shell:allow-open",
+    "llamacpp:default",
+    "vectordb:default",
+    "window-state:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://*:*" },
+        { "url": "http://localhost:*" },
+        { "url": "http://127.0.0.1:*" }
+      ]
+    }
+  ],
+  "platforms": [
+    "macOS",
+    "windows",
+    "linux"
+  ]
+}

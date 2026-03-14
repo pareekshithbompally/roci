@@ -1,0 +1,112 @@
+/**
+ * Recording Feature Types
+ * 
+ * Type definitions for the recording feature module
+ */
+
+import type { AudioCaptureSource } from '../../../../src/config/audio.config';
+
+export type RecordingStatus = 'idle' | 'recording' | 'paused' | 'stopped' | 'review' | 'processing';
+
+// Session-based recording types
+export type RecordingSessionStatus = 'recording' | 'paused' | 'review' | 'processing';
+
+export interface RecordingSession {
+  sessionId: string;
+  status: RecordingSessionStatus;
+  elapsedTime: number;
+  isPaused: boolean;
+  audioSource: AudioCaptureSource;
+  recordingId: string;
+  recordingFilename: string;
+  recordedFilePath: string | null;
+  recordedBlob: Blob | null;
+  audioUrl: string | null;
+  error: string | null;
+  createdAt: number;
+}
+
+export interface RecordingState {
+  status: RecordingStatus;
+  elapsedTime: number;
+  isPaused: boolean;
+  audioSource: AudioCaptureSource;
+  recordingId: string | null;
+  recordingFilename: string | null;
+  recordedFilePath: string | null;
+  recordedBlob: Blob | null;
+  audioUrl: string | null;
+  error: string | null;
+}
+
+export interface RecordingMetadata {
+  id: string;
+  filename: string;
+  duration: number;
+  size: number;
+  inputSource: AudioCaptureSource;
+  createdAt: number;
+  transcriptionId?: string;
+  summaryId?: string;
+}
+
+export interface RecordingActions {
+  startRecording: () => Promise<void>;
+  stopRecording: () => Promise<void>;
+  pauseRecording: () => Promise<void>;
+  resumeRecording: () => Promise<void>;
+  discardRecording: () => Promise<void>;
+  processRecording: () => Promise<void>;
+  abortProcessing: () => void;
+  setAudioSource: (source: AudioCaptureSource) => void;
+  resetRecording: () => void;
+}
+
+export interface RecordingContextValue extends RecordingState, RecordingActions {
+  // Computed values
+  isRecording: boolean;
+  canRecord: boolean;
+  permissionMessage: string;
+}
+
+// Session-based recording context
+export interface RecordingSessionActions {
+  startRecording: () => Promise<string>; // returns sessionId
+  stopRecording: (sessionId: string) => Promise<void>;
+  pauseRecording: (sessionId: string) => Promise<void>;
+  resumeRecording: (sessionId: string) => Promise<void>;
+  discardRecording: (sessionId: string) => Promise<void>;
+  processRecording: (sessionId: string) => Promise<void>;
+  saveLater: (sessionId: string) => Promise<void>;
+  abortProcessing: (sessionId: string) => void;
+  setAudioSource: (source: AudioCaptureSource) => void;
+}
+
+export interface RecordingSessionsContextValue extends RecordingSessionActions {
+  sessions: Map<string, RecordingSession>;
+  activeCaptureSessionId: string | null;
+  canStartNewCapture: boolean;
+  audioSource: AudioCaptureSource;
+  permissionMessage: string;
+}
+
+// Event types for recording events
+export interface RecordingStartedEvent {
+  recordingId: string;
+  filename: string;
+  source: AudioCaptureSource;
+  timestamp: number;
+}
+
+export interface RecordingStoppedEvent {
+  recordingId: string;
+  filename: string;
+  duration: number;
+  filePath: string;
+  blob: Blob;
+}
+
+export interface RecordingDiscardedEvent {
+  recordingId: string;
+  filename: string;
+}
