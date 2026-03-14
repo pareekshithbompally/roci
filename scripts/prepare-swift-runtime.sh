@@ -40,9 +40,41 @@ if [[ -z "$SWIFT_CONCURRENCY_LIB" && -n "$SWIFT_TOOLCHAIN_DIR" ]]; then
   fi
 fi
 
+# Try Xcode.app toolchain (GitHub Actions runners)
+if [[ -z "$SWIFT_CONCURRENCY_LIB" ]]; then
+  XCODE_TOOLCHAIN="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain"
+  if [[ -d "$XCODE_TOOLCHAIN" ]]; then
+    CANDIDATE="$XCODE_TOOLCHAIN/usr/lib/swift/macosx/libswift_Concurrency.dylib"
+    if [[ -f "$CANDIDATE" ]]; then
+      SWIFT_CONCURRENCY_LIB="$CANDIDATE"
+    fi
+  fi
+fi
+
+# Try xcrun to dynamically find the active toolchain
+if [[ -z "$SWIFT_CONCURRENCY_LIB" ]] && command -v xcrun >/dev/null 2>&1; then
+  XCRUN_TOOLCHAIN="$(xcrun --show-sdk-platform-path 2>/dev/null || true)"
+  if [[ -n "$XCRUN_TOOLCHAIN" ]]; then
+    # Derive toolchain lib path from SDK platform
+    XCRUN_LIB_DIR="$(dirname "$(dirname "$XCRUN_TOOLCHAIN")")/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx"
+    CANDIDATE="$XCRUN_LIB_DIR/libswift_Concurrency.dylib"
+    if [[ -f "$CANDIDATE" ]]; then
+      SWIFT_CONCURRENCY_LIB="$CANDIDATE"
+    fi
+  fi
+fi
+
 # Try Command Line Tools location
 if [[ -z "$SWIFT_CONCURRENCY_LIB" && -d "/Library/Developer/CommandLineTools" ]]; then
   CANDIDATE="/Library/Developer/CommandLineTools/usr/lib/swift/macosx/libswift_Concurrency.dylib"
+  if [[ -f "$CANDIDATE" ]]; then
+    SWIFT_CONCURRENCY_LIB="$CANDIDATE"
+  fi
+fi
+
+# Try Command Line Tools swift-5.5 compat location
+if [[ -z "$SWIFT_CONCURRENCY_LIB" && -d "/Library/Developer/CommandLineTools" ]]; then
+  CANDIDATE="/Library/Developer/CommandLineTools/usr/lib/swift-5.5/macosx/libswift_Concurrency.dylib"
   if [[ -f "$CANDIDATE" ]]; then
     SWIFT_CONCURRENCY_LIB="$CANDIDATE"
   fi
