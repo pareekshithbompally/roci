@@ -1,7 +1,7 @@
 # Kasset AI - AI Agent Instructions
 
-> **macOS desktop app for real-time voice transcription and AI-powered summarization**
-> Tauri 2.x + React 19 + TypeScript + Vite + Google Gemini AI
+> **macOS meeting intelligence app — private, local-first, with built-in general-purpose AI chat**
+> Tauri 2.x + React 19 + TypeScript + Vite | Multi-provider AI (OpenAI, Anthropic, Gemini, + 9 OpenAI-compatible)
 
 ## Architecture Overview
 
@@ -11,21 +11,24 @@ This is a **Tauri-based desktop app** with a clear separation between frontend (
 
 **Dual-layer separation:**
 - Frontend: React components + business logic in `src/` and `/services/`
-- Backend: Rust Tauri commands in `src-tauri/src/` for system-level operations (audio capture, file system, window management)
+- Backend: Rust Tauri commands in `src-tauri/src/` for system-level operations (audio capture via ScreenCaptureKit, vector DB, local LLM, window management)
 
 **Feature modules** (`src/features/*`) are the primary location for new code:
 ```
 features/
-├── chat/         # AI chat interface
+├── chat/         # AI chat interface (ChatView + ChatPanel)
 ├── recording/    # Recording controls & state
 ├── history/      # Recording history sidebar
 ├── summary/      # Summary display
 ├── transcription/# Transcript view
+├── notes/        # Meeting notes
+├── todos/        # Task management
+├── settings/     # Provider config, audio, categories, interface
 └── [feature]/
     ├── components/   # Feature components
     ├── hooks/        # Feature hooks
     ├── context/      # Feature context (optional)
-    └── index.ts      # ⚠️ ALWAYS export through here
+    └── index.ts      # Always export through here
 ```
 
 **Context Provider Hierarchy** (defined in [AppProviders.tsx](src/app/AppProviders.tsx)):
@@ -37,10 +40,17 @@ ChatProvider → RecordingProvider
 Order matters: outer providers are available to inner providers.
 
 **Services Layer** (`/services/`) handles business logic:
-- `geminiService.ts` - Gemini AI transcription & chat (uses `@google/genai`)
+- `unifiedAIService.ts` - Unified AI service routing to provider adapters
+- `adapters/` - Provider-specific adapters (OpenAI, Anthropic, Gemini, OpenAI-compatible)
+- `platform-fetch.ts` - Tauri HTTP transport (bypasses CORS via Rust reqwest)
 - `storage/` - Tauri filesystem operations for recordings, transcriptions, summaries, history
 - `tauri/` - Wrapper services for Tauri native APIs
 - `migration/` - Data migration between versions (localStorage → filesystem)
+
+**Rust Backend** (`src-tauri/`):
+- `src/audio_core.rs` - Real-time audio capture via ScreenCaptureKit (system audio + microphone)
+- `plugins/tauri-plugin-vectordb/` - sqlite-vec vector DB for meeting RAG
+- `plugins/tauri-plugin-llamacpp/` - Local LLM inference via llama.cpp
 
 ## Development Workflow
 
@@ -55,7 +65,7 @@ npm run test:watch     # Watch mode
 npx vitest tests/unit/utils.test.ts  # Single test file
 ```
 
-**⚠️ Always use `npm run tauri:dev`** for development to test Rust backend integration. Frontend-only `npm run dev` won't have access to Tauri APIs.
+**Always use `npm run tauri:dev`** for development to test Rust backend integration. Frontend-only `npm run dev` won't have access to Tauri APIs.
 
 ### Testing Setup
 - Framework: **Vitest** + **React Testing Library**
@@ -69,13 +79,13 @@ npx vitest tests/unit/utils.test.ts  # Single test file
 **Always use path aliases** defined in [tsconfig.json](tsconfig.json) and [vite.config.ts](vite.config.ts):
 
 ```typescript
-// ✅ CORRECT
+// CORRECT
 import { useApp } from '@shared/contexts/AppContext';
 import { RecordingProvider, useRecording } from '@features/recording';
 import { UI_CONFIG } from '@config/ui.config';
-import { geminiService } from '@/services/geminiService';
+import { unifiedAIService } from '@/services/unifiedAIService';
 
-// ❌ NEVER
+// NEVER
 import { useApp } from '../../../shared/contexts/AppContext';
 import { RecordButton } from '@features/recording/components/RecordButton'; // Import from index.ts!
 ```
@@ -141,22 +151,25 @@ import { windowService } from '@/services/tauri';
 await windowService.setAlwaysOnTop(true);
 ```
 
-### Gemini AI Integration
-[services/geminiService.ts](services/geminiService.ts) handles:
-- **Transcription**: `processMeetingAudio(audioBlob, categories, settings)`
-- **Chat**: `chatWithContext(messages, transcript, summary, settings)`
-- **Categorization**: Uses predefined category list from settings
+### Multi-Provider AI Architecture
+[services/unifiedAIService.ts](services/unifiedAIService.ts) routes to provider adapters:
+- **Native SDK adapters**: `gemini.adapter.ts`, `openai.adapter.ts`, `anthropic.adapter.ts`
+- **OpenAI-compatible adapter**: `openai-compat.adapter.ts` (Mistral, Groq, OpenRouter, Cohere, Azure, HuggingFace, xAI)
+- **Local**: llama.cpp (via Tauri plugin), Local Server (Ollama/LM Studio/Jan)
 
-Max audio size: 10MB (enforced in `audioUtils.ts`)
+Provider configuration is managed in Settings UI and stored encrypted at rest (AES-256-GCM).
+
+HTTP transport uses `@tauri-apps/plugin-http` (Rust reqwest) to bypass CORS — never override `globalThis.fetch`.
 
 ### Storage Architecture
-All data stored in Tauri app data directory via filesystem:
+All data stored in Tauri app data directory (`~/Library/Application Support/ai.kasset.app/`):
 - **Recordings** → `recordings/` (audio files)
 - **Transcriptions** → `transcriptions/{id}.json`
 - **Summaries** → `summaries/{id}.json`
 - **Chats** → `chats/{id}.json`
 - **History** → `history.json` (index of all recordings)
-- **Settings** → `settings.json`
+- **Settings** → `settings.json` (API keys encrypted)
+- **Vector DB** → `vectordb.sqlite` (meeting RAG via sqlite-vec)
 
 Services in [services/storage/](services/storage/) provide abstractions over Tauri file system APIs.
 
@@ -202,41 +215,12 @@ try {
 4. Add provider to [AppProviders.tsx](src/app/AppProviders.tsx) if needed
 5. Import via `@features/feature-name`
 
-## Key Global Types
-
-Defined in [types.ts](types.ts):
-
-```typescript
-enum AppStatus { IDLE, RESULTS, ERROR, CHAT }
-
-interface HistoryItem {
-  id: string;
-  title: string;
-  transcript: string;
-  summary: string;
-  categories: string[];
-  timestamp: number;
-  recordingId?: string;
-}
-
-interface AppSettings {
-  transcriptionModel: string;
-  chatModel: string;
-  apiKey?: string;
-  audioQualityPreset?: 'voice' | 'podcast' | 'music' | 'professional';
-}
-```
-
 ## Debugging
 
-**Frontend logs:**
-```typescript
-console.log('[ComponentName] Description:', value);
-```
-
-**Rust logs:** Check terminal running `npm run tauri:dev`
-
-**DevTools:** Available in Tauri dev mode (inspect element)
+- **Console logs**: Use format `[ComponentName] Message:`, value
+- **DevTools**: Available in `npm run tauri:dev` mode
+- **Rust logs**: Check terminal running `npm run tauri:dev`
+- **Package manager**: npm only (never pnpm)
 
 ---
 

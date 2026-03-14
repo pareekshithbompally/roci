@@ -29,5 +29,8 @@ src-tauri/binaries
 *.sln
 *.sw?
 
+# Internal docs and plans
+docs/
+
 # Claude Code
 .claude/

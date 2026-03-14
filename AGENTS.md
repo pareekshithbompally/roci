@@ -1,7 +1,7 @@
 # Kasset AI - AI Agent Guidelines
 
-> **macOS desktop app for real-time voice transcription and AI-powered summarization**
-> Built with **Tauri 2.x + React 19 + TypeScript + Vite** • Powered by **Google Gemini AI**
+> **macOS meeting intelligence app — private, local-first, with built-in general-purpose AI chat**
+> Built with **Tauri 2.x + React 19 + TypeScript + Vite** | Multi-provider AI (OpenAI, Anthropic, Gemini, + 9 OpenAI-compatible)
 
 ---
 
@@ -14,7 +14,7 @@ npm run tauri:dev        # Full Tauri app (recommended)
 
 # Build
 npm run build            # Production frontend build
-npm run tauri:build      # Production Tauri app bundle
+npm run tauri:build      # Production Tauri app bundle (.dmg)
 
 # Testing
 npm test                 # Run all tests
@@ -33,20 +33,36 @@ kasset-ai/
 ├── types.ts                     # Global types (AppStatus, HistoryItem, etc.)
 ├── src/
 │   ├── app/                     # App bootstrap (App.tsx, AppProviders.tsx)
-│   ├── features/                # ⭐ FEATURE MODULES (use for new code)
+│   ├── features/                # FEATURE MODULES (use for new code)
 │   │   └── [feature]/
 │   │       ├── components/      # Feature UI components
 │   │       ├── hooks/           # Feature hooks
 │   │       ├── context/         # Feature context (optional)
 │   │       ├── types/           # Feature types
-│   │       └── index.ts         # ⭐ Public exports (ALWAYS import from here)
+│   │       └── index.ts         # Public exports (ALWAYS import from here)
 │   ├── shared/                  # Cross-feature code (contexts, hooks, utils, types)
 │   └── config/                  # App configuration (ui, audio, shortcuts, etc.)
-├── services/                    # Business logic (geminiService, storage, tauri, migration)
+├── services/                    # Business logic layer
+│   ├── unifiedAIService.ts      # Unified AI routing to provider adapters
+│   ├── adapters/                # Provider adapters (OpenAI, Anthropic, Gemini, OpenAI-compat)
+│   ├── platform-fetch.ts        # Tauri HTTP transport (CORS bypass via Rust reqwest)
+│   ├── storage/                 # Tauri filesystem operations (encrypted settings)
+│   ├── tauri/                   # Tauri native APIs (window, tray, notifications)
+│   ├── providers/               # Provider configuration and defaults
+│   └── migration/               # Data migration between versions
 ├── tests/                       # Test files (Vitest + RTL)
+├── scripts/                     # Build helpers (Swift runtime bundling)
 └── src-tauri/                   # Rust backend
+    ├── src/
+    │   ├── audio_core.rs        # ScreenCaptureKit audio capture (system + mic)
+    │   ├── window.rs            # Window management
+    │   ├── shortcuts.rs         # Global shortcuts
+    │   └── autostart.rs         # Login item management
+    └── plugins/
+        ├── tauri-plugin-vectordb/   # sqlite-vec vector DB (meeting RAG)
+        └── tauri-plugin-llamacpp/   # Local LLM inference
 
-⚠️ LEGACY FOLDERS (DO NOT USE):
+LEGACY FOLDERS (DO NOT USE):
 /components/, /hooks/, /utils/, /consts/ → Use src/features/* or src/shared/* instead
 ```
 
@@ -63,7 +79,7 @@ kasset-ai/
 ```typescript
 // Good
 import type { AppSettings } from '@/types';
-import { geminiService } from '@/services/geminiService';
+import { unifiedAIService } from '@/services/unifiedAIService';
 
 // Bad
 import { AppSettings } from '@/types'; // Should be 'import type'
@@ -75,31 +91,26 @@ import { AppSettings } from '@/types'; // Should be 'import type'
 import { useApp } from '@shared/contexts/AppContext';        // Shared contexts
 import { RecordingProvider } from '@features/recording';     // Feature exports
 import { UI_CONFIG } from '@config/ui.config';               // Config files
-import { geminiService } from '@/services/geminiService';    // Root-level services
+import { unifiedAIService } from '@/services/unifiedAIService'; // Root-level services
 import { ProcessedResult } from '@/types';                   // Global types
 ```
 
 **Available Aliases**: `@/*`, `@app/*`, `@features/*`, `@shared/*`, `@config/*`, `@assets/*`, `@core/*`, `@platform/*`
 
 **Feature Module Rules**:
-- ✅ Import from feature's `index.ts`: `import { ChatPanel } from '@features/chat'`
-- ❌ Never import internal files: `import { ChatPanel } from '@features/chat/components/ChatPanel'`
+- Import from feature's `index.ts`: `import { ChatPanel } from '@features/chat'`
+- Never import internal files: `import { ChatPanel } from '@features/chat/components/ChatPanel'`
 
 ### Naming Conventions
 - **Components**: PascalCase - `SettingsPanel`, `ModelSettingsPanel`
 - **Hooks**: camelCase with `use` prefix - `useApp`, `useRecordingContext`
-- **Services**: camelCase with `Service` suffix - `geminiService`, `pathsService`
+- **Services**: camelCase with `Service` suffix - `unifiedAIService`, `pathsService`
 - **Config constants**: UPPER_SNAKE_CASE - `UI_CONFIG`, `MAX_AUDIO_SIZE_BYTES`
 - **Types/Interfaces**: PascalCase - `AppSettings`, `HistoryItem`, `ProcessedResult`
 - **Files**: kebab-case or PascalCase matching export - `ui.config.ts`, `SettingsPanel.tsx`
 
 ### Component Structure
 ```typescript
-/**
- * Component documentation
- * Brief description of purpose and usage
- */
-
 import React, { useCallback, useState } from 'react';
 import type { ComponentProps } from './types';
 import { useApp } from '@shared/contexts/AppContext';
@@ -164,16 +175,65 @@ Use consistent format: `console.log('[ComponentName] Description:', value)`
 | `ThemeContext` | `useTheme()` | Theme preferences |
 
 ### Services (`/services/`)
-- `geminiService.ts` - Gemini AI transcription & chat
-- `storage/` - Tauri file system operations
+- `unifiedAIService.ts` - Routes AI requests to the correct provider adapter
+- `adapters/` - Provider-specific implementations (Gemini, OpenAI, Anthropic, OpenAI-compatible)
+- `platform-fetch.ts` - CORS-free HTTP via Tauri plugin-http (Rust reqwest)
+- `storage/` - Tauri file system operations (settings encrypted via AES-256-GCM)
 - `tauri/` - Tauri native APIs (window, tray, notifications)
 - `migration/` - Data migration between versions
+- `meetingReferenceService.ts` - Meeting context for RAG
 
 ### Config Files (`src/config/`)
 - `ui.config.ts` - UI constants, spacing, colors, breakpoints
 - `audio.config.ts` - Audio settings, quality presets
 - `shortcuts.config.ts` - Keyboard shortcuts
 - `app.config.ts` - App metadata
+
+---
+
+## Multi-Provider AI Architecture
+
+### Supported Providers
+| Provider | Adapter | Transport |
+|----------|---------|-----------|
+| Google Gemini | `gemini.adapter.ts` (native `@google/genai`) | Tauri HTTP |
+| OpenAI | `openai.adapter.ts` (native `openai` SDK) | Tauri HTTP |
+| Anthropic | `anthropic.adapter.ts` (native `@anthropic-ai/sdk`) | Tauri HTTP |
+| Mistral, Groq, OpenRouter, Cohere, Azure, HuggingFace, xAI | `openai-compat.adapter.ts` | Tauri HTTP |
+| Llama.cpp | Tauri plugin (Rust) | Local |
+| Local Server (Ollama, LM Studio, Jan) | `openai-compat.adapter.ts` | Direct fetch |
+
+### CORS Transport
+Browser `fetch()` causes CORS failures for most providers. All SDK HTTP goes through `@tauri-apps/plugin-http` (Rust reqwest). Key rules:
+- **Never override `globalThis.fetch`** — breaks Vite HMR and WebView internals
+- Inject via SDK `fetch:` parameter (OpenAI, Anthropic support this)
+- Clear client cache after changing fetch config: `clearClientCache()`
+
+### Provider Configuration
+- Configured in Settings UI, stored in `settings.json`
+- API keys encrypted at rest (AES-256-GCM, device-specific key)
+- Provider definitions in `consts/providers.ts`
+
+---
+
+## Audio Capture (Rust Backend)
+
+Uses **ScreenCaptureKit** (no third-party drivers like BlackHole needed):
+- Captures at 48kHz native SCK rate, resamples to 16kHz for output
+- Three modes: System audio, Microphone, System + Microphone
+- 32-bit float, little-endian, mono
+- Output: WAV format stored in app data directory
+- Key file: `src-tauri/src/audio_core.rs`
+
+---
+
+## Meeting RAG (Vector Search)
+
+- **sqlite-vec** via Rust plugin `tauri-plugin-vectordb`
+- Hybrid search: KNN vector + FTS5 full-text, merged via Reciprocal Rank Fusion
+- Embeddings: WASM-side via Transformers.js (all-MiniLM-L6-v2, 384-dim)
+- Chunking: Sentence-boundary splitting with overlap (`extensions/rag/chunker.ts`)
+- Staleness: SHA-256 content hashing — only re-indexes changed meetings
 
 ---
 
@@ -207,23 +267,23 @@ describe('ComponentName', () => {
 
 ## Critical Rules
 
-### ✅ DO
+### DO
 - Use `src/features/` for new functionality
 - Import via path aliases (`@features/`, `@shared/`, etc.)
 - Export public APIs through feature's `index.ts`
 - Use existing contexts for state management
 - Use Tailwind + `UI_CONFIG` for styling
-- Add JSDoc comments for complex components/functions
 - Handle errors with proper types (`error: unknown`)
-- Add tests for new functionality
+- Use npm as package manager (never pnpm)
 
-### ❌ DON'T
+### DON'T
 - Add files to legacy folders (`/components/`, `/hooks/`, `/utils/`, `/consts/`)
 - Create new global state without updating `AppProviders.tsx`
 - Use inline styles or CSS modules
 - Import internal feature files directly (use `index.ts`)
 - Use `any` type without strong justification
 - Use relative imports (`../../../`) - use path aliases instead
+- Override `globalThis.fetch` in Tauri WebView
 - Skip error handling in async functions
 
 ---

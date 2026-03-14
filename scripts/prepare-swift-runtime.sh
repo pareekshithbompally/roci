@@ -6,7 +6,15 @@ TAURI_DIR="$ROOT_DIR/src-tauri"
 TARGET_DIR="${CARGO_TARGET_DIR:-$TAURI_DIR/target}"
 APP_BINARY="Kasset"
 
-BIN_PATH="$TARGET_DIR/release/$APP_BINARY"
+# Support cross-compilation targets (e.g. --target aarch64-apple-darwin)
+# Check target-specific path first, then fallback to default
+if [[ -n "${TAURI_TARGET_TRIPLE:-}" && -f "$TARGET_DIR/$TAURI_TARGET_TRIPLE/release/$APP_BINARY" ]]; then
+  BIN_PATH="$TARGET_DIR/$TAURI_TARGET_TRIPLE/release/$APP_BINARY"
+elif [[ -f "$TARGET_DIR/aarch64-apple-darwin/release/$APP_BINARY" ]]; then
+  BIN_PATH="$TARGET_DIR/aarch64-apple-darwin/release/$APP_BINARY"
+else
+  BIN_PATH="$TARGET_DIR/release/$APP_BINARY"
+fi
 DESTINATION="$TARGET_DIR/swift-runtime"
 
 if [[ ! -f "$BIN_PATH" ]]; then
