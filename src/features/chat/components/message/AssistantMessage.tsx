@@ -1,7 +1,6 @@
 import React, { memo, useMemo } from 'react';
 import { AnimatedProviderIcon } from '../AnimatedProviderIcon';
 import { StreamingMarkdown } from '../StreamingMarkdown';
-import { ToolActivityIndicator } from '../ToolActivityIndicator';
 import { useStreamingText } from '@features/chat/stores/streamingStore';
 import { getProviderTitle } from '@/utils/providerUtils';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
@@ -79,13 +78,38 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   suggestions, onSuggestionClick, isLastMessage,
   provider, model, state,
   tokenCount, tokensPerSecond,
-  toolActivity, preparingTools,
+  toolActivity, meetingCitations,
   isCopied, actions, citationHandlers,
   webCitations, inlineCitations,
 }) => {
   const isLoading = state === 'loading';
   const isStreaming = state === 'streaming';
   const isComplete = state === 'complete';
+
+  // Lazy migration: synthesize tool_call parts from legacy toolActivity data
+  const effectiveParts = useMemo(() => {
+    const base = parts || [];
+    if (base.some(p => p.type === 'tool_call')) return base;
+    if (!toolActivity?.calls?.length) return base;
+    return [
+      ...base,
+      ...toolActivity.calls.map((c, index) => ({
+        type: 'tool_call' as const,
+        toolCallId: `legacy-${c.toolName}-${index}`,
+        toolName: c.toolName,
+        arguments: {} as Record<string, unknown>,
+        status: 'complete' as const,
+        result: {
+          content: c.resultSummary || 'Done',
+          isError: false,
+          executionMs: c.executionMs,
+        },
+      })),
+    ];
+  }, [parts, toolActivity]);
+
+  // Merge meetingCitations from both new and legacy sources
+  const effectiveMeetingCitations = meetingCitations || toolActivity?.citations;
 
   return (
     <div className="w-full min-h-[60px]">
@@ -96,9 +120,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
           {isLoading
             ? provider === 'llamacpp'
               ? `Loading ${model || 'model'} into memory...`
-              : preparingTools
-                ? 'Preparing tools...'
-                : 'Working on it...'
+              : 'Working on it...'
             : (
             <>
               {getProviderTitle(provider)}
@@ -107,9 +129,6 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
           )}
         </span>
       </div>
-
-      {/* Tool Activity Indicator — shown while tools are executing */}
-      {!isComplete && <ToolActivityIndicator />}
 
       {/* STREAMING or COMPLETE STATE */}
       {(isStreaming || isComplete) && (
@@ -121,7 +140,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
             ) : (
               <CompletedContent
                 text={text}
-                parts={parts}
+                parts={effectiveParts}
                 messageId={id}
                 webCitations={webCitations}
                 inlineCitations={inlineCitations}
@@ -140,7 +159,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
               tokenCount={tokenCount}
               tokensPerSecond={tokensPerSecond}
               actions={actions}
-              toolActivity={toolActivity}
+              meetingCitations={effectiveMeetingCitations}
               suggestions={suggestions}
               onSuggestionClick={onSuggestionClick}
               citationHandlers={citationHandlers}

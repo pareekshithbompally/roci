@@ -7,7 +7,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({
   id, role, text, parts, timestamp, suggestions, onSuggestionClick,
   isLastMessage = false, provider, model,
   state = 'complete', tokenCount, tokensPerSecond,
-  toolActivity, preparingTools = false,
+  toolActivity, meetingCitations,
   isCopied, actions, citationHandlers,
   webCitations, inlineCitations,
 }) => {
@@ -23,7 +23,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({
           suggestions={suggestions} onSuggestionClick={onSuggestionClick}
           isLastMessage={isLastMessage} provider={provider} model={model}
           state={state} tokenCount={tokenCount} tokensPerSecond={tokensPerSecond}
-          toolActivity={toolActivity} preparingTools={preparingTools}
+          toolActivity={toolActivity} meetingCitations={meetingCitations}
           isCopied={isCopied} actions={actions} citationHandlers={citationHandlers}
           webCitations={webCitations} inlineCitations={inlineCitations}
         />
@@ -42,8 +42,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({
     prev.suggestions === next.suggestions &&
     prev.tokenCount === next.tokenCount &&
     prev.tokensPerSecond === next.tokensPerSecond &&
-    prev.preparingTools === next.preparingTools &&
     prev.toolActivity === next.toolActivity &&
+    prev.meetingCitations === next.meetingCitations &&
     prev.actions === next.actions &&
     prev.citationHandlers === next.citationHandlers &&
     prev.webCitations === next.webCitations &&

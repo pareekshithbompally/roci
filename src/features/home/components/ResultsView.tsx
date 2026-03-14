@@ -171,13 +171,9 @@ export const ResultsView: React.FC = () => {
     downloadFile(`${filenameBase}_${scope}.${ext}`, content, mime);
   };
 
-  // Combine action items with completion status
+  // Combine AI action items with up-to-date completion status
   const getActionItemsWithStatus = () => {
-    if (!result.structuredSummary?.actionItems) return [];
-    return result.structuredSummary.actionItems.map((item) => ({
-      ...item,
-      completed: meeting.actionItemCompletions[item.id] ?? item.completed,
-    }));
+    return meeting.getActionItemsWithStatus();
   };
 
   const getUserTodos = () => {
@@ -317,8 +313,7 @@ export const ResultsView: React.FC = () => {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-parchment-900 dark:bg-night-100" />
               )}
             </button>
-            {result?.structuredSummary?.actionItems &&
-              result.structuredSummary.actionItems.length > 0 && (
+            {meeting.aiTodos.length > 0 && (
                 <button
                   onClick={() => setActiveResultTab('todo')}
                   className={`px-3 py-2 text-sm font-semibold transition-all relative ${

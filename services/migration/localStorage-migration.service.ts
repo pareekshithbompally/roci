@@ -3,8 +3,8 @@
  * Migrates data from localStorage to Tauri storage
  */
 
-import { settingsService, historyService } from '../storage';
-import type { AppSettings, HistoryEntry } from '../storage/types';
+import { settingsService } from '../storage';
+import type { AppSettings } from '../storage/types';
 
 class LocalStorageMigrationService {
   private readonly MIGRATION_KEY = 'kasset_ai_migrated';
@@ -119,35 +119,11 @@ class LocalStorageMigrationService {
 
   /**
    * Migrate history from localStorage
+   * Note: Legacy historyService removed — history now uses meetingIndexRepository.
+   * No localStorage history data exists in pre-release builds, so this is a no-op.
    */
   private async migrateHistory(): Promise<void> {
-    try {
-      const historyKey = 'kasset_history';
-      const historyData = localStorage.getItem(historyKey);
-
-      if (historyData) {
-        const oldHistory = JSON.parse(historyData);
-        
-        if (Array.isArray(oldHistory) && oldHistory.length > 0) {
-          // Convert old format to new format if needed
-          const newHistory: HistoryEntry[] = oldHistory.map(item => ({
-            id: item.id || crypto.randomUUID(),
-            type: item.type || 'recording',
-            title: item.title || 'Untitled',
-            description: item.description,
-            recordingId: item.recordingId,
-            createdAt: item.createdAt || new Date().toISOString(),
-            updatedAt: item.updatedAt || new Date().toISOString(),
-            version: 1,
-          }));
-
-          await historyService.save(newHistory);
-          console.log('[Migration] Migrated', newHistory.length, 'history entries');
-        }
-      }
-    } catch (error) {
-      console.warn('[Migration] Failed to migrate history:', error);
-    }
+    // No-op: legacy history migration removed
   }
 
   /**

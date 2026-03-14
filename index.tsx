@@ -7,7 +7,6 @@ import './index.css';
 import './src/styles/syntax-highlight.css';
 import './src/styles/markdown.css';
 import './src/styles/glass.css';
-import './src/styles/tool-activity.css';
 import 'sonner/dist/styles.css';
 
 // Apply platform class to <html> for CSS targeting (enables glass.css rules)

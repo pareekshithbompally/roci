@@ -5,7 +5,7 @@
  *   { "response": "markdown text...", "suggestions": [...], "title": "..." }
  *
  * The extractor is a lightweight state machine:
- * - WAITING: scanning for `"response":"`
+ * - WAITING: scanning for `"response"` followed by `:` and `"`  (whitespace-tolerant)
  * - EXTRACTING: outputting characters from the response value, handling JSON escapes
  * - DONE: hit the closing `"` of the response value
  *
@@ -33,13 +33,13 @@ export class JsonStreamExtractor {
     this.buffer += chunk;
 
     if (this.state === 'waiting') {
-      const marker = '"response":"';
-      const idx = this.buffer.indexOf(marker);
-      if (idx === -1) return '';
+      // Whitespace-tolerant: matches "response":"  and  "response" : "  etc.
+      const match = this.buffer.match(/"response"\s*:\s*"/);
+      if (!match || match.index === undefined) return '';
 
       // Found the start — switch to extracting, process remainder
       this.state = 'extracting';
-      this.buffer = this.buffer.slice(idx + marker.length);
+      this.buffer = this.buffer.slice(match.index + match[0].length);
     }
 
     if (this.state === 'extracting') {

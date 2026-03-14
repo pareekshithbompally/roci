@@ -6,6 +6,7 @@ export type { MeetingCitation, WebCitation, InlineCitationSpan };
 export interface ActionItem {
   id: string;
   text: string;
+  owner?: string;
   dueDate?: string;
   completed: boolean;
 }
@@ -17,9 +18,15 @@ export interface Note {
 }
 
 export interface StructuredSummary {
-  tldr?: string;
-  notes?: string;
+  overview?: string;
+  keyDiscussionPoints?: string[];
+  decisionsMade?: string[];
   actionItems?: ActionItem[];
+  nextSteps?: string[];
+  /** @deprecated Use overview instead */
+  tldr?: string;
+  /** @deprecated Use keyDiscussionPoints/decisionsMade/nextSteps instead */
+  notes?: string;
 }
 
 export interface ProcessedResult {
@@ -75,7 +82,19 @@ export type ChatPart =
   | { type: 'image'; mimeType: string; source: MediaSource; alt?: string }
   | { type: 'audio'; mimeType: string; source: MediaSource; durationMs?: number }
   | { type: 'video'; mimeType: string; source: MediaSource; alt?: string }
-  | { type: 'document'; mimeType: string; source: MediaSource; fileName: string };
+  | { type: 'document'; mimeType: string; source: MediaSource; fileName: string }
+  | {
+      type: 'tool_call';
+      toolCallId: string;
+      toolName: string;
+      arguments: Record<string, unknown>;
+      status: 'calling' | 'complete' | 'error';
+      result?: {
+        content: string;
+        isError: boolean;
+        executionMs?: number;
+      };
+    };
 
 export interface ChatMessage {
   id: string;
@@ -103,6 +122,8 @@ export interface ChatMessage {
     /** Citation cards gathered from search_meetings tool calls (UI-only) */
     citations?: MeetingCitation[];
   };
+  /** Meeting citations gathered from tool calls */
+  meetingCitations?: MeetingCitation[];
   /** Web search citations attached to this response */
   webCitations?: WebCitation[];
   /** Inline citation spans (char offsets → webCitations indices) */
@@ -137,6 +158,80 @@ export interface AppSettings {
   audioQualityPreset?: 'voice' | 'podcast' | 'music' | 'professional';
   defaultAudioSource?: AudioCaptureSource;
   categories?: string[];
+}
+
+// ============ New Data Layer Types ============
+
+/** Lightweight entry for sidebar listing — stored in meetings/index.json */
+export interface MeetingIndexEntry {
+  id: string;
+  title: string;
+  categories: string[];
+  recordingFileName?: string;
+  inputSource?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Structured summary — matches LLM JSON schema directly */
+export interface MeetingSummary {
+  overview: string;
+  keyDiscussionPoints: string[];
+  decisionsMade: string[];
+  actionItems: { text: string; owner?: string; dueDate?: string }[];
+  nextSteps: string[];
+}
+
+/** Per-meeting transcript — stored in meetings/{id}/transcript.json */
+export interface TranscriptData {
+  text: string;
+  language?: string;
+  model?: string;
+  createdAt: string;
+}
+
+/** Per-meeting recording metadata — stored in meetings/{id}/recording.json */
+export interface RecordingMeta {
+  filename: string;
+  duration?: number;
+  inputSource?: string;
+  createdAt: string;
+}
+
+/** Todo with source tag — stored in meetings/{id}/todos.json */
+export interface TodoEntry {
+  id: string;
+  text: string;
+  owner?: string;
+  dueDate?: string;
+  completed: boolean;
+  source: 'ai' | 'user';
+  createdAt: string;
+}
+
+/** Note — stored in meetings/{id}/notes.json */
+export interface NoteEntry {
+  id: string;
+  text: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Full meeting detail (lazy-loaded) */
+export interface MeetingDetail {
+  index: MeetingIndexEntry;
+  transcript?: TranscriptData;
+  summary?: MeetingSummary;
+  recording?: RecordingMeta;
+  notes: NoteEntry[];
+  todos: TodoEntry[];
+}
+
+/** Chat index entry — stored in chats/index.json */
+export interface ChatIndexEntry {
+  id: string;
+  title: string;
+  lastMessageAt: number;
 }
 
 export const AVAILABLE_MODELS = [

@@ -1,6 +1,7 @@
 import React from 'react';
 import { StreamingMarkdown } from '../StreamingMarkdown';
 import { MediaPartRenderer } from '../MediaPartRenderer';
+import ToolCallBlock from './ToolCallBlock';
 import type { ChatPart, WebCitation } from '@/types';
 
 interface PartsListProps {
@@ -29,6 +30,9 @@ const PartsList: React.FC<PartsListProps> = ({ parts, messageId, streaming, proc
             webCitations={webCitations}
           />
         );
+      }
+      if (part.type === 'tool_call') {
+        return <ToolCallBlock key={part.toolCallId} part={part} />;
       }
       return <MediaPartRenderer key={index} part={part} />;
     })}

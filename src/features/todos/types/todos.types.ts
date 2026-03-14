@@ -12,6 +12,7 @@ export interface Todo {
   completed: boolean;
   meetingId: string;
   dueDate?: string;
+  source?: 'ai' | 'user';
   priority?: TodoPriority;
   createdAt: string;
   updatedAt: string;

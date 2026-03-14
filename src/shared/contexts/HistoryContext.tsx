@@ -1,15 +1,14 @@
 /**
  * History Context
- * 
+ *
  * Manages history list, search, filtering, and history item operations.
+ * Uses meeting index repository for persistence (meetings/index.json).
  */
 
-import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode, useEffect } from 'react';
-import type { HistoryItem } from '@/types';
-import { isTauriEnvironment } from '@/services/tauri';
-import { historyService } from '@/services/storage';
-import { UI_CONFIG } from '@config/ui.config';
-
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
+import type { HistoryItem, MeetingIndexEntry } from '@/types';
+import { meetingIndexRepository } from '@/services/repositories';
+import { meetingService } from '@/services/meeting.service';
 interface HistoryState {
   /** All history items */
   items: HistoryItem[];
@@ -51,8 +50,6 @@ interface HistoryContextValue extends HistoryState {
   removeCategory: (category: string) => void;
   /** Load history from storage */
   loadHistory: () => Promise<void>;
-  /** Save history to storage */
-  saveHistory: (items: HistoryItem[]) => Promise<void>;
   /** Add item to history */
   addToHistory: (item: HistoryItem) => Promise<void>;
   /** Rename a history item */
@@ -87,15 +84,19 @@ const initialState: HistoryState = {
 
 const HistoryContext = createContext<HistoryContextValue | null>(null);
 
-// Helper to get context snippet for search results
-const getContextSnippet = (text: string, query: string) => {
-  if (!text || !query.trim()) return '';
-  const index = text.toLowerCase().indexOf(query.toLowerCase());
-  if (index === -1) return text.slice(0, UI_CONFIG.content.snippetLength);
-  const start = Math.max(0, index - UI_CONFIG.content.contextBefore);
-  const end = Math.min(text.length, index + query.length + UI_CONFIG.content.contextAfter);
-  return (start > 0 ? '...' : '') + text.slice(start, end) + (end < text.length ? '...' : '');
-};
+/** Convert MeetingIndexEntry → HistoryItem (lightweight — no transcript/summary) */
+function indexEntryToHistoryItem(entry: MeetingIndexEntry): HistoryItem {
+  return {
+    id: entry.id,
+    title: entry.title,
+    categories: entry.categories,
+    recordingFileName: entry.recordingFileName,
+    inputSource: entry.inputSource as HistoryItem['inputSource'],
+    timestamp: new Date(entry.createdAt).getTime(),
+    transcript: '',
+    summary: '',
+  };
+}
 
 interface HistoryProviderProps {
   children: ReactNode;
@@ -104,120 +105,74 @@ interface HistoryProviderProps {
 export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) => {
   const [state, setState] = useState<HistoryState>(initialState);
 
-  // Computed filtered history
+  // Computed filtered history — searches title and categories from index.
+  // Full-text content search (transcript/summary) would require async loading
+  // of each meeting's data — TODO: implement async content search if needed.
   const filteredItems = useMemo(() => {
     const { items, searchQuery, selectedCategory } = state;
-    
+
     if (!searchQuery && !selectedCategory) return items;
 
     const q = searchQuery.toLowerCase();
 
     return items
-      .map(h => {
+      .filter(h => {
         // Filter by category if selected
-        if (selectedCategory && !h.categories.includes(selectedCategory)) return null;
+        if (selectedCategory && !h.categories.includes(selectedCategory)) return false;
 
-        // If no search query, just return the item
-        if (!q) return h;
+        // If no search query, category match is enough
+        if (!q) return true;
 
-        const titleMatch = h.title.toLowerCase().includes(q);
-        const summaryMatch = h.summary.toLowerCase().includes(q);
-        const transcriptMatch = h.transcript.toLowerCase().includes(q);
-
-        if (titleMatch || summaryMatch || transcriptMatch) {
-          let matchContext: string | undefined;
-          let matchType: string | undefined;
-
-          if (!titleMatch) {
-            if (summaryMatch) {
-              matchContext = getContextSnippet(h.summary, q);
-              matchType = 'summary';
-            } else if (transcriptMatch) {
-              matchContext = getContextSnippet(h.transcript, q);
-              matchType = 'transcript';
-            }
-          }
-          return { ...h, matchContext, matchType };
-        }
-        return null;
-      })
-      .filter(Boolean) as FilteredHistoryItem[];
+        // Search title and categories
+        return h.title.toLowerCase().includes(q)
+          || h.categories.some(c => c.toLowerCase().includes(q));
+      }) as FilteredHistoryItem[];
   }, [state.items, state.searchQuery, state.selectedCategory]);
 
   // Load history from storage
   const loadHistory = useCallback(async () => {
     setState(prev => ({ ...prev, isLoading: true }));
     try {
-      if (isTauriEnvironment()) {
-        const result = await historyService.load();
-        if (result.success && result.data) {
-          setState(prev => ({
-            ...prev,
-            items: result.data || [],
-            isLoading: false,
-          }));
-        }
-      } else {
-        const stored = localStorage.getItem('system_listen_history_v2');
-        if (stored) {
-          setState(prev => ({
-            ...prev,
-            items: JSON.parse(stored),
-            isLoading: false,
-          }));
-        }
-      }
+      const indexEntries = await meetingIndexRepository.loadIndex();
+      const items = indexEntries.map(indexEntryToHistoryItem);
+      setState(prev => ({ ...prev, items, isLoading: false }));
     } catch (error) {
       console.error('[HistoryContext] Error loading history:', error);
       setState(prev => ({ ...prev, isLoading: false }));
     }
   }, []);
 
-  // Save history to storage
-  const saveHistory = useCallback(async (items: HistoryItem[]) => {
-    setState(prev => ({ ...prev, items }));
-    
-    try {
-      if (isTauriEnvironment()) {
-        await historyService.save(items);
-      } else {
-        localStorage.setItem('system_listen_history_v2', JSON.stringify(items));
-      }
-    } catch (error) {
-      console.error('[HistoryContext] Error saving history:', error);
-    }
-  }, []);
-
   // Add to history
   const addToHistory = useCallback(async (item: HistoryItem) => {
-    const newItems = [item, ...state.items];
-    await saveHistory(newItems);
-  }, [state.items, saveHistory]);
+    try {
+      const now = new Date().toISOString();
+      await meetingIndexRepository.addToIndex({
+        id: item.id,
+        title: item.title,
+        categories: item.categories,
+        recordingFileName: item.recordingFileName,
+        inputSource: item.inputSource,
+        createdAt: now,
+        updatedAt: now,
+      });
+      setState(prev => ({ ...prev, items: [item, ...prev.items] }));
+    } catch (error) {
+      console.error('[HistoryContext] Error adding to history:', error);
+    }
+  }, []);
 
   // Rename history item
   const renameItem = useCallback(async (itemId: string, newTitle: string): Promise<boolean> => {
     if (!newTitle.trim()) return false;
 
     try {
-      const updatedItems = state.items.map(item =>
-        item.id === itemId ? { ...item, title: newTitle } : item
-      );
-
-      if (isTauriEnvironment()) {
-        const historyResult = await historyService.load();
-        if (historyResult.success && historyResult.data) {
-          const updated = historyResult.data.map(item =>
-            item.id === itemId ? { ...item, title: newTitle } : item
-          );
-          await historyService.save(updated);
-        }
-      } else {
-        localStorage.setItem('system_listen_history_v2', JSON.stringify(updatedItems));
-      }
+      await meetingIndexRepository.updateInIndex(itemId, { title: newTitle });
 
       setState(prev => ({
         ...prev,
-        items: updatedItems,
+        items: prev.items.map(item =>
+          item.id === itemId ? { ...item, title: newTitle } : item
+        ),
         renameItemId: null,
         renameValue: '',
       }));
@@ -227,30 +182,25 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
       console.error('[HistoryContext] Error renaming item:', error);
       return false;
     }
-  }, [state.items]);
+  }, []);
 
   // Update history item in-place
   const updateItem = useCallback(async (itemId: string, updates: Partial<HistoryItem>): Promise<boolean> => {
     try {
-      const updatedItems = state.items.map(item =>
-        item.id === itemId ? { ...item, ...updates } : item
-      );
-
-      if (isTauriEnvironment()) {
-        const historyResult = await historyService.load();
-        if (historyResult.success && historyResult.data) {
-          const updated = historyResult.data.map(item =>
-            item.id === itemId ? { ...item, ...updates } : item
-          );
-          await historyService.save(updated);
-        }
-      } else {
-        localStorage.setItem('system_listen_history_v2', JSON.stringify(updatedItems));
+      // Update index with index-relevant fields only
+      const indexUpdates: Partial<MeetingIndexEntry> = {};
+      if (updates.title) indexUpdates.title = updates.title;
+      if (updates.categories) indexUpdates.categories = updates.categories;
+      if (updates.recordingFileName) indexUpdates.recordingFileName = updates.recordingFileName;
+      if (Object.keys(indexUpdates).length > 0) {
+        await meetingIndexRepository.updateInIndex(itemId, indexUpdates);
       }
 
       setState(prev => ({
         ...prev,
-        items: updatedItems,
+        items: prev.items.map(item =>
+          item.id === itemId ? { ...item, ...updates } : item
+        ),
       }));
 
       return true;
@@ -258,23 +208,16 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
       console.error('[HistoryContext] Error updating item:', error);
       return false;
     }
-  }, [state.items]);
+  }, []);
 
   // Delete history item
   const deleteItem = useCallback(async (itemId: string): Promise<boolean> => {
     try {
-      const updatedItems = state.items.filter(item => item.id !== itemId);
-
-      if (isTauriEnvironment()) {
-        await historyService.remove(itemId);
-        historyService.clearCache();
-      } else {
-        localStorage.setItem('system_listen_history_v2', JSON.stringify(updatedItems));
-      }
+      await meetingService.deleteMeeting(itemId);
 
       setState(prev => ({
         ...prev,
-        items: updatedItems,
+        items: prev.items.filter(item => item.id !== itemId),
         deleteConfirmId: null,
         menuOpenId: null,
       }));
@@ -284,7 +227,7 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
       console.error('[HistoryContext] Error deleting item:', error);
       return false;
     }
-  }, [state.items]);
+  }, []);
 
   // Simple state setters
   const setSearchQuery = useCallback((query: string) => {
@@ -352,7 +295,6 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
     addCategory,
     removeCategory,
     loadHistory,
-    saveHistory,
     addToHistory,
     renameItem,
     updateItem,
@@ -373,7 +315,7 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
 
 /**
  * useHistory Hook
- * 
+ *
  * Access history state and operations.
  */
 export const useHistory = (): HistoryContextValue => {

@@ -29,7 +29,6 @@ import { isTauriEnvironment } from '@/services/tauri';
 import {
   initializeStorage,
   settingsService,
-  historyService,
   pathsService,
 } from '@/services/storage';
 import { runMigrations } from '@/services/migration';

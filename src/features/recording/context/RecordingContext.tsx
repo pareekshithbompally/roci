@@ -15,7 +15,8 @@ import { useToast } from '../../../shared/contexts/ToastContext';
 import type { AudioCaptureSource } from '../../../../src/config/audio.config';
 import { isTauriEnvironment, trayService } from '../../../../services/tauri';
 import { coreAudioService } from '../../../../services/coreAudio.service';
-import { recordingsService, transcriptionsService, summariesService } from '../../../../services/storage';
+import { recordingsService } from '../../../../services/storage';
+import { transcriptionService } from '../../../../services/transcription.service';
 import { StorageConfig, generateRecordingFilename, getRecordingIdFromFilename } from '../../../../src/config/storage.config';
 import { unifiedAIService } from '../../../../services/unifiedAIService';
 import type {
@@ -496,29 +497,33 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           console.warn('[RecordingContext] Failed to register recording:', recordingRegistration.error);
         }
 
-        const transcriptionResult = await transcriptionsService.saveTranscription(
-          recordingId,
-          data.transcript,
-          { model: settings.transcriptionModel }
-        );
-        transcriptionId = transcriptionResult.data?.id;
+        // Build MeetingSummary from structured result
+        const meetingSummary = {
+          overview: data.structuredSummary?.overview || data.summary,
+          keyDiscussionPoints: data.structuredSummary?.keyDiscussionPoints || [],
+          decisionsMade: data.structuredSummary?.decisionsMade || [],
+          actionItems: (data.structuredSummary?.actionItems || []).map((a: any) => ({
+            text: a.text,
+            owner: a.owner,
+            dueDate: a.dueDate,
+          })),
+          nextSteps: data.structuredSummary?.nextSteps || [],
+        };
 
-        const summaryResult = await summariesService.saveSummary(
-          recordingId,
-          transcriptionId || recordingId,
-          data.summary,
-          data.categories,
-          {
-            model: settings.transcriptionModel,
-            categories: data.categories,
-          }
-        );
-        summaryId = summaryResult.data?.id;
+        // Save via new transcription service (single call)
+        await transcriptionService.saveTranscriptionResult({
+          meetingId: recordingId,
+          title: data.title,
+          transcript: data.transcript,
+          summary: meetingSummary,
+          categories: data.categories,
+          recordingFileName,
+          inputSource: session.audioSource,
+          model: settings.transcriptionModel,
+        });
 
         if (recordingRegistration.success) {
           await recordingsService.updateRecordingMetadata(recordingFileName, {
-            transcriptionId,
-            summaryId,
             inputSource: session.audioSource,
           });
         }
@@ -535,7 +540,8 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         inputSource: session.audioSource,
       };
 
-      if (addToHistory) await addToHistory(newItem);
+      // Note: transcriptionService.saveTranscriptionResult() already adds to the meeting index.
+      // Do NOT call addToHistory here — it would create a duplicate index entry.
       if (setResult) setResult(data);
       if (setSelectedHistoryId) setSelectedHistoryId(newItem.id);
       if (setStatus) setStatus('RESULTS' as any);

@@ -17,18 +17,16 @@ export const useNotes = () => {
     error: context.error,
     isCreating: context.isCreating,
     meetingId: context.meetingId,
-    
+
     // Computed
     notesCount: context.notesCount,
-    pinnedNotes: context.pinnedNotes,
     hasNotes: context.notes.length > 0,
-    
+
     // Actions
     loadNotes: context.loadNotes,
     addNote: context.addNote,
     updateNote: context.updateNote,
     deleteNote: context.deleteNote,
-    togglePin: context.togglePin,
     clearNotes: context.clearNotes,
     setCreating: context.setCreating,
   };

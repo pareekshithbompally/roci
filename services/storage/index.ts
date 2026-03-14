@@ -6,38 +6,24 @@
 import { pathsService } from './paths.service';
 import { cacheService } from './cache.service';
 
-// Services
+// Services (only non-replaced ones)
 export { pathsService } from './paths.service';
 export { recordingsService } from './recordings.service';
-export { transcriptionsService } from './transcriptions.service';
-export { chatsService } from './chats.service';
-export { summariesService } from './summaries.service';
 export { cacheService } from './cache.service';
 export { settingsService } from './settings.service';
-export { historyService } from './history.service';
-export { notesService } from './notes.service';
-export { todosService } from './todos.service';
 export { encryptionService } from './encryption.service';
 
-// Types
+// Types (only those still needed by kept services)
 export type {
   BaseMetadata,
   RecordingMetadata,
-  TranscriptionData,
-  SummaryData,
-  ChatThread,
-  ChatMessage,
   AppSettings,
-  HistoryEntry,
   CacheEntry,
   CacheStats,
   StorageResult,
   DirectoryInfo,
   FileOperationOptions,
 } from './types';
-
-export type { StoredNote } from './notes.service';
-export type { StoredTodo } from './todos.service';
 
 /**
  * Initialize all storage services

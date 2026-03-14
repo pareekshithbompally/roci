@@ -1,5 +1,5 @@
 /**
  * Notes Services Index
+ *
+ * Legacy feature service removed — NotesContext uses notesRepository directly.
  */
-export { notesFeatureService } from './notes.service';
-export type { AddNoteResult } from './notes.service';

@@ -27,10 +27,6 @@ export { TodosProvider, useTodosContext } from './context';
 // Hooks
 export { useTodos } from './hooks';
 
-// Services
-export { todosFeatureService } from './services';
-export type { AddTodoResult } from './services';
-
 // Components
 export { TodoList, TodoItem } from './components';
 

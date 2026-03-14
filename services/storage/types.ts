@@ -30,61 +30,6 @@ export interface RecordingMetadata extends BaseMetadata {
 }
 
 /**
- * Transcription data
- */
-export interface TranscriptionData extends BaseMetadata {
-  recordingId: string;
-  text: string;
-  language?: string;
-  confidence?: number;
-  processingTime?: number; // milliseconds
-  model?: string;
-}
-
-/**
- * Summary data
- */
-export interface SummaryData extends BaseMetadata {
-  recordingId: string;
-  transcriptionId: string;
-  summary: string;
-  categories?: string[];
-  keyPoints: string[];
-  actionItems?: string[];
-  model?: string;
-}
-
-/**
- * Chat message
- */
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  parts?: import('../../types').ChatPart[];
-  timestamp: string; // ISO timestamp
-  provider?: string;
-  model?: string;
-  suggestions?: string[]; // Follow-up suggestions for AI responses
-  tokenCount?: number;
-  tokensPerSecond?: number;
-  toolActivity?: import('../../types').ChatMessage['toolActivity'];
-  webCitations?: import('../../types').WebCitation[];
-  inlineCitations?: import('../../types').InlineCitationSpan[];
-}
-
-/**
- * Chat thread
- */
-export interface ChatThread extends BaseMetadata {
-  title?: string;
-  messages: ChatMessage[];
-  recordingId?: string;
-  transcriptionId?: string;
-  model?: string;
-}
-
-/**
  * App settings
  */
 export interface AppSettings {
@@ -102,21 +47,6 @@ export interface AppSettings {
   selectedProviderName?: string | null;
   
   [key: string]: any; // Allow arbitrary settings for migration compatibility
-}
-
-/**
- * History entry
- */
-export interface HistoryEntry extends BaseMetadata {
-  type: 'recording' | 'transcription' | 'chat' | 'summary';
-  title: string;
-  description?: string;
-  recordingId?: string;
-  transcriptionId?: string;
-  summaryId?: string;
-  timestamp?: number;
-  categories?: string[];
-  metadata?: Record<string, any>;
 }
 
 /**

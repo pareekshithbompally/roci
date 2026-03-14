@@ -5,9 +5,8 @@
  * Fetches meetings with their full context (summary, notes, todos).
  */
 
-import type { HistoryItem, Note, ActionItem } from '@/types';
-import { notesService, todosService, summariesService } from './storage';
-import { isTauriEnvironment } from './tauri';
+import type { HistoryItem, Note, ActionItem, NoteEntry, TodoEntry } from '@/types';
+import { notesRepository, todosRepository } from './repositories';
 
 /**
  * Meeting reference with full context for AI chat
@@ -82,33 +81,31 @@ class MeetingReferenceService {
       categories: historyItem.categories,
     };
 
-    // Load notes and todos if in Tauri environment
-    if (isTauriEnvironment()) {
-      try {
-        const [notesResult, todosResult] = await Promise.all([
-          notesService.getNotesForMeeting(historyItem.id),
-          todosService.getTodosForMeeting(historyItem.id),
-        ]);
+    // Load notes and todos from repositories
+    try {
+      const [noteEntries, todoEntries] = await Promise.all([
+        notesRepository.readDoc(historyItem.id),
+        todosRepository.readDoc(historyItem.id),
+      ]);
 
-        if (notesResult.success && notesResult.data) {
-          reference.notes = notesResult.data.map(n => ({
-            id: n.id,
-            text: n.text,
-            timestamp: n.timestamp,
-          }));
-        }
-
-        if (todosResult.success && todosResult.data) {
-          reference.todos = todosResult.data.map(t => ({
-            id: t.id,
-            text: t.text,
-            dueDate: t.dueDate,
-            completed: t.completed,
-          }));
-        }
-      } catch (error) {
-        console.error('[MeetingReferenceService] Error loading context:', error);
+      if (noteEntries && noteEntries.length > 0) {
+        reference.notes = noteEntries.map((n: NoteEntry) => ({
+          id: n.id,
+          text: n.text,
+          timestamp: new Date(n.createdAt).getTime(),
+        }));
       }
+
+      if (todoEntries && todoEntries.length > 0) {
+        reference.todos = todoEntries.map((t: TodoEntry) => ({
+          id: t.id,
+          text: t.text,
+          dueDate: t.dueDate,
+          completed: t.completed,
+        }));
+      }
+    } catch (error) {
+      console.error('[MeetingReferenceService] Error loading context:', error);
     }
 
     // Use inline notes/todos from history item if available
@@ -157,33 +154,30 @@ class MeetingReferenceService {
       }
 
       if (fieldSet.has('notes') || fieldSet.has('actionItems')) {
-        // Load from storage if in Tauri environment
-        if (isTauriEnvironment()) {
-          try {
-            if (fieldSet.has('notes')) {
-              const notesResult = await notesService.getNotesForMeeting(item.id);
-              if (notesResult.success && notesResult.data) {
-                ref.notes = notesResult.data.map(n => ({
-                  id: n.id,
-                  text: n.text,
-                  timestamp: n.timestamp,
-                }));
-              }
+        try {
+          if (fieldSet.has('notes')) {
+            const noteEntries = await notesRepository.readDoc(item.id);
+            if (noteEntries && noteEntries.length > 0) {
+              ref.notes = noteEntries.map((n: NoteEntry) => ({
+                id: n.id,
+                text: n.text,
+                timestamp: new Date(n.createdAt).getTime(),
+              }));
             }
-            if (fieldSet.has('actionItems')) {
-              const todosResult = await todosService.getTodosForMeeting(item.id);
-              if (todosResult.success && todosResult.data) {
-                ref.todos = todosResult.data.map(t => ({
-                  id: t.id,
-                  text: t.text,
-                  dueDate: t.dueDate,
-                  completed: t.completed,
-                }));
-              }
-            }
-          } catch (error) {
-            console.error('[MeetingReferenceService] Error loading selective context:', error);
           }
+          if (fieldSet.has('actionItems')) {
+            const todoEntries = await todosRepository.readDoc(item.id);
+            if (todoEntries && todoEntries.length > 0) {
+              ref.todos = todoEntries.map((t: TodoEntry) => ({
+                id: t.id,
+                text: t.text,
+                dueDate: t.dueDate,
+                completed: t.completed,
+              }));
+            }
+          }
+        } catch (error) {
+          console.error('[MeetingReferenceService] Error loading selective context:', error);
         }
 
         // Fallback to inline data

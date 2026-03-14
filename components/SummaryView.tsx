@@ -12,23 +12,134 @@ interface SummaryViewProps {
 
 /**
  * SummaryView Component
- * 
- * Displays a structured summary with:
- * - Meeting Overview section
- * - Key Discussion Points
- * - Decisions Made
- * - Action items preview
- * - Next Steps
- * - Clean markdown formatting
+ *
+ * Renders structured summary fields directly — no regex/markdown parsing needed.
+ * - Blue banner: overview
+ * - Bullet lists: keyDiscussionPoints, decisionsMade, nextSteps
+ * - Amber banner: action items with owner/dueDate
+ *
+ * Falls back to raw markdown for legacy data (tldr/notes fields).
  */
-const SummaryView: React.FC<SummaryViewProps> = ({ 
-  summary, 
+const SummaryView: React.FC<SummaryViewProps> = ({
+  summary,
   structuredSummary,
   timestamp,
   title
 }) => {
-  // If no structured summary, render the raw markdown directly
-  if (!structuredSummary || (!structuredSummary.tldr && !structuredSummary.notes)) {
+  // No structured summary at all — render raw markdown
+  if (!structuredSummary) {
+    return (
+      <div className="prose prose-zinc dark:prose-invert max-w-none">
+        <CleanMarkdown content={summary} />
+      </div>
+    );
+  }
+
+  // New structured fields available
+  const hasNewFields = structuredSummary.overview || structuredSummary.keyDiscussionPoints;
+
+  if (hasNewFields) {
+    return (
+      <div className="max-w-4xl space-y-6">
+        {/* Meeting Overview — blue banner */}
+        {structuredSummary.overview && (
+          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-xl p-6">
+            <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold uppercase tracking-wide text-blue-900 dark:text-blue-100 mb-4`}>
+              Meeting Overview
+            </h3>
+            <p className={`${TYPOGRAPHY_CLASSES.summaryBody} text-blue-900 dark:text-blue-100 leading-relaxed`}>
+              {structuredSummary.overview}
+            </p>
+          </div>
+        )}
+
+        {/* Key Discussion Points */}
+        {structuredSummary.keyDiscussionPoints && structuredSummary.keyDiscussionPoints.length > 0 && (
+          <div>
+            <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold text-parchment-900 dark:text-night-100 mb-3`}>
+              Key Discussion Points
+            </h3>
+            <ul className="space-y-2">
+              {structuredSummary.keyDiscussionPoints.map((point, idx) => (
+                <li key={idx} className={`flex items-start gap-3 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
+                  <span className="text-parchment-500 dark:text-night-400 mt-1 shrink-0">•</span>
+                  <span className="text-parchment-800 dark:text-night-200 leading-relaxed">{point}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Decisions Made */}
+        {structuredSummary.decisionsMade && structuredSummary.decisionsMade.length > 0 && (
+          <div>
+            <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold text-parchment-900 dark:text-night-100 mb-3`}>
+              Decisions Made
+            </h3>
+            <ul className="space-y-2">
+              {structuredSummary.decisionsMade.map((decision, idx) => (
+                <li key={idx} className={`flex items-start gap-3 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
+                  <span className="text-parchment-500 dark:text-night-400 mt-1 shrink-0">•</span>
+                  <span className="text-parchment-800 dark:text-night-200 leading-relaxed">{decision}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Action Items — amber banner */}
+        {structuredSummary.actionItems && structuredSummary.actionItems.length > 0 && (
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl p-6">
+            <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold uppercase tracking-wide text-amber-900 dark:text-amber-100 mb-4`}>
+              Action Items ({structuredSummary.actionItems.length})
+            </h3>
+            <div className="space-y-3">
+              {structuredSummary.actionItems.slice(0, 5).map((item) => (
+                <div key={item.id} className={`flex items-start gap-3 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
+                  <span className="text-amber-600 dark:text-amber-400 mt-1">•</span>
+                  <div className="flex-1">
+                    <p className="text-amber-900 dark:text-amber-100 leading-relaxed">{item.text}</p>
+                    {(item.owner || item.dueDate) && (
+                      <span className="text-xs text-amber-700 dark:text-amber-300 mt-1 block">
+                        {item.owner && `Owner: ${item.owner}`}
+                        {item.owner && item.dueDate && ' · '}
+                        {item.dueDate && `Due: ${item.dueDate}`}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {structuredSummary.actionItems.length > 5 && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 pt-2 font-medium">
+                  +{structuredSummary.actionItems.length - 5} more items (view in To-Do tab)
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Next Steps */}
+        {structuredSummary.nextSteps && structuredSummary.nextSteps.length > 0 && (
+          <div>
+            <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold text-parchment-900 dark:text-night-100 mb-3`}>
+              Next Steps
+            </h3>
+            <ul className="space-y-2">
+              {structuredSummary.nextSteps.map((step, idx) => (
+                <li key={idx} className={`flex items-start gap-3 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
+                  <span className="text-parchment-500 dark:text-night-400 mt-1 shrink-0">•</span>
+                  <span className="text-parchment-800 dark:text-night-200 leading-relaxed">{step}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Legacy fallback: tldr/notes fields
+  if (!structuredSummary.tldr && !structuredSummary.notes) {
     return (
       <div className="prose prose-zinc dark:prose-invert max-w-none">
         <CleanMarkdown content={summary} />
@@ -38,7 +149,6 @@ const SummaryView: React.FC<SummaryViewProps> = ({
 
   return (
     <div className="max-w-4xl space-y-6">
-      {/* TL;DR / Meeting Overview Section */}
       {structuredSummary.tldr && structuredSummary.tldr !== '<None Found>' && (
         <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-xl p-6">
           <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold uppercase tracking-wide text-blue-900 dark:text-blue-100 mb-4`}>
@@ -50,14 +160,12 @@ const SummaryView: React.FC<SummaryViewProps> = ({
         </div>
       )}
 
-      {/* Notes / Key Discussion Points Section */}
       {structuredSummary.notes && structuredSummary.notes !== '<None Found>' && (
         <div className={`prose prose-zinc dark:prose-invert max-w-none prose-headings:font-bold prose-headings:tracking-tight ${TYPOGRAPHY_CLASSES.summaryBody}`}>
           <CleanMarkdown content={structuredSummary.notes} />
         </div>
       )}
 
-      {/* Action Items Preview */}
       {structuredSummary.actionItems && structuredSummary.actionItems.length > 0 && (
         <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl p-6">
           <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold uppercase tracking-wide text-amber-900 dark:text-amber-100 mb-4`}>

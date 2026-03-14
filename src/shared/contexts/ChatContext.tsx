@@ -1,17 +1,16 @@
 /**
  * Chat Context
- * 
+ *
  * Manages chat sessions, messages, and chat UI state.
  * Integrates stream buffer for smooth text rendering.
+ * Uses new chat service (index + session repositories) for persistence.
  */
 
 import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode, useRef, useEffect, MutableRefObject } from 'react';
 import type { ChatSession, ChatMessage, ChatPart, AppSettings, HistoryItem, MeetingCitation, WebCitation, InlineCitationSpan } from '@/types';
 import { fileToBase64 } from '@/utils/fileUtils';
-import type { ChatThread as StoredChatThread, ChatMessage as StoredChatMessage } from '@/services/storage';
 import type { ModelProvider } from '@/types/modelProviders';
-import { isTauriEnvironment } from '@/services/tauri';
-import { chatsService } from '@/services/storage';
+import { chatService } from '@/services/chat.service';
 import { unifiedAIService } from '@/services/unifiedAIService';
 import type { MeetingListItem } from '@/services/meetingReferenceService';
 import { resolveModel, supportsTools, getProviderType } from '@shared/utils/modelResolver';
@@ -46,19 +45,12 @@ interface ChatState {
   selectedMeetingRefs: MeetingListItem[];
   /** Whether web search is enabled */
   webSearchEnabled: boolean;
-  /** Current AI activity state */
+  /** Current AI activity state (thinking / web search only — tools are now inline parts) */
   aiActivity: {
-    // Existing (keep for Anthropic thinking / web search)
     isThinking?: boolean;
     isSearching?: boolean;
     searchQuery?: string;
     thinkingContent?: string;
-    // Tool calling
-    isCallingTool?: boolean;
-    toolName?: string;
-    toolPhase?: 'calling' | 'executing' | 'result' | 'error';
-    toolDetail?: string;
-    toolIteration?: number;
   } | null;
   /** Chat session pending delete confirmation */
   deleteConfirmId: string | null;
@@ -146,41 +138,6 @@ const initialState: ChatState = {
 
 const ChatContext = createContext<ChatContextValue | null>(null);
 
-// Convert stored message to app message
-const fromStoredMessage = (msg: StoredChatMessage): ChatMessage => ({
-  id: msg.id,
-  role: msg.role === 'assistant' ? 'model' : 'user',
-  text: msg.content,
-  parts: msg.parts as ChatPart[] | undefined,
-  timestamp: new Date(msg.timestamp).getTime(),
-  provider: msg.provider,
-  model: msg.model,
-  suggestions: msg.suggestions,
-  state: msg.role === 'assistant' ? 'complete' : undefined,
-  tokenCount: msg.tokenCount,
-  tokensPerSecond: msg.tokensPerSecond,
-  toolActivity: msg.toolActivity,
-  webCitations: msg.webCitations,
-  inlineCitations: msg.inlineCitations,
-});
-
-// Convert app message to stored message
-const toStoredMessage = (msg: ChatMessage): StoredChatMessage => ({
-  id: msg.id,
-  role: msg.role === 'model' ? 'assistant' : 'user',
-  content: msg.text,
-  parts: msg.parts,
-  timestamp: new Date(msg.timestamp).toISOString(),
-  provider: msg.provider,
-  model: msg.model,
-  suggestions: msg.suggestions,
-  tokenCount: msg.tokenCount,
-  tokensPerSecond: msg.tokensPerSecond,
-  toolActivity: msg.toolActivity,
-  webCitations: msg.webCitations,
-  inlineCitations: msg.inlineCitations,
-});
-
 interface ChatProviderProps {
   children: ReactNode;
 }
@@ -207,21 +164,17 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       await loadSessions();
       setIsInitialized(true);
     };
-    
+
     initializeSessions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
 
-  // Auto-save sessions when they change (debounced, similar to SettingsContext)
+  // Auto-save sessions when they change (debounced)
   useEffect(() => {
-    if (!isInitialized) return; // Don't save during initial load
+    if (!isInitialized) return;
 
     const timeoutId = setTimeout(() => {
-      // Persist all sessions that have changed
-      if (state.sessions.length > 0 && isTauriEnvironment()) {
-        console.log('[ChatContext] Auto-saving sessions...');
-        // We can't persist all sessions at once easily, but we can persist the current one
-        // which is the most likely to have changed
+      if (state.sessions.length > 0) {
         if (state.currentSessionId) {
           const currentSession = state.sessions.find(s => s.id === state.currentSessionId);
           if (currentSession) {
@@ -229,11 +182,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           }
         }
       }
-    }, 500); // Debounce saves by 500ms (same as SettingsContext)
+    }, 500);
 
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.sessions, state.currentSessionId, isInitialized]); // Don't include persistSession to avoid circular deps
+  }, [state.sessions, state.currentSessionId, isInitialized]);
 
   // Current session
   const currentSession = useMemo(() => {
@@ -243,7 +196,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   // Filtered sessions
   const filteredSessions = useMemo(() => {
     if (!state.debouncedSearchQuery) return state.sessions;
-    
+
     const lower = state.debouncedSearchQuery.toLowerCase();
     return state.sessions
       .map(session => {
@@ -260,31 +213,16 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
   // Load sessions from storage
   const loadSessions = useCallback(async () => {
-    console.log('[ChatContext] loadSessions called, isTauri:', isTauriEnvironment());
     try {
-      if (isTauriEnvironment()) {
-        const result = await chatsService.listChats();
-        console.log('[ChatContext] listChats result:', result.success, 'count:', result.data?.length || 0);
-        if (result.success && result.data) {
-          const sessions: ChatSession[] = result.data.map(thread => ({
-            id: thread.id,
-            title: thread.title || 'Untitled Chat',
-            lastMessageAt: new Date(thread.updatedAt).getTime(), // Convert ISO string to timestamp
-            messages: thread.messages.map(fromStoredMessage),
-          }));
-          setState(prev => ({ ...prev, sessions }));
-          console.log('[ChatContext] Loaded', sessions.length, 'chat sessions from storage');
-        } else if (!result.success) {
-          console.error('[ChatContext] Failed to list chats:', result.error);
-        }
-      } else {
-        const stored = localStorage.getItem('kasset_ai_chat_sessions');
-        console.log('[ChatContext] localStorage sessions found:', !!stored);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          setState(prev => ({ ...prev, sessions: parsed }));
-          console.log('[ChatContext] Loaded', parsed.length, 'sessions from localStorage');
-        }
+      const indexEntries = await chatService.listSessions();
+      if (indexEntries.length > 0) {
+        const fullSessions = await Promise.all(
+          indexEntries.map(entry => chatService.loadSession(entry.id))
+        );
+        const sessions: ChatSession[] = fullSessions
+          .filter((s): s is ChatSession => s !== null);
+        setState(prev => ({ ...prev, sessions }));
+        console.log('[ChatContext] Loaded', sessions.length, 'sessions');
       }
     } catch (error) {
       console.error('[ChatContext] Error loading sessions:', error);
@@ -293,44 +231,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
   // Persist a session
   const persistSession = useCallback(async (session: ChatSession) => {
-    const storedMessages = session.messages.map(toStoredMessage);
-
-    if (!isTauriEnvironment()) {
-      const allSessions = state.sessions.map(s => 
-        s.id === session.id ? session : s
-      );
-      if (!allSessions.find(s => s.id === session.id)) {
-        allSessions.unshift(session);
-      }
-      localStorage.setItem('kasset_ai_chat_sessions', JSON.stringify(allSessions));
-      console.log('[ChatContext] Persisted session to localStorage:', session.id);
-      return;
-    }
-
-    console.log('[ChatContext] Persisting session to disk:', session.id, 'with', session.messages.length, 'messages');
-    const existing = await chatsService.getChat(session.id);
-    if (existing.success) {
-      const result = await chatsService.updateChat(session.id, {
-        title: session.title,
-        messages: storedMessages,
-      });
-      if (result.success) {
-        console.log('[ChatContext] ✓ Updated session on disk:', session.id);
-      } else {
-        console.error('[ChatContext] ✗ Failed to update session:', result.error);
-      }
-    } else {
-      const result = await chatsService.saveChat(storedMessages, {
-        id: session.id,
-        title: session.title,
-      });
-      if (result.success) {
-        console.log('[ChatContext] ✓ Saved new session to disk:', session.id);
-      } else {
-        console.error('[ChatContext] ✗ Failed to save session:', result.error);
-      }
-    }
-  }, [state.sessions]);
+    await chatService.persistSession(session);
+  }, []);
 
   // Simple setters
   const setInput = useCallback((input: string) => {
@@ -381,21 +283,13 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
   const deleteSession = useCallback(async (sessionId: string) => {
     try {
-      if (isTauriEnvironment()) {
-        await chatsService.deleteChat(sessionId);
-      }
+      await chatService.deleteSession(sessionId);
 
-      setState(prev => {
-        const newSessions = prev.sessions.filter(s => s.id !== sessionId);
-        if (!isTauriEnvironment()) {
-          localStorage.setItem('kasset_ai_chat_sessions', JSON.stringify(newSessions));
-        }
-        return {
-          ...prev,
-          sessions: newSessions,
-          currentSessionId: prev.currentSessionId === sessionId ? null : prev.currentSessionId,
-        };
-      });
+      setState(prev => ({
+        ...prev,
+        sessions: prev.sessions.filter(s => s.id !== sessionId),
+        currentSessionId: prev.currentSessionId === sessionId ? null : prev.currentSessionId,
+      }));
     } catch (error) {
       console.error('[ChatContext] Error deleting session:', error);
     }
@@ -403,19 +297,14 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
   const renameSession = useCallback(async (sessionId: string, newTitle: string) => {
     try {
-      if (isTauriEnvironment()) {
-        await chatsService.updateChat(sessionId, { title: newTitle });
-      }
+      await chatService.renameSession(sessionId, newTitle);
 
-      setState(prev => {
-        const newSessions = prev.sessions.map(s => 
+      setState(prev => ({
+        ...prev,
+        sessions: prev.sessions.map(s =>
           s.id === sessionId ? { ...s, title: newTitle } : s
-        );
-        if (!isTauriEnvironment()) {
-          localStorage.setItem('kasset_ai_chat_sessions', JSON.stringify(newSessions));
-        }
-        return { ...prev, sessions: newSessions };
-      });
+        ),
+      }));
     } catch (error) {
       console.error('[ChatContext] Error renaming session:', error);
     }
@@ -545,8 +434,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     // Get the selected meeting references for context
     const selectedRefs = state.selectedMeetingRefs;
 
-    // Update state immediately with user message - ensures it appears in ChatView right away
-    // Also clear selected meeting refs and pending attachments after sending
+    // Update state immediately with user message
     setState(prev => ({
       ...prev,
       sessions: newSessions,
@@ -563,7 +451,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     // Persist user message immediately
     await persistSession(targetSession);
 
-    // Resolve model to get provider info early (outside try so catch can reference it)
+    // Resolve model
     const defaultSettings = {
       transcriptionModel: '',
       chatModel: '',
@@ -574,9 +462,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     const effectiveProviders = providers || [];
     const resolved = resolveModel(effectiveSettings.chatModel, effectiveProviders);
 
-    // Create assistant message placeholder with LOADING state BEFORE context
-    // pipeline resolves — so the user sees the loading animation immediately,
-    // even while the embedding model downloads behind the consent modal.
+    // Create assistant message placeholder with LOADING state
     const assistantMsgId = (Date.now() + 1).toString();
     const assistantMsg: ChatMessage = {
       id: assistantMsgId,
@@ -607,7 +493,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
     try {
       // Resolve context via the pipeline (handles @ mentions)
-      // Context pipeline still runs for @ mentions regardless of tool support
       const contextBlock = await contextPipeline.resolve({
         userMessage: textToSend,
         conversationMessages: targetSession.messages,
@@ -617,15 +502,13 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         manualMeetingRefs: selectedRefs,
         signal: abortControllerRef.current?.signal,
       });
-      // contextBlock is threaded into the request config below
 
-      // Initialize external streaming store — only the streaming ChatMessage
-      // subscribes to this, so the rest of the UI doesn't re-render during streaming.
+      // Initialize external streaming store
       streamingStore.start(assistantMsgId);
       let hasFirstChunk = false;
       let streamStartTime = 0;
 
-      // Build the single ChatRequestConfig — one decision point for prompt + schema.
+      // Build the ChatRequestConfig
       const adapterForCheck = resolved ? getAdapter(getProviderType(resolved.provider)) : null;
       const modelInfo = resolved ? modalitiesService.getModelInfo(resolved.provider, resolved.modelId) : null;
       const isFirstMessage = targetSession.messages.filter(m => m.role === 'user').length <= 1;
@@ -637,13 +520,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         supportsStructuredOutput: modelInfo?.capabilities?.structuredOutput !== false,
       });
 
-      // Structured output extractor — strips JSON wrapper so the store only sees display text.
+      // Structured output extractor
       const extractor = config.outputSchema ? new JsonStreamExtractor() : null;
 
       // Shared chunk handler for both paths
       const handleChunk = (chunk: string, metadata?: { isThinking?: boolean; isSearching?: boolean; searchQuery?: string; thinkingContent?: string; webCitations?: WebCitation[]; inlineCitations?: InlineCitationSpan[] }) => {
         if (metadata) {
-          // Accumulate web citations (deduplicate by URL)
           if (metadata.webCitations) {
             for (const citation of metadata.webCitations) {
               if (!allWebCitations.some(c => c.url === citation.url)) {
@@ -659,11 +541,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         }
 
         if (chunk) {
-          // Extract display text (or pass through if no structured output)
           const displayText = extractor ? extractor.push(chunk) : chunk;
 
           if (displayText) {
-            // Transition from loading → streaming on first content chunk
             if (!hasFirstChunk) {
               hasFirstChunk = true;
               streamStartTime = Date.now();
@@ -713,18 +593,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       };
 
       // Route: tool-calling path vs clean streaming path
-      // Gemini API limitation: googleSearch grounding and functionDeclarations cannot be
-      // combined in the same request (multi-tool use is Live API only). When web search is
-      // enabled for Gemini, route to chatStream which handles googleSearch grounding natively.
       const isGeminiWebSearch = state.webSearchEnabled && adapterForCheck?.type === 'gemini';
       const useTools = !isGeminiWebSearch && !!(resolved && supportsTools(resolved) && adapterForCheck?.chatStreamWithTools);
-      // If adapter doesn't support tool calling, useTools will be false and we fall back to direct stream
 
-      // Accumulate completed tool calls — populated during orchestration, persisted on final message
-      const completedToolCalls: Array<{ toolName: string; executionMs: number; resultSummary?: string }> = [];
-      // Accumulate citations from search_meetings tool calls (deduplicated by meetingId)
       const allCitations: MeetingCitation[] = [];
-      // Accumulate web citations from StreamMetadata (deduplicated by URL)
       const allWebCitations: WebCitation[] = [];
       const allInlineCitations: InlineCitationSpan[] = [];
 
@@ -736,7 +608,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       );
 
       if (useTools) {
-        // ── Tool-calling path: orchestrator manages the call→execute→resume cycle ──
         const orchestrateResult = await orchestrate(
           {
             messages: messagesForProvider,
@@ -753,16 +624,28 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             onChunk: handleChunk,
             onMediaPart: handleMediaPart,
             onToolActivity: (activity) => {
-              if (activity.status === 'done') {
-                const resultSummary = activity.result
-                  ? (activity.result.content?.slice(0, 120) ?? 'Done')
-                  : 'Done';
-                completedToolCalls.push({
+              const toolCallId = activity.toolCall.id;
+
+              if (activity.status === 'calling') {
+                streamingStore.pushPart({
+                  type: 'tool_call',
+                  toolCallId,
                   toolName: activity.toolName,
-                  executionMs: activity.result?.meta?.executionMs ?? 0,
-                  resultSummary,
+                  arguments: activity.toolCall.arguments,
+                  status: 'calling',
                 });
-                // Collect citations from search_meetings, deduplicate by meetingId (keep highest score)
+              } else if (activity.status === 'done') {
+                const isError = activity.result?.isError ?? false;
+                const content = activity.result?.content?.slice(0, 500) ?? 'Done';
+                const executionMs = activity.result?.meta?.executionMs;
+
+                streamingStore.updatePartByKey(toolCallId, (prev) => ({
+                  ...(prev as Extract<ChatPart, { type: 'tool_call' }>),
+                  status: isError ? 'error' as const : 'complete' as const,
+                  result: { content, isError, executionMs },
+                }));
+
+                // Extract citations
                 const newCitations = activity.result?.meta?.citations ?? [];
                 for (const citation of newCitations) {
                   const existing = allCitations.findIndex(c => c.meetingId === citation.meetingId);
@@ -772,32 +655,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                     allCitations[existing] = citation;
                   }
                 }
-                setState(prev => ({
-                  ...prev,
-                  aiActivity: {
-                    isCallingTool: true,
-                    toolName: activity.toolName,
-                    toolPhase: 'result',
-                    toolDetail: resultSummary,
-                  },
-                }));
-              } else {
-                setState(prev => ({
-                  ...prev,
-                  aiActivity: {
-                    isCallingTool: true,
-                    toolName: activity.toolName,
-                    toolPhase: 'executing',
-                    toolDetail: activity.label,
-                  },
-                }));
               }
             },
           }
         );
         tokenUsageResult = orchestrateResult.tokenUsage;
       } else {
-        // ── Clean streaming path: direct to adapter, no tools ──
         tokenUsageResult = await unifiedAIService.chatStream({
           messages: messagesForProvider,
           resolved: resolved!,
@@ -819,7 +682,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       let generatedTitle: string | undefined;
 
       if (extractor) {
-        // Structured output path — parse the accumulated JSON
         const fullJson = extractor.getFullJson();
         try {
           const parsed = JSON.parse(fullJson);
@@ -827,31 +689,18 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           suggestions = Array.isArray(parsed.suggestions) ? parsed.suggestions : undefined;
           generatedTitle = parsed.title || undefined;
         } catch {
-          // Incomplete/malformed JSON — use what the extractor already output
           mainText = streamResult.text;
           suggestions = undefined;
         }
       } else {
-        // Fallback: delimiter parsing (no structured output)
-        const fullText = streamResult.text;
-        const textSections = fullText.split('---SUGGESTIONS---');
-        mainText = textSections[0].trim();
-        suggestions = textSections[1]
-          ? textSections[1].split('\n').map(s => s.trim()).filter(s => s && s.length > 2)
-          : undefined;
+        mainText = streamResult.text;
+        suggestions = undefined;
       }
 
-      // Build final parts: replace text content (strip suggestions/JSON) and keep media parts
-      const finalParts: ChatPart[] = streamedParts.map(p => {
-        if (p.type === 'text') {
-          // For structured output, store already has clean text; for delimiter, strip suggestions
-          const cleanText = extractor ? p.text : p.text.split('---SUGGESTIONS---')[0].trim();
-          return { type: 'text' as const, text: cleanText };
-        }
-        return p;
-      }).filter(p => p.type !== 'text' || (p as Extract<ChatPart, { type: 'text' }>).text.length > 0);
+      // Build final parts
+      const finalParts: ChatPart[] = streamedParts
+        .filter(p => p.type !== 'text' || (p as Extract<ChatPart, { type: 'text' }>).text.length > 0);
 
-      // Use real token counts from provider, derive speed from wall-clock time
       const tokenCount = tokenUsageResult?.outputTokens;
       const streamDurationSec = streamStartTime > 0 ? (Date.now() - streamStartTime) / 1000 : 0;
       const tokensPerSecond = tokenCount && streamDurationSec > 0.05
@@ -873,12 +722,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                     state: 'complete' as const,
                     tokenCount,
                     tokensPerSecond,
-                    ...(completedToolCalls.length > 0 && {
-                      toolActivity: {
-                        calls: completedToolCalls,
-                        totalIterations: completedToolCalls.length,
-                        ...(allCitations.length > 0 && { citations: allCitations }),
-                      },
+                    ...(allCitations.length > 0 && {
+                      meetingCitations: allCitations,
                     }),
                     ...(allWebCitations.length > 0 && {
                       webCitations: allWebCitations,
@@ -901,7 +746,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         return { ...prev, sessions: finalSessions, isLoading: false, aiActivity: null };
       });
 
-      // Title: use structured output title if available, otherwise generate async
+      // Title generation
       if (generatedTitle && isNewSession) {
         renameSession(activeSessionId, generatedTitle);
       } else if (isNewSession) {
@@ -915,10 +760,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       console.error('[ChatContext] Error sending message:', error);
       streamingStore.reset();
 
-      // Check if error was due to abort — stopGeneration already handled
-      // the message state transition, but ensure it's complete as a safety net
       if (error.name === 'AbortError' || error.message?.includes('abort')) {
-        console.log('[ChatContext] Message generation was stopped by user');
         setState(prev => ({
           ...prev,
           sessions: prev.sessions.map(s => {
@@ -927,7 +769,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
               ...s,
               messages: s.messages.map(m => {
                 if (m.id !== assistantMsgId || m.state === 'complete') return m;
-                // Show [Stopped] if abort happened before any text was streamed (4.4.8)
                 return { ...m, text: m.text || '[Stopped]', state: 'complete' as const };
               }),
             };
@@ -938,8 +779,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         return;
       }
 
-      // Update the existing assistant placeholder with the error instead of
-      // creating a duplicate message. The placeholder was already added above.
       setState(prev => {
         const updatedSessions = prev.sessions.map(s => {
           if (s.id !== activeSessionId) return s;
@@ -954,7 +793,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           };
         });
 
-        // Persist error state
         const sessionToPersist = updatedSessions.find(s => s.id === activeSessionId);
         if (sessionToPersist) {
           persistSession(sessionToPersist);
@@ -963,7 +801,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         return { ...prev, sessions: updatedSessions, isLoading: false };
       });
     } finally {
-      // Clear abort controller
       abortControllerRef.current = null;
     }
   }, [state.input, state.isLoading, state.currentSessionId, state.sessions, state.selectedMeetingRefs, persistSession, state.webSearchEnabled]);
@@ -973,7 +810,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
 
-      // Capture any partial streaming content instead of discarding
       const streamResult = streamingStore.finish();
 
       setState(prev => {
@@ -986,7 +822,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
               ...s,
               messages: s.messages.map(m => {
                 if (m.state !== 'loading' && m.state !== 'streaming') return m;
-                // Preserve any partial content that was streamed; fall back to [Stopped]
                 const text = streamResult.text || m.text || '[Stopped]';
                 const parts = streamResult.parts.length > 0 ? streamResult.parts : m.parts;
                 return { ...m, text, parts, state: 'complete' as const };
@@ -997,7 +832,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           aiActivity: null,
         };
       });
-      console.log('[ChatContext] Stopped generation');
     }
   }, []);
 
@@ -1005,17 +839,14 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     const session = state.sessions.find(s => s.id === state.currentSessionId);
     if (!session || session.messages.length < 2) return;
 
-    // Find last user message (skip the last assistant message)
     const messages = session.messages;
     const lastAssistantIdx = messages.length - 1;
     if (messages[lastAssistantIdx]?.role !== 'model') return;
 
-    // Remove the last assistant message
     const trimmedMessages = messages.slice(0, lastAssistantIdx);
     const lastUserMsg = trimmedMessages[trimmedMessages.length - 1];
     if (!lastUserMsg || lastUserMsg.role !== 'user') return;
 
-    // Update session to remove the assistant message
     setState(prev => ({
       ...prev,
       sessions: prev.sessions.map(s =>
@@ -1023,7 +854,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       ),
     }));
 
-    // Resend the user message text
     await sendMessage(lastUserMsg.text, historyItems, settings, providers);
   }, [state.sessions, state.currentSessionId, sendMessage]);
 
@@ -1067,7 +897,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
 /**
  * useChat Hook
- * 
+ *
  * Access chat state and operations.
  */
 export const useChat = (): ChatContextValue => {

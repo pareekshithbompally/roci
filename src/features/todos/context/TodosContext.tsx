@@ -6,7 +6,8 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
-import { todosService } from '../../../../services/storage';
+import { todosRepository } from '../../../../services/repositories';
+import type { TodoEntry } from '@/types';
 import type { TodosContextValue, TodosState, Todo, TodoStats } from '../types';
 import { calculateTodoStats } from '../types';
 
@@ -50,17 +51,17 @@ export const TodosProvider: React.FC<TodosProviderProps> = ({ children, meetingI
     setCurrentMeetingId(id);
 
     try {
-      const result = await todosService.getTodosForMeeting(id);
-      if (result.success && result.data) {
-        // Convert StoredTodo[] to Todo[] format
-        const todos: Todo[] = result.data.map(t => ({
+      const entries = await todosRepository.readDoc(id);
+      if (entries && entries.length > 0) {
+        const todos: Todo[] = entries.map((t: TodoEntry) => ({
           id: t.id,
           text: t.text,
           completed: t.completed,
           dueDate: t.dueDate,
-          meetingId: t.meetingId,
+          source: t.source,
+          meetingId: id,
           createdAt: t.createdAt,
-          updatedAt: t.updatedAt,
+          updatedAt: t.createdAt,
           version: 1,
         }));
         console.log('[TodosContext] ✓ Loaded', todos.length, 'todos');
@@ -98,11 +99,13 @@ export const TodosProvider: React.FC<TodosProviderProps> = ({ children, meetingI
     console.log('[TodosContext] Adding todo to meeting:', currentMeetingId);
 
     // Create optimistic todo immediately
+    const todoId = crypto.randomUUID();
     const optimisticTodo: Todo = {
-      id: `temp-${Date.now()}`,
+      id: todoId,
       text,
       completed: false,
       dueDate,
+      source: 'user',
       meetingId: currentMeetingId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -117,32 +120,39 @@ export const TodosProvider: React.FC<TodosProviderProps> = ({ children, meetingI
     }));
 
     try {
-      const result = await todosService.addTodo(currentMeetingId, text, dueDate);
-      if (result.success && result.data) {
-        console.log('[TodosContext] ✓ Todo saved to disk:', result.data.id);
-        // Replace optimistic todo with real one from server
+      const now = new Date().toISOString();
+      const todoEntry: TodoEntry = {
+        id: todoId,
+        text,
+        dueDate,
+        completed: false,
+        source: 'user',
+        createdAt: now,
+      };
+      const ok = await todosRepository.addTodo(currentMeetingId, todoEntry);
+      if (ok) {
+        console.log('[TodosContext] ✓ Todo saved to disk:', todoEntry.id);
         const realTodo: Todo = {
-          id: result.data.id,
-          text: result.data.text,
-          completed: result.data.completed,
-          dueDate: result.data.dueDate,
-          meetingId: result.data.meetingId,
-          createdAt: result.data.createdAt,
-          updatedAt: result.data.updatedAt,
+          id: todoEntry.id,
+          text: todoEntry.text,
+          completed: false,
+          dueDate: todoEntry.dueDate,
+          source: 'user',
+          meetingId: currentMeetingId,
+          createdAt: now,
+          updatedAt: now,
           version: 1,
         };
-        
         setState(prev => ({
           ...prev,
           todos: prev.todos.map(t => t.id === optimisticTodo.id ? realTodo : t),
         }));
       } else {
         console.error('[TodosContext] ✗ Failed to save todo, rolling back');
-        // Roll back optimistic update
         setState(prev => ({
           ...prev,
           todos: prev.todos.filter(t => t.id !== optimisticTodo.id),
-          error: result.error,
+          error: 'Failed to save todo',
         }));
       }
     } catch (error) {
@@ -162,21 +172,11 @@ export const TodosProvider: React.FC<TodosProviderProps> = ({ children, meetingI
     if (!currentMeetingId) return;
 
     try {
-      const result = await todosService.updateTodo(currentMeetingId, todoId, updates);
-      if (result.success && result.data) {
-        const updatedTodo: Todo = {
-          id: result.data.id,
-          text: result.data.text,
-          completed: result.data.completed,
-          dueDate: result.data.dueDate,
-          meetingId: result.data.meetingId,
-          createdAt: result.data.createdAt,
-          updatedAt: result.data.updatedAt,
-        };
-
+      const ok = await todosRepository.updateTodo(currentMeetingId, todoId, updates);
+      if (ok) {
         setState(prev => ({
           ...prev,
-          todos: prev.todos.map(t => t.id === todoId ? updatedTodo : t),
+          todos: prev.todos.map(t => t.id === todoId ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t),
         }));
       }
     } catch (error) {
@@ -190,8 +190,8 @@ export const TodosProvider: React.FC<TodosProviderProps> = ({ children, meetingI
     if (!currentMeetingId) return;
 
     try {
-      const result = await todosService.deleteTodo(currentMeetingId, todoId);
-      if (result.success) {
+      const ok = await todosRepository.deleteTodo(currentMeetingId, todoId);
+      if (ok) {
         setState(prev => ({
           ...prev,
           todos: prev.todos.filter(t => t.id !== todoId),
@@ -208,21 +208,11 @@ export const TodosProvider: React.FC<TodosProviderProps> = ({ children, meetingI
     if (!currentMeetingId) return;
 
     try {
-      const result = await todosService.toggleTodo(currentMeetingId, todoId);
-      if (result.success && result.data) {
-        const toggledTodo: Todo = {
-          id: result.data.id,
-          text: result.data.text,
-          completed: result.data.completed,
-          dueDate: result.data.dueDate,
-          meetingId: result.data.meetingId,
-          createdAt: result.data.createdAt,
-          updatedAt: result.data.updatedAt,
-        };
-
+      const result = await todosRepository.toggleTodo(currentMeetingId, todoId);
+      if (result) {
         setState(prev => ({
           ...prev,
-          todos: prev.todos.map(t => t.id === todoId ? toggledTodo : t),
+          todos: prev.todos.map(t => t.id === todoId ? { ...t, completed: result.completed } : t),
         }));
       }
     } catch (error) {

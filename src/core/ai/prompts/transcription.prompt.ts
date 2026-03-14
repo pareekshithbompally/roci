@@ -27,27 +27,12 @@ Your response is structured as JSON. Fill each field as described:
 
 - \`title\`: Concise descriptive title (max 6 words) that captures the main topic.
 
-- \`summary\`: Full markdown summary using this EXACT structure:
-
-## Meeting Overview
-[2-3 sentence executive summary of what was discussed and main outcomes]
-
-## Key Discussion Points
-- [First major topic discussed with key details]
-- [Second major topic with relevant context]
-- [Additional topics as needed]
-
-## Decisions Made
-- [Decision 1 with context] (or state "No formal decisions were recorded" if none)
-- [Decision 2 if applicable]
-
-## Action Items
-- [Specific task] - Owner: [Person name if mentioned] - Due: [Date if mentioned]
-- [Additional action items]
-
-## Next Steps
-- [What happens next]
-- [Follow-up items]
+- \`summary\`: A structured object with these fields:
+  - \`overview\`: 2-3 sentence executive summary of what was discussed and main outcomes.
+  - \`keyDiscussionPoints\`: Array of strings, each describing a major topic discussed with key details.
+  - \`decisionsMade\`: Array of strings, each describing a decision made with context. If none, use ["No formal decisions were recorded"].
+  - \`actionItems\`: Array of objects, each with \`text\` (required), \`owner\` (person name if mentioned), and \`dueDate\` (date if mentioned).
+  - \`nextSteps\`: Array of strings describing follow-up items and what happens next.
 
 - \`categories\`: ${categoryInstruction}
 

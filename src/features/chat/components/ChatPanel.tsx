@@ -224,7 +224,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ isOpen, onClose }) => {
                 tokenCount={message.tokenCount}
                 tokensPerSecond={message.tokensPerSecond}
                 toolActivity={message.toolActivity}
-                preparingTools={message.state === 'loading' && !!chat.aiActivity?.isCallingTool}
+                meetingCitations={message.meetingCitations}
                 isCopied={chat.copiedMessageId === message.id}
                 actions={sharedActions}
                 citationHandlers={citationHandlers}

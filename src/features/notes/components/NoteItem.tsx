@@ -1,12 +1,12 @@
 /**
  * NoteItem Component
- * 
+ *
  * Displays a single note with edit and delete functionality.
  * Uses the notes context for actions.
  */
 
 import React, { useState } from 'react';
-import { Trash2, Edit2, Check, X, Pin, PinOff } from 'lucide-react';
+import { Trash2, Edit2, Check, X } from 'lucide-react';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import type { Note } from '../types/notes.types';
 
@@ -14,7 +14,6 @@ interface NoteItemProps {
   note: Note;
   onDelete: (noteId: string) => void;
   onUpdate?: (noteId: string, text: string) => void;
-  onTogglePin?: (noteId: string) => void;
 }
 
 const formatDateTime = (timestamp: number) => {
@@ -28,7 +27,7 @@ const formatDateTime = (timestamp: number) => {
   });
 };
 
-const NoteItem: React.FC<NoteItemProps> = ({ note, onDelete, onUpdate, onTogglePin }) => {
+const NoteItem: React.FC<NoteItemProps> = ({ note, onDelete, onUpdate }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(note.text);
 
@@ -53,30 +52,14 @@ const NoteItem: React.FC<NoteItemProps> = ({ note, onDelete, onUpdate, onToggleP
   };
 
   return (
-    <div className={`p-4 rounded-xl ${SURFACE.card} border ${
-      note.pinned
-        ? 'border-amber-300 dark:border-amber-700/60'
-        : BORDER.subtle
-    } group ${BORDER.cardHover} transition-colors`}>
+    <div className={`p-4 rounded-xl ${SURFACE.card} border ${BORDER.subtle} group ${BORDER.cardHover} transition-colors`}>
       <div className="flex justify-between items-start gap-3 mb-2">
         <div className="flex items-center gap-2">
-          {note.pinned && (
-            <Pin className="w-3 h-3 text-amber-500" />
-          )}
           <time className={`text-xs ${TEXT.muted}`}>
             {formatDateTime(note.timestamp)}
           </time>
         </div>
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {onTogglePin && (
-            <button
-              onClick={() => onTogglePin(note.id)}
-              className="p-1 hover:bg-amber-100 dark:hover:bg-amber-900/20 rounded text-amber-500"
-              aria-label={note.pinned ? 'Unpin note' : 'Pin note'}
-            >
-              {note.pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
-            </button>
-          )}
           {!isEditing && onUpdate && (
             <button
               onClick={() => setIsEditing(true)}

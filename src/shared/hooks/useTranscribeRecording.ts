@@ -1,19 +1,19 @@
 /**
  * useTranscribeRecording Hook
  *
- * Encapsulates the flow: load recording blob -> processAudio -> update history item.
- * Used by sidebar (Transcribe/Re-transcribe) and potentially ResultsView.
+ * Encapsulates the flow: load recording blob -> processAudio -> save via transcriptionService.
+ * Used by sidebar (Transcribe/Re-transcribe) and ResultsView.
  */
 
 import { useState, useCallback } from 'react';
-import { recordingsService, transcriptionsService, summariesService } from '@/services/storage';
+import { recordingsService } from '@/services/storage';
 import { unifiedAIService } from '@/services/unifiedAIService';
+import { transcriptionService } from '@/services/transcription.service';
 import { useHistory } from '@shared/contexts/HistoryContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useApp } from '@shared/contexts/AppContext';
 import { useToast } from '@shared/contexts/ToastContext';
-import { isTauriEnvironment } from '@/services/tauri';
-import type { HistoryItem } from '@/types';
+import type { HistoryItem, MeetingSummary } from '@/types';
 
 interface UseTranscribeRecordingReturn {
   transcribe: (item: HistoryItem) => Promise<void>;
@@ -24,7 +24,7 @@ interface UseTranscribeRecordingReturn {
 export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcribingItemId, setTranscribingItemId] = useState<string | null>(null);
-  const { updateItem, categories } = useHistory();
+  const { categories } = useHistory();
   const { settings, providers } = useSettings();
   const { setResult, setSelectedHistoryId, setStatus } = useApp();
   const { showToast } = useToast();
@@ -55,48 +55,29 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
         providers
       );
 
-      // Save transcription and summary to storage
-      let transcriptionId: string | undefined;
-      let summaryId: string | undefined;
-      const recordingId = item.recordingId || item.id;
+      // Build MeetingSummary from structured result
+      const meetingSummary: MeetingSummary = {
+        overview: data.structuredSummary?.overview || data.summary,
+        keyDiscussionPoints: data.structuredSummary?.keyDiscussionPoints || [],
+        decisionsMade: data.structuredSummary?.decisionsMade || [],
+        actionItems: (data.structuredSummary?.actionItems || []).map(a => ({
+          text: a.text,
+          owner: a.owner,
+          dueDate: a.dueDate,
+        })),
+        nextSteps: data.structuredSummary?.nextSteps || [],
+      };
 
-      if (isTauriEnvironment()) {
-        const transcriptionResult = await transcriptionsService.saveTranscription(
-          recordingId,
-          data.transcript,
-          { model: settings.transcriptionModel }
-        );
-        transcriptionId = transcriptionResult.data?.id;
-
-        const summaryResult = await summariesService.saveSummary(
-          recordingId,
-          transcriptionId || recordingId,
-          data.summary,
-          data.categories,
-          {
-            model: settings.transcriptionModel,
-            categories: data.categories,
-          }
-        );
-        summaryId = summaryResult.data?.id;
-
-        // Update recording metadata
-        await recordingsService.updateRecordingMetadata(item.recordingFileName, {
-          transcriptionId,
-          summaryId,
-        });
-      }
-
-      // Update history item in-place
-      await updateItem(item.id, {
+      // Save everything via transcription service (single call)
+      await transcriptionService.saveTranscriptionResult({
+        meetingId: item.id,
         title: data.title || item.title,
         transcript: data.transcript,
-        summary: data.summary,
+        summary: meetingSummary,
         categories: data.categories,
-        structuredSummary: data.structuredSummary,
-        transcriptionId,
-        summaryId,
-        pendingTranscription: false,
+        recordingFileName: item.recordingFileName,
+        inputSource: item.inputSource,
+        model: settings.transcriptionModel,
       });
 
       // Show results
@@ -113,7 +94,7 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
       setIsTranscribing(false);
       setTranscribingItemId(null);
     }
-  }, [categories, settings, providers, updateItem, setResult, setSelectedHistoryId, setStatus, showToast]);
+  }, [categories, settings, providers, setResult, setSelectedHistoryId, setStatus, showToast]);
 
   return { transcribe, isTranscribing, transcribingItemId };
 };

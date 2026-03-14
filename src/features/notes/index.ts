@@ -26,10 +26,6 @@ export { NotesProvider, useNotesContext } from './context';
 // Hooks
 export { useNotes } from './hooks';
 
-// Services
-export { notesFeatureService } from './services';
-export type { AddNoteResult } from './services';
-
 // Components
 export { NotesView, NoteItem, NoteEditor } from './components';
 

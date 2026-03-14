@@ -5,8 +5,9 @@
  * Manages notes for a specific meeting.
  */
 
-import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
-import { notesService } from '../../../../services/storage';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { notesRepository } from '../../../../services/repositories';
+import type { NoteEntry } from '@/types';
 import type { NotesContextValue, NotesState, Note } from '../types';
 
 const initialState: NotesState = {
@@ -42,14 +43,13 @@ export const NotesProvider: React.FC<NotesProviderProps> = ({ children, meetingI
     setCurrentMeetingId(id);
 
     try {
-      const result = await notesService.getNotesForMeeting(id);
-      if (result.success && result.data) {
-        // Convert StoredNote[] to Note[] format expected by components
-        const notes: Note[] = result.data.map(n => ({
+      const entries = await notesRepository.readDoc(id);
+      if (entries && entries.length > 0) {
+        const notes: Note[] = entries.map((n: NoteEntry) => ({
           id: n.id,
           text: n.text,
-          timestamp: n.timestamp,
-          meetingId: n.meetingId,
+          timestamp: new Date(n.createdAt).getTime(),
+          meetingId: id,
           createdAt: n.createdAt,
           updatedAt: n.updatedAt,
           version: 1,
@@ -89,8 +89,9 @@ export const NotesProvider: React.FC<NotesProviderProps> = ({ children, meetingI
     console.log('[NotesContext] Adding note to meeting:', currentMeetingId);
 
     // Create optimistic note immediately
+    const noteId = crypto.randomUUID();
     const optimisticNote: Note = {
-      id: `temp-${Date.now()}`,
+      id: noteId,
       text,
       timestamp: Date.now(),
       meetingId: currentMeetingId,
@@ -107,31 +108,35 @@ export const NotesProvider: React.FC<NotesProviderProps> = ({ children, meetingI
     }));
 
     try {
-      const result = await notesService.addNote(currentMeetingId, text);
-      if (result.success && result.data) {
-        console.log('[NotesContext] ✓ Note saved to disk:', result.data.id);
-        // Replace optimistic note with real one from server
+      const now = new Date().toISOString();
+      const noteEntry: NoteEntry = {
+        id: noteId,
+        text,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const ok = await notesRepository.addNote(currentMeetingId, noteEntry);
+      if (ok) {
+        console.log('[NotesContext] ✓ Note saved to disk:', noteEntry.id);
         const realNote: Note = {
-          id: result.data.id,
-          text: result.data.text,
-          timestamp: result.data.timestamp,
-          meetingId: result.data.meetingId,
-          createdAt: result.data.createdAt,
-          updatedAt: result.data.updatedAt,
+          id: noteEntry.id,
+          text: noteEntry.text,
+          timestamp: Date.now(),
+          meetingId: currentMeetingId,
+          createdAt: now,
+          updatedAt: now,
           version: 1,
         };
-        
         setState(prev => ({
           ...prev,
           notes: prev.notes.map(n => n.id === optimisticNote.id ? realNote : n),
         }));
       } else {
         console.error('[NotesContext] ✗ Failed to save note, rolling back');
-        // Roll back optimistic update
         setState(prev => ({
           ...prev,
           notes: prev.notes.filter(n => n.id !== optimisticNote.id),
-          error: result.error,
+          error: 'Failed to save note',
         }));
       }
     } catch (error) {
@@ -151,21 +156,11 @@ export const NotesProvider: React.FC<NotesProviderProps> = ({ children, meetingI
     if (!currentMeetingId) return;
 
     try {
-      const result = await notesService.updateNote(currentMeetingId, noteId, text);
-      if (result.success && result.data) {
-        const updatedNote: Note = {
-          id: result.data.id,
-          text: result.data.text,
-          timestamp: result.data.timestamp,
-          meetingId: result.data.meetingId,
-          createdAt: result.data.createdAt,
-          updatedAt: result.data.updatedAt,
-          version: 1,
-        };
-
+      const ok = await notesRepository.updateNote(currentMeetingId, noteId, text);
+      if (ok) {
         setState(prev => ({
           ...prev,
-          notes: prev.notes.map(n => n.id === noteId ? updatedNote : n),
+          notes: prev.notes.map(n => n.id === noteId ? { ...n, text, updatedAt: new Date().toISOString() } : n),
         }));
       }
     } catch (error) {
@@ -179,8 +174,8 @@ export const NotesProvider: React.FC<NotesProviderProps> = ({ children, meetingI
     if (!currentMeetingId) return;
 
     try {
-      const result = await notesService.deleteNote(currentMeetingId, noteId);
-      if (result.success) {
+      const ok = await notesRepository.deleteNote(currentMeetingId, noteId);
+      if (ok) {
         setState(prev => ({
           ...prev,
           notes: prev.notes.filter(n => n.id !== noteId),
@@ -191,12 +186,6 @@ export const NotesProvider: React.FC<NotesProviderProps> = ({ children, meetingI
       setState(prev => ({ ...prev, error: errorMessage }));
     }
   }, [currentMeetingId]);
-
-  // Toggle pin (placeholder - notesService doesn't have this yet)
-  const togglePin = useCallback(async (noteId: string) => {
-    // TODO: Implement when pin support is added to storage service
-    console.log('Toggle pin for note:', noteId);
-  }, []);
 
   // Clear notes
   const clearNotes = useCallback(() => {
@@ -211,21 +200,15 @@ export const NotesProvider: React.FC<NotesProviderProps> = ({ children, meetingI
 
   // Computed values
   const notesCount = state.notes.length;
-  const pinnedNotes = useMemo(() => 
-    state.notes.filter(n => n.pinned).sort((a, b) => b.timestamp - a.timestamp),
-    [state.notes]
-  );
 
   const value: NotesContextValue = {
     ...state,
     meetingId: currentMeetingId,
     notesCount,
-    pinnedNotes,
     loadNotes,
     addNote,
     updateNote,
     deleteNote,
-    togglePin,
     clearNotes,
     setCreating,
   };

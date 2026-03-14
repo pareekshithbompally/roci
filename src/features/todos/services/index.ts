@@ -1,5 +1,5 @@
 /**
  * Todos Services Index
+ *
+ * Legacy feature service removed — TodosContext uses todosRepository directly.
  */
-export { todosFeatureService } from './todos.service';
-export type { AddTodoResult } from './todos.service';

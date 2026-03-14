@@ -12,13 +12,6 @@ export interface CitationHandlers {
   onShowAllWebCitations?: (citations: WebCitation[]) => void;
 }
 
-/** Tool activity — consumed by ActionBar tooltip */
-export interface ToolActivityData {
-  calls: Array<{ toolName: string; executionMs: number; resultSummary?: string }>;
-  totalIterations: number;
-  citations?: MeetingCitation[];
-}
-
 /** Top-level ChatMessage props — the router interface */
 export interface ChatMessageProps {
   id: string;
@@ -34,8 +27,13 @@ export interface ChatMessageProps {
   state?: 'loading' | 'streaming' | 'complete';
   tokenCount?: number;
   tokensPerSecond?: number;
-  toolActivity?: ToolActivityData;
-  preparingTools?: boolean;
+  /** @deprecated Use meetingCitations instead — kept for backward compat with old persisted messages */
+  toolActivity?: {
+    calls: Array<{ toolName: string; executionMs: number; resultSummary?: string }>;
+    totalIterations: number;
+    citations?: MeetingCitation[];
+  };
+  meetingCitations?: MeetingCitation[];
   isCopied?: boolean;
   actions: ActionProps;
   citationHandlers: CitationHandlers;
@@ -67,8 +65,9 @@ export interface AssistantMessageProps {
   state: 'loading' | 'streaming' | 'complete';
   tokenCount?: number;
   tokensPerSecond?: number;
-  toolActivity?: ToolActivityData;
-  preparingTools: boolean;
+  /** @deprecated Kept for backward compat lazy migration */
+  toolActivity?: ChatMessageProps['toolActivity'];
+  meetingCitations?: MeetingCitation[];
   isCopied?: boolean;
   actions: ActionProps;
   citationHandlers: CitationHandlers;

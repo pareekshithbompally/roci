@@ -14,30 +14,19 @@ export const StorageConfig = {
    */
   directories: {
     recordings: 'recordings',
-    transcriptions: 'transcriptions',
-    summaries: 'summaries',
+    meetings: 'meetings',
     chats: 'chats',
-    notes: 'notes',
-    todos: 'todos',
     cache: 'cache',
     cacheAudio: 'cache/audio',
     cacheApi: 'cache/api',
   },
 
   /**
-   * Primary content directories to surface in UI
-   */
-  primaryDirectories: ['recordings', 'transcriptions', 'summaries', 'chats'] as const,
-
-  /**
    * File naming patterns
    */
   fileNames: {
     settings: 'settings.json',
-    history: 'history.json',
     recordingPrefix: 'rec',
-    transcriptionSuffix: '_transcript.json',
-    summarySuffix: '_summary.json',
     chatPrefix: 'chat',
     cacheTempPrefix: 'temp',
   },
@@ -49,14 +38,6 @@ export const StorageConfig = {
     recording: {
       defaultExtension: '.wav',
       allowedExtensions: ['.wav', '.webm', '.mp3', '.m4a'],
-    },
-    transcription: {
-      extension: '.json',
-      encoding: 'utf-8',
-    },
-    chat: {
-      extension: '.json',
-      encoding: 'utf-8',
     },
     settings: {
       extension: '.json',
@@ -134,29 +115,6 @@ export function getRecordingIdFromFilename(filename: string): string {
     return filename;
   }
   return filename.slice(0, lastDotIndex);
-}
-
-/**
- * Generate filename for transcription
- */
-export function generateTranscriptionFilename(recordingId: string): string {
-  return `${recordingId}${StorageConfig.fileNames.transcriptionSuffix}`;
-}
-
-/**
- * Generate filename for summary
- */
-export function generateSummaryFilename(recordingId: string): string {
-  return `${recordingId}${StorageConfig.fileNames.summarySuffix}`;
-}
-
-/**
- * Generate filename for chat thread
- */
-export function generateChatFilename(): string {
-  const timestamp = Date.now();
-  const uuid = crypto.randomUUID().split('-')[0];
-  return `${StorageConfig.fileNames.chatPrefix}_${timestamp}_${uuid}.json`;
 }
 
 /**

@@ -56,9 +56,18 @@ export const streamingStore = {
     emitChange();
   },
 
-  /** Push a media part (image, audio, video). */
+  /** Push a media part (image, audio, video, tool_call). */
   pushPart(part: ChatPart) {
     snapshot = { ...snapshot, parts: [...snapshot.parts, part] };
+    emitChange();
+  },
+
+  /** Update an existing tool_call part by its toolCallId. */
+  updatePartByKey(toolCallId: string, updater: (part: ChatPart) => ChatPart) {
+    const parts = snapshot.parts.map(p =>
+      p.type === 'tool_call' && p.toolCallId === toolCallId ? updater(p) : p
+    );
+    snapshot = { ...snapshot, parts };
     emitChange();
   },
 

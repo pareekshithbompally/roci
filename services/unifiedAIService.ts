@@ -191,91 +191,82 @@ class UnifiedAIService {
   // ============ Response Parsing ============
 
   /**
-   * Parse transcription result: try structured JSON first, fall back to delimiter parsing.
+   * Parse transcription result from structured JSON.
+   * The LLM returns a structured summary object — no regex parsing needed.
    */
   private parseTranscriptionResult(text: string, isStructured: boolean): ProcessedResult {
     if (isStructured) {
       try {
         const parsed: TranscriptionResponse = JSON.parse(text);
+        const summary = parsed.summary;
+
+        // Build a flat summary string for backward compat (copy/download)
+        const summaryString = this.buildSummaryString(summary);
+
+        // Map MeetingSummary → StructuredSummary
         return {
           title: parsed.title,
-          summary: parsed.summary,
+          summary: summaryString,
           categories: parsed.categories,
           transcript: parsed.transcript,
-          structuredSummary: this.parseStructuredSummary(parsed.summary),
+          structuredSummary: {
+            overview: summary.overview,
+            keyDiscussionPoints: summary.keyDiscussionPoints,
+            decisionsMade: summary.decisionsMade,
+            actionItems: summary.actionItems.map((item) => ({
+              id: crypto.randomUUID(),
+              text: item.text,
+              owner: item.owner,
+              dueDate: item.dueDate,
+              completed: false,
+            })),
+            nextSteps: summary.nextSteps,
+          },
         };
-      } catch {
-        // Fall through to delimiter parsing
+      } catch (error) {
+        console.error('[UnifiedAIService] Failed to parse structured response:', error);
+        // Fall through to plain text fallback
       }
     }
 
-    return this.parseTranscriptionResponseLegacy(text);
+    // Fallback for non-structured responses — should not happen with current models
+    return {
+      title: 'Untitled',
+      summary: text,
+      categories: [],
+      transcript: text,
+      structuredSummary: {
+        overview: 'Unable to parse structured summary',
+        keyDiscussionPoints: [],
+        decisionsMade: [],
+        actionItems: [],
+        nextSteps: [],
+      },
+    };
   }
 
-  /** Legacy delimiter-based transcription parser — fallback for models without structured output */
-  private parseTranscriptionResponseLegacy(text: string): ProcessedResult {
-    const titleMatch = text.match(/---TITLE---([\s\S]*?)(?=---SUMMARY---|$)/);
-    const summaryMatch = text.match(/---SUMMARY---([\s\S]*?)(?=---CATEGORIES---|$)/);
-    const categoryMatch = text.match(/---CATEGORIES---([\s\S]*?)(?=---TRANSCRIPT---|$)/);
-    const transcriptMatch = text.match(/---TRANSCRIPT---([\s\S]*?$)/);
-
-    if (!titleMatch && !summaryMatch && !transcriptMatch) {
-      const lines = text.split('\n').filter(line => line.trim());
-      return {
-        title: lines[0]?.substring(0, 60) || 'Untitled Document',
-        summary: text.trim(),
-        categories: [],
-        transcript: text.trim(),
-        structuredSummary: {
-          tldr: 'Unable to parse structured summary',
-          notes: text.trim(),
-          actionItems: [],
-        },
-      };
+  /** Build a readable summary string from structured fields (for copy/download) */
+  private buildSummaryString(summary: import('@/types').MeetingSummary): string {
+    const parts: string[] = [];
+    parts.push(`## Meeting Overview\n${summary.overview}`);
+    if (summary.keyDiscussionPoints.length > 0) {
+      parts.push(`## Key Discussion Points\n${summary.keyDiscussionPoints.map(p => `- ${p}`).join('\n')}`);
     }
-
-    const rawCategories = categoryMatch ? categoryMatch[1] : '';
-    const categories = rawCategories
-      .replace(/[\[\]]/g, '')
-      .split(',')
-      .map(c => c.trim())
-      .filter(c => c);
-
-    const rawSummary = summaryMatch ? summaryMatch[1].trim() : 'No summary.';
-
-    return {
-      title: titleMatch ? titleMatch[1].trim() : 'Untitled',
-      summary: rawSummary,
-      categories,
-      transcript: transcriptMatch ? transcriptMatch[1].trim() : text,
-      structuredSummary: this.parseStructuredSummary(rawSummary),
-    };
-  }
-
-  private parseStructuredSummary(summaryText: string) {
-    const overviewMatch = summaryText.match(/##?\s*Meeting Overview\s*([\s\S]*?)(?=##?\s*Key Discussion|##?\s*Decisions|$)/i);
-    const actionItemsMatch = summaryText.match(/##?\s*Action Items?\s*([\s\S]*?)(?=##?\s*Next Steps|$)/i);
-
-    const actionItems: any[] = [];
-    const itemsText = actionItemsMatch ? actionItemsMatch[1] : '';
-    const lines = itemsText.split('\n').filter(line => line.trim());
-
-    lines.forEach((line, idx) => {
-      const trimmed = line.replace(/^[-•*]\s*/, '').trim();
-      if (trimmed && !trimmed.startsWith('#')) {
-        actionItems.push({
-          id: `action-${idx}-${Date.now()}`,
-          text: trimmed,
-          completed: false,
-        });
-      }
-    });
-
-    return {
-      tldr: overviewMatch ? overviewMatch[1].trim() : undefined,
-      notes: summaryText,
-      actionItems: actionItems.length > 0 ? actionItems : undefined,
-    };
+    if (summary.decisionsMade.length > 0) {
+      parts.push(`## Decisions Made\n${summary.decisionsMade.map(d => `- ${d}`).join('\n')}`);
+    }
+    if (summary.actionItems.length > 0) {
+      parts.push(`## Action Items\n${summary.actionItems.map(a => {
+        let line = `- ${a.text}`;
+        if (a.owner) line += ` - Owner: ${a.owner}`;
+        if (a.dueDate) line += ` - Due: ${a.dueDate}`;
+        return line;
+      }).join('\n')}`);
+    }
+    if (summary.nextSteps.length > 0) {
+      parts.push(`## Next Steps\n${summary.nextSteps.map(s => `- ${s}`).join('\n')}`);
+    }
+    return parts.join('\n\n');
   }
 }
 

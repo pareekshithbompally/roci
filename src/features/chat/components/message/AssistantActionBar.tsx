@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, Check, RefreshCw, Gauge, Wrench } from 'lucide-react';
+import { Copy, Check, RefreshCw, Gauge } from 'lucide-react';
 import ActionButton from './ActionButton';
 import SuggestionsList from './SuggestionsList';
 import SourcesList from './SourcesList';
-import { friendlyToolName } from '@shared/utils/toolUtils';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
-import type { ActionProps, CitationHandlers, ToolActivityData } from './types';
-import type { WebCitation } from '@/types';
+import type { ActionProps, CitationHandlers } from './types';
+import type { MeetingCitation, WebCitation } from '@/types';
 
 interface AssistantActionBarProps {
   id: string;
@@ -17,7 +16,7 @@ interface AssistantActionBarProps {
   tokenCount?: number;
   tokensPerSecond?: number;
   actions: ActionProps;
-  toolActivity?: ToolActivityData;
+  meetingCitations?: MeetingCitation[];
   suggestions?: string[];
   onSuggestionClick?: (suggestion: string) => void;
   citationHandlers: CitationHandlers;
@@ -27,7 +26,7 @@ interface AssistantActionBarProps {
 const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
   id, text, timestamp, isLastMessage, isCopied,
   tokenCount, tokensPerSecond,
-  actions, toolActivity,
+  actions, meetingCitations,
   suggestions, onSuggestionClick,
   citationHandlers, webCitations,
 }) => {
@@ -35,7 +34,7 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
   const { onCitationClick, onShowAllWebCitations } = citationHandlers;
 
   const hasSuggestions = !!(suggestions && suggestions.length > 0 && onSuggestionClick && isLastMessage);
-  const hasMeetingCitations = !!(toolActivity?.citations && toolActivity.citations.length > 0);
+  const hasMeetingCitations = !!(meetingCitations && meetingCitations.length > 0);
   const hasWebCitations = !!(webCitations && webCitations.length > 0);
   const hasCitations = hasMeetingCitations || hasWebCitations;
   const hasTabs = hasSuggestions || hasCitations;
@@ -82,16 +81,6 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
               </span>
             </div>
           )}
-          {toolActivity && toolActivity.calls.length > 0 && (
-            <div className="relative group/tools flex items-center">
-              <button className={`p-1.5 rounded ${TEXT.faint} hover:text-parchment-800 dark:hover:text-night-300 transition-colors`}>
-                <Wrench className="w-4 h-4" />
-              </button>
-              <div className={`absolute bottom-full right-0 mb-1.5 hidden group-hover/tools:block z-20 whitespace-nowrap ${SURFACE.tooltip} text-xs px-2.5 py-1.5 pointer-events-none`}>
-                {toolActivity.calls.map(c => friendlyToolName(c.toolName)).join(' · ')}
-              </div>
-            </div>
-          )}
           {onRerun && isLastMessage && (
             <ActionButton onClick={onRerun} title="Regenerate response">
               <RefreshCw className="w-4 h-4" />
@@ -118,7 +107,7 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
           )}
           {activeTab === 'sources' && hasCitations && (
             <SourcesList
-              meetingCitations={toolActivity?.citations}
+              meetingCitations={meetingCitations}
               webCitations={webCitations}
               onCitationClick={onCitationClick}
               onShowAllWebCitations={onShowAllWebCitations}

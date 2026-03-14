@@ -25,7 +25,6 @@ const NotesView: React.FC<NotesViewProps> = ({ className = '' }) => {
     addNote,
     updateNote,
     deleteNote,
-    togglePin,
     setCreating,
   } = useNotes();
 
@@ -101,7 +100,6 @@ const NotesView: React.FC<NotesViewProps> = ({ className = '' }) => {
               note={note}
               onDelete={deleteNote}
               onUpdate={updateNote}
-              onTogglePin={togglePin}
             />
           ))}
         </div>

@@ -17,6 +17,7 @@
 import { resolveModel, getProviderType } from '@shared/utils/modelResolver';
 import { getAdapter } from '@/services/adapters';
 import { toolRegistry, toolExecutor } from '@extensions/tools';
+import { toolLabel } from '@shared/utils/toolUtils';
 import type { ToolCall, ToolResult } from '@extensions/tools/types';
 import type { ToolStreamOptions, ToolStreamCallbacks, ToolCallEvent, TokenUsage } from '@/services/adapters/types';
 import { MessageBuffer } from './message-buffer';
@@ -66,7 +67,7 @@ export async function orchestrate(
 
       const activity: ToolActivity = {
         toolName: call.name,
-        label: getToolActivityLabel(call.name),
+        label: toolLabel(call.name, 'calling'),
         status: 'calling',
         toolCall: call,
       };
@@ -137,15 +138,4 @@ export async function orchestrate(
     model: resolved.modelId,
     tokenUsage,
   };
-}
-
-/** Friendly UI labels for tool activity */
-function getToolActivityLabel(toolName: string): string {
-  switch (toolName) {
-    case 'search_meetings': return 'Searching meetings…';
-    case 'get_meeting': return 'Retrieving meeting…';
-    case 'list_meetings': return 'Listing meetings…';
-    case 'get_action_items': return 'Getting action items…';
-    default: return `Running ${toolName}…`;
-  }
 }

@@ -9,7 +9,6 @@ export interface Note {
   text: string;
   timestamp: number;
   meetingId?: string;
-  pinned?: boolean;
   createdAt?: string;
   updatedAt?: string;
   version?: number;
@@ -18,7 +17,6 @@ export interface Note {
 export interface NoteInput {
   text: string;
   meetingId: string;
-  pinned?: boolean;
 }
 
 export interface NotesState {
@@ -33,7 +31,6 @@ export interface NotesActions {
   addNote: (text: string) => Promise<void>;
   updateNote: (noteId: string, text: string) => Promise<void>;
   deleteNote: (noteId: string) => Promise<void>;
-  togglePin: (noteId: string) => Promise<void>;
   clearNotes: () => void;
   setCreating: (isCreating: boolean) => void;
 }
@@ -41,5 +38,4 @@ export interface NotesActions {
 export interface NotesContextValue extends NotesState, NotesActions {
   meetingId: string | null;
   notesCount: number;
-  pinnedNotes: Note[];
 }

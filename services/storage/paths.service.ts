@@ -115,33 +115,6 @@ class PathsService {
   }
 
   /**
-   * Get path for transcriptions directory
-   */
-  async getTranscriptionsPath(): Promise<string> {
-    const base = await this.getBasePath();
-    const fullPath = await join(base, StorageConfig.directories.transcriptions);
-    return this.ensureTrailingSeparator(fullPath);
-  }
-
-  /**
-   * Get path for summaries directory
-   */
-  async getSummariesPath(): Promise<string> {
-    const base = await this.getBasePath();
-    const fullPath = await join(base, StorageConfig.directories.summaries);
-    return this.ensureTrailingSeparator(fullPath);
-  }
-
-  /**
-   * Get path for chats directory
-   */
-  async getChatsPath(): Promise<string> {
-    const base = await this.getBasePath();
-    const fullPath = await join(base, StorageConfig.directories.chats);
-    return this.ensureTrailingSeparator(fullPath);
-  }
-
-  /**
    * Get path for cache directory
    */
   async getCachePath(): Promise<string> {
@@ -169,20 +142,20 @@ class PathsService {
   }
 
   /**
-   * Get path for notes directory
+   * Get path for meetings directory
    */
-  async getNotesPath(): Promise<string> {
+  async getMeetingsPath(): Promise<string> {
     const base = await this.getBasePath();
-    const fullPath = await join(base, StorageConfig.directories.notes);
+    const fullPath = await join(base, StorageConfig.directories.meetings);
     return this.ensureTrailingSeparator(fullPath);
   }
 
   /**
-   * Get path for todos directory
+   * Get path for a specific meeting directory
    */
-  async getTodosPath(): Promise<string> {
+  async getMeetingPath(meetingId: string): Promise<string> {
     const base = await this.getBasePath();
-    const fullPath = await join(base, StorageConfig.directories.todos);
+    const fullPath = await join(base, StorageConfig.directories.meetings, meetingId);
     return this.ensureTrailingSeparator(fullPath);
   }
 
@@ -192,14 +165,6 @@ class PathsService {
   async getSettingsPath(): Promise<string> {
     const base = await this.getBasePath();
     return await join(base, StorageConfig.fileNames.settings);
-  }
-
-  /**
-   * Get path for history file
-   */
-  async getHistoryPath(): Promise<string> {
-    const base = await this.getBasePath();
-    return await join(base, StorageConfig.fileNames.history);
   }
 
   /**
