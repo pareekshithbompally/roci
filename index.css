@@ -137,6 +137,24 @@ code, pre {
   background-color: #3e4354;  /* night-600 */
 }
 
+/* Scroll fade — top/bottom gradient masks for scrollable containers */
+.scroll-fade {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 12px,
+    black calc(100% - 12px),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 12px,
+    black calc(100% - 12px),
+    transparent 100%
+  );
+}
+
 /* Alias for scrollbar-hover (used in other components) */
 .custom-scrollbar:hover::-webkit-scrollbar-thumb {
   background-color: #b0a99c;  /* parchment-500 */
@@ -253,6 +271,22 @@ code, pre {
   animation-delay: 0.15s;
   opacity: 0;
   animation-fill-mode: forwards;
+}
+
+/* Chat entrance — input settles from center to bottom */
+@keyframes chat-settle {
+  from {
+    opacity: 0;
+    transform: translateY(-30vh);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-chat-settle {
+  animation: chat-settle 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Title morph animation — blur/fade when AI-generated title replaces placeholder */

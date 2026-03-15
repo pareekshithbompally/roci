@@ -2,17 +2,21 @@
  * MainLayout Component
  *
  * Main application layout with resizable sidebar, content area, and chat panel.
- * Implements resizable panels with auto-collapse.
+ * Sidebar is draggable via a resize handle on its right edge.
  */
 
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import { useLeftPanel } from '@/hooks/useLeftPanel';
 import { useSmallScreen } from '@/hooks/useMediaQuery';
+import { useApp } from '@shared/contexts/AppContext';
+import { useChat } from '@shared/contexts/ChatContext';
 import { Sidebar } from './Sidebar';
 import { ChatPanel } from '@features/chat';
-import { PanelLeft } from 'lucide-react';
+import { PanelLeft, SquarePen } from 'lucide-react';
 import { IS_MACOS } from '@platform/index';
+import { AppStatus } from '@/types';
 import { SURFACE, TEXT, LAYOUT, COMPONENT } from '@config/theme.config';
+import { UI_CONFIG } from '@config/ui.config';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -27,8 +31,43 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   onChatToggle,
   onSearchClick,
 }) => {
-  const { open: isLeftPanelOpen, setLeftPanel, size: leftPanelSize } = useLeftPanel();
+  const { open: isLeftPanelOpen, setLeftPanel, width: sidebarWidth, setLeftPanelWidth } = useLeftPanel();
   const isSmallScreen = useSmallScreen();
+  const { setCurrentView, setStatus, setSelectedHistoryId, setResult } = useApp();
+  const chat = useChat();
+  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  const handleNewChat = useCallback(() => {
+    setCurrentView('home');
+    setSelectedHistoryId(null);
+    chat.setCurrentSessionId(null);
+    setResult(null);
+    setStatus(AppStatus.IDLE);
+  }, [setCurrentView, setSelectedHistoryId, chat, setResult, setStatus]);
+
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    dragRef.current = { startX: e.clientX, startWidth: sidebarWidth };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dragRef.current) return;
+      const delta = e.clientX - dragRef.current.startX;
+      setLeftPanelWidth(dragRef.current.startWidth + delta);
+    };
+
+    const onMouseUp = () => {
+      dragRef.current = null;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [sidebarWidth, setLeftPanelWidth]);
 
   const shouldOffsetMacControls = IS_MACOS && (isSmallScreen || !isLeftPanelOpen);
 
@@ -36,7 +75,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     isSmallScreen
       ? 'fixed inset-y-0 left-0 h-full pb-[calc(env(safe-area-inset-bottom)+env(safe-area-inset-top))] z-50 px-1 w-full md:w-72'
       : isLeftPanelOpen
-        ? `w-72 shrink-0 ${LAYOUT.sidebarShell}`
+        ? `shrink-0 ${LAYOUT.sidebarShell}`
         : 'w-0 shrink-0 m-0'
   } ${
     isLeftPanelOpen
@@ -62,9 +101,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
       {/* Main layout */}
       <div className="flex h-full">
-        {/* Left sidebar — floating panel like Jan AI */}
+        {/* Left sidebar — resizable desktop panel */}
         {isLeftPanelOpen && !isSmallScreen && (
-          <div className={`shrink-0 ${LAYOUT.sidebarShell}`} style={{ width: `${leftPanelSize}%` }}>
+          <div className={`shrink-0 relative z-30 ${LAYOUT.sidebarShell}`} style={{ width: sidebarWidth }}>
             <aside className={leftPanelInnerClassName}>
               <Sidebar
                 shouldOffsetMacControls={shouldOffsetMacControls}
@@ -72,6 +111,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 onSearchClick={onSearchClick}
               />
             </aside>
+            {/* Resize handle */}
+            <div
+              onMouseDown={handleResizeStart}
+              className="absolute top-0 right-0 w-1 h-full cursor-col-resize z-40 group"
+            >
+              <div className={`w-px h-full ml-auto opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity ${COMPONENT.resizeHandle}`} />
+            </div>
           </div>
         )}
 
@@ -91,17 +137,26 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         {/* Main content panel */}
         <div className="h-full flex flex-1 min-w-0">
           <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden pt-[60px] relative">
-            {/* Sidebar toggle when collapsed */}
+            {/* Sidebar actions when collapsed — traffic lights center at ~y:20px, button is 32px tall */}
             {!isLeftPanelOpen && !isSmallScreen && (
-              <button
-                onClick={() => setLeftPanel(true)}
-                className={`absolute top-4 z-50 ${COMPONENT.iconButton} ${
-                  shouldOffsetMacControls ? 'left-[88px]' : 'left-3'
-                }`}
-                aria-label="Toggle sidebar"
-              >
-                <PanelLeft className="w-4 h-4" />
-              </button>
+              <div className={`absolute top-[14px] z-50 flex items-center gap-1 ${
+                shouldOffsetMacControls ? 'left-[88px]' : 'left-3'
+              }`}>
+                <button
+                  onClick={handleNewChat}
+                  className={COMPONENT.iconButton}
+                  aria-label="New chat"
+                >
+                  <SquarePen className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setLeftPanel(true)}
+                  className={COMPONENT.iconButton}
+                  aria-label="Toggle sidebar"
+                >
+                  <PanelLeft className="w-4 h-4" />
+                </button>
+              </div>
             )}
             {children}
           </div>

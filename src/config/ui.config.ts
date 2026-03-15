@@ -9,8 +9,9 @@ export const UI_CONFIG = {
   // Layout dimensions
   layout: {
     sidebarWidth: {
-      open: '320px',
-      closed: '0px',
+      default: 260,
+      min: 200,
+      max: 400,
     },
     sidebarBreakpoint: 1024, // lg breakpoint in pixels
     maxContentWidth: '95%', // Stretch close to edges but not sticking

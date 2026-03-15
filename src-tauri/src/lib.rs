@@ -4,6 +4,33 @@ mod autostart;
 mod audio_core;
 mod screenshot;
 
+/// Open a folder in the OS file manager (Finder on macOS).
+#[tauri::command]
+fn reveal_in_file_manager(path: String) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open Finder: {}", e))?;
+    }
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open Explorer: {}", e))?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open file manager: {}", e))?;
+    }
+    Ok(())
+}
+
 use std::sync::Mutex;
 use tauri::Manager;
 use tauri_plugin_autostart::MacosLauncher;
@@ -68,6 +95,8 @@ pub fn run() {
       // Screenshot commands
       screenshot::list_capturable_windows,
       screenshot::take_screenshot,
+      // Utility commands
+      reveal_in_file_manager,
     ])
     .build(tauri::generate_context!())
     .expect("error while building tauri application")

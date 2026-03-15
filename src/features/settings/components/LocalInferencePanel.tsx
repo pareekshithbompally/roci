@@ -328,20 +328,19 @@ export const LocalInferencePanel: React.FC = () => {
       {/* STATE 1: no-engine — Setup card with download CTA          */}
       {/* ═══════════════════════════════════════════════════════════ */}
       {panelState === 'no-engine' && (
-        <div className={`px-5 py-6 ${SURFACE.subtle} border ${BORDER.default} rounded-xl space-y-4`}>
-          <div>
-            <h4 className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading} mb-1`}>
-              Get Started
-            </h4>
+        <div className={`flex items-center justify-between px-4 py-3 ${SURFACE.subtle} border ${BORDER.default} rounded-lg`}>
+          <div className="min-w-0">
+            <p className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
+              llama-server
+            </p>
             <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
-              Download the llama-server engine to run AI models locally on your machine.
+              Local inference engine
             </p>
           </div>
-
           <button
             onClick={handleDownloadBinary}
             disabled={isDownloadingBinary}
-            className={`w-full flex items-center justify-center gap-2 px-4 py-3 ${COMPONENT.primaryButton} rounded-lg ${TYPOGRAPHY_CLASSES.settingsButton} disabled:opacity-50`}
+            className={`flex items-center gap-2 px-4 py-2 ${COMPONENT.primaryButton} rounded-lg ${TYPOGRAPHY_CLASSES.settingsButton} disabled:opacity-50 whitespace-nowrap`}
           >
             {isDownloadingBinary ? (
               <motion.span {...spin}><Loader2 className="w-4 h-4" /></motion.span>
@@ -351,10 +350,9 @@ export const LocalInferencePanel: React.FC = () => {
             {isDownloadingBinary
               ? (binaryPhase === 'extracting' ? 'Extracting...' :
                  binaryPhase === 'validating' ? 'Validating...' :
-                 'Downloading llama-server...')
-              : 'Download llama-server'}
+                 'Downloading...')
+              : 'Download'}
           </button>
-
         </div>
       )}
 

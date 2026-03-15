@@ -110,7 +110,7 @@ export const ChatView: React.FC = () => {
   return (
     <div className="h-full w-full">
       {/* Chat column — messages + input, clipped to prevent scroll bleed */}
-      <div className="h-full flex flex-col overflow-hidden">
+      <div className="h-full flex flex-col overflow-hidden animate-chat-settle">
         {/* Messages Area — StickToBottom for smooth auto-scroll */}
         {currentMessages.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">

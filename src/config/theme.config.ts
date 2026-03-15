@@ -152,6 +152,9 @@ export const BORDER = {
   /** Panel edges, subtle separators */
   subtle: 'border-parchment-300/50 dark:border-night-700',
 
+  /** Divide-y color for list rows (maps to Tailwind divide utilities) */
+  divide: 'divide-parchment-300/50 dark:divide-night-700',
+
   /** Modals, dropdowns — stronger emphasis */
   strong: 'border-parchment-300 dark:border-night-650',
 
@@ -324,7 +327,7 @@ export const COMPONENT = {
   sidebarItemSelected: `${SURFACE.selected} ${BORDER.selectedItem}`,
 
   /** Sidebar item default state */
-  sidebarItemDefault: 'border-transparent hover:bg-parchment-150 dark:hover:bg-night-800/40',
+  sidebarItemDefault: 'border-transparent hover:bg-parchment-200/70 dark:hover:bg-night-800/60 hover:border-parchment-300/40 dark:hover:border-night-700/40',
 
   /** Primary action chip (buttons on idle view) */
   // BUG FIX: was `dark:hover:bg-zinc-750` (invalid class)
@@ -344,6 +347,9 @@ export const COMPONENT = {
 
   /** Dropdown menu item hover */
   dropdownItemHover: 'hover:bg-parchment-200 dark:hover:bg-night-750',
+
+  /** Dropdown menu item danger (destructive actions) */
+  dropdownItemDanger: 'text-red-600 dark:text-red-400 data-[highlighted]:bg-red-50 dark:data-[highlighted]:bg-red-900/20',
 
   /** Dropdown menu item (text + hover) */
   dropdownItem: 'text-sm hover:bg-parchment-200 dark:hover:bg-night-750',

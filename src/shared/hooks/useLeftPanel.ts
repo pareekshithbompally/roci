@@ -1,20 +1,26 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { UI_CONFIG } from '@config/ui.config';
 
 type LeftPanelStoreState = {
   open: boolean;
-  size: number;
+  width: number;
   setLeftPanel: (value: boolean) => void;
-  setLeftPanelSize: (value: number) => void;
+  setLeftPanelWidth: (value: number) => void;
 };
 
 export const useLeftPanel = create<LeftPanelStoreState>()(
   persist(
     (set) => ({
-      open: false, // Start closed to test if ResizablePanelGroup is the issue
-      size: 20, // Default size of 20%
+      open: false,
+      width: UI_CONFIG.layout.sidebarWidth.default,
       setLeftPanel: (value) => set({ open: value }),
-      setLeftPanelSize: (value) => set({ size: value }),
+      setLeftPanelWidth: (value) => set({
+        width: Math.min(
+          UI_CONFIG.layout.sidebarWidth.max,
+          Math.max(UI_CONFIG.layout.sidebarWidth.min, value),
+        ),
+      }),
     }),
     {
       name: 'kasset-ai-left-panel',
