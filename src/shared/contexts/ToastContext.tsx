@@ -6,23 +6,24 @@
  *
  * Provides consistent icons (white Lucide, 16px) and richColors
  * styling for every toast type. Sonner's <Toaster> is rendered in App.tsx.
+ *
+ * Tier 1: Simple confirmations — 5s default (set on <Toaster>)
+ * Tier 3: Errors with recovery action — 8s duration, action button
  */
 
 import React, { createContext, useContext, useCallback, ReactNode } from 'react';
 import { toast as sonnerToast } from 'sonner';
-import { CheckCircle2, XCircle, Info, AlertTriangle } from 'lucide-react';
 
 export type ToastType = 'error' | 'success' | 'info' | 'warning';
 
-const TOAST_ICONS: Record<ToastType, React.ReactElement> = {
-  success: React.createElement(CheckCircle2, { size: 16, color: 'white' }),
-  error: React.createElement(XCircle, { size: 16, color: 'white' }),
-  info: React.createElement(Info, { size: 16, color: 'white' }),
-  warning: React.createElement(AlertTriangle, { size: 16, color: 'white' }),
-};
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
 
 interface ToastContextValue {
-  showToast: (message: string, type?: ToastType) => void;
+  showToast: (message: string, type?: ToastType, action?: ToastAction) => void;
+  showErrorWithRetry: (message: string, retryFn: () => void) => void;
   dismissToast: (id: string) => void;
   clearToasts: () => void;
 }
@@ -33,9 +34,17 @@ interface ToastProviderProps {
   children: ReactNode;
 }
 
+/** Tier 3 toasts (with action) get a longer duration so users can interact */
+const TIER3_DURATION = 8000;
+
 export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
-  const showToast = useCallback((message: string, type: ToastType = 'info') => {
-    const opts = { icon: TOAST_ICONS[type] };
+  const showToast = useCallback((message: string, type: ToastType = 'info', action?: ToastAction) => {
+    const opts: Record<string, unknown> = {};
+    if (action) {
+      opts.action = { label: action.label, onClick: action.onClick };
+      opts.duration = TIER3_DURATION;
+    }
+
     switch (type) {
       case 'success':
         sonnerToast.success(message, opts);
@@ -53,6 +62,13 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
     }
   }, []);
 
+  const showErrorWithRetry = useCallback((message: string, retryFn: () => void) => {
+    sonnerToast.error(message, {
+      duration: TIER3_DURATION,
+      action: { label: 'Retry', onClick: retryFn },
+    });
+  }, []);
+
   const dismissToast = useCallback((id: string) => {
     sonnerToast.dismiss(id);
   }, []);
@@ -62,7 +78,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
   }, []);
 
   return (
-    <ToastContext.Provider value={{ showToast, dismissToast, clearToasts }}>
+    <ToastContext.Provider value={{ showToast, showErrorWithRetry, dismissToast, clearToasts }}>
       {children}
     </ToastContext.Provider>
   );

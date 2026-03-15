@@ -20,6 +20,8 @@ import { recordingsService } from '../../../../services/storage';
 import { transcriptionService } from '../../../../services/transcription.service';
 import { StorageConfig, generateRecordingFilename, getRecordingIdFromFilename } from '../../../../src/config/storage.config';
 import { unifiedAIService } from '../../../../services/unifiedAIService';
+import { activityStore } from '../../../shared/stores/activityStore';
+import type { ActivityAction } from '../../../shared/stores/activityStore';
 import type {
   RecordingContextValue,
   RecordingState,
@@ -672,6 +674,158 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     : audioSource === 'systemAndMicrophone'
       ? 'Screen Recording and Microphone permissions are required the first time you start capture.'
       : 'Screen Recording permission is required the first time you start capture.';
+
+  // === ActivityTray bridge ===
+  // Sync recording sessions → activityStore so the unified tray renders them.
+  // Format time as MM:SS for the tray detail field.
+  const formatTimeForTray = useCallback((seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }, []);
+
+  // Keep action refs current so activity item callbacks use latest state
+  const actionsRef = useRef({
+    pause: pauseRecordingSession,
+    resume: resumeRecordingSession,
+    stop: stopRecordingSession,
+    discard: discardRecordingSession,
+    process: processRecordingSession,
+    abort: abortProcessingSession,
+    saveLater,
+  });
+  actionsRef.current = {
+    pause: pauseRecordingSession,
+    resume: resumeRecordingSession,
+    stop: stopRecordingSession,
+    discard: discardRecordingSession,
+    process: processRecordingSession,
+    abort: abortProcessingSession,
+    saveLater,
+  };
+
+  useEffect(() => {
+    // Track which IDs we've pushed to the store so we can clean up removed sessions
+    const trackedIds = new Set<string>();
+
+    // Iterate over current sessions and sync to activityStore
+    sessions.forEach((session) => {
+      const id = session.sessionId;
+      trackedIds.add(id);
+
+      if (session.status === 'recording' || session.status === 'paused') {
+        const actions: ActivityAction[] = [];
+        if (session.isPaused) {
+          actions.push({
+            icon: 'play',
+            label: 'Resume',
+            onClick: () => actionsRef.current.resume(id),
+          });
+        } else {
+          actions.push({
+            icon: 'pause',
+            label: 'Pause',
+            onClick: () => actionsRef.current.pause(id),
+          });
+        }
+        actions.push({
+          icon: 'square',
+          label: 'Stop',
+          onClick: () => actionsRef.current.stop(id),
+        });
+
+        const patch = {
+          type: 'recording' as const,
+          label: session.isPaused ? 'Paused' : 'Recording',
+          status: 'active' as const,
+          percent: null,
+          step: null,
+          detail: formatTimeForTray(session.elapsedTime),
+          error: session.stalled ? 'Audio capture may have stopped' : null,
+          actions,
+        };
+
+        if (activityStore.get(id)) {
+          activityStore.update(id, patch);
+        } else {
+          activityStore.add({ id, ...patch });
+        }
+      } else if (session.status === 'processing') {
+        const patch = {
+          type: 'processing' as const,
+          label: 'Processing recording...',
+          status: 'active' as const,
+          percent: null,
+          step: null,
+          detail: formatTimeForTray(session.elapsedTime),
+          error: null,
+          actions: [
+            {
+              icon: 'x',
+              label: 'Cancel',
+              onClick: () => actionsRef.current.abort(id),
+            },
+          ],
+        };
+
+        if (activityStore.get(id)) {
+          activityStore.update(id, patch);
+        } else {
+          activityStore.add({ id, ...patch });
+        }
+      } else if (session.status === 'review') {
+        // Review sessions: show compact row with process/later/discard
+        const actions: ActivityAction[] = [
+          {
+            icon: 'sparkles',
+            label: 'Summarize',
+            onClick: () => actionsRef.current.process(id),
+          },
+          {
+            icon: 'timer',
+            label: 'Save for later',
+            onClick: () => actionsRef.current.saveLater(id),
+          },
+          {
+            icon: 'trash-2',
+            label: 'Discard',
+            onClick: () => actionsRef.current.discard(id),
+          },
+        ];
+
+        const patch = {
+          type: 'recording' as const,
+          label: 'Review recording',
+          status: 'active' as const,
+          percent: null,
+          step: null,
+          detail: formatTimeForTray(session.elapsedTime),
+          error: null,
+          actions,
+        };
+
+        if (activityStore.get(id)) {
+          activityStore.update(id, patch);
+        } else {
+          activityStore.add({ id, ...patch });
+        }
+      }
+    });
+
+    // Remove activity items for sessions that no longer exist.
+    // Only touch items with recording/processing type and UUID-format IDs
+    // (to avoid removing non-recording items like 'rag-model', 'llamacpp-download').
+    const storeItems = activityStore.getSnapshot();
+    for (const item of storeItems) {
+      if (
+        !trackedIds.has(item.id) &&
+        (item.type === 'recording' || item.type === 'processing') &&
+        /^[0-9a-f]{8}-/.test(item.id)
+      ) {
+        activityStore.remove(item.id);
+      }
+    }
+  }, [sessions, activeCaptureSessionId, formatTimeForTray]);
 
   // === LEGACY COMPAT: Derive single-session state from sessions Map ===
   // Find the "active" session for legacy consumers (active capture or most recent review)

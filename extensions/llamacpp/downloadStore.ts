@@ -284,3 +284,75 @@ export function useActiveDownload(): ActiveDownload | null {
     downloadStore.getSnapshot,
   );
 }
+
+// ── Bridge to ActivityTray ──────────────────────────────────────
+// Translates downloadStore events to activityStore rows.
+
+import { activityStore } from '@shared/stores/activityStore';
+import type { ActivityItem } from '@shared/stores/activityStore';
+
+const ACTIVITY_ID = 'llamacpp-download';
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+}
+
+downloadStore.subscribe(() => {
+  const dl = downloadStore.getSnapshot();
+
+  if (!dl) {
+    activityStore.remove(ACTIVITY_ID);
+    return;
+  }
+
+  if (dl.status === 'downloading') {
+    const label =
+      dl.type === 'binary' && dl.phase === 'extracting'
+        ? 'Extracting archive...'
+        : dl.type === 'binary' && dl.phase === 'validating'
+          ? 'Validating binary...'
+          : `Downloading ${dl.fileName}`;
+
+    const isPhaseIndeterminate =
+      dl.phase === 'extracting' || dl.phase === 'validating';
+
+    const patch: Partial<ActivityItem> = {
+      type: 'download',
+      label,
+      status: 'active',
+      percent: isPhaseIndeterminate ? null : dl.progress.percent,
+      detail: isPhaseIndeterminate
+        ? null
+        : `${formatBytes(dl.progress.bytesDownloaded)}${
+            dl.progress.totalBytes > 0
+              ? ` / ${formatBytes(dl.progress.totalBytes)}`
+              : ''
+          }`,
+      actions: [
+        {
+          icon: 'x',
+          label: 'Cancel',
+          onClick: () => downloadStore.cancel(),
+        },
+      ],
+    };
+
+    if (activityStore.get(ACTIVITY_ID)) {
+      activityStore.update(ACTIVITY_ID, patch);
+    } else {
+      activityStore.add({
+        id: ACTIVITY_ID,
+        step: null,
+        error: null,
+        ...patch,
+      } as ActivityItem);
+    }
+  } else {
+    // completed / error / cancelled — remove row (toasts handled by LocalInferencePanel)
+    activityStore.remove(ACTIVITY_ID);
+  }
+});

@@ -17,11 +17,11 @@ import { MainLayout } from '@features/layout';
 import { HomeView } from '@features/home';
 import { SettingsPanel } from '@features/settings';
 import { DeleteConfirmModal } from '@features/history';
-import { RecordingWidget } from '@features/recording';
+// RecordingWidget removed — sessions now render via ActivityTray
 import { Toaster } from 'sonner';
 import { ModelDownloadModal } from '@shared/components/ModelDownloadModal';
 import { SearchOverlay } from '@shared/components/SearchOverlay';
-import { DownloadBanner } from '@shared/components/DownloadBanner';
+import { ActivityTray } from '@shared/components/ActivityTray';
 import { useAppShortcuts } from '@shared/hooks/useAppShortcuts';
 
 // Services
@@ -269,22 +269,26 @@ const App: React.FC = () => {
         </main>
       </MainLayout>
 
-      {/* Sonner Toast Container */}
+      {/* Sonner Toast Container — top-right, below title bar */}
       <Toaster
-        position="bottom-right"
+        position="top-right"
+        offset="76px"
         theme={isDark ? 'dark' : 'light'}
         richColors
         closeButton
+        duration={5000}
+        visibleToasts={4}
+        gap={8}
+        icons={{ success: ' ', error: ' ', warning: ' ', info: ' ', loading: ' ' }}
       />
 
       {/* Search Overlay (Cmd+K) */}
       <SearchOverlay open={isSearchOpen} onOpenChange={setIsSearchOpen} />
 
-      {/* Recording Widget - Global, handles all recording states */}
-      <RecordingWidget />
+      {/* Recording sessions now rendered via ActivityTray */}
 
-      {/* Global Download Progress Banner (llama.cpp model/binary downloads) */}
-      <DownloadBanner />
+      {/* Unified Activity Tray — bottom-right, replaces individual widgets */}
+      <ActivityTray />
 
       {/* RAG Model Download Consent Modal */}
       <ModelDownloadModal />
