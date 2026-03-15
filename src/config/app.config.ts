@@ -6,7 +6,7 @@
 export const APP_CONFIG = {
   name: 'Kasset.ai',
   version: '1.0.0',
-  identifier: 'ai.kasset.app',
+  identifier: 'ai.kasset.desktop',
   
   window: {
     title: 'Kasset.ai',

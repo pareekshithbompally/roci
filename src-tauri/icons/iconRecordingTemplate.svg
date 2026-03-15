@@ -1,10 +1,17 @@
-<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-  <path
-    d="M2 13a2 2 0 0 0 2-2V7a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0V4a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0v-4a2 2 0 0 1 2-2"
-    fill="none"
-    stroke="#E53935"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  />
+<svg width="36" height="22" viewBox="0 0 36 22" xmlns="http://www.w3.org/2000/svg">
+  <!-- Red pill background -->
+  <rect width="36" height="22" rx="6" ry="6" fill="#E53935"/>
+  <!-- Lucide audio-waveform, white, centered in pill
+       Path bbox: x[2,22] y[3,21] = 20x18. Scale 0.8 → 16x14.4
+       Center: tx = (36-16)/2 - 2*0.8 = 8.4, ty = (22-14.4)/2 - 3*0.8 = 1.4 -->
+  <g transform="translate(8.4, 1.4) scale(0.8)">
+    <path
+      d="M2 13a2 2 0 0 0 2-2V7a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0V4a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0v-4a2 2 0 0 1 2-2"
+      fill="none"
+      stroke="white"
+      stroke-width="2.4"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </g>
 </svg>

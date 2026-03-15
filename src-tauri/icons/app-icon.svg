@@ -1,5 +1,9 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
   <defs>
+    <linearGradient id="bgGradient" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#141414"/>
+      <stop offset="100%" stop-color="#323232"/>
+    </linearGradient>
     <linearGradient id="aiGradient" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#06b6d4"/>
       <stop offset="25%" stop-color="#3b82f6"/>
@@ -8,8 +12,8 @@
       <stop offset="100%" stop-color="#ec4899"/>
     </linearGradient>
   </defs>
-  <!-- Solid black background (macOS applies its own rounded-rect mask) -->
-  <rect width="1024" height="1024" fill="#000000"/>
+  <!-- Dark gradient background, bottom #141414 to top #323232 (macOS applies its own rounded-rect mask) -->
+  <rect width="1024" height="1024" fill="url(#bgGradient)"/>
   <!-- Lucide audio-waveform, centered and scaled to ~58% of canvas -->
   <g transform="translate(214, 214) scale(24.83)">
     <path

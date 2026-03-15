@@ -162,7 +162,7 @@ Provider configuration is managed in Settings UI and stored encrypted at rest (A
 HTTP transport uses `@tauri-apps/plugin-http` (Rust reqwest) to bypass CORS — never override `globalThis.fetch`.
 
 ### Storage Architecture
-All data stored in Tauri app data directory (`~/Library/Application Support/ai.kasset.app/`):
+All data stored in Tauri app data directory (`~/Library/Application Support/ai.kasset.desktop/`):
 - **Recordings** → `recordings/` (audio files)
 - **Transcriptions** → `transcriptions/{id}.json`
 - **Summaries** → `summaries/{id}.json`

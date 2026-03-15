@@ -38,6 +38,8 @@ const STORAGE_KEY = 'kasset_ai_last_provider_selection';
 export const ProvidersPanel: React.FC = () => {
   const {
     providers,
+    settings,
+    setSettings,
     updateProvider,
     updateProviderSetting,
   } = useSettings();
@@ -50,11 +52,28 @@ export const ProvidersPanel: React.FC = () => {
 
   const anyProviderHasModels = providers.some(p => p.active && p.models && p.models.length > 0);
 
-  // Wrap save to auto-navigate home after first successful provider setup
+  // Wrap save to auto-select model + navigate home after first provider setup
   const save = async () => {
     const hadModelsBefore = anyProviderHasModels;
+
+    // Auto-select first available model if none is set
+    if (!settings.chatModel) {
+      for (const p of providers) {
+        if (p.active && p.models?.length) {
+          setSettings({ chatModel: p.models[0].id });
+          // Persist to localStorage for restore on next launch
+          try {
+            localStorage.setItem('kasset_last_used_model', JSON.stringify({
+              provider: p.provider,
+              modelId: p.models[0].id,
+            }));
+          } catch { /* ignore */ }
+          break;
+        }
+      }
+    }
+
     await baseSave();
-    // Check again after save — providers state has been updated
     const nowHasModels = providers.some(p => p.active && p.models && p.models.length > 0);
     if (nowHasModels && !hadModelsBefore) {
       setCurrentView('home');
