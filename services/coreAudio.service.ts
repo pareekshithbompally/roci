@@ -25,15 +25,35 @@ class CoreAudioService {
   }
 
   async stopCapture(): Promise<AudioCaptureResult | null> {
-    const outputPath = await invoke<string>('stop_audio_capture')
-    if (!outputPath || outputPath.includes('No active')) {
-      return null
-    }
+    const STOP_TIMEOUT_MS = 3000
 
-    const data = await readFile(outputPath)
-    return {
-      blob: new Blob([data], { type: 'audio/wav' }),
-      path: outputPath,
+    try {
+      // Race the Rust invoke against a timeout
+      const outputPath = await Promise.race([
+        invoke<string>('stop_audio_capture'),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('stop_timeout')), STOP_TIMEOUT_MS)
+        ),
+      ])
+
+      if (!outputPath || outputPath.includes('No active')) {
+        return null
+      }
+
+      const data = await readFile(outputPath)
+      return {
+        blob: new Blob([data], { type: 'audio/wav' }),
+        path: outputPath,
+      }
+    } catch (error: any) {
+      if (error.message === 'stop_timeout') {
+        console.warn('[CoreAudioService] stop_audio_capture timed out after', STOP_TIMEOUT_MS, 'ms')
+        // Fire-and-forget another stop attempt (Rust may eventually respond)
+        invoke('stop_audio_capture').catch(() => {})
+        // Return null — caller should attempt WAV recovery from known path
+        return null
+      }
+      throw error
     }
   }
 

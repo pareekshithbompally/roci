@@ -462,6 +462,29 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     const effectiveProviders = providers || [];
     const resolved = resolveModel(effectiveSettings.chatModel, effectiveProviders);
 
+    // Guard: no model selected or model no longer available
+    if (!resolved) {
+      const noModelMsgId = (Date.now() + 1).toString();
+      setState(prev => {
+        const updatedSessions = prev.sessions.map(s => {
+          if (s.id !== activeSessionId) return s;
+          return {
+            ...s,
+            messages: [...s.messages, {
+              id: noModelMsgId,
+              role: 'model' as const,
+              text: 'Please select a model from the picker in the toolbar before sending a message.',
+              timestamp: Date.now(),
+              state: 'complete' as const,
+            }],
+            lastMessageAt: Date.now(),
+          };
+        });
+        return { ...prev, sessions: updatedSessions, isLoading: false };
+      });
+      return;
+    }
+
     // Create assistant message placeholder with LOADING state
     const assistantMsgId = (Date.now() + 1).toString();
     const assistantMsg: ChatMessage = {
@@ -663,7 +686,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       } else {
         tokenUsageResult = await unifiedAIService.chatStream({
           messages: messagesForProvider,
-          resolved: resolved!,
+          resolved: resolved,
           systemPrompt: config.systemPrompt,
           outputSchema: config.outputSchema,
           webSearchEnabled: state.webSearchEnabled,

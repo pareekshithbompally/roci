@@ -13,6 +13,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { useToast } from '../../../shared/contexts/ToastContext';
 import type { AudioCaptureSource } from '../../../../src/config/audio.config';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { isTauriEnvironment, trayService } from '../../../../services/tauri';
 import { coreAudioService } from '../../../../services/coreAudio.service';
 import { recordingsService } from '../../../../services/storage';
@@ -87,6 +88,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
   const pausedTimeRefs = useRef<Map<string, number>>(new Map());
   const audioUrlRefs = useRef<Map<string, string>>(new Map());
   const abortControllerRefs = useRef<Map<string, AbortController>>(new Map());
+  const lastLevelTimestampRef = useRef<number>(0);
 
   // Helper: update a single session
   const updateSession = useCallback((sessionId: string, updates: Partial<RecordingSession>) => {
@@ -149,6 +151,23 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     };
   }, []);
 
+  // Track audio level events to detect stalled capture
+  useEffect(() => {
+    if (!isTauriEnvironment()) return;
+
+    let unlisten: UnlistenFn | null = null;
+
+    listen('coreaudio-level', () => {
+      lastLevelTimestampRef.current = Date.now();
+    }).then(fn => {
+      unlisten = fn;
+    });
+
+    return () => {
+      unlisten?.();
+    };
+  }, []);
+
   // Note: tray menu item enable/disable is handled by
   // startRecordingAppearance/stopRecordingAppearance calls at each lifecycle point.
 
@@ -184,6 +203,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         audioUrl: null,
         error: null,
         createdAt: Date.now(),
+        stalled: false,
       };
 
       setSessions(prev => {
@@ -209,7 +229,18 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         const pausedTime = pausedTimeRefs.current.get(sessionId) || 0;
         if (startTime !== undefined) {
           const elapsed = Math.floor((Date.now() - startTime) / 1000) - pausedTime;
-          updateSession(sessionId, { elapsedTime: Math.max(0, elapsed) });
+          const updates: Partial<RecordingSession> = { elapsedTime: Math.max(0, elapsed) };
+
+          // Stall detection: if no audio levels for 5 seconds while actively recording
+          const lastLevel = lastLevelTimestampRef.current;
+          const timeSinceLevel = lastLevel > 0 ? Date.now() - lastLevel : 0;
+          if (timeSinceLevel > 5000 && lastLevel > 0) {
+            updates.stalled = true;
+          } else if (timeSinceLevel <= 5000 && lastLevel > 0) {
+            updates.stalled = false;
+          }
+
+          updateSession(sessionId, updates);
         }
       }, 100);
       timerRefs.current.set(sessionId, timer);
@@ -239,13 +270,13 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       cleanupSessionTimer(sessionId);
 
       if (result) {
+        // Normal path: Rust returned the file
         const startTime = startTimeRefs.current.get(sessionId);
         const pausedTime = pausedTimeRefs.current.get(sessionId) || 0;
         const finalElapsedTime = startTime !== undefined
           ? Math.floor((Date.now() - startTime) / 1000) - pausedTime
           : session.elapsedTime;
 
-        // Create audio URL
         cleanupSessionAudioUrl(sessionId);
         const url = URL.createObjectURL(result.blob);
         audioUrlRefs.current.set(sessionId, url);
@@ -257,23 +288,54 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           recordedFilePath: result.path,
           audioUrl: url,
           elapsedTime: Math.max(0, finalElapsedTime),
+          stalled: false,
         });
+      } else {
+        // Timeout or no active capture — attempt WAV recovery
+        console.warn('[RecordingContext] stopCapture returned null, attempting WAV recovery');
+        try {
+          const { appDataDir } = await import('@tauri-apps/api/path');
+          const { readFile } = await import('@tauri-apps/plugin-fs');
+          const dir = await appDataDir();
+          const recoveryPath = `${dir}${StorageConfig.directories.recordings}/${session.recordingFilename}`;
+          const data = await readFile(recoveryPath);
+          const blob = new Blob([data], { type: 'audio/wav' });
 
-        setActiveCaptureSessionId(null);
+          cleanupSessionAudioUrl(sessionId);
+          const url = URL.createObjectURL(blob);
+          audioUrlRefs.current.set(sessionId, url);
 
-        // Revert tray to idle appearance
-        if (isTauriEnvironment() && trayService.isInitialized) {
-          trayService.stopRecordingAppearance().catch(e =>
-            console.error('[RecordingContext] Failed to stop tray recording appearance:', e)
-          );
+          updateSession(sessionId, {
+            status: 'review',
+            isPaused: false,
+            recordedBlob: blob,
+            recordedFilePath: recoveryPath,
+            audioUrl: url,
+            stalled: false,
+          });
+
+          showToast('Recording recovered — audio may be incomplete', 'warning');
+        } catch (recoveryError) {
+          console.error('[RecordingContext] WAV recovery failed:', recoveryError);
+          updateSession(sessionId, {
+            error: 'Recording stopped but audio file could not be recovered. The file may be at: recordings/' + session.recordingFilename,
+          });
         }
+      }
+
+      setActiveCaptureSessionId(null);
+
+      if (isTauriEnvironment() && trayService.isInitialized) {
+        trayService.stopRecordingAppearance().catch(e =>
+          console.error('[RecordingContext] Failed to stop tray recording appearance:', e)
+        );
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to stop recording';
       updateSession(sessionId, { error: errorMessage });
       throw error;
     }
-  }, [sessions, cleanupSessionTimer, cleanupSessionAudioUrl, updateSession]);
+  }, [sessions, cleanupSessionTimer, cleanupSessionAudioUrl, updateSession, showToast]);
 
   // Pause recording
   const pauseRecordingSession = useCallback(async (sessionId: string) => {
@@ -334,7 +396,18 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         const pt = pausedTimeRefs.current.get(sessionId) || 0;
         if (st !== undefined) {
           const elapsed = Math.floor((Date.now() - st) / 1000) - pt;
-          updateSession(sessionId, { elapsedTime: Math.max(0, elapsed) });
+          const updates: Partial<RecordingSession> = { elapsedTime: Math.max(0, elapsed) };
+
+          // Stall detection: if no audio levels for 5 seconds while actively recording
+          const lastLevel = lastLevelTimestampRef.current;
+          const timeSinceLevel = lastLevel > 0 ? Date.now() - lastLevel : 0;
+          if (timeSinceLevel > 5000 && lastLevel > 0) {
+            updates.stalled = true;
+          } else if (timeSinceLevel <= 5000 && lastLevel > 0) {
+            updates.stalled = false;
+          }
+
+          updateSession(sessionId, updates);
         }
       }, 100);
       timerRefs.current.set(sessionId, timer);

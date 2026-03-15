@@ -104,6 +104,19 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
     setSettings({ chatModel: modelId });
     saveSettings();
     setOpen(false);
+
+    // Persist last-used model for auto-restore on next launch
+    const model = allModels.find(m => m.id === modelId);
+    if (model) {
+      try {
+        localStorage.setItem('kasset_last_used_model', JSON.stringify({
+          provider: model.provider,
+          modelId: model.id,
+        }));
+      } catch {
+        // localStorage not available — ignore
+      }
+    }
   };
 
   // Check if current model supports tool calling (for trigger display)

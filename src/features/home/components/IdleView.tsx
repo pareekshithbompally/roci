@@ -6,7 +6,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { Sparkles, AudioWaveform } from 'lucide-react';
+import { Sparkles, AudioWaveform, Key, HardDrive } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useApp, AppStatus } from '@shared/contexts/AppContext';
 import { useRecordingContext } from '@features/recording';
@@ -15,7 +15,9 @@ import { useHistory } from '@shared/contexts/HistoryContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { ChatInput } from '@features/chat';
 import { meetingReferenceService } from '@/services/meetingReferenceService';
+import { RadioCard } from '@features/settings/components/shared';
 import { supportsWebSearch } from '@shared/utils/modelResolver';
+import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { SURFACE, BORDER, TEXT } from '@config/theme.config';
 
 interface IdleViewProps {
@@ -37,7 +39,7 @@ const GREETING_POOL = [
 
 export const IdleView: React.FC<IdleViewProps> = ({ onChatToggle, isChatOpen }) => {
   const { isDark } = useTheme();
-  const { setStatus } = useApp();
+  const { setStatus, setCurrentView, setActiveSettingsPanel } = useApp();
   const [greeting] = useState(() => GREETING_POOL[Math.floor(Math.random() * GREETING_POOL.length)]);
   const recording = useRecordingContext();
   // Chat functionality - shared with ChatPanel/ChatView
@@ -63,6 +65,21 @@ export const IdleView: React.FC<IdleViewProps> = ({ onChatToggle, isChatOpen }) 
     }
     return false;
   }, [settings.chatModel, providers]);
+
+  // Check if any provider is configured with models
+  const hasConfiguredProviders = useMemo(() => {
+    return providers.some(p => p.active && p.models && p.models.length > 0);
+  }, [providers]);
+
+  const handleSetupProviders = () => {
+    setActiveSettingsPanel('providers');
+    setCurrentView('settings');
+  };
+
+  const handleSetupLocal = () => {
+    setActiveSettingsPanel('local-inference');
+    setCurrentView('settings');
+  };
 
   const handleStartRecording = async () => {
     try {
@@ -95,48 +112,108 @@ export const IdleView: React.FC<IdleViewProps> = ({ onChatToggle, isChatOpen }) 
       {/* Chat Composer - Centered in remaining space */}
       <div className="flex-1 flex flex-col items-center justify-center w-full px-2 relative z-20">
         <div className="w-full max-w-3xl space-y-6 overflow-visible">
-          {/* Greeting */}
-          <h1 className={`text-2xl md:text-3xl font-medium text-center ${TEXT.heading}`}>
-            {greeting}
-          </h1>
-          {/* Shared ChatInput component - same as ChatPanel/ChatView */}
-          <ChatInput
-            value={chat.input}
-            onChange={chat.setInput}
-            onSend={handleSendMessage}
-            isLoading={chat.isLoading}
-            placeholder="Type @ to add meeting context..."
-            availableMeetings={availableMeetings}
-            selectedMeetings={chat.selectedMeetingRefs}
-            onMeetingSelect={chat.setSelectedMeetingRefs}
-            webSearchEnabled={chat.webSearchEnabled}
-            onWebSearchToggle={chat.toggleWebSearch}
-            showWebSearch={showWebSearch}
-            attachments={chat.pendingAttachments}
-            onAttach={chat.addAttachment}
-            onRemoveAttachment={chat.removeAttachment}
-            onScreenshot={chat.addScreenshotAttachment}
-          />
+          {hasConfiguredProviders ? (
+            <>
+              {/* Greeting */}
+              <h1 className={`text-2xl md:text-3xl font-medium text-center ${TEXT.heading}`}>
+                {greeting}
+              </h1>
+              {/* Shared ChatInput component */}
+              <ChatInput
+                value={chat.input}
+                onChange={chat.setInput}
+                onSend={handleSendMessage}
+                isLoading={chat.isLoading}
+                placeholder="Type @ to add meeting context..."
+                availableMeetings={availableMeetings}
+                selectedMeetings={chat.selectedMeetingRefs}
+                onMeetingSelect={chat.setSelectedMeetingRefs}
+                webSearchEnabled={chat.webSearchEnabled}
+                onWebSearchToggle={chat.toggleWebSearch}
+                showWebSearch={showWebSearch}
+                attachments={chat.pendingAttachments}
+                onAttach={chat.addAttachment}
+                onRemoveAttachment={chat.removeAttachment}
+                onScreenshot={chat.addScreenshotAttachment}
+              />
 
-          {/* Action Chips - Horizontal Row */}
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <button
-              onClick={handleStartRecording}
-              disabled={!recording.canRecord}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-red-500 to-red-600 dark:from-red-600 dark:to-red-700 border border-red-600/50 dark:border-red-700/50 rounded-full text-sm font-medium text-white hover:shadow-lg hover:shadow-red-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <AudioWaveform className="w-4 h-4" />
-              <span>Record</span>
-            </button>
+              {/* Action Chips */}
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <button
+                  onClick={handleStartRecording}
+                  disabled={!recording.canRecord}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-red-500 to-red-600 dark:from-red-600 dark:to-red-700 border border-red-600/50 dark:border-red-700/50 rounded-full text-sm font-medium text-white hover:shadow-lg hover:shadow-red-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <AudioWaveform className="w-4 h-4" />
+                  <span>Record</span>
+                </button>
 
-            <button
-              onClick={onChatToggle}
-              className={`inline-flex items-center gap-2 px-4 py-2.5 ${SURFACE.card} border ${BORDER.strong} rounded-full text-sm font-medium ${TEXT.secondary} ${SURFACE.hoverSubtle} transition-all`}
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>More</span>
-            </button>
-          </div>
+                <button
+                  onClick={onChatToggle}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 ${SURFACE.card} border ${BORDER.strong} rounded-full text-sm font-medium ${TEXT.secondary} ${SURFACE.hoverSubtle} transition-all`}
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>More</span>
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Zero-state: Setup guidance */}
+              <div className="text-center space-y-2">
+                <h1 className={`text-2xl md:text-3xl font-medium ${TEXT.heading}`}>
+                  Welcome to Kasset
+                </h1>
+                <p className={`${TYPOGRAPHY_CLASSES.settingsInput} ${TEXT.muted}`}>
+                  Set up a provider to start chatting and get AI summaries
+                </p>
+              </div>
+
+              {/* Setup cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <RadioCard
+                  selected={false}
+                  onClick={handleSetupProviders}
+                  icon={<Key className="w-5 h-5" />}
+                >
+                  <div className="space-y-1">
+                    <p className={`text-sm font-medium ${TEXT.heading}`}>Cloud Providers</p>
+                    <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
+                      Connect OpenAI, Anthropic, Google, and more with an API key
+                    </p>
+                  </div>
+                </RadioCard>
+
+                <RadioCard
+                  selected={false}
+                  onClick={handleSetupLocal}
+                  icon={<HardDrive className="w-5 h-5" />}
+                >
+                  <div className="space-y-1">
+                    <p className={`text-sm font-medium ${TEXT.heading}`}>Local Models</p>
+                    <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
+                      Run models privately on your device with llamacpp
+                    </p>
+                  </div>
+                </RadioCard>
+              </div>
+
+              {/* Record button — always available */}
+              <div className="flex flex-col items-center gap-2">
+                <button
+                  onClick={handleStartRecording}
+                  disabled={!recording.canRecord}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-red-500 to-red-600 dark:from-red-600 dark:to-red-700 border border-red-600/50 dark:border-red-700/50 rounded-full text-sm font-medium text-white hover:shadow-lg hover:shadow-red-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <AudioWaveform className="w-4 h-4" />
+                  <span>Record</span>
+                </button>
+                <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
+                  Recording works offline. Set up a provider for AI summaries.
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

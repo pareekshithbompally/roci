@@ -24,6 +24,8 @@ export interface RecordingSession {
   audioUrl: string | null;
   error: string | null;
   createdAt: number;
+  /** True when audio level events stop arriving (stream may have died) */
+  stalled: boolean;
 }
 
 export interface RecordingState {

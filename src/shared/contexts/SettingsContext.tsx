@@ -25,7 +25,7 @@ interface SettingsState {
   /** Current view: home or settings */
   currentView: 'home' | 'settings';
   /** Active settings panel */
-  activeSettingsPanel: 'model' | 'audio' | 'providers' | 'categories' | 'interface';
+  activeSettingsPanel: 'audio' | 'providers' | 'local-inference' | 'categories' | 'interface';
   /** Loading state */
   isLoading: boolean;
 }
@@ -50,7 +50,7 @@ interface SettingsContextValue extends SettingsState {
   /** Set current view */
   setCurrentView: (view: 'home' | 'settings') => void;
   /** Set active settings panel */
-  setActiveSettingsPanel: (panel: 'model' | 'audio' | 'providers' | 'categories' | 'interface') => void;
+  setActiveSettingsPanel: (panel: 'audio' | 'providers' | 'local-inference' | 'categories' | 'interface') => void;
   /** Load settings from storage */
   loadSettings: () => Promise<void>;
   /** Save settings to storage */
@@ -72,7 +72,7 @@ const initialState: SettingsState = {
   providers: [], // Start empty, will be populated from storage or predefined
   selectedProviderName: null,
   currentView: 'home',
-  activeSettingsPanel: 'model',
+  activeSettingsPanel: 'audio',
   isLoading: true, // Start with loading=true
 };
 
@@ -206,15 +206,53 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
           }
         }
 
-        // Don't auto-select models - user should explicitly choose
-        // This prevents confusion and ensures user makes conscious choice
+        // Auto-select model if none persisted — fallback chain:
+        // 1. Loaded chatModel from storage (already set above)
+        // 2. Last-used model from localStorage
+        // 3. First model from first active provider with API key
+        if (!loadedSettings.chatModel) {
+          let autoSelectedModel: string | null = null;
+
+          // Try last-used model from localStorage
+          try {
+            const lastUsed = localStorage.getItem('kasset_last_used_model');
+            if (lastUsed) {
+              const { provider: lastProvider, modelId: lastModelId } = JSON.parse(lastUsed);
+              // Validate: provider still active, model still exists
+              const providerMatch = loadedProviders.find(
+                p => p.provider === lastProvider && p.active && hasApiKey(p)
+              );
+              if (providerMatch?.models?.some(m => m.id === lastModelId)) {
+                autoSelectedModel = lastModelId;
+                console.log('[SettingsContext] Restored last-used model:', lastModelId);
+              }
+            }
+          } catch {
+            // localStorage parse error — skip
+          }
+
+          // Fallback: first model from first active provider with API key + models
+          if (!autoSelectedModel) {
+            for (const provider of loadedProviders) {
+              if (provider.active && hasApiKey(provider) && provider.models?.length) {
+                autoSelectedModel = provider.models[0].id;
+                console.log('[SettingsContext] Auto-selected first available model:', autoSelectedModel);
+                break;
+              }
+            }
+          }
+
+          if (autoSelectedModel) {
+            loadedSettings.chatModel = autoSelectedModel;
+          }
+        }
 
         setState({
           settings: loadedSettings,
           providers: loadedProviders,
           selectedProviderName: selectedProviderName,
           currentView: 'home',
-          activeSettingsPanel: 'model',
+          activeSettingsPanel: 'audio',
           isLoading: false,
         });
 
@@ -232,7 +270,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
           providers: predefinedProviders.map(p => ({ ...p })),
           selectedProviderName: null,
           currentView: 'home',
-          activeSettingsPanel: 'model',
+          activeSettingsPanel: 'audio',
           isLoading: false,
         });
       }
@@ -244,7 +282,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         providers: predefinedProviders.map(p => ({ ...p })),
         selectedProviderName: null,
         currentView: 'home',
-        activeSettingsPanel: 'model',
+        activeSettingsPanel: 'audio',
         isLoading: false,
       });
     } finally {
@@ -385,7 +423,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   }, []);
 
   // Set active settings panel
-  const setActiveSettingsPanel = useCallback((panel: 'model' | 'audio' | 'providers' | 'categories' | 'interface') => {
+  const setActiveSettingsPanel = useCallback((panel: 'audio' | 'providers' | 'local-inference' | 'categories' | 'interface') => {
     setState(prev => ({ ...prev, activeSettingsPanel: panel }));
   }, []);
 

@@ -12,7 +12,7 @@ import { AppStatus as AppStatusEnum, ProcessedResult } from '@/types';
 export { AppStatus } from '@/types';
 
 type ViewType = 'home' | 'settings';
-type SettingsPanel = 'model' | 'providers' | 'categories' | 'interface';
+type SettingsPanel = 'audio' | 'providers' | 'local-inference' | 'categories' | 'interface';
 type ResultTab = 'transcript' | 'summary' | 'todo' | 'notes';
 
 interface AppState {
@@ -69,7 +69,7 @@ const initialState: AppState = {
   result: null,
   selectedHistoryId: null,
   activeResultTab: 'summary',
-  activeSettingsPanel: 'model',
+  activeSettingsPanel: 'audio',
   isChatOpen: false,
   isInitialized: false,
   error: null,

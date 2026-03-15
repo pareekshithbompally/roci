@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
+import { useApp } from '@shared/contexts/AppContext';
 import { useUnsavedChanges } from '@shared/contexts/UnsavedChangesContext';
 import { ProvidersPanel } from './ProvidersPanel';
 import { ProvidersPanelErrorBoundary } from './ProvidersPanelErrorBoundary';
@@ -28,7 +29,11 @@ const panels: Array<{ id: SettingsPanelType; label: string; tauriOnly?: boolean 
 ];
 
 export const SettingsPanel: React.FC = () => {
-  const [activePanel, setActivePanel] = useState<SettingsPanelType>(panels[0].id);
+  const { activeSettingsPanel } = useApp();
+  const [activePanel, setActivePanel] = useState<SettingsPanelType>(
+    // Use context value if it maps to a valid panel, otherwise default to first panel
+    panels.some(p => p.id === activeSettingsPanel) ? activeSettingsPanel as SettingsPanelType : panels[0].id
+  );
   const { checkNavigation } = useUnsavedChanges();
 
   const handlePanelChange = useCallback((panelId: SettingsPanelType) => {

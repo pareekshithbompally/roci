@@ -6,9 +6,10 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { ExternalLink, Search, Loader2, Copy, Check, Settings } from 'lucide-react';
+import { ExternalLink, Search, Loader2, Copy, Check, Settings, X } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-shell';
 import { useSettings } from '@shared/contexts/SettingsContext';
+import { useApp } from '@shared/contexts/AppContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { useUnsavedChanges } from '@shared/contexts/UnsavedChangesContext';
 import { useSettingsSave } from '../hooks/useSettingsSave';
@@ -42,8 +43,23 @@ export const ProvidersPanel: React.FC = () => {
   } = useSettings();
 
   const { showToast } = useToast();
+  const { setCurrentView } = useApp();
   const { setHasUnsavedChanges } = useUnsavedChanges();
-  const { isSaving, hasUnsavedChanges, save } = useSettingsSave('Provider settings');
+  const { isSaving, hasUnsavedChanges, save: baseSave } = useSettingsSave('Provider settings');
+  const [showSetupBanner, setShowSetupBanner] = useState(true);
+
+  const anyProviderHasModels = providers.some(p => p.active && p.models && p.models.length > 0);
+
+  // Wrap save to auto-navigate home after first successful provider setup
+  const save = async () => {
+    const hadModelsBefore = anyProviderHasModels;
+    await baseSave();
+    // Check again after save — providers state has been updated
+    const nowHasModels = providers.some(p => p.active && p.models && p.models.length > 0);
+    if (nowHasModels && !hadModelsBefore) {
+      setCurrentView('home');
+    }
+  };
 
   // Load last selection from localStorage
   const [selectedProviderName, setSelectedProviderName] = useState<string | null>(() => {
@@ -275,6 +291,22 @@ export const ProvidersPanel: React.FC = () => {
         <div className="flex-1 min-w-0 space-y-6">
           {selectedProvider ? (
             <>
+              {/* Setup guidance banner — shown when no providers have models yet */}
+              {showSetupBanner && !anyProviderHasModels && (
+                <div className="mb-4 relative">
+                  <InfoCallout variant="info">
+                    <strong>Quick setup:</strong> Pick a provider on the left, enter your API key, add at least one model, then save.
+                  </InfoCallout>
+                  <button
+                    onClick={() => setShowSetupBanner(false)}
+                    className={`absolute top-2 right-2 p-1 ${SURFACE.hoverSubtle} rounded-md transition-colors`}
+                    aria-label="Dismiss"
+                  >
+                    <X className={`w-3.5 h-3.5 ${TEXT.faint}`} />
+                  </button>
+                </div>
+              )}
+
               {/* LlamaCpp — redirect to Local Inference panel + live status */}
               {selectedProvider.provider === 'llamacpp' ? (
                 <div className="space-y-4">

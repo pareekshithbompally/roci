@@ -15,9 +15,12 @@
 import React, { useState } from 'react';
 import { Pause, Play, Square, Clock, Loader2, Sparkles, Trash2, Minimize2, X, Timer, Mic } from 'lucide-react';
 import { useRecordingSessions } from '../context/RecordingContext';
+import { useSettings } from '@shared/contexts/SettingsContext';
+import { resolveModel } from '@shared/utils/modelResolver';
 import { AUDIO_CONFIG } from '@config/audio.config';
 import { UI_CONFIG } from '@config/ui.config';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
+import { InfoCallout } from '@features/settings/components/shared';
 import CustomAudioPlayer from '@/components/CustomAudioPlayer';
 import type { RecordingSession } from '../types';
 
@@ -38,6 +41,8 @@ interface SessionWidgetProps {
 
 const SessionWidget: React.FC<SessionWidgetProps> = ({ session, isCollapsed, onExpand }) => {
   const recording = useRecordingSessions();
+  const { settings, providers } = useSettings();
+  const hasModel = !!resolveModel(settings.chatModel, providers);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
 
@@ -191,35 +196,60 @@ const SessionWidget: React.FC<SessionWidgetProps> = ({ session, isCollapsed, onE
             </p>
           </div>
 
+          {session.stalled && (
+            <InfoCallout variant="warning">
+              Audio capture may have stopped. Try force-stopping to save what was recorded.
+            </InfoCallout>
+          )}
+
           <div className="flex items-center gap-2">
-            {session.isPaused ? (
+            {session.stalled ? (
               <button
-                onClick={() => recording.resumeRecording(session.sessionId)}
-                className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 text-white font-medium text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
-                style={{ borderRadius: UI_CONFIG.radius.xl }}
-              >
-                <Play className="w-4 h-4 fill-current" />
-                Resume
-              </button>
-            ) : (
-              <button
-                onClick={() => recording.pauseRecording(session.sessionId)}
+                onClick={() => recording.stopRecording(session.sessionId)}
                 className="flex-1 px-4 py-3 bg-amber-600 hover:bg-amber-700 text-white font-medium text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
                 style={{ borderRadius: UI_CONFIG.radius.xl }}
               >
-                <Pause className="w-4 h-4" />
-                Pause
+                <Square className="w-4 h-4 fill-current" />
+                Force Stop
               </button>
+            ) : (
+              <>
+                {session.isPaused ? (
+                  <button
+                    onClick={() => recording.resumeRecording(session.sessionId)}
+                    className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 text-white font-medium text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
+                    style={{ borderRadius: UI_CONFIG.radius.xl }}
+                  >
+                    <Play className="w-4 h-4 fill-current" />
+                    Resume
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => recording.pauseRecording(session.sessionId)}
+                    className="flex-1 px-4 py-3 bg-amber-600 hover:bg-amber-700 text-white font-medium text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
+                    style={{ borderRadius: UI_CONFIG.radius.xl }}
+                  >
+                    <Pause className="w-4 h-4" />
+                    Pause
+                  </button>
+                )}
+                <button
+                  onClick={() => recording.stopRecording(session.sessionId)}
+                  className="px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-medium text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-500/20"
+                  style={{ borderRadius: UI_CONFIG.radius.xl }}
+                >
+                  <Square className="w-4 h-4 fill-current" />
+                  Stop
+                </button>
+              </>
             )}
-            <button
-              onClick={() => recording.stopRecording(session.sessionId)}
-              className="px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-medium text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-500/20"
-              style={{ borderRadius: UI_CONFIG.radius.xl }}
-            >
-              <Square className="w-4 h-4 fill-current" />
-              Stop
-            </button>
           </div>
+
+          {session.error && (
+            <InfoCallout variant="error">
+              {session.error}
+            </InfoCallout>
+          )}
         </div>
       )}
 
@@ -274,7 +304,13 @@ const SessionWidget: React.FC<SessionWidgetProps> = ({ session, isCollapsed, onE
             {!isProcessing ? (
               <button
                 onClick={handleGenerateSummary}
-                className="flex-1 px-4 py-3 bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 hover:from-violet-600 hover:via-purple-600 hover:to-fuchsia-600 text-white font-medium text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25"
+                disabled={!hasModel}
+                title={hasModel ? 'Generate AI summary' : 'Set up a provider and select a model first'}
+                className={`flex-1 px-4 py-3 font-medium text-sm transition-all flex items-center justify-center gap-2 ${
+                  hasModel
+                    ? 'bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 hover:from-violet-600 hover:via-purple-600 hover:to-fuchsia-600 text-white shadow-lg shadow-purple-500/25'
+                    : 'bg-parchment-300 dark:bg-night-650 text-parchment-700 dark:text-night-400 cursor-not-allowed'
+                }`}
                 style={{ borderRadius: UI_CONFIG.radius.xl }}
               >
                 <Sparkles className="w-4 h-4" />
@@ -302,6 +338,12 @@ const SessionWidget: React.FC<SessionWidgetProps> = ({ session, isCollapsed, onE
               </div>
             )}
           </div>
+
+          {session.error && (
+            <InfoCallout variant="error">
+              {session.error}
+            </InfoCallout>
+          )}
         </div>
       )}
     </div>
