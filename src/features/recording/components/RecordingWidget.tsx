@@ -1,19 +1,25 @@
 /**
- * RecordingWidget Component (Session-Based)
+ * RecordingWidget Component — Unified Recording Tray
  *
- * Renders a stack of session widgets — one per active recording session.
- * Supports multiple concurrent sessions (only one can be capturing at a time).
+ * Single fixed-position tray that holds all recording sessions as inline rows.
+ * Replaces the old N-card vertical stack.
  *
- * Features:
- * - RecordingWidgetStack: iterates sessions Map, renders SessionWidget per session
- * - SessionWidget: recording/review/processing UI per session
- * - Collapse: when 3+ sessions exist, older ones collapse into compact pills
- * - "Later" replaces "Discard" in review state
- * - Small trash icon for actual discard in collapsed/menu area
+ * Components (all in this file):
+ * - RecordingWidget: tray container, header, minimize/expand
+ * - RecordingTrayHeader: session count + minimize toggle (2+ sessions)
+ * - MinimizedTrayPill: collapsed single pill for entire tray
+ * - MinimizeButton: shared minimize button
+ * - SessionRow: router → ActiveSessionRow or CompactSessionRow
+ * - ActiveSessionRow: recording/paused — full controls
+ * - CompactSessionRow: review/processing — compact with expand
  */
 
 import React, { useState } from 'react';
-import { Pause, Play, Square, Clock, Loader2, Sparkles, Trash2, Minimize2, X, Timer, Mic } from 'lucide-react';
+import {
+  Pause, Play, Square, Clock, Loader2, Sparkles,
+  Trash2, Minimize2, X, Timer, Mic, ChevronRight,
+  ChevronUp, ChevronDown,
+} from 'lucide-react';
 import { useRecordingSessions } from '../context/RecordingContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { resolveModel } from '@shared/utils/modelResolver';
@@ -31,21 +37,219 @@ const formatTime = (seconds: number): string => {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 };
 
-// === SessionWidget: Single session UI ===
+// === MinimizeButton (shared) ===
 
-interface SessionWidgetProps {
-  session: RecordingSession;
-  isCollapsed: boolean;
+const MinimizeButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
+  <button
+    onClick={onClick}
+    className={`p-1.5 ${SURFACE.hoverSubtle} transition-colors`}
+    style={{ borderRadius: UI_CONFIG.radius.lg }}
+    aria-label="Minimize recordings"
+  >
+    <Minimize2 className={`w-4 h-4 ${TEXT.muted}`} />
+  </button>
+);
+
+// === RecordingTrayHeader ===
+
+interface RecordingTrayHeaderProps {
+  sessionCount: number;
+  hasActiveCapture: boolean;
+  onMinimize: () => void;
+}
+
+const RecordingTrayHeader: React.FC<RecordingTrayHeaderProps> = ({
+  sessionCount,
+  hasActiveCapture,
+  onMinimize,
+}) => (
+  <div className={`flex items-center justify-between px-4 py-3 border-b ${BORDER.default}`}>
+    <div className="flex items-center gap-2">
+      {hasActiveCapture && (
+        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+      )}
+      <span className={`text-sm font-semibold ${TEXT.secondary}`}>
+        {hasActiveCapture ? 'Recording' : 'Sessions'} ({sessionCount})
+      </span>
+    </div>
+    <MinimizeButton onClick={onMinimize} />
+  </div>
+);
+
+// === MinimizedTrayPill ===
+
+interface MinimizedTrayPillProps {
+  sessions: RecordingSession[];
+  activeSession: RecordingSession | null;
   onExpand: () => void;
 }
 
-const SessionWidget: React.FC<SessionWidgetProps> = ({ session, isCollapsed, onExpand }) => {
+const MinimizedTrayPill: React.FC<MinimizedTrayPillProps> = ({
+  sessions,
+  activeSession,
+  onExpand,
+}) => {
+  let icon: React.ReactNode;
+  let label: string;
+
+  if (activeSession) {
+    const isRecording = activeSession.status === 'recording';
+    icon = (
+      <div className={`w-2 h-2 rounded-full ${
+        activeSession.isPaused ? 'bg-amber-500' : 'bg-red-500 animate-pulse'
+      }`} />
+    );
+    label = `${isRecording ? 'REC' : 'Paused'} ${formatTime(activeSession.elapsedTime)}`;
+  } else {
+    const processingCount = sessions.filter(s => s.status === 'processing').length;
+    if (processingCount > 0) {
+      icon = <Loader2 className="w-3 h-3 animate-spin text-purple-500" />;
+      label = processingCount === 1 ? 'Processing' : `${processingCount} processing`;
+    } else {
+      icon = <Mic className={`w-3 h-3 ${TEXT.muted}`} />;
+      label = `${sessions.length} session${sessions.length > 1 ? 's' : ''}`;
+    }
+  }
+
+  // Append count if multiple sessions and there's an active one
+  if (sessions.length > 1 && activeSession) {
+    label += ` +${sessions.length - 1}`;
+  }
+
+  return (
+    <button
+      onClick={onExpand}
+      className={`flex items-center gap-2 px-4 py-2.5 bg-parchment-50 dark:bg-night-800 border ${BORDER.strong} shadow-2xl transition-all hover:scale-105 cursor-pointer`}
+      style={{ borderRadius: UI_CONFIG.radius.xl }}
+      aria-label={`${sessions.length} active recording${sessions.length > 1 ? 's' : ''}, click to expand`}
+    >
+      {icon}
+      <span className={`text-xs font-semibold ${TEXT.secondary}`}>{label}</span>
+      <ChevronRight className={`w-3 h-3 ${TEXT.faint}`} />
+    </button>
+  );
+};
+
+// === ActiveSessionRow — Recording/Paused ===
+
+interface ActiveSessionRowProps {
+  session: RecordingSession;
+  showMinimize: boolean;
+  onMinimize?: () => void;
+}
+
+const ActiveSessionRow: React.FC<ActiveSessionRowProps> = ({ session, showMinimize, onMinimize }) => {
+  const recording = useRecordingSessions();
+
+  const sourceLabel = AUDIO_CONFIG.captureSources[
+    session.audioSource as keyof typeof AUDIO_CONFIG.captureSources
+  ]?.label || session.audioSource;
+
+  return (
+    <div className="p-4 space-y-3">
+      {/* Status line */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div
+            className={`w-2.5 h-2.5 rounded-full ${
+              session.isPaused ? 'bg-amber-500' : 'bg-red-500 animate-pulse'
+            }`}
+          />
+          <span className={`text-sm font-semibold ${TEXT.secondary}`}>
+            {session.isPaused ? 'Paused' : 'Recording'}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs ${TEXT.faint}`}>{sourceLabel}</span>
+          {showMinimize && onMinimize && (
+            <MinimizeButton onClick={onMinimize} />
+          )}
+        </div>
+      </div>
+
+      {/* Timer */}
+      <div className="flex items-center gap-2">
+        <Clock className={`w-4 h-4 ${TEXT.faint}`} />
+        <span className={`text-2xl font-mono font-bold ${TEXT.primary}`}>
+          {formatTime(session.elapsedTime)}
+        </span>
+      </div>
+
+      {/* Stall warning */}
+      {session.stalled && (
+        <InfoCallout variant="warning">
+          Audio capture may have stopped. Try force-stopping to save what was recorded.
+        </InfoCallout>
+      )}
+
+      {/* Controls */}
+      <div className="flex items-center gap-2">
+        {session.stalled ? (
+          <button
+            onClick={() => recording.stopRecording(session.sessionId)}
+            className="flex-1 px-4 py-3 bg-amber-600 hover:bg-amber-700 text-white font-medium text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
+            style={{ borderRadius: UI_CONFIG.radius.xl }}
+          >
+            <Square className="w-4 h-4 fill-current" />
+            Force Stop
+          </button>
+        ) : (
+          <>
+            {session.isPaused ? (
+              <button
+                onClick={() => recording.resumeRecording(session.sessionId)}
+                className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 text-white font-medium text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
+                style={{ borderRadius: UI_CONFIG.radius.xl }}
+              >
+                <Play className="w-4 h-4 fill-current" />
+                Resume
+              </button>
+            ) : (
+              <button
+                onClick={() => recording.pauseRecording(session.sessionId)}
+                className="flex-1 px-4 py-3 bg-amber-600 hover:bg-amber-700 text-white font-medium text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
+                style={{ borderRadius: UI_CONFIG.radius.xl }}
+              >
+                <Pause className="w-4 h-4" />
+                Pause
+              </button>
+            )}
+            <button
+              onClick={() => recording.stopRecording(session.sessionId)}
+              className="px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-medium text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-500/20"
+              style={{ borderRadius: UI_CONFIG.radius.xl }}
+            >
+              <Square className="w-4 h-4 fill-current" />
+              Stop
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Error */}
+      {session.error && (
+        <InfoCallout variant="error">{session.error}</InfoCallout>
+      )}
+    </div>
+  );
+};
+
+// === CompactSessionRow — Review & Processing ===
+
+interface CompactSessionRowProps {
+  session: RecordingSession;
+  showMinimize: boolean;
+  onMinimize?: () => void;
+}
+
+const CompactSessionRow: React.FC<CompactSessionRowProps> = ({ session, showMinimize, onMinimize }) => {
   const recording = useRecordingSessions();
   const { settings, providers } = useSettings();
   const hasModel = !!resolveModel(settings.chatModel, providers);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
 
+  const isReview = session.status === 'review';
   const sourceLabel = AUDIO_CONFIG.captureSources[
     session.audioSource as keyof typeof AUDIO_CONFIG.captureSources
   ]?.label || session.audioSource;
@@ -55,306 +259,149 @@ const SessionWidget: React.FC<SessionWidgetProps> = ({ session, isCollapsed, onE
     try {
       await recording.processRecording(session.sessionId);
     } catch (error: any) {
-      if (error.message === 'Processing aborted by user') {
-        console.log('[SessionWidget] Processing aborted by user');
-      } else {
-        console.error('[SessionWidget] Processing failed:', error);
+      if (error.message !== 'Processing aborted by user') {
+        console.error('[CompactSessionRow] Processing failed:', error);
       }
       setIsProcessing(false);
     }
   };
 
-  const handleAbortProcessing = () => {
-    recording.abortProcessing(session.sessionId);
-    setIsProcessing(false);
-  };
-
-  const handleSaveLater = async () => {
-    await recording.saveLater(session.sessionId);
-  };
-
-  // === COLLAPSED PILL ===
-  if (isCollapsed) {
-    const isRecording = session.status === 'recording' || session.status === 'paused';
-
-    return (
-      <button
-        onClick={onExpand}
-        className={`flex items-center gap-2 px-3 py-2 bg-parchment-50 dark:bg-night-800 border ${BORDER.strong} shadow-lg transition-all hover:scale-105 cursor-pointer`}
-        style={{ borderRadius: UI_CONFIG.radius.xl }}
-      >
-        {isRecording ? (
-          <>
-            <div className={`w-2 h-2 rounded-full ${session.isPaused ? 'bg-amber-500' : 'bg-red-500 animate-pulse'}`} />
-            <span className={`text-xs font-mono font-semibold ${TEXT.secondary}`}>
-              {formatTime(session.elapsedTime)}
-            </span>
-          </>
-        ) : isProcessing ? (
-          <>
-            <Loader2 className="w-3 h-3 animate-spin text-purple-500" />
-            <span className={`text-xs font-medium ${TEXT.secondary}`}>Processing</span>
-          </>
-        ) : (
-          <>
-            <Mic className={`w-3 h-3 ${TEXT.muted}`} />
-            <span className={`text-xs font-medium ${TEXT.secondary}`}>Review</span>
-          </>
-        )}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            recording.discardRecording(session.sessionId);
-          }}
-          className="p-0.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors ml-1"
-          aria-label="Discard recording"
-        >
-          <Trash2 className={`w-3 h-3 ${TEXT.faint} hover:text-red-500`} />
-        </button>
-      </button>
-    );
-  }
-
-  // === MINIMIZED STATE ===
-  if (isMinimized) {
-    return (
-      <button
-        onClick={() => setIsMinimized(false)}
-        className="group cursor-pointer transition-all duration-300 hover:scale-110"
-        aria-label="Expand recording widget"
-      >
-        <div className="relative">
-          <div
-            className={`flex items-center justify-center ${
-              session.isPaused ? 'bg-amber-500'
-                : session.status === 'review' ? 'bg-parchment-700 dark:bg-night-500'
-                : 'bg-red-500'
-            } shadow-2xl transition-all duration-300`}
-            style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: UI_CONFIG.radius.full,
-            }}
-          >
-            <span className="text-white font-mono font-bold text-xs">
-              {formatTime(session.elapsedTime)}
-            </span>
-          </div>
-          <div
-            className={`absolute inset-0 ${
-              session.isPaused ? 'bg-amber-500/20' : 'bg-red-500/20'
-            } blur-xl -z-10`}
-            style={{ borderRadius: UI_CONFIG.radius.full }}
-          />
-        </div>
-      </button>
-    );
-  }
-
-  // === EXPANDED WIDGET ===
   return (
-    <div
-      className={`bg-parchment-50 dark:bg-night-800 border ${BORDER.strong} shadow-2xl transition-all duration-300`}
-      style={{
-        width: '360px',
-        borderRadius: UI_CONFIG.radius['2xl'],
-      }}
-    >
-      {/* STATE 1: Recording Active */}
-      {(session.status === 'recording' || session.status === 'paused') && (
-        <div className="p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div
-                className={`rounded-full ${
-                  session.isPaused ? 'bg-amber-500' : 'bg-red-500 animate-pulse'
-                }`}
-                style={{ width: '10px', height: '10px' }}
-              />
-              <span className={`text-sm font-semibold ${TEXT.secondary}`}>
-                {session.isPaused ? 'Recording Paused' : 'Recording'}
-              </span>
-            </div>
-            <button
-              onClick={() => setIsMinimized(true)}
-              className={`p-1.5 ${SURFACE.hoverSubtle} transition-colors rounded-lg`}
-              aria-label="Minimize widget"
-            >
-              <Minimize2 className={`w-4 h-4 ${TEXT.muted}`} />
-            </button>
-          </div>
+    <div className="px-4 py-3">
+      {/* Compact header — always visible */}
+      <div className="flex items-center gap-2">
+        {/* Status icon */}
+        {isProcessing || session.status === 'processing' ? (
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-500 shrink-0" />
+        ) : (
+          <Mic className={`w-3.5 h-3.5 ${TEXT.muted} shrink-0`} />
+        )}
 
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Clock className={`w-4 h-4 ${TEXT.faint}`} />
-              <span className={`text-2xl font-mono font-bold ${TEXT.primary}`}>
-                {formatTime(session.elapsedTime)}
-              </span>
-            </div>
-            <p className={`text-xs ${TEXT.secondary} truncate`}>
-              {sourceLabel}
-            </p>
-          </div>
+        {/* Status label */}
+        <span className={`text-sm font-medium ${TEXT.secondary}`}>
+          {isProcessing || session.status === 'processing' ? 'Processing' : 'Review'}
+        </span>
 
-          {session.stalled && (
-            <InfoCallout variant="warning">
-              Audio capture may have stopped. Try force-stopping to save what was recorded.
-            </InfoCallout>
-          )}
+        {/* Duration */}
+        <span className={`text-xs font-mono ${TEXT.faint} ml-auto`}>
+          {formatTime(session.elapsedTime)}
+        </span>
 
-          <div className="flex items-center gap-2">
-            {session.stalled ? (
-              <button
-                onClick={() => recording.stopRecording(session.sessionId)}
-                className="flex-1 px-4 py-3 bg-amber-600 hover:bg-amber-700 text-white font-medium text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
-                style={{ borderRadius: UI_CONFIG.radius.xl }}
-              >
-                <Square className="w-4 h-4 fill-current" />
-                Force Stop
-              </button>
+        {/* Expand/collapse toggle (review only, not processing) */}
+        {isReview && !isProcessing && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className={`p-1 ${SURFACE.hoverSubtle} transition-colors`}
+            style={{ borderRadius: UI_CONFIG.radius.md }}
+            aria-label={isExpanded ? 'Collapse' : 'Expand'}
+            aria-expanded={isExpanded}
+          >
+            {isExpanded ? (
+              <ChevronUp className={`w-3.5 h-3.5 ${TEXT.faint}`} />
             ) : (
-              <>
-                {session.isPaused ? (
-                  <button
-                    onClick={() => recording.resumeRecording(session.sessionId)}
-                    className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 text-white font-medium text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
-                    style={{ borderRadius: UI_CONFIG.radius.xl }}
-                  >
-                    <Play className="w-4 h-4 fill-current" />
-                    Resume
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => recording.pauseRecording(session.sessionId)}
-                    className="flex-1 px-4 py-3 bg-amber-600 hover:bg-amber-700 text-white font-medium text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
-                    style={{ borderRadius: UI_CONFIG.radius.xl }}
-                  >
-                    <Pause className="w-4 h-4" />
-                    Pause
-                  </button>
-                )}
-                <button
-                  onClick={() => recording.stopRecording(session.sessionId)}
-                  className="px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-medium text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-500/20"
-                  style={{ borderRadius: UI_CONFIG.radius.xl }}
-                >
-                  <Square className="w-4 h-4 fill-current" />
-                  Stop
-                </button>
-              </>
+              <ChevronDown className={`w-3.5 h-3.5 ${TEXT.faint}`} />
             )}
-          </div>
+          </button>
+        )}
 
-          {session.error && (
-            <InfoCallout variant="error">
-              {session.error}
-            </InfoCallout>
-          )}
-        </div>
-      )}
+        {/* Abort button (processing) */}
+        {(isProcessing || session.status === 'processing') && (
+          <button
+            onClick={() => {
+              recording.abortProcessing(session.sessionId);
+              setIsProcessing(false);
+            }}
+            className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+            style={{ borderRadius: UI_CONFIG.radius.md }}
+            aria-label="Cancel processing"
+          >
+            <X className={`w-3.5 h-3.5 ${TEXT.faint} hover:text-red-500`} />
+          </button>
+        )}
 
-      {/* STATE 2: Review (with inline processing) */}
-      {session.status === 'review' && session.audioUrl && (
-        <div className="p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className={`text-lg font-semibold ${TEXT.heading}`}>
-              Session Complete
-            </h3>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => recording.discardRecording(session.sessionId)}
-                disabled={isProcessing}
-                className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors rounded-lg disabled:opacity-50"
-                aria-label="Discard recording"
-                title="Discard"
-              >
-                <Trash2 className={`w-4 h-4 ${TEXT.faint} hover:text-red-500`} />
-              </button>
-              <button
-                onClick={() => setIsMinimized(true)}
-                className={`p-1.5 ${SURFACE.hoverSubtle} transition-colors rounded-lg`}
-                aria-label="Minimize widget"
-              >
-                <Minimize2 className={`w-4 h-4 ${TEXT.muted}`} />
-              </button>
-            </div>
-          </div>
+        {/* Discard button (not during processing) */}
+        {!isProcessing && session.status !== 'processing' && (
+          <button
+            onClick={() => recording.discardRecording(session.sessionId)}
+            className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+            style={{ borderRadius: UI_CONFIG.radius.md }}
+            aria-label="Discard"
+          >
+            <Trash2 className={`w-3.5 h-3.5 ${TEXT.faint} hover:text-red-500`} />
+          </button>
+        )}
 
-          <div className="space-y-2">
-            <CustomAudioPlayer src={session.audioUrl} duration={session.elapsedTime} />
-            <p className={`text-xs ${TEXT.secondary} text-center`}>
-              {sourceLabel}
-            </p>
-          </div>
+        {/* Minimize (single-session only) */}
+        {showMinimize && onMinimize && (
+          <MinimizeButton onClick={onMinimize} />
+        )}
+      </div>
 
-          {/* Action Buttons: Later + Summarize */}
+      {/* Expanded content — review details */}
+      {isExpanded && isReview && session.audioUrl && (
+        <div className="mt-3 space-y-3 animate-slide-in-content">
+          <CustomAudioPlayer src={session.audioUrl} duration={session.elapsedTime} />
+          <p className={`text-xs ${TEXT.faint} text-center`}>{sourceLabel}</p>
+
           <div className="flex items-center gap-2">
-            {/* Later button */}
             <button
-              onClick={handleSaveLater}
+              onClick={() => recording.saveLater(session.sessionId)}
               disabled={isProcessing}
-              className={`px-4 py-3 ${COMPONENT.secondaryButton} font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
+              className={`px-3 py-2.5 ${COMPONENT.secondaryButton} font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-50`}
               style={{ borderRadius: UI_CONFIG.radius.xl }}
             >
               <Timer className="w-4 h-4" />
               Later
             </button>
-
-            {/* Summarize / Processing / Abort button */}
-            {!isProcessing ? (
-              <button
-                onClick={handleGenerateSummary}
-                disabled={!hasModel}
-                title={hasModel ? 'Generate AI summary' : 'Set up a provider and select a model first'}
-                className={`flex-1 px-4 py-3 font-medium text-sm transition-all flex items-center justify-center gap-2 ${
-                  hasModel
-                    ? 'bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 hover:from-violet-600 hover:via-purple-600 hover:to-fuchsia-600 text-white shadow-lg shadow-purple-500/25'
-                    : 'bg-parchment-300 dark:bg-night-650 text-parchment-700 dark:text-night-400 cursor-not-allowed'
-                }`}
-                style={{ borderRadius: UI_CONFIG.radius.xl }}
-              >
-                <Sparkles className="w-4 h-4" />
-                Summarize
-              </button>
-            ) : (
-              <div className="flex flex-1 gap-2">
-                <button
-                  disabled
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 text-white font-medium text-sm shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2 cursor-not-allowed opacity-90"
-                  style={{ borderRadius: UI_CONFIG.radius.xl }}
-                >
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Processing...
-                </button>
-                <button
-                  onClick={handleAbortProcessing}
-                  className="px-3 py-3 bg-red-600 hover:bg-red-700 text-white transition-all flex items-center justify-center shadow-lg shadow-red-500/20"
-                  style={{ borderRadius: UI_CONFIG.radius.xl }}
-                  aria-label="Cancel processing"
-                  title="Cancel processing"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            )}
+            <button
+              onClick={handleGenerateSummary}
+              disabled={!hasModel || isProcessing}
+              title={hasModel ? 'Generate AI summary' : 'Set up a provider first'}
+              className={`flex-1 px-3 py-2.5 font-medium text-sm transition-all flex items-center justify-center gap-2 ${
+                hasModel
+                  ? 'bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 hover:from-violet-600 hover:via-purple-600 hover:to-fuchsia-600 text-white shadow-lg shadow-purple-500/25'
+                  : 'bg-parchment-300 dark:bg-night-650 text-parchment-700 dark:text-night-400 cursor-not-allowed'
+              }`}
+              style={{ borderRadius: UI_CONFIG.radius.xl }}
+            >
+              <Sparkles className="w-4 h-4" />
+              Summarize
+            </button>
           </div>
+        </div>
+      )}
 
-          {session.error && (
-            <InfoCallout variant="error">
-              {session.error}
-            </InfoCallout>
-          )}
+      {/* Error display */}
+      {session.error && (
+        <div className="mt-2">
+          <InfoCallout variant="error">{session.error}</InfoCallout>
         </div>
       )}
     </div>
   );
 };
 
-// === RecordingWidgetStack: Container for all session widgets ===
+// === SessionRow — Router ===
+
+interface SessionRowProps {
+  session: RecordingSession;
+  isActive: boolean;
+  showMinimize: boolean;
+  onMinimize?: () => void;
+}
+
+const SessionRow: React.FC<SessionRowProps> = ({ session, isActive, showMinimize, onMinimize }) => {
+  if (isActive && (session.status === 'recording' || session.status === 'paused')) {
+    return <ActiveSessionRow session={session} showMinimize={showMinimize} onMinimize={onMinimize} />;
+  }
+  return <CompactSessionRow session={session} showMinimize={showMinimize} onMinimize={onMinimize} />;
+};
+
+// === RecordingWidget (Tray Entry Point) ===
 
 export const RecordingWidget: React.FC = () => {
   const { sessions, activeCaptureSessionId } = useRecordingSessions();
-  const [expandedCollapsedId, setExpandedCollapsedId] = useState<string | null>(null);
+  const [isMinimized, setIsMinimized] = useState(false);
 
   const sessionArray = Array.from(sessions.values());
   if (sessionArray.length === 0) return null;
@@ -366,39 +413,65 @@ export const RecordingWidget: React.FC = () => {
     return b.createdAt - a.createdAt;
   });
 
-  // Collapse logic: if 3+ sessions, older ones collapse
-  // Active capture + newest session stay expanded. Rest collapse.
-  const shouldCollapse = sorted.length >= 3;
+  const activeSession = activeCaptureSessionId
+    ? sessions.get(activeCaptureSessionId) ?? null
+    : null;
 
+  // Minimized state: single pill for entire tray
+  if (isMinimized) {
+    return (
+      <div
+        className="fixed"
+        style={{
+          bottom: UI_CONFIG.spacing.lg,
+          right: UI_CONFIG.spacing.lg,
+          zIndex: UI_CONFIG.zIndex.overlay,
+        }}
+      >
+        <MinimizedTrayPill
+          sessions={sorted}
+          activeSession={activeSession}
+          onExpand={() => setIsMinimized(false)}
+        />
+      </div>
+    );
+  }
+
+  // Expanded tray
   return (
     <div
-      className="fixed flex flex-col-reverse items-end gap-2"
+      role="region"
+      aria-label="Recording sessions"
+      className={`fixed bg-parchment-50 dark:bg-night-800 border ${BORDER.strong} shadow-2xl overflow-hidden transition-all duration-300`}
       style={{
         bottom: UI_CONFIG.spacing.lg,
         right: UI_CONFIG.spacing.lg,
+        width: '360px',
         zIndex: UI_CONFIG.zIndex.overlay,
+        borderRadius: UI_CONFIG.radius['2xl'],
       }}
     >
-      {sorted.map((session, index) => {
-        // First two are always expanded (unless user explicitly collapsed them)
-        const isCollapsed = shouldCollapse
-          && index >= 2
-          && expandedCollapsedId !== session.sessionId;
+      {/* Header — only for 2+ sessions */}
+      {sorted.length > 1 && (
+        <RecordingTrayHeader
+          sessionCount={sorted.length}
+          hasActiveCapture={!!activeSession}
+          onMinimize={() => setIsMinimized(true)}
+        />
+      )}
 
-        return (
-          <div
+      {/* Session rows */}
+      <div className="divide-y divide-parchment-200 dark:divide-night-700">
+        {sorted.map((session) => (
+          <SessionRow
             key={session.sessionId}
-            className="animate-slide-in-bottom"
-            style={{ animation: 'slideInBottom 0.3s ease-out' }}
-          >
-            <SessionWidget
-              session={session}
-              isCollapsed={isCollapsed}
-              onExpand={() => setExpandedCollapsedId(session.sessionId)}
-            />
-          </div>
-        );
-      })}
+            session={session}
+            isActive={session.sessionId === activeCaptureSessionId}
+            showMinimize={sorted.length === 1}
+            onMinimize={() => setIsMinimized(true)}
+          />
+        ))}
+      </div>
     </div>
   );
 };

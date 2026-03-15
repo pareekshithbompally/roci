@@ -1,21 +1,20 @@
 /**
  * Recording Feature Module
- * 
+ *
  * Handles all recording-related functionality:
  * - Recording controls (start, stop, pause, resume)
- * - Recording timer
  * - Audio source selection
- * - Minimized recording bar
- * 
+ * - Unified recording tray widget
+ *
  * Usage:
  * ```tsx
  * import { RecordingProvider, useRecording, RecordButton } from '@/features/recording';
- * 
+ *
  * // Wrap your app with the provider
  * <RecordingProvider>
  *   <App />
  * </RecordingProvider>
- * 
+ *
  * // Use the hook in components
  * const { startRecording, stopRecording, status } = useRecording();
  * ```
@@ -33,11 +32,8 @@ export { recordingService } from './services';
 export type { StartRecordingOptions, StartRecordingResult, StopRecordingResult } from './services';
 
 // Components
-export { 
-  RecordButton, 
-  RecordingControls, 
-  RecordingTimer, 
-  MinimizedRecordingBar,
+export {
+  RecordButton,
   RecordingWidget
 } from './components';
 

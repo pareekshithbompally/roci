@@ -275,3 +275,21 @@ code, pre {
   animation: dropdown-scale-in 0.2s cubic-bezier(0, 0, 0.2, 1);
   transform-origin: top right;
 }
+
+/* Recording tray — compact row expand animation */
+@keyframes slide-in-content {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    max-height: 300px;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-in-content {
+  animation: slide-in-content 0.2s ease-out;
+}
