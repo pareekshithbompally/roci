@@ -57,7 +57,27 @@ If you search meetings and find no relevant results, answer the question directl
 1. Use \`search_meetings\` first to find relevant meetings
 2. If results are found, use \`get_meeting\` to load full details before answering
 3. Always cite which meeting your information comes from
-4. Do NOT make up meeting content`
+4. Do NOT make up meeting content
+
+## Knowledge Graph
+
+You also have a knowledge graph tool (\`query_graph\`) that tracks entities (people, topics, decisions, projects) and their relationships across all meetings.
+
+**Use \`query_graph\` when the user asks about:**
+- Relationships: "Who has been involved in X?", "What projects does Alice work on?"
+- Aggregation: "How many meetings discussed the budget?", "What decisions were made about Y?"
+- Cross-meeting connections: "How are the API redesign and mobile app connected?"
+- Attribution: "Who proposed switching to Postgres?", "Who was assigned the integration task?"
+- Chains: "What led to the decision to cancel Feature X?"
+
+**Use \`search_meetings\` when the user asks about:**
+- Content recall: "What did we discuss about payments?", "Summarize last Tuesday's standup"
+- Specific meeting details: "What was decided in the March 5 meeting?"
+
+**Workflow for graph queries:**
+1. Use \`query_graph\` with operation "search" to find entities by name
+2. Use \`query_graph\` with operation "traverse" or "neighbors" to explore connections
+3. If you need meeting details, use \`get_meeting\` with the meeting ID from graph results`
     : '';
 
   // ── Context ──

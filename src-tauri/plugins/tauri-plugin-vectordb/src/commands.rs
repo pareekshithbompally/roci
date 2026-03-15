@@ -1,3 +1,4 @@
+use crate::graph;
 use crate::schema;
 use crate::search::{hybrid_search, SearchHit, SearchParams};
 use rusqlite::{ffi::sqlite3_auto_extension, Connection};
@@ -407,18 +408,82 @@ pub async fn rebuild(
     state: State<'_, VectorDbState>,
 ) -> Result<(), String> {
     with_conn(&state, |conn| {
-        // Delete all vector data
+        // Delete all vector + graph data
         conn.execute_batch(
             "DELETE FROM vec_chunks;
              DELETE FROM chunks;
              DELETE FROM meetings;
-             INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild');",
+             INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild');
+             DELETE FROM kg_edges;
+             DELETE FROM kg_nodes;",
         )
         .map_err(|e| format!("rebuild: {}", e))?;
 
-        log::info!("[vectordb] Database rebuilt (all data cleared)");
+        log::info!("[vectordb] Database rebuilt (all data cleared, including graph)");
         Ok(())
     })
+}
+
+// ── Knowledge Graph Commands ──
+
+#[tauri::command]
+pub async fn graph_upsert(
+    state: State<'_, VectorDbState>,
+    meeting_id: String,
+    nodes: Vec<graph::GraphNode>,
+    edges: Vec<graph::GraphEdge>,
+) -> Result<(), String> {
+    with_conn(&state, |conn| {
+        graph::upsert_meeting_graph(conn, &meeting_id, &nodes, &edges)
+    })
+}
+
+#[tauri::command]
+pub async fn graph_traverse(
+    state: State<'_, VectorDbState>,
+    params: graph::TraversalParams,
+) -> Result<Vec<graph::TraversalResult>, String> {
+    with_conn(&state, |conn| graph::traverse(conn, &params))
+}
+
+#[tauri::command]
+pub async fn graph_neighbors(
+    state: State<'_, VectorDbState>,
+    node_id: String,
+    edge_types: Option<Vec<String>>,
+    direction: Option<String>,
+) -> Result<Vec<graph::TraversalResult>, String> {
+    with_conn(&state, |conn| {
+        graph::neighbors(
+            conn,
+            &node_id,
+            edge_types.as_deref(),
+            direction.as_deref().unwrap_or("both"),
+        )
+    })
+}
+
+#[tauri::command]
+pub async fn graph_search(
+    state: State<'_, VectorDbState>,
+    params: graph::GraphSearchParams,
+) -> Result<Vec<graph::GraphNode>, String> {
+    with_conn(&state, |conn| graph::search_nodes(conn, &params))
+}
+
+#[tauri::command]
+pub async fn graph_delete_meeting(
+    state: State<'_, VectorDbState>,
+    meeting_id: String,
+) -> Result<(), String> {
+    with_conn(&state, |conn| graph::delete_meeting_graph(conn, &meeting_id))
+}
+
+#[tauri::command]
+pub async fn graph_stats(
+    state: State<'_, VectorDbState>,
+) -> Result<graph::GraphStats, String> {
+    with_conn(&state, |conn| graph::stats(conn))
 }
 
 fn now_millis() -> i64 {

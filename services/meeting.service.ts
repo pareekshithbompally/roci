@@ -61,6 +61,18 @@ class MeetingService {
         // Directory may already be gone or non-existent — not an error
       }
 
+      // Clean up vector + graph data (non-blocking, non-fatal)
+      import('../extensions/rag/client').then(({ vectorDB }) => {
+        vectorDB.deleteMeeting(id).catch(err =>
+          console.warn('[MeetingService] Vector cleanup failed for', id, err)
+        );
+      }).catch(() => {});
+      import('../extensions/rag/graph-client').then(({ graphDB }) => {
+        graphDB.deleteMeeting(id).catch(err =>
+          console.warn('[MeetingService] Graph cleanup failed for', id, err)
+        );
+      }).catch(() => {});
+
       if (!indexOk || fileResults.some(r => !r)) {
         console.warn('[MeetingService] Partial deletion for meeting:', id);
       }

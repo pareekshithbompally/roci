@@ -595,6 +595,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           recordingFileName,
           inputSource: session.audioSource,
           model: settings.transcriptionModel,
+          extractionContext: { settings, providers },
         });
 
         if (recordingRegistration.success) {

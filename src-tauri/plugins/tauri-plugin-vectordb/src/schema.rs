@@ -84,6 +84,35 @@ fn create_v1(conn: &Connection) -> Result<(), String> {
             INSERT INTO chunks_fts(chunks_fts, rowid, chunk_text) VALUES('delete', old.id, old.chunk_text);
             INSERT INTO chunks_fts(rowid, chunk_text) VALUES (new.id, new.chunk_text);
         END;
+
+        -- Knowledge graph nodes
+        CREATE TABLE IF NOT EXISTS kg_nodes (
+            id          TEXT PRIMARY KEY,
+            type        TEXT NOT NULL,
+            name        TEXT NOT NULL,
+            name_lower  TEXT NOT NULL,
+            properties  TEXT NOT NULL DEFAULT '{}',
+            created_at  INTEGER NOT NULL,
+            updated_at  INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_kg_nodes_type ON kg_nodes(type);
+        CREATE INDEX IF NOT EXISTS idx_kg_nodes_name_lower ON kg_nodes(name_lower);
+
+        -- Knowledge graph edges
+        CREATE TABLE IF NOT EXISTS kg_edges (
+            id          TEXT PRIMARY KEY,
+            source_id   TEXT NOT NULL REFERENCES kg_nodes(id) ON DELETE CASCADE,
+            target_id   TEXT NOT NULL REFERENCES kg_nodes(id) ON DELETE CASCADE,
+            type        TEXT NOT NULL,
+            properties  TEXT DEFAULT '{}',
+            meeting_id  TEXT NOT NULL,
+            created_at  INTEGER NOT NULL,
+            UNIQUE(source_id, target_id, type, meeting_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_kg_edges_source ON kg_edges(source_id, type);
+        CREATE INDEX IF NOT EXISTS idx_kg_edges_target ON kg_edges(target_id, type);
+        CREATE INDEX IF NOT EXISTS idx_kg_edges_meeting ON kg_edges(meeting_id);
+        CREATE INDEX IF NOT EXISTS idx_kg_edges_type ON kg_edges(type);
         ",
     )
     .map_err(|e| format!("Failed to create base schema: {}", e))?;

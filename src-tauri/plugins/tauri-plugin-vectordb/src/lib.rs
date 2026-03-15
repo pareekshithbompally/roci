@@ -1,4 +1,5 @@
 mod commands;
+mod graph;
 mod schema;
 mod search;
 
@@ -25,6 +26,12 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::get_stats,
             commands::get_meta,
             commands::rebuild,
+            commands::graph_upsert,
+            commands::graph_traverse,
+            commands::graph_neighbors,
+            commands::graph_search,
+            commands::graph_delete_meeting,
+            commands::graph_stats,
         ])
         .setup(|app, _api| {
             app.manage(VectorDbState::default());

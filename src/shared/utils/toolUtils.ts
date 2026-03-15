@@ -7,6 +7,7 @@ export function toolLabel(toolName: string, status: 'calling' | 'complete' | 'er
     get_meeting:      ['Retrieving meeting…', 'Retrieved meeting'],
     list_meetings:    ['Listing meetings…', 'Listed meetings'],
     get_action_items: ['Getting action items…', 'Found action items'],
+    query_graph:      ['Querying knowledge graph…', 'Queried knowledge graph'],
   };
 
   const pair = labels[toolName];

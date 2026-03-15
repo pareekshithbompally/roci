@@ -10,3 +10,5 @@ export { buildTranscriptionPrompt } from './transcription.prompt';
 export type { TranscriptionPromptOptions } from './transcription.prompt';
 
 export { buildVTTDocumentPrompt, buildGenericDocumentPrompt } from './document.prompt';
+
+export { buildEntityExtractionPrompt } from './entity-extraction.prompt';

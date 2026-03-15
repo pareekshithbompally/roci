@@ -9,6 +9,12 @@ const COMMANDS: &[&str] = &[
     "get_stats",
     "get_meta",
     "rebuild",
+    "graph_upsert",
+    "graph_traverse",
+    "graph_neighbors",
+    "graph_search",
+    "graph_delete_meeting",
+    "graph_stats",
 ];
 
 fn main() {

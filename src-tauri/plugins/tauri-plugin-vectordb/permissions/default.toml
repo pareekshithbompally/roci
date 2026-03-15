@@ -11,4 +11,10 @@ permissions = [
   "allow-get-stats",
   "allow-get-meta",
   "allow-rebuild",
+  "allow-graph-upsert",
+  "allow-graph-traverse",
+  "allow-graph-neighbors",
+  "allow-graph-search",
+  "allow-graph-delete-meeting",
+  "allow-graph-stats",
 ]

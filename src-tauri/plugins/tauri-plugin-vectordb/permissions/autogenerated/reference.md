@@ -14,6 +14,12 @@ Allows all vectordb plugin commands
 - `allow-get-stats`
 - `allow-get-meta`
 - `allow-rebuild`
+- `allow-graph-upsert`
+- `allow-graph-traverse`
+- `allow-graph-neighbors`
+- `allow-graph-search`
+- `allow-graph-delete-meeting`
+- `allow-graph-stats`
 
 ## Permission Table
 
@@ -150,6 +156,162 @@ Enables the get_stats command without any pre-configured scope.
 <td>
 
 Denies the get_stats command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:allow-graph-delete-meeting`
+
+</td>
+<td>
+
+Enables the graph_delete_meeting command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-graph-delete-meeting`
+
+</td>
+<td>
+
+Denies the graph_delete_meeting command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:allow-graph-neighbors`
+
+</td>
+<td>
+
+Enables the graph_neighbors command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-graph-neighbors`
+
+</td>
+<td>
+
+Denies the graph_neighbors command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:allow-graph-search`
+
+</td>
+<td>
+
+Enables the graph_search command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-graph-search`
+
+</td>
+<td>
+
+Denies the graph_search command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:allow-graph-stats`
+
+</td>
+<td>
+
+Enables the graph_stats command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-graph-stats`
+
+</td>
+<td>
+
+Denies the graph_stats command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:allow-graph-traverse`
+
+</td>
+<td>
+
+Enables the graph_traverse command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-graph-traverse`
+
+</td>
+<td>
+
+Denies the graph_traverse command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:allow-graph-upsert`
+
+</td>
+<td>
+
+Enables the graph_upsert command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-graph-upsert`
+
+</td>
+<td>
+
+Denies the graph_upsert command without any pre-configured scope.
 
 </td>
 </tr>

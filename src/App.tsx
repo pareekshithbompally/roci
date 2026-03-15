@@ -88,7 +88,10 @@ const App: React.FC = () => {
         // Only proceed if embedding model is already consented + cached
         // Don't trigger model download on app launch — that's user-initiated
         if (!embeddingService.isReady() && !hasConsent()) return;
-        await ragIndexer.indexAll(history.items, controller.signal);
+        await ragIndexer.indexAll(history.items, {
+          signal: controller.signal,
+          extractionContext: settings.chatModel ? { settings, providers } : undefined,
+        });
       } catch (error) {
         // Non-fatal — indexing will happen on first search instead
         console.log('[App] Background RAG warm-up skipped or failed:', error);

@@ -6,14 +6,25 @@
  * Uses content hashing for staleness detection — only re-indexes changed meetings.
  */
 
-import type { HistoryItem } from '@/types';
+import type { HistoryItem, AppSettings, MeetingSummary } from '@/types';
+import type { ModelProvider } from '@/types/modelProviders';
 import { embeddingService } from './embeddings';
 import { vectorDB } from './client';
+import { graphDB } from './graph-client';
+import { entityExtractor } from './entity-extractor';
 import { chunkMeeting, computeContentHash } from './chunker';
 import { emitProgress } from './progress';
 import { EMBEDDING_MODEL } from './constants';
 import type { ChunkData, MeetingMeta } from './client';
 import type { RAGStatus } from './types';
+
+export interface IndexOptions {
+  signal?: AbortSignal;
+  extractionContext?: {
+    settings: AppSettings;
+    providers: ModelProvider[];
+  };
+}
 
 /**
  * Index a single meeting: chunk → embed → upsert to Rust backend.
@@ -68,10 +79,15 @@ async function indexMeeting(item: HistoryItem): Promise<boolean> {
 
 /**
  * Index all meetings that are new or stale (content changed since last index).
+ * If extractionContext is provided, also re-extracts entities for stale meetings.
  * Returns the number of meetings indexed.
  */
-async function indexAll(items: HistoryItem[], signal?: AbortSignal): Promise<number> {
+async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptions): Promise<number> {
   if (items.length === 0) return 0;
+
+  // Support both old signature (signal) and new (IndexOptions)
+  const signal = options instanceof AbortSignal ? options : options?.signal;
+  const extractionContext = options instanceof AbortSignal ? undefined : options?.extractionContext;
 
   await vectorDB.initialize();
 
@@ -112,7 +128,18 @@ async function indexAll(items: HistoryItem[], signal?: AbortSignal): Promise<num
 
     try {
       const success = await indexMeeting(item);
-      if (success) indexed++;
+      if (success) {
+        indexed++;
+
+        // Re-extract entities if we have settings/providers context
+        if (extractionContext && item.structuredSummary) {
+          const summary = toMeetingSummary(item.structuredSummary);
+          entityExtractor.extractAndUpsert(
+            item.id, item.title, summary, item.transcript,
+            extractionContext.settings, extractionContext.providers,
+          ).catch(err => console.error(`[RAGIndexer] Entity re-extraction failed for "${item.title}":`, err));
+        }
+      }
     } catch (error) {
       console.error(`[RAGIndexer] Failed to index "${item.title}":`, error);
     }
@@ -135,11 +162,29 @@ async function indexAll(items: HistoryItem[], signal?: AbortSignal): Promise<num
   return indexed;
 }
 
+/** Convert StructuredSummary to MeetingSummary for entity extraction */
+function toMeetingSummary(s: NonNullable<HistoryItem['structuredSummary']>): MeetingSummary {
+  return {
+    overview: s.overview || s.tldr || '',
+    keyDiscussionPoints: s.keyDiscussionPoints || [],
+    decisionsMade: s.decisionsMade || [],
+    actionItems: (s.actionItems || []).map(a => ({
+      text: a.text,
+      owner: a.owner,
+      dueDate: a.dueDate,
+    })),
+    nextSteps: s.nextSteps || [],
+  };
+}
+
 /**
  * Remove a meeting and all its chunks/vectors.
  */
 async function removeMeeting(meetingId: string): Promise<void> {
   await vectorDB.deleteMeeting(meetingId);
+  await graphDB.deleteMeeting(meetingId).catch(err =>
+    console.warn(`[RAGIndexer] Graph cleanup failed for ${meetingId}:`, err)
+  );
   console.log(`[RAGIndexer] Removed meeting ${meetingId}`);
 }
 

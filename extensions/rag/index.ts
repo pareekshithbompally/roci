@@ -18,3 +18,12 @@ export type {
   DbStats,
   DbMeta,
 } from './client';
+export { graphDB } from './graph-client';
+export { entityExtractor } from './entity-extractor';
+export { ENTITY_TYPES, RELATIONSHIP_TYPES } from './graph-types';
+export type {
+  GraphNode, GraphEdge, GraphUpsertPayload,
+  TraversalParams, TraversalResult,
+  GraphSearchParams, GraphStats,
+  EntityType, RelationshipType,
+} from './graph-types';

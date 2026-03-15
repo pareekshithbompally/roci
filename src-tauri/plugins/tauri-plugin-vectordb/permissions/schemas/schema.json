@@ -355,6 +355,78 @@
           "markdownDescription": "Denies the get_stats command without any pre-configured scope."
         },
         {
+          "description": "Enables the graph_delete_meeting command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-graph-delete-meeting",
+          "markdownDescription": "Enables the graph_delete_meeting command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the graph_delete_meeting command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-graph-delete-meeting",
+          "markdownDescription": "Denies the graph_delete_meeting command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the graph_neighbors command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-graph-neighbors",
+          "markdownDescription": "Enables the graph_neighbors command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the graph_neighbors command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-graph-neighbors",
+          "markdownDescription": "Denies the graph_neighbors command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the graph_search command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-graph-search",
+          "markdownDescription": "Enables the graph_search command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the graph_search command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-graph-search",
+          "markdownDescription": "Denies the graph_search command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the graph_stats command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-graph-stats",
+          "markdownDescription": "Enables the graph_stats command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the graph_stats command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-graph-stats",
+          "markdownDescription": "Denies the graph_stats command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the graph_traverse command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-graph-traverse",
+          "markdownDescription": "Enables the graph_traverse command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the graph_traverse command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-graph-traverse",
+          "markdownDescription": "Denies the graph_traverse command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the graph_upsert command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-graph-upsert",
+          "markdownDescription": "Enables the graph_upsert command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the graph_upsert command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-graph-upsert",
+          "markdownDescription": "Denies the graph_upsert command without any pre-configured scope."
+        },
+        {
           "description": "Enables the initialize command without any pre-configured scope.",
           "type": "string",
           "const": "allow-initialize",
@@ -415,10 +487,10 @@
           "markdownDescription": "Denies the upsert_meeting command without any pre-configured scope."
         },
         {
-          "description": "Allows all vectordb plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-upsert-meeting`\n- `allow-upsert-chunks`\n- `allow-delete-meeting`\n- `allow-search`\n- `allow-get-stale-meetings`\n- `allow-get-indexed-ids`\n- `allow-get-stats`\n- `allow-get-meta`\n- `allow-rebuild`",
+          "description": "Allows all vectordb plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-upsert-meeting`\n- `allow-upsert-chunks`\n- `allow-delete-meeting`\n- `allow-search`\n- `allow-get-stale-meetings`\n- `allow-get-indexed-ids`\n- `allow-get-stats`\n- `allow-get-meta`\n- `allow-rebuild`\n- `allow-graph-upsert`\n- `allow-graph-traverse`\n- `allow-graph-neighbors`\n- `allow-graph-search`\n- `allow-graph-delete-meeting`\n- `allow-graph-stats`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Allows all vectordb plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-upsert-meeting`\n- `allow-upsert-chunks`\n- `allow-delete-meeting`\n- `allow-search`\n- `allow-get-stale-meetings`\n- `allow-get-indexed-ids`\n- `allow-get-stats`\n- `allow-get-meta`\n- `allow-rebuild`"
+          "markdownDescription": "Allows all vectordb plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-upsert-meeting`\n- `allow-upsert-chunks`\n- `allow-delete-meeting`\n- `allow-search`\n- `allow-get-stale-meetings`\n- `allow-get-indexed-ids`\n- `allow-get-stats`\n- `allow-get-meta`\n- `allow-rebuild`\n- `allow-graph-upsert`\n- `allow-graph-traverse`\n- `allow-graph-neighbors`\n- `allow-graph-search`\n- `allow-graph-delete-meeting`\n- `allow-graph-stats`"
         }
       ]
     }

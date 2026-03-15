@@ -7,7 +7,8 @@
  * the meeting directory is cleaned up and the index is never updated.
  */
 
-import type { MeetingIndexEntry, MeetingSummary, TranscriptData, RecordingMeta, TodoEntry } from '@/types';
+import type { MeetingIndexEntry, MeetingSummary, TranscriptData, RecordingMeta, TodoEntry, AppSettings } from '@/types';
+import type { ModelProvider } from '@/types/modelProviders';
 import { meetingIndexRepository } from './repositories/meeting-index.repository';
 import { transcriptRepository } from './repositories/transcript.repository';
 import { summaryRepository } from './repositories/summary.repository';
@@ -24,6 +25,11 @@ export interface TranscriptionResult {
   inputSource?: string;
   model?: string;
   language?: string;
+  /** Optional: settings + providers for entity extraction. If omitted, extraction is skipped. */
+  extractionContext?: {
+    settings: AppSettings;
+    providers: ModelProvider[];
+  };
 }
 
 class TranscriptionService {
@@ -98,6 +104,19 @@ class TranscriptionService {
       }
 
       console.log('[TranscriptionService] Saved transcription result for meeting:', meetingId);
+
+      // Trigger entity extraction (non-blocking, non-fatal)
+      if (result.extractionContext) {
+        const ctx = result.extractionContext;
+        import('../extensions/rag/entity-extractor').then(({ entityExtractor }) => {
+          entityExtractor.extractAndUpsert(
+            meetingId, title, summary, transcript,
+            ctx.settings,
+            ctx.providers,
+          ).catch(err => console.error('[TranscriptionService] Entity extraction failed:', err));
+        }).catch(err => console.error('[TranscriptionService] Failed to load entity extractor:', err));
+      }
+
       return true;
     } catch (error) {
       console.error('[TranscriptionService] Failed to update index for meeting:', meetingId, error);
