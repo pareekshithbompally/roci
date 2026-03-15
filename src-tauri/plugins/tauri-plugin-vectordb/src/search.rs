@@ -164,12 +164,14 @@ fn floats_to_bytes(floats: &[f32]) -> Vec<u8> {
 }
 
 /// Sanitize a query string for FTS5 MATCH.
-/// Remove special FTS5 operators and wrap in quotes for phrase-like matching.
+/// Strips FTS5 operators while preserving word-internal punctuation (apostrophes, hyphens).
+/// Wraps each term in quotes for exact matching.
 fn sanitize_fts_query(query: &str) -> String {
-    // Remove FTS5 special characters: * " ( ) + - ^ : OR AND NOT NEAR
+    // Keep: alphanumeric, whitespace, apostrophes, hyphens (within words)
+    // Strip: FTS5 operators (* " ( ) + ^ : etc.)
     let cleaned: String = query
         .chars()
-        .filter(|c| c.is_alphanumeric() || c.is_whitespace())
+        .filter(|c| c.is_alphanumeric() || c.is_whitespace() || *c == '\'' || *c == '-')
         .collect();
 
     let trimmed = cleaned.trim();
@@ -177,13 +179,13 @@ fn sanitize_fts_query(query: &str) -> String {
         return String::new();
     }
 
-    // Split into words and join with OR for broad matching
+    // Split into words and wrap each in quotes for exact matching
     let words: Vec<&str> = trimmed.split_whitespace().collect();
     if words.len() == 1 {
         return format!("\"{}\"", words[0]);
     }
 
-    // Use implicit OR: each word is a separate term
+    // Use OR for broad matching across terms
     words
         .iter()
         .map(|w| format!("\"{}\"", w))

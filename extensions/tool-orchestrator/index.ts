@@ -38,7 +38,7 @@ export async function orchestrate(
   options: OrchestratorOptions,
   callbacks: OrchestratorCallbacks
 ): Promise<{ provider?: string; model?: string; tokenUsage?: TokenUsage }> {
-  const { messages, systemPrompt, settings, providers, historyItems, signal, webSearchEnabled, outputSchema } = options;
+  const { messages, systemPrompt, settings, providers, historyItems, signal, webSearchEnabled, outputSchema, toolChoice } = options;
   const { onChunk, onMediaPart, onToolActivity } = callbacks;
 
   const resolved = resolveModel(settings.chatModel, providers);
@@ -93,15 +93,19 @@ export async function orchestrate(
     let pendingToolCalls: ToolCall[] | null = null;
     let textBefore: string | undefined;
 
+    // When toolChoice is 'none', omit tools entirely — the LLM shouldn't see them
+    const effectiveTools = toolChoice === 'none' ? undefined : schemas;
+
     const streamOptions: ToolStreamOptions = {
       messages: buffer.getMessages(),
       resolved,
       systemPrompt: systemPrompt,
       webSearchEnabled,
       signal,
-      tools: schemas,
+      tools: effectiveTools,
       toolMessages: buffer.getToolMessages(),
       outputSchema: outputSchema,
+      toolChoice,
     };
 
     const streamCallbacks: ToolStreamCallbacks = {
@@ -120,7 +124,7 @@ export async function orchestrate(
       lastInputTokens = iterationUsage.inputTokens;
     }
 
-    if (!pendingToolCalls || pendingToolCalls.length === 0) break;
+    if (!pendingToolCalls || pendingToolCalls.length === 0 || toolChoice === 'none') break;
 
     // Non-Gemini path: adapter fired onToolCall, execute tools and loop
     buffer.addAssistantToolCalls(pendingToolCalls, textBefore);

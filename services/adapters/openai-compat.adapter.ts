@@ -112,7 +112,7 @@ export class OpenAICompatAdapter implements ILLMAdapter {
   }
 
   async chatStreamWithTools(options: ToolStreamOptions, callbacks: ToolStreamCallbacks): Promise<TokenUsage | undefined> {
-    const { messages, resolved, systemPrompt, signal, tools: toolSchemas, toolMessages, outputSchema } = options;
+    const { messages, resolved, systemPrompt, signal, tools: toolSchemas, toolMessages, toolChoice, outputSchema } = options;
     const { onChunk, onToolCall } = callbacks;
 
     if (signal?.aborted) return;
@@ -140,9 +140,9 @@ export class OpenAICompatAdapter implements ILLMAdapter {
       }
     }
 
-    // Build tools array
+    // Build tools array — omit entirely when toolChoice is 'none'
     const tools: any[] = [];
-    if (toolSchemas?.length) {
+    if (toolChoice !== 'none' && toolSchemas?.length) {
       tools.push(...toProviderTools(toolSchemas, 'openai-compat'));
     }
 
@@ -150,11 +150,15 @@ export class OpenAICompatAdapter implements ILLMAdapter {
     const accumulatedToolCalls = new Map<number, { id: string; function: { name: string; arguments: string } }>();
     let textBefore = '';
 
+    // OpenAI-compat: pass tool_choice if supported (graceful — some providers ignore it)
+    const compatToolChoice = toolChoice && tools.length > 0 ? toolChoice : undefined;
+
     const runner = client.chat.completions
       .stream({
         model: resolved.modelId,
         messages: openAIMessages,
         ...(tools.length > 0 && { tools }),
+        ...(compatToolChoice && { tool_choice: compatToolChoice }),
         ...(outputSchema && {
           response_format: {
             type: 'json_schema' as const,

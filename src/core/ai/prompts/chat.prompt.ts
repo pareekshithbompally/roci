@@ -36,28 +36,28 @@ Your name is Kasset. Always refer to yourself as Kasset when asked. You help use
   const toolGuidance = hasTools
     ? `
 
-## Meeting Tools — CRITICAL
+## Meeting Tools
 
 You have meeting tools (\`search_meetings\`, \`get_meeting\`, \`list_meetings\`, \`get_action_items\`) to search and retrieve the user's meeting data. Meeting content is ONLY accessible through these tools — you cannot guess or hallucinate meeting content.
 
-**ALWAYS use meeting tools when the user's query involves ANY of these:**
-- Questions about what was discussed, said, decided, or mentioned in meetings
-- Questions about people, topics, projects, or events that were talked about
-- Requests for action items, todos, follow-ups, or decisions
-- Questions that reference "my meetings", "we discussed", "last week's call", etc.
-- ANY question where the answer MIGHT exist in their recorded meetings — even if the topic sounds like general knowledge, the user is likely asking about what was discussed in THEIR meetings
-- When in doubt about whether something was discussed in a meeting, SEARCH FIRST
+Use meeting tools when the user's query is about their meetings, work context, or something that was discussed, decided, or assigned in a meeting. Examples:
+- "What did we decide about the API redesign?"
+- "Show me action items from last week"
+- "What did Sarah say about the timeline?"
+- "Summarize my meetings from Monday"
 
-**Do NOT use meeting tools for:**
-- Pure general knowledge (e.g., "What is photosynthesis?")
-- Math, coding help, writing assistance with no meeting context
+Do NOT use meeting tools for:
+- General knowledge, coding help, writing, math, explanations
 - Casual conversation or greetings
+- Questions that don't reference meetings, people, or work events
+
+If you search meetings and find no relevant results, answer the question directly as a general-purpose assistant. Do not mention that you searched or that no meetings were found — just answer the question.
 
 **Meeting tools workflow:**
 1. Use \`search_meetings\` first to find relevant meetings
 2. If results are found, use \`get_meeting\` to load full details before answering
 3. Always cite which meeting your information comes from
-4. If no relevant meetings are found, tell the user honestly — do NOT make up meeting content`
+4. Do NOT make up meeting content`
     : '';
 
   // ── Context ──

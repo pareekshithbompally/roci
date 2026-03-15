@@ -12,22 +12,21 @@
 import type { EmbeddingService } from './types';
 import { requestConsent, hasConsent } from './consent';
 import { emitProgress } from './progress';
+import { EMBEDDING_MODEL, EMBEDDING_DTYPE, EMBEDDING_BATCH_SIZE } from './constants';
 
 let pipelineInstance: any = null;
-let loading = false;
+let loadPromise: Promise<any> | null = null;
 let ready = false;
 
 async function getPipeline() {
   if (pipelineInstance) return pipelineInstance;
-  if (loading) {
-    // Wait for the in-flight load to complete
-    while (loading) {
-      await new Promise(r => setTimeout(r, 100));
-    }
-    if (!pipelineInstance) throw new Error('Model failed to load');
-    return pipelineInstance;
+  if (!loadPromise) {
+    loadPromise = loadPipeline();
   }
+  return loadPromise;
+}
 
+async function loadPipeline() {
   // Gate on user consent before downloading the model
   if (!hasConsent()) {
     const granted = await requestConsent();
@@ -36,20 +35,20 @@ async function getPipeline() {
     }
   }
 
-  loading = true;
   try {
     const { pipeline } = await import('@huggingface/transformers');
 
-    pipelineInstance = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
-      dtype: 'q8',
+    pipelineInstance = await pipeline('feature-extraction', EMBEDDING_MODEL, {
+      dtype: EMBEDDING_DTYPE,
       progress_callback: (event: any) => {
         switch (event.status) {
           case 'initiate':
           case 'download':
-            emitProgress({ status: 'downloading', file: event.file, percent: 0 });
+            emitProgress({ kind: 'model', status: 'downloading', file: event.file, percent: 0 });
             break;
           case 'progress':
             emitProgress({
+              kind: 'model',
               status: 'downloading',
               file: event.file,
               loaded: event.loaded,
@@ -58,10 +57,10 @@ async function getPipeline() {
             });
             break;
           case 'done':
-            emitProgress({ status: 'loading', file: event.file });
+            emitProgress({ kind: 'model', status: 'loading', file: event.file });
             break;
           case 'ready':
-            emitProgress({ status: 'ready' });
+            emitProgress({ kind: 'model', status: 'ready' });
             break;
         }
       },
@@ -69,14 +68,13 @@ async function getPipeline() {
 
     ready = true;
     console.log('[EmbeddingService] Model loaded successfully');
+    return pipelineInstance;
   } catch (error: any) {
+    loadPromise = null;  // Reset on failure so retry works
     console.error('[EmbeddingService] Failed to load model:', error);
-    emitProgress({ status: 'error', error: error.message || 'Failed to load model' });
+    emitProgress({ kind: 'model', status: 'error', error: error.message || 'Failed to load model' });
     throw error;
-  } finally {
-    loading = false;
   }
-  return pipelineInstance;
 }
 
 async function embed(text: string): Promise<number[]> {
@@ -88,11 +86,16 @@ async function embed(text: string): Promise<number[]> {
 async function embedBatch(texts: string[]): Promise<number[][]> {
   const extractor = await getPipeline();
   const results: number[][] = [];
-  // Process one at a time to avoid OOM with large batches
-  for (const text of texts) {
-    const output = await extractor(text, { pooling: 'mean', normalize: true });
-    results.push(Array.from(output.data as Float32Array));
+
+  // Process in batches to balance throughput vs memory
+  for (let i = 0; i < texts.length; i += EMBEDDING_BATCH_SIZE) {
+    const batch = texts.slice(i, i + EMBEDDING_BATCH_SIZE);
+    for (const text of batch) {
+      const output = await extractor(text, { pooling: 'mean', normalize: true });
+      results.push(Array.from(output.data as Float32Array));
+    }
   }
+
   return results;
 }
 
@@ -108,8 +111,8 @@ export async function preloadModel(): Promise<void> {
 /** Clear cached pipeline so the next call re-downloads. Used for retry. */
 export function resetPipeline(): void {
   pipelineInstance = null;
+  loadPromise = null;
   ready = false;
-  loading = false;
 }
 
 export const embeddingService: EmbeddingService = {

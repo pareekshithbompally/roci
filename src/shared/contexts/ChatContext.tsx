@@ -17,6 +17,7 @@ import { resolveModel, supportsTools, getProviderType } from '@shared/utils/mode
 import { getAdapter } from '@/services/adapters';
 import { contextPipeline } from '@extensions/context-pipeline';
 import { orchestrate } from '@extensions/tool-orchestrator';
+import type { ToolChoice } from '@/services/adapters/types';
 import { streamingStore } from '@features/chat/stores/streamingStore';
 import { buildChatRequest } from '@core/ai';
 import { JsonStreamExtractor } from '@core/ai/streaming/jsonStreamExtractor';
@@ -619,6 +620,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       const isGeminiWebSearch = state.webSearchEnabled && adapterForCheck?.type === 'gemini';
       const useTools = !isGeminiWebSearch && !!(resolved && supportsTools(resolved) && adapterForCheck?.chatStreamWithTools);
 
+      // Default to 'auto' — let the LLM decide.
+      // The softened system prompt + tool descriptions do the heavy lifting.
+      // toolChoice can be set to 'none' here in the future by a lightweight
+      // intent classifier if the prompt-only approach proves insufficient.
+      const toolChoice: ToolChoice = 'auto';
+
       const allCitations: MeetingCitation[] = [];
       const allWebCitations: WebCitation[] = [];
       const allInlineCitations: InlineCitationSpan[] = [];
@@ -642,6 +649,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             historyItems: historyItems || [],
             signal: abortControllerRef.current?.signal,
             webSearchEnabled: state.webSearchEnabled,
+            toolChoice,
           },
           {
             onChunk: handleChunk,

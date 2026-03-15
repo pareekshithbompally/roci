@@ -77,6 +77,28 @@ const App: React.FC = () => {
     }, [chat.chatInputRef]),
   });
 
+  // Background RAG warm-up: index stale meetings so first search is fast
+  useEffect(() => {
+    if (history.items.length === 0) return;
+
+    const controller = new AbortController();
+    const warmUp = async () => {
+      try {
+        const { ragIndexer, embeddingService, hasConsent } = await import('@extensions/rag');
+        // Only proceed if embedding model is already consented + cached
+        // Don't trigger model download on app launch — that's user-initiated
+        if (!embeddingService.isReady() && !hasConsent()) return;
+        await ragIndexer.indexAll(history.items, controller.signal);
+      } catch (error) {
+        // Non-fatal — indexing will happen on first search instead
+        console.log('[App] Background RAG warm-up skipped or failed:', error);
+      }
+    };
+    warmUp();
+
+    return () => controller.abort();
+  }, [history.items.length]); // Re-run when history count changes (new meeting recorded)
+
   // Initialize app on mount
   useEffect(() => {
     const initializeApp = async () => {

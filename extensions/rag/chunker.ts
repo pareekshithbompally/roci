@@ -6,6 +6,7 @@
  */
 
 import type { HistoryItem } from '@/types';
+import { MAX_CHUNK_CHARS, OVERLAP_CHARS, MIN_NOTES_LENGTH } from './constants';
 
 export interface Chunk {
   text: string;
@@ -14,9 +15,6 @@ export interface Chunk {
   startPos?: number;
   endPos?: number;
 }
-
-const MAX_CHUNK_CHARS = 2000;
-const OVERLAP_CHARS = 200;
 
 // Sentence-ending pattern: period/exclamation/question followed by whitespace
 const SENTENCE_END = /(?<=[.!?])\s+/g;
@@ -116,12 +114,30 @@ function splitAtClauseBoundaries(text: string, maxChars: number): string[] {
   return parts.map((part, i) => (i < parts.length - 1 ? part + ' ' : part));
 }
 
-/** Hard character-boundary split as absolute last resort. */
+/** Hard split as absolute last resort — prefers word boundaries over mid-word cuts. */
 function hardSplit(text: string, maxChars: number): string[] {
   const chunks: string[] = [];
-  for (let i = 0; i < text.length; i += maxChars) {
-    chunks.push(text.slice(i, i + maxChars));
+  let start = 0;
+
+  while (start < text.length) {
+    if (start + maxChars >= text.length) {
+      chunks.push(text.slice(start));
+      break;
+    }
+
+    // Find the last whitespace within the max range
+    let end = start + maxChars;
+    const lastSpace = text.lastIndexOf(' ', end);
+
+    if (lastSpace > start) {
+      end = lastSpace + 1; // Include the space in the current chunk
+    }
+    // else: no whitespace found (extremely long word) — hard cut at maxChars
+
+    chunks.push(text.slice(start, end));
+    start = end;
   }
+
   return chunks;
 }
 
@@ -164,7 +180,7 @@ export function chunkMeeting(item: HistoryItem): Chunk[] {
   const actionTexts = (item.userActionItems || []).map(a => a.text).filter(Boolean);
   const combinedNotes = [...noteTexts, ...actionTexts].join('. ');
 
-  if (combinedNotes.length > 20) {
+  if (combinedNotes.length > MIN_NOTES_LENGTH) {
     chunks.push({
       text: combinedNotes,
       index: chunks.length,

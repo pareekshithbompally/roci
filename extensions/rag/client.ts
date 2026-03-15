@@ -58,36 +58,16 @@ export interface DbMeta {
   embedding_dim: string;
 }
 
-let initialized = false;
+let initPromise: Promise<void> | null = null;
 
-async function ensureInitialized(): Promise<void> {
-  if (initialized) return;
-  await invoke('plugin:vectordb|initialize');
-  initialized = true;
-
-  // Migrate: clean up old Orama index file if it exists
-  cleanupOldIndex().catch(() => {});
-}
-
-/** Remove deprecated Orama rag-index.json and localStorage key */
-async function cleanupOldIndex(): Promise<void> {
-  try {
-    const { appDataDir } = await import('@tauri-apps/api/path');
-    const { exists, remove } = await import('@tauri-apps/plugin-fs');
-    const base = await appDataDir();
-    const oldFile = `${base}rag/rag-index.json`;
-    if (await exists(oldFile)) {
-      await remove(oldFile);
-      console.log('[vectordb] Removed deprecated rag-index.json');
-    }
-  } catch {
-    // Not critical
+function ensureInitialized(): Promise<void> {
+  if (!initPromise) {
+    initPromise = invoke('plugin:vectordb|initialize').then(
+      () => {},
+      (err) => { initPromise = null; throw err; }  // Reset on failure so retry works
+    );
   }
-  try {
-    localStorage.removeItem('kasset_rag_index');
-  } catch {
-    // Not critical
-  }
+  return initPromise;
 }
 
 export const vectorDB = {

@@ -11,7 +11,6 @@ export { pathsService } from './paths.service';
 export { recordingsService } from './recordings.service';
 export { cacheService } from './cache.service';
 export { settingsService } from './settings.service';
-export { encryptionService } from './encryption.service';
 
 // Types (only those still needed by kept services)
 export type {

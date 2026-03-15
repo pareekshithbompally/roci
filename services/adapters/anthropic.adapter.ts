@@ -156,7 +156,7 @@ export class AnthropicAdapter implements ILLMAdapter {
   }
 
   async chatStreamWithTools(options: ToolStreamOptions, callbacks: ToolStreamCallbacks): Promise<TokenUsage | undefined> {
-    const { messages, resolved, systemPrompt, webSearchEnabled, signal, tools: toolSchemas, toolMessages, outputSchema } = options;
+    const { messages, resolved, systemPrompt, webSearchEnabled, signal, tools: toolSchemas, toolMessages, toolChoice, outputSchema } = options;
     const { onChunk, onToolCall } = callbacks;
 
     if (signal?.aborted) return;
@@ -180,14 +180,22 @@ export class AnthropicAdapter implements ILLMAdapter {
       }
     }
 
-    // Build tools array
+    // Build tools array — omit entirely when toolChoice is 'none'
     const tools: any[] = [];
-    if (webSearchEnabled) {
-      tools.push({ type: 'web_search_20250305', name: 'web_search' });
+    if (toolChoice !== 'none') {
+      if (webSearchEnabled) {
+        tools.push({ type: 'web_search_20250305', name: 'web_search' });
+      }
+      if (toolSchemas?.length) {
+        tools.push(...toProviderTools(toolSchemas, 'anthropic'));
+      }
     }
-    if (toolSchemas?.length) {
-      tools.push(...toProviderTools(toolSchemas, 'anthropic'));
-    }
+
+    // Map toolChoice to Anthropic's tool_choice format
+    // Anthropic: { type: 'auto' } | { type: 'any' } (required) | omit (none)
+    const anthropicToolChoice = toolChoice === 'required' ? { type: 'any' as const }
+      : toolChoice === 'auto' ? { type: 'auto' as const }
+      : undefined;
 
     const stream = client.messages.stream({
       model: resolved.modelId,
@@ -195,6 +203,7 @@ export class AnthropicAdapter implements ILLMAdapter {
       system: systemPrompt,
       messages: anthropicMessages,
       ...(tools.length > 0 && { tools }),
+      ...(tools.length > 0 && anthropicToolChoice && { tool_choice: anthropicToolChoice }),
       ...(outputSchema && {
         output_config: {
           format: {

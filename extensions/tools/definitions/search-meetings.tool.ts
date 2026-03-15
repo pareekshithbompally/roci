@@ -10,13 +10,15 @@ import type { ToolDefinition, ToolResult, MeetingCitation } from '../types';
 import { ragSearcher } from '../../rag/searcher';
 import { ragIndexer } from '../../rag/indexer';
 import { vectorDB } from '../../rag/client';
+import { SCORE_HIGH, SCORE_MEDIUM } from '../../rag/constants';
 
 export const searchMeetingsTool: ToolDefinition = {
   name: 'search_meetings',
   description:
-    'Search across all of the user\'s recorded meeting transcripts, summaries, and notes using semantic + keyword hybrid search. ' +
-    'Returns ranked snippets with meeting IDs. You MUST call this tool whenever the user asks about anything that could have been discussed in their meetings. ' +
-    'After getting results, use get_meeting to load full details.',
+    'Search across the user\'s recorded meeting transcripts, summaries, and notes ' +
+    'using semantic + keyword hybrid search. Returns ranked snippets with meeting IDs. ' +
+    'Use when the user asks about specific meetings, discussions, people, or decisions ' +
+    'from their work. After getting results, use get_meeting to load full details.',
   parameters: {
     type: 'object',
     properties: {
@@ -43,7 +45,7 @@ export const searchMeetingsTool: ToolDefinition = {
     await vectorDB.initialize();
     const stale = await ragIndexer.needsReindex(context.historyItems);
     if (stale.length > 0) {
-      await ragIndexer.indexAll(context.historyItems);
+      await ragIndexer.indexAll(context.historyItems, context.signal);
     }
 
     const results = await ragSearcher.search(query, { limit, mode: 'hybrid' });
@@ -77,7 +79,7 @@ export const searchMeetingsTool: ToolDefinition = {
         day: 'numeric',
       });
       const snippet = first.chunkText.slice(0, 200).replace(/\n/g, ' ');
-      const confidence = first.score >= 0.025 ? 'high' : first.score >= 0.012 ? 'medium' : 'low';
+      const confidence = first.score >= SCORE_HIGH ? 'high' : first.score >= SCORE_MEDIUM ? 'medium' : 'low';
 
       lines.push(
         `${index}. "${first.meetingTitle}" (${date})`,

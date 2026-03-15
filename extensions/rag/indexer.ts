@@ -10,7 +10,10 @@ import type { HistoryItem } from '@/types';
 import { embeddingService } from './embeddings';
 import { vectorDB } from './client';
 import { chunkMeeting, computeContentHash } from './chunker';
+import { emitProgress } from './progress';
+import { EMBEDDING_MODEL } from './constants';
 import type { ChunkData, MeetingMeta } from './client';
+import type { RAGStatus } from './types';
 
 /**
  * Index a single meeting: chunk → embed → upsert to Rust backend.
@@ -35,26 +38,24 @@ async function indexMeeting(item: HistoryItem): Promise<boolean> {
   };
   await vectorDB.upsertMeeting(meetingMeta);
 
-  // Embed all chunks
-  const chunkDataList: ChunkData[] = [];
-  for (const chunk of chunks) {
-    let embedding: number[];
-    try {
-      embedding = await embeddingService.embed(chunk.text);
-    } catch (error) {
-      console.error(`[RAGIndexer] Failed to embed chunk ${chunk.index} of "${item.title}":`, error);
-      continue;
-    }
-
-    chunkDataList.push({
-      chunk_index: chunk.index,
-      chunk_text: chunk.text,
-      chunk_type: chunk.type,
-      embedding,
-      start_pos: chunk.startPos ?? null,
-      end_pos: chunk.endPos ?? null,
-    });
+  // Embed all chunks in a single batch call
+  const chunkTexts = chunks.map(c => c.text);
+  let embeddings: number[][];
+  try {
+    embeddings = await embeddingService.embedBatch(chunkTexts);
+  } catch (error) {
+    console.error(`[RAGIndexer] Failed to embed chunks for "${item.title}":`, error);
+    return false;
   }
+
+  const chunkDataList: ChunkData[] = chunks.map((chunk, i) => ({
+    chunk_index: chunk.index,
+    chunk_text: chunk.text,
+    chunk_type: chunk.type,
+    embedding: embeddings[i],
+    start_pos: chunk.startPos ?? null,
+    end_pos: chunk.endPos ?? null,
+  }));
 
   if (chunkDataList.length === 0) {
     return false;
@@ -69,7 +70,7 @@ async function indexMeeting(item: HistoryItem): Promise<boolean> {
  * Index all meetings that are new or stale (content changed since last index).
  * Returns the number of meetings indexed.
  */
-async function indexAll(items: HistoryItem[]): Promise<number> {
+async function indexAll(items: HistoryItem[], signal?: AbortSignal): Promise<number> {
   if (items.length === 0) return 0;
 
   await vectorDB.initialize();
@@ -88,11 +89,24 @@ async function indexAll(items: HistoryItem[]): Promise<number> {
     return 0;
   }
 
-  const staleItems = items.filter((item) => staleIds.includes(item.id));
+  const staleSet = new Set(staleIds);
+  const staleItems = items.filter((item) => staleSet.has(item.id));
   let indexed = 0;
 
+  emitProgress({ kind: 'indexing', status: 'started', total: staleItems.length });
+
   for (let i = 0; i < staleItems.length; i++) {
+    if (signal?.aborted) break;
+
     const item = staleItems[i];
+
+    emitProgress({
+      kind: 'indexing',
+      status: 'progress',
+      current: i + 1,
+      total: staleItems.length,
+      currentTitle: item.title,
+    });
 
     console.log(`[RAGIndexer] Indexing ${i + 1}/${staleItems.length}: ${item.title}`);
 
@@ -103,6 +117,13 @@ async function indexAll(items: HistoryItem[]): Promise<number> {
       console.error(`[RAGIndexer] Failed to index "${item.title}":`, error);
     }
   }
+
+  emitProgress({
+    kind: 'indexing',
+    status: 'complete',
+    current: indexed,
+    total: staleItems.length,
+  });
 
   if (indexed > 0) {
     const stats = await vectorDB.getStats();
@@ -136,7 +157,24 @@ async function needsReindex(items: HistoryItem[]): Promise<HistoryItem[]> {
   );
 
   const staleIds = await vectorDB.getStaleMeetings(hashes);
-  return items.filter((item) => staleIds.includes(item.id));
+  const staleSet = new Set(staleIds);
+  return items.filter((item) => staleSet.has(item.id));
+}
+
+/**
+ * Get current RAG system status (index stats, model state).
+ */
+export async function getRAGStatus(): Promise<RAGStatus> {
+  const stats = await vectorDB.getStats();
+  const meta = await vectorDB.getMeta();
+  return {
+    ready: stats.total_meetings > 0,
+    indexedMeetings: Number(stats.total_meetings),
+    totalChunks: Number(stats.total_chunks),
+    dbSizeBytes: Number(stats.db_size_bytes),
+    modelLoaded: embeddingService.isReady(),
+    embeddingModel: meta.embedding_model || EMBEDDING_MODEL,
+  };
 }
 
 export const ragIndexer = {

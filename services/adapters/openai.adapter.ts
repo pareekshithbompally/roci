@@ -164,7 +164,7 @@ export class OpenAIAdapter implements ILLMAdapter {
   }
 
   async chatStreamWithTools(options: ToolStreamOptions, callbacks: ToolStreamCallbacks): Promise<TokenUsage | undefined> {
-    const { messages, resolved, systemPrompt, webSearchEnabled, signal, tools: toolSchemas, toolMessages, outputSchema } = options;
+    const { messages, resolved, systemPrompt, webSearchEnabled, signal, tools: toolSchemas, toolMessages, toolChoice, outputSchema } = options;
     const { onChunk, onToolCall } = callbacks;
 
     if (signal?.aborted) return;
@@ -192,24 +192,30 @@ export class OpenAIAdapter implements ILLMAdapter {
       }
     }
 
-    // Build tools array
+    // Build tools array — omit entirely when toolChoice is 'none'
     const tools: any[] = [];
-    if (webSearchEnabled) {
-      tools.push({ type: 'web_search_preview' });
-    }
-    if (toolSchemas?.length) {
-      tools.push(...toProviderTools(toolSchemas, 'openai'));
+    if (toolChoice !== 'none') {
+      if (webSearchEnabled) {
+        tools.push({ type: 'web_search_preview' });
+      }
+      if (toolSchemas?.length) {
+        tools.push(...toProviderTools(toolSchemas, 'openai'));
+      }
     }
 
     // Accumulate function calls during streaming
     const functionCalls: Array<{ call_id: string; name: string; arguments: string }> = [];
     let textBefore = '';
 
+    // OpenAI Responses API: tool_choice maps directly — 'auto' | 'required' | 'none'
+    const openaiToolChoice = toolChoice && tools.length > 0 ? toolChoice : undefined;
+
     const runner = client.responses
       .stream({
         model: resolved.modelId,
         input,
         ...(tools.length > 0 && { tools }),
+        ...(openaiToolChoice && { tool_choice: openaiToolChoice }),
         ...(outputSchema && {
           text: {
             format: {

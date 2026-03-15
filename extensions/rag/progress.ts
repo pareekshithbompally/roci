@@ -1,11 +1,17 @@
 /**
- * RAG Embedding Model Progress Bridge
+ * RAG Progress Bridge
  *
  * Event-based bridge (same pattern as consent.ts) so the non-React
- * embedding service can report download/load progress to the React modal.
+ * embedding service and indexer can report progress to the React UI.
+ *
+ * Supports two event kinds via discriminated union:
+ *   - 'model': embedding model download/load lifecycle
+ *   - 'indexing': meeting indexing progress
  */
 
-export interface EmbeddingProgress {
+/** Embedding model lifecycle events */
+export interface EmbeddingModelEvent {
+  kind: 'model';
   status: 'downloading' | 'loading' | 'ready' | 'error';
   /** File currently being downloaded (Transformers.js downloads multiple shards) */
   file?: string;
@@ -19,20 +25,41 @@ export interface EmbeddingProgress {
   error?: string;
 }
 
-type ProgressListener = (progress: EmbeddingProgress) => void;
+/** Meeting indexing progress events */
+export interface IndexingProgressEvent {
+  kind: 'indexing';
+  status: 'started' | 'progress' | 'complete' | 'error';
+  /** Current meeting being indexed (1-based) */
+  current?: number;
+  /** Total meetings to index */
+  total?: number;
+  /** Title of current meeting */
+  currentTitle?: string;
+  error?: string;
+}
+
+export type RAGProgressEvent = EmbeddingModelEvent | IndexingProgressEvent;
+
+/** @deprecated Use RAGProgressEvent instead */
+export type EmbeddingProgress = EmbeddingModelEvent;
+
+type ProgressListener = (event: RAGProgressEvent) => void;
 
 let listener: ProgressListener | null = null;
 
-/** Called by embeddings.ts to emit progress events */
-export function emitProgress(progress: EmbeddingProgress): void {
-  listener?.(progress);
+/** Called by embeddings.ts and indexer.ts to emit progress events */
+export function emitProgress(event: RAGProgressEvent): void {
+  listener?.(event);
 }
 
 /**
- * Called by ModelDownloadModal to subscribe to progress events.
+ * Subscribe to all RAG progress events (model + indexing).
  * Returns an unsubscribe function.
  */
-export function onEmbeddingProgress(cb: ProgressListener): () => void {
+export function onRAGProgress(cb: ProgressListener): () => void {
   listener = cb;
   return () => { listener = null; };
 }
+
+/** @deprecated Use onRAGProgress instead — kept for backward compat */
+export const onEmbeddingProgress = onRAGProgress;

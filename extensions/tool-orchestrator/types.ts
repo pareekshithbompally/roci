@@ -6,7 +6,7 @@
 
 import type { ChatMessage, HistoryItem, AppSettings } from '@/types';
 import type { ModelProvider } from '@/types/modelProviders';
-import type { StreamMetadata } from '@/services/adapters/types';
+import type { StreamMetadata, ToolChoice } from '@/services/adapters/types';
 import type { ChatPart } from '@/types';
 import type { ToolCall, ToolResult } from '@extensions/tools/types';
 import type { OutputSchema } from '@core/ai/types';
@@ -23,6 +23,7 @@ export interface OrchestratorOptions {
   signal?: AbortSignal;
   webSearchEnabled?: boolean;
   outputSchema?: OutputSchema;
+  toolChoice?: ToolChoice;
 }
 
 /** Callbacks the orchestrator uses to communicate with the UI layer */

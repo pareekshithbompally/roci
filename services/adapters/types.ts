@@ -105,10 +105,14 @@ export interface ToolStreamCallbacks extends StreamCallbacks {
   executeTools?: (calls: ToolCall[]) => Promise<ToolResult[]>;
 }
 
+/** Provider-agnostic tool choice hint */
+export type ToolChoice = 'auto' | 'none' | 'required';
+
 /** Options for tool-aware streaming */
 export interface ToolStreamOptions extends ChatStreamOptions {
   tools?: ToolSchema[];
   toolMessages?: ToolMessage[];
+  toolChoice?: ToolChoice;
 }
 
 /** Messages exchanged during tool calling turns */

@@ -118,7 +118,7 @@ pub async fn upsert_meeting(
     meeting: MeetingMeta,
 ) -> Result<(), String> {
     with_conn(&state, |conn| {
-        let now = chrono_now();
+        let now = now_millis();
         conn.execute(
             "INSERT INTO meetings (id, title, timestamp, summary, categories, indexed_at, updated_at, content_hash)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, ?7)
@@ -145,6 +145,7 @@ pub async fn upsert_meeting(
 }
 
 /// Insert chunks + vectors for a meeting. Replaces all existing chunks for that meeting.
+/// Wrapped in a transaction for atomicity — crash at any point rolls back entirely.
 #[tauri::command]
 pub async fn upsert_chunks(
     state: State<'_, VectorDbState>,
@@ -152,10 +153,14 @@ pub async fn upsert_chunks(
     chunks: Vec<ChunkData>,
 ) -> Result<(), String> {
     with_conn(&state, |conn| {
-        // Delete existing chunks for this meeting (CASCADE will handle vec_chunks via trigger? No —
-        // vec0 virtual tables don't support triggers. We must delete vec rows manually.)
+        let tx = conn
+            .unchecked_transaction()
+            .map_err(|e| format!("begin transaction: {}", e))?;
+
+        // Delete existing chunks for this meeting (vec0 virtual tables don't support
+        // triggers/CASCADE, so we must delete vec rows manually.)
         let old_chunk_ids: Vec<i64> = {
-            let mut stmt = conn
+            let mut stmt = tx
                 .prepare("SELECT id FROM chunks WHERE meeting_id = ?1")
                 .map_err(|e| format!("select old chunks: {}", e))?;
             let ids: Vec<i64> = stmt
@@ -168,7 +173,7 @@ pub async fn upsert_chunks(
 
         // Delete old vectors
         for chunk_id in &old_chunk_ids {
-            conn.execute(
+            tx.execute(
                 "DELETE FROM vec_chunks WHERE chunk_id = ?1",
                 [chunk_id],
             )
@@ -176,7 +181,7 @@ pub async fn upsert_chunks(
         }
 
         // Delete old chunks (triggers will clean up FTS5)
-        conn.execute(
+        tx.execute(
             "DELETE FROM chunks WHERE meeting_id = ?1",
             [&meeting_id],
         )
@@ -184,7 +189,7 @@ pub async fn upsert_chunks(
 
         // Insert new chunks + vectors
         for chunk in &chunks {
-            conn.execute(
+            tx.execute(
                 "INSERT INTO chunks (meeting_id, chunk_index, chunk_text, chunk_type, start_pos, end_pos)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
                 rusqlite::params![
@@ -198,7 +203,7 @@ pub async fn upsert_chunks(
             )
             .map_err(|e| format!("insert chunk: {}", e))?;
 
-            let chunk_row_id = conn.last_insert_rowid();
+            let chunk_row_id = tx.last_insert_rowid();
 
             // Insert vector
             let embedding_bytes: Vec<u8> = chunk
@@ -207,12 +212,14 @@ pub async fn upsert_chunks(
                 .flat_map(|f| f.to_le_bytes())
                 .collect();
 
-            conn.execute(
+            tx.execute(
                 "INSERT INTO vec_chunks (chunk_id, embedding) VALUES (?1, ?2)",
                 rusqlite::params![chunk_row_id, embedding_bytes],
             )
             .map_err(|e| format!("insert vec: {}", e))?;
         }
+
+        tx.commit().map_err(|e| format!("commit upsert_chunks: {}", e))?;
 
         log::info!(
             "[vectordb] Upserted {} chunks for meeting {}",
@@ -224,15 +231,20 @@ pub async fn upsert_chunks(
 }
 
 /// Delete a meeting and all its chunks/vectors.
+/// Wrapped in a transaction for atomicity.
 #[tauri::command]
 pub async fn delete_meeting(
     state: State<'_, VectorDbState>,
     meeting_id: String,
 ) -> Result<(), String> {
     with_conn(&state, |conn| {
+        let tx = conn
+            .unchecked_transaction()
+            .map_err(|e| format!("begin transaction: {}", e))?;
+
         // Delete vectors first (no CASCADE on virtual tables)
         let chunk_ids: Vec<i64> = {
-            let mut stmt = conn
+            let mut stmt = tx
                 .prepare("SELECT id FROM chunks WHERE meeting_id = ?1")
                 .map_err(|e| format!("select chunks: {}", e))?;
             let ids: Vec<i64> = stmt
@@ -244,17 +256,19 @@ pub async fn delete_meeting(
         };
 
         for chunk_id in &chunk_ids {
-            conn.execute("DELETE FROM vec_chunks WHERE chunk_id = ?1", [chunk_id])
+            tx.execute("DELETE FROM vec_chunks WHERE chunk_id = ?1", [chunk_id])
                 .map_err(|e| format!("delete vec: {}", e))?;
         }
 
         // Delete chunks (triggers handle FTS5)
-        conn.execute("DELETE FROM chunks WHERE meeting_id = ?1", [&meeting_id])
+        tx.execute("DELETE FROM chunks WHERE meeting_id = ?1", [&meeting_id])
             .map_err(|e| format!("delete chunks: {}", e))?;
 
         // Delete meeting
-        conn.execute("DELETE FROM meetings WHERE id = ?1", [&meeting_id])
+        tx.execute("DELETE FROM meetings WHERE id = ?1", [&meeting_id])
             .map_err(|e| format!("delete meeting: {}", e))?;
+
+        tx.commit().map_err(|e| format!("commit delete_meeting: {}", e))?;
 
         log::info!("[vectordb] Deleted meeting {} and {} chunks", meeting_id, chunk_ids.len());
         Ok(())
@@ -272,28 +286,45 @@ pub async fn search(
 
 /// Compare content hashes to find meetings that need re-indexing.
 /// Returns IDs of meetings whose stored hash differs from the provided hash.
+/// Uses a temp table + single JOIN query instead of N individual queries.
 #[tauri::command]
 pub async fn get_stale_meetings(
     state: State<'_, VectorDbState>,
     meetings: Vec<MeetingHash>,
 ) -> Result<Vec<String>, String> {
     with_conn(&state, |conn| {
-        let mut stale = Vec::new();
+        // Create temp table (no-op after first call in this connection)
+        conn.execute_batch(
+            "CREATE TEMP TABLE IF NOT EXISTS _check_hashes (id TEXT PRIMARY KEY, content_hash TEXT);"
+        ).map_err(|e| format!("create temp: {}", e))?;
 
-        for m in &meetings {
-            let stored_hash: Option<String> = conn
-                .query_row(
-                    "SELECT content_hash FROM meetings WHERE id = ?1",
-                    [&m.id],
-                    |row| row.get(0),
-                )
-                .ok();
+        conn.execute("DELETE FROM _check_hashes", [])
+            .map_err(|e| format!("clear temp: {}", e))?;
 
-            match stored_hash {
-                Some(hash) if hash == m.content_hash => {} // Up to date
-                _ => stale.push(m.id.clone()),             // New or changed
+        // Batch insert incoming hashes using a prepared statement
+        {
+            let mut stmt = conn.prepare(
+                "INSERT INTO _check_hashes (id, content_hash) VALUES (?1, ?2)"
+            ).map_err(|e| format!("prepare insert: {}", e))?;
+
+            for m in &meetings {
+                stmt.execute(rusqlite::params![m.id, m.content_hash])
+                    .map_err(|e| format!("insert hash: {}", e))?;
             }
         }
+
+        // Single query: find IDs that are new or have changed hashes
+        let mut stmt = conn.prepare(
+            "SELECT ch.id FROM _check_hashes ch
+             LEFT JOIN meetings m ON m.id = ch.id
+             WHERE m.id IS NULL OR m.content_hash != ch.content_hash"
+        ).map_err(|e| format!("prepare stale: {}", e))?;
+
+        let stale: Vec<String> = stmt
+            .query_map([], |row| row.get(0))
+            .map_err(|e| format!("query stale: {}", e))?
+            .filter_map(|r| r.ok())
+            .collect();
 
         Ok(stale)
     })
@@ -390,7 +421,7 @@ pub async fn rebuild(
     })
 }
 
-fn chrono_now() -> i64 {
+fn now_millis() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()

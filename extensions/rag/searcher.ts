@@ -10,8 +10,7 @@ import { embeddingService } from './embeddings';
 import { vectorDB } from './client';
 import type { SearchHit } from './client';
 import type { SearchOptions } from './types';
-
-const DEFAULT_LIMIT = 5;
+import { DEFAULT_SEARCH_LIMIT } from './constants';
 
 export interface MeetingSearchResult {
   meetingId: string;
@@ -26,7 +25,7 @@ async function searchMeetings(
   query: string,
   options: SearchOptions = {},
 ): Promise<MeetingSearchResult[]> {
-  const { limit = DEFAULT_LIMIT, mode = 'hybrid' } = options;
+  const { limit = DEFAULT_SEARCH_LIMIT, mode = 'hybrid' } = options;
 
   await vectorDB.initialize();
 

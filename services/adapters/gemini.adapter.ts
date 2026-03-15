@@ -202,7 +202,7 @@ export class GeminiAdapter implements ILLMAdapter {
   }
 
   async chatStreamWithTools(options: ToolStreamOptions, callbacks: ToolStreamCallbacks): Promise<TokenUsage | undefined> {
-    const { messages, resolved, systemPrompt, webSearchEnabled, signal, tools: toolSchemas, outputSchema } = options;
+    const { messages, resolved, systemPrompt, webSearchEnabled, signal, tools: toolSchemas, toolChoice, outputSchema } = options;
     const { onChunk, onToolCall, executeTools } = callbacks;
     const ai = getClient(resolved.apiKey);
 
@@ -221,14 +221,28 @@ export class GeminiAdapter implements ILLMAdapter {
     // Both live in config.tools; the SDK sends them together. History is irrelevant here —
     // the SDK chat session owns history for this entire agentic turn.
     const configTools: any[] = [];
-    if (webSearchEnabled) {
-      configTools.push({ googleSearch: {} });
-    }
-    if (toolSchemas?.length) {
-      configTools.push(...toProviderTools(toolSchemas, 'gemini'));
+    if (toolChoice !== 'none') {
+      if (webSearchEnabled) {
+        configTools.push({ googleSearch: {} });
+      }
+      if (toolSchemas?.length) {
+        configTools.push(...toProviderTools(toolSchemas, 'gemini'));
+      }
     }
     if (configTools.length > 0) {
       config.tools = configTools;
+
+      // Gemini: toolConfig.functionCallingConfig.mode = 'AUTO' | 'NONE' | 'ANY'
+      const geminiModeMap: Record<string, string> = {
+        auto: 'AUTO',
+        required: 'ANY',
+        none: 'NONE',
+      };
+      if (toolChoice && geminiModeMap[toolChoice]) {
+        config.toolConfig = {
+          functionCallingConfig: { mode: geminiModeMap[toolChoice] },
+        };
+      }
     }
 
     const priorMessages = messages.slice(0, -1);

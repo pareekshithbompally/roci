@@ -18,8 +18,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Download, Brain } from 'lucide-react';
 import { toast as sonnerToast } from 'sonner';
 import { onConsentNeeded } from '@extensions/rag';
-import { onEmbeddingProgress, preloadModel, resetPipeline } from '@extensions/rag';
-import type { EmbeddingProgress } from '@extensions/rag';
+import { onRAGProgress, preloadModel, resetPipeline } from '@extensions/rag';
+import type { RAGProgressEvent, IndexingProgressEvent } from '@extensions/rag';
 import {
   AlertDialog,
   AlertDialogPortal,
@@ -56,26 +56,25 @@ export const ModelDownloadModal: React.FC = () => {
   visibleRef.current = visible;
 
   useEffect(() => {
+    // ── Model download state ──
     let downloadToastId: string | number | undefined;
     let downloadStartedAt = 0;
     let debounceTimer: ReturnType<typeof setTimeout> | undefined;
     let toastVisible = false; // whether we've actually shown a download toast
     let sessionNotified = false; // one "ready" toast per session
 
-    const unsubscribe = onEmbeddingProgress((event: EmbeddingProgress) => {
-      // Don't show toasts while the consent modal is up
-      if (visibleRef.current) return;
+    // ── Indexing state ──
+    let indexingToastId: string | number | undefined;
 
+    function handleModelEvent(event: RAGProgressEvent & { kind: 'model' }) {
       switch (event.status) {
         case 'downloading': {
-          // Track when downloading started
           if (downloadStartedAt === 0) {
             downloadStartedAt = Date.now();
           }
 
           const elapsed = Date.now() - downloadStartedAt;
 
-          // Only show toast after debounce window — cache hits never reach this
           if (elapsed >= DOWNLOAD_DEBOUNCE_MS) {
             const percent = event.percent ?? 0;
             const message = percent > 0
@@ -89,9 +88,7 @@ export const ModelDownloadModal: React.FC = () => {
               toastVisible = true;
             }
           } else if (!debounceTimer) {
-            // Schedule the first toast to appear after the debounce if still downloading
             debounceTimer = setTimeout(() => {
-              // If we're still in a download phase, show the toast
               if (downloadStartedAt > 0) {
                 downloadToastId = sonnerToast.loading('Downloading embedding model...', { duration: Infinity });
                 toastVisible = true;
@@ -102,20 +99,16 @@ export const ModelDownloadModal: React.FC = () => {
         }
 
         case 'loading':
-          // Clear debounce timer
           if (debounceTimer) {
             clearTimeout(debounceTimer);
             debounceTimer = undefined;
           }
 
-          // Dismiss download toast if it was shown
           if (downloadToastId) {
             sonnerToast.dismiss(downloadToastId);
             downloadToastId = undefined;
           }
 
-          // Only show loading toast if we visibly showed a download toast
-          // (i.e., this was a real download, not a cache hit)
           if (toastVisible) {
             sonnerToast.loading('Initializing embedding model...', {
               id: 'rag-model-loading',
@@ -125,24 +118,19 @@ export const ModelDownloadModal: React.FC = () => {
           break;
 
         case 'ready':
-          // Clear debounce timer
           if (debounceTimer) {
             clearTimeout(debounceTimer);
             debounceTimer = undefined;
           }
 
-          // Reset download tracking
           downloadStartedAt = 0;
 
-          // Dismiss any lingering toasts
           if (downloadToastId) {
             sonnerToast.dismiss(downloadToastId);
             downloadToastId = undefined;
           }
           sonnerToast.dismiss('rag-model-loading');
 
-          // Show success toast once per session, but only if we showed
-          // download/loading feedback (real download, not silent cache hit)
           if (toastVisible && !sessionNotified) {
             sonnerToast.success('Smart meeting search ready', { duration: 2000 });
             sessionNotified = true;
@@ -152,13 +140,11 @@ export const ModelDownloadModal: React.FC = () => {
           break;
 
         case 'error':
-          // Clear debounce timer
           if (debounceTimer) {
             clearTimeout(debounceTimer);
             debounceTimer = undefined;
           }
 
-          // Reset download tracking
           downloadStartedAt = 0;
           toastVisible = false;
 
@@ -180,12 +166,67 @@ export const ModelDownloadModal: React.FC = () => {
           });
           break;
       }
+    }
+
+    function handleIndexingEvent(event: IndexingProgressEvent) {
+      switch (event.status) {
+        case 'started':
+          if (event.total && event.total > 1) {
+            indexingToastId = sonnerToast.loading(
+              `Indexing ${event.total} meetings...`,
+              { id: 'rag-indexing', duration: Infinity }
+            );
+          }
+          break;
+
+        case 'progress':
+          if (indexingToastId && event.current && event.total) {
+            sonnerToast.loading(
+              `Indexing meetings... ${event.current}/${event.total}`,
+              { id: 'rag-indexing' }
+            );
+          }
+          break;
+
+        case 'complete':
+          if (indexingToastId) {
+            sonnerToast.dismiss('rag-indexing');
+            if (event.current && event.current > 0) {
+              sonnerToast.success(
+                `Indexed ${event.current} meeting${event.current > 1 ? 's' : ''}`,
+                { duration: 2000 }
+              );
+            }
+            indexingToastId = undefined;
+          }
+          break;
+
+        case 'error':
+          if (indexingToastId) {
+            sonnerToast.dismiss('rag-indexing');
+            indexingToastId = undefined;
+          }
+          sonnerToast.error(event.error || 'Meeting indexing failed', { duration: 5000 });
+          break;
+      }
+    }
+
+    const unsubscribe = onRAGProgress((event: RAGProgressEvent) => {
+      // Don't show toasts while the consent modal is up
+      if (visibleRef.current) return;
+
+      if (event.kind === 'model') {
+        handleModelEvent(event);
+      } else if (event.kind === 'indexing') {
+        handleIndexingEvent(event);
+      }
     });
 
     return () => {
       unsubscribe();
       if (debounceTimer) clearTimeout(debounceTimer);
       if (downloadToastId) sonnerToast.dismiss(downloadToastId);
+      if (indexingToastId) sonnerToast.dismiss('rag-indexing');
     };
   }, []); // No dependencies — uses refs for reactive state
 

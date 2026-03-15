@@ -6,6 +6,8 @@
  * can trigger the React confirmation modal.
  */
 
+import { CONSENT_TIMEOUT_MS } from './constants';
+
 const CONSENT_STORAGE_KEY = 'kasset_rag_model_consent';
 
 type ConsentResolver = (granted: boolean) => void;
@@ -62,7 +64,14 @@ export function requestConsent(): Promise<boolean> {
   }
 
   return new Promise(resolve => {
+    const timer = setTimeout(() => {
+      console.warn('[RAGConsent] Consent request timed out');
+      pendingResolver = null;
+      resolve(false);
+    }, CONSENT_TIMEOUT_MS);
+
     pendingResolver = (granted) => {
+      clearTimeout(timer);
       if (granted) setConsent(true);
       pendingResolver = null;
       resolve(granted);

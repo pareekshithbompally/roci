@@ -4,7 +4,7 @@
  * Manages application settings and model providers.
  * 
  * Key features:
- * - Persists settings to file storage with encryption for API keys
+ * - Persists settings to file storage
  * - Merges saved providers with predefined providers (for new providers added in updates)
  * - Auto-saves on changes with debounce (only after initial load completes)
  */
