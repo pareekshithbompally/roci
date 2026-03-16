@@ -9,9 +9,8 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Mic } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
-import { useUnsavedChanges } from '@shared/contexts/UnsavedChangesContext';
 import { useSettingsSave } from '../hooks/useSettingsSave';
-import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
+import { AUDIO_CONFIG, IMPORT_CONFIG, type AudioCaptureSource } from '@config/audio.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import QualityPresetSelector from './QualityPresetSelector';
@@ -20,14 +19,13 @@ import { ModalityIcons } from './ModalityIcons';
 import { audioTranscriptionValidator } from '@/services/audioTranscriptionValidator';
 import { getProviderTitle } from '@/utils/providerUtils';
 import ProvidersAvatar from '@/components/ProvidersAvatar';
-import { SettingsSaveButton } from './SettingsSaveButton';
 import { SettingsSection, RadioCard, InfoCallout } from './shared';
+import { LAYOUT } from '@config/theme.config';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, SelectGroup, SelectLabel } from '@shared/ui';
 
 export const AudioPanel: React.FC = () => {
   const { settings, setSettings, providers } = useSettings();
-  const { setHasUnsavedChanges } = useUnsavedChanges();
-  const { isSaving, hasUnsavedChanges, save } = useSettingsSave('Audio settings');
+  const { hasUnsavedChanges } = useSettingsSave('Audio settings', 'audio');
   const { showToast } = useToast();
   const [modalitiesLoaded, setModalitiesLoaded] = useState(modalitiesService.isLoaded());
 
@@ -62,7 +60,7 @@ export const AudioPanel: React.FC = () => {
 
   const handleTranscriptionModelChange = async (modelId: string) => {
     setSettings({ transcriptionModel: modelId });
-    setHasUnsavedChanges(true, 'audio');
+
     
     if (modelId) {
       const modelProvider = providers.find(p => 
@@ -90,12 +88,12 @@ export const AudioPanel: React.FC = () => {
 
   const handleSourceChange = (source: AudioCaptureSource) => {
     setSettings({ defaultAudioSource: source });
-    setHasUnsavedChanges(true, 'audio');
+
   };
 
   const handleQualityChange = (preset: string) => {
     setSettings({ audioQualityPreset: preset as any });
-    setHasUnsavedChanges(true, 'audio');
+
   };
 
   const audioSources: Array<{ key: AudioCaptureSource; label: string; description: string }> = [
@@ -119,7 +117,8 @@ export const AudioPanel: React.FC = () => {
   const selectedSource = settings.defaultAudioSource || 'systemAndMicrophone';
 
   return (
-    <div className="space-y-8">
+    <div className={`h-full overflow-y-auto custom-scrollbar ${LAYOUT.settingsPadding} py-6`}>
+    <div className={`${LAYOUT.settingsMaxWidth} mx-auto space-y-8`}>
       <div>
         <h3 className={`${TYPOGRAPHY_CLASSES.settingsTitle} ${TEXT.heading} mb-1`}>
           Audio Recording
@@ -211,6 +210,55 @@ export const AudioPanel: React.FC = () => {
         )}
       </SettingsSection>
 
+      {/* Job Processing */}
+      <SettingsSection title="Job Processing">
+        <div className="space-y-3">
+          <RadioCard
+            selected={settings.jobProcessing?.mode !== 'parallel'}
+            onClick={() => setSettings({ jobProcessing: { mode: 'sequential', maxConcurrent: settings.jobProcessing?.maxConcurrent ?? IMPORT_CONFIG.jobProcessing.defaultMaxConcurrent } })}
+            showDot
+          >
+            <div className="space-y-0.5">
+              <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${settings.jobProcessing?.mode !== 'parallel' ? TEXT.heading : TEXT.secondary}`}>
+                Sequential
+              </span>
+              <p className={`${TYPOGRAPHY_CLASSES.settingsDescription} ${TEXT.muted}`}>Process one import at a time</p>
+            </div>
+          </RadioCard>
+          <RadioCard
+            selected={settings.jobProcessing?.mode === 'parallel'}
+            onClick={() => setSettings({ jobProcessing: { mode: 'parallel', maxConcurrent: settings.jobProcessing?.maxConcurrent ?? IMPORT_CONFIG.jobProcessing.defaultMaxConcurrent } })}
+            showDot
+          >
+            <div className="space-y-0.5">
+              <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${settings.jobProcessing?.mode === 'parallel' ? TEXT.heading : TEXT.secondary}`}>
+                Parallel
+              </span>
+              <p className={`${TYPOGRAPHY_CLASSES.settingsDescription} ${TEXT.muted}`}>Process multiple imports simultaneously</p>
+            </div>
+          </RadioCard>
+          {settings.jobProcessing?.mode === 'parallel' && (
+            <div className="pl-8">
+              <Select
+                value={String(settings.jobProcessing?.maxConcurrent ?? IMPORT_CONFIG.jobProcessing.defaultMaxConcurrent)}
+                onValueChange={(val) => setSettings({ jobProcessing: { mode: 'parallel', maxConcurrent: Number(val) } })}
+              >
+                <SelectTrigger className={`w-32 ${TYPOGRAPHY_CLASSES.settingsInput}`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: IMPORT_CONFIG.jobProcessing.maxConcurrentLimit - 1 }, (_, i) => i + 2).map(n => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n} concurrent
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+      </SettingsSection>
+
       {/* Permission Note */}
       <InfoCallout variant="info">
         <strong>Note:</strong> System permissions will be requested when you start your first recording.
@@ -219,12 +267,7 @@ export const AudioPanel: React.FC = () => {
         {selectedSource === 'microphone' && ' Microphone access is required.'}
       </InfoCallout>
 
-      {/* Save Button */}
-      <SettingsSaveButton
-        isSaving={isSaving}
-        hasUnsavedChanges={hasUnsavedChanges}
-        onSave={save}
-      />
+    </div>
     </div>
   );
 };

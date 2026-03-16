@@ -8,17 +8,14 @@ import React, { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
-import { useUnsavedChanges } from '@shared/contexts/UnsavedChangesContext';
 import { useSettingsSave } from '../hooks/useSettingsSave';
-import { SettingsSaveButton } from './SettingsSaveButton';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { SURFACE, BORDER, TEXT, COMPONENT, RADIUS } from '@config/theme.config';
+import { SURFACE, BORDER, TEXT, COMPONENT, RADIUS, LAYOUT } from '@config/theme.config';
 
 export const CategoriesPanel: React.FC = () => {
   const { settings, setSettings } = useSettings();
   const { showToast } = useToast();
-  const { setHasUnsavedChanges } = useUnsavedChanges();
-  const { isSaving, hasUnsavedChanges, save } = useSettingsSave('Categories');
+  const { hasUnsavedChanges } = useSettingsSave('Categories', 'categories');
 
   const [newCategory, setNewCategory] = useState('');
 
@@ -32,16 +29,17 @@ export const CategoriesPanel: React.FC = () => {
     }
     setSettings({ categories: [...categories, newCategory.trim()] });
     setNewCategory('');
-    setHasUnsavedChanges(true, 'categories');
+
   };
 
   const handleRemoveCategory = (category: string) => {
     setSettings({ categories: categories.filter(c => c !== category) });
-    setHasUnsavedChanges(true, 'categories');
+
   };
 
   return (
-    <div className="space-y-8">
+    <div className={`h-full overflow-y-auto custom-scrollbar ${LAYOUT.settingsPadding} py-6`}>
+    <div className={`${LAYOUT.settingsMaxWidth} mx-auto space-y-8`}>
       <div>
         <h3 className={`${TYPOGRAPHY_CLASSES.settingsTitle} ${TEXT.heading} mb-1`}>
           Categories
@@ -95,12 +93,7 @@ export const CategoriesPanel: React.FC = () => {
         )}
       </div>
 
-      {/* Save Button */}
-      <SettingsSaveButton
-        isSaving={isSaving}
-        hasUnsavedChanges={hasUnsavedChanges}
-        onSave={save}
-      />
+    </div>
     </div>
   );
 };

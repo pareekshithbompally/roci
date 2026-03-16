@@ -35,8 +35,9 @@ export const useUnifiedSidebar = (): UseUnifiedSidebarReturn => {
       });
     });
 
-    // Add all chat sessions
+    // Add chat sessions that have at least 1 message
     chat.sessions.forEach(session => {
+      if (session.messages.length === 0) return;
       items.push({
         id: session.id,
         type: 'chat',

@@ -42,7 +42,7 @@ import type {
   ServerConfig,
 } from '@extensions/llamacpp/types';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { SURFACE, BORDER, TEXT, COMPONENT, RADIUS } from '@config/theme.config';
+import { SURFACE, BORDER, TEXT, COMPONENT, RADIUS, LAYOUT } from '@config/theme.config';
 import { SettingsSection, SecretInput, ModelListItem } from './shared';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui';
 
@@ -313,7 +313,8 @@ export const LocalInferencePanel: React.FC = () => {
   const settingsSummary = `Context ${config.ctxSize} · GPU: ${config.nGpuLayers === -1 ? 'All' : config.nGpuLayers} · Threads: ${config.threads}`;
 
   return (
-    <div className="space-y-8">
+    <div className={`h-full overflow-y-auto custom-scrollbar ${LAYOUT.settingsPadding} py-6`}>
+    <div className={`${LAYOUT.settingsMaxWidth} mx-auto space-y-8`}>
       {/* Header */}
       <div>
         <h3 className={`${TYPOGRAPHY_CLASSES.settingsTitle} ${TEXT.heading}`}>
@@ -454,7 +455,7 @@ export const LocalInferencePanel: React.FC = () => {
       {(panelState === 'stopped' || panelState === 'running') && binaryInfo && (
         <div className="flex gap-6 items-start">
           {/* ── Left: Nav sidebar ── */}
-          <div className="w-48 shrink-0 sticky top-0">
+          <div className="w-48 shrink-0">
             <SettingsSection title="Sections">
               <div className="space-y-1">
                 {([
@@ -870,6 +871,7 @@ export const LocalInferencePanel: React.FC = () => {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 };

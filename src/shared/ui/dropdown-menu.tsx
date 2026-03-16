@@ -14,7 +14,7 @@ export const DropdownMenuContent = forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        'z-50 min-w-[180px]',
+        'z-50 min-w-[140px]',
         'bg-[var(--surface-dropdown)]',
         'border border-[var(--border-strong)]',
         'rounded-[var(--radius-md)]',
@@ -37,9 +37,9 @@ export const DropdownMenuItem = forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      'relative flex items-center gap-2',
-      'px-2 py-2',
-      'text-sm rounded-sm',
+      'relative flex items-center gap-1.5',
+      'px-2 py-1.5',
+      'text-[13px] rounded-[var(--radius-sm)]',
       'cursor-default select-none',
       'text-[var(--text-primary)]',
       'data-[highlighted]:bg-[var(--surface-hover-subtle)]',
@@ -87,9 +87,9 @@ export const DropdownMenuSubTrigger = forwardRef<
   <DropdownMenuPrimitive.SubTrigger
     ref={ref}
     className={cn(
-      'relative flex items-center gap-2',
-      'px-2 py-2',
-      'text-sm rounded-sm',
+      'relative flex items-center gap-1.5',
+      'px-2 py-1.5',
+      'text-[13px] rounded-[var(--radius-sm)]',
       'cursor-default select-none',
       'text-[var(--text-primary)]',
       'data-[highlighted]:bg-[var(--surface-hover-subtle)]',
@@ -114,7 +114,7 @@ export const DropdownMenuSubContent = forwardRef<
     <DropdownMenuPrimitive.SubContent
       ref={ref}
       className={cn(
-        'z-50 min-w-[180px]',
+        'z-50 min-w-[140px]',
         'bg-[var(--surface-dropdown)]',
         'border border-[var(--border-strong)]',
         'rounded-[var(--radius-md)]',

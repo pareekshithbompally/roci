@@ -28,8 +28,8 @@ interface AppState {
   activeResultTab: ResultTab;
   /** Active settings panel */
   activeSettingsPanel: SettingsPanel;
-  /** Is chat panel open */
-  isChatOpen: boolean;
+  /** Is meeting chat panel open */
+  meetingChatOpen: boolean;
   /** Is app initialized */
   isInitialized: boolean;
   /** Global error */
@@ -49,10 +49,8 @@ interface AppContextValue extends AppState {
   setActiveResultTab: (tab: ResultTab) => void;
   /** Set active settings panel */
   setActiveSettingsPanel: (panel: SettingsPanel) => void;
-  /** Toggle chat panel */
-  toggleChat: () => void;
-  /** Set chat open state */
-  setChatOpen: (open: boolean) => void;
+  /** Set meeting chat panel open state */
+  setMeetingChatOpen: (open: boolean) => void;
   /** Set app as initialized */
   setInitialized: (value: boolean) => void;
   /** Set global error */
@@ -70,7 +68,7 @@ const initialState: AppState = {
   selectedHistoryId: null,
   activeResultTab: 'summary',
   activeSettingsPanel: 'audio',
-  isChatOpen: false,
+  meetingChatOpen: false,
   isInitialized: false,
   error: null,
 };
@@ -101,7 +99,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   }, []);
 
   const setStatus = useCallback((status: AppStatusEnum) => {
-    setState((prev) => ({ ...prev, status }));
+    setState((prev) => ({
+      ...prev,
+      status,
+      // Auto-close meeting chat when leaving RESULTS
+      ...(status !== AppStatusEnum.RESULTS && { meetingChatOpen: false }),
+    }));
   }, []);
 
   const setResult = useCallback((result: ProcessedResult | null) => {
@@ -109,7 +112,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   }, []);
 
   const setSelectedHistoryId = useCallback((id: string | null) => {
-    setState((prev) => ({ ...prev, selectedHistoryId: id }));
+    setState((prev) => ({
+      ...prev,
+      selectedHistoryId: id,
+      // Auto-close meeting chat when clearing selection
+      ...(id === null && { meetingChatOpen: false }),
+    }));
   }, []);
 
   const setActiveResultTab = useCallback((tab: ResultTab) => {
@@ -120,12 +128,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     setState((prev) => ({ ...prev, activeSettingsPanel: panel }));
   }, []);
 
-  const toggleChat = useCallback(() => {
-    setState((prev) => ({ ...prev, isChatOpen: !prev.isChatOpen }));
-  }, []);
-
-  const setChatOpen = useCallback((open: boolean) => {
-    setState((prev) => ({ ...prev, isChatOpen: open }));
+  const setMeetingChatOpen = useCallback((open: boolean) => {
+    setState((prev) => ({ ...prev, meetingChatOpen: open }));
   }, []);
 
   const setInitialized = useCallback((value: boolean) => {
@@ -146,6 +150,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       status: AppStatusEnum.IDLE,
       result: null,
       selectedHistoryId: null,
+      meetingChatOpen: false,
     }));
   }, []);
 
@@ -159,8 +164,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         setSelectedHistoryId,
         setActiveResultTab,
         setActiveSettingsPanel,
-        toggleChat,
-        setChatOpen,
+        setMeetingChatOpen,
         setInitialized,
         setError,
         clearError,

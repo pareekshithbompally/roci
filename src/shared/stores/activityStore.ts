@@ -16,7 +16,8 @@ export type ActivityType =
   | 'recording'
   | 'processing'
   | 'download'
-  | 'indexing';
+  | 'indexing'
+  | 'import';
 
 export type ActivityStatus = 'active' | 'complete' | 'error' | 'cancelled';
 

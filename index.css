@@ -37,9 +37,16 @@
   --shadow-modal: 0 25px 50px -12px rgba(14, 13, 11, 0.2);
 
   /* Radius (unchanged) */
+  --radius-sm: 0.25rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
+
+  /* AI brand gradient — matches app icon waveform (app-icon.svg #aiGradient) */
+  --ai-gradient: linear-gradient(to right, #06b6d4, #3b82f6, #8b5cf6, #a855f7, #ec4899);
+  --ai-accent: #8b5cf6;                              /* violet-500 — mid-point of gradient */
+  --ai-border: rgba(139, 92, 246, 0.5);              /* violet-500 @ 50% */
+  --ai-glow: 0 10px 15px -3px rgba(139, 92, 246, 0.25);
 
   /* Switch (Toggle) */
   --switch-active: #22c55e;                          /* green-500 (semantic, kept) */
@@ -73,6 +80,12 @@
   --shadow-float: 0 10px 15px -3px rgba(0, 0, 0, 0.4),
                   0 4px 6px -4px rgba(0, 0, 0, 0.3);
   --shadow-modal: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+
+  /* AI brand gradient — same gradient, works on dark backgrounds */
+  --ai-gradient: linear-gradient(to right, #06b6d4, #3b82f6, #8b5cf6, #a855f7, #ec4899);
+  --ai-accent: #a855f7;                              /* purple-500 — brighter on dark */
+  --ai-border: rgba(168, 85, 247, 0.5);              /* purple-500 @ 50% */
+  --ai-glow: 0 10px 15px -3px rgba(168, 85, 247, 0.3);
 
   /* Switch (Toggle) */
   --switch-active: #16a34a;                          /* green-600 (semantic, kept) */

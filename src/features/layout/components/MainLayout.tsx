@@ -1,12 +1,13 @@
 /**
  * MainLayout Component
  *
- * Main application layout with resizable sidebar, content area, and chat panel.
- * Sidebar is draggable via a resize handle on its right edge.
+ * Main application layout with resizable sidebar, content area, and resizable chat panel.
+ * Both sidebar and chat panel are draggable via resize handles on their edges.
  */
 
 import React, { useCallback, useRef } from 'react';
 import { useLeftPanel } from '@/hooks/useLeftPanel';
+import { useRightPanel } from '@shared/hooks/useRightPanel';
 import { useSmallScreen } from '@/hooks/useMediaQuery';
 import { useApp } from '@shared/contexts/AppContext';
 import { useChat } from '@shared/contexts/ChatContext';
@@ -20,22 +21,19 @@ import { UI_CONFIG } from '@config/ui.config';
 
 interface MainLayoutProps {
   children: React.ReactNode;
-  isChatOpen: boolean;
-  onChatToggle: () => void;
   onSearchClick?: () => void;
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({
   children,
-  isChatOpen,
-  onChatToggle,
   onSearchClick,
 }) => {
   const { open: isLeftPanelOpen, setLeftPanel, width: sidebarWidth, setLeftPanelWidth } = useLeftPanel();
+  const { width: rightPanelWidth, setRightPanelWidth } = useRightPanel();
   const isSmallScreen = useSmallScreen();
-  const { setCurrentView, setStatus, setSelectedHistoryId, setResult } = useApp();
+  const { setCurrentView, setStatus, setSelectedHistoryId, setResult, meetingChatOpen, setMeetingChatOpen, status, selectedHistoryId, result } = useApp();
   const chat = useChat();
-  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  const dragRef = useRef<{ startX: number; startWidth: number; side: 'left' | 'right' } | null>(null);
 
   const handleNewChat = useCallback(() => {
     setCurrentView('home');
@@ -45,14 +43,21 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     setStatus(AppStatus.IDLE);
   }, [setCurrentView, setSelectedHistoryId, chat, setResult, setStatus]);
 
-  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+  /** Shared resize handler for both left and right panels */
+  const handleResizeStart = useCallback((e: React.MouseEvent, side: 'left' | 'right') => {
     e.preventDefault();
-    dragRef.current = { startX: e.clientX, startWidth: sidebarWidth };
+    const startWidth = side === 'left' ? sidebarWidth : rightPanelWidth;
+    dragRef.current = { startX: e.clientX, startWidth, side };
 
     const onMouseMove = (e: MouseEvent) => {
       if (!dragRef.current) return;
       const delta = e.clientX - dragRef.current.startX;
-      setLeftPanelWidth(dragRef.current.startWidth + delta);
+      if (dragRef.current.side === 'left') {
+        setLeftPanelWidth(dragRef.current.startWidth + delta);
+      } else {
+        // Right panel: dragging left increases width
+        setRightPanelWidth(dragRef.current.startWidth - delta);
+      }
     };
 
     const onMouseUp = () => {
@@ -67,9 +72,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     document.addEventListener('mouseup', onMouseUp);
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
-  }, [sidebarWidth, setLeftPanelWidth]);
+  }, [sidebarWidth, rightPanelWidth, setLeftPanelWidth, setRightPanelWidth]);
 
   const shouldOffsetMacControls = IS_MACOS && (isSmallScreen || !isLeftPanelOpen);
+
+  const showChatPanel = meetingChatOpen && selectedHistoryId && status === AppStatus.RESULTS;
 
   const leftPanelShellClassName = `${TEXT.primary} overflow-hidden ${
     isSmallScreen
@@ -107,13 +114,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             <aside className={leftPanelInnerClassName}>
               <Sidebar
                 shouldOffsetMacControls={shouldOffsetMacControls}
-                onChatOpen={onChatToggle}
                 onSearchClick={onSearchClick}
               />
             </aside>
             {/* Resize handle */}
             <div
-              onMouseDown={handleResizeStart}
+              onMouseDown={(e) => handleResizeStart(e, 'left')}
               className="absolute top-0 right-0 w-1 h-full cursor-col-resize z-40 group"
             >
               <div className={`w-px h-full ml-auto opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity ${COMPONENT.resizeHandle}`} />
@@ -127,7 +133,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             <div className={leftPanelInnerClassName}>
               <Sidebar
                 shouldOffsetMacControls={shouldOffsetMacControls}
-                onChatOpen={onChatToggle}
                 onSearchClick={onSearchClick}
               />
             </div>
@@ -160,9 +165,22 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             )}
             {children}
           </div>
-          {isChatOpen && (
-            <div className="w-[520px] shrink-0 h-full">
-              <ChatPanel isOpen={isChatOpen} onClose={onChatToggle} />
+
+          {/* Right chat panel — resizable, with pt-[60px] to clear drag region */}
+          {showChatPanel && (
+            <div className="shrink-0 h-full pt-[60px] relative" style={{ width: rightPanelWidth }}>
+              {/* Resize handle — left edge */}
+              <div
+                onMouseDown={(e) => handleResizeStart(e, 'right')}
+                className="absolute top-0 left-0 w-1 h-full cursor-col-resize z-40 group"
+              >
+                <div className={`w-px h-full opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity ${COMPONENT.resizeHandle}`} />
+              </div>
+              <ChatPanel
+                meetingId={selectedHistoryId}
+                meetingTitle={result?.title || 'Meeting'}
+                onClose={() => setMeetingChatOpen(false)}
+              />
             </div>
           )}
         </div>

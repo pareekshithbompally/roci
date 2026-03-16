@@ -96,10 +96,10 @@ export const CommandItem = forwardRef<
   <CommandPrimitive.Item
     ref={ref}
     className={cn(
-      'relative flex items-center gap-2',
-      'px-2 py-2',
-      'text-sm',
-      'rounded-[var(--radius-md)]',
+      'relative flex items-center gap-1.5',
+      'px-2 py-1.5',
+      'text-[13px]',
+      'rounded-[var(--radius-sm)]',
       'cursor-default select-none',
       'data-[selected=true]:bg-[var(--surface-selected)]',
       'text-[var(--text-primary)]',

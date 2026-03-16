@@ -64,6 +64,7 @@ const defaultSettings: AppSettings = {
   audioQualityPreset: 'voice',
   defaultAudioSource: 'systemAndMicrophone',
   categories: ['Work', 'Personal', 'Meeting', 'Idea'],
+  jobProcessing: { mode: 'sequential', maxConcurrent: 2 },
 };
 
 // Initial state with loading=true to prevent any saves before load completes
@@ -178,6 +179,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
           audioQualityPreset: data.audioQualityPreset || 'voice',
           defaultAudioSource: (data as any).defaultAudioSource || 'systemAndMicrophone',
           categories: (data as any).categories || defaultSettings.categories,
+          jobProcessing: (data as any).jobProcessing || defaultSettings.jobProcessing,
         };
 
         // Merge saved providers with predefined providers
@@ -310,6 +312,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         audioQualityPreset: currentState.settings.audioQualityPreset,
         defaultAudioSource: currentState.settings.defaultAudioSource,
         categories: currentState.settings.categories,
+        jobProcessing: currentState.settings.jobProcessing,
         providers: currentState.providers,
         selectedProviderName: currentState.selectedProviderName,
         // Include other default fields

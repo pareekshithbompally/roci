@@ -30,6 +30,7 @@ import { NotesProvider } from '../features/notes';
 import { TodosProvider } from '../features/todos';
 import { ChatProvider } from '../shared/contexts/ChatContext';
 import { RecordingProvider } from '../features/recording';
+import { ImportProvider } from '../features/import';
 
 /**
  * Error Boundary for debugging render errors
@@ -142,11 +143,13 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
                 <HistoryProvider>
                   <MeetingProvider>
                     <MeetingDataProviders>
-                      <ChatProvider>
-                        <RecordingProviderWrapper>
-                          {children}
-                        </RecordingProviderWrapper>
-                      </ChatProvider>
+                      <ImportProvider>
+                        <ChatProvider>
+                          <RecordingProviderWrapper>
+                            {children}
+                          </RecordingProviderWrapper>
+                        </ChatProvider>
+                      </ImportProvider>
                     </MeetingDataProviders>
                   </MeetingProvider>
                 </HistoryProvider>

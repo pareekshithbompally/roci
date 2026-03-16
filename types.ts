@@ -135,6 +135,7 @@ export interface ChatSession {
   title: string;
   lastMessageAt: number;
   messages: ChatMessage[];
+  meetingId?: string;
 }
 
 /**
@@ -158,6 +159,10 @@ export interface AppSettings {
   audioQualityPreset?: 'voice' | 'podcast' | 'music' | 'professional';
   defaultAudioSource?: AudioCaptureSource;
   categories?: string[];
+  jobProcessing?: {
+    mode: 'sequential' | 'parallel';
+    maxConcurrent: number;
+  };
 }
 
 // ============ New Data Layer Types ============

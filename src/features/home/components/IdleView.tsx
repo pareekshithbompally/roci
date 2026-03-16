@@ -6,7 +6,8 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { Sparkles, AudioWaveform, Key, HardDrive } from 'lucide-react';
+import { AudioWaveform, Key, HardDrive } from 'lucide-react';
+import { ImportButton } from '@features/import';
 import { useTheme } from '@/hooks/useTheme';
 import { useApp, AppStatus } from '@shared/contexts/AppContext';
 import { useRecordingContext } from '@features/recording';
@@ -18,12 +19,9 @@ import { meetingReferenceService } from '@/services/meetingReferenceService';
 import { RadioCard } from '@features/settings/components/shared';
 import { supportsWebSearch } from '@shared/utils/modelResolver';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { SURFACE, BORDER, TEXT } from '@config/theme.config';
+import { SURFACE, TEXT } from '@config/theme.config';
 
-interface IdleViewProps {
-  onChatToggle: () => void;
-  isChatOpen: boolean;
-}
+interface IdleViewProps {}
 
 const GREETING_POOL = [
   'Ready to explore some new ideas?',
@@ -37,7 +35,7 @@ const GREETING_POOL = [
   'How can I help?',
 ];
 
-export const IdleView: React.FC<IdleViewProps> = ({ onChatToggle, isChatOpen }) => {
+export const IdleView: React.FC<IdleViewProps> = () => {
   const { isDark } = useTheme();
   const { setStatus, setCurrentView, setActiveSettingsPanel } = useApp();
   const [greeting] = useState(() => GREETING_POOL[Math.floor(Math.random() * GREETING_POOL.length)]);
@@ -147,14 +145,7 @@ export const IdleView: React.FC<IdleViewProps> = ({ onChatToggle, isChatOpen }) 
                   <AudioWaveform className="w-4 h-4" />
                   <span>Record</span>
                 </button>
-
-                <button
-                  onClick={onChatToggle}
-                  className={`inline-flex items-center gap-2 px-4 py-2.5 ${SURFACE.card} border ${BORDER.strong} rounded-full text-sm font-medium ${TEXT.secondary} ${SURFACE.hoverSubtle} transition-all`}
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>More</span>
-                </button>
+                <ImportButton />
               </div>
             </>
           ) : (

@@ -11,7 +11,6 @@ import { open } from '@tauri-apps/plugin-shell';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useApp } from '@shared/contexts/AppContext';
 import { useToast } from '@shared/contexts/ToastContext';
-import { useUnsavedChanges } from '@shared/contexts/UnsavedChangesContext';
 import { useSettingsSave } from '../hooks/useSettingsSave';
 import ProvidersAvatar from '@/components/ProvidersAvatar';
 import { getProviderTitle } from '@/utils/providerUtils';
@@ -19,11 +18,10 @@ import { providersService } from '@/services/providers';
 import { modalitiesService } from '@/services/modalities';
 import { getManagedSDKInfo, getDefaultBaseUrl } from '@shared/utils/modelResolver';
 import { MANAGED_MODELS, MANAGED_SDK_PROVIDERS } from '@/consts/providers';
-import { SettingsSaveButton } from './SettingsSaveButton';
 import { ModalityIcons } from './ModalityIcons';
 import { ModelSettingsModal } from './ModelSettingsModal';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { SURFACE, BORDER, TEXT, COMPONENT, RADIUS } from '@config/theme.config';
+import { SURFACE, BORDER, TEXT, COMPONENT, RADIUS, LAYOUT } from '@config/theme.config';
 import { SettingsSection, SettingsInput, SecretInput, Toggle, InfoCallout, ModelListItem } from './shared';
 import { Popover, PopoverAnchor, PopoverContent } from '@shared/ui';
 import { Command, CommandList, CommandItem, CommandEmpty } from '@shared/ui';
@@ -46,8 +44,7 @@ export const ProvidersPanel: React.FC = () => {
 
   const { showToast } = useToast();
   const { setCurrentView } = useApp();
-  const { setHasUnsavedChanges } = useUnsavedChanges();
-  const { isSaving, hasUnsavedChanges, save: baseSave } = useSettingsSave('Provider settings');
+  const { hasUnsavedChanges, save: baseSave } = useSettingsSave('Provider settings', 'providers');
   const [showSetupBanner, setShowSetupBanner] = useState(true);
 
   const anyProviderHasModels = providers.some(p => p.active && p.models && p.models.length > 0);
@@ -219,7 +216,7 @@ export const ProvidersPanel: React.FC = () => {
     updateProvider(selectedProvider.provider, {
       models: [...(selectedProvider.models || []), { id: modelId, name: modelId }]
     });
-    setHasUnsavedChanges(true, 'providers');
+
 
     // Clear search and close dropdown
     setModelSearch('');
@@ -233,7 +230,7 @@ export const ProvidersPanel: React.FC = () => {
     updateProvider(selectedProvider.provider, {
       models: (selectedProvider.models || []).filter(m => m.id !== modelId)
     });
-    setHasUnsavedChanges(true, 'providers');
+
   };
 
   const getApiKeyValue = () => {
@@ -254,21 +251,24 @@ export const ProvidersPanel: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <h3 className={`${TYPOGRAPHY_CLASSES.settingsTitle} ${TEXT.heading} mb-1`}>
-          Model Providers
-        </h3>
-        <p className={`${TYPOGRAPHY_CLASSES.settingsDescription} ${TEXT.muted}`}>
-          Enable providers and configure API keys to access AI models.
-        </p>
+    <div className="h-full flex flex-col">
+      {/* Pinned Header */}
+      <div className={`shrink-0 ${LAYOUT.settingsPadding} pt-6 pb-4`}>
+        <div className={LAYOUT.settingsMaxWidth + ' mx-auto'}>
+          <h3 className={`${TYPOGRAPHY_CLASSES.settingsTitle} ${TEXT.heading} mb-1`}>
+            Model Providers
+          </h3>
+          <p className={`${TYPOGRAPHY_CLASSES.settingsDescription} ${TEXT.muted}`}>
+            Enable providers and configure API keys to access AI models.
+          </p>
+        </div>
       </div>
 
-      {/* Two-column master-detail */}
-      <div className="flex gap-6 items-start">
-        {/* Left: Provider list — sticky sidebar */}
-        <div className="w-56 shrink-0 sticky top-0">
+      {/* Split scroll body */}
+      <div className={`flex-1 min-h-0 flex ${LAYOUT.settingsPadding} pb-6`}>
+        <div className={`${LAYOUT.settingsMaxWidth} mx-auto w-full flex gap-6 min-h-0`}>
+        {/* Left: Provider list — independent scroll */}
+        <div className="w-56 shrink-0 overflow-y-auto custom-scrollbar">
           <SettingsSection title="Providers">
             <div className="space-y-1">
               {providers.map((provider) => {
@@ -294,7 +294,7 @@ export const ProvidersPanel: React.FC = () => {
                         checked={provider.active}
                         onChange={(checked) => {
                           updateProvider(provider.provider, { active: checked });
-                          setHasUnsavedChanges(true, 'providers');
+                      
                         }}
                         label={`Toggle ${getProviderTitle(provider.provider)}`}
                       />
@@ -306,8 +306,8 @@ export const ProvidersPanel: React.FC = () => {
           </SettingsSection>
         </div>
 
-        {/* Right: Detail panel */}
-        <div className="flex-1 min-w-0 space-y-6">
+        {/* Right: Detail panel — independent scroll */}
+        <div className="flex-1 min-w-0 overflow-y-auto custom-scrollbar space-y-6">
           {selectedProvider ? (
             <>
               {/* Setup guidance banner — shown when no providers have models yet */}
@@ -398,7 +398,7 @@ export const ProvidersPanel: React.FC = () => {
                             value={value}
                             onChange={(val) => {
                               updateProviderSetting(selectedProvider.provider, index, val);
-                              setHasUnsavedChanges(true, 'providers');
+                          
                             }}
                             placeholder={setting.controller_props.placeholder}
                             label={setting.title}
@@ -413,7 +413,7 @@ export const ProvidersPanel: React.FC = () => {
                           value={value}
                           onChange={(e) => {
                             updateProviderSetting(selectedProvider.provider, index, e.target.value);
-                            setHasUnsavedChanges(true, 'providers');
+                        
                           }}
                           placeholder={setting.controller_props.placeholder}
                           label={setting.title}
@@ -565,13 +565,7 @@ export const ProvidersPanel: React.FC = () => {
           )}
         </div>
       </div>
-
-      {/* Save Button — spans full width below both columns */}
-      <SettingsSaveButton
-        isSaving={isSaving}
-        hasUnsavedChanges={hasUnsavedChanges}
-        onSave={save}
-      />
+      </div>
 
       {/* Per-model settings modal */}
       {modelSettingsTarget && (() => {
@@ -596,7 +590,7 @@ export const ProvidersPanel: React.FC = () => {
                 m.id === targetModel.id ? { ...m, toolsEnabled } : m
               );
               updateProvider(targetProvider.provider, { models: updatedModels });
-              setHasUnsavedChanges(true, 'providers');
+          
             }}
           />
         );

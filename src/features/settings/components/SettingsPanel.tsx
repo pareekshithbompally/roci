@@ -2,7 +2,8 @@
  * SettingsPanel Component
  *
  * Main settings view with horizontal tab bar and panel switcher.
- * Pure routing — no panel-specific state lives here.
+ * Content area is overflow-hidden — each panel owns its own scroll behavior.
+ * Save footer renders outside the scroll area for panels with unsaved changes.
  */
 
 import React, { useState, useCallback } from 'react';
@@ -14,11 +15,22 @@ import { LocalInferencePanel } from './LocalInferencePanel';
 import { CategoriesPanel } from './CategoriesPanel';
 import { InterfacePanel } from './InterfacePanel';
 import { AudioPanel } from './AudioPanel';
+import { SettingsSaveButton } from './SettingsSaveButton';
 import { UnsavedChangesModal } from '@shared/components/UnsavedChangesModal';
 import { isTauriEnvironment } from '@/services/tauri';
+import { useSettingsSave } from '../hooks/useSettingsSave';
 import { BORDER, TEXT, COMPONENT } from '@config/theme.config';
 
 type SettingsPanelType = 'audio' | 'providers' | 'local-inference' | 'categories' | 'interface';
+
+/** Panels that use explicit save (not auto-save or instant) */
+const SAVEABLE_PANELS = new Set<SettingsPanelType>(['audio', 'providers', 'categories']);
+
+const PANEL_SAVE_NAMES: Partial<Record<SettingsPanelType, string>> = {
+  audio: 'Audio settings',
+  providers: 'Provider settings',
+  categories: 'Categories',
+};
 
 const panels: Array<{ id: SettingsPanelType; label: string; tauriOnly?: boolean }> = [
   { id: 'audio', label: 'Audio' },
@@ -31,7 +43,6 @@ const panels: Array<{ id: SettingsPanelType; label: string; tauriOnly?: boolean 
 export const SettingsPanel: React.FC = () => {
   const { activeSettingsPanel } = useApp();
   const [activePanel, setActivePanel] = useState<SettingsPanelType>(
-    // Use context value if it maps to a valid panel, otherwise default to first panel
     panels.some(p => p.id === activeSettingsPanel) ? activeSettingsPanel as SettingsPanelType : panels[0].id
   );
   const { checkNavigation } = useUnsavedChanges();
@@ -49,8 +60,8 @@ export const SettingsPanel: React.FC = () => {
     <div className="w-full h-full flex flex-col">
       <UnsavedChangesModal />
 
-      {/* Horizontal Tab Bar */}
-      <div className={`border-b ${BORDER.default} px-6 md:px-8 shrink-0`}>
+      {/* Horizontal Tab Bar — reduced top padding to sit closer to title bar */}
+      <div className={`border-b ${BORDER.default} px-6 md:px-8 pt-1 shrink-0`}>
         <div className="flex gap-1 -mb-px">
           {visiblePanels.map(({ id, label }) => (
             <button
@@ -68,21 +79,37 @@ export const SettingsPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* Content Area */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        <div className={`${activePanel === 'providers' || activePanel === 'local-inference' ? 'max-w-5xl' : 'max-w-2xl'} mx-auto p-6 md:p-8`}>
-          {activePanel === 'audio' && <AudioPanel />}
-          {activePanel === 'providers' && (
-            <ProvidersPanelErrorBoundary>
-              <ProvidersPanel />
-            </ProvidersPanelErrorBoundary>
-          )}
-          {activePanel === 'local-inference' && <LocalInferencePanel />}
-          {activePanel === 'categories' && <CategoriesPanel />}
-          {activePanel === 'interface' && <InterfacePanel />}
-        </div>
+      {/* Content Area + overlaid save footer — relative container */}
+      <div className="flex-1 min-h-0 overflow-hidden relative">
+        {activePanel === 'audio' && <AudioPanel />}
+        {activePanel === 'providers' && (
+          <ProvidersPanelErrorBoundary>
+            <ProvidersPanel />
+          </ProvidersPanelErrorBoundary>
+        )}
+        {activePanel === 'local-inference' && <LocalInferencePanel />}
+        {activePanel === 'categories' && <CategoriesPanel />}
+        {activePanel === 'interface' && <InterfacePanel />}
+
+        {/* Save footer — absolutely positioned, overlays content, no layout shift */}
+        {SAVEABLE_PANELS.has(activePanel) && (
+          <SettingsSaveFooter panelName={PANEL_SAVE_NAMES[activePanel]!} />
+        )}
       </div>
     </div>
+  );
+};
+
+/** Reads unsaved state and renders save button in the fixed footer */
+const SettingsSaveFooter: React.FC<{ panelName: string }> = ({ panelName }) => {
+  const { isSaving, hasUnsavedChanges, save } = useSettingsSave(panelName);
+
+  return (
+    <SettingsSaveButton
+      isSaving={isSaving}
+      hasUnsavedChanges={hasUnsavedChanges}
+      onSave={save}
+    />
   );
 };
 

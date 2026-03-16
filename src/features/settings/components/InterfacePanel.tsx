@@ -11,7 +11,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { isTauriEnvironment } from '@/services/tauri';
 import { pathsService } from '@/services/storage';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { SURFACE, BORDER, TEXT, RADIUS } from '@config/theme.config';
+import { SURFACE, BORDER, TEXT, RADIUS, LAYOUT } from '@config/theme.config';
 import { SettingsSection } from './shared';
 
 export const InterfacePanel: React.FC = () => {
@@ -104,7 +104,8 @@ export const InterfacePanel: React.FC = () => {
   ] as const;
 
   return (
-    <div className="space-y-8">
+    <div className={`h-full overflow-y-auto custom-scrollbar ${LAYOUT.settingsPadding} py-6`}>
+    <div className={`${LAYOUT.settingsMaxWidth} mx-auto space-y-8`}>
       <div>
         <h3 className={`${TYPOGRAPHY_CLASSES.settingsTitle} ${TEXT.heading} mb-1`}>
           System
@@ -198,6 +199,7 @@ export const InterfacePanel: React.FC = () => {
           <span className={`${TEXT.secondary} font-mono`}>1.0.0</span>
         </div>
       </div>
+    </div>
     </div>
   );
 };

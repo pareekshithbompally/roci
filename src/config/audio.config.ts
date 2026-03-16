@@ -161,6 +161,41 @@ export const AUDIO_CONFIG = {
 } as const;
 
 /**
+ * Import Configuration
+ *
+ * Constants for importing audio files and subtitle/transcript files.
+ */
+export const IMPORT_CONFIG = {
+  audio: {
+    extensions: ['wav', 'mp3', 'm4a', 'webm', 'ogg', 'flac'],
+    mimeTypes: {
+      wav: 'audio/wav',
+      mp3: 'audio/mpeg',
+      m4a: 'audio/mp4',
+      webm: 'audio/webm',
+      ogg: 'audio/ogg',
+      flac: 'audio/flac',
+    } as Record<string, string>,
+    maxSizeMB: AUDIO_CONFIG.recording.maxSizeMB,
+    maxSizeBytes: AUDIO_CONFIG.recording.maxSizeBytes,
+    dialogTitle: 'Select audio files',
+  },
+  transcript: {
+    extensions: ['srt', 'vtt'],
+    mimeTypes: {
+      srt: 'text/srt',
+      vtt: 'text/vtt',
+    } as Record<string, string>,
+    dialogTitle: 'Select transcript files',
+  },
+  jobProcessing: {
+    defaultMode: 'sequential' as const,
+    defaultMaxConcurrent: 2,
+    maxConcurrentLimit: 5,
+  },
+} as const;
+
+/**
  * Audio device information
  */
 export interface AudioDeviceInfo {

@@ -46,8 +46,6 @@ const App: React.FC = () => {
     currentView,
     status,
     selectedHistoryId,
-    isChatOpen,
-    toggleChat,
     setStatus,
     setCurrentView,
     setInitialized,
@@ -182,7 +180,10 @@ const App: React.FC = () => {
       });
 
       shortcutsService.on(ShortcutAction.NEW_CHAT, () => {
-        toggleChat();
+        setCurrentView('home');
+        setSelectedHistoryId(null);
+        chat.setCurrentSessionId(null);
+        setStatus(AppStatus.IDLE);
       });
 
       shortcutsService.on(ShortcutAction.OPEN_SETTINGS, () => {
@@ -257,7 +258,7 @@ const App: React.FC = () => {
         onChange={handleFileUpload}
       />
 
-      <MainLayout isChatOpen={isChatOpen} onChatToggle={toggleChat} onSearchClick={openSearch}>
+      <MainLayout onSearchClick={openSearch}>
         {/* Main Content */}
         <main
           className={`grow shrink min-h-0 flex flex-col custom-scrollbar relative ${

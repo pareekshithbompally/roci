@@ -19,6 +19,7 @@ import {
   Pencil,
   RefreshCw,
   Mic,
+  Sparkles,
 } from 'lucide-react';
 import { useApp, AppStatus } from '@shared/contexts/AppContext';
 import { useRecordingContext } from '@features/recording';
@@ -38,7 +39,7 @@ import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 const TABS = { SUMMARY: 'summary', TRANSCRIPT: 'transcript', TODO: 'todo', NOTES: 'notes' };
 
 export const ResultsView: React.FC = () => {
-  const { result, activeResultTab, setActiveResultTab, resetToIdle, setSelectedHistoryId, selectedHistoryId } = useApp();
+  const { result, activeResultTab, setActiveResultTab, resetToIdle, setSelectedHistoryId, selectedHistoryId, meetingChatOpen, setMeetingChatOpen } = useApp();
   const meeting = useMeeting();
   const recording = useRecordingContext();
   const { items: historyItems } = useHistory();
@@ -463,6 +464,24 @@ export const ResultsView: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* AI Chat Button */}
+            <button
+              onClick={() => setMeetingChatOpen(!meetingChatOpen)}
+              className={`flex items-center justify-center p-1.5 rounded-lg border transition-all ${
+                meetingChatOpen
+                  ? ''
+                  : `${SURFACE.card} ${BORDER.default} ${COMPONENT.dropdownItemHover}`
+              }`}
+              style={meetingChatOpen ? {
+                background: 'var(--ai-gradient)',
+                borderColor: 'var(--ai-border)',
+                boxShadow: 'var(--ai-glow)',
+              } : undefined}
+              title="AI Chat"
+            >
+              <Sparkles className="w-3.5 h-3.5" style={{ color: meetingChatOpen ? '#ffffff' : 'var(--ai-accent)' }} />
+            </button>
           </div>
         </div>
       </div>

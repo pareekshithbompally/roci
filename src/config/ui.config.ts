@@ -219,6 +219,15 @@ export const UI_CONFIG = {
     notification: 1600,
   },
 
+  // Activity tray
+  activityTray: {
+    width: 360,
+    maxVisibleRows: 5,
+    rowHeight: 44, // approximate px per row for max-height calc
+    zIndex: 1200,
+    autoRemoveDelay: 3000, // ms before completed items auto-dismiss
+  },
+
   // Content constraints
   content: {
     maxLineLength: '80ch', // Optimal reading width

@@ -256,6 +256,12 @@ export const LAYOUT = {
     ? `h-full w-full overflow-hidden rounded-xl border ${BORDER.glass}`
     : `h-full w-full overflow-hidden rounded-lg border ${BORDER.subtle}`,
 
+  /** Settings content max width — uniform across all panels */
+  settingsMaxWidth: 'max-w-4xl',
+
+  /** Settings content padding */
+  settingsPadding: 'px-6 md:px-8',
+
   /** Sidebar inner background */
   sidebarInnerBg: IS_MACOS
     ? 'bg-parchment-150 dark:bg-night-900/80'

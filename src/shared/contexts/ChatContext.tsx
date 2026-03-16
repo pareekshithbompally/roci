@@ -40,8 +40,6 @@ interface ChatState {
   debouncedSearchQuery: string;
   /** Copied message ID */
   copiedMessageId: string | null;
-  /** Whether chat panel is open */
-  isChatOpen: boolean;
   /** Selected meetings for context */
   selectedMeetingRefs: MeetingListItem[];
   /** Whether web search is enabled */
@@ -76,12 +74,6 @@ interface ChatContextValue extends ChatState {
   setViewHistory: (view: boolean) => void;
   /** Set search query */
   setSearchQuery: (query: string) => void;
-  /** Toggle chat panel */
-  toggleChat: () => void;
-  /** Open chat panel */
-  openChat: () => void;
-  /** Close chat panel */
-  closeChat: () => void;
   /** Create a new chat session */
   newChat: () => void;
   /** Send a message */
@@ -116,6 +108,8 @@ interface ChatContextValue extends ChatState {
   clearAttachments: () => void;
   /** Add a screenshot as an image attachment (base64 PNG) */
   addScreenshotAttachment: (base64: string, name: string) => void;
+  /** Get or create a chat session scoped to a meeting */
+  getOrCreateMeetingSession: (meetingId: string, meetingTitle: string) => void;
   /** Ref for programmatically focusing the chat input textarea */
   chatInputRef: MutableRefObject<HTMLTextAreaElement | null>;
 }
@@ -129,7 +123,6 @@ const initialState: ChatState = {
   searchQuery: '',
   debouncedSearchQuery: '',
   copiedMessageId: null,
-  isChatOpen: false,
   selectedMeetingRefs: [],
   webSearchEnabled: false,
   aiActivity: null,
@@ -250,18 +243,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
   const setSearchQuery = useCallback((searchQuery: string) => {
     setState(prev => ({ ...prev, searchQuery }));
-  }, []);
-
-  const toggleChat = useCallback(() => {
-    setState(prev => ({ ...prev, isChatOpen: !prev.isChatOpen }));
-  }, []);
-
-  const openChat = useCallback(() => {
-    setState(prev => ({ ...prev, isChatOpen: true }));
-  }, []);
-
-  const closeChat = useCallback(() => {
-    setState(prev => ({ ...prev, isChatOpen: false }));
   }, []);
 
   const newChat = useCallback(() => {
@@ -388,6 +369,28 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         ? [...prev.pendingAttachments, part]
         : prev.pendingAttachments,
     }));
+  }, []);
+
+  const getOrCreateMeetingSession = useCallback((meetingId: string, meetingTitle: string) => {
+    setState(prev => {
+      const existing = prev.sessions.find(s => s.meetingId === meetingId);
+      if (existing) {
+        return { ...prev, currentSessionId: existing.id, viewHistory: false };
+      }
+      const newSession: ChatSession = {
+        id: Date.now().toString(),
+        title: `Chat: ${meetingTitle}`,
+        lastMessageAt: Date.now(),
+        messages: [],
+        meetingId,
+      };
+      return {
+        ...prev,
+        sessions: [newSession, ...prev.sessions],
+        currentSessionId: newSession.id,
+        viewHistory: false,
+      };
+    });
   }, []);
 
   // Send message
@@ -896,9 +899,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     setCurrentSessionId,
     setViewHistory,
     setSearchQuery,
-    toggleChat,
-    openChat,
-    closeChat,
     newChat,
     sendMessage,
     loadSessions,
@@ -916,6 +916,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     removeAttachment,
     clearAttachments,
     addScreenshotAttachment,
+    getOrCreateMeetingSession,
     chatInputRef,
   };
 
