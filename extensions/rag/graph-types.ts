@@ -14,6 +14,7 @@ export const ENTITY_TYPES = {
   DECISION: 'decision',
   ACTION_ITEM: 'action_item',
   PROJECT: 'project',
+  CATEGORY: 'category',
 } as const;
 
 export type EntityType = typeof ENTITY_TYPES[keyof typeof ENTITY_TYPES];
@@ -31,6 +32,8 @@ export const RELATIONSHIP_TYPES = {
   RELATED_TO: 'related_to',
   FOLLOW_UP_TO: 'follow_up_to',
   MENTIONED_BY: 'mentioned_by',
+  BELONGS_TO_CATEGORY: 'belongs_to_category',
+  RELATED_CATEGORY: 'related_category',
 } as const;
 
 export type RelationshipType = typeof RELATIONSHIP_TYPES[keyof typeof RELATIONSHIP_TYPES];

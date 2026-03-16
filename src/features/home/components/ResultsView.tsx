@@ -314,21 +314,19 @@ export const ResultsView: React.FC = () => {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-parchment-900 dark:bg-night-100" />
               )}
             </button>
-            {meeting.aiTodos.length > 0 && (
-                <button
-                  onClick={() => setActiveResultTab('todo')}
-                  className={`px-3 py-2 text-sm font-semibold transition-all relative ${
-                    activeResultTab === TABS.TODO
-                      ? TEXT.primary
-                      : `${TEXT.muted} hover:text-parchment-800 dark:hover:text-night-300`
-                  }`}
-                >
-                  To-Do
-                  {activeResultTab === TABS.TODO && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-parchment-900 dark:bg-night-100" />
-                  )}
-                </button>
+            <button
+              onClick={() => setActiveResultTab('todo')}
+              className={`px-3 py-2 text-sm font-semibold transition-all relative ${
+                activeResultTab === TABS.TODO
+                  ? TEXT.primary
+                  : `${TEXT.muted} hover:text-parchment-800 dark:hover:text-night-300`
+              }`}
+            >
+              To-Do
+              {activeResultTab === TABS.TODO && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-parchment-900 dark:bg-night-100" />
               )}
+            </button>
             <button
               onClick={() => setActiveResultTab('notes')}
               className={`px-3 py-2 text-sm font-semibold transition-all relative ${
@@ -509,9 +507,7 @@ export const ResultsView: React.FC = () => {
           />
         )}
         {activeResultTab === TABS.TODO && (
-          <TodosProvider meetingId={meeting.selectedHistoryId || result.id || ''}>
-            <TodoList />
-          </TodosProvider>
+          <TodoList />
         )}
         {activeResultTab === TABS.NOTES && (
           <NotesProvider meetingId={meeting.selectedHistoryId || result.id || ''}>

@@ -30,20 +30,21 @@ export async function extractAndUpsert(
   transcript: string,
   settings: AppSettings,
   providers: ModelProvider[],
+  categories: string[] = [],
 ): Promise<boolean> {
   try {
     // 1. Build input text from summary + transcript excerpt
-    const input = buildExtractionInput(title, summary, transcript);
+    const input = buildExtractionInput(title, summary, transcript, categories);
 
     // 2. Call LLM for extraction
-    const extracted = await callLLMForExtraction(input, title, settings, providers);
+    const extracted = await callLLMForExtraction(input, title, settings, providers, categories);
     if (!extracted || (extracted.entities.length === 0 && extracted.relationships.length === 0)) {
       console.log(`[EntityExtractor] No entities found for "${title}"`);
       return false;
     }
 
     // 3. Normalize and build graph objects
-    const { nodes, edges } = buildGraphPayload(meetingId, title, extracted);
+    const { nodes, edges } = buildGraphPayload(meetingId, title, extracted, categories);
 
     // 4. Upsert to graph
     await graphDB.upsert({ meeting_id: meetingId, nodes, edges });
@@ -62,6 +63,7 @@ function buildExtractionInput(
   title: string,
   summary: MeetingSummary,
   transcript: string,
+  categories: string[],
 ): string {
   const parts: string[] = [];
 
@@ -88,6 +90,11 @@ function buildExtractionInput(
     parts.push(`Transcript excerpt:\n${excerpt}`);
   }
 
+  // Include categories if provided
+  if (categories.length > 0) {
+    parts.push(`Categories: ${categories.join(', ')}`);
+  }
+
   return parts.join('\n\n');
 }
 
@@ -97,6 +104,7 @@ async function callLLMForExtraction(
   meetingTitle: string,
   settings: AppSettings,
   providers: ModelProvider[],
+  categories: string[],
 ): Promise<ExtractionResponse | null> {
   const resolved = resolveModel(settings.chatModel, providers);
   if (!resolved?.apiKey) return null;
@@ -119,6 +127,7 @@ function buildGraphPayload(
   meetingId: string,
   meetingTitle: string,
   extracted: ExtractionResponse,
+  categories: string[],
 ): { nodes: GraphNode[]; edges: GraphEdge[] } {
   // Two maps: nodeMap stores GraphNode objects keyed by node ID,
   // nameIndex resolves entity names to node IDs for relationship resolution.
@@ -149,6 +158,29 @@ function buildGraphPayload(
     });
     // Entity names take precedence over meeting title in name resolution
     nameIndex.set(key, nodeId);
+  }
+
+  // Create category nodes and link meeting to categories
+  for (const category of categories) {
+    const categoryNodeId = `category:${category.toLowerCase()}`;
+    if (!nodeMap.has(categoryNodeId)) {
+      nodeMap.set(categoryNodeId, {
+        id: categoryNodeId,
+        type: ENTITY_TYPES.CATEGORY,
+        name: category,
+        properties: {},
+      });
+    }
+
+    // Link meeting to category
+    edges.push({
+      id: `${meetingNodeId}-${RELATIONSHIP_TYPES.BELONGS_TO_CATEGORY}-${categoryNodeId}-${meetingId}`,
+      source_id: meetingNodeId,
+      target_id: categoryNodeId,
+      type: RELATIONSHIP_TYPES.BELONGS_TO_CATEGORY,
+      meeting_id: meetingId,
+      created_at: Date.now(),
+    });
   }
 
   // Build edges from extracted relationships

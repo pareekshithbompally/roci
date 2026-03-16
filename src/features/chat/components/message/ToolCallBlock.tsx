@@ -42,7 +42,7 @@ const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ part }) => {
         {result?.executionMs != null && (
           <span className={`text-[11px] ${TEXT.faint} ml-auto`}>
             {result.executionMs < 1000
-              ? `${result.executionMs}ms`
+              ? `${Math.round(result.executionMs)}ms`
               : `${(result.executionMs / 1000).toFixed(1)}s`}
           </span>
         )}

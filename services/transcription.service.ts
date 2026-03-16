@@ -113,6 +113,7 @@ class TranscriptionService {
             meetingId, title, summary, transcript,
             ctx.settings,
             ctx.providers,
+            result.categories || [],
           ).catch(err => console.error('[TranscriptionService] Entity extraction failed:', err));
         }).catch(err => console.error('[TranscriptionService] Failed to load entity extractor:', err));
       }

@@ -9,7 +9,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({
   state = 'complete', tokenCount, tokensPerSecond,
   toolActivity, meetingCitations,
   isCopied, actions, citationHandlers,
-  webCitations, inlineCitations,
+  webCitations, inlineCitations, isError,
 }) => {
   const isUser = role === 'user';
 
@@ -26,6 +26,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({
           toolActivity={toolActivity} meetingCitations={meetingCitations}
           isCopied={isCopied} actions={actions} citationHandlers={citationHandlers}
           webCitations={webCitations} inlineCitations={inlineCitations}
+          isError={isError}
         />
       )}
     </div>
@@ -47,7 +48,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({
     prev.actions === next.actions &&
     prev.citationHandlers === next.citationHandlers &&
     prev.webCitations === next.webCitations &&
-    prev.inlineCitations === next.inlineCitations
+    prev.inlineCitations === next.inlineCitations &&
+    prev.isError === next.isError
   );
 });
 

@@ -16,7 +16,20 @@ import type { ModelProvider } from '@/types/modelProviders';
 
 /** Stable serialization for comparison — ignores key ordering */
 function stableStringify(value: unknown): string {
-  return JSON.stringify(value, Object.keys(value as object).sort());
+  const sortKeys = (obj: any): any => {
+    if (obj === null || typeof obj !== 'object') {
+      return obj;
+    }
+    if (Array.isArray(obj)) {
+      return obj.map(sortKeys);
+    }
+    const sortedObj: Record<string, any> = {};
+    Object.keys(obj).sort().forEach(key => {
+      sortedObj[key] = sortKeys(obj[key as keyof typeof obj]);
+    });
+    return sortedObj;
+  };
+  return JSON.stringify(sortKeys(value));
 }
 
 /** Build a snapshot string from the settings/providers relevant to a panel */

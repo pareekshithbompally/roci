@@ -6,29 +6,44 @@
  * Uses CSS transition, not a Radix Dialog — it's a positional overlay within ChatView.
  */
 
-import React, { useState, useCallback } from 'react';
-import { X, ExternalLink, FileText, Mic } from 'lucide-react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { X, ExternalLink, FileText, Mic, ArrowLeft, AudioWaveform, Loader2 } from 'lucide-react';
 import ParsedTranscript from '@/components/ParsedTranscript';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import type { MeetingCitation, HistoryItem } from '@/types';
 
 interface MeetingCitationDrawerProps {
-  citation: MeetingCitation | null;
+  mode: 'list' | 'detail';
+  citations: MeetingCitation[] | null;
+  activeCitation: MeetingCitation | null;
   meeting: HistoryItem | null;
+  isLoading?: boolean;
   onClose: () => void;
+  onCitationClick: (citation: MeetingCitation) => void;
+  onBack: () => void;
   onOpenInMain?: () => void;
 }
 
 type DrawerTab = 'summary' | 'transcript';
 
 export const MeetingCitationDrawer: React.FC<MeetingCitationDrawerProps> = ({
-  citation,
+  mode,
+  citations,
+  activeCitation,
   meeting,
   onClose,
+  onCitationClick,
+  onBack,
   onOpenInMain,
+  isLoading = false,
 }) => {
   const [activeTab, setActiveTab] = useState<DrawerTab>('transcript');
-  const isOpen = citation !== null;
+  const isOpen = (mode === 'list' && citations !== null && citations.length > 0) || (mode === 'detail' && activeCitation !== null);
+
+  // Reset to transcript tab when we open a new citation
+  useEffect(() => {
+    if (activeCitation) setActiveTab('transcript');
+  }, [activeCitation?.meetingId]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') onClose();
@@ -58,19 +73,34 @@ export const MeetingCitationDrawer: React.FC<MeetingCitationDrawerProps> = ({
         {/* Header */}
         <div className={`shrink-0 flex items-start justify-between gap-3 px-4 py-3 border-b ${BORDER.default}`}>
           <div className="flex items-start gap-2.5 min-w-0">
-            <Mic className={`w-4 h-4 shrink-0 mt-0.5 ${TEXT.faint}`} />
-            <div className="min-w-0">
+            {mode === 'detail' ? (
+              <button
+                onClick={onBack}
+                className={`w-6 h-6 flex items-center justify-center rounded-md shrink-0 mt-0.5 ${SURFACE.hoverSubtle} transition-colors`}
+                title="Back to list"
+              >
+                <ArrowLeft className={`w-4 h-4 ${TEXT.primary}`} />
+              </button>
+            ) : (
+              <Mic className={`w-4 h-4 shrink-0 mt-0.5 ${TEXT.faint}`} />
+            )}
+            <div className="min-w-0 mt-[2px]">
               <h3 className={`text-sm font-semibold ${TEXT.primary} truncate`}>
-                {citation?.meetingTitle ?? ''}
+                {mode === 'detail' ? (activeCitation?.meetingTitle ?? '') : 'Meeting Sources'}
               </h3>
-              {citation && (
+              {mode === 'detail' && activeCitation && (
                 <p className={`text-[11px] ${TEXT.faint} mt-0.5`}>
-                  {new Date(citation.meetingTimestamp).toLocaleDateString('en-US', {
+                  {new Date(activeCitation.meetingTimestamp).toLocaleDateString('en-US', {
                     weekday: 'short',
                     month: 'long',
                     day: 'numeric',
                     year: 'numeric',
                   })}
+                </p>
+              )}
+              {mode === 'list' && citations && (
+                <p className={`text-[11px] ${TEXT.faint} mt-0.5`}>
+                  {citations.length} {citations.length === 1 ? 'source' : 'sources'} found
                 </p>
               )}
             </div>
@@ -84,47 +114,76 @@ export const MeetingCitationDrawer: React.FC<MeetingCitationDrawerProps> = ({
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className={`shrink-0 flex border-b ${BORDER.default} px-4`}>
-          {(['transcript', 'summary'] as DrawerTab[]).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`py-2.5 px-3 text-xs font-medium capitalize border-b-2 transition-colors -mb-px ${
-                activeTab === tab
-                  ? COMPONENT.tabActive
-                  : COMPONENT.tabDefault
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+        {/* Tabs - Only for detail mode */}
+        {mode === 'detail' && (
+          <div className={`shrink-0 flex border-b ${BORDER.default} px-4`}>
+            {(['transcript', 'summary'] as DrawerTab[]).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`py-2.5 px-3 text-xs font-medium capitalize border-b-2 transition-colors -mb-px ${
+                  activeTab === tab
+                    ? COMPONENT.tabActive
+                    : COMPONENT.tabDefault
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
-          {!meeting ? (
-            /* Meeting not found */
-            <div className="flex flex-col items-center justify-center h-full gap-3">
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          {mode === 'list' ? (
+            /* List Mode */
+            <div className="p-2 flex flex-col gap-1">
+              {citations?.map((c) => (
+                <button
+                  key={c.meetingId}
+                  onClick={() => onCitationClick(c)}
+                  className={`${COMPONENT.listRow} w-full text-left`}
+                >
+                  <AudioWaveform className={`w-4 h-4 shrink-0 ${TEXT.faint}`} />
+                  <div className="flex flex-col items-start min-w-0 flex-1">
+                    <span className="font-medium text-sm truncate w-full">{c.meetingTitle}</span>
+                    <span className={`text-[11px] ${TEXT.faint} shrink-0 mt-0.5`}>
+                      {new Date(c.meetingTimestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : isLoading ? (
+            /* Loading State */
+            <div className="flex flex-col items-center justify-center h-full gap-3 p-4">
+              <Loader2 className={`w-6 h-6 animate-spin ${TEXT.faint}`} />
+              <p className={`text-xs ${TEXT.muted}`}>Loading meeting data...</p>
+            </div>
+          ) : !meeting ? (
+            /* Detail Mode: Meeting not found */
+            <div className="flex flex-col items-center justify-center h-full gap-3 p-4">
               <FileText className={`w-10 h-10 ${TEXT.faint}`} />
               <p className={`text-sm ${TEXT.muted} text-center`}>Meeting not found</p>
             </div>
           ) : activeTab === 'summary' ? (
-            /* Summary tab */
-            <div className={`text-sm ${TEXT.secondary} leading-relaxed whitespace-pre-wrap`}>
+            /* Detail Mode: Summary tab */
+            <div className={`p-4 text-sm ${TEXT.secondary} leading-relaxed whitespace-pre-wrap`}>
               {meeting.summary || <span className={TEXT.faint}>No summary available.</span>}
             </div>
           ) : (
-            /* Transcript tab with highlight */
-            <ParsedTranscript
-              text={meeting.transcript}
-              highlightText={citation?.excerpt}
-            />
+            /* Detail Mode: Transcript tab with highlight */
+            <div className="p-4">
+              <ParsedTranscript
+                text={meeting.transcript}
+                highlightText={activeCitation?.excerpt}
+              />
+            </div>
           )}
         </div>
 
-        {/* Footer */}
-        {meeting && onOpenInMain && (
+        {/* Footer - Only for detail mode */}
+        {mode === 'detail' && meeting && onOpenInMain && (
           <div className={`shrink-0 border-t ${BORDER.default} px-4 py-3`}>
             <button
               onClick={onOpenInMain}

@@ -5,7 +5,7 @@
  * Auto-attaches the viewed meeting as @ context.
  */
 
-import React, { useMemo, useCallback, useEffect } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { X, ArrowDown } from 'lucide-react';
 import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom';
 import { useChat } from '@shared/contexts/ChatContext';
@@ -15,10 +15,13 @@ import { useApp, AppStatus } from '@shared/contexts/AppContext';
 import { ChatMessage } from './message';
 import type { ActionProps, CitationHandlers } from './message';
 import { ChatInput } from './ChatInput';
+import { MeetingCitationDrawer } from './MeetingCitationDrawer';
+import { WebCitationDrawer } from './WebCitationDrawer';
 import { meetingReferenceService } from '@/services/meetingReferenceService';
+import { meetingService } from '@/services/meeting.service';
 import { supportsWebSearch } from '@shared/utils/modelResolver';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
-import type { MeetingCitation } from '@/types';
+import type { MeetingCitation, WebCitation } from '@/types';
 
 const ScrollToBottomBtn = () => {
   const { isAtBottom, scrollToBottom } = useStickToBottomContext();
@@ -42,8 +45,20 @@ interface ChatPanelProps {
 export const ChatPanel: React.FC<ChatPanelProps> = ({ meetingId, meetingTitle, onClose }) => {
   const chat = useChat();
   const { settings, providers } = useSettings();
-  const { items: historyItems } = useHistory();
+  const history = useHistory();
+  const { items: historyItems } = history;
   const app = useApp();
+
+  // Drawer state — only one drawer open at a time
+  const [activeCitation, setActiveCitation] = useState<MeetingCitation | null>(null);
+  const [activeMeetingCitations, setActiveMeetingCitations] = useState<MeetingCitation[] | null>(null);
+  const [activeWebCitations, setActiveWebCitations] = useState<WebCitation[] | null>(null);
+  const [isHydrating, setIsHydrating] = useState(false);
+
+  const activeMeeting = useMemo(
+    () => historyItems.find(h => h.id === activeCitation?.meetingId) ?? null,
+    [historyItems, activeCitation?.meetingId]
+  );
 
   // On mount or meetingId change: get or create a session for this meeting
   useEffect(() => {
@@ -57,16 +72,68 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ meetingId, meetingTitle, o
     }
   }, [meetingId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleCitationClick = useCallback((citation: MeetingCitation) => {
-    const item = historyItems.find(h => h.id === citation.meetingId);
+  const handleCitationClick = useCallback(async (citation: MeetingCitation) => {
+    setActiveWebCitations(null);
+    setActiveCitation(citation);
+
+    // Hydrate meeting data if missing transcript
+    const existing = historyItems.find(h => h.id === citation.meetingId);
+    if (existing && !existing.transcript) {
+      setIsHydrating(true);
+      try {
+        const detail = await meetingService.getMeetingDetail(citation.meetingId);
+        if (detail) {
+          await history.updateItem(citation.meetingId, {
+            transcript: detail.transcript?.text || '',
+            summary: detail.summary?.overview || ''
+          });
+        }
+      } catch (err) {
+        console.error('[ChatPanel] Failed to hydrate meeting citation:', err);
+      } finally {
+        setIsHydrating(false);
+      }
+    }
+  }, [historyItems, history]);
+
+  const handleShowAllMeetingCitations = useCallback((citations: MeetingCitation[]) => {
+    setActiveCitation(null);
+    setActiveWebCitations(null);
+    setActiveMeetingCitations(citations);
+  }, []);
+
+  const handleShowAllWebCitations = useCallback((citations: WebCitation[]) => {
+    setActiveCitation(null);
+    setActiveMeetingCitations(null);
+    setActiveWebCitations(citations);
+  }, []);
+
+  const handleDrawerClose = useCallback(() => {
+    setActiveCitation(null);
+    setActiveMeetingCitations(null);
+  }, []);
+
+  const handleDrawerBack = useCallback(() => {
+    setActiveCitation(null);
+  }, []);
+
+  const handleWebDrawerClose = useCallback(() => {
+    setActiveWebCitations(null);
+  }, []);
+
+  const handleOpenInMain = useCallback(() => {
+    if (!activeCitation) return;
+    const item = historyItems.find(h => h.id === activeCitation.meetingId);
     if (item) {
       app.setCurrentView('home');
       app.setResult(item);
-      app.setSelectedHistoryId(citation.meetingId);
+      app.setSelectedHistoryId(activeCitation.meetingId);
       app.setStatus(AppStatus.RESULTS);
       app.setActiveResultTab('transcript');
     }
-  }, [historyItems, app]);
+    setActiveCitation(null);
+    setActiveMeetingCitations(null);
+  }, [activeCitation, historyItems, app]);
 
   const sharedActions = useMemo<ActionProps>(() => ({
     onCopy: chat.copyMessage,
@@ -75,7 +142,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ meetingId, meetingTitle, o
 
   const citationHandlers = useMemo<CitationHandlers>(() => ({
     onCitationClick: handleCitationClick,
-  }), [handleCitationClick]);
+    onShowAllMeetingCitations: handleShowAllMeetingCitations,
+    onShowAllWebCitations: handleShowAllWebCitations,
+  }), [handleCitationClick, handleShowAllMeetingCitations, handleShowAllWebCitations]);
 
   // Get available meetings for @ mention
   const availableMeetings = useMemo(() =>
@@ -148,6 +217,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ meetingId, meetingTitle, o
                 citationHandlers={citationHandlers}
                 webCitations={message.webCitations}
                 inlineCitations={message.inlineCitations}
+                isError={message.isError}
               />
             ))}
           </StickToBottom.Content>
@@ -173,6 +243,22 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ meetingId, meetingTitle, o
         onAttach={chat.addAttachment}
         onRemoveAttachment={chat.removeAttachment}
         onScreenshot={chat.addScreenshotAttachment}
+      />
+      {/* Slide-in citation drawers */}
+      <MeetingCitationDrawer
+        mode={activeCitation ? 'detail' : 'list'}
+        citations={activeMeetingCitations}
+        activeCitation={activeCitation}
+        meeting={activeMeeting}
+        isLoading={isHydrating}
+        onClose={handleDrawerClose}
+        onCitationClick={handleCitationClick}
+        onBack={handleDrawerBack}
+        onOpenInMain={handleOpenInMain}
+      />
+      <WebCitationDrawer
+        citations={activeWebCitations}
+        onClose={handleWebDrawerClose}
       />
     </div>
   );

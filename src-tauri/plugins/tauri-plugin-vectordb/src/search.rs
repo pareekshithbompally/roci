@@ -27,6 +27,12 @@ pub struct SearchHit {
 /// RRF constant (k=60 is standard)
 const RRF_K: f64 = 60.0;
 
+/// BM25 score threshold for FTS5 results entering RRF.
+/// FTS5 rank is negative (more negative = better). Results closer to 0.0 matched
+/// only on high-IDF-penalized (common) words. Threshold filters noise before RRF
+/// so rank-position fusion doesn't give irrelevant docs meaningful scores.
+const BM25_MIN_SCORE: f64 = -0.5;
+
 /// Hybrid search: KNN vector search + FTS5 full-text, merged via Reciprocal Rank Fusion,
 /// grouped by meeting_id, returning the best chunk per meeting.
 pub fn hybrid_search(
@@ -88,15 +94,24 @@ pub fn hybrid_search(
             let rows = stmt
                 .query_map(rusqlite::params![fts_query, fetch_limit as i64], |row| {
                     let rowid: i64 = row.get(0)?;
-                    let _rank: f64 = row.get(1)?;
-                    Ok(rowid)
+                    let bm25_score: f64 = row.get(1)?;
+                    Ok((rowid, bm25_score))
                 })
                 .map_err(|e| format!("fts search query: {}", e))?;
 
-            for (rank, row) in rows.enumerate() {
-                if let Ok(chunk_id) = row {
+            // Only include FTS results with meaningful BM25 scores in RRF.
+            // BM25 IDF naturally penalizes common words — scores near 0.0 indicate
+            // the match was on ubiquitous terms only. Filtering here prevents
+            // rank-position fusion from giving noise documents meaningful RRF scores.
+            let mut rank = 0usize;
+            for row in rows {
+                if let Ok((chunk_id, bm25_score)) = row {
+                    if bm25_score > BM25_MIN_SCORE {
+                        continue; // too weak — matched only on common words
+                    }
                     *chunk_scores.entry(chunk_id).or_default() +=
                         1.0 / (RRF_K + rank as f64 + 1.0);
+                    rank += 1;
                 }
             }
         }

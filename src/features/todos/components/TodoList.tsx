@@ -2,12 +2,12 @@
  * TodoList Component
  * 
  * Main todos view with list and create functionality.
- * Uses the todos context for state and actions.
+ * Shows both user-created todos and AI-generated action items.
  */
 
 import React, { useState } from 'react';
 import { Plus, AlertCircle, Loader2, Calendar } from 'lucide-react';
-import { useTodos } from '../hooks';
+import { useMeeting } from '@shared/contexts/MeetingContext';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import TodoItem from './TodoItem';
 
@@ -17,25 +17,29 @@ interface TodoListProps {
 }
 
 const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List' }) => {
-  const {
-    todos,
-    isLoading,
-    error,
-    isCreating,
-    stats,
-    addTodo,
-    updateTodo,
-    deleteTodo,
-    toggleTodo,
-    setCreating,
-  } = useTodos();
+  const meeting = useMeeting();
+  
+  // Combine user todos and AI action items
+  const allTodos = [
+    ...(meeting.userTodos || []),
+    ...(meeting.aiTodos || [])
+  ];
+  
+  const isLoading = meeting.isLoading;
+  const error = null; // Meeting context doesn't expose error for todos
+  const [isCreating, setIsCreating] = useState(false);
+  
+  // Calculate stats from combined list
+  const completedCount = allTodos.filter(todo => todo.completed).length;
+  const totalCount = allTodos.length;
+  const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   const [newItemText, setNewItemText] = useState('');
   const [newItemDate, setNewItemDate] = useState('');
   const [newItemTime, setNewItemTime] = useState('');
 
   const handleSaveItem = async () => {
-    if (newItemText.trim()) {
+    if (newItemText.trim() && meeting.selectedHistoryId) {
       let dueDateString: string | undefined;
       if (newItemDate) {
         const date = new Date(newItemDate);
@@ -50,10 +54,11 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
           dueDateString = dateStr;
         }
       }
-      await addTodo(newItemText.trim(), dueDateString);
+      await meeting.addTodo(newItemText.trim(), dueDateString);
       setNewItemText('');
       setNewItemDate('');
       setNewItemTime('');
+      setIsCreating(false);
     }
   };
 
@@ -61,10 +66,8 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
     setNewItemText('');
     setNewItemDate('');
     setNewItemTime('');
-    setCreating(false);
+    setIsCreating(false);
   };
-
-  const progress = stats.total > 0 ? (stats.completed / stats.total) * 100 : 0;
 
   // Loading state
   if (isLoading) {
@@ -75,25 +78,15 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
     );
   }
 
-  // Error state
-  if (error) {
-    return (
-      <div className={`p-6 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-center ${className}`}>
-        <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-      </div>
-    );
-  }
-
   return (
     <div className={`space-y-5 ${className}`}>
       {/* Top action bar - always visible */}
       <div className="flex items-center gap-4">
         {/* Progress section - only show if there are items */}
-        {stats.total > 0 && (
+        {totalCount > 0 && (
           <div className="flex items-center gap-3 flex-1">
             <span className={`text-xs font-medium ${TEXT.muted} whitespace-nowrap`}>
-              {stats.completed}/{stats.total} done
+              {completedCount}/{totalCount} done
             </span>
             <div className={`w-32 h-1.5 ${SURFACE.chip} rounded-full overflow-hidden`}>
               <div
@@ -104,10 +97,10 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
           </div>
         )}
         {/* Spacer when no items */}
-        {stats.total === 0 && <div className="flex-1" />}
+        {totalCount === 0 && <div className="flex-1" />}
         {/* Add button - always on the right */}
         <button
-          onClick={() => setCreating(true)}
+          onClick={() => setIsCreating(true)}
           disabled={isCreating}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${COMPONENT.primaryButton} text-xs font-semibold hover:opacity-90 transition-opacity ml-auto disabled:opacity-50 disabled:cursor-not-allowed`}
         >
@@ -168,7 +161,7 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
             </button>
             <button
               onClick={handleSaveItem}
-              disabled={!newItemText.trim()}
+              disabled={!newItemText.trim() || !meeting.selectedHistoryId}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${COMPONENT.primaryButton} hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity flex items-center gap-1.5`}
             >
               <Plus className="w-3.5 h-3.5" />
@@ -179,7 +172,7 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
       )}
 
       {/* Empty state */}
-      {stats.total === 0 && !isCreating && (
+      {totalCount === 0 && !isCreating && (
         <div className="py-12 text-center">
           <p className={`text-sm ${TEXT.faint}`}>
             No to-do items yet
@@ -188,15 +181,15 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
       )}
 
       {/* Todo items list */}
-      {stats.total > 0 && (
+      {totalCount > 0 && (
         <div className="divide-y divide-parchment-200 dark:divide-night-800/60">
-          {todos.map((todo) => (
+          {allTodos.map((todo) => (
             <TodoItem
               key={todo.id}
               todo={todo}
-              onToggle={toggleTodo}
-              onDelete={deleteTodo}
-              onUpdate={updateTodo}
+              onToggle={todo.owner ? meeting.toggleActionItem : meeting.toggleTodo}
+              onDelete={todo.owner ? undefined : meeting.deleteTodo}
+              onUpdate={todo.owner ? undefined : meeting.updateTodo}
             />
           ))}
         </div>

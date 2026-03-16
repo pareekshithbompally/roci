@@ -8,6 +8,7 @@ import { TEXT } from '@config/theme.config';
 import { injectCitationTokens } from '@shared/utils/inlineCitationInjector';
 import PartsList from './PartsList';
 import AssistantActionBar from './AssistantActionBar';
+import ErrorMessageBox from './ErrorMessageBox';
 import type { AssistantMessageProps } from './types';
 import type { ChatPart, WebCitation, InlineCitationSpan } from '@/types';
 
@@ -80,7 +81,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   tokenCount, tokensPerSecond,
   toolActivity, meetingCitations,
   isCopied, actions, citationHandlers,
-  webCitations, inlineCitations,
+  webCitations, inlineCitations, isError,
 }) => {
   const isLoading = state === 'loading';
   const isStreaming = state === 'streaming';
@@ -137,6 +138,8 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
           <div className="relative">
             {isStreaming ? (
               <StreamingContent msgId={id} />
+            ) : isError && text ? (
+              <ErrorMessageBox errorText={text} />
             ) : (
               <CompletedContent
                 text={text}

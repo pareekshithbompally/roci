@@ -8,10 +8,12 @@ interface SourcesListProps {
   meetingCitations?: MeetingCitation[];
   webCitations?: WebCitation[];
   onCitationClick?: (citation: MeetingCitation) => void;
+  onShowAllMeetingCitations?: (citations: MeetingCitation[]) => void;
   onShowAllWebCitations?: (citations: WebCitation[]) => void;
 }
 
 const MAX_VISIBLE_WEB = 3;
+const MAX_VISIBLE_MEETING = 3;
 
 const sourceRowClass = `flex items-center gap-2.5 text-left w-full px-3 py-2 text-[13px] ${TEXT.muted} hover:text-parchment-900 dark:hover:text-night-200 hover:bg-parchment-200/80 dark:hover:bg-night-750/80 rounded-lg transition-colors cursor-pointer`;
 
@@ -20,6 +22,7 @@ const SourcesList: React.FC<SourcesListProps> = ({
   meetingCitations,
   webCitations,
   onCitationClick,
+  onShowAllMeetingCitations,
   onShowAllWebCitations,
 }) => {
   const hasMeetingCitations = !!(meetingCitations && meetingCitations.length > 0);
@@ -28,9 +31,12 @@ const SourcesList: React.FC<SourcesListProps> = ({
   const visibleWebCitations = onShowAllWebCitations ? webCitations?.slice(0, MAX_VISIBLE_WEB) : webCitations;
   const moreWebCount = onShowAllWebCitations ? Math.max(0, (webCitations?.length ?? 0) - MAX_VISIBLE_WEB) : 0;
 
+  const visibleMeetingCitations = onShowAllMeetingCitations ? meetingCitations?.slice(0, MAX_VISIBLE_MEETING) : meetingCitations;
+  const moreMeetingCount = onShowAllMeetingCitations ? Math.max(0, (meetingCitations?.length ?? 0) - MAX_VISIBLE_MEETING) : 0;
+
   return (
     <>
-      {hasMeetingCitations && meetingCitations!.map((citation) => (
+      {hasMeetingCitations && visibleMeetingCitations!.map((citation) => (
         <div key={citation.meetingId} onClick={() => onCitationClick?.(citation)} className={COMPONENT.listRow}>
           <AudioWaveform className={`w-4 h-4 shrink-0 ${TEXT.faint}`} />
           <span className="font-medium truncate">{citation.meetingTitle}</span>
@@ -39,6 +45,14 @@ const SourcesList: React.FC<SourcesListProps> = ({
           </span>
         </div>
       ))}
+      {hasMeetingCitations && moreMeetingCount > 0 && (
+        <button
+          onClick={() => onShowAllMeetingCitations?.(meetingCitations!)}
+          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs ${TEXT.faint} hover:text-parchment-800 dark:hover:text-night-300 transition-colors`}
+        >
+          +{moreMeetingCount} more
+        </button>
+      )}
       {hasWebCitations && visibleWebCitations!.map((citation, i) => (
         <a
           key={`web-${i}-${citation.url}`}

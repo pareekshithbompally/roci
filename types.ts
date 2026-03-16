@@ -107,6 +107,7 @@ export interface ChatMessage {
   provider?: string;
   model?: string;
   state?: 'loading' | 'streaming' | 'complete';
+  isError?: boolean;
   /** Approximate token count for this message */
   tokenCount?: number;
   /** Tokens per second during streaming */

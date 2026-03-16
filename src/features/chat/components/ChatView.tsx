@@ -18,6 +18,7 @@ import { ChatInput } from './ChatInput';
 import { MeetingCitationDrawer } from './MeetingCitationDrawer';
 import { WebCitationDrawer } from './WebCitationDrawer';
 import { meetingReferenceService } from '@/services/meetingReferenceService';
+import { meetingService } from '@/services/meeting.service';
 import { supportsWebSearch } from '@shared/utils/modelResolver';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { COMPONENT, TEXT } from '@config/theme.config';
@@ -39,27 +40,66 @@ const ScrollToBottomBtn = () => {
 export const ChatView: React.FC = () => {
   const chat = useChat();
   const { settings, providers } = useSettings();
-  const { items: historyItems } = useHistory();
+  const history = useHistory();
+  const { items: historyItems } = history;
   const app = useApp();
 
   // Drawer state — only one drawer open at a time
   const [activeCitation, setActiveCitation] = useState<MeetingCitation | null>(null);
+  const [activeMeetingCitations, setActiveMeetingCitations] = useState<MeetingCitation[] | null>(null);
   const [activeWebCitations, setActiveWebCitations] = useState<WebCitation[] | null>(null);
+  const [isHydrating, setIsHydrating] = useState(false);
+  
   const activeMeeting = useMemo(
     () => historyItems.find(h => h.id === activeCitation?.meetingId) ?? null,
     [historyItems, activeCitation?.meetingId]
   );
-  const handleCitationClick = useCallback((citation: MeetingCitation) => {
+  
+  const handleCitationClick = useCallback(async (citation: MeetingCitation) => {
     setActiveWebCitations(null);
     setActiveCitation(citation);
+
+    // Hydrate meeting data if missing transcript
+    const existing = historyItems.find(h => h.id === citation.meetingId);
+    if (existing && !existing.transcript) {
+      setIsHydrating(true);
+      try {
+        const detail = await meetingService.getMeetingDetail(citation.meetingId);
+        if (detail) {
+          await history.updateItem(citation.meetingId, {
+            transcript: detail.transcript?.text || '',
+            summary: detail.summary?.overview || ''
+          });
+        }
+      } catch (err) {
+        console.error('[ChatView] Failed to hydrate meeting citation:', err);
+      } finally {
+        setIsHydrating(false);
+      }
+    }
+  }, [historyItems, history]);
+  
+  const handleShowAllMeetingCitations = useCallback((citations: MeetingCitation[]) => {
+    setActiveCitation(null);
+    setActiveWebCitations(null);
+    setActiveMeetingCitations(citations);
   }, []);
+  
   const handleShowAllWebCitations = useCallback((citations: WebCitation[]) => {
     setActiveCitation(null);
+    setActiveMeetingCitations(null);
     setActiveWebCitations(citations);
   }, []);
+  
   const handleDrawerClose = useCallback(() => {
     setActiveCitation(null);
+    setActiveMeetingCitations(null);
   }, []);
+
+  const handleDrawerBack = useCallback(() => {
+    setActiveCitation(null);
+  }, []);
+
   const handleWebDrawerClose = useCallback(() => {
     setActiveWebCitations(null);
   }, []);
@@ -74,6 +114,7 @@ export const ChatView: React.FC = () => {
       app.setActiveResultTab('transcript');
     }
     setActiveCitation(null);
+    setActiveMeetingCitations(null);
   }, [activeCitation, historyItems, app]);
 
   // Get available meetings for @ mention
@@ -102,8 +143,9 @@ export const ChatView: React.FC = () => {
 
   const citationHandlers = useMemo<CitationHandlers>(() => ({
     onCitationClick: handleCitationClick,
+    onShowAllMeetingCitations: handleShowAllMeetingCitations,
     onShowAllWebCitations: handleShowAllWebCitations,
-  }), [handleCitationClick, handleShowAllWebCitations]);
+  }), [handleCitationClick, handleShowAllMeetingCitations, handleShowAllWebCitations]);
 
   const currentMessages = chat.currentSession?.messages || [];
 
@@ -142,6 +184,7 @@ export const ChatView: React.FC = () => {
                   citationHandlers={citationHandlers}
                   webCitations={message.webCitations}
                   inlineCitations={message.inlineCitations}
+                  isError={message.isError}
                 />
               ))}
             </StickToBottom.Content>
@@ -174,9 +217,14 @@ export const ChatView: React.FC = () => {
 
       {/* Slide-in citation drawers — outside overflow-hidden so they're not clipped */}
       <MeetingCitationDrawer
-        citation={activeCitation}
+        mode={activeCitation ? 'detail' : 'list'}
+        citations={activeMeetingCitations}
+        activeCitation={activeCitation}
         meeting={activeMeeting}
+        isLoading={isHydrating}
         onClose={handleDrawerClose}
+        onCitationClick={handleCitationClick}
+        onBack={handleDrawerBack}
         onOpenInMain={handleOpenInMain}
       />
       <WebCitationDrawer

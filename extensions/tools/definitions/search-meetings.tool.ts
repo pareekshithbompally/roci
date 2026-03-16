@@ -93,13 +93,15 @@ export const searchMeetingsTool: ToolDefinition = {
     const citations: MeetingCitation[] = [];
     for (const [, hits] of byMeeting) {
       const first = hits[0];
-      citations.push({
-        meetingId: first.meetingId,
-        meetingTitle: first.meetingTitle,
-        meetingTimestamp: first.timestamp,
-        excerpt: first.chunkText.slice(0, 300),
-        score: first.score,
-      });
+      if (first.score >= SCORE_MEDIUM) {
+        citations.push({
+          meetingId: first.meetingId,
+          meetingTitle: first.meetingTitle,
+          meetingTimestamp: first.timestamp,
+          excerpt: first.chunkText.slice(0, 300),
+          score: first.score,
+        });
+      }
     }
 
     return {

@@ -29,6 +29,20 @@ function getClient(apiKey: string): GoogleGenAI {
   return getOrCreate(apiKey, undefined, () => new GoogleGenAI({ apiKey }));
 }
 
+/** Race a promise against an AbortSignal. Rejects with AbortError if signal fires first. */
+function raceAbort<T>(promise: Promise<T>, signal?: AbortSignal | null): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new DOMException('Aborted', 'AbortError'));
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (v) => { signal.removeEventListener('abort', onAbort); resolve(v); },
+      (e) => { signal.removeEventListener('abort', onAbort); reject(e); },
+    );
+  });
+}
+
 function isImageGenerationModel(modelId: string): boolean {
   return modelId.includes('-image');
 }
@@ -117,7 +131,7 @@ export class GeminiAdapter implements ILLMAdapter {
     });
 
     const lastParts = toGeminiLastMessage(lastMessage);
-    const stream = await chat.sendMessageStream({ message: lastParts });
+    const stream = await raceAbort(chat.sendMessageStream({ message: lastParts }), signal);
 
     // Track whether the model signaled completion (finishReason on last chunk).
     // Only swallow teardown errors when the stream is semantically complete —
@@ -323,7 +337,7 @@ export class GeminiAdapter implements ILLMAdapter {
       const collectedCalls: Array<{ name: string; args: Record<string, unknown>; id?: string }> = [];
 
       try {
-        const stream = await chat.sendMessageStream({ message: messageToSend });
+        const stream = await raceAbort(chat.sendMessageStream({ message: messageToSend }), signal);
         const usageMeta = await drainStream(stream, collectedCalls);
         if (usageMeta) {
           totalOutputTokens += usageMeta.candidatesTokenCount || 0;
@@ -341,7 +355,7 @@ export class GeminiAdapter implements ILLMAdapter {
             config: fallbackConfig,
             ...(priorMessages.length > 0 && { history: toGeminiHistory(priorMessages) }),
           });
-          await drainStream(await fallbackChat.sendMessageStream({ message: messageToSend }), []);
+          await drainStream(await raceAbort(fallbackChat.sendMessageStream({ message: messageToSend }), signal), []);
           return;
         }
         throw err;

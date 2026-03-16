@@ -838,7 +838,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             ...s,
             messages: s.messages.map(m =>
               m.id === assistantMsgId
-                ? { ...m, text: `Error: ${error.message || 'Failed to get response'}`, state: 'complete' as const }
+                ? { ...m, text: error.message || 'Failed to get response', isError: true, state: 'complete' as const }
                 : m
             ),
             lastMessageAt: Date.now(),

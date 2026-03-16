@@ -9,6 +9,7 @@ export interface ActionProps {
 /** Citation handler callbacks — stable via useMemo in parent */
 export interface CitationHandlers {
   onCitationClick?: (citation: MeetingCitation) => void;
+  onShowAllMeetingCitations?: (citations: MeetingCitation[]) => void;
   onShowAllWebCitations?: (citations: WebCitation[]) => void;
 }
 
@@ -25,6 +26,7 @@ export interface ChatMessageProps {
   provider?: string;
   model?: string;
   state?: 'loading' | 'streaming' | 'complete';
+  isError?: boolean;
   tokenCount?: number;
   tokensPerSecond?: number;
   /** @deprecated Use meetingCitations instead — kept for backward compat with old persisted messages */
@@ -63,6 +65,7 @@ export interface AssistantMessageProps {
   provider?: string;
   model?: string;
   state: 'loading' | 'streaming' | 'complete';
+  isError?: boolean;
   tokenCount?: number;
   tokensPerSecond?: number;
   /** @deprecated Kept for backward compat lazy migration */

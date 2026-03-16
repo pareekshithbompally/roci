@@ -31,7 +31,7 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
   citationHandlers, webCitations,
 }) => {
   const { onCopy, onRerun } = actions;
-  const { onCitationClick, onShowAllWebCitations } = citationHandlers;
+  const { onCitationClick, onShowAllMeetingCitations, onShowAllWebCitations } = citationHandlers;
 
   const hasSuggestions = !!(suggestions && suggestions.length > 0 && onSuggestionClick && isLastMessage);
   const hasMeetingCitations = !!(meetingCitations && meetingCitations.length > 0);
@@ -48,11 +48,13 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
   }, [hasSuggestions]);
 
   const tabClass = (tab: string) =>
-    `px-3 py-1 text-xs font-medium rounded transition-all ${
+    `px-3 py-1 text-[11px] font-semibold rounded-full transition-all flex items-center gap-1.5 ${
       activeTab === tab
-        ? `${SURFACE.card} ${TEXT.primary} shadow-sm`
+        ? `${SURFACE.card} ${TEXT.primary} shadow-sm border ${BORDER.subtle}`
         : `${TEXT.faint} hover:text-parchment-800 dark:hover:text-night-300`
     }`;
+
+  const sourceButtonClass = `px-2.5 py-1 text-[11px] font-semibold rounded-full border ${BORDER.subtle} ${SURFACE.card} ${TEXT.primary} hover:bg-parchment-200/50 dark:hover:bg-night-800/50 transition-all flex items-center gap-1.5 shadow-sm`;
 
   return (
     <>
@@ -61,11 +63,36 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
 
       {/* Action bar */}
       <div className="flex items-center gap-2">
-        {/* Left: tabs */}
+        {/* Left: tabs or solo buttons */}
         {hasTabs && (
-          <div className={`flex items-center ${SURFACE.inset} rounded-md p-0.5`}>
-            {hasSuggestions && <button onClick={() => setActiveTab('suggestions')} className={tabClass('suggestions')}>Suggestions</button>}
-            {hasCitations && <button onClick={() => setActiveTab('sources')} className={tabClass('sources')}>Sources</button>}
+          <div className="flex items-center gap-2">
+            {hasSuggestions ? (
+              <div className={`flex items-center ${SURFACE.inset} rounded-full p-0.5 border ${BORDER.subtle}`}>
+                <button onClick={() => setActiveTab('suggestions')} className={tabClass('suggestions')}>Suggestions</button>
+                {hasCitations && <button onClick={() => setActiveTab('sources')} className={tabClass('sources')}>Sources</button>}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                {hasMeetingCitations && (
+                  <button 
+                    onClick={() => onShowAllMeetingCitations?.(meetingCitations)} 
+                    className={sourceButtonClass}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                    {meetingCitations.length} {meetingCitations.length === 1 ? 'Meeting' : 'Meetings'}
+                  </button>
+                )}
+                {hasWebCitations && (
+                  <button 
+                    onClick={() => onShowAllWebCitations?.(webCitations)} 
+                    className={sourceButtonClass}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    {webCitations.length} Web Search
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -99,10 +126,10 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
         </div>
       </div>
 
-      {/* Tab content */}
-      {hasTabs && (
+      {/* Tab content - only show when suggestions are present and activeTab is suggestions, or when sources are expanded via tab */}
+      {hasTabs && hasSuggestions && (
         <div className="flex flex-col gap-1 mt-2.5">
-          {activeTab === 'suggestions' && hasSuggestions && (
+          {activeTab === 'suggestions' && (
             <SuggestionsList suggestions={suggestions!} onSuggestionClick={onSuggestionClick!} />
           )}
           {activeTab === 'sources' && hasCitations && (
@@ -110,6 +137,7 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
               meetingCitations={meetingCitations}
               webCitations={webCitations}
               onCitationClick={onCitationClick}
+              onShowAllMeetingCitations={onShowAllMeetingCitations}
               onShowAllWebCitations={onShowAllWebCitations}
             />
           )}

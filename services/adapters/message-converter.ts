@@ -112,9 +112,15 @@ function chatPartToOpenAICompletionsPart(part: ChatPart): any {
 
 // ─── Message-level converters ───────────────────────────────────────────────
 
-/** Check if a message has multimodal parts (non-text) */
+/** Filter out UI-only parts (tool_call) that have no provider representation. */
+function filterProviderParts(parts: ChatPart[]): ChatPart[] {
+  return parts.filter(p => p.type !== 'tool_call');
+}
+
+/** Check if a message has provider-convertible non-text parts (ignoring tool_call). */
 function hasMediaParts(msg: ChatMessage): boolean {
-  return !!msg.parts && msg.parts.some(p => p.type !== 'text');
+  if (!msg.parts) return false;
+  return filterProviderParts(msg.parts).some(p => p.type !== 'text');
 }
 
 // ── Gemini ──────────────────────────────────────────────────────────────────
@@ -130,7 +136,7 @@ export function toGeminiHistory(messages: ChatMessage[]): GeminiContent[] {
   return messages.map((m) => ({
     role: m.role as 'user' | 'model',
     parts: hasMediaParts(m)
-      ? m.parts!.map(chatPartToGeminiPart)
+      ? filterProviderParts(m.parts!).map(chatPartToGeminiPart)
       : [{ text: m.text }],
   }));
 }
@@ -138,7 +144,7 @@ export function toGeminiHistory(messages: ChatMessage[]): GeminiContent[] {
 /** Convert the last message to Gemini parts array, supporting multimodal. */
 export function toGeminiLastMessage(msg: ChatMessage): any[] {
   if (hasMediaParts(msg)) {
-    return msg.parts!.map(chatPartToGeminiPart);
+    return filterProviderParts(msg.parts!).map(chatPartToGeminiPart);
   }
   return [{ text: msg.text }];
 }
@@ -156,7 +162,7 @@ export function toAnthropicMessages(messages: ChatMessage[]): AnthropicMessage[]
   return messages.map((m) => ({
     role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
     content: hasMediaParts(m)
-      ? m.parts!.map(chatPartToAnthropicBlock)
+      ? filterProviderParts(m.parts!).map(chatPartToAnthropicBlock)
       : m.text,
   }));
 }
@@ -179,7 +185,7 @@ export function toOpenAIResponsesInput(
     ...messages.map((m) => ({
       role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
       content: hasMediaParts(m)
-        ? m.parts!.map(chatPartToOpenAIResponsesPart)
+        ? filterProviderParts(m.parts!).map(chatPartToOpenAIResponsesPart)
         : m.text,
     })),
   ];
@@ -203,7 +209,7 @@ export function toOpenAIMessages(
     ...messages.map((m) => ({
       role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
       content: hasMediaParts(m)
-        ? m.parts!.map(chatPartToOpenAICompletionsPart)
+        ? filterProviderParts(m.parts!).map(chatPartToOpenAICompletionsPart)
         : m.text,
     })),
   ];

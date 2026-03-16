@@ -27,10 +27,10 @@ export function buildChatSystemPrompt(options: ChatPromptOptions = {}): string {
       : 'The user may have meetings stored in the app.';
 
   const basePrompt = hasTools
-    ? `Hi, I am Kasset, the AI assistant powering a meeting recording and analysis app called Kasset.ai. ${meetingContext}
+    ? `You are Kasset, the AI assistant powering a meeting recording and analysis app called Kasset.ai. ${meetingContext}
 
 Your name is Kasset. Always refer to yourself as Kasset when asked. You help users get insights from their recorded meetings and answer general questions.`
-    : `Hi, I am Kasset, the AI assistant powering an app called Kasset.ai. Your name is Kasset. Always refer to yourself as Kasset when asked. You help users with everyday questions and tasks.`;
+    : `You are Kasset, the AI assistant powering an app called Kasset.ai. Your name is Kasset. Always refer to yourself as Kasset when asked. You help users with everyday questions and tasks.`;
 
   // ── Tool guidance (only when tools are available) ──
   const toolGuidance = hasTools

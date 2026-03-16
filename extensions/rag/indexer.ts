@@ -137,6 +137,7 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
           entityExtractor.extractAndUpsert(
             item.id, item.title, summary, item.transcript,
             extractionContext.settings, extractionContext.providers,
+            item.categories || [],
           ).catch(err => console.error(`[RAGIndexer] Entity re-extraction failed for "${item.title}":`, err));
         }
       }

@@ -13,7 +13,7 @@ dist-ssr
 *.local
 
 # Tauri
-src-tauri/target
+src-tauri/**/target
 src-tauri/WixTools
 src-tauri/binaries
 
