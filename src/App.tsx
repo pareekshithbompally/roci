@@ -276,7 +276,7 @@ const App: React.FC = () => {
       {/* Sonner Toast Container — top-right, below title bar */}
       <Toaster
         position="top-right"
-        offset="76px"
+        style={{ top: '76px', right: '16px' }}
         theme={isDark ? 'dark' : 'light'}
         richColors
         closeButton

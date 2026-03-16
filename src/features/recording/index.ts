@@ -4,7 +4,6 @@
  * Handles all recording-related functionality:
  * - Recording controls (start, stop, pause, resume)
  * - Audio source selection
- * - Unified recording tray widget
  *
  * Usage:
  * ```tsx
@@ -32,10 +31,7 @@ export { recordingService } from './services';
 export type { StartRecordingOptions, StartRecordingResult, StopRecordingResult } from './services';
 
 // Components
-export {
-  RecordButton,
-  RecordingWidget
-} from './components';
+export { RecordButton } from './components';
 
 // Types
 export type {

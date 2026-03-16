@@ -24,7 +24,7 @@ interface UseTranscribeRecordingReturn {
 export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcribingItemId, setTranscribingItemId] = useState<string | null>(null);
-  const { categories } = useHistory();
+  const { categories, updateItem } = useHistory();
   const { settings, providers } = useSettings();
   const { setResult, setSelectedHistoryId, setStatus } = useApp();
   const { showToast } = useToast();
@@ -80,6 +80,14 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
         model: settings.transcriptionModel,
       });
 
+      // Update global history state: clear pendingTranscription flag and update title.
+      // This single push fixes the stuck amber Mic icon, ResultsView button state,
+      // and stale meeting title in the sidebar.
+      await updateItem(item.id, {
+        title: data.title || item.title,
+        pendingTranscription: false,
+      });
+
       // Show results
       setResult(data);
       setSelectedHistoryId(item.id);
@@ -94,7 +102,7 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
       setIsTranscribing(false);
       setTranscribingItemId(null);
     }
-  }, [categories, settings, providers, setResult, setSelectedHistoryId, setStatus, showToast]);
+  }, [categories, settings, providers, updateItem, setResult, setSelectedHistoryId, setStatus, showToast]);
 
   return { transcribe, isTranscribing, transcribingItemId };
 };

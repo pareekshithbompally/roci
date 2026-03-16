@@ -176,6 +176,7 @@ export interface MeetingIndexEntry {
   inputSource?: string;
   createdAt: string;
   updatedAt: string;
+  pendingTranscription?: boolean;
 }
 
 /** Structured summary — matches LLM JSON schema directly */

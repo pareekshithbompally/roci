@@ -90,12 +90,13 @@ export function parseOpenAIToolCalls(
 
 /**
  * Parse Gemini function call parts into ToolCall[].
+ * Uses the API-provided id when present (required by Gemini 2.x for response matching).
  */
 export function parseGeminiToolCalls(
-  functionCalls: Array<{ name: string; args: Record<string, unknown> }>
+  functionCalls: Array<{ name: string; args: Record<string, unknown>; id?: string }>
 ): ToolCall[] {
   return functionCalls.map((fc, idx) => ({
-    id: `gemini-tc-${Date.now()}-${idx}`,
+    id: fc.id || `gemini-tc-${Date.now()}-${idx}`,
     name: fc.name,
     arguments: fc.args || {},
   }));

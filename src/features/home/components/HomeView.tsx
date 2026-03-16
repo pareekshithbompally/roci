@@ -2,7 +2,7 @@
  * HomeView Component
  * 
  * Main home view that renders different states based on app status.
- * Recording UI is handled by RecordingWidget (global overlay).
+ * Recording UI is handled by ActivityTray (global overlay).
  */
 
 import React from 'react';

@@ -124,10 +124,12 @@ export const ActivityTray: React.FC = () => {
             boxShadow: 'var(--shadow-float)',
           }}
         >
-          {/* Header */}
-          <div
-            className="flex items-center gap-2 px-3 py-2 shrink-0"
+          {/* Header — entire row is clickable to collapse/expand */}
+          <button
+            onClick={() => setCollapsed(c => !c)}
+            className="flex items-center gap-2 px-3 py-2 shrink-0 w-full text-left transition-colors hover:opacity-80"
             style={{ borderBottom: collapsed ? 'none' : '1px solid var(--border-default)' }}
+            title={collapsed ? 'Expand' : 'Collapse'}
           >
             <span
               className="text-xs font-semibold flex-1"
@@ -136,24 +138,20 @@ export const ActivityTray: React.FC = () => {
               Activity ({items.length})
             </span>
             {hasDismissable && (
-              <button
-                onClick={dismissCompleted}
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => { e.stopPropagation(); dismissCompleted(); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); dismissCompleted(); } }}
                 className="p-1 rounded-md transition-colors hover:opacity-80"
                 style={{ color: 'var(--text-faint)' }}
                 title="Dismiss completed"
               >
                 <X className="w-3.5 h-3.5" />
-              </button>
+              </span>
             )}
-            <button
-              onClick={() => setCollapsed(c => !c)}
-              className="p-1 rounded-md transition-colors hover:opacity-80"
-              style={{ color: 'var(--text-faint)' }}
-              title={collapsed ? 'Expand' : 'Collapse'}
-            >
-              {collapsed ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            </button>
-          </div>
+            {collapsed ? <ChevronUp className="w-3.5 h-3.5" style={{ color: 'var(--text-faint)' }} /> : <ChevronDown className="w-3.5 h-3.5" style={{ color: 'var(--text-faint)' }} />}
+          </button>
 
           {/* Body — scrollable, collapsible */}
           <AnimatePresence initial={false}>

@@ -532,7 +532,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
       // Initialize external streaming store
       streamingStore.start(assistantMsgId);
-      let hasFirstChunk = false;
+      let hasStartedStreaming = false;
       let streamStartTime = 0;
 
       // Build the ChatRequestConfig
@@ -571,8 +571,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           const displayText = extractor ? extractor.push(chunk) : chunk;
 
           if (displayText) {
-            if (!hasFirstChunk) {
-              hasFirstChunk = true;
+            if (!hasStartedStreaming) {
+              hasStartedStreaming = true;
               streamStartTime = Date.now();
               setState(prev => ({
                 ...prev,
@@ -589,6 +589,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                   };
                 }),
               }));
+            } else if (streamStartTime === 0) {
+              // onToolActivity fired first — start synthesis timer at first text chunk
+              streamStartTime = Date.now();
             }
 
             streamingStore.push(displayText);
@@ -597,8 +600,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       };
 
       const handleMediaPart = (part: ChatPart) => {
-        if (!hasFirstChunk) {
-          hasFirstChunk = true;
+        if (!hasStartedStreaming) {
+          hasStartedStreaming = true;
           streamStartTime = Date.now();
           setState(prev => ({
             ...prev,
@@ -619,14 +622,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         streamingStore.pushPart(part);
       };
 
-      // Route: tool-calling path vs clean streaming path
-      const isGeminiWebSearch = state.webSearchEnabled && adapterForCheck?.type === 'gemini';
-      const useTools = !isGeminiWebSearch && !!(resolved && supportsTools(resolved) && adapterForCheck?.chatStreamWithTools);
-
-      // Default to 'auto' — let the LLM decide.
-      // The softened system prompt + tool descriptions do the heavy lifting.
-      // toolChoice can be set to 'none' here in the future by a lightweight
-      // intent classifier if the prompt-only approach proves insufficient.
+      // Route: tool-calling path for all providers that support chatStreamWithTools.
+      // Gemini 2.5+ supports Google Search grounding and function calling simultaneously.
+      // The gemini adapter's chatStreamWithTools handles webSearchEnabled correctly.
+      const useTools = !!(resolved && supportsTools(resolved) && adapterForCheck?.chatStreamWithTools);
       const toolChoice: ToolChoice = 'auto';
 
       const allCitations: MeetingCitation[] = [];
@@ -658,6 +657,25 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             onChunk: handleChunk,
             onMediaPart: handleMediaPart,
             onToolActivity: (activity) => {
+              // ── Transition to 'streaming' on first tool activity so tool blocks are visible during Phase 1
+              if (!hasStartedStreaming) {
+                hasStartedStreaming = true;
+                setState(prev => ({
+                  ...prev,
+                  sessions: prev.sessions.map(s => {
+                    if (s.id !== activeSessionId) return s;
+                    return {
+                      ...s,
+                      messages: s.messages.map(m =>
+                        m.id === assistantMsgId
+                          ? { ...m, state: 'streaming' as const }
+                          : m
+                      ),
+                    };
+                  }),
+                }));
+              }
+              // ── existing logic ────────────────────────────────────────────
               const toolCallId = activity.toolCall.id;
 
               if (activity.status === 'calling') {

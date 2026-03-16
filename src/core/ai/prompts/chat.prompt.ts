@@ -109,7 +109,35 @@ export function buildRAGContextPrompt(
     .join('\n');
 }
 
+/**
+ * Lean system prompt for Phase 1 (retrieval).
+ * The model's job here is ONLY to call tools and gather data.
+ * Text output in Phase 1 is suppressed — no synthesis yet.
+ */
+export function buildRetrievalSystemPrompt(): string {
+  return `You are a retrieval agent. Your ONLY job is to call the available tools to gather information relevant to the user's question.
+
+Do NOT answer the user's question. Do NOT write any response text. ONLY call tools.
+
+## Available tools and when to use them
+
+- \`search_meetings\` — Search meeting transcripts and summaries by semantic similarity. Use for: content recall, topic lookup, "what did we discuss about X?"
+- \`get_meeting\` — Load the full transcript and details of a specific meeting by ID. Use after \`search_meetings\` returns a meeting ID.
+- \`list_meetings\` — List meetings by date range. Use for: "meetings from last week", "recent meetings", date-filtered queries.
+- \`get_action_items\` — Get action items from one or all meetings. Use for: todo lists, assigned tasks, follow-ups.
+- \`query_graph\` — Query the knowledge graph for relationships between people, topics, decisions, and projects. Use for: "who has been involved in X?", "what decisions were made about Y?", cross-meeting connections.
+
+## Retrieval strategy
+
+Round 1 — Breadth: Call all tools that are relevant to the question simultaneously. For most questions this is \`search_meetings\` and/or \`query_graph\`.
+
+Round 2 — Depth: If round 1 returns meeting IDs from \`search_meetings\` or \`query_graph\` results that reference meetings, call \`get_meeting\` to load full details for the most relevant ones (up to 3).
+
+If the question is general knowledge (math, coding, explanations, casual conversation) — call NO tools. Return immediately with no text.`;
+}
+
 export const CHAT_PROMPT = {
   buildSystem: buildChatSystemPrompt,
   buildRAGContext: buildRAGContextPrompt,
+  buildRetrievalSystem: buildRetrievalSystemPrompt,
 };

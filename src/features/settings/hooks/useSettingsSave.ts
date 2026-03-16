@@ -7,7 +7,7 @@
  * and dirty state is derived automatically.
  */
 
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { useUnsavedChanges } from '@shared/contexts/UnsavedChangesContext';
@@ -48,7 +48,7 @@ function buildSnapshot(panelId: string, settings: AppSettings, providers: ModelP
 }
 
 export function useSettingsSave(panelName: string, panelId?: string) {
-  const { settings, providers, saveSettings } = useSettings();
+  const { settings, providers, saveSettings, isLoading } = useSettings();
   const { showToast } = useToast();
   const { setHasUnsavedChanges, clearUnsavedChanges } = useUnsavedChanges();
   const [isSaving, setIsSaving] = useState(false);
@@ -56,23 +56,39 @@ export function useSettingsSave(panelName: string, panelId?: string) {
   // Derive panelId from panelName if not provided
   const resolvedPanelId = panelId || panelName.toLowerCase().replace(/\s+settings?$/i, '');
 
-  // Snapshot of last-saved state — initialized on first render, updated after save
-  const savedSnapshotRef = useRef<string>(buildSnapshot(resolvedPanelId, settings, providers));
+  // null = not yet initialized (waiting for settings to finish loading)
+  const savedSnapshotRef = useRef<string | null>(null);
+  // Tracks whether the initial snapshot has been captured after load
+  const isReadyRef = useRef(false);
 
-  // Compare current state to saved snapshot
-  const currentSnapshot = buildSnapshot(resolvedPanelId, settings, providers);
-  const hasUnsavedChanges = currentSnapshot !== savedSnapshotRef.current;
+  // Capture the baseline snapshot once — only after settings have loaded.
+  // Runs inline during render (ref mutation is safe here: idempotent, no side effects).
+  if (!isLoading && !isReadyRef.current) {
+    isReadyRef.current = true;
+    savedSnapshotRef.current = buildSnapshot(resolvedPanelId, settings, providers);
+  }
 
-  // Keep the context in sync so navigation guards and the save footer work
-  useMemo(() => {
+  // Only compare once the baseline is established; always false while loading.
+  const currentSnapshot = isReadyRef.current
+    ? buildSnapshot(resolvedPanelId, settings, providers)
+    : null;
+  const hasUnsavedChanges = currentSnapshot !== null && currentSnapshot !== savedSnapshotRef.current;
+
+  // Sync dirty state to navigation-guard context
+  useEffect(() => {
     setHasUnsavedChanges(hasUnsavedChanges, resolvedPanelId);
   }, [hasUnsavedChanges, resolvedPanelId, setHasUnsavedChanges]);
+
+  // Clear stale dirty state when this panel unmounts (e.g. settings closed, tab switched)
+  useEffect(() => {
+    return () => { clearUnsavedChanges(); };
+  }, [clearUnsavedChanges]);
 
   const save = useCallback(async () => {
     setIsSaving(true);
     try {
       await saveSettings();
-      // Update snapshot to current state
+      // Advance baseline to current state so dirty resets to false
       savedSnapshotRef.current = buildSnapshot(resolvedPanelId, settings, providers);
       clearUnsavedChanges();
       showToast(`${panelName} saved successfully`, 'success');

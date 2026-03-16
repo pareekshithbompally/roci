@@ -95,6 +95,7 @@ function indexEntryToHistoryItem(entry: MeetingIndexEntry): HistoryItem {
     timestamp: new Date(entry.createdAt).getTime(),
     transcript: '',
     summary: '',
+    pendingTranscription: entry.pendingTranscription,
   };
 }
 
@@ -152,6 +153,7 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
         categories: item.categories,
         recordingFileName: item.recordingFileName,
         inputSource: item.inputSource,
+        pendingTranscription: item.pendingTranscription,
         createdAt: now,
         updatedAt: now,
       });
@@ -192,6 +194,7 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
       if (updates.title) indexUpdates.title = updates.title;
       if (updates.categories) indexUpdates.categories = updates.categories;
       if (updates.recordingFileName) indexUpdates.recordingFileName = updates.recordingFileName;
+      if (updates.pendingTranscription !== undefined) indexUpdates.pendingTranscription = updates.pendingTranscription;
       if (Object.keys(indexUpdates).length > 0) {
         await meetingIndexRepository.updateInIndex(itemId, indexUpdates);
       }

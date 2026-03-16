@@ -22,6 +22,7 @@ import { StorageConfig, generateRecordingFilename, getRecordingIdFromFilename } 
 import { unifiedAIService } from '../../../../services/unifiedAIService';
 import { activityStore } from '../../../shared/stores/activityStore';
 import type { ActivityAction } from '../../../shared/stores/activityStore';
+import { resolveModel } from '@shared/utils/modelResolver';
 import type {
   RecordingContextValue,
   RecordingState,
@@ -523,6 +524,9 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       const abortController = new AbortController();
       abortControllerRefs.current.set(sessionId, abortController);
 
+      // Immediately surface processing state so the tray switches to the processing row
+      updateSession(sessionId, { status: 'processing', error: null });
+
       const settings = settingsContext?.settings || { transcriptionModel: '', chatModel: '' };
       const providers = settingsContext?.providers || [];
       const categories = historyContext?.categories || [];
@@ -632,13 +636,13 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       abortControllerRefs.current.delete(sessionId);
 
       if (error.message === 'Processing aborted by user') {
-        updateSession(sessionId, { error: null });
+        updateSession(sessionId, { status: 'review', error: null });
         showToast('Processing cancelled', 'info');
         return;
       }
 
       const errorMessage = error.message || 'Failed to process recording';
-      updateSession(sessionId, { error: errorMessage });
+      updateSession(sessionId, { status: 'review', error: errorMessage });
       showToast(errorMessage, 'error');
       throw error;
     }
@@ -775,13 +779,22 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           activityStore.add({ id, ...patch });
         }
       } else if (session.status === 'review') {
-        // Review sessions: show compact row with process/later/discard
-        const actions: ActivityAction[] = [
-          {
+        // Review sessions: show compact row with process/later/discard.
+        // Only include Summarize if a model is configured — otherwise clicking
+        // would fail silently since there's nothing to route the request to.
+        const hasModel = !!resolveModel(
+          settingsContext?.settings?.chatModel || '',
+          settingsContext?.providers || []
+        );
+        const actions: ActivityAction[] = [];
+        if (hasModel) {
+          actions.push({
             icon: 'sparkles',
             label: 'Summarize',
             onClick: () => actionsRef.current.process(id),
-          },
+          });
+        }
+        actions.push(
           {
             icon: 'timer',
             label: 'Save for later',
@@ -791,8 +804,8 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
             icon: 'trash-2',
             label: 'Discard',
             onClick: () => actionsRef.current.discard(id),
-          },
-        ];
+          }
+        );
 
         const patch = {
           type: 'recording' as const,
@@ -801,7 +814,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           percent: null,
           step: null,
           detail: formatTimeForTray(session.elapsedTime),
-          error: null,
+          error: session.error,
           actions,
         };
 
@@ -826,7 +839,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         activityStore.remove(item.id);
       }
     }
-  }, [sessions, activeCaptureSessionId, formatTimeForTray]);
+  }, [sessions, activeCaptureSessionId, formatTimeForTray, settingsContext]);
 
   // === LEGACY COMPAT: Derive single-session state from sessions Map ===
   // Find the "active" session for legacy consumers (active capture or most recent review)

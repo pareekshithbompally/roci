@@ -254,7 +254,7 @@ export class GeminiAdapter implements ILLMAdapter {
     // Returns the last usageMetadata from the stream (final chunk has totals).
     const drainStream = async (
       stream: AsyncGenerator<any>,
-      calls: Array<{ name: string; args: Record<string, unknown> }>
+      calls: Array<{ name: string; args: Record<string, unknown>; id?: string }>
     ): Promise<any> => {
       let streamFinished = false;
       let lastUsageMetadata: any = null;
@@ -277,6 +277,7 @@ export class GeminiAdapter implements ILLMAdapter {
                 calls.push({
                   name: (part as any).functionCall.name,
                   args: (part as any).functionCall.args || {},
+                  id: (part as any).functionCall.id,
                 });
               }
             }
@@ -319,7 +320,7 @@ export class GeminiAdapter implements ILLMAdapter {
     for (let pass = 0; pass < MAX_TOOL_PASSES; pass++) {
       if (signal?.aborted) break;
 
-      const collectedCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
+      const collectedCalls: Array<{ name: string; args: Record<string, unknown>; id?: string }> = [];
 
       try {
         const stream = await chat.sendMessageStream({ message: messageToSend });
@@ -369,8 +370,9 @@ export class GeminiAdapter implements ILLMAdapter {
 
       messageToSend = results.map((r, idx) => ({
         functionResponse: {
+          ...(toolCalls[idx]?.id && { id: toolCalls[idx].id }),
           name: toolCalls[idx]?.name || 'unknown',
-          response: { result: r.content },
+          response: { output: r.content },
         },
       }));
     }

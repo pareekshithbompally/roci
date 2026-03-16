@@ -91,9 +91,14 @@ export const SettingsPanel: React.FC = () => {
         {activePanel === 'categories' && <CategoriesPanel />}
         {activePanel === 'interface' && <InterfacePanel />}
 
-        {/* Save footer — absolutely positioned, overlays content, no layout shift */}
+        {/* Save footer — absolutely positioned, overlays content, no layout shift.
+            key={activePanel} forces remount on tab switch so savedSnapshotRef reinitializes. */}
         {SAVEABLE_PANELS.has(activePanel) && (
-          <SettingsSaveFooter panelName={PANEL_SAVE_NAMES[activePanel]!} />
+          <SettingsSaveFooter
+            key={activePanel}
+            panelId={activePanel}
+            panelName={PANEL_SAVE_NAMES[activePanel]!}
+          />
         )}
       </div>
     </div>
@@ -101,8 +106,8 @@ export const SettingsPanel: React.FC = () => {
 };
 
 /** Reads unsaved state and renders save button in the fixed footer */
-const SettingsSaveFooter: React.FC<{ panelName: string }> = ({ panelName }) => {
-  const { isSaving, hasUnsavedChanges, save } = useSettingsSave(panelName);
+const SettingsSaveFooter: React.FC<{ panelName: string; panelId: string }> = ({ panelName, panelId }) => {
+  const { isSaving, hasUnsavedChanges, save } = useSettingsSave(panelName, panelId);
 
   return (
     <SettingsSaveButton
