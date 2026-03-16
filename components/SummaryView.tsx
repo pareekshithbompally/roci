@@ -87,34 +87,34 @@ const SummaryView: React.FC<SummaryViewProps> = ({
           </div>
         )}
 
-        {/* Action Items — amber banner */}
+        {/* Action Items */}
         {structuredSummary.actionItems && structuredSummary.actionItems.length > 0 && (
-          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl p-6">
-            <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold uppercase tracking-wide text-amber-900 dark:text-amber-100 mb-4`}>
+          <div>
+            <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold text-parchment-900 dark:text-night-100 mb-3`}>
               Action Items ({structuredSummary.actionItems.length})
             </h3>
-            <div className="space-y-3">
+            <ul className="space-y-2">
               {structuredSummary.actionItems.slice(0, 5).map((item) => (
-                <div key={item.id} className={`flex items-start gap-3 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
-                  <span className="text-amber-600 dark:text-amber-400 mt-1">•</span>
+                <li key={item.id} className={`flex items-start gap-3 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
+                  <span className="text-parchment-500 dark:text-night-400 mt-1 shrink-0">•</span>
                   <div className="flex-1">
-                    <p className="text-amber-900 dark:text-amber-100 leading-relaxed">{item.text}</p>
+                    <span className="text-parchment-800 dark:text-night-200 leading-relaxed">{item.text}</span>
                     {(item.owner || item.dueDate) && (
-                      <span className="text-xs text-amber-700 dark:text-amber-300 mt-1 block">
+                      <span className="text-xs text-parchment-500 dark:text-night-400 mt-1 block">
                         {item.owner && `Owner: ${item.owner}`}
                         {item.owner && item.dueDate && ' · '}
                         {item.dueDate && `Due: ${item.dueDate}`}
                       </span>
                     )}
                   </div>
-                </div>
+                </li>
               ))}
               {structuredSummary.actionItems.length > 5 && (
-                <p className="text-xs text-amber-600 dark:text-amber-400 pt-2 font-medium">
+                <li className={`text-xs text-parchment-500 dark:text-night-400 pt-1 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
                   +{structuredSummary.actionItems.length - 5} more items (view in To-Do tab)
-                </p>
+                </li>
               )}
-            </div>
+            </ul>
           </div>
         )}
 
@@ -167,30 +167,30 @@ const SummaryView: React.FC<SummaryViewProps> = ({
       )}
 
       {structuredSummary.actionItems && structuredSummary.actionItems.length > 0 && (
-        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl p-6">
-          <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold uppercase tracking-wide text-amber-900 dark:text-amber-100 mb-4`}>
+        <div>
+          <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold text-parchment-900 dark:text-night-100 mb-3`}>
             Action Items ({structuredSummary.actionItems.length})
           </h3>
-          <div className="space-y-3">
+          <ul className="space-y-2">
             {structuredSummary.actionItems.slice(0, 5).map((item) => (
-              <div key={item.id} className={`flex items-start gap-3 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
-                <span className="text-amber-600 dark:text-amber-400 mt-1">•</span>
+              <li key={item.id} className={`flex items-start gap-3 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
+                <span className="text-parchment-500 dark:text-night-400 mt-1 shrink-0">•</span>
                 <div className="flex-1">
-                  <p className="text-amber-900 dark:text-amber-100 leading-relaxed">{item.text}</p>
+                  <span className="text-parchment-800 dark:text-night-200 leading-relaxed">{item.text}</span>
                   {item.dueDate && (
-                    <span className="text-xs text-amber-700 dark:text-amber-300 mt-1 block">
+                    <span className="text-xs text-parchment-500 dark:text-night-400 mt-1 block">
                       Due: {item.dueDate}
                     </span>
                   )}
                 </div>
-              </div>
+              </li>
             ))}
             {structuredSummary.actionItems.length > 5 && (
-              <p className="text-xs text-amber-600 dark:text-amber-400 pt-2 font-medium">
+              <li className={`text-xs text-parchment-500 dark:text-night-400 pt-1 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
                 +{structuredSummary.actionItems.length - 5} more items (view in To-Do tab)
-              </p>
+              </li>
             )}
-          </div>
+          </ul>
         </div>
       )}
     </div>
