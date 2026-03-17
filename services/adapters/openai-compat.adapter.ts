@@ -186,7 +186,7 @@ export class OpenAICompatAdapter implements ILLMAdapter {
             const idx = tc.index ?? 0;
             if (!accumulatedToolCalls.has(idx)) {
               accumulatedToolCalls.set(idx, {
-                id: tc.id || '',
+                id: tc.id || `tc-${idx}`,  // some compat providers omit id on first delta
                 function: { name: '', arguments: '' },
               });
             }
