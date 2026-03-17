@@ -236,11 +236,12 @@ export class GeminiAdapter implements ILLMAdapter {
     // the SDK chat session owns history for this entire agentic turn.
     const configTools: any[] = [];
     if (toolChoice !== 'none') {
-      if (webSearchEnabled) {
-        configTools.push({ googleSearch: {} });
-      }
       if (toolSchemas?.length) {
         configTools.push(...toProviderTools(toolSchemas, 'gemini'));
+      } else if (webSearchEnabled) {
+        // googleSearch and functionDeclarations cannot coexist in the same Gemini request —
+        // only add web search when there are no custom function tools.
+        configTools.push({ googleSearch: {} });
       }
     }
     if (configTools.length > 0) {

@@ -12,7 +12,7 @@ import { parseVTT } from '@/utils/vttParser';
 import { getOrCreate } from './client-cache';
 import { getPlatformFetch } from '../platform-fetch';
 import { toOpenAIResponsesInput } from './message-converter';
-import { toProviderTools, parseOpenAIToolCalls, toProviderToolResults } from './tool-converter';
+import { toProviderTools, parseOpenAIToolCalls } from './tool-converter';
 import type {
   ILLMAdapter,
   ChatStreamOptions,
@@ -164,33 +164,12 @@ export class OpenAIAdapter implements ILLMAdapter {
   }
 
   async chatStreamWithTools(options: ToolStreamOptions, callbacks: ToolStreamCallbacks): Promise<TokenUsage | undefined> {
-    const { messages, resolved, systemPrompt, webSearchEnabled, signal, tools: toolSchemas, toolMessages, toolChoice, outputSchema } = options;
-    const { onChunk, onToolCall } = callbacks;
+    const { messages, resolved, systemPrompt, webSearchEnabled, signal, tools: toolSchemas, toolChoice, outputSchema } = options;
+    const { onChunk, onToolCall, executeTools } = callbacks;
 
     if (signal?.aborted) return;
 
     const client = getClient(resolved.apiKey, resolved.baseUrl);
-    const input: any[] = toOpenAIResponsesInput(messages, systemPrompt);
-
-    // Append tool turn messages (function calls + results)
-    if (toolMessages?.length) {
-      for (const tm of toolMessages) {
-        if (tm.role === 'assistant_tool_call') {
-          // OpenAI Responses API: function_call items become part of input
-          for (const tc of tm.toolCalls) {
-            input.push({
-              type: 'function_call',
-              call_id: tc.id,
-              name: tc.name,
-              arguments: JSON.stringify(tc.arguments),
-            });
-          }
-        } else if (tm.role === 'tool_result') {
-          const resultItems = toProviderToolResults(tm.results, [], 'openai');
-          input.push(...resultItems);
-        }
-      }
-    }
 
     // Build tools array — omit entirely when toolChoice is 'none'
     const tools: any[] = [];
@@ -203,70 +182,116 @@ export class OpenAIAdapter implements ILLMAdapter {
       }
     }
 
-    // Accumulate function calls during streaming
-    const functionCalls: Array<{ call_id: string; name: string; arguments: string }> = [];
-    let textBefore = '';
-
     // OpenAI Responses API: tool_choice maps directly — 'auto' | 'required' | 'none'
     const openaiToolChoice = toolChoice && tools.length > 0 ? toolChoice : undefined;
 
-    const runner = client.responses
-      .stream({
-        model: resolved.modelId,
-        input,
-        ...(tools.length > 0 && { tools }),
-        ...(openaiToolChoice && { tool_choice: openaiToolChoice }),
-        ...(outputSchema && {
-          text: {
-            format: {
-              type: 'json_schema' as const,
-              name: outputSchema.name || 'response',
-              schema: outputSchema.schema,
-              strict: true,
-            },
+    // Params shared across all passes (input supplied per-pass)
+    const baseParams: any = {
+      model: resolved.modelId,
+      ...(tools.length > 0 && { tools }),
+      ...(openaiToolChoice && { tool_choice: openaiToolChoice }),
+      ...(outputSchema && {
+        text: {
+          format: {
+            type: 'json_schema' as const,
+            name: outputSchema.name || 'response',
+            schema: outputSchema.schema,
+            strict: true,
           },
-        }),
-      })
-      .on('response.output_text.delta', (event: any) => {
-        onChunk(event.delta);
-        textBefore += event.delta;
-      })
-      .on('response.web_search_call.searching', () => {
-        onChunk('', { isSearching: true });
-      })
-      .on('response.output_item.done', (event: any) => {
-        if (event.item?.type === 'function_call') {
-          functionCalls.push({
-            call_id: event.item.call_id,
-            name: event.item.name,
-            arguments: event.item.arguments,
-          });
-        }
-      });
+        },
+      }),
+    };
 
-    if (signal) {
-      if (signal.aborted) { runner.abort(); return; }
-      signal.addEventListener('abort', () => runner.abort(), { once: true });
-    }
+    const MAX_TOOL_PASSES = 6;
+    // Pass 0: full conversation history; pass 1+: only function_call_output items
+    // previous_response_id carries the full server-side context between passes,
+    // eliminating the need to reconstruct function_call items (which require a
+    // server-assigned item id we never capture).
+    let currentInput: any[] = toOpenAIResponsesInput(messages, systemPrompt);
+    let previousResponseId: string | undefined;
+    let totalOutputTokens = 0;
+    let lastInputTokens: number | undefined;
+    let lastFinalResponse: any;
 
-    const finalResponse = await runner.finalResponse();
+    for (let pass = 0; pass < MAX_TOOL_PASSES; pass++) {
+      if (signal?.aborted) break;
 
-    const citations = extractOpenAICitations(finalResponse);
-    if (citations) {
-      onChunk('', citations);
-    }
+      const functionCalls: Array<{ call_id: string; name: string; arguments: string }> = [];
+      let textBefore = '';
 
-    // If function calls were collected, emit them
-    if (functionCalls.length > 0) {
+      const requestParams: any = {
+        ...baseParams,
+        input: currentInput,
+        ...(previousResponseId && { previous_response_id: previousResponseId }),
+      };
+
+      const runner = client.responses
+        .stream(requestParams)
+        .on('response.output_text.delta', (event: any) => {
+          onChunk(event.delta);
+          textBefore += event.delta;
+        })
+        .on('response.web_search_call.searching', () => {
+          onChunk('', { isSearching: true });
+        })
+        .on('response.output_item.done', (event: any) => {
+          if (event.item?.type === 'function_call') {
+            functionCalls.push({
+              call_id: event.item.call_id,
+              name: event.item.name,
+              arguments: event.item.arguments,
+            });
+          }
+        });
+
+      if (signal) {
+        if (signal.aborted) { runner.abort(); return; }
+        signal.addEventListener('abort', () => runner.abort(), { once: true });
+      }
+
+      const finalResponse = await runner.finalResponse();
+      lastFinalResponse = finalResponse;
+      previousResponseId = (finalResponse as any).id;
+
+      const usage = (finalResponse as any).usage;
+      if (usage) {
+        totalOutputTokens += usage.output_tokens || 0;
+        lastInputTokens = usage.input_tokens;
+      }
+
+      if (functionCalls.length === 0) break;
+
       const toolCalls = parseOpenAIToolCalls(functionCalls);
-      onToolCall({ toolCalls, textBefore: textBefore || undefined });
+
+      if (!executeTools) {
+        // Called outside the orchestrator — surface via onToolCall
+        onToolCall({ toolCalls, textBefore: textBefore || undefined });
+        break;
+      }
+
+      if (signal?.aborted) break;
+      const results = await executeTools(toolCalls);
+
+      // Next pass: only function outputs — full context lives in previous_response_id
+      currentInput = results.map(r => ({
+        type: 'function_call_output',
+        call_id: r.toolCallId,
+        output: r.content,
+      }));
     }
 
-    const usage = (finalResponse as any).usage;
-    if (usage) {
+    // Extract citations from the final response (annotations on the last message turn)
+    if (lastFinalResponse) {
+      const citations = extractOpenAICitations(lastFinalResponse);
+      if (citations) {
+        onChunk('', citations);
+      }
+    }
+
+    if (totalOutputTokens > 0 || lastInputTokens != null) {
       return {
-        inputTokens: usage.input_tokens,
-        outputTokens: usage.output_tokens,
+        inputTokens: lastInputTokens,
+        outputTokens: totalOutputTokens || undefined,
       };
     }
   }

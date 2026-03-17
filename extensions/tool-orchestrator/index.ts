@@ -218,7 +218,8 @@ export async function orchestrate(
   // ── Phase 1: Retrieval ────────────────────────────────────────────────────
   const retrievalContext = await retrievalPhase({
     adapter, resolved, messages, historyItems, signal,
-    webSearchEnabled, schemas,
+    webSearchEnabled: false,   // web search conflicts with function calling in retrieval (Gemini hard error; wrong routing on others)
+    schemas,
     toolChoice: effectiveToolChoice,
     onToolActivity,
   });
