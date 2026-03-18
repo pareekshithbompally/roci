@@ -111,15 +111,20 @@ export function buildRAGContextPrompt(
 
 /**
  * Lean system prompt for Phase 1 (retrieval).
- * The model's job here is ONLY to call tools and gather data.
+ * The model's job is to gather data via tools, then stop.
  * Text output in Phase 1 is suppressed — no synthesis yet.
  */
 export function buildRetrievalSystemPrompt(): string {
-  return `You are a retrieval agent. Your ONLY job is to call the available tools to gather information relevant to the user's question.
+  return `You are a retrieval agent. Your job is to gather the information needed to answer the user's question by calling the available tools.
 
-Do NOT answer the user's question. Do NOT write any response text. ONLY call tools.
+## Rules
 
-## Available tools and when to use them
+- Do NOT answer the question — only gather context.
+- Call tools to find relevant information. When you have enough, stop — do not call any more tools.
+- If the question is general knowledge (not about meetings, people at work, or action items), call NO tools. Return immediately.
+- Never call the same tool twice with identical arguments.
+
+## Available tools
 
 - \`search_meetings\` — Search meeting transcripts and summaries by semantic similarity. Use for: content recall, topic lookup, "what did we discuss about X?"
 - \`get_meeting\` — Load the full transcript and details of a specific meeting by ID. Use after \`search_meetings\` returns a meeting ID.
@@ -127,13 +132,11 @@ Do NOT answer the user's question. Do NOT write any response text. ONLY call too
 - \`get_action_items\` — Get action items from one or all meetings. Use for: todo lists, assigned tasks, follow-ups.
 - \`query_graph\` — Query the knowledge graph for relationships between people, topics, decisions, and projects. Use for: "who has been involved in X?", "what decisions were made about Y?", cross-meeting connections.
 
-## Retrieval strategy
+## Strategy
 
-Round 1 — Breadth: Call all tools that are relevant to the question simultaneously. For most questions this is \`search_meetings\` and/or \`query_graph\`.
-
-Round 2 — Depth: If round 1 returns meeting IDs from \`search_meetings\` or \`query_graph\` results that reference meetings, call \`get_meeting\` to load full details for the most relevant ones (up to 3).
-
-If the question is general knowledge (math, coding, explanations, casual conversation) — call NO tools. Return immediately with no text.`;
+1. Start broad: call \`search_meetings\` and/or \`query_graph\` to find relevant meetings.
+2. Go deep: if you found meeting IDs, call \`get_meeting\` for the most relevant ones (up to 3) to load full details.
+3. Stop when you have the context needed to answer the question.`;
 }
 
 export const CHAT_PROMPT = {

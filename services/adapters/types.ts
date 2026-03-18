@@ -96,13 +96,6 @@ export interface ToolCallEvent {
 /** Callbacks for tool-aware streaming */
 export interface ToolStreamCallbacks extends StreamCallbacks {
   onToolCall: (event: ToolCallEvent) => void;
-  /**
-   * Optional executor supplied by the orchestrator.
-   * When provided, an adapter may call this to execute tools and receive results
-   * within a single invocation, managing the full agentic loop internally.
-   * Adapters that do not use this fall back to firing onToolCall per iteration.
-   */
-  executeTools?: (calls: ToolCall[]) => Promise<ToolResult[]>;
 }
 
 /** Provider-agnostic tool choice hint */
@@ -113,6 +106,16 @@ export interface ToolStreamOptions extends ChatStreamOptions {
   tools?: ToolSchema[];
   toolMessages?: ToolMessage[];
   toolChoice?: ToolChoice;
+  /** Opaque state returned by a previous adapter call. Used by adapters that need
+   *  cross-round continuity (e.g., OpenAI previous_response_id). */
+  adapterState?: unknown;
+}
+
+/** Result returned by chatStreamWithTools */
+export interface AdapterStreamResult {
+  tokenUsage?: TokenUsage;
+  /** Opaque state for the orchestrator to pass back on the next round. */
+  adapterState?: unknown;
 }
 
 /** Messages exchanged during tool calling turns */
@@ -130,5 +133,5 @@ export interface ILLMAdapter {
   processDocument(options: DocumentOptions): Promise<string>;
 
   /** Optional: tool-aware streaming. Adapters that support tool calling implement this. */
-  chatStreamWithTools?(options: ToolStreamOptions, callbacks: ToolStreamCallbacks): Promise<TokenUsage | undefined>;
+  chatStreamWithTools?(options: ToolStreamOptions, callbacks: ToolStreamCallbacks): Promise<AdapterStreamResult | undefined>;
 }

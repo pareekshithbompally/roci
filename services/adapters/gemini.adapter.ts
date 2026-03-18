@@ -11,7 +11,7 @@ import { blobToBase64 } from '@/utils/audioUtils';
 import { parseVTT } from '@/utils/vttParser';
 import { getOrCreate } from './client-cache';
 import { toGeminiHistory, toGeminiLastMessage } from './message-converter';
-import { toProviderTools, parseGeminiToolCalls } from './tool-converter';
+import { toProviderTools, parseGeminiToolCalls, toProviderAssistantToolCall } from './tool-converter';
 import type {
   ILLMAdapter,
   ChatStreamOptions,
@@ -23,6 +23,7 @@ import type {
   ToolStreamCallbacks,
   StreamMetadata,
   TokenUsage,
+  AdapterStreamResult,
 } from './types';
 
 function getClient(apiKey: string): GoogleGenAI {
@@ -53,9 +54,6 @@ function getMediaTypeFromMime(mimeType: string): 'image' | 'audio' | 'video' | n
   if (mimeType.startsWith('video/')) return 'video';
   return null;
 }
-
-/** Maximum tool-call/result passes within one agentic turn */
-const MAX_TOOL_PASSES = 6;
 
 function isToolsUnsupportedError(err: any): boolean {
   const msg = String(err?.message || '');
@@ -215,9 +213,10 @@ export class GeminiAdapter implements ILLMAdapter {
     }
   }
 
-  async chatStreamWithTools(options: ToolStreamOptions, callbacks: ToolStreamCallbacks): Promise<TokenUsage | undefined> {
-    const { messages, resolved, systemPrompt, webSearchEnabled, signal, tools: toolSchemas, toolChoice, outputSchema } = options;
-    const { onChunk, onToolCall, executeTools } = callbacks;
+  async chatStreamWithTools(options: ToolStreamOptions, callbacks: ToolStreamCallbacks): Promise<AdapterStreamResult | undefined> {
+    const { messages, resolved, systemPrompt, webSearchEnabled, signal,
+            tools: toolSchemas, toolMessages, toolChoice, outputSchema } = options;
+    const { onChunk, onToolCall } = callbacks;
     const ai = getClient(resolved.apiKey);
 
     const config: Record<string, unknown> = {
@@ -232,15 +231,12 @@ export class GeminiAdapter implements ILLMAdapter {
     }
 
     // Compose tools config: built-in grounding (googleSearch) + app function declarations.
-    // Both live in config.tools; the SDK sends them together. History is irrelevant here —
-    // the SDK chat session owns history for this entire agentic turn.
+    // googleSearch and functionDeclarations cannot coexist in the same Gemini request.
     const configTools: any[] = [];
     if (toolChoice !== 'none') {
       if (toolSchemas?.length) {
         configTools.push(...toProviderTools(toolSchemas, 'gemini'));
       } else if (webSearchEnabled) {
-        // googleSearch and functionDeclarations cannot coexist in the same Gemini request —
-        // only add web search when there are no custom function tools.
         configTools.push({ googleSearch: {} });
       }
     }
@@ -262,11 +258,66 @@ export class GeminiAdapter implements ILLMAdapter {
 
     const priorMessages = messages.slice(0, -1);
     const lastMessage = messages[messages.length - 1];
-    const lastParts = toGeminiLastMessage(lastMessage);
+
+    // Build Gemini history: conversation turns + tool turn history from toolMessages.
+    // On round 0, history is just the conversation. On round 1+, tool call/result pairs
+    // from prior rounds are appended, and the user's original message is included.
+    const geminiHistory = toGeminiHistory(priorMessages);
+
+    let messageToSend: any;
+    const isFirstRound = !toolMessages?.length;
+
+    if (!isFirstRound) {
+      // Append the user's last message to history (it was the trigger for this orchestration turn)
+      geminiHistory.push({ role: 'user' as const, parts: toGeminiLastMessage(lastMessage) });
+
+      // Append tool turn pairs from toolMessages into history.
+      // All assistant_tool_call entries go into history as model turns.
+      // All tool_result entries EXCEPT the last go into history as user turns.
+      // The last tool_result becomes the message we send (functionResponse parts).
+      const toolResultEntries = toolMessages!.filter(m => m.role === 'tool_result');
+      const toolCallEntries = toolMessages!.filter(m => m.role === 'assistant_tool_call');
+
+      for (let i = 0; i < toolCallEntries.length; i++) {
+        const tc = toolCallEntries[i];
+        const assistantTurn = toProviderAssistantToolCall(tc.toolCalls, tc.textBefore, 'gemini');
+        if (assistantTurn) geminiHistory.push(assistantTurn);
+
+        // Add all tool results to history except the last one
+        if (i < toolResultEntries.length - 1) {
+          const tr = toolResultEntries[i];
+          geminiHistory.push({
+            role: 'user',
+            parts: tr.results.map((r, idx) => ({
+              functionResponse: {
+                name: tc.toolCalls[idx]?.name || 'unknown',
+                response: { output: r.content },
+                ...(tc.toolCalls[idx]?.id && { id: tc.toolCalls[idx].id }),
+              },
+            })),
+          });
+        }
+      }
+
+      // The last tool_result becomes the message to send
+      const lastResult = toolResultEntries.at(-1);
+      const lastCalls = toolCallEntries.at(-1);
+      if (lastResult && lastCalls) {
+        messageToSend = lastResult.results.map((r, idx) => ({
+          functionResponse: {
+            name: lastCalls.toolCalls[idx]?.name || 'unknown',
+            response: { output: r.content },
+            ...(lastCalls.toolCalls[idx]?.id && { id: lastCalls.toolCalls[idx].id }),
+          },
+        }));
+      } else {
+        messageToSend = toGeminiLastMessage(lastMessage);
+      }
+    } else {
+      messageToSend = toGeminiLastMessage(lastMessage);
+    }
 
     // Drain one streaming response: forward text to onChunk, collect functionCall parts.
-    // Tolerates stream teardown errors only when the model signaled completion.
-    // Returns the last usageMetadata from the stream (final chunk has totals).
     const drainStream = async (
       stream: AsyncGenerator<any>,
       calls: Array<{ name: string; args: Record<string, unknown>; id?: string }>
@@ -317,86 +368,49 @@ export class GeminiAdapter implements ILLMAdapter {
       return lastUsageMetadata;
     };
 
-    // One persistent SDK chat session for this entire agentic turn.
-    // The SDK stores every model response (including thoughtSignatures) in its internal
-    // history automatically, so we never touch history reconstruction ourselves.
+    // New chat session each round with reconstructed history
     const chat = ai.chats.create({
       model: resolved.modelId,
       config,
-      ...(priorMessages.length > 0 && { history: toGeminiHistory(priorMessages) }),
+      ...(geminiHistory.length > 0 && { history: geminiHistory }),
     });
 
-    // messageToSend: user parts on pass 0, functionResponse parts on subsequent passes
-    let messageToSend: any = lastParts;
-    let isFirstPass = true;
-    let totalOutputTokens = 0;
-    let lastInputTokens: number | undefined;
+    const collectedCalls: Array<{ name: string; args: Record<string, unknown>; id?: string }> = [];
 
-    for (let pass = 0; pass < MAX_TOOL_PASSES; pass++) {
-      if (signal?.aborted) break;
+    try {
+      const stream = await raceAbort(chat.sendMessageStream({ message: messageToSend }), signal);
+      const usageMeta = await drainStream(stream, collectedCalls);
 
-      const collectedCalls: Array<{ name: string; args: Record<string, unknown>; id?: string }> = [];
-
-      try {
-        const stream = await raceAbort(chat.sendMessageStream({ message: messageToSend }), signal);
-        const usageMeta = await drainStream(stream, collectedCalls);
-        if (usageMeta) {
-          totalOutputTokens += usageMeta.candidatesTokenCount || 0;
-          lastInputTokens = usageMeta.promptTokenCount;
-        }
-      } catch (err: any) {
-        // Some Gemini models (preview/experimental) reject function calling entirely.
-        // On the first pass only, rebuild without tools and stream a plain response.
-        if (isFirstPass && configTools.length > 0 && isToolsUnsupportedError(err)) {
-          console.warn(`[GeminiAdapter] ${resolved.modelId} does not support function calling — retrying without tools`);
-          const fallbackConfig = { ...config };
-          delete fallbackConfig.tools;
-          const fallbackChat = ai.chats.create({
-            model: resolved.modelId,
-            config: fallbackConfig,
-            ...(priorMessages.length > 0 && { history: toGeminiHistory(priorMessages) }),
-          });
-          await drainStream(await raceAbort(fallbackChat.sendMessageStream({ message: messageToSend }), signal), []);
-          return;
-        }
-        throw err;
-      }
-
-      isFirstPass = false;
-
-      // No function calls — model gave a final text response, done
-      if (collectedCalls.length === 0) break;
-
-      const toolCalls = parseGeminiToolCalls(collectedCalls);
-
-      if (!executeTools) {
-        // No executor provided (adapter called outside orchestrator) — surface via onToolCall
+      // Fire onToolCall if function calls detected
+      if (collectedCalls.length > 0) {
+        const toolCalls = parseGeminiToolCalls(collectedCalls);
         onToolCall({ toolCalls });
-        break;
       }
 
-      // Execute tools via the orchestrator callback (activity reporting happens there).
-      // Then send results back through the SAME chat session.
-      // The SDK has already stored the model's function call turn (with thoughtSignature)
-      // in its history, so the next sendMessageStream gets the correct full context.
-      const results = await executeTools(toolCalls);
-
-      if (signal?.aborted) break;
-
-      messageToSend = results.map((r, idx) => ({
-        functionResponse: {
-          ...(toolCalls[idx]?.id && { id: toolCalls[idx].id }),
-          name: toolCalls[idx]?.name || 'unknown',
-          response: { output: r.content },
-        },
-      }));
-    }
-
-    if (totalOutputTokens > 0 || lastInputTokens != null) {
-      return {
-        inputTokens: lastInputTokens,
-        outputTokens: totalOutputTokens || undefined,
-      };
+      if (usageMeta) {
+        return {
+          tokenUsage: {
+            inputTokens: usageMeta.promptTokenCount,
+            outputTokens: usageMeta.candidatesTokenCount,
+          },
+        };
+      }
+    } catch (err: any) {
+      // Some Gemini models (preview/experimental) reject function calling entirely.
+      // On the first round only, rebuild without tools and stream a plain response.
+      if (isFirstRound && configTools.length > 0 && isToolsUnsupportedError(err)) {
+        console.warn(`[GeminiAdapter] ${resolved.modelId} does not support function calling — retrying without tools`);
+        const fallbackConfig = { ...config };
+        delete fallbackConfig.tools;
+        const fallbackChat = ai.chats.create({
+          model: resolved.modelId,
+          config: fallbackConfig,
+          ...(geminiHistory.length > 0 && { history: geminiHistory }),
+        });
+        await drainStream(await raceAbort(fallbackChat.sendMessageStream({ message: messageToSend }), signal), []);
+        return;
+      }
+      throw err;
     }
   }
 

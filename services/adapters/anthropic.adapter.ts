@@ -26,6 +26,7 @@ import type {
   ToolStreamOptions,
   ToolStreamCallbacks,
   TokenUsage,
+  AdapterStreamResult,
 } from './types';
 
 function getClient(apiKey: string): Anthropic {
@@ -155,7 +156,7 @@ export class AnthropicAdapter implements ILLMAdapter {
     return { text: textBlock ? (textBlock as any).text : 'No response.' };
   }
 
-  async chatStreamWithTools(options: ToolStreamOptions, callbacks: ToolStreamCallbacks): Promise<TokenUsage | undefined> {
+  async chatStreamWithTools(options: ToolStreamOptions, callbacks: ToolStreamCallbacks): Promise<AdapterStreamResult | undefined> {
     const { messages, resolved, systemPrompt, webSearchEnabled, signal, tools: toolSchemas, toolMessages, toolChoice, outputSchema } = options;
     const { onChunk, onToolCall } = callbacks;
 
@@ -275,8 +276,10 @@ export class AnthropicAdapter implements ILLMAdapter {
 
     if (finalMessage.usage) {
       return {
-        inputTokens: finalMessage.usage.input_tokens,
-        outputTokens: finalMessage.usage.output_tokens,
+        tokenUsage: {
+          inputTokens: finalMessage.usage.input_tokens,
+          outputTokens: finalMessage.usage.output_tokens,
+        },
       };
     }
   }

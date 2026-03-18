@@ -212,7 +212,18 @@ export function toProviderAssistantToolCall(
       };
     }
 
-    // OpenAI Responses API and Gemini handle this differently (history is managed by the SDK)
+    case 'gemini': {
+      const parts = toolCalls.map(tc => ({
+        functionCall: {
+          name: tc.name,
+          args: tc.arguments,
+          ...(tc.id && { id: tc.id }),
+        },
+      }));
+      return { role: 'model', parts };
+    }
+
+    // OpenAI Responses API uses previous_response_id for history
     default:
       return null;
   }
