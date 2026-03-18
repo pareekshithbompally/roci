@@ -68,7 +68,7 @@ const ToolCallSummary: React.FC<ToolCallSummaryProps> = ({ parts }) => {
       </button>
 
       {expanded && (
-        <div className={`border-t ${BORDER.subtle} px-3 py-2 space-y-2`}>
+        <div className={`border-t ${BORDER.subtle} px-3 py-2 space-y-2 max-h-48 overflow-y-auto`}>
           {parts.map((part) => (
             <div key={part.toolCallId} className="text-xs space-y-1">
               <div className={`font-medium ${TEXT.secondary}`}>
