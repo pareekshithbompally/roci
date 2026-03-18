@@ -24,6 +24,7 @@ import type {
   ToolStreamCallbacks,
   StreamMetadata,
   TokenUsage,
+  AdapterStreamResult,
 } from './types';
 import { MANAGED_DEFAULT_URLS } from '../../consts/providers';
 
@@ -163,13 +164,15 @@ export class OpenAIAdapter implements ILLMAdapter {
     return { text: response.output_text || 'No response.' };
   }
 
-  async chatStreamWithTools(options: ToolStreamOptions, callbacks: ToolStreamCallbacks): Promise<TokenUsage | undefined> {
-    const { messages, resolved, systemPrompt, webSearchEnabled, signal, tools: toolSchemas, toolChoice, outputSchema } = options;
-    const { onChunk, onToolCall, executeTools } = callbacks;
+  async chatStreamWithTools(options: ToolStreamOptions, callbacks: ToolStreamCallbacks): Promise<AdapterStreamResult | undefined> {
+    const { messages, resolved, systemPrompt, webSearchEnabled, signal,
+            tools: toolSchemas, toolMessages, toolChoice, adapterState, outputSchema } = options;
+    const { onChunk, onToolCall } = callbacks;
 
     if (signal?.aborted) return;
 
     const client = getClient(resolved.apiKey, resolved.baseUrl);
+    const prevState = adapterState as { previousResponseId?: string } | undefined;
 
     // Build tools array — omit entirely when toolChoice is 'none'
     const tools: any[] = [];
@@ -185,11 +188,36 @@ export class OpenAIAdapter implements ILLMAdapter {
     // OpenAI Responses API: tool_choice maps directly — 'auto' | 'required' | 'none'
     const openaiToolChoice = toolChoice && tools.length > 0 ? toolChoice : undefined;
 
-    // Params shared across all passes (input supplied per-pass)
-    const baseParams: any = {
+    // Build input based on round.
+    // Round 0: full conversation history.
+    // Round 1+: only function_call_output items — previous_response_id carries server-side context.
+    let currentInput: any[];
+    let previousResponseId: string | undefined;
+
+    if (prevState?.previousResponseId && toolMessages?.length) {
+      previousResponseId = prevState.previousResponseId;
+      const lastToolResult = toolMessages.filter(m => m.role === 'tool_result').at(-1);
+      currentInput = lastToolResult
+        ? lastToolResult.results.map(r => ({
+            type: 'function_call_output',
+            call_id: r.toolCallId,
+            output: r.content,
+          }))
+        : toOpenAIResponsesInput(messages, systemPrompt);
+    } else {
+      currentInput = toOpenAIResponsesInput(messages, systemPrompt);
+    }
+
+    // Single-pass: stream one response, collect any function calls
+    const functionCalls: Array<{ call_id: string; name: string; arguments: string }> = [];
+    let textBefore = '';
+
+    const requestParams: any = {
       model: resolved.modelId,
+      input: currentInput,
       ...(tools.length > 0 && { tools }),
       ...(openaiToolChoice && { tool_choice: openaiToolChoice }),
+      ...(previousResponseId && { previous_response_id: previousResponseId }),
       ...(outputSchema && {
         text: {
           format: {
@@ -202,98 +230,53 @@ export class OpenAIAdapter implements ILLMAdapter {
       }),
     };
 
-    const MAX_TOOL_PASSES = 6;
-    // Pass 0: full conversation history; pass 1+: only function_call_output items
-    // previous_response_id carries the full server-side context between passes,
-    // eliminating the need to reconstruct function_call items (which require a
-    // server-assigned item id we never capture).
-    let currentInput: any[] = toOpenAIResponsesInput(messages, systemPrompt);
-    let previousResponseId: string | undefined;
-    let totalOutputTokens = 0;
-    let lastInputTokens: number | undefined;
-    let lastFinalResponse: any;
+    const runner = client.responses
+      .stream(requestParams)
+      .on('response.output_text.delta', (event: any) => {
+        onChunk(event.delta);
+        textBefore += event.delta;
+      })
+      .on('response.web_search_call.searching', () => {
+        onChunk('', { isSearching: true });
+      })
+      .on('response.output_item.done', (event: any) => {
+        if (event.item?.type === 'function_call') {
+          functionCalls.push({
+            call_id: event.item.call_id,
+            name: event.item.name,
+            arguments: event.item.arguments,
+          });
+        }
+      });
 
-    for (let pass = 0; pass < MAX_TOOL_PASSES; pass++) {
-      if (signal?.aborted) break;
+    if (signal) {
+      if (signal.aborted) { runner.abort(); return; }
+      signal.addEventListener('abort', () => runner.abort(), { once: true });
+    }
 
-      const functionCalls: Array<{ call_id: string; name: string; arguments: string }> = [];
-      let textBefore = '';
+    const finalResponse = await runner.finalResponse();
 
-      const requestParams: any = {
-        ...baseParams,
-        input: currentInput,
-        ...(previousResponseId && { previous_response_id: previousResponseId }),
-      };
-
-      const runner = client.responses
-        .stream(requestParams)
-        .on('response.output_text.delta', (event: any) => {
-          onChunk(event.delta);
-          textBefore += event.delta;
-        })
-        .on('response.web_search_call.searching', () => {
-          onChunk('', { isSearching: true });
-        })
-        .on('response.output_item.done', (event: any) => {
-          if (event.item?.type === 'function_call') {
-            functionCalls.push({
-              call_id: event.item.call_id,
-              name: event.item.name,
-              arguments: event.item.arguments,
-            });
-          }
-        });
-
-      if (signal) {
-        if (signal.aborted) { runner.abort(); return; }
-        signal.addEventListener('abort', () => runner.abort(), { once: true });
-      }
-
-      const finalResponse = await runner.finalResponse();
-      lastFinalResponse = finalResponse;
-      previousResponseId = (finalResponse as any).id;
-
-      const usage = (finalResponse as any).usage;
-      if (usage) {
-        totalOutputTokens += usage.output_tokens || 0;
-        lastInputTokens = usage.input_tokens;
-      }
-
-      if (functionCalls.length === 0) break;
-
+    // Fire onToolCall if function calls were detected
+    if (functionCalls.length > 0) {
       const toolCalls = parseOpenAIToolCalls(functionCalls);
-
-      if (!executeTools) {
-        // Called outside the orchestrator — surface via onToolCall
-        onToolCall({ toolCalls, textBefore: textBefore || undefined });
-        break;
-      }
-
-      if (signal?.aborted) break;
-      const results = await executeTools(toolCalls);
-
-      // Next pass: only function outputs — full context lives in previous_response_id
-      currentInput = results.map(r => ({
-        type: 'function_call_output',
-        call_id: r.toolCallId,
-        output: r.content,
-      }));
+      onToolCall({ toolCalls, textBefore: textBefore || undefined });
     }
 
-    // Extract citations from the final response (annotations on the last message turn)
-    if (lastFinalResponse) {
-      const citations = extractOpenAICitations(lastFinalResponse);
-      if (citations) {
-        onChunk('', citations);
-      }
+    // Extract citations from the final response
+    const citations = extractOpenAICitations(finalResponse);
+    if (citations) {
+      onChunk('', citations);
     }
 
-    if (totalOutputTokens > 0 || lastInputTokens != null) {
-      return {
-        inputTokens: lastInputTokens,
-        outputTokens: totalOutputTokens || undefined,
-      };
-    }
+    const usage = (finalResponse as any).usage;
+    return {
+      tokenUsage: usage ? {
+        inputTokens: usage.input_tokens,
+        outputTokens: usage.output_tokens,
+      } : undefined,
+      // Carry response ID for server-side context continuity on next round
+      adapterState: { previousResponseId: (finalResponse as any).id },
+    };
   }
 
   async processAudio(options: TranscriptionOptions): Promise<string> {

@@ -5,6 +5,10 @@
  *  Phase 1 — retrievalPhase(): lean retrieval prompt, tools available (parallel), text suppressed from UI.
  *  Phase 2 — synthesisPhase(): full system prompt + retrieved context, no tools, streams to user.
  *
+ * All adapters are single-pass. The orchestrator owns the loop for all providers.
+ * The LLM decides when it has enough context (no tool calls = done).
+ * A safety cap prevents infinite loops from bugs but should never be hit.
+ *
  * Single call site from ChatContext — orchestrate() signature unchanged.
  */
 
@@ -19,8 +23,9 @@ import { MessageBuffer } from './message-buffer';
 import type { OrchestratorOptions, OrchestratorCallbacks, ToolActivity } from './types';
 import { buildRetrievalSystemPrompt } from '@core/ai/prompts/chat.prompt';
 
-const MAX_RETRIEVAL_ROUNDS = 2;  // breadth (round 1) + depth (round 2)
-// MAX_SYNTHESIS_ROUNDS = 1 — synthesis is always single-pass
+// Safety cap — the LLM should stop naturally (no tool calls = done).
+// This exists only to prevent infinite loops from bugs or confused models.
+const RETRIEVAL_SAFETY_CAP = 10;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -58,32 +63,11 @@ async function retrievalPhase(params: {
 
   const buffer = new MessageBuffer(messages);
   const allToolResults: ToolResult[] = [];
-
-  // Parallel tool executor — captures results for context assembly
-  const executeTools = async (calls: ToolCall[]): Promise<ToolResult[]> => {
-    if (signal?.aborted) return [];
-
-    return Promise.all(
-      calls.map(async (call) => {
-        const activity: ToolActivity = {
-          toolName: call.name,
-          label: toolLabel(call.name, 'calling'),
-          status: 'calling',
-          toolCall: call,
-        };
-        onToolActivity(activity);
-
-        const result = await toolExecutor.execute(call, { historyItems, signal });
-        allToolResults.push(result);
-        onToolActivity({ ...activity, status: 'done', result });
-        return result;
-      })
-    );
-  };
+  let adapterState: unknown;
 
   const retrievalSystemPrompt = buildRetrievalSystemPrompt();
 
-  for (let round = 0; round < MAX_RETRIEVAL_ROUNDS; round++) {
+  for (let round = 0; round < RETRIEVAL_SAFETY_CAP; round++) {
     if (signal?.aborted) break;
 
     let pendingToolCalls: ToolCall[] | null = null;
@@ -99,6 +83,7 @@ async function retrievalPhase(params: {
       toolMessages: buffer.getToolMessages(),
       outputSchema: undefined,
       toolChoice,
+      adapterState,
     };
 
     const streamCallbacks: ToolStreamCallbacks = {
@@ -108,17 +93,42 @@ async function retrievalPhase(params: {
         pendingToolCalls = event.toolCalls;
         textBefore = event.textBefore;
       },
-      executeTools,                            // used by Gemini's internal loop
     };
 
-    // Gemini: runs its own multi-pass loop via executeTools callback, returns when done.
-    // Non-Gemini: single pass, fires onToolCall, returns. Outer loop drives next round.
-    await adapter.chatStreamWithTools!(streamOptions, streamCallbacks);
+    // All adapters: single pass, fires onToolCall if tools requested, returns.
+    const result = await adapter.chatStreamWithTools!(streamOptions, streamCallbacks);
+    if (result?.adapterState) {
+      adapterState = result.adapterState;
+    }
 
+    // LLM decided: no more tools needed → done
     if (!pendingToolCalls || pendingToolCalls.length === 0) break;
 
+    // Record tool calls in buffer for history reconstruction on next round
     buffer.addAssistantToolCalls(pendingToolCalls, textBefore);
-    const results = await executeTools(pendingToolCalls);
+
+    // Execute tools in parallel, report activity to UI
+    const results = await Promise.all(
+      pendingToolCalls.map(async (call) => {
+        if (signal?.aborted) {
+          return { toolCallId: call.id, content: '', isError: true } as ToolResult;
+        }
+
+        const activity: ToolActivity = {
+          toolName: call.name,
+          label: toolLabel(call.name, 'calling'),
+          status: 'calling',
+          toolCall: call,
+        };
+        onToolActivity(activity);
+
+        const result = await toolExecutor.execute(call, { historyItems, signal });
+        allToolResults.push(result);
+        onToolActivity({ ...activity, status: 'done', result });
+        return result;
+      })
+    );
+
     buffer.addToolResults(results);
   }
 
@@ -166,21 +176,17 @@ async function synthesisPhase(params: {
     onChunk,
     onMediaPart,
     onToolCall: () => {},                      // should never fire with toolChoice:'none'
-    executeTools: undefined,
   };
 
-  let accumulatedOutputTokens = 0;
-  let lastInputTokens: number | undefined;
+  const result = await adapter.chatStreamWithTools!(streamOptions, streamCallbacks);
+  const iterationUsage = result?.tokenUsage;
 
-  const iterationUsage = await adapter.chatStreamWithTools!(streamOptions, streamCallbacks);
   if (iterationUsage) {
-    accumulatedOutputTokens += iterationUsage.outputTokens || 0;
-    lastInputTokens = iterationUsage.inputTokens;
+    return {
+      inputTokens: iterationUsage.inputTokens,
+      outputTokens: iterationUsage.outputTokens,
+    };
   }
-
-  return accumulatedOutputTokens > 0 || lastInputTokens != null
-    ? { inputTokens: lastInputTokens, outputTokens: accumulatedOutputTokens || undefined }
-    : undefined;
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────

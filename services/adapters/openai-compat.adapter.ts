@@ -26,6 +26,7 @@ import type {
   ToolStreamOptions,
   ToolStreamCallbacks,
   TokenUsage,
+  AdapterStreamResult,
 } from './types';
 
 function getClient(apiKey: string, baseURL: string, customHeaders?: Record<string, string>): OpenAI {
@@ -111,7 +112,7 @@ export class OpenAICompatAdapter implements ILLMAdapter {
     }
   }
 
-  async chatStreamWithTools(options: ToolStreamOptions, callbacks: ToolStreamCallbacks): Promise<TokenUsage | undefined> {
+  async chatStreamWithTools(options: ToolStreamOptions, callbacks: ToolStreamCallbacks): Promise<AdapterStreamResult | undefined> {
     const { messages, resolved, systemPrompt, signal, tools: toolSchemas, toolMessages, toolChoice, outputSchema } = options;
     const { onChunk, onToolCall } = callbacks;
 
@@ -217,8 +218,10 @@ export class OpenAICompatAdapter implements ILLMAdapter {
 
     if (finalCompletion.usage) {
       return {
-        inputTokens: finalCompletion.usage.prompt_tokens,
-        outputTokens: finalCompletion.usage.completion_tokens,
+        tokenUsage: {
+          inputTokens: finalCompletion.usage.prompt_tokens,
+          outputTokens: finalCompletion.usage.completion_tokens,
+        },
       };
     }
   }
