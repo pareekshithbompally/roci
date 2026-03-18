@@ -6,7 +6,7 @@
  */
 
 import type { HistoryItem, Note, ActionItem, NoteEntry, TodoEntry } from '@/types';
-import { notesRepository, todosRepository } from './repositories';
+import { notesRepository, todosRepository, summaryRepository, transcriptRepository } from './repositories';
 
 /**
  * Meeting reference with full context for AI chat
@@ -77,16 +77,31 @@ class MeetingReferenceService {
       id: historyItem.id,
       title: historyItem.title,
       timestamp: historyItem.timestamp,
-      summary: historyItem.summary,
       categories: historyItem.categories,
     };
 
-    // Load notes and todos from repositories
+    // Load all data from disk repositories
     try {
-      const [noteEntries, todoEntries] = await Promise.all([
+      const [summaryDoc, transcriptDoc, noteEntries, todoEntries] = await Promise.all([
+        !historyItem.summary ? summaryRepository.readDoc(historyItem.id) : null,
+        !historyItem.transcript ? transcriptRepository.readDoc(historyItem.id) : null,
         notesRepository.readDoc(historyItem.id),
         todosRepository.readDoc(historyItem.id),
       ]);
+
+      // Summary: prefer in-memory, fall back to disk
+      if (historyItem.summary) {
+        reference.summary = historyItem.summary;
+      } else if (summaryDoc) {
+        reference.summary = summaryDoc.overview || '';
+      }
+
+      // Transcript: prefer in-memory, fall back to disk
+      if (historyItem.transcript) {
+        reference.transcript = historyItem.transcript;
+      } else if (transcriptDoc?.text) {
+        reference.transcript = transcriptDoc.text;
+      }
 
       if (noteEntries && noteEntries.length > 0) {
         reference.notes = noteEntries.map((n: NoteEntry) => ({
@@ -146,11 +161,53 @@ class MeetingReferenceService {
       };
 
       if (fieldSet.has('summary')) {
-        ref.summary = item.summary;
+        // Prefer in-memory value if present, otherwise load from disk
+        if (item.summary) {
+          ref.summary = item.summary;
+        } else {
+          try {
+            const summaryDoc = await summaryRepository.readDoc(item.id);
+            if (summaryDoc) {
+              // Format structured summary into readable text
+              const parts: string[] = [];
+              if (summaryDoc.overview) parts.push(summaryDoc.overview);
+              if (summaryDoc.keyDiscussionPoints?.length) {
+                parts.push('Key Discussion Points:\n' + summaryDoc.keyDiscussionPoints.map(p => `- ${p}`).join('\n'));
+              }
+              if (summaryDoc.decisionsMade?.length) {
+                parts.push('Decisions Made:\n' + summaryDoc.decisionsMade.map(d => `- ${d}`).join('\n'));
+              }
+              if (summaryDoc.actionItems?.length) {
+                parts.push('Action Items:\n' + summaryDoc.actionItems.map(a => {
+                  const owner = a.owner ? ` (${a.owner})` : '';
+                  const due = a.dueDate ? ` — due ${a.dueDate}` : '';
+                  return `- ${a.text}${owner}${due}`;
+                }).join('\n'));
+              }
+              if (summaryDoc.nextSteps?.length) {
+                parts.push('Next Steps:\n' + summaryDoc.nextSteps.map(s => `- ${s}`).join('\n'));
+              }
+              ref.summary = parts.join('\n\n');
+            }
+          } catch (error) {
+            console.error('[MeetingReferenceService] Error loading summary from disk:', error);
+          }
+        }
       }
 
       if (fieldSet.has('transcript')) {
-        ref.transcript = item.transcript;
+        if (item.transcript) {
+          ref.transcript = item.transcript;
+        } else {
+          try {
+            const transcriptDoc = await transcriptRepository.readDoc(item.id);
+            if (transcriptDoc?.text) {
+              ref.transcript = transcriptDoc.text;
+            }
+          } catch (error) {
+            console.error('[MeetingReferenceService] Error loading transcript from disk:', error);
+          }
+        }
       }
 
       if (fieldSet.has('notes') || fieldSet.has('actionItems')) {

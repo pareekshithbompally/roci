@@ -2,11 +2,12 @@
  * Tool Orchestrator
  *
  * Two-phase design:
- *  Phase 1 — retrievalPhase(): lean retrieval prompt, tools available, text suppressed from UI.
- *  Phase 2 — synthesisPhase(): full system prompt + retrieved context, no tools, streams to user.
+ *  Phase 1 — retrievalPhase(): lean retrieval prompt, custom tools, text suppressed from UI.
+ *  Phase 2 — synthesisPhase(): full system prompt + retrieved context, native provider tools
+ *            (web search), streams to user with UI feedback for native tool activity.
  *
  * Uses the AI SDK's generateText with stopWhen:stepCountIs() for Phase 1 — the SDK handles
- * the tool-call loop internally. Phase 2 uses streamText for real-time output.
+ * the tool-call loop internally. Phase 2 uses streamText with stopWhen for native tools.
  *
  * Single call site from ChatContext — orchestrate() signature unchanged.
  */
@@ -26,6 +27,12 @@ import type { TokenUsage } from '@/services/ai/types';
 // Safety cap — the LLM should stop naturally (no tool calls = done).
 // This exists only to prevent infinite loops from bugs or confused models.
 const RETRIEVAL_SAFETY_CAP = 10;
+
+// Native provider tools (web search) need multi-step: model calls tool → provider
+// executes server-side → SDK feeds results back → model generates text.
+// 3 steps is enough: call + result + synthesis. Without this, streamText does one
+// step and the chain dies silently after the tool call.
+const SYNTHESIS_TOOL_STEPS = 3;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -142,6 +149,7 @@ async function synthesisPhase(params: {
   retrievalContext: string;
   onChunk: OrchestratorCallbacks['onChunk'];
   onMediaPart?: OrchestratorCallbacks['onMediaPart'];
+  onToolActivity: OrchestratorCallbacks['onToolActivity'];
 }): Promise<TokenUsage | undefined> {
   const model = createModel(params.resolved);
   const webSearchTools = params.webSearchEnabled ? getWebSearchTools(params.resolved) : undefined;
@@ -162,11 +170,22 @@ async function synthesisPhase(params: {
     system: params.systemPrompt,
     messages: sdkMessages,
     abortSignal: params.signal,
-    ...(webSearchTools && { tools: webSearchTools }),
+    ...(webSearchTools && {
+      tools: webSearchTools,
+      // Native provider tools (web search) are server-executed but the SDK still
+      // needs multiple steps: model calls tool → provider runs it → model gets
+      // results → model generates text. Without this the chain dies after step 1.
+      stopWhen: stepCountIs(SYNTHESIS_TOOL_STEPS),
+    }),
     ...(params.outputSchema && { output: Output.object({ schema: jsonSchema(params.outputSchema.schema) }) }),
   });
 
   const collectedSources: Array<{ url: string; title: string }> = [];
+
+  // Native tools (web search) are server-executed — sources arrive AFTER the
+  // tool-call part. We defer marking them "done" until the stream ends so the
+  // result block shows actual source count instead of "Done".
+  const pendingNativeTools = new Map<string, { toolName: string; call: ToolCall }>();
 
   let hasText = false;
 
@@ -181,11 +200,37 @@ async function synthesisPhase(params: {
       case 'reasoning-delta':
         params.onChunk('', { isThinking: true, thinkingContent: part.text });
         break;
-      case 'tool-input-start':
-        if (part.toolName === 'webSearch' || part.toolName === 'googleSearch') {
-          params.onChunk('', { isSearching: true });
+
+      // ── Native tool UI feedback ──────────────────────────────────────
+      // Provider-defined tools (web search) are executed server-side by the
+      // provider API. The SDK streams tool-input-start when the model begins
+      // a tool call, then tool-call when it's finalized. We emit 'calling'
+      // immediately for the spinner, but defer 'done' until after sources
+      // are counted so the result shows meaningful data.
+      case 'tool-input-start': {
+        const call: ToolCall = {
+          id: part.id,
+          name: part.toolName,
+          arguments: {},
+        };
+        pendingNativeTools.set(part.id, { toolName: part.toolName, call });
+        params.onToolActivity({
+          toolName: part.toolName,
+          label: toolLabel(part.toolName, 'calling'),
+          status: 'calling',
+          toolCall: call,
+        });
+        break;
+      }
+      case 'tool-call': {
+        // Update stored call with final args — don't emit 'done' yet
+        const pending = pendingNativeTools.get(part.toolCallId);
+        if (pending) {
+          pending.call.arguments = (part.input != null ? part.input : {}) as Record<string, unknown>;
         }
         break;
+      }
+
       case 'source':
         if (part.sourceType === 'url') {
           collectedSources.push({ url: part.url, title: part.title || '' });
@@ -199,16 +244,38 @@ async function synthesisPhase(params: {
     }
   }
 
-  // Detect empty response (e.g. content filter, Gemini returning no text after tool context)
+  // ── Finalize native tool blocks with actual results ─────────────────
+  // Now that sources are fully collected, mark each native tool as done
+  // with a meaningful result instead of "Done".
+  for (const [, { toolName, call }] of pendingNativeTools) {
+    const sourceCount = collectedSources.length;
+    const content = sourceCount > 0
+      ? `Found ${sourceCount} source${sourceCount !== 1 ? 's' : ''}`
+      : 'Search complete — no sources returned';
+
+    params.onToolActivity({
+      toolName,
+      label: toolLabel(toolName, 'complete'),
+      status: 'done',
+      toolCall: call,
+      result: {
+        toolCallId: call.id,
+        content,
+        isError: false,
+        meta: { toolName, executionMs: 0 },
+      },
+    });
+  }
+
+  // Detect empty response — synthesis must always produce text.
   if (!hasText && !params.signal?.aborted) {
     const finishReason = await result.finishReason;
     console.warn('[Orchestrator] Synthesis produced no text. finishReason:', finishReason);
-    if (finishReason === 'content-filter') {
-      throw new Error('Response blocked by content filter.');
-    }
-    if (finishReason === 'error') {
-      throw new Error('Model returned an error during synthesis.');
-    }
+    throw new Error(
+      finishReason === 'content-filter'
+        ? 'Response blocked by content filter.'
+        : `Model produced no text response (finish reason: ${finishReason ?? 'unknown'}). This may indicate a web search failure or an unsupported model.`
+    );
   }
 
   if (collectedSources.length > 0) {
@@ -260,7 +327,7 @@ export async function orchestrate(
   const tokenUsage = await synthesisPhase({
     resolved, messages, systemPrompt, outputSchema,
     webSearchEnabled, signal, retrievalContext,
-    onChunk, onMediaPart,
+    onChunk, onMediaPart, onToolActivity,
   });
 
   return {

@@ -3,11 +3,16 @@ export function toolLabel(toolName: string, status: 'calling' | 'complete' | 'er
   if (status === 'error') return `${formatToolName(toolName)} failed`;
 
   const labels: Record<string, [string, string]> = {
+    // Custom meeting tools
     search_meetings:  ['Searching meetings…', 'Searched meetings'],
     get_meeting:      ['Retrieving meeting…', 'Retrieved meeting'],
     list_meetings:    ['Listing meetings…', 'Listed meetings'],
     get_action_items: ['Getting action items…', 'Found action items'],
     query_graph:      ['Querying knowledge graph…', 'Queried knowledge graph'],
+    // Native provider tools (web search)
+    webSearch:        ['Searching the web…', 'Searched the web'],
+    googleSearch:     ['Searching the web…', 'Searched the web'],
+    webSearchPreview: ['Searching the web…', 'Searched the web'],
   };
 
   const pair = labels[toolName];

@@ -5,7 +5,7 @@
  * and parses responses. No provider-specific logic lives here.
  */
 
-import { streamText, generateText, Output, jsonSchema } from 'ai';
+import { streamText, generateText, Output, jsonSchema, stepCountIs } from 'ai';
 import type { FilePart, TextPart, UserContent } from 'ai';
 import type { ModelProvider } from '@/types/modelProviders';
 import type { ProcessedResult, ChatMessage, ChatPart, AppSettings } from '@/types';
@@ -231,7 +231,10 @@ class UnifiedAIService {
       system: systemPrompt,
       messages: toSDKMessages(messages),
       abortSignal: signal,
-      ...(webSearchTools && { tools: webSearchTools }),
+      ...(webSearchTools && {
+        tools: webSearchTools,
+        stopWhen: stepCountIs(3),
+      }),
       ...(outputSchema && { output: Output.object({ schema: jsonSchema(outputSchema.schema) }) }),
     });
 
@@ -251,9 +254,7 @@ class UnifiedAIService {
           onChunk('', { isThinking: true, thinkingContent: part.text });
           break;
         case 'tool-input-start':
-          if (part.toolName === 'webSearch' || part.toolName === 'googleSearch') {
-            onChunk('', { isSearching: true });
-          }
+          onChunk('', { isSearching: true });
           break;
         case 'source':
           if (part.sourceType === 'url') {
@@ -271,12 +272,11 @@ class UnifiedAIService {
     if (!hasText && !signal?.aborted) {
       const finishReason = await result.finishReason;
       console.warn('[UnifiedAI] Chat stream produced no text. finishReason:', finishReason);
-      if (finishReason === 'content-filter') {
-        throw new Error('Response blocked by content filter.');
-      }
-      if (finishReason === 'error') {
-        throw new Error('Model returned an error.');
-      }
+      throw new Error(
+        finishReason === 'content-filter'
+          ? 'Response blocked by content filter.'
+          : `Model produced no text response (finish reason: ${finishReason ?? 'unknown'}).`
+      );
     }
 
     if (collectedSources.length > 0) {

@@ -89,11 +89,12 @@ export const searchMeetingsTool: ToolDefinition = {
       );
     }
 
-    // Build UI-only citation cards (one per meeting, highest-score chunk)
+    // Build UI-only citation cards — only high-confidence matches
+    // so Sources shows the truly relevant meetings, not every vague hit.
     const citations: MeetingCitation[] = [];
     for (const [, hits] of byMeeting) {
       const first = hits[0];
-      if (first.score >= SCORE_MEDIUM) {
+      if (first.score >= SCORE_HIGH) {
         citations.push({
           meetingId: first.meetingId,
           meetingTitle: first.meetingTitle,

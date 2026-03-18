@@ -102,7 +102,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
 
   const handleSelectModel = (modelId: string) => {
     setSettings({ chatModel: modelId });
-    saveSettings();
+    saveSettings({ chatModel: modelId });
     setOpen(false);
 
     // Persist last-used model for auto-restore on next launch

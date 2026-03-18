@@ -5,7 +5,7 @@
  * Wraps meetingReferenceService.loadSelectiveContext + formatForLLM.
  */
 
-import type { ToolDefinition, ToolResult } from '../types';
+import type { ToolDefinition, ToolResult, MeetingCitation } from '../types';
 import { meetingReferenceService } from '../../../services/meetingReferenceService';
 import type { MeetingField } from '../../../services/meetingReferenceService';
 
@@ -75,11 +75,20 @@ export const getMeetingTool: ToolDefinition = {
       };
     }
 
+    // Build citation so the meeting appears in Sources UI
+    const citation: MeetingCitation = {
+      meetingId: historyItem.id,
+      meetingTitle: historyItem.title,
+      meetingTimestamp: historyItem.timestamp,
+      excerpt: formatted.slice(0, 300),
+      score: 1, // Explicit retrieval — always highest relevance
+    };
+
     return {
       toolCallId: '',
       content: formatted,
       isError: false,
-      meta: { toolName: 'get_meeting', executionMs: 0, resultCount: 1 },
+      meta: { toolName: 'get_meeting', executionMs: 0, resultCount: 1, citations: [citation] },
     };
   },
 };

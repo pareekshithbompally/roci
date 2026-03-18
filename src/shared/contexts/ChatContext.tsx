@@ -545,8 +545,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         supportsStructuredOutput: modelInfo?.capabilities?.structuredOutput !== false,
       });
 
-      // Structured output extractor
-      const extractor = config.outputSchema ? new JsonStreamExtractor() : null;
+      // Structured output and native provider tools (web search) don't mix —
+      // Output.object() uses a synthetic tool/schema enforcement that conflicts
+      // with real provider tools, causing stuck streams (Gemini) or missing
+      // suggestions (Anthropic). When web search is active, skip structured output.
+      const effectiveOutputSchema = state.webSearchEnabled ? undefined : config.outputSchema;
+      const extractor = effectiveOutputSchema ? new JsonStreamExtractor() : null;
 
       // Shared chunk handler for both paths
       const handleChunk = (chunk: string, metadata?: { isThinking?: boolean; isSearching?: boolean; searchQuery?: string; thinkingContent?: string; webCitations?: WebCitation[]; inlineCitations?: InlineCitationSpan[] }) => {
@@ -640,7 +644,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           {
             messages: messagesForProvider,
             systemPrompt: config.systemPrompt,
-            outputSchema: config.outputSchema,
+            outputSchema: effectiveOutputSchema,
             contextBlock: contextBlock || undefined,
             settings: effectiveSettings,
             providers: effectiveProviders,
@@ -713,7 +717,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           messages: messagesForProvider,
           resolved: resolved,
           systemPrompt: config.systemPrompt,
-          outputSchema: config.outputSchema,
+          outputSchema: effectiveOutputSchema,
           webSearchEnabled: state.webSearchEnabled,
           signal: abortControllerRef.current?.signal,
           onChunk: handleChunk,

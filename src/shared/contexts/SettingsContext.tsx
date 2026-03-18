@@ -54,7 +54,7 @@ interface SettingsContextValue extends SettingsState {
   /** Load settings from storage */
   loadSettings: () => Promise<void>;
   /** Save settings to storage */
-  saveSettings: () => Promise<void>;
+  saveSettings: (overrides?: Partial<AppSettings>) => Promise<void>;
 }
 
 const defaultSettings: AppSettings = {
@@ -294,25 +294,30 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   }, []);
 
   // Save settings to storage - uses ref to always get latest state
-  const saveSettings = useCallback(async () => {
+  const saveSettings = useCallback(async (overrides?: Partial<AppSettings>) => {
     const currentState = stateRef.current;
-    
+
     // Don't save if not initialized or still loading
     if (!isInitializedRef.current || currentState.isLoading) {
       console.log('[SettingsContext] Skipping save - not initialized or loading');
       return;
     }
 
+    // Merge overrides so callers can save values that haven't flushed to state yet
+    const effectiveSettings = overrides
+      ? { ...currentState.settings, ...overrides }
+      : currentState.settings;
+
     try {
       // Build settings object for storage using latest state from ref
       const settingsToSave: any = {
-        aiModel: currentState.settings.transcriptionModel,
-        chatModel: currentState.settings.chatModel,
-        geminiApiKey: currentState.settings.apiKey,
-        audioQualityPreset: currentState.settings.audioQualityPreset,
-        defaultAudioSource: currentState.settings.defaultAudioSource,
-        categories: currentState.settings.categories,
-        jobProcessing: currentState.settings.jobProcessing,
+        aiModel: effectiveSettings.transcriptionModel,
+        chatModel: effectiveSettings.chatModel,
+        geminiApiKey: effectiveSettings.apiKey,
+        audioQualityPreset: effectiveSettings.audioQualityPreset,
+        defaultAudioSource: effectiveSettings.defaultAudioSource,
+        categories: effectiveSettings.categories,
+        jobProcessing: effectiveSettings.jobProcessing,
         providers: currentState.providers,
         selectedProviderName: currentState.selectedProviderName,
         // Include other default fields
