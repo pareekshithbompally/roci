@@ -1,6 +1,6 @@
 import type { AudioCaptureSource } from './src/config/audio.config';
 import type { MeetingCitation } from './extensions/tools/types';
-import type { WebCitation, InlineCitationSpan } from './services/adapters/types';
+import type { WebCitation, InlineCitationSpan } from './services/ai/types';
 export type { MeetingCitation, WebCitation, InlineCitationSpan };
 
 export interface ActionItem {

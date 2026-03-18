@@ -13,11 +13,10 @@ import type { ModelProvider } from '@/types/modelProviders';
 import { chatService } from '@/services/chat.service';
 import { unifiedAIService } from '@/services/unifiedAIService';
 import type { MeetingListItem } from '@/services/meetingReferenceService';
-import { resolveModel, supportsTools, getProviderType } from '@shared/utils/modelResolver';
-import { getAdapter } from '@/services/adapters';
+import { resolveModel, supportsTools } from '@shared/utils/modelResolver';
 import { contextPipeline } from '@extensions/context-pipeline';
 import { orchestrate } from '@extensions/tool-orchestrator';
-import type { ToolChoice } from '@/services/adapters/types';
+import type { ToolChoice } from '@/services/ai/types';
 import { streamingStore } from '@features/chat/stores/streamingStore';
 import { buildChatRequest } from '@core/ai';
 import { JsonStreamExtractor } from '@core/ai/streaming/jsonStreamExtractor';
@@ -536,12 +535,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       let streamStartTime = 0;
 
       // Build the ChatRequestConfig
-      const adapterForCheck = resolved ? getAdapter(getProviderType(resolved.provider)) : null;
       const modelInfo = resolved ? modalitiesService.getModelInfo(resolved.provider, resolved.modelId) : null;
       const isFirstMessage = targetSession.messages.filter(m => m.role === 'user').length <= 1;
       const config = buildChatRequest({
         contextBlock: contextBlock || undefined,
-        hasTools: !!(resolved && supportsTools(resolved) && adapterForCheck?.chatStreamWithTools),
+        hasTools: !!(resolved && supportsTools(resolved)),
         meetingCount: (historyItems || []).length,
         isFirstMessage,
         supportsStructuredOutput: modelInfo?.capabilities?.structuredOutput !== false,
@@ -622,10 +620,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         streamingStore.pushPart(part);
       };
 
-      // Route: tool-calling path for all providers that support chatStreamWithTools.
-      // Gemini 2.5+ supports Google Search grounding and function calling simultaneously.
-      // The gemini adapter's chatStreamWithTools handles webSearchEnabled correctly.
-      const useTools = !!(resolved && supportsTools(resolved) && adapterForCheck?.chatStreamWithTools);
+      // Route: tool-calling path for all providers that support tools.
+      const useTools = !!(resolved && supportsTools(resolved));
       const toolChoice: ToolChoice = 'auto';
 
       const allCitations: MeetingCitation[] = [];

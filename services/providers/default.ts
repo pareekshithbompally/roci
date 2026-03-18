@@ -1,4 +1,3 @@
-import Anthropic from '@anthropic-ai/sdk'
 import type { ProvidersService } from './types'
 import type { ModelProvider, ProviderSetting } from '../../types/modelProviders'
 import { predefinedProviders, MANAGED_MODELS, MANAGED_DEFAULT_URLS } from '../../consts/providers'
@@ -20,17 +19,24 @@ export class DefaultProvidersService implements ProvidersService {
       return MANAGED_MODELS[provider.provider]
     }
 
-    // Anthropic: use the SDK's native model listing (always up-to-date)
+    // Anthropic: use the REST /v1/models endpoint
     if (provider.provider === 'anthropic') {
       if (!provider.api_key) {
         throw new Error('API key required for Anthropic model listing')
       }
-      const client = new Anthropic({ apiKey: provider.api_key, dangerouslyAllowBrowser: true, fetch: getPlatformFetch() })
-      const ids: string[] = []
-      for await (const model of client.models.list()) {
-        ids.push(model.id)
+      const baseUrl = (provider.base_url || 'https://api.anthropic.com').replace(/\/$/, '')
+      const response = await getPlatformFetch()(`${baseUrl}/v1/models`, {
+        method: 'GET',
+        headers: {
+          'x-api-key': provider.api_key,
+          'anthropic-version': '2023-06-01',
+        },
+      })
+      if (!response.ok) {
+        throw new Error(`Failed to fetch Anthropic models: ${response.status} ${response.statusText}`)
       }
-      return ids
+      const data = await response.json()
+      return (data.data as Array<{ id: string }> || []).map((m) => m.id).filter(Boolean)
     }
 
     // Gemini: use the REST v1beta/models endpoint (SDK doesn't expose list())

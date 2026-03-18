@@ -10,8 +10,9 @@
 
 import type { MeetingSummary, AppSettings } from '@/types';
 import type { ModelProvider } from '@/types/modelProviders';
-import { resolveModel, getProviderType } from '@shared/utils/modelResolver';
-import { getAdapter } from '@/services/adapters';
+import { resolveModel } from '@shared/utils/modelResolver';
+import { generateText, Output, jsonSchema } from 'ai';
+import { createModel } from '@/services/ai';
 import { buildEntityExtractionPrompt } from '@core/ai/prompts/entity-extraction.prompt';
 import { ENTITY_EXTRACTION_SCHEMA } from '@core/ai/schemas/entity-extraction.schema';
 import type { ExtractionResponse } from '@core/ai/schemas/entity-extraction.schema';
@@ -109,17 +110,17 @@ async function callLLMForExtraction(
   const resolved = resolveModel(settings.chatModel, providers);
   if (!resolved?.apiKey) return null;
 
-  const adapter = getAdapter(getProviderType(resolved.provider));
-  const prompt = buildEntityExtractionPrompt(meetingTitle);
+  const model = createModel(resolved);
+  const prompt = buildEntityExtractionPrompt(meetingTitle, categories);
 
-  const result = await adapter.chat({
-    messages: [{ id: '1', role: 'user', text: input, timestamp: Date.now() }],
-    resolved,
-    systemPrompt: prompt,
-    outputSchema: { name: 'entity_extraction', schema: ENTITY_EXTRACTION_SCHEMA },
+  const result = await generateText({
+    model,
+    system: prompt,
+    messages: [{ role: 'user', content: input }],
+    output: Output.object({ schema: jsonSchema(ENTITY_EXTRACTION_SCHEMA) }),
   });
 
-  return JSON.parse(result.text) as ExtractionResponse;
+  return result.output as ExtractionResponse;
 }
 
 /** Normalize extraction output and build graph node/edge objects */

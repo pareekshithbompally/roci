@@ -1,18 +1,90 @@
 /**
  * Unified AI Service — Thin Orchestrator
  *
- * Resolves models, builds prompts, delegates to provider adapters,
+ * Resolves models, builds prompts, delegates to the AI SDK,
  * and parses responses. No provider-specific logic lives here.
  */
 
+import { streamText, generateText, Output, jsonSchema } from 'ai';
+import type { FilePart, TextPart, UserContent } from 'ai';
 import type { ModelProvider } from '@/types/modelProviders';
 import type { ProcessedResult, ChatMessage, ChatPart, AppSettings } from '@/types';
 import { resolveModel, getProviderType } from '@shared/utils/modelResolver';
 import { MAX_AUDIO_SIZE_BYTES, MAX_AUDIO_SIZE_MB } from '@/utils/audioUtils';
-import { getAdapter } from './adapters';
+import { parseVTT } from '@/utils/vttParser';
 import { buildTranscriptionRequest } from '@core/ai';
 import { modalitiesService } from './modalities';
 import type { TranscriptionResponse } from '@core/ai/schemas/transcription.schema';
+import { createModel, toSDKMessages, getWebSearchTools } from './ai';
+import { getPlatformFetch } from './platform-fetch';
+import type { ResolvedModel } from '@shared/utils/modelResolver';
+
+// ============ Helpers ============
+
+/**
+ * Transcribe audio via the Whisper API using direct fetch (no OpenAI SDK).
+ * Uses the provider's base URL for OpenAI-compatible providers, or the
+ * standard OpenAI endpoint otherwise.
+ */
+async function whisperTranscribe(audioBlob: Blob, resolved: ResolvedModel): Promise<string> {
+  const fetch = getPlatformFetch();
+  const baseUrl = (resolved.baseUrl || 'https://api.openai.com/v1').replace(/\/$/, '');
+  const endpoint = `${baseUrl}/audio/transcriptions`;
+
+  let filename = 'audio.webm';
+  if (audioBlob.type.includes('wav')) filename = 'audio.wav';
+  else if (audioBlob.type.includes('mp3')) filename = 'audio.mp3';
+  else if (audioBlob.type.includes('m4a')) filename = 'audio.m4a';
+
+  const formData = new FormData();
+  formData.append('file', audioBlob, filename);
+  formData.append('model', 'whisper-1');
+  formData.append('response_format', 'verbose_json');
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${resolved.apiKey}` },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Whisper transcription failed (${response.status}): ${response.statusText}`);
+  }
+
+  const data = await response.json() as { text?: string; segments?: Array<{ start: number; text: string }> };
+
+  if (data.segments && Array.isArray(data.segments)) {
+    return data.segments
+      .map((seg) => {
+        const mins = Math.floor(seg.start / 60);
+        const secs = Math.floor(seg.start % 60);
+        const ts = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        return `[${ts}] ${seg.text}`;
+      })
+      .join('\n');
+  }
+
+  return data.text || 'No transcription available.';
+}
+
+/**
+ * Convert a File to SDK-compatible user content parts.
+ * VTT and text files are read as text; binary files use a file part.
+ */
+async function fileToSDKContent(file: File): Promise<UserContent> {
+  if (file.name.endsWith('.vtt') || file.type === 'text/vtt') {
+    const { fullText } = parseVTT(await file.text());
+    return `Transcript:\n${fullText}`;
+  }
+
+  if (file.type === 'text/plain' || file.type === 'text/markdown' || file.name.endsWith('.md')) {
+    return await file.text();
+  }
+
+  // Binary files — send as a file part (Gemini-compatible)
+  const filePart: FilePart = { type: 'file', data: file, mimeType: file.type || 'application/octet-stream' };
+  return [filePart];
+}
 
 // ============ Service ============
 
@@ -41,33 +113,59 @@ class UnifiedAIService {
       supportsStructuredOutput: modelInfo?.capabilities?.structuredOutput !== false,
     });
 
-    const adapter = getAdapter(getProviderType(resolved.provider));
+    const model = createModel(resolved);
 
-    if (adapter.type !== 'gemini') {
-      // Non-Gemini: Whisper transcribes, then chat analyzes the transcript
-      const transcript = await adapter.processAudio({ audioBlob, resolved, prompt: config.prompt });
-      const transcriptFile = new File(
-        [`Transcript:\n${transcript}`],
-        'transcript.txt',
-        { type: 'text/plain' }
-      );
-      const analysisText = await adapter.processDocument({
-        file: transcriptFile,
-        resolved,
-        prompt: config.prompt,
-        outputSchema: config.outputSchema,
-      });
-      return this.parseTranscriptionResult(analysisText, !!config.outputSchema);
+    if (getProviderType(resolved.provider) === 'gemini') {
+      // Gemini: native audio processing (audio + prompt in one call)
+      if (config.outputSchema) {
+        const result = await generateText({
+          model,
+          system: config.prompt,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'file', data: audioBlob, mimeType: audioBlob.type || 'audio/webm' } satisfies FilePart,
+              { type: 'text', text: 'Process this audio recording.' } satisfies TextPart,
+            ],
+          }],
+          output: Output.object({ schema: jsonSchema(config.outputSchema.schema) }),
+        });
+        return this.parseTranscriptionResult(result.output as TranscriptionResponse, true);
+      } else {
+        const result = await generateText({
+          model,
+          system: config.prompt,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'file', data: audioBlob, mimeType: audioBlob.type || 'audio/webm' } satisfies FilePart,
+              { type: 'text', text: 'Process this audio recording.' } satisfies TextPart,
+            ],
+          }],
+        });
+        return this.parseTranscriptionResult(result.text, false);
+      }
     }
 
-    // Gemini: native audio processing (audio + prompt in one call)
-    const text = await adapter.processAudio({
-      audioBlob,
-      resolved,
-      prompt: config.prompt,
-      outputSchema: config.outputSchema,
-    });
-    return this.parseTranscriptionResult(text, !!config.outputSchema);
+    // Non-Gemini: Whisper transcribes, then model analyzes the transcript
+    const transcript = await whisperTranscribe(audioBlob, resolved);
+
+    if (config.outputSchema) {
+      const result = await generateText({
+        model,
+        system: config.prompt,
+        messages: [{ role: 'user', content: `Transcript:\n${transcript}` }],
+        output: Output.object({ schema: jsonSchema(config.outputSchema.schema) }),
+      });
+      return this.parseTranscriptionResult(result.output as TranscriptionResponse, true);
+    } else {
+      const result = await generateText({
+        model,
+        system: config.prompt,
+        messages: [{ role: 'user', content: `Transcript:\n${transcript}` }],
+      });
+      return this.parseTranscriptionResult(result.text, false);
+    }
   }
 
   async processDocument(
@@ -90,14 +188,25 @@ class UnifiedAIService {
       supportsStructuredOutput: modelInfo?.capabilities?.structuredOutput !== false,
     });
 
-    const adapter = getAdapter(getProviderType(resolved.provider));
-    const text = await adapter.processDocument({
-      file,
-      resolved,
-      prompt: config.prompt,
-      outputSchema: config.outputSchema,
-    });
-    return this.parseTranscriptionResult(text, !!config.outputSchema);
+    const model = createModel(resolved);
+    const content = await fileToSDKContent(file);
+
+    if (config.outputSchema) {
+      const result = await generateText({
+        model,
+        system: config.prompt,
+        messages: [{ role: 'user', content }],
+        output: Output.object({ schema: jsonSchema(config.outputSchema.schema) }),
+      });
+      return this.parseTranscriptionResult(result.output as TranscriptionResponse, true);
+    } else {
+      const result = await generateText({
+        model,
+        system: config.prompt,
+        messages: [{ role: 'user', content }],
+      });
+      return this.parseTranscriptionResult(result.text, false);
+    }
   }
 
   async chatStream(options: {
@@ -107,22 +216,58 @@ class UnifiedAIService {
     outputSchema?: import('@core/ai/types').OutputSchema;
     webSearchEnabled?: boolean;
     signal?: AbortSignal;
-    onChunk: (text: string, metadata?: import('./adapters/types').StreamMetadata) => void;
+    onChunk: (text: string, metadata?: import('./ai/types').StreamMetadata) => void;
     onMediaPart?: (part: ChatPart) => void;
-  }): Promise<import('./adapters/types').TokenUsage | undefined> {
-    const { messages, resolved, systemPrompt, outputSchema, webSearchEnabled, signal, onChunk, onMediaPart } = options;
-    const adapter = getAdapter(getProviderType(resolved.provider));
+  }): Promise<import('./ai/types').TokenUsage | undefined> {
+    const { messages, resolved, systemPrompt, webSearchEnabled, signal, onChunk } = options;
 
-    return adapter.chatStream(
-      { messages, resolved, systemPrompt, outputSchema, webSearchEnabled, signal },
-      { onChunk, onMediaPart }
-    );
+    const model = createModel(resolved);
+    const webSearchTools = webSearchEnabled ? getWebSearchTools(resolved) : undefined;
+
+    const result = streamText({
+      model,
+      system: systemPrompt,
+      messages: toSDKMessages(messages),
+      abortSignal: signal,
+      ...(webSearchTools && { tools: webSearchTools }),
+    });
+
+    const collectedSources: Array<{ url: string; title: string }> = [];
+
+    for await (const part of result.fullStream) {
+      if (signal?.aborted) break;
+
+      switch (part.type) {
+        case 'text-delta':
+          onChunk(part.text);
+          break;
+        case 'reasoning-delta':
+          onChunk('', { isThinking: true, thinkingContent: part.text });
+          break;
+        case 'tool-input-start':
+          if (part.toolName === 'webSearch' || part.toolName === 'googleSearch') {
+            onChunk('', { isSearching: true });
+          }
+          break;
+        case 'source':
+          if (part.sourceType === 'url') {
+            collectedSources.push({ url: part.url, title: part.title || '' });
+          }
+          break;
+      }
+    }
+
+    if (collectedSources.length > 0) {
+      onChunk('', { webCitations: collectedSources });
+    }
+
+    const usage = await result.usage;
+    return {
+      inputTokens: usage.inputTokens ?? undefined,
+      outputTokens: usage.outputTokens ?? undefined,
+    };
   }
 
-  /**
-   * Generate a concise title for a chat session based on the first exchange.
-   * Non-blocking — falls back to truncated user message on any failure.
-   */
   async generateTitle(
     userMessage: string,
     assistantResponse: string,
@@ -134,24 +279,14 @@ class UnifiedAIService {
     if (!resolved?.apiKey) return fallback;
 
     try {
-      const adapter = getAdapter(getProviderType(resolved.provider));
-
-      // Single user message with embedded context — works uniformly across all
-      // adapters (avoids Gemini role-alternation issues when the last message
-      // is from the model, and removes ambiguity of continuing a conversation
-      // vs. generating a title).
-      const result = await adapter.chat({
-        messages: [
-          {
-            id: '1',
-            role: 'user',
-            text: `User: ${userMessage}\nAssistant: ${assistantResponse.slice(0, 500)}`,
-            timestamp: Date.now(),
-          },
-        ],
-        resolved,
-        systemPrompt:
-          'You are a title generator. Your ONLY job is to output a short 3-6 word topic title summarizing what the conversation is about. Output NOTHING else — no explanation, no apology, no commentary. Just the title words. Never start with "I".',
+      const model = createModel(resolved);
+      const result = await generateText({
+        model,
+        system: 'You are a title generator. Your ONLY job is to output a short 3-6 word topic title summarizing what the conversation is about. Output NOTHING else — no explanation, no apology, no commentary. Just the title words. Never start with "I".',
+        messages: [{
+          role: 'user',
+          content: `User: ${userMessage}\nAssistant: ${assistantResponse.slice(0, 500)}`,
+        }],
       });
 
       let title = result.text
@@ -194,10 +329,12 @@ class UnifiedAIService {
    * Parse transcription result from structured JSON.
    * The LLM returns a structured summary object — no regex parsing needed.
    */
-  private parseTranscriptionResult(text: string, isStructured: boolean): ProcessedResult {
+  private parseTranscriptionResult(input: string | TranscriptionResponse, isStructured: boolean): ProcessedResult {
     if (isStructured) {
       try {
-        const parsed: TranscriptionResponse = JSON.parse(text);
+        const parsed: TranscriptionResponse = typeof input === 'string'
+          ? JSON.parse(input)
+          : input as TranscriptionResponse;
         const summary = parsed.summary;
 
         // Build a flat summary string for backward compat (copy/download)
@@ -230,11 +367,12 @@ class UnifiedAIService {
     }
 
     // Fallback for non-structured responses — should not happen with current models
+    const textFallback = typeof input === 'string' ? input : JSON.stringify(input);
     return {
       title: 'Untitled',
-      summary: text,
+      summary: textFallback,
       categories: [],
-      transcript: text,
+      transcript: textFallback,
       structuredSummary: {
         overview: 'Unable to parse structured summary',
         keyDiscussionPoints: [],

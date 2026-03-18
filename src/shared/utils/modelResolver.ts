@@ -6,7 +6,7 @@
  */
 
 import type { ModelProvider, Model } from '@/types/modelProviders';
-import type { ProviderType } from '../../../services/adapters/types';
+import type { ProviderType } from '@/services/ai/types';
 import { MANAGED_SDK_PROVIDERS, MANAGED_SDK_INFO, MANAGED_DEFAULT_URLS } from '@/consts/providers';
 
 export interface ResolvedModel {

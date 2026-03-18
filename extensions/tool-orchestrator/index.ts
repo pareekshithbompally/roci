@@ -2,26 +2,26 @@
  * Tool Orchestrator
  *
  * Two-phase design:
- *  Phase 1 — retrievalPhase(): lean retrieval prompt, tools available (parallel), text suppressed from UI.
+ *  Phase 1 — retrievalPhase(): lean retrieval prompt, tools available, text suppressed from UI.
  *  Phase 2 — synthesisPhase(): full system prompt + retrieved context, no tools, streams to user.
  *
- * All adapters are single-pass. The orchestrator owns the loop for all providers.
- * The LLM decides when it has enough context (no tool calls = done).
- * A safety cap prevents infinite loops from bugs but should never be hit.
+ * Uses the AI SDK's generateText with stopWhen:stepCountIs() for Phase 1 — the SDK handles
+ * the tool-call loop internally. Phase 2 uses streamText for real-time output.
  *
  * Single call site from ChatContext — orchestrate() signature unchanged.
  */
 
-import { resolveModel, getProviderType } from '@shared/utils/modelResolver';
+import { generateText, streamText, tool, jsonSchema, stepCountIs } from 'ai';
+import type { ToolSet } from 'ai';
+import { createModel, toSDKMessages, getWebSearchTools } from '@/services/ai';
+import { resolveModel } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
-import { getAdapter } from '@/services/adapters';
-import type { ILLMAdapter, ToolStreamOptions, ToolStreamCallbacks, ToolCallEvent, TokenUsage, ToolChoice } from '@/services/adapters/types';
 import { toolRegistry, toolExecutor } from '@extensions/tools';
 import { toolLabel } from '@shared/utils/toolUtils';
 import type { ToolCall, ToolResult, ToolSchema } from '@extensions/tools/types';
-import { MessageBuffer } from './message-buffer';
-import type { OrchestratorOptions, OrchestratorCallbacks, ToolActivity } from './types';
+import type { OrchestratorOptions, OrchestratorCallbacks } from './types';
 import { buildRetrievalSystemPrompt } from '@core/ai/prompts/chat.prompt';
+import type { TokenUsage } from '@/services/ai/types';
 
 // Safety cap — the LLM should stop naturally (no tool calls = done).
 // This exists only to prevent infinite loops from bugs or confused models.
@@ -45,100 +45,94 @@ function assembleRetrievalContext(results: ToolResult[]): string {
   return lines.join('\n');
 }
 
+/**
+ * Build AI SDK tools with execute functions bridged to our ToolExecutor.
+ * Emits 'calling' before execution and 'done' after, for tool activity UI.
+ * Accumulates ToolResults into allResults for retrieval context assembly.
+ */
+function buildExecutableTools(
+  schemas: ToolSchema[],
+  historyItems: OrchestratorOptions['historyItems'],
+  signal: AbortSignal | undefined,
+  onToolActivity: OrchestratorCallbacks['onToolActivity'],
+  allResults: ToolResult[],
+): ToolSet {
+  const tools: ToolSet = {};
+
+  for (const schema of schemas) {
+    tools[schema.name] = tool({
+      description: schema.description,
+      inputSchema: jsonSchema(schema.parameters as Parameters<typeof jsonSchema>[0]),
+      execute: async (args) => {
+        const call: ToolCall = {
+          id: crypto.randomUUID(),
+          name: schema.name,
+          arguments: args as Record<string, unknown>,
+        };
+
+        onToolActivity({
+          toolName: schema.name,
+          label: toolLabel(schema.name, 'calling'),
+          status: 'calling',
+          toolCall: call,
+        });
+
+        const result = await toolExecutor.execute(call, { historyItems, signal });
+        allResults.push(result);
+
+        onToolActivity({
+          toolName: schema.name,
+          label: toolLabel(schema.name, 'complete'),
+          status: 'done',
+          toolCall: call,
+          result,
+        });
+
+        return result.content;
+      },
+    });
+  }
+
+  return tools;
+}
+
 // ── Phase 1 ────────────────────────────────────────────────────────────────
 
 async function retrievalPhase(params: {
-  adapter: ILLMAdapter;
   resolved: ResolvedModel;
   messages: OrchestratorOptions['messages'];
   historyItems: OrchestratorOptions['historyItems'];
   signal?: AbortSignal;
-  webSearchEnabled?: boolean;
   schemas: ToolSchema[];
-  toolChoice: ToolChoice;
+  toolChoice: OrchestratorOptions['toolChoice'];
   onToolActivity: OrchestratorCallbacks['onToolActivity'];
 }): Promise<string> {
-  const { adapter, resolved, messages, historyItems, signal,
-          webSearchEnabled, schemas, toolChoice, onToolActivity } = params;
+  const allResults: ToolResult[] = [];
+  const model = createModel(params.resolved);
+  const tools = buildExecutableTools(
+    params.schemas,
+    params.historyItems,
+    params.signal,
+    params.onToolActivity,
+    allResults,
+  );
 
-  const buffer = new MessageBuffer(messages);
-  const allToolResults: ToolResult[] = [];
-  let adapterState: unknown;
+  await generateText({
+    model,
+    system: buildRetrievalSystemPrompt(),
+    messages: toSDKMessages(params.messages),
+    tools,
+    toolChoice: params.toolChoice ?? 'auto',
+    stopWhen: stepCountIs(RETRIEVAL_SAFETY_CAP),
+    abortSignal: params.signal,
+  });
 
-  const retrievalSystemPrompt = buildRetrievalSystemPrompt();
-
-  for (let round = 0; round < RETRIEVAL_SAFETY_CAP; round++) {
-    if (signal?.aborted) break;
-
-    let pendingToolCalls: ToolCall[] | null = null;
-    let textBefore: string | undefined;
-
-    const streamOptions: ToolStreamOptions = {
-      messages: buffer.getMessages(),
-      resolved,
-      systemPrompt: retrievalSystemPrompt,
-      webSearchEnabled,
-      signal,
-      tools: schemas,
-      toolMessages: buffer.getToolMessages(),
-      outputSchema: undefined,
-      toolChoice,
-      adapterState,
-    };
-
-    const streamCallbacks: ToolStreamCallbacks = {
-      onChunk: () => {},                       // suppressed — no Phase 1 text to UI
-      onMediaPart: undefined,
-      onToolCall: (event: ToolCallEvent) => {
-        pendingToolCalls = event.toolCalls;
-        textBefore = event.textBefore;
-      },
-    };
-
-    // All adapters: single pass, fires onToolCall if tools requested, returns.
-    const result = await adapter.chatStreamWithTools!(streamOptions, streamCallbacks);
-    if (result?.adapterState) {
-      adapterState = result.adapterState;
-    }
-
-    // LLM decided: no more tools needed → done
-    if (!pendingToolCalls || pendingToolCalls.length === 0) break;
-
-    // Record tool calls in buffer for history reconstruction on next round
-    buffer.addAssistantToolCalls(pendingToolCalls, textBefore);
-
-    // Execute tools in parallel, report activity to UI
-    const results = await Promise.all(
-      pendingToolCalls.map(async (call) => {
-        if (signal?.aborted) {
-          return { toolCallId: call.id, content: '', isError: true } as ToolResult;
-        }
-
-        const activity: ToolActivity = {
-          toolName: call.name,
-          label: toolLabel(call.name, 'calling'),
-          status: 'calling',
-          toolCall: call,
-        };
-        onToolActivity(activity);
-
-        const result = await toolExecutor.execute(call, { historyItems, signal });
-        allToolResults.push(result);
-        onToolActivity({ ...activity, status: 'done', result });
-        return result;
-      })
-    );
-
-    buffer.addToolResults(results);
-  }
-
-  return assembleRetrievalContext(allToolResults);
+  return assembleRetrievalContext(allResults);
 }
 
 // ── Phase 2 ────────────────────────────────────────────────────────────────
 
 async function synthesisPhase(params: {
-  adapter: ILLMAdapter;
   resolved: ResolvedModel;
   messages: OrchestratorOptions['messages'];
   systemPrompt: string;
@@ -149,44 +143,57 @@ async function synthesisPhase(params: {
   onChunk: OrchestratorCallbacks['onChunk'];
   onMediaPart?: OrchestratorCallbacks['onMediaPart'];
 }): Promise<TokenUsage | undefined> {
-  const { adapter, resolved, messages, systemPrompt, outputSchema,
-          webSearchEnabled, signal, retrievalContext, onChunk, onMediaPart } = params;
+  const model = createModel(params.resolved);
 
-  // Append retrieved context to the full system prompt (identity + JSON schema + @mention context).
-  const synthesisPrompt = retrievalContext
-    ? `${systemPrompt}\n\n${retrievalContext}`
-    : systemPrompt;
+  // Append retrieved context to the full system prompt.
+  const synthesisPrompt = params.retrievalContext
+    ? `${params.systemPrompt}\n\n${params.retrievalContext}`
+    : params.systemPrompt;
 
-  // Fresh buffer — no tool history needed, tools are suppressed via toolChoice: 'none'
-  const buffer = new MessageBuffer(messages);
+  const webSearchTools = params.webSearchEnabled ? getWebSearchTools(params.resolved) : undefined;
 
-  const streamOptions: ToolStreamOptions = {
-    messages: buffer.getMessages(),
-    resolved,
-    systemPrompt: synthesisPrompt,
-    webSearchEnabled,
-    signal,
-    tools: undefined,
-    toolMessages: [],
-    outputSchema,
-    toolChoice: 'none',
-  };
+  const result = streamText({
+    model,
+    system: synthesisPrompt,
+    messages: toSDKMessages(params.messages),
+    abortSignal: params.signal,
+    ...(webSearchTools && { tools: webSearchTools }),
+  });
 
-  const streamCallbacks: ToolStreamCallbacks = {
-    onChunk,
-    onMediaPart,
-    onToolCall: () => {},                      // should never fire with toolChoice:'none'
-  };
+  const collectedSources: Array<{ url: string; title: string }> = [];
 
-  const result = await adapter.chatStreamWithTools!(streamOptions, streamCallbacks);
-  const iterationUsage = result?.tokenUsage;
+  for await (const part of result.fullStream) {
+    if (params.signal?.aborted) break;
 
-  if (iterationUsage) {
-    return {
-      inputTokens: iterationUsage.inputTokens,
-      outputTokens: iterationUsage.outputTokens,
-    };
+    switch (part.type) {
+      case 'text-delta':
+        params.onChunk(part.text);
+        break;
+      case 'reasoning-delta':
+        params.onChunk('', { isThinking: true, thinkingContent: part.text });
+        break;
+      case 'tool-input-start':
+        if (part.toolName === 'webSearch' || part.toolName === 'googleSearch') {
+          params.onChunk('', { isSearching: true });
+        }
+        break;
+      case 'source':
+        if (part.sourceType === 'url') {
+          collectedSources.push({ url: part.url, title: part.title || '' });
+        }
+        break;
+    }
   }
+
+  if (collectedSources.length > 0) {
+    params.onChunk('', { webCitations: collectedSources });
+  }
+
+  const usage = await result.usage;
+  return {
+    inputTokens: usage.inputTokens ?? undefined,
+    outputTokens: usage.outputTokens ?? undefined,
+  };
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -212,19 +219,12 @@ export async function orchestrate(
     throw new Error(`API key not configured for ${resolved.provider}. Please add it in Settings → Providers.`);
   }
 
-  const adapter = getAdapter(getProviderType(resolved.provider));
-
-  if (!adapter.chatStreamWithTools) {
-    throw new Error(`Adapter for ${resolved.provider} does not support tool calling.`);
-  }
-
   const schemas = toolRegistry.getSchemas();
-  const effectiveToolChoice: ToolChoice = toolChoice ?? 'auto';
+  const effectiveToolChoice = toolChoice ?? 'auto';
 
   // ── Phase 1: Retrieval ────────────────────────────────────────────────────
   const retrievalContext = await retrievalPhase({
-    adapter, resolved, messages, historyItems, signal,
-    webSearchEnabled: false,   // web search conflicts with function calling in retrieval (Gemini hard error; wrong routing on others)
+    resolved, messages, historyItems, signal,
     schemas,
     toolChoice: effectiveToolChoice,
     onToolActivity,
@@ -232,7 +232,7 @@ export async function orchestrate(
 
   // ── Phase 2: Synthesis ────────────────────────────────────────────────────
   const tokenUsage = await synthesisPhase({
-    adapter, resolved, messages, systemPrompt, outputSchema,
+    resolved, messages, systemPrompt, outputSchema,
     webSearchEnabled, signal, retrievalContext,
     onChunk, onMediaPart,
   });

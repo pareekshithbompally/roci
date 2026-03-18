@@ -6,7 +6,7 @@
 
 import type { ChatMessage, HistoryItem, AppSettings } from '@/types';
 import type { ModelProvider } from '@/types/modelProviders';
-import type { StreamMetadata, ToolChoice } from '@/services/adapters/types';
+import type { StreamMetadata, ToolChoice } from '@/services/ai/types';
 import type { ChatPart } from '@/types';
 import type { ToolCall, ToolResult } from '@extensions/tools/types';
 import type { OutputSchema } from '@core/ai/types';

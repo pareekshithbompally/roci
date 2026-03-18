@@ -13,7 +13,6 @@
  */
 
 import { isTauriEnvironment } from './tauri/environment.service';
-import { clearClientCache } from './adapters/client-cache';
 
 let _fetch: typeof globalThis.fetch | null = null;
 let _initialized = false;
@@ -26,8 +25,6 @@ export async function initPlatformFetch(): Promise<void> {
   if (isTauriEnvironment()) {
     const { fetch: tauriFetch } = await import('@tauri-apps/plugin-http');
     _fetch = tauriFetch;
-    // Force SDK clients to be recreated with new fetch
-    clearClientCache();
   }
 }
 
