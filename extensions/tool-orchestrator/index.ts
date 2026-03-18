@@ -11,7 +11,7 @@
  * Single call site from ChatContext — orchestrate() signature unchanged.
  */
 
-import { generateText, streamText, tool, jsonSchema, stepCountIs } from 'ai';
+import { generateText, streamText, tool, jsonSchema, stepCountIs, Output } from 'ai';
 import type { ToolSet } from 'ai';
 import { createModel, toSDKMessages, getWebSearchTools } from '@/services/ai';
 import { resolveModel } from '@shared/utils/modelResolver';
@@ -144,29 +144,38 @@ async function synthesisPhase(params: {
   onMediaPart?: OrchestratorCallbacks['onMediaPart'];
 }): Promise<TokenUsage | undefined> {
   const model = createModel(params.resolved);
-
-  // Append retrieved context to the full system prompt.
-  const synthesisPrompt = params.retrievalContext
-    ? `${params.systemPrompt}\n\n${params.retrievalContext}`
-    : params.systemPrompt;
-
   const webSearchTools = params.webSearchEnabled ? getWebSearchTools(params.resolved) : undefined;
+
+  // Build messages: conversation history + injected retrieval context.
+  // Context goes into messages (not system prompt) so it works reliably
+  // across all providers — Gemini in particular chokes on oversized system instructions.
+  const sdkMessages = toSDKMessages(params.messages);
+  if (params.retrievalContext) {
+    sdkMessages.push(
+      { role: 'assistant', content: params.retrievalContext },
+      { role: 'user', content: 'Based on the retrieved context above, provide a comprehensive answer to my question.' },
+    );
+  }
 
   const result = streamText({
     model,
-    system: synthesisPrompt,
-    messages: toSDKMessages(params.messages),
+    system: params.systemPrompt,
+    messages: sdkMessages,
     abortSignal: params.signal,
     ...(webSearchTools && { tools: webSearchTools }),
+    ...(params.outputSchema && { output: Output.object({ schema: jsonSchema(params.outputSchema.schema) }) }),
   });
 
   const collectedSources: Array<{ url: string; title: string }> = [];
+
+  let hasText = false;
 
   for await (const part of result.fullStream) {
     if (params.signal?.aborted) break;
 
     switch (part.type) {
       case 'text-delta':
+        hasText = true;
         params.onChunk(part.text);
         break;
       case 'reasoning-delta':
@@ -182,6 +191,23 @@ async function synthesisPhase(params: {
           collectedSources.push({ url: part.url, title: part.title || '' });
         }
         break;
+      case 'error':
+        console.error('[Orchestrator] Synthesis stream error:', part.error);
+        throw part.error instanceof Error
+          ? part.error
+          : new Error(String(part.error ?? 'Model returned a stream error'));
+    }
+  }
+
+  // Detect empty response (e.g. content filter, Gemini returning no text after tool context)
+  if (!hasText && !params.signal?.aborted) {
+    const finishReason = await result.finishReason;
+    console.warn('[Orchestrator] Synthesis produced no text. finishReason:', finishReason);
+    if (finishReason === 'content-filter') {
+      throw new Error('Response blocked by content filter.');
+    }
+    if (finishReason === 'error') {
+      throw new Error('Model returned an error during synthesis.');
     }
   }
 

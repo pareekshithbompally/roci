@@ -82,7 +82,8 @@ async function fileToSDKContent(file: File): Promise<UserContent> {
   }
 
   // Binary files — send as a file part (Gemini-compatible)
-  const filePart: FilePart = { type: 'file', data: file, mimeType: file.type || 'application/octet-stream' };
+  const buffer = new Uint8Array(await file.arrayBuffer());
+  const filePart: FilePart = { type: 'file', data: buffer, mediaType: file.type || 'application/octet-stream' };
   return [filePart];
 }
 
@@ -114,6 +115,7 @@ class UnifiedAIService {
     });
 
     const model = createModel(resolved);
+    const audioData = new Uint8Array(await audioBlob.arrayBuffer());
 
     if (getProviderType(resolved.provider) === 'gemini') {
       // Gemini: native audio processing (audio + prompt in one call)
@@ -124,7 +126,7 @@ class UnifiedAIService {
           messages: [{
             role: 'user',
             content: [
-              { type: 'file', data: audioBlob, mimeType: audioBlob.type || 'audio/webm' } satisfies FilePart,
+              { type: 'file', data: audioData, mediaType: audioBlob.type || 'audio/webm' } satisfies FilePart,
               { type: 'text', text: 'Process this audio recording.' } satisfies TextPart,
             ],
           }],
@@ -138,7 +140,7 @@ class UnifiedAIService {
           messages: [{
             role: 'user',
             content: [
-              { type: 'file', data: audioBlob, mimeType: audioBlob.type || 'audio/webm' } satisfies FilePart,
+              { type: 'file', data: audioData, mediaType: audioBlob.type || 'audio/webm' } satisfies FilePart,
               { type: 'text', text: 'Process this audio recording.' } satisfies TextPart,
             ],
           }],
@@ -219,7 +221,7 @@ class UnifiedAIService {
     onChunk: (text: string, metadata?: import('./ai/types').StreamMetadata) => void;
     onMediaPart?: (part: ChatPart) => void;
   }): Promise<import('./ai/types').TokenUsage | undefined> {
-    const { messages, resolved, systemPrompt, webSearchEnabled, signal, onChunk } = options;
+    const { messages, resolved, systemPrompt, outputSchema, webSearchEnabled, signal, onChunk } = options;
 
     const model = createModel(resolved);
     const webSearchTools = webSearchEnabled ? getWebSearchTools(resolved) : undefined;
@@ -230,15 +232,19 @@ class UnifiedAIService {
       messages: toSDKMessages(messages),
       abortSignal: signal,
       ...(webSearchTools && { tools: webSearchTools }),
+      ...(outputSchema && { output: Output.object({ schema: jsonSchema(outputSchema.schema) }) }),
     });
 
     const collectedSources: Array<{ url: string; title: string }> = [];
+
+    let hasText = false;
 
     for await (const part of result.fullStream) {
       if (signal?.aborted) break;
 
       switch (part.type) {
         case 'text-delta':
+          hasText = true;
           onChunk(part.text);
           break;
         case 'reasoning-delta':
@@ -254,6 +260,22 @@ class UnifiedAIService {
             collectedSources.push({ url: part.url, title: part.title || '' });
           }
           break;
+        case 'error':
+          console.error('[UnifiedAI] Chat stream error:', part.error);
+          throw part.error instanceof Error
+            ? part.error
+            : new Error(String(part.error ?? 'Model returned a stream error'));
+      }
+    }
+
+    if (!hasText && !signal?.aborted) {
+      const finishReason = await result.finishReason;
+      console.warn('[UnifiedAI] Chat stream produced no text. finishReason:', finishReason);
+      if (finishReason === 'content-filter') {
+        throw new Error('Response blocked by content filter.');
+      }
+      if (finishReason === 'error') {
+        throw new Error('Model returned an error.');
       }
     }
 
