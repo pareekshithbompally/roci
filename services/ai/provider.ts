@@ -9,6 +9,9 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { createMistral } from '@ai-sdk/mistral';
+import { createXai, xai } from '@ai-sdk/xai';
+import { createGroq } from '@ai-sdk/groq';
 import { anthropic } from '@ai-sdk/anthropic';
 import { google } from '@ai-sdk/google';
 import { openai } from '@ai-sdk/openai';
@@ -37,7 +40,15 @@ export function createModel(resolved: ResolvedModel): LanguageModel {
 
   switch (getProviderType(resolved.provider)) {
     case 'anthropic': {
-      const provider = createAnthropic({ apiKey: resolved.apiKey, fetch });
+      const customHeaders = buildCustomHeaders(resolved.providerConfig);
+      const provider = createAnthropic({
+        apiKey: resolved.apiKey,
+        fetch,
+        headers: {
+          'anthropic-dangerous-direct-browser-access': 'true',
+          ...customHeaders,
+        },
+      });
       return provider(resolved.modelId);
     }
     case 'openai': {
@@ -46,6 +57,18 @@ export function createModel(resolved: ResolvedModel): LanguageModel {
     }
     case 'gemini': {
       const provider = createGoogleGenerativeAI({ apiKey: resolved.apiKey, fetch });
+      return provider(resolved.modelId);
+    }
+    case 'mistral': {
+      const provider = createMistral({ apiKey: resolved.apiKey, fetch });
+      return provider(resolved.modelId);
+    }
+    case 'xai': {
+      const provider = createXai({ apiKey: resolved.apiKey, fetch });
+      return provider(resolved.modelId);
+    }
+    case 'groq': {
+      const provider = createGroq({ apiKey: resolved.apiKey, fetch });
       return provider(resolved.modelId);
     }
     case 'openai-compat': {
@@ -75,6 +98,8 @@ export function getWebSearchTools(resolved: ResolvedModel): ToolSet | undefined 
       return { googleSearch: google.tools.googleSearch({}) };
     case 'openai':
       return { webSearch: openai.tools.webSearchPreview({}) };
+    case 'xai':
+      return { webSearch: xai.tools.webSearch({}) };
     default:
       return undefined;
   }

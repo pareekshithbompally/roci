@@ -17,8 +17,11 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.58",
     "@ai-sdk/google": "^3.0.43",
+    "@ai-sdk/groq": "^3.0.29",
+    "@ai-sdk/mistral": "^3.0.24",
     "@ai-sdk/openai": "^3.0.41",
     "@ai-sdk/openai-compatible": "^2.0.35",
+    "@ai-sdk/xai": "^3.0.67",
     "@huggingface/transformers": "^3.8.1",
     "@icons-pack/react-simple-icons": "^13.8.0",
     "@radix-ui/react-alert-dialog": "^1.1.15",

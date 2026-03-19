@@ -58,6 +58,9 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         onChange={(e) => setText(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
+        spellCheck={true}
+        autoCorrect="on"
+        autoCapitalize="sentences"
         className={`w-full h-24 p-3 ${COMPONENT.inlineInput} resize-none`}
       />
       <div className="flex items-center justify-between">

@@ -26,6 +26,8 @@ export interface ChatMessageProps {
   provider?: string;
   model?: string;
   state?: 'loading' | 'streaming' | 'complete';
+  /** Override the loading state label (e.g. "Searching the web…") */
+  loadingLabel?: string;
   isError?: boolean;
   tokenCount?: number;
   tokensPerSecond?: number;
@@ -65,6 +67,8 @@ export interface AssistantMessageProps {
   provider?: string;
   model?: string;
   state: 'loading' | 'streaming' | 'complete';
+  /** Override the loading state label (e.g. "Searching the web…") */
+  loadingLabel?: string;
   isError?: boolean;
   tokenCount?: number;
   tokensPerSecond?: number;

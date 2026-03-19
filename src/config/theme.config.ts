@@ -15,18 +15,18 @@ import { SUPPORTS_VIBRANCY, IS_MACOS } from '@platform/index';
 export const SURFACE = {
   /** Main page background (light: solid, dark+vibrancy: tinted glass) */
   page: SUPPORTS_VIBRANCY
-    ? 'bg-parchment-100 dark:bg-night-950/90'
-    : 'bg-parchment-100 dark:bg-night-950',
+    ? 'bg-parchment-100 dark:bg-night-900/90'
+    : 'bg-parchment-100 dark:bg-night-900',
 
   /** Left sidebar background */
   sidebar: SUPPORTS_VIBRANCY
-    ? 'bg-parchment-150 dark:bg-night-900/85'
-    : 'bg-parchment-150 dark:bg-night-900',
+    ? 'bg-parchment-150 dark:bg-night-950/85'
+    : 'bg-parchment-150 dark:bg-night-950',
 
   /** App header bar */
   header: SUPPORTS_VIBRANCY
-    ? 'bg-parchment-100 dark:bg-night-950/90'
-    : 'bg-parchment-100 dark:bg-night-950',
+    ? 'bg-parchment-100 dark:bg-night-900/90'
+    : 'bg-parchment-100 dark:bg-night-900',
 
   /** Right chat panel */
   chatPanel: SUPPORTS_VIBRANCY
@@ -35,16 +35,16 @@ export const SURFACE = {
 
   /** Settings navigation column */
   settingsNav: SUPPORTS_VIBRANCY
-    ? 'bg-parchment-100 dark:bg-night-900/85 dark:backdrop-blur-xl'
-    : 'bg-parchment-100 dark:bg-night-900/85',
+    ? 'bg-parchment-100 dark:bg-night-950/85 dark:backdrop-blur-xl'
+    : 'bg-parchment-100 dark:bg-night-950/85',
 
   /** Modal / dialog background */
-  modal: 'bg-parchment-50 dark:bg-night-900',
+  modal: 'bg-parchment-50 dark:bg-night-850',
 
   /** Elevated surfaces (widgets, floating panels) */
   elevated: SUPPORTS_VIBRANCY
     ? 'bg-parchment-50 dark:bg-night-850/92 dark:backdrop-blur-xl'
-    : 'bg-parchment-50 dark:bg-night-900',
+    : 'bg-parchment-50 dark:bg-night-850',
 
   /** Input fields */
   input: 'bg-parchment-150/80 dark:bg-night-850/60',
@@ -68,7 +68,7 @@ export const SURFACE = {
   selectedCard: 'bg-parchment-200 dark:bg-night-800',
 
   /** Unselected settings card */
-  card: 'bg-parchment-50 dark:bg-night-900',
+  card: 'bg-parchment-50 dark:bg-night-850',
 
   /** Info / notice callout */
   infoCallout: 'bg-blue-50/50 dark:bg-blue-900/10',
@@ -77,7 +77,7 @@ export const SURFACE = {
   chip: 'bg-parchment-200 dark:bg-night-800',
 
   /** Subtle content background (model card, file item) */
-  subtle: 'bg-parchment-150 dark:bg-night-900/50',
+  subtle: 'bg-parchment-150 dark:bg-night-850/50',
 
   /** Match context callout background */
   matchCallout: 'bg-amber-50/50 dark:bg-yellow-900/10',
@@ -264,8 +264,8 @@ export const LAYOUT = {
 
   /** Sidebar inner background */
   sidebarInnerBg: IS_MACOS
-    ? 'bg-parchment-150 dark:bg-night-900/80'
-    : 'bg-parchment-150 dark:bg-night-900',
+    ? 'bg-parchment-150 dark:bg-night-950/80'
+    : 'bg-parchment-150 dark:bg-night-950',
 } as const;
 
 // ─── STRUCTURAL TOKENS ─────────────────────────────────────────
@@ -318,7 +318,7 @@ export const COMPONENT = {
   sendButtonActive: 'bg-parchment-900 dark:bg-night-100 text-white dark:text-night-900 hover:bg-parchment-800 dark:hover:bg-night-200 shadow-lg',
 
   /** Disabled send button */
-  sendButtonDisabled: 'bg-parchment-300 dark:bg-night-650 text-parchment-600 dark:text-night-500 cursor-not-allowed',
+  sendButtonDisabled: 'bg-parchment-300 dark:bg-night-750 text-parchment-600 dark:text-night-600 cursor-not-allowed',
 
   /** Stop / cancel button */
   stopButton: 'bg-red-500 hover:bg-red-600 text-white shadow-lg',
@@ -349,7 +349,7 @@ export const COMPONENT = {
   toggleActive: 'bg-green-500 dark:bg-green-600',
 
   /** Toggle switch inactive */
-  toggleInactive: 'bg-parchment-400 dark:bg-night-650',
+  toggleInactive: 'bg-parchment-400 dark:bg-night-750',
 
   /** Dropdown menu item hover */
   dropdownItemHover: 'hover:bg-parchment-200 dark:hover:bg-night-750',
@@ -397,10 +397,10 @@ export const COMPONENT = {
   accentButton: 'bg-blue-600 hover:bg-blue-700 text-white transition-colors',
 
   /** Accent button disabled state */
-  accentButtonDisabled: 'bg-parchment-300 dark:bg-night-650 text-parchment-700 dark:text-night-400 cursor-not-allowed',
+  accentButtonDisabled: 'bg-parchment-300 dark:bg-night-750 text-parchment-700 dark:text-night-600 cursor-not-allowed',
 
   /** Progress bar track */
-  progressTrack: 'bg-parchment-300 dark:bg-night-650',
+  progressTrack: 'bg-parchment-300 dark:bg-night-750',
 
   /** Progress bar fill */
   progressBar: 'bg-parchment-900 dark:bg-night-100',
@@ -415,7 +415,7 @@ export const COMPONENT = {
   inputDisabled: 'disabled:opacity-50 disabled:cursor-not-allowed',
 
   /** Keyboard shortcut badge (⌘K, ⌘L, etc.) */
-  kbdBadge: `inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[11px] font-medium rounded-md bg-parchment-300/80 dark:bg-night-650/80 ${TEXT.faint}`,
+  kbdBadge: `inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[11px] font-medium rounded-md bg-parchment-300/80 dark:bg-night-700/80 ${TEXT.faint}`,
 
   /** Active tab indicator (border-b-2 + text) */
   tabActive: `border-parchment-900 dark:border-night-100 ${TEXT.heading}`,

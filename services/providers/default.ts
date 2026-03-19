@@ -3,6 +3,12 @@ import type { ModelProvider, ProviderSetting } from '../../types/modelProviders'
 import { predefinedProviders, MANAGED_MODELS, MANAGED_DEFAULT_URLS } from '../../consts/providers'
 import { getPlatformFetch } from '../platform-fetch'
 
+/** Default base URLs for providers that have a known API endpoint */
+const PROVIDER_BASE_URLS: Record<string, string> = {
+  openai: 'https://api.openai.com/v1',
+  anthropic: 'https://api.anthropic.com/v1',
+}
+
 export class DefaultProvidersService implements ProvidersService {
   async getProviders(): Promise<ModelProvider[]> {
     return predefinedProviders
@@ -13,37 +19,46 @@ export class DefaultProvidersService implements ProvidersService {
     return {}
   }
 
+  /**
+   * Build request headers for a provider.
+   * Sends both Authorization and x-api-key for maximum compatibility (Jan pattern).
+   * Merges provider's custom_header array and platform-specific headers.
+   */
+  private buildHeaders(provider: ModelProvider, baseUrl: string): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+
+    if (provider.api_key) {
+      headers['Authorization'] = `Bearer ${provider.api_key}`
+      headers['x-api-key'] = provider.api_key
+    }
+
+    // Merge provider-specific custom headers (e.g. anthropic-version, anthropic-dangerous-direct-browser-access)
+    if (provider.custom_header) {
+      for (const h of provider.custom_header) {
+        headers[h.header] = h.value
+      }
+    }
+
+    // Merge platform-specific headers from subclass (e.g. Origin for localhost in Tauri)
+    Object.assign(headers, this.buildExtraHeaders(provider, baseUrl))
+
+    return headers
+  }
+
   async fetchModelsFromProvider(provider: ModelProvider): Promise<string[]> {
     // Return hardcoded models for providers without a /models endpoint (none currently)
     if (MANAGED_MODELS[provider.provider]) {
       return MANAGED_MODELS[provider.provider]
     }
 
-    // Anthropic: use the REST /v1/models endpoint
-    if (provider.provider === 'anthropic') {
-      if (!provider.api_key) {
-        throw new Error('API key required for Anthropic model listing')
-      }
-      const baseUrl = (provider.base_url || 'https://api.anthropic.com').replace(/\/$/, '')
-      const response = await getPlatformFetch()(`${baseUrl}/v1/models`, {
-        method: 'GET',
-        headers: {
-          'x-api-key': provider.api_key,
-          'anthropic-version': '2023-06-01',
-        },
-      })
-      if (!response.ok) {
-        throw new Error(`Failed to fetch Anthropic models: ${response.status} ${response.statusText}`)
-      }
-      const data = await response.json()
-      return (data.data as Array<{ id: string }> || []).map((m) => m.id).filter(Boolean)
+    if (!provider.api_key) {
+      throw new Error(`API key required for ${provider.provider} model listing`)
     }
 
-    // Gemini: use the REST v1beta/models endpoint (SDK doesn't expose list())
+    // Gemini: uses a different endpoint structure (API key in query param, different response shape)
     if (provider.provider === 'gemini') {
-      if (!provider.api_key) {
-        throw new Error('API key required for Gemini model listing')
-      }
       const resp = await getPlatformFetch()(
         `https://generativelanguage.googleapis.com/v1beta/models?key=${provider.api_key}`
       )
@@ -56,26 +71,21 @@ export class DefaultProvidersService implements ProvidersService {
         .filter(Boolean)
     }
 
-    // For managed providers like OpenAI, fall back to default base URL
-    const baseUrl = provider.base_url || MANAGED_DEFAULT_URLS[provider.provider]
+    // All other providers: GET {baseUrl}/models with unified headers
+    const baseUrl = (
+      provider.base_url ||
+      PROVIDER_BASE_URLS[provider.provider] ||
+      MANAGED_DEFAULT_URLS[provider.provider]
+    )?.replace(/\/$/, '')
 
     if (!baseUrl) {
-      throw new Error('Provider must have base_url configured')
+      throw new Error(`${provider.provider} requires a base URL to be configured`)
     }
 
     try {
-      const headers: Record<string, string> = {}
-
-      if (provider.api_key) {
-        headers['Authorization'] = `Bearer ${provider.api_key}`
-      }
-
-      // Merge platform-specific headers from subclass
-      Object.assign(headers, this.buildExtraHeaders(provider, baseUrl))
-
       const response = await getPlatformFetch()(`${baseUrl}/models`, {
         method: 'GET',
-        headers,
+        headers: this.buildHeaders(provider, baseUrl),
       })
 
       if (!response.ok) {
@@ -100,17 +110,21 @@ export class DefaultProvidersService implements ProvidersService {
 
       const data = await response.json()
 
+      // Handle 3 common response formats
       if (data.data && Array.isArray(data.data)) {
+        // OpenAI / Anthropic format: { data: [{ id: "model-id" }, ...] }
         return data.data
           .map((model: { id: string }) => model.id)
           .filter(Boolean)
       } else if (Array.isArray(data)) {
+        // Direct array format
         return data
           .filter(Boolean)
           .map((model) =>
             typeof model === 'object' && 'id' in model ? model.id : model
           )
       } else if (data.models && Array.isArray(data.models)) {
+        // { models: [...] } format
         return data.models
           .map((model: string | { id: string }) =>
             typeof model === 'string' ? model : model.id
@@ -136,7 +150,7 @@ export class DefaultProvidersService implements ProvidersService {
           error.message.startsWith(prefix)
         )
       ) {
-        throw new Error(error.message)
+        throw error
       }
 
       if (error instanceof Error && error.message.includes('fetch')) {

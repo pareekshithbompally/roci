@@ -9,18 +9,24 @@ import type { ModelProvider } from '../types/modelProviders'
 export const MANAGED_MODELS: Record<string, string[]> = {}
 
 /** Providers that use a native SDK (no user-configurable base URL) */
-export const MANAGED_SDK_PROVIDERS = new Set(['openai', 'anthropic', 'gemini']);
+export const MANAGED_SDK_PROVIDERS = new Set(['openai', 'anthropic', 'gemini', 'mistral', 'xai', 'groq']);
 
 /** SDK description shown in settings UI */
 export const MANAGED_SDK_INFO: Record<string, string> = {
   openai: 'Uses the OpenAI SDK with the Responses API. No endpoint configuration needed.',
   anthropic: 'Uses the Anthropic SDK directly. No endpoint configuration needed.',
   gemini: 'Uses the Google GenAI SDK natively. No endpoint configuration needed.',
+  mistral: 'Uses the Mistral SDK directly. No endpoint configuration needed.',
+  xai: 'Uses the xAI SDK directly. Supports web search. No endpoint configuration needed.',
+  groq: 'Uses the Groq SDK directly. No endpoint configuration needed.',
 };
 
 /** Default base URLs for model listing (not chat — adapters have their own defaults) */
 export const MANAGED_DEFAULT_URLS: Record<string, string> = {
   openai: 'https://api.openai.com/v1',
+  mistral: 'https://api.mistral.ai/v1',
+  xai: 'https://api.x.ai/v1',
+  groq: 'https://api.groq.com/openai/v1',
 };
 
 export const predefinedProviders: ModelProvider[] = [
@@ -186,7 +192,7 @@ export const predefinedProviders: ModelProvider[] = [
   {
     active: true,
     api_key: '',
-    base_url: 'https://api.mistral.ai/v1',
+    base_url: '',
     explore_models_url:
       'https://docs.mistral.ai/getting-started/models/models_overview/',
     provider: 'mistral',
@@ -204,24 +210,13 @@ export const predefinedProviders: ModelProvider[] = [
           input_actions: ['unobscure', 'copy'],
         },
       },
-      {
-        key: 'base-url',
-        title: 'Base URL',
-        description:
-          'The base endpoint to use. See the [Mistral documentation](https://docs.mistral.ai/getting-started/models/models_overview/) for more information.',
-        controller_type: 'input',
-        controller_props: {
-          placeholder: 'https://api.mistral.ai/v1',
-          value: 'https://api.mistral.ai/v1',
-        },
-      },
     ],
     models: [],
   },
   {
     active: true,
     api_key: '',
-    base_url: 'https://api.groq.com/openai/v1',
+    base_url: '',
     explore_models_url: 'https://console.groq.com/docs/models',
     provider: 'groq',
     settings: [
@@ -236,17 +231,6 @@ export const predefinedProviders: ModelProvider[] = [
           value: '',
           type: 'password',
           input_actions: ['unobscure', 'copy'],
-        },
-      },
-      {
-        key: 'base-url',
-        title: 'Base URL',
-        description:
-          'The base OpenAI-compatible endpoint to use. See the [Groq documentation](https://console.groq.com/docs) for more information.',
-        controller_type: 'input',
-        controller_props: {
-          placeholder: 'https://api.groq.com/openai/v1',
-          value: 'https://api.groq.com/openai/v1',
         },
       },
     ],
@@ -313,7 +297,7 @@ export const predefinedProviders: ModelProvider[] = [
   {
     active: false,
     api_key: '',
-    base_url: 'https://api.x.ai/v1',
+    base_url: '',
     explore_models_url: 'https://docs.x.ai/docs/models',
     provider: 'xai',
     settings: [
@@ -328,17 +312,6 @@ export const predefinedProviders: ModelProvider[] = [
           value: '',
           type: 'password',
           input_actions: ['unobscure', 'copy'],
-        },
-      },
-      {
-        key: 'base-url',
-        title: 'Base URL',
-        description:
-          'The base endpoint to use. See the [xAI documentation](https://docs.x.ai/docs) for more information.',
-        controller_type: 'input',
-        controller_props: {
-          placeholder: 'https://api.x.ai/v1',
-          value: 'https://api.x.ai/v1',
         },
       },
     ],

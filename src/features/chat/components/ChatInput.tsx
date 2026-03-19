@@ -144,12 +144,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  // Auto-resize textarea
+  // Auto-resize textarea (wrapped in rAF to avoid interrupting OS spell checker session)
   useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.style.height = 'auto';
-      inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 200)}px`;
-    }
+    const id = requestAnimationFrame(() => {
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto';
+        inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 200)}px`;
+      }
+    });
+    return () => cancelAnimationFrame(id);
   }, [value]);
 
   // Handle @ character detection
@@ -257,7 +260,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (!isLoading && (value.trim() || attachments.length > 0)) {
-        onSend();
+        // Defer send by one frame so macOS autocorrect can commit its replacement first
+        requestAnimationFrame(() => onSend());
       }
     }
   };
@@ -331,6 +335,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             onKeyDown={handleKeyDown}
             disabled={disabled || isLoading}
             rows={1}
+            spellCheck={true}
+            autoCorrect="on"
+            autoCapitalize="sentences"
             className={`w-full bg-transparent border-0 text-sm ${TEXT.primary} resize-none outline-none focus:ring-0`}
             style={{ maxHeight: '200px', minHeight: '36px' }}
           />

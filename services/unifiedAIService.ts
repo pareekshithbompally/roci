@@ -5,17 +5,17 @@
  * and parses responses. No provider-specific logic lives here.
  */
 
-import { streamText, generateText, Output, jsonSchema, stepCountIs } from 'ai';
+import { generateText, Output, jsonSchema } from 'ai';
 import type { FilePart, TextPart, UserContent } from 'ai';
 import type { ModelProvider } from '@/types/modelProviders';
-import type { ProcessedResult, ChatMessage, ChatPart, AppSettings } from '@/types';
+import type { ProcessedResult, AppSettings } from '@/types';
 import { resolveModel, getProviderType } from '@shared/utils/modelResolver';
 import { MAX_AUDIO_SIZE_BYTES, MAX_AUDIO_SIZE_MB } from '@/utils/audioUtils';
 import { parseVTT } from '@/utils/vttParser';
 import { buildTranscriptionRequest } from '@core/ai';
 import { modalitiesService } from './modalities';
 import type { TranscriptionResponse } from '@core/ai/schemas/transcription.schema';
-import { createModel, toSDKMessages, getWebSearchTools } from './ai';
+import { createModel } from './ai';
 import { getPlatformFetch } from './platform-fetch';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 
@@ -209,85 +209,6 @@ class UnifiedAIService {
       });
       return this.parseTranscriptionResult(result.text, false);
     }
-  }
-
-  async chatStream(options: {
-    messages: ChatMessage[];
-    resolved: import('@shared/utils/modelResolver').ResolvedModel;
-    systemPrompt: string;
-    outputSchema?: import('@core/ai/types').OutputSchema;
-    webSearchEnabled?: boolean;
-    signal?: AbortSignal;
-    onChunk: (text: string, metadata?: import('./ai/types').StreamMetadata) => void;
-    onMediaPart?: (part: ChatPart) => void;
-  }): Promise<import('./ai/types').TokenUsage | undefined> {
-    const { messages, resolved, systemPrompt, outputSchema, webSearchEnabled, signal, onChunk } = options;
-
-    const model = createModel(resolved);
-    const webSearchTools = webSearchEnabled ? getWebSearchTools(resolved) : undefined;
-
-    const result = streamText({
-      model,
-      system: systemPrompt,
-      messages: toSDKMessages(messages),
-      abortSignal: signal,
-      ...(webSearchTools && {
-        tools: webSearchTools,
-        stopWhen: stepCountIs(3),
-      }),
-      ...(outputSchema && { output: Output.object({ schema: jsonSchema(outputSchema.schema) }) }),
-    });
-
-    const collectedSources: Array<{ url: string; title: string }> = [];
-
-    let hasText = false;
-
-    for await (const part of result.fullStream) {
-      if (signal?.aborted) break;
-
-      switch (part.type) {
-        case 'text-delta':
-          hasText = true;
-          onChunk(part.text);
-          break;
-        case 'reasoning-delta':
-          onChunk('', { isThinking: true, thinkingContent: part.text });
-          break;
-        case 'tool-input-start':
-          onChunk('', { isSearching: true });
-          break;
-        case 'source':
-          if (part.sourceType === 'url') {
-            collectedSources.push({ url: part.url, title: part.title || '' });
-          }
-          break;
-        case 'error':
-          console.error('[UnifiedAI] Chat stream error:', part.error);
-          throw part.error instanceof Error
-            ? part.error
-            : new Error(String(part.error ?? 'Model returned a stream error'));
-      }
-    }
-
-    if (!hasText && !signal?.aborted) {
-      const finishReason = await result.finishReason;
-      console.warn('[UnifiedAI] Chat stream produced no text. finishReason:', finishReason);
-      throw new Error(
-        finishReason === 'content-filter'
-          ? 'Response blocked by content filter.'
-          : `Model produced no text response (finish reason: ${finishReason ?? 'unknown'}).`
-      );
-    }
-
-    if (collectedSources.length > 0) {
-      onChunk('', { webCitations: collectedSources });
-    }
-
-    const usage = await result.usage;
-    return {
-      inputTokens: usage.inputTokens ?? undefined,
-      outputTokens: usage.outputTokens ?? undefined,
-    };
   }
 
   async generateTitle(

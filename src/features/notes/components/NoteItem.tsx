@@ -85,6 +85,9 @@ const NoteItem: React.FC<NoteItemProps> = ({ note, onDelete, onUpdate }) => {
             value={editText}
             onChange={(e) => setEditText(e.target.value)}
             onKeyDown={handleKeyDown}
+            spellCheck={true}
+            autoCorrect="on"
+            autoCapitalize="sentences"
             className={`w-full h-24 p-2 ${COMPONENT.inlineInput} resize-none`}
             autoFocus
           />

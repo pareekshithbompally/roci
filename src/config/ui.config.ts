@@ -149,7 +149,7 @@ export const UI_CONFIG = {
     visualizer: {
       idle: {
         light: '#e4e0d6', // parchment-300
-        dark: '#303440',  // night-650
+        dark: '#525250',  // night-650
       },
       active: {
         light: '#ef4444',  // red-500
@@ -161,22 +161,22 @@ export const UI_CONFIG = {
     background: {
       primary: {
         light: '#fbfaf7', // parchment-100
-        dark: '#060608',  // night-950
+        dark: '#262624',  // night-900
       },
       secondary: {
         light: '#ffffff', // parchment-50
-        dark: '#0c0d12',  // night-900
+        dark: '#2c2c2a',  // night-850
       },
       tertiary: {
         light: '#f0ede5', // parchment-200
-        dark: '#181b22',  // night-800
+        dark: '#343432',  // night-800
       },
     },
 
     // Border colors
     border: {
       light: '#e4e0d6', // parchment-300
-      dark: '#272a36',  // night-700
+      dark: '#454543',  // night-700
     },
 
     // Text colors

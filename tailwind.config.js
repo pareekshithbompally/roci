@@ -30,7 +30,7 @@ export default {
           900: '#1e1c18',   // Primary text
           950: '#0e0d0b',   // Headings, darkest
         },
-        // ─── Dark mode: neutral grey ───
+        // ─── Dark mode: warm charcoal ───
         night: {
           50:  '#f2f4fc',   // Headings, brightest
           100: '#e6e9f4',   // Primary text
@@ -38,14 +38,14 @@ export default {
           300: '#b0b6cc',   // (rarely used)
           400: '#8b92a8',   // Secondary text
           500: '#5c6278',   // Muted text, placeholders
-          600: '#3e4354',   // Scrollbar thumb
-          650: '#303440',   // Strong borders, focus rings
-          700: '#272a36',   // Default borders
-          750: '#242424',   // Selected/hover states
-          800: '#1e1e1e',   // Dropdowns, input fields
-          850: '#1a1a1a',   // Elevated surfaces
-          900: '#141414',   // Cards, modals, main surfaces
-          950: '#121212',   // Body bg (deepest)
+          600: '#5e5e5c',   // Scrollbar thumb
+          650: '#525250',   // Strong borders, focus rings
+          700: '#454543',   // Default borders
+          750: '#3c3c3a',   // Selected/hover states
+          800: '#343432',   // Dropdowns, input fields
+          850: '#2c2c2a',   // Elevated surfaces, cards
+          900: '#262624',   // Page bg, header (RGB 38,38,36)
+          950: '#1e1e1c',   // Sidebar (deepest)
         },
       },
       keyframes: {

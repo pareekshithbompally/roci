@@ -116,6 +116,9 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
             value={newItemText}
             onChange={(e) => setNewItemText(e.target.value)}
             placeholder="What do you need to do?"
+            spellCheck={true}
+            autoCorrect="on"
+            autoCapitalize="sentences"
             className={`w-full h-16 p-3 ${COMPONENT.inlineInput} resize-none`}
             autoFocus
           />

@@ -124,9 +124,9 @@
 }
 
 .dark .markdown-content :not(pre) > code {
-  background-color: #1e1e1e; /* night-800 */
+  background-color: #343432; /* night-800 */
   color: #f472b6; /* pink-400 */
-  border-color: #303440; /* night-650 */
+  border-color: #525250; /* night-650 */
 }
 
 /* Code blocks */
@@ -171,7 +171,7 @@
 }
 
 .dark .markdown-content table {
-  border-color: #303440; /* night-650 */
+  border-color: #525250; /* night-650 */
 }
 
 .markdown-content thead {
@@ -179,7 +179,7 @@
 }
 
 .dark .markdown-content thead {
-  background-color: #1e1e1e; /* night-800 */
+  background-color: #343432; /* night-800 */
 }
 
 .markdown-content th {
@@ -203,7 +203,7 @@
 
 .dark .markdown-content td {
   color: #d0d5e4; /* night-200 */
-  border-top-color: #303440; /* night-650 */
+  border-top-color: #525250; /* night-650 */
 }
 
 /* Horizontal rule */
@@ -215,7 +215,7 @@
 }
 
 .dark .markdown-content hr {
-  background-color: #303440; /* night-650 */
+  background-color: #525250; /* night-650 */
 }
 
 /* Images */
@@ -248,18 +248,18 @@
 
 /* --- Dark mode: code block container --- */
 .dark .markdown-content [data-streamdown="code-block"] {
-  border-color: #272a36 !important; /* night-700 */
+  border-color: #454543 !important; /* night-700 */
 }
 
 /* --- Dark mode: header — thin, subtle like Jan --- */
 .dark .markdown-content [data-streamdown="code-block-header"] {
-  background-color: #1a1a1a !important; /* night-850 */
-  border-bottom-color: #272a36 !important; /* night-700 */
+  background-color: #2c2c2a !important; /* night-850 */
+  border-bottom-color: #454543 !important; /* night-700 */
   color: #5c6278 !important; /* night-500 */
 }
 
 .dark .markdown-content [data-streamdown="code-block-header"] button {
-  color: #3e4354 !important; /* night-600 */
+  color: #5e5e5c !important; /* night-600 */
 }
 
 .dark .markdown-content [data-streamdown="code-block-header"] button:hover {

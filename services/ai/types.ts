@@ -17,7 +17,7 @@ export interface InlineCitationSpan {
 }
 
 /** Provider type for routing */
-export type ProviderType = 'gemini' | 'anthropic' | 'openai' | 'openai-compat';
+export type ProviderType = 'gemini' | 'anthropic' | 'openai' | 'mistral' | 'xai' | 'groq' | 'openai-compat';
 
 /** Tool choice strategy for LLM tool calling */
 export type ToolChoice = 'auto' | 'none' | 'required';

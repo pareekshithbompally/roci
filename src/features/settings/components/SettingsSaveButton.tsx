@@ -35,7 +35,7 @@ export const SettingsSaveButton: React.FC<SettingsSaveButtonProps> = ({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 8 }}
           transition={{ duration: 0.15 }}
-          className={`absolute bottom-0 left-0 right-0 ${LAYOUT.settingsPadding} pb-4 pt-8 pointer-events-none bg-gradient-to-t from-parchment-100 via-parchment-100/80 to-transparent dark:from-night-950 dark:via-night-950/80 dark:to-transparent`}
+          className={`absolute bottom-0 left-0 right-0 ${LAYOUT.settingsPadding} pb-4 pt-8 pointer-events-none bg-gradient-to-t from-parchment-100 via-parchment-100/80 to-transparent dark:from-night-900 dark:via-night-900/80 dark:to-transparent`}
         >
           <div className={`${LAYOUT.settingsMaxWidth} mx-auto flex justify-end`}>
             <button

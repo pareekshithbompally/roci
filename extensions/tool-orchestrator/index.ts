@@ -21,6 +21,7 @@ import { toolRegistry, toolExecutor } from '@extensions/tools';
 import { toolLabel } from '@shared/utils/toolUtils';
 import type { ToolCall, ToolResult, ToolSchema } from '@extensions/tools/types';
 import type { OrchestratorOptions, OrchestratorCallbacks } from './types';
+import { needsRetrieval } from './intent';
 import { buildRetrievalSystemPrompt } from '@core/ai/prompts/chat.prompt';
 import type { TokenUsage } from '@/services/ai/types';
 
@@ -105,6 +106,13 @@ function buildExecutableTools(
 
 // ── Phase 1 ────────────────────────────────────────────────────────────────
 
+function getLastUserMessage(messages: OrchestratorOptions['messages']): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'user') return messages[i].text;
+  }
+  return '';
+}
+
 async function retrievalPhase(params: {
   resolved: ResolvedModel;
   messages: OrchestratorOptions['messages'];
@@ -149,7 +157,6 @@ async function synthesisPhase(params: {
   retrievalContext: string;
   onChunk: OrchestratorCallbacks['onChunk'];
   onMediaPart?: OrchestratorCallbacks['onMediaPart'];
-  onToolActivity: OrchestratorCallbacks['onToolActivity'];
 }): Promise<TokenUsage | undefined> {
   const model = createModel(params.resolved);
   const webSearchTools = params.webSearchEnabled ? getWebSearchTools(params.resolved) : undefined;
@@ -181,55 +188,29 @@ async function synthesisPhase(params: {
   });
 
   const collectedSources: Array<{ url: string; title: string }> = [];
-
-  // Native tools (web search) are server-executed — sources arrive AFTER the
-  // tool-call part. We defer marking them "done" until the stream ends so the
-  // result block shows actual source count instead of "Done".
-  const pendingNativeTools = new Map<string, { toolName: string; call: ToolCall }>();
-
   let hasText = false;
 
   for await (const part of result.fullStream) {
     if (params.signal?.aborted) break;
 
     switch (part.type) {
-      case 'text-delta':
+      case 'text-delta': {
         hasText = true;
-        params.onChunk(part.text);
+        // Strip <cite> tags from web search responses — citations are
+        // collected separately via source events and shown in Sources tab.
+        const text = part.text.replace(/<\/?cite[^>]*>/g, '');
+        if (text) params.onChunk(text);
         break;
+      }
       case 'reasoning-delta':
         params.onChunk('', { isThinking: true, thinkingContent: part.text });
         break;
 
-      // ── Native tool UI feedback ──────────────────────────────────────
-      // Provider-defined tools (web search) are executed server-side by the
-      // provider API. The SDK streams tool-input-start when the model begins
-      // a tool call, then tool-call when it's finalized. We emit 'calling'
-      // immediately for the spinner, but defer 'done' until after sources
-      // are counted so the result shows meaningful data.
-      case 'tool-input-start': {
-        const call: ToolCall = {
-          id: part.id,
-          name: part.toolName,
-          arguments: {},
-        };
-        pendingNativeTools.set(part.id, { toolName: part.toolName, call });
-        params.onToolActivity({
-          toolName: part.toolName,
-          label: toolLabel(part.toolName, 'calling'),
-          status: 'calling',
-          toolCall: call,
-        });
+      // Native provider tools (web search) — signal inline status via onChunk
+      // metadata. No tool_call UI blocks — only custom meeting tools get those.
+      case 'tool-input-start':
+        params.onChunk('', { isSearching: true });
         break;
-      }
-      case 'tool-call': {
-        // Update stored call with final args — don't emit 'done' yet
-        const pending = pendingNativeTools.get(part.toolCallId);
-        if (pending) {
-          pending.call.arguments = (part.input != null ? part.input : {}) as Record<string, unknown>;
-        }
-        break;
-      }
 
       case 'source':
         if (part.sourceType === 'url') {
@@ -242,29 +223,6 @@ async function synthesisPhase(params: {
           ? part.error
           : new Error(String(part.error ?? 'Model returned a stream error'));
     }
-  }
-
-  // ── Finalize native tool blocks with actual results ─────────────────
-  // Now that sources are fully collected, mark each native tool as done
-  // with a meaningful result instead of "Done".
-  for (const [, { toolName, call }] of pendingNativeTools) {
-    const sourceCount = collectedSources.length;
-    const content = sourceCount > 0
-      ? `Found ${sourceCount} source${sourceCount !== 1 ? 's' : ''}`
-      : 'Search complete — no sources returned';
-
-    params.onToolActivity({
-      toolName,
-      label: toolLabel(toolName, 'complete'),
-      status: 'done',
-      toolCall: call,
-      result: {
-        toolCallId: call.id,
-        content,
-        isError: false,
-        meta: { toolName, executionMs: 0 },
-      },
-    });
   }
 
   // Detect empty response — synthesis must always produce text.
@@ -316,18 +274,25 @@ export async function orchestrate(
   const effectiveToolChoice = toolChoice ?? 'auto';
 
   // ── Phase 1: Retrieval ────────────────────────────────────────────────────
-  const retrievalContext = await retrievalPhase({
-    resolved, messages, historyItems, signal,
-    schemas,
-    toolChoice: effectiveToolChoice,
-    onToolActivity,
-  });
+  const skipRetrieval = options.skipRetrieval ?? false;
+  const shouldRetrieve = !skipRetrieval && needsRetrieval(
+    getLastUserMessage(messages),
+    historyItems.length,
+  );
+  const retrievalContext = shouldRetrieve
+    ? await retrievalPhase({
+        resolved, messages, historyItems, signal,
+        schemas,
+        toolChoice: effectiveToolChoice,
+        onToolActivity,
+      })
+    : '';
 
   // ── Phase 2: Synthesis ────────────────────────────────────────────────────
   const tokenUsage = await synthesisPhase({
     resolved, messages, systemPrompt, outputSchema,
     webSearchEnabled, signal, retrievalContext,
-    onChunk, onMediaPart, onToolActivity,
+    onChunk, onMediaPart,
   });
 
   return {

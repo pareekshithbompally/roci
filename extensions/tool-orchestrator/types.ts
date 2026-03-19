@@ -24,6 +24,8 @@ export interface OrchestratorOptions {
   webSearchEnabled?: boolean;
   outputSchema?: OutputSchema;
   toolChoice?: ToolChoice;
+  /** Whether to skip Phase 1 retrieval (model doesn't support tools). Default: false */
+  skipRetrieval?: boolean;
 }
 
 /** Callbacks the orchestrator uses to communicate with the UI layer */

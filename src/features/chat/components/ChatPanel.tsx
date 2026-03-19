@@ -208,6 +208,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ meetingId, meetingTitle, o
                 provider={message.provider}
                 model={message.model}
                 state={message.state}
+                loadingLabel={message.state === 'loading' && chat.aiActivity?.isSearching ? 'Searching the web…' : undefined}
                 tokenCount={message.tokenCount}
                 tokensPerSecond={message.tokensPerSecond}
                 toolActivity={message.toolActivity}

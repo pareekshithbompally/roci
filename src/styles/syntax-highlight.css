@@ -9,7 +9,7 @@
 
 /* Override for dark mode */
 .dark .hljs {
-  background: #0c0d12 !important; /* night-900 */
+  background: #262624 !important; /* night-900 */
   color: #c9d1d9 !important;
 }
 

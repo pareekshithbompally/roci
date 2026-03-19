@@ -16,7 +16,6 @@ import type { MeetingListItem } from '@/services/meetingReferenceService';
 import { resolveModel, supportsTools } from '@shared/utils/modelResolver';
 import { contextPipeline } from '@extensions/context-pipeline';
 import { orchestrate } from '@extensions/tool-orchestrator';
-import type { ToolChoice } from '@/services/ai/types';
 import { streamingStore } from '@features/chat/stores/streamingStore';
 import { buildChatRequest } from '@core/ai';
 import { JsonStreamExtractor } from '@core/ai/streaming/jsonStreamExtractor';
@@ -549,6 +548,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       // Output.object() uses a synthetic tool/schema enforcement that conflicts
       // with real provider tools, causing stuck streams (Gemini) or missing
       // suggestions (Anthropic). When web search is active, skip structured output.
+      // When web search is active, skip both Output.object() AND the JSON extractor.
+      // Native provider tools change the model's output format — it responds with
+      // free-form text + <cite> tags instead of our structured JSON schema.
       const effectiveOutputSchema = state.webSearchEnabled ? undefined : config.outputSchema;
       const extractor = effectiveOutputSchema ? new JsonStreamExtractor() : null;
 
@@ -624,9 +626,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         streamingStore.pushPart(part);
       };
 
-      // Route: tool-calling path for all providers that support tools.
-      const useTools = !!(resolved && supportsTools(resolved));
-      const toolChoice: ToolChoice = 'auto';
+      const hasToolSupport = !!(resolved && supportsTools(resolved));
 
       const allCitations: MeetingCitation[] = [];
       const allWebCitations: WebCitation[] = [];
@@ -639,91 +639,79 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         m => m.state !== 'loading' && m.state !== 'streaming'
       );
 
-      if (useTools) {
-        const orchestrateResult = await orchestrate(
-          {
-            messages: messagesForProvider,
-            systemPrompt: config.systemPrompt,
-            outputSchema: effectiveOutputSchema,
-            contextBlock: contextBlock || undefined,
-            settings: effectiveSettings,
-            providers: effectiveProviders,
-            historyItems: historyItems || [],
-            signal: abortControllerRef.current?.signal,
-            webSearchEnabled: state.webSearchEnabled,
-            toolChoice,
-          },
-          {
-            onChunk: handleChunk,
-            onMediaPart: handleMediaPart,
-            onToolActivity: (activity) => {
-              // ── Transition to 'streaming' on first tool activity so tool blocks are visible during Phase 1
-              if (!hasStartedStreaming) {
-                hasStartedStreaming = true;
-                setState(prev => ({
-                  ...prev,
-                  sessions: prev.sessions.map(s => {
-                    if (s.id !== activeSessionId) return s;
-                    return {
-                      ...s,
-                      messages: s.messages.map(m =>
-                        m.id === assistantMsgId
-                          ? { ...m, state: 'streaming' as const }
-                          : m
-                      ),
-                    };
-                  }),
-                }));
-              }
-              // ── existing logic ────────────────────────────────────────────
-              const toolCallId = activity.toolCall.id;
-
-              if (activity.status === 'calling') {
-                streamingStore.pushPart({
-                  type: 'tool_call',
-                  toolCallId,
-                  toolName: activity.toolName,
-                  arguments: activity.toolCall.arguments,
-                  status: 'calling',
-                });
-              } else if (activity.status === 'done') {
-                const isError = activity.result?.isError ?? false;
-                const content = activity.result?.content?.slice(0, 500) ?? 'Done';
-                const executionMs = activity.result?.meta?.executionMs;
-
-                streamingStore.updatePartByKey(toolCallId, (prev) => ({
-                  ...(prev as Extract<ChatPart, { type: 'tool_call' }>),
-                  status: isError ? 'error' as const : 'complete' as const,
-                  result: { content, isError, executionMs },
-                }));
-
-                // Extract citations
-                const newCitations = activity.result?.meta?.citations ?? [];
-                for (const citation of newCitations) {
-                  const existing = allCitations.findIndex(c => c.meetingId === citation.meetingId);
-                  if (existing === -1) {
-                    allCitations.push(citation);
-                  } else if (citation.score > allCitations[existing].score) {
-                    allCitations[existing] = citation;
-                  }
-                }
-              }
-            },
-          }
-        );
-        tokenUsageResult = orchestrateResult.tokenUsage;
-      } else {
-        tokenUsageResult = await unifiedAIService.chatStream({
+      const orchestrateResult = await orchestrate(
+        {
           messages: messagesForProvider,
-          resolved: resolved,
           systemPrompt: config.systemPrompt,
           outputSchema: effectiveOutputSchema,
-          webSearchEnabled: state.webSearchEnabled,
+          contextBlock: contextBlock || undefined,
+          settings: effectiveSettings,
+          providers: effectiveProviders,
+          historyItems: historyItems || [],
           signal: abortControllerRef.current?.signal,
+          webSearchEnabled: state.webSearchEnabled,
+          toolChoice: 'auto',
+          skipRetrieval: !hasToolSupport,
+        },
+        {
           onChunk: handleChunk,
           onMediaPart: handleMediaPart,
-        });
-      }
+          onToolActivity: (activity) => {
+            // ── Transition to 'streaming' on first tool activity so tool blocks are visible during Phase 1
+            if (!hasStartedStreaming) {
+              hasStartedStreaming = true;
+              setState(prev => ({
+                ...prev,
+                sessions: prev.sessions.map(s => {
+                  if (s.id !== activeSessionId) return s;
+                  return {
+                    ...s,
+                    messages: s.messages.map(m =>
+                      m.id === assistantMsgId
+                        ? { ...m, state: 'streaming' as const }
+                        : m
+                    ),
+                  };
+                }),
+              }));
+            }
+            // ── existing logic ────────────────────────────────────────────
+            const toolCallId = activity.toolCall.id;
+
+            if (activity.status === 'calling') {
+              streamingStore.pushPart({
+                type: 'tool_call',
+                toolCallId,
+                toolName: activity.toolName,
+                arguments: activity.toolCall.arguments,
+                status: 'calling',
+              });
+            } else if (activity.status === 'done') {
+              const isError = activity.result?.isError ?? false;
+              const content = activity.result?.content?.slice(0, 500) ?? 'Done';
+              const executionMs = activity.result?.meta?.executionMs;
+
+              streamingStore.updatePartByKey(toolCallId, (prev) => ({
+                ...(prev as Extract<ChatPart, { type: 'tool_call' }>),
+                status: isError ? 'error' as const : 'complete' as const,
+                result: { content, isError, executionMs },
+              }));
+
+              // Extract citations
+              const newCitations = activity.result?.meta?.citations ?? [];
+              for (const citation of newCitations) {
+                const existing = allCitations.findIndex(c => c.meetingId === citation.meetingId);
+                if (existing === -1) {
+                  allCitations.push(citation);
+                } else if (citation.score > allCitations[existing].score) {
+                  allCitations[existing] = citation;
+                }
+              }
+            }
+          },
+        }
+      );
+      tokenUsageResult = orchestrateResult.tokenUsage;
 
       // Stream complete — flush store and commit final text + parts to sessions
       const streamResult = streamingStore.finish();

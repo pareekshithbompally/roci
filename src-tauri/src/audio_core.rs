@@ -1,8 +1,11 @@
+use audioadapter_buffers::direct::SequentialSliceOfVecs;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{SampleFormat, SampleRate, StreamConfig};
 use hound::{SampleFormat as WavSampleFormat, WavSpec, WavWriter};
+use rubato::{Fft, FixedSync, Resampler};
 use screencapturekit::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::collections::VecDeque;
 use std::fs::File;
 use std::io::BufWriter;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -40,6 +43,82 @@ pub struct AudioCaptureOptions {
     recordings_dir: Option<String>,
 }
 
+const RESAMPLER_CHUNK_SIZE: usize = 1024;
+
+// ---------------------------------------------------------------------------
+// Phase 1: rubato FFT resampler (replaces the old linear interpolation)
+// Buffers incoming variable-sized SCK/CPAL chunks and flushes full chunks
+// through an FftFixedIn resampler with proper anti-aliasing.
+// ---------------------------------------------------------------------------
+
+struct ResamplerState {
+    resampler: Fft<f32>,
+    input_buf: VecDeque<f32>,
+    chunk_size: usize,
+}
+
+impl ResamplerState {
+    fn new(from_rate: u32, to_rate: u32) -> Self {
+        let resampler = Fft::<f32>::new(
+            from_rate as usize,
+            to_rate as usize,
+            RESAMPLER_CHUNK_SIZE,
+            2, // sub_chunks — reduces latency with minimal quality cost
+            1, // channels (mono)
+            FixedSync::Input,
+        )
+        .expect("rubato: invalid resampler config");
+        let chunk_size = resampler.input_frames_next();
+        Self {
+            resampler,
+            input_buf: VecDeque::new(),
+            chunk_size,
+        }
+    }
+
+    /// Accepts an arbitrary number of mono f32 samples, buffers them, and
+    /// returns all resampled output available for complete chunks.
+    fn process(&mut self, samples: &[f32]) -> Vec<f32> {
+        self.input_buf.extend(samples.iter().copied());
+        let mut result = Vec::new();
+        while self.input_buf.len() >= self.chunk_size {
+            let chunk: Vec<f32> = self.input_buf.drain(..self.chunk_size).collect();
+            let input_vecs: [Vec<f32>; 1] = [chunk];
+            let adapter =
+                SequentialSliceOfVecs::new(&input_vecs[..], 1, self.chunk_size)
+                    .expect("rubato input adapter");
+            if let Ok(out) = self.resampler.process(&adapter, 0, None) {
+                result.extend_from_slice(&out.take_data());
+            }
+        }
+        result
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3: per-stream buffer with presentation timestamp for alignment
+// ---------------------------------------------------------------------------
+
+struct StreamBuffer {
+    samples: Vec<f32>, // resampled to SAMPLE_RATE_HZ, mono
+    start_pts: Option<f64>, // PTS (seconds) of samples[0]; None when empty
+}
+
+impl StreamBuffer {
+    fn new() -> Self {
+        Self {
+            samples: Vec::new(),
+            start_pts: None,
+        }
+    }
+
+    fn clear(&mut self) {
+        self.samples.clear();
+        self.start_pts = None;
+    }
+}
+
+
 struct CaptureHandle {
     system_stream: Option<SCStream>,
     mic_thread: Option<MicCaptureThread>,
@@ -67,8 +146,10 @@ struct UnifiedCaptureData {
     running: Arc<AtomicBool>,
     paused: Arc<AtomicBool>,
     last_emit: Mutex<Instant>,
-    system_buffer: Mutex<Vec<i16>>,
-    mic_buffer: Mutex<Vec<i16>>,
+    system_stream_buf: Mutex<StreamBuffer>,
+    mic_stream_buf: Mutex<StreamBuffer>,
+    system_resampler: Mutex<ResamplerState>,
+    mic_resampler: Mutex<ResamplerState>,
     mode: AudioCaptureSource,
 }
 
@@ -97,39 +178,55 @@ impl SCStreamOutputTrait for UnifiedCaptureHandler {
             .map(|r| r as u32)
             .unwrap_or(SCK_SAMPLE_RATE);
 
-        let Some((samples, channel_count)) = extract_samples(&sample) else {
-            return;
-        };
-        let mono = if channel_count == 1 {
-            samples
+        // Phase 3: capture PTS for timestamp-based mixing alignment
+        let pts = sample.presentation_timestamp();
+        let pts_secs: f64 = if pts.timescale > 0 {
+            pts.value as f64 / pts.timescale as f64
         } else {
-            downmix_to_mono(&samples, channel_count)
-        };
-        if mono.is_empty() {
-            return;
-        }
-
-        // Resample from actual SCK rate to target WAV rate
-        let resampled = if source_rate != SAMPLE_RATE_HZ as u32 {
-            let f32_samples: Vec<f32> = mono.iter().map(|&s| s as f32 / i16::MAX as f32).collect();
-            let resampled_f32 = resample_to_target(&f32_samples, source_rate, SAMPLE_RATE_HZ as u32);
-            convert_to_i16(&resampled_f32)
-        } else {
-            mono
+            0.0
         };
 
-        if resampled.is_empty() {
+        let Some((samples_f32, channel_count)) = extract_samples(&sample) else {
+            return;
+        };
+        let mono_f32 = if channel_count == 1 {
+            samples_f32
+        } else {
+            downmix_to_mono_f32(&samples_f32, channel_count)
+        };
+        if mono_f32.is_empty() {
             return;
         }
 
         let is_mic = matches!(of_type, SCStreamOutputType::Microphone);
+
+        // Phase 1: rubato FFT resampler (proper anti-aliasing)
+        let resampled_f32 = if source_rate != SAMPLE_RATE_HZ as u32 {
+            let resampler = if is_mic {
+                &self.inner.mic_resampler
+            } else {
+                &self.inner.system_resampler
+            };
+            resampler.lock().unwrap().process(&mono_f32)
+        } else {
+            mono_f32
+        };
+
+        if resampled_f32.is_empty() {
+            return;
+        }
+
         {
             let mut buf = if is_mic {
-                self.inner.mic_buffer.lock().unwrap()
+                self.inner.mic_stream_buf.lock().unwrap()
             } else {
-                self.inner.system_buffer.lock().unwrap()
+                self.inner.system_stream_buf.lock().unwrap()
             };
-            buf.extend_from_slice(&resampled);
+            // Phase 3: record PTS of the first sample in this buffer
+            if buf.samples.is_empty() {
+                buf.start_pts = Some(pts_secs);
+            }
+            buf.samples.extend_from_slice(&resampled_f32);
         }
         self.drain_and_write();
     }
@@ -137,35 +234,79 @@ impl SCStreamOutputTrait for UnifiedCaptureHandler {
 
 impl UnifiedCaptureHandler {
     fn drain_and_write(&self) {
-        let mut sys = self.inner.system_buffer.lock().unwrap();
-        let mut mic = self.inner.mic_buffer.lock().unwrap();
+        let mut sys = self.inner.system_stream_buf.lock().unwrap();
+        let mut mic = self.inner.mic_stream_buf.lock().unwrap();
+
+        // Phase 3: realign streams if one leads the other by more than ~20ms
+        const ALIGNMENT_THRESHOLD_SECS: f64 = 0.020;
+        const MAX_PAD_SAMPLES: usize = 16000; // cap silence insertion at 1s
+
+        if self.inner.mode == AudioCaptureSource::SystemAndMicrophone {
+            if let (Some(sys_pts), Some(mic_pts)) = (sys.start_pts, mic.start_pts) {
+                let delta = mic_pts - sys_pts; // positive = mic is ahead of sys
+                if delta > ALIGNMENT_THRESHOLD_SECS {
+                    let n =
+                        ((delta * SAMPLE_RATE_HZ as f64).round() as usize).min(MAX_PAD_SAMPLES);
+                    let mut padded = vec![0f32; n];
+                    padded.extend_from_slice(&sys.samples);
+                    sys.samples = padded;
+                    sys.start_pts = Some(mic_pts);
+                } else if delta < -ALIGNMENT_THRESHOLD_SECS {
+                    let n = ((-delta * SAMPLE_RATE_HZ as f64).round() as usize)
+                        .min(MAX_PAD_SAMPLES);
+                    let mut padded = vec![0f32; n];
+                    padded.extend_from_slice(&mic.samples);
+                    mic.samples = padded;
+                    mic.start_pts = Some(sys_pts);
+                }
+            }
+        }
 
         let drain_count = if self.inner.mode == AudioCaptureSource::SystemAndMicrophone {
-            sys.len().min(mic.len())
+            sys.samples.len().min(mic.samples.len())
         } else {
-            sys.len()
+            sys.samples.len()
         };
 
         if drain_count == 0 {
             return;
         }
 
-        let samples: Vec<i16> = if self.inner.mode == AudioCaptureSource::SystemAndMicrophone {
+        // Phase 2: all mixing in f32; single convert_to_i16 at WAV write
+        let mixed_f32: Vec<f32> = if self.inner.mode == AudioCaptureSource::SystemAndMicrophone {
             (0..drain_count)
-                .map(|i| {
-                    let s = sys[i] as f32 * 0.7;
-                    let m = mic[i] as f32 * 0.7;
-                    (s + m).clamp(i16::MIN as f32, i16::MAX as f32) as i16
-                })
+                .map(|i| (sys.samples[i] * 0.7 + mic.samples[i] * 0.7).clamp(-1.0, 1.0))
                 .collect()
         } else {
-            sys[..drain_count].to_vec()
+            sys.samples[..drain_count].to_vec()
         };
 
-        sys.drain(..drain_count);
-        if self.inner.mode == AudioCaptureSource::SystemAndMicrophone {
-            mic.drain(..drain_count);
+        // Advance PTS by consumed samples
+        let advance = drain_count as f64 / SAMPLE_RATE_HZ as f64;
+        if drain_count < sys.samples.len() {
+            if let Some(pts) = sys.start_pts.as_mut() {
+                *pts += advance;
+            }
+        } else {
+            sys.start_pts = None;
         }
+        sys.samples.drain(..drain_count);
+
+        if self.inner.mode == AudioCaptureSource::SystemAndMicrophone {
+            if drain_count < mic.samples.len() {
+                if let Some(pts) = mic.start_pts.as_mut() {
+                    *pts += advance;
+                }
+            } else {
+                mic.start_pts = None;
+            }
+            mic.samples.drain(..drain_count);
+        }
+
+        drop(sys);
+        drop(mic);
+
+        let samples = convert_to_i16(&mixed_f32);
 
         // Write to WAV (skip if paused)
         if !self.inner.paused.load(Ordering::Relaxed) {
@@ -211,8 +352,8 @@ struct MicCaptureHandler {
     running: Arc<AtomicBool>,
     paused: Arc<AtomicBool>,
     last_emit: Mutex<Instant>,
-    source_sample_rate: u32,
     source_channels: usize,
+    resampler: Mutex<Option<ResamplerState>>,
 }
 
 impl MicCaptureHandler {
@@ -248,11 +389,14 @@ impl MicCaptureHandler {
         let is_paused = self.paused.load(Ordering::Relaxed);
 
         let mono_samples = downmix_to_mono_f32(&samples, self.source_channels);
-        let resampled = resample_to_target(
-            &mono_samples,
-            self.source_sample_rate,
-            SAMPLE_RATE_HZ as u32,
-        );
+        let resampled = {
+            let mut resampler_guard = self.resampler.lock().unwrap();
+            if let Some(ref mut rs) = *resampler_guard {
+                rs.process(&mono_samples)
+            } else {
+                mono_samples
+            }
+        };
         let converted = convert_to_i16(&resampled);
 
         if converted.is_empty() {
@@ -435,8 +579,12 @@ fn build_microphone_stream(
         running,
         paused,
         last_emit: Mutex::new(Instant::now() - LEVEL_THROTTLE),
-        source_sample_rate,
         source_channels,
+        resampler: Mutex::new(if source_sample_rate != SAMPLE_RATE_HZ as u32 {
+            Some(ResamplerState::new(source_sample_rate, SAMPLE_RATE_HZ as u32))
+        } else {
+            None
+        }),
     });
 
     let error_handler = |error| {
@@ -542,7 +690,7 @@ fn create_wav_writer(output_path: &str) -> Result<WavWriter<BufWriter<File>>, St
         .map_err(|error| format!("Failed to initialize wav writer: {error}"))
 }
 
-fn extract_samples(sample: &CMSampleBuffer) -> Option<(Vec<i16>, usize)> {
+fn extract_samples(sample: &CMSampleBuffer) -> Option<(Vec<f32>, usize)> {
     let format = sample.format_description()?;
     if !format.is_audio() {
         return None;
@@ -613,7 +761,7 @@ fn read_sample_from_bytes(
     bits_per_channel: usize,
     is_float: bool,
     is_big_endian: bool,
-) -> Option<i16> {
+) -> Option<f32> {
     match (bits_per_channel, is_float) {
         (16, false) => {
             let bytes: [u8; 2] = raw.get(0..2)?.try_into().ok()?;
@@ -622,7 +770,7 @@ fn read_sample_from_bytes(
             } else {
                 i16::from_le_bytes(bytes)
             };
-            Some(value)
+            Some(value as f32 / i16::MAX as f32)
         }
         (32, true) => {
             let bytes: [u8; 4] = raw.get(0..4)?.try_into().ok()?;
@@ -631,8 +779,7 @@ fn read_sample_from_bytes(
             } else {
                 f32::from_le_bytes(bytes)
             };
-            let clamped = value.clamp(-1.0, 1.0);
-            Some((clamped * i16::MAX as f32) as i16)
+            Some(value.clamp(-1.0, 1.0))
         }
         (32, false) => {
             let bytes: [u8; 4] = raw.get(0..4)?.try_into().ok()?;
@@ -641,28 +788,10 @@ fn read_sample_from_bytes(
             } else {
                 i32::from_le_bytes(bytes)
             };
-            let normalized = (value as f64 / i32::MAX as f64).clamp(-1.0, 1.0);
-            Some((normalized * i16::MAX as f64) as i16)
+            Some((value as f64 / i32::MAX as f64).clamp(-1.0, 1.0) as f32)
         }
         _ => None,
     }
-}
-
-fn downmix_to_mono(samples: &[i16], channel_count: usize) -> Vec<i16> {
-    if channel_count <= 1 {
-        return samples.to_vec();
-    }
-
-    let frames = samples.len() / channel_count;
-    let mut mono = Vec::with_capacity(frames);
-    for frame in 0..frames {
-        let mut sum = 0i32;
-        for channel in 0..channel_count {
-            sum += samples[frame * channel_count + channel] as i32;
-        }
-        mono.push((sum / channel_count as i32) as i16);
-    }
-    mono
 }
 
 fn downmix_to_mono_f32(samples: &[f32], channel_count: usize) -> Vec<f32> {
@@ -680,28 +809,6 @@ fn downmix_to_mono_f32(samples: &[f32], channel_count: usize) -> Vec<f32> {
         mono.push(sum / channel_count as f32);
     }
     mono
-}
-
-fn resample_to_target(samples: &[f32], source_rate: u32, target_rate: u32) -> Vec<f32> {
-    if source_rate == target_rate {
-        return samples.to_vec();
-    }
-
-    let ratio = source_rate as f64 / target_rate as f64;
-    let output_len = ((samples.len() as f64) / ratio).round().max(1.0) as usize;
-    let mut output = Vec::with_capacity(output_len);
-
-    for i in 0..output_len {
-        let position = i as f64 * ratio;
-        let index = position.floor() as usize;
-        let frac = position - index as f64;
-
-        let current = samples.get(index).copied().unwrap_or(0.0);
-        let next = samples.get(index + 1).copied().unwrap_or(current);
-        output.push((current as f64 + (next as f64 - current as f64) * frac) as f32);
-    }
-
-    output
 }
 
 fn convert_to_i16(samples: &[f32]) -> Vec<i16> {
@@ -801,8 +908,10 @@ pub async fn start_audio_capture(app: AppHandle, options: AudioCaptureOptions) -
                 running: Arc::clone(&running),
                 paused: Arc::clone(&paused),
                 last_emit: Mutex::new(Instant::now() - LEVEL_THROTTLE),
-                system_buffer: Mutex::new(Vec::new()),
-                mic_buffer: Mutex::new(Vec::new()),
+                system_stream_buf: Mutex::new(StreamBuffer::new()),
+                mic_stream_buf: Mutex::new(StreamBuffer::new()),
+                system_resampler: Mutex::new(ResamplerState::new(SCK_SAMPLE_RATE, SAMPLE_RATE_HZ as u32)),
+                mic_resampler: Mutex::new(ResamplerState::new(SCK_SAMPLE_RATE, SAMPLE_RATE_HZ as u32)),
                 mode: options.source,
             });
 
@@ -863,23 +972,22 @@ pub async fn stop_audio_capture() -> Result<String, String> {
 
         // Flush remaining buffered samples before closing the writer
         if let Some(data) = &state.handler_data {
-            let sys = data.system_buffer.lock().unwrap();
-            let mic = data.mic_buffer.lock().unwrap();
+            let sys = data.system_stream_buf.lock().unwrap();
+            let mic = data.mic_stream_buf.lock().unwrap();
 
-            let remaining: Vec<i16> = if data.mode == AudioCaptureSource::SystemAndMicrophone {
-                let count = sys.len().min(mic.len());
+            let remaining_f32: Vec<f32> = if data.mode == AudioCaptureSource::SystemAndMicrophone {
+                let count = sys.samples.len().min(mic.samples.len());
                 (0..count)
-                    .map(|i| {
-                        let s = sys[i] as f32 * 0.7;
-                        let m = mic[i] as f32 * 0.7;
-                        (s + m).clamp(i16::MIN as f32, i16::MAX as f32) as i16
-                    })
+                    .map(|i| (sys.samples[i] * 0.7 + mic.samples[i] * 0.7).clamp(-1.0, 1.0))
                     .collect()
             } else {
-                sys.to_vec()
+                sys.samples.to_vec()
             };
+            drop(sys);
+            drop(mic);
 
-            if !remaining.is_empty() {
+            if !remaining_f32.is_empty() {
+                let remaining = convert_to_i16(&remaining_f32);
                 if let Ok(mut writer) = state.writer.lock() {
                     for sample in &remaining {
                         let _ = writer.write_sample(*sample);
@@ -912,8 +1020,8 @@ pub async fn pause_audio_capture() -> Result<(), String> {
 
         // Clear buffers to prevent stale audio on resume
         if let Some(data) = &state.handler_data {
-            data.system_buffer.lock().unwrap().clear();
-            data.mic_buffer.lock().unwrap().clear();
+            data.system_stream_buf.lock().unwrap().clear();
+            data.mic_stream_buf.lock().unwrap().clear();
         }
 
         Ok(())

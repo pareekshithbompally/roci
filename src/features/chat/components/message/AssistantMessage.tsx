@@ -77,7 +77,7 @@ const CompletedContent: React.FC<{
 const AssistantMessage: React.FC<AssistantMessageProps> = ({
   id, text, parts, timestamp,
   suggestions, onSuggestionClick, isLastMessage,
-  provider, model, state,
+  provider, model, state, loadingLabel,
   tokenCount, tokensPerSecond,
   toolActivity, meetingCitations,
   isCopied, actions, citationHandlers,
@@ -119,9 +119,8 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
         <AnimatedProviderIcon provider={provider || 'unknown'} size={18} isAnimating={isLoading || isStreaming} />
         <span className={`${TYPOGRAPHY_CLASSES.chatProvider} ${TEXT.muted}`}>
           {isLoading
-            ? provider === 'llamacpp'
-              ? `Loading ${model || 'model'} into memory...`
-              : 'Working on it...'
+            ? loadingLabel
+              || (provider === 'llamacpp' ? `Loading ${model || 'model'} into memory...` : 'Working on it...')
             : (
             <>
               {getProviderTitle(provider)}

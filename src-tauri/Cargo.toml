@@ -29,6 +29,8 @@ tauri-plugin-process = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-autostart = "2"
 hound = "3.5"
+rubato = { version = "1.0.1", features = ["fft_resampler"] }
+audioadapter-buffers = "2"
 screencapturekit = { version = "1.5", features = ["macos_15_0"] }
 cpal = "0.15"
 tauri-plugin-shell = "2"

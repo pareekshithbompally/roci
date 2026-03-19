@@ -6,7 +6,7 @@ import type { ChatMessageProps } from './types';
 export const ChatMessage: React.FC<ChatMessageProps> = memo(({
   id, role, text, parts, timestamp, suggestions, onSuggestionClick,
   isLastMessage = false, provider, model,
-  state = 'complete', tokenCount, tokensPerSecond,
+  state = 'complete', loadingLabel, tokenCount, tokensPerSecond,
   toolActivity, meetingCitations,
   isCopied, actions, citationHandlers,
   webCitations, inlineCitations, isError,
@@ -22,7 +22,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({
           id={id} text={text} parts={parts} timestamp={timestamp}
           suggestions={suggestions} onSuggestionClick={onSuggestionClick}
           isLastMessage={isLastMessage} provider={provider} model={model}
-          state={state} tokenCount={tokenCount} tokensPerSecond={tokensPerSecond}
+          state={state} loadingLabel={loadingLabel}
+          tokenCount={tokenCount} tokensPerSecond={tokensPerSecond}
           toolActivity={toolActivity} meetingCitations={meetingCitations}
           isCopied={isCopied} actions={actions} citationHandlers={citationHandlers}
           webCitations={webCitations} inlineCitations={inlineCitations}
@@ -38,6 +39,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({
     prev.id === next.id &&
     prev.text === next.text &&
     prev.parts === next.parts &&
+    prev.loadingLabel === next.loadingLabel &&
     prev.isCopied === next.isCopied &&
     prev.isLastMessage === next.isLastMessage &&
     prev.suggestions === next.suggestions &&
