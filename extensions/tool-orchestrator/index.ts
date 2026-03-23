@@ -23,6 +23,7 @@ import type { ToolCall, ToolResult, ToolSchema } from '@extensions/tools/types';
 import type { OrchestratorOptions, OrchestratorCallbacks } from './types';
 import { needsRetrieval } from './intent';
 import { buildRetrievalSystemPrompt } from '@core/ai/prompts/chat.prompt';
+import { extractTokenUsage, mergeTokenUsage } from '@/services/ai/types';
 import type { TokenUsage } from '@/services/ai/types';
 
 // Safety cap — the LLM should stop naturally (no tool calls = done).
@@ -121,7 +122,7 @@ async function retrievalPhase(params: {
   schemas: ToolSchema[];
   toolChoice: OrchestratorOptions['toolChoice'];
   onToolActivity: OrchestratorCallbacks['onToolActivity'];
-}): Promise<string> {
+}): Promise<{ context: string; usage?: TokenUsage }> {
   const allResults: ToolResult[] = [];
   const model = createModel(params.resolved);
   const tools = buildExecutableTools(
@@ -132,7 +133,7 @@ async function retrievalPhase(params: {
     allResults,
   );
 
-  await generateText({
+  const result = await generateText({
     model,
     system: buildRetrievalSystemPrompt(),
     messages: toSDKMessages(params.messages),
@@ -142,7 +143,8 @@ async function retrievalPhase(params: {
     abortSignal: params.signal,
   });
 
-  return assembleRetrievalContext(allResults);
+  const usage = result.usage ? extractTokenUsage(result.usage) : undefined;
+  return { context: assembleRetrievalContext(allResults), usage };
 }
 
 // ── Phase 2 ────────────────────────────────────────────────────────────────
@@ -195,9 +197,12 @@ async function synthesisPhase(params: {
     switch (part.type) {
       case 'text-delta': {
         hasText = true;
-        // Strip <cite> tags from web search responses — citations are
-        // collected separately via source events and shown in Sources tab.
-        const text = part.text.replace(/<\/?cite[^>]*>/g, '');
+        // Strip citation cruft from web search responses — sources are
+        // collected separately via source events and shown in Sources panel.
+        // <cite> tags: OpenAI; [N] brackets: xAI/Grok.
+        const text = part.text
+          .replace(/<\/?cite[^>]*>/g, '')
+          .replace(/\[(\d+)\](?!\()/g, '');
         if (text) params.onChunk(text);
         break;
       }
@@ -240,10 +245,7 @@ async function synthesisPhase(params: {
   }
 
   const usage = await result.usage;
-  return {
-    inputTokens: usage.inputTokens ?? undefined,
-    outputTokens: usage.outputTokens ?? undefined,
-  };
+  return extractTokenUsage(usage);
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -279,21 +281,24 @@ export async function orchestrate(
     historyItems.length,
   );
   let retrievalContext = '';
+  let retrievalUsage: TokenUsage | undefined;
   if (shouldRetrieve) {
     try {
-      retrievalContext = await retrievalPhase({
+      const retrieval = await retrievalPhase({
         resolved, messages, historyItems, signal,
         schemas,
         toolChoice: effectiveToolChoice,
         onToolActivity,
       });
+      retrievalContext = retrieval.context;
+      retrievalUsage = retrieval.usage;
     } catch (error) {
       console.error('[Orchestrator] Phase 1 retrieval failed, continuing to synthesis:', error);
     }
   }
 
   // ── Phase 2: Synthesis ────────────────────────────────────────────────────
-  const tokenUsage = await synthesisPhase({
+  const synthesisUsage = await synthesisPhase({
     resolved, messages, systemPrompt,
     webSearchEnabled, signal, retrievalContext,
     onChunk, onMediaPart,
@@ -302,6 +307,6 @@ export async function orchestrate(
   return {
     provider: resolved.provider,
     model: resolved.modelId,
-    tokenUsage,
+    tokenUsage: mergeTokenUsage(retrievalUsage, synthesisUsage),
   };
 }

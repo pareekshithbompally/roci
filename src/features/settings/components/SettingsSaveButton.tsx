@@ -9,6 +9,7 @@ import React from 'react';
 import { Save } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { COMPONENT, RADIUS, SHADOW, SPACING, LAYOUT } from '@config/theme.config';
+import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 
 interface SettingsSaveButtonProps {
   isSaving?: boolean;
@@ -41,7 +42,7 @@ export const SettingsSaveButton: React.FC<SettingsSaveButtonProps> = ({
             <button
               onClick={onSave}
               disabled={isSaving || !hasUnsavedChanges}
-              className={`pointer-events-auto flex items-center gap-2 ${SPACING.buttonLg} ${RADIUS.md} text-sm font-medium transition-all ${SHADOW.float} ${
+              className={`pointer-events-auto flex items-center gap-2 ${SPACING.buttonLg} ${RADIUS.md} ${TYPOGRAPHY_CLASSES.settingsButton} transition-all ${SHADOW.float} ${
                 hasUnsavedChanges
                   ? COMPONENT.accentButton
                   : COMPONENT.accentButtonDisabled

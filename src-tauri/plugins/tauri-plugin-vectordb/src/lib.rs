@@ -32,6 +32,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::graph_search,
             commands::graph_delete_meeting,
             commands::graph_stats,
+            commands::insert_usage,
+            commands::get_usage_summary,
         ])
         .setup(|app, _api| {
             app.manage(VectorDbState::default());

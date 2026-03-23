@@ -542,14 +542,14 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         providers
       );
 
-      const data = await Promise.race([
+      const { result: data } = await Promise.race([
         processingPromise,
-        new Promise((_, reject) => {
+        new Promise<never>((_, reject) => {
           abortController.signal.addEventListener('abort', () => {
             reject(new Error('Processing aborted by user'));
           });
         })
-      ]) as any;
+      ]);
 
       if (abortController.signal.aborted) {
         throw new Error('Processing aborted by user');

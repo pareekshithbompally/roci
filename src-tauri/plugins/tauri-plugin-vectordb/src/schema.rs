@@ -1,7 +1,7 @@
 use rusqlite::Connection;
 
 /// Current schema version. Bump this when adding migrations.
-pub const SCHEMA_VERSION: u32 = 1;
+pub const SCHEMA_VERSION: u32 = 2;
 
 /// Default embedding model and dimension.
 pub const DEFAULT_MODEL: &str = "all-MiniLM-L6-v2";
@@ -15,7 +15,9 @@ pub fn migrate(conn: &Connection) -> Result<(), String> {
         create_v1(conn)?;
     }
 
-    // Future migrations: if current < 2 { migrate_v2(conn)?; }
+    if current < 2 {
+        migrate_v2(conn)?;
+    }
 
     Ok(())
 }
@@ -113,6 +115,24 @@ fn create_v1(conn: &Connection) -> Result<(), String> {
         CREATE INDEX IF NOT EXISTS idx_kg_edges_target ON kg_edges(target_id, type);
         CREATE INDEX IF NOT EXISTS idx_kg_edges_meeting ON kg_edges(meeting_id);
         CREATE INDEX IF NOT EXISTS idx_kg_edges_type ON kg_edges(type);
+
+        -- Usage log (token tracking & billing)
+        CREATE TABLE IF NOT EXISTS usage_log (
+            id                 TEXT PRIMARY KEY,
+            timestamp          INTEGER NOT NULL,
+            category           TEXT NOT NULL,
+            session_id         TEXT,
+            provider           TEXT NOT NULL,
+            model              TEXT NOT NULL,
+            input_tokens       INTEGER NOT NULL DEFAULT 0,
+            output_tokens      INTEGER NOT NULL DEFAULT 0,
+            cache_read_tokens  INTEGER DEFAULT 0,
+            cache_write_tokens INTEGER DEFAULT 0,
+            reasoning_tokens   INTEGER DEFAULT 0,
+            estimated_cost     REAL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_usage_timestamp ON usage_log(timestamp);
+        CREATE INDEX IF NOT EXISTS idx_usage_provider_model ON usage_log(provider, model);
         ",
     )
     .map_err(|e| format!("Failed to create base schema: {}", e))?;
@@ -144,5 +164,36 @@ fn create_v1(conn: &Connection) -> Result<(), String> {
         DEFAULT_MODEL,
         DEFAULT_DIM,
     );
+    Ok(())
+}
+
+/// v2: Add usage_log table for token tracking & billing.
+/// Runs on existing v1 databases. The table also exists in create_v1 for fresh installs.
+fn migrate_v2(conn: &Connection) -> Result<(), String> {
+    conn.execute_batch(
+        "
+        CREATE TABLE IF NOT EXISTS usage_log (
+            id                 TEXT PRIMARY KEY,
+            timestamp          INTEGER NOT NULL,
+            category           TEXT NOT NULL,
+            session_id         TEXT,
+            provider           TEXT NOT NULL,
+            model              TEXT NOT NULL,
+            input_tokens       INTEGER NOT NULL DEFAULT 0,
+            output_tokens      INTEGER NOT NULL DEFAULT 0,
+            cache_read_tokens  INTEGER DEFAULT 0,
+            cache_write_tokens INTEGER DEFAULT 0,
+            reasoning_tokens   INTEGER DEFAULT 0,
+            estimated_cost     REAL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_usage_timestamp ON usage_log(timestamp);
+        CREATE INDEX IF NOT EXISTS idx_usage_provider_model ON usage_log(provider, model);
+
+        UPDATE meta SET value = '2' WHERE key = 'schema_version';
+        ",
+    )
+    .map_err(|e| format!("Failed to migrate to v2: {}", e))?;
+
+    log::info!("[vectordb] Migrated to schema v2 (added usage_log)");
     Ok(())
 }

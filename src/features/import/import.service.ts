@@ -12,6 +12,8 @@ import { fileSystemService } from '@/services/tauri/fileSystem.service';
 import { unifiedAIService } from '@/services/unifiedAIService';
 import { transcriptionService } from '@/services/transcription.service';
 import { activityStore } from '@shared/stores/activityStore';
+import { logUsage } from '@extensions/usage';
+import { resolveModel } from '@shared/utils/modelResolver';
 import { IMPORT_CONFIG } from '@config/audio.config';
 import { parseSubtitleFile } from './parsers/subtitle-parser';
 import { JobQueue } from './job-queue';
@@ -169,8 +171,11 @@ class ImportService {
       'transcript.txt',
       { type: 'text/plain' },
     );
-    const result = await unifiedAIService.processDocument(transcriptFile, categories, settings, providers);
+    const { result, usage } = await unifiedAIService.processDocument(transcriptFile, categories, settings, providers);
     if (signal.aborted) throw new Error('Import cancelled');
+
+    const resolved = resolveModel(settings.transcriptionModel, providers);
+    logUsage({ category: 'transcription', sessionId: job.meetingId, provider: resolved?.provider, model: resolved?.modelId, usage }).catch(() => {});
 
     const meetingSummary = this.buildMeetingSummary(result);
 
@@ -211,8 +216,11 @@ class ImportService {
 
     activityStore.update(job.id, { detail: 'Transcribing...' });
 
-    const result = await unifiedAIService.processAudio(blob, categories, settings, providers);
+    const { result, usage: audioUsage } = await unifiedAIService.processAudio(blob, categories, settings, providers);
     if (signal.aborted) throw new Error('Import cancelled');
+
+    const resolvedAudio = resolveModel(settings.transcriptionModel, providers);
+    logUsage({ category: 'transcription', sessionId: job.meetingId, provider: resolvedAudio?.provider, model: resolvedAudio?.modelId, usage: audioUsage }).catch(() => {});
 
     const meetingSummary = this.buildMeetingSummary(result);
 

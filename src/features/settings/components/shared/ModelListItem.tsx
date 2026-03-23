@@ -26,7 +26,7 @@ export const ModelListItem: React.FC<ModelListItemProps> = ({
     className={`flex items-center justify-between ${SPACING.card} ${RADIUS.md} border transition-colors ${
       selected
         ? `${SURFACE.selectedCard} ${BORDER.selectedCard}`
-        : `${SURFACE.subtle} ${BORDER.default}`
+        : `${SURFACE.card} ${BORDER.default}`
     }`}
   >
     <div

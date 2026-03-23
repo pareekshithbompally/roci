@@ -15,13 +15,15 @@ import { LocalInferencePanel } from './LocalInferencePanel';
 import { CategoriesPanel } from './CategoriesPanel';
 import { InterfacePanel } from './InterfacePanel';
 import { AudioPanel } from './AudioPanel';
+import { UsagePanel } from './UsagePanel';
 import { SettingsSaveButton } from './SettingsSaveButton';
 import { UnsavedChangesModal } from '@shared/components/UnsavedChangesModal';
 import { isTauriEnvironment } from '@/services/tauri';
 import { useSettingsSave } from '../hooks/useSettingsSave';
 import { BORDER, TEXT, COMPONENT } from '@config/theme.config';
+import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 
-type SettingsPanelType = 'audio' | 'providers' | 'local-inference' | 'categories' | 'interface';
+type SettingsPanelType = 'audio' | 'providers' | 'local-inference' | 'categories' | 'interface' | 'usage';
 
 /** Panels that use explicit save (not auto-save or instant) */
 const SAVEABLE_PANELS = new Set<SettingsPanelType>(['audio', 'providers', 'categories', 'interface']);
@@ -39,6 +41,7 @@ const panels: Array<{ id: SettingsPanelType; label: string; tauriOnly?: boolean 
   { id: 'local-inference', label: 'Local Inference', tauriOnly: true },
   { id: 'categories', label: 'Workflow' },
   { id: 'interface', label: 'System' },
+  { id: 'usage', label: 'Usage' },
 ];
 
 export const SettingsPanel: React.FC = () => {
@@ -68,7 +71,7 @@ export const SettingsPanel: React.FC = () => {
             <button
               key={id}
               onClick={() => handlePanelChange(id)}
-              className={`flex items-center px-3 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex items-center px-3 py-2.5 ${TYPOGRAPHY_CLASSES.settingsButton} border-b-2 transition-colors ${
                 activePanel === id
                   ? COMPONENT.tabActive
                   : COMPONENT.tabDefault
@@ -91,6 +94,7 @@ export const SettingsPanel: React.FC = () => {
         {activePanel === 'local-inference' && <LocalInferencePanel />}
         {activePanel === 'categories' && <CategoriesPanel />}
         {activePanel === 'interface' && <InterfacePanel />}
+        {activePanel === 'usage' && <UsagePanel />}
 
         {/* Save footer — absolutely positioned, overlays content, no layout shift.
             key={activePanel} forces remount on tab switch so savedSnapshotRef reinitializes. */}

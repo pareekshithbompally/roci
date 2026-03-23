@@ -329,7 +329,7 @@ export const LocalInferencePanel: React.FC = () => {
       {/* STATE 1: no-engine — Setup card with download CTA          */}
       {/* ═══════════════════════════════════════════════════════════ */}
       {panelState === 'no-engine' && (
-        <div className={`flex items-center justify-between px-4 py-3 ${SURFACE.subtle} border ${BORDER.default} rounded-lg`}>
+        <div className={`flex items-center justify-between px-4 py-3 ${SURFACE.card} border ${BORDER.default} rounded-lg`}>
           <div className="min-w-0">
             <p className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
               llama-server
@@ -363,7 +363,7 @@ export const LocalInferencePanel: React.FC = () => {
       {panelState === 'zero-models' && binaryInfo && (
         <>
           {/* Collapsed engine status bar */}
-          <div className={`px-4 py-2.5 ${SURFACE.subtle} border ${BORDER.default} rounded-lg flex items-center justify-between`}>
+          <div className={`px-4 py-2.5 ${SURFACE.card} border ${BORDER.default} rounded-lg flex items-center justify-between`}>
             <div className="flex items-center gap-2">
               <ServerStatus />
               <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
@@ -417,7 +417,7 @@ export const LocalInferencePanel: React.FC = () => {
           </div>
 
           {/* Hero model acquisition card */}
-          <div className={`px-5 py-5 ${SURFACE.subtle} border ${BORDER.default} rounded-xl space-y-4`}>
+          <div className={`px-5 py-5 ${SURFACE.card} border ${BORDER.default} rounded-xl space-y-4`}>
             <div>
               <h4 className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading} mb-1`}>
                 Add Your First Model
@@ -470,11 +470,11 @@ export const LocalInferencePanel: React.FC = () => {
                       className={`w-full flex items-center gap-2.5 px-3 py-2 ${RADIUS.md} text-left transition-all border ${
                         isSelected
                           ? `${SURFACE.selectedCard} ${BORDER.selectedCard}`
-                          : `${SURFACE.subtle} ${BORDER.default} ${BORDER.cardHover}`
+                          : `${SURFACE.card} ${BORDER.default} ${BORDER.cardHover}`
                       }`}
                     >
                       <tab.icon className={`w-4 h-4 ${isSelected ? TEXT.heading : TEXT.faint}`} />
-                      <span className={`flex-1 truncate text-[13px] ${
+                      <span className={`flex-1 truncate ${TYPOGRAPHY_CLASSES.settingsInputLabel} ${
                         isSelected ? TEXT.heading : TEXT.primary
                       }`}>
                         {tab.label}
@@ -483,7 +483,7 @@ export const LocalInferencePanel: React.FC = () => {
                         <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
                       )}
                       {tab.id === 'models' && managedModels.length > 0 && (
-                        <span className={`text-[11px] ${TEXT.faint}`}>
+                        <span className={`${TYPOGRAPHY_CLASSES.settingsLabel} ${TEXT.faint}`}>
                           {managedModels.length}
                         </span>
                       )}
@@ -499,7 +499,7 @@ export const LocalInferencePanel: React.FC = () => {
 
             {/* ═══ Server Tab ═══ */}
             {activeTab === 'server' && (
-              <div className={`${SURFACE.subtle} border ${BORDER.default} rounded-xl overflow-hidden`}>
+              <div className={`${SURFACE.card} border ${BORDER.default} rounded-xl overflow-hidden`}>
 
                 {/* ── Model row ── */}
                 <div className={`px-4 py-3 border-b ${BORDER.default}`}>
@@ -527,7 +527,7 @@ export const LocalInferencePanel: React.FC = () => {
                             <SelectItem key={m.id} value={m.id}>
                               <div className="flex items-center justify-between w-full gap-2">
                                 <span className="truncate">{m.name}</span>
-                                <span className="text-xs text-[var(--text-faint)] shrink-0">
+                                <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} shrink-0`}>
                                   {formatBytes(m.fileSize)}
                                 </span>
                               </div>
@@ -786,10 +786,10 @@ export const LocalInferencePanel: React.FC = () => {
                   {managedModels.length > 0 && (
                     <button
                       onClick={() => setShowInstalledModels((v) => !v)}
-                      className={`flex items-center gap-2 px-2.5 py-1.5 ${RADIUS.md} border transition-all text-[12px] font-medium ${
+                      className={`flex items-center gap-2 px-2.5 py-1.5 ${RADIUS.md} border transition-all ${TYPOGRAPHY_CLASSES.settingsHelper} font-medium ${
                         showInstalledModels
                           ? `${SURFACE.selectedCard} ${BORDER.selectedCard} ${TEXT.heading}`
-                          : `${SURFACE.subtle} ${BORDER.default} ${TEXT.muted} ${BORDER.cardHover}`
+                          : `${SURFACE.card} ${BORDER.default} ${TEXT.muted} ${BORDER.cardHover}`
                       }`}
                     >
                       <HardDrive className="w-3 h-3" />

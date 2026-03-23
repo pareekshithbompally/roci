@@ -486,6 +486,173 @@ pub async fn graph_stats(
     with_conn(&state, |conn| graph::stats(conn))
 }
 
+// ── Usage Tracking Commands ──
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UsageRecord {
+    pub id: String,
+    pub timestamp: i64,
+    pub category: String,
+    pub session_id: Option<String>,
+    pub provider: String,
+    pub model: String,
+    pub input_tokens: i64,
+    pub output_tokens: i64,
+    pub cache_read_tokens: Option<i64>,
+    pub cache_write_tokens: Option<i64>,
+    pub reasoning_tokens: Option<i64>,
+    pub estimated_cost: Option<f64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProviderModelBreakdown {
+    pub provider: String,
+    pub model: String,
+    pub calls: i64,
+    pub input_tokens: i64,
+    pub output_tokens: i64,
+    pub cache_read_tokens: i64,
+    pub cache_write_tokens: i64,
+    pub reasoning_tokens: i64,
+    pub estimated_cost: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CategoryBreakdown {
+    pub category: String,
+    pub calls: i64,
+    pub input_tokens: i64,
+    pub output_tokens: i64,
+    pub estimated_cost: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UsageSummary {
+    pub total_cost: f64,
+    pub total_input_tokens: i64,
+    pub total_output_tokens: i64,
+    pub total_cache_read_tokens: i64,
+    pub total_calls: i64,
+    pub by_provider_model: Vec<ProviderModelBreakdown>,
+    pub by_category: Vec<CategoryBreakdown>,
+}
+
+/// Insert a single usage record.
+#[tauri::command]
+pub async fn insert_usage(
+    state: State<'_, VectorDbState>,
+    record: UsageRecord,
+) -> Result<(), String> {
+    with_conn(&state, |conn| {
+        conn.execute(
+            "INSERT INTO usage_log (id, timestamp, category, session_id, provider, model,
+             input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
+             reasoning_tokens, estimated_cost)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            rusqlite::params![
+                record.id,
+                record.timestamp,
+                record.category,
+                record.session_id,
+                record.provider,
+                record.model,
+                record.input_tokens,
+                record.output_tokens,
+                record.cache_read_tokens.unwrap_or(0),
+                record.cache_write_tokens.unwrap_or(0),
+                record.reasoning_tokens.unwrap_or(0),
+                record.estimated_cost.unwrap_or(0.0),
+            ],
+        )
+        .map_err(|e| format!("insert_usage: {}", e))?;
+        Ok(())
+    })
+}
+
+/// Return aggregated usage summary for a time range.
+#[tauri::command]
+pub async fn get_usage_summary(
+    state: State<'_, VectorDbState>,
+    since: Option<i64>,
+) -> Result<UsageSummary, String> {
+    with_conn(&state, |conn| {
+        let since_ts = since.unwrap_or(0);
+
+        // Totals
+        let (total_cost, total_input, total_output, total_cache_read, total_calls): (f64, i64, i64, i64, i64) = conn
+            .query_row(
+                "SELECT COALESCE(SUM(estimated_cost), 0), COALESCE(SUM(input_tokens), 0),
+                 COALESCE(SUM(output_tokens), 0), COALESCE(SUM(cache_read_tokens), 0), COUNT(*)
+                 FROM usage_log WHERE timestamp >= ?1",
+                [since_ts],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+            )
+            .map_err(|e| format!("usage totals: {}", e))?;
+
+        // By provider + model
+        let mut stmt = conn
+            .prepare(
+                "SELECT provider, model, COUNT(*), SUM(input_tokens), SUM(output_tokens),
+                 SUM(cache_read_tokens), SUM(cache_write_tokens), SUM(reasoning_tokens),
+                 SUM(estimated_cost)
+                 FROM usage_log WHERE timestamp >= ?1
+                 GROUP BY provider, model ORDER BY SUM(estimated_cost) DESC",
+            )
+            .map_err(|e| format!("prepare provider breakdown: {}", e))?;
+
+        let by_provider_model: Vec<ProviderModelBreakdown> = stmt
+            .query_map([since_ts], |row| {
+                Ok(ProviderModelBreakdown {
+                    provider: row.get(0)?,
+                    model: row.get(1)?,
+                    calls: row.get(2)?,
+                    input_tokens: row.get(3)?,
+                    output_tokens: row.get(4)?,
+                    cache_read_tokens: row.get(5)?,
+                    cache_write_tokens: row.get(6)?,
+                    reasoning_tokens: row.get(7)?,
+                    estimated_cost: row.get(8)?,
+                })
+            })
+            .map_err(|e| format!("query provider breakdown: {}", e))?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        // By category
+        let mut stmt2 = conn
+            .prepare(
+                "SELECT category, COUNT(*), SUM(input_tokens), SUM(output_tokens), SUM(estimated_cost)
+                 FROM usage_log WHERE timestamp >= ?1
+                 GROUP BY category ORDER BY SUM(estimated_cost) DESC",
+            )
+            .map_err(|e| format!("prepare category breakdown: {}", e))?;
+
+        let by_category: Vec<CategoryBreakdown> = stmt2
+            .query_map([since_ts], |row| {
+                Ok(CategoryBreakdown {
+                    category: row.get(0)?,
+                    calls: row.get(1)?,
+                    input_tokens: row.get(2)?,
+                    output_tokens: row.get(3)?,
+                    estimated_cost: row.get(4)?,
+                })
+            })
+            .map_err(|e| format!("query category breakdown: {}", e))?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        Ok(UsageSummary {
+            total_cost,
+            total_input_tokens: total_input,
+            total_output_tokens: total_output,
+            total_cache_read_tokens: total_cache_read,
+            total_calls,
+            by_provider_model,
+            by_category,
+        })
+    })
+}
+
 fn now_millis() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

@@ -13,6 +13,8 @@ import { useHistory } from '@shared/contexts/HistoryContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useApp } from '@shared/contexts/AppContext';
 import { useToast } from '@shared/contexts/ToastContext';
+import { logUsage } from '@extensions/usage';
+import { resolveModel } from '@shared/utils/modelResolver';
 import type { HistoryItem, MeetingSummary } from '@/types';
 
 interface UseTranscribeRecordingReturn {
@@ -48,12 +50,22 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
       const audioBlob = new Blob([dataResult.data], { type: 'audio/wav' });
 
       // Process with unified AI service
-      const data = await unifiedAIService.processAudio(
+      const { result: data, usage } = await unifiedAIService.processAudio(
         audioBlob,
         categories,
         settings,
         providers
       );
+
+      // Log transcription usage (fire-and-forget)
+      const resolved = resolveModel(settings.transcriptionModel, providers);
+      logUsage({
+        category: 'transcription',
+        sessionId: item.id,
+        provider: resolved?.provider,
+        model: resolved?.modelId,
+        usage,
+      }).catch(() => {});
 
       // Build MeetingSummary from structured result
       const meetingSummary: MeetingSummary = {

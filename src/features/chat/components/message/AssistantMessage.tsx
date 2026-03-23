@@ -3,6 +3,7 @@ import { AnimatedProviderIcon } from '../AnimatedProviderIcon';
 import { StreamingMarkdown } from '../StreamingMarkdown';
 import { useStreamingText } from '@features/chat/stores/streamingStore';
 import { getProviderTitle } from '@/utils/providerUtils';
+import { toolLabel } from '@shared/utils/toolUtils';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { TEXT } from '@config/theme.config';
 import { injectCitationTokens } from '@shared/utils/inlineCitationInjector';
@@ -11,6 +12,45 @@ import AssistantActionBar from './AssistantActionBar';
 import ErrorMessageBox from './ErrorMessageBox';
 import type { AssistantMessageProps } from './types';
 import type { ChatPart, WebCitation, InlineCitationSpan } from '@/types';
+
+/**
+ * Streaming-aware header label — subscribes to the external store.
+ * During tool phase (no text yet): shows active tool name.
+ * During text phase: shows provider/model.
+ * Isolated so only this component re-renders on streaming store changes.
+ */
+const StreamingHeaderLabel = memo(({
+  msgId, provider, model,
+}: {
+  msgId: string; provider?: string; model?: string;
+}) => {
+  const streaming = useStreamingText();
+
+  if (streaming.msgId === msgId) {
+    const toolParts = streaming.parts.filter(
+      (p): p is Extract<ChatPart, { type: 'tool_call' }> => p.type === 'tool_call'
+    );
+    const hasText = streaming.parts.some(p => p.type === 'text');
+
+    // Still in tool phase (no text yet) — show current tool label
+    if (toolParts.length > 0 && !hasText) {
+      const active = toolParts.find(p => p.status === 'calling') || toolParts[toolParts.length - 1];
+      if (active) {
+        const status = active.status === 'calling' ? 'calling' as const : 'complete' as const;
+        return <>{toolLabel(active.toolName, status)}</>;
+      }
+    }
+  }
+
+  return (
+    <>
+      {getProviderTitle(provider)}
+      {model && <span className={`font-normal ${TEXT.faint}`}> · {model}</span>}
+    </>
+  );
+});
+
+StreamingHeaderLabel.displayName = 'StreamingHeaderLabel';
 
 /**
  * Inner streaming content — subscribes to the external store.
@@ -121,12 +161,14 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
           {isLoading
             ? loadingLabel
               || (provider === 'llamacpp' ? `Loading ${model || 'model'} into memory...` : 'Working on it...')
-            : (
-            <>
-              {getProviderTitle(provider)}
-              {model && <span className={`font-normal ${TEXT.faint}`}> · {model}</span>}
-            </>
-          )}
+            : isStreaming
+              ? <StreamingHeaderLabel msgId={id} provider={provider} model={model} />
+              : (
+              <>
+                {getProviderTitle(provider)}
+                {model && <span className={`font-normal ${TEXT.faint}`}> · {model}</span>}
+              </>
+            )}
         </span>
       </div>
 

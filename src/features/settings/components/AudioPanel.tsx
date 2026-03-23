@@ -169,7 +169,8 @@ export const AudioPanel: React.FC = () => {
       </SettingsSection>
 
       {/* Input Source + Quality — compact inline rows */}
-      <div className={`border ${BORDER.default} ${RADIUS.lg} ${SURFACE.card} divide-y ${BORDER.divide}`}>
+      <SettingsSection title="Recording">
+        <div className={`border ${BORDER.default} ${RADIUS.lg} ${SURFACE.card} divide-y ${BORDER.divide}`}>
         {/* Input Source row */}
         <div className="flex items-center justify-between gap-4 px-4 py-3">
           <div className="min-w-0 flex-1">
@@ -225,7 +226,8 @@ export const AudioPanel: React.FC = () => {
             </Select>
           </div>
         </div>
-      </div>
+        </div>
+      </SettingsSection>
 
       {/* Tip */}
       <InfoCallout variant="neutral">

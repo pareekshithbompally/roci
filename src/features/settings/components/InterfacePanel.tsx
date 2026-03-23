@@ -5,28 +5,63 @@
  * Self-contained — loads its own storage path state on mount.
  */
 
-import React, { useState, useEffect } from 'react';
-import { Sun, Moon, Monitor, Copy, Check, FolderOpen, FolderSearch } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Sun, Moon, Monitor, Copy, Check, FolderOpen, FolderSearch, RefreshCw } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useSettings } from '@shared/contexts/SettingsContext';
+import { useHistory } from '@shared/contexts/HistoryContext';
+import { useToast } from '@shared/contexts/ToastContext';
 import { isTauriEnvironment } from '@/services/tauri';
 import { pathsService } from '@/services/storage';
 import { IMPORT_CONFIG } from '@config/audio.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { SURFACE, BORDER, TEXT, RADIUS, LAYOUT } from '@config/theme.config';
+import { SURFACE, BORDER, TEXT, RADIUS, LAYOUT, COMPONENT } from '@config/theme.config';
 import { SettingsSection } from './shared';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui';
+import {
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+  AlertDialog, AlertDialogPortal, AlertDialogOverlay, AlertDialogContent,
+  AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
+} from '@shared/ui';
 import { useSettingsSave } from '../hooks/useSettingsSave';
 
 export const InterfacePanel: React.FC = () => {
   const { theme, setTheme } = useTheme();
-  const { settings, setSettings } = useSettings();
+  const { settings, setSettings, providers } = useSettings();
+  const { items: historyItems } = useHistory();
+  const { showToast } = useToast();
   const { hasUnsavedChanges } = useSettingsSave('System settings', 'interface');
 
   const [storagePath, setStoragePath] = useState<string | null>(null);
   const [storagePathError, setStoragePathError] = useState<string | null>(null);
   const [storagePathCopied, setStoragePathCopied] = useState(false);
   const [diskUsage, setDiskUsage] = useState<{ label: string; bytes: number }[] | null>(null);
+  const [rebuildConfirmOpen, setRebuildConfirmOpen] = useState(false);
+  const [isRebuilding, setIsRebuilding] = useState(false);
+
+  const handleRebuildIndex = useCallback(async () => {
+    setRebuildConfirmOpen(false);
+    setIsRebuilding(true);
+
+    try {
+      const { vectorDB, ragIndexer } = await import('@extensions/rag');
+
+      // Wipe all vector + graph data
+      await vectorDB.rebuild();
+
+      // Re-index all meetings (emits progress events → ActivityTray picks them up)
+      const extractionContext = settings.chatModel
+        ? { settings, providers }
+        : undefined;
+
+      const indexed = await ragIndexer.indexAll(historyItems, { extractionContext });
+      showToast(`Rebuilt index for ${indexed} meeting${indexed !== 1 ? 's' : ''}`, 'success');
+    } catch (error: unknown) {
+      console.error('[InterfacePanel] Rebuild index failed:', error);
+      showToast(error instanceof Error ? error.message : 'Failed to rebuild index', 'error');
+    } finally {
+      setIsRebuilding(false);
+    }
+  }, [historyItems, settings, providers, showToast]);
 
   useEffect(() => {
     if (!isTauriEnvironment()) return;
@@ -123,8 +158,9 @@ export const InterfacePanel: React.FC = () => {
         </p>
       </div>
 
-      {/* Theme + Job Processing — compact card */}
-      <div className={`border ${BORDER.default} ${RADIUS.lg} ${SURFACE.card} divide-y ${BORDER.divide}`}>
+      {/* Appearance — theme + import processing */}
+      <SettingsSection title="Appearance">
+        <div className={`border ${BORDER.default} ${RADIUS.lg} ${SURFACE.card} divide-y ${BORDER.divide}`}>
         {/* Theme row */}
         <div className="flex items-center justify-between gap-4 px-4 py-3">
           <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
@@ -206,12 +242,11 @@ export const InterfacePanel: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
-
-      {/* Storage Location */}
+        </div>
+      </SettingsSection>
       {storagePath && (
         <SettingsSection title="Storage Location">
-          <div className={`flex items-center gap-2 p-3 ${SURFACE.subtle} border ${BORDER.default} ${RADIUS.lg}`}>
+          <div className={`flex items-center gap-2 p-3 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg}`}>
             <FolderOpen className={`w-4 h-4 ${TEXT.faint} shrink-0`} />
             <span className={`${TYPOGRAPHY_CLASSES.settingsInput} ${TEXT.secondary} truncate flex-1`}>
               {storagePath}
@@ -244,20 +279,73 @@ export const InterfacePanel: React.FC = () => {
       {/* Disk Usage */}
       {diskUsage && diskUsage.length > 0 && (
         <SettingsSection title="Disk Usage">
-          <div className={`${SURFACE.subtle} border ${BORDER.default} ${RADIUS.lg} divide-y ${BORDER.divide}`}>
+          <div className={`${SURFACE.card} border ${BORDER.default} ${RADIUS.lg} divide-y ${BORDER.divide}`}>
             {diskUsage.map(({ label, bytes }) => (
               <div key={label} className={`flex items-center justify-between px-3 py-2 ${TYPOGRAPHY_CLASSES.settingsInput}`}>
                 <span className={TEXT.secondary}>{label}</span>
-                <span className={`${TEXT.muted} font-mono text-xs`}>{formatBytes(bytes)}</span>
+                <span className={`${TEXT.muted} font-mono`}>{formatBytes(bytes)}</span>
               </div>
             ))}
-            <div className={`flex items-center justify-between px-3 py-2 ${TYPOGRAPHY_CLASSES.settingsInput} font-medium`}>
+            <div className={`flex items-center justify-between px-3 py-2 ${TYPOGRAPHY_CLASSES.settingsInputLabel}`}>
               <span className={TEXT.heading}>Total</span>
-              <span className={`${TEXT.heading} font-mono text-xs`}>
+              <span className={`${TEXT.heading} font-mono`}>
                 {formatBytes(diskUsage.reduce((sum, d) => sum + d.bytes, 0))}
               </span>
             </div>
           </div>
+        </SettingsSection>
+      )}
+
+      {/* Search Index */}
+      {isTauriEnvironment() && (
+        <SettingsSection title="Search Index">
+          <div className={`flex items-center justify-between p-3 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg}`}>
+            <div className="min-w-0 flex-1">
+              <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
+                Rebuild Index
+              </span>
+              <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
+                Clears and re-indexes all meetings.
+              </p>
+            </div>
+            <button
+              onClick={() => setRebuildConfirmOpen(true)}
+              disabled={isRebuilding || historyItems.length === 0}
+              className={`flex items-center gap-1.5 px-3 py-1.5 ${TYPOGRAPHY_CLASSES.settingsButton} border ${BORDER.strong} ${RADIUS.lg} ${TEXT.primary} ${SURFACE.hoverSubtle} transition-colors disabled:opacity-40 disabled:pointer-events-none shrink-0 ml-4`}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRebuilding ? 'animate-spin' : ''}`} />
+              {isRebuilding ? 'Rebuilding…' : 'Rebuild'}
+            </button>
+          </div>
+
+          <AlertDialog open={rebuildConfirmOpen} onOpenChange={setRebuildConfirmOpen}>
+            <AlertDialogPortal>
+              <AlertDialogOverlay />
+              <AlertDialogContent className="max-w-sm p-5">
+                <AlertDialogTitle className={`${TYPOGRAPHY_CLASSES.summaryTitle} ${TEXT.heading} mb-1.5`}>
+                  Rebuild search index?
+                </AlertDialogTitle>
+                <AlertDialogDescription className={`${TYPOGRAPHY_CLASSES.settingsDescription} ${TEXT.secondary} mb-5`}>
+                  This will clear the vector database and knowledge graph, then re-index all {historyItems.length} meeting{historyItems.length !== 1 ? 's' : ''}. This may take a while.
+                </AlertDialogDescription>
+                <div className="flex gap-2.5 justify-end">
+                  <AlertDialogCancel asChild>
+                    <button className={`px-3.5 py-2 ${TYPOGRAPHY_CLASSES.settingsButton} ${TEXT.primary} border ${BORDER.strong} rounded-lg ${SURFACE.hoverSubtle} transition-colors`}>
+                      Cancel
+                    </button>
+                  </AlertDialogCancel>
+                  <AlertDialogAction asChild>
+                    <button
+                      onClick={handleRebuildIndex}
+                      className={`px-3.5 py-2 ${TYPOGRAPHY_CLASSES.settingsButton} ${COMPONENT.dangerButton} rounded-lg`}
+                    >
+                      Rebuild
+                    </button>
+                  </AlertDialogAction>
+                </div>
+              </AlertDialogContent>
+            </AlertDialogPortal>
+          </AlertDialog>
         </SettingsSection>
       )}
 

@@ -26,6 +26,43 @@ export type ToolChoice = 'auto' | 'none' | 'required';
 export interface TokenUsage {
   inputTokens?: number;
   outputTokens?: number;
+  totalTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+  reasoningTokens?: number;
+}
+
+/** Extract full token usage from AI SDK's LanguageModelUsage object */
+export function extractTokenUsage(usage: {
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  inputTokenDetails?: { cacheReadTokens?: number; cacheWriteTokens?: number };
+  outputTokenDetails?: { reasoningTokens?: number };
+}): TokenUsage {
+  return {
+    inputTokens: usage.inputTokens ?? undefined,
+    outputTokens: usage.outputTokens ?? undefined,
+    totalTokens: usage.totalTokens ?? undefined,
+    cacheReadTokens: usage.inputTokenDetails?.cacheReadTokens ?? undefined,
+    cacheWriteTokens: usage.inputTokenDetails?.cacheWriteTokens ?? undefined,
+    reasoningTokens: usage.outputTokenDetails?.reasoningTokens ?? undefined,
+  };
+}
+
+/** Sum two TokenUsage objects field-by-field */
+export function mergeTokenUsage(a?: TokenUsage, b?: TokenUsage): TokenUsage {
+  if (!a) return b ?? {};
+  if (!b) return a;
+  const sum = (x?: number, y?: number) => (x ?? 0) + (y ?? 0) || undefined;
+  return {
+    inputTokens: sum(a.inputTokens, b.inputTokens),
+    outputTokens: sum(a.outputTokens, b.outputTokens),
+    totalTokens: sum(a.totalTokens, b.totalTokens),
+    cacheReadTokens: sum(a.cacheReadTokens, b.cacheReadTokens),
+    cacheWriteTokens: sum(a.cacheWriteTokens, b.cacheWriteTokens),
+    reasoningTokens: sum(a.reasoningTokens, b.reasoningTokens),
+  };
 }
 
 /** Stream metadata for UI state */

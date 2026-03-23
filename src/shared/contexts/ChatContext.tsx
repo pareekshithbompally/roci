@@ -19,6 +19,7 @@ import { orchestrate } from '@extensions/tool-orchestrator';
 import { streamingStore } from '@features/chat/stores/streamingStore';
 import { buildChatRequest } from '@core/ai';
 import { generateSuggestions } from '@/services/ai/suggestions';
+import { logUsage } from '@extensions/usage';
 
 interface ChatState {
   /** All chat sessions */
@@ -708,6 +709,15 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       );
       tokenUsageResult = orchestrateResult.tokenUsage;
 
+      // Log usage (fire-and-forget)
+      logUsage({
+        category: 'chat',
+        sessionId: activeSessionId,
+        provider: orchestrateResult.provider,
+        model: orchestrateResult.model,
+        usage: orchestrateResult.tokenUsage,
+      }).catch(() => {});
+
       // Stream complete — flush store and commit final text + parts to sessions
       const streamResult = streamingStore.finish();
       const streamedParts = streamResult.parts;
@@ -768,8 +778,15 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       if (isNewSession) {
         unifiedAIService
           .generateTitle(textToSend, mainText, effectiveSettings, effectiveProviders)
-          .then(title => {
+          .then(({ title, usage: titleUsage }) => {
             renameSession(activeSessionId, title);
+            logUsage({
+              category: 'title-gen',
+              sessionId: activeSessionId,
+              provider: orchestrateResult.provider,
+              model: orchestrateResult.model,
+              usage: titleUsage,
+            }).catch(() => {});
           })
           .catch(() => { /* best-effort */ });
       }

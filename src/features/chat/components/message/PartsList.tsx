@@ -1,7 +1,7 @@
 import React from 'react';
 import { StreamingMarkdown } from '../StreamingMarkdown';
 import { MediaPartRenderer } from '../MediaPartRenderer';
-import ToolCallBlock from './ToolCallBlock';
+import ToolActivityTrace from './ToolActivityTrace';
 import ToolCallSummary from './ToolCallSummary';
 import type { ChatPart, WebCitation } from '@/types';
 
@@ -23,13 +23,11 @@ const PartsList: React.FC<PartsListProps> = ({ parts, messageId, streaming, proc
   
   return (
     <>
-      {/* Render tool calls: individual blocks while streaming, summary when finalized */}
+      {/* Render tool calls: activity trace during tool phase, summary when finalized */}
       {toolCallParts.length > 0 && (
-        streaming ? (
-          toolCallParts.map(part => <ToolCallBlock key={part.toolCallId} part={part} />)
-        ) : (
-          <ToolCallSummary parts={toolCallParts} />
-        )
+        streaming
+          ? nonToolParts.length === 0 && <ToolActivityTrace parts={toolCallParts} />
+          : <ToolCallSummary parts={toolCallParts} />
       )}
 
       {nonToolParts.map((part, index) => {

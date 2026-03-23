@@ -280,11 +280,11 @@ export const ProvidersPanel: React.FC = () => {
                     className={`w-full flex items-center gap-2.5 px-3 py-2 ${RADIUS.md} text-left transition-all border ${
                       isSelected
                         ? `${SURFACE.selectedCard} ${BORDER.selectedCard}`
-                        : `${SURFACE.subtle} ${BORDER.default} ${BORDER.cardHover}`
+                        : `${SURFACE.card} ${BORDER.default} ${BORDER.cardHover}`
                     }`}
                   >
                     <ProvidersAvatar provider={provider.provider} size={20} />
-                    <span className={`flex-1 truncate text-[13px] ${
+                    <span className={`flex-1 truncate ${TYPOGRAPHY_CLASSES.settingsInputLabel} ${
                       isSelected ? TEXT.heading : TEXT.primary
                     }`}>
                       {getProviderTitle(provider.provider)}
@@ -334,7 +334,7 @@ export const ProvidersPanel: React.FC = () => {
                   </InfoCallout>
 
                   {/* Live server status */}
-                  <div className={`px-4 py-3 ${SURFACE.subtle} border ${BORDER.default} rounded-lg space-y-2`}>
+                  <div className={`px-4 py-3 ${SURFACE.card} border ${BORDER.default} rounded-lg space-y-2`}>
                     <div className="flex items-center justify-between">
                       <LlamacppServerStatus />
                     </div>
@@ -487,7 +487,7 @@ export const ProvidersPanel: React.FC = () => {
                             <CommandList className="max-h-64">
                               <CommandEmpty>No models found</CommandEmpty>
                               {searchResults.length === 1 && searchResults[0] === modelSearch.trim() && (
-                                <div className={`px-3 py-2 border-b border-[var(--border-strong)] text-xs text-[var(--text-faint)]`}>
+                                <div className={`px-3 py-2 border-b ${BORDER.strong} ${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
                                   {hasHardcodedModels ? 'Not in known models — add manually:' : 'Not found via API — add manually:'}
                                 </div>
                               )}

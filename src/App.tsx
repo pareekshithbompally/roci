@@ -213,7 +213,7 @@ const App: React.FC = () => {
 
     toast.showToast('Processing document...', 'info');
     try {
-      const data = await unifiedAIService.processDocument(file, history.categories, settings, providers);
+      const { result: data } = await unifiedAIService.processDocument(file, history.categories, settings, providers);
       data.timestamp = Date.now();
 
       const newItem = {

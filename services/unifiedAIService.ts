@@ -16,6 +16,8 @@ import { buildTranscriptionRequest } from '@core/ai';
 import { modalitiesService } from './modalities';
 import type { TranscriptionResponse } from '@core/ai/schemas/transcription.schema';
 import { createModel } from './ai';
+import { extractTokenUsage } from './ai/types';
+import type { TokenUsage } from './ai/types';
 import { getPlatformFetch } from './platform-fetch';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 
@@ -96,7 +98,7 @@ class UnifiedAIService {
     categories: string[],
     settings: AppSettings,
     providers: ModelProvider[]
-  ): Promise<ProcessedResult> {
+  ): Promise<{ result: ProcessedResult; usage?: TokenUsage }> {
     const resolved = resolveModel(settings.transcriptionModel, providers);
     if (!resolved) {
       throw new Error(`Model "${settings.transcriptionModel}" not found. Please configure a model in Settings → Providers.`);
@@ -132,7 +134,7 @@ class UnifiedAIService {
           }],
           output: Output.object({ schema: jsonSchema(config.outputSchema.schema) }),
         });
-        return this.parseTranscriptionResult(result.output as TranscriptionResponse, true);
+        return { result: this.parseTranscriptionResult(result.output as TranscriptionResponse, true), usage: extractTokenUsage(result.usage) };
       } else {
         const result = await generateText({
           model,
@@ -145,7 +147,7 @@ class UnifiedAIService {
             ],
           }],
         });
-        return this.parseTranscriptionResult(result.text, false);
+        return { result: this.parseTranscriptionResult(result.text, false), usage: extractTokenUsage(result.usage) };
       }
     }
 
@@ -159,14 +161,14 @@ class UnifiedAIService {
         messages: [{ role: 'user', content: `Transcript:\n${transcript}` }],
         output: Output.object({ schema: jsonSchema(config.outputSchema.schema) }),
       });
-      return this.parseTranscriptionResult(result.output as TranscriptionResponse, true);
+      return { result: this.parseTranscriptionResult(result.output as TranscriptionResponse, true), usage: extractTokenUsage(result.usage) };
     } else {
       const result = await generateText({
         model,
         system: config.prompt,
         messages: [{ role: 'user', content: `Transcript:\n${transcript}` }],
       });
-      return this.parseTranscriptionResult(result.text, false);
+      return { result: this.parseTranscriptionResult(result.text, false), usage: extractTokenUsage(result.usage) };
     }
   }
 
@@ -175,7 +177,7 @@ class UnifiedAIService {
     categories: string[],
     settings: AppSettings,
     providers: ModelProvider[]
-  ): Promise<ProcessedResult> {
+  ): Promise<{ result: ProcessedResult; usage?: TokenUsage }> {
     const resolved = resolveModel(settings.transcriptionModel, providers);
     if (!resolved) {
       throw new Error(`Model "${settings.transcriptionModel}" not found. Please configure a model in Settings → Providers.`);
@@ -200,14 +202,14 @@ class UnifiedAIService {
         messages: [{ role: 'user', content }],
         output: Output.object({ schema: jsonSchema(config.outputSchema.schema) }),
       });
-      return this.parseTranscriptionResult(result.output as TranscriptionResponse, true);
+      return { result: this.parseTranscriptionResult(result.output as TranscriptionResponse, true), usage: extractTokenUsage(result.usage) };
     } else {
       const result = await generateText({
         model,
         system: config.prompt,
         messages: [{ role: 'user', content }],
       });
-      return this.parseTranscriptionResult(result.text, false);
+      return { result: this.parseTranscriptionResult(result.text, false), usage: extractTokenUsage(result.usage) };
     }
   }
 
@@ -216,10 +218,10 @@ class UnifiedAIService {
     assistantResponse: string,
     settings: AppSettings,
     providers: ModelProvider[]
-  ): Promise<string> {
+  ): Promise<{ title: string; usage?: TokenUsage }> {
     const fallback = userMessage.slice(0, 30);
     const resolved = resolveModel(settings.chatModel, providers);
-    if (!resolved?.apiKey) return fallback;
+    if (!resolved?.apiKey) return { title: fallback };
 
     try {
       const model = createModel(resolved);
@@ -231,6 +233,8 @@ class UnifiedAIService {
           content: `User: ${userMessage}\nAssistant: ${assistantResponse.slice(0, 500)}`,
         }],
       });
+
+      const usage = extractTokenUsage(result.usage);
 
       let title = result.text
         .split('\n')[0]                      // first line only
@@ -259,10 +263,10 @@ class UnifiedAIService {
         !isRefusal &&
         /[a-zA-Z\u00C0-\u024F\u4e00-\u9fff]/.test(title);
 
-      return isUsable ? title : fallback;
+      return { title: isUsable ? title : fallback, usage };
     } catch (error) {
       console.error('[UnifiedAIService] Title generation failed:', error);
-      return fallback;
+      return { title: fallback };
     }
   }
 

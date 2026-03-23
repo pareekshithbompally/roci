@@ -59,7 +59,7 @@ export const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
           <DialogHeader>
             <div>
               <DialogTitle>Model Settings</DialogTitle>
-              <p className={`mt-0.5 text-xs ${TEXT.muted} font-mono truncate`}>{modelId}</p>
+              <p className={`mt-0.5 ${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted} font-mono truncate`}>{modelId}</p>
             </div>
             <DialogClose asChild>
               <button className={`${COMPONENT.iconButtonSm} -mr-1`} aria-label="Close">
@@ -75,7 +75,7 @@ export const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
           <div className={`${SURFACE.subtle} border ${BORDER.default} ${RADIUS.lg} p-4 space-y-3`}>
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className={`text-sm font-medium ${TEXT.heading}`}>Enable tool calling</p>
+                <p className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>Enable tool calling</p>
               </div>
               <Toggle
                 checked={toolsEnabled}
@@ -95,7 +95,7 @@ export const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
           <div className="flex justify-end mt-5">
             <button
               onClick={handleSave}
-              className={`px-3.5 py-2 ${COMPONENT.primaryButton} rounded-lg text-sm font-medium`}
+              className={`px-3.5 py-2 ${COMPONENT.primaryButton} rounded-lg ${TYPOGRAPHY_CLASSES.settingsButton}`}
             >
               Save
             </button>
