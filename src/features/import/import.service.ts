@@ -175,7 +175,7 @@ class ImportService {
     if (signal.aborted) throw new Error('Import cancelled');
 
     const resolved = resolveModel(settings.transcriptionModel, providers);
-    logUsage({ category: 'transcription', sessionId: job.meetingId, provider: resolved?.provider, model: resolved?.modelId, usage }).catch(() => {});
+    logUsage({ category: 'transcription', sessionId: job.meetingId, provider: resolved?.provider, model: resolved?.modelId, usage }).catch(e => console.error('[UsageLog] transcription:', e));
 
     const meetingSummary = this.buildMeetingSummary(result);
 
@@ -220,7 +220,7 @@ class ImportService {
     if (signal.aborted) throw new Error('Import cancelled');
 
     const resolvedAudio = resolveModel(settings.transcriptionModel, providers);
-    logUsage({ category: 'transcription', sessionId: job.meetingId, provider: resolvedAudio?.provider, model: resolvedAudio?.modelId, usage: audioUsage }).catch(() => {});
+    logUsage({ category: 'transcription', sessionId: job.meetingId, provider: resolvedAudio?.provider, model: resolvedAudio?.modelId, usage: audioUsage }).catch(e => console.error('[UsageLog] transcription:', e));
 
     const meetingSummary = this.buildMeetingSummary(result);
 

@@ -14,11 +14,10 @@ export function formatTokenCount(n: number): string {
   return `${(n / 1_000_000).toFixed(1)}M`;
 }
 
-/** Format USD cost: "$0.00", "$1.23", "$12.45" */
+/** Format USD cost: "$0.0000", "$0.0123", "$12.4500" */
 export function formatCost(usd: number): string {
-  if (usd === 0) return '$0.00';
-  if (usd < 0.01) return `$${usd.toFixed(4)}`;
-  return `$${usd.toFixed(2)}`;
+  if (usd === 0) return '$0.0000';
+  return `$${usd.toFixed(4)}`;
 }
 
 /** Capitalize first letter of a string */

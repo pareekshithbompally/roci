@@ -65,7 +65,7 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
         provider: resolved?.provider,
         model: resolved?.modelId,
         usage,
-      }).catch(() => {});
+      }).catch(e => console.error('[UsageLog] transcription:', e));
 
       // Build MeetingSummary from structured result
       const meetingSummary: MeetingSummary = {

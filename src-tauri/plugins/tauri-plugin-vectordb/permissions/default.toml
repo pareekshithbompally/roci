@@ -17,4 +17,6 @@ permissions = [
   "allow-graph-search",
   "allow-graph-delete-meeting",
   "allow-graph-stats",
+  "allow-insert-usage",
+  "allow-get-usage-summary",
 ]

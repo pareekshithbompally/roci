@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { DollarSign, Zap, TrendingUp, Loader2 } from 'lucide-react';
+import { DollarSign, Zap, TrendingUp, Loader2, AlertTriangle } from 'lucide-react';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { SURFACE, BORDER, TEXT, RADIUS, LAYOUT } from '@config/theme.config';
 import { SettingsSection } from './shared';
@@ -21,7 +21,7 @@ const TIME_RANGE_OPTIONS: { id: TimeRange; label: string }[] = [
 ];
 
 export const UsagePanel: React.FC = () => {
-  const { summary, isLoading, timeRange, setTimeRange } = useUsageData();
+  const { summary, isLoading, error, timeRange, setTimeRange } = useUsageData();
 
   const topModel = summary?.by_provider_model?.[0];
 
@@ -62,8 +62,19 @@ export const UsagePanel: React.FC = () => {
         </div>
       )}
 
+      {/* Error state */}
+      {!isLoading && error && (
+        <div className={`flex items-center gap-3 px-4 py-3 border ${BORDER.default} ${RADIUS.lg} ${SURFACE.card}`}>
+          <AlertTriangle className={`w-4 h-4 text-amber-500 shrink-0`} />
+          <div>
+            <p className={`${TYPOGRAPHY_CLASSES.settingsInput} ${TEXT.heading}`}>Failed to load usage data</p>
+            <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted} mt-0.5`}>{error}</p>
+          </div>
+        </div>
+      )}
+
       {/* Empty state */}
-      {!isLoading && summary && summary.total_calls === 0 && (
+      {!isLoading && !error && summary && summary.total_calls === 0 && (
         <div className={`text-center py-12 ${TEXT.muted} ${TYPOGRAPHY_CLASSES.settingsDescription}`}>
           No usage data yet. Start a chat or transcribe a recording to see usage here.
         </div>
@@ -96,7 +107,7 @@ export const UsagePanel: React.FC = () => {
           <SettingsSection title="By Model">
             <div className={`border ${BORDER.default} ${RADIUS.lg} ${SURFACE.card} overflow-hidden`}>
               {/* Table header */}
-              <div className={`grid grid-cols-[1fr_1fr_auto_auto_auto_auto] gap-x-4 px-4 py-2 border-b ${BORDER.divide} ${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} uppercase tracking-wider`}>
+              <div className={`grid grid-cols-[1fr_1fr_auto_auto_auto_auto] gap-x-4 px-4 py-2 border-b ${BORDER.divide} ${TYPOGRAPHY_CLASSES.settingsLabel} ${TEXT.faint}`}>
                 <span>Provider</span>
                 <span>Model</span>
                 <span className="text-right w-14">Calls</span>
@@ -137,7 +148,7 @@ export const UsagePanel: React.FC = () => {
                 {summary.by_category.map((cat) => (
                   <div key={cat.category} className={`flex items-center justify-between px-4 py-2.5 ${TYPOGRAPHY_CLASSES.settingsInput}`}>
                     <div className="flex items-center gap-3">
-                      <span className={`${TEXT.heading} font-medium`}>{formatCategory(cat.category)}</span>
+                      <span className={`${TEXT.heading} ${TYPOGRAPHY_CLASSES.settingsInputLabel}`}>{formatCategory(cat.category)}</span>
                       <span className={`${TEXT.faint} ${TYPOGRAPHY_CLASSES.settingsHelper}`}>{cat.calls} call{cat.calls !== 1 ? 's' : ''}</span>
                     </div>
                     <div className="flex items-center gap-4">

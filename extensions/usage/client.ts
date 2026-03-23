@@ -57,7 +57,7 @@ export async function logUsage(params: {
     await ensureInitialized();
     await invoke('plugin:vectordb|insert_usage', { record });
   } catch (error) {
-    console.warn('[UsageClient] Failed to log usage:', error);
+    console.error('[UsageClient] insert_usage failed:', error, '| record:', JSON.stringify({ category: record.category, provider: record.provider, model: record.model }));
   }
 }
 

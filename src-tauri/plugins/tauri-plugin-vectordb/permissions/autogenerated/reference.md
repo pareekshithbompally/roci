@@ -20,6 +20,8 @@ Allows all vectordb plugin commands
 - `allow-graph-search`
 - `allow-graph-delete-meeting`
 - `allow-graph-stats`
+- `allow-insert-usage`
+- `allow-get-usage-summary`
 
 ## Permission Table
 
@@ -156,6 +158,32 @@ Enables the get_stats command without any pre-configured scope.
 <td>
 
 Denies the get_stats command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:allow-get-usage-summary`
+
+</td>
+<td>
+
+Enables the get_usage_summary command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-get-usage-summary`
+
+</td>
+<td>
+
+Denies the get_usage_summary command without any pre-configured scope.
 
 </td>
 </tr>
@@ -338,6 +366,32 @@ Enables the initialize command without any pre-configured scope.
 <td>
 
 Denies the initialize command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:allow-insert-usage`
+
+</td>
+<td>
+
+Enables the insert_usage command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-insert-usage`
+
+</td>
+<td>
+
+Denies the insert_usage command without any pre-configured scope.
 
 </td>
 </tr>

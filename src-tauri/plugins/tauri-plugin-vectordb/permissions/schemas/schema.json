@@ -355,6 +355,18 @@
           "markdownDescription": "Denies the get_stats command without any pre-configured scope."
         },
         {
+          "description": "Enables the get_usage_summary command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-usage-summary",
+          "markdownDescription": "Enables the get_usage_summary command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_usage_summary command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-usage-summary",
+          "markdownDescription": "Denies the get_usage_summary command without any pre-configured scope."
+        },
+        {
           "description": "Enables the graph_delete_meeting command without any pre-configured scope.",
           "type": "string",
           "const": "allow-graph-delete-meeting",
@@ -439,6 +451,18 @@
           "markdownDescription": "Denies the initialize command without any pre-configured scope."
         },
         {
+          "description": "Enables the insert_usage command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-insert-usage",
+          "markdownDescription": "Enables the insert_usage command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the insert_usage command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-insert-usage",
+          "markdownDescription": "Denies the insert_usage command without any pre-configured scope."
+        },
+        {
           "description": "Enables the rebuild command without any pre-configured scope.",
           "type": "string",
           "const": "allow-rebuild",
@@ -487,10 +511,10 @@
           "markdownDescription": "Denies the upsert_meeting command without any pre-configured scope."
         },
         {
-          "description": "Allows all vectordb plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-upsert-meeting`\n- `allow-upsert-chunks`\n- `allow-delete-meeting`\n- `allow-search`\n- `allow-get-stale-meetings`\n- `allow-get-indexed-ids`\n- `allow-get-stats`\n- `allow-get-meta`\n- `allow-rebuild`\n- `allow-graph-upsert`\n- `allow-graph-traverse`\n- `allow-graph-neighbors`\n- `allow-graph-search`\n- `allow-graph-delete-meeting`\n- `allow-graph-stats`",
+          "description": "Allows all vectordb plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-upsert-meeting`\n- `allow-upsert-chunks`\n- `allow-delete-meeting`\n- `allow-search`\n- `allow-get-stale-meetings`\n- `allow-get-indexed-ids`\n- `allow-get-stats`\n- `allow-get-meta`\n- `allow-rebuild`\n- `allow-graph-upsert`\n- `allow-graph-traverse`\n- `allow-graph-neighbors`\n- `allow-graph-search`\n- `allow-graph-delete-meeting`\n- `allow-graph-stats`\n- `allow-insert-usage`\n- `allow-get-usage-summary`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Allows all vectordb plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-upsert-meeting`\n- `allow-upsert-chunks`\n- `allow-delete-meeting`\n- `allow-search`\n- `allow-get-stale-meetings`\n- `allow-get-indexed-ids`\n- `allow-get-stats`\n- `allow-get-meta`\n- `allow-rebuild`\n- `allow-graph-upsert`\n- `allow-graph-traverse`\n- `allow-graph-neighbors`\n- `allow-graph-search`\n- `allow-graph-delete-meeting`\n- `allow-graph-stats`"
+          "markdownDescription": "Allows all vectordb plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-upsert-meeting`\n- `allow-upsert-chunks`\n- `allow-delete-meeting`\n- `allow-search`\n- `allow-get-stale-meetings`\n- `allow-get-indexed-ids`\n- `allow-get-stats`\n- `allow-get-meta`\n- `allow-rebuild`\n- `allow-graph-upsert`\n- `allow-graph-traverse`\n- `allow-graph-neighbors`\n- `allow-graph-search`\n- `allow-graph-delete-meeting`\n- `allow-graph-stats`\n- `allow-insert-usage`\n- `allow-get-usage-summary`"
         }
       ]
     }

@@ -716,7 +716,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         provider: orchestrateResult.provider,
         model: orchestrateResult.model,
         usage: orchestrateResult.tokenUsage,
-      }).catch(() => {});
+      }).catch(e => console.error('[UsageLog] chat:', e));
 
       // Stream complete — flush store and commit final text + parts to sessions
       const streamResult = streamingStore.finish();
@@ -786,7 +786,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
               provider: orchestrateResult.provider,
               model: orchestrateResult.model,
               usage: titleUsage,
-            }).catch(() => {});
+            }).catch(e => console.error('[UsageLog] title-gen:', e));
           })
           .catch(() => { /* best-effort */ });
       }

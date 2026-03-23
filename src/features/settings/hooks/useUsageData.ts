@@ -20,6 +20,7 @@ const RANGE_MS: Record<TimeRange, number> = {
 export interface UseUsageDataReturn {
   summary: UsageSummary | null;
   isLoading: boolean;
+  error: string | null;
   timeRange: TimeRange;
   setTimeRange: (range: TimeRange) => void;
   refresh: () => void;
@@ -28,16 +29,20 @@ export interface UseUsageDataReturn {
 export function useUsageData(): UseUsageDataReturn {
   const [summary, setSummary] = useState<UsageSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<TimeRange>('30d');
 
   const fetchData = useCallback(async (range: TimeRange) => {
     setIsLoading(true);
+    setError(null);
     try {
       const since = range === 'all' ? undefined : Date.now() - RANGE_MS[range];
       const data = await getUsageSummary(since);
       setSummary(data);
-    } catch (error) {
-      console.error('[useUsageData] Failed to fetch usage summary:', error);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[useUsageData] Failed to fetch usage summary:', message);
+      setError(message);
       setSummary(null);
     } finally {
       setIsLoading(false);
@@ -52,5 +57,5 @@ export function useUsageData(): UseUsageDataReturn {
     fetchData(timeRange);
   }, [timeRange, fetchData]);
 
-  return { summary, isLoading, timeRange, setTimeRange, refresh };
+  return { summary, isLoading, error, timeRange, setTimeRange, refresh };
 }
