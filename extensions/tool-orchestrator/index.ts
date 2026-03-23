@@ -12,7 +12,7 @@
  * Single call site from ChatContext — orchestrate() signature unchanged.
  */
 
-import { generateText, streamText, tool, jsonSchema, stepCountIs, Output } from 'ai';
+import { generateText, streamText, tool, jsonSchema, stepCountIs } from 'ai';
 import type { ToolSet } from 'ai';
 import { createModel, toSDKMessages, getWebSearchTools } from '@/services/ai';
 import { resolveModel } from '@shared/utils/modelResolver';
@@ -151,15 +151,15 @@ async function synthesisPhase(params: {
   resolved: ResolvedModel;
   messages: OrchestratorOptions['messages'];
   systemPrompt: string;
-  outputSchema?: OrchestratorOptions['outputSchema'];
   webSearchEnabled?: boolean;
   signal?: AbortSignal;
   retrievalContext: string;
   onChunk: OrchestratorCallbacks['onChunk'];
   onMediaPart?: OrchestratorCallbacks['onMediaPart'];
 }): Promise<TokenUsage | undefined> {
-  const model = createModel(params.resolved);
-  const webSearchTools = params.webSearchEnabled ? getWebSearchTools(params.resolved) : undefined;
+  const useWebSearch = !!params.webSearchEnabled;
+  const webSearchTools = useWebSearch ? getWebSearchTools(params.resolved) : undefined;
+  const model = createModel(params.resolved, { webSearch: !!webSearchTools });
 
   // Build messages: conversation history + injected retrieval context.
   // Context goes into messages (not system prompt) so it works reliably
@@ -184,7 +184,6 @@ async function synthesisPhase(params: {
       // results → model generates text. Without this the chain dies after step 1.
       stopWhen: stepCountIs(SYNTHESIS_TOOL_STEPS),
     }),
-    ...(params.outputSchema && { output: Output.object({ schema: jsonSchema(params.outputSchema.schema) }) }),
   });
 
   const collectedSources: Array<{ url: string; title: string }> = [];
@@ -259,7 +258,7 @@ export async function orchestrate(
   callbacks: OrchestratorCallbacks
 ): Promise<{ provider?: string; model?: string; tokenUsage?: TokenUsage }> {
   const { messages, systemPrompt, settings, providers, historyItems, signal,
-          webSearchEnabled, outputSchema, toolChoice } = options;
+          webSearchEnabled, toolChoice } = options;
   const { onChunk, onMediaPart, onToolActivity } = callbacks;
 
   const resolved = resolveModel(settings.chatModel, providers);
@@ -279,18 +278,23 @@ export async function orchestrate(
     getLastUserMessage(messages),
     historyItems.length,
   );
-  const retrievalContext = shouldRetrieve
-    ? await retrievalPhase({
+  let retrievalContext = '';
+  if (shouldRetrieve) {
+    try {
+      retrievalContext = await retrievalPhase({
         resolved, messages, historyItems, signal,
         schemas,
         toolChoice: effectiveToolChoice,
         onToolActivity,
-      })
-    : '';
+      });
+    } catch (error) {
+      console.error('[Orchestrator] Phase 1 retrieval failed, continuing to synthesis:', error);
+    }
+  }
 
   // ── Phase 2: Synthesis ────────────────────────────────────────────────────
   const tokenUsage = await synthesisPhase({
-    resolved, messages, systemPrompt, outputSchema,
+    resolved, messages, systemPrompt,
     webSearchEnabled, signal, retrievalContext,
     onChunk, onMediaPart,
   });

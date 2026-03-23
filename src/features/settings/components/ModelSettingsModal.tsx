@@ -95,7 +95,7 @@ export const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
           <div className="flex justify-end mt-5">
             <button
               onClick={handleSave}
-              className={`px-4 py-2 ${COMPONENT.primaryButton} ${RADIUS.md} text-sm font-medium`}
+              className={`px-3.5 py-2 ${COMPONENT.primaryButton} rounded-lg text-sm font-medium`}
             >
               Save
             </button>

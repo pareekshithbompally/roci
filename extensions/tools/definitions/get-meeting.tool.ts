@@ -60,12 +60,22 @@ export const getMeetingTool: ToolDefinition = {
       };
     }
 
-    const references = await meetingReferenceService.loadSelectiveContext(
-      [historyItem],
-      fields as MeetingField[],
-    );
-
-    const formatted = meetingReferenceService.formatForLLM(references);
+    let formatted: string;
+    try {
+      const references = await meetingReferenceService.loadSelectiveContext(
+        [historyItem],
+        fields as MeetingField[],
+      );
+      formatted = meetingReferenceService.formatForLLM(references);
+    } catch (error) {
+      console.error('[GetMeetingTool] Failed to load meeting:', error);
+      return {
+        toolCallId: '',
+        content: `Failed to load meeting data: ${error instanceof Error ? error.message : String(error)}`,
+        isError: true,
+        meta: { toolName: 'get_meeting', executionMs: 0 },
+      };
+    }
 
     if (!formatted) {
       return {

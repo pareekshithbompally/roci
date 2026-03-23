@@ -1,21 +1,10 @@
-/**
- * UnifiedList Component
- *
- * Container component that displays a unified list of meetings and chats in the sidebar.
- *
- * Container Philosophy:
- * - Manages all UI state (rename) locally within the container
- * - Item components (UnifiedSidebarItem) are pure presentation components
- * - Type-specific persistence logic is delegated to contexts (HistoryContext, ChatContext)
- * - Dropdown menu state is managed by Radix internally within each item
- */
-
 import React from 'react';
 import { useHistory } from '@shared/contexts/HistoryContext';
 import { useChat } from '@shared/contexts/ChatContext';
 import { TEXT } from '@config/theme.config';
 import { useTranscribeRecording } from '@shared/hooks/useTranscribeRecording';
 import { UnifiedSidebarItem } from './UnifiedSidebarItem';
+import { RenameModal } from './RenameModal';
 import type { UnifiedSidebarItem as UnifiedSidebarItemType } from '@/types';
 
 interface UnifiedListProps {
@@ -35,8 +24,7 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
   const chat = useChat();
   const { transcribe, isTranscribing, transcribingItemId } = useTranscribeRecording();
 
-  const [renamingItemId, setRenamingItemId] = React.useState<string | null>(null);
-  const [renameValue, setRenameValue] = React.useState('');
+  const [renameItem, setRenameItem] = React.useState<UnifiedSidebarItemType | null>(null);
 
   if (items.length === 0) {
     return (
@@ -54,31 +42,14 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
     }
   };
 
-  const handleStartRename = (item: UnifiedSidebarItemType) => {
-    setRenamingItemId(item.id);
-    setRenameValue(item.title);
-  };
+  const handleRenameConfirm = async (newTitle: string) => {
+    if (!renameItem) return;
 
-  const handleRenameChange = (value: string) => {
-    setRenameValue(value);
-  };
-
-  const handleRenameSubmit = async (item: UnifiedSidebarItemType) => {
-    if (!renameValue.trim()) return;
-
-    if (item.type === 'meeting') {
-      await history.renameItem(item.id, renameValue);
-    } else if (item.type === 'chat') {
-      await chat.renameSession(item.id, renameValue);
+    if (renameItem.type === 'meeting') {
+      await history.renameItem(renameItem.id, newTitle);
+    } else if (renameItem.type === 'chat') {
+      await chat.renameSession(renameItem.id, newTitle);
     }
-
-    setRenamingItemId(null);
-    setRenameValue('');
-  };
-
-  const handleRenameCancel = () => {
-    setRenamingItemId(null);
-    setRenameValue('');
   };
 
   const handleTranscribe = (item: UnifiedSidebarItemType) => {
@@ -88,26 +59,30 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
   };
 
   return (
-    <div className="space-y-1">
-      {items.map((item) => (
-        <UnifiedSidebarItem
-          key={`${item.type}-${item.id}`}
-          item={item}
-          searchQuery={searchQuery}
-          isSelected={selectedId === item.id}
-          isRenaming={renamingItemId === item.id}
-          renameValue={renameValue}
-          onClick={() => onSelect(item)}
-          onStartRename={() => handleStartRename(item)}
-          onRenameChange={handleRenameChange}
-          onRenameSubmit={() => handleRenameSubmit(item)}
-          onRenameCancel={handleRenameCancel}
-          onDeleteClick={() => handleDelete(item)}
-          isTranscribing={isTranscribing && transcribingItemId === item.id}
-          onTranscribeClick={item.type === 'meeting' ? () => handleTranscribe(item) : undefined}
-        />
-      ))}
-    </div>
+    <>
+      <div className="space-y-1">
+        {items.map((item) => (
+          <UnifiedSidebarItem
+            key={`${item.type}-${item.id}`}
+            item={item}
+            searchQuery={searchQuery}
+            isSelected={selectedId === item.id}
+            onClick={() => onSelect(item)}
+            onStartRename={() => setRenameItem(item)}
+            onDeleteClick={() => handleDelete(item)}
+            isTranscribing={isTranscribing && transcribingItemId === item.id}
+            onTranscribeClick={item.type === 'meeting' ? () => handleTranscribe(item) : undefined}
+          />
+        ))}
+      </div>
+
+      <RenameModal
+        open={renameItem !== null}
+        onOpenChange={(open) => { if (!open) setRenameItem(null); }}
+        currentTitle={renameItem?.title ?? ''}
+        onConfirm={handleRenameConfirm}
+      />
+    </>
   );
 };
 

@@ -9,7 +9,6 @@ export interface ChatPromptOptions {
   contextBlock?: string;
   hasTools?: boolean;
   meetingCount?: number;
-  isFirstMessage?: boolean;
 }
 
 export function buildChatSystemPrompt(options: ChatPromptOptions = {}): string {
@@ -17,7 +16,6 @@ export function buildChatSystemPrompt(options: ChatPromptOptions = {}): string {
     contextBlock,
     hasTools = false,
     meetingCount = 0,
-    isFirstMessage = false,
   } = options;
 
   // ── Base identity ──
@@ -83,19 +81,7 @@ You also have a knowledge graph tool (\`query_graph\`) that tracks entities (peo
   // ── Context ──
   const contextSection = contextBlock ? `\n\n${contextBlock}` : '';
 
-  // ── Structured output instructions ──
-  // The JSON schema enforces shape; this tells the model what content to produce.
-  const titleInstruction = isFirstMessage
-    ? `\n- \`title\`: A concise 3-6 word title summarizing what this conversation is about.`
-    : '';
-
-  const structuredInstruction = `
-
-Your response will be structured as JSON with the following fields:
-- \`response\`: Your full markdown answer. Write naturally — this is what the user sees.
-- \`suggestions\`: Exactly 3 follow-up suggestions written as the user would type them. Keep them concise (under 12 words), relevant to the conversation, and in the user's voice (e.g., "Show me the action items" not "Would you like to see the action items?").${titleInstruction}`;
-
-  return basePrompt + toolGuidance + contextSection + structuredInstruction;
+  return basePrompt + toolGuidance + contextSection;
 }
 
 export function buildRAGContextPrompt(

@@ -40,7 +40,6 @@ function buildSnapshot(panelId: string, settings: AppSettings, providers: ModelP
         defaultAudioSource: settings.defaultAudioSource,
         audioQualityPreset: settings.audioQualityPreset,
         transcriptionModel: settings.transcriptionModel,
-        jobProcessing: settings.jobProcessing,
       });
     case 'providers':
       return stableStringify({
@@ -54,6 +53,12 @@ function buildSnapshot(panelId: string, settings: AppSettings, providers: ModelP
     case 'categories':
       return stableStringify({
         categories: settings.categories,
+        summaryExtraction: settings.summaryExtraction,
+        meetingDefaults: settings.meetingDefaults,
+      });
+    case 'interface':
+      return stableStringify({
+        jobProcessing: settings.jobProcessing,
       });
     default:
       return stableStringify(settings);

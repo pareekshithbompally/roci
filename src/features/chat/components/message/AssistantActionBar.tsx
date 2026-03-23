@@ -14,6 +14,7 @@ interface AssistantActionBarProps {
   isLastMessage: boolean;
   isCopied?: boolean;
   tokenCount?: number;
+  inputTokenCount?: number;
   tokensPerSecond?: number;
   actions: ActionProps;
   meetingCitations?: MeetingCitation[];
@@ -25,7 +26,7 @@ interface AssistantActionBarProps {
 
 const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
   id, text, timestamp, isLastMessage, isCopied,
-  tokenCount, tokensPerSecond,
+  tokenCount, inputTokenCount, tokensPerSecond,
   actions, meetingCitations,
   suggestions, onSuggestionClick,
   citationHandlers, webCitations,
@@ -98,14 +99,21 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
 
         {/* Right: icons */}
         <div className="ml-auto flex items-center gap-2">
-          {(tokensPerSecond != null || tokenCount != null) && (
-            <div className={`flex items-center gap-1.5 ${TEXT.faint}`}>
-              <Gauge className="w-4 h-4" />
-              <span className="text-xs">
-                {tokensPerSecond != null ? `${tokensPerSecond} tok/s` : ''}
-                {tokensPerSecond != null && tokenCount != null ? ' · ' : ''}
-                {tokenCount != null ? `${tokenCount} tok` : ''}
-              </span>
+          {(tokensPerSecond != null || tokenCount != null || inputTokenCount != null) && (
+            <div className="relative group/token">
+              <button
+                className={`p-1.5 rounded transition-colors ${TEXT.faint} hover:text-parchment-800 dark:hover:text-night-300 ${SURFACE.hoverSubtle}`}
+                aria-label="Token usage"
+              >
+                <Gauge className="w-4 h-4" />
+              </button>
+              <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1.5 text-xs whitespace-nowrap opacity-0 group-hover/token:opacity-100 pointer-events-none transition-opacity ${SURFACE.tooltip}`}>
+                {tokensPerSecond != null && <span>{tokensPerSecond} tok/s</span>}
+                {tokensPerSecond != null && (inputTokenCount != null || tokenCount != null) && <span> · </span>}
+                {inputTokenCount != null && <span>{inputTokenCount} in</span>}
+                {inputTokenCount != null && tokenCount != null && <span> / </span>}
+                {tokenCount != null && <span>{tokenCount} out</span>}
+              </div>
             </div>
           )}
           {onRerun && isLastMessage && (

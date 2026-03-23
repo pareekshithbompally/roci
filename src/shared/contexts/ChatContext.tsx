@@ -18,8 +18,7 @@ import { contextPipeline } from '@extensions/context-pipeline';
 import { orchestrate } from '@extensions/tool-orchestrator';
 import { streamingStore } from '@features/chat/stores/streamingStore';
 import { buildChatRequest } from '@core/ai';
-import { JsonStreamExtractor } from '@core/ai/streaming/jsonStreamExtractor';
-import { modalitiesService } from '@/services/modalities';
+import { generateSuggestions } from '@/services/ai/suggestions';
 
 interface ChatState {
   /** All chat sessions */
@@ -392,21 +391,13 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   }, []);
 
   // Send message
-  const sendMessage = useCallback(async (textOverride?: string, historyItems?: HistoryItem[], settings?: AppSettings, providers?: ModelProvider[]) => {
+  const sendMessage = useCallback(async (textOverride?: string, historyItems?: HistoryItem[], settings?: AppSettings, providers?: ModelProvider[], options?: { regenerate?: boolean }) => {
     const textToSend = textOverride || state.input;
     if (!textToSend.trim() || state.isLoading) return;
 
+    const isRegenerate = options?.regenerate === true;
     const isNewSession = !state.currentSessionId;
     const activeSessionId = state.currentSessionId || Date.now().toString();
-    const userMsg: ChatMessage = {
-      id: Date.now().toString(),
-      role: 'user',
-      text: textToSend,
-      parts: state.pendingAttachments.length > 0
-        ? [{ type: 'text' as const, text: textToSend }, ...state.pendingAttachments]
-        : undefined,
-      timestamp: Date.now(),
-    };
 
     let newSessions = [...state.sessions];
     let targetSession = newSessions.find(s => s.id === activeSessionId);
@@ -421,7 +412,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       newSessions.unshift(targetSession);
     }
 
-    // Clear suggestions from previous messages before adding new user message
+    // Clear suggestions from previous messages
     targetSession.messages = targetSession.messages.map(msg => {
       if (msg.suggestions && msg.suggestions.length > 0) {
         const { suggestions, ...msgWithoutSuggestions } = msg;
@@ -430,21 +421,39 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       return msg;
     });
 
-    targetSession.messages.push(userMsg);
+    if (isRegenerate) {
+      // Remove the last assistant message in-place (no stale-closure race)
+      const lastIdx = targetSession.messages.length - 1;
+      if (lastIdx >= 0 && targetSession.messages[lastIdx]?.role === 'model') {
+        targetSession.messages = targetSession.messages.slice(0, lastIdx);
+      }
+    } else {
+      const userMsg: ChatMessage = {
+        id: Date.now().toString(),
+        role: 'user',
+        text: textToSend,
+        parts: state.pendingAttachments.length > 0
+          ? [{ type: 'text' as const, text: textToSend }, ...state.pendingAttachments]
+          : undefined,
+        timestamp: Date.now(),
+      };
+      targetSession.messages.push(userMsg);
+    }
+
     targetSession.lastMessageAt = Date.now();
 
     // Get the selected meeting references for context
     const selectedRefs = state.selectedMeetingRefs;
 
-    // Update state immediately with user message
+    // Update state immediately
     setState(prev => ({
       ...prev,
       sessions: newSessions,
       currentSessionId: activeSessionId,
-      input: '',
+      input: isRegenerate ? prev.input : '',
       isLoading: true,
       selectedMeetingRefs: [],
-      pendingAttachments: [],
+      pendingAttachments: isRegenerate ? prev.pendingAttachments : [],
     }));
 
     // Create abort controller for this request
@@ -534,25 +543,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       let streamStartTime = 0;
 
       // Build the ChatRequestConfig
-      const modelInfo = resolved ? modalitiesService.getModelInfo(resolved.provider, resolved.modelId) : null;
       const isFirstMessage = targetSession.messages.filter(m => m.role === 'user').length <= 1;
       const config = buildChatRequest({
         contextBlock: contextBlock || undefined,
         hasTools: !!(resolved && supportsTools(resolved)),
         meetingCount: (historyItems || []).length,
-        isFirstMessage,
-        supportsStructuredOutput: modelInfo?.capabilities?.structuredOutput !== false,
       });
-
-      // Structured output and native provider tools (web search) don't mix —
-      // Output.object() uses a synthetic tool/schema enforcement that conflicts
-      // with real provider tools, causing stuck streams (Gemini) or missing
-      // suggestions (Anthropic). When web search is active, skip structured output.
-      // When web search is active, skip both Output.object() AND the JSON extractor.
-      // Native provider tools change the model's output format — it responds with
-      // free-form text + <cite> tags instead of our structured JSON schema.
-      const effectiveOutputSchema = state.webSearchEnabled ? undefined : config.outputSchema;
-      const extractor = effectiveOutputSchema ? new JsonStreamExtractor() : null;
 
       // Shared chunk handler for both paths
       const handleChunk = (chunk: string, metadata?: { isThinking?: boolean; isSearching?: boolean; searchQuery?: string; thinkingContent?: string; webCitations?: WebCitation[]; inlineCitations?: InlineCitationSpan[] }) => {
@@ -572,7 +568,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         }
 
         if (chunk) {
-          const displayText = extractor ? extractor.push(chunk) : chunk;
+          const displayText = chunk;
 
           if (displayText) {
             if (!hasStartedStreaming) {
@@ -643,7 +639,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         {
           messages: messagesForProvider,
           systemPrompt: config.systemPrompt,
-          outputSchema: effectiveOutputSchema,
           contextBlock: contextBlock || undefined,
           settings: effectiveSettings,
           providers: effectiveProviders,
@@ -717,31 +712,14 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       const streamResult = streamingStore.finish();
       const streamedParts = streamResult.parts;
 
-      let mainText: string;
-      let suggestions: string[] | undefined;
-      let generatedTitle: string | undefined;
-
-      if (extractor) {
-        const fullJson = extractor.getFullJson();
-        try {
-          const parsed = JSON.parse(fullJson);
-          mainText = parsed.response;
-          suggestions = Array.isArray(parsed.suggestions) ? parsed.suggestions : undefined;
-          generatedTitle = parsed.title || undefined;
-        } catch {
-          mainText = streamResult.text;
-          suggestions = undefined;
-        }
-      } else {
-        mainText = streamResult.text;
-        suggestions = undefined;
-      }
+      const mainText = streamResult.text;
 
       // Build final parts
       const finalParts: ChatPart[] = streamedParts
         .filter(p => p.type !== 'text' || (p as Extract<ChatPart, { type: 'text' }>).text.length > 0);
 
       const tokenCount = tokenUsageResult?.outputTokens;
+      const inputTokenCount = tokenUsageResult?.inputTokens;
       const streamDurationSec = streamStartTime > 0 ? (Date.now() - streamStartTime) / 1000 : 0;
       const tokensPerSecond = tokenCount && streamDurationSec > 0.05
         ? Math.round(tokenCount / streamDurationSec)
@@ -758,9 +736,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                     ...m,
                     text: mainText,
                     parts: finalParts.length > 0 ? finalParts : undefined,
-                    suggestions,
                     state: 'complete' as const,
                     tokenCount,
+                    inputTokenCount,
                     tokensPerSecond,
                     ...(allCitations.length > 0 && {
                       meetingCitations: allCitations,
@@ -787,14 +765,40 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       });
 
       // Title generation
-      if (generatedTitle && isNewSession) {
-        renameSession(activeSessionId, generatedTitle);
-      } else if (isNewSession) {
+      if (isNewSession) {
         unifiedAIService
           .generateTitle(textToSend, mainText, effectiveSettings, effectiveProviders)
           .then(title => {
             renameSession(activeSessionId, title);
-          });
+          })
+          .catch(() => { /* best-effort */ });
+      }
+
+      // Generate suggestions async (non-blocking, best-effort)
+      if (resolved) {
+        generateSuggestions({
+          resolved,
+          userMessage: textToSend,
+          responsePreview: mainText.slice(0, 500),
+          signal: abortControllerRef.current?.signal,
+        }).then(suggestions => {
+          if (suggestions.length > 0) {
+            setState(prev => {
+              const updatedSessions = prev.sessions.map(s => {
+                if (s.id !== activeSessionId) return s;
+                return {
+                  ...s,
+                  messages: s.messages.map(m =>
+                    m.id === assistantMsgId ? { ...m, suggestions } : m
+                  ),
+                };
+              });
+              const session = updatedSessions.find(s => s.id === activeSessionId);
+              if (session) persistSession(session);
+              return { ...prev, sessions: updatedSessions };
+            });
+          }
+        }).catch(() => { /* suggestions are best-effort */ });
       }
     } catch (error: any) {
       console.error('[ChatContext] Error sending message:', error);
@@ -880,21 +884,15 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     if (!session || session.messages.length < 2) return;
 
     const messages = session.messages;
-    const lastAssistantIdx = messages.length - 1;
-    if (messages[lastAssistantIdx]?.role !== 'model') return;
+    const lastIdx = messages.length - 1;
+    if (messages[lastIdx]?.role !== 'model') return;
 
-    const trimmedMessages = messages.slice(0, lastAssistantIdx);
-    const lastUserMsg = trimmedMessages[trimmedMessages.length - 1];
+    const lastUserMsg = messages[lastIdx - 1];
     if (!lastUserMsg || lastUserMsg.role !== 'user') return;
 
-    setState(prev => ({
-      ...prev,
-      sessions: prev.sessions.map(s =>
-        s.id === session.id ? { ...s, messages: trimmedMessages } : s
-      ),
-    }));
-
-    await sendMessage(lastUserMsg.text, historyItems, settings, providers);
+    // Single atomic call — removes old assistant message and streams new response
+    // without creating a duplicate user message
+    await sendMessage(lastUserMsg.text, historyItems, settings, providers, { regenerate: true });
   }, [state.sessions, state.currentSessionId, sendMessage]);
 
   const value: ChatContextValue = {

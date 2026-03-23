@@ -1,25 +1,22 @@
 /**
  * AudioPanel Component
- * 
+ *
  * Settings panel for audio recording configuration.
- * Allows users to select default audio input source.
+ * Compact layout: transcription model, input source, audio quality.
  */
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { Mic } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { useSettingsSave } from '../hooks/useSettingsSave';
-import { AUDIO_CONFIG, IMPORT_CONFIG, type AudioCaptureSource } from '@config/audio.config';
+import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
-import QualityPresetSelector from './QualityPresetSelector';
+import { SURFACE, BORDER, TEXT, RADIUS } from '@config/theme.config';
 import { modalitiesService } from '@/services/modalities';
-import { ModalityIcons } from './ModalityIcons';
 import { audioTranscriptionValidator } from '@/services/audioTranscriptionValidator';
 import { getProviderTitle } from '@/utils/providerUtils';
 import ProvidersAvatar from '@/components/ProvidersAvatar';
-import { SettingsSection, RadioCard, InfoCallout } from './shared';
+import { SettingsSection, InfoCallout } from './shared';
 import { LAYOUT } from '@config/theme.config';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, SelectGroup, SelectLabel } from '@shared/ui';
 
@@ -61,19 +58,18 @@ export const AudioPanel: React.FC = () => {
   const handleTranscriptionModelChange = async (modelId: string) => {
     setSettings({ transcriptionModel: modelId });
 
-    
     if (modelId) {
-      const modelProvider = providers.find(p => 
+      const modelProvider = providers.find(p =>
         p.models?.some(m => m.id === modelId)
       );
-      
+
       if (modelProvider) {
         try {
           const validation = await audioTranscriptionValidator.validateAudioTranscriptionSupport(
             modelId,
             modelProvider
           );
-          
+
           if (validation.success) {
             showToast(validation.message, 'success');
           } else {
@@ -88,89 +84,51 @@ export const AudioPanel: React.FC = () => {
 
   const handleSourceChange = (source: AudioCaptureSource) => {
     setSettings({ defaultAudioSource: source });
-
   };
 
   const handleQualityChange = (preset: string) => {
     setSettings({ audioQualityPreset: preset as any });
-
   };
 
-  const audioSources: Array<{ key: AudioCaptureSource; label: string; description: string }> = [
-    {
-      key: 'systemAndMicrophone',
-      label: AUDIO_CONFIG.captureSources.systemAndMicrophone.label,
-      description: AUDIO_CONFIG.captureSources.systemAndMicrophone.description,
-    },
-    {
-      key: 'system',
-      label: AUDIO_CONFIG.captureSources.system.label,
-      description: AUDIO_CONFIG.captureSources.system.description,
-    },
-    {
-      key: 'microphone',
-      label: AUDIO_CONFIG.captureSources.microphone.label,
-      description: AUDIO_CONFIG.captureSources.microphone.description,
-    },
-  ];
-
   const selectedSource = settings.defaultAudioSource || 'systemAndMicrophone';
+  const selectedQuality = settings.audioQualityPreset || 'voice';
+
+  const sourceLabels: Record<AudioCaptureSource, string> = {
+    systemAndMicrophone: AUDIO_CONFIG.captureSources.systemAndMicrophone.label,
+    system: AUDIO_CONFIG.captureSources.system.label,
+    microphone: AUDIO_CONFIG.captureSources.microphone.label,
+    'file-upload': 'File Upload',
+  };
+
+  const qualityDescriptions: Record<string, string> = {
+    voice: '16kHz · 64kbps · Noise reduction',
+    podcast: '24kHz · 96kbps · Noise reduction',
+    music: '44.1kHz · 128kbps',
+    professional: '48kHz · 192kbps',
+  };
+
+  const permissionHint = selectedSource === 'systemAndMicrophone'
+    ? 'Screen Recording and Microphone access required.'
+    : selectedSource === 'system'
+    ? 'Screen Recording permission required.'
+    : 'Microphone access required.';
 
   return (
     <div className={`h-full overflow-y-auto custom-scrollbar ${LAYOUT.settingsPadding} py-6`}>
-    <div className={`${LAYOUT.settingsMaxWidth} mx-auto space-y-8`}>
+    <div className={`${LAYOUT.settingsMaxWidth} mx-auto space-y-6`}>
       <div>
         <h3 className={`${TYPOGRAPHY_CLASSES.settingsTitle} ${TEXT.heading} mb-1`}>
           Audio Recording
         </h3>
         <p className={`${TYPOGRAPHY_CLASSES.settingsDescription} ${TEXT.muted}`}>
-          Configure your default recording input source.
+          Configure transcription, input source, and recording quality.
         </p>
       </div>
 
-      {/* Recording Input Source */}
-      <SettingsSection title="Default Input Source">
-        <div className="space-y-3">
-          {audioSources.map(({ key, label, description }) => (
-            <RadioCard
-              key={key}
-              selected={selectedSource === key}
-              onClick={() => handleSourceChange(key)}
-              showDot
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <Mic className={`w-4 h-4 ${TEXT.faint}`} />
-                <span
-                  className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${
-                    selectedSource === key
-                      ? TEXT.heading
-                      : TEXT.secondary
-                  }`}
-                >
-                  {label}
-                </span>
-              </div>
-              <p className={`${TYPOGRAPHY_CLASSES.settingsDescription} ${TEXT.muted}`}>{description}</p>
-            </RadioCard>
-          ))}
-        </div>
-      </SettingsSection>
-
-      {/* Audio Quality */}
-      <SettingsSection title="Audio Quality">
-        <QualityPresetSelector
-          value={settings.audioQualityPreset}
-          onChange={handleQualityChange}
-        />
-        <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
-          Higher quality produces larger file sizes but better transcription accuracy.
-        </p>
-      </SettingsSection>
-
-      {/* Transcription Model */}
+      {/* Transcription Model — top section */}
       <SettingsSection title="Transcription Model">
         {allActiveModels.length > 0 ? (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Select
               value={settings.transcriptionModel || undefined}
               onValueChange={handleTranscriptionModelChange}
@@ -199,72 +157,79 @@ export const AudioPanel: React.FC = () => {
             </Select>
             {!settings.transcriptionModel && (
               <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
-                Select a model used for transcribing audio recordings.
+                Model used for transcribing audio recordings.
               </p>
             )}
           </div>
         ) : (
           <InfoCallout variant="info">
-            No models available. Go to <strong>Model Providers</strong> to enable providers and add models first.
+            No models available. Go to <strong>Providers</strong> to enable providers and add models.
           </InfoCallout>
         )}
       </SettingsSection>
 
-      {/* Job Processing */}
-      <SettingsSection title="Job Processing">
-        <div className="space-y-3">
-          <RadioCard
-            selected={settings.jobProcessing?.mode !== 'parallel'}
-            onClick={() => setSettings({ jobProcessing: { mode: 'sequential', maxConcurrent: settings.jobProcessing?.maxConcurrent ?? IMPORT_CONFIG.jobProcessing.defaultMaxConcurrent } })}
-            showDot
-          >
-            <div className="space-y-0.5">
-              <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${settings.jobProcessing?.mode !== 'parallel' ? TEXT.heading : TEXT.secondary}`}>
-                Sequential
-              </span>
-              <p className={`${TYPOGRAPHY_CLASSES.settingsDescription} ${TEXT.muted}`}>Process one import at a time</p>
-            </div>
-          </RadioCard>
-          <RadioCard
-            selected={settings.jobProcessing?.mode === 'parallel'}
-            onClick={() => setSettings({ jobProcessing: { mode: 'parallel', maxConcurrent: settings.jobProcessing?.maxConcurrent ?? IMPORT_CONFIG.jobProcessing.defaultMaxConcurrent } })}
-            showDot
-          >
-            <div className="space-y-0.5">
-              <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${settings.jobProcessing?.mode === 'parallel' ? TEXT.heading : TEXT.secondary}`}>
-                Parallel
-              </span>
-              <p className={`${TYPOGRAPHY_CLASSES.settingsDescription} ${TEXT.muted}`}>Process multiple imports simultaneously</p>
-            </div>
-          </RadioCard>
-          {settings.jobProcessing?.mode === 'parallel' && (
-            <div className="pl-8">
-              <Select
-                value={String(settings.jobProcessing?.maxConcurrent ?? IMPORT_CONFIG.jobProcessing.defaultMaxConcurrent)}
-                onValueChange={(val) => setSettings({ jobProcessing: { mode: 'parallel', maxConcurrent: Number(val) } })}
-              >
-                <SelectTrigger className={`w-32 ${TYPOGRAPHY_CLASSES.settingsInput}`}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: IMPORT_CONFIG.jobProcessing.maxConcurrentLimit - 1 }, (_, i) => i + 2).map(n => (
-                    <SelectItem key={n} value={String(n)}>
-                      {n} concurrent
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+      {/* Input Source + Quality — compact inline rows */}
+      <div className={`border ${BORDER.default} ${RADIUS.lg} ${SURFACE.card} divide-y ${BORDER.divide}`}>
+        {/* Input Source row */}
+        <div className="flex items-center justify-between gap-4 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
+              Input Source
+            </span>
+            <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
+              {permissionHint}
+            </p>
+          </div>
+          <div className="w-52 shrink-0">
+            <Select
+              value={selectedSource}
+              onValueChange={(val) => handleSourceChange(val as AudioCaptureSource)}
+            >
+              <SelectTrigger className={TYPOGRAPHY_CLASSES.settingsInput}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="systemAndMicrophone">{sourceLabels.systemAndMicrophone}</SelectItem>
+                <SelectItem value="system">{sourceLabels.system}</SelectItem>
+                <SelectItem value="microphone">{sourceLabels.microphone}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      </SettingsSection>
 
-      {/* Permission Note */}
-      <InfoCallout variant="info">
-        <strong>Note:</strong> System permissions will be requested when you start your first recording.
-        {selectedSource === 'systemAndMicrophone' && ' Both Screen Recording and Microphone access are required.'}
-        {selectedSource === 'system' && ' Screen Recording permission is required.'}
-        {selectedSource === 'microphone' && ' Microphone access is required.'}
+        {/* Audio Quality row */}
+        <div className="flex items-center justify-between gap-4 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
+              Audio Quality
+            </span>
+            <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
+              {qualityDescriptions[selectedQuality] || ''}
+            </p>
+          </div>
+          <div className="w-52 shrink-0">
+            <Select
+              value={selectedQuality}
+              onValueChange={handleQualityChange}
+            >
+              <SelectTrigger className={TYPOGRAPHY_CLASSES.settingsInput}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(AUDIO_CONFIG.presets) as Array<keyof typeof AUDIO_CONFIG.presets>).map((key) => (
+                  <SelectItem key={key} value={key}>
+                    {AUDIO_CONFIG.presets[key].name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* Tip */}
+      <InfoCallout variant="neutral">
+        <span className="font-medium">Tip:</span> Voice quality (16kHz) is optimized for AI transcription and uses less storage.
       </InfoCallout>
 
     </div>

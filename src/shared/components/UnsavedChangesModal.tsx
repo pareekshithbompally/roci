@@ -7,7 +7,6 @@
  */
 
 import React from 'react';
-import { AlertTriangle } from 'lucide-react';
 import { useUnsavedChanges } from '@shared/contexts/UnsavedChangesContext';
 import {
   AlertDialog,
@@ -19,7 +18,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from '@shared/ui';
-import { TEXT, COMPONENT } from '@config/theme.config';
+import { TEXT, COMPONENT, BORDER } from '@config/theme.config';
 
 export const UnsavedChangesModal: React.FC = () => {
   const { showWarningModal, confirmNavigation, cancelNavigation } = useUnsavedChanges();
@@ -31,36 +30,25 @@ export const UnsavedChangesModal: React.FC = () => {
     >
       <AlertDialogPortal>
         <AlertDialogOverlay />
-        <AlertDialogContent>
-          {/* Icon */}
-          <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-4">
-            <AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
-          </div>
-
-          {/* Title */}
-          <AlertDialogTitle className="mb-2">
+        <AlertDialogContent className="max-w-sm p-5">
+          <AlertDialogTitle className="text-base font-semibold mb-1.5">
             Unsaved Changes
           </AlertDialogTitle>
-
-          {/* Message */}
-          <AlertDialogDescription className="mb-6">
+          <AlertDialogDescription className={`text-sm ${TEXT.secondary} mb-5`}>
             You have unsaved changes that will be lost if you leave this page.
-            Do you want to discard your changes?
           </AlertDialogDescription>
-
-          {/* Actions */}
-          <div className="flex gap-3">
+          <div className="flex gap-2.5 justify-end">
             <AlertDialogCancel asChild>
-              <button className={`flex-1 px-4 py-2.5 ${COMPONENT.secondaryButton} rounded-lg text-sm font-medium`}>
-                Stay on Page
+              <button className={`px-3.5 py-2 text-sm font-medium ${TEXT.primary} border ${BORDER.strong} rounded-lg hover:bg-parchment-200/60 dark:hover:bg-night-700/60 transition-colors`}>
+                Stay
               </button>
             </AlertDialogCancel>
             <AlertDialogAction asChild>
               <button
                 onClick={confirmNavigation}
-                className={`flex-1 px-4 py-2.5 ${COMPONENT.dangerButton} rounded-lg text-sm font-medium`}
+                className={`px-3.5 py-2 text-sm font-medium ${COMPONENT.dangerButton} rounded-lg`}
               >
-                Discard Changes
+                Discard
               </button>
             </AlertDialogAction>
           </div>

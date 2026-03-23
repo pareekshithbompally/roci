@@ -9,7 +9,6 @@ import type { ModelProvider } from '@/types/modelProviders';
 import type { StreamMetadata, ToolChoice } from '@/services/ai/types';
 import type { ChatPart } from '@/types';
 import type { ToolCall, ToolResult } from '@extensions/tools/types';
-import type { OutputSchema } from '@core/ai/types';
 
 /** Input options for the orchestration loop */
 export interface OrchestratorOptions {
@@ -22,7 +21,6 @@ export interface OrchestratorOptions {
   historyItems: HistoryItem[];
   signal?: AbortSignal;
   webSearchEnabled?: boolean;
-  outputSchema?: OutputSchema;
   toolChoice?: ToolChoice;
   /** Whether to skip Phase 1 retrieval (model doesn't support tools). Default: false */
   skipRetrieval?: boolean;

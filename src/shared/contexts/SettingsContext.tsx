@@ -65,6 +65,16 @@ const defaultSettings: AppSettings = {
   defaultAudioSource: 'systemAndMicrophone',
   categories: ['Work', 'Personal', 'Meeting', 'Idea'],
   jobProcessing: { mode: 'sequential', maxConcurrent: 2 },
+  summaryExtraction: {
+    keyDiscussionPoints: true,
+    decisionsMade: true,
+    actionItems: true,
+    nextSteps: true,
+  },
+  meetingDefaults: {
+    autoTitle: true,
+    durationReminderMinutes: 60,
+  },
 };
 
 // Initial state with loading=true to prevent any saves before load completes
@@ -180,6 +190,8 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
           defaultAudioSource: (data as any).defaultAudioSource || 'systemAndMicrophone',
           categories: (data as any).categories || defaultSettings.categories,
           jobProcessing: (data as any).jobProcessing || defaultSettings.jobProcessing,
+          summaryExtraction: (data as any).summaryExtraction || defaultSettings.summaryExtraction,
+          meetingDefaults: (data as any).meetingDefaults || defaultSettings.meetingDefaults,
         };
 
         // Merge saved providers with predefined providers
@@ -318,6 +330,8 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         defaultAudioSource: effectiveSettings.defaultAudioSource,
         categories: effectiveSettings.categories,
         jobProcessing: effectiveSettings.jobProcessing,
+        summaryExtraction: effectiveSettings.summaryExtraction,
+        meetingDefaults: effectiveSettings.meetingDefaults,
         providers: currentState.providers,
         selectedProviderName: currentState.selectedProviderName,
         // Include other default fields

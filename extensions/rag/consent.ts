@@ -14,6 +14,7 @@ type ConsentResolver = (granted: boolean) => void;
 
 let pendingResolver: ConsentResolver | null = null;
 let listener: ((resolve: ConsentResolver) => void) | null = null;
+const pendingQueue: Array<(granted: boolean) => void> = [];
 
 /** Check if user has already consented (persisted) */
 export function hasConsent(): boolean {
@@ -52,31 +53,30 @@ export function requestConsent(): Promise<boolean> {
     return Promise.resolve(false);
   }
 
-  // If there's already a pending request, wait for it
+  // If there's already a pending request, queue behind it
   if (pendingResolver) {
-    return new Promise(resolve => {
-      const prev = pendingResolver!;
-      pendingResolver = (granted) => {
-        prev(granted);
-        resolve(granted);
-      };
-    });
+    return new Promise(resolve => { pendingQueue.push(resolve); });
   }
 
   return new Promise(resolve => {
     const timer = setTimeout(() => {
       console.warn('[RAGConsent] Consent request timed out');
-      pendingResolver = null;
-      resolve(false);
+      resolveAll(false);
     }, CONSENT_TIMEOUT_MS);
 
     pendingResolver = (granted) => {
       clearTimeout(timer);
       if (granted) setConsent(true);
-      pendingResolver = null;
-      resolve(granted);
+      resolveAll(granted);
     };
     listener!(pendingResolver);
+
+    function resolveAll(granted: boolean) {
+      pendingResolver = null;
+      resolve(granted);
+      for (const queued of pendingQueue) queued(granted);
+      pendingQueue.length = 0;
+    }
   });
 }
 

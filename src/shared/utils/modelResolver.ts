@@ -95,7 +95,7 @@ export function supportsTools(resolved: ResolvedModel): boolean {
  * Check if a provider supports web search tool calling
  */
 export function supportsWebSearch(provider: string): boolean {
-  return provider === 'gemini' || provider === 'openai' || provider === 'anthropic' || provider === 'xai';
+  return provider === 'gemini' || provider === 'openai' || provider === 'anthropic' || provider === 'xai' || provider === 'groq';
 }
 
 /**

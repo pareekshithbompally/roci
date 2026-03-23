@@ -13,12 +13,12 @@ export const MANAGED_SDK_PROVIDERS = new Set(['openai', 'anthropic', 'gemini', '
 
 /** SDK description shown in settings UI */
 export const MANAGED_SDK_INFO: Record<string, string> = {
-  openai: 'Uses the OpenAI SDK with the Responses API. No endpoint configuration needed.',
-  anthropic: 'Uses the Anthropic SDK directly. No endpoint configuration needed.',
-  gemini: 'Uses the Google GenAI SDK natively. No endpoint configuration needed.',
-  mistral: 'Uses the Mistral SDK directly. No endpoint configuration needed.',
-  xai: 'Uses the xAI SDK directly. Supports web search. No endpoint configuration needed.',
-  groq: 'Uses the Groq SDK directly. No endpoint configuration needed.',
+  openai: 'Connects directly to the OpenAI API via the AI SDK. No endpoint configuration needed.',
+  anthropic: 'Connects directly to the Anthropic API via the AI SDK. No endpoint configuration needed.',
+  gemini: 'Connects directly to the Google Gemini API via the AI SDK. No endpoint configuration needed.',
+  mistral: 'Connects directly to the Mistral API via the AI SDK. No endpoint configuration needed.',
+  xai: 'Connects directly to the xAI API via the AI SDK. Supports web search. No endpoint configuration needed.',
+  groq: 'Connects directly to the Groq API via the AI SDK. No endpoint configuration needed.',
 };
 
 /** Default base URLs for model listing (not chat — adapters have their own defaults) */

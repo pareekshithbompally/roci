@@ -41,14 +41,25 @@ export const searchMeetingsTool: ToolDefinition = {
     const query = params.query as string;
     const limit = (params.limit as number) ?? 5;
 
-    // Ensure vectordb is initialized and meetings are indexed
-    await vectorDB.initialize();
-    const stale = await ragIndexer.needsReindex(context.historyItems);
-    if (stale.length > 0) {
-      await ragIndexer.indexAll(context.historyItems, context.signal);
-    }
+    let results;
+    try {
+      // Ensure vectordb is initialized and meetings are indexed
+      await vectorDB.initialize();
+      const stale = await ragIndexer.needsReindex(context.historyItems);
+      if (stale.length > 0) {
+        await ragIndexer.indexAll(context.historyItems, context.signal);
+      }
 
-    const results = await ragSearcher.search(query, { limit, mode: 'hybrid' });
+      results = await ragSearcher.search(query, { limit, mode: 'hybrid' });
+    } catch (error) {
+      console.error('[SearchMeetingsTool] Search failed:', error);
+      return {
+        toolCallId: '',
+        content: `Search failed: ${error instanceof Error ? error.message : String(error)}`,
+        isError: true,
+        meta: { toolName: 'search_meetings', executionMs: 0 },
+      };
+    }
 
     if (results.length === 0) {
       return {

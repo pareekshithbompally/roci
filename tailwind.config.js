@@ -11,6 +11,7 @@ export default {
     './utils/**/*.{ts,tsx}',
     './extensions/**/*.{ts,tsx}',
     './consts/**/*.{ts,tsx}',
+    './node_modules/streamdown/dist/**/*.js',
   ],
   theme: {
     extend: {

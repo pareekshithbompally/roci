@@ -30,6 +30,7 @@ export interface ChatMessageProps {
   loadingLabel?: string;
   isError?: boolean;
   tokenCount?: number;
+  inputTokenCount?: number;
   tokensPerSecond?: number;
   /** @deprecated Use meetingCitations instead — kept for backward compat with old persisted messages */
   toolActivity?: {
@@ -71,6 +72,7 @@ export interface AssistantMessageProps {
   loadingLabel?: string;
   isError?: boolean;
   tokenCount?: number;
+  inputTokenCount?: number;
   tokensPerSecond?: number;
   /** @deprecated Kept for backward compat lazy migration */
   toolActivity?: ChatMessageProps['toolActivity'];

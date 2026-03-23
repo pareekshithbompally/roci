@@ -357,18 +357,18 @@ pub async fn get_stats(
     with_conn(&state, |conn| {
         let total_meetings: i64 = conn
             .query_row("SELECT COUNT(*) FROM meetings", [], |row| row.get(0))
-            .unwrap_or(0);
+            .unwrap_or_else(|e| { log::warn!("[vectordb] Failed to count meetings: {}", e); 0 });
         let total_chunks: i64 = conn
             .query_row("SELECT COUNT(*) FROM chunks", [], |row| row.get(0))
-            .unwrap_or(0);
+            .unwrap_or_else(|e| { log::warn!("[vectordb] Failed to count chunks: {}", e); 0 });
 
         // Get file size from page_count * page_size
         let page_count: i64 = conn
             .query_row("PRAGMA page_count", [], |row| row.get(0))
-            .unwrap_or(0);
+            .unwrap_or_else(|e| { log::warn!("[vectordb] Failed to get page_count: {}", e); 0 });
         let page_size: i64 = conn
             .query_row("PRAGMA page_size", [], |row| row.get(0))
-            .unwrap_or(4096);
+            .unwrap_or_else(|e| { log::warn!("[vectordb] Failed to get page_size: {}", e); 4096 });
         let db_size_bytes = (page_count * page_size) as u64;
 
         Ok(DbStats {

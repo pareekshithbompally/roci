@@ -108,8 +108,10 @@ export interface ChatMessage {
   model?: string;
   state?: 'loading' | 'streaming' | 'complete';
   isError?: boolean;
-  /** Approximate token count for this message */
+  /** Approximate output token count for this message */
   tokenCount?: number;
+  /** Input (prompt) token count for this message */
+  inputTokenCount?: number;
   /** Tokens per second during streaming */
   tokensPerSecond?: number;
   /** Metadata about tool calls made during this response (persisted) */
@@ -163,6 +165,20 @@ export interface AppSettings {
   jobProcessing?: {
     mode: 'sequential' | 'parallel';
     maxConcurrent: number;
+  };
+  /** What the LLM should extract from transcriptions */
+  summaryExtraction?: {
+    keyDiscussionPoints: boolean;
+    decisionsMade: boolean;
+    actionItems: boolean;
+    nextSteps: boolean;
+  };
+  /** Meeting behavior defaults */
+  meetingDefaults?: {
+    /** Auto-generate title from transcript content */
+    autoTitle: boolean;
+    /** Default meeting duration in minutes (for reminders) — 0 = no reminder */
+    durationReminderMinutes: number;
   };
 }
 

@@ -4,7 +4,6 @@ import ReactDOM from 'react-dom/client';
 import App from './src/app/App';
 import { IS_MACOS } from './src/platform/index';
 import './index.css';
-import './src/styles/syntax-highlight.css';
 import './src/styles/markdown.css';
 import './src/styles/glass.css';
 import 'sonner/dist/styles.css';

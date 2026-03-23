@@ -13,6 +13,7 @@ export function toolLabel(toolName: string, status: 'calling' | 'complete' | 'er
     webSearch:        ['Searching the web…', 'Searched the web'],
     googleSearch:     ['Searching the web…', 'Searched the web'],
     webSearchPreview: ['Searching the web…', 'Searched the web'],
+    browserSearch:    ['Searching the web…', 'Searched the web'],
   };
 
   const pair = labels[toolName];

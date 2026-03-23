@@ -24,19 +24,20 @@ import { BORDER, TEXT, COMPONENT } from '@config/theme.config';
 type SettingsPanelType = 'audio' | 'providers' | 'local-inference' | 'categories' | 'interface';
 
 /** Panels that use explicit save (not auto-save or instant) */
-const SAVEABLE_PANELS = new Set<SettingsPanelType>(['audio', 'providers', 'categories']);
+const SAVEABLE_PANELS = new Set<SettingsPanelType>(['audio', 'providers', 'categories', 'interface']);
 
 const PANEL_SAVE_NAMES: Partial<Record<SettingsPanelType, string>> = {
   audio: 'Audio settings',
   providers: 'Provider settings',
-  categories: 'Categories',
+  categories: 'Workflow settings',
+  interface: 'System settings',
 };
 
 const panels: Array<{ id: SettingsPanelType; label: string; tauriOnly?: boolean }> = [
   { id: 'audio', label: 'Audio' },
   { id: 'providers', label: 'Providers' },
   { id: 'local-inference', label: 'Local Inference', tauriOnly: true },
-  { id: 'categories', label: 'Categories' },
+  { id: 'categories', label: 'Workflow' },
   { id: 'interface', label: 'System' },
 ];
 

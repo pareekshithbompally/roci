@@ -17,7 +17,7 @@ import { buildEntityExtractionPrompt } from '@core/ai/prompts/entity-extraction.
 import { ENTITY_EXTRACTION_SCHEMA } from '@core/ai/schemas/entity-extraction.schema';
 import type { ExtractionResponse } from '@core/ai/schemas/entity-extraction.schema';
 import { graphDB } from './graph-client';
-import { ENTITY_TYPES } from './graph-types';
+import { ENTITY_TYPES, RELATIONSHIP_TYPES } from './graph-types';
 import type { GraphNode, GraphEdge } from './graph-types';
 
 /**
@@ -161,6 +161,9 @@ function buildGraphPayload(
     nameIndex.set(key, nodeId);
   }
 
+  // Build all edges: category links + extracted relationships
+  const edges: GraphEdge[] = [];
+
   // Create category nodes and link meeting to categories
   for (const category of categories) {
     const categoryNodeId = `category:${category.toLowerCase()}`;
@@ -185,7 +188,6 @@ function buildGraphPayload(
   }
 
   // Build edges from extracted relationships
-  const edges: GraphEdge[] = [];
   for (const rel of extracted.relationships) {
     const sourceId = nameIndex.get(rel.source.toLowerCase());
     const targetId = nameIndex.get(rel.target.toLowerCase());

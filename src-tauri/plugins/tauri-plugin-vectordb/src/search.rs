@@ -43,6 +43,18 @@ pub fn hybrid_search(
     let fetch_limit = limit * 3; // Over-fetch for better RRF merging
     let mode = params.mode.as_deref().unwrap_or("hybrid");
 
+    // Validate embedding dimensions for vector search
+    if (mode == "hybrid" || mode == "vector") && !params.embedding.is_empty() {
+        let expected = crate::schema::DEFAULT_DIM as usize;
+        if params.embedding.len() != expected {
+            return Err(format!(
+                "Embedding dimension mismatch: expected {}, got {}",
+                expected,
+                params.embedding.len()
+            ));
+        }
+    }
+
     let mut chunk_scores: HashMap<i64, f64> = HashMap::new();
 
     // Vector KNN search
@@ -107,6 +119,7 @@ pub fn hybrid_search(
             for row in rows {
                 if let Ok((chunk_id, bm25_score)) = row {
                     if bm25_score > BM25_MIN_SCORE {
+                        rank += 1;
                         continue; // too weak — matched only on common words
                     }
                     *chunk_scores.entry(chunk_id).or_default() +=

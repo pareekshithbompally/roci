@@ -28,6 +28,13 @@ interface StreamingMarkdownProps {
   webCitations?: WebCitation[];
 }
 
+// Module-level stable references — prevents Streamdown from re-creating its
+// plugin context and re-mounting CodeBlock components on every streaming render.
+const REMARK_PLUGINS = [remarkGfm];
+const STREAMDOWN_PLUGINS = { code };
+const REHYPE_PLUGINS_DEFAULT = [defaultRehypePlugins.harden];
+const REHYPE_PLUGINS_CITATIONS = [defaultRehypePlugins.harden, rehypeCitationMarkers];
+
 const StreamingMarkdownInner: React.FC<StreamingMarkdownProps> = ({
   content,
   webCitations,
@@ -36,12 +43,7 @@ const StreamingMarkdownInner: React.FC<StreamingMarkdownProps> = ({
 
   const hasCitations = !!(webCitations && webCitations.length > 0);
 
-  const rehypePlugins = useMemo(
-    () => hasCitations
-      ? [defaultRehypePlugins.harden, rehypeCitationMarkers]
-      : [defaultRehypePlugins.harden],
-    [hasCitations]
-  );
+  const rehypePlugins = hasCitations ? REHYPE_PLUGINS_CITATIONS : REHYPE_PLUGINS_DEFAULT;
 
   const components = useMemo(() => {
     if (!hasCitations) return undefined;
@@ -62,15 +64,12 @@ const StreamingMarkdownInner: React.FC<StreamingMarkdownProps> = ({
   return (
     <div className="markdown-content">
       <Streamdown
-        animate={true}
-        animationDuration={500}
+        animated={{ animation: 'fadeIn', duration: 500 }}
         className="size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={REMARK_PLUGINS}
         rehypePlugins={rehypePlugins}
         components={components}
-        plugins={{
-          code: code,
-        }}
+        plugins={STREAMDOWN_PLUGINS}
       >
         {content}
       </Streamdown>

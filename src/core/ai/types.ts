@@ -22,20 +22,12 @@ export interface OutputSchema {
  * The single configuration object for an LLM chat request.
  * Built once by buildChatRequest(), threaded through the entire chain.
  *
- * This is the ONE source of truth for what prompt to use and what schema
- * to pass. No other code should make these decisions independently.
- *
- * The prompt ALWAYS describes JSON fields. The schema provides API-level
- * enforcement when the model supports it. If outputSchema is undefined,
- * the prompt still asks for JSON — response parsing handles non-compliance.
+ * The model responds with plain text (markdown). Suggestions are generated
+ * via a separate async call after the response completes.
  */
 export interface ChatRequestConfig {
-  /** The system prompt — always describes JSON output fields */
+  /** The system prompt */
   systemPrompt: string;
-  /** The output schema to pass to the adapter. undefined = no API-level enforcement */
-  outputSchema: OutputSchema | undefined;
-  /** Whether a title field is included in the schema (first message only) */
-  includesTitle: boolean;
 }
 
 /**

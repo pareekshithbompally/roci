@@ -67,6 +67,14 @@ fn now_millis() -> i64 {
         .as_millis() as i64
 }
 
+/// Validate that filter values only contain safe characters (alphanumeric, underscore, hyphen).
+fn validate_filter_value(value: &str) -> Result<(), String> {
+    if value.is_empty() || !value.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
+        return Err(format!("Invalid filter value: '{}'", value));
+    }
+    Ok(())
+}
+
 // ── Core Functions ──
 
 /// Upsert nodes and edges for a meeting.
@@ -168,6 +176,16 @@ pub fn traverse(
 ) -> Result<Vec<TraversalResult>, String> {
     let direction = params.direction.as_deref().unwrap_or("both");
     let limit = params.limit.unwrap_or(50);
+    const MAX_TRAVERSAL_DEPTH: u32 = 10;
+    let max_depth = params.max_depth.min(MAX_TRAVERSAL_DEPTH);
+
+    // Validate filter values before building SQL
+    if let Some(types) = &params.edge_types {
+        for t in types { validate_filter_value(t)?; }
+    }
+    if let Some(types) = &params.target_node_types {
+        for t in types { validate_filter_value(t)?; }
+    }
 
     let direction_clause = match direction {
         "outgoing" => "e.source_id = r.node_id",
@@ -221,7 +239,7 @@ pub fn traverse(
     let mut stmt = conn.prepare(&sql).map_err(|e| format!("prepare traverse: {}", e))?;
     let results = stmt
         .query_map(
-            params![params.start_node_id, params.max_depth, limit as i64],
+            params![params.start_node_id, max_depth, limit as i64],
             |row| {
                 let props_str: String = row.get(3)?;
                 let properties: serde_json::Value =
@@ -272,6 +290,11 @@ pub fn search_nodes(
     let limit = params.limit.unwrap_or(20);
     let query_lower = params.query.to_lowercase();
     let like_pattern = format!("%{}%", query_lower);
+
+    // Validate filter values
+    if let Some(types) = &params.node_types {
+        for t in types { validate_filter_value(t)?; }
+    }
 
     // Build node_type filter
     let type_filter = match &params.node_types {

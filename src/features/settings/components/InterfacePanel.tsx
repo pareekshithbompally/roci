@@ -8,14 +8,20 @@
 import React, { useState, useEffect } from 'react';
 import { Sun, Moon, Monitor, Copy, Check, FolderOpen, FolderSearch } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
+import { useSettings } from '@shared/contexts/SettingsContext';
 import { isTauriEnvironment } from '@/services/tauri';
 import { pathsService } from '@/services/storage';
+import { IMPORT_CONFIG } from '@config/audio.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { SURFACE, BORDER, TEXT, RADIUS, LAYOUT } from '@config/theme.config';
 import { SettingsSection } from './shared';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui';
+import { useSettingsSave } from '../hooks/useSettingsSave';
 
 export const InterfacePanel: React.FC = () => {
   const { theme, setTheme } = useTheme();
+  const { settings, setSettings } = useSettings();
+  const { hasUnsavedChanges } = useSettingsSave('System settings', 'interface');
 
   const [storagePath, setStoragePath] = useState<string | null>(null);
   const [storagePathError, setStoragePathError] = useState<string | null>(null);
@@ -117,29 +123,90 @@ export const InterfacePanel: React.FC = () => {
         </p>
       </div>
 
-      {/* Theme Selection */}
-      <SettingsSection title="Theme">
-        <div className="grid grid-cols-3 gap-3">
-          {themeOptions.map(({ id, icon: Icon, label }) => (
-            <button
-              key={id}
-              role="radio"
-              aria-checked={theme === id}
-              onClick={() => setTheme(id)}
-              className={`flex flex-col items-center gap-2 p-4 ${RADIUS.lg} border transition-all ${
-                theme === id
-                  ? `${SURFACE.selectedCard} ${BORDER.selectedCard}`
-                  : `${SURFACE.card} ${BORDER.default} ${BORDER.cardHover}`
-              }`}
-            >
-              <Icon className={`w-5 h-5 ${theme === id ? TEXT.heading : TEXT.faint}`} />
-              <span className={`${TYPOGRAPHY_CLASSES.settingsButton} ${theme === id ? TEXT.heading : TEXT.muted}`}>
-                {label}
-              </span>
-            </button>
-          ))}
+      {/* Theme + Job Processing — compact card */}
+      <div className={`border ${BORDER.default} ${RADIUS.lg} ${SURFACE.card} divide-y ${BORDER.divide}`}>
+        {/* Theme row */}
+        <div className="flex items-center justify-between gap-4 px-4 py-3">
+          <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
+            Theme
+          </span>
+          <div className={`inline-flex ${RADIUS.lg} border ${BORDER.default} overflow-hidden`}>
+            {themeOptions.map(({ id, icon: Icon, label }) => (
+              <button
+                key={id}
+                role="radio"
+                aria-checked={theme === id}
+                onClick={() => setTheme(id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 ${TYPOGRAPHY_CLASSES.settingsButton} transition-colors ${
+                  theme === id
+                    ? `${SURFACE.selectedCard} ${TEXT.heading}`
+                    : `${TEXT.muted} ${SURFACE.hoverSubtle}`
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
         </div>
-      </SettingsSection>
+
+        {/* Job Processing row */}
+        <div className="flex items-center justify-between gap-4 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
+              Import Processing
+            </span>
+            <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
+              How imported audio files are processed.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="w-36">
+              <Select
+                value={settings.jobProcessing?.mode || IMPORT_CONFIG.jobProcessing.defaultMode}
+                onValueChange={(val) => setSettings({
+                  jobProcessing: {
+                    mode: val as 'sequential' | 'parallel',
+                    maxConcurrent: settings.jobProcessing?.maxConcurrent ?? IMPORT_CONFIG.jobProcessing.defaultMaxConcurrent,
+                  },
+                })}
+              >
+                <SelectTrigger className={TYPOGRAPHY_CLASSES.settingsInput}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sequential">Sequential</SelectItem>
+                  <SelectItem value="parallel">Parallel</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {settings.jobProcessing?.mode === 'parallel' && (
+              <div className="w-28">
+                <Select
+                  value={String(settings.jobProcessing?.maxConcurrent ?? IMPORT_CONFIG.jobProcessing.defaultMaxConcurrent)}
+                  onValueChange={(val) => setSettings({
+                    jobProcessing: {
+                      mode: 'parallel',
+                      maxConcurrent: Number(val),
+                    },
+                  })}
+                >
+                  <SelectTrigger className={TYPOGRAPHY_CLASSES.settingsInput}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: IMPORT_CONFIG.jobProcessing.maxConcurrentLimit - 1 }, (_, i) => i + 2).map(n => (
+                      <SelectItem key={n} value={String(n)}>
+                        {n} concurrent
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Storage Location */}
       {storagePath && (

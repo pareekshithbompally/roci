@@ -58,8 +58,19 @@ export const getActionItemsTool: ToolDefinition = {
         .slice(0, 20);
     }
 
-    // Load action items via selective context
-    const references = await meetingReferenceService.loadSelectiveContext(items, ['actionItems']);
+    let references;
+    try {
+      // Load action items via selective context
+      references = await meetingReferenceService.loadSelectiveContext(items, ['actionItems']);
+    } catch (error) {
+      console.error('[GetActionItemsTool] Failed to load action items:', error);
+      return {
+        toolCallId: '',
+        content: `Failed to load action items: ${error instanceof Error ? error.message : String(error)}`,
+        isError: true,
+        meta: { toolName: 'get_action_items', executionMs: 0 },
+      };
+    }
 
     // Collect and format
     const meetings: MeetingActions[] = [];

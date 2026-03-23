@@ -23,14 +23,9 @@ interface UnifiedSidebarItemProps {
   item: UnifiedSidebarItemType;
   searchQuery?: string;
   isSelected?: boolean;
-  isRenaming?: boolean;
-  renameValue?: string;
   isTranscribing?: boolean;
   onClick: () => void;
   onStartRename: () => void;
-  onRenameChange: (value: string) => void;
-  onRenameSubmit: () => void;
-  onRenameCancel: () => void;
   onDeleteClick: () => void;
   onTranscribeClick?: () => void;
 }
@@ -39,14 +34,9 @@ export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = ({
   item,
   searchQuery = '',
   isSelected,
-  isRenaming,
-  renameValue = '',
   isTranscribing,
   onClick,
   onStartRename,
-  onRenameChange,
-  onRenameSubmit,
-  onRenameCancel,
   onDeleteClick,
   onTranscribeClick,
 }) => {
@@ -89,27 +79,12 @@ export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = ({
           )}
         </div>
 
-        {isRenaming ? (
-          <input
-            type="text"
-            value={renameValue}
-            onChange={(e) => onRenameChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') onRenameSubmit();
-              if (e.key === 'Escape') onRenameCancel();
-            }}
-            onClick={(e) => e.stopPropagation()}
-            className={`flex-1 ${TYPOGRAPHY_CLASSES.sidebarItem} ${TEXT.primary} ${SURFACE.inputField} border ${BORDER.strong} rounded px-2 py-0.5 outline-none`}
-            autoFocus
-          />
-        ) : (
-          <span
+        <span
             title={item.title}
             className={`flex-1 ${TYPOGRAPHY_CLASSES.sidebarItem} truncate ${TEXT.primary} ${isTitleAnimating ? 'animate-title-morph' : ''}`}
           >
             <HighlightedText text={item.title} highlight={searchQuery} />
           </span>
-        )}
       </div>
 
       {item.matchContext && (
@@ -147,7 +122,7 @@ export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = ({
                   }}
                   className={TYPOGRAPHY_CLASSES.sidebarItem}
                 >
-                  <Mic className="w-3.5 h-3.5" />
+                  <Mic className="w-4 h-4" />
                   {isPending ? 'Transcribe' : 'Re-transcribe'}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -160,10 +135,9 @@ export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = ({
               }}
               className={TYPOGRAPHY_CLASSES.sidebarItem}
             >
-              <Edit2 className="w-3.5 h-3.5" />
+              <Edit2 className="w-4 h-4" />
               Rename
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={(e) => {
                 e.stopPropagation();
@@ -171,7 +145,7 @@ export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = ({
               }}
               className={`${TYPOGRAPHY_CLASSES.sidebarItem} ${COMPONENT.dropdownItemDanger}`}
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-4 h-4" />
               Delete
             </DropdownMenuItem>
           </DropdownMenuContent>

@@ -15,7 +15,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Download, Brain } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { onConsentNeeded } from '@extensions/rag';
 import { onRAGProgress, preloadModel, resetPipeline } from '@extensions/rag';
 import type { RAGProgressEvent, IndexingProgressEvent } from '@extensions/rag';
@@ -29,7 +29,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from '@shared/ui';
-import { SURFACE, BORDER, TEXT, COMPONENT, RADIUS, SHADOW } from '@config/theme.config';
+import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { activityStore } from '@shared/stores/activityStore';
 import type { ActivityItem } from '@shared/stores/activityStore';
@@ -254,24 +254,17 @@ export const ModelDownloadModal: React.FC = () => {
     >
       <AlertDialogPortal>
         <AlertDialogOverlay />
-        <AlertDialogContent className="max-w-md overflow-hidden">
-          {/* Icon + Title — inline row (matches DeleteConfirmModal) */}
-          <div className="flex items-center gap-3 mb-4">
-            <div className={`w-10 h-10 rounded-full ${SURFACE.infoCallout} flex items-center justify-center`}>
-              <Brain className={`w-5 h-5 ${TEXT.link}`} />
-            </div>
-            <AlertDialogTitle>
-              Enable Smart Meeting Search?
-            </AlertDialogTitle>
-          </div>
+        <AlertDialogContent className="max-w-sm overflow-hidden p-5">
+          <AlertDialogTitle className="text-base font-semibold mb-1.5">
+            Enable Smart Meeting Search?
+          </AlertDialogTitle>
 
-          {/* Description — aligned under title */}
-          <AlertDialogDescription className="pl-[52px] mb-4">
-            To automatically find relevant meetings for your questions, Kasset needs to download a small AI model that runs entirely on your device.
+          <AlertDialogDescription className={`text-sm ${TEXT.secondary} mb-4`}>
+            To find relevant meetings for your questions, Kasset needs a small AI model that runs entirely on your device.
           </AlertDialogDescription>
 
-          {/* Feature list — aligned with description */}
-          <div className={`ml-[52px] ${SURFACE.subtle} border ${BORDER.default} rounded-xl p-3 mb-6 space-y-1.5`}>
+          {/* Feature list */}
+          <div className={`${SURFACE.subtle} border ${BORDER.default} rounded-xl p-3 mb-5 space-y-1.5`}>
             <div className={`flex items-center gap-2 ${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
               <Download className="w-3.5 h-3.5 flex-shrink-0" />
               <span>One-time download of ~23 MB (cached after)</span>
@@ -290,17 +283,17 @@ export const ModelDownloadModal: React.FC = () => {
             </div>
           </div>
 
-          {/* Actions — right-aligned (matches DeleteConfirmModal) */}
-          <div className="flex gap-3 justify-end">
+          {/* Actions */}
+          <div className="flex gap-2.5 justify-end">
             <AlertDialogCancel asChild>
-              <button className={`px-4 py-2.5 text-sm font-semibold ${COMPONENT.secondaryButton} rounded-xl`}>
+              <button className={`px-3.5 py-2 text-sm font-medium ${TEXT.primary} border ${BORDER.strong} rounded-lg hover:bg-parchment-200/60 dark:hover:bg-night-700/60 transition-colors`}>
                 Not Now
               </button>
             </AlertDialogCancel>
             <AlertDialogAction asChild>
               <button
                 onClick={handleAccept}
-                className={`px-4 py-2.5 text-sm font-semibold ${COMPONENT.accentButton} rounded-xl ${SHADOW.float}`}
+                className={`px-3.5 py-2 text-sm font-medium ${COMPONENT.accentButton} rounded-lg`}
               >
                 Download Model
               </button>

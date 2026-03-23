@@ -377,7 +377,7 @@ export const ProvidersPanel: React.FC = () => {
                       }
                       return (
                         <InfoCallout variant="neutral">
-                          Uses OpenAI-compatible Chat Completions endpoint
+                          Connects via the OpenAI-compatible Chat Completions endpoint
                         </InfoCallout>
                       );
                     })()}
