@@ -1,39 +1,29 @@
 /**
  * Cost Estimation
  *
- * Looks up model pricing and calculates estimated cost from token usage.
- * Lookup: exact model ID match → longest prefix match → 0 (unknown model).
+ * Looks up model pricing from models.dev (via modalitiesService cache) and
+ * calculates estimated cost from token usage. Returns 0 if pricing data is
+ * not available for the provider/model.
  */
 
-import { PROVIDER_PRICING } from '@config/pricing.config';
-import type { ModelPricing } from '@config/pricing.config';
+import { modalitiesService } from '@/services/modalities';
+import type { ModelPricing } from '@/services/modalities';
 import type { TokenUsage } from '@/services/ai/types';
 
+export type { ModelPricing };
+
 /**
- * Find pricing for a provider + model combination.
- * 1. Exact match on model ID
- * 2. Longest prefix match (e.g., "gpt-4o-2024-11-20" matches "gpt-4o")
- * 3. Returns undefined if no match found
+ * Find pricing for a provider + model combination via models.dev cache.
+ * If the cache isn't loaded yet, triggers a background load for future calls.
+ * Returns undefined if no pricing data is available.
  */
 export function findPricing(provider: string, model: string): ModelPricing | undefined {
-  const providerPricing = PROVIDER_PRICING[provider];
-  if (!providerPricing) return undefined;
-
-  // Exact match
-  if (providerPricing[model]) return providerPricing[model];
-
-  // Longest prefix match
-  let bestMatch: ModelPricing | undefined;
-  let bestLength = 0;
-
-  for (const key of Object.keys(providerPricing)) {
-    if (model.startsWith(key) && key.length > bestLength) {
-      bestMatch = providerPricing[key];
-      bestLength = key.length;
-    }
+  if (!modalitiesService.isLoaded()) {
+    // Trigger background load so subsequent calls have data
+    modalitiesService.ensureLoaded();
+    return undefined;
   }
-
-  return bestMatch;
+  return modalitiesService.getPricing(provider, model) ?? undefined;
 }
 
 /**
