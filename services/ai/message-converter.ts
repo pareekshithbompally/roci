@@ -5,8 +5,13 @@
 import type { ModelMessage, ImagePart, FilePart, TextPart } from 'ai';
 import type { ChatMessage, ChatPart } from '@/types';
 
-function toDataUrl(base64: string, mimeType: string): string {
-  return `data:${mimeType};base64,${base64}`;
+function base64ToUint8Array(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
 }
 
 function filterProviderParts(parts: ChatPart[]): ChatPart[] {
@@ -19,7 +24,7 @@ function chatPartToSDKPart(part: ChatPart): TextPart | ImagePart | FilePart | nu
       return { type: 'text', text: part.text };
     case 'image':
       if (part.source.kind === 'data') {
-        return { type: 'image', image: toDataUrl(part.source.base64, part.mimeType), mediaType: part.mimeType as ImagePart['mediaType'] };
+        return { type: 'image', image: base64ToUint8Array(part.source.base64), mediaType: part.mimeType as ImagePart['mediaType'] };
       }
       if (part.source.kind === 'url') {
         return { type: 'image', image: new URL(part.source.url), mediaType: part.mimeType as ImagePart['mediaType'] };
@@ -31,7 +36,7 @@ function chatPartToSDKPart(part: ChatPart): TextPart | ImagePart | FilePart | nu
       if (part.source.kind === 'data') {
         return {
           type: 'file',
-          data: toDataUrl(part.source.base64, part.mimeType),
+          data: base64ToUint8Array(part.source.base64),
           mediaType: part.mimeType,
           ...(part.type === 'document' && { filename: (part as Extract<ChatPart, { type: 'document' }>).fileName }),
         };
