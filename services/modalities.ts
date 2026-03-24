@@ -11,6 +11,17 @@ export interface ModelModalities {
   output: string[];
 }
 
+export interface ModelPricing {
+  /** USD per 1M input tokens */
+  inputPer1M: number;
+  /** USD per 1M output tokens */
+  outputPer1M: number;
+  /** USD per 1M cached input tokens (read from cache) */
+  cacheReadPer1M?: number;
+  /** USD per 1M cache write tokens */
+  cacheWritePer1M?: number;
+}
+
 /** Boolean capabilities reported by models.dev */
 export interface ModelCapabilities {
   toolCall?: boolean;
@@ -25,6 +36,13 @@ export interface ModelInfo {
   capabilities: ModelCapabilities;
 }
 
+interface ModelsDevCost {
+  input?: number;
+  output?: number;
+  cache_read?: number;
+  cache_write?: number;
+}
+
 interface ModelsDevModel {
   id: string;
   modalities?: ModelModalities;
@@ -32,6 +50,7 @@ interface ModelsDevModel {
   reasoning?: boolean;
   structured_output?: boolean;
   attachment?: boolean;
+  cost?: ModelsDevCost;
   [key: string]: unknown;
 }
 
@@ -143,6 +162,21 @@ class ModalitiesService {
         structuredOutput: model.structured_output,
         attachment: model.attachment,
       },
+    };
+  }
+
+  /**
+   * Get pricing for a provider + model from models.dev cost data.
+   * Returns null if the model isn't found or has no cost data.
+   */
+  getPricing(providerName: string, modelId: string): ModelPricing | null {
+    const model = this.findModel(providerName, modelId);
+    if (!model?.cost?.input || !model?.cost?.output) return null;
+    return {
+      inputPer1M: model.cost.input,
+      outputPer1M: model.cost.output,
+      cacheReadPer1M: model.cost.cache_read,
+      cacheWritePer1M: model.cost.cache_write,
     };
   }
 
