@@ -1,11 +1,13 @@
 /**
- * ActivityRowLayout — shared single-line layout for all ActivityTray rows.
+ * ActivityRowLayout — shared two-line layout for all ActivityTray rows.
  *
  * Anatomy:
- *   Line 1: [icon]  label  [badge]  detail  [action buttons]
- *   Line 2: optional thin progress bar (only when percent != null)
+ *   Line 1: [icon]  label  [badge]
+ *   Line 2:         detail text    [action buttons]
+ *   Line 3: optional thin progress bar (only when percent != null)
  *
- * All rows use this to guarantee visual consistency.
+ * Splitting label and detail onto separate lines prevents truncation in the
+ * narrow sidebar where a single-line layout cannot fit all three elements.
  */
 
 import React from 'react';
@@ -36,8 +38,9 @@ export const ActivityRowLayout: React.FC<ActivityRowLayoutProps> = ({
   actions,
   percent,
 }) => (
-  <div className="px-3 py-2.5 space-y-1.5">
-    {/* Single-line header */}
+  <div className="px-3 py-2.5 space-y-1">
+    {/* Line 1: icon + label + badge.
+        Actions sit here only when there is no detail line (e.g. Extracting, Validating). */}
     <div className="flex items-center gap-2 min-w-0">
       <div className="shrink-0">{icon}</div>
       <span
@@ -47,21 +50,13 @@ export const ActivityRowLayout: React.FC<ActivityRowLayoutProps> = ({
         {label}
       </span>
       {badge}
-      {detail && (
-        <span
-          className="text-xs font-mono shrink-0"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          {detail}
-        </span>
-      )}
-      {actions.length > 0 && (
-        <div className="flex items-center gap-1 shrink-0">
+      {!detail && actions.length > 0 && (
+        <div className="flex items-center gap-0.5 shrink-0">
           {actions.map((action) => (
             <button
               key={action.icon}
               onClick={action.onClick}
-              className="p-1.5 rounded-md transition-colors hover:opacity-80"
+              className="p-1 rounded-md transition-colors hover:opacity-80"
               style={{ color: actionColor(action.icon) }}
               title={action.label}
             >
@@ -72,7 +67,34 @@ export const ActivityRowLayout: React.FC<ActivityRowLayoutProps> = ({
       )}
     </div>
 
-    {/* Optional progress bar */}
+    {/* Line 2: detail + actions — only rendered when detail text exists. */}
+    {detail && (
+      <div className="flex items-center gap-1.5 min-w-0 pl-[22px]">
+        <span
+          className="text-[11px] font-mono flex-1 min-w-0 truncate"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          {detail}
+        </span>
+        {actions.length > 0 && (
+          <div className="flex items-center gap-0.5 shrink-0 ml-auto">
+            {actions.map((action) => (
+              <button
+                key={action.icon}
+                onClick={action.onClick}
+                className="p-1 rounded-md transition-colors hover:opacity-80"
+                style={{ color: actionColor(action.icon) }}
+                title={action.label}
+              >
+                <ActionIcon name={action.icon} />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    )}
+
+    {/* Line 3: progress bar */}
     {percent != null && <ProgressBar percent={percent} />}
   </div>
 );

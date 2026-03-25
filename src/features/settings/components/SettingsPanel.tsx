@@ -40,8 +40,8 @@ const panels: Array<{ id: SettingsPanelType; label: string; tauriOnly?: boolean 
   { id: 'providers', label: 'Providers' },
   { id: 'local-inference', label: 'Local Inference', tauriOnly: true },
   { id: 'categories', label: 'Workflow' },
-  { id: 'interface', label: 'System' },
   { id: 'usage', label: 'Usage' },
+  { id: 'interface', label: 'System' },
 ];
 
 export const SettingsPanel: React.FC = () => {
