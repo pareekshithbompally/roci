@@ -5,12 +5,13 @@
  * Both sidebar and chat panel are draggable via resize handles on their edges.
  */
 
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useRef, useMemo } from 'react';
 import { useLeftPanel } from '@/hooks/useLeftPanel';
 import { useRightPanel } from '@shared/hooks/useRightPanel';
 import { useSmallScreen } from '@/hooks/useMediaQuery';
 import { useApp } from '@shared/contexts/AppContext';
 import { useChat } from '@shared/contexts/ChatContext';
+import { useActivityItems } from '@shared/stores/activityStore';
 import { Sidebar } from './Sidebar';
 import { ChatPanel } from '@features/chat';
 import { PanelLeft, SquarePen } from 'lucide-react';
@@ -33,7 +34,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const isSmallScreen = useSmallScreen();
   const { setCurrentView, setStatus, setSelectedHistoryId, setResult, meetingChatOpen, setMeetingChatOpen, status, selectedHistoryId, result } = useApp();
   const chat = useChat();
+  const activityItems = useActivityItems();
   const dragRef = useRef<{ startX: number; startWidth: number; side: 'left' | 'right' } | null>(null);
+
+  const activityCount = useMemo(() => activityItems.length, [activityItems]);
 
   const handleNewChat = useCallback(() => {
     setCurrentView('home');
@@ -141,7 +145,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
         {/* Main content panel */}
         <div className="h-full flex flex-1 min-w-0">
-          <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden pt-[60px] relative">
+          <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden pt-[40px] relative">
             {/* Sidebar actions when collapsed — traffic lights center at ~y:20px, button is 32px tall */}
             {!isLeftPanelOpen && !isSmallScreen && (
               <div className={`absolute top-[14px] z-50 flex items-center gap-1 ${
@@ -154,13 +158,23 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 >
                   <SquarePen className="w-4 h-4" />
                 </button>
-                <button
-                  onClick={() => setLeftPanel(true)}
-                  className={COMPONENT.iconButton}
-                  aria-label="Toggle sidebar"
-                >
-                  <PanelLeft className="w-4 h-4" />
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setLeftPanel(true)}
+                    className={COMPONENT.iconButton}
+                    aria-label="Toggle sidebar"
+                  >
+                    <PanelLeft className="w-4 h-4" />
+                  </button>
+                  {activityCount > 0 && (
+                    <span
+                      className="absolute -top-1 -right-1 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-amber-500 text-white text-[9px] font-bold leading-none px-0.5 pointer-events-none"
+                      aria-label={`${activityCount} active operation${activityCount > 1 ? 's' : ''}`}
+                    >
+                      {activityCount > 9 ? '9+' : activityCount}
+                    </span>
+                  )}
+                </div>
               </div>
             )}
             {children}
@@ -168,7 +182,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
           {/* Right chat panel — resizable, with pt-[60px] to clear drag region */}
           {showChatPanel && (
-            <div className="shrink-0 h-full pt-[60px] relative" style={{ width: rightPanelWidth }}>
+            <div className="shrink-0 h-full pt-[40px] relative" style={{ width: rightPanelWidth }}>
               {/* Resize handle — left edge */}
               <div
                 onMouseDown={(e) => handleResizeStart(e, 'right')}

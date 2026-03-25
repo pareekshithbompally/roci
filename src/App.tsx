@@ -17,11 +17,9 @@ import { MainLayout } from '@features/layout';
 import { HomeView } from '@features/home';
 import { SettingsPanel } from '@features/settings';
 import { DeleteConfirmModal } from '@features/history';
-// RecordingWidget removed — sessions now render via ActivityTray
 import { Toaster } from 'sonner';
 import { ModelDownloadModal } from '@shared/components/ModelDownloadModal';
 import { SearchOverlay } from '@shared/components/SearchOverlay';
-import { ActivityTray } from '@shared/components/ActivityTray';
 import { useAppShortcuts } from '@shared/hooks/useAppShortcuts';
 
 // Services
@@ -273,26 +271,29 @@ const App: React.FC = () => {
         </main>
       </MainLayout>
 
-      {/* Sonner Toast Container — top-right, below title bar */}
+      {/* Sonner Toast Container — top-right corner */}
       <Toaster
         position="top-right"
-        style={{ top: '76px', right: '16px' }}
+        offset={24}
         theme={isDark ? 'dark' : 'light'}
         richColors
         closeButton
         duration={5000}
         visibleToasts={4}
-        gap={8}
+        gap={6}
         icons={{ success: ' ', error: ' ', warning: ' ', info: ' ', loading: ' ' }}
+        toastOptions={{
+          style: {
+            fontSize: '12px',
+            padding: '8px 12px',
+            minHeight: 'unset',
+            gap: '6px',
+          },
+        }}
       />
 
       {/* Search Overlay (Cmd+K) */}
       <SearchOverlay open={isSearchOpen} onOpenChange={setIsSearchOpen} />
-
-      {/* Recording sessions now rendered via ActivityTray */}
-
-      {/* Unified Activity Tray — bottom-right, replaces individual widgets */}
-      <ActivityTray />
 
       {/* RAG Model Download Consent Modal */}
       <ModelDownloadModal />

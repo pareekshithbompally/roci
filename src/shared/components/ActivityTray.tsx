@@ -1,15 +1,15 @@
 /**
- * ActivityTray — unified bottom-right tray for all ongoing operations.
+ * ActivityTray — sidebar section for all ongoing operations.
  *
  * Structure:
  *   Header: "Activity (N)" + collapse/expand + dismiss-completed
  *   Body:   scrollable list of rows (max ~5 visible, scroll for rest)
  *   Footer: overflow count + "Cancel all" (when imports queued)
  *
- * Reads from activityStore. Empty = renders nothing.
+ * Reads from activityStore. Empty = renders nothing (transient).
  * Priority ordering: recording > active > queued > complete/error/cancelled.
  *
- * Position: fixed bottom-right. Spring animation on mount/unmount.
+ * Position: in-flow sidebar footer. Animates in/out with height transition.
  */
 
 import React, { useState, useMemo } from 'react';
@@ -78,7 +78,7 @@ export const ActivityTray: React.FC = () => {
 
   const sorted = useMemo(() => sortItems(items), [items]);
 
-  const { maxVisibleRows, rowHeight, width, zIndex } = UI_CONFIG.activityTray;
+  const { maxVisibleRows, rowHeight } = UI_CONFIG.activityTray;
   const maxBodyHeight = maxVisibleRows * rowHeight;
 
   // Count queued items beyond visible
@@ -110,19 +110,12 @@ export const ActivityTray: React.FC = () => {
     <AnimatePresence>
       {items.length > 0 && (
         <motion.div
-          layout
-          initial={{ y: 80, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 80, opacity: 0 }}
-          transition={ROW_SPRING}
-          className="fixed bottom-4 right-4 rounded-xl overflow-hidden flex flex-col"
-          style={{
-            width,
-            zIndex,
-            backgroundColor: 'var(--surface-modal)',
-            border: '1px solid var(--border-strong)',
-            boxShadow: 'var(--shadow-float)',
-          }}
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.2, ease: 'easeInOut' }}
+          className="overflow-hidden shrink-0"
+          style={{ borderTop: '1px solid var(--border-default)' }}
         >
           {/* Header — entire row is clickable to collapse/expand */}
           <button

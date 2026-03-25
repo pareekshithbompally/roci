@@ -14,6 +14,7 @@ import React, { createContext, useContext, useState, useCallback, useRef, useEff
 import { useToast } from '../../../shared/contexts/ToastContext';
 import type { AudioCaptureSource } from '../../../../src/config/audio.config';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment, trayService } from '../../../../services/tauri';
 import { coreAudioService } from '../../../../services/coreAudio.service';
 import { recordingsService } from '../../../../services/storage';
@@ -840,6 +841,20 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       }
     }
   }, [sessions, activeCaptureSessionId, formatTimeForTray, settingsContext]);
+
+  // Prevent system idle sleep while OS audio capture is active.
+  // Acquire when activeCaptureSessionId becomes non-null, release on cleanup.
+  useEffect(() => {
+    if (!isTauriEnvironment() || !activeCaptureSessionId) return;
+    invoke('acquire_wake_lock').catch((e: unknown) => {
+      console.warn('[RecordingContext] Wake lock acquire failed:', e);
+    });
+    return () => {
+      invoke('release_wake_lock').catch((e: unknown) => {
+        console.warn('[RecordingContext] Wake lock release failed:', e);
+      });
+    };
+  }, [activeCaptureSessionId]);
 
   // === LEGACY COMPAT: Derive single-session state from sessions Map ===
   // Find the "active" session for legacy consumers (active capture or most recent review)

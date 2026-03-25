@@ -8,7 +8,6 @@
 import React, { useMemo, useState } from 'react';
 import { AudioWaveform, Key, HardDrive } from 'lucide-react';
 import { ImportButton } from '@features/import';
-import { useTheme } from '@/hooks/useTheme';
 import { useApp, AppStatus } from '@shared/contexts/AppContext';
 import { useRecordingContext } from '@features/recording';
 import { useChat } from '@shared/contexts/ChatContext';
@@ -36,7 +35,6 @@ const GREETING_POOL = [
 ];
 
 export const IdleView: React.FC<IdleViewProps> = () => {
-  const { isDark } = useTheme();
   const { setStatus, setCurrentView, setActiveSettingsPanel } = useApp();
   const [greeting] = useState(() => GREETING_POOL[Math.floor(Math.random() * GREETING_POOL.length)]);
   const recording = useRecordingContext();
@@ -206,20 +204,6 @@ export const IdleView: React.FC<IdleViewProps> = () => {
             </>
           )}
         </div>
-      </div>
-
-      {/* Illustration - Bottom Right Corner, inside borders */}
-      <div className="absolute bottom-2 right-2 pointer-events-none select-none z-0">
-        <img
-          src="https://illustrations.popsy.co/amber/home-office.svg"
-          alt="Voice AI Workflow"
-          className="w-full max-w-[280px]"
-          style={
-            isDark
-              ? { filter: 'invert(1) hue-rotate(175deg) brightness(1.1) contrast(0.9)' }
-              : {}
-          }
-        />
       </div>
 
     </div>

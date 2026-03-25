@@ -3,6 +3,7 @@ mod window;
 mod autostart;
 mod audio_core;
 mod screenshot;
+mod wake_lock;
 
 /// Open a folder in the OS file manager (Finder on macOS).
 #[tauri::command]
@@ -70,6 +71,7 @@ pub fn run() {
     .manage(shortcuts::ShortcutState {
       registered: Mutex::new(Vec::new()),
     })
+    .manage(wake_lock::WakeLockState::new())
     .invoke_handler(tauri::generate_handler![
       // Shortcut commands
       shortcuts::register_shortcut,
@@ -95,6 +97,9 @@ pub fn run() {
       // Screenshot commands
       screenshot::list_capturable_windows,
       screenshot::take_screenshot,
+      // Wake lock commands (macOS: prevent idle sleep during recording)
+      wake_lock::acquire_wake_lock,
+      wake_lock::release_wake_lock,
       // Utility commands
       reveal_in_file_manager,
     ])

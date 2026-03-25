@@ -16,6 +16,7 @@ import { useUnifiedSidebar } from '@shared/hooks/useUnifiedSidebar';
 import { AppStatus } from '@/types';
 import { meetingService } from '@/services/meeting.service';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
+import { ActivityTray } from '@shared/components/ActivityTray';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { formatShortcut } from '@config/shortcuts.config';
 import type { UnifiedSidebarItem } from '@/types';
@@ -163,6 +164,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           searchQuery=""
         />
       </div>
+
+      {/* Activity tray — transient, only visible when operations are in progress */}
+      <ActivityTray />
 
       {/* Settings button */}
       <div className="shrink-0 px-2 pb-1">
