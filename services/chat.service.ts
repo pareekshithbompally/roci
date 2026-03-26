@@ -7,6 +7,7 @@ import type { ChatSession, ChatMessage, ChatIndexEntry } from '@/types';
 import { chatIndexRepository } from './repositories/chat-index.repository';
 import { chatSessionRepository } from './repositories/chat-session.repository';
 import type { StoredChatSession } from './repositories/chat-session.repository';
+import { chatIndexer } from '@extensions/rag/chat-indexer';
 
 class ChatService {
   /** List sessions from the index (lightweight — no messages) */
@@ -44,6 +45,7 @@ class ChatService {
       id: session.id,
       title: session.title,
       lastMessageAt: session.lastMessageAt,
+      messageCount: session.messages.length,
     };
 
     if (existing) {
@@ -51,6 +53,11 @@ class ChatService {
     } else {
       await chatIndexRepository.addToIndex(indexEntry);
     }
+
+    // Fire-and-forget: index session into vector DB asynchronously
+    chatIndexer.indexSession(session).catch(err =>
+      console.error('[ChatService] Chat indexing failed (non-fatal):', session.id, err)
+    );
 
     return true;
   }
@@ -64,6 +71,10 @@ class ChatService {
     if (!indexOk || !sessionOk) {
       console.warn('[ChatService] Partial deletion of chat session:', sessionId, { indexOk, sessionOk });
     }
+    // Fire-and-forget: remove from vector index
+    chatIndexer.removeSession(sessionId).catch(err =>
+      console.warn('[ChatService] Chat index cleanup failed (non-fatal):', sessionId, err)
+    );
     return indexOk && sessionOk;
   }
 

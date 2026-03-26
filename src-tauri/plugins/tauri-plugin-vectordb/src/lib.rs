@@ -2,6 +2,7 @@ mod commands;
 mod graph;
 mod schema;
 mod search;
+mod spotlight;
 
 use commands::VectorDbState;
 use tauri::{
@@ -34,6 +35,12 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::graph_stats,
             commands::insert_usage,
             commands::get_usage_summary,
+            commands::upsert_chat_session,
+            commands::upsert_chat_chunks,
+            commands::delete_chat_session,
+            commands::is_chat_session_stale,
+            commands::search_chats,
+            commands::spotlight_search,
         ])
         .setup(|app, _api| {
             app.manage(VectorDbState::default());

@@ -19,7 +19,7 @@ import { SettingsPanel } from '@features/settings';
 import { DeleteConfirmModal } from '@features/history';
 import { Toaster } from 'sonner';
 import { ModelDownloadModal } from '@shared/components/ModelDownloadModal';
-import { SearchOverlay } from '@shared/components/SearchOverlay';
+import SearchOverlay from '@shared/components/SearchOverlayDialog';
 import { useAppShortcuts } from '@shared/hooks/useAppShortcuts';
 
 // Services
@@ -36,6 +36,7 @@ import { shortcutsService } from '@/services/shortcuts.service';
 import { ShortcutAction } from '@config/shortcuts.config';
 import { unifiedAIService } from '@/services/unifiedAIService';
 import { initPlatformFetch } from '@/services/platform-fetch';
+import { searchIndexingService } from '@/services/searchIndexing.service';
 import { exit } from '@tauri-apps/plugin-process';
 
 const App: React.FC = () => {
@@ -73,30 +74,93 @@ const App: React.FC = () => {
     }, [chat.chatInputRef]),
   });
 
-  // Background RAG warm-up: index stale meetings so first search is fast
-  useEffect(() => {
-    if (history.items.length === 0) return;
+  // Background search-index warm-up: two phases.
+  // Phase 1 (fast): FTS-only — populates spotlight corpus so Cmd+K works immediately.
+  // Phase 2 (slow, optional): embeddings — only if model is ready/consented.
+  const indexingRanRef = useRef(false);
 
+  useEffect(() => {
+    if (indexingRanRef.current) return;
+    if (history.items.length === 0 && chat.sessionIndex.length === 0) return;
+
+    indexingRanRef.current = true;
     const controller = new AbortController();
     const warmUp = async () => {
       try {
-        const { ragIndexer, embeddingService, hasConsent } = await import('@extensions/rag');
-        // Only proceed if embedding model is already consented + cached
-        // Don't trigger model download on app launch — that's user-initiated
-        if (!embeddingService.isReady() && !hasConsent()) return;
-        await ragIndexer.indexAll(history.items, {
+        const { ragIndexer, chatIndexer, embeddingService, hasConsent, emitProgress } = await import('@extensions/rag');
+        const [meetingItems, chatSessions] = await Promise.all([
+          searchIndexingService.loadMeetingsForIndexing(),
+          searchIndexingService.loadChatsForIndexing(),
+        ]);
+
+        // Phase 1: FTS-only indexing (fast — no embedding computation)
+        await ragIndexer.indexAll(meetingItems, {
           signal: controller.signal,
+          includeEmbeddings: false,
+        });
+
+        if (controller.signal.aborted) return;
+
+        if (chatSessions.length > 0) {
+          emitProgress({ kind: 'indexing', status: 'started', total: chatSessions.length });
+        }
+        for (let i = 0; i < chatSessions.length; i++) {
+          if (controller.signal.aborted) break;
+          const session = chatSessions[i];
+          emitProgress({
+            kind: 'indexing',
+            status: 'progress',
+            current: i + 1,
+            total: chatSessions.length,
+            currentTitle: `Chat: ${session.title}`,
+          });
+          await chatIndexer.indexSession(session, { includeEmbeddings: false });
+        }
+        if (chatSessions.length > 0) {
+          emitProgress({ kind: 'indexing', status: 'complete', current: chatSessions.length, total: chatSessions.length });
+        }
+
+        console.log('[App] Phase 1 complete: FTS spotlight corpus populated');
+
+        // Phase 2: add embeddings if model is available (slow, non-blocking for spotlight)
+        if (controller.signal.aborted) return;
+        const shouldEmbed = embeddingService.isReady() || hasConsent();
+        if (!shouldEmbed) return;
+
+        await ragIndexer.indexAll(meetingItems, {
+          signal: controller.signal,
+          includeEmbeddings: true,
           extractionContext: settings.chatModel ? { settings, providers } : undefined,
         });
+
+        if (controller.signal.aborted) return;
+
+        if (chatSessions.length > 0) {
+          emitProgress({ kind: 'indexing', status: 'started', total: chatSessions.length });
+        }
+        for (let i = 0; i < chatSessions.length; i++) {
+          if (controller.signal.aborted) break;
+          const session = chatSessions[i];
+          emitProgress({
+            kind: 'indexing',
+            status: 'progress',
+            current: i + 1,
+            total: chatSessions.length,
+            currentTitle: `Chat: ${session.title}`,
+          });
+          await chatIndexer.indexSession(session, { includeEmbeddings: true });
+        }
+        if (chatSessions.length > 0) {
+          emitProgress({ kind: 'indexing', status: 'complete', current: chatSessions.length, total: chatSessions.length });
+        }
       } catch (error) {
-        // Non-fatal — indexing will happen on first search instead
-        console.log('[App] Background RAG warm-up skipped or failed:', error);
+        console.log('[App] Background search index warm-up skipped or failed:', error);
       }
     };
     warmUp();
 
     return () => controller.abort();
-  }, [history.items.length]); // Re-run when history count changes (new meeting recorded)
+  }, [history.items.length, chat.sessionIndex.length]);
 
   // Initialize app on mount
   useEffect(() => {

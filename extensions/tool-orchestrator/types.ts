@@ -8,7 +8,46 @@ import type { ChatMessage, HistoryItem, AppSettings } from '@/types';
 import type { ModelProvider } from '@/types/modelProviders';
 import type { StreamMetadata, ToolChoice } from '@/services/ai/types';
 import type { ChatPart } from '@/types';
-import type { ToolCall, ToolResult } from '@extensions/tools/types';
+import type { ToolCall, ToolResult, MeetingCitation } from '@extensions/tools/types';
+
+// ── Intent Classification (Step 1) ──
+
+export type IntentType =
+  | 'general'
+  | 'meeting_search'
+  | 'meeting_recall'
+  | 'meeting_detail'
+  | 'meeting_list'
+  | 'action_items'
+  | 'relationship'
+  | 'cross_meeting'
+  | 'chat_recall'
+  | 'catch_up';
+
+export interface IntentClassification {
+  intent: IntentType;
+  confidence: 'high' | 'medium';
+  search_query?: string;
+  requested_fields?: ('summary' | 'transcript' | 'notes' | 'actionItems')[];
+  action_item_filter?: 'pending' | 'completed' | 'all';
+  graph_target?: string;
+  graph_node_types?: string[];
+  graph_edge_types?: string[];
+  temporal_hint?: string;
+  max_meetings?: number;
+  depth: 'none' | 'surface' | 'deep';
+}
+
+// ── Retrieval Result (Step 2) ──
+
+export interface RetrievalResult {
+  /** Formatted context string to inject into synthesis prompt */
+  context: string;
+  /** Meeting citations for Sources UI panel */
+  citations: MeetingCitation[];
+  /** Which tools were executed (for UI activity indicators) */
+  toolsUsed: string[];
+}
 
 /** Input options for the orchestration loop */
 export interface OrchestratorOptions {

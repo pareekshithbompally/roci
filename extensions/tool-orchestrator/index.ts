@@ -1,34 +1,24 @@
 /**
- * Tool Orchestrator
+ * Tool Orchestrator — 3-Step Intent-Routed Architecture
  *
- * Two-phase design:
- *  Phase 1 — retrievalPhase(): lean retrieval prompt, custom tools, text suppressed from UI.
- *  Phase 2 — synthesisPhase(): full system prompt + retrieved context, native provider tools
- *            (web search), streams to user with UI feedback for native tool activity.
+ * Step 1 — classifyIntent(): LLM classifies user intent, extracts retrieval params.
+ * Step 2 — executeRetrieval(): Programmatic data fetching (no LLM, direct DB access).
+ * Step 3 — synthesisPhase(): Streaming synthesis with retrieved context + web search.
  *
- * Uses the AI SDK's generateText with stopWhen:stepCountIs() for Phase 1 — the SDK handles
- * the tool-call loop internally. Phase 2 uses streamText with stopWhen for native tools.
+ * The synthesis LLM does NOT call meeting tools — all data is fetched in Step 2.
+ * Only web search tools remain available in synthesis (if enabled).
  *
  * Single call site from ChatContext — orchestrate() signature unchanged.
  */
 
-import { generateText, streamText, tool, jsonSchema, stepCountIs } from 'ai';
-import type { ToolSet } from 'ai';
+import { streamText, stepCountIs } from 'ai';
 import { createModel, toSDKMessages, getWebSearchTools } from '@/services/ai';
 import { resolveModel } from '@shared/utils/modelResolver';
-import type { ResolvedModel } from '@shared/utils/modelResolver';
-import { toolRegistry, toolExecutor } from '@extensions/tools';
-import { toolLabel } from '@shared/utils/toolUtils';
-import type { ToolCall, ToolResult, ToolSchema } from '@extensions/tools/types';
-import type { OrchestratorOptions, OrchestratorCallbacks } from './types';
-import { needsRetrieval } from './intent';
-import { buildRetrievalSystemPrompt } from '@core/ai/prompts/chat.prompt';
+import type { OrchestratorOptions, OrchestratorCallbacks, IntentClassification, RetrievalResult } from './types';
+import { classifyIntent } from './intent-classifier';
+import { executeRetrieval } from './retrieval-executor';
 import { extractTokenUsage, mergeTokenUsage } from '@/services/ai/types';
 import type { TokenUsage } from '@/services/ai/types';
-
-// Safety cap — the LLM should stop naturally (no tool calls = done).
-// This exists only to prevent infinite loops from bugs or confused models.
-const RETRIEVAL_SAFETY_CAP = 10;
 
 // Native provider tools (web search) need multi-step: model calls tool → provider
 // executes server-side → SDK feeds results back → model generates text.
@@ -36,121 +26,10 @@ const RETRIEVAL_SAFETY_CAP = 10;
 // step and the chain dies silently after the tool call.
 const SYNTHESIS_TOOL_STEPS = 3;
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-function assembleRetrievalContext(results: ToolResult[]): string {
-  if (results.length === 0) return '';
-
-  const lines: string[] = ['## Retrieved Context'];
-  lines.push('');
-
-  for (const result of results) {
-    const toolName = result.meta?.toolName ?? 'tool';
-    lines.push(`### ${toolName}`);
-    lines.push(result.content);
-    lines.push('');
-  }
-
-  return lines.join('\n');
-}
-
-/**
- * Build AI SDK tools with execute functions bridged to our ToolExecutor.
- * Emits 'calling' before execution and 'done' after, for tool activity UI.
- * Accumulates ToolResults into allResults for retrieval context assembly.
- */
-function buildExecutableTools(
-  schemas: ToolSchema[],
-  historyItems: OrchestratorOptions['historyItems'],
-  signal: AbortSignal | undefined,
-  onToolActivity: OrchestratorCallbacks['onToolActivity'],
-  allResults: ToolResult[],
-): ToolSet {
-  const tools: ToolSet = {};
-
-  for (const schema of schemas) {
-    tools[schema.name] = tool({
-      description: schema.description,
-      inputSchema: jsonSchema(schema.parameters as Parameters<typeof jsonSchema>[0]),
-      execute: async (args) => {
-        const call: ToolCall = {
-          id: crypto.randomUUID(),
-          name: schema.name,
-          arguments: args as Record<string, unknown>,
-        };
-
-        onToolActivity({
-          toolName: schema.name,
-          label: toolLabel(schema.name, 'calling'),
-          status: 'calling',
-          toolCall: call,
-        });
-
-        const result = await toolExecutor.execute(call, { historyItems, signal });
-        allResults.push(result);
-
-        onToolActivity({
-          toolName: schema.name,
-          label: toolLabel(schema.name, 'complete'),
-          status: 'done',
-          toolCall: call,
-          result,
-        });
-
-        return result.content;
-      },
-    });
-  }
-
-  return tools;
-}
-
-// ── Phase 1 ────────────────────────────────────────────────────────────────
-
-function getLastUserMessage(messages: OrchestratorOptions['messages']): string {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === 'user') return messages[i].text;
-  }
-  return '';
-}
-
-async function retrievalPhase(params: {
-  resolved: ResolvedModel;
-  messages: OrchestratorOptions['messages'];
-  historyItems: OrchestratorOptions['historyItems'];
-  signal?: AbortSignal;
-  schemas: ToolSchema[];
-  toolChoice: OrchestratorOptions['toolChoice'];
-  onToolActivity: OrchestratorCallbacks['onToolActivity'];
-}): Promise<{ context: string; usage?: TokenUsage }> {
-  const allResults: ToolResult[] = [];
-  const model = createModel(params.resolved);
-  const tools = buildExecutableTools(
-    params.schemas,
-    params.historyItems,
-    params.signal,
-    params.onToolActivity,
-    allResults,
-  );
-
-  const result = await generateText({
-    model,
-    system: buildRetrievalSystemPrompt(),
-    messages: toSDKMessages(params.messages),
-    tools,
-    toolChoice: params.toolChoice ?? 'auto',
-    stopWhen: stepCountIs(RETRIEVAL_SAFETY_CAP),
-    abortSignal: params.signal,
-  });
-
-  const usage = result.usage ? extractTokenUsage(result.usage) : undefined;
-  return { context: assembleRetrievalContext(allResults), usage };
-}
-
-// ── Phase 2 ────────────────────────────────────────────────────────────────
+// ── Synthesis (Step 3) ─────────────────────────────────────────────────────
 
 async function synthesisPhase(params: {
-  resolved: ResolvedModel;
+  resolved: Parameters<typeof createModel>[0];
   messages: OrchestratorOptions['messages'];
   systemPrompt: string;
   webSearchEnabled?: boolean;
@@ -251,16 +130,17 @@ async function synthesisPhase(params: {
 // ── Public API ─────────────────────────────────────────────────────────────
 
 /**
- * Run the two-phase orchestration loop.
- * Phase 1: retrieve context via tools (tool blocks visible, text suppressed).
- * Phase 2: synthesize answer with retrieved context (streamed to user).
+ * Run the 3-step intent-routed orchestration.
+ * Step 1: Classify user intent (LLM).
+ * Step 2: Programmatic retrieval based on intent (no LLM).
+ * Step 3: Synthesize answer with retrieved context (streaming LLM).
  */
 export async function orchestrate(
   options: OrchestratorOptions,
   callbacks: OrchestratorCallbacks
 ): Promise<{ provider?: string; model?: string; tokenUsage?: TokenUsage }> {
   const { messages, systemPrompt, settings, providers, historyItems, signal,
-          webSearchEnabled, toolChoice } = options;
+          webSearchEnabled } = options;
   const { onChunk, onMediaPart, onToolActivity } = callbacks;
 
   const resolved = resolveModel(settings.chatModel, providers);
@@ -271,42 +151,55 @@ export async function orchestrate(
     throw new Error(`API key not configured for ${resolved.provider}. Please add it in Settings → Providers.`);
   }
 
-  const schemas = toolRegistry.getSchemas();
-  const effectiveToolChoice = toolChoice ?? 'auto';
+  // ── Step 1: Intent Classification ──
+  const skipClassification = options.skipRetrieval ?? false;
+  let intent: IntentClassification;
+  let classifierUsage: TokenUsage | undefined;
 
-  // ── Phase 1: Retrieval ────────────────────────────────────────────────────
-  const skipRetrieval = options.skipRetrieval ?? false;
-  const shouldRetrieve = !skipRetrieval && needsRetrieval(
-    getLastUserMessage(messages),
-    historyItems.length,
-  );
-  let retrievalContext = '';
-  let retrievalUsage: TokenUsage | undefined;
-  if (shouldRetrieve) {
+  if (skipClassification) {
+    // Model doesn't support tools → treat as general
+    intent = { intent: 'general', confidence: 'high', depth: 'none' };
+  } else {
     try {
-      const retrieval = await retrievalPhase({
-        resolved, messages, historyItems, signal,
-        schemas,
-        toolChoice: effectiveToolChoice,
-        onToolActivity,
+      const classifierModel = createModel(resolved);
+      intent = await classifyIntent({
+        model: classifierModel,
+        messages,
+        meetingCount: historyItems.length,
+        signal,
       });
-      retrievalContext = retrieval.context;
-      retrievalUsage = retrieval.usage;
     } catch (error) {
-      console.error('[Orchestrator] Phase 1 retrieval failed, continuing to synthesis:', error);
+      console.error('[Orchestrator] Step 1 classification failed, treating as general:', error);
+      intent = { intent: 'general', confidence: 'high', depth: 'none' };
     }
   }
 
-  // ── Phase 2: Synthesis ────────────────────────────────────────────────────
+  // ── Step 2: Programmatic Retrieval ──
+  let retrievalResult: RetrievalResult = { context: '', citations: [], toolsUsed: [] };
+  if (intent.depth !== 'none') {
+    try {
+      retrievalResult = await executeRetrieval({
+        intent,
+        historyItems,
+        signal,
+        onToolActivity,
+      });
+    } catch (error) {
+      console.error('[Orchestrator] Step 2 retrieval failed, continuing:', error);
+    }
+  }
+
+  // ── Step 3: Synthesis (streaming) ──
   const synthesisUsage = await synthesisPhase({
     resolved, messages, systemPrompt,
-    webSearchEnabled, signal, retrievalContext,
+    webSearchEnabled, signal,
+    retrievalContext: retrievalResult.context,
     onChunk, onMediaPart,
   });
 
   return {
     provider: resolved.provider,
     model: resolved.modelId,
-    tokenUsage: mergeTokenUsage(retrievalUsage, synthesisUsage),
+    tokenUsage: mergeTokenUsage(classifierUsage, synthesisUsage),
   };
 }

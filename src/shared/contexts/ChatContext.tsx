@@ -2,12 +2,11 @@
  * Chat Context
  *
  * Manages chat sessions, messages, and chat UI state.
- * Integrates stream buffer for smooth text rendering.
- * Uses new chat service (index + session repositories) for persistence.
+ * Uses two-tier loading: lightweight session index at startup + demand-loaded sessions on select.
  */
 
 import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode, useRef, useEffect, MutableRefObject } from 'react';
-import type { ChatSession, ChatMessage, ChatPart, AppSettings, HistoryItem, MeetingCitation, WebCitation, InlineCitationSpan } from '@/types';
+import type { ChatSession, ChatMessage, ChatPart, ChatIndexEntry, AppSettings, HistoryItem, MeetingCitation, WebCitation, InlineCitationSpan } from '@/types';
 import { fileToBase64 } from '@/utils/fileUtils';
 import type { ModelProvider } from '@/types/modelProviders';
 import { chatService } from '@/services/chat.service';
@@ -20,12 +19,19 @@ import { streamingStore } from '@features/chat/stores/streamingStore';
 import { buildChatRequest } from '@core/ai';
 import { generateSuggestions } from '@/services/ai/suggestions';
 import { logUsage } from '@extensions/usage';
+import { CHAT_PAGE_SIZE, MAX_LOADED_SESSIONS, SIDEBAR_SEARCH_DEBOUNCE_MS } from '@config/chat.config';
 
 interface ChatState {
-  /** All chat sessions */
-  sessions: ChatSession[];
+  /** Lightweight index — loaded once at startup, no messages */
+  sessionIndex: ChatIndexEntry[];
+  /** Demand-loaded sessions — LRU-capped at MAX_LOADED_SESSIONS */
+  loadedSessions: Map<string, ChatSession>;
   /** Current active session ID */
   currentSessionId: string | null;
+  /** True while loading a session on select */
+  isSessionLoading: boolean;
+  /** Pagination: pages × CHAT_PAGE_SIZE entries shown in sidebar */
+  indexPage: number;
   /** Chat input text */
   input: string;
   /** Whether chat is loading */
@@ -42,7 +48,7 @@ interface ChatState {
   selectedMeetingRefs: MeetingListItem[];
   /** Whether web search is enabled */
   webSearchEnabled: boolean;
-  /** Current AI activity state (thinking / web search only — tools are now inline parts) */
+  /** Current AI activity state (thinking / web search only) */
   aiActivity: {
     isThinking?: boolean;
     isSearching?: boolean;
@@ -55,15 +61,11 @@ interface ChatState {
   pendingAttachments: ChatPart[];
 }
 
-interface FilteredChatSession extends ChatSession {
-  matchingMsg?: ChatMessage;
-}
-
-interface ChatContextValue extends ChatState {
-  /** Current active session */
+interface ChatContextValue extends Omit<ChatState, 'loadedSessions'> {
+  /** Current active session (demand-loaded) */
   currentSession: ChatSession | null;
-  /** Filtered sessions based on search */
-  filteredSessions: FilteredChatSession[];
+  /** Filtered+paginated index entries based on search and page */
+  filteredIndexEntries: ChatIndexEntry[];
   /** Set chat input */
   setInput: (input: string) => void;
   /** Set current session ID */
@@ -76,9 +78,9 @@ interface ChatContextValue extends ChatState {
   newChat: () => void;
   /** Send a message */
   sendMessage: (text?: string, historyItems?: any[], settings?: AppSettings, providers?: ModelProvider[]) => Promise<void>;
-  /** Load chat sessions from storage */
+  /** Load chat sessions index from storage */
   loadSessions: () => Promise<void>;
-  /** Select a chat session */
+  /** Select a chat session (synchronous — triggers demand-load via useEffect) */
   selectSession: (sessionId: string) => void;
   /** Delete a chat session */
   deleteSession: (sessionId: string) => Promise<void>;
@@ -88,15 +90,13 @@ interface ChatContextValue extends ChatState {
   stopGeneration: () => void;
   /** Copy message content */
   copyMessage: (messageId: string, text: string) => void;
-  /** Set sessions directly */
-  setSessions: (sessions: ChatSession[]) => void;
   /** Set selected meeting references */
   setSelectedMeetingRefs: (meetings: MeetingListItem[]) => void;
   /** Toggle web search */
   toggleWebSearch: () => void;
   /** Set delete confirmation ID */
   setDeleteConfirmId: (id: string | null) => void;
-  /** Rerun the last assistant message (resend the preceding user message) */
+  /** Rerun the last assistant message */
   rerunLastMessage: (historyItems?: any[], settings?: AppSettings, providers?: ModelProvider[]) => Promise<void>;
   /** Add a file attachment */
   addAttachment: (file: File) => Promise<void>;
@@ -108,13 +108,18 @@ interface ChatContextValue extends ChatState {
   addScreenshotAttachment: (base64: string, name: string) => void;
   /** Get or create a chat session scoped to a meeting */
   getOrCreateMeetingSession: (meetingId: string, meetingTitle: string) => void;
+  /** Load more sessions in the sidebar (pagination) */
+  loadMoreSessions: () => void;
   /** Ref for programmatically focusing the chat input textarea */
   chatInputRef: MutableRefObject<HTMLTextAreaElement | null>;
 }
 
 const initialState: ChatState = {
-  sessions: [],
+  sessionIndex: [],
+  loadedSessions: new Map(),
   currentSessionId: null,
+  isSessionLoading: false,
+  indexPage: 1,
   input: '',
   isLoading: false,
   viewHistory: false,
@@ -140,91 +145,139 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const chatInputRef = useRef<HTMLTextAreaElement | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
+  // Ref mirrors loadedSessions Map for synchronous reads inside callbacks (stale-closure safe)
+  const loadedSessionsCacheRef = useRef<Map<string, ChatSession>>(new Map());
+
+  // Helper — always use this to update loadedSessions so ref stays in sync
+  const setLoadedSessions = useCallback((updater: (prev: Map<string, ChatSession>) => Map<string, ChatSession>) => {
+    setState(prev => {
+      const next = updater(prev.loadedSessions);
+      loadedSessionsCacheRef.current = next;
+      return { ...prev, loadedSessions: next };
+    });
+  }, []);
+
   // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
       setState(prev => ({ ...prev, debouncedSearchQuery: prev.searchQuery }));
-    }, 300);
+    }, SIDEBAR_SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [state.searchQuery]);
 
-  // Auto-load sessions on mount (with delay to ensure storage is initialized)
+  // Auto-load sessions index on mount
   useEffect(() => {
     const initializeSessions = async () => {
-      // Wait a bit to ensure storage is initialized (App.tsx initializes storage first)
       await new Promise(resolve => setTimeout(resolve, 100));
       await loadSessions();
       setIsInitialized(true);
     };
-
     initializeSessions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount
+  }, []);
 
-  // Auto-save sessions when they change (debounced)
+  // Auto-save current session when it changes (debounced)
   useEffect(() => {
     if (!isInitialized) return;
+    if (!state.currentSessionId) return;
 
     const timeoutId = setTimeout(() => {
-      if (state.sessions.length > 0) {
-        if (state.currentSessionId) {
-          const currentSession = state.sessions.find(s => s.id === state.currentSessionId);
-          if (currentSession) {
-            persistSession(currentSession);
-          }
-        }
-      }
+      const session = loadedSessionsCacheRef.current.get(state.currentSessionId!);
+      if (session) persistSession(session);
     }, 500);
 
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.sessions, state.currentSessionId, isInitialized]);
+  }, [state.loadedSessions, state.currentSessionId, isInitialized]);
 
-  // Current session
-  const currentSession = useMemo(() => {
-    return state.sessions.find(s => s.id === state.currentSessionId) || null;
-  }, [state.sessions, state.currentSessionId]);
+  // Demand-load session when currentSessionId changes
+  useEffect(() => {
+    const sessionId = state.currentSessionId;
+    if (!sessionId) return;
+    if (loadedSessionsCacheRef.current.has(sessionId)) return;
 
-  // Filtered sessions
-  const filteredSessions = useMemo(() => {
-    if (!state.debouncedSearchQuery) return state.sessions;
+    let cancelled = false;
 
-    const lower = state.debouncedSearchQuery.toLowerCase();
-    return state.sessions
-      .map(session => {
-        const titleMatch = session.title.toLowerCase().includes(lower);
-        const matchingMsg = session.messages.find(m => m.text.toLowerCase().includes(lower));
-
-        if (titleMatch || matchingMsg) {
-          return { ...session, matchingMsg };
+    chatService.loadSession(sessionId)
+      .then(session => {
+        if (cancelled) return;
+        if (!session) {
+          setState(prev => ({ ...prev, isSessionLoading: false }));
+          return;
         }
-        return null;
+        setLoadedSessions(prev => {
+          const next = new Map(prev);
+          // LRU eviction: remove oldest non-current session if over cap
+          if (next.size >= MAX_LOADED_SESSIONS) {
+            for (const [id] of next) {
+              if (id !== sessionId) {
+                next.delete(id);
+                break;
+              }
+            }
+          }
+          next.set(sessionId, session);
+          return next;
+        });
+        setState(prev => ({ ...prev, isSessionLoading: false }));
       })
-      .filter(Boolean) as FilteredChatSession[];
-  }, [state.sessions, state.debouncedSearchQuery]);
+      .catch(err => {
+        if (!cancelled) {
+          console.error('[ChatContext] Failed to load session:', sessionId, err);
+          setState(prev => ({ ...prev, isSessionLoading: false }));
+        }
+      });
 
-  // Load sessions from storage
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.currentSessionId]);
+
+  // Current session — derived from cache
+  const currentSession = useMemo(() => {
+    if (!state.currentSessionId) return null;
+    return state.loadedSessions.get(state.currentSessionId) ?? null;
+  }, [state.loadedSessions, state.currentSessionId]);
+
+  // Filtered + paginated index entries (title-only filter)
+  const filteredIndexEntries = useMemo((): ChatIndexEntry[] => {
+    const { debouncedSearchQuery, sessionIndex, indexPage } = state;
+
+    if (!debouncedSearchQuery) {
+      return sessionIndex.slice(0, indexPage * CHAT_PAGE_SIZE);
+    }
+
+    const q = debouncedSearchQuery.toLowerCase();
+    return sessionIndex.filter(e => e.title.toLowerCase().includes(q));
+  }, [state.sessionIndex, state.debouncedSearchQuery, state.indexPage]);
+
+  // Load session index from storage (no messages)
   const loadSessions = useCallback(async () => {
     try {
       const indexEntries = await chatService.listSessions();
-      if (indexEntries.length > 0) {
-        const fullSessions = await Promise.all(
-          indexEntries.map(entry => chatService.loadSession(entry.id))
-        );
-        const sessions: ChatSession[] = fullSessions
-          .filter((s): s is ChatSession => s !== null);
-        setState(prev => ({ ...prev, sessions }));
-        console.log('[ChatContext] Loaded', sessions.length, 'sessions');
-      }
+      setState(prev => ({ ...prev, sessionIndex: indexEntries }));
+      console.log('[ChatContext] Loaded index with', indexEntries.length, 'sessions');
     } catch (error) {
-      console.error('[ChatContext] Error loading sessions:', error);
+      console.error('[ChatContext] Error loading session index:', error);
     }
   }, []);
 
-  // Persist a session
+  // Persist a session — writes to disk, updates cache + index
   const persistSession = useCallback(async (session: ChatSession) => {
     await chatService.persistSession(session);
-  }, []);
+    setLoadedSessions(prev => {
+      const next = new Map(prev);
+      next.set(session.id, session);
+      return next;
+    });
+    setState(prev => ({
+      ...prev,
+      sessionIndex: prev.sessionIndex.map(e =>
+        e.id === session.id
+          ? { ...e, title: session.title, lastMessageAt: session.lastMessageAt, messageCount: session.messages.length }
+          : e
+      ),
+    }));
+  }, [setLoadedSessions]);
 
   // Simple setters
   const setInput = useCallback((input: string) => {
@@ -253,42 +306,58 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     }));
   }, []);
 
+  // Synchronous — just set currentSessionId; demand-load fires in useEffect
   const selectSession = useCallback((sessionId: string) => {
     setState(prev => ({
       ...prev,
       currentSessionId: sessionId,
       viewHistory: false,
+      isSessionLoading: !loadedSessionsCacheRef.current.has(sessionId),
     }));
+  }, []);
+
+  const loadMoreSessions = useCallback(() => {
+    setState(prev => ({ ...prev, indexPage: prev.indexPage + 1 }));
   }, []);
 
   const deleteSession = useCallback(async (sessionId: string) => {
     try {
       await chatService.deleteSession(sessionId);
-
+      setLoadedSessions(prev => {
+        const next = new Map(prev);
+        next.delete(sessionId);
+        return next;
+      });
       setState(prev => ({
         ...prev,
-        sessions: prev.sessions.filter(s => s.id !== sessionId),
+        sessionIndex: prev.sessionIndex.filter(e => e.id !== sessionId),
         currentSessionId: prev.currentSessionId === sessionId ? null : prev.currentSessionId,
       }));
     } catch (error) {
       console.error('[ChatContext] Error deleting session:', error);
     }
-  }, []);
+  }, [setLoadedSessions]);
 
   const renameSession = useCallback(async (sessionId: string, newTitle: string) => {
     try {
       await chatService.renameSession(sessionId, newTitle);
-
+      setLoadedSessions(prev => {
+        const existing = prev.get(sessionId);
+        if (!existing) return prev;
+        const next = new Map(prev);
+        next.set(sessionId, { ...existing, title: newTitle });
+        return next;
+      });
       setState(prev => ({
         ...prev,
-        sessions: prev.sessions.map(s =>
-          s.id === sessionId ? { ...s, title: newTitle } : s
+        sessionIndex: prev.sessionIndex.map(e =>
+          e.id === sessionId ? { ...e, title: newTitle } : e
         ),
       }));
     } catch (error) {
       console.error('[ChatContext] Error renaming session:', error);
     }
-  }, []);
+  }, [setLoadedSessions]);
 
   const copyMessage = useCallback((messageId: string, text: string) => {
     navigator.clipboard.writeText(text);
@@ -296,10 +365,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     setTimeout(() => {
       setState(prev => ({ ...prev, copiedMessageId: null }));
     }, 2000);
-  }, []);
-
-  const setSessions = useCallback((sessions: ChatSession[]) => {
-    setState(prev => ({ ...prev, sessions }));
   }, []);
 
   const setSelectedMeetingRefs = useCallback((selectedMeetingRefs: MeetingListItem[]) => {
@@ -370,26 +435,39 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   }, []);
 
   const getOrCreateMeetingSession = useCallback((meetingId: string, meetingTitle: string) => {
-    setState(prev => {
-      const existing = prev.sessions.find(s => s.meetingId === meetingId);
-      if (existing) {
-        return { ...prev, currentSessionId: existing.id, viewHistory: false };
+    // Search loaded cache first (recently used sessions)
+    for (const [id, session] of loadedSessionsCacheRef.current) {
+      if (session.meetingId === meetingId) {
+        setState(prev => ({ ...prev, currentSessionId: id, viewHistory: false }));
+        return;
       }
-      const newSession: ChatSession = {
-        id: Date.now().toString(),
-        title: `Chat: ${meetingTitle}`,
-        lastMessageAt: Date.now(),
-        messages: [],
-        meetingId,
-      };
-      return {
-        ...prev,
-        sessions: [newSession, ...prev.sessions],
-        currentSessionId: newSession.id,
-        viewHistory: false,
-      };
+    }
+
+    // Not in cache — create a new session
+    const newSession: ChatSession = {
+      id: Date.now().toString(),
+      title: `Chat: ${meetingTitle}`,
+      lastMessageAt: Date.now(),
+      messages: [],
+      meetingId,
+    };
+
+    setLoadedSessions(prev => {
+      const next = new Map(prev);
+      next.set(newSession.id, newSession);
+      return next;
     });
-  }, []);
+
+    setState(prev => ({
+      ...prev,
+      sessionIndex: [
+        { id: newSession.id, title: newSession.title, lastMessageAt: newSession.lastMessageAt },
+        ...prev.sessionIndex,
+      ],
+      currentSessionId: newSession.id,
+      viewHistory: false,
+    }));
+  }, [setLoadedSessions]);
 
   // Send message
   const sendMessage = useCallback(async (textOverride?: string, historyItems?: HistoryItem[], settings?: AppSettings, providers?: ModelProvider[], options?: { regenerate?: boolean }) => {
@@ -400,30 +478,59 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     const isNewSession = !state.currentSessionId;
     const activeSessionId = state.currentSessionId || Date.now().toString();
 
-    let newSessions = [...state.sessions];
-    let targetSession = newSessions.find(s => s.id === activeSessionId);
+    let targetSession: ChatSession;
 
-    if (!targetSession) {
+    if (isNewSession) {
       targetSession = {
         id: activeSessionId,
         title: textToSend.slice(0, 30),
         lastMessageAt: Date.now(),
         messages: [],
       };
-      newSessions.unshift(targetSession);
+      // Add to index + cache immediately
+      setState(prev => ({
+        ...prev,
+        sessionIndex: [
+          { id: activeSessionId, title: targetSession.title, lastMessageAt: Date.now() },
+          ...prev.sessionIndex,
+        ],
+        currentSessionId: activeSessionId,
+        input: isRegenerate ? prev.input : '',
+        isLoading: true,
+        selectedMeetingRefs: [],
+        pendingAttachments: isRegenerate ? prev.pendingAttachments : [],
+      }));
+      setLoadedSessions(prev => {
+        const next = new Map(prev);
+        next.set(activeSessionId, targetSession);
+        return next;
+      });
+    } else {
+      const cached = loadedSessionsCacheRef.current.get(activeSessionId);
+      if (!cached) {
+        console.error('[ChatContext] sendMessage: session not in cache', activeSessionId);
+        return;
+      }
+      targetSession = { ...cached };
+      setState(prev => ({
+        ...prev,
+        input: isRegenerate ? prev.input : '',
+        isLoading: true,
+        selectedMeetingRefs: [],
+        pendingAttachments: isRegenerate ? prev.pendingAttachments : [],
+      }));
     }
 
     // Clear suggestions from previous messages
     targetSession.messages = targetSession.messages.map(msg => {
       if (msg.suggestions && msg.suggestions.length > 0) {
-        const { suggestions, ...msgWithoutSuggestions } = msg;
+        const { suggestions: _, ...msgWithoutSuggestions } = msg;
         return msgWithoutSuggestions;
       }
       return msg;
     });
 
     if (isRegenerate) {
-      // Remove the last assistant message in-place (no stale-closure race)
       const lastIdx = targetSession.messages.length - 1;
       if (lastIdx >= 0 && targetSession.messages[lastIdx]?.role === 'model') {
         targetSession.messages = targetSession.messages.slice(0, lastIdx);
@@ -443,19 +550,14 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
     targetSession.lastMessageAt = Date.now();
 
-    // Get the selected meeting references for context
-    const selectedRefs = state.selectedMeetingRefs;
+    // Sync modified session into cache
+    setLoadedSessions(prev => {
+      const next = new Map(prev);
+      next.set(activeSessionId, targetSession);
+      return next;
+    });
 
-    // Update state immediately
-    setState(prev => ({
-      ...prev,
-      sessions: newSessions,
-      currentSessionId: activeSessionId,
-      input: isRegenerate ? prev.input : '',
-      isLoading: true,
-      selectedMeetingRefs: [],
-      pendingAttachments: isRegenerate ? prev.pendingAttachments : [],
-    }));
+    const selectedRefs = state.selectedMeetingRefs;
 
     // Create abort controller for this request
     abortControllerRef.current = new AbortController();
@@ -468,36 +570,37 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       transcriptionModel: '',
       chatModel: '',
       apiKey: '',
-      audioQualityPreset: 'voice' as const
+      audioQualityPreset: 'voice' as const,
     };
     const effectiveSettings = settings || defaultSettings;
     const effectiveProviders = providers || [];
     const resolved = resolveModel(effectiveSettings.chatModel, effectiveProviders);
 
-    // Guard: no model selected or model no longer available
+    // Guard: no model selected
     if (!resolved) {
       const noModelMsgId = (Date.now() + 1).toString();
-      setState(prev => {
-        const updatedSessions = prev.sessions.map(s => {
-          if (s.id !== activeSessionId) return s;
-          return {
-            ...s,
-            messages: [...s.messages, {
-              id: noModelMsgId,
-              role: 'model' as const,
-              text: 'Please select a model from the picker in the toolbar before sending a message.',
-              timestamp: Date.now(),
-              state: 'complete' as const,
-            }],
-            lastMessageAt: Date.now(),
-          };
+      setLoadedSessions(prev => {
+        const existing = prev.get(activeSessionId);
+        if (!existing) return prev;
+        const next = new Map(prev);
+        next.set(activeSessionId, {
+          ...existing,
+          messages: [...existing.messages, {
+            id: noModelMsgId,
+            role: 'model' as const,
+            text: 'Please select a model from the picker in the toolbar before sending a message.',
+            timestamp: Date.now(),
+            state: 'complete' as const,
+          }],
+          lastMessageAt: Date.now(),
         });
-        return { ...prev, sessions: updatedSessions, isLoading: false };
+        return next;
       });
+      setState(prev => ({ ...prev, isLoading: false }));
       return;
     }
 
-    // Create assistant message placeholder with LOADING state
+    // Create assistant message placeholder
     const assistantMsgId = (Date.now() + 1).toString();
     const assistantMsg: ChatMessage = {
       id: assistantMsgId,
@@ -509,25 +612,19 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       state: 'loading',
     };
 
-    // Add assistant message with LOADING state to UI immediately
-    newSessions = newSessions.map(s => {
-      if (s.id === activeSessionId) {
-        return {
-          ...s,
-          messages: [...s.messages, assistantMsg],
-          lastMessageAt: Date.now(),
-        };
-      }
-      return s;
+    setLoadedSessions(prev => {
+      const existing = prev.get(activeSessionId);
+      if (!existing) return prev;
+      const next = new Map(prev);
+      next.set(activeSessionId, {
+        ...existing,
+        messages: [...existing.messages, assistantMsg],
+        lastMessageAt: Date.now(),
+      });
+      return next;
     });
 
-    setState(prev => ({
-      ...prev,
-      sessions: newSessions,
-    }));
-
     try {
-      // Resolve context via the pipeline (handles @ mentions)
       const contextBlock = await contextPipeline.resolve({
         userMessage: textToSend,
         conversationMessages: targetSession.messages,
@@ -538,20 +635,16 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         signal: abortControllerRef.current?.signal,
       });
 
-      // Initialize external streaming store
       streamingStore.start(assistantMsgId);
       let hasStartedStreaming = false;
       let streamStartTime = 0;
 
-      // Build the ChatRequestConfig
-      const isFirstMessage = targetSession.messages.filter(m => m.role === 'user').length <= 1;
       const config = buildChatRequest({
         contextBlock: contextBlock || undefined,
         hasTools: !!(resolved && supportsTools(resolved)),
         meetingCount: (historyItems || []).length,
       });
 
-      // Shared chunk handler for both paths
       const handleChunk = (chunk: string, metadata?: { isThinking?: boolean; isSearching?: boolean; searchQuery?: string; thinkingContent?: string; webCitations?: WebCitation[]; inlineCitations?: InlineCitationSpan[] }) => {
         if (metadata) {
           if (metadata.webCitations) {
@@ -564,39 +657,30 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           if (metadata.inlineCitations) {
             allInlineCitations.push(...metadata.inlineCitations);
           }
-
           setState(prev => ({ ...prev, aiActivity: metadata }));
         }
 
         if (chunk) {
-          const displayText = chunk;
-
-          if (displayText) {
-            if (!hasStartedStreaming) {
-              hasStartedStreaming = true;
-              streamStartTime = Date.now();
-              setState(prev => ({
-                ...prev,
-                aiActivity: null,
-                sessions: prev.sessions.map(s => {
-                  if (s.id !== activeSessionId) return s;
-                  return {
-                    ...s,
-                    messages: s.messages.map(m =>
-                      m.id === assistantMsgId
-                        ? { ...m, state: 'streaming' as const }
-                        : m
-                    ),
-                  };
-                }),
-              }));
-            } else if (streamStartTime === 0) {
-              // onToolActivity fired first — start synthesis timer at first text chunk
-              streamStartTime = Date.now();
-            }
-
-            streamingStore.push(displayText);
+          if (!hasStartedStreaming) {
+            hasStartedStreaming = true;
+            streamStartTime = Date.now();
+            setState(prev => ({ ...prev, aiActivity: null }));
+            setLoadedSessions(prev => {
+              const existing = prev.get(activeSessionId);
+              if (!existing) return prev;
+              const next = new Map(prev);
+              next.set(activeSessionId, {
+                ...existing,
+                messages: existing.messages.map(m =>
+                  m.id === assistantMsgId ? { ...m, state: 'streaming' as const } : m
+                ),
+              });
+              return next;
+            });
+          } else if (streamStartTime === 0) {
+            streamStartTime = Date.now();
           }
+          streamingStore.push(chunk);
         }
       };
 
@@ -604,21 +688,19 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         if (!hasStartedStreaming) {
           hasStartedStreaming = true;
           streamStartTime = Date.now();
-          setState(prev => ({
-            ...prev,
-            aiActivity: null,
-            sessions: prev.sessions.map(s => {
-              if (s.id !== activeSessionId) return s;
-              return {
-                ...s,
-                messages: s.messages.map(m =>
-                  m.id === assistantMsgId
-                    ? { ...m, state: 'streaming' as const }
-                    : m
-                ),
-              };
-            }),
-          }));
+          setState(prev => ({ ...prev, aiActivity: null }));
+          setLoadedSessions(prev => {
+            const existing = prev.get(activeSessionId);
+            if (!existing) return prev;
+            const next = new Map(prev);
+            next.set(activeSessionId, {
+              ...existing,
+              messages: existing.messages.map(m =>
+                m.id === assistantMsgId ? { ...m, state: 'streaming' as const } : m
+              ),
+            });
+            return next;
+          });
         }
         streamingStore.pushPart(part);
       };
@@ -631,7 +713,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
       let tokenUsageResult: { inputTokens?: number; outputTokens?: number } | undefined;
 
-      // Filter out placeholder/loading messages before sending to provider
       const messagesForProvider = targetSession.messages.filter(
         m => m.state !== 'loading' && m.state !== 'streaming'
       );
@@ -653,25 +734,22 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           onChunk: handleChunk,
           onMediaPart: handleMediaPart,
           onToolActivity: (activity) => {
-            // ── Transition to 'streaming' on first tool activity so tool blocks are visible during Phase 1
             if (!hasStartedStreaming) {
               hasStartedStreaming = true;
-              setState(prev => ({
-                ...prev,
-                sessions: prev.sessions.map(s => {
-                  if (s.id !== activeSessionId) return s;
-                  return {
-                    ...s,
-                    messages: s.messages.map(m =>
-                      m.id === assistantMsgId
-                        ? { ...m, state: 'streaming' as const }
-                        : m
-                    ),
-                  };
-                }),
-              }));
+              setLoadedSessions(prev => {
+                const existing = prev.get(activeSessionId);
+                if (!existing) return prev;
+                const next = new Map(prev);
+                next.set(activeSessionId, {
+                  ...existing,
+                  messages: existing.messages.map(m =>
+                    m.id === assistantMsgId ? { ...m, state: 'streaming' as const } : m
+                  ),
+                });
+                return next;
+              });
             }
-            // ── existing logic ────────────────────────────────────────────
+
             const toolCallId = activity.toolCall.id;
 
             if (activity.status === 'calling') {
@@ -693,7 +771,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                 result: { content, isError, executionMs },
               }));
 
-              // Extract citations
               const newCitations = activity.result?.meta?.citations ?? [];
               for (const citation of newCitations) {
                 const existing = allCitations.findIndex(c => c.meetingId === citation.meetingId);
@@ -709,7 +786,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       );
       tokenUsageResult = orchestrateResult.tokenUsage;
 
-      // Log usage (fire-and-forget)
       logUsage({
         category: 'chat',
         sessionId: activeSessionId,
@@ -718,14 +794,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         usage: orchestrateResult.tokenUsage,
       }).catch(e => console.error('[UsageLog] chat:', e));
 
-      // Stream complete — flush store and commit final text + parts to sessions
+      // Stream complete — flush store and commit final state
       const streamResult = streamingStore.finish();
-      const streamedParts = streamResult.parts;
-
       const mainText = streamResult.text;
-
-      // Build final parts
-      const finalParts: ChatPart[] = streamedParts
+      const finalParts: ChatPart[] = streamResult.parts
         .filter(p => p.type !== 'text' || (p as Extract<ChatPart, { type: 'text' }>).text.length > 0);
 
       const tokenCount = tokenUsageResult?.outputTokens;
@@ -735,46 +807,39 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         ? Math.round(tokenCount / streamDurationSec)
         : undefined;
 
-      setState(prev => {
-        const finalSessions = prev.sessions.map(s => {
-          if (s.id !== activeSessionId) return s;
-          return {
-            ...s,
-            messages: s.messages.map(m =>
-              m.id === assistantMsgId
-                ? {
-                    ...m,
-                    text: mainText,
-                    parts: finalParts.length > 0 ? finalParts : undefined,
-                    state: 'complete' as const,
-                    tokenCount,
-                    inputTokenCount,
-                    tokensPerSecond,
-                    ...(allCitations.length > 0 && {
-                      meetingCitations: allCitations,
-                    }),
-                    ...(allWebCitations.length > 0 && {
-                      webCitations: allWebCitations,
-                    }),
-                    ...(allInlineCitations.length > 0 && {
-                      inlineCitations: allInlineCitations,
-                    }),
-                  }
-                : m
-            ),
-            lastMessageAt: Date.now(),
-          };
+      const existingSession = loadedSessionsCacheRef.current.get(activeSessionId);
+      if (existingSession) {
+        const finalSession: ChatSession = {
+          ...existingSession,
+          messages: existingSession.messages.map(m =>
+            m.id === assistantMsgId
+              ? {
+                  ...m,
+                  text: mainText,
+                  parts: finalParts.length > 0 ? finalParts : undefined,
+                  state: 'complete' as const,
+                  tokenCount,
+                  inputTokenCount,
+                  tokensPerSecond,
+                  ...(allCitations.length > 0 && { meetingCitations: allCitations }),
+                  ...(allWebCitations.length > 0 && { webCitations: allWebCitations }),
+                  ...(allInlineCitations.length > 0 && { inlineCitations: allInlineCitations }),
+                }
+              : m
+          ),
+          lastMessageAt: Date.now(),
+        };
+        setLoadedSessions(prev => {
+          const next = new Map(prev);
+          next.set(activeSessionId, finalSession);
+          return next;
         });
+        persistSession(finalSession);
+      }
 
-        const sessionToPersist = finalSessions.find(s => s.id === activeSessionId);
-        if (sessionToPersist) {
-          persistSession(sessionToPersist);
-        }
+      setState(prev => ({ ...prev, isLoading: false, aiActivity: null }));
 
-        return { ...prev, sessions: finalSessions, isLoading: false, aiActivity: null };
-      });
-
-      // Title generation
+      // Title generation for new sessions
       if (isNewSession) {
         unifiedAIService
           .generateTitle(textToSend, mainText, effectiveSettings, effectiveProviders)
@@ -791,7 +856,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           .catch(() => { /* best-effort */ });
       }
 
-      // Generate suggestions async (non-blocking, best-effort)
+      // Generate suggestions async (best-effort)
       if (resolved) {
         generateSuggestions({
           resolved,
@@ -800,20 +865,21 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           signal: abortControllerRef.current?.signal,
         }).then(suggestions => {
           if (suggestions.length > 0) {
-            setState(prev => {
-              const updatedSessions = prev.sessions.map(s => {
-                if (s.id !== activeSessionId) return s;
-                return {
-                  ...s,
-                  messages: s.messages.map(m =>
-                    m.id === assistantMsgId ? { ...m, suggestions } : m
-                  ),
-                };
+            const sessionForSuggestions = loadedSessionsCacheRef.current.get(activeSessionId);
+            if (sessionForSuggestions) {
+              const updatedSession = {
+                ...sessionForSuggestions,
+                messages: sessionForSuggestions.messages.map(m =>
+                  m.id === assistantMsgId ? { ...m, suggestions } : m
+                ),
+              };
+              setLoadedSessions(prev => {
+                const next = new Map(prev);
+                next.set(activeSessionId, updatedSession);
+                return next;
               });
-              const session = updatedSessions.find(s => s.id === activeSessionId);
-              if (session) persistSession(session);
-              return { ...prev, sessions: updatedSessions };
-            });
+              persistSession(updatedSession);
+            }
           }
         }).catch(() => { /* suggestions are best-effort */ });
       }
@@ -822,49 +888,49 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       streamingStore.reset();
 
       if (error.name === 'AbortError' || error.message?.includes('abort')) {
-        setState(prev => ({
-          ...prev,
-          sessions: prev.sessions.map(s => {
-            if (s.id !== activeSessionId) return s;
-            return {
-              ...s,
-              messages: s.messages.map(m => {
+        const abortedSession = loadedSessionsCacheRef.current.get(activeSessionId);
+        if (abortedSession) {
+          setLoadedSessions(prev => {
+            const existing = prev.get(activeSessionId);
+            if (!existing) return prev;
+            const next = new Map(prev);
+            next.set(activeSessionId, {
+              ...existing,
+              messages: existing.messages.map(m => {
                 if (m.id !== assistantMsgId || m.state === 'complete') return m;
                 return { ...m, text: m.text || '[Stopped]', state: 'complete' as const };
               }),
-            };
-          }),
-          isLoading: false,
-          aiActivity: null,
-        }));
+            });
+            return next;
+          });
+        }
+        setState(prev => ({ ...prev, isLoading: false, aiActivity: null }));
         return;
       }
 
-      setState(prev => {
-        const updatedSessions = prev.sessions.map(s => {
-          if (s.id !== activeSessionId) return s;
-          return {
-            ...s,
-            messages: s.messages.map(m =>
-              m.id === assistantMsgId
-                ? { ...m, text: error.message || 'Failed to get response', isError: true, state: 'complete' as const }
-                : m
-            ),
-            lastMessageAt: Date.now(),
-          };
+      const errorSession = loadedSessionsCacheRef.current.get(activeSessionId);
+      if (errorSession) {
+        const failedSession: ChatSession = {
+          ...errorSession,
+          messages: errorSession.messages.map(m =>
+            m.id === assistantMsgId
+              ? { ...m, text: error.message || 'Failed to get response', isError: true, state: 'complete' as const }
+              : m
+          ),
+          lastMessageAt: Date.now(),
+        };
+        setLoadedSessions(prev => {
+          const next = new Map(prev);
+          next.set(activeSessionId, failedSession);
+          return next;
         });
-
-        const sessionToPersist = updatedSessions.find(s => s.id === activeSessionId);
-        if (sessionToPersist) {
-          persistSession(sessionToPersist);
-        }
-
-        return { ...prev, sessions: updatedSessions, isLoading: false };
-      });
+        persistSession(failedSession);
+      }
+      setState(prev => ({ ...prev, isLoading: false }));
     } finally {
       abortControllerRef.current = null;
     }
-  }, [state.input, state.isLoading, state.currentSessionId, state.sessions, state.selectedMeetingRefs, persistSession, state.webSearchEnabled]);
+  }, [state.input, state.isLoading, state.currentSessionId, state.selectedMeetingRefs, state.webSearchEnabled, persistSession, setLoadedSessions]);
 
   const stopGeneration = useCallback(() => {
     if (abortControllerRef.current) {
@@ -874,30 +940,35 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       const streamResult = streamingStore.finish();
 
       setState(prev => {
-        const currentSessionId = prev.currentSessionId;
-        return {
-          ...prev,
-          sessions: prev.sessions.map(s => {
-            if (s.id !== currentSessionId) return s;
-            return {
-              ...s,
-              messages: s.messages.map(m => {
-                if (m.state !== 'loading' && m.state !== 'streaming') return m;
-                const text = streamResult.text || m.text || '[Stopped]';
-                const parts = streamResult.parts.length > 0 ? streamResult.parts : m.parts;
-                return { ...m, text, parts, state: 'complete' as const };
-              }),
-            };
+        const currentId = prev.currentSessionId;
+        if (!currentId) return { ...prev, isLoading: false, aiActivity: null };
+
+        const existingSession = loadedSessionsCacheRef.current.get(currentId);
+        if (!existingSession) return { ...prev, isLoading: false, aiActivity: null };
+
+        const stoppedSession: ChatSession = {
+          ...existingSession,
+          messages: existingSession.messages.map(m => {
+            if (m.state !== 'loading' && m.state !== 'streaming') return m;
+            const text = streamResult.text || m.text || '[Stopped]';
+            const parts = streamResult.parts.length > 0 ? streamResult.parts : m.parts;
+            return { ...m, text, parts, state: 'complete' as const };
           }),
-          isLoading: false,
-          aiActivity: null,
         };
+
+        const next = new Map(prev.loadedSessions);
+        next.set(currentId, stoppedSession);
+        loadedSessionsCacheRef.current = next;
+
+        return { ...prev, loadedSessions: next, isLoading: false, aiActivity: null };
       });
     }
   }, []);
 
   const rerunLastMessage = useCallback(async (historyItems?: any[], settings?: AppSettings, providers?: ModelProvider[]) => {
-    const session = state.sessions.find(s => s.id === state.currentSessionId);
+    const session = state.currentSessionId
+      ? loadedSessionsCacheRef.current.get(state.currentSessionId)
+      : null;
     if (!session || session.messages.length < 2) return;
 
     const messages = session.messages;
@@ -907,15 +978,16 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     const lastUserMsg = messages[lastIdx - 1];
     if (!lastUserMsg || lastUserMsg.role !== 'user') return;
 
-    // Single atomic call — removes old assistant message and streams new response
-    // without creating a duplicate user message
     await sendMessage(lastUserMsg.text, historyItems, settings, providers, { regenerate: true });
-  }, [state.sessions, state.currentSessionId, sendMessage]);
+  }, [state.currentSessionId, sendMessage]);
+
+  // Exclude loadedSessions (Map) from context value — consumers use currentSession instead
+  const { loadedSessions: _loadedSessions, ...stateForContext } = state;
 
   const value: ChatContextValue = {
-    ...state,
+    ...stateForContext,
     currentSession,
-    filteredSessions,
+    filteredIndexEntries,
     setInput,
     setCurrentSessionId,
     setViewHistory,
@@ -928,7 +1000,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     renameSession,
     stopGeneration,
     copyMessage,
-    setSessions,
     setSelectedMeetingRefs,
     toggleWebSearch,
     setDeleteConfirmId,
@@ -938,6 +1009,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     clearAttachments,
     addScreenshotAttachment,
     getOrCreateMeetingSession,
+    loadMoreSessions,
     chatInputRef,
   };
 

@@ -126,15 +126,16 @@ interface CommandDialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   children?: React.ReactNode;
+  shouldFilter?: boolean;
 }
 
-export function CommandDialog({ open, onOpenChange, children }: CommandDialogProps) {
+export function CommandDialog({ open, onOpenChange, children, shouldFilter }: CommandDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPortal>
         <DialogOverlay />
         <DialogContent className="!p-0 overflow-hidden max-w-lg top-[20vh] !-translate-y-0">
-          <Command>{children}</Command>
+          <Command shouldFilter={shouldFilter}>{children}</Command>
         </DialogContent>
       </DialogPortal>
     </Dialog>

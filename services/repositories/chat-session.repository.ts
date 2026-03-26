@@ -3,6 +3,7 @@
  * Manages chats/{sessionId}.json — individual chat session files.
  */
 
+import { readDir } from '@tauri-apps/plugin-fs';
 import { BaseRepository } from './base.repository';
 import { pathsService } from '../storage/paths.service';
 import type { ChatMessage } from '@/types';
@@ -38,6 +39,32 @@ class ChatSessionRepository extends BaseRepository {
     await this.ensureInit();
     const path = await this.getSessionPath(sessionId);
     return this.readJson<StoredChatSession>(path);
+  }
+
+  async loadAllSessions(): Promise<StoredChatSession[]> {
+    await this.ensureInit();
+
+    try {
+      const entries = await readDir(this.chatsDir);
+      const sessionFiles = entries.filter((entry) => {
+        if (entry.isDirectory) return false;
+        return typeof entry.name === 'string'
+          && entry.name.endsWith('.json')
+          && entry.name !== 'index.json';
+      });
+
+      const sessions = await Promise.all(
+        sessionFiles.map(async (entry) => {
+          const fullPath = await this.joinPath(this.chatsDir, entry.name);
+          return this.readJson<StoredChatSession>(fullPath);
+        }),
+      );
+
+      return sessions.filter((session): session is StoredChatSession => session !== null);
+    } catch (error) {
+      console.error('[ChatSessionRepository] Failed to load all sessions:', error);
+      return [];
+    }
   }
 
   async saveSession(session: StoredChatSession): Promise<boolean> {

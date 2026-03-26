@@ -6,7 +6,7 @@
  */
 
 import React, { useMemo, useState, useCallback } from 'react';
-import { ArrowDown } from 'lucide-react';
+import { ArrowDown, Loader2 } from 'lucide-react';
 import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom';
 import { useChat } from '@shared/contexts/ChatContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
@@ -154,7 +154,11 @@ export const ChatView: React.FC = () => {
       {/* Chat column — messages + input, clipped to prevent scroll bleed */}
       <div className="h-full flex flex-col overflow-hidden animate-chat-settle">
         {/* Messages Area — StickToBottom for smooth auto-scroll */}
-        {currentMessages.length === 0 ? (
+        {chat.isSessionLoading && !chat.currentSession ? (
+          <div className="flex-1 flex items-center justify-center">
+            <Loader2 className={`w-5 h-5 animate-spin text-[var(--text-faint)]`} />
+          </div>
+        ) : currentMessages.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
             <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>Start a conversation...</p>
           </div>

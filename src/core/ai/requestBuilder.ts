@@ -12,6 +12,7 @@ import type { ChatRequestConfig, TranscriptionRequestConfig, OutputSchema } from
 
 export interface ChatRequestOptions {
   contextBlock?: string;
+  /** @deprecated No longer affects prompt — tool guidance removed in orchestration rewrite */
   hasTools?: boolean;
   meetingCount?: number;
 }

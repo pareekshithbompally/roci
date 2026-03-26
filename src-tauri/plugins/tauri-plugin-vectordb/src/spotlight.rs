@@ -1,0 +1,402 @@
+//! Spotlight search — fast FTS5-only search across meetings and chats.
+//! Does NOT use vector embeddings (no MiniLM inference needed for spotlight).
+//! Two tiers:
+//!   - Tier 0: title LIKE (always available, < 1ms)
+//!   - Tier 1: FTS5 snippet() (available after indexing, 5–20ms)
+
+use rusqlite::{params_from_iter, types::Value, Connection};
+use serde::{Deserialize, Serialize};
+
+/// A single spotlight search result.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpotlightHit {
+    /// "meeting" or "chat"
+    pub source_type: String,
+    /// Meeting ID or chat session ID
+    pub source_id: String,
+    /// Meeting title or chat session title
+    pub title: String,
+    /// Matched excerpt with <<MARK>> / <</MARK>> markers around matched terms.
+    /// Empty string for title-only matches.
+    pub excerpt: String,
+    /// Unix timestamp in milliseconds (meeting.timestamp or chat.last_message_at)
+    pub timestamp: i64,
+    /// "title" or "content" — where the match was found
+    pub match_type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SpotlightParams {
+    pub query: String,
+    /// Max results per source (meetings, chats). Total results ≤ limit × 2.
+    pub limit: usize,
+}
+
+/// Open/close markers used in snippet() output.
+/// These are replaced with <mark> tags on the frontend.
+pub const MARK_OPEN: &str = "<<MARK>>";
+pub const MARK_CLOSE: &str = "<</MARK>>";
+
+/// Max token window for the FTS5 snippet() function.
+/// 32 tokens ≈ 3–4 sentences — enough context without excessive length.
+const SNIPPET_TOKENS: i32 = 32;
+
+/// Perform spotlight search: tier-0 title LIKE + tier-1 FTS5 content.
+/// Results are deduplicated per source. If a source matches both title and
+/// content, we keep the earlier row position while merging in the content
+/// excerpt so Cmd+K can still show a snippet.
+pub fn spotlight_search(
+    conn: &Connection,
+    params: &SpotlightParams,
+) -> Result<Vec<SpotlightHit>, String> {
+    let limit = if params.limit == 0 { 6 } else { params.limit };
+    let mut hits: Vec<SpotlightHit> = Vec::new();
+
+    // ── Tier 0: Title LIKE matches ──────────────────────────────────────────
+    // Fast scan on indexed title columns. No FTS overhead.
+    // Uses LOWER() for case-insensitive matching without collation overhead.
+    let title_tokens = extract_search_terms(&params.query);
+
+    if !title_tokens.is_empty() {
+        let meeting_title_sql = format!(
+            "SELECT id, title, timestamp
+             FROM meetings
+             WHERE {}
+             ORDER BY timestamp DESC
+             LIMIT ?{}",
+            build_title_like_where("lower(title)", title_tokens.len()),
+            title_tokens.len() + 1,
+        );
+
+        let mut stmt = conn
+            .prepare(&meeting_title_sql)
+            .map_err(|e| format!("spotlight meetings title prepare: {}", e))?;
+
+        let mut query_params: Vec<Value> = title_tokens
+            .iter()
+            .map(|token| Value::from(format!("%{}%", token)))
+            .collect();
+        query_params.push(Value::from(limit as i64));
+
+        let rows = stmt
+            .query_map(params_from_iter(query_params), |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)?,
+                ))
+            })
+            .map_err(|e| format!("spotlight meetings title query: {}", e))?;
+
+        for row in rows.filter_map(|r| r.ok()) {
+            hits.push(SpotlightHit {
+                source_type: "meeting".to_string(),
+                source_id: row.0,
+                title: row.1,
+                excerpt: String::new(),
+                timestamp: row.2,
+                match_type: "title".to_string(),
+            });
+        }
+
+        let chat_title_sql = format!(
+            "SELECT id, title, last_message_at
+             FROM chat_sessions
+             WHERE {}
+             ORDER BY last_message_at DESC
+             LIMIT ?{}",
+            build_title_like_where("lower(title)", title_tokens.len()),
+            title_tokens.len() + 1,
+        );
+
+        let mut stmt = conn
+            .prepare(&chat_title_sql)
+            .map_err(|e| format!("spotlight chat sessions title prepare: {}", e))?;
+
+        let mut query_params: Vec<Value> = title_tokens
+            .iter()
+            .map(|token| Value::from(format!("%{}%", token)))
+            .collect();
+        query_params.push(Value::from(limit as i64));
+
+        let rows = stmt
+            .query_map(params_from_iter(query_params), |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)?,
+                ))
+            })
+            .map_err(|e| format!("spotlight chat sessions title query: {}", e))?;
+
+        for row in rows.filter_map(|r| r.ok()) {
+            hits.push(SpotlightHit {
+                source_type: "chat".to_string(),
+                source_id: row.0,
+                title: row.1,
+                excerpt: String::new(),
+                timestamp: row.2,
+                match_type: "title".to_string(),
+            });
+        }
+    }
+
+    // ── Tier 1: FTS5 content matches with snippet() ─────────────────────────
+    // The last word in the query gets a * suffix for prefix search (search-as-you-type).
+    // Earlier words are exact-matched via "term" quoting.
+    let fts_query = build_spotlight_fts_query(&params.query);
+    if !fts_query.is_empty() {
+        // Meeting content
+        {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT
+                         c.meeting_id,
+                         m.title,
+                         m.timestamp,
+                         snippet(chunks_fts, 0, ?1, ?2, '...', ?3) as excerpt
+                     FROM chunks_fts
+                     JOIN chunks c ON c.id = chunks_fts.rowid
+                     JOIN meetings m ON m.id = c.meeting_id
+                     WHERE chunks_fts MATCH ?4
+                     ORDER BY rank
+                     LIMIT ?5",
+                )
+                .map_err(|e| format!("spotlight meeting content prepare: {}", e))?;
+
+            let rows = stmt
+                .query_map(
+                    rusqlite::params![MARK_OPEN, MARK_CLOSE, SNIPPET_TOKENS, fts_query, limit as i64],
+                    |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, i64>(2)?,
+                            row.get::<_, String>(3)?,
+                        ))
+                    },
+                )
+                .map_err(|e| format!("spotlight meeting content query: {}", e))?;
+
+            for row in rows.filter_map(|r| r.ok()) {
+                hits.push(SpotlightHit {
+                    source_type: "meeting".to_string(),
+                    source_id: row.0,
+                    title: row.1,
+                    timestamp: row.2,
+                    excerpt: row.3,
+                    match_type: "content".to_string(),
+                });
+            }
+        }
+
+        // Chat content
+        {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT
+                         c.session_id,
+                         cs.title,
+                         cs.last_message_at,
+                         snippet(chat_chunks_fts, 0, ?1, ?2, '...', ?3) as excerpt
+                     FROM chat_chunks_fts
+                     JOIN chat_chunks c ON c.id = chat_chunks_fts.rowid
+                     JOIN chat_sessions cs ON cs.id = c.session_id
+                     WHERE chat_chunks_fts MATCH ?4
+                     ORDER BY rank
+                     LIMIT ?5",
+                )
+                .map_err(|e| format!("spotlight chat content prepare: {}", e))?;
+
+            let rows = stmt
+                .query_map(
+                    rusqlite::params![MARK_OPEN, MARK_CLOSE, SNIPPET_TOKENS, fts_query, limit as i64],
+                    |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, i64>(2)?,
+                            row.get::<_, String>(3)?,
+                        ))
+                    },
+                )
+                .map_err(|e| format!("spotlight chat content query: {}", e))?;
+
+            for row in rows.filter_map(|r| r.ok()) {
+                hits.push(SpotlightHit {
+                    source_type: "chat".to_string(),
+                    source_id: row.0,
+                    title: row.1,
+                    timestamp: row.2,
+                    excerpt: row.3,
+                    match_type: "content".to_string(),
+                });
+            }
+        }
+    }
+
+    // ── Dedup by (source_type, source_id) ───────────────────────────────────
+    // Keep the first hit position (title matches are inserted first), but merge
+    // in any later content excerpt so the UI can show a snippet when available.
+    let deduped = dedup_spotlight_hits(hits);
+    Ok(deduped)
+}
+
+/// Build an FTS5 query string for spotlight search-as-you-type.
+///
+/// All words except the last are wrapped in quotes for exact matching.
+/// The last word gets a trailing * for prefix search (matches partial words).
+///
+/// Example: "billing int" → `"billing" "int"*`
+/// Example: "billing"     → `"billing"*`
+/// Example: ""            → "" (empty, callers skip FTS tier)
+///
+/// The query is sanitized: FTS5 operators and special chars are stripped
+/// except apostrophes and hyphens (word-internal punctuation).
+fn build_spotlight_fts_query(query: &str) -> String {
+    let words = extract_search_terms(query);
+    if words.is_empty() {
+        return String::new();
+    }
+
+    let mut parts: Vec<String> = words[..words.len() - 1]
+        .iter()
+        .map(|w| format!("\"{}\"", w))
+        .collect();
+
+    // Last word: prefix search for search-as-you-type
+    parts.push(format!("\"{}\"*", words.last().unwrap()));
+
+    parts.join(" ")
+}
+
+fn extract_search_terms(query: &str) -> Vec<String> {
+    let cleaned: String = query
+        .chars()
+        .filter(|c| c.is_alphanumeric() || c.is_whitespace() || *c == '\'' || *c == '-')
+        .collect();
+
+    cleaned
+        .split_whitespace()
+        .map(|word| word.trim().to_lowercase())
+        .filter(|word| !word.is_empty())
+        .collect()
+}
+
+fn build_title_like_where(column: &str, token_count: usize) -> String {
+    (0..token_count)
+        .map(|idx| format!("{} LIKE ?{}", column, idx + 1))
+        .collect::<Vec<_>>()
+        .join(" AND ")
+}
+
+/// Deduplicate hits by (source_type, source_id).
+/// The first hit keeps its rank position, but later duplicates can enrich it with
+/// a content excerpt. This preserves stable ordering while ensuring snippet text
+/// is not dropped when a source matches both title and content.
+fn dedup_spotlight_hits(hits: Vec<SpotlightHit>) -> Vec<SpotlightHit> {
+    let mut seen: std::collections::HashMap<(String, String), usize> =
+        std::collections::HashMap::new();
+    let mut result: Vec<SpotlightHit> = Vec::new();
+
+    for hit in hits {
+        let key = (hit.source_type.clone(), hit.source_id.clone());
+        if let Some(&existing_idx) = seen.get(&key) {
+            if let Some(existing) = result.get_mut(existing_idx) {
+                let existing_has_excerpt = !existing.excerpt.is_empty();
+                let incoming_has_excerpt = !hit.excerpt.is_empty();
+
+                if incoming_has_excerpt && !existing_has_excerpt {
+                    existing.excerpt = hit.excerpt;
+                    existing.match_type = hit.match_type;
+                }
+            }
+        } else {
+            seen.insert(key, result.len());
+            result.push(hit);
+        }
+    }
+
+    result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        build_spotlight_fts_query, build_title_like_where, dedup_spotlight_hits,
+        extract_search_terms, SpotlightHit,
+    };
+
+    fn hit(source_id: &str, excerpt: &str, match_type: &str) -> SpotlightHit {
+        SpotlightHit {
+            source_type: "meeting".to_string(),
+            source_id: source_id.to_string(),
+            title: "Quarterly Planning".to_string(),
+            excerpt: excerpt.to_string(),
+            timestamp: 123,
+            match_type: match_type.to_string(),
+        }
+    }
+
+    #[test]
+    fn dedup_merges_content_excerpt_into_existing_title_hit() {
+        let deduped = dedup_spotlight_hits(vec![
+            hit("meeting-1", "", "title"),
+            hit(
+                "meeting-1",
+                "...discussed <<MARK>>roadmap<</MARK>> milestones...",
+                "content",
+            ),
+        ]);
+
+        assert_eq!(deduped.len(), 1);
+        assert_eq!(
+            deduped[0].excerpt,
+            "...discussed <<MARK>>roadmap<</MARK>> milestones..."
+        );
+        assert_eq!(deduped[0].match_type, "content");
+    }
+
+    #[test]
+    fn dedup_keeps_existing_excerpt_when_duplicate_lacks_one() {
+        let deduped = dedup_spotlight_hits(vec![
+            hit(
+                "meeting-1",
+                "...discussed <<MARK>>roadmap<</MARK>> milestones...",
+                "content",
+            ),
+            hit("meeting-1", "", "title"),
+        ]);
+
+        assert_eq!(deduped.len(), 1);
+        assert_eq!(
+            deduped[0].excerpt,
+            "...discussed <<MARK>>roadmap<</MARK>> milestones..."
+        );
+        assert_eq!(deduped[0].match_type, "content");
+    }
+
+    #[test]
+    fn builds_prefix_fts_query_for_search_as_you_type() {
+        assert_eq!(
+            build_spotlight_fts_query("billing int"),
+            "\"billing\" \"int\"*"
+        );
+    }
+
+    #[test]
+    fn extracts_keyword_tokens_for_title_matching() {
+        assert_eq!(
+            extract_search_terms("  Wall Street   housing "),
+            vec!["wall".to_string(), "street".to_string(), "housing".to_string()]
+        );
+    }
+
+    #[test]
+    fn builds_title_like_where_clause_for_all_keywords() {
+        assert_eq!(
+            build_title_like_where("lower(title)", 3),
+            "lower(title) LIKE ?1 AND lower(title) LIKE ?2 AND lower(title) LIKE ?3"
+        );
+    }
+}

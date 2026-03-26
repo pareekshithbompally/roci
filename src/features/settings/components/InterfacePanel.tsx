@@ -6,13 +6,14 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Sun, Moon, Monitor, Copy, Check, FolderOpen, FolderSearch, RefreshCw } from 'lucide-react';
+import { Sun, Moon, Monitor, Copy, Check, FolderOpen, FolderSearch, RefreshCw, Database } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useHistory } from '@shared/contexts/HistoryContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { isTauriEnvironment } from '@/services/tauri';
 import { pathsService } from '@/services/storage';
+import { searchIndexingService } from '@/services/searchIndexing.service';
+import { meetingService } from '@/services/meeting.service';
 import { IMPORT_CONFIG } from '@config/audio.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { SURFACE, BORDER, TEXT, RADIUS, LAYOUT, COMPONENT } from '@config/theme.config';
@@ -27,7 +28,6 @@ import { useSettingsSave } from '../hooks/useSettingsSave';
 export const InterfacePanel: React.FC = () => {
   const { theme, setTheme } = useTheme();
   const { settings, setSettings, providers } = useSettings();
-  const { items: historyItems } = useHistory();
   const { showToast } = useToast();
   const { hasUnsavedChanges } = useSettingsSave('System settings', 'interface');
 
@@ -37,31 +37,92 @@ export const InterfacePanel: React.FC = () => {
   const [diskUsage, setDiskUsage] = useState<{ label: string; bytes: number }[] | null>(null);
   const [rebuildConfirmOpen, setRebuildConfirmOpen] = useState(false);
   const [isRebuilding, setIsRebuilding] = useState(false);
+  const [indexStats, setIndexStats] = useState<{
+    meetings: { indexed: number; onDisk: number };
+    chats: { indexed: number; onDisk: number };
+    chunks: { total: number; transcript: number };
+    kg: { nodes: number; edges: number };
+  } | null>(null);
+
+  const loadIndexStats = useCallback(async () => {
+    if (!isTauriEnvironment()) return;
+    try {
+      const { vectorDB } = await import('@extensions/rag');
+      const [stats, diskMeetings, diskChats] = await Promise.all([
+        vectorDB.getStats(),
+        meetingService.listMeetings(),
+        searchIndexingService.loadChatsForIndexing().then(c => c.length).catch(() => 0),
+      ]);
+      setIndexStats({
+        meetings: { indexed: stats.total_meetings, onDisk: diskMeetings.length },
+        chats: { indexed: stats.chat_sessions, onDisk: diskChats },
+        chunks: { total: stats.total_chunks, transcript: stats.transcript_chunks },
+        kg: { nodes: stats.kg_nodes, edges: stats.kg_edges },
+      });
+    } catch (error: unknown) {
+      console.error('[InterfacePanel] Failed to load index stats:', error);
+    }
+  }, []);
 
   const handleRebuildIndex = useCallback(async () => {
     setRebuildConfirmOpen(false);
     setIsRebuilding(true);
 
     try {
-      const { vectorDB, ragIndexer } = await import('@extensions/rag');
+      const { vectorDB, ragIndexer, chatIndexer, emitProgress } = await import('@extensions/rag');
 
-      // Wipe all vector + graph data
+      // Wipe all vector + graph data (meetings + chats)
       await vectorDB.rebuild();
+
+      const [meetingItems, chatSessions] = await Promise.all([
+        searchIndexingService.loadMeetingsForIndexing(),
+        searchIndexingService.loadChatsForIndexing(),
+      ]);
 
       // Re-index all meetings (emits progress events → ActivityTray picks them up)
       const extractionContext = settings.chatModel
         ? { settings, providers }
         : undefined;
+      const meetingsIndexed = await ragIndexer.indexAll(meetingItems, {
+        includeEmbeddings: true,
+        extractionContext,
+      });
 
-      const indexed = await ragIndexer.indexAll(historyItems, { extractionContext });
-      showToast(`Rebuilt index for ${indexed} meeting${indexed !== 1 ? 's' : ''}`, 'success');
+      // Re-index all chat sessions with progress
+      let chatsIndexed = 0;
+      if (chatSessions.length > 0) {
+        emitProgress({ kind: 'indexing', status: 'started', total: chatSessions.length });
+      }
+      for (let i = 0; i < chatSessions.length; i++) {
+        const session = chatSessions[i];
+        emitProgress({
+          kind: 'indexing',
+          status: 'progress',
+          current: i + 1,
+          total: chatSessions.length,
+          currentTitle: `Chat: ${session.title}`,
+        });
+        const result = await chatIndexer.indexSession(session, { includeEmbeddings: true });
+        if (result.status === 'indexed') {
+          chatsIndexed++;
+        }
+      }
+      if (chatSessions.length > 0) {
+        emitProgress({ kind: 'indexing', status: 'complete', current: chatsIndexed, total: chatSessions.length });
+      }
+
+      showToast(
+        `Rebuilt index: ${meetingsIndexed}/${meetingItems.length} meetings, ${chatsIndexed}/${chatSessions.length} chats`,
+        'success',
+      );
     } catch (error: unknown) {
       console.error('[InterfacePanel] Rebuild index failed:', error);
       showToast(error instanceof Error ? error.message : 'Failed to rebuild index', 'error');
     } finally {
       setIsRebuilding(false);
+      loadIndexStats();
     }
-  }, [historyItems, settings, providers, showToast]);
+  }, [settings, providers, showToast, loadIndexStats]);
 
   useEffect(() => {
     if (!isTauriEnvironment()) return;
@@ -76,7 +137,8 @@ export const InterfacePanel: React.FC = () => {
       }
     };
     load();
-  }, []);
+    loadIndexStats();
+  }, [loadIndexStats]);
 
   const loadDiskUsage = async (basePath: string) => {
     try {
@@ -299,18 +361,42 @@ export const InterfacePanel: React.FC = () => {
       {/* Search Index */}
       {isTauriEnvironment() && (
         <SettingsSection title="Search Index">
+          {/* Index Status */}
+          {indexStats && (
+            <div className={`${SURFACE.card} border ${BORDER.default} ${RADIUS.lg} divide-y ${BORDER.divide}`}>
+              <IndexStatusRow
+                label="Meetings"
+                indexed={indexStats.meetings.indexed}
+                total={indexStats.meetings.onDisk}
+                detail={`${indexStats.chunks.transcript} transcript chunks`}
+              />
+              <IndexStatusRow
+                label="Chats"
+                indexed={indexStats.chats.indexed}
+                total={indexStats.chats.onDisk}
+                detail={`${indexStats.chunks.total - indexStats.chunks.transcript} chat chunks`}
+              />
+              <IndexStatusRow
+                label="Knowledge Graph"
+                indexed={indexStats.kg.nodes}
+                detail={`${indexStats.kg.nodes} entities · ${indexStats.kg.edges} relationships`}
+              />
+            </div>
+          )}
+
+          {/* Rebuild button */}
           <div className={`flex items-center justify-between p-3 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg}`}>
             <div className="min-w-0 flex-1">
               <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
                 Rebuild Index
               </span>
               <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
-                Clears and re-indexes all meetings.
+                Clears and re-indexes all meetings and chats.
               </p>
             </div>
             <button
               onClick={() => setRebuildConfirmOpen(true)}
-              disabled={isRebuilding || historyItems.length === 0}
+              disabled={isRebuilding}
               className={`flex items-center gap-1.5 px-3 py-1.5 ${TYPOGRAPHY_CLASSES.settingsButton} border ${BORDER.strong} ${RADIUS.lg} ${TEXT.primary} ${SURFACE.hoverSubtle} transition-colors disabled:opacity-40 disabled:pointer-events-none shrink-0 ml-4`}
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRebuilding ? 'animate-spin' : ''}`} />
@@ -326,7 +412,7 @@ export const InterfacePanel: React.FC = () => {
                   Rebuild search index?
                 </AlertDialogTitle>
                 <AlertDialogDescription className={`${TYPOGRAPHY_CLASSES.settingsDescription} ${TEXT.secondary} mb-5`}>
-                  This will clear the vector database and knowledge graph, then re-index all {historyItems.length} meeting{historyItems.length !== 1 ? 's' : ''}. This may take a while.
+                  This will clear the vector database and knowledge graph, then re-index all meetings and chats. This may take a while.
                 </AlertDialogDescription>
                 <div className="flex gap-2.5 justify-end">
                   <AlertDialogCancel asChild>
@@ -397,5 +483,47 @@ function formatBytes(bytes: number): string {
   const value = bytes / Math.pow(1024, i);
   return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[i]}`;
 }
+
+/** Compact row showing indexed/total counts with a status chip */
+const IndexStatusRow: React.FC<{
+  label: string;
+  indexed: number;
+  total?: number;
+  detail?: string;
+}> = ({ label, indexed, total, detail }) => {
+  const isFresh = total == null ? indexed > 0 : indexed >= total;
+  const statusLabel = total == null
+    ? (indexed > 0 ? 'Active' : 'Empty')
+    : (indexed >= total ? 'Synced' : 'Stale');
+
+  const chipClasses = isFresh
+    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+
+  return (
+    <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2.5">
+          <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
+            {label}
+          </span>
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold leading-none tracking-wide uppercase ${chipClasses}`}>
+            {statusLabel}
+          </span>
+        </div>
+        {detail && (
+          <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
+            {detail}
+          </p>
+        )}
+      </div>
+      {total != null && (
+        <span className={`${TYPOGRAPHY_CLASSES.settingsInput} ${TEXT.muted} font-mono shrink-0`}>
+          {indexed}/{total}
+        </span>
+      )}
+    </div>
+  );
+};
 
 export default InterfacePanel;

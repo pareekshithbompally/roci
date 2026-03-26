@@ -107,8 +107,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       }
 
       setStatus(AppStatus.RESULTS);
-    } else if (item.type === 'chat' && item.chatSession) {
-      chat.selectSession(item.chatSession.id);
+    } else if (item.type === 'chat') {
+      chat.selectSession(item.id);
       setCurrentView('home');
       setSelectedHistoryId(null);
       setResult(null);

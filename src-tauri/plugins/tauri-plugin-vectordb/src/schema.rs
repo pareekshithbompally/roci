@@ -1,7 +1,7 @@
 use rusqlite::Connection;
 
 /// Current schema version. Bump this when adding migrations.
-pub const SCHEMA_VERSION: u32 = 2;
+pub const SCHEMA_VERSION: u32 = 4;
 
 /// Default embedding model and dimension.
 pub const DEFAULT_MODEL: &str = "all-MiniLM-L6-v2";
@@ -17,6 +17,14 @@ pub fn migrate(conn: &Connection) -> Result<(), String> {
 
     if current < 2 {
         migrate_v2(conn)?;
+    }
+
+    if current < 3 {
+        migrate_v3(conn)?;
+    }
+
+    if current < 4 {
+        migrate_v4(conn)?;
     }
 
     Ok(())
@@ -195,5 +203,129 @@ fn migrate_v2(conn: &Connection) -> Result<(), String> {
     .map_err(|e| format!("Failed to migrate to v2: {}", e))?;
 
     log::info!("[vectordb] Migrated to schema v2 (added usage_log)");
+    Ok(())
+}
+
+/// v3: Add chat indexing tables — chat_sessions, chat_chunks, FTS5, vec0.
+/// Purely additive; does not touch existing meetings/chunks tables.
+fn migrate_v3(conn: &Connection) -> Result<(), String> {
+    conn.execute_batch(
+        "
+        -- Chat sessions (mirrors 'meetings' table)
+        CREATE TABLE IF NOT EXISTS chat_sessions (
+            id              TEXT PRIMARY KEY,
+            title           TEXT NOT NULL,
+            last_message_at INTEGER NOT NULL,
+            message_count   INTEGER NOT NULL DEFAULT 0,
+            indexed_at      INTEGER NOT NULL,
+            updated_at      INTEGER NOT NULL,
+            content_hash    TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_sessions_last_msg ON chat_sessions(last_message_at DESC);
+
+        -- Chat chunks (mirrors 'chunks' table; FK to chat_sessions)
+        CREATE TABLE IF NOT EXISTS chat_chunks (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id  TEXT NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+            chunk_index INTEGER NOT NULL,
+            chunk_text  TEXT NOT NULL,
+            chunk_type  TEXT NOT NULL DEFAULT 'turn',
+            UNIQUE(session_id, chunk_index)
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_chunks_session ON chat_chunks(session_id);
+
+        -- FTS5 for full-text search on chat chunks.
+        -- prefix='2 3': pre-builds posting lists for 2- and 3-char prefixes (search-as-you-type).
+        CREATE VIRTUAL TABLE IF NOT EXISTS chat_chunks_fts USING fts5(
+            chunk_text,
+            content=chat_chunks,
+            content_rowid=id,
+            prefix='2 3'
+        );
+
+        -- Triggers to keep chat_chunks_fts in sync with chat_chunks.
+        CREATE TRIGGER IF NOT EXISTS chat_chunks_ai AFTER INSERT ON chat_chunks BEGIN
+            INSERT INTO chat_chunks_fts(rowid, chunk_text) VALUES (new.id, new.chunk_text);
+        END;
+        CREATE TRIGGER IF NOT EXISTS chat_chunks_ad AFTER DELETE ON chat_chunks BEGIN
+            INSERT INTO chat_chunks_fts(chat_chunks_fts, rowid, chunk_text)
+            VALUES('delete', old.id, old.chunk_text);
+        END;
+        CREATE TRIGGER IF NOT EXISTS chat_chunks_bu BEFORE UPDATE ON chat_chunks BEGIN
+            INSERT INTO chat_chunks_fts(chat_chunks_fts, rowid, chunk_text)
+            VALUES('delete', old.id, old.chunk_text);
+        END;
+        CREATE TRIGGER IF NOT EXISTS chat_chunks_au AFTER UPDATE ON chat_chunks BEGIN
+            INSERT INTO chat_chunks_fts(rowid, chunk_text) VALUES (new.id, new.chunk_text);
+        END;
+
+        UPDATE meta SET value = '3' WHERE key = 'schema_version';
+        ",
+    )
+    .map_err(|e| format!("Failed to migrate to v3 (chat tables): {}", e))?;
+
+    // chat_vec_chunks must be created outside execute_batch (vec0 extension)
+    conn.execute_batch(
+        "CREATE VIRTUAL TABLE IF NOT EXISTS chat_vec_chunks USING vec0(
+            chunk_id INTEGER PRIMARY KEY,
+            embedding float[384]
+        );",
+    )
+    .map_err(|e| format!("Failed to create chat_vec_chunks: {}", e))?;
+
+    log::info!("[vectordb] Migrated to schema v3 (chat_sessions, chat_chunks, FTS5, vec0)");
+    Ok(())
+}
+
+/// v4: Rebuild chunks_fts with prefix='2 3' for fast search-as-you-type.
+/// FTS5 prefix indexes pre-build posting lists for 2- and 3-char prefixes,
+/// turning O(range-scan) prefix queries into O(1) lookup. ~15% larger index.
+///
+/// chat_chunks_fts already has prefix='2 3' from v3; only meeting chunks_fts needs rebuilding.
+/// Data is in the external content table (chunks) — no chunk data is lost.
+fn migrate_v4(conn: &Connection) -> Result<(), String> {
+    conn.execute_batch(
+        "
+        -- Drop old FTS5 sync triggers
+        DROP TRIGGER IF EXISTS chunks_ai;
+        DROP TRIGGER IF EXISTS chunks_ad;
+        DROP TRIGGER IF EXISTS chunks_au;
+
+        -- Drop old FTS5 table (data lives in external content 'chunks', not in the FTS table)
+        DROP TABLE IF EXISTS chunks_fts;
+
+        -- Recreate with prefix indexes for search-as-you-type
+        CREATE VIRTUAL TABLE chunks_fts USING fts5(
+            chunk_text,
+            content=chunks,
+            content_rowid=id,
+            prefix='2 3'
+        );
+
+        -- Repopulate from external content table
+        INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild');
+
+        -- Recreate sync triggers with BEFORE UPDATE + AFTER UPDATE split to avoid index drift
+        CREATE TRIGGER chunks_ai AFTER INSERT ON chunks BEGIN
+            INSERT INTO chunks_fts(rowid, chunk_text) VALUES (new.id, new.chunk_text);
+        END;
+        CREATE TRIGGER chunks_ad AFTER DELETE ON chunks BEGIN
+            INSERT INTO chunks_fts(chunks_fts, rowid, chunk_text)
+            VALUES('delete', old.id, old.chunk_text);
+        END;
+        CREATE TRIGGER chunks_bu BEFORE UPDATE ON chunks BEGIN
+            INSERT INTO chunks_fts(chunks_fts, rowid, chunk_text)
+            VALUES('delete', old.id, old.chunk_text);
+        END;
+        CREATE TRIGGER chunks_au AFTER UPDATE ON chunks BEGIN
+            INSERT INTO chunks_fts(rowid, chunk_text) VALUES (new.id, new.chunk_text);
+        END;
+
+        UPDATE meta SET value = '4' WHERE key = 'schema_version';
+        ",
+    )
+    .map_err(|e| format!("Failed to migrate to v4 (prefix indexes): {}", e))?;
+
+    log::info!("[vectordb] Migrated to schema v4 (chunks_fts prefix indexes + improved triggers)");
     Ok(())
 }

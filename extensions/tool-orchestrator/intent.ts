@@ -1,13 +1,10 @@
 /**
  * Client-side intent signal check.
  *
- * Decides whether the user's message likely needs meeting data retrieval
- * (Phase 1) before the synthesis phase. Pure function — no async, no side
- * effects, no external imports.
- *
- * Biased toward retrieval: when in doubt, returns true. A false positive
- * (unnecessary retrieval) costs latency; a false negative (skipped retrieval
- * when needed) gives a wrong answer.
+ * @deprecated Use `classifyIntent()` from `./intent-classifier` instead.
+ * This heuristic-based approach has been replaced by LLM-based intent
+ * classification in the orchestration rewrite. Kept for backward compatibility
+ * with existing tests.
  */
 
 const MEETING_SIGNALS: RegExp[] = [

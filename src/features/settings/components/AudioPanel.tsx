@@ -125,52 +125,66 @@ export const AudioPanel: React.FC = () => {
         </p>
       </div>
 
-      {/* Transcription Model — top section */}
-      <SettingsSection title="Transcription Model">
-        {allActiveModels.length > 0 ? (
-          <div className="space-y-1.5">
-            <Select
-              value={settings.transcriptionModel || undefined}
-              onValueChange={handleTranscriptionModelChange}
-            >
-              <SelectTrigger className={TYPOGRAPHY_CLASSES.settingsInput}>
-                <SelectValue placeholder="Select a model" />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(modelsByProvider).map(([provider, models]) => (
-                  <SelectGroup key={provider}>
-                    <SelectLabel>{getProviderTitle(provider)}</SelectLabel>
-                    {models.map((model) => (
-                      <SelectItem
-                        key={`transcription-${model.provider}-${model.id}`}
-                        value={model.id}
-                      >
-                        <div className="flex items-center gap-2">
-                          <ProvidersAvatar provider={model.provider} size={16} />
-                          <span>{model.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
-            {!settings.transcriptionModel && (
-              <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
-                Model used for transcribing audio recordings.
-              </p>
-            )}
-          </div>
-        ) : (
-          <InfoCallout variant="info">
-            No models available. Go to <strong>Providers</strong> to enable providers and add models.
-          </InfoCallout>
-        )}
-      </SettingsSection>
-
-      {/* Input Source + Quality — compact inline rows */}
+      {/* Transcription Model + Input Source + Quality — compact inline rows */}
       <SettingsSection title="Recording">
         <div className={`border ${BORDER.default} ${RADIUS.lg} ${SURFACE.card} divide-y ${BORDER.divide}`}>
+        {/* Transcription Model row */}
+        <div className="flex items-center justify-between gap-4 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
+              Transcription Model
+            </span>
+            <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
+              Model used for transcribing audio.
+            </p>
+          </div>
+          <div className="w-64 shrink-0">
+            {allActiveModels.length > 0 ? (
+              <Select
+                value={settings.transcriptionModel || undefined}
+                onValueChange={handleTranscriptionModelChange}
+              >
+                <SelectTrigger className={`${TYPOGRAPHY_CLASSES.settingsInput}`}>
+                  <SelectValue placeholder="Select model">
+                    {(() => {
+                      const selected = allActiveModels.find(m => m.id === settings.transcriptionModel);
+                      if (!selected) return 'Select model';
+                      return (
+                        <span className="flex items-center gap-2 truncate">
+                          <ProvidersAvatar provider={selected.provider} size={16} />
+                          <span className="truncate">{selected.name}</span>
+                        </span>
+                      );
+                    })()}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(modelsByProvider).map(([provider, models]) => (
+                    <SelectGroup key={provider}>
+                      <SelectLabel>{getProviderTitle(provider)}</SelectLabel>
+                      {models.map((model) => (
+                        <SelectItem
+                          key={`transcription-${model.provider}-${model.id}`}
+                          value={model.id}
+                        >
+                          <div className="flex items-center gap-2">
+                            <ProvidersAvatar provider={model.provider} size={16} />
+                            <span className="truncate">{model.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
+                No models available
+              </span>
+            )}
+          </div>
+        </div>
+
         {/* Input Source row */}
         <div className="flex items-center justify-between gap-4 px-4 py-3">
           <div className="min-w-0 flex-1">
@@ -181,7 +195,7 @@ export const AudioPanel: React.FC = () => {
               {permissionHint}
             </p>
           </div>
-          <div className="w-52 shrink-0">
+          <div className="w-64 shrink-0">
             <Select
               value={selectedSource}
               onValueChange={(val) => handleSourceChange(val as AudioCaptureSource)}
@@ -208,7 +222,7 @@ export const AudioPanel: React.FC = () => {
               {qualityDescriptions[selectedQuality] || ''}
             </p>
           </div>
-          <div className="w-52 shrink-0">
+          <div className="w-64 shrink-0">
             <Select
               value={selectedQuality}
               onValueChange={handleQualityChange}

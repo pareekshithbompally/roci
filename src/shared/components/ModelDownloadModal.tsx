@@ -18,7 +18,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Download } from 'lucide-react';
 import { onConsentNeeded } from '@extensions/rag';
 import { onRAGProgress, preloadModel, resetPipeline } from '@extensions/rag';
-import type { RAGProgressEvent, IndexingProgressEvent } from '@extensions/rag';
+import type { RAGProgressEvent, IndexingProgressEvent, ExtractionProgressEvent } from '@extensions/rag';
 import {
   AlertDialog,
   AlertDialogPortal,
@@ -165,12 +165,13 @@ export const ModelDownloadModal: React.FC = () => {
     function handleIndexingEvent(event: IndexingProgressEvent) {
       switch (event.status) {
         case 'started':
-          // Single-meeting gate: no tray row for total <= 1
+          // Single-item gate: no tray row for total <= 1
           if (event.total && event.total > 1) {
+            // Determine label from the first progress title (chat vs meeting)
             activityStore.add({
               id: 'rag-indexing',
               type: 'indexing',
-              label: 'Indexing meetings',
+              label: 'Indexing',
               status: 'active',
               percent: null,
               step: { current: 0, total: event.total },
@@ -182,25 +183,40 @@ export const ModelDownloadModal: React.FC = () => {
           break;
 
         case 'progress':
-          if (activityStore.get('rag-indexing') && event.current && event.total) {
+          if (event.current && event.total) {
             const percent = Math.round((event.current / event.total) * 100);
-            activityStore.update('rag-indexing', {
-              step: { current: event.current, total: event.total },
-              percent,
-              detail: (event as any).title || null,
-            });
+            const title = event.currentTitle ?? null;
+            // Derive label from whether we're indexing chats or meetings
+            const isChat = title?.startsWith('Chat:') ?? false;
+            const label = isChat ? 'Indexing chats' : 'Indexing meetings';
+
+            if (activityStore.get('rag-indexing')) {
+              activityStore.update('rag-indexing', {
+                label,
+                step: { current: event.current, total: event.total },
+                percent,
+                detail: title,
+              });
+            } else {
+              // Row may not exist (total was 1, or 'started' was missed) — create it
+              activityStore.add({
+                id: 'rag-indexing',
+                type: 'indexing',
+                label,
+                status: 'active',
+                percent,
+                step: { current: event.current, total: event.total },
+                detail: title,
+                error: null,
+                actions: [],
+              });
+            }
           }
           break;
 
         case 'complete':
           if (activityStore.get('rag-indexing')) {
             activityStore.remove('rag-indexing');
-            if (event.current && event.current > 0) {
-              showToast(
-                `Indexed ${event.current} meeting${event.current > 1 ? 's' : ''}`,
-                'success',
-              );
-            }
           }
           break;
 
@@ -216,6 +232,63 @@ export const ModelDownloadModal: React.FC = () => {
       }
     }
 
+    function handleExtractionEvent(event: ExtractionProgressEvent) {
+      switch (event.status) {
+        case 'started':
+          if (event.total && event.total > 0) {
+            activityStore.add({
+              id: 'rag-extraction',
+              type: 'indexing',
+              label: 'Extracting entities',
+              status: 'active',
+              percent: null,
+              step: { current: 0, total: event.total },
+              detail: null,
+              error: null,
+              actions: [],
+            });
+          }
+          break;
+
+        case 'progress':
+          if (event.current && event.total) {
+            const percent = Math.round((event.current / event.total) * 100);
+            const title = event.currentTitle ?? null;
+
+            if (activityStore.get('rag-extraction')) {
+              activityStore.update('rag-extraction', {
+                step: { current: event.current, total: event.total },
+                percent,
+                detail: title,
+              });
+            } else {
+              activityStore.add({
+                id: 'rag-extraction',
+                type: 'indexing',
+                label: 'Extracting entities',
+                status: 'active',
+                percent,
+                step: { current: event.current, total: event.total },
+                detail: title,
+                error: null,
+                actions: [],
+              });
+            }
+          }
+          break;
+
+        case 'complete':
+          if (activityStore.get('rag-extraction')) {
+            activityStore.remove('rag-extraction');
+          }
+          break;
+
+        case 'error':
+          activityStore.remove('rag-extraction');
+          break;
+      }
+    }
+
     const unsubscribe = onRAGProgress((event: RAGProgressEvent) => {
       // Don't show tray rows while the consent modal is up
       if (visibleRef.current) return;
@@ -224,6 +297,8 @@ export const ModelDownloadModal: React.FC = () => {
         handleModelEvent(event);
       } else if (event.kind === 'indexing') {
         handleIndexingEvent(event);
+      } else if (event.kind === 'extraction') {
+        handleExtractionEvent(event);
       }
     });
 

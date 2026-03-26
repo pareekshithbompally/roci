@@ -35,21 +35,20 @@ export const useUnifiedSidebar = (): UseUnifiedSidebarReturn => {
       });
     });
 
-    // Add chat sessions that have at least 1 message
-    chat.sessions.forEach(session => {
-      if (session.messages.length === 0) return;
+    // Add chat sessions from index — skip entries with no messages
+    chat.sessionIndex.forEach(entry => {
+      if (entry.messageCount === 0) return;
       items.push({
-        id: session.id,
+        id: entry.id,
         type: 'chat',
-        title: session.title,
-        timestamp: session.lastMessageAt,
-        chatSession: session,
+        title: entry.title,
+        timestamp: entry.lastMessageAt,
       });
     });
 
     // Sort by timestamp descending (newest first)
     return items.sort((a, b) => b.timestamp - a.timestamp);
-  }, [history.filteredItems, chat.sessions]);
+  }, [history.filteredItems, chat.sessionIndex]);
 
   return {
     items: unifiedItems,

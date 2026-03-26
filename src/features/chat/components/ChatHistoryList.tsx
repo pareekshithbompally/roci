@@ -1,20 +1,17 @@
 /**
  * ChatHistoryList Component
- * 
- * Displays a searchable list of chat sessions.
+ *
+ * Displays a searchable, paginated list of chat sessions.
+ * Renders from the lightweight index (no messages required).
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Search, MessageSquare, Trash2, Edit2, Check, X } from 'lucide-react';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
-import type { ChatSession, ChatMessage } from '@/types';
-
-interface FilteredChatSession extends ChatSession {
-  matchingMsg?: ChatMessage;
-}
+import type { ChatIndexEntry } from '@/types';
 
 interface ChatHistoryListProps {
-  sessions: FilteredChatSession[];
+  sessions: ChatIndexEntry[];
   currentSessionId: string | null;
   searchQuery: string;
   onSearchChange: (query: string) => void;
@@ -22,6 +19,8 @@ interface ChatHistoryListProps {
   onDeleteSession: (sessionId: string) => void;
   onRenameSession: (sessionId: string, newTitle: string) => void;
   onNewChat: () => void;
+  isLoadingMore?: boolean;
+  onLoadMore: () => void;
 }
 
 export const ChatHistoryList: React.FC<ChatHistoryListProps> = ({
@@ -33,11 +32,13 @@ export const ChatHistoryList: React.FC<ChatHistoryListProps> = ({
   onDeleteSession,
   onRenameSession,
   onNewChat,
+  onLoadMore,
 }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const handleStartEdit = (e: React.MouseEvent, session: FilteredChatSession) => {
+  const handleStartEdit = (e: React.MouseEvent, session: ChatIndexEntry) => {
     e.stopPropagation();
     setEditingId(session.id);
     setEditValue(session.title);
@@ -55,6 +56,19 @@ export const ChatHistoryList: React.FC<ChatHistoryListProps> = ({
     setEditValue('');
   };
 
+  // Pagination sentinel — triggers onLoadMore when scrolled into view
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) onLoadMore(); },
+      { threshold: 0.1 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [onLoadMore]);
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -70,7 +84,7 @@ export const ChatHistoryList: React.FC<ChatHistoryListProps> = ({
             + New Chat
           </button>
         </div>
-        
+
         {/* Search */}
         <div className="relative">
           <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${TEXT.faint}`} />
@@ -91,83 +105,88 @@ export const ChatHistoryList: React.FC<ChatHistoryListProps> = ({
             {searchQuery ? 'No chats match your search' : 'No chat history yet'}
           </div>
         ) : (
-          sessions.map((session) => (
-            <div
-              key={session.id}
-              onClick={() => onSelectSession(session.id)}
-              className={`group relative p-3 rounded-xl cursor-pointer transition-all ${
-                currentSessionId === session.id
-                  ? SURFACE.selected
-                  : COMPONENT.sidebarItemDefault
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <MessageSquare className={`w-4 h-4 mt-0.5 ${TEXT.faint}`} />
-                <div className="flex-1 min-w-0">
-                  {editingId === session.id ? (
-                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="text"
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveEdit(session.id);
-                          if (e.key === 'Escape') handleCancelEdit();
-                        }}
-                        className={`flex-1 px-2 py-1 text-sm ${SURFACE.card} border ${BORDER.selectedCard} rounded outline-none ${BORDER.inputFocus}`}
-                        autoFocus
-                      />
-                      <button
-                        onClick={() => handleSaveEdit(session.id)}
-                        className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
-                      >
-                        <Check className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={handleCancelEdit}
-                        className="p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+          <>
+            {sessions.map((session) => (
+              <div
+                key={session.id}
+                onClick={() => onSelectSession(session.id)}
+                className={`group relative p-3 rounded-xl cursor-pointer transition-all ${
+                  currentSessionId === session.id
+                    ? SURFACE.selected
+                    : COMPONENT.sidebarItemDefault
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <MessageSquare className={`w-4 h-4 mt-0.5 ${TEXT.faint}`} />
+                  <div className="flex-1 min-w-0">
+                    {editingId === session.id ? (
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="text"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveEdit(session.id);
+                            if (e.key === 'Escape') handleCancelEdit();
+                          }}
+                          className={`flex-1 px-2 py-1 text-sm ${SURFACE.card} border ${BORDER.selectedCard} rounded outline-none ${BORDER.inputFocus}`}
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => handleSaveEdit(session.id)}
+                          className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={handleCancelEdit}
+                          className="p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className={`text-sm font-medium ${TEXT.primary} truncate`}>
+                        {session.title}
+                      </div>
+                    )}
+                    <div className={`mt-1 text-xs ${TEXT.faint}`}>
+                      {new Date(session.lastMessageAt).toLocaleDateString('en-US', {
+                        month: 'short', day: 'numeric',
+                      })}
+                      {session.messageCount !== undefined && ` · ${session.messageCount} msgs`}
                     </div>
-                  ) : (
-                    <div className={`text-sm font-medium ${TEXT.primary} truncate`}>
-                      {session.title}
-                    </div>
-                  )}
-                  {session.matchingMsg && (
-                    <div className={`mt-1 text-xs ${TEXT.muted} line-clamp-2 italic`}>
-                      ...{session.matchingMsg.text.slice(0, 50)}...
-                    </div>
-                  )}
-                  <div className={`mt-1 text-xs ${TEXT.faint}`}>
-                    {session.messages.length} messages
                   </div>
                 </div>
-              </div>
 
-              {/* Action buttons */}
-              {editingId !== session.id && (
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                  <button
-                    onClick={(e) => handleStartEdit(e, session)}
-                    className={`p-2 ${TEXT.faint} hover:text-parchment-800 dark:hover:text-night-300 rounded-lg ${COMPONENT.menuButtonHover} transition-all`}
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteSession(session.id);
-                    }}
-                    className={`p-2 ${COMPONENT.destructiveHover} rounded-lg ${COMPONENT.menuButtonHover} transition-all`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-            </div>
-          ))
+                {/* Action buttons */}
+                {editingId !== session.id && (
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                    <button
+                      onClick={(e) => handleStartEdit(e, session)}
+                      className={`p-2 ${TEXT.faint} hover:text-parchment-800 dark:hover:text-night-300 rounded-lg ${COMPONENT.menuButtonHover} transition-all`}
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteSession(session.id);
+                      }}
+                      className={`p-2 ${COMPONENT.destructiveHover} rounded-lg ${COMPONENT.menuButtonHover} transition-all`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* Pagination sentinel — only shown when not searching */}
+            {!searchQuery && (
+              <div ref={sentinelRef} className="h-4" aria-hidden="true" />
+            )}
+          </>
         )}
       </div>
     </div>

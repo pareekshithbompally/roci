@@ -1,7 +1,7 @@
 use crate::graph;
 use crate::schema;
 use crate::search::{hybrid_search, SearchHit, SearchParams};
-use rusqlite::{ffi::sqlite3_auto_extension, Connection};
+use rusqlite::{ffi::sqlite3_auto_extension, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, Runtime, State};
@@ -34,7 +34,7 @@ pub struct ChunkData {
     pub chunk_index: i32,
     pub chunk_text: String,
     pub chunk_type: String,
-    pub embedding: Vec<f32>,
+    pub embedding: Option<Vec<f32>>,
     pub start_pos: Option<i32>,
     pub end_pos: Option<i32>,
 }
@@ -49,6 +49,11 @@ pub struct MeetingHash {
 pub struct DbStats {
     pub total_meetings: i64,
     pub total_chunks: i64,
+    pub transcript_chunks: i64,
+    pub chat_sessions: i64,
+    pub chat_chunks: i64,
+    pub kg_nodes: i64,
+    pub kg_edges: i64,
     pub db_size_bytes: u64,
 }
 
@@ -57,6 +62,35 @@ pub struct DbMeta {
     pub schema_version: String,
     pub embedding_model: String,
     pub embedding_dim: String,
+}
+
+// ── Chat Indexing Structs ──
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChatSessionMeta {
+    pub id: String,
+    pub title: String,
+    pub last_message_at: i64,
+    pub message_count: i32,
+    pub content_hash: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChatChunkData {
+    pub chunk_index: i32,
+    pub chunk_text: String,
+    pub chunk_type: String,
+    pub embedding: Option<Vec<f32>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatSearchHit {
+    pub session_id: String,
+    pub session_title: String,
+    pub chunk_text: String,
+    pub chunk_type: String,
+    pub score: f64,
+    pub last_message_at: i64,
 }
 
 fn with_conn<R>(
@@ -188,7 +222,7 @@ pub async fn upsert_chunks(
         )
         .map_err(|e| format!("delete chunks: {}", e))?;
 
-        // Insert new chunks + vectors
+        // Insert new chunks, and vectors when embeddings are available.
         for chunk in &chunks {
             tx.execute(
                 "INSERT INTO chunks (meeting_id, chunk_index, chunk_text, chunk_type, start_pos, end_pos)
@@ -206,18 +240,18 @@ pub async fn upsert_chunks(
 
             let chunk_row_id = tx.last_insert_rowid();
 
-            // Insert vector
-            let embedding_bytes: Vec<u8> = chunk
-                .embedding
-                .iter()
-                .flat_map(|f| f.to_le_bytes())
-                .collect();
+            if let Some(embedding) = &chunk.embedding {
+                let embedding_bytes: Vec<u8> = embedding
+                    .iter()
+                    .flat_map(|f| f.to_le_bytes())
+                    .collect();
 
-            tx.execute(
-                "INSERT INTO vec_chunks (chunk_id, embedding) VALUES (?1, ?2)",
-                rusqlite::params![chunk_row_id, embedding_bytes],
-            )
-            .map_err(|e| format!("insert vec: {}", e))?;
+                tx.execute(
+                    "INSERT INTO vec_chunks (chunk_id, embedding) VALUES (?1, ?2)",
+                    rusqlite::params![chunk_row_id, embedding_bytes],
+                )
+                .map_err(|e| format!("insert vec: {}", e))?;
+            }
         }
 
         tx.commit().map_err(|e| format!("commit upsert_chunks: {}", e))?;
@@ -355,25 +389,35 @@ pub async fn get_stats(
     state: State<'_, VectorDbState>,
 ) -> Result<DbStats, String> {
     with_conn(&state, |conn| {
-        let total_meetings: i64 = conn
-            .query_row("SELECT COUNT(*) FROM meetings", [], |row| row.get(0))
-            .unwrap_or_else(|e| { log::warn!("[vectordb] Failed to count meetings: {}", e); 0 });
-        let total_chunks: i64 = conn
-            .query_row("SELECT COUNT(*) FROM chunks", [], |row| row.get(0))
-            .unwrap_or_else(|e| { log::warn!("[vectordb] Failed to count chunks: {}", e); 0 });
+        let count = |sql: &str| -> i64 {
+            conn.query_row(sql, [], |row| row.get(0)).unwrap_or(0)
+        };
+
+        let total_meetings = count("SELECT COUNT(*) FROM meetings");
+        let total_chunks = count("SELECT COUNT(*) FROM chunks");
+        let transcript_chunks = count("SELECT COUNT(*) FROM chunks WHERE chunk_type = 'transcript'");
+        let chat_sessions = count("SELECT COUNT(*) FROM chat_sessions");
+        let chat_chunks = count("SELECT COUNT(*) FROM chat_chunks");
+        let kg_nodes = count("SELECT COUNT(*) FROM kg_nodes");
+        let kg_edges = count("SELECT COUNT(*) FROM kg_edges");
 
         // Get file size from page_count * page_size
         let page_count: i64 = conn
             .query_row("PRAGMA page_count", [], |row| row.get(0))
-            .unwrap_or_else(|e| { log::warn!("[vectordb] Failed to get page_count: {}", e); 0 });
+            .unwrap_or(0);
         let page_size: i64 = conn
             .query_row("PRAGMA page_size", [], |row| row.get(0))
-            .unwrap_or_else(|e| { log::warn!("[vectordb] Failed to get page_size: {}", e); 4096 });
+            .unwrap_or(4096);
         let db_size_bytes = (page_count * page_size) as u64;
 
         Ok(DbStats {
             total_meetings,
             total_chunks,
+            transcript_chunks,
+            chat_sessions,
+            chat_chunks,
+            kg_nodes,
+            kg_edges,
             db_size_bytes,
         })
     })
@@ -415,11 +459,15 @@ pub async fn rebuild(
              DELETE FROM meetings;
              INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild');
              DELETE FROM kg_edges;
-             DELETE FROM kg_nodes;",
+             DELETE FROM kg_nodes;
+             DELETE FROM chat_vec_chunks;
+             DELETE FROM chat_chunks;
+             DELETE FROM chat_sessions;
+             INSERT INTO chat_chunks_fts(chat_chunks_fts) VALUES('rebuild');",
         )
         .map_err(|e| format!("rebuild: {}", e))?;
 
-        log::info!("[vectordb] Database rebuilt (all data cleared, including graph)");
+        log::info!("[vectordb] Database rebuilt (all data cleared, including graph and chats)");
         Ok(())
     })
 }
@@ -658,4 +706,199 @@ fn now_millis() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as i64
+}
+
+// ── Chat Indexing Commands ──
+
+#[tauri::command]
+pub async fn upsert_chat_session(
+    state: State<'_, VectorDbState>,
+    session: ChatSessionMeta,
+) -> Result<(), String> {
+    with_conn(&state, |conn| {
+        let now = now_millis();
+        conn.execute(
+            "INSERT INTO chat_sessions (id, title, last_message_at, message_count,
+             indexed_at, updated_at, content_hash)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?5, ?6)
+             ON CONFLICT(id) DO UPDATE SET
+                title = excluded.title,
+                last_message_at = excluded.last_message_at,
+                message_count = excluded.message_count,
+                updated_at = ?5,
+                content_hash = excluded.content_hash",
+            rusqlite::params![
+                session.id,
+                session.title,
+                session.last_message_at,
+                session.message_count,
+                now,
+                session.content_hash,
+            ],
+        )
+        .map_err(|e| format!("upsert_chat_session: {}", e))?;
+        Ok(())
+    })
+}
+
+/// Replace all chunks for a chat session atomically.
+#[tauri::command]
+pub async fn upsert_chat_chunks(
+    state: State<'_, VectorDbState>,
+    session_id: String,
+    chunks: Vec<ChatChunkData>,
+) -> Result<(), String> {
+    with_conn(&state, |conn| {
+        let tx = conn
+            .unchecked_transaction()
+            .map_err(|e| format!("begin transaction: {}", e))?;
+
+        // Collect old chunk IDs before deletion (vec0 has no CASCADE support)
+        let old_chunk_ids: Vec<i64> = {
+            let mut stmt = tx
+                .prepare("SELECT id FROM chat_chunks WHERE session_id = ?1")
+                .map_err(|e| format!("select old chat chunks: {}", e))?;
+            let ids: Vec<i64> = stmt
+                .query_map([&session_id], |row| row.get(0))
+                .map_err(|e| format!("query old chat chunks: {}", e))?
+                .filter_map(|r| r.ok())
+                .collect();
+            ids
+        };
+
+        for chunk_id in &old_chunk_ids {
+            tx.execute("DELETE FROM chat_vec_chunks WHERE chunk_id = ?1", [chunk_id])
+                .map_err(|e| format!("delete chat vec: {}", e))?;
+        }
+
+        // DELETE triggers handle FTS5 cleanup
+        tx.execute("DELETE FROM chat_chunks WHERE session_id = ?1", [&session_id])
+            .map_err(|e| format!("delete chat chunks: {}", e))?;
+
+        for chunk in &chunks {
+            tx.execute(
+                "INSERT INTO chat_chunks (session_id, chunk_index, chunk_text, chunk_type)
+                 VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![
+                    session_id,
+                    chunk.chunk_index,
+                    chunk.chunk_text,
+                    chunk.chunk_type,
+                ],
+            )
+            .map_err(|e| format!("insert chat chunk: {}", e))?;
+
+            let chunk_row_id = tx.last_insert_rowid();
+
+            if let Some(embedding) = &chunk.embedding {
+                let embedding_bytes: Vec<u8> = embedding
+                    .iter()
+                    .flat_map(|f| f.to_le_bytes())
+                    .collect();
+
+                tx.execute(
+                    "INSERT INTO chat_vec_chunks (chunk_id, embedding) VALUES (?1, ?2)",
+                    rusqlite::params![chunk_row_id, embedding_bytes],
+                )
+                .map_err(|e| format!("insert chat vec: {}", e))?;
+            }
+        }
+
+        tx.commit()
+            .map_err(|e| format!("commit upsert_chat_chunks: {}", e))?;
+        log::info!(
+            "[vectordb] Upserted {} chat chunks for session {}",
+            chunks.len(),
+            session_id
+        );
+        Ok(())
+    })
+}
+
+/// Delete a chat session and all its chunks/vectors.
+#[tauri::command]
+pub async fn delete_chat_session(
+    state: State<'_, VectorDbState>,
+    session_id: String,
+) -> Result<(), String> {
+    with_conn(&state, |conn| {
+        let tx = conn
+            .unchecked_transaction()
+            .map_err(|e| format!("begin transaction: {}", e))?;
+
+        let chunk_ids: Vec<i64> = {
+            let mut stmt = tx
+                .prepare("SELECT id FROM chat_chunks WHERE session_id = ?1")
+                .map_err(|e| format!("select chat chunks: {}", e))?;
+            let ids: Vec<i64> = stmt
+                .query_map([&session_id], |row| row.get(0))
+                .map_err(|e| format!("query chat chunks: {}", e))?
+                .filter_map(|r| r.ok())
+                .collect();
+            ids
+        };
+
+        for chunk_id in &chunk_ids {
+            tx.execute("DELETE FROM chat_vec_chunks WHERE chunk_id = ?1", [chunk_id])
+                .map_err(|e| format!("delete chat vec: {}", e))?;
+        }
+
+        tx.execute("DELETE FROM chat_chunks WHERE session_id = ?1", [&session_id])
+            .map_err(|e| format!("delete chat chunks: {}", e))?;
+
+        tx.execute("DELETE FROM chat_sessions WHERE id = ?1", [&session_id])
+            .map_err(|e| format!("delete chat session: {}", e))?;
+
+        tx.commit()
+            .map_err(|e| format!("commit delete_chat_session: {}", e))?;
+        log::info!(
+            "[vectordb] Deleted chat session {} and {} chunks",
+            session_id,
+            chunk_ids.len()
+        );
+        Ok(())
+    })
+}
+
+/// Returns true if the session is not indexed or the content hash has changed.
+#[tauri::command]
+pub async fn is_chat_session_stale(
+    state: State<'_, VectorDbState>,
+    session_id: String,
+    content_hash: String,
+) -> Result<bool, String> {
+    with_conn(&state, |conn| {
+        let existing: Option<String> = conn
+            .query_row(
+                "SELECT content_hash FROM chat_sessions WHERE id = ?1",
+                [&session_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|e| format!("is_chat_session_stale: {}", e))?;
+
+        Ok(match existing {
+            None => true,                           // never indexed → stale
+            Some(stored) => stored != content_hash, // hash changed → stale
+        })
+    })
+}
+
+/// Hybrid search over chat chunks: KNN + FTS5, RRF-merged, grouped by session.
+#[tauri::command]
+pub async fn search_chats(
+    state: State<'_, VectorDbState>,
+    params: crate::search::ChatSearchParams,
+) -> Result<Vec<ChatSearchHit>, String> {
+    with_conn(&state, |conn| crate::search::chat_hybrid_search(conn, &params))
+}
+
+/// Spotlight search: tier-0 title LIKE + tier-1 FTS5 snippet() across meetings and chats.
+/// Fast FTS5-only — no vector embeddings required.
+#[tauri::command]
+pub async fn spotlight_search(
+    state: State<'_, VectorDbState>,
+    params: crate::spotlight::SpotlightParams,
+) -> Result<Vec<crate::spotlight::SpotlightHit>, String> {
+    with_conn(&state, |conn| crate::spotlight::spotlight_search(conn, &params))
 }

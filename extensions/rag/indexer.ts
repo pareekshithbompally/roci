@@ -16,10 +16,11 @@ import { chunkMeeting, computeContentHash } from './chunker';
 import { emitProgress } from './progress';
 import { EMBEDDING_MODEL } from './constants';
 import type { ChunkData, MeetingMeta } from './client';
-import type { RAGStatus } from './types';
+import type { IndexingResult, RAGStatus } from './types';
 
 export interface IndexOptions {
   signal?: AbortSignal;
+  includeEmbeddings?: boolean;
   extractionContext?: {
     settings: AppSettings;
     providers: ModelProvider[];
@@ -29,13 +30,16 @@ export interface IndexOptions {
 /**
  * Index a single meeting: chunk → embed → upsert to Rust backend.
  */
-async function indexMeeting(item: HistoryItem): Promise<boolean> {
+async function indexMeeting(
+  item: HistoryItem,
+  options?: Pick<IndexOptions, 'includeEmbeddings'>,
+): Promise<IndexingResult> {
   const contentHash = await computeContentHash(item);
   const chunks = chunkMeeting(item);
 
   if (chunks.length === 0) {
     console.warn(`[RAGIndexer] No chunks generated for "${item.title}"`);
-    return false;
+    return { status: 'skipped', reason: 'no_chunks', chunkCount: 0, embeddingCount: 0 };
   }
 
   // Upsert meeting metadata
@@ -51,30 +55,35 @@ async function indexMeeting(item: HistoryItem): Promise<boolean> {
 
   // Embed all chunks in a single batch call
   const chunkTexts = chunks.map(c => c.text);
-  let embeddings: number[][];
-  try {
-    embeddings = await embeddingService.embedBatch(chunkTexts);
-  } catch (error) {
-    console.error(`[RAGIndexer] Failed to embed chunks for "${item.title}":`, error);
-    return false;
+  let embeddings: number[][] | null = null;
+  if (options?.includeEmbeddings !== false) {
+    try {
+      embeddings = await embeddingService.embedBatch(chunkTexts);
+    } catch (error) {
+      console.error(`[RAGIndexer] Failed to embed chunks for "${item.title}":`, error);
+    }
   }
 
   const chunkDataList: ChunkData[] = chunks.map((chunk, i) => ({
     chunk_index: chunk.index,
     chunk_text: chunk.text,
     chunk_type: chunk.type,
-    embedding: embeddings[i],
+    embedding: embeddings?.[i],
     start_pos: chunk.startPos ?? null,
     end_pos: chunk.endPos ?? null,
   }));
 
   if (chunkDataList.length === 0) {
-    return false;
+    return { status: 'skipped', reason: 'no_chunk_data', chunkCount: 0, embeddingCount: 0 };
   }
 
   // Upsert all chunks + vectors atomically in the Rust backend
   await vectorDB.upsertChunks(item.id, chunkDataList);
-  return true;
+  return {
+    status: 'indexed',
+    chunkCount: chunkDataList.length,
+    embeddingCount: embeddings?.length ?? 0,
+  };
 }
 
 /**
@@ -87,6 +96,7 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
 
   // Support both old signature (signal) and new (IndexOptions)
   const signal = options instanceof AbortSignal ? options : options?.signal;
+  const includeEmbeddings = options instanceof AbortSignal ? true : options?.includeEmbeddings ?? true;
   const extractionContext = options instanceof AbortSignal ? undefined : options?.extractionContext;
 
   await vectorDB.initialize();
@@ -127,19 +137,11 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
     console.log(`[RAGIndexer] Indexing ${i + 1}/${staleItems.length}: ${item.title}`);
 
     try {
-      const success = await indexMeeting(item);
-      if (success) {
+      const result = await indexMeeting(item, { includeEmbeddings });
+      if (result.status === 'indexed') {
         indexed++;
-
-        // Re-extract entities if we have settings/providers context
-        if (extractionContext && item.structuredSummary) {
-          const summary = toMeetingSummary(item.structuredSummary);
-          entityExtractor.extractAndUpsert(
-            item.id, item.title, summary, item.transcript,
-            extractionContext.settings, extractionContext.providers,
-            item.categories || [],
-          ).catch(err => console.error(`[RAGIndexer] Entity re-extraction failed for "${item.title}":`, err));
-        }
+      } else if (result.status === 'failed') {
+        console.warn(`[RAGIndexer] Indexing failed for "${item.title}": ${result.reason ?? 'unknown'}`);
       }
     } catch (error) {
       console.error(`[RAGIndexer] Failed to index "${item.title}":`, error);
@@ -158,6 +160,47 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
     console.log(
       `[RAGIndexer] Indexed ${indexed} meetings (${stats.total_meetings} total, ${stats.total_chunks} chunks)`
     );
+  }
+
+  // Phase 2: Entity extraction for meetings with structured summaries
+  if (extractionContext) {
+    const extractable = staleItems.filter(item => item.structuredSummary);
+    if (extractable.length > 0) {
+      emitProgress({ kind: 'extraction', status: 'started', total: extractable.length });
+
+      let extracted = 0;
+      for (let i = 0; i < extractable.length; i++) {
+        if (signal?.aborted) break;
+        const item = extractable[i];
+
+        emitProgress({
+          kind: 'extraction',
+          status: 'progress',
+          current: i + 1,
+          total: extractable.length,
+          currentTitle: item.title,
+        });
+
+        try {
+          const summary = toMeetingSummary(item.structuredSummary!);
+          const success = await entityExtractor.extractAndUpsert(
+            item.id, item.title, summary, item.transcript,
+            extractionContext.settings, extractionContext.providers,
+            item.categories || [],
+          );
+          if (success) extracted++;
+        } catch (err) {
+          console.error(`[RAGIndexer] Entity extraction failed for "${item.title}":`, err);
+        }
+      }
+
+      emitProgress({
+        kind: 'extraction',
+        status: 'complete',
+        current: extracted,
+        total: extractable.length,
+      });
+    }
   }
 
   return indexed;

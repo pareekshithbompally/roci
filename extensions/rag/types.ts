@@ -17,3 +17,10 @@ export interface RAGStatus {
   modelLoaded: boolean;
   embeddingModel: string;
 }
+
+export interface IndexingResult {
+  status: 'indexed' | 'skipped' | 'failed';
+  chunkCount: number;
+  embeddingCount: number;
+  reason?: string;
+}

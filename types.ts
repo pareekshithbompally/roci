@@ -255,6 +255,7 @@ export interface ChatIndexEntry {
   id: string;
   title: string;
   lastMessageAt: number;
+  messageCount?: number;  // written on save, displayed in sidebar
 }
 
 export const AVAILABLE_MODELS = [

@@ -14,7 +14,6 @@ export interface ChatPromptOptions {
 export function buildChatSystemPrompt(options: ChatPromptOptions = {}): string {
   const {
     contextBlock,
-    hasTools = false,
     meetingCount = 0,
   } = options;
 
@@ -22,66 +21,22 @@ export function buildChatSystemPrompt(options: ChatPromptOptions = {}): string {
   const meetingContext =
     meetingCount > 0
       ? `The user has ${meetingCount} recorded meeting(s) stored in the app.`
-      : 'The user may have meetings stored in the app.';
+      : '';
 
-  const basePrompt = hasTools
+  const basePrompt = meetingCount > 0
     ? `You are Kasset, the AI assistant powering a meeting recording and analysis app called Kasset.ai. ${meetingContext}
 
-Your name is Kasset. Always refer to yourself as Kasset when asked. You help users get insights from their recorded meetings and answer general questions.`
+Your name is Kasset. Always refer to yourself as Kasset when asked. You help users get insights from their recorded meetings and answer general questions.
+
+## Meeting Context
+
+When retrieved meeting context is provided in the conversation, use it to answer the user's question. Always cite which meeting your information comes from. If the context doesn't contain the answer, say so — do not make up meeting content.`
     : `You are Kasset, the AI assistant powering an app called Kasset.ai. Your name is Kasset. Always refer to yourself as Kasset when asked. You help users with everyday questions and tasks.`;
-
-  // ── Tool guidance (only when tools are available) ──
-  const toolGuidance = hasTools
-    ? `
-
-## Meeting Tools
-
-You have meeting tools (\`search_meetings\`, \`get_meeting\`, \`list_meetings\`, \`get_action_items\`) to search and retrieve the user's meeting data. Meeting content is ONLY accessible through these tools — you cannot guess or hallucinate meeting content.
-
-Use meeting tools when the user's query is about their meetings, work context, or something that was discussed, decided, or assigned in a meeting. Examples:
-- "What did we decide about the API redesign?"
-- "Show me action items from last week"
-- "What did Sarah say about the timeline?"
-- "Summarize my meetings from Monday"
-
-Do NOT use meeting tools for:
-- General knowledge, coding help, writing, math, explanations
-- Casual conversation or greetings
-- Questions that don't reference meetings, people, or work events
-
-If you search meetings and find no relevant results, answer the question directly as a general-purpose assistant. Do not mention that you searched or that no meetings were found — just answer the question.
-
-**Meeting tools workflow:**
-1. Use \`search_meetings\` first to find relevant meetings
-2. If results are found, use \`get_meeting\` to load full details before answering
-3. Always cite which meeting your information comes from
-4. Do NOT make up meeting content
-
-## Knowledge Graph
-
-You also have a knowledge graph tool (\`query_graph\`) that tracks entities (people, topics, decisions, projects) and their relationships across all meetings.
-
-**Use \`query_graph\` when the user asks about:**
-- Relationships: "Who has been involved in X?", "What projects does Alice work on?"
-- Aggregation: "How many meetings discussed the budget?", "What decisions were made about Y?"
-- Cross-meeting connections: "How are the API redesign and mobile app connected?"
-- Attribution: "Who proposed switching to Postgres?", "Who was assigned the integration task?"
-- Chains: "What led to the decision to cancel Feature X?"
-
-**Use \`search_meetings\` when the user asks about:**
-- Content recall: "What did we discuss about payments?", "Summarize last Tuesday's standup"
-- Specific meeting details: "What was decided in the March 5 meeting?"
-
-**Workflow for graph queries:**
-1. Use \`query_graph\` with operation "search" to find entities by name
-2. Use \`query_graph\` with operation "traverse" or "neighbors" to explore connections
-3. If you need meeting details, use \`get_meeting\` with the meeting ID from graph results`
-    : '';
 
   // ── Context ──
   const contextSection = contextBlock ? `\n\n${contextBlock}` : '';
 
-  return basePrompt + toolGuidance + contextSection;
+  return basePrompt + contextSection;
 }
 
 export function buildRAGContextPrompt(
@@ -95,38 +50,84 @@ export function buildRAGContextPrompt(
     .join('\n');
 }
 
-/**
- * Lean system prompt for Phase 1 (retrieval).
- * The model's job is to gather data via tools, then stop.
- * Text output in Phase 1 is suppressed — no synthesis yet.
- */
-export function buildRetrievalSystemPrompt(): string {
-  return `You are a retrieval agent. Your job is to gather the information needed to answer the user's question by calling the available tools.
+export function buildIntentClassifierPrompt(): string {
+  return `You classify user messages in a meeting intelligence app. Output ONLY valid JSON.
 
-## Rules
+## Intents
 
-- Do NOT answer the question — only gather context.
-- Call tools to find relevant information. When you have enough, stop — do not call any more tools.
-- If the question is general knowledge (not about meetings, people at work, or action items), call NO tools. Return immediately.
-- Never call the same tool twice with identical arguments.
+1. **general** — No meeting/chat data needed. General knowledge, coding, math, greetings, creative writing, meta questions about the app.
+2. **meeting_search** — Find WHICH meetings match a topic. User wants to locate meetings, not extract content.
+3. **meeting_recall** — Remember WHAT was said/decided/discussed. Needs full meeting content.
+4. **meeting_detail** — View raw transcript, notes, or summary from a specific meeting.
+5. **meeting_list** — Browse/list meetings chronologically. No content search.
+6. **action_items** — Todos, tasks, assignments, follow-ups.
+7. **relationship** — WHO is connected to WHAT. Graph traversal (people, topics, projects, decisions).
+8. **cross_meeting** — Aggregate/compare across multiple meetings.
+9. **chat_recall** — Search/browse past AI conversation sessions (not meetings).
+10. **catch_up** — Broad status update: recent meetings + pending action items.
 
-## Available tools
+## Decision Rules (in priority order)
 
-- \`search_meetings\` — Search meeting transcripts and summaries by semantic similarity. Use for: content recall, topic lookup, "what did we discuss about X?"
-- \`get_meeting\` — Load the full transcript and details of a specific meeting by ID. Use after \`search_meetings\` returns a meeting ID.
-- \`list_meetings\` — List meetings by date range. Use for: "meetings from last week", "recent meetings", date-filtered queries.
-- \`get_action_items\` — Get action items from one or all meetings. Use for: todo lists, assigned tasks, follow-ups.
-- \`query_graph\` — Query the knowledge graph for relationships between people, topics, decisions, and projects. Use for: "who has been involved in X?", "what decisions were made about Y?", cross-meeting connections.
+1. No reference to user's data → general
+2. About past AI chat sessions → chat_recall
+3. Broad status update, no specific topic → catch_up
+4. About action items/todos/tasks → action_items
+5. About WHO/connections/relationships between entities → relationship
+6. Wants to LIST/BROWSE meetings → meeting_list
+7. Patterns/evolution ACROSS multiple meetings → cross_meeting
+8. Asking WHICH meetings match a topic → meeting_search
+9. Asking to VIEW raw transcript/notes/summary → meeting_detail
+10. Default for remaining meeting queries → meeting_recall
 
-## Strategy
+## Conversation context
 
-1. Start broad: call \`search_meetings\` and/or \`query_graph\` to find relevant meetings.
-2. Go deep: if you found meeting IDs, call \`get_meeting\` for the most relevant ones (up to 3) to load full details.
-3. Stop when you have the context needed to answer the question.`;
+The user may refer to things from earlier in the conversation. "Tell me more" after discussing a meeting = continue that intent. "Show me the transcript" after finding a meeting = meeting_detail.
+
+## Output Schema
+
+{
+  "intent": "<one of the 10 types>",
+  "confidence": "high" | "medium",
+  "search_query": "<refined search terms, or null>",
+  "requested_fields": ["summary", "transcript", "notes", "actionItems"] | null,
+  "action_item_filter": "pending" | "completed" | "all" | null,
+  "graph_target": "<entity to search in graph, or null>",
+  "graph_node_types": ["person", "topic", "decision", "project", "meeting"] | null,
+  "graph_edge_types": ["attended", "discussed", "produced_decision", ...] | null,
+  "temporal_hint": "<time reference like 'last week', or null>",
+  "max_meetings": <number 1-10, or null>,
+  "depth": "none" | "surface" | "deep"
+}
+
+## Examples
+
+User: "Hi, how are you?"
+{"intent":"general","confidence":"high","depth":"none"}
+
+User: "What did we decide about the API redesign?"
+{"intent":"meeting_recall","confidence":"high","search_query":"API redesign decision","requested_fields":["summary"],"depth":"deep","max_meetings":3}
+
+User: "Show me meetings about security"
+{"intent":"meeting_search","confidence":"high","search_query":"security","depth":"surface","max_meetings":5}
+
+User: "What are my pending action items?"
+{"intent":"action_items","confidence":"high","action_item_filter":"pending","depth":"surface"}
+
+User: "Who was involved in the Q4 planning?"
+{"intent":"relationship","confidence":"high","graph_target":"Q4 planning","graph_node_types":["meeting"],"graph_edge_types":["attended"],"depth":"surface"}
+
+User: "Catch me up on what I missed"
+{"intent":"catch_up","confidence":"high","depth":"deep","temporal_hint":null,"max_meetings":5}
+
+User: "Show me the transcript of the board meeting"
+{"intent":"meeting_detail","confidence":"high","search_query":"board meeting","requested_fields":["transcript"],"depth":"deep","max_meetings":1}
+
+User: "Write a Python function to sort a list"
+{"intent":"general","confidence":"high","depth":"none"}`;
 }
 
 export const CHAT_PROMPT = {
   buildSystem: buildChatSystemPrompt,
   buildRAGContext: buildRAGContextPrompt,
-  buildRetrievalSystem: buildRetrievalSystemPrompt,
+  buildIntentClassifier: buildIntentClassifierPrompt,
 };
