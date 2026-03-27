@@ -25,6 +25,8 @@ interface MeetingMentionPopupProps {
   meetings: MeetingListItem[];
   selectedIds: string[];
   onSelect: (id: string) => void;
+  /** Called when the popover closes — parent uses this to restore focus */
+  onClose?: () => void;
 }
 
 // Format timestamp to relative time
@@ -43,6 +45,7 @@ export const MeetingMentionPopup: React.FC<MeetingMentionPopupProps> = ({
   meetings,
   selectedIds,
   onSelect,
+  onClose,
 }) => {
   return (
     <PopoverContent
@@ -51,7 +54,10 @@ export const MeetingMentionPopup: React.FC<MeetingMentionPopupProps> = ({
       align="start"
       collisionPadding={16}
       className="w-72 p-0 overflow-hidden flex flex-col max-h-[var(--radix-popover-content-available-height)]"
-      onOpenAutoFocus={(e) => e.preventDefault()}
+      onCloseAutoFocus={(e) => {
+        e.preventDefault();
+        onClose?.();
+      }}
     >
       <Command className="flex-1 min-h-0 bg-transparent rounded-none">
         <CommandInput placeholder="Search meetings..." />

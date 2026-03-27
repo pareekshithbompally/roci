@@ -17,3 +17,4 @@ export { recordingMetaRepository } from './recording-meta.repository';
 export { chatIndexRepository } from './chat-index.repository';
 export { chatSessionRepository } from './chat-session.repository';
 export type { StoredChatSession } from './chat-session.repository';
+export { reminderRepository } from './reminder.repository';

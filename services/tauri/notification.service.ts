@@ -13,11 +13,21 @@ interface NotifyWithActionsOptions {
   actionTypeId: string;
 }
 
+interface ScheduleNotificationOptions {
+  id: number;
+  title: string;
+  body: string;
+  at: Date;
+  actionTypeId?: string;
+  extra?: Record<string, unknown>;
+}
+
 class NotificationService {
   private isInitialized = false;
   private sendNotification: any = null;
   private isPermissionGranted: any = null;
-  private actionCallback: ((typeId: string, actionId: string) => void) | null = null;
+  private actionHandlers = new Map<string, (actionId: string, extra?: Record<string, unknown>) => void>();
+  private notificationModule: any = null;
 
   /**
    * Initialize notification service
@@ -29,6 +39,7 @@ class NotificationService {
     if (isTauriEnvironment()) {
       try {
         const notificationModule = await import('@tauri-apps/plugin-notification');
+        this.notificationModule = notificationModule;
         this.sendNotification = notificationModule.sendNotification;
         this.isPermissionGranted = notificationModule.isPermissionGranted;
 
@@ -41,14 +52,24 @@ class NotificationService {
               { id: 'stop_now', title: 'Stop Now' },
             ],
           },
+          {
+            id: 'todo_reminder',
+            actions: [
+              { id: 'view_meeting', title: 'View Meeting', foreground: true },
+              { id: 'snooze_15', title: 'Snooze 15 min' },
+              { id: 'dismiss', title: 'Dismiss' },
+            ],
+          },
         ]);
 
-        // Route notification action callbacks to registered handler
+        // Route notification action callbacks to registered handler by typeId
         notificationModule.onAction((notification: any) => {
           const typeId = notification.actionTypeId ?? notification.notification?.actionTypeId;
           const actionId = notification.action?.id ?? notification.actionId;
-          if (typeId && actionId && this.actionCallback) {
-            this.actionCallback(typeId, actionId);
+          const extra = notification.notification?.extra ?? notification.extra;
+          if (typeId && actionId) {
+            const handler = this.actionHandlers.get(typeId);
+            if (handler) handler(actionId, extra);
           }
         }).catch((e: unknown) => {
           console.warn('[NotificationService] onAction setup failed:', e);
@@ -159,11 +180,76 @@ class NotificationService {
   }
 
   /**
-   * Register a callback to receive notification action events.
-   * Called by RecordingContext to handle "Keep Recording" / "Stop Now" clicks.
+   * Schedule a notification to fire at a specific future time.
+   * Uses Tauri's Schedule.at() for OS-level scheduling.
    */
-  setActionCallback(cb: ((typeId: string, actionId: string) => void) | null): void {
-    this.actionCallback = cb;
+  async scheduleNotification(options: ScheduleNotificationOptions): Promise<boolean> {
+    await this.initialize();
+
+    if (!this.notificationModule) {
+      console.warn('[NotificationService] Cannot schedule: no notification module');
+      return false;
+    }
+
+    try {
+      const { Schedule } = this.notificationModule;
+      await this.sendNotification({
+        id: options.id,
+        title: options.title,
+        body: options.body,
+        schedule: Schedule.at(options.at, false, true),
+        actionTypeId: options.actionTypeId,
+        extra: options.extra,
+      });
+      console.log(`[NotificationService] Scheduled notification ${options.id} for ${options.at.toISOString()}`);
+      return true;
+    } catch (error) {
+      console.error('[NotificationService] Failed to schedule notification:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Cancel one or more scheduled/pending notifications by ID.
+   */
+  async cancelNotification(ids: number[]): Promise<boolean> {
+    await this.initialize();
+
+    if (!this.notificationModule) return false;
+
+    try {
+      await this.notificationModule.cancel(ids);
+      return true;
+    } catch (error) {
+      console.error('[NotificationService] Failed to cancel notifications:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get all pending (scheduled but not yet fired) notifications.
+   */
+  async getPendingNotifications(): Promise<Array<{ id: number; schedule?: unknown }>> {
+    await this.initialize();
+
+    if (!this.notificationModule) return [];
+
+    try {
+      return await this.notificationModule.pending();
+    } catch (error) {
+      console.error('[NotificationService] Failed to get pending notifications:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Register a handler for a specific notification action type.
+   * Multiple handlers can coexist — one per typeId.
+   * Returns an unsubscribe function.
+   */
+  onActionType(typeId: string, handler: (actionId: string, extra?: Record<string, unknown>) => void): () => void {
+    this.actionHandlers.set(typeId, handler);
+    return () => { this.actionHandlers.delete(typeId); };
   }
 }
 

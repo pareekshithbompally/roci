@@ -189,9 +189,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     closeMentionPopup();
   };
 
-  // Close popup and refocus textarea
+  // Close popup (state only — focus is restored by Radix onCloseAutoFocus)
   const closeMentionPopup = useCallback(() => {
     setShowMentionPopup(false);
+  }, []);
+
+  // Restore focus to the textarea (called by popover close lifecycle)
+  const focusInput = useCallback(() => {
     inputRef.current?.focus();
   }, []);
 
@@ -248,14 +252,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    // Don't send if mention popup is open
-    if (showMentionPopup) {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        closeMentionPopup();
-      }
-      return;
-    }
+    // While mention popup is open, don't process sends from the textarea
+    if (showMentionPopup) return;
 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -475,6 +473,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         meetings={availableMeetings}
         selectedIds={selectedMeetings.map(m => m.id)}
         onSelect={handleMeetingSelect}
+        onClose={focusInput}
       />
       </Popover>
 

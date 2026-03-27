@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Manager, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, WindowEvent};
 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 use serde::{Deserialize, Serialize};
 
@@ -114,15 +114,21 @@ pub fn setup_window_handlers(app: &AppHandle) {
         let window_clone = window.clone();
         let app_handle = app.clone();
         window.on_window_event(move |event| {
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                // Save window state before preventing close
-                let _ = app_handle.save_window_state(StateFlags::all());
+            match event {
+                WindowEvent::CloseRequested { api, .. } => {
+                    // Save window state before preventing close
+                    let _ = app_handle.save_window_state(StateFlags::all());
 
-                // Prevent default close behavior
-                api.prevent_close();
+                    // Prevent default close behavior
+                    api.prevent_close();
 
-                // Hide window instead of closing
-                let _ = window_clone.hide();
+                    // Hide window instead of closing
+                    let _ = window_clone.hide();
+                }
+                WindowEvent::Focused(true) => {
+                    let _ = app_handle.emit("window-focused", ());
+                }
+                _ => {}
             }
         });
     }

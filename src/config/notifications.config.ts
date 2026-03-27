@@ -11,6 +11,7 @@ export enum NotificationType {
   FILE_SAVED = 'FILE_SAVED',
   ERROR = 'ERROR',
   RECORDING_TIMEOUT = 'RECORDING_TIMEOUT',
+  TODO_REMINDER = 'TODO_REMINDER',
 }
 
 export interface NotificationTemplate {
@@ -46,6 +47,10 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, NotificationTempla
   [NotificationType.RECORDING_TIMEOUT]: {
     title: 'Are you still recording?',
     body: 'Recording has been active for 60 minutes. It will stop automatically in 5 minutes.',
+  },
+  [NotificationType.TODO_REMINDER]: {
+    title: 'To-Do Reminder',
+    body: 'You have a pending action item',
   },
 };
 

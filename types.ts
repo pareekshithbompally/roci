@@ -9,6 +9,7 @@ export interface ActionItem {
   owner?: string;
   dueDate?: string;
   completed: boolean;
+  reminder?: TodoReminder;
 }
 
 export interface Note {
@@ -221,6 +222,12 @@ export interface RecordingMeta {
   createdAt: string;
 }
 
+/** Reminder attached to a todo — scheduled as an OS notification */
+export interface TodoReminder {
+  dateTime: string;          // ISO 8601 — exact time to fire
+  notificationId: number;    // 32-bit int required by Tauri notification API
+}
+
 /** Todo with source tag — stored in meetings/{id}/todos.json */
 export interface TodoEntry {
   id: string;
@@ -229,6 +236,19 @@ export interface TodoEntry {
   dueDate?: string;
   completed: boolean;
   source: 'ai' | 'user';
+  createdAt: string;
+  reminder?: TodoReminder;
+}
+
+/** Entry in the global reminders.json index */
+export interface ReminderEntry {
+  todoId: string;
+  meetingId: string;
+  todoText: string;
+  meetingTitle: string;
+  reminderDateTime: string;  // ISO 8601
+  notificationId: number;
+  status: 'scheduled' | 'fired' | 'cancelled';
   createdAt: string;
 }
 

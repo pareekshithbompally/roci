@@ -8,6 +8,8 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import type { HistoryItem, Note, ActionItem, NoteEntry, TodoEntry } from '@/types';
 import { notesRepository, todosRepository } from '@/services/repositories';
+import { reminderService } from '@/services/reminder.service';
+import { useApp } from '@shared/contexts/AppContext';
 
 interface MeetingState {
   /** Current meeting/result being viewed */
@@ -81,6 +83,84 @@ export const MeetingProvider: React.FC<MeetingProviderProps> = ({ children }) =>
     stateRef.current = state;
   }, [state]);
 
+  // Auto-load notes and todos when the selected meeting changes
+  const { selectedHistoryId: appSelectedHistoryId } = useApp();
+  useEffect(() => {
+    if (!appSelectedHistoryId) {
+      setState(prev => ({ ...prev, notes: [], userTodos: [], aiTodos: [], selectedHistoryId: null }));
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadMeetingData = async () => {
+      setState(prev => ({ ...prev, isLoading: true, selectedHistoryId: appSelectedHistoryId }));
+      try {
+        const [noteEntries, todoEntries] = await Promise.all([
+          notesRepository.readDoc(appSelectedHistoryId),
+          todosRepository.readDoc(appSelectedHistoryId),
+        ]);
+
+        if (cancelled) return;
+
+        let notes: Note[] = [];
+        let userTodos: ActionItem[] = [];
+        let aiTodos: ActionItem[] = [];
+        const completions: Record<string, boolean> = {};
+
+        if (noteEntries && noteEntries.length > 0) {
+          notes = noteEntries.map((n: NoteEntry) => ({
+            id: n.id,
+            text: n.text,
+            timestamp: new Date(n.createdAt).getTime(),
+          }));
+        }
+
+        if (todoEntries && todoEntries.length > 0) {
+          const aiEntries = todoEntries.filter(t => t.source === 'ai');
+          const userEntries = todoEntries.filter(t => t.source !== 'ai');
+
+          userTodos = userEntries.map((t: TodoEntry) => ({
+            id: t.id,
+            text: t.text,
+            owner: t.owner,
+            dueDate: t.dueDate,
+            completed: t.completed,
+          }));
+
+          aiTodos = aiEntries.map((t: TodoEntry) => ({
+            id: t.id,
+            text: t.text,
+            owner: t.owner,
+            dueDate: t.dueDate,
+            completed: t.completed,
+          }));
+
+          aiEntries.forEach((t: TodoEntry) => {
+            completions[t.id] = t.completed;
+          });
+        }
+
+        setState(prev => ({
+          ...prev,
+          notes,
+          userTodos,
+          aiTodos,
+          actionItemCompletions: { ...prev.actionItemCompletions, ...completions },
+          isLoading: false,
+        }));
+      } catch (error) {
+        console.error('[MeetingContext] Error loading meeting data:', error);
+        if (!cancelled) {
+          setState(prev => ({ ...prev, isLoading: false }));
+        }
+      }
+    };
+
+    loadMeetingData();
+    return () => { cancelled = true; };
+  }, [appSelectedHistoryId]);
+
   // Set current meeting
   const setCurrentMeeting = useCallback((meeting: HistoryItem | null) => {
     setState(prev => ({
@@ -123,6 +203,7 @@ export const MeetingProvider: React.FC<MeetingProviderProps> = ({ children }) =>
           owner: t.owner,
           dueDate: t.dueDate,
           completed: t.completed,
+          reminder: t.reminder,
         }));
 
         aiTodos = aiEntries.map((t: TodoEntry) => ({
@@ -131,6 +212,7 @@ export const MeetingProvider: React.FC<MeetingProviderProps> = ({ children }) =>
           owner: t.owner,
           dueDate: t.dueDate,
           completed: t.completed,
+          reminder: t.reminder,
         }));
 
         // Track completion status for AI action items (used by SummaryView toggles)
@@ -257,6 +339,11 @@ export const MeetingProvider: React.FC<MeetingProviderProps> = ({ children }) =>
     const meetingId = stateRef.current.selectedHistoryId;
     if (!meetingId) return;
 
+    // Cancel any active reminder for this todo
+    reminderService.cancel(todoId).catch(e =>
+      console.warn('[MeetingContext] Failed to cancel reminder on delete:', e)
+    );
+
     await todosRepository.deleteTodo(meetingId, todoId);
 
     setState(prev => ({
@@ -271,10 +358,17 @@ export const MeetingProvider: React.FC<MeetingProviderProps> = ({ children }) =>
 
     const result = await todosRepository.toggleTodo(meetingId, todoId);
     if (result) {
+      // Cancel reminder when completing a todo
+      if (result.completed) {
+        reminderService.cancel(todoId).catch(e =>
+          console.warn('[MeetingContext] Failed to cancel reminder on complete:', e)
+        );
+      }
+
       setState(prev => ({
         ...prev,
         userTodos: prev.userTodos.map(todo =>
-          todo.id === todoId ? { ...todo, completed: result.completed } : todo
+          todo.id === todoId ? { ...todo, completed: result.completed, reminder: result.completed ? undefined : todo.reminder } : todo
         ),
         actionItemCompletions: {
           ...prev.actionItemCompletions,

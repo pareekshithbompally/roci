@@ -5,10 +5,11 @@
  * Shows both user-created todos and AI-generated action items.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Plus, AlertCircle, Loader2, Calendar } from 'lucide-react';
 import { useMeeting } from '@shared/contexts/MeetingContext';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
+import { reminderService } from '@/services/reminder.service';
 import TodoItem from './TodoItem';
 
 interface TodoListProps {
@@ -37,6 +38,9 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
   const [newItemText, setNewItemText] = useState('');
   const [newItemDate, setNewItemDate] = useState('');
   const [newItemTime, setNewItemTime] = useState('');
+
+  const meetingId = meeting.selectedHistoryId || '';
+  const meetingTitle = meeting.currentMeeting?.title || 'Meeting';
 
   const handleSaveItem = async () => {
     if (newItemText.trim() && meeting.selectedHistoryId) {
@@ -68,6 +72,17 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
     setNewItemTime('');
     setIsCreating(false);
   };
+
+  const handleReminderChange = useCallback((todoId: string, reminderDateTime: string | null) => {
+    // Update local state to reflect the reminder change without full reload
+    // The reminder service already persisted the change to disk
+    // Force a re-render by triggering a state update in meeting context
+    if (reminderDateTime === null) {
+      meeting.updateTodo(todoId, {});
+    } else {
+      meeting.updateTodo(todoId, {});
+    }
+  }, [meeting]);
 
   // Loading state
   if (isLoading) {
@@ -190,9 +205,12 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
             <TodoItem
               key={todo.id}
               todo={todo}
+              meetingId={meetingId}
+              meetingTitle={meetingTitle}
               onToggle={todo.owner ? meeting.toggleActionItem : meeting.toggleTodo}
               onDelete={todo.owner ? undefined : meeting.deleteTodo}
               onUpdate={todo.owner ? undefined : meeting.updateTodo}
+              onReminderChange={handleReminderChange}
             />
           ))}
         </div>

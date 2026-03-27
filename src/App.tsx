@@ -37,6 +37,7 @@ import { ShortcutAction } from '@config/shortcuts.config';
 import { unifiedAIService } from '@/services/unifiedAIService';
 import { initPlatformFetch } from '@/services/platform-fetch';
 import { searchIndexingService } from '@/services/searchIndexing.service';
+import { reminderService } from '@/services/reminder.service';
 import { exit } from '@tauri-apps/plugin-process';
 
 const App: React.FC = () => {
@@ -162,6 +163,22 @@ const App: React.FC = () => {
     return () => controller.abort();
   }, [history.items.length, chat.sessionIndex.length]);
 
+  // Repaint compositor on focus — fixes transparent-window rendering glitch (Tauri #8255)
+  useEffect(() => {
+    if (!isTauriEnvironment()) return;
+    let unlisten: (() => void) | null = null;
+    import('@tauri-apps/api/event').then(({ listen }) => {
+      listen<void>('window-focused', () => {
+        const el = document.documentElement;
+        el.style.willChange = 'transform';
+        requestAnimationFrame(() => {
+          el.style.willChange = '';
+        });
+      }).then(fn => { unlisten = fn; });
+    });
+    return () => { unlisten?.(); };
+  }, []);
+
   // Initialize app on mount
   useEffect(() => {
     const initializeApp = async () => {
@@ -186,6 +203,7 @@ const App: React.FC = () => {
       await runMigrations();
       await notificationService.initialize();
       await notificationService.requestPermission();
+      await reminderService.initialize();
       await windowService.initialize();
       await initializeShortcuts();
       await initializeTray();
@@ -345,13 +363,15 @@ const App: React.FC = () => {
         duration={5000}
         visibleToasts={4}
         gap={6}
-        icons={{ success: ' ', error: ' ', warning: ' ', info: ' ', loading: ' ' }}
         toastOptions={{
+          classNames: {
+            toast: 'kasset-toast',
+          },
           style: {
-            fontSize: '12px',
-            padding: '8px 12px',
+            fontSize: '13px',
+            padding: '10px 14px',
             minHeight: 'unset',
-            gap: '6px',
+            gap: '0px',
           },
         }}
       />

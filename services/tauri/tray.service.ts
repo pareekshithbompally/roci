@@ -76,9 +76,6 @@ class TrayService {
             name: 'Kasset',
             version,
             copyright: 'Copyright © 2026 Kasset.ai. All rights reserved.',
-            website: 'https://kasset.ai',
-            websiteLabel: 'kasset.ai',
-            comments: 'AI-powered voice capture, transcription, and insights',
           },
         },
       });

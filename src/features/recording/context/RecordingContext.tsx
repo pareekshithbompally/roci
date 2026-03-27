@@ -1034,8 +1034,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
   // Handle notification action callbacks (Keep Recording / Stop Now).
   // Mount-only — uses refs to avoid stale closures on frequently changing functions.
   useEffect(() => {
-    notificationService.setActionCallback((typeId, actionId) => {
-      if (typeId !== 'recording_timeout') return;
+    const unsubscribe = notificationService.onActionType('recording_timeout', (actionId) => {
       const sessionId = alertedSessionRef.current;
       if (!sessionId) return;
 
@@ -1055,7 +1054,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         stopAndSaveRef.current(sessionId);
       }
     });
-    return () => notificationService.setActionCallback(null);
+    return unsubscribe;
   }, []); // mount only
 
   // === LEGACY COMPAT: Derive single-session state from sessions Map ===

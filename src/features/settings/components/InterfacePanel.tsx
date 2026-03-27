@@ -121,6 +121,8 @@ export const InterfacePanel: React.FC = () => {
     } finally {
       setIsRebuilding(false);
       loadIndexStats();
+      const { resetPipeline } = await import('@extensions/rag');
+      resetPipeline();
     }
   }, [settings, providers, showToast, loadIndexStats]);
 

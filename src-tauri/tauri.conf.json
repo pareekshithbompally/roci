@@ -24,6 +24,7 @@
         "fullscreen": false,
         "decorations": true,
         "transparent": true,
+        "backgroundThrottling": "disabled",
         "center": false,
         "hiddenTitle": true,
         "titleBarStyle": "Overlay",

@@ -1,19 +1,23 @@
 /**
  * TodoItem Component
  * 
- * Displays a single todo with toggle and delete functionality.
+ * Displays a single todo with toggle, delete, edit, and reminder functionality.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Check, X, Edit2, Clock, AlertTriangle } from 'lucide-react';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
-import type { Todo } from '../../../core/data/models/todo.model';
+import type { ActionItem } from '@/types';
+import ReminderPicker from './ReminderPicker';
 
 interface TodoItemProps {
-  todo: Todo;
+  todo: ActionItem;
+  meetingId: string;
+  meetingTitle: string;
   onToggle: (todoId: string) => void;
   onDelete?: (todoId: string) => void;
   onUpdate?: (todoId: string, updates: { text?: string; dueDate?: string }) => void;
+  onReminderChange?: (todoId: string, reminderDateTime: string | null) => void;
 }
 
 const formatDueDate = (dueDate: string) => {
@@ -36,7 +40,7 @@ const isOverdue = (dueDate?: string) => {
   return date < new Date();
 };
 
-const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggle, onDelete, onUpdate }) => {
+const TodoItem: React.FC<TodoItemProps> = ({ todo, meetingId, meetingTitle, onToggle, onDelete, onUpdate, onReminderChange }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(todo.text);
 
@@ -60,6 +64,10 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggle, onDelete, onUpdate 
       handleCancel();
     }
   };
+
+  const handleReminderSet = useCallback((dateTime: string | null) => {
+    onReminderChange?.(todo.id, dateTime);
+  }, [todo.id, onReminderChange]);
 
   const overdue = !todo.completed && isOverdue(todo.dueDate);
 
@@ -135,12 +143,36 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggle, onDelete, onUpdate 
                   </span>
                 </div>
               )}
+
+              {/* Reminder indicator */}
+              {todo.reminder && !todo.completed && (
+                <div className="flex items-center gap-1.5 mt-1 text-xs text-amber-500">
+                  <Clock className="w-3 h-3" />
+                  <span>
+                    Reminder: {new Date(todo.reminder.dateTime).toLocaleString('en-US', {
+                      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+                    })}
+                  </span>
+                </div>
+              )}
             </>
           )}
         </div>
 
         {/* Actions */}
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Reminder bell */}
+          {!isEditing && !todo.completed && onReminderChange && (
+            <ReminderPicker
+              todoId={todo.id}
+              meetingId={meetingId}
+              todoText={todo.text}
+              meetingTitle={meetingTitle}
+              reminderDateTime={todo.reminder?.dateTime}
+              dueDate={todo.dueDate}
+              onReminderSet={handleReminderSet}
+            />
+          )}
           {!isEditing && onUpdate && !todo.completed && (
             <button
               onClick={() => setIsEditing(true)}

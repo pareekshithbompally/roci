@@ -3,18 +3,18 @@ use crate::schema;
 use crate::search::{hybrid_search, SearchHit, SearchParams};
 use rusqlite::{ffi::sqlite3_auto_extension, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager, Runtime, State};
 
 /// Plugin state holding the database connection.
 pub struct VectorDbState {
-    pub conn: Mutex<Option<Connection>>,
+    pub conn: Arc<Mutex<Option<Connection>>>,
 }
 
 impl Default for VectorDbState {
     fn default() -> Self {
         Self {
-            conn: Mutex::new(None),
+            conn: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -93,57 +93,53 @@ pub struct ChatSearchHit {
     pub last_message_at: i64,
 }
 
-fn with_conn<R>(
-    state: &State<'_, VectorDbState>,
-    f: impl FnOnce(&Connection) -> Result<R, String>,
-) -> Result<R, String> {
-    let guard = state.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
-    let conn = guard.as_ref().ok_or("Database not initialized")?;
-    f(conn)
-}
-
 /// Initialize the database: open/create the SQLite file, enable WAL, load sqlite-vec, run migrations.
 #[tauri::command]
 pub async fn initialize<R: Runtime>(
     app: AppHandle<R>,
     state: State<'_, VectorDbState>,
 ) -> Result<(), String> {
-    let mut guard = state.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
-    if guard.is_some() {
-        return Ok(()); // Already initialized
-    }
-
-    // Resolve DB path in app data dir
+    // Resolve path on calling thread — AppHandle path ops are non-blocking.
     let app_data = app
         .path()
         .app_data_dir()
         .map_err(|e| format!("Failed to get app data dir: {}", e))?;
     std::fs::create_dir_all(&app_data)
         .map_err(|e| format!("Failed to create app data dir: {}", e))?;
-
     let db_path = app_data.join("vectordb.sqlite");
-    log::info!("[vectordb] Opening database at {:?}", db_path);
 
-    // Register sqlite-vec as an auto-extension so it loads on every connection
-    unsafe {
-        sqlite3_auto_extension(Some(std::mem::transmute(
-            sqlite_vec::sqlite3_vec_init as *const (),
-        )));
-    }
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        if guard.is_some() {
+            return Ok(()); // Already initialized
+        }
 
-    let conn = Connection::open(&db_path)
-        .map_err(|e| format!("Failed to open database: {}", e))?;
+        log::info!("[vectordb] Opening database at {:?}", db_path);
 
-    // Enable WAL mode for crash safety and concurrent reads
-    conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
-        .map_err(|e| format!("Failed to set pragmas: {}", e))?;
+        // Register sqlite-vec as an auto-extension so it loads on every connection
+        unsafe {
+            sqlite3_auto_extension(Some(std::mem::transmute(
+                sqlite_vec::sqlite3_vec_init as *const (),
+            )));
+        }
 
-    // Run migrations
-    schema::migrate(&conn)?;
+        let db = Connection::open(&db_path)
+            .map_err(|e| format!("Failed to open database: {}", e))?;
 
-    log::info!("[vectordb] Database initialized successfully");
-    *guard = Some(conn);
-    Ok(())
+        // Enable WAL mode for crash safety and concurrent reads
+        db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
+            .map_err(|e| format!("Failed to set pragmas: {}", e))?;
+
+        // Run migrations
+        schema::migrate(&db)?;
+
+        log::info!("[vectordb] Database initialized successfully");
+        *guard = Some(db);
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 /// Insert or update a meeting's metadata.
@@ -152,9 +148,12 @@ pub async fn upsert_meeting(
     state: State<'_, VectorDbState>,
     meeting: MeetingMeta,
 ) -> Result<(), String> {
-    with_conn(&state, |conn| {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
         let now = now_millis();
-        conn.execute(
+        db.execute(
             "INSERT INTO meetings (id, title, timestamp, summary, categories, indexed_at, updated_at, content_hash)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, ?7)
              ON CONFLICT(id) DO UPDATE SET
@@ -177,6 +176,8 @@ pub async fn upsert_meeting(
         .map_err(|e| format!("upsert_meeting: {}", e))?;
         Ok(())
     })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 /// Insert chunks + vectors for a meeting. Replaces all existing chunks for that meeting.
@@ -187,8 +188,12 @@ pub async fn upsert_chunks(
     meeting_id: String,
     chunks: Vec<ChunkData>,
 ) -> Result<(), String> {
-    with_conn(&state, |conn| {
-        let tx = conn
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+
+        let tx = db
             .unchecked_transaction()
             .map_err(|e| format!("begin transaction: {}", e))?;
 
@@ -263,6 +268,8 @@ pub async fn upsert_chunks(
         );
         Ok(())
     })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 /// Delete a meeting and all its chunks/vectors.
@@ -272,8 +279,12 @@ pub async fn delete_meeting(
     state: State<'_, VectorDbState>,
     meeting_id: String,
 ) -> Result<(), String> {
-    with_conn(&state, |conn| {
-        let tx = conn
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+
+        let tx = db
             .unchecked_transaction()
             .map_err(|e| format!("begin transaction: {}", e))?;
 
@@ -308,6 +319,8 @@ pub async fn delete_meeting(
         log::info!("[vectordb] Deleted meeting {} and {} chunks", meeting_id, chunk_ids.len());
         Ok(())
     })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 /// Hybrid search: vector KNN + FTS5, merged via Reciprocal Rank Fusion.
@@ -316,7 +329,14 @@ pub async fn search(
     state: State<'_, VectorDbState>,
     params: SearchParams,
 ) -> Result<Vec<SearchHit>, String> {
-    with_conn(&state, |conn| hybrid_search(conn, &params))
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+        hybrid_search(db, &params)
+    })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 /// Compare content hashes to find meetings that need re-indexing.
@@ -327,18 +347,22 @@ pub async fn get_stale_meetings(
     state: State<'_, VectorDbState>,
     meetings: Vec<MeetingHash>,
 ) -> Result<Vec<String>, String> {
-    with_conn(&state, |conn| {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+
         // Create temp table (no-op after first call in this connection)
-        conn.execute_batch(
+        db.execute_batch(
             "CREATE TEMP TABLE IF NOT EXISTS _check_hashes (id TEXT PRIMARY KEY, content_hash TEXT);"
         ).map_err(|e| format!("create temp: {}", e))?;
 
-        conn.execute("DELETE FROM _check_hashes", [])
+        db.execute("DELETE FROM _check_hashes", [])
             .map_err(|e| format!("clear temp: {}", e))?;
 
         // Batch insert incoming hashes using a prepared statement
         {
-            let mut stmt = conn.prepare(
+            let mut stmt = db.prepare(
                 "INSERT INTO _check_hashes (id, content_hash) VALUES (?1, ?2)"
             ).map_err(|e| format!("prepare insert: {}", e))?;
 
@@ -349,7 +373,7 @@ pub async fn get_stale_meetings(
         }
 
         // Single query: find IDs that are new or have changed hashes
-        let mut stmt = conn.prepare(
+        let mut stmt = db.prepare(
             "SELECT ch.id FROM _check_hashes ch
              LEFT JOIN meetings m ON m.id = ch.id
              WHERE m.id IS NULL OR m.content_hash != ch.content_hash"
@@ -363,6 +387,8 @@ pub async fn get_stale_meetings(
 
         Ok(stale)
     })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 /// Return all indexed meeting IDs.
@@ -370,8 +396,11 @@ pub async fn get_stale_meetings(
 pub async fn get_indexed_ids(
     state: State<'_, VectorDbState>,
 ) -> Result<Vec<String>, String> {
-    with_conn(&state, |conn| {
-        let mut stmt = conn
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+        let mut stmt = db
             .prepare("SELECT id FROM meetings")
             .map_err(|e| format!("prepare: {}", e))?;
         let ids = stmt
@@ -381,6 +410,8 @@ pub async fn get_indexed_ids(
             .collect();
         Ok(ids)
     })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 /// Return database statistics.
@@ -388,9 +419,13 @@ pub async fn get_indexed_ids(
 pub async fn get_stats(
     state: State<'_, VectorDbState>,
 ) -> Result<DbStats, String> {
-    with_conn(&state, |conn| {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+
         let count = |sql: &str| -> i64 {
-            conn.query_row(sql, [], |row| row.get(0)).unwrap_or(0)
+            db.query_row(sql, [], |row| row.get(0)).unwrap_or(0)
         };
 
         let total_meetings = count("SELECT COUNT(*) FROM meetings");
@@ -402,10 +437,10 @@ pub async fn get_stats(
         let kg_edges = count("SELECT COUNT(*) FROM kg_edges");
 
         // Get file size from page_count * page_size
-        let page_count: i64 = conn
+        let page_count: i64 = db
             .query_row("PRAGMA page_count", [], |row| row.get(0))
             .unwrap_or(0);
-        let page_size: i64 = conn
+        let page_size: i64 = db
             .query_row("PRAGMA page_size", [], |row| row.get(0))
             .unwrap_or(4096);
         let db_size_bytes = (page_count * page_size) as u64;
@@ -421,6 +456,8 @@ pub async fn get_stats(
             db_size_bytes,
         })
     })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 /// Return index metadata (schema version, embedding model, dimensions).
@@ -428,9 +465,13 @@ pub async fn get_stats(
 pub async fn get_meta(
     state: State<'_, VectorDbState>,
 ) -> Result<DbMeta, String> {
-    with_conn(&state, |conn| {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+
         let get = |key: &str| -> String {
-            conn.query_row(
+            db.query_row(
                 "SELECT value FROM meta WHERE key = ?1",
                 [key],
                 |row| row.get(0),
@@ -444,6 +485,8 @@ pub async fn get_meta(
             embedding_dim: get("embedding_dim"),
         })
     })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 /// Drop all data and reset the database. Triggers full re-index from frontend.
@@ -451,9 +494,13 @@ pub async fn get_meta(
 pub async fn rebuild(
     state: State<'_, VectorDbState>,
 ) -> Result<(), String> {
-    with_conn(&state, |conn| {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+
         // Delete all vector + graph data
-        conn.execute_batch(
+        db.execute_batch(
             "DELETE FROM vec_chunks;
              DELETE FROM chunks;
              DELETE FROM meetings;
@@ -470,6 +517,8 @@ pub async fn rebuild(
         log::info!("[vectordb] Database rebuilt (all data cleared, including graph and chats)");
         Ok(())
     })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 // ── Knowledge Graph Commands ──
@@ -481,9 +530,14 @@ pub async fn graph_upsert(
     nodes: Vec<graph::GraphNode>,
     edges: Vec<graph::GraphEdge>,
 ) -> Result<(), String> {
-    with_conn(&state, |conn| {
-        graph::upsert_meeting_graph(conn, &meeting_id, &nodes, &edges)
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+        graph::upsert_meeting_graph(db, &meeting_id, &nodes, &edges)
     })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 #[tauri::command]
@@ -491,7 +545,14 @@ pub async fn graph_traverse(
     state: State<'_, VectorDbState>,
     params: graph::TraversalParams,
 ) -> Result<Vec<graph::TraversalResult>, String> {
-    with_conn(&state, |conn| graph::traverse(conn, &params))
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+        graph::traverse(db, &params)
+    })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 #[tauri::command]
@@ -501,14 +562,20 @@ pub async fn graph_neighbors(
     edge_types: Option<Vec<String>>,
     direction: Option<String>,
 ) -> Result<Vec<graph::TraversalResult>, String> {
-    with_conn(&state, |conn| {
+    let direction_owned = direction.unwrap_or_else(|| "both".to_string());
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
         graph::neighbors(
-            conn,
+            db,
             &node_id,
             edge_types.as_deref(),
-            direction.as_deref().unwrap_or("both"),
+            &direction_owned,
         )
     })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 #[tauri::command]
@@ -516,7 +583,14 @@ pub async fn graph_search(
     state: State<'_, VectorDbState>,
     params: graph::GraphSearchParams,
 ) -> Result<Vec<graph::GraphNode>, String> {
-    with_conn(&state, |conn| graph::search_nodes(conn, &params))
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+        graph::search_nodes(db, &params)
+    })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 #[tauri::command]
@@ -524,14 +598,28 @@ pub async fn graph_delete_meeting(
     state: State<'_, VectorDbState>,
     meeting_id: String,
 ) -> Result<(), String> {
-    with_conn(&state, |conn| graph::delete_meeting_graph(conn, &meeting_id))
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+        graph::delete_meeting_graph(db, &meeting_id)
+    })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 #[tauri::command]
 pub async fn graph_stats(
     state: State<'_, VectorDbState>,
 ) -> Result<graph::GraphStats, String> {
-    with_conn(&state, |conn| graph::stats(conn))
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+        graph::stats(db)
+    })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 // ── Usage Tracking Commands ──
@@ -591,8 +679,11 @@ pub async fn insert_usage(
     state: State<'_, VectorDbState>,
     record: UsageRecord,
 ) -> Result<(), String> {
-    with_conn(&state, |conn| {
-        conn.execute(
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+        db.execute(
             "INSERT INTO usage_log (id, timestamp, category, session_id, provider, model,
              input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
              reasoning_tokens, estimated_cost)
@@ -615,6 +706,8 @@ pub async fn insert_usage(
         .map_err(|e| format!("insert_usage: {}", e))?;
         Ok(())
     })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 /// Return aggregated usage summary for a time range.
@@ -623,11 +716,15 @@ pub async fn get_usage_summary(
     state: State<'_, VectorDbState>,
     since: Option<i64>,
 ) -> Result<UsageSummary, String> {
-    with_conn(&state, |conn| {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+
         let since_ts = since.unwrap_or(0);
 
         // Totals
-        let (total_cost, total_input, total_output, total_cache_read, total_calls): (f64, i64, i64, i64, i64) = conn
+        let (total_cost, total_input, total_output, total_cache_read, total_calls): (f64, i64, i64, i64, i64) = db
             .query_row(
                 "SELECT COALESCE(SUM(estimated_cost), 0), COALESCE(SUM(input_tokens), 0),
                  COALESCE(SUM(output_tokens), 0), COALESCE(SUM(cache_read_tokens), 0), COUNT(*)
@@ -638,7 +735,7 @@ pub async fn get_usage_summary(
             .map_err(|e| format!("usage totals: {}", e))?;
 
         // By provider + model
-        let mut stmt = conn
+        let mut stmt = db
             .prepare(
                 "SELECT provider, model, COUNT(*), SUM(input_tokens), SUM(output_tokens),
                  SUM(cache_read_tokens), SUM(cache_write_tokens), SUM(reasoning_tokens),
@@ -667,7 +764,7 @@ pub async fn get_usage_summary(
             .collect();
 
         // By category
-        let mut stmt2 = conn
+        let mut stmt2 = db
             .prepare(
                 "SELECT category, COUNT(*), SUM(input_tokens), SUM(output_tokens), SUM(estimated_cost)
                  FROM usage_log WHERE timestamp >= ?1
@@ -699,6 +796,8 @@ pub async fn get_usage_summary(
             by_category,
         })
     })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 fn now_millis() -> i64 {
@@ -715,9 +814,12 @@ pub async fn upsert_chat_session(
     state: State<'_, VectorDbState>,
     session: ChatSessionMeta,
 ) -> Result<(), String> {
-    with_conn(&state, |conn| {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
         let now = now_millis();
-        conn.execute(
+        db.execute(
             "INSERT INTO chat_sessions (id, title, last_message_at, message_count,
              indexed_at, updated_at, content_hash)
              VALUES (?1, ?2, ?3, ?4, ?5, ?5, ?6)
@@ -739,6 +841,8 @@ pub async fn upsert_chat_session(
         .map_err(|e| format!("upsert_chat_session: {}", e))?;
         Ok(())
     })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 /// Replace all chunks for a chat session atomically.
@@ -748,8 +852,12 @@ pub async fn upsert_chat_chunks(
     session_id: String,
     chunks: Vec<ChatChunkData>,
 ) -> Result<(), String> {
-    with_conn(&state, |conn| {
-        let tx = conn
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+
+        let tx = db
             .unchecked_transaction()
             .map_err(|e| format!("begin transaction: {}", e))?;
 
@@ -813,6 +921,8 @@ pub async fn upsert_chat_chunks(
         );
         Ok(())
     })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 /// Delete a chat session and all its chunks/vectors.
@@ -821,8 +931,12 @@ pub async fn delete_chat_session(
     state: State<'_, VectorDbState>,
     session_id: String,
 ) -> Result<(), String> {
-    with_conn(&state, |conn| {
-        let tx = conn
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+
+        let tx = db
             .unchecked_transaction()
             .map_err(|e| format!("begin transaction: {}", e))?;
 
@@ -858,6 +972,8 @@ pub async fn delete_chat_session(
         );
         Ok(())
     })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 /// Returns true if the session is not indexed or the content hash has changed.
@@ -867,8 +983,11 @@ pub async fn is_chat_session_stale(
     session_id: String,
     content_hash: String,
 ) -> Result<bool, String> {
-    with_conn(&state, |conn| {
-        let existing: Option<String> = conn
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+        let existing: Option<String> = db
             .query_row(
                 "SELECT content_hash FROM chat_sessions WHERE id = ?1",
                 [&session_id],
@@ -882,6 +1001,8 @@ pub async fn is_chat_session_stale(
             Some(stored) => stored != content_hash, // hash changed → stale
         })
     })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 /// Hybrid search over chat chunks: KNN + FTS5, RRF-merged, grouped by session.
@@ -890,7 +1011,14 @@ pub async fn search_chats(
     state: State<'_, VectorDbState>,
     params: crate::search::ChatSearchParams,
 ) -> Result<Vec<ChatSearchHit>, String> {
-    with_conn(&state, |conn| crate::search::chat_hybrid_search(conn, &params))
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+        crate::search::chat_hybrid_search(db, &params)
+    })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
 /// Spotlight search: tier-0 title LIKE + tier-1 FTS5 snippet() across meetings and chats.
@@ -900,5 +1028,12 @@ pub async fn spotlight_search(
     state: State<'_, VectorDbState>,
     params: crate::spotlight::SpotlightParams,
 ) -> Result<Vec<crate::spotlight::SpotlightHit>, String> {
-    with_conn(&state, |conn| crate::spotlight::spotlight_search(conn, &params))
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+        crate::spotlight::spotlight_search(db, &params)
+    })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
 }

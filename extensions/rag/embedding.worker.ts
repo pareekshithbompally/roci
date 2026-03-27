@@ -55,11 +55,9 @@ self.onmessage = async (e: MessageEvent) => {
 
       case 'embedBatch': {
         const extractor = await loadPipeline(msg.model, msg.dtype);
-        const results: number[][] = [];
-        for (const text of msg.texts) {
-          const output = await extractor(text, { pooling: 'mean', normalize: true });
-          results.push(Array.from(output.data as Float32Array));
-        }
+        const output = await extractor(msg.texts as string[], { pooling: 'mean', normalize: true });
+        const results: number[][] = output.tolist() as number[][];
+        output.dispose();
         self.postMessage({ type: 'result', id: msg.id, embeddings: results });
         break;
       }
