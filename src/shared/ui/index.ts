@@ -6,4 +6,5 @@ export * from './popover';
 export * from './command';
 export * from './dropdown-menu';
 export * from './switch';
+export * from './date-picker';
 export { cn } from './utils';

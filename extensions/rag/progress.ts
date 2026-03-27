@@ -52,7 +52,17 @@ export interface ExtractionProgressEvent {
   error?: string;
 }
 
-export type RAGProgressEvent = EmbeddingModelEvent | IndexingProgressEvent | ExtractionProgressEvent;
+/** Embedding upgrade progress events (content-fresh meetings getting embeddings) */
+export interface EmbeddingUpgradeProgressEvent {
+  kind: 'embedding';
+  status: 'started' | 'progress' | 'complete' | 'error';
+  current?: number;
+  total?: number;
+  currentTitle?: string;
+  error?: string;
+}
+
+export type RAGProgressEvent = EmbeddingModelEvent | IndexingProgressEvent | ExtractionProgressEvent | EmbeddingUpgradeProgressEvent;
 
 /** @deprecated Use RAGProgressEvent instead */
 export type EmbeddingProgress = EmbeddingModelEvent;

@@ -16,11 +16,13 @@ import { useRecordingContext } from '@features/recording';
 import { MainLayout } from '@features/layout';
 import { HomeView } from '@features/home';
 import { SettingsPanel } from '@features/settings';
+import { RemindersView } from '@features/todos';
 import { DeleteConfirmModal } from '@features/history';
 import { Toaster } from 'sonner';
 import { ModelDownloadModal } from '@shared/components/ModelDownloadModal';
 import SearchOverlay from '@shared/components/SearchOverlayDialog';
 import { useAppShortcuts } from '@shared/hooks/useAppShortcuts';
+import { useCalendarIntegration } from '@shared/hooks/useCalendarIntegration';
 
 // Services
 import { isTauriEnvironment } from '@/services/tauri';
@@ -75,9 +77,15 @@ const App: React.FC = () => {
     }, [chat.chatInputRef]),
   });
 
+  // macOS Calendar integration — polls for upcoming meetings, shows notifications
+  useCalendarIntegration();
+
   // Background search-index warm-up: two phases.
   // Phase 1 (fast): FTS-only — populates spotlight corpus so Cmd+K works immediately.
-  // Phase 2 (slow, optional): embeddings — only if model is ready/consented.
+  // Phase 2 (slow, optional): embeddings + KG extraction — only if model is ready/consented.
+  //
+  // Multi-phase staleness tracking (embedding_hash, extraction_hash) ensures Phase 1
+  // doesn't poison Phase 2: each concern tracks its own completion independently.
   const indexingRanRef = useRef(false);
 
   useEffect(() => {
@@ -88,7 +96,7 @@ const App: React.FC = () => {
     const controller = new AbortController();
     const warmUp = async () => {
       try {
-        const { ragIndexer, chatIndexer, embeddingService, hasConsent, emitProgress } = await import('@extensions/rag');
+        const { ragIndexer, chatIndexer, embeddingService, hasConsent } = await import('@extensions/rag');
         const [meetingItems, chatSessions] = await Promise.all([
           searchIndexingService.loadMeetingsForIndexing(),
           searchIndexingService.loadChatsForIndexing(),
@@ -102,28 +110,14 @@ const App: React.FC = () => {
 
         if (controller.signal.aborted) return;
 
-        if (chatSessions.length > 0) {
-          emitProgress({ kind: 'indexing', status: 'started', total: chatSessions.length });
-        }
-        for (let i = 0; i < chatSessions.length; i++) {
-          if (controller.signal.aborted) break;
-          const session = chatSessions[i];
-          emitProgress({
-            kind: 'indexing',
-            status: 'progress',
-            current: i + 1,
-            total: chatSessions.length,
-            currentTitle: `Chat: ${session.title}`,
-          });
-          await chatIndexer.indexSession(session, { includeEmbeddings: false });
-        }
-        if (chatSessions.length > 0) {
-          emitProgress({ kind: 'indexing', status: 'complete', current: chatSessions.length, total: chatSessions.length });
-        }
+        await chatIndexer.indexAllSessions(chatSessions, {
+          signal: controller.signal,
+          includeEmbeddings: false,
+        });
 
         console.log('[App] Phase 1 complete: FTS spotlight corpus populated');
 
-        // Phase 2: add embeddings if model is available (slow, non-blocking for spotlight)
+        // Phase 2: add embeddings + KG extraction if model is available
         if (controller.signal.aborted) return;
         const shouldEmbed = embeddingService.isReady() || hasConsent();
         if (!shouldEmbed) return;
@@ -136,24 +130,10 @@ const App: React.FC = () => {
 
         if (controller.signal.aborted) return;
 
-        if (chatSessions.length > 0) {
-          emitProgress({ kind: 'indexing', status: 'started', total: chatSessions.length });
-        }
-        for (let i = 0; i < chatSessions.length; i++) {
-          if (controller.signal.aborted) break;
-          const session = chatSessions[i];
-          emitProgress({
-            kind: 'indexing',
-            status: 'progress',
-            current: i + 1,
-            total: chatSessions.length,
-            currentTitle: `Chat: ${session.title}`,
-          });
-          await chatIndexer.indexSession(session, { includeEmbeddings: true });
-        }
-        if (chatSessions.length > 0) {
-          emitProgress({ kind: 'indexing', status: 'complete', current: chatSessions.length, total: chatSessions.length });
-        }
+        await chatIndexer.indexAllSessions(chatSessions, {
+          signal: controller.signal,
+          includeEmbeddings: true,
+        });
       } catch (error) {
         console.log('[App] Background search index warm-up skipped or failed:', error);
       }
@@ -342,14 +322,14 @@ const App: React.FC = () => {
         {/* Main Content */}
         <main
           className={`grow shrink min-h-0 flex flex-col custom-scrollbar relative ${
-            currentView === 'settings' 
+            currentView === 'settings' || currentView === 'reminders'
               ? 'p-0 items-stretch overflow-y-auto' 
               : (showIdleView || showChatView || showResultsView) 
                 ? 'p-0 overflow-hidden' 
                 : 'p-6 md:p-10 overflow-hidden'
           }`}
         >
-          {currentView === 'home' ? <HomeView /> : <SettingsPanel />}
+          {currentView === 'home' ? <HomeView /> : currentView === 'reminders' ? <RemindersView /> : <SettingsPanel />}
         </main>
       </MainLayout>
 

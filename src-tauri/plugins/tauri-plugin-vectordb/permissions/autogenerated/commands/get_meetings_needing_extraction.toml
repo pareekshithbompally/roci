@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-get-meetings-needing-extraction"
+description = "Enables the get_meetings_needing_extraction command without any pre-configured scope."
+commands.allow = ["get_meetings_needing_extraction"]
+
+[[permission]]
+identifier = "deny-get-meetings-needing-extraction"
+description = "Denies the get_meetings_needing_extraction command without any pre-configured scope."
+commands.deny = ["get_meetings_needing_extraction"]

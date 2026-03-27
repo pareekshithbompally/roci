@@ -307,6 +307,18 @@
           "markdownDescription": "Denies the delete_meeting command without any pre-configured scope."
         },
         {
+          "description": "Enables the get_chats_needing_embeddings command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-chats-needing-embeddings",
+          "markdownDescription": "Enables the get_chats_needing_embeddings command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_chats_needing_embeddings command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-chats-needing-embeddings",
+          "markdownDescription": "Denies the get_chats_needing_embeddings command without any pre-configured scope."
+        },
+        {
           "description": "Enables the get_indexed_ids command without any pre-configured scope.",
           "type": "string",
           "const": "allow-get-indexed-ids",
@@ -319,6 +331,30 @@
           "markdownDescription": "Denies the get_indexed_ids command without any pre-configured scope."
         },
         {
+          "description": "Enables the get_meetings_needing_embeddings command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-meetings-needing-embeddings",
+          "markdownDescription": "Enables the get_meetings_needing_embeddings command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_meetings_needing_embeddings command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-meetings-needing-embeddings",
+          "markdownDescription": "Denies the get_meetings_needing_embeddings command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_meetings_needing_extraction command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-meetings-needing-extraction",
+          "markdownDescription": "Enables the get_meetings_needing_extraction command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_meetings_needing_extraction command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-meetings-needing-extraction",
+          "markdownDescription": "Denies the get_meetings_needing_extraction command without any pre-configured scope."
+        },
+        {
           "description": "Enables the get_meta command without any pre-configured scope.",
           "type": "string",
           "const": "allow-get-meta",
@@ -329,6 +365,18 @@
           "type": "string",
           "const": "deny-get-meta",
           "markdownDescription": "Denies the get_meta command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_stale_chat_sessions command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-stale-chat-sessions",
+          "markdownDescription": "Enables the get_stale_chat_sessions command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_stale_chat_sessions command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-stale-chat-sessions",
+          "markdownDescription": "Denies the get_stale_chat_sessions command without any pre-configured scope."
         },
         {
           "description": "Enables the get_stale_meetings command without any pre-configured scope.",
@@ -377,6 +425,18 @@
           "type": "string",
           "const": "deny-graph-delete-meeting",
           "markdownDescription": "Denies the graph_delete_meeting command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the graph_extracted_meeting_ids command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-graph-extracted-meeting-ids",
+          "markdownDescription": "Enables the graph_extracted_meeting_ids command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the graph_extracted_meeting_ids command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-graph-extracted-meeting-ids",
+          "markdownDescription": "Denies the graph_extracted_meeting_ids command without any pre-configured scope."
         },
         {
           "description": "Enables the graph_neighbors command without any pre-configured scope.",
@@ -463,6 +523,42 @@
           "markdownDescription": "Denies the insert_usage command without any pre-configured scope."
         },
         {
+          "description": "Enables the mark_chat_embedded command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-mark-chat-embedded",
+          "markdownDescription": "Enables the mark_chat_embedded command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the mark_chat_embedded command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-mark-chat-embedded",
+          "markdownDescription": "Denies the mark_chat_embedded command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the mark_meeting_embedded command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-mark-meeting-embedded",
+          "markdownDescription": "Enables the mark_meeting_embedded command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the mark_meeting_embedded command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-mark-meeting-embedded",
+          "markdownDescription": "Denies the mark_meeting_embedded command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the mark_meeting_extracted command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-mark-meeting-extracted",
+          "markdownDescription": "Enables the mark_meeting_extracted command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the mark_meeting_extracted command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-mark-meeting-extracted",
+          "markdownDescription": "Denies the mark_meeting_extracted command without any pre-configured scope."
+        },
+        {
           "description": "Enables the rebuild command without any pre-configured scope.",
           "type": "string",
           "const": "allow-rebuild",
@@ -511,10 +607,10 @@
           "markdownDescription": "Denies the upsert_meeting command without any pre-configured scope."
         },
         {
-          "description": "Allows all vectordb plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-upsert-meeting`\n- `allow-upsert-chunks`\n- `allow-delete-meeting`\n- `allow-search`\n- `allow-get-stale-meetings`\n- `allow-get-indexed-ids`\n- `allow-get-stats`\n- `allow-get-meta`\n- `allow-rebuild`\n- `allow-graph-upsert`\n- `allow-graph-traverse`\n- `allow-graph-neighbors`\n- `allow-graph-search`\n- `allow-graph-delete-meeting`\n- `allow-graph-stats`\n- `allow-insert-usage`\n- `allow-get-usage-summary`",
+          "description": "Allows all vectordb plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-upsert-meeting`\n- `allow-upsert-chunks`\n- `allow-delete-meeting`\n- `allow-search`\n- `allow-get-stale-meetings`\n- `allow-get-meetings-needing-embeddings`\n- `allow-get-meetings-needing-extraction`\n- `allow-mark-meeting-embedded`\n- `allow-mark-meeting-extracted`\n- `allow-get-indexed-ids`\n- `allow-get-stats`\n- `allow-get-meta`\n- `allow-rebuild`\n- `allow-graph-upsert`\n- `allow-graph-traverse`\n- `allow-graph-neighbors`\n- `allow-graph-search`\n- `allow-graph-delete-meeting`\n- `allow-graph-stats`\n- `allow-graph-extracted-meeting-ids`\n- `allow-insert-usage`\n- `allow-get-usage-summary`\n- `allow-get-stale-chat-sessions`\n- `allow-get-chats-needing-embeddings`\n- `allow-mark-chat-embedded`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Allows all vectordb plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-upsert-meeting`\n- `allow-upsert-chunks`\n- `allow-delete-meeting`\n- `allow-search`\n- `allow-get-stale-meetings`\n- `allow-get-indexed-ids`\n- `allow-get-stats`\n- `allow-get-meta`\n- `allow-rebuild`\n- `allow-graph-upsert`\n- `allow-graph-traverse`\n- `allow-graph-neighbors`\n- `allow-graph-search`\n- `allow-graph-delete-meeting`\n- `allow-graph-stats`\n- `allow-insert-usage`\n- `allow-get-usage-summary`"
+          "markdownDescription": "Allows all vectordb plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-upsert-meeting`\n- `allow-upsert-chunks`\n- `allow-delete-meeting`\n- `allow-search`\n- `allow-get-stale-meetings`\n- `allow-get-meetings-needing-embeddings`\n- `allow-get-meetings-needing-extraction`\n- `allow-mark-meeting-embedded`\n- `allow-mark-meeting-extracted`\n- `allow-get-indexed-ids`\n- `allow-get-stats`\n- `allow-get-meta`\n- `allow-rebuild`\n- `allow-graph-upsert`\n- `allow-graph-traverse`\n- `allow-graph-neighbors`\n- `allow-graph-search`\n- `allow-graph-delete-meeting`\n- `allow-graph-stats`\n- `allow-graph-extracted-meeting-ids`\n- `allow-insert-usage`\n- `allow-get-usage-summary`\n- `allow-get-stale-chat-sessions`\n- `allow-get-chats-needing-embeddings`\n- `allow-mark-chat-embedded`"
         }
       ]
     }

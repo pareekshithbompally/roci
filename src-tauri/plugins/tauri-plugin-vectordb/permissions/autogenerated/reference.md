@@ -10,6 +10,10 @@ Allows all vectordb plugin commands
 - `allow-delete-meeting`
 - `allow-search`
 - `allow-get-stale-meetings`
+- `allow-get-meetings-needing-embeddings`
+- `allow-get-meetings-needing-extraction`
+- `allow-mark-meeting-embedded`
+- `allow-mark-meeting-extracted`
 - `allow-get-indexed-ids`
 - `allow-get-stats`
 - `allow-get-meta`
@@ -20,8 +24,12 @@ Allows all vectordb plugin commands
 - `allow-graph-search`
 - `allow-graph-delete-meeting`
 - `allow-graph-stats`
+- `allow-graph-extracted-meeting-ids`
 - `allow-insert-usage`
 - `allow-get-usage-summary`
+- `allow-get-stale-chat-sessions`
+- `allow-get-chats-needing-embeddings`
+- `allow-mark-chat-embedded`
 
 ## Permission Table
 
@@ -61,6 +69,32 @@ Denies the delete_meeting command without any pre-configured scope.
 <tr>
 <td>
 
+`vectordb:allow-get-chats-needing-embeddings`
+
+</td>
+<td>
+
+Enables the get_chats_needing_embeddings command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-get-chats-needing-embeddings`
+
+</td>
+<td>
+
+Denies the get_chats_needing_embeddings command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `vectordb:allow-get-indexed-ids`
 
 </td>
@@ -87,6 +121,58 @@ Denies the get_indexed_ids command without any pre-configured scope.
 <tr>
 <td>
 
+`vectordb:allow-get-meetings-needing-embeddings`
+
+</td>
+<td>
+
+Enables the get_meetings_needing_embeddings command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-get-meetings-needing-embeddings`
+
+</td>
+<td>
+
+Denies the get_meetings_needing_embeddings command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:allow-get-meetings-needing-extraction`
+
+</td>
+<td>
+
+Enables the get_meetings_needing_extraction command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-get-meetings-needing-extraction`
+
+</td>
+<td>
+
+Denies the get_meetings_needing_extraction command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `vectordb:allow-get-meta`
 
 </td>
@@ -106,6 +192,32 @@ Enables the get_meta command without any pre-configured scope.
 <td>
 
 Denies the get_meta command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:allow-get-stale-chat-sessions`
+
+</td>
+<td>
+
+Enables the get_stale_chat_sessions command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-get-stale-chat-sessions`
+
+</td>
+<td>
+
+Denies the get_stale_chat_sessions command without any pre-configured scope.
 
 </td>
 </tr>
@@ -210,6 +322,32 @@ Enables the graph_delete_meeting command without any pre-configured scope.
 <td>
 
 Denies the graph_delete_meeting command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:allow-graph-extracted-meeting-ids`
+
+</td>
+<td>
+
+Enables the graph_extracted_meeting_ids command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-graph-extracted-meeting-ids`
+
+</td>
+<td>
+
+Denies the graph_extracted_meeting_ids command without any pre-configured scope.
 
 </td>
 </tr>
@@ -392,6 +530,84 @@ Enables the insert_usage command without any pre-configured scope.
 <td>
 
 Denies the insert_usage command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:allow-mark-chat-embedded`
+
+</td>
+<td>
+
+Enables the mark_chat_embedded command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-mark-chat-embedded`
+
+</td>
+<td>
+
+Denies the mark_chat_embedded command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:allow-mark-meeting-embedded`
+
+</td>
+<td>
+
+Enables the mark_meeting_embedded command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-mark-meeting-embedded`
+
+</td>
+<td>
+
+Denies the mark_meeting_embedded command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:allow-mark-meeting-extracted`
+
+</td>
+<td>
+
+Enables the mark_meeting_extracted command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-mark-meeting-extracted`
+
+</td>
+<td>
+
+Denies the mark_meeting_extracted command without any pre-configured scope.
 
 </td>
 </tr>

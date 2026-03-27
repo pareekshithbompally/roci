@@ -35,6 +35,7 @@
     "shell:allow-open",
     "llamacpp:default",
     "vectordb:default",
+    "calendar:default",
     "window-state:default",
     {
       "identifier": "http:default",

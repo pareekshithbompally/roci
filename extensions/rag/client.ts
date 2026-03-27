@@ -13,7 +13,7 @@ export interface MeetingMeta {
   timestamp: number;
   summary: string | null;
   categories: string | null;
-  content_hash: string;
+  content_hash?: string;
 }
 
 export interface ChunkData {
@@ -51,7 +51,7 @@ export interface ChatSessionMeta {
   title: string;
   last_message_at: number;
   message_count: number;
-  content_hash: string;
+  content_hash?: string;
 }
 
 export interface ChatChunkData {
@@ -103,6 +103,8 @@ export interface DbStats {
   kg_nodes: number;
   kg_edges: number;
   db_size_bytes: number;
+  fts_chunks: number;
+  fts_chat_chunks: number;
 }
 
 export interface DbMeta {
@@ -151,6 +153,26 @@ export const vectorDB = {
     return invoke('plugin:vectordb|get_stale_meetings', { meetings });
   },
 
+  async getMeetingsNeedingEmbeddings(meetingIds: string[]): Promise<string[]> {
+    await ensureInitialized();
+    return invoke('plugin:vectordb|get_meetings_needing_embeddings', { meetingIds });
+  },
+
+  async getMeetingsNeedingExtraction(meetingIds: string[]): Promise<string[]> {
+    await ensureInitialized();
+    return invoke('plugin:vectordb|get_meetings_needing_extraction', { meetingIds });
+  },
+
+  async markMeetingEmbedded(meetingId: string): Promise<void> {
+    await ensureInitialized();
+    await invoke('plugin:vectordb|mark_meeting_embedded', { meetingId });
+  },
+
+  async markMeetingExtracted(meetingId: string): Promise<void> {
+    await ensureInitialized();
+    await invoke('plugin:vectordb|mark_meeting_extracted', { meetingId });
+  },
+
   async getIndexedIds(): Promise<string[]> {
     await ensureInitialized();
     return invoke('plugin:vectordb|get_indexed_ids');
@@ -189,6 +211,36 @@ export const vectorDB = {
   async isChatSessionStale(sessionId: string, contentHash: string): Promise<boolean> {
     await ensureInitialized();
     return invoke('plugin:vectordb|is_chat_session_stale', { sessionId, contentHash });
+  },
+
+  async getStaleChatSessions(sessions: MeetingHash[]): Promise<string[]> {
+    await ensureInitialized();
+    return invoke('plugin:vectordb|get_stale_chat_sessions', { sessions });
+  },
+
+  async getChatsNeedingEmbeddings(sessionIds: string[]): Promise<string[]> {
+    await ensureInitialized();
+    return invoke('plugin:vectordb|get_chats_needing_embeddings', { sessionIds });
+  },
+
+  async markChatEmbedded(sessionId: string): Promise<void> {
+    await ensureInitialized();
+    await invoke('plugin:vectordb|mark_chat_embedded', { sessionId });
+  },
+
+  async markMeetingContentIndexed(meetingId: string, contentHash: string): Promise<void> {
+    await ensureInitialized();
+    await invoke('plugin:vectordb|mark_meeting_content_indexed', { meetingId, contentHash });
+  },
+
+  async markChatContentIndexed(sessionId: string, contentHash: string): Promise<void> {
+    await ensureInitialized();
+    await invoke('plugin:vectordb|mark_chat_content_indexed', { sessionId, contentHash });
+  },
+
+  async rebuildFts(): Promise<void> {
+    await ensureInitialized();
+    await invoke('plugin:vectordb|rebuild_fts');
   },
 
   async searchChats(params: ChatSearchParams): Promise<ChatSearchHit[]> {

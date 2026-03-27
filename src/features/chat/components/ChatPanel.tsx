@@ -13,13 +13,15 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHistory } from '@shared/contexts/HistoryContext';
 import { useApp, AppStatus } from '@shared/contexts/AppContext';
 import { ChatMessage } from './message';
+import TodoConfirmationBanner from './TodoConfirmationBanner';
 import type { ActionProps, CitationHandlers } from './message';
 import { ChatInput } from './ChatInput';
 import { MeetingCitationDrawer } from './MeetingCitationDrawer';
 import { WebCitationDrawer } from './WebCitationDrawer';
 import { meetingReferenceService } from '@/services/meetingReferenceService';
 import { meetingService } from '@/services/meeting.service';
-import { supportsWebSearch } from '@shared/utils/modelResolver';
+import { supportsWebSearch, supportsTranscription, resolveModel } from '@shared/utils/modelResolver';
+import { useSpeechInput } from '../hooks/useSpeechInput';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import type { MeetingCitation, WebCitation } from '@/types';
 
@@ -167,6 +169,21 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ meetingId, meetingTitle, o
     return false;
   }, [settings.chatModel, providers]);
 
+  // Check if transcription model provider supports voice input
+  const showSpeechInput = useMemo(() => {
+    const resolved = resolveModel(settings.transcriptionModel, providers);
+    return resolved ? supportsTranscription(resolved.provider) : false;
+  }, [settings.transcriptionModel, providers]);
+
+  const speech = useSpeechInput(settings.transcriptionModel, providers);
+
+  const handleSpeechStop = useCallback(async () => {
+    const text = await speech.stop();
+    if (text) {
+      chat.setInput(chat.input ? `${chat.input} ${text}` : text);
+    }
+  }, [speech, chat]);
+
   const currentMessages = chat.currentSession?.messages || [];
   const showEmptyState = currentMessages.length === 0;
 
@@ -201,6 +218,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ meetingId, meetingTitle, o
                 role={message.role}
                 text={message.text}
                 parts={message.parts}
+                meetingRefs={message.meetingRefs}
                 timestamp={message.timestamp}
                 suggestions={message.suggestions}
                 onSuggestionClick={(suggestion) => chat.sendMessage(suggestion, historyItems, settings, providers)}
@@ -227,6 +245,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ meetingId, meetingTitle, o
         </StickToBottom>
       )}
 
+      {/* Todo confirmation banner */}
+      <TodoConfirmationBanner />
+
       {/* Input */}
       <ChatInput
         value={chat.input}
@@ -245,6 +266,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ meetingId, meetingTitle, o
         onAttach={chat.addAttachment}
         onRemoveAttachment={chat.removeAttachment}
         onScreenshot={chat.addScreenshotAttachment}
+        showSpeechInput={showSpeechInput}
+        speechState={speech.state}
+        micStream={speech.stream}
+        speechElapsed={speech.elapsed}
+        onSpeechStart={speech.start}
+        onSpeechStop={handleSpeechStop}
+        onSpeechCancel={speech.cancel}
       />
       {/* Slide-in citation drawers */}
       <MeetingCitationDrawer

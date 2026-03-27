@@ -35,6 +35,7 @@ async function synthesisPhase(params: {
   webSearchEnabled?: boolean;
   signal?: AbortSignal;
   retrievalContext: string;
+  intentType?: string;
   onChunk: OrchestratorCallbacks['onChunk'];
   onMediaPart?: OrchestratorCallbacks['onMediaPart'];
 }): Promise<TokenUsage | undefined> {
@@ -49,8 +50,25 @@ async function synthesisPhase(params: {
   if (params.retrievalContext) {
     sdkMessages.push(
       { role: 'assistant', content: params.retrievalContext },
-      { role: 'user', content: 'Based on the retrieved context above, provide a comprehensive answer to my question.' },
     );
+
+    if (params.intentType === 'manage_todos') {
+      // The user sees a confirmation card in the UI — the LLM must acknowledge briefly
+      sdkMessages.push({
+        role: 'user',
+        content:
+          'A todo confirmation card is now visible in the UI for the user to review and confirm. ' +
+          'There may be one or multiple todos listed. ' +
+          'Briefly acknowledge what you understood from their request in 1-2 short sentences. ' +
+          'Do NOT say you created or saved anything — the user still needs to confirm via the card. ' +
+          'Do NOT repeat every field. Be natural and concise.',
+      });
+    } else {
+      sdkMessages.push({
+        role: 'user',
+        content: 'Based on the retrieved context above, provide a comprehensive answer to my question.',
+      });
+    }
   }
 
   const result = streamText({
@@ -176,7 +194,9 @@ export async function orchestrate(
 
   // ── Step 2: Programmatic Retrieval ──
   let retrievalResult: RetrievalResult = { context: '', citations: [], toolsUsed: [] };
-  if (intent.depth !== 'none') {
+  // manage_todos always needs retrieval (to run the tool) even at depth none
+  const needsRetrieval = intent.depth !== 'none' || intent.intent === 'manage_todos';
+  if (needsRetrieval) {
     try {
       retrievalResult = await executeRetrieval({
         intent,
@@ -194,6 +214,7 @@ export async function orchestrate(
     resolved, messages, systemPrompt,
     webSearchEnabled, signal,
     retrievalContext: retrievalResult.context,
+    intentType: intent.intent,
     onChunk, onMediaPart,
   });
 

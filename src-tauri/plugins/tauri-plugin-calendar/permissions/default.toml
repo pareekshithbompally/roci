@@ -1,0 +1,8 @@
+[default]
+description = "Allows all calendar plugin commands"
+permissions = [
+  "allow-request-access",
+  "allow-check-access",
+  "allow-get-upcoming-events",
+  "allow-get-events-in-range",
+]

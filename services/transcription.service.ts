@@ -30,6 +30,15 @@ export interface TranscriptionResult {
     settings: AppSettings;
     providers: ModelProvider[];
   };
+  /** Calendar metadata to persist in the meeting index. */
+  calendarMeta?: {
+    calendarEventId: string;
+    scheduledTitle: string;
+    participants: Array<{ name?: string; email?: string; status?: string }>;
+    scheduledStart: string;
+    scheduledEnd: string;
+    meetingUrl?: string;
+  };
 }
 
 class TranscriptionService {
@@ -95,6 +104,13 @@ class TranscriptionService {
         inputSource,
         createdAt: existing?.createdAt || now,
         updatedAt: now,
+        // Preserve calendar metadata from existing entry or new transcription
+        calendarEventId: result.calendarMeta?.calendarEventId ?? existing?.calendarEventId,
+        scheduledTitle: result.calendarMeta?.scheduledTitle ?? existing?.scheduledTitle,
+        participants: result.calendarMeta?.participants ?? existing?.participants,
+        scheduledStart: result.calendarMeta?.scheduledStart ?? existing?.scheduledStart,
+        scheduledEnd: result.calendarMeta?.scheduledEnd ?? existing?.scheduledEnd,
+        meetingUrl: result.calendarMeta?.meetingUrl ?? existing?.meetingUrl,
       };
 
       if (existing) {

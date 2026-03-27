@@ -19,6 +19,7 @@ const VALID_INTENTS: IntentType[] = [
   'meeting_detail',
   'meeting_list',
   'action_items',
+  'manage_todos',
   'relationship',
   'cross_meeting',
   'chat_recall',
@@ -81,6 +82,7 @@ function buildClassifierInput(
 
   return `Meeting count: ${meetingCount}
 Chat session count: ${chatCount}
+Today's date: ${new Date().toISOString().split('T')[0]} (${new Date().toLocaleDateString('en-US', { weekday: 'long' })})
 
 Recent conversation:
 ${formatted}
@@ -105,6 +107,8 @@ function parseClassifierOutput(
 
     return {
       ...parsed,
+      // Normalize: if LLM returns singular `mutation`, wrap it into `mutations` array
+      mutations: parsed.mutations || (parsed.mutation ? [parsed.mutation] : undefined),
       depth: parsed.depth || depthForIntent(parsed.intent),
       search_query: parsed.search_query || undefined,
     };
@@ -141,6 +145,8 @@ function depthForIntent(intent: IntentType): 'none' | 'surface' | 'deep' {
     case 'meeting_list':
       return 'none';
     case 'action_items':
+      return 'surface';
+    case 'manage_todos':
       return 'surface';
     case 'relationship':
       return 'surface';

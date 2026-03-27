@@ -4,7 +4,7 @@ import AssistantMessage from './AssistantMessage';
 import type { ChatMessageProps } from './types';
 
 export const ChatMessage: React.FC<ChatMessageProps> = memo(({
-  id, role, text, parts, timestamp, suggestions, onSuggestionClick,
+  id, role, text, parts, meetingRefs, timestamp, suggestions, onSuggestionClick,
   isLastMessage = false, provider, model,
   state = 'complete', loadingLabel, tokenCount, inputTokenCount, tokensPerSecond,
   toolActivity, meetingCitations,
@@ -16,7 +16,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({
   return (
     <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
       {isUser ? (
-        <UserMessage id={id} text={text} parts={parts} timestamp={timestamp} isCopied={isCopied} actions={actions} />
+        <UserMessage id={id} text={text} parts={parts} meetingRefs={meetingRefs} timestamp={timestamp} isCopied={isCopied} actions={actions} />
       ) : (
         <AssistantMessage
           id={id} text={text} parts={parts} timestamp={timestamp}
@@ -39,6 +39,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({
     prev.id === next.id &&
     prev.text === next.text &&
     prev.parts === next.parts &&
+    prev.meetingRefs === next.meetingRefs &&
     prev.loadingLabel === next.loadingLabel &&
     prev.isCopied === next.isCopied &&
     prev.isLastMessage === next.isLastMessage &&

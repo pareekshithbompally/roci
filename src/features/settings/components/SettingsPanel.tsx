@@ -16,6 +16,7 @@ import { CategoriesPanel } from './CategoriesPanel';
 import { InterfacePanel } from './InterfacePanel';
 import { AudioPanel } from './AudioPanel';
 import { UsagePanel } from './UsagePanel';
+import { IntegrationsPanel } from './IntegrationsPanel';
 import { SettingsSaveButton } from './SettingsSaveButton';
 import { UnsavedChangesModal } from '@shared/components/UnsavedChangesModal';
 import { isTauriEnvironment } from '@/services/tauri';
@@ -23,15 +24,16 @@ import { useSettingsSave } from '../hooks/useSettingsSave';
 import { BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 
-type SettingsPanelType = 'audio' | 'providers' | 'local-inference' | 'categories' | 'interface' | 'usage';
+type SettingsPanelType = 'audio' | 'providers' | 'local-inference' | 'categories' | 'integrations' | 'interface' | 'usage';
 
 /** Panels that use explicit save (not auto-save or instant) */
-const SAVEABLE_PANELS = new Set<SettingsPanelType>(['audio', 'providers', 'categories', 'interface']);
+const SAVEABLE_PANELS = new Set<SettingsPanelType>(['audio', 'providers', 'categories', 'integrations', 'interface']);
 
 const PANEL_SAVE_NAMES: Partial<Record<SettingsPanelType, string>> = {
   audio: 'Audio settings',
   providers: 'Provider settings',
   categories: 'Workflow settings',
+  integrations: 'Integration settings',
   interface: 'System settings',
 };
 
@@ -40,6 +42,7 @@ const panels: Array<{ id: SettingsPanelType; label: string; tauriOnly?: boolean 
   { id: 'providers', label: 'Providers' },
   { id: 'local-inference', label: 'Local Inference', tauriOnly: true },
   { id: 'categories', label: 'Workflow' },
+  { id: 'integrations', label: 'Integrations', tauriOnly: true },
   { id: 'usage', label: 'Usage' },
   { id: 'interface', label: 'System' },
 ];
@@ -93,6 +96,7 @@ export const SettingsPanel: React.FC = () => {
         )}
         {activePanel === 'local-inference' && <LocalInferencePanel />}
         {activePanel === 'categories' && <CategoriesPanel />}
+        {activePanel === 'integrations' && <IntegrationsPanel />}
         {activePanel === 'interface' && <InterfacePanel />}
         {activePanel === 'usage' && <UsagePanel />}
 

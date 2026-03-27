@@ -27,8 +27,10 @@ import type { ResolvedModel } from '@shared/utils/modelResolver';
  * Transcribe audio via the Whisper API using direct fetch (no OpenAI SDK).
  * Uses the provider's base URL for OpenAI-compatible providers, or the
  * standard OpenAI endpoint otherwise.
+ *
+ * Exported for use by audioToRawText (chat voice input).
  */
-async function whisperTranscribe(audioBlob: Blob, resolved: ResolvedModel): Promise<string> {
+export async function whisperTranscribe(audioBlob: Blob, resolved: ResolvedModel): Promise<string> {
   const fetch = getPlatformFetch();
   const baseUrl = (resolved.baseUrl || 'https://api.openai.com/v1').replace(/\/$/, '');
   const endpoint = `${baseUrl}/audio/transcriptions`;
@@ -89,6 +91,38 @@ async function fileToSDKContent(file: File): Promise<UserContent> {
   return [filePart];
 }
 
+/**
+ * Convert an audio blob to raw transcript text.
+ *
+ * This is the shared primitive for chat voice input (STT mic button).
+ * It does NOT produce summaries, action items, or any meeting structure —
+ * it returns only the spoken words as a plain string.
+ *
+ * Routes:
+ *   Gemini  → generateText with audio FilePart + verbatim transcription prompt
+ *   Others  → whisperTranscribe() (POST to /audio/transcriptions)
+ *
+ * The meeting pipeline (processAudio) is completely separate and untouched.
+ */
+export async function audioToRawText(audioBlob: Blob, resolved: ResolvedModel): Promise<string> {
+  if (getProviderType(resolved.provider) === 'gemini') {
+    const model = createModel(resolved);
+    const audioData = new Uint8Array(await audioBlob.arrayBuffer());
+    const result = await generateText({
+      model,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'file', data: audioData, mediaType: audioBlob.type || 'audio/webm' } satisfies FilePart,
+          { type: 'text', text: 'Transcribe this audio exactly as spoken. Output only the transcript text, nothing else. No labels, no timestamps, no commentary.' } satisfies TextPart,
+        ],
+      }],
+    });
+    return result.text.trim();
+  }
+  return whisperTranscribe(audioBlob, resolved);
+}
+
 // ============ Service ============
 
 class UnifiedAIService {
@@ -97,7 +131,8 @@ class UnifiedAIService {
     audioBlob: Blob,
     categories: string[],
     settings: AppSettings,
-    providers: ModelProvider[]
+    providers: ModelProvider[],
+    meetingContext?: import('../src/core/ai/prompts/transcription.prompt').MeetingContext
   ): Promise<{ result: ProcessedResult; usage?: TokenUsage }> {
     const resolved = resolveModel(settings.transcriptionModel, providers);
     if (!resolved) {
@@ -114,6 +149,7 @@ class UnifiedAIService {
     const config = buildTranscriptionRequest({
       categories,
       supportsStructuredOutput: modelInfo?.capabilities?.structuredOutput !== false,
+      meetingContext,
     });
 
     const model = createModel(resolved);

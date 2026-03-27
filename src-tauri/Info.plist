@@ -7,6 +7,12 @@
     <key>NSScreenCaptureUsageDescription</key>
     <string>Kasset.ai needs screen recording permission to capture system audio.</string>
 
+    <key>NSCalendarsFullAccessUsageDescription</key>
+    <string>Kasset.ai reads your calendar to notify you about upcoming meetings and help identify speakers during transcription.</string>
+
+    <key>NSCalendarsUsageDescription</key>
+    <string>Kasset.ai reads your calendar to notify you about upcoming meetings and help identify speakers during transcription.</string>
+
     <key>NSUserNotificationAlertStyle</key>
     <string>alert</string>
 </dict>

@@ -27,6 +27,7 @@ const TOOL_LABELS: Record<string, string> = {
   get_meeting: 'Loading meeting…',
   list_meetings: 'Listing meetings…',
   get_action_items: 'Getting action items…',
+  manage_todo: 'Managing todo…',
   query_graph: 'Querying knowledge graph…',
   search_chats: 'Searching chats…',
   get_chat: 'Loading chat…',
@@ -109,7 +110,8 @@ export async function executeRetrieval(params: {
 }): Promise<RetrievalResult> {
   const { intent, historyItems, signal, onToolActivity } = params;
 
-  if (intent.depth === 'none') {
+  // manage_todos always runs (even at depth: none) to build the proposal
+  if (intent.depth === 'none' && intent.intent !== 'manage_todos') {
     return { context: '', citations: [], toolsUsed: [] };
   }
 
@@ -138,6 +140,9 @@ export async function executeRetrieval(params: {
       break;
     case 'action_items':
       await executeActionItems(ctx);
+      break;
+    case 'manage_todos':
+      await executeManageTodos(ctx);
       break;
     case 'relationship':
       await executeRelationship(ctx);
@@ -444,6 +449,57 @@ async function executeActionItems(ctx: ExecutionContext): Promise<void> {
   await executeTool(ctx, 'get_action_items', {
     status: ctx.intent.action_item_filter ?? 'all',
   });
+}
+
+/**
+ * manage_todos: Create, toggle, update, or delete one or more todos.
+ * If mutation.meeting_query is set, search for the meeting first via RAG.
+ * Then call manage_todo tool for each mutation to build TodoProposals for user confirmation.
+ */
+async function executeManageTodos(ctx: ExecutionContext): Promise<void> {
+  // Support both `mutations` array (preferred) and legacy singular `mutation`
+  const mutations = ctx.intent.mutations
+    || (ctx.intent.mutation ? [ctx.intent.mutation] : null);
+
+  if (!mutations || mutations.length === 0) {
+    ctx.contextParts.push('No mutation parameters found — cannot manage todo.');
+    return;
+  }
+
+  for (const mutation of mutations) {
+    let meetingId = '_general';
+    let meetingTitle = 'General';
+
+    // If user referenced a meeting, resolve it via RAG search
+    if (mutation.meeting_query && !mutation.is_general) {
+      try {
+        const results = await ragSearcher.search(mutation.meeting_query, { limit: 1 });
+
+        if (results.length > 0) {
+          meetingId = results[0].meetingId;
+          const historyItem = ctx.historyItems.find(h => h.id === meetingId);
+          meetingTitle = historyItem?.title || results[0].meetingTitle || 'Unknown Meeting';
+        } else {
+          ctx.contextParts.push(`Could not find a meeting matching "${mutation.meeting_query}". Creating as a general todo.`);
+        }
+      } catch (error: unknown) {
+        console.error('[RetrievalExecutor] Meeting search for manage_todos failed:', error);
+        ctx.contextParts.push(`Meeting search failed. Creating as a general todo.`);
+      }
+    }
+
+    // Call the manage_todo tool (builds proposal, does NOT write to DB)
+    await executeTool(ctx, 'manage_todo', {
+      action: mutation.action,
+      text: mutation.todo_text,
+      meeting_id: meetingId,
+      meeting_title: meetingTitle,
+      due_date: mutation.due_date,
+      reminder_datetime: mutation.reminder_datetime,
+      owner: mutation.owner,
+      match_text: mutation.match_text,
+    });
+  }
 }
 
 /**

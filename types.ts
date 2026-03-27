@@ -51,6 +51,13 @@ export interface HistoryItem extends ProcessedResult {
   summaryId?: string;
   inputSource?: AudioCaptureSource;
   pendingTranscription?: boolean;
+  /** Calendar integration fields (populated when recording started from a calendar event) */
+  calendarEventId?: string;
+  scheduledTitle?: string;
+  participants?: Array<{ name?: string; email?: string; status?: string }>;
+  scheduledStart?: string;
+  scheduledEnd?: string;
+  meetingUrl?: string;
 }
 
 /**
@@ -103,6 +110,8 @@ export interface ChatMessage {
   text: string;
   /** Multimodal content parts (text, images, audio, video) */
   parts?: ChatPart[];
+  /** Meeting references attached as context for this message */
+  meetingRefs?: Array<{ id: string; title: string }>;
   timestamp: number;
   suggestions?: string[];
   provider?: string;
@@ -181,6 +190,12 @@ export interface AppSettings {
     /** Default meeting duration in minutes (for reminders) — 0 = no reminder */
     durationReminderMinutes: number;
   };
+  /** macOS Calendar integration (EventKit) */
+  calendarIntegration?: {
+    enabled: boolean;
+    /** Minutes before meeting start to show notification */
+    notifyMinutesBefore: number;
+  };
 }
 
 // ============ New Data Layer Types ============
@@ -195,6 +210,18 @@ export interface MeetingIndexEntry {
   createdAt: string;
   updatedAt: string;
   pendingTranscription?: boolean;
+  /** Calendar integration — populated when recording starts from a calendar notification */
+  calendarEventId?: string;
+  /** Original meeting title from the calendar (distinct from LLM-generated title) */
+  scheduledTitle?: string;
+  /** Participant list from calendar */
+  participants?: Array<{ name?: string; email?: string; status?: string }>;
+  /** Scheduled start time (ISO 8601) */
+  scheduledStart?: string;
+  /** Scheduled end time (ISO 8601) */
+  scheduledEnd?: string;
+  /** Extracted video call URL */
+  meetingUrl?: string;
 }
 
 /** Structured summary — matches LLM JSON schema directly */

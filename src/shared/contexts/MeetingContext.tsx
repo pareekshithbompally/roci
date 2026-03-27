@@ -126,6 +126,7 @@ export const MeetingProvider: React.FC<MeetingProviderProps> = ({ children }) =>
             owner: t.owner,
             dueDate: t.dueDate,
             completed: t.completed,
+            reminder: t.reminder,
           }));
 
           aiTodos = aiEntries.map((t: TodoEntry) => ({
@@ -134,6 +135,7 @@ export const MeetingProvider: React.FC<MeetingProviderProps> = ({ children }) =>
             owner: t.owner,
             dueDate: t.dueDate,
             completed: t.completed,
+            reminder: t.reminder,
           }));
 
           aiEntries.forEach((t: TodoEntry) => {
@@ -159,6 +161,47 @@ export const MeetingProvider: React.FC<MeetingProviderProps> = ({ children }) =>
 
     loadMeetingData();
     return () => { cancelled = true; };
+  }, [appSelectedHistoryId]);
+
+  // Refresh todos when a chat-created todo is committed
+  useEffect(() => {
+    const handleTodoMutation = async (event: Event) => {
+      const { meetingId } = (event as CustomEvent<{ meetingId: string; action: string }>).detail;
+      if (meetingId !== appSelectedHistoryId) return;
+
+      try {
+        const todoEntries = await todosRepository.readDoc(meetingId);
+        if (!todoEntries) return;
+
+        const aiEntries = todoEntries.filter(t => t.source === 'ai');
+        const userEntries = todoEntries.filter(t => t.source !== 'ai');
+        const completions: Record<string, boolean> = {};
+
+        const userTodos: ActionItem[] = userEntries.map((t: TodoEntry) => ({
+          id: t.id, text: t.text, owner: t.owner, dueDate: t.dueDate,
+          completed: t.completed, reminder: t.reminder,
+        }));
+
+        const aiTodos: ActionItem[] = aiEntries.map((t: TodoEntry) => ({
+          id: t.id, text: t.text, owner: t.owner, dueDate: t.dueDate,
+          completed: t.completed, reminder: t.reminder,
+        }));
+
+        aiEntries.forEach((t: TodoEntry) => { completions[t.id] = t.completed; });
+
+        setState(prev => ({
+          ...prev,
+          userTodos,
+          aiTodos,
+          actionItemCompletions: { ...prev.actionItemCompletions, ...completions },
+        }));
+      } catch (error: unknown) {
+        console.error('[MeetingContext] Error refreshing todos after mutation:', error);
+      }
+    };
+
+    window.addEventListener('kasset:todo-mutation', handleTodoMutation);
+    return () => window.removeEventListener('kasset:todo-mutation', handleTodoMutation);
   }, [appSelectedHistoryId]);
 
   // Set current meeting

@@ -96,6 +96,12 @@ function indexEntryToHistoryItem(entry: MeetingIndexEntry): HistoryItem {
     transcript: '',
     summary: '',
     pendingTranscription: entry.pendingTranscription,
+    calendarEventId: entry.calendarEventId,
+    scheduledTitle: entry.scheduledTitle,
+    participants: entry.participants,
+    scheduledStart: entry.scheduledStart,
+    scheduledEnd: entry.scheduledEnd,
+    meetingUrl: entry.meetingUrl,
   };
 }
 
@@ -156,6 +162,12 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
         pendingTranscription: item.pendingTranscription,
         createdAt: now,
         updatedAt: now,
+        calendarEventId: item.calendarEventId,
+        scheduledTitle: item.scheduledTitle,
+        participants: item.participants,
+        scheduledStart: item.scheduledStart,
+        scheduledEnd: item.scheduledEnd,
+        meetingUrl: item.meetingUrl,
       });
       setState(prev => ({ ...prev, items: [item, ...prev.items] }));
     } catch (error) {

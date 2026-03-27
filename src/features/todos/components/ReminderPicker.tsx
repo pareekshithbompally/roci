@@ -5,7 +5,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Bell, BellRing, X, Clock } from 'lucide-react';
-import { Popover, PopoverTrigger, PopoverContent } from '@shared/ui';
+import { Popover, PopoverTrigger, PopoverContent, DatePicker, TimePicker } from '@shared/ui';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import { reminderService } from '@/services/reminder.service';
 import type { ScheduleReminderParams } from '@/services/reminder.service';
@@ -234,19 +234,18 @@ const ReminderPicker: React.FC<ReminderPickerProps> = ({
             </button>
           ) : (
             <div className={`space-y-2 pt-2 border-t ${BORDER.default}`}>
-              <div className="flex gap-2">
-                <input
-                  type="date"
+              <div className="flex gap-2 items-center">
+                <DatePicker
                   value={customDate}
+                  onChange={(val) => setCustomDate(val)}
                   min={minDate}
-                  onChange={(e) => setCustomDate(e.target.value)}
-                  className={`flex-1 px-2 py-1.5 text-xs ${COMPONENT.inlineInput}`}
+                  placeholder="Date"
+                  className="flex-1"
                 />
-                <input
-                  type="time"
+                <TimePicker
                   value={customTime}
-                  onChange={(e) => setCustomTime(e.target.value)}
-                  className={`w-[90px] px-2 py-1.5 text-xs ${COMPONENT.inlineInput}`}
+                  onChange={(val) => setCustomTime(val)}
+                  className="w-[100px]"
                 />
               </div>
               <div className="flex gap-2 justify-end">

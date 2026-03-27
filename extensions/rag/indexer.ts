@@ -29,6 +29,7 @@ export interface IndexOptions {
 
 /**
  * Index a single meeting: chunk → embed → upsert to Rust backend.
+ * content_hash is stamped ONLY after chunks are confirmed in DB.
  */
 async function indexMeeting(
   item: HistoryItem,
@@ -42,14 +43,13 @@ async function indexMeeting(
     return { status: 'skipped', reason: 'no_chunks', chunkCount: 0, embeddingCount: 0 };
   }
 
-  // Upsert meeting metadata
+  // Upsert meeting metadata WITHOUT content_hash (deferred until chunks confirmed)
   const meetingMeta: MeetingMeta = {
     id: item.id,
     title: item.title,
     timestamp: item.timestamp,
     summary: item.summary || null,
     categories: (item.categories || []).join(', ') || null,
-    content_hash: contentHash,
   };
   await vectorDB.upsertMeeting(meetingMeta);
 
@@ -79,6 +79,10 @@ async function indexMeeting(
 
   // Upsert all chunks + vectors atomically in the Rust backend
   await vectorDB.upsertChunks(item.id, chunkDataList);
+
+  // Stamp content_hash AFTER chunks are confirmed — prevents hash poisoning on partial failure
+  await vectorDB.markMeetingContentIndexed(item.id, contentHash);
+
   return {
     status: 'indexed',
     chunkCount: chunkDataList.length,
@@ -87,19 +91,39 @@ async function indexMeeting(
 }
 
 /**
- * Index all meetings that are new or stale (content changed since last index).
- * If extractionContext is provided, also re-extracts entities for stale meetings.
- * Returns the number of meetings indexed.
+ * Index all meetings using multi-phase staleness tracking.
+ *
+ * Three independent concerns, each with its own completion tracking:
+ *   Step 1: Content-stale meetings → chunk + FTS (+ embeddings if available)
+ *   Step 2: Embedding-stale meetings → re-index with embeddings (content already fresh)
+ *   Step 3: Extraction-stale meetings → extract KG entities
+ *
+ * Phase 1 (FTS-only) writes content_hash but NOT embedding_hash. Phase 2 finds
+ * embedding_hash != content_hash and fills in embeddings. This eliminates the
+ * single-hash poisoning bug where Phase 1 prevented Phase 2 from running.
  */
 async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptions): Promise<number> {
   if (items.length === 0) return 0;
 
-  // Support both old signature (signal) and new (IndexOptions)
   const signal = options instanceof AbortSignal ? options : options?.signal;
   const includeEmbeddings = options instanceof AbortSignal ? true : options?.includeEmbeddings ?? true;
   const extractionContext = options instanceof AbortSignal ? undefined : options?.extractionContext;
 
   await vectorDB.initialize();
+
+  // Auto-heal: detect empty FTS5 with non-empty chunks (caused by prior hash-poisoning bug)
+  try {
+    const stats = await vectorDB.getStats();
+    if (
+      (stats.total_chunks > 0 && stats.fts_chunks === 0) ||
+      (stats.chat_chunks > 0 && stats.fts_chat_chunks === 0)
+    ) {
+      console.warn('[RAGIndexer] FTS5 index empty but chunks exist — rebuilding FTS indexes');
+      await vectorDB.rebuildFts();
+    }
+  } catch (error) {
+    console.error('[RAGIndexer] FTS recovery check failed:', error);
+  }
 
   // Compute content hashes for all items
   const hashes = await Promise.all(
@@ -109,97 +133,160 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
     }))
   );
 
-  // Ask the Rust backend which meetings are stale or missing
-  const staleIds = await vectorDB.getStaleMeetings(hashes);
-  if (staleIds.length === 0) {
-    return 0;
-  }
-
-  const staleSet = new Set(staleIds);
-  const staleItems = items.filter((item) => staleSet.has(item.id));
   let indexed = 0;
 
-  emitProgress({ kind: 'indexing', status: 'started', total: staleItems.length });
+  // ── Step 1: Index content-stale meetings (chunks + FTS + optional embeddings) ──
+  const staleIds = await vectorDB.getStaleMeetings(hashes);
+  const staleSet = new Set(staleIds);
+  const staleItems = items.filter((item) => staleSet.has(item.id));
 
-  for (let i = 0; i < staleItems.length; i++) {
-    if (signal?.aborted) break;
+  if (staleItems.length > 0) {
+    emitProgress({ kind: 'indexing', status: 'started', total: staleItems.length });
 
-    const item = staleItems[i];
+    for (let i = 0; i < staleItems.length; i++) {
+      if (signal?.aborted) break;
+
+      const item = staleItems[i];
+      emitProgress({
+        kind: 'indexing',
+        status: 'progress',
+        current: i + 1,
+        total: staleItems.length,
+        currentTitle: item.title,
+      });
+
+      console.log(`[RAGIndexer] Indexing ${i + 1}/${staleItems.length}: ${item.title}`);
+
+      try {
+        const result = await indexMeeting(item, { includeEmbeddings });
+        if (result.status === 'indexed') {
+          indexed++;
+          // Mark embedding completion if embeddings were included and succeeded
+          if (includeEmbeddings && result.embeddingCount > 0) {
+            await vectorDB.markMeetingEmbedded(item.id);
+          }
+        } else if (result.status === 'failed') {
+          console.warn(`[RAGIndexer] Indexing failed for "${item.title}": ${result.reason ?? 'unknown'}`);
+        }
+      } catch (error) {
+        console.error(`[RAGIndexer] Failed to index "${item.title}":`, error);
+      }
+    }
 
     emitProgress({
       kind: 'indexing',
-      status: 'progress',
-      current: i + 1,
+      status: 'complete',
+      current: indexed,
       total: staleItems.length,
-      currentTitle: item.title,
     });
 
-    console.log(`[RAGIndexer] Indexing ${i + 1}/${staleItems.length}: ${item.title}`);
-
-    try {
-      const result = await indexMeeting(item, { includeEmbeddings });
-      if (result.status === 'indexed') {
-        indexed++;
-      } else if (result.status === 'failed') {
-        console.warn(`[RAGIndexer] Indexing failed for "${item.title}": ${result.reason ?? 'unknown'}`);
-      }
-    } catch (error) {
-      console.error(`[RAGIndexer] Failed to index "${item.title}":`, error);
+    if (indexed > 0) {
+      const stats = await vectorDB.getStats();
+      console.log(
+        `[RAGIndexer] Indexed ${indexed} meetings (${stats.total_meetings} total, ${stats.total_chunks} chunks)`
+      );
     }
   }
 
-  emitProgress({
-    kind: 'indexing',
-    status: 'complete',
-    current: indexed,
-    total: staleItems.length,
-  });
+  // ── Step 2: Upgrade embedding-stale meetings (content-fresh but embeddings missing) ──
+  if (includeEmbeddings) {
+    const allIds = items.map(i => i.id);
+    const needsEmbeddingIds = await vectorDB.getMeetingsNeedingEmbeddings(allIds);
 
-  if (indexed > 0) {
-    const stats = await vectorDB.getStats();
-    console.log(
-      `[RAGIndexer] Indexed ${indexed} meetings (${stats.total_meetings} total, ${stats.total_chunks} chunks)`
-    );
-  }
+    if (needsEmbeddingIds.length > 0) {
+      const needsEmbeddingSet = new Set(needsEmbeddingIds);
+      const embeddingItems = items.filter(i => needsEmbeddingSet.has(i.id));
 
-  // Phase 2: Entity extraction for meetings with structured summaries
-  if (extractionContext) {
-    const extractable = staleItems.filter(item => item.structuredSummary);
-    if (extractable.length > 0) {
-      emitProgress({ kind: 'extraction', status: 'started', total: extractable.length });
+      console.log(`[RAGIndexer] ${embeddingItems.length} meetings need embedding upgrade`);
+      emitProgress({ kind: 'embedding', status: 'started', total: embeddingItems.length });
 
-      let extracted = 0;
-      for (let i = 0; i < extractable.length; i++) {
+      let embedded = 0;
+      for (let i = 0; i < embeddingItems.length; i++) {
         if (signal?.aborted) break;
-        const item = extractable[i];
 
+        const item = embeddingItems[i];
         emitProgress({
-          kind: 'extraction',
+          kind: 'embedding',
           status: 'progress',
           current: i + 1,
-          total: extractable.length,
+          total: embeddingItems.length,
           currentTitle: item.title,
         });
 
         try {
-          const summary = toMeetingSummary(item.structuredSummary!);
-          const success = await entityExtractor.extractAndUpsert(
-            item.id, item.title, summary, item.transcript,
-            extractionContext.settings, extractionContext.providers,
-            item.categories || [],
-          );
-          if (success) extracted++;
-        } catch (err) {
-          console.error(`[RAGIndexer] Entity extraction failed for "${item.title}":`, err);
+          // Re-index with embeddings — re-does FTS (idempotent) but adds embeddings
+          const result = await indexMeeting(item, { includeEmbeddings: true });
+          if (result.status === 'indexed' && result.embeddingCount > 0) {
+            await vectorDB.markMeetingEmbedded(item.id);
+            embedded++;
+          }
+        } catch (error) {
+          console.error(`[RAGIndexer] Embedding upgrade failed for "${item.title}":`, error);
         }
       }
 
       emitProgress({
-        kind: 'extraction',
+        kind: 'embedding',
         status: 'complete',
-        current: extracted,
-        total: extractable.length,
+        current: embedded,
+        total: embeddingItems.length,
       });
+
+      if (embedded > 0) {
+        console.log(`[RAGIndexer] Embedded ${embedded} meetings`);
+      }
+    }
+  }
+
+  // ── Step 3: Entity extraction for extraction-stale meetings ──
+  if (extractionContext) {
+    const extractable = items.filter(item => item.structuredSummary);
+    if (extractable.length > 0) {
+      const extractableIds = extractable.map(i => i.id);
+      const needsExtractionIds = await vectorDB.getMeetingsNeedingExtraction(extractableIds);
+
+      if (needsExtractionIds.length > 0) {
+        const needsExtractionSet = new Set(needsExtractionIds);
+        const extractionItems = extractable.filter(i => needsExtractionSet.has(i.id));
+
+        emitProgress({ kind: 'extraction', status: 'started', total: extractionItems.length });
+
+        let extracted = 0;
+        for (let i = 0; i < extractionItems.length; i++) {
+          if (signal?.aborted) break;
+          const item = extractionItems[i];
+
+          emitProgress({
+            kind: 'extraction',
+            status: 'progress',
+            current: i + 1,
+            total: extractionItems.length,
+            currentTitle: item.title,
+          });
+
+          try {
+            const summary = toMeetingSummary(item.structuredSummary!);
+            const success = await entityExtractor.extractAndUpsert(
+              item.id, item.title, summary, item.transcript,
+              extractionContext.settings, extractionContext.providers,
+              item.categories || [],
+            );
+            if (success) {
+              await vectorDB.markMeetingExtracted(item.id);
+              extracted++;
+            }
+          } catch (err) {
+            console.error(`[RAGIndexer] Entity extraction failed for "${item.title}":`, err);
+          }
+        }
+
+        emitProgress({
+          kind: 'extraction',
+          status: 'complete',
+          current: extracted,
+          total: extractionItems.length,
+        });
+      }
     }
   }
 

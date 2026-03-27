@@ -7,7 +7,7 @@
 
 import React, { KeyboardEvent, useRef, useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUp, Square, Globe, Plus, X, FileText, Music, Film, Image as ImageIcon, Camera, Loader2 } from 'lucide-react';
+import { ArrowUp, Square, Globe, Plus, X, FileText, Music, Film, Image as ImageIcon, Camera, Loader2, Mic } from 'lucide-react';
 import { MeetingMentionPopup } from './MeetingMentionPopup';
 import { ContextChips } from './ContextChips';
 import { ModelPicker } from './ModelPicker';
@@ -29,6 +29,8 @@ import { formatShortcut } from '@config/shortcuts.config';
 import { useChat } from '@shared/contexts/ChatContext';
 import type { MeetingListItem } from '@/services/meetingReferenceService';
 import type { ChatPart } from '@/types';
+import type { SpeechState } from '../hooks/useSpeechInput';
+import { VoiceWaveform } from './VoiceWaveform';
 
 const ACCEPTED_FILE_TYPES = 'image/*,audio/*,video/*,.pdf,.txt,.md,.csv,.json,.doc,.docx';
 
@@ -78,6 +80,17 @@ interface ChatInputProps {
   onRemoveAttachment?: (index: number) => void;
   /** Callback when a screenshot is captured (base64 PNG, display name) */
   onScreenshot?: (base64: string, name: string) => void;
+  /** Whether to show the mic voice-input button */
+  showSpeechInput?: boolean;
+  /** Current speech state — drives recording UI */
+  speechState?: SpeechState;
+  /** Live mic stream for waveform visualization */
+  micStream?: MediaStream | null;
+  /** Elapsed recording seconds */
+  speechElapsed?: number;
+  onSpeechStart?: () => void;
+  onSpeechStop?: () => void;
+  onSpeechCancel?: () => void;
 }
 
 /** Get a display name for an attachment part */
@@ -120,6 +133,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onAttach,
   onRemoveAttachment,
   onScreenshot,
+  showSpeechInput = false,
+  speechState = 'idle',
+  micStream = null,
+  speechElapsed = 0,
+  onSpeechStart,
+  onSpeechStop,
+  onSpeechCancel,
 }) => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -265,6 +285,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   const canSend = !isLoading && !disabled && (value.trim().length > 0 || attachments.length > 0);
+  const isRecording = speechState === 'recording';
+  const isTranscribing = speechState === 'transcribing';
+  const isCapturing = isRecording || isTranscribing;
+
+  const formattedElapsed = `${String(Math.floor(speechElapsed / 60)).padStart(2, '0')}:${String(speechElapsed % 60).padStart(2, '0')}`;
 
   return (
     <div className="px-12 py-2">
@@ -324,128 +349,190 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           className="hidden"
         />
 
-        {/* Text Input Area */}
-        <div className="relative px-3 pt-3 pb-1">
-          <textarea
-            ref={inputRef}
-            value={value}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            disabled={disabled || isLoading}
-            rows={1}
-            spellCheck={true}
-            autoCorrect="on"
-            autoCapitalize="sentences"
-            className={`w-full bg-transparent border-0 text-sm ${TEXT.primary} resize-none outline-none focus:ring-0`}
-            style={{ maxHeight: '200px', minHeight: '36px' }}
-          />
-          {/* Rotating placeholder overlay */}
-          {!value && (
-            <span
-              key={hintIndex}
-              className={`absolute top-3 left-3 text-sm ${TEXT.faint} pointer-events-none animate-placeholder-fade-in`}
-            >
-              {PLACEHOLDER_HINTS[hintIndex]}
-            </span>
-          )}
-        </div>
+        {/* Text Input Area — hidden while capturing voice */}
+        {!isCapturing && (
+          <div className="relative px-3 pt-3 pb-1">
+            <textarea
+              ref={inputRef}
+              value={value}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              disabled={disabled || isLoading}
+              rows={1}
+              spellCheck={true}
+              autoCorrect="on"
+              autoCapitalize="sentences"
+              className={`w-full bg-transparent border-0 text-sm ${TEXT.primary} resize-none outline-none focus:ring-0`}
+              style={{ maxHeight: '200px', minHeight: '36px' }}
+            />
+            {/* Rotating placeholder overlay */}
+            {!value && (
+              <span
+                key={hintIndex}
+                className={`absolute top-3 left-3 text-sm ${TEXT.faint} pointer-events-none animate-placeholder-fade-in`}
+              >
+                {PLACEHOLDER_HINTS[hintIndex]}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Voice capture area — waveform while recording, spinner while transcribing */}
+        {isCapturing && (
+          <div className="flex items-center justify-center px-3 pt-3 pb-1" style={{ minHeight: '44px' }}>
+            {isRecording ? (
+              <VoiceWaveform stream={micStream} />
+            ) : (
+              <div className={`flex items-center gap-2 text-sm ${TEXT.faint}`}>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Transcribing...</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Bottom Toolbar with Model Picker and Send Button */}
         <div className="flex items-center justify-between px-3 pb-2">
-          {/* Left: Attach + Web Search + Model Picker */}
+          {/* Left: Cancel (recording) OR Attach + Web Search + Model Picker (idle) */}
           <div className="flex items-center gap-2">
-            {/* Attachment Dropdown Menu */}
-            {onAttach && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    className={COMPONENT.toolbarButton}
-                    title="Attach"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent side="top" align="start" sideOffset={8}>
-                  <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_IMAGES)}>
-                    <ImageIcon className="w-4 h-4" />
-                    <span>Images</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_FILES)}>
-                    <FileText className="w-4 h-4" />
-                    <span>Files</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_AUDIO)}>
-                    <Music className="w-4 h-4" />
-                    <span>Audio</span>
-                  </DropdownMenuItem>
+            {isCapturing ? (
+              /* Cancel recording */
+              <button
+                onClick={onSpeechCancel}
+                className={COMPONENT.toolbarButton}
+                title="Cancel recording"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <>
+                {/* Attachment Dropdown Menu */}
+                {onAttach && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className={COMPONENT.toolbarButton}
+                        title="Attach"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent side="top" align="start" sideOffset={8}>
+                      <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_IMAGES)}>
+                        <ImageIcon className="w-4 h-4" />
+                        <span>Images</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_FILES)}>
+                        <FileText className="w-4 h-4" />
+                        <span>Files</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_AUDIO)}>
+                        <Music className="w-4 h-4" />
+                        <span>Audio</span>
+                      </DropdownMenuItem>
 
-                  {onScreenshot && (
-                    <DropdownMenuSub>
-                        <DropdownMenuSubTrigger onPointerEnter={handleScreenshotSubOpen}>
-                          <Camera className="w-4 h-4" />
-                          <span>Take Screenshot</span>
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent sideOffset={8}>
-                          <DropdownMenuItem
-                            onSelect={() => handleTakeScreenshot(null, 'Full Screen')}
-                            disabled={screenshotLoading !== null}
-                          >
-                            {screenshotLoading === 'Full Screen' ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Camera className="w-4 h-4" />
-                            )}
-                            <span>Full Screen</span>
-                          </DropdownMenuItem>
-                          {capturableWindows.length > 0 && <DropdownMenuSeparator />}
-                          {capturableWindows.map((win) => (
+                      {onScreenshot && (
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger onPointerEnter={handleScreenshotSubOpen}>
+                            <Camera className="w-4 h-4" />
+                            <span>Take Screenshot</span>
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent sideOffset={8}>
                             <DropdownMenuItem
-                              key={win.window_id}
-                              onSelect={() => handleTakeScreenshot(win.window_id, win.app_name)}
+                              onSelect={() => handleTakeScreenshot(null, 'Full Screen')}
                               disabled={screenshotLoading !== null}
                             >
-                              {screenshotLoading === win.app_name ? (
+                              {screenshotLoading === 'Full Screen' ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : win.icon_base64 ? (
-                                <img
-                                  src={`data:image/png;base64,${win.icon_base64}`}
-                                  alt={win.app_name}
-                                  className="w-4 h-4 rounded-sm"
-                                />
                               ) : (
-                                <div className={`w-4 h-4 flex items-center justify-center text-[10px] font-medium ${TEXT.muted}`}>
-                                  {win.app_name.charAt(0)}
-                                </div>
+                                <Camera className="w-4 h-4" />
                               )}
-                              <span className="truncate max-w-[160px]">{win.app_name}</span>
+                              <span>Full Screen</span>
                             </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+                            {capturableWindows.length > 0 && <DropdownMenuSeparator />}
+                            {capturableWindows.map((win) => (
+                              <DropdownMenuItem
+                                key={win.window_id}
+                                onSelect={() => handleTakeScreenshot(win.window_id, win.app_name)}
+                                disabled={screenshotLoading !== null}
+                              >
+                                {screenshotLoading === win.app_name ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : win.icon_base64 ? (
+                                  <img
+                                    src={`data:image/png;base64,${win.icon_base64}`}
+                                    alt={win.app_name}
+                                    className="w-4 h-4 rounded-sm"
+                                  />
+                                ) : (
+                                  <div className={`w-4 h-4 flex items-center justify-center text-[10px] font-medium ${TEXT.muted}`}>
+                                    {win.app_name.charAt(0)}
+                                  </div>
+                                )}
+                                <span className="truncate max-w-[160px]">{win.app_name}</span>
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
 
-            {/* Web Search Toggle */}
-            {showWebSearch && onWebSearchToggle && (
+                {/* Web Search Toggle */}
+                {showWebSearch && onWebSearchToggle && (
+                  <button
+                    onClick={onWebSearchToggle}
+                    className={webSearchEnabled ? COMPONENT.toolbarButtonActive : COMPONENT.toolbarButton}
+                    title={webSearchEnabled ? 'Web search enabled' : 'Web search disabled'}
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                <ModelPicker compact />
+              </>
+            )}
+          </div>
+
+          {/* Right: Mic + Stop pill / send button */}
+          <div className="flex items-center gap-2">
+            {/* Mic voice input — only shown when idle and supported */}
+            {showSpeechInput && onSpeechStart && !isCapturing && !isLoading && (
               <button
-                onClick={onWebSearchToggle}
-                className={webSearchEnabled ? COMPONENT.toolbarButtonActive : COMPONENT.toolbarButton}
-                title={webSearchEnabled ? 'Web search enabled' : 'Web search disabled'}
+                onClick={onSpeechStart}
+                className={COMPONENT.toolbarButton}
+                title="Voice input"
               >
-                <Globe className="w-3.5 h-3.5" />
+                <Mic className="w-3.5 h-3.5" />
               </button>
             )}
 
-            <ModelPicker compact />
-          </div>
-
-          {/* Send/Stop Button - Right */}
-          {isLoading ? (
+          {/* Stop pill (recording) OR AI stop/send button (idle) */}
+          {isRecording ? (
+            <button
+              onClick={onSpeechStop}
+              className="flex items-center gap-1.5 px-3 h-8 rounded-full transition-all bg-red-500 hover:bg-red-600 text-white text-xs font-medium shadow-lg"
+              title="Stop recording"
+            >
+              <span className="inline-flex gap-[2px] items-end h-3">
+                <span className="w-[3px] h-2 rounded-full bg-white/80" />
+                <span className="w-[3px] h-3 rounded-full bg-white" />
+                <span className="w-[3px] h-2 rounded-full bg-white/80" />
+              </span>
+              <span>{formattedElapsed}</span>
+            </button>
+          ) : isTranscribing ? (
+            <button
+              disabled
+              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-red-500/50 text-white cursor-not-allowed"
+            >
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            </button>
+          ) : isLoading ? (
             <button
               onClick={onStop}
-              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full transition-all bg-red-500 hover:bg-red-600 text-white shadow-lg"
+              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all bg-red-500 hover:bg-red-600 text-white shadow-lg"
               title="Stop generation"
             >
               <Square className="w-3.5 h-3.5 fill-current" />
@@ -454,7 +541,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             <button
               onClick={onSend}
               disabled={!canSend}
-              className={`flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full transition-all ${
+              className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all ${
                 canSend
                   ? COMPONENT.sendButtonActive
                   : COMPONENT.sendButtonDisabled
@@ -464,6 +551,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               <ArrowUp className="w-4 h-4" />
             </button>
           )}
+          </div>
         </div>
       </div>
       </PopoverAnchor>

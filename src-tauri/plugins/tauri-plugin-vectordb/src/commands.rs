@@ -26,7 +26,7 @@ pub struct MeetingMeta {
     pub timestamp: i64,
     pub summary: Option<String>,
     pub categories: Option<String>,
-    pub content_hash: String,
+    pub content_hash: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -55,6 +55,8 @@ pub struct DbStats {
     pub kg_nodes: i64,
     pub kg_edges: i64,
     pub db_size_bytes: u64,
+    pub fts_chunks: i64,
+    pub fts_chat_chunks: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -72,7 +74,7 @@ pub struct ChatSessionMeta {
     pub title: String,
     pub last_message_at: i64,
     pub message_count: i32,
-    pub content_hash: String,
+    pub content_hash: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -143,6 +145,7 @@ pub async fn initialize<R: Runtime>(
 }
 
 /// Insert or update a meeting's metadata.
+/// When content_hash is None, the existing value is preserved (allows deferred hash stamping).
 #[tauri::command]
 pub async fn upsert_meeting(
     state: State<'_, VectorDbState>,
@@ -162,7 +165,7 @@ pub async fn upsert_meeting(
                 summary = excluded.summary,
                 categories = excluded.categories,
                 updated_at = ?6,
-                content_hash = excluded.content_hash",
+                content_hash = COALESCE(excluded.content_hash, meetings.content_hash)",
             rusqlite::params![
                 meeting.id,
                 meeting.title,
@@ -391,6 +394,293 @@ pub async fn get_stale_meetings(
     .map_err(|e| format!("spawn_blocking join: {}", e))?
 }
 
+// ── Multi-Phase Staleness Commands ──
+
+/// Return meeting IDs (from the given list) that need embeddings.
+/// A meeting needs embeddings when `embedding_hash IS NULL OR embedding_hash != content_hash`.
+#[tauri::command]
+pub async fn get_meetings_needing_embeddings(
+    state: State<'_, VectorDbState>,
+    meeting_ids: Vec<String>,
+) -> Result<Vec<String>, String> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+
+        db.execute_batch(
+            "CREATE TEMP TABLE IF NOT EXISTS _check_ids (id TEXT PRIMARY KEY);"
+        ).map_err(|e| format!("create temp: {}", e))?;
+        db.execute("DELETE FROM _check_ids", [])
+            .map_err(|e| format!("clear temp: {}", e))?;
+
+        {
+            let mut stmt = db.prepare("INSERT INTO _check_ids (id) VALUES (?1)")
+                .map_err(|e| format!("prepare: {}", e))?;
+            for id in &meeting_ids {
+                stmt.execute([id]).map_err(|e| format!("insert id: {}", e))?;
+            }
+        }
+
+        let mut stmt = db.prepare(
+            "SELECT ci.id FROM _check_ids ci
+             INNER JOIN meetings m ON m.id = ci.id
+             WHERE m.embedding_hash IS NULL OR m.embedding_hash != m.content_hash"
+        ).map_err(|e| format!("prepare needing_embeddings: {}", e))?;
+
+        let ids: Vec<String> = stmt
+            .query_map([], |row| row.get(0))
+            .map_err(|e| format!("query needing_embeddings: {}", e))?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        Ok(ids)
+    })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
+}
+
+/// Return meeting IDs (from the given list) that need entity extraction.
+/// A meeting needs extraction when `extraction_hash IS NULL OR extraction_hash != content_hash`.
+#[tauri::command]
+pub async fn get_meetings_needing_extraction(
+    state: State<'_, VectorDbState>,
+    meeting_ids: Vec<String>,
+) -> Result<Vec<String>, String> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+
+        db.execute_batch(
+            "CREATE TEMP TABLE IF NOT EXISTS _check_ids (id TEXT PRIMARY KEY);"
+        ).map_err(|e| format!("create temp: {}", e))?;
+        db.execute("DELETE FROM _check_ids", [])
+            .map_err(|e| format!("clear temp: {}", e))?;
+
+        {
+            let mut stmt = db.prepare("INSERT INTO _check_ids (id) VALUES (?1)")
+                .map_err(|e| format!("prepare: {}", e))?;
+            for id in &meeting_ids {
+                stmt.execute([id]).map_err(|e| format!("insert id: {}", e))?;
+            }
+        }
+
+        let mut stmt = db.prepare(
+            "SELECT ci.id FROM _check_ids ci
+             INNER JOIN meetings m ON m.id = ci.id
+             WHERE m.extraction_hash IS NULL OR m.extraction_hash != m.content_hash"
+        ).map_err(|e| format!("prepare needing_extraction: {}", e))?;
+
+        let ids: Vec<String> = stmt
+            .query_map([], |row| row.get(0))
+            .map_err(|e| format!("query needing_extraction: {}", e))?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        Ok(ids)
+    })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
+}
+
+/// Mark a meeting's embeddings as up-to-date (sets embedding_hash = content_hash).
+#[tauri::command]
+pub async fn mark_meeting_embedded(
+    state: State<'_, VectorDbState>,
+    meeting_id: String,
+) -> Result<(), String> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+        db.execute(
+            "UPDATE meetings SET embedding_hash = content_hash WHERE id = ?1",
+            [&meeting_id],
+        )
+        .map_err(|e| format!("mark_meeting_embedded: {}", e))?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
+}
+
+/// Mark a meeting's entity extraction as up-to-date (sets extraction_hash = content_hash).
+#[tauri::command]
+pub async fn mark_meeting_extracted(
+    state: State<'_, VectorDbState>,
+    meeting_id: String,
+) -> Result<(), String> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+        db.execute(
+            "UPDATE meetings SET extraction_hash = content_hash WHERE id = ?1",
+            [&meeting_id],
+        )
+        .map_err(|e| format!("mark_meeting_extracted: {}", e))?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
+}
+
+/// Stamp a meeting's content_hash after chunks have been successfully upserted.
+/// This is the final step of indexing — only called after upsert_chunks succeeds.
+#[tauri::command]
+pub async fn mark_meeting_content_indexed(
+    state: State<'_, VectorDbState>,
+    meeting_id: String,
+    content_hash: String,
+) -> Result<(), String> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+        db.execute(
+            "UPDATE meetings SET content_hash = ?2 WHERE id = ?1",
+            rusqlite::params![meeting_id, content_hash],
+        )
+        .map_err(|e| format!("mark_meeting_content_indexed: {}", e))?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
+}
+
+/// Stamp a chat session's content_hash after chunks have been successfully upserted.
+/// This is the final step of indexing — only called after upsert_chat_chunks succeeds.
+#[tauri::command]
+pub async fn mark_chat_content_indexed(
+    state: State<'_, VectorDbState>,
+    session_id: String,
+    content_hash: String,
+) -> Result<(), String> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+        db.execute(
+            "UPDATE chat_sessions SET content_hash = ?2 WHERE id = ?1",
+            rusqlite::params![session_id, content_hash],
+        )
+        .map_err(|e| format!("mark_chat_content_indexed: {}", e))?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
+}
+
+/// Batch staleness check for chat sessions (like get_stale_meetings but for chats).
+#[tauri::command]
+pub async fn get_stale_chat_sessions(
+    state: State<'_, VectorDbState>,
+    sessions: Vec<MeetingHash>,
+) -> Result<Vec<String>, String> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+
+        db.execute_batch(
+            "CREATE TEMP TABLE IF NOT EXISTS _check_hashes (id TEXT PRIMARY KEY, content_hash TEXT);"
+        ).map_err(|e| format!("create temp: {}", e))?;
+        db.execute("DELETE FROM _check_hashes", [])
+            .map_err(|e| format!("clear temp: {}", e))?;
+
+        {
+            let mut stmt = db.prepare(
+                "INSERT INTO _check_hashes (id, content_hash) VALUES (?1, ?2)"
+            ).map_err(|e| format!("prepare: {}", e))?;
+            for s in &sessions {
+                stmt.execute(rusqlite::params![s.id, s.content_hash])
+                    .map_err(|e| format!("insert hash: {}", e))?;
+            }
+        }
+
+        let mut stmt = db.prepare(
+            "SELECT ch.id FROM _check_hashes ch
+             LEFT JOIN chat_sessions cs ON cs.id = ch.id
+             WHERE cs.id IS NULL OR cs.content_hash != ch.content_hash"
+        ).map_err(|e| format!("prepare stale chats: {}", e))?;
+
+        let stale: Vec<String> = stmt
+            .query_map([], |row| row.get(0))
+            .map_err(|e| format!("query stale chats: {}", e))?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        Ok(stale)
+    })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
+}
+
+/// Return chat session IDs (from given list) that need embeddings.
+#[tauri::command]
+pub async fn get_chats_needing_embeddings(
+    state: State<'_, VectorDbState>,
+    session_ids: Vec<String>,
+) -> Result<Vec<String>, String> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+
+        db.execute_batch(
+            "CREATE TEMP TABLE IF NOT EXISTS _check_ids (id TEXT PRIMARY KEY);"
+        ).map_err(|e| format!("create temp: {}", e))?;
+        db.execute("DELETE FROM _check_ids", [])
+            .map_err(|e| format!("clear temp: {}", e))?;
+
+        {
+            let mut stmt = db.prepare("INSERT INTO _check_ids (id) VALUES (?1)")
+                .map_err(|e| format!("prepare: {}", e))?;
+            for id in &session_ids {
+                stmt.execute([id]).map_err(|e| format!("insert id: {}", e))?;
+            }
+        }
+
+        let mut stmt = db.prepare(
+            "SELECT ci.id FROM _check_ids ci
+             INNER JOIN chat_sessions cs ON cs.id = ci.id
+             WHERE cs.embedding_hash IS NULL OR cs.embedding_hash != cs.content_hash"
+        ).map_err(|e| format!("prepare needing_chat_embeddings: {}", e))?;
+
+        let ids: Vec<String> = stmt
+            .query_map([], |row| row.get(0))
+            .map_err(|e| format!("query needing_chat_embeddings: {}", e))?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        Ok(ids)
+    })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
+}
+
+/// Mark a chat session's embeddings as up-to-date.
+#[tauri::command]
+pub async fn mark_chat_embedded(
+    state: State<'_, VectorDbState>,
+    session_id: String,
+) -> Result<(), String> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+        db.execute(
+            "UPDATE chat_sessions SET embedding_hash = content_hash WHERE id = ?1",
+            [&session_id],
+        )
+        .map_err(|e| format!("mark_chat_embedded: {}", e))?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
+}
+
 /// Return all indexed meeting IDs.
 #[tauri::command]
 pub async fn get_indexed_ids(
@@ -435,6 +725,8 @@ pub async fn get_stats(
         let chat_chunks = count("SELECT COUNT(*) FROM chat_chunks");
         let kg_nodes = count("SELECT COUNT(*) FROM kg_nodes");
         let kg_edges = count("SELECT COUNT(*) FROM kg_edges");
+        let fts_chunks = count("SELECT COUNT(*) FROM chunks_fts");
+        let fts_chat_chunks = count("SELECT COUNT(*) FROM chat_chunks_fts");
 
         // Get file size from page_count * page_size
         let page_count: i64 = db
@@ -454,6 +746,8 @@ pub async fn get_stats(
             kg_nodes,
             kg_edges,
             db_size_bytes,
+            fts_chunks,
+            fts_chat_chunks,
         })
     })
     .await
@@ -515,6 +809,33 @@ pub async fn rebuild(
         .map_err(|e| format!("rebuild: {}", e))?;
 
         log::info!("[vectordb] Database rebuilt (all data cleared, including graph and chats)");
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
+}
+
+/// Rebuild FTS5 indexes from content tables without deleting any data.
+/// Also clears content_hash to force re-indexing on next startup.
+/// Use this to recover from corrupted/empty FTS5 state.
+#[tauri::command]
+pub async fn rebuild_fts(
+    state: State<'_, VectorDbState>,
+) -> Result<(), String> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+
+        db.execute_batch(
+            "INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild');
+             INSERT INTO chat_chunks_fts(chat_chunks_fts) VALUES('rebuild');
+             UPDATE meetings SET content_hash = NULL;
+             UPDATE chat_sessions SET content_hash = NULL;",
+        )
+        .map_err(|e| format!("rebuild_fts: {}", e))?;
+
+        log::info!("[vectordb] FTS5 indexes rebuilt, content hashes cleared for re-indexing");
         Ok(())
     })
     .await
@@ -617,6 +938,30 @@ pub async fn graph_stats(
         let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
         let db = guard.as_ref().ok_or("Database not initialized")?;
         graph::stats(db)
+    })
+    .await
+    .map_err(|e| format!("spawn_blocking join: {}", e))?
+}
+
+/// Returns the set of meeting IDs that already have knowledge graph edges.
+/// Used to skip redundant (and expensive) LLM entity extraction.
+#[tauri::command]
+pub async fn graph_extracted_meeting_ids(
+    state: State<'_, VectorDbState>,
+) -> Result<Vec<String>, String> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let db = guard.as_ref().ok_or("Database not initialized")?;
+        let mut stmt = db
+            .prepare("SELECT DISTINCT meeting_id FROM kg_edges")
+            .map_err(|e| format!("graph_extracted_meeting_ids: {}", e))?;
+        let ids: Vec<String> = stmt
+            .query_map([], |row| row.get(0))
+            .map_err(|e| format!("graph_extracted_meeting_ids query: {}", e))?
+            .filter_map(|r| r.ok())
+            .collect();
+        Ok(ids)
     })
     .await
     .map_err(|e| format!("spawn_blocking join: {}", e))?
@@ -809,6 +1154,8 @@ fn now_millis() -> i64 {
 
 // ── Chat Indexing Commands ──
 
+/// Insert or update a chat session's metadata.
+/// When content_hash is None, the existing value is preserved (allows deferred hash stamping).
 #[tauri::command]
 pub async fn upsert_chat_session(
     state: State<'_, VectorDbState>,
@@ -828,7 +1175,7 @@ pub async fn upsert_chat_session(
                 last_message_at = excluded.last_message_at,
                 message_count = excluded.message_count,
                 updated_at = ?5,
-                content_hash = excluded.content_hash",
+                content_hash = COALESCE(excluded.content_hash, chat_sessions.content_hash)",
             rusqlite::params![
                 session.id,
                 session.title,

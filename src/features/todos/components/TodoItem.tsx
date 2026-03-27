@@ -72,18 +72,18 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, meetingId, meetingTitle, onTo
   const overdue = !todo.completed && isOverdue(todo.dueDate);
 
   return (
-    <div className="px-4 py-3 group">
-      <div className="flex items-start gap-3">
+    <div className="px-4 py-2 group">
+      <div className="flex items-start gap-2.5">
         {/* Checkbox */}
         <button
           onClick={() => onToggle(todo.id)}
-          className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+          className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
             todo.completed
               ? 'bg-green-500 border-green-500 text-white'
               : `${BORDER.selectedCard} hover:border-green-400`
           }`}
         >
-          {todo.completed && <Check className="w-3 h-3" />}
+          {todo.completed && <Check className="w-2.5 h-2.5" />}
         </button>
 
         {/* Content */}
@@ -115,7 +115,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, meetingId, meetingTitle, onTo
             </div>
           ) : (
             <>
-              <p className={`text-sm leading-relaxed break-words ${
+              <p className={`text-sm leading-normal break-words ${
                 todo.completed
                   ? `line-through ${TEXT.faint}`
                   : TEXT.secondary
@@ -125,7 +125,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, meetingId, meetingTitle, onTo
               
               {/* Due date */}
               {todo.dueDate && (
-                <div className={`flex items-center gap-1.5 mt-1 text-xs ${
+                <div className={`flex items-center gap-1.5 mt-0.5 text-xs ${
                   overdue
                     ? 'text-red-500'
                     : todo.completed
@@ -146,7 +146,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, meetingId, meetingTitle, onTo
 
               {/* Reminder indicator */}
               {todo.reminder && !todo.completed && (
-                <div className="flex items-center gap-1.5 mt-1 text-xs text-amber-500">
+                <div className="flex items-center gap-1.5 mt-0.5 text-xs text-amber-500">
                   <Clock className="w-3 h-3" />
                   <span>
                     Reminder: {new Date(todo.reminder.dateTime).toLocaleString('en-US', {
@@ -159,38 +159,42 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, meetingId, meetingTitle, onTo
           )}
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {/* Reminder bell */}
+        {/* Actions — always show bell when reminder active, rest on hover */}
+        <div className="flex gap-1 shrink-0">
+          {/* Reminder bell — always visible when active */}
           {!isEditing && !todo.completed && onReminderChange && (
-            <ReminderPicker
-              todoId={todo.id}
-              meetingId={meetingId}
-              todoText={todo.text}
-              meetingTitle={meetingTitle}
-              reminderDateTime={todo.reminder?.dateTime}
-              dueDate={todo.dueDate}
-              onReminderSet={handleReminderSet}
-            />
+            <div className={todo.reminder ? '' : 'opacity-0 group-hover:opacity-100 transition-opacity'}>
+              <ReminderPicker
+                todoId={todo.id}
+                meetingId={meetingId}
+                todoText={todo.text}
+                meetingTitle={meetingTitle}
+                reminderDateTime={todo.reminder?.dateTime}
+                dueDate={todo.dueDate}
+                onReminderSet={handleReminderSet}
+              />
+            </div>
           )}
-          {!isEditing && onUpdate && !todo.completed && (
-            <button
-              onClick={() => setIsEditing(true)}
-              className={`p-1 ${SURFACE.hoverSubtle} rounded ${TEXT.muted}`}
-              aria-label="Edit todo"
-            >
-              <Edit2 className="w-4 h-4" />
-            </button>
-          )}
-          {onDelete && (
-            <button
-              onClick={() => onDelete(todo.id)}
-              className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded text-red-500"
-              aria-label="Delete todo"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {!isEditing && onUpdate && !todo.completed && (
+              <button
+                onClick={() => setIsEditing(true)}
+                className={`p-1 ${SURFACE.hoverSubtle} rounded ${TEXT.muted}`}
+                aria-label="Edit todo"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={() => onDelete(todo.id)}
+                className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded text-red-500"
+                aria-label="Delete todo"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

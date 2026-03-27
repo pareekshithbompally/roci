@@ -7,7 +7,8 @@
 
 import type { ModelProvider, Model } from '@/types/modelProviders';
 import type { ProviderType } from '@/services/ai/types';
-import { MANAGED_SDK_PROVIDERS, MANAGED_SDK_INFO, MANAGED_DEFAULT_URLS } from '@/consts/providers';
+import { MANAGED_SDK_PROVIDERS, MANAGED_SDK_INFO, MANAGED_DEFAULT_URLS, TRANSCRIPTION_STRATEGIES } from '@/consts/providers';
+import type { TranscriptionStrategy } from '@/consts/providers';
 
 export interface ResolvedModel {
   modelId: string;
@@ -78,6 +79,23 @@ export function getProviderType(provider: string): ProviderType {
 export function supportsAudioInput(provider: string): boolean {
   return provider === 'gemini';
 }
+
+/**
+ * Check if a provider supports chat voice input (mic button).
+ * Driven by TRANSCRIPTION_STRATEGIES — add a new entry there, not here.
+ */
+export function supportsTranscription(provider: string): boolean {
+  return TRANSCRIPTION_STRATEGIES[provider] != null;
+}
+
+/**
+ * Get the transcription strategy for a provider, or null if unsupported.
+ */
+export function getTranscriptionStrategy(provider: string): TranscriptionStrategy {
+  return TRANSCRIPTION_STRATEGIES[provider] ?? null;
+}
+
+export type { TranscriptionStrategy };
 
 /**
  * Check if a resolved model has tool calling enabled.

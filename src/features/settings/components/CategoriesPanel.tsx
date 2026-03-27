@@ -99,7 +99,7 @@ export const CategoriesPanel: React.FC = () => {
             <button
               onClick={handleAddCategory}
               disabled={!newCategory.trim()}
-              className={`flex items-center gap-1.5 px-3 py-2 ${COMPONENT.primaryButton} ${RADIUS.md} ${TYPOGRAPHY_CLASSES.settingsButton} disabled:opacity-50 disabled:cursor-not-allowed`}
+              className={COMPONENT.settingsButtonPrimary}
             >
               <Plus className="w-3.5 h-3.5" />
               Add
@@ -137,7 +137,7 @@ export const CategoriesPanel: React.FC = () => {
       <SettingsSection title="Summary Extraction">
         <div className={`border ${BORDER.default} ${RADIUS.lg} ${SURFACE.card} divide-y ${BORDER.divide}`}>
           {extractionRows.map(({ key, label, description }) => (
-            <div key={key} className="flex items-center justify-between gap-4 px-4 py-2.5">
+            <div key={key} className="flex items-center justify-between gap-4 px-4 py-3">
               <div className="min-w-0">
                 <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
                   {label}
@@ -160,7 +160,7 @@ export const CategoriesPanel: React.FC = () => {
       <SettingsSection title="Meeting Defaults">
         <div className={`border ${BORDER.default} ${RADIUS.lg} ${SURFACE.card} divide-y ${BORDER.divide}`}>
           {/* Auto-title */}
-          <div className="flex items-center justify-between gap-4 px-4 py-2.5">
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
             <div className="min-w-0">
               <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
                 Auto-generate Title
@@ -177,7 +177,7 @@ export const CategoriesPanel: React.FC = () => {
           </div>
 
           {/* Duration reminder */}
-          <div className="flex items-center justify-between gap-4 px-4 py-2.5">
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
             <div className="min-w-0 flex-1">
               <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
                 Duration Reminder

@@ -60,6 +60,11 @@ function buildSnapshot(panelId: string, settings: AppSettings, providers: ModelP
       return stableStringify({
         jobProcessing: settings.jobProcessing,
       });
+    case 'calendar':
+    case 'integrations':
+      return stableStringify({
+        calendarIntegration: settings.calendarIntegration,
+      });
     default:
       return stableStringify(settings);
   }

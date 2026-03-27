@@ -69,9 +69,11 @@ export const InterfacePanel: React.FC = () => {
     setIsRebuilding(true);
 
     try {
-      const { vectorDB, ragIndexer, chatIndexer, emitProgress } = await import('@extensions/rag');
+      const { vectorDB, ragIndexer, chatIndexer } = await import('@extensions/rag');
 
-      // Wipe all vector + graph data (meetings + chats)
+      // Wipe all vector + graph data (meetings + chats).
+      // This clears content_hash, embedding_hash, and extraction_hash,
+      // so indexAll will re-process everything from scratch.
       await vectorDB.rebuild();
 
       const [meetingItems, chatSessions] = await Promise.all([
@@ -79,7 +81,7 @@ export const InterfacePanel: React.FC = () => {
         searchIndexingService.loadChatsForIndexing(),
       ]);
 
-      // Re-index all meetings (emits progress events → ActivityTray picks them up)
+      // Re-index all meetings with embeddings + extraction
       const extractionContext = settings.chatModel
         ? { settings, providers }
         : undefined;
@@ -88,28 +90,10 @@ export const InterfacePanel: React.FC = () => {
         extractionContext,
       });
 
-      // Re-index all chat sessions with progress
-      let chatsIndexed = 0;
-      if (chatSessions.length > 0) {
-        emitProgress({ kind: 'indexing', status: 'started', total: chatSessions.length });
-      }
-      for (let i = 0; i < chatSessions.length; i++) {
-        const session = chatSessions[i];
-        emitProgress({
-          kind: 'indexing',
-          status: 'progress',
-          current: i + 1,
-          total: chatSessions.length,
-          currentTitle: `Chat: ${session.title}`,
-        });
-        const result = await chatIndexer.indexSession(session, { includeEmbeddings: true });
-        if (result.status === 'indexed') {
-          chatsIndexed++;
-        }
-      }
-      if (chatSessions.length > 0) {
-        emitProgress({ kind: 'indexing', status: 'complete', current: chatsIndexed, total: chatSessions.length });
-      }
+      // Re-index all chat sessions (batch staleness handles everything)
+      const chatsIndexed = await chatIndexer.indexAllSessions(chatSessions, {
+        includeEmbeddings: true,
+      });
 
       showToast(
         `Rebuilt index: ${meetingsIndexed}/${meetingItems.length} meetings, ${chatsIndexed}/${chatSessions.length} chats`,
@@ -212,7 +196,7 @@ export const InterfacePanel: React.FC = () => {
 
   return (
     <div className={`h-full overflow-y-auto custom-scrollbar ${LAYOUT.settingsPadding} py-6`}>
-    <div className={`${LAYOUT.settingsMaxWidth} mx-auto space-y-8`}>
+    <div className={`${LAYOUT.settingsMaxWidth} mx-auto space-y-6`}>
       <div>
         <h3 className={`${TYPOGRAPHY_CLASSES.settingsTitle} ${TEXT.heading} mb-1`}>
           System
@@ -310,7 +294,7 @@ export const InterfacePanel: React.FC = () => {
       </SettingsSection>
       {storagePath && (
         <SettingsSection title="Storage Location">
-          <div className={`flex items-center gap-2 p-3 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg}`}>
+          <div className={`flex items-center gap-2 px-4 py-3 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg}`}>
             <FolderOpen className={`w-4 h-4 ${TEXT.faint} shrink-0`} />
             <span className={`${TYPOGRAPHY_CLASSES.settingsInput} ${TEXT.secondary} truncate flex-1`}>
               {storagePath}
@@ -345,14 +329,14 @@ export const InterfacePanel: React.FC = () => {
         <SettingsSection title="Disk Usage">
           <div className={`${SURFACE.card} border ${BORDER.default} ${RADIUS.lg} divide-y ${BORDER.divide}`}>
             {diskUsage.map(({ label, bytes }) => (
-              <div key={label} className={`flex items-center justify-between px-3 py-2 ${TYPOGRAPHY_CLASSES.settingsInput}`}>
+              <div key={label} className={`flex items-center justify-between px-4 py-3 ${TYPOGRAPHY_CLASSES.settingsInput}`}>
                 <span className={TEXT.secondary}>{label}</span>
                 <span className={`${TEXT.muted} font-mono`}>{formatBytes(bytes)}</span>
               </div>
             ))}
-            <div className={`flex items-center justify-between px-3 py-2 ${TYPOGRAPHY_CLASSES.settingsInputLabel}`}>
-              <span className={TEXT.heading}>Total</span>
-              <span className={`${TEXT.heading} font-mono`}>
+            <div className={`flex items-center justify-between px-4 py-3 ${SURFACE.subtle} ${TYPOGRAPHY_CLASSES.settingsInputLabel}`}>
+              <span className={`font-medium ${TEXT.heading}`}>Total</span>
+              <span className={`font-medium ${TEXT.heading} font-mono`}>
                 {formatBytes(diskUsage.reduce((sum, d) => sum + d.bytes, 0))}
               </span>
             </div>
@@ -387,7 +371,7 @@ export const InterfacePanel: React.FC = () => {
           )}
 
           {/* Rebuild button */}
-          <div className={`flex items-center justify-between p-3 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg}`}>
+          <div className={`flex items-center justify-between px-4 py-3 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg}`}>
             <div className="min-w-0 flex-1">
               <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
                 Rebuild Index
@@ -399,7 +383,7 @@ export const InterfacePanel: React.FC = () => {
             <button
               onClick={() => setRebuildConfirmOpen(true)}
               disabled={isRebuilding}
-              className={`flex items-center gap-1.5 px-3 py-1.5 ${TYPOGRAPHY_CLASSES.settingsButton} border ${BORDER.strong} ${RADIUS.lg} ${TEXT.primary} ${SURFACE.hoverSubtle} transition-colors disabled:opacity-40 disabled:pointer-events-none shrink-0 ml-4`}
+              className={`${COMPONENT.settingsButtonOutline} shrink-0 ml-4`}
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRebuilding ? 'animate-spin' : ''}`} />
               {isRebuilding ? 'Rebuilding…' : 'Rebuild'}
@@ -418,14 +402,14 @@ export const InterfacePanel: React.FC = () => {
                 </AlertDialogDescription>
                 <div className="flex gap-2.5 justify-end">
                   <AlertDialogCancel asChild>
-                    <button className={`px-3.5 py-2 ${TYPOGRAPHY_CLASSES.settingsButton} ${TEXT.primary} border ${BORDER.strong} rounded-lg ${SURFACE.hoverSubtle} transition-colors`}>
+                    <button className={COMPONENT.settingsButtonOutline}>
                       Cancel
                     </button>
                   </AlertDialogCancel>
                   <AlertDialogAction asChild>
                     <button
                       onClick={handleRebuildIndex}
-                      className={`px-3.5 py-2 ${TYPOGRAPHY_CLASSES.settingsButton} ${COMPONENT.dangerButton} rounded-lg`}
+                      className={COMPONENT.settingsButtonDanger}
                     >
                       Rebuild
                     </button>
@@ -439,7 +423,7 @@ export const InterfacePanel: React.FC = () => {
 
       {/* App Info */}
       <div className={`pt-4 border-t ${BORDER.default}`}>
-        <div className={`flex items-center justify-between ${TYPOGRAPHY_CLASSES.settingsInput}`}>
+        <div className={`flex items-center justify-between px-4 py-3 ${TYPOGRAPHY_CLASSES.settingsInput}`}>
           <span className={TEXT.muted}>Version</span>
           <span className={`${TEXT.secondary} font-mono`}>1.0.0</span>
         </div>
@@ -503,7 +487,7 @@ const IndexStatusRow: React.FC<{
     : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
 
   return (
-    <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+    <div className="flex items-center justify-between gap-3 px-4 py-3">
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2.5">
           <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>

@@ -49,12 +49,25 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
 
       const audioBlob = new Blob([dataResult.data], { type: 'audio/wav' });
 
+      // Build meeting context from calendar metadata if available
+      const meetingContext = item.scheduledStart && item.participants?.length
+        ? {
+            title: item.scheduledTitle || item.title,
+            participants: item.participants.map((p: { name?: string; email?: string }) => ({
+              name: p.name,
+              email: p.email,
+            })),
+            scheduledStart: item.scheduledStart,
+          }
+        : undefined;
+
       // Process with unified AI service
       const { result: data, usage } = await unifiedAIService.processAudio(
         audioBlob,
         categories,
         settings,
-        providers
+        providers,
+        meetingContext
       );
 
       // Log transcription usage (fire-and-forget)
@@ -90,6 +103,14 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
         recordingFileName: item.recordingFileName,
         inputSource: item.inputSource,
         model: settings.transcriptionModel,
+        calendarMeta: item.calendarEventId ? {
+          calendarEventId: item.calendarEventId,
+          scheduledTitle: item.scheduledTitle || item.title,
+          participants: item.participants || [],
+          scheduledStart: item.scheduledStart!,
+          scheduledEnd: item.scheduledEnd!,
+          meetingUrl: item.meetingUrl,
+        } : undefined,
       });
 
       // Update global history state: clear pendingTranscription flag and update title.

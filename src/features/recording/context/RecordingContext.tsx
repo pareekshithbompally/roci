@@ -24,6 +24,7 @@ import { unifiedAIService } from '../../../../services/unifiedAIService';
 import { activityStore } from '../../../shared/stores/activityStore';
 import type { ActivityAction } from '../../../shared/stores/activityStore';
 import { resolveModel } from '@shared/utils/modelResolver';
+import { consumePendingCalendarMeta } from '../../../../services/calendar/recording-bridge';
 import type {
   RecordingContextValue,
   RecordingState,
@@ -438,10 +439,11 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         }
         const addToHistory = historyContext?.addToHistory;
         if (addToHistory) {
+          const calendarMeta = consumePendingCalendarMeta();
           await addToHistory({
             id: session.recordingId,
             timestamp: Date.now(),
-            title: `Recording ${new Date().toLocaleString()}`,
+            title: calendarMeta?.scheduledTitle || `Recording ${new Date().toLocaleString()}`,
             transcript: '',
             summary: '',
             categories: [],
@@ -449,6 +451,14 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
             recordingFileName: session.recordingFilename,
             inputSource: session.audioSource,
             pendingTranscription: true,
+            ...calendarMeta && {
+              calendarEventId: calendarMeta.calendarEventId,
+              scheduledTitle: calendarMeta.scheduledTitle,
+              participants: calendarMeta.participants,
+              scheduledStart: calendarMeta.scheduledStart,
+              scheduledEnd: calendarMeta.scheduledEnd,
+              meetingUrl: calendarMeta.meetingUrl,
+            },
           });
         }
         showToast('Recording saved', 'success');
@@ -634,10 +644,11 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       // Create history item with pending transcription
       const addToHistory = historyContext?.addToHistory;
       if (addToHistory) {
+        const calendarMeta = consumePendingCalendarMeta();
         await addToHistory({
           id: recordingId,
           timestamp: Date.now(),
-          title: `Recording ${new Date().toLocaleString()}`,
+          title: calendarMeta?.scheduledTitle || `Recording ${new Date().toLocaleString()}`,
           transcript: '',
           summary: '',
           categories: [],
@@ -645,6 +656,14 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           recordingFileName,
           inputSource: session.audioSource,
           pendingTranscription: true,
+          ...calendarMeta && {
+            calendarEventId: calendarMeta.calendarEventId,
+            scheduledTitle: calendarMeta.scheduledTitle,
+            participants: calendarMeta.participants,
+            scheduledStart: calendarMeta.scheduledStart,
+            scheduledEnd: calendarMeta.scheduledEnd,
+            meetingUrl: calendarMeta.meetingUrl,
+          },
         });
       }
 

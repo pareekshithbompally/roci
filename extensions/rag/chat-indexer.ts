@@ -1,9 +1,10 @@
 /**
  * Chat Indexer
  *
- * Indexes a chat session into the vectordb (FTS5 + sqlite-vec).
- * Mirrors ragIndexer in structure: chunk → embed → upsert.
- * Called fire-and-forget after chatService.persistSession().
+ * Indexes chat sessions into the vectordb (FTS5 + sqlite-vec).
+ * Uses multi-phase staleness tracking:
+ *   - content_hash: tracks chunk/FTS identity
+ *   - embedding_hash: tracks embedding completion
  */
 
 import type { ChatSession } from '@/types';
@@ -20,7 +21,7 @@ interface ChatIndexOptions {
 /**
  * Index a single chat session.
  * No-ops if the session is already indexed with the same content hash.
- * Returns a structured result so callers can distinguish indexed vs skipped vs failed.
+ * Used for fire-and-forget indexing after chat save.
  */
 async function indexSession(
   session: ChatSession,
@@ -40,46 +41,14 @@ async function indexSession(
       return { status: 'skipped', reason: 'up_to_date', chunkCount: 0, embeddingCount: 0 };
     }
 
-    const chunks = chunkChatSession(session);
-    if (chunks.length === 0) {
-      return { status: 'skipped', reason: 'no_chunks', chunkCount: 0, embeddingCount: 0 };
+    const result = await indexSessionInternal(session, contentHash, options);
+
+    // Mark embedding completion for single-session indexing
+    if (result.status === 'indexed' && result.embeddingCount > 0) {
+      await vectorDB.markChatEmbedded(session.id);
     }
 
-    // Upsert session metadata first (FK constraint on chat_chunks)
-    await vectorDB.upsertChatSession({
-      id: session.id,
-      title: session.title,
-      last_message_at: session.lastMessageAt,
-      message_count: session.messages.length,
-      content_hash: contentHash,
-    });
-
-    // Embed all turn texts in a single batch
-    const chunkTexts = chunks.map(c => c.text);
-    let embeddings: number[][] | null = null;
-    if (options?.includeEmbeddings !== false) {
-      try {
-        embeddings = await embeddingService.embedBatch(chunkTexts);
-      } catch (error) {
-        console.error(`[ChatIndexer] Embedding failed for session "${session.title}":`, error);
-      }
-    }
-
-    const chunkDataList: ChatChunkData[] = chunks.map((chunk, i) => ({
-      chunk_index: chunk.index,
-      chunk_text: chunk.text,
-      chunk_type: chunk.type,
-      embedding: embeddings?.[i],
-    }));
-
-    await vectorDB.upsertChatChunks(session.id, chunkDataList);
-
-    console.log(`[ChatIndexer] Indexed session "${session.title}" (${chunks.length} turns)`);
-    return {
-      status: 'indexed',
-      chunkCount: chunkDataList.length,
-      embeddingCount: embeddings?.length ?? 0,
-    };
+    return result;
   } catch (error) {
     console.error(`[ChatIndexer] Failed to index session "${session.title}":`, error);
     return {
@@ -89,6 +58,151 @@ async function indexSession(
       embeddingCount: 0,
     };
   }
+}
+
+/**
+ * Batch index all chat sessions using multi-phase staleness tracking.
+ *
+ *   Step 1: Content-stale sessions → chunk + FTS (+ embeddings if available)
+ *   Step 2: Embedding-stale sessions → re-index with embeddings
+ */
+async function indexAllSessions(
+  sessions: ChatSession[],
+  options?: ChatIndexOptions & { signal?: AbortSignal },
+): Promise<number> {
+  const nonEmpty = sessions.filter(s => s.messages.length > 0);
+  if (nonEmpty.length === 0) return 0;
+
+  const signal = options?.signal;
+  const includeEmbeddings = options?.includeEmbeddings ?? true;
+
+  await vectorDB.initialize();
+
+  // Compute content hashes for all sessions
+  const hashes = await Promise.all(
+    nonEmpty.map(async (s) => ({
+      id: s.id,
+      content_hash: await computeChatHash(s),
+    }))
+  );
+  const hashMap = new Map(hashes.map(h => [h.id, h.content_hash]));
+
+  let indexed = 0;
+
+  // ── Step 1: Index content-stale sessions (chunks + FTS + optional embeddings) ──
+  const staleIds = await vectorDB.getStaleChatSessions(hashes);
+  const staleSet = new Set(staleIds);
+  const staleItems = nonEmpty.filter(s => staleSet.has(s.id));
+
+  if (staleItems.length > 0) {
+    console.log(`[ChatIndexer] ${staleItems.length} sessions need indexing`);
+
+    for (const session of staleItems) {
+      if (signal?.aborted) break;
+
+      try {
+        const contentHash = hashMap.get(session.id)!;
+        const result = await indexSessionInternal(session, contentHash, { includeEmbeddings });
+        if (result.status === 'indexed') {
+          indexed++;
+          if (includeEmbeddings && result.embeddingCount > 0) {
+            await vectorDB.markChatEmbedded(session.id);
+          }
+        }
+      } catch (error) {
+        console.error(`[ChatIndexer] Failed to index "${session.title}":`, error);
+      }
+    }
+
+    console.log(`[ChatIndexer] Indexed ${indexed} sessions`);
+  }
+
+  // ── Step 2: Upgrade embedding-stale sessions ──
+  if (includeEmbeddings) {
+    const allIds = nonEmpty.map(s => s.id);
+    const needsEmbeddingIds = await vectorDB.getChatsNeedingEmbeddings(allIds);
+
+    if (needsEmbeddingIds.length > 0) {
+      const needsEmbeddingSet = new Set(needsEmbeddingIds);
+      const embeddingItems = nonEmpty.filter(s => needsEmbeddingSet.has(s.id));
+
+      console.log(`[ChatIndexer] ${embeddingItems.length} sessions need embedding upgrade`);
+
+      let embedded = 0;
+      for (const session of embeddingItems) {
+        if (signal?.aborted) break;
+
+        try {
+          const contentHash = hashMap.get(session.id)!;
+          const result = await indexSessionInternal(session, contentHash, { includeEmbeddings: true });
+          if (result.status === 'indexed' && result.embeddingCount > 0) {
+            await vectorDB.markChatEmbedded(session.id);
+            embedded++;
+          }
+        } catch (error) {
+          console.error(`[ChatIndexer] Embedding upgrade failed for "${session.title}":`, error);
+        }
+      }
+
+      if (embedded > 0) {
+        console.log(`[ChatIndexer] Embedded ${embedded} sessions`);
+      }
+    }
+  }
+
+  return indexed;
+}
+
+/**
+ * Core indexing logic: chunk → embed → upsert.
+ * content_hash is stamped ONLY after chunks are confirmed in DB.
+ */
+async function indexSessionInternal(
+  session: ChatSession,
+  contentHash: string,
+  options?: ChatIndexOptions,
+): Promise<IndexingResult> {
+  const chunks = chunkChatSession(session);
+  if (chunks.length === 0) {
+    return { status: 'skipped', reason: 'no_chunks', chunkCount: 0, embeddingCount: 0 };
+  }
+
+  // Upsert session metadata WITHOUT content_hash (deferred until chunks confirmed)
+  await vectorDB.upsertChatSession({
+    id: session.id,
+    title: session.title,
+    last_message_at: session.lastMessageAt,
+    message_count: session.messages.length,
+  });
+
+  const chunkTexts = chunks.map(c => c.text);
+  let embeddings: number[][] | null = null;
+  if (options?.includeEmbeddings !== false) {
+    try {
+      embeddings = await embeddingService.embedBatch(chunkTexts);
+    } catch (error) {
+      console.error(`[ChatIndexer] Embedding failed for session "${session.title}":`, error);
+    }
+  }
+
+  const chunkDataList: ChatChunkData[] = chunks.map((chunk, i) => ({
+    chunk_index: chunk.index,
+    chunk_text: chunk.text,
+    chunk_type: chunk.type,
+    embedding: embeddings?.[i],
+  }));
+
+  await vectorDB.upsertChatChunks(session.id, chunkDataList);
+
+  // Stamp content_hash AFTER chunks are confirmed — prevents hash poisoning on partial failure
+  await vectorDB.markChatContentIndexed(session.id, contentHash);
+
+  console.log(`[ChatIndexer] Indexed session "${session.title}" (${chunks.length} turns)`);
+  return {
+    status: 'indexed',
+    chunkCount: chunkDataList.length,
+    embeddingCount: embeddings?.length ?? 0,
+  };
 }
 
 /**
@@ -106,5 +220,6 @@ async function removeSession(sessionId: string): Promise<void> {
 
 export const chatIndexer = {
   indexSession,
+  indexAllSessions,
   removeSession,
 };

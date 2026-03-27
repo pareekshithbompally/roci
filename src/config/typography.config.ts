@@ -82,21 +82,20 @@ export const TYPOGRAPHY = {
    */
   settings: {
     panelTitle: {
-      fontSize: '20px',
+      fontSize: '15px',
       fontWeight: '600',
       lineHeight: '1.3',
     },
     panelDescription: {
-      fontSize: '14px',
+      fontSize: '13px',
       fontWeight: '400',
       lineHeight: '1.5',
     },
     sectionLabel: {
-      fontSize: '11px',
-      fontWeight: '600',
+      fontSize: '12px',
+      fontWeight: '500',
       lineHeight: '1.4',
-      textTransform: 'uppercase',
-      letterSpacing: '0.08em',
+      letterSpacing: '0em',
     },
     inputLabel: {
       fontSize: '13px',
@@ -104,22 +103,22 @@ export const TYPOGRAPHY = {
       lineHeight: '1.4',
     },
     helperText: {
-      fontSize: '12px',
+      fontSize: '11.5px',
       fontWeight: '400',
       lineHeight: '1.5',
     },
     inputText: {
-      fontSize: '14px',
+      fontSize: '13px',
       fontWeight: '400',
       lineHeight: '1.5',
     },
     buttonText: {
-      fontSize: '13px',
+      fontSize: '12.5px',
       fontWeight: '500',
       lineHeight: '1.4',
     },
     spacing: {
-      betweenSections: '32px', // space-y-8
+      betweenSections: '24px', // space-y-6
     },
   },
 
@@ -172,14 +171,14 @@ export const TYPOGRAPHY_CLASSES = {
   transcriptSpeaker: 'text-[13px] font-semibold leading-[1.4]',
   
   // Settings
-  settingsTitle: 'text-xl font-semibold leading-[1.3]',
-  settingsDescription: 'text-sm font-normal leading-[1.5]',
-  settingsLabel: 'text-[11px] font-semibold uppercase tracking-[0.08em] leading-[1.4]',
+  settingsTitle: 'text-[15px] font-semibold leading-[1.3]',
+  settingsDescription: 'text-[13px] font-normal leading-[1.5]',
+  settingsLabel: 'text-xs font-medium leading-[1.4]',
   settingsInputLabel: 'text-[13px] font-medium leading-[1.4]',
-  settingsHelper: 'text-xs font-normal leading-[1.5]',
-  settingsInput: 'text-sm font-normal leading-[1.5]',
-  settingsButton: 'text-[13px] font-medium leading-[1.4]',
-  settingsSpacing: 'space-y-8',
+  settingsHelper: 'text-[11.5px] font-normal leading-[1.5]',
+  settingsInput: 'text-[13px] font-normal leading-[1.5]',
+  settingsButton: 'text-[12.5px] font-medium leading-[1.4]',
+  settingsSpacing: 'space-y-6',
   
   // Summary
   summaryTitle: 'text-base font-semibold leading-[1.4]',

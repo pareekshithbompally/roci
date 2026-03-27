@@ -8,6 +8,7 @@
 import { TRANSCRIPTION_SCHEMA } from './schemas/transcription.schema';
 import { buildChatSystemPrompt } from './prompts/chat.prompt';
 import { buildTranscriptionPrompt } from './prompts/transcription.prompt';
+import type { MeetingContext } from './prompts/transcription.prompt';
 import type { ChatRequestConfig, TranscriptionRequestConfig, OutputSchema } from './types';
 
 export interface ChatRequestOptions {
@@ -36,19 +37,21 @@ export function buildChatRequest(options: ChatRequestOptions): ChatRequestConfig
 export interface TranscriptionRequestOptions {
   categories: string[];
   supportsStructuredOutput?: boolean;
+  /** Calendar meeting context for speaker attribution. */
+  meetingContext?: MeetingContext;
 }
 
 /**
  * Same pattern for transcription — prompt + schema as atomic pair.
  */
 export function buildTranscriptionRequest(options: TranscriptionRequestOptions): TranscriptionRequestConfig {
-  const { categories, supportsStructuredOutput = false } = options;
+  const { categories, supportsStructuredOutput = false, meetingContext } = options;
 
   const outputSchema: OutputSchema | undefined = supportsStructuredOutput
     ? { name: 'transcription', schema: TRANSCRIPTION_SCHEMA }
     : undefined;
 
-  const prompt = buildTranscriptionPrompt({ categories });
+  const prompt = buildTranscriptionPrompt({ categories, meetingContext });
 
   return { prompt, outputSchema };
 }

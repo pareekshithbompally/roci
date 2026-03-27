@@ -530,6 +530,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       return msg;
     });
 
+    const selectedRefs = state.selectedMeetingRefs;
+
     if (isRegenerate) {
       const lastIdx = targetSession.messages.length - 1;
       if (lastIdx >= 0 && targetSession.messages[lastIdx]?.role === 'model') {
@@ -542,6 +544,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         text: textToSend,
         parts: state.pendingAttachments.length > 0
           ? [{ type: 'text' as const, text: textToSend }, ...state.pendingAttachments]
+          : undefined,
+        meetingRefs: selectedRefs.length > 0
+          ? selectedRefs.map(m => ({ id: m.id, title: m.title }))
           : undefined,
         timestamp: Date.now(),
       };
@@ -556,8 +561,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       next.set(activeSessionId, targetSession);
       return next;
     });
-
-    const selectedRefs = state.selectedMeetingRefs;
 
     // Create abort controller for this request
     abortControllerRef.current = new AbortController();

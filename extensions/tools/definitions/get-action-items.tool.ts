@@ -7,6 +7,8 @@
 
 import type { ToolDefinition, ToolResult } from '../types';
 import { meetingReferenceService } from '../../../services/meetingReferenceService';
+import { todosRepository } from '../../../services/repositories/todos.repository';
+import { GENERAL_MEETING_ID, GENERAL_MEETING_TITLE } from '@features/chat/stores/todoProposalStore';
 import type { HistoryItem, ActionItem } from '@/types';
 
 interface MeetingActions {
@@ -101,6 +103,26 @@ export const getActionItemsTool: ToolDefinition = {
       meetings.push({ title: ref.title, date, items: filtered });
     }
 
+    // Also load general (non-meeting) todos when scanning all
+    if (!meetingId) {
+      try {
+        const generalTodos = await todosRepository.readDoc(GENERAL_MEETING_ID);
+        if (generalTodos && generalTodos.length > 0) {
+          let filtered = generalTodos;
+          if (status === 'pending') filtered = generalTodos.filter(t => !t.completed);
+          else if (status === 'completed') filtered = generalTodos.filter(t => t.completed);
+
+          if (filtered.length > 0) {
+            totalPending += filtered.filter(t => !t.completed).length;
+            totalCompleted += filtered.filter(t => t.completed).length;
+            meetings.push({ title: GENERAL_MEETING_TITLE, date: '', items: filtered });
+          }
+        }
+      } catch {
+        // _general may not exist yet — that's fine
+      }
+    }
+
     if (meetings.length === 0) {
       const scope = meetingId ? 'this meeting' : 'recent meetings';
       return {
@@ -118,7 +140,11 @@ export const getActionItemsTool: ToolDefinition = {
       for (const item of meeting.items) {
         const check = item.completed ? '[x]' : '[ ]';
         const due = item.dueDate ? ` (Due: ${item.dueDate})` : '';
-        lines.push(`- ${check} ${item.text}${due}`);
+        const owner = item.owner ? ` (Assigned: ${item.owner})` : '';
+        const reminder = item.reminder?.dateTime
+          ? ` 🔔 Reminder: ${new Date(item.reminder.dateTime).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+          : '';
+        lines.push(`- ${check} ${item.text}${owner}${due}${reminder}`);
       }
       lines.push('');
     }

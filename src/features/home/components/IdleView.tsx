@@ -5,8 +5,8 @@
  * Uses shared ChatInput component for consistent chat experience.
  */
 
-import React, { useMemo, useState } from 'react';
-import { AudioWaveform, Key, HardDrive } from 'lucide-react';
+import React, { useMemo, useState, useCallback } from 'react';
+import { AudioWaveform, Key, HardDrive, ListTodo } from 'lucide-react';
 import { ImportButton } from '@features/import';
 import { useApp, AppStatus } from '@shared/contexts/AppContext';
 import { useRecordingContext } from '@features/recording';
@@ -16,9 +16,10 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { ChatInput } from '@features/chat';
 import { meetingReferenceService } from '@/services/meetingReferenceService';
 import { RadioCard } from '@features/settings/components/shared';
-import { supportsWebSearch } from '@shared/utils/modelResolver';
+import { supportsWebSearch, supportsTranscription, resolveModel } from '@shared/utils/modelResolver';
+import { useSpeechInput } from '@features/chat/hooks/useSpeechInput';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { SURFACE, TEXT } from '@config/theme.config';
+import { SURFACE, TEXT, BORDER } from '@config/theme.config';
 
 interface IdleViewProps {}
 
@@ -49,6 +50,21 @@ export const IdleView: React.FC<IdleViewProps> = () => {
     [historyItems]
   );
 
+  // Check if transcription model provider supports voice input
+  const showSpeechInput = useMemo(() => {
+    const resolved = resolveModel(settings.transcriptionModel, providers);
+    return resolved ? supportsTranscription(resolved.provider) : false;
+  }, [settings.transcriptionModel, providers]);
+
+  const speech = useSpeechInput(settings.transcriptionModel, providers);
+
+  const handleSpeechStop = useCallback(async () => {
+    const text = await speech.stop();
+    if (text) {
+      chat.setInput(chat.input ? `${chat.input} ${text}` : text);
+    }
+  }, [speech, chat]);
+
   // Check if current model supports web search
   const showWebSearch = useMemo(() => {
     // Find the provider for this model
@@ -75,6 +91,10 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   const handleSetupLocal = () => {
     setActiveSettingsPanel('local-inference');
     setCurrentView('settings');
+  };
+
+  const handleOpenReminders = () => {
+    setCurrentView('reminders');
   };
 
   const handleStartRecording = async () => {
@@ -131,6 +151,13 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                 onAttach={chat.addAttachment}
                 onRemoveAttachment={chat.removeAttachment}
                 onScreenshot={chat.addScreenshotAttachment}
+                showSpeechInput={showSpeechInput}
+                speechState={speech.state}
+                micStream={speech.stream}
+                speechElapsed={speech.elapsed}
+                onSpeechStart={speech.start}
+                onSpeechStop={handleSpeechStop}
+                onSpeechCancel={speech.cancel}
               />
 
               {/* Action Chips */}
@@ -144,6 +171,15 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                   <span>Record</span>
                 </button>
                 <ImportButton />
+                {historyItems.length > 0 && (
+                  <button
+                    onClick={handleOpenReminders}
+                    className={`inline-flex items-center gap-1.5 px-4 py-2.5 ${SURFACE.card} border ${BORDER.strong} rounded-full text-sm font-medium ${TEXT.secondary} hover:${TEXT.heading} transition-all`}
+                  >
+                    <ListTodo className="w-4 h-4" />
+                    <span>To-Dos</span>
+                  </button>
+                )}
               </div>
             </>
           ) : (

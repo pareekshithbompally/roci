@@ -11,7 +11,7 @@ import { AppStatus as AppStatusEnum, ProcessedResult } from '@/types';
 // Re-export AppStatus enum for convenience
 export { AppStatus } from '@/types';
 
-type ViewType = 'home' | 'settings';
+type ViewType = 'home' | 'settings' | 'reminders';
 type SettingsPanel = 'audio' | 'providers' | 'local-inference' | 'categories' | 'interface';
 type ResultTab = 'transcript' | 'summary' | 'todo' | 'notes';
 

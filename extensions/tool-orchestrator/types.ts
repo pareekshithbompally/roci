@@ -8,6 +8,7 @@ import type { ChatMessage, HistoryItem, AppSettings } from '@/types';
 import type { ModelProvider } from '@/types/modelProviders';
 import type { StreamMetadata, ToolChoice } from '@/services/ai/types';
 import type { ChatPart } from '@/types';
+import type { TodoProposal } from '@features/chat/stores/todoProposalStore';
 import type { ToolCall, ToolResult, MeetingCitation } from '@extensions/tools/types';
 
 // ── Intent Classification (Step 1) ──
@@ -19,10 +20,24 @@ export type IntentType =
   | 'meeting_detail'
   | 'meeting_list'
   | 'action_items'
+  | 'manage_todos'
   | 'relationship'
   | 'cross_meeting'
   | 'chat_recall'
   | 'catch_up';
+
+/** Mutation parameters extracted by the intent classifier for manage_todos */
+export interface TodoMutation {
+  action: 'create' | 'toggle' | 'update' | 'delete';
+  todo_text?: string;
+  due_date?: string;
+  reminder_datetime?: string;
+  owner?: string;
+  meeting_query?: string;
+  is_general?: boolean;
+  /** For toggle/update/delete — text to fuzzy-match against existing todos */
+  match_text?: string;
+}
 
 export interface IntentClassification {
   intent: IntentType;
@@ -30,6 +45,9 @@ export interface IntentClassification {
   search_query?: string;
   requested_fields?: ('summary' | 'transcript' | 'notes' | 'actionItems')[];
   action_item_filter?: 'pending' | 'completed' | 'all';
+  mutation?: TodoMutation;
+  /** Multiple mutations — preferred over singular `mutation` for batch requests */
+  mutations?: TodoMutation[];
   graph_target?: string;
   graph_node_types?: string[];
   graph_edge_types?: string[];
@@ -70,6 +88,8 @@ export interface OrchestratorCallbacks {
   onChunk: (text: string, metadata?: StreamMetadata) => void;
   onMediaPart?: (part: ChatPart) => void;
   onToolActivity: (activity: ToolActivity) => void;
+  /** Called when a manage_todos intent produces a proposal for user confirmation */
+  onProposal?: (proposal: TodoProposal) => void;
 }
 
 /** UI-facing tool activity state */

@@ -414,6 +414,34 @@ export const COMPONENT = {
   /** Disabled input modifier */
   inputDisabled: 'disabled:opacity-50 disabled:cursor-not-allowed',
 
+  // ─── Complete Settings Buttons ────────────────────────────────
+  // Self-contained: layout + padding + radius + typography + color + disabled.
+  // Apply directly to <button> — no assembly required.
+
+  /** Settings button — primary filled (Download, Search, Add) */
+  settingsButtonPrimary: `inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-medium leading-[1.4] ${RADIUS.md} bg-parchment-900 dark:bg-night-100 text-white dark:text-night-900 hover:bg-parchment-800 dark:hover:bg-night-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors`,
+
+  /** Settings button — success filled (Start Server) */
+  settingsButtonSuccess: `inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-medium leading-[1.4] ${RADIUS.md} bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors`,
+
+  /** Settings button — danger filled (Stop Server) */
+  settingsButtonDanger: `inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-medium leading-[1.4] ${RADIUS.md} bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors`,
+
+  /** Settings button — outline (Cancel, Rebuild, secondary actions) */
+  settingsButtonOutline: `inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-medium leading-[1.4] ${RADIUS.md} border ${BORDER.strong} ${TEXT.primary} ${SURFACE.hoverSubtle} disabled:opacity-50 disabled:cursor-not-allowed transition-colors`,
+
+  /** Settings inline link (Update, Check for updates, Explore models) */
+  settingsLink: `inline-flex items-center gap-1 text-[11.5px] font-normal leading-[1.5] ${TEXT.link} hover:underline disabled:opacity-50 transition-colors`,
+
+  /** Settings destructive link — default state (Remove) */
+  settingsDestructiveLink: `inline-flex items-center gap-1 text-[11.5px] font-normal leading-[1.5] ${TEXT.faint} hover:text-red-600 dark:hover:text-red-400 disabled:opacity-50 transition-colors`,
+
+  /** Settings destructive link — confirm state (click again to confirm) */
+  settingsDestructiveLinkActive: `inline-flex items-center gap-1 text-[11.5px] font-normal leading-[1.5] text-red-600 dark:text-red-400 disabled:opacity-50 transition-colors`,
+
+  /** Settings muted link — tertiary actions (Check for updates) */
+  settingsMutedLink: `inline-flex items-center gap-1 text-[11.5px] font-normal leading-[1.5] ${TEXT.muted} hover:text-parchment-900 dark:hover:text-night-100 disabled:opacity-50 transition-colors`,
+
   /** Keyboard shortcut badge (⌘K, ⌘L, etc.) */
   kbdBadge: `inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[11px] font-medium rounded-md bg-parchment-300/80 dark:bg-night-700/80 ${TEXT.faint}`,
 

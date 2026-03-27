@@ -58,6 +58,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
 
   const [results, setResults] = useState<SpotlightHit[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchGenRef = useRef(0);
 
@@ -67,11 +68,13 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
     if (!query || query.length < SPOTLIGHT_MIN_QUERY_LENGTH) {
       setResults([]);
       setIsSearching(false);
+      setSearchError(null);
       return;
     }
 
     debounceRef.current = setTimeout(async () => {
       const gen = ++searchGenRef.current;
+      setSearchError(null);
 
       // In-memory title match — instant, always covers unindexed items
       const memoryHits: SpotlightHit[] = items
@@ -107,6 +110,9 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
         setResults(merged);
       } catch (error: unknown) {
         console.error('[SearchOverlay] Spotlight DB search failed:', error);
+        if (gen === searchGenRef.current) {
+          setSearchError('Search index unavailable');
+        }
       } finally {
         if (gen === searchGenRef.current) setIsSearching(false);
       }
@@ -118,6 +124,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
     if (!open) {
       setResults([]);
       setIsSearching(false);
+      setSearchError(null);
       searchGenRef.current = 0;
       if (debounceRef.current) clearTimeout(debounceRef.current);
     }
@@ -169,6 +176,9 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
           <div className="flex flex-col items-center gap-2 py-8">
             <Search className="w-5 h-5 text-[var(--text-faint)]" />
             <span className="text-sm text-[var(--text-muted)]">No results found</span>
+            {searchError && (
+              <span className="text-xs text-[var(--text-faint)]">{searchError}</span>
+            )}
           </div>
         </CommandEmpty>
 

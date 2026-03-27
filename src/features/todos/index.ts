@@ -25,10 +25,11 @@
 export { TodosProvider, useTodosContext } from './context';
 
 // Hooks
-export { useTodos } from './hooks';
+export { useTodos, useGlobalTodos } from './hooks';
+export type { GlobalTodo, TodoFilter } from './hooks';
 
 // Components
-export { TodoList, TodoItem } from './components';
+export { TodoList, TodoItem, RemindersView } from './components';
 
 // Types
 export type {

@@ -19,6 +19,7 @@ export interface ChatMessageProps {
   role: 'user' | 'model' | 'assistant' | 'system';
   text: string;
   parts?: ChatPart[];
+  meetingRefs?: Array<{ id: string; title: string }>;
   timestamp?: number;
   suggestions?: string[];
   onSuggestionClick?: (suggestion: string) => void;
@@ -51,6 +52,7 @@ export interface UserMessageProps {
   id: string;
   text: string;
   parts?: ChatPart[];
+  meetingRefs?: Array<{ id: string; title: string }>;
   timestamp?: number;
   isCopied?: boolean;
   actions: ActionProps;

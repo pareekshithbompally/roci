@@ -334,7 +334,7 @@ export const ProvidersPanel: React.FC = () => {
                   </InfoCallout>
 
                   {/* Live server status */}
-                  <div className={`px-4 py-3 ${SURFACE.card} border ${BORDER.default} rounded-lg space-y-2`}>
+                  <div className={`px-4 py-3 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg} space-y-2`}>
                     <div className="flex items-center justify-between">
                       <LlamacppServerStatus />
                     </div>
@@ -467,7 +467,7 @@ export const ProvidersPanel: React.FC = () => {
                           <button
                             onClick={handleSearchModels}
                             disabled={isSearching || (!hasHardcodedModels && (!getApiKeyValue() || (!isManaged && !getBaseUrlValue())))}
-                            className={`px-4 py-2.5 ${COMPONENT.primaryButton} rounded-lg ${TYPOGRAPHY_CLASSES.settingsButton} disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2`}
+                            className={`${COMPONENT.settingsButtonPrimary} disabled:opacity-50 disabled:cursor-not-allowed`}
                           >
                             {isSearching && <Loader2 className="w-4 h-4 animate-spin" />}
                             {isSearching ? 'Searching...' : 'Search'}

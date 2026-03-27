@@ -1,6 +1,27 @@
 import type { ModelProvider } from '../types/modelProviders'
 
 /**
+ * Transcription strategy for voice input (chat STT).
+ * 'sdk'        → experimental_transcribe via whisper endpoint
+ * 'multimodal' → generateText with audio FilePart (Gemini-style)
+ */
+export type TranscriptionStrategy =
+  | { type: 'sdk'; model: string }
+  | { type: 'multimodal'; model: string }
+  | null;
+
+/**
+ * Maps provider id → transcription strategy for chat voice input.
+ * Add an entry here when a new provider gains transcription capability.
+ */
+export const TRANSCRIPTION_STRATEGIES: Record<string, TranscriptionStrategy> = {
+  openai: { type: 'sdk', model: 'whisper-1' },
+  azure:  { type: 'sdk', model: 'whisper-1' },
+  groq:   { type: 'sdk', model: 'whisper-large-v3' },
+  gemini: { type: 'multimodal', model: 'gemini-2.0-flash' },
+};
+
+/**
  * Hardcoded model lists for providers that have no /models discovery endpoint.
  * NOTE: anthropic and gemini are intentionally NOT here — they both support
  * live model discovery (Anthropic SDK client.models.list(), Gemini REST v1beta/models)

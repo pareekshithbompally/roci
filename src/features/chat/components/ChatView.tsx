@@ -13,13 +13,15 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHistory } from '@shared/contexts/HistoryContext';
 import { useApp, AppStatus } from '@shared/contexts/AppContext';
 import { ChatMessage } from './message';
+import TodoConfirmationBanner from './TodoConfirmationBanner';
 import type { ActionProps, CitationHandlers } from './message';
 import { ChatInput } from './ChatInput';
 import { MeetingCitationDrawer } from './MeetingCitationDrawer';
 import { WebCitationDrawer } from './WebCitationDrawer';
 import { meetingReferenceService } from '@/services/meetingReferenceService';
 import { meetingService } from '@/services/meeting.service';
-import { supportsWebSearch } from '@shared/utils/modelResolver';
+import { supportsWebSearch, supportsTranscription, resolveModel } from '@shared/utils/modelResolver';
+import { useSpeechInput } from '../hooks/useSpeechInput';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { COMPONENT, TEXT } from '@config/theme.config';
 import type { MeetingCitation, WebCitation } from '@/types';
@@ -136,6 +138,21 @@ export const ChatView: React.FC = () => {
     return false;
   }, [settings.chatModel, providers]);
 
+  // Check if transcription model provider supports voice input
+  const showSpeechInput = useMemo(() => {
+    const resolved = resolveModel(settings.transcriptionModel, providers);
+    return resolved ? supportsTranscription(resolved.provider) : false;
+  }, [settings.transcriptionModel, providers]);
+
+  const speech = useSpeechInput(settings.transcriptionModel, providers);
+
+  const handleSpeechStop = useCallback(async () => {
+    const text = await speech.stop();
+    if (text) {
+      chat.setInput(chat.input ? `${chat.input} ${text}` : text);
+    }
+  }, [speech, chat]);
+
   const sharedActions = useMemo<ActionProps>(() => ({
     onCopy: chat.copyMessage,
     onRerun: () => chat.rerunLastMessage(historyItems, settings, providers),
@@ -172,6 +189,7 @@ export const ChatView: React.FC = () => {
                   role={message.role}
                   text={message.text}
                   parts={message.parts}
+                  meetingRefs={message.meetingRefs}
                   timestamp={message.timestamp}
                   suggestions={message.suggestions}
                   onSuggestionClick={(suggestion) => chat.sendMessage(suggestion, historyItems, settings, providers)}
@@ -200,6 +218,7 @@ export const ChatView: React.FC = () => {
 
         {/* Input Area - Fixed at Bottom */}
         <div className="shrink-0">
+          <TodoConfirmationBanner />
           <ChatInput
             value={chat.input}
             onChange={chat.setInput}
@@ -217,6 +236,13 @@ export const ChatView: React.FC = () => {
             onAttach={chat.addAttachment}
             onRemoveAttachment={chat.removeAttachment}
             onScreenshot={chat.addScreenshotAttachment}
+            showSpeechInput={showSpeechInput}
+            speechState={speech.state}
+            micStream={speech.stream}
+            speechElapsed={speech.elapsed}
+            onSpeechStart={speech.start}
+            onSpeechStop={handleSpeechStop}
+            onSpeechCancel={speech.cancel}
           />
         </div>
       </div>

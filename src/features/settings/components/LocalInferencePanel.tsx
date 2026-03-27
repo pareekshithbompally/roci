@@ -314,13 +314,13 @@ export const LocalInferencePanel: React.FC = () => {
 
   return (
     <div className={`h-full overflow-y-auto custom-scrollbar ${LAYOUT.settingsPadding} py-6`}>
-    <div className={`${LAYOUT.settingsMaxWidth} mx-auto space-y-8`}>
+    <div className={`${LAYOUT.settingsMaxWidth} mx-auto space-y-6`}>
       {/* Header */}
       <div>
-        <h3 className={`${TYPOGRAPHY_CLASSES.settingsTitle} ${TEXT.heading}`}>
+        <h3 className={`${TYPOGRAPHY_CLASSES.settingsTitle} ${TEXT.heading} mb-1`}>
           Local Inference
         </h3>
-        <p className={`${TYPOGRAPHY_CLASSES.settingsDescription} ${TEXT.muted} mt-1`}>
+        <p className={`${TYPOGRAPHY_CLASSES.settingsDescription} ${TEXT.muted}`}>
           Run AI models locally with llama.cpp
         </p>
       </div>
@@ -329,7 +329,7 @@ export const LocalInferencePanel: React.FC = () => {
       {/* STATE 1: no-engine — Setup card with download CTA          */}
       {/* ═══════════════════════════════════════════════════════════ */}
       {panelState === 'no-engine' && (
-        <div className={`flex items-center justify-between px-4 py-3 ${SURFACE.card} border ${BORDER.default} rounded-lg`}>
+        <div className={`flex items-center justify-between px-4 py-3 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg}`}>
           <div className="min-w-0">
             <p className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
               llama-server
@@ -341,7 +341,7 @@ export const LocalInferencePanel: React.FC = () => {
           <button
             onClick={handleDownloadBinary}
             disabled={isDownloadingBinary}
-            className={`flex items-center gap-2 px-4 py-2 ${COMPONENT.primaryButton} rounded-lg ${TYPOGRAPHY_CLASSES.settingsButton} disabled:opacity-50 whitespace-nowrap`}
+            className={`${COMPONENT.settingsButtonPrimary} whitespace-nowrap`}
           >
             {isDownloadingBinary ? (
               <motion.span {...spin}><Loader2 className="w-4 h-4" /></motion.span>
@@ -363,7 +363,7 @@ export const LocalInferencePanel: React.FC = () => {
       {panelState === 'zero-models' && binaryInfo && (
         <>
           {/* Collapsed engine status bar */}
-          <div className={`px-4 py-2.5 ${SURFACE.card} border ${BORDER.default} rounded-lg flex items-center justify-between`}>
+          <div className={`px-4 py-3 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg} flex items-center justify-between`}>
             <div className="flex items-center gap-2">
               <ServerStatus />
               <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
@@ -375,7 +375,7 @@ export const LocalInferencePanel: React.FC = () => {
                 <button
                   onClick={handleDownloadBinary}
                   disabled={isDownloadingBinary}
-                  className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.link} hover:underline disabled:opacity-50 flex items-center gap-1`}
+                  className={COMPONENT.settingsLink}
                 >
                   <RefreshCw className="w-3 h-3" />
                   Update to {latestVersion}
@@ -384,7 +384,7 @@ export const LocalInferencePanel: React.FC = () => {
                 <button
                   onClick={handleCheckForUpdate}
                   disabled={isCheckingUpdate}
-                  className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted} hover:${TEXT.primary} disabled:opacity-50 flex items-center gap-1`}
+                  className={COMPONENT.settingsMutedLink}
                 >
                   <motion.span
                     animate={isCheckingUpdate ? { rotate: 360 } : { rotate: 0 }}
@@ -401,9 +401,7 @@ export const LocalInferencePanel: React.FC = () => {
               <button
                 onClick={handleRemoveEngine}
                 disabled={removeConfirm === 'removing'}
-                className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${
-                  removeConfirm === 'confirm' ? TEXT.error : `${TEXT.faint} hover:${TEXT.error}`
-                } disabled:opacity-50 flex items-center gap-1 transition-colors`}
+                className={removeConfirm === 'confirm' ? COMPONENT.settingsDestructiveLinkActive : COMPONENT.settingsDestructiveLink}
                 title="Remove llama-server engine"
               >
                 {removeConfirm === 'removing' ? (
@@ -417,7 +415,7 @@ export const LocalInferencePanel: React.FC = () => {
           </div>
 
           {/* Hero model acquisition card */}
-          <div className={`px-5 py-5 ${SURFACE.card} border ${BORDER.default} rounded-xl space-y-4`}>
+          <div className={`px-5 py-5 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg} space-y-4`}>
             <div>
               <h4 className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading} mb-1`}>
                 Add Your First Model
@@ -499,7 +497,7 @@ export const LocalInferencePanel: React.FC = () => {
 
             {/* ═══ Server Tab ═══ */}
             {activeTab === 'server' && (
-              <div className={`${SURFACE.card} border ${BORDER.default} rounded-xl overflow-hidden`}>
+              <div className={`${SURFACE.card} border ${BORDER.default} ${RADIUS.lg} overflow-hidden`}>
 
                 {/* ── Model row ── */}
                 <div className={`px-4 py-3 border-b ${BORDER.default}`}>
@@ -540,7 +538,7 @@ export const LocalInferencePanel: React.FC = () => {
                 </div>
 
                 {/* ── Settings summary / expanded ── */}
-                <div className={`px-4 py-2.5 border-b ${BORDER.default}`}>
+                <div className={`px-4 py-3 border-b ${BORDER.default}`}>
                   {isRunning ? (
                     <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
                       {settingsSummary}
@@ -588,7 +586,7 @@ export const LocalInferencePanel: React.FC = () => {
                                 min={256}
                                 max={131072}
                                 step={256}
-                                className={`w-full px-3 py-2 ${SURFACE.inputField} border ${BORDER.input} rounded-lg ${TYPOGRAPHY_CLASSES.settingsInput} outline-none ${BORDER.inputFocus} transition-all`}
+                                className={`w-full px-3 py-2 ${COMPONENT.settingsInput} ${TYPOGRAPHY_CLASSES.settingsInput}`}
                               />
                             </div>
 
@@ -605,7 +603,7 @@ export const LocalInferencePanel: React.FC = () => {
                                 }
                                 min={-1}
                                 max={999}
-                                className={`w-full px-3 py-2 ${SURFACE.inputField} border ${BORDER.input} rounded-lg ${TYPOGRAPHY_CLASSES.settingsInput} outline-none ${BORDER.inputFocus} transition-all`}
+                                className={`w-full px-3 py-2 ${COMPONENT.settingsInput} ${TYPOGRAPHY_CLASSES.settingsInput}`}
                               />
                               <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
                                 -1 = all
@@ -625,7 +623,7 @@ export const LocalInferencePanel: React.FC = () => {
                                 }
                                 min={1}
                                 max={64}
-                                className={`w-full px-3 py-2 ${SURFACE.inputField} border ${BORDER.input} rounded-lg ${TYPOGRAPHY_CLASSES.settingsInput} outline-none ${BORDER.inputFocus} transition-all`}
+                                className={`w-full px-3 py-2 ${COMPONENT.settingsInput} ${TYPOGRAPHY_CLASSES.settingsInput}`}
                               />
                             </div>
                           </div>
@@ -656,7 +654,7 @@ export const LocalInferencePanel: React.FC = () => {
                       <button
                         onClick={handleStopServer}
                         disabled={isServerBusy}
-                        className={`px-3 py-1.5 ${COMPONENT.dangerButton} rounded-lg ${TYPOGRAPHY_CLASSES.settingsButton} disabled:opacity-50 flex items-center gap-1.5`}
+                        className={COMPONENT.settingsButtonDanger}
                       >
                         <Square className="w-3.5 h-3.5" />
                         Stop Server
@@ -665,7 +663,7 @@ export const LocalInferencePanel: React.FC = () => {
                       <button
                         onClick={handleStartServer}
                         disabled={isServerBusy || !selectedModelId}
-                        className={`px-3 py-1.5 ${COMPONENT.successButton} rounded-lg ${TYPOGRAPHY_CLASSES.settingsButton} disabled:opacity-50 flex items-center gap-1.5`}
+                        className={COMPONENT.settingsButtonSuccess}
                         title={!selectedModelId ? 'Select a model first' : undefined}
                       >
                         {isServerBusy ? (
@@ -681,7 +679,7 @@ export const LocalInferencePanel: React.FC = () => {
 
                 {/* ── URL row (running only) ── */}
                 {isRunning && serverUrl && (
-                  <div className={`px-4 py-2.5 border-b ${BORDER.default} flex items-center justify-between`}>
+                  <div className={`px-4 py-3 border-b ${BORDER.default} flex items-center justify-between`}>
                     <code className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted} font-mono`}>
                       {serverUrl}
                     </code>
@@ -700,7 +698,7 @@ export const LocalInferencePanel: React.FC = () => {
                 )}
 
                 {/* ── Footer: version + update + remove ── */}
-                <div className="px-4 py-2.5 flex items-center justify-between">
+                <div className="px-4 py-3 flex items-center justify-between">
                   <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
                     llama-server {binaryInfo.version}
                   </span>
@@ -709,7 +707,7 @@ export const LocalInferencePanel: React.FC = () => {
                       <button
                         onClick={handleDownloadBinary}
                         disabled={isDownloadingBinary}
-                        className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.link} hover:underline disabled:opacity-50 flex items-center gap-1`}
+                        className={COMPONENT.settingsLink}
                       >
                         {isDownloadingBinary ? (
                           <motion.span {...spin}><Loader2 className="w-3 h-3" /></motion.span>
@@ -722,7 +720,7 @@ export const LocalInferencePanel: React.FC = () => {
                       <button
                         onClick={handleCheckForUpdate}
                         disabled={isCheckingUpdate}
-                        className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted} hover:${TEXT.primary} disabled:opacity-50 flex items-center gap-1`}
+                        className={COMPONENT.settingsMutedLink}
                       >
                         <motion.span
                           animate={isCheckingUpdate ? { rotate: 360 } : { rotate: 0 }}
@@ -739,9 +737,7 @@ export const LocalInferencePanel: React.FC = () => {
                     <button
                       onClick={handleRemoveEngine}
                       disabled={removeConfirm === 'removing'}
-                      className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${
-                        removeConfirm === 'confirm' ? TEXT.error : `${TEXT.faint} hover:${TEXT.error}`
-                      } disabled:opacity-50 flex items-center gap-1 transition-colors`}
+                      className={removeConfirm === 'confirm' ? COMPONENT.settingsDestructiveLinkActive : COMPONENT.settingsDestructiveLink}
                       title="Remove llama-server engine"
                     >
                       {removeConfirm === 'removing' ? (
@@ -756,7 +752,7 @@ export const LocalInferencePanel: React.FC = () => {
 
                 {/* Binary download progress */}
                 {isDownloadingBinary && (
-                  <div className={`px-4 py-2.5 border-t ${BORDER.default} flex items-center gap-2`}>
+                  <div className={`px-4 py-3 border-t ${BORDER.default} flex items-center gap-2`}>
                     <motion.span {...spin}><Loader2 className={`w-3.5 h-3.5 ${TEXT.faint}`} /></motion.span>
                     <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
                       {binaryPhase === 'extracting'

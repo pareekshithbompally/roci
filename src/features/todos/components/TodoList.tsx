@@ -9,6 +9,7 @@ import React, { useState, useCallback } from 'react';
 import { Plus, AlertCircle, Loader2, Calendar } from 'lucide-react';
 import { useMeeting } from '@shared/contexts/MeetingContext';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
+import { DatePicker, TimePicker } from '@shared/ui';
 import { reminderService } from '@/services/reminder.service';
 import TodoItem from './TodoItem';
 
@@ -117,7 +118,7 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
         <button
           onClick={() => setIsCreating(true)}
           disabled={isCreating}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${COMPONENT.primaryButton} text-xs font-semibold hover:opacity-90 transition-opacity ml-auto disabled:opacity-50 disabled:cursor-not-allowed`}
+          className={`${COMPONENT.settingsButtonPrimary} ml-auto`}
         >
           <Plus className="w-3.5 h-3.5" />
           Add To-Do
@@ -144,19 +145,19 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
               <Calendar className="w-3.5 h-3.5" />
               Deadline (optional)
             </label>
-            <div className="flex gap-2">
-              <input
-                type="date"
+            <div className="flex gap-2 items-center">
+              <DatePicker
                 value={newItemDate}
-                onChange={(e) => setNewItemDate(e.target.value)}
-                className={`flex-1 px-3 py-1.5 ${COMPONENT.inlineInput}`}
+                onChange={(val) => setNewItemDate(val)}
+                min={new Date().toISOString().split('T')[0]}
+                placeholder="Pick a date"
+                className="flex-1"
               />
-              <input
-                type="time"
-                value={newItemTime}
-                onChange={(e) => setNewItemTime(e.target.value)}
+              <TimePicker
+                value={newItemTime || '09:00'}
+                onChange={(val) => setNewItemTime(val)}
                 disabled={!newItemDate}
-                className={`w-24 px-3 py-1.5 ${COMPONENT.inlineInput} disabled:opacity-50 disabled:cursor-not-allowed`}
+                className="w-[110px]"
               />
             </div>
             {newItemDate && (
@@ -173,14 +174,14 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
           <div className="flex gap-2 justify-end pt-1">
             <button
               onClick={handleCancel}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${COMPONENT.secondaryButton} transition-colors`}
+              className={COMPONENT.settingsButtonOutline}
             >
               Cancel
             </button>
             <button
               onClick={handleSaveItem}
               disabled={!newItemText.trim() || !meeting.selectedHistoryId}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${COMPONENT.primaryButton} hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity flex items-center gap-1.5`}
+              className={COMPONENT.settingsButtonPrimary}
             >
               <Plus className="w-3.5 h-3.5" />
               Create
@@ -191,7 +192,10 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
 
       {/* Empty state */}
       {totalCount === 0 && !isCreating && (
-        <div className="py-12 text-center">
+        <div className="flex flex-col items-center justify-center py-16">
+          <div className={`p-3 rounded-xl ${SURFACE.subtle} mb-3`}>
+            <AlertCircle className={`w-6 h-6 ${TEXT.faint}`} />
+          </div>
           <p className={`text-sm ${TEXT.faint}`}>
             No to-do items yet
           </p>

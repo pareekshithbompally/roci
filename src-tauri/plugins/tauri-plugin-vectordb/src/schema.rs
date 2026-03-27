@@ -1,7 +1,7 @@
 use rusqlite::Connection;
 
 /// Current schema version. Bump this when adding migrations.
-pub const SCHEMA_VERSION: u32 = 4;
+pub const SCHEMA_VERSION: u32 = 5;
 
 /// Default embedding model and dimension.
 pub const DEFAULT_MODEL: &str = "all-MiniLM-L6-v2";
@@ -25,6 +25,10 @@ pub fn migrate(conn: &Connection) -> Result<(), String> {
 
     if current < 4 {
         migrate_v4(conn)?;
+    }
+
+    if current < 5 {
+        migrate_v5(conn)?;
     }
 
     Ok(())
@@ -60,7 +64,9 @@ fn create_v1(conn: &Connection) -> Result<(), String> {
             categories   TEXT,
             indexed_at   INTEGER NOT NULL,
             updated_at   INTEGER NOT NULL,
-            content_hash TEXT NOT NULL
+            content_hash TEXT NOT NULL,
+            embedding_hash  TEXT,
+            extraction_hash TEXT
         );
 
         -- Chunks (one meeting → many chunks)
@@ -219,7 +225,8 @@ fn migrate_v3(conn: &Connection) -> Result<(), String> {
             message_count   INTEGER NOT NULL DEFAULT 0,
             indexed_at      INTEGER NOT NULL,
             updated_at      INTEGER NOT NULL,
-            content_hash    TEXT NOT NULL
+            content_hash    TEXT NOT NULL,
+            embedding_hash  TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_chat_sessions_last_msg ON chat_sessions(last_message_at DESC);
 
@@ -327,5 +334,30 @@ fn migrate_v4(conn: &Connection) -> Result<(), String> {
     .map_err(|e| format!("Failed to migrate to v4 (prefix indexes): {}", e))?;
 
     log::info!("[vectordb] Migrated to schema v4 (chunks_fts prefix indexes + improved triggers)");
+    Ok(())
+}
+
+/// v5: Add per-phase completion tracking columns.
+///
+/// Previously, `content_hash` was the sole staleness indicator — written by Phase 1
+/// (FTS-only indexing), which prevented Phase 2 from adding embeddings or running
+/// entity extraction. Now each concern tracks its own completion:
+///
+/// - `content_hash`: tracks chunk/FTS identity (unchanged)
+/// - `embedding_hash`: content_hash at time embeddings were last computed
+/// - `extraction_hash`: content_hash at time KG entities were last extracted
+fn migrate_v5(conn: &Connection) -> Result<(), String> {
+    conn.execute_batch(
+        "
+        ALTER TABLE meetings ADD COLUMN embedding_hash TEXT;
+        ALTER TABLE meetings ADD COLUMN extraction_hash TEXT;
+        ALTER TABLE chat_sessions ADD COLUMN embedding_hash TEXT;
+
+        UPDATE meta SET value = '5' WHERE key = 'schema_version';
+        ",
+    )
+    .map_err(|e| format!("Failed to migrate to v5 (phase tracking columns): {}", e))?;
+
+    log::info!("[vectordb] Migrated to schema v5 (embedding_hash, extraction_hash columns)");
     Ok(())
 }

@@ -20,6 +20,9 @@ import {
   RefreshCw,
   Mic,
   Sparkles,
+  Clock,
+  Users,
+  ExternalLink,
 } from 'lucide-react';
 import { useApp, AppStatus } from '@shared/contexts/AppContext';
 import { useRecordingContext } from '@features/recording';
@@ -35,8 +38,70 @@ import { dialogService, fileSystemService, notificationService } from '@/service
 import { NotificationType } from '@config/notifications.config';
 import { useTranscribeRecording } from '@shared/hooks/useTranscribeRecording';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
+import type { HistoryItem } from '@/types';
 
 const TABS = { SUMMARY: 'summary', TRANSCRIPT: 'transcript', TODO: 'todo', NOTES: 'notes' };
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  if (d.toDateString() === today.toDateString()) return 'Today';
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+const CalendarMetaRow: React.FC<{ item: HistoryItem }> = ({ item }) => {
+  const hasParticipants = item.participants && item.participants.length > 0;
+  const hasMeetingUrl = !!item.meetingUrl;
+
+  const handleJoinMeeting = async () => {
+    if (!item.meetingUrl) return;
+    if (isTauriEnvironment()) {
+      const { open } = await import('@tauri-apps/plugin-shell');
+      await open(item.meetingUrl);
+    } else {
+      window.open(item.meetingUrl, '_blank');
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+      {item.scheduledStart && (
+        <span className={`flex items-center gap-1 text-xs ${TEXT.muted}`}>
+          <Clock className="w-3 h-3" />
+          {formatDate(item.scheduledStart)}
+          {' · '}
+          {formatTime(item.scheduledStart)}
+          {item.scheduledEnd && `–${formatTime(item.scheduledEnd)}`}
+        </span>
+      )}
+      {hasParticipants && (
+        <span
+          className={`flex items-center gap-1 text-xs ${TEXT.muted}`}
+          title={item.participants!.map(p => p.name || p.email || 'Unknown').join(', ')}
+        >
+          <Users className="w-3 h-3" />
+          {item.participants!.length} participant{item.participants!.length !== 1 ? 's' : ''}
+        </span>
+      )}
+      {hasMeetingUrl && (
+        <button
+          onClick={handleJoinMeeting}
+          className={`flex items-center gap-1 text-xs ${TEXT.link} hover:underline`}
+        >
+          <ExternalLink className="w-3 h-3" />
+          Join Meeting
+        </button>
+      )}
+    </div>
+  );
+};
 
 export const ResultsView: React.FC = () => {
   const { result, activeResultTab, setActiveResultTab, resetToIdle, setSelectedHistoryId, selectedHistoryId, meetingChatOpen, setMeetingChatOpen } = useApp();
@@ -266,6 +331,10 @@ export const ResultsView: React.FC = () => {
                 </button>
               )}
             </div>
+            {/* Calendar metadata — only shown when available */}
+            {currentHistoryItem?.scheduledStart && (
+              <CalendarMetaRow item={currentHistoryItem} />
+            )}
             {/* Categories - below title */}
             {result.categories && result.categories.length > 0 && (
               <div className="flex gap-1.5 mt-2">

@@ -12,6 +12,7 @@ export enum NotificationType {
   ERROR = 'ERROR',
   RECORDING_TIMEOUT = 'RECORDING_TIMEOUT',
   TODO_REMINDER = 'TODO_REMINDER',
+  MEETING_STARTING = 'MEETING_STARTING',
 }
 
 export interface NotificationTemplate {
@@ -51,6 +52,10 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, NotificationTempla
   [NotificationType.TODO_REMINDER]: {
     title: 'To-Do Reminder',
     body: 'You have a pending action item',
+  },
+  [NotificationType.MEETING_STARTING]: {
+    title: 'Meeting Starting Soon',
+    body: 'A meeting is about to begin',
   },
 };
 

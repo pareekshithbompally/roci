@@ -3,6 +3,7 @@
  * Provides unified notification API with graceful fallbacks
  */
 
+import { invoke } from '@tauri-apps/api/core';
 import { NotificationType, NOTIFICATION_TEMPLATES } from '../../src/config/notifications.config';
 import { isTauriEnvironment } from './environment.service';
 import type { NotificationOptions } from './types';
@@ -11,6 +12,7 @@ interface NotifyWithActionsOptions {
   title: string;
   body: string;
   actionTypeId: string;
+  extra?: Record<string, unknown>;
 }
 
 interface ScheduleNotificationOptions {
@@ -58,6 +60,21 @@ class NotificationService {
               { id: 'view_meeting', title: 'View Meeting', foreground: true },
               { id: 'snooze_15', title: 'Snooze 15 min' },
               { id: 'dismiss', title: 'Dismiss' },
+            ],
+          },
+          {
+            id: 'meeting_starting',
+            actions: [
+              { id: 'join_and_record', title: 'Join & Record', foreground: true },
+              { id: 'record_only', title: 'Record', foreground: true },
+              { id: 'snooze', title: 'Snooze' },
+            ],
+          },
+          {
+            id: 'meeting_starting_no_url',
+            actions: [
+              { id: 'record_only', title: 'Record', foreground: true },
+              { id: 'snooze', title: 'Snooze' },
             ],
           },
         ]);
@@ -159,48 +176,74 @@ class NotificationService {
   /**
    * Send a notification with action buttons (macOS actionable notification).
    * The actionTypeId must match a type registered via registerActionTypes in initialize().
+   * Uses invoke() to go through Rust backend (browser API ignores actionTypeId).
    */
   async notifyWithActions(options: NotifyWithActionsOptions): Promise<void> {
     await this.initialize();
 
-    if (!this.sendNotification) {
-      console.log(`[Notification] ${options.title}:`, options.body);
-      return;
+    if (isTauriEnvironment()) {
+      try {
+        const notification = {
+          title: options.title,
+          body: options.body,
+          actionTypeId: options.actionTypeId,
+          extra: options.extra ? Object.fromEntries(
+            Object.entries(options.extra).map(([k, v]) => [k, typeof v === 'string' ? v : JSON.stringify(v)])
+          ) : undefined,
+        };
+        await invoke('plugin:notification|notify', { notification });
+        return;
+      } catch (error) {
+        console.error('Failed to send actionable notification via Tauri:', error);
+      }
     }
 
-    try {
-      await this.sendNotification({
-        title: options.title,
-        body: options.body,
-        actionTypeId: options.actionTypeId,
-      });
-    } catch (error) {
-      console.error('Failed to send actionable notification:', error);
+    // Fallback to basic notification
+    if (this.sendNotification) {
+      try {
+        await this.sendNotification({ title: options.title, body: options.body });
+      } catch (error) {
+        console.error('Failed to send notification:', error);
+      }
+    } else {
+      console.log(`[Notification] ${options.title}:`, options.body);
     }
   }
 
   /**
    * Schedule a notification to fire at a specific future time.
-   * Uses Tauri's Schedule.at() for OS-level scheduling.
+   * Uses Tauri's `plugin:notification|notify` IPC command with Schedule.at().
+   *
+   * NOTE: The JS-side `sendNotification()` uses `new window.Notification()` (browser API)
+   * which fires immediately and ignores the `schedule` field. We must use `invoke()` to
+   * go through the Rust backend where Schedule is properly handled.
    */
   async scheduleNotification(options: ScheduleNotificationOptions): Promise<boolean> {
     await this.initialize();
 
-    if (!this.notificationModule) {
-      console.warn('[NotificationService] Cannot schedule: no notification module');
+    if (!isTauriEnvironment()) {
+      console.warn('[NotificationService] Cannot schedule: not in Tauri environment');
       return false;
     }
 
     try {
-      const { Schedule } = this.notificationModule;
-      await this.sendNotification({
+      const notification = {
         id: options.id,
         title: options.title,
         body: options.body,
-        schedule: Schedule.at(options.at, false, true),
+        schedule: {
+          at: {
+            date: options.at.toISOString(),
+            repeating: false,
+            allowWhileIdle: true,
+          },
+        },
         actionTypeId: options.actionTypeId,
-        extra: options.extra,
-      });
+        extra: options.extra ? Object.fromEntries(
+          Object.entries(options.extra).map(([k, v]) => [k, typeof v === 'string' ? v : JSON.stringify(v)])
+        ) : undefined,
+      };
+      await invoke('plugin:notification|notify', { notification });
       console.log(`[NotificationService] Scheduled notification ${options.id} for ${options.at.toISOString()}`);
       return true;
     } catch (error) {
