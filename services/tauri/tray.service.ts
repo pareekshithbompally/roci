@@ -65,8 +65,26 @@ class TrayService {
       const { Menu, MenuItem, PredefinedMenuItem } = await import('@tauri-apps/api/menu');
       const { resolveResource } = await import('@tauri-apps/api/path');
       const { Image } = await import('@tauri-apps/api/image');
+      const { getVersion } = await import('@tauri-apps/api/app');
 
       // --- Menu items ---
+      const version = await getVersion();
+
+      const aboutItem = await PredefinedMenuItem.new({
+        item: {
+          About: {
+            name: 'Kasset',
+            version,
+            copyright: 'Copyright © 2026 Kasset.ai. All rights reserved.',
+            website: 'https://kasset.ai',
+            websiteLabel: 'kasset.ai',
+            comments: 'AI-powered voice capture, transcription, and insights',
+          },
+        },
+      });
+
+      const sep0 = await PredefinedMenuItem.new({ item: 'Separator' });
+
       const showItem = await MenuItem.new({
         id: 'show',
         text: 'Show Kasset.ai',
@@ -104,7 +122,7 @@ class TrayService {
 
       // Build menu
       this.menuHandle = await Menu.new({
-        items: [showItem, sep1, startRecordingItem, stopRecordingItem, sep2, quitItem],
+        items: [aboutItem, sep0, showItem, sep1, startRecordingItem, stopRecordingItem, sep2, quitItem],
       });
 
       // --- Icons ---

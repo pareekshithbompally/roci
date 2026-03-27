@@ -15,7 +15,7 @@ import { useToast } from '../../../shared/contexts/ToastContext';
 import type { AudioCaptureSource } from '../../../../src/config/audio.config';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
-import { isTauriEnvironment, trayService } from '../../../../services/tauri';
+import { isTauriEnvironment, trayService, notificationService } from '../../../../services/tauri';
 import { coreAudioService } from '../../../../services/coreAudio.service';
 import { recordingsService } from '../../../../services/storage';
 import { transcriptionService } from '../../../../services/transcription.service';
@@ -94,6 +94,14 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
   const abortControllerRefs = useRef<Map<string, AbortController>>(new Map());
   const lastLevelTimestampRef = useRef<number>(0);
 
+  // 60-min timeout alert refs (per-session, no React state needed)
+  const lastAlertElapsedRefs = useRef<Map<string, number>>(new Map());
+  const pendingAlertRefs = useRef<Map<string, boolean>>(new Map());
+  const timeoutAutoStopRefs = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const alertedSessionRef = useRef<string | null>(null);
+  // Stable ref to stopAndSaveSession so mount-only effects can call it without stale closures
+  const stopAndSaveRef = useRef<(sessionId: string) => Promise<void>>(async () => {});
+
   // Helper: update a single session
   const updateSession = useCallback((sessionId: string, updates: Partial<RecordingSession>) => {
     setSessions(prev => {
@@ -140,6 +148,12 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     startTimeRefs.current.delete(sessionId);
     pausedTimeRefs.current.delete(sessionId);
     abortControllerRefs.current.delete(sessionId);
+    // Clear 60-min timeout alert state for this session
+    const autoStop = timeoutAutoStopRefs.current.get(sessionId);
+    if (autoStop !== undefined) { clearTimeout(autoStop); timeoutAutoStopRefs.current.delete(sessionId); }
+    lastAlertElapsedRefs.current.delete(sessionId);
+    pendingAlertRefs.current.delete(sessionId);
+    if (alertedSessionRef.current === sessionId) alertedSessionRef.current = null;
   }, [cleanupSessionTimer, cleanupSessionAudioUrl]);
 
   // Cleanup on unmount
@@ -245,6 +259,29 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           }
 
           updateSession(sessionId, updates);
+
+          // 60-min timeout alert: fire when elapsed crosses each 60-min boundary
+          const lastAlertElapsed = lastAlertElapsedRefs.current.get(sessionId) ?? 0;
+          const alertPending = pendingAlertRefs.current.get(sessionId) ?? false;
+          if (elapsed >= lastAlertElapsed + 3600 && !alertPending) {
+            pendingAlertRefs.current.set(sessionId, true);
+            lastAlertElapsedRefs.current.set(sessionId, elapsed);
+            alertedSessionRef.current = sessionId;
+
+            const minutesElapsed = Math.floor(elapsed / 60);
+            notificationService.notifyWithActions({
+              title: 'Are you still recording?',
+              body: `Recording has been active for ${minutesElapsed} minutes. It will stop automatically in 5 minutes.`,
+              actionTypeId: 'recording_timeout',
+            });
+
+            const autoStop = setTimeout(() => {
+              alertedSessionRef.current = null;
+              pendingAlertRefs.current.delete(sessionId);
+              stopAndSaveRef.current(sessionId);
+            }, 5 * 60 * 1000);
+            timeoutAutoStopRefs.current.set(sessionId, autoStop);
+          }
         }
       }, 100);
       timerRefs.current.set(sessionId, timer);
@@ -321,7 +358,10 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           showToast('Recording recovered — audio may be incomplete', 'warning');
         } catch (recoveryError) {
           console.error('[RecordingContext] WAV recovery failed:', recoveryError);
+          // Set status to 'review' so the session leaves 'recording' state and
+          // doesn't get stuck in an infinite retry loop when Stop is clicked again.
           updateSession(sessionId, {
+            status: 'review',
             error: 'Recording stopped but audio file could not be recovered. The file may be at: recordings/' + session.recordingFilename,
           });
         }
@@ -340,6 +380,90 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       throw error;
     }
   }, [sessions, cleanupSessionTimer, cleanupSessionAudioUrl, updateSession, showToast]);
+
+  // Stop + immediately save to history sidebar.
+  // Used by stall stop and 60-min auto-stop — avoids two-step stop→saveLater flow
+  // and the stale-closure problem of chaining those calls.
+  const stopAndSaveSession = useCallback(async (sessionId: string) => {
+    const session = sessions.get(sessionId);
+    if (!session) return;
+
+    // Immediate visual feedback — activity tray switches to "Stopping..." with no buttons
+    updateSession(sessionId, { stopping: true });
+
+    let blob: Blob | null = null;
+
+    try {
+      const result = await coreAudioService.stopCapture();
+      cleanupSessionTimer(sessionId);
+
+      if (result) {
+        blob = result.blob;
+        cleanupSessionAudioUrl(sessionId);
+      } else {
+        // WAV recovery — same path as stopRecordingSession
+        try {
+          const { appDataDir } = await import('@tauri-apps/api/path');
+          const { readFile } = await import('@tauri-apps/plugin-fs');
+          const dir = await appDataDir();
+          const recoveryPath = `${dir}${StorageConfig.directories.recordings}/${session.recordingFilename}`;
+          const data = await readFile(recoveryPath);
+          blob = new Blob([data], { type: 'audio/wav' });
+        } catch {
+          // No audio file — will show warning toast below
+        }
+      }
+    } catch (error) {
+      console.error('[RecordingContext] stopAndSaveSession stopCapture error:', error);
+    } finally {
+      setActiveCaptureSessionId(null);
+      if (isTauriEnvironment() && trayService.isInitialized) {
+        trayService.stopRecordingAppearance().catch(() => {});
+      }
+    }
+
+    // Save to history sidebar with blob in hand (no stale React state read)
+    if (blob) {
+      try {
+        if (isTauriEnvironment()) {
+          await recordingsService.registerRecording(
+            session.recordingFilename,
+            {
+              id: session.recordingId,
+              duration: session.elapsedTime,
+              size: blob.size,
+              inputSource: session.audioSource,
+            }
+          );
+        }
+        const addToHistory = historyContext?.addToHistory;
+        if (addToHistory) {
+          await addToHistory({
+            id: session.recordingId,
+            timestamp: Date.now(),
+            title: `Recording ${new Date().toLocaleString()}`,
+            transcript: '',
+            summary: '',
+            categories: [],
+            recordingId: session.recordingId,
+            recordingFileName: session.recordingFilename,
+            inputSource: session.audioSource,
+            pendingTranscription: true,
+          });
+        }
+        showToast('Recording saved', 'success');
+      } catch (saveError) {
+        console.error('[RecordingContext] stopAndSaveSession save error:', saveError);
+        showToast('Recording stopped but could not be saved', 'warning');
+      }
+    } else {
+      showToast('Recording stopped — no audio data captured', 'warning');
+    }
+
+    cleanupSessionRefs(sessionId);
+    removeSession(sessionId);
+  }, [sessions, cleanupSessionTimer, cleanupSessionAudioUrl, cleanupSessionRefs,
+      removeSession, updateSession, showToast, historyContext]);
 
   // Pause recording
   const pauseRecordingSession = useCallback(async (sessionId: string) => {
@@ -412,6 +536,29 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           }
 
           updateSession(sessionId, updates);
+
+          // 60-min timeout alert: fire when elapsed crosses each 60-min boundary
+          const lastAlertElapsed = lastAlertElapsedRefs.current.get(sessionId) ?? 0;
+          const alertPending = pendingAlertRefs.current.get(sessionId) ?? false;
+          if (elapsed >= lastAlertElapsed + 3600 && !alertPending) {
+            pendingAlertRefs.current.set(sessionId, true);
+            lastAlertElapsedRefs.current.set(sessionId, elapsed);
+            alertedSessionRef.current = sessionId;
+
+            const minutesElapsed = Math.floor(elapsed / 60);
+            notificationService.notifyWithActions({
+              title: 'Are you still recording?',
+              body: `Recording has been active for ${minutesElapsed} minutes. It will stop automatically in 5 minutes.`,
+              actionTypeId: 'recording_timeout',
+            });
+
+            const autoStop = setTimeout(() => {
+              alertedSessionRef.current = null;
+              pendingAlertRefs.current.delete(sessionId);
+              stopAndSaveRef.current(sessionId);
+            }, 5 * 60 * 1000);
+            timeoutAutoStopRefs.current.set(sessionId, autoStop);
+          }
         }
       }, 100);
       timerRefs.current.set(sessionId, timer);
@@ -695,6 +842,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     pause: pauseRecordingSession,
     resume: resumeRecordingSession,
     stop: stopRecordingSession,
+    stopAndSave: stopAndSaveSession,
     discard: discardRecordingSession,
     process: processRecordingSession,
     abort: abortProcessingSession,
@@ -704,11 +852,15 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     pause: pauseRecordingSession,
     resume: resumeRecordingSession,
     stop: stopRecordingSession,
+    stopAndSave: stopAndSaveSession,
     discard: discardRecordingSession,
     process: processRecordingSession,
     abort: abortProcessingSession,
     saveLater,
   };
+
+  // Keep stopAndSaveRef current for mount-only effects (notification action handler)
+  stopAndSaveRef.current = stopAndSaveSession;
 
   useEffect(() => {
     // Track which IDs we've pushed to the store so we can clean up removed sessions
@@ -720,6 +872,26 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       trackedIds.add(id);
 
       if (session.status === 'recording' || session.status === 'paused') {
+        // Bug 2a fix: show "Stopping..." immediately while stopCapture() is in-flight
+        if (session.stopping) {
+          const patch = {
+            type: 'recording' as const,
+            label: 'Stopping...',
+            status: 'active' as const,
+            percent: null,
+            step: null,
+            detail: formatTimeForTray(session.elapsedTime),
+            error: null,
+            actions: [] as ActivityAction[],
+          };
+          if (activityStore.get(id)) {
+            activityStore.update(id, patch);
+          } else {
+            activityStore.add({ id, ...patch });
+          }
+          return;
+        }
+
         const actions: ActivityAction[] = [];
         if (session.isPaused) {
           actions.push({
@@ -734,10 +906,13 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
             onClick: () => actionsRef.current.pause(id),
           });
         }
+        // Bug 2c fix: stalled Stop uses stopAndSave to auto-save to sidebar
         actions.push({
           icon: 'square',
           label: 'Stop',
-          onClick: () => actionsRef.current.stop(id),
+          onClick: () => session.stalled
+            ? actionsRef.current.stopAndSave(id)
+            : actionsRef.current.stop(id),
         });
 
         const patch = {
@@ -855,6 +1030,33 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       });
     };
   }, [activeCaptureSessionId]);
+
+  // Handle notification action callbacks (Keep Recording / Stop Now).
+  // Mount-only — uses refs to avoid stale closures on frequently changing functions.
+  useEffect(() => {
+    notificationService.setActionCallback((typeId, actionId) => {
+      if (typeId !== 'recording_timeout') return;
+      const sessionId = alertedSessionRef.current;
+      if (!sessionId) return;
+
+      // Cancel the 5-min auto-stop timer
+      const autoStop = timeoutAutoStopRefs.current.get(sessionId);
+      if (autoStop !== undefined) {
+        clearTimeout(autoStop);
+        timeoutAutoStopRefs.current.delete(sessionId);
+      }
+
+      if (actionId === 'keep_recording') {
+        // Allow the alert to re-fire after another 60 minutes
+        pendingAlertRefs.current.set(sessionId, false);
+        alertedSessionRef.current = null;
+      } else if (actionId === 'stop_now') {
+        alertedSessionRef.current = null;
+        stopAndSaveRef.current(sessionId);
+      }
+    });
+    return () => notificationService.setActionCallback(null);
+  }, []); // mount only
 
   // === LEGACY COMPAT: Derive single-session state from sessions Map ===
   // Find the "active" session for legacy consumers (active capture or most recent review)

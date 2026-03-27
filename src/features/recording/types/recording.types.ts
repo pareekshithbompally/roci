@@ -26,6 +26,8 @@ export interface RecordingSession {
   createdAt: number;
   /** True when audio level events stop arriving (stream may have died) */
   stalled: boolean;
+  /** True while stopCapture() is in-flight — shows "Stopping..." in activity tray */
+  stopping?: boolean;
 }
 
 export interface RecordingState {

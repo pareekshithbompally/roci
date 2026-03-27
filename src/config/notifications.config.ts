@@ -10,6 +10,7 @@ export enum NotificationType {
   TRANSCRIPTION_FAILED = 'TRANSCRIPTION_FAILED',
   FILE_SAVED = 'FILE_SAVED',
   ERROR = 'ERROR',
+  RECORDING_TIMEOUT = 'RECORDING_TIMEOUT',
 }
 
 export interface NotificationTemplate {
@@ -41,6 +42,10 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, NotificationTempla
   [NotificationType.ERROR]: {
     title: 'Error',
     body: 'An unexpected error occurred',
+  },
+  [NotificationType.RECORDING_TIMEOUT]: {
+    title: 'Are you still recording?',
+    body: 'Recording has been active for 60 minutes. It will stop automatically in 5 minutes.',
   },
 };
 
