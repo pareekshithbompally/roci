@@ -8,6 +8,7 @@ import React, { useState, useCallback } from 'react';
 import { Check, X, Edit2, Clock, AlertTriangle } from 'lucide-react';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import type { ActionItem } from '@/types';
+import { isOverdue, formatDueDate, formatReminderDate, isReminderOverdue } from '@shared/utils/todo.utils';
 import ReminderPicker from './ReminderPicker';
 
 interface TodoItemProps {
@@ -19,26 +20,6 @@ interface TodoItemProps {
   onUpdate?: (todoId: string, updates: { text?: string; dueDate?: string }) => void;
   onReminderChange?: (todoId: string, reminderDateTime: string | null) => void;
 }
-
-const formatDueDate = (dueDate: string) => {
-  // Handle both ISO dates and formatted dates like "Jan 25, 2025"
-  const date = new Date(dueDate);
-  if (isNaN(date.getTime())) {
-    return dueDate; // Return as-is if not a valid date
-  }
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-};
-
-const isOverdue = (dueDate?: string) => {
-  if (!dueDate) return false;
-  const date = new Date(dueDate);
-  if (isNaN(date.getTime())) return false;
-  return date < new Date();
-};
 
 const TodoItem: React.FC<TodoItemProps> = ({ todo, meetingId, meetingTitle, onToggle, onDelete, onUpdate, onReminderChange }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -146,12 +127,13 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, meetingId, meetingTitle, onTo
 
               {/* Reminder indicator */}
               {todo.reminder && !todo.completed && (
-                <div className="flex items-center gap-1.5 mt-0.5 text-xs text-amber-500">
+                <div className={`flex items-center gap-1.5 mt-0.5 text-xs ${
+                  isReminderOverdue(todo.reminder) ? 'text-red-500' : 'text-amber-500'
+                }`}>
                   <Clock className="w-3 h-3" />
                   <span>
-                    Reminder: {new Date(todo.reminder.dateTime).toLocaleString('en-US', {
-                      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-                    })}
+                    {isReminderOverdue(todo.reminder) ? 'Overdue reminder: ' : 'Reminder: '}
+                    {formatReminderDate(todo.reminder.dateTime)}
                   </span>
                 </div>
               )}

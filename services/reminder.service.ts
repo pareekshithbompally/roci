@@ -9,28 +9,9 @@ import { notificationService } from './tauri/notification.service';
 import { reminderRepository } from './repositories/reminder.repository';
 import { todosRepository } from './repositories/todos.repository';
 import type { ReminderEntry, TodoReminder } from '@/types';
+import { hashToNotificationId, formatReminderDate } from '@shared/utils/todo.utils';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-
-/** Deterministic 32-bit int from UUID string (required by Tauri notification API) */
-function hashToNotificationId(todoId: string): number {
-  let hash = 0;
-  for (let i = 0; i < todoId.length; i++) {
-    hash = ((hash << 5) - hash + todoId.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash) || 1; // avoid 0
-}
-
-/** Format a date for notification display */
-function formatReminderDate(iso: string): string {
-  const date = new Date(iso);
-  return date.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
 
 // Event emitter for "view meeting" action — App.tsx subscribes
 type ViewMeetingHandler = (meetingId: string) => void;
@@ -84,7 +65,7 @@ class ReminderService {
     // Schedule OS notification
     const scheduled = await notificationService.scheduleNotification({
       id: notificationId,
-      title: `📋 ${meetingTitle}`,
+      title: meetingTitle,
       body: todoText,
       at: fireAt,
       actionTypeId: 'todo_reminder',
@@ -190,7 +171,7 @@ class ReminderService {
           // Still in the future but not in OS queue — reschedule
           await notificationService.scheduleNotification({
             id: entry.notificationId,
-            title: `📋 ${entry.meetingTitle}`,
+            title: entry.meetingTitle,
             body: entry.todoText,
             at: fireAt,
             actionTypeId: 'todo_reminder',

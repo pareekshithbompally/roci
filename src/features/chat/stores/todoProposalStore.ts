@@ -16,6 +16,7 @@ import { useSyncExternalStore } from 'react';
 import { todosRepository } from '@/services/repositories/todos.repository';
 import { reminderService } from '@/services/reminder.service';
 import type { TodoEntry } from '@/types';
+import { normalizeDueDate, hashToNotificationId } from '@shared/utils/todo.utils';
 
 export interface TodoProposal {
   id: string;
@@ -147,11 +148,13 @@ export const todoProposalStore = {
 
 async function commitSingle(p: TodoProposal): Promise<void> {
   if (p.action === 'create') {
+    const normalizedDueDate = p.dueDate ? normalizeDueDate(p.dueDate) : undefined;
+
     const todoEntry: TodoEntry = {
       id: crypto.randomUUID(),
       text: p.text,
       owner: p.owner || undefined,
-      dueDate: p.dueDate || undefined,
+      dueDate: normalizedDueDate,
       completed: false,
       source: 'user',
       createdAt: new Date().toISOString(),
@@ -169,14 +172,10 @@ async function commitSingle(p: TodoProposal): Promise<void> {
         meetingTitle: p.meetingTitle,
         reminderDateTime: p.reminderDateTime,
       });
-      if (reminderOk) {
-        await todosRepository.updateTodo(p.meetingId, todoEntry.id, {
-          reminder: {
-            dateTime: p.reminderDateTime,
-            notificationId: hashToNotificationId(todoEntry.id),
-          },
-        });
+      if (!reminderOk) {
+        console.warn('[TodoProposalStore] Reminder scheduling failed for:', p.text);
       }
+      // Note: reminderService.schedule() already updates the todo's reminder field on disk
     }
   } else if (p.action === 'toggle' && p.matchedTodoId) {
     const result = await todosRepository.toggleTodo(p.meetingId, p.matchedTodoId);
@@ -184,7 +183,7 @@ async function commitSingle(p: TodoProposal): Promise<void> {
   } else if (p.action === 'update' && p.matchedTodoId) {
     const updates: Partial<TodoEntry> = {};
     if (p.text) updates.text = p.text;
-    if (p.dueDate) updates.dueDate = p.dueDate;
+    if (p.dueDate) updates.dueDate = normalizeDueDate(p.dueDate);
     if (p.owner) updates.owner = p.owner;
     const ok = await todosRepository.updateTodo(p.meetingId, p.matchedTodoId, updates);
     if (!ok) throw new Error('Failed to update todo');
@@ -207,15 +206,4 @@ export function useTodoProposals(): TodoProposal[] {
 export function useTodoProposal(): TodoProposal | null {
   const all = useTodoProposals();
   return all.length > 0 ? all[0] : null;
-}
-
-/** Simple hash for notification ID (same approach as reminder.service.ts). */
-function hashToNotificationId(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0;
-  }
-  return Math.abs(hash);
 }

@@ -10,6 +10,7 @@ import { todosRepository } from '../../../../services/repositories';
 import type { TodoEntry } from '@/types';
 import type { TodosContextValue, TodosState, Todo, TodoStats } from '../types';
 import { calculateTodoStats } from '../types';
+import { isOverdue } from '@shared/utils/todo.utils';
 
 const initialState: TodosState = {
   todos: [],
@@ -58,11 +59,12 @@ export const TodosProvider: React.FC<TodosProviderProps> = ({ children, meetingI
           text: t.text,
           completed: t.completed,
           dueDate: t.dueDate,
+          owner: t.owner,
           source: t.source,
+          reminder: t.reminder,
           meetingId: id,
           createdAt: t.createdAt,
           updatedAt: t.createdAt,
-          version: 1,
         }));
         console.log('[TodosContext] ✓ Loaded', todos.length, 'todos');
         setState(prev => ({ ...prev, todos, isLoading: false }));
@@ -109,7 +111,6 @@ export const TodosProvider: React.FC<TodosProviderProps> = ({ children, meetingI
       meetingId: currentMeetingId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      version: 1,
     };
 
     // Optimistically update UI immediately
@@ -141,7 +142,6 @@ export const TodosProvider: React.FC<TodosProviderProps> = ({ children, meetingI
           meetingId: currentMeetingId,
           createdAt: now,
           updatedAt: now,
-          version: 1,
         };
         setState(prev => ({
           ...prev,
@@ -249,11 +249,7 @@ export const TodosProvider: React.FC<TodosProviderProps> = ({ children, meetingI
   );
 
   const overdueTodos = useMemo(() => {
-    const now = new Date();
-    return state.todos.filter(t => {
-      if (t.completed || !t.dueDate) return false;
-      return new Date(t.dueDate) < now;
-    });
+    return state.todos.filter(t => !t.completed && isOverdue(t.dueDate));
   }, [state.todos]);
 
   const value: TodosContextValue = {

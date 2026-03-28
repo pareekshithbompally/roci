@@ -4,6 +4,8 @@
  * Type definitions for the todos feature module
  */
 
+import type { TodoReminder } from '@/types';
+
 export type TodoPriority = 'low' | 'medium' | 'high';
 
 export interface Todo {
@@ -12,8 +14,10 @@ export interface Todo {
   completed: boolean;
   meetingId: string;
   dueDate?: string;
+  owner?: string;
   source?: 'ai' | 'user';
   priority?: TodoPriority;
+  reminder?: TodoReminder;
   createdAt: string;
   updatedAt: string;
 }
@@ -46,13 +50,14 @@ export function createTodo(input: TodoInput): Todo {
   };
 }
 
+import { isOverdue } from '@shared/utils/todo.utils';
+
 export function calculateTodoStats(todos: Todo[]): TodoStats {
-  const now = new Date();
   return {
     total: todos.length,
     completed: todos.filter(t => t.completed).length,
     pending: todos.filter(t => !t.completed).length,
-    overdue: todos.filter(t => !t.completed && t.dueDate && new Date(t.dueDate) < now).length,
+    overdue: todos.filter(t => !t.completed && isOverdue(t.dueDate)).length,
   };
 }
 

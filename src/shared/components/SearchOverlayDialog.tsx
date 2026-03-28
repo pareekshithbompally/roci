@@ -136,9 +136,9 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
         const sidebarItem = items.find((i) => i.type === 'meeting' && i.id === hit.source_id);
         if (sidebarItem?.historyItem) {
           setCurrentView('home');
-          setResult(sidebarItem.historyItem);
           setSelectedHistoryId(hit.source_id);
           chat.setCurrentSessionId(null);
+          setResult(sidebarItem.historyItem);
           setStatus(AppStatus.RESULTS);
         }
       } else if (hit.source_type === 'chat') {

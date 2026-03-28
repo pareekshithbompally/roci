@@ -352,6 +352,7 @@ const App: React.FC = () => {
             padding: '10px 14px',
             minHeight: 'unset',
             gap: '0px',
+            maxWidth: '340px',
           },
         }}
       />

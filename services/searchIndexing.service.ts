@@ -9,7 +9,7 @@ import type {
 import { meetingService } from '@/services/meeting.service';
 import { chatSessionRepository } from '@/services/repositories/chat-session.repository';
 
-function formatMeetingSummary(summary?: MeetingSummary): string {
+export function formatMeetingSummary(summary?: MeetingSummary): string {
   if (!summary) return '';
 
   const parts: string[] = [];

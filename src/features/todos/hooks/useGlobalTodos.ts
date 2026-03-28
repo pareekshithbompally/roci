@@ -19,7 +19,7 @@ export interface GlobalTodo extends TodoEntry {
   meetingTitle: string;
 }
 
-export type TodoFilter = 'all' | 'pending' | 'completed' | 'reminders' | 'overdue';
+export type TodoFilter = 'all' | 'pending' | 'completed';
 
 interface MeetingGroup {
   meetingId: string;
@@ -48,18 +48,12 @@ export interface UseGlobalTodosReturn {
   /** Set or clear a reminder on a todo */
   setReminder: (meetingId: string, todoId: string, todoText: string, meetingTitle: string, dateTime: string | null) => Promise<void>;
   /** Counts (based on search-filtered set, before filter tabs) */
-  counts: { total: number; pending: number; completed: number; withReminders: number; overdue: number };
+  counts: { total: number; pending: number; completed: number };
   /** Loading state */
   isLoading: boolean;
   /** Reload all data */
   refresh: () => Promise<void>;
 }
-
-const isOverdue = (dueDate?: string): boolean => {
-  if (!dueDate) return false;
-  const d = new Date(dueDate);
-  return !isNaN(d.getTime()) && d < new Date();
-};
 
 /** Tokenize a query and check if all tokens match the target string */
 const matchesSearch = (target: string, tokens: string[]): boolean => {
@@ -158,9 +152,7 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
     const total = searchFiltered.length;
     const pending = searchFiltered.filter(t => !t.completed).length;
     const completed = searchFiltered.filter(t => t.completed).length;
-    const withReminders = searchFiltered.filter(t => t.reminder && !t.completed).length;
-    const overdue = searchFiltered.filter(t => !t.completed && isOverdue(t.dueDate)).length;
-    return { total, pending, completed, withReminders, overdue };
+    return { total, pending, completed };
   }, [searchFiltered]);
 
   const filtered = useMemo(() => {
@@ -169,10 +161,6 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
         return searchFiltered.filter(t => !t.completed);
       case 'completed':
         return searchFiltered.filter(t => t.completed);
-      case 'reminders':
-        return searchFiltered.filter(t => t.reminder && !t.completed);
-      case 'overdue':
-        return searchFiltered.filter(t => !t.completed && isOverdue(t.dueDate));
       default:
         return searchFiltered;
     }

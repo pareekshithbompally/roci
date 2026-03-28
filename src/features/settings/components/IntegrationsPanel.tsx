@@ -191,7 +191,7 @@ const CalendarIntegrationCard: React.FC = () => {
               value={String(calendarSettings.notifyMinutesBefore)}
               onValueChange={(val) => handleNotifyTimingChange(parseInt(val, 10))}
             >
-              <SelectTrigger className={`w-[120px] h-7 ${TYPOGRAPHY_CLASSES.settingsInput}`}>
+              <SelectTrigger className={`!w-[140px] h-7 ${TYPOGRAPHY_CLASSES.settingsInput}`}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

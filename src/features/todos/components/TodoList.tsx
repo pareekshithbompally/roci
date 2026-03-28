@@ -11,6 +11,7 @@ import { useMeeting } from '@shared/contexts/MeetingContext';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import { DatePicker, TimePicker } from '@shared/ui';
 import { reminderService } from '@/services/reminder.service';
+import { buildISOFromDateInput } from '@shared/utils/todo.utils';
 import TodoItem from './TodoItem';
 
 interface TodoListProps {
@@ -45,20 +46,9 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
 
   const handleSaveItem = async () => {
     if (newItemText.trim() && meeting.selectedHistoryId) {
-      let dueDateString: string | undefined;
-      if (newItemDate) {
-        const date = new Date(newItemDate);
-        const dateStr = date.toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric'
-        });
-        if (newItemTime) {
-          dueDateString = `${dateStr} ${newItemTime}`;
-        } else {
-          dueDateString = dateStr;
-        }
-      }
+      const dueDateString = newItemDate
+        ? buildISOFromDateInput(newItemDate, newItemTime || undefined)
+        : undefined;
       await meeting.addTodo(newItemText.trim(), dueDateString);
       setNewItemText('');
       setNewItemDate('');
@@ -143,7 +133,7 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
           <div className="space-y-2">
             <label className={`text-xs font-medium ${TEXT.secondary} flex items-center gap-1.5`}>
               <Calendar className="w-3.5 h-3.5" />
-              Deadline (optional)
+              Due date (optional)
             </label>
             <div className="flex gap-2 items-center">
               <DatePicker
@@ -162,10 +152,8 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
             </div>
             {newItemDate && (
               <div className={`text-xs ${TEXT.muted}`}>
-                {newItemTime 
-                  ? `Due: ${new Date(newItemDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${newItemTime}`
-                  : `Due: ${new Date(newItemDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
-                }
+                Due: {new Date(newItemDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                {newItemTime ? ` at ${newItemTime}` : ''}
               </div>
             )}
           </div>

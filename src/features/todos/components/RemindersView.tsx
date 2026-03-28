@@ -16,16 +16,15 @@ import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import { DatePicker, TimePicker } from '@shared/ui';
 import { AppStatus } from '@/types';
 import type { HistoryItem } from '@/types';
+import { isOverdue, formatDueDate, formatReminderDate, isReminderOverdue, buildISOFromDateInput } from '@shared/utils/todo.utils';
 import ReminderPicker from './ReminderPicker';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 
 // ── Filter chip config ──────────────────────────────────────────
 
-const FILTERS: { key: TodoFilter; label: string; countKey: 'total' | 'pending' | 'completed' | 'withReminders' | 'overdue' }[] = [
+const FILTERS: { key: TodoFilter; label: string; countKey: 'total' | 'pending' | 'completed' }[] = [
   { key: 'all', label: 'All', countKey: 'total' },
   { key: 'pending', label: 'Pending', countKey: 'pending' },
-  { key: 'reminders', label: 'Reminders', countKey: 'withReminders' },
-  { key: 'overdue', label: 'Overdue', countKey: 'overdue' },
   { key: 'completed', label: 'Completed', countKey: 'completed' },
 ];
 
@@ -33,21 +32,6 @@ const FILTERS: { key: TodoFilter; label: string; countKey: 'total' | 'pending' |
 
 const formatDate = (ts: number) =>
   new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-
-const formatDueDate = (d: string) => {
-  const date = new Date(d);
-  if (isNaN(date.getTime())) return d;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
-
-const formatReminderDate = (d: string) =>
-  new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-
-const isOverdue = (dueDate?: string) => {
-  if (!dueDate) return false;
-  const d = new Date(dueDate);
-  return !isNaN(d.getTime()) && d < new Date();
-};
 
 // ── Meeting selector (Radix Popover) ────────────────────────────
 
@@ -144,12 +128,7 @@ const CreateTodoForm: React.FC<CreateTodoFormProps> = ({ onSubmit, onCancel }) =
   const handleSubmit = async () => {
     if (!text.trim() || !meetingId) return;
 
-    let dueDateStr: string | undefined;
-    if (date) {
-      const d = new Date(date);
-      const formatted = d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-      dueDateStr = time ? `${formatted} ${time}` : formatted;
-    }
+    const dueDateStr = date ? buildISOFromDateInput(date, time || undefined) : undefined;
 
     setIsSaving(true);
     try {
@@ -199,7 +178,7 @@ const CreateTodoForm: React.FC<CreateTodoFormProps> = ({ onSubmit, onCancel }) =
       <div className="space-y-1.5">
         <label className={`text-xs font-medium ${TEXT.secondary} flex items-center gap-1.5`}>
           <CalendarDays className="w-3.5 h-3.5" />
-          Deadline (optional)
+          Due date (optional)
         </label>
         <div className="flex gap-2 items-center">
           <DatePicker
@@ -287,9 +266,11 @@ const TodoRow: React.FC<TodoRowProps> = ({ todo, onToggle, onReminderSet }) => {
 
           {/* Reminder */}
           {todo.reminder && !todo.completed && (
-            <span className="inline-flex items-center gap-1 text-xs text-amber-500">
+            <span className={`inline-flex items-center gap-1 text-xs ${
+              isReminderOverdue(todo.reminder) ? 'text-red-500' : 'text-amber-500'
+            }`}>
               <Bell className="w-3 h-3" />
-              {formatReminderDate(todo.reminder.dateTime)}
+              {isReminderOverdue(todo.reminder) ? 'Overdue: ' : ''}{formatReminderDate(todo.reminder.dateTime)}
             </span>
           )}
 

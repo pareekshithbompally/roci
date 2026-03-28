@@ -7,13 +7,15 @@
  * the meeting directory is cleaned up and the index is never updated.
  */
 
-import type { MeetingIndexEntry, MeetingSummary, TranscriptData, RecordingMeta, TodoEntry, AppSettings } from '@/types';
+import type { MeetingIndexEntry, MeetingSummary, TranscriptData, RecordingMeta, TodoEntry, AppSettings, HistoryItem } from '@/types';
 import type { ModelProvider } from '@/types/modelProviders';
 import { meetingIndexRepository } from './repositories/meeting-index.repository';
 import { transcriptRepository } from './repositories/transcript.repository';
 import { summaryRepository } from './repositories/summary.repository';
 import { recordingMetaRepository } from './repositories/recording-meta.repository';
 import { todosRepository } from './repositories/todos.repository';
+import { normalizeDueDate } from '@shared/utils/todo.utils';
+import { formatMeetingSummary } from './searchIndexing.service';
 
 export interface TranscriptionResult {
   meetingId: string;
@@ -67,7 +69,7 @@ class TranscriptionService {
       id: crypto.randomUUID(),
       text: item.text,
       owner: item.owner,
-      dueDate: item.dueDate,
+      dueDate: item.dueDate ? normalizeDueDate(item.dueDate) : undefined,
       completed: false,
       source: 'ai' as const,
       createdAt: now,
@@ -120,6 +122,24 @@ class TranscriptionService {
       }
 
       console.log('[TranscriptionService] Saved transcription result for meeting:', meetingId);
+
+      // Fire-and-forget: index meeting into vector DB for immediate Cmd+K searchability
+      // Mirrors the pattern in chatService.persistSession() → chatIndexer.indexSession()
+      const historyItem: HistoryItem = {
+        id: meetingId,
+        title,
+        transcript,
+        summary: formatMeetingSummary(summary),
+        categories,
+        timestamp: Date.parse(now),
+        recordingFileName,
+        inputSource,
+      };
+      import('../extensions/rag/indexer').then(({ ragIndexer }) => {
+        ragIndexer.indexMeeting(historyItem, { includeEmbeddings: false }).catch(err =>
+          console.error('[TranscriptionService] Meeting indexing failed (non-fatal):', meetingId, err)
+        );
+      }).catch(err => console.error('[TranscriptionService] Failed to load RAG indexer:', err));
 
       // Trigger entity extraction (non-blocking, non-fatal)
       if (result.extractionContext) {
