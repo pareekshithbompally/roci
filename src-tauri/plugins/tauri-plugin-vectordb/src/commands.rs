@@ -158,14 +158,14 @@ pub async fn upsert_meeting(
         let now = now_millis();
         db.execute(
             "INSERT INTO meetings (id, title, timestamp, summary, categories, indexed_at, updated_at, content_hash)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, ?7)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, COALESCE(?7, ''))
              ON CONFLICT(id) DO UPDATE SET
                 title = excluded.title,
                 timestamp = excluded.timestamp,
                 summary = excluded.summary,
                 categories = excluded.categories,
                 updated_at = ?6,
-                content_hash = COALESCE(excluded.content_hash, meetings.content_hash)",
+                content_hash = CASE WHEN ?7 IS NOT NULL THEN ?7 ELSE meetings.content_hash END",
             rusqlite::params![
                 meeting.id,
                 meeting.title,
@@ -1169,13 +1169,13 @@ pub async fn upsert_chat_session(
         db.execute(
             "INSERT INTO chat_sessions (id, title, last_message_at, message_count,
              indexed_at, updated_at, content_hash)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?5, ?6)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?5, COALESCE(?6, ''))
              ON CONFLICT(id) DO UPDATE SET
                 title = excluded.title,
                 last_message_at = excluded.last_message_at,
                 message_count = excluded.message_count,
                 updated_at = ?5,
-                content_hash = COALESCE(excluded.content_hash, chat_sessions.content_hash)",
+                content_hash = CASE WHEN ?6 IS NOT NULL THEN ?6 ELSE chat_sessions.content_hash END",
             rusqlite::params![
                 session.id,
                 session.title,

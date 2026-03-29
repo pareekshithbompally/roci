@@ -56,6 +56,7 @@ fn create_v1(conn: &Connection) -> Result<(), String> {
         );
 
         -- Meetings (lightweight index; source of truth is history.json)
+        -- embedding_hash and extraction_hash are added by migrate_v5.
         CREATE TABLE IF NOT EXISTS meetings (
             id           TEXT PRIMARY KEY,
             title        TEXT NOT NULL,
@@ -64,9 +65,7 @@ fn create_v1(conn: &Connection) -> Result<(), String> {
             categories   TEXT,
             indexed_at   INTEGER NOT NULL,
             updated_at   INTEGER NOT NULL,
-            content_hash TEXT NOT NULL,
-            embedding_hash  TEXT,
-            extraction_hash TEXT
+            content_hash TEXT NOT NULL DEFAULT ''
         );
 
         -- Chunks (one meeting → many chunks)
@@ -218,6 +217,7 @@ fn migrate_v3(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
         "
         -- Chat sessions (mirrors 'meetings' table)
+        -- embedding_hash is added by migrate_v5.
         CREATE TABLE IF NOT EXISTS chat_sessions (
             id              TEXT PRIMARY KEY,
             title           TEXT NOT NULL,
@@ -225,8 +225,7 @@ fn migrate_v3(conn: &Connection) -> Result<(), String> {
             message_count   INTEGER NOT NULL DEFAULT 0,
             indexed_at      INTEGER NOT NULL,
             updated_at      INTEGER NOT NULL,
-            content_hash    TEXT NOT NULL,
-            embedding_hash  TEXT
+            content_hash    TEXT NOT NULL DEFAULT ''
         );
         CREATE INDEX IF NOT EXISTS idx_chat_sessions_last_msg ON chat_sessions(last_message_at DESC);
 

@@ -32,13 +32,14 @@ export async function extractAndUpsert(
   settings: AppSettings,
   providers: ModelProvider[],
   categories: string[] = [],
+  signal?: AbortSignal,
 ): Promise<boolean> {
   try {
     // 1. Build input text from summary + transcript excerpt
     const input = buildExtractionInput(title, summary, transcript, categories);
 
     // 2. Call LLM for extraction
-    const extracted = await callLLMForExtraction(input, title, settings, providers, categories);
+    const extracted = await callLLMForExtraction(input, title, settings, providers, categories, signal);
     if (!extracted || (extracted.entities.length === 0 && extracted.relationships.length === 0)) {
       console.log(`[EntityExtractor] No entities found for "${title}"`);
       return false;
@@ -99,28 +100,47 @@ function buildExtractionInput(
   return parts.join('\n\n');
 }
 
-/** Call LLM for structured entity extraction */
+/** Call LLM for structured entity extraction (60s timeout per meeting) */
 async function callLLMForExtraction(
   input: string,
   meetingTitle: string,
   settings: AppSettings,
   providers: ModelProvider[],
   categories: string[],
+  signal?: AbortSignal,
 ): Promise<ExtractionResponse | null> {
   const resolved = resolveModel(settings.chatModel, providers);
-  if (!resolved?.apiKey) return null;
+  if (!resolved?.apiKey) {
+    console.warn(`[EntityExtractor] No API key for chat model — skipping "${meetingTitle}"`);
+    return null;
+  }
 
   const model = createModel(resolved);
   const prompt = buildEntityExtractionPrompt(meetingTitle, categories);
 
-  const result = await generateText({
-    model,
-    system: prompt,
-    messages: [{ role: 'user', content: input }],
-    output: Output.object({ schema: jsonSchema(ENTITY_EXTRACTION_SCHEMA) }),
-  });
+  // Per-meeting timeout: 60s. Prevents a single hanging LLM call from blocking the entire rebuild.
+  const timeoutMs = 60_000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  return result.output as ExtractionResponse;
+  // Chain parent signal if provided
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort(), { once: true });
+  }
+
+  try {
+    const result = await generateText({
+      model,
+      system: prompt,
+      messages: [{ role: 'user', content: input }],
+      output: Output.object({ schema: jsonSchema(ENTITY_EXTRACTION_SCHEMA) }),
+      abortSignal: controller.signal,
+    });
+
+    return result.output as ExtractionResponse;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /** Normalize extraction output and build graph node/edge objects */
