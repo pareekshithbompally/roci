@@ -21,6 +21,7 @@ import {
 import { useUnifiedSidebar } from '@shared/hooks/useUnifiedSidebar';
 import { useApp, AppStatus } from '@shared/contexts/AppContext';
 import { useChat } from '@shared/contexts/ChatContext';
+import { meetingService } from '@/services/meeting.service';
 import { COMPONENT } from '@config/theme.config';
 import { formatShortcut } from '@config/shortcuts.config';
 import {
@@ -131,14 +132,52 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
   }, [open]);
 
   const handleSelectHit = useCallback(
-    (hit: SpotlightHit) => {
+    async (hit: SpotlightHit) => {
       if (hit.source_type === 'meeting') {
         const sidebarItem = items.find((i) => i.type === 'meeting' && i.id === hit.source_id);
         if (sidebarItem?.historyItem) {
+          const hi = sidebarItem.historyItem;
           setCurrentView('home');
           setSelectedHistoryId(hit.source_id);
           chat.setCurrentSessionId(null);
-          setResult(sidebarItem.historyItem);
+
+          // Lazy-load full meeting detail from disk (same pattern as Sidebar)
+          if (hi.transcript || hi.summary) {
+            setResult(hi);
+          } else {
+            setResult({ title: hi.title, transcript: '', summary: '', categories: hi.categories });
+            try {
+              const detail = await meetingService.getMeetingDetail(hi.id);
+              if (detail) {
+                setResult({
+                  title: detail.index.title,
+                  transcript: detail.transcript?.text || '',
+                  summary: detail.summary
+                    ? `## Meeting Overview\n${detail.summary.overview}\n\n## Key Discussion Points\n${detail.summary.keyDiscussionPoints.map(p => `- ${p}`).join('\n')}\n\n## Decisions Made\n${detail.summary.decisionsMade.map(d => `- ${d}`).join('\n')}\n\n## Action Items\n${detail.summary.actionItems.map(a => `- ${a.text}${a.owner ? ` - Owner: ${a.owner}` : ''}${a.dueDate ? ` - Due: ${a.dueDate}` : ''}`).join('\n')}\n\n## Next Steps\n${detail.summary.nextSteps.map(s => `- ${s}`).join('\n')}`
+                    : '',
+                  categories: detail.index.categories,
+                  structuredSummary: detail.summary
+                    ? {
+                        overview: detail.summary.overview,
+                        keyDiscussionPoints: detail.summary.keyDiscussionPoints,
+                        decisionsMade: detail.summary.decisionsMade,
+                        actionItems: detail.summary.actionItems.map(a => ({
+                          id: crypto.randomUUID(),
+                          text: a.text,
+                          owner: a.owner,
+                          dueDate: a.dueDate,
+                          completed: false,
+                        })),
+                        nextSteps: detail.summary.nextSteps,
+                      }
+                    : undefined,
+                });
+              }
+            } catch (error) {
+              console.error('[SearchOverlay] Failed to load meeting detail:', error);
+            }
+          }
+
           setStatus(AppStatus.RESULTS);
         }
       } else if (hit.source_type === 'chat') {
