@@ -7,6 +7,8 @@ export interface EmbeddingService {
 export interface SearchOptions {
   limit?: number;
   mode?: 'hybrid' | 'vector' | 'fulltext';
+  /** Scope search to specific meetings — returns multiple chunks per meeting */
+  meetingIds?: string[];
 }
 
 export interface RAGStatus {

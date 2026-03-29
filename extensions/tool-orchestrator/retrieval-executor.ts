@@ -44,6 +44,7 @@ interface ExecutionContext {
   historyItems: HistoryItem[];
   signal?: AbortSignal;
   onToolActivity: OrchestratorCallbacks['onToolActivity'];
+  mentionedMeetingIds?: string[];
 }
 
 let callCounter = 0;
@@ -107,8 +108,9 @@ export async function executeRetrieval(params: {
   historyItems: HistoryItem[];
   signal?: AbortSignal;
   onToolActivity: OrchestratorCallbacks['onToolActivity'];
+  mentionedMeetingIds?: string[];
 }): Promise<RetrievalResult> {
-  const { intent, historyItems, signal, onToolActivity } = params;
+  const { intent, historyItems, signal, onToolActivity, mentionedMeetingIds } = params;
 
   // manage_todos always runs (even at depth: none) to build the proposal
   if (intent.depth === 'none' && intent.intent !== 'manage_todos') {
@@ -123,7 +125,15 @@ export async function executeRetrieval(params: {
     historyItems,
     signal,
     onToolActivity,
+    mentionedMeetingIds,
   };
+
+  // Scoped pre-step: if user @mentioned specific meetings, do a scoped vector
+  // search to retrieve relevant transcript chunks before the intent switch.
+  // This augments (doesn't replace) the intent-based retrieval.
+  if (mentionedMeetingIds?.length && intent.search_query) {
+    await executeScopedSearch(ctx);
+  }
 
   switch (intent.intent) {
     case 'meeting_search':
@@ -163,6 +173,86 @@ export async function executeRetrieval(params: {
     citations: deduplicateCitations(ctx.citations),
     toolsUsed: ctx.toolsUsed,
   };
+}
+
+// ── Scoped Pre-Step ──
+
+const SCOPED_SEARCH_LIMIT = 5;
+
+/**
+ * Scoped search: when user @mentions meetings, search within those specific
+ * meetings for transcript chunks matching the query. Returns multiple chunks
+ * per meeting (not grouped by meeting like global search).
+ */
+async function executeScopedSearch(ctx: ExecutionContext): Promise<void> {
+  const query = ctx.intent.search_query;
+  const meetingIds = ctx.mentionedMeetingIds;
+  if (!query || !meetingIds?.length) return;
+
+  const call = makeToolCall('search_meetings', { query, scoped: true });
+  ctx.onToolActivity({
+    toolName: 'search_meetings',
+    label: 'Searching meeting transcript…',
+    status: 'calling',
+    toolCall: call,
+  });
+
+  try {
+    const results = await ragSearcher.search(query, {
+      meetingIds,
+      limit: SCOPED_SEARCH_LIMIT,
+    });
+
+    if (results.length > 0) {
+      // Group chunks by meeting for readable output
+      const byMeeting = new Map<string, typeof results>();
+      for (const r of results) {
+        const arr = byMeeting.get(r.meetingId) ?? [];
+        arr.push(r);
+        byMeeting.set(r.meetingId, arr);
+      }
+
+      const parts: string[] = [];
+      for (const [, chunks] of byMeeting) {
+        const title = chunks[0].meetingTitle;
+        const excerpts = chunks.map(c => c.chunkText).join('\n\n');
+        parts.push(`## Relevant excerpts from "${title}"\n\n${excerpts}`);
+      }
+
+      ctx.contextParts.push(parts.join('\n\n'));
+
+      const citations = results.map(buildCitationFromSearch);
+      ctx.citations.push(...citations);
+    }
+
+    ctx.toolsUsed.push('search_meetings');
+    ctx.onToolActivity({
+      toolName: 'search_meetings',
+      label: 'Searching meeting transcript…',
+      status: 'done',
+      toolCall: call,
+      result: {
+        toolCallId: call.id,
+        content: `Found ${results.length} relevant excerpt(s)`,
+        isError: false,
+        meta: { toolName: 'search_meetings', executionMs: 0 },
+      },
+    });
+  } catch (error: unknown) {
+    console.error('[RetrievalExecutor] Scoped search failed:', error);
+    ctx.onToolActivity({
+      toolName: 'search_meetings',
+      label: 'Searching meeting transcript…',
+      status: 'done',
+      toolCall: call,
+      result: {
+        toolCallId: call.id,
+        content: `Scoped search error: ${error instanceof Error ? error.message : String(error)}`,
+        isError: true,
+        meta: { toolName: 'search_meetings', executionMs: 0 },
+      },
+    });
+  }
 }
 
 // ── Intent Strategies ──

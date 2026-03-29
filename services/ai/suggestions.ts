@@ -10,6 +10,7 @@
 
 import { generateText, Output, jsonSchema } from 'ai';
 import { createModel } from './provider';
+import { formatTemporalContext } from '@core/ai';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 
 const SUGGESTIONS_SCHEMA = {
@@ -32,10 +33,11 @@ export async function generateSuggestions(options: {
   signal?: AbortSignal;
 }): Promise<string[]> {
   const { resolved, userMessage, responsePreview, signal } = options;
+  const temporalContext = formatTemporalContext();
 
   const result = await generateText({
     model: createModel(resolved),
-    system: 'You generate follow-up suggestions for a chat conversation. Given the user message and assistant response preview, output exactly 3 short follow-up suggestions (under 12 words each) the user might type next. Write them in the user\'s voice (e.g. "Show me the details" not "Would you like to see the details?").',
+    system: `You generate follow-up suggestions for a chat conversation. ${temporalContext} Given the user message and assistant response preview, output exactly 3 short follow-up suggestions (under 12 words each) the user might type next. Write them in the user\'s voice (e.g. "Show me the details" not "Would you like to see the details?").`,
     messages: [
       {
         role: 'user',

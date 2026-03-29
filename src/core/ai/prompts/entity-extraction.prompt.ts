@@ -5,17 +5,23 @@
  * from a meeting's content. Designed for structured output (JSON schema).
  */
 
-export function buildEntityExtractionPrompt(meetingTitle: string, categories: string[] = []): string {
+export function buildEntityExtractionPrompt(
+  meetingTitle: string,
+  categories: string[] = [],
+  temporalContext?: string,
+): string {
   const categorySection = categories.length > 0
     ? `Categories: ${categories.join(', ')}
 
 `
     : '';
 
+  const temporalBlock = temporalContext ? `\n${temporalContext}\n` : '';
+
   return `You are an entity extraction system. Extract all meaningful entities and their relationships from this meeting.
 
 Meeting: "${meetingTitle}"
-
+${temporalBlock}
 ${categorySection}## Instructions
 
 1. **Identify entities**: Extract all people, topics discussed, decisions made, action items assigned, and projects referenced.

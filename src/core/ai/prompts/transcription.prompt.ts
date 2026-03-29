@@ -16,12 +16,14 @@ export interface TranscriptionPromptOptions {
   categories: string[];
   /** When provided, participant names are injected to improve speaker attribution. */
   meetingContext?: MeetingContext;
+  /** Formatted temporal context string from formatTemporalContext(). */
+  temporalContext?: string;
 }
 
 export function buildTranscriptionPrompt(
   options: TranscriptionPromptOptions
 ): string {
-  const { categories, meetingContext } = options;
+  const { categories, meetingContext, temporalContext } = options;
 
   const categoryInstruction =
     categories.length > 0
@@ -32,10 +34,12 @@ export function buildTranscriptionPrompt(
     ? buildMeetingContextBlock(meetingContext)
     : '';
 
+  const temporalBlock = temporalContext ? `\n${temporalContext}\n` : '';
+
   return `You are a professional meeting analyst. Analyze this audio recording and provide a comprehensive summary.
 
 IMPORTANT: Generate REAL content based on the actual audio. Do NOT use placeholder or generic text.
-${meetingContextBlock}
+${temporalBlock}${meetingContextBlock}
 Your response is structured as JSON. Fill each field as described:
 
 - \`title\`: Concise descriptive title (max 6 words) that captures the main topic.

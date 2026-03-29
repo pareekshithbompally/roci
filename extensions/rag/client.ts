@@ -30,6 +30,7 @@ export interface SearchParams {
   query_text: string;
   limit: number;
   mode?: 'hybrid' | 'vector' | 'fulltext';
+  meeting_ids?: string[];
 }
 
 export interface SearchHit {

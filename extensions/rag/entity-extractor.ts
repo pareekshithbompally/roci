@@ -14,6 +14,7 @@ import { resolveModel } from '@shared/utils/modelResolver';
 import { generateText, Output, jsonSchema } from 'ai';
 import { createModel } from '@/services/ai';
 import { buildEntityExtractionPrompt } from '@core/ai/prompts/entity-extraction.prompt';
+import { formatTemporalContext } from '@core/ai';
 import { ENTITY_EXTRACTION_SCHEMA } from '@core/ai/schemas/entity-extraction.schema';
 import type { ExtractionResponse } from '@core/ai/schemas/entity-extraction.schema';
 import { graphDB } from './graph-client';
@@ -116,7 +117,8 @@ async function callLLMForExtraction(
   }
 
   const model = createModel(resolved);
-  const prompt = buildEntityExtractionPrompt(meetingTitle, categories);
+  const temporalContext = formatTemporalContext();
+  const prompt = buildEntityExtractionPrompt(meetingTitle, categories, temporalContext);
 
   // Per-meeting timeout: 60s. Prevents a single hanging LLM call from blocking the entire rebuild.
   const timeoutMs = 60_000;

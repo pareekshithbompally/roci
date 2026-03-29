@@ -158,7 +158,7 @@ export async function orchestrate(
   callbacks: OrchestratorCallbacks
 ): Promise<{ provider?: string; model?: string; tokenUsage?: TokenUsage }> {
   const { messages, systemPrompt, settings, providers, historyItems, signal,
-          webSearchEnabled } = options;
+          webSearchEnabled, temporalContext, mentionedMeetingIds } = options;
   const { onChunk, onMediaPart, onToolActivity } = callbacks;
 
   const resolved = resolveModel(settings.chatModel, providers);
@@ -185,6 +185,7 @@ export async function orchestrate(
         messages,
         meetingCount: historyItems.length,
         signal,
+        temporalContext,
       });
     } catch (error) {
       console.error('[Orchestrator] Step 1 classification failed, treating as general:', error);
@@ -203,6 +204,7 @@ export async function orchestrate(
         historyItems,
         signal,
         onToolActivity,
+        mentionedMeetingIds,
       });
     } catch (error) {
       console.error('[Orchestrator] Step 2 retrieval failed, continuing:', error);

@@ -43,6 +43,7 @@ export class MentionProvider implements ContextProvider {
       provider: this.name,
       confidence: 1.0,
       durationMs: 0,
+      meta: { mentionedMeetingIds: referencedItems.map(item => item.id) },
     };
   }
 }

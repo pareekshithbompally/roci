@@ -16,7 +16,7 @@ import { resolveModel, supportsTools } from '@shared/utils/modelResolver';
 import { contextPipeline } from '@extensions/context-pipeline';
 import { orchestrate } from '@extensions/tool-orchestrator';
 import { streamingStore } from '@features/chat/stores/streamingStore';
-import { buildChatRequest } from '@core/ai';
+import { buildChatRequest, formatTemporalContext } from '@core/ai';
 import { generateSuggestions } from '@/services/ai/suggestions';
 import { logUsage } from '@extensions/usage';
 import { CHAT_PAGE_SIZE, MAX_LOADED_SESSIONS, SIDEBAR_SEARCH_DEBOUNCE_MS } from '@config/chat.config';
@@ -628,7 +628,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     });
 
     try {
-      const contextBlock = await contextPipeline.resolve({
+      const pipelineResult = await contextPipeline.resolve({
         userMessage: textToSend,
         conversationMessages: targetSession.messages,
         historyItems: historyItems || [],
@@ -637,15 +637,20 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         manualMeetingRefs: selectedRefs,
         signal: abortControllerRef.current?.signal,
       });
+      const contextBlock = pipelineResult.text;
+      const mentionedMeetingIds = pipelineResult.mentionedMeetingIds;
 
       streamingStore.start(assistantMsgId);
       let hasStartedStreaming = false;
       let streamStartTime = 0;
 
+      const temporalContext = formatTemporalContext();
+
       const config = buildChatRequest({
         contextBlock: contextBlock || undefined,
         hasTools: !!(resolved && supportsTools(resolved)),
         meetingCount: (historyItems || []).length,
+        temporalContext,
       });
 
       const handleChunk = (chunk: string, metadata?: { isThinking?: boolean; isSearching?: boolean; searchQuery?: string; thinkingContent?: string; webCitations?: WebCitation[]; inlineCitations?: InlineCitationSpan[] }) => {
@@ -734,6 +739,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           webSearchEnabled: state.webSearchEnabled,
           toolChoice: 'auto',
           skipRetrieval: !hasToolSupport,
+          temporalContext,
+          mentionedMeetingIds,
         },
         {
           onChunk: handleChunk,

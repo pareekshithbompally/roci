@@ -25,7 +25,7 @@ async function searchMeetings(
   query: string,
   options: SearchOptions = {},
 ): Promise<MeetingSearchResult[]> {
-  const { limit = DEFAULT_SEARCH_LIMIT, mode = 'hybrid' } = options;
+  const { limit = DEFAULT_SEARCH_LIMIT, mode = 'hybrid', meetingIds } = options;
 
   await vectorDB.initialize();
 
@@ -46,6 +46,7 @@ async function searchMeetings(
       query_text: query,
       limit,
       mode,
+      ...(meetingIds?.length && { meeting_ids: meetingIds }),
     });
 
     return hits.map((hit) => ({

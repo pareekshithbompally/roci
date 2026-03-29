@@ -81,6 +81,10 @@ export interface OrchestratorOptions {
   toolChoice?: ToolChoice;
   /** Whether to skip Phase 1 retrieval (model doesn't support tools). Default: false */
   skipRetrieval?: boolean;
+  /** Formatted temporal context string from formatTemporalContext(). */
+  temporalContext?: string;
+  /** Meeting IDs from @mentions — enables scoped vector search in retrieval */
+  mentionedMeetingIds?: string[];
 }
 
 /** Callbacks the orchestrator uses to communicate with the UI layer */

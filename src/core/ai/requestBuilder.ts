@@ -16,6 +16,8 @@ export interface ChatRequestOptions {
   /** @deprecated No longer affects prompt — tool guidance removed in orchestration rewrite */
   hasTools?: boolean;
   meetingCount?: number;
+  /** Formatted temporal context string from formatTemporalContext(). */
+  temporalContext?: string;
 }
 
 /**
@@ -27,9 +29,10 @@ export function buildChatRequest(options: ChatRequestOptions): ChatRequestConfig
     contextBlock,
     hasTools = false,
     meetingCount = 0,
+    temporalContext,
   } = options;
 
-  const systemPrompt = buildChatSystemPrompt({ contextBlock, hasTools, meetingCount });
+  const systemPrompt = buildChatSystemPrompt({ contextBlock, hasTools, meetingCount, temporalContext });
 
   return { systemPrompt };
 }
@@ -39,19 +42,21 @@ export interface TranscriptionRequestOptions {
   supportsStructuredOutput?: boolean;
   /** Calendar meeting context for speaker attribution. */
   meetingContext?: MeetingContext;
+  /** Formatted temporal context string from formatTemporalContext(). */
+  temporalContext?: string;
 }
 
 /**
  * Same pattern for transcription — prompt + schema as atomic pair.
  */
 export function buildTranscriptionRequest(options: TranscriptionRequestOptions): TranscriptionRequestConfig {
-  const { categories, supportsStructuredOutput = false, meetingContext } = options;
+  const { categories, supportsStructuredOutput = false, meetingContext, temporalContext } = options;
 
   const outputSchema: OutputSchema | undefined = supportsStructuredOutput
     ? { name: 'transcription', schema: TRANSCRIPTION_SCHEMA }
     : undefined;
 
-  const prompt = buildTranscriptionPrompt({ categories, meetingContext });
+  const prompt = buildTranscriptionPrompt({ categories, meetingContext, temporalContext });
 
   return { prompt, outputSchema };
 }

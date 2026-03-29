@@ -6,7 +6,7 @@
  * Fail-open: provider errors are caught and logged, pipeline continues.
  */
 
-import type { ContextInput, ContextOutput, ContextProvider } from './types';
+import type { ContextInput, ContextOutput, ContextProvider, ContextPipelineResult } from './types';
 
 const EMPTY_OUTPUT: ContextOutput = {
   text: '',
@@ -24,7 +24,7 @@ export class ContextPipeline {
     return this;
   }
 
-  async resolve(input: ContextInput): Promise<string> {
+  async resolve(input: ContextInput): Promise<ContextPipelineResult> {
     let bestOutput = EMPTY_OUTPUT;
 
     for (const provider of this.providers) {
@@ -59,6 +59,12 @@ export class ContextPipeline {
       }
     }
 
-    return bestOutput.text;
+    // Extract mentionedMeetingIds from meta if present
+    const mentionedMeetingIds = bestOutput.meta?.mentionedMeetingIds as string[] | undefined;
+
+    return {
+      text: bestOutput.text,
+      ...(mentionedMeetingIds?.length && { mentionedMeetingIds }),
+    };
   }
 }

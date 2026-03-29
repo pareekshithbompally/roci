@@ -8,22 +8,26 @@ export interface DocumentPromptOptions {
   fileName?: string;
   speakers?: string[];
   isVTT?: boolean;
+  /** Formatted temporal context string from formatTemporalContext(). */
+  temporalContext?: string;
 }
 
 export const buildVTTDocumentPrompt = (
   transcriptText: string,
   options: DocumentPromptOptions = {}
 ): string => {
-  const { categories = [], speakers = [] } = options;
+  const { categories = [], speakers = [], temporalContext } = options;
   
   const speakerInfo = speakers.length > 0 
     ? `\n\nDetected speakers: ${speakers.join(', ')}`
     : '';
   
   const contextText = `This is a VTT transcript file with timestamps and speakers.${speakerInfo}\n\nTranscript:\n${transcriptText}`;
+
+  const temporalBlock = temporalContext ? `\n${temporalContext}\n` : '';
   
   return `You are a professional meeting analyst. Analyze this transcript and provide a comprehensive summary.
-
+${temporalBlock}
 IMPORTANT: Generate REAL content based on the actual transcript content. Do NOT use placeholder or generic text.
 
 Transcript:
@@ -74,8 +78,9 @@ DO NOT modify the delimiter format.
 START your response with ---TITLE--- immediately.`;
 };
 
-export const buildGenericDocumentPrompt = (categories: string[] = []): string => {
-  return `Analyze this document:
+export const buildGenericDocumentPrompt = (categories: string[] = [], temporalContext?: string): string => {
+  const temporalBlock = temporalContext ? `\n${temporalContext}\n` : '';
+  return `Analyze this document:${temporalBlock}
 1. Title: Concise.
 2. Summary: Detailed Markdown.
 3. Categories: From [${categories.join(', ')}].

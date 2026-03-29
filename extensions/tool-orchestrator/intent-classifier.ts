@@ -32,8 +32,10 @@ export async function classifyIntent(params: {
   meetingCount: number;
   chatCount?: number;
   signal?: AbortSignal;
+  /** Pre-formatted temporal context from formatTemporalContext(). */
+  temporalContext?: string;
 }): Promise<IntentClassification> {
-  const { model, messages, meetingCount, chatCount = 0, signal } = params;
+  const { model, messages, meetingCount, chatCount = 0, signal, temporalContext } = params;
 
   // Fast path: no meetings and no chats → always general
   if (meetingCount === 0 && chatCount === 0) {
@@ -55,7 +57,7 @@ export async function classifyIntent(params: {
       messages: [
         {
           role: 'user',
-          content: buildClassifierInput(recentMessages, meetingCount, chatCount),
+          content: buildClassifierInput(recentMessages, meetingCount, chatCount, temporalContext),
         },
       ],
       abortSignal: signal,
@@ -72,6 +74,7 @@ function buildClassifierInput(
   messages: ChatMessage[],
   meetingCount: number,
   chatCount: number,
+  temporalContext?: string,
 ): string {
   const formatted = messages
     .map(
@@ -80,9 +83,11 @@ function buildClassifierInput(
     )
     .join('\n');
 
+  const temporal = temporalContext || `Current date: ${new Date().toISOString().split('T')[0]} (${new Date().toLocaleDateString('en-US', { weekday: 'long' })}).`;
+
   return `Meeting count: ${meetingCount}
 Chat session count: ${chatCount}
-Today's date: ${new Date().toISOString().split('T')[0]} (${new Date().toLocaleDateString('en-US', { weekday: 'long' })})
+${temporal}
 
 Recent conversation:
 ${formatted}

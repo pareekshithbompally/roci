@@ -20,6 +20,12 @@ export interface ContextOutput {
   meta?: Record<string, unknown>;
 }
 
+/** Structured result from ContextPipeline.resolve() */
+export interface ContextPipelineResult {
+  text: string;
+  mentionedMeetingIds?: string[];
+}
+
 export interface ContextProvider {
   readonly name: string;
   readonly priority: number;

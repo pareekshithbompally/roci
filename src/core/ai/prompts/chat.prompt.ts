@@ -9,12 +9,15 @@ export interface ChatPromptOptions {
   contextBlock?: string;
   hasTools?: boolean;
   meetingCount?: number;
+  /** Formatted temporal context string from formatTemporalContext(). */
+  temporalContext?: string;
 }
 
 export function buildChatSystemPrompt(options: ChatPromptOptions = {}): string {
   const {
     contextBlock,
     meetingCount = 0,
+    temporalContext,
   } = options;
 
   // ── Base identity ──
@@ -33,10 +36,13 @@ Your name is Kasset. Always refer to yourself as Kasset when asked. You help use
 When retrieved meeting context is provided in the conversation, use it to answer the user's question. Always cite which meeting your information comes from. If the context doesn't contain the answer, say so — do not make up meeting content.`
     : `You are Kasset, the AI assistant powering an app called Kasset.ai. Your name is Kasset. Always refer to yourself as Kasset when asked. You help users with everyday questions and tasks.`;
 
+  // ── Temporal awareness ──
+  const temporalSection = temporalContext ? `\n\n${temporalContext}` : '';
+
   // ── Context ──
   const contextSection = contextBlock ? `\n\n${contextBlock}` : '';
 
-  return basePrompt + contextSection;
+  return basePrompt + temporalSection + contextSection;
 }
 
 export function buildRAGContextPrompt(

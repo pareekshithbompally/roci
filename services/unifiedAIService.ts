@@ -12,7 +12,7 @@ import type { ProcessedResult, AppSettings } from '@/types';
 import { resolveModel, getProviderType } from '@shared/utils/modelResolver';
 import { MAX_AUDIO_SIZE_BYTES, MAX_AUDIO_SIZE_MB } from '@/utils/audioUtils';
 import { parseVTT } from '@/utils/vttParser';
-import { buildTranscriptionRequest } from '@core/ai';
+import { buildTranscriptionRequest, formatTemporalContext } from '@core/ai';
 import { modalitiesService } from './modalities';
 import type { TranscriptionResponse } from '@core/ai/schemas/transcription.schema';
 import { createModel } from './ai';
@@ -146,10 +146,12 @@ class UnifiedAIService {
     }
 
     const modelInfo = modalitiesService.getModelInfo(resolved.provider, resolved.modelId);
+    const temporalContext = formatTemporalContext();
     const config = buildTranscriptionRequest({
       categories,
       supportsStructuredOutput: modelInfo?.capabilities?.structuredOutput !== false,
       meetingContext,
+      temporalContext,
     });
 
     const model = createModel(resolved);
@@ -223,9 +225,11 @@ class UnifiedAIService {
     }
 
     const modelInfo = modalitiesService.getModelInfo(resolved.provider, resolved.modelId);
+    const temporalContext = formatTemporalContext();
     const config = buildTranscriptionRequest({
       categories,
       supportsStructuredOutput: modelInfo?.capabilities?.structuredOutput !== false,
+      temporalContext,
     });
 
     const model = createModel(resolved);
@@ -261,9 +265,10 @@ class UnifiedAIService {
 
     try {
       const model = createModel(resolved);
+      const temporalContext = formatTemporalContext();
       const result = await generateText({
         model,
-        system: 'You are a title generator. Your ONLY job is to output a short 3-6 word topic title summarizing what the conversation is about. Output NOTHING else — no explanation, no apology, no commentary. Just the title words. Never start with "I".',
+        system: `You are a title generator. ${temporalContext} Your ONLY job is to output a short 3-6 word topic title summarizing what the conversation is about. Output NOTHING else — no explanation, no apology, no commentary. Just the title words. Never start with "I".`,
         messages: [{
           role: 'user',
           content: `User: ${userMessage}\nAssistant: ${assistantResponse.slice(0, 500)}`,
