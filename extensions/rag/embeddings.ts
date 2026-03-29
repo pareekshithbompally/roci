@@ -12,7 +12,7 @@
 import type { EmbeddingService } from './types';
 import { requestConsent, hasConsent } from './consent';
 import { emitProgress } from './progress';
-import { EMBEDDING_MODEL, EMBEDDING_DTYPE } from './constants';
+import { EMBEDDING_MODEL, EMBEDDING_DTYPE, EMBEDDING_BATCH_SIZE } from './constants';
 
 let worker: Worker | null = null;
 let ready = false;
@@ -152,7 +152,17 @@ async function embed(text: string): Promise<number[]> {
 
 async function embedBatch(texts: string[]): Promise<number[][]> {
   await ensureLoaded();
-  return sendRequest('embedBatch', { texts });
+  // Process in small batches to avoid WebView memory pressure crashes
+  if (texts.length <= EMBEDDING_BATCH_SIZE) {
+    return sendRequest('embedBatch', { texts });
+  }
+  const results: number[][] = [];
+  for (let i = 0; i < texts.length; i += EMBEDDING_BATCH_SIZE) {
+    const batch = texts.slice(i, i + EMBEDDING_BATCH_SIZE);
+    const batchResults = await sendRequest('embedBatch', { texts: batch });
+    results.push(...batchResults);
+  }
+  return results;
 }
 
 function isReady(): boolean {
