@@ -38,7 +38,7 @@ export const InterfacePanel: React.FC = () => {
   const [storagePathCopied, setStoragePathCopied] = useState(false);
   const [diskUsage, setDiskUsage] = useState<{ label: string; bytes: number }[] | null>(null);
   const [rebuildConfirmOpen, setRebuildConfirmOpen] = useState(false);
-  const [isRebuilding, setIsRebuilding] = useState(false);
+  const [rebuildingPhase, setRebuildingPhase] = useState<'meetings' | 'chats' | 'kg' | 'all' | null>(null);
 
   // All active models grouped by provider (for KG model picker)
   const allActiveModels = useMemo(() => {
@@ -89,16 +89,80 @@ export const InterfacePanel: React.FC = () => {
     }
   }, []);
 
+  // Selective re-index: meetings only (chunks + embeddings, no wipe)
+  const handleReindexMeetings = useCallback(async () => {
+    setRebuildingPhase('meetings');
+    try {
+      const { ragIndexer } = await import('@extensions/rag');
+      const meetingItems = await searchIndexingService.loadMeetingsForIndexing();
+      console.log(`[InterfacePanel] Re-indexing ${meetingItems.length} meetings`);
+      const indexed = await ragIndexer.indexAll(meetingItems, { includeEmbeddings: true });
+      showToast(`Re-indexed ${indexed}/${meetingItems.length} meetings`, 'success');
+    } catch (error: unknown) {
+      console.error('[InterfacePanel] Meeting re-index failed:', error);
+      showToast(error instanceof Error ? error.message : 'Meeting re-index failed', 'error');
+    } finally {
+      setRebuildingPhase(null);
+      loadIndexStats();
+      const { resetPipeline } = await import('@extensions/rag');
+      resetPipeline();
+    }
+  }, [showToast, loadIndexStats]);
+
+  // Selective re-index: chats only (chunks + embeddings, no wipe)
+  const handleReindexChats = useCallback(async () => {
+    setRebuildingPhase('chats');
+    try {
+      const { chatIndexer } = await import('@extensions/rag');
+      const chatSessions = await searchIndexingService.loadChatsForIndexing();
+      console.log(`[InterfacePanel] Re-indexing ${chatSessions.length} chats`);
+      const indexed = await chatIndexer.indexAllSessions(chatSessions, { includeEmbeddings: true });
+      showToast(`Re-indexed ${indexed}/${chatSessions.length} chats`, 'success');
+    } catch (error: unknown) {
+      console.error('[InterfacePanel] Chat re-index failed:', error);
+      showToast(error instanceof Error ? error.message : 'Chat re-index failed', 'error');
+    } finally {
+      setRebuildingPhase(null);
+      loadIndexStats();
+      const { resetPipeline } = await import('@extensions/rag');
+      resetPipeline();
+    }
+  }, [showToast, loadIndexStats]);
+
+  // Selective re-index: KG entity extraction only (no re-chunking)
+  const handleReindexKG = useCallback(async () => {
+    const kgModel = settings.kgExtractionModel || settings.chatModel;
+    if (!kgModel) {
+      showToast('Select an extraction model first', 'error');
+      return;
+    }
+    setRebuildingPhase('kg');
+    try {
+      const { ragIndexer } = await import('@extensions/rag');
+      const meetingItems = await searchIndexingService.loadMeetingsForIndexing();
+      console.log(`[InterfacePanel] Extracting KG for ${meetingItems.length} meetings`);
+      const extracted = await ragIndexer.extractAll(
+        meetingItems,
+        { settings: { ...settings, chatModel: kgModel }, providers },
+      );
+      showToast(`Extracted entities for ${extracted} meetings`, 'success');
+    } catch (error: unknown) {
+      console.error('[InterfacePanel] KG extraction failed:', error);
+      showToast(error instanceof Error ? error.message : 'KG extraction failed', 'error');
+    } finally {
+      setRebuildingPhase(null);
+      loadIndexStats();
+    }
+  }, [settings, providers, showToast, loadIndexStats]);
+
+  // Full rebuild: wipe everything + re-index all phases
   const handleRebuildIndex = useCallback(async () => {
     setRebuildConfirmOpen(false);
-    setIsRebuilding(true);
+    setRebuildingPhase('all');
 
     try {
       const { vectorDB, ragIndexer, chatIndexer } = await import('@extensions/rag');
 
-      // Wipe all vector + graph data (meetings + chats).
-      // This clears content_hash, embedding_hash, and extraction_hash,
-      // so indexAll will re-process everything from scratch.
       await vectorDB.rebuild();
 
       const [meetingItems, chatSessions] = await Promise.all([
@@ -108,8 +172,6 @@ export const InterfacePanel: React.FC = () => {
 
       console.log(`[InterfacePanel] Rebuild: ${meetingItems.length} meetings, ${chatSessions.length} chats to index`);
 
-      // Phase 1: Re-index all meetings (chunks + embeddings + KG extraction).
-      // Extraction failures are non-fatal — they won't block chat indexing.
       let meetingsIndexed = 0;
       try {
         const kgModel = settings.kgExtractionModel || settings.chatModel;
@@ -125,7 +187,6 @@ export const InterfacePanel: React.FC = () => {
         showToast('Meeting indexing failed — continuing with chats', 'error');
       }
 
-      // Phase 2: Re-index all chat sessions (independent of meeting indexing).
       let chatsIndexed = 0;
       try {
         chatsIndexed = await chatIndexer.indexAllSessions(chatSessions, {
@@ -144,7 +205,7 @@ export const InterfacePanel: React.FC = () => {
       console.error('[InterfacePanel] Rebuild index failed:', error);
       showToast(error instanceof Error ? error.message : 'Failed to rebuild index', 'error');
     } finally {
-      setIsRebuilding(false);
+      setRebuildingPhase(null);
       loadIndexStats();
       const { resetPipeline } = await import('@extensions/rag');
       resetPipeline();
@@ -388,106 +449,113 @@ export const InterfacePanel: React.FC = () => {
       {/* Search Index */}
       {isTauriEnvironment() && (
         <SettingsSection title="Search Index">
-          {/* Index Status */}
+          {/* Meetings + Chats index rows with per-row re-index buttons */}
           {indexStats && (
             <div className={`${SURFACE.card} border ${BORDER.default} ${RADIUS.lg} divide-y ${BORDER.divide}`}>
-              <IndexStatusRow
+              <IndexActionRow
                 label="Meetings"
                 indexed={indexStats.meetings.indexed}
                 total={indexStats.meetings.onDisk}
                 detail={`${indexStats.chunks.transcript} transcript chunks`}
+                onReindex={handleReindexMeetings}
+                busy={rebuildingPhase === 'meetings' || rebuildingPhase === 'all'}
+                disabled={rebuildingPhase !== null}
               />
-              <IndexStatusRow
+              <IndexActionRow
                 label="Chats"
                 indexed={indexStats.chats.indexed}
                 total={indexStats.chats.onDisk}
                 detail={`${indexStats.chunks.total - indexStats.chunks.transcript} chat chunks`}
-              />
-              <IndexStatusRow
-                label="Knowledge Graph"
-                indexed={indexStats.kg.nodes}
-                detail={`${indexStats.kg.nodes} entities · ${indexStats.kg.edges} relationships`}
+                onReindex={handleReindexChats}
+                busy={rebuildingPhase === 'chats' || rebuildingPhase === 'all'}
+                disabled={rebuildingPhase !== null}
               />
             </div>
           )}
 
-          {/* KG Extraction Model */}
-          <div className={`${SURFACE.card} border ${BORDER.default} ${RADIUS.lg}`}>
-            <div className="flex items-center justify-between gap-4 px-4 py-3">
-              <div className="min-w-0 flex-1">
-                <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
-                  Entity Extraction Model
+          {/* Knowledge Graph — status + model picker in one card (Calendar pattern) */}
+          {indexStats && (
+            <div className={`${SURFACE.card} border ${BORDER.default} ${RADIUS.lg} divide-y ${BORDER.divide}`}>
+              <IndexActionRow
+                label="Knowledge Graph"
+                indexed={indexStats.kg.nodes}
+                detail={`${indexStats.kg.nodes} entities · ${indexStats.kg.edges} relationships`}
+                onReindex={handleReindexKG}
+                busy={rebuildingPhase === 'kg' || rebuildingPhase === 'all'}
+                disabled={rebuildingPhase !== null}
+              />
+              {/* Extraction model — nested under KG like Calendar's "Notify before" */}
+              <div className="flex items-center justify-between gap-4 px-4 py-3">
+                <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
+                  Extraction model
                 </span>
-                <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
-                  Chat model used to extract knowledge graph entities during rebuild.
-                </p>
-              </div>
-              <div className="w-64 shrink-0">
-                {allActiveModels.length > 0 ? (
-                  <Select
-                    value={settings.kgExtractionModel || settings.chatModel || undefined}
-                    onValueChange={(modelId: string) => setSettings({ kgExtractionModel: modelId })}
-                  >
-                    <SelectTrigger className={`${TYPOGRAPHY_CLASSES.settingsInput}`}>
-                      <SelectValue placeholder="Select model">
-                        {(() => {
-                          const selectedId = settings.kgExtractionModel || settings.chatModel;
-                          const selected = allActiveModels.find(m => m.id === selectedId);
-                          if (!selected) return 'Select model';
-                          return (
-                            <span className="flex items-center gap-2 truncate">
-                              <ProvidersAvatar provider={selected.provider} size={16} />
-                              <span className="truncate">{selected.name}</span>
-                            </span>
-                          );
-                        })()}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(modelsByProvider).map(([provider, models]) => (
-                        <SelectGroup key={provider}>
-                          <SelectLabel>{getProviderTitle(provider)}</SelectLabel>
-                          {models.map((model) => (
-                            <SelectItem
-                              key={`kg-${model.provider}-${model.id}`}
-                              value={model.id}
-                            >
-                              <div className="flex items-center gap-2">
-                                <ProvidersAvatar provider={model.provider} size={16} />
-                                <span className="truncate">{model.name}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
-                    No models available
-                  </span>
-                )}
+                <div className="w-56 shrink-0">
+                  {allActiveModels.length > 0 ? (
+                    <Select
+                      value={settings.kgExtractionModel || settings.chatModel || undefined}
+                      onValueChange={(modelId: string) => setSettings({ kgExtractionModel: modelId })}
+                    >
+                      <SelectTrigger className={`${TYPOGRAPHY_CLASSES.settingsInput}`}>
+                        <SelectValue placeholder="Select model">
+                          {(() => {
+                            const selectedId = settings.kgExtractionModel || settings.chatModel;
+                            const selected = allActiveModels.find(m => m.id === selectedId);
+                            if (!selected) return 'Select model';
+                            return (
+                              <span className="flex items-center gap-2 truncate">
+                                <ProvidersAvatar provider={selected.provider} size={16} />
+                                <span className="truncate">{selected.name}</span>
+                              </span>
+                            );
+                          })()}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(modelsByProvider).map(([provider, models]) => (
+                          <SelectGroup key={provider}>
+                            <SelectLabel>{getProviderTitle(provider)}</SelectLabel>
+                            {models.map((model) => (
+                              <SelectItem
+                                key={`kg-${model.provider}-${model.id}`}
+                                value={model.id}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <ProvidersAvatar provider={model.provider} size={16} />
+                                  <span className="truncate">{model.name}</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
+                      No models available
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Rebuild button */}
+          {/* Rebuild All — nuclear option */}
           <div className={`flex items-center justify-between px-4 py-3 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg}`}>
             <div className="min-w-0 flex-1">
               <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
-                Rebuild Index
+                Rebuild All
               </span>
               <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
-                Clears and re-indexes all meetings and chats.
+                Wipes and re-indexes all meetings, chats, and knowledge graph.
               </p>
             </div>
             <button
               onClick={() => setRebuildConfirmOpen(true)}
-              disabled={isRebuilding}
+              disabled={rebuildingPhase !== null}
               className={`${COMPONENT.settingsButtonOutline} shrink-0 ml-4`}
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isRebuilding ? 'animate-spin' : ''}`} />
-              {isRebuilding ? 'Rebuilding…' : 'Rebuild'}
+              <RefreshCw className={`w-3.5 h-3.5 ${rebuildingPhase === 'all' ? 'animate-spin' : ''}`} />
+              {rebuildingPhase === 'all' ? 'Rebuilding…' : 'Rebuild All'}
             </button>
           </div>
 
@@ -512,7 +580,7 @@ export const InterfacePanel: React.FC = () => {
                       onClick={handleRebuildIndex}
                       className={COMPONENT.settingsButtonDanger}
                     >
-                      Rebuild
+                      Rebuild All
                     </button>
                   </AlertDialogAction>
                 </div>
@@ -571,13 +639,16 @@ function formatBytes(bytes: number): string {
   return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[i]}`;
 }
 
-/** Compact row showing indexed/total counts with a status chip */
-const IndexStatusRow: React.FC<{
+/** Compact row with status chip, counts, and a re-index button */
+const IndexActionRow: React.FC<{
   label: string;
   indexed: number;
   total?: number;
   detail?: string;
-}> = ({ label, indexed, total, detail }) => {
+  onReindex: () => void;
+  busy: boolean;
+  disabled: boolean;
+}> = ({ label, indexed, total, detail, onReindex, busy, disabled }) => {
   const isFresh = total == null ? indexed > 0 : indexed >= total;
   const statusLabel = total == null
     ? (indexed > 0 ? 'Active' : 'Empty')
@@ -597,6 +668,11 @@ const IndexStatusRow: React.FC<{
           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold leading-none tracking-wide uppercase ${chipClasses}`}>
             {statusLabel}
           </span>
+          {total != null && (
+            <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} font-mono`}>
+              {indexed}/{total}
+            </span>
+          )}
         </div>
         {detail && (
           <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
@@ -604,11 +680,14 @@ const IndexStatusRow: React.FC<{
           </p>
         )}
       </div>
-      {total != null && (
-        <span className={`${TYPOGRAPHY_CLASSES.settingsInput} ${TEXT.muted} font-mono shrink-0`}>
-          {indexed}/{total}
-        </span>
-      )}
+      <button
+        onClick={onReindex}
+        disabled={disabled}
+        className={`${COMPONENT.settingsButtonOutline} shrink-0`}
+      >
+        <RefreshCw className={`w-3 h-3 ${busy ? 'animate-spin' : ''}`} />
+        {busy ? 'Indexing…' : 'Re-index'}
+      </button>
     </div>
   );
 };

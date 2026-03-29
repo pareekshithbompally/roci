@@ -38,12 +38,7 @@ async function indexMeeting(
   const contentHash = await computeContentHash(item);
   const chunks = chunkMeeting(item);
 
-  if (chunks.length === 0) {
-    console.warn(`[RAGIndexer] No chunks generated for "${item.title}"`);
-    return { status: 'skipped', reason: 'no_chunks', chunkCount: 0, embeddingCount: 0 };
-  }
-
-  // Upsert meeting metadata WITHOUT content_hash (deferred until chunks confirmed)
+  // Always upsert meeting metadata so the DB count matches disk count
   const meetingMeta: MeetingMeta = {
     id: item.id,
     title: item.title,
@@ -52,6 +47,13 @@ async function indexMeeting(
     categories: (item.categories || []).join(', ') || null,
   };
   await vectorDB.upsertMeeting(meetingMeta);
+
+  if (chunks.length === 0) {
+    // Stamp content_hash so this meeting isn't perpetually stale
+    await vectorDB.markMeetingContentIndexed(item.id, contentHash);
+    console.warn(`[RAGIndexer] No chunks generated for "${item.title}" (metadata registered)`);
+    return { status: 'skipped', reason: 'no_chunks', chunkCount: 0, embeddingCount: 0 };
+  }
 
   // Embed all chunks in a single batch call
   const chunkTexts = chunks.map(c => c.text);
@@ -241,14 +243,19 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
   // ── Step 3: Entity extraction for extraction-stale meetings ──
   if (extractionContext) {
     const extractable = items.filter(item => item.structuredSummary);
-    if (extractable.length > 0) {
+    if (extractable.length === 0) {
+      console.log('[RAGIndexer] Step 3 skipped: no meetings have structuredSummary');
+    } else {
       const extractableIds = extractable.map(i => i.id);
       const needsExtractionIds = await vectorDB.getMeetingsNeedingExtraction(extractableIds);
 
-      if (needsExtractionIds.length > 0) {
+      if (needsExtractionIds.length === 0) {
+        console.log('[RAGIndexer] Step 3 skipped: all meetings already extracted');
+      } else {
         const needsExtractionSet = new Set(needsExtractionIds);
         const extractionItems = extractable.filter(i => needsExtractionSet.has(i.id));
 
+        console.log(`[RAGIndexer] Step 3: extracting entities for ${extractionItems.length} meetings`);
         emitProgress({ kind: 'extraction', status: 'started', total: extractionItems.length });
 
         let extracted = 0;
@@ -270,6 +277,7 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
               item.id, item.title, summary, item.transcript,
               extractionContext.settings, extractionContext.providers,
               item.categories || [],
+              signal,
             );
             if (success) {
               await vectorDB.markMeetingExtracted(item.id);
@@ -286,8 +294,12 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
           current: extracted,
           total: extractionItems.length,
         });
+
+        console.log(`[RAGIndexer] Step 3 complete: extracted ${extracted}/${extractionItems.length} meetings`);
       }
     }
+  } else {
+    console.log('[RAGIndexer] Step 3 skipped: no extractionContext (chatModel not configured)');
   }
 
   return indexed;
@@ -353,9 +365,82 @@ export async function getRAGStatus(): Promise<RAGStatus> {
   };
 }
 
+/**
+ * Run ONLY the KG entity extraction step for extraction-stale meetings.
+ * Does NOT re-chunk or re-embed — assumes meetings are already indexed.
+ */
+async function extractAll(
+  items: HistoryItem[],
+  extractionContext: { settings: AppSettings; providers: ModelProvider[] },
+  signal?: AbortSignal,
+): Promise<number> {
+  await vectorDB.initialize();
+
+  const extractable = items.filter(item => item.structuredSummary);
+  if (extractable.length === 0) {
+    console.log('[RAGIndexer] extractAll: no meetings have structuredSummary');
+    return 0;
+  }
+
+  const extractableIds = extractable.map(i => i.id);
+  const needsExtractionIds = await vectorDB.getMeetingsNeedingExtraction(extractableIds);
+
+  if (needsExtractionIds.length === 0) {
+    console.log('[RAGIndexer] extractAll: all meetings already extracted');
+    return 0;
+  }
+
+  const needsExtractionSet = new Set(needsExtractionIds);
+  const extractionItems = extractable.filter(i => needsExtractionSet.has(i.id));
+
+  console.log(`[RAGIndexer] extractAll: ${extractionItems.length} meetings need entity extraction`);
+  emitProgress({ kind: 'extraction', status: 'started', total: extractionItems.length });
+
+  let extracted = 0;
+  for (let i = 0; i < extractionItems.length; i++) {
+    if (signal?.aborted) break;
+    const item = extractionItems[i];
+
+    emitProgress({
+      kind: 'extraction',
+      status: 'progress',
+      current: i + 1,
+      total: extractionItems.length,
+      currentTitle: item.title,
+    });
+
+    try {
+      const summary = toMeetingSummary(item.structuredSummary!);
+      const success = await entityExtractor.extractAndUpsert(
+        item.id, item.title, summary, item.transcript,
+        extractionContext.settings, extractionContext.providers,
+        item.categories || [],
+        signal,
+      );
+      if (success) {
+        await vectorDB.markMeetingExtracted(item.id);
+        extracted++;
+      }
+    } catch (err) {
+      console.error(`[RAGIndexer] Entity extraction failed for "${item.title}":`, err);
+    }
+  }
+
+  emitProgress({
+    kind: 'extraction',
+    status: 'complete',
+    current: extracted,
+    total: extractionItems.length,
+  });
+
+  console.log(`[RAGIndexer] extractAll complete: ${extracted}/${extractionItems.length} meetings`);
+  return extracted;
+}
+
 export const ragIndexer = {
   indexMeeting,
   indexAll,
+  extractAll,
   removeMeeting,
   needsReindex,
 };
