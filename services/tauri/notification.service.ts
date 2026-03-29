@@ -45,39 +45,43 @@ class NotificationService {
         this.sendNotification = notificationModule.sendNotification;
         this.isPermissionGranted = notificationModule.isPermissionGranted;
 
-        // Register action types for recording timeout alert
-        await notificationModule.registerActionTypes([
-          {
-            id: 'recording_timeout',
-            actions: [
-              { id: 'keep_recording', title: 'Keep Recording' },
-              { id: 'stop_now', title: 'Stop Now' },
-            ],
-          },
-          {
-            id: 'todo_reminder',
-            actions: [
-              { id: 'view_meeting', title: 'View Meeting', foreground: true },
-              { id: 'snooze_15', title: 'Snooze 15 min' },
-              { id: 'dismiss', title: 'Dismiss' },
-            ],
-          },
-          {
-            id: 'meeting_starting',
-            actions: [
-              { id: 'join_and_record', title: 'Join & Record', foreground: true },
-              { id: 'record_only', title: 'Record', foreground: true },
-              { id: 'snooze', title: 'Snooze' },
-            ],
-          },
-          {
-            id: 'meeting_starting_no_url',
-            actions: [
-              { id: 'record_only', title: 'Record', foreground: true },
-              { id: 'snooze', title: 'Snooze' },
-            ],
-          },
-        ]);
+        // Register action types for interactive notifications (may not be available in all plugin versions)
+        try {
+          await notificationModule.registerActionTypes([
+            {
+              id: 'recording_timeout',
+              actions: [
+                { id: 'keep_recording', title: 'Keep Recording' },
+                { id: 'stop_now', title: 'Stop Now' },
+              ],
+            },
+            {
+              id: 'todo_reminder',
+              actions: [
+                { id: 'view_meeting', title: 'View Meeting', foreground: true },
+                { id: 'snooze_15', title: 'Snooze 15 min' },
+                { id: 'dismiss', title: 'Dismiss' },
+              ],
+            },
+            {
+              id: 'meeting_starting',
+              actions: [
+                { id: 'join_and_record', title: 'Join & Record', foreground: true },
+                { id: 'record_only', title: 'Record', foreground: true },
+                { id: 'snooze', title: 'Snooze' },
+              ],
+            },
+            {
+              id: 'meeting_starting_no_url',
+              actions: [
+                { id: 'record_only', title: 'Record', foreground: true },
+                { id: 'snooze', title: 'Snooze' },
+              ],
+            },
+          ]);
+        } catch {
+          // registerActionTypes not available in this plugin version — basic notifications still work
+        }
 
         // Route notification action callbacks to registered handler by typeId
         notificationModule.onAction((notification: any) => {

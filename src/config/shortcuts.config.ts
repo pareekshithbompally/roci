@@ -34,13 +34,13 @@ export const DEFAULT_SHORTCUTS: ShortcutsConfig = {
     enabled: true
   },
   NEW_CHAT: {
-    key: 'CommandOrControl+N',
+    key: 'CommandOrControl+Shift+N',
     description: 'Start a new AI chat',
     action: 'new-chat',
     enabled: true
   },
   OPEN_SETTINGS: {
-    key: 'CommandOrControl+Comma',
+    key: 'CommandOrControl+Shift+Comma',
     description: 'Open application settings',
     action: 'open-settings',
     enabled: true

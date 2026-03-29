@@ -46,7 +46,7 @@ class ShortcutsService {
           await this.registerShortcut(shortcut.key, shortcut.action);
           console.log(`Registered shortcut: ${shortcut.key} -> ${shortcut.action}`);
         } catch (error) {
-          console.error(`Failed to register shortcut ${shortcut.key}:`, error);
+          console.warn(`[ShortcutsService] Could not register ${shortcut.key} (may conflict with system shortcut)`);
         }
       }
 

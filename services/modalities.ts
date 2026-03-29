@@ -110,8 +110,13 @@ class ModalitiesService {
       }
       const data = (await response.json()) as ModelsDevResponse;
       cachedData = data;
-      localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-      localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+        localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
+      } catch {
+        // localStorage quota exceeded — data stays in memory for this session
+        console.warn('[ModalitiesService] localStorage quota exceeded, using in-memory cache only');
+      }
       console.log('[ModalitiesService] Fetched and cached modality data');
     } catch (error: unknown) {
       console.error('[ModalitiesService] Failed to fetch modality data:', error);
