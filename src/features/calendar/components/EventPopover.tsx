@@ -7,7 +7,7 @@
 
 import React, { useEffect, useRef, useCallback } from 'react';
 import { X, Video, ExternalLink } from 'lucide-react';
-import { SURFACE, BORDER, TEXT, SHADOW } from '@config/theme.config';
+import { TEXT } from '@config/theme.config';
 import type { CalendarEvent as ScheduleXCalendarEvent } from '@schedule-x/calendar';
 
 interface EventPopoverProps {
@@ -81,7 +81,11 @@ function cleanDescription(desc: string, meetingUrl: string | null): string {
 }
 
 /** Inner card: inset surface with subtle border, like macOS Calendar sections */
-const CARD = `rounded-xl ${SURFACE.inputField} border ${BORDER.subtle}`;
+const CARD_STYLE: React.CSSProperties = {
+  background: 'var(--surface-input-field)',
+  borderColor: 'var(--border-default)',
+};
+const CARD_CLASS = 'rounded-xl border';
 
 export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, onClose }) => {
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -139,8 +143,13 @@ export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, o
   return (
     <div
       ref={popoverRef}
-      style={style}
-      className={`w-[300px] rounded-2xl ${SURFACE.elevated} border ${BORDER.subtle} ${SHADOW.float} animate-fade-in overflow-hidden`}
+      style={{
+        ...style,
+        background: 'var(--surface-modal)',
+        borderColor: 'var(--border-default)',
+        boxShadow: 'var(--shadow-modal)',
+      }}
+      className="w-[300px] rounded-2xl border animate-fade-in overflow-hidden"
     >
       {/* ── Title card ── */}
       <div className={`px-4 pt-3.5 pb-3`}>
@@ -150,7 +159,7 @@ export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, o
           </h3>
           <button
             onClick={onClose}
-            className={`shrink-0 p-1 rounded-md ${TEXT.faint} ${SURFACE.hoverSubtle} transition-colors`}
+            className={`shrink-0 p-1 rounded-md ${TEXT.faint} hover:bg-[var(--surface-hover-subtle)] transition-colors`}
             aria-label="Close"
           >
             <X className="w-3.5 h-3.5" />
@@ -169,7 +178,8 @@ export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, o
             href={meetingUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className={`${CARD} flex items-center gap-3 px-3.5 py-2.5 group ${BORDER.cardHover} transition-colors`}
+            style={CARD_STYLE}
+            className={`${CARD_CLASS} flex items-center gap-3 px-3.5 py-2.5 group transition-colors`}
           >
             <Video className={`w-4 h-4 ${TEXT.muted} shrink-0`} />
             <span className={`text-[13px] ${TEXT.secondary} flex-1 truncate`}>
@@ -182,7 +192,7 @@ export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, o
         )}
 
         {/* Date & time card */}
-        <div className={`${CARD} px-3.5 py-2.5`}>
+        <div style={CARD_STYLE} className={`${CARD_CLASS} px-3.5 py-2.5`}>
           <p className={`text-[13px] ${TEXT.heading} font-medium`}>
             {dateStr}
             {startStr && (
@@ -195,7 +205,7 @@ export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, o
 
         {/* Invitees card */}
         {people && people.length > 0 && (
-          <div className={`${CARD} px-3.5 py-2.5`}>
+          <div style={CARD_STYLE} className={`${CARD_CLASS} px-3.5 py-2.5`}>
             <p className={`text-[11px] uppercase tracking-wider ${TEXT.faint} mb-1.5 font-medium`}>
               Invitees
             </p>
@@ -216,7 +226,7 @@ export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, o
 
         {/* Notes / description card */}
         {cleanedDesc && (
-          <div className={`${CARD} px-3.5 py-2.5`}>
+          <div style={CARD_STYLE} className={`${CARD_CLASS} px-3.5 py-2.5`}>
             <p className={`text-[11px] uppercase tracking-wider ${TEXT.faint} mb-1.5 font-medium`}>
               Notes
             </p>

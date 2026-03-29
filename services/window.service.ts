@@ -5,21 +5,10 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import { getCurrentWindow, LogicalPosition, LogicalSize } from '@tauri-apps/api/window';
-import { 
-  WindowState,
-  DEFAULT_WINDOW_CONFIG,
-  DEFAULT_WINDOW_STATE,
-  mergeWindowState,
-  validateDimensions,
-  validatePosition,
-  WINDOW_STATE_KEY
-} from '../src/config/window.config';
-import { settingsService } from './storage/settings.service';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { isTauriEnvironment } from './tauri';
 
 class WindowService {
-  private saveTimeout: NodeJS.Timeout | null = null;
   private currentWindow: ReturnType<typeof getCurrentWindow> | null = null;
   private initialized = false;
 
@@ -41,8 +30,11 @@ class WindowService {
   }
 
   /**
-   * Initialize window management
-   * Restores saved window state and sets up event listeners
+   * Initialize window management.
+   *
+   * Window state persistence (size, position, maximized) is handled entirely by
+   * the Rust `tauri-plugin-window-state` plugin — no frontend save/restore needed.
+   * This service only handles show/hide/toggle and always-on-top.
    */
   async initialize(): Promise<void> {
     if (!isTauriEnvironment()) {
@@ -61,153 +53,11 @@ class WindowService {
         return;
       }
 
-      // Restore saved window state
-      await this.restoreWindowState();
-
-      // Set up event listeners for window changes
-      this.setupEventListeners();
-
       this.initialized = true;
-      console.log('Window service initialized');
+      console.log('Window service initialized (state managed by tauri-plugin-window-state)');
     } catch (error) {
       console.error('Failed to initialize window service:', error);
-      // Non-critical error, continue anyway
     }
-  }
-
-  /**
-   * Get current window state from Tauri
-   */
-  async getCurrentState(): Promise<WindowState> {
-    if (!isTauriEnvironment()) {
-      return DEFAULT_WINDOW_STATE;
-    }
-
-    try {
-      return await invoke<WindowState>('get_window_state');
-    } catch (error) {
-      console.error('Failed to get window state:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Save current window state
-   */
-  async saveState(state?: WindowState): Promise<void> {
-    try {
-      const stateToSave = state || await this.getCurrentState();
-
-      // Validate state
-      if (!validateDimensions(stateToSave.width, stateToSave.height)) {
-        console.warn('Invalid window dimensions, skipping save');
-        return;
-      }
-
-      if (!validatePosition(stateToSave.x, stateToSave.y)) {
-        console.warn('Invalid window position, skipping save');
-        return;
-      }
-
-      // Save to settings
-      const settingsResult = await settingsService.load();
-      if (settingsResult.success && settingsResult.data) {
-        settingsResult.data[WINDOW_STATE_KEY] = stateToSave;
-        await settingsService.save(settingsResult.data);
-        console.log('Window state saved:', stateToSave);
-      }
-    } catch (error) {
-      console.error('Failed to save window state:', error);
-    }
-  }
-
-  /**
-   * Save window state with debounce
-   */
-  private debouncedSave(): void {
-    if (this.saveTimeout) {
-      clearTimeout(this.saveTimeout);
-    }
-
-    this.saveTimeout = setTimeout(async () => {
-      await this.saveState();
-      this.saveTimeout = null;
-    }, DEFAULT_WINDOW_CONFIG.stateSave.debounceMs);
-  }
-
-  /**
-   * Restore saved window state
-   */
-  async restoreWindowState(): Promise<void> {
-    try {
-      const currentWindow = this.getWindow();
-      if (!currentWindow) {
-        return;
-      }
-
-      const settingsResult = await settingsService.load();
-      
-      if (!settingsResult.success || !settingsResult.data) {
-        console.log('No saved window state found, using defaults');
-        return;
-      }
-      
-      const savedState = settingsResult.data[WINDOW_STATE_KEY] as Partial<WindowState> | undefined;
-
-      if (!savedState) {
-        console.log('No saved window state found, using defaults');
-        return;
-      }
-
-      const state = mergeWindowState(savedState, DEFAULT_WINDOW_STATE);
-
-      // Restore window state
-      if (DEFAULT_WINDOW_CONFIG.stateSave.savePosition) {
-        await currentWindow.setPosition(new LogicalPosition(state.x, state.y));
-      }
-
-      if (DEFAULT_WINDOW_CONFIG.stateSave.saveSize) {
-        await currentWindow.setSize(new LogicalSize(state.width, state.height));
-      }
-
-      if (DEFAULT_WINDOW_CONFIG.stateSave.saveMaximized && state.maximized) {
-        await currentWindow.maximize();
-      }
-
-      if (DEFAULT_WINDOW_CONFIG.stateSave.saveFullscreen && state.fullscreen) {
-        await currentWindow.setFullscreen(true);
-      }
-
-      console.log('Window state restored:', state);
-    } catch (error) {
-      console.error('Failed to restore window state:', error);
-    }
-  }
-
-  /**
-   * Set up event listeners for window state changes
-   */
-  private setupEventListeners(): void {
-    const currentWindow = this.getWindow();
-    if (!currentWindow) {
-      return;
-    }
-
-    // Listen for window resize
-    currentWindow.onResized(() => {
-      if (DEFAULT_WINDOW_CONFIG.stateSave.saveSize) {
-        this.debouncedSave();
-      }
-    });
-
-    // Listen for window move
-    currentWindow.onMoved(() => {
-      if (DEFAULT_WINDOW_CONFIG.stateSave.savePosition) {
-        this.debouncedSave();
-      }
-    });
-
-    // Note: Tauri v2 may have different event names, adjust as needed
   }
 
   /**
@@ -316,11 +166,8 @@ class WindowService {
     }
 
     try {
-      if (DEFAULT_WINDOW_CONFIG.behavior.minimizeToTray) {
-        await this.hide();
-      } else {
-        await currentWindow.minimize();
-      }
+      // Minimize to tray (hide) by default on macOS
+      await this.hide();
     } catch (error) {
       console.error('Failed to minimize window:', error);
     }

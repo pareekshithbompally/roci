@@ -119,14 +119,24 @@ class NotificationService {
   }
 
   /**
-   * Request notification permission
+   * Request notification permission.
+   * In Tauri, uses the plugin's requestPermission if not already granted.
    */
   async requestPermission(): Promise<boolean> {
     await this.initialize();
 
-    if (isTauriEnvironment() && this.isPermissionGranted) {
-      const granted = await this.isPermissionGranted();
-      return granted;
+    if (isTauriEnvironment() && this.notificationModule) {
+      try {
+        let granted = await this.notificationModule.isPermissionGranted();
+        if (!granted) {
+          const result = await this.notificationModule.requestPermission();
+          granted = result === 'granted';
+        }
+        return granted;
+      } catch (error) {
+        console.warn('[NotificationService] Permission check/request failed:', error);
+        return false;
+      }
     } else if ('Notification' in window) {
       const permission = await Notification.requestPermission();
       return permission === 'granted';
@@ -186,6 +196,12 @@ class NotificationService {
     await this.initialize();
 
     if (isTauriEnvironment()) {
+      // Ensure permission is granted before sending
+      const granted = await this.requestPermission();
+      if (!granted) {
+        console.warn('[NotificationService] Notification permission denied — skipping:', options.title);
+        return;
+      }
       try {
         const notification = {
           title: options.title,
