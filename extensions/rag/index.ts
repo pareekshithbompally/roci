@@ -6,7 +6,7 @@ export { ragSearcher } from './searcher';
 export { chunkMeeting, computeContentHash } from './chunker';
 export { onConsentNeeded, hasConsent, revokeConsent } from './consent';
 export { onRAGProgress, onEmbeddingProgress, emitProgress } from './progress';
-export type { RAGProgressEvent, EmbeddingModelEvent, IndexingProgressEvent, ExtractionProgressEvent, EmbeddingProgress } from './progress';
+export type { RAGProgressEvent, EmbeddingModelEvent, IndexingProgressEvent, ExtractionProgressEvent, EmbeddingUpgradeProgressEvent, EmbeddingProgress } from './progress';
 export type { MeetingSearchResult } from './searcher';
 export type { Chunk } from './chunker';
 export type { IndexingResult } from './types';

@@ -11,6 +11,7 @@ import type { ChatSession } from '@/types';
 import { embeddingService } from './embeddings';
 import { vectorDB } from './client';
 import { chunkChatSession, computeChatHash } from './chat-chunker';
+import { emitProgress } from './progress';
 import type { ChatChunkData } from './client';
 import type { IndexingResult } from './types';
 
@@ -71,7 +72,10 @@ async function indexAllSessions(
   options?: ChatIndexOptions & { signal?: AbortSignal },
 ): Promise<number> {
   const nonEmpty = sessions.filter(s => s.messages.length > 0);
-  if (nonEmpty.length === 0) return 0;
+  if (nonEmpty.length === 0) {
+    console.log(`[ChatIndexer] No non-empty sessions to index (${sessions.length} total, all empty)`);
+    return 0;
+  }
 
   const signal = options?.signal;
   const includeEmbeddings = options?.includeEmbeddings ?? true;
@@ -95,10 +99,19 @@ async function indexAllSessions(
   const staleItems = nonEmpty.filter(s => staleSet.has(s.id));
 
   if (staleItems.length > 0) {
-    console.log(`[ChatIndexer] ${staleItems.length} sessions need indexing`);
+    console.log(`[ChatIndexer] Step 1: ${staleItems.length} sessions need indexing`);
+    emitProgress({ kind: 'indexing', status: 'started', total: staleItems.length, currentTitle: 'Chat: starting' });
 
     for (const session of staleItems) {
       if (signal?.aborted) break;
+
+      emitProgress({
+        kind: 'indexing',
+        status: 'progress',
+        current: indexed + 1,
+        total: staleItems.length,
+        currentTitle: `Chat: ${session.title}`,
+      });
 
       try {
         const contentHash = hashMap.get(session.id)!;
@@ -114,7 +127,10 @@ async function indexAllSessions(
       }
     }
 
-    console.log(`[ChatIndexer] Indexed ${indexed} sessions`);
+    console.log(`[ChatIndexer] Step 1 complete: indexed ${indexed}/${staleItems.length} sessions`);
+    emitProgress({ kind: 'indexing', status: 'complete', current: indexed, total: staleItems.length });
+  } else {
+    console.log(`[ChatIndexer] Step 1 skipped: all ${nonEmpty.length} sessions are up-to-date`);
   }
 
   // ── Step 2: Upgrade embedding-stale sessions ──
@@ -163,17 +179,20 @@ async function indexSessionInternal(
   options?: ChatIndexOptions,
 ): Promise<IndexingResult> {
   const chunks = chunkChatSession(session);
-  if (chunks.length === 0) {
-    return { status: 'skipped', reason: 'no_chunks', chunkCount: 0, embeddingCount: 0 };
-  }
 
-  // Upsert session metadata WITHOUT content_hash (deferred until chunks confirmed)
+  // Always upsert session metadata so the DB count matches disk count
   await vectorDB.upsertChatSession({
     id: session.id,
     title: session.title,
     last_message_at: session.lastMessageAt,
     message_count: session.messages.length,
   });
+
+  if (chunks.length === 0) {
+    // Stamp content_hash so this session isn't perpetually stale
+    await vectorDB.markChatContentIndexed(session.id, contentHash);
+    return { status: 'skipped', reason: 'no_chunks', chunkCount: 0, embeddingCount: 0 };
+  }
 
   const chunkTexts = chunks.map(c => c.text);
   let embeddings: number[][] | null = null;

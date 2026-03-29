@@ -5,7 +5,7 @@
  * Self-contained — loads its own storage path state on mount.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Sun, Moon, Monitor, Copy, Check, FolderOpen, FolderSearch, RefreshCw, Database } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useSettings } from '@shared/contexts/SettingsContext';
@@ -19,11 +19,13 @@ import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { SURFACE, BORDER, TEXT, RADIUS, LAYOUT, COMPONENT } from '@config/theme.config';
 import { SettingsSection } from './shared';
 import {
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem, SelectGroup, SelectLabel,
   AlertDialog, AlertDialogPortal, AlertDialogOverlay, AlertDialogContent,
   AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from '@shared/ui';
 import { useSettingsSave } from '../hooks/useSettingsSave';
+import { getProviderTitle } from '@/utils/providerUtils';
+import ProvidersAvatar from '@/components/ProvidersAvatar';
 
 export const InterfacePanel: React.FC = () => {
   const { theme, setTheme } = useTheme();
@@ -37,6 +39,29 @@ export const InterfacePanel: React.FC = () => {
   const [diskUsage, setDiskUsage] = useState<{ label: string; bytes: number }[] | null>(null);
   const [rebuildConfirmOpen, setRebuildConfirmOpen] = useState(false);
   const [isRebuilding, setIsRebuilding] = useState(false);
+
+  // All active models grouped by provider (for KG model picker)
+  const allActiveModels = useMemo(() => {
+    const models: Array<{ id: string; provider: string; name: string }> = [];
+    providers.forEach(provider => {
+      if (provider.active && provider.models) {
+        provider.models.forEach(model => {
+          models.push({ id: model.id, provider: provider.provider, name: model.name || model.id });
+        });
+      }
+    });
+    return models;
+  }, [providers]);
+
+  const modelsByProvider = useMemo(() => {
+    const grouped: Record<string, typeof allActiveModels> = {};
+    allActiveModels.forEach((model) => {
+      if (!grouped[model.provider]) grouped[model.provider] = [];
+      grouped[model.provider].push(model);
+    });
+    return grouped;
+  }, [allActiveModels]);
+
   const [indexStats, setIndexStats] = useState<{
     meetings: { indexed: number; onDisk: number };
     chats: { indexed: number; onDisk: number };
@@ -81,19 +106,35 @@ export const InterfacePanel: React.FC = () => {
         searchIndexingService.loadChatsForIndexing(),
       ]);
 
-      // Re-index all meetings with embeddings + extraction
-      const extractionContext = settings.chatModel
-        ? { settings, providers }
-        : undefined;
-      const meetingsIndexed = await ragIndexer.indexAll(meetingItems, {
-        includeEmbeddings: true,
-        extractionContext,
-      });
+      console.log(`[InterfacePanel] Rebuild: ${meetingItems.length} meetings, ${chatSessions.length} chats to index`);
 
-      // Re-index all chat sessions (batch staleness handles everything)
-      const chatsIndexed = await chatIndexer.indexAllSessions(chatSessions, {
-        includeEmbeddings: true,
-      });
+      // Phase 1: Re-index all meetings (chunks + embeddings + KG extraction).
+      // Extraction failures are non-fatal — they won't block chat indexing.
+      let meetingsIndexed = 0;
+      try {
+        const kgModel = settings.kgExtractionModel || settings.chatModel;
+        const extractionContext = kgModel
+          ? { settings: { ...settings, chatModel: kgModel }, providers }
+          : undefined;
+        meetingsIndexed = await ragIndexer.indexAll(meetingItems, {
+          includeEmbeddings: true,
+          extractionContext,
+        });
+      } catch (error: unknown) {
+        console.error('[InterfacePanel] Meeting indexing failed:', error);
+        showToast('Meeting indexing failed — continuing with chats', 'error');
+      }
+
+      // Phase 2: Re-index all chat sessions (independent of meeting indexing).
+      let chatsIndexed = 0;
+      try {
+        chatsIndexed = await chatIndexer.indexAllSessions(chatSessions, {
+          includeEmbeddings: true,
+        });
+      } catch (error: unknown) {
+        console.error('[InterfacePanel] Chat indexing failed:', error);
+        showToast('Chat indexing failed', 'error');
+      }
 
       showToast(
         `Rebuilt index: ${meetingsIndexed}/${meetingItems.length} meetings, ${chatsIndexed}/${chatSessions.length} chats`,
@@ -369,6 +410,66 @@ export const InterfacePanel: React.FC = () => {
               />
             </div>
           )}
+
+          {/* KG Extraction Model */}
+          <div className={`${SURFACE.card} border ${BORDER.default} ${RADIUS.lg}`}>
+            <div className="flex items-center justify-between gap-4 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
+                  Entity Extraction Model
+                </span>
+                <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
+                  Chat model used to extract knowledge graph entities during rebuild.
+                </p>
+              </div>
+              <div className="w-64 shrink-0">
+                {allActiveModels.length > 0 ? (
+                  <Select
+                    value={settings.kgExtractionModel || settings.chatModel || undefined}
+                    onValueChange={(modelId: string) => setSettings({ kgExtractionModel: modelId })}
+                  >
+                    <SelectTrigger className={`${TYPOGRAPHY_CLASSES.settingsInput}`}>
+                      <SelectValue placeholder="Select model">
+                        {(() => {
+                          const selectedId = settings.kgExtractionModel || settings.chatModel;
+                          const selected = allActiveModels.find(m => m.id === selectedId);
+                          if (!selected) return 'Select model';
+                          return (
+                            <span className="flex items-center gap-2 truncate">
+                              <ProvidersAvatar provider={selected.provider} size={16} />
+                              <span className="truncate">{selected.name}</span>
+                            </span>
+                          );
+                        })()}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(modelsByProvider).map(([provider, models]) => (
+                        <SelectGroup key={provider}>
+                          <SelectLabel>{getProviderTitle(provider)}</SelectLabel>
+                          {models.map((model) => (
+                            <SelectItem
+                              key={`kg-${model.provider}-${model.id}`}
+                              value={model.id}
+                            >
+                              <div className="flex items-center gap-2">
+                                <ProvidersAvatar provider={model.provider} size={16} />
+                                <span className="truncate">{model.name}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
+                    No models available
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
 
           {/* Rebuild button */}
           <div className={`flex items-center justify-between px-4 py-3 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg}`}>

@@ -168,6 +168,8 @@ export interface UnifiedSidebarItem {
 export interface AppSettings {
   transcriptionModel: string;
   chatModel: string;
+  /** Model used for KG entity extraction during rebuild. Falls back to chatModel if unset. */
+  kgExtractionModel?: string;
   apiKey?: string;
   audioQualityPreset?: 'voice' | 'podcast' | 'music' | 'professional';
   defaultAudioSource?: AudioCaptureSource;
