@@ -6,7 +6,7 @@
  */
 
 import React, { useMemo, useState, useCallback } from 'react';
-import { AudioWaveform, Key, HardDrive, ListTodo } from 'lucide-react';
+import { AudioWaveform, Key, HardDrive, ListTodo, CalendarDays } from 'lucide-react';
 import { ImportButton } from '@features/import';
 import { useApp, AppStatus } from '@shared/contexts/AppContext';
 import { useRecordingContext } from '@features/recording';
@@ -19,7 +19,7 @@ import { RadioCard } from '@features/settings/components/shared';
 import { supportsWebSearch, supportsTranscription, resolveModel } from '@shared/utils/modelResolver';
 import { useSpeechInput } from '@features/chat/hooks/useSpeechInput';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { SURFACE, TEXT, BORDER } from '@config/theme.config';
+import { SURFACE, TEXT, BORDER, COMPONENT } from '@config/theme.config';
 
 interface IdleViewProps {}
 
@@ -95,6 +95,10 @@ export const IdleView: React.FC<IdleViewProps> = () => {
 
   const handleOpenReminders = () => {
     setCurrentView('reminders');
+  };
+
+  const handleOpenCalendar = () => {
+    setCurrentView('calendar');
   };
 
   const handleStartRecording = async () => {
@@ -178,6 +182,15 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                   >
                     <ListTodo className="w-4 h-4" />
                     <span>To-Dos</span>
+                  </button>
+                )}
+                {settings.calendarIntegration?.enabled && (
+                  <button
+                    onClick={handleOpenCalendar}
+                    className={`inline-flex items-center gap-1.5 px-4 py-2.5 ${SURFACE.card} border ${BORDER.strong} rounded-full text-sm font-medium ${TEXT.secondary} hover:${TEXT.heading} transition-all`}
+                  >
+                    <CalendarDays className="w-4 h-4" />
+                    <span>Upcoming</span>
                   </button>
                 )}
               </div>

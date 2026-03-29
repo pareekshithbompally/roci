@@ -140,6 +140,7 @@ private func fetchEventsJSON(store: EKEventStore, start: Date, end: Date) -> Uns
 
             var att: [String: Any] = [
                 "is_organizer": participant.isCurrentUser && event.organizer?.isCurrentUser == true,
+                "is_current_user": participant.isCurrentUser,
             ]
             if let name = participant.name { att["name"] = name }
             if participant.responds(to: NSSelectorFromString("emailAddress")),

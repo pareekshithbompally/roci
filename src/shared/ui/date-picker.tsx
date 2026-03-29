@@ -244,7 +244,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           sideOffset={4}
           align="start"
           className={cn(
-            'z-50 w-56',
+            'z-[200] w-56',
             'bg-[var(--surface-dropdown)]',
             'border border-[var(--border-strong)]',
             'rounded-[var(--radius-lg)]',

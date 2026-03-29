@@ -22,25 +22,25 @@ export interface ShortcutsConfig {
  */
 export const DEFAULT_SHORTCUTS: ShortcutsConfig = {
   TOGGLE_RECORDING: {
-    key: 'CommandOrControl+Shift+R',
+    key: 'Option+Shift+R',
     description: 'Start or stop audio recording',
     action: 'toggle-recording',
     enabled: true
   },
   SHOW_WINDOW: {
-    key: 'CommandOrControl+Shift+A',
+    key: 'Option+Shift+A',
     description: 'Show and focus application window',
     action: 'show-window',
     enabled: true
   },
   NEW_CHAT: {
-    key: 'CommandOrControl+Shift+N',
+    key: 'Option+Shift+N',
     description: 'Start a new AI chat',
     action: 'new-chat',
     enabled: true
   },
   OPEN_SETTINGS: {
-    key: 'CommandOrControl+Shift+Comma',
+    key: 'Option+Shift+Comma',
     description: 'Open application settings',
     action: 'open-settings',
     enabled: true

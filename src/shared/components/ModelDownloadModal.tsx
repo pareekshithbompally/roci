@@ -293,7 +293,7 @@ export const ModelDownloadModal: React.FC = () => {
             activityStore.add({
               id: 'rag-embedding',
               type: 'indexing',
-              label: 'Upgrading embeddings',
+              label: 'Indexing meetings for search',
               status: 'active',
               percent: null,
               step: { current: 0, total: event.total },
@@ -319,7 +319,7 @@ export const ModelDownloadModal: React.FC = () => {
               activityStore.add({
                 id: 'rag-embedding',
                 type: 'indexing',
-                label: 'Upgrading embeddings',
+                label: 'Indexing meetings for search',
                 status: 'active',
                 percent,
                 step: { current: event.current, total: event.total },

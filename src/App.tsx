@@ -17,6 +17,7 @@ import { MainLayout } from '@features/layout';
 import { HomeView } from '@features/home';
 import { SettingsPanel } from '@features/settings';
 import { RemindersView } from '@features/todos';
+import { CalendarView } from '@features/calendar';
 import { DeleteConfirmModal } from '@features/history';
 import { Toaster } from 'sonner';
 import { ModelDownloadModal } from '@shared/components/ModelDownloadModal';
@@ -322,14 +323,17 @@ const App: React.FC = () => {
         {/* Main Content */}
         <main
           className={`grow shrink min-h-0 flex flex-col custom-scrollbar relative ${
-            currentView === 'settings' || currentView === 'reminders'
-              ? 'p-0 items-stretch overflow-y-auto' 
-              : (showIdleView || showChatView || showResultsView) 
-                ? 'p-0 overflow-hidden' 
+            currentView === 'settings' || currentView === 'reminders' || currentView === 'calendar'
+              ? 'p-0 items-stretch overflow-y-auto'
+              : (showIdleView || showChatView || showResultsView)
+                ? 'p-0 overflow-hidden'
                 : 'p-6 md:p-10 overflow-hidden'
           }`}
         >
-          {currentView === 'home' ? <HomeView /> : currentView === 'reminders' ? <RemindersView /> : <SettingsPanel />}
+          {currentView === 'home' ? <HomeView />
+            : currentView === 'reminders' ? <RemindersView />
+            : currentView === 'calendar' ? <CalendarView />
+            : <SettingsPanel />}
         </main>
       </MainLayout>
 
@@ -337,6 +341,7 @@ const App: React.FC = () => {
       <Toaster
         position="top-right"
         offset={24}
+        width="auto"
         theme={isDark ? 'dark' : 'light'}
         richColors
         closeButton

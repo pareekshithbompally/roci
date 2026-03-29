@@ -99,8 +99,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   return (
     <main className={`relative h-screen ${SURFACE.page} ${TEXT.primary} overflow-hidden`}>
-      {/* Invisible drag region for window dragging — covers title bar area */}
-      <div className="fixed w-full h-[40px] z-20 top-0" data-tauri-drag-region />
+      {/* Invisible drag region for window dragging — covers title bar area.
+          top-[4px] leaves room for macOS native resize edge to avoid simultaneous move+resize. */}
+      <div className="fixed w-full top-[4px] h-[36px] z-20 select-none" data-tauri-drag-region />
 
       {/* Mobile Sidebar Overlay */}
       {isSmallScreen && isLeftPanelOpen && (

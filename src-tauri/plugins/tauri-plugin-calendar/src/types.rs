@@ -24,6 +24,7 @@ pub struct Attendee {
     pub email: Option<String>,
     pub status: String,
     pub is_organizer: bool,
+    pub is_current_user: Option<bool>,
 }
 
 /// Authorization status for calendar access.

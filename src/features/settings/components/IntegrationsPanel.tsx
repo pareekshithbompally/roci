@@ -10,7 +10,8 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, CalendarDays } from 'lucide-react';
+import { useApp } from '@shared/contexts/AppContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { isTauriEnvironment } from '@/services/tauri';
@@ -32,6 +33,7 @@ const NOTIFY_OPTIONS = [
 // ─── macOS Calendar Integration Card ────────────────────────────────────────
 
 const CalendarIntegrationCard: React.FC = () => {
+  const { setCurrentView } = useApp();
   const { settings, setSettings } = useSettings();
   const { showToast } = useToast();
 
@@ -182,26 +184,42 @@ const CalendarIntegrationCard: React.FC = () => {
 
       {/* Expanded settings — only when enabled + authorized */}
       {isConnected && (
-        <div className={`px-4 py-2.5 border-t ${BORDER.default}`}>
-          <div className="flex items-center justify-between gap-4">
-            <span className={`text-xs ${TEXT.muted}`}>
-              Notify before meeting starts
-            </span>
-            <Select
-              value={String(calendarSettings.notifyMinutesBefore)}
-              onValueChange={(val) => handleNotifyTimingChange(parseInt(val, 10))}
-            >
-              <SelectTrigger className={`!w-[140px] h-7 ${TYPOGRAPHY_CLASSES.settingsInput}`}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {NOTIFY_OPTIONS.map(opt => (
-                  <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <>
+          <div className={`px-4 py-2.5 border-t ${BORDER.default}`}>
+            <div className="flex items-center justify-between gap-4">
+              <span className={`text-xs ${TEXT.muted}`}>
+                Notify before meeting starts
+              </span>
+              <Select
+                value={String(calendarSettings.notifyMinutesBefore)}
+                onValueChange={(val) => handleNotifyTimingChange(parseInt(val, 10))}
+              >
+                <SelectTrigger className={`!w-[140px] h-7 ${TYPOGRAPHY_CLASSES.settingsInput}`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {NOTIFY_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        </div>
+          <div className={`px-4 py-2.5 border-t ${BORDER.default}`}>
+            <div className="flex items-center justify-between gap-4">
+              <span className={`text-xs ${TEXT.muted}`}>
+                View your upcoming week
+              </span>
+              <button
+                onClick={() => setCurrentView('calendar')}
+                className={COMPONENT.settingsButtonOutline}
+              >
+                <CalendarDays className="w-3.5 h-3.5" />
+                View Schedule
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

@@ -4,7 +4,11 @@
  * Fetches and caches model capability data from the models.dev API.
  * Provides lookup of input/output modalities and feature capabilities
  * (tool calling, reasoning, structured output) for any provider + model.
+ *
+ * Cache is stored on disk via cacheService in the app data directory.
  */
+
+import { cacheService } from './storage/cache.service';
 
 export interface ModelModalities {
   input: string[];
@@ -63,8 +67,7 @@ interface ModelsDevProvider {
 type ModelsDevResponse = Record<string, ModelsDevProvider>;
 
 const API_URL = 'https://models.dev/api.json';
-const CACHE_KEY = 'kasset_modalities_cache';
-const CACHE_TS_KEY = 'kasset_modalities_cache_ts';
+const CACHE_KEY = 'modalities';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 const PROVIDER_NAME_MAP: Record<string, string> = {
@@ -82,24 +85,6 @@ const PROVIDER_NAME_MAP: Record<string, string> = {
 
 let cachedData: ModelsDevResponse | null = null;
 
-function isCacheExpired(): boolean {
-  const ts = localStorage.getItem(CACHE_TS_KEY);
-  if (!ts) return true;
-  return Date.now() - Number(ts) > CACHE_TTL_MS;
-}
-
-function loadFromLocalStorage(): boolean {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (!raw) return false;
-    cachedData = JSON.parse(raw) as ModelsDevResponse;
-    return true;
-  } catch (error: unknown) {
-    console.error('[ModalitiesService] Failed to load from localStorage:', error);
-    return false;
-  }
-}
-
 class ModalitiesService {
   async fetchAndCache(): Promise<void> {
     try {
@@ -111,11 +96,9 @@ class ModalitiesService {
       const data = (await response.json()) as ModelsDevResponse;
       cachedData = data;
       try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-        localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
+        await cacheService.set(CACHE_KEY, data, CACHE_TTL_MS, 'api');
       } catch {
-        // localStorage quota exceeded — data stays in memory for this session
-        console.warn('[ModalitiesService] localStorage quota exceeded, using in-memory cache only');
+        console.warn('[ModalitiesService] Disk cache write failed, using in-memory cache only');
       }
       console.log('[ModalitiesService] Fetched and cached modality data');
     } catch (error: unknown) {
@@ -188,7 +171,16 @@ class ModalitiesService {
   async ensureLoaded(): Promise<void> {
     if (cachedData) return;
 
-    if (!isCacheExpired() && loadFromLocalStorage()) return;
+    // Try loading from disk cache
+    try {
+      const result = await cacheService.get<ModelsDevResponse>(CACHE_KEY, 'api');
+      if (result.success && result.data) {
+        cachedData = result.data;
+        return;
+      }
+    } catch {
+      // Disk cache unavailable, proceed to fetch
+    }
 
     await this.fetchAndCache();
   }

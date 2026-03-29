@@ -5,12 +5,16 @@
  * and meeting metadata pipeline.
  */
 
+import { CALENDAR_CONFIG } from '../../src/config/calendar.config';
+
 /** A participant in a calendar event. */
 export interface CalendarAttendee {
   name?: string;
   email?: string;
   status: 'accepted' | 'declined' | 'tentative' | 'pending';
   is_organizer: boolean;
+  /** Whether this attendee represents the device owner (macOS EKParticipant.isCurrentUser) */
+  is_current_user?: boolean;
 }
 
 /** A calendar event from macOS EventKit. */
@@ -49,6 +53,6 @@ export interface CalendarIntegrationSettings {
 
 /** Default calendar integration settings. */
 export const CALENDAR_DEFAULTS: CalendarIntegrationSettings = {
-  enabled: false,
-  notify_minutes_before: 2,
+  enabled: CALENDAR_CONFIG.defaultEnabled,
+  notify_minutes_before: CALENDAR_CONFIG.defaultNotifyMinutesBefore,
 };

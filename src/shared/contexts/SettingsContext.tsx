@@ -192,6 +192,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
           jobProcessing: (data as any).jobProcessing || defaultSettings.jobProcessing,
           summaryExtraction: (data as any).summaryExtraction || defaultSettings.summaryExtraction,
           meetingDefaults: (data as any).meetingDefaults || defaultSettings.meetingDefaults,
+          calendarIntegration: (data as any).calendarIntegration ?? undefined,
         };
 
         // Merge saved providers with predefined providers
@@ -332,6 +333,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         jobProcessing: effectiveSettings.jobProcessing,
         summaryExtraction: effectiveSettings.summaryExtraction,
         meetingDefaults: effectiveSettings.meetingDefaults,
+        calendarIntegration: effectiveSettings.calendarIntegration,
         providers: currentState.providers,
         selectedProviderName: currentState.selectedProviderName,
         // Include other default fields

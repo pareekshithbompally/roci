@@ -345,3 +345,109 @@ code, pre {
 .animate-slide-in-content {
   animation: slide-in-content 0.2s ease-out;
 }
+
+/* ─── Schedule-X Calendar Theme Overrides ─────────────────── */
+/* Maps Schedule-X CSS variables to the app's parchment/night design tokens
+   so the calendar feels native rather than an embedded iframe. */
+
+/* Light mode */
+.sx__calendar-wrapper {
+  --sx-color-primary: #4a453e;                       /* parchment-800 */
+  --sx-color-on-primary: #ffffff;                    /* parchment-50 */
+  --sx-color-primary-container: #f0ede5;             /* parchment-200 */
+  --sx-color-on-primary-container: #1e1c18;          /* parchment-900 */
+  --sx-color-surface: #fbfaf7;                       /* parchment-100 */
+  --sx-color-surface-dim: #f0ede5;                   /* parchment-200 */
+  --sx-color-surface-bright: #ffffff;                /* parchment-50 */
+  --sx-color-on-surface: #1e1c18;                    /* parchment-900 */
+  --sx-color-surface-container: #f7f5ef;             /* parchment-150 */
+  --sx-color-surface-container-low: #fbfaf7;         /* parchment-100 */
+  --sx-color-surface-container-high: #f0ede5;        /* parchment-200 */
+  --sx-color-background: #fbfaf7;                    /* parchment-100 */
+  --sx-color-on-background: #1e1c18;                 /* parchment-900 */
+  --sx-color-outline: #d5d0c4;                       /* parchment-400 */
+  --sx-color-outline-variant: rgba(228, 224, 214, 0.7); /* parchment-300/70 */
+  --sx-internal-color-text: #1e1c18;                 /* parchment-900 */
+  --sx-internal-color-light-gray: #f7f5ef;           /* parchment-150 */
+  font-family: inherit;
+}
+
+/* Dark mode */
+.is-dark.sx__calendar-wrapper,
+.is-dark .sx__calendar-wrapper {
+  --sx-color-primary: #d0d5e4;                       /* night-200 */
+  --sx-color-on-primary: #1e1e1c;                    /* night-950 */
+  --sx-color-primary-container: #3c3c3a;             /* night-750 */
+  --sx-color-on-primary-container: #e6e9f4;          /* night-100 */
+  --sx-color-surface: #262624;                       /* night-900 */
+  --sx-color-surface-dim: #1e1e1c;                   /* night-950 */
+  --sx-color-surface-bright: #343432;                /* night-800 */
+  --sx-color-on-surface: #e6e9f4;                    /* night-100 */
+  --sx-color-surface-container: #2c2c2a;             /* night-850 */
+  --sx-color-surface-container-low: #262624;         /* night-900 */
+  --sx-color-surface-container-high: #343432;        /* night-800 */
+  --sx-color-background: #262624;                    /* night-900 */
+  --sx-color-on-background: #e6e9f4;                 /* night-100 */
+  --sx-color-outline: #525250;                       /* night-650 */
+  --sx-color-outline-variant: #454543;               /* night-700 */
+  --sx-internal-color-text: #e6e9f4;                 /* night-100 */
+  --sx-internal-color-light-gray: #2c2c2a;           /* night-850 */
+}
+
+/* Hide Schedule-X's built-in header — CalendarView has custom nav controls */
+.sx__calendar-wrapper .sx__calendar-header {
+  display: none !important;
+}
+
+/* Tame the week-header z-index so Radix popovers can sit above it */
+.sx__calendar-wrapper {
+  --sx-z-index-week-header: 10;
+  --sx-z-index-event-modal: 11;
+  --sx-calendar-header-popup-z-index: 12;
+}
+
+/* Kill the outer calendar box border + radius + bg so it merges flush with the page */
+.sx__calendar-wrapper .sx__calendar,
+.sx__calendar {
+  border: none !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Also kill the wrapper's own border if any */
+.sx__calendar-wrapper {
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+/* Event chip: rounded with subtle left accent */
+.sx__calendar-wrapper .sx__time-grid-event {
+  border-radius: 6px !important;
+  border-left: 3px solid var(--sx-color-primary) !important;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+/* Hide the default event modal — we render a custom popover */
+.sx__event-modal {
+  display: none !important;
+}
+
+/* Time axis: smaller, muted labels */
+.sx__calendar-wrapper .sx__week-grid__time-column-text {
+  font-size: 0.6875rem;
+  color: var(--sx-color-outline);
+}
+
+/* Today column: subtle highlight */
+.sx__calendar-wrapper .sx__is-today {
+  background-color: var(--sx-color-primary-container);
+  opacity: 0.35;
+}
+
+/* Current time indicator: use primary color instead of red */
+.sx__current-time-indicator {
+  background-color: var(--sx-color-primary) !important;
+}
