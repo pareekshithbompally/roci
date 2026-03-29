@@ -8,7 +8,7 @@
  */
 
 import type { ChatSession } from '@/types';
-import { embeddingService } from './embeddings';
+import { embeddingService, preloadModel } from './embeddings';
 import { vectorDB } from './client';
 import { chunkChatSession, computeChatHash } from './chat-chunker';
 import { emitProgress } from './progress';
@@ -100,15 +100,26 @@ async function indexAllSessions(
 
   if (staleItems.length > 0) {
     console.log(`[ChatIndexer] Step 1: ${staleItems.length} sessions need indexing`);
-    emitProgress({ kind: 'indexing', status: 'started', total: staleItems.length, currentTitle: 'Chat: starting' });
+    emitProgress({ kind: 'indexing', status: 'started', total: staleItems.length, currentTitle: 'Chat: loading embedding model…' });
 
-    for (const session of staleItems) {
+    // Warm up embedding model before entering the loop so the first session
+    // doesn't silently block on model download while the tray shows "1/N".
+    if (includeEmbeddings) {
+      try {
+        await preloadModel();
+      } catch {
+        console.warn('[ChatIndexer] Embedding model preload failed — will retry per-session');
+      }
+    }
+
+    for (let i = 0; i < staleItems.length; i++) {
       if (signal?.aborted) break;
+      const session = staleItems[i];
 
       emitProgress({
         kind: 'indexing',
         status: 'progress',
-        current: indexed + 1,
+        current: i + 1,
         total: staleItems.length,
         currentTitle: `Chat: ${session.title}`,
       });
@@ -128,7 +139,7 @@ async function indexAllSessions(
     }
 
     console.log(`[ChatIndexer] Step 1 complete: indexed ${indexed}/${staleItems.length} sessions`);
-    emitProgress({ kind: 'indexing', status: 'complete', current: indexed, total: staleItems.length });
+    emitProgress({ kind: 'indexing', status: 'complete', current: staleItems.length, total: staleItems.length });
   } else {
     console.log(`[ChatIndexer] Step 1 skipped: all ${nonEmpty.length} sessions are up-to-date`);
   }
