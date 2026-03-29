@@ -449,7 +449,7 @@ export const InterfacePanel: React.FC = () => {
       {/* Search Index */}
       {isTauriEnvironment() && (
         <SettingsSection title="Search Index">
-          {/* Meetings + Chats index rows with per-row re-index buttons */}
+          {/* All index rows in one card — Meetings, Chats, KG + extraction model */}
           {indexStats && (
             <div className={`${SURFACE.card} border ${BORDER.default} ${RADIUS.lg} divide-y ${BORDER.divide}`}>
               <IndexActionRow
@@ -470,12 +470,6 @@ export const InterfacePanel: React.FC = () => {
                 busy={rebuildingPhase === 'chats' || rebuildingPhase === 'all'}
                 disabled={rebuildingPhase !== null}
               />
-            </div>
-          )}
-
-          {/* Knowledge Graph — status + model picker in one card (Calendar pattern) */}
-          {indexStats && (
-            <div className={`${SURFACE.card} border ${BORDER.default} ${RADIUS.lg} divide-y ${BORDER.divide}`}>
               <IndexActionRow
                 label="Knowledge Graph"
                 indexed={indexStats.kg.nodes}
@@ -484,26 +478,26 @@ export const InterfacePanel: React.FC = () => {
                 busy={rebuildingPhase === 'kg' || rebuildingPhase === 'all'}
                 disabled={rebuildingPhase !== null}
               />
-              {/* Extraction model — nested under KG like Calendar's "Notify before" */}
-              <div className="flex items-center justify-between gap-4 px-4 py-3">
+              {/* Extraction model — nested under KG */}
+              <div className="flex items-center justify-between gap-4 px-4 py-2.5">
                 <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
                   Extraction model
                 </span>
-                <div className="w-56 shrink-0">
+                <div className="w-44 shrink-0">
                   {allActiveModels.length > 0 ? (
                     <Select
                       value={settings.kgExtractionModel || settings.chatModel || undefined}
                       onValueChange={(modelId: string) => setSettings({ kgExtractionModel: modelId })}
                     >
-                      <SelectTrigger className={`${TYPOGRAPHY_CLASSES.settingsInput}`}>
+                      <SelectTrigger className="h-7 text-xs px-2.5">
                         <SelectValue placeholder="Select model">
                           {(() => {
                             const selectedId = settings.kgExtractionModel || settings.chatModel;
                             const selected = allActiveModels.find(m => m.id === selectedId);
                             if (!selected) return 'Select model';
                             return (
-                              <span className="flex items-center gap-2 truncate">
-                                <ProvidersAvatar provider={selected.provider} size={16} />
+                              <span className="flex items-center gap-1.5 truncate">
+                                <ProvidersAvatar provider={selected.provider} size={14} />
                                 <span className="truncate">{selected.name}</span>
                               </span>
                             );
@@ -519,8 +513,8 @@ export const InterfacePanel: React.FC = () => {
                                 key={`kg-${model.provider}-${model.id}`}
                                 value={model.id}
                               >
-                                <div className="flex items-center gap-2">
-                                  <ProvidersAvatar provider={model.provider} size={16} />
+                                <div className="flex items-center gap-1.5">
+                                  <ProvidersAvatar provider={model.provider} size={14} />
                                   <span className="truncate">{model.name}</span>
                                 </div>
                               </SelectItem>
@@ -530,7 +524,7 @@ export const InterfacePanel: React.FC = () => {
                       </SelectContent>
                     </Select>
                   ) : (
-                    <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
+                    <span className={`text-xs ${TEXT.faint}`}>
                       No models available
                     </span>
                   )}
