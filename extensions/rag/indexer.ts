@@ -8,7 +8,7 @@
 
 import type { HistoryItem, AppSettings, MeetingSummary } from '@/types';
 import type { ModelProvider } from '@/types/modelProviders';
-import { embeddingService } from './embeddings';
+import { embeddingService, preloadModel } from './embeddings';
 import { vectorDB } from './client';
 import { graphDB } from './graph-client';
 import { entityExtractor } from './entity-extractor';
@@ -143,7 +143,17 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
   const staleItems = items.filter((item) => staleSet.has(item.id));
 
   if (staleItems.length > 0) {
-    emitProgress({ kind: 'indexing', status: 'started', total: staleItems.length });
+    emitProgress({ kind: 'indexing', status: 'started', total: staleItems.length, currentTitle: 'Loading embedding model…' });
+
+    // Warm up embedding model before the loop so the first meeting
+    // doesn't silently block on model download while the tray shows "1/N".
+    if (includeEmbeddings) {
+      try {
+        await preloadModel();
+      } catch {
+        console.warn('[RAGIndexer] Embedding model preload failed — will retry per-meeting');
+      }
+    }
 
     for (let i = 0; i < staleItems.length; i++) {
       if (signal?.aborted) break;
