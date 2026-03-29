@@ -96,7 +96,7 @@ export const InterfacePanel: React.FC = () => {
       const { ragIndexer } = await import('@extensions/rag');
       const meetingItems = await searchIndexingService.loadMeetingsForIndexing();
       console.log(`[InterfacePanel] Re-indexing ${meetingItems.length} meetings`);
-      const indexed = await ragIndexer.indexAll(meetingItems, { includeEmbeddings: true });
+      const indexed = await ragIndexer.indexAll(meetingItems, { includeEmbeddings: true, force: true });
       showToast(`Re-indexed ${indexed}/${meetingItems.length} meetings`, 'success');
     } catch (error: unknown) {
       console.error('[InterfacePanel] Meeting re-index failed:', error);
@@ -116,7 +116,7 @@ export const InterfacePanel: React.FC = () => {
       const { chatIndexer } = await import('@extensions/rag');
       const chatSessions = await searchIndexingService.loadChatsForIndexing();
       console.log(`[InterfacePanel] Re-indexing ${chatSessions.length} chats`);
-      const indexed = await chatIndexer.indexAllSessions(chatSessions, { includeEmbeddings: true });
+      const indexed = await chatIndexer.indexAllSessions(chatSessions, { includeEmbeddings: true, force: true });
       showToast(`Re-indexed ${indexed}/${chatSessions.length} chats`, 'success');
     } catch (error: unknown) {
       console.error('[InterfacePanel] Chat re-index failed:', error);

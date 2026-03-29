@@ -21,6 +21,8 @@ import type { IndexingResult, RAGStatus } from './types';
 export interface IndexOptions {
   signal?: AbortSignal;
   includeEmbeddings?: boolean;
+  /** Skip staleness check and re-index everything (for manual re-index) */
+  force?: boolean;
   extractionContext?: {
     settings: AppSettings;
     providers: ModelProvider[];
@@ -110,6 +112,7 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
   const signal = options instanceof AbortSignal ? options : options?.signal;
   const includeEmbeddings = options instanceof AbortSignal ? true : options?.includeEmbeddings ?? true;
   const extractionContext = options instanceof AbortSignal ? undefined : options?.extractionContext;
+  const force = options instanceof AbortSignal ? false : options?.force ?? false;
 
   await vectorDB.initialize();
 
@@ -138,9 +141,16 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
   let indexed = 0;
 
   // ── Step 1: Index content-stale meetings (chunks + FTS + optional embeddings) ──
-  const staleIds = await vectorDB.getStaleMeetings(hashes);
-  const staleSet = new Set(staleIds);
-  const staleItems = items.filter((item) => staleSet.has(item.id));
+  // When force=true, skip staleness check and re-index everything
+  let staleItems: HistoryItem[];
+  if (force) {
+    staleItems = items;
+    console.log(`[RAGIndexer] Force re-index: processing all ${items.length} meetings`);
+  } else {
+    const staleIds = await vectorDB.getStaleMeetings(hashes);
+    const staleSet = new Set(staleIds);
+    staleItems = items.filter((item) => staleSet.has(item.id));
+  }
 
   if (staleItems.length > 0) {
     emitProgress({ kind: 'indexing', status: 'started', total: staleItems.length, currentTitle: 'Loading embedding model…' });

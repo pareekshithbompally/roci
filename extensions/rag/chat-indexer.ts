@@ -69,7 +69,7 @@ async function indexSession(
  */
 async function indexAllSessions(
   sessions: ChatSession[],
-  options?: ChatIndexOptions & { signal?: AbortSignal },
+  options?: ChatIndexOptions & { signal?: AbortSignal; force?: boolean },
 ): Promise<number> {
   const nonEmpty = sessions.filter(s => s.messages.length > 0);
   if (nonEmpty.length === 0) {
@@ -79,6 +79,7 @@ async function indexAllSessions(
 
   const signal = options?.signal;
   const includeEmbeddings = options?.includeEmbeddings ?? true;
+  const force = options?.force ?? false;
 
   await vectorDB.initialize();
 
@@ -94,9 +95,16 @@ async function indexAllSessions(
   let indexed = 0;
 
   // ── Step 1: Index content-stale sessions (chunks + FTS + optional embeddings) ──
-  const staleIds = await vectorDB.getStaleChatSessions(hashes);
-  const staleSet = new Set(staleIds);
-  const staleItems = nonEmpty.filter(s => staleSet.has(s.id));
+  // When force=true, skip staleness check and re-index everything
+  let staleItems: ChatSession[];
+  if (force) {
+    staleItems = nonEmpty;
+    console.log(`[ChatIndexer] Force re-index: processing all ${nonEmpty.length} sessions`);
+  } else {
+    const staleIds = await vectorDB.getStaleChatSessions(hashes);
+    const staleSet = new Set(staleIds);
+    staleItems = nonEmpty.filter(s => staleSet.has(s.id));
+  }
 
   if (staleItems.length > 0) {
     console.log(`[ChatIndexer] Step 1: ${staleItems.length} sessions need indexing`);
