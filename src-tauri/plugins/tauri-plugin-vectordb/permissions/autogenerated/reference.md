@@ -9,15 +9,23 @@ Allows all vectordb plugin commands
 - `allow-upsert-chunks`
 - `allow-delete-meeting`
 - `allow-search`
+- `allow-search-chats`
+- `allow-spotlight-search`
 - `allow-get-stale-meetings`
+- `allow-get-stale-chat-sessions`
 - `allow-get-meetings-needing-embeddings`
 - `allow-get-meetings-needing-extraction`
+- `allow-get-chats-needing-embeddings`
 - `allow-mark-meeting-embedded`
 - `allow-mark-meeting-extracted`
+- `allow-mark-meeting-content-indexed`
+- `allow-mark-chat-embedded`
+- `allow-mark-chat-content-indexed`
 - `allow-get-indexed-ids`
 - `allow-get-stats`
 - `allow-get-meta`
 - `allow-rebuild`
+- `allow-rebuild-fts`
 - `allow-graph-upsert`
 - `allow-graph-traverse`
 - `allow-graph-neighbors`
@@ -27,9 +35,10 @@ Allows all vectordb plugin commands
 - `allow-graph-extracted-meeting-ids`
 - `allow-insert-usage`
 - `allow-get-usage-summary`
-- `allow-get-stale-chat-sessions`
-- `allow-get-chats-needing-embeddings`
-- `allow-mark-chat-embedded`
+- `allow-upsert-chat-session`
+- `allow-upsert-chat-chunks`
+- `allow-delete-chat-session`
+- `allow-is-chat-session-stale`
 
 ## Permission Table
 
@@ -39,6 +48,32 @@ Allows all vectordb plugin commands
 <th>Description</th>
 </tr>
 
+
+<tr>
+<td>
+
+`vectordb:allow-delete-chat-session`
+
+</td>
+<td>
+
+Enables the delete_chat_session command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-delete-chat-session`
+
+</td>
+<td>
+
+Denies the delete_chat_session command without any pre-configured scope.
+
+</td>
+</tr>
 
 <tr>
 <td>
@@ -537,6 +572,84 @@ Denies the insert_usage command without any pre-configured scope.
 <tr>
 <td>
 
+`vectordb:allow-is-chat-session-stale`
+
+</td>
+<td>
+
+Enables the is_chat_session_stale command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-is-chat-session-stale`
+
+</td>
+<td>
+
+Denies the is_chat_session_stale command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:allow-mark-chat-content-indexed`
+
+</td>
+<td>
+
+Enables the mark_chat_content_indexed command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-mark-chat-content-indexed`
+
+</td>
+<td>
+
+Denies the mark_chat_content_indexed command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:allow-mark-meeting-content-indexed`
+
+</td>
+<td>
+
+Enables the mark_meeting_content_indexed command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-mark-meeting-content-indexed`
+
+</td>
+<td>
+
+Denies the mark_meeting_content_indexed command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `vectordb:allow-mark-chat-embedded`
 
 </td>
@@ -615,6 +728,32 @@ Denies the mark_meeting_extracted command without any pre-configured scope.
 <tr>
 <td>
 
+`vectordb:allow-rebuild-fts`
+
+</td>
+<td>
+
+Enables the rebuild_fts command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-rebuild-fts`
+
+</td>
+<td>
+
+Denies the rebuild_fts command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `vectordb:allow-rebuild`
 
 </td>
@@ -641,6 +780,32 @@ Denies the rebuild command without any pre-configured scope.
 <tr>
 <td>
 
+`vectordb:allow-search-chats`
+
+</td>
+<td>
+
+Enables the search_chats command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-search-chats`
+
+</td>
+<td>
+
+Denies the search_chats command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `vectordb:allow-search`
 
 </td>
@@ -660,6 +825,84 @@ Enables the search command without any pre-configured scope.
 <td>
 
 Denies the search command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:allow-spotlight-search`
+
+</td>
+<td>
+
+Enables the spotlight_search command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-spotlight-search`
+
+</td>
+<td>
+
+Denies the spotlight_search command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:allow-upsert-chat-chunks`
+
+</td>
+<td>
+
+Enables the upsert_chat_chunks command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-upsert-chat-chunks`
+
+</td>
+<td>
+
+Denies the upsert_chat_chunks command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:allow-upsert-chat-session`
+
+</td>
+<td>
+
+Enables the upsert_chat_session command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`vectordb:deny-upsert-chat-session`
+
+</td>
+<td>
+
+Denies the upsert_chat_session command without any pre-configured scope.
 
 </td>
 </tr>

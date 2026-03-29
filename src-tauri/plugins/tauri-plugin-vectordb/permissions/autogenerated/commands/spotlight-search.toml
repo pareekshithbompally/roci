@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-spotlight-search"
+description = "Enables the spotlight_search command without any pre-configured scope."
+commands.allow = ["spotlight_search"]
+
+[[permission]]
+identifier = "deny-spotlight-search"
+description = "Denies the spotlight_search command without any pre-configured scope."
+commands.deny = ["spotlight_search"]

@@ -295,6 +295,18 @@
       "type": "string",
       "oneOf": [
         {
+          "description": "Enables the delete_chat_session command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-delete-chat-session",
+          "markdownDescription": "Enables the delete_chat_session command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the delete_chat_session command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-delete-chat-session",
+          "markdownDescription": "Denies the delete_chat_session command without any pre-configured scope."
+        },
+        {
           "description": "Enables the delete_meeting command without any pre-configured scope.",
           "type": "string",
           "const": "allow-delete-meeting",
@@ -523,6 +535,42 @@
           "markdownDescription": "Denies the insert_usage command without any pre-configured scope."
         },
         {
+          "description": "Enables the is_chat_session_stale command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-is-chat-session-stale",
+          "markdownDescription": "Enables the is_chat_session_stale command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the is_chat_session_stale command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-is-chat-session-stale",
+          "markdownDescription": "Denies the is_chat_session_stale command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the mark_chat_content_indexed command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-mark-chat-content-indexed",
+          "markdownDescription": "Enables the mark_chat_content_indexed command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the mark_chat_content_indexed command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-mark-chat-content-indexed",
+          "markdownDescription": "Denies the mark_chat_content_indexed command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the mark_meeting_content_indexed command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-mark-meeting-content-indexed",
+          "markdownDescription": "Enables the mark_meeting_content_indexed command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the mark_meeting_content_indexed command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-mark-meeting-content-indexed",
+          "markdownDescription": "Denies the mark_meeting_content_indexed command without any pre-configured scope."
+        },
+        {
           "description": "Enables the mark_chat_embedded command without any pre-configured scope.",
           "type": "string",
           "const": "allow-mark-chat-embedded",
@@ -559,6 +607,18 @@
           "markdownDescription": "Denies the mark_meeting_extracted command without any pre-configured scope."
         },
         {
+          "description": "Enables the rebuild_fts command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-rebuild-fts",
+          "markdownDescription": "Enables the rebuild_fts command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the rebuild_fts command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-rebuild-fts",
+          "markdownDescription": "Denies the rebuild_fts command without any pre-configured scope."
+        },
+        {
           "description": "Enables the rebuild command without any pre-configured scope.",
           "type": "string",
           "const": "allow-rebuild",
@@ -571,6 +631,18 @@
           "markdownDescription": "Denies the rebuild command without any pre-configured scope."
         },
         {
+          "description": "Enables the search_chats command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-search-chats",
+          "markdownDescription": "Enables the search_chats command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the search_chats command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-search-chats",
+          "markdownDescription": "Denies the search_chats command without any pre-configured scope."
+        },
+        {
           "description": "Enables the search command without any pre-configured scope.",
           "type": "string",
           "const": "allow-search",
@@ -581,6 +653,42 @@
           "type": "string",
           "const": "deny-search",
           "markdownDescription": "Denies the search command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the spotlight_search command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-spotlight-search",
+          "markdownDescription": "Enables the spotlight_search command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the spotlight_search command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-spotlight-search",
+          "markdownDescription": "Denies the spotlight_search command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the upsert_chat_chunks command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-upsert-chat-chunks",
+          "markdownDescription": "Enables the upsert_chat_chunks command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the upsert_chat_chunks command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-upsert-chat-chunks",
+          "markdownDescription": "Denies the upsert_chat_chunks command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the upsert_chat_session command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-upsert-chat-session",
+          "markdownDescription": "Enables the upsert_chat_session command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the upsert_chat_session command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-upsert-chat-session",
+          "markdownDescription": "Denies the upsert_chat_session command without any pre-configured scope."
         },
         {
           "description": "Enables the upsert_chunks command without any pre-configured scope.",
@@ -607,10 +715,10 @@
           "markdownDescription": "Denies the upsert_meeting command without any pre-configured scope."
         },
         {
-          "description": "Allows all vectordb plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-upsert-meeting`\n- `allow-upsert-chunks`\n- `allow-delete-meeting`\n- `allow-search`\n- `allow-get-stale-meetings`\n- `allow-get-meetings-needing-embeddings`\n- `allow-get-meetings-needing-extraction`\n- `allow-mark-meeting-embedded`\n- `allow-mark-meeting-extracted`\n- `allow-get-indexed-ids`\n- `allow-get-stats`\n- `allow-get-meta`\n- `allow-rebuild`\n- `allow-graph-upsert`\n- `allow-graph-traverse`\n- `allow-graph-neighbors`\n- `allow-graph-search`\n- `allow-graph-delete-meeting`\n- `allow-graph-stats`\n- `allow-graph-extracted-meeting-ids`\n- `allow-insert-usage`\n- `allow-get-usage-summary`\n- `allow-get-stale-chat-sessions`\n- `allow-get-chats-needing-embeddings`\n- `allow-mark-chat-embedded`",
+          "description": "Allows all vectordb plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-upsert-meeting`\n- `allow-upsert-chunks`\n- `allow-delete-meeting`\n- `allow-search`\n- `allow-search-chats`\n- `allow-spotlight-search`\n- `allow-get-stale-meetings`\n- `allow-get-stale-chat-sessions`\n- `allow-get-meetings-needing-embeddings`\n- `allow-get-meetings-needing-extraction`\n- `allow-get-chats-needing-embeddings`\n- `allow-mark-meeting-embedded`\n- `allow-mark-meeting-extracted`\n- `allow-mark-meeting-content-indexed`\n- `allow-mark-chat-embedded`\n- `allow-mark-chat-content-indexed`\n- `allow-get-indexed-ids`\n- `allow-get-stats`\n- `allow-get-meta`\n- `allow-rebuild`\n- `allow-rebuild-fts`\n- `allow-graph-upsert`\n- `allow-graph-traverse`\n- `allow-graph-neighbors`\n- `allow-graph-search`\n- `allow-graph-delete-meeting`\n- `allow-graph-stats`\n- `allow-graph-extracted-meeting-ids`\n- `allow-insert-usage`\n- `allow-get-usage-summary`\n- `allow-upsert-chat-session`\n- `allow-upsert-chat-chunks`\n- `allow-delete-chat-session`\n- `allow-is-chat-session-stale`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Allows all vectordb plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-upsert-meeting`\n- `allow-upsert-chunks`\n- `allow-delete-meeting`\n- `allow-search`\n- `allow-get-stale-meetings`\n- `allow-get-meetings-needing-embeddings`\n- `allow-get-meetings-needing-extraction`\n- `allow-mark-meeting-embedded`\n- `allow-mark-meeting-extracted`\n- `allow-get-indexed-ids`\n- `allow-get-stats`\n- `allow-get-meta`\n- `allow-rebuild`\n- `allow-graph-upsert`\n- `allow-graph-traverse`\n- `allow-graph-neighbors`\n- `allow-graph-search`\n- `allow-graph-delete-meeting`\n- `allow-graph-stats`\n- `allow-graph-extracted-meeting-ids`\n- `allow-insert-usage`\n- `allow-get-usage-summary`\n- `allow-get-stale-chat-sessions`\n- `allow-get-chats-needing-embeddings`\n- `allow-mark-chat-embedded`"
+          "markdownDescription": "Allows all vectordb plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-upsert-meeting`\n- `allow-upsert-chunks`\n- `allow-delete-meeting`\n- `allow-search`\n- `allow-search-chats`\n- `allow-spotlight-search`\n- `allow-get-stale-meetings`\n- `allow-get-stale-chat-sessions`\n- `allow-get-meetings-needing-embeddings`\n- `allow-get-meetings-needing-extraction`\n- `allow-get-chats-needing-embeddings`\n- `allow-mark-meeting-embedded`\n- `allow-mark-meeting-extracted`\n- `allow-mark-meeting-content-indexed`\n- `allow-mark-chat-embedded`\n- `allow-mark-chat-content-indexed`\n- `allow-get-indexed-ids`\n- `allow-get-stats`\n- `allow-get-meta`\n- `allow-rebuild`\n- `allow-rebuild-fts`\n- `allow-graph-upsert`\n- `allow-graph-traverse`\n- `allow-graph-neighbors`\n- `allow-graph-search`\n- `allow-graph-delete-meeting`\n- `allow-graph-stats`\n- `allow-graph-extracted-meeting-ids`\n- `allow-insert-usage`\n- `allow-get-usage-summary`\n- `allow-upsert-chat-session`\n- `allow-upsert-chat-chunks`\n- `allow-delete-chat-session`\n- `allow-is-chat-session-stale`"
         }
       ]
     }
