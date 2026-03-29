@@ -132,6 +132,8 @@ async function indexAllSessions(
           if (includeEmbeddings && result.embeddingCount > 0) {
             await vectorDB.markChatEmbedded(session.id);
           }
+        } else {
+          console.warn(`[ChatIndexer] Session "${session.title}" not indexed: ${result.status} (${result.reason ?? 'no reason'})`);
         }
       } catch (error) {
         console.error(`[ChatIndexer] Failed to index "${session.title}":`, error);
@@ -139,7 +141,7 @@ async function indexAllSessions(
     }
 
     console.log(`[ChatIndexer] Step 1 complete: indexed ${indexed}/${staleItems.length} sessions`);
-    emitProgress({ kind: 'indexing', status: 'complete', current: staleItems.length, total: staleItems.length });
+    emitProgress({ kind: 'indexing', status: 'complete', current: staleItems.length, total: staleItems.length, currentTitle: 'Chat: complete' });
   } else {
     console.log(`[ChatIndexer] Step 1 skipped: all ${nonEmpty.length} sessions are up-to-date`);
   }
