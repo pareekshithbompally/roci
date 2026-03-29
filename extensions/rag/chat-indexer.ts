@@ -72,16 +72,33 @@ async function indexAllSessions(
   options?: ChatIndexOptions & { signal?: AbortSignal; force?: boolean },
 ): Promise<number> {
   const nonEmpty = sessions.filter(s => s.messages.length > 0);
-  if (nonEmpty.length === 0) {
-    console.log(`[ChatIndexer] No non-empty sessions to index (${sessions.length} total, all empty)`);
-    return 0;
-  }
+  const empty = sessions.filter(s => s.messages.length === 0);
 
   const signal = options?.signal;
   const includeEmbeddings = options?.includeEmbeddings ?? true;
   const force = options?.force ?? false;
 
   await vectorDB.initialize();
+
+  // Register empty sessions in DB so the count matches disk
+  for (const s of empty) {
+    try {
+      await vectorDB.upsertChatSession({
+        id: s.id,
+        title: s.title,
+        last_message_at: s.lastMessageAt,
+        message_count: 0,
+      });
+      await vectorDB.markChatContentIndexed(s.id, 'empty');
+    } catch {
+      // Non-critical — empty sessions have no searchable content
+    }
+  }
+
+  if (nonEmpty.length === 0) {
+    console.log(`[ChatIndexer] No non-empty sessions to index (${sessions.length} total, ${empty.length} empty)`);
+    return 0;
+  }
 
   // Compute content hashes for all sessions
   const hashes = await Promise.all(

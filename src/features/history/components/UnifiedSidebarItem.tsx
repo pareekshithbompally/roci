@@ -59,6 +59,7 @@ export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = ({
 
   return (
     <div
+      data-sidebar-id={`${item.type}-${item.id}`}
       onClick={onClick}
       className={`group relative px-2 py-1.5 rounded-md transition-all border cursor-pointer ${COMPONENT.sidebarItemActive} ${
         isSelected

@@ -4,7 +4,7 @@
  * Left sidebar with search, action buttons, unified history/chat list, and settings button.
  */
 
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
 import { Search, SquarePen, PanelLeft, Settings } from 'lucide-react';
 import { useLeftPanel } from '@/hooks/useLeftPanel';
 import { useSmallScreen } from '@/hooks/useMediaQuery';
@@ -39,7 +39,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const chat = useChat();
   const recording = useRecordingContext();
   const internalFileInputRef = useRef<HTMLInputElement>(null);
+  const listContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = externalFileInputRef || internalFileInputRef;
+
+  // Scroll the selected item into view when selection changes (e.g. from spotlight)
+  useEffect(() => {
+    if (!selectedHistoryId || !listContainerRef.current) return;
+    const chatId = chat.currentSessionId;
+    const itemType = chatId ? 'chat' : 'meeting';
+    const itemId = chatId || selectedHistoryId;
+    const el = listContainerRef.current.querySelector(`[data-sidebar-id="${itemType}-${itemId}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [selectedHistoryId, chat.currentSessionId]);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -156,7 +169,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Scrollable list */}
-      <div className="flex-1 overflow-y-auto px-2 py-1 custom-scrollbar scroll-fade">
+      <div ref={listContainerRef} className="flex-1 overflow-y-auto px-2 py-1 custom-scrollbar scroll-fade">
         <UnifiedList
           items={items}
           selectedId={getSelectedId()}

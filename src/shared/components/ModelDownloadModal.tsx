@@ -178,7 +178,7 @@ export const ModelDownloadModal: React.FC = () => {
               status: 'active',
               percent: null,
               step: { current: 0, total: event.total },
-              detail: null,
+              detail: event.currentTitle ?? null,
               error: null,
               actions: [],
             });
