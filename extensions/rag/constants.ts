@@ -11,6 +11,12 @@ export const OVERLAP_CHARS = 200;
 /** Minimum character length for notes chunk to be worth indexing */
 export const MIN_NOTES_LENGTH = 20;
 
+// ── Concurrency ──
+/** Max concurrent SHA-256 hash computations (bounds memory for large libraries) */
+export const HASH_CONCURRENCY = 10;
+/** Max concurrent file I/O operations (prevents descriptor exhaustion) */
+export const IO_CONCURRENCY = 5;
+
 // ── Embedding ──
 export const EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2';
 export const EMBEDDING_DIM = 384;

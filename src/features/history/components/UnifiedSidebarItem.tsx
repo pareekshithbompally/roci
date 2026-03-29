@@ -30,7 +30,7 @@ interface UnifiedSidebarItemProps {
   onTranscribeClick?: () => void;
 }
 
-export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = ({
+export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = React.memo(({
   item,
   searchQuery = '',
   isSelected,
@@ -154,6 +154,8 @@ export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = ({
       </div>
     </div>
   );
-};
+});
+
+UnifiedSidebarItem.displayName = 'UnifiedSidebarItem';
 
 export default UnifiedSidebarItem;

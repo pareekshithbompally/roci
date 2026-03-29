@@ -1,88 +1,70 @@
 /**
  * History Context
  *
- * Manages history list, search, filtering, and history item operations.
- * Uses meeting index repository for persistence (meetings/index.json).
+ * Split into two internal contexts to prevent UI-only state changes
+ * (menu toggles, rename mode, delete confirmation) from re-rendering
+ * data consumers (ChatPanel, ChatView, IdleView, etc.).
+ *
+ * - HistoryDataContext: items, categories, filtering, persistence
+ * - HistoryUIContext: ephemeral UI state (menus, rename, delete confirm)
+ *
+ * Consumers:
+ *   useHistory()     — full API (backward compat, for sidebar components)
+ *   useHistoryData() — data only (for chat, idle, results views)
  */
 
-import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
 import type { HistoryItem, MeetingIndexEntry } from '@/types';
 import { meetingIndexRepository } from '@/services/repositories';
 import { meetingService } from '@/services/meeting.service';
-interface HistoryState {
-  /** All history items */
-  items: HistoryItem[];
-  /** Search query */
-  searchQuery: string;
-  /** Selected filter category */
-  selectedCategory: string | null;
-  /** Available categories */
-  categories: string[];
-  /** Loading state */
-  isLoading: boolean;
-  /** Currently open menu item ID */
-  menuOpenId: string | null;
-  /** Item being renamed */
-  renameItemId: string | null;
-  /** Rename input value */
-  renameValue: string;
-  /** Item pending delete confirmation */
-  deleteConfirmId: string | null;
-}
+
+// ── Types ──
 
 interface FilteredHistoryItem extends HistoryItem {
   matchContext?: string;
   matchType?: string;
 }
 
-interface HistoryContextValue extends HistoryState {
-  /** Filtered history items based on search and category */
+interface HistoryDataContextValue {
+  items: HistoryItem[];
   filteredItems: FilteredHistoryItem[];
-  /** Set search query */
+  searchQuery: string;
+  selectedCategory: string | null;
+  categories: string[];
+  isLoading: boolean;
   setSearchQuery: (query: string) => void;
-  /** Set selected category filter */
   setSelectedCategory: (category: string | null) => void;
-  /** Set categories list */
   setCategories: (categories: string[]) => void;
-  /** Add a category */
   addCategory: (category: string) => void;
-  /** Remove a category */
   removeCategory: (category: string) => void;
-  /** Load history from storage */
   loadHistory: () => Promise<void>;
-  /** Add item to history */
   addToHistory: (item: HistoryItem) => Promise<void>;
-  /** Rename a history item */
   renameItem: (itemId: string, newTitle: string) => Promise<boolean>;
-  /** Update a history item in-place */
   updateItem: (itemId: string, updates: Partial<HistoryItem>) => Promise<boolean>;
-  /** Delete a history item */
   deleteItem: (itemId: string) => Promise<boolean>;
-  /** Set menu open state */
+}
+
+interface HistoryUIContextValue {
+  menuOpenId: string | null;
+  renameItemId: string | null;
+  renameValue: string;
+  deleteConfirmId: string | null;
   setMenuOpenId: (id: string | null) => void;
-  /** Start rename mode */
   startRename: (itemId: string, currentTitle: string) => void;
-  /** Cancel rename mode */
   cancelRename: () => void;
-  /** Set rename value */
   setRenameValue: (value: string) => void;
-  /** Set delete confirm ID */
   setDeleteConfirmId: (id: string | null) => void;
 }
 
-const initialState: HistoryState = {
-  items: [],
-  searchQuery: '',
-  selectedCategory: null,
-  categories: ['Work', 'Personal', 'Meeting', 'Idea'],
-  isLoading: false,
-  menuOpenId: null,
-  renameItemId: null,
-  renameValue: '',
-  deleteConfirmId: null,
-};
+/** Combined type for backward-compat useHistory() */
+type HistoryContextValue = HistoryDataContextValue & HistoryUIContextValue;
 
-const HistoryContext = createContext<HistoryContextValue | null>(null);
+// ── Contexts ──
+
+const HistoryDataContext = createContext<HistoryDataContextValue | null>(null);
+const HistoryUIContext = createContext<HistoryUIContextValue | null>(null);
+
+// ── Helpers ──
 
 /** Convert MeetingIndexEntry → HistoryItem (lightweight — no transcript/summary) */
 function indexEntryToHistoryItem(entry: MeetingIndexEntry): HistoryItem {
@@ -105,51 +87,53 @@ function indexEntryToHistoryItem(entry: MeetingIndexEntry): HistoryItem {
   };
 }
 
+// ── Provider ──
+
 interface HistoryProviderProps {
   children: ReactNode;
 }
 
 export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) => {
-  const [state, setState] = useState<HistoryState>(initialState);
+  // Data state
+  const [items, setItems] = useState<HistoryItem[]>([]);
+  const [searchQuery, setSearchQueryRaw] = useState('');
+  const [selectedCategory, setSelectedCategoryRaw] = useState<string | null>(null);
+  const [categories, setCategoriesRaw] = useState<string[]>(['Work', 'Personal', 'Meeting', 'Idea']);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Computed filtered history — searches title and categories from index.
-  // Full-text content search (transcript/summary) would require async loading
-  // of each meeting's data — TODO: implement async content search if needed.
+  // UI state (separate to avoid re-rendering data consumers)
+  const [menuOpenId, setMenuOpenIdRaw] = useState<string | null>(null);
+  const [renameItemId, setRenameItemId] = useState<string | null>(null);
+  const [renameValue, setRenameValueRaw] = useState('');
+  const [deleteConfirmId, setDeleteConfirmIdRaw] = useState<string | null>(null);
+
+  // Filtered items
   const filteredItems = useMemo(() => {
-    const { items, searchQuery, selectedCategory } = state;
-
     if (!searchQuery && !selectedCategory) return items;
 
     const q = searchQuery.toLowerCase();
+    return items.filter(h => {
+      if (selectedCategory && !h.categories.includes(selectedCategory)) return false;
+      if (!q) return true;
+      return h.title.toLowerCase().includes(q)
+        || h.categories.some(c => c.toLowerCase().includes(q));
+    }) as FilteredHistoryItem[];
+  }, [items, searchQuery, selectedCategory]);
 
-    return items
-      .filter(h => {
-        // Filter by category if selected
-        if (selectedCategory && !h.categories.includes(selectedCategory)) return false;
+  // ── Data methods ──
 
-        // If no search query, category match is enough
-        if (!q) return true;
-
-        // Search title and categories
-        return h.title.toLowerCase().includes(q)
-          || h.categories.some(c => c.toLowerCase().includes(q));
-      }) as FilteredHistoryItem[];
-  }, [state.items, state.searchQuery, state.selectedCategory]);
-
-  // Load history from storage
   const loadHistory = useCallback(async () => {
-    setState(prev => ({ ...prev, isLoading: true }));
+    setIsLoading(true);
     try {
       const indexEntries = await meetingIndexRepository.loadIndex();
-      const items = indexEntries.map(indexEntryToHistoryItem);
-      setState(prev => ({ ...prev, items, isLoading: false }));
+      setItems(indexEntries.map(indexEntryToHistoryItem));
     } catch (error) {
       console.error('[HistoryContext] Error loading history:', error);
-      setState(prev => ({ ...prev, isLoading: false }));
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
-  // Add to history
   const addToHistory = useCallback(async (item: HistoryItem) => {
     try {
       const now = new Date().toISOString();
@@ -169,28 +153,22 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
         scheduledEnd: item.scheduledEnd,
         meetingUrl: item.meetingUrl,
       });
-      setState(prev => ({ ...prev, items: [item, ...prev.items] }));
+      setItems(prev => [item, ...prev]);
     } catch (error) {
       console.error('[HistoryContext] Error adding to history:', error);
     }
   }, []);
 
-  // Rename history item
   const renameItem = useCallback(async (itemId: string, newTitle: string): Promise<boolean> => {
     if (!newTitle.trim()) return false;
-
     try {
       await meetingIndexRepository.updateInIndex(itemId, { title: newTitle });
-
-      setState(prev => ({
-        ...prev,
-        items: prev.items.map(item =>
-          item.id === itemId ? { ...item, title: newTitle } : item
-        ),
-        renameItemId: null,
-        renameValue: '',
-      }));
-
+      setItems(prev => prev.map(item =>
+        item.id === itemId ? { ...item, title: newTitle } : item
+      ));
+      // Also clear rename UI state
+      setRenameItemId(null);
+      setRenameValueRaw('');
       return true;
     } catch (error) {
       console.error('[HistoryContext] Error renaming item:', error);
@@ -198,10 +176,8 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
     }
   }, []);
 
-  // Update history item in-place
   const updateItem = useCallback(async (itemId: string, updates: Partial<HistoryItem>): Promise<boolean> => {
     try {
-      // Update index with index-relevant fields only
       const indexUpdates: Partial<MeetingIndexEntry> = {};
       if (updates.title) indexUpdates.title = updates.title;
       if (updates.categories) indexUpdates.categories = updates.categories;
@@ -210,14 +186,9 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
       if (Object.keys(indexUpdates).length > 0) {
         await meetingIndexRepository.updateInIndex(itemId, indexUpdates);
       }
-
-      setState(prev => ({
-        ...prev,
-        items: prev.items.map(item =>
-          item.id === itemId ? { ...item, ...updates } : item
-        ),
-      }));
-
+      setItems(prev => prev.map(item =>
+        item.id === itemId ? { ...item, ...updates } : item
+      ));
       return true;
     } catch (error) {
       console.error('[HistoryContext] Error updating item:', error);
@@ -225,18 +196,13 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
     }
   }, []);
 
-  // Delete history item
   const deleteItem = useCallback(async (itemId: string): Promise<boolean> => {
     try {
       await meetingService.deleteMeeting(itemId);
-
-      setState(prev => ({
-        ...prev,
-        items: prev.items.filter(item => item.id !== itemId),
-        deleteConfirmId: null,
-        menuOpenId: null,
-      }));
-
+      setItems(prev => prev.filter(item => item.id !== itemId));
+      // Also clear related UI state
+      setDeleteConfirmIdRaw(null);
+      setMenuOpenIdRaw(null);
       return true;
     } catch (error) {
       console.error('[HistoryContext] Error deleting item:', error);
@@ -244,66 +210,46 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
     }
   }, []);
 
-  // Simple state setters
-  const setSearchQuery = useCallback((query: string) => {
-    setState(prev => ({ ...prev, searchQuery: query }));
-  }, []);
-
-  const setSelectedCategory = useCallback((category: string | null) => {
-    setState(prev => ({ ...prev, selectedCategory: category }));
-  }, []);
-
-  const setCategories = useCallback((categories: string[]) => {
-    setState(prev => ({ ...prev, categories }));
-  }, []);
+  const setSearchQuery = useCallback((query: string) => setSearchQueryRaw(query), []);
+  const setSelectedCategory = useCallback((category: string | null) => setSelectedCategoryRaw(category), []);
+  const setCategories = useCallback((cats: string[]) => setCategoriesRaw(cats), []);
 
   const addCategory = useCallback((category: string) => {
     if (!category.trim()) return;
-    setState(prev => ({
-      ...prev,
-      categories: [...prev.categories, category.trim()]
-    }));
+    setCategoriesRaw(prev => [...prev, category.trim()]);
   }, []);
 
   const removeCategory = useCallback((category: string) => {
-    setState(prev => ({
-      ...prev,
-      categories: prev.categories.filter(c => c !== category)
-    }));
+    setCategoriesRaw(prev => prev.filter(c => c !== category));
   }, []);
 
-  const setMenuOpenId = useCallback((id: string | null) => {
-    setState(prev => ({ ...prev, menuOpenId: id }));
-  }, []);
+  // ── UI methods ──
+
+  const setMenuOpenId = useCallback((id: string | null) => setMenuOpenIdRaw(id), []);
 
   const startRename = useCallback((itemId: string, currentTitle: string) => {
-    setState(prev => ({
-      ...prev,
-      renameItemId: itemId,
-      renameValue: currentTitle,
-      menuOpenId: null,
-    }));
+    setRenameItemId(itemId);
+    setRenameValueRaw(currentTitle);
+    setMenuOpenIdRaw(null);
   }, []);
 
   const cancelRename = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      renameItemId: null,
-      renameValue: '',
-    }));
+    setRenameItemId(null);
+    setRenameValueRaw('');
   }, []);
 
-  const setRenameValue = useCallback((value: string) => {
-    setState(prev => ({ ...prev, renameValue: value }));
-  }, []);
+  const setRenameValue = useCallback((value: string) => setRenameValueRaw(value), []);
+  const setDeleteConfirmId = useCallback((id: string | null) => setDeleteConfirmIdRaw(id), []);
 
-  const setDeleteConfirmId = useCallback((id: string | null) => {
-    setState(prev => ({ ...prev, deleteConfirmId: id }));
-  }, []);
+  // ── Context values (memoized to prevent re-renders) ──
 
-  const value: HistoryContextValue = {
-    ...state,
+  const dataValue: HistoryDataContextValue = useMemo(() => ({
+    items,
     filteredItems,
+    searchQuery,
+    selectedCategory,
+    categories,
+    isLoading,
     setSearchQuery,
     setSelectedCategory,
     setCategories,
@@ -314,31 +260,75 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
     renameItem,
     updateItem,
     deleteItem,
+  }), [
+    items, filteredItems, searchQuery, selectedCategory, categories, isLoading,
+    setSearchQuery, setSelectedCategory, setCategories, addCategory, removeCategory,
+    loadHistory, addToHistory, renameItem, updateItem, deleteItem,
+  ]);
+
+  const uiValue: HistoryUIContextValue = useMemo(() => ({
+    menuOpenId,
+    renameItemId,
+    renameValue,
+    deleteConfirmId,
     setMenuOpenId,
     startRename,
     cancelRename,
     setRenameValue,
     setDeleteConfirmId,
-  };
+  }), [
+    menuOpenId, renameItemId, renameValue, deleteConfirmId,
+    setMenuOpenId, startRename, cancelRename, setRenameValue, setDeleteConfirmId,
+  ]);
 
   return (
-    <HistoryContext.Provider value={value}>
-      {children}
-    </HistoryContext.Provider>
+    <HistoryDataContext.Provider value={dataValue}>
+      <HistoryUIContext.Provider value={uiValue}>
+        {children}
+      </HistoryUIContext.Provider>
+    </HistoryDataContext.Provider>
   );
 };
 
+// ── Hooks ──
+
 /**
- * useHistory Hook
+ * useHistoryData — data-only hook.
  *
- * Access history state and operations.
+ * Use in components that need items/categories but NOT menu/rename/delete UI state.
+ * This prevents re-renders when someone toggles a context menu in the sidebar.
  */
-export const useHistory = (): HistoryContextValue => {
-  const context = useContext(HistoryContext);
+export const useHistoryData = (): HistoryDataContextValue => {
+  const context = useContext(HistoryDataContext);
   if (!context) {
-    throw new Error('useHistory must be used within a HistoryProvider');
+    throw new Error('useHistoryData must be used within a HistoryProvider');
   }
   return context;
 };
 
-export default HistoryContext;
+/**
+ * useHistoryUI — UI-state-only hook.
+ *
+ * Use in sidebar components that manage menus, rename, and delete confirmation.
+ */
+export const useHistoryUI = (): HistoryUIContextValue => {
+  const context = useContext(HistoryUIContext);
+  if (!context) {
+    throw new Error('useHistoryUI must be used within a HistoryProvider');
+  }
+  return context;
+};
+
+/**
+ * useHistory — combined hook (backward compatible).
+ *
+ * Returns both data and UI state. Prefer useHistoryData() in components
+ * that don't need UI state to avoid unnecessary re-renders.
+ */
+export const useHistory = (): HistoryContextValue => {
+  const data = useHistoryData();
+  const ui = useHistoryUI();
+  return { ...data, ...ui };
+};
+
+export default HistoryDataContext;

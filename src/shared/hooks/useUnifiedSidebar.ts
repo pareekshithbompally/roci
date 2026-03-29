@@ -6,7 +6,7 @@
  */
 
 import { useMemo } from 'react';
-import { useHistory } from '@shared/contexts/HistoryContext';
+import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useChat } from '@shared/contexts/ChatContext';
 import type { UnifiedSidebarItem } from '@/types';
 
@@ -18,7 +18,7 @@ interface UseUnifiedSidebarReturn {
 }
 
 export const useUnifiedSidebar = (): UseUnifiedSidebarReturn => {
-  const history = useHistory();
+  const history = useHistoryData();
   const chat = useChat();
 
   const unifiedItems = useMemo(() => {

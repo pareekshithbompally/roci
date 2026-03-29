@@ -12,6 +12,8 @@ import { embeddingService, preloadModel } from './embeddings';
 import { vectorDB } from './client';
 import { chunkChatSession, computeChatHash } from './chat-chunker';
 import { emitProgress } from './progress';
+import { concurrencyMap } from '@shared/utils/async.utils';
+import { HASH_CONCURRENCY } from './constants';
 import type { ChatChunkData } from './client';
 import type { IndexingResult } from './types';
 
@@ -100,12 +102,14 @@ async function indexAllSessions(
     return 0;
   }
 
-  // Compute content hashes for all sessions
-  const hashes = await Promise.all(
-    nonEmpty.map(async (s) => ({
+  // Compute content hashes with bounded concurrency
+  const hashes = await concurrencyMap(
+    nonEmpty,
+    async (s) => ({
       id: s.id,
       content_hash: await computeChatHash(s),
-    }))
+    }),
+    { limit: HASH_CONCURRENCY, signal },
   );
   const hashMap = new Map(hashes.map(h => [h.id, h.content_hash]));
 

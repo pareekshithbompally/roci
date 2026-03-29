@@ -6,6 +6,8 @@
 import { readDir } from '@tauri-apps/plugin-fs';
 import { BaseRepository } from './base.repository';
 import { pathsService } from '../storage/paths.service';
+import { concurrencyMap } from '@shared/utils/async.utils';
+import { IO_CONCURRENCY } from '@extensions/rag/constants';
 import type { ChatMessage } from '@/types';
 
 export interface StoredChatSession {
@@ -53,11 +55,13 @@ class ChatSessionRepository extends BaseRepository {
           && entry.name !== 'index.json';
       });
 
-      const sessions = await Promise.all(
-        sessionFiles.map(async (entry) => {
+      const sessions = await concurrencyMap(
+        sessionFiles,
+        async (entry) => {
           const fullPath = await this.joinPath(this.chatsDir, entry.name);
           return this.readJson<StoredChatSession>(fullPath);
-        }),
+        },
+        { limit: IO_CONCURRENCY },
       );
 
       return sessions.filter((session): session is StoredChatSession => session !== null);

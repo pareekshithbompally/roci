@@ -7,7 +7,7 @@
 
 import React, { createContext, useContext, useRef, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useHistory } from '@shared/contexts/HistoryContext';
+import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { ImportService } from '../import.service';
 
 interface ImportContextValue {
@@ -21,7 +21,7 @@ const ImportContext = createContext<ImportContextValue | null>(null);
 
 export const ImportProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { settings, providers } = useSettings();
-  const { loadHistory, categories } = useHistory();
+  const { loadHistory, categories } = useHistoryData();
 
   const serviceRef = useRef<ImportService | null>(null);
 

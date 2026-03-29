@@ -9,6 +9,7 @@ import type { ToolDefinition, ToolResult } from '../types';
 import { meetingReferenceService } from '../../../services/meetingReferenceService';
 import { todosRepository } from '../../../services/repositories/todos.repository';
 import { GENERAL_MEETING_ID, GENERAL_MEETING_TITLE } from '@features/chat/stores/todoProposalStore';
+import { MAX_ACTION_ITEM_MEETINGS, MAX_ACTION_ITEMS_FOR_LLM } from '../constants';
 import type { HistoryItem, ActionItem } from '@/types';
 
 interface MeetingActions {
@@ -54,10 +55,10 @@ export const getActionItemsTool: ToolDefinition = {
       }
       items = [found];
     } else {
-      // Take recent meetings (max 20 to avoid excessive loading)
+      // Scan recent meetings (capped to avoid excessive loading)
       items = [...context.historyItems]
         .sort((a, b) => b.timestamp - a.timestamp)
-        .slice(0, 20);
+        .slice(0, MAX_ACTION_ITEM_MEETINGS);
     }
 
     let references;
@@ -135,9 +136,15 @@ export const getActionItemsTool: ToolDefinition = {
 
     const lines: string[] = [`Action Items (${totalPending} pending, ${totalCompleted} completed):\n`];
 
+    let itemsRendered = 0;
     for (const meeting of meetings) {
+      if (itemsRendered >= MAX_ACTION_ITEMS_FOR_LLM) {
+        lines.push(`\n[Truncated — showing ${itemsRendered} of ${totalPending + totalCompleted} items]`);
+        break;
+      }
       lines.push(`From "${meeting.title}" (${meeting.date}):`);
       for (const item of meeting.items) {
+        if (itemsRendered >= MAX_ACTION_ITEMS_FOR_LLM) break;
         const check = item.completed ? '[x]' : '[ ]';
         const due = item.dueDate ? ` (Due: ${item.dueDate})` : '';
         const owner = item.owner ? ` (Assigned: ${item.owner})` : '';
@@ -145,6 +152,7 @@ export const getActionItemsTool: ToolDefinition = {
           ? ` 🔔 Reminder: ${new Date(item.reminder.dateTime).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
           : '';
         lines.push(`- ${check} ${item.text}${owner}${due}${reminder}`);
+        itemsRendered++;
       }
       lines.push('');
     }

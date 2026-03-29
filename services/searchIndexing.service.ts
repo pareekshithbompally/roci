@@ -8,6 +8,8 @@ import type {
 } from '@/types';
 import { meetingService } from '@/services/meeting.service';
 import { chatSessionRepository } from '@/services/repositories/chat-session.repository';
+import { concurrencyMap } from '@shared/utils/async.utils';
+import { IO_CONCURRENCY } from '@extensions/rag/constants';
 
 export function formatMeetingSummary(summary?: MeetingSummary): string {
   if (!summary) return '';
@@ -89,7 +91,11 @@ function toHistoryItem(detail: MeetingDetail): HistoryItem {
 
 async function loadMeetingsForIndexing(): Promise<HistoryItem[]> {
   const entries = await meetingService.listMeetings();
-  const details = await Promise.all(entries.map((entry) => meetingService.getMeetingDetail(entry.id)));
+  const details = await concurrencyMap(
+    entries,
+    (entry) => meetingService.getMeetingDetail(entry.id),
+    { limit: IO_CONCURRENCY },
+  );
 
   return details
     .filter((detail): detail is MeetingDetail => detail !== null)

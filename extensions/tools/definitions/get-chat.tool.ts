@@ -6,6 +6,7 @@
 
 import type { ToolDefinition, ToolResult } from '../types';
 import { chatService } from '@/services/chat.service';
+import { MAX_CHAT_MESSAGES_FOR_LLM } from '../constants';
 
 export const getChatTool: ToolDefinition = {
   name: 'get_chat',
@@ -52,15 +53,24 @@ export const getChatTool: ToolDefinition = {
       year: 'numeric', month: 'long', day: 'numeric',
     });
 
+    // Prioritize recent messages to stay within LLM context budget
+    const messages = session.messages.length > MAX_CHAT_MESSAGES_FOR_LLM
+      ? session.messages.slice(-MAX_CHAT_MESSAGES_FOR_LLM)
+      : session.messages;
+
+    const truncatedNotice = session.messages.length > MAX_CHAT_MESSAGES_FOR_LLM
+      ? `(showing last ${MAX_CHAT_MESSAGES_FOR_LLM} of ${session.messages.length} messages)\n`
+      : '';
+
     const lines: string[] = [
       `Chat: "${session.title}"`,
       `Date: ${date}`,
       `Messages: ${session.messages.length}`,
-      '',
+      truncatedNotice,
       '--- Conversation ---',
     ];
 
-    for (const msg of session.messages) {
+    for (const msg of messages) {
       if (!msg.text?.trim()) continue;
       const role = msg.role === 'user' ? 'User' : 'Assistant';
       const text = msg.text.length > 800

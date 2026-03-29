@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { useApp, AppStatus } from '@shared/contexts/AppContext';
 import { useRecordingContext } from '@features/recording';
-import { useHistory } from '@shared/contexts/HistoryContext';
+import { useHistoryData } from '@shared/contexts/HistoryContext';
 import SummaryView from '@/components/SummaryView';
 import TranscriptViewEnhanced from '@/components/TranscriptViewEnhanced';
 import { TodoList, TodosProvider } from '@features/todos';
@@ -107,7 +107,7 @@ export const ResultsView: React.FC = () => {
   const { result, activeResultTab, setActiveResultTab, resetToIdle, setSelectedHistoryId, selectedHistoryId, meetingChatOpen, setMeetingChatOpen } = useApp();
   const meeting = useMeeting();
   const recording = useRecordingContext();
-  const { items: historyItems } = useHistory();
+  const { items: historyItems } = useHistoryData();
   const { transcribe, isTranscribing } = useTranscribeRecording();
 
   // Look up recording file name from history item

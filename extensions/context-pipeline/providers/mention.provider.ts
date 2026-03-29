@@ -25,7 +25,13 @@ export class MentionProvider implements ContextProvider {
       return { text: '', provider: this.name, confidence: 0, durationMs: 0 };
     }
 
-    const references = await meetingReferenceService.loadMeetingsContext(referencedItems);
+    // Load only summary, notes, and action items — NOT full transcript.
+    // formatForLLM already truncates transcript, but avoiding the load entirely
+    // prevents holding large strings in memory during context assembly.
+    const references = await meetingReferenceService.loadSelectiveContext(
+      referencedItems,
+      ['summary', 'notes', 'actionItems'],
+    );
     const text = meetingReferenceService.formatForLLM(references);
 
     if (!text) {

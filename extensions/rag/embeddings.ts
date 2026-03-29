@@ -14,10 +14,14 @@ import { requestConsent, hasConsent } from './consent';
 import { emitProgress } from './progress';
 import { EMBEDDING_MODEL, EMBEDDING_DTYPE, EMBEDDING_BATCH_SIZE } from './constants';
 
+const EMBEDDING_REQUEST_TIMEOUT_MS = 30_000;
+const IDLE_DISPOSE_MS = 5 * 60 * 1000; // 5 minutes
+
 let worker: Worker | null = null;
 let ready = false;
 let loadPromise: Promise<void> | null = null;
 let requestId = 0;
+let idleTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** Pending request resolvers keyed by request ID */
 const pending = new Map<number, {
@@ -105,12 +109,32 @@ function getWorker(): Worker {
   return worker;
 }
 
+function resetIdleTimer(): void {
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    if (pending.size === 0 && ready) {
+      console.log('[EmbeddingService] Idle timeout — disposing WASM worker to free ~50MB');
+      resetPipeline();
+    }
+  }, IDLE_DISPOSE_MS);
+}
+
 function sendRequest(type: 'embed' | 'embedBatch', payload: Record<string, unknown>): Promise<number[][]> {
   const id = ++requestId;
   const w = getWorker();
 
   return new Promise((resolve, reject) => {
-    pending.set(id, { resolve, reject });
+    const timer = setTimeout(() => {
+      if (pending.has(id)) {
+        pending.delete(id);
+        reject(new Error(`Embedding request ${id} timed out after ${EMBEDDING_REQUEST_TIMEOUT_MS / 1000}s`));
+      }
+    }, EMBEDDING_REQUEST_TIMEOUT_MS);
+
+    pending.set(id, {
+      resolve: (embeddings) => { clearTimeout(timer); resetIdleTimer(); resolve(embeddings); },
+      reject: (err) => { clearTimeout(timer); reject(err); },
+    });
     w.postMessage({ type, id, model: EMBEDDING_MODEL, dtype: EMBEDDING_DTYPE, ...payload });
   });
 }
@@ -176,6 +200,7 @@ export async function preloadModel(): Promise<void> {
 
 /** Clear cached pipeline so the next call re-downloads. Used for retry. */
 export function resetPipeline(): void {
+  if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
   if (worker) {
     worker.terminate();
     worker = null;

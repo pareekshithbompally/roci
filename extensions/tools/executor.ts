@@ -8,8 +8,7 @@
 
 import type { ToolCall, ToolContext, ToolResult } from './types';
 import type { ToolRegistry } from './registry';
-
-const MAX_TOOL_RESULT_CHARS = 8000;
+import { MAX_TOOL_RESULT_CHARS, TOOL_TIMEOUT_MS } from './constants';
 
 export class ToolExecutor {
   constructor(private registry: ToolRegistry) {}
@@ -54,9 +53,12 @@ export class ToolExecutor {
       };
     }
 
-    // Execute
+    // Execute with timeout
     try {
-      const result = await tool.execute(call.arguments, context);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error(`Tool "${call.name}" timed out after ${TOOL_TIMEOUT_MS / 1000}s`)), TOOL_TIMEOUT_MS);
+      });
+      const result = await Promise.race([tool.execute(call.arguments, context), timeoutPromise]);
       const executionMs = performance.now() - start;
 
       // Truncate large results before feeding back to LLM

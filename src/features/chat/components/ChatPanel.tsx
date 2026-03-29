@@ -10,7 +10,7 @@ import { X, ArrowDown } from 'lucide-react';
 import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom';
 import { useChat } from '@shared/contexts/ChatContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useHistory } from '@shared/contexts/HistoryContext';
+import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useApp, AppStatus } from '@shared/contexts/AppContext';
 import { ChatMessage } from './message';
 import TodoConfirmationBanner from './TodoConfirmationBanner';
@@ -47,7 +47,7 @@ interface ChatPanelProps {
 export const ChatPanel: React.FC<ChatPanelProps> = ({ meetingId, meetingTitle, onClose }) => {
   const chat = useChat();
   const { settings, providers } = useSettings();
-  const history = useHistory();
+  const history = useHistoryData();
   const { items: historyItems } = history;
   const app = useApp();
 

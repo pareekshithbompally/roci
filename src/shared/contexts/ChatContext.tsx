@@ -652,7 +652,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         if (metadata) {
           if (metadata.webCitations) {
             for (const citation of metadata.webCitations) {
-              if (!allWebCitations.some(c => c.url === citation.url)) {
+              if (!webCitationUrls.has(citation.url)) {
+                webCitationUrls.add(citation.url);
                 allWebCitations.push(citation);
               }
             }
@@ -712,6 +713,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
       const allCitations: MeetingCitation[] = [];
       const allWebCitations: WebCitation[] = [];
+      const webCitationUrls = new Set<string>();
       const allInlineCitations: InlineCitationSpan[] = [];
 
       let tokenUsageResult: { inputTokens?: number; outputTokens?: number } | undefined;

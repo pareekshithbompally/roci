@@ -7,6 +7,10 @@
 
 import type { HistoryItem, Note, ActionItem, NoteEntry, TodoEntry } from '@/types';
 import { notesRepository, todosRepository, summaryRepository, transcriptRepository } from './repositories';
+import { concurrencyMap } from '@shared/utils/async.utils';
+import { truncateForLLM } from '@shared/utils/text.utils';
+import { IO_CONCURRENCY } from '@extensions/rag/constants';
+import { MAX_TRANSCRIPT_FOR_LLM } from '@extensions/tools/constants';
 
 /**
  * Meeting reference with full context for AI chat
@@ -138,7 +142,11 @@ class MeetingReferenceService {
    * Load context for multiple meetings
    */
   async loadMeetingsContext(historyItems: HistoryItem[]): Promise<MeetingReference[]> {
-    return Promise.all(historyItems.map(item => this.loadMeetingContext(item)));
+    return concurrencyMap(
+      historyItems,
+      (item) => this.loadMeetingContext(item),
+      { limit: IO_CONCURRENCY },
+    );
   }
 
   /**
@@ -280,7 +288,7 @@ class MeetingReferenceService {
       }
 
       if (ref.transcript) {
-        parts.push(`### Transcript\n${ref.transcript}`);
+        parts.push(`### Transcript\n${truncateForLLM(ref.transcript, MAX_TRANSCRIPT_FOR_LLM)}`);
       }
 
       return parts.join('\n\n');

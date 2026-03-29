@@ -11,7 +11,7 @@ import { ImportButton } from '@features/import';
 import { useApp, AppStatus } from '@shared/contexts/AppContext';
 import { useRecordingContext } from '@features/recording';
 import { useChat } from '@shared/contexts/ChatContext';
-import { useHistory } from '@shared/contexts/HistoryContext';
+import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { ChatInput } from '@features/chat';
 import { meetingReferenceService } from '@/services/meetingReferenceService';
@@ -41,7 +41,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   const recording = useRecordingContext();
   // Chat functionality - shared with ChatPanel/ChatView
   const chat = useChat();
-  const { items: historyItems } = useHistory();
+  const { items: historyItems } = useHistoryData();
   const { settings, providers } = useSettings();
 
   // Get available meetings for @ mention

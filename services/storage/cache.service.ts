@@ -39,12 +39,15 @@ class CacheService {
         data,
         createdAt: new Date().toISOString(),
         expiresAt,
-        size: JSON.stringify(data).length,
+        size: 0, // will be set from actual serialization
       };
+
+      const json = JSON.stringify(cacheEntry);
+      cacheEntry.size = json.length;
 
       await writeFile(
         fullPath,
-        new TextEncoder().encode(JSON.stringify(cacheEntry))
+        new TextEncoder().encode(json)
       );
 
       // Check if we need to cleanup due to size limits

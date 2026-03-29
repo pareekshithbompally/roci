@@ -14,7 +14,8 @@ import { graphDB } from './graph-client';
 import { entityExtractor } from './entity-extractor';
 import { chunkMeeting, computeContentHash } from './chunker';
 import { emitProgress } from './progress';
-import { EMBEDDING_MODEL } from './constants';
+import { EMBEDDING_MODEL, HASH_CONCURRENCY } from './constants';
+import { concurrencyMap } from '@shared/utils/async.utils';
 import type { ChunkData, MeetingMeta } from './client';
 import type { IndexingResult, RAGStatus } from './types';
 
@@ -130,12 +131,14 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
     console.error('[RAGIndexer] FTS recovery check failed:', error);
   }
 
-  // Compute content hashes for all items
-  const hashes = await Promise.all(
-    items.map(async (item) => ({
+  // Compute content hashes with bounded concurrency (avoids memory spike for large libraries)
+  const hashes = await concurrencyMap(
+    items,
+    async (item) => ({
       id: item.id,
       content_hash: await computeContentHash(item),
-    }))
+    }),
+    { limit: HASH_CONCURRENCY, signal },
   );
 
   let indexed = 0;
@@ -293,8 +296,11 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
 
           try {
             const summary = toMeetingSummary(item.structuredSummary!);
+            // Pass only an excerpt — extractor already truncates to 3000 chars,
+            // but passing the full string keeps it in the closure for 60s per meeting
+            const transcriptExcerpt = item.transcript?.slice(0, 3000) ?? '';
             const success = await entityExtractor.extractAndUpsert(
-              item.id, item.title, summary, item.transcript,
+              item.id, item.title, summary, transcriptExcerpt,
               extractionContext.settings, extractionContext.providers,
               item.categories || [],
               signal,
@@ -357,11 +363,13 @@ async function removeMeeting(meetingId: string): Promise<void> {
 async function needsReindex(items: HistoryItem[]): Promise<HistoryItem[]> {
   if (items.length === 0) return [];
 
-  const hashes = await Promise.all(
-    items.map(async (item) => ({
+  const hashes = await concurrencyMap(
+    items,
+    async (item) => ({
       id: item.id,
       content_hash: await computeContentHash(item),
-    }))
+    }),
+    { limit: HASH_CONCURRENCY },
   );
 
   const staleIds = await vectorDB.getStaleMeetings(hashes);
@@ -431,8 +439,9 @@ async function extractAll(
 
     try {
       const summary = toMeetingSummary(item.structuredSummary!);
+      const transcriptExcerpt = item.transcript?.slice(0, 3000) ?? '';
       const success = await entityExtractor.extractAndUpsert(
-        item.id, item.title, summary, item.transcript,
+        item.id, item.title, summary, transcriptExcerpt,
         extractionContext.settings, extractionContext.providers,
         item.categories || [],
         signal,

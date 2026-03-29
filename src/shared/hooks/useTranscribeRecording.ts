@@ -9,7 +9,7 @@ import { useState, useCallback } from 'react';
 import { recordingsService } from '@/services/storage';
 import { unifiedAIService } from '@/services/unifiedAIService';
 import { transcriptionService } from '@/services/transcription.service';
-import { useHistory } from '@shared/contexts/HistoryContext';
+import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useApp } from '@shared/contexts/AppContext';
 import { useToast } from '@shared/contexts/ToastContext';
@@ -26,7 +26,7 @@ interface UseTranscribeRecordingReturn {
 export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcribingItemId, setTranscribingItemId] = useState<string | null>(null);
-  const { categories, updateItem } = useHistory();
+  const { categories, updateItem } = useHistoryData();
   const { settings, providers } = useSettings();
   const { setResult, setSelectedHistoryId, setStatus } = useApp();
   const { showToast } = useToast();

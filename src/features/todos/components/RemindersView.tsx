@@ -9,7 +9,7 @@
 import React, { useCallback, useState, useMemo } from 'react';
 import { ArrowLeft, ListTodo, Clock, AlertTriangle, Check, Bell, CalendarDays, Inbox, Search, Plus, X, ChevronDown } from 'lucide-react';
 import { useApp } from '@shared/contexts/AppContext';
-import { useHistory } from '@shared/contexts/HistoryContext';
+import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useGlobalTodos } from '../hooks/useGlobalTodos';
 import type { TodoFilter, GlobalTodo } from '../hooks/useGlobalTodos';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
@@ -118,7 +118,7 @@ interface CreateTodoFormProps {
 }
 
 const CreateTodoForm: React.FC<CreateTodoFormProps> = ({ onSubmit, onCancel }) => {
-  const { items: historyItems } = useHistory();
+  const { items: historyItems } = useHistoryData();
   const [text, setText] = useState('');
   const [meetingId, setMeetingId] = useState('');
   const [date, setDate] = useState('');

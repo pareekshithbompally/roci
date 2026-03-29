@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useHistory } from '@shared/contexts/HistoryContext';
+import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { todosRepository } from '@/services/repositories';
 import { reminderService } from '@/services/reminder.service';
 import type { ScheduleReminderParams } from '@/services/reminder.service';
@@ -62,7 +62,7 @@ const matchesSearch = (target: string, tokens: string[]): boolean => {
 };
 
 export function useGlobalTodos(): UseGlobalTodosReturn {
-  const { items: historyItems } = useHistory();
+  const { items: historyItems } = useHistoryData();
   const [allTodos, setAllTodos] = useState<GlobalTodo[]>([]);
   const [filter, setFilter] = useState<TodoFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
