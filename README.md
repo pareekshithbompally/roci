@@ -1,116 +1,143 @@
 # Kasset AI
 
-**Meeting intelligence for macOS — private, local-first, with a built-in general-purpose AI chat.**
+> **Private, local-first meeting intelligence for macOS**
 
-Kasset captures system audio and microphone in real time, transcribes meetings, and lets you chat with any AI provider about what was said. All data stays on your machine. No cloud storage, no telemetry.
+Kasset AI captures, transcribes, and analyzes your meetings — entirely on your machine. Built-in AI chat lets you search across meetings, extract action items, and get instant answers from your meeting history.
 
-[![Tauri](https://img.shields.io/badge/Tauri-2.x-blue?logo=tauri)](https://tauri.app/)
-[![React](https://img.shields.io/badge/React-19-61dafb?logo=react)](https://react.dev/)
-[![macOS](https://img.shields.io/badge/macOS-15.0+-000?logo=apple)](https://www.apple.com/macos/)
-[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+## ✨ Features
 
----
+### 🎙️ Audio Capture
+- **System audio + microphone** recording via macOS ScreenCaptureKit (no BlackHole or virtual audio drivers needed)
+- **Pause & resume** recording, multi-session support
+- Real-time audio level visualization
+- Automatic sleep prevention during recording
 
-## Features
+### 🤖 Multi-Provider AI
+- **12+ AI providers**: OpenAI, Anthropic (Claude), Google Gemini, Mistral, Groq, xAI (Grok), OpenRouter, Azure, Cohere, HuggingFace, and more
+- **Local AI**: llama.cpp for fully offline inference, or connect to Ollama / LM Studio / Jan
+- Powered by the **Vercel AI SDK** for unified provider routing
+- Automatic transcription, summarization, and action item extraction
 
-- **Real-time audio capture** — system audio + microphone via ScreenCaptureKit (no third-party drivers needed)
-- **AI transcription** — powered by your choice of provider
-- **General-purpose chat** — ask questions about transcripts or anything else
-- **Meeting RAG** — vector search across past meetings using local sqlite-vec
-- **Multi-provider support** — bring your own API keys for 12+ providers
-- **Local-first** — all recordings, transcripts, and data stored on-device
-- **Dark and light themes**
+### 💬 AI Chat
+- General-purpose AI chat with streaming responses
+- **Meeting-aware**: Ask questions about past meetings, search across transcripts
+- **Tool calling**: 9 built-in tools for searching, listing, and managing meeting data
+- **Web search**: Grounded answers with inline citations
+- **Multimodal**: Send images, audio, video, and documents
+- **Speech input**: Voice-to-text for hands-free interaction
+- **3-step orchestration**: Intent classification → programmatic retrieval → streaming synthesis
 
----
+### 🔍 Meeting RAG (Retrieval-Augmented Generation)
+- **Hybrid search**: Vector embeddings (KNN) + full-text search (FTS5) merged via Reciprocal Rank Fusion
+- **Local embeddings**: Transformers.js with all-MiniLM-L6-v2 (384-dim, runs entirely in-browser)
+- **Knowledge graph**: Entity extraction builds a graph of people, topics, decisions, and action items across meetings
+- **Spotlight search**: Cmd+K instant search across all meetings and chats
 
-## Download
+### 📅 Calendar Integration
+- macOS Calendar (EventKit) integration for upcoming meeting awareness
+- Week view with event popovers
 
-Grab the latest `.dmg` from [GitHub Releases](https://github.com/pareekshithbompally/kasset-ai/releases).
+### 📋 Meeting Management
+- **Transcription** with timestamps and speaker identification
+- **Structured summaries** with key topics, decisions, and takeaways
+- **Action items** automatically extracted and tracked as todos
+- **Notes** per meeting
+- **Todos** with priorities, due dates, reminders, and AI proposals
+- **Import** audio files or transcripts from external sources
 
-> Requires **macOS 15.0** (Sequoia) or later on **Apple Silicon** (M1+).
->
-> The app is not code-signed yet — on first launch, right-click the app and select **Open**.
+### 🔒 Privacy First
+- **All data stays on your machine** — recordings, transcripts, summaries, and chat history stored locally
+- API keys encrypted at rest (AES-256-GCM)
+- No telemetry, no cloud storage, no data leaves your device (except API calls to your chosen AI provider)
+- Optional fully-offline mode with local LLM + local embeddings
 
----
+## 🏗️ Tech Stack
 
-## Supported Providers
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | React 19, TypeScript, Vite, Tailwind CSS |
+| **State** | React Context + Zustand |
+| **UI Components** | Radix UI primitives, Lucide icons, Framer Motion |
+| **AI** | Vercel AI SDK (@ai-sdk/*) |
+| **Desktop** | Tauri 2.x (Rust) |
+| **Audio** | ScreenCaptureKit (macOS 15.0+) |
+| **Search** | sqlite-vec (vector), FTS5 (full-text), Knowledge Graph |
+| **Embeddings** | Transformers.js (all-MiniLM-L6-v2, WASM) |
+| **Local LLM** | llama.cpp (via Tauri plugin) |
+| **Calendar** | EventKit (macOS) |
 
-Configure any combination in Settings. Bring your own API keys.
+## 📋 Requirements
 
-| Provider | Type |
-|----------|------|
-| OpenAI | Native SDK |
-| Anthropic (Claude) | Native SDK |
-| Google Gemini | Native SDK |
-| Mistral AI | OpenAI-compatible |
-| Groq | OpenAI-compatible |
-| OpenRouter | OpenAI-compatible |
-| Cohere | OpenAI-compatible |
-| Azure OpenAI | OpenAI-compatible |
-| Hugging Face | OpenAI-compatible |
-| xAI (Grok) | OpenAI-compatible |
-| Llama.cpp | Local |
-| Local Server (Ollama, LM Studio, Jan) | Local |
+- **macOS 15.0+** (Sequoia or later)
+- **Apple Silicon** (M1 or later recommended)
+- Node.js 20+
+- Rust 1.77+
+- Xcode Command Line Tools
 
----
-
-## Development
+## 🚀 Getting Started
 
 ### Prerequisites
-
-- macOS 15.0+
-- [Node.js 20+](https://nodejs.org/)
-- [Rust 1.77+](https://rustup.rs/)
-- Xcode Command Line Tools — `xcode-select --install`
-
-### Setup
-
 ```bash
-git clone https://github.com/pareekshithbompally/kasset-ai.git
+# Install Xcode Command Line Tools
+xcode-select --install
+
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Install Node.js 20+ (via nvm or similar)
+nvm install 20
+```
+
+### Development
+```bash
+# Clone the repository
+git clone https://github.com/pariyelern/kasset-ai.git
 cd kasset-ai
+
+# Install dependencies
 npm install
+
+# Run the full Tauri app (recommended)
 npm run tauri:dev
+
+# Or run frontend only (no Tauri APIs)
+npm run dev
 ```
 
-### Commands
-
+### Build
 ```bash
-npm run tauri:dev       # Run the app in development
-npm run tauri:build     # Production build (outputs .dmg)
-npm run dev             # Frontend only (UI work)
-npm test                # Run tests
+# Production build (.dmg)
+npm run tauri:build
 ```
 
----
+### Testing
+```bash
+npm test              # Run all tests
+npm run test:watch    # Watch mode
+npm run test:coverage # Coverage report
+```
 
-## Architecture
+## 📁 Project Structure
 
 ```
 kasset-ai/
-├── src/                # React frontend
-│   ├── features/       # Chat, recording, history, settings, transcription
-│   ├── shared/         # Contexts, hooks, utilities
-│   └── config/         # App configuration
-├── services/           # API adapters, platform fetch, business logic
-├── src-tauri/          # Rust backend (audio capture, vector DB, local LLM)
-│   ├── plugins/        # tauri-plugin-llamacpp, tauri-plugin-vectordb
-│   └── src/            # Audio core (ScreenCaptureKit), commands
-└── scripts/            # Build helpers (Swift runtime bundling)
+├── src/
+│   ├── app/              # App bootstrap
+│   ├── features/         # 12 feature modules (chat, recording, history, etc.)
+│   ├── shared/           # Shared contexts, hooks, components, utils
+│   ├── core/ai/          # AI prompts, schemas, types
+│   └── config/           # UI, theme, audio, shortcuts config
+├── services/             # Business logic (AI routing, storage, repositories)
+├── extensions/           # RAG, tools, orchestration, context pipeline
+├── src-tauri/            # Rust backend (audio, window, plugins)
+│   └── plugins/          # vectordb, llamacpp, calendar
+└── tests/                # Vitest + React Testing Library
 ```
 
-See [AGENTS.md](AGENTS.md) for detailed guidelines.
+## 🤝 Contributing
 
----
+See [AGENTS.md](AGENTS.md) for detailed development guidelines, architecture overview, and code conventions.
 
-## Built by
-
-Product, architecture, and design by [Pareekshith Bompally](https://github.com/pareekshithbompally). Built with AI coding agents.
-
-## Acknowledgements
-
-- [Jan.ai](https://jan.ai/) — inspiration for building a privacy-first, local-first AI application
-- [llama.cpp](https://github.com/ggerganov/llama.cpp) — local LLM inference
-
-## License
+## 📄 License
 
 MIT

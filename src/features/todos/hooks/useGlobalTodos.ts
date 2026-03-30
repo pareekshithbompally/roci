@@ -13,6 +13,7 @@ import { todosRepository } from '@/services/repositories';
 import { reminderService } from '@/services/reminder.service';
 import type { ScheduleReminderParams } from '@/services/reminder.service';
 import type { TodoEntry, HistoryItem } from '@/types';
+import { hashToNotificationId } from '@shared/utils/todo.utils';
 
 export interface GlobalTodo extends TodoEntry {
   meetingId: string;
@@ -175,7 +176,7 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
         group = {
           meetingId: todo.meetingId,
           meetingTitle: todo.meetingTitle,
-          timestamp: hi?.timestamp || 0,
+          timestamp: hi?.timestamp ?? new Date(todo.createdAt).getTime(),
           todos: [],
         };
         map.set(todo.meetingId, group);
@@ -272,7 +273,7 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
       setAllTodos(prev =>
         prev.map(t =>
           t.id === todoId && t.meetingId === meetingId
-            ? { ...t, reminder: dateTime ? { dateTime } : undefined }
+            ? { ...t, reminder: dateTime ? { dateTime, notificationId: hashToNotificationId(todoId) } : undefined }
             : t
         )
       );

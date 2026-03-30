@@ -10,10 +10,7 @@ export const CALENDAR_CONFIG = {
   lookaheadDays: 7,
 
   /** How often to refresh the full event cache from EventKit (ms) */
-  cacheRefreshIntervalMs: 5 * 60_000, // 5 minutes
-
-  /** How often to check cached events for approaching notifications (ms) */
-  notificationCheckIntervalMs: 60_000, // 1 minute
+  cacheRefreshIntervalMs: 2 * 60_000, // 2 minutes
 
   /** Minutes past start time to still consider an event for notification (negative = already started) */
   notificationGracePeriodMinutes: -5,
@@ -27,9 +24,9 @@ export const CALENDAR_CONFIG = {
   /** Whether calendar integration is enabled by default */
   defaultEnabled: false,
 
-  /** Schedule-X week view day boundaries (covers typical IST working hours + evening) */
+  /** Schedule-X week view day boundaries */
   weekView: {
-    dayStartHour: '08:00',
-    dayEndHour: '23:00',
+    dayStartHour: '00:00',
+    dayEndHour: '23:59',
   },
 } as const;

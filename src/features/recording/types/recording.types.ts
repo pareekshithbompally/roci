@@ -5,6 +5,7 @@
  */
 
 import type { AudioCaptureSource } from '../../../../src/config/audio.config';
+import type { CalendarRecordingMeta } from '@/services/calendar/recording-bridge';
 
 export type RecordingStatus = 'idle' | 'recording' | 'paused' | 'stopped' | 'review' | 'processing';
 
@@ -28,6 +29,8 @@ export interface RecordingSession {
   stalled: boolean;
   /** True while stopCapture() is in-flight — shows "Stopping..." in activity tray */
   stopping?: boolean;
+  /** Calendar metadata from notification-triggered recording (consumed once at start). */
+  calendarMeta?: CalendarRecordingMeta | null;
 }
 
 export interface RecordingState {

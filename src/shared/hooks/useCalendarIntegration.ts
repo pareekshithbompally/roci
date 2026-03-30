@@ -46,24 +46,29 @@ export function useCalendarIntegration(): void {
     }
 
     const handleRecord = async (event: EnrichedCalendarEvent) => {
+      console.log('[DIAG:CalInteg] handleRecord called for event:', event.event_id, event.title);
       try {
         setPendingCalendarEvent(event);
+        console.log('[DIAG:CalInteg] Calling startRecordingRef.current()...');
         await startRecordingRef.current();
+        console.log('[DIAG:CalInteg] startRecording returned OK');
         showToastRef.current(`Recording started: ${event.title}`, 'success');
       } catch (error: unknown) {
-        console.error('[CalendarIntegration] Failed to start recording:', error);
+        console.error('[DIAG:CalInteg] Failed to start recording:', error);
         showToastRef.current('Failed to start recording', 'error');
       }
     };
 
     const handleJoinAndRecord = async (event: EnrichedCalendarEvent) => {
+      console.log('[DIAG:CalInteg] handleJoinAndRecord called for event:', event.event_id, event.title);
       // Open meeting URL in default browser
       if (event.meeting_url) {
         try {
           const { open } = await import('@tauri-apps/plugin-shell');
+          console.log('[DIAG:CalInteg] Opening meeting URL:', event.meeting_url);
           await open(event.meeting_url);
         } catch (error: unknown) {
-          console.error('[CalendarIntegration] Failed to open meeting URL:', error);
+          console.error('[DIAG:CalInteg] Failed to open meeting URL:', error);
         }
       }
       // Start recording

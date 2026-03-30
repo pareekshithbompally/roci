@@ -9,6 +9,7 @@ import { Popover, PopoverTrigger, PopoverContent, DatePicker, TimePicker } from 
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import { reminderService } from '@/services/reminder.service';
 import type { ScheduleReminderParams } from '@/services/reminder.service';
+import { parseDateLoose, localDateFromParts } from '@shared/utils/todo.utils';
 
 interface ReminderPickerProps {
   todoId: string;
@@ -50,13 +51,12 @@ function buildQuickOptions(dueDate?: string): QuickOption[] {
 
   // Add "On due date" option if a parseable due date exists and is in the future
   if (dueDate) {
-    const parsed = new Date(dueDate);
-    if (!isNaN(parsed.getTime()) && parsed.getTime() > Date.now()) {
+    const parsed = parseDateLoose(dueDate);
+    if (parsed && parsed.getTime() > Date.now()) {
       options.push({
         label: `On due date (${parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}) at 9:00 AM`,
         getDate: () => {
-          const d = new Date(parsed);
-          d.setHours(9, 0, 0, 0);
+          const d = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 9, 0, 0, 0);
           return d;
         },
       });
@@ -133,10 +133,8 @@ const ReminderPicker: React.FC<ReminderPickerProps> = ({
 
   const handleCustomSchedule = () => {
     if (!customDate) return;
-    const [hours, minutes] = customTime.split(':').map(Number);
-    const date = new Date(customDate);
-    date.setHours(hours, minutes, 0, 0);
-    scheduleReminder(date);
+    const date = localDateFromParts(customDate, customTime);
+    if (date) scheduleReminder(date);
   };
 
   const handleClearReminder = async () => {

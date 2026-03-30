@@ -35,7 +35,7 @@ function parseToDate(value: unknown): Date | null {
 function formatTime(value: unknown): string {
   const date = parseToDate(value);
   if (!date) return '';
-  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 function formatDateLine(value: unknown): string {

@@ -46,6 +46,7 @@
     "vectordb:default",
     "calendar:default",
     "window-state:default",
+    "updater:default",
     {
       "identifier": "http:default",
       "allow": [

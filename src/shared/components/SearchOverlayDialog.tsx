@@ -57,6 +57,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
   const { setCurrentView, setStatus, setSelectedHistoryId, setResult } = useApp();
   const chat = useChat();
 
+  const [query, setQuery] = useState('');
   const [results, setResults] = useState<SpotlightHit[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -123,6 +124,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
   // Reset state on close
   useEffect(() => {
     if (!open) {
+      setQuery('');
       setResults([]);
       setIsSearching(false);
       setSearchError(null);
@@ -201,7 +203,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
         <CommandInput
           placeholder="Search meetings and chats..."
           className="pr-16"
-          onValueChange={triggerSearch}
+          onValueChange={(val) => { setQuery(val); triggerSearch(val); }}
         />
         {isSearching && (
           <Loader2 className="absolute right-10 w-3.5 h-3.5 animate-spin text-[var(--text-faint)]" />
@@ -210,15 +212,22 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
           {formatShortcut('CommandOrControl+K')}
         </kbd>
       </div>
-      <CommandList>
+      <CommandList className="min-h-[160px]">
         <CommandEmpty>
-          <div className="flex flex-col items-center gap-2 py-8">
-            <Search className="w-5 h-5 text-[var(--text-faint)]" />
-            <span className="text-sm text-[var(--text-muted)]">No results found</span>
-            {searchError && (
-              <span className="text-xs text-[var(--text-faint)]">{searchError}</span>
-            )}
-          </div>
+          {query.length < SPOTLIGHT_MIN_QUERY_LENGTH || isSearching ? (
+            <div className="flex flex-col items-center gap-2 py-10">
+              <Search className="w-5 h-5 text-[var(--text-faint)]" />
+              <span className="text-sm font-medium text-[var(--text-secondary)]">Search meetings &amp; chats</span>
+              <span className="text-xs text-[var(--text-faint)]">Type to find anything across your sessions</span>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2 py-10">
+              <span className="text-sm text-[var(--text-muted)]">No results for &ldquo;{query}&rdquo;</span>
+              <span className="text-xs text-[var(--text-faint)]">
+                {searchError ?? 'Try different keywords'}
+              </span>
+            </div>
+          )}
         </CommandEmpty>
 
         {meetingHits.length > 0 && (

@@ -24,7 +24,7 @@ import { unifiedAIService } from '../../../../services/unifiedAIService';
 import { activityStore } from '../../../shared/stores/activityStore';
 import type { ActivityAction } from '../../../shared/stores/activityStore';
 import { resolveModel } from '@shared/utils/modelResolver';
-import { consumePendingCalendarMeta } from '../../../../services/calendar/recording-bridge';
+import { consumePendingCalendarMeta } from '@/services/calendar/recording-bridge';
 import type {
   RecordingContextValue,
   RecordingState,
@@ -194,11 +194,13 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
 
   // Start recording → creates new session, returns sessionId
   const startRecordingSession = useCallback(async (): Promise<string> => {
+    console.log('[DIAG:RecCtx] ========== startRecordingSession called ==========');
     if (!isTauriEnvironment()) {
       throw new Error('Native recording is available in the desktop app only.');
     }
 
     if (activeCaptureSessionId !== null) {
+      console.warn('[DIAG:RecCtx] BLOCKED: another capture already active, sessionId=', activeCaptureSessionId);
       throw new Error('Another recording is already capturing audio.');
     }
 
@@ -207,8 +209,10 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       const filename = generateRecordingFilename();
       const recordingId = getRecordingIdFromFilename(filename);
       const sessionId = crypto.randomUUID();
+      console.log('[DIAG:RecCtx] source=%s, filename=%s, sessionId=%s', source, filename, sessionId);
 
       // Create new session
+      const calendarMeta = consumePendingCalendarMeta();
       const newSession: RecordingSession = {
         sessionId,
         status: 'recording',
@@ -223,6 +227,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         error: null,
         createdAt: Date.now(),
         stalled: false,
+        calendarMeta,
       };
 
       setSessions(prev => {
@@ -236,11 +241,13 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       startTimeRefs.current.set(sessionId, Date.now());
       pausedTimeRefs.current.set(sessionId, 0);
 
+      console.log('[DIAG:RecCtx] Calling coreAudioService.startCapture...');
       await coreAudioService.startCapture({
         source,
         fileName: filename,
         recordingsDir: StorageConfig.directories.recordings,
       });
+      console.log('[DIAG:RecCtx] coreAudioService.startCapture returned OK');
 
       // Start timer
       const timer = setInterval(() => {
@@ -250,12 +257,16 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           const elapsed = Math.floor((Date.now() - startTime) / 1000) - pausedTime;
           const updates: Partial<RecordingSession> = { elapsedTime: Math.max(0, elapsed) };
 
-          // Stall detection: if no audio levels for 5 seconds while actively recording
+          // Stall detection: if no audio levels for 5 seconds while actively recording.
+          // When lastLevel === 0, no levels have EVER been received — treat as stalled
+          // after a grace period (5s from session start) so the UI warns immediately.
           const lastLevel = lastLevelTimestampRef.current;
-          const timeSinceLevel = lastLevel > 0 ? Date.now() - lastLevel : 0;
-          if (timeSinceLevel > 5000 && lastLevel > 0) {
+          const timeSinceLevel = lastLevel > 0
+            ? Date.now() - lastLevel
+            : (startTime > 0 ? Date.now() - startTime : 0);
+          if (timeSinceLevel > 5000) {
             updates.stalled = true;
-          } else if (timeSinceLevel <= 5000 && lastLevel > 0) {
+          } else {
             updates.stalled = false;
           }
 
@@ -306,12 +317,19 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
   const stopRecordingSession = useCallback(async (sessionId: string) => {
     const session = sessions.get(sessionId);
     if (!session) return;
+    console.log('[DIAG:RecCtx] ========== stopRecordingSession called ==========');
+    console.log('[DIAG:RecCtx] sessionId=%s, elapsed=%ds', sessionId, session.elapsedTime);
 
     try {
+      console.log('[DIAG:RecCtx] Calling coreAudioService.stopCapture...');
       const result = await coreAudioService.stopCapture();
+      console.log('[DIAG:RecCtx] stopCapture returned:', result ? `blob size=${result.blob.size} bytes, path=${result.path}` : 'null');
       cleanupSessionTimer(sessionId);
 
       if (result) {
+        if (result.blob.size <= 44) {
+          console.error('[DIAG:RecCtx] *** CRITICAL: Blob is WAV header only (%d bytes)! Zero audio captured! ***', result.blob.size);
+        }
         // Normal path: Rust returned the file
         const startTime = startTimeRefs.current.get(sessionId);
         const pausedTime = pausedTimeRefs.current.get(sessionId) || 0;
@@ -439,7 +457,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         }
         const addToHistory = historyContext?.addToHistory;
         if (addToHistory) {
-          const calendarMeta = consumePendingCalendarMeta();
+          const calendarMeta = session.calendarMeta;
           await addToHistory({
             id: session.recordingId,
             timestamp: Date.now(),
@@ -644,7 +662,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       // Create history item with pending transcription
       const addToHistory = historyContext?.addToHistory;
       if (addToHistory) {
-        const calendarMeta = consumePendingCalendarMeta();
+        const calendarMeta = session.calendarMeta;
         await addToHistory({
           id: recordingId,
           timestamp: Date.now(),
@@ -694,6 +712,9 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       // Immediately surface processing state so the tray switches to the processing row
       updateSession(sessionId, { status: 'processing', error: null });
 
+      // Read calendar metadata from session (stored at recording start)
+      const calendarMeta = session.calendarMeta;
+
       const settings = settingsContext?.settings || { transcriptionModel: '', chatModel: '' };
       const providers = settingsContext?.providers || [];
       const categories = historyContext?.categories || [];
@@ -702,11 +723,24 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       const setSelectedHistoryId = appContext?.setSelectedHistoryId;
       const setStatus = appContext?.setStatus;
 
+      // Build meeting context from calendar metadata for LLM speaker attribution
+      const meetingContext = calendarMeta?.scheduledStart && calendarMeta?.participants?.length
+        ? {
+            title: calendarMeta.scheduledTitle || 'Untitled Meeting',
+            participants: calendarMeta.participants.map((p: { name?: string; email?: string }) => ({
+              name: p.name,
+              email: p.email,
+            })),
+            scheduledStart: calendarMeta.scheduledStart,
+          }
+        : undefined;
+
       const processingPromise = unifiedAIService.processAudio(
         session.recordedBlob,
         categories,
         settings,
-        providers
+        providers,
+        meetingContext
       );
 
       const { result: data } = await Promise.race([
@@ -767,6 +801,16 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           inputSource: session.audioSource,
           model: settings.transcriptionModel,
           extractionContext: { settings, providers },
+          ...calendarMeta && {
+            calendarMeta: {
+              calendarEventId: calendarMeta.calendarEventId,
+              scheduledTitle: calendarMeta.scheduledTitle,
+              participants: calendarMeta.participants,
+              scheduledStart: calendarMeta.scheduledStart,
+              scheduledEnd: calendarMeta.scheduledEnd,
+              meetingUrl: calendarMeta.meetingUrl,
+            },
+          },
         });
 
         if (recordingRegistration.success) {

@@ -1,296 +1,282 @@
-# Kasset AI - AI Agent Guidelines
+# Kasset AI - AI Agent Instructions
 
 > **macOS meeting intelligence app — private, local-first, with built-in general-purpose AI chat**
-> Built with **Tauri 2.x + React 19 + TypeScript + Vite** | Multi-provider AI (OpenAI, Anthropic, Gemini, + 9 OpenAI-compatible)
+> Tauri 2.x + React 19 + TypeScript + Vite | Multi-provider AI (Vercel AI SDK) | ScreenCaptureKit audio | sqlite-vec RAG + Knowledge Graph
 
----
 
-## Commands
+## Architecture Overview
 
+This is a **Tauri-based desktop app** with a clear separation between frontend (React/TypeScript) and backend (Rust). The frontend uses a **feature-based modular architecture** where each domain (chat, recording, history, etc.) is self-contained in `src/features/`.
+
+### Critical Architecture Concepts
+
+**Dual-layer separation:**
+- Frontend: React components + business logic in `src/` and `/services/`
+- Backend: Rust Tauri commands in `src-tauri/src/` for system-level operations (audio capture via ScreenCaptureKit, vector DB, local LLM, window management, calendar access, screenshots, wake lock)
+
+**Feature modules** (`src/features/*`) are the primary location for new code:
+```
+features/
+├── calendar/         # Week view calendar (Schedule-X), event popovers
+├── chat/             # AI chat: streaming, multimodal, tool calls, citations, speech input
+├── history/          # Meeting history sidebar, search, rename, delete
+├── home/             # Home view router (idle → chat → results)
+├── import/           # Audio/transcript file import with concurrent job queue
+├── layout/           # MainLayout with resizable sidebar + right chat panel
+├── notes/            # Per-meeting notes CRUD
+├── recording/        # Audio capture controls, multi-session, timer, source selection
+├── settings/         # 7-panel settings (Audio, Providers, Local Inference, Categories, Integrations, Usage, Interface)
+├── summary/          # Summary display
+├── todos/            # Todo management with priorities, due dates, reminders, AI proposals
+├── transcription/    # Transcript views
+└── [feature]/
+    ├── components/   # Feature components
+    ├── hooks/        # Feature hooks
+    ├── context/      # Feature context (optional)
+    ├── types/        # Feature types (optional)
+    ├── stores/       # Zustand stores (optional)
+    ├── services/     # Feature services (optional)
+    └── index.ts      # Always export through here
+```
+
+**Context Provider Hierarchy** (defined in AppProviders.tsx):
+```
+ErrorBoundary → ThemeProvider → ToastProvider → SettingsProvider → UnsavedChangesProvider →
+  AppProvider → HistoryProvider → MeetingProvider → MeetingDataProviders (Notes + Todos) →
+  ImportProvider → ChatProvider → RecordingProviderWrapper
+```
+Order matters: outer providers are available to inner providers.
+
+**Services Layer** (`/services/`) handles business logic:
+- `unifiedAIService.ts` - AI routing: audio processing, Whisper transcription, title generation
+- `ai/` - Vercel AI SDK layer (provider factory, message converter, tools bridge, token usage)
+- `adapters/` - Legacy provider-specific adapters and tool converter
+- `platform-fetch.ts` - Tauri HTTP transport (bypasses CORS via Rust reqwest)
+- `modalities.ts` - Model capabilities from models.dev API (cached on disk, 24h TTL)
+- `transcription.service.ts` - Post-LLM pipeline (save transcript, summary, todos, index, extract entities)
+- `repositories/` - Per-meeting file storage (13 repositories with BaseRepository pattern)
+- `storage/` - Tauri filesystem operations (settings encrypted AES-256-GCM, cache, paths)
+- `tauri/` - Wrapper services for Tauri native APIs (environment, notification, dialog, filesystem, tray)
+- `providers/` - Provider configuration (Tauri/Web/Default implementations)
+- `migration/` - Data migration between versions (localStorage → filesystem)
+
+**Extensions Layer** (`/extensions/`) handles advanced features:
+- `rag/` - RAG system: embeddings (Transformers.js), indexing, hybrid search, knowledge graph, entity extraction
+- `tools/` - LLM tool calling system: 9 tool definitions, registry, executor, context budget
+- `tool-orchestrator/` - 3-step orchestration: Intent Classification → Programmatic Retrieval → Streaming Synthesis
+- `context-pipeline/` - @mention context resolution for chat
+
+**Rust Backend** (`src-tauri/`):
+- `src/audio_core.rs` - Real-time audio capture via ScreenCaptureKit (system audio + microphone), 48kHz→16kHz resampling
+- `src/window.rs` - Window management (show/hide/toggle, always-on-top, close-to-tray)
+- `src/shortcuts.rs` - Global keyboard shortcuts with frontend event emission
+- `src/autostart.rs` - Login item management
+- `src/wake_lock.rs` - IOKit sleep prevention during recording
+- `src/screenshot.rs` - Window enumeration (CGWindowList) + screenshot capture
+- `plugins/tauri-plugin-vectordb/` - sqlite-vec vector DB + FTS5 + Knowledge Graph (35 commands, schema v5)
+- `plugins/tauri-plugin-llamacpp/` - Local LLM inference server management (8 commands)
+- `plugins/tauri-plugin-calendar/` - macOS EventKit calendar access (4 commands)
+
+## Development Workflow
+
+### Essential Commands
 ```bash
-# Development
-npm run dev              # Vite dev server (frontend only)
-npm run tauri:dev        # Full Tauri app (recommended)
+npm run tauri:dev      # Full Tauri app (RECOMMENDED for dev)
+npm run dev            # Vite only (frontend debugging)
+npm run tauri:build    # Production build (.dmg)
 
-# Build
-npm run build            # Production frontend build
-npm run tauri:build      # Production Tauri app bundle (.dmg)
-
-# Testing
-npm test                 # Run all tests
-npm run test:watch       # Watch mode
-npm run test:coverage    # Coverage report
-npx vitest tests/unit/utils.test.ts           # Single test file
-npx vitest tests/unit/utils.test.ts -t "name" # Specific test by name
+npm test               # Run all tests (Vitest + RTL)
+npm run test:watch     # Watch mode
+npm run test:coverage  # Coverage report
+npx vitest tests/unit/utils.test.ts  # Single test file
 ```
 
----
+**Always use `npm run tauri:dev`** for development to test Rust backend integration. Frontend-only `npm run dev` won't have access to Tauri APIs.
 
-## Project Architecture
+### Testing Setup
+- Framework: **Vitest** + **React Testing Library**
+- Environment: jsdom
+- Config: vitest.config.ts
+- Setup: tests/setup.ts
+- Structure: tests/unit/, tests/integration/
 
-```
-kasset-ai/
-├── types.ts                     # Global types (AppStatus, HistoryItem, etc.)
-├── src/
-│   ├── app/                     # App bootstrap (App.tsx, AppProviders.tsx)
-│   ├── features/                # FEATURE MODULES (use for new code)
-│   │   └── [feature]/
-│   │       ├── components/      # Feature UI components
-│   │       ├── hooks/           # Feature hooks
-│   │       ├── context/         # Feature context (optional)
-│   │       ├── types/           # Feature types
-│   │       └── index.ts         # Public exports (ALWAYS import from here)
-│   ├── shared/                  # Cross-feature code (contexts, hooks, utils, types)
-│   └── config/                  # App configuration (ui, audio, shortcuts, etc.)
-├── services/                    # Business logic layer
-│   ├── unifiedAIService.ts      # Unified AI routing to provider adapters
-│   ├── adapters/                # Provider adapters (OpenAI, Anthropic, Gemini, OpenAI-compat)
-│   ├── platform-fetch.ts        # Tauri HTTP transport (CORS bypass via Rust reqwest)
-│   ├── storage/                 # Tauri filesystem operations (encrypted settings)
-│   ├── tauri/                   # Tauri native APIs (window, tray, notifications)
-│   ├── providers/               # Provider configuration and defaults
-│   └── migration/               # Data migration between versions
-├── tests/                       # Test files (Vitest + RTL)
-├── scripts/                     # Build helpers (Swift runtime bundling)
-└── src-tauri/                   # Rust backend
-    ├── src/
-    │   ├── audio_core.rs        # ScreenCaptureKit audio capture (system + mic)
-    │   ├── window.rs            # Window management
-    │   ├── shortcuts.rs         # Global shortcuts
-    │   └── autostart.rs         # Login item management
-    └── plugins/
-        ├── tauri-plugin-vectordb/   # sqlite-vec vector DB (meeting RAG)
-        └── tauri-plugin-llamacpp/   # Local LLM inference
+## Code Conventions
 
-LEGACY FOLDERS (DO NOT USE):
-/components/, /hooks/, /utils/, /consts/ → Use src/features/* or src/shared/* instead
-```
-
----
-
-## Code Style Guidelines
-
-### TypeScript Rules
-- **Always use TypeScript**, never plain JS
-- **Avoid `any`** - use `unknown` when type is truly unknown
-- **Interfaces vs Types**: `interface` for public APIs, `type` for unions/intersections
-- **Type-only imports**: Use `import type { }` for types
+### Import Patterns (CRITICAL)
+**Always use path aliases** defined in tsconfig.json and vite.config.ts:
 
 ```typescript
-// Good
-import type { AppSettings } from '@/types';
-import { unifiedAIService } from '@/services/unifiedAIService';
-
-// Bad
-import { AppSettings } from '@/types'; // Should be 'import type'
-```
-
-### Import Conventions
-**Path Aliases** (always use these, never `../../../`):
-```typescript
-import { useApp } from '@shared/contexts/AppContext';        // Shared contexts
-import { RecordingProvider } from '@features/recording';     // Feature exports
-import { UI_CONFIG } from '@config/ui.config';               // Config files
-import { unifiedAIService } from '@/services/unifiedAIService'; // Root-level services
-import { ProcessedResult } from '@/types';                   // Global types
-```
-
-**Available Aliases**: `@/*`, `@app/*`, `@features/*`, `@shared/*`, `@config/*`, `@assets/*`, `@core/*`, `@platform/*`
-
-**Feature Module Rules**:
-- Import from feature's `index.ts`: `import { ChatPanel } from '@features/chat'`
-- Never import internal files: `import { ChatPanel } from '@features/chat/components/ChatPanel'`
-
-### Naming Conventions
-- **Components**: PascalCase - `SettingsPanel`, `ModelSettingsPanel`
-- **Hooks**: camelCase with `use` prefix - `useApp`, `useRecordingContext`
-- **Services**: camelCase with `Service` suffix - `unifiedAIService`, `pathsService`
-- **Config constants**: UPPER_SNAKE_CASE - `UI_CONFIG`, `MAX_AUDIO_SIZE_BYTES`
-- **Types/Interfaces**: PascalCase - `AppSettings`, `HistoryItem`, `ProcessedResult`
-- **Files**: kebab-case or PascalCase matching export - `ui.config.ts`, `SettingsPanel.tsx`
-
-### Component Structure
-```typescript
-import React, { useCallback, useState } from 'react';
-import type { ComponentProps } from './types';
+// CORRECT
 import { useApp } from '@shared/contexts/AppContext';
+import { RecordingProvider, useRecording } from '@features/recording';
+import { UI_CONFIG } from '@config/ui.config';
+import { unifiedAIService } from '@/services/unifiedAIService';
+import { toolRegistry } from '@extensions/tools';
+import { orchestrate } from '@extensions/tool-orchestrator';
 
-interface MyComponentProps {
-  title: string;
-  onAction: () => void;
+// NEVER
+import { useApp } from '../../../shared/contexts/AppContext';
+import { RecordButton } from '@features/recording/components/RecordButton'; // Import from index.ts!
+```
+
+**Path alias mapping:**
+```
+@/*           → project root
+@app/*        → src/app/*
+@features/*   → src/features/*
+@shared/*     → src/shared/*
+@config/*     → src/config/*
+@core/*       → src/core/*
+@assets/*     → src/assets/*
+@platform/*   → src/platform/*
+@extensions/* → extensions/*
+```
+
+### Legacy Folders (DO NOT MODIFY)
+These folders exist for backward compatibility but **should NOT receive new code**:
+- `/components/` → Use `src/features/*/components/` instead
+- `/hooks/` → Use `src/shared/hooks/` or feature hooks
+- `/utils/` → Use `src/shared/utils/`
+- `/consts/` → Use `src/config/`
+
+### TypeScript Conventions
+```typescript
+// Prefer interface for public APIs
+interface RecordingState {
+  status: RecordingStatus;
+  duration: number;
 }
 
-export const MyComponent: React.FC<MyComponentProps> = ({ title, onAction }) => {
-  const { status } = useApp();
-  const [isOpen, setIsOpen] = useState(false);
+// Use type for unions/intersections
+type ViewType = 'home' | 'settings';
 
-  const handleClick = useCallback(() => {
-    onAction();
-  }, [onAction]);
+// Avoid 'any', use 'unknown' when type is uncertain
+catch (error: unknown) {
+  console.error('[Component] Error:', error);
+}
 
-  return (
-    <div className="bg-zinc-50 dark:bg-zinc-950">
-      {/* JSX */}
-    </div>
-  );
-};
+// Type-only imports
+import type { HistoryItem } from '@/types';
 ```
 
-### Styling
-- **Tailwind CSS only** - no CSS modules, no inline styles
-- Use `UI_CONFIG` constants for consistent values
-- Dark mode: always add `dark:` variants
-- Standard color palette: `zinc-*` for backgrounds/text
+### Styling (Tailwind Only)
+- **No CSS modules, no inline styles**
+- Use `UI_CONFIG` constants from src/config/ui.config.ts
+- Use theme tokens: `SURFACE`, `BORDER`, `TEXT`, `COMPONENT` from src/config/theme.config.ts
+- Dark mode: `dark:` prefix
 
-```tsx
-<div className="bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 p-4 rounded-lg">
+```jsx
+<div className="bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
 ```
+
+### State Management
+- **React Context**: Global state (App, Settings, History, Chat, Meeting, Theme, Toast, UnsavedChanges)
+- **Zustand**: Feature-local stores (streamingStore for RAF-batched streaming, todoProposalStore, activityStore)
+- **useRef**: Prevent re-renders in performance-critical hooks
 
 ### Error Handling
 ```typescript
 try {
   await performAction();
 } catch (error: unknown) {
-  console.error('[ComponentName] Operation failed:', error);
-  setError(error instanceof Error ? error.message : 'Operation failed');
+  console.error('[ComponentName] Action failed:', error);
+  toast.error(error instanceof Error ? error.message : 'Operation failed');
 }
 ```
 
-### Console Logging
-Use consistent format: `console.log('[ComponentName] Description:', value)`
+## Key Integration Points
 
----
+### Multi-Provider AI Architecture (Vercel AI SDK)
+`services/ai/provider.ts` creates AI SDK `LanguageModel` instances via `createModel()`:
+- **Native providers**: OpenAI, Anthropic, Gemini, Mistral, xAI, Groq
+- **OpenAI-compatible**: OpenRouter, Azure, Cohere, HuggingFace, Local Server (Ollama/LM Studio/Jan)
+- **Local**: llama.cpp (via Tauri plugin)
 
-## Key Contexts & Services
+Web search support:
+- OpenAI/xAI: `.responses()` API (Responses API)
+- Gemini/Anthropic: Native tools in chat API
 
-### React Contexts (`src/shared/contexts/`)
-| Context | Hook | Purpose |
-|---------|------|---------|
-| `AppContext` | `useApp()` | View state, status, result display |
-| `SettingsContext` | `useSettings()` | User settings & preferences |
-| `HistoryContext` | `useHistory()` | Recording history management |
-| `ToastContext` | `useToast()` | Notification system |
-| `MeetingContext` | `useMeeting()` | Current meeting/recording data |
-| `ChatContext` | `useChat()` | AI chat interface state |
-| `ThemeContext` | `useTheme()` | Theme preferences |
+HTTP transport uses `@tauri-apps/plugin-http` (Rust reqwest) to bypass CORS — never override `globalThis.fetch`.
 
-### Services (`/services/`)
-- `unifiedAIService.ts` - Routes AI requests to the correct provider adapter
-- `adapters/` - Provider-specific implementations (Gemini, OpenAI, Anthropic, OpenAI-compatible)
-- `platform-fetch.ts` - CORS-free HTTP via Tauri plugin-http (Rust reqwest)
-- `storage/` - Tauri file system operations (settings encrypted via AES-256-GCM)
-- `tauri/` - Tauri native APIs (window, tray, notifications)
-- `migration/` - Data migration between versions
-- `meetingReferenceService.ts` - Meeting context for RAG
+Provider configuration stored encrypted at rest (AES-256-GCM).
 
-### Config Files (`src/config/`)
-- `ui.config.ts` - UI constants, spacing, colors, breakpoints
-- `audio.config.ts` - Audio settings, quality presets
-- `shortcuts.config.ts` - Keyboard shortcuts
-- `app.config.ts` - App metadata
-
----
-
-## Multi-Provider AI Architecture
-
-### Supported Providers
-| Provider | Adapter | Transport |
-|----------|---------|-----------|
-| Google Gemini | `gemini.adapter.ts` (native `@google/genai`) | Tauri HTTP |
-| OpenAI | `openai.adapter.ts` (native `openai` SDK) | Tauri HTTP |
-| Anthropic | `anthropic.adapter.ts` (native `@anthropic-ai/sdk`) | Tauri HTTP |
-| Mistral, Groq, OpenRouter, Cohere, Azure, HuggingFace, xAI | `openai-compat.adapter.ts` | Tauri HTTP |
-| Llama.cpp | Tauri plugin (Rust) | Local |
-| Local Server (Ollama, LM Studio, Jan) | `openai-compat.adapter.ts` | Direct fetch |
-
-### CORS Transport
-Browser `fetch()` causes CORS failures for most providers. All SDK HTTP goes through `@tauri-apps/plugin-http` (Rust reqwest). Key rules:
-- **Never override `globalThis.fetch`** — breaks Vite HMR and WebView internals
-- Inject via SDK `fetch:` parameter (OpenAI, Anthropic support this)
-- Clear client cache after changing fetch config: `clearClientCache()`
-
-### Provider Configuration
-- Configured in Settings UI, stored in `settings.json`
-- API keys encrypted at rest (AES-256-GCM, device-specific key)
-- Provider definitions in `consts/providers.ts`
-
----
-
-## Audio Capture (Rust Backend)
-
-Uses **ScreenCaptureKit** (no third-party drivers like BlackHole needed):
-- Captures at 48kHz native SCK rate, resamples to 16kHz for output
-- Three modes: System audio, Microphone, System + Microphone
-- 32-bit float, little-endian, mono
-- Output: WAV format stored in app data directory
-- Key file: `src-tauri/src/audio_core.rs`
-
----
-
-## Meeting RAG (Vector Search)
-
-- **sqlite-vec** via Rust plugin `tauri-plugin-vectordb`
-- Hybrid search: KNN vector + FTS5 full-text, merged via Reciprocal Rank Fusion
-- Embeddings: WASM-side via Transformers.js (all-MiniLM-L6-v2, 384-dim)
-- Chunking: Sentence-boundary splitting with overlap (`extensions/rag/chunker.ts`)
-- Staleness: SHA-256 content hashing — only re-indexes changed meetings
-
----
-
-## Testing
-
-**Framework**: Vitest + React Testing Library
-**Environment**: jsdom
-**Setup**: `/tests/setup.ts`
-
-```bash
-npm test                              # All tests
-npm run test:watch                    # Watch mode
-npm run test:coverage                 # Coverage report
-npx vitest tests/unit/utils.test.ts  # Single file
-npx vitest -t "test name"             # Specific test
+### Tool Orchestration (3-Step Architecture)
+```
+Step 1: Intent Classification (LLM) → IntentType + search_query + depth
+Step 2: Programmatic Retrieval (DB access, no LLM) → context string + citations
+Step 3: Streaming Synthesis (LLM with web search) → streamed response
 ```
 
-**Test Structure**:
+Intent types: general, meeting_search, meeting_recall, meeting_detail, meeting_list, action_items, manage_todos, relationship, cross_meeting, chat_recall, catch_up
+
+9 tools: search_meetings, search_chats, get_meeting, get_chat, list_meetings, list_chats, get_action_items, manage_todo, query_graph
+
+### RAG System
+- **Embeddings**: Transformers.js Web Worker (all-MiniLM-L6-v2, 384-dim, local/offline)
+- **Indexing**: 3-phase staleness tracking (content_hash, embedding_hash, extraction_hash via SHA-256)
+- **Search**: Hybrid KNN (sqlite-vec) + FTS5 + Reciprocal Rank Fusion (k=60)
+- **Knowledge Graph**: Entity extraction → kg_nodes/kg_edges in SQLite, traversal queries
+- **Consent**: Gated behind user consent before first embedding model download
+
+### Storage Architecture
+All data stored in Tauri app data directory (`~/Library/Application Support/ai.kasset.desktop/`):
+```
+meetings/
+├── index.json                    # Lightweight meeting index for sidebar
+└── {id}/
+    ├── transcript.json
+    ├── summary.json
+    ├── todos.json
+    ├── notes.json
+    └── recording-meta.json
+chats/
+├── index.json                    # Chat session index
+└── {sessionId}.json
+recordings/                       # Audio files (WAV, 16kHz mono)
+cache/
+├── api/                          # API response cache (24h TTL)
+└── audio/                        # Temp audio files
+vectordb.sqlite                   # sqlite-vec + FTS5 + knowledge graph
+settings.json                     # User settings (API keys encrypted AES-256-GCM)
+```
+
+### Tauri Backend Commands
+Rust commands exposed to frontend (60+ total):
+
+**Audio** (audio_core.rs): `start_audio_capture`, `stop_audio_capture`, `pause_audio_capture`, `resume_audio_capture`
+**Window** (window.rs): `get_window_state`, `save_window_state`, `show_window`, `hide_window`, `toggle_window`, `set_always_on_top`
+**Shortcuts** (shortcuts.rs): `register_shortcut`, `unregister_shortcut`, `unregister_all_shortcuts`, `is_shortcut_registered`
+**Autostart** (autostart.rs): `enable_autostart`, `disable_autostart`, `is_autostart_enabled`
+**Wake Lock** (wake_lock.rs): `acquire_wake_lock`, `release_wake_lock`
+**Screenshot** (screenshot.rs): `list_capturable_windows`, `take_screenshot`
+**VectorDB plugin** (35 commands): search, upsert, delete, staleness detection, knowledge graph CRUD, usage analytics
+**LlamaCpp plugin** (8 commands): spawn/kill server, health check, GGUF metadata, port allocation
+**Calendar plugin** (4 commands): request_access, check_access, get_upcoming_events, get_events_in_range
+
+### Context Access Patterns
 ```typescript
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
-
-describe('ComponentName', () => {
-  it('should render correctly', () => {
-    // Test implementation
-  });
-});
+const { status, setStatus, currentView } = useApp();
+const { settings, updateSettings } = useSettings();
+const { startRecording, stopRecording, isRecording } = useRecordingContext();
+const { items, addToHistory, deleteItem } = useHistory();
+const { success, error, warning } = useToast();
 ```
 
----
+### Adding a New Feature
+1. Create folder in `src/features/feature-name/`
+2. Structure: `components/`, `hooks/`, `context/`, `types/`, `stores/`, `services/`, `index.ts`
+3. Export public API through `index.ts`
+4. Add provider to AppProviders.tsx if needed
+5. Import via `@features/feature-name`
 
-## Critical Rules
-
-### DO
-- Use `src/features/` for new functionality
-- Import via path aliases (`@features/`, `@shared/`, etc.)
-- Export public APIs through feature's `index.ts`
-- Use existing contexts for state management
-- Use Tailwind + `UI_CONFIG` for styling
-- Handle errors with proper types (`error: unknown`)
-- Use npm as package manager (never pnpm)
-
-### DON'T
-- Add files to legacy folders (`/components/`, `/hooks/`, `/utils/`, `/consts/`)
-- Create new global state without updating `AppProviders.tsx`
-- Use inline styles or CSS modules
-- Import internal feature files directly (use `index.ts`)
-- Use `any` type without strong justification
-- Use relative imports (`../../../`) - use path aliases instead
-- Override `globalThis.fetch` in Tauri WebView
-- Skip error handling in async functions
-
----
+### Adding a New Tool
+1. Create `extensions/tools/definitions/my-tool.tool.ts` implementing `ToolDefinition`
+2. Register in `extensions/tools/index.ts` via `toolRegistry.register()`
+3. Add intent routing in `extensions/tool-orchestrator/retrieval-executor.ts`
+4. Update system prompt in `src/core/ai/prompts/chat.prompt.ts`
 
 ## Debugging
-
 - **Console logs**: Use format `[ComponentName] Message:`, value
 - **DevTools**: Available in `npm run tauri:dev` mode
 - **Rust logs**: Check terminal running `npm run tauri:dev`
-- **Test debugging**: Add `.only` to focus single test: `it.only('test', ...)`
+- **Package manager**: npm only (never pnpm)

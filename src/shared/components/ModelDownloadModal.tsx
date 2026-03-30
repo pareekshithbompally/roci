@@ -18,7 +18,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Download } from 'lucide-react';
 import { onConsentNeeded } from '@extensions/rag';
 import { onRAGProgress, preloadModel, resetPipeline } from '@extensions/rag';
-import type { RAGProgressEvent, IndexingProgressEvent, ExtractionProgressEvent, EmbeddingUpgradeProgressEvent } from '@extensions/rag';
+import type { RAGProgressEvent, IndexingProgressEvent, ExtractionProgressEvent } from '@extensions/rag';
 import {
   AlertDialog,
   AlertDialogPortal,
@@ -286,61 +286,6 @@ export const ModelDownloadModal: React.FC = () => {
       }
     }
 
-    function handleEmbeddingEvent(event: EmbeddingUpgradeProgressEvent) {
-      switch (event.status) {
-        case 'started':
-          if (event.total && event.total > 0) {
-            activityStore.add({
-              id: 'rag-embedding',
-              type: 'indexing',
-              label: 'Indexing meetings for search',
-              status: 'active',
-              percent: null,
-              step: { current: 0, total: event.total },
-              detail: null,
-              error: null,
-              actions: [],
-            });
-          }
-          break;
-
-        case 'progress':
-          if (event.current && event.total) {
-            const percent = Math.round((event.current / event.total) * 100);
-            const title = event.currentTitle ?? null;
-
-            if (activityStore.get('rag-embedding')) {
-              activityStore.update('rag-embedding', {
-                step: { current: event.current, total: event.total },
-                percent,
-                detail: title,
-              });
-            } else {
-              activityStore.add({
-                id: 'rag-embedding',
-                type: 'indexing',
-                label: 'Indexing meetings for search',
-                status: 'active',
-                percent,
-                step: { current: event.current, total: event.total },
-                detail: title,
-                error: null,
-                actions: [],
-              });
-            }
-          }
-          break;
-
-        case 'complete':
-          activityStore.remove('rag-embedding');
-          break;
-
-        case 'error':
-          activityStore.remove('rag-embedding');
-          break;
-      }
-    }
-
     const unsubscribe = onRAGProgress((event: RAGProgressEvent) => {
       // Don't show tray rows while the consent modal is up
       if (visibleRef.current) return;
@@ -351,8 +296,6 @@ export const ModelDownloadModal: React.FC = () => {
         handleIndexingEvent(event);
       } else if (event.kind === 'extraction') {
         handleExtractionEvent(event);
-      } else if (event.kind === 'embedding') {
-        handleEmbeddingEvent(event);
       }
     });
 
@@ -362,7 +305,6 @@ export const ModelDownloadModal: React.FC = () => {
       activityStore.remove('rag-model');
       activityStore.remove('rag-indexing-meetings');
       activityStore.remove('rag-indexing-chats');
-      activityStore.remove('rag-embedding');
       activityStore.remove('rag-extraction');
     };
   }, []); // No dependencies — uses refs for reactive state

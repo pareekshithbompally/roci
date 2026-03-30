@@ -16,6 +16,8 @@ import { useRecordingContext } from '@features/recording';
 import { MainLayout } from '@features/layout';
 import { HomeView } from '@features/home';
 import { SettingsPanel } from '@features/settings';
+import { useAppUpdate, scheduleStartupCheck } from '@features/settings';
+import { UpdateBanner } from '@features/settings';
 import { RemindersView } from '@features/todos';
 import { CalendarView } from '@features/calendar';
 import { DeleteConfirmModal } from '@features/history';
@@ -66,6 +68,7 @@ const App: React.FC = () => {
   const { isDark } = useThemeContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const appUpdate = useAppUpdate();
 
   const openSearch = useCallback(() => setIsSearchOpen(true), []);
 
@@ -176,6 +179,11 @@ const App: React.FC = () => {
 
     initializeApp();
   }, []);
+
+  // Check for app updates after startup settles
+  useEffect(() => {
+    return scheduleStartupCheck(appUpdate.checkForUpdate);
+  }, [appUpdate.checkForUpdate]);
 
   const initializeTauriServices = async () => {
     try {
@@ -341,7 +349,6 @@ const App: React.FC = () => {
       <Toaster
         position="top-right"
         offset={24}
-        width="auto"
         theme={isDark ? 'dark' : 'light'}
         richColors
         closeButton
@@ -357,6 +364,7 @@ const App: React.FC = () => {
             padding: '10px 14px',
             minHeight: 'unset',
             gap: '0px',
+            width: 'fit-content',
             maxWidth: '340px',
           },
         }}
@@ -364,6 +372,17 @@ const App: React.FC = () => {
 
       {/* Search Overlay (Cmd+K) */}
       <SearchOverlay open={isSearchOpen} onOpenChange={setIsSearchOpen} />
+
+      {/* App Update Banner */}
+      {appUpdate.status === 'available' && appUpdate.updateInfo && (
+        <UpdateBanner
+          version={appUpdate.updateInfo.version}
+          releaseNotes={appUpdate.updateInfo.body}
+          onUpdate={appUpdate.downloadAndInstall}
+          onDismiss={appUpdate.dismiss}
+          isDownloading={appUpdate.status === 'downloading'}
+        />
+      )}
 
       {/* RAG Model Download Consent Modal */}
       <ModelDownloadModal />

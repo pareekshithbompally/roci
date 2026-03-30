@@ -30,6 +30,7 @@ class NotificationService {
   private isPermissionGranted: any = null;
   private actionHandlers = new Map<string, (actionId: string, extra?: Record<string, unknown>) => void>();
   private notificationModule: any = null;
+  private registeredActionTypes = new Map<string, Array<{ id: string; title: string }>>();
 
   /**
    * Initialize notification service
@@ -45,9 +46,9 @@ class NotificationService {
         this.sendNotification = notificationModule.sendNotification;
         this.isPermissionGranted = notificationModule.isPermissionGranted;
 
-        // Register action types for interactive notifications (may not be available in all plugin versions)
-        try {
-          await notificationModule.registerActionTypes([
+        // Register action types for interactive notifications
+        // Store them locally for use with our custom mac-notification-sys command
+        const actionTypes = [
             {
               id: 'recording_timeout',
               actions: [
@@ -78,12 +79,22 @@ class NotificationService {
                 { id: 'snooze', title: 'Snooze' },
               ],
             },
-          ]);
+          ];
+
+        // Store action type definitions for lookup when sending notifications
+        for (const at of actionTypes) {
+          this.registeredActionTypes.set(at.id, at.actions.map(a => ({ id: a.id, title: a.title })));
+        }
+
+        // Also register with the plugin (for scheduled notifications via plugin invoke)
+        try {
+          await notificationModule.registerActionTypes(actionTypes);
         } catch {
-          // registerActionTypes not available in this plugin version — basic notifications still work
+          // registerActionTypes not available on desktop — our custom command handles actions instead
         }
 
         // Route notification action callbacks to registered handler by typeId
+        // Listen to both the plugin's onAction (for scheduled/mobile) and our custom event (for actionable desktop)
         notificationModule.onAction((notification: any) => {
           const typeId = notification.actionTypeId ?? notification.notification?.actionTypeId;
           const actionId = notification.action?.id ?? notification.actionId;
@@ -94,6 +105,22 @@ class NotificationService {
           }
         }).catch((e: unknown) => {
           console.warn('[NotificationService] onAction setup failed:', e);
+        });
+
+        // Listen for our custom mac-notification-sys action events from Rust
+        import('@tauri-apps/api/event').then(({ listen }) => {
+          listen<{ actionTypeId: string; actionId: string; extra: Record<string, string> }>(
+            'notification-action',
+            (event) => {
+              const { actionTypeId, actionId, extra } = event.payload;
+              if (actionTypeId && actionId && actionId !== '__dismissed__') {
+                const handler = this.actionHandlers.get(actionTypeId);
+                if (handler) handler(actionId, extra);
+              }
+            }
+          );
+        }).catch((e: unknown) => {
+          console.warn('[NotificationService] notification-action listener setup failed:', e);
         });
 
         this.isInitialized = true;
@@ -189,36 +216,42 @@ class NotificationService {
 
   /**
    * Send a notification with action buttons (macOS actionable notification).
-   * The actionTypeId must match a type registered via registerActionTypes in initialize().
-   * Uses invoke() to go through Rust backend (browser API ignores actionTypeId).
+   * Uses a custom Rust command that calls mac-notification-sys directly,
+   * because the Tauri notification plugin (v2) desktop backend ignores
+   * actionTypeId and action buttons (only supported on mobile).
+   *
+   * Listens for the user's action via the "notification-action" Tauri event.
    */
   async notifyWithActions(options: NotifyWithActionsOptions): Promise<void> {
     await this.initialize();
 
     if (isTauriEnvironment()) {
-      // Ensure permission is granted before sending
-      const granted = await this.requestPermission();
-      if (!granted) {
-        console.warn('[NotificationService] Notification permission denied — skipping:', options.title);
-        return;
-      }
       try {
-        const notification = {
-          title: options.title,
-          body: options.body,
-          actionTypeId: options.actionTypeId,
-          extra: options.extra ? Object.fromEntries(
-            Object.entries(options.extra).map(([k, v]) => [k, typeof v === 'string' ? v : JSON.stringify(v)])
-          ) : undefined,
-        };
-        await invoke('plugin:notification|notify', { notification });
-        return;
+        // Build actions array from registered action types
+        const actions = this.getActionsForType(options.actionTypeId);
+        if (actions.length === 0) {
+          console.warn('[NotificationService] No actions registered for type:', options.actionTypeId);
+          // Fall through to basic notification
+        } else {
+          await invoke('send_actionable_notification', {
+            options: {
+              title: options.title,
+              body: options.body,
+              actionTypeId: options.actionTypeId,
+              actions,
+              extra: options.extra ? Object.fromEntries(
+                Object.entries(options.extra).map(([k, v]) => [k, typeof v === 'string' ? v : JSON.stringify(v)])
+              ) : {},
+            },
+          });
+          return;
+        }
       } catch (error) {
-        console.error('Failed to send actionable notification via Tauri:', error);
+        console.error('[NotificationService] Failed to send actionable notification:', error);
       }
     }
 
-    // Fallback to basic notification
+    // Fallback to basic notification (no actions)
     if (this.sendNotification) {
       try {
         await this.sendNotification({ title: options.title, body: options.body });
@@ -303,6 +336,13 @@ class NotificationService {
       console.error('[NotificationService] Failed to get pending notifications:', error);
       return [];
     }
+  }
+
+  /**
+   * Look up registered actions for a given action type ID.
+   */
+  private getActionsForType(actionTypeId: string): Array<{ id: string; title: string }> {
+    return this.registeredActionTypes.get(actionTypeId) ?? [];
   }
 
   /**

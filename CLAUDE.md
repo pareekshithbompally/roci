@@ -1,7 +1,7 @@
 # Kasset AI — Claude Code Instructions
 
 > **macOS meeting intelligence app — private, local-first, with built-in general-purpose AI chat**
-> Tauri 2.x + React 19 + TypeScript + Vite | Multi-provider AI | ScreenCaptureKit audio | sqlite-vec RAG
+> Tauri 2.x + React 19 + TypeScript + Vite | Multi-provider AI (Vercel AI SDK) | ScreenCaptureKit audio | sqlite-vec RAG + Knowledge Graph
 
 **This is a pre-release app with zero existing users.** Never add migration paths, backward compatibility layers, or legacy support unless explicitly asked.
 
@@ -16,6 +16,7 @@ npm run build            # Production frontend build
 npm run tauri:build      # Production Tauri app bundle (.dmg)
 npm test                 # Run all tests (Vitest)
 npm run test:watch       # Watch mode
+npm run test:coverage    # Coverage report
 npx vitest tests/unit/utils.test.ts           # Single test file
 npx vitest tests/unit/utils.test.ts -t "name" # Specific test by name
 ```
@@ -46,28 +47,17 @@ Plans live at `docs/plans/`. Each has phased implementation with verification ch
 
 ### Principles
 
-1. **Trace before you touch** — Map the full call chain (upstream callers -> target code -> downstream effects) before proposing any change.
-
+1. **Trace before you touch** — Map the full call chain (upstream callers → target code → downstream effects) before proposing any change.
 2. **Single source of truth** — Every constant, type, or config defined once, imported everywhere.
-
 3. **Respect existing abstractions** — Understand the patterns already in the codebase (event bridges, plugin boundaries, tool registry, theme tokens) and extend them. Never invent a parallel system when one exists.
-
 4. **No hardcoded values** — Thresholds, dimensions, labels, colors, timeouts go in config/constants files. Always use `UI_CONFIG`, `SURFACE`, `BORDER`, `TEXT`, `COMPONENT` tokens. Never inline Tailwind colors or guess pixel values — look up the token.
-
 5. **No duplication** — Before writing anything, check if it exists. Reuse utilities, components, patterns.
-
 6. **Minimal blast radius** — Each phase ships independently. Existing functionality never breaks mid-plan.
-
 7. **Graceful degradation** — New capabilities fail silently. Nothing new becomes a hard dependency on existing flows.
-
-8. **No over-engineering** — No unnecessary fallbacks, safety-net wrappers, or abstractions for one-time operations. No fallback code unless the failure mode is real and demonstrated. Build for the actual scale and actual use case.
-
+8. **No over-engineering** — No unnecessary fallbacks, safety-net wrappers, or abstractions for one-time operations. No fallback code unless the failure mode is real and demonstrated.
 9. **Clean transitions** — State changes in UI must be smooth and consistent. Same timing, same easing, same patterns across all states.
-
-10. **Match the codebase** — Use the project's naming conventions, file structure, import patterns, error handling style. The code should read like the existing codebase wrote it.
-
+10. **Match the codebase** — Use the project's naming conventions, file structure, import patterns, error handling style.
 11. **End-to-end data flow** — For every new function, trace: who calls it, what it calls, what data flows in, what comes out, what happens on success, what happens on failure.
-
 12. **Verification is part of the plan** — Every phase ends with a concrete checklist. Specific scenarios with expected outcomes.
 
 ---
@@ -78,111 +68,175 @@ Plans live at `docs/plans/`. Each has phased implementation with verification ch
 src/
 ├── app/                      # App bootstrap (App.tsx, AppProviders.tsx)
 ├── features/                  # FEATURE MODULES (use for ALL new code)
-│   ├── chat/                  # Chat UI, streaming store, message components
-│   ├── recording/             # Recording widget, session context, audio controls
-│   ├── home/                  # Home view (idle, results, chat)
-│   ├── history/               # Meeting history sidebar
-│   ├── settings/              # Settings panels
-│   └── layout/                # MainLayout, sidebar
-├── shared/                    # Cross-feature (contexts, hooks, utils, UI primitives)
-│   ├── contexts/              # AppContext, SettingsContext, HistoryContext, ChatContext, ThemeContext
-│   └── ui/                    # Shared UI primitives (AlertDialog, etc.)
-├── core/ai/                   # AI prompt builders, schemas, types
-│   ├── prompts/               # chat.prompt.ts, entity-extraction.prompt.ts
-│   └── schemas/               # transcription.schema.ts, entity-extraction.schema.ts
-└── config/                    # ui.config.ts, audio.config.ts, theme.config.ts, typography.config.ts
+│   ├── calendar/              # Week view calendar (Schedule-X), event popovers
+│   ├── chat/                  # AI chat: streaming, multimodal, tool calls, citations
+│   ├── history/               # Meeting history sidebar, search, rename, delete
+│   ├── home/                  # Home view router (idle → chat → results)
+│   ├── import/                # Audio/transcript file import with job queue
+│   ├── layout/                # MainLayout with resizable sidebar + chat panel
+│   ├── notes/                 # Per-meeting notes CRUD
+│   ├── recording/             # Audio capture controls, sessions, timer, source selection
+│   ├── settings/              # 7-panel settings (Audio, Providers, Local Inference, Categories, Integrations, Usage, Interface)
+│   ├── summary/               # Summary display (re-exports from components)
+│   ├── todos/                 # Todo management with priorities, due dates, reminders
+│   └── transcription/         # Transcript views (re-exports from components)
+├── shared/
+│   ├── contexts/              # AppContext, ChatContext, HistoryContext, MeetingContext, SettingsContext, ThemeContext, ToastContext, UnsavedChangesContext
+│   ├── hooks/                 # useAppShortcuts, useCalendarIntegration, useLeftPanel, useRightPanel, useMediaQuery, useUnifiedSidebar, useTranscribeRecording, useTheme, useClickOutside, useDebounce
+│   ├── components/            # ActivityTray, SearchOverlayDialog, ModelDownloadModal, Surface, CodeBlock, UnsavedChangesModal
+│   ├── ui/                    # Radix primitives (AlertDialog, Command, DatePicker, Dialog, DropdownMenu, Popover, Select, Switch)
+│   └── utils/                 # async.utils, text.utils, todo.utils, formatters, validators, modelResolver, citationUtils, markdownBuffer, toolUtils, inlineCitationInjector
+├── core/ai/
+│   ├── prompts/               # chat.prompt, transcription.prompt, document.prompt, entity-extraction.prompt
+│   ├── schemas/               # transcription.schema, entity-extraction.schema (Zod)
+│   ├── types.ts               # AI type definitions
+│   ├── requestBuilder.ts      # AI request construction
+│   └── temporal.ts            # Temporal date utilities
+└── config/                    # ui.config, theme.config, audio.config, typography.config, shortcuts.config, app.config
 
 services/                      # Business logic layer
-├── unifiedAIService.ts        # AI routing to provider adapters
-├── transcription.service.ts   # Post-LLM pipeline (save transcript, summary, todos, index)
-├── adapters/                  # Provider adapters (OpenAI, Anthropic, Gemini, OpenAI-compat)
-│   ├── types.ts               # ILLMAdapter, ToolStreamOptions, ToolChoice
-│   └── tool-converter.ts      # Common tool schema → provider-specific format
+├── unifiedAIService.ts        # AI routing: audio processing, title generation, Whisper
+├── transcription.service.ts   # Post-LLM pipeline (save transcript, summary, todos, index, extract entities)
+├── ai/                        # Vercel AI SDK layer (provider factory, message converter, tools bridge, suggestions)
+│   ├── provider.ts            # createModel() — maps ResolvedModel → AI SDK LanguageModel
+│   ├── message-converter.ts   # ChatMessage[] → AI SDK ModelMessage[]
+│   ├── tools-bridge.ts        # Tool adapters
+│   └── types.ts               # TokenUsage, StreamMetadata, ProviderType
+├── adapters/                  # Legacy provider adapters (types.ts, tool-converter.ts)
 ├── platform-fetch.ts          # Tauri HTTP transport (CORS bypass via Rust reqwest)
-├── repositories/              # Per-meeting file storage (transcript, summary, todos, notes)
-└── storage/                   # Tauri filesystem, encrypted settings
+├── modalities.ts              # Model capabilities from models.dev (cached on disk, 24h TTL)
+├── repositories/              # Per-meeting file storage (13 repositories)
+│   ├── base.repository.ts     # BaseRepository (readJson, writeJson, deleteFile)
+│   ├── meeting-index.repository.ts
+│   ├── transcript.repository.ts
+│   ├── summary.repository.ts
+│   ├── todos.repository.ts
+│   ├── notes.repository.ts
+│   ├── recording-meta.repository.ts
+│   ├── chat-session.repository.ts
+│   ├── chat-index.repository.ts
+│   └── reminder.repository.ts
+├── storage/                   # Tauri filesystem (settings, cache, paths)
+├── tauri/                     # Tauri native API wrappers (environment, notification, dialog, filesystem, tray)
+├── providers/                 # Provider config (Tauri/Web/Default implementations)
+└── migration/                 # Data migrations (localStorage → filesystem)
 
 extensions/
-├── rag/                       # RAG system (vector search + knowledge graph)
+├── rag/                       # RAG system (17 files)
 │   ├── client.ts              # vectorDB invoke wrapper
-│   ├── graph-client.ts        # graphDB invoke wrapper (planned)
-│   ├── chunker.ts             # Sentence-boundary splitting, content hashing
-│   ├── embeddings.ts          # Transformers.js local embedding (MiniLM)
-│   ├── indexer.ts             # Meeting indexing orchestrator
-│   ├── searcher.ts            # Hybrid search interface
-│   ├── entity-extractor.ts    # LLM entity extraction (planned)
+│   ├── graph-client.ts        # Knowledge graph invoke wrapper
+│   ├── chunker.ts             # Sentence-boundary splitting with overlap
+│   ├── embeddings.ts          # Transformers.js Web Worker (all-MiniLM-L6-v2, 384-dim)
+│   ├── indexer.ts             # Meeting indexing (staleness via SHA-256 content hash)
+│   ├── chat-indexer.ts        # Chat session indexing
+│   ├── searcher.ts            # Hybrid search (KNN + FTS5 + RRF)
+│   ├── chat-searcher.ts       # Chat search
+│   ├── entity-extractor.ts    # LLM entity extraction → knowledge graph
 │   ├── consent.ts             # Model download consent bridge
 │   ├── progress.ts            # Progress event bridge
 │   ├── types.ts               # RAGStatus, SearchOptions, EmbeddingService
-│   ├── graph-types.ts         # Entity/relationship types (planned)
-│   └── constants.ts           # Named constants (planned)
-├── tools/                     # LLM tool calling system
+│   ├── graph-types.ts         # Entity/relationship types
+│   └── constants.ts           # Named constants (concurrency limits, chunk sizes)
+├── tools/                     # LLM tool calling system (9 tools)
 │   ├── registry.ts            # ToolRegistry singleton
 │   ├── executor.ts            # ToolExecutor (never throws, returns ToolResult)
 │   ├── types.ts               # ToolDefinition, ToolCall, ToolResult, ToolSchema
-│   └── definitions/           # Individual tool files
+│   ├── constants.ts           # LLM context limits, truncation
+│   ├── context-budget.ts      # LLMContextBudget tracker
+│   └── definitions/
 │       ├── search-meetings.tool.ts
+│       ├── search-chats.tool.ts
 │       ├── get-meeting.tool.ts
+│       ├── get-chat.tool.ts
 │       ├── list-meetings.tool.ts
+│       ├── list-chats.tool.ts
 │       ├── get-action-items.tool.ts
-│       └── query-graph.tool.ts (planned)
-├── tool-orchestrator/         # Agentic tool loop (max 6 iterations)
-│   ├── index.ts               # orchestrate() — provider-agnostic loop
-│   ├── types.ts               # OrchestratorOptions, ToolActivity
-│   └── message-buffer.ts      # Ephemeral conversation buffer
+│       ├── manage-todo.tool.ts
+│       └── query-graph.tool.ts
+├── tool-orchestrator/         # 3-step orchestration: Intent → Retrieval → Synthesis
+│   ├── index.ts               # orchestrate() entry point
+│   ├── intent-classifier.ts   # LLM intent classification (11 intent types)
+│   ├── retrieval-executor.ts  # Programmatic tool execution (no LLM)
+│   ├── message-buffer.ts      # Ephemeral conversation buffer
+│   └── types.ts               # OrchestratorOptions, IntentType, ToolActivity
 └── context-pipeline/          # @mention context resolution
 
 src-tauri/                     # Rust backend
 ├── src/
-│   ├── audio_core.rs          # ScreenCaptureKit audio capture
-│   ├── window.rs              # Window management
-│   └── shortcuts.rs           # Global shortcuts
+│   ├── lib.rs                 # App init, plugin registration, command handlers
+│   ├── audio_core.rs          # ScreenCaptureKit + CPAL audio capture (48kHz→16kHz resampling)
+│   ├── window.rs              # Window management (show/hide/toggle, always-on-top, close-to-tray)
+│   ├── shortcuts.rs           # Global keyboard shortcuts
+│   ├── autostart.rs           # Login item management
+│   ├── wake_lock.rs           # IOKit sleep prevention during recording
+│   ├── screenshot.rs          # Window enumeration + screenshot capture (CGWindowList)
+│   └── main.rs                # Entry point
 └── plugins/
-    └── tauri-plugin-vectordb/ # sqlite-vec + knowledge graph plugin
-        ├── src/
-        │   ├── lib.rs         # Plugin init, command registration
-        │   ├── commands.rs    # Tauri commands (with_conn pattern)
-        │   ├── schema.rs     # SQLite schema (meetings, chunks, FTS5, vec_chunks, kg_nodes, kg_edges)
-        │   ├── search.rs     # Hybrid KNN + FTS5 + RRF search
-        │   └── graph.rs      # Knowledge graph query layer (planned)
-        └── Cargo.toml        # rusqlite, sqlite-vec, serde, sha2
-
-.claude/skills/                # Custom Claude Code skills
-├── implement-phase/           # /implement-phase — execute a plan phase with guardrails
-└── plan/                      # /plan — write a phased implementation plan to disk
+    ├── tauri-plugin-vectordb/  # sqlite-vec + FTS5 + Knowledge Graph (35 commands, schema v5)
+    ├── tauri-plugin-llamacpp/  # llama.cpp server management (8 commands)
+    └── tauri-plugin-calendar/  # macOS EventKit calendar access (4 commands)
 ```
 
 ---
 
 ## Key Patterns
 
-### Tool Calling System
-- Tools defined in `extensions/tools/definitions/*.tool.ts` implementing `ToolDefinition`
-- Registered in `extensions/tools/index.ts` via `toolRegistry.register()`
-- Orchestrator runs up to 6 iterations: LLM calls tools -> executor runs -> results fed back
-- System prompt in `src/core/ai/prompts/chat.prompt.ts` guides tool selection
+### Tool Orchestration (3-Step Architecture)
+```
+User Message → Intent Classification (LLM) → Programmatic Retrieval (DB) → Streaming Synthesis (LLM)
+```
+- Intent types: general, meeting_search, meeting_recall, meeting_detail, meeting_list, action_items, manage_todos, relationship, cross_meeting, chat_recall, catch_up
+- Retrieval is programmatic (no LLM) — runs tools directly based on classified intent
+- Synthesis streams with optional web search (provider-specific: OpenAI/xAI use Responses API, Gemini/Anthropic use native tools)
 
-### Event Bridge Pattern (non-React <-> React)
+### AI Provider Architecture (Vercel AI SDK)
+- `services/ai/provider.ts` creates AI SDK `LanguageModel` instances
+- Providers: OpenAI, Anthropic, Gemini, Mistral, xAI, Groq, OpenAI-compatible (OpenRouter, Azure, Cohere, HuggingFace, Local Server)
+- Local: llama.cpp via Tauri plugin, Local Server (Ollama/LM Studio/Jan) via OpenAI-compatible adapter
+- HTTP goes through `@tauri-apps/plugin-http` (Rust reqwest) to bypass CORS — never override `globalThis.fetch`
+- SDK `fetch:` parameter injection for transport
+
+### Event Bridge Pattern (non-React ↔ React)
 - `extensions/rag/progress.ts` — embedding/indexing progress events
 - `extensions/rag/consent.ts` — model download consent
-- Pattern: non-React code calls `emitProgress()`, React component subscribes via `onRAGProgress()`
-- Single listener (not observer array), returns unsubscribe function
+- Single listener pattern, returns unsubscribe function
 
 ### Theme System
 - `src/config/theme.config.ts` — `SURFACE`, `BORDER`, `TEXT`, `COMPONENT`, `RADIUS`, `SHADOW` token objects
-- `src/config/ui.config.ts` — spacing, sizing, z-index, typography, radius constants
+- `src/config/ui.config.ts` — spacing, sizing, z-index, typography constants
 - Always use tokens, never inline Tailwind colors
+
+### Context Provider Hierarchy (AppProviders.tsx)
+```
+ErrorBoundary → ThemeProvider → ToastProvider → SettingsProvider → UnsavedChangesProvider →
+  AppProvider → HistoryProvider → MeetingProvider → MeetingDataProviders (Notes + Todos) →
+  ImportProvider → ChatProvider → RecordingProviderWrapper
+```
+
+### Data Layer
+- Per-meeting file storage: `meetings/{id}/transcript.json`, `summary.json`, `todos.json`, `notes.json`, `recording-meta.json`
+- Chat storage: `chats/{sessionId}.json` with `chats/index.json`
+- Repository pattern: `services/repositories/` — BaseRepository with `readJson<T>()`, `writeJson<T>()`
+- IndexedRepository for index.json management with concurrency-safe initialization
+- `transcriptionService.saveTranscriptionResult()` — atomic save with cleanup on partial failure, fire-and-forget RAG indexing + entity extraction
+
+### Streaming Architecture (Chat)
+- `streamingStore` (Zustand) — RAF-batched content updates for smooth streaming
+- Multimodal parts: text, image, audio, video, document, tool_call
+- `onChunk(text, metadata)` carries stream state (isThinking, isSearching, webCitations)
+- Tool activity tracking via `onToolActivity()` callbacks
 
 ### Recording Sessions
 - Multi-session via `useRecordingSessions()` — only 1 active capture, unlimited review/processing
-- Session lifecycle: recording -> paused -> review -> processing -> removed
-- Widget renders in `App.tsx`, positioned fixed bottom-right
+- Session lifecycle: recording → paused → review → processing → removed
+- Audio: ScreenCaptureKit for system audio (48kHz), CPAL for microphone, rubato FFT resampling to 16kHz
 
-### Data Layer
-- Per-meeting file storage: `meetings/{id}/transcript.json`, `summary.json`, `todos.json`, etc.
-- Repository pattern: `services/repositories/` — one repo per document type
-- Meeting index: lightweight JSON array for sidebar listing
-- `transcriptionService.saveTranscriptionResult()` — atomic save with rollback on partial failure
+### RAG Pipeline
+- Embedding: Transformers.js Web Worker (all-MiniLM-L6-v2, 384-dim, local/offline)
+- Indexing: 3-phase staleness (content_hash, embedding_hash, extraction_hash)
+- Search: Hybrid KNN + FTS5 + Reciprocal Rank Fusion (k=60) in Rust
+- Knowledge Graph: Entity extraction → kg_nodes/kg_edges in SQLite
+- Gated behind user consent for model download
 
 ---
 
@@ -196,7 +250,7 @@ src-tauri/                     # Rust backend
 - Use `UI_CONFIG` / theme tokens for all dimensions and colors
 - Handle errors with `error: unknown` typing
 - Wrap Tauri-specific code in `isTauriEnvironment()` checks
-- Use isolated virtual environments for Python packages (pipx for CLI tools)
+- Use type-only imports: `import type { HistoryItem } from '@/types'`
 
 ### DON'T
 - Add files to legacy folders (`/components/`, `/hooks/`, `/utils/`, `/consts/`)
@@ -207,45 +261,50 @@ src-tauri/                     # Rust backend
 - Skip error handling in async functions
 - Create new global state without updating `AppProviders.tsx`
 - Add fallback code, legacy compatibility, or migration paths (pre-release, no users)
-- Install Python packages into system Python
+
+---
+
+## Storage Layout
+
+All data stored in Tauri app data directory (`~/Library/Application Support/ai.kasset.desktop/`):
+```
+meetings/
+├── index.json                    # Lightweight meeting index for sidebar
+└── {id}/
+    ├── transcript.json
+    ├── summary.json
+    ├── todos.json
+    ├── notes.json
+    └── recording-meta.json
+chats/
+├── index.json                    # Chat session index
+└── {sessionId}.json
+recordings/                       # Audio files (WAV)
+cache/
+├── api/                          # API response cache (24h TTL)
+└── audio/                        # Temp audio files
+vectordb.sqlite                   # sqlite-vec + FTS5 + knowledge graph
+settings.json                     # User settings (API keys encrypted AES-256-GCM)
+```
 
 ---
 
 ## Native ↔ Web Alignment (Tauri + macOS)
 
-**Problem:** Native OS elements (macOS traffic lights, system toolbars) exist outside the DOM. Their positions are set by Tauri config (`trafficLightPosition`) or the OS, not CSS. You cannot inspect them with DevTools, measure them with `getBoundingClientRect()`, or see them in Playwright/browser testing. Any attempt to calculate their position from config values will fail — the mapping between config values and actual rendered coordinates depends on OS version, window style, and Tauri internals.
+**Problem:** Native OS elements (macOS traffic lights, system toolbars) exist outside the DOM. Their positions are set by Tauri config (`trafficLightPosition`) or the OS, not CSS.
 
 **Rule: Never calculate native element positions from config. Always measure empirically.**
 
-**How to measure:** Inject fixed-position colored lines at known y-values in the Tauri app's DevTools console, then visually compare against the native element:
-
-```js
-[10, 15, 20, 25, 30, 35, 40].forEach((y, i) => {
-  const d = document.createElement('div');
-  d.style.cssText = `position:fixed;top:${y}px;left:0;width:250px;height:1px;background:${['red','orange','gold','green','blue','purple','magenta'][i]};z-index:99999;pointer-events:none`;
-  document.body.appendChild(d);
-});
-```
-
-Then calculate CSS values to place your elements at the matching y-coordinate. Clean up with:
-```js
-document.querySelectorAll('div[style*="z-index: 99999"]').forEach(d => d.remove());
-```
+Inject colored lines at known y-values in DevTools, visually compare against native elements. See AGENTS.md for the measurement technique.
 
 **Current values (empirically measured):**
 - macOS traffic light center: **y=30px** (with `trafficLightPosition: { x: 20, y: 32 }`)
-- Open sidebar icons: `pt-[7px]` on header → center at y=30 (8 shell + 1 border + 7 pad + 14 btn center)
-- Collapsed icons: `top-[14px]` on container → center at y=30 (14 + 16 btn center)
-- Sidebar shell needs `relative z-30` to sit above the `data-tauri-drag-region` div (z-20) so buttons are clickable
-
-**Key insight:** Playwright and browser testing are useless for native element alignment — native elements don't exist in the web layer. Always test in the actual Tauri app.
 
 ---
 
-## Active Plans
+## Debugging
 
-Plans at `docs/plans/` — each with phased implementation, end-to-end data flow traces, and verification checklists:
-
-- **RAG Hardening** (`rag-hardening-2026-03/`) — intent-aware tool routing, data integrity fixes, indexing UX, search quality
-- **Recording Tray** (`recording-tray-2026-03/`) — unified tray replacing N-card widget stack
-- **Knowledge Graph** (`knowledge-graph-2026-03/`) — entity extraction, graph storage in SQLite, graph query tool
+- **Console logs**: Use format `[ComponentName] Message:`, value
+- **DevTools**: Available in `npm run tauri:dev` mode
+- **Rust logs**: Check terminal running `npm run tauri:dev`
+- **Test debugging**: Add `.only` to focus single test: `it.only('test', ...)`

@@ -159,6 +159,12 @@ struct UnifiedCaptureHandler {
     handler_id: u8,
 }
 
+// Diagnostic counters for tracing buffer flow
+static DIAG_AUDIO_BUFFERS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static DIAG_MIC_BUFFERS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static DIAG_DRAIN_CALLS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static DIAG_SAMPLES_WRITTEN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 impl SCStreamOutputTrait for UnifiedCaptureHandler {
     fn did_output_sample_buffer(&self, sample: CMSampleBuffer, of_type: SCStreamOutputType) {
         if !self.inner.running.load(Ordering::Relaxed) {
@@ -171,6 +177,16 @@ impl SCStreamOutputTrait for UnifiedCaptureHandler {
             (SCStreamOutputType::Audio, 0) | (SCStreamOutputType::Microphone, 1) => {}
             _ => return,
         }
+
+        let is_mic = matches!(of_type, SCStreamOutputType::Microphone);
+        let buf_count = if is_mic {
+            DIAG_MIC_BUFFERS.fetch_add(1, Ordering::Relaxed) + 1
+        } else {
+            DIAG_AUDIO_BUFFERS.fetch_add(1, Ordering::Relaxed) + 1
+        };
+
+        // Log first 5 buffers, then every 500th
+        let should_log = buf_count <= 5 || buf_count % 500 == 0;
 
         let source_rate = sample
             .format_description()
@@ -187,6 +203,9 @@ impl SCStreamOutputTrait for UnifiedCaptureHandler {
         };
 
         let Some((samples_f32, channel_count)) = extract_samples(&sample) else {
+            if should_log {
+                println!("[DIAG:BUFFER] {} #{}: extract_samples returned None", if is_mic {"MIC"} else {"SYS"}, buf_count);
+            }
             return;
         };
         let mono_f32 = if channel_count == 1 {
@@ -195,10 +214,15 @@ impl SCStreamOutputTrait for UnifiedCaptureHandler {
             downmix_to_mono_f32(&samples_f32, channel_count)
         };
         if mono_f32.is_empty() {
+            if should_log {
+                println!("[DIAG:BUFFER] {} #{}: mono_f32 empty after downmix", if is_mic {"MIC"} else {"SYS"}, buf_count);
+            }
             return;
         }
 
-        let is_mic = matches!(of_type, SCStreamOutputType::Microphone);
+        if should_log {
+            println!("[DIAG:BUFFER] {} #{}: rate={} ch={} raw_samples={} pts={:.3}", if is_mic {"MIC"} else {"SYS"}, buf_count, source_rate, channel_count, mono_f32.len(), pts_secs);
+        }
 
         // Phase 1: rubato FFT resampler (proper anti-aliasing)
         let resampled_f32 = if source_rate != SAMPLE_RATE_HZ as u32 {
@@ -213,7 +237,14 @@ impl SCStreamOutputTrait for UnifiedCaptureHandler {
         };
 
         if resampled_f32.is_empty() {
+            if should_log {
+                println!("[DIAG:BUFFER] {} #{}: resampled empty", if is_mic {"MIC"} else {"SYS"}, buf_count);
+            }
             return;
+        }
+
+        if should_log {
+            println!("[DIAG:BUFFER] {} #{}: resampled_len={}", if is_mic {"MIC"} else {"SYS"}, buf_count, resampled_f32.len());
         }
 
         {
@@ -227,6 +258,9 @@ impl SCStreamOutputTrait for UnifiedCaptureHandler {
                 buf.start_pts = Some(pts_secs);
             }
             buf.samples.extend_from_slice(&resampled_f32);
+            if should_log {
+                println!("[DIAG:BUFFER] {} #{}: stream_buf_len after extend={}", if is_mic {"MIC"} else {"SYS"}, buf_count, buf.samples.len());
+            }
         }
         self.drain_and_write();
     }
@@ -236,6 +270,13 @@ impl UnifiedCaptureHandler {
     fn drain_and_write(&self) {
         let mut sys = self.inner.system_stream_buf.lock().unwrap();
         let mut mic = self.inner.mic_stream_buf.lock().unwrap();
+
+        let drain_n = DIAG_DRAIN_CALLS.fetch_add(1, Ordering::Relaxed) + 1;
+        let should_log = drain_n <= 5 || drain_n % 500 == 0;
+
+        if should_log {
+            println!("[DIAG:DRAIN] #{}: mode={:?} sys_buf={} mic_buf={} paused={}", drain_n, self.inner.mode, sys.samples.len(), mic.samples.len(), self.inner.paused.load(Ordering::Relaxed));
+        }
 
         // Phase 3: realign streams if one leads the other by more than ~20ms
         const ALIGNMENT_THRESHOLD_SECS: f64 = 0.020;
@@ -262,20 +303,54 @@ impl UnifiedCaptureHandler {
             }
         }
 
+        // In SystemAndMicrophone mode, if one stream has accumulated a lot of
+        // data but the other has produced nothing, don't block forever — write
+        // what we have with silence for the missing stream.  This prevents the
+        // 44-byte-WAV bug where mic never delivers resampled output.
+        const FALLBACK_THRESHOLD: usize = 32000; // ~2s at 16 kHz
+
         let drain_count = if self.inner.mode == AudioCaptureSource::SystemAndMicrophone {
-            sys.samples.len().min(mic.samples.len())
+            let both = sys.samples.len().min(mic.samples.len());
+            if both > 0 {
+                both
+            } else if sys.samples.len() >= FALLBACK_THRESHOLD && mic.samples.is_empty() {
+                if should_log {
+                    println!("[DIAG:DRAIN] #{}: FALLBACK — sys has {} samples but mic is empty, writing sys with silence", drain_n, sys.samples.len());
+                }
+                sys.samples.len()
+            } else if mic.samples.len() >= FALLBACK_THRESHOLD && sys.samples.is_empty() {
+                if should_log {
+                    println!("[DIAG:DRAIN] #{}: FALLBACK — mic has {} samples but sys is empty, writing mic with silence", drain_n, mic.samples.len());
+                }
+                mic.samples.len()
+            } else {
+                0
+            }
         } else {
             sys.samples.len()
         };
 
         if drain_count == 0 {
+            if should_log {
+                println!("[DIAG:DRAIN] #{}: drain_count=0, SKIPPING WRITE", drain_n);
+            }
             return;
+        }
+
+        if should_log {
+            println!("[DIAG:DRAIN] #{}: drain_count={}", drain_n, drain_count);
         }
 
         // Phase 2: all mixing in f32; single convert_to_i16 at WAV write
         let mixed_f32: Vec<f32> = if self.inner.mode == AudioCaptureSource::SystemAndMicrophone {
+            let sys_len = sys.samples.len().min(drain_count);
+            let mic_len = mic.samples.len().min(drain_count);
             (0..drain_count)
-                .map(|i| (sys.samples[i] * 0.7 + mic.samples[i] * 0.7).clamp(-1.0, 1.0))
+                .map(|i| {
+                    let s = if i < sys_len { sys.samples[i] } else { 0.0 };
+                    let m = if i < mic_len { mic.samples[i] } else { 0.0 };
+                    (s * 0.7 + m * 0.7).clamp(-1.0, 1.0)
+                })
                 .collect()
         } else {
             sys.samples[..drain_count].to_vec()
@@ -283,24 +358,30 @@ impl UnifiedCaptureHandler {
 
         // Advance PTS by consumed samples
         let advance = drain_count as f64 / SAMPLE_RATE_HZ as f64;
-        if drain_count < sys.samples.len() {
-            if let Some(pts) = sys.start_pts.as_mut() {
-                *pts += advance;
-            }
-        } else {
-            sys.start_pts = None;
-        }
-        sys.samples.drain(..drain_count);
-
-        if self.inner.mode == AudioCaptureSource::SystemAndMicrophone {
-            if drain_count < mic.samples.len() {
-                if let Some(pts) = mic.start_pts.as_mut() {
+        let sys_drained = drain_count.min(sys.samples.len());
+        if sys_drained > 0 {
+            if sys_drained < sys.samples.len() {
+                if let Some(pts) = sys.start_pts.as_mut() {
                     *pts += advance;
                 }
             } else {
-                mic.start_pts = None;
+                sys.start_pts = None;
             }
-            mic.samples.drain(..drain_count);
+            sys.samples.drain(..sys_drained);
+        }
+
+        if self.inner.mode == AudioCaptureSource::SystemAndMicrophone {
+            let mic_drained = drain_count.min(mic.samples.len());
+            if mic_drained > 0 {
+                if mic_drained < mic.samples.len() {
+                    if let Some(pts) = mic.start_pts.as_mut() {
+                        *pts += advance;
+                    }
+                } else {
+                    mic.start_pts = None;
+                }
+                mic.samples.drain(..mic_drained);
+            }
         }
 
         drop(sys);
@@ -314,7 +395,15 @@ impl UnifiedCaptureHandler {
                 for sample in &samples {
                     let _ = writer.write_sample(*sample);
                 }
+                let total = DIAG_SAMPLES_WRITTEN.fetch_add(samples.len() as u64, Ordering::Relaxed) + samples.len() as u64;
+                if should_log {
+                    println!("[DIAG:WRITE] #{}: wrote {} samples, total_written={}", drain_n, samples.len(), total);
+                }
+            } else {
+                println!("[DIAG:WRITE] #{}: FAILED to lock writer!", drain_n);
             }
+        } else if should_log {
+            println!("[DIAG:WRITE] #{}: PAUSED, skipping {} samples", drain_n, samples.len());
         }
 
         // Emit levels (always, even when paused — keeps UI alive)
@@ -887,20 +976,31 @@ fn create_output_path(
 
 #[tauri::command]
 pub async fn start_audio_capture(app: AppHandle, options: AudioCaptureOptions) -> Result<(), String> {
+    println!("[DIAG:START] ========== start_audio_capture called ==========");
+    println!("[DIAG:START] source={:?}, file_name={:?}, recordings_dir={:?}", options.source, options.file_name, options.recordings_dir);
+
+    println!("[DIAG:START] Stopping any previous capture...");
     stop_audio_capture().await.ok();
+    println!("[DIAG:START] Previous capture stopped (or none was active)");
 
     let output_path = create_output_path(&app, options.file_name, options.recordings_dir)?;
+    println!("[DIAG:START] Output path: {}", output_path);
+
     let writer = create_wav_writer(&output_path)?;
+    println!("[DIAG:START] WAV writer created successfully");
     let writer = Arc::new(Mutex::new(writer));
     let running = Arc::new(AtomicBool::new(true));
     let paused = Arc::new(AtomicBool::new(false));
 
     match options.source {
         AudioCaptureSource::System | AudioCaptureSource::SystemAndMicrophone => {
+            println!("[DIAG:START] Mode: SCK (capture_mic={})", options.source == AudioCaptureSource::SystemAndMicrophone);
             check_macos_version()?;
+            println!("[DIAG:START] macOS version check passed");
 
             let capture_mic = options.source == AudioCaptureSource::SystemAndMicrophone;
             let display = request_primary_display()?;
+            println!("[DIAG:START] Got primary display");
 
             let handler_data = Arc::new(UnifiedCaptureData {
                 app: app.clone(),
@@ -914,13 +1014,16 @@ pub async fn start_audio_capture(app: AppHandle, options: AudioCaptureOptions) -
                 mic_resampler: Mutex::new(ResamplerState::new(SCK_SAMPLE_RATE, SAMPLE_RATE_HZ as u32)),
                 mode: options.source,
             });
+            println!("[DIAG:START] Handler data created, mode={:?}", options.source);
 
             let handler = UnifiedCaptureHandler {
                 inner: Arc::clone(&handler_data),
                 handler_id: 0, // overridden in build_unified_stream
             };
 
+            println!("[DIAG:START] Calling build_unified_stream (capture_mic={})...", capture_mic);
             let system_stream = build_unified_stream(&display, handler, capture_mic)?;
+            println!("[DIAG:START] SCK stream started successfully!");
 
             let mut guard = CAPTURE_STATE.lock().unwrap();
             *guard = Some(CaptureHandle {
@@ -932,14 +1035,17 @@ pub async fn start_audio_capture(app: AppHandle, options: AudioCaptureOptions) -
                 paused,
                 output_path,
             });
+            println!("[DIAG:START] CAPTURE_STATE stored. Recording is LIVE.");
         }
         AudioCaptureSource::Microphone => {
+            println!("[DIAG:START] Mode: Microphone-only (cpal)");
             let mic_thread = spawn_microphone_capture(
                 app.clone(),
                 Arc::clone(&writer),
                 Arc::clone(&running),
                 Arc::clone(&paused),
             )?;
+            println!("[DIAG:START] Microphone capture thread spawned");
 
             let mut guard = CAPTURE_STATE.lock().unwrap();
             *guard = Some(CaptureHandle {
@@ -951,34 +1057,54 @@ pub async fn start_audio_capture(app: AppHandle, options: AudioCaptureOptions) -
                 paused,
                 output_path,
             });
+            println!("[DIAG:START] CAPTURE_STATE stored. Recording is LIVE.");
         }
     }
 
+    println!("[DIAG:START] ========== start_audio_capture returning Ok ==========");
     Ok(())
 }
 
 #[tauri::command]
 pub async fn stop_audio_capture() -> Result<String, String> {
+    println!("[DIAG:STOP] ========== stop_audio_capture called ==========");
+    println!("[DIAG:STOP] Total audio buffers received: {}", DIAG_AUDIO_BUFFERS.load(Ordering::Relaxed));
+    println!("[DIAG:STOP] Total mic buffers received: {}", DIAG_MIC_BUFFERS.load(Ordering::Relaxed));
+    println!("[DIAG:STOP] Total drain calls: {}", DIAG_DRAIN_CALLS.load(Ordering::Relaxed));
+    println!("[DIAG:STOP] Total samples written to WAV: {}", DIAG_SAMPLES_WRITTEN.load(Ordering::Relaxed));
+
     let mut guard = CAPTURE_STATE.lock().unwrap();
 
     if let Some(state) = guard.take() {
+        println!("[DIAG:STOP] CaptureHandle found. Setting running=false...");
         state.running.store(false, Ordering::Relaxed);
 
         if let Some(stream) = state.system_stream {
+            println!("[DIAG:STOP] Stopping SCK stream...");
             stream
                 .stop_capture()
                 .map_err(|error| format!("Failed to stop audio capture: {error}"))?;
+            println!("[DIAG:STOP] SCK stream stopped.");
+        } else {
+            println!("[DIAG:STOP] No SCK stream (mic-only mode?)");
         }
 
         // Flush remaining buffered samples before closing the writer
         if let Some(data) = &state.handler_data {
             let sys = data.system_stream_buf.lock().unwrap();
             let mic = data.mic_stream_buf.lock().unwrap();
+            println!("[DIAG:STOP] Remaining in sys_buf={}, mic_buf={}", sys.samples.len(), mic.samples.len());
 
             let remaining_f32: Vec<f32> = if data.mode == AudioCaptureSource::SystemAndMicrophone {
-                let count = sys.samples.len().min(mic.samples.len());
+                let sys_len = sys.samples.len();
+                let mic_len = mic.samples.len();
+                let count = sys_len.max(mic_len); // flush ALL remaining, pad missing stream
                 (0..count)
-                    .map(|i| (sys.samples[i] * 0.7 + mic.samples[i] * 0.7).clamp(-1.0, 1.0))
+                    .map(|i| {
+                        let s = if i < sys_len { sys.samples[i] } else { 0.0 };
+                        let m = if i < mic_len { mic.samples[i] } else { 0.0 };
+                        (s * 0.7 + m * 0.7).clamp(-1.0, 1.0)
+                    })
                     .collect()
             } else {
                 sys.samples.to_vec()
@@ -987,36 +1113,62 @@ pub async fn stop_audio_capture() -> Result<String, String> {
             drop(mic);
 
             if !remaining_f32.is_empty() {
+                println!("[DIAG:STOP] Flushing {} remaining samples", remaining_f32.len());
                 let remaining = convert_to_i16(&remaining_f32);
                 if let Ok(mut writer) = state.writer.lock() {
                     for sample in &remaining {
                         let _ = writer.write_sample(*sample);
                     }
                 }
+            } else {
+                println!("[DIAG:STOP] No remaining samples to flush");
             }
         }
 
         if let Some(mic_thread) = state.mic_thread {
+            println!("[DIAG:STOP] Stopping mic thread...");
             let _ = mic_thread.stop_tx.send(());
             let _ = mic_thread.join_handle.join();
+            println!("[DIAG:STOP] Mic thread joined.");
         }
 
         if let Ok(mut writer) = state.writer.lock() {
             let _ = writer.flush();
+            println!("[DIAG:STOP] WAV writer flushed.");
         }
 
+        // Check output file size
+        if let Ok(meta) = std::fs::metadata(&state.output_path) {
+            println!("[DIAG:STOP] Output file size: {} bytes (path: {})", meta.len(), state.output_path);
+            if meta.len() <= 44 {
+                println!("[DIAG:STOP] *** WARNING: File is WAV header only (44 bytes)! Zero audio captured! ***");
+            }
+        } else {
+            println!("[DIAG:STOP] WARNING: Could not read output file metadata");
+        }
+
+        // Reset diagnostic counters for next session
+        DIAG_AUDIO_BUFFERS.store(0, Ordering::Relaxed);
+        DIAG_MIC_BUFFERS.store(0, Ordering::Relaxed);
+        DIAG_DRAIN_CALLS.store(0, Ordering::Relaxed);
+        DIAG_SAMPLES_WRITTEN.store(0, Ordering::Relaxed);
+
+        println!("[DIAG:STOP] ========== stop_audio_capture returning path ==========");
         Ok(state.output_path)
     } else {
+        println!("[DIAG:STOP] No active capture found!");
         Ok("No active audio capture".to_string())
     }
 }
 
 #[tauri::command]
 pub async fn pause_audio_capture() -> Result<(), String> {
+    println!("[DIAG:PAUSE] pause_audio_capture called");
     let guard = CAPTURE_STATE.lock().unwrap();
 
     if let Some(state) = guard.as_ref() {
         state.paused.store(true, Ordering::Relaxed);
+        println!("[DIAG:PAUSE] paused=true, samples_written_so_far={}", DIAG_SAMPLES_WRITTEN.load(Ordering::Relaxed));
 
         // Clear buffers to prevent stale audio on resume
         if let Some(data) = &state.handler_data {
@@ -1026,18 +1178,22 @@ pub async fn pause_audio_capture() -> Result<(), String> {
 
         Ok(())
     } else {
+        println!("[DIAG:PAUSE] No active capture to pause!");
         Err("No active audio capture to pause".to_string())
     }
 }
 
 #[tauri::command]
 pub async fn resume_audio_capture() -> Result<(), String> {
+    println!("[DIAG:RESUME] resume_audio_capture called");
     let guard = CAPTURE_STATE.lock().unwrap();
 
     if let Some(state) = guard.as_ref() {
         state.paused.store(false, Ordering::Relaxed);
+        println!("[DIAG:RESUME] paused=false, samples_written_so_far={}", DIAG_SAMPLES_WRITTEN.load(Ordering::Relaxed));
         Ok(())
     } else {
+        println!("[DIAG:RESUME] No active capture to resume!");
         Err("No active audio capture to resume".to_string())
     }
 }

@@ -5,6 +5,11 @@ export const audioContextOptions = { sampleRate: 16000 };
 export const MAX_AUDIO_SIZE_MB = 500;
 export const MAX_AUDIO_SIZE_BYTES = MAX_AUDIO_SIZE_MB * 1024 * 1024;
 
+// WAV header is exactly 44 bytes. Any file ≤ this size contains no audio data.
+export const WAV_HEADER_SIZE_BYTES = 44;
+// Minimum meaningful audio: header + at least 1 second of 16kHz 16-bit mono PCM = 32044 bytes
+export const MIN_AUDIO_SIZE_BYTES = WAV_HEADER_SIZE_BYTES + (16000 * 2);
+
 /**
  * Detects the best supported audio MIME type for MediaRecorder in the current browser.
  */

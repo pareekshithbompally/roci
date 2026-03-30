@@ -4,9 +4,9 @@
  * Event-based bridge (same pattern as consent.ts) so the non-React
  * embedding service and indexer can report progress to the React UI.
  *
- * Supports three event kinds via discriminated union:
+ * Supports two event kinds via discriminated union:
  *   - 'model': embedding model download/load lifecycle
- *   - 'indexing': meeting/chat indexing progress
+ *   - 'indexing': meeting/chat indexing progress (FTS + embeddings)
  *   - 'extraction': knowledge graph entity extraction progress
  */
 
@@ -52,17 +52,7 @@ export interface ExtractionProgressEvent {
   error?: string;
 }
 
-/** Embedding upgrade progress events (content-fresh meetings getting embeddings) */
-export interface EmbeddingUpgradeProgressEvent {
-  kind: 'embedding';
-  status: 'started' | 'progress' | 'complete' | 'error';
-  current?: number;
-  total?: number;
-  currentTitle?: string;
-  error?: string;
-}
-
-export type RAGProgressEvent = EmbeddingModelEvent | IndexingProgressEvent | ExtractionProgressEvent | EmbeddingUpgradeProgressEvent;
+export type RAGProgressEvent = EmbeddingModelEvent | IndexingProgressEvent | ExtractionProgressEvent;
 
 /** @deprecated Use RAGProgressEvent instead */
 export type EmbeddingProgress = EmbeddingModelEvent;

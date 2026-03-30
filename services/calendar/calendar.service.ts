@@ -2,11 +2,12 @@
  * Calendar Service
  *
  * Bridges macOS EventKit (via Tauri plugin) with the frontend.
- * Uses a dual-timer architecture:
+ * Architecture:
  *   1. Cache refresh (every CALENDAR_CONFIG.cacheRefreshIntervalMs) — fetches 7-day
  *      lookahead from EventKit and stores enriched events in-memory.
- *   2. Notification check (every CALENDAR_CONFIG.notificationCheckIntervalMs) — scans
- *      the cached events for approaching meetings and fires callbacks.
+ *   2. Precise notification scheduling — after each cache refresh, schedules exact
+ *      setTimeout for each upcoming meeting at (start - notifyBefore). This ensures
+ *      notifications fire on time regardless of polling cadence.
  *
  * UI components subscribe to cache updates via onEventsUpdated().
  */
@@ -32,7 +33,8 @@ type EventsUpdatedCallback = (events: EnrichedCalendarEvent[]) => void;
 class CalendarService {
   // -- Timers --
   private cacheRefreshTimer: ReturnType<typeof setInterval> | null = null;
-  private notificationCheckTimer: ReturnType<typeof setInterval> | null = null;
+  /** Precise per-event notification timeouts (event_id → timer) */
+  private scheduledNotifications = new Map<string, ReturnType<typeof setTimeout>>();
 
   // -- Notification state --
   private notifiedEventIds = new Set<string>();
@@ -144,42 +146,32 @@ class CalendarService {
     };
   }
 
-  /** Start polling with dual timers: cache refresh + notification check. */
+  /** Start polling with cache refresh + precise notification scheduling. */
   startPolling(settings?: CalendarIntegrationSettings): void {
     if (settings) this.settings = settings;
     if (!this.settings.enabled) return;
 
     this.stopPolling();
 
-    // Immediate cache refresh, then on interval
+    // Immediate cache refresh (also schedules notifications), then on interval
     this.refreshCache();
     this.cacheRefreshTimer = setInterval(
       () => this.refreshCache(),
       CALENDAR_CONFIG.cacheRefreshIntervalMs
     );
 
-    // Notification checks run on a faster cadence against the cache
-    this.notificationCheckTimer = setInterval(
-      () => this.checkUpcomingMeetingsFromCache(),
-      CALENDAR_CONFIG.notificationCheckIntervalMs
-    );
-
-    console.log('[CalendarService] Polling started (cache refresh: %dms, notification check: %dms)',
-      CALENDAR_CONFIG.cacheRefreshIntervalMs,
-      CALENDAR_CONFIG.notificationCheckIntervalMs
+    console.log('[CalendarService] Polling started (cache refresh: %dms, precise notification scheduling)',
+      CALENDAR_CONFIG.cacheRefreshIntervalMs
     );
   }
 
-  /** Stop all polling timers. */
+  /** Stop all polling timers and scheduled notifications. */
   stopPolling(): void {
     if (this.cacheRefreshTimer) {
       clearInterval(this.cacheRefreshTimer);
       this.cacheRefreshTimer = null;
     }
-    if (this.notificationCheckTimer) {
-      clearInterval(this.notificationCheckTimer);
-      this.notificationCheckTimer = null;
-    }
+    this.clearScheduledNotifications();
     console.log('[CalendarService] Polling stopped');
   }
 
@@ -195,16 +187,26 @@ class CalendarService {
     }
   }
 
-  /** Clear notification tracking (e.g., on new day or settings change). */
+  /** Clear notification tracking and re-schedule (e.g., on settings change). */
   clearNotificationHistory(): void {
     this.notifiedEventIds.clear();
     this.snoozedUntilStart.clear();
+    this.clearScheduledNotifications();
+    // Re-schedule with clean state
+    this.scheduleNotifications();
   }
 
   /** Mark an event as snoozed — will re-notify at meeting start time. */
   snoozeEvent(eventId: string): void {
     this.notifiedEventIds.delete(eventId);
+    // Clear existing timer if any, then re-schedule as snoozed
+    const existing = this.scheduledNotifications.get(eventId);
+    if (existing) {
+      clearTimeout(existing);
+      this.scheduledNotifications.delete(eventId);
+    }
     this.snoozedUntilStart.add(eventId);
+    this.scheduleNotifications();
   }
 
   // ─── Internal: cache refresh ─────────────────────────────────────
@@ -219,38 +221,102 @@ class CalendarService {
     this.cachedEvents = events;
     console.log('[CalendarService] Cache refreshed: %d events', events.length);
 
+    // Schedule precise notifications for upcoming events
+    this.scheduleNotifications();
+
     // Notify UI subscribers
     for (const listener of this.eventListeners) {
       listener(this.cachedEvents);
     }
   }
 
-  // ─── Internal: notification check (reads from cache, not EventKit) ──
+  // ─── Internal: precise notification scheduling ──────────────────
 
-  private checkUpcomingMeetingsFromCache(): void {
+  /**
+   * Schedule exact setTimeout for each upcoming event based on its start time
+   * minus the user's notify-before setting. This replaces the old 1-minute
+   * polling interval and guarantees notifications fire on time.
+   */
+  private scheduleNotifications(): void {
     if (!this.onMeetingApproaching) return;
 
     const now = Date.now();
-    const notifyBefore = this.settings.notify_minutes_before;
-    const snoozeThresholdMinutes = CALENDAR_CONFIG.snoozeThresholdSeconds / 60;
+    const notifyBeforeMs = this.settings.notify_minutes_before * 60_000;
+    const graceMs = CALENDAR_CONFIG.notificationGracePeriodMinutes * 60_000;
+    const snoozeThresholdMs = CALENDAR_CONFIG.snoozeThresholdSeconds * 1_000;
+
+    // Clear stale timers for events no longer in cache
+    const currentEventIds = new Set(this.cachedEvents.map(e => e.event_id));
+    for (const [eventId, timer] of this.scheduledNotifications) {
+      if (!currentEventIds.has(eventId)) {
+        clearTimeout(timer);
+        this.scheduledNotifications.delete(eventId);
+      }
+    }
 
     for (const event of this.cachedEvents) {
       if (this.shouldSkipEvent(event)) continue;
+      // Don't re-schedule if already scheduled
+      if (this.scheduledNotifications.has(event.event_id)) continue;
 
       const startMs = new Date(event.start_date).getTime();
       const minsUntilStart = (startMs - now) / 60_000;
 
-      // For snoozed events, only notify within the snooze threshold of start
+      // Already past grace period — skip
+      if (minsUntilStart <= CALENDAR_CONFIG.notificationGracePeriodMinutes) continue;
+
+      // For snoozed events: schedule at (start - snooze threshold)
       if (this.snoozedUntilStart.has(event.event_id)) {
-        if (minsUntilStart > snoozeThresholdMinutes) continue;
-        this.snoozedUntilStart.delete(event.event_id);
+        const fireAt = startMs - snoozeThresholdMs;
+        const delayMs = fireAt - now;
+        if (delayMs <= 0) {
+          // Fire immediately
+          this.snoozedUntilStart.delete(event.event_id);
+          this.fireNotification(event);
+        } else {
+          this.scheduledNotifications.set(
+            event.event_id,
+            setTimeout(() => {
+              this.snoozedUntilStart.delete(event.event_id);
+              this.fireNotification(event);
+            }, delayMs)
+          );
+        }
+        continue;
       }
 
-      if (minsUntilStart <= notifyBefore && minsUntilStart > CALENDAR_CONFIG.notificationGracePeriodMinutes) {
-        this.notifiedEventIds.add(event.event_id);
-        this.onMeetingApproaching(event);
+      // Normal event: fire at (start - notifyBefore)
+      const fireAt = startMs - notifyBeforeMs;
+      const delayMs = fireAt - now;
+
+      if (delayMs <= 0 && minsUntilStart > CALENDAR_CONFIG.notificationGracePeriodMinutes) {
+        // Should have already fired (e.g., app just opened) — fire now
+        this.fireNotification(event);
+      } else if (delayMs > 0) {
+        console.log('[CalendarService] Scheduled notification for "%s" in %ds',
+          event.title, Math.round(delayMs / 1000));
+        this.scheduledNotifications.set(
+          event.event_id,
+          setTimeout(() => this.fireNotification(event), delayMs)
+        );
       }
     }
+  }
+
+  /** Fire a notification for an approaching event. */
+  private fireNotification(event: EnrichedCalendarEvent): void {
+    this.scheduledNotifications.delete(event.event_id);
+    if (this.notifiedEventIds.has(event.event_id)) return;
+    this.notifiedEventIds.add(event.event_id);
+    this.onMeetingApproaching?.(event);
+  }
+
+  /** Clear all scheduled notification timeouts. */
+  private clearScheduledNotifications(): void {
+    for (const timer of this.scheduledNotifications.values()) {
+      clearTimeout(timer);
+    }
+    this.scheduledNotifications.clear();
   }
 
   // ─── Internal: helpers ───────────────────────────────────────────

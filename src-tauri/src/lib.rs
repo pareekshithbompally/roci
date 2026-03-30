@@ -4,6 +4,7 @@ mod autostart;
 mod audio_core;
 mod screenshot;
 mod wake_lock;
+mod notification;
 
 /// Open a folder in the OS file manager (Finder on macOS).
 #[tauri::command]
@@ -69,6 +70,7 @@ pub fn run() {
       Some(vec!["--minimized"]),
     ))
     .plugin(tauri_plugin_window_state::Builder::new().build())
+    .plugin(tauri_plugin_updater::Builder::new().build())
     .manage(shortcuts::ShortcutState {
       registered: Mutex::new(Vec::new()),
     })
@@ -101,6 +103,8 @@ pub fn run() {
       // Wake lock commands (macOS: prevent idle sleep during recording)
       wake_lock::acquire_wake_lock,
       wake_lock::release_wake_lock,
+      // Notification commands (actionable notifications via mac-notification-sys)
+      notification::send_actionable_notification,
       // Utility commands
       reveal_in_file_manager,
     ])

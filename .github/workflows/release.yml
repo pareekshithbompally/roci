@@ -40,7 +40,8 @@ jobs:
       - name: Build Tauri app
         run: npm run tauri build -- --target aarch64-apple-darwin
         env:
-          TAURI_SIGNING_PRIVATE_KEY: ""
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # For code signing (uncomment and set secrets when ready):
           # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -73,6 +74,19 @@ jobs:
           echo "name=$DMG_NAME" >> "$GITHUB_OUTPUT"
           echo "Found DMG: $DMG_PATH"
 
+      - name: Locate updater artifacts
+        id: updater
+        run: |
+          BUNDLE_DIR="src-tauri/target/aarch64-apple-darwin/release/bundle"
+          # The updater .tar.gz and .sig live under macos/
+          TAR_PATH=$(find "$BUNDLE_DIR/macos" -name "*.tar.gz" 2>/dev/null | head -1)
+          SIG_PATH=$(find "$BUNDLE_DIR/macos" -name "*.tar.gz.sig" 2>/dev/null | head -1)
+          LATEST_PATH=$(find "$BUNDLE_DIR" -name "latest.json" 2>/dev/null | head -1)
+          echo "tar_path=${TAR_PATH}" >> "$GITHUB_OUTPUT"
+          echo "sig_path=${SIG_PATH}" >> "$GITHUB_OUTPUT"
+          echo "latest_path=${LATEST_PATH}" >> "$GITHUB_OUTPUT"
+          echo "Found updater artifacts: tar=$TAR_PATH sig=$SIG_PATH latest=$LATEST_PATH"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -80,4 +94,8 @@ jobs:
           name: Kasset ${{ steps.version.outputs.tag }}
           draft: true
           generate_release_notes: true
-          files: ${{ steps.dmg.outputs.path }}
+          files: |
+            ${{ steps.dmg.outputs.path }}
+            ${{ steps.updater.outputs.tar_path }}
+            ${{ steps.updater.outputs.sig_path }}
+            ${{ steps.updater.outputs.latest_path }}

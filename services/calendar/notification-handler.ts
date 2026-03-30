@@ -35,6 +35,7 @@ export function setupCalendarNotifications(
 
   // When calendar service detects an approaching meeting, fire notification
   const unsubMeeting = calendarService.onMeetingStarting((event) => {
+    console.log('[DIAG:NotifHandler] Meeting starting event received:', event.event_id, event.title);
     pendingEvents.set(event.event_id, event);
     fireNotification(event);
   });
@@ -43,20 +44,27 @@ export function setupCalendarNotifications(
   const unsubWithUrl = notificationService.onActionType(
     'meeting_starting',
     (actionId: string, extra?: Record<string, unknown>) => {
+      console.log('[DIAG:NotifHandler] Action received (with_url): actionId=%s, extra=%o', actionId, extra);
       const eventId = extra?.event_id as string | undefined;
       const event = eventId ? pendingEvents.get(eventId) : undefined;
-      if (!event) return;
+      if (!event) {
+        console.warn('[DIAG:NotifHandler] No pending event found for eventId:', eventId);
+        return;
+      }
 
       switch (actionId) {
         case 'join_and_record':
+          console.log('[DIAG:NotifHandler] Dispatching join_and_record');
           onJoinAndRecord(event);
           pendingEvents.delete(event.event_id);
           break;
         case 'record_only':
+          console.log('[DIAG:NotifHandler] Dispatching record_only');
           onRecord(event);
           pendingEvents.delete(event.event_id);
           break;
         case 'snooze':
+          console.log('[DIAG:NotifHandler] Dispatching snooze');
           calendarService.snoozeEvent(event.event_id);
           pendingEvents.delete(event.event_id);
           break;
@@ -68,16 +76,22 @@ export function setupCalendarNotifications(
   const unsubNoUrl = notificationService.onActionType(
     'meeting_starting_no_url',
     (actionId: string, extra?: Record<string, unknown>) => {
+      console.log('[DIAG:NotifHandler] Action received (no_url): actionId=%s, extra=%o', actionId, extra);
       const eventId = extra?.event_id as string | undefined;
       const event = eventId ? pendingEvents.get(eventId) : undefined;
-      if (!event) return;
+      if (!event) {
+        console.warn('[DIAG:NotifHandler] No pending event found for eventId:', eventId);
+        return;
+      }
 
       switch (actionId) {
         case 'record_only':
+          console.log('[DIAG:NotifHandler] Dispatching record_only (no_url)');
           onRecord(event);
           pendingEvents.delete(event.event_id);
           break;
         case 'snooze':
+          console.log('[DIAG:NotifHandler] Dispatching snooze (no_url)');
           calendarService.snoozeEvent(event.event_id);
           pendingEvents.delete(event.event_id);
           break;
@@ -96,7 +110,7 @@ export function setupCalendarNotifications(
 /** Fire a notification for an approaching meeting. */
 async function fireNotification(event: EnrichedCalendarEvent): Promise<void> {
   const startTime = new Date(event.start_date);
-  const timeStr = startTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const timeStr = startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 
   const participantInfo = event.active_participant_count > 0
     ? ` with ${event.active_participant_count} participant${event.active_participant_count === 1 ? '' : 's'}`

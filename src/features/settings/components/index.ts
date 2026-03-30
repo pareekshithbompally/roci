@@ -11,3 +11,4 @@ export { UsagePanel } from './UsagePanel';
 export { ProvidersPanelErrorBoundary } from './ProvidersPanelErrorBoundary';
 export { SettingsSaveButton } from './SettingsSaveButton';
 export { ModalityIcons } from './ModalityIcons';
+export { UpdateBanner } from './UpdateBanner';

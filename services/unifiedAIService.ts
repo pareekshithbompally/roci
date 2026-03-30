@@ -10,7 +10,7 @@ import type { FilePart, TextPart, UserContent } from 'ai';
 import type { ModelProvider } from '@/types/modelProviders';
 import type { ProcessedResult, AppSettings } from '@/types';
 import { resolveModel, getProviderType } from '@shared/utils/modelResolver';
-import { MAX_AUDIO_SIZE_BYTES, MAX_AUDIO_SIZE_MB } from '@/utils/audioUtils';
+import { MAX_AUDIO_SIZE_BYTES, MAX_AUDIO_SIZE_MB, MIN_AUDIO_SIZE_BYTES, WAV_HEADER_SIZE_BYTES } from '@/utils/audioUtils';
 import { parseVTT } from '@/utils/vttParser';
 import { buildTranscriptionRequest, formatTemporalContext } from '@core/ai';
 import { modalitiesService } from './modalities';
@@ -143,6 +143,12 @@ class UnifiedAIService {
     }
     if (audioBlob.size > MAX_AUDIO_SIZE_BYTES) {
       throw new Error(`Recording is too large (${(audioBlob.size / (1024 * 1024)).toFixed(2)}MB). Limit is ${MAX_AUDIO_SIZE_MB}MB.`);
+    }
+    if (audioBlob.size <= WAV_HEADER_SIZE_BYTES) {
+      throw new Error('Recording contains no audio data — the file is empty. This usually means audio capture failed silently. Please check your audio permissions in System Settings → Privacy & Security → Screen & System Audio Recording and try again.');
+    }
+    if (audioBlob.size < MIN_AUDIO_SIZE_BYTES) {
+      throw new Error(`Recording is too short to process (${audioBlob.size} bytes). Please ensure audio is being captured before stopping.`);
     }
 
     const modelInfo = modalitiesService.getModelInfo(resolved.provider, resolved.modelId);

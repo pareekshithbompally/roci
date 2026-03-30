@@ -9,11 +9,12 @@ export {
   SettingsPanel, 
   ProvidersPanel, 
   CategoriesPanel, 
-  InterfacePanel 
+  InterfacePanel,
+  UpdateBanner,
 } from './components';
 
 // Hooks
-export { useSettings } from './hooks';
+export { useSettings, useAppUpdate, scheduleStartupCheck } from './hooks';
 
 // Re-export context for provider usage
 export { SettingsProvider, useSettings as useSettingsContext } from '@shared/contexts/SettingsContext';

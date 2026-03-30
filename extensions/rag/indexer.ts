@@ -223,7 +223,7 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
       const embeddingItems = items.filter(i => needsEmbeddingSet.has(i.id));
 
       console.log(`[RAGIndexer] ${embeddingItems.length} meetings need embedding upgrade`);
-      emitProgress({ kind: 'embedding', status: 'started', total: embeddingItems.length });
+      emitProgress({ kind: 'indexing', status: 'started', total: embeddingItems.length, currentTitle: 'Adding embeddings…' });
 
       let embedded = 0;
       for (let i = 0; i < embeddingItems.length; i++) {
@@ -231,7 +231,7 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
 
         const item = embeddingItems[i];
         emitProgress({
-          kind: 'embedding',
+          kind: 'indexing',
           status: 'progress',
           current: i + 1,
           total: embeddingItems.length,
@@ -251,7 +251,7 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
       }
 
       emitProgress({
-        kind: 'embedding',
+        kind: 'indexing',
         status: 'complete',
         current: embedded,
         total: embeddingItems.length,

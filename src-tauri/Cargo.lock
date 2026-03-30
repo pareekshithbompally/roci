@@ -13,6 +13,7 @@ dependencies = [
  "cpal",
  "hound",
  "log",
+ "mac-notification-sys",
  "rubato",
  "screencapturekit",
  "serde",

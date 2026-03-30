@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Sun, Moon, Monitor, Copy, Check, FolderOpen, FolderSearch, RefreshCw, Database } from 'lucide-react';
+import { Sun, Moon, Monitor, Copy, Check, FolderOpen, FolderSearch, RefreshCw, Database, CheckCircle2, Loader2 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
@@ -24,6 +24,7 @@ import {
   AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from '@shared/ui';
 import { useSettingsSave } from '../hooks/useSettingsSave';
+import { useAppUpdate } from '../hooks/useAppUpdate';
 import { getProviderTitle } from '@/utils/providerUtils';
 import ProvidersAvatar from '@/components/ProvidersAvatar';
 
@@ -32,13 +33,26 @@ export const InterfacePanel: React.FC = () => {
   const { settings, setSettings, providers } = useSettings();
   const { showToast } = useToast();
   const { hasUnsavedChanges } = useSettingsSave('System settings', 'interface');
+  const appUpdate = useAppUpdate();
 
+  const [appVersion, setAppVersion] = useState<string>('');
   const [storagePath, setStoragePath] = useState<string | null>(null);
   const [storagePathError, setStoragePathError] = useState<string | null>(null);
   const [storagePathCopied, setStoragePathCopied] = useState(false);
   const [diskUsage, setDiskUsage] = useState<{ label: string; bytes: number }[] | null>(null);
   const [rebuildConfirmOpen, setRebuildConfirmOpen] = useState(false);
-  const [rebuildingPhase, setRebuildingPhase] = useState<'meetings' | 'chats' | 'kg' | 'all' | null>(null);
+  const [rebuildingPhase, setRebuildingPhase] = useState<'meetings' | 'chats' | 'kg' | null>(null);
+  /** True when a full rebuild is running (individual buttons stay disabled throughout) */
+  const [isRebuilding, setIsRebuilding] = useState(false);
+
+  // Load app version from Tauri
+  useEffect(() => {
+    if (isTauriEnvironment()) {
+      import('@tauri-apps/api/app').then(({ getVersion }) =>
+        getVersion().then(setAppVersion).catch(() => setAppVersion('unknown'))
+      );
+    }
+  }, []);
 
   // All active models grouped by provider (for KG model picker)
   const allActiveModels = useMemo(() => {
@@ -104,8 +118,6 @@ export const InterfacePanel: React.FC = () => {
     } finally {
       setRebuildingPhase(null);
       loadIndexStats();
-      const { resetPipeline } = await import('@extensions/rag');
-      resetPipeline();
     }
   }, [showToast, loadIndexStats]);
 
@@ -124,8 +136,6 @@ export const InterfacePanel: React.FC = () => {
     } finally {
       setRebuildingPhase(null);
       loadIndexStats();
-      const { resetPipeline } = await import('@extensions/rag');
-      resetPipeline();
     }
   }, [showToast, loadIndexStats]);
 
@@ -155,15 +165,18 @@ export const InterfacePanel: React.FC = () => {
     }
   }, [settings, providers, showToast, loadIndexStats]);
 
-  // Full rebuild: wipe everything + re-index all phases
+  // Full rebuild: wipe everything + re-index all phases (meetings+KG → chats)
   const handleRebuildIndex = useCallback(async () => {
     setRebuildConfirmOpen(false);
-    setRebuildingPhase('all');
+    setIsRebuilding(true);
 
     try {
-      const { vectorDB, ragIndexer, chatIndexer } = await import('@extensions/rag');
+      const { vectorDB, ragIndexer, chatIndexer, preloadModel } = await import('@extensions/rag');
 
       await vectorDB.rebuild();
+
+      // Preload embedding model once before any indexing
+      try { await preloadModel(); } catch { /* consent denied or download failed — embeddings will be skipped */ }
 
       const [meetingItems, chatSessions] = await Promise.all([
         searchIndexingService.loadMeetingsForIndexing(),
@@ -172,6 +185,8 @@ export const InterfacePanel: React.FC = () => {
 
       console.log(`[InterfacePanel] Rebuild: ${meetingItems.length} meetings, ${chatSessions.length} chats to index`);
 
+      // Phase 1: Meetings (includes KG extraction if model is configured)
+      setRebuildingPhase('meetings');
       let meetingsIndexed = 0;
       try {
         const kgModel = settings.kgExtractionModel || settings.chatModel;
@@ -186,7 +201,10 @@ export const InterfacePanel: React.FC = () => {
         console.error('[InterfacePanel] Meeting indexing failed:', error);
         showToast('Meeting indexing failed — continuing with chats', 'error');
       }
+      loadIndexStats();
 
+      // Phase 2: Chats
+      setRebuildingPhase('chats');
       let chatsIndexed = 0;
       try {
         chatsIndexed = await chatIndexer.indexAllSessions(chatSessions, {
@@ -196,6 +214,7 @@ export const InterfacePanel: React.FC = () => {
         console.error('[InterfacePanel] Chat indexing failed:', error);
         showToast('Chat indexing failed', 'error');
       }
+      loadIndexStats();
 
       showToast(
         `Rebuilt index: ${meetingsIndexed}/${meetingItems.length} meetings, ${chatsIndexed}/${chatSessions.length} chats`,
@@ -206,9 +225,8 @@ export const InterfacePanel: React.FC = () => {
       showToast(error instanceof Error ? error.message : 'Failed to rebuild index', 'error');
     } finally {
       setRebuildingPhase(null);
+      setIsRebuilding(false);
       loadIndexStats();
-      const { resetPipeline } = await import('@extensions/rag');
-      resetPipeline();
     }
   }, [settings, providers, showToast, loadIndexStats]);
 
@@ -458,8 +476,8 @@ export const InterfacePanel: React.FC = () => {
                 total={indexStats.meetings.onDisk}
                 detail={`${indexStats.chunks.transcript} transcript chunks`}
                 onReindex={handleReindexMeetings}
-                busy={rebuildingPhase === 'meetings' || rebuildingPhase === 'all'}
-                disabled={rebuildingPhase !== null}
+                busy={rebuildingPhase === 'meetings'}
+                disabled={rebuildingPhase !== null || isRebuilding}
               />
               <IndexActionRow
                 label="Chats"
@@ -467,16 +485,16 @@ export const InterfacePanel: React.FC = () => {
                 total={indexStats.chats.onDisk}
                 detail={`${indexStats.chunks.total - indexStats.chunks.transcript} chat chunks`}
                 onReindex={handleReindexChats}
-                busy={rebuildingPhase === 'chats' || rebuildingPhase === 'all'}
-                disabled={rebuildingPhase !== null}
+                busy={rebuildingPhase === 'chats'}
+                disabled={rebuildingPhase !== null || isRebuilding}
               />
               <IndexActionRow
                 label="Knowledge Graph"
                 indexed={indexStats.kg.nodes}
                 detail={`${indexStats.kg.nodes} entities · ${indexStats.kg.edges} relationships`}
                 onReindex={handleReindexKG}
-                busy={rebuildingPhase === 'kg' || rebuildingPhase === 'all'}
-                disabled={rebuildingPhase !== null}
+                busy={rebuildingPhase === 'kg'}
+                disabled={rebuildingPhase !== null || isRebuilding}
               />
               {/* Extraction model — nested under KG */}
               <div className="flex items-center justify-between gap-4 px-4 py-2.5">
@@ -545,11 +563,11 @@ export const InterfacePanel: React.FC = () => {
             </div>
             <button
               onClick={() => setRebuildConfirmOpen(true)}
-              disabled={rebuildingPhase !== null}
+              disabled={rebuildingPhase !== null || isRebuilding}
               className={`${COMPONENT.settingsButtonOutline} shrink-0 ml-4`}
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${rebuildingPhase === 'all' ? 'animate-spin' : ''}`} />
-              {rebuildingPhase === 'all' ? 'Rebuilding…' : 'Rebuild All'}
+              <RefreshCw className={`w-3.5 h-3.5 ${isRebuilding ? 'animate-spin' : ''}`} />
+              {isRebuilding ? 'Rebuilding…' : 'Rebuild All'}
             </button>
           </div>
 
@@ -584,11 +602,42 @@ export const InterfacePanel: React.FC = () => {
         </SettingsSection>
       )}
 
-      {/* App Info */}
+      {/* App Info & Updates */}
       <div className={`pt-4 border-t ${BORDER.default}`}>
         <div className={`flex items-center justify-between px-4 py-3 ${TYPOGRAPHY_CLASSES.settingsInput}`}>
           <span className={TEXT.muted}>Version</span>
-          <span className={`${TEXT.secondary} font-mono`}>1.0.0</span>
+          <div className="flex items-center gap-3">
+            <span className={`${TEXT.secondary} font-mono`}>{appVersion || '…'}</span>
+            {appUpdate.status === 'checking' && (
+              <span className={`flex items-center gap-1.5 ${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
+                <Loader2 className="w-3 h-3 animate-spin" />
+                Checking…
+              </span>
+            )}
+            {appUpdate.status === 'idle' && !appUpdate.updateInfo && (
+              <button
+                onClick={async () => {
+                  const hasUpdate = await appUpdate.checkForUpdate();
+                  if (!hasUpdate) {
+                    showToast('You\u2019re on the latest version', 'success');
+                  }
+                }}
+                className={COMPONENT.settingsLink}
+              >
+                Check for Updates
+              </button>
+            )}
+            {appUpdate.status === 'available' && appUpdate.updateInfo && (
+              <span className={`flex items-center gap-1.5 ${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.success}`}>
+                v{appUpdate.updateInfo.version} available
+              </span>
+            )}
+            {appUpdate.status === 'error' && (
+              <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.error}`}>
+                {appUpdate.error ?? 'Check failed'}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </div>

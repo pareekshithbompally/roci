@@ -55,7 +55,7 @@ export const CalendarWeek: React.FC<CalendarWeekProps> = ({
     weekOptions: {
       gridHeight: 900,
       eventWidth: 95,
-      timeAxisFormatOptions: { hour: 'numeric', minute: '2-digit' },
+      timeAxisFormatOptions: { hour: '2-digit', minute: '2-digit', hour12: false },
     },
     callbacks: {
       onEventClick(event: ScheduleXCalendarEvent, e: UIEvent) {
