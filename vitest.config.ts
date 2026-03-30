@@ -29,6 +29,7 @@ export default defineConfig({
       '@platform': path.resolve(__dirname, './src/platform'),
       '@config': path.resolve(__dirname, './src/config'),
       '@assets': path.resolve(__dirname, './src/assets'),
+      '@extensions': path.resolve(__dirname, './extensions'),
     },
   },
 });

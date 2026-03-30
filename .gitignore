@@ -34,3 +34,6 @@ docs/
 
 # Claude Code
 .claude/
+
+# Copilot CLI
+.copilot/
