@@ -648,7 +648,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
       const config = buildChatRequest({
         contextBlock: contextBlock || undefined,
-        hasTools: !!(resolved && supportsTools(resolved)),
+        hasToolAccess: !!(resolved && supportsTools(resolved)),
         meetingCount: (historyItems || []).length,
         temporalContext,
       });
@@ -737,7 +737,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           historyItems: historyItems || [],
           signal: abortControllerRef.current?.signal,
           webSearchEnabled: state.webSearchEnabled,
-          toolChoice: 'auto',
           skipRetrieval: !hasToolSupport,
           temporalContext,
           mentionedMeetingIds,
