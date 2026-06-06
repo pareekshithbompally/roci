@@ -3,6 +3,17 @@ pub const PROCESS_RATE_HZ: u32 = 48_000;
 pub const AI_RATE_HZ: u32 = 16_000;
 pub const AEC_FRAME: usize = 480; // 10 ms @ 48 kHz
 
+/// In mixed mode the timeline normally waits for both lanes. If the mic lane
+/// stalls (permission denied, device failure) the system lane must not pile up
+/// forever and produce an empty recording — once system is this far ahead of the
+/// consumed point with no mic data to cover it, we release system frames with a
+/// silent mic.
+///
+/// Set above the normal SCK microphone start-up lag (~1.6 s after system audio)
+/// so a slightly-late-but-working mic is NOT prematurely treated as dead; only a
+/// genuinely missing/stalled mic trips it. 3 seconds @ 48 kHz.
+const MIC_STALL_FALLBACK: u64 = 3 * PROCESS_RATE_HZ as u64;
+
 #[derive(Clone, Copy, PartialEq)]
 pub enum Stream {
     System,
@@ -90,7 +101,17 @@ impl Timeline {
     /// In system-only mode, only the system lane gates readiness.
     pub fn take_ready(&mut self) -> Vec<MixFrame> {
         let ready = if self.mixed {
-            self.sys.end().min(self.mic.end())
+            // Mic-stall fallback: if system has run far ahead of consumed and the
+            // mic can't supply the next frame, stop waiting for mic and emit
+            // system frames (mic side reads as silence). Prevents a dead/missing
+            // mic from stalling the whole recording into an empty file.
+            if self.sys.end().saturating_sub(self.consumed) >= MIC_STALL_FALLBACK
+                && self.mic.end() < self.consumed + AEC_FRAME as u64
+            {
+                self.sys.end()
+            } else {
+                self.sys.end().min(self.mic.end())
+            }
         } else {
             self.sys.end()
         };
@@ -131,13 +152,6 @@ impl Timeline {
         };
         self.consumed += AEC_FRAME as u64;
         Some(MixFrame { sys, mic })
-    }
-
-    /// How many samples have been placed on the timeline but not yet consumed.
-    /// Used for the drift guard in the worker.
-    pub fn pending_samples(&self) -> u64 {
-        let horizon = self.sys.end().max(self.mic.end());
-        horizon.saturating_sub(self.consumed)
     }
 
     /// Drop lane data already consumed so memory stays bounded on long recordings.
@@ -212,6 +226,32 @@ mod tests {
         // Verify original values are what we put in (before compact)
         assert_eq!(before_0, 0.3);
         assert_eq!(before_479, 0.3);
+    }
+
+    #[test]
+    fn mixed_mode_falls_back_to_system_when_mic_never_arrives() {
+        let mut tl = Timeline::new(true); // SystemAndMicrophone
+        // System delivers 3 s of audio; mic delivers nothing (dead/denied mic).
+        let three_secs = 3 * PROCESS_RATE_HZ as usize;
+        tl.push(Stream::System, 0.0, &vec![0.5f32; three_secs]);
+
+        // Without a fallback, ready = min(sys, mic) = 0 → empty forever.
+        // With the fallback (system >= 2 s ahead, mic absent), frames are emitted.
+        let frames = tl.take_ready();
+        assert!(!frames.is_empty(), "mic-stall fallback should emit system frames");
+        // Mic side is silence; system side carries the audio.
+        assert!((frames[0].sys[0] - 0.5).abs() < 1e-6);
+        assert_eq!(frames[0].mic[0], 0.0);
+    }
+
+    #[test]
+    fn mixed_mode_waits_for_mic_under_threshold() {
+        let mut tl = Timeline::new(true);
+        // Only 1 s of system (below the 2 s fallback threshold), no mic yet.
+        let one_sec = PROCESS_RATE_HZ as usize;
+        tl.push(Stream::System, 0.0, &vec![0.5f32; one_sec]);
+        // Should still wait for mic (normal min() gating) — no frames yet.
+        assert!(tl.take_ready().is_empty());
     }
 
     #[test]

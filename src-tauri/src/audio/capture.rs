@@ -5,7 +5,7 @@ use screencapturekit::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::audio::align::PROCESS_RATE_HZ;
 use crate::audio::levels::{compute_levels, AudioLevelEvent, LEVEL_BARS, LEVEL_THROTTLE};
@@ -18,6 +18,9 @@ use tauri::{AppHandle, Emitter};
 // SCK native sample rate
 const SCK_SAMPLE_RATE: u32 = 48_000;
 const CHANNEL_COUNT: i32 = 1;
+
+/// How often the mic-only path persists the WAV header to disk (crash-safety).
+const FLUSH_INTERVAL: Duration = Duration::from_secs(1);
 
 // ---------------------------------------------------------------------------
 // Public types shared with commands.rs
@@ -229,6 +232,7 @@ struct MicCaptureHandler {
     running: Arc<AtomicBool>,
     paused: Arc<AtomicBool>,
     last_emit: Mutex<Instant>,
+    last_flush: Mutex<Instant>,
     source_channels: usize,
     resampler: Mutex<Option<ResamplerState>>,
     needs_reset: AtomicBool,
@@ -285,6 +289,14 @@ impl MicCaptureHandler {
 
         if let Ok(mut sink) = self.sink.lock() {
             sink.write(&resampled);
+            // Periodically persist the WAV header so the file stays valid on an
+            // unclean exit (matches the SCK worker's crash-safety behavior).
+            if let Ok(mut lf) = self.last_flush.lock() {
+                if lf.elapsed() >= FLUSH_INTERVAL {
+                    sink.flush();
+                    *lf = Instant::now();
+                }
+            }
         }
 
         let should_emit = {
@@ -347,6 +359,7 @@ fn build_microphone_stream(
         running,
         paused,
         last_emit: Mutex::new(Instant::now() - LEVEL_THROTTLE),
+        last_flush: Mutex::new(Instant::now()),
         source_channels,
         resampler: Mutex::new(if source_rate != PROCESS_RATE_HZ {
             Some(ResamplerState::new(source_rate, PROCESS_RATE_HZ))

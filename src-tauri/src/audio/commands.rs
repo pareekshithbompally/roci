@@ -166,45 +166,53 @@ pub async fn start_audio_capture(
 
 #[tauri::command]
 pub async fn stop_audio_capture() -> Result<RecordingPaths, String> {
-    let mut guard = CAPTURE_STATE.lock().unwrap();
+    // Take the state out and release the lock immediately. The blocking work
+    // below (stopping the stream, joining threads) must NOT run while holding
+    // CAPTURE_STATE, or a concurrent pause/resume/start would block on the mutex.
+    let state = {
+        let mut guard = CAPTURE_STATE.lock().unwrap();
+        guard.take()
+    };
 
-    if let Some(state) = guard.take() {
-        state.running.store(false, Ordering::Relaxed);
-
-        if let Some(stream) = state.system_stream {
-            stream
-                .stop_capture()
-                .map_err(|e| format!("Failed to stop audio capture: {e}"))?;
-        }
-
-        if let Some(mic) = state.mic_thread {
-            let _ = mic.stop_tx.send(());
-            let _ = mic.join_handle.join();
-        }
-
-        // Flush mic-only DualSink after the cpal thread has exited.
-        if let Some(sink) = state.mic_sink {
-            if let Ok(mut s) = sink.lock() {
-                s.finalize();
-            }
-        }
-
-        // Join worker — drains rings, finalizes DualSink (HQ + AI), then exits.
-        if let Some(handle) = state.worker_handle {
-            let _ = handle.join();
-        }
-
-        log::info!("Audio capture stopped, hq={}", state.hq_path);
-        Ok(RecordingPaths {
-            playback_path: state.hq_path,
-            ai_path: state.ai_path,
-        })
-    } else {
-        Ok(RecordingPaths {
+    let Some(state) = state else {
+        return Ok(RecordingPaths {
             playback_path: "No active audio capture".to_string(),
             ai_path: String::new(),
-        })
+        });
+    };
+
+    state.running.store(false, Ordering::Relaxed);
+
+    if let Some(stream) = state.system_stream {
+        // Log on failure but DO NOT early-return: we must still join the worker
+        // so it drains and finalizes the WAV header (otherwise: corrupt file).
+        if let Err(e) = stream.stop_capture() {
+            log::error!("SCK stop_capture failed: {e}");
+        }
     }
+
+    if let Some(mic) = state.mic_thread {
+        let _ = mic.stop_tx.send(());
+        let _ = mic.join_handle.join();
+    }
+
+    // Flush mic-only DualSink after the cpal thread has exited.
+    if let Some(sink) = state.mic_sink {
+        if let Ok(mut s) = sink.lock() {
+            s.finalize();
+        }
+    }
+
+    // Join worker — drains rings, finalizes DualSink (HQ + AI), then exits.
+    if let Some(handle) = state.worker_handle {
+        let _ = handle.join();
+    }
+
+    log::info!("Audio capture stopped, hq={}", state.hq_path);
+    Ok(RecordingPaths {
+        playback_path: state.hq_path,
+        ai_path: state.ai_path,
+    })
 }
 
 #[tauri::command]

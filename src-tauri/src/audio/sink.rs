@@ -40,8 +40,16 @@ impl DualSink {
         }
     }
 
-    pub fn finalize(&mut self) {
+    /// Flush both writers. hound's `flush()` rewrites the RIFF/`data` chunk sizes
+    /// in the WAV header, so calling this periodically during recording keeps the
+    /// file on disk valid and playable even if the app is force-quit or crashes
+    /// before a clean stop. Writing can continue normally afterwards.
+    pub fn flush(&mut self) {
         let _ = self.hq.flush();
         let _ = self.ai.flush();
+    }
+
+    pub fn finalize(&mut self) {
+        self.flush();
     }
 }

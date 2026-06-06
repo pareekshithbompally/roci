@@ -342,10 +342,9 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           stalled: false,
         });
       } else {
-        updateSession(sessionId, {
-          status: 'review',
-          error: 'No active audio capture to stop.',
-        });
+        // Capture was already stopped — benign. Do NOT set an error here: the
+        // review row renders any error as a "stall" badge.
+        updateSession(sessionId, { status: 'review', isPaused: false, stalled: false });
       }
 
       setActiveCaptureSessionId(null);
