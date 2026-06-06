@@ -13,8 +13,8 @@ import type { ChatRequestConfig, TranscriptionRequestConfig, OutputSchema } from
 
 export interface ChatRequestOptions {
   contextBlock?: string;
-  /** @deprecated No longer affects prompt — tool guidance removed in orchestration rewrite */
-  hasTools?: boolean;
+  /** Whether the model supports tool calling (enables tool guidance in system prompt). */
+  hasToolAccess?: boolean;
   meetingCount?: number;
   /** Formatted temporal context string from formatTemporalContext(). */
   temporalContext?: string;
@@ -27,12 +27,12 @@ export interface ChatRequestOptions {
 export function buildChatRequest(options: ChatRequestOptions): ChatRequestConfig {
   const {
     contextBlock,
-    hasTools = false,
+    hasToolAccess = false,
     meetingCount = 0,
     temporalContext,
   } = options;
 
-  const systemPrompt = buildChatSystemPrompt({ contextBlock, hasTools, meetingCount, temporalContext });
+  const systemPrompt = buildChatSystemPrompt({ contextBlock, hasToolAccess, meetingCount, temporalContext });
 
   return { systemPrompt };
 }

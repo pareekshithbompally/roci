@@ -1,10 +1,8 @@
 /**
  * Client-side intent signal check.
  *
- * @deprecated Use `classifyIntent()` from `./intent-classifier` instead.
- * This heuristic-based approach has been replaced by LLM-based intent
- * classification in the orchestration rewrite. Kept for backward compatibility
- * with existing tests.
+ * @deprecated The orchestrator now uses an agentic tool loop — the LLM
+ * decides tool calls autonomously. This heuristic is only kept for existing tests.
  */
 
 const MEETING_SIGNALS: RegExp[] = [
