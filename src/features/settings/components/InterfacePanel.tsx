@@ -7,13 +7,13 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Sun, Moon, Monitor, Copy, Check, FolderOpen, FolderSearch, RefreshCw, Database, CheckCircle2, Loader2 } from 'lucide-react';
-import { useTheme } from '@/hooks/useTheme';
+import { useTheme } from '@shared/hooks/useTheme';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
-import { isTauriEnvironment } from '@/services/tauri';
-import { pathsService } from '@/services/storage';
-import { searchIndexingService } from '@/services/searchIndexing.service';
-import { meetingService } from '@/services/meeting.service';
+import { isTauriEnvironment } from '@services/tauri';
+import { pathsService } from '@services/storage';
+import { searchIndexingService } from '@services/searchIndexing.service';
+import { meetingService } from '@services/meeting.service';
 import { IMPORT_CONFIG } from '@config/audio.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { SURFACE, BORDER, TEXT, RADIUS, LAYOUT, COMPONENT } from '@config/theme.config';
@@ -25,8 +25,8 @@ import {
 } from '@shared/ui';
 import { useSettingsSave } from '../hooks/useSettingsSave';
 import { useAppUpdate } from '../hooks/useAppUpdate';
-import { getProviderTitle } from '@/utils/providerUtils';
-import ProvidersAvatar from '@/components/ProvidersAvatar';
+import { getProviderTitle } from '@shared/utils/provider.utils';
+import ProvidersAvatar from '@shared/components/ProvidersAvatar';
 
 export const InterfacePanel: React.FC = () => {
   const { theme, setTheme } = useTheme();

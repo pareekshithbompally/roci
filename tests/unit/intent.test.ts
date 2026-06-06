@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { needsRetrieval } from '../../extensions/tool-orchestrator/intent';
+import { needsRetrieval } from '@extensions/tool-orchestrator/intent';
 
 describe('needsRetrieval', () => {
   // ── Zero meetings → always false ──────────────────────────────────────

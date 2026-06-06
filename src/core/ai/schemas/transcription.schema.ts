@@ -8,7 +8,7 @@
  * can render each section directly without regex parsing.
  */
 
-import type { MeetingSummary } from '@/types';
+import type { MeetingSummary } from '@shared/types';
 
 export const TRANSCRIPTION_SCHEMA = {
   type: 'object' as const,

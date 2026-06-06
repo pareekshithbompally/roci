@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import ProvidersAvatar from '@/components/ProvidersAvatar';
+import ProvidersAvatar from '@shared/components/ProvidersAvatar';
 import { STREAMING_CONFIG } from '@config/streaming.config';
 import { SURFACE } from '@config/theme.config';
 

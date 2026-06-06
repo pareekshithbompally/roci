@@ -8,7 +8,7 @@ import React from 'react';
 import { useHistory } from '@shared/contexts/HistoryContext';
 import { TEXT } from '@config/theme.config';
 import { HistoryItem } from './HistoryItem';
-import type { HistoryItem as HistoryItemType } from '@/types';
+import type { HistoryItem as HistoryItemType } from '@shared/types';
 
 interface FilteredHistoryItem extends HistoryItemType {
   matchContext?: string;

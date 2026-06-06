@@ -6,20 +6,20 @@
 
 import React, { useRef, useCallback, useEffect } from 'react';
 import { Search, SquarePen, PanelLeft, Settings } from 'lucide-react';
-import { useLeftPanel } from '@/hooks/useLeftPanel';
-import { useSmallScreen } from '@/hooks/useMediaQuery';
+import { useLeftPanel } from '@shared/hooks/useLeftPanel';
+import { useSmallScreen } from '@shared/hooks/useMediaQuery';
 import { useApp } from '@shared/contexts/AppContext';
 import { useChat } from '@shared/contexts/ChatContext';
 import { useRecordingContext } from '@features/recording';
 import { UnifiedList } from '@features/history';
 import { useUnifiedSidebar } from '@shared/hooks/useUnifiedSidebar';
-import { AppStatus } from '@/types';
-import { meetingService } from '@/services/meeting.service';
+import { AppStatus } from '@shared/types';
+import { meetingService } from '@services/meeting.service';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import { ActivityTray } from '@shared/components/ActivityTray';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { formatShortcut } from '@config/shortcuts.config';
-import type { UnifiedSidebarItem } from '@/types';
+import type { UnifiedSidebarItem } from '@shared/types';
 
 interface SidebarProps {
   shouldOffsetMacControls: boolean;

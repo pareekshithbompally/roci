@@ -12,12 +12,12 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { useApp } from '@shared/contexts/AppContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { useSettingsSave } from '../hooks/useSettingsSave';
-import ProvidersAvatar from '@/components/ProvidersAvatar';
-import { getProviderTitle } from '@/utils/providerUtils';
-import { providersService } from '@/services/providers';
-import { modalitiesService } from '@/services/modalities';
+import ProvidersAvatar from '@shared/components/ProvidersAvatar';
+import { getProviderTitle } from '@shared/utils/provider.utils';
+import { providersService } from '@services/providers';
+import { modalitiesService } from '@services/modalities';
 import { getManagedSDKInfo, getDefaultBaseUrl } from '@shared/utils/modelResolver';
-import { MANAGED_MODELS, MANAGED_SDK_PROVIDERS } from '@/consts/providers';
+import { MANAGED_MODELS, MANAGED_SDK_PROVIDERS } from '@config/providers.config';
 import { ModalityIcons } from './ModalityIcons';
 import { ModelSettingsModal } from './ModelSettingsModal';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
@@ -28,8 +28,8 @@ import { Command, CommandList, CommandItem, CommandEmpty } from '@shared/ui';
 import * as llamacppServer from '@extensions/llamacpp/server';
 import { ServerStatus as LlamacppServerStatus } from '@extensions/llamacpp/components/ServerStatus';
 import type { ServerStatus as LlamacppStatusType } from '@extensions/llamacpp/types';
-import type { ModelProvider } from '@/types/modelProviders';
-import type { ModelInfo } from '@/services/modalities';
+import type { ModelProvider } from '@shared/types/modelProviders';
+import type { ModelInfo } from '@services/modalities';
 
 const STORAGE_KEY = 'kasset_ai_last_provider_selection';
 

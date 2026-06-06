@@ -48,6 +48,12 @@ export const AUDIO_CONFIG = {
     maxSizeMB: 500, // Browser safe limit
     maxSizeBytes: 500 * 1024 * 1024,
     maxDurationSeconds: 7200, // 2 hours
+
+    // WAV validation thresholds
+    // WAV header is exactly 44 bytes. Any file ≤ this size contains no audio data.
+    wavHeaderSizeBytes: 44,
+    // Minimum meaningful audio: header + at least 1 second of 16kHz 16-bit mono PCM = 32044 bytes
+    minAudioSizeBytes: 44 + (16000 * 2),
   },
 
   // Capture source options

@@ -34,6 +34,11 @@ export const APP_CONFIG = {
       transcript: ['txt', 'md', 'json'],
     },
   },
+
+  chat: {
+    maxAttachmentSizeMB: 20,
+    maxAttachmentSizeBytes: 20 * 1024 * 1024,
+  },
   
   tray: {
     tooltip: 'Kasset.ai',
@@ -41,3 +46,10 @@ export const APP_CONFIG = {
 } as const;
 
 export type RecordingFormat = typeof APP_CONFIG.recording.supportedFormats[number];
+
+export const AVAILABLE_MODELS = [
+  { id: 'gemini-flash-latest', name: 'Gemini 2.5 Flash' },
+  { id: 'gemini-flash-lite-latest', name: 'Gemini 2.5 Flash Lite' },
+  { id: 'gemini-3-pro-preview', name: 'Gemini 3.0 Pro' },
+  { id: 'gemini-3-flash-preview', name: 'Gemini 3.0 Flash' },
+];

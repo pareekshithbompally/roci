@@ -10,7 +10,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { X, FileText } from 'lucide-react';
 import { UI_CONFIG } from '@config/ui.config';
 import { SURFACE, TEXT } from '@config/theme.config';
-import type { ChatPart, MediaSource } from '@/types';
+import type { ChatPart, MediaSource } from '@shared/types';
 
 /** Resolve a MediaSource to a URL usable in src attributes */
 function resolveMediaSrc(source: MediaSource, mimeType: string): string {

@@ -6,9 +6,9 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
-import type { HistoryItem, Note, ActionItem, NoteEntry, TodoEntry } from '@/types';
-import { notesRepository, todosRepository } from '@/services/repositories';
-import { reminderService } from '@/services/reminder.service';
+import type { HistoryItem, Note, ActionItem, NoteEntry, TodoEntry } from '@shared/types';
+import { notesRepository, todosRepository } from '@services/repositories';
+import { reminderService } from '@services/reminder.service';
 import { useApp } from '@shared/contexts/AppContext';
 
 interface MeetingState {

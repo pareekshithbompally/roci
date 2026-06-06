@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
+import { BREAKPOINTS } from '@config/ui.config';
 
 export function useSmallScreen() {
   const [isSmallScreen, setIsSmallScreen] = useState(
-    typeof window !== 'undefined' ? window.innerWidth <= 768 : false
+    typeof window !== 'undefined' ? window.innerWidth <= BREAKPOINTS.md : false
   );
 
   useEffect(() => {
     const handleResize = () => {
-      setIsSmallScreen(window.innerWidth <= 768);
+      setIsSmallScreen(window.innerWidth <= BREAKPOINTS.md);
     };
 
     window.addEventListener('resize', handleResize);
@@ -19,12 +20,12 @@ export function useSmallScreen() {
 
 export function useMobileScreen() {
   const [isMobile, setIsMobile] = useState(
-    typeof window !== 'undefined' ? window.innerWidth <= 640 : false
+    typeof window !== 'undefined' ? window.innerWidth <= BREAKPOINTS.sm : false
   );
 
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth <= 640);
+      setIsMobile(window.innerWidth <= BREAKPOINTS.sm);
     };
 
     window.addEventListener('resize', handleResize);

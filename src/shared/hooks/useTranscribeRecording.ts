@@ -6,16 +6,16 @@
  */
 
 import { useState, useCallback } from 'react';
-import { recordingsService } from '@/services/storage';
-import { unifiedAIService } from '@/services/unifiedAIService';
-import { transcriptionService } from '@/services/transcription.service';
+import { recordingsService } from '@services/storage';
+import { unifiedAIService } from '@services/unifiedAIService';
+import { transcriptionService } from '@services/transcription.service';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useApp } from '@shared/contexts/AppContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { logUsage } from '@extensions/usage';
 import { resolveModel } from '@shared/utils/modelResolver';
-import type { HistoryItem, MeetingSummary } from '@/types';
+import type { HistoryItem, MeetingSummary } from '@shared/types';
 
 interface UseTranscribeRecordingReturn {
   transcribe: (item: HistoryItem) => Promise<void>;

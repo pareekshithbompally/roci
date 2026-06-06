@@ -12,8 +12,8 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { resolveModel } from '@shared/utils/modelResolver';
-import { audioToRawText } from '@/services/unifiedAIService';
-import type { ModelProvider } from '@/types/modelProviders';
+import { audioToRawText } from '@services/unifiedAIService';
+import type { ModelProvider } from '@shared/types/modelProviders';
 
 export type SpeechState = 'idle' | 'recording' | 'transcribing';
 

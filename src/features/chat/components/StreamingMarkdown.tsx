@@ -18,7 +18,7 @@ import { code } from '@streamdown/code';
 import remarkGfm from 'remark-gfm';
 import { rehypeCitationMarkers } from '@shared/utils/inlineCitationInjector';
 import { InlineCitationMarker } from './InlineCitationMarker';
-import type { WebCitation } from '@/types';
+import type { WebCitation } from '@shared/types';
 
 interface StreamingMarkdownProps {
   content: string;

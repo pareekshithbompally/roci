@@ -7,7 +7,7 @@
 import React, { useState, useCallback } from 'react';
 import { Check, X, Edit2, Clock, AlertTriangle } from 'lucide-react';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
-import type { ActionItem } from '@/types';
+import type { ActionItem } from '@shared/types';
 import { isOverdue, formatDueDate, formatReminderDate, isReminderOverdue } from '@shared/utils/todo.utils';
 import ReminderPicker from './ReminderPicker';
 

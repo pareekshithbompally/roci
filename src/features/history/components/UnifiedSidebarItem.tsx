@@ -14,10 +14,10 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '@shared/ui/dropdown-menu';
-import HighlightedText from '@/components/HighlightedText';
+import HighlightedText from '@shared/components/HighlightedText';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { TEXT, SURFACE, BORDER, COMPONENT } from '@config/theme.config';
-import type { UnifiedSidebarItem as UnifiedSidebarItemType } from '@/types';
+import type { UnifiedSidebarItem as UnifiedSidebarItemType } from '@shared/types';
 
 interface UnifiedSidebarItemProps {
   item: UnifiedSidebarItemType;

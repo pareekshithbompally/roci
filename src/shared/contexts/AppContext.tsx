@@ -6,10 +6,10 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { AppStatus as AppStatusEnum, ProcessedResult } from '@/types';
+import { AppStatus as AppStatusEnum, ProcessedResult } from '@shared/types';
 
 // Re-export AppStatus enum for convenience
-export { AppStatus } from '@/types';
+export { AppStatus } from '@shared/types';
 
 type ViewType = 'home' | 'settings' | 'reminders' | 'calendar';
 type SettingsPanel = 'audio' | 'providers' | 'local-inference' | 'categories' | 'interface';

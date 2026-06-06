@@ -10,7 +10,7 @@
 
 import React from 'react';
 import { getFaviconUrl } from '@shared/utils/citationUtils';
-import type { WebCitation } from '@/types';
+import type { WebCitation } from '@shared/types';
 
 interface InlineCitationMarkerProps {
   /** Comma-separated 0-based source indices (from data-cite attribute) */

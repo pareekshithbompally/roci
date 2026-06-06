@@ -6,8 +6,8 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { notesRepository } from '../../../../services/repositories';
-import type { NoteEntry } from '@/types';
+import { notesRepository } from '@services/repositories';
+import type { NoteEntry } from '@shared/types';
 import type { NotesContextValue, NotesState, Note } from '../types';
 
 const initialState: NotesState = {

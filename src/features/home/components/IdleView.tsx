@@ -14,7 +14,7 @@ import { useChat } from '@shared/contexts/ChatContext';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { ChatInput } from '@features/chat';
-import { meetingReferenceService } from '@/services/meetingReferenceService';
+import { meetingReferenceService } from '@services/meetingReferenceService';
 import { RadioCard } from '@features/settings/components/shared';
 import { supportsWebSearch, supportsTranscription, resolveModel } from '@shared/utils/modelResolver';
 import { useSpeechInput } from '@features/chat/hooks/useSpeechInput';

@@ -10,7 +10,7 @@ import { Plus, AlertCircle, Loader2, Calendar } from 'lucide-react';
 import { useMeeting } from '@shared/contexts/MeetingContext';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import { DatePicker, TimePicker } from '@shared/ui';
-import { reminderService } from '@/services/reminder.service';
+import { reminderService } from '@services/reminder.service';
 import { buildISOFromDateInput } from '@shared/utils/todo.utils';
 import TodoItem from './TodoItem';
 

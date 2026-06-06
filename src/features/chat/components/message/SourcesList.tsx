@@ -2,7 +2,7 @@ import React from 'react';
 import { AudioWaveform } from 'lucide-react';
 import { getFaviconUrl, extractDomain } from '@shared/utils/citationUtils';
 import { TEXT, COMPONENT } from '@config/theme.config';
-import type { MeetingCitation, WebCitation } from '@/types';
+import type { MeetingCitation, WebCitation } from '@shared/types';
 
 interface SourcesListProps {
   meetingCitations?: MeetingCitation[];

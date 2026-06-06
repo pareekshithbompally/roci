@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { isTauriEnvironment } from '@/services/tauri';
+import { isTauriEnvironment } from '@services/tauri';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useRecordingContext } from '@features/recording';
 import { useToast } from '@shared/contexts/ToastContext';
@@ -20,8 +20,8 @@ import {
   setupCalendarNotifications,
   setPendingCalendarEvent,
   CALENDAR_DEFAULTS,
-} from '@/services/calendar';
-import type { EnrichedCalendarEvent } from '@/services/calendar';
+} from '@services/calendar';
+import type { EnrichedCalendarEvent } from '@services/calendar';
 
 export function useCalendarIntegration(): void {
   const { settings } = useSettings();

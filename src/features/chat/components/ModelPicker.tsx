@@ -9,13 +9,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronDown, Wrench } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import ProvidersAvatar from '@/components/ProvidersAvatar';
-import { getProviderTitle } from '@/utils/providerUtils';
+import ProvidersAvatar from '@shared/components/ProvidersAvatar';
+import { getProviderTitle } from '@shared/utils/provider.utils';
 import { resolveModel, supportsTools } from '@shared/utils/modelResolver';
-import { modalitiesService } from '@/services/modalities';
+import { modalitiesService } from '@services/modalities';
 import { ModalityIcons } from '@features/settings/components/ModalityIcons';
-import { MANAGED_SDK_PROVIDERS } from '@/consts/providers';
-import type { ModelInfo } from '@/services/modalities';
+import { MANAGED_SDK_PROVIDERS } from '@config/providers.config';
+import type { ModelInfo } from '@services/modalities';
 import { SURFACE, TEXT } from '@config/theme.config';
 import {
   Popover,

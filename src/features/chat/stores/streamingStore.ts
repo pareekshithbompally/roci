@@ -20,7 +20,7 @@
  */
 
 import { useSyncExternalStore } from 'react';
-import type { ChatPart } from '@/types';
+import type { ChatPart } from '@shared/types';
 
 export interface StreamingSnapshot {
   parts: ChatPart[];

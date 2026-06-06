@@ -16,7 +16,7 @@ import { DatePicker } from '@shared/ui/date-picker';
 import { useCalendarEvents } from '../hooks/useCalendarEvents';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { AppStatus } from '@/types';
+import { AppStatus } from '@shared/types';
 import type { CalendarEvent as ScheduleXCalendarEvent } from '@schedule-x/calendar';
 
 // ─── Helpers ────────────────────────────────────────────────────────

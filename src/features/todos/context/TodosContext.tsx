@@ -6,8 +6,8 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
-import { todosRepository } from '../../../../services/repositories';
-import type { TodoEntry } from '@/types';
+import { todosRepository } from '@services/repositories';
+import type { TodoEntry } from '@shared/types';
 import type { TodosContextValue, TodosState, Todo, TodoStats } from '../types';
 import { calculateTodoStats } from '../types';
 import { isOverdue } from '@shared/utils/todo.utils';

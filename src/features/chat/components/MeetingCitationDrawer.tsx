@@ -8,9 +8,9 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { X, ExternalLink, FileText, Mic, ArrowLeft, AudioWaveform, Loader2 } from 'lucide-react';
-import ParsedTranscript from '@/components/ParsedTranscript';
+import ParsedTranscript from '@features/transcription/components/ParsedTranscript';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
-import type { MeetingCitation, HistoryItem } from '@/types';
+import type { MeetingCitation, HistoryItem } from '@shared/types';
 
 interface MeetingCitationDrawerProps {
   mode: 'list' | 'detail';

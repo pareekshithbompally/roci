@@ -5,10 +5,10 @@
  * Used to route API calls to the correct provider service.
  */
 
-import type { ModelProvider, Model } from '@/types/modelProviders';
-import type { ProviderType } from '@/services/ai/types';
-import { MANAGED_SDK_PROVIDERS, MANAGED_SDK_INFO, MANAGED_DEFAULT_URLS, TRANSCRIPTION_STRATEGIES } from '@/consts/providers';
-import type { TranscriptionStrategy } from '@/consts/providers';
+import type { ModelProvider, Model } from '@shared/types/modelProviders';
+import type { ProviderType } from '@services/ai/types';
+import { MANAGED_SDK_PROVIDERS, MANAGED_SDK_INFO, MANAGED_DEFAULT_URLS, TRANSCRIPTION_STRATEGIES } from '@config/providers.config';
+import type { TranscriptionStrategy } from '@config/providers.config';
 
 export interface ResolvedModel {
   modelId: string;

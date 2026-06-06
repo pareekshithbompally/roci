@@ -28,21 +28,20 @@ import { useAppShortcuts } from '@shared/hooks/useAppShortcuts';
 import { useCalendarIntegration } from '@shared/hooks/useCalendarIntegration';
 
 // Services
-import { isTauriEnvironment } from '@/services/tauri';
+import { isTauriEnvironment } from '@services/tauri';
 import {
   initializeStorage,
   settingsService,
   pathsService,
-} from '@/services/storage';
-import { runMigrations } from '@/services/migration';
-import { notificationService, trayService, TrayAction } from '@/services/tauri';
-import { windowService } from '@/services/window.service';
-import { shortcutsService } from '@/services/shortcuts.service';
+} from '@services/storage';
+import { notificationService, trayService, TrayAction } from '@services/tauri';
+import { windowService } from '@services/window.service';
+import { shortcutsService } from '@services/shortcuts.service';
 import { ShortcutAction } from '@config/shortcuts.config';
-import { unifiedAIService } from '@/services/unifiedAIService';
-import { initPlatformFetch } from '@/services/platform-fetch';
-import { searchIndexingService } from '@/services/searchIndexing.service';
-import { reminderService } from '@/services/reminder.service';
+import { unifiedAIService } from '@services/unifiedAIService';
+import { initPlatformFetch } from '@services/platform-fetch';
+import { searchIndexingService } from '@services/searchIndexing.service';
+import { reminderService } from '@services/reminder.service';
 import { exit } from '@tauri-apps/plugin-process';
 
 const App: React.FC = () => {
@@ -189,7 +188,6 @@ const App: React.FC = () => {
     try {
       try { await initPlatformFetch(); } catch (e) { console.warn('Platform fetch init failed, using native fetch:', e); }
       await initializeStorage();
-      await runMigrations();
       await notificationService.initialize();
       await notificationService.requestPermission();
       await reminderService.initialize();

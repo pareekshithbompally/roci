@@ -5,7 +5,7 @@ import SuggestionsList from './SuggestionsList';
 import SourcesList from './SourcesList';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import type { ActionProps, CitationHandlers } from './types';
-import type { MeetingCitation, WebCitation } from '@/types';
+import type { MeetingCitation, WebCitation } from '@shared/types';
 
 interface AssistantActionBarProps {
   id: string;

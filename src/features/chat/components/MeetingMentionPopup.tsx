@@ -11,7 +11,7 @@
 
 import React from 'react';
 import { FileAudio, Check } from 'lucide-react';
-import type { MeetingListItem } from '@/services/meetingReferenceService';
+import type { MeetingListItem } from '@services/meetingReferenceService';
 import {
   PopoverContent,
   Command,

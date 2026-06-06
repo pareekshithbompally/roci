@@ -6,7 +6,7 @@ import {
   remapInlineCitations,
 } from '@shared/utils/citationUtils';
 
-import type { WebCitation, InlineCitationSpan } from '@/types';
+import type { WebCitation, InlineCitationSpan } from '@shared/types';
 
 // ── extractDomain ───────────────────────────────────────────────
 

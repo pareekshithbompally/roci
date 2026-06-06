@@ -4,8 +4,8 @@
  * Type definitions for the recording feature module
  */
 
-import type { AudioCaptureSource } from '../../../../src/config/audio.config';
-import type { CalendarRecordingMeta } from '@/services/calendar/recording-bridge';
+import type { AudioCaptureSource } from '@config/audio.config';
+import type { CalendarRecordingMeta } from '@services/calendar/recording-bridge';
 
 export type RecordingStatus = 'idle' | 'recording' | 'paused' | 'stopped' | 'review' | 'processing';
 

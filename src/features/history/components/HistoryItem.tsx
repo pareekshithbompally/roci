@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { MoreVertical, Edit2, Trash2 } from 'lucide-react';
-import HighlightedText from '@/components/HighlightedText';
+import HighlightedText from '@shared/components/HighlightedText';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 
 interface HistoryItemProps {

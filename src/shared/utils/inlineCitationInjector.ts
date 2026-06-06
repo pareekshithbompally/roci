@@ -12,7 +12,7 @@
  * prop maps to <InlineCitationMarker> React components.
  */
 
-import type { InlineCitationSpan } from '@/types';
+import type { InlineCitationSpan } from '@shared/types';
 import { visit } from 'unist-util-visit';
 import type { Root, Text, Element, ElementContent } from 'hast';
 

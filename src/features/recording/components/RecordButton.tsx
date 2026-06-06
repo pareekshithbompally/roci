@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { Circle } from 'lucide-react';
-import { UI_CONFIG } from '../../../../src/config/ui.config';
+import { UI_CONFIG } from '@config/ui.config';
 import { TEXT } from '@config/theme.config';
 import { useRecording } from '../hooks';
 

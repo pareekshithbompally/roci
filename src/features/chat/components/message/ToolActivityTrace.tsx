@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { TEXT, SURFACE, BORDER } from '@config/theme.config';
-import type { ChatPart } from '@/types';
+import type { ChatPart } from '@shared/types';
 
 type ToolCallPart = Extract<ChatPart, { type: 'tool_call' }>;
 

@@ -10,10 +10,10 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
-import type { AppSettings } from '@/types';
-import type { ModelProvider, ProviderSetting } from '@/types/modelProviders';
-import { settingsService } from '@/services/storage';
-import { predefinedProviders, MANAGED_SDK_PROVIDERS } from '@/consts/providers';
+import type { AppSettings } from '@shared/types';
+import type { ModelProvider, ProviderSetting } from '@shared/types/modelProviders';
+import { settingsService } from '@services/storage';
+import { predefinedProviders, MANAGED_SDK_PROVIDERS } from '@config/providers.config';
 
 interface SettingsState {
   /** App settings */

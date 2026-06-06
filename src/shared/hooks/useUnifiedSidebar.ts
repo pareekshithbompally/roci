@@ -8,7 +8,7 @@
 import { useMemo } from 'react';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useChat } from '@shared/contexts/ChatContext';
-import type { UnifiedSidebarItem } from '@/types';
+import type { UnifiedSidebarItem } from '@shared/types';
 
 interface UseUnifiedSidebarReturn {
   /** Combined and sorted list of meetings and chats */

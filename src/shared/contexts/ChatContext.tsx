@@ -6,18 +6,18 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode, useRef, useEffect, MutableRefObject } from 'react';
-import type { ChatSession, ChatMessage, ChatPart, ChatIndexEntry, AppSettings, HistoryItem, MeetingCitation, WebCitation, InlineCitationSpan } from '@/types';
-import { fileToBase64 } from '@/utils/fileUtils';
-import type { ModelProvider } from '@/types/modelProviders';
-import { chatService } from '@/services/chat.service';
-import { unifiedAIService } from '@/services/unifiedAIService';
-import type { MeetingListItem } from '@/services/meetingReferenceService';
+import type { ChatSession, ChatMessage, ChatPart, ChatIndexEntry, AppSettings, HistoryItem, MeetingCitation, WebCitation, InlineCitationSpan } from '@shared/types';
+import { fileToBase64 } from '@shared/utils/file.utils';
+import type { ModelProvider } from '@shared/types/modelProviders';
+import { chatService } from '@services/chat.service';
+import { unifiedAIService } from '@services/unifiedAIService';
+import type { MeetingListItem } from '@services/meetingReferenceService';
 import { resolveModel, supportsTools } from '@shared/utils/modelResolver';
 import { contextPipeline } from '@extensions/context-pipeline';
 import { orchestrate } from '@extensions/tool-orchestrator';
 import { streamingStore } from '@features/chat/stores/streamingStore';
 import { buildChatRequest, formatTemporalContext } from '@core/ai';
-import { generateSuggestions } from '@/services/ai/suggestions';
+import { generateSuggestions } from '@services/ai/suggestions';
 import { logUsage } from '@extensions/usage';
 import { CHAT_PAGE_SIZE, MAX_LOADED_SESSIONS, SIDEBAR_SEARCH_DEBOUNCE_MS } from '@config/chat.config';
 

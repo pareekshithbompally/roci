@@ -10,7 +10,7 @@ import React, { useCallback } from 'react';
 import { X, Globe, ExternalLink } from 'lucide-react';
 import { getFaviconUrl, extractDomain } from '@shared/utils/citationUtils';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
-import type { WebCitation } from '@/types';
+import type { WebCitation } from '@shared/types';
 
 interface WebCitationDrawerProps {
   citations: WebCitation[] | null;

@@ -13,8 +13,8 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Temporal } from 'temporal-polyfill';
-import { calendarService } from '@/services/calendar';
-import type { EnrichedCalendarEvent } from '@/services/calendar';
+import { calendarService } from '@services/calendar';
+import type { EnrichedCalendarEvent } from '@services/calendar';
 import type { CalendarEvent as ScheduleXCalendarEvent } from '@schedule-x/calendar';
 
 /**

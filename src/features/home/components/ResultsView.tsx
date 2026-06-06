@@ -27,18 +27,18 @@ import {
 import { useApp, AppStatus } from '@shared/contexts/AppContext';
 import { useRecordingContext } from '@features/recording';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
-import SummaryView from '@/components/SummaryView';
-import TranscriptViewEnhanced from '@/components/TranscriptViewEnhanced';
+import SummaryView from '@features/summary/components/SummaryView';
+import TranscriptViewEnhanced from '@features/transcription/components/TranscriptViewEnhanced';
 import { TodoList, TodosProvider } from '@features/todos';
 import { NotesView, NotesProvider } from '@features/notes';
 import { useMeeting } from '@shared/contexts/MeetingContext';
 import { ResultsAudioPlayer } from './ResultsAudioPlayer';
-import { isTauriEnvironment } from '@/services/tauri';
-import { dialogService, fileSystemService, notificationService } from '@/services/tauri';
+import { isTauriEnvironment } from '@services/tauri';
+import { dialogService, fileSystemService, notificationService } from '@services/tauri';
 import { NotificationType } from '@config/notifications.config';
 import { useTranscribeRecording } from '@shared/hooks/useTranscribeRecording';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
-import type { HistoryItem } from '@/types';
+import type { HistoryItem } from '@shared/types';
 
 const TABS = { SUMMARY: 'summary', TRANSCRIPT: 'transcript', TODO: 'todo', NOTES: 'notes' };
 

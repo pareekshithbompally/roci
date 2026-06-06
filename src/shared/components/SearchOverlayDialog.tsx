@@ -21,7 +21,7 @@ import {
 import { useUnifiedSidebar } from '@shared/hooks/useUnifiedSidebar';
 import { useApp, AppStatus } from '@shared/contexts/AppContext';
 import { useChat } from '@shared/contexts/ChatContext';
-import { meetingService } from '@/services/meeting.service';
+import { meetingService } from '@services/meeting.service';
 import { COMPONENT } from '@config/theme.config';
 import { formatShortcut } from '@config/shortcuts.config';
 import {

@@ -17,7 +17,7 @@ import {
   Wrench, Brain, Braces,
 } from 'lucide-react';
 import { SURFACE, BORDER, TEXT } from '@config/theme.config';
-import type { ModelInfo, ModelCapabilities } from '@/services/modalities';
+import type { ModelInfo, ModelCapabilities } from '@services/modalities';
 
 interface ModalityIconsProps {
   /** Full model info from modalitiesService.getModelInfo() — preferred */

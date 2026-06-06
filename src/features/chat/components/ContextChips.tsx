@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { X, FileAudio } from 'lucide-react';
-import type { MeetingListItem } from '@/services/meetingReferenceService';
+import type { MeetingListItem } from '@services/meetingReferenceService';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 
 interface ContextChipsProps {

@@ -11,8 +11,8 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { useUnsavedChanges } from '@shared/contexts/UnsavedChangesContext';
-import type { AppSettings } from '@/types';
-import type { ModelProvider } from '@/types/modelProviders';
+import type { AppSettings } from '@shared/types';
+import type { ModelProvider } from '@shared/types/modelProviders';
 
 /** Stable serialization for comparison — ignores key ordering */
 function stableStringify(value: unknown): string {

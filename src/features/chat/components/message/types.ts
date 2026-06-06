@@ -1,4 +1,4 @@
-import type { ChatPart, MeetingCitation, WebCitation, InlineCitationSpan } from '@/types';
+import type { ChatPart, MeetingCitation, WebCitation, InlineCitationSpan } from '@shared/types';
 
 /** Shared action callbacks — stable via useMemo in parent */
 export interface ActionProps {

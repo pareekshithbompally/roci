@@ -9,10 +9,10 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
-import { todosRepository } from '@/services/repositories';
-import { reminderService } from '@/services/reminder.service';
-import type { ScheduleReminderParams } from '@/services/reminder.service';
-import type { TodoEntry, HistoryItem } from '@/types';
+import { todosRepository } from '@services/repositories';
+import { reminderService } from '@services/reminder.service';
+import type { ScheduleReminderParams } from '@services/reminder.service';
+import type { TodoEntry, HistoryItem } from '@shared/types';
 import { hashToNotificationId } from '@shared/utils/todo.utils';
 
 export interface GlobalTodo extends TodoEntry {

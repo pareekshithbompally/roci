@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import ToolCallSummary from '@features/chat/components/message/ToolCallSummary';
-import type { ChatPart } from '@/types';
+import type { ChatPart } from '@shared/types';
 
 describe('ToolCallSummary', () => {
   const mockToolCalls: Extract<ChatPart, { type: 'tool_call' }>[] = [

@@ -6,8 +6,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { recordingsService } from '@/services/storage';
-import CustomAudioPlayer from '@/components/CustomAudioPlayer';
+import { recordingsService } from '@services/storage';
+import CustomAudioPlayer from '@shared/components/CustomAudioPlayer';
 import { SURFACE } from '@config/theme.config';
 
 interface ResultsAudioPlayerProps {

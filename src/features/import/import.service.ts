@@ -5,12 +5,12 @@
  * Singleton. Non-React — receives dependencies via method args.
  */
 
-import type { AppSettings, MeetingSummary } from '@/types';
-import type { ModelProvider } from '@/types/modelProviders';
-import { dialogService } from '@/services/tauri/dialog.service';
-import { fileSystemService } from '@/services/tauri/fileSystem.service';
-import { unifiedAIService } from '@/services/unifiedAIService';
-import { transcriptionService } from '@/services/transcription.service';
+import type { AppSettings, MeetingSummary } from '@shared/types';
+import type { ModelProvider } from '@shared/types/modelProviders';
+import { dialogService } from '@services/tauri/dialog.service';
+import { fileSystemService } from '@services/tauri/fileSystem.service';
+import { unifiedAIService } from '@services/unifiedAIService';
+import { transcriptionService } from '@services/transcription.service';
 import { activityStore } from '@shared/stores/activityStore';
 import { logUsage } from '@extensions/usage';
 import { resolveModel } from '@shared/utils/modelResolver';
@@ -239,7 +239,7 @@ class ImportService {
     this.debouncedRefresh();
   }
 
-  private buildMeetingSummary(result: import('@/types').ProcessedResult): MeetingSummary {
+  private buildMeetingSummary(result: import('@shared/types').ProcessedResult): MeetingSummary {
     const ss = result.structuredSummary;
     return {
       overview: ss?.overview || result.summary,

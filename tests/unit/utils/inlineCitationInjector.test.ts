@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { injectCitationTokens } from '@shared/utils/inlineCitationInjector';
 
-import type { InlineCitationSpan } from '@/types';
+import type { InlineCitationSpan } from '@shared/types';
 
 const makeSpan = (
   startIndex: number,

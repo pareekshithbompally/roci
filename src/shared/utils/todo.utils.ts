@@ -13,7 +13,7 @@
  * constructs them as LOCAL midnight. This is the single fix for the whole system.
  */
 
-import type { TodoReminder } from '@/types';
+import type { TodoReminder } from '@shared/types';
 
 // ── Date parsing (single entry point) ───────────────────────────
 

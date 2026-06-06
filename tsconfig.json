@@ -27,7 +27,8 @@
       "@platform/*": ["./src/platform/*"],
       "@config/*": ["./src/config/*"],
       "@assets/*": ["./src/assets/*"],
-      "@extensions/*": ["./extensions/*"]
+      "@extensions/*": ["./src/extensions/*"],
+      "@services/*": ["./src/services/*"]
     },
     "allowImportingTsExtensions": true,
     "noEmit": true

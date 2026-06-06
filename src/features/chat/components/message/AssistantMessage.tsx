@@ -2,7 +2,7 @@ import React, { memo, useMemo } from 'react';
 import { AnimatedProviderIcon } from '../AnimatedProviderIcon';
 import { StreamingMarkdown } from '../StreamingMarkdown';
 import { useStreamingText } from '@features/chat/stores/streamingStore';
-import { getProviderTitle } from '@/utils/providerUtils';
+import { getProviderTitle } from '@shared/utils/provider.utils';
 import { toolLabel } from '@shared/utils/toolUtils';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { TEXT } from '@config/theme.config';
@@ -11,7 +11,7 @@ import PartsList from './PartsList';
 import AssistantActionBar from './AssistantActionBar';
 import ErrorMessageBox from './ErrorMessageBox';
 import type { AssistantMessageProps } from './types';
-import type { ChatPart, WebCitation, InlineCitationSpan } from '@/types';
+import type { ChatPart, WebCitation, InlineCitationSpan } from '@shared/types';
 
 /**
  * Streaming-aware header label — subscribes to the external store.

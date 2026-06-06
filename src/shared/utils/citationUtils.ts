@@ -4,7 +4,7 @@
  * Helpers for web citation display: favicon URLs, domain extraction, deduplication.
  */
 
-import type { WebCitation, InlineCitationSpan } from '@/types';
+import type { WebCitation, InlineCitationSpan } from '@shared/types';
 
 const FAVICON_BASE = 'https://www.google.com/s2/favicons';
 const WWW_PREFIX = /^www\./;

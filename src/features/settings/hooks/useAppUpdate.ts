@@ -9,7 +9,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-import { isTauriEnvironment } from '@/services/tauri';
+import { isTauriEnvironment } from '@services/tauri';
 import { activityStore } from '@shared/stores/activityStore';
 
 type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error';

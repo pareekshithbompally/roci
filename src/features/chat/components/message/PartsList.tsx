@@ -3,7 +3,7 @@ import { StreamingMarkdown } from '../StreamingMarkdown';
 import { MediaPartRenderer } from '../MediaPartRenderer';
 import ToolActivityTrace from './ToolActivityTrace';
 import ToolCallSummary from './ToolCallSummary';
-import type { ChatPart, WebCitation } from '@/types';
+import type { ChatPart, WebCitation } from '@shared/types';
 
 interface PartsListProps {
   parts: ChatPart[];

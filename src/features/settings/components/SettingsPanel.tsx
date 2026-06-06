@@ -19,7 +19,7 @@ import { UsagePanel } from './UsagePanel';
 import { IntegrationsPanel } from './IntegrationsPanel';
 import { SettingsSaveButton } from './SettingsSaveButton';
 import { UnsavedChangesModal } from '@shared/components/UnsavedChangesModal';
-import { isTauriEnvironment } from '@/services/tauri';
+import { isTauriEnvironment } from '@services/tauri';
 import { useSettingsSave } from '../hooks/useSettingsSave';
 import { BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';

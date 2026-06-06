@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('@/consts/providers', () => ({
+vi.mock('@config/providers.config', () => ({
   MANAGED_SDK_PROVIDERS: new Set(['openai', 'anthropic', 'gemini']),
   MANAGED_SDK_INFO: {
     openai: 'OpenAI SDK',

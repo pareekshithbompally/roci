@@ -8,7 +8,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, MessageSquare, Trash2, Edit2, Check, X } from 'lucide-react';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
-import type { ChatIndexEntry } from '@/types';
+import type { ChatIndexEntry } from '@shared/types';
 
 interface ChatHistoryListProps {
   sessions: ChatIndexEntry[];

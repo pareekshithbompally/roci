@@ -12,19 +12,19 @@
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { useToast } from '../../../shared/contexts/ToastContext';
-import type { AudioCaptureSource } from '../../../../src/config/audio.config';
+import type { AudioCaptureSource } from '@config/audio.config';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
-import { isTauriEnvironment, trayService, notificationService } from '../../../../services/tauri';
-import { coreAudioService } from '../../../../services/coreAudio.service';
-import { recordingsService } from '../../../../services/storage';
-import { transcriptionService } from '../../../../services/transcription.service';
-import { StorageConfig, generateRecordingFilename, getRecordingIdFromFilename } from '../../../../src/config/storage.config';
-import { unifiedAIService } from '../../../../services/unifiedAIService';
+import { isTauriEnvironment, trayService, notificationService } from '@services/tauri';
+import { coreAudioService } from '@services/coreAudio.service';
+import { recordingsService } from '@services/storage';
+import { transcriptionService } from '@services/transcription.service';
+import { StorageConfig, generateRecordingFilename, getRecordingIdFromFilename } from '@config/storage.config';
+import { unifiedAIService } from '@services/unifiedAIService';
 import { activityStore } from '../../../shared/stores/activityStore';
 import type { ActivityAction } from '../../../shared/stores/activityStore';
 import { resolveModel } from '@shared/utils/modelResolver';
-import { consumePendingCalendarMeta } from '@/services/calendar/recording-bridge';
+import { consumePendingCalendarMeta } from '@services/calendar/recording-bridge';
 import type {
   RecordingContextValue,
   RecordingState,

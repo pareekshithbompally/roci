@@ -27,8 +27,8 @@ import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { formatShortcut } from '@config/shortcuts.config';
 import { useChat } from '@shared/contexts/ChatContext';
-import type { MeetingListItem } from '@/services/meetingReferenceService';
-import type { ChatPart } from '@/types';
+import type { MeetingListItem } from '@services/meetingReferenceService';
+import type { ChatPart } from '@shared/types';
 import type { SpeechState } from '../hooks/useSpeechInput';
 import { VoiceWaveform } from './VoiceWaveform';
 

@@ -5,7 +5,7 @@ import { TEXT } from '@config/theme.config';
 import { useTranscribeRecording } from '@shared/hooks/useTranscribeRecording';
 import { UnifiedSidebarItem } from './UnifiedSidebarItem';
 import { RenameModal } from './RenameModal';
-import type { UnifiedSidebarItem as UnifiedSidebarItemType } from '@/types';
+import type { UnifiedSidebarItem as UnifiedSidebarItemType } from '@shared/types';
 
 interface UnifiedListProps {
   items: UnifiedSidebarItemType[];

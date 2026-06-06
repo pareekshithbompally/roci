@@ -7,8 +7,8 @@ import React, { useState, useMemo } from 'react';
 import { Bell, BellRing, X, Clock } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent, DatePicker, TimePicker } from '@shared/ui';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
-import { reminderService } from '@/services/reminder.service';
-import type { ScheduleReminderParams } from '@/services/reminder.service';
+import { reminderService } from '@services/reminder.service';
+import type { ScheduleReminderParams } from '@services/reminder.service';
 import { parseDateLoose, localDateFromParts } from '@shared/utils/todo.utils';
 
 interface ReminderPickerProps {

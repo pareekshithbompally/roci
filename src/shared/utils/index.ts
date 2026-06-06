@@ -4,17 +4,11 @@
  * Utility functions used across the app.
  */
 
-// Audio utilities
-export * from './audio';
-
 // Formatters
 export * from './formatters';
 
 // Validators
 export * from './validators';
-
-// Helper functions
-export * from './helpers';
 
 // Citation utilities
 export * from './citationUtils';
@@ -24,3 +18,15 @@ export * from './inlineCitationInjector';
 
 // Todo utilities
 export * from './todo.utils';
+
+// Audio utilities
+export * from './audio.utils';
+
+// File utilities
+export * from './file.utils';
+
+// Provider utilities
+export * from './provider.utils';
+
+// VTT parser utilities
+export * from './vtt.utils';

@@ -6,9 +6,9 @@
  */
 
 import React, { useCallback, useRef, useMemo } from 'react';
-import { useLeftPanel } from '@/hooks/useLeftPanel';
+import { useLeftPanel } from '@shared/hooks/useLeftPanel';
 import { useRightPanel } from '@shared/hooks/useRightPanel';
-import { useSmallScreen } from '@/hooks/useMediaQuery';
+import { useSmallScreen } from '@shared/hooks/useMediaQuery';
 import { useApp } from '@shared/contexts/AppContext';
 import { useChat } from '@shared/contexts/ChatContext';
 import { useActivityItems } from '@shared/stores/activityStore';
@@ -16,7 +16,7 @@ import { Sidebar } from './Sidebar';
 import { ChatPanel } from '@features/chat';
 import { PanelLeft, SquarePen } from 'lucide-react';
 import { IS_MACOS } from '@platform/index';
-import { AppStatus } from '@/types';
+import { AppStatus } from '@shared/types';
 import { SURFACE, TEXT, LAYOUT, COMPONENT } from '@config/theme.config';
 import { UI_CONFIG } from '@config/ui.config';
 

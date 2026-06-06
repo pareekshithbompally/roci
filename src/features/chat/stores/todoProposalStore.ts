@@ -13,9 +13,9 @@
  */
 
 import { useSyncExternalStore } from 'react';
-import { todosRepository } from '@/services/repositories/todos.repository';
-import { reminderService } from '@/services/reminder.service';
-import type { TodoEntry } from '@/types';
+import { todosRepository } from '@services/repositories/todos.repository';
+import { reminderService } from '@services/reminder.service';
+import type { TodoEntry } from '@shared/types';
 import { normalizeDueDate, hashToNotificationId } from '@shared/utils/todo.utils';
 
 export interface TodoProposal {

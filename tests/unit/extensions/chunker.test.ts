@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { chunkMeeting, computeContentHash } from '@extensions/rag/chunker';
 import { MAX_CHUNK_CHARS, MIN_NOTES_LENGTH } from '@extensions/rag/constants';
-import type { HistoryItem } from '@/types';
+import type { HistoryItem } from '@shared/types';
 
 const makeItem = (overrides: Partial<Record<string, unknown>> = {}): HistoryItem =>
   ({

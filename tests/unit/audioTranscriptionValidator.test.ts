@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { audioTranscriptionValidator } from '@/services/audioTranscriptionValidator';
-import type { ModelProvider } from '@/types/modelProviders';
+import { audioTranscriptionValidator } from '@services/audioTranscriptionValidator';
+import type { ModelProvider } from '@shared/types/modelProviders';
 
 describe('audioTranscriptionValidator', () => {
   describe('validateAudioTranscriptionSupport', () => {

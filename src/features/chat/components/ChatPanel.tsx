@@ -18,12 +18,12 @@ import type { ActionProps, CitationHandlers } from './message';
 import { ChatInput } from './ChatInput';
 import { MeetingCitationDrawer } from './MeetingCitationDrawer';
 import { WebCitationDrawer } from './WebCitationDrawer';
-import { meetingReferenceService } from '@/services/meetingReferenceService';
-import { meetingService } from '@/services/meeting.service';
+import { meetingReferenceService } from '@services/meetingReferenceService';
+import { meetingService } from '@services/meeting.service';
 import { supportsWebSearch, supportsTranscription, resolveModel } from '@shared/utils/modelResolver';
 import { useSpeechInput } from '../hooks/useSpeechInput';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
-import type { MeetingCitation, WebCitation } from '@/types';
+import type { MeetingCitation, WebCitation } from '@shared/types';
 
 const ScrollToBottomBtn = () => {
   const { isAtBottom, scrollToBottom } = useStickToBottomContext();

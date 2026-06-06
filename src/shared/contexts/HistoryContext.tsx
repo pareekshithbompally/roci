@@ -14,9 +14,9 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
-import type { HistoryItem, MeetingIndexEntry } from '@/types';
-import { meetingIndexRepository } from '@/services/repositories';
-import { meetingService } from '@/services/meeting.service';
+import type { HistoryItem, MeetingIndexEntry } from '@shared/types';
+import { meetingIndexRepository } from '@services/repositories';
+import { meetingService } from '@services/meeting.service';
 
 // ── Types ──
 

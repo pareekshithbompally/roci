@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ChevronRight, Wrench, AlertCircle } from 'lucide-react';
 import { toolLabel } from '@shared/utils/toolUtils';
 import { TEXT, SURFACE, BORDER } from '@config/theme.config';
-import type { ChatPart } from '@/types';
+import type { ChatPart } from '@shared/types';
 
 type ToolCallPart = Extract<ChatPart, { type: 'tool_call' }>;
 
