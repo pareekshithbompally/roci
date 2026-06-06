@@ -194,13 +194,11 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
 
   // Start recording → creates new session, returns sessionId
   const startRecordingSession = useCallback(async (): Promise<string> => {
-    console.log('[DIAG:RecCtx] ========== startRecordingSession called ==========');
     if (!isTauriEnvironment()) {
       throw new Error('Native recording is available in the desktop app only.');
     }
 
     if (activeCaptureSessionId !== null) {
-      console.warn('[DIAG:RecCtx] BLOCKED: another capture already active, sessionId=', activeCaptureSessionId);
       throw new Error('Another recording is already capturing audio.');
     }
 
@@ -209,7 +207,6 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       const filename = generateRecordingFilename();
       const recordingId = getRecordingIdFromFilename(filename);
       const sessionId = crypto.randomUUID();
-      console.log('[DIAG:RecCtx] source=%s, filename=%s, sessionId=%s', source, filename, sessionId);
 
       // Create new session
       const calendarMeta = consumePendingCalendarMeta();
@@ -223,6 +220,8 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         recordingFilename: filename,
         recordedFilePath: null,
         recordedBlob: null,
+        aiBlob: null,
+        aiFilePath: null,
         audioUrl: null,
         error: null,
         createdAt: Date.now(),
@@ -241,13 +240,11 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       startTimeRefs.current.set(sessionId, Date.now());
       pausedTimeRefs.current.set(sessionId, 0);
 
-      console.log('[DIAG:RecCtx] Calling coreAudioService.startCapture...');
       await coreAudioService.startCapture({
         source,
         fileName: filename,
         recordingsDir: StorageConfig.directories.recordings,
       });
-      console.log('[DIAG:RecCtx] coreAudioService.startCapture returned OK');
 
       // Start timer
       const timer = setInterval(() => {
@@ -317,20 +314,12 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
   const stopRecordingSession = useCallback(async (sessionId: string) => {
     const session = sessions.get(sessionId);
     if (!session) return;
-    console.log('[DIAG:RecCtx] ========== stopRecordingSession called ==========');
-    console.log('[DIAG:RecCtx] sessionId=%s, elapsed=%ds', sessionId, session.elapsedTime);
 
     try {
-      console.log('[DIAG:RecCtx] Calling coreAudioService.stopCapture...');
       const result = await coreAudioService.stopCapture();
-      console.log('[DIAG:RecCtx] stopCapture returned:', result ? `blob size=${result.blob.size} bytes, path=${result.path}` : 'null');
       cleanupSessionTimer(sessionId);
 
       if (result) {
-        if (result.blob.size <= 44) {
-          console.error('[DIAG:RecCtx] *** CRITICAL: Blob is WAV header only (%d bytes)! Zero audio captured! ***', result.blob.size);
-        }
-        // Normal path: Rust returned the file
         const startTime = startTimeRefs.current.get(sessionId);
         const pausedTime = pausedTimeRefs.current.get(sessionId) || 0;
         const finalElapsedTime = startTime !== undefined
@@ -346,44 +335,17 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           isPaused: false,
           recordedBlob: result.blob,
           recordedFilePath: result.path,
+          aiBlob: result.aiBlob,
+          aiFilePath: result.aiPath,
           audioUrl: url,
           elapsedTime: Math.max(0, finalElapsedTime),
           stalled: false,
         });
       } else {
-        // Timeout or no active capture — attempt WAV recovery
-        console.warn('[RecordingContext] stopCapture returned null, attempting WAV recovery');
-        try {
-          const { appDataDir } = await import('@tauri-apps/api/path');
-          const { readFile } = await import('@tauri-apps/plugin-fs');
-          const dir = await appDataDir();
-          const recoveryPath = `${dir}${StorageConfig.directories.recordings}/${session.recordingFilename}`;
-          const data = await readFile(recoveryPath);
-          const blob = new Blob([data], { type: 'audio/wav' });
-
-          cleanupSessionAudioUrl(sessionId);
-          const url = URL.createObjectURL(blob);
-          audioUrlRefs.current.set(sessionId, url);
-
-          updateSession(sessionId, {
-            status: 'review',
-            isPaused: false,
-            recordedBlob: blob,
-            recordedFilePath: recoveryPath,
-            audioUrl: url,
-            stalled: false,
-          });
-
-          showToast('Recording recovered — audio may be incomplete', 'warning');
-        } catch (recoveryError) {
-          console.error('[RecordingContext] WAV recovery failed:', recoveryError);
-          // Set status to 'review' so the session leaves 'recording' state and
-          // doesn't get stuck in an infinite retry loop when Stop is clicked again.
-          updateSession(sessionId, {
-            status: 'review',
-            error: 'Recording stopped but audio file could not be recovered. The file may be at: recordings/' + session.recordingFilename,
-          });
-        }
+        updateSession(sessionId, {
+          status: 'review',
+          error: 'No active audio capture to stop.',
+        });
       }
 
       setActiveCaptureSessionId(null);
@@ -419,18 +381,6 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       if (result) {
         blob = result.blob;
         cleanupSessionAudioUrl(sessionId);
-      } else {
-        // WAV recovery — same path as stopRecordingSession
-        try {
-          const { appDataDir } = await import('@tauri-apps/api/path');
-          const { readFile } = await import('@tauri-apps/plugin-fs');
-          const dir = await appDataDir();
-          const recoveryPath = `${dir}${StorageConfig.directories.recordings}/${session.recordingFilename}`;
-          const data = await readFile(recoveryPath);
-          blob = new Blob([data], { type: 'audio/wav' });
-        } catch {
-          // No audio file — will show warning toast below
-        }
       }
     } catch (error) {
       console.error('[RecordingContext] stopAndSaveSession stopCapture error:', error);
@@ -736,7 +686,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         : undefined;
 
       const processingPromise = unifiedAIService.processAudio(
-        session.recordedBlob,
+        session.aiBlob ?? session.recordedBlob,
         categories,
         settings,
         providers,

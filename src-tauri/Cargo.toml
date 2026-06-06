@@ -6,7 +6,7 @@ authors = ["Kasset.ai"]
 license = "MIT"
 repository = "https://github.com/pareekshithbompally/kasset-ai"
 edition = "2021"
-rust-version = "1.77.2"
+rust-version = "1.91"
 
 [lib]
 name = "app_lib"
@@ -30,6 +30,8 @@ tauri-plugin-global-shortcut = "2"
 tauri-plugin-autostart = "2"
 hound = "3.5"
 rubato = { version = "1.0.1", features = ["fft_resampler"] }
+rtrb = "0.3"
+sonora = "0.1"
 audioadapter-buffers = "2"
 screencapturekit = { version = "1.5", features = ["macos_15_0"] }
 cpal = "0.15"

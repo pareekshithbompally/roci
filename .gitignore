@@ -37,3 +37,6 @@ docs/
 
 # Copilot CLI
 .copilot/
+
+# Playwright MCP debug logs
+.playwright-mcp/

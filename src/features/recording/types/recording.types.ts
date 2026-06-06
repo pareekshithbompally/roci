@@ -22,6 +22,9 @@ export interface RecordingSession {
   recordingFilename: string;
   recordedFilePath: string | null;
   recordedBlob: Blob | null;
+  /** 16 kHz AI WAV produced alongside the HQ playback file. */
+  aiBlob: Blob | null;
+  aiFilePath: string | null;
   audioUrl: string | null;
   error: string | null;
   createdAt: number;

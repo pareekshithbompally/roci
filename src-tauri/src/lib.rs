@@ -1,7 +1,7 @@
 mod shortcuts;
 mod window;
 mod autostart;
-mod audio_core;
+mod audio;
 mod screenshot;
 mod wake_lock;
 mod notification;
@@ -93,10 +93,10 @@ pub fn run() {
       autostart::disable_autostart,
       autostart::is_autostart_enabled,
       // Audio capture commands (macOS)
-      audio_core::start_audio_capture,
-      audio_core::stop_audio_capture,
-      audio_core::pause_audio_capture,
-      audio_core::resume_audio_capture,
+      audio::commands::start_audio_capture,
+      audio::commands::stop_audio_capture,
+      audio::commands::pause_audio_capture,
+      audio::commands::resume_audio_capture,
       // Screenshot commands
       screenshot::list_capturable_windows,
       screenshot::take_screenshot,

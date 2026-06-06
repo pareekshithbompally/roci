@@ -213,15 +213,19 @@ class RecordingsService {
       const path = await pathsService.getRecordingsPath();
       const audioPath = `${path}${filename}`;
       const metadataPath = `${audioPath}.meta.json`;
+      const aiSiblingPath = `${path}${filename.replace(/\.wav$/i, '.ai.wav')}`;
 
-      // Delete audio file
       if (await exists(audioPath)) {
         await remove(audioPath);
       }
 
-      // Delete metadata file
       if (await exists(metadataPath)) {
         await remove(metadataPath);
+      }
+
+      // Remove the AI WAV sibling produced by DualSink (may not exist for old recordings)
+      if (await exists(aiSiblingPath)) {
+        await remove(aiSiblingPath);
       }
 
       console.log('[RecordingsService] Deleted recording:', filename);
