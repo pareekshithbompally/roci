@@ -28,12 +28,6 @@ tauri-plugin-os = "2"
 tauri-plugin-process = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-autostart = "2"
-hound = "3.5"
-rubato = { version = "1.0.1", features = ["fft_resampler"] }
-rtrb = "0.3"
-audioadapter-buffers = "2"
-screencapturekit = { version = "1.5", features = ["macos_15_0"] }
-cpal = "0.15"
 tauri-plugin-shell = "2"
 tauri-plugin-http = "2"
 tauri-plugin-llamacpp = { path = "plugins/tauri-plugin-llamacpp" }

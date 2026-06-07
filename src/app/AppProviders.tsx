@@ -19,6 +19,7 @@
  */
 
 import React, { ReactNode, Component, ErrorInfo } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '../shared/contexts/ThemeContext';
 import { ToastProvider } from '../shared/contexts/ToastContext';
 import { AppProvider, useApp } from '../shared/contexts/AppContext';
@@ -31,6 +32,7 @@ import { TodosProvider } from '../features/todos';
 import { ChatProvider } from '../shared/contexts/ChatContext';
 import { RecordingProvider } from '../features/recording';
 import { ImportProvider } from '../features/import';
+import { queryClient } from '../shared/query/queryClient';
 
 /**
  * Error Boundary for debugging render errors
@@ -137,25 +139,27 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
     <ErrorBoundary>
       <ThemeProvider>
         <ToastProvider>
-          <SettingsProvider>
-            <UnsavedChangesProvider>
-              <AppProvider>
-                <HistoryProvider>
-                  <MeetingProvider>
-                    <MeetingDataProviders>
-                      <ImportProvider>
-                        <ChatProvider>
-                          <RecordingProviderWrapper>
-                            {children}
-                          </RecordingProviderWrapper>
-                        </ChatProvider>
-                      </ImportProvider>
-                    </MeetingDataProviders>
-                  </MeetingProvider>
-                </HistoryProvider>
-              </AppProvider>
-            </UnsavedChangesProvider>
-          </SettingsProvider>
+          <QueryClientProvider client={queryClient}>
+            <SettingsProvider>
+              <UnsavedChangesProvider>
+                <AppProvider>
+                  <HistoryProvider>
+                    <MeetingProvider>
+                      <MeetingDataProviders>
+                        <ImportProvider>
+                          <ChatProvider>
+                            <RecordingProviderWrapper>
+                              {children}
+                            </RecordingProviderWrapper>
+                          </ChatProvider>
+                        </ImportProvider>
+                      </MeetingDataProviders>
+                    </MeetingProvider>
+                  </HistoryProvider>
+                </AppProvider>
+              </UnsavedChangesProvider>
+            </SettingsProvider>
+          </QueryClientProvider>
         </ToastProvider>
       </ThemeProvider>
     </ErrorBoundary>
