@@ -1,7 +1,7 @@
 /// Single source of truth for pipeline rate constants.
 pub const PROCESS_RATE_HZ: u32 = 48_000;
 pub const AI_RATE_HZ: u32 = 16_000;
-pub const AEC_FRAME: usize = 480; // 10 ms @ 48 kHz
+pub const FRAME_SAMPLES: usize = 480; // 10 ms @ 48 kHz
 
 /// In mixed mode the timeline normally waits for both lanes. If the mic lane
 /// stalls (permission denied, device failure) the system lane must not pile up
@@ -62,7 +62,7 @@ impl Lane {
     }
 }
 
-/// A committed, aligned AEC_FRAME-sample frame from both streams.
+/// A committed, aligned FRAME_SAMPLES-sample frame from both streams.
 /// Missing side is silence (zeros).
 pub struct MixFrame {
     pub sys: Vec<f32>,
@@ -97,7 +97,7 @@ impl Timeline {
         }
     }
 
-    /// Emit as many whole AEC_FRAME-sample frames as both streams have data for.
+    /// Emit as many whole FRAME_SAMPLES-sample frames as both streams have data for.
     /// In system-only mode, only the system lane gates readiness.
     pub fn take_ready(&mut self) -> Vec<MixFrame> {
         let ready = if self.mixed {
@@ -106,7 +106,7 @@ impl Timeline {
             // system frames (mic side reads as silence). Prevents a dead/missing
             // mic from stalling the whole recording into an empty file.
             if self.sys.end().saturating_sub(self.consumed) >= MIC_STALL_FALLBACK
-                && self.mic.end() < self.consumed + AEC_FRAME as u64
+                && self.mic.end() < self.consumed + FRAME_SAMPLES as u64
             {
                 self.sys.end()
             } else {
@@ -116,17 +116,17 @@ impl Timeline {
             self.sys.end()
         };
         let mut out = Vec::new();
-        while self.consumed + AEC_FRAME as u64 <= ready {
+        while self.consumed + FRAME_SAMPLES as u64 <= ready {
             let start = self.consumed;
             let sys: Vec<f32> =
-                (0..AEC_FRAME).map(|k| self.sys.at(start + k as u64)).collect();
+                (0..FRAME_SAMPLES).map(|k| self.sys.at(start + k as u64)).collect();
             let mic: Vec<f32> = if self.mixed {
-                (0..AEC_FRAME).map(|k| self.mic.at(start + k as u64)).collect()
+                (0..FRAME_SAMPLES).map(|k| self.mic.at(start + k as u64)).collect()
             } else {
-                vec![0.0; AEC_FRAME]
+                vec![0.0; FRAME_SAMPLES]
             };
             out.push(MixFrame { sys, mic });
-            self.consumed += AEC_FRAME as u64;
+            self.consumed += FRAME_SAMPLES as u64;
         }
         self.compact();
         out
@@ -144,13 +144,13 @@ impl Timeline {
         }
         let start = self.consumed;
         let sys: Vec<f32> =
-            (0..AEC_FRAME).map(|k| self.sys.at(start + k as u64)).collect();
+            (0..FRAME_SAMPLES).map(|k| self.sys.at(start + k as u64)).collect();
         let mic: Vec<f32> = if self.mixed {
-            (0..AEC_FRAME).map(|k| self.mic.at(start + k as u64)).collect()
+            (0..FRAME_SAMPLES).map(|k| self.mic.at(start + k as u64)).collect()
         } else {
-            vec![0.0; AEC_FRAME]
+            vec![0.0; FRAME_SAMPLES]
         };
-        self.consumed += AEC_FRAME as u64;
+        self.consumed += FRAME_SAMPLES as u64;
         Some(MixFrame { sys, mic })
     }
 
@@ -208,8 +208,8 @@ mod tests {
         tl.push(Stream::System, 0.0, &vec![0.5f32; 960]);
         let frames = tl.take_ready();
         assert_eq!(frames.len(), 2);
-        assert_eq!(frames[0].sys.len(), AEC_FRAME);
-        assert_eq!(frames[1].sys.len(), AEC_FRAME);
+        assert_eq!(frames[0].sys.len(), FRAME_SAMPLES);
+        assert_eq!(frames[1].sys.len(), FRAME_SAMPLES);
         assert_eq!(tl.consumed, 960);
     }
 
@@ -257,13 +257,13 @@ mod tests {
     #[test]
     fn take_remaining_returns_partial_zero_padded() {
         let mut tl = Timeline::new(false);
-        // Only 100 samples — less than one AEC_FRAME
+        // Only 100 samples — less than one FRAME_SAMPLES
         tl.push(Stream::System, 0.0, &vec![0.7f32; 100]);
         assert!(tl.take_ready().is_empty()); // not enough for a full frame
         let frame = tl.take_remaining();
         assert!(frame.is_some());
         let f = frame.unwrap();
-        assert_eq!(f.sys.len(), AEC_FRAME);
+        assert_eq!(f.sys.len(), FRAME_SAMPLES);
         // First 100 samples should be 0.7, rest 0.0
         assert!((f.sys[0] - 0.7).abs() < 1e-6);
         assert_eq!(f.sys[100], 0.0);

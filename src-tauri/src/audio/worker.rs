@@ -4,7 +4,6 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
 
-use crate::audio::aec::Aec;
 use crate::audio::align::{MixFrame, Stream, Timeline};
 use crate::audio::capture::AudioCaptureSource;
 use crate::audio::levels::{compute_levels, AudioLevelEvent, LEVEL_BARS, LEVEL_THROTTLE};
@@ -22,8 +21,6 @@ pub struct Worker {
     sys_rx: Consumer<AudioFrame>,
     mic_rx: Consumer<AudioFrame>,
     timeline: Timeline,
-    /// AEC — only present in SystemAndMicrophone mode.
-    aec: Option<Aec>,
     sink: DualSink,
     last_emit: Instant,
     mode: AudioCaptureSource,
@@ -47,7 +44,6 @@ impl Worker {
             sys_rx,
             mic_rx,
             timeline: Timeline::new(mixed),
-            aec: if mixed { Some(Aec::new()) } else { None },
             sink,
             last_emit: Instant::now() - LEVEL_THROTTLE,
             mode,
@@ -120,14 +116,7 @@ impl Worker {
 
     fn write_frame(&mut self, frame: MixFrame) {
         let mixed_f32 = match self.mode {
-            AudioCaptureSource::SystemAndMicrophone => {
-                let clean_mic = self
-                    .aec
-                    .as_mut()
-                    .map(|aec| aec.process(&frame.mic, &frame.sys))
-                    .unwrap_or_else(|| frame.mic.clone());
-                mix(&frame.sys, &clean_mic)
-            }
+            AudioCaptureSource::SystemAndMicrophone => mix(&frame.sys, &frame.mic),
             _ => frame.sys,
         };
 

@@ -7,5 +7,4 @@ mod sink;
 mod wav;
 mod worker;
 pub mod align;
-pub mod aec;
 pub mod mixer;

@@ -181,38 +181,47 @@ pub async fn stop_audio_capture() -> Result<RecordingPaths, String> {
         });
     };
 
-    state.running.store(false, Ordering::Relaxed);
+    // The teardown below blocks: SCK stop, thread joins (worker drain can take
+    // a few hundred ms), and WAV finalize. Run it on a blocking thread so it
+    // never stalls the Tauri async runtime — blocking the executor here freezes
+    // every other IPC call, which is what made Stop need two clicks and the
+    // widget show "stalled".
+    tauri::async_runtime::spawn_blocking(move || {
+        state.running.store(false, Ordering::Relaxed);
 
-    if let Some(stream) = state.system_stream {
-        // Log on failure but DO NOT early-return: we must still join the worker
-        // so it drains and finalizes the WAV header (otherwise: corrupt file).
-        if let Err(e) = stream.stop_capture() {
-            log::error!("SCK stop_capture failed: {e}");
+        if let Some(stream) = state.system_stream {
+            // Log on failure but DO NOT early-return: we must still join the
+            // worker so it drains and finalizes the WAV header (else: corrupt file).
+            if let Err(e) = stream.stop_capture() {
+                log::error!("SCK stop_capture failed: {e}");
+            }
         }
-    }
 
-    if let Some(mic) = state.mic_thread {
-        let _ = mic.stop_tx.send(());
-        let _ = mic.join_handle.join();
-    }
-
-    // Flush mic-only DualSink after the cpal thread has exited.
-    if let Some(sink) = state.mic_sink {
-        if let Ok(mut s) = sink.lock() {
-            s.finalize();
+        if let Some(mic) = state.mic_thread {
+            let _ = mic.stop_tx.send(());
+            let _ = mic.join_handle.join();
         }
-    }
 
-    // Join worker — drains rings, finalizes DualSink (HQ + AI), then exits.
-    if let Some(handle) = state.worker_handle {
-        let _ = handle.join();
-    }
+        // Flush mic-only DualSink after the cpal thread has exited.
+        if let Some(sink) = state.mic_sink {
+            if let Ok(mut s) = sink.lock() {
+                s.finalize();
+            }
+        }
 
-    log::info!("Audio capture stopped, hq={}", state.hq_path);
-    Ok(RecordingPaths {
-        playback_path: state.hq_path,
-        ai_path: state.ai_path,
+        // Join worker — drains rings, finalizes DualSink (HQ + AI), then exits.
+        if let Some(handle) = state.worker_handle {
+            let _ = handle.join();
+        }
+
+        log::info!("Audio capture stopped, hq={}", state.hq_path);
+        RecordingPaths {
+            playback_path: state.hq_path,
+            ai_path: state.ai_path,
+        }
     })
+    .await
+    .map_err(|e| format!("Audio stop task panicked: {e}"))
 }
 
 #[tauri::command]
