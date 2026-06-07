@@ -8,7 +8,7 @@
 
 import React, { useCallback, useState, useMemo } from 'react';
 import { ArrowLeft, ListTodo, Clock, AlertTriangle, Check, Bell, CalendarDays, Inbox, Search, Plus, X, ChevronDown } from 'lucide-react';
-import { useApp } from '@shared/contexts/AppContext';
+import { useAppActions } from '@shared/stores/appStore';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useGlobalTodos } from '../hooks/useGlobalTodos';
 import type { TodoFilter, GlobalTodo } from '../hooks/useGlobalTodos';
@@ -304,7 +304,7 @@ const TodoRow: React.FC<TodoRowProps> = ({ todo, onToggle, onReminderSet }) => {
 // ── Main component ──────────────────────────────────────────────
 
 export const RemindersView: React.FC = () => {
-  const { setCurrentView, setStatus, setSelectedHistoryId, setResult } = useApp();
+  const { setCurrentView, setStatus, setSelectedHistoryId, setResult } = useAppActions();
   const { groups, filter, setFilter, searchQuery, setSearchQuery, toggleTodo, addTodo, setReminder, counts, isLoading } = useGlobalTodos();
   const [isCreating, setIsCreating] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);

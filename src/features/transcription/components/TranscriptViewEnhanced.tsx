@@ -1,39 +1,31 @@
 import React from 'react';
+import { FileText } from 'lucide-react';
 import ParsedTranscript from '@features/transcription/components/ParsedTranscript';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
+import EmptyState from '@shared/components/EmptyState';
+import type { StoredTranscriptSegment } from '@shared/types';
 
 interface TranscriptViewProps {
   text?: string;
   timestamp?: number;
   title?: string;
+  segments?: StoredTranscriptSegment[];
 }
 
-/**
- * TranscriptView Component
- *
- * Displays transcript with:
- * - Consistent timestamp formatting
- * - Clean content presentation
- */
 const TranscriptView: React.FC<TranscriptViewProps> = ({
   text,
+  segments,
 }) => {
-  // Safety check for text prop
-  if (!text) {
+  if ((!text || text.trim().length === 0) && (!segments || segments.length === 0)) {
     return (
-      <div className="max-w-4xl">
-        <div className="p-8 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-          <p className={`${TYPOGRAPHY_CLASSES.transcriptText} text-zinc-500 dark:text-zinc-400 text-center`}>
-            No transcript available.
-          </p>
-        </div>
+      <div className="flex flex-col min-h-full items-center justify-center">
+        <EmptyState icon={FileText} message="No transcript available" />
       </div>
     );
   }
 
   return (
     <div className="max-w-4xl">
-      <ParsedTranscript text={text} />
+      <ParsedTranscript text={text} segments={segments} />
     </div>
   );
 };

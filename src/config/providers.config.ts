@@ -1,27 +1,6 @@
 import type { ModelProvider } from '@shared/types/modelProviders'
 
 /**
- * Transcription strategy for voice input (chat STT).
- * 'sdk'        → experimental_transcribe via whisper endpoint
- * 'multimodal' → generateText with audio FilePart (Gemini-style)
- */
-export type TranscriptionStrategy =
-  | { type: 'sdk'; model: string }
-  | { type: 'multimodal'; model: string }
-  | null;
-
-/**
- * Maps provider id → transcription strategy for chat voice input.
- * Add an entry here when a new provider gains transcription capability.
- */
-export const TRANSCRIPTION_STRATEGIES: Record<string, TranscriptionStrategy> = {
-  openai: { type: 'sdk', model: 'whisper-1' },
-  azure:  { type: 'sdk', model: 'whisper-1' },
-  groq:   { type: 'sdk', model: 'whisper-large-v3' },
-  gemini: { type: 'multimodal', model: 'gemini-2.0-flash' },
-};
-
-/**
  * Hardcoded model lists for providers that have no /models discovery endpoint.
  * NOTE: anthropic and gemini are intentionally NOT here — they both support
  * live model discovery (Anthropic SDK client.models.list(), Gemini REST v1beta/models)
@@ -246,6 +225,52 @@ export const predefinedProviders: ModelProvider[] = [
         title: 'API Key',
         description:
           "The Groq API uses API keys for authentication. Visit your [API Keys](https://console.groq.com/keys) page to retrieve the API key you'll use in your requests.",
+        controller_type: 'input',
+        controller_props: {
+          placeholder: 'Insert API Key',
+          value: '',
+          type: 'password',
+          input_actions: ['unobscure', 'copy'],
+        },
+      },
+    ],
+    models: [],
+  },
+  {
+    active: true,
+    api_key: '',
+    base_url: '',
+    explore_models_url: 'https://developers.deepgram.com/docs/models-languages-overview',
+    provider: 'deepgram',
+    settings: [
+      {
+        key: 'api-key',
+        title: 'API Key',
+        description:
+          "Deepgram API keys for transcription. Visit your [Deepgram Console](https://console.deepgram.com/) to retrieve your API key.",
+        controller_type: 'input',
+        controller_props: {
+          placeholder: 'Insert API Key',
+          value: '',
+          type: 'password',
+          input_actions: ['unobscure', 'copy'],
+        },
+      },
+    ],
+    models: [],
+  },
+  {
+    active: true,
+    api_key: '',
+    base_url: '',
+    explore_models_url: 'https://elevenlabs.io/docs/speech-to-text/overview',
+    provider: 'elevenlabs',
+    settings: [
+      {
+        key: 'api-key',
+        title: 'API Key',
+        description:
+          "ElevenLabs API key. Visit your [ElevenLabs Dashboard](https://elevenlabs.io/app/settings/api-keys) to retrieve your API key.",
         controller_type: 'input',
         controller_props: {
           placeholder: 'Insert API Key',

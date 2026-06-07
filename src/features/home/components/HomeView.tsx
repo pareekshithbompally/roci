@@ -6,14 +6,16 @@
  */
 
 import React from 'react';
-import { useApp, AppStatus } from '@shared/contexts/AppContext';
+import { useAppStatus, useSelectedHistoryId } from '@shared/stores/appStore';
+import { AppStatus } from '@shared/types';
 import { useChat } from '@shared/contexts/ChatContext';
 import { ChatView } from '@features/chat';
 import { IdleView } from './IdleView';
 import { ResultsView } from './ResultsView';
 
 export const HomeView: React.FC = () => {
-  const { status, selectedHistoryId } = useApp();
+  const status = useAppStatus();
+  const selectedHistoryId = useSelectedHistoryId();
   const chat = useChat();
 
   // Determine what to show based on selections and status

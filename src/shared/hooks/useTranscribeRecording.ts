@@ -11,7 +11,7 @@ import { unifiedAIService } from '@services/unifiedAIService';
 import { transcriptionService } from '@services/transcription.service';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useApp } from '@shared/contexts/AppContext';
+import { useAppActions } from '@shared/stores/appStore';
 import { useToast } from '@shared/contexts/ToastContext';
 import { logUsage } from '@extensions/usage';
 import { resolveModel } from '@shared/utils/modelResolver';
@@ -28,7 +28,7 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
   const [transcribingItemId, setTranscribingItemId] = useState<string | null>(null);
   const { categories, updateItem } = useHistoryData();
   const { settings, providers } = useSettings();
-  const { setResult, setSelectedHistoryId, setStatus } = useApp();
+  const { setResult, setSelectedHistoryId, setStatus } = useAppActions();
   const { showToast } = useToast();
 
   const transcribe = useCallback(async (item: HistoryItem) => {
@@ -71,7 +71,7 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
       );
 
       // Log transcription usage (fire-and-forget)
-      const resolved = resolveModel(settings.transcriptionModel, providers);
+      const resolved = resolveModel(settings.analyzeModel || settings.chatModel, providers);
       logUsage({
         category: 'transcription',
         sessionId: item.id,
@@ -103,6 +103,7 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
         recordingFileName: item.recordingFileName,
         inputSource: item.inputSource,
         model: settings.transcriptionModel,
+        segments: data.segments,
         calendarMeta: item.calendarEventId ? {
           calendarEventId: item.calendarEventId,
           scheduledTitle: item.scheduledTitle || item.title,

@@ -1,7 +1,7 @@
 <svg width="46" height="24" viewBox="0 0 46 24" xmlns="http://www.w3.org/2000/svg">
-  <!-- Red pill background — wider to match macOS-style colored menu bar icons -->
+  <!-- Red pill background -->
   <rect width="46" height="24" rx="12" ry="12" fill="#E53935"/>
-  <!-- Lucide audio-waveform, white, centered in pill -->
+  <!-- Waveform -->
   <g transform="translate(14, 1.2) scale(0.9)">
     <path
       d="M2 13a2 2 0 0 0 2-2V7a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0V4a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0v-4a2 2 0 0 1 2-2"

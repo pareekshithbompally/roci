@@ -9,7 +9,7 @@ import React, { useState, useEffect } from 'react';
 import { ExternalLink, Search, Loader2, Copy, Check, Settings, X } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-shell';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useApp } from '@shared/contexts/AppContext';
+import { useAppActions } from '@shared/stores/appStore';
 import { useToast } from '@shared/contexts/ToastContext';
 import { useSettingsSave } from '../hooks/useSettingsSave';
 import ProvidersAvatar from '@shared/components/ProvidersAvatar';
@@ -43,7 +43,7 @@ export const ProvidersPanel: React.FC = () => {
   } = useSettings();
 
   const { showToast } = useToast();
-  const { setCurrentView } = useApp();
+  const { setCurrentView } = useAppActions();
   const { hasUnsavedChanges, save: baseSave } = useSettingsSave('Provider settings', 'providers');
   const [showSetupBanner, setShowSetupBanner] = useState(true);
 

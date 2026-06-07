@@ -1,9 +1,9 @@
 /**
  * Chat Feature Components
- * 
- * Export all chat components.
  */
 
+export { ChatShell } from './ChatShell';
+export type { ChatShellProps } from './ChatShell';
 export { ChatPanel } from './ChatPanel';
 export { ChatView } from './ChatView';
 export { ChatMessage } from './message';
@@ -15,4 +15,3 @@ export { ModelPicker } from './ModelPicker';
 export { AnimatedProviderIcon } from './AnimatedProviderIcon';
 export { StreamingMarkdown } from './StreamingMarkdown';
 export { MediaPartRenderer } from './MediaPartRenderer';
-

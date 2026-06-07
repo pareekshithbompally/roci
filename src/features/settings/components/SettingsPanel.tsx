@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { useApp } from '@shared/contexts/AppContext';
+import { useActiveSettingsPanel } from '@shared/stores/appStore';
 import { useUnsavedChanges } from '@shared/contexts/UnsavedChangesContext';
 import { ProvidersPanel } from './ProvidersPanel';
 import { ProvidersPanelErrorBoundary } from './ProvidersPanelErrorBoundary';
@@ -48,7 +48,7 @@ const panels: Array<{ id: SettingsPanelType; label: string; tauriOnly?: boolean 
 ];
 
 export const SettingsPanel: React.FC = () => {
-  const { activeSettingsPanel } = useApp();
+  const activeSettingsPanel = useActiveSettingsPanel();
   const [activePanel, setActivePanel] = useState<SettingsPanelType>(
     panels.some(p => p.id === activeSettingsPanel) ? activeSettingsPanel as SettingsPanelType : panels[0].id
   );

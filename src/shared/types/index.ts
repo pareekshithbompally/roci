@@ -39,6 +39,7 @@ export interface ProcessedResult {
   timestamp?: number;
   userNotes?: Note[];
   userActionItems?: ActionItem[];
+  segments?: StoredTranscriptSegment[];
 }
 
 export interface HistoryItem extends ProcessedResult {
@@ -166,8 +167,11 @@ export interface UnifiedSidebarItem {
 }
 
 export interface AppSettings {
+  /** STT engine id (e.g. 'whisper-1', 'groq-whisper', 'gemini'). */
   transcriptionModel: string;
   chatModel: string;
+  /** LLM model for the Analyze phase — produces the structured meeting summary (Overview tab). */
+  analyzeModel?: string;
   /** Model used for KG entity extraction during rebuild. Falls back to chatModel if unset. */
   kgExtractionModel?: string;
   apiKey?: string;
@@ -235,12 +239,21 @@ export interface MeetingSummary {
   nextSteps: string[];
 }
 
+/** Segment with timing metadata — persisted alongside transcript text */
+export interface StoredTranscriptSegment {
+  text: string;
+  startSecond: number;
+  endSecond: number;
+  speaker?: string;
+}
+
 /** Per-meeting transcript — stored in meetings/{id}/transcript.json */
 export interface TranscriptData {
   text: string;
   language?: string;
   model?: string;
   createdAt: string;
+  segments?: StoredTranscriptSegment[];
 }
 
 /** Per-meeting recording metadata — stored in meetings/{id}/recording.json */

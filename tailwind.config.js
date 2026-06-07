@@ -31,22 +31,23 @@ export default {
           900: '#1e1c18',   // Primary text
           950: '#0e0d0b',   // Headings, darkest
         },
-        // ─── Dark mode: warm charcoal ───
+        // ─── Dark mode: pure grayscale ───
         night: {
-          50:  '#f2f4fc',   // Headings, brightest
-          100: '#e6e9f4',   // Primary text
-          200: '#d0d5e4',   // Markdown body text
-          300: '#b0b6cc',   // (rarely used)
-          400: '#8b92a8',   // Secondary text
-          500: '#5c6278',   // Muted text, placeholders
-          600: '#5e5e5c',   // Scrollbar thumb
-          650: '#525250',   // Strong borders, focus rings
-          700: '#454543',   // Default borders
-          750: '#3c3c3a',   // Selected/hover states
-          800: '#343432',   // Dropdowns, input fields
-          850: '#2c2c2a',   // Elevated surfaces, cards
-          900: '#262624',   // Page bg, header (RGB 38,38,36)
-          950: '#1e1e1c',   // Sidebar (deepest)
+          50:  '#f5f5f5',   // Headings, brightest
+          100: '#ededed',   // Primary text
+          150: '#e0e0e0',   // (rarely used)
+          200: '#d4d4d4',   // Markdown body text
+          300: '#bbbbbb',   // (rarely used)
+          400: '#999999',   // Secondary text
+          500: '#666666',   // Muted text, placeholders
+          600: '#444444',   // Scrollbar thumb
+          650: '#333333',   // Strong borders, focus rings
+          700: '#2a2a2a',   // Default borders
+          750: '#222222',   // Selected/hover states
+          800: '#1c1c1c',   // Dropdowns, input fields, user chat bubble
+          850: '#181818',   // Elevated surfaces, cards, modals
+          900: '#151515',   // Page bg, idle/chat view
+          950: '#121212',   // Sidebar (deepest)
         },
       },
       keyframes: {

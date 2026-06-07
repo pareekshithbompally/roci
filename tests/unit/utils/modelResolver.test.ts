@@ -11,16 +11,10 @@ vi.mock('@config/providers.config', () => ({
     openai: 'https://api.openai.com',
     anthropic: 'https://api.anthropic.com',
   },
-  TRANSCRIPTION_STRATEGIES: {
-    openai: 'whisper',
-    gemini: 'native-audio',
-    groq: 'whisper',
-  },
 }));
 
 import {
   getProviderType,
-  supportsAudioInput,
   supportsWebSearch,
   getProviderDisplayName,
   resolveModel,
@@ -69,21 +63,6 @@ describe('getProviderType', () => {
     expect(getProviderType('some-random-provider')).toBe('openai-compat');
     expect(getProviderType('cohere')).toBe('openai-compat');
     expect(getProviderType('')).toBe('openai-compat');
-  });
-});
-
-// ── supportsAudioInput ──────────────────────────────────────────
-
-describe('supportsAudioInput', () => {
-  it('returns true only for gemini', () => {
-    expect(supportsAudioInput('gemini')).toBe(true);
-  });
-
-  it('returns false for all other providers', () => {
-    expect(supportsAudioInput('openai')).toBe(false);
-    expect(supportsAudioInput('anthropic')).toBe(false);
-    expect(supportsAudioInput('groq')).toBe(false);
-    expect(supportsAudioInput('')).toBe(false);
   });
 });
 

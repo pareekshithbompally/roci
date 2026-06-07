@@ -17,10 +17,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import { useActivityItems, activityStore } from '@shared/stores/activityStore';
 import type { ActivityItem, ActivityType, ActivityStatus } from '@shared/stores/activityStore';
+import { useAudioPlayerStore } from '@shared/stores/audioPlayerStore';
+import { useSelectedHistoryId } from '@shared/stores/appStore';
 import { RecordingRow } from './activity-rows/RecordingRow';
 import { ProcessingRow } from './activity-rows/ProcessingRow';
 import { DownloadRow } from './activity-rows/DownloadRow';
 import { IndexingRow } from './activity-rows/IndexingRow';
+import { AudioPlaybackRow } from './activity-rows/AudioPlaybackRow';
 import { UI_CONFIG } from '@config/ui.config';
 
 const ROW_SPRING = { type: 'spring' as const, stiffness: 400, damping: 30 };
@@ -75,11 +78,18 @@ function renderRow(item: ActivityItem) {
 export const ActivityTray: React.FC = () => {
   const items = useActivityItems();
   const [collapsed, setCollapsed] = useState(false);
+  const audioSession = useAudioPlayerStore((s) => s.session);
+  const selectedHistoryId = useSelectedHistoryId();
+
+  const isPlaying = useAudioPlayerStore((s) => s.isPlaying);
+  const isAudioMinimized = !!audioSession && audioSession.meetingId !== selectedHistoryId && isPlaying;
 
   const sorted = useMemo(() => sortItems(items), [items]);
 
   const { maxVisibleRows, rowHeight } = UI_CONFIG.activityTray;
   const maxBodyHeight = maxVisibleRows * rowHeight;
+
+  const hasContent = items.length > 0 || isAudioMinimized;
 
   // Count queued items beyond visible
   const queuedCount = sorted.filter(i => i.detail === 'Queued').length;
@@ -108,13 +118,13 @@ export const ActivityTray: React.FC = () => {
 
   return (
     <AnimatePresence>
-      {items.length > 0 && (
+      {hasContent && (
         <motion.div
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
           transition={{ duration: 0.2, ease: 'easeInOut' }}
-          className="overflow-hidden shrink-0 mx-2 mb-1.5 rounded-lg border border-zinc-200/80 dark:border-zinc-700/60 bg-zinc-100/60 dark:bg-zinc-800/40 backdrop-blur-sm"
+          className="overflow-hidden shrink-0 mx-2 mb-1.5 rounded-lg border border-parchment-300/80 dark:border-night-700/60 bg-parchment-100/60 dark:bg-night-800/40 backdrop-blur-sm"
         >
           {/* Header — entire row is clickable to collapse/expand */}
           <button
@@ -124,8 +134,8 @@ export const ActivityTray: React.FC = () => {
             title={collapsed ? 'Expand' : 'Collapse'}
           >
             <span className="relative flex h-1.5 w-1.5 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-400 dark:bg-zinc-500 opacity-75" />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-zinc-500 dark:bg-zinc-400" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-parchment-500 dark:bg-night-500 opacity-75" />
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-parchment-600 dark:bg-night-400" />
             </span>
             <span
               className="text-xs font-semibold flex-1"
@@ -163,6 +173,18 @@ export const ActivityTray: React.FC = () => {
                   className="overflow-y-auto custom-scrollbar"
                   style={{ maxHeight: maxBodyHeight }}
                 >
+                  {/* Audio playback — always first */}
+                  {isAudioMinimized && (
+                    <>
+                      <AudioPlaybackRow />
+                      {sorted.length > 0 && (
+                        <div
+                          className="mx-3 h-px"
+                          style={{ backgroundColor: 'var(--border-default)' }}
+                        />
+                      )}
+                    </>
+                  )}
                   {sorted.map((item, idx) => (
                     <div key={item.id}>
                       {idx > 0 && (

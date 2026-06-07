@@ -1,6 +1,8 @@
 import React from 'react';
 import type { StructuredSummary } from '@shared/types';
+import { Sparkles } from 'lucide-react';
 import CleanMarkdown from '@shared/components/CleanMarkdown';
+import EmptyState from '@shared/components/EmptyState';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 
 interface SummaryViewProps {
@@ -26,7 +28,16 @@ const SummaryView: React.FC<SummaryViewProps> = ({
   timestamp,
   title
 }) => {
-  // No structured summary at all — render raw markdown
+  // No summary data at all
+  if (!summary && !structuredSummary) {
+    return (
+      <div className="flex flex-col min-h-full items-center justify-center">
+        <EmptyState icon={Sparkles} message="No summary available" />
+      </div>
+    );
+  }
+
+  // No structured summary — render raw markdown
   if (!structuredSummary) {
     return (
       <div className="prose prose-zinc dark:prose-invert max-w-none">

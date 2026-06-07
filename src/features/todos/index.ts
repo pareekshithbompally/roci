@@ -9,23 +9,14 @@
  * 
  * Usage:
  * ```tsx
- * import { TodosProvider, useTodos, TodoList } from '@/features/todos';
+ * import { TodoList } from '@/features/todos';
  * 
- * // Wrap your component with the provider
- * <TodosProvider meetingId={currentMeetingId}>
- *   <TodoList />
- * </TodosProvider>
- * 
- * // Or use the hook directly
- * const { todos, addTodo, toggleTodo, stats } = useTodos();
+ * <TodoList />
  * ```
  */
 
-// Context
-export { TodosProvider, useTodosContext } from './context';
-
 // Hooks
-export { useTodos, useGlobalTodos } from './hooks';
+export { useGlobalTodos } from './hooks';
 export type { GlobalTodo, TodoFilter } from './hooks';
 
 // Components
@@ -39,6 +30,5 @@ export type {
   TodoStats,
   TodosState,
   TodosActions,
-  TodosContextValue,
 } from './types';
 export { createTodo, calculateTodoStats } from './types';

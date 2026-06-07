@@ -5,34 +5,33 @@
  * Order matters: outer providers are available to inner providers.
  * 
  * Provider order (outer → inner):
- * 1. ThemeProvider - Basic theming, no dependencies
- * 2. ToastProvider - Notifications, no dependencies
- * 3. SettingsProvider - App settings, needed by others
- * 4. UnsavedChangesProvider - Settings unsaved state tracking
- * 5. AppProvider - App-wide state
- * 6. HistoryProvider - History management
- * 7. MeetingProvider - Current meeting state
- * 8. NotesProvider - Notes management for current meeting
- * 9. TodosProvider - Todos management for current meeting
- * 10. ChatProvider - Chat functionality
- * 11. RecordingProvider - Recording functionality (with context dependencies)
+ * 1. ErrorBoundary - Debugging error boundary
+ * 2. ThemeProvider - Basic theming, no dependencies
+ * 3. ToastProvider - Notifications, no dependencies
+ * 4. QueryClientProvider - TanStack Query for server/disk data
+ * 5. SettingsProvider - App settings, needed by others
+ * 6. UnsavedChangesProvider - Settings unsaved state tracking
+ * 7. HistoryProvider - History management
+ * 8. ImportProvider - Audio/transcript file import
+ * 9. ChatProvider - Chat functionality
+ * 10. RecordingProvider - Recording functionality (with context dependencies)
+ *
+ * Note: appStore (Zustand) replaces AppContext; useMeetingNotes/useMeetingTodos
+ * (TanStack Query) replace MeetingContext, NotesContext, TodosContext.
  */
 
 import React, { ReactNode, Component, ErrorInfo } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '../shared/contexts/ThemeContext';
 import { ToastProvider } from '../shared/contexts/ToastContext';
-import { AppProvider, useApp } from '../shared/contexts/AppContext';
 import { SettingsProvider, useSettings } from '../shared/contexts/SettingsContext';
 import { UnsavedChangesProvider } from '../shared/contexts/UnsavedChangesContext';
 import { HistoryProvider, useHistory } from '../shared/contexts/HistoryContext';
-import { MeetingProvider, useMeeting } from '../shared/contexts/MeetingContext';
-import { NotesProvider } from '../features/notes';
-import { TodosProvider } from '../features/todos';
 import { ChatProvider } from '../shared/contexts/ChatContext';
 import { RecordingProvider } from '../features/recording';
 import { ImportProvider } from '../features/import';
 import { queryClient } from '../shared/query/queryClient';
+import { useAppActions } from '../shared/stores/appStore';
 
 /**
  * Error Boundary for debugging render errors
@@ -83,24 +82,6 @@ interface AppProvidersProps {
 }
 
 /**
- * MeetingDataProviders
- * 
- * Wrapper component that connects MeetingContext to Notes/Todos providers.
- * Must be inside MeetingProvider to access current meeting ID.
- */
-const MeetingDataProviders: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { selectedHistoryId } = useMeeting();
-
-  return (
-    <NotesProvider meetingId={selectedHistoryId}>
-      <TodosProvider meetingId={selectedHistoryId}>
-        {children}
-      </TodosProvider>
-    </NotesProvider>
-  );
-};
-
-/**
  * RecordingProviderWrapper
  * 
  * Wrapper component that injects context dependencies into RecordingProvider.
@@ -109,7 +90,7 @@ const MeetingDataProviders: React.FC<{ children: ReactNode }> = ({ children }) =
 const RecordingProviderWrapper: React.FC<{ children: ReactNode }> = ({ children }) => {
   const settingsContext = useSettings();
   const historyContext = useHistory();
-  const appContext = useApp();
+  const appContext = useAppActions();
 
   return (
     <RecordingProvider
@@ -142,21 +123,15 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
           <QueryClientProvider client={queryClient}>
             <SettingsProvider>
               <UnsavedChangesProvider>
-                <AppProvider>
-                  <HistoryProvider>
-                    <MeetingProvider>
-                      <MeetingDataProviders>
-                        <ImportProvider>
-                          <ChatProvider>
-                            <RecordingProviderWrapper>
-                              {children}
-                            </RecordingProviderWrapper>
-                          </ChatProvider>
-                        </ImportProvider>
-                      </MeetingDataProviders>
-                    </MeetingProvider>
-                  </HistoryProvider>
-                </AppProvider>
+                <HistoryProvider>
+                  <ImportProvider>
+                    <ChatProvider>
+                      <RecordingProviderWrapper>
+                        {children}
+                      </RecordingProviderWrapper>
+                    </ChatProvider>
+                  </ImportProvider>
+                </HistoryProvider>
               </UnsavedChangesProvider>
             </SettingsProvider>
           </QueryClientProvider>

@@ -56,25 +56,25 @@
 
 .dark {
   /* Surfaces */
-  --surface-modal: #2c2c2a;                          /* night-850 */
-  --surface-dropdown: #343432;                       /* night-800 */
-  --surface-overlay: rgba(30, 30, 28, 0.7);         /* night-950 @ 70% */
-  --surface-input: rgba(44, 44, 42, 0.6);           /* night-850 @ 60% */
-  --surface-input-field: #343432;                    /* night-800 */
-  --surface-selected: rgba(60, 60, 58, 0.8);        /* night-750 @ 80% */
-  --surface-hover-subtle: rgba(60, 60, 58, 0.8);    /* night-750 @ 80% */
+  --surface-modal: #181818;                          /* night-850 */
+  --surface-dropdown: #1c1c1c;                       /* night-800 */
+  --surface-overlay: rgba(18, 18, 18, 0.7);         /* night-950 @ 70% */
+  --surface-input: rgba(24, 24, 24, 0.6);           /* night-850 @ 60% */
+  --surface-input-field: #1c1c1c;                    /* night-800 */
+  --surface-selected: rgba(34, 34, 34, 0.8);        /* night-750 @ 80% */
+  --surface-hover-subtle: rgba(34, 34, 34, 0.8);    /* night-750 @ 80% */
 
   /* Borders */
-  --border-default: #454543;                         /* night-700 */
-  --border-strong: #525250;                          /* night-650 */
-  --border-input: #525250;                           /* night-650 */
-  --border-ring: #525250;                            /* night-650 */
+  --border-default: #2a2a2a;                         /* night-700 */
+  --border-strong: #333333;                          /* night-650 */
+  --border-input: #333333;                           /* night-650 */
+  --border-ring: #333333;                            /* night-650 */
 
   /* Text */
-  --text-primary: #e6e9f4;                           /* night-100 */
-  --text-secondary: #8b92a8;                         /* night-400 */
-  --text-muted: #5c6278;                             /* night-500 */
-  --text-faint: #5c6278;                             /* night-500 */
+  --text-primary: #ededed;                           /* night-100 */
+  --text-secondary: #999999;                         /* night-400 */
+  --text-muted: #666666;                             /* night-500 */
+  --text-faint: #666666;                             /* night-500 */
 
   /* Shadows */
   --shadow-float: 0 10px 15px -3px rgba(0, 0, 0, 0.4),
@@ -89,8 +89,8 @@
 
   /* Switch (Toggle) */
   --switch-active: #16a34a;                          /* green-600 (semantic, kept) */
-  --switch-inactive: #3c3c3a;                        /* night-750 */
-  --switch-thumb: #262624;                           /* night-900 */
+  --switch-inactive: #222222;                        /* night-750 */
+  --switch-thumb: #151515;                           /* night-900 */
 }
 
 body {
@@ -107,7 +107,7 @@ body {
 
 /* Use class-based dark mode to match app theme, not system preference */
 .dark body {
-  background-color: #262624;  /* night-900 */
+  background-color: #151515;  /* night-900 */
 }
 
 /* Smaller font size for code blocks */
@@ -121,68 +121,71 @@ code, pre {
   min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
 }
 
-/* Custom scrollbar for a cleaner look - auto-hide on non-hover */
-::-webkit-scrollbar {
+/* ─── Custom scrollbar — auto-hide, show on container hover ─── */
+.custom-scrollbar::-webkit-scrollbar,
+.scrollbar-hover::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-::-webkit-scrollbar-track {
+.custom-scrollbar::-webkit-scrollbar-track,
+.scrollbar-hover::-webkit-scrollbar-track {
   background: transparent;
 }
 
-::-webkit-scrollbar-thumb {
+.custom-scrollbar::-webkit-scrollbar-thumb,
+.scrollbar-hover::-webkit-scrollbar-thumb {
   background-color: transparent;
   border-radius: 4px;
-  transition: background-color 0.2s ease;
 }
 
-.dark ::-webkit-scrollbar-thumb {
-  background-color: transparent;
-}
-
-/* Show scrollbar on container hover */
+/* Show thumb when container is hovered */
+.custom-scrollbar:hover::-webkit-scrollbar-thumb,
 .scrollbar-hover:hover::-webkit-scrollbar-thumb {
   background-color: #b0a99c;  /* parchment-500 */
 }
 
+.dark .custom-scrollbar:hover::-webkit-scrollbar-thumb,
 .dark .scrollbar-hover:hover::-webkit-scrollbar-thumb {
-  background-color: #5e5e5c;  /* night-600 */
+  background-color: #444444;  /* night-600 */
 }
 
-/* Scroll fade — top/bottom gradient masks for scrollable containers */
+/* Darken thumb when the thumb itself is hovered */
+.custom-scrollbar::-webkit-scrollbar-thumb:hover,
+.scrollbar-hover::-webkit-scrollbar-thumb:hover {
+  background-color: #6b655c;  /* parchment-700 */
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover,
+.dark .scrollbar-hover::-webkit-scrollbar-thumb:hover {
+  background-color: #666666;  /* night-500 */
+}
+
+/* ─── Native overlay scrollbar — thin track, OS handles show-on-scroll + fade ─── */
+.scrollbar-overlay::-webkit-scrollbar {
+  width: 5px;
+}
+
+.scrollbar-overlay::-webkit-scrollbar-track {
+  background: transparent;
+}
+/* No ::-webkit-scrollbar-thumb rule — lets the OS draw its own overlay thumb
+   that appears on scroll and auto-fades after a delay (macOS native behavior). */
+
+/* ─── Scroll fade — bottom gradient mask only (top is fully opaque) ─── */
 .scroll-fade {
   mask-image: linear-gradient(
     to bottom,
-    transparent 0%,
-    black 12px,
-    black calc(100% - 12px),
+    black 0%,
+    black calc(100% - 20px),
     transparent 100%
   );
   -webkit-mask-image: linear-gradient(
     to bottom,
-    transparent 0%,
-    black 12px,
-    black calc(100% - 12px),
+    black 0%,
+    black calc(100% - 20px),
     transparent 100%
   );
-}
-
-/* Alias for scrollbar-hover (used in other components) */
-.custom-scrollbar:hover::-webkit-scrollbar-thumb {
-  background-color: #b0a99c;  /* parchment-500 */
-}
-
-.dark .custom-scrollbar:hover::-webkit-scrollbar-thumb {
-  background-color: #5e5e5c;  /* night-600 */
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background-color: #6b655c !important;  /* parchment-700 */
-}
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  background-color: #5c6278 !important;  /* night-500 */
 }
 
 /* Utility to hide scrollbar but keep functionality */
@@ -375,23 +378,23 @@ code, pre {
 /* Dark mode */
 .is-dark.sx__calendar-wrapper,
 .is-dark .sx__calendar-wrapper {
-  --sx-color-primary: #d0d5e4;                       /* night-200 */
-  --sx-color-on-primary: #1e1e1c;                    /* night-950 */
-  --sx-color-primary-container: #3c3c3a;             /* night-750 */
-  --sx-color-on-primary-container: #e6e9f4;          /* night-100 */
-  --sx-color-surface: #262624;                       /* night-900 */
-  --sx-color-surface-dim: #1e1e1c;                   /* night-950 */
-  --sx-color-surface-bright: #343432;                /* night-800 */
-  --sx-color-on-surface: #e6e9f4;                    /* night-100 */
-  --sx-color-surface-container: #2c2c2a;             /* night-850 */
-  --sx-color-surface-container-low: #262624;         /* night-900 */
-  --sx-color-surface-container-high: #343432;        /* night-800 */
-  --sx-color-background: #262624;                    /* night-900 */
-  --sx-color-on-background: #e6e9f4;                 /* night-100 */
-  --sx-color-outline: #525250;                       /* night-650 */
-  --sx-color-outline-variant: #454543;               /* night-700 */
-  --sx-internal-color-text: #e6e9f4;                 /* night-100 */
-  --sx-internal-color-light-gray: #2c2c2a;           /* night-850 */
+  --sx-color-primary: #d4d4d4;                       /* night-200 */
+  --sx-color-on-primary: #121212;                    /* night-950 */
+  --sx-color-primary-container: #222222;             /* night-750 */
+  --sx-color-on-primary-container: #ededed;          /* night-100 */
+  --sx-color-surface: #151515;                       /* night-900 */
+  --sx-color-surface-dim: #121212;                   /* night-950 */
+  --sx-color-surface-bright: #1c1c1c;                /* night-800 */
+  --sx-color-on-surface: #ededed;                    /* night-100 */
+  --sx-color-surface-container: #181818;             /* night-850 */
+  --sx-color-surface-container-low: #151515;         /* night-900 */
+  --sx-color-surface-container-high: #1c1c1c;        /* night-800 */
+  --sx-color-background: #151515;                    /* night-900 */
+  --sx-color-on-background: #ededed;                 /* night-100 */
+  --sx-color-outline: #333333;                       /* night-650 */
+  --sx-color-outline-variant: #2a2a2a;               /* night-700 */
+  --sx-internal-color-text: #ededed;                 /* night-100 */
+  --sx-internal-color-light-gray: #181818;           /* night-850 */
 }
 
 /* Hide Schedule-X's built-in header — CalendarView has custom nav controls */

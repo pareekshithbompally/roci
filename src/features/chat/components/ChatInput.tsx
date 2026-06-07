@@ -26,7 +26,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { formatShortcut } from '@config/shortcuts.config';
-import { useChat } from '@shared/contexts/ChatContext';
+import { chatInputRef } from '../stores';
 import type { MeetingListItem } from '@services/meetingReferenceService';
 import type { ChatPart } from '@shared/types';
 import type { SpeechState } from '../hooks/useSpeechInput';
@@ -148,13 +148,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [capturableWindows, setCapturableWindows] = useState<WindowInfo[]>([]);
   const [screenshotLoading, setScreenshotLoading] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null);
-  const { chatInputRef } = useChat();
-
-  // Register this textarea with the context so Cmd+L can focus it
+  // Register this textarea with the store ref so Cmd+L can focus it
   useEffect(() => {
     chatInputRef.current = inputRef.current;
     return () => { chatInputRef.current = null; };
-  }, [chatInputRef]);
+  }, []);
 
   // Cycle through placeholder hints
   useEffect(() => {

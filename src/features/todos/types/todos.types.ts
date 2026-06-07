@@ -77,11 +77,3 @@ export interface TodosActions {
   clearTodos: () => void;
   setCreating: (isCreating: boolean) => void;
 }
-
-export interface TodosContextValue extends TodosState, TodosActions {
-  meetingId: string | null;
-  stats: TodoStats;
-  completedTodos: Todo[];
-  pendingTodos: Todo[];
-  overdueTodos: Todo[];
-}

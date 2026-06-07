@@ -6,6 +6,9 @@
 /** Number of session index entries to show per page in the sidebar */
 export const CHAT_PAGE_SIZE = 50;
 
+/** Number of items to show initially in the unified sidebar. More load on scroll. */
+export const SIDEBAR_PAGE_SIZE = 25;
+
 /** Maximum number of fully-loaded ChatSession objects to hold in the LRU cache.
  *  Oldest session is evicted when this limit is exceeded (excluding currentSessionId). */
 export const MAX_LOADED_SESSIONS = 10;

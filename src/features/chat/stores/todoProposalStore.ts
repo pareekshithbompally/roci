@@ -15,6 +15,8 @@
 import { useSyncExternalStore } from 'react';
 import { todosRepository } from '@services/repositories/todos.repository';
 import { reminderService } from '@services/reminder.service';
+import { queryClient } from '@shared/query/queryClient';
+import { queryKeys } from '@shared/query/queryKeys';
 import type { TodoEntry } from '@shared/types';
 import { normalizeDueDate, hashToNotificationId } from '@shared/utils/todo.utils';
 
@@ -112,10 +114,14 @@ export const todoProposalStore = {
 
     emitChange();
 
-    // Emit single refresh event for all mutations
-    window.dispatchEvent(new CustomEvent('kasset:todo-mutation', {
-      detail: { action: 'batch', count: pending.length },
-    }));
+    // Invalidate all affected meeting-specific and global todo queries
+    const affectedMeetings = new Set(
+      pending.map(p => p.meetingId).filter(Boolean)
+    );
+    for (const meetingId of affectedMeetings) {
+      queryClient.invalidateQueries({ queryKey: queryKeys.todos(meetingId) });
+    }
+    queryClient.invalidateQueries({ queryKey: queryKeys.globalTodos() });
 
     // Auto-clear after short delay so committed state is visible
     setTimeout(() => {

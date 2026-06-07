@@ -40,6 +40,7 @@ function buildSnapshot(panelId: string, settings: AppSettings, providers: ModelP
         defaultAudioSource: settings.defaultAudioSource,
         audioQualityPreset: settings.audioQualityPreset,
         transcriptionModel: settings.transcriptionModel,
+        analyzeModel: settings.analyzeModel,
       });
     case 'providers':
       return stableStringify({

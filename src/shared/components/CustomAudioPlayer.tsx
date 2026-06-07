@@ -1,142 +1,340 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Square } from 'lucide-react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Volume2,
+  VolumeX,
+  Volume1,
+} from 'lucide-react';
+import { useWavesurfer } from '@wavesurfer/react';
+import Hover from 'wavesurfer.js/dist/plugins/hover.esm.js';
 import { formatTime } from '@shared/utils/audio.utils';
+import { useThemeContext } from '@shared/contexts/ThemeContext';
+import { useAudioPlayerStore, SPEED_OPTIONS } from '@shared/stores/audioPlayerStore';
 import { UI_CONFIG } from '@config/ui.config';
-import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
+import { AUDIO } from '@config/theme.config';
 
 interface CustomAudioPlayerProps {
   src: string;
-  duration: number; // Duration in seconds passed from the recorder state
+  duration: number;
+  /** If provided, only syncs to central store when this matches the active session's meetingId */
+  meetingId?: string;
 }
 
-const CustomAudioPlayer: React.FC<CustomAudioPlayerProps> = ({ src, duration }) => {
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
+const SKIP_SECONDS = 15;
+const SEEK_SMALL = 5;
 
-  // Sync play/pause with audio element
+const CustomAudioPlayer: React.FC<CustomAudioPlayerProps> = ({ src, duration, meetingId }) => {
+  const playerRef = useRef<HTMLDivElement>(null);
+  const waveformRef = useRef<HTMLDivElement>(null);
+  const { isDark } = useThemeContext();
+
+  const playbackRate = useAudioPlayerStore((s) => s.playbackRate);
+  const volume = useAudioPlayerStore((s) => s.volume);
+  const isMuted = useAudioPlayerStore((s) => s.isMuted);
+  const setPlaybackRate = useAudioPlayerStore((s) => s.setPlaybackRate);
+  const setVolume = useAudioPlayerStore((s) => s.setVolume);
+  const toggleMute = useAudioPlayerStore((s) => s.toggleMute);
+  const setPlaying = useAudioPlayerStore((s) => s.setPlaying);
+  const updateCurrentTime = useAudioPlayerStore((s) => s.updateCurrentTime);
+  const session = useAudioPlayerStore((s) => s.session);
+
+  const isOwner = !meetingId || session?.meetingId === meetingId;
+
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+  const [showRemaining, setShowRemaining] = useState(false);
+
+  const waveformTokens = UI_CONFIG.colors.waveform;
+  const waveColor = isDark ? waveformTokens.unplayed.dark : waveformTokens.unplayed.light;
+  const progressColor = isDark ? waveformTokens.played.dark : waveformTokens.played.light;
+
+  const primaryColor = isDark
+    ? UI_CONFIG.colors.primary.dark
+    : UI_CONFIG.colors.primary.light;
+  const invertedColor = isDark
+    ? UI_CONFIG.colors.primary.light
+    : UI_CONFIG.colors.primary.dark;
+
+  const hoverPlugin = useMemo(
+    () =>
+      Hover.create({
+        lineColor: 'transparent',
+        lineWidth: 0,
+        labelBackground: primaryColor,
+        labelColor: invertedColor,
+        labelSize: '10px',
+      }),
+    [primaryColor, invertedColor]
+  );
+
+  const { wavesurfer, isPlaying, currentTime } = useWavesurfer({
+    container: waveformRef,
+    url: src,
+    height: 'auto',
+    waveColor,
+    progressColor,
+    barWidth: 3,
+    barGap: 2,
+    barRadius: 2,
+    barHeight: 1,
+    normalize: true,
+    cursorWidth: 0,
+    cursorColor: 'transparent',
+    backend: 'WebAudio',
+    autoplay: false,
+    plugins: useMemo(() => [hoverPlugin], []),
+  });
+
+  const effectiveDuration = wavesurfer ? wavesurfer.getDuration() : duration;
+
+  // Seek to stored position when the session matches and audio is ready
+  const storeCurrentTime = useAudioPlayerStore((s) => s.currentTime);
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    if (isPlaying) {
-      audio.play().catch((e) => {
-        console.warn("Playback failed", e);
-        setIsPlaying(false);
-      });
+    if (!wavesurfer || !isOwner || storeCurrentTime <= 0) return;
+    const onReady = () => {
+      wavesurfer.setTime(storeCurrentTime);
+    };
+    if (wavesurfer.getDuration() > 0) {
+      wavesurfer.setTime(storeCurrentTime);
     } else {
-      audio.pause();
+      wavesurfer.once('ready', onReady);
+      return () => {
+        wavesurfer.un('ready', onReady);
+      };
     }
-  }, [isPlaying]);
+  }, [wavesurfer, isOwner, storeCurrentTime]);
 
+  // Persist playback position on unmount (only when this player owns the session)
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const handleTimeUpdate = () => {
-      setCurrentTime(audio.currentTime);
+    if (!isOwner) return;
+    return () => {
+      if (wavesurfer) {
+        const pos = wavesurfer.getCurrentTime();
+        const wasPlaying = wavesurfer.isPlaying();
+        wavesurfer.pause(); // Stop wavesurfer so AudioPlaybackRow doesn't double-play
+        updateCurrentTime(pos);
+        if (wasPlaying) setPlaying(true);
+      }
     };
+  }, [wavesurfer, updateCurrentTime, setPlaying, isOwner]);
 
-    const handleEnded = () => {
-      setIsPlaying(false);
-      // Optional: don't auto-reset current time to 0 to mimic some native players,
-      // or reset it. Let's keep it at the end to show it finished.
-    };
+  // Sync wavesurfer play/pause/time state to store (only when this player owns the session)
+  useEffect(() => {
+    if (!wavesurfer || !isOwner) return;
+    const onPlay = () => setPlaying(true);
+    const onPause = () => setPlaying(false);
+    const onTimeUpdate = () => updateCurrentTime(wavesurfer.getCurrentTime());
+    const onFinish = () => setPlaying(false);
 
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('ended', handleEnded);
+    wavesurfer.on('play', onPlay);
+    wavesurfer.on('pause', onPause);
+    wavesurfer.on('timeupdate', onTimeUpdate);
+    wavesurfer.on('finish', onFinish);
 
     return () => {
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('ended', handleEnded);
+      wavesurfer.un('play', onPlay);
+      wavesurfer.un('pause', onPause);
+      wavesurfer.un('timeupdate', onTimeUpdate);
+      wavesurfer.un('finish', onFinish);
     };
-  }, []);
+  }, [wavesurfer, setPlaying, updateCurrentTime, isOwner]);
 
-  const togglePlay = () => setIsPlaying(!isPlaying);
+  useEffect(() => {
+    wavesurfer?.setPlaybackRate(playbackRate);
+  }, [playbackRate, wavesurfer]);
 
-  const handleStop = () => {
-    setIsPlaying(false);
-    setCurrentTime(0);
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-    }
-  };
+  useEffect(() => {
+    wavesurfer?.setVolume(isMuted ? 0 : volume);
+  }, [volume, isMuted, wavesurfer]);
 
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const time = parseFloat(e.target.value);
-    if (audioRef.current) {
-      audioRef.current.currentTime = time;
-      setCurrentTime(time);
-    }
-  };
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const player = playerRef.current;
+      if (!player || !player.contains(document.activeElement)) return;
+
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      switch (e.code) {
+        case 'Space':
+          e.preventDefault();
+          wavesurfer?.playPause();
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          wavesurfer?.skip(-SEEK_SMALL);
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          wavesurfer?.skip(SEEK_SMALL);
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setVolume(Math.min(volume + 0.1, 1));
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          setVolume(Math.max(volume - 0.1, 0));
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [wavesurfer, volume, setVolume]);
+
+  const togglePlay = useCallback(() => {
+    wavesurfer?.playPause();
+  }, [wavesurfer]);
+
+  const skipBackward = useCallback(() => {
+    wavesurfer?.skip(-SKIP_SECONDS);
+  }, [wavesurfer]);
+
+  const skipForward = useCallback(() => {
+    wavesurfer?.skip(SKIP_SECONDS);
+  }, [wavesurfer]);
+
+  const VolumeIcon = isMuted || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
+
+  const displayTime = showRemaining
+    ? `-${formatTime(Math.max(effectiveDuration - currentTime, 0))}`
+    : formatTime(currentTime);
 
   return (
     <div
-      className={`flex items-center gap-3 w-full ${SURFACE.subtle} p-3 rounded-xl border ${BORDER.default} shadow-sm`}
+      ref={playerRef}
+      tabIndex={0}
+      className={`flex flex-col gap-2 w-full ${AUDIO.shell} p-3 ${AUDIO.focusRing}`}
       role="region"
       aria-label="Audio player"
     >
-      <button
-        onClick={togglePlay}
-        className={`w-10 h-10 flex items-center justify-center rounded-full ${COMPONENT.primaryButton} transition-all shrink-0 shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-300 focus:ring-offset-2`}
-        aria-label={isPlaying ? 'Pause' : 'Play'}
-        style={{
-          width: UI_CONFIG.audioPlayer.buttonSize,
-          height: UI_CONFIG.audioPlayer.buttonSize
-        }}
-      >
-        {isPlaying ? (
-          <Pause className="w-4 h-4 fill-current" aria-hidden="true" />
-        ) : (
-          <Play className="w-4 h-4 fill-current ml-0.5" aria-hidden="true" />
-        )}
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={skipBackward}
+          className={AUDIO.controlButton}
+          aria-label={`Skip back ${SKIP_SECONDS} seconds`}
+          title={`Skip back ${SKIP_SECONDS}s`}
+        >
+          <SkipBack className="w-4 h-4" />
+        </button>
 
-      <button
-        onClick={handleStop}
-        className={`w-8 h-8 flex items-center justify-center rounded-full ${COMPONENT.secondaryButton} shrink-0 focus:outline-none focus:ring-2 focus:ring-zinc-300 focus:ring-offset-1`}
-        aria-label="Stop and reset"
-      >
-        <Square className="w-3 h-3 fill-current" aria-hidden="true" />
-      </button>
+        <button
+          onClick={togglePlay}
+          className={AUDIO.playButton}
+          aria-label={isPlaying ? 'Pause' : 'Play'}
+        >
+          {isPlaying ? (
+            <Pause className="w-4 h-4 fill-current" />
+          ) : (
+            <Play className="w-4 h-4 fill-current ml-0.5" />
+          )}
+        </button>
 
-      <span
-        className={`text-xs font-mono ${TEXT.muted} text-right tabular-nums select-none`}
-        style={{ width: UI_CONFIG.audioPlayer.timeWidth }}
-        aria-label={`Current time: ${formatTime(currentTime)}`}
-      >
-        {formatTime(currentTime)}
-      </span>
+        <button
+          onClick={skipForward}
+          className={AUDIO.controlButton}
+          aria-label={`Skip forward ${SKIP_SECONDS} seconds`}
+          title={`Skip forward ${SKIP_SECONDS}s`}
+        >
+          <SkipForward className="w-4 h-4" />
+        </button>
 
-      <div
-        className="relative flex-1 flex items-center group"
-        style={{ height: UI_CONFIG.audioPlayer.sliderHeight }}
-      >
-        <input
-          type="range"
-          min={0}
-          max={duration || 1}
-          step={0.1}
-          value={currentTime}
-          onChange={handleSeek}
-          className="w-full h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-zinc-900 dark:accent-zinc-200 hover:accent-zinc-700 transition-all focus:outline-none focus:ring-2 focus:ring-zinc-300"
-          aria-label="Seek audio position"
-          aria-valuemin={0}
-          aria-valuemax={duration}
-          aria-valuenow={currentTime}
-          aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
-        />
+        <button
+          onClick={() => setShowRemaining(!showRemaining)}
+          className={AUDIO.timeLabelInteractive}
+          aria-label={showRemaining ? 'Show elapsed time' : 'Show remaining time'}
+        >
+          {displayTime}
+        </button>
+
+        <div className="flex-1" />
+
+        <div
+          className="relative flex items-center"
+          onMouseEnter={() => setShowVolumeSlider(true)}
+          onMouseLeave={() => setShowVolumeSlider(false)}
+        >
+          <button
+            onClick={toggleMute}
+            className={AUDIO.controlButton}
+            aria-label={isMuted ? 'Unmute' : 'Mute'}
+          >
+            <VolumeIcon className="w-4 h-4" />
+          </button>
+
+          <div
+            className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-2 rounded-lg ${AUDIO.popover} transition-all duration-150 origin-bottom ${
+              showVolumeSlider
+                ? 'opacity-100 scale-100'
+                : 'opacity-0 scale-95 pointer-events-none'
+            }`}
+          >
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={isMuted ? 0 : volume}
+              onChange={(e) => setVolume(parseFloat(e.target.value))}
+              className={AUDIO.volumeSlider}
+              style={{
+                accentColor: isDark
+                  ? UI_CONFIG.colors.primary.dark
+                  : UI_CONFIG.colors.primary.light,
+              }}
+              aria-label="Volume"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round((isMuted ? 0 : volume) * 100)}
+            />
+          </div>
+        </div>
+
+        <div className="relative">
+          <button
+            onClick={() => setShowSpeedMenu(!showSpeedMenu)}
+            onBlur={() => setTimeout(() => setShowSpeedMenu(false), 150)}
+            className={AUDIO.speedTrigger}
+            aria-label={`Playback speed ${playbackRate}x`}
+          >
+            {playbackRate}x
+          </button>
+
+          {showSpeedMenu && (
+            <div
+              className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-1 rounded-lg ${AUDIO.popover} z-20`}
+            >
+              {SPEED_OPTIONS.map((speed) => (
+                <button
+                  key={speed}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setPlaybackRate(speed);
+                    setShowSpeedMenu(false);
+                  }}
+                  className={`${AUDIO.popoverItem} ${
+                    playbackRate === speed
+                      ? AUDIO.popoverItemSelected
+                      : AUDIO.popoverItemDefault
+                  }`}
+                >
+                  {speed}x
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <span className={AUDIO.timeLabelDuration}>
+          {formatTime(effectiveDuration)}
+        </span>
       </div>
 
-      <span
-        className={`text-xs font-mono ${TEXT.muted} tabular-nums select-none`}
-        style={{ width: UI_CONFIG.audioPlayer.timeWidth }}
-        aria-label={`Total duration: ${formatTime(duration)}`}
-      >
-        {formatTime(duration)}
-      </span>
-
-      <audio ref={audioRef} src={src} preload="metadata" aria-hidden="true" />
+      <div ref={waveformRef} className={AUDIO.waveform} />
     </div>
   );
 };

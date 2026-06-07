@@ -174,7 +174,7 @@ class ImportService {
     const { result, usage } = await unifiedAIService.processDocument(transcriptFile, categories, settings, providers);
     if (signal.aborted) throw new Error('Import cancelled');
 
-    const resolved = resolveModel(settings.transcriptionModel, providers);
+    const resolved = resolveModel(settings.analyzeModel || settings.chatModel, providers);
     logUsage({ category: 'transcription', sessionId: job.meetingId, provider: resolved?.provider, model: resolved?.modelId, usage }).catch(e => console.error('[UsageLog] transcription:', e));
 
     const meetingSummary = this.buildMeetingSummary(result);
@@ -219,7 +219,7 @@ class ImportService {
     const { result, usage: audioUsage } = await unifiedAIService.processAudio(blob, categories, settings, providers);
     if (signal.aborted) throw new Error('Import cancelled');
 
-    const resolvedAudio = resolveModel(settings.transcriptionModel, providers);
+    const resolvedAudio = resolveModel(settings.analyzeModel || settings.chatModel, providers);
     logUsage({ category: 'transcription', sessionId: job.meetingId, provider: resolvedAudio?.provider, model: resolvedAudio?.modelId, usage: audioUsage }).catch(e => console.error('[UsageLog] transcription:', e));
 
     const meetingSummary = this.buildMeetingSummary(result);
@@ -233,6 +233,7 @@ class ImportService {
       recordingFileName: job.fileName,
       inputSource: 'audio-import',
       model: settings.transcriptionModel,
+      segments: result.segments,
       extractionContext: { settings, providers },
     });
 

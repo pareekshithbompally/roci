@@ -1,14 +1,44 @@
 /**
  * Chat Feature Module
- * 
- * Complete chat functionality with AI messaging.
  */
 
 // Components
-export { ChatPanel, ChatView, ChatMessage, ChatInput, ChatHistoryList } from './components';
+export {
+  ChatShell,
+  ChatPanel,
+  ChatView,
+  ChatMessage,
+  ChatInput,
+  ChatHistoryList,
+} from './components';
+export type { ChatShellProps } from './components';
 
 // Hooks
 export { useChat } from './hooks';
+export { useSpeechInput } from './hooks/useSpeechInput';
+export type { SpeechState, UseSpeechInputResult } from './hooks/useSpeechInput';
 
-// Re-export context for provider usage
-export { ChatProvider, useChat as useChatContext } from '@shared/contexts/ChatContext';
+// Stores
+export {
+  useChatStore,
+  chatInputRef,
+  injectChatRefs,
+  useChatSessionIndex,
+  useChatCurrentSessionId,
+  useChatInitialized,
+  useChatSessionLoading,
+  useChatInput,
+  useChatIsLoading,
+  useChatViewHistory,
+  useChatSearchQuery,
+  useChatDebouncedSearchQuery,
+  useChatCopiedMessageId,
+  useChatSelectedMeetingRefs,
+  useChatWebSearchEnabled,
+  useChatAiActivity,
+  useChatDeleteConfirmId,
+  useChatPendingAttachments,
+  useCurrentSession,
+  useFilteredIndexEntries,
+  useChatActions,
+} from './stores';

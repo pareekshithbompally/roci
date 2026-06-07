@@ -6,7 +6,8 @@
  */
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useApp, AppStatus } from '@shared/contexts/AppContext';
+import { useCurrentView, useAppStatus, useSelectedHistoryId, useAppActions } from '@shared/stores/appStore';
+import { AppStatus } from '@shared/types';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHistory } from '@shared/contexts/HistoryContext';
 import { useChat } from '@shared/contexts/ChatContext';
@@ -35,6 +36,7 @@ import {
   pathsService,
 } from '@services/storage';
 import { notificationService, trayService, TrayAction } from '@services/tauri';
+import { notificationScheduler } from '@services/notification-scheduler';
 import { windowService } from '@services/window.service';
 import { shortcutsService } from '@services/shortcuts.service';
 import { ShortcutAction } from '@config/shortcuts.config';
@@ -46,16 +48,10 @@ import { exit } from '@tauri-apps/plugin-process';
 
 const App: React.FC = () => {
   console.log('[App] Rendering App component');
-  const {
-    currentView,
-    status,
-    selectedHistoryId,
-    setStatus,
-    setCurrentView,
-    setInitialized,
-    setSelectedHistoryId,
-  } = useApp();
-  console.log('[App] useApp result:', { currentView, status, selectedHistoryId });
+  const currentView = useCurrentView();
+  const status = useAppStatus();
+  const selectedHistoryId = useSelectedHistoryId();
+  const { setStatus, setCurrentView, setInitialized, setSelectedHistoryId } = useAppActions();
   
   const { setSettings, settings, providers } = useSettings();
   const history = useHistory();
@@ -191,6 +187,7 @@ const App: React.FC = () => {
       await notificationService.initialize();
       await notificationService.requestPermission();
       await reminderService.initialize();
+      await notificationScheduler.reconcile();
       await windowService.initialize();
       await initializeShortcuts();
       await initializeTray();

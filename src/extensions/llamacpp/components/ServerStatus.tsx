@@ -18,7 +18,7 @@ const STATUS_CONFIG: Record<
   ServerStatusType,
   { label: string; colorClass: string; animate?: boolean }
 > = {
-  idle: { label: 'Stopped', colorClass: 'bg-zinc-400' },
+  idle: { label: 'Stopped', colorClass: 'bg-parchment-500 dark:bg-night-600' },
   downloading: { label: 'Downloading...', colorClass: 'bg-blue-400', animate: true },
   starting: { label: 'Starting...', colorClass: 'bg-yellow-400', animate: true },
   running: { label: 'Running', colorClass: 'bg-green-500' },

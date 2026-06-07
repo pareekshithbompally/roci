@@ -8,7 +8,7 @@
 
 import React, { useCallback, useState, useRef } from 'react';
 import { ArrowLeft, CalendarDays, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useApp } from '@shared/contexts/AppContext';
+import { useAppActions } from '@shared/stores/appStore';
 import { CalendarWeek } from './CalendarWeek';
 import type { CalendarControls } from './CalendarWeek';
 import { EventPopover } from './EventPopover';
@@ -62,7 +62,7 @@ const NAV_BUTTON = `inline-flex items-center justify-center py-1.5 px-2 ${TEXT.p
 // ─── Component ──────────────────────────────────────────────────────
 
 export const CalendarView: React.FC = () => {
-  const { setCurrentView, setStatus, setSelectedHistoryId, setResult } = useApp();
+  const { setCurrentView, setStatus, setSelectedHistoryId, setResult } = useAppActions();
   const { scheduleXEvents, isEmpty, refresh } = useCalendarEvents();
   const [isSyncing, setIsSyncing] = useState(false);
   const [rangeLabel, setRangeLabel] = useState('');

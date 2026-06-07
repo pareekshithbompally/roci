@@ -8,16 +8,18 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { AudioWaveform, Key, HardDrive, ListTodo, CalendarDays } from 'lucide-react';
 import { ImportButton } from '@features/import';
-import { useApp, AppStatus } from '@shared/contexts/AppContext';
+import { useAppActions } from '@shared/stores/appStore';
+import { AppStatus } from '@shared/types';
 import { useRecordingContext } from '@features/recording';
-import { useChat } from '@shared/contexts/ChatContext';
+import { useChatStore } from '@features/chat/stores';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { ChatInput } from '@features/chat';
 import { meetingReferenceService } from '@services/meetingReferenceService';
 import { RadioCard } from '@features/settings/components/shared';
-import { supportsWebSearch, supportsTranscription, resolveModel } from '@shared/utils/modelResolver';
+import { supportsWebSearch } from '@shared/utils/modelResolver';
 import { useSpeechInput } from '@features/chat/hooks/useSpeechInput';
+import { ENGINES, resolveCred } from '@services/ai/transcription';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { SURFACE, TEXT, BORDER, COMPONENT } from '@config/theme.config';
 
@@ -36,38 +38,52 @@ const GREETING_POOL = [
 ];
 
 export const IdleView: React.FC<IdleViewProps> = () => {
-  const { setStatus, setCurrentView, setActiveSettingsPanel } = useApp();
+  const { setStatus, setCurrentView, setActiveSettingsPanel } = useAppActions();
   const [greeting] = useState(() => GREETING_POOL[Math.floor(Math.random() * GREETING_POOL.length)]);
   const recording = useRecordingContext();
-  // Chat functionality - shared with ChatPanel/ChatView
-  const chat = useChat();
+
+  const chatInput = useChatStore((s) => s.input);
+  const isGenerating = useChatStore((s) => s.isLoading);
+  const pendingAttachments = useChatStore((s) => s.pendingAttachments);
+  const selectedMeetingRefs = useChatStore((s) => s.selectedMeetingRefs);
+  const webSearchEnabled = useChatStore((s) => s.webSearchEnabled);
+
   const { items: historyItems } = useHistoryData();
   const { settings, providers } = useSettings();
 
+  const sendMessage = useChatStore((s) => s.sendMessage);
+  const setInput = useChatStore((s) => s.setInput);
+  const newChat = useChatStore((s) => s.newChat);
+  const toggleWebSearch = useChatStore((s) => s.toggleWebSearch);
+  const setSelectedMeetingRefs = useChatStore((s) => s.setSelectedMeetingRefs);
+  const addAttachment = useChatStore((s) => s.addAttachment);
+  const removeAttachment = useChatStore((s) => s.removeAttachment);
+  const addScreenshotAttachment = useChatStore((s) => s.addScreenshotAttachment);
+
   // Get available meetings for @ mention
-  const availableMeetings = useMemo(() => 
+  const availableMeetings = useMemo(() =>
     meetingReferenceService.getRecentMeetings(historyItems, 20),
     [historyItems]
   );
 
-  // Check if transcription model provider supports voice input
   const showSpeechInput = useMemo(() => {
-    const resolved = resolveModel(settings.transcriptionModel, providers);
-    return resolved ? supportsTranscription(resolved.provider) : false;
+    const engine = ENGINES[settings.transcriptionModel as keyof typeof ENGINES];
+    if (!engine) return false;
+    try { resolveCred(engine.providerId, providers); return true; } catch { return false; }
   }, [settings.transcriptionModel, providers]);
 
-  const speech = useSpeechInput(settings.transcriptionModel, providers);
+  const speech = useSpeechInput(settings, providers);
 
   const handleSpeechStop = useCallback(async () => {
     const text = await speech.stop();
     if (text) {
-      chat.setInput(chat.input ? `${chat.input} ${text}` : text);
+      const currentInput = useChatStore.getState().input;
+      setInput(currentInput ? `${currentInput} ${text}` : text);
     }
-  }, [speech, chat]);
+  }, [speech, setInput]);
 
   // Check if current model supports web search
   const showWebSearch = useMemo(() => {
-    // Find the provider for this model
     for (const provider of providers) {
       if (!provider.active) continue;
       const model = provider.models?.find(m => m.id === settings.chatModel);
@@ -105,25 +121,24 @@ export const IdleView: React.FC<IdleViewProps> = () => {
     try {
       await recording.startRecording();
     } catch (error) {
-      // Error already handled in RecordingContext with toast
       console.error('[IdleView] Failed to start recording:', error);
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!chat.input.trim() || chat.isLoading) return;
-    
-    // Capture the input before clearing
-    const messageText = chat.input;
-    
+  const handleSendMessage = () => {
+    if (!chatInput.trim() || isGenerating) return;
+
+    // Capture input before clearing
+    const messageText = chatInput;
+
     // Clear any existing session to start fresh
-    chat.newChat();
-    
-    // Switch to CHAT view immediately for smooth transition
+    newChat();
+
+    // Switch to CHAT view immediately
     setStatus(AppStatus.CHAT);
-    
-    // Send the message with the captured text (this runs async, ChatView shows loading state)
-    chat.sendMessage(messageText, historyItems, settings, providers);
+
+    // Send the message — store handles session creation atomically
+    sendMessage(messageText);
   };
 
   return (
@@ -140,21 +155,21 @@ export const IdleView: React.FC<IdleViewProps> = () => {
               </h1>
               {/* Shared ChatInput component */}
               <ChatInput
-                value={chat.input}
-                onChange={chat.setInput}
+                value={chatInput}
+                onChange={setInput}
                 onSend={handleSendMessage}
-                isLoading={chat.isLoading}
+                isLoading={isGenerating}
                 placeholder="Type @ to add meeting context..."
                 availableMeetings={availableMeetings}
-                selectedMeetings={chat.selectedMeetingRefs}
-                onMeetingSelect={chat.setSelectedMeetingRefs}
-                webSearchEnabled={chat.webSearchEnabled}
-                onWebSearchToggle={chat.toggleWebSearch}
+                selectedMeetings={selectedMeetingRefs}
+                onMeetingSelect={setSelectedMeetingRefs}
+                webSearchEnabled={webSearchEnabled}
+                onWebSearchToggle={toggleWebSearch}
                 showWebSearch={showWebSearch}
-                attachments={chat.pendingAttachments}
-                onAttach={chat.addAttachment}
-                onRemoveAttachment={chat.removeAttachment}
-                onScreenshot={chat.addScreenshotAttachment}
+                attachments={pendingAttachments}
+                onAttach={addAttachment}
+                onRemoveAttachment={removeAttachment}
+                onScreenshot={addScreenshotAttachment}
                 showSpeechInput={showSpeechInput}
                 speechState={speech.state}
                 micStream={speech.stream}

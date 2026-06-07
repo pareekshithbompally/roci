@@ -12,12 +12,6 @@ export type { ToastType } from './ToastContext';
 export { ThemeProvider, useThemeContext } from './ThemeContext';
 export type { Theme } from './ThemeContext';
 
-// App Context
-export { AppProvider, useAppContext, useApp, AppStatus } from './AppContext';
-
-// Meeting Context
-export { MeetingProvider, useMeeting } from './MeetingContext';
-
 // History Context
 export { HistoryProvider, useHistory } from './HistoryContext';
 

@@ -1,6 +1,6 @@
 [package]
 name = "Kasset"
-version = "1.0.1"
+version = "1.0.3"
 description = "AI-powered voice capture, transcription, and insights"
 authors = ["Kasset.ai"]
 license = "MIT"

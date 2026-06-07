@@ -11,9 +11,9 @@
  */
 
 import { useState, useRef, useCallback } from 'react';
-import { resolveModel } from '@shared/utils/modelResolver';
 import { audioToRawText } from '@services/unifiedAIService';
 import type { ModelProvider } from '@shared/types/modelProviders';
+import type { AppSettings } from '@shared/types';
 
 export type SpeechState = 'idle' | 'recording' | 'transcribing';
 
@@ -31,7 +31,7 @@ export interface UseSpeechInputResult {
 }
 
 export function useSpeechInput(
-  transcriptionModelId: string,
+  settings: AppSettings,
   providers: ModelProvider[],
 ): UseSpeechInputResult {
   const [state, setState] = useState<SpeechState>('idle');
@@ -106,17 +106,9 @@ export function useSpeechInput(
         }
         setStream(null);
 
-        const resolved = resolveModel(transcriptionModelId, providers);
-        if (!resolved?.apiKey) {
-          setState('idle');
-          setElapsed(0);
-          resolve('');
-          return;
-        }
-
         setState('transcribing');
         try {
-          const text = await audioToRawText(blob, resolved);
+          const text = await audioToRawText(blob, settings, providers);
           resolve(text);
         } catch (err) {
           console.error('[useSpeechInput] Transcription failed:', err);
@@ -129,7 +121,7 @@ export function useSpeechInput(
 
       recorder.stop();
     });
-  }, [state, transcriptionModelId, providers, cleanup]);
+  }, [state, settings, providers, cleanup]);
 
   const cancel = useCallback(() => {
     const recorder = mediaRecorderRef.current;

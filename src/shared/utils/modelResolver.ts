@@ -7,8 +7,7 @@
 
 import type { ModelProvider, Model } from '@shared/types/modelProviders';
 import type { ProviderType } from '@services/ai/types';
-import { MANAGED_SDK_PROVIDERS, MANAGED_SDK_INFO, MANAGED_DEFAULT_URLS, TRANSCRIPTION_STRATEGIES } from '@config/providers.config';
-import type { TranscriptionStrategy } from '@config/providers.config';
+import { MANAGED_SDK_PROVIDERS, MANAGED_SDK_INFO, MANAGED_DEFAULT_URLS } from '@config/providers.config';
 
 export interface ResolvedModel {
   modelId: string;
@@ -72,30 +71,6 @@ export function getProviderType(provider: string): ProviderType {
   if (provider === 'groq') return 'groq';
   return 'openai-compat';
 }
-
-/**
- * Check if a provider supports audio input for transcription
- */
-export function supportsAudioInput(provider: string): boolean {
-  return provider === 'gemini';
-}
-
-/**
- * Check if a provider supports chat voice input (mic button).
- * Driven by TRANSCRIPTION_STRATEGIES — add a new entry there, not here.
- */
-export function supportsTranscription(provider: string): boolean {
-  return TRANSCRIPTION_STRATEGIES[provider] != null;
-}
-
-/**
- * Get the transcription strategy for a provider, or null if unsupported.
- */
-export function getTranscriptionStrategy(provider: string): TranscriptionStrategy {
-  return TRANSCRIPTION_STRATEGIES[provider] ?? null;
-}
-
-export type { TranscriptionStrategy };
 
 /**
  * Check if a resolved model has tool calling enabled.
@@ -180,6 +155,8 @@ export function getProviderDisplayName(provider: string): string {
     'xai': 'xAI (Grok)',
     'local-server': 'Local Server',
     'llamacpp': 'Llama.cpp',
+    'deepgram': 'Deepgram',
+    'elevenlabs': 'ElevenLabs',
   };
   return names[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
 }

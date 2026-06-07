@@ -58,6 +58,9 @@ export const SURFACE = {
   /** Subtle hover state for list items */
   hoverSubtle: 'hover:bg-parchment-200/80 dark:hover:bg-night-750/80',
 
+  /** Sidebar item hover background (dark: night-700 = #2a2a2a ≈ RGB 40,40,40) */
+  sidebarItemHover: 'hover:bg-parchment-200/70 dark:hover:bg-night-700/90',
+
   /** Selected item background */
   selected: 'bg-parchment-200 dark:bg-night-750/80',
 
@@ -138,7 +141,7 @@ export const TIER = {
 
 export const ACCENT = {
   /** User message bubble */
-  userBubble: 'bg-parchment-800 dark:bg-night-700',
+  userBubble: 'bg-parchment-800 dark:bg-night-800',
   /** User message text */
   userText: 'text-parchment-50 dark:text-night-100',
 } as const;
@@ -333,7 +336,7 @@ export const COMPONENT = {
   sidebarItemSelected: `${SURFACE.selected} ${BORDER.selectedItem}`,
 
   /** Sidebar item default state */
-  sidebarItemDefault: 'border-transparent hover:bg-parchment-200/70 dark:hover:bg-night-800/60 hover:border-parchment-300/40 dark:hover:border-night-700/40',
+  sidebarItemDefault: `border-transparent ${SURFACE.sidebarItemHover} hover:border-parchment-300/40 dark:hover:border-night-700/40`,
 
   /** Primary action chip (buttons on idle view) */
   // BUG FIX: was `dark:hover:bg-zinc-750` (invalid class)
@@ -459,4 +462,50 @@ export const COMPONENT = {
 
   /** Recommended badge (green pill) */
   recommendedBadge: 'px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded text-[10px] font-medium',
+} as const;
+
+// ─── AUDIO PLAYER TOKENS ──────────────────────────────────────
+
+export const AUDIO = {
+  /** Outer player shell (no layout/padding — compose externally) */
+  shell: `${SURFACE.subtle} border ${BORDER.default} rounded-xl shadow-sm select-none outline-none`,
+
+  /** Player focus ring */
+  focusRing: 'focus:ring-2 focus:ring-parchment-400/50 dark:focus:ring-night-600/50',
+
+  /** Waveform canvas container */
+  waveform: 'h-10 w-full rounded-md overflow-hidden',
+
+  /** Transparent control button (skip, volume icon) */
+  controlButton: `w-8 h-8 flex items-center justify-center rounded-full ${TEXT.muted} ${SURFACE.hoverSubtle} hover:${TEXT.primary} transition-all shrink-0`,
+
+  /** Play/pause primary button */
+  playButton: `w-9 h-9 flex items-center justify-center rounded-full ${COMPONENT.primaryButton} shrink-0 shadow-sm hover:shadow-md transition-all`,
+
+  /** Speed trigger pill */
+  speedTrigger: `h-7 px-2 flex items-center justify-center rounded-md text-[11px] font-mono font-medium ${TEXT.muted} ${SURFACE.hoverSubtle} hover:${TEXT.primary} transition-all`,
+
+  /** Popover surface (volume slider, speed menu) */
+  popover: `${SURFACE.dropdown} border ${BORDER.default} shadow-lg`,
+
+  /** Popover menu item base */
+  popoverItem: 'block w-full text-left px-3 py-1.5 text-xs font-mono rounded-md transition-colors',
+
+  /** Popover menu item — selected state */
+  popoverItemSelected: `${SURFACE.selected} ${TEXT.primary}`,
+
+  /** Popover menu item — default state */
+  popoverItemDefault: `${TEXT.muted} ${SURFACE.hoverSubtle}`,
+
+  /** Volume slider track */
+  volumeSlider: `${COMPONENT.progressTrack} h-24 w-1.5 appearance-none rounded-full cursor-pointer [writing-mode:vertical-lr] direction-rtl`,
+
+  /** Time label */
+  timeLabel: `text-xs font-mono tabular-nums ${TEXT.muted}`,
+
+  /** Time label interactive (elapsed/remaining toggle) */
+  timeLabelInteractive: `text-xs font-mono tabular-nums min-w-[4.5rem] text-left ${TEXT.muted} hover:${TEXT.primary} cursor-pointer transition-colors`,
+
+  /** Duration label (right-aligned, not interactive) */
+  timeLabelDuration: `text-xs font-mono tabular-nums min-w-[4.5rem] text-right ${TEXT.muted}`,
 } as const;

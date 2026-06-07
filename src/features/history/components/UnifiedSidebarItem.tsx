@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MoreVertical, Edit2, Trash2, AudioWaveform, MessageSquare, Mic, Loader2 } from 'lucide-react';
+import { MoreVertical, Edit2, Trash2, AudioWaveform, MessageSquare, Mic, Loader2, Volume2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -17,6 +17,7 @@ import {
 import HighlightedText from '@shared/components/HighlightedText';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { TEXT, SURFACE, BORDER, COMPONENT } from '@config/theme.config';
+import { useAudioPlayerStore } from '@shared/stores/audioPlayerStore';
 import type { UnifiedSidebarItem as UnifiedSidebarItemType } from '@shared/types';
 
 interface UnifiedSidebarItemProps {
@@ -43,6 +44,14 @@ export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = React.memo(
   const isPending = item.historyItem?.pendingTranscription;
   const hasRecording = !!item.historyItem?.recordingFileName;
   const Icon = item.type === 'meeting' ? AudioWaveform : MessageSquare;
+
+  const audioSession = useAudioPlayerStore((s) => s.session);
+  const audioIsPlaying = useAudioPlayerStore((s) => s.isPlaying);
+  const isThisMeetingPlaying =
+    item.type === 'meeting' &&
+    !!audioSession &&
+    audioSession.meetingId === item.historyItem?.id &&
+    audioIsPlaying;
 
   // Animate title when it changes (e.g. AI-generated title replaces placeholder)
   const prevTitleRef = useRef(item.title);
@@ -72,6 +81,8 @@ export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = React.memo(
         <div className="relative shrink-0">
           {isTranscribing ? (
             <Loader2 className="w-3.5 h-3.5 text-purple-500 animate-spin" />
+          ) : isThisMeetingPlaying ? (
+            <Volume2 className="w-3.5 h-3.5 text-green-500 animate-pulse" />
           ) : (
             <Icon className={`w-3.5 h-3.5 ${isPending ? 'text-amber-500' : TEXT.secondary}`} />
           )}
@@ -81,11 +92,62 @@ export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = React.memo(
         </div>
 
         <span
-            title={item.title}
-            className={`flex-1 ${TYPOGRAPHY_CLASSES.sidebarItem} truncate ${TEXT.primary} ${isTitleAnimating ? 'animate-title-morph' : ''}`}
-          >
-            <HighlightedText text={item.title} highlight={searchQuery} />
-          </span>
+          title={item.title}
+          className={`flex-1 min-w-0 ${TYPOGRAPHY_CLASSES.sidebarItem} truncate ${TEXT.primary} ${isTitleAnimating ? 'animate-title-morph' : ''}`}
+        >
+          <HighlightedText text={item.title} highlight={searchQuery} />
+        </span>
+
+        {/* 3-dots menu — in-flow, w-0 when hidden → w-auto on hover, text reflows naturally */}
+        <div className="shrink-0 w-0 group-hover:w-auto overflow-hidden opacity-0 group-hover:opacity-100 transition-all duration-150">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                onClick={(e) => e.stopPropagation()}
+                className={`p-0.5 ${COMPONENT.menuButtonHover} rounded transition-colors outline-none`}
+              >
+                <MoreVertical className={`w-3.5 h-3.5 ${TEXT.muted}`} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="right" align="start" sideOffset={4}>
+              {hasRecording && onTranscribeClick && (
+                <>
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTranscribeClick();
+                    }}
+                    className={TYPOGRAPHY_CLASSES.sidebarItem}
+                  >
+                    <Mic className="w-4 h-4" />
+                    {isPending ? 'Transcribe' : 'Re-transcribe'}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStartRename();
+                }}
+                className={TYPOGRAPHY_CLASSES.sidebarItem}
+              >
+                <Edit2 className="w-4 h-4" />
+                Rename
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteClick();
+                }}
+                className={`${TYPOGRAPHY_CLASSES.sidebarItem} ${COMPONENT.dropdownItemDanger}`}
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {item.matchContext && (
@@ -101,57 +163,6 @@ export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = React.memo(
           </span>
         </div>
       )}
-
-      {/* 3-dots menu — Radix portal escapes overflow-hidden */}
-      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              onClick={(e) => e.stopPropagation()}
-              className={`p-1 ${COMPONENT.menuButtonHover} rounded transition-colors outline-none`}
-            >
-              <MoreVertical className={`w-3.5 h-3.5 ${TEXT.muted}`} />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent side="right" align="start" sideOffset={4}>
-            {hasRecording && onTranscribeClick && (
-              <>
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onTranscribeClick();
-                  }}
-                  className={TYPOGRAPHY_CLASSES.sidebarItem}
-                >
-                  <Mic className="w-4 h-4" />
-                  {isPending ? 'Transcribe' : 'Re-transcribe'}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
-            )}
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation();
-                onStartRename();
-              }}
-              className={TYPOGRAPHY_CLASSES.sidebarItem}
-            >
-              <Edit2 className="w-4 h-4" />
-              Rename
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation();
-                onDeleteClick();
-              }}
-              className={`${TYPOGRAPHY_CLASSES.sidebarItem} ${COMPONENT.dropdownItemDanger}`}
-            >
-              <Trash2 className="w-4 h-4" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
     </div>
   );
 });

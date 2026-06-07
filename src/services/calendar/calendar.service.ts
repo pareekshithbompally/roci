@@ -2,18 +2,23 @@
  * Calendar Service
  *
  * Bridges macOS EventKit (via Tauri plugin) with the frontend.
- * Architecture:
- *   1. Cache refresh (every CALENDAR_CONFIG.cacheRefreshIntervalMs) — fetches 7-day
- *      lookahead from EventKit and stores enriched events in-memory.
- *   2. Precise notification scheduling — after each cache refresh, schedules exact
- *      setTimeout for each upcoming meeting at (start - notifyBefore). This ensures
- *      notifications fire on time regardless of polling cadence.
  *
- * UI components subscribe to cache updates via onEventsUpdated().
+ * Architecture:
+ *   1. Cache refresh (every 2 min) — fetches 7-day lookahead from EventKit,
+ *      stores enriched events in-memory.
+ *   2. OS-level notification scheduling — delegates to NotificationScheduler
+ *      which uses macOS UNUserNotificationCenter for reliable timing.
+ *      No setTimeout. No polling for notification delivery.
+ *   3. On each cache refresh, old calendar notifications are canceled and
+ *      rescheduled for current events. This handles start-time changes,
+ *      cancellations, and new events atomically.
+ *
+ *   UI components subscribe to cache updates via onEventsUpdated().
  */
 
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from '../tauri/environment.service';
+import { notificationScheduler } from '../notification-scheduler';
 import { extractMeetingUrl } from './meeting-url';
 import { CALENDAR_CONFIG } from '@config/calendar.config';
 import type {
@@ -24,22 +29,27 @@ import type {
 } from './types';
 import { CALENDAR_DEFAULTS } from './types';
 
-/** Callback signature for upcoming meeting events. */
-type MeetingApproachingCallback = (event: EnrichedCalendarEvent) => void;
-
-/** Callback signature for cache update subscribers. */
 type EventsUpdatedCallback = (events: EnrichedCalendarEvent[]) => void;
+
+/**
+ * Action type for bare OS-scheduled calendar notifications.
+ * These fire at the target time. When the user clicks, notification-handler
+ * intercepts and shows an *actionable* notification via notifyWithActions()
+ * (which uses 'meeting_starting' / 'meeting_starting_no_url').
+ */
+const CAL_OS_ACTION_TYPE = 'calendar_event';
+
+function calKey(eventId: string): string {
+  return `cal:${eventId}`;
+}
 
 class CalendarService {
   // -- Timers --
   private cacheRefreshTimer: ReturnType<typeof setInterval> | null = null;
-  /** Precise per-event notification timeouts (event_id → timer) */
-  private scheduledNotifications = new Map<string, ReturnType<typeof setTimeout>>();
 
-  // -- Notification state --
+  // -- Notification state (tracks what has been notified this session) --
   private notifiedEventIds = new Set<string>();
   private snoozedUntilStart = new Set<string>();
-  private onMeetingApproaching: MeetingApproachingCallback | null = null;
 
   // -- Event cache --
   private cachedEvents: EnrichedCalendarEvent[] = [];
@@ -50,7 +60,6 @@ class CalendarService {
 
   // ─── Access management ───────────────────────────────────────────
 
-  /** Request calendar permission. Triggers macOS system dialog. */
   async requestAccess(): Promise<boolean> {
     if (!isTauriEnvironment()) return false;
     try {
@@ -64,7 +73,6 @@ class CalendarService {
     }
   }
 
-  /** Check current authorization status without prompting. */
   async checkAccess(): Promise<CalendarAccessStatus> {
     if (!isTauriEnvironment()) return 'not_determined';
     try {
@@ -80,7 +88,6 @@ class CalendarService {
 
   // ─── Event fetching ──────────────────────────────────────────────
 
-  /** Fetch upcoming events from EventKit and enrich with derived fields. */
   async getUpcomingEvents(minutesAhead = 15): Promise<EnrichedCalendarEvent[]> {
     if (!isTauriEnvironment()) return [];
     try {
@@ -97,7 +104,6 @@ class CalendarService {
     }
   }
 
-  /** Fetch events in a date range. */
   async getEventsInRange(start: string, end: string): Promise<EnrichedCalendarEvent[]> {
     if (!isTauriEnvironment()) return [];
     try {
@@ -114,15 +120,12 @@ class CalendarService {
 
   // ─── Event cache (for UI consumption) ────────────────────────────
 
-  /** Get the current cached events snapshot. */
   getCachedEvents(): EnrichedCalendarEvent[] {
     return this.cachedEvents;
   }
 
-  /** Subscribe to cache updates. Returns an unsubscribe function. */
   onEventsUpdated(callback: EventsUpdatedCallback): () => void {
     this.eventListeners.add(callback);
-    // Immediately fire with current cache if populated
     if (this.cachedEvents.length > 0) {
       callback(this.cachedEvents);
     }
@@ -131,51 +134,37 @@ class CalendarService {
     };
   }
 
-  /** Trigger an immediate cache refresh (e.g., from a Sync button). */
   async forceRefresh(): Promise<void> {
     await this.refreshCache();
   }
 
   // ─── Polling ─────────────────────────────────────────────────────
 
-  /** Register a callback for when a meeting is approaching. */
-  onMeetingStarting(callback: MeetingApproachingCallback): () => void {
-    this.onMeetingApproaching = callback;
-    return () => {
-      this.onMeetingApproaching = null;
-    };
-  }
-
-  /** Start polling with cache refresh + precise notification scheduling. */
   startPolling(settings?: CalendarIntegrationSettings): void {
     if (settings) this.settings = settings;
     if (!this.settings.enabled) return;
 
     this.stopPolling();
 
-    // Immediate cache refresh (also schedules notifications), then on interval
     this.refreshCache();
     this.cacheRefreshTimer = setInterval(
       () => this.refreshCache(),
       CALENDAR_CONFIG.cacheRefreshIntervalMs
     );
 
-    console.log('[CalendarService] Polling started (cache refresh: %dms, precise notification scheduling)',
+    console.log('[CalendarService] Polling started (OS-scheduled notifications, cache: %dms)',
       CALENDAR_CONFIG.cacheRefreshIntervalMs
     );
   }
 
-  /** Stop all polling timers and scheduled notifications. */
   stopPolling(): void {
     if (this.cacheRefreshTimer) {
       clearInterval(this.cacheRefreshTimer);
       this.cacheRefreshTimer = null;
     }
     this.clearScheduledNotifications();
-    console.log('[CalendarService] Polling stopped');
   }
 
-  /** Update settings and restart polling if needed. */
   updateSettings(settings: CalendarIntegrationSettings): void {
     const wasEnabled = this.settings.enabled;
     this.settings = settings;
@@ -184,139 +173,141 @@ class CalendarService {
       this.startPolling();
     } else if (!settings.enabled && wasEnabled) {
       this.stopPolling();
+    } else if (settings.enabled && wasEnabled) {
+      // Notify-before time changed — reschedule all
+      this.clearNotificationHistory();
     }
   }
 
-  /** Clear notification tracking and re-schedule (e.g., on settings change). */
   clearNotificationHistory(): void {
     this.notifiedEventIds.clear();
     this.snoozedUntilStart.clear();
     this.clearScheduledNotifications();
-    // Re-schedule with clean state
     this.scheduleNotifications();
   }
 
-  /** Mark an event as snoozed — will re-notify at meeting start time. */
   snoozeEvent(eventId: string): void {
     this.notifiedEventIds.delete(eventId);
-    // Clear existing timer if any, then re-schedule as snoozed
-    const existing = this.scheduledNotifications.get(eventId);
-    if (existing) {
-      clearTimeout(existing);
-      this.scheduledNotifications.delete(eventId);
-    }
+    // Cancel existing OS-scheduled notification for this event
+    notificationScheduler.cancel(calKey(eventId));
     this.snoozedUntilStart.add(eventId);
     this.scheduleNotifications();
+  }
+
+  /** Look up an event from the cache by ID (for notification click handlers). */
+  getEventById(eventId: string): EnrichedCalendarEvent | undefined {
+    return this.cachedEvents.find((e) => e.event_id === eventId);
   }
 
   // ─── Internal: cache refresh ─────────────────────────────────────
 
   private async refreshCache(): Promise<void> {
-    // Start from beginning of today so past events from today still show on the calendar
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const end = new Date(now.getTime() + CALENDAR_CONFIG.lookaheadDays * 86_400_000);
     const events = await this.getEventsInRange(startOfDay.toISOString(), end.toISOString());
 
     this.cachedEvents = events;
-    console.log('[CalendarService] Cache refreshed: %d events', events.length);
 
-    // Schedule precise notifications for upcoming events
     this.scheduleNotifications();
 
-    // Notify UI subscribers
     for (const listener of this.eventListeners) {
       listener(this.cachedEvents);
     }
   }
 
-  // ─── Internal: precise notification scheduling ──────────────────
+  // ─── Internal: OS-level notification scheduling ─────────────────
 
   /**
-   * Schedule exact setTimeout for each upcoming event based on its start time
-   * minus the user's notify-before setting. This replaces the old 1-minute
-   * polling interval and guarantees notifications fire on time.
+   * Schedule OS notifications for all upcoming events that need one.
+   * Cancels all existing calendar notifications first, then reschedules
+   * for current events. Called by refreshCache() every 2 minutes.
    */
   private scheduleNotifications(): void {
-    if (!this.onMeetingApproaching) return;
-
     const now = Date.now();
     const notifyBeforeMs = this.settings.notify_minutes_before * 60_000;
-    const graceMs = CALENDAR_CONFIG.notificationGracePeriodMinutes * 60_000;
     const snoozeThresholdMs = CALENDAR_CONFIG.snoozeThresholdSeconds * 1_000;
 
-    // Clear stale timers for events no longer in cache
-    const currentEventIds = new Set(this.cachedEvents.map(e => e.event_id));
-    for (const [eventId, timer] of this.scheduledNotifications) {
-      if (!currentEventIds.has(eventId)) {
-        clearTimeout(timer);
-        this.scheduledNotifications.delete(eventId);
-      }
-    }
+    if (this.cachedEvents.length === 0) return;
+
+    let scheduled = 0;
 
     for (const event of this.cachedEvents) {
       if (this.shouldSkipEvent(event)) continue;
-      // Don't re-schedule if already scheduled
-      if (this.scheduledNotifications.has(event.event_id)) continue;
 
       const startMs = new Date(event.start_date).getTime();
       const minsUntilStart = (startMs - now) / 60_000;
 
-      // Already past grace period — skip
       if (minsUntilStart <= CALENDAR_CONFIG.notificationGracePeriodMinutes) continue;
 
-      // For snoozed events: schedule at (start - snooze threshold)
+      const key = calKey(event.event_id);
+
+      let fireAtMs: number;
+
       if (this.snoozedUntilStart.has(event.event_id)) {
-        const fireAt = startMs - snoozeThresholdMs;
-        const delayMs = fireAt - now;
-        if (delayMs <= 0) {
-          // Fire immediately
-          this.snoozedUntilStart.delete(event.event_id);
-          this.fireNotification(event);
-        } else {
-          this.scheduledNotifications.set(
-            event.event_id,
-            setTimeout(() => {
-              this.snoozedUntilStart.delete(event.event_id);
-              this.fireNotification(event);
-            }, delayMs)
-          );
-        }
+        // Snoozed: re-notify at (start - snooze threshold)
+        fireAtMs = startMs - snoozeThresholdMs;
+        this.snoozedUntilStart.delete(event.event_id);
+      } else {
+        // Normal: fire at (start - notifyBefore)
+        fireAtMs = startMs - notifyBeforeMs;
+      }
+
+      if (fireAtMs <= now) {
+        // Missed window but still within grace period — fire immediately
+        // by emitting the event (notification-handler shows actionable notif)
+        this.fireImmediate(event);
         continue;
       }
 
-      // Normal event: fire at (start - notifyBefore)
-      const fireAt = startMs - notifyBeforeMs;
-      const delayMs = fireAt - now;
+      const actionTypeId = event.meeting_url ? 'meeting_starting' : 'meeting_starting_no_url';
 
-      if (delayMs <= 0 && minsUntilStart > CALENDAR_CONFIG.notificationGracePeriodMinutes) {
-        // Should have already fired (e.g., app just opened) — fire now
-        this.fireNotification(event);
-      } else if (delayMs > 0) {
-        console.log('[CalendarService] Scheduled notification for "%s" in %ds',
-          event.title, Math.round(delayMs / 1000));
-        this.scheduledNotifications.set(
-          event.event_id,
-          setTimeout(() => this.fireNotification(event), delayMs)
-        );
-      }
+      notificationScheduler.schedule(key, {
+        at: new Date(fireAtMs),
+        title: event.title,
+        body: `Meeting at ${new Date(event.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+        actionTypeId: CAL_OS_ACTION_TYPE,
+        extra: {
+          event_id: event.event_id,
+          meeting_url: event.meeting_url ?? '',
+        },
+      });
+
+      scheduled++;
+    }
+
+    if (scheduled > 0) {
+      console.log('[CalendarService] OS-scheduled %d notification(s)', scheduled);
     }
   }
 
-  /** Fire a notification for an approaching event. */
-  private fireNotification(event: EnrichedCalendarEvent): void {
-    this.scheduledNotifications.delete(event.event_id);
+  /**
+   * Fire notification immediately for events that just missed the window
+   * but are still within the grace period. Delegate to the existing
+   * notification-handler callback (if registered).
+   *
+   * Since we no longer have onMeetingApproaching, we schedule an
+   * OS notification at "now" — the OS delivers it immediately.
+   * The notification-handler's onAction interceptor picks it up.
+   */
+  private fireImmediate(event: EnrichedCalendarEvent): void {
     if (this.notifiedEventIds.has(event.event_id)) return;
     this.notifiedEventIds.add(event.event_id);
-    this.onMeetingApproaching?.(event);
+
+    notificationScheduler.schedule(calKey(event.event_id), {
+      at: new Date(Date.now() + 1000),
+      title: event.title,
+      body: `Meeting at ${new Date(event.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+      actionTypeId: CAL_OS_ACTION_TYPE,
+      extra: {
+        event_id: event.event_id,
+        meeting_url: event.meeting_url ?? '',
+      },
+    });
   }
 
-  /** Clear all scheduled notification timeouts. */
   private clearScheduledNotifications(): void {
-    for (const timer of this.scheduledNotifications.values()) {
-      clearTimeout(timer);
-    }
-    this.scheduledNotifications.clear();
+    notificationScheduler.cancelAllForType(CAL_OS_ACTION_TYPE);
   }
 
   // ─── Internal: helpers ───────────────────────────────────────────
@@ -325,7 +316,6 @@ class CalendarService {
     if (event.is_all_day) return true;
     if (this.notifiedEventIds.has(event.event_id)) return true;
 
-    // Skip events where the current user has declined
     const currentUserDeclined = event.attendees.some(
       (a) => a.is_current_user === true && a.status === 'declined'
     );

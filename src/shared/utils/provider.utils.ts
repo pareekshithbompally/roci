@@ -26,6 +26,10 @@ export function getProviderLogo(provider: string) {
       return '/images/model-provider/azure.svg'
     case 'xai':
       return '/images/model-provider/xai.svg'
+    case 'deepgram':
+      return '/images/model-provider/deepgram.png'
+    case 'elevenlabs':
+      return '/images/model-provider/elevan-labs.png'
     case 'local-server':
       return '/images/model-provider/local-server.png'
     default:
@@ -61,6 +65,10 @@ export const getProviderTitle = (provider: string | undefined | null) => {
       return 'Mistral AI'
     case 'xai':
       return 'xAI (Grok)'
+    case 'deepgram':
+      return 'Deepgram'
+    case 'elevenlabs':
+      return 'ElevenLabs'
     case 'local-server':
       return 'Local Server'
     default:

@@ -6,9 +6,10 @@
  */
 
 import React from 'react';
-import { Plus, AlertCircle, Loader2 } from 'lucide-react';
+import { Plus, AlertCircle, Loader2, StickyNote } from 'lucide-react';
 import { useNotes } from '../hooks';
 import { TEXT, COMPONENT } from '@config/theme.config';
+import EmptyState from '@shared/components/EmptyState';
 import NoteItem from './NoteItem';
 import NoteEditor from './NoteEditor';
 
@@ -56,9 +57,9 @@ const NotesView: React.FC<NotesViewProps> = ({ className = '' }) => {
   }
 
   return (
-    <div className={`space-y-5 ${className}`}>
+    <div className={`flex flex-col min-h-full gap-y-5 ${className}`}>
       {/* Top action bar - always visible */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 shrink-0">
         <div className="flex-1">
           {notes.length > 0 && (
             <span className={`text-xs font-medium ${TEXT.muted}`}>
@@ -85,12 +86,10 @@ const NotesView: React.FC<NotesViewProps> = ({ className = '' }) => {
         />
       )}
 
-      {/* Notes list */}
+      {/* Content: empty state or notes list */}
       {notes.length === 0 && !isCreating ? (
-        <div className="py-12 text-center">
-          <p className={`text-sm ${TEXT.faint}`}>
-            No notes yet
-          </p>
+        <div className="flex-1 flex items-center justify-center">
+          <EmptyState icon={StickyNote} message="No notes yet" />
         </div>
       ) : notes.length > 0 ? (
         <div className="space-y-3">

@@ -9,8 +9,8 @@
 html.dark.platform-macos,
 html.dark.platform-macos body,
 html.dark.platform-macos #root {
-  background: rgba(38, 38, 36, 0.88) !important;    /* night-900 @ 88% */
-  background-color: rgba(38, 38, 36, 0.88) !important;
+  background: rgba(21, 21, 21, 0.88) !important;    /* night-900 @ 88% */
+  background-color: rgba(21, 21, 21, 0.88) !important;
 }
 
 /* macOS Tauri light mode: solid light backgrounds (vibrancy follows system theme, not app theme) */
@@ -67,7 +67,7 @@ html.platform-macos:not(.dark) #root {
   .dark.platform-macos,
   .dark.platform-macos body,
   .dark.platform-macos #root {
-    background: #262624 !important; /* night-900 */
+    background: #151515 !important; /* night-900 */
   }
 
   .platform-macos * {

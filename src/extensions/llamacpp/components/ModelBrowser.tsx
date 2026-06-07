@@ -242,7 +242,7 @@ export const ModelBrowser: React.FC<ModelBrowserProps> = ({ onModelAdded, hfToke
 
           {/* Search Results */}
           {searchResults.length > 0 && (
-            <div className={`max-h-64 overflow-y-auto border ${BORDER.input} rounded-lg divide-y divide-zinc-100 dark:divide-zinc-800`}>
+            <div className={`max-h-64 overflow-y-auto border ${BORDER.input} rounded-lg divide-y divide-parchment-300 dark:divide-night-800`}>
               {searchResults.map((repo) => (
                 <button
                   key={repo.id}
@@ -352,7 +352,7 @@ export const ModelBrowser: React.FC<ModelBrowserProps> = ({ onModelAdded, hfToke
                   <div
                     key={file.name}
                     className={`flex items-center gap-3 px-3.5 py-3 transition-colors ${
-                      idx > 0 ? 'border-t border-zinc-100 dark:border-zinc-800/60' : ''
+                      idx > 0 ? 'border-t border-parchment-300 dark:border-night-800/60' : ''
                     } ${
                       isRecommended
                         ? 'bg-green-50/50 dark:bg-green-900/10 border-l-2 border-l-green-500 dark:border-l-green-400'
@@ -414,7 +414,7 @@ export const ModelBrowser: React.FC<ModelBrowserProps> = ({ onModelAdded, hfToke
                         className={`px-2.5 py-1.5 rounded-lg text-[12px] font-medium flex items-center gap-1.5 shrink-0 transition-colors ${
                           isRecommended
                             ? 'bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-500 text-white disabled:opacity-50'
-                            : `${SURFACE.inputField} border ${BORDER.input} ${TEXT.muted} hover:${TEXT.heading} hover:border-zinc-400 dark:hover:border-zinc-500 disabled:opacity-50`
+                            : `${SURFACE.inputField} border ${BORDER.input} ${TEXT.muted} hover:${TEXT.heading} hover:border-parchment-500 dark:hover:border-night-600 disabled:opacity-50`
                         }`}
                         title={`Download ${quant || file.name}`}
                       >

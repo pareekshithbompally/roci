@@ -1,35 +1,17 @@
 /**
  * useNotes Hook
- * 
+ *
  * Main hook for accessing notes functionality.
- * Wraps the NotesContext for convenient usage.
+ * Backed by TanStack Query via useMeetingNotes.
+ * Self-sources the current meeting ID from the app store.
  */
 
-import { useNotesContext } from '../context';
+import { useSelectedHistoryId } from '@shared/stores/appStore';
+import { useMeetingNotes } from './useMeetingNotes';
 
 export const useNotes = () => {
-  const context = useNotesContext();
-  
-  return {
-    // State
-    notes: context.notes,
-    isLoading: context.isLoading,
-    error: context.error,
-    isCreating: context.isCreating,
-    meetingId: context.meetingId,
-
-    // Computed
-    notesCount: context.notesCount,
-    hasNotes: context.notes.length > 0,
-
-    // Actions
-    loadNotes: context.loadNotes,
-    addNote: context.addNote,
-    updateNote: context.updateNote,
-    deleteNote: context.deleteNote,
-    clearNotes: context.clearNotes,
-    setCreating: context.setCreating,
-  };
+  const meetingId = useSelectedHistoryId();
+  return useMeetingNotes(meetingId);
 };
 
 export default useNotes;

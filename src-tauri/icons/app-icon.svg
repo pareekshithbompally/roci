@@ -1,18 +1,8 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-  <!--
-    Proposal A — "Deep Space"
-    Dark navy · subtle white grid · gradient waveform with bloom
-    The Lucide audio-waveform path (24×24 viewBox) is scaled ×35 and
-    translated so its bounding-box centre lands exactly at (512,512).
-      Path bbox in path-units: x ∈ [2,22], y ∈ [4,20]  → centre (12,12)
-      At scale 35: centre lands at (12·35, 12·35) = (420,420)
-      translate = (512−420, 512−420) = (92, 92)
-    Stroke width 0.58 → 0.58×35 ≈ 20 px rendered
-  -->
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
-      <stop offset="0%"   stop-color="#182038"/>
-      <stop offset="100%" stop-color="#07090f"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%"   stop-color="#323232"/>
+      <stop offset="100%" stop-color="#141414"/>
     </linearGradient>
     <linearGradient id="wave" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%"   stop-color="#00d4ff"/>
@@ -20,40 +10,43 @@
       <stop offset="70%"  stop-color="#a855f7"/>
       <stop offset="100%" stop-color="#f0286e"/>
     </linearGradient>
-    <filter id="bloom" x="-30%" y="-40%" width="160%" height="180%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="22" result="b1"/>
-      <feGaussianBlur in="SourceGraphic" stdDeviation="8"  result="b2"/>
-      <feMerge>
-        <feMergeNode in="b1"/>
-        <feMergeNode in="b2"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
   </defs>
 
   <rect width="1024" height="1024" fill="url(#bg)"/>
 
-  <!-- Grid: 6×6, white at 7% -->
-  <g stroke="#fff" stroke-opacity="0.07" stroke-width="1.5">
-    <line x1="171"  y1="0"    x2="171"  y2="1024"/>
-    <line x1="341"  y1="0"    x2="341"  y2="1024"/>
-    <line x1="512"  y1="0"    x2="512"  y2="1024"/>
-    <line x1="683"  y1="0"    x2="683"  y2="1024"/>
-    <line x1="853"  y1="0"    x2="853"  y2="1024"/>
-    <line x1="0"    y1="171"  x2="1024" y2="171"/>
-    <line x1="0"    y1="341"  x2="1024" y2="341"/>
-    <line x1="0"    y1="512"  x2="1024" y2="512"/>
-    <line x1="0"    y1="683"  x2="1024" y2="683"/>
-    <line x1="0"    y1="853"  x2="1024" y2="853"/>
+  <!-- Grid: 12×12 -->
+  <g stroke="rgba(255,255,255,0.16)" stroke-width="3">
+    <line x1="85"  y1="0"   x2="85"  y2="1024"/>
+    <line x1="171" y1="0"   x2="171" y2="1024"/>
+    <line x1="256" y1="0"   x2="256" y2="1024"/>
+    <line x1="341" y1="0"   x2="341" y2="1024"/>
+    <line x1="427" y1="0"   x2="427" y2="1024"/>
+    <line x1="512" y1="0"   x2="512" y2="1024"/>
+    <line x1="597" y1="0"   x2="597" y2="1024"/>
+    <line x1="683" y1="0"   x2="683" y2="1024"/>
+    <line x1="768" y1="0"   x2="768" y2="1024"/>
+    <line x1="853" y1="0"   x2="853" y2="1024"/>
+    <line x1="939" y1="0"   x2="939" y2="1024"/>
+    <line x1="0"   y1="85"  x2="1024" y2="85"/>
+    <line x1="0"   y1="171" x2="1024" y2="171"/>
+    <line x1="0"   y1="256" x2="1024" y2="256"/>
+    <line x1="0"   y1="341" x2="1024" y2="341"/>
+    <line x1="0"   y1="427" x2="1024" y2="427"/>
+    <line x1="0"   y1="512" x2="1024" y2="512"/>
+    <line x1="0"   y1="597" x2="1024" y2="597"/>
+    <line x1="0"   y1="683" x2="1024" y2="683"/>
+    <line x1="0"   y1="768" x2="1024" y2="768"/>
+    <line x1="0"   y1="853" x2="1024" y2="853"/>
+    <line x1="0"   y1="939" x2="1024" y2="939"/>
   </g>
 
-  <!-- Waveform: Lucide audio-waveform, centred at (512,512) -->
-  <g transform="translate(92,92) scale(35)" filter="url(#bloom)">
+  <!-- Waveform: no bloom, gradient only -->
+  <g transform="translate(92,92) scale(35)">
     <path
       d="M2 13a2 2 0 0 0 2-2V7a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0V4a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0v-4a2 2 0 0 1 2-2"
       fill="none"
       stroke="url(#wave)"
-      stroke-width="0.58"
+      stroke-width="1.9"
       stroke-linecap="round"
       stroke-linejoin="round"
     />

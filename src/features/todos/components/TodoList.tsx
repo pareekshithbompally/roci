@@ -6,9 +6,11 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { Plus, AlertCircle, Loader2, Calendar } from 'lucide-react';
-import { useMeeting } from '@shared/contexts/MeetingContext';
+import { Plus, ListTodo, Loader2, Calendar } from 'lucide-react';
+import { useSelectedHistoryId, useAppResult } from '@shared/stores/appStore';
+import { useMeetingTodos } from '../hooks/useMeetingTodos';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
+import EmptyState from '@shared/components/EmptyState';
 import { DatePicker, TimePicker } from '@shared/ui';
 import { reminderService } from '@services/reminder.service';
 import { buildISOFromDateInput } from '@shared/utils/todo.utils';
@@ -20,16 +22,20 @@ interface TodoListProps {
 }
 
 const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List' }) => {
-  const meeting = useMeeting();
+  const selectedHistoryId = useSelectedHistoryId();
+  const result = useAppResult();
+  const { userTodos, aiTodos, isLoading, addTodo, updateTodo, deleteTodo, toggleTodo } = useMeetingTodos(selectedHistoryId);
   
   // Combine user todos and AI action items
   const allTodos = [
-    ...(meeting.userTodos || []),
-    ...(meeting.aiTodos || [])
+    ...(userTodos || []),
+    ...(aiTodos || [])
   ];
   
-  const isLoading = meeting.isLoading;
-  const error = null; // Meeting context doesn't expose error for todos
+  const [newItemText, setNewItemText] = useState('');
+  const [newItemDate, setNewItemDate] = useState('');
+  const [newItemTime, setNewItemTime] = useState('');
+  const error = null;
   const [isCreating, setIsCreating] = useState(false);
   
   // Calculate stats from combined list
@@ -37,19 +43,15 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
   const totalCount = allTodos.length;
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
-  const [newItemText, setNewItemText] = useState('');
-  const [newItemDate, setNewItemDate] = useState('');
-  const [newItemTime, setNewItemTime] = useState('');
-
-  const meetingId = meeting.selectedHistoryId || '';
-  const meetingTitle = meeting.currentMeeting?.title || 'Meeting';
+  const meetingId = selectedHistoryId || '';
+  const meetingTitle = result?.title || 'Meeting';
 
   const handleSaveItem = async () => {
-    if (newItemText.trim() && meeting.selectedHistoryId) {
+    if (newItemText.trim() && selectedHistoryId) {
       const dueDateString = newItemDate
         ? buildISOFromDateInput(newItemDate, newItemTime || undefined)
         : undefined;
-      await meeting.addTodo(newItemText.trim(), dueDateString);
+      await addTodo(newItemText.trim(), dueDateString);
       setNewItemText('');
       setNewItemDate('');
       setNewItemTime('');
@@ -65,15 +67,8 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
   };
 
   const handleReminderChange = useCallback((todoId: string, reminderDateTime: string | null) => {
-    // Update local state to reflect the reminder change without full reload
-    // The reminder service already persisted the change to disk
-    // Force a re-render by triggering a state update in meeting context
-    if (reminderDateTime === null) {
-      meeting.updateTodo(todoId, {});
-    } else {
-      meeting.updateTodo(todoId, {});
-    }
-  }, [meeting]);
+    updateTodo(todoId, {});
+  }, [updateTodo]);
 
   // Loading state
   if (isLoading) {
@@ -85,9 +80,9 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
   }
 
   return (
-    <div className={`space-y-5 ${className}`}>
+    <div className={`flex flex-col min-h-full gap-y-5 ${className}`}>
       {/* Top action bar - always visible */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 shrink-0">
         {/* Progress section - only show if there are items */}
         {totalCount > 0 && (
           <div className="flex items-center gap-3 flex-1">
@@ -168,7 +163,7 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
             </button>
             <button
               onClick={handleSaveItem}
-              disabled={!newItemText.trim() || !meeting.selectedHistoryId}
+              disabled={!newItemText.trim() || !selectedHistoryId}
               className={COMPONENT.settingsButtonPrimary}
             >
               <Plus className="w-3.5 h-3.5" />
@@ -178,20 +173,12 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
         </div>
       )}
 
-      {/* Empty state */}
-      {totalCount === 0 && !isCreating && (
-        <div className="flex flex-col items-center justify-center py-16">
-          <div className={`p-3 rounded-xl ${SURFACE.subtle} mb-3`}>
-            <AlertCircle className={`w-6 h-6 ${TEXT.faint}`} />
-          </div>
-          <p className={`text-sm ${TEXT.faint}`}>
-            No to-do items yet
-          </p>
+      {/* Content: empty state or item list */}
+      {totalCount === 0 && !isCreating ? (
+        <div className="flex-1 flex items-center justify-center">
+          <EmptyState icon={ListTodo} message="No to-do items yet" />
         </div>
-      )}
-
-      {/* Todo items list */}
-      {totalCount > 0 && (
+      ) : totalCount > 0 ? (
         <div className="divide-y divide-parchment-200 dark:divide-night-800/60">
           {allTodos.map((todo) => (
             <TodoItem
@@ -199,14 +186,14 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
               todo={todo}
               meetingId={meetingId}
               meetingTitle={meetingTitle}
-              onToggle={todo.owner ? meeting.toggleActionItem : meeting.toggleTodo}
-              onDelete={todo.owner ? undefined : meeting.deleteTodo}
-              onUpdate={todo.owner ? undefined : meeting.updateTodo}
+              onToggle={toggleTodo}
+              onDelete={todo.owner ? undefined : deleteTodo}
+              onUpdate={todo.owner ? undefined : updateTodo}
               onReminderChange={handleReminderChange}
             />
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 };

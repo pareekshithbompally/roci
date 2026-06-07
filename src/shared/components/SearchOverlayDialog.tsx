@@ -19,7 +19,8 @@ import {
   CommandSeparator,
 } from '@shared/ui';
 import { useUnifiedSidebar } from '@shared/hooks/useUnifiedSidebar';
-import { useApp, AppStatus } from '@shared/contexts/AppContext';
+import { useAppActions } from '@shared/stores/appStore';
+import { AppStatus } from '@shared/types';
 import { useChat } from '@shared/contexts/ChatContext';
 import { meetingService } from '@services/meeting.service';
 import { COMPONENT } from '@config/theme.config';
@@ -54,7 +55,7 @@ function titleMatchesAllKeywords(title: string, query: string): boolean {
 
 export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange }) => {
   const { items } = useUnifiedSidebar();
-  const { setCurrentView, setStatus, setSelectedHistoryId, setResult } = useApp();
+  const { setCurrentView, setStatus, setSelectedHistoryId, setResult } = useAppActions();
   const chat = useChat();
 
   const [query, setQuery] = useState('');

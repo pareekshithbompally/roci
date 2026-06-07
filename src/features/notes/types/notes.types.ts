@@ -34,8 +34,3 @@ export interface NotesActions {
   clearNotes: () => void;
   setCreating: (isCreating: boolean) => void;
 }
-
-export interface NotesContextValue extends NotesState, NotesActions {
-  meetingId: string | null;
-  notesCount: number;
-}

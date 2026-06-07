@@ -16,6 +16,7 @@ import type { AudioCaptureSource } from '@config/audio.config';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment, trayService, notificationService } from '@services/tauri';
+import { notificationScheduler } from '@services/notification-scheduler';
 import { coreAudioService } from '@services/coreAudio.service';
 import { recordingsService } from '@services/storage';
 import { transcriptionService } from '@services/transcription.service';
@@ -149,9 +150,9 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     startTimeRefs.current.delete(sessionId);
     pausedTimeRefs.current.delete(sessionId);
     abortControllerRefs.current.delete(sessionId);
-    // Clear 60-min timeout alert state for this session
-    const autoStop = timeoutAutoStopRefs.current.get(sessionId);
-    if (autoStop !== undefined) { clearTimeout(autoStop); timeoutAutoStopRefs.current.delete(sessionId); }
+    // Cancel OS-level auto-stop notification
+    notificationScheduler.cancel(`rec:autostop:${sessionId}`);
+    timeoutAutoStopRefs.current.delete(sessionId);
     lastAlertElapsedRefs.current.delete(sessionId);
     pendingAlertRefs.current.delete(sessionId);
     if (alertedSessionRef.current === sessionId) alertedSessionRef.current = null;
@@ -284,15 +285,23 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
               actionTypeId: 'recording_timeout',
             });
 
-            const autoStop = setTimeout(() => {
-              alertedSessionRef.current = null;
-              pendingAlertRefs.current.delete(sessionId);
-              stopAndSaveRef.current(sessionId);
-            }, 5 * 60 * 1000);
-            timeoutAutoStopRefs.current.set(sessionId, autoStop);
+            // OS-level auto-stop notification at recording-start + 65 min
+            const startTime2 = startTimeRefs.current.get(sessionId);
+            if (startTime2 !== undefined) {
+              const autoStopAt = new Date(startTime2 + 65 * 60 * 1000);
+              const autoStopKey = `rec:autostop:${sessionId}`;
+              notificationScheduler.schedule(autoStopKey, {
+                at: autoStopAt,
+                title: 'Recording auto-stopped',
+                body: 'Recording has reached the 65-minute limit.',
+                actionTypeId: 'recording_autostop',
+                extra: { sessionId },
+              });
+              timeoutAutoStopRefs.current.set(sessionId, autoStopKey as unknown as ReturnType<typeof setTimeout>);
+            }
           }
         }
-      }, 100);
+      }, 1000);
       timerRefs.current.set(sessionId, timer);
 
       // Swap tray to recording appearance (red icon + timer)
@@ -529,15 +538,23 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
               actionTypeId: 'recording_timeout',
             });
 
-            const autoStop = setTimeout(() => {
-              alertedSessionRef.current = null;
-              pendingAlertRefs.current.delete(sessionId);
-              stopAndSaveRef.current(sessionId);
-            }, 5 * 60 * 1000);
-            timeoutAutoStopRefs.current.set(sessionId, autoStop);
+            // OS-level auto-stop notification at recording-start + 65 min
+            const startTime3 = startTimeRefs.current.get(sessionId);
+            if (startTime3 !== undefined) {
+              const autoStopAt = new Date(startTime3 + 65 * 60 * 1000);
+              const autoStopKey = `rec:autostop:${sessionId}`;
+              notificationScheduler.schedule(autoStopKey, {
+                at: autoStopAt,
+                title: 'Recording auto-stopped',
+                body: 'Recording has reached the 65-minute limit.',
+                actionTypeId: 'recording_autostop',
+                extra: { sessionId },
+              });
+              timeoutAutoStopRefs.current.set(sessionId, autoStopKey as unknown as ReturnType<typeof setTimeout>);
+            }
           }
         }
-      }, 100);
+      }, 1000);
       timerRefs.current.set(sessionId, timer);
 
       // Resume tray timer
@@ -749,6 +766,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           recordingFileName,
           inputSource: session.audioSource,
           model: settings.transcriptionModel,
+          segments: data.segments,
           extractionContext: { settings, providers },
           ...calendarMeta && {
             calendarMeta: {
@@ -1046,27 +1064,49 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
   // Handle notification action callbacks (Keep Recording / Stop Now).
   // Mount-only — uses refs to avoid stale closures on frequently changing functions.
   useEffect(() => {
-    const unsubscribe = notificationService.onActionType('recording_timeout', (actionId) => {
+    const unsubTimeout = notificationService.onActionType('recording_timeout', (actionId) => {
       const sessionId = alertedSessionRef.current;
       if (!sessionId) return;
 
-      // Cancel the 5-min auto-stop timer
-      const autoStop = timeoutAutoStopRefs.current.get(sessionId);
-      if (autoStop !== undefined) {
-        clearTimeout(autoStop);
-        timeoutAutoStopRefs.current.delete(sessionId);
-      }
+      // Cancel the OS-level auto-stop notification
+      notificationScheduler.cancel(`rec:autostop:${sessionId}`);
+      timeoutAutoStopRefs.current.delete(sessionId);
 
       if (actionId === 'keep_recording') {
-        // Allow the alert to re-fire after another 60 minutes
+        // Allow the alert to re-fire after another 60 minutes and re-schedule auto-stop
         pendingAlertRefs.current.set(sessionId, false);
+        const startTime = startTimeRefs.current.get(sessionId);
+        if (startTime !== undefined) {
+          const nextAutoStopAt = new Date(Date.now() + 65 * 60 * 1000);
+          notificationScheduler.schedule(`rec:autostop:${sessionId}`, {
+            at: nextAutoStopAt,
+            title: 'Recording auto-stopped',
+            body: 'Recording has reached the 65-minute limit.',
+            actionTypeId: 'recording_autostop',
+            extra: { sessionId },
+          });
+          timeoutAutoStopRefs.current.set(sessionId, `rec:autostop:${sessionId}` as unknown as ReturnType<typeof setTimeout>);
+        }
         alertedSessionRef.current = null;
       } else if (actionId === 'stop_now') {
         alertedSessionRef.current = null;
         stopAndSaveRef.current(sessionId);
       }
     });
-    return unsubscribe;
+
+    const unsubAutoStop = notificationService.onActionType('recording_autostop', (actionId, extra) => {
+      const sessionId = extra?.sessionId as string | undefined;
+      if (!sessionId) return;
+      alertedSessionRef.current = null;
+      pendingAlertRefs.current.delete(sessionId);
+      timeoutAutoStopRefs.current.delete(sessionId);
+      stopAndSaveRef.current(sessionId);
+    });
+
+    return () => {
+      unsubTimeout();
+      unsubAutoStop();
+    };
   }, []); // mount only
 
   // === LEGACY COMPAT: Derive single-session state from sessions Map ===

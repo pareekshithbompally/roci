@@ -24,14 +24,14 @@ import {
   Users,
   ExternalLink,
 } from 'lucide-react';
-import { useApp, AppStatus } from '@shared/contexts/AppContext';
+import { useAppResult, useActiveResultTab, useSelectedHistoryId, useMeetingChatOpen, useAppActions } from '@shared/stores/appStore';
+import { AppStatus } from '@shared/types';
 import { useRecordingContext } from '@features/recording';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import SummaryView from '@features/summary/components/SummaryView';
 import TranscriptViewEnhanced from '@features/transcription/components/TranscriptViewEnhanced';
-import { TodoList, TodosProvider } from '@features/todos';
-import { NotesView, NotesProvider } from '@features/notes';
-import { useMeeting } from '@shared/contexts/MeetingContext';
+import { TodoList } from '@features/todos';
+import { NotesView } from '@features/notes';
 import { ResultsAudioPlayer } from './ResultsAudioPlayer';
 import { isTauriEnvironment } from '@services/tauri';
 import { dialogService, fileSystemService, notificationService } from '@services/tauri';
@@ -104,8 +104,11 @@ const CalendarMetaRow: React.FC<{ item: HistoryItem }> = ({ item }) => {
 };
 
 export const ResultsView: React.FC = () => {
-  const { result, activeResultTab, setActiveResultTab, resetToIdle, setSelectedHistoryId, selectedHistoryId, meetingChatOpen, setMeetingChatOpen } = useApp();
-  const meeting = useMeeting();
+  const result = useAppResult();
+  const activeResultTab = useActiveResultTab();
+  const selectedHistoryId = useSelectedHistoryId();
+  const meetingChatOpen = useMeetingChatOpen();
+  const { setActiveResultTab, resetToIdle, setSelectedHistoryId, setMeetingChatOpen } = useAppActions();
   const recording = useRecordingContext();
   const { items: historyItems } = useHistoryData();
   const { transcribe, isTranscribing } = useTranscribeRecording();
@@ -235,18 +238,6 @@ export const ResultsView: React.FC = () => {
     }
 
     downloadFile(`${filenameBase}_${scope}.${ext}`, content, mime);
-  };
-
-  // Combine AI action items with up-to-date completion status
-  const getActionItemsWithStatus = () => {
-    return meeting.getActionItemsWithStatus();
-  };
-
-  const getUserTodos = () => {
-    return meeting.userTodos.map((item) => ({
-      ...item,
-      completed: meeting.actionItemCompletions[item.id] ?? item.completed,
-    }));
   };
 
   const handleTitleEdit = () => {
@@ -555,7 +546,11 @@ export const ResultsView: React.FC = () => {
 
       {/* Audio Player - always visible above content when recording file exists */}
       {recordingFileName && (
-        <ResultsAudioPlayer recordingFileName={recordingFileName} />
+        <ResultsAudioPlayer
+          recordingFileName={recordingFileName}
+          meetingId={currentHistoryItem?.id || ''}
+          title={currentHistoryItem?.title || ''}
+        />
       )}
 
       {/* Tab Content */}
@@ -573,15 +568,14 @@ export const ResultsView: React.FC = () => {
             text={result.transcript || ''}
             timestamp={result.timestamp}
             title={result.title}
+            segments={result.segments}
           />
         )}
         {activeResultTab === TABS.TODO && (
           <TodoList />
         )}
         {activeResultTab === TABS.NOTES && (
-          <NotesProvider meetingId={meeting.selectedHistoryId || result.id || ''}>
-            <NotesView />
-          </NotesProvider>
+          <NotesView />
         )}
       </div>
     </div>

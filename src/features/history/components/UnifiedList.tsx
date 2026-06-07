@@ -1,11 +1,16 @@
-import React from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useHistory } from '@shared/contexts/HistoryContext';
 import { useChat } from '@shared/contexts/ChatContext';
 import { TEXT } from '@config/theme.config';
+import { SIDEBAR_PAGE_SIZE } from '@config/chat.config';
 import { useTranscribeRecording } from '@shared/hooks/useTranscribeRecording';
+import { useSentinel } from '@shared/hooks/useSentinel';
+import { SidebarShimmer } from '@shared/components/SidebarShimmer';
 import { UnifiedSidebarItem } from './UnifiedSidebarItem';
 import { RenameModal } from './RenameModal';
 import type { UnifiedSidebarItem as UnifiedSidebarItemType } from '@shared/types';
+
+const LOAD_MORE_COOLDOWN_MS = 300;
 
 interface UnifiedListProps {
   items: UnifiedSidebarItemType[];
@@ -25,6 +30,32 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
   const { transcribe, isTranscribing, transcribingItemId } = useTranscribeRecording();
 
   const [renameItem, setRenameItem] = React.useState<UnifiedSidebarItemType | null>(null);
+  const [displayCount, setDisplayCount] = useState(SIDEBAR_PAGE_SIZE);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Reset display when the source list changes identity
+  useEffect(() => {
+    setDisplayCount(SIDEBAR_PAGE_SIZE);
+  }, [items]);
+
+  const hasMore = displayCount < items.length;
+
+  const loadMore = useCallback(() => {
+    if (!hasMore || isLoadingMore) return;
+    setIsLoadingMore(true);
+
+    setTimeout(() => {
+      setDisplayCount((prev) => Math.min(prev + SIDEBAR_PAGE_SIZE, items.length));
+      setIsLoadingMore(false);
+    }, LOAD_MORE_COOLDOWN_MS);
+  }, [hasMore, isLoadingMore, items.length]);
+
+  const sentinelRef = useSentinel({
+    onIntersect: loadMore,
+    enabled: hasMore && !isLoadingMore,
+  });
+
+  const displayedItems = items.slice(0, displayCount);
 
   if (items.length === 0) {
     return (
@@ -61,7 +92,7 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
   return (
     <>
       <div className="space-y-1">
-        {items.map((item) => (
+        {displayedItems.map((item) => (
           <UnifiedSidebarItem
             key={`${item.type}-${item.id}`}
             item={item}
@@ -74,6 +105,14 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
             onTranscribeClick={item.type === 'meeting' ? () => handleTranscribe(item) : undefined}
           />
         ))}
+
+        {isLoadingMore && hasMore && (
+          <SidebarShimmer count={Math.min(SIDEBAR_PAGE_SIZE, items.length - displayCount)} />
+        )}
+
+        {hasMore && !isLoadingMore && (
+          <div ref={sentinelRef} className="h-1" aria-hidden="true" />
+        )}
       </div>
 
       <RenameModal

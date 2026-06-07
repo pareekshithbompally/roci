@@ -122,7 +122,7 @@ export const UI_CONFIG = {
   colors: {
     primary: {
       light: '#1e1c18', // parchment-900
-      dark: '#e6e9f4',  // night-100
+      dark: '#ededed',  // night-100
     },
     record: {
       light: '#ef4444', // red-500
@@ -149,7 +149,7 @@ export const UI_CONFIG = {
     visualizer: {
       idle: {
         light: '#e4e0d6', // parchment-300
-        dark: '#525250',  // night-650
+        dark: '#333333',  // night-650
       },
       active: {
         light: '#ef4444',  // red-500
@@ -157,41 +157,53 @@ export const UI_CONFIG = {
       },
     },
 
+    // Audio waveform colors (canvas — wavesurfer.js)
+    waveform: {
+      unplayed: {
+        light: 'rgba(0,0,0,0.08)',
+        dark: 'rgba(255,255,255,0.10)',
+      },
+      played: {
+        light: 'rgba(0,0,0,0.50)',
+        dark: 'rgba(255,255,255,0.70)',
+      },
+    },
+
     // Background colors
     background: {
       primary: {
         light: '#fbfaf7', // parchment-100
-        dark: '#262624',  // night-900
+        dark: '#151515',  // night-900
       },
       secondary: {
         light: '#ffffff', // parchment-50
-        dark: '#2c2c2a',  // night-850
+        dark: '#181818',  // night-850
       },
       tertiary: {
         light: '#f0ede5', // parchment-200
-        dark: '#343432',  // night-800
+        dark: '#1c1c1c',  // night-800
       },
     },
 
     // Border colors
     border: {
       light: '#e4e0d6', // parchment-300
-      dark: '#454543',  // night-700
+      dark: '#2a2a2a',  // night-700
     },
 
     // Text colors
     text: {
       primary: {
         light: '#1e1c18', // parchment-900
-        dark: '#f2f4fc',  // night-50
+        dark: '#f5f5f5',  // night-50
       },
       secondary: {
         light: '#6b655c', // parchment-700
-        dark: '#8b92a8',  // night-400
+        dark: '#999999',  // night-400
       },
       tertiary: {
         light: '#8a847a', // parchment-600
-        dark: '#5c6278',  // night-500
+        dark: '#666666',  // night-500
       },
     },
   },
@@ -243,6 +255,17 @@ export const UI_CONFIG = {
     buttonSize: '2.5rem', // 40px
     sliderHeight: '1.5rem', // 24px
     trackHeight: '0.375rem', // 6px
+    waveformHeight: '2.5rem', // 40px — canvas waveform height
+    skipSeconds: 15, // seconds to skip forward/back
+    smallSeekSeconds: 5, // seconds to seek with arrow keys
+    minWaveformBars: 40,
+    maxWaveformBars: 300,
+    barsPerSecond: 15, // approximate bars per second of audio
+    volumeStep: 0.1, // arrow key volume adjustment
+    speedOptions: [0.5, 0.75, 1, 1.25, 1.5, 2] as const,
+    volumeSliderWidth: '0.375rem', // 6px
+    volumeSliderHeight: '6rem', // 96px
+    hoverTooltipOffset: 6, // px offset above waveform
   },
 
   // Search and filters

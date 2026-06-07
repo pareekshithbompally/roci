@@ -8,9 +8,8 @@ import React, { useRef, useCallback, useEffect } from 'react';
 import { Search, SquarePen, PanelLeft, Settings } from 'lucide-react';
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
 import { useSmallScreen } from '@shared/hooks/useMediaQuery';
-import { useApp } from '@shared/contexts/AppContext';
+import { useSelectedHistoryId, useAppActions } from '@shared/stores/appStore';
 import { useChat } from '@shared/contexts/ChatContext';
-import { useRecordingContext } from '@features/recording';
 import { UnifiedList } from '@features/history';
 import { useUnifiedSidebar } from '@shared/hooks/useUnifiedSidebar';
 import { AppStatus } from '@shared/types';
@@ -19,28 +18,66 @@ import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import { ActivityTray } from '@shared/components/ActivityTray';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { formatShortcut } from '@config/shortcuts.config';
-import type { UnifiedSidebarItem } from '@shared/types';
+import type { UnifiedSidebarItem, MeetingDetail, ProcessedResult } from '@shared/types';
+
+function buildSummaryMarkdown(summary: MeetingDetail['summary']): string {
+  if (!summary) return '';
+  const lines: string[] = [];
+  lines.push(`## Meeting Overview\n${summary.overview}`);
+  lines.push(`## Key Discussion Points\n${summary.keyDiscussionPoints.map((p) => `- ${p}`).join('\n')}`);
+  lines.push(`## Decisions Made\n${summary.decisionsMade.map((d) => `- ${d}`).join('\n')}`);
+  lines.push(
+    `## Action Items\n${summary.actionItems
+      .map((a) => `- ${a.text}${a.owner ? ` - Owner: ${a.owner}` : ''}${a.dueDate ? ` - Due: ${a.dueDate}` : ''}`)
+      .join('\n')}`,
+  );
+  lines.push(`## Next Steps\n${summary.nextSteps.map((s) => `- ${s}`).join('\n')}`);
+  return lines.join('\n\n');
+}
+
+function buildMeetingResult(detail: MeetingDetail): ProcessedResult {
+  const structuredSummary = detail.summary
+    ? {
+        overview: detail.summary.overview,
+        keyDiscussionPoints: detail.summary.keyDiscussionPoints,
+        decisionsMade: detail.summary.decisionsMade,
+        actionItems: detail.summary.actionItems.map((a) => ({
+          id: crypto.randomUUID(),
+          text: a.text,
+          owner: a.owner,
+          dueDate: a.dueDate,
+          completed: false,
+        })),
+        nextSteps: detail.summary.nextSteps,
+      }
+    : undefined;
+
+  return {
+    title: detail.index.title,
+    transcript: detail.transcript?.text || '',
+    summary: buildSummaryMarkdown(detail.summary),
+    categories: detail.index.categories,
+    structuredSummary,
+    segments: detail.transcript?.segments,
+  };
+}
 
 interface SidebarProps {
   shouldOffsetMacControls: boolean;
   onSearchClick?: () => void;
-  fileInputRef?: React.RefObject<HTMLInputElement>;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   shouldOffsetMacControls,
   onSearchClick,
-  fileInputRef: externalFileInputRef
 }) => {
   const { open: isLeftPanelOpen, setLeftPanel } = useLeftPanel();
   const isSmallScreen = useSmallScreen();
   const { items } = useUnifiedSidebar();
-  const { setCurrentView, setStatus, setSelectedHistoryId, setResult, selectedHistoryId } = useApp();
+  const selectedHistoryId = useSelectedHistoryId();
+  const { setCurrentView, setStatus, setSelectedHistoryId, setResult } = useAppActions();
   const chat = useChat();
-  const recording = useRecordingContext();
-  const internalFileInputRef = useRef<HTMLInputElement>(null);
   const listContainerRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = externalFileInputRef || internalFileInputRef;
 
   // Scroll the selected item into view when selection changes (e.g. from spotlight)
   useEffect(() => {
@@ -53,11 +90,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   }, [selectedHistoryId, chat.currentSessionId]);
-
-  const handleUploadClick = () => {
-    fileInputRef.current?.click();
-    if (isSmallScreen) setLeftPanel(false);
-  };
 
   const handleHomeClick = () => {
     setCurrentView('home');
@@ -80,39 +112,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       setSelectedHistoryId(hi.id);
       chat.setCurrentSessionId(null);
 
-      // If historyItem already has transcript/summary (e.g. from a fresh recording),
-      // use it directly. Otherwise lazy-load full detail from disk.
       if (hi.transcript || hi.summary) {
         setResult(hi);
       } else {
-        // Show results view immediately (loading state), then populate
         setResult({ title: hi.title, transcript: '', summary: '', categories: hi.categories });
         try {
           const detail = await meetingService.getMeetingDetail(hi.id);
           if (detail) {
-            setResult({
-              title: detail.index.title,
-              transcript: detail.transcript?.text || '',
-              summary: detail.summary
-                ? `## Meeting Overview\n${detail.summary.overview}\n\n## Key Discussion Points\n${detail.summary.keyDiscussionPoints.map(p => `- ${p}`).join('\n')}\n\n## Decisions Made\n${detail.summary.decisionsMade.map(d => `- ${d}`).join('\n')}\n\n## Action Items\n${detail.summary.actionItems.map(a => `- ${a.text}${a.owner ? ` - Owner: ${a.owner}` : ''}${a.dueDate ? ` - Due: ${a.dueDate}` : ''}`).join('\n')}\n\n## Next Steps\n${detail.summary.nextSteps.map(s => `- ${s}`).join('\n')}`
-                : '',
-              categories: detail.index.categories,
-              structuredSummary: detail.summary
-                ? {
-                    overview: detail.summary.overview,
-                    keyDiscussionPoints: detail.summary.keyDiscussionPoints,
-                    decisionsMade: detail.summary.decisionsMade,
-                    actionItems: detail.summary.actionItems.map(a => ({
-                      id: crypto.randomUUID(),
-                      text: a.text,
-                      owner: a.owner,
-                      dueDate: a.dueDate,
-                      completed: false,
-                    })),
-                    nextSteps: detail.summary.nextSteps,
-                  }
-                : undefined,
-            });
+            setResult(buildMeetingResult(detail));
           }
         } catch (error) {
           console.error('[Sidebar] Failed to load meeting detail:', error);
@@ -169,7 +176,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Scrollable list */}
-      <div ref={listContainerRef} className="flex-1 overflow-y-auto px-2 py-1 custom-scrollbar scroll-fade">
+      <div ref={listContainerRef} className="flex-1 overflow-y-auto px-2 py-1 scrollbar-overlay scroll-fade">
         <UnifiedList
           items={items}
           selectedId={getSelectedId()}
@@ -182,7 +189,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <ActivityTray />
 
       {/* Settings button */}
-      <div className="shrink-0 px-2 pb-1">
+      <div className={`shrink-0 px-2 py-1.5 border-t ${BORDER.subtle}`}>
         <button
           onClick={handleSettingsClick}
           className={`w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md ${TYPOGRAPHY_CLASSES.sidebarItem} ${TEXT.primary} ${SURFACE.hoverSubtle} transition-all cursor-pointer`}

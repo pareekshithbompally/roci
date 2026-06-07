@@ -8,20 +8,11 @@
  * 
  * Usage:
  * ```tsx
- * import { NotesProvider, useNotes, NotesView } from '@/features/notes';
+ * import { useNotes, NotesView } from '@/features/notes';
  * 
- * // Wrap your component with the provider
- * <NotesProvider meetingId={currentMeetingId}>
- *   <NotesView />
- * </NotesProvider>
- * 
- * // Or use the hook directly
- * const { notes, addNote, deleteNote } = useNotes();
+ * <NotesView />
  * ```
  */
-
-// Context
-export { NotesProvider, useNotesContext } from './context';
 
 // Hooks
 export { useNotes } from './hooks';
@@ -35,5 +26,4 @@ export type {
   NoteInput,
   NotesState,
   NotesActions,
-  NotesContextValue,
 } from './types';

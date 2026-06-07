@@ -14,6 +14,7 @@ import type { AppSettings } from '@shared/types';
 import type { ModelProvider, ProviderSetting } from '@shared/types/modelProviders';
 import { settingsService } from '@services/storage';
 import { predefinedProviders, MANAGED_SDK_PROVIDERS } from '@config/providers.config';
+import { ENGINES } from '@services/ai/transcription';
 
 interface SettingsState {
   /** App settings */
@@ -60,6 +61,7 @@ interface SettingsContextValue extends SettingsState {
 const defaultSettings: AppSettings = {
   transcriptionModel: '', // User must select in Settings > Providers > Model Config
   chatModel: '', // User must select in Settings > Providers > Model Config
+  analyzeModel: '', // Analyze-phase LLM; falls back to chatModel at runtime
   apiKey: '',
   audioQualityPreset: 'voice',
   defaultAudioSource: 'systemAndMicrophone',
@@ -185,6 +187,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         const loadedSettings: AppSettings = {
           transcriptionModel: data.aiModel || '',
           chatModel: (data as any).chatModel || '',
+          analyzeModel: (data as any).analyzeModel || '',
           apiKey: data.geminiApiKey || '',
           audioQualityPreset: data.audioQualityPreset || 'voice',
           defaultAudioSource: (data as any).defaultAudioSource || 'systemAndMicrophone',
@@ -262,6 +265,30 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
           }
         }
 
+        // Auto-select transcription model: prefer whisper-1 if OpenAI key exists,
+        // fallback to first ENGINES entry whose provider has a key
+        if (!loadedSettings.transcriptionModel) {
+          const preferOrder = ['whisper-1', 'gpt-4o-transcribe', 'gpt-4o-transcribe-diarize', 'groq-whisper', 'gemini'] as const;
+          for (const engineId of preferOrder) {
+            const engine = ENGINES[engineId];
+            if (!engine) continue;
+            const provider = loadedProviders.find(
+              (p) => p.provider === engine.providerId && p.active && hasApiKey(p),
+            );
+            if (provider) {
+              loadedSettings.transcriptionModel = engineId;
+              console.log('[SettingsContext] Auto-selected transcription engine:', engineId);
+              break;
+            }
+          }
+        }
+
+        // Auto-select analyze model: same as chatModel auto-select
+        if (!loadedSettings.analyzeModel && loadedSettings.chatModel) {
+          loadedSettings.analyzeModel = loadedSettings.chatModel;
+          console.log('[SettingsContext] Auto-selected analyze model:', loadedSettings.analyzeModel);
+        }
+
         setState({
           settings: loadedSettings,
           providers: loadedProviders,
@@ -326,6 +353,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       const settingsToSave: any = {
         aiModel: effectiveSettings.transcriptionModel,
         chatModel: effectiveSettings.chatModel,
+        analyzeModel: effectiveSettings.analyzeModel,
         geminiApiKey: effectiveSettings.apiKey,
         audioQualityPreset: effectiveSettings.audioQualityPreset,
         defaultAudioSource: effectiveSettings.defaultAudioSource,

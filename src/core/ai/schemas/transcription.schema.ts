@@ -1,13 +1,3 @@
-/**
- * Transcription Response Schema
- *
- * JSON Schema for structured transcription/document processing output.
- * Used with non-streaming calls — the entire response is JSON.parse'd on completion.
- *
- * The `summary` field is a structured object (not markdown) so that the UI
- * can render each section directly without regex parsing.
- */
-
 import type { MeetingSummary } from '@shared/types';
 
 export const TRANSCRIPTION_SCHEMA = {
@@ -61,19 +51,13 @@ export const TRANSCRIPTION_SCHEMA = {
       items: { type: 'string' },
       description: 'One or more categories from the provided list.',
     },
-    transcript: {
-      type: 'string',
-      description:
-        'Complete verbatim transcription with timestamps in [MM:SS] Speaker: format.',
-    },
   },
-  required: ['title', 'summary', 'categories', 'transcript'],
+  required: ['title', 'summary', 'categories'],
   additionalProperties: false,
 } as const;
 
-export interface TranscriptionResponse {
+export interface AnalysisResult {
   title: string;
   summary: MeetingSummary;
   categories: string[];
-  transcript: string;
 }

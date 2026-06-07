@@ -6,6 +6,7 @@
  */
 
 import { notificationService } from './tauri/notification.service';
+import { notificationScheduler } from './notification-scheduler';
 import { reminderRepository } from './repositories/reminder.repository';
 import { todosRepository } from './repositories/todos.repository';
 import type { ReminderEntry, TodoReminder } from '@shared/types';
@@ -62,12 +63,12 @@ class ReminderService {
     // Cancel any existing reminder for this todo
     await this.cancel(todoId);
 
-    // Schedule OS notification
-    const scheduled = await notificationService.scheduleNotification({
-      id: notificationId,
+    // Schedule OS notification via the unified scheduler
+    const key = `todo:${todoId}`;
+    const scheduled = await notificationScheduler.schedule(key, {
+      at: fireAt,
       title: meetingTitle,
       body: todoText,
-      at: fireAt,
       actionTypeId: 'todo_reminder',
       extra: { todoId, meetingId },
     });
@@ -102,7 +103,7 @@ class ReminderService {
     const existing = await reminderRepository.getByTodoId(todoId);
     if (!existing) return;
 
-    await notificationService.cancelNotification([existing.notificationId]);
+    await notificationScheduler.cancel(`todo:${todoId}`);
     await reminderRepository.updateStatus(todoId, 'cancelled');
 
     // Clear the todo's reminder field
@@ -152,28 +153,23 @@ class ReminderService {
    */
   private async reconcile(): Promise<void> {
     try {
-      // Prune entries older than 7 days that are already fired/cancelled
+      // Prune entries older than 7 days
       await reminderRepository.pruneStale(SEVEN_DAYS_MS);
 
       const scheduled = await reminderRepository.getScheduled();
       if (scheduled.length === 0) return;
 
-      const pendingNotifs = await notificationService.getPendingNotifications();
-      const pendingIds = new Set(pendingNotifs.map(n => n.id));
-
       for (const entry of scheduled) {
         const fireAt = new Date(entry.reminderDateTime);
 
         if (fireAt.getTime() <= Date.now()) {
-          // Past due — mark as fired
           await reminderRepository.updateStatus(entry.todoId, 'fired');
-        } else if (!pendingIds.has(entry.notificationId)) {
-          // Still in the future but not in OS queue — reschedule
-          await notificationService.scheduleNotification({
-            id: entry.notificationId,
+        } else if (!notificationScheduler.isScheduled(`todo:${entry.todoId}`)) {
+          // Still in the future but not tracked — schedule via unified scheduler
+          await notificationScheduler.schedule(`todo:${entry.todoId}`, {
+            at: fireAt,
             title: entry.meetingTitle,
             body: entry.todoText,
-            at: fireAt,
             actionTypeId: 'todo_reminder',
             extra: { todoId: entry.todoId, meetingId: entry.meetingId },
           });

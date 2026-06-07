@@ -28,7 +28,7 @@ class NotificationService {
   private isInitialized = false;
   private sendNotification: any = null;
   private isPermissionGranted: any = null;
-  private actionHandlers = new Map<string, (actionId: string, extra?: Record<string, unknown>) => void>();
+  private actionHandlers = new Map<string, Set<(actionId: string, extra?: Record<string, unknown>) => void>>();
   private notificationModule: any = null;
   private registeredActionTypes = new Map<string, Array<{ id: string; title: string }>>();
 
@@ -50,11 +50,19 @@ class NotificationService {
         // Store them locally for use with our custom mac-notification-sys command
         const actionTypes = [
             {
+              id: 'calendar_event',
+              actions: [],
+            },
+            {
               id: 'recording_timeout',
               actions: [
                 { id: 'keep_recording', title: 'Keep Recording' },
                 { id: 'stop_now', title: 'Stop Now' },
               ],
+            },
+            {
+              id: 'recording_autostop',
+              actions: [],
             },
             {
               id: 'todo_reminder',
@@ -100,8 +108,12 @@ class NotificationService {
           const actionId = notification.action?.id ?? notification.actionId;
           const extra = notification.notification?.extra ?? notification.extra;
           if (typeId && actionId) {
-            const handler = this.actionHandlers.get(typeId);
-            if (handler) handler(actionId, extra);
+            const handlers = this.actionHandlers.get(typeId);
+            if (handlers) {
+              for (const handler of handlers) {
+                handler(actionId, extra);
+              }
+            }
           }
         }).catch((e: unknown) => {
           console.warn('[NotificationService] onAction setup failed:', e);
@@ -114,8 +126,12 @@ class NotificationService {
             (event) => {
               const { actionTypeId, actionId, extra } = event.payload;
               if (actionTypeId && actionId && actionId !== '__dismissed__') {
-                const handler = this.actionHandlers.get(actionTypeId);
-                if (handler) handler(actionId, extra);
+                const handlers = this.actionHandlers.get(actionTypeId);
+                if (handlers) {
+                  for (const handler of handlers) {
+                    handler(actionId, extra);
+                  }
+                }
               }
             }
           );
@@ -351,8 +367,21 @@ class NotificationService {
    * Returns an unsubscribe function.
    */
   onActionType(typeId: string, handler: (actionId: string, extra?: Record<string, unknown>) => void): () => void {
-    this.actionHandlers.set(typeId, handler);
-    return () => { this.actionHandlers.delete(typeId); };
+    let handlers = this.actionHandlers.get(typeId);
+    if (!handlers) {
+      handlers = new Set();
+      this.actionHandlers.set(typeId, handlers);
+    }
+    handlers.add(handler);
+    return () => {
+      const set = this.actionHandlers.get(typeId);
+      if (set) {
+        set.delete(handler);
+        if (set.size === 0) {
+          this.actionHandlers.delete(typeId);
+        }
+      }
+    };
   }
 }
 

@@ -11,7 +11,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { ExternalLink, CalendarDays } from 'lucide-react';
-import { useApp } from '@shared/contexts/AppContext';
+import { useAppActions } from '@shared/stores/appStore';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { isTauriEnvironment } from '@services/tauri';
@@ -33,7 +33,7 @@ const NOTIFY_OPTIONS = [
 // ─── macOS Calendar Integration Card ────────────────────────────────────────
 
 const CalendarIntegrationCard: React.FC = () => {
-  const { setCurrentView } = useApp();
+  const { setCurrentView } = useAppActions();
   const { settings, setSettings } = useSettings();
   const { showToast } = useToast();
 

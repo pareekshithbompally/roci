@@ -2,7 +2,7 @@
  * AudioPanel Component
  *
  * Settings panel for audio recording configuration.
- * Compact layout: transcription model, input source, audio quality.
+ * Two model pickers: Transcription engine (STT) and Analyze model (Overview LLM).
  */
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -13,12 +13,13 @@ import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { SURFACE, BORDER, TEXT, RADIUS } from '@config/theme.config';
 import { modalitiesService } from '@services/modalities';
-import { audioTranscriptionValidator } from '@services/audioTranscriptionValidator';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import ProvidersAvatar from '@shared/components/ProvidersAvatar';
 import { SettingsSection, InfoCallout } from './shared';
 import { LAYOUT } from '@config/theme.config';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, SelectGroup, SelectLabel } from '@shared/ui';
+import { ENGINES, resolveCred } from '@services/ai/transcription';
+import type { TranscriptionEngine } from '@services/ai/transcription';
 
 export const AudioPanel: React.FC = () => {
   const { settings, setSettings, providers } = useSettings();
@@ -30,7 +31,7 @@ export const AudioPanel: React.FC = () => {
     modalitiesService.ensureLoaded().then(() => setModalitiesLoaded(true));
   }, []);
 
-  const allActiveModels = React.useMemo(() => {
+  const allActiveModels = useMemo(() => {
     const models: Array<{ id: string; provider: string; name: string }> = [];
     providers.forEach(provider => {
       if (provider.active && provider.models) {
@@ -55,31 +56,36 @@ export const AudioPanel: React.FC = () => {
     return grouped;
   }, [allActiveModels]);
 
-  const handleTranscriptionModelChange = async (modelId: string) => {
-    setSettings({ transcriptionModel: modelId });
+  /** Which engines can transcribe (key present) vs not */
+  const engineStates = useMemo(() => {
+    return Object.values(ENGINES).map((engine) => {
+      let hasKey = false;
+      try {
+        resolveCred(engine.providerId, providers);
+        hasKey = true;
+      } catch {
+        hasKey = false;
+      }
+      return { engine, hasKey };
+    });
+  }, [providers]);
 
-    if (modelId) {
-      const modelProvider = providers.find(p =>
-        p.models?.some(m => m.id === modelId)
-      );
-
-      if (modelProvider) {
-        try {
-          const validation = await audioTranscriptionValidator.validateAudioTranscriptionSupport(
-            modelId,
-            modelProvider
-          );
-
-          if (validation.success) {
-            showToast(validation.message, 'success');
-          } else {
-            showToast(validation.message, 'warning');
-          }
-        } catch (error: unknown) {
-          console.error('[AudioPanel] Failed to validate transcription model:', error);
-        }
+  const handleTranscriptionEngineChange = (engineId: string) => {
+    setSettings({ transcriptionModel: engineId });
+    const engine = ENGINES[engineId as keyof typeof ENGINES];
+    if (engine) {
+      try {
+        resolveCred(engine.providerId, providers);
+        showToast(`${engine.label} is ready`, 'success');
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : 'Missing API key';
+        showToast(msg, 'warning');
       }
     }
+  };
+
+  const handleAnalyzeModelChange = (modelId: string) => {
+    setSettings({ analyzeModel: modelId });
   };
 
   const handleSourceChange = (source: AudioCaptureSource) => {
@@ -101,10 +107,10 @@ export const AudioPanel: React.FC = () => {
   };
 
   const qualityDescriptions: Record<string, string> = {
-    voice: '16kHz · 64kbps · Noise reduction',
-    podcast: '24kHz · 96kbps · Noise reduction',
-    music: '44.1kHz · 128kbps',
-    professional: '48kHz · 192kbps',
+    voice: '16kHz \u00B7 64kbps \u00B7 Noise reduction',
+    podcast: '24kHz \u00B7 96kbps \u00B7 Noise reduction',
+    music: '44.1kHz \u00B7 128kbps',
+    professional: '48kHz \u00B7 192kbps',
   };
 
   const permissionHint = selectedSource === 'systemAndMicrophone'
@@ -121,33 +127,86 @@ export const AudioPanel: React.FC = () => {
           Audio Recording
         </h3>
         <p className={`${TYPOGRAPHY_CLASSES.settingsDescription} ${TEXT.muted}`}>
-          Configure transcription, input source, and recording quality.
+          Configure transcription, analysis, input source, and recording quality.
         </p>
       </div>
 
-      {/* Transcription Model + Input Source + Quality — compact inline rows */}
       <SettingsSection title="Recording">
         <div className={`border ${BORDER.default} ${RADIUS.lg} ${SURFACE.card} divide-y ${BORDER.divide}`}>
-        {/* Transcription Model row */}
+
+        {/* Transcription Engine row */}
         <div className="flex items-center justify-between gap-4 px-4 py-3">
           <div className="min-w-0 flex-1">
             <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
-              Transcription Model
+              Transcription Engine
             </span>
             <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
-              Model used for transcribing audio.
+              Speech-to-text provider for the Transcript tab.
+            </p>
+          </div>
+          <div className="w-64 shrink-0">
+            <Select
+              value={settings.transcriptionModel || undefined}
+              onValueChange={handleTranscriptionEngineChange}
+            >
+              <SelectTrigger className={TYPOGRAPHY_CLASSES.settingsInput}>
+                <SelectValue placeholder="Select engine">
+                  {(() => {
+                    const engine = ENGINES[settings.transcriptionModel as keyof typeof ENGINES];
+                    if (!engine) return 'Select engine';
+                    return (
+                      <span className="flex items-center gap-2 truncate">
+                        <ProvidersAvatar provider={engine.providerId} size={16} />
+                        <span className="truncate">{engine.label}</span>
+                      </span>
+                    );
+                  })()}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {engineStates.map(({ engine, hasKey }) => (
+                  <SelectItem
+                    key={`engine-${engine.id}`}
+                    value={engine.id}
+                    disabled={!hasKey}
+                  >
+                    <div className="flex items-center gap-2">
+                      <ProvidersAvatar provider={engine.providerId} size={16} />
+                      <span className="truncate">{engine.label}</span>
+                      {!hasKey && (
+                        <span className="text-xs text-[var(--text-faint)]">
+                          Add {engine.providerId.charAt(0).toUpperCase() + engine.providerId.slice(1)} API key
+                        </span>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Analyze Model row */}
+        <div className="flex items-center justify-between gap-4 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
+              Analyze Model
+            </span>
+            <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
+              LLM that generates the Overview summary from the transcript.
             </p>
           </div>
           <div className="w-64 shrink-0">
             {allActiveModels.length > 0 ? (
               <Select
-                value={settings.transcriptionModel || undefined}
-                onValueChange={handleTranscriptionModelChange}
+                value={settings.analyzeModel || settings.chatModel || undefined}
+                onValueChange={handleAnalyzeModelChange}
               >
-                <SelectTrigger className={`${TYPOGRAPHY_CLASSES.settingsInput}`}>
+                <SelectTrigger className={TYPOGRAPHY_CLASSES.settingsInput}>
                   <SelectValue placeholder="Select model">
                     {(() => {
-                      const selected = allActiveModels.find(m => m.id === settings.transcriptionModel);
+                      const selId = settings.analyzeModel || settings.chatModel;
+                      const selected = allActiveModels.find(m => m.id === selId);
                       if (!selected) return 'Select model';
                       return (
                         <span className="flex items-center gap-2 truncate">
@@ -162,17 +221,29 @@ export const AudioPanel: React.FC = () => {
                   {Object.entries(modelsByProvider).map(([provider, models]) => (
                     <SelectGroup key={provider}>
                       <SelectLabel>{getProviderTitle(provider)}</SelectLabel>
-                      {models.map((model) => (
-                        <SelectItem
-                          key={`transcription-${model.provider}-${model.id}`}
-                          value={model.id}
-                        >
-                          <div className="flex items-center gap-2">
-                            <ProvidersAvatar provider={model.provider} size={16} />
-                            <span className="truncate">{model.name}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
+                      {models.map((model) => {
+                        const modelInfo = modalitiesLoaded
+                          ? modalitiesService.getModelInfo(model.provider, model.id)
+                          : null;
+                        const noStructuredOutput =
+                          modelInfo?.capabilities?.structuredOutput === false;
+                        return (
+                          <SelectItem
+                            key={`analyze-${model.provider}-${model.id}`}
+                            value={model.id}
+                          >
+                            <div className="flex items-center gap-2">
+                              <ProvidersAvatar provider={model.provider} size={16} />
+                              <span className="truncate">{model.name}</span>
+                              {noStructuredOutput && (
+                                <span className="text-xs text-[var(--text-warning)]">
+                                  No structured output
+                                </span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectGroup>
                   ))}
                 </SelectContent>
@@ -243,7 +314,6 @@ export const AudioPanel: React.FC = () => {
         </div>
       </SettingsSection>
 
-      {/* Tip */}
       <InfoCallout variant="neutral">
         <span className="font-medium">Tip:</span> Voice quality (16kHz) is optimized for AI transcription and uses less storage.
       </InfoCallout>

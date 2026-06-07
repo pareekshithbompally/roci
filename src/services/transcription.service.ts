@@ -7,7 +7,7 @@
  * the meeting directory is cleaned up and the index is never updated.
  */
 
-import type { MeetingIndexEntry, MeetingSummary, TranscriptData, RecordingMeta, TodoEntry, AppSettings, HistoryItem } from '@shared/types';
+import type { MeetingIndexEntry, MeetingSummary, TranscriptData, RecordingMeta, TodoEntry, AppSettings, HistoryItem, StoredTranscriptSegment } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { meetingIndexRepository } from './repositories/meeting-index.repository';
 import { transcriptRepository } from './repositories/transcript.repository';
@@ -27,6 +27,7 @@ export interface TranscriptionResult {
   inputSource?: string;
   model?: string;
   language?: string;
+  segments?: StoredTranscriptSegment[];
   /** Optional: settings + providers for entity extraction. If omitted, extraction is skipped. */
   extractionContext?: {
     settings: AppSettings;
@@ -50,7 +51,7 @@ class TranscriptionService {
    * Uses Promise.allSettled for transactional safety — cleans up on partial failure.
    */
   async saveTranscriptionResult(result: TranscriptionResult): Promise<boolean> {
-    const { meetingId, title, transcript, summary, categories, recordingFileName, inputSource, model, language } = result;
+    const { meetingId, title, transcript, summary, categories, recordingFileName, inputSource, model, language, segments } = result;
     const now = new Date().toISOString();
 
     // Build all data objects (no I/O)
@@ -59,6 +60,7 @@ class TranscriptionService {
       language,
       model,
       createdAt: now,
+      segments: segments && segments.length > 0 ? segments : undefined,
     };
 
     const recordingMeta: RecordingMeta | undefined = recordingFileName
