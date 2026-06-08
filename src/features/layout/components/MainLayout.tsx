@@ -88,7 +88,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   const leftPanelShellClassName = `${TEXT.primary} overflow-hidden ${
     isSmallScreen
-      ? 'fixed inset-y-0 left-0 h-full pb-[calc(env(safe-area-inset-bottom)+env(safe-area-inset-top))] z-50 px-1 w-full md:w-72'
+      ? 'fixed inset-y-0 left-0 h-full z-50 px-1 w-full md:w-72'
       : isLeftPanelOpen
         ? `shrink-0 ${LAYOUT.sidebarShell}`
         : 'w-0 shrink-0 m-0'

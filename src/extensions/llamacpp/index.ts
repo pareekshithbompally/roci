@@ -12,5 +12,7 @@ export * as models from './models';
 export * as server from './server';
 
 // Re-export components
-export { ModelBrowser } from './components/ModelBrowser';
 export { ServerStatus } from './components/ServerStatus';
+
+// Re-export React Query hooks for HF model discovery
+export { useHfModelSearch, useHfRepoFiles } from './hooks';

@@ -84,7 +84,6 @@ export function useCalendarIntegration(): void {
       enabled: calendarSettings.enabled,
       notify_minutes_before: calendarSettings.notifyMinutesBefore,
     });
-    calendarService.startPolling();
 
     return () => {
       unsubscribe();

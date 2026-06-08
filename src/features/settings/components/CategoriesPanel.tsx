@@ -15,9 +15,11 @@ import { SettingsSection, Toggle } from './shared';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui';
 
 export const CategoriesPanel: React.FC = () => {
-  const { settings, setSettings } = useSettings();
+  const { settings, setSettings, isLoading } = useSettings();
   const { showToast } = useToast();
   const { hasUnsavedChanges } = useSettingsSave('Categories', 'categories');
+
+  if (isLoading) return null;
 
   const [newCategory, setNewCategory] = useState('');
 

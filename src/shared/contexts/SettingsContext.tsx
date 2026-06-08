@@ -23,10 +23,6 @@ interface SettingsState {
   providers: ModelProvider[];
   /** Currently selected provider name */
   selectedProviderName: string | null;
-  /** Current view: home or settings */
-  currentView: 'home' | 'settings';
-  /** Active settings panel */
-  activeSettingsPanel: 'audio' | 'providers' | 'local-inference' | 'categories' | 'interface';
   /** Loading state */
   isLoading: boolean;
 }
@@ -48,10 +44,6 @@ interface SettingsContextValue extends SettingsState {
   updateProviderSetting: (providerName: string, settingIndex: number, value: any) => void;
   /** Set selected provider */
   setSelectedProviderName: (name: string | null) => void;
-  /** Set current view */
-  setCurrentView: (view: 'home' | 'settings') => void;
-  /** Set active settings panel */
-  setActiveSettingsPanel: (panel: 'audio' | 'providers' | 'local-inference' | 'categories' | 'interface') => void;
   /** Load settings from storage */
   loadSettings: () => Promise<void>;
   /** Save settings to storage */
@@ -84,8 +76,6 @@ const initialState: SettingsState = {
   settings: defaultSettings,
   providers: [], // Start empty, will be populated from storage or predefined
   selectedProviderName: null,
-  currentView: 'home',
-  activeSettingsPanel: 'audio',
   isLoading: true, // Start with loading=true
 };
 
@@ -293,8 +283,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
           settings: loadedSettings,
           providers: loadedProviders,
           selectedProviderName: selectedProviderName,
-          currentView: 'home',
-          activeSettingsPanel: 'audio',
           isLoading: false,
         });
 
@@ -311,8 +299,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
           settings: defaultSettings,
           providers: predefinedProviders.map(p => ({ ...p })),
           selectedProviderName: null,
-          currentView: 'home',
-          activeSettingsPanel: 'audio',
           isLoading: false,
         });
       }
@@ -323,8 +309,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         settings: defaultSettings,
         providers: predefinedProviders.map(p => ({ ...p })),
         selectedProviderName: null,
-        currentView: 'home',
-        activeSettingsPanel: 'audio',
         isLoading: false,
       });
     } finally {
@@ -469,16 +453,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
 
   // NOTE: Auto-save removed - use saveSettings() explicitly when user clicks Save
 
-  // Set current view
-  const setCurrentView = useCallback((view: 'home' | 'settings') => {
-    setState(prev => ({ ...prev, currentView: view }));
-  }, []);
-
-  // Set active settings panel
-  const setActiveSettingsPanel = useCallback((panel: 'audio' | 'providers' | 'local-inference' | 'categories' | 'interface') => {
-    setState(prev => ({ ...prev, activeSettingsPanel: panel }));
-  }, []);
-
   const value: SettingsContextValue = {
     ...state,
     selectedProvider,
@@ -489,8 +463,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     deleteProvider,
     updateProviderSetting,
     setSelectedProviderName,
-    setCurrentView,
-    setActiveSettingsPanel,
     loadSettings,
     saveSettings,
   };

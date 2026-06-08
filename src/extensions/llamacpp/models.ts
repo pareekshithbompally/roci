@@ -169,6 +169,46 @@ export function sortFilesByQuant(files: HfModelFile[]): HfModelFile[] {
   });
 }
 
+/** A quant variant of a repo, merged with local install state (view model) */
+export interface VariantRow {
+  /** Full repo-relative path used for download (e.g. "model-Q4_K_M.gguf") */
+  fileName: string;
+  /** Quant label (e.g. "Q4_K_M") or basename fallback */
+  quant: string;
+  size: number;
+  note: string | null;
+  quality: QuantInfo['quality'] | null;
+  isRecommended: boolean;
+  /** Managed-model id if this variant is already installed, else null */
+  installedModelId: string | null;
+}
+
+/**
+ * Merge a repo's GGUF files with the locally-installed registry into sorted
+ * variant rows. Installed variants carry their managed-model id (for delete /
+ * "in use" state). Pure — safe to memoize in components.
+ */
+export function buildVariantRows(
+  files: HfModelFile[],
+  installed: ManagedModel[],
+): VariantRow[] {
+  const installedByFile = new Map(installed.map((m) => [m.fileName, m.id]));
+  return sortFilesByQuant(files).map((f) => {
+    const baseName = f.name.split('/').pop() ?? f.name;
+    const label = getQuantLabel(f.name);
+    const meta = label ? getQuantMetadata(label) : null;
+    return {
+      fileName: f.name,
+      quant: label ?? baseName,
+      size: f.size,
+      note: meta?.note ?? null,
+      quality: meta?.quality ?? null,
+      isRecommended: !!meta?.recommended,
+      installedModelId: installedByFile.get(baseName) ?? null,
+    };
+  });
+}
+
 /** Get the models directory path */
 async function getModelsDir(): Promise<string> {
   const base = await getBaseDir();

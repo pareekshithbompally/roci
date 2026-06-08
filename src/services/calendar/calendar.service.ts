@@ -47,6 +47,10 @@ class CalendarService {
   // -- Timers --
   private cacheRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
+  // -- Lifecycle --
+  private pollingActive = false;
+  private initialFetchDone = false;
+
   // -- Notification state (tracks what has been notified this session) --
   private notifiedEventIds = new Set<string>();
   private snoozedUntilStart = new Set<string>();
@@ -124,6 +128,14 @@ class CalendarService {
     return this.cachedEvents;
   }
 
+  isPollingActive(): boolean {
+    return this.pollingActive;
+  }
+
+  hasInitialFetchDone(): boolean {
+    return this.initialFetchDone;
+  }
+
   onEventsUpdated(callback: EventsUpdatedCallback): () => void {
     this.eventListeners.add(callback);
     if (this.cachedEvents.length > 0) {
@@ -144,7 +156,14 @@ class CalendarService {
     if (settings) this.settings = settings;
     if (!this.settings.enabled) return;
 
-    this.stopPolling();
+    this.stopPollingTimer();
+
+    this.pollingActive = true;
+    this.initialFetchDone = false;
+
+    for (const listener of this.eventListeners) {
+      listener(this.cachedEvents);
+    }
 
     this.refreshCache();
     this.cacheRefreshTimer = setInterval(
@@ -158,11 +177,14 @@ class CalendarService {
   }
 
   stopPolling(): void {
-    if (this.cacheRefreshTimer) {
-      clearInterval(this.cacheRefreshTimer);
-      this.cacheRefreshTimer = null;
-    }
+    this.stopPollingTimer();
+    this.pollingActive = false;
+    this.initialFetchDone = false;
     this.clearScheduledNotifications();
+    this.cachedEvents = [];
+    for (const listener of this.eventListeners) {
+      listener([]);
+    }
   }
 
   updateSettings(settings: CalendarIntegrationSettings): void {
@@ -174,8 +196,8 @@ class CalendarService {
     } else if (!settings.enabled && wasEnabled) {
       this.stopPolling();
     } else if (settings.enabled && wasEnabled) {
-      // Notify-before time changed — reschedule all
       this.clearNotificationHistory();
+      this.startPolling();
     }
   }
 
@@ -208,11 +230,19 @@ class CalendarService {
     const events = await this.getEventsInRange(startOfDay.toISOString(), end.toISOString());
 
     this.cachedEvents = events;
+    this.initialFetchDone = true;
 
     this.scheduleNotifications();
 
     for (const listener of this.eventListeners) {
       listener(this.cachedEvents);
+    }
+  }
+
+  private stopPollingTimer(): void {
+    if (this.cacheRefreshTimer) {
+      clearInterval(this.cacheRefreshTimer);
+      this.cacheRefreshTimer = null;
     }
   }
 

@@ -52,10 +52,9 @@ jobs:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          # Notarization via App Store Connect API key (reliable in CI)
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-          APPLE_API_KEY_PATH: ${{ env.APPLE_API_KEY_PATH }}
+          # Notarization is done explicitly AFTER the build (see "Notarize and
+          # staple DMG" step). Tauri's built-in notary wait hangs in CI, so we
+          # only let it SIGN here and notarize visibly with notarytool below.
 
       - name: Get version from tag
         id: version
@@ -80,6 +79,19 @@ jobs:
           echo "path=$DMG_PATH" >> "$GITHUB_OUTPUT"
           echo "name=$DMG_NAME" >> "$GITHUB_OUTPUT"
           echo "Found DMG: $DMG_PATH"
+
+      - name: Notarize and staple DMG
+        run: |
+          DMG="${{ steps.dmg.outputs.path }}"
+          echo "Submitting $DMG to Apple notary (live status below)..."
+          xcrun notarytool submit "$DMG" \
+            --key "$APPLE_API_KEY_PATH" \
+            --key-id "${{ secrets.APPLE_API_KEY }}" \
+            --issuer "${{ secrets.APPLE_API_ISSUER }}" \
+            --wait
+          echo "Stapling notarization ticket onto the DMG..."
+          xcrun stapler staple "$DMG"
+          xcrun stapler validate "$DMG"
 
       - name: Locate updater artifacts
         id: updater

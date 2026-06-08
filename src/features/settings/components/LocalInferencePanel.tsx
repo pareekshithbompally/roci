@@ -1,23 +1,21 @@
 /**
  * LocalInferencePanel Component
  *
- * 4-state progressive disclosure UI for llama.cpp local inference:
- *   State 1: no-engine   — Setup card with download CTA only
- *   State 2: zero-models — Engine status bar + hero model acquisition card
- *   State 3: stopped     — Full control deck + models section
- *   State 4: running     — Locked control deck + models section
+ * 4-state progressive disclosure UI for llama.cpp local inference.
+ * All data state (binary info, models, server status, config, HF token)
+ * is managed by localInferenceStore — survives tab switches.
+ *
+ * UI-only state (active tab, expanded settings, confirm dialogs) stays local.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   Download,
   Play,
   Square,
   Loader2,
   HardDrive,
-  RefreshCw,
-  Key,
   RotateCw,
   Copy,
   Check,
@@ -26,24 +24,18 @@ import {
   Trash2,
   Server as ServerIcon,
 } from 'lucide-react';
-import * as backend from '@extensions/llamacpp/backend';
-import * as models from '@extensions/llamacpp/models';
-import * as server from '@extensions/llamacpp/server';
-import { loadHfToken, saveHfToken } from '@extensions/llamacpp/settings';
-import { downloadStore, useActiveDownload } from '@extensions/llamacpp/downloadStore';
-import { ModelBrowser } from '@extensions/llamacpp/components/ModelBrowser';
+import { useLocalInference, localInferenceStore } from '../stores/localInferenceStore';
+import { useActiveDownload } from '@extensions/llamacpp/downloadStore';
 import { ServerStatus } from '@extensions/llamacpp/components/ServerStatus';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import type {
-  InstalledBinary,
-  ManagedModel,
-  ServerStatus as ServerStatusType,
   ServerConfig,
 } from '@extensions/llamacpp/types';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { SURFACE, BORDER, TEXT, COMPONENT, RADIUS, LAYOUT } from '@config/theme.config';
-import { SettingsSection, SecretInput, ModelListItem } from './shared';
+import { SettingsSection, SecretInput } from './shared';
+import { ModelManager } from './ModelManager';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui';
 
 /** Smooth continuous rotation for loading icons */
@@ -53,36 +45,79 @@ const spin = {
 };
 
 export const LocalInferencePanel: React.FC = () => {
-  const { updateProvider, saveSettings } = useSettings();
+  const { providers, updateProvider, saveSettings } = useSettings();
   const { showToast } = useToast();
   const activeDownload = useActiveDownload();
 
-  // Engine state
-  const [binaryInfo, setBinaryInfo] = useState<InstalledBinary | null>(null);
-  const [updateAvailable, setUpdateAvailable] = useState(false);
-  const [latestVersion, setLatestVersion] = useState<string | null>(null);
+  // All data state from the store (survives unmounts)
+  const {
+    serverStatus,
+    serverConfig,
+    serverUrl,
+    currentModelId,
+    binaryInfo,
+    managedModels,
+    hfToken: storeHfToken,
+    isLoaded,
+  } = useLocalInference();
 
-  // Models state
-  const [managedModels, setManagedModels] = useState<ManagedModel[]>([]);
-  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
-
-  // Server state
-  const [serverStatus, setServerStatus] = useState<ServerStatusType>(server.getStatus());
-  const [config, setConfig] = useState<ServerConfig>(server.getServerConfig());
-
-  // UI state
+  // UI-only local state
   const [activeTab, setActiveTab] = useState<'server' | 'models'>('server');
-  const [showInstalledModels, setShowInstalledModels] = useState(true);
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
-
-  // HF Token
-  const [hfToken, setHfToken] = useState('');
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
 
   // Remove engine confirmation
   const [removeConfirm, setRemoveConfirm] = useState<'idle' | 'confirm' | 'removing'>('idle');
   const removeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Server lifecycle auto-config: update provider when server starts/stops.
+  // NOTE: This calls saveSettings() to persist the provider URL immediately so
+  // the system can use the local server. Changes in other panels should be saved
+  // before starting/stopping the server.
+  useEffect(() => {
+    const llama = providers.find((p) => p.provider === 'llamacpp');
+    if (!llama) return;
+    if (serverStatus === 'running') {
+      const url = localInferenceStore.getSnapshot().serverUrl;
+      const apiKey = serverConfig.apiKey || '';
+      // Only write (and persist) when the provider config actually differs —
+      // otherwise mounting the panel would register a spurious unsaved change.
+      if (url && (!llama.active || llama.base_url !== url || (llama.api_key || '') !== apiKey)) {
+        updateProvider('llamacpp', { active: true, base_url: url, api_key: apiKey });
+        saveSettings();
+      }
+      setSettingsExpanded(false);
+    } else if (serverStatus === 'idle') {
+      if (llama.active || llama.base_url || llama.api_key) {
+        updateProvider('llamacpp', { active: false, base_url: '', api_key: '' });
+        saveSettings();
+      }
+    }
+  }, [serverStatus, serverConfig.apiKey, providers, updateProvider, saveSettings]);
+
+  // Auto-select first model on mount
+  useEffect(() => {
+    if (!selectedModelId && managedModels.length > 0) {
+      setSelectedModelId(managedModels[0].id);
+    }
+  }, [managedModels, selectedModelId]);
+
+  // Sync model list to provider system — only when it actually differs, so
+  // simply opening the panel doesn't register an unsaved change.
+  useEffect(() => {
+    const llama = providers.find((p) => p.provider === 'llamacpp');
+    if (!llama) return;
+    const desired = managedModels.map((m) => ({ id: m.id, name: m.name }));
+    const current = llama.models ?? [];
+    const same =
+      current.length === desired.length &&
+      desired.every((d, i) => current[i]?.id === d.id && current[i]?.name === d.name);
+    if (same) return;
+    updateProvider('llamacpp', { models: desired });
+    saveSettings();
+  }, [managedModels, providers, updateProvider, saveSettings]);
 
   // Derived
   const isDownloadingBinary =
@@ -90,7 +125,6 @@ export const LocalInferencePanel: React.FC = () => {
   const binaryPhase = activeDownload?.type === 'binary' ? activeDownload.phase : null;
   const isServerBusy = serverStatus === 'starting' || serverStatus === 'stopping';
   const isRunning = serverStatus === 'running';
-  const serverUrl = server.getServerUrl();
 
   // ── 4-State derivation ─────────────────────────────────────────
   const hasEngine = binaryInfo !== null;
@@ -105,102 +139,16 @@ export const LocalInferencePanel: React.FC = () => {
         ? 'running'
         : 'stopped';
 
-  // Load initial data
-  useEffect(() => {
-    loadBinaryInfo();
-    loadModels();
-    loadHfToken().then((token) => {
-      if (token) setHfToken(token);
-    });
-
-    const unsubscribeServer = server.onStatusChange((status) => {
-      setServerStatus(status);
-
-      // Auto-provider activation
-      if (status === 'running') {
-        const url = server.getServerUrl();
-        if (url) {
-          updateProvider('llamacpp', {
-            active: true,
-            base_url: url,
-            api_key: server.getServerConfig().apiKey || '',
-          });
-          saveSettings();
-        }
-        setSettingsExpanded(false);
-      } else if (status === 'idle') {
-        updateProvider('llamacpp', {
-          active: false,
-          base_url: '',
-          api_key: '',
-        });
-        saveSettings();
-      }
-    });
-
-    // Listen for download completions to refresh local state
-    const unsubscribeDownload = downloadStore.onComplete((type, result) => {
-      if (type === 'model') {
-        loadModels();
-        showToast(
-          `Downloaded ${(result as ManagedModel).name} (${formatBytes((result as ManagedModel).fileSize)})`,
-          'success',
-        );
-      } else if (type === 'binary') {
-        setBinaryInfo(result as InstalledBinary);
-        setUpdateAvailable(false);
-        showToast(`llama-server ${(result as InstalledBinary).version} installed`, 'success');
-      }
-    });
-
-    return () => {
-      unsubscribeServer();
-      unsubscribeDownload();
-    };
-  }, []);
-
-  const loadBinaryInfo = async () => {
-    try {
-      const info = await backend.getInstalledBinary();
-      setBinaryInfo(info);
-
-      const update = await backend.checkForUpdate();
-      setUpdateAvailable(update.hasUpdate);
-      setLatestVersion(update.latestVersion);
-    } catch (e) {
-      console.warn('[LocalInferencePanel] Failed to load binary info:', e);
-    }
-  };
-
-  const loadModels = useCallback(async () => {
-    try {
-      const list = await models.getModels();
-      setManagedModels(list);
-
-      if (!selectedModelId && list.length > 0) {
-        setSelectedModelId(list[0].id);
-      }
-
-      // Sync model list to provider system
-      updateProvider('llamacpp', {
-        models: list.map((m) => ({ id: m.id, name: m.name })),
-      });
-    } catch (e) {
-      console.warn('[LocalInferencePanel] Failed to load models:', e);
-    }
-  }, [selectedModelId, updateProvider]);
-
   const handleDownloadBinary = () => {
-    downloadStore.startBinaryDownload();
+    localInferenceStore.startBinaryDownload();
   };
 
   const handleDeleteModel = async (modelId: string) => {
     try {
-      await models.deleteModel(modelId);
+      await localInferenceStore.deleteModel(modelId);
       if (selectedModelId === modelId) {
         setSelectedModelId(null);
       }
-      await loadModels();
       showToast('Model deleted', 'success');
     } catch (e) {
       showToast(e instanceof Error ? e.message : String(e), 'error');
@@ -214,16 +162,30 @@ export const LocalInferencePanel: React.FC = () => {
     }
 
     try {
-      await server.startServer(selectedModelId);
+      await localInferenceStore.startServer(selectedModelId);
       showToast('Server started', 'success');
     } catch (e) {
       showToast(e instanceof Error ? e.message : String(e), 'error');
     }
   };
 
+  /** Run a specific installed model (from the Models tab detail pane). */
+  const handleRunModel = useCallback(
+    async (modelId: string) => {
+      setSelectedModelId(modelId);
+      try {
+        await localInferenceStore.startServer(modelId);
+        showToast('Server started', 'success');
+      } catch (e) {
+        showToast(e instanceof Error ? e.message : String(e), 'error');
+      }
+    },
+    [showToast],
+  );
+
   const handleStopServer = async () => {
     try {
-      await server.stopServer();
+      await localInferenceStore.stopServer();
       showToast('Server stopped', 'success');
     } catch (e) {
       showToast(e instanceof Error ? e.message : String(e), 'error');
@@ -233,13 +195,12 @@ export const LocalInferencePanel: React.FC = () => {
   const handleCheckForUpdate = async () => {
     setIsCheckingUpdate(true);
     try {
-      const update = await backend.checkForUpdate();
-      setUpdateAvailable(update.hasUpdate);
-      setLatestVersion(update.latestVersion);
+      const backendMod = await import('@extensions/llamacpp/backend');
+      const update = await backendMod.checkForUpdate();
       if (update.hasUpdate) {
         showToast(`Update available: ${update.latestVersion}`, 'info');
       } else {
-        showToast(`Already on latest (${update.currentVersion})`, 'success');
+        showToast('Already on latest', 'success');
       }
     } catch (e) {
       showToast(e instanceof Error ? e.message : String(e), 'error');
@@ -251,7 +212,6 @@ export const LocalInferencePanel: React.FC = () => {
   const handleRemoveEngine = async () => {
     if (removeConfirm === 'idle') {
       setRemoveConfirm('confirm');
-      // Auto-reset after 4 seconds if user doesn't confirm
       if (removeTimerRef.current) clearTimeout(removeTimerRef.current);
       removeTimerRef.current = setTimeout(() => setRemoveConfirm('idle'), 4000);
       return;
@@ -260,14 +220,12 @@ export const LocalInferencePanel: React.FC = () => {
       if (removeTimerRef.current) clearTimeout(removeTimerRef.current);
       setRemoveConfirm('removing');
       try {
-        // Stop server first if running
         if (isRunning) {
-          await server.stopServer();
+          await localInferenceStore.stopServer();
         }
-        await backend.removeEngine();
-        setBinaryInfo(null);
-        setUpdateAvailable(false);
-        setLatestVersion(null);
+        const backendMod = await import('@extensions/llamacpp/backend');
+        await backendMod.removeEngine();
+        await localInferenceStore.refresh();
         showToast('llama-server engine removed', 'success');
       } catch (e) {
         showToast(e instanceof Error ? e.message : String(e), 'error');
@@ -278,9 +236,7 @@ export const LocalInferencePanel: React.FC = () => {
   };
 
   const handleConfigChange = (key: keyof ServerConfig, value: number | string) => {
-    const newConfig = { ...config, [key]: value };
-    setConfig(newConfig);
-    server.setServerConfig(newConfig);
+    localInferenceStore.setServerConfig({ [key]: value });
   };
 
   const handleCopyUrl = async () => {
@@ -288,11 +244,6 @@ export const LocalInferencePanel: React.FC = () => {
     await navigator.clipboard.writeText(serverUrl);
     setCopiedUrl(true);
     setTimeout(() => setCopiedUrl(false), 2000);
-  };
-
-  const handleTokenBlur = async () => {
-    await saveHfToken(hfToken.trim());
-    if (hfToken.trim()) showToast('HuggingFace token saved', 'success');
   };
 
   const formatBytes = (bytes: number): string => {
@@ -304,13 +255,9 @@ export const LocalInferencePanel: React.FC = () => {
   };
 
   const selectedModelName = managedModels.find((m) => m.id === selectedModelId)?.name;
-  const installedFileNames = React.useMemo(
-    () => new Set(managedModels.map((m) => m.fileName)),
-    [managedModels],
-  );
 
   // Summary text for collapsed settings
-  const settingsSummary = `Context ${config.ctxSize} · GPU: ${config.nGpuLayers === -1 ? 'All' : config.nGpuLayers} · Threads: ${config.threads}`;
+  const settingsSummary = `Context ${serverConfig.ctxSize} · GPU: ${serverConfig.nGpuLayers === -1 ? 'All' : serverConfig.nGpuLayers} · Threads: ${serverConfig.threads}`;
 
   return (
     <div className={`h-full overflow-y-auto custom-scrollbar ${LAYOUT.settingsPadding} py-6`}>
@@ -362,7 +309,6 @@ export const LocalInferencePanel: React.FC = () => {
       {/* ═══════════════════════════════════════════════════════════ */}
       {panelState === 'zero-models' && binaryInfo && (
         <>
-          {/* Collapsed engine status bar */}
           <div className={`px-4 py-3 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg} flex items-center justify-between`}>
             <div className="flex items-center gap-2">
               <ServerStatus />
@@ -371,33 +317,22 @@ export const LocalInferencePanel: React.FC = () => {
               </span>
             </div>
             <div className="flex items-center gap-3">
-              {updateAvailable && latestVersion ? (
-                <button
-                  onClick={handleDownloadBinary}
-                  disabled={isDownloadingBinary}
-                  className={COMPONENT.settingsLink}
+              <button
+                onClick={handleCheckForUpdate}
+                disabled={isCheckingUpdate}
+                className={COMPONENT.settingsMutedLink}
+              >
+                <motion.span
+                  animate={isCheckingUpdate ? { rotate: 360 } : { rotate: 0 }}
+                  transition={isCheckingUpdate
+                    ? { duration: 0.8, repeat: Infinity, ease: 'linear' }
+                    : { duration: 0.3, ease: 'easeOut' }
+                  }
                 >
-                  <RefreshCw className="w-3 h-3" />
-                  Update to {latestVersion}
-                </button>
-              ) : (
-                <button
-                  onClick={handleCheckForUpdate}
-                  disabled={isCheckingUpdate}
-                  className={COMPONENT.settingsMutedLink}
-                >
-                  <motion.span
-                    animate={isCheckingUpdate ? { rotate: 360 } : { rotate: 0 }}
-                    transition={isCheckingUpdate
-                      ? { duration: 0.8, repeat: Infinity, ease: 'linear' }
-                      : { duration: 0.3, ease: 'easeOut' }
-                    }
-                  >
-                    <RotateCw className="w-3 h-3" />
-                  </motion.span>
-                  {isCheckingUpdate ? 'Checking...' : 'Check for updates'}
-                </button>
-              )}
+                  <RotateCw className="w-3 h-3" />
+                </motion.span>
+                {isCheckingUpdate ? 'Checking...' : 'Check for updates'}
+              </button>
               <button
                 onClick={handleRemoveEngine}
                 disabled={removeConfirm === 'removing'}
@@ -414,35 +349,17 @@ export const LocalInferencePanel: React.FC = () => {
             </div>
           </div>
 
-          {/* Hero model acquisition card */}
-          <div className={`px-5 py-5 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg} space-y-4`}>
-            <div>
-              <h4 className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading} mb-1`}>
-                Add Your First Model
-              </h4>
-              <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
-                Search HuggingFace, pick a popular model, or import a local .gguf file.
-              </p>
-            </div>
-
-            <ModelBrowser variant="hero" onModelAdded={loadModels} hfToken={hfToken} installedFileNames={installedFileNames} />
-
-            {/* Compact HF token input */}
-            <div className={`pt-2 border-t ${BORDER.default}`}>
-              <div className="flex items-center gap-2 mb-1.5">
-                <Key className={`w-3 h-3 ${TEXT.faint}`} />
-                <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
-                  Hugging Face Token
-                </span>
-              </div>
-              <SecretInput
-                value={hfToken}
-                onChange={(val) => setHfToken(val)}
-                onBlur={handleTokenBlur}
-                placeholder="hf_... (required for gated models)"
-                showCopy={false}
-              />
-            </div>
+          <div className={`px-5 py-5 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg}`}>
+            <ModelManager
+              installedModels={managedModels}
+              hfToken={storeHfToken}
+              runningModelId={currentModelId}
+              isRunning={isRunning}
+              isServerBusy={isServerBusy}
+              onRunModel={handleRunModel}
+              onStopServer={handleStopServer}
+              onDeleteModel={handleDeleteModel}
+            />
           </div>
         </>
       )}
@@ -572,14 +489,13 @@ export const LocalInferencePanel: React.FC = () => {
                           className="pt-3 space-y-3"
                         >
                           <div className="grid grid-cols-3 gap-3">
-                            {/* Context Size */}
                             <div className="space-y-1">
                               <label className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
                                 Context Size
                               </label>
                               <input
                                 type="number"
-                                value={config.ctxSize}
+                                value={serverConfig.ctxSize}
                                 onChange={(e) =>
                                   handleConfigChange('ctxSize', parseInt(e.target.value) || 4096)
                                 }
@@ -590,14 +506,13 @@ export const LocalInferencePanel: React.FC = () => {
                               />
                             </div>
 
-                            {/* GPU Layers */}
                             <div className="space-y-1">
                               <label className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
                                 GPU Layers
                               </label>
                               <input
                                 type="number"
-                                value={config.nGpuLayers}
+                                value={serverConfig.nGpuLayers}
                                 onChange={(e) =>
                                   handleConfigChange('nGpuLayers', parseInt(e.target.value) || -1)
                                 }
@@ -610,14 +525,13 @@ export const LocalInferencePanel: React.FC = () => {
                               </p>
                             </div>
 
-                            {/* Threads */}
                             <div className="space-y-1">
                               <label className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
                                 CPU Threads
                               </label>
                               <input
                                 type="number"
-                                value={config.threads}
+                                value={serverConfig.threads}
                                 onChange={(e) =>
                                   handleConfigChange('threads', parseInt(e.target.value) || 4)
                                 }
@@ -628,13 +542,12 @@ export const LocalInferencePanel: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* API Key */}
                           <div className="space-y-1">
                             <label className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
                               API Key (optional)
                             </label>
                             <SecretInput
-                              value={config.apiKey || ''}
+                              value={serverConfig.apiKey || ''}
                               onChange={(val) => handleConfigChange('apiKey', val)}
                               placeholder="Set a key to protect the local server"
                               showCopy={false}
@@ -703,37 +616,22 @@ export const LocalInferencePanel: React.FC = () => {
                     llama-server {binaryInfo.version}
                   </span>
                   <div className="flex items-center gap-3">
-                    {updateAvailable && latestVersion ? (
-                      <button
-                        onClick={handleDownloadBinary}
-                        disabled={isDownloadingBinary}
-                        className={COMPONENT.settingsLink}
+                    <button
+                      onClick={handleCheckForUpdate}
+                      disabled={isCheckingUpdate}
+                      className={COMPONENT.settingsMutedLink}
+                    >
+                      <motion.span
+                        animate={isCheckingUpdate ? { rotate: 360 } : { rotate: 0 }}
+                        transition={isCheckingUpdate
+                          ? { duration: 0.8, repeat: Infinity, ease: 'linear' }
+                          : { duration: 0.3, ease: 'easeOut' }
+                        }
                       >
-                        {isDownloadingBinary ? (
-                          <motion.span {...spin}><Loader2 className="w-3 h-3" /></motion.span>
-                        ) : (
-                          <RefreshCw className="w-3 h-3" />
-                        )}
-                        Update to {latestVersion}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={handleCheckForUpdate}
-                        disabled={isCheckingUpdate}
-                        className={COMPONENT.settingsMutedLink}
-                      >
-                        <motion.span
-                          animate={isCheckingUpdate ? { rotate: 360 } : { rotate: 0 }}
-                          transition={isCheckingUpdate
-                            ? { duration: 0.8, repeat: Infinity, ease: 'linear' }
-                            : { duration: 0.3, ease: 'easeOut' }
-                          }
-                        >
-                          <RotateCw className="w-3 h-3" />
-                        </motion.span>
-                        {isCheckingUpdate ? 'Checking...' : 'Check for updates'}
-                      </button>
-                    )}
+                        <RotateCw className="w-3 h-3" />
+                      </motion.span>
+                      {isCheckingUpdate ? 'Checking...' : 'Check for updates'}
+                    </button>
                     <button
                       onClick={handleRemoveEngine}
                       disabled={removeConfirm === 'removing'}
@@ -768,100 +666,16 @@ export const LocalInferencePanel: React.FC = () => {
 
             {/* ═══ Models Tab ═══ */}
             {activeTab === 'models' && (
-              <div className="space-y-4">
-                {/* Header row: title + helper + Installed toggle */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
-                      Local Models
-                    </h4>
-                    <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted} mt-0.5`}>
-                      Download a model from Hugging Face to run locally
-                    </p>
-                  </div>
-                  {managedModels.length > 0 && (
-                    <button
-                      onClick={() => setShowInstalledModels((v) => !v)}
-                      className={`flex items-center gap-2 px-2.5 py-1.5 ${RADIUS.md} border transition-all ${TYPOGRAPHY_CLASSES.settingsHelper} font-medium ${
-                        showInstalledModels
-                          ? `${SURFACE.selectedCard} ${BORDER.selectedCard} ${TEXT.heading}`
-                          : `${SURFACE.card} ${BORDER.default} ${TEXT.muted} ${BORDER.cardHover}`
-                      }`}
-                    >
-                      <HardDrive className="w-3 h-3" />
-                      Installed ({managedModels.length})
-                    </button>
-                  )}
-                </div>
-
-                {/* Content: Installed list OR Browse (ModelBrowser) */}
-                <AnimatePresence mode="wait" initial={false}>
-                  {showInstalledModels && managedModels.length > 0 ? (
-                    <motion.div
-                      key="installed"
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -4 }}
-                      transition={{ duration: 0.15 }}
-                      className="space-y-3"
-                    >
-                      <div className={`max-h-80 overflow-y-auto space-y-2`}>
-                        {managedModels.map((model) => (
-                          <ModelListItem
-                            key={model.id}
-                            name={model.name}
-                            subtitle={`${formatBytes(model.fileSize)} · GGUF v${model.ggufVersion ?? '?'} · ${model.source}`}
-                            selected={selectedModelId === model.id}
-                            onClick={() => !isRunning && setSelectedModelId(model.id)}
-                            onDelete={() => handleDeleteModel(model.id)}
-                            deleteDisabled={isRunning && server.getCurrentModelId() === model.id}
-                          />
-                        ))}
-                      </div>
-                      <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
-                        {managedModels.length} models · {formatBytes(managedModels.reduce((sum, m) => sum + m.fileSize, 0))}
-                      </p>
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="browse"
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -4 }}
-                      transition={{ duration: 0.15 }}
-                      className="space-y-3"
-                    >
-                      {/* Hugging Face token — compact row pinned above search, never bounces */}
-                      <div className="flex items-center gap-2">
-                        <Key className={`w-3.5 h-3.5 ${TEXT.faint} shrink-0`} />
-                        <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted} shrink-0`}>
-                          Hugging Face Token
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <SecretInput
-                            value={hfToken}
-                            onChange={(val) => setHfToken(val)}
-                            onBlur={handleTokenBlur}
-                            placeholder="hf_... (required for gated models)"
-                            showCopy={false}
-                          />
-                        </div>
-                        <a
-                          href="https://huggingface.co/settings/tokens"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.link} hover:underline shrink-0`}
-                        >
-                          Get a token
-                        </a>
-                      </div>
-
-                      {/* ModelBrowser — search + results grow below */}
-                      <ModelBrowser variant="inline" onModelAdded={loadModels} hfToken={hfToken} installedFileNames={installedFileNames} />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+              <ModelManager
+                installedModels={managedModels}
+                hfToken={storeHfToken}
+                runningModelId={currentModelId}
+                isRunning={isRunning}
+                isServerBusy={isServerBusy}
+                onRunModel={handleRunModel}
+                onStopServer={handleStopServer}
+                onDeleteModel={handleDeleteModel}
+              />
             )}
 
           </div>

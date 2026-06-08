@@ -1,20 +1,19 @@
 /**
  * InterfacePanel Component
  *
- * Settings for interface customization.
- * Self-contained — loads its own storage path state on mount.
+ * Settings for interface customization, storage, search index management.
+ * Data (index stats, disk usage, storage path, version) from systemInfoStore.
+ * Re-index actions stay inline (they're operations, not state).
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Sun, Moon, Monitor, Copy, Check, FolderOpen, FolderSearch, RefreshCw, Database, CheckCircle2, Loader2 } from 'lucide-react';
+import React, { useState, useCallback, useMemo } from 'react';
+import { Sun, Moon, Monitor, Copy, Check, FolderOpen, FolderSearch, RefreshCw, Database, Loader2 } from 'lucide-react';
 import { useTheme } from '@shared/hooks/useTheme';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { isTauriEnvironment } from '@services/tauri';
-import { pathsService } from '@services/storage';
 import { searchIndexingService } from '@services/searchIndexing.service';
-import { meetingService } from '@services/meeting.service';
-import { IMPORT_CONFIG } from '@config/audio.config';
+import { useSystemInfo, systemInfoStore } from '../stores/systemInfoStore';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { SURFACE, BORDER, TEXT, RADIUS, LAYOUT, COMPONENT } from '@config/theme.config';
 import { SettingsSection } from './shared';
@@ -32,29 +31,24 @@ export const InterfacePanel: React.FC = () => {
   const { theme, setTheme } = useTheme();
   const { settings, setSettings, providers } = useSettings();
   const { showToast } = useToast();
-  const { hasUnsavedChanges } = useSettingsSave('System settings', 'interface');
+  useSettingsSave('System settings', 'interface');
   const appUpdate = useAppUpdate();
 
-  const [appVersion, setAppVersion] = useState<string>('');
-  const [storagePath, setStoragePath] = useState<string | null>(null);
-  const [storagePathError, setStoragePathError] = useState<string | null>(null);
+  // Data from store (survives unmounts)
+  const {
+    storagePath,
+    storagePathError,
+    diskUsage,
+    appVersion,
+    indexStats,
+  } = useSystemInfo();
+
   const [storagePathCopied, setStoragePathCopied] = useState(false);
-  const [diskUsage, setDiskUsage] = useState<{ label: string; bytes: number }[] | null>(null);
   const [rebuildConfirmOpen, setRebuildConfirmOpen] = useState(false);
   const [rebuildingPhase, setRebuildingPhase] = useState<'meetings' | 'chats' | 'kg' | null>(null);
-  /** True when a full rebuild is running (individual buttons stay disabled throughout) */
   const [isRebuilding, setIsRebuilding] = useState(false);
 
-  // Load app version from Tauri
-  useEffect(() => {
-    if (isTauriEnvironment()) {
-      import('@tauri-apps/api/app').then(({ getVersion }) =>
-        getVersion().then(setAppVersion).catch(() => setAppVersion('unknown'))
-      );
-    }
-  }, []);
-
-  // All active models grouped by provider (for KG model picker)
+  // Derived from providers (reactive via context)
   const allActiveModels = useMemo(() => {
     const models: Array<{ id: string; provider: string; name: string }> = [];
     providers.forEach(provider => {
@@ -76,40 +70,15 @@ export const InterfacePanel: React.FC = () => {
     return grouped;
   }, [allActiveModels]);
 
-  const [indexStats, setIndexStats] = useState<{
-    meetings: { indexed: number; onDisk: number };
-    chats: { indexed: number; onDisk: number };
-    chunks: { total: number; transcript: number };
-    kg: { nodes: number; edges: number };
-  } | null>(null);
-
   const loadIndexStats = useCallback(async () => {
-    if (!isTauriEnvironment()) return;
-    try {
-      const { vectorDB } = await import('@extensions/rag');
-      const [stats, diskMeetings, diskChats] = await Promise.all([
-        vectorDB.getStats(),
-        meetingService.listMeetings(),
-        searchIndexingService.loadChatsForIndexing().then(c => c.length).catch(() => 0),
-      ]);
-      setIndexStats({
-        meetings: { indexed: stats.total_meetings, onDisk: diskMeetings.length },
-        chats: { indexed: stats.chat_sessions, onDisk: diskChats },
-        chunks: { total: stats.total_chunks, transcript: stats.transcript_chunks },
-        kg: { nodes: stats.kg_nodes, edges: stats.kg_edges },
-      });
-    } catch (error: unknown) {
-      console.error('[InterfacePanel] Failed to load index stats:', error);
-    }
+    await systemInfoStore.refresh();
   }, []);
 
-  // Selective re-index: meetings only (chunks + embeddings, no wipe)
   const handleReindexMeetings = useCallback(async () => {
     setRebuildingPhase('meetings');
     try {
       const { ragIndexer } = await import('@extensions/rag');
       const meetingItems = await searchIndexingService.loadMeetingsForIndexing();
-      console.log(`[InterfacePanel] Re-indexing ${meetingItems.length} meetings`);
       const indexed = await ragIndexer.indexAll(meetingItems, { includeEmbeddings: true, force: true });
       showToast(`Re-indexed ${indexed}/${meetingItems.length} meetings`, 'success');
     } catch (error: unknown) {
@@ -121,13 +90,11 @@ export const InterfacePanel: React.FC = () => {
     }
   }, [showToast, loadIndexStats]);
 
-  // Selective re-index: chats only (chunks + embeddings, no wipe)
   const handleReindexChats = useCallback(async () => {
     setRebuildingPhase('chats');
     try {
       const { chatIndexer } = await import('@extensions/rag');
       const chatSessions = await searchIndexingService.loadChatsForIndexing();
-      console.log(`[InterfacePanel] Re-indexing ${chatSessions.length} chats`);
       const indexed = await chatIndexer.indexAllSessions(chatSessions, { includeEmbeddings: true, force: true });
       showToast(`Re-indexed ${indexed}/${chatSessions.length} chats`, 'success');
     } catch (error: unknown) {
@@ -139,7 +106,6 @@ export const InterfacePanel: React.FC = () => {
     }
   }, [showToast, loadIndexStats]);
 
-  // Selective re-index: KG entity extraction only (no re-chunking)
   const handleReindexKG = useCallback(async () => {
     const kgModel = settings.kgExtractionModel || settings.chatModel;
     if (!kgModel) {
@@ -150,7 +116,6 @@ export const InterfacePanel: React.FC = () => {
     try {
       const { ragIndexer } = await import('@extensions/rag');
       const meetingItems = await searchIndexingService.loadMeetingsForIndexing();
-      console.log(`[InterfacePanel] Extracting KG for ${meetingItems.length} meetings`);
       const extracted = await ragIndexer.extractAll(
         meetingItems,
         { settings: { ...settings, chatModel: kgModel }, providers },
@@ -165,7 +130,6 @@ export const InterfacePanel: React.FC = () => {
     }
   }, [settings, providers, showToast, loadIndexStats]);
 
-  // Full rebuild: wipe everything + re-index all phases (meetings+KG → chats)
   const handleRebuildIndex = useCallback(async () => {
     setRebuildConfirmOpen(false);
     setIsRebuilding(true);
@@ -175,17 +139,15 @@ export const InterfacePanel: React.FC = () => {
 
       await vectorDB.rebuild();
 
-      // Preload embedding model once before any indexing
-      try { await preloadModel(); } catch { /* consent denied or download failed — embeddings will be skipped */ }
+      try { await preloadModel(); } catch { /* consent denied or download failed */ }
 
       const [meetingItems, chatSessions] = await Promise.all([
         searchIndexingService.loadMeetingsForIndexing(),
         searchIndexingService.loadChatsForIndexing(),
       ]);
 
-      console.log(`[InterfacePanel] Rebuild: ${meetingItems.length} meetings, ${chatSessions.length} chats to index`);
+      console.log(`[InterfacePanel] Rebuild: ${meetingItems.length} meetings, ${chatSessions.length} chats`);
 
-      // Phase 1: Meetings (includes KG extraction if model is configured)
       setRebuildingPhase('meetings');
       let meetingsIndexed = 0;
       try {
@@ -203,7 +165,6 @@ export const InterfacePanel: React.FC = () => {
       }
       loadIndexStats();
 
-      // Phase 2: Chats
       setRebuildingPhase('chats');
       let chatsIndexed = 0;
       try {
@@ -229,63 +190,6 @@ export const InterfacePanel: React.FC = () => {
       loadIndexStats();
     }
   }, [settings, providers, showToast, loadIndexStats]);
-
-  useEffect(() => {
-    if (!isTauriEnvironment()) return;
-    const load = async () => {
-      try {
-        const basePath = await pathsService.getBasePath();
-        setStoragePath(basePath);
-        loadDiskUsage(basePath);
-      } catch (error) {
-        console.error('[InterfacePanel] Failed to resolve storage path:', error);
-        setStoragePathError('Unable to resolve storage location.');
-      }
-    };
-    load();
-    loadIndexStats();
-  }, [loadIndexStats]);
-
-  const loadDiskUsage = async (basePath: string) => {
-    try {
-      const { readDir, stat } = await import('@tauri-apps/plugin-fs');
-      const { join } = await import('@tauri-apps/api/path');
-
-      const dirs = [
-        { label: 'Meetings', name: 'meetings' },
-        { label: 'Recordings', name: 'recordings' },
-        { label: 'Chats', name: 'chats' },
-        { label: 'Cache', name: 'cache' },
-        { label: 'Backend', name: 'llamacpp/bin' },
-        { label: 'Models', name: 'llamacpp/models' },
-      ];
-
-      const sizes: { label: string; bytes: number }[] = [];
-
-      for (const dir of dirs) {
-        try {
-          const dirPath = await join(basePath, dir.name);
-          const total = await getDirSize(dirPath, readDir, stat, join);
-          if (total > 0) sizes.push({ label: dir.label, bytes: total });
-        } catch {
-          // Directory may not exist yet
-        }
-      }
-
-      // Add vectordb.sqlite size
-      try {
-        const dbPath = await join(basePath, 'vectordb.sqlite');
-        const dbStat = await stat(dbPath);
-        if (dbStat.size > 0) sizes.push({ label: 'Vector DB', bytes: dbStat.size });
-      } catch {
-        // DB may not exist yet
-      }
-
-      setDiskUsage(sizes);
-    } catch (error) {
-      console.error('[InterfacePanel] Failed to load disk usage:', error);
-    }
-  };
 
   const handleOpenInFinder = async () => {
     if (!storagePath) return;
@@ -329,7 +233,6 @@ export const InterfacePanel: React.FC = () => {
       {/* Appearance — theme + import processing */}
       <SettingsSection title="Appearance">
         <div className={`border ${BORDER.default} ${RADIUS.lg} ${SURFACE.card} divide-y ${BORDER.divide}`}>
-        {/* Theme row */}
         <div className="flex items-center justify-between gap-4 px-4 py-3">
           <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
             Theme
@@ -367,11 +270,11 @@ export const InterfacePanel: React.FC = () => {
           <div className="flex items-center gap-2 shrink-0">
             <div className="w-36">
               <Select
-                value={settings.jobProcessing?.mode || IMPORT_CONFIG.jobProcessing.defaultMode}
+                value={settings.jobProcessing?.mode || 'sequential'}
                 onValueChange={(val) => setSettings({
                   jobProcessing: {
                     mode: val as 'sequential' | 'parallel',
-                    maxConcurrent: settings.jobProcessing?.maxConcurrent ?? IMPORT_CONFIG.jobProcessing.defaultMaxConcurrent,
+                    maxConcurrent: settings.jobProcessing?.maxConcurrent ?? 2,
                   },
                 })}
               >
@@ -387,7 +290,7 @@ export const InterfacePanel: React.FC = () => {
             {settings.jobProcessing?.mode === 'parallel' && (
               <div className="w-28">
                 <Select
-                  value={String(settings.jobProcessing?.maxConcurrent ?? IMPORT_CONFIG.jobProcessing.defaultMaxConcurrent)}
+                  value={String(settings.jobProcessing?.maxConcurrent ?? 2)}
                   onValueChange={(val) => setSettings({
                     jobProcessing: {
                       mode: 'parallel',
@@ -399,7 +302,7 @@ export const InterfacePanel: React.FC = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {Array.from({ length: IMPORT_CONFIG.jobProcessing.maxConcurrentLimit - 1 }, (_, i) => i + 2).map(n => (
+                    {Array.from({ length: 7 }, (_, i) => i + 2).map(n => (
                       <SelectItem key={n} value={String(n)}>
                         {n} concurrent
                       </SelectItem>
@@ -412,6 +315,7 @@ export const InterfacePanel: React.FC = () => {
         </div>
         </div>
       </SettingsSection>
+
       {storagePath && (
         <SettingsSection title="Storage Location">
           <div className={`flex items-center gap-2 px-4 py-3 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg}`}>
@@ -467,7 +371,6 @@ export const InterfacePanel: React.FC = () => {
       {/* Search Index */}
       {isTauriEnvironment() && (
         <SettingsSection title="Search Index">
-          {/* All index rows in one card — Meetings, Chats, KG + extraction model */}
           {indexStats && (
             <div className={`${SURFACE.card} border ${BORDER.default} ${RADIUS.lg} divide-y ${BORDER.divide}`}>
               <IndexActionRow
@@ -496,7 +399,6 @@ export const InterfacePanel: React.FC = () => {
                 busy={rebuildingPhase === 'kg'}
                 disabled={rebuildingPhase !== null || isRebuilding}
               />
-              {/* Extraction model — nested under KG */}
               <div className="flex items-center justify-between gap-4 px-4 py-2.5">
                 <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
                   Extraction model
@@ -551,7 +453,7 @@ export const InterfacePanel: React.FC = () => {
             </div>
           )}
 
-          {/* Rebuild All — nuclear option */}
+          {/* Rebuild All */}
           <div className={`flex items-center justify-between px-4 py-3 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg}`}>
             <div className="min-w-0 flex-1">
               <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
@@ -644,35 +546,6 @@ export const InterfacePanel: React.FC = () => {
     </div>
   );
 };
-
-/** Recursively compute directory size in bytes */
-async function getDirSize(
-  dirPath: string,
-  readDir: (path: string) => Promise<Array<{ name: string; isDirectory: boolean; isFile: boolean }>>,
-  stat: (path: string) => Promise<{ size: number }>,
-  join: (...parts: string[]) => Promise<string>,
-): Promise<number> {
-  let total = 0;
-  try {
-    const entries = await readDir(dirPath);
-    for (const entry of entries) {
-      const entryPath = await join(dirPath, entry.name);
-      if (entry.isDirectory) {
-        total += await getDirSize(entryPath, readDir, stat, join);
-      } else if (entry.isFile) {
-        try {
-          const s = await stat(entryPath);
-          total += s.size;
-        } catch {
-          // Skip files we can't stat
-        }
-      }
-    }
-  } catch {
-    // Directory might not exist
-  }
-  return total;
-}
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';

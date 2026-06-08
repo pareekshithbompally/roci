@@ -16,5 +16,17 @@ export {
 // Hooks
 export { useSettings, useAppUpdate, scheduleStartupCheck } from './hooks';
 
+// Stores
+export {
+  modalitiesStore,
+  useModalities,
+  ensureModalitiesLoaded,
+  localInferenceStore,
+  useLocalInference,
+  systemInfoStore,
+  useSystemInfo,
+} from './stores';
+export type { IndexStats, DiskUsageEntry } from './stores';
+
 // Re-export context for provider usage
 export { SettingsProvider, useSettings as useSettingsContext } from '@shared/contexts/SettingsContext';

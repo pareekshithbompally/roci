@@ -15,6 +15,7 @@ import { useAppActions } from '@shared/stores/appStore';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { isTauriEnvironment } from '@services/tauri';
+import { calendarService } from '@services/calendar';
 import { useSettingsSave } from '../hooks/useSettingsSave';
 import { CALENDAR_DEFAULTS } from '@services/calendar/types';
 import type { CalendarAccessStatus } from '@services/calendar/types';
@@ -34,7 +35,7 @@ const NOTIFY_OPTIONS = [
 
 const CalendarIntegrationCard: React.FC = () => {
   const { setCurrentView } = useAppActions();
-  const { settings, setSettings } = useSettings();
+  const { settings, setSettings, isLoading } = useSettings();
   const { showToast } = useToast();
 
   const calendarSettings = settings.calendarIntegration ?? {
@@ -42,15 +43,17 @@ const CalendarIntegrationCard: React.FC = () => {
     notifyMinutesBefore: CALENDAR_DEFAULTS.notify_minutes_before,
   };
 
+  // Wait for settings to finish loading before checking calendar access
+  if (isLoading) return null;
+
   const [accessStatus, setAccessStatus] = useState<CalendarAccessStatus>('not_determined');
   const [isRequestingAccess, setIsRequestingAccess] = useState(false);
 
   const checkAccess = useCallback(async () => {
     if (!isTauriEnvironment()) return;
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      const result = await invoke<{ status: string }>('plugin:calendar|check_access');
-      setAccessStatus(result.status as CalendarAccessStatus);
+      const status = await calendarService.checkAccess();
+      setAccessStatus(status);
     } catch (error: unknown) {
       console.error('[IntegrationsPanel] Failed to check calendar access:', error);
     }
@@ -64,9 +67,7 @@ const CalendarIntegrationCard: React.FC = () => {
     if (!isTauriEnvironment()) return false;
     setIsRequestingAccess(true);
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      const result = await invoke<{ granted: boolean }>('plugin:calendar|request_access');
-      const granted = result.granted;
+      const granted = await calendarService.requestAccess();
       setAccessStatus(granted ? 'authorized' : 'denied');
       if (!granted) {
         showToast('Calendar access denied — enable in System Settings → Privacy → Calendars', 'error');

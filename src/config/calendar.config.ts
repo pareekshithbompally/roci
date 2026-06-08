@@ -27,6 +27,6 @@ export const CALENDAR_CONFIG = {
   /** Schedule-X week view day boundaries */
   weekView: {
     dayStartHour: '00:00',
-    dayEndHour: '23:59',
+    dayEndHour: '24:00',
   },
 } as const;

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { AppStatus, type ProcessedResult } from '@shared/types';
 
 export type ViewType = 'home' | 'settings' | 'reminders' | 'calendar';
-export type SettingsPanel = 'audio' | 'providers' | 'local-inference' | 'categories' | 'interface';
+export type SettingsPanel = 'audio' | 'providers' | 'local-inference' | 'categories' | 'integrations' | 'usage' | 'interface';
 export type ResultTab = 'transcript' | 'summary' | 'todo' | 'notes';
 
 interface AppStoreState {

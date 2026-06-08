@@ -1,18 +1,19 @@
 /**
- * Download Store
+ * Download Store (Zustand)
  *
- * Module-level external store for tracking active downloads (model + binary).
- * Uses useSyncExternalStore pattern — survives component unmounts.
+ * Tracks the single active download (model or binary). Only one download runs
+ * at a time — Rust emits to a single progress channel — so the store owns one
+ * `active` slot through its lifecycle: start → progress → complete/error/cancel.
  *
- * Only one download can be active at a time (Rust emits to a single
- * progress event channel). The store owns the download lifecycle:
- * start → progress → complete/error/cancel.
+ * - React reads via `useActiveDownload()` (selector hook).
+ * - Imperative callers use `useDownloadStore.getState().start*()`.
+ * - Successful completions fire `onDownloadComplete` listeners with the result.
  *
- * Components read state via useActiveDownload() hook. The global
- * DownloadBanner renders progress from any screen.
+ * The store survives component unmounts (module-level Zustand store), so the
+ * global DownloadBanner / ActivityTray can render progress from any screen.
  */
 
-import { useSyncExternalStore } from 'react';
+import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import * as models from './models';
 import * as backend from './backend';
@@ -38,255 +39,154 @@ export interface ActiveDownload {
   error: string | null;
 }
 
-type Listener = () => void;
 type CompletionCallback = (type: DownloadType, result: ManagedModel | InstalledBinary) => void;
 
-// ── Internal state ──────────────────────────────────────────────
+interface DownloadStore {
+  active: ActiveDownload | null;
+  startModelDownload: (repoId: string, fileName: string, hfToken?: string) => void;
+  startUrlDownload: (url: string, hfToken?: string) => void;
+  startBinaryDownload: () => void;
+  cancel: () => Promise<void>;
+}
 
-const listeners = new Set<Listener>();
-const completionCallbacks = new Set<CompletionCallback>();
-let snapshot: ActiveDownload | null = null;
+// ── Module-level lifecycle helpers (non-reactive) ───────────────
+
+const completionListeners = new Set<CompletionCallback>();
 let clearTimer: ReturnType<typeof setTimeout> | null = null;
 
-function emitChange() {
-  for (const listener of listeners) listener();
+/** Register a callback fired when any download completes successfully. */
+export function onDownloadComplete(cb: CompletionCallback): () => void {
+  completionListeners.add(cb);
+  return () => completionListeners.delete(cb);
 }
 
-/** Only accept progress if it moves forward (prevents out-of-order event jitter) */
-function isProgressForward(next: DownloadProgress): boolean {
-  if (!snapshot) return true;
-  return next.bytesDownloaded >= snapshot.progress.bytesDownloaded;
-}
+// ── Store ───────────────────────────────────────────────────────
 
-function scheduleClear(id: string, delay = 3000) {
-  if (clearTimer) clearTimeout(clearTimer);
-  clearTimer = setTimeout(() => {
-    if (snapshot?.id === id) {
-      snapshot = null;
-      emitChange();
+export const useDownloadStore = create<DownloadStore>()((set, get) => {
+  /** Only accept progress that moves forward (guards out-of-order event jitter). */
+  const isProgressForward = (next: DownloadProgress): boolean => {
+    const active = get().active;
+    return !active || next.bytesDownloaded >= active.progress.bytesDownloaded;
+  };
+
+  /** Patch the active download only if it's still the same one. */
+  const patchActive = (id: string, patch: Partial<ActiveDownload>) => {
+    const active = get().active;
+    if (active?.id === id) set({ active: { ...active, ...patch } });
+  };
+
+  const scheduleClear = (id: string, delay = 3000) => {
+    if (clearTimer) clearTimeout(clearTimer);
+    clearTimer = setTimeout(() => {
+      if (get().active?.id === id) set({ active: null });
+      clearTimer = null;
+    }, delay);
+  };
+
+  const onProgress = (id: string) => (progress: DownloadProgress) => {
+    const active = get().active;
+    if (active?.id === id && active.status === 'downloading' && isProgressForward(progress)) {
+      set({ active: { ...active, progress } });
     }
-    clearTimer = null;
-  }, delay);
-}
+  };
 
-// ── Store API ───────────────────────────────────────────────────
-
-export const downloadStore = {
-  /**
-   * Start downloading a model from a HuggingFace repo.
-   * The promise lives in module scope — survives component unmounts.
-   */
-  startModelDownload(
-    repoId: string,
-    fileName: string,
-    hfToken?: string,
-  ) {
-    if (snapshot?.status === 'downloading') return; // already active
-
-    const id = crypto.randomUUID();
-    snapshot = {
-      id,
-      type: 'model',
-      fileName: fileName.split('/').pop() || fileName,
-      progress: { bytesDownloaded: 0, totalBytes: 0, percent: 0 },
-      phase: null,
-      status: 'downloading',
-      error: null,
+  const onSuccess = (id: string, type: DownloadType) =>
+    (result: ManagedModel | InstalledBinary) => {
+      if (get().active?.id !== id) return;
+      patchActive(id, { status: 'completed', phase: type === 'binary' ? 'done' : null });
+      for (const cb of completionListeners) cb(type, result);
+      scheduleClear(id);
     };
-    emitChange();
 
-    models
-      .downloadModelFromRepo(
-        repoId,
-        fileName,
-        (progress) => {
-          if (snapshot?.id === id && snapshot.status === 'downloading' && isProgressForward(progress)) {
-            snapshot = { ...snapshot, progress };
-            emitChange();
-          }
-        },
-        hfToken,
-      )
-      .then((model) => {
-        if (snapshot?.id === id) {
-          snapshot = { ...snapshot, status: 'completed' };
-          emitChange();
-          for (const cb of completionCallbacks) cb('model', model);
-          scheduleClear(id);
-        }
-      })
-      .catch((e) => {
-        if (snapshot?.id === id) {
-          const msg = e instanceof Error ? e.message : String(e);
-          snapshot = {
-            ...snapshot,
-            status: msg === 'Download cancelled' ? 'cancelled' : 'error',
-            error: msg === 'Download cancelled' ? null : msg,
-          };
-          emitChange();
-          scheduleClear(id);
-        }
-      });
-  },
+  const onFailure = (id: string) => (e: unknown) => {
+    if (get().active?.id !== id) return;
+    const msg = e instanceof Error ? e.message : String(e);
+    const cancelled = msg === 'Download cancelled';
+    patchActive(id, { status: cancelled ? 'cancelled' : 'error', error: cancelled ? null : msg });
+    scheduleClear(id);
+  };
 
-  /**
-   * Start downloading a model from a direct HuggingFace URL.
-   */
-  startUrlDownload(url: string, hfToken?: string) {
-    if (snapshot?.status === 'downloading') return;
+  const begin = (active: ActiveDownload): boolean => {
+    if (get().active?.status === 'downloading') return false; // one at a time
+    set({ active });
+    return true;
+  };
 
-    // Extract filename from URL for display
-    const urlFileName = url.split('/').pop() || 'model.gguf';
-    const id = crypto.randomUUID();
-    snapshot = {
-      id,
-      type: 'model',
-      fileName: urlFileName,
-      progress: { bytesDownloaded: 0, totalBytes: 0, percent: 0 },
-      phase: null,
-      status: 'downloading',
-      error: null,
-    };
-    emitChange();
+  return {
+    active: null,
 
-    models
-      .downloadModel(
-        url,
-        (progress) => {
-          if (snapshot?.id === id && snapshot.status === 'downloading' && isProgressForward(progress)) {
-            snapshot = { ...snapshot, progress };
-            emitChange();
-          }
-        },
-        hfToken,
-      )
-      .then((model) => {
-        if (snapshot?.id === id) {
-          snapshot = { ...snapshot, status: 'completed' };
-          emitChange();
-          for (const cb of completionCallbacks) cb('model', model);
-          scheduleClear(id);
-        }
-      })
-      .catch((e) => {
-        if (snapshot?.id === id) {
-          const msg = e instanceof Error ? e.message : String(e);
-          snapshot = {
-            ...snapshot,
-            status: msg === 'Download cancelled' ? 'cancelled' : 'error',
-            error: msg === 'Download cancelled' ? null : msg,
-          };
-          emitChange();
-          scheduleClear(id);
-        }
-      });
-  },
+    startModelDownload(repoId, fileName, hfToken) {
+      const id = crypto.randomUUID();
+      if (!begin({
+        id,
+        type: 'model',
+        fileName: fileName.split('/').pop() || fileName,
+        progress: { bytesDownloaded: 0, totalBytes: 0, percent: 0 },
+        phase: null,
+        status: 'downloading',
+        error: null,
+      })) return;
 
-  /**
-   * Start downloading the llama-server binary.
-   */
-  startBinaryDownload() {
-    if (snapshot?.status === 'downloading') return;
+      models
+        .downloadModelFromRepo(repoId, fileName, onProgress(id), hfToken)
+        .then(onSuccess(id, 'model'))
+        .catch(onFailure(id));
+    },
 
-    const id = crypto.randomUUID();
-    snapshot = {
-      id,
-      type: 'binary',
-      fileName: 'llama-server',
-      progress: { bytesDownloaded: 0, totalBytes: 0, percent: 0 },
-      phase: 'downloading',
-      status: 'downloading',
-      error: null,
-    };
-    emitChange();
+    startUrlDownload(url, hfToken) {
+      const id = crypto.randomUUID();
+      if (!begin({
+        id,
+        type: 'model',
+        fileName: url.split('/').pop() || 'model.gguf',
+        progress: { bytesDownloaded: 0, totalBytes: 0, percent: 0 },
+        phase: null,
+        status: 'downloading',
+        error: null,
+      })) return;
 
-    backend
-      .downloadBinary(
-        (progress) => {
-          if (snapshot?.id === id && snapshot.status === 'downloading' && isProgressForward(progress)) {
-            snapshot = { ...snapshot, progress };
-            emitChange();
-          }
-        },
-        (phase) => {
-          if (snapshot?.id === id && snapshot.status === 'downloading') {
-            snapshot = { ...snapshot, phase };
-            emitChange();
-          }
-        },
-      )
-      .then((info) => {
-        if (snapshot?.id === id) {
-          snapshot = { ...snapshot, status: 'completed', phase: 'done' };
-          emitChange();
-          for (const cb of completionCallbacks) cb('binary', info);
-          scheduleClear(id);
-        }
-      })
-      .catch((e) => {
-        if (snapshot?.id === id) {
-          const msg = e instanceof Error ? e.message : String(e);
-          snapshot = {
-            ...snapshot,
-            status: msg === 'Download cancelled' ? 'cancelled' : 'error',
-            error: msg === 'Download cancelled' ? null : msg,
-          };
-          emitChange();
-          scheduleClear(id);
-        }
-      });
-  },
+      models
+        .downloadModel(url, onProgress(id), hfToken)
+        .then(onSuccess(id, 'model'))
+        .catch(onFailure(id));
+    },
 
-  /**
-   * Cancel the active download via Rust-side flag.
-   */
-  async cancel() {
-    if (!snapshot || snapshot.status !== 'downloading') return;
-    try {
-      await invoke('plugin:llamacpp|cancel_download');
-    } catch (e) {
-      console.warn('[downloadStore] cancel invoke failed:', e);
-    }
-  },
+    startBinaryDownload() {
+      const id = crypto.randomUUID();
+      if (!begin({
+        id,
+        type: 'binary',
+        fileName: 'llama-server',
+        progress: { bytesDownloaded: 0, totalBytes: 0, percent: 0 },
+        phase: 'downloading',
+        status: 'downloading',
+        error: null,
+      })) return;
 
-  /**
-   * Register a callback fired when any download completes successfully.
-   * Returns an unsubscribe function.
-   */
-  onComplete(cb: CompletionCallback): () => void {
-    completionCallbacks.add(cb);
-    return () => completionCallbacks.delete(cb);
-  },
+      backend
+        .downloadBinary(onProgress(id), (phase) => patchActive(id, { phase }))
+        .then(onSuccess(id, 'binary'))
+        .catch(onFailure(id));
+    },
 
-  /** Whether a download is currently in progress. */
-  isActive(): boolean {
-    return snapshot?.status === 'downloading';
-  },
+    async cancel() {
+      if (get().active?.status !== 'downloading') return;
+      try {
+        await invoke('plugin:llamacpp|cancel_download');
+      } catch (e) {
+        console.warn('[downloadStore] cancel invoke failed:', e);
+      }
+    },
+  };
+});
 
-  getSnapshot(): ActiveDownload | null {
-    return snapshot;
-  },
-
-  subscribe(listener: Listener): () => void {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
-  },
-};
-
-/**
- * React hook to subscribe to the active download state.
- * Only triggers re-renders when the snapshot reference changes.
- */
+/** React hook: subscribe to the active download. */
 export function useActiveDownload(): ActiveDownload | null {
-  return useSyncExternalStore(
-    downloadStore.subscribe,
-    downloadStore.getSnapshot,
-    downloadStore.getSnapshot,
-  );
+  return useDownloadStore((s) => s.active);
 }
 
 // ── Bridge to ActivityTray ──────────────────────────────────────
-// Translates downloadStore events to activityStore rows.
+// Translates download state into an activityStore row.
 
 import { activityStore } from '@shared/stores/activityStore';
 import type { ActivityItem } from '@shared/stores/activityStore';
@@ -301,58 +201,44 @@ function formatBytes(bytes: number): string {
   return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
 }
 
-downloadStore.subscribe(() => {
-  const dl = downloadStore.getSnapshot();
+useDownloadStore.subscribe((state) => {
+  const dl = state.active;
 
   if (!dl) {
     activityStore.remove(ACTIVITY_ID);
     return;
   }
 
-  if (dl.status === 'downloading') {
-    const label =
-      dl.type === 'binary' && dl.phase === 'extracting'
-        ? 'Extracting archive...'
-        : dl.type === 'binary' && dl.phase === 'validating'
-          ? 'Validating binary...'
-          : `Downloading ${dl.fileName}`;
-
-    const isPhaseIndeterminate =
-      dl.phase === 'extracting' || dl.phase === 'validating';
-
-    const patch: Partial<ActivityItem> = {
-      type: 'download',
-      label,
-      status: 'active',
-      percent: isPhaseIndeterminate ? null : dl.progress.percent,
-      detail: isPhaseIndeterminate
-        ? null
-        : `${formatBytes(dl.progress.bytesDownloaded)}${
-            dl.progress.totalBytes > 0
-              ? ` / ${formatBytes(dl.progress.totalBytes)}`
-              : ''
-          }`,
-      actions: [
-        {
-          icon: 'x',
-          label: 'Cancel',
-          onClick: () => downloadStore.cancel(),
-        },
-      ],
-    };
-
-    if (activityStore.get(ACTIVITY_ID)) {
-      activityStore.update(ACTIVITY_ID, patch);
-    } else {
-      activityStore.add({
-        id: ACTIVITY_ID,
-        step: null,
-        error: null,
-        ...patch,
-      } as ActivityItem);
-    }
-  } else {
-    // completed / error / cancelled — remove row (toasts handled by LocalInferencePanel)
+  if (dl.status !== 'downloading') {
+    // completed / error / cancelled — remove row (toasts handled by the panel)
     activityStore.remove(ACTIVITY_ID);
+    return;
+  }
+
+  const isPhaseIndeterminate = dl.phase === 'extracting' || dl.phase === 'validating';
+  const label =
+    dl.type === 'binary' && dl.phase === 'extracting'
+      ? 'Extracting archive...'
+      : dl.type === 'binary' && dl.phase === 'validating'
+        ? 'Validating binary...'
+        : `Downloading ${dl.fileName}`;
+
+  const patch: Partial<ActivityItem> = {
+    type: 'download',
+    label,
+    status: 'active',
+    percent: isPhaseIndeterminate ? null : dl.progress.percent,
+    detail: isPhaseIndeterminate
+      ? null
+      : `${formatBytes(dl.progress.bytesDownloaded)}${
+          dl.progress.totalBytes > 0 ? ` / ${formatBytes(dl.progress.totalBytes)}` : ''
+        }`,
+    actions: [{ icon: 'x', label: 'Cancel', onClick: () => useDownloadStore.getState().cancel() }],
+  };
+
+  if (activityStore.get(ACTIVITY_ID)) {
+    activityStore.update(ACTIVITY_ID, patch);
+  } else {
+    activityStore.add({ id: ACTIVITY_ID, step: null, error: null, ...patch } as ActivityItem);
   }
 });

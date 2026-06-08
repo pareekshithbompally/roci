@@ -1,13 +1,15 @@
 /**
  * useCalendarEvents Hook
  *
- * Subscribes to the calendarService event cache and transforms events
- * into Schedule-X compatible format using the Temporal API.
+ * Subscribes to the calendarService event cache, polling state,
+ * and initial fetch status. Transforms events into Schedule-X format.
  *
  * Exposes:
  * - events: raw EnrichedCalendarEvent[] from the cache
  * - scheduleXEvents: transformed events for Schedule-X consumption
- * - isEmpty: whether there are no events
+ * - isEmpty: whether there are no displayable (non-all-day) events
+ * - isEnabled: whether calendar polling is active (integration enabled + authorized)
+ * - isInitialFetchDone: whether at least one cache refresh has completed
  * - refresh: trigger an immediate cache refresh (for Sync button)
  */
 
@@ -21,7 +23,6 @@ import type { CalendarEvent as ScheduleXCalendarEvent } from '@schedule-x/calend
  * Sanitize an EventKit event ID for use as a Schedule-X event ID.
  * Schedule-X uses IDs in CSS selectors (document.querySelector), so characters
  * like `:`, `@`, `.` that are invalid in CSS idents must be stripped.
- * We replace non-alphanumeric/hyphen/underscore chars with hyphens.
  */
 function sanitizeEventId(eventId: string): string {
   return eventId.replace(/[^a-zA-Z0-9_-]/g, '-');
@@ -50,13 +51,29 @@ function toScheduleXEvent(event: EnrichedCalendarEvent): ScheduleXCalendarEvent 
   };
 }
 
-export function useCalendarEvents() {
+interface CalendarEventsState {
+  events: EnrichedCalendarEvent[];
+  isEnabled: boolean;
+  isInitialFetchDone: boolean;
+  isEmpty: boolean;
+  scheduleXEvents: ScheduleXCalendarEvent[];
+  refresh: () => Promise<void>;
+}
+
+export function useCalendarEvents(): CalendarEventsState {
   const [events, setEvents] = useState<EnrichedCalendarEvent[]>(
     () => calendarService.getCachedEvents()
   );
 
+  const [isEnabled, setIsEnabled] = useState(() => calendarService.isPollingActive());
+  const [isInitialFetchDone, setIsInitialFetchDone] = useState(() => calendarService.hasInitialFetchDone());
+
   useEffect(() => {
-    const unsubscribe = calendarService.onEventsUpdated(setEvents);
+    const unsubscribe = calendarService.onEventsUpdated((updatedEvents) => {
+      setEvents(updatedEvents);
+      setIsEnabled(calendarService.isPollingActive());
+      setIsInitialFetchDone(calendarService.hasInitialFetchDone());
+    });
     return unsubscribe;
   }, []);
 
@@ -66,6 +83,8 @@ export function useCalendarEvents() {
       .map(toScheduleXEvent);
   }, [events]);
 
+  const isEmpty = scheduleXEvents.length === 0;
+
   const refresh = useCallback(async () => {
     await calendarService.forceRefresh();
   }, []);
@@ -73,7 +92,9 @@ export function useCalendarEvents() {
   return {
     events,
     scheduleXEvents,
-    isEmpty: events.length === 0,
+    isEmpty,
+    isEnabled,
+    isInitialFetchDone,
     refresh,
   };
 }

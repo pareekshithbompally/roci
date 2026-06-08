@@ -2,12 +2,13 @@
  * SettingsPanel Component
  *
  * Main settings view with horizontal tab bar and panel switcher.
- * Content area is overflow-hidden — each panel owns its own scroll behavior.
- * Save footer renders outside the scroll area for panels with unsaved changes.
+ * All panels stay mounted (CSS visibility) to avoid data re-fetching
+ * on tab switches. Save footer overlays the content area.
  */
 
-import React, { useState, useCallback } from 'react';
-import { useActiveSettingsPanel } from '@shared/stores/appStore';
+import React, { useCallback } from 'react';
+import { useAppStore, useAppActions } from '@shared/stores/appStore';
+import { useSettings } from '@shared/contexts/SettingsContext';
 import { useUnsavedChanges } from '@shared/contexts/UnsavedChangesContext';
 import { ProvidersPanel } from './ProvidersPanel';
 import { ProvidersPanelErrorBoundary } from './ProvidersPanelErrorBoundary';
@@ -23,8 +24,7 @@ import { isTauriEnvironment } from '@services/tauri';
 import { useSettingsSave } from '../hooks/useSettingsSave';
 import { BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-
-type SettingsPanelType = 'audio' | 'providers' | 'local-inference' | 'categories' | 'integrations' | 'interface' | 'usage';
+import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore';
 
 /** Panels that use explicit save (not auto-save or instant) */
 const SAVEABLE_PANELS = new Set<SettingsPanelType>(['audio', 'providers', 'categories', 'integrations', 'interface']);
@@ -48,18 +48,17 @@ const panels: Array<{ id: SettingsPanelType; label: string; tauriOnly?: boolean 
 ];
 
 export const SettingsPanel: React.FC = () => {
-  const activeSettingsPanel = useActiveSettingsPanel();
-  const [activePanel, setActivePanel] = useState<SettingsPanelType>(
-    panels.some(p => p.id === activeSettingsPanel) ? activeSettingsPanel as SettingsPanelType : panels[0].id
-  );
+  const activePanel = useAppStore((s) => s.activeSettingsPanel);
+  const { setActiveSettingsPanel } = useAppActions();
   const { checkNavigation } = useUnsavedChanges();
+  const { isLoading } = useSettings();
 
   const handlePanelChange = useCallback((panelId: SettingsPanelType) => {
-    const isBlocked = checkNavigation(() => setActivePanel(panelId));
+    const isBlocked = checkNavigation(() => setActiveSettingsPanel(panelId));
     if (!isBlocked) {
-      setActivePanel(panelId);
+      setActiveSettingsPanel(panelId);
     }
-  }, [checkNavigation]);
+  }, [checkNavigation, setActiveSettingsPanel]);
 
   const visiblePanels = panels.filter(({ tauriOnly }) => !tauriOnly || isTauriEnvironment());
 
@@ -67,7 +66,7 @@ export const SettingsPanel: React.FC = () => {
     <div className="w-full h-full flex flex-col">
       <UnsavedChangesModal />
 
-      {/* Horizontal Tab Bar — reduced top padding to sit closer to title bar */}
+      {/* Horizontal Tab Bar */}
       <div className={`border-b ${BORDER.default} px-6 md:px-8 pt-1 shrink-0`}>
         <div className="flex gap-1 -mb-px">
           {visiblePanels.map(({ id, label }) => (
@@ -86,22 +85,40 @@ export const SettingsPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* Content Area + overlaid save footer — relative container */}
+      {/* Content Area — all panels kept mounted, hidden via display:none */}
       <div className="flex-1 min-h-0 overflow-hidden relative">
-        {activePanel === 'audio' && <AudioPanel />}
-        {activePanel === 'providers' && (
-          <ProvidersPanelErrorBoundary>
-            <ProvidersPanel />
-          </ProvidersPanelErrorBoundary>
+        {isLoading ? (
+          <SettingsSkeleton />
+        ) : (
+          <>
+            <PanelWrapper visible={activePanel === 'audio'}>
+              <AudioPanel />
+            </PanelWrapper>
+            <PanelWrapper visible={activePanel === 'providers'}>
+              <ProvidersPanelErrorBoundary>
+                <ProvidersPanel />
+              </ProvidersPanelErrorBoundary>
+            </PanelWrapper>
+            <PanelWrapper visible={activePanel === 'local-inference'}>
+              <LocalInferencePanel />
+            </PanelWrapper>
+            <PanelWrapper visible={activePanel === 'categories'}>
+              <CategoriesPanel />
+            </PanelWrapper>
+            <PanelWrapper visible={activePanel === 'integrations'}>
+              <IntegrationsPanel />
+            </PanelWrapper>
+            <PanelWrapper visible={activePanel === 'interface'}>
+              <InterfacePanel />
+            </PanelWrapper>
+            <PanelWrapper visible={activePanel === 'usage'}>
+              <UsagePanel />
+            </PanelWrapper>
+          </>
         )}
-        {activePanel === 'local-inference' && <LocalInferencePanel />}
-        {activePanel === 'categories' && <CategoriesPanel />}
-        {activePanel === 'integrations' && <IntegrationsPanel />}
-        {activePanel === 'interface' && <InterfacePanel />}
-        {activePanel === 'usage' && <UsagePanel />}
 
-        {/* Save footer — absolutely positioned, overlays content, no layout shift.
-            key={activePanel} forces remount on tab switch so savedSnapshotRef reinitializes. */}
+        {/* Save footer — overlays bottom of content. key={activePanel} forces
+            remount so the snapshot ref reinitializes for dirty tracking. */}
         {SAVEABLE_PANELS.has(activePanel) && (
           <SettingsSaveFooter
             key={activePanel}
@@ -113,6 +130,13 @@ export const SettingsPanel: React.FC = () => {
     </div>
   );
 };
+
+/** Keeps children mounted but toggles visibility — prevents data refetch on tab switch */
+const PanelWrapper: React.FC<{ visible: boolean; children: React.ReactNode }> = ({ visible, children }) => (
+  <div style={{ display: visible ? 'block' : 'none' }} className="h-full">
+    {children}
+  </div>
+);
 
 /** Reads unsaved state and renders save button in the fixed footer */
 const SettingsSaveFooter: React.FC<{ panelName: string; panelId: string }> = ({ panelName, panelId }) => {
@@ -126,5 +150,25 @@ const SettingsSaveFooter: React.FC<{ panelName: string; panelId: string }> = ({ 
     />
   );
 };
+
+/** Simple skeleton while settings load from disk */
+const SettingsSkeleton: React.FC = () => (
+  <div className="h-full overflow-hidden">
+    <div className="px-8 py-8 space-y-8 animate-pulse">
+      {/* Title skeleton */}
+      <div className="space-y-2">
+        <div className="h-5 w-40 bg-zinc-200 dark:bg-zinc-800 rounded" />
+        <div className="h-3.5 w-64 bg-zinc-100 dark:bg-zinc-800/50 rounded" />
+      </div>
+      {/* Content rows */}
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="space-y-3">
+          <div className="h-3 w-24 bg-zinc-200/60 dark:bg-zinc-800/60 rounded" />
+          <div className="h-10 w-full bg-zinc-100 dark:bg-zinc-800/30 rounded-lg" />
+        </div>
+      ))}
+    </div>
+  </div>
+);
 
 export default SettingsPanel;
