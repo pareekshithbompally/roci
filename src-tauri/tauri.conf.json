@@ -7,8 +7,7 @@
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
     "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build",
-    "beforeBundleCommand": "./scripts/prepare-swift-runtime.sh"
+    "beforeBuildCommand": "npm run build"
   },
   "app": {
     "macOSPrivateApi": true,
@@ -76,9 +75,6 @@
       "minimumSystemVersion": "15.0",
       "entitlements": "entitlements.plist",
       "frameworks": [],
-      "files": {
-        "Frameworks": "target/swift-runtime"
-      },
       "infoPlist": "Info.plist",
       "dmg": {
         "background": null,
