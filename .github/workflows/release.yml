@@ -111,8 +111,9 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Kasset ${{ steps.version.outputs.tag }}
-          draft: true
+          draft: false
           generate_release_notes: true
+          fail_on_unmatched_files: false
           files: |
             ${{ steps.dmg.outputs.path }}
             ${{ steps.updater.outputs.tar_path }}
