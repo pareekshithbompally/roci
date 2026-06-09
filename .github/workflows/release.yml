@@ -93,18 +93,31 @@ jobs:
           xcrun stapler staple "$DMG"
           xcrun stapler validate "$DMG"
 
-      - name: Locate updater artifacts
+      - name: Locate updater artifacts and generate latest.json
         id: updater
         run: |
           BUNDLE_DIR="src-tauri/target/aarch64-apple-darwin/release/bundle"
-          # The updater .tar.gz and .sig live under macos/
-          TAR_PATH=$(find "$BUNDLE_DIR/macos" -name "*.tar.gz" 2>/dev/null | head -1)
-          SIG_PATH=$(find "$BUNDLE_DIR/macos" -name "*.tar.gz.sig" 2>/dev/null | head -1)
-          LATEST_PATH=$(find "$BUNDLE_DIR" -name "latest.json" 2>/dev/null | head -1)
-          echo "tar_path=${TAR_PATH}" >> "$GITHUB_OUTPUT"
-          echo "sig_path=${SIG_PATH}" >> "$GITHUB_OUTPUT"
-          echo "latest_path=${LATEST_PATH}" >> "$GITHUB_OUTPUT"
-          echo "Found updater artifacts: tar=$TAR_PATH sig=$SIG_PATH latest=$LATEST_PATH"
+          TAR_PATH=$(find "$BUNDLE_DIR/macos" -name "*.app.tar.gz" 2>/dev/null | head -1)
+          SIG_PATH=$(find "$BUNDLE_DIR/macos" -name "*.app.tar.gz.sig" 2>/dev/null | head -1)
+          if [ -z "$TAR_PATH" ] || [ -z "$SIG_PATH" ]; then
+            echo "ERROR: updater artifacts missing (tar=$TAR_PATH sig=$SIG_PATH)"
+            exit 1
+          fi
+          TAG="${{ steps.version.outputs.tag }}"
+          VERSION="${TAG#v}"
+          TAR_NAME=$(basename "$TAR_PATH")
+          # tauri build does NOT emit latest.json — generate the updater manifest here
+          jq -n \
+            --arg version "$VERSION" \
+            --arg pubdate "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg sig "$(cat "$SIG_PATH")" \
+            --arg url "https://github.com/pareekshithbompally/kasset-ai/releases/download/$TAG/$TAR_NAME" \
+            '{version:$version, notes:("Kasset "+$version), pub_date:$pubdate, platforms:{"darwin-aarch64":{signature:$sig, url:$url}}}' \
+            > latest.json
+          echo "Generated latest.json:"; cat latest.json
+          echo "tar_path=$TAR_PATH" >> "$GITHUB_OUTPUT"
+          echo "sig_path=$SIG_PATH" >> "$GITHUB_OUTPUT"
+          echo "latest_path=$PWD/latest.json" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

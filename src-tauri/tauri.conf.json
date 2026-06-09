@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Kasset",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "identifier": "ai.kasset.desktop",
   "build": {
     "frontendDist": "../dist",
@@ -44,7 +44,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZCMTY5RTg5MzdFMjdGQUUKUldTdWYrSTNpWjRXKzJ5R0pxdk8yYnYxRnVvbWNxTEYxWHU4cUZNdTU4dGs2YXFBZi9iZFBCYm0K",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYyODNBQUVCOTc3MkE1OEUKUldTT3BYS1g2NnFEWWtyN1VyY0xibFhyN253ZjFPNVpwV0dGU01SR25aaFBURE1FYWlHQTI2ZjMK",
       "endpoints": [
         "https://github.com/pareekshithbompally/kasset-ai/releases/latest/download/latest.json"
       ]
@@ -53,7 +53,7 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
-    "targets": ["dmg"],
+    "targets": ["app", "dmg"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
