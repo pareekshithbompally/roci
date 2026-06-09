@@ -8,4 +8,10 @@ export const queryKeys = {
   hfModelSearch: (query: string) => ['hf', 'search', query] as const,
   /** GGUF file list for a HuggingFace repo (hasToken splits gated/public cache) */
   hfRepoFiles: (repoId: string, hasToken: boolean) => ['hf', 'repo', repoId, hasToken] as const,
+
+  // ── Unified store (single `kasset.db`) ──
+  /** Store health / meta */
+  storeMeta: () => ['store', 'meta'] as const,
+  /** Store statistics */
+  storeStats: () => ['store', 'stats'] as const,
 };
