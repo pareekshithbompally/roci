@@ -1,7 +1,7 @@
 /**
  * useUsageData Hook
  *
- * Fetches aggregated usage summary from the vectordb plugin.
+ * Fetches aggregated usage summary from the store plugin.
  * Supports time range filtering (7d, 30d, all time).
  */
 

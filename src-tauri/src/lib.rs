@@ -62,7 +62,7 @@ pub fn run() {
     .plugin(tauri_plugin_shell::init())
     .plugin(tauri_plugin_http::init())
     .plugin(tauri_plugin_llamacpp::init())
-    .plugin(tauri_plugin_vectordb::init())
+    .plugin(tauri_plugin_store::init())
     .plugin(tauri_plugin_calendar::init())
     .plugin(tauri_plugin_global_shortcut::Builder::new().build())
     .plugin(tauri_plugin_autostart::init(

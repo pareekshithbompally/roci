@@ -43,7 +43,7 @@
     "process:default",
     "shell:allow-open",
     "llamacpp:default",
-    "vectordb:default",
+    "store:default",
     "calendar:default",
     "window-state:default",
     "updater:default",

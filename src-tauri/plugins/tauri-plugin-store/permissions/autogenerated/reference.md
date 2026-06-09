@@ -1,6 +1,6 @@
 ## Default Permission
 
-Allows all vectordb plugin commands
+Allows all store plugin commands
 
 #### This default permission set includes the following:
 
@@ -52,7 +52,7 @@ Allows all vectordb plugin commands
 <tr>
 <td>
 
-`vectordb:allow-delete-chat-session`
+`store:allow-delete-chat-session`
 
 </td>
 <td>
@@ -65,7 +65,7 @@ Enables the delete_chat_session command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-delete-chat-session`
+`store:deny-delete-chat-session`
 
 </td>
 <td>
@@ -78,7 +78,7 @@ Denies the delete_chat_session command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-delete-meeting`
+`store:allow-delete-meeting`
 
 </td>
 <td>
@@ -91,7 +91,7 @@ Enables the delete_meeting command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-delete-meeting`
+`store:deny-delete-meeting`
 
 </td>
 <td>
@@ -104,7 +104,7 @@ Denies the delete_meeting command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-get-chats-needing-embeddings`
+`store:allow-get-chats-needing-embeddings`
 
 </td>
 <td>
@@ -117,7 +117,7 @@ Enables the get_chats_needing_embeddings command without any pre-configured scop
 <tr>
 <td>
 
-`vectordb:deny-get-chats-needing-embeddings`
+`store:deny-get-chats-needing-embeddings`
 
 </td>
 <td>
@@ -130,7 +130,7 @@ Denies the get_chats_needing_embeddings command without any pre-configured scope
 <tr>
 <td>
 
-`vectordb:allow-get-indexed-ids`
+`store:allow-get-indexed-ids`
 
 </td>
 <td>
@@ -143,7 +143,7 @@ Enables the get_indexed_ids command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-get-indexed-ids`
+`store:deny-get-indexed-ids`
 
 </td>
 <td>
@@ -156,7 +156,7 @@ Denies the get_indexed_ids command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-get-meetings-needing-embeddings`
+`store:allow-get-meetings-needing-embeddings`
 
 </td>
 <td>
@@ -169,7 +169,7 @@ Enables the get_meetings_needing_embeddings command without any pre-configured s
 <tr>
 <td>
 
-`vectordb:deny-get-meetings-needing-embeddings`
+`store:deny-get-meetings-needing-embeddings`
 
 </td>
 <td>
@@ -182,7 +182,7 @@ Denies the get_meetings_needing_embeddings command without any pre-configured sc
 <tr>
 <td>
 
-`vectordb:allow-get-meetings-needing-extraction`
+`store:allow-get-meetings-needing-extraction`
 
 </td>
 <td>
@@ -195,7 +195,7 @@ Enables the get_meetings_needing_extraction command without any pre-configured s
 <tr>
 <td>
 
-`vectordb:deny-get-meetings-needing-extraction`
+`store:deny-get-meetings-needing-extraction`
 
 </td>
 <td>
@@ -208,7 +208,7 @@ Denies the get_meetings_needing_extraction command without any pre-configured sc
 <tr>
 <td>
 
-`vectordb:allow-get-meta`
+`store:allow-get-meta`
 
 </td>
 <td>
@@ -221,7 +221,7 @@ Enables the get_meta command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-get-meta`
+`store:deny-get-meta`
 
 </td>
 <td>
@@ -234,7 +234,7 @@ Denies the get_meta command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-get-stale-chat-sessions`
+`store:allow-get-stale-chat-sessions`
 
 </td>
 <td>
@@ -247,7 +247,7 @@ Enables the get_stale_chat_sessions command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-get-stale-chat-sessions`
+`store:deny-get-stale-chat-sessions`
 
 </td>
 <td>
@@ -260,7 +260,7 @@ Denies the get_stale_chat_sessions command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-get-stale-meetings`
+`store:allow-get-stale-meetings`
 
 </td>
 <td>
@@ -273,7 +273,7 @@ Enables the get_stale_meetings command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-get-stale-meetings`
+`store:deny-get-stale-meetings`
 
 </td>
 <td>
@@ -286,7 +286,7 @@ Denies the get_stale_meetings command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-get-stats`
+`store:allow-get-stats`
 
 </td>
 <td>
@@ -299,7 +299,7 @@ Enables the get_stats command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-get-stats`
+`store:deny-get-stats`
 
 </td>
 <td>
@@ -312,7 +312,7 @@ Denies the get_stats command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-get-usage-summary`
+`store:allow-get-usage-summary`
 
 </td>
 <td>
@@ -325,7 +325,7 @@ Enables the get_usage_summary command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-get-usage-summary`
+`store:deny-get-usage-summary`
 
 </td>
 <td>
@@ -338,7 +338,7 @@ Denies the get_usage_summary command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-graph-delete-meeting`
+`store:allow-graph-delete-meeting`
 
 </td>
 <td>
@@ -351,7 +351,7 @@ Enables the graph_delete_meeting command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-graph-delete-meeting`
+`store:deny-graph-delete-meeting`
 
 </td>
 <td>
@@ -364,7 +364,7 @@ Denies the graph_delete_meeting command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-graph-extracted-meeting-ids`
+`store:allow-graph-extracted-meeting-ids`
 
 </td>
 <td>
@@ -377,7 +377,7 @@ Enables the graph_extracted_meeting_ids command without any pre-configured scope
 <tr>
 <td>
 
-`vectordb:deny-graph-extracted-meeting-ids`
+`store:deny-graph-extracted-meeting-ids`
 
 </td>
 <td>
@@ -390,7 +390,7 @@ Denies the graph_extracted_meeting_ids command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-graph-neighbors`
+`store:allow-graph-neighbors`
 
 </td>
 <td>
@@ -403,7 +403,7 @@ Enables the graph_neighbors command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-graph-neighbors`
+`store:deny-graph-neighbors`
 
 </td>
 <td>
@@ -416,7 +416,7 @@ Denies the graph_neighbors command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-graph-search`
+`store:allow-graph-search`
 
 </td>
 <td>
@@ -429,7 +429,7 @@ Enables the graph_search command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-graph-search`
+`store:deny-graph-search`
 
 </td>
 <td>
@@ -442,7 +442,7 @@ Denies the graph_search command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-graph-stats`
+`store:allow-graph-stats`
 
 </td>
 <td>
@@ -455,7 +455,7 @@ Enables the graph_stats command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-graph-stats`
+`store:deny-graph-stats`
 
 </td>
 <td>
@@ -468,7 +468,7 @@ Denies the graph_stats command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-graph-traverse`
+`store:allow-graph-traverse`
 
 </td>
 <td>
@@ -481,7 +481,7 @@ Enables the graph_traverse command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-graph-traverse`
+`store:deny-graph-traverse`
 
 </td>
 <td>
@@ -494,7 +494,7 @@ Denies the graph_traverse command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-graph-upsert`
+`store:allow-graph-upsert`
 
 </td>
 <td>
@@ -507,7 +507,7 @@ Enables the graph_upsert command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-graph-upsert`
+`store:deny-graph-upsert`
 
 </td>
 <td>
@@ -520,7 +520,7 @@ Denies the graph_upsert command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-initialize`
+`store:allow-initialize`
 
 </td>
 <td>
@@ -533,7 +533,7 @@ Enables the initialize command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-initialize`
+`store:deny-initialize`
 
 </td>
 <td>
@@ -546,7 +546,7 @@ Denies the initialize command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-insert-usage`
+`store:allow-insert-usage`
 
 </td>
 <td>
@@ -559,7 +559,7 @@ Enables the insert_usage command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-insert-usage`
+`store:deny-insert-usage`
 
 </td>
 <td>
@@ -572,7 +572,7 @@ Denies the insert_usage command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-is-chat-session-stale`
+`store:allow-is-chat-session-stale`
 
 </td>
 <td>
@@ -585,7 +585,7 @@ Enables the is_chat_session_stale command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-is-chat-session-stale`
+`store:deny-is-chat-session-stale`
 
 </td>
 <td>
@@ -598,7 +598,7 @@ Denies the is_chat_session_stale command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-mark-chat-content-indexed`
+`store:allow-mark-chat-content-indexed`
 
 </td>
 <td>
@@ -611,7 +611,7 @@ Enables the mark_chat_content_indexed command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-mark-chat-content-indexed`
+`store:deny-mark-chat-content-indexed`
 
 </td>
 <td>
@@ -624,7 +624,7 @@ Denies the mark_chat_content_indexed command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-mark-meeting-content-indexed`
+`store:allow-mark-meeting-content-indexed`
 
 </td>
 <td>
@@ -637,7 +637,7 @@ Enables the mark_meeting_content_indexed command without any pre-configured scop
 <tr>
 <td>
 
-`vectordb:deny-mark-meeting-content-indexed`
+`store:deny-mark-meeting-content-indexed`
 
 </td>
 <td>
@@ -650,7 +650,7 @@ Denies the mark_meeting_content_indexed command without any pre-configured scope
 <tr>
 <td>
 
-`vectordb:allow-mark-chat-embedded`
+`store:allow-mark-chat-embedded`
 
 </td>
 <td>
@@ -663,7 +663,7 @@ Enables the mark_chat_embedded command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-mark-chat-embedded`
+`store:deny-mark-chat-embedded`
 
 </td>
 <td>
@@ -676,7 +676,7 @@ Denies the mark_chat_embedded command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-mark-meeting-embedded`
+`store:allow-mark-meeting-embedded`
 
 </td>
 <td>
@@ -689,7 +689,7 @@ Enables the mark_meeting_embedded command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-mark-meeting-embedded`
+`store:deny-mark-meeting-embedded`
 
 </td>
 <td>
@@ -702,7 +702,7 @@ Denies the mark_meeting_embedded command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-mark-meeting-extracted`
+`store:allow-mark-meeting-extracted`
 
 </td>
 <td>
@@ -715,7 +715,7 @@ Enables the mark_meeting_extracted command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-mark-meeting-extracted`
+`store:deny-mark-meeting-extracted`
 
 </td>
 <td>
@@ -728,7 +728,7 @@ Denies the mark_meeting_extracted command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-rebuild-fts`
+`store:allow-rebuild-fts`
 
 </td>
 <td>
@@ -741,7 +741,7 @@ Enables the rebuild_fts command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-rebuild-fts`
+`store:deny-rebuild-fts`
 
 </td>
 <td>
@@ -754,7 +754,7 @@ Denies the rebuild_fts command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-rebuild`
+`store:allow-rebuild`
 
 </td>
 <td>
@@ -767,7 +767,7 @@ Enables the rebuild command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-rebuild`
+`store:deny-rebuild`
 
 </td>
 <td>
@@ -780,7 +780,7 @@ Denies the rebuild command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-search-chats`
+`store:allow-search-chats`
 
 </td>
 <td>
@@ -793,7 +793,7 @@ Enables the search_chats command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-search-chats`
+`store:deny-search-chats`
 
 </td>
 <td>
@@ -806,7 +806,7 @@ Denies the search_chats command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-search`
+`store:allow-search`
 
 </td>
 <td>
@@ -819,7 +819,7 @@ Enables the search command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-search`
+`store:deny-search`
 
 </td>
 <td>
@@ -832,7 +832,7 @@ Denies the search command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-spotlight-search`
+`store:allow-spotlight-search`
 
 </td>
 <td>
@@ -845,7 +845,7 @@ Enables the spotlight_search command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-spotlight-search`
+`store:deny-spotlight-search`
 
 </td>
 <td>
@@ -858,7 +858,7 @@ Denies the spotlight_search command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-upsert-chat-chunks`
+`store:allow-upsert-chat-chunks`
 
 </td>
 <td>
@@ -871,7 +871,7 @@ Enables the upsert_chat_chunks command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-upsert-chat-chunks`
+`store:deny-upsert-chat-chunks`
 
 </td>
 <td>
@@ -884,7 +884,7 @@ Denies the upsert_chat_chunks command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-upsert-chat-session`
+`store:allow-upsert-chat-session`
 
 </td>
 <td>
@@ -897,7 +897,7 @@ Enables the upsert_chat_session command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-upsert-chat-session`
+`store:deny-upsert-chat-session`
 
 </td>
 <td>
@@ -910,7 +910,7 @@ Denies the upsert_chat_session command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-upsert-chunks`
+`store:allow-upsert-chunks`
 
 </td>
 <td>
@@ -923,7 +923,7 @@ Enables the upsert_chunks command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-upsert-chunks`
+`store:deny-upsert-chunks`
 
 </td>
 <td>
@@ -936,7 +936,7 @@ Denies the upsert_chunks command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:allow-upsert-meeting`
+`store:allow-upsert-meeting`
 
 </td>
 <td>
@@ -949,7 +949,7 @@ Enables the upsert_meeting command without any pre-configured scope.
 <tr>
 <td>
 
-`vectordb:deny-upsert-meeting`
+`store:deny-upsert-meeting`
 
 </td>
 <td>

@@ -10,12 +10,12 @@ use tauri::{
     Manager, Runtime,
 };
 
-/// Initialize the vectordb Tauri plugin.
+/// Initialize the store Tauri plugin.
 ///
-/// Registers commands for vector database operations: initialization,
+/// Registers commands for unified SQLite storage operations: initialization,
 /// meeting/chunk upsert, hybrid search (KNN + FTS5 + RRF), and maintenance.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-    Builder::new("vectordb")
+    Builder::new("store")
         .invoke_handler(tauri::generate_handler![
             commands::initialize,
             commands::upsert_meeting,

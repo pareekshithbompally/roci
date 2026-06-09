@@ -1,7 +1,7 @@
 /**
  * Chat Indexer
  *
- * Indexes chat sessions into the vectordb (FTS5 + sqlite-vec).
+ * Indexes chat sessions into the store (FTS5 + sqlite-vec).
  * Uses multi-phase staleness tracking:
  *   - content_hash: tracks chunk/FTS identity
  *   - embedding_hash: tracks embedding completion

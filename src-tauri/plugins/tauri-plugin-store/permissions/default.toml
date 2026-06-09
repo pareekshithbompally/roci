@@ -1,5 +1,5 @@
 [default]
-description = "Allows all vectordb plugin commands"
+description = "Allows all store plugin commands"
 permissions = [
   "allow-initialize",
   "allow-upsert-meeting",

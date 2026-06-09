@@ -172,7 +172,7 @@ fn create_v1(conn: &Connection) -> Result<(), String> {
     .map_err(|e| format!("Failed to insert meta: {}", e))?;
 
     log::info!(
-        "[vectordb] Created schema v{} (model={}, dim={})",
+        "[store] Created schema v{} (model={}, dim={})",
         SCHEMA_VERSION,
         DEFAULT_MODEL,
         DEFAULT_DIM,
@@ -207,7 +207,7 @@ fn migrate_v2(conn: &Connection) -> Result<(), String> {
     )
     .map_err(|e| format!("Failed to migrate to v2: {}", e))?;
 
-    log::info!("[vectordb] Migrated to schema v2 (added usage_log)");
+    log::info!("[store] Migrated to schema v2 (added usage_log)");
     Ok(())
 }
 
@@ -279,7 +279,7 @@ fn migrate_v3(conn: &Connection) -> Result<(), String> {
     )
     .map_err(|e| format!("Failed to create chat_vec_chunks: {}", e))?;
 
-    log::info!("[vectordb] Migrated to schema v3 (chat_sessions, chat_chunks, FTS5, vec0)");
+    log::info!("[store] Migrated to schema v3 (chat_sessions, chat_chunks, FTS5, vec0)");
     Ok(())
 }
 
@@ -332,7 +332,7 @@ fn migrate_v4(conn: &Connection) -> Result<(), String> {
     )
     .map_err(|e| format!("Failed to migrate to v4 (prefix indexes): {}", e))?;
 
-    log::info!("[vectordb] Migrated to schema v4 (chunks_fts prefix indexes + improved triggers)");
+    log::info!("[store] Migrated to schema v4 (chunks_fts prefix indexes + improved triggers)");
     Ok(())
 }
 
@@ -357,6 +357,6 @@ fn migrate_v5(conn: &Connection) -> Result<(), String> {
     )
     .map_err(|e| format!("Failed to migrate to v5 (phase tracking columns): {}", e))?;
 
-    log::info!("[vectordb] Migrated to schema v5 (embedding_hash, extraction_hash columns)");
+    log::info!("[store] Migrated to schema v5 (embedding_hash, extraction_hash columns)");
     Ok(())
 }

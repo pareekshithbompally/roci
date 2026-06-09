@@ -1,9 +1,9 @@
 [package]
-name = "tauri-plugin-vectordb"
+name = "tauri-plugin-store"
 version = "0.1.0"
 edition = "2021"
-description = "Tauri plugin for local vector search using sqlite-vec"
-links = "tauri-plugin-vectordb"
+description = "Tauri plugin for unified SQLite storage (sqlite-vec, FTS5, knowledge graph)"
+links = "tauri-plugin-store"
 
 [build-dependencies]
 tauri-plugin = { version = "2", features = ["build"] }

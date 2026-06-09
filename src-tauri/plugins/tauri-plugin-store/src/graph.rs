@@ -161,7 +161,7 @@ pub fn upsert_meeting_graph(
         .map_err(|e| format!("commit upsert_meeting_graph: {}", e))?;
 
     log::info!(
-        "[vectordb] Graph upserted for meeting {}: {} nodes, {} edges",
+        "[store] Graph upserted for meeting {}: {} nodes, {} edges",
         meeting_id,
         nodes.len(),
         edges.len()
@@ -355,7 +355,7 @@ pub fn delete_meeting_graph(
     tx.commit()
         .map_err(|e| format!("commit delete_meeting_graph: {}", e))?;
 
-    log::info!("[vectordb] Deleted graph data for meeting {}", meeting_id);
+    log::info!("[store] Deleted graph data for meeting {}", meeting_id);
     Ok(())
 }
 
@@ -417,7 +417,7 @@ fn prune_orphan_nodes(conn: &Connection) -> Result<u64, String> {
         .map_err(|e| format!("prune orphans: {}", e))?;
 
     if deleted > 0 {
-        log::info!("[vectordb] Pruned {} orphan nodes", deleted);
+        log::info!("[store] Pruned {} orphan nodes", deleted);
     }
     Ok(deleted as u64)
 }

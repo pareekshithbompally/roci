@@ -108,7 +108,7 @@ pub async fn initialize<R: Runtime>(
         .map_err(|e| format!("Failed to get app data dir: {}", e))?;
     std::fs::create_dir_all(&app_data)
         .map_err(|e| format!("Failed to create app data dir: {}", e))?;
-    let db_path = app_data.join("vectordb.sqlite");
+    let db_path = app_data.join("kasset.db");
 
     let conn_arc = Arc::clone(&state.conn);
     tauri::async_runtime::spawn_blocking(move || {
@@ -117,7 +117,7 @@ pub async fn initialize<R: Runtime>(
             return Ok(()); // Already initialized
         }
 
-        log::info!("[vectordb] Opening database at {:?}", db_path);
+        log::info!("[store] Opening database at {:?}", db_path);
 
         // Register sqlite-vec as an auto-extension so it loads on every connection
         unsafe {
@@ -136,7 +136,7 @@ pub async fn initialize<R: Runtime>(
         // Run migrations
         schema::migrate(&db)?;
 
-        log::info!("[vectordb] Database initialized successfully");
+        log::info!("[store] Database initialized successfully");
         *guard = Some(db);
         Ok(())
     })
@@ -265,7 +265,7 @@ pub async fn upsert_chunks(
         tx.commit().map_err(|e| format!("commit upsert_chunks: {}", e))?;
 
         log::info!(
-            "[vectordb] Upserted {} chunks for meeting {}",
+            "[store] Upserted {} chunks for meeting {}",
             chunks.len(),
             meeting_id
         );
@@ -319,7 +319,7 @@ pub async fn delete_meeting(
 
         tx.commit().map_err(|e| format!("commit delete_meeting: {}", e))?;
 
-        log::info!("[vectordb] Deleted meeting {} and {} chunks", meeting_id, chunk_ids.len());
+        log::info!("[store] Deleted meeting {} and {} chunks", meeting_id, chunk_ids.len());
         Ok(())
     })
     .await
@@ -808,7 +808,7 @@ pub async fn rebuild(
         )
         .map_err(|e| format!("rebuild: {}", e))?;
 
-        log::info!("[vectordb] Database rebuilt (all data cleared, including graph and chats)");
+        log::info!("[store] Database rebuilt (all data cleared, including graph and chats)");
         Ok(())
     })
     .await
@@ -835,7 +835,7 @@ pub async fn rebuild_fts(
         )
         .map_err(|e| format!("rebuild_fts: {}", e))?;
 
-        log::info!("[vectordb] FTS5 indexes rebuilt, content hashes cleared for re-indexing");
+        log::info!("[store] FTS5 indexes rebuilt, content hashes cleared for re-indexing");
         Ok(())
     })
     .await
@@ -1262,7 +1262,7 @@ pub async fn upsert_chat_chunks(
         tx.commit()
             .map_err(|e| format!("commit upsert_chat_chunks: {}", e))?;
         log::info!(
-            "[vectordb] Upserted {} chat chunks for session {}",
+            "[store] Upserted {} chat chunks for session {}",
             chunks.len(),
             session_id
         );
@@ -1313,7 +1313,7 @@ pub async fn delete_chat_session(
         tx.commit()
             .map_err(|e| format!("commit delete_chat_session: {}", e))?;
         log::info!(
-            "[vectordb] Deleted chat session {} and {} chunks",
+            "[store] Deleted chat session {} and {} chunks",
             session_id,
             chunk_ids.len()
         );

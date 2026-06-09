@@ -1,7 +1,7 @@
 /**
  * Vector DB Client
  *
- * Thin wrapper around Tauri invoke calls to the vectordb Rust plugin.
+ * Thin wrapper around Tauri invoke calls to the store Rust plugin.
  * All vector storage and search happens in the Rust backend (sqlite-vec).
  */
 
@@ -118,7 +118,7 @@ let initPromise: Promise<void> | null = null;
 
 function ensureInitialized(): Promise<void> {
   if (!initPromise) {
-    initPromise = invoke('plugin:vectordb|initialize').then(
+    initPromise = invoke('plugin:store|initialize').then(
       () => {},
       (err) => { initPromise = null; throw err; }  // Reset on failure so retry works
     );
@@ -131,126 +131,126 @@ export const vectorDB = {
 
   async upsertMeeting(meeting: MeetingMeta): Promise<void> {
     await ensureInitialized();
-    await invoke('plugin:vectordb|upsert_meeting', { meeting });
+    await invoke('plugin:store|upsert_meeting', { meeting });
   },
 
   async upsertChunks(meetingId: string, chunks: ChunkData[]): Promise<void> {
     await ensureInitialized();
-    await invoke('plugin:vectordb|upsert_chunks', { meetingId, chunks });
+    await invoke('plugin:store|upsert_chunks', { meetingId, chunks });
   },
 
   async deleteMeeting(meetingId: string): Promise<void> {
     await ensureInitialized();
-    await invoke('plugin:vectordb|delete_meeting', { meetingId });
+    await invoke('plugin:store|delete_meeting', { meetingId });
   },
 
   async search(params: SearchParams): Promise<SearchHit[]> {
     await ensureInitialized();
-    return invoke('plugin:vectordb|search', { params });
+    return invoke('plugin:store|search', { params });
   },
 
   async getStaleMeetings(meetings: MeetingHash[]): Promise<string[]> {
     await ensureInitialized();
-    return invoke('plugin:vectordb|get_stale_meetings', { meetings });
+    return invoke('plugin:store|get_stale_meetings', { meetings });
   },
 
   async getMeetingsNeedingEmbeddings(meetingIds: string[]): Promise<string[]> {
     await ensureInitialized();
-    return invoke('plugin:vectordb|get_meetings_needing_embeddings', { meetingIds });
+    return invoke('plugin:store|get_meetings_needing_embeddings', { meetingIds });
   },
 
   async getMeetingsNeedingExtraction(meetingIds: string[]): Promise<string[]> {
     await ensureInitialized();
-    return invoke('plugin:vectordb|get_meetings_needing_extraction', { meetingIds });
+    return invoke('plugin:store|get_meetings_needing_extraction', { meetingIds });
   },
 
   async markMeetingEmbedded(meetingId: string): Promise<void> {
     await ensureInitialized();
-    await invoke('plugin:vectordb|mark_meeting_embedded', { meetingId });
+    await invoke('plugin:store|mark_meeting_embedded', { meetingId });
   },
 
   async markMeetingExtracted(meetingId: string): Promise<void> {
     await ensureInitialized();
-    await invoke('plugin:vectordb|mark_meeting_extracted', { meetingId });
+    await invoke('plugin:store|mark_meeting_extracted', { meetingId });
   },
 
   async getIndexedIds(): Promise<string[]> {
     await ensureInitialized();
-    return invoke('plugin:vectordb|get_indexed_ids');
+    return invoke('plugin:store|get_indexed_ids');
   },
 
   async getStats(): Promise<DbStats> {
     await ensureInitialized();
-    return invoke('plugin:vectordb|get_stats');
+    return invoke('plugin:store|get_stats');
   },
 
   async getMeta(): Promise<DbMeta> {
     await ensureInitialized();
-    return invoke('plugin:vectordb|get_meta');
+    return invoke('plugin:store|get_meta');
   },
 
   async rebuild(): Promise<void> {
     await ensureInitialized();
-    await invoke('plugin:vectordb|rebuild');
+    await invoke('plugin:store|rebuild');
   },
 
   async upsertChatSession(session: ChatSessionMeta): Promise<void> {
     await ensureInitialized();
-    await invoke('plugin:vectordb|upsert_chat_session', { session });
+    await invoke('plugin:store|upsert_chat_session', { session });
   },
 
   async upsertChatChunks(sessionId: string, chunks: ChatChunkData[]): Promise<void> {
     await ensureInitialized();
-    await invoke('plugin:vectordb|upsert_chat_chunks', { sessionId, chunks });
+    await invoke('plugin:store|upsert_chat_chunks', { sessionId, chunks });
   },
 
   async deleteChatSession(sessionId: string): Promise<void> {
     await ensureInitialized();
-    await invoke('plugin:vectordb|delete_chat_session', { sessionId });
+    await invoke('plugin:store|delete_chat_session', { sessionId });
   },
 
   async isChatSessionStale(sessionId: string, contentHash: string): Promise<boolean> {
     await ensureInitialized();
-    return invoke('plugin:vectordb|is_chat_session_stale', { sessionId, contentHash });
+    return invoke('plugin:store|is_chat_session_stale', { sessionId, contentHash });
   },
 
   async getStaleChatSessions(sessions: MeetingHash[]): Promise<string[]> {
     await ensureInitialized();
-    return invoke('plugin:vectordb|get_stale_chat_sessions', { sessions });
+    return invoke('plugin:store|get_stale_chat_sessions', { sessions });
   },
 
   async getChatsNeedingEmbeddings(sessionIds: string[]): Promise<string[]> {
     await ensureInitialized();
-    return invoke('plugin:vectordb|get_chats_needing_embeddings', { sessionIds });
+    return invoke('plugin:store|get_chats_needing_embeddings', { sessionIds });
   },
 
   async markChatEmbedded(sessionId: string): Promise<void> {
     await ensureInitialized();
-    await invoke('plugin:vectordb|mark_chat_embedded', { sessionId });
+    await invoke('plugin:store|mark_chat_embedded', { sessionId });
   },
 
   async markMeetingContentIndexed(meetingId: string, contentHash: string): Promise<void> {
     await ensureInitialized();
-    await invoke('plugin:vectordb|mark_meeting_content_indexed', { meetingId, contentHash });
+    await invoke('plugin:store|mark_meeting_content_indexed', { meetingId, contentHash });
   },
 
   async markChatContentIndexed(sessionId: string, contentHash: string): Promise<void> {
     await ensureInitialized();
-    await invoke('plugin:vectordb|mark_chat_content_indexed', { sessionId, contentHash });
+    await invoke('plugin:store|mark_chat_content_indexed', { sessionId, contentHash });
   },
 
   async rebuildFts(): Promise<void> {
     await ensureInitialized();
-    await invoke('plugin:vectordb|rebuild_fts');
+    await invoke('plugin:store|rebuild_fts');
   },
 
   async searchChats(params: ChatSearchParams): Promise<ChatSearchHit[]> {
     await ensureInitialized();
-    return invoke('plugin:vectordb|search_chats', { params });
+    return invoke('plugin:store|search_chats', { params });
   },
 
   async spotlightSearch(params: SpotlightParams): Promise<SpotlightHit[]> {
     await ensureInitialized();
-    return invoke('plugin:vectordb|spotlight_search', { params });
+    return invoke('plugin:store|spotlight_search', { params });
   },
 };

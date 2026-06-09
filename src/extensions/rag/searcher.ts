@@ -1,7 +1,7 @@
 /**
  * RAG Searcher
  *
- * Delegates all search to the Rust vectordb plugin.
+ * Delegates all search to the Rust store plugin.
  * The Rust backend performs hybrid search (KNN + FTS5 + Reciprocal Rank Fusion)
  * and returns results grouped by meeting.
  */

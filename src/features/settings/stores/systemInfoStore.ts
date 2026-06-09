@@ -188,11 +188,11 @@ async function loadDiskUsage(basePath: string): Promise<DiskUsageEntry[]> {
       }
     }
 
-    // Add vectordb.sqlite size
+    // Add kasset.db size
     try {
-      const dbPath = await join(basePath, 'vectordb.sqlite');
+      const dbPath = await join(basePath, 'kasset.db');
       const dbStat = await stat(dbPath);
-      if (dbStat.size > 0) sizes.push({ label: 'Vector DB', bytes: dbStat.size });
+      if (dbStat.size > 0) sizes.push({ label: 'Store DB', bytes: dbStat.size });
     } catch {
       // DB may not exist yet
     }

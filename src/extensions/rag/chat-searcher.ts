@@ -1,7 +1,7 @@
 /**
  * Chat Searcher
  *
- * Delegates hybrid search to the Rust vectordb plugin.
+ * Delegates hybrid search to the Rust store plugin.
  * Mirrors ragSearcher in structure.
  */
 

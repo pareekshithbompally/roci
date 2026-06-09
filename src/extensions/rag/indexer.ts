@@ -2,7 +2,7 @@
  * RAG Indexer
  *
  * Indexes meetings into the sqlite-vec vector store via the Rust backend.
- * Chunks transcripts, embeds each chunk, and upserts to the vectordb plugin.
+ * Chunks transcripts, embeds each chunk, and upserts to the store plugin.
  * Uses content hashing for staleness detection — only re-indexes changed meetings.
  */
 

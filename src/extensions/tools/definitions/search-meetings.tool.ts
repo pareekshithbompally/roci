@@ -43,7 +43,7 @@ export const searchMeetingsTool: ToolDefinition = {
 
     let results;
     try {
-      // Ensure vectordb is initialized and meetings are indexed
+      // Ensure store is initialized and meetings are indexed
       await vectorDB.initialize();
       const stale = await ragIndexer.needsReindex(context.historyItems);
       if (stale.length > 0) {

@@ -11,11 +11,11 @@ import type { TokenUsage } from '@services/ai/types';
 import { estimateCost } from './pricing';
 import type { UsageRecord, UsageCategory, UsageSummary } from './types';
 
-/** Ensure the vectordb plugin is initialized before any usage operation. */
+/** Ensure the store plugin is initialized before any usage operation. */
 let initPromise: Promise<void> | null = null;
 function ensureInitialized(): Promise<void> {
   if (!initPromise) {
-    initPromise = invoke('plugin:vectordb|initialize').then(
+    initPromise = invoke('plugin:store|initialize').then(
       () => {},
       (err) => { initPromise = null; throw err; },
     );
@@ -55,7 +55,7 @@ export async function logUsage(params: {
 
   try {
     await ensureInitialized();
-    await invoke('plugin:vectordb|insert_usage', { record });
+    await invoke('plugin:store|insert_usage', { record });
   } catch (error) {
     console.error('[UsageClient] insert_usage failed:', error, '| record:', JSON.stringify({ category: record.category, provider: record.provider, model: record.model }));
   }
@@ -79,7 +79,7 @@ export async function getUsageSummary(since?: number): Promise<UsageSummary> {
   }
 
   await ensureInitialized();
-  return invoke<UsageSummary>('plugin:vectordb|get_usage_summary', {
+  return invoke<UsageSummary>('plugin:store|get_usage_summary', {
     since: since ?? null,
   });
 }
