@@ -1,34 +1,42 @@
 use rusqlite::Connection;
 
-/// Current schema version. Bump this when adding migrations.
-pub const SCHEMA_VERSION: u32 = 5;
+/// Current schema version for the new kasset.db.
+pub const SCHEMA_VERSION: u32 = 1;
 
 /// Default embedding model and dimension.
 pub const DEFAULT_MODEL: &str = "all-MiniLM-L6-v2";
 pub const DEFAULT_DIM: u32 = 384;
 
-/// Run all migrations up to SCHEMA_VERSION.
+/// Run all migrations up to SCHEMA_VERSION inside a single transaction.
 pub fn migrate(conn: &Connection) -> Result<(), String> {
     let current = get_schema_version(conn);
 
     if current == 0 {
-        create_v1(conn)?;
-    }
+        let result = (|| -> Result<(), String> {
+            let tx = conn
+                .unchecked_transaction()
+                .map_err(|e| format!("begin migration transaction: {}", e))?;
+            create_baseline(&tx)?;
+            set_schema_version(&tx, SCHEMA_VERSION)?;
+            tx.commit()
+                .map_err(|e| format!("commit migration v1: {}", e))?;
+            Ok(())
+        })();
 
-    if current < 2 {
-        migrate_v2(conn)?;
-    }
-
-    if current < 3 {
-        migrate_v3(conn)?;
-    }
-
-    if current < 4 {
-        migrate_v4(conn)?;
-    }
-
-    if current < 5 {
-        migrate_v5(conn)?;
+        match result {
+            Ok(()) => {
+                log::info!(
+                    "[store] Created baseline schema v{} (model={}, dim={})",
+                    SCHEMA_VERSION,
+                    DEFAULT_MODEL,
+                    DEFAULT_DIM,
+                );
+            },
+            Err(e) => {
+                log::error!("[store] Migration failed: {}", e);
+                return Err(e);
+            }
+        }
     }
 
     Ok(())
@@ -46,210 +54,233 @@ fn get_schema_version(conn: &Connection) -> u32 {
     .unwrap_or(0)
 }
 
-fn create_v1(conn: &Connection) -> Result<(), String> {
+fn set_schema_version(conn: &Connection, version: u32) -> Result<(), String> {
+    conn.execute(
+        "INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', ?1)",
+        [version.to_string()],
+    )
+    .map_err(|e| format!("set schema_version: {}", e))?;
+    Ok(())
+}
+
+/// Full baseline DDL — migration v1 of the new kasset.db.
+/// Creates every table from spec §2.1–§2.5 in one transaction.
+fn create_baseline(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
         "
-        -- Metadata
+        -- ── Metadata ──────────────────────────────────────────────────────
         CREATE TABLE IF NOT EXISTS meta (
             key   TEXT PRIMARY KEY,
             value TEXT NOT NULL
         );
 
-        -- Meetings (lightweight index; source of truth is history.json)
-        -- embedding_hash and extraction_hash are added by migrate_v5.
-        CREATE TABLE IF NOT EXISTS meetings (
-            id           TEXT PRIMARY KEY,
-            title        TEXT NOT NULL,
-            timestamp    INTEGER NOT NULL,
-            summary      TEXT,
-            categories   TEXT,
-            indexed_at   INTEGER NOT NULL,
-            updated_at   INTEGER NOT NULL,
-            content_hash TEXT NOT NULL DEFAULT ''
+        -- ── 2.1 Meetings domain ──────────────────────────────────────────
+        CREATE TABLE meetings (
+            id                    TEXT PRIMARY KEY,
+            title                 TEXT    NOT NULL,
+            input_source          TEXT,
+            pending_transcription INTEGER NOT NULL DEFAULT 0,
+            calendar_event_id     TEXT,
+            calendar_meta         TEXT,
+            created_at            INTEGER NOT NULL,
+            updated_at            INTEGER NOT NULL
+        );
+        CREATE INDEX idx_meetings_created_at ON meetings(created_at DESC);
+        CREATE INDEX idx_meetings_calendar_event ON meetings(calendar_event_id) WHERE calendar_event_id IS NOT NULL;
+
+        CREATE TABLE transcripts (
+            meeting_id TEXT PRIMARY KEY REFERENCES meetings(id) ON DELETE CASCADE,
+            text       TEXT    NOT NULL,
+            language   TEXT,
+            model      TEXT,
+            segments   TEXT,
+            created_at INTEGER NOT NULL
         );
 
-        -- Chunks (one meeting → many chunks)
-        CREATE TABLE IF NOT EXISTS chunks (
+        CREATE TABLE summaries (
+            meeting_id TEXT PRIMARY KEY REFERENCES meetings(id) ON DELETE CASCADE,
+            overview   TEXT    NOT NULL DEFAULT '',
+            data       TEXT    NOT NULL,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+
+        CREATE TABLE recordings (
+            id               TEXT PRIMARY KEY,
+            meeting_id       TEXT REFERENCES meetings(id) ON DELETE CASCADE,
+            filename         TEXT    NOT NULL,
+            duration_seconds REAL,
+            input_source     TEXT,
+            created_at       INTEGER NOT NULL
+        );
+        CREATE INDEX idx_recordings_meeting ON recordings(meeting_id);
+
+        CREATE TABLE notes (
+            id         TEXT PRIMARY KEY,
+            meeting_id TEXT    NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+            text       TEXT    NOT NULL,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX idx_notes_meeting ON notes(meeting_id);
+
+        CREATE TABLE todos (
+            id         TEXT PRIMARY KEY,
+            meeting_id TEXT    NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+            text       TEXT    NOT NULL,
+            owner      TEXT,
+            due_date   TEXT,
+            completed  INTEGER NOT NULL DEFAULT 0,
+            source     TEXT    NOT NULL CHECK(source IN ('ai','user')),
+            created_at INTEGER NOT NULL
+        );
+        CREATE INDEX idx_todos_meeting ON todos(meeting_id);
+        CREATE INDEX idx_todos_open ON todos(completed, due_date);
+
+        CREATE TABLE reminders (
+            todo_id         TEXT PRIMARY KEY REFERENCES todos(id) ON DELETE CASCADE,
+            notification_id INTEGER NOT NULL,
+            fire_at         INTEGER NOT NULL,
+            status          TEXT    NOT NULL CHECK(status IN ('scheduled','fired','cancelled')),
+            created_at      INTEGER NOT NULL
+        );
+        CREATE INDEX idx_reminders_due ON reminders(status, fire_at);
+
+        -- ── 2.2 Chat domain ──────────────────────────────────────────────
+        CREATE TABLE chats (
+            id              TEXT PRIMARY KEY,
+            title           TEXT    NOT NULL,
+            meeting_id      TEXT REFERENCES meetings(id) ON DELETE SET NULL,
+            created_at      INTEGER NOT NULL,
+            last_message_at INTEGER NOT NULL
+        );
+        CREATE INDEX idx_chats_last_message ON chats(last_message_at DESC);
+        CREATE INDEX idx_chats_meeting ON chats(meeting_id);
+
+        CREATE TABLE chat_messages (
+            id         TEXT PRIMARY KEY,
+            chat_id    TEXT    NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+            seq        INTEGER NOT NULL,
+            role       TEXT    NOT NULL CHECK(role IN ('user','model')),
+            text       TEXT    NOT NULL DEFAULT '',
+            provider   TEXT,
+            model      TEXT,
+            data       TEXT,
+            created_at INTEGER NOT NULL,
+            UNIQUE(chat_id, seq)
+        );
+        CREATE INDEX idx_chat_messages_chat_time ON chat_messages(chat_id, created_at, id);
+
+        -- ── 2.3 Config ───────────────────────────────────────────────────
+        CREATE TABLE settings (
+            key        TEXT PRIMARY KEY,
+            value      TEXT NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+
+        CREATE TABLE providers (
+            provider          TEXT PRIMARY KEY,
+            active            INTEGER NOT NULL DEFAULT 0,
+            api_key_encrypted TEXT,
+            base_url          TEXT,
+            data              TEXT,
+            updated_at        INTEGER NOT NULL
+        );
+
+        CREATE TABLE categories (
+            id         TEXT PRIMARY KEY,
+            name       TEXT NOT NULL UNIQUE,
+            created_at INTEGER NOT NULL
+        );
+
+        CREATE TABLE meeting_categories (
+            meeting_id  TEXT NOT NULL REFERENCES meetings(id)    ON DELETE CASCADE,
+            category_id TEXT NOT NULL REFERENCES categories(id)  ON DELETE CASCADE,
+            PRIMARY KEY(meeting_id, category_id)
+        );
+        CREATE INDEX idx_meeting_categories_category ON meeting_categories(category_id);
+
+        -- ── 2.4 Derived — search, vectors, knowledge graph, usage ────────
+        CREATE TABLE meeting_index_state (
+            meeting_id      TEXT PRIMARY KEY REFERENCES meetings(id) ON DELETE CASCADE,
+            content_hash    TEXT,
+            embedding_hash  TEXT,
+            extraction_hash TEXT,
+            indexed_at      INTEGER
+        );
+
+        CREATE TABLE chat_index_state (
+            chat_id        TEXT PRIMARY KEY REFERENCES chats(id) ON DELETE CASCADE,
+            content_hash   TEXT,
+            embedding_hash TEXT,
+            indexed_at     INTEGER
+        );
+
+        CREATE TABLE chunks (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            meeting_id  TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+            meeting_id  TEXT    NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
             chunk_index INTEGER NOT NULL,
-            chunk_text  TEXT NOT NULL,
-            chunk_type  TEXT NOT NULL DEFAULT 'transcript',
+            chunk_text  TEXT    NOT NULL,
+            chunk_type  TEXT    NOT NULL DEFAULT 'transcript',
             start_pos   INTEGER,
             end_pos     INTEGER,
             UNIQUE(meeting_id, chunk_index)
         );
-        CREATE INDEX IF NOT EXISTS idx_chunks_meeting ON chunks(meeting_id);
+        CREATE INDEX idx_chunks_meeting ON chunks(meeting_id);
 
-        -- FTS5 for full-text search
+        CREATE TABLE chat_chunks (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id     TEXT    NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+            chunk_index INTEGER NOT NULL,
+            chunk_text  TEXT    NOT NULL,
+            chunk_type  TEXT    NOT NULL DEFAULT 'turn',
+            UNIQUE(chat_id, chunk_index)
+        );
+        CREATE INDEX idx_chat_chunks_chat ON chat_chunks(chat_id);
+        ",
+    )
+    .map_err(|e| format!("create baseline tables: {}", e))?;
+
+    // FTS5 virtual tables (must be separate from execute_batch with the rebuild step)
+    conn.execute_batch(
+        "
         CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
             chunk_text,
             content=chunks,
-            content_rowid=id
+            content_rowid=id,
+            prefix='2 3'
         );
 
-        -- Triggers to keep FTS5 in sync
-        CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks BEGIN
-            INSERT INTO chunks_fts(rowid, chunk_text) VALUES (new.id, new.chunk_text);
-        END;
-        CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks BEGIN
-            INSERT INTO chunks_fts(chunks_fts, rowid, chunk_text) VALUES('delete', old.id, old.chunk_text);
-        END;
-        CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks BEGIN
-            INSERT INTO chunks_fts(chunks_fts, rowid, chunk_text) VALUES('delete', old.id, old.chunk_text);
-            INSERT INTO chunks_fts(rowid, chunk_text) VALUES (new.id, new.chunk_text);
-        END;
-
-        -- Knowledge graph nodes
-        CREATE TABLE IF NOT EXISTS kg_nodes (
-            id          TEXT PRIMARY KEY,
-            type        TEXT NOT NULL,
-            name        TEXT NOT NULL,
-            name_lower  TEXT NOT NULL,
-            properties  TEXT NOT NULL DEFAULT '{}',
-            created_at  INTEGER NOT NULL,
-            updated_at  INTEGER NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_kg_nodes_type ON kg_nodes(type);
-        CREATE INDEX IF NOT EXISTS idx_kg_nodes_name_lower ON kg_nodes(name_lower);
-
-        -- Knowledge graph edges
-        CREATE TABLE IF NOT EXISTS kg_edges (
-            id          TEXT PRIMARY KEY,
-            source_id   TEXT NOT NULL REFERENCES kg_nodes(id) ON DELETE CASCADE,
-            target_id   TEXT NOT NULL REFERENCES kg_nodes(id) ON DELETE CASCADE,
-            type        TEXT NOT NULL,
-            properties  TEXT DEFAULT '{}',
-            meeting_id  TEXT NOT NULL,
-            created_at  INTEGER NOT NULL,
-            UNIQUE(source_id, target_id, type, meeting_id)
-        );
-        CREATE INDEX IF NOT EXISTS idx_kg_edges_source ON kg_edges(source_id, type);
-        CREATE INDEX IF NOT EXISTS idx_kg_edges_target ON kg_edges(target_id, type);
-        CREATE INDEX IF NOT EXISTS idx_kg_edges_meeting ON kg_edges(meeting_id);
-        CREATE INDEX IF NOT EXISTS idx_kg_edges_type ON kg_edges(type);
-
-        -- Usage log (token tracking & billing)
-        CREATE TABLE IF NOT EXISTS usage_log (
-            id                 TEXT PRIMARY KEY,
-            timestamp          INTEGER NOT NULL,
-            category           TEXT NOT NULL,
-            session_id         TEXT,
-            provider           TEXT NOT NULL,
-            model              TEXT NOT NULL,
-            input_tokens       INTEGER NOT NULL DEFAULT 0,
-            output_tokens      INTEGER NOT NULL DEFAULT 0,
-            cache_read_tokens  INTEGER DEFAULT 0,
-            cache_write_tokens INTEGER DEFAULT 0,
-            reasoning_tokens   INTEGER DEFAULT 0,
-            estimated_cost     REAL DEFAULT 0
-        );
-        CREATE INDEX IF NOT EXISTS idx_usage_timestamp ON usage_log(timestamp);
-        CREATE INDEX IF NOT EXISTS idx_usage_provider_model ON usage_log(provider, model);
-        ",
-    )
-    .map_err(|e| format!("Failed to create base schema: {}", e))?;
-
-    // Create sqlite-vec virtual table (must be separate — cannot be inside execute_batch
-    // because vec0 is registered as an extension)
-    conn.execute_batch(
-        "CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(
-            chunk_id INTEGER PRIMARY KEY,
-            embedding float[384]
-        );",
-    )
-    .map_err(|e| format!("Failed to create vec_chunks: {}", e))?;
-
-    // Insert metadata
-    conn.execute_batch(&format!(
-        "
-        INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', '{}');
-        INSERT OR REPLACE INTO meta (key, value) VALUES ('embedding_model', '{}');
-        INSERT OR REPLACE INTO meta (key, value) VALUES ('embedding_dim', '{}');
-        ",
-        SCHEMA_VERSION, DEFAULT_MODEL, DEFAULT_DIM,
-    ))
-    .map_err(|e| format!("Failed to insert meta: {}", e))?;
-
-    log::info!(
-        "[store] Created schema v{} (model={}, dim={})",
-        SCHEMA_VERSION,
-        DEFAULT_MODEL,
-        DEFAULT_DIM,
-    );
-    Ok(())
-}
-
-/// v2: Add usage_log table for token tracking & billing.
-/// Runs on existing v1 databases. The table also exists in create_v1 for fresh installs.
-fn migrate_v2(conn: &Connection) -> Result<(), String> {
-    conn.execute_batch(
-        "
-        CREATE TABLE IF NOT EXISTS usage_log (
-            id                 TEXT PRIMARY KEY,
-            timestamp          INTEGER NOT NULL,
-            category           TEXT NOT NULL,
-            session_id         TEXT,
-            provider           TEXT NOT NULL,
-            model              TEXT NOT NULL,
-            input_tokens       INTEGER NOT NULL DEFAULT 0,
-            output_tokens      INTEGER NOT NULL DEFAULT 0,
-            cache_read_tokens  INTEGER DEFAULT 0,
-            cache_write_tokens INTEGER DEFAULT 0,
-            reasoning_tokens   INTEGER DEFAULT 0,
-            estimated_cost     REAL DEFAULT 0
-        );
-        CREATE INDEX IF NOT EXISTS idx_usage_timestamp ON usage_log(timestamp);
-        CREATE INDEX IF NOT EXISTS idx_usage_provider_model ON usage_log(provider, model);
-
-        UPDATE meta SET value = '2' WHERE key = 'schema_version';
-        ",
-    )
-    .map_err(|e| format!("Failed to migrate to v2: {}", e))?;
-
-    log::info!("[store] Migrated to schema v2 (added usage_log)");
-    Ok(())
-}
-
-/// v3: Add chat indexing tables — chat_sessions, chat_chunks, FTS5, vec0.
-/// Purely additive; does not touch existing meetings/chunks tables.
-fn migrate_v3(conn: &Connection) -> Result<(), String> {
-    conn.execute_batch(
-        "
-        -- Chat sessions (mirrors 'meetings' table)
-        -- embedding_hash is added by migrate_v5.
-        CREATE TABLE IF NOT EXISTS chat_sessions (
-            id              TEXT PRIMARY KEY,
-            title           TEXT NOT NULL,
-            last_message_at INTEGER NOT NULL,
-            message_count   INTEGER NOT NULL DEFAULT 0,
-            indexed_at      INTEGER NOT NULL,
-            updated_at      INTEGER NOT NULL,
-            content_hash    TEXT NOT NULL DEFAULT ''
-        );
-        CREATE INDEX IF NOT EXISTS idx_chat_sessions_last_msg ON chat_sessions(last_message_at DESC);
-
-        -- Chat chunks (mirrors 'chunks' table; FK to chat_sessions)
-        CREATE TABLE IF NOT EXISTS chat_chunks (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id  TEXT NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
-            chunk_index INTEGER NOT NULL,
-            chunk_text  TEXT NOT NULL,
-            chunk_type  TEXT NOT NULL DEFAULT 'turn',
-            UNIQUE(session_id, chunk_index)
-        );
-        CREATE INDEX IF NOT EXISTS idx_chat_chunks_session ON chat_chunks(session_id);
-
-        -- FTS5 for full-text search on chat chunks.
-        -- prefix='2 3': pre-builds posting lists for 2- and 3-char prefixes (search-as-you-type).
         CREATE VIRTUAL TABLE IF NOT EXISTS chat_chunks_fts USING fts5(
             chunk_text,
             content=chat_chunks,
             content_rowid=id,
             prefix='2 3'
         );
+        ",
+    )
+    .map_err(|e| format!("create FTS5 virtual tables: {}", e))?;
 
-        -- Triggers to keep chat_chunks_fts in sync with chat_chunks.
+    // FTS5 sync triggers
+    conn.execute_batch(
+        "
+        -- chunks ↔ chunks_fts
+        CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks BEGIN
+            INSERT INTO chunks_fts(rowid, chunk_text) VALUES (new.id, new.chunk_text);
+        END;
+        CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks BEGIN
+            INSERT INTO chunks_fts(chunks_fts, rowid, chunk_text)
+            VALUES('delete', old.id, old.chunk_text);
+        END;
+        CREATE TRIGGER IF NOT EXISTS chunks_bu BEFORE UPDATE ON chunks BEGIN
+            INSERT INTO chunks_fts(chunks_fts, rowid, chunk_text)
+            VALUES('delete', old.id, old.chunk_text);
+        END;
+        CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks BEGIN
+            INSERT INTO chunks_fts(rowid, chunk_text) VALUES (new.id, new.chunk_text);
+        END;
+
+        -- chat_chunks ↔ chat_chunks_fts
         CREATE TRIGGER IF NOT EXISTS chat_chunks_ai AFTER INSERT ON chat_chunks BEGIN
             INSERT INTO chat_chunks_fts(rowid, chunk_text) VALUES (new.id, new.chunk_text);
         END;
@@ -264,99 +295,504 @@ fn migrate_v3(conn: &Connection) -> Result<(), String> {
         CREATE TRIGGER IF NOT EXISTS chat_chunks_au AFTER UPDATE ON chat_chunks BEGIN
             INSERT INTO chat_chunks_fts(rowid, chunk_text) VALUES (new.id, new.chunk_text);
         END;
-
-        UPDATE meta SET value = '3' WHERE key = 'schema_version';
         ",
     )
-    .map_err(|e| format!("Failed to migrate to v3 (chat tables): {}", e))?;
+    .map_err(|e| format!("create FTS5 triggers: {}", e))?;
 
-    // chat_vec_chunks must be created outside execute_batch (vec0 extension)
+    // Knowledge graph
     conn.execute_batch(
+        "
+        CREATE TABLE IF NOT EXISTS kg_nodes (
+            id          TEXT PRIMARY KEY,
+            type        TEXT NOT NULL,
+            name        TEXT NOT NULL,
+            name_lower  TEXT NOT NULL,
+            properties  TEXT NOT NULL DEFAULT '{}',
+            created_at  INTEGER NOT NULL,
+            updated_at  INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_kg_nodes_type ON kg_nodes(type);
+        CREATE INDEX IF NOT EXISTS idx_kg_nodes_name_lower ON kg_nodes(name_lower);
+
+        CREATE TABLE IF NOT EXISTS kg_edges (
+            id          TEXT PRIMARY KEY,
+            source_id   TEXT    NOT NULL REFERENCES kg_nodes(id) ON DELETE CASCADE,
+            target_id   TEXT    NOT NULL REFERENCES kg_nodes(id) ON DELETE CASCADE,
+            type        TEXT    NOT NULL,
+            properties  TEXT    DEFAULT '{}',
+            meeting_id  TEXT    NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+            created_at  INTEGER NOT NULL,
+            UNIQUE(source_id, target_id, type, meeting_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_kg_edges_source ON kg_edges(source_id, type);
+        CREATE INDEX IF NOT EXISTS idx_kg_edges_target ON kg_edges(target_id, type);
+        CREATE INDEX IF NOT EXISTS idx_kg_edges_meeting ON kg_edges(meeting_id);
+        CREATE INDEX IF NOT EXISTS idx_kg_edges_type ON kg_edges(type);
+        ",
+    )
+    .map_err(|e| format!("create knowledge graph tables: {}", e))?;
+
+    // Usage log
+    conn.execute_batch(
+        "
+        CREATE TABLE IF NOT EXISTS usage_log (
+            id                 TEXT PRIMARY KEY,
+            timestamp          INTEGER NOT NULL,
+            category           TEXT NOT NULL,
+            session_id         TEXT,
+            provider           TEXT NOT NULL,
+            model              TEXT NOT NULL,
+            input_tokens       INTEGER NOT NULL DEFAULT 0,
+            output_tokens      INTEGER NOT NULL DEFAULT 0,
+            cache_read_tokens  INTEGER DEFAULT 0,
+            cache_write_tokens INTEGER DEFAULT 0,
+            reasoning_tokens   INTEGER DEFAULT 0,
+            estimated_cost     REAL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_usage_timestamp ON usage_log(timestamp);
+        CREATE INDEX IF NOT EXISTS idx_usage_provider_model ON usage_log(provider, model);
+        ",
+    )
+    .map_err(|e| format!("create usage_log: {}", e))?;
+
+    // sqlite-vec virtual tables (must be separate — vec0 uses its own extension)
+    conn.execute_batch(&format!(
+        "CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(
+            chunk_id INTEGER PRIMARY KEY,
+            embedding float[{}]
+        );",
+        DEFAULT_DIM,
+    ))
+    .map_err(|e| format!("create vec_chunks: {}", e))?;
+
+    conn.execute_batch(&format!(
         "CREATE VIRTUAL TABLE IF NOT EXISTS chat_vec_chunks USING vec0(
             chunk_id INTEGER PRIMARY KEY,
-            embedding float[384]
+            embedding float[{}]
         );",
-    )
-    .map_err(|e| format!("Failed to create chat_vec_chunks: {}", e))?;
+        DEFAULT_DIM,
+    ))
+    .map_err(|e| format!("create chat_vec_chunks: {}", e))?;
 
-    log::info!("[store] Migrated to schema v3 (chat_sessions, chat_chunks, FTS5, vec0)");
-    Ok(())
-}
-
-/// v4: Rebuild chunks_fts with prefix='2 3' for fast search-as-you-type.
-/// FTS5 prefix indexes pre-build posting lists for 2- and 3-char prefixes,
-/// turning O(range-scan) prefix queries into O(1) lookup. ~15% larger index.
-///
-/// chat_chunks_fts already has prefix='2 3' from v3; only meeting chunks_fts needs rebuilding.
-/// Data is in the external content table (chunks) — no chunk data is lost.
-fn migrate_v4(conn: &Connection) -> Result<(), String> {
+    // Audit trail (§2.5)
     conn.execute_batch(
         "
-        -- Drop old FTS5 sync triggers
-        DROP TRIGGER IF EXISTS chunks_ai;
-        DROP TRIGGER IF EXISTS chunks_ad;
-        DROP TRIGGER IF EXISTS chunks_au;
-
-        -- Drop old FTS5 table (data lives in external content 'chunks', not in the FTS table)
-        DROP TABLE IF EXISTS chunks_fts;
-
-        -- Recreate with prefix indexes for search-as-you-type
-        CREATE VIRTUAL TABLE chunks_fts USING fts5(
-            chunk_text,
-            content=chunks,
-            content_rowid=id,
-            prefix='2 3'
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id          TEXT PRIMARY KEY,
+            entity_type TEXT    NOT NULL,
+            entity_id   TEXT    NOT NULL,
+            operation   TEXT    NOT NULL CHECK(operation IN ('create','update','delete')),
+            actor       TEXT    NOT NULL DEFAULT 'app' CHECK(actor IN ('app','mcp','system')),
+            data        TEXT,
+            created_at  INTEGER NOT NULL
         );
-
-        -- Repopulate from external content table
-        INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild');
-
-        -- Recreate sync triggers with BEFORE UPDATE + AFTER UPDATE split to avoid index drift
-        CREATE TRIGGER chunks_ai AFTER INSERT ON chunks BEGIN
-            INSERT INTO chunks_fts(rowid, chunk_text) VALUES (new.id, new.chunk_text);
-        END;
-        CREATE TRIGGER chunks_ad AFTER DELETE ON chunks BEGIN
-            INSERT INTO chunks_fts(chunks_fts, rowid, chunk_text)
-            VALUES('delete', old.id, old.chunk_text);
-        END;
-        CREATE TRIGGER chunks_bu BEFORE UPDATE ON chunks BEGIN
-            INSERT INTO chunks_fts(chunks_fts, rowid, chunk_text)
-            VALUES('delete', old.id, old.chunk_text);
-        END;
-        CREATE TRIGGER chunks_au AFTER UPDATE ON chunks BEGIN
-            INSERT INTO chunks_fts(rowid, chunk_text) VALUES (new.id, new.chunk_text);
-        END;
-
-        UPDATE meta SET value = '4' WHERE key = 'schema_version';
+        CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_log(entity_type, entity_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at DESC);
         ",
     )
-    .map_err(|e| format!("Failed to migrate to v4 (prefix indexes): {}", e))?;
+    .map_err(|e| format!("create audit_log: {}", e))?;
 
-    log::info!("[store] Migrated to schema v4 (chunks_fts prefix indexes + improved triggers)");
+    // Insert metadata
+    conn.execute_batch(&format!(
+        "
+        INSERT OR REPLACE INTO meta (key, value) VALUES ('embedding_model', '{}');
+        INSERT OR REPLACE INTO meta (key, value) VALUES ('embedding_dim', '{}');
+        ",
+        DEFAULT_MODEL, DEFAULT_DIM,
+    ))
+    .map_err(|e| format!("insert meta: {}", e))?;
+
     Ok(())
 }
 
-/// v5: Add per-phase completion tracking columns.
-///
-/// Previously, `content_hash` was the sole staleness indicator — written by Phase 1
-/// (FTS-only indexing), which prevented Phase 2 from adding embeddings or running
-/// entity extraction. Now each concern tracks its own completion:
-///
-/// - `content_hash`: tracks chunk/FTS identity (unchanged)
-/// - `embedding_hash`: content_hash at time embeddings were last computed
-/// - `extraction_hash`: content_hash at time KG entities were last extracted
-fn migrate_v5(conn: &Connection) -> Result<(), String> {
-    conn.execute_batch(
-        "
-        ALTER TABLE meetings ADD COLUMN embedding_hash TEXT;
-        ALTER TABLE meetings ADD COLUMN extraction_hash TEXT;
-        ALTER TABLE chat_sessions ADD COLUMN embedding_hash TEXT;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::{Connection, params};
+    use std::sync::Once;
 
-        UPDATE meta SET value = '5' WHERE key = 'schema_version';
-        ",
-    )
-    .map_err(|e| format!("Failed to migrate to v5 (phase tracking columns): {}", e))?;
+    static EXT_INIT: Once = Once::new();
 
-    log::info!("[store] Migrated to schema v5 (embedding_hash, extraction_hash columns)");
-    Ok(())
+    fn open_test_db() -> Connection {
+        EXT_INIT.call_once(|| unsafe {
+            rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute(
+                sqlite_vec::sqlite3_vec_init as *const (),
+            )));
+        });
+
+        let conn = Connection::open_in_memory().expect("open in-memory");
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
+            .expect("set pragmas");
+
+        conn
+    }
+
+    fn init_db(conn: &Connection) {
+        migrate(conn).expect("migrate");
+    }
+
+    #[test]
+    fn schema_creates_all_tables() {
+        let conn = open_test_db();
+        init_db(&conn);
+
+        let expected_tables = vec![
+            "meta",
+            "meetings",
+            "transcripts",
+            "summaries",
+            "recordings",
+            "notes",
+            "todos",
+            "reminders",
+            "chats",
+            "chat_messages",
+            "settings",
+            "providers",
+            "categories",
+            "meeting_categories",
+            "meeting_index_state",
+            "chat_index_state",
+            "chunks",
+            "chat_chunks",
+            "chunks_fts",
+            "chat_chunks_fts",
+            "vec_chunks",
+            "chat_vec_chunks",
+            "kg_nodes",
+            "kg_edges",
+            "usage_log",
+            "audit_log",
+        ];
+
+        let mut stmt = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+            .expect("prepare");
+
+        let existing: Vec<String> = stmt
+            .query_map([], |row| row.get(0))
+            .expect("query")
+            .filter_map(|r| r.ok())
+            .collect();
+
+        for table in &expected_tables {
+            assert!(
+                existing.contains(&table.to_string()),
+                "missing table: {}",
+                table
+            );
+        }
+
+        // Verify meta entries
+        let sv: String = conn
+            .query_row(
+                "SELECT value FROM meta WHERE key='schema_version'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("schema_version");
+        assert_eq!(sv, "1");
+
+        let model: String = conn
+            .query_row(
+                "SELECT value FROM meta WHERE key='embedding_model'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("embedding_model");
+        assert_eq!(model, DEFAULT_MODEL);
+    }
+
+    #[test]
+    fn foreign_keys_cascade_on_meeting_delete() {
+        let conn = open_test_db();
+        init_db(&conn);
+
+        let now = now_test_millis();
+
+        // Insert meeting
+        conn.execute(
+            "INSERT INTO meetings (id, title, created_at, updated_at) VALUES (?1, ?2, ?3, ?4)",
+            params!["m1", "Test Meeting", now, now],
+        )
+        .expect("insert meeting");
+
+        // Insert children
+        conn.execute(
+            "INSERT INTO transcripts (meeting_id, text, created_at) VALUES (?1, ?2, ?3)",
+            params!["m1", "Hello world", now],
+        )
+        .expect("insert transcript");
+        conn.execute(
+            "INSERT INTO summaries (meeting_id, overview, data, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params!["m1", "", "{}", now, now],
+        )
+        .expect("insert summary");
+        conn.execute(
+            "INSERT INTO notes (id, meeting_id, text, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params!["n1", "m1", "a note", now, now],
+        )
+        .expect("insert note");
+        conn.execute(
+            "INSERT INTO todos (id, meeting_id, text, source, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params!["t1", "m1", "do thing", "ai", now],
+        )
+        .expect("insert todo");
+        conn.execute(
+            "INSERT INTO chunks (meeting_id, chunk_index, chunk_text) VALUES (?1, ?2, ?3)",
+            params!["m1", 0, "chunk text"],
+        )
+        .expect("insert chunk");
+        conn.execute(
+            "INSERT INTO recordings (id, meeting_id, filename, created_at) VALUES (?1, ?2, ?3, ?4)",
+            params!["r1", "m1", "test.wav", now],
+        )
+        .expect("insert recording");
+
+        // Insert category + meeting_category
+        conn.execute(
+            "INSERT INTO categories (id, name, created_at) VALUES (?1, ?2, ?3)",
+            params!["cat1", "Design", now],
+        )
+        .expect("insert category");
+        conn.execute(
+            "INSERT INTO meeting_categories (meeting_id, category_id) VALUES (?1, ?2)",
+            params!["m1", "cat1"],
+        )
+        .expect("insert meeting_category");
+
+        // Insert chat linked to meeting
+        conn.execute(
+            "INSERT INTO chats (id, title, meeting_id, created_at, last_message_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params!["c1", "Chat 1", "m1", now, now],
+        )
+        .expect("insert chat");
+
+        // Insert kg_nodes + kg_edges
+        conn.execute(
+            "INSERT INTO kg_nodes (id, type, name, name_lower, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params!["kn1", "person", "Alice", "alice", now, now],
+        )
+        .expect("insert kg_node");
+        conn.execute(
+            "INSERT INTO kg_nodes (id, type, name, name_lower, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params!["kn2", "meeting", "Test Meeting", "test meeting", now, now],
+        )
+        .expect("insert kg_node");
+        conn.execute(
+            "INSERT INTO kg_edges (id, source_id, target_id, type, meeting_id, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params!["ke1", "kn1", "kn2", "attended", "m1", now],
+        )
+        .expect("insert kg_edge");
+
+        // Insert index_state
+        conn.execute(
+            "INSERT INTO meeting_index_state (meeting_id, content_hash, indexed_at) VALUES (?1, ?2, ?3)",
+            params!["m1", "hash123", now],
+        )
+        .expect("insert meeting_index_state");
+
+        // Delete meeting — should cascade
+        conn.execute("DELETE FROM meetings WHERE id = ?1", params!["m1"])
+            .expect("delete meeting");
+
+        // Assert cascaded deletions
+        let transcript_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM transcripts WHERE meeting_id = ?1", params!["m1"], |r| r.get(0))
+            .unwrap();
+        assert_eq!(transcript_count, 0, "transcript should cascade-delete");
+
+        let summary_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM summaries WHERE meeting_id = ?1", params!["m1"], |r| r.get(0))
+            .unwrap();
+        assert_eq!(summary_count, 0, "summary should cascade-delete");
+
+        let notes_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM notes WHERE meeting_id = ?1", params!["m1"], |r| r.get(0))
+            .unwrap();
+        assert_eq!(notes_count, 0, "notes should cascade-delete");
+
+        let todos_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM todos WHERE meeting_id = ?1", params!["m1"], |r| r.get(0))
+            .unwrap();
+        assert_eq!(todos_count, 0, "todos should cascade-delete");
+
+        let chunks_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM chunks WHERE meeting_id = ?1", params!["m1"], |r| r.get(0))
+            .unwrap();
+        assert_eq!(chunks_count, 0, "chunks should cascade-delete");
+
+        let recordings_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM recordings WHERE meeting_id = ?1", params!["m1"], |r| r.get(0))
+            .unwrap();
+        assert_eq!(recordings_count, 0, "recordings should cascade-delete");
+
+        let mc_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM meeting_categories WHERE meeting_id = ?1", params!["m1"], |r| r.get(0))
+            .unwrap();
+        assert_eq!(mc_count, 0, "meeting_categories should cascade-delete");
+
+        let index_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM meeting_index_state WHERE meeting_id = ?1", params!["m1"], |r| r.get(0))
+            .unwrap();
+        assert_eq!(index_count, 0, "meeting_index_state should cascade-delete");
+
+        let kg_edges_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM kg_edges WHERE meeting_id = ?1", params!["m1"], |r| r.get(0))
+            .unwrap();
+        assert_eq!(kg_edges_count, 0, "kg_edges should cascade-delete");
+
+        // Chat should survive but meeting_id set to NULL
+        let chat_meeting_id: Option<String> = conn
+            .query_row("SELECT meeting_id FROM chats WHERE id = ?1", params!["c1"], |r| r.get(0))
+            .unwrap();
+        assert_eq!(chat_meeting_id, None, "chat meeting_id should be SET NULL");
+
+        // Category should survive
+        let cat_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM categories WHERE id = ?1", params!["cat1"], |r| r.get(0))
+            .unwrap();
+        assert_eq!(cat_count, 1, "category should survive");
+    }
+
+    #[test]
+    fn check_constraints_reject_invalid_enum_values() {
+        let conn = open_test_db();
+        init_db(&conn);
+        let now = now_test_millis();
+
+        // Insert meeting (required for FK)
+        conn.execute(
+            "INSERT INTO meetings (id, title, created_at, updated_at) VALUES (?1, ?2, ?3, ?4)",
+            params!["m1", "Test", now, now],
+        )
+        .expect("insert meeting");
+
+        // todos.source CHECK
+        let err = conn.execute(
+            "INSERT INTO todos (id, meeting_id, text, source, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params!["t1", "m1", "do", "invalid_source", now],
+        );
+        assert!(err.is_err(), "todos.source should reject invalid value");
+
+        // reminders.status CHECK
+        conn.execute(
+            "INSERT INTO todos (id, meeting_id, text, source, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params!["t2", "m1", "do", "ai", now],
+        )
+        .expect("insert todo for reminder test");
+        let err = conn.execute(
+            "INSERT INTO reminders (todo_id, notification_id, fire_at, status, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params!["t2", 1, now, "invalid_status", now],
+        );
+        assert!(err.is_err(), "reminders.status should reject invalid value");
+
+        // chat_messages.role CHECK
+        conn.execute(
+            "INSERT INTO chats (id, title, created_at, last_message_at) VALUES (?1, ?2, ?3, ?4)",
+            params!["c1", "Chat", now, now],
+        )
+        .expect("insert chat");
+        let err = conn.execute(
+            "INSERT INTO chat_messages (id, chat_id, seq, role, text, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params!["msg1", "c1", 0, "bot", "hi", now],
+        );
+        assert!(err.is_err(), "chat_messages.role should reject 'bot'");
+
+        // audit_log.operation CHECK
+        let err = conn.execute(
+            "INSERT INTO audit_log (id, entity_type, entity_id, operation, actor, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params!["a1", "meeting", "m1", "remove", "app", now],
+        );
+        assert!(err.is_err(), "audit_log.operation should reject 'remove'");
+
+        // audit_log.actor CHECK
+        let err = conn.execute(
+            "INSERT INTO audit_log (id, entity_type, entity_id, operation, actor, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params!["a2", "meeting", "m1", "create", "user", now],
+        );
+        assert!(err.is_err(), "audit_log.actor should reject 'user'");
+    }
+
+    #[test]
+    fn unique_constraint_rejects_duplicate_chat_message_seq() {
+        let conn = open_test_db();
+        init_db(&conn);
+        let now = now_test_millis();
+
+        conn.execute(
+            "INSERT INTO chats (id, title, created_at, last_message_at) VALUES (?1, ?2, ?3, ?4)",
+            params!["c1", "Chat", now, now],
+        )
+        .expect("insert chat");
+
+        conn.execute(
+            "INSERT INTO chat_messages (id, chat_id, seq, role, text, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params!["msg1", "c1", 0, "user", "first", now],
+        )
+        .expect("insert first message");
+
+        let err = conn.execute(
+            "INSERT INTO chat_messages (id, chat_id, seq, role, text, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params!["msg2", "c1", 0, "model", "dupe", now],
+        );
+        assert!(err.is_err(), "UNIQUE(chat_id, seq) should reject duplicate");
+    }
+
+    #[test]
+    fn foreign_key_rejects_invalid_parent() {
+        let conn = open_test_db();
+        init_db(&conn);
+        let now = now_test_millis();
+
+        let err = conn.execute(
+            "INSERT INTO transcripts (meeting_id, text, created_at) VALUES (?1, ?2, ?3)",
+            params!["nonexistent", "text", now],
+        );
+        assert!(err.is_err(), "should reject transcript with nonexistent meeting_id");
+
+        let err = conn.execute(
+            "INSERT INTO chunks (meeting_id, chunk_index, chunk_text) VALUES (?1, ?2, ?3)",
+            params!["nonexistent", 0, "text"],
+        );
+        assert!(err.is_err(), "should reject chunk with nonexistent meeting_id");
+    }
+
+    #[test]
+    fn migration_is_transactional_no_partial_apply() {
+        let conn = open_test_db();
+
+        // Table doesn't exist yet because migrate() hasn't run
+        let has_meta: bool = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='meta'",
+                [],
+                |r| r.get::<_, i64>(0),
+            )
+            .map(|c| c > 0)
+            .unwrap_or(false);
+        assert!(!has_meta, "meta table should not exist before migration");
+
+        migrate(&conn).expect("migrate");
+
+        // After migration, schema_version is 1
+        let sv: String = conn
+            .query_row("SELECT value FROM meta WHERE key='schema_version'", [], |r| r.get(0))
+            .expect("schema_version");
+        assert_eq!(sv, "1");
+
+        // Running migrate again is idempotent
+        migrate(&conn).expect("migrate again");
+        let sv2: String = conn
+            .query_row("SELECT value FROM meta WHERE key='schema_version'", [], |r| r.get(0))
+            .expect("schema_version");
+        assert_eq!(sv2, "1");
+    }
+
+    fn now_test_millis() -> i64 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as i64
+    }
 }

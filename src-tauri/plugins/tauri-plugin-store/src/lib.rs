@@ -1,8 +1,11 @@
 mod commands;
+mod error;
 mod graph;
 mod schema;
 mod search;
 mod spotlight;
+
+pub use error::StoreError;
 
 use commands::VectorDbState;
 use tauri::{
