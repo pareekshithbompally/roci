@@ -3,24 +3,19 @@
  *
  * Every mutation goes through a Rust `tauri-plugin-store` command running inside a
  * SQLite transaction. Reads use TanStack Query hooks → this client → invoke().
- *
- * Phase 0 skeleton — only the health probe and meta commands are wired.
- * Domain commands land in Phases 1–5.
  */
 
-import { invoke } from '@tauri-apps/api/core';
-import { parseStoreError } from './errors';
+import { call } from './internal';
 import type { StoreMeta } from './types';
-
-const PLUGIN = 'plugin:store|';
-
-async function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
-  try {
-    return await invoke<T>(`${PLUGIN}${command}`, args);
-  } catch (error: unknown) {
-    throw parseStoreError(error);
-  }
-}
+import { meetings } from './domains/meetings';
+import { recordings } from './domains/recordings';
+import { notes } from './domains/notes';
+import { todos } from './domains/todos';
+import { reminders } from './domains/reminders';
+import { settings } from './domains/settings';
+import { providers } from './domains/providers';
+import { categories } from './domains/categories';
+import { chats } from './domains/chats';
 
 export const store = {
   /** Initialize the database — must be called once before any other operation. */
@@ -37,4 +32,14 @@ export const store = {
   async getStats(): Promise<unknown> {
     return call<unknown>('get_stats');
   },
+
+  meetings,
+  recordings,
+  notes,
+  todos,
+  reminders,
+  settings,
+  providers,
+  categories,
+  chats,
 };
