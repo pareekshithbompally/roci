@@ -7,6 +7,32 @@ pub const SCHEMA_VERSION: u32 = 1;
 pub const DEFAULT_MODEL: &str = "all-MiniLM-L6-v2";
 pub const DEFAULT_DIM: u32 = 384;
 
+/// Open an in-memory test database with the `sqlite_vec` extension loaded and
+/// the schema migrated. Shared by every test module in this crate so the vec
+/// extension is only registered once (a re-registration would panic).
+#[cfg(test)]
+pub(crate) fn register_vec_extension_once() {
+    use std::sync::Once;
+    static EXT_INIT: Once = Once::new();
+
+    EXT_INIT.call_once(|| unsafe {
+        rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute(
+            sqlite_vec::sqlite3_vec_init as *const (),
+        )));
+    });
+}
+
+#[cfg(test)]
+pub(crate) fn open_migrated_test_db() -> Connection {
+    register_vec_extension_once();
+
+    let conn = Connection::open_in_memory().expect("open in-memory");
+    conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
+        .expect("set pragmas");
+    migrate(&conn).expect("migrate");
+    conn
+}
+
 /// Run all migrations up to SCHEMA_VERSION inside a single transaction.
 pub fn migrate(conn: &Connection) -> Result<(), String> {
     let current = get_schema_version(conn);
@@ -409,16 +435,9 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
 mod tests {
     use super::*;
     use rusqlite::{Connection, params};
-    use std::sync::Once;
-
-    static EXT_INIT: Once = Once::new();
 
     fn open_test_db() -> Connection {
-        EXT_INIT.call_once(|| unsafe {
-            rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute(
-                sqlite_vec::sqlite3_vec_init as *const (),
-            )));
-        });
+        super::register_vec_extension_once();
 
         let conn = Connection::open_in_memory().expect("open in-memory");
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")

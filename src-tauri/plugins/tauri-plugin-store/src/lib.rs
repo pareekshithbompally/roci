@@ -1,4 +1,6 @@
 mod commands;
+#[cfg(test)]
+mod consistency;
 mod error;
 mod graph;
 mod schema;

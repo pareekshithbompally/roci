@@ -683,16 +683,7 @@ pub async fn meetings_list(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-#[tauri::command]
-pub async fn meetings_get(
-    state: State<'_, StoreState>,
-    id: String,
-) -> Result<MeetingDetail, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
+fn meetings_get_impl(db: &Connection, id: &str) -> Result<MeetingDetail, StoreError> {
         let meeting: (String, String, Option<String>, bool, Option<String>, Option<String>, i64, i64) = db
             .query_row(
                 "SELECT id, title, input_source, pending_transcription,
@@ -706,7 +697,7 @@ pub async fn meetings_get(
             )
             .map_err(|_| StoreError::from("Meeting not found"))?;
 
-        let categories = get_meeting_categories(db, &id)?;
+        let categories = get_meeting_categories(db, id)?;
 
         let transcript: Option<TranscriptRow> = db.query_row(
             "SELECT text, language, model, segments, created_at FROM transcripts WHERE meeting_id = ?1",
@@ -796,20 +787,24 @@ pub async fn meetings_get(
             notes,
             todos,
         })
+}
+
+#[tauri::command]
+pub async fn meetings_get(
+    state: State<'_, StoreState>,
+    id: String,
+) -> Result<MeetingDetail, StoreError> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
+        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+        meetings_get_impl(db, &id)
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-#[tauri::command]
-pub async fn meetings_upsert(
-    state: State<'_, StoreState>,
-    input: MeetingUpsertInput,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+fn meetings_upsert_impl(db: &Connection, input: &MeetingUpsertInput) -> Result<(), StoreError> {
         let now = now_millis();
 
         let tx = db.unchecked_transaction()?;
@@ -855,21 +850,24 @@ pub async fn meetings_upsert(
 
         tx.commit()?;
         Ok(())
+}
+
+#[tauri::command]
+pub async fn meetings_upsert(
+    state: State<'_, StoreState>,
+    input: MeetingUpsertInput,
+) -> Result<(), StoreError> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
+        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+        meetings_upsert_impl(db, &input)
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-#[tauri::command]
-pub async fn meetings_delete(
-    state: State<'_, StoreState>,
-    id: String,
-) -> Result<MeetingsDeleteResult, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
+fn meetings_delete_impl(db: &Connection, id: &str) -> Result<MeetingsDeleteResult, StoreError> {
         // Collect recording filenames BEFORE cascade deletes them
         let mut stmt = db.prepare("SELECT filename FROM recordings WHERE meeting_id = ?1")?;
         let filenames: Vec<String> = stmt
@@ -904,20 +902,24 @@ pub async fn meetings_delete(
 
         log::info!("[store] Deleted meeting {} ({} recordings, {} chunks)", id, filenames.len(), chunk_ids.len());
         Ok(MeetingsDeleteResult { recording_filenames: filenames })
+}
+
+#[tauri::command]
+pub async fn meetings_delete(
+    state: State<'_, StoreState>,
+    id: String,
+) -> Result<MeetingsDeleteResult, StoreError> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
+        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+        meetings_delete_impl(db, &id)
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-#[tauri::command]
-pub async fn save_transcription(
-    state: State<'_, StoreState>,
-    input: TranscriptionSaveInput,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+fn save_transcription_impl(db: &Connection, input: &TranscriptionSaveInput) -> Result<(), StoreError> {
         let now = now_millis();
         let created_at = input.created_at.unwrap_or(now);
 
@@ -1044,6 +1046,18 @@ pub async fn save_transcription(
             input.categories,
         );
         Ok(())
+}
+
+#[tauri::command]
+pub async fn save_transcription(
+    state: State<'_, StoreState>,
+    input: TranscriptionSaveInput,
+) -> Result<(), StoreError> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
+        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+        save_transcription_impl(db, &input)
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
@@ -1501,15 +1515,7 @@ pub async fn todos_list_global(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-#[tauri::command]
-pub async fn todos_upsert(
-    state: State<'_, StoreState>,
-    input: TodoUpsertInput,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+fn todos_upsert_impl(db: &Connection, input: &TodoUpsertInput) -> Result<(), StoreError> {
         let now = now_millis();
         let created_at = input.created_at.unwrap_or(now);
 
@@ -1536,7 +1542,7 @@ pub async fn todos_upsert(
                 input.owner,
                 input.due_date,
                 input.completed.unwrap_or(false) as i32,
-                input.source.unwrap_or_else(|| "user".into()),
+                input.source.clone().unwrap_or_else(|| "user".into()),
                 created_at,
             ],
         )?;
@@ -1546,9 +1552,33 @@ pub async fn todos_upsert(
 
         tx.commit()?;
         Ok(())
+}
+
+#[tauri::command]
+pub async fn todos_upsert(
+    state: State<'_, StoreState>,
+    input: TodoUpsertInput,
+) -> Result<(), StoreError> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
+        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+        todos_upsert_impl(db, &input)
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+}
+
+fn todos_set_completed_impl(db: &Connection, id: &str, completed: bool) -> Result<(), StoreError> {
+        let affected = db.execute(
+            "UPDATE todos SET completed = ?2 WHERE id = ?1",
+            rusqlite::params![id, completed as i32],
+        )?;
+        if affected == 0 {
+            return Err(StoreError::from("Todo not found"));
+        }
+        write_audit_log(db, "todo", id, "update", Some(&format!("completed={}", completed)))?;
+        Ok(())
 }
 
 #[tauri::command]
@@ -1561,19 +1591,19 @@ pub async fn todos_set_completed(
     tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        let affected = db.execute(
-            "UPDATE todos SET completed = ?2 WHERE id = ?1",
-            rusqlite::params![id, completed as i32],
-        )?;
-        if affected == 0 {
-            return Err(StoreError::from("Todo not found"));
-        }
-        write_audit_log(db, "todo", &id, "update", Some(&format!("completed={}", completed)))?;
-        Ok(())
+        todos_set_completed_impl(db, &id, completed)
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+}
+
+fn todos_delete_impl(db: &Connection, id: &str) -> Result<(), StoreError> {
+        let affected = db.execute("DELETE FROM todos WHERE id = ?1", [&id])?;
+        if affected == 0 {
+            return Err(StoreError::from("Todo not found"));
+        }
+        write_audit_log(db, "todo", id, "delete", None)?;
+        Ok(())
 }
 
 #[tauri::command]
@@ -1585,13 +1615,7 @@ pub async fn todos_delete(
     tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        let affected = db.execute("DELETE FROM todos WHERE id = ?1", [&id])?;
-        if affected == 0 {
-            return Err(StoreError::from("Todo not found"));
-        }
-        write_audit_log(db, "todo", &id, "delete", None)?;
-        Ok(())
+        todos_delete_impl(db, &id)
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
@@ -1601,17 +1625,12 @@ pub async fn todos_delete(
 // Reminders Commands (Phase 3)
 // ══════════════════════════════════════════════════════════════════
 
-#[tauri::command]
-pub async fn reminders_upsert(
-    state: State<'_, StoreState>,
-    todo_id: String,
+fn reminders_upsert_impl(
+    db: &Connection,
+    todo_id: &str,
     notification_id: i32,
     fire_at: i64,
 ) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
         let now = now_millis();
 
         let tx = db.unchecked_transaction()?;
@@ -1630,12 +1649,38 @@ pub async fn reminders_upsert(
             rusqlite::params![todo_id, notification_id, fire_at, now],
         )?;
         let op = if is_new { "create" } else { "update" };
-        write_audit_log(&tx, "reminder", &todo_id, op, None)?;
+        write_audit_log(&tx, "reminder", todo_id, op, None)?;
         tx.commit()?;
         Ok(())
+}
+
+#[tauri::command]
+pub async fn reminders_upsert(
+    state: State<'_, StoreState>,
+    todo_id: String,
+    notification_id: i32,
+    fire_at: i64,
+) -> Result<(), StoreError> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
+        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+        reminders_upsert_impl(db, &todo_id, notification_id, fire_at)
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+}
+
+fn reminders_set_status_impl(db: &Connection, todo_id: &str, status: &str) -> Result<(), StoreError> {
+        let affected = db.execute(
+            "UPDATE reminders SET status = ?2 WHERE todo_id = ?1",
+            rusqlite::params![todo_id, status],
+        )?;
+        if affected == 0 {
+            return Err(StoreError::from("Reminder not found"));
+        }
+        write_audit_log(db, "reminder", todo_id, "update", Some(&format!("status={}", status)))?;
+        Ok(())
 }
 
 #[tauri::command]
@@ -1648,30 +1693,13 @@ pub async fn reminders_set_status(
     tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        let affected = db.execute(
-            "UPDATE reminders SET status = ?2 WHERE todo_id = ?1",
-            rusqlite::params![todo_id, status],
-        )?;
-        if affected == 0 {
-            return Err(StoreError::from("Reminder not found"));
-        }
-        write_audit_log(db, "reminder", &todo_id, "update", Some(&format!("status={}", status)))?;
-        Ok(())
+        reminders_set_status_impl(db, &todo_id, &status)
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-#[tauri::command]
-pub async fn reminders_due(
-    state: State<'_, StoreState>,
-) -> Result<Vec<ReminderDueItem>, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
+fn reminders_due_impl(db: &Connection) -> Result<Vec<ReminderDueItem>, StoreError> {
         let mut stmt = db.prepare(
             "SELECT r.todo_id, t.meeting_id, t.text, m.title, r.fire_at, r.notification_id
              FROM reminders r
@@ -1695,6 +1723,17 @@ pub async fn reminders_due(
             .filter_map(|r| r.ok())
             .collect();
         Ok(items)
+}
+
+#[tauri::command]
+pub async fn reminders_due(
+    state: State<'_, StoreState>,
+) -> Result<Vec<ReminderDueItem>, StoreError> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
+        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+        reminders_due_impl(db)
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
@@ -1957,7 +1996,13 @@ pub async fn chats_get(
     tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+        chats_get_impl(db, &id)
+    })
+    .await
+    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+}
 
+fn chats_get_impl(db: &Connection, id: &str) -> Result<ChatSessionResult, StoreError> {
         let chat: (String, String, Option<String>, i64) = db
             .query_row(
                 "SELECT id, title, meeting_id, last_message_at FROM chats WHERE id = ?1",
@@ -1996,9 +2041,6 @@ pub async fn chats_get(
             last_message_at: chat.3,
             messages,
         })
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
 #[tauri::command]
@@ -2010,6 +2052,13 @@ pub async fn chats_upsert(
     tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+        chats_upsert_impl(db, &input)
+    })
+    .await
+    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+}
+
+fn chats_upsert_impl(db: &Connection, input: &ChatsUpsertInput) -> Result<(), StoreError> {
         let now = now_millis();
 
         let tx = db.unchecked_transaction()?;
@@ -2061,9 +2110,6 @@ pub async fn chats_upsert(
 
         tx.commit()?;
         Ok(())
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
 #[tauri::command]
@@ -2816,14 +2862,7 @@ pub async fn get_usage_summary(
 #[tauri::command]
 /// Record a chat's RAG staleness in chat_index_state. Does NOT touch the canonical
 /// `chats` table — that row is owned solely by `chats_upsert`. Mirrors `upsert_meeting_index`.
-pub async fn mark_chat_indexed(
-    state: State<'_, StoreState>,
-    session: ChatSessionMeta,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+fn mark_chat_indexed_impl(db: &Connection, session: &ChatSessionMeta) -> Result<(), StoreError> {
         let now = now_millis();
         db.execute(
             "INSERT INTO chat_index_state (chat_id, content_hash, indexed_at)
@@ -2834,6 +2873,18 @@ pub async fn mark_chat_indexed(
             rusqlite::params![session.id, session.content_hash, now],
         )?;
         Ok(())
+}
+
+#[tauri::command]
+pub async fn mark_chat_indexed(
+    state: State<'_, StoreState>,
+    session: ChatSessionMeta,
+) -> Result<(), StoreError> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
+        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+        mark_chat_indexed_impl(db, &session)
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
@@ -3106,4 +3157,482 @@ pub async fn spotlight_search(
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Command-logic integration tests
+//
+// These exercise the `_impl` cores against an in-memory DB (the same
+// migrated schema the app uses). They guard the mutation flows that
+// `State<'_, StoreState>` makes impossible to test at the command layer.
+// ══════════════════════════════════════════════════════════════════
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::schema;
+
+    fn db() -> Connection {
+        schema::open_migrated_test_db()
+    }
+
+    fn seed_meeting(conn: &Connection, id: &str) {
+        meetings_upsert_impl(
+            conn,
+            &MeetingUpsertInput {
+                id: id.to_string(),
+                title: "Seed".into(),
+                input_source: None,
+                pending_transcription: None,
+                calendar_event_id: None,
+                calendar_meta: None,
+                categories: None,
+                created_at: None,
+            },
+        )
+        .expect("seed meeting");
+    }
+
+    fn seed_todo(conn: &Connection, todo_id: &str, meeting_id: &str) {
+        todos_upsert_impl(
+            conn,
+            &TodoUpsertInput {
+                id: todo_id.to_string(),
+                meeting_id: meeting_id.to_string(),
+                text: "Do the thing".into(),
+                owner: None,
+                due_date: None,
+                completed: None,
+                source: None,
+                created_at: None,
+            },
+        )
+        .expect("seed todo");
+    }
+
+    fn audit_ops(conn: &Connection, entity_type: &str, entity_id: &str) -> Vec<String> {
+        let mut stmt = conn
+            .prepare(
+                "SELECT operation FROM audit_log
+                 WHERE entity_type = ?1 AND entity_id = ?2
+                 ORDER BY created_at, id",
+            )
+            .unwrap();
+        stmt.query_map(rusqlite::params![entity_type, entity_id], |r| r.get::<_, String>(0))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect()
+    }
+
+    fn count(conn: &Connection, sql: &str, id: &str) -> i64 {
+        conn.query_row(sql, [id], |r| r.get(0)).unwrap()
+    }
+
+    // ── Reminders regression (historical bug #1) ──────────────────────
+    //
+    // `reminders_upsert` once wrote audit_log.operation = "upsert", which the
+    // CHECK(operation IN ('create','update','delete')) rejected, silently
+    // rolling back every reminder save. This test fails if that regresses:
+    // it asserts a scheduled reminder row AND a VALID create/update audit op.
+
+    #[test]
+    fn reminders_upsert_writes_valid_audit_op_and_persists() {
+        let conn = db();
+        seed_meeting(&conn, "m1");
+        seed_todo(&conn, "t1", "m1");
+
+        // First call → create.
+        reminders_upsert_impl(&conn, "t1", 42, 1_000).expect("first upsert ok");
+
+        let status: String = conn
+            .query_row("SELECT status FROM reminders WHERE todo_id = 't1'", [], |r| r.get(0))
+            .expect("reminder row exists");
+        assert_eq!(status, "scheduled");
+        assert_eq!(audit_ops(&conn, "reminder", "t1"), vec!["create"]);
+
+        // Second call for the same todo → update path, no duplicate row.
+        reminders_upsert_impl(&conn, "t1", 99, 2_000).expect("second upsert ok");
+
+        let rows: i64 = conn
+            .query_row("SELECT COUNT(*) FROM reminders WHERE todo_id = 't1'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(rows, 1, "reminder must be updated in place, not duplicated");
+
+        let (notif, fire_at): (i32, i64) = conn
+            .query_row(
+                "SELECT notification_id, fire_at FROM reminders WHERE todo_id = 't1'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(notif, 99, "updated notification_id");
+        assert_eq!(fire_at, 2_000, "updated fire_at");
+
+        assert_eq!(
+            audit_ops(&conn, "reminder", "t1"),
+            vec!["create", "update"],
+            "second audit op must be a valid 'update'"
+        );
+    }
+
+    #[test]
+    fn reminders_set_status_updates_and_audits() {
+        let conn = db();
+        seed_meeting(&conn, "m1");
+        seed_todo(&conn, "t1", "m1");
+        reminders_upsert_impl(&conn, "t1", 1, 100).unwrap();
+
+        reminders_set_status_impl(&conn, "t1", "fired").expect("set status ok");
+        let status: String = conn
+            .query_row("SELECT status FROM reminders WHERE todo_id = 't1'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(status, "fired");
+
+        // Missing reminder → NotFound.
+        let err = reminders_set_status_impl(&conn, "missing", "fired").unwrap_err();
+        assert_eq!(err.message, "Reminder not found");
+    }
+
+    #[test]
+    fn reminders_due_returns_only_scheduled_ordered_by_fire_at() {
+        let conn = db();
+        seed_meeting(&conn, "m1");
+        seed_todo(&conn, "a", "m1");
+        seed_todo(&conn, "b", "m1");
+        seed_todo(&conn, "c", "m1");
+        reminders_upsert_impl(&conn, "a", 1, 300).unwrap();
+        reminders_upsert_impl(&conn, "b", 2, 100).unwrap();
+        reminders_upsert_impl(&conn, "c", 3, 200).unwrap();
+        reminders_set_status_impl(&conn, "c", "fired").unwrap();
+
+        let due = reminders_due_impl(&conn).expect("due ok");
+        let ids: Vec<String> = due.iter().map(|d| d.todo_id.clone()).collect();
+        assert_eq!(ids, vec!["b", "a"], "only scheduled, ordered by fire_at");
+    }
+
+    // ── Todos ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn todos_upsert_create_then_update_audits_correctly() {
+        let conn = db();
+        seed_meeting(&conn, "m1");
+
+        seed_todo(&conn, "t1", "m1");
+        assert_eq!(audit_ops(&conn, "todo", "t1"), vec!["create"]);
+
+        // Update path.
+        todos_upsert_impl(
+            &conn,
+            &TodoUpsertInput {
+                id: "t1".into(),
+                meeting_id: "m1".into(),
+                text: "Changed".into(),
+                owner: Some("alice".into()),
+                due_date: None,
+                completed: None,
+                source: None,
+                created_at: None,
+            },
+        )
+        .unwrap();
+        assert_eq!(audit_ops(&conn, "todo", "t1"), vec!["create", "update"]);
+
+        let text: String = conn
+            .query_row("SELECT text FROM todos WHERE id = 't1'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(text, "Changed");
+    }
+
+    #[test]
+    fn todos_set_completed_and_delete() {
+        let conn = db();
+        seed_meeting(&conn, "m1");
+        seed_todo(&conn, "t1", "m1");
+
+        todos_set_completed_impl(&conn, "t1", true).unwrap();
+        let done: i32 = conn
+            .query_row("SELECT completed FROM todos WHERE id = 't1'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(done, 1);
+
+        todos_delete_impl(&conn, "t1").unwrap();
+        assert_eq!(count(&conn, "SELECT COUNT(*) FROM todos WHERE id = ?1", "t1"), 0);
+
+        // Both report NotFound on a missing id.
+        assert_eq!(
+            todos_set_completed_impl(&conn, "t1", true).unwrap_err().message,
+            "Todo not found"
+        );
+        assert_eq!(todos_delete_impl(&conn, "t1").unwrap_err().message, "Todo not found");
+    }
+
+    // ── Meetings ──────────────────────────────────────────────────────
+
+    #[test]
+    fn meetings_upsert_get_roundtrip_with_categories() {
+        let conn = db();
+        meetings_upsert_impl(
+            &conn,
+            &MeetingUpsertInput {
+                id: "m1".into(),
+                title: "Standup".into(),
+                input_source: Some("mic".into()),
+                pending_transcription: Some(true),
+                calendar_event_id: None,
+                calendar_meta: None,
+                categories: Some(vec!["work".into(), "team".into()]),
+                created_at: Some(1234),
+            },
+        )
+        .unwrap();
+
+        let detail = meetings_get_impl(&conn, "m1").expect("get ok");
+        assert_eq!(detail.title, "Standup");
+        assert_eq!(detail.pending_transcription, true);
+        assert_eq!(detail.created_at, 1234);
+        assert_eq!(detail.categories, vec!["team".to_string(), "work".to_string()]);
+
+        // Missing meeting → error.
+        assert_eq!(meetings_get_impl(&conn, "nope").unwrap_err().message, "Meeting not found");
+    }
+
+    // ── save_transcription atomicity ─────────────────────────────────
+
+    fn transcription_input(meeting_id: &str) -> TranscriptionSaveInput {
+        TranscriptionSaveInput {
+            meeting_id: meeting_id.to_string(),
+            title: "Recorded call".into(),
+            transcript: "hello world".into(),
+            transcript_language: Some("en".into()),
+            transcript_model: Some("whisper-1".into()),
+            transcript_segments: None,
+            summary_overview: "An overview".into(),
+            summary_data: "{}".into(),
+            categories: Some(vec!["sales".into()]),
+            recording_filename: Some("rec.wav".into()),
+            recording_duration: Some(12.5),
+            recording_input_source: Some("mix".into()),
+            input_source: Some("mix".into()),
+            calendar_meta: None,
+            action_items: Some(vec![
+                ActionItemInput { text: "Follow up".into(), owner: Some("bob".into()), due_date: None },
+                ActionItemInput { text: "Send notes".into(), owner: None, due_date: Some("2026-01-01".into()) },
+            ]),
+            created_at: Some(5000),
+        }
+    }
+
+    #[test]
+    fn save_transcription_persists_all_children() {
+        let conn = db();
+        save_transcription_impl(&conn, &transcription_input("m1")).expect("save ok");
+
+        assert_eq!(count(&conn, "SELECT COUNT(*) FROM meetings WHERE id = ?1", "m1"), 1);
+        assert_eq!(count(&conn, "SELECT COUNT(*) FROM transcripts WHERE meeting_id = ?1", "m1"), 1);
+        assert_eq!(count(&conn, "SELECT COUNT(*) FROM summaries WHERE meeting_id = ?1", "m1"), 1);
+        assert_eq!(
+            count(&conn, "SELECT COUNT(*) FROM todos WHERE meeting_id = ?1", "m1"),
+            2,
+            "both action items become todos"
+        );
+        let ai_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM todos WHERE meeting_id = 'm1' AND source = 'ai'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(ai_count, 2);
+
+        let cat_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM meeting_categories WHERE meeting_id = 'm1'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(cat_count, 1, "category linked");
+        assert_eq!(count(&conn, "SELECT COUNT(*) FROM recordings WHERE meeting_id = ?1", "m1"), 1);
+    }
+
+    #[test]
+    fn save_transcription_rolls_back_fully_on_failure() {
+        let conn = db();
+
+        // Force a deterministic failure at the summary insert stage (step 4),
+        // AFTER the meeting + transcript writes. A BEFORE INSERT trigger that
+        // RAISE(ABORT) makes the whole transaction roll back, so NOTHING for
+        // this meeting may persist.
+        conn.execute_batch(
+            "CREATE TRIGGER fail_on_summary BEFORE INSERT ON summaries BEGIN
+                 SELECT RAISE(ABORT, 'forced failure');
+             END;",
+        )
+        .unwrap();
+
+        let err = save_transcription_impl(&conn, &transcription_input("m1")).unwrap_err();
+        assert!(err.message.contains("forced failure"), "got: {}", err.message);
+
+        // Full rollback: nothing for m1 persisted.
+        assert_eq!(count(&conn, "SELECT COUNT(*) FROM meetings WHERE id = ?1", "m1"), 0);
+        assert_eq!(count(&conn, "SELECT COUNT(*) FROM transcripts WHERE meeting_id = ?1", "m1"), 0);
+        assert_eq!(count(&conn, "SELECT COUNT(*) FROM summaries WHERE meeting_id = ?1", "m1"), 0);
+        assert_eq!(count(&conn, "SELECT COUNT(*) FROM todos WHERE meeting_id = ?1", "m1"), 0);
+        assert_eq!(count(&conn, "SELECT COUNT(*) FROM recordings WHERE meeting_id = ?1", "m1"), 0);
+    }
+
+    // ── meetings_delete cascade ───────────────────────────────────────
+
+    #[test]
+    fn meetings_delete_cascades_children_keeps_chat() {
+        let conn = db();
+        save_transcription_impl(&conn, &transcription_input("m1")).unwrap();
+
+        // Add a note, a chunk + index_state, and a chat linked to the meeting.
+        seed_note(&conn, "n1", "m1");
+        conn.execute(
+            "INSERT INTO chunks (meeting_id, chunk_index, chunk_text) VALUES ('m1', 0, 'chunk text')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO meeting_index_state (meeting_id, content_hash, indexed_at) VALUES ('m1', 'h', 1)",
+            [],
+        )
+        .unwrap();
+        chats_upsert_impl(
+            &conn,
+            &ChatsUpsertInput {
+                id: "c1".into(),
+                title: "Linked chat".into(),
+                meeting_id: Some("m1".into()),
+                last_message_at: 10,
+                messages: vec![],
+                created_at: None,
+            },
+        )
+        .unwrap();
+
+        let result = meetings_delete_impl(&conn, "m1").expect("delete ok");
+        assert_eq!(result.recording_filenames, vec!["rec.wav".to_string()]);
+
+        for (table, col) in [
+            ("transcripts", "meeting_id"),
+            ("summaries", "meeting_id"),
+            ("notes", "meeting_id"),
+            ("todos", "meeting_id"),
+            ("recordings", "meeting_id"),
+            ("chunks", "meeting_id"),
+            ("meeting_index_state", "meeting_id"),
+            ("meeting_categories", "meeting_id"),
+        ] {
+            let n: i64 = conn
+                .query_row(&format!("SELECT COUNT(*) FROM {} WHERE {} = 'm1'", table, col), [], |r| r.get(0))
+                .unwrap();
+            assert_eq!(n, 0, "{} should be empty after cascade", table);
+        }
+        assert_eq!(count(&conn, "SELECT COUNT(*) FROM meetings WHERE id = ?1", "m1"), 0);
+
+        // Chat survives with meeting_id set NULL (ON DELETE SET NULL).
+        let (chat_exists, mid): (i64, Option<String>) = conn
+            .query_row(
+                "SELECT COUNT(*), MAX(meeting_id) FROM chats WHERE id = 'c1'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(chat_exists, 1, "chat must survive");
+        assert!(mid.is_none(), "chat.meeting_id must be NULL");
+    }
+
+    fn seed_note(conn: &Connection, id: &str, meeting_id: &str) {
+        let now = now_millis();
+        conn.execute(
+            "INSERT INTO notes (id, meeting_id, text, created_at, updated_at) VALUES (?1, ?2, 'note', ?3, ?3)",
+            rusqlite::params![id, meeting_id, now],
+        )
+        .unwrap();
+    }
+
+    // ── Chats round-trip ──────────────────────────────────────────────
+
+    #[test]
+    fn chats_upsert_get_roundtrip_preserves_order_and_data() {
+        let conn = db();
+        let input = ChatsUpsertInput {
+            id: "c1".into(),
+            title: "My chat".into(),
+            meeting_id: None,
+            last_message_at: 999,
+            messages: vec![
+                ChatMessageInput {
+                    id: "msg-a".into(),
+                    role: "user".into(),
+                    text: "first".into(),
+                    provider: Some("openai".into()),
+                    model: Some("gpt".into()),
+                    data: Some("{\"k\":1}".into()),
+                    created_at: 1,
+                },
+                ChatMessageInput {
+                    id: "msg-b".into(),
+                    role: "model".into(),
+                    text: "second".into(),
+                    provider: None,
+                    model: None,
+                    data: None,
+                    created_at: 2,
+                },
+            ],
+            created_at: Some(100),
+        };
+        chats_upsert_impl(&conn, &input).expect("upsert ok");
+
+        let got = chats_get_impl(&conn, "c1").expect("get ok");
+        assert_eq!(got.title, "My chat");
+        assert_eq!(got.last_message_at, 999);
+        assert_eq!(got.messages.len(), 2);
+
+        assert_eq!(got.messages[0].seq, 0);
+        assert_eq!(got.messages[0].id, "msg-a");
+        assert_eq!(got.messages[0].text, "first");
+        assert_eq!(got.messages[0].data.as_deref(), Some("{\"k\":1}"));
+
+        assert_eq!(got.messages[1].seq, 1);
+        assert_eq!(got.messages[1].id, "msg-b");
+        assert_eq!(got.messages[1].role, "model");
+        assert!(got.messages[1].data.is_none());
+    }
+
+    // ── mark_chat_indexed isolation (dual-write guard) ────────────────
+
+    #[test]
+    fn mark_chat_indexed_does_not_touch_chat_title() {
+        let conn = db();
+        chats_upsert_impl(
+            &conn,
+            &ChatsUpsertInput {
+                id: "c1".into(),
+                title: "Original".into(),
+                meeting_id: None,
+                last_message_at: 5,
+                messages: vec![],
+                created_at: None,
+            },
+        )
+        .unwrap();
+
+        mark_chat_indexed_impl(
+            &conn,
+            &ChatSessionMeta {
+                id: "c1".into(),
+                title: "SHOULD NOT BE WRITTEN".into(),
+                last_message_at: 5,
+                message_count: 0,
+                content_hash: Some("hash-123".into()),
+            },
+        )
+        .expect("mark ok");
+
+        let title: String = conn
+            .query_row("SELECT title FROM chats WHERE id = 'c1'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(title, "Original", "title must be untouched");
+
+        let hash: String = conn
+            .query_row("SELECT content_hash FROM chat_index_state WHERE chat_id = 'c1'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(hash, "hash-123", "index state holds the content hash");
+    }
 }
