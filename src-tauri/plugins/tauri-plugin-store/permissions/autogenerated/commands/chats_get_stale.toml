@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-chats-get-stale"
+description = "Enables the chats_get_stale command without any pre-configured scope."
+commands.allow = ["chats_get_stale"]
+
+[[permission]]
+identifier = "deny-chats-get-stale"
+description = "Denies the chats_get_stale command without any pre-configured scope."
+commands.deny = ["chats_get_stale"]

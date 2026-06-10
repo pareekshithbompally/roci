@@ -10,7 +10,7 @@ import { invoke } from '@tauri-apps/api/core';
 export interface MeetingMeta {
   id: string;
   title: string;
-  timestamp: number;
+  created_at: number;
   summary: string | null;
   categories: string | null;
   content_hash?: string;
@@ -39,7 +39,7 @@ export interface SearchHit {
   chunk_text: string;
   chunk_type: string;
   score: number;
-  timestamp: number;
+  created_at: number;
 }
 
 export interface MeetingHash {
@@ -131,7 +131,7 @@ export const vectorDB = {
 
   async upsertMeeting(meeting: MeetingMeta): Promise<void> {
     await ensureInitialized();
-    await invoke('plugin:store|upsert_meeting', { meeting });
+    await invoke('plugin:store|upsert_meeting_index', { meeting });
   },
 
   async upsertChunks(meetingId: string, chunks: ChunkData[]): Promise<void> {
@@ -139,14 +139,9 @@ export const vectorDB = {
     await invoke('plugin:store|upsert_chunks', { meetingId, chunks });
   },
 
-  async deleteMeeting(meetingId: string): Promise<void> {
-    await ensureInitialized();
-    await invoke('plugin:store|delete_meeting', { meetingId });
-  },
-
   async search(params: SearchParams): Promise<SearchHit[]> {
     await ensureInitialized();
-    return invoke('plugin:store|search', { params });
+    return invoke('plugin:store|meetings_search', { params });
   },
 
   async getStaleMeetings(meetings: MeetingHash[]): Promise<string[]> {
@@ -194,9 +189,10 @@ export const vectorDB = {
     await invoke('plugin:store|rebuild');
   },
 
-  async upsertChatSession(session: ChatSessionMeta): Promise<void> {
+  /** Record chat RAG staleness only. The canonical `chats` row is owned by chats_upsert. */
+  async markChatIndexed(session: ChatSessionMeta): Promise<void> {
     await ensureInitialized();
-    await invoke('plugin:store|upsert_chat_session', { session });
+    await invoke('plugin:store|mark_chat_indexed', { session });
   },
 
   async upsertChatChunks(sessionId: string, chunks: ChatChunkData[]): Promise<void> {
@@ -211,12 +207,12 @@ export const vectorDB = {
 
   async isChatSessionStale(sessionId: string, contentHash: string): Promise<boolean> {
     await ensureInitialized();
-    return invoke('plugin:store|is_chat_session_stale', { sessionId, contentHash });
+    return invoke('plugin:store|chat_is_stale', { sessionId, contentHash });
   },
 
   async getStaleChatSessions(sessions: MeetingHash[]): Promise<string[]> {
     await ensureInitialized();
-    return invoke('plugin:store|get_stale_chat_sessions', { sessions });
+    return invoke('plugin:store|chats_get_stale', { sessions });
   },
 
   async getChatsNeedingEmbeddings(sessionIds: string[]): Promise<string[]> {
@@ -246,7 +242,7 @@ export const vectorDB = {
 
   async searchChats(params: ChatSearchParams): Promise<ChatSearchHit[]> {
     await ensureInitialized();
-    return invoke('plugin:store|search_chats', { params });
+    return invoke('plugin:store|chats_search', { params });
   },
 
   async spotlightSearch(params: SpotlightParams): Promise<SpotlightHit[]> {
