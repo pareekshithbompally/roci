@@ -3212,9 +3212,12 @@ mod tests {
     fn audit_ops(conn: &Connection, entity_type: &str, entity_id: &str) -> Vec<String> {
         let mut stmt = conn
             .prepare(
+                // Order by implicit rowid = true insertion order. created_at can tie on the same
+                // millisecond (create+update within one test), and the UUID `id` tiebreak is
+                // random — ordering by rowid keeps the asserted op sequence deterministic.
                 "SELECT operation FROM audit_log
                  WHERE entity_type = ?1 AND entity_id = ?2
-                 ORDER BY created_at, id",
+                 ORDER BY rowid",
             )
             .unwrap();
         stmt.query_map(rusqlite::params![entity_type, entity_id], |r| r.get::<_, String>(0))
