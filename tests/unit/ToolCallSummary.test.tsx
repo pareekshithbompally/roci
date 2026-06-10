@@ -84,7 +84,7 @@ describe('ToolCallSummary', () => {
   });
 
   it('should show error state', () => {
-    const errorCalls = [
+    const errorCalls: Extract<ChatPart, { type: 'tool_call' }>[] = [
       {
         type: 'tool_call',
         toolCallId: 'call-error',

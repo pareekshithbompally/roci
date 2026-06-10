@@ -64,8 +64,11 @@ export const CalendarWeek: React.FC<CalendarWeekProps> = ({
         const eventEl = target.closest('.sx__time-grid-event') as HTMLElement | null;
         onEventClick(event, eventEl?.getBoundingClientRect() ?? null);
       },
-      onRangeUpdate(range: { start: string; end: string }) {
-        onRangeUpdate?.(range);
+      onRangeUpdate(range: { start: Temporal.ZonedDateTime; end: Temporal.ZonedDateTime }) {
+        onRangeUpdate?.({
+          start: range.start.toInstant().toString(),
+          end: range.end.toInstant().toString(),
+        });
       },
     },
   }, [controlsPlugin]);
@@ -98,7 +101,14 @@ export const CalendarWeek: React.FC<CalendarWeekProps> = ({
         controlsPlugin.setDate(Temporal.PlainDate.from(isoDate));
       },
       getDate: () => controlsPlugin.getDate().toString(),
-      getRange: () => controlsPlugin.getRange(),
+      getRange: () => {
+        const range = controlsPlugin.getRange();
+        if (!range) return null;
+        return {
+          start: range.start.toInstant().toString(),
+          end: range.end.toInstant().toString(),
+        };
+      },
     });
   }, [controlsPlugin, onControlsReady]);
 

@@ -17,9 +17,11 @@
  *     { type: 'error', id?, message }         — error (id present = per-request)
  */
 
+import type { DataType } from '@huggingface/transformers';
+
 let pipelineInstance: any = null;
 
-async function loadPipeline(model: string, dtype: string) {
+async function loadPipeline(model: string, dtype: DataType) {
   if (pipelineInstance) return pipelineInstance;
 
   const { pipeline } = await import('@huggingface/transformers');

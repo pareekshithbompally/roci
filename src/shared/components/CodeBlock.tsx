@@ -120,7 +120,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, inlin
     if (typeof node === 'string') return node;
     if (typeof node === 'number') return String(node);
     if (Array.isArray(node)) return node.map(getTextContent).join('');
-    if (React.isValidElement(node) && node.props.children) {
+    if (React.isValidElement<{ children?: React.ReactNode }>(node) && node.props.children) {
       return getTextContent(node.props.children);
     }
     return '';

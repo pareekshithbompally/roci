@@ -2,7 +2,7 @@ import * as SwitchPrimitive from '@radix-ui/react-switch';
 import { forwardRef, type ComponentPropsWithoutRef, type ElementRef } from 'react';
 import { cn } from './utils';
 
-interface SwitchProps extends ComponentPropsWithoutRef<typeof SwitchPrimitive.Root> {
+interface SwitchProps extends Omit<ComponentPropsWithoutRef<typeof SwitchPrimitive.Root>, 'onChange'> {
   size?: 'sm' | 'md';
   /** Legacy prop — prefer onCheckedChange */
   onChange?: (checked: boolean) => void;

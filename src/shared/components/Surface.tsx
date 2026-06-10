@@ -14,7 +14,7 @@ type BorderVariant = keyof typeof BORDER;
 interface SurfaceProps extends React.HTMLAttributes<HTMLDivElement> {
   variant: SurfaceVariant;
   border?: BorderVariant;
-  as?: keyof JSX.IntrinsicElements;
+  as?: keyof React.JSX.IntrinsicElements;
   children: React.ReactNode;
 }
 

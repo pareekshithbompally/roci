@@ -177,7 +177,7 @@ const App: React.FC = () => {
 
   // Check for app updates after startup settles
   useEffect(() => {
-    return scheduleStartupCheck(appUpdate.checkForUpdate);
+    return scheduleStartupCheck(async () => { await appUpdate.checkForUpdate(); });
   }, [appUpdate.checkForUpdate]);
 
   const initializeTauriServices = async () => {
@@ -369,7 +369,7 @@ const App: React.FC = () => {
       <SearchOverlay open={isSearchOpen} onOpenChange={setIsSearchOpen} />
 
       {/* App Update Banner */}
-      {appUpdate.status === 'available' && appUpdate.updateInfo && (
+      {(appUpdate.status === 'available' || appUpdate.status === 'downloading') && appUpdate.updateInfo && (
         <UpdateBanner
           version={appUpdate.updateInfo.version}
           releaseNotes={appUpdate.updateInfo.body}

@@ -7,9 +7,9 @@ describe('truncateForLLM', () => {
   });
 
   it('returns falsy input as-is', () => {
-    // @ts-expect-error testing null/undefined edge
+    // testing null/undefined edge
     expect(truncateForLLM(null, 100)).toBeNull();
-    // @ts-expect-error testing undefined edge
+    // testing undefined edge
     expect(truncateForLLM(undefined, 100)).toBeUndefined();
   });
 
