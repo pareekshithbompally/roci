@@ -23,7 +23,7 @@ pub struct SearchHit {
     pub chunk_text: String,
     pub chunk_type: String,
     pub score: f64,
-    pub timestamp: i64,
+    pub created_at: i64,
 }
 
 /// RRF constant (k=60 is standard)
@@ -88,9 +88,10 @@ pub fn hybrid_search(
             .query_map(
                 rusqlite::params![embedding_bytes, vec_fetch as i64],
                 |row| {
-                    let chunk_id: i64 = row.get(0)?;
-                    let distance: f64 = row.get(1)?;
-                    Ok((chunk_id, distance))
+            let chunk_id: i64 = row.get(0)?;
+                let distance: f64 = row.get(1)?;
+                Ok((chunk_id, distance))
+            
                 },
             )
             .map_err(|e| format!("vec search query: {}", e))?;
@@ -228,7 +229,7 @@ pub fn hybrid_search(
                 break;
             }
             let result = conn.query_row(
-                "SELECT c.meeting_id, c.chunk_text, c.chunk_type, m.title, m.timestamp
+                "SELECT c.meeting_id, c.chunk_text, c.chunk_type, m.title, m.created_at
                  FROM chunks c
                  JOIN meetings m ON m.id = c.meeting_id
                  WHERE c.id = ?1",
@@ -239,7 +240,7 @@ pub fn hybrid_search(
                         chunk_text: row.get(1)?,
                         chunk_type: row.get(2)?,
                         meeting_title: row.get(3)?,
-                        timestamp: row.get(4)?,
+                        created_at: row.get(4)?,
                         score,
                     })
                 },
@@ -255,7 +256,7 @@ pub fn hybrid_search(
 
         for (chunk_id, score) in scored {
             let result = conn.query_row(
-                "SELECT c.meeting_id, c.chunk_text, c.chunk_type, m.title, m.timestamp
+                "SELECT c.meeting_id, c.chunk_text, c.chunk_type, m.title, m.created_at
                  FROM chunks c
                  JOIN meetings m ON m.id = c.meeting_id
                  WHERE c.id = ?1",
@@ -266,7 +267,7 @@ pub fn hybrid_search(
                         chunk_text: row.get(1)?,
                         chunk_type: row.get(2)?,
                         meeting_title: row.get(3)?,
-                        timestamp: row.get(4)?,
+                        created_at: row.get(4)?,
                         score,
                     })
                 },
@@ -402,17 +403,17 @@ pub fn chat_hybrid_search(
 
     for (chunk_id, score) in scored {
         let result = conn.query_row(
-            "SELECT c.session_id, c.chunk_text, c.chunk_type, cs.title, cs.last_message_at
+            "SELECT c.chat_id, c.chunk_text, c.chunk_type, cs.title, cs.last_message_at
              FROM chat_chunks c
-             JOIN chat_sessions cs ON cs.id = c.session_id
+             JOIN chats cs ON cs.id = c.chat_id
              WHERE c.id = ?1",
             [chunk_id],
             |row| {
                 Ok(crate::commands::ChatSearchHit {
-                    session_id: row.get(0)?,
+                    chat_id: row.get(0)?,
                     chunk_text: row.get(1)?,
                     chunk_type: row.get(2)?,
-                    session_title: row.get(3)?,
+                    chat_title: row.get(3)?,
                     last_message_at: row.get(4)?,
                     score,
                 })
@@ -421,7 +422,7 @@ pub fn chat_hybrid_search(
 
         if let Ok(hit) = result {
             seen_sessions
-                .entry(hit.session_id.clone())
+                .entry(hit.chat_id.clone())
                 .and_modify(|existing| {
                     if hit.score > existing.score {
                         *existing = hit.clone();

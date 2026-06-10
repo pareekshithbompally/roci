@@ -70,8 +70,8 @@ export interface ChatSearchParams {
 }
 
 export interface ChatSearchHit {
-  session_id: string;
-  session_title: string;
+  chat_id: string;
+  chat_title: string;
   chunk_text: string;
   chunk_type: string;
   score: number;

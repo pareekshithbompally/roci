@@ -47,8 +47,8 @@ async function searchChats(
     });
 
     return hits.map(hit => ({
-      sessionId: hit.session_id,
-      sessionTitle: hit.session_title,
+      sessionId: hit.chat_id,
+      sessionTitle: hit.chat_title,
       chunkText: hit.chunk_text,
       chunkType: hit.chunk_type,
       score: hit.score,

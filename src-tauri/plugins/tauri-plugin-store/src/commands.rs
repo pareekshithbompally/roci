@@ -326,8 +326,8 @@ pub struct ChatChunkData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatSearchHit {
-    pub session_id: String,
-    pub session_title: String,
+    pub chat_id: String,
+    pub chat_title: String,
     pub chunk_text: String,
     pub chunk_type: String,
     pub score: f64,
@@ -822,8 +822,8 @@ fn meetings_upsert_impl(db: &Connection, input: &MeetingUpsertInput) -> Result<(
                 title = excluded.title,
                 input_source = excluded.input_source,
                 pending_transcription = excluded.pending_transcription,
-                calendar_event_id = excluded.calendar_event_id,
-                calendar_meta = excluded.calendar_meta,
+                calendar_event_id = COALESCE(excluded.calendar_event_id, meetings.calendar_event_id),
+                calendar_meta = COALESCE(excluded.calendar_meta, meetings.calendar_meta),
                 updated_at = ?8",
             rusqlite::params![
                 input.id,
@@ -940,15 +940,15 @@ fn save_transcription_impl(db: &Connection, input: &TranscriptionSaveInput) -> R
                 title = excluded.title,
                 input_source = excluded.input_source,
                 pending_transcription = excluded.pending_transcription,
-                calendar_event_id = excluded.calendar_event_id,
-                calendar_meta = excluded.calendar_meta,
+                calendar_event_id = COALESCE(excluded.calendar_event_id, meetings.calendar_event_id),
+                calendar_meta = COALESCE(excluded.calendar_meta, meetings.calendar_meta),
                 updated_at = ?8",
             rusqlite::params![
                 input.meeting_id,
                 input.title,
                 input.input_source,
                 pending,
-                None::<String>,  // calendar_event_id preserved from existing via separate logic
+                None::<String>,  // calendar_event_id: never supplied here; COALESCE above preserves any existing value
                 input.calendar_meta,
                 created_at,
                 now,
@@ -1195,7 +1195,10 @@ pub async fn recordings_delete(
         ).optional().ok().flatten();
 
         if let Some(ref rid) = recording_id {
-            db.execute("DELETE FROM recordings WHERE id = ?1", [rid])?;
+            let tx = db.unchecked_transaction()?;
+            tx.execute("DELETE FROM recordings WHERE id = ?1", [rid])?;
+            write_audit_log(&tx, "recording", rid, "delete", None)?;
+            tx.commit()?;
             log::info!("[store] Deleted recording {} ({})", filename, rid);
         }
 
@@ -1291,11 +1294,13 @@ pub async fn categories_delete(
     tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        let affected = db.execute("DELETE FROM categories WHERE id = ?1", [&id])?;
+        let tx = db.unchecked_transaction()?;
+        let affected = tx.execute("DELETE FROM categories WHERE id = ?1", [&id])?;
         if affected == 0 {
             return Err(StoreError::from("Category not found"));
         }
-        write_audit_log(db, "category", &id, "delete", None)?;
+        write_audit_log(&tx, "category", &id, "delete", None)?;
+        tx.commit()?;
         Ok(())
     })
     .await
@@ -1381,11 +1386,13 @@ pub async fn notes_delete(
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
 
-        let affected = db.execute("DELETE FROM notes WHERE id = ?1", [&id])?;
+        let tx = db.unchecked_transaction()?;
+        let affected = tx.execute("DELETE FROM notes WHERE id = ?1", [&id])?;
         if affected == 0 {
             return Err(StoreError::from("Note not found"));
         }
-        write_audit_log(db, "note", &id, "delete", None)?;
+        write_audit_log(&tx, "note", &id, "delete", None)?;
+        tx.commit()?;
         Ok(())
     })
     .await
@@ -1598,11 +1605,13 @@ pub async fn todos_set_completed(
 }
 
 fn todos_delete_impl(db: &Connection, id: &str) -> Result<(), StoreError> {
-        let affected = db.execute("DELETE FROM todos WHERE id = ?1", [&id])?;
+        let tx = db.unchecked_transaction()?;
+        let affected = tx.execute("DELETE FROM todos WHERE id = ?1", [&id])?;
         if affected == 0 {
             return Err(StoreError::from("Todo not found"));
         }
-        write_audit_log(db, "todo", id, "delete", None)?;
+        write_audit_log(&tx, "todo", id, "delete", None)?;
+        tx.commit()?;
         Ok(())
 }
 
@@ -1802,12 +1811,20 @@ pub async fn settings_set(
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
         let now = now_millis();
 
-        db.execute(
+        let tx = db.unchecked_transaction()?;
+        let is_new: bool = tx.query_row(
+            "SELECT COUNT(*) FROM settings WHERE key = ?1",
+            [&input.key],
+            |row| row.get::<_, i64>(0),
+        ).map(|c| c == 0)?;
+        tx.execute(
             "INSERT INTO settings (key, value, updated_at) VALUES (?1, ?2, ?3)
              ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
             rusqlite::params![input.key, input.value, now],
         )?;
-        write_audit_log(db, "setting", &input.key, "update", Some(&format!("value={}", input.value)))?;
+        let op = if is_new { "create" } else { "update" };
+        write_audit_log(&tx, "setting", &input.key, op, Some(&format!("value={}", input.value)))?;
+        tx.commit()?;
         Ok(())
     })
     .await
@@ -1907,9 +1924,10 @@ pub async fn providers_set_active(
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
 
+        let now = now_millis();
         let affected = db.execute(
-            "UPDATE providers SET active = ?2 WHERE provider = ?1",
-            rusqlite::params![provider, active as i32],
+            "UPDATE providers SET active = ?2, updated_at = ?3 WHERE provider = ?1",
+            rusqlite::params![provider, active as i32, now],
         )?;
         if affected == 0 {
             return Err(StoreError::from("Provider not found"));
@@ -3447,6 +3465,67 @@ mod tests {
             .unwrap();
         assert_eq!(cat_count, 1, "category linked");
         assert_eq!(count(&conn, "SELECT COUNT(*) FROM recordings WHERE meeting_id = ?1", "m1"), 1);
+    }
+
+    /// Regression: a meeting linked to a calendar event must keep that linkage through a
+    /// plain rename (meetings_upsert with no calendar fields) AND through save_transcription
+    /// (which never supplies calendar fields). Previously both wiped calendar_event_id to NULL.
+    #[test]
+    fn calendar_linkage_survives_rename_and_save_transcription() {
+        let conn = db();
+
+        // Meeting created from a calendar event.
+        meetings_upsert_impl(
+            &conn,
+            &MeetingUpsertInput {
+                id: "m1".into(),
+                title: "Standup".into(),
+                input_source: None,
+                pending_transcription: None,
+                calendar_event_id: Some("evt-123".into()),
+                calendar_meta: Some(r#"{"scheduledTitle":"Standup"}"#.into()),
+                categories: None,
+                created_at: None,
+            },
+        )
+        .expect("create with calendar linkage");
+
+        // Plain rename — no calendar fields supplied.
+        meetings_upsert_impl(
+            &conn,
+            &MeetingUpsertInput {
+                id: "m1".into(),
+                title: "Renamed".into(),
+                input_source: None,
+                pending_transcription: None,
+                calendar_event_id: None,
+                calendar_meta: None,
+                categories: None,
+                created_at: None,
+            },
+        )
+        .expect("rename");
+
+        let (evt, meta): (Option<String>, Option<String>) = conn
+            .query_row(
+                "SELECT calendar_event_id, calendar_meta FROM meetings WHERE id = 'm1'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(evt.as_deref(), Some("evt-123"), "rename must preserve calendar_event_id");
+        assert!(meta.is_some(), "rename must preserve calendar_meta");
+
+        // save_transcription supplies no calendar_event_id — must preserve existing linkage.
+        save_transcription_impl(&conn, &transcription_input("m1")).expect("save transcription");
+        let evt2: Option<String> = conn
+            .query_row("SELECT calendar_event_id FROM meetings WHERE id = 'm1'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(
+            evt2.as_deref(),
+            Some("evt-123"),
+            "save_transcription must preserve calendar_event_id"
+        );
     }
 
     #[test]
