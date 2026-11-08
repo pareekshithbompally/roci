@@ -20,10 +20,32 @@ import type { ModelProvider } from '@shared/types/modelProviders';
 
 const PLUGIN = 'plugin:store|';
 
+let storeInitPromise: Promise<void> | null = null;
+
+function ensureStoreInitialized(): Promise<void> {
+  if (!storeInitPromise) {
+    console.log('[store] Initializing database...');
+    storeInitPromise = invoke('plugin:store|initialize').then(
+      () => {
+        console.log('[store] Database initialized successfully');
+      },
+      (err) => {
+        console.error('[store] Database initialization FAILED:', err);
+        storeInitPromise = null;
+        throw err;
+      },
+    );
+  }
+  return storeInitPromise;
+}
+
 export async function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   try {
-    return await invoke<T>(`${PLUGIN}${command}`, args);
+    await ensureStoreInitialized();
+    const result = await invoke<T>(`${PLUGIN}${command}`, args);
+    return result;
   } catch (error: unknown) {
+    console.error(`[store] Command '${command}' failed:`, error);
     throw parseStoreError(error);
   }
 }
