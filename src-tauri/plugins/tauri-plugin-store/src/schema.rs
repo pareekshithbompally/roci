@@ -731,6 +731,48 @@ mod tests {
             params!["a2", "meeting", "m1", "create", "user", now],
         );
         assert!(err.is_err(), "audit_log.actor should reject 'user'");
+
+        // 'upsert' is NOT a valid operation — commands must map to create/update/delete.
+        // (Regression guard: reminders_upsert previously wrote 'upsert' and rolled back every save.)
+        let err = conn.execute(
+            "INSERT INTO audit_log (id, entity_type, entity_id, operation, actor, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params!["a3", "reminder", "t1", "upsert", "app", now],
+        );
+        assert!(err.is_err(), "audit_log.operation should reject 'upsert'");
+    }
+
+    /// Regression guard: recording chat RAG staleness (the mark_chat_indexed path) writes ONLY
+    /// chat_index_state and must never mutate the canonical `chats` row (title/last_message_at).
+    #[test]
+    fn chat_index_state_write_does_not_touch_chat_row() {
+        let conn = open_test_db();
+        init_db(&conn);
+        let now = now_test_millis();
+
+        conn.execute(
+            "INSERT INTO chats (id, title, created_at, last_message_at) VALUES (?1, ?2, ?3, ?4)",
+            params!["c1", "Original Title", now, now],
+        )
+        .expect("insert chat");
+
+        // Mirror exactly what mark_chat_indexed does — only chat_index_state.
+        conn.execute(
+            "INSERT INTO chat_index_state (chat_id, content_hash, indexed_at)
+             VALUES (?1, COALESCE(?2, ''), ?3)
+             ON CONFLICT(chat_id) DO UPDATE SET content_hash = ?2, indexed_at = ?3",
+            params!["c1", "hash-abc", now + 1000],
+        )
+        .expect("upsert chat_index_state");
+
+        let title: String = conn
+            .query_row("SELECT title FROM chats WHERE id = ?1", params!["c1"], |r| r.get(0))
+            .unwrap();
+        assert_eq!(title, "Original Title", "canonical chat title must be untouched by indexing");
+
+        let hash: String = conn
+            .query_row("SELECT content_hash FROM chat_index_state WHERE chat_id = ?1", params!["c1"], |r| r.get(0))
+            .unwrap();
+        assert_eq!(hash, "hash-abc", "chat_index_state should hold the content hash");
     }
 
     #[test]
