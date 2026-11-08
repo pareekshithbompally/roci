@@ -84,7 +84,7 @@ export const searchMeetingsTool: ToolDefinition = {
     for (const [, hits] of byMeeting) {
       index++;
       const first = hits[0];
-      const date = new Date(first.timestamp).toLocaleDateString('en-US', {
+      const date = new Date(first.created_at).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',

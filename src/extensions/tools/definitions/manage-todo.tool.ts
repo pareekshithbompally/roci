@@ -9,7 +9,7 @@
  */
 
 import type { ToolDefinition, ToolResult } from '../types';
-import { todosRepository } from '@services/repositories/todos.repository';
+import { store } from '@services/db';
 import {
   todoProposalStore,
   GENERAL_MEETING_ID,
@@ -125,7 +125,7 @@ export const manageTodoTool: ToolDefinition = {
       };
     }
 
-    const todos = await todosRepository.readDoc(meetingId);
+    const todos = await store.todos.listForMeeting(meetingId);
     if (!todos || todos.length === 0) {
       return {
         toolCallId: '',

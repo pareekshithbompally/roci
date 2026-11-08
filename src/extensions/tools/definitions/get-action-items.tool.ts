@@ -7,7 +7,7 @@
 
 import type { ToolDefinition, ToolResult } from '../types';
 import { meetingReferenceService } from '@services/meetingReferenceService';
-import { todosRepository } from '@services/repositories/todos.repository';
+import { store } from '@services/db';
 import { GENERAL_MEETING_ID, GENERAL_MEETING_TITLE } from '@features/chat/stores/todoProposalStore';
 import { MAX_ACTION_ITEM_MEETINGS, MAX_ACTION_ITEMS_FOR_LLM } from '../constants';
 import type { HistoryItem, ActionItem } from '@shared/types';
@@ -107,7 +107,7 @@ export const getActionItemsTool: ToolDefinition = {
     // Also load general (non-meeting) todos when scanning all
     if (!meetingId) {
       try {
-        const generalTodos = await todosRepository.readDoc(GENERAL_MEETING_ID);
+        const { items: generalTodos } = await store.todos.listGlobal(undefined, 200, 0);
         if (generalTodos && generalTodos.length > 0) {
           let filtered = generalTodos;
           if (status === 'pending') filtered = generalTodos.filter(t => !t.completed);

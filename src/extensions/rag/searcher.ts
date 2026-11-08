@@ -55,7 +55,7 @@ async function searchMeetings(
       chunkText: hit.chunk_text,
       chunkType: hit.chunk_type,
       score: hit.score,
-      timestamp: hit.timestamp,
+      timestamp: hit.created_at,
     }));
   } catch (error) {
     console.error('[RAGSearcher] Search failed:', error);

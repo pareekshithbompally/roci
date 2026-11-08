@@ -10,7 +10,6 @@ import type { HistoryItem, AppSettings, MeetingSummary } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { embeddingService, preloadModel } from './embeddings';
 import { vectorDB } from './client';
-import { graphDB } from './graph-client';
 import { entityExtractor } from './entity-extractor';
 import { chunkMeeting, computeContentHash } from './chunker';
 import { emitProgress } from './progress';
@@ -45,7 +44,7 @@ async function indexMeeting(
   const meetingMeta: MeetingMeta = {
     id: item.id,
     title: item.title,
-    timestamp: item.timestamp,
+    created_at: item.timestamp,
     summary: item.summary || null,
     categories: (item.categories || []).join(', ') || null,
   };
@@ -347,17 +346,6 @@ function toMeetingSummary(s: NonNullable<HistoryItem['structuredSummary']>): Mee
 }
 
 /**
- * Remove a meeting and all its chunks/vectors.
- */
-async function removeMeeting(meetingId: string): Promise<void> {
-  await vectorDB.deleteMeeting(meetingId);
-  await graphDB.deleteMeeting(meetingId).catch(err =>
-    console.warn(`[RAGIndexer] Graph cleanup failed for ${meetingId}:`, err)
-  );
-  console.log(`[RAGIndexer] Removed meeting ${meetingId}`);
-}
-
-/**
  * Check if any items need indexing (new or stale).
  */
 async function needsReindex(items: HistoryItem[]): Promise<HistoryItem[]> {
@@ -470,6 +458,5 @@ export const ragIndexer = {
   indexMeeting,
   indexAll,
   extractAll,
-  removeMeeting,
   needsReindex,
 };

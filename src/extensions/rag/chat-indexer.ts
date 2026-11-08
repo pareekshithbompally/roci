@@ -85,7 +85,7 @@ async function indexAllSessions(
   // Register empty sessions in DB so the count matches disk
   for (const s of empty) {
     try {
-      await vectorDB.upsertChatSession({
+      await vectorDB.markChatIndexed({
         id: s.id,
         title: s.title,
         last_message_at: s.lastMessageAt,
@@ -223,7 +223,7 @@ async function indexSessionInternal(
   const chunks = chunkChatSession(session);
 
   // Always upsert session metadata so the DB count matches disk count
-  await vectorDB.upsertChatSession({
+  await vectorDB.markChatIndexed({
     id: session.id,
     title: session.title,
     last_message_at: session.lastMessageAt,
