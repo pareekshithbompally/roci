@@ -7,7 +7,7 @@ import type {
   Note,
 } from '@shared/types';
 import { meetingService } from '@services/meeting.service';
-import { chatSessionRepository } from '@services/repositories/chat-session.repository';
+import { store } from '@services/db';
 import { concurrencyMap } from '@shared/utils/async.utils';
 import { IO_CONCURRENCY } from '@extensions/rag/constants';
 
@@ -103,13 +103,19 @@ async function loadMeetingsForIndexing(): Promise<HistoryItem[]> {
 }
 
 async function loadChatsForIndexing(): Promise<ChatSession[]> {
-  const stored = await chatSessionRepository.loadAllSessions();
-  return stored.map((session) => ({
-    id: session.id,
-    title: session.title,
-    lastMessageAt: session.lastMessageAt,
-    messages: session.messages,
-  }));
+  const result = await store.chats.list(500, 0);
+  const sessions = await concurrencyMap(
+    result.items,
+    async (entry) => {
+      try {
+        return await store.chats.get(entry.id);
+      } catch {
+        return null;
+      }
+    },
+    { limit: IO_CONCURRENCY },
+  );
+  return sessions.filter((s): s is ChatSession => s !== null);
 }
 
 export const searchIndexingService = {

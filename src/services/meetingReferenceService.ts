@@ -2,11 +2,11 @@
  * Meeting Reference Service
  * 
  * Provides meeting data for @ mentions in chat.
- * Fetches meetings with their full context (summary, notes, todos).
+ * Fetches meetings with their full context (summary, notes, todos) from kasset.db.
  */
 
 import type { HistoryItem, Note, ActionItem, NoteEntry, TodoEntry } from '@shared/types';
-import { notesRepository, todosRepository, summaryRepository, transcriptRepository } from './repositories';
+import { store } from '@services/db';
 import { concurrencyMap } from '@shared/utils/async.utils';
 import { truncateForLLM } from '@shared/utils/text.utils';
 import { IO_CONCURRENCY } from '@extensions/rag/constants';
@@ -74,7 +74,8 @@ class MeetingReferenceService {
   }
 
   /**
-   * Load full context for a meeting
+   * Load full context for a meeting from the store.
+   * Prefers in-memory data on the historyItem, falls back to store read.
    */
   async loadMeetingContext(historyItem: HistoryItem): Promise<MeetingReference> {
     const reference: MeetingReference = {
@@ -84,39 +85,52 @@ class MeetingReferenceService {
       categories: historyItem.categories,
     };
 
-    // Load all data from disk repositories
     try {
-      const [summaryDoc, transcriptDoc, noteEntries, todoEntries] = await Promise.all([
-        !historyItem.summary ? summaryRepository.readDoc(historyItem.id) : null,
-        !historyItem.transcript ? transcriptRepository.readDoc(historyItem.id) : null,
-        notesRepository.readDoc(historyItem.id),
-        todosRepository.readDoc(historyItem.id),
-      ]);
+      const detail = await store.meetings.get(historyItem.id);
 
-      // Summary: prefer in-memory, fall back to disk
+      // Summary: prefer in-memory, fall back to store
       if (historyItem.summary) {
         reference.summary = historyItem.summary;
-      } else if (summaryDoc) {
-        reference.summary = summaryDoc.overview || '';
+      } else if (detail?.summary) {
+        const s = detail.summary;
+        const parts: string[] = [];
+        if (s.overview) parts.push(s.overview);
+        if (s.keyDiscussionPoints?.length) {
+          parts.push('Key Discussion Points:\n' + s.keyDiscussionPoints.map(p => `- ${p}`).join('\n'));
+        }
+        if (s.decisionsMade?.length) {
+          parts.push('Decisions Made:\n' + s.decisionsMade.map(d => `- ${d}`).join('\n'));
+        }
+        if (s.actionItems?.length) {
+          parts.push('Action Items:\n' + s.actionItems.map(a => {
+            const owner = a.owner ? ` (${a.owner})` : '';
+            const due = a.dueDate ? ` — due ${a.dueDate}` : '';
+            return `- ${a.text}${owner}${due}`;
+          }).join('\n'));
+        }
+        if (s.nextSteps?.length) {
+          parts.push('Next Steps:\n' + s.nextSteps.map(s => `- ${s}`).join('\n'));
+        }
+        reference.summary = parts.join('\n\n');
       }
 
-      // Transcript: prefer in-memory, fall back to disk
+      // Transcript: prefer in-memory, fall back to store
       if (historyItem.transcript) {
         reference.transcript = historyItem.transcript;
-      } else if (transcriptDoc?.text) {
-        reference.transcript = transcriptDoc.text;
+      } else if (detail?.transcript?.text) {
+        reference.transcript = detail.transcript.text;
       }
 
-      if (noteEntries && noteEntries.length > 0) {
-        reference.notes = noteEntries.map((n: NoteEntry) => ({
+      if (detail?.notes && detail.notes.length > 0) {
+        reference.notes = detail.notes.map((n: NoteEntry) => ({
           id: n.id,
           text: n.text,
           timestamp: new Date(n.createdAt).getTime(),
         }));
       }
 
-      if (todoEntries && todoEntries.length > 0) {
-        reference.todos = todoEntries.map((t: TodoEntry) => ({
+      if (detail?.todos && detail.todos.length > 0) {
+        reference.todos = detail.todos.map((t: TodoEntry) => ({
           id: t.id,
           text: t.text,
           dueDate: t.dueDate,
@@ -168,90 +182,78 @@ class MeetingReferenceService {
         categories: item.categories,
       };
 
+      // Load full detail once if we need any store field
+      let detail = null;
+      try {
+        if (fieldSet.has('summary') || fieldSet.has('transcript') || fieldSet.has('notes') || fieldSet.has('actionItems')) {
+          detail = await store.meetings.get(item.id);
+        }
+      } catch (error) {
+        console.error('[MeetingReferenceService] Error loading detail:', error);
+      }
+
       if (fieldSet.has('summary')) {
-        // Prefer in-memory value if present, otherwise load from disk
         if (item.summary) {
           ref.summary = item.summary;
-        } else {
-          try {
-            const summaryDoc = await summaryRepository.readDoc(item.id);
-            if (summaryDoc) {
-              // Format structured summary into readable text
-              const parts: string[] = [];
-              if (summaryDoc.overview) parts.push(summaryDoc.overview);
-              if (summaryDoc.keyDiscussionPoints?.length) {
-                parts.push('Key Discussion Points:\n' + summaryDoc.keyDiscussionPoints.map(p => `- ${p}`).join('\n'));
-              }
-              if (summaryDoc.decisionsMade?.length) {
-                parts.push('Decisions Made:\n' + summaryDoc.decisionsMade.map(d => `- ${d}`).join('\n'));
-              }
-              if (summaryDoc.actionItems?.length) {
-                parts.push('Action Items:\n' + summaryDoc.actionItems.map(a => {
-                  const owner = a.owner ? ` (${a.owner})` : '';
-                  const due = a.dueDate ? ` — due ${a.dueDate}` : '';
-                  return `- ${a.text}${owner}${due}`;
-                }).join('\n'));
-              }
-              if (summaryDoc.nextSteps?.length) {
-                parts.push('Next Steps:\n' + summaryDoc.nextSteps.map(s => `- ${s}`).join('\n'));
-              }
-              ref.summary = parts.join('\n\n');
-            }
-          } catch (error) {
-            console.error('[MeetingReferenceService] Error loading summary from disk:', error);
+        } else if (detail?.summary) {
+          const s = detail.summary;
+          const parts: string[] = [];
+          if (s.overview) parts.push(s.overview);
+          if (s.keyDiscussionPoints?.length) {
+            parts.push('Key Discussion Points:\n' + s.keyDiscussionPoints.map(p => `- ${p}`).join('\n'));
           }
+          if (s.decisionsMade?.length) {
+            parts.push('Decisions Made:\n' + s.decisionsMade.map(d => `- ${d}`).join('\n'));
+          }
+          if (s.actionItems?.length) {
+            parts.push('Action Items:\n' + s.actionItems.map(a => {
+              const owner = a.owner ? ` (${a.owner})` : '';
+              const due = a.dueDate ? ` — due ${a.dueDate}` : '';
+              return `- ${a.text}${owner}${due}`;
+            }).join('\n'));
+          }
+          if (s.nextSteps?.length) {
+            parts.push('Next Steps:\n' + s.nextSteps.map(s => `- ${s}`).join('\n'));
+          }
+          ref.summary = parts.join('\n\n');
         }
       }
 
       if (fieldSet.has('transcript')) {
         if (item.transcript) {
           ref.transcript = item.transcript;
-        } else {
-          try {
-            const transcriptDoc = await transcriptRepository.readDoc(item.id);
-            if (transcriptDoc?.text) {
-              ref.transcript = transcriptDoc.text;
-            }
-          } catch (error) {
-            console.error('[MeetingReferenceService] Error loading transcript from disk:', error);
-          }
+        } else if (detail?.transcript?.text) {
+          ref.transcript = detail.transcript.text;
         }
       }
 
-      if (fieldSet.has('notes') || fieldSet.has('actionItems')) {
-        try {
-          if (fieldSet.has('notes')) {
-            const noteEntries = await notesRepository.readDoc(item.id);
-            if (noteEntries && noteEntries.length > 0) {
-              ref.notes = noteEntries.map((n: NoteEntry) => ({
-                id: n.id,
-                text: n.text,
-                timestamp: new Date(n.createdAt).getTime(),
-              }));
-            }
-          }
-          if (fieldSet.has('actionItems')) {
-            const todoEntries = await todosRepository.readDoc(item.id);
-            if (todoEntries && todoEntries.length > 0) {
-              ref.todos = todoEntries.map((t: TodoEntry) => ({
-                id: t.id,
-                text: t.text,
-                dueDate: t.dueDate,
-                completed: t.completed,
-              }));
-            }
-          }
-        } catch (error) {
-          console.error('[MeetingReferenceService] Error loading selective context:', error);
+      if (fieldSet.has('notes')) {
+        if (detail?.notes && detail.notes.length > 0) {
+          ref.notes = detail.notes.map((n: NoteEntry) => ({
+            id: n.id,
+            text: n.text,
+            timestamp: new Date(n.createdAt).getTime(),
+          }));
         }
+      }
 
-        // Fallback to inline data
-        if (fieldSet.has('notes') && !ref.notes && item.userNotes) {
-          ref.notes = item.userNotes;
+      if (fieldSet.has('actionItems')) {
+        if (detail?.todos && detail.todos.length > 0) {
+          ref.todos = detail.todos.map((t: TodoEntry) => ({
+            id: t.id,
+            text: t.text,
+            dueDate: t.dueDate,
+            completed: t.completed,
+          }));
         }
-        if (fieldSet.has('actionItems') && !ref.todos && item.userActionItems) {
-          ref.todos = item.userActionItems;
-        }
+      }
+
+      // Fallback to inline data
+      if (fieldSet.has('notes') && !ref.notes && item.userNotes) {
+        ref.notes = item.userNotes;
+      }
+      if (fieldSet.has('actionItems') && !ref.todos && item.userActionItems) {
+        ref.todos = item.userActionItems;
       }
 
       references.push(ref);

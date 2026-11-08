@@ -2,19 +2,18 @@
  * Reminder Service
  *
  * Schedules, cancels, and reconciles todo reminders using native OS notifications.
- * Pure service — no React dependency. Bridges ReminderRepository ↔ NotificationService.
+ * Persists to the unified store (kasset.db) via the store client.
+ * Pure service — no React dependency.
  */
 
 import { notificationService } from './tauri/notification.service';
 import { notificationScheduler } from './notification-scheduler';
-import { reminderRepository } from './repositories/reminder.repository';
-import { todosRepository } from './repositories/todos.repository';
-import type { ReminderEntry, TodoReminder } from '@shared/types';
+import { store } from './db';
+import type { ReminderEntry } from '@shared/types';
 import { hashToNotificationId, formatReminderDate } from '@shared/utils/todo.utils';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
-// Event emitter for "view meeting" action — App.tsx subscribes
 type ViewMeetingHandler = (meetingId: string) => void;
 let viewMeetingHandler: ViewMeetingHandler | null = null;
 
@@ -33,23 +32,17 @@ class ReminderService {
   async initialize(): Promise<void> {
     if (this.initialized) return;
 
-    // Register action handler for todo_reminder notifications
     this.unsubscribeAction = notificationService.onActionType(
       'todo_reminder',
       (actionId, extra) => this.handleAction(actionId, extra),
     );
 
-    // Reconcile on startup
     await this.reconcile();
 
     this.initialized = true;
     console.log('[ReminderService] Initialized');
   }
 
-  /**
-   * Schedule a reminder for a todo at the given datetime.
-   * Persists to both the global index and the todo's reminder field.
-   */
   async schedule(params: ScheduleReminderParams): Promise<boolean> {
     const { todoId, meetingId, todoText, meetingTitle, reminderDateTime } = params;
     const notificationId = hashToNotificationId(todoId);
@@ -75,48 +68,28 @@ class ReminderService {
 
     if (!scheduled) return false;
 
-    // Persist to global index
-    const entry: ReminderEntry = {
-      todoId,
-      meetingId,
-      todoText,
-      meetingTitle,
-      reminderDateTime,
-      notificationId,
-      status: 'scheduled',
-      createdAt: new Date().toISOString(),
-    };
-    await reminderRepository.add(entry);
-
-    // Update todo's reminder field
-    const reminder: TodoReminder = { dateTime: reminderDateTime, notificationId };
-    await todosRepository.updateTodo(meetingId, todoId, { reminder } as any);
+    // Persist to unified store
+    await store.reminders.upsert(todoId, notificationId, fireAt.getTime());
 
     console.log(`[ReminderService] Scheduled reminder for "${todoText}" at ${formatReminderDate(reminderDateTime)}`);
     return true;
   }
 
-  /**
-   * Cancel a reminder for a todo.
-   */
   async cancel(todoId: string): Promise<void> {
-    const existing = await reminderRepository.getByTodoId(todoId);
-    if (!existing) return;
-
     await notificationScheduler.cancel(`todo:${todoId}`);
-    await reminderRepository.updateStatus(todoId, 'cancelled');
-
-    // Clear the todo's reminder field
-    await todosRepository.updateTodo(existing.meetingId, todoId, { reminder: undefined } as any);
+    try {
+      await store.reminders.setStatus(todoId, 'cancelled');
+    } catch {
+      // reminder may not exist in DB
+    }
 
     console.log(`[ReminderService] Cancelled reminder for todo ${todoId}`);
   }
 
-  /**
-   * Update a reminder's datetime (cancel + reschedule).
-   */
   async update(todoId: string, newDateTime: string, meetingId?: string): Promise<boolean> {
-    const existing = await reminderRepository.getByTodoId(todoId);
+    const due = await store.reminders.due();
+    const existing = due.find((r) => r.todoId === todoId);
+
     if (!existing && !meetingId) return false;
 
     const params: ScheduleReminderParams = existing
@@ -126,46 +99,34 @@ class ReminderService {
     return this.schedule(params);
   }
 
-  /**
-   * Get the active reminder for a todo, if any.
-   */
   async getReminder(todoId: string): Promise<ReminderEntry | null> {
-    return reminderRepository.getByTodoId(todoId);
+    const due = await store.reminders.due();
+    return due.find((r) => r.todoId === todoId) ?? null;
   }
 
-  /**
-   * Get all scheduled reminders.
-   */
   async getAllScheduled(): Promise<ReminderEntry[]> {
-    return reminderRepository.getScheduled();
+    return store.reminders.due();
   }
 
-  /**
-   * Register a handler for the "View Meeting" notification action.
-   */
   onViewMeeting(handler: ViewMeetingHandler): () => void {
     viewMeetingHandler = handler;
     return () => { viewMeetingHandler = null; };
   }
 
-  /**
-   * Startup reconciliation: sync index with OS pending notifications.
-   */
   private async reconcile(): Promise<void> {
     try {
       // Prune entries older than 7 days
-      await reminderRepository.pruneStale(SEVEN_DAYS_MS);
+      await store.reminders.prune(SEVEN_DAYS_MS);
 
-      const scheduled = await reminderRepository.getScheduled();
+      const scheduled = await store.reminders.due();
       if (scheduled.length === 0) return;
 
       for (const entry of scheduled) {
         const fireAt = new Date(entry.reminderDateTime);
 
         if (fireAt.getTime() <= Date.now()) {
-          await reminderRepository.updateStatus(entry.todoId, 'fired');
+          await store.reminders.setStatus(entry.todoId, 'fired');
         } else if (!notificationScheduler.isScheduled(`todo:${entry.todoId}`)) {
-          // Still in the future but not tracked — schedule via unified scheduler
           await notificationScheduler.schedule(`todo:${entry.todoId}`, {
             at: fireAt,
             title: entry.meetingTitle,
@@ -182,9 +143,6 @@ class ReminderService {
     }
   }
 
-  /**
-   * Handle notification action clicks.
-   */
   private async handleAction(actionId: string, extra?: Record<string, unknown>): Promise<void> {
     const todoId = extra?.todoId as string | undefined;
     const meetingId = extra?.meetingId as string | undefined;
@@ -196,12 +154,13 @@ class ReminderService {
         if (meetingId && viewMeetingHandler) {
           viewMeetingHandler(meetingId);
         }
-        await reminderRepository.updateStatus(todoId, 'fired');
+        await store.reminders.setStatus(todoId, 'fired');
         break;
 
       case 'snooze_15': {
         const snoozeUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-        const existing = await reminderRepository.getByTodoId(todoId);
+        const due = await store.reminders.due();
+        const existing = due.find((r) => r.todoId === todoId);
         if (existing) {
           await this.schedule({ ...existing, reminderDateTime: snoozeUntil });
         }
@@ -209,11 +168,7 @@ class ReminderService {
       }
 
       case 'dismiss':
-        await reminderRepository.updateStatus(todoId, 'fired');
-        // Clear the todo's reminder field
-        if (meetingId) {
-          await todosRepository.updateTodo(meetingId, todoId, { reminder: undefined } as any);
-        }
+        await store.reminders.setStatus(todoId, 'fired');
         break;
     }
   }

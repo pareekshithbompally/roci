@@ -1,19 +1,12 @@
 /**
  * Transcription Service
  * Post-transcription pipeline: saves transcript, summary, recording meta,
- * creates todos from AI action items, adds to meeting index.
- *
- * Index update is the commit point — if sub-document writes fail,
- * the meeting directory is cleaned up and the index is never updated.
+ * creates todos from AI action items — all atomically via store.meetings.saveTranscription().
  */
 
 import type { MeetingIndexEntry, MeetingSummary, TranscriptData, RecordingMeta, TodoEntry, AppSettings, HistoryItem, StoredTranscriptSegment } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
-import { meetingIndexRepository } from './repositories/meeting-index.repository';
-import { transcriptRepository } from './repositories/transcript.repository';
-import { summaryRepository } from './repositories/summary.repository';
-import { recordingMetaRepository } from './repositories/recording-meta.repository';
-import { todosRepository } from './repositories/todos.repository';
+import { store } from '@services/db';
 import { normalizeDueDate } from '@shared/utils/todo.utils';
 import { formatMeetingSummary } from './searchIndexing.service';
 
@@ -47,86 +40,49 @@ export interface TranscriptionResult {
 class TranscriptionService {
   /**
    * Single entry point after transcription completes.
-   * Saves all data to the new per-meeting file structure and updates the index.
-   * Uses Promise.allSettled for transactional safety — cleans up on partial failure.
+   * Saves all data atomically via the store plugin.
    */
   async saveTranscriptionResult(result: TranscriptionResult): Promise<boolean> {
     const { meetingId, title, transcript, summary, categories, recordingFileName, inputSource, model, language, segments } = result;
-    const now = new Date().toISOString();
 
-    // Build all data objects (no I/O)
-    const transcriptData: TranscriptData = {
-      text: transcript,
-      language,
-      model,
-      createdAt: now,
-      segments: segments && segments.length > 0 ? segments : undefined,
-    };
-
-    const recordingMeta: RecordingMeta | undefined = recordingFileName
-      ? { filename: recordingFileName, inputSource, createdAt: now }
-      : undefined;
-
-    const aiTodos: TodoEntry[] = summary.actionItems.map((item) => ({
-      id: crypto.randomUUID(),
-      text: item.text,
-      owner: item.owner,
-      dueDate: item.dueDate ? normalizeDueDate(item.dueDate) : undefined,
-      completed: false,
-      source: 'ai' as const,
-      createdAt: now,
-    }));
-
-    // Write all sub-documents — use allSettled so one failure doesn't mask others
-    const writeResults = await Promise.allSettled([
-      transcriptRepository.writeDoc(meetingId, transcriptData),
-      summaryRepository.writeDoc(meetingId, summary),
-      ...(recordingMeta ? [recordingMetaRepository.writeDoc(meetingId, recordingMeta)] : []),
-      ...(aiTodos.length > 0 ? [todosRepository.writeDoc(meetingId, aiTodos)] : []),
-    ]);
-
-    // Check for failures
-    const failures = writeResults.filter(
-      r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value)
-    );
-
-    if (failures.length > 0) {
-      console.error('[TranscriptionService] Partial write failure for meeting:', meetingId, failures);
-      // Clean up incomplete meeting directory
-      await transcriptRepository.deleteMeetingDir(meetingId);
-      return false;
-    }
-
-    // All sub-documents written — now update the index (commit point)
     try {
-      const existing = await meetingIndexRepository.getFromIndex(meetingId);
-      const indexEntry: MeetingIndexEntry = {
-        id: meetingId,
-        title,
-        categories,
-        recordingFileName,
-        inputSource,
-        createdAt: existing?.createdAt || now,
-        updatedAt: now,
-        // Preserve calendar metadata from existing entry or new transcription
-        calendarEventId: result.calendarMeta?.calendarEventId ?? existing?.calendarEventId,
-        scheduledTitle: result.calendarMeta?.scheduledTitle ?? existing?.scheduledTitle,
-        participants: result.calendarMeta?.participants ?? existing?.participants,
-        scheduledStart: result.calendarMeta?.scheduledStart ?? existing?.scheduledStart,
-        scheduledEnd: result.calendarMeta?.scheduledEnd ?? existing?.scheduledEnd,
-        meetingUrl: result.calendarMeta?.meetingUrl ?? existing?.meetingUrl,
-      };
+      // Build AI action items as todo inputs
+      const actionItems = summary.actionItems.map((item) => ({
+        text: item.text,
+        owner: item.owner,
+        dueDate: item.dueDate ? normalizeDueDate(item.dueDate) : undefined,
+      }));
 
-      if (existing) {
-        await meetingIndexRepository.updateInIndex(meetingId, indexEntry);
-      } else {
-        await meetingIndexRepository.addToIndex(indexEntry);
-      }
+      // Save everything atomically in one transaction
+      await store.meetings.saveTranscription({
+        meetingId,
+        title,
+        transcript,
+        transcriptLanguage: language,
+        transcriptModel: model,
+        transcriptSegments: segments && segments.length > 0
+          ? JSON.stringify(segments)
+          : undefined,
+        summaryOverview: summary.overview || '',
+        summaryData: JSON.stringify({
+          keyDiscussionPoints: summary.keyDiscussionPoints ?? [],
+          decisionsMade: summary.decisionsMade ?? [],
+          actionItems: summary.actionItems ?? [],
+          nextSteps: summary.nextSteps ?? [],
+        }),
+        categories: categories.length > 0 ? categories : undefined,
+        recordingFilename: recordingFileName,
+        recordingInputSource: inputSource,
+        inputSource,
+        calendarMeta: result.calendarMeta,
+        actionItems: actionItems.length > 0 ? actionItems : undefined,
+        createdAt: new Date().getTime(),
+      });
 
       console.log('[TranscriptionService] Saved transcription result for meeting:', meetingId);
 
-      // Fire-and-forget: index meeting into vector DB for immediate Cmd+K searchability
-      // Mirrors the pattern in chatService.persistSession() → chatIndexer.indexSession()
+      // Fire-and-forget: index meeting into vector DB
+      const now = new Date().toISOString();
       const historyItem: HistoryItem = {
         id: meetingId,
         title,
@@ -158,7 +114,7 @@ class TranscriptionService {
 
       return true;
     } catch (error) {
-      console.error('[TranscriptionService] Failed to update index for meeting:', meetingId, error);
+      console.error('[TranscriptionService] Failed to save transcription:', meetingId, error);
       return false;
     }
   }

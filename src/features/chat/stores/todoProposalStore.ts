@@ -13,7 +13,7 @@
  */
 
 import { useSyncExternalStore } from 'react';
-import { todosRepository } from '@services/repositories/todos.repository';
+import { store } from '@services/db';
 import { reminderService } from '@services/reminder.service';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
@@ -76,8 +76,7 @@ export const todoProposalStore = {
   /** Remove a single proposal from the queue without writing. */
   remove(id: string) {
     proposals = proposals.filter(p => p.id !== id);
-    if (proposals.length === 0) emitChange();
-    else emitChange();
+    emitChange();
   },
 
   /** Commit all pending proposals — writes to DB, schedules reminders, emits refresh event. */
@@ -156,23 +155,22 @@ async function commitSingle(p: TodoProposal): Promise<void> {
   if (p.action === 'create') {
     const normalizedDueDate = p.dueDate ? normalizeDueDate(p.dueDate) : undefined;
 
-    const todoEntry: TodoEntry = {
-      id: crypto.randomUUID(),
+    const todoId = crypto.randomUUID();
+    await store.todos.upsert({
+      id: todoId,
+      meetingId: p.meetingId,
       text: p.text,
       owner: p.owner || undefined,
       dueDate: normalizedDueDate,
       completed: false,
       source: 'user',
       createdAt: new Date().toISOString(),
-    };
-
-    const ok = await todosRepository.addTodo(p.meetingId, todoEntry);
-    if (!ok) throw new Error('Failed to write todo to disk');
+    });
 
     // Schedule OS reminder if requested
     if (p.reminderDateTime) {
       const reminderOk = await reminderService.schedule({
-        todoId: todoEntry.id,
+        todoId,
         meetingId: p.meetingId,
         todoText: p.text,
         meetingTitle: p.meetingTitle,
@@ -181,21 +179,26 @@ async function commitSingle(p: TodoProposal): Promise<void> {
       if (!reminderOk) {
         console.warn('[TodoProposalStore] Reminder scheduling failed for:', p.text);
       }
-      // Note: reminderService.schedule() already updates the todo's reminder field on disk
     }
   } else if (p.action === 'toggle' && p.matchedTodoId) {
-    const result = await todosRepository.toggleTodo(p.meetingId, p.matchedTodoId);
-    if (!result) throw new Error('Failed to toggle todo');
+    // Read current state to toggle
+    const todos = await store.todos.listForMeeting(p.meetingId);
+    const todo = todos.find(t => t.id === p.matchedTodoId);
+    if (todo) {
+      await store.todos.setCompleted(p.matchedTodoId, !todo.completed);
+    } else {
+      throw new Error('Todo not found');
+    }
   } else if (p.action === 'update' && p.matchedTodoId) {
-    const updates: Partial<TodoEntry> = {};
-    if (p.text) updates.text = p.text;
-    if (p.dueDate) updates.dueDate = normalizeDueDate(p.dueDate);
-    if (p.owner) updates.owner = p.owner;
-    const ok = await todosRepository.updateTodo(p.meetingId, p.matchedTodoId, updates);
-    if (!ok) throw new Error('Failed to update todo');
+    await store.todos.upsert({
+      id: p.matchedTodoId,
+      meetingId: p.meetingId,
+      text: p.text,
+      owner: p.owner || undefined,
+      dueDate: p.dueDate ? normalizeDueDate(p.dueDate) : undefined,
+    });
   } else if (p.action === 'delete' && p.matchedTodoId) {
-    const ok = await todosRepository.deleteTodo(p.meetingId, p.matchedTodoId);
-    if (!ok) throw new Error('Failed to delete todo');
+    await store.todos.delete(p.matchedTodoId);
   }
 }
 
