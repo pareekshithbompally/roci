@@ -19,7 +19,7 @@ pub struct SpotlightHit {
     /// Matched excerpt with <<MARK>> / <</MARK>> markers around matched terms.
     /// Empty string for title-only matches.
     pub excerpt: String,
-    /// Unix timestamp in milliseconds (meeting.timestamp or chat.last_message_at)
+    /// Unix timestamp in milliseconds (meeting.created_at or chat.last_message_at)
     pub timestamp: i64,
     /// "title" or "content" — where the match was found
     pub match_type: String,
@@ -59,10 +59,10 @@ pub fn spotlight_search(
 
     if !title_tokens.is_empty() {
         let meeting_title_sql = format!(
-            "SELECT id, title, timestamp
+            "SELECT id, title, created_at
              FROM meetings
              WHERE {}
-             ORDER BY timestamp DESC
+             ORDER BY created_at DESC
              LIMIT ?{}",
             build_title_like_where("lower(title)", title_tokens.len()),
             title_tokens.len() + 1,
@@ -101,7 +101,7 @@ pub fn spotlight_search(
 
         let chat_title_sql = format!(
             "SELECT id, title, last_message_at
-             FROM chat_sessions
+             FROM chats
              WHERE {}
              ORDER BY last_message_at DESC
              LIMIT ?{}",
@@ -153,7 +153,7 @@ pub fn spotlight_search(
                     "SELECT
                          c.meeting_id,
                          m.title,
-                         m.timestamp,
+                         m.created_at,
                          snippet(chunks_fts, 0, ?1, ?2, '...', ?3) as excerpt
                      FROM chunks_fts
                      JOIN chunks c ON c.id = chunks_fts.rowid
@@ -195,13 +195,13 @@ pub fn spotlight_search(
             let mut stmt = conn
                 .prepare(
                     "SELECT
-                         c.session_id,
+                         c.chat_id,
                          cs.title,
                          cs.last_message_at,
                          snippet(chat_chunks_fts, 0, ?1, ?2, '...', ?3) as excerpt
                      FROM chat_chunks_fts
                      JOIN chat_chunks c ON c.id = chat_chunks_fts.rowid
-                     JOIN chat_sessions cs ON cs.id = c.session_id
+                     JOIN chats cs ON cs.id = c.chat_id
                      WHERE chat_chunks_fts MATCH ?4
                      ORDER BY rank
                      LIMIT ?5",
