@@ -126,9 +126,9 @@ describe('generateCacheFilename', () => {
 describe('StorageConfig', () => {
   it('has expected directory keys', () => {
     expect(StorageConfig.directories).toHaveProperty('recordings');
-    expect(StorageConfig.directories).toHaveProperty('meetings');
-    expect(StorageConfig.directories).toHaveProperty('chats');
     expect(StorageConfig.directories).toHaveProperty('cache');
+    expect(StorageConfig.directories).toHaveProperty('cacheAudio');
+    expect(StorageConfig.directories).toHaveProperty('cacheApi');
   });
 
   it('has cache policies with required fields', () => {

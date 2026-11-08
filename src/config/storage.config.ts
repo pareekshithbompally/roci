@@ -1,6 +1,7 @@
 /**
  * Storage Configuration
- * Defines directory structure, file naming, and cache policies
+ * Defines directory structure, file naming, and cache policies for binary files.
+ * Data persistence (meetings, chats, settings) is handled by kasset.db via @services/db.
  */
 
 export const StorageConfig = {
@@ -14,8 +15,6 @@ export const StorageConfig = {
    */
   directories: {
     recordings: 'recordings',
-    meetings: 'meetings',
-    chats: 'chats',
     cache: 'cache',
     cacheAudio: 'cache/audio',
     cacheApi: 'cache/api',
@@ -25,9 +24,7 @@ export const StorageConfig = {
    * File naming patterns
    */
   fileNames: {
-    settings: 'settings.json',
     recordingPrefix: 'rec',
-    chatPrefix: 'chat',
     cacheTempPrefix: 'temp',
   },
 
@@ -39,10 +36,6 @@ export const StorageConfig = {
       defaultExtension: '.wav',
       allowedExtensions: ['.wav', '.webm', '.mp3', '.m4a'],
     },
-    settings: {
-      extension: '.json',
-      encoding: 'utf-8',
-    },
   },
 
   /**
@@ -51,7 +44,7 @@ export const StorageConfig = {
   cache: {
     audio: {
       ttlHours: 24,
-      maxSizeMB: -1, // No limit for temp files
+      maxSizeMB: -1,
       cleanupOnStart: true,
     },
     api: {
@@ -59,7 +52,7 @@ export const StorageConfig = {
       maxSizeMB: 100,
       cleanupOnStart: true,
     },
-    cleanupThresholdPercent: 90, // Start cleanup when 90% full
+    cleanupThresholdPercent: 90,
   },
 
   /**
@@ -89,8 +82,8 @@ export const StorageConfig = {
     autoSave: true,
     notificationsEnabled: true,
     recordingQuality: 'high',
-    aiModel: '', // User must select model in Settings > Providers > Model Config
-    chatModel: '', // User must select model in Settings > Providers > Model Config
+    aiModel: '',
+    chatModel: '',
     autoTranscribe: true,
     defaultAudioSource: 'systemAndMicrophone',
   },

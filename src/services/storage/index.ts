@@ -1,18 +1,16 @@
 /**
  * Storage Services - Central Export
- * All storage-related services for Kasset.ai
+ * Binary file services (cache, recordings, paths) for the app.
+ * Data persistence is handled by kasset.db via @services/db.
  */
 
 import { pathsService } from './paths.service';
 import { cacheService } from './cache.service';
 
-// Services (only non-replaced ones)
 export { pathsService } from './paths.service';
 export { recordingsService } from './recordings.service';
 export { cacheService } from './cache.service';
-export { settingsService } from './settings.service';
 
-// Types (only those still needed by kept services)
 export type {
   BaseMetadata,
   RecordingMetadata,
@@ -25,27 +23,24 @@ export type {
 } from './types';
 
 /**
- * Initialize all storage services
- * Call this on app startup
+ * Initialize storage — creates directories for recordings and cache.
  */
 export async function initializeStorage(): Promise<void> {
   console.log('[Storage] ========== Initializing storage system ==========');
-  
-  // Initialize paths and create directory structure
+
   const result = await pathsService.initialize();
-  
+
   if (!result.success) {
     console.error('[Storage] ❌ FAILED to initialize storage:', result.error);
     throw new Error('Storage initialization failed: ' + result.error);
   }
-  
+
   console.log('[Storage] ✓ Storage initialized at:', result.data);
-  
-  // Clean up expired cache on startup
+
   const cacheCleanup = await cacheService.clearExpired();
   if (cacheCleanup.success && cacheCleanup.data) {
     console.log('[Storage] ✓ Cleaned up', cacheCleanup.data, 'expired cache entries');
   }
-  
+
   console.log('[Storage] ========== Storage initialization complete ==========');
 }

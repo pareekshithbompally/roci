@@ -32,8 +32,6 @@ import { useCalendarIntegration } from '@shared/hooks/useCalendarIntegration';
 import { isTauriEnvironment } from '@services/tauri';
 import {
   initializeStorage,
-  settingsService,
-  pathsService,
 } from '@services/storage';
 import { notificationService, trayService, TrayAction } from '@services/tauri';
 import { notificationScheduler } from '@services/notification-scheduler';
