@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-chats-rename"
+description = "Enables the chats_rename command without any pre-configured scope."
+commands.allow = ["chats_rename"]
+
+[[permission]]
+identifier = "deny-chats-rename"
+description = "Denies the chats_rename command without any pre-configured scope."
+commands.deny = ["chats_rename"]

@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-categories-rename"
+description = "Enables the categories_rename command without any pre-configured scope."
+commands.allow = ["categories_rename"]
+
+[[permission]]
+identifier = "deny-categories-rename"
+description = "Denies the categories_rename command without any pre-configured scope."
+commands.deny = ["categories_rename"]

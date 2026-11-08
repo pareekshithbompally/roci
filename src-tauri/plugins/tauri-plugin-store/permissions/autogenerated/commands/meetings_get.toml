@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-meetings-get"
+description = "Enables the meetings_get command without any pre-configured scope."
+commands.allow = ["meetings_get"]
+
+[[permission]]
+identifier = "deny-meetings-get"
+description = "Denies the meetings_get command without any pre-configured scope."
+commands.deny = ["meetings_get"]

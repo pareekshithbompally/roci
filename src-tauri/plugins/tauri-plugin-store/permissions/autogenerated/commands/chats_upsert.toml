@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-chats-upsert"
+description = "Enables the chats_upsert command without any pre-configured scope."
+commands.allow = ["chats_upsert"]
+
+[[permission]]
+identifier = "deny-chats-upsert"
+description = "Denies the chats_upsert command without any pre-configured scope."
+commands.deny = ["chats_upsert"]

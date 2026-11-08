@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-meetings-upsert"
+description = "Enables the meetings_upsert command without any pre-configured scope."
+commands.allow = ["meetings_upsert"]
+
+[[permission]]
+identifier = "deny-meetings-upsert"
+description = "Denies the meetings_upsert command without any pre-configured scope."
+commands.deny = ["meetings_upsert"]

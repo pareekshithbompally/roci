@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-todos-list-global"
+description = "Enables the todos_list_global command without any pre-configured scope."
+commands.allow = ["todos_list_global"]
+
+[[permission]]
+identifier = "deny-todos-list-global"
+description = "Denies the todos_list_global command without any pre-configured scope."
+commands.deny = ["todos_list_global"]

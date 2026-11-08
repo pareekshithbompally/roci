@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-chats-delete"
+description = "Enables the chats_delete command without any pre-configured scope."
+commands.allow = ["chats_delete"]
+
+[[permission]]
+identifier = "deny-chats-delete"
+description = "Denies the chats_delete command without any pre-configured scope."
+commands.deny = ["chats_delete"]

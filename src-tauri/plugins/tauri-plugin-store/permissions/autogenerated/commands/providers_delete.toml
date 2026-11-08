@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-providers-delete"
+description = "Enables the providers_delete command without any pre-configured scope."
+commands.allow = ["providers_delete"]
+
+[[permission]]
+identifier = "deny-providers-delete"
+description = "Denies the providers_delete command without any pre-configured scope."
+commands.deny = ["providers_delete"]

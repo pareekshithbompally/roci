@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-todos-upsert"
+description = "Enables the todos_upsert command without any pre-configured scope."
+commands.allow = ["todos_upsert"]
+
+[[permission]]
+identifier = "deny-todos-upsert"
+description = "Denies the todos_upsert command without any pre-configured scope."
+commands.deny = ["todos_upsert"]

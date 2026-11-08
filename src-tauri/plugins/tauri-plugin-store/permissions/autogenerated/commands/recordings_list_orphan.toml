@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-recordings-list-orphan"
+description = "Enables the recordings_list_orphan command without any pre-configured scope."
+commands.allow = ["recordings_list_orphan"]
+
+[[permission]]
+identifier = "deny-recordings-list-orphan"
+description = "Denies the recordings_list_orphan command without any pre-configured scope."
+commands.deny = ["recordings_list_orphan"]

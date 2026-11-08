@@ -295,6 +295,150 @@
       "type": "string",
       "oneOf": [
         {
+          "description": "Enables the categories_create command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-categories-create",
+          "markdownDescription": "Enables the categories_create command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the categories_create command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-categories-create",
+          "markdownDescription": "Denies the categories_create command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the categories_delete command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-categories-delete",
+          "markdownDescription": "Enables the categories_delete command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the categories_delete command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-categories-delete",
+          "markdownDescription": "Denies the categories_delete command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the categories_list command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-categories-list",
+          "markdownDescription": "Enables the categories_list command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the categories_list command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-categories-list",
+          "markdownDescription": "Denies the categories_list command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the categories_rename command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-categories-rename",
+          "markdownDescription": "Enables the categories_rename command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the categories_rename command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-categories-rename",
+          "markdownDescription": "Denies the categories_rename command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the chat_is_stale command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-chat-is-stale",
+          "markdownDescription": "Enables the chat_is_stale command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the chat_is_stale command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-chat-is-stale",
+          "markdownDescription": "Denies the chat_is_stale command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the chats_delete command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-chats-delete",
+          "markdownDescription": "Enables the chats_delete command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the chats_delete command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-chats-delete",
+          "markdownDescription": "Denies the chats_delete command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the chats_get command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-chats-get",
+          "markdownDescription": "Enables the chats_get command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the chats_get command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-chats-get",
+          "markdownDescription": "Denies the chats_get command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the chats_get_stale command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-chats-get-stale",
+          "markdownDescription": "Enables the chats_get_stale command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the chats_get_stale command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-chats-get-stale",
+          "markdownDescription": "Denies the chats_get_stale command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the chats_list command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-chats-list",
+          "markdownDescription": "Enables the chats_list command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the chats_list command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-chats-list",
+          "markdownDescription": "Denies the chats_list command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the chats_rename command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-chats-rename",
+          "markdownDescription": "Enables the chats_rename command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the chats_rename command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-chats-rename",
+          "markdownDescription": "Denies the chats_rename command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the chats_search command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-chats-search",
+          "markdownDescription": "Enables the chats_search command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the chats_search command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-chats-search",
+          "markdownDescription": "Denies the chats_search command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the chats_upsert command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-chats-upsert",
+          "markdownDescription": "Enables the chats_upsert command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the chats_upsert command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-chats-upsert",
+          "markdownDescription": "Denies the chats_upsert command without any pre-configured scope."
+        },
+        {
           "description": "Enables the delete_chat_session command without any pre-configured scope.",
           "type": "string",
           "const": "allow-delete-chat-session",
@@ -305,18 +449,6 @@
           "type": "string",
           "const": "deny-delete-chat-session",
           "markdownDescription": "Denies the delete_chat_session command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the delete_meeting command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-delete-meeting",
-          "markdownDescription": "Enables the delete_meeting command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the delete_meeting command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-delete-meeting",
-          "markdownDescription": "Denies the delete_meeting command without any pre-configured scope."
         },
         {
           "description": "Enables the get_chats_needing_embeddings command without any pre-configured scope.",
@@ -377,18 +509,6 @@
           "type": "string",
           "const": "deny-get-meta",
           "markdownDescription": "Denies the get_meta command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the get_stale_chat_sessions command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-get-stale-chat-sessions",
-          "markdownDescription": "Enables the get_stale_chat_sessions command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the get_stale_chat_sessions command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-get-stale-chat-sessions",
-          "markdownDescription": "Denies the get_stale_chat_sessions command without any pre-configured scope."
         },
         {
           "description": "Enables the get_stale_meetings command without any pre-configured scope.",
@@ -535,18 +655,6 @@
           "markdownDescription": "Denies the insert_usage command without any pre-configured scope."
         },
         {
-          "description": "Enables the is_chat_session_stale command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-is-chat-session-stale",
-          "markdownDescription": "Enables the is_chat_session_stale command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the is_chat_session_stale command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-is-chat-session-stale",
-          "markdownDescription": "Denies the is_chat_session_stale command without any pre-configured scope."
-        },
-        {
           "description": "Enables the mark_chat_content_indexed command without any pre-configured scope.",
           "type": "string",
           "const": "allow-mark-chat-content-indexed",
@@ -559,18 +667,6 @@
           "markdownDescription": "Denies the mark_chat_content_indexed command without any pre-configured scope."
         },
         {
-          "description": "Enables the mark_meeting_content_indexed command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-mark-meeting-content-indexed",
-          "markdownDescription": "Enables the mark_meeting_content_indexed command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the mark_meeting_content_indexed command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-mark-meeting-content-indexed",
-          "markdownDescription": "Denies the mark_meeting_content_indexed command without any pre-configured scope."
-        },
-        {
           "description": "Enables the mark_chat_embedded command without any pre-configured scope.",
           "type": "string",
           "const": "allow-mark-chat-embedded",
@@ -581,6 +677,30 @@
           "type": "string",
           "const": "deny-mark-chat-embedded",
           "markdownDescription": "Denies the mark_chat_embedded command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the mark_chat_indexed command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-mark-chat-indexed",
+          "markdownDescription": "Enables the mark_chat_indexed command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the mark_chat_indexed command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-mark-chat-indexed",
+          "markdownDescription": "Denies the mark_chat_indexed command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the mark_meeting_content_indexed command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-mark-meeting-content-indexed",
+          "markdownDescription": "Enables the mark_meeting_content_indexed command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the mark_meeting_content_indexed command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-mark-meeting-content-indexed",
+          "markdownDescription": "Denies the mark_meeting_content_indexed command without any pre-configured scope."
         },
         {
           "description": "Enables the mark_meeting_embedded command without any pre-configured scope.",
@@ -607,16 +727,148 @@
           "markdownDescription": "Denies the mark_meeting_extracted command without any pre-configured scope."
         },
         {
-          "description": "Enables the rebuild_fts command without any pre-configured scope.",
+          "description": "Enables the meetings_delete command without any pre-configured scope.",
           "type": "string",
-          "const": "allow-rebuild-fts",
-          "markdownDescription": "Enables the rebuild_fts command without any pre-configured scope."
+          "const": "allow-meetings-delete",
+          "markdownDescription": "Enables the meetings_delete command without any pre-configured scope."
         },
         {
-          "description": "Denies the rebuild_fts command without any pre-configured scope.",
+          "description": "Denies the meetings_delete command without any pre-configured scope.",
           "type": "string",
-          "const": "deny-rebuild-fts",
-          "markdownDescription": "Denies the rebuild_fts command without any pre-configured scope."
+          "const": "deny-meetings-delete",
+          "markdownDescription": "Denies the meetings_delete command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the meetings_get command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-meetings-get",
+          "markdownDescription": "Enables the meetings_get command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the meetings_get command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-meetings-get",
+          "markdownDescription": "Denies the meetings_get command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the meetings_list command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-meetings-list",
+          "markdownDescription": "Enables the meetings_list command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the meetings_list command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-meetings-list",
+          "markdownDescription": "Denies the meetings_list command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the meetings_search command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-meetings-search",
+          "markdownDescription": "Enables the meetings_search command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the meetings_search command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-meetings-search",
+          "markdownDescription": "Denies the meetings_search command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the meetings_upsert command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-meetings-upsert",
+          "markdownDescription": "Enables the meetings_upsert command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the meetings_upsert command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-meetings-upsert",
+          "markdownDescription": "Denies the meetings_upsert command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the notes_delete command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-notes-delete",
+          "markdownDescription": "Enables the notes_delete command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the notes_delete command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-notes-delete",
+          "markdownDescription": "Denies the notes_delete command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the notes_list command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-notes-list",
+          "markdownDescription": "Enables the notes_list command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the notes_list command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-notes-list",
+          "markdownDescription": "Denies the notes_list command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the notes_upsert command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-notes-upsert",
+          "markdownDescription": "Enables the notes_upsert command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the notes_upsert command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-notes-upsert",
+          "markdownDescription": "Denies the notes_upsert command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the providers_delete command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-providers-delete",
+          "markdownDescription": "Enables the providers_delete command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the providers_delete command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-providers-delete",
+          "markdownDescription": "Denies the providers_delete command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the providers_list command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-providers-list",
+          "markdownDescription": "Enables the providers_list command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the providers_list command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-providers-list",
+          "markdownDescription": "Denies the providers_list command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the providers_set_active command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-providers-set-active",
+          "markdownDescription": "Enables the providers_set_active command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the providers_set_active command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-providers-set-active",
+          "markdownDescription": "Denies the providers_set_active command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the providers_upsert command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-providers-upsert",
+          "markdownDescription": "Enables the providers_upsert command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the providers_upsert command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-providers-upsert",
+          "markdownDescription": "Denies the providers_upsert command without any pre-configured scope."
         },
         {
           "description": "Enables the rebuild command without any pre-configured scope.",
@@ -631,28 +883,148 @@
           "markdownDescription": "Denies the rebuild command without any pre-configured scope."
         },
         {
-          "description": "Enables the search_chats command without any pre-configured scope.",
+          "description": "Enables the rebuild_fts command without any pre-configured scope.",
           "type": "string",
-          "const": "allow-search-chats",
-          "markdownDescription": "Enables the search_chats command without any pre-configured scope."
+          "const": "allow-rebuild-fts",
+          "markdownDescription": "Enables the rebuild_fts command without any pre-configured scope."
         },
         {
-          "description": "Denies the search_chats command without any pre-configured scope.",
+          "description": "Denies the rebuild_fts command without any pre-configured scope.",
           "type": "string",
-          "const": "deny-search-chats",
-          "markdownDescription": "Denies the search_chats command without any pre-configured scope."
+          "const": "deny-rebuild-fts",
+          "markdownDescription": "Denies the rebuild_fts command without any pre-configured scope."
         },
         {
-          "description": "Enables the search command without any pre-configured scope.",
+          "description": "Enables the recordings_delete command without any pre-configured scope.",
           "type": "string",
-          "const": "allow-search",
-          "markdownDescription": "Enables the search command without any pre-configured scope."
+          "const": "allow-recordings-delete",
+          "markdownDescription": "Enables the recordings_delete command without any pre-configured scope."
         },
         {
-          "description": "Denies the search command without any pre-configured scope.",
+          "description": "Denies the recordings_delete command without any pre-configured scope.",
           "type": "string",
-          "const": "deny-search",
-          "markdownDescription": "Denies the search command without any pre-configured scope."
+          "const": "deny-recordings-delete",
+          "markdownDescription": "Denies the recordings_delete command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the recordings_list_for_meeting command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-recordings-list-for-meeting",
+          "markdownDescription": "Enables the recordings_list_for_meeting command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the recordings_list_for_meeting command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-recordings-list-for-meeting",
+          "markdownDescription": "Denies the recordings_list_for_meeting command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the recordings_list_orphan command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-recordings-list-orphan",
+          "markdownDescription": "Enables the recordings_list_orphan command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the recordings_list_orphan command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-recordings-list-orphan",
+          "markdownDescription": "Denies the recordings_list_orphan command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the recordings_upsert command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-recordings-upsert",
+          "markdownDescription": "Enables the recordings_upsert command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the recordings_upsert command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-recordings-upsert",
+          "markdownDescription": "Denies the recordings_upsert command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the reminders_due command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-reminders-due",
+          "markdownDescription": "Enables the reminders_due command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the reminders_due command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-reminders-due",
+          "markdownDescription": "Denies the reminders_due command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the reminders_prune command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-reminders-prune",
+          "markdownDescription": "Enables the reminders_prune command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the reminders_prune command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-reminders-prune",
+          "markdownDescription": "Denies the reminders_prune command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the reminders_set_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-reminders-set-status",
+          "markdownDescription": "Enables the reminders_set_status command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the reminders_set_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-reminders-set-status",
+          "markdownDescription": "Denies the reminders_set_status command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the reminders_upsert command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-reminders-upsert",
+          "markdownDescription": "Enables the reminders_upsert command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the reminders_upsert command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-reminders-upsert",
+          "markdownDescription": "Denies the reminders_upsert command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the save_transcription command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-save-transcription",
+          "markdownDescription": "Enables the save_transcription command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the save_transcription command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-save-transcription",
+          "markdownDescription": "Denies the save_transcription command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the settings_get_all command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-settings-get-all",
+          "markdownDescription": "Enables the settings_get_all command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the settings_get_all command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-settings-get-all",
+          "markdownDescription": "Denies the settings_get_all command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the settings_set command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-settings-set",
+          "markdownDescription": "Enables the settings_set command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the settings_set command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-settings-set",
+          "markdownDescription": "Denies the settings_set command without any pre-configured scope."
         },
         {
           "description": "Enables the spotlight_search command without any pre-configured scope.",
@@ -667,6 +1039,66 @@
           "markdownDescription": "Denies the spotlight_search command without any pre-configured scope."
         },
         {
+          "description": "Enables the todos_delete command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-todos-delete",
+          "markdownDescription": "Enables the todos_delete command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the todos_delete command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-todos-delete",
+          "markdownDescription": "Denies the todos_delete command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the todos_list_for_meeting command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-todos-list-for-meeting",
+          "markdownDescription": "Enables the todos_list_for_meeting command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the todos_list_for_meeting command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-todos-list-for-meeting",
+          "markdownDescription": "Denies the todos_list_for_meeting command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the todos_list_global command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-todos-list-global",
+          "markdownDescription": "Enables the todos_list_global command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the todos_list_global command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-todos-list-global",
+          "markdownDescription": "Denies the todos_list_global command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the todos_set_completed command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-todos-set-completed",
+          "markdownDescription": "Enables the todos_set_completed command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the todos_set_completed command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-todos-set-completed",
+          "markdownDescription": "Denies the todos_set_completed command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the todos_upsert command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-todos-upsert",
+          "markdownDescription": "Enables the todos_upsert command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the todos_upsert command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-todos-upsert",
+          "markdownDescription": "Denies the todos_upsert command without any pre-configured scope."
+        },
+        {
           "description": "Enables the upsert_chat_chunks command without any pre-configured scope.",
           "type": "string",
           "const": "allow-upsert-chat-chunks",
@@ -677,18 +1109,6 @@
           "type": "string",
           "const": "deny-upsert-chat-chunks",
           "markdownDescription": "Denies the upsert_chat_chunks command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the upsert_chat_session command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-upsert-chat-session",
-          "markdownDescription": "Enables the upsert_chat_session command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the upsert_chat_session command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-upsert-chat-session",
-          "markdownDescription": "Denies the upsert_chat_session command without any pre-configured scope."
         },
         {
           "description": "Enables the upsert_chunks command without any pre-configured scope.",
@@ -703,22 +1123,22 @@
           "markdownDescription": "Denies the upsert_chunks command without any pre-configured scope."
         },
         {
-          "description": "Enables the upsert_meeting command without any pre-configured scope.",
+          "description": "Enables the upsert_meeting_index command without any pre-configured scope.",
           "type": "string",
-          "const": "allow-upsert-meeting",
-          "markdownDescription": "Enables the upsert_meeting command without any pre-configured scope."
+          "const": "allow-upsert-meeting-index",
+          "markdownDescription": "Enables the upsert_meeting_index command without any pre-configured scope."
         },
         {
-          "description": "Denies the upsert_meeting command without any pre-configured scope.",
+          "description": "Denies the upsert_meeting_index command without any pre-configured scope.",
           "type": "string",
-          "const": "deny-upsert-meeting",
-          "markdownDescription": "Denies the upsert_meeting command without any pre-configured scope."
+          "const": "deny-upsert-meeting-index",
+          "markdownDescription": "Denies the upsert_meeting_index command without any pre-configured scope."
         },
         {
-          "description": "Allows all store plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-upsert-meeting`\n- `allow-upsert-chunks`\n- `allow-delete-meeting`\n- `allow-search`\n- `allow-search-chats`\n- `allow-spotlight-search`\n- `allow-get-stale-meetings`\n- `allow-get-stale-chat-sessions`\n- `allow-get-meetings-needing-embeddings`\n- `allow-get-meetings-needing-extraction`\n- `allow-get-chats-needing-embeddings`\n- `allow-mark-meeting-embedded`\n- `allow-mark-meeting-extracted`\n- `allow-mark-meeting-content-indexed`\n- `allow-mark-chat-embedded`\n- `allow-mark-chat-content-indexed`\n- `allow-get-indexed-ids`\n- `allow-get-stats`\n- `allow-get-meta`\n- `allow-rebuild`\n- `allow-rebuild-fts`\n- `allow-graph-upsert`\n- `allow-graph-traverse`\n- `allow-graph-neighbors`\n- `allow-graph-search`\n- `allow-graph-delete-meeting`\n- `allow-graph-stats`\n- `allow-graph-extracted-meeting-ids`\n- `allow-insert-usage`\n- `allow-get-usage-summary`\n- `allow-upsert-chat-session`\n- `allow-upsert-chat-chunks`\n- `allow-delete-chat-session`\n- `allow-is-chat-session-stale`",
+          "description": "Allows all store plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-get-meta`\n- `allow-get-stats`\n- `allow-rebuild`\n- `allow-rebuild-fts`\n- `allow-get-indexed-ids`\n- `allow-meetings-list`\n- `allow-meetings-get`\n- `allow-meetings-upsert`\n- `allow-meetings-delete`\n- `allow-save-transcription`\n- `allow-recordings-upsert`\n- `allow-recordings-list-for-meeting`\n- `allow-recordings-list-orphan`\n- `allow-recordings-delete`\n- `allow-categories-list`\n- `allow-categories-rename`\n- `allow-categories-create`\n- `allow-categories-delete`\n- `allow-chats-list`\n- `allow-chats-get`\n- `allow-chats-upsert`\n- `allow-chats-rename`\n- `allow-chats-delete`\n- `allow-notes-list`\n- `allow-notes-upsert`\n- `allow-notes-delete`\n- `allow-todos-list-for-meeting`\n- `allow-todos-list-global`\n- `allow-todos-upsert`\n- `allow-todos-set-completed`\n- `allow-todos-delete`\n- `allow-reminders-upsert`\n- `allow-reminders-set-status`\n- `allow-reminders-due`\n- `allow-reminders-prune`\n- `allow-settings-get-all`\n- `allow-settings-set`\n- `allow-providers-list`\n- `allow-providers-upsert`\n- `allow-providers-set-active`\n- `allow-providers-delete`\n- `allow-upsert-meeting-index`\n- `allow-upsert-chunks`\n- `allow-meetings-search`\n- `allow-get-stale-meetings`\n- `allow-get-meetings-needing-embeddings`\n- `allow-get-meetings-needing-extraction`\n- `allow-mark-meeting-embedded`\n- `allow-mark-meeting-extracted`\n- `allow-mark-meeting-content-indexed`\n- `allow-mark-chat-content-indexed`\n- `allow-mark-chat-indexed`\n- `allow-upsert-chat-chunks`\n- `allow-delete-chat-session`\n- `allow-chat-is-stale`\n- `allow-chats-get-stale`\n- `allow-get-chats-needing-embeddings`\n- `allow-mark-chat-embedded`\n- `allow-chats-search`\n- `allow-spotlight-search`\n- `allow-graph-upsert`\n- `allow-graph-traverse`\n- `allow-graph-neighbors`\n- `allow-graph-search`\n- `allow-graph-delete-meeting`\n- `allow-graph-stats`\n- `allow-graph-extracted-meeting-ids`\n- `allow-insert-usage`\n- `allow-get-usage-summary`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Allows all store plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-upsert-meeting`\n- `allow-upsert-chunks`\n- `allow-delete-meeting`\n- `allow-search`\n- `allow-search-chats`\n- `allow-spotlight-search`\n- `allow-get-stale-meetings`\n- `allow-get-stale-chat-sessions`\n- `allow-get-meetings-needing-embeddings`\n- `allow-get-meetings-needing-extraction`\n- `allow-get-chats-needing-embeddings`\n- `allow-mark-meeting-embedded`\n- `allow-mark-meeting-extracted`\n- `allow-mark-meeting-content-indexed`\n- `allow-mark-chat-embedded`\n- `allow-mark-chat-content-indexed`\n- `allow-get-indexed-ids`\n- `allow-get-stats`\n- `allow-get-meta`\n- `allow-rebuild`\n- `allow-rebuild-fts`\n- `allow-graph-upsert`\n- `allow-graph-traverse`\n- `allow-graph-neighbors`\n- `allow-graph-search`\n- `allow-graph-delete-meeting`\n- `allow-graph-stats`\n- `allow-graph-extracted-meeting-ids`\n- `allow-insert-usage`\n- `allow-get-usage-summary`\n- `allow-upsert-chat-session`\n- `allow-upsert-chat-chunks`\n- `allow-delete-chat-session`\n- `allow-is-chat-session-stale`"
+          "markdownDescription": "Allows all store plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-get-meta`\n- `allow-get-stats`\n- `allow-rebuild`\n- `allow-rebuild-fts`\n- `allow-get-indexed-ids`\n- `allow-meetings-list`\n- `allow-meetings-get`\n- `allow-meetings-upsert`\n- `allow-meetings-delete`\n- `allow-save-transcription`\n- `allow-recordings-upsert`\n- `allow-recordings-list-for-meeting`\n- `allow-recordings-list-orphan`\n- `allow-recordings-delete`\n- `allow-categories-list`\n- `allow-categories-rename`\n- `allow-categories-create`\n- `allow-categories-delete`\n- `allow-chats-list`\n- `allow-chats-get`\n- `allow-chats-upsert`\n- `allow-chats-rename`\n- `allow-chats-delete`\n- `allow-notes-list`\n- `allow-notes-upsert`\n- `allow-notes-delete`\n- `allow-todos-list-for-meeting`\n- `allow-todos-list-global`\n- `allow-todos-upsert`\n- `allow-todos-set-completed`\n- `allow-todos-delete`\n- `allow-reminders-upsert`\n- `allow-reminders-set-status`\n- `allow-reminders-due`\n- `allow-reminders-prune`\n- `allow-settings-get-all`\n- `allow-settings-set`\n- `allow-providers-list`\n- `allow-providers-upsert`\n- `allow-providers-set-active`\n- `allow-providers-delete`\n- `allow-upsert-meeting-index`\n- `allow-upsert-chunks`\n- `allow-meetings-search`\n- `allow-get-stale-meetings`\n- `allow-get-meetings-needing-embeddings`\n- `allow-get-meetings-needing-extraction`\n- `allow-mark-meeting-embedded`\n- `allow-mark-meeting-extracted`\n- `allow-mark-meeting-content-indexed`\n- `allow-mark-chat-content-indexed`\n- `allow-mark-chat-indexed`\n- `allow-upsert-chat-chunks`\n- `allow-delete-chat-session`\n- `allow-chat-is-stale`\n- `allow-chats-get-stale`\n- `allow-get-chats-needing-embeddings`\n- `allow-mark-chat-embedded`\n- `allow-chats-search`\n- `allow-spotlight-search`\n- `allow-graph-upsert`\n- `allow-graph-traverse`\n- `allow-graph-neighbors`\n- `allow-graph-search`\n- `allow-graph-delete-meeting`\n- `allow-graph-stats`\n- `allow-graph-extracted-meeting-ids`\n- `allow-insert-usage`\n- `allow-get-usage-summary`"
         }
       ]
     }
