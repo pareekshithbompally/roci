@@ -50,7 +50,7 @@ export interface HistoryItem extends ProcessedResult {
   recordingFileName?: string;
   transcriptionId?: string;
   summaryId?: string;
-  inputSource?: AudioCaptureSource;
+  inputSource?: string;
   pendingTranscription?: boolean;
   /** Calendar integration fields (populated when recording started from a calendar event) */
   calendarEventId?: string;
@@ -206,7 +206,7 @@ export interface AppSettings {
 
 // ============ New Data Layer Types ============
 
-/** Lightweight entry for sidebar listing — stored in meetings/index.json */
+/** Lightweight entry for sidebar listing — stored in kasset.db meetings table */
 export interface MeetingIndexEntry {
   id: string;
   title: string;
@@ -282,7 +282,7 @@ export interface TodoEntry {
   reminder?: TodoReminder;
 }
 
-/** Entry in the global reminders.json index */
+/** Entry in the reminders table (joined to todos + meetings) */
 export interface ReminderEntry {
   todoId: string;
   meetingId: string;
@@ -312,7 +312,7 @@ export interface MeetingDetail {
   todos: TodoEntry[];
 }
 
-/** Chat index entry — stored in chats/index.json */
+/** Chat index entry — stored in kasset.db chats table */
 export interface ChatIndexEntry {
   id: string;
   title: string;

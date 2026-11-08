@@ -2,13 +2,13 @@
  * useMeetingNotes Hook
  *
  * TanStack Query-based notes hook for a single meeting.
+ * Reads/writes via the unified store (Phase 3).
  * Provides optimistic mutations with rollback on failure.
- * Replaces NotesContext state management.
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback } from 'react';
-import { notesRepository } from '@services/repositories';
+import { store } from '@services/db';
 import { queryKeys } from '@shared/query/queryKeys';
 import type { NoteEntry } from '@shared/types';
 import type { Note } from '../types';
@@ -34,11 +34,11 @@ export function useMeetingNotes(meetingId: string | null) {
     isLoading,
     error,
   } = useQuery({
-    queryKey: queryKeys.notes(meetingId!),
+    queryKey: queryKeys.storeNotes(meetingId!),
     queryFn: async () => {
-      const entries = await notesRepository.readDoc(meetingId!);
-      if (!entries || entries.length === 0) return [];
-      return entries.map((n: NoteEntry) => mapEntryToNote(n, meetingId!));
+      const entries = await store.notes.list(meetingId!);
+      if (entries.length === 0) return [];
+      return entries.map((n) => mapEntryToNote(n, meetingId!));
     },
     enabled: !!meetingId,
   });
@@ -48,14 +48,13 @@ export function useMeetingNotes(meetingId: string | null) {
   const addNoteMutate = useMutation({
     mutationFn: async (text: string) => {
       const now = new Date().toISOString();
-      const entry: NoteEntry = { id: crypto.randomUUID(), text, createdAt: now, updatedAt: now };
-      const ok = await notesRepository.addNote(meetingId!, entry);
-      if (!ok) throw new Error('Failed to save note');
+      const entry = { id: crypto.randomUUID(), meetingId: meetingId!, text, createdAt: now };
+      await store.notes.upsert(entry);
       return entry;
     },
     onMutate: async (text) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.notes(meetingId!) });
-      const previous = queryClient.getQueryData<Note[]>(queryKeys.notes(meetingId!));
+      await queryClient.cancelQueries({ queryKey: queryKeys.storeNotes(meetingId!) });
+      const previous = queryClient.getQueryData<Note[]>(queryKeys.storeNotes(meetingId!));
       const optimistic: Note = {
         id: crypto.randomUUID(),
         text,
@@ -65,30 +64,29 @@ export function useMeetingNotes(meetingId: string | null) {
         updatedAt: new Date().toISOString(),
         version: 1,
       };
-      queryClient.setQueryData<Note[]>(queryKeys.notes(meetingId!), (old) =>
+      queryClient.setQueryData<Note[]>(queryKeys.storeNotes(meetingId!), (old) =>
         [optimistic, ...(old || [])]
       );
       return { previous };
     },
     onError: (_err, _text, context) => {
       if (context?.previous !== undefined) {
-        queryClient.setQueryData(queryKeys.notes(meetingId!), context.previous);
+        queryClient.setQueryData(queryKeys.storeNotes(meetingId!), context.previous);
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.notes(meetingId!) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeNotes(meetingId!) });
     },
   });
 
   const updateNoteMutate = useMutation({
     mutationFn: async ({ noteId, text }: { noteId: string; text: string }) => {
-      const ok = await notesRepository.updateNote(meetingId!, noteId, text);
-      if (!ok) throw new Error('Failed to update note');
+      await store.notes.upsert({ id: noteId, meetingId: meetingId!, text });
     },
     onMutate: async ({ noteId, text }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.notes(meetingId!) });
-      const previous = queryClient.getQueryData<Note[]>(queryKeys.notes(meetingId!));
-      queryClient.setQueryData<Note[]>(queryKeys.notes(meetingId!), (old) =>
+      await queryClient.cancelQueries({ queryKey: queryKeys.storeNotes(meetingId!) });
+      const previous = queryClient.getQueryData<Note[]>(queryKeys.storeNotes(meetingId!));
+      queryClient.setQueryData<Note[]>(queryKeys.storeNotes(meetingId!), (old) =>
         (old || []).map((n) =>
           n.id === noteId ? { ...n, text, updatedAt: new Date().toISOString() } : n
         )
@@ -97,34 +95,33 @@ export function useMeetingNotes(meetingId: string | null) {
     },
     onError: (_err, _vars, context) => {
       if (context?.previous !== undefined) {
-        queryClient.setQueryData(queryKeys.notes(meetingId!), context.previous);
+        queryClient.setQueryData(queryKeys.storeNotes(meetingId!), context.previous);
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.notes(meetingId!) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeNotes(meetingId!) });
     },
   });
 
   const deleteNoteMutate = useMutation({
     mutationFn: async (noteId: string) => {
-      const ok = await notesRepository.deleteNote(meetingId!, noteId);
-      if (!ok) throw new Error('Failed to delete note');
+      await store.notes.delete(noteId);
     },
     onMutate: async (noteId) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.notes(meetingId!) });
-      const previous = queryClient.getQueryData<Note[]>(queryKeys.notes(meetingId!));
-      queryClient.setQueryData<Note[]>(queryKeys.notes(meetingId!), (old) =>
+      await queryClient.cancelQueries({ queryKey: queryKeys.storeNotes(meetingId!) });
+      const previous = queryClient.getQueryData<Note[]>(queryKeys.storeNotes(meetingId!));
+      queryClient.setQueryData<Note[]>(queryKeys.storeNotes(meetingId!), (old) =>
         (old || []).filter((n) => n.id !== noteId)
       );
       return { previous };
     },
     onError: (_err, _noteId, context) => {
       if (context?.previous !== undefined) {
-        queryClient.setQueryData(queryKeys.notes(meetingId!), context.previous);
+        queryClient.setQueryData(queryKeys.storeNotes(meetingId!), context.previous);
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.notes(meetingId!) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeNotes(meetingId!) });
     },
   });
 

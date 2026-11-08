@@ -14,8 +14,8 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
-import type { HistoryItem, MeetingIndexEntry } from '@shared/types';
-import { meetingIndexRepository } from '@services/repositories';
+import type { HistoryItem } from '@shared/types';
+import { store } from '@services/db';
 import { meetingService } from '@services/meeting.service';
 
 // ── Types ──
@@ -67,7 +67,21 @@ const HistoryUIContext = createContext<HistoryUIContextValue | null>(null);
 // ── Helpers ──
 
 /** Convert MeetingIndexEntry → HistoryItem (lightweight — no transcript/summary) */
-function indexEntryToHistoryItem(entry: MeetingIndexEntry): HistoryItem {
+function indexEntryToHistoryItem(entry: {
+  id: string;
+  title: string;
+  categories: string[];
+  recordingFileName?: string;
+  inputSource?: string;
+  pendingTranscription?: boolean;
+  createdAt: string;
+  calendarEventId?: string;
+  scheduledTitle?: string;
+  participants?: Array<{ name?: string; email?: string; status?: string }>;
+  scheduledStart?: string;
+  scheduledEnd?: string;
+  meetingUrl?: string;
+}): HistoryItem {
   return {
     id: entry.id,
     title: entry.title,
@@ -125,8 +139,8 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
   const loadHistory = useCallback(async () => {
     setIsLoading(true);
     try {
-      const indexEntries = await meetingIndexRepository.loadIndex();
-      setItems(indexEntries.map(indexEntryToHistoryItem));
+      const result = await store.meetings.list(1000);
+      setItems(result.items.map(indexEntryToHistoryItem));
     } catch (error) {
       console.error('[HistoryContext] Error loading history:', error);
     } finally {
@@ -136,22 +150,22 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
 
   const addToHistory = useCallback(async (item: HistoryItem) => {
     try {
-      const now = new Date().toISOString();
-      await meetingIndexRepository.addToIndex({
+      const now = Date.now();
+      await store.meetings.upsert({
         id: item.id,
         title: item.title,
-        categories: item.categories,
-        recordingFileName: item.recordingFileName,
         inputSource: item.inputSource,
         pendingTranscription: item.pendingTranscription,
-        createdAt: now,
-        updatedAt: now,
         calendarEventId: item.calendarEventId,
-        scheduledTitle: item.scheduledTitle,
-        participants: item.participants,
-        scheduledStart: item.scheduledStart,
-        scheduledEnd: item.scheduledEnd,
-        meetingUrl: item.meetingUrl,
+        calendarMeta: item.scheduledStart ? {
+          scheduledTitle: item.scheduledTitle,
+          participants: item.participants,
+          scheduledStart: item.scheduledStart,
+          scheduledEnd: item.scheduledEnd,
+          meetingUrl: item.meetingUrl,
+        } : undefined,
+        categories: item.categories,
+        createdAt: now,
       });
       setItems(prev => [item, ...prev]);
     } catch (error) {
@@ -162,11 +176,10 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
   const renameItem = useCallback(async (itemId: string, newTitle: string): Promise<boolean> => {
     if (!newTitle.trim()) return false;
     try {
-      await meetingIndexRepository.updateInIndex(itemId, { title: newTitle });
+      await store.meetings.upsert({ id: itemId, title: newTitle });
       setItems(prev => prev.map(item =>
         item.id === itemId ? { ...item, title: newTitle } : item
       ));
-      // Also clear rename UI state
       setRenameItemId(null);
       setRenameValueRaw('');
       return true;
@@ -178,14 +191,18 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
 
   const updateItem = useCallback(async (itemId: string, updates: Partial<HistoryItem>): Promise<boolean> => {
     try {
-      const indexUpdates: Partial<MeetingIndexEntry> = {};
-      if (updates.title) indexUpdates.title = updates.title;
-      if (updates.categories) indexUpdates.categories = updates.categories;
-      if (updates.recordingFileName) indexUpdates.recordingFileName = updates.recordingFileName;
-      if (updates.pendingTranscription !== undefined) indexUpdates.pendingTranscription = updates.pendingTranscription;
-      if (Object.keys(indexUpdates).length > 0) {
-        await meetingIndexRepository.updateInIndex(itemId, indexUpdates);
+      const input: Parameters<typeof store.meetings.upsert>[0] = { id: itemId, title: updates.title || '' };
+      if (updates.categories) input.categories = updates.categories;
+      if (updates.inputSource) input.inputSource = updates.inputSource;
+      if (updates.recordingFileName) {
+        // Not directly settable via meeting upsert — handled by recording operations
       }
+      if (updates.pendingTranscription !== undefined) {
+        input.pendingTranscription = updates.pendingTranscription;
+      }
+      if (updates.calendarEventId) input.calendarEventId = updates.calendarEventId;
+
+      await store.meetings.upsert(input);
       setItems(prev => prev.map(item =>
         item.id === itemId ? { ...item, ...updates } : item
       ));
@@ -200,7 +217,6 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
     try {
       await meetingService.deleteMeeting(itemId);
       setItems(prev => prev.filter(item => item.id !== itemId));
-      // Also clear related UI state
       setDeleteConfirmIdRaw(null);
       setMenuOpenIdRaw(null);
       return true;
@@ -292,12 +308,6 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
 
 // ── Hooks ──
 
-/**
- * useHistoryData — data-only hook.
- *
- * Use in components that need items/categories but NOT menu/rename/delete UI state.
- * This prevents re-renders when someone toggles a context menu in the sidebar.
- */
 export const useHistoryData = (): HistoryDataContextValue => {
   const context = useContext(HistoryDataContext);
   if (!context) {
@@ -306,11 +316,6 @@ export const useHistoryData = (): HistoryDataContextValue => {
   return context;
 };
 
-/**
- * useHistoryUI — UI-state-only hook.
- *
- * Use in sidebar components that manage menus, rename, and delete confirmation.
- */
 export const useHistoryUI = (): HistoryUIContextValue => {
   const context = useContext(HistoryUIContext);
   if (!context) {
@@ -319,12 +324,6 @@ export const useHistoryUI = (): HistoryUIContextValue => {
   return context;
 };
 
-/**
- * useHistory — combined hook (backward compatible).
- *
- * Returns both data and UI state. Prefer useHistoryData() in components
- * that don't need UI state to avoid unnecessary re-renders.
- */
 export const useHistory = (): HistoryContextValue => {
   const data = useHistoryData();
   const ui = useHistoryUI();

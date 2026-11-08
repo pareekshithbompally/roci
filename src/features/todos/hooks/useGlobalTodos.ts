@@ -2,27 +2,23 @@
  * useGlobalTodos Hook
  *
  * Aggregates todos from ALL meetings into a single list.
- * Backed by TanStack Query — one disk read per open, mutations with invalidation.
+ * One DB query per fetch (store.todos.listGlobal) — no per-meeting disk reads.
  * Supports search, create, toggle, and reminder management.
  *
- * Mutations invalidate both queryKeys.globalTodos() and queryKeys.todos(meetingId),
+ * Mutations invalidate both queryKeys.storeGlobalTodos() and queryKeys.storeTodos(meetingId),
  * ensuring the main meeting view and RemindersView stay in sync without window events.
  */
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
-import { todosRepository } from '@services/repositories';
-import { reminderService } from '@services/reminder.service';
+import { store, type GlobalTodoEntry } from '@services/db';
+import { notificationScheduler } from '@services/notification-scheduler';
 import { queryKeys } from '@shared/query/queryKeys';
-import type { ScheduleReminderParams } from '@services/reminder.service';
-import type { TodoEntry, HistoryItem } from '@shared/types';
 import { hashToNotificationId } from '@shared/utils/todo.utils';
 
-export interface GlobalTodo extends TodoEntry {
-  meetingId: string;
-  meetingTitle: string;
-}
+/** @deprecated Use GlobalTodoEntry from @services/db */
+export type GlobalTodo = GlobalTodoEntry;
 
 export type TodoFilter = 'all' | 'pending' | 'completed';
 
@@ -30,12 +26,12 @@ interface MeetingGroup {
   meetingId: string;
   meetingTitle: string;
   timestamp: number;
-  todos: GlobalTodo[];
+  todos: GlobalTodoEntry[];
 }
 
 export interface UseGlobalTodosReturn {
   /** Flat list of all todos (filtered) */
-  todos: GlobalTodo[];
+  todos: GlobalTodoEntry[];
   /** Todos grouped by meeting */
   groups: MeetingGroup[];
   /** Active filter */
@@ -74,9 +70,18 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
 
   const historyLen = historyItems.length;
 
-  // Refetch the aggregate when the meeting list changes (added/removed meetings).
+  // Build meeting timestamp map from history context for grouping
+  const meetingTimestampMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const hi of historyItems) {
+      map.set(hi.id, hi.timestamp ?? 0);
+    }
+    return map;
+  }, [historyItems]);
+
+  // Refetch when the meeting list changes
   useEffect(() => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.globalTodos() });
+    queryClient.invalidateQueries({ queryKey: queryKeys.storeGlobalTodos() });
   }, [historyLen, queryClient]);
 
   const {
@@ -84,64 +89,35 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: queryKeys.globalTodos(),
-    queryFn: async (): Promise<GlobalTodo[]> => {
-      const results: GlobalTodo[] = [];
-
-      if (historyItems.length > 0) {
-        const entries = await Promise.all(
-          historyItems.map(async (hi: HistoryItem) => {
-            try {
-              const todos = await todosRepository.readDoc(hi.id);
-              return { hi, todos: todos || [] };
-            } catch {
-              return { hi, todos: [] };
-            }
-          })
-        );
-
-        for (const { hi, todos } of entries) {
-          for (const todo of todos) {
-            results.push({
-              ...todo,
-              meetingId: hi.id,
-              meetingTitle: hi.title || 'Untitled Meeting',
-            });
-          }
-        }
-      }
-
-      // Also load general (non-meeting) todos
-      try {
-        const generalTodos = await todosRepository.readDoc('_general');
-        if (generalTodos) {
-          for (const todo of generalTodos) {
-            results.push({
-              ...todo,
-              meetingId: '_general',
-              meetingTitle: 'General',
-            });
-          }
-        }
-      } catch {
-        // _general may not exist yet
-      }
-
-      return results;
+    queryKey: queryKeys.storeGlobalTodos(),
+    queryFn: async (): Promise<GlobalTodoEntry[]> => {
+      const result = await store.todos.listGlobal(undefined, 500, 0);
+      return result.items;
     },
   });
 
   const toggleTodoMutate = useMutation({
     mutationFn: async ({ meetingId, todoId }: { meetingId: string; todoId: string }) => {
-      await todosRepository.toggleTodo(meetingId, todoId);
+      const todo = allTodos.find((t) => t.id === todoId);
+      if (!todo) throw new Error('Todo not found');
+      const newCompleted = !todo.completed;
+      await store.todos.setCompleted(todoId, newCompleted);
+      if (newCompleted) {
+        try {
+          await notificationScheduler.cancel(`todo:${todoId}`);
+          await store.reminders.setStatus(todoId, 'cancelled');
+        } catch {
+          // reminder may not exist
+        }
+      }
     },
     onMutate: async ({ meetingId, todoId }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.globalTodos() });
-      const previous = queryClient.getQueryData<GlobalTodo[]>(queryKeys.globalTodos());
-      queryClient.setQueryData<GlobalTodo[]>(queryKeys.globalTodos(), (old) =>
+      await queryClient.cancelQueries({ queryKey: queryKeys.storeGlobalTodos() });
+      const previous = queryClient.getQueryData<GlobalTodoEntry[]>(queryKeys.storeGlobalTodos());
+      queryClient.setQueryData<GlobalTodoEntry[]>(queryKeys.storeGlobalTodos(), (old) =>
         (old || []).map((t) =>
           t.id === todoId && t.meetingId === meetingId
-            ? { ...t, completed: !t.completed }
+            ? { ...t, completed: !t.completed, reminder: !t.completed ? t.reminder : undefined }
             : t
         )
       );
@@ -149,13 +125,13 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
     },
     onError: (_err, _vars, context) => {
       if (context?.previous !== undefined) {
-        queryClient.setQueryData(queryKeys.globalTodos(), context.previous);
+        queryClient.setQueryData(queryKeys.storeGlobalTodos(), context.previous);
       }
     },
     onSettled: (_data, _error, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.globalTodos() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeGlobalTodos() });
       if (variables?.meetingId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.todos(variables.meetingId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.storeTodos(variables.meetingId) });
       }
     },
   });
@@ -172,22 +148,30 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
       dueDate?: string;
       meetingTitle: string;
     }) => {
-      const todoEntry: TodoEntry = {
+      const entry = {
         id: crypto.randomUUID(),
+        meetingId,
         text,
         dueDate,
         completed: false,
-        source: 'user',
-        createdAt: new Date().toISOString(),
+        source: 'user' as const,
       };
-      const ok = await todosRepository.addTodo(meetingId, todoEntry);
-      if (!ok) throw new Error('Failed to add todo');
-      return { ...todoEntry, meetingId, meetingTitle };
+      await store.todos.upsert(entry);
+      return {
+        id: entry.id,
+        text,
+        dueDate,
+        completed: false,
+        source: 'user' as const,
+        createdAt: new Date().toISOString(),
+        meetingId,
+        meetingTitle,
+      };
     },
     onMutate: async ({ meetingId, text, dueDate, meetingTitle }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.globalTodos() });
-      const previous = queryClient.getQueryData<GlobalTodo[]>(queryKeys.globalTodos());
-      const optimistic: GlobalTodo = {
+      await queryClient.cancelQueries({ queryKey: queryKeys.storeGlobalTodos() });
+      const previous = queryClient.getQueryData<GlobalTodoEntry[]>(queryKeys.storeGlobalTodos());
+      const optimistic: GlobalTodoEntry = {
         id: crypto.randomUUID(),
         text,
         dueDate,
@@ -197,20 +181,20 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
         meetingId,
         meetingTitle,
       };
-      queryClient.setQueryData<GlobalTodo[]>(queryKeys.globalTodos(), (old) =>
+      queryClient.setQueryData<GlobalTodoEntry[]>(queryKeys.storeGlobalTodos(), (old) =>
         [optimistic, ...(old || [])]
       );
       return { previous };
     },
     onError: (_err, _vars, context) => {
       if (context?.previous !== undefined) {
-        queryClient.setQueryData(queryKeys.globalTodos(), context.previous);
+        queryClient.setQueryData(queryKeys.storeGlobalTodos(), context.previous);
       }
     },
     onSettled: (_data, _error, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.globalTodos() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeGlobalTodos() });
       if (variables?.meetingId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.todos(variables.meetingId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.storeTodos(variables.meetingId) });
       }
     },
   });
@@ -230,22 +214,33 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
       dateTime: string | null;
     }) => {
       if (dateTime) {
-        const params: ScheduleReminderParams = {
-          todoId,
-          meetingId,
-          todoText: todoText.length > 80 ? todoText.slice(0, 77) + '…' : todoText,
-          meetingTitle,
-          reminderDateTime: dateTime,
-        };
-        await reminderService.schedule(params);
+        const fireAt = new Date(dateTime).getTime();
+        const notificationId = hashToNotificationId(todoId);
+
+        // Schedule OS notification
+        await notificationScheduler.schedule(`todo:${todoId}`, {
+          at: new Date(dateTime),
+          title: meetingTitle,
+          body: todoText.length > 80 ? todoText.slice(0, 77) + '\u2026' : todoText,
+          actionTypeId: 'todo_reminder',
+          extra: { todoId, meetingId },
+        });
+
+        // Persist to DB
+        await store.reminders.upsert(todoId, notificationId, fireAt);
       } else {
-        await reminderService.cancel(todoId);
+        await notificationScheduler.cancel(`todo:${todoId}`);
+        try {
+          await store.reminders.setStatus(todoId, 'cancelled');
+        } catch {
+          // reminder may not exist
+        }
       }
     },
     onMutate: async ({ meetingId, todoId, dateTime }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.globalTodos() });
-      const previous = queryClient.getQueryData<GlobalTodo[]>(queryKeys.globalTodos());
-      queryClient.setQueryData<GlobalTodo[]>(queryKeys.globalTodos(), (old) =>
+      await queryClient.cancelQueries({ queryKey: queryKeys.storeGlobalTodos() });
+      const previous = queryClient.getQueryData<GlobalTodoEntry[]>(queryKeys.storeGlobalTodos());
+      queryClient.setQueryData<GlobalTodoEntry[]>(queryKeys.storeGlobalTodos(), (old) =>
         (old || []).map((t) =>
           t.id === todoId && t.meetingId === meetingId
             ? {
@@ -261,13 +256,13 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
     },
     onError: (_err, _vars, context) => {
       if (context?.previous !== undefined) {
-        queryClient.setQueryData(queryKeys.globalTodos(), context.previous);
+        queryClient.setQueryData(queryKeys.storeGlobalTodos(), context.previous);
       }
     },
     onSettled: (_data, _error, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.globalTodos() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeGlobalTodos() });
       if (variables?.meetingId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.todos(variables.meetingId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.storeTodos(variables.meetingId) });
       }
     },
   });
@@ -346,11 +341,11 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
     for (const todo of filtered) {
       let group = map.get(todo.meetingId);
       if (!group) {
-        const hi = historyItems.find((h) => h.id === todo.meetingId);
+        const ts = meetingTimestampMap.get(todo.meetingId) ?? 0;
         group = {
           meetingId: todo.meetingId,
           meetingTitle: todo.meetingTitle,
-          timestamp: hi?.timestamp ?? new Date(todo.createdAt).getTime(),
+          timestamp: ts,
           todos: [],
         };
         map.set(todo.meetingId, group);
@@ -367,7 +362,7 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
           return 0;
         }),
       }));
-  }, [filtered, historyItems]);
+  }, [filtered, meetingTimestampMap]);
 
   return {
     todos: filtered,

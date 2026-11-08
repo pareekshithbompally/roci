@@ -1,18 +1,19 @@
 /**
  * Settings Context
- * 
+ *
  * Manages application settings and model providers.
- * 
+ * Reads/writes via the unified store (Phase 4).
+ *
  * Key features:
- * - Persists settings to file storage
+ * - Persists settings as key-value pairs in kasset.db
  * - Merges saved providers with predefined providers (for new providers added in updates)
- * - Auto-saves on changes with debounce (only after initial load completes)
+ * - Loads settings on mount
  */
 
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
 import type { AppSettings } from '@shared/types';
 import type { ModelProvider, ProviderSetting } from '@shared/types/modelProviders';
-import { settingsService } from '@services/storage';
+import { store } from '@services/db';
 import { predefinedProviders, MANAGED_SDK_PROVIDERS } from '@config/providers.config';
 import { ENGINES } from '@services/ai/transcription';
 
@@ -51,9 +52,9 @@ interface SettingsContextValue extends SettingsState {
 }
 
 const defaultSettings: AppSettings = {
-  transcriptionModel: '', // User must select in Settings > Providers > Model Config
-  chatModel: '', // User must select in Settings > Providers > Model Config
-  analyzeModel: '', // Analyze-phase LLM; falls back to chatModel at runtime
+  transcriptionModel: '',
+  chatModel: '',
+  analyzeModel: '',
   apiKey: '',
   audioQualityPreset: 'voice',
   defaultAudioSource: 'systemAndMicrophone',
@@ -71,12 +72,17 @@ const defaultSettings: AppSettings = {
   },
 };
 
-// Initial state with loading=true to prevent any saves before load completes
+const SETTINGS_KEYS: Array<keyof AppSettings> = [
+  'transcriptionModel', 'chatModel', 'analyzeModel', 'kgExtractionModel',
+  'apiKey', 'audioQualityPreset', 'defaultAudioSource',
+  'jobProcessing', 'summaryExtraction', 'meetingDefaults', 'calendarIntegration',
+];
+
 const initialState: SettingsState = {
   settings: defaultSettings,
-  providers: [], // Start empty, will be populated from storage or predefined
+  providers: [],
   selectedProviderName: null,
-  isLoading: true, // Start with loading=true
+  isLoading: true,
 };
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
@@ -85,37 +91,24 @@ interface SettingsProviderProps {
   children: ReactNode;
 }
 
-/**
- * Merge saved providers with predefined providers.
- * - Uses saved data for providers that exist in both
- * - Adds new predefined providers that don't exist in saved data
- * - Preserves user's API keys, models, and settings from saved data
- */
 function mergeProviders(savedProviders: ModelProvider[], predefined: ModelProvider[]): ModelProvider[] {
   const merged: ModelProvider[] = [];
   const savedProviderMap = new Map(savedProviders.map(p => [p.provider, p]));
-  
-  // First, add all predefined providers (in their original order)
-  // but use saved data if available
+
   for (const predefinedProvider of predefined) {
     const savedProvider = savedProviderMap.get(predefinedProvider.provider);
-    
     if (savedProvider) {
-      // Use saved provider data (has user's API keys, models, etc.)
       merged.push(savedProvider);
       savedProviderMap.delete(predefinedProvider.provider);
     } else {
-      // New provider from predefined - add it
       merged.push({ ...predefinedProvider });
     }
   }
-  
-  // Add any custom providers that user added but aren't in predefined
+
   for (const [, customProvider] of savedProviderMap) {
     merged.push(customProvider);
   }
 
-  // Strip stale base-url settings from managed SDK providers
   return merged.map(provider => {
     if (!MANAGED_SDK_PROVIDERS.has(provider.provider)) return provider;
     const hasStaleBaseUrl = provider.settings.some(s => s.key === 'base-url');
@@ -128,183 +121,145 @@ function mergeProviders(savedProviders: ModelProvider[], predefined: ModelProvid
   });
 }
 
-/**
- * Check if a provider has a valid API key configured
- */
 function hasApiKey(provider: ModelProvider): boolean {
-  // Check api_key field
   if (provider.api_key && typeof provider.api_key === 'string' && provider.api_key.trim() !== '') {
     return true;
   }
-  // Check settings array for api-key
   const apiKeySetting = provider.settings?.find((s) => s.key === 'api-key');
   const value = apiKeySetting?.controller_props?.value;
   return typeof value === 'string' && value.trim() !== '';
 }
+
+async function loadSettingsFromStore(): Promise<{ settings: AppSettings; selectedProviderName: string | null }> {
+  const raw = await store.settings.getAll();
+  const loaded: Partial<AppSettings> = {};
+
+  for (const key of SETTINGS_KEYS) {
+    if (raw[key]) {
+      try {
+        (loaded as any)[key] = JSON.parse(raw[key]);
+      } catch {
+        (loaded as any)[key] = raw[key];
+      }
+    }
+  }
+
+  let spn: string | null = null;
+  try { spn = raw.selectedProviderName ? JSON.parse(raw.selectedProviderName) : null; } catch { spn = raw.selectedProviderName ?? null; }
+
+  return { settings: { ...defaultSettings, ...loaded }, selectedProviderName: spn };
+}
+
 
 export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) => {
   const [state, setState] = useState<SettingsState>(initialState);
   const isInitializedRef = useRef(false);
   const stateRef = useRef<SettingsState>(state);
 
-  // Keep stateRef in sync with state
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
 
-  // Selected provider computed
   const selectedProvider = state.providers.find(
     p => p.provider === state.selectedProviderName
   );
 
-  // Load settings from storage
   const loadSettings = useCallback(async () => {
     console.log('[SettingsContext] Loading settings...');
     setState(prev => ({ ...prev, isLoading: true }));
-    
+
     try {
-      const result = await settingsService.load();
-      console.log('[SettingsContext] settingsService.load() result:', result.success);
-      
-      if (result.success && result.data) {
-        const data = result.data;
-        console.log('[SettingsContext] Raw data from storage:');
-        console.log('[SettingsContext] - providers:', (data as any).providers?.length || 0);
-        console.log('[SettingsContext] - chatModel:', (data as any).chatModel);
-        console.log('[SettingsContext] - aiModel:', data.aiModel);
-        
-        // Map storage settings to app settings format
-        const loadedSettings: AppSettings = {
-          transcriptionModel: data.aiModel || '',
-          chatModel: (data as any).chatModel || '',
-          analyzeModel: (data as any).analyzeModel || '',
-          apiKey: data.geminiApiKey || '',
-          audioQualityPreset: data.audioQualityPreset || 'voice',
-          defaultAudioSource: (data as any).defaultAudioSource || 'systemAndMicrophone',
-          categories: (data as any).categories || defaultSettings.categories,
-          jobProcessing: (data as any).jobProcessing || defaultSettings.jobProcessing,
-          summaryExtraction: (data as any).summaryExtraction || defaultSettings.summaryExtraction,
-          meetingDefaults: (data as any).meetingDefaults || defaultSettings.meetingDefaults,
-          calendarIntegration: (data as any).calendarIntegration ?? undefined,
-        };
+      await store.initialize();
+      const { settings: loadedSettings, selectedProviderName: savedProviderName } = await loadSettingsFromStore();
 
-        // Merge saved providers with predefined providers
-        // This ensures new providers from app updates are added, while preserving user data
-        let loadedProviders: ModelProvider[];
-        if (data.providers && Array.isArray(data.providers) && data.providers.length > 0) {
-          console.log('[SettingsContext] Using saved providers, count:', data.providers.length);
-          loadedProviders = mergeProviders(data.providers, predefinedProviders);
-          console.log('[SettingsContext] Merged providers from storage with predefined');
-        } else {
-          console.log('[SettingsContext] No providers in data, using predefined');
-          // No saved providers - use predefined
-          loadedProviders = predefinedProviders.map(p => ({ ...p }));
-          console.log('[SettingsContext] Using predefined providers (no saved data)');
+      let loadedProviders: ModelProvider[];
+      let selectedProviderName: string | null = savedProviderName;
+
+      const savedProviders = await store.providers.list();
+
+      if (savedProviders.length > 0) {
+        console.log('[SettingsContext] Using saved providers, count:', savedProviders.length);
+        loadedProviders = mergeProviders(savedProviders, predefinedProviders);
+      } else {
+        console.log('[SettingsContext] No saved providers, using predefined');
+        loadedProviders = predefinedProviders.map(p => ({ ...p }));
+      }
+
+      if (!selectedProviderName && loadedProviders.length > 0) {
+        const providerWithKey = loadedProviders.find(hasApiKey);
+        if (providerWithKey) {
+          selectedProviderName = providerWithKey.provider;
+          console.log('[SettingsContext] Auto-selected provider with API key:', selectedProviderName);
         }
+      }
 
-        // Load selected provider
-        let selectedProviderName = data.selectedProviderName !== undefined ? data.selectedProviderName : null;
-        
-        // Auto-select a provider if none is selected but providers with API keys exist
-        if (!selectedProviderName && loadedProviders.length > 0) {
-          const providerWithKey = loadedProviders.find(hasApiKey);
-          if (providerWithKey) {
-            selectedProviderName = providerWithKey.provider;
-            console.log('[SettingsContext] Auto-selected provider with API key:', selectedProviderName);
-          }
-        }
+      if (!loadedSettings.chatModel) {
+        let autoSelectedModel: string | null = null;
 
-        // Auto-select model if none persisted — fallback chain:
-        // 1. Loaded chatModel from storage (already set above)
-        // 2. Last-used model from localStorage
-        // 3. First model from first active provider with API key
-        if (!loadedSettings.chatModel) {
-          let autoSelectedModel: string | null = null;
-
-          // Try last-used model from localStorage
-          try {
-            const lastUsed = localStorage.getItem('kasset_last_used_model');
-            if (lastUsed) {
-              const { provider: lastProvider, modelId: lastModelId } = JSON.parse(lastUsed);
-              // Validate: provider still active, model still exists
-              const providerMatch = loadedProviders.find(
-                p => p.provider === lastProvider && p.active && hasApiKey(p)
-              );
-              if (providerMatch?.models?.some(m => m.id === lastModelId)) {
-                autoSelectedModel = lastModelId;
-                console.log('[SettingsContext] Restored last-used model:', lastModelId);
-              }
-            }
-          } catch {
-            // localStorage parse error — skip
-          }
-
-          // Fallback: first model from first active provider with API key + models
-          if (!autoSelectedModel) {
-            for (const provider of loadedProviders) {
-              if (provider.active && hasApiKey(provider) && provider.models?.length) {
-                autoSelectedModel = provider.models[0].id;
-                console.log('[SettingsContext] Auto-selected first available model:', autoSelectedModel);
-                break;
-              }
-            }
-          }
-
-          if (autoSelectedModel) {
-            loadedSettings.chatModel = autoSelectedModel;
-          }
-        }
-
-        // Auto-select transcription model: prefer whisper-1 if OpenAI key exists,
-        // fallback to first ENGINES entry whose provider has a key
-        if (!loadedSettings.transcriptionModel) {
-          const preferOrder = ['whisper-1', 'gpt-4o-transcribe', 'gpt-4o-transcribe-diarize', 'groq-whisper', 'gemini'] as const;
-          for (const engineId of preferOrder) {
-            const engine = ENGINES[engineId];
-            if (!engine) continue;
-            const provider = loadedProviders.find(
-              (p) => p.provider === engine.providerId && p.active && hasApiKey(p),
+        try {
+          const lastUsed = localStorage.getItem('kasset_last_used_model');
+          if (lastUsed) {
+            const { provider: lastProvider, modelId: lastModelId } = JSON.parse(lastUsed);
+            const providerMatch = loadedProviders.find(
+              p => p.provider === lastProvider && p.active && hasApiKey(p)
             );
-            if (provider) {
-              loadedSettings.transcriptionModel = engineId;
-              console.log('[SettingsContext] Auto-selected transcription engine:', engineId);
+            if (providerMatch?.models?.some(m => m.id === lastModelId)) {
+              autoSelectedModel = lastModelId;
+              console.log('[SettingsContext] Restored last-used model:', lastModelId);
+            }
+          }
+        } catch {
+          // localStorage parse error — skip
+        }
+
+        if (!autoSelectedModel) {
+          for (const provider of loadedProviders) {
+            if (provider.active && hasApiKey(provider) && provider.models?.length) {
+              autoSelectedModel = provider.models[0].id;
+              console.log('[SettingsContext] Auto-selected first available model:', autoSelectedModel);
               break;
             }
           }
         }
 
-        // Auto-select analyze model: same as chatModel auto-select
-        if (!loadedSettings.analyzeModel && loadedSettings.chatModel) {
-          loadedSettings.analyzeModel = loadedSettings.chatModel;
-          console.log('[SettingsContext] Auto-selected analyze model:', loadedSettings.analyzeModel);
+        if (autoSelectedModel) {
+          loadedSettings.chatModel = autoSelectedModel;
         }
-
-        setState({
-          settings: loadedSettings,
-          providers: loadedProviders,
-          selectedProviderName: selectedProviderName,
-          isLoading: false,
-        });
-
-        console.log('[SettingsContext] Settings loaded successfully');
-        console.log('[SettingsContext] Chat model:', loadedSettings.chatModel);
-        console.log('[SettingsContext] Transcription model:', loadedSettings.transcriptionModel);
-        console.log('[SettingsContext] Providers with models:',
-          loadedProviders.filter(p => p.models && p.models.length > 0).map(p => `${p.provider}(${p.models.length})`).join(', ')
-        );
-      } else {
-        // No saved data - use defaults with predefined providers
-        console.log('[SettingsContext] No saved settings found, using defaults');
-        setState({
-          settings: defaultSettings,
-          providers: predefinedProviders.map(p => ({ ...p })),
-          selectedProviderName: null,
-          isLoading: false,
-        });
       }
+
+      if (!loadedSettings.transcriptionModel) {
+        const preferOrder = ['whisper-1', 'gpt-4o-transcribe', 'gpt-4o-transcribe-diarize', 'groq-whisper', 'gemini'] as const;
+        for (const engineId of preferOrder) {
+          const engine = ENGINES[engineId];
+          if (!engine) continue;
+          const provider = loadedProviders.find(
+            (p) => p.provider === engine.providerId && p.active && hasApiKey(p),
+          );
+          if (provider) {
+            loadedSettings.transcriptionModel = engineId;
+            console.log('[SettingsContext] Auto-selected transcription engine:', engineId);
+            break;
+          }
+        }
+      }
+
+      if (!loadedSettings.analyzeModel && loadedSettings.chatModel) {
+        loadedSettings.analyzeModel = loadedSettings.chatModel;
+        console.log('[SettingsContext] Auto-selected analyze model:', loadedSettings.analyzeModel);
+      }
+
+      setState({
+        settings: loadedSettings,
+        providers: loadedProviders,
+        selectedProviderName,
+        isLoading: false,
+      });
+
+      console.log('[SettingsContext] Settings loaded successfully');
+      console.log('[SettingsContext] Chat model:', loadedSettings.chatModel);
+      console.log('[SettingsContext] Transcription model:', loadedSettings.transcriptionModel);
     } catch (error) {
       console.error('[SettingsContext] Error loading settings:', error);
-      // On error, use defaults
       setState({
         settings: defaultSettings,
         providers: predefinedProviders.map(p => ({ ...p })),
@@ -312,59 +267,48 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         isLoading: false,
       });
     } finally {
-      // Mark as initialized AFTER state is set
       isInitializedRef.current = true;
     }
   }, []);
 
-  // Save settings to storage - uses ref to always get latest state
   const saveSettings = useCallback(async (overrides?: Partial<AppSettings>) => {
     const currentState = stateRef.current;
 
-    // Don't save if not initialized or still loading
     if (!isInitializedRef.current || currentState.isLoading) {
       console.log('[SettingsContext] Skipping save - not initialized or loading');
       return;
     }
 
-    // Merge overrides so callers can save values that haven't flushed to state yet
     const effectiveSettings = overrides
       ? { ...currentState.settings, ...overrides }
       : currentState.settings;
 
     try {
-      // Build settings object for storage using latest state from ref
-      const settingsToSave: any = {
-        aiModel: effectiveSettings.transcriptionModel,
-        chatModel: effectiveSettings.chatModel,
-        analyzeModel: effectiveSettings.analyzeModel,
-        geminiApiKey: effectiveSettings.apiKey,
-        audioQualityPreset: effectiveSettings.audioQualityPreset,
-        defaultAudioSource: effectiveSettings.defaultAudioSource,
-        categories: effectiveSettings.categories,
-        jobProcessing: effectiveSettings.jobProcessing,
-        summaryExtraction: effectiveSettings.summaryExtraction,
-        meetingDefaults: effectiveSettings.meetingDefaults,
-        calendarIntegration: effectiveSettings.calendarIntegration,
-        providers: currentState.providers,
-        selectedProviderName: currentState.selectedProviderName,
-        // Include other default fields
-        theme: 'system',
-        autoSave: true,
-        notificationsEnabled: true,
-        recordingQuality: 'high',
-        autoTranscribe: true,
-      };
+      // Save individual settings as key-value pairs
+      for (const key of SETTINGS_KEYS) {
+        const value = effectiveSettings[key];
+        if (value !== undefined) {
+          await store.settings.set(key, JSON.stringify(value));
+        }
+      }
 
-      await settingsService.save(settingsToSave);
+      // Save selectedProviderName
+      if (currentState.selectedProviderName !== null) {
+        await store.settings.set('selectedProviderName', JSON.stringify(currentState.selectedProviderName));
+      }
+
+      // Save providers
+      for (const provider of currentState.providers) {
+        await store.providers.upsert(provider);
+      }
+
       console.log('[SettingsContext] Settings saved successfully');
     } catch (error) {
       console.error('[SettingsContext] Error saving settings:', error);
-      throw error; // Re-throw so callers can handle
+      throw error;
     }
-  }, []); // No dependencies - always uses ref for latest state
+  }, []);
 
-  // Set settings
   const setSettings = useCallback((updates: Partial<AppSettings>) => {
     setState(prev => ({
       ...prev,
@@ -372,12 +316,10 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     }));
   }, []);
 
-  // Set providers
   const setProviders = useCallback((providers: ModelProvider[]) => {
     setState(prev => ({ ...prev, providers }));
   }, []);
 
-  // Add provider
   const addProvider = useCallback((provider: ModelProvider) => {
     setState(prev => ({
       ...prev,
@@ -385,7 +327,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     }));
   }, []);
 
-  // Update provider
   const updateProvider = useCallback((providerName: string, updates: Partial<ModelProvider>) => {
     setState(prev => ({
       ...prev,
@@ -395,7 +336,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     }));
   }, []);
 
-  // Delete provider
   const deleteProvider = useCallback((providerName: string) => {
     setState(prev => ({
       ...prev,
@@ -404,7 +344,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     }));
   }, []);
 
-  // Update provider setting
   const updateProviderSetting = useCallback((providerName: string, settingIndex: number, value: any) => {
     setState(prev => ({
       ...prev,
@@ -427,7 +366,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
           settings: updatedSettings,
         };
 
-        // Also update top-level fields for convenience
         if (settingKey === 'api-key' && typeof value === 'string') {
           update.api_key = value;
         }
@@ -440,18 +378,14 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     }));
   }, []);
 
-  // Set selected provider
   const setSelectedProviderName = useCallback((name: string | null) => {
     setState(prev => ({ ...prev, selectedProviderName: name }));
   }, []);
 
-  // Load settings on mount
   useEffect(() => {
     loadSettings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount
-
-  // NOTE: Auto-save removed - use saveSettings() explicitly when user clicks Save
+  }, []);
 
   const value: SettingsContextValue = {
     ...state,
@@ -476,7 +410,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
 
 /**
  * useSettings Hook
- * 
+ *
  * Access settings state and operations.
  */
 export const useSettings = (): SettingsContextValue => {
