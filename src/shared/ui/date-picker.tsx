@@ -189,10 +189,10 @@ const CalendarGrid: React.FC<CalendarProps> = ({ selectedDate, minDate, onSelect
               className={cn(
                 'py-1 text-[11px] rounded-md transition-colors',
                 isSelected
-                  ? 'bg-parchment-900 dark:bg-night-100 text-white dark:text-night-900 font-semibold'
+                  ? 'bg-paper-900 dark:bg-night-100 text-white dark:text-night-900 font-semibold'
                   : isToday
-                    ? `font-semibold ${TEXT.heading} bg-parchment-200/60 dark:bg-night-750/60`
-                    : `${TEXT.primary} hover:bg-parchment-200 dark:hover:bg-night-750`,
+                    ? `font-semibold ${TEXT.heading} bg-paper-200/60 dark:bg-night-750/60`
+                    : `${TEXT.primary} hover:bg-paper-200 dark:hover:bg-night-750`,
                 disabled && 'opacity-30 cursor-not-allowed hover:bg-transparent',
               )}
             >
@@ -244,7 +244,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           sideOffset={4}
           align="start"
           className={cn(
-            'z-[200] w-56',
+            'z-50 w-56',
             'bg-[var(--surface-dropdown)]',
             'border border-[var(--border-strong)]',
             'rounded-[var(--radius-lg)]',
