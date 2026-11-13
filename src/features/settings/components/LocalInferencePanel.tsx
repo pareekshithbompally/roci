@@ -24,7 +24,7 @@ import {
   Trash2,
   Server as ServerIcon,
 } from 'lucide-react';
-import { useLocalInference, localInferenceStore } from '../stores/localInferenceStore';
+import { useLocalInference, localInferenceStore } from '@features/settings/stores/localInferenceStore';
 import { useActiveDownload } from '@extensions/llamacpp/downloadStore';
 import { ServerStatus } from '@extensions/llamacpp/components/ServerStatus';
 import { useSettings } from '@shared/contexts/SettingsContext';
@@ -36,7 +36,7 @@ import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { SURFACE, BORDER, TEXT, COMPONENT, RADIUS, LAYOUT } from '@config/theme.config';
 import { SettingsSection, SecretInput } from './shared';
 import { ModelManager } from './ModelManager';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui';
+import { Button, Card, CardRow, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui';
 
 /** Smooth continuous rotation for loading icons */
 const spin = {
@@ -71,6 +71,15 @@ export const LocalInferencePanel: React.FC = () => {
   // Remove engine confirmation
   const [removeConfirm, setRemoveConfirm] = useState<'idle' | 'confirm' | 'removing'>('idle');
   const removeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copyTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear pending confirmation/copy timers on unmount.
+  useEffect(() => {
+    return () => {
+      if (removeTimerRef.current) clearTimeout(removeTimerRef.current);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
 
   // Server lifecycle auto-config: update provider when server starts/stops.
   // Edits save on edit via the context, so no explicit persist call is needed.
@@ -236,9 +245,16 @@ export const LocalInferencePanel: React.FC = () => {
 
   const handleCopyUrl = async () => {
     if (!serverUrl) return;
-    await navigator.clipboard.writeText(serverUrl);
+    try {
+      await navigator.clipboard.writeText(serverUrl);
+    } catch (error: unknown) {
+      console.error('[LocalInferencePanel] Failed to copy URL:', error);
+      showToast('Failed to copy URL', 'error');
+      return;
+    }
     setCopiedUrl(true);
-    setTimeout(() => setCopiedUrl(false), 2000);
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = setTimeout(() => setCopiedUrl(false), 2000);
   };
 
   const formatBytes = (bytes: number): string => {
@@ -271,32 +287,27 @@ export const LocalInferencePanel: React.FC = () => {
       {/* STATE 1: no-engine — Setup card with download CTA          */}
       {/* ═══════════════════════════════════════════════════════════ */}
       {panelState === 'no-engine' && (
-        <div className={`flex items-center justify-between px-4 py-3 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg}`}>
-          <div className="min-w-0">
-            <p className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
-              llama-server
-            </p>
-            <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
-              Local inference engine
-            </p>
-          </div>
-          <button
-            onClick={handleDownloadBinary}
-            disabled={isDownloadingBinary}
-            className={`${COMPONENT.settingsButtonPrimary} whitespace-nowrap`}
-          >
-            {isDownloadingBinary ? (
-              <motion.span {...spin}><Loader2 className="w-4 h-4" /></motion.span>
-            ) : (
-              <Download className="w-4 h-4" />
-            )}
-            {isDownloadingBinary
-              ? (binaryPhase === 'extracting' ? 'Extracting...' :
-                 binaryPhase === 'validating' ? 'Validating...' :
-                 'Downloading...')
-              : 'Download'}
-          </button>
-        </div>
+        <Card>
+          <CardRow
+            title="llama-server"
+            description="Local inference engine"
+            actions={
+              <Button variant="primary" size="sm" className="whitespace-nowrap" onClick={handleDownloadBinary}
+                disabled={isDownloadingBinary}>
+                {isDownloadingBinary ? (
+                  <motion.span {...spin}><Loader2 className="w-4 h-4" /></motion.span>
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                {isDownloadingBinary
+                  ? (binaryPhase === 'extracting' ? 'Extracting...' :
+                     binaryPhase === 'validating' ? 'Validating...' :
+                     'Downloading...')
+                  : 'Download'}
+              </Button>
+            }
+          />
+        </Card>
       )}
 
       {/* ═══════════════════════════════════════════════════════════ */}
@@ -409,10 +420,10 @@ export const LocalInferencePanel: React.FC = () => {
 
             {/* ═══ Server Tab ═══ */}
             {activeTab === 'server' && (
-              <div className={`${SURFACE.card} border ${BORDER.default} ${RADIUS.lg} overflow-hidden`}>
+              <Card className={`overflow-hidden divide-y ${BORDER.divide}`}>
 
                 {/* ── Model row ── */}
-                <div className={`px-4 py-3 border-b ${BORDER.default}`}>
+                <div className="px-4 py-3">
                   {isRunning ? (
                     <div className="flex items-center gap-2">
                       <Lock className={`w-3.5 h-3.5 ${TEXT.faint}`} />
@@ -450,7 +461,7 @@ export const LocalInferencePanel: React.FC = () => {
                 </div>
 
                 {/* ── Settings summary / expanded ── */}
-                <div className={`px-4 py-3 border-b ${BORDER.default}`}>
+                <div className="px-4 py-3">
                   {isRunning ? (
                     <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
                       {settingsSummary}
@@ -488,7 +499,7 @@ export const LocalInferencePanel: React.FC = () => {
                               <label className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
                                 Context Size
                               </label>
-                              <input
+                              <Input
                                 type="number"
                                 value={serverConfig.ctxSize}
                                 onChange={(e) =>
@@ -497,7 +508,7 @@ export const LocalInferencePanel: React.FC = () => {
                                 min={256}
                                 max={131072}
                                 step={256}
-                                className={`w-full px-3 py-2 ${COMPONENT.settingsInput} ${TYPOGRAPHY_CLASSES.settingsInput}`}
+                                className="w-full"
                               />
                             </div>
 
@@ -505,7 +516,7 @@ export const LocalInferencePanel: React.FC = () => {
                               <label className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
                                 GPU Layers
                               </label>
-                              <input
+                              <Input
                                 type="number"
                                 value={serverConfig.nGpuLayers}
                                 onChange={(e) =>
@@ -513,7 +524,7 @@ export const LocalInferencePanel: React.FC = () => {
                                 }
                                 min={-1}
                                 max={999}
-                                className={`w-full px-3 py-2 ${COMPONENT.settingsInput} ${TYPOGRAPHY_CLASSES.settingsInput}`}
+                                className="w-full"
                               />
                               <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
                                 -1 = all
@@ -524,7 +535,7 @@ export const LocalInferencePanel: React.FC = () => {
                               <label className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
                                 CPU Threads
                               </label>
-                              <input
+                              <Input
                                 type="number"
                                 value={serverConfig.threads}
                                 onChange={(e) =>
@@ -532,7 +543,7 @@ export const LocalInferencePanel: React.FC = () => {
                                 }
                                 min={1}
                                 max={64}
-                                className={`w-full px-3 py-2 ${COMPONENT.settingsInput} ${TYPOGRAPHY_CLASSES.settingsInput}`}
+                                className="w-full"
                               />
                             </div>
                           </div>
@@ -555,53 +566,42 @@ export const LocalInferencePanel: React.FC = () => {
                 </div>
 
                 {/* ── Status + Server controls ── */}
-                <div className={`px-4 py-3 ${isRunning ? `border-b ${BORDER.default}` : ''}`}>
+                <div className="px-4 py-3">
                   <div className="flex items-center justify-between">
                     <ServerStatus />
                     {isRunning ? (
-                      <button
-                        onClick={handleStopServer}
-                        disabled={isServerBusy}
-                        className={COMPONENT.settingsButtonDanger}
-                      >
+                      <Button variant="danger" size="sm" onClick={handleStopServer}
+                        disabled={isServerBusy}>
                         <Square className="w-3.5 h-3.5" />
                         Stop Server
-                      </button>
+                      </Button>
                     ) : (
-                      <button
-                        onClick={handleStartServer}
-                        disabled={isServerBusy || !selectedModelId}
-                        className={COMPONENT.settingsButtonSuccess}
-                        title={!selectedModelId ? 'Select a model first' : undefined}
-                      >
+                      <Button variant="success" size="sm" onClick={handleStartServer}
+                        disabled={isServerBusy || !selectedModelId} title={!selectedModelId ? 'Select a model first' : undefined}>
                         {isServerBusy ? (
                           <motion.span {...spin}><Loader2 className="w-3.5 h-3.5" /></motion.span>
                         ) : (
                           <Play className="w-3.5 h-3.5" />
                         )}
                         Start Server
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
 
                 {/* ── URL row (running only) ── */}
                 {isRunning && serverUrl && (
-                  <div className={`px-4 py-3 border-b ${BORDER.default} flex items-center justify-between`}>
+                  <div className="px-4 py-3 flex items-center justify-between">
                     <code className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted} font-mono`}>
                       {serverUrl}
                     </code>
-                    <button
-                      onClick={handleCopyUrl}
-                      className={`p-1.5 ${COMPONENT.iconButtonSm}`}
-                      title="Copy URL"
-                    >
+                    <Button variant="ghost" size="iconSm" onClick={handleCopyUrl} title="Copy URL">
                       {copiedUrl ? (
                         <Check className="w-3.5 h-3.5 text-green-500" />
                       ) : (
                         <Copy className="w-3.5 h-3.5" />
                       )}
-                    </button>
+                    </Button>
                   </div>
                 )}
 
@@ -645,7 +645,7 @@ export const LocalInferencePanel: React.FC = () => {
 
                 {/* Binary download progress */}
                 {isDownloadingBinary && (
-                  <div className={`px-4 py-3 border-t ${BORDER.default} flex items-center gap-2`}>
+                  <div className="px-4 py-3 flex items-center gap-2">
                     <motion.span {...spin}><Loader2 className={`w-3.5 h-3.5 ${TEXT.faint}`} /></motion.span>
                     <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
                       {binaryPhase === 'extracting'
@@ -656,7 +656,7 @@ export const LocalInferencePanel: React.FC = () => {
                     </span>
                   </div>
                 )}
-              </div>
+              </Card>
             )}
 
             {/* ═══ Models Tab ═══ */}

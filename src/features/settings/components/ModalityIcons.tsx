@@ -161,7 +161,7 @@ const CompactIndicator: React.FC<{
           return (
             <span key={item.label} className="flex items-center gap-1.5">
               <TipIcon size={10} className={TEXT.faint} />
-              <span className="text-[10px] text-parchment-200 dark:text-night-200">{item.label}</span>
+              <span className="text-[10px] text-paper-200 dark:text-night-200">{item.label}</span>
             </span>
           );
         })}

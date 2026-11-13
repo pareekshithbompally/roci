@@ -23,8 +23,7 @@ import {
 import { useAppStore, useAppActions } from '@shared/stores/appStore';
 import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore';
 import { isTauriEnvironment } from '@services/tauri';
-import { TEXT, SURFACE } from '@config/theme.config';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
+import { Row } from '@shared/ui';
 
 export interface SettingsNavItem {
   id: SettingsPanelType;
@@ -51,24 +50,17 @@ export const SettingsNav: React.FC = () => {
 
   return (
     <nav aria-label="Settings sections" className="flex flex-col gap-0.5 px-2 py-1">
-      {visibleItems.map(({ id, label, icon: Icon }) => {
-        const isActive = activePanel === id;
-        return (
-          <button
-            key={id}
-            onClick={() => setActiveSettingsPanel(id)}
-            aria-current={isActive ? 'page' : undefined}
-            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md ${TYPOGRAPHY_CLASSES.sidebarItem} transition-all cursor-pointer ${
-              isActive
-                ? `${SURFACE.selected} ${TEXT.primary}`
-                : `${TEXT.muted} ${SURFACE.hoverSubtle}`
-            }`}
-          >
-            <Icon className="w-3.5 h-3.5 shrink-0" />
-            <span className="flex-1 text-left">{label}</span>
-          </button>
-        );
-      })}
+      {visibleItems.map(({ id, label, icon: Icon }) => (
+        <Row
+          key={id}
+          selected={activePanel === id}
+          onClick={() => setActiveSettingsPanel(id)}
+          aria-current={activePanel === id ? 'page' : undefined}
+        >
+          <Icon className="w-3.5 h-3.5 shrink-0" />
+          <span className="flex-1 text-left truncate">{label}</span>
+        </Row>
+      ))}
     </nav>
   );
 };

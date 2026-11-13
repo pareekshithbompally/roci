@@ -2,8 +2,9 @@ import React from 'react';
 import { Mic, Radio, Music, Briefcase } from 'lucide-react';
 import { AUDIO_CONFIG, getQualityPreset, formatAudioQuality } from '@config/audio.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { SURFACE, BORDER, TEXT, RADIUS, COMPONENT } from '@config/theme.config';
-import { InfoCallout } from './shared';
+import { SURFACE, BORDER, TEXT, RADIUS } from '@config/theme.config';
+import {} from './shared';
+import { Callout } from '@shared/ui';
 
 interface QualityPresetSelectorProps {
   value: keyof typeof AUDIO_CONFIG.presets;
@@ -49,9 +50,7 @@ const QualityPresetSelector: React.FC<QualityPresetSelectorProps> = ({
               {/* Icon */}
               <div
                 className={`shrink-0 p-2 ${RADIUS.md} ${
-                  isSelected
-                    ? `${COMPONENT.primaryButton}`
-                    : `${SURFACE.chip} ${TEXT.muted}`
+                  isSelected ? `${SURFACE.selected} ${TEXT.primary}` : `${SURFACE.chip} ${TEXT.muted}`
                 }`}
               >
                 <Icon className="w-5 h-5" aria-hidden="true" />
@@ -64,7 +63,7 @@ const QualityPresetSelector: React.FC<QualityPresetSelectorProps> = ({
                     {preset.name}
                   </h3>
                   {isSelected && (
-                    <div className="shrink-0 w-2 h-2 rounded-full bg-parchment-900 dark:bg-night-100" aria-label="Selected" />
+                    <div className="shrink-0 w-2 h-2 rounded-full bg-paper-900 dark:bg-night-100" aria-label="Selected" />
                   )}
                 </div>
 
@@ -76,9 +75,7 @@ const QualityPresetSelector: React.FC<QualityPresetSelectorProps> = ({
                 <div className="flex items-center gap-2 mt-2">
                   <span
                     className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-                      isSelected
-                        ? `${COMPONENT.primaryButton}`
-                        : `${SURFACE.chip} ${TEXT.secondary}`
+                      isSelected ? `${SURFACE.selected} ${TEXT.primary}` : `${SURFACE.chip} ${TEXT.secondary}`
                     }`}
                   >
                     {formatAudioQuality(settings)}
@@ -87,9 +84,7 @@ const QualityPresetSelector: React.FC<QualityPresetSelectorProps> = ({
                   {preset.noiseSuppression && (
                     <span
                       className={`text-[10px] px-1.5 py-0.5 rounded ${
-                        isSelected
-                          ? `${COMPONENT.primaryButton}`
-                          : `${SURFACE.chip} ${TEXT.secondary}`
+                        isSelected ? `${SURFACE.selected} ${TEXT.primary}` : `${SURFACE.chip} ${TEXT.secondary}`
                       }`}
                     >
                       Noise Reduction
@@ -103,10 +98,10 @@ const QualityPresetSelector: React.FC<QualityPresetSelectorProps> = ({
       </div>
 
       {/* Current Settings Info */}
-      <InfoCallout variant="neutral">
+      <Callout variant="neutral">
         <span className="font-medium">Tip:</span> Voice quality (16kHz) is optimized for AI transcription and uses less storage.
         Higher quality settings are better for music or when you need pristine audio.
-      </InfoCallout>
+      </Callout>
     </div>
   );
 };

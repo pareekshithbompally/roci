@@ -12,8 +12,8 @@ import React, { useMemo } from 'react';
 import { DollarSign, Zap, TrendingUp, Loader2, AlertTriangle } from 'lucide-react';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { SURFACE, BORDER, TEXT, RADIUS, LAYOUT } from '@config/theme.config';
-import { useUsageData } from '../hooks/useUsageData';
-import type { TimeRange } from '../hooks/useUsageData';
+import { useUsageData } from '@features/settings/hooks/useUsageData';
+import type { TimeRange } from '@features/settings/hooks/useUsageData';
 import { formatTokenCount, formatCost, formatCategory } from '@extensions/usage/format';
 
 const TIME_RANGE_OPTIONS: { id: TimeRange; label: string }[] = [

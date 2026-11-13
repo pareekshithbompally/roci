@@ -12,7 +12,7 @@ import { useToast } from '@shared/contexts/ToastContext';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { SURFACE, BORDER, TEXT, COMPONENT, RADIUS, LAYOUT } from '@config/theme.config';
 import { SettingsSection, Toggle } from './shared';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui';
+import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui';
 
 export const CategoriesPanel: React.FC = () => {
   const { settings, setSettings, isLoading } = useSettings();
@@ -88,22 +88,19 @@ export const CategoriesPanel: React.FC = () => {
         <div className="space-y-3">
           {/* Add input */}
           <div className="flex gap-2">
-            <input
+            <Input
               type="text"
               value={newCategory}
               onChange={(e) => setNewCategory(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
               placeholder="Add category..."
-              className={`flex-1 px-3 py-2 ${COMPONENT.settingsInput} ${TYPOGRAPHY_CLASSES.settingsInput}`}
+              className="flex-1"
             />
-            <button
-              onClick={handleAddCategory}
-              disabled={!newCategory.trim()}
-              className={COMPONENT.settingsButtonPrimary}
-            >
+            <Button variant="primary" size="sm" onClick={handleAddCategory}
+              disabled={!newCategory.trim()}>
               <Plus className="w-3.5 h-3.5" />
               Add
-            </button>
+            </Button>
           </div>
 
           {/* Category chips */}

@@ -16,6 +16,7 @@ import { SURFACE, BORDER, TEXT, COMPONENT, RADIUS, TIER } from '@config/theme.co
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { formatFileSize } from '@shared/utils/formatters';
 import type { VariantRow } from '@extensions/llamacpp/models';
+import { Badge, Button } from '@shared/ui';
 
 export interface DetailMetaChip {
   label: string;
@@ -107,26 +108,22 @@ export const ModelDetailPane: React.FC<ModelDetailPaneProps> = ({
       {(primary || onDeleteModel) && (
         <div className="flex items-center gap-2 flex-wrap">
           {primary?.mode === 'stop' ? (
-            <button onClick={primary.onClick} disabled={primary.disabled} className={COMPONENT.settingsButtonDanger}>
+            <Button variant="danger" size="sm" onClick={primary.onClick} disabled={primary.disabled}>
               <Square className="w-3.5 h-3.5" />
               Stop server
-            </button>
+            </Button>
           ) : primary ? (
-            <button onClick={primary.onClick} disabled={primary.disabled} className={COMPONENT.settingsButtonSuccess}>
+            <Button variant="success" size="sm" onClick={primary.onClick} disabled={primary.disabled}>
               <Play className="w-3.5 h-3.5" />
               Run this model
-            </button>
+            </Button>
           ) : null}
           {onDeleteModel && (
-            <button
-              onClick={onDeleteModel}
-              disabled={deleteModelDisabled}
-              className={COMPONENT.settingsButtonOutline}
-              title={deleteModelDisabled ? 'Stop the server before deleting the running model' : 'Delete this model'}
-            >
+            <Button variant="outline" size="sm" onClick={onDeleteModel}
+              disabled={deleteModelDisabled} title={deleteModelDisabled ? 'Stop the server before deleting the running model' : 'Delete this model'}>
               <Trash2 className="w-3.5 h-3.5" />
               Delete
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -178,21 +175,21 @@ export const ModelDetailPane: React.FC<ModelDetailPaneProps> = ({
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className={`text-[13px] font-mono font-semibold ${TEXT.heading}`}>{v.quant}</span>
                       {v.isRecommended && (
-                        <span className={`${COMPONENT.recommendedBadge} inline-flex items-center gap-1`}>
+                        <Badge variant="success">
                           <Star className="w-2.5 h-2.5" />
                           Recommended
-                        </span>
+                        </Badge>
                       )}
                       {isInUse ? (
-                        <span className={`inline-flex items-center gap-1 text-[10px] font-medium ${TEXT.success}`}>
+                        <Badge variant="success">
                           <Check className="w-3 h-3" />
                           In use
-                        </span>
+                        </Badge>
                       ) : isInstalled ? (
-                        <span className={`inline-flex items-center gap-1 text-[10px] font-medium ${TEXT.success}`}>
+                        <Badge variant="success">
                           <Check className="w-3 h-3" />
                           Installed
-                        </span>
+                        </Badge>
                       ) : null}
                     </div>
                     <div className={`flex items-center gap-1.5 mt-0.5 min-w-0 ${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
@@ -219,15 +216,11 @@ export const ModelDetailPane: React.FC<ModelDetailPaneProps> = ({
                       </button>
                     )
                   ) : (
-                    <button
-                      onClick={() => onGet(v.fileName)}
-                      disabled={getDisabled}
-                      className={`${v.isRecommended ? COMPONENT.settingsButtonSuccess : COMPONENT.settingsButtonOutline} shrink-0`}
-                      title={getDisabled ? 'A download is already in progress' : `Download ${v.quant}`}
-                    >
+                    <Button variant={v.isRecommended ? 'success' : 'outline'} size="sm" className="shrink-0" onClick={() => onGet(v.fileName)}
+                      disabled={getDisabled} title={getDisabled ? 'A download is already in progress' : `Download ${v.quant}`}>
                       <Download className="w-3.5 h-3.5" />
                       Get
-                    </button>
+                    </Button>
                   )}
                 </div>
               );

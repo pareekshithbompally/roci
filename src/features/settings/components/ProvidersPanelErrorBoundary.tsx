@@ -4,8 +4,9 @@
  */
 
 import React, { Component, type ReactNode } from 'react';
-import { SURFACE, BORDER, TEXT, COMPONENT, RADIUS } from '@config/theme.config';
+import { SURFACE, BORDER, TEXT, RADIUS } from '@config/theme.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
+import { Button } from '@shared/ui';
 
 interface Props {
   children: ReactNode;
@@ -63,12 +64,9 @@ export class ProvidersPanelErrorBoundary extends Component<Props, State> {
                   </pre>
                 </details>
               )}
-              <button
-                onClick={this.handleReset}
-                className={`w-full px-4 py-2 ${COMPONENT.dangerButton} ${RADIUS.md} ${TYPOGRAPHY_CLASSES.settingsButton}`}
-              >
+              <Button variant="danger" size="md" className="w-full" onClick={this.handleReset}>
                 Reset Provider Settings
-              </button>
+              </Button>
               <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.error} mt-2`}>
                 This will clear all provider configurations and reload the page.
               </p>

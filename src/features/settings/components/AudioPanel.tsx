@@ -9,18 +9,17 @@ import React, { useMemo } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 
-import { useModalities } from '../stores/modalitiesStore';
+import { useModalities } from '@features/settings/stores/modalitiesStore';
 import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { SURFACE, BORDER, TEXT, RADIUS } from '@config/theme.config';
 import { modalitiesService } from '@services/modalities';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import ProvidersAvatar from '@shared/components/ProvidersAvatar';
-import { SettingsSection, InfoCallout } from './shared';
+import {SettingsSection} from './shared';
 import { LAYOUT } from '@config/theme.config';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, SelectGroup, SelectLabel } from '@shared/ui';
+import { Callout, Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@shared/ui';
 import { ENGINES, resolveCred } from '@services/ai/transcription';
-import type { TranscriptionEngine } from '@services/ai/transcription';
 
 export const AudioPanel: React.FC = () => {
   const { settings, setSettings, providers, isLoading } = useSettings();
@@ -91,7 +90,16 @@ export const AudioPanel: React.FC = () => {
   };
 
   const handleQualityChange = (preset: string) => {
-    setSettings({ audioQualityPreset: preset as any });
+    if (
+      preset === 'voice' ||
+      preset === 'podcast' ||
+      preset === 'music' ||
+      preset === 'professional'
+    ) {
+      setSettings({ audioQualityPreset: preset });
+    } else {
+      console.error('[AudioPanel] Unknown quality preset:', preset);
+    }
   };
 
   const selectedSource = settings.defaultAudioSource || 'systemAndMicrophone';
@@ -312,9 +320,9 @@ export const AudioPanel: React.FC = () => {
         </div>
       </SettingsSection>
 
-      <InfoCallout variant="neutral">
+      <Callout variant="neutral">
         <span className="font-medium">Tip:</span> Voice quality (16kHz) is optimized for AI transcription and uses less storage.
-      </InfoCallout>
+      </Callout>
 
     </div>
     </div>

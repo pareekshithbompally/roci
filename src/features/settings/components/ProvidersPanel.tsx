@@ -6,12 +6,12 @@
  * fallback for first-mount initialization only).
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ExternalLink, Search, Loader2, Copy, Check, Settings, X } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-shell';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
-import { useModalities } from '../stores/modalitiesStore';
+import { useModalities } from '@features/settings/stores/modalitiesStore';
 import ProvidersAvatar from '@shared/components/ProvidersAvatar';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { providersService } from '@services/providers';
@@ -21,9 +21,9 @@ import { MANAGED_MODELS, MANAGED_SDK_PROVIDERS } from '@config/providers.config'
 import { ModalityIcons } from './ModalityIcons';
 import { ModelSettingsModal } from './ModelSettingsModal';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { SURFACE, BORDER, TEXT, COMPONENT, RADIUS, LAYOUT } from '@config/theme.config';
-import { SettingsSection, SettingsInput, SecretInput, Toggle, InfoCallout, ModelListItem } from './shared';
-import { Popover, PopoverAnchor, PopoverContent } from '@shared/ui';
+import { SURFACE, BORDER, TEXT, RADIUS, LAYOUT } from '@config/theme.config';
+import {SettingsSection, SettingsInput, SecretInput, Toggle, ModelListItem} from './shared';
+import { Button, Callout, Card, Popover, PopoverAnchor, PopoverContent } from '@shared/ui';
 import { Command, CommandList, CommandItem, CommandEmpty } from '@shared/ui';
 import * as llamacppServer from '@extensions/llamacpp/server';
 import { ServerStatus as LlamacppServerStatus } from '@extensions/llamacpp/components/ServerStatus';
@@ -74,6 +74,22 @@ export const ProvidersPanel: React.FC = () => {
     }
   }, [effectiveSelectedProvider]);
 
+  // Adopt a persisted selection into context once — the Query-owned
+  // selectedProviderName is the single source of truth; localStorage is
+  // only a cross-reload fallback, never a parallel truth.
+  const adoptedSelectionRef = useRef(false);
+  useEffect(() => {
+    if (adoptedSelectionRef.current || selectedProviderName) return;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      const name = saved ? JSON.parse(saved).providerName : null;
+      if (typeof name === 'string' && providers.some((p) => p.provider === name)) {
+        adoptedSelectionRef.current = true;
+        setSelectedProviderName(name);
+      }
+    } catch { /* ignore */ }
+  }, [selectedProviderName, providers, setSelectedProviderName]);
+
   const selectedProvider = effectiveSelectedProvider
     ? providers.find(p => p.provider === effectiveSelectedProvider)
     : null;
@@ -84,9 +100,16 @@ export const ProvidersPanel: React.FC = () => {
   // llamacpp server status tracking
   const [llamacppStatus, setLlamacppStatus] = useState<LlamacppStatusType>(llamacppServer.getStatus());
   const [llamacppCopied, setLlamacppCopied] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return llamacppServer.onStatusChange(setLlamacppStatus);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
   }, []);
 
   const [modelSearch, setModelSearch] = useState('');
@@ -269,9 +292,9 @@ export const ProvidersPanel: React.FC = () => {
             <>
               {showSetupBanner && !anyProviderHasModels && (
                 <div className="mb-4 relative">
-                  <InfoCallout variant="info">
+                  <Callout variant="info">
                     <strong>Quick setup:</strong> Pick a provider on the left, enter your API key, and add at least one model — changes save automatically.
-                  </InfoCallout>
+                  </Callout>
                   <button
                     onClick={() => setShowSetupBanner(false)}
                     className={`absolute top-2 right-2 p-1 ${SURFACE.hoverSubtle} rounded-md transition-colors`}
@@ -285,11 +308,11 @@ export const ProvidersPanel: React.FC = () => {
               {/* LlamaCpp — redirect to Local Inference panel + live status */}
               {selectedProvider.provider === 'llamacpp' ? (
                 <div className="space-y-4">
-                  <InfoCallout variant="info">
+                  <Callout variant="info">
                     Configure llama.cpp in the <span className="font-medium">Local Inference</span> panel.
-                  </InfoCallout>
+                  </Callout>
 
-                  <div className={`px-4 py-3 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg} space-y-2`}>
+                  <Card className="px-4 py-3 space-y-2">
                     <div className="flex items-center justify-between">
                       <LlamacppServerStatus />
                     </div>
@@ -300,25 +323,27 @@ export const ProvidersPanel: React.FC = () => {
                           <code className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted} font-mono`}>
                             {url}
                           </code>
-                          <button
-                            onClick={async () => {
-                              await navigator.clipboard.writeText(url);
+                          <Button variant="ghost" size="iconSm" onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(url);
+                              } catch (error: unknown) {
+                                console.error('[ProvidersPanel] Failed to copy URL:', error);
+                                return;
+                              }
                               setLlamacppCopied(true);
-                              setTimeout(() => setLlamacppCopied(false), 2000);
-                            }}
-                            className={`p-1 ${COMPONENT.iconButtonSm}`}
-                            title="Copy URL"
-                          >
+                              if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+                              copyTimerRef.current = setTimeout(() => setLlamacppCopied(false), 2000);
+                            }} title="Copy URL">
                             {llamacppCopied ? (
                               <Check className="w-3 h-3 text-green-500" />
                             ) : (
                               <Copy className="w-3 h-3" />
                             )}
-                          </button>
+                          </Button>
                         </div>
                       ) : null;
                     })()}
-                  </div>
+                  </Card>
                 </div>
               ) : (
                 <>
@@ -326,12 +351,12 @@ export const ProvidersPanel: React.FC = () => {
                     {(() => {
                       const sdkInfo = getManagedSDKInfo(selectedProvider.provider);
                       if (sdkInfo) {
-                        return <InfoCallout variant="info">{sdkInfo}</InfoCallout>;
+                        return <Callout variant="info">{sdkInfo}</Callout>;
                       }
                       return (
-                        <InfoCallout variant="neutral">
+                        <Callout variant="neutral">
                           Connects via the OpenAI-compatible Chat Completions endpoint
-                        </InfoCallout>
+                        </Callout>
                       );
                     })()}
 
@@ -414,14 +439,11 @@ export const ProvidersPanel: React.FC = () => {
                               icon={<Search className={`w-4 h-4 ${TEXT.faint}`} />}
                             />
                           </div>
-                          <button
-                            onClick={handleSearchModels}
-                            disabled={isSearching || (!hasHardcodedModels && (!getApiKeyValue() || (!isManaged && !getBaseUrlValue())))}
-                            className={`${COMPONENT.settingsButtonPrimary} disabled:opacity-50 disabled:cursor-not-allowed`}
-                          >
+                          <Button variant="primary" size="sm" onClick={handleSearchModels}
+                            disabled={isSearching || (!hasHardcodedModels && (!getApiKeyValue() || (!isManaged && !getBaseUrlValue())))}>
                             {isSearching && <Loader2 className="w-4 h-4 animate-spin" />}
                             {isSearching ? 'Searching...' : 'Search'}
-                          </button>
+                          </Button>
                         </div>
                       </PopoverAnchor>
 
@@ -490,13 +512,9 @@ export const ProvidersPanel: React.FC = () => {
                               rightSlot={
                                 <div className="flex items-center gap-1">
                                   <ModalityIcons modelInfo={info} />
-                                  <button
-                                    onClick={() => setModelSettingsTarget({ provider: selectedProvider.provider, modelId: model.id })}
-                                    className={`p-1.5 rounded-md ${COMPONENT.iconButtonSm} transition-all`}
-                                    title="Model settings"
-                                  >
+                                  <Button variant="ghost" size="iconSm" onClick={() => setModelSettingsTarget({ provider: selectedProvider.provider, modelId: model.id })} title="Model settings">
                                     <Settings className="w-3.5 h-3.5" />
-                                  </button>
+                                  </Button>
                                 </div>
                               }
                             />

@@ -67,14 +67,14 @@ const SettingsSkeleton: React.FC = () => (
     <div className="px-8 py-8 space-y-8 animate-pulse">
       {/* Title skeleton */}
       <div className="space-y-2">
-        <div className="h-5 w-40 bg-zinc-200 dark:bg-zinc-800 rounded" />
-        <div className="h-3.5 w-64 bg-zinc-100 dark:bg-zinc-800/50 rounded" />
+        <div className="h-5 w-40 bg-paper-200 dark:bg-night-800 rounded" />
+        <div className="h-3.5 w-64 bg-paper-150 dark:bg-night-800/50 rounded" />
       </div>
       {/* Content rows */}
       {Array.from({ length: 6 }).map((_, i) => (
         <div key={i} className="space-y-3">
-          <div className="h-3 w-24 bg-zinc-200/60 dark:bg-zinc-800/60 rounded" />
-          <div className="h-10 w-full bg-zinc-100 dark:bg-zinc-800/30 rounded-lg" />
+          <div className="h-3 w-24 bg-paper-200/60 dark:bg-night-800/60 rounded" />
+          <div className="h-10 w-full bg-paper-150 dark:bg-night-800/30 rounded-lg" />
         </div>
       ))}
     </div>

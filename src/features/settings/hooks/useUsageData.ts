@@ -1,11 +1,12 @@
 /**
  * useUsageData Hook
  *
- * Fetches aggregated usage summary from the store plugin.
- * Supports time range filtering (7d, 30d, all time).
+ * Aggregated usage summary from the store plugin, keyed by time range.
+ * Query owns the fetch + cache; switching ranges hits cache when fresh.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getUsageSummary } from '@extensions/usage';
 import type { UsageSummary } from '@extensions/usage';
 
@@ -27,35 +28,27 @@ export interface UseUsageDataReturn {
 }
 
 export function useUsageData(): UseUsageDataReturn {
-  const [summary, setSummary] = useState<UsageSummary | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [timeRange, setTimeRange] = useState<TimeRange>('30d');
 
-  const fetchData = useCallback(async (range: TimeRange) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const since = range === 'all' ? undefined : Date.now() - RANGE_MS[range];
-      const data = await getUsageSummary(since);
-      setSummary(data);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error('[useUsageData] Failed to fetch usage summary:', message);
-      setError(message);
-      setSummary(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['usage', timeRange],
+    queryFn: async () => {
+      const since = timeRange === 'all' ? undefined : Date.now() - RANGE_MS[timeRange];
+      return getUsageSummary(since);
+    },
+  });
 
-  useEffect(() => {
-    fetchData(timeRange);
-  }, [timeRange, fetchData]);
-
-  const refresh = useCallback(() => {
-    fetchData(timeRange);
-  }, [timeRange, fetchData]);
-
-  return { summary, isLoading, error, timeRange, setTimeRange, refresh };
+  return {
+    summary: data ?? null,
+    isLoading,
+    error: error ? (error instanceof Error ? error.message : String(error)) : null,
+    timeRange,
+    setTimeRange,
+    refresh: () => {
+      queryClient.invalidateQueries({ queryKey: ['usage', timeRange] }).catch((err: unknown) =>
+        console.error('[useUsageData] Failed to refresh usage:', err)
+      );
+    },
+  };
 }

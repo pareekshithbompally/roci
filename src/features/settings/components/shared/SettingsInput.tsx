@@ -1,7 +1,8 @@
 import React, { forwardRef } from 'react';
 import { open } from '@tauri-apps/plugin-shell';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { TEXT, COMPONENT, SPACING } from '@config/theme.config';
+import { TEXT } from '@config/theme.config';
+import { Input } from '@shared/ui';
 
 /** Parse markdown-style [text](url) links into React elements */
 function renderWithLinks(text: string): React.ReactNode {
@@ -50,11 +51,9 @@ export const SettingsInput = forwardRef<HTMLInputElement, SettingsInputProps>(
             {icon}
           </div>
         )}
-        <input
+        <Input
           ref={ref}
-          className={`w-full ${SPACING.input} ${COMPONENT.settingsInput} ${TYPOGRAPHY_CLASSES.settingsInput} ${COMPONENT.inputDisabled} ${
-            icon ? 'pl-9' : ''
-          } ${actions ? 'pr-16' : ''} ${className ?? ''}`}
+          className={`${icon ? 'pl-9' : ''} ${actions ? 'pr-16' : ''} ${className ?? ''}`}
           {...props}
         />
         {actions && (

@@ -7,17 +7,9 @@
 
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
-import {
-  Dialog,
-  DialogPortal,
-  DialogOverlay,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogClose,
-} from '@shared/ui';
+import { Button, Dialog, DialogClose, DialogContent, DialogHeader, DialogOverlay, DialogPortal, DialogTitle } from '@shared/ui';
 import { Toggle } from './shared/Toggle';
-import { SURFACE, BORDER, TEXT, COMPONENT, RADIUS } from '@config/theme.config';
+import { SURFACE, BORDER, TEXT, RADIUS } from '@config/theme.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 
 interface ModelSettingsModalProps {
@@ -62,9 +54,9 @@ export const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
               <p className={`mt-0.5 ${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted} font-mono truncate`}>{modelId}</p>
             </div>
             <DialogClose asChild>
-              <button className={`${COMPONENT.iconButtonSm} -mr-1`} aria-label="Close">
+              <Button variant="ghost" size="iconSm" className="-mr-1" aria-label="Close">
                 <X className="w-4 h-4" />
-              </button>
+              </Button>
             </DialogClose>
           </DialogHeader>
 
@@ -93,12 +85,9 @@ export const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
 
           {/* Footer */}
           <div className="flex justify-end mt-5">
-            <button
-              onClick={handleSave}
-              className={`px-3.5 py-2 ${COMPONENT.primaryButton} rounded-lg ${TYPOGRAPHY_CLASSES.settingsButton}`}
-            >
+            <Button variant="primary" size="md" onClick={handleSave}>
               Save
-            </button>
+            </Button>
           </div>
         </DialogContent>
       </DialogPortal>

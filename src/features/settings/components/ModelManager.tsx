@@ -23,14 +23,15 @@ import type { VariantRow } from '@extensions/llamacpp/models';
 import type { ManagedModel } from '@extensions/llamacpp/types';
 import { useHfModelSearch, useHfRepoFiles } from '@extensions/llamacpp/hooks';
 import { useActiveDownload, useDownloadStore } from '@extensions/llamacpp/downloadStore';
-import { localInferenceStore, saveHfToken } from '../stores/localInferenceStore';
+import { localInferenceStore, saveHfToken } from '@features/settings/stores/localInferenceStore';
 import { useToast } from '@shared/contexts/ToastContext';
 import { useDebounce } from '@shared/hooks';
-import { SURFACE, BORDER, TEXT, COMPONENT, RADIUS } from '@config/theme.config';
+import { SURFACE, BORDER, TEXT, RADIUS } from '@config/theme.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { formatFileSize } from '@shared/utils/formatters';
 import { SecretInput, ModelListItem } from './shared';
 import { ModelDetailPane, type DetailMetaChip } from './ModelDetailPane';
+import { Button, Input } from '@shared/ui';
 
 type Mode = 'installed' | 'discover';
 
@@ -219,26 +220,27 @@ export const ModelManager: React.FC<ModelManagerProps> = ({
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${TEXT.faint}`} />
-            <input
+            <Input
               type="text"
               value={query}
               onChange={(e) => handleQueryChange(e.target.value)}
               placeholder={mode === 'installed' ? 'Filter your models…' : 'Search Hugging Face or paste a URL…'}
-              className={`w-full pl-9 pr-8 py-2 ${COMPONENT.settingsInput} ${TYPOGRAPHY_CLASSES.settingsInput}`}
+              className="w-full pl-9 pr-8"
             />
             {mode === 'discover' && search.isFetching && (
               <Loader2 className={`absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 ${TEXT.faint} animate-spin`} />
             )}
           </div>
           {mode === 'discover' && (
-            <button
+            <Button
+              variant="ghost"
+              size="iconSm"
               onClick={handleImport}
               disabled={isImporting}
-              className={`px-2.5 ${COMPONENT.settingsInput} ${TEXT.muted} hover:${TEXT.primary} disabled:opacity-50 flex items-center shrink-0`}
               title="Import a local .gguf file"
             >
               {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FolderOpen className="w-4 h-4" />}
-            </button>
+            </Button>
           )}
         </div>
 

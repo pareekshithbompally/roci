@@ -7,23 +7,19 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { Sun, Moon, Monitor, Copy, Check, FolderOpen, FolderSearch, RefreshCw, Database, Loader2 } from 'lucide-react';
+import { Sun, Moon, Monitor, Copy, Check, FolderOpen, FolderSearch, RefreshCw, Loader2 } from 'lucide-react';
 import { useTheme } from '@shared/hooks/useTheme';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { isTauriEnvironment } from '@services/tauri';
 import { searchIndexingService } from '@services/searchIndexing.service';
-import { useSystemInfo, systemInfoStore } from '../stores/systemInfoStore';
+import { useSystemInfo, systemInfoStore } from '@features/settings/stores/systemInfoStore';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { SURFACE, BORDER, TEXT, RADIUS, LAYOUT, COMPONENT } from '@config/theme.config';
 import { SettingsSection } from './shared';
-import {
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem, SelectGroup, SelectLabel,
-  AlertDialog, AlertDialogPortal, AlertDialogOverlay, AlertDialogContent,
-  AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
-} from '@shared/ui';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogOverlay, AlertDialogPortal, AlertDialogTitle, Button, Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@shared/ui';
 
-import { useAppUpdate } from '../hooks/useAppUpdate';
+import { useAppUpdate } from '@features/settings/hooks/useAppUpdate';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import ProvidersAvatar from '@shared/components/ProvidersAvatar';
 
@@ -463,14 +459,11 @@ export const InterfacePanel: React.FC = () => {
                 Wipes and re-indexes all meetings, chats, and knowledge graph.
               </p>
             </div>
-            <button
-              onClick={() => setRebuildConfirmOpen(true)}
-              disabled={rebuildingPhase !== null || isRebuilding}
-              className={`${COMPONENT.settingsButtonOutline} shrink-0 ml-4`}
-            >
+            <Button variant="outline" size="sm" className="shrink-0 ml-4" onClick={() => setRebuildConfirmOpen(true)}
+              disabled={rebuildingPhase !== null || isRebuilding}>
               <RefreshCw className={`w-3.5 h-3.5 ${isRebuilding ? 'animate-spin' : ''}`} />
               {isRebuilding ? 'Rebuilding…' : 'Rebuild All'}
-            </button>
+            </Button>
           </div>
 
           <AlertDialog open={rebuildConfirmOpen} onOpenChange={setRebuildConfirmOpen}>
@@ -485,17 +478,14 @@ export const InterfacePanel: React.FC = () => {
                 </AlertDialogDescription>
                 <div className="flex gap-2.5 justify-end">
                   <AlertDialogCancel asChild>
-                    <button className={COMPONENT.settingsButtonOutline}>
+                    <Button variant="outline" size="sm" >
                       Cancel
-                    </button>
+                    </Button>
                   </AlertDialogCancel>
                   <AlertDialogAction asChild>
-                    <button
-                      onClick={handleRebuildIndex}
-                      className={COMPONENT.settingsButtonDanger}
-                    >
+                    <Button variant="danger" size="sm" onClick={handleRebuildIndex}>
                       Rebuild All
-                    </button>
+                    </Button>
                   </AlertDialogAction>
                 </div>
               </AlertDialogContent>
@@ -596,14 +586,11 @@ const IndexActionRow: React.FC<{
           </p>
         )}
       </div>
-      <button
-        onClick={onReindex}
-        disabled={disabled}
-        className={`${COMPONENT.settingsButtonOutline} shrink-0`}
-      >
+      <Button variant="outline" size="sm" className="shrink-0" onClick={onReindex}
+        disabled={disabled}>
         <RefreshCw className={`w-3 h-3 ${busy ? 'animate-spin' : ''}`} />
         {busy ? 'Indexing…' : 'Re-index'}
-      </button>
+      </Button>
     </div>
   );
 };

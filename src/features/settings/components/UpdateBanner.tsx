@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { open } from '@tauri-apps/plugin-shell';
 import { SURFACE, BORDER, TEXT, RADIUS, SHADOW, COMPONENT } from '@config/theme.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
+import { Button } from '@shared/ui';
 
 interface UpdateBannerProps {
   version: string;
@@ -81,13 +82,10 @@ export const UpdateBanner: React.FC<UpdateBannerProps> = ({
           >
             Remind Me Later
           </button>
-          <button
-            onClick={onUpdate}
-            disabled={isDownloading}
-            className={COMPONENT.settingsButtonPrimary}
-          >
+          <Button variant="primary" size="sm" onClick={onUpdate}
+            disabled={isDownloading}>
             {isDownloading ? 'Downloading…' : 'Update Now'}
-          </button>
+          </Button>
         </div>
       </motion.div>
     </AnimatePresence>

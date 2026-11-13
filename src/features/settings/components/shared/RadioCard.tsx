@@ -38,7 +38,7 @@ export const RadioCard: React.FC<RadioCardProps> = ({
           }`}
         >
           {selected && (
-            <div className={`w-2.5 h-2.5 rounded-full ${selected ? 'bg-parchment-900 dark:bg-night-100' : ''}`} />
+            <div className={`w-2.5 h-2.5 rounded-full ${selected ? 'bg-paper-900 dark:bg-night-100' : ''}`} />
           )}
         </div>
       )}

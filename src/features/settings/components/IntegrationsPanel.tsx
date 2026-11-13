@@ -9,7 +9,7 @@
  * - macOS Calendar (EventKit) — meeting notifications + auto-record
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ExternalLink, CalendarDays } from 'lucide-react';
 import { useAppActions } from '@shared/stores/appStore';
 import { useSettings } from '@shared/contexts/SettingsContext';
@@ -20,9 +20,9 @@ import { calendarService } from '@services/calendar';
 import { CALENDAR_DEFAULTS } from '@services/calendar/types';
 import type { CalendarAccessStatus } from '@services/calendar/types';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { SURFACE, BORDER, TEXT, RADIUS, LAYOUT, COMPONENT } from '@config/theme.config';
+import { SURFACE, BORDER, TEXT, RADIUS, LAYOUT } from '@config/theme.config';
 import { SettingsSection, Toggle } from './shared';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui';
+import { Badge, Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui';
 
 const NOTIFY_OPTIONS = [
   { value: 1, label: '1 minute' },
@@ -43,17 +43,21 @@ const CalendarIntegrationCard: React.FC = () => {
     notifyMinutesBefore: CALENDAR_DEFAULTS.notify_minutes_before,
   };
 
-  // Wait for settings to finish loading before checking calendar access
-  if (isLoading) return null;
-
   const [accessStatus, setAccessStatus] = useState<CalendarAccessStatus>('not_determined');
   const [isRequestingAccess, setIsRequestingAccess] = useState(false);
+
+  // Guard async completion after unmount (no setState on unmounted card).
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const checkAccess = useCallback(async () => {
     if (!isTauriEnvironment()) return;
     try {
       const status = await calendarService.checkAccess();
-      setAccessStatus(status);
+      if (mountedRef.current) setAccessStatus(status);
     } catch (error: unknown) {
       console.error('[IntegrationsPanel] Failed to check calendar access:', error);
     }
@@ -68,6 +72,7 @@ const CalendarIntegrationCard: React.FC = () => {
     setIsRequestingAccess(true);
     try {
       const granted = await calendarService.requestAccess();
+      if (!mountedRef.current) return granted;
       setAccessStatus(granted ? 'authorized' : 'denied');
       if (!granted) {
         showToast('Calendar access denied — enable in System Settings → Privacy → Calendars', 'error');
@@ -116,6 +121,9 @@ const CalendarIntegrationCard: React.FC = () => {
 
   const isConnected = calendarSettings.enabled && accessStatus === 'authorized';
 
+  // Rendered after all hooks — never return early before them.
+  if (isLoading) return null;
+
   return (
     <div className={`border ${BORDER.default} ${RADIUS.lg} ${SURFACE.card} overflow-hidden`}>
       {/* Card header — icon + name + toggle */}
@@ -130,12 +138,7 @@ const CalendarIntegrationCard: React.FC = () => {
             <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
               macOS Calendar
             </span>
-            {isConnected && (
-              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full ${TEXT.success} bg-green-500/10`}>
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                Connected
-              </span>
-            )}
+            {isConnected && <Badge variant="success">Connected</Badge>}
           </div>
           <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
             Get notified before meetings and auto-record. Works with Google, Outlook, iCloud, Exchange — no sign-in required.
@@ -172,13 +175,10 @@ const CalendarIntegrationCard: React.FC = () => {
             <span className={`text-xs ${TEXT.secondary}`}>
               macOS permission required
             </span>
-            <button
-              onClick={requestAccess}
-              disabled={isRequestingAccess}
-              className={`${COMPONENT.settingsButtonPrimary} disabled:opacity-50`}
-            >
+            <Button variant="primary" size="sm" onClick={requestAccess}
+              disabled={isRequestingAccess}>
               {isRequestingAccess ? 'Requesting...' : 'Grant Access'}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -211,13 +211,10 @@ const CalendarIntegrationCard: React.FC = () => {
               <span className={`text-xs ${TEXT.muted}`}>
                 View your upcoming week
               </span>
-              <button
-                onClick={() => setCurrentView('calendar')}
-                className={COMPONENT.settingsButtonOutline}
-              >
+              <Button variant="outline" size="sm" onClick={() => setCurrentView('calendar')}>
                 <CalendarDays className="w-3.5 h-3.5" />
                 View Schedule
-              </button>
+              </Button>
             </div>
           </div>
         </>
