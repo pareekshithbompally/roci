@@ -143,33 +143,40 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!isTauriEnvironment()) return;
     let unlisten: (() => void) | null = null;
+    let cancelled = false;
     import('@tauri-apps/api/event').then(({ listen }) => {
+      if (cancelled) return;
       listen<void>('window-focused', () => {
         const el = document.documentElement;
         el.style.willChange = 'transform';
         requestAnimationFrame(() => {
           el.style.willChange = '';
         });
-      }).then(fn => { unlisten = fn; });
+      }).then(fn => {
+        if (cancelled) fn();
+        else unlisten = fn;
+      });
     });
-    return () => { unlisten?.(); };
+    return () => { cancelled = true; unlisten?.(); };
   }, []);
 
-  // Initialize app on mount
+  // Initialize app on mount (guard completion after unmount)
   useEffect(() => {
+    let cancelled = false;
     const initializeApp = async () => {
       try {
         if (isTauriEnvironment()) {
           await initializeTauriServices();
         }
         await loadAppData();
-        setInitialized(true);
+        if (!cancelled) setInitialized(true);
       } catch (e) {
         console.error('[App] Initialization error:', e);
       }
     };
 
     initializeApp();
+    return () => { cancelled = true; };
   }, []);
 
   // Check for app updates after startup settles
@@ -293,8 +300,8 @@ const App: React.FC = () => {
       setStatus(AppStatus.RESULTS);
       setSelectedHistoryId(newItem.id);
       toast.showToast('Document processed successfully', 'success');
-    } catch (err: any) {
-      toast.showToast(err.message || 'Failed to process document', 'error');
+    } catch (err: unknown) {
+      toast.showToast(err instanceof Error ? err.message : 'Failed to process document', 'error');
     }
     
     // Reset file input

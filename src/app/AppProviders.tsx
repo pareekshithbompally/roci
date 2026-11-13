@@ -21,15 +21,16 @@
 
 import React, { ReactNode, Component, ErrorInfo } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { ThemeProvider } from '../shared/contexts/ThemeContext';
-import { ToastProvider } from '../shared/contexts/ToastContext';
-import { SettingsProvider, useSettings } from '../shared/contexts/SettingsContext';
-import { HistoryProvider, useHistory } from '../shared/contexts/HistoryContext';
-import { ChatProvider } from '../shared/contexts/ChatContext';
-import { RecordingProvider } from '../features/recording';
-import { ImportProvider } from '../features/import';
-import { queryClient } from '../shared/query/queryClient';
-import { useAppActions } from '../shared/stores/appStore';
+import { SURFACE, TEXT } from '@config/theme.config';
+import { ThemeProvider } from '@shared/contexts/ThemeContext';
+import { ToastProvider } from '@shared/contexts/ToastContext';
+import { SettingsProvider, useSettings } from '@shared/contexts/SettingsContext';
+import { HistoryProvider, useHistory } from '@shared/contexts/HistoryContext';
+import { ChatProvider } from '@shared/contexts/ChatContext';
+import { RecordingProvider } from '@features/recording';
+import { ImportProvider } from '@features/import';
+import { queryClient } from '@shared/query/queryClient';
+import { useAppActions } from '@shared/stores/appStore';
 
 /**
  * Error Boundary for debugging render errors
@@ -59,7 +60,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: 20, fontFamily: 'monospace', background: '#fef2f2', color: '#dc2626' }}>
+        <div className={`p-5 font-mono ${SURFACE.errorCallout} ${TEXT.errorCallout}`}>
           <h1>Something went wrong</h1>
           <pre style={{ whiteSpace: 'pre-wrap' }}>
             {this.state.error?.message}

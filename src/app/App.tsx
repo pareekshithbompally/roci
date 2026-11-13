@@ -11,7 +11,7 @@
 import React from 'react';
 import { AppProviders } from './AppProviders';
 // Import the new refactored App component
-import AppContent from '../App';
+import AppContent from '@/src/App';
 
 /**
  * App Component
