@@ -5,7 +5,7 @@
  */
 
 import { useMemo } from 'react';
-import { useRecordingContext } from '../context';
+import { useRecordingContext } from '@features/recording/context';
 
 export const useRecordingTimer = () => {
   const { elapsedTime, status, isPaused } = useRecordingContext();

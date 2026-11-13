@@ -9,19 +9,10 @@
 
 import React from 'react';
 import { Check, X } from 'lucide-react';
-import {
-  Dialog,
-  DialogPortal,
-  DialogOverlay,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogClose,
-} from '@shared/ui';
+import { Button, Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogOverlay, DialogPortal, DialogTitle } from '@shared/ui';
 import { useAppStore, usePermissionChecklistOpen } from '@shared/stores/appStore';
 import { permissionsService, type PermissionKind, type PermissionRow } from '@services/permissions.service';
-import { BORDER, TEXT, COMPONENT, RADIUS, SURFACE } from '@config/theme.config';
+import { BORDER, TEXT, RADIUS, SURFACE } from '@config/theme.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { usePermissions } from '@features/recording/hooks/usePermissions';
 
@@ -50,21 +41,17 @@ const RowAction: React.FC<{ row: PermissionRow }> = ({ row }) => {
   }
   if (row.state === 'needs-request') {
     return (
-      <button
-        className={COMPONENT.settingsButtonPrimary}
-        onClick={() => permissionsService.request(row.kind).catch(reportFailure('request'))}
+      <Button variant="primary" size="sm" onClick={() => permissionsService.request(row.kind).catch(reportFailure('request'))}
       >
         Allow
-      </button>
+      </Button>
     );
   }
   return (
-    <button
-      className={COMPONENT.settingsButtonOutline}
-      onClick={() => permissionsService.openSettings(row.kind).catch(reportFailure('open settings'))}
+    <Button variant="outline" size="sm" onClick={() => permissionsService.openSettings(row.kind).catch(reportFailure('open settings'))}
     >
       Open Settings
-    </button>
+    </Button>
   );
 };
 
@@ -82,9 +69,9 @@ export const PermissionChecklist: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Allow recording</DialogTitle>
             <DialogClose asChild>
-              <button className={`${COMPONENT.iconButtonSm} -mr-1`} aria-label="Close">
+              <Button variant="ghost" size="iconSm" className="-mr-1" aria-label="Close">
                 <X className="w-4 h-4" />
-              </button>
+              </Button>
             </DialogClose>
           </DialogHeader>
           <DialogDescription className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>

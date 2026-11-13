@@ -12,7 +12,7 @@ import { recordingsService } from '@services/storage';
 import { isTauriEnvironment } from '@services/tauri';
 import { StorageConfig, generateRecordingFilename, getRecordingIdFromFilename } from '@config/storage.config';
 import type { AudioCaptureSource } from '@config/audio.config';
-import type { RecordingMetadata } from '../types';
+import type { RecordingMetadata } from '@features/recording/types';
 
 export interface StartRecordingOptions {
   source: AudioCaptureSource;

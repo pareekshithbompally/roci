@@ -8,7 +8,7 @@
 import React, { createContext, useContext, useRef, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
-import { ImportService } from '../import.service';
+import { ImportService } from '@features/import/import.service';
 
 interface ImportContextValue {
   importAudio: () => Promise<void>;

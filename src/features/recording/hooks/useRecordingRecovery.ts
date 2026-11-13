@@ -10,7 +10,7 @@ import { useEffect, useRef } from 'react';
 import { coreAudioService } from '@services/coreAudio.service';
 import { isTauriEnvironment } from '@services/tauri';
 import { StorageConfig, getRecordingIdFromFilename } from '@config/storage.config';
-import type { HistoryEntry } from '../types';
+import type { HistoryEntry } from '@features/recording/types';
 
 type ShowToast = (message: string, type: 'success' | 'warning') => void;
 

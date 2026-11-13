@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useRef, useCallback } from 'react';
-import { X, Video, ExternalLink } from 'lucide-react';
+import { X, Video } from 'lucide-react';
 import { TEXT } from '@config/theme.config';
 import type { CalendarEvent as ScheduleXCalendarEvent } from '@schedule-x/calendar';
 

@@ -19,11 +19,12 @@ import { CalendarWeek } from './CalendarWeek';
 import type { CalendarControls } from './CalendarWeek';
 import { EventPopover } from './EventPopover';
 import { DatePicker } from '@shared/ui/date-picker';
-import { useCalendarEvents } from '../hooks/useCalendarEvents';
-import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
+import { useCalendarEvents } from '@features/calendar/hooks/useCalendarEvents';
+import { SURFACE, BORDER, TEXT } from '@config/theme.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { AppStatus } from '@shared/types';
 import type { CalendarEvent as ScheduleXCalendarEvent } from '@schedule-x/calendar';
+import { Button } from '@shared/ui';
 
 // ─── Helpers ────────────────────────────────────────────────────────
 
@@ -80,13 +81,10 @@ const EmptyState: React.FC<{
         <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} text-center max-w-xs mb-4`}>
           Enable calendar integration in Settings to see your upcoming events.
         </p>
-        <button
-          onClick={onGoToSettings}
-          className={COMPONENT.settingsButtonPrimary}
-        >
+        <Button variant="primary" size="sm" onClick={onGoToSettings}>
           <Settings className="w-3.5 h-3.5" />
           Open Settings
-        </button>
+        </Button>
       </div>
     );
   }
@@ -190,13 +188,9 @@ export const CalendarView: React.FC = () => {
       {/* Header */}
       <div className={`shrink-0 border-b ${BORDER.default} px-5 py-2.5`}>
         <div className="flex items-center">
-          <button
-            onClick={handleBack}
-            className={`${COMPONENT.iconButtonSm} rounded-lg ${SURFACE.hoverSubtle} mr-2.5`}
-            aria-label="Back to home"
-          >
+          <Button variant="ghost" size="iconSm" className="mr-2.5" onClick={handleBack} aria-label="Back to home">
             <ArrowLeft className="w-4 h-4" />
-          </button>
+          </Button>
           <CalendarDays className={`w-4 h-4 ${TEXT.muted} mr-1`} />
           <h1 className={`text-[14px] font-semibold ${TEXT.heading}`}>Schedule</h1>
 
@@ -231,21 +225,14 @@ export const CalendarView: React.FC = () => {
                 placeholder="Go to date"
               />
 
-              <button
-                onClick={() => controlsRef.current?.goToToday()}
-                className={COMPONENT.settingsButtonOutline}
-              >
+              <Button variant="outline" size="sm" onClick={() => controlsRef.current?.goToToday()}>
                 Today
-              </button>
+              </Button>
 
-              <button
-                onClick={handleSync}
-                disabled={isSyncing}
-                className={COMPONENT.settingsButtonOutline}
-              >
+              <Button variant="outline" size="sm" onClick={handleSync} disabled={isSyncing}>
                 <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
                 {isSyncing ? 'Syncing...' : 'Sync'}
-              </button>
+              </Button>
             </div>
           )}
         </div>

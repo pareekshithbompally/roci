@@ -67,14 +67,14 @@ const SummaryView: React.FC<SummaryViewProps> = ({
         {/* Key Discussion Points */}
         {structuredSummary.keyDiscussionPoints && structuredSummary.keyDiscussionPoints.length > 0 && (
           <div>
-            <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold text-parchment-900 dark:text-night-100 mb-3`}>
+            <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold text-paper-900 dark:text-night-100 mb-3`}>
               Key Discussion Points
             </h3>
             <ul className="space-y-2">
               {structuredSummary.keyDiscussionPoints.map((point, idx) => (
                 <li key={idx} className={`flex items-start gap-3 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
-                  <span className="text-parchment-500 dark:text-night-400 mt-1 shrink-0">•</span>
-                  <span className="text-parchment-800 dark:text-night-200 leading-relaxed">{point}</span>
+                  <span className="text-paper-500 dark:text-night-400 mt-1 shrink-0">•</span>
+                  <span className="text-paper-800 dark:text-night-200 leading-relaxed">{point}</span>
                 </li>
               ))}
             </ul>
@@ -84,14 +84,14 @@ const SummaryView: React.FC<SummaryViewProps> = ({
         {/* Decisions Made */}
         {structuredSummary.decisionsMade && structuredSummary.decisionsMade.length > 0 && (
           <div>
-            <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold text-parchment-900 dark:text-night-100 mb-3`}>
+            <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold text-paper-900 dark:text-night-100 mb-3`}>
               Decisions Made
             </h3>
             <ul className="space-y-2">
               {structuredSummary.decisionsMade.map((decision, idx) => (
                 <li key={idx} className={`flex items-start gap-3 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
-                  <span className="text-parchment-500 dark:text-night-400 mt-1 shrink-0">•</span>
-                  <span className="text-parchment-800 dark:text-night-200 leading-relaxed">{decision}</span>
+                  <span className="text-paper-500 dark:text-night-400 mt-1 shrink-0">•</span>
+                  <span className="text-paper-800 dark:text-night-200 leading-relaxed">{decision}</span>
                 </li>
               ))}
             </ul>
@@ -101,17 +101,17 @@ const SummaryView: React.FC<SummaryViewProps> = ({
         {/* Action Items */}
         {structuredSummary.actionItems && structuredSummary.actionItems.length > 0 && (
           <div>
-            <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold text-parchment-900 dark:text-night-100 mb-3`}>
+            <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold text-paper-900 dark:text-night-100 mb-3`}>
               Action Items ({structuredSummary.actionItems.length})
             </h3>
             <ul className="space-y-2">
               {structuredSummary.actionItems.slice(0, 5).map((item) => (
                 <li key={item.id} className={`flex items-start gap-3 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
-                  <span className="text-parchment-500 dark:text-night-400 mt-1 shrink-0">•</span>
+                  <span className="text-paper-500 dark:text-night-400 mt-1 shrink-0">•</span>
                   <div className="flex-1">
-                    <span className="text-parchment-800 dark:text-night-200 leading-relaxed">{item.text}</span>
+                    <span className="text-paper-800 dark:text-night-200 leading-relaxed">{item.text}</span>
                     {(item.owner || item.dueDate) && (
-                      <span className="text-xs text-parchment-500 dark:text-night-400 mt-1 block">
+                      <span className="text-xs text-paper-500 dark:text-night-400 mt-1 block">
                         {item.owner && `Owner: ${item.owner}`}
                         {item.owner && item.dueDate && ' · '}
                         {item.dueDate && `Due: ${item.dueDate}`}
@@ -121,7 +121,7 @@ const SummaryView: React.FC<SummaryViewProps> = ({
                 </li>
               ))}
               {structuredSummary.actionItems.length > 5 && (
-                <li className={`text-xs text-parchment-500 dark:text-night-400 pt-1 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
+                <li className={`text-xs text-paper-500 dark:text-night-400 pt-1 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
                   +{structuredSummary.actionItems.length - 5} more items (view in To-Do tab)
                 </li>
               )}
@@ -132,14 +132,14 @@ const SummaryView: React.FC<SummaryViewProps> = ({
         {/* Next Steps */}
         {structuredSummary.nextSteps && structuredSummary.nextSteps.length > 0 && (
           <div>
-            <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold text-parchment-900 dark:text-night-100 mb-3`}>
+            <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold text-paper-900 dark:text-night-100 mb-3`}>
               Next Steps
             </h3>
             <ul className="space-y-2">
               {structuredSummary.nextSteps.map((step, idx) => (
                 <li key={idx} className={`flex items-start gap-3 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
-                  <span className="text-parchment-500 dark:text-night-400 mt-1 shrink-0">•</span>
-                  <span className="text-parchment-800 dark:text-night-200 leading-relaxed">{step}</span>
+                  <span className="text-paper-500 dark:text-night-400 mt-1 shrink-0">•</span>
+                  <span className="text-paper-800 dark:text-night-200 leading-relaxed">{step}</span>
                 </li>
               ))}
             </ul>
@@ -179,17 +179,17 @@ const SummaryView: React.FC<SummaryViewProps> = ({
 
       {structuredSummary.actionItems && structuredSummary.actionItems.length > 0 && (
         <div>
-          <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold text-parchment-900 dark:text-night-100 mb-3`}>
+          <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold text-paper-900 dark:text-night-100 mb-3`}>
             Action Items ({structuredSummary.actionItems.length})
           </h3>
           <ul className="space-y-2">
             {structuredSummary.actionItems.slice(0, 5).map((item) => (
               <li key={item.id} className={`flex items-start gap-3 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
-                <span className="text-parchment-500 dark:text-night-400 mt-1 shrink-0">•</span>
+                <span className="text-paper-500 dark:text-night-400 mt-1 shrink-0">•</span>
                 <div className="flex-1">
-                  <span className="text-parchment-800 dark:text-night-200 leading-relaxed">{item.text}</span>
+                  <span className="text-paper-800 dark:text-night-200 leading-relaxed">{item.text}</span>
                   {item.dueDate && (
-                    <span className="text-xs text-parchment-500 dark:text-night-400 mt-1 block">
+                    <span className="text-xs text-paper-500 dark:text-night-400 mt-1 block">
                       Due: {item.dueDate}
                     </span>
                   )}
@@ -197,7 +197,7 @@ const SummaryView: React.FC<SummaryViewProps> = ({
               </li>
             ))}
             {structuredSummary.actionItems.length > 5 && (
-              <li className={`text-xs text-parchment-500 dark:text-night-400 pt-1 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
+              <li className={`text-xs text-paper-500 dark:text-night-400 pt-1 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
                 +{structuredSummary.actionItems.length - 5} more items (view in To-Do tab)
               </li>
             )}

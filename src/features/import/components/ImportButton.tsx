@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { Plus, AudioWaveform, Subtitles, ChevronDown } from 'lucide-react';
-import { useImport } from '../context/ImportContext';
+import { useImport } from '@features/import/context/ImportContext';
 import { SURFACE, BORDER, TEXT } from '@config/theme.config';
 import {
   DropdownMenu,

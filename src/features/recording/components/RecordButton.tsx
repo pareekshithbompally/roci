@@ -9,7 +9,7 @@ import React from 'react';
 import { Circle } from 'lucide-react';
 import { UI_CONFIG } from '@config/ui.config';
 import { TEXT } from '@config/theme.config';
-import { useRecording } from '../hooks';
+import { useRecording } from '@features/recording/hooks';
 
 interface RecordButtonProps {
   onClick?: () => void;

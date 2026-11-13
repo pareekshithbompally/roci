@@ -11,7 +11,11 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { useToast } from '../../../shared/contexts/ToastContext';
+import { useToast } from '@shared/contexts/ToastContext';
+import type { AppSettings, HistoryItem, ProcessedResult } from '@shared/types';
+import { AppStatus } from '@shared/types';
+import type { ModelProvider } from '@shared/types/modelProviders';
+import { defaultSettings } from '@shared/contexts/SettingsContext';
 import type { AudioCaptureSource } from '@config/audio.config';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
@@ -23,19 +27,19 @@ import { recordingsService } from '@services/storage';
 import { transcriptionService } from '@services/transcription.service';
 import { StorageConfig, generateRecordingFilename, getRecordingIdFromFilename } from '@config/storage.config';
 import { unifiedAIService } from '@services/unifiedAIService';
-import { activityStore } from '../../../shared/stores/activityStore';
-import type { ActivityAction } from '../../../shared/stores/activityStore';
+import { activityStore } from '@shared/stores/activityStore';
+import type { ActivityAction } from '@shared/stores/activityStore';
 import { resolveModel } from '@shared/utils/modelResolver';
 import { consumePendingCalendarMeta } from '@services/calendar/recording-bridge';
 import { RECORDING_EVENTS } from '@config/audio.config';
-import { useRecordingRecovery } from '../hooks/useRecordingRecovery';
+import { useRecordingRecovery } from '@features/recording/hooks/useRecordingRecovery';
 import type {
   HistoryEntry,
   RecordingContextValue,
   RecordingState,
   RecordingSession,
   RecordingSessionsContextValue,
-} from '../types';
+} from '@features/recording/types';
 
 const initialState: RecordingState = {
   status: 'idle',
@@ -74,9 +78,16 @@ export const useRecordingSessions = (): RecordingSessionsContextValue => {
 
 interface RecordingProviderProps {
   children: React.ReactNode;
-  settingsContext?: any;
-  historyContext?: any;
-  appContext?: any;
+  settingsContext?: { settings: AppSettings; providers: ModelProvider[] };
+  historyContext?: {
+    addToHistory: (item: HistoryItem) => Promise<void>;
+    categories: string[];
+  };
+  appContext?: {
+    setResult: (result: ProcessedResult | null) => void;
+    setSelectedHistoryId: (id: string | null) => void;
+    setStatus: (status: AppStatus) => void;
+  };
 }
 
 export const RecordingProvider: React.FC<RecordingProviderProps> = ({
@@ -169,8 +180,17 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       timerRefs.current.forEach((timer) => clearInterval(timer));
       audioUrlRefs.current.forEach((url) => URL.revokeObjectURL(url));
 
+      // Cancel any scheduled auto-stop notifications — the sessions are gone.
+      void notificationScheduler
+        .cancelAllForType('recording_autostop')
+        .catch((error: unknown) =>
+          console.error('[RecordingContext] Failed to cancel auto-stop notifications:', error)
+        );
+
       // Revert menubar to idle on unmount (safety net)
-      void menubarService.setRecordingState(false, false);
+      void menubarService.setRecordingState(false, false).catch((error: unknown) =>
+        console.error('[RecordingContext] Failed to reset menubar state:', error)
+      );
     };
   }, []);
 
@@ -179,14 +199,21 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     if (!isTauriEnvironment()) return;
 
     let unlisten: UnlistenFn | null = null;
+    let cancelled = false;
 
     listen(RECORDING_EVENTS.level, () => {
       lastLevelTimestampRef.current = Date.now();
-    }).then(fn => {
-      unlisten = fn;
-    });
+    })
+      .then((fn) => {
+        if (cancelled) fn();
+        else unlisten = fn;
+      })
+      .catch((error: unknown) =>
+        console.error('[RecordingContext] Failed to subscribe to level events:', error)
+      );
 
     return () => {
+      cancelled = true;
       unlisten?.();
     };
   }, []);
@@ -310,7 +337,9 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       timerRefs.current.set(sessionId, timer);
 
       // Report recording start; backend swaps the icon and starts its clock
-      void menubarService.setRecordingState(true, false);
+      void menubarService.setRecordingState(true, false).catch((error: unknown) =>
+        console.error('[RecordingContext] Menubar sync failed:', error)
+      );
 
       return sessionId;
     } catch (error) {
@@ -369,13 +398,17 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       }
 
       setActiveCaptureSessionId(null);
-      void menubarService.setRecordingState(false, false);
+      void menubarService.setRecordingState(false, false).catch((error: unknown) =>
+        console.error('[RecordingContext] Menubar sync failed:', error)
+      );
     } catch (error) {
       // The backend released the capture even though stopping failed; its
       // tracks are kept and recovered at the next launch.
       cleanupSessionTimer(sessionId);
       setActiveCaptureSessionId(null);
-      void menubarService.setRecordingState(false, false);
+      void menubarService.setRecordingState(false, false).catch((error: unknown) =>
+        console.error('[RecordingContext] Menubar sync failed:', error)
+      );
       updateSession(sessionId, { status: 'review', isPaused: false, error: captureErrorMessage(error, 'Failed to stop recording') });
       throw error;
     }
@@ -444,7 +477,9 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       console.error('[RecordingContext] stopAndSaveSession stopCapture error:', error);
     } finally {
       setActiveCaptureSessionId(null);
-      void menubarService.setRecordingState(false, false);
+      void menubarService.setRecordingState(false, false).catch((error: unknown) =>
+        console.error('[RecordingContext] Menubar sync failed:', error)
+      );
     }
 
     // Save to history sidebar with blob in hand (no stale React state read)
@@ -499,7 +534,9 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       }
 
       // Freeze the backend clock with pause indicator
-      void menubarService.setRecordingState(true, true);
+      void menubarService.setRecordingState(true, true).catch((error: unknown) =>
+        console.error('[RecordingContext] Menubar sync failed:', error)
+      );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to pause recording';
       updateSession(sessionId, { error: errorMessage });
@@ -581,7 +618,9 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       timerRefs.current.set(sessionId, timer);
 
       // Resume the backend clock
-      void menubarService.setRecordingState(true, false);
+      void menubarService.setRecordingState(true, false).catch((error: unknown) =>
+        console.error('[RecordingContext] Menubar sync failed:', error)
+      );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to resume recording';
       updateSession(sessionId, { error: errorMessage });
@@ -603,7 +642,9 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       if (activeCaptureSessionId === sessionId) {
         setActiveCaptureSessionId(null);
 
-        void menubarService.setRecordingState(false, false);
+        void menubarService.setRecordingState(false, false).catch((error: unknown) =>
+        console.error('[RecordingContext] Menubar sync failed:', error)
+      );
       }
 
       cleanupSessionRefs(sessionId);
@@ -664,7 +705,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       // Read calendar metadata from session (stored at recording start)
       const calendarMeta = session.calendarMeta;
 
-      const settings = settingsContext?.settings || { transcriptionModel: '', chatModel: '' };
+      const settings = settingsContext?.settings ?? defaultSettings;
       const providers = settingsContext?.providers || [];
       const categories = historyContext?.categories || [];
       const addToHistory = historyContext?.addToHistory;
@@ -731,7 +772,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           overview: data.structuredSummary?.overview || data.summary,
           keyDiscussionPoints: data.structuredSummary?.keyDiscussionPoints || [],
           decisionsMade: data.structuredSummary?.decisionsMade || [],
-          actionItems: (data.structuredSummary?.actionItems || []).map((a: any) => ({
+          actionItems: (data.structuredSummary?.actionItems || []).map((a) => ({
             text: a.text,
             owner: a.owner,
             dueDate: a.dueDate,
@@ -785,7 +826,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       // Do NOT call addToHistory here — it would create a duplicate index entry.
       if (setResult) setResult(data);
       if (setSelectedHistoryId) setSelectedHistoryId(newItem.id);
-      if (setStatus) setStatus('RESULTS' as any);
+      if (setStatus) setStatus(AppStatus.RESULTS);
       showToast('Recording processed successfully', 'success');
 
       // Cleanup and remove session
@@ -793,16 +834,17 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       abortControllerRefs.current.delete(sessionId);
       removeSession(sessionId);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       abortControllerRefs.current.delete(sessionId);
+      const message = error instanceof Error ? error.message : String(error);
 
-      if (error.message === 'Processing aborted by user') {
+      if (message === 'Processing aborted by user') {
         updateSession(sessionId, { status: 'review', error: null });
         showToast('Processing cancelled', 'info');
         return;
       }
 
-      const errorMessage = error.message || 'Failed to process recording';
+      const errorMessage = message || 'Failed to process recording';
       updateSession(sessionId, { status: 'review', error: errorMessage });
       showToast(errorMessage, 'error');
       throw error;

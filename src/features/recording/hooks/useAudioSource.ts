@@ -5,7 +5,7 @@
  */
 
 import { useMemo, useCallback } from 'react';
-import { useRecordingContext } from '../context';
+import { useRecordingContext } from '@features/recording/context';
 import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
 
 export interface AudioSourceOption {

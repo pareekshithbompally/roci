@@ -53,8 +53,8 @@ function buildSpeakerIndex(segments: StoredTranscriptSegment[]): Map<string, num
 }
 
 const EmptyState: React.FC = () => (
-  <div className="p-6 rounded-xl bg-parchment-50 dark:bg-night-900/40 border border-parchment-300 dark:border-night-800/60">
-    <p className="text-parchment-600 dark:text-night-500 leading-relaxed text-center">
+  <div className="p-6 rounded-xl bg-paper-50 dark:bg-night-900/40 border border-paper-300 dark:border-night-800/60">
+    <p className="text-paper-600 dark:text-night-500 leading-relaxed text-center">
       No transcript available.
     </p>
   </div>
@@ -64,8 +64,8 @@ const PlainTextBlock: React.FC<{ text: string; highlightText?: string }> = ({ te
   const normalized = highlightText?.slice(0, 100).toLowerCase() ?? '';
   const isMatch = normalized && text.toLowerCase().includes(normalized);
   return (
-    <div className={`p-6 rounded-xl bg-parchment-50 dark:bg-night-900/40 border border-parchment-300 dark:border-night-800/60 ${isMatch ? 'bg-amber-200/60 dark:bg-amber-800/40' : ''}`}>
-      <p className="text-parchment-900 dark:text-night-300 leading-relaxed whitespace-pre-wrap">
+    <div className={`p-6 rounded-xl bg-paper-50 dark:bg-night-900/40 border border-paper-300 dark:border-night-800/60 ${isMatch ? 'bg-amber-200/60 dark:bg-amber-800/40' : ''}`}>
+      <p className="text-paper-900 dark:text-night-300 leading-relaxed whitespace-pre-wrap">
         {highlightText && isMatch
           ? <HighlightedText content={text} highlight={highlightText.slice(0, 100)} />
           : text
@@ -104,17 +104,17 @@ const RegexFallbackBlock: React.FC<{ text: string; highlightText?: string }> = (
             className={`flex gap-3 p-4 rounded-xl border transition-colors group ${
               isHighlighted
                 ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40'
-                : 'bg-parchment-50 dark:bg-night-900/40 border-parchment-300 dark:border-night-800/60'
+                : 'bg-paper-50 dark:bg-night-900/40 border-paper-300 dark:border-night-800/60'
             }`}
           >
             <div className="shrink-0">
               {timestamp && (
-                <span className="inline-flex px-2 py-1 rounded bg-parchment-100 dark:bg-night-800 text-[10px] font-mono text-parchment-600 border border-parchment-300 dark:border-night-700/50">
+                <span className="inline-flex px-2 py-1 rounded bg-paper-100 dark:bg-night-800 text-[10px] font-mono text-paper-600 dark:text-night-400 border border-paper-300 dark:border-night-700/50">
                   {timestamp}
                 </span>
               )}
             </div>
-            <p className={`${TYPOGRAPHY_CLASSES.transcriptText} text-parchment-900 dark:text-night-300 leading-relaxed`}>
+            <p className={`${TYPOGRAPHY_CLASSES.transcriptText} text-paper-900 dark:text-night-300 leading-relaxed`}>
               {highlightText && isHighlighted
                 ? <HighlightedText content={content} highlight={highlightText.slice(0, 100)} />
                 : content
@@ -179,8 +179,7 @@ const ParsedTranscript: React.FC<ParsedTranscriptProps> = ({ text, segments, hig
       top: Math.max(0, offset - scrollParent.clientHeight / 2 + el.clientHeight / 2),
       behavior: 'smooth',
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [highlightText]);
+  }, [highlightText, segments]);
 
   // Empty state
   if ((!text || text.trim().length === 0) && !hasSegments) {
@@ -206,13 +205,13 @@ const ParsedTranscript: React.FC<ParsedTranscriptProps> = ({ text, segments, hig
             className={`flex gap-3 p-4 rounded-xl border transition-colors group ${
               isHighlighted
                 ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40'
-                : 'bg-parchment-50 dark:bg-night-900/40 border-parchment-300 dark:border-night-800/60'
+                : 'bg-paper-50 dark:bg-night-900/40 border-paper-300 dark:border-night-800/60'
             }`}
           >
             {/* Timestamp column (Tier 1 only) */}
             {showTimestamps && (
               <div className="shrink-0 pt-0.5">
-                <span className="inline-flex px-2 py-1 rounded bg-parchment-100 dark:bg-night-800 text-[10px] font-mono text-parchment-600 dark:text-night-400 border border-parchment-300 dark:border-night-700/50">
+                <span className="inline-flex px-2 py-1 rounded bg-paper-100 dark:bg-night-800 text-[10px] font-mono text-paper-600 dark:text-night-400 border border-paper-300 dark:border-night-700/50">
                   {formatTimestamp(seg.startSecond)}
                 </span>
               </div>
@@ -227,7 +226,7 @@ const ParsedTranscript: React.FC<ParsedTranscriptProps> = ({ text, segments, hig
               )}
 
               {/* Transcript text */}
-              <p className={`${TYPOGRAPHY_CLASSES.transcriptText} text-parchment-900 dark:text-night-300 leading-relaxed`}>
+              <p className={`${TYPOGRAPHY_CLASSES.transcriptText} text-paper-900 dark:text-night-300 leading-relaxed`}>
                 {highlightText && isHighlighted
                   ? <HighlightedText content={seg.text} highlight={highlightText.slice(0, 100)} />
                   : seg.text

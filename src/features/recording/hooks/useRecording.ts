@@ -5,7 +5,7 @@
  * Wraps the RecordingContext for convenient usage.
  */
 
-import { useRecordingContext } from '../context';
+import { useRecordingContext } from '@features/recording/context';
 
 export const useRecording = () => {
   const context = useRecordingContext();
