@@ -52,11 +52,14 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
   const [open, setOpen] = useState(false);
   const [modalitiesReady, setModalitiesReady] = useState(modalitiesService.isLoaded());
 
-  // Ensure modalities data is loaded
+  // Ensure modalities data is loaded (guard completion after unmount)
   useEffect(() => {
-    if (!modalitiesReady) {
-      modalitiesService.ensureLoaded().then(() => setModalitiesReady(true));
-    }
+    if (modalitiesReady) return;
+    let cancelled = false;
+    modalitiesService.ensureLoaded().then(() => {
+      if (!cancelled) setModalitiesReady(true);
+    });
+    return () => { cancelled = true; };
   }, [modalitiesReady]);
 
   // Get all models from active providers, grouped by provider

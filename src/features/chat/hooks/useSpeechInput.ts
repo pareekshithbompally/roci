@@ -10,7 +10,7 @@
  * configured transcription model provider.
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { audioToRawText } from '@services/unifiedAIService';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { AppSettings } from '@shared/types';
@@ -42,6 +42,7 @@ export function useSpeechInput(
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const mountedRef = useRef(true);
 
   const cleanup = useCallback(() => {
     if (timerRef.current) {
@@ -52,8 +53,29 @@ export function useSpeechInput(
       streamRef.current.getTracks().forEach(t => t.stop());
       streamRef.current = null;
     }
+    if (!mountedRef.current) return;
     setStream(null);
     setElapsed(0);
+  }, []);
+
+  // Stop mic tracks and timers if the owning component unmounts mid-record.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
+      const recorder = mediaRecorderRef.current;
+      if (recorder && recorder.state !== 'inactive') {
+        try { recorder.stop(); } catch { /* already stopped */ }
+      }
+    };
   }, []);
 
   const start = useCallback(async () => {
@@ -104,9 +126,9 @@ export function useSpeechInput(
           streamRef.current.getTracks().forEach(t => t.stop());
           streamRef.current = null;
         }
-        setStream(null);
+        if (mountedRef.current) setStream(null);
 
-        setState('transcribing');
+        if (mountedRef.current) setState('transcribing');
         try {
           const text = await audioToRawText(blob, settings, providers);
           resolve(text);
@@ -114,8 +136,10 @@ export function useSpeechInput(
           console.error('[useSpeechInput] Transcription failed:', err);
           resolve('');
         } finally {
-          setState('idle');
-          setElapsed(0);
+          if (mountedRef.current) {
+            setState('idle');
+            setElapsed(0);
+          }
         }
       };
 

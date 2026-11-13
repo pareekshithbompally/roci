@@ -81,7 +81,9 @@ export function VoiceWaveform({ stream }: VoiceWaveformProps) {
       running = false;
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       source.disconnect();
-      ctx.close();
+      ctx.close().catch((error: unknown) =>
+        console.error('[VoiceWaveform] AudioContext close failed:', error)
+      );
       ctxRef.current = null;
       sourceRef.current = null;
       analyserRef.current = null;

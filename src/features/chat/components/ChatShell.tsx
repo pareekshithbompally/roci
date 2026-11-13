@@ -12,7 +12,7 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { ArrowDown, Loader2 } from 'lucide-react';
 import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom';
-import { useChatStore, useChatActions } from '../stores';
+import { useChatStore, useChatActions } from '@features/chat/stores';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useAppActions } from '@shared/stores/appStore';
@@ -26,22 +26,20 @@ import { WebCitationDrawer } from './WebCitationDrawer';
 import { meetingReferenceService } from '@services/meetingReferenceService';
 import { meetingService } from '@services/meeting.service';
 import { supportsWebSearch } from '@shared/utils/modelResolver';
-import { useSpeechInput } from '../hooks/useSpeechInput';
+import { useSpeechInput } from '@features/chat/hooks/useSpeechInput';
 import { ENGINES, resolveCred } from '@services/ai/transcription';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { COMPONENT, TEXT } from '@config/theme.config';
+import { TEXT } from '@config/theme.config';
 import type { MeetingCitation, WebCitation } from '@shared/types';
+import { Button } from '@shared/ui';
 
 const ScrollToBottomBtn = () => {
   const { isAtBottom, scrollToBottom } = useStickToBottomContext();
   if (isAtBottom) return null;
   return (
-    <button
-      onClick={() => scrollToBottom()}
-      className={`absolute bottom-4 left-1/2 -translate-x-1/2 z-10 ${COMPONENT.floatingButton}`}
-    >
+    <Button variant="primary" size="icon" onClick={() => scrollToBottom()}>
       <ArrowDown className="w-4 h-4" />
-    </button>
+    </Button>
   );
 };
 

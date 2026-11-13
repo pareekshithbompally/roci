@@ -1,5 +1,6 @@
 import React from 'react';
-import { TEXT, COMPONENT } from '@config/theme.config';
+import { TEXT } from '@config/theme.config';
+import { Row } from '@shared/ui';
 
 interface SuggestionsListProps {
   suggestions: string[];
@@ -10,15 +11,14 @@ interface SuggestionsListProps {
 const SuggestionsList: React.FC<SuggestionsListProps> = ({ suggestions, onSuggestionClick }) => (
   <>
     {suggestions.map((suggestion, i) => (
-      <button
+      <Row
         key={i}
         onClick={() => onSuggestionClick(suggestion)}
-        className={COMPONENT.listRow}
         style={{ animationDelay: `${i * 50}ms` }}
       >
         <span className={`${TEXT.faint} shrink-0`}>&#8594;</span>
         <span className="line-clamp-1">{suggestion}</span>
-      </button>
+      </Row>
     ))}
   </>
 );

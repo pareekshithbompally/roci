@@ -15,15 +15,15 @@ import {
   Clock,
   User,
   Link2,
-  Trash2,
   Loader2,
   AlertCircle,
   ListTodo,
   Check,
 } from 'lucide-react';
-import { useTodoProposals, todoProposalStore } from '../stores/todoProposalStore';
-import type { TodoProposal } from '../stores/todoProposalStore';
-import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
+import { useTodoProposals, todoProposalStore } from '@features/chat';
+import type { TodoProposal } from '@features/chat';
+import { SURFACE, BORDER, TEXT } from '@config/theme.config';
+import { Button, Input } from '@shared/ui';
 
 type EditingState = { proposalId: string; field: 'text' | 'dueDate' | 'reminderDateTime' | 'owner' } | null;
 
@@ -95,19 +95,13 @@ const TodoConfirmationBanner: React.FC = () => {
 
           {!isDisabled && (
             <div className="flex items-center gap-1.5">
-              <button
-                onClick={handleCancelAll}
-                className={`px-2.5 py-1 text-xs rounded-lg ${COMPONENT.secondaryButton}`}
-              >
+              <Button variant="secondary" size="sm" onClick={handleCancelAll}>
                 Cancel
-              </button>
-              <button
-                onClick={handleCommitAll}
-                className={`px-2.5 py-1 text-xs rounded-lg flex items-center gap-1 ${COMPONENT.primaryButton}`}
-              >
+              </Button>
+              <Button variant="primary" size="sm" className="flex items-center gap-1" onClick={handleCommitAll}>
                 <Check className="w-3 h-3" />
                 {pendingCount > 1 ? `Create All (${pendingCount})` : 'Create'}
-              </button>
+              </Button>
             </div>
           )}
 
@@ -303,13 +297,13 @@ const EditableChip: React.FC<EditableChipProps> = ({
   if (isEditing) {
     return (
       <div className="inline-flex items-center gap-1">
-        <input
+        <Input
           type={inputType || 'text'}
           value={editValue}
           onChange={(e) => onEditChange(e.target.value)}
           onKeyDown={onKeyDown}
           onBlur={onSave}
-          className={`${COMPONENT.inlineInput} px-2 py-0.5 text-xs ${primary ? 'min-w-[200px]' : 'min-w-[120px]'} h-6`}
+          className={`px-2 py-0.5 text-xs ${primary ? 'min-w-[200px]' : 'min-w-[120px]'} h-6`}
           autoFocus
         />
         <button onClick={onCancel} className={`p-0.5 ${TEXT.faint} hover:${TEXT.secondary}`}>

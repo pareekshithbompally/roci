@@ -38,9 +38,18 @@ import { buildChatRequest, formatTemporalContext } from '@core/ai';
 import { generateSuggestions } from '@services/ai/suggestions';
 import { logUsage } from '@extensions/usage';
 import { fileToBase64 } from '@shared/utils/file.utils';
+import { queryClient } from '@shared/query/queryClient';
+import { queryKeys } from '@shared/query/queryKeys';
 import {
   CHAT_PAGE_SIZE,
 } from '@config/chat.config';
+
+/** Reconcile the mirrored session index with disk truth. */
+function invalidateChats(): void {
+  queryClient.invalidateQueries({ queryKey: queryKeys.chats() }).catch((error: unknown) =>
+    console.error('[ChatStore] Failed to invalidate chats query:', error)
+  );
+}
 
 // ── Module-level refs ──
 
@@ -154,12 +163,9 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
   // ── Session management ──
 
   loadSessions: async () => {
-    try {
-      const indexEntries = await chatService.listSessions();
-      set({ sessionIndex: indexEntries });
-    } catch (error) {
-      console.error('[ChatStore] Error loading session index:', error);
-    }
+    // Single owner: ChatProvider's chats query fetches and mirrors into the
+    // store. Here we only ask it to refetch (deduped by Query).
+    await queryClient.invalidateQueries({ queryKey: queryKeys.chats() });
   },
 
   setInput: (input) => set({ input }),
@@ -225,6 +231,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
         currentSessionId:
           state.currentSessionId === sessionId ? null : state.currentSessionId,
       }));
+      invalidateChats();
     } catch (error) {
       console.error('[ChatStore] Error deleting session:', error);
     }
@@ -246,13 +253,16 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
           e.id === sessionId ? { ...e, title: newTitle } : e
         ),
       }));
+      invalidateChats();
     } catch (error) {
       console.error('[ChatStore] Error renaming session:', error);
     }
   },
 
   copyMessage: (messageId, text) => {
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(text).catch((error: unknown) =>
+      console.error('[ChatStore] Failed to copy message:', error)
+    );
     set({ copiedMessageId: messageId });
     setTimeout(() => {
       set({ copiedMessageId: null });
@@ -377,6 +387,15 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
       currentSessionId: newSession.id,
       viewHistory: false,
     }));
+
+    // Persist the new session (was previously memory-only and lost on
+    // reload) and reconcile the index query.
+    get()
+      .persistSession(newSession)
+      .catch((error: unknown) =>
+        console.error('[ChatStore] Failed to persist meeting session:', error)
+      );
+    invalidateChats();
   },
 
   // ── Send Message ──
@@ -787,7 +806,11 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
         const nm = new Map(get().loadedSessions);
         nm.set(activeSessionId, finalSession);
         set({ loadedSessions: nm });
-        get().persistSession(finalSession);
+        get()
+          .persistSession(finalSession)
+          .catch((error: unknown) =>
+            console.error('[ChatStore] Failed to persist final session:', error)
+          );
       }
 
       set({ isLoading: false, aiActivity: null });
@@ -833,7 +856,11 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
                 const nm = new Map(get().loadedSessions);
                 nm.set(activeSessionId, updatedSession);
                 set({ loadedSessions: nm });
-                get().persistSession(updatedSession);
+                get()
+                  .persistSession(updatedSession)
+                  .catch((error: unknown) =>
+                    console.error('[ChatStore] Failed to persist suggested session:', error)
+                  );
               }
             }
           })
@@ -891,7 +918,11 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
         const nm = new Map(get().loadedSessions);
         nm.set(activeSessionId, failedSession);
         set({ loadedSessions: nm });
-        get().persistSession(failedSession);
+        get()
+          .persistSession(failedSession)
+          .catch((error: unknown) =>
+            console.error('[ChatStore] Failed to persist failed session:', error)
+          );
       }
       set({ isLoading: false });
     } finally {

@@ -11,7 +11,7 @@ import { ArrowUp, Square, Globe, Plus, X, FileText, Music, Film, Image as ImageI
 import { MeetingMentionPopup } from './MeetingMentionPopup';
 import { ContextChips } from './ContextChips';
 import { ModelPicker } from './ModelPicker';
-import { Popover, PopoverAnchor } from '@shared/ui';
+import { Button, Popover, PopoverAnchor } from '@shared/ui';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -26,10 +26,10 @@ import { invoke } from '@tauri-apps/api/core';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { formatShortcut } from '@config/shortcuts.config';
-import { chatInputRef } from '../stores';
+import { chatInputRef } from '@features/chat/stores';
 import type { MeetingListItem } from '@services/meetingReferenceService';
 import type { ChatPart } from '@shared/types';
-import type { SpeechState } from '../hooks/useSpeechInput';
+import type { SpeechState } from '@features/chat/hooks/useSpeechInput';
 import { VoiceWaveform } from './VoiceWaveform';
 
 const ACCEPTED_FILE_TYPES = 'image/*,audio/*,video/*,.pdf,.txt,.md,.csv,.json,.doc,.docx';
@@ -242,14 +242,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
+  // Guard async completion after unmount (menu may close mid-invoke).
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
   // Load capturable windows when screenshot sub-menu opens
   const handleScreenshotSubOpen = async () => {
     try {
       const windows = await invoke<WindowInfo[]>('list_capturable_windows');
-      setCapturableWindows(windows);
+      if (mountedRef.current) setCapturableWindows(windows);
     } catch (err) {
       console.error('[ChatInput] Failed to list windows:', err);
-      setCapturableWindows([]);
+      if (mountedRef.current) setCapturableWindows([]);
     }
   };
 
@@ -265,7 +272,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     } catch (err) {
       console.error('[ChatInput] Screenshot failed:', err);
     } finally {
-      setScreenshotLoading(null);
+      if (mountedRef.current) setScreenshotLoading(null);
     }
   };
 
@@ -395,25 +402,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           <div className="flex items-center gap-2">
             {isCapturing ? (
               /* Cancel recording */
-              <button
-                onClick={onSpeechCancel}
-                className={COMPONENT.toolbarButton}
-                title="Cancel recording"
-              >
+              <Button variant="ghost" size="icon" onClick={onSpeechCancel} title="Cancel recording">
                 <X className="w-3.5 h-3.5" />
-              </button>
+              </Button>
             ) : (
               <>
                 {/* Attachment Dropdown Menu */}
                 {onAttach && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <button
-                        className={COMPONENT.toolbarButton}
-                        title="Attach"
-                      >
+                      <Button variant="ghost" size="icon" title="Attach">
                         <Plus className="w-3.5 h-3.5" />
-                      </button>
+                      </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent side="top" align="start" sideOffset={8}>
                       <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_IMAGES)}>
@@ -479,13 +479,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
                 {/* Web Search Toggle */}
                 {showWebSearch && onWebSearchToggle && (
-                  <button
+                  <Button
+                    variant={webSearchEnabled ? 'accent' : 'ghost'}
+                    size="icon"
                     onClick={onWebSearchToggle}
-                    className={webSearchEnabled ? COMPONENT.toolbarButtonActive : COMPONENT.toolbarButton}
                     title={webSearchEnabled ? 'Web search enabled' : 'Web search disabled'}
                   >
                     <Globe className="w-3.5 h-3.5" />
-                  </button>
+                  </Button>
                 )}
 
                 <ModelPicker compact />
@@ -497,20 +498,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           <div className="flex items-center gap-2">
             {/* Mic voice input — only shown when idle and supported */}
             {showSpeechInput && onSpeechStart && !isCapturing && !isLoading && (
-              <button
-                onClick={onSpeechStart}
-                className={COMPONENT.toolbarButton}
-                title="Voice input"
-              >
+              <Button variant="ghost" size="icon" onClick={onSpeechStart} title="Voice input">
                 <Mic className="w-3.5 h-3.5" />
-              </button>
+              </Button>
             )}
 
           {/* Stop pill (recording) OR AI stop/send button (idle) */}
           {isRecording ? (
             <button
               onClick={onSpeechStop}
-              className="flex items-center gap-1.5 px-3 h-8 rounded-full transition-all bg-red-500 hover:bg-red-600 text-white text-xs font-medium shadow-lg"
+              className="flex items-center gap-1.5 px-3 h-8 rounded-full transition-all bg-red-500 hover:bg-red-600 dark:bg-red-500 dark:hover:bg-red-400 text-white text-xs font-medium shadow-lg"
               title="Stop recording"
             >
               <span className="inline-flex gap-[2px] items-end h-3">
@@ -523,31 +520,28 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           ) : isTranscribing ? (
             <button
               disabled
-              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-red-500/50 text-white cursor-not-allowed"
+              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-red-500/50 dark:bg-red-500/50 text-white cursor-not-allowed"
             >
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             </button>
           ) : isLoading ? (
             <button
               onClick={onStop}
-              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all bg-red-500 hover:bg-red-600 text-white shadow-lg"
+              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all bg-red-500 hover:bg-red-600 dark:bg-red-500 dark:hover:bg-red-400 text-white shadow-lg"
               title="Stop generation"
             >
               <Square className="w-3.5 h-3.5 fill-current" />
             </button>
           ) : (
-            <button
+            <Button
+              variant="primary"
+              size="icon"
               onClick={onSend}
               disabled={!canSend}
-              className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all ${
-                canSend
-                  ? COMPONENT.sendButtonActive
-                  : COMPONENT.sendButtonDisabled
-              }`}
               title="Send message"
             >
               <ArrowUp className="w-4 h-4" />
-            </button>
+            </Button>
           )}
           </div>
         </div>
@@ -566,7 +560,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       {/* Image Quick Look Overlay — portaled to body to escape overflow-hidden ancestors */}
       {previewImage && createPortal(
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
+          className={`fixed inset-0 z-50 flex items-center justify-center ${SURFACE.overlay} backdrop-blur-sm animate-fade-in`}
           onClick={() => setPreviewImage(null)}
           onKeyDown={(e) => { if (e.key === 'Escape') setPreviewImage(null); }}
           tabIndex={-1}
@@ -574,7 +568,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           ref={(el) => el?.focus()}
         >
           <div
-            className="relative max-w-[80vw] max-h-[80vh] rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/10"
+            className="relative max-w-[80vw] max-h-[80vh] rounded-xl overflow-hidden shadow-2xl ring-1 ring-black/10 dark:ring-white/10"
             onClick={(e) => e.stopPropagation()}
           >
             <img

@@ -1,6 +1,6 @@
 import React, { memo, useMemo } from 'react';
-import { AnimatedProviderIcon } from '../AnimatedProviderIcon';
-import { StreamingMarkdown } from '../StreamingMarkdown';
+import { AnimatedProviderIcon } from '@features/chat/components/AnimatedProviderIcon';
+import { StreamingMarkdown } from '@features/chat/components/StreamingMarkdown';
 import { useStreamingText } from '@features/chat/stores/streamingStore';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { toolLabel } from '@shared/utils/toolUtils';

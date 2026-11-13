@@ -1,6 +1,6 @@
 import React from 'react';
 import { Copy, Check, FileAudio } from 'lucide-react';
-import { MediaPartRenderer } from '../MediaPartRenderer';
+import { MediaPartRenderer } from '@features/chat/components/MediaPartRenderer';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { ACCENT, TEXT } from '@config/theme.config';
 import type { UserMessageProps } from './types';
@@ -42,7 +42,7 @@ const UserMessage: React.FC<UserMessageProps> = ({ id, text, parts, meetingRefs,
         {onCopy && (
           <button
             onClick={() => onCopy(id, text)}
-            className={`absolute -bottom-1 -left-8 p-1 ${TEXT.faint} hover:text-parchment-800 dark:hover:text-night-300 rounded transition-colors opacity-0 group-hover:opacity-100`}
+            className={`absolute -bottom-1 -left-8 p-1 ${TEXT.faint} hover:text-paper-800 dark:hover:text-night-300 rounded transition-colors opacity-0 group-hover:opacity-100`}
             title="Copy message"
           >
             {isCopied ? (

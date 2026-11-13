@@ -8,7 +8,8 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { X, ExternalLink, FileText, Mic, ArrowLeft, AudioWaveform, Loader2 } from 'lucide-react';
-import ParsedTranscript from '@features/transcription/components/ParsedTranscript';
+import { ParsedTranscript } from '@features/transcription';
+import { Button, Row } from '@shared/ui';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import type { MeetingCitation, HistoryItem } from '@shared/types';
 
@@ -40,10 +41,14 @@ export const MeetingCitationDrawer: React.FC<MeetingCitationDrawerProps> = ({
   const [activeTab, setActiveTab] = useState<DrawerTab>('transcript');
   const isOpen = (mode === 'list' && citations !== null && citations.length > 0) || (mode === 'detail' && activeCitation !== null);
 
-  // Reset to transcript tab when we open a new citation
+  // Reset to transcript tab when the citation content changes — meetingId
+  // alone misses a new excerpt from the same meeting.
+  const citationKey = activeCitation
+    ? `${activeCitation.meetingId}:${activeCitation.excerpt}`
+    : null;
   useEffect(() => {
-    if (activeCitation) setActiveTab('transcript');
-  }, [activeCitation?.meetingId]);
+    if (citationKey) setActiveTab('transcript');
+  }, [citationKey]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') onClose();
@@ -105,13 +110,9 @@ export const MeetingCitationDrawer: React.FC<MeetingCitationDrawerProps> = ({
               )}
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className={`shrink-0 ${COMPONENT.iconButtonSm}`}
-            title="Close"
-          >
+          <Button variant="ghost" size="iconSm" className="shrink-0" onClick={onClose} title="Close">
             <X className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
 
         {/* Tabs - Only for detail mode */}
@@ -139,10 +140,9 @@ export const MeetingCitationDrawer: React.FC<MeetingCitationDrawerProps> = ({
             /* List Mode */
             <div className="p-2 flex flex-col gap-1">
               {citations?.map((c) => (
-                <button
+                <Row
                   key={c.meetingId}
                   onClick={() => onCitationClick(c)}
-                  className={`${COMPONENT.listRow} w-full text-left`}
                 >
                   <AudioWaveform className={`w-4 h-4 shrink-0 ${TEXT.faint}`} />
                   <div className="flex flex-col items-start min-w-0 flex-1">
@@ -151,7 +151,7 @@ export const MeetingCitationDrawer: React.FC<MeetingCitationDrawerProps> = ({
                       {new Date(c.meetingTimestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </span>
                   </div>
-                </button>
+                </Row>
               ))}
             </div>
           ) : isLoading ? (

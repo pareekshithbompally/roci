@@ -1,7 +1,8 @@
 import React from 'react';
 import { AudioWaveform } from 'lucide-react';
 import { getFaviconUrl, extractDomain } from '@shared/utils/citationUtils';
-import { TEXT, COMPONENT } from '@config/theme.config';
+import { TEXT } from '@config/theme.config';
+import { Row } from '@shared/ui';
 import type { MeetingCitation, WebCitation } from '@shared/types';
 
 interface SourcesListProps {
@@ -15,7 +16,7 @@ interface SourcesListProps {
 const MAX_VISIBLE_WEB = 3;
 const MAX_VISIBLE_MEETING = 3;
 
-const sourceRowClass = `flex items-center gap-2.5 text-left w-full px-3 py-2 text-[13px] ${TEXT.muted} hover:text-parchment-900 dark:hover:text-night-200 hover:bg-parchment-200/80 dark:hover:bg-night-750/80 rounded-lg transition-colors cursor-pointer`;
+const sourceRowClass = `flex items-center gap-2.5 text-left w-full px-3 py-2 text-[13px] ${TEXT.muted} hover:text-paper-900 dark:hover:text-night-200 hover:bg-paper-200/80 dark:hover:bg-night-750/80 rounded-lg transition-colors cursor-pointer`;
 
 /** Renders meeting and web citation rows with an optional "+N more" overflow button */
 const SourcesList: React.FC<SourcesListProps> = ({
@@ -37,18 +38,18 @@ const SourcesList: React.FC<SourcesListProps> = ({
   return (
     <>
       {hasMeetingCitations && visibleMeetingCitations!.map((citation) => (
-        <div key={citation.meetingId} onClick={() => onCitationClick?.(citation)} className={COMPONENT.listRow}>
+        <Row key={citation.meetingId} onClick={() => onCitationClick?.(citation)}>
           <AudioWaveform className={`w-4 h-4 shrink-0 ${TEXT.faint}`} />
           <span className="font-medium truncate">{citation.meetingTitle}</span>
           <span className={`ml-auto text-[11px] ${TEXT.faint} shrink-0`}>
             {new Date(citation.meetingTimestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           </span>
-        </div>
+        </Row>
       ))}
       {hasMeetingCitations && moreMeetingCount > 0 && (
         <button
           onClick={() => onShowAllMeetingCitations?.(meetingCitations!)}
-          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs ${TEXT.faint} hover:text-parchment-800 dark:hover:text-night-300 transition-colors`}
+          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs ${TEXT.faint} hover:text-paper-800 dark:hover:text-night-300 transition-colors`}
         >
           +{moreMeetingCount} more
         </button>
@@ -77,7 +78,7 @@ const SourcesList: React.FC<SourcesListProps> = ({
       {hasWebCitations && moreWebCount > 0 && (
         <button
           onClick={() => onShowAllWebCitations?.(webCitations!)}
-          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs ${TEXT.faint} hover:text-parchment-800 dark:hover:text-night-300 transition-colors`}
+          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs ${TEXT.faint} hover:text-paper-800 dark:hover:text-night-300 transition-colors`}
         >
           +{moreWebCount} more
         </button>

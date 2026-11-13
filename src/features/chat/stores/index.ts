@@ -1,6 +1,12 @@
 export { streamingStore, useStreamingText } from './streamingStore';
 export type { StreamingSnapshot } from './streamingStore';
-export { todoProposalStore, useTodoProposals, useTodoProposal } from './todoProposalStore';
+export {
+  todoProposalStore,
+  useTodoProposals,
+  useTodoProposal,
+  GENERAL_MEETING_ID,
+  GENERAL_MEETING_TITLE,
+} from './todoProposalStore';
 export type { TodoProposal } from './todoProposalStore';
 export {
   useChatStore,

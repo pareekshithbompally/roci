@@ -36,7 +36,7 @@ export const ContextChips: React.FC<ContextChipsProps> = ({
             className={`p-0.5 ${COMPONENT.menuButtonHover} rounded transition-colors ml-0.5`}
             title="Remove from context"
           >
-            <X className={`w-3.5 h-3.5 ${TEXT.faint} hover:text-parchment-800 dark:hover:text-night-300`} />
+            <X className={`w-3.5 h-3.5 ${TEXT.faint} hover:text-paper-800 dark:hover:text-night-300`} />
           </button>
         </div>
       ))}

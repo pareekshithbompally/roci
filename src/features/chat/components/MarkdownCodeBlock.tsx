@@ -71,25 +71,32 @@ function extractText(node: React.ReactNode): string {
   if (typeof node === 'string') return node;
   if (typeof node === 'number') return String(node);
   if (Array.isArray(node)) return node.map(extractText).join('');
-  if (React.isValidElement(node) && (node.props as any)?.children) {
-    return extractText((node.props as any).children);
+  if (React.isValidElement<{ children?: React.ReactNode }>(node) && node.props.children) {
+    return extractText(node.props.children);
   }
   return '';
 }
 
 /** Detect language from className or data attributes on child code elements */
-function detectLanguage(props: any): string | null {
+interface LanguageProps {
+  children?: React.ReactNode;
+  className?: string;
+  [key: string]: unknown;
+}
+
+function detectLanguage(props: LanguageProps): string | null {
   // Check data-language on pre itself (Shiki pattern)
-  if (props['data-language']) return props['data-language'];
+  const dataLanguage = props['data-language'];
+  if (typeof dataLanguage === 'string') return dataLanguage;
 
   // Check children for code element with language class
   const children = React.Children.toArray(props.children);
   for (const child of children) {
-    if (React.isValidElement(child)) {
-      const childProps = child.props as any;
-      if (childProps?.['data-language']) return childProps['data-language'];
-      if (childProps?.className) {
-        const match = String(childProps.className).match(/language-(\w+)/);
+    if (React.isValidElement<LanguageProps>(child)) {
+      const childDataLanguage = child.props['data-language'];
+      if (typeof childDataLanguage === 'string') return childDataLanguage;
+      if (typeof child.props.className === 'string') {
+        const match = child.props.className.match(/language-(\w+)/);
         if (match) return match[1].toLowerCase();
       }
     }
@@ -97,7 +104,7 @@ function detectLanguage(props: any): string | null {
   return null;
 }
 
-export const MarkdownCodeBlock: React.FC<any> = (props) => {
+export const MarkdownCodeBlock: React.FC<LanguageProps> = (props) => {
   const [copied, setCopied] = useState(false);
   const language = detectLanguage(props);
   const meta = language ? LANG_META[language] : null;
@@ -124,7 +131,7 @@ export const MarkdownCodeBlock: React.FC<any> = (props) => {
         </div>
         <button
           onClick={handleCopy}
-          className={`flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-medium ${TEXT.muted} hover:text-parchment-900 dark:hover:text-night-200 ${COMPONENT.menuButtonHover} rounded transition-colors`}
+          className={`flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-medium ${TEXT.muted} hover:text-paper-900 dark:hover:text-night-200 ${COMPONENT.menuButtonHover} rounded transition-colors`}
           title="Copy code"
         >
           {copied ? (

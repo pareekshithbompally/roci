@@ -9,8 +9,9 @@
 import React, { useCallback } from 'react';
 import { X, Globe, ExternalLink } from 'lucide-react';
 import { getFaviconUrl, extractDomain } from '@shared/utils/citationUtils';
-import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
+import { SURFACE, BORDER, TEXT } from '@config/theme.config';
 import type { WebCitation } from '@shared/types';
+import { Button } from '@shared/ui';
 
 interface WebCitationDrawerProps {
   citations: WebCitation[] | null;
@@ -61,13 +62,9 @@ export const WebCitationDrawer: React.FC<WebCitationDrawerProps> = ({
               </span>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className={`shrink-0 ${COMPONENT.iconButtonSm}`}
-            title="Close"
-          >
+          <Button variant="ghost" size="iconSm" className="shrink-0" onClick={onClose} title="Close">
             <X className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
 
         {/* Citation list */}

@@ -3,7 +3,7 @@ import { Copy, Check, RefreshCw, Gauge } from 'lucide-react';
 import ActionButton from './ActionButton';
 import SuggestionsList from './SuggestionsList';
 import SourcesList from './SourcesList';
-import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
+import { SURFACE, BORDER, TEXT } from '@config/theme.config';
 import type { ActionProps, CitationHandlers } from './types';
 import type { MeetingCitation, WebCitation } from '@shared/types';
 
@@ -44,18 +44,21 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
     hasSuggestions ? 'suggestions' : 'sources'
   );
 
+  // Reset the tab when the available tabs change — a one-way sync orphans
+  // 'sources' after suggestions clear.
   useEffect(() => {
     if (hasSuggestions) setActiveTab('suggestions');
-  }, [hasSuggestions]);
+    else if (hasCitations) setActiveTab('sources');
+  }, [hasSuggestions, hasCitations]);
 
   const tabClass = (tab: string) =>
     `px-3 py-1 text-[11px] font-semibold rounded-full transition-all flex items-center gap-1.5 ${
       activeTab === tab
         ? `${SURFACE.card} ${TEXT.primary} shadow-sm border ${BORDER.subtle}`
-        : `${TEXT.faint} hover:text-parchment-800 dark:hover:text-night-300`
+        : `${TEXT.faint} hover:text-paper-800 dark:hover:text-night-300`
     }`;
 
-  const sourceButtonClass = `px-2.5 py-1 text-[11px] font-semibold rounded-full border ${BORDER.subtle} ${SURFACE.card} ${TEXT.primary} hover:bg-parchment-200/50 dark:hover:bg-night-800/50 transition-all flex items-center gap-1.5 shadow-sm`;
+  const sourceButtonClass = `px-2.5 py-1 text-[11px] font-semibold rounded-full border ${BORDER.subtle} ${SURFACE.card} ${TEXT.primary} hover:bg-paper-200/50 dark:hover:bg-night-800/50 transition-all flex items-center gap-1.5 shadow-sm`;
 
   return (
     <>
@@ -102,7 +105,7 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
           {(tokensPerSecond != null || tokenCount != null || inputTokenCount != null) && (
             <div className="relative group/token">
               <button
-                className={`p-1.5 rounded transition-colors ${TEXT.faint} hover:text-parchment-800 dark:hover:text-night-300 ${SURFACE.hoverSubtle}`}
+                className={`p-1.5 rounded transition-colors ${TEXT.faint} hover:text-paper-800 dark:hover:text-night-300 ${SURFACE.hoverSubtle}`}
                 aria-label="Token usage"
               >
                 <Gauge className="w-4 h-4" />

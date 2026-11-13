@@ -1,6 +1,6 @@
 import React from 'react';
-import { StreamingMarkdown } from '../StreamingMarkdown';
-import { MediaPartRenderer } from '../MediaPartRenderer';
+import { StreamingMarkdown } from '@features/chat/components/StreamingMarkdown';
+import { MediaPartRenderer } from '@features/chat/components/MediaPartRenderer';
 import ToolActivityTrace from './ToolActivityTrace';
 import ToolCallSummary from './ToolCallSummary';
 import type { ChatPart, WebCitation } from '@shared/types';

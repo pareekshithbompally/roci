@@ -8,6 +8,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, MessageSquare, Trash2, Edit2, Check, X } from 'lucide-react';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
+import { Input, rowClasses } from '@shared/ui';
 import type { ChatIndexEntry } from '@shared/types';
 
 interface ChatHistoryListProps {
@@ -79,7 +80,7 @@ export const ChatHistoryList: React.FC<ChatHistoryListProps> = ({
           </h3>
           <button
             onClick={onNewChat}
-            className={`text-xs ${TEXT.muted} hover:text-parchment-800 dark:hover:text-night-300 transition-colors`}
+            className={`text-xs ${TEXT.muted} hover:text-paper-800 dark:hover:text-night-300 transition-colors`}
           >
             + New Chat
           </button>
@@ -88,12 +89,12 @@ export const ChatHistoryList: React.FC<ChatHistoryListProps> = ({
         {/* Search */}
         <div className="relative">
           <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${TEXT.faint}`} />
-          <input
+          <Input
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search chats..."
-            className={`w-full pl-9 pr-4 py-2 ${COMPONENT.inlineInput} transition-all`}
+            className="w-full pl-9 pr-4"
           />
         </div>
       </div>
@@ -110,14 +111,10 @@ export const ChatHistoryList: React.FC<ChatHistoryListProps> = ({
               <div
                 key={session.id}
                 onClick={() => onSelectSession(session.id)}
-                className={`group relative p-3 rounded-xl cursor-pointer transition-all ${
-                  currentSessionId === session.id
-                    ? SURFACE.selected
-                    : COMPONENT.sidebarItemDefault
-                }`}
+                className={`group relative ${rowClasses(currentSessionId === session.id)}`}
               >
-                <div className="flex items-start gap-3">
-                  <MessageSquare className={`w-4 h-4 mt-0.5 ${TEXT.faint}`} />
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <MessageSquare className={`w-3.5 h-3.5 shrink-0 ${TEXT.faint}`} />
                   <div className="flex-1 min-w-0">
                     {editingId === session.id ? (
                       <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -134,13 +131,13 @@ export const ChatHistoryList: React.FC<ChatHistoryListProps> = ({
                         />
                         <button
                           onClick={() => handleSaveEdit(session.id)}
-                          className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                          className="p-1 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
                         >
                           <Check className="w-4 h-4" />
                         </button>
                         <button
                           onClick={handleCancelEdit}
-                          className="p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                          className="p-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -164,7 +161,7 @@ export const ChatHistoryList: React.FC<ChatHistoryListProps> = ({
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                     <button
                       onClick={(e) => handleStartEdit(e, session)}
-                      className={`p-2 ${TEXT.faint} hover:text-parchment-800 dark:hover:text-night-300 rounded-lg ${COMPONENT.menuButtonHover} transition-all`}
+                      className={`p-2 ${TEXT.faint} hover:text-paper-800 dark:hover:text-night-300 rounded-lg ${COMPONENT.menuButtonHover} transition-all`}
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>

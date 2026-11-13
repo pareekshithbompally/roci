@@ -15,7 +15,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({ onClick, title, children, a
     className={`p-1.5 rounded transition-colors ${
       active
         ? 'text-green-500'
-        : `${TEXT.faint} hover:text-parchment-800 dark:hover:text-night-300 ${SURFACE.hoverSubtle}`
+        : `${TEXT.faint} hover:text-paper-800 dark:hover:text-night-300 ${SURFACE.hoverSubtle}`
     }`}
     title={title}
   >
