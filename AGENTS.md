@@ -74,7 +74,6 @@ Order matters: outer providers are available to inner providers.
 - `src/wake_lock.rs` - IOKit sleep prevention during recording
 - `src/screenshot.rs` - Window enumeration (CGWindowList) + screenshot capture
 - `plugins/tauri-plugin-vectordb/` - sqlite-vec vector DB + FTS5 + Knowledge Graph (35 commands, schema v5)
-- `plugins/tauri-plugin-llamacpp/` - Local LLM inference server management (8 commands)
 - `plugins/tauri-plugin-calendar/` - macOS EventKit calendar access (4 commands)
 
 ## Development Workflow
@@ -190,7 +189,6 @@ try {
 `services/ai/provider.ts` creates AI SDK `LanguageModel` instances via `createModel()`:
 - **Native providers**: OpenAI, Anthropic, Gemini, Mistral, xAI, Groq
 - **OpenAI-compatible**: OpenRouter, Azure, Cohere, HuggingFace, Local Server (Ollama/LM Studio/Jan)
-- **Local**: llama.cpp (via Tauri plugin)
 
 Web search support:
 - OpenAI/xAI: `.responses()` API (Responses API)
@@ -250,7 +248,6 @@ Rust commands exposed to frontend (60+ total):
 **Wake Lock** (wake_lock.rs): `acquire_wake_lock`, `release_wake_lock`
 **Screenshot** (screenshot.rs): `list_capturable_windows`, `take_screenshot`
 **VectorDB plugin** (35 commands): search, upsert, delete, staleness detection, knowledge graph CRUD, usage analytics
-**LlamaCpp plugin** (8 commands): spawn/kill server, health check, GGUF metadata, port allocation
 **Calendar plugin** (4 commands): request_access, check_access, get_upcoming_events, get_events_in_range
 
 ### Context Access Patterns

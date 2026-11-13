@@ -167,8 +167,10 @@ export interface UnifiedSidebarItem {
 }
 
 export interface AppSettings {
-  /** STT engine id (e.g. 'whisper-1', 'groq-whisper', 'gemini'). */
+  /** STT engine id (e.g. 'whisper-1', 'groq-whisper', 'gemini', 'hex'). */
   transcriptionModel: string;
+  /** Model within the selected engine, for engines that offer a choice (Hex). Empty = engine default. */
+  transcriptionEngineModel?: string;
   chatModel: string;
   /** LLM model for the Analyze phase — produces the structured meeting summary (Overview tab). */
   analyzeModel?: string;

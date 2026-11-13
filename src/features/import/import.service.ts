@@ -216,7 +216,10 @@ class ImportService {
 
     activityStore.update(job.id, { detail: 'Transcribing...' });
 
-    const { result, usage: audioUsage } = await unifiedAIService.processAudio(blob, categories, settings, providers);
+    const { result, usage: audioUsage } = await unifiedAIService.processAudio(blob, categories, settings, providers, undefined, {
+      signal,
+      onProgress: (step) => activityStore.update(job.id, { step }),
+    });
     if (signal.aborted) throw new Error('Import cancelled');
 
     const resolvedAudio = resolveModel(settings.analyzeModel || settings.chatModel, providers);

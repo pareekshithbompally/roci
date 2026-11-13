@@ -375,6 +375,11 @@ export const COMPONENT = {
   /** Default/inactive tab state */
   tabDefault: `border-transparent ${TEXT.muted} hover:text-paper-800 dark:hover:text-night-300`,
 
+  /** Status dot — service running (local server list) */
+  statusDotRunning: 'shrink-0 w-1.5 h-1.5 rounded-full bg-green-500',
+
+  /** Status dot — service not running */
+  statusDotStopped: 'shrink-0 w-1.5 h-1.5 rounded-full bg-paper-400 dark:bg-night-500',
 } as const;
 
 // ─── AUDIO PLAYER TOKENS ──────────────────────────────────────

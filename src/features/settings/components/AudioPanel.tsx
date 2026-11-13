@@ -19,14 +19,14 @@ import ProvidersAvatar from '@shared/components/ProvidersAvatar';
 import {SettingsSection} from './shared';
 import { LAYOUT } from '@config/theme.config';
 import { Callout, Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@shared/ui';
-import { ENGINES, resolveCred } from '@services/ai/transcription';
+import { ENGINES, installedHexModels } from '@services/ai/transcription';
+import { useEngineReadiness, useHexStatus } from '@features/settings/hooks/useEngineReadiness';
 
 export const AudioPanel: React.FC = () => {
-  const { settings, setSettings, providers, isLoading } = useSettings();
+  const { settings, setSettings, providers } = useSettings();
   const { showToast } = useToast();
   const modalitiesLoaded = useModalities();
 
-  if (isLoading) return null;
 
   const allActiveModels = useMemo(() => {
     const models: Array<{ id: string; provider: string; name: string }> = [];
@@ -53,32 +53,20 @@ export const AudioPanel: React.FC = () => {
     return grouped;
   }, [allActiveModels]);
 
-  /** Which engines can transcribe (key present) vs not */
-  const engineStates = useMemo(() => {
-    return Object.values(ENGINES).map((engine) => {
-      let hasKey = false;
-      try {
-        resolveCred(engine.providerId, providers);
-        hasKey = true;
-      } catch {
-        hasKey = false;
-      }
-      return { engine, hasKey };
-    });
-  }, [providers]);
+  const readinessOf = useEngineReadiness();
+  const { data: hexStatus } = useHexStatus();
+  const hexModels = installedHexModels(hexStatus);
+  const selectedEngine = ENGINES[settings.transcriptionModel as keyof typeof ENGINES];
+
+  /** Every engine with whether it can transcribe right now */
+  const engineStates = Object.values(ENGINES).map((engine) => ({ engine, ...readinessOf(engine) }));
 
   const handleTranscriptionEngineChange = (engineId: string) => {
-    setSettings({ transcriptionModel: engineId });
+    setSettings({ transcriptionModel: engineId, transcriptionEngineModel: '' });
     const engine = ENGINES[engineId as keyof typeof ENGINES];
-    if (engine) {
-      try {
-        resolveCred(engine.providerId, providers);
-        showToast(`${engine.label} is ready`, 'success');
-      } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : 'Missing API key';
-        showToast(msg, 'warning');
-      }
-    }
+    if (!engine) return;
+    const { ready, hint } = readinessOf(engine);
+    showToast(ready ? `${engine.label} is ready` : `${engine.label}: ${hint}`, ready ? 'success' : 'warning');
   };
 
   const handleAnalyzeModelChange = (modelId: string) => {
@@ -162,7 +150,7 @@ export const AudioPanel: React.FC = () => {
                     if (!engine) return 'Select engine';
                     return (
                       <span className="flex items-center gap-2 truncate">
-                        <ProvidersAvatar provider={engine.providerId} size={16} />
+                        <ProvidersAvatar provider={engine.providerId ?? engine.id} size={16} />
                         <span className="truncate">{engine.label}</span>
                       </span>
                     );
@@ -170,20 +158,16 @@ export const AudioPanel: React.FC = () => {
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {engineStates.map(({ engine, hasKey }) => (
+                {engineStates.map(({ engine, ready, hint }) => (
                   <SelectItem
                     key={`engine-${engine.id}`}
                     value={engine.id}
-                    disabled={!hasKey}
+                    disabled={!ready}
                   >
                     <div className="flex items-center gap-2">
-                      <ProvidersAvatar provider={engine.providerId} size={16} />
+                      <ProvidersAvatar provider={engine.providerId ?? engine.id} size={16} />
                       <span className="truncate">{engine.label}</span>
-                      {!hasKey && (
-                        <span className="text-xs text-[var(--text-faint)]">
-                          Add {engine.providerId.charAt(0).toUpperCase() + engine.providerId.slice(1)} API key
-                        </span>
-                      )}
+                      {hint && <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>{hint}</span>}
                     </div>
                   </SelectItem>
                 ))}
@@ -191,6 +175,38 @@ export const AudioPanel: React.FC = () => {
             </Select>
           </div>
         </div>
+
+        {/* Hex model row — models already downloaded in Hex */}
+        {selectedEngine?.id === 'hex' && (
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <div className="min-w-0 flex-1">
+              <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
+                Hex Model
+              </span>
+              <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
+                Runs on this Mac through Hex. No speaker labels; one timestamp per 15-minute part.
+              </p>
+            </div>
+            <div className="w-64 shrink-0">
+              <Select
+                value={settings.transcriptionEngineModel || hexModels[0]?.id}
+                onValueChange={(id) => setSettings({ transcriptionEngineModel: id })}
+                disabled={hexModels.length === 0}
+              >
+                <SelectTrigger className={TYPOGRAPHY_CLASSES.settingsInput}>
+                  <SelectValue placeholder={hexStatus?.running ? 'Download a model in Hex' : 'Open Hex'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {hexModels.map((model) => (
+                    <SelectItem key={`hex-${model.id}`} value={model.id}>
+                      {model.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
 
         {/* Analyze Model row */}
         <div className="flex items-center justify-between gap-4 px-4 py-3">

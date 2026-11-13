@@ -6,28 +6,27 @@
  * fallback for first-mount initialization only).
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import { ExternalLink, Search, Loader2, Copy, Check, Settings, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ExternalLink, Search, Loader2, Settings, X } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-shell';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { useModalities } from '@features/settings/stores/modalitiesStore';
-import ProvidersAvatar from '@shared/components/ProvidersAvatar';
-import { getProviderTitle } from '@shared/utils/provider.utils';
+import { getProviderTitle, isLocalProviderId } from '@shared/utils/provider.utils';
+import { LOCAL_SERVER_INFO } from '@config/localServers.config';
 import { providersService } from '@services/providers';
 import { modalitiesService } from '@services/modalities';
 import { getManagedSDKInfo, getDefaultBaseUrl } from '@shared/utils/modelResolver';
 import { MANAGED_MODELS, MANAGED_SDK_PROVIDERS } from '@config/providers.config';
 import { ModalityIcons } from './ModalityIcons';
 import { ModelSettingsModal } from './ModelSettingsModal';
+import { ProviderListItem } from './ProviderListItem';
+import { LocalServersSection } from './LocalServersSection';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { SURFACE, BORDER, TEXT, RADIUS, LAYOUT } from '@config/theme.config';
-import {SettingsSection, SettingsInput, SecretInput, Toggle, ModelListItem} from './shared';
-import { Button, Callout, Card, Popover, PopoverAnchor, PopoverContent } from '@shared/ui';
+import { SURFACE, BORDER, TEXT, COMPONENT, LAYOUT } from '@config/theme.config';
+import { SettingsSection, SettingsInput, SecretInput, ModelListItem } from './shared';
+import { Button, Callout, Popover, PopoverAnchor, PopoverContent } from '@shared/ui';
 import { Command, CommandList, CommandItem, CommandEmpty } from '@shared/ui';
-import * as llamacppServer from '@extensions/llamacpp/server';
-import { ServerStatus as LlamacppServerStatus } from '@extensions/llamacpp/components/ServerStatus';
-import type { ServerStatus as LlamacppStatusType } from '@extensions/llamacpp/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { ModelInfo } from '@services/modalities';
 
@@ -74,22 +73,6 @@ export const ProvidersPanel: React.FC = () => {
     }
   }, [effectiveSelectedProvider]);
 
-  // Adopt a persisted selection into context once — the Query-owned
-  // selectedProviderName is the single source of truth; localStorage is
-  // only a cross-reload fallback, never a parallel truth.
-  const adoptedSelectionRef = useRef(false);
-  useEffect(() => {
-    if (adoptedSelectionRef.current || selectedProviderName) return;
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      const name = saved ? JSON.parse(saved).providerName : null;
-      if (typeof name === 'string' && providers.some((p) => p.provider === name)) {
-        adoptedSelectionRef.current = true;
-        setSelectedProviderName(name);
-      }
-    } catch { /* ignore */ }
-  }, [selectedProviderName, providers, setSelectedProviderName]);
-
   const selectedProvider = effectiveSelectedProvider
     ? providers.find(p => p.provider === effectiveSelectedProvider)
     : null;
@@ -97,25 +80,12 @@ export const ProvidersPanel: React.FC = () => {
   // Per-model settings modal state
   const [modelSettingsTarget, setModelSettingsTarget] = useState<{ provider: string; modelId: string } | null>(null);
 
-  // llamacpp server status tracking
-  const [llamacppStatus, setLlamacppStatus] = useState<LlamacppStatusType>(llamacppServer.getStatus());
-  const [llamacppCopied, setLlamacppCopied] = useState(false);
-  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return llamacppServer.onStatusChange(setLlamacppStatus);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-    };
-  }, []);
-
   const [modelSearch, setModelSearch] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<string[]>([]);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+
+  const cloudProviders = providers.filter(p => !isLocalProviderId(p.provider));
 
   const isManaged = selectedProvider ? MANAGED_SDK_PROVIDERS.has(selectedProvider.provider) : false;
   const hasHardcodedModels = selectedProvider ? !!MANAGED_MODELS[selectedProvider.provider] : false;
@@ -250,40 +220,26 @@ export const ProvidersPanel: React.FC = () => {
         <div className={`${LAYOUT.settingsMaxWidth} mx-auto w-full flex gap-6 min-h-0`}>
         {/* Left: Provider list — independent scroll */}
         <div className="w-56 shrink-0 overflow-y-auto custom-scrollbar">
-          <SettingsSection title="Providers">
+          <SettingsSection title="Cloud">
             <div className="space-y-1">
-              {providers.map((provider) => {
-                const isSelected = effectiveSelectedProvider === provider.provider;
-                return (
-                  <button
-                    key={provider.provider}
-                    onClick={() => handleSelectProvider(provider.provider)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 ${RADIUS.md} text-left transition-all border ${
-                      isSelected
-                        ? `${SURFACE.selectedCard} ${BORDER.selectedCard}`
-                        : `${SURFACE.card} ${BORDER.default} ${BORDER.cardHover}`
-                    }`}
-                  >
-                    <ProvidersAvatar provider={provider.provider} size={20} />
-                    <span className={`flex-1 truncate ${TYPOGRAPHY_CLASSES.settingsInputLabel} ${
-                      isSelected ? TEXT.heading : TEXT.primary
-                    }`}>
-                      {getProviderTitle(provider.provider)}
-                    </span>
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <Toggle
-                        checked={provider.active}
-                        onChange={(checked) => {
-                          updateProvider(provider.provider, { active: checked });
-                        }}
-                        label={`Toggle ${getProviderTitle(provider.provider)}`}
-                      />
-                    </div>
-                  </button>
-                );
-              })}
+              {cloudProviders.map((provider) => (
+                <ProviderListItem
+                  key={provider.provider}
+                  provider={provider.provider}
+                  selected={effectiveSelectedProvider === provider.provider}
+                  active={provider.active}
+                  onSelect={() => handleSelectProvider(provider.provider)}
+                  onToggle={(checked) => updateProvider(provider.provider, { active: checked })}
+                />
+              ))}
             </div>
           </SettingsSection>
+          <div className="mt-6">
+            <LocalServersSection
+              selectedProvider={effectiveSelectedProvider}
+              onSelect={handleSelectProvider}
+            />
+          </div>
         </div>
 
         {/* Right: Detail panel — independent scroll */}
@@ -295,235 +251,205 @@ export const ProvidersPanel: React.FC = () => {
                   <Callout variant="info">
                     <strong>Quick setup:</strong> Pick a provider on the left, enter your API key, and add at least one model — changes save automatically.
                   </Callout>
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="iconSm"
                     onClick={() => setShowSetupBanner(false)}
-                    className={`absolute top-2 right-2 p-1 ${SURFACE.hoverSubtle} rounded-md transition-colors`}
+                    className="absolute top-2 right-2"
                     aria-label="Dismiss"
                   >
                     <X className={`w-3.5 h-3.5 ${TEXT.faint}`} />
-                  </button>
+                  </Button>
                 </div>
               )}
 
-              {/* LlamaCpp — redirect to Local Inference panel + live status */}
-              {selectedProvider.provider === 'llamacpp' ? (
-                <div className="space-y-4">
-                  <Callout variant="info">
-                    Configure llama.cpp in the <span className="font-medium">Local Inference</span> panel.
-                  </Callout>
+              <SettingsSection title={`${getProviderTitle(selectedProvider.provider)} Configuration`}>
+                {(() => {
+                  if (isLocalProviderId(selectedProvider.provider)) {
+                    return <Callout variant="info">{LOCAL_SERVER_INFO}</Callout>;
+                  }
+                  const sdkInfo = getManagedSDKInfo(selectedProvider.provider);
+                  if (sdkInfo) {
+                    return <Callout variant="info">{sdkInfo}</Callout>;
+                  }
+                  return (
+                    <Callout variant="neutral">
+                      Connects via the OpenAI-compatible Chat Completions endpoint
+                    </Callout>
+                  );
+                })()}
 
-                  <Card className="px-4 py-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <LlamacppServerStatus />
-                    </div>
-                    {llamacppStatus === 'running' && (() => {
-                      const url = llamacppServer.getServerUrl();
-                      return url ? (
-                        <div className="flex items-center gap-2">
-                          <code className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted} font-mono`}>
-                            {url}
-                          </code>
-                          <Button variant="ghost" size="iconSm" onClick={async () => {
-                              try {
-                                await navigator.clipboard.writeText(url);
-                              } catch (error: unknown) {
-                                console.error('[ProvidersPanel] Failed to copy URL:', error);
-                                return;
-                              }
-                              setLlamacppCopied(true);
-                              if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-                              copyTimerRef.current = setTimeout(() => setLlamacppCopied(false), 2000);
-                            }} title="Copy URL">
-                            {llamacppCopied ? (
-                              <Check className="w-3 h-3 text-green-500" />
-                            ) : (
-                              <Copy className="w-3 h-3" />
-                            )}
-                          </Button>
-                        </div>
-                      ) : null;
-                    })()}
-                  </Card>
-                </div>
-              ) : (
-                <>
-                  <SettingsSection title={`${getProviderTitle(selectedProvider.provider)} Configuration`}>
-                    {(() => {
-                      const sdkInfo = getManagedSDKInfo(selectedProvider.provider);
-                      if (sdkInfo) {
-                        return <Callout variant="info">{sdkInfo}</Callout>;
-                      }
-                      return (
-                        <Callout variant="neutral">
-                          Connects via the OpenAI-compatible Chat Completions endpoint
-                        </Callout>
-                      );
-                    })()}
+                {selectedProvider.settings.map((setting, index) => {
+                  if (setting.key === 'base-url' && isManaged) {
+                    return null;
+                  }
 
-                    {selectedProvider.settings.map((setting, index) => {
-                      if (setting.key === 'base-url' && isManaged) {
-                        return null;
-                      }
+                  const isApiKey = setting.key === 'api-key';
+                  const value = (setting.controller_props.value as string) || '';
 
-                      const isApiKey = setting.key === 'api-key';
-                      const value = (setting.controller_props.value as string) || '';
+                  if (isApiKey) {
+                    return (
+                      <SecretInput
+                        key={setting.key}
+                        value={value}
+                        onChange={(val) => {
+                          updateProviderSetting(selectedProvider.provider, index, val);
+                        }}
+                        placeholder={setting.controller_props.placeholder}
+                        label={setting.title}
+                        helper={setting.description}
+                      />
+                    );
+                  }
 
-                      if (isApiKey) {
-                        return (
-                          <SecretInput
-                            key={setting.key}
-                            value={value}
-                            onChange={(val) => {
-                              updateProviderSetting(selectedProvider.provider, index, val);
-                            }}
-                            placeholder={setting.controller_props.placeholder}
-                            label={setting.title}
-                            helper={setting.description}
-                          />
-                        );
-                      }
+                  return (
+                    <SettingsInput
+                      key={setting.key}
+                      value={value}
+                      onChange={(e) => {
+                        updateProviderSetting(selectedProvider.provider, index, e.target.value);
+                      }}
+                      placeholder={setting.controller_props.placeholder}
+                      label={setting.title}
+                      helper={setting.description}
+                    />
+                  );
+                })}
 
-                      return (
+                {selectedProvider.explore_models_url && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      open(selectedProvider.explore_models_url!).catch(err => {
+                        console.error('[ProvidersPanel] Failed to open URL:', err);
+                        window.open(selectedProvider.explore_models_url, '_blank', 'noopener,noreferrer');
+                      });
+                    }}
+                    className={`inline-flex items-center gap-1.5 ${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.link} hover:underline`}
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Explore available models
+                  </button>
+                )}
+              </SettingsSection>
+
+              {/* Add Models */}
+              <SettingsSection title="Add Models">
+                <Popover open={showSearchDropdown} onOpenChange={setShowSearchDropdown}>
+                  <PopoverAnchor asChild>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
                         <SettingsInput
-                          key={setting.key}
-                          value={value}
+                          value={modelSearch}
                           onChange={(e) => {
-                            updateProviderSetting(selectedProvider.provider, index, e.target.value);
+                            setModelSearch(e.target.value);
+                            setShowSearchDropdown(false);
+                            setSearchResults([]);
                           }}
-                          placeholder={setting.controller_props.placeholder}
-                          label={setting.title}
-                          helper={setting.description}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleSearchModels();
+                            } else if (e.key === 'Escape') {
+                              setShowSearchDropdown(false);
+                            }
+                          }}
+                          placeholder="Search model name..."
+                          disabled={!hasHardcodedModels && (!getApiKeyValue() || (!isManaged && !getBaseUrlValue()))}
+                          icon={<Search className={`w-4 h-4 ${TEXT.faint}`} />}
+                        />
+                      </div>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={handleSearchModels}
+                        disabled={isSearching || (!hasHardcodedModels && (!getApiKeyValue() || (!isManaged && !getBaseUrlValue())))}
+                      >
+                        {isSearching && <Loader2 className="w-4 h-4 animate-spin" />}
+                        {isSearching ? 'Searching...' : 'Search'}
+                      </Button>
+                    </div>
+                  </PopoverAnchor>
+
+                  {searchResults.length > 0 && (
+                    <PopoverContent
+                      side="bottom"
+                      sideOffset={8}
+                      align="start"
+                      className="w-[var(--radix-popover-trigger-width)] p-0"
+                      onOpenAutoFocus={(e) => e.preventDefault()}
+                    >
+                      <Command>
+                        <CommandList className="max-h-64">
+                          <CommandEmpty>No models found</CommandEmpty>
+                          {searchResults.length === 1 && searchResults[0] === modelSearch.trim() && (
+                            <div className={`px-3 py-2 border-b ${BORDER.strong} ${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
+                              {hasHardcodedModels ? 'Not in known models — add manually:' : 'Not found via API — add manually:'}
+                            </div>
+                          )}
+                          {searchResults.map((modelId) => {
+                            const info = selectedProvider ? getModelInfo(selectedProvider.provider, modelId) : null;
+                            return (
+                              <CommandItem
+                                key={modelId}
+                                value={modelId}
+                                onSelect={() => handleSelectModel(modelId)}
+                                className="px-3 py-2.5 cursor-pointer"
+                              >
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                  <span className="truncate">{modelId}</span>
+                                  <ModalityIcons modelInfo={info} />
+                                </div>
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  )}
+                </Popover>
+
+                {!hasHardcodedModels && (!getApiKeyValue() || (!isManaged && !getBaseUrlValue())) ? (
+                  <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
+                    {isManaged
+                      ? 'Configure your API key to search models'
+                      : 'Configure API key and base URL to search models'}
+                  </p>
+                ) : (
+                  <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
+                    Search for models by name and select to add them to this provider
+                  </p>
+                )}
+              </SettingsSection>
+
+              {/* Selected Models */}
+              {selectedProvider.models && selectedProvider.models.length > 0 && (
+                <SettingsSection title={`Selected Models (${selectedProvider.models.length})`}>
+                  <div className="space-y-2">
+                    {selectedProvider.models.map((model) => {
+                      const info = getModelInfo(selectedProvider.provider, model.id);
+                      return (
+                        <ModelListItem
+                          key={model.id}
+                          name={model.name || model.id}
+                          onDelete={() => handleRemoveModel(model.id)}
+                          rightSlot={
+                            <div className="flex items-center gap-1">
+                              <ModalityIcons modelInfo={info} />
+                              <Button
+                                variant="ghost"
+                                size="iconSm"
+                                onClick={() => setModelSettingsTarget({ provider: selectedProvider.provider, modelId: model.id })}
+                                title="Model settings"
+                              >
+                                <Settings className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          }
                         />
                       );
                     })}
-
-                    {selectedProvider.explore_models_url && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          open(selectedProvider.explore_models_url!).catch(err => {
-                            console.error('[ProvidersPanel] Failed to open URL:', err);
-                            window.open(selectedProvider.explore_models_url, '_blank', 'noopener,noreferrer');
-                          });
-                        }}
-                        className={`inline-flex items-center gap-1.5 ${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.link} hover:underline`}
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                        Explore available models
-                      </button>
-                    )}
-                  </SettingsSection>
-
-                  {/* Add Models */}
-                  <SettingsSection title="Add Models">
-                    <Popover open={showSearchDropdown} onOpenChange={setShowSearchDropdown}>
-                      <PopoverAnchor asChild>
-                        <div className="flex gap-2">
-                          <div className="relative flex-1">
-                            <SettingsInput
-                              value={modelSearch}
-                              onChange={(e) => {
-                                setModelSearch(e.target.value);
-                                setShowSearchDropdown(false);
-                                setSearchResults([]);
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  handleSearchModels();
-                                } else if (e.key === 'Escape') {
-                                  setShowSearchDropdown(false);
-                                }
-                              }}
-                              placeholder="Search model name..."
-                              disabled={!hasHardcodedModels && (!getApiKeyValue() || (!isManaged && !getBaseUrlValue()))}
-                              icon={<Search className={`w-4 h-4 ${TEXT.faint}`} />}
-                            />
-                          </div>
-                          <Button variant="primary" size="sm" onClick={handleSearchModels}
-                            disabled={isSearching || (!hasHardcodedModels && (!getApiKeyValue() || (!isManaged && !getBaseUrlValue())))}>
-                            {isSearching && <Loader2 className="w-4 h-4 animate-spin" />}
-                            {isSearching ? 'Searching...' : 'Search'}
-                          </Button>
-                        </div>
-                      </PopoverAnchor>
-
-                      {searchResults.length > 0 && (
-                        <PopoverContent
-                          side="bottom"
-                          sideOffset={8}
-                          align="start"
-                          className="w-[var(--radix-popover-trigger-width)] p-0"
-                          onOpenAutoFocus={(e) => e.preventDefault()}
-                        >
-                          <Command>
-                            <CommandList className="max-h-64">
-                              <CommandEmpty>No models found</CommandEmpty>
-                              {searchResults.length === 1 && searchResults[0] === modelSearch.trim() && (
-                                <div className={`px-3 py-2 border-b ${BORDER.strong} ${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
-                                  {hasHardcodedModels ? 'Not in known models — add manually:' : 'Not found via API — add manually:'}
-                                </div>
-                              )}
-                              {searchResults.map((modelId) => {
-                                const info = selectedProvider ? getModelInfo(selectedProvider.provider, modelId) : null;
-                                return (
-                                  <CommandItem
-                                    key={modelId}
-                                    value={modelId}
-                                    onSelect={() => handleSelectModel(modelId)}
-                                    className="px-3 py-2.5 cursor-pointer"
-                                  >
-                                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                                      <span className="truncate">{modelId}</span>
-                                      <ModalityIcons modelInfo={info} />
-                                    </div>
-                                  </CommandItem>
-                                );
-                              })}
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      )}
-                    </Popover>
-
-                    {!hasHardcodedModels && (!getApiKeyValue() || (!isManaged && !getBaseUrlValue())) ? (
-                      <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
-                        {isManaged
-                          ? 'Configure your API key to search models'
-                          : 'Configure API key and base URL to search models'}
-                      </p>
-                    ) : (
-                      <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
-                        Search for models by name and select to add them to this provider
-                      </p>
-                    )}
-                  </SettingsSection>
-
-                  {/* Selected Models */}
-                  {selectedProvider.models && selectedProvider.models.length > 0 && (
-                    <SettingsSection title={`Selected Models (${selectedProvider.models.length})`}>
-                      <div className="space-y-2">
-                        {selectedProvider.models.map((model) => {
-                          const info = getModelInfo(selectedProvider.provider, model.id);
-                          return (
-                            <ModelListItem
-                              key={model.id}
-                              name={model.name || model.id}
-                              onDelete={() => handleRemoveModel(model.id)}
-                              rightSlot={
-                                <div className="flex items-center gap-1">
-                                  <ModalityIcons modelInfo={info} />
-                                  <Button variant="ghost" size="iconSm" onClick={() => setModelSettingsTarget({ provider: selectedProvider.provider, modelId: model.id })} title="Model settings">
-                                    <Settings className="w-3.5 h-3.5" />
-                                  </Button>
-                                </div>
-                              }
-                            />
-                          );
-                        })}
-                      </div>
-                    </SettingsSection>
-                  )}
-                </>
+                  </div>
+                </SettingsSection>
               )}
             </>
           ) : (

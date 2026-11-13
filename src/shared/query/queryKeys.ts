@@ -6,10 +6,10 @@ export const queryKeys = {
   recordingAudio: (fileName: string) => ['recording-audio', fileName] as const,
   /** macOS permissions a recording needs (checklist rows) */
   permissions: () => ['permissions'] as const,
-  /** HuggingFace GGUF model search (debounced query text) */
-  hfModelSearch: (query: string) => ['hf', 'search', query] as const,
-  /** GGUF file list for a HuggingFace repo (hasToken splits gated/public cache) */
-  hfRepoFiles: (repoId: string, hasToken: boolean) => ['hf', 'repo', repoId, hasToken] as const,
+  /** Running Hex app: whether it answers and its models (transcription engine) */
+  hexStatus: () => ['hex-status'] as const,
+  /** Local OpenAI-compatible servers on this Mac (keyed by the saved local providers it also probes) */
+  localServers: (savedTargets: readonly string[]) => ['local-servers', savedTargets] as const,
 
   // ── Unified store (single `kasset.db`) ──
   /** Store health / meta */

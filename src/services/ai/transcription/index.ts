@@ -4,3 +4,8 @@ export { resolveCred } from './cred';
 export type { Cred } from './cred';
 export { formatTranscript } from './format';
 export { analyzeTranscript } from './analyze';
+export { getHexStatus, installedHexModels } from './hex';
+export type { HexModel, HexStatus } from './hex';
+export type { RunContext, TranscriptionProgress } from './engines';
+export { engineReadiness } from './readiness';
+export type { EngineReadiness } from './readiness';

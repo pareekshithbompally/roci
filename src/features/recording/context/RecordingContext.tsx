@@ -700,7 +700,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       abortControllerRefs.current.set(sessionId, abortController);
 
       // Immediately surface processing state so the tray switches to the processing row
-      updateSession(sessionId, { status: 'processing', error: null });
+      updateSession(sessionId, { status: 'processing', error: null, processingStep: null });
 
       // Read calendar metadata from session (stored at recording start)
       const calendarMeta = session.calendarMeta;
@@ -730,7 +730,11 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         categories,
         settings,
         providers,
-        meetingContext
+        meetingContext,
+        {
+          signal: abortController.signal,
+          onProgress: (processingStep) => updateSession(sessionId, { processingStep }),
+        },
       );
 
       const { result: data } = await Promise.race([
@@ -983,10 +987,10 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       } else if (session.status === 'processing') {
         const patch = {
           type: 'processing' as const,
-          label: 'Processing recording...',
+          label: session.processingStep ? 'Transcribing...' : 'Processing recording...',
           status: 'active' as const,
           percent: null,
-          step: null,
+          step: session.processingStep ?? null,
           detail: formatTimeForTray(session.elapsedTime),
           error: null,
           actions: [
@@ -1053,7 +1057,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
 
     // Remove activity items for sessions that no longer exist.
     // Only touch items with recording/processing type and UUID-format IDs
-    // (to avoid removing non-recording items like 'rag-model', 'llamacpp-download').
+    // (to avoid removing non-recording items like 'rag-model').
     const storeItems = activityStore.getSnapshot();
     for (const item of storeItems) {
       if (

@@ -2,12 +2,14 @@ import { transcribe } from 'ai';
 import { generateText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGroq } from '@ai-sdk/groq';
-import { createGoogle } from '@ai-sdk/google';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createDeepgram } from '@ai-sdk/deepgram';
 import { createElevenLabs } from '@ai-sdk/elevenlabs';
 import { getPlatformFetch } from '@services/platform-fetch';
 import { VERBATIM_TRANSCRIBE_PROMPT } from '@core/ai/prompts/transcription.prompt';
+import { viaHex } from './hex';
 import type { TranscriptionModel } from 'ai';
+import type { Cred } from './cred';
 
 export type TranscriptionEngineId =
   | 'whisper-1'
@@ -16,7 +18,8 @@ export type TranscriptionEngineId =
   | 'groq-whisper'
   | 'deepgram'
   | 'elevenlabs'
-  | 'gemini';
+  | 'gemini'
+  | 'hex';
 
 export interface TranscriptSegment {
   text: string;
@@ -30,23 +33,44 @@ export interface TranscriptResult {
   segments: TranscriptSegment[];
 }
 
-interface Cred {
-  apiKey: string;
-  baseUrl?: string;
+export interface TranscriptionProgress {
+  current: number;
+  total: number;
 }
 
-type Run = (audio: Uint8Array, cred: Cred) => Promise<TranscriptResult>;
+export interface RunContext {
+  /** Credentials of the engine's provider; null for engines with no provider (Hex). */
+  cred: Cred | null;
+  signal?: AbortSignal;
+  /** Called before each part for engines that send long audio in parts. */
+  onProgress?: (progress: TranscriptionProgress) => void;
+  /** Model within the engine, for engines that offer a choice (Hex). Empty = engine default. */
+  modelId?: string;
+}
+
+export type Run = (audio: Blob, ctx: RunContext) => Promise<TranscriptResult>;
 
 export interface TranscriptionEngine {
   id: TranscriptionEngineId;
   label: string;
-  providerId: string;
+  /** Provider whose API key the engine uses; null when it needs none (Hex runs on this Mac). */
+  providerId: string | null;
   run: Run;
 }
 
+/** Cloud adapters always run with credentials: `transcribeAudio` resolves them for every `providerId`. */
+function credOf(ctx: RunContext): Cred {
+  if (!ctx.cred) throw new Error('This transcription engine needs provider credentials.');
+  return ctx.cred;
+}
+
 const viaSDK = (model: (c: Cred) => TranscriptionModel): Run =>
-  async (audio, c) => {
-    const r = await transcribe({ model: model(c), audio });
+  async (audio, ctx) => {
+    const r = await transcribe({
+      model: model(credOf(ctx)),
+      audio: new Uint8Array(await audio.arrayBuffer()),
+      abortSignal: ctx.signal,
+    });
     return {
       text: r.text,
       segments: r.segments.map((s) => ({
@@ -59,15 +83,16 @@ const viaSDK = (model: (c: Cred) => TranscriptionModel): Run =>
   };
 
 const viaMultimodal = (modelId: string): Run =>
-  async (audio, c) => {
+  async (audio, ctx) => {
     const fetch = getPlatformFetch();
     const r = await generateText({
-      model: createGoogle({ apiKey: c.apiKey, fetch })(modelId),
+      model: createGoogleGenerativeAI({ apiKey: credOf(ctx).apiKey, fetch })(modelId),
+      abortSignal: ctx.signal,
       messages: [
         {
           role: 'user',
           content: [
-            { type: 'file', data: audio, mediaType: 'audio/wav' } as const,
+            { type: 'file', data: new Uint8Array(await audio.arrayBuffer()), mediaType: 'audio/wav' } as const,
             { type: 'text', text: VERBATIM_TRANSCRIBE_PROMPT } as const,
           ],
         },
@@ -126,5 +151,11 @@ export const ENGINES: Record<TranscriptionEngineId, TranscriptionEngine> = {
     label: 'Google Gemini (multimodal)',
     providerId: 'gemini',
     run: viaMultimodal('gemini-2.0-flash'),
+  },
+  'hex': {
+    id: 'hex',
+    label: 'Hex (local)',
+    providerId: null,
+    run: viaHex,
   },
 };

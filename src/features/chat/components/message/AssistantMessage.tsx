@@ -159,8 +159,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
         <AnimatedProviderIcon provider={provider || 'unknown'} size={18} isAnimating={isLoading || isStreaming} />
         <span className={`${TYPOGRAPHY_CLASSES.chatProvider} ${TEXT.muted}`}>
           {isLoading
-            ? loadingLabel
-              || (provider === 'llamacpp' ? `Loading ${model || 'model'} into memory...` : 'Working on it...')
+            ? loadingLabel || 'Working on it...'
             : isStreaming
               ? <StreamingHeaderLabel msgId={id} provider={provider} model={model} />
               : (

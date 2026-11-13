@@ -77,7 +77,7 @@ export const defaultSettings: AppSettings = {
 };
 
 const SETTINGS_KEYS: Array<keyof AppSettings> = [
-  'transcriptionModel', 'chatModel', 'analyzeModel', 'kgExtractionModel',
+  'transcriptionModel', 'transcriptionEngineModel', 'chatModel', 'analyzeModel', 'kgExtractionModel',
   'apiKey', 'audioQualityPreset', 'defaultAudioSource',
   'jobProcessing', 'summaryExtraction', 'meetingDefaults', 'calendarIntegration',
 ];

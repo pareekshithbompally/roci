@@ -40,7 +40,6 @@
     "os:default",
     "process:default",
     "shell:allow-open",
-    "llamacpp:default",
     "store:default",
     "calendar:default",
     "window-state:default",

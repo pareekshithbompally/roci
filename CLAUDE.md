@@ -106,7 +106,7 @@ src-tauri/
   src/audio/      HEX capture: supervisors, process tap, mic, tracks, mixdown   src/permissions/  HEX consent checks
   src/            lib.rs window.rs shortcuts.rs screenshot.rs wake_lock.rs
   capabilities/   default.json (permission allowlist)   Info.plist (NS*UsageDescription)
-  plugins/        tauri-plugin-{vectordb,llamacpp,calendar}
+  plugins/        tauri-plugin-{store,calendar}
 ```
 
 **Data layout** (`~/Library/Application Support/ai.kasset.desktop/`): `meetings/{id}/{transcript,summary,todos,notes,recording-meta}.json` + `meetings/index.json`; `chats/{sessionId}.json` + `chats/index.json`; `recordings/*.wav`; `vectordb.sqlite`; `settings.json` (API keys AES-256-GCM).

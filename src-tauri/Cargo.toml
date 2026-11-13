@@ -30,7 +30,6 @@ tauri-plugin-global-shortcut = "2"
 tauri-plugin-autostart = "2"
 tauri-plugin-shell = "2"
 tauri-plugin-http = "2"
-tauri-plugin-llamacpp = { path = "plugins/tauri-plugin-llamacpp" }
 tauri-plugin-store = { path = "plugins/tauri-plugin-store" }
 tauri-plugin-calendar = { path = "plugins/tauri-plugin-calendar" }
 core-graphics = "0.24"

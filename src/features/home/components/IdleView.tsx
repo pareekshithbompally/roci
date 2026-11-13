@@ -19,7 +19,7 @@ import { meetingReferenceService } from '@services/meetingReferenceService';
 import { RadioCard } from '@features/settings/components/shared';
 import { supportsWebSearch } from '@shared/utils/modelResolver';
 import { useSpeechInput } from '@features/chat';
-import { ENGINES, resolveCred } from '@services/ai/transcription';
+import { useEngineReady } from '@features/settings/hooks/useEngineReadiness';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { SURFACE, TEXT, BORDER } from '@config/theme.config';
 
@@ -66,11 +66,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
     [historyItems]
   );
 
-  const showSpeechInput = useMemo(() => {
-    const engine = ENGINES[settings.transcriptionModel as keyof typeof ENGINES];
-    if (!engine) return false;
-    try { resolveCred(engine.providerId, providers); return true; } catch { return false; }
-  }, [settings.transcriptionModel, providers]);
+  const showSpeechInput = useEngineReady(settings.transcriptionModel);
 
   const speech = useSpeechInput(settings, providers);
 
@@ -101,11 +97,6 @@ export const IdleView: React.FC<IdleViewProps> = () => {
 
   const handleSetupProviders = () => {
     setActiveSettingsPanel('providers');
-    setCurrentView('settings');
-  };
-
-  const handleSetupLocal = () => {
-    setActiveSettingsPanel('local-inference');
     setCurrentView('settings');
   };
 
@@ -239,13 +230,13 @@ export const IdleView: React.FC<IdleViewProps> = () => {
 
                 <RadioCard
                   selected={false}
-                  onClick={handleSetupLocal}
+                  onClick={handleSetupProviders}
                   icon={<HardDrive className="w-5 h-5" />}
                 >
                   <div className="space-y-1">
                     <p className={`text-sm font-medium ${TEXT.heading}`}>Local Models</p>
                     <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
-                      Run models privately on your device with llamacpp
+                      Use Ollama, LM Studio, or another server running on this Mac
                     </p>
                   </div>
                 </RadioCard>

@@ -135,3 +135,8 @@ export const ActionIcon: React.FC<{ name: string }> = ({ name }) => {
       return null;
   }
 };
+
+/** Compact "current/total" for an activity's step counter (shared by tray rows). */
+export function formatStep(step: { current: number; total: number } | null): string | null {
+  return step ? `${step.current}/${step.total}` : null;
+}
