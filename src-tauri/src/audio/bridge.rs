@@ -23,7 +23,7 @@ struct AudioLevelEvent {
 }
 
 // FFI to the Swift AudioBridge (swift/AudioBridge.swift).
-extern "C" {
+unsafe extern "C" {
     fn audio_start(
         source: i32,
         hq_path: *const c_char,

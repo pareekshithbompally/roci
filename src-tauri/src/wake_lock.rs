@@ -20,7 +20,7 @@ const K_ASSERTION_TYPE: &str = "PreventUserIdleDisplaySleep";
 const K_IORETURN_SUCCESS: IOReturn = 0;
 
 #[link(name = "IOKit", kind = "framework")]
-extern "C" {
+unsafe extern "C" {
     fn IOPMAssertionCreateWithName(
         assertionType: CFStringRef,
         assertionLevel: u32,

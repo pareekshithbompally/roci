@@ -4,7 +4,8 @@ use serde::Serialize;
 use tauri::{AppHandle, Manager};
 
 use crate::audio::bridge;
-use crate::audio::types::AudioCaptureOptions;
+use crate::audio::types::{AudioCaptureOptions, CaptureError};
+use crate::permissions;
 
 /// Both output paths returned by `stop_audio_capture`.
 #[derive(Serialize)]
@@ -59,7 +60,10 @@ fn create_output_path(
 pub async fn start_audio_capture(
     app: AppHandle,
     options: AudioCaptureOptions,
-) -> Result<(), String> {
+) -> Result<(), CaptureError> {
+    if let Some(kind) = permissions::missing(options.source.needs()) {
+        return Err(CaptureError::Permission { kind });
+    }
     stop_audio_capture().await.ok();
 
     let hq_path = create_output_path(&app, options.file_name, options.recordings_dir)?;

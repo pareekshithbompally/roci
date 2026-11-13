@@ -4,6 +4,8 @@ export const queryKeys = {
   meetings: () => ['meetings'] as const,
   globalTodos: () => ['todos', 'global'] as const,
   recordingAudio: (fileName: string) => ['recording-audio', fileName] as const,
+  /** macOS permissions a recording needs (checklist rows) */
+  permissions: () => ['permissions'] as const,
   /** HuggingFace GGUF model search (debounced query text) */
   hfModelSearch: (query: string) => ['hf', 'search', query] as const,
   /** GGUF file list for a HuggingFace repo (hasToken splits gated/public cache) */

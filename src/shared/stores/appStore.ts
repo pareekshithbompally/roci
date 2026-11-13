@@ -13,6 +13,7 @@ interface AppStoreState {
   activeResultTab: ResultTab;
   activeSettingsPanel: SettingsPanel;
   meetingChatOpen: boolean;
+  permissionChecklistOpen: boolean;
   isInitialized: boolean;
   error: string | null;
 
@@ -23,6 +24,7 @@ interface AppStoreState {
   setActiveResultTab: (t: ResultTab) => void;
   setActiveSettingsPanel: (p: SettingsPanel) => void;
   setMeetingChatOpen: (open: boolean) => void;
+  setPermissionChecklistOpen: (open: boolean) => void;
   setInitialized: (v: boolean) => void;
   setError: (e: string | null) => void;
   clearError: () => void;
@@ -37,6 +39,7 @@ export const useAppStore = create<AppStoreState>((set) => ({
   activeResultTab: 'summary',
   activeSettingsPanel: 'audio',
   meetingChatOpen: false,
+  permissionChecklistOpen: false,
   isInitialized: false,
   error: null,
 
@@ -62,6 +65,8 @@ export const useAppStore = create<AppStoreState>((set) => ({
 
   setMeetingChatOpen: (open) => set({ meetingChatOpen: open }),
 
+  setPermissionChecklistOpen: (open) => set({ permissionChecklistOpen: open }),
+
   setInitialized: (v) => set({ isInitialized: v }),
 
   setError: (e) => set({ error: e }),
@@ -84,6 +89,7 @@ export const useSelectedHistoryId = () => useAppStore((s) => s.selectedHistoryId
 export const useActiveResultTab = () => useAppStore((s) => s.activeResultTab);
 export const useActiveSettingsPanel = () => useAppStore((s) => s.activeSettingsPanel);
 export const useMeetingChatOpen = () => useAppStore((s) => s.meetingChatOpen);
+export const usePermissionChecklistOpen = () => useAppStore((s) => s.permissionChecklistOpen);
 export const useAppResult = () => useAppStore((s) => s.result);
 export const useAppError = () => useAppStore((s) => s.error);
 

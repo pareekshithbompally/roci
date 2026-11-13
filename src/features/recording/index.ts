@@ -31,7 +31,7 @@ export { recordingService } from './services';
 export type { StartRecordingOptions, StartRecordingResult, StopRecordingResult } from './services';
 
 // Components
-export { RecordButton } from './components';
+export { RecordButton, PermissionChecklist } from './components';
 
 // Types
 export type {

@@ -99,12 +99,17 @@ unsafe fn dict_get_value(dict: CFDictionaryRef, key: &str) -> Option<core_founda
     use std::ffi::CString;
 
     let c_key = CString::new(key).ok()?;
-    let cf_key = CFStringCreateWithCString(kCFAllocatorDefault, c_key.as_ptr(), 0x08000100); // kCFStringEncodingUTF8
-    if cf_key.is_null() {
-        return None;
-    }
-    let value = CFDictionaryGetValue(dict, cf_key as *const _);
-    core_foundation::base::CFRelease(cf_key as *const _);
+    // SAFETY: the caller guarantees `dict` is a valid CFDictionary; `cf_key`
+    // is created and released here.
+    let value = unsafe {
+        let cf_key = CFStringCreateWithCString(kCFAllocatorDefault, c_key.as_ptr(), 0x08000100); // kCFStringEncodingUTF8
+        if cf_key.is_null() {
+            return None;
+        }
+        let value = CFDictionaryGetValue(dict, cf_key as *const _);
+        core_foundation::base::CFRelease(cf_key as *const _);
+        value
+    };
     if value.is_null() {
         None
     } else {

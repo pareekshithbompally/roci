@@ -17,7 +17,8 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment, trayService, notificationService } from '@services/tauri';
 import { notificationScheduler } from '@services/notification-scheduler';
-import { coreAudioService } from '@services/coreAudio.service';
+import { coreAudioService, isPermissionRefusal, captureErrorMessage } from '@services/coreAudio.service';
+import { useAppStore } from '@shared/stores/appStore';
 import { recordingsService } from '@services/storage';
 import { transcriptionService } from '@services/transcription.service';
 import { StorageConfig, generateRecordingFilename, getRecordingIdFromFilename } from '@config/storage.config';
@@ -82,6 +83,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
   appContext,
 }) => {
   const { showToast } = useToast();
+  const setPermissionChecklistOpen = useAppStore((s) => s.setPermissionChecklistOpen);
 
   // === SESSION-BASED STATE ===
   const [sessions, setSessions] = useState<Map<string, RecordingSession>>(new Map());
@@ -207,6 +209,14 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       const source = settingsContext?.settings?.defaultAudioSource || audioSource;
       const filename = generateRecordingFilename();
       const recordingId = getRecordingIdFromFilename(filename);
+
+      // Capture first: a refused start must not leave a session behind.
+      await coreAudioService.startCapture({
+        source,
+        fileName: filename,
+        recordingsDir: StorageConfig.directories.recordings,
+      });
+
       const sessionId = crypto.randomUUID();
 
       // Create new session
@@ -240,12 +250,6 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       // Set up timing refs
       startTimeRefs.current.set(sessionId, Date.now());
       pausedTimeRefs.current.set(sessionId, 0);
-
-      await coreAudioService.startCapture({
-        source,
-        fileName: filename,
-        recordingsDir: StorageConfig.directories.recordings,
-      });
 
       // Start timer
       const timer = setInterval(() => {
@@ -313,11 +317,14 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
 
       return sessionId;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to start recording';
-      showToast(errorMessage, 'error');
+      if (isPermissionRefusal(error)) {
+        setPermissionChecklistOpen(true);
+      } else {
+        showToast(captureErrorMessage(error), 'error');
+      }
       throw error;
     }
-  }, [activeCaptureSessionId, audioSource, settingsContext, updateSession, showToast]);
+  }, [activeCaptureSessionId, audioSource, settingsContext, updateSession, showToast, setPermissionChecklistOpen]);
 
   // Stop recording
   const stopRecordingSession = useCallback(async (sessionId: string) => {

@@ -164,6 +164,11 @@ export const AUDIO_CONFIG = {
     fileTooLarge: 'Audio file is too large. Maximum size is 500MB.',
     durationTooLong: 'Recording duration exceeds maximum limit of 2 hours.',
   },
+
+  // Permission checklist: grants are re-read this often while it is open (HEX reads once a second)
+  permissions: {
+    pollIntervalMs: 1000,
+  },
 } as const;
 
 /**

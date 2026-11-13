@@ -13,7 +13,7 @@ import { useHistory } from '@shared/contexts/HistoryContext';
 import { useChat } from '@shared/contexts/ChatContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { useThemeContext } from '@shared/contexts/ThemeContext';
-import { useRecordingContext } from '@features/recording';
+import { useRecordingContext, PermissionChecklist } from '@features/recording';
 import { MainLayout } from '@features/layout';
 import { HomeView } from '@features/home';
 import { SettingsPanel } from '@features/settings';
@@ -379,6 +379,9 @@ const App: React.FC = () => {
 
       {/* RAG Model Download Consent Modal */}
       <ModelDownloadModal />
+
+      {/* Opens when a recording start is refused for a missing macOS permission */}
+      <PermissionChecklist />
 
       {/* Delete Confirmation Modal - Meeting */}
       <DeleteConfirmModal

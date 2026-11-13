@@ -4,6 +4,8 @@
 <dict>
     <key>NSMicrophoneUsageDescription</key>
     <string>Kasset.ai needs access to your microphone to record and transcribe audio.</string>
+    <key>NSAudioCaptureUsageDescription</key>
+    <string>Kasset.ai records the other participants' audio only while you record a meeting, and keeps it on this Mac.</string>
     <key>NSScreenCaptureUsageDescription</key>
     <string>Kasset.ai needs screen recording permission to capture system audio.</string>
 

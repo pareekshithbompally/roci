@@ -5,6 +5,7 @@ mod audio;
 mod screenshot;
 mod wake_lock;
 mod notification;
+mod permissions;
 
 /// Open a folder in the OS file manager (Finder on macOS).
 #[tauri::command]
@@ -97,6 +98,10 @@ pub fn run() {
       audio::commands::stop_audio_capture,
       audio::commands::pause_audio_capture,
       audio::commands::resume_audio_capture,
+      // Permission checklist commands (macOS)
+      permissions::commands::get_permissions,
+      permissions::commands::request_permission,
+      permissions::commands::open_permission_settings,
       // Screenshot commands
       screenshot::list_capturable_windows,
       screenshot::take_screenshot,
