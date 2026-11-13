@@ -231,8 +231,6 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         recordingFilename: filename,
         recordedFilePath: null,
         recordedBlob: null,
-        aiBlob: null,
-        aiFilePath: null,
         audioUrl: null,
         error: null,
         createdAt: Date.now(),
@@ -351,8 +349,6 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           isPaused: false,
           recordedBlob: result.blob,
           recordedFilePath: result.path,
-          aiBlob: result.aiBlob,
-          aiFilePath: result.aiPath,
           audioUrl: url,
           elapsedTime: Math.max(0, finalElapsedTime),
           stalled: false,
@@ -709,7 +705,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         : undefined;
 
       const processingPromise = unifiedAIService.processAudio(
-        session.aiBlob ?? session.recordedBlob,
+        session.recordedBlob,
         categories,
         settings,
         providers,
@@ -858,12 +854,6 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
 
   // Computed
   const canStartNewCapture = isTauriEnvironment() && activeCaptureSessionId === null;
-
-  const permissionMessage = audioSource === 'microphone'
-    ? 'Microphone permission is required to start recording.'
-    : audioSource === 'systemAndMicrophone'
-      ? 'Screen Recording and Microphone permissions are required the first time you start capture.'
-      : 'Screen Recording permission is required the first time you start capture.';
 
   // === ActivityTray bridge ===
   // Sync recording sessions → activityStore so the unified tray renders them.
@@ -1205,7 +1195,6 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     resetRecording: legacyResetRecording,
     isRecording: legacyState.status === 'recording',
     canRecord: canStartNewCapture,
-    permissionMessage,
   };
 
   // Session-based context value
@@ -1214,7 +1203,6 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     activeCaptureSessionId,
     canStartNewCapture,
     audioSource,
-    permissionMessage,
     startRecording: startRecordingSession,
     stopRecording: stopRecordingSession,
     pauseRecording: pauseRecordingSession,

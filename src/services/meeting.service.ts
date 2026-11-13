@@ -31,9 +31,6 @@ class MeetingService {
           const base = await appDataDir();
           const wavPath = await join(base, 'recordings', filename);
           if (await exists(wavPath)) await remove(wavPath);
-
-          const aiPath = await join(base, 'recordings', filename.replace(/\.wav$/i, '.ai.wav'));
-          if (await exists(aiPath)) await remove(aiPath);
         } catch {
           // File may already be gone — non-fatal
         }

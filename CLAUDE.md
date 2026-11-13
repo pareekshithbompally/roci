@@ -1,7 +1,7 @@
 # Kasset AI — Claude Code Instructions
 
 > **macOS meeting-intelligence app — private, local-first, with built-in AI chat.**
-> Tauri 2.x + React 19 + TS + Vite | Vercel AI SDK (multi-provider) | Swift/ScreenCaptureKit audio | sqlite-vec RAG + Knowledge Graph
+> Tauri 2.x + React 19 + TS + Vite | Vercel AI SDK (multi-provider) | Rust Core Audio tap + cpal audio (ported from HEX) | sqlite-vec RAG + Knowledge Graph
 > **Pre-release, zero users.** Never add migrations, backward-compat, or legacy support unless explicitly asked.
 
 ---
@@ -42,10 +42,9 @@ These are hard constraints. They **override** convenience, speed, and your defau
 - HTTP flows through `@tauri-apps/plugin-http` (Rust reqwest, CORS bypass) via the SDK `fetch:` param. **Never** override `globalThis.fetch` — it breaks Vite HMR.
 - Tools, intent classification, and synthesis go through `extensions/tools/` + `extensions/tool-orchestrator/`. Extend the registry; don't bolt on a parallel tool path.
 
-### I5 — Native macOS/iOS via a clean Swift bridge. Thin, typed, JSON-status FFI.
-- Native platform code (audio, calendar, screen) lives in **Swift**, not hand-rolled Rust syscalls. Audio: `src-tauri/swift/*.swift`; calendar: `tauri-plugin-calendar`'s `CalendarBridge`. Mirror that pattern for new native work.
-- FFI contract: a Swift `@_cdecl("name")` function pairs 1:1 with an `extern "C"` decl in the matching Rust `bridge.rs`. Cross only C-ABI types. Return a `{"ok":bool,"error":?}` JSON C-string; Rust parses it and frees via the paired `*_free_string`. Keep engine logic in dedicated Swift files (e.g. `AudioCaptureEngine.swift`); keep `AudioBridge.swift` as the only Rust-facing surface.
-- `build.rs` auto-globs every `swift/*.swift` into one static lib — adding a Swift file needs no build-script edit. Don't hardcode file lists.
+### I5 — Native macOS code: audio and permissions are HEX's Rust; calendar is a Swift bridge.
+- **Audio capture** (`src-tauri/src/audio/`) and **permissions** (`src-tauri/src/permissions/`) are HEX's meeting recorder (MIT, `src-tauri/licenses/HEX-MIT.txt`), copied verbatim in Rust (cpal, objc2 Core Audio process tap, ScreenCaptureKit fallback). Change them only by porting HEX code as-is; no rewrites. The feature path and every deletion from HEX are in `docs/plans/IN-PROGRESS/recording-audio/hex-capture-permissions-port/04-structure-and-tasks.md`.
+- **Calendar** stays a Swift bridge: `tauri-plugin-calendar`'s `CalendarBridge` (`@_cdecl` ⇄ `extern "C"`, `{"ok":bool,"error":?}` JSON C-string freed via the paired `*_free_string`). Mirror that pattern for new native work that HEX doesn't cover.
 
 ### I6 — Rust/Tauri: compiles clean, permissions declared, OS prompts handled natively.
 - `src-tauri` must `cargo build` with no errors and no new warnings. Treat a warning you introduced as a failure.
@@ -104,7 +103,7 @@ extensions/
   rag/            sqlite-vec embeddings + hybrid search + knowledge graph
   tools/          LLM tool registry + executor      tool-orchestrator/  intent→retrieval→synthesis
 src-tauri/
-  src/audio/      bridge.rs (extern "C" ⇄ Swift)    swift/  *.swift native engine
+  src/audio/      HEX capture: supervisors, process tap, mic, tracks, mixdown   src/permissions/  HEX consent checks
   src/            lib.rs window.rs shortcuts.rs screenshot.rs wake_lock.rs
   capabilities/   default.json (permission allowlist)   Info.plist (NS*UsageDescription)
   plugins/        tauri-plugin-{vectordb,llamacpp,calendar}

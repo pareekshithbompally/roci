@@ -223,22 +223,16 @@ class RecordingsService {
   }
 
   /**
-   * Delete a recording — removes the WAV file AND its .ai.wav sibling.
+   * Delete a recording — removes the WAV file.
    * The DB row cascades from the meeting deletion.
    */
   async deleteRecording(filename: string): Promise<StorageResult> {
     try {
       const dir = await getRecordingsPath();
       const audioPath = `${dir}${filename}`;
-      const aiSiblingPath = `${dir}${filename.replace(/\.wav$/i, '.ai.wav')}`;
 
       if (await exists(audioPath)) {
         await remove(audioPath);
-      }
-
-      // Remove the AI WAV sibling produced by DualSink
-      if (await exists(aiSiblingPath)) {
-        await remove(aiSiblingPath);
       }
 
       // Delete recording row from kasset.db

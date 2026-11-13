@@ -25,7 +25,6 @@ export const useRecording = () => {
     // Computed
     isRecording: context.isRecording,
     canRecord: context.canRecord,
-    permissionMessage: context.permissionMessage,
     
     // Actions
     startRecording: context.startRecording,

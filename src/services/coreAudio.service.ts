@@ -12,11 +12,9 @@ export interface AudioCaptureOptions {
 export interface AudioCaptureResult {
   blob: Blob
   path: string
-  aiBlob: Blob
-  aiPath: string
 }
 
-/** Why `start_audio_capture` refused (Rust `CaptureError`). */
+/** Why a capture command failed (Rust `CaptureError`). */
 export type CaptureError =
   | { code: 'permission'; kind: PermissionKind }
   | { code: 'capture'; message: string }
@@ -30,15 +28,10 @@ export function isPermissionRefusal(error: unknown): boolean {
   return isCaptureError(error) && error.code === 'permission'
 }
 
-/** The text to show for a start that failed for any other reason. */
+/** The text to show for a capture command that failed for any other reason. */
 export function captureErrorMessage(error: unknown): string {
   if (isCaptureError(error) && error.code === 'capture') return error.message
   return error instanceof Error ? error.message : 'Failed to start recording'
-}
-
-interface RecordingPaths {
-  playbackPath: string
-  aiPath: string
 }
 
 class CoreAudioService {
@@ -52,24 +45,13 @@ class CoreAudioService {
     })
   }
 
+  /** Stops the recording; `null` when none was running. */
   async stopCapture(): Promise<AudioCaptureResult | null> {
-    const paths = await invoke<RecordingPaths>('stop_audio_capture')
+    const path = await invoke<string | null>('stop_audio_capture')
+    if (!path) return null
 
-    if (!paths.playbackPath || paths.playbackPath.includes('No active')) {
-      return null
-    }
-
-    const [hqData, aiData] = await Promise.all([
-      readFile(paths.playbackPath),
-      readFile(paths.aiPath),
-    ])
-
-    return {
-      blob: new Blob([hqData], { type: 'audio/wav' }),
-      path: paths.playbackPath,
-      aiBlob: new Blob([aiData], { type: 'audio/wav' }),
-      aiPath: paths.aiPath,
-    }
+    const data = await readFile(path)
+    return { blob: new Blob([data], { type: 'audio/wav' }), path }
   }
 
   async pauseCapture(): Promise<void> {

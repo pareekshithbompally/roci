@@ -101,11 +101,12 @@ pub async fn start_audio_capture(
     Ok(())
 }
 
-/// Stops the recording and returns the mixed file's path.
+/// Stops the recording and returns the mixed file's path; `None` when no
+/// recording was running.
 #[tauri::command]
-pub async fn stop_audio_capture() -> Result<String, CaptureError> {
+pub async fn stop_audio_capture() -> Result<Option<String>, CaptureError> {
     let Some(active) = recorder().take() else {
-        return Err(eyre::eyre!("no audio capture is running").into());
+        return Ok(None);
     };
     // Stopping joins the capture threads and writes the mix: blocking work,
     // kept off the async runtime so other IPC never stalls.
@@ -113,7 +114,7 @@ pub async fn stop_audio_capture() -> Result<String, CaptureError> {
         .await
         .map_err(|error| eyre::eyre!("audio stop task failed: {error}"))??;
     tracing::info!(output = %output.display(), "audio capture stopped");
-    Ok(output.to_string_lossy().into_owned())
+    Ok(Some(output.to_string_lossy().into_owned()))
 }
 
 #[tauri::command]

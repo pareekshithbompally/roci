@@ -49,27 +49,12 @@ export const useAudioSource = () => {
     setAudioSource(source);
   }, [canChangeSource, setAudioSource]);
   
-  // Get permission message for current source
-  const permissionMessage = useMemo(() => {
-    switch (audioSource) {
-      case 'microphone':
-        return 'Microphone permission is required to start recording.';
-      case 'systemAndMicrophone':
-        return 'System audio and microphone permissions are required the first time you start capture.';
-      case 'system':
-        return 'System audio permission is required the first time you start capture.';
-      default:
-        return 'Permission is required to start recording.';
-    }
-  }, [audioSource]);
-  
   return {
     audioSource,
     availableSources,
     currentSourceInfo,
     canChangeSource,
     changeSource,
-    permissionMessage,
   };
 };
 

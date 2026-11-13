@@ -22,9 +22,6 @@ export interface RecordingSession {
   recordingFilename: string;
   recordedFilePath: string | null;
   recordedBlob: Blob | null;
-  /** 16 kHz AI WAV produced alongside the HQ playback file. */
-  aiBlob: Blob | null;
-  aiFilePath: string | null;
   audioUrl: string | null;
   error: string | null;
   createdAt: number;
@@ -76,7 +73,6 @@ export interface RecordingContextValue extends RecordingState, RecordingActions 
   // Computed values
   isRecording: boolean;
   canRecord: boolean;
-  permissionMessage: string;
 }
 
 // Session-based recording context
@@ -97,7 +93,6 @@ export interface RecordingSessionsContextValue extends RecordingSessionActions {
   activeCaptureSessionId: string | null;
   canStartNewCapture: boolean;
   audioSource: AudioCaptureSource;
-  permissionMessage: string;
 }
 
 // Event types for recording events
