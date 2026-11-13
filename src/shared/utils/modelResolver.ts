@@ -8,6 +8,7 @@
 import type { ModelProvider, Model } from '@shared/types/modelProviders';
 import type { ProviderType } from '@services/ai/types';
 import { MANAGED_SDK_PROVIDERS, MANAGED_SDK_INFO, MANAGED_DEFAULT_URLS } from '@config/providers.config';
+import { getProviderTitle } from '@shared/utils/provider.utils';
 
 export interface ResolvedModel {
   modelId: string;
@@ -115,7 +116,7 @@ export function getAllActiveModels(providers: ModelProvider[]): Array<{
         id: model.id,
         name: model.name || model.displayName || model.id,
         provider: provider.provider,
-        providerName: getProviderDisplayName(provider.provider),
+        providerName: getProviderTitle(provider.provider),
       });
     }
   }
@@ -136,26 +137,4 @@ export function getManagedSDKInfo(provider: string): string | null {
 /** Default base URL for managed providers (used only for model listing) */
 export function getDefaultBaseUrl(provider: string): string | null {
   return MANAGED_DEFAULT_URLS[provider] ?? null;
-}
-
-/**
- * Get human-readable provider name
- */
-export function getProviderDisplayName(provider: string): string {
-  const names: Record<string, string> = {
-    'openai': 'OpenAI',
-    'azure': 'Azure OpenAI',
-    'anthropic': 'Anthropic',
-    'cohere': 'Cohere',
-    'openrouter': 'OpenRouter',
-    'mistral': 'Mistral AI',
-    'groq': 'Groq',
-    'gemini': 'Google Gemini',
-    'huggingface': 'Hugging Face',
-    'xai': 'xAI (Grok)',
-    'local-server': 'Local Server',
-    'deepgram': 'Deepgram',
-    'elevenlabs': 'ElevenLabs',
-  };
-  return names[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
 }

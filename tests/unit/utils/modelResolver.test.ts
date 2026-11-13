@@ -16,7 +16,6 @@ vi.mock('@config/providers.config', () => ({
 import {
   getProviderType,
   supportsWebSearch,
-  getProviderDisplayName,
   resolveModel,
   getAllActiveModels,
 } from '@shared/utils/modelResolver';
@@ -76,33 +75,12 @@ describe('supportsWebSearch', () => {
     }
   );
 
-  it.each(['mistral', 'cohere', 'local-server', ''])(
+  it.each(['mistral', 'cohere', 'local:ollama', ''])(
     'returns false for %s',
     (provider) => {
       expect(supportsWebSearch(provider)).toBe(false);
     }
   );
-});
-
-// ── getProviderDisplayName ──────────────────────────────────────
-
-describe('getProviderDisplayName', () => {
-  it('returns known display names', () => {
-    expect(getProviderDisplayName('openai')).toBe('OpenAI');
-    expect(getProviderDisplayName('anthropic')).toBe('Anthropic');
-    expect(getProviderDisplayName('gemini')).toBe('Google Gemini');
-    expect(getProviderDisplayName('xai')).toBe('xAI (Grok)');
-    expect(getProviderDisplayName('local-server')).toBe('Local Server');
-  });
-
-  it('capitalizes first letter for unknown providers', () => {
-    expect(getProviderDisplayName('foobar')).toBe('Foobar');
-    expect(getProviderDisplayName('myProvider')).toBe('MyProvider');
-  });
-
-  it('handles empty string', () => {
-    expect(getProviderDisplayName('')).toBe('');
-  });
 });
 
 // ── resolveModel ────────────────────────────────────────────────

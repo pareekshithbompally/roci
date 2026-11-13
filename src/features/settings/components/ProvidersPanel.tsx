@@ -12,17 +12,19 @@ import { open } from '@tauri-apps/plugin-shell';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { useModalities } from '../stores/modalitiesStore';
-import ProvidersAvatar from '@shared/components/ProvidersAvatar';
-import { getProviderTitle } from '@shared/utils/provider.utils';
+import { getProviderTitle, isLocalProviderId } from '@shared/utils/provider.utils';
+import { LOCAL_SERVER_INFO } from '@config/localServers.config';
 import { providersService } from '@services/providers';
 import { modalitiesService } from '@services/modalities';
 import { getManagedSDKInfo, getDefaultBaseUrl } from '@shared/utils/modelResolver';
 import { MANAGED_MODELS, MANAGED_SDK_PROVIDERS } from '@config/providers.config';
 import { ModalityIcons } from './ModalityIcons';
 import { ModelSettingsModal } from './ModelSettingsModal';
+import { ProviderListItem } from './ProviderListItem';
+import { LocalServersSection } from './LocalServersSection';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { SURFACE, BORDER, TEXT, COMPONENT, RADIUS, LAYOUT } from '@config/theme.config';
-import { SettingsSection, SettingsInput, SecretInput, Toggle, InfoCallout, ModelListItem } from './shared';
+import { SURFACE, BORDER, TEXT, COMPONENT, LAYOUT } from '@config/theme.config';
+import { SettingsSection, SettingsInput, SecretInput, InfoCallout, ModelListItem } from './shared';
 import { Popover, PopoverAnchor, PopoverContent } from '@shared/ui';
 import { Command, CommandList, CommandItem, CommandEmpty } from '@shared/ui';
 import type { ModelProvider } from '@shared/types/modelProviders';
@@ -82,6 +84,8 @@ export const ProvidersPanel: React.FC = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<string[]>([]);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+
+  const cloudProviders = providers.filter(p => !isLocalProviderId(p.provider));
 
   const isManaged = selectedProvider ? MANAGED_SDK_PROVIDERS.has(selectedProvider.provider) : false;
   const hasHardcodedModels = selectedProvider ? !!MANAGED_MODELS[selectedProvider.provider] : false;
@@ -216,40 +220,26 @@ export const ProvidersPanel: React.FC = () => {
         <div className={`${LAYOUT.settingsMaxWidth} mx-auto w-full flex gap-6 min-h-0`}>
         {/* Left: Provider list — independent scroll */}
         <div className="w-56 shrink-0 overflow-y-auto custom-scrollbar">
-          <SettingsSection title="Providers">
+          <SettingsSection title="Cloud">
             <div className="space-y-1">
-              {providers.map((provider) => {
-                const isSelected = effectiveSelectedProvider === provider.provider;
-                return (
-                  <button
-                    key={provider.provider}
-                    onClick={() => handleSelectProvider(provider.provider)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 ${RADIUS.md} text-left transition-all border ${
-                      isSelected
-                        ? `${SURFACE.selectedCard} ${BORDER.selectedCard}`
-                        : `${SURFACE.card} ${BORDER.default} ${BORDER.cardHover}`
-                    }`}
-                  >
-                    <ProvidersAvatar provider={provider.provider} size={20} />
-                    <span className={`flex-1 truncate ${TYPOGRAPHY_CLASSES.settingsInputLabel} ${
-                      isSelected ? TEXT.heading : TEXT.primary
-                    }`}>
-                      {getProviderTitle(provider.provider)}
-                    </span>
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <Toggle
-                        checked={provider.active}
-                        onChange={(checked) => {
-                          updateProvider(provider.provider, { active: checked });
-                        }}
-                        label={`Toggle ${getProviderTitle(provider.provider)}`}
-                      />
-                    </div>
-                  </button>
-                );
-              })}
+              {cloudProviders.map((provider) => (
+                <ProviderListItem
+                  key={provider.provider}
+                  provider={provider.provider}
+                  selected={effectiveSelectedProvider === provider.provider}
+                  active={provider.active}
+                  onSelect={() => handleSelectProvider(provider.provider)}
+                  onToggle={(checked) => updateProvider(provider.provider, { active: checked })}
+                />
+              ))}
             </div>
           </SettingsSection>
+          <div className="mt-6">
+            <LocalServersSection
+              selectedProvider={effectiveSelectedProvider}
+              onSelect={handleSelectProvider}
+            />
+          </div>
         </div>
 
         {/* Right: Detail panel — independent scroll */}
@@ -273,6 +263,9 @@ export const ProvidersPanel: React.FC = () => {
 
               <SettingsSection title={`${getProviderTitle(selectedProvider.provider)} Configuration`}>
                 {(() => {
+                  if (isLocalProviderId(selectedProvider.provider)) {
+                    return <InfoCallout variant="info">{LOCAL_SERVER_INFO}</InfoCallout>;
+                  }
                   const sdkInfo = getManagedSDKInfo(selectedProvider.provider);
                   if (sdkInfo) {
                     return <InfoCallout variant="info">{sdkInfo}</InfoCallout>;

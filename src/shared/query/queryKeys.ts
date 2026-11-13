@@ -6,6 +6,8 @@ export const queryKeys = {
   recordingAudio: (fileName: string) => ['recording-audio', fileName] as const,
   /** macOS permissions a recording needs (checklist rows) */
   permissions: () => ['permissions'] as const,
+  /** Local OpenAI-compatible servers on this Mac (keyed by the saved local providers it also probes) */
+  localServers: (savedTargets: readonly string[]) => ['local-servers', savedTargets] as const,
 
   // ── Unified store (single `kasset.db`) ──
   /** Store health / meta */

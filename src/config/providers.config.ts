@@ -363,38 +363,4 @@ export const predefinedProviders: ModelProvider[] = [
     ],
     models: [],
   },
-  {
-    active: false,
-    api_key: '',
-    base_url: 'http://localhost:1234/v1',
-    explore_models_url: '',
-    provider: 'local-server',
-    settings: [
-      {
-        key: 'api-key',
-        title: 'API Key',
-        description:
-          'Optional API key for your local server if required.',
-        controller_type: 'input',
-        controller_props: {
-          placeholder: 'Insert API Key (optional)',
-          value: '',
-          type: 'password',
-          input_actions: ['unobscure', 'copy'],
-        },
-      },
-      {
-        key: 'base-url',
-        title: 'Base URL',
-        description:
-          'The base endpoint of your local OpenAI-compatible server (e.g., LM Studio, Ollama, Jan).',
-        controller_type: 'input',
-        controller_props: {
-          placeholder: 'http://localhost:1234/v1',
-          value: 'http://localhost:1234/v1',
-        },
-      },
-    ],
-    models: [],
-  },
 ]

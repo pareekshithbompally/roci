@@ -460,6 +460,12 @@ export const COMPONENT = {
   /** Clickable list row (suggestions, sources, history items) */
   listRow: `flex items-center gap-2.5 text-left w-full px-3 py-2.5 text-sm ${TEXT.secondary} hover:text-parchment-900 dark:hover:text-night-200 ${SURFACE.hoverSubtle} rounded-lg transition-colors cursor-pointer`,
 
+  /** Status dot — service running (local server list) */
+  statusDotRunning: 'shrink-0 w-1.5 h-1.5 rounded-full bg-green-500',
+
+  /** Status dot — service not running */
+  statusDotStopped: 'shrink-0 w-1.5 h-1.5 rounded-full bg-parchment-400 dark:bg-night-500',
+
   /** Recommended badge (green pill) */
   recommendedBadge: 'px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded text-[10px] font-medium',
 } as const;
