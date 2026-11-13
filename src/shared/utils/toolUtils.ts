@@ -1,5 +1,13 @@
-/** Labels for tool activity — one function for all states */
-export function toolLabel(toolName: string, status: 'calling' | 'complete' | 'error'): string {
+/**
+ * Labels for tool activity — one function for all states. `source` (the MCP
+ * server) prefixes the label so the user sees where a result came from.
+ */
+export function toolLabel(toolName: string, status: 'calling' | 'complete' | 'error', source?: string): string {
+  const label = baseLabel(toolName, status);
+  return source ? `${source} · ${label}` : label;
+}
+
+function baseLabel(toolName: string, status: 'calling' | 'complete' | 'error'): string {
   if (status === 'error') return `${formatToolName(toolName)} failed`;
 
   const labels: Record<string, [string, string]> = {

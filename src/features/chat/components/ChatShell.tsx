@@ -19,13 +19,13 @@ import { useAppActions } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
 import { ChatMessage } from './message';
 import TodoConfirmationBanner from './TodoConfirmationBanner';
+import ToolApprovalBanner from './ToolApprovalBanner';
 import type { ActionProps, CitationHandlers } from './message';
 import { ChatInput } from './ChatInput';
 import { MeetingCitationDrawer } from './MeetingCitationDrawer';
 import { WebCitationDrawer } from './WebCitationDrawer';
 import { meetingReferenceService } from '@services/meetingReferenceService';
 import { meetingService } from '@services/meeting.service';
-import { supportsWebSearch } from '@shared/utils/modelResolver';
 import { useSpeechInput } from '@features/chat';
 import { useEngineReady } from '@features/settings/hooks/useEngineReadiness';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
@@ -70,7 +70,6 @@ export const ChatShell: React.FC<ChatShellProps> = ({
   const chatInput = useChatStore((s) => s.input);
   const copiedMessageId = useChatStore((s) => s.copiedMessageId);
   const selectedMeetingRefs = useChatStore((s) => s.selectedMeetingRefs);
-  const webSearchEnabled = useChatStore((s) => s.webSearchEnabled);
   const pendingAttachments = useChatStore((s) => s.pendingAttachments);
 
   const {
@@ -78,7 +77,6 @@ export const ChatShell: React.FC<ChatShellProps> = ({
     setInput,
     stopGeneration,
     copyMessage,
-    toggleWebSearch,
     setSelectedMeetingRefs,
     addAttachment,
     removeAttachment,
@@ -168,14 +166,6 @@ export const ChatShell: React.FC<ChatShellProps> = ({
     [historyItems]
   );
 
-  const showWebSearch = useMemo(() => {
-    for (const provider of providers) {
-      if (!provider.active) continue;
-      const model = provider.models?.find((m) => m.id === settings.chatModel);
-      if (model) return supportsWebSearch(provider.provider);
-    }
-    return false;
-  }, [settings.chatModel, providers]);
 
   const showSpeechInput = useEngineReady(settings.transcriptionModel);
 
@@ -285,6 +275,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
 
         {/* Input Area */}
         <div className="shrink-0">
+          <ToolApprovalBanner />
           <TodoConfirmationBanner />
           <ChatInput
             value={chatInput}
@@ -296,9 +287,6 @@ export const ChatShell: React.FC<ChatShellProps> = ({
             availableMeetings={availableMeetings}
             selectedMeetings={selectedMeetingRefs}
             onMeetingSelect={setSelectedMeetingRefs}
-            webSearchEnabled={webSearchEnabled}
-            onWebSearchToggle={toggleWebSearch}
-            showWebSearch={showWebSearch}
             attachments={pendingAttachments}
             onAttach={addAttachment}
             onRemoveAttachment={removeAttachment}

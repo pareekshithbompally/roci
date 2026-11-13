@@ -9,6 +9,7 @@ export { ProvidersPanel } from './ProvidersPanel';
 export { CategoriesPanel } from './CategoriesPanel';
 export { InterfacePanel } from './InterfacePanel';
 export { IntegrationsPanel } from './IntegrationsPanel';
+export { McpServersPanel } from './mcp';
 export { UsagePanel } from './UsagePanel';
 export { ProvidersPanelErrorBoundary } from './ProvidersPanelErrorBoundary';
 export { ModalityIcons } from './ModalityIcons';

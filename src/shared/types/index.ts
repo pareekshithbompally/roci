@@ -96,6 +96,8 @@ export type ChatPart =
       type: 'tool_call';
       toolCallId: string;
       toolName: string;
+      /** MCP server that ran the tool; absent for built-in tools. */
+      source?: string;
       arguments: Record<string, unknown>;
       status: 'calling' | 'complete' | 'error';
       result?: {
@@ -166,6 +168,13 @@ export interface UnifiedSidebarItem {
   matchType?: string;
 }
 
+export interface ChatToolPreferences {
+  /** Built-in meeting & chat tools, switched as one group. */
+  meetingTools: boolean;
+  /** MCP tools switched off, as `mcpToolKey(server, tool)` keys. */
+  disabledMcpTools: string[];
+}
+
 export interface AppSettings {
   /** STT engine id (e.g. 'whisper-1', 'groq-whisper', 'gemini', 'hex'). */
   transcriptionModel: string;
@@ -198,6 +207,8 @@ export interface AppSettings {
     /** Default meeting duration in minutes (for reminders) — 0 = no reminder */
     durationReminderMinutes: number;
   };
+  /** Composer Tools picker — which tools chat may use. Global, saved. */
+  chatTools?: ChatToolPreferences;
   /** macOS Calendar integration (EventKit) */
   calendarIntegration?: {
     enabled: boolean;

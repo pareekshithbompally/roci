@@ -36,6 +36,11 @@ export class ToolRegistry {
     return tool;
   }
 
+  /** Return every registered definition (bridge input). */
+  getTools(): ToolDefinition[] {
+    return Array.from(this.tools.values());
+  }
+
   /** Return all registered tool names. */
   getToolNames(): string[] {
     return Array.from(this.tools.keys());

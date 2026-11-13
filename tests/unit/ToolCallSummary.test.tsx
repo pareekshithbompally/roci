@@ -1,7 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render as rtlRender, screen, act } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactElement } from 'react';
 import ToolCallSummary from '@features/chat/components/message/ToolCallSummary';
 import type { ChatPart } from '@shared/types';
+
+/** ToolCallSummary reads MCP server icons through TanStack Query. */
+const render = (ui: ReactElement) =>
+  rtlRender(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);
 
 describe('ToolCallSummary', () => {
   const mockToolCalls: Extract<ChatPart, { type: 'tool_call' }>[] = [

@@ -16,7 +16,8 @@
 import { streamText, isStepCount } from 'ai';
 import { createModel, toSDKMessages, getWebSearchTools, toExecutableTools } from '@services/ai';
 import { resolveModel } from '@shared/utils/modelResolver';
-import { toolRegistry } from '@extensions/tools';
+import { toolRegistry, loadMcpTools } from '@extensions/tools';
+import { DEFAULT_CHAT_TOOLS } from '@config/chatTools.config';
 import { extractTokenUsage } from '@services/ai/types';
 import type { TokenUsage } from '@services/ai/types';
 import type { OrchestratorOptions, OrchestratorCallbacks } from './types';
@@ -27,7 +28,8 @@ const MAX_AGENT_STEPS = 10;
 /**
  * Run the agentic tool loop.
  *
- * The LLM sees all meeting tools + web search tools and autonomously decides:
+ * The LLM sees all meeting tools + connected MCP tools + web search tools and
+ * autonomously decides:
  * - Whether to call tools or respond directly
  * - Which tools to call and in what order
  * - When to stop calling tools and generate a response
@@ -59,9 +61,20 @@ export async function orchestrate(
 
   let tools = webSearchTools;
 
-  if (hasTools) {
+  // Built-in tools + connected MCP tools the user left on (composer Tools
+  // picker), through one bridge. All switched off → no tools at all (an
+  // empty tool set is rejected by some providers).
+  const prefs = settings.chatTools ?? DEFAULT_CHAT_TOOLS;
+  const definitions = hasTools
+    ? [
+        ...(prefs.meetingTools ? toolRegistry.getTools() : []),
+        ...(await loadMcpTools(new Set(toolRegistry.getToolNames()), new Set(prefs.disabledMcpTools))),
+      ]
+    : [];
+
+  if (definitions.length > 0) {
     const meetingTools = toExecutableTools(
-      toolRegistry,
+      definitions,
       { historyItems, signal },
       {
         onToolActivity,

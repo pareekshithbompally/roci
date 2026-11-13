@@ -18,6 +18,16 @@ export const UI_CONFIG = {
     maxContentWidthPx: '1800px', // Maximum pixel width cap
   },
 
+  // Command popovers (composer pickers) and their hover flyouts
+  picker: {
+    /** Gap between trigger and popover */
+    sideOffset: 8,
+    /** Gap between a hovered row and its flyout */
+    flyoutOffset: 6,
+    /** Popovers stay this far inside the window edges */
+    collisionPadding: 12,
+  },
+
   // Canvas dimensions
   canvas: {
     audioVisualizer: {

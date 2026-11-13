@@ -8,6 +8,7 @@ mod wake_lock;
 mod notification;
 mod permissions;
 mod hex_stt;
+mod mcp;
 
 /// Open a folder in the OS file manager (Finder on macOS).
 #[tauri::command]
@@ -58,6 +59,9 @@ pub fn run() {
       // Backend-owned menubar: tray icon, menu, visibility, quit path.
       menubar::setup(app.handle());
 
+      // MCP: connect the servers the user left enabled.
+      tauri::async_runtime::spawn(mcp::start_active_servers(app.handle().clone()));
+
       // Login-item / autostart launches pass --minimized: start hidden.
       // (Hex: LaunchWindow::OpenUnlessLoginItem stays quiet at login.)
       if std::env::args().any(|arg| arg == "--minimized")
@@ -88,6 +92,7 @@ pub fn run() {
       registered: Mutex::new(Vec::new()),
     })
     .manage(wake_lock::WakeLockState::new())
+    .manage(mcp::McpState::default())
     .invoke_handler(tauri::generate_handler![
       // Shortcut commands
       shortcuts::register_shortcut,
@@ -125,6 +130,17 @@ pub fn run() {
       // Hex transcription (running Hex app's local API)
       hex_stt::commands::hex_status,
       hex_stt::commands::hex_transcribe,
+      // MCP client (servers, tools, calls)
+      mcp::commands::get_mcp_configs,
+      mcp::commands::save_mcp_configs,
+      mcp::commands::activate_mcp_server,
+      mcp::commands::deactivate_mcp_server,
+      mcp::commands::restart_mcp_servers,
+      mcp::commands::get_connected_mcp_servers,
+      mcp::commands::get_mcp_server_info,
+      mcp::commands::get_mcp_tools,
+      mcp::commands::call_mcp_tool,
+      mcp::commands::cancel_mcp_tool_call,
       // Screenshot commands
       screenshot::list_capturable_windows,
       screenshot::take_screenshot,
@@ -153,7 +169,10 @@ pub fn run() {
         window::show_main(app_handle);
         let _ = app_handle.emit(window::QUIT_REQUESTED_EVENT, ());
       }
-      tauri::RunEvent::Exit => audio::commands::abandon_active(),
+      tauri::RunEvent::Exit => {
+        audio::commands::abandon_active();
+        mcp::kill_all_children(app_handle);
+      }
       _ => {}
     });
 }

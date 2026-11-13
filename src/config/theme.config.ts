@@ -380,6 +380,44 @@ export const COMPONENT = {
 
   /** Status dot — service not running */
   statusDotStopped: 'shrink-0 w-1.5 h-1.5 rounded-full bg-paper-400 dark:bg-night-500',
+
+  /** Checkbox box (shared/ui Checkbox); pair with checkboxOn / checkboxOff */
+  checkbox: 'inline-flex items-center justify-center shrink-0 w-4 h-4 rounded border transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed',
+  checkboxOn: 'bg-paper-900 border-paper-900 text-white dark:bg-night-100 dark:border-night-100 dark:text-night-900',
+  checkboxOff: 'border-paper-400 dark:border-night-600 bg-transparent',
+
+  /** Composer picker trigger (model, tools): borderless pill; add state colors at the call site */
+  composerPickerTrigger: 'flex items-center gap-1.5 px-2 py-1 rounded-lg transition-all',
+
+  /** Command popover shell: fixed width, never taller than the space Radix measured */
+  commandPopover: 'w-80 p-0 flex flex-col max-h-[var(--radix-popover-content-available-height)]',
+  /** Its hover flyout (second-level list beside a row). Closes without the
+   *  exit animation so moving between rows swaps flyouts instead of overlapping two. */
+  commandFlyout: 'w-64 p-0 flex flex-col max-h-[var(--radix-popover-content-available-height)] data-[state=closed]:animate-none',
+  /** Scrolling list inside either; shrinks with the shell */
+  commandPopoverList: 'max-h-80 min-h-0 flex-1',
+
+  /** Picker row trailing columns — fixed widths so every row's controls line up */
+  pickerCheckSlot: 'w-4 shrink-0 flex items-center justify-center',
+  pickerChevronSlot: 'w-3.5 shrink-0 flex items-center justify-center',
+
+  /** Server/tool-source icon box (MCP server icon or fallback glyph) */
+  serverIcon: 'shrink-0 rounded-sm object-contain',
+
+  /** Count on a composer picker trigger (e.g. enabled tools) */
+  countPill: 'inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full text-[10px] font-semibold leading-none',
+
+  /** Narrow numeric field at the right of a settings CardRow */
+  settingsNumberInput: 'w-28',
+
+  /** Wide, height-capped dialog whose body scrolls (forms, JSON editors) */
+  dialogScrollable: 'max-w-xl max-h-[85vh] flex flex-col',
+
+  /** Height-capped monospace preview of tool-call arguments */
+  argsPreview: `px-3 py-2 text-xs font-mono whitespace-pre-wrap break-all max-h-32 overflow-y-auto ${RADIUS.md}`,
+
+  /** Monospace JSON editor textarea */
+  jsonEditor: 'font-mono text-xs min-h-[18rem] resize-y',
 } as const;
 
 // ─── AUDIO PLAYER TOKENS ──────────────────────────────────────

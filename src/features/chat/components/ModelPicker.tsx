@@ -16,18 +16,8 @@ import { modalitiesService } from '@services/modalities';
 import { ModalityIcons } from '@features/settings/components/ModalityIcons';
 import { MANAGED_SDK_PROVIDERS } from '@config/providers.config';
 import type { ModelInfo } from '@services/modalities';
-import { SURFACE, TEXT } from '@config/theme.config';
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-  Command,
-  CommandInput,
-  CommandList,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-} from '@shared/ui';
+import { COMPONENT, SURFACE, TEXT } from '@config/theme.config';
+import { CommandPopover, CommandGroup, CommandItem } from '@shared/ui';
 
 interface ModelPickerProps {
   /** Compact mode for inline display */
@@ -131,11 +121,15 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
   const hasModels = allModels.length > 0;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <CommandPopover
+      open={open}
+      onOpenChange={setOpen}
+      searchPlaceholder="Search models..."
+      emptyText="No models found"
+      trigger={
         <button
           disabled={!hasModels}
-          className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-all ${
+          className={`${COMPONENT.composerPickerTrigger} ${
             hasModels
               ? `${SURFACE.hoverSubtle} ${TEXT.secondary}`
               : `${TEXT.faint} cursor-not-allowed`
@@ -161,59 +155,46 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
           )}
           <ChevronDown className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
-      </PopoverTrigger>
+      }
+    >
+      {Object.values(modelsByProvider).map(group => (
+        <CommandGroup
+          key={group.provider}
+          heading={
+            <div className="flex items-center gap-2">
+              <ProvidersAvatar provider={group.provider} size={14} />
+              <span>{getProviderTitle(group.provider)}</span>
+            </div>
+          }
+        >
+          {group.models.map(model => {
+            const isSelected = settings.chatModel === model.id;
+            const info: ModelInfo | null = modalitiesReady
+              ? modalitiesService.getModelInfo(model.provider, model.id)
+              : null;
 
-      <PopoverContent
-        side="top"
-        sideOffset={8}
-        align="start"
-        className="w-80 p-0"
-      >
-        <Command>
-          <CommandInput placeholder="Search models..." />
-          <CommandList className="max-h-80">
-            <CommandEmpty>No models found</CommandEmpty>
-            {Object.values(modelsByProvider).map(group => (
-              <CommandGroup
-                key={group.provider}
-                heading={
-                  <div className="flex items-center gap-2">
-                    <ProvidersAvatar provider={group.provider} size={14} />
-                    <span>{getProviderTitle(group.provider)}</span>
-                  </div>
+            return (
+              <CommandItem
+                key={`${group.provider}-${model.id}`}
+                value={`${model.name} ${getProviderTitle(model.provider)}`}
+                onSelect={() => handleSelectModel(model.id)}
+                className={isSelected
+                  ? 'ring-1 ring-violet-500 dark:ring-violet-400 bg-violet-50 dark:bg-violet-500/10'
+                  : ''
                 }
               >
-                {group.models.map(model => {
-                  const isSelected = settings.chatModel === model.id;
-                  const info: ModelInfo | null = modalitiesReady
-                    ? modalitiesService.getModelInfo(model.provider, model.id)
-                    : null;
-
-                  return (
-                    <CommandItem
-                      key={`${group.provider}-${model.id}`}
-                      value={`${model.name} ${getProviderTitle(model.provider)}`}
-                      onSelect={() => handleSelectModel(model.id)}
-                      className={isSelected
-                        ? 'ring-1 ring-violet-500 dark:ring-violet-400 bg-violet-50 dark:bg-violet-500/10'
-                        : ''
-                      }
-                    >
-                      <span className={`flex-1 truncate ${isSelected ? 'font-medium text-violet-700 dark:text-violet-300' : ''}`}>
-                        {model.name}
-                      </span>
-                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                        <ModalityIcons modelInfo={info} variant="compact" />
-                      </div>
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-            ))}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+                <span className={`flex-1 truncate ${isSelected ? 'font-medium text-violet-700 dark:text-violet-300' : ''}`}>
+                  {model.name}
+                </span>
+                <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                  <ModalityIcons modelInfo={info} variant="compact" />
+                </div>
+              </CommandItem>
+            );
+          })}
+        </CommandGroup>
+      ))}
+    </CommandPopover>
   );
 };
 

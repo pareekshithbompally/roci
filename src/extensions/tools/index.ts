@@ -29,5 +29,7 @@ toolRegistry.register(listChatsTool);
 
 export const toolExecutor = new ToolExecutor(toolRegistry);
 
+export { loadMcpTools } from './mcp-tools';
+
 // Re-export types for convenience
 export type { ToolDefinition, ToolContext, ToolCall, ToolResult, ToolSchema } from './types';

@@ -46,6 +46,8 @@ export interface OrchestratorCallbacks {
 export interface ToolActivity {
   /** Which tool is currently executing */
   toolName: string;
+  /** MCP server that owns the tool; absent for built-ins */
+  source?: string;
   /** Friendly label for the UI (e.g. "Searching meetings…") */
   label: string;
   /** 'calling' while executing, 'done' after result received */

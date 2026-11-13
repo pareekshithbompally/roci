@@ -15,6 +15,7 @@ import {
   KeyRound,
   Workflow,
   Blocks,
+  Server,
   BarChart3,
   SlidersHorizontal,
   type LucideIcon,
@@ -36,6 +37,7 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   { id: 'providers', label: 'Providers', icon: KeyRound },
   { id: 'categories', label: 'Workflow', icon: Workflow },
   { id: 'integrations', label: 'Integrations', icon: Blocks, tauriOnly: true },
+  { id: 'mcp', label: 'MCP Servers', icon: Server, tauriOnly: true },
   { id: 'usage', label: 'Usage', icon: BarChart3 },
   { id: 'interface', label: 'System', icon: SlidersHorizontal },
 ];

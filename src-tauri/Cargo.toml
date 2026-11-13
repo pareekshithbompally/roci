@@ -51,6 +51,15 @@ objc2-foundation = "0.3.2"
 rubato = "5.0.1"
 screencapturekit = { version = "=11.0.0", features = ["macos_15_0"] }
 tracing = { version = "0.1.44", features = ["log"] }
+# MCP client (ported from Jan, Apache-2.0): stdio child-process + Streamable HTTP transports.
+rmcp = { version = "3.10.0", features = [
+    "client",
+    "transport-child-process",
+    "transport-streamable-http-client-reqwest",
+    "reqwest-native-tls",
+] }
+tokio = { version = "1", features = ["process", "io-util", "time", "sync", "macros", "rt"] }
+reqwest = { version = "0.13", default-features = false, features = ["native-tls"] }
 
 [profile.release]
 panic = "abort"

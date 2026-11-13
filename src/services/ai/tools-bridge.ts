@@ -1,7 +1,7 @@
 /**
  * Tool Bridge — Schema & Executable Conversion
  *
- * Converts ToolRegistry tools into AI SDK ToolSet format.
+ * Converts tool definitions (registry + MCP) into AI SDK ToolSet format.
  * - toExecutableTools(): Full tools with execute wrappers, activity tracking, citations.
  *
  * IMPORTANT (AI SDK 5.0+):
@@ -11,8 +11,7 @@
 
 import { tool, jsonSchema } from 'ai';
 import type { ToolSet } from 'ai';
-import type { ToolRegistry } from '@extensions/tools/registry';
-import type { ToolContext, ToolResult, MeetingCitation } from '@extensions/tools/types';
+import type { ToolContext, ToolDefinition, ToolResult, MeetingCitation } from '@extensions/tools/types';
 import type { ToolActivity } from '@extensions/tool-orchestrator/types';
 import { MAX_TOOL_RESULT_CHARS, TOOL_TIMEOUT_MS } from '@extensions/tools/constants';
 
@@ -41,105 +40,105 @@ export interface ExecutableToolsCallbacks {
   onCitations: (citations: MeetingCitation[]) => void;
 }
 
+// ── Limits ──
+
+/** Race `work` against the tool's timeout (`null` = the tool bounds itself). */
+function withTimeout<T>(work: Promise<T>, toolName: string, timeoutMs: number | null): Promise<T> {
+  if (timeoutMs === null) return work;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`Tool "${toolName}" timed out after ${timeoutMs / 1000}s`)),
+      timeoutMs,
+    );
+  });
+  return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
+}
+
+function truncate(result: ToolResult, maxChars: number | null): ToolResult {
+  if (maxChars === null || result.content.length <= maxChars) return result;
+  return {
+    ...result,
+    content: result.content.slice(0, maxChars)
+      + '\n\n[Result truncated. Ask for specific sections if you need more detail.]',
+  };
+}
+
+async function runTool(
+  definition: ToolDefinition,
+  args: Record<string, unknown>,
+  context: ToolContext,
+  callId: string,
+): Promise<ToolResult> {
+  const start = performance.now();
+  try {
+    const timeoutMs = definition.timeoutMs === undefined ? TOOL_TIMEOUT_MS : definition.timeoutMs;
+    const maxChars = definition.maxResultChars === undefined ? MAX_TOOL_RESULT_CHARS : definition.maxResultChars;
+    const raw = await withTimeout(definition.execute(args, context), definition.name, timeoutMs);
+    const result = truncate(raw, maxChars);
+    return {
+      ...result,
+      toolCallId: callId,
+      meta: { ...result.meta, toolName: definition.name, executionMs: performance.now() - start },
+    };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[ToolBridge] ${definition.name} failed:`, error);
+    return {
+      toolCallId: callId,
+      content: `Error executing ${definition.name}: ${message}`,
+      isError: true,
+      meta: { toolName: definition.name, executionMs: performance.now() - start },
+    };
+  }
+}
+
 // ── Executable Tools ──
 
 /**
- * Build AI SDK tools with working execute functions from the ToolRegistry.
+ * Build AI SDK tools with working execute functions from tool definitions
+ * (the built-in registry plus any connected MCP tools).
  *
  * Each tool's execute wrapper handles:
  * - UI activity tracking (calling/done) via onToolActivity
- * - Timeout enforcement (TOOL_TIMEOUT_MS)
- * - Result truncation (MAX_TOOL_RESULT_CHARS)
+ * - Timeout enforcement and result truncation (per-definition limits)
  * - Citation extraction and forwarding
  * - Error handling (never throws, returns error string)
  *
  * The returned ToolSet can be spread with web search tools and passed to streamText.
  */
 export function toExecutableTools(
-  registry: ToolRegistry,
+  definitions: ToolDefinition[],
   context: ToolContext,
   callbacks: ExecutableToolsCallbacks,
 ): ToolSet {
   const tools: ToolSet = {};
   let callCounter = 0;
 
-  for (const schema of registry.getSchemas()) {
-    const definition = registry.getTool(schema.name);
+  for (const definition of definitions) {
+    const { name } = definition;
 
-    tools[schema.name] = tool({
-      description: schema.description,
-      inputSchema: jsonSchema(schema.parameters as Parameters<typeof jsonSchema>[0]),
+    tools[name] = tool({
+      description: definition.description,
+      inputSchema: jsonSchema(definition.parameters as Parameters<typeof jsonSchema>[0]),
 
       execute: async (args: Record<string, unknown>) => {
-        const callId = `agentic-${schema.name}-${++callCounter}`;
-        const start = performance.now();
+        const callId = `agentic-${name}-${++callCounter}`;
+        const toolCall = { id: callId, name, arguments: args };
 
-        const toolCall = { id: callId, name: schema.name, arguments: args };
+        const { source } = definition;
+        callbacks.onToolActivity({ toolName: name, source, label: labelFor(name), status: 'calling', toolCall });
 
-        // Signal: tool execution starting
-        callbacks.onToolActivity({
-          toolName: schema.name,
-          label: labelFor(schema.name),
-          status: 'calling',
-          toolCall,
-        });
+        const result = await runTool(definition, args, context, callId);
 
-        let result: ToolResult;
-
-        try {
-          // Execute with timeout race
-          const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(
-              () => reject(new Error(`Tool "${schema.name}" timed out after ${TOOL_TIMEOUT_MS / 1000}s`)),
-              TOOL_TIMEOUT_MS,
-            );
-          });
-
-          result = await Promise.race([definition.execute(args, context), timeoutPromise]);
-
-          // Truncate oversized results
-          if (result.content.length > MAX_TOOL_RESULT_CHARS) {
-            result = {
-              ...result,
-              content: result.content.slice(0, MAX_TOOL_RESULT_CHARS)
-                + '\n\n[Result truncated. Ask for specific sections if you need more detail.]',
-            };
-          }
-
-          // Patch timing and tool call ID
-          result = {
-            ...result,
-            toolCallId: callId,
-            meta: { ...result.meta, toolName: schema.name, executionMs: performance.now() - start },
-          };
-        } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : String(error);
-          console.error(`[ToolBridge] ${schema.name} failed:`, error);
-
-          result = {
-            toolCallId: callId,
-            content: `Error executing ${schema.name}: ${message}`,
-            isError: true,
-            meta: { toolName: schema.name, executionMs: performance.now() - start },
-          };
-        }
-
-        // Extract citations before returning
         const citations = result.meta?.citations;
         if (citations?.length) {
           callbacks.onCitations(citations);
         }
 
-        // Signal: tool execution complete
-        callbacks.onToolActivity({
-          toolName: schema.name,
-          label: labelFor(schema.name),
-          status: 'done',
-          toolCall,
-          result,
-        });
+        callbacks.onToolActivity({ toolName: name, source, label: labelFor(name), status: 'done', toolCall, result });
 
-        // Return content string — this is what the SDK feeds back to the LLM
+        // Content string — what the SDK feeds back to the LLM
         return result.content;
       },
     });

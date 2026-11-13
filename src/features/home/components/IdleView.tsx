@@ -17,7 +17,6 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { ChatInput } from '@features/chat';
 import { meetingReferenceService } from '@services/meetingReferenceService';
 import { RadioCard } from '@features/settings/components/shared';
-import { supportsWebSearch } from '@shared/utils/modelResolver';
 import { useSpeechInput } from '@features/chat';
 import { useEngineReady } from '@features/settings/hooks/useEngineReadiness';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
@@ -46,7 +45,6 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   const isGenerating = useChatStore((s) => s.isLoading);
   const pendingAttachments = useChatStore((s) => s.pendingAttachments);
   const selectedMeetingRefs = useChatStore((s) => s.selectedMeetingRefs);
-  const webSearchEnabled = useChatStore((s) => s.webSearchEnabled);
 
   const { items: historyItems } = useHistoryData();
   const { settings, providers } = useSettings();
@@ -54,7 +52,6 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   const sendMessage = useChatStore((s) => s.sendMessage);
   const setInput = useChatStore((s) => s.setInput);
   const newChat = useChatStore((s) => s.newChat);
-  const toggleWebSearch = useChatStore((s) => s.toggleWebSearch);
   const setSelectedMeetingRefs = useChatStore((s) => s.setSelectedMeetingRefs);
   const addAttachment = useChatStore((s) => s.addAttachment);
   const removeAttachment = useChatStore((s) => s.removeAttachment);
@@ -78,17 +75,6 @@ export const IdleView: React.FC<IdleViewProps> = () => {
     }
   }, [speech, setInput]);
 
-  // Check if current model supports web search
-  const showWebSearch = useMemo(() => {
-    for (const provider of providers) {
-      if (!provider.active) continue;
-      const model = provider.models?.find(m => m.id === settings.chatModel);
-      if (model) {
-        return supportsWebSearch(provider.provider);
-      }
-    }
-    return false;
-  }, [settings.chatModel, providers]);
 
   // Check if any provider is configured with models
   const hasConfiguredProviders = useMemo(() => {
@@ -154,9 +140,6 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                 availableMeetings={availableMeetings}
                 selectedMeetings={selectedMeetingRefs}
                 onMeetingSelect={setSelectedMeetingRefs}
-                webSearchEnabled={webSearchEnabled}
-                onWebSearchToggle={toggleWebSearch}
-                showWebSearch={showWebSearch}
                 attachments={pendingAttachments}
                 onAttach={addAttachment}
                 onRemoveAttachment={removeAttachment}

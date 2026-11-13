@@ -10,6 +10,14 @@ export const queryKeys = {
   hexStatus: () => ['hex-status'] as const,
   /** Local OpenAI-compatible servers on this Mac (keyed by the saved local providers it also probes) */
   localServers: (savedTargets: readonly string[]) => ['local-servers', savedTargets] as const,
+  /** MCP: `mcp_config.json` (servers + settings), owned by Rust */
+  mcpConfig: () => ['mcp', 'config'] as const,
+  /** MCP: names of servers with a live connection */
+  mcpConnected: () => ['mcp', 'connected'] as const,
+  /** MCP: tools offered by connected servers */
+  mcpTools: () => ['mcp', 'tools'] as const,
+  /** MCP: connected servers' self-description (title, icon) */
+  mcpServerInfo: () => ['mcp', 'server-info'] as const,
 
   // ── Unified store (single `kasset.db`) ──
   /** Store health / meta */

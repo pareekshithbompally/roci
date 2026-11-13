@@ -37,7 +37,7 @@ const StreamingHeaderLabel = memo(({
       const active = toolParts.find(p => p.status === 'calling') || toolParts[toolParts.length - 1];
       if (active) {
         const status = active.status === 'calling' ? 'calling' as const : 'complete' as const;
-        return <>{toolLabel(active.toolName, status)}</>;
+        return <>{toolLabel(active.toolName, status, active.source)}</>;
       }
     }
   }

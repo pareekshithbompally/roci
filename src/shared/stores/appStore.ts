@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { AppStatus, type ProcessedResult } from '@shared/types';
 
 export type ViewType = 'home' | 'settings' | 'reminders' | 'calendar';
-export type SettingsPanel = 'audio' | 'providers' | 'categories' | 'integrations' | 'usage' | 'interface';
+export type SettingsPanel = 'audio' | 'providers' | 'categories' | 'integrations' | 'mcp' | 'usage' | 'interface';
 export type ResultTab = 'transcript' | 'summary' | 'todo' | 'notes';
 
 /** What the user asked for while a recording was capturing. */

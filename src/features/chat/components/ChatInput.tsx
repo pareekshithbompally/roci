@@ -7,10 +7,11 @@
 
 import React, { KeyboardEvent, useRef, useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUp, Square, Globe, Plus, X, FileText, Music, Film, Image as ImageIcon, Camera, Loader2, Mic } from 'lucide-react';
+import { ArrowUp, Square, Plus, X, FileText, Music, Film, Image as ImageIcon, Camera, Loader2, Mic } from 'lucide-react';
 import { MeetingMentionPopup } from './MeetingMentionPopup';
 import { ContextChips } from './ContextChips';
 import { ModelPicker } from './ModelPicker';
+import { ToolsPicker } from './tools/ToolsPicker';
 import { Button, Popover, PopoverAnchor } from '@shared/ui';
 import {
   DropdownMenu,
@@ -66,12 +67,6 @@ interface ChatInputProps {
   selectedMeetings?: MeetingListItem[];
   /** Callback when meeting selection changes */
   onMeetingSelect?: (meetings: MeetingListItem[]) => void;
-  /** Whether web search is enabled */
-  webSearchEnabled?: boolean;
-  /** Callback when web search toggle changes */
-  onWebSearchToggle?: () => void;
-  /** Whether to show web search toggle (only for Gemini/OpenAI) */
-  showWebSearch?: boolean;
   /** Pending file attachments */
   attachments?: ChatPart[];
   /** Callback to add a file attachment */
@@ -126,9 +121,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   availableMeetings = [],
   selectedMeetings = [],
   onMeetingSelect,
-  webSearchEnabled = false,
-  onWebSearchToggle,
-  showWebSearch = false,
   attachments = [],
   onAttach,
   onRemoveAttachment,
@@ -398,7 +390,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
         {/* Bottom Toolbar with Model Picker and Send Button */}
         <div className="flex items-center justify-between px-3 pb-2">
-          {/* Left: Cancel (recording) OR Attach + Web Search + Model Picker (idle) */}
+          {/* Left: Cancel (recording) OR Attach + Tools + Model Picker (idle) */}
           <div className="flex items-center gap-2">
             {isCapturing ? (
               /* Cancel recording */
@@ -477,17 +469,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   </DropdownMenu>
                 )}
 
-                {/* Web Search Toggle */}
-                {showWebSearch && onWebSearchToggle && (
-                  <Button
-                    variant={webSearchEnabled ? 'accent' : 'ghost'}
-                    size="icon"
-                    onClick={onWebSearchToggle}
-                    title={webSearchEnabled ? 'Web search enabled' : 'Web search disabled'}
-                  >
-                    <Globe className="w-3.5 h-3.5" />
-                  </Button>
-                )}
+                {/* Tools: web search + meeting tools + MCP servers */}
+                <ToolsPicker />
 
                 <ModelPicker compact />
               </>

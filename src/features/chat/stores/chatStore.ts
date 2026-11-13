@@ -726,6 +726,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
                 type: 'tool_call',
                 toolCallId,
                 toolName: activity.toolName,
+                source: activity.source,
                 arguments: activity.toolCall.arguments,
                 status: 'calling',
               });

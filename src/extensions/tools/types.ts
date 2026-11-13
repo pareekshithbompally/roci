@@ -39,6 +39,15 @@ export interface ToolDefinition {
   parameters: JSONSchema;
   /** The actual implementation. Receives validated params + context. */
   execute: (params: Record<string, unknown>, context: ToolContext) => Promise<ToolResult>;
+  /**
+   * Bridge-enforced limits. Omit for the defaults (TOOL_TIMEOUT_MS /
+   * MAX_TOOL_RESULT_CHARS); `null` when the tool enforces its own — MCP tools
+   * are bounded in Rust by the user's settings and may wait on an approval prompt.
+   */
+  timeoutMs?: number | null;
+  maxResultChars?: number | null;
+  /** MCP server name, shown with the call in chat. Absent for built-ins. */
+  source?: string;
 }
 
 // ── Tool Context (passed by orchestrator to tool execute()) ──

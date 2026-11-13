@@ -18,6 +18,7 @@ import { InterfacePanel } from './InterfacePanel';
 import { AudioPanel } from './AudioPanel';
 import { UsagePanel } from './UsagePanel';
 import { IntegrationsPanel } from './IntegrationsPanel';
+import { McpServersPanel } from './mcp';
 import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore';
 
 const PANEL_COMPONENTS: Record<SettingsPanelType, React.FC> = {
@@ -25,6 +26,7 @@ const PANEL_COMPONENTS: Record<SettingsPanelType, React.FC> = {
   providers: ProvidersPanel,
   categories: CategoriesPanel,
   integrations: IntegrationsPanel,
+  mcp: McpServersPanel,
   interface: InterfacePanel,
   usage: UsagePanel,
 };
