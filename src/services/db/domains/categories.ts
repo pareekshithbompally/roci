@@ -2,7 +2,7 @@
  * Categories domain — list/create/rename/delete meeting categories.
  */
 
-import { call, type RustCategoryRow } from '../internal';
+import { call, type RustCategoryRow } from '@services/db/internal';
 
 export const categories = {
   /** List all categories. */

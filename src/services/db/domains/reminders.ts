@@ -2,7 +2,7 @@
  * Reminders domain — schedule, update status, list due, prune stale entries.
  */
 
-import { call, rustReminderDueToEntry, type RustReminderDueItem } from '../internal';
+import { call, rustReminderDueToEntry, type RustReminderDueItem } from '@services/db/internal';
 import type { ReminderEntry } from '@shared/types';
 
 export const reminders = {

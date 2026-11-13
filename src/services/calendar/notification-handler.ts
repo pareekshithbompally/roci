@@ -15,7 +15,7 @@
  * Event-based. No timers. No polling.
  */
 
-import { notificationService } from '../tauri/notification.service';
+import { notificationService } from '@services/tauri/notification.service';
 import { calendarService } from './calendar.service';
 import type { EnrichedCalendarEvent } from './types';
 

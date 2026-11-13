@@ -2,8 +2,8 @@
  * Meetings domain — list/get/upsert/delete meetings and save transcription results.
  */
 
-import { parseStoreError } from '../errors';
-import { call, rustNoteToEntry, rustTodoToEntry, toMeetingIndexEntry } from '../internal';
+import { parseStoreError } from '@services/db/errors';
+import { call, rustNoteToEntry, rustTodoToEntry, toMeetingIndexEntry } from '@services/db/internal';
 import type {
   MeetingIndexEntry,
   TranscriptData,

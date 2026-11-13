@@ -2,7 +2,7 @@
  * Notes domain — list/upsert/delete meeting notes.
  */
 
-import { call, rustNoteToEntry, type RustNoteRow } from '../internal';
+import { call, rustNoteToEntry, type RustNoteRow } from '@services/db/internal';
 import type { NoteEntry } from '@shared/types';
 
 export const notes = {

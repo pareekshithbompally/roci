@@ -65,9 +65,9 @@ export function toSDKMessages(messages: ChatMessage[]): ModelMessage[] {
     .map((msg): ModelMessage => {
       const role = msg.role === 'user' ? 'user' : 'assistant';
 
-      if (msg.role === 'user' && hasMediaParts(msg)) {
+      if (msg.role === 'user' && msg.parts && hasMediaParts(msg)) {
         const content: Array<TextPart | FilePart> = [];
-        for (const part of filterProviderParts(msg.parts!)) {
+        for (const part of filterProviderParts(msg.parts)) {
           const sdkPart = chatPartToSDKPart(part);
           if (sdkPart) content.push(sdkPart as TextPart | FilePart);
         }

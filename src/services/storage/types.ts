@@ -4,6 +4,7 @@
  */
 
 import type { AudioCaptureSource } from '@config/audio.config';
+import type { ModelProvider } from '@shared/types/modelProviders';
 
 /**
  * Base metadata for all stored items
@@ -43,16 +44,16 @@ export interface AppSettings {
   audioQualityPreset?: 'voice' | 'podcast' | 'music' | 'professional';
   
   // New fields for model providers
-  providers?: any[]; // Array of ModelProvider objects
+  providers?: ModelProvider[]; // Array of ModelProvider objects
   selectedProviderName?: string | null;
   
-  [key: string]: any; // Allow arbitrary settings for migration compatibility
+  [key: string]: unknown; // Allow arbitrary settings for migration compatibility
 }
 
 /**
  * Cache entry
  */
-export interface CacheEntry<T = any> {
+export interface CacheEntry<T = unknown> {
   key: string;
   data: T;
   createdAt: string;

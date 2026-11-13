@@ -17,8 +17,8 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import { isTauriEnvironment } from '../tauri/environment.service';
-import { notificationScheduler } from '../notification-scheduler';
+import { isTauriEnvironment } from '@services/tauri/environment.service';
+import { notificationScheduler } from '@services/notification-scheduler';
 import { extractMeetingUrl } from './meeting-url';
 import { CALENDAR_CONFIG } from '@config/calendar.config';
 import type {

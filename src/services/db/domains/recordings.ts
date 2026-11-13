@@ -2,7 +2,7 @@
  * Recordings domain — upsert/list/delete recording rows.
  */
 
-import { call } from '../internal';
+import { call } from '@services/db/internal';
 
 export const recordings = {
   /** Upsert a recording row. */

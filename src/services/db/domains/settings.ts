@@ -2,7 +2,7 @@
  * Settings domain — get all key-value settings, set a single key.
  */
 
-import { call, type RustSettingsEntry } from '../internal';
+import { call, type RustSettingsEntry } from '@services/db/internal';
 
 export const settings = {
   /** Get all settings as key-value pairs. */

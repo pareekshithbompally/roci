@@ -4,6 +4,20 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import type { Options as PluginNotificationOptions } from '@tauri-apps/plugin-notification';
+
+/** Action payload delivered by the notification bridge (plugin + custom events). */
+interface NotificationActionPayload extends PluginNotificationOptions {
+  actionTypeId?: string;
+  actionId?: string;
+  action?: { id?: string };
+  extra?: Record<string, unknown>;
+  notification?: {
+    actionTypeId?: string;
+    actionId?: string;
+    extra?: Record<string, unknown>;
+  };
+}
 import { NotificationType, NOTIFICATION_TEMPLATES } from '@config/notifications.config';
 import { isTauriEnvironment } from './environment.service';
 import type { NotificationOptions } from './types';
@@ -26,10 +40,10 @@ interface ScheduleNotificationOptions {
 
 class NotificationService {
   private isInitialized = false;
-  private sendNotification: any = null;
-  private isPermissionGranted: any = null;
+  private sendNotification: ((options: NotificationOptions) => void | Promise<void>) | null = null;
+  private isPermissionGranted: (() => Promise<boolean>) | null = null;
   private actionHandlers = new Map<string, Set<(actionId: string, extra?: Record<string, unknown>) => void>>();
-  private notificationModule: any = null;
+  private notificationModule: typeof import('@tauri-apps/plugin-notification') | null = null;
   private registeredActionTypes = new Map<string, Array<{ id: string; title: string }>>();
 
   /**
@@ -103,7 +117,7 @@ class NotificationService {
 
         // Route notification action callbacks to registered handler by typeId
         // Listen to both the plugin's onAction (for scheduled/mobile) and our custom event (for actionable desktop)
-        notificationModule.onAction((notification: any) => {
+        notificationModule.onAction((notification: NotificationActionPayload) => {
           const typeId = notification.actionTypeId ?? notification.notification?.actionTypeId;
           const actionId = notification.action?.id ?? notification.actionId;
           const extra = notification.notification?.extra ?? notification.extra;

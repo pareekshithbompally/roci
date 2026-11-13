@@ -1,7 +1,7 @@
 import type { ProvidersService } from './types'
 import type { ModelProvider, ProviderSetting } from '@shared/types/modelProviders'
 import { predefinedProviders, MANAGED_MODELS, MANAGED_DEFAULT_URLS } from '@config/providers.config'
-import { getPlatformFetch } from '../platform-fetch'
+import { getPlatformFetch } from '@services/platform-fetch'
 
 /** Default base URLs for providers that have a known API endpoint */
 const PROVIDER_BASE_URLS: Record<string, string> = {

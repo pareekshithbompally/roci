@@ -3,7 +3,7 @@
  * Exports the appropriate providers service based on environment
  */
 
-import { isTauriEnvironment } from '../tauri';
+import { isTauriEnvironment } from '@services/tauri';
 import { TauriProvidersService } from './tauri';
 import { WebProvidersService } from './web';
 

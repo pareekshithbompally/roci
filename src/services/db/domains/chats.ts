@@ -2,9 +2,9 @@
  * Chats domain — list/get/upsert/rename/delete chat sessions.
  */
 
-import { call, extractDataBlob, rowToMessage } from '../internal';
+import { call, extractDataBlob, rowToMessage } from '@services/db/internal';
 import type { ChatSession, ChatIndexEntry } from '@shared/types';
-import type { PaginatedResult } from '../types';
+import type { PaginatedResult } from '@services/db/types';
 
 export const chats = {
   /** List chat sessions, ordered by last_message_at DESC. */

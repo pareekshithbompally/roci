@@ -9,7 +9,7 @@ import {
   type GlobalTodoEntry,
   type RustTodoListResult,
   type RustTodoRow,
-} from '../internal';
+} from '@services/db/internal';
 import type { TodoEntry } from '@shared/types';
 
 export const todos = {
