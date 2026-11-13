@@ -18,8 +18,11 @@ fn main() {
         let out_dir = env::var("OUT_DIR").unwrap();
         let lib_path = PathBuf::from(&out_dir).join("libcalendar_bridge.a");
 
-        // Compile Swift → static library
-        let status = Command::new("swiftc")
+        // Compile Swift → static library. Routed through `xcrun` so the
+        // selected developer dir (xcode-select) always wins — a stray Swift.org
+        // toolchain earlier on PATH (e.g. swiftly) can't shadow Xcode's.
+        let status = Command::new("xcrun")
+            .arg("swiftc")
             .args([
                 "-emit-library",
                 "-static",
