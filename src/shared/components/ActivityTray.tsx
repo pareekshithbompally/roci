@@ -124,7 +124,7 @@ export const ActivityTray: React.FC = () => {
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
           transition={{ duration: 0.2, ease: 'easeInOut' }}
-          className="overflow-hidden shrink-0 mx-2 mb-1.5 rounded-lg border border-parchment-300/80 dark:border-night-700/60 bg-parchment-100/60 dark:bg-night-800/40 backdrop-blur-sm"
+          className="overflow-hidden shrink-0 mx-2 mb-1.5 rounded-lg border border-paper-300/80 dark:border-night-700/60 bg-paper-100/60 dark:bg-night-800/40 backdrop-blur-sm"
         >
           {/* Header — entire row is clickable to collapse/expand */}
           <button
@@ -134,8 +134,8 @@ export const ActivityTray: React.FC = () => {
             title={collapsed ? 'Expand' : 'Collapse'}
           >
             <span className="relative flex h-1.5 w-1.5 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-parchment-500 dark:bg-night-500 opacity-75" />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-parchment-600 dark:bg-night-400" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-paper-500 dark:bg-night-500 opacity-75" />
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-paper-600 dark:bg-night-400" />
             </span>
             <span
               className="text-xs font-semibold flex-1"

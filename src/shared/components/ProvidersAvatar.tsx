@@ -25,13 +25,13 @@ const ProvidersAvatar = ({ provider, size = 24 }: ProvidersAvatarProps) => {
     />
   ) : (
     <div
-      className="flex rounded-full border border-parchment-400 items-center justify-center bg-parchment-100"
+      className="flex rounded-full border border-paper-400 items-center justify-center bg-paper-100"
       style={{
         width: `${size}px`,
         height: `${size}px`,
       }}
     >
-      <p className="text-xs font-semibold leading-none capitalize text-parchment-700">
+      <p className="text-xs font-semibold leading-none capitalize text-paper-700">
         {title.charAt(0)}
       </p>
     </div>

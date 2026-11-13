@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useAudioPlayerStore } from '@shared/stores/audioPlayerStore';
 import { useSelectedHistoryId } from '@shared/stores/appStore';
 import { formatTime } from '@shared/utils/audio.utils';
+import { COMPONENT } from '@config/theme.config';
 
 const SKIP_SECONDS = 15;
 
@@ -28,7 +29,9 @@ export const AudioPlaybackRow: React.FC = () => {
 
     if (audio.paused) {
       audio.currentTime = currentTime;
-      audio.play().catch(() => {});
+      audio.play().catch((error: unknown) =>
+        console.error('[AudioPlaybackRow] Playback failed:', error)
+      );
     } else {
       audio.pause();
     }
@@ -89,7 +92,9 @@ export const AudioPlaybackRow: React.FC = () => {
     const onLoadedMetadata = () => {
       audio.currentTime = currentTime;
       if (isPlaying) {
-        audio.play().catch(() => {});
+        audio.play().catch((error: unknown) =>
+        console.error('[AudioPlaybackRow] Playback failed:', error)
+      );
       }
     };
 
@@ -196,7 +201,7 @@ export const AudioPlaybackRow: React.FC = () => {
           aria-valuemax={100}
           aria-valuenow={Math.round(progress * 100)}
         >
-          <div className="w-full h-1 rounded-full relative overflow-hidden bg-zinc-300 dark:bg-zinc-700">
+          <div className={`w-full h-1 rounded-full relative overflow-hidden ${COMPONENT.progressTrack}`}>
             <motion.div
               className="absolute inset-y-0 left-0 rounded-full bg-green-500 dark:bg-green-400"
               animate={{ width: `${progress * 100}%` }}

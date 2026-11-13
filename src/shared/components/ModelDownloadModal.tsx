@@ -19,17 +19,8 @@ import { Download } from 'lucide-react';
 import { onConsentNeeded } from '@extensions/rag';
 import { onRAGProgress, preloadModel, resetPipeline } from '@extensions/rag';
 import type { RAGProgressEvent, IndexingProgressEvent, ExtractionProgressEvent } from '@extensions/rag';
-import {
-  AlertDialog,
-  AlertDialogPortal,
-  AlertDialogOverlay,
-  AlertDialogContent,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogAction,
-  AlertDialogCancel,
-} from '@shared/ui';
-import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogOverlay, AlertDialogPortal, AlertDialogTitle, Button } from '@shared/ui';
+import { SURFACE, BORDER, TEXT } from '@config/theme.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { activityStore } from '@shared/stores/activityStore';
 import type { ActivityItem } from '@shared/stores/activityStore';
@@ -360,17 +351,14 @@ export const ModelDownloadModal: React.FC = () => {
           {/* Actions */}
           <div className="flex gap-2.5 justify-end">
             <AlertDialogCancel asChild>
-              <button className={`px-3.5 py-2 text-sm font-medium ${TEXT.primary} border ${BORDER.strong} rounded-lg hover:bg-parchment-200/60 dark:hover:bg-night-700/60 transition-colors`}>
+              <button className={`px-3.5 py-2 text-sm font-medium ${TEXT.primary} border ${BORDER.strong} rounded-lg hover:bg-paper-200/60 dark:hover:bg-night-700/60 transition-colors`}>
                 Not Now
               </button>
             </AlertDialogCancel>
             <AlertDialogAction asChild>
-              <button
-                onClick={handleAccept}
-                className={`px-3.5 py-2 text-sm font-medium ${COMPONENT.accentButton} rounded-lg`}
-              >
+              <Button variant="accent" size="md" onClick={handleAccept}>
                 Download Model
-              </button>
+              </Button>
             </AlertDialogAction>
           </div>
         </AlertDialogContent>

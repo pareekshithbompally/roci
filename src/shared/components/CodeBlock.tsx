@@ -164,7 +164,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, inlin
         {/* Copy Button */}
         <button
           onClick={handleCopy}
-          className={`flex items-center gap-1.5 px-2 py-1 text-xs font-medium ${TEXT.muted} hover:text-parchment-900 dark:hover:text-night-100 ${COMPONENT.menuButtonHover} rounded transition-colors`}
+          className={`flex items-center gap-1.5 px-2 py-1 text-xs font-medium ${TEXT.muted} hover:text-paper-900 dark:hover:text-night-100 ${COMPONENT.menuButtonHover} rounded transition-colors`}
           title="Copy code"
         >
           {copied ? (

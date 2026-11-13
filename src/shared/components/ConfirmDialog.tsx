@@ -6,17 +6,8 @@
  */
 
 import React from 'react';
-import {
-  AlertDialog,
-  AlertDialogPortal,
-  AlertDialogOverlay,
-  AlertDialogContent,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogAction,
-  AlertDialogCancel,
-} from '@shared/ui';
-import { TEXT, COMPONENT, BORDER } from '@config/theme.config';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogOverlay, AlertDialogPortal, AlertDialogTitle, Button } from '@shared/ui';
+import { TEXT, BORDER } from '@config/theme.config';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -49,17 +40,14 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         </AlertDialogDescription>
         <div className="flex gap-2.5 justify-end">
           <AlertDialogCancel asChild>
-            <button className={`px-3.5 py-2 text-sm font-medium ${TEXT.primary} border ${BORDER.strong} rounded-lg hover:bg-parchment-200/60 dark:hover:bg-night-700/60 transition-colors`}>
+            <button className={`px-3.5 py-2 text-sm font-medium ${TEXT.primary} border ${BORDER.strong} rounded-lg hover:bg-paper-200/60 dark:hover:bg-night-700/60 transition-colors`}>
               {cancelLabel}
             </button>
           </AlertDialogCancel>
           <AlertDialogAction asChild>
-            <button
-              onClick={onConfirm}
-              className={`px-3.5 py-2 text-sm font-medium ${COMPONENT.dangerButton} rounded-lg`}
-            >
+            <Button variant="danger" size="md" onClick={onConfirm}>
               {confirmLabel}
-            </button>
+            </Button>
           </AlertDialogAction>
         </div>
       </AlertDialogContent>

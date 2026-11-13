@@ -29,7 +29,7 @@ const HighlightedText: React.FC<HighlightedTextProps> = ({ text, highlight }) =>
         part.toLowerCase() === highlight.toLowerCase() ? (
           <span
             key={i}
-            className="bg-yellow-200 dark:bg-yellow-900 text-parchment-950 dark:text-night-100 font-bold px-0.5 rounded"
+            className="bg-yellow-200 dark:bg-yellow-900 text-paper-950 dark:text-night-100 font-bold px-0.5 rounded"
           >
             {part}
           </span>

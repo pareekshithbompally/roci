@@ -22,7 +22,7 @@ import { useUnifiedSidebar } from '@shared/hooks/useUnifiedSidebar';
 import { useAppActions } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
 import { useChat } from '@shared/contexts/ChatContext';
-import { meetingService } from '@services/meeting.service';
+import { useMeetingDetailLoader } from '@shared/hooks/useMeetingDetailLoader';
 import { COMPONENT } from '@config/theme.config';
 import { formatShortcut } from '@config/shortcuts.config';
 import {
@@ -122,7 +122,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
     }, SPOTLIGHT_DEBOUNCE_MS);
   }, [items]);
 
-  // Reset state on close
+  // Reset state on close; clear any pending debounce on unmount.
   useEffect(() => {
     if (!open) {
       setQuery('');
@@ -134,6 +134,14 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
     }
   }, [open]);
 
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
+  const loadMeetingDetail = useMeetingDetailLoader();
+
   const handleSelectHit = useCallback(
     async (hit: SpotlightHit) => {
       if (hit.source_type === 'meeting') {
@@ -144,42 +152,8 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
           setSelectedHistoryId(hit.source_id);
           chat.setCurrentSessionId(null);
 
-          // Lazy-load full meeting detail from disk (same pattern as Sidebar)
-          if (hi.transcript || hi.summary) {
-            setResult(hi);
-          } else {
-            setResult({ title: hi.title, transcript: '', summary: '', categories: hi.categories });
-            try {
-              const detail = await meetingService.getMeetingDetail(hi.id);
-              if (detail) {
-                setResult({
-                  title: detail.index.title,
-                  transcript: detail.transcript?.text || '',
-                  summary: detail.summary
-                    ? `## Meeting Overview\n${detail.summary.overview}\n\n## Key Discussion Points\n${detail.summary.keyDiscussionPoints.map(p => `- ${p}`).join('\n')}\n\n## Decisions Made\n${detail.summary.decisionsMade.map(d => `- ${d}`).join('\n')}\n\n## Action Items\n${detail.summary.actionItems.map(a => `- ${a.text}${a.owner ? ` - Owner: ${a.owner}` : ''}${a.dueDate ? ` - Due: ${a.dueDate}` : ''}`).join('\n')}\n\n## Next Steps\n${detail.summary.nextSteps.map(s => `- ${s}`).join('\n')}`
-                    : '',
-                  categories: detail.index.categories,
-                  structuredSummary: detail.summary
-                    ? {
-                        overview: detail.summary.overview,
-                        keyDiscussionPoints: detail.summary.keyDiscussionPoints,
-                        decisionsMade: detail.summary.decisionsMade,
-                        actionItems: detail.summary.actionItems.map(a => ({
-                          id: crypto.randomUUID(),
-                          text: a.text,
-                          owner: a.owner,
-                          dueDate: a.dueDate,
-                          completed: false,
-                        })),
-                        nextSteps: detail.summary.nextSteps,
-                      }
-                    : undefined,
-                });
-              }
-            } catch (error) {
-              console.error('[SearchOverlay] Failed to load meeting detail:', error);
-            }
-          }
+          // Generation-guarded lazy load (newest selection wins).
+          await loadMeetingDetail(hi);
 
           setStatus(AppStatus.RESULTS);
         }
@@ -192,7 +166,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
       }
       onOpenChange(false);
     },
-    [items, setCurrentView, setResult, setSelectedHistoryId, setStatus, chat, onOpenChange],
+    [items, setCurrentView, setResult, setSelectedHistoryId, setStatus, chat, onOpenChange, loadMeetingDetail],
   );
 
   const meetingHits = results.filter((h) => h.source_type === 'meeting');

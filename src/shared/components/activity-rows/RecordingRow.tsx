@@ -10,6 +10,7 @@
  */
 
 import React from 'react';
+import { SURFACE, BORDER, TEXT } from '@config/theme.config';
 import type { ActivityItem } from '@shared/stores/activityStore';
 import { ActivityRowLayout } from './ActivityRowLayout';
 
@@ -23,16 +24,15 @@ export const RecordingRow: React.FC<{ item: ActivityItem }> = ({ item }) => {
         isReview
           ? 'bg-blue-400 dark:bg-blue-500'
           : isPaused
-            ? 'bg-amber-500'
-            : 'bg-red-500 animate-pulse'
+            ? 'bg-amber-500 dark:bg-amber-500'
+            : 'bg-red-500 dark:bg-red-500 animate-pulse'
       }`}
     />
   );
 
   const stallBadge = item.error ? (
     <span
-      className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
-      style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}
+      className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${SURFACE.warningCallout} ${TEXT.warningCallout} border ${BORDER.warningCallout}`}
     >
       stall
     </span>
