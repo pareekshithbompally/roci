@@ -15,7 +15,7 @@ import { useToast } from '../../../shared/contexts/ToastContext';
 import type { AudioCaptureSource } from '@config/audio.config';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
-import { isTauriEnvironment, trayService, notificationService } from '@services/tauri';
+import { isTauriEnvironment, menubarService, notificationService } from '@services/tauri';
 import { notificationScheduler } from '@services/notification-scheduler';
 import { coreAudioService, isPermissionRefusal, captureErrorMessage } from '@services/coreAudio.service';
 import { useAppStore } from '@shared/stores/appStore';
@@ -169,10 +169,8 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       timerRefs.current.forEach((timer) => clearInterval(timer));
       audioUrlRefs.current.forEach((url) => URL.revokeObjectURL(url));
 
-      // Revert tray to idle on unmount (safety net)
-      if (isTauriEnvironment() && trayService.isInitialized) {
-        trayService.stopRecordingAppearance().catch(() => {});
-      }
+      // Revert menubar to idle on unmount (safety net)
+      void menubarService.setRecordingState(false, false);
     };
   }, []);
 
@@ -193,8 +191,9 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     };
   }, []);
 
-  // Note: tray menu item enable/disable is handled by
-  // startRecordingAppearance/stopRecordingAppearance calls at each lifecycle point.
+  // Note: menubar icon/menu state is reported via
+  // menubarService.setRecordingState at each lifecycle point; the backend
+  // owns the icon, menu items, and elapsed clock.
 
   // === SESSION-SCOPED ACTIONS ===
 
@@ -310,12 +309,8 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       }, 1000);
       timerRefs.current.set(sessionId, timer);
 
-      // Swap tray to recording appearance (red icon + timer)
-      if (isTauriEnvironment() && trayService.isInitialized) {
-        trayService.startRecordingAppearance().catch(e =>
-          console.error('[RecordingContext] Failed to start tray recording appearance:', e)
-        );
-      }
+      // Report recording start; backend swaps the icon and starts its clock
+      void menubarService.setRecordingState(true, false);
 
       return sessionId;
     } catch (error) {
@@ -323,16 +318,6 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         setPermissionChecklistOpen(true);
       } else {
         showToast(captureErrorMessage(error, 'Failed to start recording'), 'error');
-  // One stop at a time: a second request (e.g. Quit while a Stop is mixing)
-  // shares the running stop's result instead of stopping again.
-  const stopInFlightRef = useRef<ReturnType<typeof coreAudioService.stopCapture> | null>(null);
-  const stopCaptureOnce = useCallback(() => {
-    stopInFlightRef.current ??= coreAudioService.stopCapture().finally(() => {
-      stopInFlightRef.current = null;
-    });
-    return stopInFlightRef.current;
-  }, []);
-
       }
       throw error;
     }
@@ -384,22 +369,13 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       }
 
       setActiveCaptureSessionId(null);
-
-      if (isTauriEnvironment() && trayService.isInitialized) {
-        trayService.stopRecordingAppearance().catch(e =>
-          console.error('[RecordingContext] Failed to stop tray recording appearance:', e)
-        );
-      }
+      void menubarService.setRecordingState(false, false);
     } catch (error) {
       // The backend released the capture even though stopping failed; its
       // tracks are kept and recovered at the next launch.
       cleanupSessionTimer(sessionId);
       setActiveCaptureSessionId(null);
-      if (isTauriEnvironment() && trayService.isInitialized) {
-        trayService.stopRecordingAppearance().catch(e =>
-          console.error('[RecordingContext] Failed to stop tray recording appearance:', e)
-        );
-      }
+      void menubarService.setRecordingState(false, false);
       updateSession(sessionId, { status: 'review', isPaused: false, error: captureErrorMessage(error, 'Failed to stop recording') });
       throw error;
     }
@@ -439,7 +415,6 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       },
     });
   }, [historyContext]);
-    let stopFailed = false;
 
   useRecordingRecovery(Boolean(historyContext?.addToHistory), saveToHistory, showToast);
 
@@ -450,11 +425,11 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     const session = sessions.get(sessionId);
     if (!session) return;
 
-      stopFailed = true;
     // Immediate visual feedback — activity tray switches to "Stopping..." with no buttons
     updateSession(sessionId, { stopping: true });
 
     let blob: Blob | null = null;
+    let stopFailed = false;
 
     try {
       const result = await stopCaptureOnce();
@@ -465,12 +440,11 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         cleanupSessionAudioUrl(sessionId);
       }
     } catch (error) {
+      stopFailed = true;
       console.error('[RecordingContext] stopAndSaveSession stopCapture error:', error);
     } finally {
       setActiveCaptureSessionId(null);
-      if (isTauriEnvironment() && trayService.isInitialized) {
-        trayService.stopRecordingAppearance().catch(() => {});
-      }
+      void menubarService.setRecordingState(false, false);
     }
 
     // Save to history sidebar with blob in hand (no stale React state read)
@@ -524,12 +498,8 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         updateSession(sessionId, { isPaused: true });
       }
 
-      // Freeze tray timer with pause indicator
-      if (isTauriEnvironment() && trayService.isInitialized) {
-        trayService.pauseRecordingAppearance().catch(e =>
-          console.error('[RecordingContext] Failed to pause tray recording appearance:', e)
-        );
-      }
+      // Freeze the backend clock with pause indicator
+      void menubarService.setRecordingState(true, true);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to pause recording';
       updateSession(sessionId, { error: errorMessage });
@@ -610,12 +580,8 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       }, 1000);
       timerRefs.current.set(sessionId, timer);
 
-      // Resume tray timer
-      if (isTauriEnvironment() && trayService.isInitialized) {
-        trayService.resumeRecordingAppearance().catch(e =>
-          console.error('[RecordingContext] Failed to resume tray recording appearance:', e)
-        );
-      }
+      // Resume the backend clock
+      void menubarService.setRecordingState(true, false);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to resume recording';
       updateSession(sessionId, { error: errorMessage });
@@ -637,11 +603,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       if (activeCaptureSessionId === sessionId) {
         setActiveCaptureSessionId(null);
 
-        if (isTauriEnvironment() && trayService.isInitialized) {
-          trayService.stopRecordingAppearance().catch(e =>
-            console.error('[RecordingContext] Failed to stop tray recording appearance on discard:', e)
-          );
-        }
+        void menubarService.setRecordingState(false, false);
       }
 
       cleanupSessionRefs(sessionId);

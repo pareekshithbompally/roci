@@ -1,5 +1,6 @@
 mod shortcuts;
 mod window;
+mod menubar;
 mod autostart;
 mod audio;
 mod screenshot;
@@ -35,7 +36,7 @@ fn reveal_in_file_manager(path: String) -> Result<(), String> {
 }
 
 use std::sync::Mutex;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tauri_plugin_autostart::MacosLauncher;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -50,9 +51,20 @@ pub fn run() {
         )?;
       }
       
-      // Setup window close handler (minimize to tray)
-      window::setup_window_handlers(&app.handle());
-      
+      // Setup window close handler (close hides to tray by preference)
+      window::setup_window_handlers(app.handle());
+
+      // Backend-owned menubar: tray icon, menu, visibility, quit path.
+      menubar::setup(app.handle());
+
+      // Login-item / autostart launches pass --minimized: start hidden.
+      // (Hex: LaunchWindow::OpenUnlessLoginItem stays quiet at login.)
+      if std::env::args().any(|arg| arg == "--minimized")
+        && let Some(window) = app.handle().get_webview_window("main")
+      {
+        let _ = window.hide();
+      }
+
       Ok(())
     })
     .plugin(tauri_plugin_notification::init())
@@ -93,6 +105,13 @@ pub fn run() {
       autostart::enable_autostart,
       autostart::disable_autostart,
       autostart::is_autostart_enabled,
+      // Menubar commands (backend owns tray icon, menu, visibility)
+      menubar::menubar_set_recording_state,
+      menubar::menubar_set_tooltip,
+      menubar::menubar_set_visible,
+      menubar::menubar_set_prefs,
+      menubar::menubar_get_state,
+      menubar::menubar_quit,
       // Audio capture commands (macOS)
       audio::commands::start_audio_capture,
       audio::commands::stop_audio_capture,

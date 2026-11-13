@@ -133,16 +133,19 @@ pub fn setup_window_handlers(app: &AppHandle) {
                     // Save window state before preventing close
                     let _ = app_handle.save_window_state(StateFlags::all());
 
-                    // Prevent default close behavior
-                    api.prevent_close();
-
                     if crate::audio::commands::capture_active() {
+                        api.prevent_close();
                         let _ = app_handle.emit(CLOSE_REQUESTED_EVENT, ());
                         return;
                     }
 
-                    // Hide window instead of closing
-                    let _ = window_clone.hide();
+                    // Close hides to tray when the preference is on
+                    // (Hex: accessory app closes to menu bar); otherwise the
+                    // window really closes and Quit comes from the menubar.
+                    if crate::menubar::close_to_tray(&app_handle) {
+                        api.prevent_close();
+                        let _ = window_clone.hide();
+                    }
                 }
                 WindowEvent::Focused(true) => {
                     let _ = app_handle.emit("window-focused", ());

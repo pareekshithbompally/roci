@@ -153,7 +153,8 @@ class WindowService {
   }
 
   /**
-   * Minimize window
+   * Minimize window to the Dock/taskbar (native minimize — not a tray hide;
+   * close-to-tray hiding is owned by the Rust window close handler).
    */
   async minimize(): Promise<void> {
     if (!isTauriEnvironment()) {
@@ -166,8 +167,7 @@ class WindowService {
     }
 
     try {
-      // Minimize to tray (hide) by default on macOS
-      await this.hide();
+      await currentWindow.minimize();
     } catch (error) {
       console.error('Failed to minimize window:', error);
     }

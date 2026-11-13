@@ -33,7 +33,7 @@ import { isTauriEnvironment } from '@services/tauri';
 import {
   initializeStorage,
 } from '@services/storage';
-import { notificationService, trayService, TrayAction } from '@services/tauri';
+import { notificationService, menubarService, TrayAction } from '@services/tauri';
 import { notificationScheduler } from '@services/notification-scheduler';
 import { windowService } from '@services/window.service';
 import { shortcutsService } from '@services/shortcuts.service';
@@ -42,7 +42,6 @@ import { unifiedAIService } from '@services/unifiedAIService';
 import { initPlatformFetch } from '@services/platform-fetch';
 import { searchIndexingService } from '@services/searchIndexing.service';
 import { reminderService } from '@services/reminder.service';
-import { exit } from '@tauri-apps/plugin-process';
 
 const App: React.FC = () => {
   console.log('[App] Rendering App component');
@@ -188,16 +187,16 @@ const App: React.FC = () => {
       await notificationScheduler.reconcile();
       await windowService.initialize();
       await initializeShortcuts();
-      await initializeTray();
+      await initializeMenubar();
       console.log('Tauri services initialized');
     } catch (error) {
       console.error('Failed to initialize Tauri services:', error);
     }
   };
 
-  const initializeTray = async () => {
+  const initializeMenubar = async () => {
     try {
-      await trayService.initialize(async (action) => {
+      await menubarService.initialize(async (action) => {
         const rec = recordingRef.current;
         switch (action) {
           case TrayAction.SHOW:
@@ -218,15 +217,15 @@ const App: React.FC = () => {
               useAppStore.getState().setRecordingExitPrompt('quit');
               await windowService.show();
             } else {
-              await exit(0);
+              await menubarService.quit();
             }
             break;
         }
       });
 
-      console.log('System tray initialized');
+      console.log('Menubar initialized');
     } catch (error) {
-      console.error('Failed to initialize tray:', error);
+      console.error('Failed to initialize menubar:', error);
     }
   };
 

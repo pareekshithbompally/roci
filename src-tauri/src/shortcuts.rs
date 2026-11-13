@@ -19,14 +19,20 @@ pub async fn register_shortcut(
     // Parse the shortcut string
     let parsed_shortcut = shortcut.parse::<Shortcut>()
         .map_err(|e| format!("Invalid shortcut format: {}", e))?;
-    
+
+    // Idempotent re-registration: the plugin is the source of truth, so an
+    // already-registered shortcut is a no-op instead of stacking duplicates.
+    if app.global_shortcut().is_registered(parsed_shortcut) {
+        return Ok(());
+    }
+
     // Clone variables for closure
     let action_clone = action.clone();
     let app_clone = app.clone();
     
     // Register the shortcut with a callback
     app.global_shortcut()
-        .on_shortcut(parsed_shortcut.clone(), move |_app, _shortcut, _event| {
+        .on_shortcut(parsed_shortcut, move |_app, _shortcut, _event| {
             // Emit an event to the frontend with the action
             if let Err(e) = app_clone.emit("shortcut-triggered", action_clone.clone()) {
                 eprintln!("Failed to emit shortcut event: {}", e);
@@ -34,11 +40,12 @@ pub async fn register_shortcut(
         })
         .map_err(|e| format!("Failed to register shortcut: {}", e))?;
     
-    // Track registered shortcuts
-    if let Some(state) = app.try_state::<ShortcutState>() {
-        if let Ok(mut registered) = state.registered.lock() {
-            registered.push(shortcut.clone());
-        }
+    // Track registered shortcuts (mirror stays duplicate-free)
+    if let Some(state) = app.try_state::<ShortcutState>()
+        && let Ok(mut registered) = state.registered.lock()
+        && !registered.contains(&shortcut)
+    {
+        registered.push(shortcut);
     }
     
     Ok(())
