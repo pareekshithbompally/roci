@@ -6,6 +6,8 @@ export const queryKeys = {
   recordingAudio: (fileName: string) => ['recording-audio', fileName] as const,
   /** macOS permissions a recording needs (checklist rows) */
   permissions: () => ['permissions'] as const,
+  /** Running Hex app: whether it answers and its models (transcription engine) */
+  hexStatus: () => ['hex-status'] as const,
   /** Local OpenAI-compatible servers on this Mac (keyed by the saved local providers it also probes) */
   localServers: (savedTargets: readonly string[]) => ['local-servers', savedTargets] as const,
 

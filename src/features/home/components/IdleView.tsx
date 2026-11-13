@@ -19,7 +19,7 @@ import { meetingReferenceService } from '@services/meetingReferenceService';
 import { RadioCard } from '@features/settings/components/shared';
 import { supportsWebSearch } from '@shared/utils/modelResolver';
 import { useSpeechInput } from '@features/chat/hooks/useSpeechInput';
-import { ENGINES, resolveCred } from '@services/ai/transcription';
+import { useEngineReady } from '@features/settings/hooks/useEngineReadiness';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { SURFACE, TEXT, BORDER, COMPONENT } from '@config/theme.config';
 
@@ -66,11 +66,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
     [historyItems]
   );
 
-  const showSpeechInput = useMemo(() => {
-    const engine = ENGINES[settings.transcriptionModel as keyof typeof ENGINES];
-    if (!engine) return false;
-    try { resolveCred(engine.providerId, providers); return true; } catch { return false; }
-  }, [settings.transcriptionModel, providers]);
+  const showSpeechInput = useEngineReady(settings.transcriptionModel);
 
   const speech = useSpeechInput(settings, providers);
 

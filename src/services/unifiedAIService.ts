@@ -26,6 +26,7 @@ import {
   resolveCred,
   formatTranscript,
   analyzeTranscript,
+  type RunContext,
   type TranscriptResult,
   type TranscriptionEngineId,
 } from './ai/transcription';
@@ -57,20 +58,23 @@ async function fileToSDKContent(file: File): Promise<UserContent> {
   return [filePart];
 }
 
+/** Cancellation and per-part progress for a transcription run. */
+export type TranscribeOptions = Pick<RunContext, 'signal' | 'onProgress'>;
+
 export async function transcribeAudio(
   audioBlob: Blob,
   settings: AppSettings,
   providers: ModelProvider[],
+  options: TranscribeOptions = {},
 ): Promise<TranscriptResult> {
-  assertAudioSize(audioBlob);
   const engineId = (settings.transcriptionModel || 'whisper-1') as TranscriptionEngineId;
   const engine = ENGINES[engineId];
   if (!engine) {
     throw new Error(`Unknown transcription engine "${engineId}".`);
   }
-  const cred = resolveCred(engine.providerId, providers);
-  const audio = new Uint8Array(await audioBlob.arrayBuffer());
-  return engine.run(audio, cred);
+  assertAudioSize(audioBlob);
+  const cred = engine.providerId ? resolveCred(engine.providerId, providers) : null;
+  return engine.run(audioBlob, { ...options, cred, modelId: settings.transcriptionEngineModel });
 }
 
 async function analyzeStage(args: {
@@ -111,10 +115,9 @@ class UnifiedAIService {
     settings: AppSettings,
     providers: ModelProvider[],
     meetingContext?: MeetingContext,
+    options: TranscribeOptions = {},
   ): Promise<{ result: ProcessedResult; usage?: TokenUsage }> {
-    assertAudioSize(audioBlob);
-
-    const t = await transcribeAudio(audioBlob, settings, providers);
+    const t = await transcribeAudio(audioBlob, settings, providers, options);
     const { formatted: transcript, segments } = formatTranscript(t);
 
     const { result: analysis, usage } = await analyzeStage({

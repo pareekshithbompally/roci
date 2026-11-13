@@ -36,6 +36,8 @@ export interface RecordingSession {
   recordedBlob: Blob | null;
   audioUrl: string | null;
   error: string | null;
+  /** Transcription part being sent while processing (engines that split long audio); null otherwise. */
+  processingStep?: { current: number; total: number } | null;
   createdAt: number;
   /** True when audio level events stop arriving (stream may have died) */
   stalled: boolean;

@@ -8,12 +8,13 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 import type { ActivityItem } from '@shared/stores/activityStore';
-import { ActivityRowLayout } from './ActivityRowLayout';
+import { ActivityRowLayout, formatStep } from './ActivityRowLayout';
 
 export const IndexingRow: React.FC<{ item: ActivityItem }> = ({ item }) => {
   // Merge step counter + percent into one compact string
   const detailParts: string[] = [];
-  if (item.step) detailParts.push(`${item.step.current}/${item.step.total}`);
+  const step = formatStep(item.step);
+  if (step) detailParts.push(step);
   if (item.percent !== null) detailParts.push(`${item.percent}%`);
   const mergedDetail = detailParts.join(' · ') || null;
 

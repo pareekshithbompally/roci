@@ -16,16 +16,20 @@ import { useToast } from '@shared/contexts/ToastContext';
 import { logUsage } from '@extensions/usage';
 import { resolveModel } from '@shared/utils/modelResolver';
 import type { HistoryItem, MeetingSummary } from '@shared/types';
+import type { TranscriptionProgress } from '@services/ai/transcription';
 
 interface UseTranscribeRecordingReturn {
   transcribe: (item: HistoryItem) => Promise<void>;
   isTranscribing: boolean;
   transcribingItemId: string | null;
+  /** Part being sent for engines that split long audio (Hex); null otherwise. */
+  progress: TranscriptionProgress | null;
 }
 
 export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcribingItemId, setTranscribingItemId] = useState<string | null>(null);
+  const [progress, setProgress] = useState<TranscriptionProgress | null>(null);
   const { categories, updateItem } = useHistoryData();
   const { settings, providers } = useSettings();
   const { setResult, setSelectedHistoryId, setStatus } = useAppActions();
@@ -67,7 +71,8 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
         categories,
         settings,
         providers,
-        meetingContext
+        meetingContext,
+        { onProgress: setProgress },
       );
 
       // Log transcription usage (fire-and-forget)
@@ -135,10 +140,11 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
     } finally {
       setIsTranscribing(false);
       setTranscribingItemId(null);
+      setProgress(null);
     }
   }, [categories, settings, providers, updateItem, setResult, setSelectedHistoryId, setStatus, showToast]);
 
-  return { transcribe, isTranscribing, transcribingItemId };
+  return { transcribe, isTranscribing, transcribingItemId, progress };
 };
 
 export default useTranscribeRecording;

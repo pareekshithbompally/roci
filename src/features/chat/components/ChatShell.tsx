@@ -27,7 +27,7 @@ import { meetingReferenceService } from '@services/meetingReferenceService';
 import { meetingService } from '@services/meeting.service';
 import { supportsWebSearch } from '@shared/utils/modelResolver';
 import { useSpeechInput } from '../hooks/useSpeechInput';
-import { ENGINES, resolveCred } from '@services/ai/transcription';
+import { useEngineReady } from '@features/settings/hooks/useEngineReadiness';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { COMPONENT, TEXT } from '@config/theme.config';
 import type { MeetingCitation, WebCitation } from '@shared/types';
@@ -179,16 +179,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
     return false;
   }, [settings.chatModel, providers]);
 
-  const showSpeechInput = useMemo(() => {
-    const engine = ENGINES[settings.transcriptionModel as keyof typeof ENGINES];
-    if (!engine) return false;
-    try {
-      resolveCred(engine.providerId, providers);
-      return true;
-    } catch {
-      return false;
-    }
-  }, [settings.transcriptionModel, providers]);
+  const showSpeechInput = useEngineReady(settings.transcriptionModel);
 
   const speech = useSpeechInput(settings, providers);
 

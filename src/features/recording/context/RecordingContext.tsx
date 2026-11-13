@@ -659,7 +659,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       abortControllerRefs.current.set(sessionId, abortController);
 
       // Immediately surface processing state so the tray switches to the processing row
-      updateSession(sessionId, { status: 'processing', error: null });
+      updateSession(sessionId, { status: 'processing', error: null, processingStep: null });
 
       // Read calendar metadata from session (stored at recording start)
       const calendarMeta = session.calendarMeta;
@@ -689,7 +689,11 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         categories,
         settings,
         providers,
-        meetingContext
+        meetingContext,
+        {
+          signal: abortController.signal,
+          onProgress: (processingStep) => updateSession(sessionId, { processingStep }),
+        },
       );
 
       const { result: data } = await Promise.race([
@@ -941,10 +945,10 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       } else if (session.status === 'processing') {
         const patch = {
           type: 'processing' as const,
-          label: 'Processing recording...',
+          label: session.processingStep ? 'Transcribing...' : 'Processing recording...',
           status: 'active' as const,
           percent: null,
-          step: null,
+          step: session.processingStep ?? null,
           detail: formatTimeForTray(session.elapsedTime),
           error: null,
           actions: [

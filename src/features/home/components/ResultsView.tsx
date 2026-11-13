@@ -111,7 +111,7 @@ export const ResultsView: React.FC = () => {
   const { setActiveResultTab, resetToIdle, setSelectedHistoryId, setMeetingChatOpen } = useAppActions();
   const recording = useRecordingContext();
   const { items: historyItems } = useHistoryData();
-  const { transcribe, isTranscribing } = useTranscribeRecording();
+  const { transcribe, isTranscribing, progress: transcribeProgress } = useTranscribeRecording();
 
   // Look up recording file name from history item
   const currentHistoryItem = selectedHistoryId
@@ -315,7 +315,7 @@ export const ResultsView: React.FC = () => {
                     <RefreshCw className="w-3.5 h-3.5" />
                   )}
                   {isTranscribing
-                    ? 'Transcribing...'
+                    ? `Transcribing${transcribeProgress ? ` ${transcribeProgress.current}/${transcribeProgress.total}` : ''}...`
                     : currentHistoryItem?.pendingTranscription
                       ? 'Transcribe'
                       : 'Re-transcribe'}

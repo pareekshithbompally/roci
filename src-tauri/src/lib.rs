@@ -7,6 +7,7 @@ mod screenshot;
 mod wake_lock;
 mod notification;
 mod permissions;
+mod hex_stt;
 
 /// Open a folder in the OS file manager (Finder on macOS).
 #[tauri::command]
@@ -121,6 +122,9 @@ pub fn run() {
       permissions::commands::get_permissions,
       permissions::commands::request_permission,
       permissions::commands::open_permission_settings,
+      // Hex transcription (running Hex app's local API)
+      hex_stt::commands::hex_status,
+      hex_stt::commands::hex_transcribe,
       // Screenshot commands
       screenshot::list_capturable_windows,
       screenshot::take_screenshot,
