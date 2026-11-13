@@ -172,8 +172,6 @@ async function loadDiskUsage(basePath: string): Promise<DiskUsageEntry[]> {
       { label: 'Recordings', name: 'recordings' },
       { label: 'Chats', name: 'chats' },
       { label: 'Cache', name: 'cache' },
-      { label: 'Backend', name: 'llamacpp/bin' },
-      { label: 'Models', name: 'llamacpp/models' },
     ];
 
     const sizes: DiskUsageEntry[] = [];

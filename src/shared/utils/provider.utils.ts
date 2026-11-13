@@ -4,8 +4,6 @@ export function getProviderLogo(provider: string) {
   switch (provider) {
     case 'jan':
       return '/images/model-provider/jan.png'
-    case 'llamacpp':
-      return '/images/model-provider/llamacpp.svg'
     case 'anthropic':
       return '/images/model-provider/anthropic.svg'
     case 'huggingface':
@@ -43,8 +41,6 @@ export const getProviderTitle = (provider: string | undefined | null) => {
   switch (provider.toLowerCase()) {
     case 'jan':
       return 'Jan'
-    case 'llamacpp':
-      return 'Llama.cpp'
     case 'openai':
       return 'OpenAI'
     case 'openrouter':

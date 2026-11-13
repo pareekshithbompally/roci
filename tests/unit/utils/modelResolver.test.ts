@@ -76,7 +76,7 @@ describe('supportsWebSearch', () => {
     }
   );
 
-  it.each(['mistral', 'cohere', 'local-server', 'llamacpp', ''])(
+  it.each(['mistral', 'cohere', 'local-server', ''])(
     'returns false for %s',
     (provider) => {
       expect(supportsWebSearch(provider)).toBe(false);
@@ -93,7 +93,6 @@ describe('getProviderDisplayName', () => {
     expect(getProviderDisplayName('gemini')).toBe('Google Gemini');
     expect(getProviderDisplayName('xai')).toBe('xAI (Grok)');
     expect(getProviderDisplayName('local-server')).toBe('Local Server');
-    expect(getProviderDisplayName('llamacpp')).toBe('Llama.cpp');
   });
 
   it('capitalizes first letter for unknown providers', () => {

@@ -13,7 +13,6 @@ import React from 'react';
 import {
   Mic,
   KeyRound,
-  Cpu,
   Workflow,
   Blocks,
   BarChart3,
@@ -36,7 +35,6 @@ export interface SettingsNavItem {
 export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   { id: 'audio', label: 'Audio', icon: Mic },
   { id: 'providers', label: 'Providers', icon: KeyRound },
-  { id: 'local-inference', label: 'Local Inference', icon: Cpu, tauriOnly: true },
   { id: 'categories', label: 'Workflow', icon: Workflow },
   { id: 'integrations', label: 'Integrations', icon: Blocks, tauriOnly: true },
   { id: 'usage', label: 'Usage', icon: BarChart3 },

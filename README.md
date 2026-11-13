@@ -14,7 +14,7 @@ Kasset AI captures, transcribes, and analyzes your meetings — entirely on your
 
 ### 🤖 Multi-Provider AI
 - **12+ AI providers**: OpenAI, Anthropic (Claude), Google Gemini, Mistral, Groq, xAI (Grok), OpenRouter, Azure, Cohere, HuggingFace, and more
-- **Local AI**: llama.cpp for fully offline inference, or connect to Ollama / LM Studio / Jan
+- **Local AI**: use models from a server running on your Mac (Ollama, LM Studio, llama.cpp server, vLLM, Jan)
 - Powered by the **Vercel AI SDK** for unified provider routing
 - Automatic transcription, summarization, and action item extraction
 
@@ -63,7 +63,7 @@ Kasset AI captures, transcribes, and analyzes your meetings — entirely on your
 | **Audio** | ScreenCaptureKit (macOS 15.0+) |
 | **Search** | sqlite-vec (vector), FTS5 (full-text), Knowledge Graph |
 | **Embeddings** | Transformers.js (all-MiniLM-L6-v2, WASM) |
-| **Local LLM** | llama.cpp (via Tauri plugin) |
+| **Local LLM** | Any local OpenAI-compatible server (Ollama, LM Studio, llama.cpp server, vLLM, Jan) |
 | **Calendar** | EventKit (macOS) |
 
 ## 📋 Requirements
@@ -130,7 +130,7 @@ kasset-ai/
 ├── services/             # Business logic (AI routing, storage, repositories)
 ├── extensions/           # RAG, tools, orchestration, context pipeline
 ├── src-tauri/            # Rust backend (audio, window, plugins)
-│   └── plugins/          # vectordb, llamacpp, calendar
+│   └── plugins/          # store, calendar
 └── tests/                # Vitest + React Testing Library
 ```
 

@@ -154,7 +154,6 @@ export function getProviderDisplayName(provider: string): string {
     'huggingface': 'Hugging Face',
     'xai': 'xAI (Grok)',
     'local-server': 'Local Server',
-    'llamacpp': 'Llama.cpp',
     'deepgram': 'Deepgram',
     'elevenlabs': 'ElevenLabs',
   };

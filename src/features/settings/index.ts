@@ -21,8 +21,6 @@ export {
   modalitiesStore,
   useModalities,
   ensureModalitiesLoaded,
-  localInferenceStore,
-  useLocalInference,
   systemInfoStore,
   useSystemInfo,
 } from './stores';

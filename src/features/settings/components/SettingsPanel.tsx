@@ -13,7 +13,6 @@ import { useAppStore } from '@shared/stores/appStore';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { ProvidersPanel } from './ProvidersPanel';
 import { ProvidersPanelErrorBoundary } from './ProvidersPanelErrorBoundary';
-import { LocalInferencePanel } from './LocalInferencePanel';
 import { CategoriesPanel } from './CategoriesPanel';
 import { InterfacePanel } from './InterfacePanel';
 import { AudioPanel } from './AudioPanel';
@@ -24,7 +23,6 @@ import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore
 const PANEL_COMPONENTS: Record<SettingsPanelType, React.FC> = {
   audio: AudioPanel,
   providers: ProvidersPanel,
-  'local-inference': LocalInferencePanel,
   categories: CategoriesPanel,
   integrations: IntegrationsPanel,
   interface: InterfacePanel,

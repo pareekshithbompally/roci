@@ -104,11 +104,6 @@ export const IdleView: React.FC<IdleViewProps> = () => {
     setCurrentView('settings');
   };
 
-  const handleSetupLocal = () => {
-    setActiveSettingsPanel('local-inference');
-    setCurrentView('settings');
-  };
-
   const handleOpenReminders = () => {
     setCurrentView('reminders');
   };
@@ -239,13 +234,13 @@ export const IdleView: React.FC<IdleViewProps> = () => {
 
                 <RadioCard
                   selected={false}
-                  onClick={handleSetupLocal}
+                  onClick={handleSetupProviders}
                   icon={<HardDrive className="w-5 h-5" />}
                 >
                   <div className="space-y-1">
                     <p className={`text-sm font-medium ${TEXT.heading}`}>Local Models</p>
                     <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
-                      Run models privately on your device with llamacpp
+                      Use Ollama, LM Studio, or another server running on this Mac
                     </p>
                   </div>
                 </RadioCard>

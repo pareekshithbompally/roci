@@ -1011,7 +1011,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
 
     // Remove activity items for sessions that no longer exist.
     // Only touch items with recording/processing type and UUID-format IDs
-    // (to avoid removing non-recording items like 'rag-model', 'llamacpp-download').
+    // (to avoid removing non-recording items like 'rag-model').
     const storeItems = activityStore.getSnapshot();
     for (const item of storeItems) {
       if (

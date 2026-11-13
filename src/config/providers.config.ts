@@ -366,48 +366,6 @@ export const predefinedProviders: ModelProvider[] = [
   {
     active: false,
     api_key: '',
-    base_url: '',
-    provider: 'llamacpp',
-    settings: [
-      {
-        key: 'ctx-size',
-        title: 'Context Size',
-        description: 'Maximum context window for the model. Higher values use more memory.',
-        controller_type: 'input',
-        controller_props: {
-          placeholder: '4096',
-          value: 4096,
-          type: 'number',
-        },
-      },
-      {
-        key: 'n-gpu-layers',
-        title: 'GPU Layers',
-        description: 'Number of layers to offload to GPU. Use -1 to offload all layers (recommended for Apple Silicon).',
-        controller_type: 'input',
-        controller_props: {
-          placeholder: '-1',
-          value: -1,
-          type: 'number',
-        },
-      },
-      {
-        key: 'threads',
-        title: 'CPU Threads',
-        description: 'Number of CPU threads to use for inference.',
-        controller_type: 'input',
-        controller_props: {
-          placeholder: '4',
-          value: 4,
-          type: 'number',
-        },
-      },
-    ],
-    models: [],
-  },
-  {
-    active: false,
-    api_key: '',
     base_url: 'http://localhost:1234/v1',
     explore_models_url: '',
     provider: 'local-server',

@@ -87,7 +87,7 @@ export const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
             <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted} leading-relaxed`}>
               When enabled, the model can search your meetings and retrieve context on demand.
               Requires model support for function calling. Most remote models support this.
-              For local models, check if your GGUF was trained with tool-use capability.
+              For local models, check that the model supports tool calling in your local server.
             </p>
           </div>
 
