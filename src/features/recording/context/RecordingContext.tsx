@@ -26,25 +26,16 @@ import { unifiedAIService } from '@services/unifiedAIService';
 import { activityStore } from '../../../shared/stores/activityStore';
 import type { ActivityAction } from '../../../shared/stores/activityStore';
 import { resolveModel } from '@shared/utils/modelResolver';
-import { consumePendingCalendarMeta, type CalendarRecordingMeta } from '@services/calendar/recording-bridge';
+import { consumePendingCalendarMeta } from '@services/calendar/recording-bridge';
+import { RECORDING_EVENTS } from '@config/audio.config';
+import { useRecordingRecovery } from '../hooks/useRecordingRecovery';
 import type {
+  HistoryEntry,
   RecordingContextValue,
   RecordingState,
   RecordingSession,
   RecordingSessionsContextValue,
 } from '../types';
-
-/** A finished recording to register and add to history. */
-interface HistoryEntry {
-  recordingId: string;
-  filename: string;
-  duration: number;
-  size: number;
-  source: AudioCaptureSource;
-  /** When the recording started (ms), for its default title. */
-  recordedAt: number;
-  calendarMeta?: CalendarRecordingMeta | null;
-}
 
 const initialState: RecordingState = {
   status: 'idle',
@@ -191,7 +182,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
 
     let unlisten: UnlistenFn | null = null;
 
-    listen('coreaudio-level', () => {
+    listen(RECORDING_EVENTS.level, () => {
       lastLevelTimestampRef.current = Date.now();
     }).then(fn => {
       unlisten = fn;
@@ -331,11 +322,31 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       if (isPermissionRefusal(error)) {
         setPermissionChecklistOpen(true);
       } else {
-        showToast(captureErrorMessage(error), 'error');
+        showToast(captureErrorMessage(error, 'Failed to start recording'), 'error');
+  // One stop at a time: a second request (e.g. Quit while a Stop is mixing)
+  // shares the running stop's result instead of stopping again.
+  const stopInFlightRef = useRef<ReturnType<typeof coreAudioService.stopCapture> | null>(null);
+  const stopCaptureOnce = useCallback(() => {
+    stopInFlightRef.current ??= coreAudioService.stopCapture().finally(() => {
+      stopInFlightRef.current = null;
+    });
+    return stopInFlightRef.current;
+  }, []);
+
       }
       throw error;
     }
   }, [activeCaptureSessionId, audioSource, settingsContext, updateSession, showToast, setPermissionChecklistOpen]);
+
+  // One stop at a time: a second request (e.g. Quit while a Stop is mixing)
+  // shares the running stop's result instead of stopping again.
+  const stopInFlightRef = useRef<ReturnType<typeof coreAudioService.stopCapture> | null>(null);
+  const stopCaptureOnce = useCallback(() => {
+    stopInFlightRef.current ??= coreAudioService.stopCapture().finally(() => {
+      stopInFlightRef.current = null;
+    });
+    return stopInFlightRef.current;
+  }, []);
 
   // Stop recording
   const stopRecordingSession = useCallback(async (sessionId: string) => {
@@ -343,7 +354,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     if (!session) return;
 
     try {
-      const result = await coreAudioService.stopCapture();
+      const result = await stopCaptureOnce();
       cleanupSessionTimer(sessionId);
 
       if (result) {
@@ -389,10 +400,10 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           console.error('[RecordingContext] Failed to stop tray recording appearance:', e)
         );
       }
-      updateSession(sessionId, { status: 'review', isPaused: false, error: captureErrorMessage(error) });
+      updateSession(sessionId, { status: 'review', isPaused: false, error: captureErrorMessage(error, 'Failed to stop recording') });
       throw error;
     }
-  }, [sessions, cleanupSessionTimer, cleanupSessionAudioUrl, updateSession, showToast]);
+  }, [sessions, stopCaptureOnce, cleanupSessionTimer, cleanupSessionAudioUrl, updateSession, showToast]);
 
   // Register a finished recording and add it to history as pending transcription.
   const saveToHistory = useCallback(async (entry: HistoryEntry) => {
@@ -409,7 +420,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     const calendarMeta = entry.calendarMeta;
     await addToHistory({
       id: entry.recordingId,
-      timestamp: Date.now(),
+      timestamp: entry.recordedAt,
       title: calendarMeta?.scheduledTitle || `Recording ${new Date(entry.recordedAt).toLocaleString()}`,
       transcript: '',
       summary: '',
@@ -428,32 +439,9 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       },
     });
   }, [historyContext]);
+    let stopFailed = false;
 
-  // Recordings a quit or crash left unfinished: the backend mixes them down
-  // at launch and they are added to history like any saved recording.
-  const recoveryStartedRef = useRef(false);
-  useEffect(() => {
-    if (!isTauriEnvironment() || !historyContext?.addToHistory || recoveryStartedRef.current) return;
-    recoveryStartedRef.current = true;
-
-    const recover = async () => {
-      const recovered = await coreAudioService.recoverRecordings(StorageConfig.directories.recordings);
-      for (const recording of recovered) {
-        await saveToHistory({
-          recordingId: getRecordingIdFromFilename(recording.fileName),
-          filename: recording.fileName,
-          duration: recording.durationSecs,
-          size: recording.size,
-          source: recording.source,
-          recordedAt: recording.recordedAtMs,
-        });
-      }
-      if (recovered.length > 0) {
-        showToast(`Recovered ${recovered.length} unfinished recording${recovered.length > 1 ? 's' : ''} — see History`, 'success');
-      }
-    };
-    recover().catch(error => console.error('[RecordingContext] Recording recovery failed:', error));
-  }, [historyContext, saveToHistory, showToast]);
+  useRecordingRecovery(Boolean(historyContext?.addToHistory), saveToHistory, showToast);
 
   // Stop + immediately save to history sidebar.
   // Used by stall stop and 60-min auto-stop — avoids two-step stop→saveLater flow
@@ -462,13 +450,14 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     const session = sessions.get(sessionId);
     if (!session) return;
 
+      stopFailed = true;
     // Immediate visual feedback — activity tray switches to "Stopping..." with no buttons
     updateSession(sessionId, { stopping: true });
 
     let blob: Blob | null = null;
 
     try {
-      const result = await coreAudioService.stopCapture();
+      const result = await stopCaptureOnce();
       cleanupSessionTimer(sessionId);
 
       if (result) {
@@ -502,12 +491,17 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         showToast('Recording stopped but could not be saved', 'warning');
       }
     } else {
-      showToast('Recording stopped — no audio data captured', 'warning');
+      showToast(
+        stopFailed
+          ? 'Recording could not be finished — it will be recovered on next launch'
+          : 'Recording stopped — no audio data captured',
+        'warning',
+      );
     }
 
     cleanupSessionRefs(sessionId);
     removeSession(sessionId);
-  }, [sessions, cleanupSessionTimer, cleanupSessionAudioUrl, cleanupSessionRefs,
+  }, [sessions, stopCaptureOnce, cleanupSessionTimer, cleanupSessionAudioUrl, cleanupSessionRefs,
       removeSession, updateSession, showToast, saveToHistory]);
 
   // Pause recording

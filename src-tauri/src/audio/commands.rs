@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Mutex, MutexGuard, TryLockError};
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
@@ -8,7 +8,8 @@ use super::recorder::{Recorder, Sources};
 use super::recovery::{self, Recovered};
 use crate::permissions::{self, PermissionKind};
 
-/// Capture source, kept in sync with the frontend `AudioCaptureSource` union.
+/// Capture source: the three capture members of the frontend
+/// `AudioCaptureSource` union (its `file-upload` is never captured).
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum AudioCaptureSource {
@@ -78,8 +79,13 @@ fn recorder() -> MutexGuard<'static, Option<Recorder>> {
 }
 
 /// Whether a recording is capturing, for the quit and window-close prompts.
+/// A recorder held by a start or stop in progress counts as capturing.
 pub fn capture_active() -> bool {
-    recorder().is_some()
+    match RECORDER.try_lock() {
+        Ok(active) => active.is_some(),
+        Err(TryLockError::Poisoned(poisoned)) => poisoned.into_inner().is_some(),
+        Err(TryLockError::WouldBlock) => true,
+    }
 }
 
 /// Finishes a running recording's tracks so the next launch recovers it;
@@ -145,16 +151,20 @@ fn start(app: AppHandle, options: AudioCaptureOptions) -> eyre::Result<()> {
 /// recording was running.
 #[tauri::command]
 pub async fn stop_audio_capture() -> Result<Option<String>, CaptureError> {
-    let Some(active) = recorder().take() else {
-        return Ok(None);
-    };
     // Stopping joins the capture threads and writes the mix: blocking work,
-    // kept off the async runtime so other IPC never stalls.
-    let output = tauri::async_runtime::spawn_blocking(move || active.stop())
-        .await
-        .map_err(|error| eyre::eyre!("audio stop task failed: {error}"))??;
-    tracing::info!(output = %output.display(), "audio capture stopped");
-    Ok(Some(output.to_string_lossy().into_owned()))
+    // kept off the async runtime so other IPC never stalls. The recorder stays
+    // held until the mix is written, so nothing (recovery, a quit) sees its
+    // tracks as abandoned mid-stop.
+    let output = tauri::async_runtime::spawn_blocking(|| {
+        let mut active = recorder();
+        active.take().map(Recorder::stop).transpose()
+    })
+    .await
+    .map_err(|error| eyre::eyre!("audio stop task failed: {error}"))??;
+    if let Some(output) = &output {
+        tracing::info!(output = %output.display(), "audio capture stopped");
+    }
+    Ok(output.map(|output| output.to_string_lossy().into_owned()))
 }
 
 #[tauri::command]
@@ -175,6 +185,7 @@ pub async fn resume_audio_capture() {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecoveredRecording {
+    /// The mixed file's name inside the recordings directory.
     pub file_name: String,
     pub source: AudioCaptureSource,
     pub duration_secs: u64,

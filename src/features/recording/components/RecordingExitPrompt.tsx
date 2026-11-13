@@ -10,29 +10,20 @@
 import React, { useEffect } from 'react';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { exit } from '@tauri-apps/plugin-process';
-import {
-  AlertDialog,
-  AlertDialogPortal,
-  AlertDialogOverlay,
-  AlertDialogContent,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogAction,
-  AlertDialogCancel,
-} from '@shared/ui';
-import { useAppStore, useRecordingExitPrompt, type RecordingExitPrompt as Prompt } from '@shared/stores/appStore';
+import { ConfirmDialog } from '@shared/components/ConfirmDialog';
+import { useAppStore, useRecordingExitPrompt, type ExitPromptKind } from '@shared/stores/appStore';
 import { isTauriEnvironment } from '@services/tauri';
 import { windowService } from '@services/window.service';
+import { RECORDING_EVENTS } from '@config/audio.config';
 import { useRecordingSessions } from '@features/recording/context';
-import { TEXT, COMPONENT, BORDER } from '@config/theme.config';
 
-/** Backend events that ask, matching `window.rs`. */
-const PROMPT_EVENTS: Record<string, Prompt> = {
-  'quit-requested': 'quit',
-  'close-requested': 'close',
-};
+/** The backend events that ask, and which prompt each opens. */
+const PROMPT_EVENTS: Array<[string, ExitPromptKind]> = [
+  [RECORDING_EVENTS.quitRequested, 'quit'],
+  [RECORDING_EVENTS.closeRequested, 'close'],
+];
 
-const STOP_LABEL: Record<Prompt, string> = {
+const STOP_LABEL: Record<ExitPromptKind, string> = {
   quit: 'Stop and Quit',
   close: 'Stop Recording',
 };
@@ -44,15 +35,13 @@ export const RecordingExitPrompt: React.FC = () => {
 
   useEffect(() => {
     if (!isTauriEnvironment()) return;
-    const unlisteners = Object.entries(PROMPT_EVENTS).map(([event, value]) =>
-      listen(event, () => setPrompt(value)),
-    );
+    const unlisteners = PROMPT_EVENTS.map(([event, kind]) => listen(event, () => setPrompt(kind)));
     return () => {
       unlisteners.forEach((pending) => pending.then((unlisten: UnlistenFn) => unlisten()));
     };
   }, [setPrompt]);
 
-  const stop = async (requested: Prompt) => {
+  const stop = async (requested: ExitPromptKind) => {
     setPrompt(null);
     if (activeCaptureSessionId) {
       await stopAndSaveRecording(activeCaptureSessionId);
@@ -72,34 +61,14 @@ export const RecordingExitPrompt: React.FC = () => {
   };
 
   return (
-    <AlertDialog open={prompt !== null} onOpenChange={(open) => { if (!open) setPrompt(null); }}>
-      <AlertDialogPortal>
-        <AlertDialogOverlay />
-        <AlertDialogContent className="max-w-sm p-5">
-          <AlertDialogTitle className="text-base font-semibold mb-1.5">
-            Recording in progress
-          </AlertDialogTitle>
-          <AlertDialogDescription className={`text-sm ${TEXT.secondary} mb-5`}>
-            Stop the recording and save it to History first?
-          </AlertDialogDescription>
-          <div className="flex gap-2.5 justify-end">
-            <AlertDialogCancel asChild>
-              <button className={`px-3.5 py-2 text-sm font-medium ${TEXT.primary} border ${BORDER.strong} rounded-lg hover:bg-parchment-200/60 dark:hover:bg-night-700/60 transition-colors`}>
-                Cancel
-              </button>
-            </AlertDialogCancel>
-            <AlertDialogAction asChild>
-              <button
-                onClick={onStop}
-                className={`px-3.5 py-2 text-sm font-medium ${COMPONENT.dangerButton} rounded-lg`}
-              >
-                {prompt ? STOP_LABEL[prompt] : ''}
-              </button>
-            </AlertDialogAction>
-          </div>
-        </AlertDialogContent>
-      </AlertDialogPortal>
-    </AlertDialog>
+    <ConfirmDialog
+      open={prompt !== null}
+      onOpenChange={(open) => { if (!open) setPrompt(null); }}
+      title="Recording in progress"
+      description="Stop the recording and save it to History first?"
+      confirmLabel={prompt ? STOP_LABEL[prompt] : ''}
+      onConfirm={onStop}
+    />
   );
 };
 

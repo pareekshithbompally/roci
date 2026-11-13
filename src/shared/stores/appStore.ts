@@ -6,7 +6,7 @@ export type SettingsPanel = 'audio' | 'providers' | 'local-inference' | 'categor
 export type ResultTab = 'transcript' | 'summary' | 'todo' | 'notes';
 
 /** What the user asked for while a recording was capturing. */
-export type RecordingExitPrompt = 'quit' | 'close';
+export type ExitPromptKind = 'quit' | 'close';
 
 interface AppStoreState {
   currentView: ViewType;
@@ -18,7 +18,7 @@ interface AppStoreState {
   meetingChatOpen: boolean;
   permissionChecklistOpen: boolean;
   /** Quit or window close asked while recording: which one, or none. */
-  recordingExitPrompt: RecordingExitPrompt | null;
+  recordingExitPrompt: ExitPromptKind | null;
   isInitialized: boolean;
   error: string | null;
 
@@ -30,7 +30,7 @@ interface AppStoreState {
   setActiveSettingsPanel: (p: SettingsPanel) => void;
   setMeetingChatOpen: (open: boolean) => void;
   setPermissionChecklistOpen: (open: boolean) => void;
-  setRecordingExitPrompt: (prompt: RecordingExitPrompt | null) => void;
+  setRecordingExitPrompt: (prompt: ExitPromptKind | null) => void;
   setInitialized: (v: boolean) => void;
   setError: (e: string | null) => void;
   clearError: () => void;

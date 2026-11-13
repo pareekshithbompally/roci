@@ -34,6 +34,10 @@ pub struct TrackGap {
     pub duration_ms: u64,
 }
 
+/// Written beside the tracks when capture ends, so a recording left behind
+/// by a quit or a failed mix is recovered with its alignment.
+pub(super) const STATS_FILE: &str = "tracks.json";
+
 /// How often the writer rewrites each track's WAV header, so a crash or
 /// force quit leaves tracks readable up to the last refresh.
 const HEADER_REFRESH_INTERVAL: Duration = Duration::from_secs(1);
@@ -207,6 +211,14 @@ pub(super) fn join_audio_writer(
 
 pub(super) fn has_recorded_audio(stats: &CaptureStats) -> bool {
     stats.system.samples > 0 || stats.microphone.samples > 0
+}
+
+/// Removes a recording's tracks once they are no longer needed. A failure
+/// leaves them for recovery rather than failing the recording.
+pub(super) fn remove_tracks(directory: &Path) {
+    if let Err(error) = fs::remove_dir_all(directory) {
+        tracing::warn!(%error, directory = %directory.display(), "could not remove meeting tracks");
+    }
 }
 
 pub(super) fn set_owner_only(path: &Path, directory: bool) -> Result<()> {

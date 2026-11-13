@@ -2,7 +2,7 @@
 //! that mixes the tracks into the recording file.
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, SyncSender};
 use std::sync::{Arc, Mutex};
@@ -16,14 +16,11 @@ use super::capture::{PacketSink, SourceSupervisor};
 use super::level::LevelMeter;
 use super::mixdown::mixdown;
 use super::tracks::{
-    AudioPacket, CaptureStats, MeetingSource, has_recorded_audio, join_audio_writer,
-    set_owner_only, write_tracks,
+    AudioPacket, CaptureStats, MeetingSource, STATS_FILE, has_recorded_audio,
+    join_audio_writer, remove_tracks, set_owner_only, write_tracks,
 };
 
 const PACKET_QUEUE_CAPACITY: usize = 128;
-/// Written beside the tracks when capture ends, so a recording left behind
-/// by a quit or a failed mix is recovered with its alignment.
-pub(super) const STATS_FILE: &str = "tracks.json";
 
 /// Which sources a recording captures.
 #[derive(Clone, Copy)]
@@ -176,13 +173,5 @@ impl Recorder {
         );
         fs::write(self.directory.join(STATS_FILE), serde_json::to_vec(&stats)?)?;
         Ok(stats)
-    }
-}
-
-/// Removes a recording's tracks once they are no longer needed. A failure
-/// leaves them for recovery rather than failing the recording.
-pub(super) fn remove_tracks(directory: &Path) {
-    if let Err(error) = fs::remove_dir_all(directory) {
-        tracing::warn!(%error, directory = %directory.display(), "could not remove meeting tracks");
     }
 }

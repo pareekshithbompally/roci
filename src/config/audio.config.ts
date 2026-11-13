@@ -274,3 +274,16 @@ export function formatAudioQuality(settings: AudioQualitySettings): string {
   const bitrate = settings.bitrate || 'auto';
   return `${rate}kHz • ${bitrate}kbps`;
 }
+
+/**
+ * Backend events of the recording pipeline. Names mirror the Rust constants
+ * (`audio/level.rs` LEVEL_EVENT, `window.rs` *_REQUESTED_EVENT).
+ */
+export const RECORDING_EVENTS = {
+  /** Level-meter frame; the frontend uses it as the capture heartbeat. */
+  level: 'coreaudio-level',
+  /** Cmd+Q while a recording is capturing. */
+  quitRequested: 'quit-requested',
+  /** Window close while a recording is capturing. */
+  closeRequested: 'close-requested',
+} as const;

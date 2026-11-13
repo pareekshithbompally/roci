@@ -12,6 +12,18 @@ export type RecordingStatus = 'idle' | 'recording' | 'paused' | 'stopped' | 'rev
 // Session-based recording types
 export type RecordingSessionStatus = 'recording' | 'paused' | 'review' | 'processing';
 
+/** A finished recording to register and add to history. */
+export interface HistoryEntry {
+  recordingId: string;
+  filename: string;
+  duration: number;
+  size: number;
+  source: AudioCaptureSource;
+  /** When the recording started (ms): its history date and default title. */
+  recordedAt: number;
+  calendarMeta?: CalendarRecordingMeta | null;
+}
+
 export interface RecordingSession {
   sessionId: string;
   status: RecordingSessionStatus;

@@ -11,8 +11,7 @@ use hound::WavReader;
 
 use super::SAMPLE_RATE;
 use super::mixdown::mixdown;
-use super::recorder::{STATS_FILE, remove_tracks};
-use super::tracks::{CaptureStats, TrackManifest, has_recorded_audio};
+use super::tracks::{CaptureStats, STATS_FILE, TrackManifest, has_recorded_audio, remove_tracks};
 
 const TRACK_DIRECTORY_PREFIX: &str = "recording_";
 

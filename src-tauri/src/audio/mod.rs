@@ -2,7 +2,8 @@
 //! their own 16 kHz track on a shared clock, and stop mixes them into one
 //! recording.
 //!
-//! - [`commands`] — the four `#[tauri::command]`s the frontend invokes.
+//! - [`commands`] — the `#[tauri::command]`s the frontend invokes: start,
+//!   stop, pause, resume, and `recover_recordings` at launch.
 
 mod capture;
 pub mod commands;

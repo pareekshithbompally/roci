@@ -16,6 +16,7 @@ export interface AudioCaptureResult {
 
 /** A recording a quit or crash left unfinished, mixed down at launch (Rust `RecoveredRecording`). */
 export interface RecoveredRecording {
+  /** The mixed file's name inside the recordings directory. */
   fileName: string
   source: AudioCaptureSource
   durationSecs: number
@@ -38,9 +39,9 @@ export function isPermissionRefusal(error: unknown): boolean {
 }
 
 /** The text to show for a capture command that failed for any other reason. */
-export function captureErrorMessage(error: unknown): string {
+export function captureErrorMessage(error: unknown, fallback: string): string {
   if (isCaptureError(error) && error.code === 'capture') return error.message
-  return error instanceof Error ? error.message : 'Failed to start recording'
+  return error instanceof Error ? error.message : fallback
 }
 
 class CoreAudioService {
