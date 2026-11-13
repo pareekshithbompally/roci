@@ -6,14 +6,14 @@
  */
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useCurrentView, useAppStatus, useSelectedHistoryId, useAppActions } from '@shared/stores/appStore';
+import { useAppStore, useCurrentView, useAppStatus, useSelectedHistoryId, useAppActions } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHistory } from '@shared/contexts/HistoryContext';
 import { useChat } from '@shared/contexts/ChatContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { useThemeContext } from '@shared/contexts/ThemeContext';
-import { useRecordingContext, PermissionChecklist } from '@features/recording';
+import { useRecordingContext, PermissionChecklist, RecordingExitPrompt } from '@features/recording';
 import { MainLayout } from '@features/layout';
 import { HomeView } from '@features/home';
 import { SettingsPanel } from '@features/settings';
@@ -214,7 +214,12 @@ const App: React.FC = () => {
             }
             break;
           case TrayAction.QUIT:
-            await exit(0);
+            if (rec.status === 'recording' || rec.status === 'paused') {
+              useAppStore.getState().setRecordingExitPrompt('quit');
+              await windowService.show();
+            } else {
+              await exit(0);
+            }
             break;
         }
       });
@@ -382,6 +387,8 @@ const App: React.FC = () => {
 
       {/* Opens when a recording start is refused for a missing macOS permission */}
       <PermissionChecklist />
+      {/* Asks Stop or Cancel when quitting or closing the window mid-recording */}
+      <RecordingExitPrompt />
 
       {/* Delete Confirmation Modal - Meeting */}
       <DeleteConfirmModal

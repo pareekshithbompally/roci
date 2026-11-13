@@ -3,6 +3,7 @@ use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Receiver;
 use std::thread;
+use std::time::{Duration, Instant};
 
 use eyre::{Result, eyre};
 use hound::{SampleFormat, WavSpec, WavWriter};
@@ -32,6 +33,10 @@ pub struct TrackGap {
     pub start_ms: u64,
     pub duration_ms: u64,
 }
+
+/// How often the writer rewrites each track's WAV header, so a crash or
+/// force quit leaves tracks readable up to the last refresh.
+const HEADER_REFRESH_INTERVAL: Duration = Duration::from_secs(1);
 
 /// A source that resumes after at least this much silence is padded back
 /// onto the timeline. Ordinary callback jitter and clock drift stay below it.
@@ -71,7 +76,7 @@ pub(super) struct AudioPacket {
     pub(super) samples: Vec<f32>,
 }
 
-#[derive(Default)]
+#[derive(Default, Deserialize, Serialize)]
 pub(super) struct CaptureStats {
     pub(super) system: TrackManifest,
     pub(super) microphone: TrackManifest,
@@ -92,6 +97,7 @@ pub(super) fn write_tracks(
     let mut stats = CaptureStats::default();
     stats.system.file = "system.wav".into();
     stats.microphone.file = "microphone.wav".into();
+    let mut header_refreshed = Instant::now();
     while let Ok(mut packet) = receiver.recv() {
         let Some(paused_us) = pause.shift_us() else {
             continue;
@@ -154,6 +160,12 @@ pub(super) fn write_tracks(
             writer.write_sample(sample)?;
         }
         on_packet(&packet);
+        if header_refreshed.elapsed() >= HEADER_REFRESH_INTERVAL {
+            for writer in [&mut system, &mut microphone].into_iter().flatten() {
+                writer.flush()?;
+            }
+            header_refreshed = Instant::now();
+        }
     }
     finalize_track(directory.join("system.wav"), system)?;
     finalize_track(directory.join("microphone.wav"), microphone)?;

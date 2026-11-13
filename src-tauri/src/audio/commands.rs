@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
 use super::recorder::{Recorder, Sources};
+use super::recovery::{self, Recovered};
 use crate::permissions::{self, PermissionKind};
 
 /// Capture source, kept in sync with the frontend `AudioCaptureSource` union.
@@ -25,6 +26,15 @@ impl AudioCaptureSource {
             AudioCaptureSource::SystemAndMicrophone => {
                 &[PermissionKind::Microphone, PermissionKind::SystemAudio]
             }
+        }
+    }
+
+    /// The source a recovered recording was captured with, from its tracks.
+    fn recorded(has_system: bool, has_microphone: bool) -> Self {
+        match (has_system, has_microphone) {
+            (true, true) => AudioCaptureSource::SystemAndMicrophone,
+            (true, false) => AudioCaptureSource::System,
+            _ => AudioCaptureSource::Microphone,
         }
     }
 
@@ -67,14 +77,32 @@ fn recorder() -> MutexGuard<'static, Option<Recorder>> {
     RECORDER.lock().unwrap_or_else(|error| error.into_inner())
 }
 
+/// Whether a recording is capturing, for the quit and window-close prompts.
+pub fn capture_active() -> bool {
+    recorder().is_some()
+}
+
+/// Finishes a running recording's tracks so the next launch recovers it;
+/// called as the app exits.
+pub fn abandon_active() {
+    if let Some(active) = recorder().take() {
+        active.abandon();
+    }
+}
+
+fn recordings_path(app: &AppHandle, recordings_dir: Option<String>) -> eyre::Result<PathBuf> {
+    let data_dir = app.path().app_data_dir()?;
+    let recordings_path = data_dir.join(recordings_dir.unwrap_or_else(|| "recordings".into()));
+    std::fs::create_dir_all(&recordings_path)?;
+    Ok(recordings_path)
+}
+
 fn create_output_path(
     app: &AppHandle,
     file_name: Option<String>,
     recordings_dir: Option<String>,
 ) -> eyre::Result<PathBuf> {
-    let data_dir = app.path().app_data_dir()?;
-    let recordings_path = data_dir.join(recordings_dir.unwrap_or_else(|| "recordings".into()));
-    std::fs::create_dir_all(&recordings_path)?;
+    let recordings_path = recordings_path(app, recordings_dir)?;
     let filename = file_name.unwrap_or_else(|| {
         let ts = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -93,11 +121,23 @@ pub async fn start_audio_capture(
     if let Some(kind) = permissions::missing(options.source.needs()) {
         return Err(CaptureError::Permission { kind });
     }
-    stop_audio_capture().await.ok();
+    tauri::async_runtime::spawn_blocking(move || start(app, options))
+        .await
+        .map_err(|error| eyre::eyre!("audio start task failed: {error}"))??;
+    Ok(())
+}
+
+/// Starts a recording, holding the recorder for the whole start so two
+/// starts never interleave. A recording still running (the frontend lost
+/// it, e.g. on reload) is left for recovery, never discarded.
+fn start(app: AppHandle, options: AudioCaptureOptions) -> eyre::Result<()> {
+    let mut active = recorder();
+    if let Some(previous) = active.take() {
+        previous.abandon();
+    }
     let output = create_output_path(&app, options.file_name, options.recordings_dir)?;
     tracing::info!(output = %output.display(), "audio capture starting");
-    let started = Recorder::start(options.source.sources(), output, app)?;
-    *recorder() = Some(started);
+    *active = Some(Recorder::start(options.source.sources(), output, app)?);
     Ok(())
 }
 
@@ -129,4 +169,52 @@ pub async fn resume_audio_capture() {
     if let Some(active) = recorder().as_ref() {
         active.resume();
     }
+}
+
+/// A recording recovered at launch, for the frontend to add to history.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecoveredRecording {
+    pub file_name: String,
+    pub source: AudioCaptureSource,
+    pub duration_secs: u64,
+    pub size: u64,
+    pub recorded_at_ms: u64,
+}
+
+impl From<Recovered> for RecoveredRecording {
+    fn from(recovered: Recovered) -> Self {
+        Self {
+            file_name: recovered
+                .path
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+            source: AudioCaptureSource::recorded(recovered.has_system, recovered.has_microphone),
+            duration_secs: recovered.duration_secs,
+            size: recovered.size,
+            recorded_at_ms: recovered.recorded_at_ms,
+        }
+    }
+}
+
+/// Mixes down recordings a quit, crash, or failed mix left as tracks. It holds
+/// the recorder, and does nothing while a recording runs, so a recording's
+/// own tracks are never touched.
+#[tauri::command]
+pub async fn recover_recordings(
+    app: AppHandle,
+    recordings_dir: Option<String>,
+) -> Result<Vec<RecoveredRecording>, CaptureError> {
+    let recordings = recordings_path(&app, recordings_dir)?;
+    let recovered = tauri::async_runtime::spawn_blocking(move || {
+        let active = recorder();
+        if active.is_some() {
+            return Ok(Vec::new());
+        }
+        recovery::recover(&recordings)
+    })
+    .await
+        .map_err(|error| eyre::eyre!("recording recovery task failed: {error}"))??;
+    Ok(recovered.into_iter().map(RecoveredRecording::from).collect())
 }

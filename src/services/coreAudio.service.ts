@@ -14,6 +14,15 @@ export interface AudioCaptureResult {
   path: string
 }
 
+/** A recording a quit or crash left unfinished, mixed down at launch (Rust `RecoveredRecording`). */
+export interface RecoveredRecording {
+  fileName: string
+  source: AudioCaptureSource
+  durationSecs: number
+  size: number
+  recordedAtMs: number
+}
+
 /** Why a capture command failed (Rust `CaptureError`). */
 export type CaptureError =
   | { code: 'permission'; kind: PermissionKind }
@@ -52,6 +61,11 @@ class CoreAudioService {
 
     const data = await readFile(path)
     return { blob: new Blob([data], { type: 'audio/wav' }), path }
+  }
+
+  /** Mixes down recordings a quit or crash left unfinished; none while a recording runs. */
+  async recoverRecordings(recordingsDir: string): Promise<RecoveredRecording[]> {
+    return invoke<RecoveredRecording[]>('recover_recordings', { recordingsDir })
   }
 
   async pauseCapture(): Promise<void> {

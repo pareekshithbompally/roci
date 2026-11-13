@@ -84,6 +84,8 @@ export interface RecordingSessionActions {
   discardRecording: (sessionId: string) => Promise<void>;
   processRecording: (sessionId: string) => Promise<void>;
   saveLater: (sessionId: string) => Promise<void>;
+  /** Stops capture and saves the recording straight to history. */
+  stopAndSaveRecording: (sessionId: string) => Promise<void>;
   abortProcessing: (sessionId: string) => void;
   setAudioSource: (source: AudioCaptureSource) => void;
 }

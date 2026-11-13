@@ -2,7 +2,7 @@
 //! that mixes the tracks into the recording file.
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, SyncSender};
 use std::sync::{Arc, Mutex};
@@ -21,6 +21,9 @@ use super::tracks::{
 };
 
 const PACKET_QUEUE_CAPACITY: usize = 128;
+/// Written beside the tracks when capture ends, so a recording left behind
+/// by a quit or a failed mix is recovered with its alignment.
+pub(super) const STATS_FILE: &str = "tracks.json";
 
 /// Which sources a recording captures.
 #[derive(Clone, Copy)]
@@ -137,6 +140,29 @@ impl Recorder {
     /// recording file. The tracks are removed only once the mix is written,
     /// so a failed mix never loses audio.
     pub fn stop(self) -> Result<PathBuf> {
+        let (directory, output) = (self.directory.clone(), self.output.clone());
+        let stats = self.finish()?;
+        if !has_recorded_audio(&stats) {
+            remove_tracks(&directory);
+            return Err(eyre!("no meeting audio was captured"));
+        }
+        mixdown(&directory, &[&stats.system, &stats.microphone], &output)?;
+        remove_tracks(&directory);
+        Ok(output)
+    }
+
+    /// Finishes the tracks and leaves them for the next launch to mix down,
+    /// for when the app quits mid-recording.
+    pub fn abandon(self) {
+        let directory = self.directory.clone();
+        match self.finish() {
+            Ok(_) => tracing::info!(directory = %directory.display(), "meeting capture left for recovery"),
+            Err(error) => tracing::error!(%error, "could not finish meeting capture before quitting"),
+        }
+    }
+
+    /// Stops the sources and the writer, and records the tracks' stats.
+    fn finish(self) -> Result<CaptureStats> {
         drop(self.system_capture);
         drop(self.microphone_capture);
         drop(self.sender);
@@ -148,15 +174,15 @@ impl Recorder {
             microphone = ?stats.microphone,
             "meeting capture stopped"
         );
-        if !has_recorded_audio(&stats) {
-            return Err(eyre!("no meeting audio was captured"));
-        }
-        mixdown(
-            &self.directory,
-            &[&stats.system, &stats.microphone],
-            &self.output,
-        )?;
-        fs::remove_dir_all(&self.directory)?;
-        Ok(self.output)
+        fs::write(self.directory.join(STATS_FILE), serde_json::to_vec(&stats)?)?;
+        Ok(stats)
+    }
+}
+
+/// Removes a recording's tracks once they are no longer needed. A failure
+/// leaves them for recovery rather than failing the recording.
+pub(super) fn remove_tracks(directory: &Path) {
+    if let Err(error) = fs::remove_dir_all(directory) {
+        tracing::warn!(%error, directory = %directory.display(), "could not remove meeting tracks");
     }
 }

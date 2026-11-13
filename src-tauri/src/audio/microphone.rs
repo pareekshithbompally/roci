@@ -689,6 +689,27 @@ mod tests {
     }
 
     #[test]
+    fn an_iphone_microphone_never_stands_in() {
+        use InputTarget::SystemDefault;
+        use Transport::{Bluetooth, BuiltIn, Continuity};
+
+        // Lid closed, only the built-in microphone and the iPhone: say why.
+        let lid = listed(&["MacBook Pro Microphone", "iPhone Microphone"]);
+        let lid_transports = |index: usize| [BuiltIn, Continuity][index];
+        assert_eq!(
+            resolve_input(&lid, Some("MacBook Pro Microphone"), lid_transports, true),
+            Err(LID_CLOSED_ERROR.into())
+        );
+        // An iPhone default is used as named.
+        let headset = listed(&["iPhone Microphone", "AirPods Pro"]);
+        let headset_transports = |index: usize| [Continuity, Bluetooth][index];
+        assert_eq!(
+            resolve_input(&headset, Some("iPhone Microphone"), headset_transports, false),
+            Ok(SystemDefault)
+        );
+    }
+
+    #[test]
     fn an_unreadable_device_name_is_skipped_instead_of_panicking() {
         let unreadable: std::result::Result<cpal::DeviceDescription, cpal::Error> =
             Err(cpal::ErrorKind::DeviceNotAvailable.into());

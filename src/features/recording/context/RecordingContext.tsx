@@ -26,13 +26,25 @@ import { unifiedAIService } from '@services/unifiedAIService';
 import { activityStore } from '../../../shared/stores/activityStore';
 import type { ActivityAction } from '../../../shared/stores/activityStore';
 import { resolveModel } from '@shared/utils/modelResolver';
-import { consumePendingCalendarMeta } from '@services/calendar/recording-bridge';
+import { consumePendingCalendarMeta, type CalendarRecordingMeta } from '@services/calendar/recording-bridge';
 import type {
   RecordingContextValue,
   RecordingState,
   RecordingSession,
   RecordingSessionsContextValue,
 } from '../types';
+
+/** A finished recording to register and add to history. */
+interface HistoryEntry {
+  recordingId: string;
+  filename: string;
+  duration: number;
+  size: number;
+  source: AudioCaptureSource;
+  /** When the recording started (ms), for its default title. */
+  recordedAt: number;
+  calendarMeta?: CalendarRecordingMeta | null;
+}
 
 const initialState: RecordingState = {
   status: 'idle',
@@ -209,6 +221,8 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       const source = settingsContext?.settings?.defaultAudioSource || audioSource;
       const filename = generateRecordingFilename();
       const recordingId = getRecordingIdFromFilename(filename);
+      // Taken with this start, so a refused start never hands it to a later recording.
+      const calendarMeta = consumePendingCalendarMeta();
 
       // Capture first: a refused start must not leave a session behind.
       await coreAudioService.startCapture({
@@ -220,7 +234,6 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       const sessionId = crypto.randomUUID();
 
       // Create new session
-      const calendarMeta = consumePendingCalendarMeta();
       const newSession: RecordingSession = {
         sessionId,
         status: 'recording',
@@ -367,11 +380,80 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         );
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to stop recording';
-      updateSession(sessionId, { error: errorMessage });
+      // The backend released the capture even though stopping failed; its
+      // tracks are kept and recovered at the next launch.
+      cleanupSessionTimer(sessionId);
+      setActiveCaptureSessionId(null);
+      if (isTauriEnvironment() && trayService.isInitialized) {
+        trayService.stopRecordingAppearance().catch(e =>
+          console.error('[RecordingContext] Failed to stop tray recording appearance:', e)
+        );
+      }
+      updateSession(sessionId, { status: 'review', isPaused: false, error: captureErrorMessage(error) });
       throw error;
     }
   }, [sessions, cleanupSessionTimer, cleanupSessionAudioUrl, updateSession, showToast]);
+
+  // Register a finished recording and add it to history as pending transcription.
+  const saveToHistory = useCallback(async (entry: HistoryEntry) => {
+    if (isTauriEnvironment()) {
+      await recordingsService.registerRecording(entry.filename, {
+        id: entry.recordingId,
+        duration: entry.duration,
+        size: entry.size,
+        inputSource: entry.source,
+      });
+    }
+    const addToHistory = historyContext?.addToHistory;
+    if (!addToHistory) return;
+    const calendarMeta = entry.calendarMeta;
+    await addToHistory({
+      id: entry.recordingId,
+      timestamp: Date.now(),
+      title: calendarMeta?.scheduledTitle || `Recording ${new Date(entry.recordedAt).toLocaleString()}`,
+      transcript: '',
+      summary: '',
+      categories: [],
+      recordingId: entry.recordingId,
+      recordingFileName: entry.filename,
+      inputSource: entry.source,
+      pendingTranscription: true,
+      ...calendarMeta && {
+        calendarEventId: calendarMeta.calendarEventId,
+        scheduledTitle: calendarMeta.scheduledTitle,
+        participants: calendarMeta.participants,
+        scheduledStart: calendarMeta.scheduledStart,
+        scheduledEnd: calendarMeta.scheduledEnd,
+        meetingUrl: calendarMeta.meetingUrl,
+      },
+    });
+  }, [historyContext]);
+
+  // Recordings a quit or crash left unfinished: the backend mixes them down
+  // at launch and they are added to history like any saved recording.
+  const recoveryStartedRef = useRef(false);
+  useEffect(() => {
+    if (!isTauriEnvironment() || !historyContext?.addToHistory || recoveryStartedRef.current) return;
+    recoveryStartedRef.current = true;
+
+    const recover = async () => {
+      const recovered = await coreAudioService.recoverRecordings(StorageConfig.directories.recordings);
+      for (const recording of recovered) {
+        await saveToHistory({
+          recordingId: getRecordingIdFromFilename(recording.fileName),
+          filename: recording.fileName,
+          duration: recording.durationSecs,
+          size: recording.size,
+          source: recording.source,
+          recordedAt: recording.recordedAtMs,
+        });
+      }
+      if (recovered.length > 0) {
+        showToast(`Recovered ${recovered.length} unfinished recording${recovered.length > 1 ? 's' : ''} — see History`, 'success');
+      }
+    };
+    recover().catch(error => console.error('[RecordingContext] Recording recovery failed:', error));
+  }, [historyContext, saveToHistory, showToast]);
 
   // Stop + immediately save to history sidebar.
   // Used by stall stop and 60-min auto-stop — avoids two-step stop→saveLater flow
@@ -405,41 +487,15 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     // Save to history sidebar with blob in hand (no stale React state read)
     if (blob) {
       try {
-        if (isTauriEnvironment()) {
-          await recordingsService.registerRecording(
-            session.recordingFilename,
-            {
-              id: session.recordingId,
-              duration: session.elapsedTime,
-              size: blob.size,
-              inputSource: session.audioSource,
-            }
-          );
-        }
-        const addToHistory = historyContext?.addToHistory;
-        if (addToHistory) {
-          const calendarMeta = session.calendarMeta;
-          await addToHistory({
-            id: session.recordingId,
-            timestamp: Date.now(),
-            title: calendarMeta?.scheduledTitle || `Recording ${new Date().toLocaleString()}`,
-            transcript: '',
-            summary: '',
-            categories: [],
-            recordingId: session.recordingId,
-            recordingFileName: session.recordingFilename,
-            inputSource: session.audioSource,
-            pendingTranscription: true,
-            ...calendarMeta && {
-              calendarEventId: calendarMeta.calendarEventId,
-              scheduledTitle: calendarMeta.scheduledTitle,
-              participants: calendarMeta.participants,
-              scheduledStart: calendarMeta.scheduledStart,
-              scheduledEnd: calendarMeta.scheduledEnd,
-              meetingUrl: calendarMeta.meetingUrl,
-            },
-          });
-        }
+        await saveToHistory({
+          recordingId: session.recordingId,
+          filename: session.recordingFilename,
+          duration: session.elapsedTime,
+          size: blob.size,
+          source: session.audioSource,
+          recordedAt: session.createdAt,
+          calendarMeta: session.calendarMeta,
+        });
         showToast('Recording saved', 'success');
       } catch (saveError) {
         console.error('[RecordingContext] stopAndSaveSession save error:', saveError);
@@ -452,7 +508,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     cleanupSessionRefs(sessionId);
     removeSession(sessionId);
   }, [sessions, cleanupSessionTimer, cleanupSessionAudioUrl, cleanupSessionRefs,
-      removeSession, updateSession, showToast, historyContext]);
+      removeSession, updateSession, showToast, saveToHistory]);
 
   // Pause recording
   const pauseRecordingSession = useCallback(async (sessionId: string) => {
@@ -612,47 +668,15 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     if (!session || !session.recordedBlob) return;
 
     try {
-      const recordingId = session.recordingId;
-      const recordingFileName = session.recordingFilename;
-
-      if (isTauriEnvironment()) {
-        // Register recording in storage
-        await recordingsService.registerRecording(
-          recordingFileName,
-          {
-            id: recordingId,
-            duration: session.elapsedTime,
-            size: session.recordedBlob.size,
-            inputSource: session.audioSource,
-          }
-        );
-      }
-
-      // Create history item with pending transcription
-      const addToHistory = historyContext?.addToHistory;
-      if (addToHistory) {
-        const calendarMeta = session.calendarMeta;
-        await addToHistory({
-          id: recordingId,
-          timestamp: Date.now(),
-          title: calendarMeta?.scheduledTitle || `Recording ${new Date().toLocaleString()}`,
-          transcript: '',
-          summary: '',
-          categories: [],
-          recordingId,
-          recordingFileName,
-          inputSource: session.audioSource,
-          pendingTranscription: true,
-          ...calendarMeta && {
-            calendarEventId: calendarMeta.calendarEventId,
-            scheduledTitle: calendarMeta.scheduledTitle,
-            participants: calendarMeta.participants,
-            scheduledStart: calendarMeta.scheduledStart,
-            scheduledEnd: calendarMeta.scheduledEnd,
-            meetingUrl: calendarMeta.meetingUrl,
-          },
-        });
-      }
+      await saveToHistory({
+        recordingId: session.recordingId,
+        filename: session.recordingFilename,
+        duration: session.elapsedTime,
+        size: session.recordedBlob.size,
+        source: session.audioSource,
+        recordedAt: session.createdAt,
+        calendarMeta: session.calendarMeta,
+      });
 
       // Cleanup and remove session
       cleanupSessionRefs(sessionId);
@@ -665,7 +689,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       showToast(errorMessage, 'error');
       throw error;
     }
-  }, [sessions, historyContext, cleanupSessionRefs, removeSession, updateSession, showToast]);
+  }, [sessions, saveToHistory, cleanupSessionRefs, removeSession, updateSession, showToast]);
 
   // Process recording (transcribe and summarize)
   const processRecordingSession = useCallback(async (sessionId: string) => {
@@ -1210,6 +1234,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     discardRecording: discardRecordingSession,
     processRecording: processRecordingSession,
     saveLater,
+    stopAndSaveRecording: stopAndSaveSession,
     abortProcessing: abortProcessingSession,
     setAudioSource,
   };

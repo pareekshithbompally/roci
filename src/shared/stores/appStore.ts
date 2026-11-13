@@ -5,6 +5,9 @@ export type ViewType = 'home' | 'settings' | 'reminders' | 'calendar';
 export type SettingsPanel = 'audio' | 'providers' | 'local-inference' | 'categories' | 'integrations' | 'usage' | 'interface';
 export type ResultTab = 'transcript' | 'summary' | 'todo' | 'notes';
 
+/** What the user asked for while a recording was capturing. */
+export type RecordingExitPrompt = 'quit' | 'close';
+
 interface AppStoreState {
   currentView: ViewType;
   status: AppStatus;
@@ -14,6 +17,8 @@ interface AppStoreState {
   activeSettingsPanel: SettingsPanel;
   meetingChatOpen: boolean;
   permissionChecklistOpen: boolean;
+  /** Quit or window close asked while recording: which one, or none. */
+  recordingExitPrompt: RecordingExitPrompt | null;
   isInitialized: boolean;
   error: string | null;
 
@@ -25,6 +30,7 @@ interface AppStoreState {
   setActiveSettingsPanel: (p: SettingsPanel) => void;
   setMeetingChatOpen: (open: boolean) => void;
   setPermissionChecklistOpen: (open: boolean) => void;
+  setRecordingExitPrompt: (prompt: RecordingExitPrompt | null) => void;
   setInitialized: (v: boolean) => void;
   setError: (e: string | null) => void;
   clearError: () => void;
@@ -40,6 +46,7 @@ export const useAppStore = create<AppStoreState>((set) => ({
   activeSettingsPanel: 'audio',
   meetingChatOpen: false,
   permissionChecklistOpen: false,
+  recordingExitPrompt: null,
   isInitialized: false,
   error: null,
 
@@ -67,6 +74,8 @@ export const useAppStore = create<AppStoreState>((set) => ({
 
   setPermissionChecklistOpen: (open) => set({ permissionChecklistOpen: open }),
 
+  setRecordingExitPrompt: (prompt) => set({ recordingExitPrompt: prompt }),
+
   setInitialized: (v) => set({ isInitialized: v }),
 
   setError: (e) => set({ error: e }),
@@ -90,6 +99,7 @@ export const useActiveResultTab = () => useAppStore((s) => s.activeResultTab);
 export const useActiveSettingsPanel = () => useAppStore((s) => s.activeSettingsPanel);
 export const useMeetingChatOpen = () => useAppStore((s) => s.meetingChatOpen);
 export const usePermissionChecklistOpen = () => useAppStore((s) => s.permissionChecklistOpen);
+export const useRecordingExitPrompt = () => useAppStore((s) => s.recordingExitPrompt);
 export const useAppResult = () => useAppStore((s) => s.result);
 export const useAppError = () => useAppStore((s) => s.error);
 

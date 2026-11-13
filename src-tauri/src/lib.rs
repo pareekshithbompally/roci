@@ -35,7 +35,7 @@ fn reveal_in_file_manager(path: String) -> Result<(), String> {
 }
 
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::Emitter;
 use tauri_plugin_autostart::MacosLauncher;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -98,6 +98,7 @@ pub fn run() {
       audio::commands::stop_audio_capture,
       audio::commands::pause_audio_capture,
       audio::commands::resume_audio_capture,
+      audio::commands::recover_recordings,
       // Permission checklist commands (macOS)
       permissions::commands::get_permissions,
       permissions::commands::request_permission,
@@ -115,14 +116,22 @@ pub fn run() {
     ])
     .build(tauri::generate_context!())
     .expect("error while building tauri application")
-    .run(|app_handle, event| {
-      if let tauri::RunEvent::Reopen { has_visible_windows, .. } = event {
+    .run(|app_handle, event| match event {
+      tauri::RunEvent::Reopen { has_visible_windows, .. } => {
         if !has_visible_windows {
-          if let Some(window) = app_handle.get_webview_window("main") {
-            let _ = window.show();
-            let _ = window.set_focus();
-          }
+          window::show_main(app_handle);
         }
       }
+      // Cmd+Q while recording: ask the user (stop and quit, or cancel).
+      // A programmatic exit (code set) is the answer, so it goes through.
+      tauri::RunEvent::ExitRequested { code: None, api, .. }
+        if audio::commands::capture_active() =>
+      {
+        api.prevent_exit();
+        window::show_main(app_handle);
+        let _ = app_handle.emit(window::QUIT_REQUESTED_EVENT, ());
+      }
+      tauri::RunEvent::Exit => audio::commands::abandon_active(),
+      _ => {}
     });
 }

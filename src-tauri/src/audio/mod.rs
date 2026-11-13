@@ -11,6 +11,7 @@ mod lid;
 mod microphone;
 mod mixdown;
 mod recorder;
+mod recovery;
 mod resample;
 mod system_audio;
 mod tracks;

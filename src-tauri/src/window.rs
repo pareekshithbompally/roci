@@ -108,7 +108,21 @@ pub async fn set_always_on_top(app: AppHandle, always_on_top: bool) -> Result<()
     }
 }
 
-/// Handle window close event (minimize to tray instead)
+/// Emitted when the user quits (Cmd+Q) while a recording is capturing.
+pub const QUIT_REQUESTED_EVENT: &str = "quit-requested";
+/// Emitted when the user closes the window while a recording is capturing.
+pub const CLOSE_REQUESTED_EVENT: &str = "close-requested";
+
+/// Shows and focuses the main window.
+pub fn show_main(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+/// Handle window close event (minimize to tray instead; while recording, ask
+/// the user first)
 pub fn setup_window_handlers(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let window_clone = window.clone();
@@ -121,6 +135,11 @@ pub fn setup_window_handlers(app: &AppHandle) {
 
                     // Prevent default close behavior
                     api.prevent_close();
+
+                    if crate::audio::commands::capture_active() {
+                        let _ = app_handle.emit(CLOSE_REQUESTED_EVENT, ());
+                        return;
+                    }
 
                     // Hide window instead of closing
                     let _ = window_clone.hide();
