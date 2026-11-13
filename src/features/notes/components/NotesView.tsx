@@ -7,11 +7,12 @@
 
 import React from 'react';
 import { Plus, AlertCircle, Loader2, StickyNote } from 'lucide-react';
-import { useNotes } from '../hooks';
-import { TEXT, COMPONENT } from '@config/theme.config';
+import { useNotes } from '@features/notes/hooks';
+import { TEXT } from '@config/theme.config';
 import EmptyState from '@shared/components/EmptyState';
 import NoteItem from './NoteItem';
 import NoteEditor from './NoteEditor';
+import { Button } from '@shared/ui';
 
 interface NotesViewProps {
   className?: string;
@@ -67,14 +68,11 @@ const NotesView: React.FC<NotesViewProps> = ({ className = '' }) => {
             </span>
           )}
         </div>
-        <button
-          onClick={() => setCreating(true)}
-          disabled={isCreating}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${COMPONENT.primaryButton} text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed`}
-        >
+        <Button variant="primary" size="sm" className="flex items-center gap-1.5" onClick={() => setCreating(true)}
+          disabled={isCreating}>
           <Plus className="w-3.5 h-3.5" />
           Add Note
-        </button>
+        </Button>
       </div>
 
       {/* New note editor */}

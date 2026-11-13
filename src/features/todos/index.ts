@@ -31,4 +31,3 @@ export type {
   TodosState,
   TodosActions,
 } from './types';
-export { createTodo, calculateTodoStats } from './types';

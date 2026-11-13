@@ -15,6 +15,7 @@ import {
   DropdownMenuSeparator,
 } from '@shared/ui/dropdown-menu';
 import HighlightedText from '@shared/components/HighlightedText';
+import { rowClasses } from '@shared/ui';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { TEXT, SURFACE, BORDER, COMPONENT } from '@config/theme.config';
 import { useAudioPlayerStore } from '@shared/stores/audioPlayerStore';
@@ -70,11 +71,7 @@ export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = React.memo(
     <div
       data-sidebar-id={`${item.type}-${item.id}`}
       onClick={onClick}
-      className={`group relative px-2 py-1.5 rounded-md transition-all border cursor-pointer ${COMPONENT.sidebarItemActive} ${
-        isSelected
-          ? `${COMPONENT.sidebarItemSelected}`
-          : `${COMPONENT.sidebarItemDefault}`
-      }`}
+      className={`group relative ${rowClasses(isSelected)} border-transparent`}
     >
       {/* Main content */}
       <div className="flex items-center gap-1.5 min-w-0">

@@ -28,8 +28,8 @@ import { useAppResult, useActiveResultTab, useSelectedHistoryId, useMeetingChatO
 import { AppStatus } from '@shared/types';
 import { useRecordingContext } from '@features/recording';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
-import SummaryView from '@features/summary/components/SummaryView';
-import TranscriptViewEnhanced from '@features/transcription/components/TranscriptViewEnhanced';
+import { SummaryView } from '@features/summary';
+import { TranscriptViewEnhanced } from '@features/transcription';
 import { TodoList } from '@features/todos';
 import { NotesView } from '@features/notes';
 import { ResultsAudioPlayer } from './ResultsAudioPlayer';
@@ -39,6 +39,7 @@ import { NotificationType } from '@config/notifications.config';
 import { useTranscribeRecording } from '@shared/hooks/useTranscribeRecording';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import type { HistoryItem } from '@shared/types';
+import { Button } from '@shared/ui';
 
 const TABS = { SUMMARY: 'summary', TRANSCRIPT: 'transcript', TODO: 'todo', NOTES: 'notes' };
 
@@ -139,17 +140,31 @@ export const ResultsView: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  if (!result) return null;
-
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [editedTitle, setEditedTitle] = useState(result.title);
+  const [editedTitle, setEditedTitle] = useState('');
+
+  // Copy-feedback timer cleared on unmount (no setState after unmount).
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
+
+  // Sync the editable title when a new result loads.
+  useEffect(() => {
+    if (result) setEditedTitle(result.title);
+  }, [result]);
+
+  if (!result) return null;
 
   const handleCopy = async (target: 'summary' | 'transcript') => {
     const text = target === 'summary' ? result.summary : result.transcript;
     try {
       await navigator.clipboard.writeText(text);
       setCopyFeedback(target);
-      setTimeout(() => setCopyFeedback(null), 2000);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopyFeedback(null), 2000);
     } catch (err) {
       console.error('Failed to copy', err);
     }
@@ -274,18 +289,12 @@ export const ResultsView: React.FC = () => {
               className={`flex-1 text-lg font-bold ${TEXT.primary} ${SURFACE.inputField} border ${BORDER.input} rounded-lg px-2.5 py-1.5 outline-none ${BORDER.inputFocus}`}
               autoFocus
             />
-            <button
-              onClick={handleTitleSave}
-              className={`px-2.5 py-1.5 text-xs font-semibold ${COMPONENT.primaryButton} rounded-lg`}
-            >
+            <Button variant="primary" size="sm" onClick={handleTitleSave}>
               Save
-            </button>
-            <button
-              onClick={handleTitleCancel}
-              className={`px-2.5 py-1.5 text-xs font-semibold ${COMPONENT.secondaryButton} rounded-lg`}
-            >
+            </Button>
+            <Button variant="secondary" size="sm" onClick={handleTitleCancel}>
               Cancel
-            </button>
+            </Button>
           </div>
         ) : (
           <>
@@ -293,18 +302,14 @@ export const ResultsView: React.FC = () => {
               <h1 className={`text-lg font-bold ${TEXT.heading} truncate flex-1`}>
                 {result.title}
               </h1>
-              <button
-                onClick={handleTitleEdit}
-                className={`${COMPONENT.iconButtonSm} ${SURFACE.hoverSubtle} shrink-0`}
-                title="Edit title"
-              >
+              <Button variant="ghost" size="iconSm" className="shrink-0" onClick={handleTitleEdit} title="Edit title">
                 <Pencil className="w-3.5 h-3.5" />
-              </button>
+              </Button>
               {currentHistoryItem?.recordingFileName && (
                 <button
                   onClick={() => currentHistoryItem && transcribe(currentHistoryItem)}
                   disabled={isTranscribing}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold ${TEXT.secondary} hover:text-parchment-900 dark:hover:text-night-100 ${SURFACE.hoverSubtle} rounded-lg transition-all shrink-0 disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold ${TEXT.secondary} hover:text-paper-900 dark:hover:text-night-100 ${SURFACE.hoverSubtle} rounded-lg transition-all shrink-0 disabled:opacity-50 disabled:cursor-not-allowed`}
                   title={currentHistoryItem?.pendingTranscription ? 'Transcribe recording' : 'Re-transcribe recording'}
                 >
                   {isTranscribing ? (
@@ -353,12 +358,12 @@ export const ResultsView: React.FC = () => {
               className={`px-3 py-2 text-sm font-semibold transition-all relative ${
                 activeResultTab === TABS.SUMMARY
                   ? TEXT.primary
-                  : `${TEXT.muted} hover:text-parchment-800 dark:hover:text-night-300`
+                  : `${TEXT.muted} hover:text-paper-800 dark:hover:text-night-300`
               }`}
             >
               Summary
               {activeResultTab === TABS.SUMMARY && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-parchment-900 dark:bg-night-100" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-paper-900 dark:bg-night-100" />
               )}
             </button>
             <button
@@ -366,12 +371,12 @@ export const ResultsView: React.FC = () => {
               className={`px-3 py-2 text-sm font-semibold transition-all relative ${
                 activeResultTab === TABS.TRANSCRIPT
                   ? TEXT.primary
-                  : `${TEXT.muted} hover:text-parchment-800 dark:hover:text-night-300`
+                  : `${TEXT.muted} hover:text-paper-800 dark:hover:text-night-300`
               }`}
             >
               Transcript
               {activeResultTab === TABS.TRANSCRIPT && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-parchment-900 dark:bg-night-100" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-paper-900 dark:bg-night-100" />
               )}
             </button>
             <button
@@ -379,12 +384,12 @@ export const ResultsView: React.FC = () => {
               className={`px-3 py-2 text-sm font-semibold transition-all relative ${
                 activeResultTab === TABS.TODO
                   ? TEXT.primary
-                  : `${TEXT.muted} hover:text-parchment-800 dark:hover:text-night-300`
+                  : `${TEXT.muted} hover:text-paper-800 dark:hover:text-night-300`
               }`}
             >
               To-Do
               {activeResultTab === TABS.TODO && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-parchment-900 dark:bg-night-100" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-paper-900 dark:bg-night-100" />
               )}
             </button>
             <button
@@ -392,12 +397,12 @@ export const ResultsView: React.FC = () => {
               className={`px-3 py-2 text-sm font-semibold transition-all relative ${
                 activeResultTab === TABS.NOTES
                   ? TEXT.primary
-                  : `${TEXT.muted} hover:text-parchment-800 dark:hover:text-night-300`
+                  : `${TEXT.muted} hover:text-paper-800 dark:hover:text-night-300`
               }`}
             >
               Notes
               {activeResultTab === TABS.NOTES && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-parchment-900 dark:bg-night-100" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-paper-900 dark:bg-night-100" />
               )}
             </button>
           </div>

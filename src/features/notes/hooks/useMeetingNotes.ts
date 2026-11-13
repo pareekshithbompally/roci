@@ -11,7 +11,7 @@ import { useState, useCallback } from 'react';
 import { store } from '@services/db';
 import { queryKeys } from '@shared/query/queryKeys';
 import type { NoteEntry } from '@shared/types';
-import type { Note } from '../types';
+import type { Note } from '@features/notes/types';
 
 function mapEntryToNote(entry: NoteEntry, meetingId: string): Note {
   return {

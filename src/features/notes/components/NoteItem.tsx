@@ -7,8 +7,9 @@
 
 import React, { useState } from 'react';
 import { Trash2, Edit2, Check, X } from 'lucide-react';
-import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
-import type { Note } from '../types/notes.types';
+import { SURFACE, BORDER, TEXT } from '@config/theme.config';
+import type { Note } from '@features/notes/types/notes.types';
+import { Input } from '@shared/ui';
 
 interface NoteItemProps {
   note: Note;
@@ -81,16 +82,16 @@ const NoteItem: React.FC<NoteItemProps> = ({ note, onDelete, onUpdate }) => {
 
       {isEditing ? (
         <div className="space-y-2">
-          <textarea
+          <Input asChild><textarea
             value={editText}
             onChange={(e) => setEditText(e.target.value)}
             onKeyDown={handleKeyDown}
             spellCheck={true}
             autoCorrect="on"
             autoCapitalize="sentences"
-            className={`w-full h-24 p-2 ${COMPONENT.inlineInput} resize-none`}
+            className="w-full h-24"
             autoFocus
-          />
+          /></Input>
           <div className="flex gap-2 justify-end">
             <button
               onClick={handleCancel}

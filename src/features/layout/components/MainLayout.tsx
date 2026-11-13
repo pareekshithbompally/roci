@@ -18,7 +18,7 @@ import { PanelLeft, SquarePen } from 'lucide-react';
 import { IS_MACOS } from '@platform/index';
 import { AppStatus } from '@shared/types';
 import { SURFACE, TEXT, LAYOUT, COMPONENT } from '@config/theme.config';
-import { UI_CONFIG } from '@config/ui.config';
+import { Button } from '@shared/ui';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -156,24 +156,21 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               <div className={`absolute top-[14px] z-50 flex items-center gap-1 ${
                 shouldOffsetMacControls ? 'left-[88px]' : 'left-3'
               }`}>
-                <button
-                  onClick={handleNewChat}
-                  className={COMPONENT.iconButton}
-                  aria-label="New chat"
-                >
+                <Button variant="ghost" size="icon" onClick={handleNewChat} aria-label="New chat">
                   <SquarePen className="w-4 h-4" />
-                </button>
+                </Button>
                 <div className="relative">
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={() => setLeftPanel(true)}
-                    className={COMPONENT.iconButton}
                     aria-label="Toggle sidebar"
                   >
                     <PanelLeft className="w-4 h-4" />
-                  </button>
+                  </Button>
                   {activityCount > 0 && (
                     <span
-                      className="absolute -top-1 -right-1 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-amber-500 text-white text-[9px] font-bold leading-none px-0.5 pointer-events-none"
+                      className="absolute -top-1 -right-1 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-amber-500 dark:bg-amber-500 text-white text-[9px] font-bold leading-none px-0.5 pointer-events-none"
                       aria-label={`${activityCount} active operation${activityCount > 1 ? 's' : ''}`}
                     >
                       {activityCount > 9 ? '9+' : activityCount}

@@ -6,7 +6,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Check } from 'lucide-react';
-import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
+import { SURFACE, BORDER, TEXT } from '@config/theme.config';
+import { Button, Input } from '@shared/ui';
 
 interface NoteEditorProps {
   onSave: (text: string) => void;
@@ -52,7 +53,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
 
   return (
     <div className={`${SURFACE.card} border ${BORDER.subtle} rounded-xl p-4 space-y-3 animate-fade-in`}>
-      <textarea
+      <Input asChild><textarea
         ref={textareaRef}
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -61,26 +62,20 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         spellCheck={true}
         autoCorrect="on"
         autoCapitalize="sentences"
-        className={`w-full h-24 p-3 ${COMPONENT.inlineInput} resize-none`}
-      />
+        className="w-full h-24"
+      /></Input>
       <div className="flex items-center justify-between">
         <p className={`text-xs ${TEXT.faint}`}>Press ⌘+Enter to save, Esc to cancel</p>
         <div className="flex gap-2">
-          <button
-            onClick={onCancel}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium ${COMPONENT.secondaryButton} transition-colors flex items-center gap-2`}
-          >
+          <Button variant="secondary" size="sm" className="flex items-center gap-2" onClick={onCancel}>
             <X className="w-4 h-4" />
             Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!canSave}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium ${COMPONENT.primaryButton} hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity flex items-center gap-2`}
-          >
+          </Button>
+          <Button variant="primary" size="sm" className="flex items-center gap-2" onClick={handleSave}
+            disabled={!canSave}>
             <Check className="w-4 h-4" />
             Save Note
-          </button>
+          </Button>
         </div>
       </div>
     </div>

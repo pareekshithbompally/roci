@@ -11,17 +11,17 @@ import { ImportButton } from '@features/import';
 import { useAppActions } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
 import { useRecordingContext } from '@features/recording';
-import { useChatStore } from '@features/chat/stores';
+import { useChatStore } from '@features/chat';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { ChatInput } from '@features/chat';
 import { meetingReferenceService } from '@services/meetingReferenceService';
 import { RadioCard } from '@features/settings/components/shared';
 import { supportsWebSearch } from '@shared/utils/modelResolver';
-import { useSpeechInput } from '@features/chat/hooks/useSpeechInput';
+import { useSpeechInput } from '@features/chat';
 import { ENGINES, resolveCred } from '@services/ai/transcription';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { SURFACE, TEXT, BORDER, COMPONENT } from '@config/theme.config';
+import { SURFACE, TEXT, BORDER } from '@config/theme.config';
 
 interface IdleViewProps {}
 

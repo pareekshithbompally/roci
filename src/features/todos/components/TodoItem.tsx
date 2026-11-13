@@ -6,10 +6,11 @@
 
 import React, { useState, useCallback } from 'react';
 import { Check, X, Edit2, Clock, AlertTriangle } from 'lucide-react';
-import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
+import { SURFACE, BORDER, TEXT } from '@config/theme.config';
 import type { ActionItem } from '@shared/types';
 import { isOverdue, formatDueDate, formatReminderDate, isReminderOverdue } from '@shared/utils/todo.utils';
 import ReminderPicker from './ReminderPicker';
+import { Input } from '@shared/ui';
 
 interface TodoItemProps {
   todo: ActionItem;
@@ -60,7 +61,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, meetingId, meetingTitle, onTo
           onClick={() => onToggle(todo.id)}
           className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
             todo.completed
-              ? 'bg-green-500 border-green-500 text-white'
+              ? 'bg-green-500 border-green-500 dark:bg-green-500 dark:border-green-500 text-white'
               : `${BORDER.selectedCard} hover:border-green-400`
           }`}
         >
@@ -71,12 +72,12 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, meetingId, meetingTitle, onTo
         <div className="flex-1 min-w-0">
           {isEditing ? (
             <div className="space-y-2">
-              <input
+              <Input
                 type="text"
                 value={editText}
                 onChange={(e) => setEditText(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className={`w-full px-2 py-1 ${COMPONENT.inlineInput}`}
+                className="w-full"
                 autoFocus
               />
               <div className="flex gap-2">

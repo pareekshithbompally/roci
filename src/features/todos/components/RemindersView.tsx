@@ -7,13 +7,13 @@
  */
 
 import React, { useCallback, useState, useMemo } from 'react';
-import { ArrowLeft, ListTodo, Clock, AlertTriangle, Check, Bell, CalendarDays, Inbox, Search, Plus, X, ChevronDown } from 'lucide-react';
+import { ArrowLeft, ListTodo, AlertTriangle, Check, Bell, CalendarDays, Inbox, Search, Plus, X, ChevronDown } from 'lucide-react';
 import { useAppActions } from '@shared/stores/appStore';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
-import { useGlobalTodos } from '../hooks/useGlobalTodos';
-import type { TodoFilter, GlobalTodo } from '../hooks/useGlobalTodos';
-import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
-import { DatePicker, TimePicker } from '@shared/ui';
+import { useGlobalTodos } from '@features/todos/hooks/useGlobalTodos';
+import type { TodoFilter, GlobalTodo } from '@features/todos/hooks/useGlobalTodos';
+import { SURFACE, BORDER, TEXT } from '@config/theme.config';
+import { Button, DatePicker, Input, TimePicker } from '@shared/ui';
 import { AppStatus } from '@shared/types';
 import type { HistoryItem } from '@shared/types';
 import { isOverdue, formatDueDate, formatReminderDate, isReminderOverdue, buildISOFromDateInput } from '@shared/utils/todo.utils';
@@ -55,15 +55,17 @@ const MeetingSelector: React.FC<MeetingSelectorProps> = ({ items, selectedId, on
   return (
     <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
       <PopoverPrimitive.Trigger asChild>
-        <button
+        <Button
+          variant="outline"
+          size="md"
           type="button"
-          className={`w-full flex items-center gap-2 px-3 py-2 text-left ${COMPONENT.settingsInput} truncate`}
+          className="w-full justify-start truncate"
         >
           <span className={`flex-1 truncate text-xs ${selected ? TEXT.primary : TEXT.faint}`}>
             {selected ? (selected.title || 'Untitled Meeting') : 'Select a meeting…'}
           </span>
           <ChevronDown className={`w-3.5 h-3.5 shrink-0 ${TEXT.faint}`} />
-        </button>
+        </Button>
       </PopoverPrimitive.Trigger>
 
       <PopoverPrimitive.Portal>
@@ -74,12 +76,12 @@ const MeetingSelector: React.FC<MeetingSelectorProps> = ({ items, selectedId, on
         >
           {/* Search within selector */}
           <div className={`p-2 border-b ${BORDER.subtle}`}>
-            <input
+            <Input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search meetings…"
-              className={`w-full px-2 py-1.5 text-xs ${COMPONENT.inlineInput}`}
+              className="w-full"
               autoFocus
             />
           </div>
@@ -150,16 +152,16 @@ const CreateTodoForm: React.FC<CreateTodoFormProps> = ({ onSubmit, onCancel }) =
   return (
     <div className={`rounded-xl border ${BORDER.default} ${SURFACE.subtle} p-4 space-y-3 animate-fade-in`}>
       {/* Todo text */}
-      <textarea
+      <Input asChild><textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="What do you need to do?"
         spellCheck
         autoCorrect="on"
         autoCapitalize="sentences"
-        className={`w-full h-16 p-3 ${COMPONENT.inlineInput} resize-none`}
+        className="w-full h-16"
         autoFocus
-      />
+      /></Input>
 
       {/* Meeting selector */}
       <div className="space-y-1.5">
@@ -199,17 +201,14 @@ const CreateTodoForm: React.FC<CreateTodoFormProps> = ({ onSubmit, onCancel }) =
 
       {/* Actions */}
       <div className="flex gap-2 justify-end pt-1">
-        <button onClick={onCancel} className={COMPONENT.settingsButtonOutline}>
+        <Button variant="outline" size="sm" onClick={onCancel}>
           Cancel
-        </button>
-        <button
-          onClick={handleSubmit}
-          disabled={!canSubmit}
-          className={COMPONENT.settingsButtonPrimary}
-        >
+        </Button>
+        <Button variant="primary" size="sm" onClick={handleSubmit}
+          disabled={!canSubmit}>
           <Plus className="w-3.5 h-3.5" />
           Create
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -237,7 +236,7 @@ const TodoRow: React.FC<TodoRowProps> = ({ todo, onToggle, onReminderSet }) => {
         onClick={() => onToggle(todo.meetingId, todo.id)}
         className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-all ${
           todo.completed
-            ? 'bg-green-500 border-green-500 text-white'
+            ? 'bg-green-500 border-green-500 dark:bg-green-500 dark:border-green-500 text-white'
             : `${BORDER.selectedCard} group-hover:border-green-400`
         }`}
       >
@@ -391,14 +390,11 @@ export const RemindersView: React.FC = () => {
               </button>
             )}
 
-            <button
-              onClick={() => setIsCreating(true)}
-              disabled={isCreating}
-              className={`${COMPONENT.settingsButtonPrimary} shrink-0`}
-            >
+            <Button variant="primary" size="sm" className="shrink-0" onClick={() => setIsCreating(true)}
+              disabled={isCreating}>
               <Plus className="w-3.5 h-3.5" />
               Add To-Do
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -413,7 +409,7 @@ export const RemindersView: React.FC = () => {
                 onClick={() => setFilter(key)}
                 className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
                   isActive
-                    ? `${TEXT.heading} border-parchment-900 dark:border-night-100`
+                    ? `${TEXT.heading} border-paper-900 dark:border-night-100`
                     : `${TEXT.muted} border-transparent hover:${TEXT.secondary}`
                 }`}
               >

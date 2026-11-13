@@ -8,11 +8,10 @@
 import React, { useState, useCallback } from 'react';
 import { Plus, ListTodo, Loader2, Calendar } from 'lucide-react';
 import { useSelectedHistoryId, useAppResult } from '@shared/stores/appStore';
-import { useMeetingTodos } from '../hooks/useMeetingTodos';
-import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
+import { useMeetingTodos } from '@features/todos/hooks/useMeetingTodos';
+import { SURFACE, BORDER, TEXT } from '@config/theme.config';
 import EmptyState from '@shared/components/EmptyState';
-import { DatePicker, TimePicker } from '@shared/ui';
-import { reminderService } from '@services/reminder.service';
+import { Button, DatePicker, Input, TimePicker } from '@shared/ui';
 import { buildISOFromDateInput } from '@shared/utils/todo.utils';
 import TodoItem from './TodoItem';
 
@@ -91,7 +90,7 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
             </span>
             <div className={`w-32 h-1.5 ${SURFACE.chip} rounded-full overflow-hidden`}>
               <div
-                className="h-full bg-green-500 rounded-full transition-all duration-300"
+                className="h-full bg-green-500 dark:bg-green-500 rounded-full transition-all"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -100,29 +99,26 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
         {/* Spacer when no items */}
         {totalCount === 0 && <div className="flex-1" />}
         {/* Add button - always on the right */}
-        <button
-          onClick={() => setIsCreating(true)}
-          disabled={isCreating}
-          className={`${COMPONENT.settingsButtonPrimary} ml-auto`}
-        >
+        <Button variant="primary" size="sm" className="ml-auto" onClick={() => setIsCreating(true)}
+          disabled={isCreating}>
           <Plus className="w-3.5 h-3.5" />
           Add To-Do
-        </button>
+        </Button>
       </div>
 
       {/* New to-do input */}
       {isCreating && (
         <div className={`rounded-xl border ${BORDER.default} ${SURFACE.subtle} p-4 space-y-3 animate-fade-in`}>
-          <textarea
+          <Input asChild><textarea
             value={newItemText}
             onChange={(e) => setNewItemText(e.target.value)}
             placeholder="What do you need to do?"
             spellCheck={true}
             autoCorrect="on"
             autoCapitalize="sentences"
-            className={`w-full h-16 p-3 ${COMPONENT.inlineInput} resize-none`}
+            className="w-full h-16"
             autoFocus
-          />
+          /></Input>
 
           {/* Deadline picker */}
           <div className="space-y-2">
@@ -155,20 +151,14 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
 
           {/* Action buttons */}
           <div className="flex gap-2 justify-end pt-1">
-            <button
-              onClick={handleCancel}
-              className={COMPONENT.settingsButtonOutline}
-            >
+            <Button variant="outline" size="sm" onClick={handleCancel}>
               Cancel
-            </button>
-            <button
-              onClick={handleSaveItem}
-              disabled={!newItemText.trim() || !selectedHistoryId}
-              className={COMPONENT.settingsButtonPrimary}
-            >
+            </Button>
+            <Button variant="primary" size="sm" onClick={handleSaveItem}
+              disabled={!newItemText.trim() || !selectedHistoryId}>
               <Plus className="w-3.5 h-3.5" />
               Create
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -179,7 +169,7 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
           <EmptyState icon={ListTodo} message="No to-do items yet" />
         </div>
       ) : totalCount > 0 ? (
-        <div className="divide-y divide-parchment-200 dark:divide-night-800/60">
+        <div className="divide-y divide-paper-200 dark:divide-night-800/60">
           {allTodos.map((todo) => (
             <TodoItem
               key={todo.id}

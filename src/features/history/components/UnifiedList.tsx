@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useHistory } from '@shared/contexts/HistoryContext';
 import { useChat } from '@shared/contexts/ChatContext';
 import { TEXT } from '@config/theme.config';
@@ -40,11 +40,19 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
 
   const hasMore = displayCount < items.length;
 
+  const loadMoreTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (loadMoreTimerRef.current) clearTimeout(loadMoreTimerRef.current);
+    };
+  }, []);
+
   const loadMore = useCallback(() => {
     if (!hasMore || isLoadingMore) return;
     setIsLoadingMore(true);
 
-    setTimeout(() => {
+    if (loadMoreTimerRef.current) clearTimeout(loadMoreTimerRef.current);
+    loadMoreTimerRef.current = setTimeout(() => {
       setDisplayCount((prev) => Math.min(prev + SIDEBAR_PAGE_SIZE, items.length));
       setIsLoadingMore(false);
     }, LOAD_MORE_COOLDOWN_MS);

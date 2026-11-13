@@ -6,14 +6,8 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  Dialog,
-  DialogPortal,
-  DialogOverlay,
-  DialogContent,
-  DialogTitle,
-} from '@shared/ui';
-import { TEXT, COMPONENT, BORDER } from '@config/theme.config';
+import { Button, Dialog, DialogContent, DialogOverlay, DialogPortal, DialogTitle } from '@shared/ui';
+import { TEXT, BORDER } from '@config/theme.config';
 
 interface RenameModalProps {
   open: boolean;
@@ -69,24 +63,21 @@ export const RenameModal: React.FC<RenameModalProps> = ({
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !isUnchanged) handleSubmit();
             }}
-            className={`w-full px-3.5 py-2.5 text-sm ${TEXT.primary} bg-parchment-100 dark:bg-night-750 border ${BORDER.strong} rounded-xl outline-none ${BORDER.inputFocus} transition-colors`}
+            className={`w-full px-3.5 py-2.5 text-sm ${TEXT.primary} bg-paper-100 dark:bg-night-750 border ${BORDER.strong} rounded-xl outline-none ${BORDER.inputFocus} transition-colors`}
             placeholder="Enter a title"
           />
 
           <div className="flex justify-end gap-2.5 mt-5">
             <button
               onClick={() => onOpenChange(false)}
-              className={`px-3.5 py-2 text-sm font-medium ${TEXT.primary} border ${BORDER.strong} rounded-lg hover:bg-parchment-200/60 dark:hover:bg-night-700/60 transition-colors`}
+              className={`px-3.5 py-2 text-sm font-medium ${TEXT.primary} border ${BORDER.strong} rounded-lg hover:bg-paper-200/60 dark:hover:bg-night-700/60 transition-colors`}
             >
               Cancel
             </button>
-            <button
-              onClick={handleSubmit}
-              disabled={isUnchanged}
-              className={`px-3.5 py-2 text-sm font-medium ${COMPONENT.primaryButton} rounded-lg disabled:opacity-40 disabled:cursor-not-allowed`}
-            >
+            <Button variant="primary" size="md" onClick={handleSubmit}
+              disabled={isUnchanged}>
               Save
-            </button>
+            </Button>
           </div>
         </DialogContent>
       </DialogPortal>

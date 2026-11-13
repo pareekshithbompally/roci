@@ -4,9 +4,9 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { Bell, BellRing, X, Clock } from 'lucide-react';
-import { Popover, PopoverTrigger, PopoverContent, DatePicker, TimePicker } from '@shared/ui';
-import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
+import { Bell, BellRing, Clock } from 'lucide-react';
+import { Button, DatePicker, Popover, PopoverContent, PopoverTrigger, TimePicker } from '@shared/ui';
+import { SURFACE, BORDER, TEXT } from '@config/theme.config';
 import { reminderService } from '@services/reminder.service';
 import type { ScheduleReminderParams } from '@services/reminder.service';
 import { parseDateLoose, localDateFromParts } from '@shared/utils/todo.utils';
@@ -253,13 +253,10 @@ const ReminderPicker: React.FC<ReminderPickerProps> = ({
                 >
                   Cancel
                 </button>
-                <button
-                  onClick={handleCustomSchedule}
-                  disabled={!customDate || isScheduling}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium ${COMPONENT.primaryButton} disabled:opacity-50`}
-                >
+                <Button variant="primary" size="sm" onClick={handleCustomSchedule}
+                  disabled={!customDate || isScheduling}>
                   Set
-                </button>
+                </Button>
               </div>
             </div>
           )}

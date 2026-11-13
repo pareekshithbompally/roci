@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CustomAudioPlayer from '@shared/components/CustomAudioPlayer';
 import { useAudioQuery } from '@features/home/hooks/useAudioQuery';
@@ -20,12 +20,18 @@ export const ResultsAudioPlayer: React.FC<ResultsAudioPlayerProps> = ({
   const startSession = useAudioPlayerStore((s) => s.startSession);
   const currentSession = useAudioPlayerStore((s) => s.session);
 
+  // Auto-start once per loaded URL. A plain currentSession dep would
+  // resurrect playback after the user stops it (session nulls out).
+  const startedForUrlRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!audioUrl || !meetingId) return;
 
     // Don't overwrite an active session for a different meeting
     if (currentSession && currentSession.meetingId !== meetingId) return;
+    if (startedForUrlRef.current === audioUrl) return;
 
+    startedForUrlRef.current = audioUrl;
     startSession({ src: audioUrl, meetingId, title, duration });
   }, [audioUrl, meetingId, title, duration, startSession, currentSession?.meetingId]);
 

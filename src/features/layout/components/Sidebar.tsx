@@ -14,54 +14,12 @@ import { UnifiedList } from '@features/history';
 import { SettingsNav } from '@features/settings/components/SettingsNav';
 import { useUnifiedSidebar } from '@shared/hooks/useUnifiedSidebar';
 import { AppStatus } from '@shared/types';
-import { meetingService } from '@services/meeting.service';
 import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
 import { ActivityTray } from '@shared/components/ActivityTray';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { formatShortcut } from '@config/shortcuts.config';
-import type { UnifiedSidebarItem, MeetingDetail, ProcessedResult } from '@shared/types';
-
-function buildSummaryMarkdown(summary: MeetingDetail['summary']): string {
-  if (!summary) return '';
-  const lines: string[] = [];
-  lines.push(`## Meeting Overview\n${summary.overview}`);
-  lines.push(`## Key Discussion Points\n${summary.keyDiscussionPoints.map((p) => `- ${p}`).join('\n')}`);
-  lines.push(`## Decisions Made\n${summary.decisionsMade.map((d) => `- ${d}`).join('\n')}`);
-  lines.push(
-    `## Action Items\n${summary.actionItems
-      .map((a) => `- ${a.text}${a.owner ? ` - Owner: ${a.owner}` : ''}${a.dueDate ? ` - Due: ${a.dueDate}` : ''}`)
-      .join('\n')}`,
-  );
-  lines.push(`## Next Steps\n${summary.nextSteps.map((s) => `- ${s}`).join('\n')}`);
-  return lines.join('\n\n');
-}
-
-function buildMeetingResult(detail: MeetingDetail): ProcessedResult {
-  const structuredSummary = detail.summary
-    ? {
-        overview: detail.summary.overview,
-        keyDiscussionPoints: detail.summary.keyDiscussionPoints,
-        decisionsMade: detail.summary.decisionsMade,
-        actionItems: detail.summary.actionItems.map((a) => ({
-          id: crypto.randomUUID(),
-          text: a.text,
-          owner: a.owner,
-          dueDate: a.dueDate,
-          completed: false,
-        })),
-        nextSteps: detail.summary.nextSteps,
-      }
-    : undefined;
-
-  return {
-    title: detail.index.title,
-    transcript: detail.transcript?.text || '',
-    summary: buildSummaryMarkdown(detail.summary),
-    categories: detail.index.categories,
-    structuredSummary,
-    segments: detail.transcript?.segments,
-  };
-}
+import type { UnifiedSidebarItem } from '@shared/types';
+import { useMeetingDetailLoader } from '@shared/hooks/useMeetingDetailLoader';
 
 interface SidebarProps {
   shouldOffsetMacControls: boolean;
@@ -81,6 +39,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { setCurrentView, setStatus, setSelectedHistoryId, setResult } = useAppActions();
   const chat = useChat();
   const listContainerRef = useRef<HTMLDivElement>(null);
+  const loadMeetingDetail = useMeetingDetailLoader();
 
   // Scroll the selected item into view when selection changes (e.g. from spotlight)
   useEffect(() => {
@@ -115,19 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       setSelectedHistoryId(hi.id);
       chat.setCurrentSessionId(null);
 
-      if (hi.transcript || hi.summary) {
-        setResult(hi);
-      } else {
-        setResult({ title: hi.title, transcript: '', summary: '', categories: hi.categories });
-        try {
-          const detail = await meetingService.getMeetingDetail(hi.id);
-          if (detail) {
-            setResult(buildMeetingResult(detail));
-          }
-        } catch (error) {
-          console.error('[Sidebar] Failed to load meeting detail:', error);
-        }
-      }
+      await loadMeetingDetail(hi);
 
       setStatus(AppStatus.RESULTS);
     } else if (item.type === 'chat') {
@@ -138,7 +85,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       setStatus(AppStatus.CHAT);
     }
     if (isSmallScreen) setLeftPanel(false);
-  }, [setCurrentView, setSelectedHistoryId, setResult, setStatus, chat, isSmallScreen, setLeftPanel]);
+  }, [setCurrentView, setSelectedHistoryId, setResult, setStatus, chat, isSmallScreen, setLeftPanel, loadMeetingDetail]);
 
   const getSelectedId = (): string | null => {
     if (selectedHistoryId) return selectedHistoryId;
