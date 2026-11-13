@@ -8,6 +8,7 @@
 import React, { KeyboardEvent, useRef, useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowUp, Square, Plus, X, FileText, Music, Film, Image as ImageIcon, Camera, Loader2, Mic } from 'lucide-react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { MeetingMentionPopup } from './MeetingMentionPopup';
 import { ContextChips } from './ContextChips';
 import { ModelPicker } from './ModelPicker';
@@ -24,14 +25,16 @@ import {
   DropdownMenuSubContent,
 } from '@shared/ui';
 import { invoke } from '@tauri-apps/api/core';
-import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
+import { SURFACE, BORDER, TEXT, COMPONENT, LAYOUT } from '@config/theme.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { formatShortcut } from '@config/shortcuts.config';
 import { chatInputRef } from '@features/chat/stores';
 import type { MeetingListItem } from '@services/meetingReferenceService';
 import type { ChatPart } from '@shared/types';
 import type { SpeechState } from '@features/chat/hooks/useSpeechInput';
-import { VoiceWaveform } from './VoiceWaveform';
+import { DotScope, buildBand, bandPillWidth } from '@shared/components/dot-scope';
+import type { BandGeometry } from '@shared/components/dot-scope';
+import { DOT_SCOPE_CONFIG } from '@config/dotScope.config';
 
 const ACCEPTED_FILE_TYPES = 'image/*,audio/*,video/*,.pdf,.txt,.md,.csv,.json,.doc,.docx';
 
@@ -286,10 +289,40 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const isTranscribing = speechState === 'transcribing';
   const isCapturing = isRecording || isTranscribing;
 
+  // Takeover-lite band geometry, frozen at the rising edge of a capture so
+  // nothing resizes mid-take (derived during render so the band mounts on the
+  // very first capturing frame, with no collapse flash).
+  const slotRef = useRef<HTMLDivElement>(null);
+  const [band, setBand] = useState<BandGeometry | null>(null);
+  const [prevCapturing, setPrevCapturing] = useState(false);
+  if (isCapturing !== prevCapturing) {
+    setPrevCapturing(isCapturing);
+    if (isCapturing) {
+      const rect = slotRef.current?.getBoundingClientRect();
+      if (rect && rect.width > 0) setBand(buildBand(rect.width));
+    }
+  }
+
+  // The textarea returns as the done wipe clears: it stays hidden through the
+  // capture and for the wipe's hold, then fades back in over the slot.
+  const reduceMotion = useReducedMotion() ?? false;
+  const [textShown, setTextShown] = useState(true);
+  useEffect(() => {
+    if (isCapturing) {
+      setTextShown(false);
+      return;
+    }
+    const timer = setTimeout(
+      () => setTextShown(true),
+      DOT_SCOPE_CONFIG.composerBand.handoff * 1000,
+    );
+    return () => clearTimeout(timer);
+  }, [isCapturing]);
+
   const formattedElapsed = `${String(Math.floor(speechElapsed / 60)).padStart(2, '0')}:${String(speechElapsed % 60).padStart(2, '0')}`;
 
   return (
-    <div className="px-12 py-2">
+    <div className={`${LAYOUT.chatColumn} px-4 py-2`}>
       <Popover open={showMentionPopup} onOpenChange={(open) => { if (!open) closeMentionPopup(); }}>
       <PopoverAnchor asChild>
       <div className={`relative ${SURFACE.input} border ${BORDER.default} rounded-2xl shadow-sm hover:shadow-md transition-shadow`}>
@@ -346,47 +379,65 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           className="hidden"
         />
 
-        {/* Text Input Area — hidden while capturing voice */}
-        {!isCapturing && (
-          <div className="relative px-3 pt-3 pb-1">
-            <textarea
-              ref={inputRef}
-              value={value}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              disabled={disabled || isLoading}
-              rows={1}
-              spellCheck={true}
-              autoCorrect="on"
-              autoCapitalize="sentences"
-              className={`w-full bg-transparent border-0 text-sm ${TEXT.primary} resize-none outline-none focus:ring-0`}
-              style={{ maxHeight: '200px', minHeight: '36px' }}
-            />
-            {/* Rotating placeholder overlay */}
-            {!value && (
-              <span
-                key={hintIndex}
-                className={`absolute top-3 left-3 text-sm ${TEXT.faint} pointer-events-none animate-placeholder-fade-in`}
+        {/* Text input slot — always mounted so the composer never changes height.
+            While capturing voice, the slot breathes to the band's height and the
+            text area hides in place while Hex's dot scope stretches across the
+            slot as a full-width band; while transcribing the row crops down to
+            the processing pill. On stop the done wipe clears the field, then the
+            text area fades back in and the transcript lands in it. */}
+        <motion.div
+          ref={slotRef}
+          className="relative px-3 pt-3 pb-1"
+          animate={{ height: isCapturing && band ? band.height : 'auto' }}
+          transition={reduceMotion
+            ? { duration: DOT_SCOPE_CONFIG.reducedFade.duration }
+            : ANIMATION_CONFIG.chat.composerGlide}
+        >
+          <textarea
+            ref={inputRef}
+            value={value}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            disabled={disabled || isLoading || isCapturing}
+            aria-hidden={isCapturing}
+            rows={1}
+            spellCheck={true}
+            autoCorrect="on"
+            autoCapitalize="sentences"
+            className={`w-full bg-transparent border-0 text-sm ${TEXT.primary} resize-none outline-none focus:ring-0 transition-opacity duration-200 ${isCapturing ? 'invisible' : ''} ${!textShown ? 'opacity-0' : ''}`}
+            style={{ maxHeight: '200px', minHeight: '36px' }}
+          />
+          {/* Rotating placeholder overlay */}
+          {!value && textShown && (
+            <span
+              key={hintIndex}
+              className={`absolute top-3 left-3 text-sm ${TEXT.faint} pointer-events-none animate-placeholder-fade-in`}
+            >
+              {PLACEHOLDER_HINTS[hintIndex]}
+            </span>
+          )}
+          <AnimatePresence>
+            {isCapturing && band && (
+              <motion.div
+                key="dot-scope-band"
+                className="absolute top-0 bottom-0 left-0 flex justify-center overflow-hidden pointer-events-none"
+                initial={false}
+                animate={{ width: isRecording ? band.width : bandPillWidth(band.zoom) }}
+                transition={reduceMotion
+                  ? { duration: DOT_SCOPE_CONFIG.reducedFade.duration }
+                  : ANIMATION_CONFIG.chat.composerGlide}
               >
-                {PLACEHOLDER_HINTS[hintIndex]}
-              </span>
+                <DotScope
+                  stage={isRecording ? 'recording' : 'processing'}
+                  stream={micStream}
+                  label={isRecording ? 'Recording' : 'Transcribing'}
+                  zoom={band.zoom}
+                  tuning={band.tuning}
+                />
+              </motion.div>
             )}
-          </div>
-        )}
-
-        {/* Voice capture area — waveform while recording, spinner while transcribing */}
-        {isCapturing && (
-          <div className="flex items-center justify-center px-3 pt-3 pb-1" style={{ minHeight: '44px' }}>
-            {isRecording ? (
-              <VoiceWaveform stream={micStream} />
-            ) : (
-              <div className={`flex items-center gap-2 text-sm ${TEXT.faint}`}>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Transcribing...</span>
-              </div>
-            )}
-          </div>
-        )}
+          </AnimatePresence>
+        </motion.div>
 
         {/* Bottom Toolbar with Model Picker and Send Button */}
         <div className="flex items-center justify-between px-3 pb-2">
@@ -488,24 +539,23 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
           {/* Stop pill (recording) OR AI stop/send button (idle) */}
           {isRecording ? (
+            /* Hex capsule grammar: the one contrast action — plate-inked pill,
+               white stop square and the clock. Red is for failures only. */
             <button
               onClick={onSpeechStop}
-              className="flex items-center gap-1.5 px-3 h-8 rounded-full transition-all bg-red-500 hover:bg-red-600 dark:bg-red-500 dark:hover:bg-red-400 text-white text-xs font-medium shadow-lg"
+              className="flex items-center gap-2 h-8 px-3.5 rounded-full bg-paper-900 dark:bg-night-100 text-white dark:text-night-900 hover:bg-paper-800 dark:hover:bg-night-200 text-xs font-medium shadow-lg transition-colors"
               title="Stop recording"
             >
-              <span className="inline-flex gap-[2px] items-end h-3">
-                <span className="w-[3px] h-2 rounded-full bg-white/80" />
-                <span className="w-[3px] h-3 rounded-full bg-white" />
-                <span className="w-[3px] h-2 rounded-full bg-white/80" />
-              </span>
-              <span>{formattedElapsed}</span>
+              <span className="w-2.5 h-2.5 rounded-[3px] bg-current" aria-hidden />
+              <span className="tabular-nums">{formattedElapsed}</span>
             </button>
           ) : isTranscribing ? (
             <button
               disabled
-              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-red-500/50 dark:bg-red-500/50 text-white cursor-not-allowed"
+              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-paper-600 dark:text-night-500 cursor-not-allowed"
+              title="Transcribing"
             >
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin" />
             </button>
           ) : isLoading ? (
             <button

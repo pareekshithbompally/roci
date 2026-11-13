@@ -159,6 +159,10 @@ export const ANIMATION_CONFIG = {
 
   // Chat and messages
   chat: {
+    /** Shared-element id: the composer glides from the landing page to the bottom of the chat */
+    composerLayoutId: 'chat-composer',
+    /** Composer glide (framer-motion, seconds) — standard easeInOut */
+    composerGlide: { duration: 0.3, ease: [0.4, 0, 0.2, 1] as const },
     messageAppearDelay: 100, // Delay between sequential messages
     typingIndicatorSpeed: 1000, // Typing indicator animation
     scrollDuration: 300, // Smooth scroll to new message
