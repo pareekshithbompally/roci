@@ -7,15 +7,32 @@
  * useChat() returns the same shape as before for backward compatibility.
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, type ReactNode, type MutableRefObject } from 'react';
-import type { ChatSession, ChatMessage, ChatPart, ChatIndexEntry, AppSettings, HistoryItem, MeetingCitation, WebCitation, InlineCitationSpan } from '@shared/types';
+import React, { createContext, useContext, useCallback, useEffect, useMemo, type ReactNode, type MutableRefObject } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type { ChatSession, ChatPart, ChatIndexEntry, AppSettings, HistoryItem } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { MeetingListItem } from '@services/meetingReferenceService';
-import { useChatStore, injectChatRefs, chatInputRef, useCurrentSession, useFilteredIndexEntries } from '@features/chat/stores/chatStore';
+import { useChatStore, injectChatRefs, chatInputRef, useCurrentSession, useFilteredIndexEntries } from '@features/chat';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { chatService } from '@services/chat.service';
+import { queryKeys } from '@shared/query/queryKeys';
 import { SIDEBAR_SEARCH_DEBOUNCE_MS, MAX_LOADED_SESSIONS } from '@config/chat.config';
+
+/** One-time fix: streaming/loading states left over from an interrupted generation. */
+function normalizeSessionStates(session: ChatSession): ChatSession {
+  if (!session.messages.some((m) => m.state === 'loading' || m.state === 'streaming')) {
+    return session;
+  }
+  return {
+    ...session,
+    messages: session.messages.map((m) =>
+      m.state === 'loading' || m.state === 'streaming'
+        ? { ...m, text: m.text || '[Interrupted]', state: 'complete' as const }
+        : m
+    ),
+  };
+}
 
 // ── Types (same as before) ──
 
@@ -79,7 +96,7 @@ interface ChatProviderProps {
 export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const { settings, providers } = useSettings();
   const { items: historyItems } = useHistoryData();
-  const [initialized, setInitialized] = useState(false);
+  const queryClient = useQueryClient();
 
   // Inject settings/providers/historyItems into the store so sendMessage can read them
   useEffect(() => {
@@ -95,20 +112,20 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Auto-load sessions index on mount
-  const isInit = useChatStore((s) => s.isInitialized);
+  // ── Session index: owned by Query, mirrored into the store ──
+  // Direct store readers (selectors, ChatShell) keep working; Query gives
+  // dedup + caching. Mutations reconcile via invalidation (see below).
+
+  const indexQuery = useQuery({
+    queryKey: queryKeys.chats(),
+    queryFn: () => chatService.listSessions(),
+  });
+
   useEffect(() => {
-    if (!isInit && !initialized) {
-      setInitialized(true);
-      const init = async () => {
-        await new Promise((r) => setTimeout(r, 100));
-        await useChatStore.getState().loadSessions();
-        useChatStore.setState({ isInitialized: true });
-      };
-      init();
+    if (indexQuery.data) {
+      useChatStore.setState({ sessionIndex: indexQuery.data, isInitialized: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [indexQuery.data]);
 
   // Auto-save current session when loadedSessions changes (debounced, 500ms)
   const currentSessionId = useChatStore((s) => s.currentSessionId);
@@ -118,75 +135,69 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     if (!isStoreInit || !currentSessionId) return;
     const timeoutId = setTimeout(() => {
       const session = useChatStore.getState().loadedSessions.get(currentSessionId);
-      if (session) chatService.persistSession(session);
+      if (session) {
+        chatService.persistSession(session).catch((error: unknown) =>
+          console.error('[ChatContext] Failed to auto-save session:', error)
+        );
+      }
     }, 500);
     return () => clearTimeout(timeoutId);
   }, [currentSessionId, loadedSessions, isStoreInit]);
 
-  // Demand-load + normalize stale session states from disk
+  // ── Demand-load current session: owned by Query, cached in the store ──
+  // Query dedups concurrent mounts and drops stale responses on session
+  // switch (replacing the manual cancelled flag). The store Map stays the
+  // synchronous session cache with bounded eviction.
+
+  const isCached = !!currentSessionId && loadedSessions.has(currentSessionId);
+
+  const sessionQuery = useQuery({
+    queryKey: queryKeys.chat(currentSessionId ?? 'none'),
+    queryFn: async () => {
+      const raw = await chatService.loadSession(currentSessionId!);
+      return raw ? normalizeSessionStates(raw) : null;
+    },
+    enabled: !!currentSessionId && !isCached,
+  });
+
+  // Write freshly loaded sessions into the bounded store cache.
   useEffect(() => {
-    if (!currentSessionId) return;
-
-    const existing = useChatStore.getState().loadedSessions.get(currentSessionId);
-    if (existing) {
-      // Already in cache — normalize in-place (one-time fix for pre-existing stale sessions)
-      const hadStale = existing.messages.some(
-        (m) => m.state === 'loading' || m.state === 'streaming'
-      );
-      if (hadStale) {
-        const normalized = {
-          ...existing,
-          messages: existing.messages.map((m) =>
-            m.state === 'loading' || m.state === 'streaming'
-              ? { ...m, text: m.text || '[Interrupted]', state: 'complete' as const }
-              : m
-          ),
-        };
-        useChatStore.getState().setLoadedSessions((prev) => {
-          const next = new Map(prev);
-          next.set(currentSessionId, normalized);
-          return next;
-        });
+    const data = sessionQuery.data;
+    if (!data || !currentSessionId) return;
+    useChatStore.getState().setLoadedSessions((prev) => {
+      if (prev.has(currentSessionId)) return prev;
+      const next = new Map(prev);
+      if (next.size >= MAX_LOADED_SESSIONS) {
+        for (const [id] of next) {
+          if (id !== currentSessionId) { next.delete(id); break; }
+        }
       }
-      return;
-    }
+      next.set(currentSessionId, data);
+      return next;
+    });
+  }, [sessionQuery.data, currentSessionId]);
 
-    let cancelled = false;
-    useChatStore.setState({ isSessionLoading: true });
-
-    chatService
-      .loadSession(currentSessionId)
-      .then((raw) => {
-        if (cancelled) return;
-        if (!raw) { useChatStore.setState({ isSessionLoading: false }); return; }
-        // Normalize any stale message states from interrupted sessions
-        const session = {
-          ...raw,
-          messages: raw.messages.map((m) =>
-            m.state === 'loading' || m.state === 'streaming'
-              ? { ...m, text: m.text || '[Interrupted]', state: 'complete' as const }
-              : m
-          ),
-        };
-        useChatStore.getState().setLoadedSessions((prev) => {
-          const next = new Map(prev);
-          if (next.size >= MAX_LOADED_SESSIONS) {
-            for (const [id] of next) {
-              if (id !== currentSessionId) { next.delete(id); break; }
-            }
-          }
-          next.set(currentSessionId, session);
-          return next;
-        });
-        useChatStore.setState({ isSessionLoading: false });
-      })
-      .catch(() => {
-        if (!cancelled) useChatStore.setState({ isSessionLoading: false });
+  // Normalize already-cached sessions in place (interrupted generations).
+  useEffect(() => {
+    if (!currentSessionId || !isCached) return;
+    const existing = useChatStore.getState().loadedSessions.get(currentSessionId);
+    if (!existing) return;
+    const normalized = normalizeSessionStates(existing);
+    if (normalized !== existing) {
+      useChatStore.getState().setLoadedSessions((prev) => {
+        const next = new Map(prev);
+        next.set(currentSessionId, normalized);
+        return next;
       });
+    }
+  }, [currentSessionId, isCached]);
 
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSessionId]);
+  // Loading state follows the query — instant true comes from selectSession.
+  useEffect(() => {
+    useChatStore.setState({
+      isSessionLoading: !!currentSessionId && !isCached && sessionQuery.fetchStatus === 'fetching',
+    });
+  }, [currentSessionId, isCached, sessionQuery.fetchStatus]);
 
   // ── Build context value from store (backward compat) ──
 
@@ -226,7 +237,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     await useChatStore.getState().sendMessage(text, options);
   }, []);
 
-  const loadSessionsFn = useCallback(() => useChatStore.getState().loadSessions(), []);
+  const loadSessionsFn = useCallback(async () => {
+    // Reconcile the store mirror with disk truth.
+    await queryClient.invalidateQueries({ queryKey: queryKeys.chats() });
+  }, [queryClient]);
   const selectSessionFn = useCallback((id: string) => useChatStore.getState().selectSession(id), []);
   const deleteSessionFn = useCallback(async (id: string) => useChatStore.getState().deleteSession(id), []);
   const renameSessionFn = useCallback(async (id: string, title: string) => useChatStore.getState().renameSession(id, title), []);

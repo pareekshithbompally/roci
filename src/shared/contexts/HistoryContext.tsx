@@ -14,9 +14,11 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { HistoryItem } from '@shared/types';
 import { store } from '@services/db';
 import { meetingService } from '@services/meeting.service';
+import { queryKeys } from '@shared/query/queryKeys';
 
 // ── Types ──
 
@@ -108,12 +110,22 @@ interface HistoryProviderProps {
 }
 
 export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) => {
-  // Data state
-  const [items, setItems] = useState<HistoryItem[]>([]);
+  const queryClient = useQueryClient();
+
+  // Ephemeral UI state (never server state — stays in useState)
   const [searchQuery, setSearchQueryRaw] = useState('');
   const [selectedCategory, setSelectedCategoryRaw] = useState<string | null>(null);
   const [categories, setCategoriesRaw] = useState<string[]>(['Work', 'Personal', 'Meeting', 'Idea']);
-  const [isLoading, setIsLoading] = useState(false);
+
+  // ── Server state: meeting index ──
+
+  const { data: items = [], isLoading } = useQuery({
+    queryKey: queryKeys.meetings(),
+    queryFn: async () => {
+      const result = await store.meetings.list(1000);
+      return result.items.map(indexEntryToHistoryItem);
+    },
+  });
 
   // UI state (separate to avoid re-rendering data consumers)
   const [menuOpenId, setMenuOpenIdRaw] = useState<string | null>(null);
@@ -134,22 +146,33 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
     }) as FilteredHistoryItem[];
   }, [items, searchQuery, selectedCategory]);
 
-  // ── Data methods ──
+  // ── Data methods (optimistic mutations over the meetings query) ──
 
+  const invalidateMeetings = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.meetings() });
+  }, [queryClient]);
+
+  /** Explicit reload — Query dedups concurrent callers on the same key. */
   const loadHistory = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const result = await store.meetings.list(1000);
-      setItems(result.items.map(indexEntryToHistoryItem));
-    } catch (error) {
-      console.error('[HistoryContext] Error loading history:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    await queryClient.invalidateQueries({ queryKey: queryKeys.meetings() });
+  }, [queryClient]);
 
-  const addToHistory = useCallback(async (item: HistoryItem) => {
-    try {
+  const mutateOptions = {
+    onError: (_err: unknown, _vars: unknown, context?: { previous?: HistoryItem[] }) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.meetings(), context.previous);
+      }
+    },
+    onSettled: () => invalidateMeetings(),
+  };
+
+  const snapshotItems = useCallback(async () => {
+    await queryClient.cancelQueries({ queryKey: queryKeys.meetings() });
+    return { previous: queryClient.getQueryData<HistoryItem[]>(queryKeys.meetings()) };
+  }, [queryClient]);
+
+  const addMutation = useMutation<void, Error, HistoryItem, { previous?: HistoryItem[] }>({
+    mutationFn: async (item) => {
       const now = Date.now();
       await store.meetings.upsert({
         id: item.id,
@@ -167,19 +190,41 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
         categories: item.categories,
         createdAt: now,
       });
-      setItems(prev => [item, ...prev]);
+    },
+    onMutate: async (item) => {
+      const context = await snapshotItems();
+      queryClient.setQueryData<HistoryItem[]>(queryKeys.meetings(), (old) => [item, ...(old || [])]);
+      return context;
+    },
+    ...mutateOptions,
+  });
+
+  const addToHistory = useCallback(async (item: HistoryItem) => {
+    try {
+      await addMutation.mutateAsync(item);
     } catch (error) {
       console.error('[HistoryContext] Error adding to history:', error);
     }
-  }, []);
+  }, [addMutation]);
+
+  const renameMutation = useMutation<void, Error, { itemId: string; newTitle: string }, { previous?: HistoryItem[] }>({
+    mutationFn: async ({ itemId, newTitle }) => {
+      await store.meetings.upsert({ id: itemId, title: newTitle });
+    },
+    onMutate: async ({ itemId, newTitle }) => {
+      const context = await snapshotItems();
+      queryClient.setQueryData<HistoryItem[]>(queryKeys.meetings(), (old) =>
+        (old || []).map(item => (item.id === itemId ? { ...item, title: newTitle } : item))
+      );
+      return context;
+    },
+    ...mutateOptions,
+  });
 
   const renameItem = useCallback(async (itemId: string, newTitle: string): Promise<boolean> => {
     if (!newTitle.trim()) return false;
     try {
-      await store.meetings.upsert({ id: itemId, title: newTitle });
-      setItems(prev => prev.map(item =>
-        item.id === itemId ? { ...item, title: newTitle } : item
-      ));
+      await renameMutation.mutateAsync({ itemId, newTitle });
       setRenameItemId(null);
       setRenameValueRaw('');
       return true;
@@ -187,36 +232,56 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
       console.error('[HistoryContext] Error renaming item:', error);
       return false;
     }
-  }, []);
+  }, [renameMutation]);
 
-  const updateItem = useCallback(async (itemId: string, updates: Partial<HistoryItem>): Promise<boolean> => {
-    try {
+  const updateMutation = useMutation<void, Error, { itemId: string; updates: Partial<HistoryItem> }, { previous?: HistoryItem[] }>({
+    mutationFn: async ({ itemId, updates }) => {
       const input: Parameters<typeof store.meetings.upsert>[0] = { id: itemId, title: updates.title || '' };
       if (updates.categories) input.categories = updates.categories;
       if (updates.inputSource) input.inputSource = updates.inputSource;
-      if (updates.recordingFileName) {
-        // Not directly settable via meeting upsert — handled by recording operations
-      }
       if (updates.pendingTranscription !== undefined) {
         input.pendingTranscription = updates.pendingTranscription;
       }
       if (updates.calendarEventId) input.calendarEventId = updates.calendarEventId;
-
       await store.meetings.upsert(input);
-      setItems(prev => prev.map(item =>
-        item.id === itemId ? { ...item, ...updates } : item
-      ));
+    },
+    onMutate: async ({ itemId, updates }) => {
+      const context = await snapshotItems();
+      queryClient.setQueryData<HistoryItem[]>(queryKeys.meetings(), (old) =>
+        (old || []).map(item => (item.id === itemId ? { ...item, ...updates } : item))
+      );
+      return context;
+    },
+    ...mutateOptions,
+  });
+
+  const updateItem = useCallback(async (itemId: string, updates: Partial<HistoryItem>): Promise<boolean> => {
+    try {
+      await updateMutation.mutateAsync({ itemId, updates });
       return true;
     } catch (error) {
       console.error('[HistoryContext] Error updating item:', error);
       return false;
     }
-  }, []);
+  }, [updateMutation]);
+
+  const deleteMutation = useMutation<void, Error, string, { previous?: HistoryItem[] }>({
+    mutationFn: async (itemId) => {
+      await meetingService.deleteMeeting(itemId);
+    },
+    onMutate: async (itemId) => {
+      const context = await snapshotItems();
+      queryClient.setQueryData<HistoryItem[]>(queryKeys.meetings(), (old) =>
+        (old || []).filter(item => item.id !== itemId)
+      );
+      return context;
+    },
+    ...mutateOptions,
+  });
 
   const deleteItem = useCallback(async (itemId: string): Promise<boolean> => {
     try {
-      await meetingService.deleteMeeting(itemId);
-      setItems(prev => prev.filter(item => item.id !== itemId));
+      await deleteMutation.mutateAsync(itemId);
       setDeleteConfirmIdRaw(null);
       setMenuOpenIdRaw(null);
       return true;

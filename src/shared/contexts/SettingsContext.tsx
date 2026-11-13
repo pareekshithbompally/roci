@@ -12,12 +12,14 @@
  *   `saveSettings` remains as an immediate flush. No dirty tracking.
  */
 
-import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useCallback, ReactNode, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AppSettings } from '@shared/types';
-import type { ModelProvider, ProviderSetting } from '@shared/types/modelProviders';
+import type { ModelProvider } from '@shared/types/modelProviders';
 import { store } from '@services/db';
 import { predefinedProviders, MANAGED_SDK_PROVIDERS } from '@config/providers.config';
 import { ENGINES } from '@services/ai/transcription';
+import { queryKeys } from '@shared/query/queryKeys';
 
 interface SettingsState {
   /** App settings */
@@ -44,7 +46,7 @@ interface SettingsContextValue extends SettingsState {
   /** Delete a provider */
   deleteProvider: (providerName: string) => void;
   /** Update provider setting */
-  updateProviderSetting: (providerName: string, settingIndex: number, value: any) => void;
+  updateProviderSetting: (providerName: string, settingIndex: number, value: string | boolean | number) => void;
   /** Set selected provider */
   setSelectedProviderName: (name: string | null) => void;
   /** Load settings from storage */
@@ -53,7 +55,7 @@ interface SettingsContextValue extends SettingsState {
   saveSettings: (overrides?: Partial<AppSettings>) => Promise<void>;
 }
 
-const defaultSettings: AppSettings = {
+export const defaultSettings: AppSettings = {
   transcriptionModel: '',
   chatModel: '',
   analyzeModel: '',
@@ -79,13 +81,6 @@ const SETTINGS_KEYS: Array<keyof AppSettings> = [
   'apiKey', 'audioQualityPreset', 'defaultAudioSource',
   'jobProcessing', 'summaryExtraction', 'meetingDefaults', 'calendarIntegration',
 ];
-
-const initialState: SettingsState = {
-  settings: defaultSettings,
-  providers: [],
-  selectedProviderName: null,
-  isLoading: true,
-};
 
 /**
  * Save-on-edit delay. Every settings mutation writes through to disk after
@@ -161,22 +156,37 @@ async function loadSettingsFromStore(): Promise<{ settings: AppSettings; selecte
 }
 
 
+/** Loaded snapshot owned by the settings query. Mutations update it optimistically. */
+interface LoadedSettings {
+  settings: AppSettings;
+  providers: ModelProvider[];
+  selectedProviderName: string | null;
+}
+
+const FALLBACK_SETTINGS: LoadedSettings = {
+  settings: defaultSettings,
+  providers: [],
+  selectedProviderName: null,
+};
+
 export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) => {
-  const [state, setState] = useState<SettingsState>(initialState);
-  const isInitializedRef = useRef(false);
-  const stateRef = useRef<SettingsState>(state);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
+  const { data: loaded = FALLBACK_SETTINGS, isLoading } = useQuery({
+    queryKey: queryKeys.storeSettings(),
+    queryFn: loadAllSettings,
+  });
 
-  const selectedProvider = state.providers.find(
-    p => p.provider === state.selectedProviderName
+  const selectedProvider = loaded.providers.find(
+    p => p.provider === loaded.selectedProviderName
   );
 
-  const loadSettings = useCallback(async () => {
+  /**
+   * Load the full settings snapshot. Runs as the settings query function on
+   * mount (and on explicit invalidation) — no manual effect needed.
+   */
+  async function loadAllSettings(): Promise<LoadedSettings> {
     console.log('[SettingsContext] Loading settings...');
-    setState(prev => ({ ...prev, isLoading: true }));
 
     try {
       await store.initialize();
@@ -258,43 +268,27 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         console.log('[SettingsContext] Auto-selected analyze model:', loadedSettings.analyzeModel);
       }
 
-      setState({
-        settings: loadedSettings,
-        providers: loadedProviders,
-        selectedProviderName,
-        isLoading: false,
-      });
-
       console.log('[SettingsContext] Settings loaded successfully');
       console.log('[SettingsContext] Chat model:', loadedSettings.chatModel);
       console.log('[SettingsContext] Transcription model:', loadedSettings.transcriptionModel);
+      return { settings: loadedSettings, providers: loadedProviders, selectedProviderName };
     } catch (error) {
       console.error('[SettingsContext] Error loading settings:', error);
-      setState({
+      return {
         settings: defaultSettings,
         providers: predefinedProviders.map(p => ({ ...p })),
         selectedProviderName: null,
-        isLoading: false,
-      });
-    } finally {
-      isInitializedRef.current = true;
+      };
     }
-  }, []);
+  }
 
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /** Write one snapshot of settings + providers to disk. Reads from stateRef so the debounced timer always persists the latest state. */
-  const persistNow = useCallback(async (overrides?: Partial<AppSettings>) => {
-    const currentState = stateRef.current;
-
-    if (!isInitializedRef.current || currentState.isLoading) {
-      console.log('[SettingsContext] Skipping save - not initialized or loading');
-      return;
-    }
-
+  /** Write one snapshot of settings + providers to disk. */
+  const persistSnapshot = useCallback(async (snapshot: LoadedSettings, overrides?: Partial<AppSettings>) => {
     const effectiveSettings = overrides
-      ? { ...currentState.settings, ...overrides }
-      : currentState.settings;
+      ? { ...snapshot.settings, ...overrides }
+      : snapshot.settings;
 
     try {
       // Save individual settings as key-value pairs
@@ -306,12 +300,12 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       }
 
       // Save selectedProviderName
-      if (currentState.selectedProviderName !== null) {
-        await store.settings.set('selectedProviderName', JSON.stringify(currentState.selectedProviderName));
+      if (snapshot.selectedProviderName !== null) {
+        await store.settings.set('selectedProviderName', JSON.stringify(snapshot.selectedProviderName));
       }
 
       // Save providers
-      for (const provider of currentState.providers) {
+      for (const provider of snapshot.providers) {
         await store.providers.upsert(provider);
       }
 
@@ -322,32 +316,45 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     }
   }, []);
 
+  /** Read the latest cached snapshot (empty before first load resolves). */
+  const readSnapshot = useCallback((): LoadedSettings | undefined => {
+    return queryClient.getQueryData<LoadedSettings>(queryKeys.storeSettings());
+  }, [queryClient]);
+
   /**
    * Schedule a debounced write-through after a mutation. Rapid successive
    * edits coalesce into one disk write; the trailing edge persists the
-   * latest state via stateRef.
+   * latest cached snapshot.
    */
   const schedulePersist = useCallback(() => {
-    if (!isInitializedRef.current || stateRef.current.isLoading) return;
     if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
     persistTimerRef.current = setTimeout(() => {
       persistTimerRef.current = null;
-      void persistNow();
+      const snapshot = readSnapshot();
+      if (snapshot) {
+        persistSnapshot(snapshot).catch((error: unknown) =>
+          console.error('[SettingsContext] Debounced save failed:', error)
+        );
+      }
     }, AUTOSAVE_DELAY_MS);
-  }, [persistNow]);
+  }, [persistSnapshot, readSnapshot]);
 
   // Flush any pending debounced write on unmount so a late edit (e.g. typing
-  // an API key then immediately switching panels) is never lost. Same reason
-  // Jan flushes pending setting edits when a row unmounts on navigation.
+  // an API key then immediately switching panels) is never lost.
   useEffect(() => {
     return () => {
       if (persistTimerRef.current) {
         clearTimeout(persistTimerRef.current);
         persistTimerRef.current = null;
-        void persistNow();
+        const snapshot = queryClient.getQueryData<LoadedSettings>(queryKeys.storeSettings());
+        if (snapshot) {
+          persistSnapshot(snapshot).catch((error: unknown) =>
+            console.error('[SettingsContext] Unmount flush save failed:', error)
+          );
+        }
       }
     };
-  }, [persistNow]);
+  }, [persistSnapshot, queryClient]);
 
   /** Immediate flush — clears any pending debounce and writes now. */
   const saveSettings = useCallback(async (overrides?: Partial<AppSettings>) => {
@@ -355,51 +362,65 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       clearTimeout(persistTimerRef.current);
       persistTimerRef.current = null;
     }
-    await persistNow(overrides);
-  }, [persistNow]);
+    const snapshot = readSnapshot();
+    if (!snapshot) return;
+    if (overrides) {
+      const next = { ...snapshot, settings: { ...snapshot.settings, ...overrides } };
+      queryClient.setQueryData(queryKeys.storeSettings(), next);
+      await persistSnapshot(next);
+    } else {
+      await persistSnapshot(snapshot);
+    }
+  }, [persistSnapshot, queryClient, readSnapshot]);
+
+  /**
+   * Apply an optimistic cache update, then debounce the disk write.
+   * Sync like before — Query's setQueryData is synchronous.
+   */
+  const updateCache = useCallback((updater: (prev: LoadedSettings) => LoadedSettings) => {
+    queryClient.setQueryData<LoadedSettings>(queryKeys.storeSettings(), (old) =>
+      updater(old ?? FALLBACK_SETTINGS)
+    );
+    schedulePersist();
+  }, [queryClient, schedulePersist]);
 
   const setSettings = useCallback((updates: Partial<AppSettings>) => {
-    setState(prev => ({
+    updateCache(prev => ({
       ...prev,
       settings: { ...prev.settings, ...updates },
     }));
-    schedulePersist();
-  }, [schedulePersist]);
+  }, [updateCache]);
 
   const setProviders = useCallback((providers: ModelProvider[]) => {
-    setState(prev => ({ ...prev, providers }));
-    schedulePersist();
-  }, [schedulePersist]);
+    updateCache(prev => ({ ...prev, providers }));
+  }, [updateCache]);
 
   const addProvider = useCallback((provider: ModelProvider) => {
-    setState(prev => ({
+    updateCache(prev => ({
       ...prev,
       providers: [...prev.providers, provider],
     }));
-    schedulePersist();
-  }, [schedulePersist]);
+  }, [updateCache]);
 
   const updateProvider = useCallback((providerName: string, updates: Partial<ModelProvider>) => {
-    setState(prev => ({
+    updateCache(prev => ({
       ...prev,
       providers: prev.providers.map(p =>
         p.provider === providerName ? { ...p, ...updates } : p
       ),
     }));
-    schedulePersist();
-  }, [schedulePersist]);
+  }, [updateCache]);
 
   const deleteProvider = useCallback((providerName: string) => {
-    setState(prev => ({
+    updateCache(prev => ({
       ...prev,
       providers: prev.providers.filter(p => p.provider !== providerName),
       selectedProviderName: prev.selectedProviderName === providerName ? null : prev.selectedProviderName,
     }));
-    schedulePersist();
-  }, [schedulePersist]);
+  }, [updateCache]);
 
-  const updateProviderSetting = useCallback((providerName: string, settingIndex: number, value: any) => {
-    setState(prev => ({
+  const updateProviderSetting = useCallback((providerName: string, settingIndex: number, value: string | boolean | number) => {
+    updateCache(prev => ({
       ...prev,
       providers: prev.providers.map(provider => {
         if (provider.provider !== providerName) return provider;
@@ -430,21 +451,22 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         return { ...provider, ...update };
       }),
     }));
-    schedulePersist();
-  }, [schedulePersist]);
+  }, [updateCache]);
 
   const setSelectedProviderName = useCallback((name: string | null) => {
-    setState(prev => ({ ...prev, selectedProviderName: name }));
-    schedulePersist();
-  }, [schedulePersist]);
+    updateCache(prev => ({ ...prev, selectedProviderName: name }));
+  }, [updateCache]);
 
-  useEffect(() => {
-    loadSettings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Explicit reload — the query also fetches on mount, so no load effect.
+  const loadSettings = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.storeSettings() });
+  }, [queryClient]);
 
   const value: SettingsContextValue = {
-    ...state,
+    settings: loaded.settings,
+    providers: loaded.providers,
+    selectedProviderName: loaded.selectedProviderName,
+    isLoading,
     selectedProvider,
     setSettings,
     setProviders,

@@ -8,6 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act, waitFor, fireEvent } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
 vi.mock('@services/db', () => ({
@@ -57,10 +58,15 @@ function Probe() {
 }
 
 function renderProvider() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
-    <SettingsProvider>
-      <Probe />
-    </SettingsProvider>,
+    <QueryClientProvider client={client}>
+      <SettingsProvider>
+        <Probe />
+      </SettingsProvider>
+    </QueryClientProvider>,
   );
 }
 

@@ -13,6 +13,7 @@ import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useAppActions } from '@shared/stores/appStore';
 import { useToast } from '@shared/contexts/ToastContext';
+import { AppStatus } from '@shared/types';
 import { logUsage } from '@extensions/usage';
 import { resolveModel } from '@shared/utils/modelResolver';
 import type { HistoryItem, MeetingSummary } from '@shared/types';
@@ -125,7 +126,7 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
       // Show results
       setResult(data);
       setSelectedHistoryId(item.id);
-      setStatus('RESULTS' as any);
+      setStatus(AppStatus.RESULTS);
 
       showToast('Transcription complete', 'success');
     } catch (error) {
