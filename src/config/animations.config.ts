@@ -217,7 +217,7 @@ export function createAnimationLoop(
 /**
  * Debounce helper using config values
  */
-export function createDebounce<T extends (...args: any[]) => void>(
+export function createDebounce<T extends (...args: never[]) => void>(
   func: T,
   delayKey: keyof typeof ANIMATION_CONFIG.debounce
 ): (...args: Parameters<T>) => void {
@@ -233,7 +233,7 @@ export function createDebounce<T extends (...args: any[]) => void>(
 /**
  * Throttle helper using config values
  */
-export function createThrottle<T extends (...args: any[]) => void>(
+export function createThrottle<T extends (...args: never[]) => void>(
   func: T,
   delayKey: keyof typeof ANIMATION_CONFIG.debounce
 ): (...args: Parameters<T>) => void {

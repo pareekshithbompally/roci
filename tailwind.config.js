@@ -16,20 +16,20 @@ export default {
   theme: {
     extend: {
       colors: {
-        // ─── Light mode: warm parchment ───
-        parchment: {
+        // ─── Light mode: neutral system grays (macOS-like) ───
+        paper: {
           50:  '#ffffff',   // Cards, modals
-          100: '#fbfaf7',   // Page background
-          150: '#f7f5ef',   // Sidebar, subtle input bg
-          200: '#f0ede5',   // Selected, hover, chips
-          300: '#e4e0d6',   // Default borders
-          400: '#d5d0c4',   // Strong borders, input borders
-          500: '#b0a99c',   // Scrollbar, faint borders
-          600: '#8a847a',   // Faint text
-          700: '#6b655c',   // Muted text
-          800: '#4a453e',   // Secondary text
-          900: '#1e1c18',   // Primary text
-          950: '#0e0d0b',   // Headings, darkest
+          100: '#f5f5f7',   // Page background
+          150: '#ececf0',   // Sidebar, subtle input bg
+          200: '#e5e5ea',   // Selected, hover, chips
+          300: '#d1d1d6',   // Default borders
+          400: '#c7c7cc',   // Strong borders, input borders
+          500: '#aeaeb2',   // Scrollbar, faint borders
+          600: '#8e8e93',   // Faint text
+          700: '#636366',   // Muted text
+          800: '#48484a',   // Secondary text
+          900: '#1c1c1e',   // Primary text
+          950: '#000000',   // Headings, darkest
         },
         // ─── Dark mode: pure grayscale ───
         night: {

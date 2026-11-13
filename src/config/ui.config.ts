@@ -118,10 +118,10 @@ export const UI_CONFIG = {
     },
   },
 
-  // Colors (semantic tokens)
+  // Colors (semantic tokens — canvas-drawn values; keep in sync with tailwind.config.js)
   colors: {
     primary: {
-      light: '#1e1c18', // parchment-900
+      light: '#1c1c1e', // paper-900
       dark: '#ededed',  // night-100
     },
     record: {
@@ -148,7 +148,7 @@ export const UI_CONFIG = {
     // Audio visualizer colors
     visualizer: {
       idle: {
-        light: '#e4e0d6', // parchment-300
+        light: '#d1d1d6', // paper-300
         dark: '#333333',  // night-650
       },
       active: {
@@ -172,37 +172,37 @@ export const UI_CONFIG = {
     // Background colors
     background: {
       primary: {
-        light: '#fbfaf7', // parchment-100
+        light: '#f5f5f7', // paper-100
         dark: '#151515',  // night-900
       },
       secondary: {
-        light: '#ffffff', // parchment-50
+        light: '#ffffff', // paper-50
         dark: '#181818',  // night-850
       },
       tertiary: {
-        light: '#f0ede5', // parchment-200
+        light: '#e5e5ea', // paper-200
         dark: '#1c1c1c',  // night-800
       },
     },
 
     // Border colors
     border: {
-      light: '#e4e0d6', // parchment-300
+      light: '#d1d1d6', // paper-300
       dark: '#2a2a2a',  // night-700
     },
 
     // Text colors
     text: {
       primary: {
-        light: '#1e1c18', // parchment-900
+        light: '#1c1c1e', // paper-900
         dark: '#f5f5f5',  // night-50
       },
       secondary: {
-        light: '#6b655c', // parchment-700
+        light: '#636366', // paper-700
         dark: '#999999',  // night-400
       },
       tertiary: {
-        light: '#8a847a', // parchment-600
+        light: '#8e8e93', // paper-600
         dark: '#666666',  // night-500
       },
     },
@@ -216,7 +216,7 @@ export const UI_CONFIG = {
     lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
     xl: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
     '2xl': '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-    glow: '0 0 40px rgba(14, 13, 11, 0.12)', // parchment-950 tint
+    glow: '0 0 40px rgba(0, 0, 0, 0.12)', // paper-950 tint
   },
 
   // Z-index scale
@@ -290,27 +290,6 @@ export const UI_CONFIG = {
     glowSize: '6rem', // 96px for loading view
   },
 } as const;
-
-/**
- * Helper function to get color based on theme
- */
-export function getThemedColor(
-  colorPath: string,
-  isDark: boolean
-): string {
-  const parts = colorPath.split('.');
-  let value: any = UI_CONFIG.colors;
-  
-  for (const part of parts) {
-    value = value[part];
-  }
-  
-  if (typeof value === 'object' && 'light' in value && 'dark' in value) {
-    return isDark ? value.dark : value.light;
-  }
-  
-  return value;
-}
 
 /**
  * Breakpoint utilities

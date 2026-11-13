@@ -15,72 +15,69 @@ import { SUPPORTS_VIBRANCY, IS_MACOS } from '@platform/index';
 export const SURFACE = {
   /** Main page background (light: solid, dark+vibrancy: tinted glass) */
   page: SUPPORTS_VIBRANCY
-    ? 'bg-parchment-100 dark:bg-night-900/90'
-    : 'bg-parchment-100 dark:bg-night-900',
+    ? 'bg-paper-100 dark:bg-night-900/90'
+    : 'bg-paper-100 dark:bg-night-900',
 
   /** Left sidebar background */
   sidebar: SUPPORTS_VIBRANCY
-    ? 'bg-parchment-150 dark:bg-night-950/85'
-    : 'bg-parchment-150 dark:bg-night-950',
+    ? 'bg-paper-150 dark:bg-night-950/85'
+    : 'bg-paper-150 dark:bg-night-950',
 
   /** App header bar */
   header: SUPPORTS_VIBRANCY
-    ? 'bg-parchment-100 dark:bg-night-900/90'
-    : 'bg-parchment-100 dark:bg-night-900',
+    ? 'bg-paper-100 dark:bg-night-900/90'
+    : 'bg-paper-100 dark:bg-night-900',
 
   /** Right chat panel */
   chatPanel: SUPPORTS_VIBRANCY
-    ? 'bg-parchment-100 dark:bg-night-900/90 dark:backdrop-blur-xl'
-    : 'bg-parchment-100 dark:bg-night-900',
+    ? 'bg-paper-100 dark:bg-night-900/90 dark:backdrop-blur-xl'
+    : 'bg-paper-100 dark:bg-night-900',
 
   /** Settings navigation column */
   settingsNav: SUPPORTS_VIBRANCY
-    ? 'bg-parchment-100 dark:bg-night-950/85 dark:backdrop-blur-xl'
-    : 'bg-parchment-100 dark:bg-night-950/85',
+    ? 'bg-paper-100 dark:bg-night-950/85 dark:backdrop-blur-xl'
+    : 'bg-paper-100 dark:bg-night-950/85',
 
   /** Modal / dialog background */
-  modal: 'bg-parchment-50 dark:bg-night-850',
+  modal: 'bg-paper-50 dark:bg-night-850',
 
   /** Elevated surfaces (widgets, floating panels) */
   elevated: SUPPORTS_VIBRANCY
-    ? 'bg-parchment-50 dark:bg-night-850/92 dark:backdrop-blur-xl'
-    : 'bg-parchment-50 dark:bg-night-850',
+    ? 'bg-paper-50 dark:bg-night-850/92 dark:backdrop-blur-xl'
+    : 'bg-paper-50 dark:bg-night-850',
 
   /** Input fields */
-  input: 'bg-parchment-150/80 dark:bg-night-850/60',
+  input: 'bg-paper-150/80 dark:bg-night-850/60',
 
   /** Dropdown menus */
-  dropdown: 'bg-parchment-50 dark:bg-night-800',
+  dropdown: 'bg-paper-50 dark:bg-night-800',
 
   /** Full-screen overlay backdrop */
   overlay: 'bg-black/60 backdrop-blur-sm',
 
   /** Subtle hover state for list items */
-  hoverSubtle: 'hover:bg-parchment-200/80 dark:hover:bg-night-750/80',
-
-  /** Sidebar item hover background (dark: night-700 = #2a2a2a ≈ RGB 40,40,40) */
-  sidebarItemHover: 'hover:bg-parchment-200/70 dark:hover:bg-night-700/90',
+  hoverSubtle: 'hover:bg-paper-200/80 dark:hover:bg-night-750/80',
 
   /** Selected item background */
-  selected: 'bg-parchment-200 dark:bg-night-750/80',
+  selected: 'bg-paper-200 dark:bg-night-750/80',
 
   /** Form input with border (used in settings) */
-  inputField: 'bg-parchment-50 dark:bg-night-800',
+  inputField: 'bg-paper-50 dark:bg-night-800',
 
   /** Selected settings card */
-  selectedCard: 'bg-parchment-200 dark:bg-night-800',
+  selectedCard: 'bg-paper-200 dark:bg-night-800',
 
   /** Unselected settings card */
-  card: 'bg-parchment-50 dark:bg-night-850',
+  card: 'bg-paper-50 dark:bg-night-850',
 
   /** Info / notice callout */
   infoCallout: 'bg-blue-50/50 dark:bg-blue-900/10',
 
   /** Chip / tag background */
-  chip: 'bg-parchment-200 dark:bg-night-800',
+  chip: 'bg-paper-200 dark:bg-night-800',
 
   /** Subtle content background (model card, file item) */
-  subtle: 'bg-parchment-150 dark:bg-night-850/50',
+  subtle: 'bg-paper-150 dark:bg-night-850/50',
 
   /** Match context callout background */
   matchCallout: 'bg-amber-50/50 dark:bg-yellow-900/10',
@@ -95,16 +92,16 @@ export const SURFACE = {
   successCallout: 'bg-green-50/50 dark:bg-green-900/10',
 
   /** Tooltip / popover hint background (inverted: dark bg in light mode) */
-  tooltip: 'bg-parchment-950 dark:bg-night-750 text-parchment-50 dark:text-night-200 shadow-lg rounded-md',
+  tooltip: 'bg-paper-950 dark:bg-night-750 text-paper-50 dark:text-night-200 shadow-lg rounded-md',
 
   /** Horizontal divider line (use with h-px or w-px) */
-  divider: 'bg-parchment-300 dark:bg-night-700',
+  divider: 'bg-paper-300 dark:bg-night-700',
 
   /** Skeleton loading placeholder */
-  skeleton: 'bg-parchment-200 dark:bg-night-800/50 animate-pulse',
+  skeleton: 'bg-paper-200 dark:bg-night-800/50 animate-pulse',
 
   /** Inset / recessed container (tool groups, button groups) */
-  inset: 'bg-parchment-200 dark:bg-night-800/60',
+  inset: 'bg-paper-200 dark:bg-night-800/60',
 } as const;
 
 // ─── TIER TOKENS (quality / rating badges) ──────────────────────
@@ -141,48 +138,45 @@ export const TIER = {
 
 export const ACCENT = {
   /** User message bubble */
-  userBubble: 'bg-parchment-800 dark:bg-night-800',
+  userBubble: 'bg-paper-800 dark:bg-night-800',
   /** User message text */
-  userText: 'text-parchment-50 dark:text-night-100',
+  userText: 'text-paper-50 dark:text-night-100',
 } as const;
 
 // ─── BORDER TOKENS ──────────────────────────────────────────────
 
 export const BORDER = {
   /** Standard dividers */
-  default: 'border-parchment-300/70 dark:border-night-700',
+  default: 'border-paper-300/70 dark:border-night-700',
 
   /** Panel edges, subtle separators */
-  subtle: 'border-parchment-300/50 dark:border-night-700',
+  subtle: 'border-paper-300/50 dark:border-night-700',
 
   /** Divide-y color for list rows (maps to Tailwind divide utilities) */
-  divide: 'divide-parchment-300/50 dark:divide-night-700',
+  divide: 'divide-paper-300/50 dark:divide-night-700',
 
   /** Modals, dropdowns — stronger emphasis */
-  strong: 'border-parchment-300 dark:border-night-650',
+  strong: 'border-paper-300 dark:border-night-650',
 
   /** Glass panel edges (macOS: standard light border, dark: frosted glass line) */
   glass: SUPPORTS_VIBRANCY
-    ? 'border-parchment-300/50 dark:border-white/10'
-    : 'border-parchment-300/50 dark:border-night-700',
+    ? 'border-paper-300/50 dark:border-white/10'
+    : 'border-paper-300/50 dark:border-night-700',
 
   /** Form input border */
-  input: 'border-parchment-400 dark:border-night-650',
+  input: 'border-paper-400 dark:border-night-650',
 
   /** Form input focus state */
-  inputFocus: 'focus:ring-2 focus:ring-parchment-400/50 focus:border-parchment-400 dark:focus:ring-night-650 dark:focus:border-night-650',
+  inputFocus: 'focus:ring-2 focus:ring-paper-400/50 focus:border-paper-400 dark:focus:ring-night-650 dark:focus:border-night-650',
 
   /** Selected card border */
-  selectedCard: 'border-parchment-400 dark:border-night-600',
+  selectedCard: 'border-paper-400 dark:border-night-600',
 
   /** Card hover border */
-  cardHover: 'hover:border-parchment-400 dark:hover:border-night-650',
+  cardHover: 'hover:border-paper-400 dark:hover:border-night-650',
 
   /** Info callout border */
   infoCallout: 'border-blue-200/50 dark:border-blue-800/30',
-
-  /** Selected sidebar item */
-  selectedItem: 'border-parchment-300/70 dark:border-night-650/70',
 
   /** Match context callout border */
   matchCallout: 'border-amber-100/50 dark:border-yellow-900/30',
@@ -201,22 +195,22 @@ export const BORDER = {
 
 export const TEXT = {
   /** Primary body text */
-  primary: 'text-parchment-900 dark:text-night-100',
+  primary: 'text-paper-900 dark:text-night-100',
 
   /** Secondary text (descriptions, captions) */
-  secondary: 'text-parchment-800 dark:text-night-400',
+  secondary: 'text-paper-800 dark:text-night-400',
 
   /** Muted text (timestamps, helpers) */
-  muted: 'text-parchment-700 dark:text-night-500',
+  muted: 'text-paper-700 dark:text-night-500',
 
   /** Faint text (placeholders, icons) */
-  faint: 'text-parchment-600 dark:text-night-500',
+  faint: 'text-paper-600 dark:text-night-500',
 
   /** Inverted text (on dark backgrounds) */
   inverted: 'text-white dark:text-night-900',
 
   /** Headings / titles */
-  heading: 'text-parchment-950 dark:text-night-50',
+  heading: 'text-paper-950 dark:text-night-50',
 
   /** Links */
   link: 'text-blue-600 dark:text-blue-400',
@@ -231,7 +225,7 @@ export const TEXT = {
   active: 'text-green-600 dark:text-green-400',
 
   /** Status inactive */
-  inactive: 'text-parchment-600',
+  inactive: 'text-paper-600',
 
   /** Info callout text */
   infoCallout: 'text-blue-800 dark:text-blue-200',
@@ -267,8 +261,8 @@ export const LAYOUT = {
 
   /** Sidebar inner background */
   sidebarInnerBg: IS_MACOS
-    ? 'bg-parchment-150 dark:bg-night-950/80'
-    : 'bg-parchment-150 dark:bg-night-950',
+    ? 'bg-paper-150 dark:bg-night-950/80'
+    : 'bg-paper-150 dark:bg-night-950',
 } as const;
 
 // ─── STRUCTURAL TOKENS ─────────────────────────────────────────
@@ -311,127 +305,54 @@ export const SPACING = {
 // ─── COMPONENT TOKENS ───────────────────────────────────────────
 
 export const COMPONENT = {
-  /** Standard icon button (header, toolbar) */
-  iconButton: `p-2 ${TEXT.muted} hover:text-parchment-900 dark:hover:text-night-100 transition-colors rounded-xl ${SURFACE.hoverSubtle}`,
-
-  /** Small icon button (action bars) */
-  iconButtonSm: `p-1.5 ${TEXT.faint} hover:text-parchment-800 dark:hover:text-night-300 rounded-lg transition-colors`,
-
-  /** Active send button */
-  sendButtonActive: 'bg-parchment-900 dark:bg-night-100 text-white dark:text-night-900 hover:bg-parchment-800 dark:hover:bg-night-200 shadow-lg',
-
-  /** Disabled send button */
-  sendButtonDisabled: 'bg-parchment-300 dark:bg-night-750 text-parchment-600 dark:text-night-600 cursor-not-allowed',
-
-  /** Stop / cancel button */
-  stopButton: 'bg-red-500 hover:bg-red-600 text-white shadow-lg',
-
-  /** Settings nav selected state */
-  settingsNavSelected: `${SURFACE.selected} ${TEXT.primary}`,
-
-  /** Settings nav default state */
-  settingsNavDefault: `${TEXT.secondary} hover:bg-parchment-200/70 dark:hover:bg-night-800/50`,
-
-  /** Sidebar item selected state */
-  sidebarItemSelected: `${SURFACE.selected} ${BORDER.selectedItem}`,
-
-  /** Sidebar item default state */
-  sidebarItemDefault: `border-transparent ${SURFACE.sidebarItemHover} hover:border-parchment-300/40 dark:hover:border-night-700/40`,
-
   /** Primary action chip (buttons on idle view) */
   // BUG FIX: was `dark:hover:bg-zinc-750` (invalid class)
-  chipButton: `inline-flex items-center gap-2 px-4 py-2.5 ${SURFACE.card} border ${BORDER.strong} rounded-full text-sm font-medium ${TEXT.secondary} hover:bg-parchment-150 dark:hover:bg-night-750 transition-all`,
+  chipButton: `inline-flex items-center gap-2 px-4 py-2.5 ${SURFACE.card} border ${BORDER.strong} rounded-full text-sm font-medium ${TEXT.secondary} hover:bg-paper-150 dark:hover:bg-night-750 transition-all`,
 
   /** Suggestion / prompt button */
-  suggestionButton: `w-full text-left p-3 ${SURFACE.card} border ${BORDER.strong} rounded-xl text-sm ${TEXT.secondary} hover:bg-parchment-150 dark:hover:bg-night-750 transition-colors`,
+  suggestionButton: `w-full text-left p-3 ${SURFACE.card} border ${BORDER.strong} rounded-xl text-sm ${TEXT.secondary} hover:bg-paper-150 dark:hover:bg-night-750 transition-colors`,
 
   /** Floating scroll-to-bottom button */
-  floatingButton: 'w-8 h-8 flex items-center justify-center rounded-full bg-parchment-900 dark:bg-night-100 text-white dark:text-night-900 shadow-lg hover:scale-110 transition-transform',
 
   /** Toggle switch active */
   toggleActive: 'bg-green-500 dark:bg-green-600',
 
   /** Toggle switch inactive */
-  toggleInactive: 'bg-parchment-400 dark:bg-night-750',
+  toggleInactive: 'bg-paper-400 dark:bg-night-750',
 
   /** Dropdown menu item hover */
-  dropdownItemHover: 'hover:bg-parchment-200 dark:hover:bg-night-750',
+  dropdownItemHover: 'hover:bg-paper-200 dark:hover:bg-night-750',
 
   /** Dropdown menu item danger (destructive actions) */
   dropdownItemDanger: 'text-red-600 dark:text-red-400 data-[highlighted]:bg-red-50 dark:data-[highlighted]:bg-red-900/20',
 
   /** Dropdown menu item (text + hover) */
-  dropdownItem: 'text-sm hover:bg-parchment-200 dark:hover:bg-night-750',
+  dropdownItem: 'text-sm hover:bg-paper-200 dark:hover:bg-night-750',
 
   /** Resize handle */
-  resizeHandle: 'bg-parchment-300/50 dark:bg-night-650/50',
+  resizeHandle: 'bg-paper-300/50 dark:bg-night-650/50',
 
   /** Resize handle knob */
   resizeHandleKnob: `border ${BORDER.strong} ${SURFACE.inputField}`,
-
-  /** Toolbar button (attachment, web search default) */
-  toolbarButton: 'flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-parchment-200 dark:bg-night-800 text-parchment-800 dark:text-night-400 hover:bg-parchment-300 dark:hover:bg-night-750 transition-all',
-
-  /** Web search toggle active */
-  toolbarButtonActive: 'flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-all',
-
-  /** Primary CTA button (search, add, save) */
-  primaryButton: 'bg-parchment-900 dark:bg-night-100 text-white dark:text-night-900 hover:bg-parchment-800 dark:hover:bg-night-200 transition-colors',
-
-  /** Secondary button (cancel, later) */
-  secondaryButton: 'bg-parchment-200 dark:bg-night-800 hover:bg-parchment-300 dark:hover:bg-night-750 text-parchment-800 dark:text-night-300 transition-all',
-
-  /** Danger button */
-  dangerButton: 'bg-red-600 hover:bg-red-700 text-white transition-all shadow-lg shadow-red-500/20',
 
   /** Dropdown menu item base layout */
   dropdownMenuItemBase: 'w-full text-left px-3 py-2 flex items-center gap-2 transition-colors',
 
   /** Menu button hover state */
-  menuButtonHover: 'hover:bg-parchment-300/80 dark:hover:bg-night-650/80',
-
-  /** Sidebar item active/press state */
-  sidebarItemActive: 'active:bg-parchment-300/80 dark:active:bg-night-650/60',
-
-  /** Success action button (start server, confirm) */
-  successButton: 'bg-green-600 hover:bg-green-700 text-white transition-colors',
-
-  /** Accent/save button (blue CTA for save actions) */
-  accentButton: 'bg-blue-600 hover:bg-blue-700 text-white transition-colors',
-
-  /** Accent button disabled state */
-  accentButtonDisabled: 'bg-parchment-300 dark:bg-night-750 text-parchment-700 dark:text-night-600 cursor-not-allowed',
+  menuButtonHover: 'hover:bg-paper-300/80 dark:hover:bg-night-650/80',
 
   /** Progress bar track */
-  progressTrack: 'bg-parchment-300 dark:bg-night-750',
+  progressTrack: 'bg-paper-300 dark:bg-night-750',
 
   /** Progress bar fill */
-  progressBar: 'bg-parchment-900 dark:bg-night-100',
+  progressBar: 'bg-paper-900 dark:bg-night-100',
 
   /** Destructive hover (delete icon buttons) */
-  destructiveHover: 'text-parchment-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30',
-
-  /** Standard settings input field (surface + border + focus + radius) */
-  settingsInput: `${SURFACE.inputField} border ${BORDER.input} ${RADIUS.md} outline-none ${BORDER.inputFocus} transition-all`,
-
-  /** Disabled input modifier */
-  inputDisabled: 'disabled:opacity-50 disabled:cursor-not-allowed',
+  destructiveHover: 'text-paper-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30',
 
   // ─── Complete Settings Buttons ────────────────────────────────
   // Self-contained: layout + padding + radius + typography + color + disabled.
   // Apply directly to <button> — no assembly required.
-
-  /** Settings button — primary filled (Download, Search, Add) */
-  settingsButtonPrimary: `inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-medium leading-[1.4] ${RADIUS.md} bg-parchment-900 dark:bg-night-100 text-white dark:text-night-900 hover:bg-parchment-800 dark:hover:bg-night-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors`,
-
-  /** Settings button — success filled (Start Server) */
-  settingsButtonSuccess: `inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-medium leading-[1.4] ${RADIUS.md} bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors`,
-
-  /** Settings button — danger filled (Stop Server) */
-  settingsButtonDanger: `inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-medium leading-[1.4] ${RADIUS.md} bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors`,
-
-  /** Settings button — outline (Cancel, Rebuild, secondary actions) */
-  settingsButtonOutline: `inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-medium leading-[1.4] ${RADIUS.md} border ${BORDER.strong} ${TEXT.primary} ${SURFACE.hoverSubtle} disabled:opacity-50 disabled:cursor-not-allowed transition-colors`,
 
   /** Settings inline link (Update, Check for updates, Explore models) */
   settingsLink: `inline-flex items-center gap-1 text-[11.5px] font-normal leading-[1.5] ${TEXT.link} hover:underline disabled:opacity-50 transition-colors`,
@@ -443,25 +364,17 @@ export const COMPONENT = {
   settingsDestructiveLinkActive: `inline-flex items-center gap-1 text-[11.5px] font-normal leading-[1.5] text-red-600 dark:text-red-400 disabled:opacity-50 transition-colors`,
 
   /** Settings muted link — tertiary actions (Check for updates) */
-  settingsMutedLink: `inline-flex items-center gap-1 text-[11.5px] font-normal leading-[1.5] ${TEXT.muted} hover:text-parchment-900 dark:hover:text-night-100 disabled:opacity-50 transition-colors`,
+  settingsMutedLink: `inline-flex items-center gap-1 text-[11.5px] font-normal leading-[1.5] ${TEXT.muted} hover:text-paper-900 dark:hover:text-night-100 disabled:opacity-50 transition-colors`,
 
   /** Keyboard shortcut badge (⌘K, ⌘L, etc.) */
-  kbdBadge: `inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[11px] font-medium rounded-md bg-parchment-300/80 dark:bg-night-700/80 ${TEXT.faint}`,
+  kbdBadge: `inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[11px] font-medium rounded-md bg-paper-300/80 dark:bg-night-700/80 ${TEXT.faint}`,
 
   /** Active tab indicator (border-b-2 + text) */
-  tabActive: `border-parchment-900 dark:border-night-100 ${TEXT.heading}`,
+  tabActive: `border-paper-900 dark:border-night-100 ${TEXT.heading}`,
 
   /** Default/inactive tab state */
-  tabDefault: `border-transparent ${TEXT.muted} hover:text-parchment-800 dark:hover:text-night-300`,
+  tabDefault: `border-transparent ${TEXT.muted} hover:text-paper-800 dark:hover:text-night-300`,
 
-  /** Inline edit input (notes, todos, history rename) */
-  inlineInput: `${SURFACE.inputField} border ${BORDER.input} ${RADIUS.md} text-sm ${TEXT.primary} outline-none ${BORDER.inputFocus} resize-none`,
-
-  /** Clickable list row (suggestions, sources, history items) */
-  listRow: `flex items-center gap-2.5 text-left w-full px-3 py-2.5 text-sm ${TEXT.secondary} hover:text-parchment-900 dark:hover:text-night-200 ${SURFACE.hoverSubtle} rounded-lg transition-colors cursor-pointer`,
-
-  /** Recommended badge (green pill) */
-  recommendedBadge: 'px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded text-[10px] font-medium',
 } as const;
 
 // ─── AUDIO PLAYER TOKENS ──────────────────────────────────────
@@ -471,7 +384,7 @@ export const AUDIO = {
   shell: `${SURFACE.subtle} border ${BORDER.default} rounded-xl shadow-sm select-none outline-none`,
 
   /** Player focus ring */
-  focusRing: 'focus:ring-2 focus:ring-parchment-400/50 dark:focus:ring-night-600/50',
+  focusRing: 'focus:ring-2 focus:ring-paper-400/50 dark:focus:ring-night-600/50',
 
   /** Waveform canvas container */
   waveform: 'h-10 w-full rounded-md overflow-hidden',
@@ -480,7 +393,7 @@ export const AUDIO = {
   controlButton: `w-8 h-8 flex items-center justify-center rounded-full ${TEXT.muted} ${SURFACE.hoverSubtle} hover:${TEXT.primary} transition-all shrink-0`,
 
   /** Play/pause primary button */
-  playButton: `w-9 h-9 flex items-center justify-center rounded-full ${COMPONENT.primaryButton} shrink-0 shadow-sm hover:shadow-md transition-all`,
+  playButton: 'w-9 h-9 flex items-center justify-center rounded-full bg-paper-900 dark:bg-night-100 text-white dark:text-night-900 shrink-0 shadow-sm hover:shadow-md transition-all',
 
   /** Speed trigger pill */
   speedTrigger: `h-7 px-2 flex items-center justify-center rounded-md text-[11px] font-mono font-medium ${TEXT.muted} ${SURFACE.hoverSubtle} hover:${TEXT.primary} transition-all`,
