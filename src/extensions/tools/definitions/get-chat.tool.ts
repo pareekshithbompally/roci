@@ -4,9 +4,9 @@
  * Loads a full chat session by ID and returns a summary of its conversation.
  */
 
-import type { ToolDefinition, ToolResult } from '../types';
+import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
 import { chatService } from '@services/chat.service';
-import { MAX_CHAT_MESSAGES_FOR_LLM } from '../constants';
+import { MAX_CHAT_MESSAGES_FOR_LLM } from '@extensions/tools/constants';
 
 export const getChatTool: ToolDefinition = {
   name: 'get_chat',

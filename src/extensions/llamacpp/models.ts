@@ -299,8 +299,14 @@ export async function searchHfModels(query: string): Promise<HfModelResult[]> {
     `https://huggingface.co/api/models?search=${encodeURIComponent(query)}&filter=gguf&sort=downloads&direction=-1&limit=15`
   );
   if (!resp.ok) throw new Error(`HF search failed: ${resp.status}`);
-  const data = await resp.json();
-  return data.map((m: any) => ({
+  const data = (await resp.json()) as Array<{
+    id: string;
+    author?: string;
+    downloads?: number;
+    likes?: number;
+    tags?: string[];
+  }>;
+  return data.map((m) => ({
     id: m.id,
     author: m.author ?? m.id.split('/')[0] ?? '',
     downloads: m.downloads ?? 0,
@@ -319,10 +325,15 @@ export async function listHfRepoFiles(repoId: string, hfToken?: string): Promise
     { headers }
   );
   if (!resp.ok) throw new Error(`HF repo fetch failed: ${resp.status}`);
-  const files = await resp.json();
+  const files = (await resp.json()) as Array<{
+    type: string;
+    path: string;
+    size?: number;
+    lfs?: { size?: number };
+  }>;
   return files
-    .filter((f: any) => f.type === 'file')
-    .map((f: any) => ({
+    .filter((f) => f.type === 'file')
+    .map((f) => ({
       name: f.path,
       size: f.lfs?.size ?? f.size ?? 0,
       isGguf: f.path.endsWith('.gguf'),
@@ -467,7 +478,8 @@ export async function importLocalModel(): Promise<ManagedModel | null> {
 
   if (!selected) return null;
 
-  const sourcePath = typeof selected === 'string' ? selected : (selected as any).path;
+  const sourcePath =
+    typeof selected === 'string' ? selected : Array.isArray(selected) ? selected[0] ?? null : null;
   if (!sourcePath) return null;
 
   const fileName = sourcePath.split('/').pop() ?? sourcePath.split('\\').pop() ?? 'model.gguf';

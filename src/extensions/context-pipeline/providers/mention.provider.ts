@@ -5,7 +5,7 @@
  * this fires first with confidence 1.0, short-circuiting the pipeline.
  */
 
-import type { ContextInput, ContextOutput, ContextProvider } from '../types';
+import type { ContextInput, ContextOutput, ContextProvider } from '@extensions/context-pipeline/types';
 import { meetingReferenceService } from '@services/meetingReferenceService';
 
 export class MentionProvider implements ContextProvider {

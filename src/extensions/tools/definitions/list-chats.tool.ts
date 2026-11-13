@@ -6,7 +6,7 @@
  * search_chats might return too broad results.
  */
 
-import type { ToolDefinition, ToolResult } from '../types';
+import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
 import { chatService } from '@services/chat.service';
 
 export const listChatsTool: ToolDefinition = {

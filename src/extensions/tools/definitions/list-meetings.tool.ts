@@ -5,7 +5,7 @@
  * No RAG dependency — just reads from context.historyItems.
  */
 
-import type { ToolDefinition, ToolResult } from '../types';
+import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
 
 export const listMeetingsTool: ToolDefinition = {
   name: 'list_meetings',

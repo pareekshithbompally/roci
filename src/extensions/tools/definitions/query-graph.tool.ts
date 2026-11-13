@@ -9,9 +9,9 @@
  * which tool fits the query type.
  */
 
-import type { ToolDefinition, ToolResult } from '../types';
-import { graphDB } from '../../rag/graph-client';
-import type { GraphNode, TraversalResult } from '../../rag/graph-types';
+import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
+import { graphDB } from '@extensions/rag/graph-client';
+import type { GraphNode, TraversalResult } from '@extensions/rag/graph-types';
 
 export const queryGraphTool: ToolDefinition = {
   name: 'query_graph',

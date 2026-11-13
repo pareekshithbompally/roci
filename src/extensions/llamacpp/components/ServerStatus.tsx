@@ -6,9 +6,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
-import * as server from '../server';
+import * as server from '@extensions/llamacpp/server';
 import { TEXT } from '@config/theme.config';
-import type { ServerStatus as ServerStatusType } from '../types';
+import type { ServerStatus as ServerStatusType } from '@extensions/llamacpp/types';
 
 interface ServerStatusProps {
   className?: string;
@@ -18,12 +18,12 @@ const STATUS_CONFIG: Record<
   ServerStatusType,
   { label: string; colorClass: string; animate?: boolean }
 > = {
-  idle: { label: 'Stopped', colorClass: 'bg-parchment-500 dark:bg-night-600' },
-  downloading: { label: 'Downloading...', colorClass: 'bg-blue-400', animate: true },
-  starting: { label: 'Starting...', colorClass: 'bg-yellow-400', animate: true },
-  running: { label: 'Running', colorClass: 'bg-green-500' },
-  stopping: { label: 'Stopping...', colorClass: 'bg-yellow-400', animate: true },
-  error: { label: 'Error', colorClass: 'bg-red-500' },
+  idle: { label: 'Stopped', colorClass: 'bg-paper-500 dark:bg-night-600' },
+  downloading: { label: 'Downloading...', colorClass: 'bg-blue-400 dark:bg-blue-500', animate: true },
+  starting: { label: 'Starting...', colorClass: 'bg-yellow-400 dark:bg-yellow-500', animate: true },
+  running: { label: 'Running', colorClass: 'bg-green-500 dark:bg-green-500' },
+  stopping: { label: 'Stopping...', colorClass: 'bg-yellow-400 dark:bg-yellow-500', animate: true },
+  error: { label: 'Error', colorClass: 'bg-red-500 dark:bg-red-500' },
 };
 
 export const ServerStatus: React.FC<ServerStatusProps> = ({ className = '' }) => {

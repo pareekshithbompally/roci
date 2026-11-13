@@ -30,7 +30,7 @@ export function useHfRepoFiles(repoId: string | null, hfToken?: string) {
   const token = hfToken?.trim() || undefined;
   return useQuery<HfModelFile[]>({
     queryKey: queryKeys.hfRepoFiles(repoId ?? '', !!token),
-    queryFn: () => models.listHfRepoFiles(repoId!, token),
+    queryFn: () => (repoId ? models.listHfRepoFiles(repoId, token) : Promise.resolve([])),
     enabled: !!repoId,
     select: (files) => models.sortFilesByQuant(files),
   });

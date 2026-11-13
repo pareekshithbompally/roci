@@ -293,8 +293,12 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
             currentTitle: item.title,
           });
 
+          if (!item.structuredSummary) {
+            console.warn('[RAGIndexer] Skipping extraction for meeting without summary:', item.id);
+            continue;
+          }
           try {
-            const summary = toMeetingSummary(item.structuredSummary!);
+            const summary = toMeetingSummary(item.structuredSummary);
             // Pass only an excerpt — extractor already truncates to 3000 chars,
             // but passing the full string keeps it in the closure for 60s per meeting
             const transcriptExcerpt = item.transcript?.slice(0, 3000) ?? '';
@@ -425,8 +429,12 @@ async function extractAll(
       currentTitle: item.title,
     });
 
+    if (!item.structuredSummary) {
+      console.warn('[RAGIndexer] Skipping extraction for meeting without summary:', item.id);
+      continue;
+    }
     try {
-      const summary = toMeetingSummary(item.structuredSummary!);
+      const summary = toMeetingSummary(item.structuredSummary);
       const transcriptExcerpt = item.transcript?.slice(0, 3000) ?? '';
       const success = await entityExtractor.extractAndUpsert(
         item.id, item.title, summary, transcriptExcerpt,

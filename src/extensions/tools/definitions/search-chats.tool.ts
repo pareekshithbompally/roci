@@ -5,10 +5,10 @@
  * Returns ranked excerpts the LLM can use to locate specific conversations.
  */
 
-import type { ToolDefinition, ToolResult } from '../types';
-import { chatSearcher } from '../../rag/chat-searcher';
-import { vectorDB } from '../../rag/client';
-import { SCORE_HIGH, SCORE_MEDIUM } from '../../rag/constants';
+import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
+import { chatSearcher } from '@extensions/rag/chat-searcher';
+import { vectorDB } from '@extensions/rag/client';
+import { SCORE_HIGH, SCORE_MEDIUM } from '@extensions/rag/constants';
 
 export const searchChatsTool: ToolDefinition = {
   name: 'search_chats',

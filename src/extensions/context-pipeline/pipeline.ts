@@ -50,9 +50,16 @@ export class ContextPipeline {
         if (output.confidence >= 0.9 && output.text) {
           break;
         }
-      } catch (error: any) {
-        // Re-throw abort errors
-        if (error.name === 'AbortError') throw error;
+      } catch (error: unknown) {
+        // Re-throw abort errors (DOMException is not an Error instance —
+        // match structurally on `name`)
+        const errorName =
+          error instanceof Error
+            ? error.name
+            : typeof error === 'object' && error !== null && 'name' in error
+              ? (error as { name?: unknown }).name
+              : undefined;
+        if (errorName === 'AbortError') throw error;
 
         console.error(`[ContextPipeline] ${provider.name} failed (fail-open):`, error);
         // Continue to next provider

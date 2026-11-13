@@ -6,11 +6,11 @@
  * meetings to load in full via get_meeting.
  */
 
-import type { ToolDefinition, ToolResult, MeetingCitation } from '../types';
-import { ragSearcher } from '../../rag/searcher';
-import { ragIndexer } from '../../rag/indexer';
-import { vectorDB } from '../../rag/client';
-import { SCORE_HIGH, SCORE_MEDIUM } from '../../rag/constants';
+import type { ToolDefinition, ToolResult, MeetingCitation } from '@extensions/tools/types';
+import { ragSearcher } from '@extensions/rag/searcher';
+import { ragIndexer } from '@extensions/rag/indexer';
+import { vectorDB } from '@extensions/rag/client';
+import { SCORE_HIGH, SCORE_MEDIUM } from '@extensions/rag/constants';
 
 export const searchMeetingsTool: ToolDefinition = {
   name: 'search_meetings',

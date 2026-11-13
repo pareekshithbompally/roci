@@ -8,14 +8,14 @@
  * For toggle/update/delete, uses fuzzy text matching to find the target todo.
  */
 
-import type { ToolDefinition, ToolResult } from '../types';
+import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
 import { store } from '@services/db';
 import {
   todoProposalStore,
   GENERAL_MEETING_ID,
   GENERAL_MEETING_TITLE,
-} from '@features/chat/stores/todoProposalStore';
-import type { TodoProposal } from '@features/chat/stores/todoProposalStore';
+} from '@features/chat';
+import type { TodoProposal } from '@features/chat';
 import type { TodoEntry } from '@shared/types';
 
 export const manageTodoTool: ToolDefinition = {

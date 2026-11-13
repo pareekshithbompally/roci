@@ -5,7 +5,7 @@
  * Wraps meetingReferenceService.loadSelectiveContext + formatForLLM.
  */
 
-import type { ToolDefinition, ToolResult, MeetingCitation } from '../types';
+import type { ToolDefinition, ToolResult, MeetingCitation } from '@extensions/tools/types';
 import { meetingReferenceService } from '@services/meetingReferenceService';
 import type { MeetingField } from '@services/meetingReferenceService';
 
