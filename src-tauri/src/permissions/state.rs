@@ -1,4 +1,3 @@
-// Ported from HEX (MIT © 2026 Christopher Langton): src/desktop/onboarding.rs:24-43
 
 use serde::{Deserialize, Serialize};
 

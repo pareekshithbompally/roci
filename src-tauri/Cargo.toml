@@ -39,12 +39,18 @@ base64 = "0.22"
 tauri-plugin-window-state = "2"
 tauri-plugin-updater = "2"
 mac-notification-sys = "0.6"
-# Ported from HEX (MIT): permissions + meeting audio. Versions match HEX's Cargo.toml.
 block2 = "0.6.2"
+cpal = "0.18.2"
+eyre = "0.6.12"
+hound = "3.5.1"
 libc = "0.2.189"
 objc2 = "0.6.4"
+objc2-core-audio = "0.3.2"
+objc2-core-audio-types = "0.3.2"
 objc2-core-foundation = "0.3.2"
 objc2-foundation = "0.3.2"
+rubato = "5.0.1"
+screencapturekit = { version = "=11.0.0", features = ["macos_15_0"] }
 tracing = { version = "0.1.44", features = ["log"] }
 
 [profile.release]

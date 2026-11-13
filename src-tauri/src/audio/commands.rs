@@ -1,59 +1,88 @@
-use std::sync::Mutex;
+use std::path::PathBuf;
+use std::sync::{Mutex, MutexGuard};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
-use crate::audio::bridge;
-use crate::audio::types::{AudioCaptureOptions, CaptureError};
-use crate::permissions;
+use super::recorder::{Recorder, Sources};
+use crate::permissions::{self, PermissionKind};
 
-/// Both output paths returned by `stop_audio_capture`.
-#[derive(Serialize)]
+/// Capture source, kept in sync with the frontend `AudioCaptureSource` union.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct RecordingPaths {
-    pub playback_path: String,
-    pub ai_path: String,
+pub enum AudioCaptureSource {
+    System,
+    Microphone,
+    SystemAndMicrophone,
 }
 
-/// Maps `…/recording_<ts>.wav` → `…/recording_<ts>.ai.wav`
-fn ai_sibling_path(hq_path: &str) -> String {
-    let path = std::path::Path::new(hq_path);
-    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("recording");
-    let parent = path.parent().unwrap_or_else(|| std::path::Path::new("."));
-    parent.join(format!("{stem}.ai.wav")).to_string_lossy().into_owned()
+impl AudioCaptureSource {
+    /// The permissions this source records with.
+    fn needs(self) -> &'static [PermissionKind] {
+        match self {
+            AudioCaptureSource::System => &[PermissionKind::SystemAudio],
+            AudioCaptureSource::Microphone => &[PermissionKind::Microphone],
+            AudioCaptureSource::SystemAndMicrophone => {
+                &[PermissionKind::Microphone, PermissionKind::SystemAudio]
+            }
+        }
+    }
+
+    fn sources(self) -> Sources {
+        Sources {
+            microphone: self != AudioCaptureSource::System,
+            system: self != AudioCaptureSource::Microphone,
+        }
+    }
 }
 
-struct CaptureHandle {
-    hq_path: String,
-    ai_path: String,
-    /// Boxed-AppHandle pointer (as usize for Send) held by the Swift bridge.
-    ctx: usize,
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AudioCaptureOptions {
+    pub source: AudioCaptureSource,
+    pub file_name: Option<String>,
+    pub recordings_dir: Option<String>,
 }
 
-static CAPTURE_STATE: Mutex<Option<CaptureHandle>> = Mutex::new(None);
+/// Why a capture command failed, for the frontend to branch on `code`.
+#[derive(Debug, Serialize)]
+#[serde(tag = "code", rename_all = "kebab-case")]
+pub enum CaptureError {
+    /// A permission is missing: no error tone, the checklist opens.
+    Permission { kind: PermissionKind },
+    Capture { message: String },
+}
+
+impl From<eyre::Report> for CaptureError {
+    fn from(error: eyre::Report) -> Self {
+        Self::Capture {
+            message: format!("{error:#}"),
+        }
+    }
+}
+
+static RECORDER: Mutex<Option<Recorder>> = Mutex::new(None);
+
+fn recorder() -> MutexGuard<'static, Option<Recorder>> {
+    RECORDER.lock().unwrap_or_else(|error| error.into_inner())
+}
 
 fn create_output_path(
     app: &AppHandle,
     file_name: Option<String>,
     recordings_dir: Option<String>,
-) -> Result<String, String> {
-    let data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to resolve app data dir: {e}"))?;
-    let dir_name = recordings_dir.unwrap_or_else(|| "recordings".to_string());
-    let recordings_path = data_dir.join(dir_name);
-    if let Err(e) = std::fs::create_dir_all(&recordings_path) {
-        return Err(format!("Failed to create recordings directory: {e}"));
-    }
+) -> eyre::Result<PathBuf> {
+    let data_dir = app.path().app_data_dir()?;
+    let recordings_path = data_dir.join(recordings_dir.unwrap_or_else(|| "recordings".into()));
+    std::fs::create_dir_all(&recordings_path)?;
     let filename = file_name.unwrap_or_else(|| {
         let ts = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis())
             .unwrap_or_default();
-        format!("recording_{}.wav", ts)
+        format!("recording_{ts}.wav")
     });
-    Ok(recordings_path.join(filename).to_string_lossy().to_string())
+    Ok(recordings_path.join(filename))
 }
 
 #[tauri::command]
@@ -65,50 +94,38 @@ pub async fn start_audio_capture(
         return Err(CaptureError::Permission { kind });
     }
     stop_audio_capture().await.ok();
-
-    let hq_path = create_output_path(&app, options.file_name, options.recordings_dir)?;
-    let ai_path = ai_sibling_path(&hq_path);
-    log::info!("Audio capture starting, hq={}, ai={}", hq_path, ai_path);
-
-    let ctx = bridge::start(options.source.tag(), &hq_path, &ai_path, app.clone())?;
-
-    *CAPTURE_STATE.lock().unwrap() = Some(CaptureHandle { hq_path, ai_path, ctx });
-    log::info!("Audio capture started.");
+    let output = create_output_path(&app, options.file_name, options.recordings_dir)?;
+    tracing::info!(output = %output.display(), "audio capture starting");
+    let started = Recorder::start(options.source.sources(), output, app)?;
+    *recorder() = Some(started);
     Ok(())
 }
 
+/// Stops the recording and returns the mixed file's path.
 #[tauri::command]
-pub async fn stop_audio_capture() -> Result<RecordingPaths, String> {
-    let state = { CAPTURE_STATE.lock().unwrap().take() };
-
-    let Some(state) = state else {
-        return Ok(RecordingPaths {
-            playback_path: "No active audio capture".to_string(),
-            ai_path: String::new(),
-        });
+pub async fn stop_audio_capture() -> Result<String, CaptureError> {
+    let Some(active) = recorder().take() else {
+        return Err(eyre::eyre!("no audio capture is running").into());
     };
-
-    // bridge::stop tears down the streams, the engine, and closes (finalizes)
-    // the WAV files — blocking work. Run it off the async runtime so it never
-    // freezes other IPC (the old "Stop needs two clicks / stalled widget" bug).
-    let ctx = state.ctx;
-    tauri::async_runtime::spawn_blocking(move || bridge::stop(ctx))
+    // Stopping joins the capture threads and writes the mix: blocking work,
+    // kept off the async runtime so other IPC never stalls.
+    let output = tauri::async_runtime::spawn_blocking(move || active.stop())
         .await
-        .map_err(|e| format!("Audio stop task panicked: {e}"))?;
-
-    log::info!("Audio capture stopped, hq={}", state.hq_path);
-    Ok(RecordingPaths {
-        playback_path: state.hq_path,
-        ai_path: state.ai_path,
-    })
+        .map_err(|error| eyre::eyre!("audio stop task failed: {error}"))??;
+    tracing::info!(output = %output.display(), "audio capture stopped");
+    Ok(output.to_string_lossy().into_owned())
 }
 
 #[tauri::command]
-pub async fn pause_audio_capture() -> Result<(), String> {
-    bridge::pause()
+pub async fn pause_audio_capture() {
+    if let Some(active) = recorder().as_ref() {
+        active.pause();
+    }
 }
 
 #[tauri::command]
-pub async fn resume_audio_capture() -> Result<(), String> {
-    bridge::resume()
+pub async fn resume_audio_capture() {
+    if let Some(active) = recorder().as_ref() {
+        active.resume();
+    }
 }

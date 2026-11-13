@@ -1,7 +1,3 @@
-// Ported from HEX (MIT © 2026 Christopher Langton):
-//   src/desktop/onboarding.rs:1036-1055, 1130-1172 (microphone)
-//   src/meeting/macos.rs:45-77, 596-694 (screen + system audio)
-//   native/permission_guide.m:536-554 (System Settings panes)
 
 use std::ffi::c_void;
 use std::sync::OnceLock;
@@ -54,7 +50,7 @@ fn system_audio_state() -> PermissionState {
     }
 }
 
-// MARK: Microphone (src/desktop/onboarding.rs)
+// MARK: Microphone
 
 pub fn request_microphone() {
     let Some(class) = AnyClass::get(c"AVCaptureDevice") else {
@@ -98,7 +94,7 @@ unsafe extern "C" {
     static AVMediaTypeAudio: *const NSString;
 }
 
-// MARK: Screen and system audio (src/meeting/macos.rs)
+// MARK: Screen and system audio
 
 unsafe extern "C" {
     fn CGPreflightScreenCaptureAccess() -> bool;
@@ -233,7 +229,6 @@ pub fn request_system_audio_access() -> bool {
 mod tests {
     use super::*;
 
-    // HEX src/desktop/onboarding.rs:1242-1253
     #[test]
     fn denied_microphone_permission_requires_system_settings() {
         assert_eq!(
