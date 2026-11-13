@@ -13,4 +13,4 @@ export { buildVTTDocumentPrompt, buildGenericDocumentPrompt } from './document.p
 
 export { buildEntityExtractionPrompt } from './entity-extraction.prompt';
 
-export { formatTemporalContext } from '../temporal';
+export { formatTemporalContext } from '@core/ai/temporal';

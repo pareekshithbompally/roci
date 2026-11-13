@@ -9,6 +9,8 @@ import type { ModelProvider } from '@shared/types/modelProviders';
 import { store } from '@services/db';
 import { normalizeDueDate } from '@shared/utils/todo.utils';
 import { formatMeetingSummary } from './searchIndexing.service';
+import { queryClient } from '@shared/query/queryClient';
+import { queryKeys } from '@shared/query/queryKeys';
 
 export interface TranscriptionResult {
   meetingId: string;
@@ -80,6 +82,13 @@ class TranscriptionService {
       });
 
       console.log('[TranscriptionService] Saved transcription result for meeting:', meetingId);
+
+      // Single choke point for all meeting writes (recording, import, recovery):
+      // tell every meetings-query observer to refetch instead of relying on
+      // per-caller callbacks.
+      queryClient.invalidateQueries({ queryKey: queryKeys.meetings() }).catch((error: unknown) =>
+        console.error('[TranscriptionService] Failed to invalidate meetings query:', error)
+      );
 
       // Fire-and-forget: index meeting into vector DB
       const now = new Date().toISOString();

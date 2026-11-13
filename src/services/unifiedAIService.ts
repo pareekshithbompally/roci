@@ -18,7 +18,6 @@ import { buildTranscriptionRequest, formatTemporalContext } from '@core/ai';
 import { createModel } from './ai';
 import { extractTokenUsage } from './ai/types';
 import type { TokenUsage } from './ai/types';
-import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { MeetingContext } from '@core/ai/prompts/transcription.prompt';
 import type { AnalysisResult } from '@core/ai/schemas/transcription.schema';
 import {
@@ -152,11 +151,14 @@ class UnifiedAIService {
       supportsStructuredOutput: true,
       temporalContext: formatTemporalContext(),
     });
+    if (!config.outputSchema) {
+      throw new Error('Structured output schema unavailable for transcription analysis.');
+    }
     const result = await generateText({
       model: createModel(resolved),
       instructions: config.prompt,
       messages: [{ role: 'user', content }],
-      output: Output.object({ schema: jsonSchema(config.outputSchema!.schema) }),
+      output: Output.object({ schema: jsonSchema(config.outputSchema.schema) }),
     });
     const analysis = result.output as AnalysisResult;
     return {

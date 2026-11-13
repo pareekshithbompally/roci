@@ -42,7 +42,9 @@ class MeetingService {
         graphDB.deleteMeeting(id).catch(err =>
           console.warn('[MeetingService] Graph cleanup failed for', id, err)
         );
-      }).catch(() => {});
+      }).catch((error: unknown) =>
+        console.warn('[MeetingService] Graph client unavailable, skipping cleanup for', id, error)
+      );
 
       return true;
     } catch (error) {
