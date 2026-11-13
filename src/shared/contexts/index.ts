@@ -20,6 +20,3 @@ export { ChatProvider, useChat } from './ChatContext';
 
 // Settings Context
 export { SettingsProvider, useSettings } from './SettingsContext';
-
-// Unsaved Changes Context
-export { UnsavedChangesProvider, useUnsavedChanges } from './UnsavedChangesContext';

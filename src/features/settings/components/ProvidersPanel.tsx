@@ -10,9 +10,7 @@ import React, { useState, useEffect } from 'react';
 import { ExternalLink, Search, Loader2, Copy, Check, Settings, X } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-shell';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useAppActions } from '@shared/stores/appStore';
 import { useToast } from '@shared/contexts/ToastContext';
-import { useSettingsSave } from '../hooks/useSettingsSave';
 import { useModalities } from '../stores/modalitiesStore';
 import ProvidersAvatar from '@shared/components/ProvidersAvatar';
 import { getProviderTitle } from '@shared/utils/provider.utils';
@@ -38,8 +36,6 @@ const STORAGE_KEY = 'kasset_ai_last_provider_selection';
 export const ProvidersPanel: React.FC = () => {
   const {
     providers,
-    settings,
-    setSettings,
     updateProvider,
     updateProviderSetting,
     selectedProviderName,
@@ -47,8 +43,6 @@ export const ProvidersPanel: React.FC = () => {
   } = useSettings();
 
   const { showToast } = useToast();
-  const { setCurrentView } = useAppActions();
-  const { hasUnsavedChanges, save: baseSave } = useSettingsSave('Provider settings', 'providers');
   const modalitiesLoaded = useModalities();
   const [showSetupBanner, setShowSetupBanner] = useState(true);
 
@@ -83,32 +77,6 @@ export const ProvidersPanel: React.FC = () => {
   const selectedProvider = effectiveSelectedProvider
     ? providers.find(p => p.provider === effectiveSelectedProvider)
     : null;
-
-  // Wrap save to auto-select model + navigate home after first provider setup
-  const save = async () => {
-    const hadModelsBefore = anyProviderHasModels;
-
-    if (!settings.chatModel) {
-      for (const p of providers) {
-        if (p.active && p.models?.length) {
-          setSettings({ chatModel: p.models[0].id });
-          try {
-            localStorage.setItem('kasset_last_used_model', JSON.stringify({
-              provider: p.provider,
-              modelId: p.models[0].id,
-            }));
-          } catch { /* ignore */ }
-          break;
-        }
-      }
-    }
-
-    await baseSave();
-    const nowHasModels = providers.some(p => p.active && p.models && p.models.length > 0);
-    if (nowHasModels && !hadModelsBefore) {
-      setCurrentView('home');
-    }
-  };
 
   // Per-model settings modal state
   const [modelSettingsTarget, setModelSettingsTarget] = useState<{ provider: string; modelId: string } | null>(null);
@@ -302,7 +270,7 @@ export const ProvidersPanel: React.FC = () => {
               {showSetupBanner && !anyProviderHasModels && (
                 <div className="mb-4 relative">
                   <InfoCallout variant="info">
-                    <strong>Quick setup:</strong> Pick a provider on the left, enter your API key, add at least one model, then save.
+                    <strong>Quick setup:</strong> Pick a provider on the left, enter your API key, and add at least one model — changes save automatically.
                   </InfoCallout>
                   <button
                     onClick={() => setShowSetupBanner(false)}

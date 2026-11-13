@@ -9,12 +9,11 @@
  * 2. ThemeProvider - Basic theming, no dependencies
  * 3. ToastProvider - Notifications, no dependencies
  * 4. QueryClientProvider - TanStack Query for server/disk data
- * 5. SettingsProvider - App settings, needed by others
- * 6. UnsavedChangesProvider - Settings unsaved state tracking
- * 7. HistoryProvider - History management
- * 8. ImportProvider - Audio/transcript file import
- * 9. ChatProvider - Chat functionality
- * 10. RecordingProvider - Recording functionality (with context dependencies)
+ * 5. SettingsProvider - App settings, needed by others (save-on-edit, no dirty tracking)
+ * 6. HistoryProvider - History management
+ * 7. ImportProvider - Audio/transcript file import
+ * 8. ChatProvider - Chat functionality
+ * 9. RecordingProvider - Recording functionality (with context dependencies)
  *
  * Note: appStore (Zustand) replaces AppContext; useMeetingNotes/useMeetingTodos
  * (TanStack Query) replace MeetingContext, NotesContext, TodosContext.
@@ -25,7 +24,6 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '../shared/contexts/ThemeContext';
 import { ToastProvider } from '../shared/contexts/ToastContext';
 import { SettingsProvider, useSettings } from '../shared/contexts/SettingsContext';
-import { UnsavedChangesProvider } from '../shared/contexts/UnsavedChangesContext';
 import { HistoryProvider, useHistory } from '../shared/contexts/HistoryContext';
 import { ChatProvider } from '../shared/contexts/ChatContext';
 import { RecordingProvider } from '../features/recording';
@@ -122,17 +120,15 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
         <ToastProvider>
           <QueryClientProvider client={queryClient}>
             <SettingsProvider>
-              <UnsavedChangesProvider>
-                <HistoryProvider>
-                  <ImportProvider>
-                    <ChatProvider>
-                      <RecordingProviderWrapper>
-                        {children}
-                      </RecordingProviderWrapper>
-                    </ChatProvider>
-                  </ImportProvider>
-                </HistoryProvider>
-              </UnsavedChangesProvider>
+              <HistoryProvider>
+                <ImportProvider>
+                  <ChatProvider>
+                    <RecordingProviderWrapper>
+                      {children}
+                    </RecordingProviderWrapper>
+                  </ChatProvider>
+                </ImportProvider>
+              </HistoryProvider>
             </SettingsProvider>
           </QueryClientProvider>
         </ToastProvider>

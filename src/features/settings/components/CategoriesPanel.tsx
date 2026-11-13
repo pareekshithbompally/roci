@@ -8,7 +8,7 @@ import React, { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
-import { useSettingsSave } from '../hooks/useSettingsSave';
+
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { SURFACE, BORDER, TEXT, COMPONENT, RADIUS, LAYOUT } from '@config/theme.config';
 import { SettingsSection, Toggle } from './shared';
@@ -17,8 +17,6 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 export const CategoriesPanel: React.FC = () => {
   const { settings, setSettings, isLoading } = useSettings();
   const { showToast } = useToast();
-  const { hasUnsavedChanges } = useSettingsSave('Categories', 'categories');
-
   if (isLoading) return null;
 
   const [newCategory, setNewCategory] = useState('');

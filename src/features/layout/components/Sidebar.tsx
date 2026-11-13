@@ -8,9 +8,10 @@ import React, { useRef, useCallback, useEffect } from 'react';
 import { Search, SquarePen, PanelLeft, Settings } from 'lucide-react';
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
 import { useSmallScreen } from '@shared/hooks/useMediaQuery';
-import { useSelectedHistoryId, useAppActions } from '@shared/stores/appStore';
+import { useSelectedHistoryId, useCurrentView, useAppActions } from '@shared/stores/appStore';
 import { useChat } from '@shared/contexts/ChatContext';
 import { UnifiedList } from '@features/history';
+import { SettingsNav } from '@features/settings/components/SettingsNav';
 import { useUnifiedSidebar } from '@shared/hooks/useUnifiedSidebar';
 import { AppStatus } from '@shared/types';
 import { meetingService } from '@services/meeting.service';
@@ -73,6 +74,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { open: isLeftPanelOpen, setLeftPanel } = useLeftPanel();
   const isSmallScreen = useSmallScreen();
+  const currentView = useCurrentView();
+  const isSettingsView = currentView === 'settings';
   const { items } = useUnifiedSidebar();
   const selectedHistoryId = useSelectedHistoryId();
   const { setCurrentView, setStatus, setSelectedHistoryId, setResult } = useAppActions();
@@ -175,14 +178,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
       </div>
 
-      {/* Scrollable list */}
+      {/* Scrollable list — settings sections when in settings view */}
       <div ref={listContainerRef} className="flex-1 overflow-y-auto px-2 py-1 scrollbar-overlay scroll-fade">
-        <UnifiedList
-          items={items}
-          selectedId={getSelectedId()}
-          onSelect={handleSelectItem}
-          searchQuery=""
-        />
+        {isSettingsView ? (
+          <SettingsNav />
+        ) : (
+          <UnifiedList
+            items={items}
+            selectedId={getSelectedId()}
+            onSelect={handleSelectItem}
+            searchQuery=""
+          />
+        )}
       </div>
 
       {/* Activity tray — transient, only visible when operations are in progress */}
@@ -192,7 +199,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className={`shrink-0 px-2 py-1.5 border-t ${BORDER.subtle}`}>
         <button
           onClick={handleSettingsClick}
-          className={`w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md ${TYPOGRAPHY_CLASSES.sidebarItem} ${TEXT.primary} ${SURFACE.hoverSubtle} transition-all cursor-pointer`}
+          aria-current={isSettingsView ? 'page' : undefined}
+          className={`w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md ${TYPOGRAPHY_CLASSES.sidebarItem} ${TEXT.primary} transition-all cursor-pointer ${isSettingsView ? SURFACE.selected : SURFACE.hoverSubtle}`}
         >
           <Settings className="w-3.5 h-3.5" />
           Settings

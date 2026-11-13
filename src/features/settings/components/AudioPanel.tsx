@@ -8,7 +8,7 @@
 import React, { useMemo } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
-import { useSettingsSave } from '../hooks/useSettingsSave';
+
 import { useModalities } from '../stores/modalitiesStore';
 import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
@@ -24,7 +24,6 @@ import type { TranscriptionEngine } from '@services/ai/transcription';
 
 export const AudioPanel: React.FC = () => {
   const { settings, setSettings, providers, isLoading } = useSettings();
-  const { hasUnsavedChanges } = useSettingsSave('Audio settings', 'audio');
   const { showToast } = useToast();
   const modalitiesLoaded = useModalities();
 

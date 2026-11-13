@@ -8,6 +8,8 @@
  * - Persists settings as key-value pairs in kasset.db
  * - Merges saved providers with predefined providers (for new providers added in updates)
  * - Loads settings on mount
+ * - Save-on-edit: every mutation auto-persists after a short debounce;
+ *   `saveSettings` remains as an immediate flush. No dirty tracking.
  */
 
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
@@ -84,6 +86,14 @@ const initialState: SettingsState = {
   selectedProviderName: null,
   isLoading: true,
 };
+
+/**
+ * Save-on-edit delay. Every settings mutation writes through to disk after
+ * this trailing debounce so rapid edits (typing an API key, toggling a list)
+ * coalesce into a single write. Matches the debounced-settings pattern used
+ * by Jan; Hex persists every mutation immediately at the model layer.
+ */
+const AUTOSAVE_DELAY_MS = 500;
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
@@ -271,7 +281,10 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     }
   }, []);
 
-  const saveSettings = useCallback(async (overrides?: Partial<AppSettings>) => {
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Write one snapshot of settings + providers to disk. Reads from stateRef so the debounced timer always persists the latest state. */
+  const persistNow = useCallback(async (overrides?: Partial<AppSettings>) => {
     const currentState = stateRef.current;
 
     if (!isInitializedRef.current || currentState.isLoading) {
@@ -309,23 +322,62 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     }
   }, []);
 
+  /**
+   * Schedule a debounced write-through after a mutation. Rapid successive
+   * edits coalesce into one disk write; the trailing edge persists the
+   * latest state via stateRef.
+   */
+  const schedulePersist = useCallback(() => {
+    if (!isInitializedRef.current || stateRef.current.isLoading) return;
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+    persistTimerRef.current = setTimeout(() => {
+      persistTimerRef.current = null;
+      void persistNow();
+    }, AUTOSAVE_DELAY_MS);
+  }, [persistNow]);
+
+  // Flush any pending debounced write on unmount so a late edit (e.g. typing
+  // an API key then immediately switching panels) is never lost. Same reason
+  // Jan flushes pending setting edits when a row unmounts on navigation.
+  useEffect(() => {
+    return () => {
+      if (persistTimerRef.current) {
+        clearTimeout(persistTimerRef.current);
+        persistTimerRef.current = null;
+        void persistNow();
+      }
+    };
+  }, [persistNow]);
+
+  /** Immediate flush — clears any pending debounce and writes now. */
+  const saveSettings = useCallback(async (overrides?: Partial<AppSettings>) => {
+    if (persistTimerRef.current) {
+      clearTimeout(persistTimerRef.current);
+      persistTimerRef.current = null;
+    }
+    await persistNow(overrides);
+  }, [persistNow]);
+
   const setSettings = useCallback((updates: Partial<AppSettings>) => {
     setState(prev => ({
       ...prev,
       settings: { ...prev.settings, ...updates },
     }));
-  }, []);
+    schedulePersist();
+  }, [schedulePersist]);
 
   const setProviders = useCallback((providers: ModelProvider[]) => {
     setState(prev => ({ ...prev, providers }));
-  }, []);
+    schedulePersist();
+  }, [schedulePersist]);
 
   const addProvider = useCallback((provider: ModelProvider) => {
     setState(prev => ({
       ...prev,
       providers: [...prev.providers, provider],
     }));
-  }, []);
+    schedulePersist();
+  }, [schedulePersist]);
 
   const updateProvider = useCallback((providerName: string, updates: Partial<ModelProvider>) => {
     setState(prev => ({
@@ -334,7 +386,8 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         p.provider === providerName ? { ...p, ...updates } : p
       ),
     }));
-  }, []);
+    schedulePersist();
+  }, [schedulePersist]);
 
   const deleteProvider = useCallback((providerName: string) => {
     setState(prev => ({
@@ -342,7 +395,8 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       providers: prev.providers.filter(p => p.provider !== providerName),
       selectedProviderName: prev.selectedProviderName === providerName ? null : prev.selectedProviderName,
     }));
-  }, []);
+    schedulePersist();
+  }, [schedulePersist]);
 
   const updateProviderSetting = useCallback((providerName: string, settingIndex: number, value: any) => {
     setState(prev => ({
@@ -376,11 +430,13 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         return { ...provider, ...update };
       }),
     }));
-  }, []);
+    schedulePersist();
+  }, [schedulePersist]);
 
   const setSelectedProviderName = useCallback((name: string | null) => {
     setState(prev => ({ ...prev, selectedProviderName: name }));
-  }, []);
+    schedulePersist();
+  }, [schedulePersist]);
 
   useEffect(() => {
     loadSettings();

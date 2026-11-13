@@ -16,7 +16,7 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { isTauriEnvironment } from '@services/tauri';
 import { calendarService } from '@services/calendar';
-import { useSettingsSave } from '../hooks/useSettingsSave';
+
 import { CALENDAR_DEFAULTS } from '@services/calendar/types';
 import type { CalendarAccessStatus } from '@services/calendar/types';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
@@ -229,7 +229,7 @@ const CalendarIntegrationCard: React.FC = () => {
 // ─── Main Integrations Panel ────────────────────────────────────────────────
 
 export const IntegrationsPanel: React.FC = () => {
-  useSettingsSave('Integration settings', 'integrations');
+
 
   return (
     <div className={`h-full overflow-y-auto custom-scrollbar ${LAYOUT.settingsPadding} py-6`}>

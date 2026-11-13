@@ -22,7 +22,7 @@ import {
   AlertDialog, AlertDialogPortal, AlertDialogOverlay, AlertDialogContent,
   AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from '@shared/ui';
-import { useSettingsSave } from '../hooks/useSettingsSave';
+
 import { useAppUpdate } from '../hooks/useAppUpdate';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import ProvidersAvatar from '@shared/components/ProvidersAvatar';
@@ -31,7 +31,7 @@ export const InterfacePanel: React.FC = () => {
   const { theme, setTheme } = useTheme();
   const { settings, setSettings, providers } = useSettings();
   const { showToast } = useToast();
-  useSettingsSave('System settings', 'interface');
+
   const appUpdate = useAppUpdate();
 
   // Data from store (survives unmounts)

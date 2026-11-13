@@ -45,7 +45,7 @@ const spin = {
 };
 
 export const LocalInferencePanel: React.FC = () => {
-  const { providers, updateProvider, saveSettings } = useSettings();
+  const { providers, updateProvider } = useSettings();
   const { showToast } = useToast();
   const activeDownload = useActiveDownload();
 
@@ -73,29 +73,25 @@ export const LocalInferencePanel: React.FC = () => {
   const removeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Server lifecycle auto-config: update provider when server starts/stops.
-  // NOTE: This calls saveSettings() to persist the provider URL immediately so
-  // the system can use the local server. Changes in other panels should be saved
-  // before starting/stopping the server.
+  // Edits save on edit via the context, so no explicit persist call is needed.
   useEffect(() => {
     const llama = providers.find((p) => p.provider === 'llamacpp');
     if (!llama) return;
     if (serverStatus === 'running') {
       const url = localInferenceStore.getSnapshot().serverUrl;
       const apiKey = serverConfig.apiKey || '';
-      // Only write (and persist) when the provider config actually differs —
-      // otherwise mounting the panel would register a spurious unsaved change.
+      // Only write when the provider config actually differs — otherwise
+      // mounting the panel would schedule a spurious write.
       if (url && (!llama.active || llama.base_url !== url || (llama.api_key || '') !== apiKey)) {
         updateProvider('llamacpp', { active: true, base_url: url, api_key: apiKey });
-        saveSettings();
       }
       setSettingsExpanded(false);
     } else if (serverStatus === 'idle') {
       if (llama.active || llama.base_url || llama.api_key) {
         updateProvider('llamacpp', { active: false, base_url: '', api_key: '' });
-        saveSettings();
       }
     }
-  }, [serverStatus, serverConfig.apiKey, providers, updateProvider, saveSettings]);
+  }, [serverStatus, serverConfig.apiKey, providers, updateProvider]);
 
   // Auto-select first model on mount
   useEffect(() => {
@@ -105,7 +101,7 @@ export const LocalInferencePanel: React.FC = () => {
   }, [managedModels, selectedModelId]);
 
   // Sync model list to provider system — only when it actually differs, so
-  // simply opening the panel doesn't register an unsaved change.
+  // simply opening the panel doesn't schedule a spurious write.
   useEffect(() => {
     const llama = providers.find((p) => p.provider === 'llamacpp');
     if (!llama) return;
@@ -116,8 +112,7 @@ export const LocalInferencePanel: React.FC = () => {
       desired.every((d, i) => current[i]?.id === d.id && current[i]?.name === d.name);
     if (same) return;
     updateProvider('llamacpp', { models: desired });
-    saveSettings();
-  }, [managedModels, providers, updateProvider, saveSettings]);
+  }, [managedModels, providers, updateProvider]);
 
   // Derived
   const isDownloadingBinary =
