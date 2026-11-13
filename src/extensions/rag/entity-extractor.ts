@@ -133,7 +133,7 @@ async function callLLMForExtraction(
   try {
     const result = await generateText({
       model,
-      system: prompt,
+      instructions: prompt,
       messages: [{ role: 'user', content: input }],
       output: Output.object({ schema: jsonSchema(ENTITY_EXTRACTION_SCHEMA) }),
       abortSignal: controller.signal,

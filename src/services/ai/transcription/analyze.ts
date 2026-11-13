@@ -1,8 +1,8 @@
 import { generateText, Output, jsonSchema } from 'ai';
 import { buildTranscriptionRequest, formatTemporalContext } from '@core/ai';
-import { createModel } from '../../ai/provider';
-import { extractTokenUsage } from '../../ai/types';
-import type { TokenUsage } from '../../ai/types';
+import { createModel } from '@services/ai/provider';
+import { extractTokenUsage } from '@services/ai/types';
+import type { TokenUsage } from '@services/ai/types';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { MeetingContext } from '@core/ai/prompts/transcription.prompt';
 import type { AnalysisResult } from '@core/ai/schemas/transcription.schema';
@@ -22,7 +22,7 @@ export async function analyzeTranscript(args: {
 
   const result = await generateText({
     model: createModel(args.resolved),
-    system: config.prompt,
+    instructions: config.prompt,
     prompt: `Transcript:\n${args.transcript}`,
     output: Output.object({ schema: jsonSchema(config.outputSchema!.schema) }),
   });

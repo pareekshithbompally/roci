@@ -1,5 +1,5 @@
 /**
- * Tool Orchestrator — Agentic Tool Loop (AI SDK v6)
+ * Tool Orchestrator — Agentic Tool Loop (AI SDK v7)
  *
  * Single `streamText` call where the LLM autonomously decides which tools to call,
  * the SDK handles execution and re-invocation, and the stream delivers text + tool
@@ -13,7 +13,7 @@
  * Single call site: ChatContext.sendMessage().
  */
 
-import { streamText, stepCountIs } from 'ai';
+import { streamText, isStepCount } from 'ai';
 import { createModel, toSDKMessages, getWebSearchTools, toExecutableTools } from '@services/ai';
 import { resolveModel } from '@shared/utils/modelResolver';
 import { toolRegistry } from '@extensions/tools';
@@ -83,20 +83,20 @@ export async function orchestrate(
 
   const result = streamText({
     model,
-    system: systemPrompt,
+    instructions: systemPrompt,
     messages: sdkMessages,
     abortSignal: signal,
     ...(tools && {
       tools,
       toolChoice: 'auto' as const,
-      stopWhen: stepCountIs(MAX_AGENT_STEPS),
+      stopWhen: isStepCount(MAX_AGENT_STEPS),
     }),
   });
 
   const collectedSources: Array<{ url: string; title: string }> = [];
   let hasText = false;
 
-  for await (const part of result.fullStream) {
+  for await (const part of result.stream) {
     if (signal?.aborted) break;
 
     switch (part.type) {

@@ -3,6 +3,9 @@
   "private": true,
   "version": "1.0.8",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -15,15 +18,15 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.58",
-    "@ai-sdk/deepgram": "^2.0.33",
-    "@ai-sdk/elevenlabs": "^2.0.33",
-    "@ai-sdk/google": "^3.0.43",
-    "@ai-sdk/groq": "^3.0.29",
-    "@ai-sdk/mistral": "^3.0.24",
-    "@ai-sdk/openai": "^3.0.41",
-    "@ai-sdk/openai-compatible": "^2.0.35",
-    "@ai-sdk/xai": "^3.0.67",
+    "@ai-sdk/anthropic": "^4.0.104",
+    "@ai-sdk/deepgram": "^3.1.53",
+    "@ai-sdk/elevenlabs": "^3.0.86",
+    "@ai-sdk/google": "^4.0.120",
+    "@ai-sdk/groq": "^4.0.83",
+    "@ai-sdk/mistral": "^4.0.86",
+    "@ai-sdk/openai": "^4.0.117",
+    "@ai-sdk/openai-compatible": "^3.0.92",
+    "@ai-sdk/xai": "^5.0.45",
     "@huggingface/transformers": "^3.8.1",
     "@icons-pack/react-simple-icons": "^13.8.0",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -52,7 +55,7 @@
     "@tauri-apps/plugin-updater": "^2.10.0",
     "@tauri-apps/plugin-window-state": "^2.4.1",
     "@wavesurfer/react": "^1.0.12",
-    "ai": "^6.0.116",
+    "ai": "^7.0.172",
     "cmdk": "^1.1.1",
     "framer-motion": "^12.34.3",
     "highlight.js": "^11.11.1",

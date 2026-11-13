@@ -7,7 +7,7 @@
 
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createGoogle } from '@ai-sdk/google';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createMistral } from '@ai-sdk/mistral';
 import { createXai, xai } from '@ai-sdk/xai';
@@ -15,7 +15,7 @@ import { createGroq, groq } from '@ai-sdk/groq';
 import { anthropic } from '@ai-sdk/anthropic';
 import { google } from '@ai-sdk/google';
 import { openai } from '@ai-sdk/openai';
-import { getPlatformFetch } from '../platform-fetch';
+import { getPlatformFetch } from '@services/platform-fetch';
 import { getProviderType } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { LanguageModel, ToolSet } from 'ai';
@@ -66,7 +66,7 @@ export function createModel(
       return provider(resolved.modelId);
     }
     case 'gemini': {
-      const provider = createGoogleGenerativeAI({ apiKey: resolved.apiKey, fetch });
+      const provider = createGoogle({ apiKey: resolved.apiKey, fetch });
       return provider(resolved.modelId);
     }
     case 'mistral': {

@@ -1,11 +1,11 @@
-import { experimental_transcribe as transcribe } from 'ai';
+import { transcribe } from 'ai';
 import { generateText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGroq } from '@ai-sdk/groq';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createGoogle } from '@ai-sdk/google';
 import { createDeepgram } from '@ai-sdk/deepgram';
 import { createElevenLabs } from '@ai-sdk/elevenlabs';
-import { getPlatformFetch } from '../../platform-fetch';
+import { getPlatformFetch } from '@services/platform-fetch';
 import { VERBATIM_TRANSCRIBE_PROMPT } from '@core/ai/prompts/transcription.prompt';
 import type { TranscriptionModel } from 'ai';
 
@@ -62,7 +62,7 @@ const viaMultimodal = (modelId: string): Run =>
   async (audio, c) => {
     const fetch = getPlatformFetch();
     const r = await generateText({
-      model: createGoogleGenerativeAI({ apiKey: c.apiKey, fetch })(modelId),
+      model: createGoogle({ apiKey: c.apiKey, fetch })(modelId),
       messages: [
         {
           role: 'user',

@@ -154,7 +154,7 @@ class UnifiedAIService {
     });
     const result = await generateText({
       model: createModel(resolved),
-      system: config.prompt,
+      instructions: config.prompt,
       messages: [{ role: 'user', content }],
       output: Output.object({ schema: jsonSchema(config.outputSchema!.schema) }),
     });
@@ -180,7 +180,7 @@ class UnifiedAIService {
       const temporalContext = formatTemporalContext();
       const result = await generateText({
         model,
-        system: `You are a title generator. ${temporalContext} Your ONLY job is to output a short 3-6 word topic title summarizing what the conversation is about. Output NOTHING else — no explanation, no apology, no commentary. Just the title words. Never start with "I".`,
+        instructions: `You are a title generator. ${temporalContext} Your ONLY job is to output a short 3-6 word topic title summarizing what the conversation is about. Output NOTHING else — no explanation, no apology, no commentary. Just the title words. Never start with "I".`,
         messages: [{
           role: 'user',
           content: `User: ${userMessage}\nAssistant: ${assistantResponse.slice(0, 500)}`,
