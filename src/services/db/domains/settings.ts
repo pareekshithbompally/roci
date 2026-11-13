@@ -17,6 +17,6 @@ export const settings = {
 
   /** Set a single setting key. */
   async set(key: string, value: string): Promise<void> {
-    await call<void>('settings_set', { key, value });
+    await call<void>('settings_set', { input: { key, value } });
   },
 };

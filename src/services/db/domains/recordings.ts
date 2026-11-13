@@ -15,12 +15,14 @@ export const recordings = {
     createdAt?: number;
   }): Promise<void> {
     await call<void>('recordings_upsert', {
-      id: input.id,
-      meeting_id: input.meetingId ?? null,
-      filename: input.filename,
-      duration_seconds: input.durationSeconds ?? null,
-      input_source: input.inputSource ?? null,
-      created_at: input.createdAt ?? null,
+      input: {
+        id: input.id,
+        meeting_id: input.meetingId ?? null,
+        filename: input.filename,
+        duration_seconds: input.durationSeconds ?? null,
+        input_source: input.inputSource ?? null,
+        created_at: input.createdAt ?? null,
+      },
     });
   },
 

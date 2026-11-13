@@ -56,22 +56,24 @@ export const chats = {
   /** Upsert a chat session — replaces all messages transactionally. */
   async upsert(session: ChatSession): Promise<void> {
     await call<void>('chats_upsert', {
-      id: session.id,
-      title: session.title,
-      meeting_id: session.meetingId ?? null,
-      last_message_at: session.lastMessageAt,
-      messages: session.messages.map((msg, i) => {
-        const data = extractDataBlob(msg);
-        return {
-          id: msg.id,
-          role: msg.role,
-          text: msg.text,
-          provider: msg.provider ?? null,
-          model: msg.model ?? null,
-          data: data ? JSON.stringify(data) : null,
-          created_at: msg.timestamp,
-        };
-      }),
+      input: {
+        id: session.id,
+        title: session.title,
+        meeting_id: session.meetingId ?? null,
+        last_message_at: session.lastMessageAt,
+        messages: session.messages.map((msg, i) => {
+          const data = extractDataBlob(msg);
+          return {
+            id: msg.id,
+            role: msg.role,
+            text: msg.text,
+            provider: msg.provider ?? null,
+            model: msg.model ?? null,
+            data: data ? JSON.stringify(data) : null,
+            created_at: msg.timestamp,
+          };
+        }),
+      },
     });
   },
 

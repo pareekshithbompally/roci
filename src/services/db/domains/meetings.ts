@@ -138,14 +138,16 @@ export const meetings = {
     createdAt?: number;
   }): Promise<void> {
     await call<void>('meetings_upsert', {
-      id: input.id,
-      title: input.title,
-      input_source: input.inputSource ?? null,
-      pending_transcription: input.pendingTranscription ?? null,
-      calendar_event_id: input.calendarEventId ?? null,
-      calendar_meta: input.calendarMeta ? JSON.stringify(input.calendarMeta) : null,
-      categories: input.categories ?? null,
-      created_at: input.createdAt ?? null,
+      input: {
+        id: input.id,
+        title: input.title,
+        input_source: input.inputSource ?? null,
+        pending_transcription: input.pendingTranscription ?? null,
+        calendar_event_id: input.calendarEventId ?? null,
+        calendar_meta: input.calendarMeta ? JSON.stringify(input.calendarMeta) : null,
+        categories: input.categories ?? null,
+        created_at: input.createdAt ?? null,
+      },
     });
   },
 
@@ -175,22 +177,24 @@ export const meetings = {
     createdAt?: number;
   }): Promise<void> {
     await call<void>('save_transcription', {
-      meeting_id: input.meetingId,
-      title: input.title,
-      transcript: input.transcript,
-      transcript_language: input.transcriptLanguage ?? null,
-      transcript_model: input.transcriptModel ?? null,
-      transcript_segments: input.transcriptSegments ?? null,
-      summary_overview: input.summaryOverview,
-      summary_data: input.summaryData,
-      categories: input.categories ?? null,
-      recording_filename: input.recordingFilename ?? null,
-      recording_duration: input.recordingDuration ?? null,
-      recording_input_source: input.recordingInputSource ?? null,
-      input_source: input.inputSource ?? null,
-      calendar_meta: input.calendarMeta ? JSON.stringify(input.calendarMeta) : null,
-      action_items: input.actionItems ?? null,
-      created_at: input.createdAt ?? null,
+      input: {
+        meeting_id: input.meetingId,
+        title: input.title,
+        transcript: input.transcript,
+        transcript_language: input.transcriptLanguage ?? null,
+        transcript_model: input.transcriptModel ?? null,
+        transcript_segments: input.transcriptSegments ?? null,
+        summary_overview: input.summaryOverview,
+        summary_data: input.summaryData,
+        categories: input.categories ?? null,
+        recording_filename: input.recordingFilename ?? null,
+        recording_duration: input.recordingDuration ?? null,
+        recording_input_source: input.recordingInputSource ?? null,
+        input_source: input.inputSource ?? null,
+        calendar_meta: input.calendarMeta ? JSON.stringify(input.calendarMeta) : null,
+        action_items: input.actionItems ?? null,
+        created_at: input.createdAt ?? null,
+      },
     });
   },
 };

@@ -17,7 +17,7 @@ export const graphDB = {
   async upsert(payload: GraphUpsertPayload): Promise<void> {
     await vectorDB.initialize();
     await invoke('plugin:store|graph_upsert', {
-      meetingId: payload.meeting_id,
+      meeting_id: payload.meeting_id,
       nodes: payload.nodes,
       edges: payload.edges,
     });
@@ -34,7 +34,7 @@ export const graphDB = {
     direction?: 'outgoing' | 'incoming' | 'both',
   ): Promise<TraversalResult[]> {
     await vectorDB.initialize();
-    return invoke('plugin:store|graph_neighbors', { nodeId, edgeTypes, direction });
+    return invoke('plugin:store|graph_neighbors', { node_id: nodeId, edge_types: edgeTypes, direction });
   },
 
   async search(params: GraphSearchParams): Promise<GraphNode[]> {
@@ -44,7 +44,7 @@ export const graphDB = {
 
   async deleteMeeting(meetingId: string): Promise<void> {
     await vectorDB.initialize();
-    await invoke('plugin:store|graph_delete_meeting', { meetingId });
+    await invoke('plugin:store|graph_delete_meeting', { meeting_id: meetingId });
   },
 
   async stats(): Promise<GraphStats> {

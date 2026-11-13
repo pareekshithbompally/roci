@@ -14,7 +14,7 @@ export const providers = {
 
   /** Create or update a provider. */
   async upsert(provider: ModelProvider): Promise<void> {
-    await call<void>('providers_upsert', modelProviderToRust(provider));
+    await call<void>('providers_upsert', { input: modelProviderToRust(provider) });
   },
 
   /** Toggle provider active state. */

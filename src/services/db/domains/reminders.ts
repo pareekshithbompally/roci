@@ -8,12 +8,12 @@ import type { ReminderEntry } from '@shared/types';
 export const reminders = {
   /** Upsert a reminder (schedule or reschedule). */
   async upsert(todoId: string, notificationId: number, fireAt: number): Promise<void> {
-    await call<void>('reminders_upsert', { todoId, notificationId, fireAt });
+    await call<void>('reminders_upsert', { todo_id: todoId, notification_id: notificationId, fire_at: fireAt });
   },
 
   /** Set reminder status. */
   async setStatus(todoId: string, status: 'scheduled' | 'fired' | 'cancelled'): Promise<void> {
-    await call<void>('reminders_set_status', { todoId, status });
+    await call<void>('reminders_set_status', { todo_id: todoId, status });
   },
 
   /** Get all scheduled reminders (joined with todo/meeting info). */
@@ -24,6 +24,6 @@ export const reminders = {
 
   /** Prune stale (fired/cancelled) reminders older than maxAgeMs. */
   async prune(maxAgeMs: number): Promise<void> {
-    await call<void>('reminders_prune', { maxAgeMs });
+    await call<void>('reminders_prune', { max_age_ms: maxAgeMs });
   },
 };
