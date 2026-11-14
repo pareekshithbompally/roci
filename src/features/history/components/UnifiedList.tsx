@@ -1,14 +1,14 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useHistory } from '@shared/contexts/HistoryContext';
 import { useChat } from '@shared/contexts/ChatContext';
-import { TEXT } from '@config/theme.config';
 import { SIDEBAR_PAGE_SIZE } from '@config/chat.config';
 import { useTranscribeRecording } from '@shared/hooks/useTranscribeRecording';
 import { useSentinel } from '@shared/hooks/useSentinel';
-import { SidebarShimmer } from '@shared/components/SidebarShimmer';
+import { SidebarShimmer } from '@features/history/components/SidebarShimmer';
 import { UnifiedSidebarItem } from './UnifiedSidebarItem';
 import { RenameModal } from './RenameModal';
 import type { UnifiedSidebarItem as UnifiedSidebarItemType } from '@shared/types';
+import { Text } from '@shared/ui';
 
 const LOAD_MORE_COOLDOWN_MS = 300;
 
@@ -67,9 +67,9 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
 
   if (items.length === 0) {
     return (
-      <div className={`flex items-center justify-center h-full ${TEXT.faint} text-sm`}>
+      <Text as="div" tone="faint" className="flex items-center justify-center h-full">
         {searchQuery ? 'No items match your search' : 'No recordings or chats yet'}
-      </div>
+      </Text>
     );
   }
 
@@ -99,7 +99,7 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
 
   return (
     <>
-      <div className="space-y-1">
+      <div>
         {displayedItems.map((item) => (
           <UnifiedSidebarItem
             key={`${item.type}-${item.id}`}

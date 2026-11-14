@@ -9,9 +9,8 @@ import React, { useState, useCallback } from 'react';
 import { Plus, ListTodo, Loader2, Calendar } from 'lucide-react';
 import { useSelectedHistoryId, useAppResult } from '@shared/stores/appStore';
 import { useMeetingTodos } from '@features/todos/hooks/useMeetingTodos';
-import { SURFACE, BORDER, TEXT } from '@config/theme.config';
-import EmptyState from '@shared/components/EmptyState';
-import { Button, DatePicker, Input, TimePicker } from '@shared/ui';
+import { EmptyState } from '@shared/components';
+import { Button, DatePicker, Icon, Progress, Separator, Surface, Text, TimePicker, Textarea } from '@shared/ui';
 import { buildISOFromDateInput } from '@shared/utils/todo.utils';
 import TodoItem from './TodoItem';
 
@@ -34,7 +33,6 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
   const [newItemText, setNewItemText] = useState('');
   const [newItemDate, setNewItemDate] = useState('');
   const [newItemTime, setNewItemTime] = useState('');
-  const error = null;
   const [isCreating, setIsCreating] = useState(false);
   
   // Calculate stats from combined list
@@ -73,7 +71,7 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
   if (isLoading) {
     return (
       <div className={`flex items-center justify-center p-8 ${className}`}>
-        <Loader2 className={`w-6 h-6 ${TEXT.faint} animate-spin`} />
+        <Icon icon={Loader2} size="lg" tone="faint" className="animate-spin" />
       </div>
     );
   }
@@ -85,15 +83,10 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
         {/* Progress section - only show if there are items */}
         {totalCount > 0 && (
           <div className="flex items-center gap-3 flex-1">
-            <span className={`text-xs font-medium ${TEXT.muted} whitespace-nowrap`}>
+            <Text variant="label" tone="muted" className="whitespace-nowrap">
               {completedCount}/{totalCount} done
-            </span>
-            <div className={`w-32 h-1.5 ${SURFACE.chip} rounded-full overflow-hidden`}>
-              <div
-                className="h-full bg-green-500 dark:bg-green-500 rounded-full transition-all"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
+            </Text>
+            <Progress percent={progress} tone="success" className="w-32" />
           </div>
         )}
         {/* Spacer when no items */}
@@ -101,31 +94,31 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
         {/* Add button - always on the right */}
         <Button variant="primary" size="sm" className="ml-auto" onClick={() => setIsCreating(true)}
           disabled={isCreating}>
-          <Plus className="w-3.5 h-3.5" />
+          <Icon icon={Plus} size="xs" />
           Add To-Do
         </Button>
       </div>
 
       {/* New to-do input */}
       {isCreating && (
-        <div className={`rounded-xl border ${BORDER.default} ${SURFACE.subtle} p-4 space-y-3 animate-fade-in`}>
-          <Input asChild><textarea
+        <Surface variant="subtle" radius="xl" edge="all" className="p-4 space-y-3 animate-fade-in">
+          <Textarea
             value={newItemText}
             onChange={(e) => setNewItemText(e.target.value)}
             placeholder="What do you need to do?"
             spellCheck={true}
             autoCorrect="on"
             autoCapitalize="sentences"
-            className="w-full h-16"
+            className="h-16"
             autoFocus
-          /></Input>
+          />
 
           {/* Deadline picker */}
           <div className="space-y-2">
-            <label className={`text-xs font-medium ${TEXT.secondary} flex items-center gap-1.5`}>
-              <Calendar className="w-3.5 h-3.5" />
+            <Text as="label" variant="label" tone="muted" className="flex items-center gap-1.5">
+              <Icon icon={Calendar} size="xs" />
               Due date (optional)
-            </label>
+            </Text>
             <div className="flex gap-2 items-center">
               <DatePicker
                 value={newItemDate}
@@ -138,14 +131,14 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
                 value={newItemTime || '09:00'}
                 onChange={(val) => setNewItemTime(val)}
                 disabled={!newItemDate}
-                className="w-[110px]"
+                className="w-28"
               />
             </div>
             {newItemDate && (
-              <div className={`text-xs ${TEXT.muted}`}>
+              <Text as="div" variant="helper" tone="muted">
                 Due: {new Date(newItemDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 {newItemTime ? ` at ${newItemTime}` : ''}
-              </div>
+              </Text>
             )}
           </div>
 
@@ -156,11 +149,11 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
             </Button>
             <Button variant="primary" size="sm" onClick={handleSaveItem}
               disabled={!newItemText.trim() || !selectedHistoryId}>
-              <Plus className="w-3.5 h-3.5" />
+              <Icon icon={Plus} size="xs" />
               Create
             </Button>
           </div>
-        </div>
+        </Surface>
       )}
 
       {/* Content: empty state or item list */}
@@ -169,18 +162,20 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
           <EmptyState icon={ListTodo} message="No to-do items yet" />
         </div>
       ) : totalCount > 0 ? (
-        <div className="divide-y divide-paper-200 dark:divide-night-800/60">
-          {allTodos.map((todo) => (
-            <TodoItem
-              key={todo.id}
-              todo={todo}
-              meetingId={meetingId}
-              meetingTitle={meetingTitle}
-              onToggle={toggleTodo}
-              onDelete={todo.owner ? undefined : deleteTodo}
-              onUpdate={todo.owner ? undefined : updateTodo}
-              onReminderChange={handleReminderChange}
-            />
+        <div>
+          {allTodos.map((todo, i) => (
+            <React.Fragment key={todo.id}>
+              {i > 0 && <Separator />}
+              <TodoItem
+                todo={todo}
+                meetingId={meetingId}
+                meetingTitle={meetingTitle}
+                onToggle={toggleTodo}
+                onDelete={todo.owner ? undefined : deleteTodo}
+                onUpdate={todo.owner ? undefined : updateTodo}
+                onReminderChange={handleReminderChange}
+              />
+            </React.Fragment>
           ))}
         </div>
       ) : null}

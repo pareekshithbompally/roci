@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { ConfirmDialog } from '@shared/components/ConfirmDialog';
+import { ConfirmDialog } from '@shared/components';
 
 interface DeleteConfirmModalProps {
   open: boolean;

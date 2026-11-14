@@ -1,5 +1,7 @@
 import React from 'react';
-import { SURFACE, BORDER, RADIUS, TEXT } from '@config/theme.config';
+import { Circle, CircleDot } from 'lucide-react';
+import { Icon, Surface, Text } from '@shared/ui';
+import { activateOnKey } from './activateOnKey';
 
 interface RadioCardProps {
   selected: boolean;
@@ -18,36 +20,28 @@ export const RadioCard: React.FC<RadioCardProps> = ({
   showDot = false,
   className,
 }) => (
-  <button
+  <Surface
+    variant="card"
+    radius="lg"
+    interactive
+    selected={selected}
     role="radio"
     aria-checked={selected}
+    tabIndex={0}
     onClick={onClick}
-    className={`w-full text-left p-4 ${RADIUS.lg} border transition-all ${
-      selected
-        ? `${SURFACE.selectedCard} ${BORDER.selectedCard}`
-        : `${SURFACE.card} ${BORDER.default} ${BORDER.cardHover}`
-    } ${className ?? ''}`}
+    onKeyDown={activateOnKey(onClick)}
+    className={`w-full text-left p-4 ${className ?? ''}`}
   >
     <div className="flex items-start gap-3">
       {showDot && (
-        <div
-          className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-            selected
-              ? `${BORDER.selectedCard}`
-              : BORDER.strong
-          }`}
-        >
-          {selected && (
-            <div className={`w-2.5 h-2.5 rounded-full ${selected ? 'bg-paper-900 dark:bg-night-100' : ''}`} />
-          )}
-        </div>
+        <Icon icon={selected ? CircleDot : Circle} size="md" tone={selected ? 'primary' : 'faint'} className="mt-0.5 shrink-0" />
       )}
       {icon && !showDot && (
-        <div className={`mt-0.5 ${selected ? TEXT.heading : TEXT.faint}`}>
+        <Text as="div" tone={selected ? 'primary' : 'faint'} className="mt-0.5">
           {icon}
-        </div>
+        </Text>
       )}
       <div className="flex-1 min-w-0">{children}</div>
     </div>
-  </button>
+  </Surface>
 );

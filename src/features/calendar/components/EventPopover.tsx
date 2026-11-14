@@ -7,7 +7,7 @@
 
 import React, { useEffect, useRef, useCallback } from 'react';
 import { X, Video } from 'lucide-react';
-import { TEXT } from '@config/theme.config';
+import { Icon, IconButton, Surface, Text } from '@shared/ui';
 import type { CalendarEvent as ScheduleXCalendarEvent } from '@schedule-x/calendar';
 
 interface EventPopoverProps {
@@ -80,13 +80,6 @@ function cleanDescription(desc: string, meetingUrl: string | null): string {
   return cleaned;
 }
 
-/** Inner card: inset surface with subtle border, like macOS Calendar sections */
-const CARD_STYLE: React.CSSProperties = {
-  background: 'var(--surface-input-field)',
-  borderColor: 'var(--border-default)',
-};
-const CARD_CLASS = 'rounded-xl border';
-
 export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, onClose }) => {
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -114,7 +107,7 @@ export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, o
   if (anchorRect) {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const pw = 300;
+    const pw = 288; // w-72
     const ph = 380;
 
     let left = anchorRect.right + 10;
@@ -141,32 +134,23 @@ export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, o
   const cleanedDesc = description ? cleanDescription(description, meetingUrl) : '';
 
   return (
-    <div
+    <Surface
       ref={popoverRef}
-      style={{
-        ...style,
-        background: 'var(--surface-modal)',
-        borderColor: 'var(--border-default)',
-        boxShadow: 'var(--shadow-modal)',
-      }}
-      className="w-[300px] rounded-2xl border animate-fade-in overflow-hidden"
+      variant="floating"
+      radius="xl"
+      style={style}
+      className="w-72 animate-fade-in overflow-hidden"
     >
       {/* ── Title card ── */}
-      <div className={`px-4 pt-3.5 pb-3`}>
+      <div className="px-4 pt-3.5 pb-3">
         <div className="flex items-start justify-between gap-2">
-          <h3 className={`text-[15px] font-semibold ${TEXT.heading} leading-snug flex-1`}>
+          <Text as="h3" variant="title" className="flex-1">
             {event.title}
-          </h3>
-          <button
-            onClick={onClose}
-            className={`shrink-0 p-1 rounded-md ${TEXT.faint} hover:bg-[var(--surface-hover-subtle)] transition-colors`}
-            aria-label="Close"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
+          </Text>
+          <IconButton icon={X} label="Close" size="sm" className="shrink-0" onClick={onClose} />
         </div>
         {location && (
-          <p className={`text-[12.5px] ${TEXT.muted} mt-0.5 truncate`}>{location}</p>
+          <Text as="p" variant="helper" tone="muted" truncate className="mt-0.5">{location}</Text>
         )}
       </div>
 
@@ -174,68 +158,71 @@ export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, o
       <div className="px-3 pb-3 space-y-2">
         {/* Meeting link card */}
         {meetingUrl && (
-          <a
+          <Surface
+            as="a"
             href={meetingUrl}
             target="_blank"
             rel="noopener noreferrer"
-            style={CARD_STYLE}
-            className={`${CARD_CLASS} flex items-center gap-3 px-3.5 py-2.5 group transition-colors`}
+            variant="card"
+            radius="xl"
+            interactive
+            className="group flex items-center gap-3 px-3.5 py-2.5"
           >
-            <Video className={`w-4 h-4 ${TEXT.muted} shrink-0`} />
-            <span className={`text-[13px] ${TEXT.secondary} flex-1 truncate`}>
+            <Icon icon={Video} size="sm" tone="muted" className="shrink-0" />
+            <Text tone="muted" truncate className="flex-1">
               {getMeetingLabel(meetingUrl)}
-            </span>
-            <span className={`text-[12px] font-medium ${TEXT.link} group-hover:underline`}>
+            </Text>
+            <Text variant="label" tone="accent" className="group-hover:underline">
               Join
-            </span>
-          </a>
+            </Text>
+          </Surface>
         )}
 
         {/* Date & time card */}
-        <div style={CARD_STYLE} className={`${CARD_CLASS} px-3.5 py-2.5`}>
-          <p className={`text-[13px] ${TEXT.heading} font-medium`}>
+        <Surface variant="card" radius="xl" className="px-3.5 py-2.5">
+          <Text as="p" variant="bodyStrong">
             {dateStr}
             {startStr && (
-              <span className={`${TEXT.secondary} font-normal ml-2`}>
+              <Text tone="muted" className="ml-2">
                 {startStr}{endStr ? ` – ${endStr}` : ''}
-              </span>
+              </Text>
             )}
-          </p>
-        </div>
+          </Text>
+        </Surface>
 
         {/* Invitees card */}
         {people && people.length > 0 && (
-          <div style={CARD_STYLE} className={`${CARD_CLASS} px-3.5 py-2.5`}>
-            <p className={`text-[11px] uppercase tracking-wider ${TEXT.faint} mb-1.5 font-medium`}>
+          <Surface variant="card" radius="xl" className="px-3.5 py-2.5">
+            <Text as="p" variant="caption" tone="faint" className="uppercase tracking-wider mb-1.5">
               Invitees
-            </p>
+            </Text>
             <div className="space-y-1">
               {people.slice(0, 5).map((name, i) => (
-                <p key={i} className={`text-[13px] ${TEXT.secondary} truncate`}>
+                <Text as="p" key={i} tone="muted" truncate>
                   {name}
-                </p>
+                </Text>
               ))}
               {people.length > 5 && (
-                <p className={`text-[12px] ${TEXT.faint}`}>
+                <Text as="p" variant="helper" tone="faint">
                   +{people.length - 5} more
-                </p>
+                </Text>
               )}
             </div>
-          </div>
+          </Surface>
         )}
 
         {/* Notes / description card */}
         {cleanedDesc && (
-          <div style={CARD_STYLE} className={`${CARD_CLASS} px-3.5 py-2.5`}>
-            <p className={`text-[11px] uppercase tracking-wider ${TEXT.faint} mb-1.5 font-medium`}>
+          <Surface variant="card" radius="xl" className="px-3.5 py-2.5">
+            <Text as="p" variant="caption" tone="faint" className="uppercase tracking-wider mb-1.5">
               Notes
-            </p>
-            <p className={`text-[12.5px] ${TEXT.muted} line-clamp-4 break-words whitespace-pre-line leading-relaxed`}>
+            </Text>
+            <Text as="p" variant="helper" tone="muted" className="line-clamp-4 break-words whitespace-pre-line leading-relaxed">
               {cleanedDesc}
-            </p>
-          </div>
+            </Text>
+          </Surface>
         )}
       </div>
-    </div>
+    </Surface>
   );
 };

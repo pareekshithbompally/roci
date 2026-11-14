@@ -3,7 +3,7 @@
  *
  * Renders a list of pending todo proposals above chat input.
  * Supports batch confirm/cancel and individual removal.
- * Matches ChatInput styling: same px-12 wrapper, SURFACE.input, BORDER.default, rounded-2xl.
+ * Matches ChatInput styling: same px-12 wrapper and field surface.
  */
 
 import React, { useCallback, useState } from 'react';
@@ -19,11 +19,11 @@ import {
   AlertCircle,
   ListTodo,
   Check,
+  type LucideIcon,
 } from 'lucide-react';
 import { useTodoProposals, todoProposalStore } from '@features/chat';
 import type { TodoProposal } from '@features/chat';
-import { SURFACE, BORDER, TEXT } from '@config/theme.config';
-import { Button, Input } from '@shared/ui';
+import { Button, Icon, IconButton, Input, Surface, Text } from '@shared/ui';
 
 type EditingState = { proposalId: string; field: 'text' | 'dueDate' | 'reminderDateTime' | 'owner' } | null;
 
@@ -77,43 +77,43 @@ const TodoConfirmationBanner: React.FC = () => {
 
   return (
     <div className="px-12 pb-1.5">
-      <div
-        className={`${allCommitted ? SURFACE.successCallout : hasErrors ? SURFACE.errorCallout : SURFACE.input} 
-          border ${allCommitted ? BORDER.successCallout : hasErrors ? BORDER.errorCallout : BORDER.default} 
-          rounded-2xl px-4 py-3 transition-colors`}
+      <Surface
+        variant="field"
+        radius="xl"
+        className="px-4 py-3"
         role="region"
         aria-label="Todo confirmation"
       >
         {/* Header row */}
         <div className="flex items-center gap-2 mb-2">
-          <ListTodo className={`w-4 h-4 flex-shrink-0 ${allCommitted ? 'text-green-600 dark:text-green-400' : TEXT.secondary}`} />
-          <span className={`text-sm font-medium ${TEXT.primary} flex-1`}>
+          <Icon icon={ListTodo} size="sm" tone={allCommitted ? 'success' : hasErrors ? 'danger' : 'muted'} className="shrink-0" />
+          <Text variant="bodyStrong" className="flex-1">
             {allCommitted
               ? `${proposals.length} todo${proposals.length > 1 ? 's' : ''} saved`
               : `${pendingCount} todo${pendingCount > 1 ? 's' : ''} to confirm`}
-          </span>
+          </Text>
 
           {!isDisabled && (
             <div className="flex items-center gap-1.5">
               <Button variant="secondary" size="sm" onClick={handleCancelAll}>
                 Cancel
               </Button>
-              <Button variant="primary" size="sm" className="flex items-center gap-1" onClick={handleCommitAll}>
-                <Check className="w-3 h-3" />
+              <Button variant="primary" size="sm" onClick={handleCommitAll}>
+                <Icon icon={Check} size="xs" />
                 {pendingCount > 1 ? `Create All (${pendingCount})` : 'Create'}
               </Button>
             </div>
           )}
 
           {anyCommitting && (
-            <div className="flex items-center gap-1.5 text-xs">
-              <Loader2 className={`w-3.5 h-3.5 animate-spin ${TEXT.muted}`} />
-              <span className={TEXT.muted}>Saving…</span>
+            <div className="flex items-center gap-1.5">
+              <Icon icon={Loader2} size="xs" tone="muted" className="animate-spin" />
+              <Text variant="helper" tone="muted">Saving…</Text>
             </div>
           )}
 
           {allCommitted && (
-            <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
+            <Icon icon={CheckCircle2} size="sm" tone="success" />
           )}
         </div>
 
@@ -136,7 +136,7 @@ const TodoConfirmationBanner: React.FC = () => {
             />
           ))}
         </div>
-      </div>
+      </Surface>
     </div>
   );
 };
@@ -169,19 +169,19 @@ const ProposalRow: React.FC<ProposalRowProps> = ({
   return (
     <div className="flex items-center gap-1.5 pl-6 flex-wrap">
       {/* Status indicator */}
-      {committed && <CheckCircle2 className="w-3.5 h-3.5 text-green-600 dark:text-green-400 flex-shrink-0" />}
-      {hasError && <AlertCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />}
+      {committed && <Icon icon={CheckCircle2} size="xs" tone="success" className="shrink-0" />}
+      {hasError && <Icon icon={AlertCircle} size="xs" tone="danger" className="shrink-0" />}
 
       {/* For toggle/delete — show matched text */}
       {!isCreate && p.matchedTodoText ? (
-        <span className={`text-xs ${TEXT.primary}`}>
+        <Text variant="helper">
           {p.action === 'toggle' ? 'Complete' : p.action === 'delete' ? 'Delete' : 'Update'}: &ldquo;{p.matchedTodoText}&rdquo;
-        </span>
+        </Text>
       ) : (
         <>
           {/* Task text chip */}
           <EditableChip
-            icon={<Pencil className="w-3 h-3" />}
+            icon={Pencil}
             value={p.text}
             placeholder="Task text"
             isEditing={editing?.field === 'text'}
@@ -197,7 +197,7 @@ const ProposalRow: React.FC<ProposalRowProps> = ({
 
           {/* Due date chip */}
           <EditableChip
-            icon={<Calendar className="w-3 h-3" />}
+            icon={Calendar}
             value={p.dueDate ? formatDate(p.dueDate) : null}
             placeholder="Due date"
             isEditing={editing?.field === 'dueDate'}
@@ -213,7 +213,7 @@ const ProposalRow: React.FC<ProposalRowProps> = ({
 
           {/* Reminder chip */}
           <EditableChip
-            icon={<Clock className="w-3 h-3" />}
+            icon={Clock}
             value={p.reminderDateTime ? formatDateTime(p.reminderDateTime) : null}
             placeholder="Reminder"
             isEditing={editing?.field === 'reminderDateTime'}
@@ -230,7 +230,7 @@ const ProposalRow: React.FC<ProposalRowProps> = ({
           {/* Owner chip */}
           {p.owner && (
             <EditableChip
-              icon={<User className="w-3 h-3" />}
+              icon={User}
               value={p.owner}
               placeholder="Assigned"
               isEditing={editing?.field === 'owner'}
@@ -245,27 +245,21 @@ const ProposalRow: React.FC<ProposalRowProps> = ({
           )}
 
           {/* Meeting — read-only chip */}
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-md ${SURFACE.chip} ${TEXT.muted}`}>
-            <Link2 className="w-3 h-3" />
-            {p.isGeneral ? 'General' : p.meetingTitle}
-          </span>
+          <Surface variant="inset" radius="md" className="inline-flex items-center gap-1 px-2 py-0.5">
+            <Icon icon={Link2} size="xs" tone="muted" />
+            <Text variant="helper" tone="muted">{p.isGeneral ? 'General' : p.meetingTitle}</Text>
+          </Surface>
         </>
       )}
 
       {/* Remove button (only in multi-todo mode) */}
       {showRemove && !isDisabled && (
-        <button
-          onClick={onRemove}
-          className={`p-0.5 rounded ${TEXT.faint} hover:text-red-500 transition-colors`}
-          aria-label="Remove this todo"
-        >
-          <X className="w-3 h-3" />
-        </button>
+        <IconButton icon={X} label="Remove this todo" size="sm" variant="dangerGhost" onClick={onRemove} />
       )}
 
       {/* Error text */}
       {hasError && p.error && (
-        <span className="text-xs text-red-600 dark:text-red-400">{p.error}</span>
+        <Text variant="helper" tone="danger">{p.error}</Text>
       )}
     </div>
   );
@@ -274,7 +268,7 @@ const ProposalRow: React.FC<ProposalRowProps> = ({
 // ── EditableChip ──
 
 interface EditableChipProps {
-  icon: React.ReactNode;
+  icon: LucideIcon;
   value: string | null;
   placeholder: string;
   isEditing: boolean;
@@ -303,12 +297,10 @@ const EditableChip: React.FC<EditableChipProps> = ({
           onChange={(e) => onEditChange(e.target.value)}
           onKeyDown={onKeyDown}
           onBlur={onSave}
-          className={`px-2 py-0.5 text-xs ${primary ? 'min-w-[200px]' : 'min-w-[120px]'} h-6`}
+          className={primary ? 'min-w-48' : 'min-w-32'}
           autoFocus
         />
-        <button onClick={onCancel} className={`p-0.5 ${TEXT.faint} hover:${TEXT.secondary}`}>
-          <X className="w-3 h-3" />
-        </button>
+        <IconButton icon={X} label="Cancel edit" size="sm" onClick={onCancel} />
       </div>
     );
   }
@@ -316,21 +308,16 @@ const EditableChip: React.FC<EditableChipProps> = ({
   if (!value && !primary) return null;
 
   return (
-    <button
+    <Button
+      variant={primary ? 'ghost' : 'secondary'}
+      size="sm"
       onClick={isDisabled ? undefined : onStartEdit}
       disabled={isDisabled}
-      className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-md transition-colors
-        ${primary
-          ? `${TEXT.primary} font-medium`
-          : `${SURFACE.chip} ${TEXT.secondary} ${!isDisabled ? `hover:${SURFACE.selected}` : ''}`
-        }
-        ${!isDisabled && !primary ? 'cursor-pointer' : ''}
-        ${isDisabled ? 'cursor-default' : ''}`}
       title={isDisabled ? undefined : `Edit ${placeholder.toLowerCase()}`}
     >
-      <span className={primary ? TEXT.secondary : ''}>{icon}</span>
-      <span className={!value ? TEXT.faint : ''}>{value || placeholder}</span>
-    </button>
+      <Icon icon={icon} size="xs" tone={primary ? 'muted' : 'inherit'} />
+      <Text variant="helper" tone={!value ? 'faint' : primary ? 'primary' : 'inherit'}>{value || placeholder}</Text>
+    </Button>
   );
 };
 

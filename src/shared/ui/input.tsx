@@ -1,39 +1,43 @@
 import React from 'react';
-import { Slot } from '@radix-ui/react-slot';
+import type { LucideIcon } from 'lucide-react';
 import { cn } from './utils';
-import { SURFACE, BORDER, TEXT, RADIUS } from '@config/theme.config';
+import { FIELD } from './recipes';
+import { Icon } from './icon';
 
-/**
- * Canonical text field. Renders an <input> by default; pass `asChild` to
- * style a <textarea> (or any field) with the same recipe.
- */
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  asChild?: false;
+  /** Leading glyph (search, link…) */
+  icon?: LucideIcon;
+  ref?: React.Ref<HTMLInputElement>;
 }
 
-export interface InputAsChildProps {
-  asChild: true;
-  children: React.ReactElement;
-  className?: string;
-  ref?: React.Ref<Element>;
-  [key: string]: unknown;
+/** Canonical single-line text field. */
+export function Input({ icon, className, ref, ...props }: InputProps) {
+  const field = <input ref={ref} className={cn(FIELD, 'h-8', icon && 'pl-8', className)} {...props} />;
+  if (!icon) return field;
+  return (
+    <div className="relative w-full">
+      <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 flex">
+        <Icon icon={icon} size="xs" tone="faint" />
+      </span>
+      {field}
+    </div>
+  );
 }
 
-/** Placeholder color derived from the faint text token (stays in sync). */
-const FAINT_PLACEHOLDER = TEXT.faint
-  .split(' ')
-  .map((c) => `placeholder:${c.replace(/^dark:/, 'dark:placeholder:')}`)
-  .join(' ');
+const TEXTAREA_VARIANT = {
+  text: cn(FIELD, 'py-2 resize-none'),
+  /** JSON / config editing */
+  code: cn(FIELD, 'py-2 font-mono text-callout min-h-72 resize-y'),
+  /** No field chrome — sits inside a field-like Surface (chat composer) */
+  bare: 'w-full bg-transparent text-reading text-primary placeholder:text-faint outline-none resize-none',
+} as const;
 
-const INPUT_CLASSES = `${SURFACE.inputField} border ${BORDER.input} ${RADIUS.md} outline-none ${BORDER.inputFocus} transition-all ${TEXT.primary} text-[13px] leading-[1.5] px-3 py-2 ${FAINT_PLACEHOLDER} disabled:opacity-50 disabled:cursor-not-allowed w-full resize-none`;
+export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  variant?: keyof typeof TEXTAREA_VARIANT;
+  ref?: React.Ref<HTMLTextAreaElement>;
+}
 
-export function Input(props: InputProps | InputAsChildProps) {
-  const { asChild, className, ...rest } = props as InputProps & {
-    asChild?: boolean;
-    className?: string;
-  };
-  if (asChild) {
-    return <Slot className={cn(INPUT_CLASSES, className)} {...rest} />;
-  }
-  return <input className={cn(INPUT_CLASSES, className)} {...rest} />;
+/** Canonical multi-line text field (same recipe as Input). */
+export function Textarea({ variant = 'text', className, ref, ...props }: TextareaProps) {
+  return <textarea ref={ref} className={cn(TEXTAREA_VARIANT[variant], className)} {...props} />;
 }

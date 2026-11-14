@@ -708,7 +708,6 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       const settings = settingsContext?.settings ?? defaultSettings;
       const providers = settingsContext?.providers || [];
       const categories = historyContext?.categories || [];
-      const addToHistory = historyContext?.addToHistory;
       const setResult = appContext?.setResult;
       const setSelectedHistoryId = appContext?.setSelectedHistoryId;
       const setStatus = appContext?.setStatus;

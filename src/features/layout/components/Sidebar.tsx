@@ -14,9 +14,9 @@ import { UnifiedList } from '@features/history';
 import { SettingsNav } from '@features/settings/components/SettingsNav';
 import { useUnifiedSidebar } from '@shared/hooks/useUnifiedSidebar';
 import { AppStatus } from '@shared/types';
-import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
-import { ActivityTray } from '@shared/components/ActivityTray';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
+import { LAYOUT } from '@config/layout.config';
+import { IconButton, Icon, Row, RowGroupLabel, Kbd } from '@shared/ui';
+import { ActivityTray } from '@shared/components';
 import { formatShortcut } from '@config/shortcuts.config';
 import type { UnifiedSidebarItem } from '@shared/types';
 import { useMeetingDetailLoader } from '@shared/hooks/useMeetingDetailLoader';
@@ -95,63 +95,56 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden">
-      {/* Header — flush to top of sidebar inner panel */}
-      <div className="flex items-center shrink-0 px-1 pt-[7px] pb-2 justify-end gap-0.5">
-        <button
-          onClick={handleHomeClick}
-          aria-label="New chat"
-          className={`p-1.5 cursor-pointer flex items-center justify-center rounded-lg ${SURFACE.hoverSubtle} transition-all ${TEXT.muted}`}
-        >
-          <SquarePen className="w-4 h-4" />
-        </button>
-        <button
+      {/* Header — icon buttons aligned with the macOS traffic lights */}
+      <div className={LAYOUT.sidebarHeader}>
+        <IconButton icon={SquarePen} size="sm" onClick={handleHomeClick} label="New chat" />
+        <IconButton
+          icon={PanelLeft}
+          size="sm"
           onClick={() => setLeftPanel(!isLeftPanelOpen)}
-          aria-label={isLeftPanelOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-          className={`p-1.5 cursor-pointer flex items-center justify-center rounded-lg ${SURFACE.hoverSubtle} transition-all ${TEXT.muted}`}
-        >
-          <PanelLeft className="w-4 h-4" />
-        </button>
+          label={isLeftPanelOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+        />
       </div>
 
       {/* Search trigger — sticky above scrollable list */}
       <div className="shrink-0 px-2">
-        <button
-          onClick={onSearchClick}
-          className={`w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md ${TYPOGRAPHY_CLASSES.sidebarItem} ${TEXT.primary} ${SURFACE.hoverSubtle} transition-all cursor-pointer`}
-        >
-          <Search className="w-3.5 h-3.5 shrink-0" />
-          <span className="flex-1 text-left">Search</span>
-          <kbd className={COMPONENT.kbdBadge}>{formatShortcut('CommandOrControl+K')}</kbd>
-        </button>
+        <Row onClick={onSearchClick}>
+          <Icon icon={Search} size="xs" className="shrink-0" />
+          <span className="flex-1">Search</span>
+          <Kbd>{formatShortcut('CommandOrControl+K')}</Kbd>
+        </Row>
       </div>
 
       {/* Scrollable list — settings sections when in settings view */}
-      <div ref={listContainerRef} className="flex-1 overflow-y-auto px-2 py-1 scrollbar-overlay scroll-fade">
+      <div ref={listContainerRef} className="flex-1 overflow-y-auto px-2 pb-1 scrollbar-overlay scroll-fade">
         {isSettingsView ? (
           <SettingsNav />
         ) : (
-          <UnifiedList
-            items={items}
-            selectedId={getSelectedId()}
-            onSelect={handleSelectItem}
-            searchQuery=""
-          />
+          <>
+            <RowGroupLabel>Recents</RowGroupLabel>
+            <UnifiedList
+              items={items}
+              selectedId={getSelectedId()}
+              onSelect={handleSelectItem}
+              searchQuery=""
+            />
+          </>
         )}
       </div>
 
       {/* Activity tray — transient, only visible when operations are in progress */}
       <ActivityTray />
 
-      {/* Settings button */}
-      <div className={`shrink-0 px-2 py-1.5 border-t ${BORDER.subtle}`}>
-        <button
+      {/* Settings */}
+      <div className="shrink-0 px-2 pb-2">
+        <Row
+          selected={isSettingsView}
           onClick={handleSettingsClick}
           aria-current={isSettingsView ? 'page' : undefined}
-          className={`w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md ${TYPOGRAPHY_CLASSES.sidebarItem} ${TEXT.primary} transition-all cursor-pointer ${isSettingsView ? SURFACE.selected : SURFACE.hoverSubtle}`}
         >
-          <Settings className="w-3.5 h-3.5" />
-          Settings
-        </button>
+          <Icon icon={Settings} size="xs" className="shrink-0" />
+          <span className="flex-1">Settings</span>
+        </Row>
       </div>
     </div>
   );

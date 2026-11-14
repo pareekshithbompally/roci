@@ -1,13 +1,12 @@
 /**
  * NoteEditor Component
- * 
+ *
  * Inline editor for creating new notes.
  */
 
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Check } from 'lucide-react';
-import { SURFACE, BORDER, TEXT } from '@config/theme.config';
-import { Button, Input } from '@shared/ui';
+import { Button, Icon, Surface, Text, Textarea } from '@shared/ui';
 
 interface NoteEditorProps {
   onSave: (text: string) => void;
@@ -52,8 +51,8 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   const canSave = text.trim().length > 0;
 
   return (
-    <div className={`${SURFACE.card} border ${BORDER.subtle} rounded-xl p-4 space-y-3 animate-fade-in`}>
-      <Input asChild><textarea
+    <Surface variant="card" radius="xl" className="p-4 space-y-3 animate-fade-in">
+      <Textarea
         ref={textareaRef}
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -63,22 +62,21 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         autoCorrect="on"
         autoCapitalize="sentences"
         className="w-full h-24"
-      /></Input>
+      />
       <div className="flex items-center justify-between">
-        <p className={`text-xs ${TEXT.faint}`}>Press ⌘+Enter to save, Esc to cancel</p>
+        <Text as="p" variant="caption" tone="faint">Press ⌘+Enter to save, Esc to cancel</Text>
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" className="flex items-center gap-2" onClick={onCancel}>
-            <X className="w-4 h-4" />
+          <Button variant="secondary" size="sm" onClick={onCancel}>
+            <Icon icon={X} size="sm" />
             Cancel
           </Button>
-          <Button variant="primary" size="sm" className="flex items-center gap-2" onClick={handleSave}
-            disabled={!canSave}>
-            <Check className="w-4 h-4" />
+          <Button variant="primary" size="sm" onClick={handleSave} disabled={!canSave}>
+            <Icon icon={Check} size="sm" />
             Save Note
           </Button>
         </div>
       </div>
-    </div>
+    </Surface>
   );
 };
 

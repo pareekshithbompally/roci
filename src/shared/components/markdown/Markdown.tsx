@@ -1,18 +1,16 @@
 /**
- * StreamingMarkdown Component
+ * Markdown — the app's single markdown renderer (chat messages and meeting summaries).
  *
- * Uses Streamdown for ALL markdown rendering —
- * both during streaming and for completed messages. This ensures consistent
+ * Streamdown for both streaming and static content. This ensures consistent
  * styling with zero visual shift when streaming finishes.
  *
  * Styling is defined in src/styles/markdown.css via the .markdown-content class.
- * Code blocks use MarkdownCodeBlock for language icons and copy buttons.
  *
  * When webCitations are provided, a rehype plugin transforms {{cite:N}} tokens
  * in the text into <InlineCitationMarker> React components via the components prop.
  */
 
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useDeferredValue } from 'react';
 import { defaultRehypePlugins, Streamdown } from 'streamdown';
 import { code } from '@streamdown/code';
 import remarkGfm from 'remark-gfm';
@@ -20,7 +18,7 @@ import { rehypeCitationMarkers } from '@shared/utils/inlineCitationInjector';
 import { InlineCitationMarker } from './InlineCitationMarker';
 import type { WebCitation } from '@shared/types';
 
-interface StreamingMarkdownProps {
+interface MarkdownProps {
   content: string;
   streaming?: boolean;
   messageId?: string;
@@ -35,10 +33,17 @@ const STREAMDOWN_PLUGINS = { code };
 const REHYPE_PLUGINS_DEFAULT = [defaultRehypePlugins.harden];
 const REHYPE_PLUGINS_CITATIONS = [defaultRehypePlugins.harden, rehypeCitationMarkers];
 
-const StreamingMarkdownInner: React.FC<StreamingMarkdownProps> = ({
+const MarkdownInner: React.FC<MarkdownProps> = ({
   content,
+  streaming,
   webCitations,
 }) => {
+  // While streaming, render the deferred (previous) value so rapid token
+  // arrivals don't force a full markdown re-parse every frame — React
+  // coalesces the deferred updates and only re-parses once it catches up.
+  const deferredContent = useDeferredValue(content);
+  const effectiveContent = streaming ? deferredContent : content;
+
   if (!content) return null;
 
   const hasCitations = !!(webCitations && webCitations.length > 0);
@@ -64,21 +69,23 @@ const StreamingMarkdownInner: React.FC<StreamingMarkdownProps> = ({
   return (
     <div className="markdown-content">
       <Streamdown
-        animated={{ animation: 'fadeIn', duration: 500 }}
+        mode={streaming ? 'streaming' : 'static'}
+        parseIncompleteMarkdown={streaming}
+        animated={streaming ? false : { animation: 'fadeIn', duration: 500 }}
         className="size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
         remarkPlugins={REMARK_PLUGINS}
         rehypePlugins={rehypePlugins}
         components={components}
         plugins={STREAMDOWN_PLUGINS}
       >
-        {content}
+        {effectiveContent}
       </Streamdown>
     </div>
   );
 };
 
-export const StreamingMarkdown = memo(
-  StreamingMarkdownInner,
+export const Markdown = memo(
+  MarkdownInner,
   (prev, next) =>
     prev.content === next.content &&
     prev.streaming === next.streaming &&

@@ -7,14 +7,30 @@ import {
   Volume2,
   VolumeX,
   Volume1,
+  Check,
 } from 'lucide-react';
 import { useWavesurfer } from '@wavesurfer/react';
 import Hover from 'wavesurfer.js/dist/plugins/hover.esm.js';
 import { formatTime } from '@shared/utils/audio.utils';
 import { useThemeContext } from '@shared/contexts/ThemeContext';
 import { useAudioPlayerStore, SPEED_OPTIONS } from '@shared/stores/audioPlayerStore';
-import { UI_CONFIG } from '@config/ui.config';
-import { AUDIO } from '@config/theme.config';
+import { cssToken } from '@shared/utils/cssToken';
+import { PICKER } from '@config/layout.config';
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  Icon,
+  IconButton,
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+  Slider,
+  Surface,
+  Text,
+} from '@shared/ui';
 
 interface CustomAudioPlayerProps {
   src: string;
@@ -47,16 +63,16 @@ const CustomAudioPlayer: React.FC<CustomAudioPlayerProps> = ({ src, duration, me
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [showRemaining, setShowRemaining] = useState(false);
 
-  const waveformTokens = UI_CONFIG.colors.waveform;
-  const waveColor = isDark ? waveformTokens.unplayed.dark : waveformTokens.unplayed.light;
-  const progressColor = isDark ? waveformTokens.played.dark : waveformTokens.played.light;
-
-  const primaryColor = isDark
-    ? UI_CONFIG.colors.primary.dark
-    : UI_CONFIG.colors.primary.light;
-  const invertedColor = isDark
-    ? UI_CONFIG.colors.primary.light
-    : UI_CONFIG.colors.primary.dark;
+  // WaveSurfer takes colour strings: read the token roles, re-read when the theme flips.
+  const { waveColor, progressColor, primaryColor, invertedColor } = useMemo(
+    () => ({
+      waveColor: cssToken('--bg-layer-4'),
+      progressColor: cssToken('--text-primary'),
+      primaryColor: cssToken('--bg-inverse'),
+      invertedColor: cssToken('--text-inverse'),
+    }),
+    [isDark],
+  );
 
   const hoverPlugin = useMemo(
     () =>
@@ -205,137 +221,87 @@ const CustomAudioPlayer: React.FC<CustomAudioPlayerProps> = ({ src, duration, me
     : formatTime(currentTime);
 
   return (
-    <div
+    <Surface
       ref={playerRef}
       tabIndex={0}
-      className={`flex flex-col gap-2 w-full ${AUDIO.shell} p-3 ${AUDIO.focusRing}`}
+      variant="card"
+      radius="lg"
+      className="flex flex-col gap-2 w-full p-3 select-none"
       role="region"
       aria-label="Audio player"
     >
       <div className="flex items-center gap-2">
-        <button
-          onClick={skipBackward}
-          className={AUDIO.controlButton}
-          aria-label={`Skip back ${SKIP_SECONDS} seconds`}
-          title={`Skip back ${SKIP_SECONDS}s`}
-        >
-          <SkipBack className="w-4 h-4" />
-        </button>
+        <IconButton icon={SkipBack} size="sm" onClick={skipBackward} label={`Skip back ${SKIP_SECONDS} seconds`} />
 
-        <button
-          onClick={togglePlay}
-          className={AUDIO.playButton}
-          aria-label={isPlaying ? 'Pause' : 'Play'}
-        >
-          {isPlaying ? (
-            <Pause className="w-4 h-4 fill-current" />
-          ) : (
-            <Play className="w-4 h-4 fill-current ml-0.5" />
-          )}
-        </button>
+        <Button variant="primary" size="icon" onClick={togglePlay} aria-label={isPlaying ? 'Pause' : 'Play'}>
+          <Icon icon={isPlaying ? Pause : Play} size="sm" className={isPlaying ? 'fill-current' : 'fill-current ml-0.5'} />
+        </Button>
 
-        <button
-          onClick={skipForward}
-          className={AUDIO.controlButton}
-          aria-label={`Skip forward ${SKIP_SECONDS} seconds`}
-          title={`Skip forward ${SKIP_SECONDS}s`}
-        >
-          <SkipForward className="w-4 h-4" />
-        </button>
+        <IconButton icon={SkipForward} size="sm" onClick={skipForward} label={`Skip forward ${SKIP_SECONDS} seconds`} />
 
-        <button
+        <Button
+          variant="ghost"
+          size="inline"
           onClick={() => setShowRemaining(!showRemaining)}
-          className={AUDIO.timeLabelInteractive}
+          className="min-w-16"
           aria-label={showRemaining ? 'Show elapsed time' : 'Show remaining time'}
         >
-          {displayTime}
-        </button>
+          <Text variant="mono" tone="inherit" className="tabular-nums">{displayTime}</Text>
+        </Button>
 
         <div className="flex-1" />
 
-        <div
-          className="relative flex items-center"
-          onMouseEnter={() => setShowVolumeSlider(true)}
-          onMouseLeave={() => setShowVolumeSlider(false)}
-        >
-          <button
-            onClick={toggleMute}
-            className={AUDIO.controlButton}
-            aria-label={isMuted ? 'Unmute' : 'Mute'}
-          >
-            <VolumeIcon className="w-4 h-4" />
-          </button>
-
-          <div
-            className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-2 rounded-lg ${AUDIO.popover} transition-all duration-150 origin-bottom ${
-              showVolumeSlider
-                ? 'opacity-100 scale-100'
-                : 'opacity-0 scale-95 pointer-events-none'
-            }`}
-          >
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={isMuted ? 0 : volume}
-              onChange={(e) => setVolume(parseFloat(e.target.value))}
-              className={AUDIO.volumeSlider}
-              style={{
-                accentColor: isDark
-                  ? UI_CONFIG.colors.primary.dark
-                  : UI_CONFIG.colors.primary.light,
-              }}
-              aria-label="Volume"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round((isMuted ? 0 : volume) * 100)}
-            />
-          </div>
-        </div>
-
-        <div className="relative">
-          <button
-            onClick={() => setShowSpeedMenu(!showSpeedMenu)}
-            onBlur={() => setTimeout(() => setShowSpeedMenu(false), 150)}
-            className={AUDIO.speedTrigger}
-            aria-label={`Playback speed ${playbackRate}x`}
-          >
-            {playbackRate}x
-          </button>
-
-          {showSpeedMenu && (
+        <Popover open={showVolumeSlider} onOpenChange={setShowVolumeSlider}>
+          <PopoverAnchor asChild>
             <div
-              className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-1 rounded-lg ${AUDIO.popover} z-20`}
+              className="flex items-center"
+              onMouseEnter={() => setShowVolumeSlider(true)}
+              onMouseLeave={() => setShowVolumeSlider(false)}
             >
-              {SPEED_OPTIONS.map((speed) => (
-                <button
-                  key={speed}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    setPlaybackRate(speed);
-                    setShowSpeedMenu(false);
-                  }}
-                  className={`${AUDIO.popoverItem} ${
-                    playbackRate === speed
-                      ? AUDIO.popoverItemSelected
-                      : AUDIO.popoverItemDefault
-                  }`}
-                >
-                  {speed}x
-                </button>
-              ))}
+              <IconButton icon={VolumeIcon} size="sm" onClick={toggleMute} label={isMuted ? 'Unmute' : 'Mute'} />
+              <PopoverContent side="top" sideOffset={8} width="auto" className="p-2" onOpenAutoFocus={(e) => e.preventDefault()}>
+                <Slider
+                  orientation="vertical"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={isMuted ? 0 : volume}
+                  onChange={(e) => setVolume(parseFloat(e.target.value))}
+                  aria-label="Volume"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round((isMuted ? 0 : volume) * 100)}
+                />
+              </PopoverContent>
             </div>
-          )}
-        </div>
+          </PopoverAnchor>
+        </Popover>
 
-        <span className={AUDIO.timeLabelDuration}>
+        <DropdownMenu open={showSpeedMenu} onOpenChange={setShowSpeedMenu}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" aria-label={`Playback speed ${playbackRate}x`}>
+              <Text variant="mono" tone="inherit">{playbackRate}x</Text>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="top" align="center">
+            {SPEED_OPTIONS.map((speed) => (
+              <DropdownMenuItem key={speed} onSelect={() => setPlaybackRate(speed)}>
+                <Text variant="mono" tone="inherit" className="flex-1">{speed}x</Text>
+                <span className={PICKER.checkSlot}>
+                  {playbackRate === speed && <Icon icon={Check} size="xs" />}
+                </span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Text variant="mono" tone="muted" className="tabular-nums min-w-16 text-right">
           {formatTime(effectiveDuration)}
-        </span>
+        </Text>
       </div>
 
-      <div ref={waveformRef} className={AUDIO.waveform} />
-    </div>
+      <Surface ref={waveformRef} radius="md" className="h-10 w-full overflow-hidden" />
+    </Surface>
   );
 };
 

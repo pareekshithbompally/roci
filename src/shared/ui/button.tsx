@@ -1,44 +1,45 @@
 import React from 'react';
+import type { LucideIcon } from 'lucide-react';
 import { cn } from './utils';
-import { SURFACE, BORDER, TEXT, RADIUS } from '@config/theme.config';
+import { Icon } from './icon';
 
 /**
- * Canonical button. Layout lives in `size`, color in `variant` — never mix
- * ad-hoc padding or colors at the call site.
- *
- * - sm/md: text buttons (settings, dialogs, forms). md ≈ old px-3.5/py-2 sites.
- * - icon/iconSm: round icon buttons (toolbar, send, close, toggles).
+ * Canonical button. Colour lives in `variant`, shape in `size` — call sites
+ * pass props, never colour or padding classes.
  */
-export type ButtonVariant =
-  | 'primary'
-  | 'secondary'
-  | 'outline'
-  | 'danger'
-  | 'success'
-  | 'accent'
-  | 'ghost';
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'success' | 'accent' | 'ghost' | 'dangerGhost' | 'link' | 'ai';
 
-export type ButtonSize = 'sm' | 'md' | 'icon' | 'iconSm';
+export type ButtonSize = 'inline' | 'sm' | 'md' | 'icon' | 'iconSm' | 'iconXs';
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  primary: `bg-paper-900 dark:bg-night-100 text-white dark:text-night-900 hover:bg-paper-800 dark:hover:bg-night-200`,
-  secondary: `bg-paper-200 dark:bg-night-800 text-paper-800 dark:text-night-300 hover:bg-paper-300 dark:hover:bg-night-750`,
-  outline: `border ${BORDER.strong} ${TEXT.primary} ${SURFACE.hoverSubtle}`,
-  danger: `bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-400 text-white shadow-lg shadow-red-500/20`,
-  success: `bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-400 text-white`,
-  accent: `bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 text-white`,
-  ghost: `${TEXT.muted} hover:text-paper-900 dark:hover:text-night-100 ${SURFACE.hoverSubtle}`,
+  primary: 'bg-inverse text-inverse hover:opacity-90',
+  secondary: 'bg-layer-2 text-primary hover:bg-layer-3',
+  outline: 'bg-base text-primary shadow-input hover:bg-layer-1',
+  danger: 'bg-danger text-on-accent hover:opacity-90',
+  success: 'bg-success text-on-accent hover:opacity-90',
+  accent: 'bg-accent text-on-accent hover:opacity-90',
+  ghost: 'text-muted hover:text-primary hover:bg-hover',
+  /** Quiet destructive (trash icons, Remove) — red only on hover */
+  dangerGhost: 'text-faint hover:text-danger hover:bg-danger-subtle',
+  /** Inline text action (Update, Explore models) — pair with size="inline" */
+  link: 'text-accent hover:underline',
+  /** AI moments only (meeting chat toggle) — the brand gradient */
+  ai: 'bg-[image:var(--ai-gradient)] text-on-accent shadow-raised hover:opacity-90',
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  sm: `px-3 py-1.5 text-[12.5px] leading-[1.4] justify-center ${RADIUS.md}`,
-  md: `px-4 py-2 text-sm leading-[1.4] justify-center ${RADIUS.md}`,
-  icon: `h-8 w-8 p-0 rounded-full justify-center shadow-lg`,
-  iconSm: `h-7 w-7 p-0 rounded-full justify-center`,
+  /** No box — sits in a line of text */
+  inline: 'text-callout gap-1',
+  sm: 'h-7 px-3 text-callout rounded-md',
+  md: 'h-8 px-4 text-body rounded-md',
+  icon: 'h-8 w-8 rounded-full',
+  iconSm: 'h-7 w-7 rounded-full',
+  /** Inline row actions (tray rows, list rows) */
+  iconXs: 'h-6 w-6 rounded-md',
 };
 
 const BASE_CLASSES =
-  'inline-flex items-center gap-1.5 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer';
+  'inline-flex items-center justify-center gap-1.5 font-medium transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 disabled:cursor-not-allowed';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
@@ -54,5 +55,23 @@ export function Button({ variant = 'primary', size = 'sm', className, type = 'bu
       className={cn(BASE_CLASSES, VARIANT_CLASSES[variant], SIZE_CLASSES[size], className)}
       {...props}
     />
+  );
+}
+
+export interface IconButtonProps extends Omit<ButtonProps, 'size' | 'children'> {
+  icon: LucideIcon;
+  /** Accessible name — required: an icon alone has none. */
+  label: string;
+  size?: 'sm' | 'md';
+  /** Solid glyph (stop / play / pause) */
+  filled?: boolean;
+}
+
+/** Icon-only button: ghost by default, always labelled. */
+export function IconButton({ icon, label, size = 'md', variant = 'ghost', filled, ...props }: IconButtonProps) {
+  return (
+    <Button variant={variant} size={size === 'md' ? 'icon' : 'iconSm'} aria-label={label} title={label} {...props}>
+      <Icon icon={icon} size={size === 'md' ? 'md' : 'sm'} className={filled ? 'fill-current' : undefined} />
+    </Button>
   );
 }

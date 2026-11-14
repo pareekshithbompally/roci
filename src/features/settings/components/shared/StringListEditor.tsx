@@ -1,8 +1,6 @@
 import React from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { TEXT } from '@config/theme.config';
-import { Button, Input } from '@shared/ui';
+import { IconButton, Input, Text } from '@shared/ui';
 
 interface StringListEditorProps {
   label: string;
@@ -22,19 +20,13 @@ export const StringListEditor: React.FC<StringListEditorProps> = ({ label, value
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.muted}`}>{label}</span>
-        <Button variant="ghost" size="iconSm" onClick={() => onChange([...rows, ''])} aria-label={`Add ${label.toLowerCase()}`}>
-          <Plus className="w-4 h-4" />
-        </Button>
+        <Text variant="bodyStrong" tone="muted">{label}</Text>
+        <IconButton icon={Plus} size="sm" label={`Add ${label.toLowerCase()}`} onClick={() => onChange([...rows, ''])} />
       </div>
       {rows.map((value, index) => (
         <div key={index} className="flex items-center gap-2">
           <Input value={value} onChange={(e) => update(index, e.target.value)} placeholder={placeholder(index)} />
-          {rows.length > 1 && (
-            <Button variant="ghost" size="iconSm" onClick={() => remove(index)} aria-label="Remove">
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          )}
+          {rows.length > 1 && <IconButton icon={Trash2} size="sm" label="Remove" onClick={() => remove(index)} />}
         </div>
       ))}
     </div>

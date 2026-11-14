@@ -8,9 +8,7 @@
 
 import React from 'react';
 import { ShieldQuestion } from 'lucide-react';
-import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { Button } from '@shared/ui';
+import { Button, Icon, Surface, Text } from '@shared/ui';
 import { usePendingApprovals, useResolveApproval } from '@shared/stores/toolApprovalStore';
 
 const ToolApprovalBanner: React.FC = () => {
@@ -23,28 +21,32 @@ const ToolApprovalBanner: React.FC = () => {
 
   return (
     <div className="px-12 pb-1.5">
-      <div
-        className={`${SURFACE.input} border ${BORDER.default} rounded-2xl px-4 py-3 space-y-2`}
+      <Surface
+        variant="field"
+        radius="xl"
+        className="px-4 py-3 space-y-2"
         role="alertdialog"
         aria-label="Tool permission"
       >
         <div className="flex items-start gap-2">
-          <ShieldQuestion className={`w-4 h-4 mt-0.5 shrink-0 ${TEXT.secondary}`} />
+          <Icon icon={ShieldQuestion} size="sm" tone="muted" className="mt-0.5 shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className={`text-sm ${TEXT.primary}`}>
-              Allow <span className="font-medium">{request.serverName}</span> to run{' '}
-              <span className="font-mono">{request.toolName}</span>?
-            </p>
+            <Text as="p">
+              Allow <Text variant="bodyStrong">{request.serverName}</Text> to run{' '}
+              <Text variant="mono">{request.toolName}</Text>?
+            </Text>
             {queued > 0 && (
-              <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>{queued} more waiting</p>
+              <Text as="p" variant="helper" tone="faint">{queued} more waiting</Text>
             )}
           </div>
         </div>
 
         {request.argsPreview !== '{}' && (
-          <pre className={`${SURFACE.inset} ${COMPONENT.argsPreview} ${TEXT.secondary}`}>
-            {request.argsPreview}
-          </pre>
+          <Surface variant="subtle" radius="md" className="px-3 py-2 max-h-32 overflow-y-auto">
+            <Text as="div" variant="mono" tone="muted" className="whitespace-pre-wrap break-all">
+              {request.argsPreview}
+            </Text>
+          </Surface>
         )}
 
         <div className="flex items-center justify-end gap-1.5">
@@ -58,7 +60,7 @@ const ToolApprovalBanner: React.FC = () => {
             Always allow {request.serverName}
           </Button>
         </div>
-      </div>
+      </Surface>
     </div>
   );
 };

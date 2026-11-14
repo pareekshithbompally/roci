@@ -1,14 +1,13 @@
 /**
  * McpRuntimeCard — tool permissions and runtime limits (Jan's MCP settings
  * card: allow-all, saved permissions with revoke, timeout, output cap).
+ * Renders the rows of a `Section`.
  */
 
 import React, { useEffect, useState } from 'react';
-import { COMPONENT, BORDER } from '@config/theme.config';
 import { DEFAULT_MCP_SETTINGS, MCP_CONFIG } from '@config/mcp.config';
 import type { McpSettings } from '@config/mcp.config';
-import { Button, Card, CardRow, Input } from '@shared/ui';
-import { Toggle } from '@features/settings/components/shared';
+import { Button, CardRow, Input, Switch } from '@shared/ui';
 
 interface McpRuntimeCardProps {
   settings: McpSettings;
@@ -47,22 +46,23 @@ const NumberSetting: React.FC<NumberSettingProps> = ({ value, min, step, fallbac
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
       aria-label={label}
-      className={COMPONENT.settingsNumberInput}
+      className="w-28"
     />
   );
 };
 
 export const McpRuntimeCard: React.FC<McpRuntimeCardProps> = ({ settings, disabled, onChange }) => (
-  <Card className={`divide-y ${BORDER.divide}`}>
+  <>
     <CardRow
       title="Allow all MCP tool permissions"
       description="Run every MCP tool without asking first. Otherwise each tool asks, and “Always allow” saves a permission here."
       actions={
-        <Toggle
+        <Switch
+          size="sm"
           checked={settings.allowAllTools}
-          onChange={(allowAllTools) => onChange({ allowAllTools })}
+          onCheckedChange={(allowAllTools) => onChange({ allowAllTools })}
           disabled={disabled}
-          label="Allow all MCP tool permissions"
+          aria-label="Allow all MCP tool permissions"
         />
       }
     />
@@ -111,5 +111,5 @@ export const McpRuntimeCard: React.FC<McpRuntimeCardProps> = ({ settings, disabl
         />
       }
     />
-  </Card>
+  </>
 );

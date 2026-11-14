@@ -23,6 +23,11 @@ import type { Pose, Stage } from './scope';
 
 type Rgb = readonly [number, number, number];
 
+/** A flat theme override, or a nested one resolved against the current mode. */
+export type DotScopePalette =
+  | Partial<DotScopeTheme>
+  | { dark: Partial<DotScopeTheme>; light: Partial<DotScopeTheme> };
+
 export interface DotScopeProps {
   stage: Extract<Stage, 'recording' | 'processing' | 'failed'>;
   /** Live microphone stream; its level drives the traces while recording. */
@@ -33,6 +38,10 @@ export interface DotScopeProps {
   zoom?: number;
   /** Plate tuning; defaults to Hex's. Must stay stable while mounted. */
   tuning?: DotScopeTuning;
+  /** Palette override merged over the dark/light theme (e.g. composer accent). */
+  palette?: DotScopePalette;
+  /** Canvas margins (pt) around the plate for the shadow; tighten to hug the pill. */
+  margins?: { x: number; y: number };
 }
 
 const { canvasMargin, doneHold } = DOT_SCOPE_CONFIG;
@@ -69,10 +78,14 @@ function drawPlate(ctx: CanvasRenderingContext2D, pose: Pose, theme: DotScopeThe
   const hw = pose.width / 2;
   const hh = pose.height / 2;
   ctx.save();
-  ctx.shadowColor = css(theme.shadow);
-  // Shadow sizes are in device pixels; the canvas transform doesn't apply to them.
-  ctx.shadowBlur = 13 * deviceScale * pose.scale;
-  ctx.shadowOffsetY = 3 * deviceScale * pose.scale;
+  // Drop shadow only when the palette asks for one — the composer disables it
+  // (shadowBlur per frame is expensive and reads as a dull halo).
+  if (theme.shadow[3] > 0) {
+    ctx.shadowColor = css(theme.shadow);
+    // Shadow sizes are in device pixels; the canvas transform doesn't apply to them.
+    ctx.shadowBlur = 13 * deviceScale * pose.scale;
+    ctx.shadowOffsetY = 3 * deviceScale * pose.scale;
+  }
   platePath(ctx, hw, hh);
   ctx.fillStyle = css(theme.plate);
   ctx.fill();
@@ -134,9 +147,15 @@ function draw(
   deviceScale: number,
   canvasWidth: number,
   canvasHeight: number,
+  palette?: DotScopePalette,
 ): void {
   const pose = scope.pose();
-  const theme = DOT_SCOPE_CONFIG.theme[dark ? 'dark' : 'light'];
+  const baseTheme = DOT_SCOPE_CONFIG.theme[dark ? 'dark' : 'light'];
+  const override =
+    palette && 'dark' in palette && 'light' in palette
+      ? (dark ? palette.dark : palette.light)
+      : palette;
+  const theme = { ...baseTheme, ...override };
   const base = saturate(mix3(mix3(theme.you, theme.agent, pose.cool), theme.coral, pose.fail), scope.tuning.saturation);
   const core = saturate(mix3(mix3(theme.youCore, theme.agentCore, pose.cool), theme.coralCore, pose.fail), scope.tuning.saturation);
   ctx.setTransform(deviceScale, 0, 0, deviceScale, 0, 0);
@@ -180,14 +199,15 @@ function useStreamLoudness(stream: MediaStream | null | undefined) {
   return read;
 }
 
-export const DotScope: React.FC<DotScopeProps> = ({ stage, stream, label, zoom = 1, tuning }) => {
+export const DotScope: React.FC<DotScopeProps> = ({ stage, stream, label, zoom = 1, tuning, palette, margins }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isPresent, safeToRemove] = usePresence();
   const reduceMotion = useReducedMotion() ?? false;
   const readLoudness = useStreamLoudness(stream);
   const plate = tuning ?? DOT_SCOPE_CONFIG.tuning;
-  const canvasWidth = Math.max(plate.width, plate.processingWidth) + 2 * canvasMargin.x;
-  const canvasHeight = plate.height + 2 * canvasMargin.y;
+  const margin = margins ?? canvasMargin;
+  const canvasWidth = Math.max(plate.width, plate.processingWidth) + 2 * margin.x;
+  const canvasHeight = plate.height + 2 * margin.y;
   const live = useRef({ stage, isPresent, reduceMotion, safeToRemove });
   live.current = { stage, isPresent, reduceMotion, safeToRemove };
 
@@ -211,7 +231,7 @@ export const DotScope: React.FC<DotScopeProps> = ({ stage, stream, label, zoom =
       const exiting = exitAt !== null;
       const visible = !exiting || (now - (exitAt ?? now)) / 1000 < doneHold;
       scope.advance(dt, { stage: exiting ? 'done' : wanted, visible, loudness: readLoudness.current(), reduceMotion: rm });
-      draw(ctx, scope, document.documentElement.classList.contains('dark'), deviceScale, canvasWidth, canvasHeight);
+      draw(ctx, scope, document.documentElement.classList.contains('dark'), deviceScale, canvasWidth, canvasHeight, palette);
       if (exiting && !visible && scope.settled()) {
         remove?.();
         return;
@@ -220,7 +240,7 @@ export const DotScope: React.FC<DotScopeProps> = ({ stage, stream, label, zoom =
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [plate, canvasWidth, canvasHeight, readLoudness, zoom]);
+  }, [plate, canvasWidth, canvasHeight, readLoudness, zoom, palette]);
 
   return (
     <canvas

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Callout, IconButton, Surface, Text, cn } from '@shared/ui';
 
 interface ErrorMessageBoxProps {
   errorText: string;
@@ -92,39 +93,39 @@ const ErrorMessageBox: React.FC<ErrorMessageBoxProps> = ({ errorText }) => {
   }, [errorText]);
 
   return (
-    <div className="w-full flex flex-col items-start gap-1 my-2">
-      <div 
-        className={`w-full bg-red-500/10 border border-red-500/20 rounded-md p-3 flex items-start gap-3 transition-colors ${
-          !isExpanded ? 'cursor-pointer hover:bg-red-500/15' : ''
-        }`}
-        onClick={() => !isExpanded && setIsExpanded(true)}
-      >
-        <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-red-600 dark:text-red-400">
-            {summaryMessage}
-          </p>
-          
-          {isExpanded && (
-            <div className="mt-3 relative">
-              <pre className="text-xs text-red-700 dark:text-red-300 bg-red-500/5 p-3 rounded overflow-x-auto whitespace-pre-wrap font-mono relative pr-12">
-                {errorText}
-              </pre>
-            </div>
-          )}
+    <div
+      className={cn('w-full my-2', !isExpanded && 'cursor-pointer')}
+      onClick={() => !isExpanded && setIsExpanded(true)}
+    >
+      <Callout variant="error">
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <Text as="p" variant="bodyStrong" tone="inherit">
+              {summaryMessage}
+            </Text>
+
+            {isExpanded && (
+              <Surface variant="subtle" radius="md" className="mt-3 p-3 overflow-x-auto">
+                <Text as="div" variant="mono" tone="inherit" className="whitespace-pre-wrap">
+                  {errorText}
+                </Text>
+              </Surface>
+            )}
+          </div>
+
+          <IconButton
+            icon={isExpanded ? ChevronDown : ChevronRight}
+            label={isExpanded ? 'Collapse error details' : 'Expand error details'}
+            size="sm"
+            variant="dangerGhost"
+            className="shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsExpanded(!isExpanded);
+            }}
+          />
         </div>
-        
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsExpanded(!isExpanded);
-          }}
-          className="p-1 rounded-md text-red-500/70 hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0"
-          aria-label={isExpanded ? "Collapse error details" : "Expand error details"}
-        >
-          {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-        </button>
-      </div>
+      </Callout>
     </div>
   );
 };

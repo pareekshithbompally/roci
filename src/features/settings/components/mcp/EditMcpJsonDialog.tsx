@@ -4,8 +4,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { COMPONENT } from '@config/theme.config';
-import { Button, Input } from '@shared/ui';
+import { Button, Textarea } from '@shared/ui';
 import { FormDialog } from '@features/settings/components/shared';
 
 interface EditMcpJsonDialogProps {
@@ -54,15 +53,13 @@ export const EditMcpJsonDialog: React.FC<EditMcpJsonDialogProps> = ({ open, onOp
         </>
       }
     >
-      <Input asChild>
-        <textarea
-          className={COMPONENT.jsonEditor}
-          value={text}
-          onChange={(e) => { setText(e.target.value); setError(null); }}
-          spellCheck={false}
-          aria-label={title}
-        />
-      </Input>
+      <Textarea
+        variant="code"
+        value={text}
+        onChange={(e) => { setText(e.target.value); setError(null); }}
+        spellCheck={false}
+        aria-label={title}
+      />
     </FormDialog>
   );
 };

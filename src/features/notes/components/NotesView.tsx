@@ -1,18 +1,17 @@
 /**
  * NotesView Component
- * 
+ *
  * Main notes view with list and create functionality.
  * Uses the notes context for state and actions.
  */
 
 import React from 'react';
-import { Plus, AlertCircle, Loader2, StickyNote } from 'lucide-react';
+import { Plus, Loader2, StickyNote } from 'lucide-react';
 import { useNotes } from '@features/notes/hooks';
-import { TEXT } from '@config/theme.config';
-import EmptyState from '@shared/components/EmptyState';
+import { EmptyState } from '@shared/components';
 import NoteItem from './NoteItem';
 import NoteEditor from './NoteEditor';
-import { Button } from '@shared/ui';
+import { Button, Callout, Icon, Text } from '@shared/ui';
 
 interface NotesViewProps {
   className?: string;
@@ -42,7 +41,7 @@ const NotesView: React.FC<NotesViewProps> = ({ className = '' }) => {
   if (isLoading) {
     return (
       <div className={`flex items-center justify-center p-8 ${className}`}>
-        <Loader2 className={`w-6 h-6 ${TEXT.faint} animate-spin`} />
+        <Icon icon={Loader2} size="lg" tone="faint" className="animate-spin" />
       </div>
     );
   }
@@ -50,9 +49,8 @@ const NotesView: React.FC<NotesViewProps> = ({ className = '' }) => {
   // Error state
   if (error) {
     return (
-      <div className={`p-6 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-center ${className}`}>
-        <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+      <div className={className}>
+        <Callout variant="error">{error}</Callout>
       </div>
     );
   }
@@ -63,14 +61,13 @@ const NotesView: React.FC<NotesViewProps> = ({ className = '' }) => {
       <div className="flex items-center gap-4 shrink-0">
         <div className="flex-1">
           {notes.length > 0 && (
-            <span className={`text-xs font-medium ${TEXT.muted}`}>
+            <Text variant="label" tone="muted">
               {notes.length} {notes.length === 1 ? 'note' : 'notes'}
-            </span>
+            </Text>
           )}
         </div>
-        <Button variant="primary" size="sm" className="flex items-center gap-1.5" onClick={() => setCreating(true)}
-          disabled={isCreating}>
-          <Plus className="w-3.5 h-3.5" />
+        <Button variant="primary" size="sm" onClick={() => setCreating(true)} disabled={isCreating}>
+          <Icon icon={Plus} size="xs" />
           Add Note
         </Button>
       </div>

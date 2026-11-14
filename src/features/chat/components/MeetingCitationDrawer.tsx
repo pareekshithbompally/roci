@@ -9,8 +9,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { X, ExternalLink, FileText, Mic, ArrowLeft, AudioWaveform, Loader2 } from 'lucide-react';
 import { ParsedTranscript } from '@features/transcription';
-import { Button, Row } from '@shared/ui';
-import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
+import { Button, Row, Tabs, IconButton, Icon, Surface, Text } from '@shared/ui';
 import type { MeetingCitation, HistoryItem } from '@shared/types';
 
 interface MeetingCitationDrawerProps {
@@ -26,6 +25,11 @@ interface MeetingCitationDrawerProps {
 }
 
 type DrawerTab = 'summary' | 'transcript';
+
+const DRAWER_TABS = [
+  { value: 'transcript', label: 'Transcript' },
+  { value: 'summary', label: 'Summary' },
+] as const satisfies readonly { value: DrawerTab; label: string }[];
 
 export const MeetingCitationDrawer: React.FC<MeetingCitationDrawerProps> = ({
   mode,
@@ -57,80 +61,59 @@ export const MeetingCitationDrawer: React.FC<MeetingCitationDrawerProps> = ({
   return (
     <>
       {/* Backdrop — scrim + click-to-close */}
-      <div
-        className={`absolute inset-0 z-10 transition-opacity duration-300 ${
-          isOpen
-            ? `${SURFACE.overlay} pointer-events-auto`
-            : 'opacity-0 pointer-events-none'
-        }`}
+      <Surface
+        variant="scrim"
+        className={`absolute inset-0 z-10 transition-opacity duration-300 ${isOpen ? 'pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Drawer panel */}
-      <div
-        className={`absolute right-0 inset-y-0 z-20 w-[420px] flex flex-col border-l ${BORDER.default} ${SURFACE.modal} shadow-xl transition-transform duration-300 ease-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+      <Surface
+        variant="card"
+        edge="left"
+        className={`absolute right-0 inset-y-0 z-20 w-96 flex flex-col transition-transform duration-300 ease-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
         onKeyDown={handleKeyDown}
         role="dialog"
         aria-label="Meeting details"
         aria-modal="true"
       >
         {/* Header */}
-        <div className={`shrink-0 flex items-start justify-between gap-3 px-4 py-3 border-b ${BORDER.default}`}>
+        <Surface edge="bottom" className="shrink-0 flex items-start justify-between gap-3 px-4 py-3">
           <div className="flex items-start gap-2.5 min-w-0">
             {mode === 'detail' ? (
-              <button
-                onClick={onBack}
-                className={`w-6 h-6 flex items-center justify-center rounded-md shrink-0 mt-0.5 ${SURFACE.hoverSubtle} transition-colors`}
-                title="Back to list"
-              >
-                <ArrowLeft className={`w-4 h-4 ${TEXT.primary}`} />
-              </button>
+              <IconButton icon={ArrowLeft} label="Back to list" size="sm" className="shrink-0" onClick={onBack} />
             ) : (
-              <Mic className={`w-4 h-4 shrink-0 mt-0.5 ${TEXT.faint}`} />
+              <Icon icon={Mic} size="sm" tone="faint" className="shrink-0 mt-0.5" />
             )}
-            <div className="min-w-0 mt-[2px]">
-              <h3 className={`text-sm font-semibold ${TEXT.primary} truncate`}>
+            <div className="min-w-0 mt-0.5">
+              <Text as="h3" variant="headline" truncate>
                 {mode === 'detail' ? (activeCitation?.meetingTitle ?? '') : 'Meeting Sources'}
-              </h3>
+              </Text>
               {mode === 'detail' && activeCitation && (
-                <p className={`text-[11px] ${TEXT.faint} mt-0.5`}>
+                <Text as="p" variant="caption" tone="faint" className="mt-0.5">
                   {new Date(activeCitation.meetingTimestamp).toLocaleDateString('en-US', {
                     weekday: 'short',
                     month: 'long',
                     day: 'numeric',
                     year: 'numeric',
                   })}
-                </p>
+                </Text>
               )}
               {mode === 'list' && citations && (
-                <p className={`text-[11px] ${TEXT.faint} mt-0.5`}>
+                <Text as="p" variant="caption" tone="faint" className="mt-0.5">
                   {citations.length} {citations.length === 1 ? 'source' : 'sources'} found
-                </p>
+                </Text>
               )}
             </div>
           </div>
-          <Button variant="ghost" size="iconSm" className="shrink-0" onClick={onClose} title="Close">
-            <X className="w-4 h-4" />
-          </Button>
-        </div>
+          <IconButton icon={X} label="Close" size="sm" className="shrink-0" onClick={onClose} />
+        </Surface>
 
         {/* Tabs - Only for detail mode */}
         {mode === 'detail' && (
-          <div className={`shrink-0 flex border-b ${BORDER.default} px-4`}>
-            {(['transcript', 'summary'] as DrawerTab[]).map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`py-2.5 px-3 text-xs font-medium capitalize border-b-2 transition-colors -mb-px ${
-                  activeTab === tab
-                    ? COMPONENT.tabActive
-                    : COMPONENT.tabDefault
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
+          <div className="shrink-0 px-4 py-2">
+            <Tabs items={DRAWER_TABS} value={activeTab} onValueChange={setActiveTab} />
           </div>
         )}
 
@@ -144,12 +127,12 @@ export const MeetingCitationDrawer: React.FC<MeetingCitationDrawerProps> = ({
                   key={c.meetingId}
                   onClick={() => onCitationClick(c)}
                 >
-                  <AudioWaveform className={`w-4 h-4 shrink-0 ${TEXT.faint}`} />
+                  <Icon icon={AudioWaveform} size="sm" tone="faint" className="shrink-0" />
                   <div className="flex flex-col items-start min-w-0 flex-1">
-                    <span className="font-medium text-sm truncate w-full">{c.meetingTitle}</span>
-                    <span className={`text-[11px] ${TEXT.faint} shrink-0 mt-0.5`}>
+                    <Text variant="bodyStrong" truncate className="w-full">{c.meetingTitle}</Text>
+                    <Text variant="caption" tone="faint" className="shrink-0 mt-0.5">
                       {new Date(c.meetingTimestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
+                    </Text>
                   </div>
                 </Row>
               ))}
@@ -157,20 +140,20 @@ export const MeetingCitationDrawer: React.FC<MeetingCitationDrawerProps> = ({
           ) : isLoading ? (
             /* Loading State */
             <div className="flex flex-col items-center justify-center h-full gap-3 p-4">
-              <Loader2 className={`w-6 h-6 animate-spin ${TEXT.faint}`} />
-              <p className={`text-xs ${TEXT.muted}`}>Loading meeting data...</p>
+              <Icon icon={Loader2} size="lg" tone="faint" className="animate-spin" />
+              <Text as="p" variant="helper" tone="muted">Loading meeting data...</Text>
             </div>
           ) : !meeting ? (
             /* Detail Mode: Meeting not found */
             <div className="flex flex-col items-center justify-center h-full gap-3 p-4">
-              <FileText className={`w-10 h-10 ${TEXT.faint}`} />
-              <p className={`text-sm ${TEXT.muted} text-center`}>Meeting not found</p>
+              <Icon icon={FileText} size="xl" tone="faint" />
+              <Text as="p" tone="muted" className="text-center">Meeting not found</Text>
             </div>
           ) : activeTab === 'summary' ? (
             /* Detail Mode: Summary tab */
-            <div className={`p-4 text-sm ${TEXT.secondary} leading-relaxed whitespace-pre-wrap`}>
-              {meeting.summary || <span className={TEXT.faint}>No summary available.</span>}
-            </div>
+            <Text as="div" variant="reading" tone="muted" className="p-4 whitespace-pre-wrap">
+              {meeting.summary || <Text tone="faint">No summary available.</Text>}
+            </Text>
           ) : (
             /* Detail Mode: Transcript tab with highlight */
             <div className="p-4">
@@ -184,17 +167,14 @@ export const MeetingCitationDrawer: React.FC<MeetingCitationDrawerProps> = ({
 
         {/* Footer - Only for detail mode */}
         {mode === 'detail' && meeting && onOpenInMain && (
-          <div className={`shrink-0 border-t ${BORDER.default} px-4 py-3`}>
-            <button
-              onClick={onOpenInMain}
-              className={`flex items-center gap-2 text-xs ${TEXT.link} hover:underline transition-colors`}
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
+          <Surface edge="top" className="shrink-0 px-4 py-3">
+            <Button variant="link" size="inline" onClick={onOpenInMain}>
+              <Icon icon={ExternalLink} size="xs" />
               View full meeting
-            </button>
-          </div>
+            </Button>
+          </Surface>
         )}
-      </div>
+      </Surface>
     </>
   );
 };

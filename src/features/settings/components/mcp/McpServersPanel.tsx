@@ -2,21 +2,19 @@
  * McpServersPanel — Settings → MCP Servers (Jan's settings/mcp-servers page).
  *
  * Header (Experimental badge, mcp.so link, edit-all-JSON, add), the
- * permissions/runtime card, then one card per configured server. Every change
+ * permissions/runtime section, then one row per configured server. Every change
  * runs through `useMcpReconfigure` (disconnect → save → reconnect).
  */
 
 import React, { useState } from 'react';
 import { Braces, Plus } from 'lucide-react';
 import { open as openExternal } from '@tauri-apps/plugin-shell';
-import { LAYOUT, TEXT, COMPONENT } from '@config/theme.config';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { MCP_CONFIG } from '@config/mcp.config';
 import type { McpConfig } from '@config/mcp.config';
 import { useToast } from '@shared/contexts/ToastContext';
-import { ConfirmDialog } from '@shared/components/ConfirmDialog';
-import { Badge, Button, Callout } from '@shared/ui';
-import { SettingsSection } from '@features/settings/components/shared';
+import { ConfirmDialog } from '@shared/components';
+import { Badge, Button, Callout, Icon, IconButton, Section, Text } from '@shared/ui';
+import { SettingsPage } from '@features/settings/components/shared';
 import {
   useMcpConfig,
   useMcpConnectedServers,
@@ -76,36 +74,34 @@ export const McpServersPanel: React.FC = () => {
 
   return (
     <PanelShell onAdd={() => setEditing({ name: null })} onEditAll={() => setJsonTarget({ server: null })}>
-      <SettingsSection title="Permissions & runtime">
+      <Section title="Permissions & runtime">
         <McpRuntimeCard
           settings={config.mcpSettings}
           disabled={reconfigure.isPending}
           onChange={(partial) => applyAndToast((c) => updateSettings(c, partial))}
         />
-      </SettingsSection>
+      </Section>
 
-      <SettingsSection title="Servers">
+      <Section title="Servers">
         {serverEntries.length === 0 ? (
-          <Callout variant="neutral">No MCP servers yet. Add one to give chat new tools.</Callout>
+          <Text as="p" variant="helper" tone="muted" className="py-3">No MCP servers yet. Add one to give chat new tools.</Text>
         ) : (
-          <div className="space-y-3">
-            {serverEntries.map(([name, server]) => (
-              <McpServerCard
-                key={name}
-                name={name}
-                config={server}
-                connected={connected.includes(name)}
-                icon={serverInfo?.get(name)?.icon}
-                pending={pendingNames.has(name)}
-                onToggle={(active) => applyAndToast((c) => toggleServer(c, name, active))}
-                onEditJson={() => setJsonTarget({ server: name })}
-                onEdit={() => setEditing({ name })}
-                onDelete={() => setDeleteTarget(name)}
-              />
-            ))}
-          </div>
+          serverEntries.map(([name, server]) => (
+            <McpServerCard
+              key={name}
+              name={name}
+              config={server}
+              connected={connected.includes(name)}
+              icon={serverInfo?.get(name)?.icon}
+              pending={pendingNames.has(name)}
+              onToggle={(active) => applyAndToast((c) => toggleServer(c, name, active))}
+              onEditJson={() => setJsonTarget({ server: name })}
+              onEdit={() => setEditing({ name })}
+              onDelete={() => setDeleteTarget(name)}
+            />
+          ))
         )}
-      </SettingsSection>
+      </Section>
 
       <AddEditMcpServerDialog
         open={editing !== null}
@@ -157,34 +153,26 @@ const openDirectory = () => {
 };
 
 const PanelShell: React.FC<PanelShellProps> = ({ onAdd, onEditAll, actionsDisabled, children }) => (
-  <div className={`h-full overflow-y-auto custom-scrollbar ${LAYOUT.settingsPadding} py-6`}>
-    <div className={`${LAYOUT.settingsMaxWidth} mx-auto space-y-6`}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className={`${TYPOGRAPHY_CLASSES.settingsTitle} ${TEXT.heading}`}>MCP Servers</h3>
-            <Badge variant="info">Experimental</Badge>
-          </div>
-          <p className={`${TYPOGRAPHY_CLASSES.settingsDescription} ${TEXT.muted}`}>
-            Connect Model Context Protocol servers to give chat new tools. Find more at{' '}
-            <button type="button" onClick={openDirectory} className={COMPONENT.settingsLink}>
-              mcp.so
-            </button>
-          </p>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <Button variant="ghost" size="iconSm" onClick={onEditAll} disabled={actionsDisabled} title="Edit all servers as JSON">
-            <Braces className="w-4 h-4" />
-          </Button>
-          <Button variant="outline" onClick={onAdd} disabled={actionsDisabled}>
-            <Plus className="w-3.5 h-3.5" />
-            Add server
-          </Button>
-        </div>
-      </div>
-      {children}
-    </div>
-  </div>
+  <SettingsPage
+    title={<>MCP Servers <Badge variant="info">Experimental</Badge></>}
+    description={
+      <>
+        Connect Model Context Protocol servers to give chat new tools. Find more at{' '}
+        <Button variant="link" size="inline" onClick={openDirectory}>mcp.so</Button>
+      </>
+    }
+    accessory={
+      <>
+        <IconButton icon={Braces} label="Edit all servers as JSON" size="sm" onClick={onEditAll} disabled={actionsDisabled} />
+        <Button variant="outline" onClick={onAdd} disabled={actionsDisabled}>
+          <Icon icon={Plus} size="xs" />
+          Add server
+        </Button>
+      </>
+    }
+  >
+    {children}
+  </SettingsPage>
 );
 
 export default McpServersPanel;

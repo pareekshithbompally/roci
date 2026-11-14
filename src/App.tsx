@@ -18,13 +18,14 @@ import { MainLayout } from '@features/layout';
 import { HomeView } from '@features/home';
 import { SettingsPanel } from '@features/settings';
 import { useAppUpdate, scheduleStartupCheck } from '@features/settings';
+import { useMenubarSpeechModels } from '@features/settings';
 import { UpdateBanner } from '@features/settings';
 import { RemindersView } from '@features/todos';
 import { CalendarView } from '@features/calendar';
 import { DeleteConfirmModal } from '@features/history';
 import { Toaster } from 'sonner';
-import { ModelDownloadModal } from '@shared/components/ModelDownloadModal';
-import SearchOverlay from '@shared/components/SearchOverlayDialog';
+import { ModelDownloadModal, SearchOverlay } from '@shared/components';
+import { Input } from '@shared/ui';
 import { useAppShortcuts } from '@shared/hooks/useAppShortcuts';
 import { useCalendarIntegration } from '@shared/hooks/useCalendarIntegration';
 
@@ -33,7 +34,8 @@ import { isTauriEnvironment } from '@services/tauri';
 import {
   initializeStorage,
 } from '@services/storage';
-import { notificationService, menubarService, TrayAction } from '@services/tauri';
+import { notificationService, menubarService, TrayAction, SPEECH_MODEL_ACTION_PREFIX } from '@services/tauri';
+import { getHexStatus } from '@services/ai/transcription';
 import { notificationScheduler } from '@services/notification-scheduler';
 import { windowService } from '@services/window.service';
 import { shortcutsService } from '@services/shortcuts.service';
@@ -42,13 +44,14 @@ import { unifiedAIService } from '@services/unifiedAIService';
 import { initPlatformFetch } from '@services/platform-fetch';
 import { searchIndexingService } from '@services/searchIndexing.service';
 import { reminderService } from '@services/reminder.service';
+import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 
 const App: React.FC = () => {
   console.log('[App] Rendering App component');
   const currentView = useCurrentView();
   const status = useAppStatus();
   const selectedHistoryId = useSelectedHistoryId();
-  const { setStatus, setCurrentView, setInitialized, setSelectedHistoryId } = useAppActions();
+  const { setStatus, setCurrentView, setInitialized, setSelectedHistoryId, setActiveSettingsPanel } = useAppActions();
   
   const { setSettings, settings, providers } = useSettings();
   const history = useHistory();
@@ -75,6 +78,9 @@ const App: React.FC = () => {
 
   // macOS Calendar integration — polls for upcoming meetings, shows notifications
   useCalendarIntegration();
+
+  // Tray › Speech Model submenu: downloaded Hex models and the current pick
+  useMenubarSpeechModels();
 
   // Background search-index warm-up: two phases.
   // Phase 1 (fast): FTS-only — populates spotlight corpus so Cmd+K works immediately.
@@ -201,6 +207,30 @@ const App: React.FC = () => {
     }
   };
 
+  /**
+   * Tray › Speech Model: switch transcription to the picked Hex model.
+   * The row only reaches here when Hex listed it, but Hex may have quit or
+   * dropped the model since, so the pick is verified before saving.
+   */
+  const applySpeechModel = async (modelId: string) => {
+    try {
+      const hexStatus = await getHexStatus();
+      const model = hexStatus.models.find((m) => m.id === modelId);
+      if (!hexStatus.running || !model?.installed) {
+        toast.showToast(
+          "That model isn't downloaded in Hex. Open Hex › Models, then retry.",
+          'warning',
+        );
+        return;
+      }
+      setSettings({ transcriptionProvider: TRANSCRIPTION_CONFIG.hexProvider, transcriptionModel: modelId });
+      toast.showToast(`Speech model set to ${model.name}`, 'success');
+    } catch (error) {
+      console.error('[App] Failed to switch speech model:', error);
+      toast.showToast('Could not switch the speech model', 'error');
+    }
+  };
+
   const initializeMenubar = async () => {
     try {
       await menubarService.initialize(async (action) => {
@@ -219,6 +249,27 @@ const App: React.FC = () => {
               await rec.stopRecording();
             }
             break;
+          case TrayAction.SETTINGS:
+            setCurrentView('settings');
+            await windowService.show();
+            break;
+          case TrayAction.MANAGE_MODELS:
+            setActiveSettingsPanel('audio');
+            setCurrentView('settings');
+            await windowService.show();
+            break;
+          case TrayAction.CHECK_UPDATES: {
+            await windowService.show();
+            const outcome = await appUpdate.checkNow();
+            if (outcome === 'available') {
+              toast.showToast('An update is available', 'info');
+            } else if (outcome === 'current') {
+              toast.showToast('Kasset is up to date', 'success');
+            } else {
+              toast.showToast('Could not check for updates', 'error');
+            }
+            break;
+          }
           case TrayAction.QUIT:
             if (rec.status === 'recording' || rec.status === 'paused') {
               useAppStore.getState().setRecordingExitPrompt('quit');
@@ -227,6 +278,12 @@ const App: React.FC = () => {
               await menubarService.quit();
             }
             break;
+          default: {
+            if (action.startsWith(SPEECH_MODEL_ACTION_PREFIX)) {
+              await applySpeechModel(action.slice(SPEECH_MODEL_ACTION_PREFIX.length));
+            }
+            break;
+          }
         }
       });
 
@@ -311,7 +368,6 @@ const App: React.FC = () => {
   };
 
   // Determine if IdleView, ChatView, or ResultsView is being shown (needs edge-to-edge layout without padding)
-  const hasSelectedChat = chat.currentSessionId !== null;
   const hasSelectedMeeting = selectedHistoryId !== null;
   const showIdleView = currentView === 'home' && (
     status === AppStatus.IDLE || 
@@ -323,7 +379,7 @@ const App: React.FC = () => {
   return (
     <>
       {/* Hidden file input */}
-      <input
+      <Input
         type="file"
         ref={fileInputRef}
         className="hidden"

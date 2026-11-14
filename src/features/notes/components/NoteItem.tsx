@@ -7,9 +7,8 @@
 
 import React, { useState } from 'react';
 import { Trash2, Edit2, Check, X } from 'lucide-react';
-import { SURFACE, BORDER, TEXT } from '@config/theme.config';
 import type { Note } from '@features/notes/types/notes.types';
-import { Input } from '@shared/ui';
+import { IconButton, Surface, Text, Textarea } from '@shared/ui';
 
 interface NoteItemProps {
   note: Note;
@@ -53,36 +52,20 @@ const NoteItem: React.FC<NoteItemProps> = ({ note, onDelete, onUpdate }) => {
   };
 
   return (
-    <div className={`p-4 rounded-xl ${SURFACE.card} border ${BORDER.subtle} group ${BORDER.cardHover} transition-colors`}>
+    <Surface variant="card" radius="xl" className="p-4 group">
       <div className="flex justify-between items-start gap-3 mb-2">
-        <div className="flex items-center gap-2">
-          <time className={`text-xs ${TEXT.muted}`}>
-            {formatDateTime(note.timestamp)}
-          </time>
-        </div>
+        <Text variant="helper" tone="muted">{formatDateTime(note.timestamp)}</Text>
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           {!isEditing && onUpdate && (
-            <button
-              onClick={() => setIsEditing(true)}
-              className={`p-1 ${SURFACE.hoverSubtle} rounded ${TEXT.muted}`}
-              aria-label="Edit note"
-            >
-              <Edit2 className="w-4 h-4" />
-            </button>
+            <IconButton icon={Edit2} label="Edit note" size="sm" onClick={() => setIsEditing(true)} />
           )}
-          <button
-            onClick={() => onDelete(note.id)}
-            className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded text-red-500 dark:text-red-400"
-            aria-label="Delete note"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          <IconButton icon={Trash2} label="Delete note" size="sm" variant="dangerGhost" onClick={() => onDelete(note.id)} />
         </div>
       </div>
 
       {isEditing ? (
         <div className="space-y-2">
-          <Input asChild><textarea
+          <Textarea
             value={editText}
             onChange={(e) => setEditText(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -91,29 +74,19 @@ const NoteItem: React.FC<NoteItemProps> = ({ note, onDelete, onUpdate }) => {
             autoCapitalize="sentences"
             className="w-full h-24"
             autoFocus
-          /></Input>
+          />
           <div className="flex gap-2 justify-end">
-            <button
-              onClick={handleCancel}
-              className={`p-1.5 rounded-lg ${TEXT.muted} ${SURFACE.hoverSubtle}`}
-            >
-              <X className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleSave}
-              className="p-1.5 rounded-lg text-green-600 hover:bg-green-100 dark:hover:bg-green-900/20"
-            >
-              <Check className="w-4 h-4" />
-            </button>
+            <IconButton icon={X} label="Cancel" size="sm" onClick={handleCancel} />
+            <IconButton icon={Check} label="Save" size="sm" onClick={handleSave} />
           </div>
-          <p className={`text-xs ${TEXT.faint}`}>Press ⌘+Enter to save, Esc to cancel</p>
+          <Text as="p" variant="caption" tone="faint">Press ⌘+Enter to save, Esc to cancel</Text>
         </div>
       ) : (
-        <p className={`text-sm ${TEXT.secondary} leading-relaxed whitespace-pre-wrap break-words`}>
+        <Text as="p" variant="reading" tone="muted" className="leading-relaxed whitespace-pre-wrap break-words">
           {note.text}
-        </p>
+        </Text>
       )}
-    </div>
+    </Surface>
   );
 };
 

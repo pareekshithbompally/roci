@@ -7,7 +7,7 @@
  * - Error handling
  */
 
-import { coreAudioService, type AudioCaptureResult } from '@services/coreAudio.service';
+import { coreAudioService } from '@services/coreAudio.service';
 import { recordingsService } from '@services/storage';
 import { isTauriEnvironment } from '@services/tauri';
 import { StorageConfig, generateRecordingFilename, getRecordingIdFromFilename } from '@config/storage.config';

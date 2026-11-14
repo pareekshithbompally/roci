@@ -5,9 +5,10 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
-import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { cn } from './utils';
-import { SURFACE, BORDER, TEXT, RADIUS } from '@config/theme.config';
+import { FIELD } from './recipes';
+import { IconButton } from './button';
+import { Popover, PopoverTrigger, PopoverContent } from './popover';
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -133,29 +134,15 @@ const CalendarGrid: React.FC<CalendarProps> = ({ selectedDate, minDate, onSelect
     <div className="p-3">
       {/* Month navigation */}
       <div className="flex items-center justify-between mb-2">
-        <button
-          onClick={goToPrevMonth}
-          className={`p-1 rounded-md ${TEXT.muted} ${SURFACE.hoverSubtle} transition-colors`}
-          aria-label="Previous month"
-        >
-          <ChevronLeft className="w-3.5 h-3.5" />
-        </button>
-        <span className={`text-xs font-semibold ${TEXT.heading}`}>
-          {monthLabel}
-        </span>
-        <button
-          onClick={goToNextMonth}
-          className={`p-1 rounded-md ${TEXT.muted} ${SURFACE.hoverSubtle} transition-colors`}
-          aria-label="Next month"
-        >
-          <ChevronRight className="w-3.5 h-3.5" />
-        </button>
+        <IconButton icon={ChevronLeft} label="Previous month" size="sm" onClick={goToPrevMonth} />
+        <span className="text-callout font-semibold text-primary">{monthLabel}</span>
+        <IconButton icon={ChevronRight} label="Next month" size="sm" onClick={goToNextMonth} />
       </div>
 
       {/* Day-of-week headers */}
       <div className="grid grid-cols-7 mb-1">
         {DAYS_OF_WEEK.map(day => (
-          <div key={day} className={`text-center text-[10px] font-medium ${TEXT.faint} py-1`}>
+          <div key={day} className="text-center text-subheadline font-medium text-faint py-1">
             {day}
           </div>
         ))}
@@ -167,7 +154,7 @@ const CalendarGrid: React.FC<CalendarProps> = ({ selectedDate, minDate, onSelect
         {Array.from({ length: prevMonthDays }, (_, i) => {
           const d = daysInPrevMonth - prevMonthDays + i + 1;
           return (
-            <div key={`prev-${d}`} className={`text-center py-1 text-[11px] ${TEXT.faint} opacity-40`}>
+            <div key={`prev-${d}`} className="text-center py-1 text-subheadline text-faint opacity-40">
               {d}
             </div>
           );
@@ -187,12 +174,12 @@ const CalendarGrid: React.FC<CalendarProps> = ({ selectedDate, minDate, onSelect
               onClick={() => !disabled && onSelect(ymd)}
               disabled={disabled}
               className={cn(
-                'py-1 text-[11px] rounded-md transition-colors',
+                'py-1 text-subheadline rounded-md transition-colors',
                 isSelected
-                  ? 'bg-paper-900 dark:bg-night-100 text-white dark:text-night-900 font-semibold'
+                  ? 'bg-accent text-on-accent font-semibold'
                   : isToday
-                    ? `font-semibold ${TEXT.heading} bg-paper-200/60 dark:bg-night-750/60`
-                    : `${TEXT.primary} hover:bg-paper-200 dark:hover:bg-night-750`,
+                    ? 'font-semibold text-accent bg-layer-2'
+                    : 'text-primary hover:bg-hover',
                 disabled && 'opacity-30 cursor-not-allowed hover:bg-transparent',
               )}
             >
@@ -223,45 +210,25 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   }, [onChange]);
 
   return (
-    <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
-      <PopoverPrimitive.Trigger asChild>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
         <button
+          type="button"
           disabled={disabled}
-          className={cn(
-            `inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs ${SURFACE.inputField} border ${BORDER.input} ${RADIUS.md}`,
-            `outline-none ${BORDER.inputFocus} transition-all`,
-            'disabled:opacity-50 disabled:cursor-not-allowed',
-            value ? TEXT.primary : TEXT.faint,
-            className,
-          )}
+          className={cn(FIELD, 'h-8 inline-flex items-center gap-1.5 w-auto', !value && 'text-faint', className)}
         >
           <Calendar className="w-3 h-3 shrink-0" />
           <span className="truncate">{value ? formatDisplayDate(value) : placeholder}</span>
         </button>
-      </PopoverPrimitive.Trigger>
-      <PopoverPrimitive.Portal>
-        <PopoverPrimitive.Content
-          sideOffset={4}
-          align="start"
-          className={cn(
-            'z-50 w-56',
-            'bg-[var(--surface-dropdown)]',
-            'border border-[var(--border-strong)]',
-            'rounded-[var(--radius-lg)]',
-            'shadow-[var(--shadow-float)]',
-            'data-[state=open]:animate-content-show',
-            'data-[state=closed]:animate-content-hide',
-            'outline-none',
-          )}
-        >
+      </PopoverTrigger>
+      <PopoverContent align="start" width="sm">
           <CalendarGrid
             selectedDate={value}
             minDate={min}
             onSelect={handleSelect}
           />
-        </PopoverPrimitive.Content>
-      </PopoverPrimitive.Portal>
-    </PopoverPrimitive.Root>
+      </PopoverContent>
+    </Popover>
   );
 };
 
@@ -295,17 +262,9 @@ export const TimePicker: React.FC<TimePickerProps> = ({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
-      className={cn(
-        `px-2.5 py-1.5 text-xs ${SURFACE.inputField} border ${BORDER.input} ${RADIUS.md}`,
-        `outline-none ${BORDER.inputFocus} transition-all`,
-        TEXT.primary,
-        'disabled:opacity-50 disabled:cursor-not-allowed',
-        'appearance-none bg-no-repeat bg-[right_0.5rem_center] bg-[length:12px] cursor-pointer',
-        className,
-      )}
+      className={cn(FIELD, 'h-8 w-auto pr-6 appearance-none bg-no-repeat bg-[right_0.5rem_center] bg-[length:12px] cursor-pointer', className)}
       style={{
         backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
-        paddingRight: '1.5rem',
       }}
     >
       {TIME_OPTIONS.map(t => (

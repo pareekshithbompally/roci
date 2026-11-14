@@ -61,14 +61,13 @@ export function resolveModel(
 
 /**
  * Get the provider type for adapter routing.
- * 7-way: gemini | anthropic | openai | mistral | xai | groq | openai-compat
+ * 6-way: gemini | anthropic | openai | mistral | groq | openai-compat
  */
 export function getProviderType(provider: string): ProviderType {
   if (provider === 'gemini') return 'gemini';
   if (provider === 'anthropic') return 'anthropic';
   if (provider === 'openai') return 'openai';
   if (provider === 'mistral') return 'mistral';
-  if (provider === 'xai') return 'xai';
   if (provider === 'groq') return 'groq';
   return 'openai-compat';
 }
@@ -89,7 +88,7 @@ export function supportsTools(resolved: ResolvedModel): boolean {
  * Check if a provider supports web search tool calling
  */
 export function supportsWebSearch(provider: string): boolean {
-  return provider === 'gemini' || provider === 'openai' || provider === 'anthropic' || provider === 'xai' || provider === 'groq';
+  return provider === 'gemini' || provider === 'openai' || provider === 'anthropic' || provider === 'groq';
 }
 
 /**

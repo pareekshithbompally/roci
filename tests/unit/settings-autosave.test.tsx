@@ -21,12 +21,13 @@ vi.mock('@services/db', () => ({
     providers: {
       list: vi.fn(async () => []),
       upsert: vi.fn(async () => {}),
+      delete: vi.fn(async () => {}),
     },
   },
 }));
 
 vi.mock('@services/ai/transcription', () => ({
-  ENGINES: {},
+  defaultSpeechSelection: () => null,
 }));
 
 // eslint-disable-next-line import/first
@@ -35,6 +36,8 @@ import { store } from '@services/db';
 import { SettingsProvider, useSettings } from '@shared/contexts/SettingsContext';
 
 const settingsSet = store.settings.set as unknown as ReturnType<typeof vi.fn>;
+const providersList = store.providers.list as unknown as ReturnType<typeof vi.fn>;
+const providersDelete = store.providers.delete as unknown as ReturnType<typeof vi.fn>;
 
 function Probe() {
   const { setSettings, isLoading } = useSettings();
@@ -133,5 +136,48 @@ describe('settings save-on-edit', () => {
     const calls = settingsSet.mock.calls.filter(([key]) => key === 'defaultAudioSource');
     expect(calls).toHaveLength(1);
     expect(calls[0][1]).toBe(JSON.stringify('microphone'));
+  });
+});
+
+describe('settings retired providers', () => {
+  function ProbeProviders() {
+    const { providers, selectedProviderName, isLoading } = useSettings();
+    return (
+      <div>
+        <span data-testid="loading">{isLoading ? 'loading' : 'ready'}</span>
+        <span data-testid="ids">{providers.map((p) => p.provider).join(',')}</span>
+        <span data-testid="selected">{selectedProviderName ?? 'none'}</span>
+      </div>
+    );
+  }
+
+  function renderProviders() {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    return render(
+      <QueryClientProvider client={client}>
+        <SettingsProvider>
+          <ProbeProviders />
+        </SettingsProvider>
+      </QueryClientProvider>
+    );
+  }
+
+  it('deletes retired providers from disk and drops dangling selections', async () => {
+    providersList.mockResolvedValueOnce([
+      { provider: 'xai', active: true, models: [], settings: [] },
+      { provider: 'openai', active: true, models: [{ id: 'gpt-4o' }], settings: [] },
+    ]);
+    renderProviders();
+    await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('ready'));
+
+    // Retired xai is deleted from disk and absent from the loaded list.
+    expect(providersDelete).toHaveBeenCalledWith('xai');
+    expect(providersDelete).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('ids').textContent).not.toContain('xai');
+    expect(screen.getByTestId('ids').textContent).toContain('openai');
+    // Dangling selection never points at a retired provider.
+    expect(screen.getByTestId('selected').textContent).not.toBe('xai');
   });
 });

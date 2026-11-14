@@ -1,16 +1,14 @@
 /**
- * McpServerCard — one configured server: live status, transport details
- * (secrets masked), JSON / edit / delete actions, and the enable toggle.
+ * McpServerCard — one configured server row: live status, transport details
+ * (secrets masked), JSON / edit / delete actions, and the enable switch.
  */
 
 import React from 'react';
 import { Braces, Pencil, Trash2 } from 'lucide-react';
-import { COMPONENT } from '@config/theme.config';
 import { MCP_CONFIG } from '@config/mcp.config';
 import type { McpServerConfig } from '@config/mcp.config';
-import { Button, Card, CardRow } from '@shared/ui';
-import { Toggle } from '@features/settings/components/shared';
-import { ServerIcon } from '@shared/components/ServerIcon';
+import { CardRow, Dot, IconButton, Switch } from '@shared/ui';
+import { ServerIcon } from '@shared/components';
 import { maskKeys, maskUrl } from './mcpServerForm';
 
 interface McpServerCardProps {
@@ -67,34 +65,25 @@ export const McpServerCard: React.FC<McpServerCardProps> = ({
   onEdit,
   onDelete,
 }) => (
-  <Card>
-    <CardRow
-      className="items-start"
-      title={
-        <span className="flex items-center gap-2">
-          <ServerIcon name={name} icon={icon} className="w-4 h-4" />
-          {name}
-          <span
-            className={connected ? COMPONENT.statusDotRunning : COMPONENT.statusDotStopped}
-            aria-label={connected ? 'Connected' : 'Not connected'}
-          />
+  <CardRow
+    className="items-start"
+    title={
+      <span className="flex items-center gap-2">
+        <ServerIcon name={name} icon={icon} size="sm" />
+        {name}
+        <span className="inline-flex" aria-label={connected ? 'Connected' : 'Not connected'}>
+          <Dot tone={connected ? 'success' : 'muted'} size="xs" />
         </span>
-      }
-      description={<ServerDetails config={config} />}
-      actions={
-        <>
-          <Button variant="ghost" size="iconSm" onClick={onEditJson} title={`Edit ${name} as JSON`}>
-            <Braces className="w-4 h-4" />
-          </Button>
-          <Button variant="ghost" size="iconSm" onClick={onEdit} title="Edit server">
-            <Pencil className="w-4 h-4" />
-          </Button>
-          <Button variant="ghost" size="iconSm" onClick={onDelete} title="Delete server">
-            <Trash2 className="w-4 h-4" />
-          </Button>
-          <Toggle checked={!!config.active} onChange={onToggle} disabled={pending} label={`Enable ${name}`} />
-        </>
-      }
-    />
-  </Card>
+      </span>
+    }
+    description={<ServerDetails config={config} />}
+    actions={
+      <>
+        <IconButton icon={Braces} label={`Edit ${name} as JSON`} size="sm" onClick={onEditJson} />
+        <IconButton icon={Pencil} label="Edit server" size="sm" onClick={onEdit} />
+        <IconButton icon={Trash2} label="Delete server" size="sm" variant="dangerGhost" onClick={onDelete} />
+        <Switch size="sm" checked={!!config.active} onCheckedChange={onToggle} disabled={pending} aria-label={`Enable ${name}`} />
+      </>
+    }
+  />
 );

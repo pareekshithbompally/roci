@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import { SURFACE, BORDER, TEXT } from '@config/theme.config';
+import { Badge } from '@shared/ui';
 import type { ActivityItem } from '@shared/stores/activityStore';
 import { ActivityRowLayout } from './ActivityRowLayout';
 
@@ -22,21 +22,15 @@ export const RecordingRow: React.FC<{ item: ActivityItem }> = ({ item }) => {
     <div
       className={`w-2.5 h-2.5 rounded-full ${
         isReview
-          ? 'bg-blue-400 dark:bg-blue-500'
+          ? 'bg-info'
           : isPaused
-            ? 'bg-amber-500 dark:bg-amber-500'
-            : 'bg-red-500 dark:bg-red-500 animate-pulse'
+            ? 'bg-warning'
+            : 'bg-danger animate-pulse'
       }`}
     />
   );
 
-  const stallBadge = item.error ? (
-    <span
-      className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${SURFACE.warningCallout} ${TEXT.warningCallout} border ${BORDER.warningCallout}`}
-    >
-      stall
-    </span>
-  ) : undefined;
+  const stallBadge = item.error ? <Badge variant="warning">stall</Badge> : undefined;
 
   return (
     <ActivityRowLayout

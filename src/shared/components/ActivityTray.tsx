@@ -25,8 +25,7 @@ import { DownloadRow } from './activity-rows/DownloadRow';
 import { IndexingRow } from './activity-rows/IndexingRow';
 import { AudioPlaybackRow } from './activity-rows/AudioPlaybackRow';
 import { UI_CONFIG } from '@config/ui.config';
-
-const ROW_SPRING = { type: 'spring' as const, stiffness: 400, damping: 30 };
+import { Button, Icon, IconButton, Row, Text } from '@shared/ui';
 
 // ── Priority ordering ────────────────────────────────────────────
 
@@ -124,40 +123,20 @@ export const ActivityTray: React.FC = () => {
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
           transition={{ duration: 0.2, ease: 'easeInOut' }}
-          className="overflow-hidden shrink-0 mx-2 mb-1.5 rounded-lg border border-paper-300/80 dark:border-night-700/60 bg-paper-100/60 dark:bg-night-800/40 backdrop-blur-sm"
+          className="overflow-hidden shrink-0 mx-2 mb-1.5 rounded-lg bg-base shadow-raised"
         >
-          {/* Header — entire row is clickable to collapse/expand */}
-          <button
-            onClick={() => setCollapsed(c => !c)}
-            className="flex items-center gap-2 px-3 py-2 shrink-0 w-full text-left transition-colors hover:opacity-80"
-            style={{ borderBottom: collapsed ? 'none' : '1px solid var(--border-default)' }}
-            title={collapsed ? 'Expand' : 'Collapse'}
-          >
-            <span className="relative flex h-1.5 w-1.5 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-paper-500 dark:bg-night-500 opacity-75" />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-paper-600 dark:bg-night-400" />
-            </span>
-            <span
-              className="text-xs font-semibold flex-1"
-              style={{ color: 'var(--text-primary)' }}
-            >
-              Activity ({items.length})
-            </span>
-            {hasDismissable && (
-              <span
-                role="button"
-                tabIndex={0}
-                onClick={(e) => { e.stopPropagation(); dismissCompleted(); }}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); dismissCompleted(); } }}
-                className="p-1 rounded-md transition-colors hover:opacity-80"
-                style={{ color: 'var(--text-faint)' }}
-                title="Dismiss completed"
-              >
-                <X className="w-3.5 h-3.5" />
+          {/* Header — the row toggles collapse; dismiss is a sibling button, not nested */}
+          <div className={`flex items-center gap-1 px-1 py-1 ${collapsed ? '' : 'border-b border-muted'}`}>
+            <Row onClick={() => setCollapsed(c => !c)} aria-expanded={!collapsed} className="flex-1">
+              <span className="relative flex h-1.5 w-1.5 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-layer-4 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-inverse" />
               </span>
-            )}
-            {collapsed ? <ChevronUp className="w-3.5 h-3.5" style={{ color: 'var(--text-faint)' }} /> : <ChevronDown className="w-3.5 h-3.5" style={{ color: 'var(--text-faint)' }} />}
-          </button>
+              <Text variant="label" className="flex-1">Activity ({items.length})</Text>
+              <Icon icon={collapsed ? ChevronUp : ChevronDown} size="sm" className="text-faint" />
+            </Row>
+            {hasDismissable && <IconButton icon={X} label="Dismiss completed" size="sm" onClick={dismissCompleted} />}
+          </div>
 
           {/* Body — scrollable, collapsible */}
           <AnimatePresence initial={false}>
@@ -178,20 +157,14 @@ export const ActivityTray: React.FC = () => {
                     <>
                       <AudioPlaybackRow />
                       {sorted.length > 0 && (
-                        <div
-                          className="mx-3 h-px"
-                          style={{ backgroundColor: 'var(--border-default)' }}
-                        />
+                        <div className="mx-3 h-px bg-separator" />
                       )}
                     </>
                   )}
                   {sorted.map((item, idx) => (
                     <div key={item.id}>
                       {idx > 0 && (
-                        <div
-                          className="mx-3 h-px"
-                          style={{ backgroundColor: 'var(--border-default)' }}
-                        />
+                        <div className="mx-3 h-px bg-separator" />
                       )}
                       {renderRow(item)}
                     </div>
@@ -201,25 +174,13 @@ export const ActivityTray: React.FC = () => {
                 {/* Footer — overflow summary + cancel all */}
                 {(queuedCount > 0 || hasQueuedImports) && (
                   <div
-                    className="flex items-center gap-2 px-3 py-2 shrink-0"
-                    style={{ borderTop: '1px solid var(--border-default)' }}
+                    className="flex items-center gap-2 px-3 py-2 shrink-0 border-t border-muted"
                   >
                     {queuedCount > 0 && (
-                      <span
-                        className="text-[11px] flex-1"
-                        style={{ color: 'var(--text-muted)' }}
-                      >
-                        {queuedCount} queued
-                      </span>
+                      <Text variant="caption" tone="muted" className="flex-1">{queuedCount} queued</Text>
                     )}
                     {hasQueuedImports && (
-                      <button
-                        onClick={cancelAll}
-                        className="text-[11px] font-medium px-2 py-0.5 rounded transition-colors hover:opacity-80"
-                        style={{ color: 'var(--text-faint)' }}
-                      >
-                        Cancel all
-                      </button>
+                      <Button variant="ghost" size="sm" onClick={cancelAll}>Cancel all</Button>
                     )}
                   </div>
                 )}

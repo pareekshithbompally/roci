@@ -12,13 +12,11 @@ import { Plus, RefreshCw } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { LOCAL_EMPTY_HINT } from '@config/localServers.config';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { TEXT, COMPONENT } from '@config/theme.config';
 import { useLocalServers } from '@features/settings/hooks/useLocalServers';
-import { ProviderListItem } from './ProviderListItem';
-import { SettingsSection, SettingsInput } from './shared';
+import { ProviderGroup, ProviderListItem } from './ProviderListItem';
+import { SettingsInput } from './shared';
 import type { LocalRow } from '@services/providers/localServers';
-import { Button } from '@shared/ui';
+import { Button, Icon, Text } from '@shared/ui';
 
 interface LocalServersSectionProps {
   selectedProvider: string | null;
@@ -75,30 +73,28 @@ export const LocalServersSection: React.FC<LocalServersSectionProps> = ({ select
   const actions = (
     <div className="flex items-center gap-0.5">
       <Button variant="ghost" size="iconSm" onClick={handleRescan} title="Rescan" aria-label="Rescan local servers">
-        <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin' : ''}`} />
+        <Icon icon={RefreshCw} size="xs" className={isScanning ? 'animate-spin' : ''} />
       </Button>
       <Button variant="ghost" size="iconSm" onClick={() => setUrlDraft('')} title="Add URL" aria-label="Add a local server by URL">
-        <Plus className="w-3.5 h-3.5" />
+        <Icon icon={Plus} size="xs" />
       </Button>
     </div>
   );
 
   return (
-    <SettingsSection title="Local" action={actions}>
-      <div className="space-y-1">
-        {rows.map((row) => (
-          <ProviderListItem
-            key={row.id}
-            provider={row.id}
-            selected={selectedProvider === row.id}
-            active={row.saved?.active ?? false}
-            onSelect={() => handleSelect(row)}
-            onToggle={(checked) => handleToggle(row, checked)}
-            detail={rowDetail(row)}
-            status={row.running ? 'running' : 'stopped'}
-          />
-        ))}
-      </div>
+    <ProviderGroup title="Local" accessory={actions}>
+      {rows.map((row) => (
+        <ProviderListItem
+          key={row.id}
+          provider={row.id}
+          selected={selectedProvider === row.id}
+          active={row.saved?.active ?? false}
+          onSelect={() => handleSelect(row)}
+          onToggle={(checked) => handleToggle(row, checked)}
+          detail={rowDetail(row)}
+          status={row.running ? 'running' : 'stopped'}
+        />
+      ))}
 
       {urlDraft !== null && (
         <div className="space-y-2">
@@ -116,16 +112,16 @@ export const LocalServersSection: React.FC<LocalServersSectionProps> = ({ select
             <Button variant="primary" size="sm" onClick={() => void handleAddUrl()} disabled={isAdding || !urlDraft.trim()}>
               {isAdding ? 'Connecting…' : 'Add'}
             </Button>
-            <button onClick={() => setUrlDraft(null)} className={COMPONENT.settingsMutedLink}>
+            <Button variant="ghost" size="inline" onClick={() => setUrlDraft(null)}>
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       {rows.length === 0 && urlDraft === null && (
-        <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>{LOCAL_EMPTY_HINT}</p>
+        <Text as="p" variant="helper" tone="faint" className="px-2">{LOCAL_EMPTY_HINT}</Text>
       )}
-    </SettingsSection>
+    </ProviderGroup>
   );
 };

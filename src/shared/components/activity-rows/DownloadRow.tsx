@@ -20,9 +20,9 @@ export const DownloadRow: React.FC<{ item: ActivityItem }> = ({ item }) => {
   const mergedDetail = detailParts.join(' · ') || null;
 
   const icon = isIndeterminate ? (
-    <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500 dark:text-blue-400" />
+    <Loader2 className="w-3.5 h-3.5 animate-spin text-info" />
   ) : (
-    <Download className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
+    <Download className="w-3.5 h-3.5 text-info" />
   );
 
   return (

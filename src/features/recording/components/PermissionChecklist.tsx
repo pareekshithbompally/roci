@@ -9,11 +9,9 @@
 
 import React from 'react';
 import { Check, X } from 'lucide-react';
-import { Button, Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogOverlay, DialogPortal, DialogTitle } from '@shared/ui';
+import { Button, Card, CardRow, Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, Icon, IconButton, Text } from '@shared/ui';
 import { useAppStore, usePermissionChecklistOpen } from '@shared/stores/appStore';
 import { permissionsService, type PermissionKind, type PermissionRow } from '@services/permissions.service';
-import { BORDER, TEXT, RADIUS, SURFACE } from '@config/theme.config';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { usePermissions } from '@features/recording/hooks/usePermissions';
 
 const COPY: Record<PermissionKind, { title: string; detail: string }> = {
@@ -34,8 +32,9 @@ function reportFailure(action: string) {
 const RowAction: React.FC<{ row: PermissionRow }> = ({ row }) => {
   if (row.state === 'ready') {
     return (
-      <span className={`inline-flex items-center gap-1 ${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.success}`}>
-        <Check className="w-4 h-4" /> Allowed
+      <span className="inline-flex items-center gap-1">
+        <Icon icon={Check} size="sm" tone="success" />
+        <Text variant="helper" tone="success">Allowed</Text>
       </span>
     );
   }
@@ -65,35 +64,32 @@ export const PermissionChecklist: React.FC = () => {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogPortal>
         <DialogOverlay />
-        <DialogContent className="max-w-sm">
+        <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle>Allow recording</DialogTitle>
             <DialogClose asChild>
-              <Button variant="ghost" size="iconSm" className="-mr-1" aria-label="Close">
-                <X className="w-4 h-4" />
-              </Button>
+              <IconButton icon={X} label="Close" size="sm" className="-mr-1" />
             </DialogClose>
           </DialogHeader>
-          <DialogDescription className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
+          <DialogDescription>
             macOS needs these before Kasset can record.
           </DialogDescription>
 
-          <ul className={`mt-4 ${SURFACE.subtle} border ${BORDER.default} ${RADIUS.lg} divide-y ${BORDER.default}`}>
+          <Card className="mt-4">
             {rows.map((row) => (
-              <li key={row.kind} className="flex items-center justify-between gap-3 p-3">
-                <div>
-                  <p className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>{COPY[row.kind].title}</p>
-                  <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>{COPY[row.kind].detail}</p>
-                </div>
-                <RowAction row={row} />
-              </li>
+              <CardRow
+                key={row.kind}
+                title={COPY[row.kind].title}
+                description={COPY[row.kind].detail}
+                actions={<RowAction row={row} />}
+              />
             ))}
-          </ul>
+          </Card>
 
           {allReady && (
-            <p className={`mt-4 ${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.success}`}>
+            <Text as="p" variant="helper" tone="success" className="mt-4">
               All set. Start the recording again.
-            </p>
+            </Text>
           )}
         </DialogContent>
       </DialogPortal>

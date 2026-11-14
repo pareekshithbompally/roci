@@ -1,5 +1,7 @@
 import React, { useRef, useEffect, useMemo } from 'react';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
+import { FileText } from 'lucide-react';
+import { Surface, Text } from '@shared/ui';
+import { EmptyState, HighlightedText } from '@shared/components';
 import SpeakerBadge from './SpeakerBadge';
 import type { StoredTranscriptSegment } from '@shared/types';
 
@@ -13,24 +15,6 @@ function formatTimestamp(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-}
-
-/** Splits content into before/match/after and wraps match in a <mark> */
-function HighlightedText({ content, highlight }: { content: string; highlight: string }) {
-  const normalContent = content.toLowerCase();
-  const normalHighlight = highlight.toLowerCase();
-  const idx = normalContent.indexOf(normalHighlight);
-  if (idx === -1) return <>{content}</>;
-  const before = content.slice(0, idx);
-  const match = content.slice(idx, idx + highlight.length);
-  const after = content.slice(idx + highlight.length);
-  return (
-    <>
-      {before}
-      <mark className="bg-amber-200/60 dark:bg-amber-800/40 rounded px-0.5">{match}</mark>
-      {after}
-    </>
-  );
 }
 
 function hasAnyTimestamp(segments: StoredTranscriptSegment[]): boolean {
@@ -52,30 +36,34 @@ function buildSpeakerIndex(segments: StoredTranscriptSegment[]): Map<string, num
   return map;
 }
 
-const EmptyState: React.FC = () => (
-  <div className="p-6 rounded-xl bg-paper-50 dark:bg-night-900/40 border border-paper-300 dark:border-night-800/60">
-    <p className="text-paper-600 dark:text-night-500 leading-relaxed text-center">
-      No transcript available.
-    </p>
-  </div>
-);
+interface SegmentRowProps {
+  /** null hides the time column; undefined omits it entirely */
+  time?: string | null;
+  speaker?: React.ReactNode;
+  content: string;
+  highlight: string;
+  ref?: React.Ref<HTMLElement>;
+}
 
-const PlainTextBlock: React.FC<{ text: string; highlightText?: string }> = ({ text, highlightText }) => {
-  const normalized = highlightText?.slice(0, 100).toLowerCase() ?? '';
-  const isMatch = normalized && text.toLowerCase().includes(normalized);
+/** One transcript line: time, optional speaker, reading text; a quiet fill when it holds the match. */
+const SegmentRow: React.FC<SegmentRowProps> = ({ time, speaker, content, highlight, ref }) => {
+  const isHighlighted = highlight !== '' && content.toLowerCase().includes(highlight.toLowerCase());
   return (
-    <div className={`p-6 rounded-xl bg-paper-50 dark:bg-night-900/40 border border-paper-300 dark:border-night-800/60 ${isMatch ? 'bg-amber-200/60 dark:bg-amber-800/40' : ''}`}>
-      <p className="text-paper-900 dark:text-night-300 leading-relaxed whitespace-pre-wrap">
-        {highlightText && isMatch
-          ? <HighlightedText content={text} highlight={highlightText.slice(0, 100)} />
-          : text
-        }
-      </p>
-    </div>
+    <Surface ref={ref} variant={isHighlighted ? 'subtle' : 'plain'} radius="lg" className="flex gap-3 px-3 py-2">
+      {time !== undefined && (
+        <Text variant="mono" tone="faint" className="shrink-0 pt-0.5 w-10">{time}</Text>
+      )}
+      <div className="flex-1 min-w-0">
+        {speaker && <div className="mb-0.5">{speaker}</div>}
+        <Text as="p" variant="reading" className="leading-relaxed">
+          <HighlightedText text={content} highlight={isHighlighted ? highlight : ''} />
+        </Text>
+      </div>
+    </Surface>
   );
 };
 
-const RegexFallbackBlock: React.FC<{ text: string; highlightText?: string }> = ({ text, highlightText }) => {
+const RegexFallbackBlock: React.FC<{ text: string; highlight: string }> = ({ text, highlight }) => {
   const regexSegments = useMemo(() => {
     const parts = text.split(/(?=\[\d{1,2}:\d{2}\])/).filter(s => s.trim().length > 0);
     if (parts.length <= 1 && !text.includes('[00:00]')) return null;
@@ -89,40 +77,18 @@ const RegexFallbackBlock: React.FC<{ text: string; highlightText?: string }> = (
   }, [text]);
 
   if (!regexSegments) {
-    return <PlainTextBlock text={text} highlightText={highlightText} />;
+    return (
+      <Text as="p" variant="reading" className="leading-relaxed whitespace-pre-wrap">
+        <HighlightedText text={text} highlight={highlight} />
+      </Text>
+    );
   }
 
   return (
-    <div className="space-y-4">
-      {regexSegments.map(({ timestamp, content }, index) => {
-        const isHighlighted = highlightText
-          ? content.toLowerCase().includes(highlightText.slice(0, 100).toLowerCase())
-          : false;
-        return (
-          <div
-            key={index}
-            className={`flex gap-3 p-4 rounded-xl border transition-colors group ${
-              isHighlighted
-                ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40'
-                : 'bg-paper-50 dark:bg-night-900/40 border-paper-300 dark:border-night-800/60'
-            }`}
-          >
-            <div className="shrink-0">
-              {timestamp && (
-                <span className="inline-flex px-2 py-1 rounded bg-paper-100 dark:bg-night-800 text-[10px] font-mono text-paper-600 dark:text-night-400 border border-paper-300 dark:border-night-700/50">
-                  {timestamp}
-                </span>
-              )}
-            </div>
-            <p className={`${TYPOGRAPHY_CLASSES.transcriptText} text-paper-900 dark:text-night-300 leading-relaxed`}>
-              {highlightText && isHighlighted
-                ? <HighlightedText content={content} highlight={highlightText.slice(0, 100)} />
-                : content
-              }
-            </p>
-          </div>
-        );
-      })}
+    <div className="space-y-1">
+      {regexSegments.map(({ timestamp, content }, index) => (
+        <SegmentRow key={index} time={timestamp} content={content} highlight={highlight} />
+      ))}
     </div>
   );
 };
@@ -135,7 +101,7 @@ const RegexFallbackBlock: React.FC<{ text: string; highlightText?: string }> = (
  * Tier 3: Plain text → regex [MM:SS] re-parse for backward compat, or plain text block
  */
 const ParsedTranscript: React.FC<ParsedTranscriptProps> = ({ text, segments, highlightText }) => {
-  const segmentRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const segmentRefs = useRef<(HTMLElement | null)[]>([]);
   const firstMatchIdxRef = useRef<number>(-1);
 
   const hasSegments = segments && segments.length > 0;
@@ -145,7 +111,8 @@ const ParsedTranscript: React.FC<ParsedTranscriptProps> = ({ text, segments, hig
     [segments],
   );
 
-  const normalizedHighlight = highlightText?.slice(0, 100).toLowerCase() ?? '';
+  const highlight = highlightText?.slice(0, 100) ?? '';
+  const normalizedHighlight = highlight.toLowerCase();
 
   // Compute first highlighted segment index (before render)
   firstMatchIdxRef.current = -1;
@@ -183,57 +150,30 @@ const ParsedTranscript: React.FC<ParsedTranscriptProps> = ({ text, segments, hig
 
   // Empty state
   if ((!text || text.trim().length === 0) && !hasSegments) {
-    return <EmptyState />;
+    return <EmptyState icon={FileText} message="No transcript available" />;
   }
 
   // Tier 3: Plain text fallback (no structured segments)
   if (!hasSegments) {
-    return <RegexFallbackBlock text={text!} highlightText={highlightText} />;
+    return <RegexFallbackBlock text={text!} highlight={highlight} />;
   }
 
   // Tier 1 & 2: Native structured segments
   return (
-    <div className="space-y-3">
+    <div className="space-y-1">
       {segments!.map((seg, index) => {
-        const isHighlighted = normalizedHighlight && seg.text.toLowerCase().includes(normalizedHighlight);
         const speakerColorIdx = seg.speaker ? speakerIndex.get(seg.speaker) : undefined;
-
         return (
-          <div
+          <SegmentRow
             key={index}
             ref={(el) => { segmentRefs.current[index] = el; }}
-            className={`flex gap-3 p-4 rounded-xl border transition-colors group ${
-              isHighlighted
-                ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40'
-                : 'bg-paper-50 dark:bg-night-900/40 border-paper-300 dark:border-night-800/60'
-            }`}
-          >
-            {/* Timestamp column (Tier 1 only) */}
-            {showTimestamps && (
-              <div className="shrink-0 pt-0.5">
-                <span className="inline-flex px-2 py-1 rounded bg-paper-100 dark:bg-night-800 text-[10px] font-mono text-paper-600 dark:text-night-400 border border-paper-300 dark:border-night-700/50">
-                  {formatTimestamp(seg.startSecond)}
-                </span>
-              </div>
-            )}
-
-            <div className="flex-1 min-w-0">
-              {/* Speaker badge row */}
-              {seg.speaker && speakerColorIdx !== undefined && (
-                <div className="mb-1">
-                  <SpeakerBadge speaker={seg.speaker} index={speakerColorIdx} />
-                </div>
-              )}
-
-              {/* Transcript text */}
-              <p className={`${TYPOGRAPHY_CLASSES.transcriptText} text-paper-900 dark:text-night-300 leading-relaxed`}>
-                {highlightText && isHighlighted
-                  ? <HighlightedText content={seg.text} highlight={highlightText.slice(0, 100)} />
-                  : seg.text
-                }
-              </p>
-            </div>
-          </div>
+            time={showTimestamps ? formatTimestamp(seg.startSecond) : undefined}
+            speaker={seg.speaker && speakerColorIdx !== undefined
+              ? <SpeakerBadge speaker={seg.speaker} index={speakerColorIdx} />
+              : undefined}
+            content={seg.text}
+            highlight={highlight}
+          />
         );
       })}
     </div>

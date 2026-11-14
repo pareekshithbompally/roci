@@ -1,7 +1,7 @@
 import React from 'react';
 import { FileText } from 'lucide-react';
 import ParsedTranscript from '@features/transcription/components/ParsedTranscript';
-import EmptyState from '@shared/components/EmptyState';
+import { EmptyState } from '@shared/components';
 import type { StoredTranscriptSegment } from '@shared/types';
 
 interface TranscriptViewProps {

@@ -9,21 +9,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AudioWaveform, Loader2, MessageSquare, Search } from 'lucide-react';
 import { vectorDB } from '@extensions/rag/client';
-import {
-  CommandDialog,
-  CommandInput,
-  CommandList,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-  CommandSeparator,
-} from '@shared/ui';
+import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem, CommandSeparator, Kbd, Text } from '@shared/ui';
 import { useUnifiedSidebar } from '@shared/hooks/useUnifiedSidebar';
 import { useAppActions } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
 import { useChat } from '@shared/contexts/ChatContext';
 import { useMeetingDetailLoader } from '@shared/hooks/useMeetingDetailLoader';
-import { COMPONENT } from '@config/theme.config';
 import { formatShortcut } from '@config/shortcuts.config';
 import {
   SPOTLIGHT_DEBOUNCE_MS,
@@ -181,26 +172,22 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
           onValueChange={(val) => { setQuery(val); triggerSearch(val); }}
         />
         {isSearching && (
-          <Loader2 className="absolute right-10 w-3.5 h-3.5 animate-spin text-[var(--text-faint)]" />
+          <Loader2 className="absolute right-10 w-3.5 h-3.5 animate-spin text-faint" />
         )}
-        <kbd className={`absolute right-3 ${COMPONENT.kbdBadge}`}>
-          {formatShortcut('CommandOrControl+K')}
-        </kbd>
+        <Kbd className="absolute right-3">{formatShortcut('CommandOrControl+K')}</Kbd>
       </div>
-      <CommandList className="min-h-[160px]">
+      <CommandList className="min-h-40">
         <CommandEmpty>
           {query.length < SPOTLIGHT_MIN_QUERY_LENGTH || isSearching ? (
             <div className="flex flex-col items-center gap-2 py-10">
-              <Search className="w-5 h-5 text-[var(--text-faint)]" />
-              <span className="text-sm font-medium text-[var(--text-secondary)]">Search meetings &amp; chats</span>
-              <span className="text-xs text-[var(--text-faint)]">Type to find anything across your sessions</span>
+              <Search className="w-5 h-5 text-faint" />
+              <Text variant="bodyStrong" tone="muted">Search meetings &amp; chats</Text>
+              <Text variant="helper" tone="faint">Type to find anything across your sessions</Text>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2 py-10">
-              <span className="text-sm text-[var(--text-muted)]">No results for &ldquo;{query}&rdquo;</span>
-              <span className="text-xs text-[var(--text-faint)]">
-                {searchError ?? 'Try different keywords'}
-              </span>
+              <Text tone="muted">No results for &ldquo;{query}&rdquo;</Text>
+              <Text variant="helper" tone="faint">{searchError ?? 'Try different keywords'}</Text>
             </div>
           )}
         </CommandEmpty>
@@ -213,17 +200,17 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
                 value={`meeting-${hit.source_id}-${hit.title}`}
                 onSelect={() => handleSelectHit(hit)}
               >
-                <AudioWaveform className="w-4 h-4 shrink-0 text-[var(--text-faint)]" />
+                <AudioWaveform className="w-4 h-4 shrink-0 text-faint" />
                 <div className="flex-1 min-w-0">
                   <div className="truncate">{hit.title}</div>
                   {hit.excerpt && (
                     <HighlightedExcerpt
                       raw={hit.excerpt}
-                      className="block truncate text-xs text-[var(--text-muted)] mt-0.5"
+                      className="block truncate text-callout text-muted mt-0.5"
                     />
                   )}
                 </div>
-                <span className="text-xs shrink-0 text-[var(--text-faint)]">Meeting</span>
+                <Text variant="helper" tone="faint" className="shrink-0">Meeting</Text>
               </CommandItem>
             ))}
           </CommandGroup>
@@ -239,17 +226,17 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
                 value={`chat-${hit.source_id}-${hit.title}`}
                 onSelect={() => handleSelectHit(hit)}
               >
-                <MessageSquare className="w-4 h-4 shrink-0 text-[var(--text-faint)]" />
+                <MessageSquare className="w-4 h-4 shrink-0 text-faint" />
                 <div className="flex-1 min-w-0">
                   <div className="truncate">{hit.title}</div>
                   {hit.excerpt && (
                     <HighlightedExcerpt
                       raw={hit.excerpt}
-                      className="block truncate text-xs text-[var(--text-muted)] mt-0.5"
+                      className="block truncate text-callout text-muted mt-0.5"
                     />
                   )}
                 </div>
-                <span className="text-xs shrink-0 text-[var(--text-faint)]">Chat</span>
+                <Text variant="helper" tone="faint" className="shrink-0">Chat</Text>
               </CommandItem>
             ))}
           </CommandGroup>
@@ -257,7 +244,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
       </CommandList>
 
       {/* Footer hints */}
-      <div className="flex items-center gap-4 px-3 py-2 border-t border-[var(--border-default)] text-[11px] text-[var(--text-faint)]">
+      <div className="flex items-center gap-4 px-3 py-2 border-t border-muted text-subheadline text-faint">
         <span>
           <kbd className="font-medium">↑↓</kbd> Navigate
         </span>
@@ -272,7 +259,6 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
   );
 };
 
-export default SearchOverlay;
 
 // ── Internal Components ──────────────────────────────────────────────────────
 
@@ -319,7 +305,7 @@ function HighlightedExcerpt({ raw, className }: HighlightedExcerptProps) {
     parts.push(
       <strong
         key={key++}
-        className="font-semibold text-[var(--text-primary)]"
+        className="font-semibold text-primary"
       >
         {highlighted}
       </strong>,

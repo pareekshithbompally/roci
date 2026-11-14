@@ -7,17 +7,16 @@
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { ChevronDown, Wrench } from 'lucide-react';
+import { Check, ChevronDown, Wrench } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import ProvidersAvatar from '@shared/components/ProvidersAvatar';
+import { ProvidersAvatar, ModelIcon } from '@shared/components';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { resolveModel, supportsTools } from '@shared/utils/modelResolver';
 import { modalitiesService } from '@services/modalities';
 import { ModalityIcons } from '@features/settings/components/ModalityIcons';
 import { MANAGED_SDK_PROVIDERS } from '@config/providers.config';
 import type { ModelInfo } from '@services/modalities';
-import { COMPONENT, SURFACE, TEXT } from '@config/theme.config';
-import { CommandPopover, CommandGroup, CommandItem } from '@shared/ui';
+import { Button, CommandPopover, CommandGroup, CommandItem, Icon, Text, cn } from '@shared/ui';
 
 interface ModelPickerProps {
   /** Compact mode for inline display */
@@ -127,34 +126,31 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
       searchPlaceholder="Search models..."
       emptyText="No models found"
       trigger={
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           disabled={!hasModels}
-          className={`${COMPONENT.composerPickerTrigger} ${
-            hasModels
-              ? `${SURFACE.hoverSubtle} ${TEXT.secondary}`
-              : `${TEXT.faint} cursor-not-allowed`
-          } ${compact ? 'text-xs' : 'text-sm'}`}
           title={hasModels ? 'Select model' : 'No models available - configure providers first'}
         >
           {selectedModel ? (
             <>
-              <ProvidersAvatar provider={selectedModel.provider} size={compact ? 14 : 16} />
-              <span className="max-w-[120px] truncate font-medium">
+              <ModelIcon provider={selectedModel.provider} modelId={selectedModel.id} size={compact ? 14 : 16} />
+              <Text variant="label" tone="inherit" truncate className="max-w-32">
                 {selectedModel.name}
-              </span>
+              </Text>
               {selectedToolsEnabled && (
-                <span title="Meeting tools available" className="flex-shrink-0 flex items-center">
-                  <Wrench className={`w-3 h-3 ${TEXT.faint}`} />
+                <span title="Meeting tools available" className="shrink-0 flex items-center">
+                  <Icon icon={Wrench} size="xs" tone="faint" />
                 </span>
               )}
             </>
           ) : (
-            <span className={TEXT.faint}>
+            <Text variant="label" tone="faint">
               {hasModels ? 'Select model' : 'No models'}
-            </span>
+            </Text>
           )}
-          <ChevronDown className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`} />
-        </button>
+          <Icon icon={ChevronDown} size="xs" className={cn('transition-transform', open && 'rotate-180')} />
+        </Button>
       }
     >
       {Object.values(modelsByProvider).map(group => (
@@ -178,17 +174,15 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
                 key={`${group.provider}-${model.id}`}
                 value={`${model.name} ${getProviderTitle(model.provider)}`}
                 onSelect={() => handleSelectModel(model.id)}
-                className={isSelected
-                  ? 'ring-1 ring-violet-500 dark:ring-violet-400 bg-violet-50 dark:bg-violet-500/10'
-                  : ''
-                }
               >
-                <span className={`flex-1 truncate ${isSelected ? 'font-medium text-violet-700 dark:text-violet-300' : ''}`}>
+                <ModelIcon provider={model.provider} modelId={model.id} size={14} fallback="none" />
+                <Text variant={isSelected ? 'bodyStrong' : 'body'} truncate className="flex-1">
                   {model.name}
-                </span>
+                </Text>
                 <div className="flex items-center gap-1.5 shrink-0 ml-2">
                   <ModalityIcons modelInfo={info} variant="compact" />
                 </div>
+                {isSelected && <Icon icon={Check} size="sm" tone="accent" className="shrink-0" />}
               </CommandItem>
             );
           })}

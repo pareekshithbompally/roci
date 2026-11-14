@@ -14,7 +14,7 @@ export {
 } from './components';
 
 // Hooks
-export { useSettings, useAppUpdate, scheduleStartupCheck } from './hooks';
+export { useSettings, useAppUpdate, scheduleStartupCheck, useMenubarSpeechModels } from './hooks';
 
 // Stores
 export {

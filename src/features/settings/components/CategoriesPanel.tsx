@@ -9,10 +9,8 @@ import { Plus, X } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { SURFACE, BORDER, TEXT, COMPONENT, RADIUS, LAYOUT } from '@config/theme.config';
-import { SettingsSection, Toggle } from './shared';
-import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui';
+import { SettingsPage } from './shared';
+import { Button, CardRow, Icon, Input, Section, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Surface, Switch, Text } from '@shared/ui';
 
 export const CategoriesPanel: React.FC = () => {
   const { settings, setSettings, isLoading } = useSettings();
@@ -72,21 +70,10 @@ export const CategoriesPanel: React.FC = () => {
   ];
 
   return (
-    <div className={`h-full overflow-y-auto custom-scrollbar ${LAYOUT.settingsPadding} py-6`}>
-    <div className={`${LAYOUT.settingsMaxWidth} mx-auto space-y-6`}>
-      <div>
-        <h3 className={`${TYPOGRAPHY_CLASSES.settingsTitle} ${TEXT.heading} mb-1`}>
-          Workflow
-        </h3>
-        <p className={`${TYPOGRAPHY_CLASSES.settingsDescription} ${TEXT.muted}`}>
-          Categories, extraction preferences, and meeting defaults.
-        </p>
-      </div>
-
+    <SettingsPage title="Workflow" description="Categories, extraction preferences, and meeting defaults.">
       {/* Categories — compact inline management */}
-      <SettingsSection title="Categories">
-        <div className="space-y-3">
-          {/* Add input */}
+      <Section title="Categories">
+        <div className="py-3 space-y-3">
           <div className="flex gap-2">
             <Input
               type="text"
@@ -96,99 +83,66 @@ export const CategoriesPanel: React.FC = () => {
               placeholder="Add category..."
               className="flex-1"
             />
-            <Button variant="primary" size="sm" onClick={handleAddCategory}
-              disabled={!newCategory.trim()}>
-              <Plus className="w-3.5 h-3.5" />
+            <Button variant="primary" size="sm" onClick={handleAddCategory} disabled={!newCategory.trim()}>
+              <Icon icon={Plus} size="xs" />
               Add
             </Button>
           </div>
 
-          {/* Category chips */}
           {categories.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {categories.map((category) => (
-                <span
-                  key={category}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 ${SURFACE.chip} border ${BORDER.default} ${RADIUS.md} ${TYPOGRAPHY_CLASSES.settingsButton} ${TEXT.secondary}`}
-                >
-                  {category}
-                  <button
-                    onClick={() => handleRemoveCategory(category)}
-                    className={`${COMPONENT.destructiveHover} rounded transition-colors`}
-                    aria-label={`Remove ${category}`}
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
+                <Surface key={category} variant="inset" radius="md" className="inline-flex items-center gap-1.5 px-2.5 py-1">
+                  <Text variant="label" tone="muted">{category}</Text>
+                  <Button variant="dangerGhost" size="inline" onClick={() => handleRemoveCategory(category)} aria-label={`Remove ${category}`}>
+                    <Icon icon={X} size="xs" />
+                  </Button>
+                </Surface>
               ))}
             </div>
           ) : (
-            <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
+            <Text as="p" variant="helper" tone="faint">
               No categories yet. The AI will assign general categories.
-            </p>
+            </Text>
           )}
         </div>
-      </SettingsSection>
+      </Section>
 
       {/* Summary Extraction — what to extract from transcriptions */}
-      <SettingsSection title="Summary Extraction">
-        <div className={`border ${BORDER.default} ${RADIUS.lg} ${SURFACE.card} divide-y ${BORDER.divide}`}>
-          {extractionRows.map(({ key, label, description }) => (
-            <div key={key} className="flex items-center justify-between gap-4 px-4 py-3">
-              <div className="min-w-0">
-                <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
-                  {label}
-                </span>
-                <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
-                  {description}
-                </p>
-              </div>
-              <Toggle
-                checked={extraction[key]}
-                onChange={(val) => setExtraction(key, val)}
-                label={label}
-              />
-            </div>
-          ))}
-        </div>
-      </SettingsSection>
+      <Section title="Summary Extraction">
+        {extractionRows.map(({ key, label, description }) => (
+          <CardRow
+            key={key}
+            title={label}
+            description={description}
+            actions={<Switch size="sm" checked={extraction[key]} onCheckedChange={(val) => setExtraction(key, val)} aria-label={label} />}
+          />
+        ))}
+      </Section>
 
-      {/* Meeting Defaults */}
-      <SettingsSection title="Meeting Defaults">
-        <div className={`border ${BORDER.default} ${RADIUS.lg} ${SURFACE.card} divide-y ${BORDER.divide}`}>
-          {/* Auto-title */}
-          <div className="flex items-center justify-between gap-4 px-4 py-3">
-            <div className="min-w-0">
-              <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
-                Auto-generate Title
-              </span>
-              <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
-                Create a title from transcript content after processing.
-              </p>
-            </div>
-            <Toggle
+      <Section title="Meeting Defaults">
+        <CardRow
+          title="Auto-generate Title"
+          description="Create a title from transcript content after processing."
+          actions={
+            <Switch
+              size="sm"
               checked={meetingDefaults.autoTitle}
-              onChange={(val) => setMeetingDefault({ autoTitle: val })}
-              label="Auto-generate title"
+              onCheckedChange={(val) => setMeetingDefault({ autoTitle: val })}
+              aria-label="Auto-generate title"
             />
-          </div>
-
-          {/* Duration reminder */}
-          <div className="flex items-center justify-between gap-4 px-4 py-3">
-            <div className="min-w-0 flex-1">
-              <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
-                Duration Reminder
-              </span>
-              <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
-                Notify when a recording exceeds this length.
-              </p>
-            </div>
-            <div className="w-32 shrink-0">
+          }
+        />
+        <CardRow
+          title="Duration Reminder"
+          description="Notify when a recording exceeds this length."
+          actions={
+            <div className="w-32">
               <Select
                 value={String(meetingDefaults.durationReminderMinutes)}
                 onValueChange={(val) => setMeetingDefault({ durationReminderMinutes: Number(val) })}
               >
-                <SelectTrigger className={TYPOGRAPHY_CLASSES.settingsInput}>
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -198,12 +152,10 @@ export const CategoriesPanel: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-        </div>
-      </SettingsSection>
-
-    </div>
-    </div>
+          }
+        />
+      </Section>
+    </SettingsPage>
   );
 };
 

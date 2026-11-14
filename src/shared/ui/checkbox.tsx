@@ -1,7 +1,6 @@
 import React from 'react';
 import { Check, Minus } from 'lucide-react';
 import { cn } from './utils';
-import { COMPONENT } from '@config/theme.config';
 
 /**
  * Canonical checkbox with a third, mixed state (a group whose items are
@@ -14,8 +13,12 @@ export interface CheckboxProps extends Omit<React.ButtonHTMLAttributes<HTMLButto
   onCheckedChange: (checked: boolean) => void;
 }
 
+const BASE =
+  'inline-flex items-center justify-center shrink-0 w-4 h-4 rounded border transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 disabled:cursor-not-allowed';
+const ON = 'bg-accent border-accent text-on-accent';
+const OFF = 'bg-base border-strong';
+
 export function Checkbox({ checked, onCheckedChange, className, disabled, ...props }: CheckboxProps) {
-  const on = checked !== false;
   return (
     <button
       type="button"
@@ -26,7 +29,7 @@ export function Checkbox({ checked, onCheckedChange, className, disabled, ...pro
         e.stopPropagation();
         onCheckedChange(checked !== true);
       }}
-      className={cn(COMPONENT.checkbox, on ? COMPONENT.checkboxOn : COMPONENT.checkboxOff, className)}
+      className={cn(BASE, checked === false ? OFF : ON, className)}
       {...props}
     >
       {checked === true && <Check className="w-3 h-3" strokeWidth={3} />}

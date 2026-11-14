@@ -7,7 +7,6 @@
 
 import React from 'react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogOverlay, AlertDialogPortal, AlertDialogTitle, Button } from '@shared/ui';
-import { TEXT, BORDER } from '@config/theme.config';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -32,17 +31,11 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     <AlertDialogPortal>
       <AlertDialogOverlay />
       <AlertDialogContent className="max-w-sm p-5">
-        <AlertDialogTitle className="text-base font-semibold mb-1.5">
-          {title}
-        </AlertDialogTitle>
-        <AlertDialogDescription className={`text-sm ${TEXT.secondary} mb-5`}>
-          {description}
-        </AlertDialogDescription>
+        <AlertDialogTitle className="mb-1.5">{title}</AlertDialogTitle>
+        <AlertDialogDescription className="mb-5">{description}</AlertDialogDescription>
         <div className="flex gap-2.5 justify-end">
           <AlertDialogCancel asChild>
-            <button className={`px-3.5 py-2 text-sm font-medium ${TEXT.primary} border ${BORDER.strong} rounded-lg hover:bg-paper-200/60 dark:hover:bg-night-700/60 transition-colors`}>
-              {cancelLabel}
-            </button>
+            <Button variant="outline" size="md">{cancelLabel}</Button>
           </AlertDialogCancel>
           <AlertDialogAction asChild>
             <Button variant="danger" size="md" onClick={onConfirm}>
@@ -55,4 +48,3 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   </AlertDialog>
 );
 
-export default ConfirmDialog;

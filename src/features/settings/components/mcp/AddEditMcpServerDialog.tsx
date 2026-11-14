@@ -5,11 +5,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { Braces } from 'lucide-react';
-import { COMPONENT, TEXT } from '@config/theme.config';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { MCP_CONFIG } from '@config/mcp.config';
 import type { McpServerConfig } from '@config/mcp.config';
-import { Button, Input } from '@shared/ui';
+import { Button, IconButton, Text, Textarea } from '@shared/ui';
 import { FormDialog, KeyValueEditor, SettingsInput, StringListEditor } from '@features/settings/components/shared';
 import {
   EMPTY_FORM,
@@ -93,15 +91,14 @@ export const AddEditMcpServerDialog: React.FC<AddEditMcpServerDialogProps> = ({
       title={editingName ? 'Edit MCP server' : 'Add MCP server'}
       error={error}
       headerAction={
-        <Button
+        <IconButton
+          icon={Braces}
+          label="Paste server JSON"
+          size="sm"
           variant={jsonMode ? 'secondary' : 'ghost'}
-          size="iconSm"
           onClick={() => { setJsonMode((v) => !v); setError(null); }}
           aria-pressed={jsonMode}
-          title="Paste server JSON"
-        >
-          <Braces className="w-4 h-4" />
-        </Button>
+        />
       }
       footer={
         <>
@@ -111,16 +108,14 @@ export const AddEditMcpServerDialog: React.FC<AddEditMcpServerDialogProps> = ({
       }
     >
       {jsonMode ? (
-        <Input asChild>
-          <textarea
-            className={COMPONENT.jsonEditor}
-            value={jsonText}
-            onChange={(e) => { setJsonText(e.target.value); setError(null); }}
-            placeholder={JSON_PLACEHOLDER}
-            spellCheck={false}
-            aria-label="Server JSON"
-          />
-        </Input>
+        <Textarea
+          variant="code"
+          value={jsonText}
+          onChange={(e) => { setJsonText(e.target.value); setError(null); }}
+          placeholder={JSON_PLACEHOLDER}
+          spellCheck={false}
+          aria-label="Server JSON"
+        />
       ) : (
         <ServerFormFields form={form} patch={patch} autoFocusName={!editingName} />
       )}
@@ -147,7 +142,7 @@ const ServerFormFields: React.FC<ServerFormFieldsProps> = ({ form, patch, autoFo
     />
 
     <div className="space-y-2">
-      <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.muted}`}>Transport</span>
+      <Text variant="bodyStrong" tone="muted">Transport</Text>
       <div role="radiogroup" aria-label="Transport" className="flex gap-2">
         {MCP_CONFIG.transports.map(({ value, label }) => (
           <Button

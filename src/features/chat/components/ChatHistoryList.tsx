@@ -7,8 +7,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, MessageSquare, Trash2, Edit2, Check, X } from 'lucide-react';
-import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
-import { Input, rowClasses } from '@shared/ui';
+import { Button, Icon, IconButton, Input, Surface, Text, rowClasses } from '@shared/ui';
 import type { ChatIndexEntry } from '@shared/types';
 
 interface ChatHistoryListProps {
@@ -73,22 +72,19 @@ export const ChatHistoryList: React.FC<ChatHistoryListProps> = ({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className={`p-4 border-b ${BORDER.default}`}>
+      <Surface edge="bottom" className="p-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className={`text-sm font-semibold ${TEXT.secondary}`}>
+          <Text as="h3" variant="headline" tone="muted">
             Chat History
-          </h3>
-          <button
-            onClick={onNewChat}
-            className={`text-xs ${TEXT.muted} hover:text-paper-800 dark:hover:text-night-300 transition-colors`}
-          >
+          </Text>
+          <Button variant="ghost" size="inline" onClick={onNewChat}>
             + New Chat
-          </button>
+          </Button>
         </div>
 
         {/* Search */}
         <div className="relative">
-          <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${TEXT.faint}`} />
+          <Icon icon={Search} size="sm" tone="faint" className="absolute left-3 top-1/2 -translate-y-1/2" />
           <Input
             type="text"
             value={searchQuery}
@@ -97,14 +93,14 @@ export const ChatHistoryList: React.FC<ChatHistoryListProps> = ({
             className="w-full pl-9 pr-4"
           />
         </div>
-      </div>
+      </Surface>
 
       {/* Sessions list */}
       <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-hover">
         {sessions.length === 0 ? (
-          <div className={`text-center py-8 ${TEXT.faint} text-sm`}>
+          <Text as="div" tone="faint" className="text-center py-8">
             {searchQuery ? 'No chats match your search' : 'No chat history yet'}
-          </div>
+          </Text>
         ) : (
           <>
             {sessions.map((session) => (
@@ -114,11 +110,11 @@ export const ChatHistoryList: React.FC<ChatHistoryListProps> = ({
                 className={`group relative ${rowClasses(currentSessionId === session.id)}`}
               >
                 <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <MessageSquare className={`w-3.5 h-3.5 shrink-0 ${TEXT.faint}`} />
+                  <Icon icon={MessageSquare} size="xs" tone="faint" className="shrink-0" />
                   <div className="flex-1 min-w-0">
                     {editingId === session.id ? (
                       <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                        <input
+                        <Input
                           type="text"
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
@@ -126,54 +122,40 @@ export const ChatHistoryList: React.FC<ChatHistoryListProps> = ({
                             if (e.key === 'Enter') handleSaveEdit(session.id);
                             if (e.key === 'Escape') handleCancelEdit();
                           }}
-                          className={`flex-1 px-2 py-1 text-sm ${SURFACE.card} border ${BORDER.selectedCard} rounded outline-none ${BORDER.inputFocus}`}
+                          className="flex-1"
                           autoFocus
                         />
-                        <button
-                          onClick={() => handleSaveEdit(session.id)}
-                          className="p-1 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={handleCancelEdit}
-                          className="p-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
+                        <IconButton icon={Check} label="Save" size="sm" onClick={() => handleSaveEdit(session.id)} />
+                        <IconButton icon={X} label="Cancel" size="sm" variant="dangerGhost" onClick={handleCancelEdit} />
                       </div>
                     ) : (
-                      <div className={`text-sm font-medium ${TEXT.primary} truncate`}>
+                      <Text as="div" variant="bodyStrong" truncate>
                         {session.title}
-                      </div>
+                      </Text>
                     )}
-                    <div className={`mt-1 text-xs ${TEXT.faint}`}>
+                    <Text as="div" variant="helper" tone="faint" className="mt-1">
                       {new Date(session.lastMessageAt).toLocaleDateString('en-US', {
                         month: 'short', day: 'numeric',
                       })}
                       {session.messageCount !== undefined && ` · ${session.messageCount} msgs`}
-                    </div>
+                    </Text>
                   </div>
                 </div>
 
                 {/* Action buttons */}
                 {editingId !== session.id && (
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                    <button
-                      onClick={(e) => handleStartEdit(e, session)}
-                      className={`p-2 ${TEXT.faint} hover:text-paper-800 dark:hover:text-night-300 rounded-lg ${COMPONENT.menuButtonHover} transition-all`}
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
+                    <IconButton icon={Edit2} label="Rename chat" size="sm" onClick={(e) => handleStartEdit(e, session)} />
+                    <IconButton
+                      icon={Trash2}
+                      label="Delete chat"
+                      size="sm"
+                      variant="dangerGhost"
                       onClick={(e) => {
                         e.stopPropagation();
                         onDeleteSession(session.id);
                       }}
-                      className={`p-2 ${COMPONENT.destructiveHover} rounded-lg ${COMPONENT.menuButtonHover} transition-all`}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    />
                   </div>
                 )}
               </div>

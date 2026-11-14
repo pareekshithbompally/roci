@@ -17,8 +17,7 @@ import { store } from '@services/db';
 import { reminderService } from '@services/reminder.service';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
-import type { TodoEntry } from '@shared/types';
-import { normalizeDueDate, hashToNotificationId } from '@shared/utils/todo.utils';
+import { normalizeDueDate } from '@shared/utils/todo.utils';
 
 export interface TodoProposal {
   id: string;

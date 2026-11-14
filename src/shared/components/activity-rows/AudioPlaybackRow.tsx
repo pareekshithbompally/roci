@@ -1,10 +1,10 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import { Play, Pause, SkipForward } from 'lucide-react';
+import { Play, Pause, SkipForward, Square } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAudioPlayerStore } from '@shared/stores/audioPlayerStore';
 import { useSelectedHistoryId } from '@shared/stores/appStore';
 import { formatTime } from '@shared/utils/audio.utils';
-import { COMPONENT } from '@config/theme.config';
+import { Button, Text } from '@shared/ui';
 
 const SKIP_SECONDS = 15;
 
@@ -145,51 +145,24 @@ export const AudioPlaybackRow: React.FC = () => {
       {/* Title row with stop */}
       <div className="flex items-center gap-2 min-w-0">
         <motion.div
-          className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0"
+          className="w-2.5 h-2.5 rounded-full bg-success shrink-0"
           animate={isPlaying ? { scale: [1, 1.3, 1] } : { scale: 1 }}
           transition={{ repeat: isPlaying ? Infinity : 0, duration: 1 }}
         />
-        <span
-          className="text-xs font-medium truncate flex-1 min-w-0"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          {session.title}
-        </span>
-        <div className="flex items-center gap-0.5 shrink-0">
-          <button
-            onClick={handleStop}
-            className="p-1 rounded-md transition-colors hover:opacity-80"
-            style={{ color: 'var(--text-faint)' }}
-            title="Stop playback"
-          >
-            <span className="block w-3.5 h-3.5 text-xs leading-none">■</span>
-          </button>
-        </div>
+        <Text variant="label" truncate className="flex-1 min-w-0">{session.title}</Text>
+        <Button variant="ghost" size="iconXs" onClick={handleStop} aria-label="Stop playback" title="Stop playback">
+          <Square className="w-3 h-3 fill-current" />
+        </Button>
       </div>
 
       {/* Controls + time row */}
-      <div className="flex items-center gap-1.5 min-w-0 pl-[22px]">
-        <button
-          onClick={handleTogglePlay}
-          className="p-0.5 rounded-md transition-colors hover:opacity-80 shrink-0"
-          style={{ color: 'var(--text-primary)' }}
-          title={isPlaying ? 'Pause' : 'Play'}
-        >
-          {isPlaying ? (
-            <Pause className="w-3.5 h-3.5 fill-current" />
-          ) : (
-            <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
-          )}
-        </button>
-
-        <button
-          onClick={handleSkipForward}
-          className="p-0.5 rounded-md transition-colors hover:opacity-80 shrink-0"
-          style={{ color: 'var(--text-muted)' }}
-          title={`Skip forward ${SKIP_SECONDS}s`}
-        >
+      <div className="flex items-center gap-1.5 min-w-0 pl-5.5">
+        <Button variant="ghost" size="iconXs" onClick={handleTogglePlay} aria-label={isPlaying ? 'Pause' : 'Play'} title={isPlaying ? 'Pause' : 'Play'}>
+          {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+        </Button>
+        <Button variant="ghost" size="iconXs" onClick={handleSkipForward} aria-label={`Skip forward ${SKIP_SECONDS}s`} title={`Skip forward ${SKIP_SECONDS}s`}>
           <SkipForward className="w-3 h-3" />
-        </button>
+        </Button>
 
         {/* Seek bar */}
         <div
@@ -201,21 +174,18 @@ export const AudioPlaybackRow: React.FC = () => {
           aria-valuemax={100}
           aria-valuenow={Math.round(progress * 100)}
         >
-          <div className={`w-full h-1 rounded-full relative overflow-hidden ${COMPONENT.progressTrack}`}>
+          <div className="w-full h-1 rounded-full relative overflow-hidden bg-layer-3">
             <motion.div
-              className="absolute inset-y-0 left-0 rounded-full bg-green-500 dark:bg-green-400"
+              className="absolute inset-y-0 left-0 rounded-full bg-success"
               animate={{ width: `${progress * 100}%` }}
               transition={{ type: 'tween', duration: 0.1 }}
             />
           </div>
         </div>
 
-        <span
-          className="text-[11px] font-mono shrink-0"
-          style={{ color: 'var(--text-muted)' }}
-        >
+        <Text variant="caption" tone="muted" className="font-mono shrink-0">
           {formatTime(currentTime)} / {formatTime(session.duration)}
-        </span>
+        </Text>
       </div>
     </motion.div>
   );

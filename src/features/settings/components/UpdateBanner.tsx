@@ -9,9 +9,7 @@ import React from 'react';
 import { Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { open } from '@tauri-apps/plugin-shell';
-import { SURFACE, BORDER, TEXT, RADIUS, SHADOW, COMPONENT } from '@config/theme.config';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { Button } from '@shared/ui';
+import { Button, Icon, Surface, Text } from '@shared/ui';
 
 interface UpdateBannerProps {
   version: string;
@@ -25,7 +23,6 @@ const RELEASE_URL_BASE = 'https://github.com/pareekshithbompally/kasset-ai/relea
 
 export const UpdateBanner: React.FC<UpdateBannerProps> = ({
   version,
-  releaseNotes,
   onUpdate,
   onDismiss,
   isDownloading,
@@ -45,48 +42,29 @@ export const UpdateBanner: React.FC<UpdateBannerProps> = ({
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 20, scale: 0.95 }}
         transition={{ duration: 0.25, ease: 'easeOut' }}
-        className={`
-          fixed bottom-6 right-6 z-50
-          ${SURFACE.elevated} ${BORDER.glass} border
-          ${RADIUS.lg} ${SHADOW.float}
-          p-4 min-w-[320px] max-w-[400px]
-        `}
+        className="fixed bottom-6 right-6 z-50"
       >
-        {/* Header */}
-        <div className="flex items-start gap-3 mb-3">
-          <div className="shrink-0 mt-0.5">
-            <Download className={`w-5 h-5 ${TEXT.primary}`} />
+        <Surface variant="floating" radius="lg" className="p-4 min-w-80 max-w-sm">
+          <div className="flex items-start gap-3 mb-3">
+            <Icon icon={Download} size="md" className="shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <Text as="p" variant="title">New Version {version}</Text>
+              <Text as="p" variant="helper" tone="muted" className="mt-0.5">Update Available</Text>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className={`${TYPOGRAPHY_CLASSES.settingsTitle} ${TEXT.heading}`}>
-              New Version {version}
-            </p>
-            <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted} mt-0.5`}>
-              Update Available
-            </p>
-          </div>
-        </div>
 
-        {/* Actions */}
-        <div className="flex items-center justify-end gap-2">
-          <button
-            onClick={handleShowReleaseNotes}
-            className={COMPONENT.settingsLink}
-          >
-            Show Release Notes
-          </button>
-          <button
-            onClick={onDismiss}
-            disabled={isDownloading}
-            className={COMPONENT.settingsLink}
-          >
-            Remind Me Later
-          </button>
-          <Button variant="primary" size="sm" onClick={onUpdate}
-            disabled={isDownloading}>
-            {isDownloading ? 'Downloading…' : 'Update Now'}
-          </Button>
-        </div>
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="link" size="inline" onClick={handleShowReleaseNotes}>
+              Show Release Notes
+            </Button>
+            <Button variant="link" size="inline" onClick={onDismiss} disabled={isDownloading}>
+              Remind Me Later
+            </Button>
+            <Button variant="primary" size="sm" onClick={onUpdate} disabled={isDownloading}>
+              {isDownloading ? 'Downloading…' : 'Update Now'}
+            </Button>
+          </div>
+        </Surface>
       </motion.div>
     </AnimatePresence>
   );

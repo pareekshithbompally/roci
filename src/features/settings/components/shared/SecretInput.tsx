@@ -1,8 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { Eye, EyeOff, Copy, Check } from 'lucide-react';
 import { SettingsInput } from './SettingsInput';
-import {  } from '@config/theme.config';
-import { Button } from '@shared/ui';
+import { Button, Icon } from '@shared/ui';
 
 interface SecretInputProps {
   value: string;
@@ -47,18 +46,12 @@ export const SecretInput: React.FC<SecretInputProps> = ({
       disabled={disabled}
       actions={
         <>
-          <Button variant="ghost" size="iconSm" type="button"
-            onClick={() => setShowSecret(!showSecret)} title={showSecret ? 'Hide' : 'Show'}>
-            {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          <Button variant="ghost" size="iconSm" onClick={() => setShowSecret(!showSecret)} title={showSecret ? 'Hide' : 'Show'}>
+            <Icon icon={showSecret ? EyeOff : Eye} size="sm" />
           </Button>
           {showCopy && (
-            <Button variant="ghost" size="iconSm" type="button"
-              onClick={handleCopy} title="Copy to clipboard">
-              {copied ? (
-                <Check className="w-4 h-4 text-green-500" />
-              ) : (
-                <Copy className="w-4 h-4" />
-              )}
+            <Button variant="ghost" size="iconSm" onClick={handleCopy} title="Copy to clipboard">
+              <Icon icon={copied ? Check : Copy} size="sm" tone={copied ? 'success' : 'inherit'} />
             </Button>
           )}
         </>

@@ -17,7 +17,7 @@ import { resolveModel } from '@shared/utils/modelResolver';
 import { IMPORT_CONFIG } from '@config/audio.config';
 import { parseSubtitleFile } from './parsers/subtitle-parser';
 import { JobQueue } from './job-queue';
-import type { ImportJob, ImportSource, JobStatus } from './types';
+import type { ImportJob, JobStatus } from './types';
 
 const AUTO_REMOVE_DELAY = 3000;
 

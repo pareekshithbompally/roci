@@ -8,6 +8,7 @@
  * 1. ErrorBoundary - Debugging error boundary
  * 2. ThemeProvider - Basic theming, no dependencies
  * 3. ToastProvider - Notifications, no dependencies
+ *    TooltipProvider - shared hover delay for every @shared/ui Tooltip
  * 4. QueryClientProvider - TanStack Query for server/disk data
  * 5. SettingsProvider - App settings, needed by others (save-on-edit, no dirty tracking)
  * 6. HistoryProvider - History management
@@ -21,7 +22,6 @@
 
 import React, { ReactNode, Component, ErrorInfo } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { SURFACE, TEXT } from '@config/theme.config';
 import { ThemeProvider } from '@shared/contexts/ThemeContext';
 import { ToastProvider } from '@shared/contexts/ToastContext';
 import { SettingsProvider, useSettings } from '@shared/contexts/SettingsContext';
@@ -30,6 +30,7 @@ import { ChatProvider } from '@shared/contexts/ChatContext';
 import { RecordingProvider } from '@features/recording';
 import { ImportProvider } from '@features/import';
 import { queryClient } from '@shared/query/queryClient';
+import { Surface, Text, TooltipProvider } from '@shared/ui';
 import { useAppActions } from '@shared/stores/appStore';
 
 /**
@@ -60,16 +61,16 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
   render() {
     if (this.state.hasError) {
       return (
-        <div className={`p-5 font-mono ${SURFACE.errorCallout} ${TEXT.errorCallout}`}>
-          <h1>Something went wrong</h1>
-          <pre style={{ whiteSpace: 'pre-wrap' }}>
+        <Surface variant="page" className="p-5 h-screen overflow-auto">
+          <Text as="h1" variant="title" tone="danger">Something went wrong</Text>
+          <Text as="div" variant="mono" tone="danger" className="mt-3 whitespace-pre-wrap">
             {this.state.error?.message}
             {'\n\n'}
             {this.state.error?.stack}
             {'\n\nComponent Stack:'}
             {this.state.errorInfo?.componentStack}
-          </pre>
-        </div>
+          </Text>
+        </Surface>
       );
     }
     return this.props.children;
@@ -119,19 +120,21 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
     <ErrorBoundary>
       <ThemeProvider>
         <ToastProvider>
-          <QueryClientProvider client={queryClient}>
-            <SettingsProvider>
-              <HistoryProvider>
-                <ImportProvider>
-                  <ChatProvider>
-                    <RecordingProviderWrapper>
-                      {children}
-                    </RecordingProviderWrapper>
-                  </ChatProvider>
-                </ImportProvider>
-              </HistoryProvider>
-            </SettingsProvider>
-          </QueryClientProvider>
+          <TooltipProvider>
+            <QueryClientProvider client={queryClient}>
+              <SettingsProvider>
+                <HistoryProvider>
+                  <ImportProvider>
+                    <ChatProvider>
+                      <RecordingProviderWrapper>
+                        {children}
+                      </RecordingProviderWrapper>
+                    </ChatProvider>
+                  </ImportProvider>
+                </HistoryProvider>
+              </SettingsProvider>
+            </QueryClientProvider>
+          </TooltipProvider>
         </ToastProvider>
       </ThemeProvider>
     </ErrorBoundary>

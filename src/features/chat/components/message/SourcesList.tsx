@@ -1,8 +1,7 @@
 import React from 'react';
 import { AudioWaveform } from 'lucide-react';
 import { getFaviconUrl, extractDomain } from '@shared/utils/citationUtils';
-import { TEXT } from '@config/theme.config';
-import { Row } from '@shared/ui';
+import { Row, rowClasses, Text, Icon, Button } from '@shared/ui';
 import type { MeetingCitation, WebCitation } from '@shared/types';
 
 interface SourcesListProps {
@@ -15,8 +14,6 @@ interface SourcesListProps {
 
 const MAX_VISIBLE_WEB = 3;
 const MAX_VISIBLE_MEETING = 3;
-
-const sourceRowClass = `flex items-center gap-2.5 text-left w-full px-3 py-2 text-[13px] ${TEXT.muted} hover:text-paper-900 dark:hover:text-night-200 hover:bg-paper-200/80 dark:hover:bg-night-750/80 rounded-lg transition-colors cursor-pointer`;
 
 /** Renders meeting and web citation rows with an optional "+N more" overflow button */
 const SourcesList: React.FC<SourcesListProps> = ({
@@ -39,20 +36,17 @@ const SourcesList: React.FC<SourcesListProps> = ({
     <>
       {hasMeetingCitations && visibleMeetingCitations!.map((citation) => (
         <Row key={citation.meetingId} onClick={() => onCitationClick?.(citation)}>
-          <AudioWaveform className={`w-4 h-4 shrink-0 ${TEXT.faint}`} />
-          <span className="font-medium truncate">{citation.meetingTitle}</span>
-          <span className={`ml-auto text-[11px] ${TEXT.faint} shrink-0`}>
+          <Icon icon={AudioWaveform} size="sm" tone="faint" className="shrink-0" />
+          <Text variant="bodyStrong" truncate>{citation.meetingTitle}</Text>
+          <Text variant="caption" tone="faint" className="ml-auto shrink-0">
             {new Date(citation.meetingTimestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-          </span>
+          </Text>
         </Row>
       ))}
       {hasMeetingCitations && moreMeetingCount > 0 && (
-        <button
-          onClick={() => onShowAllMeetingCitations?.(meetingCitations!)}
-          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs ${TEXT.faint} hover:text-paper-800 dark:hover:text-night-300 transition-colors`}
-        >
+        <Button variant="ghost" size="inline" className="self-start mx-2.5 my-1" onClick={() => onShowAllMeetingCitations?.(meetingCitations!)}>
           +{moreMeetingCount} more
-        </button>
+        </Button>
       )}
       {hasWebCitations && visibleWebCitations!.map((citation, i) => (
         <a
@@ -60,28 +54,25 @@ const SourcesList: React.FC<SourcesListProps> = ({
           href={citation.url}
           target="_blank"
           rel="noopener noreferrer"
-          className={sourceRowClass}
+          className={rowClasses()}
         >
           <img
             src={getFaviconUrl(citation.url)}
             alt=""
-            className="w-3 h-3 shrink-0 rounded-sm"
+            className="w-3 h-3 shrink-0"
             loading="lazy"
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
           <span className="truncate">{citation.title || extractDomain(citation.url)}</span>
-          <span className={`ml-auto text-[10px] ${TEXT.faint} shrink-0 truncate max-w-[100px]`}>
+          <Text variant="caption" tone="faint" truncate className="ml-auto shrink-0 max-w-24">
             {extractDomain(citation.url)}
-          </span>
+          </Text>
         </a>
       ))}
       {hasWebCitations && moreWebCount > 0 && (
-        <button
-          onClick={() => onShowAllWebCitations?.(webCitations!)}
-          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs ${TEXT.faint} hover:text-paper-800 dark:hover:text-night-300 transition-colors`}
-        >
+        <Button variant="ghost" size="inline" className="self-start mx-2.5 my-1" onClick={() => onShowAllWebCitations?.(webCitations!)}>
           +{moreWebCount} more
-        </button>
+        </Button>
       )}
     </>
   );

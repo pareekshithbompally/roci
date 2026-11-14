@@ -6,27 +6,30 @@
 
 import React, { useState } from 'react';
 import { Server } from 'lucide-react';
-import { COMPONENT, TEXT } from '@config/theme.config';
 import { cn } from '@shared/ui';
 
 interface ServerIconProps {
   name: string;
   icon?: string | null;
-  /** Tailwind size classes, e.g. `w-3.5 h-3.5` (matches neighbouring lucide icons). */
+  /** Matches the kit Icon scale: xs 14 · sm 16 · md 20 */
+  size?: 'xs' | 'sm' | 'md';
+  /** Layout only */
   className?: string;
 }
 
-export const ServerIcon: React.FC<ServerIconProps> = ({ name, icon, className = 'w-3.5 h-3.5' }) => {
+const SIZE = { xs: 'w-3.5 h-3.5', sm: 'w-4 h-4', md: 'w-5 h-5' } as const;
+
+export const ServerIcon: React.FC<ServerIconProps> = ({ name, icon, size = 'xs', className }) => {
   const [failed, setFailed] = useState(false);
   if (!icon || failed) {
-    return <Server className={cn('shrink-0', TEXT.muted, className)} aria-hidden />;
+    return <Server className={cn('shrink-0 text-muted', SIZE[size], className)} aria-hidden />;
   }
   return (
     <img
       src={icon}
       alt=""
       title={name}
-      className={cn(COMPONENT.serverIcon, className)}
+      className={cn('shrink-0 rounded-sm object-contain', SIZE[size], className)}
       onError={() => setFailed(true)}
       draggable={false}
     />

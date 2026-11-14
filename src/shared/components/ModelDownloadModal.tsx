@@ -15,16 +15,20 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Download } from 'lucide-react';
+import { Download, Lock, Zap } from 'lucide-react';
 import { onConsentNeeded } from '@extensions/rag';
 import { onRAGProgress, preloadModel, resetPipeline } from '@extensions/rag';
 import type { RAGProgressEvent, IndexingProgressEvent, ExtractionProgressEvent } from '@extensions/rag';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogOverlay, AlertDialogPortal, AlertDialogTitle, Button } from '@shared/ui';
-import { SURFACE, BORDER, TEXT } from '@config/theme.config';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogOverlay, AlertDialogPortal, AlertDialogTitle, Button, Icon, Text } from '@shared/ui';
 import { activityStore } from '@shared/stores/activityStore';
 import type { ActivityItem } from '@shared/stores/activityStore';
 import { useToast } from '@shared/contexts/ToastContext';
+
+const CONSENT_POINTS = [
+  { icon: Download, text: 'One-time download of ~23 MB (cached after)' },
+  { icon: Lock, text: 'Runs 100% locally — no data leaves your device' },
+  { icon: Zap, text: 'You can still chat normally without this' },
+];
 
 // Only show download toasts if downloading lasts longer than this.
 // Cache hits complete in <200ms and should be silent.
@@ -320,40 +324,26 @@ export const ModelDownloadModal: React.FC = () => {
       <AlertDialogPortal>
         <AlertDialogOverlay />
         <AlertDialogContent className="max-w-sm overflow-hidden p-5">
-          <AlertDialogTitle className="text-base font-semibold mb-1.5">
-            Enable Smart Meeting Search?
-          </AlertDialogTitle>
+          <AlertDialogTitle className="mb-1.5">Enable Smart Meeting Search?</AlertDialogTitle>
 
-          <AlertDialogDescription className={`text-sm ${TEXT.secondary} mb-4`}>
+          <AlertDialogDescription className="mb-4">
             To find relevant meetings for your questions, Kasset needs a small AI model that runs entirely on your device.
           </AlertDialogDescription>
 
           {/* Feature list */}
-          <div className={`${SURFACE.subtle} border ${BORDER.default} rounded-xl p-3 mb-5 space-y-1.5`}>
-            <div className={`flex items-center gap-2 ${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
-              <Download className="w-3.5 h-3.5 flex-shrink-0" />
-              <span>One-time download of ~23 MB (cached after)</span>
-            </div>
-            <div className={`flex items-center gap-2 ${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
-              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-              <span>Runs 100% locally — no data leaves your device</span>
-            </div>
-            <div className={`flex items-center gap-2 ${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
-              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              <span>You can still chat normally without this</span>
-            </div>
+          <div className="bg-layer-1 rounded-lg p-3 mb-5 space-y-1.5">
+            {CONSENT_POINTS.map(({ icon, text }) => (
+              <Text key={text} as="div" variant="helper" tone="muted" className="flex items-center gap-2">
+                <Icon icon={icon} size="sm" className="shrink-0" />
+                {text}
+              </Text>
+            ))}
           </div>
 
           {/* Actions */}
           <div className="flex gap-2.5 justify-end">
             <AlertDialogCancel asChild>
-              <button className={`px-3.5 py-2 text-sm font-medium ${TEXT.primary} border ${BORDER.strong} rounded-lg hover:bg-paper-200/60 dark:hover:bg-night-700/60 transition-colors`}>
-                Not Now
-              </button>
+              <Button variant="outline" size="md">Not Now</Button>
             </AlertDialogCancel>
             <AlertDialogAction asChild>
               <Button variant="accent" size="md" onClick={handleAccept}>
@@ -367,4 +357,3 @@ export const ModelDownloadModal: React.FC = () => {
   );
 };
 
-export default ModelDownloadModal;

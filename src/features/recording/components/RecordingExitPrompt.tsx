@@ -10,7 +10,7 @@
 import React, { useEffect } from 'react';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { exit } from '@tauri-apps/plugin-process';
-import { ConfirmDialog } from '@shared/components/ConfirmDialog';
+import { ConfirmDialog } from '@shared/components';
 import { useAppStore, useRecordingExitPrompt, type ExitPromptKind } from '@shared/stores/appStore';
 import { isTauriEnvironment } from '@services/tauri';
 import { windowService } from '@services/window.service';

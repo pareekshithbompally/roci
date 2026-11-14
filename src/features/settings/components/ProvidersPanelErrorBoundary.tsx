@@ -4,9 +4,7 @@
  */
 
 import React, { Component, type ReactNode } from 'react';
-import { SURFACE, BORDER, TEXT, RADIUS } from '@config/theme.config';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { Button } from '@shared/ui';
+import { Button, Callout, Surface, Text } from '@shared/ui';
 
 interface Props {
   children: ReactNode;
@@ -43,39 +41,41 @@ export class ProvidersPanelErrorBoundary extends Component<Props, State> {
   };
 
   render(): ReactNode {
-    if (this.state.hasError) {
-      return (
-        <div className="flex items-center justify-center h-full p-8">
-          <div className="max-w-md space-y-4">
-            <div className={`${SURFACE.errorCallout} border ${BORDER.errorCallout} ${RADIUS.lg} p-6`}>
-              <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} ${TEXT.errorCallout} mb-2`}>
-                Provider Settings Error
-              </h3>
-              <p className={`${TYPOGRAPHY_CLASSES.settingsDescription} ${TEXT.errorCallout} mb-4`}>
-                An error occurred while loading the provider settings. This might be due to corrupted data.
-              </p>
+    if (!this.state.hasError) return this.props.children;
+
+    return (
+      <div className="flex items-center justify-center h-full p-8">
+        <div className="max-w-md">
+          <Callout variant="error">
+            <div className="space-y-4">
+              <div>
+                <Text as="h3" variant="title" tone="inherit" className="mb-2">Provider Settings Error</Text>
+                <Text as="p" tone="inherit">
+                  An error occurred while loading the provider settings. This might be due to corrupted data.
+                </Text>
+              </div>
               {this.state.error && (
-                <details className="mb-4">
-                  <summary className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.error} cursor-pointer hover:underline`}>
-                    Error details
+                <details>
+                  <summary className="cursor-pointer hover:underline">
+                    <Text variant="helper" tone="inherit">Error details</Text>
                   </summary>
-                  <pre className={`mt-2 ${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.error} overflow-auto p-2 ${SURFACE.errorCallout} ${RADIUS.md}`}>
-                    {this.state.error.message}
-                  </pre>
+                  <Surface variant="subtle" radius="md" className="mt-2 p-2 overflow-auto">
+                    <Text as="p" variant="mono" tone="inherit" className="whitespace-pre-wrap">{this.state.error.message}</Text>
+                  </Surface>
                 </details>
               )}
-              <Button variant="danger" size="md" className="w-full" onClick={this.handleReset}>
-                Reset Provider Settings
-              </Button>
-              <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.error} mt-2`}>
-                This will clear all provider configurations and reload the page.
-              </p>
+              <div className="space-y-2">
+                <Button variant="danger" size="md" className="w-full" onClick={this.handleReset}>
+                  Reset Provider Settings
+                </Button>
+                <Text as="p" variant="helper" tone="inherit">
+                  This will clear all provider configurations and reload the page.
+                </Text>
+              </div>
             </div>
-          </div>
+          </Callout>
         </div>
-      );
-    }
-
-    return this.props.children;
+      </div>
+    );
   }
 }

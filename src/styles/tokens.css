@@ -1,0 +1,172 @@
+/**
+ * Design tokens — the single source of every colour, shadow and translucency.
+ *
+ * Tier 1 (primitives): opencode v2 ladders (anomalyco/rune@39301f6, themes/opencode, MIT).
+ *   Only steps referenced by Tier 2 are declared. Components never read Tier 1.
+ * Tier 2 (roles): what components and Tailwind utilities read (tailwind.config.js).
+ *   `.dark` on <html> (ThemeContext) swaps the roles; nothing else changes on a theme switch.
+ * Plan: docs/plans/IN-PROGRESS/design-system/plan.md §4.
+ */
+
+:root {
+  /* ─── Tier 1: primitives ─────────────────────────────── */
+  --grey-50: #ffffff;
+  --grey-100: #fafafa;
+  --grey-200: #f2f2f2;
+  --grey-300: #eeeeee;
+  --grey-400: #dbdbdb;
+  --grey-500: #aeaeae;
+  --grey-600: #808080;
+  --grey-700: #5c5c5c;
+  --grey-800: #3a3a3a;
+  --grey-900: #2e2e2e;
+  --grey-1000: #242424;
+  --grey-1100: #161616;
+  --grey-1200: #080808;
+
+  --blue-200: #ecf1fe;
+  --blue-300: #c3d4fd;
+  --blue-400: #a2bcff;
+  --blue-500: #7698fd;
+  --blue-600: #3b5cf6;
+  --blue-800: #3250df;
+  --blue-900: #2c47c8;
+
+  --red-100: #fceceb;
+  --red-300: #f2bbb7;
+  --red-500: #f17471;
+  --red-600: #f1484f;
+  --red-800: #b82d35;
+  --red-900: #97252b;
+
+  --green-100: #e7f9ea;
+  --green-300: #b8e9c1;
+  --green-500: #6bd586;
+  --green-600: #49c970;
+  --green-800: #198b43;
+  --green-900: #1d783c;
+
+  --yellow-100: #fefaec;
+  --yellow-300: #f7e5b5;
+  --yellow-500: #f2cf76;
+  --yellow-600: #f6c251;
+  --yellow-800: #cb9f34;
+  --yellow-900: #ac8833;
+
+  --purple-500: #8271f8;
+  --purple-600: #7152f4;
+
+  /* ─── Tier 2: roles (light) ──────────────────────────── */
+  color-scheme: light;
+
+  --bg-base: var(--grey-50);
+  --bg-deep: var(--grey-100);
+  --bg-layer-1: var(--grey-100);
+  --bg-layer-2: var(--grey-200);
+  --bg-layer-3: var(--grey-300);
+  --bg-layer-4: var(--grey-400);
+  --bg-inverse: var(--grey-1100);
+  --bg-accent: var(--blue-600);
+  --bg-knob: var(--grey-50);
+  --bg-hover: rgb(0 0 0 / 0.04);
+  --bg-pressed: rgb(0 0 0 / 0.08);
+  --bg-scrim: rgb(0 0 0 / 0.4);
+  /* macOS vibrancy material; opaque in light (window material follows the system, not the app) */
+  --bg-base-glass: var(--bg-base);
+  --bg-deep-glass: var(--bg-deep);
+  --bg-raised-glass: var(--bg-base);
+
+  --text-primary: var(--grey-1100);
+  --text-muted: var(--grey-700);
+  --text-faint: var(--grey-600);
+  --text-accent: var(--blue-600);
+  --text-inverse: var(--grey-50);
+  --text-on-accent: var(--grey-50);
+
+  --border-muted: rgb(0 0 0 / 0.08);
+  --border-base: rgb(0 0 0 / 0.1);
+  --border-strong: rgb(0 0 0 / 0.2);
+  --border-focus: var(--blue-500);
+
+  --danger-fg: var(--red-800);
+  --danger-bg: var(--red-100);
+  --danger-border: var(--red-300);
+  --danger-solid: var(--red-600);
+  --warning-fg: var(--yellow-800);
+  --warning-bg: var(--yellow-100);
+  --warning-border: var(--yellow-300);
+  --warning-solid: var(--yellow-600);
+  --success-fg: var(--green-800);
+  --success-bg: var(--green-100);
+  --success-border: var(--green-300);
+  --success-solid: var(--green-600);
+  --info-fg: var(--blue-800);
+  --info-bg: var(--blue-200);
+  --info-border: var(--blue-300);
+  --info-solid: var(--blue-600);
+
+  --shadow-input: #0000001a 0 1px 1.5px 0, #00000024 0 0 0 0.5px;
+  --shadow-raised: #0000000a 0 2px 4px 0, #00000014 0 1px 2px -1px, #0000001f 0 0 0 0.5px;
+  --shadow-floating: #0000000a 0 8px 16px 0, #00000014 0 4px 8px 0, #0000001f 0 0 0 0.5px;
+  --shadow-overlay: #0000000a 0 16px 32px 0, #00000014 0 8px 16px 0, #0000001f 0 0 0 0.5px;
+
+  /* AI moments only — matches the app icon waveform (app-icon.svg #aiGradient) */
+  --ai-gradient: linear-gradient(to right, #06b6d4, #3b82f6, #8b5cf6, #a855f7, #ec4899);
+  --ai-accent: var(--purple-600);
+  --ai-border: color-mix(in srgb, var(--ai-accent) 50%, transparent);
+  --ai-glow: 0 10px 15px -3px color-mix(in srgb, var(--ai-accent) 25%, transparent);
+
+  /* Monochrome-black brand logos (e.g. some HF orgs) invert to stay visible in dark */
+  --logo-filter: none;
+}
+
+/* ─── Tier 2: roles (dark) ─────────────────────────────── */
+.dark {
+  color-scheme: dark;
+
+  --bg-base: var(--grey-1100);
+  --bg-deep: var(--grey-1200);
+  --bg-layer-1: var(--grey-1000);
+  --bg-layer-2: var(--grey-900);
+  --bg-layer-3: var(--grey-800);
+  --bg-layer-4: var(--grey-700);
+  --bg-inverse: var(--grey-50);
+  --bg-hover: rgb(255 255 255 / 0.06);
+  --bg-pressed: rgb(255 255 255 / 0.1);
+  --bg-scrim: rgb(0 0 0 / 0.6);
+  --bg-base-glass: color-mix(in srgb, var(--grey-1100) 90%, transparent);
+  --bg-deep-glass: color-mix(in srgb, var(--grey-1200) 85%, transparent);
+  --bg-raised-glass: color-mix(in srgb, var(--grey-1000) 92%, transparent);
+
+  --text-primary: var(--grey-100);
+  --text-muted: var(--grey-500);
+  --text-faint: var(--grey-600);
+  --text-accent: var(--blue-400);
+  --text-inverse: var(--grey-1100);
+
+  --border-muted: rgb(255 255 255 / 0.08);
+  --border-base: rgb(255 255 255 / 0.1);
+  --border-strong: rgb(255 255 255 / 0.2);
+
+  --danger-fg: var(--red-500);
+  --danger-bg: color-mix(in srgb, var(--red-900) 18%, transparent);
+  --danger-border: var(--red-900);
+  --warning-fg: var(--yellow-500);
+  --warning-bg: color-mix(in srgb, var(--yellow-900) 18%, transparent);
+  --warning-border: var(--yellow-900);
+  --success-fg: var(--green-500);
+  --success-bg: color-mix(in srgb, var(--green-900) 18%, transparent);
+  --success-border: var(--green-900);
+  --info-fg: var(--blue-500);
+  --info-bg: color-mix(in srgb, var(--blue-900) 18%, transparent);
+  --info-border: var(--blue-900);
+
+  --shadow-input: #00000000 0 1px 2px 0, #ffffff29 0 0 0 0.5px, #ffffff0f 0 -0.5px 0 0;
+  --shadow-raised: #0000004d 0 2px 4px 0, #0000004d 0 1px 2px 0, #ffffff29 0 0 0 0.5px, #ffffff0f 0 -0.5px 0 0;
+  --shadow-floating: #0000004d 0 8px 16px 0, #0000004d 0 4px 8px 0, #ffffff29 0 0 0 0.5px, #ffffff0f 0 -0.5px 0 0;
+  --shadow-overlay: #0000004d 0 16px 32px 0, #0000004d 0 8px 16px 0, #ffffff29 0 0 0 0.5px, #ffffff0f 0 -0.5px 0 0;
+
+  --ai-accent: var(--purple-500);
+
+  --logo-filter: invert(1);
+}

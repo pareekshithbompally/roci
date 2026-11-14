@@ -1,54 +1,16 @@
 /**
- * Glass UI — macOS Native Vibrancy CSS
- *
- * Active only when .platform-macos is on the <html> element AND running in Tauri.
- * Makes the entire webview transparent so macOS window vibrancy effects show through.
+ * macOS window vibrancy. `.platform-macos` is set on <html> at startup (index.tsx).
+ * The webview is transparent so the native window material shows through the
+ * glass roles in tokens.css (opaque in light, translucent in dark).
  */
 
-/* macOS Tauri dark mode: make html, body, and #root transparent for native vibrancy */
-html.dark.platform-macos,
-html.dark.platform-macos body,
-html.dark.platform-macos #root {
-  background: rgba(21, 21, 21, 0.88) !important;    /* night-900 @ 88% */
-  background-color: rgba(21, 21, 21, 0.88) !important;
+html.platform-macos,
+html.platform-macos body,
+html.platform-macos #root {
+  background: var(--bg-base-glass) !important;
 }
 
-/* macOS Tauri light mode: solid light backgrounds (vibrancy follows system theme, not app theme) */
-html.platform-macos:not(.dark),
-html.platform-macos:not(.dark) body,
-html.platform-macos:not(.dark) #root {
-  background: #fbfaf7 !important;
-  background-color: #fbfaf7 !important;
-}
-
-/* Subtle top-edge highlight for glass panels */
-.glass-shine {
-  position: relative;
-}
-
-.glass-shine::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.08) 0%,
-    transparent 40%
-  );
-  z-index: 1;
-}
-
-.dark .glass-shine::before {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.04) 0%,
-    transparent 40%
-  );
-}
-
-/* Accessibility: disable backdrop-blur for reduced motion/transparency */
+/* Reduce motion / transparency: no blur, opaque base */
 @media (prefers-reduced-motion: reduce) {
   .platform-macos * {
     backdrop-filter: none !important;
@@ -56,18 +18,11 @@ html.platform-macos:not(.dark) #root {
   }
 }
 
-/* macOS Reduce Transparency: fall back to opaque backgrounds */
 @media (prefers-reduced-transparency: reduce) {
   html.platform-macos,
   html.platform-macos body,
   html.platform-macos #root {
-    background: #fbfaf7 !important;
-  }
-
-  .dark.platform-macos,
-  .dark.platform-macos body,
-  .dark.platform-macos #root {
-    background: #151515 !important; /* night-900 */
+    background: var(--bg-base) !important;
   }
 
   .platform-macos * {

@@ -7,18 +7,20 @@
  */
 
 import React, { useCallback, useState, useMemo } from 'react';
-import { ArrowLeft, ListTodo, AlertTriangle, Check, Bell, CalendarDays, Inbox, Search, Plus, X, ChevronDown } from 'lucide-react';
+import { ArrowLeft, ListTodo, AlertTriangle, Bell, CalendarDays, Inbox, Search, Plus, X, ChevronDown } from 'lucide-react';
 import { useAppActions } from '@shared/stores/appStore';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useGlobalTodos } from '@features/todos/hooks/useGlobalTodos';
 import type { TodoFilter, GlobalTodo } from '@features/todos/hooks/useGlobalTodos';
-import { SURFACE, BORDER, TEXT } from '@config/theme.config';
-import { Button, DatePicker, Input, TimePicker } from '@shared/ui';
+import {
+  Button, Checkbox, DatePicker, Icon, IconButton, Input, Popover, PopoverContent, PopoverTrigger,
+  Row, Surface, Tabs, Text, Textarea, TimePicker, cn,
+} from '@shared/ui';
+import { EmptyState } from '@shared/components';
 import { AppStatus } from '@shared/types';
 import type { HistoryItem } from '@shared/types';
 import { isOverdue, formatDueDate, formatReminderDate, isReminderOverdue, buildISOFromDateInput } from '@shared/utils/todo.utils';
 import ReminderPicker from './ReminderPicker';
-import * as PopoverPrimitive from '@radix-ui/react-popover';
 
 // ── Filter chip config ──────────────────────────────────────────
 
@@ -33,7 +35,7 @@ const FILTERS: { key: TodoFilter; label: string; countKey: 'total' | 'pending' |
 const formatDate = (ts: number) =>
   new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-// ── Meeting selector (Radix Popover) ────────────────────────────
+// ── Meeting selector ────────────────────────────────────────────
 
 interface MeetingSelectorProps {
   items: HistoryItem[];
@@ -53,62 +55,46 @@ const MeetingSelector: React.FC<MeetingSelectorProps> = ({ items, selectedId, on
   }, [items, query]);
 
   return (
-    <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
-      <PopoverPrimitive.Trigger asChild>
-        <Button
-          variant="outline"
-          size="md"
-          type="button"
-          className="w-full justify-start truncate"
-        >
-          <span className={`flex-1 truncate text-xs ${selected ? TEXT.primary : TEXT.faint}`}>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="md" className="w-full">
+          <Text variant="helper" tone={selected ? 'primary' : 'faint'} truncate className="flex-1 text-left">
             {selected ? (selected.title || 'Untitled Meeting') : 'Select a meeting…'}
-          </span>
-          <ChevronDown className={`w-3.5 h-3.5 shrink-0 ${TEXT.faint}`} />
+          </Text>
+          <Icon icon={ChevronDown} size="xs" tone="faint" className="shrink-0" />
         </Button>
-      </PopoverPrimitive.Trigger>
+      </PopoverTrigger>
 
-      <PopoverPrimitive.Portal>
-        <PopoverPrimitive.Content
-          align="start"
-          sideOffset={4}
-          className={`w-[var(--radix-popover-trigger-width)] max-h-60 overflow-hidden rounded-lg border ${BORDER.default} ${SURFACE.card} shadow-lg z-50`}
-        >
-          {/* Search within selector */}
-          <div className={`p-2 border-b ${BORDER.subtle}`}>
-            <Input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search meetings…"
-              className="w-full"
-              autoFocus
-            />
-          </div>
+      <PopoverContent align="start" width="trigger" className="max-h-60 overflow-hidden">
+        {/* Search within selector */}
+        <Surface edge="bottom" className="p-2">
+          <Input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search meetings…"
+            autoFocus
+          />
+        </Surface>
 
-          <div className="overflow-y-auto max-h-48 custom-scrollbar">
-            {filtered.length === 0 ? (
-              <div className={`px-3 py-4 text-xs text-center ${TEXT.faint}`}>No meetings found</div>
-            ) : (
-              filtered.map(h => (
-                <button
-                  key={h.id}
-                  onClick={() => { onSelect(h.id); setOpen(false); setQuery(''); }}
-                  className={`w-full px-3 py-2 text-left text-xs transition-colors ${SURFACE.hoverSubtle} ${
-                    h.id === selectedId ? TEXT.heading + ' font-medium' : TEXT.secondary
-                  }`}
-                >
-                  <span className="block truncate">{h.title || 'Untitled Meeting'}</span>
-                  <span className={`block text-[10px] ${TEXT.faint}`}>
-                    {new Date(h.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </span>
-                </button>
-              ))
-            )}
-          </div>
-        </PopoverPrimitive.Content>
-      </PopoverPrimitive.Portal>
-    </PopoverPrimitive.Root>
+        <div className="overflow-y-auto max-h-48 custom-scrollbar p-1">
+          {filtered.length === 0 ? (
+            <Text as="div" variant="helper" tone="faint" className="px-3 py-4 text-center">No meetings found</Text>
+          ) : (
+            filtered.map(h => (
+              <Row
+                key={h.id}
+                selected={h.id === selectedId}
+                onClick={() => { onSelect(h.id); setOpen(false); setQuery(''); }}
+              >
+                <Text truncate className="flex-1">{h.title || 'Untitled Meeting'}</Text>
+                <Text variant="caption" tone="faint" className="shrink-0">{formatDate(h.timestamp)}</Text>
+              </Row>
+            ))
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 };
 
@@ -150,25 +136,25 @@ const CreateTodoForm: React.FC<CreateTodoFormProps> = ({ onSubmit, onCancel }) =
   const canSubmit = text.trim().length > 0 && meetingId.length > 0 && !isSaving;
 
   return (
-    <div className={`rounded-xl border ${BORDER.default} ${SURFACE.subtle} p-4 space-y-3 animate-fade-in`}>
+    <Surface variant="subtle" radius="xl" edge="all" className="p-4 space-y-3 animate-fade-in">
       {/* Todo text */}
-      <Input asChild><textarea
+      <Textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="What do you need to do?"
         spellCheck
         autoCorrect="on"
         autoCapitalize="sentences"
-        className="w-full h-16"
+        className="h-16"
         autoFocus
-      /></Input>
+      />
 
       {/* Meeting selector */}
       <div className="space-y-1.5">
-        <label className={`text-xs font-medium ${TEXT.secondary} flex items-center gap-1.5`}>
-          <ListTodo className="w-3.5 h-3.5" />
+        <Text as="label" variant="label" tone="muted" className="flex items-center gap-1.5">
+          <Icon icon={ListTodo} size="xs" />
           Link to meeting
-        </label>
+        </Text>
         <MeetingSelector
           items={historyItems}
           selectedId={meetingId}
@@ -178,10 +164,10 @@ const CreateTodoForm: React.FC<CreateTodoFormProps> = ({ onSubmit, onCancel }) =
 
       {/* Deadline picker */}
       <div className="space-y-1.5">
-        <label className={`text-xs font-medium ${TEXT.secondary} flex items-center gap-1.5`}>
-          <CalendarDays className="w-3.5 h-3.5" />
+        <Text as="label" variant="label" tone="muted" className="flex items-center gap-1.5">
+          <Icon icon={CalendarDays} size="xs" />
           Due date (optional)
-        </label>
+        </Text>
         <div className="flex gap-2 items-center">
           <DatePicker
             value={date}
@@ -194,7 +180,7 @@ const CreateTodoForm: React.FC<CreateTodoFormProps> = ({ onSubmit, onCancel }) =
             value={time || '09:00'}
             onChange={setTime}
             disabled={!date}
-            className="w-[110px]"
+            className="w-28"
           />
         </div>
       </div>
@@ -206,11 +192,11 @@ const CreateTodoForm: React.FC<CreateTodoFormProps> = ({ onSubmit, onCancel }) =
         </Button>
         <Button variant="primary" size="sm" onClick={handleSubmit}
           disabled={!canSubmit}>
-          <Plus className="w-3.5 h-3.5" />
+          <Icon icon={Plus} size="xs" />
           Create
         </Button>
       </div>
-    </div>
+    </Surface>
   );
 };
 
@@ -224,67 +210,56 @@ interface TodoRowProps {
 
 const TodoRow: React.FC<TodoRowProps> = ({ todo, onToggle, onReminderSet }) => {
   const overdue = !todo.completed && isOverdue(todo.dueDate);
+  const reminderOverdue = todo.reminder ? isReminderOverdue(todo.reminder) : false;
 
   const handleReminderSet = useCallback((dateTime: string | null) => {
     onReminderSet(todo.meetingId, todo.id, todo.text, todo.meetingTitle, dateTime);
   }, [todo.meetingId, todo.id, todo.text, todo.meetingTitle, onReminderSet]);
 
   return (
-    <div className={`w-full flex items-start gap-2.5 px-4 py-2 text-left transition-colors ${SURFACE.hoverSubtle} group`}>
-      {/* Checkbox */}
-      <button
-        onClick={() => onToggle(todo.meetingId, todo.id)}
-        className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-all ${
-          todo.completed
-            ? 'bg-green-500 border-green-500 dark:bg-green-500 dark:border-green-500 text-white'
-            : `${BORDER.selectedCard} group-hover:border-green-400`
-        }`}
-      >
-        {todo.completed && <Check className="w-2.5 h-2.5" />}
-      </button>
+    <div className="w-full flex items-start gap-2.5 px-4 py-2 group">
+      <Checkbox
+        checked={todo.completed}
+        onCheckedChange={() => onToggle(todo.meetingId, todo.id)}
+        className="mt-1"
+      />
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <p className={`text-sm leading-normal break-words ${
-          todo.completed ? `line-through ${TEXT.faint}` : TEXT.primary
-        }`}>
+        <Text as="p" variant="reading" tone={todo.completed ? 'faint' : 'primary'} className={cn('break-words', todo.completed && 'line-through')}>
           {todo.text}
-        </p>
+        </Text>
 
         {/* Metadata row */}
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 mt-0.5">
           {/* Due date */}
           {todo.dueDate && (
-            <span className={`inline-flex items-center gap-1 text-xs ${
-              overdue ? 'text-red-500' : TEXT.muted
-            }`}>
-              {overdue ? <AlertTriangle className="w-3 h-3" /> : <CalendarDays className="w-3 h-3" />}
+            <Text variant="helper" tone={overdue ? 'danger' : 'muted'} className="inline-flex items-center gap-1">
+              <Icon icon={overdue ? AlertTriangle : CalendarDays} size="xs" />
               {overdue ? 'Overdue: ' : 'Due: '}{formatDueDate(todo.dueDate)}
-            </span>
+            </Text>
           )}
 
           {/* Reminder */}
           {todo.reminder && !todo.completed && (
-            <span className={`inline-flex items-center gap-1 text-xs ${
-              isReminderOverdue(todo.reminder) ? 'text-red-500' : 'text-amber-500'
-            }`}>
-              <Bell className="w-3 h-3" />
-              {isReminderOverdue(todo.reminder) ? 'Overdue: ' : ''}{formatReminderDate(todo.reminder.dateTime)}
-            </span>
+            <Text variant="helper" tone={reminderOverdue ? 'danger' : 'warning'} className="inline-flex items-center gap-1">
+              <Icon icon={Bell} size="xs" />
+              {reminderOverdue ? 'Overdue: ' : ''}{formatReminderDate(todo.reminder.dateTime)}
+            </Text>
           )}
 
           {/* Owner */}
           {todo.owner && (
-            <span className={`text-xs ${TEXT.faint}`}>
+            <Text variant="helper" tone="faint">
               → {todo.owner}
-            </span>
+            </Text>
           )}
         </div>
       </div>
 
       {/* Reminder bell — always visible when active, hover when not */}
       {!todo.completed && (
-        <div className={`shrink-0 ${todo.reminder ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
+        <div className={cn('shrink-0 transition-opacity', !todo.reminder && 'opacity-0 group-hover:opacity-100')}>
           <ReminderPicker
             todoId={todo.id}
             meetingId={todo.meetingId}
@@ -332,98 +307,70 @@ export const RemindersView: React.FC = () => {
 
   const hasContent = groups.length > 0 || isCreating;
 
+  const filterTabs = FILTERS.map(({ key, label, countKey }) => {
+    const count = counts[countKey];
+    return {
+      value: key,
+      label: (
+        <>
+          {label}
+          {count > 0 && <span className={cn('ml-1.5', filter !== key && 'opacity-60')}>{count}</span>}
+        </>
+      ),
+    };
+  });
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden animate-fade-in">
       {/* Header */}
-      <div className={`shrink-0 border-b ${BORDER.default} px-6 pt-2 pb-0`}>
+      <Surface as="header" edge="bottom" className="shrink-0 px-6 pt-2 pb-3">
         {/* Search + Create row — inline with stats */}
         <div className="flex items-center gap-3 mb-3">
-          <button
-            onClick={handleBack}
-            className={`p-1.5 rounded-lg ${SURFACE.hoverSubtle} ${TEXT.muted} hover:${TEXT.primary} transition-colors`}
-            aria-label="Back to home"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
+          <IconButton icon={ArrowLeft} label="Back to home" size="sm" onClick={handleBack} />
           <div className="flex items-center gap-2">
-            <ListTodo className={`w-5 h-5 ${TEXT.muted}`} />
-            <h1 className={`text-lg font-semibold ${TEXT.heading}`}>
+            <Icon icon={ListTodo} size="md" tone="muted" />
+            <Text as="h1" variant="pageTitle">
               To-Dos & Reminders
-            </h1>
+            </Text>
           </div>
 
           {/* Right side: stats, search, add */}
           <div className="flex items-center gap-2 ml-auto">
             {counts.total > 0 && !isSearchOpen && (
-              <span className={`text-xs ${TEXT.faint}`}>
+              <Text variant="helper" tone="faint">
                 {counts.pending} pending · {counts.completed} done
-              </span>
+              </Text>
             )}
 
             {/* Expandable search */}
             {isSearchOpen ? (
-              <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${BORDER.subtle} ${SURFACE.subtle} transition-all w-52`}>
-                <Search className={`w-3.5 h-3.5 shrink-0 ${TEXT.faint}`} />
-                <input
+              <div className="flex items-center gap-1 w-52">
+                <Input
+                  icon={Search}
                   ref={searchInputRef}
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search…"
-                  className={`flex-1 bg-transparent text-xs ${TEXT.primary} placeholder:${TEXT.faint} outline-none min-w-0`}
                   onKeyDown={(e) => { if (e.key === 'Escape') handleSearchToggle(); }}
                 />
-                <button
-                  onClick={handleSearchToggle}
-                  className={`p-0.5 rounded ${SURFACE.hoverSubtle} ${TEXT.faint}`}
-                >
-                  <X className="w-3 h-3" />
-                </button>
+                <IconButton icon={X} label="Close search" size="sm" onClick={handleSearchToggle} />
               </div>
             ) : (
-              <button
-                onClick={handleSearchToggle}
-                className={`p-1.5 rounded-lg ${SURFACE.hoverSubtle} ${TEXT.muted} transition-colors`}
-                aria-label="Search to-dos"
-              >
-                <Search className="w-4 h-4" />
-              </button>
+              <IconButton icon={Search} label="Search to-dos" size="sm" onClick={handleSearchToggle} />
             )}
 
             <Button variant="primary" size="sm" className="shrink-0" onClick={() => setIsCreating(true)}
               disabled={isCreating}>
-              <Plus className="w-3.5 h-3.5" />
+              <Icon icon={Plus} size="xs" />
               Add To-Do
             </Button>
           </div>
         </div>
 
-        {/* Filter chips */}
-        <div className="flex gap-1 -mb-px">
-          {FILTERS.map(({ key, label, countKey }) => {
-            const count = counts[countKey];
-            const isActive = filter === key;
-            return (
-              <button
-                key={key}
-                onClick={() => setFilter(key)}
-                className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
-                  isActive
-                    ? `${TEXT.heading} border-paper-900 dark:border-night-100`
-                    : `${TEXT.muted} border-transparent hover:${TEXT.secondary}`
-                }`}
-              >
-                {label}
-                {count > 0 && (
-                  <span className={`ml-1.5 ${isActive ? '' : 'opacity-60'}`}>
-                    {count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+        {/* Filter tabs */}
+        <Tabs items={filterTabs} value={filter} onValueChange={setFilter} />
+      </Surface>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -442,54 +389,41 @@ export const RemindersView: React.FC = () => {
           <div className="p-6 space-y-4">
             {[1, 2, 3].map(i => (
               <div key={i} className="space-y-2">
-                <div className={`h-4 w-40 rounded ${SURFACE.skeleton}`} />
-                <div className={`h-10 w-full rounded-lg ${SURFACE.skeleton}`} />
-                <div className={`h-10 w-full rounded-lg ${SURFACE.skeleton}`} />
+                <Surface variant="inset" radius="md" className="h-4 w-40 animate-pulse" />
+                <Surface variant="inset" radius="lg" className="h-10 w-full animate-pulse" />
+                <Surface variant="inset" radius="lg" className="h-10 w-full animate-pulse" />
               </div>
             ))}
           </div>
         ) : !hasContent ? (
-          /* Empty state */
-          <div className="min-h-full flex flex-col items-center justify-center px-6">
-            <div className={`p-4 rounded-2xl ${SURFACE.subtle} mb-4`}>
-              {searchQuery ? (
-                <Search className={`w-8 h-8 ${TEXT.faint}`} />
-              ) : (
-                <Inbox className={`w-8 h-8 ${TEXT.faint}`} />
-              )}
-            </div>
-            <p className={`text-sm font-medium ${TEXT.secondary} mb-1`}>
-              {searchQuery
-                ? 'No matching to-dos'
-                : filter === 'all' ? 'No to-dos yet' : `No ${filter} to-dos`}
-            </p>
-            <p className={`text-xs ${TEXT.faint} text-center max-w-xs`}>
-              {searchQuery
-                ? 'Try different keywords or clear your search'
-                : filter === 'all'
-                  ? 'To-dos from your meetings will appear here'
-                  : 'Try a different filter to see more items'}
-            </p>
-          </div>
+          <EmptyState
+            icon={searchQuery ? Search : Inbox}
+            message={searchQuery
+              ? 'No matching to-dos'
+              : filter === 'all' ? 'No to-dos yet' : `No ${filter} to-dos`}
+            description={searchQuery
+              ? 'Try different keywords or clear your search'
+              : filter === 'all'
+                ? 'To-dos from your meetings will appear here'
+                : 'Try a different filter to see more items'}
+          />
         ) : groups.length > 0 ? (
           /* Grouped list */
           <div className="py-2">
             {groups.map((group) => (
               <div key={group.meetingId} className="mb-1">
                 {/* Meeting header */}
-                <div className={`sticky top-0 z-10 px-5 py-1.5 ${SURFACE.page} border-b ${BORDER.subtle}`}>
-                  <div className="flex items-center gap-2">
-                    <h2 className={`text-xs font-semibold ${TEXT.secondary} truncate`}>
-                      {group.meetingTitle}
-                    </h2>
-                    <span className={`text-[10px] ${TEXT.faint} shrink-0`}>
-                      {formatDate(group.timestamp)}
-                    </span>
-                    <span className={`text-[10px] ${TEXT.faint} shrink-0 ml-auto`}>
-                      {group.todos.filter(t => !t.completed).length}/{group.todos.length}
-                    </span>
-                  </div>
-                </div>
+                <Surface variant="page" edge="bottom" className="sticky top-0 z-10 px-5 py-1.5 flex items-center gap-2">
+                  <Text as="h2" variant="label" tone="muted" truncate>
+                    {group.meetingTitle}
+                  </Text>
+                  <Text variant="caption" tone="faint" className="shrink-0">
+                    {formatDate(group.timestamp)}
+                  </Text>
+                  <Text variant="caption" tone="faint" className="shrink-0 ml-auto">
+                    {group.todos.filter(t => !t.completed).length}/{group.todos.length}
+                  </Text>
+                </Surface>
 
                 {/* Todo items */}
                 <div>

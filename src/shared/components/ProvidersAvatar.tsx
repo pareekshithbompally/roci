@@ -5,7 +5,7 @@ interface ProvidersAvatarProps {
   size?: number;
 }
 
-const ProvidersAvatar = ({ provider, size = 24 }: ProvidersAvatarProps) => {
+export const ProvidersAvatar = ({ provider, size = 24 }: ProvidersAvatarProps) => {
   const logo = getProviderLogo(provider)
   const title = getProviderTitle(provider)
 
@@ -13,7 +13,7 @@ const ProvidersAvatar = ({ provider, size = 24 }: ProvidersAvatarProps) => {
     <img
       src={logo}
       alt={`${title} - Logo`}
-      className={`object-contain rounded-full${provider === 'xai' ? ' dark:invert' : ''}`}
+      className="object-contain rounded-full"
       style={{
         imageRendering: '-webkit-optimize-contrast',
         width: `${size}px`,
@@ -25,17 +25,16 @@ const ProvidersAvatar = ({ provider, size = 24 }: ProvidersAvatarProps) => {
     />
   ) : (
     <div
-      className="flex rounded-full border border-paper-400 items-center justify-center bg-paper-100"
+      className="flex rounded-full items-center justify-center bg-layer-2 shadow-input"
       style={{
         width: `${size}px`,
         height: `${size}px`,
       }}
     >
-      <p className="text-xs font-semibold leading-none capitalize text-paper-700">
+      <p className="text-callout font-semibold leading-none capitalize text-muted">
         {title.charAt(0)}
       </p>
     </div>
   )
 }
 
-export default ProvidersAvatar

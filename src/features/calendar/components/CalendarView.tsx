@@ -18,13 +18,11 @@ import { useAppActions } from '@shared/stores/appStore';
 import { CalendarWeek } from './CalendarWeek';
 import type { CalendarControls } from './CalendarWeek';
 import { EventPopover } from './EventPopover';
-import { DatePicker } from '@shared/ui/date-picker';
+import { DatePicker, Button, Icon, IconButton, Surface, Text, cn } from '@shared/ui';
+import { EmptyState } from '@shared/components';
 import { useCalendarEvents } from '@features/calendar/hooks/useCalendarEvents';
-import { SURFACE, BORDER, TEXT } from '@config/theme.config';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 import { AppStatus } from '@shared/types';
 import type { CalendarEvent as ScheduleXCalendarEvent } from '@schedule-x/calendar';
-import { Button } from '@shared/ui';
 
 // ─── Helpers ────────────────────────────────────────────────────────
 
@@ -60,62 +58,44 @@ function rangeToPickerDate(range: { start: string; end: string } | null): string
   }
 }
 
-const NAV_BUTTON = `inline-flex items-center justify-center py-1.5 px-2 ${TEXT.primary} ${SURFACE.hoverSubtle} border ${BORDER.strong} rounded-md transition-colors`;
-
 // ─── Empty State ─────────────────────────────────────────────────────
 
-const EmptyState: React.FC<{
+const NOT_ENABLED = {
+  message: 'Calendar integration is not enabled',
+  description: 'Enable calendar integration in Settings to see your upcoming events.',
+};
+const LOADING = {
+  message: 'Loading events…',
+  description: 'Fetching your upcoming meetings from macOS Calendar.',
+};
+const NO_EVENTS = {
+  message: 'No upcoming events',
+  description: 'You have no meetings scheduled in the next 7 days.',
+};
+
+const CalendarEmptyState: React.FC<{
   isEnabled: boolean;
   isInitialFetchDone: boolean;
   onGoToSettings: () => void;
 }> = ({ isEnabled, isInitialFetchDone, onGoToSettings }) => {
-  if (!isEnabled) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center px-6">
-        <div className={`p-4 rounded-2xl ${SURFACE.subtle} mb-4`}>
-          <CalendarDays className={`w-8 h-8 ${TEXT.faint}`} />
-        </div>
-        <p className={`text-sm font-medium ${TEXT.secondary} mb-1`}>
-          Calendar integration is not enabled
-        </p>
-        <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} text-center max-w-xs mb-4`}>
-          Enable calendar integration in Settings to see your upcoming events.
-        </p>
-        <Button variant="primary" size="sm" onClick={onGoToSettings}>
-          <Settings className="w-3.5 h-3.5" />
-          Open Settings
-        </Button>
-      </div>
-    );
-  }
-
-  if (!isInitialFetchDone) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center px-6">
-        <div className={`p-4 rounded-2xl ${SURFACE.subtle} mb-4`}>
-          <RefreshCw className={`w-8 h-8 ${TEXT.muted} animate-spin`} />
-        </div>
-        <p className={`text-sm font-medium ${TEXT.secondary} mb-1`}>
-          Loading events…
-        </p>
-        <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} text-center max-w-xs`}>
-          Fetching your upcoming meetings from macOS Calendar.
-        </p>
-      </div>
-    );
-  }
+  const loading = isEnabled && !isInitialFetchDone;
+  const copy = !isEnabled ? NOT_ENABLED : loading ? LOADING : NO_EVENTS;
+  const action = !isEnabled && (
+    <Button variant="primary" size="sm" onClick={onGoToSettings}>
+      <Icon icon={Settings} size="xs" />
+      Open Settings
+    </Button>
+  );
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center px-6">
-      <div className={`p-4 rounded-2xl ${SURFACE.subtle} mb-4`}>
-        <CalendarDays className={`w-8 h-8 ${TEXT.faint}`} />
-      </div>
-      <p className={`text-sm font-medium ${TEXT.secondary} mb-1`}>
-        No upcoming events
-      </p>
-      <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} text-center max-w-xs`}>
-        You have no meetings scheduled in the next 7 days.
-      </p>
+    <div className="flex-1 flex flex-col px-6">
+      <EmptyState
+        icon={loading ? RefreshCw : CalendarDays}
+        loading={loading}
+        message={copy.message}
+        description={copy.description}
+        action={action}
+      />
     </div>
   );
 };
@@ -186,57 +166,41 @@ export const CalendarView: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden animate-fade-in">
       {/* Header */}
-      <div className={`shrink-0 border-b ${BORDER.default} px-5 py-2.5`}>
-        <div className="flex items-center">
-          <Button variant="ghost" size="iconSm" className="mr-2.5" onClick={handleBack} aria-label="Back to home">
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <CalendarDays className={`w-4 h-4 ${TEXT.muted} mr-1`} />
-          <h1 className={`text-[14px] font-semibold ${TEXT.heading}`}>Schedule</h1>
+      <Surface as="header" edge="bottom" className="shrink-0 px-5 py-2.5 flex items-center">
+        <IconButton icon={ArrowLeft} label="Back to home" size="sm" className="mr-2.5" onClick={handleBack} />
+        <Icon icon={CalendarDays} size="sm" tone="muted" className="mr-1" />
+        <Text as="h1" variant="title">Schedule</Text>
 
-          <div className="flex-1" />
+        <div className="flex-1" />
 
-          {showCalendar && (
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => controlsRef.current?.goBack()}
-                className={NAV_BUTTON}
-                aria-label="Previous week"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => controlsRef.current?.goForward()}
-                className={NAV_BUTTON}
-                aria-label="Next week"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+        {showCalendar && (
+          <div className="flex items-center gap-1.5">
+            <IconButton icon={ChevronLeft} label="Previous week" size="sm" variant="outline" onClick={() => controlsRef.current?.goBack()} />
+            <IconButton icon={ChevronRight} label="Next week" size="sm" variant="outline" onClick={() => controlsRef.current?.goForward()} />
 
-              {rangeLabel && (
-                <span className={`mx-1 text-[12.5px] font-medium ${TEXT.muted} tabular-nums whitespace-nowrap`}>
-                  {rangeLabel}
-                </span>
-              )}
+            {rangeLabel && (
+              <Text variant="label" tone="muted" className="mx-1 tabular-nums whitespace-nowrap">
+                {rangeLabel}
+              </Text>
+            )}
 
-              <DatePicker
-                value={rangeToPickerDate(currentRange)}
-                onChange={handleDatePick}
-                placeholder="Go to date"
-              />
+            <DatePicker
+              value={rangeToPickerDate(currentRange)}
+              onChange={handleDatePick}
+              placeholder="Go to date"
+            />
 
-              <Button variant="outline" size="sm" onClick={() => controlsRef.current?.goToToday()}>
-                Today
-              </Button>
+            <Button variant="outline" size="sm" onClick={() => controlsRef.current?.goToToday()}>
+              Today
+            </Button>
 
-              <Button variant="outline" size="sm" onClick={handleSync} disabled={isSyncing}>
-                <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                {isSyncing ? 'Syncing...' : 'Sync'}
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
+            <Button variant="outline" size="sm" onClick={handleSync} disabled={isSyncing}>
+              <Icon icon={RefreshCw} size="xs" className={cn(isSyncing && 'animate-spin')} />
+              {isSyncing ? 'Syncing...' : 'Sync'}
+            </Button>
+          </div>
+        )}
+      </Surface>
 
       {/* Content */}
       {showCalendar ? (
@@ -247,7 +211,7 @@ export const CalendarView: React.FC = () => {
           onRangeUpdate={handleRangeUpdate}
         />
       ) : (
-        <EmptyState
+        <CalendarEmptyState
           isEnabled={isEnabled}
           isInitialFetchDone={isInitialFetchDone}
           onGoToSettings={handleGoToSettings}

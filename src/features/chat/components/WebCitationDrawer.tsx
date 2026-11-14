@@ -9,9 +9,8 @@
 import React, { useCallback } from 'react';
 import { X, Globe, ExternalLink } from 'lucide-react';
 import { getFaviconUrl, extractDomain } from '@shared/utils/citationUtils';
-import { SURFACE, BORDER, TEXT } from '@config/theme.config';
 import type { WebCitation } from '@shared/types';
-import { Button } from '@shared/ui';
+import { IconButton, Icon, Surface, Text } from '@shared/ui';
 
 interface WebCitationDrawerProps {
   citations: WebCitation[] | null;
@@ -31,72 +30,71 @@ export const WebCitationDrawer: React.FC<WebCitationDrawerProps> = ({
   return (
     <>
       {/* Backdrop */}
-      <div
-        className={`absolute inset-0 z-10 transition-opacity duration-300 ${
-          isOpen
-            ? `${SURFACE.overlay} pointer-events-auto`
-            : 'opacity-0 pointer-events-none'
-        }`}
+      <Surface
+        variant="scrim"
+        className={`absolute inset-0 z-10 transition-opacity duration-300 ${isOpen ? 'pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Drawer panel */}
-      <div
-        className={`absolute right-0 inset-y-0 z-20 w-[380px] flex flex-col border-l ${BORDER.default} ${SURFACE.modal} shadow-xl transition-transform duration-300 ease-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+      <Surface
+        variant="card"
+        edge="left"
+        className={`absolute right-0 inset-y-0 z-20 w-96 flex flex-col transition-transform duration-300 ease-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
         onKeyDown={handleKeyDown}
         role="dialog"
         aria-label="Web sources"
         aria-modal="true"
       >
         {/* Header */}
-        <div className={`shrink-0 flex items-center justify-between gap-3 px-4 py-3 border-b ${BORDER.default}`}>
+        <Surface edge="bottom" className="shrink-0 flex items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-2 min-w-0">
-            <Globe className={`w-4 h-4 shrink-0 ${TEXT.faint}`} />
-            <h3 className={`text-sm font-semibold ${TEXT.primary}`}>
+            <Icon icon={Globe} size="sm" tone="faint" className="shrink-0" />
+            <Text as="h3" variant="headline">
               Web Sources
-            </h3>
+            </Text>
             {citations && (
-              <span className={`text-[11px] ${TEXT.faint} tabular-nums`}>
+              <Text variant="caption" tone="faint" className="tabular-nums">
                 {citations.length}
-              </span>
+              </Text>
             )}
           </div>
-          <Button variant="ghost" size="iconSm" className="shrink-0" onClick={onClose} title="Close">
-            <X className="w-4 h-4" />
-          </Button>
-        </div>
+          <IconButton icon={X} label="Close" size="sm" className="shrink-0" onClick={onClose} />
+        </Surface>
 
         {/* Citation list */}
         <div className="flex-1 overflow-y-auto custom-scrollbar py-1">
           {citations?.map((citation, i) => (
-            <a
+            <Surface
+              as="a"
               key={`${i}-${citation.url}`}
               href={citation.url}
               target="_blank"
               rel="noopener noreferrer"
-              className={`flex items-center gap-2.5 px-4 py-2.5 text-xs ${TEXT.secondary} ${SURFACE.hoverSubtle} transition-colors group`}
+              interactive
+              className="group flex items-center gap-2.5 px-4 py-2.5"
             >
               <img
                 src={getFaviconUrl(citation.url)}
                 alt=""
-                className="w-4 h-4 shrink-0 rounded-sm"
+                className="w-4 h-4 shrink-0"
                 loading="lazy"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
               <div className="min-w-0 flex-1">
-                <p className={`text-xs font-medium ${TEXT.primary} truncate group-hover:underline`}>
+                <Text as="p" variant="label" truncate className="group-hover:underline">
                   {citation.title || extractDomain(citation.url)}
-                </p>
-                <p className={`text-[10px] ${TEXT.faint} truncate mt-0.5`}>
+                </Text>
+                <Text as="p" variant="caption" tone="faint" truncate className="mt-0.5">
                   {extractDomain(citation.url)}
-                </p>
+                </Text>
               </div>
-              <ExternalLink className={`w-3 h-3 shrink-0 ${TEXT.faint} opacity-0 group-hover:opacity-100 transition-opacity`} />
-            </a>
+              <Icon icon={ExternalLink} size="xs" tone="faint" className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </Surface>
           ))}
         </div>
-      </div>
+      </Surface>
     </>
   );
 };

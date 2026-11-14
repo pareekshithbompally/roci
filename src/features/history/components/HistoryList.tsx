@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { useHistory } from '@shared/contexts/HistoryContext';
-import { TEXT } from '@config/theme.config';
+import { Text } from '@shared/ui';
 import { HistoryItem } from './HistoryItem';
 import type { HistoryItem as HistoryItemType } from '@shared/types';
 
@@ -32,9 +32,9 @@ export const HistoryList: React.FC<HistoryListProps> = ({
 
   if (items.length === 0) {
     return (
-      <div className={`text-center py-8 ${TEXT.faint} text-sm`}>
+      <Text as="div" tone="faint" className="text-center py-8">
         {searchQuery ? 'No items match your search' : 'No recordings yet'}
-      </div>
+      </Text>
     );
   }
 

@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import { LayoutGroup } from 'framer-motion';
 import { useAppStatus, useSelectedHistoryId } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
 import { useChat } from '@shared/contexts/ChatContext';
@@ -22,26 +23,13 @@ export const HomeView: React.FC = () => {
   const hasSelectedChat = chat.currentSessionId !== null;
   const hasSelectedMeeting = selectedHistoryId !== null;
 
-  // Priority order: status takes precedence over selections
-  // This ensures clicking "New Chat" (which sets status to IDLE) always shows IdleView
-  const showIdleView = status === AppStatus.IDLE;
+  // Status takes precedence over selections: "New Chat" sets IDLE, which shows IdleView
   const showChatView = status === AppStatus.CHAT && hasSelectedChat;
   const showResultsView = status === AppStatus.RESULTS && hasSelectedMeeting;
 
-  if (showIdleView) {
-    return <IdleView />;
-  }
-
-  if (showChatView) {
-    return <ChatView />;
-  }
-
-  if (showResultsView) {
-    return <ResultsView />;
-  }
-
-  // Default: show IdleView
-  return <IdleView />;
+  // LayoutGroup lets the composer glide from IdleView to ChatView (shared layoutId).
+  const view = showChatView ? <ChatView /> : showResultsView ? <ResultsView /> : <IdleView />;
+  return <LayoutGroup>{view}</LayoutGroup>;
 };
 
 export default HomeView;

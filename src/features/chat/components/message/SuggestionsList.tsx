@@ -1,6 +1,5 @@
 import React from 'react';
-import { TEXT } from '@config/theme.config';
-import { Row } from '@shared/ui';
+import { Row, Text } from '@shared/ui';
 
 interface SuggestionsListProps {
   suggestions: string[];
@@ -16,7 +15,7 @@ const SuggestionsList: React.FC<SuggestionsListProps> = ({ suggestions, onSugges
         onClick={() => onSuggestionClick(suggestion)}
         style={{ animationDelay: `${i * 50}ms` }}
       >
-        <span className={`${TEXT.faint} shrink-0`}>&#8594;</span>
+        <Text tone="faint" className="shrink-0">&#8594;</Text>
         <span className="line-clamp-1">{suggestion}</span>
       </Row>
     ))}

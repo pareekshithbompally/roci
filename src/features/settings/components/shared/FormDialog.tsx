@@ -1,8 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import { COMPONENT, TEXT } from '@config/theme.config';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { Button, Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle } from '@shared/ui';
+import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, IconButton, Text } from '@shared/ui';
 
 interface FormDialogProps {
   open: boolean;
@@ -32,23 +30,21 @@ export const FormDialog: React.FC<FormDialogProps> = ({
   <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogPortal>
       <DialogOverlay />
-      <DialogContent className={COMPONENT.dialogScrollable} onInteractOutside={(e) => e.preventDefault()} aria-describedby={undefined}>
+      <DialogContent size="lg" scrollable onInteractOutside={(e) => e.preventDefault()} aria-describedby={undefined}>
         <DialogHeader className="shrink-0">
           <DialogTitle>{title}</DialogTitle>
           <div className="flex items-center gap-1 -mr-1">
             {headerAction}
             <DialogClose asChild>
-              <Button variant="ghost" size="iconSm" aria-label="Close">
-                <X className="w-4 h-4" />
-              </Button>
+              <IconButton icon={X} label="Close" size="sm" />
             </DialogClose>
           </div>
         </DialogHeader>
         <div className="min-h-0 overflow-y-auto custom-scrollbar space-y-4">{children}</div>
         {error && (
-          <p role="alert" className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.error} mt-3 whitespace-pre-wrap break-words`}>
+          <Text as="p" role="alert" variant="helper" tone="danger" className="mt-3 whitespace-pre-wrap break-words">
             {error}
-          </p>
+          </Text>
         )}
         <DialogFooter className="shrink-0">{footer}</DialogFooter>
       </DialogContent>

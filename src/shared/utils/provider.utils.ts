@@ -13,26 +13,20 @@ function localEntry(provider: string) {
 export function getProviderLogo(provider: string) {
   if (isLocalProviderId(provider)) return localEntry(provider)?.logo ?? LOCAL_GENERIC_LOGO
   switch (provider) {
+    case 'hex':
+      return '/images/model-provider/hex.png'
     case 'anthropic':
       return '/images/model-provider/anthropic.svg'
-    case 'huggingface':
-      return '/images/model-provider/huggingface.svg'
     case 'mistral':
       return '/images/model-provider/mistral.svg'
     case 'openrouter':
       return '/images/model-provider/open-router.svg'
     case 'groq':
       return '/images/model-provider/groq.svg'
-    case 'cohere':
-      return '/images/model-provider/cohere.svg'
     case 'gemini':
       return '/images/model-provider/gemini.svg'
     case 'openai':
       return '/images/model-provider/openai.svg'
-    case 'azure':
-      return '/images/model-provider/azure.svg'
-    case 'xai':
-      return '/images/model-provider/xai.svg'
     case 'deepgram':
       return '/images/model-provider/deepgram.png'
     case 'elevenlabs':
@@ -55,20 +49,12 @@ export const getProviderTitle = (provider: string | undefined | null) => {
       return 'OpenRouter'
     case 'gemini':
       return 'Gemini'
-    case 'huggingface':
-      return 'Hugging Face'
     case 'anthropic':
       return 'Anthropic'
-    case 'azure':
-      return 'Azure OpenAI'
-    case 'cohere':
-      return 'Cohere'
     case 'groq':
       return 'Groq'
     case 'mistral':
       return 'Mistral AI'
-    case 'xai':
-      return 'xAI (Grok)'
     case 'deepgram':
       return 'Deepgram'
     case 'elevenlabs':

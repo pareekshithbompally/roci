@@ -14,9 +14,9 @@
 import React from 'react';
 import {
   Type, Image, AudioLines, Video, FileText, Sparkles,
-  Wrench, Brain, Braces,
+  Wrench, Brain, Braces, type LucideIcon,
 } from 'lucide-react';
-import { SURFACE, BORDER, TEXT } from '@config/theme.config';
+import { Icon, Surface, Text, Tooltip } from '@shared/ui';
 import type { ModelInfo, ModelCapabilities } from '@services/modalities';
 
 interface ModalityIconsProps {
@@ -26,8 +26,6 @@ interface ModalityIconsProps {
   input?: string[];
   /** Legacy: output modalities array (used if modelInfo not provided) */
   output?: string[];
-  /** Icon size in px */
-  size?: number;
   /** Show capability badges (tool call, reasoning, etc). Defaults true. */
   showCapabilities?: boolean;
   /** "expanded" = individual badges, "compact" = I/O/Wrench with hover details */
@@ -36,7 +34,7 @@ interface ModalityIconsProps {
 
 // ── Shared config ───────────────────────────────────────────────
 
-const MODALITY_ICONS: Record<string, React.FC<{ size: number; className: string }>> = {
+const MODALITY_ICONS: Record<string, LucideIcon> = {
   text: Type,
   image: Image,
   audio: AudioLines,
@@ -54,7 +52,7 @@ const MODALITY_LABELS: Record<string, string> = {
 
 interface CapabilityDef {
   key: keyof ModelCapabilities;
-  icon: React.FC<{ size: number; className: string }>;
+  icon: LucideIcon;
   label: string;
 }
 
@@ -66,17 +64,12 @@ const CAPABILITY_DEFS: CapabilityDef[] = [
 
 // ── Expanded variant ────────────────────────────────────────────
 
-const Badge: React.FC<{
-  icon: React.FC<{ size: number; className: string }>;
-  size: number;
-  title: string;
-}> = ({ icon: Icon, size, title }) => (
-  <span
-    title={title}
-    className={`inline-flex items-center justify-center w-5 h-5 rounded ${SURFACE.chip} border ${BORDER.default}`}
-  >
-    <Icon size={size} className={TEXT.muted} />
-  </span>
+const ModalityBadge: React.FC<{ icon: LucideIcon; title: string }> = ({ icon, title }) => (
+  <Tooltip content={title}>
+    <Surface variant="inset" radius="md" aria-label={title} className="inline-flex items-center justify-center w-5 h-5">
+      <Icon icon={icon} size="xs" tone="muted" />
+    </Surface>
+  </Tooltip>
 );
 
 const ExpandedVariant: React.FC<{
@@ -84,8 +77,7 @@ const ExpandedVariant: React.FC<{
   output?: string[];
   capabilities?: ModelCapabilities;
   showCapabilities: boolean;
-  size: number;
-}> = ({ input, output, capabilities, showCapabilities, size }) => {
+}> = ({ input, output, capabilities, showCapabilities }) => {
   const hasInput = input && input.length > 0;
   const hasOutput = output && output.length > 0;
   const activeCapabilities = showCapabilities && capabilities
@@ -99,30 +91,26 @@ const ExpandedVariant: React.FC<{
       {hasInput && input!.map((mod) => {
         const k = mod.toLowerCase();
         return (
-          <Badge
+          <ModalityBadge
             key={`in-${k}`}
             icon={MODALITY_ICONS[k] || Sparkles}
-            size={size}
             title={`Supports ${MODALITY_LABELS[k] || mod} input`}
           />
         );
       })}
-      {hasInput && hasOutput && (
-        <span className={`${TEXT.faint} text-[9px] leading-none`}>→</span>
-      )}
+      {hasInput && hasOutput && <Text variant="caption" tone="faint">→</Text>}
       {hasOutput && output!.map((mod) => {
         const k = mod.toLowerCase();
         return (
-          <Badge
+          <ModalityBadge
             key={`out-${k}`}
             icon={MODALITY_ICONS[k] || Sparkles}
-            size={size}
             title={`Supports ${MODALITY_LABELS[k] || mod} output`}
           />
         );
       })}
       {activeCapabilities.map(def => (
-        <Badge key={def.key} icon={def.icon} size={size} title={`Supports ${def.label.toLowerCase()}`} />
+        <ModalityBadge key={def.key} icon={def.icon} title={`Supports ${def.label.toLowerCase()}`} />
       ))}
     </div>
   );
@@ -145,30 +133,33 @@ function toTooltipItems(mods: string[] | undefined) {
 const CompactIndicator: React.FC<{
   /** Render either a letter label or an icon */
   label?: string;
-  icon?: React.FC<{ size: number; className: string }>;
+  icon?: LucideIcon;
   /** Rows shown in the hover tooltip */
-  tooltipItems: Array<{ icon: React.FC<{ size: number; className: string }>; label: string }>;
-}> = ({ label, icon: Icon, tooltipItems }) => (
-  <span className="relative group/ind inline-flex items-center justify-center w-4 h-4">
-    {Icon
-      ? <Icon size={10} className={TEXT.muted} />
-      : <span className={`text-[9px] font-semibold leading-none ${TEXT.muted}`}>{label}</span>
-    }
-    {tooltipItems.length > 0 && (
-      <span className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/ind:flex flex-col gap-1 z-30 px-2 py-1.5 ${SURFACE.tooltip} whitespace-nowrap pointer-events-none`}>
-        {tooltipItems.map((item) => {
-          const TipIcon = item.icon;
-          return (
-            <span key={item.label} className="flex items-center gap-1.5">
-              <TipIcon size={10} className={TEXT.faint} />
-              <span className="text-[10px] text-paper-200 dark:text-night-200">{item.label}</span>
+  tooltipItems: Array<{ icon: LucideIcon; label: string }>;
+}> = ({ label, icon, tooltipItems }) => {
+  const indicator = (
+    <Text variant="caption" tone="muted" className="inline-flex items-center justify-center w-4 h-4 font-semibold leading-none">
+      {icon ? <Icon icon={icon} size="xs" /> : label}
+    </Text>
+  );
+  if (tooltipItems.length === 0) return indicator;
+  return (
+    <Tooltip
+      content={
+        <span className="flex flex-col gap-1">
+          {tooltipItems.map(({ icon: tipIcon, label: tip }) => (
+            <span key={tip} className="flex items-center gap-1.5">
+              <Icon icon={tipIcon} size="xs" className="opacity-70" />
+              {tip}
             </span>
-          );
-        })}
-      </span>
-    )}
-  </span>
-);
+          ))}
+        </span>
+      }
+    >
+      {indicator}
+    </Tooltip>
+  );
+};
 
 const CompactVariant: React.FC<{
   input?: string[];
@@ -210,7 +201,6 @@ export const ModalityIcons: React.FC<ModalityIconsProps> = ({
   modelInfo,
   input: legacyInput,
   output: legacyOutput,
-  size = 11,
   showCapabilities = true,
   variant = 'expanded',
 }) => {
@@ -235,7 +225,6 @@ export const ModalityIcons: React.FC<ModalityIconsProps> = ({
       output={output}
       capabilities={capabilities}
       showCapabilities={showCapabilities}
-      size={size}
     />
   );
 };

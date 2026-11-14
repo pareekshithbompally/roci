@@ -6,7 +6,7 @@
  */
 
 import React, { useMemo, useState, useCallback } from 'react';
-import { AudioWaveform, Key, HardDrive, ListTodo, CalendarDays } from 'lucide-react';
+import { Key, HardDrive, ListTodo, CalendarDays } from 'lucide-react';
 import { ImportButton } from '@features/import';
 import { useAppActions } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
@@ -16,11 +16,15 @@ import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { ChatInput } from '@features/chat';
 import { meetingReferenceService } from '@services/meetingReferenceService';
+import { LandingGlow } from './LandingGlow';
 import { RadioCard } from '@features/settings/components/shared';
-import { useSpeechInput } from '@features/chat';
-import { useEngineReady } from '@features/settings/hooks/useEngineReadiness';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { SURFACE, TEXT, BORDER } from '@config/theme.config';
+import { useVoiceCapture } from '@features/chat';
+import { useSpeechInputReady } from '@features/settings/hooks/useSpeechModels';
+import { LAYOUT } from '@config/layout.config';
+import { UI_CONFIG } from '@config/ui.config';
+import { ANIMATION_CONFIG } from '@config/animations.config';
+import { Button, Dot, Icon, Surface, Text } from '@shared/ui';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface IdleViewProps {}
 
@@ -47,7 +51,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   const selectedMeetingRefs = useChatStore((s) => s.selectedMeetingRefs);
 
   const { items: historyItems } = useHistoryData();
-  const { settings, providers } = useSettings();
+  const { settings, providers, isLoading: settingsLoading } = useSettings();
 
   const sendMessage = useChatStore((s) => s.sendMessage);
   const setInput = useChatStore((s) => s.setInput);
@@ -63,17 +67,15 @@ export const IdleView: React.FC<IdleViewProps> = () => {
     [historyItems]
   );
 
-  const showSpeechInput = useEngineReady(settings.transcriptionModel);
+  const showSpeechInput = useSpeechInputReady();
 
-  const speech = useSpeechInput(settings, providers);
+  // One shared voice owner: pill state, second-beat chrome, transcript insert.
+  const appendTranscript = useCallback((text: string) => {
+    const currentInput = useChatStore.getState().input;
+    setInput(currentInput ? `${currentInput} ${text}` : text);
+  }, [setInput]);
 
-  const handleSpeechStop = useCallback(async () => {
-    const text = await speech.stop();
-    if (text) {
-      const currentInput = useChatStore.getState().input;
-      setInput(currentInput ? `${currentInput} ${text}` : text);
-    }
-  }, [speech, setInput]);
+  const voice = useVoiceCapture({ settings, providers, appendTranscript });
 
 
   // Check if any provider is configured with models
@@ -119,81 +121,125 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   };
 
   return (
-    <div className="flex-1 w-full flex flex-col animate-fade-in relative">
-      
+    // Full-bleed background: pull up over MainLayout's titlebar safe-area
+    // padding and compensate with equal inner padding, so LandingGlow
+    // (plain inset-0) paints continuously under the drag strip while flow
+    // content stays exactly where the layout intends. Both offsets derive
+    // from UI_CONFIG.layout.titlebar.safeArea — no magic numbers here.
+    <div
+      className="flex-1 w-full flex flex-col animate-fade-in relative"
+      style={{
+        marginTop: -UI_CONFIG.layout.titlebar.safeArea,
+        paddingTop: UI_CONFIG.layout.titlebar.safeArea,
+      }}
+    >
+      <LandingGlow paused={voice.isVoiceActive} />
+
+      {/* Settings load asynchronously over Tauri IPC — until they arrive the
+         provider list is empty and we can't tell zero-state from landing.
+         Gate the first paint on the same flag SettingsPanel uses, with a
+         skeleton mirroring the landing layout so load-in is seamless. */}
+      {settingsLoading ? (
+        <div className="flex-1 flex flex-col items-center justify-center w-full px-2 relative z-20">
+          <div className={`${LAYOUT.chatColumn} space-y-6`}>
+            <Surface variant="inset" radius="full" className="mx-auto h-7 w-56 animate-pulse" />
+            <Surface variant="inset" radius="xl" className="h-14 w-full animate-pulse" />
+            <div className="flex justify-center gap-2">
+              <Surface variant="inset" radius="full" className="h-8 w-20 animate-pulse" />
+              <Surface variant="inset" radius="full" className="h-8 w-20 animate-pulse" />
+            </div>
+          </div>
+        </div>
+      ) : (
+      <>
       {/* Chat Composer - Centered in remaining space */}
       <div className="flex-1 flex flex-col items-center justify-center w-full px-2 relative z-20">
-        <div className="w-full max-w-3xl space-y-6 overflow-visible">
+        <div className={`${LAYOUT.chatColumn} space-y-6 overflow-visible`}>
           {hasConfiguredProviders ? (
             <>
-              {/* Greeting */}
-              <h1 className={`text-2xl md:text-3xl font-medium text-center ${TEXT.heading}`}>
-                {greeting}
-              </h1>
-              {/* Shared ChatInput component */}
-              <ChatInput
-                value={chatInput}
-                onChange={setInput}
-                onSend={handleSendMessage}
-                isLoading={isGenerating}
-                placeholder="Type @ to add meeting context..."
-                availableMeetings={availableMeetings}
-                selectedMeetings={selectedMeetingRefs}
-                onMeetingSelect={setSelectedMeetingRefs}
-                attachments={pendingAttachments}
-                onAttach={addAttachment}
-                onRemoveAttachment={removeAttachment}
-                onScreenshot={addScreenshotAttachment}
-                showSpeechInput={showSpeechInput}
-                speechState={speech.state}
-                micStream={speech.stream}
-                speechElapsed={speech.elapsed}
-                onSpeechStart={speech.start}
-                onSpeechStop={handleSpeechStop}
-                onSpeechCancel={speech.cancel}
-              />
+              {/* Greeting — fades out while the voice pill owns the view */}
+              <AnimatePresence initial={false}>
+                {!voice.isVoiceActive && (
+                  <motion.div
+                    key="greeting"
+                    className="text-center"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8, transition: { duration: 0.2 } }}
+                    transition={voice.chromeEnter}
+                  >
+                    <Text as="h1" variant="display">{greeting}</Text>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              {/* Shared ChatInput — glides to the bottom of the chat on first send */}
+              <motion.div layout="position" layoutId={ANIMATION_CONFIG.chat.composerLayoutId} transition={ANIMATION_CONFIG.chat.composerGlide}>
+                <ChatInput
+                  value={chatInput}
+                  onChange={setInput}
+                  onSend={handleSendMessage}
+                  isLoading={isGenerating}
+                  placeholder="Type @ to add meeting context..."
+                  availableMeetings={availableMeetings}
+                  selectedMeetings={selectedMeetingRefs}
+                  onMeetingSelect={setSelectedMeetingRefs}
+                  attachments={pendingAttachments}
+                  onAttach={addAttachment}
+                  onRemoveAttachment={removeAttachment}
+                  onScreenshot={addScreenshotAttachment}
+                  showSpeechInput={showSpeechInput}
+                  speechState={voice.speech.state}
+                  micStream={voice.speech.stream}
+                  speechElapsed={voice.speech.elapsed}
+                  onSpeechStart={voice.speech.start}
+                  onSpeechStop={voice.handleSpeechStop}
+                  onSpeechTogglePause={voice.speech.togglePause}
+                  onSpeechCancel={voice.speech.cancel}
+                />
+              </motion.div>
 
-              {/* Action Chips */}
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <button
-                  onClick={handleStartRecording}
-                  disabled={!recording.canRecord}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-red-500 to-red-600 dark:from-red-600 dark:to-red-700 border border-red-600/50 dark:border-red-700/50 rounded-full text-sm font-medium text-white hover:shadow-lg hover:shadow-red-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <AudioWaveform className="w-4 h-4" />
-                  <span>Record</span>
-                </button>
-                <ImportButton />
-                {historyItems.length > 0 && (
-                  <button
-                    onClick={handleOpenReminders}
-                    className={`inline-flex items-center gap-1.5 px-4 py-2.5 ${SURFACE.card} border ${BORDER.strong} rounded-full text-sm font-medium ${TEXT.secondary} hover:${TEXT.heading} transition-all`}
+              {/* Action Chips — hidden while the voice pill owns the view */}
+              <AnimatePresence initial={false}>
+                {!voice.isVoiceActive && (
+                  <motion.div
+                    key="action-chips"
+                    className="flex flex-wrap items-center justify-center gap-2"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 8, transition: { duration: 0.2 } }}
+                    transition={voice.chromeEnter}
                   >
-                    <ListTodo className="w-4 h-4" />
-                    <span>To-Dos</span>
-                  </button>
+                    <Button variant="outline" size="sm" onClick={handleStartRecording} disabled={!recording.canRecord}>
+                      <Dot tone="danger" />
+                      Record
+                    </Button>
+                    <ImportButton />
+                    {historyItems.length > 0 && (
+                      <Button variant="outline" size="sm" onClick={handleOpenReminders}>
+                        <Icon icon={ListTodo} size="xs" />
+                        To-Dos
+                      </Button>
+                    )}
+                    {settings.calendarIntegration?.enabled && (
+                      <Button variant="outline" size="sm" onClick={handleOpenCalendar}>
+                        <Icon icon={CalendarDays} size="xs" />
+                        Upcoming
+                      </Button>
+                    )}
+                  </motion.div>
                 )}
-                {settings.calendarIntegration?.enabled && (
-                  <button
-                    onClick={handleOpenCalendar}
-                    className={`inline-flex items-center gap-1.5 px-4 py-2.5 ${SURFACE.card} border ${BORDER.strong} rounded-full text-sm font-medium ${TEXT.secondary} hover:${TEXT.heading} transition-all`}
-                  >
-                    <CalendarDays className="w-4 h-4" />
-                    <span>Upcoming</span>
-                  </button>
-                )}
-              </div>
+              </AnimatePresence>
             </>
           ) : (
             <>
               {/* Zero-state: Setup guidance */}
               <div className="text-center space-y-2">
-                <h1 className={`text-2xl md:text-3xl font-medium ${TEXT.heading}`}>
+                <Text as="h1" variant="display">
                   Welcome to Kasset
-                </h1>
-                <p className={`${TYPOGRAPHY_CLASSES.settingsInput} ${TEXT.muted}`}>
+                </Text>
+                <Text as="p" tone="muted">
                   Set up a provider to start chatting and get AI summaries
-                </p>
+                </Text>
               </div>
 
               {/* Setup cards */}
@@ -201,48 +247,46 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                 <RadioCard
                   selected={false}
                   onClick={handleSetupProviders}
-                  icon={<Key className="w-5 h-5" />}
+                  icon={<Icon icon={Key} size="md" />}
                 >
                   <div className="space-y-1">
-                    <p className={`text-sm font-medium ${TEXT.heading}`}>Cloud Providers</p>
-                    <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
+                    <Text as="p" variant="bodyStrong">Cloud Providers</Text>
+                    <Text as="p" variant="helper" tone="muted">
                       Connect OpenAI, Anthropic, Google, and more with an API key
-                    </p>
+                    </Text>
                   </div>
                 </RadioCard>
 
                 <RadioCard
                   selected={false}
                   onClick={handleSetupProviders}
-                  icon={<HardDrive className="w-5 h-5" />}
+                  icon={<Icon icon={HardDrive} size="md" />}
                 >
                   <div className="space-y-1">
-                    <p className={`text-sm font-medium ${TEXT.heading}`}>Local Models</p>
-                    <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
+                    <Text as="p" variant="bodyStrong">Local Models</Text>
+                    <Text as="p" variant="helper" tone="muted">
                       Use Ollama, LM Studio, or another server running on this Mac
-                    </p>
+                    </Text>
                   </div>
                 </RadioCard>
               </div>
 
               {/* Record button — always available */}
               <div className="flex flex-col items-center gap-2">
-                <button
-                  onClick={handleStartRecording}
-                  disabled={!recording.canRecord}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-red-500 to-red-600 dark:from-red-600 dark:to-red-700 border border-red-600/50 dark:border-red-700/50 rounded-full text-sm font-medium text-white hover:shadow-lg hover:shadow-red-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <AudioWaveform className="w-4 h-4" />
-                  <span>Record</span>
-                </button>
-                <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
+                <Button variant="outline" size="sm" onClick={handleStartRecording} disabled={!recording.canRecord}>
+                  <Dot tone="danger" />
+                  Record
+                </Button>
+                <Text as="p" variant="helper" tone="faint">
                   Recording works offline. Set up a provider for AI summaries.
-                </p>
+                </Text>
               </div>
             </>
           )}
         </div>
       </div>
+      </>
+      )}
 
     </div>
   );

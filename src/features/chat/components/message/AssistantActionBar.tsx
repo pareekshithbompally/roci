@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Copy, Check, RefreshCw, Gauge } from 'lucide-react';
-import ActionButton from './ActionButton';
 import SuggestionsList from './SuggestionsList';
 import SourcesList from './SourcesList';
-import { SURFACE, BORDER, TEXT } from '@config/theme.config';
 import type { ActionProps, CitationHandlers } from './types';
 import type { MeetingCitation, WebCitation } from '@shared/types';
+import { Tooltip, Tabs, Button, IconButton, Separator, Dot, Text } from '@shared/ui';
 
 interface AssistantActionBarProps {
   id: string;
@@ -51,19 +50,14 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
     else if (hasCitations) setActiveTab('sources');
   }, [hasSuggestions, hasCitations]);
 
-  const tabClass = (tab: string) =>
-    `px-3 py-1 text-[11px] font-semibold rounded-full transition-all flex items-center gap-1.5 ${
-      activeTab === tab
-        ? `${SURFACE.card} ${TEXT.primary} shadow-sm border ${BORDER.subtle}`
-        : `${TEXT.faint} hover:text-paper-800 dark:hover:text-night-300`
-    }`;
-
-  const sourceButtonClass = `px-2.5 py-1 text-[11px] font-semibold rounded-full border ${BORDER.subtle} ${SURFACE.card} ${TEXT.primary} hover:bg-paper-200/50 dark:hover:bg-night-800/50 transition-all flex items-center gap-1.5 shadow-sm`;
+  const tabItems = [
+    { value: 'suggestions' as const, label: 'Suggestions' },
+    ...(hasCitations ? [{ value: 'sources' as const, label: 'Sources' }] : []),
+  ];
 
   return (
     <>
-      {/* Separator */}
-      <div className={`border-t ${BORDER.subtle} mt-4 mb-3`} />
+      <Separator className="mt-4 mb-3" />
 
       {/* Action bar */}
       <div className="flex items-center gap-2">
@@ -71,29 +65,20 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
         {hasTabs && (
           <div className="flex items-center gap-2">
             {hasSuggestions ? (
-              <div className={`flex items-center ${SURFACE.inset} rounded-full p-0.5 border ${BORDER.subtle}`}>
-                <button onClick={() => setActiveTab('suggestions')} className={tabClass('suggestions')}>Suggestions</button>
-                {hasCitations && <button onClick={() => setActiveTab('sources')} className={tabClass('sources')}>Sources</button>}
-              </div>
+              <Tabs items={tabItems} value={activeTab} onValueChange={setActiveTab} />
             ) : (
               <div className="flex items-center gap-2">
                 {hasMeetingCitations && (
-                  <button 
-                    onClick={() => onShowAllMeetingCitations?.(meetingCitations)} 
-                    className={sourceButtonClass}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                  <Button variant="outline" size="sm" onClick={() => onShowAllMeetingCitations?.(meetingCitations)}>
+                    <Dot tone="info" size="xs" />
                     {meetingCitations.length} {meetingCitations.length === 1 ? 'Meeting' : 'Meetings'}
-                  </button>
+                  </Button>
                 )}
                 {hasWebCitations && (
-                  <button 
-                    onClick={() => onShowAllWebCitations?.(webCitations)} 
-                    className={sourceButtonClass}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <Button variant="outline" size="sm" onClick={() => onShowAllWebCitations?.(webCitations)}>
+                    <Dot tone="success" size="xs" />
                     {webCitations.length} Web Search
-                  </button>
+                  </Button>
                 )}
               </div>
             )}
@@ -103,36 +88,30 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
         {/* Right: icons */}
         <div className="ml-auto flex items-center gap-2">
           {(tokensPerSecond != null || tokenCount != null || inputTokenCount != null) && (
-            <div className="relative group/token">
-              <button
-                className={`p-1.5 rounded transition-colors ${TEXT.faint} hover:text-paper-800 dark:hover:text-night-300 ${SURFACE.hoverSubtle}`}
-                aria-label="Token usage"
-              >
-                <Gauge className="w-4 h-4" />
-              </button>
-              <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1.5 text-xs whitespace-nowrap opacity-0 group-hover/token:opacity-100 pointer-events-none transition-opacity ${SURFACE.tooltip}`}>
-                {tokensPerSecond != null && <span>{tokensPerSecond} tok/s</span>}
-                {tokensPerSecond != null && (inputTokenCount != null || tokenCount != null) && <span> · </span>}
-                {inputTokenCount != null && <span>{inputTokenCount} in</span>}
-                {inputTokenCount != null && tokenCount != null && <span> / </span>}
-                {tokenCount != null && <span>{tokenCount} out</span>}
-              </div>
-            </div>
+            <Tooltip
+              content={
+                <>
+                  {tokensPerSecond != null && <span>{tokensPerSecond} tok/s</span>}
+                  {tokensPerSecond != null && (inputTokenCount != null || tokenCount != null) && <span> · </span>}
+                  {inputTokenCount != null && <span>{inputTokenCount} in</span>}
+                  {inputTokenCount != null && tokenCount != null && <span> / </span>}
+                  {tokenCount != null && <span>{tokenCount} out</span>}
+                </>
+              }
+            >
+              <IconButton icon={Gauge} label="Token usage" size="sm" />
+            </Tooltip>
           )}
           {onRerun && isLastMessage && (
-            <ActionButton onClick={onRerun} title="Regenerate response">
-              <RefreshCw className="w-4 h-4" />
-            </ActionButton>
+            <IconButton icon={RefreshCw} label="Regenerate response" size="sm" onClick={onRerun} />
           )}
           {onCopy && (
-            <ActionButton onClick={() => onCopy(id, text)} title="Copy message" active={isCopied}>
-              {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            </ActionButton>
+            <IconButton icon={isCopied ? Check : Copy} label="Copy message" size="sm" onClick={() => onCopy(id, text)} />
           )}
           {timestamp && (
-            <span className={`text-[11px] ${TEXT.faint}`}>
+            <Text variant="caption" tone="faint">
               {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </span>
+            </Text>
           )}
         </div>
       </div>

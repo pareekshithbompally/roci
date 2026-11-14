@@ -11,6 +11,7 @@
 import React from 'react';
 import { getFaviconUrl } from '@shared/utils/citationUtils';
 import type { WebCitation } from '@shared/types';
+import { Button } from '@shared/ui';
 
 interface InlineCitationMarkerProps {
   /** Comma-separated 0-based source indices (from data-cite attribute) */
@@ -37,8 +38,10 @@ export const InlineCitationMarker: React.FC<InlineCitationMarkerProps> = ({
         };
 
         return (
-          <button
+          <Button
             key={idx}
+            variant="link"
+            size="inline"
             onClick={handleClick}
             className="cite-marker-btn"
             title={citation.url}
@@ -52,7 +55,7 @@ export const InlineCitationMarker: React.FC<InlineCitationMarkerProps> = ({
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
             <span>{displayIndex}</span>
-          </button>
+          </Button>
         );
       })}
     </>

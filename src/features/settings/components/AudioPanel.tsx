@@ -11,16 +11,14 @@ import { useToast } from '@shared/contexts/ToastContext';
 
 import { useModalities } from '@features/settings/stores/modalitiesStore';
 import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { SURFACE, BORDER, TEXT, RADIUS } from '@config/theme.config';
 import { modalitiesService } from '@services/modalities';
 import { getProviderTitle } from '@shared/utils/provider.utils';
-import ProvidersAvatar from '@shared/components/ProvidersAvatar';
-import {SettingsSection} from './shared';
-import { LAYOUT } from '@config/theme.config';
-import { Callout, Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@shared/ui';
-import { ENGINES, installedHexModels } from '@services/ai/transcription';
-import { useEngineReadiness, useHexStatus } from '@features/settings/hooks/useEngineReadiness';
+import { ProvidersAvatar, ModelIcon } from '@shared/components';
+import { SettingsPage } from './shared';
+import { Callout, CardRow, Section, Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue, Text } from '@shared/ui';
+import { speechSelectionKey, speechSelectionOf } from '@services/ai/transcription';
+import type { SpeechModelOption } from '@services/ai/transcription';
+import { useSpeechModelOptions } from '@features/settings/hooks/useSpeechModels';
 
 export const AudioPanel: React.FC = () => {
   const { settings, setSettings, providers } = useSettings();
@@ -53,20 +51,23 @@ export const AudioPanel: React.FC = () => {
     return grouped;
   }, [allActiveModels]);
 
-  const readinessOf = useEngineReadiness();
-  const { data: hexStatus } = useHexStatus();
-  const hexModels = installedHexModels(hexStatus);
-  const selectedEngine = ENGINES[settings.transcriptionModel as keyof typeof ENGINES];
+  /** Speech models grouped by provider, in picker order (cloud, local servers, Hex). */
+  const speechOptions = useSpeechModelOptions();
+  const speechGroups = useMemo(() => {
+    const groups = new Map<string, SpeechModelOption[]>();
+    speechOptions.forEach((o) => groups.set(o.provider, [...(groups.get(o.provider) ?? []), o]));
+    return [...groups.entries()];
+  }, [speechOptions]);
+  const selectedSpeech = speechSelectionOf(settings);
+  const selectedSpeechOption = selectedSpeech
+    ? speechOptions.find((o) => speechSelectionKey(o) === speechSelectionKey(selectedSpeech))
+    : undefined;
 
-  /** Every engine with whether it can transcribe right now */
-  const engineStates = Object.values(ENGINES).map((engine) => ({ engine, ...readinessOf(engine) }));
-
-  const handleTranscriptionEngineChange = (engineId: string) => {
-    setSettings({ transcriptionModel: engineId, transcriptionEngineModel: '' });
-    const engine = ENGINES[engineId as keyof typeof ENGINES];
-    if (!engine) return;
-    const { ready, hint } = readinessOf(engine);
-    showToast(ready ? `${engine.label} is ready` : `${engine.label}: ${hint}`, ready ? 'success' : 'warning');
+  const handleSpeechModelChange = (key: string) => {
+    const option = speechOptions.find((o) => speechSelectionKey(o) === key);
+    if (!option) return;
+    setSettings({ transcriptionProvider: option.provider, transcriptionModel: option.model });
+    showToast(`${option.label} is ready`, 'success');
   };
 
   const handleAnalyzeModelChange = (modelId: string) => {
@@ -114,234 +115,165 @@ export const AudioPanel: React.FC = () => {
     : 'Microphone access required.';
 
   return (
-    <div className={`h-full overflow-y-auto custom-scrollbar ${LAYOUT.settingsPadding} py-6`}>
-    <div className={`${LAYOUT.settingsMaxWidth} mx-auto space-y-6`}>
-      <div>
-        <h3 className={`${TYPOGRAPHY_CLASSES.settingsTitle} ${TEXT.heading} mb-1`}>
-          Audio Recording
-        </h3>
-        <p className={`${TYPOGRAPHY_CLASSES.settingsDescription} ${TEXT.muted}`}>
-          Configure transcription, analysis, input source, and recording quality.
-        </p>
-      </div>
-
-      <SettingsSection title="Recording">
-        <div className={`border ${BORDER.default} ${RADIUS.lg} ${SURFACE.card} divide-y ${BORDER.divide}`}>
-
-        {/* Transcription Engine row */}
-        <div className="flex items-center justify-between gap-4 px-4 py-3">
-          <div className="min-w-0 flex-1">
-            <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
-              Transcription Engine
-            </span>
-            <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
-              Speech-to-text provider for the Transcript tab.
-            </p>
-          </div>
-          <div className="w-64 shrink-0">
-            <Select
-              value={settings.transcriptionModel || undefined}
-              onValueChange={handleTranscriptionEngineChange}
-            >
-              <SelectTrigger className={TYPOGRAPHY_CLASSES.settingsInput}>
-                <SelectValue placeholder="Select engine">
-                  {(() => {
-                    const engine = ENGINES[settings.transcriptionModel as keyof typeof ENGINES];
-                    if (!engine) return 'Select engine';
-                    return (
-                      <span className="flex items-center gap-2 truncate">
-                        <ProvidersAvatar provider={engine.providerId ?? engine.id} size={16} />
-                        <span className="truncate">{engine.label}</span>
-                      </span>
-                    );
-                  })()}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {engineStates.map(({ engine, ready, hint }) => (
-                  <SelectItem
-                    key={`engine-${engine.id}`}
-                    value={engine.id}
-                    disabled={!ready}
-                  >
-                    <div className="flex items-center gap-2">
-                      <ProvidersAvatar provider={engine.providerId ?? engine.id} size={16} />
-                      <span className="truncate">{engine.label}</span>
-                      {hint && <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>{hint}</span>}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Hex model row — models already downloaded in Hex */}
-        {selectedEngine?.id === 'hex' && (
-          <div className="flex items-center justify-between gap-4 px-4 py-3">
-            <div className="min-w-0 flex-1">
-              <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
-                Hex Model
-              </span>
-              <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
-                Runs on this Mac through Hex. No speaker labels; one timestamp per 15-minute part.
-              </p>
-            </div>
-            <div className="w-64 shrink-0">
+    <SettingsPage
+      title="Audio Recording"
+      description="Configure transcription, analysis, input source, and recording quality."
+    >
+      <Section title="Recording">
+        {/* Transcription Model — any provider's speech model, like the Analyze model */}
+        <CardRow
+          title="Transcription Model"
+          description="Speech-to-text for recordings, imports and dictation."
+          actions={
+            <div className="w-64">
               <Select
-                value={settings.transcriptionEngineModel || hexModels[0]?.id}
-                onValueChange={(id) => setSettings({ transcriptionEngineModel: id })}
-                disabled={hexModels.length === 0}
+                value={selectedSpeech ? speechSelectionKey(selectedSpeech) : undefined}
+                onValueChange={handleSpeechModelChange}
               >
-                <SelectTrigger className={TYPOGRAPHY_CLASSES.settingsInput}>
-                  <SelectValue placeholder={hexStatus?.running ? 'Download a model in Hex' : 'Open Hex'} />
+                <SelectTrigger>
+                  <SelectValue placeholder="Select model">
+                    {selectedSpeech && (
+                      <span className="flex items-center gap-2 truncate">
+                        <ProvidersAvatar provider={selectedSpeech.provider} size={16} />
+                        <span className="truncate">{selectedSpeechOption?.label ?? selectedSpeech.model}</span>
+                      </span>
+                    )}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {hexModels.map((model) => (
-                    <SelectItem key={`hex-${model.id}`} value={model.id}>
-                      {model.name}
+                  {speechGroups.map(([provider, options]) => (
+                    <SelectGroup key={`speech-${provider}`}>
+                      <SelectLabel>{getProviderTitle(provider)}</SelectLabel>
+                      {options.map((option) => (
+                        <SelectItem
+                          key={`speech-${speechSelectionKey(option)}`}
+                          value={speechSelectionKey(option)}
+                          disabled={!option.ready}
+                        >
+                          <div className="flex items-center gap-2">
+                            <ProvidersAvatar provider={option.provider} size={16} />
+                            <span className="truncate">{option.label}</span>
+                            {option.hint && <Text variant="helper" tone="faint">{option.hint}</Text>}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          }
+        />
+
+        <CardRow
+          title="Analyze Model"
+          description="LLM that generates the Overview summary from the transcript."
+          actions={
+            <div className="w-64">
+              {allActiveModels.length > 0 ? (
+                <Select
+                  value={settings.analyzeModel || settings.chatModel || undefined}
+                  onValueChange={handleAnalyzeModelChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select model">
+                      {(() => {
+                        const selId = settings.analyzeModel || settings.chatModel;
+                        const selected = allActiveModels.find(m => m.id === selId);
+                        if (!selected) return 'Select model';
+                        return (
+                          <span className="flex items-center gap-2 truncate">
+                            <ModelIcon provider={selected.provider} modelId={selected.id} size={16} />
+                            <span className="truncate">{selected.name}</span>
+                          </span>
+                        );
+                      })()}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(modelsByProvider).map(([provider, models]) => (
+                      <SelectGroup key={provider}>
+                        <SelectLabel>{getProviderTitle(provider)}</SelectLabel>
+                        {models.map((model) => {
+                          const modelInfo = modalitiesLoaded
+                            ? modalitiesService.getModelInfo(model.provider, model.id)
+                            : null;
+                          const noStructuredOutput =
+                            modelInfo?.capabilities?.structuredOutput === false;
+                          return (
+                            <SelectItem
+                              key={`analyze-${model.provider}-${model.id}`}
+                              value={model.id}
+                            >
+                              <div className="flex items-center gap-2">
+                                <ModelIcon provider={model.provider} modelId={model.id} size={16} />
+                                <span className="truncate">{model.name}</span>
+                                {noStructuredOutput && (
+                                  <Text variant="helper" tone="warning">No structured output</Text>
+                                )}
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectGroup>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Text variant="helper" tone="faint">No models available</Text>
+              )}
+            </div>
+          }
+        />
+
+        <CardRow
+          title="Input Source"
+          description={permissionHint}
+          actions={
+            <div className="w-64">
+              <Select
+                value={selectedSource}
+                onValueChange={(val) => handleSourceChange(val as AudioCaptureSource)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="systemAndMicrophone">{sourceLabels.systemAndMicrophone}</SelectItem>
+                  <SelectItem value="system">{sourceLabels.system}</SelectItem>
+                  <SelectItem value="microphone">{sourceLabels.microphone}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          }
+        />
+
+        <CardRow
+          title="Audio Quality"
+          description={qualityDescriptions[selectedQuality] || ''}
+          actions={
+            <div className="w-64">
+              <Select value={selectedQuality} onValueChange={handleQualityChange}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(AUDIO_CONFIG.presets) as Array<keyof typeof AUDIO_CONFIG.presets>).map((key) => (
+                    <SelectItem key={key} value={key}>
+                      {AUDIO_CONFIG.presets[key].name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          </div>
-        )}
-
-        {/* Analyze Model row */}
-        <div className="flex items-center justify-between gap-4 px-4 py-3">
-          <div className="min-w-0 flex-1">
-            <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
-              Analyze Model
-            </span>
-            <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
-              LLM that generates the Overview summary from the transcript.
-            </p>
-          </div>
-          <div className="w-64 shrink-0">
-            {allActiveModels.length > 0 ? (
-              <Select
-                value={settings.analyzeModel || settings.chatModel || undefined}
-                onValueChange={handleAnalyzeModelChange}
-              >
-                <SelectTrigger className={TYPOGRAPHY_CLASSES.settingsInput}>
-                  <SelectValue placeholder="Select model">
-                    {(() => {
-                      const selId = settings.analyzeModel || settings.chatModel;
-                      const selected = allActiveModels.find(m => m.id === selId);
-                      if (!selected) return 'Select model';
-                      return (
-                        <span className="flex items-center gap-2 truncate">
-                          <ProvidersAvatar provider={selected.provider} size={16} />
-                          <span className="truncate">{selected.name}</span>
-                        </span>
-                      );
-                    })()}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(modelsByProvider).map(([provider, models]) => (
-                    <SelectGroup key={provider}>
-                      <SelectLabel>{getProviderTitle(provider)}</SelectLabel>
-                      {models.map((model) => {
-                        const modelInfo = modalitiesLoaded
-                          ? modalitiesService.getModelInfo(model.provider, model.id)
-                          : null;
-                        const noStructuredOutput =
-                          modelInfo?.capabilities?.structuredOutput === false;
-                        return (
-                          <SelectItem
-                            key={`analyze-${model.provider}-${model.id}`}
-                            value={model.id}
-                          >
-                            <div className="flex items-center gap-2">
-                              <ProvidersAvatar provider={model.provider} size={16} />
-                              <span className="truncate">{model.name}</span>
-                              {noStructuredOutput && (
-                                <span className="text-xs text-[var(--text-warning)]">
-                                  No structured output
-                                </span>
-                              )}
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectGroup>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
-                No models available
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Input Source row */}
-        <div className="flex items-center justify-between gap-4 px-4 py-3">
-          <div className="min-w-0 flex-1">
-            <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
-              Input Source
-            </span>
-            <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
-              {permissionHint}
-            </p>
-          </div>
-          <div className="w-64 shrink-0">
-            <Select
-              value={selectedSource}
-              onValueChange={(val) => handleSourceChange(val as AudioCaptureSource)}
-            >
-              <SelectTrigger className={TYPOGRAPHY_CLASSES.settingsInput}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="systemAndMicrophone">{sourceLabels.systemAndMicrophone}</SelectItem>
-                <SelectItem value="system">{sourceLabels.system}</SelectItem>
-                <SelectItem value="microphone">{sourceLabels.microphone}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Audio Quality row */}
-        <div className="flex items-center justify-between gap-4 px-4 py-3">
-          <div className="min-w-0 flex-1">
-            <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
-              Audio Quality
-            </span>
-            <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
-              {qualityDescriptions[selectedQuality] || ''}
-            </p>
-          </div>
-          <div className="w-64 shrink-0">
-            <Select
-              value={selectedQuality}
-              onValueChange={handleQualityChange}
-            >
-              <SelectTrigger className={TYPOGRAPHY_CLASSES.settingsInput}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(Object.keys(AUDIO_CONFIG.presets) as Array<keyof typeof AUDIO_CONFIG.presets>).map((key) => (
-                  <SelectItem key={key} value={key}>
-                    {AUDIO_CONFIG.presets[key].name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        </div>
-      </SettingsSection>
+          }
+        />
+      </Section>
 
       <Callout variant="neutral">
-        <span className="font-medium">Tip:</span> Voice quality (16kHz) is optimized for AI transcription and uses less storage.
+        <Text variant="label" tone="inherit">Tip:</Text> Voice quality (16kHz) is optimized for AI transcription and uses less storage.
       </Callout>
-
-    </div>
-    </div>
+    </SettingsPage>
   );
 };
 

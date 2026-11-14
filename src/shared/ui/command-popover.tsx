@@ -13,11 +13,14 @@
  */
 
 import React from 'react';
-import { COMPONENT } from '@config/theme.config';
 import { UI_CONFIG } from '@config/ui.config';
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from './popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandList } from './command';
 import { cn } from './utils';
+
+/** Shell never taller than the space Radix measured; the list shrinks with it. */
+const SHELL = 'p-0 flex flex-col max-h-[var(--radix-popover-content-available-height)]';
+const LIST = 'max-h-80 min-h-0 flex-1';
 
 interface CommandPopoverProps {
   open: boolean;
@@ -51,11 +54,12 @@ export function CommandPopover({
         align={align}
         sideOffset={UI_CONFIG.picker.sideOffset}
         collisionPadding={UI_CONFIG.picker.collisionPadding}
-        className={cn(COMPONENT.commandPopover, className)}
+        width="xl"
+        className={cn(SHELL, className)}
       >
         <Command className="min-h-0">
           <CommandInput placeholder={searchPlaceholder} />
-          <CommandList className={COMPONENT.commandPopoverList}>
+          <CommandList className={LIST}>
             <CommandEmpty>{emptyText}</CommandEmpty>
             {children}
           </CommandList>
@@ -83,13 +87,15 @@ export function CommandFlyout({ open, onOpenChange, anchor, heading, children }:
         align="start"
         sideOffset={UI_CONFIG.picker.flyoutOffset}
         collisionPadding={UI_CONFIG.picker.collisionPadding}
-        className={COMPONENT.commandFlyout}
+        // Closes without the exit animation so moving between rows swaps flyouts instead of overlapping two.
+        width="md"
+        className={cn(SHELL, 'data-[state=closed]:animate-none')}
         // Hover-opened: keep focus (and typing) in the parent's search field.
         onOpenAutoFocus={(e) => e.preventDefault()}
         onCloseAutoFocus={(e) => e.preventDefault()}
       >
         <Command className="min-h-0">
-          <CommandList className={COMPONENT.commandPopoverList}>
+          <CommandList className={LIST}>
             <CommandGroup heading={heading}>{children}</CommandGroup>
           </CommandList>
         </Command>

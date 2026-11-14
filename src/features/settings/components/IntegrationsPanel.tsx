@@ -19,10 +19,8 @@ import { calendarService } from '@services/calendar';
 
 import { CALENDAR_DEFAULTS } from '@services/calendar/types';
 import type { CalendarAccessStatus } from '@services/calendar/types';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { SURFACE, BORDER, TEXT, RADIUS, LAYOUT } from '@config/theme.config';
-import { SettingsSection, Toggle } from './shared';
-import { Badge, Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui';
+import { SettingsPage } from './shared';
+import { Badge, Button, CardRow, Icon, Section, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Surface, Switch, Text } from '@shared/ui';
 
 const NOTIFY_OPTIONS = [
   { value: 1, label: '1 minute' },
@@ -33,7 +31,7 @@ const NOTIFY_OPTIONS = [
 
 // ─── macOS Calendar Integration Card ────────────────────────────────────────
 
-const CalendarIntegrationCard: React.FC = () => {
+const CalendarIntegrationRows: React.FC = () => {
   const { setCurrentView } = useAppActions();
   const { settings, setSettings, isLoading } = useSettings();
   const { showToast } = useToast();
@@ -125,130 +123,95 @@ const CalendarIntegrationCard: React.FC = () => {
   if (isLoading) return null;
 
   return (
-    <div className={`border ${BORDER.default} ${RADIUS.lg} ${SURFACE.card} overflow-hidden`}>
-      {/* Card header — icon + name + toggle */}
-      <div className="flex items-center gap-3 px-4 py-3">
-        <img
-          src="/images/macos-calendar-sm.png"
-          alt="macOS Calendar"
-          className="w-9 h-9 rounded-lg shrink-0"
-        />
+    <>
+      {/* Header — icon + name + switch */}
+      <div className="flex items-center gap-3 py-3">
+        <Surface radius="lg" className="w-9 h-9 shrink-0 overflow-hidden">
+          <img src="/images/macos-calendar-sm.png" alt="macOS Calendar" className="w-full h-full" />
+        </Surface>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
-              macOS Calendar
-            </span>
+            <Text variant="bodyStrong">macOS Calendar</Text>
             {isConnected && <Badge variant="success">Connected</Badge>}
           </div>
-          <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
+          <Text as="p" variant="helper" tone="muted" className="mt-0.5">
             Get notified before meetings and auto-record. Works with Google, Outlook, iCloud, Exchange — no sign-in required.
-          </p>
+          </Text>
         </div>
-        <Toggle
-          checked={calendarSettings.enabled}
-          onChange={handleToggle}
-        />
+        <Switch size="sm" checked={calendarSettings.enabled} onCheckedChange={handleToggle} />
       </div>
 
       {/* Permission warning — only if denied */}
       {accessStatus === 'denied' && calendarSettings.enabled && (
-        <div className={`px-4 py-2.5 border-t ${BORDER.default} bg-red-500/5`}>
-          <div className="flex items-center justify-between gap-3">
-            <span className={`text-xs ${TEXT.error}`}>
-              Calendar access denied by macOS
-            </span>
-            <button
-              onClick={openSystemSettings}
-              className={`flex items-center gap-1 text-xs ${TEXT.link} hover:underline shrink-0`}
-            >
-              <ExternalLink className="w-3 h-3" />
+        <CardRow
+          title={<Text variant="bodyStrong" tone="danger">Calendar access denied by macOS</Text>}
+          actions={
+            <Button variant="link" size="inline" onClick={openSystemSettings}>
+              <Icon icon={ExternalLink} size="xs" />
               Open System Settings
-            </button>
-          </div>
-        </div>
+            </Button>
+          }
+        />
       )}
 
       {/* Permission request — first time */}
       {accessStatus === 'not_determined' && calendarSettings.enabled && (
-        <div className={`px-4 py-2.5 border-t ${BORDER.default} bg-yellow-500/5`}>
-          <div className="flex items-center justify-between gap-3">
-            <span className={`text-xs ${TEXT.secondary}`}>
-              macOS permission required
-            </span>
-            <Button variant="primary" size="sm" onClick={requestAccess}
-              disabled={isRequestingAccess}>
+        <CardRow
+          title="macOS permission required"
+          actions={
+            <Button variant="primary" size="sm" onClick={requestAccess} disabled={isRequestingAccess}>
               {isRequestingAccess ? 'Requesting...' : 'Grant Access'}
             </Button>
-          </div>
-        </div>
+          }
+        />
       )}
 
       {/* Expanded settings — only when enabled + authorized */}
       {isConnected && (
         <>
-          <div className={`px-4 py-2.5 border-t ${BORDER.default}`}>
-            <div className="flex items-center justify-between gap-4">
-              <span className={`text-xs ${TEXT.muted}`}>
-                Notify before meeting starts
-              </span>
-              <Select
-                value={String(calendarSettings.notifyMinutesBefore)}
-                onValueChange={(val) => handleNotifyTimingChange(parseInt(val, 10))}
-              >
-                <SelectTrigger className={`!w-[140px] h-7 ${TYPOGRAPHY_CLASSES.settingsInput}`}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {NOTIFY_OPTIONS.map(opt => (
-                    <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className={`px-4 py-2.5 border-t ${BORDER.default}`}>
-            <div className="flex items-center justify-between gap-4">
-              <span className={`text-xs ${TEXT.muted}`}>
-                View your upcoming week
-              </span>
+          <CardRow
+            title="Notify before meeting starts"
+            actions={
+              <div className="w-36">
+                <Select
+                  value={String(calendarSettings.notifyMinutesBefore)}
+                  onValueChange={(val) => handleNotifyTimingChange(parseInt(val, 10))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {NOTIFY_OPTIONS.map(opt => (
+                      <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            }
+          />
+          <CardRow
+            title="View your upcoming week"
+            actions={
               <Button variant="outline" size="sm" onClick={() => setCurrentView('calendar')}>
-                <CalendarDays className="w-3.5 h-3.5" />
+                <Icon icon={CalendarDays} size="xs" />
                 View Schedule
               </Button>
-            </div>
-          </div>
+            }
+          />
         </>
       )}
-    </div>
+    </>
   );
 };
 
 // ─── Main Integrations Panel ────────────────────────────────────────────────
 
-export const IntegrationsPanel: React.FC = () => {
-
-
-  return (
-    <div className={`h-full overflow-y-auto custom-scrollbar ${LAYOUT.settingsPadding} py-6`}>
-      <div className={`${LAYOUT.settingsMaxWidth} mx-auto space-y-6`}>
-        <div>
-          <h3 className={`${TYPOGRAPHY_CLASSES.settingsTitle} ${TEXT.heading} mb-1`}>
-            Integrations
-          </h3>
-          <p className={`${TYPOGRAPHY_CLASSES.settingsDescription} ${TEXT.muted}`}>
-            Connect Kasset to your tools for a seamless meeting workflow.
-          </p>
-        </div>
-
-        {/* Calendar section */}
-        <SettingsSection title="Calendar">
-          <CalendarIntegrationCard />
-        </SettingsSection>
-
-
-      </div>
-    </div>
-  );
-};
+export const IntegrationsPanel: React.FC = () => (
+  <SettingsPage title="Integrations" description="Connect Kasset to your tools for a seamless meeting workflow.">
+    <Section title="Calendar">
+      <CalendarIntegrationRows />
+    </Section>
+  </SettingsPage>
+);
 
 export default IntegrationsPanel;

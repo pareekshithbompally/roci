@@ -13,7 +13,7 @@ import { ActivityRowLayout, formatStep } from './ActivityRowLayout';
 /** Step counter (e.g. transcription part 2/4) leads the detail when present. */
 export const ProcessingRow: React.FC<{ item: ActivityItem }> = ({ item }) => (
   <ActivityRowLayout
-    icon={<Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: '#a855f7' }} />}
+    icon={<Loader2 className="w-3.5 h-3.5 animate-spin text-ai" />}
     label={item.label}
     detail={[formatStep(item.step), item.detail].filter(Boolean).join(' · ') || null}
     actions={item.actions}

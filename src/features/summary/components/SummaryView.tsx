@@ -1,9 +1,8 @@
 import React from 'react';
-import type { StructuredSummary } from '@shared/types';
+import type { ActionItem, StructuredSummary } from '@shared/types';
 import { Sparkles } from 'lucide-react';
-import CleanMarkdown from '@shared/components/CleanMarkdown';
-import EmptyState from '@shared/components/EmptyState';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
+import { EmptyState, Markdown } from '@shared/components';
+import { Surface, Text } from '@shared/ui';
 
 interface SummaryViewProps {
   summary: string;
@@ -12,22 +11,76 @@ interface SummaryViewProps {
   title?: string;
 }
 
+/** Action items shown inline; the rest live in the To-Do tab. */
+const ACTION_PREVIEW_LIMIT = 5;
+
+const Overview: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <Surface variant="subtle" radius="lg" className="p-5 space-y-2">
+    <Text as="h3" variant="label" tone="muted">Overview</Text>
+    <Text as="div" variant="reading" className="leading-relaxed">{children}</Text>
+  </Surface>
+);
+
+const SummarySection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+  <section>
+    <Text as="h3" variant="title" className="mb-3">{title}</Text>
+    <ul className="space-y-2">{children}</ul>
+  </section>
+);
+
+const Bullet: React.FC<{ children: React.ReactNode; meta?: string }> = ({ children, meta }) => (
+  <li className="flex items-start gap-3">
+    <Text variant="reading" tone="faint" className="shrink-0">•</Text>
+    <div className="flex-1 min-w-0">
+      <Text as="p" variant="reading" className="leading-relaxed">{children}</Text>
+      {meta && <Text as="p" variant="helper" tone="muted" className="mt-0.5">{meta}</Text>}
+    </div>
+  </li>
+);
+
+const BulletSection: React.FC<{ title: string; items?: string[] }> = ({ title, items }) => {
+  if (!items || items.length === 0) return null;
+  return (
+    <SummarySection title={title}>
+      {items.map((item, idx) => <Bullet key={idx}>{item}</Bullet>)}
+    </SummarySection>
+  );
+};
+
+function actionMeta(item: ActionItem, withOwner: boolean): string {
+  return [withOwner && item.owner && `Owner: ${item.owner}`, item.dueDate && `Due: ${item.dueDate}`]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+const ActionItemsSection: React.FC<{ items?: ActionItem[]; withOwner: boolean }> = ({ items, withOwner }) => {
+  if (!items || items.length === 0) return null;
+  const hidden = items.length - ACTION_PREVIEW_LIMIT;
+  return (
+    <SummarySection title={`Action Items (${items.length})`}>
+      {items.slice(0, ACTION_PREVIEW_LIMIT).map((item) => (
+        <Bullet key={item.id} meta={actionMeta(item, withOwner)}>{item.text}</Bullet>
+      ))}
+      {hidden > 0 && (
+        <li className="pt-1">
+          <Text variant="helper" tone="muted">+{hidden} more items (view in To-Do tab)</Text>
+        </li>
+      )}
+    </SummarySection>
+  );
+};
+
 /**
  * SummaryView Component
  *
  * Renders structured summary fields directly — no regex/markdown parsing needed.
- * - Blue banner: overview
+ * - Overview block
  * - Bullet lists: keyDiscussionPoints, decisionsMade, nextSteps
- * - Amber banner: action items with owner/dueDate
+ * - Action items with owner/dueDate
  *
  * Falls back to raw markdown for legacy data (tldr/notes fields).
  */
-const SummaryView: React.FC<SummaryViewProps> = ({
-  summary,
-  structuredSummary,
-  timestamp,
-  title
-}) => {
+const SummaryView: React.FC<SummaryViewProps> = ({ summary, structuredSummary }) => {
   // No summary data at all
   if (!summary && !structuredSummary) {
     return (
@@ -39,11 +92,7 @@ const SummaryView: React.FC<SummaryViewProps> = ({
 
   // No structured summary — render raw markdown
   if (!structuredSummary) {
-    return (
-      <div className="prose prose-zinc dark:prose-invert max-w-none">
-        <CleanMarkdown content={summary} />
-      </div>
-    );
+    return <Markdown content={summary} />;
   }
 
   // New structured fields available
@@ -52,158 +101,29 @@ const SummaryView: React.FC<SummaryViewProps> = ({
   if (hasNewFields) {
     return (
       <div className="max-w-4xl space-y-6">
-        {/* Meeting Overview — blue banner */}
-        {structuredSummary.overview && (
-          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-xl p-6">
-            <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold uppercase tracking-wide text-blue-900 dark:text-blue-100 mb-4`}>
-              Meeting Overview
-            </h3>
-            <p className={`${TYPOGRAPHY_CLASSES.summaryBody} text-blue-900 dark:text-blue-100 leading-relaxed`}>
-              {structuredSummary.overview}
-            </p>
-          </div>
-        )}
-
-        {/* Key Discussion Points */}
-        {structuredSummary.keyDiscussionPoints && structuredSummary.keyDiscussionPoints.length > 0 && (
-          <div>
-            <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold text-paper-900 dark:text-night-100 mb-3`}>
-              Key Discussion Points
-            </h3>
-            <ul className="space-y-2">
-              {structuredSummary.keyDiscussionPoints.map((point, idx) => (
-                <li key={idx} className={`flex items-start gap-3 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
-                  <span className="text-paper-500 dark:text-night-400 mt-1 shrink-0">•</span>
-                  <span className="text-paper-800 dark:text-night-200 leading-relaxed">{point}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Decisions Made */}
-        {structuredSummary.decisionsMade && structuredSummary.decisionsMade.length > 0 && (
-          <div>
-            <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold text-paper-900 dark:text-night-100 mb-3`}>
-              Decisions Made
-            </h3>
-            <ul className="space-y-2">
-              {structuredSummary.decisionsMade.map((decision, idx) => (
-                <li key={idx} className={`flex items-start gap-3 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
-                  <span className="text-paper-500 dark:text-night-400 mt-1 shrink-0">•</span>
-                  <span className="text-paper-800 dark:text-night-200 leading-relaxed">{decision}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Action Items */}
-        {structuredSummary.actionItems && structuredSummary.actionItems.length > 0 && (
-          <div>
-            <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold text-paper-900 dark:text-night-100 mb-3`}>
-              Action Items ({structuredSummary.actionItems.length})
-            </h3>
-            <ul className="space-y-2">
-              {structuredSummary.actionItems.slice(0, 5).map((item) => (
-                <li key={item.id} className={`flex items-start gap-3 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
-                  <span className="text-paper-500 dark:text-night-400 mt-1 shrink-0">•</span>
-                  <div className="flex-1">
-                    <span className="text-paper-800 dark:text-night-200 leading-relaxed">{item.text}</span>
-                    {(item.owner || item.dueDate) && (
-                      <span className="text-xs text-paper-500 dark:text-night-400 mt-1 block">
-                        {item.owner && `Owner: ${item.owner}`}
-                        {item.owner && item.dueDate && ' · '}
-                        {item.dueDate && `Due: ${item.dueDate}`}
-                      </span>
-                    )}
-                  </div>
-                </li>
-              ))}
-              {structuredSummary.actionItems.length > 5 && (
-                <li className={`text-xs text-paper-500 dark:text-night-400 pt-1 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
-                  +{structuredSummary.actionItems.length - 5} more items (view in To-Do tab)
-                </li>
-              )}
-            </ul>
-          </div>
-        )}
-
-        {/* Next Steps */}
-        {structuredSummary.nextSteps && structuredSummary.nextSteps.length > 0 && (
-          <div>
-            <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold text-paper-900 dark:text-night-100 mb-3`}>
-              Next Steps
-            </h3>
-            <ul className="space-y-2">
-              {structuredSummary.nextSteps.map((step, idx) => (
-                <li key={idx} className={`flex items-start gap-3 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
-                  <span className="text-paper-500 dark:text-night-400 mt-1 shrink-0">•</span>
-                  <span className="text-paper-800 dark:text-night-200 leading-relaxed">{step}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {structuredSummary.overview && <Overview>{structuredSummary.overview}</Overview>}
+        <BulletSection title="Key Discussion Points" items={structuredSummary.keyDiscussionPoints} />
+        <BulletSection title="Decisions Made" items={structuredSummary.decisionsMade} />
+        <ActionItemsSection items={structuredSummary.actionItems} withOwner />
+        <BulletSection title="Next Steps" items={structuredSummary.nextSteps} />
       </div>
     );
   }
 
   // Legacy fallback: tldr/notes fields
   if (!structuredSummary.tldr && !structuredSummary.notes) {
-    return (
-      <div className="prose prose-zinc dark:prose-invert max-w-none">
-        <CleanMarkdown content={summary} />
-      </div>
-    );
+    return <Markdown content={summary} />;
   }
 
   return (
     <div className="max-w-4xl space-y-6">
       {structuredSummary.tldr && structuredSummary.tldr !== '<None Found>' && (
-        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-xl p-6">
-          <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold uppercase tracking-wide text-blue-900 dark:text-blue-100 mb-4`}>
-            Meeting Overview
-          </h3>
-          <div className={`${TYPOGRAPHY_CLASSES.summaryBody} text-blue-900 dark:text-blue-100 leading-relaxed`}>
-            <CleanMarkdown content={structuredSummary.tldr} />
-          </div>
-        </div>
+        <Overview><Markdown content={structuredSummary.tldr} /></Overview>
       )}
-
       {structuredSummary.notes && structuredSummary.notes !== '<None Found>' && (
-        <div className={`prose prose-zinc dark:prose-invert max-w-none prose-headings:font-bold prose-headings:tracking-tight ${TYPOGRAPHY_CLASSES.summaryBody}`}>
-          <CleanMarkdown content={structuredSummary.notes} />
-        </div>
+        <Markdown content={structuredSummary.notes} />
       )}
-
-      {structuredSummary.actionItems && structuredSummary.actionItems.length > 0 && (
-        <div>
-          <h3 className={`${TYPOGRAPHY_CLASSES.summaryTitle} font-bold text-paper-900 dark:text-night-100 mb-3`}>
-            Action Items ({structuredSummary.actionItems.length})
-          </h3>
-          <ul className="space-y-2">
-            {structuredSummary.actionItems.slice(0, 5).map((item) => (
-              <li key={item.id} className={`flex items-start gap-3 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
-                <span className="text-paper-500 dark:text-night-400 mt-1 shrink-0">•</span>
-                <div className="flex-1">
-                  <span className="text-paper-800 dark:text-night-200 leading-relaxed">{item.text}</span>
-                  {item.dueDate && (
-                    <span className="text-xs text-paper-500 dark:text-night-400 mt-1 block">
-                      Due: {item.dueDate}
-                    </span>
-                  )}
-                </div>
-              </li>
-            ))}
-            {structuredSummary.actionItems.length > 5 && (
-              <li className={`text-xs text-paper-500 dark:text-night-400 pt-1 ${TYPOGRAPHY_CLASSES.summaryBody}`}>
-                +{structuredSummary.actionItems.length - 5} more items (view in To-Do tab)
-              </li>
-            )}
-          </ul>
-        </div>
-      )}
+      <ActionItemsSection items={structuredSummary.actionItems} withOwner={false} />
     </div>
   );
 };

@@ -1,8 +1,7 @@
 import React, { forwardRef } from 'react';
 import { open } from '@tauri-apps/plugin-shell';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { TEXT } from '@config/theme.config';
-import { Input } from '@shared/ui';
+import type { LucideIcon } from 'lucide-react';
+import { Button, Input, Text } from '@shared/ui';
 
 /** Parse markdown-style [text](url) links into React elements */
 function renderWithLinks(text: string): React.ReactNode {
@@ -14,17 +13,16 @@ function renderWithLinks(text: string): React.ReactNode {
     if (!match) return part;
     const [, label, href] = match;
     return (
-      <a
+      <Button
         key={i}
-        href={href}
-        onClick={(e) => {
-          e.preventDefault();
+        variant="link"
+        size="inline"
+        onClick={() => {
           open(href).catch(() => window.open(href, '_blank', 'noopener,noreferrer'));
         }}
-        className={`${TEXT.link} hover:underline`}
       >
         {label}
-      </a>
+      </Button>
     );
   });
 }
@@ -33,7 +31,7 @@ interface SettingsInputProps extends React.InputHTMLAttributes<HTMLInputElement>
   label?: string;
   helper?: string;
   error?: string;
-  icon?: React.ReactNode;
+  icon?: LucideIcon;
   actions?: React.ReactNode;
 }
 
@@ -41,19 +39,15 @@ export const SettingsInput = forwardRef<HTMLInputElement, SettingsInputProps>(
   ({ label, helper, error, icon, actions, className, ...props }, ref) => (
     <div className="space-y-2">
       {label && (
-        <label className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.muted}`}>
+        <Text as="label" variant="bodyStrong" tone="muted">
           {label}
-        </label>
+        </Text>
       )}
       <div className="relative">
-        {icon && (
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-            {icon}
-          </div>
-        )}
         <Input
           ref={ref}
-          className={`${icon ? 'pl-9' : ''} ${actions ? 'pr-16' : ''} ${className ?? ''}`}
+          icon={icon}
+          className={`${actions ? 'pr-16' : ''} ${className ?? ''}`}
           {...props}
         />
         {actions && (
@@ -63,14 +57,14 @@ export const SettingsInput = forwardRef<HTMLInputElement, SettingsInputProps>(
         )}
       </div>
       {error && (
-        <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.error}`}>
+        <Text as="p" variant="helper" tone="danger">
           {error}
-        </p>
+        </Text>
       )}
       {!error && helper && (
-        <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
+        <Text as="p" variant="helper" tone="faint">
           {renderWithLinks(helper)}
-        </p>
+        </Text>
       )}
     </div>
   ),

@@ -1,7 +1,6 @@
 import React from 'react';
-import { Info, AlertTriangle, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { SURFACE, BORDER, TEXT, RADIUS, SPACING } from '@config/theme.config';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
+import { Info, AlertTriangle, AlertCircle, CheckCircle2, type LucideIcon } from 'lucide-react';
+import { Icon } from './icon';
 
 export type CalloutVariant = 'info' | 'warning' | 'error' | 'success' | 'neutral';
 
@@ -11,52 +10,21 @@ interface CalloutProps {
   children: React.ReactNode;
 }
 
-const variantStyles: Record<CalloutVariant, { surface: string; border: string; text: string; defaultIcon: React.ReactNode }> = {
-  info: {
-    surface: SURFACE.infoCallout,
-    border: BORDER.infoCallout,
-    text: TEXT.infoCallout,
-    defaultIcon: <Info className={`w-4 h-4 ${TEXT.link} shrink-0`} />,
-  },
-  warning: {
-    surface: SURFACE.warningCallout,
-    border: BORDER.warningCallout,
-    text: TEXT.warningCallout,
-    defaultIcon: <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />,
-  },
-  error: {
-    surface: SURFACE.errorCallout,
-    border: BORDER.errorCallout,
-    text: TEXT.errorCallout,
-    defaultIcon: <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />,
-  },
-  success: {
-    surface: SURFACE.successCallout,
-    border: BORDER.successCallout,
-    text: TEXT.successCallout,
-    defaultIcon: <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />,
-  },
-  neutral: {
-    surface: SURFACE.subtle,
-    border: BORDER.default,
-    text: TEXT.faint,
-    defaultIcon: <Info className={`w-4 h-4 ${TEXT.faint} shrink-0`} />,
-  },
+const VARIANTS: Record<CalloutVariant, { box: string; icon: LucideIcon; iconTone: string }> = {
+  info: { box: 'bg-info-subtle border-info text-info', icon: Info, iconTone: 'text-info' },
+  warning: { box: 'bg-warning-subtle border-warning text-warning', icon: AlertTriangle, iconTone: 'text-warning' },
+  error: { box: 'bg-danger-subtle border-danger text-danger', icon: AlertCircle, iconTone: 'text-danger' },
+  success: { box: 'bg-success-subtle border-success text-success', icon: CheckCircle2, iconTone: 'text-success' },
+  neutral: { box: 'bg-layer-1 border-muted text-muted', icon: Info, iconTone: 'text-faint' },
 };
 
-export const Callout: React.FC<CalloutProps> = ({
-  variant = 'info',
-  icon,
-  children,
-}) => {
-  const styles = variantStyles[variant];
-
+/** Inline notice: tinted box, state icon, helper-size copy. */
+export function Callout({ variant = 'info', icon, children }: CalloutProps) {
+  const v = VARIANTS[variant];
   return (
-    <div className={`flex items-start gap-2.5 ${SPACING.callout} ${RADIUS.md} ${styles.surface} border ${styles.border}`}>
-      <div className="mt-0.5">{icon ?? styles.defaultIcon}</div>
-      <div className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${styles.text} flex-1`}>
-        {children}
-      </div>
+    <div className={`flex items-start gap-2.5 px-4 py-3 rounded-md border text-callout ${v.box}`}>
+      <div className="mt-0.5 shrink-0">{icon ?? <Icon icon={v.icon} size="sm" className={v.iconTone} />}</div>
+      <div className="flex-1">{children}</div>
     </div>
   );
-};
+}

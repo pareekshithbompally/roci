@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import CustomAudioPlayer from '@shared/components/CustomAudioPlayer';
+import CustomAudioPlayer from '@features/home/components/CustomAudioPlayer';
 import { useAudioQuery } from '@features/home/hooks/useAudioQuery';
 import { useAudioPlayerStore } from '@shared/stores/audioPlayerStore';
-import { AUDIO, SURFACE } from '@config/theme.config';
+import { Surface } from '@shared/ui';
 
 interface ResultsAudioPlayerProps {
   recordingFileName: string;
@@ -42,15 +42,15 @@ export const ResultsAudioPlayer: React.FC<ResultsAudioPlayerProps> = ({
   if (isLoading) {
     return (
       <div className="px-12 py-2">
-        <div className={`flex flex-col gap-2 ${AUDIO.shell} p-3`}>
+        <Surface variant="card" radius="lg" className="flex flex-col gap-2 p-3">
           <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-full ${SURFACE.skeleton}`} />
-            <div className={`w-16 h-3 rounded ${SURFACE.skeleton}`} />
+            <Surface variant="inset" radius="full" className="w-8 h-8 animate-pulse" />
+            <Surface variant="inset" radius="md" className="w-16 h-3 animate-pulse" />
             <div className="flex-1" />
-            <div className={`w-16 h-3 rounded ${SURFACE.skeleton}`} />
+            <Surface variant="inset" radius="md" className="w-16 h-3 animate-pulse" />
           </div>
-          <div className={`${AUDIO.waveform} ${SURFACE.skeleton}`} />
-        </div>
+          <Surface variant="inset" radius="md" className="h-10 w-full animate-pulse" />
+        </Surface>
       </div>
     );
   }

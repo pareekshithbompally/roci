@@ -9,7 +9,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { X, FileText } from 'lucide-react';
 import { UI_CONFIG } from '@config/ui.config';
-import { SURFACE, TEXT } from '@config/theme.config';
+import { Button, IconButton, Icon, Surface, Text } from '@shared/ui';
 import type { ChatPart, MediaSource } from '@shared/types';
 
 /** Resolve a MediaSource to a URL usable in src attributes */
@@ -39,24 +39,17 @@ const ImageLightbox: React.FC<{ src: string; alt: string; onClose: () => void }>
   }, [onClose]);
 
   return (
-    <div
-      className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+    <Surface
+      variant="scrim"
+      className="fixed inset-0 flex items-center justify-center animate-in fade-in duration-200"
       style={{ zIndex: UI_CONFIG.zIndex.modal }}
       onClick={onClose}
     >
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 p-2 text-white/70 hover:text-white bg-black/40 hover:bg-black/60 rounded-full transition-colors"
-      >
-        <X className="w-5 h-5" />
-      </button>
-      <img
-        src={src}
-        alt={alt}
-        className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      />
-    </div>
+      <IconButton icon={X} label="Close" variant="secondary" className="absolute top-4 right-4" onClick={onClose} />
+      <Surface radius="lg" className="overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <img src={src} alt={alt} className="block max-w-[90vw] max-h-[90vh] object-contain" />
+      </Surface>
+    </Surface>
   );
 };
 
@@ -77,18 +70,16 @@ export const MediaPartRenderer: React.FC<MediaPartRendererProps> = ({ part }) =>
     case 'image':
       return (
         <>
-          <button
-            type="button"
-            onClick={handleOpen}
-            className="block my-2 rounded-lg overflow-hidden cursor-zoom-in hover:opacity-90 transition-opacity max-w-xs"
-          >
-            <img
-              src={src}
-              alt={part.alt || 'AI generated image'}
-              className="w-full h-auto rounded-lg"
-              loading="lazy"
-            />
-          </button>
+          <Button variant="ghost" size="inline" onClick={handleOpen} className="my-2 max-w-xs hover:opacity-90">
+            <Surface radius="lg" className="overflow-hidden">
+              <img
+                src={src}
+                alt={part.alt || 'AI generated image'}
+                className="block w-full h-auto"
+                loading="lazy"
+              />
+            </Surface>
+          </Button>
           {lightboxOpen && (
             <ImageLightbox
               src={src}
@@ -103,27 +94,24 @@ export const MediaPartRenderer: React.FC<MediaPartRendererProps> = ({ part }) =>
         <audio
           src={src}
           controls
-          className="w-full my-2 rounded-lg"
+          className="w-full my-2"
           preload="metadata"
         />
       );
     case 'video':
       return (
-        <video
-          src={src}
-          controls
-          className="max-w-xs h-auto rounded-lg my-2"
-          preload="metadata"
-        >
-          {part.alt || 'AI generated video'}
-        </video>
+        <Surface radius="lg" className="max-w-xs my-2 overflow-hidden">
+          <video src={src} controls className="block w-full h-auto" preload="metadata">
+            {part.alt || 'AI generated video'}
+          </video>
+        </Surface>
       );
     case 'document':
       return (
-        <div className={`flex items-center gap-2 px-3 py-2 my-1 ${SURFACE.selectedCard} rounded-lg`}>
-          <FileText className={`w-4 h-4 shrink-0 ${TEXT.muted}`} />
-          <span className="text-xs truncate max-w-[200px]">{part.fileName}</span>
-        </div>
+        <Surface variant="subtle" radius="lg" className="flex items-center gap-2 px-3 py-2 my-1">
+          <Icon icon={FileText} size="sm" tone="muted" className="shrink-0" />
+          <Text variant="helper" truncate className="max-w-48">{part.fileName}</Text>
+        </Surface>
       );
     default:
       return null;

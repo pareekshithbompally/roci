@@ -19,6 +19,7 @@ import { AudioPanel } from './AudioPanel';
 import { UsagePanel } from './UsagePanel';
 import { IntegrationsPanel } from './IntegrationsPanel';
 import { McpServersPanel } from './mcp';
+import { Surface } from '@shared/ui';
 import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore';
 
 const PANEL_COMPONENTS: Record<SettingsPanelType, React.FC> = {
@@ -65,16 +66,14 @@ export const SettingsPanel: React.FC = () => {
 const SettingsSkeleton: React.FC = () => (
   <div className="h-full overflow-hidden">
     <div className="px-8 py-8 space-y-8 animate-pulse">
-      {/* Title skeleton */}
       <div className="space-y-2">
-        <div className="h-5 w-40 bg-paper-200 dark:bg-night-800 rounded" />
-        <div className="h-3.5 w-64 bg-paper-150 dark:bg-night-800/50 rounded" />
+        <Surface variant="inset" radius="md" className="h-5 w-40" />
+        <Surface variant="subtle" radius="md" className="h-3.5 w-64" />
       </div>
-      {/* Content rows */}
       {Array.from({ length: 6 }).map((_, i) => (
         <div key={i} className="space-y-3">
-          <div className="h-3 w-24 bg-paper-200/60 dark:bg-night-800/60 rounded" />
-          <div className="h-10 w-full bg-paper-150 dark:bg-night-800/30 rounded-lg" />
+          <Surface variant="inset" radius="md" className="h-3 w-24" />
+          <Surface variant="subtle" radius="lg" className="h-10 w-full" />
         </div>
       ))}
     </div>

@@ -11,7 +11,7 @@ interface HighlightedTextProps {
  * Highlights matching text segments with a yellow background.
  * Handles case-insensitive matching and escapes special regex characters.
  */
-const HighlightedText: React.FC<HighlightedTextProps> = ({ text, highlight }) => {
+export const HighlightedText: React.FC<HighlightedTextProps> = ({ text, highlight }) => {
   // No highlight - return plain text
   if (!highlight || !highlight.trim()) {
     return <>{text}</>;
@@ -29,7 +29,7 @@ const HighlightedText: React.FC<HighlightedTextProps> = ({ text, highlight }) =>
         part.toLowerCase() === highlight.toLowerCase() ? (
           <span
             key={i}
-            className="bg-yellow-200 dark:bg-yellow-900 text-paper-950 dark:text-night-100 font-bold px-0.5 rounded"
+            className="bg-warning-subtle text-primary font-semibold px-0.5 rounded"
           >
             {part}
           </span>
@@ -41,4 +41,3 @@ const HighlightedText: React.FC<HighlightedTextProps> = ({ text, highlight }) =>
   );
 };
 
-export default HighlightedText;

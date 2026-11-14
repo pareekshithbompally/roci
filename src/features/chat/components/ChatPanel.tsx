@@ -11,7 +11,7 @@ import { ChatShell } from './ChatShell';
 import { useChatStore } from '@features/chat/stores';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { meetingReferenceService } from '@services/meetingReferenceService';
-import { SURFACE, BORDER, TEXT } from '@config/theme.config';
+import { Surface, Text, IconButton } from '@shared/ui';
 
 interface ChatPanelProps {
   meetingId: string;
@@ -40,32 +40,22 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ meetingId, meetingTitle, o
 
   const header = useMemo(
     () => (
-      <div
-        className={`flex items-center justify-between p-4 border-b ${BORDER.default} h-14 shrink-0`}
-      >
-        <h2 className={`font-semibold text-sm ${TEXT.primary} truncate`}>{meetingTitle}</h2>
-        <button
-          onClick={onClose}
-          className={`p-2 ${SURFACE.hoverSubtle} rounded-lg transition-colors shrink-0`}
-          title="Close"
-        >
-          <X className={`w-4 h-4 ${TEXT.muted}`} />
-        </button>
-      </div>
+      <Surface edge="bottom" className="flex items-center justify-between p-4 h-14 shrink-0">
+        <Text as="h2" variant="headline" truncate>{meetingTitle}</Text>
+        <IconButton icon={X} label="Close" size="sm" onClick={onClose} className="shrink-0" />
+      </Surface>
     ),
     [meetingTitle, onClose]
   );
 
   return (
-    <div
-      className={`w-full h-full border-l ${BORDER.default} ${SURFACE.chatPanel} flex flex-col shadow-xl`}
-    >
+    <Surface variant="panel" edge="left" className="w-full h-full flex flex-col">
       <ChatShell
         emptyStateMessage="Ask about this meeting..."
         placeholderText="Ask about this meeting..."
         headerSlot={header}
       />
-    </div>
+    </Surface>
   );
 };
 

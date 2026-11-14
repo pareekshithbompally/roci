@@ -14,14 +14,12 @@ import { useToast } from '@shared/contexts/ToastContext';
 import { isTauriEnvironment } from '@services/tauri';
 import { searchIndexingService } from '@services/searchIndexing.service';
 import { useSystemInfo, systemInfoStore } from '@features/settings/stores/systemInfoStore';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { SURFACE, BORDER, TEXT, RADIUS, LAYOUT, COMPONENT } from '@config/theme.config';
-import { SettingsSection } from './shared';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogOverlay, AlertDialogPortal, AlertDialogTitle, Button, Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@shared/ui';
+import { SettingsPage } from './shared';
+import { Badge, Button, Card, CardRow, Icon, IconButton, Section, Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue, Switch, Tabs, Text } from '@shared/ui';
 
 import { useAppUpdate } from '@features/settings/hooks/useAppUpdate';
 import { getProviderTitle } from '@shared/utils/provider.utils';
-import ProvidersAvatar from '@shared/components/ProvidersAvatar';
+import { ConfirmDialog, ModelIcon } from '@shared/components';
 
 export const InterfacePanel: React.FC = () => {
   const { theme, setTheme } = useTheme();
@@ -208,167 +206,148 @@ export const InterfacePanel: React.FC = () => {
     }
   };
 
+  const handleCheckForUpdate = async () => {
+    const hasUpdate = await appUpdate.checkForUpdate();
+    if (!hasUpdate) {
+      showToast('You\u2019re on the latest version', 'success');
+    }
+  };
+
   const themeOptions = [
-    { id: 'light', icon: Sun, label: 'Light' },
-    { id: 'dark', icon: Moon, label: 'Dark' },
-    { id: 'system', icon: Monitor, label: 'System' },
+    { value: 'light', icon: Sun, label: 'Light' },
+    { value: 'dark', icon: Moon, label: 'Dark' },
+    { value: 'system', icon: Monitor, label: 'System' },
   ] as const;
+  const themeTabs = themeOptions.map(({ value, icon, label }) => ({
+    value,
+    label: (
+      <span className="flex items-center gap-1.5">
+        <Icon icon={icon} size="xs" />
+        {label}
+      </span>
+    ),
+  }));
+
+  const indexBusy = rebuildingPhase !== null || isRebuilding;
 
   return (
-    <div className={`h-full overflow-y-auto custom-scrollbar ${LAYOUT.settingsPadding} py-6`}>
-    <div className={`${LAYOUT.settingsMaxWidth} mx-auto space-y-6`}>
-      <div>
-        <h3 className={`${TYPOGRAPHY_CLASSES.settingsTitle} ${TEXT.heading} mb-1`}>
-          System
-        </h3>
-        <p className={`${TYPOGRAPHY_CLASSES.settingsDescription} ${TEXT.muted}`}>
-          Appearance, storage, and system information.
-        </p>
-      </div>
-
+    <SettingsPage title="System" description="Appearance, storage, and system information.">
       {/* Appearance — theme + import processing */}
-      <SettingsSection title="Appearance">
-        <div className={`border ${BORDER.default} ${RADIUS.lg} ${SURFACE.card} divide-y ${BORDER.divide}`}>
-        <div className="flex items-center justify-between gap-4 px-4 py-3">
-          <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
-            Theme
-          </span>
-          <div className={`inline-flex ${RADIUS.lg} border ${BORDER.default} overflow-hidden`}>
-            {themeOptions.map(({ id, icon: Icon, label }) => (
-              <button
-                key={id}
-                role="radio"
-                aria-checked={theme === id}
-                onClick={() => setTheme(id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 ${TYPOGRAPHY_CLASSES.settingsButton} transition-colors ${
-                  theme === id
-                    ? `${SURFACE.selectedCard} ${TEXT.heading}`
-                    : `${TEXT.muted} ${SURFACE.hoverSubtle}`
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+      <Section title="Appearance">
+        <CardRow title="Theme" actions={<Tabs items={themeTabs} value={theme} onValueChange={setTheme} />} />
 
-        {/* Job Processing row */}
-        <div className="flex items-center justify-between gap-4 px-4 py-3">
-          <div className="min-w-0 flex-1">
-            <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
-              Import Processing
-            </span>
-            <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
-              How imported audio files are processed.
-            </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="w-36">
-              <Select
-                value={settings.jobProcessing?.mode || 'sequential'}
-                onValueChange={(val) => setSettings({
-                  jobProcessing: {
-                    mode: val as 'sequential' | 'parallel',
-                    maxConcurrent: settings.jobProcessing?.maxConcurrent ?? 2,
-                  },
-                })}
-              >
-                <SelectTrigger className={TYPOGRAPHY_CLASSES.settingsInput}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sequential">Sequential</SelectItem>
-                  <SelectItem value="parallel">Parallel</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {settings.jobProcessing?.mode === 'parallel' && (
-              <div className="w-28">
+        {/* Model icons — opt-in: loads org avatars from huggingface.co */}
+        <CardRow
+          title="Model Icons"
+          description="Show Hugging Face org icons on local models. Loads images from huggingface.co."
+          actions={
+            <Switch
+              size="sm"
+              checked={!!settings.showModelAvatars}
+              onCheckedChange={(checked) => setSettings({ showModelAvatars: checked })}
+              aria-label="Show model icons"
+            />
+          }
+        />
+
+        <CardRow
+          title="Tool Activity"
+          description="Show each tool the assistant uses, inline in its answer."
+          actions={
+            <Switch
+              size="sm"
+              checked={!settings.hideToolCalls}
+              onCheckedChange={(checked) => setSettings({ hideToolCalls: !checked })}
+              aria-label="Show tool activity"
+            />
+          }
+        />
+
+        <CardRow
+          title="Import Processing"
+          description="How imported audio files are processed."
+          actions={
+            <>
+              <div className="w-36">
                 <Select
-                  value={String(settings.jobProcessing?.maxConcurrent ?? 2)}
+                  value={settings.jobProcessing?.mode || 'sequential'}
                   onValueChange={(val) => setSettings({
                     jobProcessing: {
-                      mode: 'parallel',
-                      maxConcurrent: Number(val),
+                      mode: val as 'sequential' | 'parallel',
+                      maxConcurrent: settings.jobProcessing?.maxConcurrent ?? 2,
                     },
                   })}
                 >
-                  <SelectTrigger className={TYPOGRAPHY_CLASSES.settingsInput}>
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {Array.from({ length: 7 }, (_, i) => i + 2).map(n => (
-                      <SelectItem key={n} value={String(n)}>
-                        {n} concurrent
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="sequential">Sequential</SelectItem>
+                    <SelectItem value="parallel">Parallel</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            )}
-          </div>
-        </div>
-        </div>
-      </SettingsSection>
+              {settings.jobProcessing?.mode === 'parallel' && (
+                <div className="w-28">
+                  <Select
+                    value={String(settings.jobProcessing?.maxConcurrent ?? 2)}
+                    onValueChange={(val) => setSettings({
+                      jobProcessing: {
+                        mode: 'parallel',
+                        maxConcurrent: Number(val),
+                      },
+                    })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 7 }, (_, i) => i + 2).map(n => (
+                        <SelectItem key={n} value={String(n)}>
+                          {n} concurrent
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </>
+          }
+        />
+      </Section>
 
       {storagePath && (
-        <SettingsSection title="Storage Location">
-          <div className={`flex items-center gap-2 px-4 py-3 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg}`}>
-            <FolderOpen className={`w-4 h-4 ${TEXT.faint} shrink-0`} />
-            <span className={`${TYPOGRAPHY_CLASSES.settingsInput} ${TEXT.secondary} truncate flex-1`}>
-              {storagePath}
-            </span>
-            <button
-              onClick={handleOpenInFinder}
-              aria-label="Open in Finder"
-              className={`p-1.5 ${SURFACE.hoverSubtle} ${RADIUS.md} transition-colors`}
-            >
-              <FolderSearch className={`w-4 h-4 ${TEXT.faint}`} />
-            </button>
-            <button
-              onClick={handleCopyStoragePath}
-              aria-label="Copy path"
-              className={`p-1.5 ${SURFACE.hoverSubtle} ${RADIUS.md} transition-colors`}
-            >
-              {storagePathCopied ? (
-                <Check className={`w-4 h-4 ${TEXT.success}`} />
-              ) : (
-                <Copy className={`w-4 h-4 ${TEXT.faint}`} />
-              )}
-            </button>
+        <Section title="Storage Location">
+          <div className="flex items-center gap-2 py-3">
+            <Icon icon={FolderOpen} size="sm" tone="faint" className="shrink-0" />
+            <Text tone="muted" truncate className="flex-1">{storagePath}</Text>
+            <IconButton icon={FolderSearch} label="Open in Finder" size="sm" onClick={handleOpenInFinder} />
+            <Button variant="ghost" size="iconSm" onClick={handleCopyStoragePath} aria-label="Copy path">
+              <Icon icon={storagePathCopied ? Check : Copy} size="sm" tone={storagePathCopied ? 'success' : 'faint'} />
+            </Button>
           </div>
           {storagePathError && (
-            <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.error}`}>{storagePathError}</p>
+            <Text as="p" variant="helper" tone="danger" className="py-3">{storagePathError}</Text>
           )}
-        </SettingsSection>
+        </Section>
       )}
 
-      {/* Disk Usage */}
       {diskUsage && diskUsage.length > 0 && (
-        <SettingsSection title="Disk Usage">
-          <div className={`${SURFACE.card} border ${BORDER.default} ${RADIUS.lg} divide-y ${BORDER.divide}`}>
-            {diskUsage.map(({ label, bytes }) => (
-              <div key={label} className={`flex items-center justify-between px-4 py-3 ${TYPOGRAPHY_CLASSES.settingsInput}`}>
-                <span className={TEXT.secondary}>{label}</span>
-                <span className={`${TEXT.muted} font-mono`}>{formatBytes(bytes)}</span>
-              </div>
-            ))}
-            <div className={`flex items-center justify-between px-4 py-3 ${SURFACE.subtle} ${TYPOGRAPHY_CLASSES.settingsInputLabel}`}>
-              <span className={`font-medium ${TEXT.heading}`}>Total</span>
-              <span className={`font-medium ${TEXT.heading} font-mono`}>
-                {formatBytes(diskUsage.reduce((sum, d) => sum + d.bytes, 0))}
-              </span>
-            </div>
-          </div>
-        </SettingsSection>
+        <Section title="Disk Usage">
+          {diskUsage.map(({ label, bytes }) => (
+            <CardRow key={label} title={label} actions={<Text variant="mono" tone="muted">{formatBytes(bytes)}</Text>} />
+          ))}
+          <CardRow
+            title="Total"
+            actions={<Text variant="mono" className="font-medium">{formatBytes(diskUsage.reduce((sum, d) => sum + d.bytes, 0))}</Text>}
+          />
+        </Section>
       )}
 
-      {/* Search Index */}
       {isTauriEnvironment() && (
-        <SettingsSection title="Search Index">
+        <Section title="Search Index">
           {indexStats && (
-            <div className={`${SURFACE.card} border ${BORDER.default} ${RADIUS.lg} divide-y ${BORDER.divide}`}>
+            <>
               <IndexActionRow
                 label="Meetings"
                 indexed={indexStats.meetings.indexed}
@@ -376,7 +355,7 @@ export const InterfacePanel: React.FC = () => {
                 detail={`${indexStats.chunks.transcript} transcript chunks`}
                 onReindex={handleReindexMeetings}
                 busy={rebuildingPhase === 'meetings'}
-                disabled={rebuildingPhase !== null || isRebuilding}
+                disabled={indexBusy}
               />
               <IndexActionRow
                 label="Chats"
@@ -385,7 +364,7 @@ export const InterfacePanel: React.FC = () => {
                 detail={`${indexStats.chunks.total - indexStats.chunks.transcript} chat chunks`}
                 onReindex={handleReindexChats}
                 busy={rebuildingPhase === 'chats'}
-                disabled={rebuildingPhase !== null || isRebuilding}
+                disabled={indexBusy}
               />
               <IndexActionRow
                 label="Knowledge Graph"
@@ -393,147 +372,84 @@ export const InterfacePanel: React.FC = () => {
                 detail={`${indexStats.kg.nodes} entities · ${indexStats.kg.edges} relationships`}
                 onReindex={handleReindexKG}
                 busy={rebuildingPhase === 'kg'}
-                disabled={rebuildingPhase !== null || isRebuilding}
+                disabled={indexBusy}
               />
-              <div className="flex items-center justify-between gap-4 px-4 py-2.5">
-                <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
-                  Extraction model
-                </span>
-                <div className="w-44 shrink-0">
-                  {allActiveModels.length > 0 ? (
-                    <Select
-                      value={settings.kgExtractionModel || settings.chatModel || undefined}
-                      onValueChange={(modelId: string) => setSettings({ kgExtractionModel: modelId })}
-                    >
-                      <SelectTrigger className="h-7 text-xs px-2.5">
-                        <SelectValue placeholder="Select model">
-                          {(() => {
-                            const selectedId = settings.kgExtractionModel || settings.chatModel;
-                            const selected = allActiveModels.find(m => m.id === selectedId);
-                            if (!selected) return 'Select model';
-                            return (
-                              <span className="flex items-center gap-1.5 truncate">
-                                <ProvidersAvatar provider={selected.provider} size={14} />
-                                <span className="truncate">{selected.name}</span>
-                              </span>
-                            );
-                          })()}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(modelsByProvider).map(([provider, models]) => (
-                          <SelectGroup key={provider}>
-                            <SelectLabel>{getProviderTitle(provider)}</SelectLabel>
-                            {models.map((model) => (
-                              <SelectItem
-                                key={`kg-${model.provider}-${model.id}`}
-                                value={model.id}
-                              >
-                                <div className="flex items-center gap-1.5">
-                                  <ProvidersAvatar provider={model.provider} size={14} />
-                                  <span className="truncate">{model.name}</span>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectGroup>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <span className={`text-xs ${TEXT.faint}`}>
-                      No models available
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
+              <CardRow
+                title="Extraction model"
+                actions={
+                  <div className="w-44">
+                    {allActiveModels.length > 0 ? (
+                      <Select
+                        value={settings.kgExtractionModel || settings.chatModel || undefined}
+                        onValueChange={(modelId: string) => setSettings({ kgExtractionModel: modelId })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select model">
+                            {(() => {
+                              const selectedId = settings.kgExtractionModel || settings.chatModel;
+                              const selected = allActiveModels.find(m => m.id === selectedId);
+                              if (!selected) return 'Select model';
+                              return (
+                                <span className="flex items-center gap-1.5 truncate">
+                                  <ModelIcon provider={selected.provider} modelId={selected.id} size={14} />
+                                  <span className="truncate">{selected.name}</span>
+                                </span>
+                              );
+                            })()}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(modelsByProvider).map(([provider, models]) => (
+                            <SelectGroup key={provider}>
+                              <SelectLabel>{getProviderTitle(provider)}</SelectLabel>
+                              {models.map((model) => (
+                                <SelectItem key={`kg-${model.provider}-${model.id}`} value={model.id}>
+                                  <div className="flex items-center gap-1.5">
+                                    <ModelIcon provider={model.provider} modelId={model.id} size={14} />
+                                    <span className="truncate">{model.name}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Text variant="helper" tone="faint">No models available</Text>
+                    )}
+                  </div>
+                }
+              />
+            </>
           )}
 
-          {/* Rebuild All */}
-          <div className={`flex items-center justify-between px-4 py-3 ${SURFACE.card} border ${BORDER.default} ${RADIUS.lg}`}>
-            <div className="min-w-0 flex-1">
-              <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
-                Rebuild All
-              </span>
-              <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
-                Wipes and re-indexes all meetings, chats, and knowledge graph.
-              </p>
-            </div>
-            <Button variant="outline" size="sm" className="shrink-0 ml-4" onClick={() => setRebuildConfirmOpen(true)}
-              disabled={rebuildingPhase !== null || isRebuilding}>
-              <RefreshCw className={`w-3.5 h-3.5 ${isRebuilding ? 'animate-spin' : ''}`} />
-              {isRebuilding ? 'Rebuilding…' : 'Rebuild All'}
-            </Button>
-          </div>
+          <CardRow
+            title="Rebuild All"
+            description="Wipes and re-indexes all meetings, chats, and knowledge graph."
+            actions={
+              <Button variant="outline" size="sm" onClick={() => setRebuildConfirmOpen(true)} disabled={indexBusy}>
+                <Icon icon={RefreshCw} size="xs" className={isRebuilding ? 'animate-spin' : ''} />
+                {isRebuilding ? 'Rebuilding…' : 'Rebuild All'}
+              </Button>
+            }
+          />
 
-          <AlertDialog open={rebuildConfirmOpen} onOpenChange={setRebuildConfirmOpen}>
-            <AlertDialogPortal>
-              <AlertDialogOverlay />
-              <AlertDialogContent className="max-w-sm p-5">
-                <AlertDialogTitle className={`${TYPOGRAPHY_CLASSES.summaryTitle} ${TEXT.heading} mb-1.5`}>
-                  Rebuild search index?
-                </AlertDialogTitle>
-                <AlertDialogDescription className={`${TYPOGRAPHY_CLASSES.settingsDescription} ${TEXT.secondary} mb-5`}>
-                  This will clear the vector database and knowledge graph, then re-index all meetings and chats. This may take a while.
-                </AlertDialogDescription>
-                <div className="flex gap-2.5 justify-end">
-                  <AlertDialogCancel asChild>
-                    <Button variant="outline" size="sm" >
-                      Cancel
-                    </Button>
-                  </AlertDialogCancel>
-                  <AlertDialogAction asChild>
-                    <Button variant="danger" size="sm" onClick={handleRebuildIndex}>
-                      Rebuild All
-                    </Button>
-                  </AlertDialogAction>
-                </div>
-              </AlertDialogContent>
-            </AlertDialogPortal>
-          </AlertDialog>
-        </SettingsSection>
+          <ConfirmDialog
+            open={rebuildConfirmOpen}
+            onOpenChange={setRebuildConfirmOpen}
+            title="Rebuild search index?"
+            description="This will clear the vector database and knowledge graph, then re-index all meetings and chats. This may take a while."
+            confirmLabel="Rebuild All"
+            onConfirm={handleRebuildIndex}
+          />
+        </Section>
       )}
 
       {/* App Info & Updates */}
-      <div className={`pt-4 border-t ${BORDER.default}`}>
-        <div className={`flex items-center justify-between px-4 py-3 ${TYPOGRAPHY_CLASSES.settingsInput}`}>
-          <span className={TEXT.muted}>Version</span>
-          <div className="flex items-center gap-3">
-            <span className={`${TEXT.secondary} font-mono`}>{appVersion || '…'}</span>
-            {appUpdate.status === 'checking' && (
-              <span className={`flex items-center gap-1.5 ${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.muted}`}>
-                <Loader2 className="w-3 h-3 animate-spin" />
-                Checking…
-              </span>
-            )}
-            {appUpdate.status === 'idle' && !appUpdate.updateInfo && (
-              <button
-                onClick={async () => {
-                  const hasUpdate = await appUpdate.checkForUpdate();
-                  if (!hasUpdate) {
-                    showToast('You\u2019re on the latest version', 'success');
-                  }
-                }}
-                className={COMPONENT.settingsLink}
-              >
-                Check for Updates
-              </button>
-            )}
-            {appUpdate.status === 'available' && appUpdate.updateInfo && (
-              <span className={`flex items-center gap-1.5 ${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.success}`}>
-                v{appUpdate.updateInfo.version} available
-              </span>
-            )}
-            {appUpdate.status === 'error' && (
-              <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.error}`}>
-                {appUpdate.error ?? 'Check failed'}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-    </div>
+      <Card>
+        <CardRow title="Version" actions={<VersionStatus appVersion={appVersion} appUpdate={appUpdate} onCheck={handleCheckForUpdate} />} />
+      </Card>
+    </SettingsPage>
   );
 };
 
@@ -545,7 +461,7 @@ function formatBytes(bytes: number): string {
   return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[i]}`;
 }
 
-/** Compact row with status chip, counts, and a re-index button */
+/** Index row: status badge, counts, and a re-index button */
 const IndexActionRow: React.FC<{
   label: string;
   indexed: number;
@@ -560,39 +476,50 @@ const IndexActionRow: React.FC<{
     ? (indexed > 0 ? 'Active' : 'Empty')
     : (indexed >= total ? 'Synced' : 'Stale');
 
-  const chipClasses = isFresh
-    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2.5">
-          <span className={`${TYPOGRAPHY_CLASSES.settingsInputLabel} ${TEXT.heading}`}>
-            {label}
-          </span>
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold leading-none tracking-wide uppercase ${chipClasses}`}>
-            {statusLabel}
-          </span>
-          {total != null && (
-            <span className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} font-mono`}>
-              {indexed}/{total}
-            </span>
-          )}
-        </div>
-        {detail && (
-          <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint} mt-0.5`}>
-            {detail}
-          </p>
-        )}
-      </div>
-      <Button variant="outline" size="sm" className="shrink-0" onClick={onReindex}
-        disabled={disabled}>
-        <RefreshCw className={`w-3 h-3 ${busy ? 'animate-spin' : ''}`} />
-        {busy ? 'Indexing…' : 'Re-index'}
-      </Button>
-    </div>
+    <CardRow
+      title={
+        <span className="flex items-center gap-2.5">
+          {label}
+          <Badge variant={isFresh ? 'success' : 'error'}>{statusLabel}</Badge>
+          {total != null && <Text variant="mono" tone="faint">{indexed}/{total}</Text>}
+        </span>
+      }
+      description={detail}
+      actions={
+        <Button variant="outline" size="sm" onClick={onReindex} disabled={disabled}>
+          <Icon icon={RefreshCw} size="xs" className={busy ? 'animate-spin' : ''} />
+          {busy ? 'Indexing…' : 'Re-index'}
+        </Button>
+      }
+    />
   );
 };
+
+/** Version number plus the update-check state. */
+const VersionStatus: React.FC<{
+  appVersion: string;
+  appUpdate: ReturnType<typeof useAppUpdate>;
+  onCheck: () => void;
+}> = ({ appVersion, appUpdate, onCheck }) => (
+  <>
+    <Text variant="mono" tone="muted">{appVersion || '…'}</Text>
+    {appUpdate.status === 'checking' && (
+      <Text variant="helper" tone="muted" className="flex items-center gap-1.5">
+        <Icon icon={Loader2} size="xs" className="animate-spin" />
+        Checking…
+      </Text>
+    )}
+    {appUpdate.status === 'idle' && !appUpdate.updateInfo && (
+      <Button variant="link" size="inline" onClick={onCheck}>Check for Updates</Button>
+    )}
+    {appUpdate.status === 'available' && appUpdate.updateInfo && (
+      <Text variant="helper" tone="success">v{appUpdate.updateInfo.version} available</Text>
+    )}
+    {appUpdate.status === 'error' && (
+      <Text variant="helper" tone="danger">{appUpdate.error ?? 'Check failed'}</Text>
+    )}
+  </>
+);
 
 export default InterfacePanel;

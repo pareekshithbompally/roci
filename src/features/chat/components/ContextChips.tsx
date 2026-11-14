@@ -7,7 +7,7 @@
 import React from 'react';
 import { X, FileAudio } from 'lucide-react';
 import type { MeetingListItem } from '@services/meetingReferenceService';
-import { SURFACE, BORDER, TEXT, COMPONENT } from '@config/theme.config';
+import { Surface, Icon, IconButton, Text } from '@shared/ui';
 
 interface ContextChipsProps {
   meetings: MeetingListItem[];
@@ -23,22 +23,23 @@ export const ContextChips: React.FC<ContextChipsProps> = ({
   return (
     <div className="flex flex-wrap gap-2 px-4 pt-3">
       {meetings.map((meeting) => (
-        <div
+        <Surface
           key={meeting.id}
-          className={`inline-flex items-center gap-1.5 pl-2 pr-1 py-1 ${SURFACE.selected} border ${BORDER.input} rounded-lg text-sm group ${BORDER.cardHover} transition-colors`}
+          variant="inset"
+          radius="md"
+          className="inline-flex items-center gap-1.5 pl-2 pr-0.5 py-0.5"
         >
-          <FileAudio className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-          <span className={`${TEXT.secondary} max-w-[150px] truncate`}>
+          <Icon icon={FileAudio} size="xs" tone="warning" />
+          <Text tone="muted" truncate className="max-w-40">
             {meeting.title}
-          </span>
-          <button
+          </Text>
+          <IconButton
+            icon={X}
+            label="Remove from context"
+            size="sm"
             onClick={() => onRemove(meeting.id)}
-            className={`p-0.5 ${COMPONENT.menuButtonHover} rounded transition-colors ml-0.5`}
-            title="Remove from context"
-          >
-            <X className={`w-3.5 h-3.5 ${TEXT.faint} hover:text-paper-800 dark:hover:text-night-300`} />
-          </button>
-        </div>
+          />
+        </Surface>
       ))}
     </div>
   );

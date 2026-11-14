@@ -20,7 +20,7 @@ export const IndexingRow: React.FC<{ item: ActivityItem }> = ({ item }) => {
 
   return (
     <ActivityRowLayout
-      icon={<Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: '#3b82f6' }} />}
+      icon={<Loader2 className="w-3.5 h-3.5 animate-spin text-info" />}
       label={item.label}
       detail={mergedDetail}
       actions={item.actions}

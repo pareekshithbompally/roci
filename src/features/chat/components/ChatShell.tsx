@@ -9,9 +9,8 @@
  *  - emptyStateMessage, placeholderText, optional headerSlot, optional className
  */
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { ArrowDown, Loader2 } from 'lucide-react';
-import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom';
 import { useChatStore, useChatActions } from '@features/chat/stores';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
@@ -26,28 +25,31 @@ import { MeetingCitationDrawer } from './MeetingCitationDrawer';
 import { WebCitationDrawer } from './WebCitationDrawer';
 import { meetingReferenceService } from '@services/meetingReferenceService';
 import { meetingService } from '@services/meeting.service';
-import { useSpeechInput } from '@features/chat';
-import { useEngineReady } from '@features/settings/hooks/useEngineReadiness';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { TEXT } from '@config/theme.config';
+import { useVoiceCapture } from '@features/chat';
+import { useSpeechInputReady } from '@features/settings/hooks/useSpeechModels';
+import { LAYOUT } from '@config/layout.config';
+import { ANIMATION_CONFIG } from '@config/animations.config';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { MeetingCitation, WebCitation } from '@shared/types';
-import { Button } from '@shared/ui';
+import { IconButton, Icon, Text } from '@shared/ui';
 
-const ScrollToBottomBtn = () => {
-  const { isAtBottom, scrollToBottom } = useStickToBottomContext();
-  if (isAtBottom) return null;
-  return (
-    <Button variant="primary" size="icon" onClick={() => scrollToBottom()}>
-      <ArrowDown className="w-4 h-4" />
-    </Button>
-  );
-};
+const ScrollToBottomBtn: React.FC<{ onClick: () => void }> = ({ onClick }) => (
+  <IconButton
+    icon={ArrowDown}
+    label="Scroll to bottom"
+    variant="primary"
+    onClick={onClick}
+    className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10"
+  />
+);
 
 export interface ChatShellProps {
   emptyStateMessage: string;
   placeholderText: string;
   headerSlot?: React.ReactNode;
   className?: string;
+  /** Shared-element id so the composer glides in from the landing page (main chat view only). */
+  composerLayoutId?: string;
 }
 
 export const ChatShell: React.FC<ChatShellProps> = ({
@@ -55,6 +57,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
   placeholderText,
   headerSlot,
   className = '',
+  composerLayoutId,
 }) => {
   const { settings, providers } = useSettings();
   const history = useHistoryData();
@@ -166,18 +169,15 @@ export const ChatShell: React.FC<ChatShellProps> = ({
     [historyItems]
   );
 
+  const showSpeechInput = useSpeechInputReady();
 
-  const showSpeechInput = useEngineReady(settings.transcriptionModel);
+  // One shared voice owner: pill state, second-beat chrome, transcript insert.
+  const appendTranscript = useCallback((text: string) => {
+    const currentInput = useChatStore.getState().input;
+    setInput(currentInput ? `${currentInput} ${text}` : text);
+  }, [setInput]);
 
-  const speech = useSpeechInput(settings, providers);
-
-  const handleSpeechStop = useCallback(async () => {
-    const text = await speech.stop();
-    if (text) {
-      const currentInput = useChatStore.getState().input;
-      setInput(currentInput ? `${currentInput} ${text}` : text);
-    }
-  }, [speech, setInput]);
+  const voice = useVoiceCapture({ settings, providers, appendTranscript });
 
   // ── Actions ──
 
@@ -201,8 +201,58 @@ export const ChatShell: React.FC<ChatShellProps> = ({
   );
 
   const handleSend = useCallback(() => {
+    // Re-arm follow so the response streams into view below the sent message.
+    followRef.current = true;
     sendMessage();
   }, [sendMessage]);
+
+  // ── Scroll ──
+  // Manual scroll container: follow new content only while the user is at the
+  // bottom; once they scroll up, stop yanking and offer a "jump to bottom"
+  // button instead. Replaces auto-stick (StickToBottom), which fought the user.
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const [showScrollDown, setShowScrollDown] = useState(false);
+  const followRef = useRef(true);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
+    followRef.current = true;
+    setShowScrollDown(false);
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+    setShowScrollDown(!atBottom);
+    if (atBottom) followRef.current = true;
+  }, []);
+
+  // Scrolling up breaks follow; the user stays put while content grows below.
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (e.deltaY < 0) followRef.current = false;
+  }, []);
+
+  // Follow new content (streaming growth, new messages) while stuck to bottom.
+  useEffect(() => {
+    const el = scrollRef.current;
+    const content = contentRef.current;
+    if (!el || !content) return;
+    const ro = new ResizeObserver(() => {
+      if (followRef.current) el.scrollTop = el.scrollHeight;
+    });
+    ro.observe(content);
+    return () => ro.disconnect();
+  }, []);
+
+  // Switching sessions returns to the bottom.
+  useEffect(() => {
+    followRef.current = true;
+    scrollToBottom('auto');
+  }, [currentSession?.id, scrollToBottom]);
 
   // ── Message list ──
 
@@ -217,64 +267,83 @@ export const ChatShell: React.FC<ChatShellProps> = ({
         {/* Messages Area */}
         {isSessionLoading && !currentSession ? (
           <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="w-5 h-5 animate-spin text-[var(--text-faint)]" />
+            <Icon icon={Loader2} size="md" tone="faint" className="animate-spin" />
           </div>
         ) : currentMessages.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
-            <p className={`${TYPOGRAPHY_CLASSES.settingsHelper} ${TEXT.faint}`}>
-              {emptyStateMessage}
-            </p>
+            <AnimatePresence initial={false}>
+              {!voice.isVoiceActive && (
+                <motion.div
+                  key="empty-state"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, transition: { duration: 0.2 } }}
+                  transition={voice.chromeEnter}
+                >
+                  <Text as="p" variant="helper" tone="faint">{emptyStateMessage}</Text>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         ) : (
-          <StickToBottom
-            className="relative flex-1 overflow-y-hidden"
-            initial="smooth"
-            resize="smooth"
-            role="log"
-          >
-            <StickToBottom.Content
-              className={`flex flex-col ${TYPOGRAPHY_CLASSES.chatSpacing} ${TYPOGRAPHY_CLASSES.chatContainer}`}
+          <div className="relative flex-1 min-h-0">
+            <div
+              ref={scrollRef}
+              onScroll={handleScroll}
+              onWheel={handleWheel}
+              className={`h-full overflow-y-auto ${voice.isVoiceActive ? '[-webkit-mask-image:linear-gradient(to_bottom,black_calc(100%-64px),transparent)] [mask-image:linear-gradient(to_bottom,black_calc(100%-64px),transparent)]' : ''}`}
             >
-              {currentMessages.map((message, index) => (
-                <ChatMessage
-                  key={message.id}
-                  id={message.id}
-                  role={message.role}
-                  text={message.text}
-                  parts={message.parts}
-                  meetingRefs={message.meetingRefs}
-                  timestamp={message.timestamp}
-                  suggestions={message.suggestions}
-                  onSuggestionClick={(suggestion) => sendMessage(suggestion)}
-                  isLastMessage={index === currentMessages.length - 1}
-                  provider={message.provider}
-                  model={message.model}
-                  state={message.state}
-                  loadingLabel={
-                    message.state === 'loading' && aiActivity?.isSearching
-                      ? 'Searching the web…'
-                      : undefined
-                  }
-                  tokenCount={message.tokenCount}
-                  inputTokenCount={message.inputTokenCount}
-                  tokensPerSecond={message.tokensPerSecond}
-                  toolActivity={message.toolActivity}
-                  meetingCitations={message.meetingCitations}
-                  isCopied={copiedMessageId === message.id}
-                  actions={sharedActions}
-                  citationHandlers={citationHandlers}
-                  webCitations={message.webCitations}
-                  inlineCitations={message.inlineCitations}
-                  isError={message.isError}
-                />
-              ))}
-            </StickToBottom.Content>
-            <ScrollToBottomBtn />
-          </StickToBottom>
+              <div
+                ref={contentRef}
+                role="log"
+                className={`flex flex-col space-y-4 px-4 py-4 ${LAYOUT.chatColumn}`}
+              >
+                {currentMessages.map((message, index) => (
+                  <ChatMessage
+                    key={message.id}
+                    id={message.id}
+                    role={message.role}
+                    text={message.text}
+                    parts={message.parts}
+                    meetingRefs={message.meetingRefs}
+                    timestamp={message.timestamp}
+                    suggestions={message.suggestions}
+                    onSuggestionClick={(suggestion) => sendMessage(suggestion)}
+                    isLastMessage={index === currentMessages.length - 1}
+                    provider={message.provider}
+                    model={message.model}
+                    state={message.state}
+                    loadingLabel={
+                      message.state === 'loading' && aiActivity?.isSearching
+                        ? 'Searching the web…'
+                        : undefined
+                    }
+                    tokenCount={message.tokenCount}
+                    inputTokenCount={message.inputTokenCount}
+                    tokensPerSecond={message.tokensPerSecond}
+                    toolActivity={message.toolActivity}
+                    meetingCitations={message.meetingCitations}
+                    isCopied={copiedMessageId === message.id}
+                    actions={sharedActions}
+                    citationHandlers={citationHandlers}
+                    webCitations={message.webCitations}
+                    inlineCitations={message.inlineCitations}
+                    isError={message.isError}
+                  />
+                ))}
+              </div>
+            </div>
+            {showScrollDown && <ScrollToBottomBtn onClick={() => scrollToBottom()} />}
+          </div>
         )}
 
         {/* Input Area */}
-        <div className="shrink-0">
+        <motion.div
+          className={`shrink-0 ${LAYOUT.chatColumn}`}
+          layout="position"
+          layoutId={composerLayoutId}
+          transition={ANIMATION_CONFIG.chat.composerGlide}
+        >
           <ToolApprovalBanner />
           <TodoConfirmationBanner />
           <ChatInput
@@ -292,14 +361,15 @@ export const ChatShell: React.FC<ChatShellProps> = ({
             onRemoveAttachment={removeAttachment}
             onScreenshot={addScreenshotAttachment}
             showSpeechInput={showSpeechInput}
-            speechState={speech.state}
-            micStream={speech.stream}
-            speechElapsed={speech.elapsed}
-            onSpeechStart={speech.start}
-            onSpeechStop={handleSpeechStop}
-            onSpeechCancel={speech.cancel}
+            speechState={voice.speech.state}
+            micStream={voice.speech.stream}
+            speechElapsed={voice.speech.elapsed}
+            onSpeechStart={voice.speech.start}
+            onSpeechStop={voice.handleSpeechStop}
+            onSpeechTogglePause={voice.speech.togglePause}
+            onSpeechCancel={voice.speech.cancel}
           />
-        </div>
+        </motion.div>
       </div>
 
       {/* Citation drawers */}

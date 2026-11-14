@@ -7,7 +7,7 @@
  *
  * Usage:
  * ```tsx
- * import { RecordingProvider, useRecording, RecordButton } from '@/features/recording';
+ * import { RecordingProvider, useRecording } from '@/features/recording';
  *
  * // Wrap your app with the provider
  * <RecordingProvider>
@@ -31,7 +31,7 @@ export { recordingService } from './services';
 export type { StartRecordingOptions, StartRecordingResult, StopRecordingResult } from './services';
 
 // Components
-export { RecordButton, PermissionChecklist, RecordingExitPrompt } from './components';
+export { PermissionChecklist, RecordingExitPrompt } from './components';
 
 // Types
 export type {

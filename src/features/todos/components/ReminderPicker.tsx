@@ -1,12 +1,11 @@
 /**
  * ReminderPicker — Popover for setting/editing a todo reminder.
- * Uses Radix Popover from shared/ui and native date/time inputs.
+ * Kit Popover with quick options and a custom DatePicker/TimePicker.
  */
 
 import React, { useState, useMemo } from 'react';
 import { Bell, BellRing, Clock } from 'lucide-react';
-import { Button, DatePicker, Popover, PopoverContent, PopoverTrigger, TimePicker } from '@shared/ui';
-import { SURFACE, BORDER, TEXT } from '@config/theme.config';
+import { Button, DatePicker, Icon, Popover, PopoverContent, PopoverTrigger, Row, Separator, Surface, Text, TimePicker } from '@shared/ui';
 import { reminderService } from '@services/reminder.service';
 import type { ScheduleReminderParams } from '@services/reminder.service';
 import { parseDateLoose, localDateFromParts } from '@shared/utils/todo.utils';
@@ -66,7 +65,7 @@ function buildQuickOptions(dueDate?: string): QuickOption[] {
   return options;
 }
 
-/** Format ISO datetime to local date string for <input type="date"> */
+/** Format ISO datetime to local date string for DatePicker */
 function toDateInputValue(iso: string): string {
   const d = new Date(iso);
   const y = d.getFullYear();
@@ -75,7 +74,7 @@ function toDateInputValue(iso: string): string {
   return `${y}-${m}-${day}`;
 }
 
-/** Format ISO datetime to local time string for <input type="time"> */
+/** Format ISO datetime to local time string for TimePicker */
 function toTimeInputValue(iso: string): string {
   const d = new Date(iso);
   const h = String(d.getHours()).padStart(2, '0');
@@ -156,69 +155,62 @@ const ReminderPicker: React.FC<ReminderPickerProps> = ({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button
-          className={`p-1 rounded transition-colors ${
-            hasReminder
-              ? 'text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/20'
-              : `${TEXT.muted} ${SURFACE.hoverSubtle}`
-          }`}
+        <Button
+          variant="ghost"
+          size="iconXs"
           aria-label={hasReminder ? 'Edit reminder' : 'Set reminder'}
           title={hasReminder
             ? `Reminder: ${new Date(reminderDateTime!).toLocaleString()}`
             : 'Set reminder'
           }
         >
-          {hasReminder ? <BellRing className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
-        </button>
+          <Icon icon={hasReminder ? BellRing : Bell} size="sm" tone={hasReminder ? 'warning' : 'inherit'} />
+        </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-64 p-0" align="end" sideOffset={8}>
+      <PopoverContent width="md" align="end" sideOffset={8}>
         <div className="p-3 space-y-1">
           <div className="flex items-center justify-between mb-2">
-            <span className={`text-xs font-semibold ${TEXT.secondary}`}>
+            <Text variant="label" tone="muted">
               {hasReminder ? 'Reminder Set' : 'Set Reminder'}
-            </span>
+            </Text>
             {hasReminder && (
-              <button
-                onClick={handleClearReminder}
-                disabled={isScheduling}
-                className="text-xs text-red-500 hover:text-red-600 font-medium disabled:opacity-50"
-              >
+              <Button variant="dangerGhost" size="inline" onClick={handleClearReminder} disabled={isScheduling}>
                 Remove
-              </button>
+              </Button>
             )}
           </div>
 
           {/* Active reminder display */}
           {hasReminder && (
-            <div className={`flex items-center gap-2 px-2.5 py-2 rounded-lg ${SURFACE.chip} mb-2`}>
-              <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              <span className={`text-xs ${TEXT.primary}`}>
+            <Surface variant="inset" radius="lg" className="flex items-center gap-2 px-2.5 py-2 mb-2">
+              <Icon icon={Clock} size="xs" tone="warning" className="shrink-0" />
+              <Text variant="helper">
                 {new Date(reminderDateTime!).toLocaleString('en-US', {
                   month: 'short',
                   day: 'numeric',
                   hour: 'numeric',
                   minute: '2-digit',
                 })}
-              </span>
-            </div>
+              </Text>
+            </Surface>
           )}
 
           {/* Quick options */}
           {quickOptions.map((option, i) => (
-            <button
+            <Row
               key={i}
               onClick={() => handleQuickOption(option)}
               disabled={isScheduling}
-              className={`w-full text-left px-2.5 py-2 rounded-lg text-xs ${TEXT.secondary} ${SURFACE.hoverSubtle} transition-colors disabled:opacity-50`}
+              className="disabled:opacity-50"
             >
               {option.label}
-            </button>
+            </Row>
           ))}
 
           {/* Custom toggle */}
           {!showCustom ? (
-            <button
+            <Row
               onClick={() => {
                 setShowCustom(true);
                 if (reminderDateTime) {
@@ -226,12 +218,12 @@ const ReminderPicker: React.FC<ReminderPickerProps> = ({
                   setCustomTime(toTimeInputValue(reminderDateTime));
                 }
               }}
-              className={`w-full text-left px-2.5 py-2 rounded-lg text-xs ${TEXT.secondary} ${SURFACE.hoverSubtle} transition-colors`}
             >
               Custom date & time…
-            </button>
+            </Row>
           ) : (
-            <div className={`space-y-2 pt-2 border-t ${BORDER.default}`}>
+            <div className="space-y-2">
+              <Separator />
               <div className="flex gap-2 items-center">
                 <DatePicker
                   value={customDate}
@@ -243,16 +235,13 @@ const ReminderPicker: React.FC<ReminderPickerProps> = ({
                 <TimePicker
                   value={customTime}
                   onChange={(val) => setCustomTime(val)}
-                  className="w-[100px]"
+                  className="w-24"
                 />
               </div>
               <div className="flex gap-2 justify-end">
-                <button
-                  onClick={() => setShowCustom(false)}
-                  className={`px-2.5 py-1 rounded-md text-xs ${TEXT.muted} ${SURFACE.hoverSubtle}`}
-                >
+                <Button variant="ghost" size="sm" onClick={() => setShowCustom(false)}>
                   Cancel
-                </button>
+                </Button>
                 <Button variant="primary" size="sm" onClick={handleCustomSchedule}
                   disabled={!customDate || isScheduling}>
                   Set

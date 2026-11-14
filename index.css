@@ -2,108 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── Design System CSS Variables ─────────────────────────── */
-/* Bridge between theme.config.ts tokens and Radix UI components.
-   These values mirror the Tailwind classes in theme.config.ts.
-   Keep in sync when theme tokens change. */
-
-:root {
-  color-scheme: light dark;
-
-  /* Surfaces */
-  --surface-modal: #ffffff;                          /* paper-50 */
-  --surface-dropdown: #ffffff;                       /* paper-50 */
-  --surface-overlay: rgba(0, 0, 0, 0.4);            /* paper-950 @ 40% */
-  --surface-input: rgba(236, 236, 240, 0.8);        /* paper-150 @ 80% */
-  --surface-input-field: #ffffff;                    /* paper-50 */
-  --surface-selected: #e5e5ea;                       /* paper-200 */
-  --surface-hover-subtle: rgba(229, 229, 234, 0.8); /* paper-200 @ 80% */
-
-  /* Borders */
-  --border-default: rgba(209, 209, 214, 0.7);       /* paper-300 @ 70% */
-  --border-strong: #d1d1d6;                          /* paper-300 */
-  --border-input: #c7c7cc;                           /* paper-400 */
-  --border-ring: rgba(199, 199, 204, 0.5);          /* paper-400 @ 50% */
-
-  /* Text */
-  --text-primary: #1c1c1e;                           /* paper-900 */
-  --text-secondary: #48484a;                         /* paper-800 */
-  --text-muted: #636366;                             /* paper-700 */
-  --text-faint: #8e8e93;                             /* paper-600 */
-
-  /* Shadows */
-  --shadow-float: 0 10px 15px -3px rgba(0, 0, 0, 0.08),
-                  0 4px 6px -4px rgba(0, 0, 0, 0.06);
-  --shadow-modal: 0 25px 50px -12px rgba(0, 0, 0, 0.2);
-
-  /* Radius (unchanged) */
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-
-  /* AI brand gradient — matches app icon waveform (app-icon.svg #aiGradient) */
-  --ai-gradient: linear-gradient(to right, #06b6d4, #3b82f6, #8b5cf6, #a855f7, #ec4899);
-  --ai-accent: #8b5cf6;                              /* violet-500 — mid-point of gradient */
-  --ai-border: rgba(139, 92, 246, 0.5);              /* violet-500 @ 50% */
-  --ai-glow: 0 10px 15px -3px rgba(139, 92, 246, 0.25);
-
-  /* Switch (Toggle) */
-  --switch-active: #22c55e;                          /* green-500 (semantic, kept) */
-  --switch-inactive: #c7c7cc;                        /* paper-400 */
-  --switch-thumb: #ffffff;                           /* paper-50 */
-}
-
-.dark {
-  /* Surfaces */
-  --surface-modal: #181818;                          /* night-850 */
-  --surface-dropdown: #1c1c1c;                       /* night-800 */
-  --surface-overlay: rgba(18, 18, 18, 0.7);         /* night-950 @ 70% */
-  --surface-input: rgba(24, 24, 24, 0.6);           /* night-850 @ 60% */
-  --surface-input-field: #1c1c1c;                    /* night-800 */
-  --surface-selected: rgba(34, 34, 34, 0.8);        /* night-750 @ 80% */
-  --surface-hover-subtle: rgba(34, 34, 34, 0.8);    /* night-750 @ 80% */
-
-  /* Borders */
-  --border-default: #2a2a2a;                         /* night-700 */
-  --border-strong: #333333;                          /* night-650 */
-  --border-input: #333333;                           /* night-650 */
-  --border-ring: #333333;                            /* night-650 */
-
-  /* Text */
-  --text-primary: #ededed;                           /* night-100 */
-  --text-secondary: #999999;                         /* night-400 */
-  --text-muted: #666666;                             /* night-500 */
-  --text-faint: #666666;                             /* night-500 */
-
-  /* Shadows */
-  --shadow-float: 0 10px 15px -3px rgba(0, 0, 0, 0.4),
-                  0 4px 6px -4px rgba(0, 0, 0, 0.3);
-  --shadow-modal: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
-
-  /* AI brand gradient — same gradient, works on dark backgrounds */
-  --ai-gradient: linear-gradient(to right, #06b6d4, #3b82f6, #8b5cf6, #a855f7, #ec4899);
-  --ai-accent: #a855f7;                              /* purple-500 — brighter on dark */
-  --ai-border: rgba(168, 85, 247, 0.5);              /* purple-500 @ 50% */
-  --ai-glow: 0 10px 15px -3px rgba(168, 85, 247, 0.3);
-
-  /* Switch (Toggle) */
-  --switch-active: #16a34a;                          /* green-600 (semantic, kept) */
-  --switch-inactive: #222222;                        /* night-750 */
-  --switch-thumb: #151515;                           /* night-900 */
-}
-
 body {
   min-height: 100vh;
   min-height: -webkit-fill-available;
   overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-  background-color: #f5f5f7;
-}
-
-/* Use class-based dark mode to match app theme, not system preference */
-.dark body {
-  background-color: #151515;  /* night-900 */
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
 }
 
 /* Smaller font size for code blocks */
@@ -138,23 +43,13 @@ code, pre {
 /* Show thumb when container is hovered */
 .custom-scrollbar:hover::-webkit-scrollbar-thumb,
 .scrollbar-hover:hover::-webkit-scrollbar-thumb {
-  background-color: #aeaeb2;  /* paper-500 */
-}
-
-.dark .custom-scrollbar:hover::-webkit-scrollbar-thumb,
-.dark .scrollbar-hover:hover::-webkit-scrollbar-thumb {
-  background-color: #444444;  /* night-600 */
+  background-color: var(--border-strong);
 }
 
 /* Darken thumb when the thumb itself is hovered */
 .custom-scrollbar::-webkit-scrollbar-thumb:hover,
 .scrollbar-hover::-webkit-scrollbar-thumb:hover {
-  background-color: #6b655c;  /* paper-700 */
-}
-
-.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover,
-.dark .scrollbar-hover::-webkit-scrollbar-thumb:hover {
-  background-color: #666666;  /* night-500 */
+  background-color: var(--text-faint);
 }
 
 /* ─── Native overlay scrollbar — thin track, OS handles show-on-scroll + fade ─── */
@@ -291,21 +186,6 @@ code, pre {
 }
 
 /* Chat entrance — input settles from center to bottom */
-@keyframes chat-settle {
-  from {
-    opacity: 0;
-    transform: translateY(-30vh);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-chat-settle {
-  animation: chat-settle 0.45s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
 /* Title morph animation — blur/fade when AI-generated title replaces placeholder */
 @keyframes title-morph {
   0%   { opacity: 0; filter: blur(4px); transform: translateY(2px); }
@@ -349,48 +229,26 @@ code, pre {
 /* Maps Schedule-X CSS variables to the app's paper/night design tokens
    so the calendar feels native rather than an embedded iframe. */
 
-/* Light mode */
+/* Roles from tokens.css — swap with .dark like everything else */
 .sx__calendar-wrapper {
-  --sx-color-primary: #48484a;                       /* paper-800 */
-  --sx-color-on-primary: #ffffff;                    /* paper-50 */
-  --sx-color-primary-container: #e5e5ea;             /* paper-200 */
-  --sx-color-on-primary-container: #1c1c1e;          /* paper-900 */
-  --sx-color-surface: #f5f5f7;                       /* paper-100 */
-  --sx-color-surface-dim: #e5e5ea;                   /* paper-200 */
-  --sx-color-surface-bright: #ffffff;                /* paper-50 */
-  --sx-color-on-surface: #1c1c1e;                    /* paper-900 */
-  --sx-color-surface-container: #ececf0;             /* paper-150 */
-  --sx-color-surface-container-low: #f5f5f7;         /* paper-100 */
-  --sx-color-surface-container-high: #e5e5ea;        /* paper-200 */
-  --sx-color-background: #f5f5f7;                    /* paper-100 */
-  --sx-color-on-background: #1c1c1e;                 /* paper-900 */
-  --sx-color-outline: #c7c7cc;                       /* paper-400 */
-  --sx-color-outline-variant: rgba(209, 209, 214, 0.7); /* paper-300/70 */
-  --sx-internal-color-text: #1c1c1e;                 /* paper-900 */
-  --sx-internal-color-light-gray: #ececf0;           /* paper-150 */
+  --sx-color-primary: var(--text-primary);
+  --sx-color-on-primary: var(--bg-base);
+  --sx-color-primary-container: var(--bg-layer-2);
+  --sx-color-on-primary-container: var(--text-primary);
+  --sx-color-surface: var(--bg-base);
+  --sx-color-surface-dim: var(--bg-layer-2);
+  --sx-color-surface-bright: var(--bg-base);
+  --sx-color-on-surface: var(--text-primary);
+  --sx-color-surface-container: var(--bg-layer-1);
+  --sx-color-surface-container-low: var(--bg-base);
+  --sx-color-surface-container-high: var(--bg-layer-2);
+  --sx-color-background: var(--bg-base);
+  --sx-color-on-background: var(--text-primary);
+  --sx-color-outline: var(--border-strong);
+  --sx-color-outline-variant: var(--border-muted);
+  --sx-internal-color-text: var(--text-primary);
+  --sx-internal-color-light-gray: var(--bg-layer-1);
   font-family: inherit;
-}
-
-/* Dark mode */
-.is-dark.sx__calendar-wrapper,
-.is-dark .sx__calendar-wrapper {
-  --sx-color-primary: #d4d4d4;                       /* night-200 */
-  --sx-color-on-primary: #121212;                    /* night-950 */
-  --sx-color-primary-container: #222222;             /* night-750 */
-  --sx-color-on-primary-container: #ededed;          /* night-100 */
-  --sx-color-surface: #151515;                       /* night-900 */
-  --sx-color-surface-dim: #121212;                   /* night-950 */
-  --sx-color-surface-bright: #1c1c1c;                /* night-800 */
-  --sx-color-on-surface: #ededed;                    /* night-100 */
-  --sx-color-surface-container: #181818;             /* night-850 */
-  --sx-color-surface-container-low: #151515;         /* night-900 */
-  --sx-color-surface-container-high: #1c1c1c;        /* night-800 */
-  --sx-color-background: #151515;                    /* night-900 */
-  --sx-color-on-background: #ededed;                 /* night-100 */
-  --sx-color-outline: #333333;                       /* night-650 */
-  --sx-color-outline-variant: #2a2a2a;               /* night-700 */
-  --sx-internal-color-text: #ededed;                 /* night-100 */
-  --sx-internal-color-light-gray: #181818;           /* night-850 */
 }
 
 /* Hide Schedule-X's built-in header — CalendarView has custom nav controls */
