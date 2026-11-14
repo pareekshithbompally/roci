@@ -26,6 +26,14 @@ export interface ModelPricing {
   cacheWritePer1M?: number;
 }
 
+/** Token limits reported by models.dev */
+export interface ModelContextLimit {
+  /** Maximum context window in tokens */
+  context?: number;
+  /** Maximum output tokens */
+  output?: number;
+}
+
 /** Boolean capabilities reported by models.dev */
 export interface ModelCapabilities {
   toolCall?: boolean;
@@ -55,6 +63,7 @@ interface ModelsDevModel {
   structured_output?: boolean;
   attachment?: boolean;
   cost?: ModelsDevCost;
+  limit?: ModelContextLimit;
   [key: string]: unknown;
 }
 
@@ -162,6 +171,15 @@ class ModalitiesService {
       cacheReadPer1M: model.cost.cache_read,
       cacheWritePer1M: model.cost.cache_write,
     };
+  }
+
+  /**
+   * Get the context window size (in tokens) for a provider + model.
+   * Returns null when the model isn't found or reports no limit —
+   * callers treat null as "unknown, hide the gauge".
+   */
+  getModelContextLimit(providerName: string, modelId: string): number | null {
+    return this.findModel(providerName, modelId)?.limit?.context ?? null;
   }
 
   async ensureLoaded(): Promise<void> {

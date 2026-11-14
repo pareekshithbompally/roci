@@ -41,3 +41,5 @@ export { ButtonGroup } from './button-group';
 export type { SurfaceProps, SurfaceVariant, DotTone } from './surface';
 export { Disclosure } from './disclosure';
 export type { DisclosureProps } from './disclosure';
+export { ContextRing } from './context-ring';
+export type { ContextRingProps } from './context-ring';

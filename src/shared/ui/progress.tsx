@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { cn } from './utils';
 
-const FILL = { neutral: 'bg-inverse', success: 'bg-success' } as const;
+const FILL = { neutral: 'bg-inverse', success: 'bg-success', warning: 'bg-warning', error: 'bg-danger' } as const;
 
 export interface ProgressProps {
   /** 0–100, or null for indeterminate */

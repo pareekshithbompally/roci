@@ -13,7 +13,8 @@ import { MeetingMentionPopup } from './MeetingMentionPopup';
 import { ContextChips } from './ContextChips';
 import { ModelPicker } from './ModelPicker';
 import { ToolsPicker } from './tools/ToolsPicker';
-import { Icon, IconButton, Input, Popover, PopoverAnchor, Surface, Text, Textarea } from '@shared/ui';
+import { ContextRing, Icon, IconButton, Input, Popover, PopoverAnchor, Surface, Text, Textarea } from '@shared/ui';
+import type { ContextUsage } from '@shared/hooks/useContextUsage';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -67,6 +68,8 @@ interface ChatInputProps {
   onSend: () => void;
   onStop?: () => void;
   isLoading?: boolean;
+  /** Derived context-window usage for the gauge; ring hides when null/undefined. */
+  contextUsage?: ContextUsage | null;
   placeholder?: string;
   disabled?: boolean;
   /** Available meetings for @ mention */
@@ -124,6 +127,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onSend,
   onStop,
   isLoading = false,
+  contextUsage,
   placeholder = 'Ask a question...',
   disabled = false,
   availableMeetings = [],
@@ -149,7 +153,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [capturableWindows, setCapturableWindows] = useState<WindowInfo[]>([]);
   const [screenshotLoading, setScreenshotLoading] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null);
-  // Register this textarea with the store ref so Cmd+L can focus it
+  // Register this textarea as the composer ⌘L focuses
   useEffect(() => {
     registerChatComposer(inputRef.current);
     return () => registerChatComposer(null);
@@ -537,82 +541,82 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         {/* Bottom toolbar — the composer only mounts while idle, so the
             Stop/Pause/cancel controls under the pill never compete with it. */}
           <div className="flex items-center justify-between px-3 pb-2">
-            {/* Left: Attach + Tools + Model Picker */}
+            {/* Left: Attach, model, tools, context gauge */}
             <div className="flex items-center gap-2">
-              <>
-                {/* Attachment Dropdown Menu */}
-                {onAttach && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <IconButton icon={Plus} label="Attach" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent side="top" align="start" sideOffset={8}>
-                      <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_IMAGES)}>
-                        <Icon icon={ImageIcon} size="sm" />
-                        <span>Images</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_FILES)}>
-                        <Icon icon={FileText} size="sm" />
-                        <span>Files</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_AUDIO)}>
-                        <Icon icon={Music} size="sm" />
-                        <span>Audio</span>
-                      </DropdownMenuItem>
+              {/* Attach — files and screenshots only; tools have their own picker */}
+              {onAttach && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <IconButton icon={Plus} label="Attach" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="top" align="start" sideOffset={8}>
+                    <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_IMAGES)}>
+                      <Icon icon={ImageIcon} size="sm" />
+                      <span>Images</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_FILES)}>
+                      <Icon icon={FileText} size="sm" />
+                      <span>Files</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_AUDIO)}>
+                      <Icon icon={Music} size="sm" />
+                      <span>Audio</span>
+                    </DropdownMenuItem>
 
-                      {onScreenshot && (
-                        <DropdownMenuSub>
-                          <DropdownMenuSubTrigger onPointerEnter={handleScreenshotSubOpen}>
-                            <Icon icon={Camera} size="sm" />
-                            <span>Take Screenshot</span>
-                          </DropdownMenuSubTrigger>
-                          <DropdownMenuSubContent sideOffset={8}>
+                    {onScreenshot && <DropdownMenuSeparator />}
+                    {onScreenshot && (
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger onPointerEnter={handleScreenshotSubOpen}>
+                          <Icon icon={Camera} size="sm" />
+                          <span>Take Screenshot</span>
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent sideOffset={8}>
+                          <DropdownMenuItem
+                            onSelect={() => handleTakeScreenshot(null, 'Full Screen')}
+                            disabled={screenshotLoading !== null}
+                          >
+                            {screenshotLoading === 'Full Screen' ? (
+                              <Icon icon={Loader2} size="sm" className="animate-spin" />
+                            ) : (
+                              <Icon icon={Camera} size="sm" />
+                            )}
+                            <span>Full Screen</span>
+                          </DropdownMenuItem>
+                          {capturableWindows.length > 0 && <DropdownMenuSeparator />}
+                          {capturableWindows.map((win) => (
                             <DropdownMenuItem
-                              onSelect={() => handleTakeScreenshot(null, 'Full Screen')}
+                              key={win.window_id}
+                              onSelect={() => handleTakeScreenshot(win.window_id, win.app_name)}
                               disabled={screenshotLoading !== null}
                             >
-                              {screenshotLoading === 'Full Screen' ? (
+                              {screenshotLoading === win.app_name ? (
                                 <Icon icon={Loader2} size="sm" className="animate-spin" />
+                              ) : win.icon_base64 ? (
+                                <img
+                                  src={`data:image/png;base64,${win.icon_base64}`}
+                                  alt={win.app_name}
+                                  className="w-4 h-4"
+                                />
                               ) : (
-                                <Icon icon={Camera} size="sm" />
+                                <Text as="div" variant="caption" tone="muted" className="w-4 h-4 flex items-center justify-center font-medium">
+                                  {win.app_name.charAt(0)}
+                                </Text>
                               )}
-                              <span>Full Screen</span>
+                              <Text variant="inherit" tone="inherit" truncate className="max-w-40">{win.app_name}</Text>
                             </DropdownMenuItem>
-                            {capturableWindows.length > 0 && <DropdownMenuSeparator />}
-                            {capturableWindows.map((win) => (
-                              <DropdownMenuItem
-                                key={win.window_id}
-                                onSelect={() => handleTakeScreenshot(win.window_id, win.app_name)}
-                                disabled={screenshotLoading !== null}
-                              >
-                                {screenshotLoading === win.app_name ? (
-                                  <Icon icon={Loader2} size="sm" className="animate-spin" />
-                                ) : win.icon_base64 ? (
-                                  <img
-                                    src={`data:image/png;base64,${win.icon_base64}`}
-                                    alt={win.app_name}
-                                    className="w-4 h-4"
-                                  />
-                                ) : (
-                                  <Text as="div" variant="caption" tone="muted" className="w-4 h-4 flex items-center justify-center font-medium">
-                                    {win.app_name.charAt(0)}
-                                  </Text>
-                                )}
-                                <Text variant="inherit" tone="inherit" truncate className="max-w-40">{win.app_name}</Text>
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuSubContent>
-                        </DropdownMenuSub>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+                          ))}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
 
-                {/* Tools: web search + meeting tools + MCP servers */}
-                <ToolsPicker />
+              <ModelPicker compact />
+              <ToolsPicker />
 
-                <ModelPicker compact />
-              </>
+              {/* Context-window gauge (hides when the limit is unknown or no usage yet) */}
+              <ContextRing usage={contextUsage ?? null} />
             </div>
 
             {/* Right: Mic + send / AI stop */}

@@ -23,5 +23,10 @@ export { useUnifiedSidebar } from './useUnifiedSidebar';
 // Interaction hooks
 export { useClickOutside } from './useClickOutside';
 export { useModelAvatarOrg } from './useModelAvatarOrg';
+
+// Context usage derivation (chat composer gauge)
+export { deriveContextUsage, useContextUsage, contextLevelFor } from './useContextUsage';
+export { CONTEXT_WARNING_PERCENT, CONTEXT_CRITICAL_PERCENT } from './useContextUsage';
+export type { ContextUsage, ContextLevel } from './useContextUsage';
 export { useOnDeviceModel } from './useOnDeviceModel';
 export type { OnDeviceModel, OnDeviceModelKind, OnDeviceStatus } from './useOnDeviceModel';

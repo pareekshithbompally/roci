@@ -30,7 +30,7 @@ import type { ModelProvider } from '@shared/types/modelProviders';
 import type { MeetingListItem } from '@services/meetingReferenceService';
 import { chatService } from '@services/chat.service';
 import { unifiedAIService } from '@services/unifiedAIService';
-import { resolveModel, supportsTools } from '@shared/utils/modelResolver';
+import { resolveChatModel, supportsTools } from '@shared/utils/modelResolver';
 import { contextPipeline } from '@extensions/context-pipeline';
 import { orchestrate } from '@extensions/tool-orchestrator';
 import { streamingStore } from './streamingStore';
@@ -547,7 +547,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
     const { settings, providers } = injectedRefs;
     const effectiveProviders = providers || [];
     const resolved = settings
-      ? resolveModel(settings.chatModel, effectiveProviders)
+      ? resolveChatModel(settings, effectiveProviders)
       : null;
 
     // Guard: no model selected
@@ -807,6 +807,8 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
 
       const tokenCount = orchestrateResult.tokenUsage?.outputTokens;
       const inputTokenCount = orchestrateResult.tokenUsage?.inputTokens;
+      const cacheReadTokens = orchestrateResult.tokenUsage?.cacheReadTokens;
+      const cacheWriteTokens = orchestrateResult.tokenUsage?.cacheWriteTokens;
       const streamDurationSec =
         streamStartTime > 0 ? (Date.now() - streamStartTime) / 1000 : 0;
       const tokensPerSecond =
@@ -827,6 +829,8 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
                   state: 'complete' as const,
                   tokenCount,
                   inputTokenCount,
+                  cacheReadTokens,
+                  cacheWriteTokens,
                   tokensPerSecond,
                   ...(allCitations.length > 0 && { meetingCitations: allCitations }),
                   ...(allWebCitations.length > 0 && { webCitations: allWebCitations }),

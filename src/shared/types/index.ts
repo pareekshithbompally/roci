@@ -125,6 +125,10 @@ export interface ChatMessage {
   tokenCount?: number;
   /** Input (prompt) token count for this message */
   inputTokenCount?: number;
+  /** Cached input tokens served from KV/prompt cache (subset of inputTokenCount) */
+  cacheReadTokens?: number;
+  /** Tokens written to cache for future reuse */
+  cacheWriteTokens?: number;
   /** Tokens per second during streaming */
   tokensPerSecond?: number;
   /** Metadata about tool calls made during this response (persisted) */

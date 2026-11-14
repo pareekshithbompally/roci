@@ -26,6 +26,8 @@ import { WebCitationDrawer } from './WebCitationDrawer';
 import { meetingReferenceService } from '@services/meetingReferenceService';
 import { meetingService } from '@services/meeting.service';
 import { useVoiceCapture } from '@features/chat';
+import { useContextLimit } from '@features/chat/hooks';
+import { useContextUsage } from '@shared/hooks/useContextUsage';
 import { useSpeechInputReady } from '@features/settings/hooks/useSpeechModels';
 import { LAYOUT } from '@config/layout.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
@@ -258,6 +260,11 @@ export const ChatShell: React.FC<ChatShellProps> = ({
 
   const currentMessages = currentSession?.messages || [];
 
+  // Context-window gauge for the composer (hidden when the model limit is
+  // unknown or no usage has been recorded yet).
+  const contextLimit = useContextLimit();
+  const contextUsage = useContextUsage(currentMessages, contextLimit);
+
   return (
     <div className={`h-full w-full ${className}`}>
       <div className="h-full flex flex-col overflow-hidden">
@@ -353,6 +360,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
             onSend={handleSend}
             onStop={stopGeneration}
             isLoading={isGenerating}
+            contextUsage={contextUsage}
             placeholder={placeholderText}
             availableMeetings={availableMeetings}
             selectedMeetings={selectedMeetingRefs}

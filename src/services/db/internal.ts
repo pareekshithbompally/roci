@@ -62,6 +62,8 @@ export function extractDataBlob(msg: ChatMessage): Record<string, unknown> | und
   if (msg.inlineCitations !== undefined) data.inlineCitations = msg.inlineCitations;
   if (msg.tokenCount !== undefined) data.tokenCount = msg.tokenCount;
   if (msg.inputTokenCount !== undefined) data.inputTokenCount = msg.inputTokenCount;
+  if (msg.cacheReadTokens !== undefined) data.cacheReadTokens = msg.cacheReadTokens;
+  if (msg.cacheWriteTokens !== undefined) data.cacheWriteTokens = msg.cacheWriteTokens;
   if (msg.tokensPerSecond !== undefined) data.tokensPerSecond = msg.tokensPerSecond;
   if (msg.state !== undefined) data.state = msg.state;
   if (msg.isError !== undefined) data.isError = msg.isError;
