@@ -2,14 +2,16 @@
  * UnifiedSidebarItem Component
  *
  * Renders a single item in the unified sidebar list (one 32px Row).
- * Meetings show a status icon (waveform / spinner / speaker / pending mic);
+ * Meetings show their phase via MeetingStatus (or a speaker while playing);
  * chats are plain text.
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MoreHorizontal, Edit2, Trash2, AudioWaveform, Mic, Loader2, Volume2 } from 'lucide-react';
+import { MoreHorizontal, Edit2, Trash2, Mic, Volume2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, actionRowClasses, RowAction, RowTitle, Icon } from '@shared/ui';
-import { HighlightedText } from '@shared/components';
+import { HighlightedText, MeetingStatus } from '@shared/components';
+import { meetingPhaseAction } from '@config/meetingPhase.config';
+import type { MeetingPhase } from '@shared/types/meetingPhase';
 import { useAudioPlayerStore } from '@shared/stores/audioPlayerStore';
 import type { UnifiedSidebarItem as UnifiedSidebarItemType } from '@shared/types';
 
@@ -17,7 +19,8 @@ interface UnifiedSidebarItemProps {
   item: UnifiedSidebarItemType;
   searchQuery?: string;
   isSelected?: boolean;
-  isTranscribing?: boolean;
+  /** Meetings only. */
+  phase?: MeetingPhase;
   onClick: () => void;
   onStartRename: () => void;
   onDeleteClick: () => void;
@@ -28,14 +31,14 @@ export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = React.memo(
   item,
   searchQuery = '',
   isSelected,
-  isTranscribing,
+  phase,
   onClick,
   onStartRename,
   onDeleteClick,
   onTranscribeClick,
 }) => {
-  const isPending = item.historyItem?.pendingTranscription;
   const hasRecording = !!item.historyItem?.recordingFileName;
+  const transcribeAction = phase ? meetingPhaseAction(phase) : null;
 
   const audioSession = useAudioPlayerStore((s) => s.session);
   const audioIsPlaying = useAudioPlayerStore((s) => s.isPlaying);
@@ -64,19 +67,10 @@ export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = React.memo(
       onClick={onClick}
       className={actionRowClasses(isSelected)}
     >
-      {item.type === 'meeting' && (
-        <div className="relative shrink-0">
-          {isTranscribing ? (
-            <Icon icon={Loader2} size="xs" tone="ai" className="animate-spin" />
-          ) : isThisMeetingPlaying ? (
-            <Icon icon={Volume2} size="xs" tone="success" className="animate-pulse" />
-          ) : (
-            <Icon icon={AudioWaveform} size="xs" tone={isPending ? 'warning' : 'muted'} />
-          )}
-          {isPending && !isTranscribing && (
-            <Icon icon={Mic} size="xs" tone="warning" className="w-2 h-2 absolute -top-0.5 -right-1" />
-          )}
-        </div>
+      {item.type === 'meeting' && phase && (
+        isThisMeetingPlaying
+          ? <Icon icon={Volume2} size="xs" tone="success" className="shrink-0 animate-pulse" />
+          : <MeetingStatus phase={phase} display="icon" />
       )}
 
       <RowTitle title={item.title} className={isTitleAnimating ? 'animate-title-morph' : undefined}>
@@ -90,7 +84,7 @@ export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = React.memo(
           </RowAction>
         </DropdownMenuTrigger>
         <DropdownMenuContent side="bottom" align="start" sideOffset={4}>
-          {hasRecording && onTranscribeClick && (
+          {hasRecording && onTranscribeClick && transcribeAction && (
             <>
               <DropdownMenuItem
                 onClick={(e) => {
@@ -99,7 +93,7 @@ export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = React.memo(
                 }}
               >
                 <Icon icon={Mic} size="sm" />
-                {isPending ? 'Transcribe' : 'Re-transcribe'}
+                {transcribeAction}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>

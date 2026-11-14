@@ -5,7 +5,7 @@
  * Used by sidebar (Transcribe/Re-transcribe) and ResultsView.
  */
 
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { recordingsService } from '@services/storage';
 import { unifiedAIService } from '@services/unifiedAIService';
 import { transcriptionService } from '@services/transcription.service';
@@ -17,20 +17,15 @@ import { AppStatus } from '@shared/types';
 import { logUsage } from '@extensions/usage';
 import { resolveModel } from '@shared/utils/modelResolver';
 import type { HistoryItem, MeetingSummary } from '@shared/types';
-import type { TranscriptionProgress } from '@services/ai/transcription';
+import { meetingJobs, useMeetingJobsStore } from '@shared/stores/meetingJobsStore';
+import { deriveMeetingPhase, isMeetingBusy, type MeetingPipelineStage } from '@shared/types/meetingPhase';
 
 interface UseTranscribeRecordingReturn {
+  /** Runs transcribe → summarize → save; progress and failure go to meetingJobsStore (read via useMeetingPhase). */
   transcribe: (item: HistoryItem) => Promise<void>;
-  isTranscribing: boolean;
-  transcribingItemId: string | null;
-  /** Part being sent for engines that split long audio (Hex); null otherwise. */
-  progress: TranscriptionProgress | null;
 }
 
 export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const [transcribingItemId, setTranscribingItemId] = useState<string | null>(null);
-  const [progress, setProgress] = useState<TranscriptionProgress | null>(null);
   const { categories, updateItem } = useHistoryData();
   const { settings, providers } = useSettings();
   const { setResult, setSelectedHistoryId, setStatus } = useAppActions();
@@ -42,8 +37,11 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
       return;
     }
 
-    setIsTranscribing(true);
-    setTranscribingItemId(item.id);
+    const running = useMeetingJobsStore.getState().jobs[item.id];
+    if (isMeetingBusy(deriveMeetingPhase(running, item))) return;
+
+    let stage: MeetingPipelineStage = 'transcribe';
+    meetingJobs.set(item.id, { stage: 'transcribing', part: null });
 
     try {
       // Load recording data from storage
@@ -73,7 +71,13 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
         settings,
         providers,
         meetingContext,
-        { onProgress: setProgress },
+        {
+          onProgress: (part) => meetingJobs.set(item.id, { stage: 'transcribing', part }),
+          onSummarizing: () => {
+            stage = 'summarize';
+            meetingJobs.set(item.id, { stage: 'summarizing' });
+          },
+        },
       );
 
       // Log transcription usage (fire-and-forget)
@@ -133,19 +137,17 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
       setSelectedHistoryId(item.id);
       setStatus(AppStatus.RESULTS);
 
+      meetingJobs.clear(item.id);
       showToast('Transcription complete', 'success');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to transcribe recording';
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to transcribe recording';
       console.error('[useTranscribeRecording] Error:', error);
-      showToast(errorMessage, 'error');
-    } finally {
-      setIsTranscribing(false);
-      setTranscribingItemId(null);
-      setProgress(null);
+      meetingJobs.set(item.id, { stage: 'failed', failedAt: stage, message });
+      showToast(message, 'error');
     }
   }, [categories, settings, providers, updateItem, setResult, setSelectedHistoryId, setStatus, showToast]);
 
-  return { transcribe, isTranscribing, transcribingItemId, progress };
+  return { transcribe };
 };
 
 export default useTranscribeRecording;

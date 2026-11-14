@@ -8,7 +8,8 @@
 import React, { useState } from 'react';
 import { Trash2, Edit2, Check, X } from 'lucide-react';
 import type { Note } from '@features/notes/types/notes.types';
-import { IconButton, Surface, Text, Textarea } from '@shared/ui';
+import { IconButton, Text, Textarea } from '@shared/ui';
+import { Markdown } from '@shared/components';
 
 interface NoteItemProps {
   note: Note;
@@ -52,9 +53,9 @@ const NoteItem: React.FC<NoteItemProps> = ({ note, onDelete, onUpdate }) => {
   };
 
   return (
-    <Surface variant="card" radius="xl" className="p-4 group">
-      <div className="flex justify-between items-start gap-3 mb-2">
-        <Text variant="helper" tone="muted">{formatDateTime(note.timestamp)}</Text>
+    <div className="py-3 group">
+      <div className="flex justify-between items-center gap-3 h-6 mb-0.5">
+        <Text variant="caption" tone="faint">{formatDateTime(note.timestamp)}</Text>
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           {!isEditing && onUpdate && (
             <IconButton icon={Edit2} label="Edit note" size="sm" onClick={() => setIsEditing(true)} />
@@ -72,7 +73,7 @@ const NoteItem: React.FC<NoteItemProps> = ({ note, onDelete, onUpdate }) => {
             spellCheck={true}
             autoCorrect="on"
             autoCapitalize="sentences"
-            className="w-full h-24"
+            className="w-full min-h-32"
             autoFocus
           />
           <div className="flex gap-2 justify-end">
@@ -82,11 +83,9 @@ const NoteItem: React.FC<NoteItemProps> = ({ note, onDelete, onUpdate }) => {
           <Text as="p" variant="caption" tone="faint">Press ⌘+Enter to save, Esc to cancel</Text>
         </div>
       ) : (
-        <Text as="p" variant="reading" tone="muted" className="leading-relaxed whitespace-pre-wrap break-words">
-          {note.text}
-        </Text>
+        <Markdown content={note.text} />
       )}
-    </Surface>
+    </div>
   );
 };
 

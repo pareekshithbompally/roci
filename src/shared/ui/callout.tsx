@@ -7,6 +7,8 @@ export type CalloutVariant = 'info' | 'warning' | 'error' | 'success' | 'neutral
 interface CalloutProps {
   variant?: CalloutVariant;
   icon?: React.ReactNode;
+  /** Trailing control (Retry, Transcribe…), vertically centred on the copy. */
+  action?: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -19,12 +21,13 @@ const VARIANTS: Record<CalloutVariant, { box: string; icon: LucideIcon; iconTone
 };
 
 /** Inline notice: tinted box, state icon, helper-size copy. */
-export function Callout({ variant = 'info', icon, children }: CalloutProps) {
+export function Callout({ variant = 'info', icon, action, children }: CalloutProps) {
   const v = VARIANTS[variant];
   return (
     <div className={`flex items-start gap-2.5 px-4 py-3 rounded-md border text-callout ${v.box}`}>
       <div className="mt-0.5 shrink-0">{icon ?? <Icon icon={v.icon} size="sm" className={v.iconTone} />}</div>
       <div className="flex-1">{children}</div>
+      {action && <div className="shrink-0 self-center">{action}</div>}
     </div>
   );
 }

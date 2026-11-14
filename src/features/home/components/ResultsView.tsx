@@ -18,7 +18,6 @@ import {
   FileJson,
   Pencil,
   RefreshCw,
-  Mic,
   Sparkles,
   Clock,
   Users,
@@ -28,7 +27,8 @@ import { useAppResult, useActiveResultTab, useSelectedHistoryId, useMeetingChatO
 import type { ResultTab } from '@shared/stores/appStore';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { SummaryView } from '@features/summary';
-import { TranscriptViewEnhanced } from '@features/transcription';
+import { ParsedTranscript } from '@features/transcription';
+import { LAYOUT } from '@config/layout.config';
 import { TodoList } from '@features/todos';
 import { NotesView } from '@features/notes';
 import { ResultsAudioPlayer } from './ResultsAudioPlayer';
@@ -36,10 +36,15 @@ import { isTauriEnvironment } from '@services/tauri';
 import { dialogService, fileSystemService, notificationService } from '@services/tauri';
 import { NotificationType } from '@config/notifications.config';
 import { useTranscribeRecording } from '@shared/hooks/useTranscribeRecording';
+import { useMeetingPhase } from '@shared/stores/meetingJobsStore';
+import { MeetingStatus } from '@shared/components';
+import { meetingPhaseAction } from '@config/meetingPhase.config';
+import { MeetingPhaseNotice } from './MeetingPhaseNotice';
 import type { HistoryItem } from '@shared/types';
 import {
   Badge,
   Button,
+  ButtonGroup,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -49,7 +54,6 @@ import {
   Icon,
   IconButton,
   Input,
-  Separator,
   Surface,
   Tabs,
   Text,
@@ -130,13 +134,17 @@ export const ResultsView: React.FC = () => {
   const meetingChatOpen = useMeetingChatOpen();
   const { setActiveResultTab, setMeetingChatOpen } = useAppActions();
   const { items: historyItems } = useHistoryData();
-  const { transcribe, isTranscribing, progress: transcribeProgress } = useTranscribeRecording();
+  const { transcribe } = useTranscribeRecording();
 
   // Look up recording file name from history item
   const currentHistoryItem = selectedHistoryId
     ? historyItems.find(item => item.id === selectedHistoryId)
     : null;
   const recordingFileName = currentHistoryItem?.recordingFileName;
+  const phase = useMeetingPhase(currentHistoryItem?.id, currentHistoryItem);
+  const handleTranscribe = () => {
+    if (currentHistoryItem) void transcribe(currentHistoryItem);
+  };
   
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [isCopyMenuOpen, setIsCopyMenuOpen] = useState(false);
@@ -279,8 +287,9 @@ export const ResultsView: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {/* Meeting Title Header - Compact */}
-      <div className="px-12 pt-3 pb-3">
+      {/* Meeting title — same page column as Settings */}
+      <div className={`${LAYOUT.pageGutter} pt-3 pb-3`}>
+      <div className={LAYOUT.pageColumn}>
         {isEditingTitle ? (
           <div className="flex items-center gap-2">
             <Input
@@ -308,27 +317,19 @@ export const ResultsView: React.FC = () => {
                 {result.title}
               </Text>
               <IconButton icon={Pencil} size="sm" label="Edit title" className="shrink-0" onClick={handleTitleEdit} />
-              {currentHistoryItem?.recordingFileName && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => currentHistoryItem && transcribe(currentHistoryItem)}
-                  disabled={isTranscribing}
-                  className="shrink-0"
-                  title={currentHistoryItem?.pendingTranscription ? 'Transcribe recording' : 'Re-transcribe recording'}
-                >
-                  {isTranscribing ? (
-                    <Icon icon={RefreshCw} size="xs" className="animate-spin" />
-                  ) : (
-                    <Icon icon={currentHistoryItem?.pendingTranscription ? Mic : RefreshCw} size="xs" />
-                  )}
-                  {isTranscribing
-                    ? `Transcribing${transcribeProgress ? ` ${transcribeProgress.current}/${transcribeProgress.total}` : ''}...`
-                    : currentHistoryItem?.pendingTranscription
-                      ? 'Transcribe'
-                      : 'Re-transcribe'}
+              <MeetingStatus phase={phase} display="badge" />
+              {currentHistoryItem?.recordingFileName && phase.kind === 'ready' && (
+                <Button variant="ghost" size="sm" onClick={handleTranscribe} className="shrink-0">
+                  <Icon icon={RefreshCw} size="xs" />
+                  {meetingPhaseAction(phase)}
                 </Button>
               )}
+            </div>
+            <div className="mt-3 empty:hidden">
+              <MeetingPhaseNotice
+                phase={phase}
+                onAction={currentHistoryItem?.recordingFileName ? handleTranscribe : undefined}
+              />
             </div>
             {/* Calendar metadata — only shown when available */}
             {currentHistoryItem?.scheduledStart && (
@@ -338,7 +339,7 @@ export const ResultsView: React.FC = () => {
             {result.categories && result.categories.length > 0 && (
               <div className="flex gap-1.5 mt-2">
                 {result.categories.map((c) => (
-                  <Badge key={c} dot={false} className="uppercase tracking-wide">
+                  <Badge key={c} dot={false}>
                     {c}
                   </Badge>
                 ))}
@@ -347,15 +348,17 @@ export const ResultsView: React.FC = () => {
           </>
         )}
       </div>
+      </div>
 
       {/* Tabs Navigation */}
-      <Surface edge="bottom" className="flex items-center gap-2 px-12 h-11">
+      <Surface edge="bottom" className={LAYOUT.pageGutter}>
+      <div className={`${LAYOUT.pageColumn} flex items-center gap-2 h-11`}>
         <Tabs items={TAB_ITEMS} value={activeResultTab} onValueChange={setActiveResultTab} />
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2 ml-auto">
           {/* Copy Button */}
-          <Surface variant="inset" radius="md" className="flex items-center shrink-0">
+          <ButtonGroup>
             <Button
               variant="ghost"
               size="iconSm"
@@ -364,7 +367,6 @@ export const ResultsView: React.FC = () => {
             >
               {copyIcon(activeResultTab, Copy)}
             </Button>
-            <Separator orientation="vertical" className="h-3.5" />
             <DropdownMenu open={isCopyMenuOpen} onOpenChange={setIsCopyMenuOpen}>
               <DropdownMenuTrigger asChild>
                 <IconButton icon={ChevronDown} size="sm" label="Copy options" />
@@ -380,12 +382,11 @@ export const ResultsView: React.FC = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </Surface>
+          </ButtonGroup>
 
           {/* Download Button */}
-          <Surface variant="inset" radius="md" className="flex items-center shrink-0">
+          <ButtonGroup>
             <IconButton icon={Download} size="sm" label="Download as Markdown" onClick={() => handleDownload('md', 'current')} />
-            <Separator orientation="vertical" className="h-3.5" />
             <DropdownMenu open={isDownloadMenuOpen} onOpenChange={setIsDownloadMenuOpen}>
               <DropdownMenuTrigger asChild>
                 <IconButton icon={ChevronDown} size="sm" label="Download options" />
@@ -411,7 +412,7 @@ export const ResultsView: React.FC = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </Surface>
+          </ButtonGroup>
 
           {/* AI Chat Button */}
           <Button
@@ -423,6 +424,7 @@ export const ResultsView: React.FC = () => {
             <Icon icon={Sparkles} size="xs" tone={meetingChatOpen ? 'inherit' : 'ai'} />
           </Button>
         </div>
+      </div>
       </Surface>
 
       {/* Audio Player - always visible above content when recording file exists */}
@@ -435,7 +437,8 @@ export const ResultsView: React.FC = () => {
       )}
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-y-auto px-12 py-4 custom-scrollbar">
+      <div className={`flex-1 overflow-y-auto custom-scrollbar ${LAYOUT.pageGutter} py-4`}>
+      <div className={`${LAYOUT.pageColumn} min-h-full flex flex-col`}>
         {activeResultTab === 'summary' && (
           <SummaryView
             summary={result.summary}
@@ -445,12 +448,7 @@ export const ResultsView: React.FC = () => {
           />
         )}
         {activeResultTab === 'transcript' && (
-          <TranscriptViewEnhanced
-            text={result.transcript || ''}
-            timestamp={result.timestamp}
-            title={result.title}
-            segments={result.segments}
-          />
+          <ParsedTranscript text={result.transcript} segments={result.segments} />
         )}
         {activeResultTab === 'todo' && (
           <TodoList />
@@ -458,6 +456,7 @@ export const ResultsView: React.FC = () => {
         {activeResultTab === 'notes' && (
           <NotesView />
         )}
+      </div>
       </div>
     </div>
   );

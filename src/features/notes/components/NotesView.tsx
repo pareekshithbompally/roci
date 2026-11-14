@@ -11,7 +11,7 @@ import { useNotes } from '@features/notes/hooks';
 import { EmptyState } from '@shared/components';
 import NoteItem from './NoteItem';
 import NoteEditor from './NoteEditor';
-import { Button, Callout, Icon, Text } from '@shared/ui';
+import { Button, Callout, Card, Icon, Text } from '@shared/ui';
 
 interface NotesViewProps {
   className?: string;
@@ -56,7 +56,7 @@ const NotesView: React.FC<NotesViewProps> = ({ className = '' }) => {
   }
 
   return (
-    <div className={`flex flex-col min-h-full gap-y-5 ${className}`}>
+    <div className={`flex flex-col flex-1 gap-y-3 ${className}`}>
       {/* Top action bar - always visible */}
       <div className="flex items-center gap-4 shrink-0">
         <div className="flex-1">
@@ -87,7 +87,7 @@ const NotesView: React.FC<NotesViewProps> = ({ className = '' }) => {
           <EmptyState icon={StickyNote} message="No notes yet" />
         </div>
       ) : notes.length > 0 ? (
-        <div className="space-y-3">
+        <Card>
           {notes.map((note) => (
             <NoteItem
               key={note.id}
@@ -96,7 +96,7 @@ const NotesView: React.FC<NotesViewProps> = ({ className = '' }) => {
               onUpdate={updateNote}
             />
           ))}
-        </div>
+        </Card>
       ) : null}
     </div>
   );

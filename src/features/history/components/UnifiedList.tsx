@@ -3,6 +3,8 @@ import { useHistory } from '@shared/contexts/HistoryContext';
 import { useChat } from '@shared/contexts/ChatContext';
 import { SIDEBAR_PAGE_SIZE } from '@config/chat.config';
 import { useTranscribeRecording } from '@shared/hooks/useTranscribeRecording';
+import { useMeetingJobs } from '@shared/stores/meetingJobsStore';
+import { deriveMeetingPhase } from '@shared/types/meetingPhase';
 import { useSentinel } from '@shared/hooks/useSentinel';
 import { SidebarShimmer } from '@features/history/components/SidebarShimmer';
 import { UnifiedSidebarItem } from './UnifiedSidebarItem';
@@ -27,7 +29,8 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
 }) => {
   const history = useHistory();
   const chat = useChat();
-  const { transcribe, isTranscribing, transcribingItemId } = useTranscribeRecording();
+  const { transcribe } = useTranscribeRecording();
+  const jobs = useMeetingJobs();
 
   const [renameItem, setRenameItem] = React.useState<UnifiedSidebarItemType | null>(null);
   const [displayCount, setDisplayCount] = useState(SIDEBAR_PAGE_SIZE);
@@ -109,7 +112,7 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
             onClick={() => onSelect(item)}
             onStartRename={() => setRenameItem(item)}
             onDeleteClick={() => handleDelete(item)}
-            isTranscribing={isTranscribing && transcribingItemId === item.id}
+            phase={item.type === 'meeting' ? deriveMeetingPhase(jobs[item.id], item.historyItem) : undefined}
             onTranscribeClick={item.type === 'meeting' ? () => handleTranscribe(item) : undefined}
           />
         ))}

@@ -18,6 +18,8 @@ export const TRANSCRIPTION_CONFIG = {
   sampleRate: 16_000,
   /** Spoken language sent to engines that take one; a language setting is out of scope. */
   language: 'en',
+  /** Plain-text transcripts reflow into paragraphs of about this many characters (ends on a sentence). */
+  paragraphChars: 480,
 
   /**
    * Longest part each adapter receives, in seconds (16 kHz × 2 B = 32 kB/s):

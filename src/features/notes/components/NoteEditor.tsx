@@ -20,7 +20,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   onSave,
   onCancel,
   initialText = '',
-  placeholder = 'Write your note here...',
+  placeholder = 'Write a note — Markdown works: # heading, - list, **bold**',
   autoFocus = true,
 }) => {
   const [text, setText] = useState(initialText);
@@ -51,7 +51,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   const canSave = text.trim().length > 0;
 
   return (
-    <Surface variant="card" radius="xl" className="p-4 space-y-3 animate-fade-in">
+    <Surface variant="card" radius="lg" className="p-3 space-y-3 animate-fade-in">
       <Textarea
         ref={textareaRef}
         value={text}
@@ -61,7 +61,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         spellCheck={true}
         autoCorrect="on"
         autoCapitalize="sentences"
-        className="w-full h-24"
+        className="w-full min-h-32"
       />
       <div className="flex items-center justify-between">
         <Text as="p" variant="caption" tone="faint">Press ⌘+Enter to save, Esc to cancel</Text>

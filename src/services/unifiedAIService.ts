@@ -115,10 +115,11 @@ class UnifiedAIService {
     settings: AppSettings,
     providers: ModelProvider[],
     meetingContext?: MeetingContext,
-    options: TranscribeOptions = {},
+    options: TranscribeOptions & { onSummarizing?: () => void } = {},
   ): Promise<{ result: ProcessedResult; usage?: TokenUsage }> {
     const t = await transcribeAudio(audioBlob, settings, providers, options);
     const { formatted: transcript, segments } = formatTranscript(t);
+    options.onSummarizing?.();
 
     const { result: analysis, usage } = await analyzeStage({
       transcript,

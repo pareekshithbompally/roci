@@ -4,6 +4,7 @@ import CustomAudioPlayer from '@features/home/components/CustomAudioPlayer';
 import { useAudioQuery } from '@features/home/hooks/useAudioQuery';
 import { useAudioPlayerStore } from '@shared/stores/audioPlayerStore';
 import { Surface } from '@shared/ui';
+import { LAYOUT } from '@config/layout.config';
 
 interface ResultsAudioPlayerProps {
   recordingFileName: string;
@@ -41,8 +42,8 @@ export const ResultsAudioPlayer: React.FC<ResultsAudioPlayerProps> = ({
 
   if (isLoading) {
     return (
-      <div className="px-12 py-2">
-        <Surface variant="card" radius="lg" className="flex flex-col gap-2 p-3">
+      <div className={`${LAYOUT.pageGutter} py-2`}>
+        <Surface variant="card" radius="lg" className={`${LAYOUT.pageColumn} flex flex-col gap-2 p-3`}>
           <div className="flex items-center gap-2">
             <Surface variant="inset" radius="full" className="w-8 h-8 animate-pulse" />
             <Surface variant="inset" radius="md" className="w-16 h-3 animate-pulse" />
@@ -67,9 +68,11 @@ export const ResultsAudioPlayer: React.FC<ResultsAudioPlayerProps> = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.92, y: -16 }}
         transition={{ type: 'spring', stiffness: 450, damping: 32, mass: 0.9 }}
-        className="px-12 py-2"
+        className={`${LAYOUT.pageGutter} py-2`}
       >
-        <CustomAudioPlayer src={audioUrl} duration={duration} meetingId={meetingId} />
+        <div className={LAYOUT.pageColumn}>
+          <CustomAudioPlayer src={audioUrl} duration={duration} meetingId={meetingId} />
+        </div>
       </motion.div>
     </AnimatePresence>
   );

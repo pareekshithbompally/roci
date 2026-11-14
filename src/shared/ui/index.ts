@@ -36,6 +36,7 @@ export { Kbd } from './kbd';
 export { Progress } from './progress';
 export type { ProgressProps } from './progress';
 export { Surface, Separator, Dot } from './surface';
+export { ButtonGroup } from './button-group';
 export type { SurfaceProps, SurfaceVariant } from './surface';
 export { Disclosure } from './disclosure';
 export type { DisclosureProps } from './disclosure';
