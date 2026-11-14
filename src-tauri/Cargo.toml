@@ -40,6 +40,8 @@ core-foundation = "0.10"
 base64 = "0.22"
 tauri-plugin-window-state = "2"
 tauri-plugin-updater = "2"
+# kasset:// URL actions (Shortcuts, Raycast, Alfred, links in notes)
+tauri-plugin-deep-link = "2"
 block2 = "0.6.2"
 cpal = "0.18.2"
 eyre = "0.6.12"

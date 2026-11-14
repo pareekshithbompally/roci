@@ -25,7 +25,7 @@ import { ConfirmHost, OnDeviceModelActivity, SearchOverlay } from '@shared/compo
 import { Toaster } from '@shared/ui';
 import { useAppShortcuts } from '@features/shortcuts';
 import { focusChatComposer, startNewChat } from '@features/chat';
-import { useAppleNotesRuntime, useCalendarRuntime, useHexRuntime, useMcpHostRuntime, useRemindersRuntime } from '@features/integrations';
+import { useAppleNotesRuntime, useCalendarRuntime, useHexRuntime, useMcpHostRuntime, useRemindersRuntime, useUrlActionsRuntime } from '@features/integrations';
 import { useNotificationsRuntime } from '@features/notifications';
 
 // Services
@@ -88,6 +88,7 @@ const App: React.FC = () => {
   useRemindersRuntime();
   useHexRuntime();
   useMcpHostRuntime();
+  useUrlActionsRuntime();
   useAppleNotesRuntime();
 
   // Tray › Speech Model submenu: downloaded Hex models and the current pick

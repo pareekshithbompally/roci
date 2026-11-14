@@ -80,4 +80,19 @@ export const INTEGRATIONS_CONFIG = {
       opencode: { title: 'OpenCode', description: 'Adds one entry to OpenCode’s global config; nothing else changes.', icon: '/images/opencode-app-sm.png' },
     },
   },
+  /** `kasset://` links (src-tauri/src/url_actions.rs) for Shortcuts, Raycast, Alfred and notes. */
+  urlActions: {
+    section: 'URL actions',
+    copy: 'Copy link',
+    copied: 'Link copied',
+    meetingNotFound: 'That meeting isn’t in Kasset.',
+    actions: [
+      { url: 'kasset://record', description: 'Start recording. The menu bar icon turns red.' },
+      { url: 'kasset://stop', description: 'Stop recording and transcribe.' },
+      { url: 'kasset://ask?q=', description: 'Ask in a new chat. Put the question after q=.' },
+      { url: 'kasset://meeting/<id>', description: 'Open a meeting by its ID.' },
+      { url: 'kasset://show', description: 'Bring up Kasset.' },
+      { url: 'kasset://settings', description: 'Open Settings.' },
+    ],
+  },
 } as const;

@@ -17,7 +17,7 @@ import { useAppActions } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
 import type { UnifiedSidebarItem } from '@shared/types';
 import { useChat } from '@shared/contexts/ChatContext';
-import { useMeetingDetailLoader } from '@shared/hooks/useMeetingDetailLoader';
+import { useOpenMeeting } from '@shared/hooks/useOpenMeeting';
 import { formatRelativeTime } from '@shared/utils/formatters';
 import {
   SPOTLIGHT_DEBOUNCE_MS,
@@ -77,7 +77,7 @@ function SpotlightBody({ onClose }: { onClose: () => void }) {
   const { items } = useUnifiedSidebar();
   const { setCurrentView, setStatus, setSelectedHistoryId, setResult } = useAppActions();
   const chat = useChat();
-  const loadMeetingDetail = useMeetingDetailLoader();
+  const openMeeting = useOpenMeeting();
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SpotlightHit[]>([]);
@@ -143,12 +143,7 @@ function SpotlightBody({ onClose }: { onClose: () => void }) {
       if (hit.source_type === 'meeting') {
         const sidebarItem = items.find((i) => i.type === 'meeting' && i.id === hit.source_id);
         if (sidebarItem?.historyItem) {
-          setCurrentView('home');
-          setSelectedHistoryId(hit.source_id);
-          chat.setCurrentSessionId(null);
-          // Generation-guarded lazy load (newest selection wins).
-          await loadMeetingDetail(sidebarItem.historyItem);
-          setStatus(AppStatus.RESULTS);
+          await openMeeting(sidebarItem.historyItem);
         }
       } else {
         chat.selectSession(hit.source_id);
@@ -159,7 +154,7 @@ function SpotlightBody({ onClose }: { onClose: () => void }) {
       }
       onClose();
     },
-    [items, setCurrentView, setSelectedHistoryId, setStatus, setResult, chat, onClose, loadMeetingDetail],
+    [items, setCurrentView, setSelectedHistoryId, setStatus, setResult, chat, onClose, openMeeting],
   );
 
   const meetingHits = results.filter((h) => h.source_type === 'meeting');

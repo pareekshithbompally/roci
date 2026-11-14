@@ -10,6 +10,7 @@ mod hex;
 mod open_native;
 mod mcp;
 mod mcp_server;
+mod url_actions;
 mod meeting_reminders;
 
 /// Open a folder in the OS file manager (Finder on macOS).
@@ -70,6 +71,9 @@ pub fn run() {
       // Kasset as an MCP server for coding agents (socket in the app data folder).
       mcp_server::start(app.handle().clone());
 
+      // kasset:// URL actions (queued until the webview is ready).
+      url_actions::setup(app.handle());
+
       // Calendar meeting reminders (HEX watcher): idle until the frontend enables them.
       meeting_reminders::start(app.handle().clone());
 
@@ -101,12 +105,14 @@ pub fn run() {
     ))
     .plugin(tauri_plugin_window_state::Builder::new().build())
     .plugin(tauri_plugin_updater::Builder::new().build())
+    .plugin(tauri_plugin_deep_link::init())
     .manage(shortcuts::ShortcutState {
       registered: Mutex::new(Vec::new()),
     })
     .manage(wake_lock::WakeLockState::new())
     .manage(mcp::McpState::default())
     .manage(mcp_server::McpHostState::default())
+    .manage(url_actions::UrlActionsState::default())
     .manage(hex::HexState::default())
     .invoke_handler(tauri::generate_handler![
       // Shortcut commands
@@ -166,6 +172,8 @@ pub fn run() {
       mcp_server::commands::mcp_host_status,
       mcp_server::commands::coding_agents_status,
       mcp_server::commands::coding_agent_set,
+      // kasset:// URL actions
+      url_actions::url_actions_ready,
       // Screenshot commands
       screenshot::list_capturable_windows,
       screenshot::take_screenshot,

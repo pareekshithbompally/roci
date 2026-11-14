@@ -416,8 +416,9 @@ fn refresh_recording_items(app: &AppHandle) {
     apply_visibility(app);
 }
 
-/// Dispatch a menu action (Hex: `Pump::status_action`).
-fn dispatch(app: &AppHandle, action: &str) {
+/// Dispatch a menu action (Hex: `Pump::status_action`). `kasset://record`,
+/// `stop`, `show` and `settings` come through here too (`url_actions`).
+pub(crate) fn dispatch(app: &AppHandle, action: &str) {
     if action == item::SHOW {
         crate::window::show_main(app);
         return;

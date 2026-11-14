@@ -46,6 +46,13 @@ class MenubarService {
   private unlisten: UnlistenFn | null = null;
   private initialized = false;
   private initPromise: Promise<void> | null = null;
+  private markListening: () => void = () => {};
+  private readonly listening = new Promise<void>((resolve) => { this.markListening = resolve; });
+
+  /** Resolves once the `menubar-action` listener is attached (URL actions wait for it). */
+  whenListening(): Promise<void> {
+    return this.listening;
+  }
 
   /** Whether the menubar event listener is attached. */
   get isInitialized(): boolean {
@@ -67,6 +74,7 @@ class MenubarService {
     }).then((unlisten) => {
       this.unlisten = unlisten;
       this.initialized = true;
+      this.markListening();
     }).catch((error) => {
       console.error('[Menubar] Failed to attach menubar listener:', error);
       this.initPromise = null;

@@ -25,6 +25,7 @@ export {
   useChatStore,
   focusChatComposer,
   startNewChat,
+  askInNewChat,
   registerChatComposer,
   injectChatRefs,
   useChatSessionIndex,

@@ -20,7 +20,7 @@ import { ActivityTray } from '@shared/components';
 import { shortcutLabel } from '@features/shortcuts';
 import { startNewChat } from '@features/chat';
 import type { UnifiedSidebarItem } from '@shared/types';
-import { useMeetingDetailLoader } from '@shared/hooks/useMeetingDetailLoader';
+import { useOpenMeeting } from '@shared/hooks/useOpenMeeting';
 
 interface SidebarProps {
   shouldOffsetMacControls: boolean;
@@ -40,7 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { setCurrentView, leaveSettings, setStatus, setSelectedHistoryId, setResult } = useAppActions();
   const chat = useChat();
   const listContainerRef = useRef<HTMLDivElement>(null);
-  const loadMeetingDetail = useMeetingDetailLoader();
+  const openMeeting = useOpenMeeting();
 
   // Scroll the selected item into view when selection changes (e.g. from spotlight)
   useEffect(() => {
@@ -66,14 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const handleSelectItem = useCallback(async (item: UnifiedSidebarItem) => {
     if (item.type === 'meeting' && item.historyItem) {
-      const hi = item.historyItem;
-      setCurrentView('home');
-      setSelectedHistoryId(hi.id);
-      chat.setCurrentSessionId(null);
-
-      await loadMeetingDetail(hi);
-
-      setStatus(AppStatus.RESULTS);
+      await openMeeting(item.historyItem);
     } else if (item.type === 'chat') {
       chat.selectSession(item.id);
       setCurrentView('home');
@@ -82,7 +75,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       setStatus(AppStatus.CHAT);
     }
     if (isSmallScreen) setLeftPanel(false);
-  }, [setCurrentView, setSelectedHistoryId, setResult, setStatus, chat, isSmallScreen, setLeftPanel, loadMeetingDetail]);
+  }, [setCurrentView, setSelectedHistoryId, setResult, setStatus, chat, isSmallScreen, setLeftPanel, openMeeting]);
 
   const getSelectedId = (): string | null => {
     if (selectedHistoryId) return selectedHistoryId;

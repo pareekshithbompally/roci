@@ -89,6 +89,14 @@ export function focusChatComposer(): void {
   if (selectedHistoryId) setMeetingChatOpen(true);
 }
 
+/** Send a question in a fresh chat on home (the home composer, `kasset://ask`). */
+export function askInNewChat(text: string): void {
+  startNewChat();
+  useChatStore.getState().newChat();
+  useAppStore.getState().setStatus(AppStatus.CHAT);
+  void useChatStore.getState().sendMessage(text);
+}
+
 /** Back to the empty home composer: no meeting, session, or result selected (⌘N, New chat). */
 export function startNewChat(): void {
   const app = useAppStore.getState();

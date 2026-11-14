@@ -9,9 +9,8 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { Key, HardDrive, ListTodo, CalendarDays } from 'lucide-react';
 import { ImportButton } from '@features/import';
 import { useAppActions } from '@shared/stores/appStore';
-import { AppStatus } from '@shared/types';
 import { useRecordingContext } from '@features/recording';
-import { useChatStore } from '@features/chat';
+import { askInNewChat, useChatStore } from '@features/chat';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { ChatInput } from '@features/chat';
@@ -42,7 +41,7 @@ const GREETING_POOL = [
 ];
 
 export const IdleView: React.FC<IdleViewProps> = () => {
-  const { setStatus, setCurrentView, setActiveSettingsPanel } = useAppActions();
+  const { setCurrentView, setActiveSettingsPanel } = useAppActions();
   const [greeting] = useState(() => GREETING_POOL[Math.floor(Math.random() * GREETING_POOL.length)]);
   const recording = useRecordingContext();
 
@@ -54,9 +53,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   const { items: historyItems } = useHistoryData();
   const { settings, providers, isLoading: settingsLoading } = useSettings();
 
-  const sendMessage = useChatStore((s) => s.sendMessage);
   const setInput = useChatStore((s) => s.setInput);
-  const newChat = useChatStore((s) => s.newChat);
   const setSelectedMeetingRefs = useChatStore((s) => s.setSelectedMeetingRefs);
   const addAttachment = useChatStore((s) => s.addAttachment);
   const removeAttachment = useChatStore((s) => s.removeAttachment);
@@ -108,17 +105,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   const handleSendMessage = () => {
     if (!chatInput.trim() || isGenerating) return;
 
-    // Capture input before clearing
-    const messageText = chatInput;
-
-    // Clear any existing session to start fresh
-    newChat();
-
-    // Switch to CHAT view immediately
-    setStatus(AppStatus.CHAT);
-
-    // Send the message — store handles session creation atomically
-    sendMessage(messageText);
+    askInNewChat(chatInput);
   };
 
   return (
