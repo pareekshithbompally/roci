@@ -23,14 +23,24 @@ interface UpdateInfo {
   date: string | null;
 }
 
+export interface UpdateCheckOptions {
+  /**
+   * Silent checks (e.g. the automatic startup check) treat an unreachable
+   * endpoint as "no update" instead of surfacing an error — the endpoint 404s
+   * until the first release with updater artifacts is published, and dev
+   * builds can never be updated.
+   */
+  silent?: boolean;
+}
+
 interface UseAppUpdateReturn {
   status: UpdateStatus;
   updateInfo: UpdateInfo | null;
   error: string | null;
   /** Returns true if an update is available, false if already up-to-date. */
-  checkForUpdate: () => Promise<boolean>;
+  checkForUpdate: (options?: UpdateCheckOptions) => Promise<boolean>;
   /** Check now and report the outcome (tray's Check for Updates…). */
-  checkNow: () => Promise<UpdateCheckResult>;
+  checkNow: (options?: UpdateCheckOptions) => Promise<UpdateCheckResult>;
   downloadAndInstall: () => Promise<void>;
   dismiss: () => void;
 }
@@ -56,7 +66,7 @@ export function useAppUpdate(): UseAppUpdateReturn {
   const [error, setError] = useState<string | null>(null);
   const updateRef = useRef<Awaited<ReturnType<typeof import('@tauri-apps/plugin-updater')['check']>>>(null);
 
-  const runCheck = useCallback(async (): Promise<UpdateCheckResult> => {
+  const runCheck = useCallback(async (options?: UpdateCheckOptions): Promise<UpdateCheckResult> => {
     if (!isTauriEnvironment()) return 'failed';
 
     setStatus('checking');
@@ -81,6 +91,12 @@ export function useAppUpdate(): UseAppUpdateReturn {
         return 'current';
       }
     } catch (err: unknown) {
+      if (options?.silent) {
+        console.debug('[useAppUpdate] Background check failed, treating as up-to-date:', err);
+        setStatus('idle');
+        setUpdateInfo(null);
+        return 'current';
+      }
       console.error('[useAppUpdate] Check failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to check for updates');
       setStatus('error');
@@ -89,7 +105,8 @@ export function useAppUpdate(): UseAppUpdateReturn {
   }, []);
 
   const checkForUpdate = useCallback(
-    async (): Promise<boolean> => (await runCheck()) === 'available',
+    async (options?: UpdateCheckOptions): Promise<boolean> =>
+      (await runCheck(options)) === 'available',
     [runCheck],
   );
 
@@ -180,6 +197,9 @@ export function useAppUpdate(): UseAppUpdateReturn {
 /** Schedule a background update check after app startup settles. */
 export function scheduleStartupCheck(checkFn: () => Promise<void>) {
   if (!isTauriEnvironment()) return;
+  // Dev builds are never distributed releases, so the updater endpoint can
+  // never serve them — skip instead of logging an updater ERROR on every launch.
+  if (import.meta.env.DEV) return;
   const timer = setTimeout(checkFn, STARTUP_CHECK_DELAY_MS);
   return () => clearTimeout(timer);
 }

@@ -206,7 +206,7 @@ const App: React.FC = () => {
 
   // Check for app updates after startup settles
   useEffect(() => {
-    return scheduleStartupCheck(async () => { await appUpdate.checkForUpdate(); });
+    return scheduleStartupCheck(async () => { await appUpdate.checkForUpdate({ silent: true }); });
   }, [appUpdate.checkForUpdate]);
 
   const initializeTauriServices = async () => {
