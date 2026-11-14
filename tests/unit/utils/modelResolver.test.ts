@@ -52,15 +52,15 @@ describe('getProviderType', () => {
     ['anthropic', 'anthropic'],
     ['openai', 'openai'],
     ['mistral', 'mistral'],
-    ['xai', 'xai'],
     ['groq', 'groq'],
   ] as const)('maps "%s" to "%s"', (input, expected) => {
     expect(getProviderType(input)).toBe(expected);
   });
 
-  it('defaults unknown providers to openai-compat', () => {
+  it('defaults unknown and retired providers to openai-compat', () => {
     expect(getProviderType('some-random-provider')).toBe('openai-compat');
     expect(getProviderType('cohere')).toBe('openai-compat');
+    expect(getProviderType('xai')).toBe('openai-compat');
     expect(getProviderType('')).toBe('openai-compat');
   });
 });
@@ -68,14 +68,14 @@ describe('getProviderType', () => {
 // ── supportsWebSearch ───────────────────────────────────────────
 
 describe('supportsWebSearch', () => {
-  it.each(['gemini', 'openai', 'anthropic', 'xai', 'groq'])(
+  it.each(['gemini', 'openai', 'anthropic', 'groq'])(
     'returns true for %s',
     (provider) => {
       expect(supportsWebSearch(provider)).toBe(true);
     }
   );
 
-  it.each(['mistral', 'cohere', 'local:ollama', ''])(
+  it.each(['mistral', 'local:ollama', ''])(
     'returns false for %s',
     (provider) => {
       expect(supportsWebSearch(provider)).toBe(false);

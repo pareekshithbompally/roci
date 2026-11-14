@@ -2,7 +2,7 @@
  * Local Servers
  *
  * Detects OpenAI-compatible servers the user runs on this Mac (Ollama, LM Studio,
- * llama.cpp server, vLLM, Jan, or any URL they add) and turns them into ordinary
+ * vLLM, Jan, or any URL they add) and turns them into ordinary
  * `ModelProvider`s. Chat, analysis and model listing then use the same
  * openai-compat path and the same key handling as every other provider.
  */

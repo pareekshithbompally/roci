@@ -10,7 +10,6 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogle } from '@ai-sdk/google';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createMistral } from '@ai-sdk/mistral';
-import { createXai, xai } from '@ai-sdk/xai';
 import { createGroq, groq } from '@ai-sdk/groq';
 import { anthropic } from '@ai-sdk/anthropic';
 import { google } from '@ai-sdk/google';
@@ -20,7 +19,7 @@ import { getProviderType } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { LanguageModel, ToolSet } from 'ai';
 
-/** Extract custom headers from provider config (for Azure, OpenRouter, etc.) */
+/** Extract custom headers from provider config (for OpenRouter, etc.) */
 function buildCustomHeaders(providerConfig: ResolvedModel['providerConfig']): Record<string, string> {
   const headers: Record<string, string> = {};
   if (providerConfig.custom_header) {
@@ -36,7 +35,7 @@ function buildCustomHeaders(providerConfig: ResolvedModel['providerConfig']): Re
  * Provider instances are lightweight — no caching needed.
  *
  * @param options.webSearch - When true, uses the Responses API for providers
- *   whose Chat API doesn't support provider-defined tools (OpenAI, xAI).
+ *   whose Chat API doesn't support provider-defined tools (OpenAI).
  *   Gemini and Anthropic handle web search natively in their Chat API.
  */
 export function createModel(
@@ -73,13 +72,6 @@ export function createModel(
       const provider = createMistral({ apiKey: resolved.apiKey, fetch });
       return provider(resolved.modelId);
     }
-    case 'xai': {
-      const provider = createXai({ apiKey: resolved.apiKey, fetch });
-      if (options?.webSearch) {
-        return provider.responses(resolved.modelId);
-      }
-      return provider(resolved.modelId);
-    }
     case 'groq': {
       const provider = createGroq({ apiKey: resolved.apiKey, fetch });
       return provider(resolved.modelId);
@@ -111,8 +103,6 @@ export function getWebSearchTools(resolved: ResolvedModel): ToolSet | undefined 
       return { googleSearch: google.tools.googleSearch({}) };
     case 'openai':
       return { webSearch: openai.tools.webSearchPreview({}) };
-    case 'xai':
-      return { webSearch: xai.tools.webSearch({}) };
     case 'groq':
       return { browserSearch: groq.tools.browserSearch({}) };
     default:

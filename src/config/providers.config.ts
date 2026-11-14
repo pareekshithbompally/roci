@@ -9,7 +9,7 @@ import type { ModelProvider } from '@shared/types/modelProviders'
 export const MANAGED_MODELS: Record<string, string[]> = {}
 
 /** Providers that use a native SDK (no user-configurable base URL) */
-export const MANAGED_SDK_PROVIDERS = new Set(['openai', 'anthropic', 'gemini', 'mistral', 'xai', 'groq']);
+export const MANAGED_SDK_PROVIDERS = new Set(['openai', 'anthropic', 'gemini', 'mistral', 'groq']);
 
 /** SDK description shown in settings UI */
 export const MANAGED_SDK_INFO: Record<string, string> = {
@@ -17,7 +17,6 @@ export const MANAGED_SDK_INFO: Record<string, string> = {
   anthropic: 'Connects directly to the Anthropic API via the AI SDK. No endpoint configuration needed.',
   gemini: 'Connects directly to the Google Gemini API via the AI SDK. No endpoint configuration needed.',
   mistral: 'Connects directly to the Mistral API via the AI SDK. No endpoint configuration needed.',
-  xai: 'Connects directly to the xAI API via the AI SDK. Supports web search. No endpoint configuration needed.',
   groq: 'Connects directly to the Groq API via the AI SDK. No endpoint configuration needed.',
 };
 
@@ -25,7 +24,6 @@ export const MANAGED_SDK_INFO: Record<string, string> = {
 export const MANAGED_DEFAULT_URLS: Record<string, string> = {
   openai: 'https://api.openai.com/v1',
   mistral: 'https://api.mistral.ai/v1',
-  xai: 'https://api.x.ai/v1',
   groq: 'https://api.groq.com/openai/v1',
 };
 
@@ -48,40 +46,6 @@ export const predefinedProviders: ModelProvider[] = [
           value: '',
           type: 'password',
           input_actions: ['unobscure', 'copy'],
-        },
-      },
-    ],
-    models: [],
-  },
-  {
-    active: true,
-    api_key: '',
-    base_url: 'https://YOUR-RESOURCE-NAME.openai.azure.com/openai/v1',
-    explore_models_url: 'https://oai.azure.com/deployments',
-    provider: 'azure',
-    settings: [
-      {
-        key: 'api-key',
-        title: 'API Key',
-        description:
-          'The Azure OpenAI API uses API keys for authentication. Visit your [Azure OpenAI Studio](https://oai.azure.com/) to retrieve the API key from your resource.',
-        controller_type: 'input',
-        controller_props: {
-          placeholder: 'Insert API Key',
-          value: '',
-          type: 'password',
-          input_actions: ['unobscure', 'copy'],
-        },
-      },
-      {
-        key: 'base-url',
-        title: 'Base URL',
-        description:
-          'Your Azure OpenAI resource endpoint. See the [Azure OpenAI documentation](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/latest) for more information.',
-        controller_type: 'input',
-        controller_props: {
-          placeholder: 'https://YOUR-RESOURCE-NAME.openai.azure.com/openai/v1',
-          value: 'https://YOUR-RESOURCE-NAME.openai.azure.com/openai/v1',
         },
       },
     ],
@@ -120,40 +84,6 @@ export const predefinedProviders: ModelProvider[] = [
         value: 'true',
       },
     ],
-  },
-  {
-    active: true,
-    api_key: '',
-    base_url: 'https://api.cohere.ai/v1',
-    explore_models_url: 'https://docs.cohere.com/v2/docs/models',
-    provider: 'cohere',
-    settings: [
-      {
-        key: 'api-key',
-        title: 'API Key',
-        description:
-          "The Cohere API uses API keys for authentication. Visit your [API Keys](https://dashboard.cohere.com/api-keys) page to retrieve the API key you'll use in your requests.",
-        controller_type: 'input',
-        controller_props: {
-          placeholder: 'Insert API Key',
-          value: '',
-          type: 'password',
-          input_actions: ['unobscure', 'copy'],
-        },
-      },
-      {
-        key: 'base-url',
-        title: 'Base URL',
-        description:
-          'The base OpenAI-compatible endpoint to use. See the [Cohere documentation](https://docs.cohere.com/docs/compatibility-api) for more information.',
-        controller_type: 'input',
-        controller_props: {
-          placeholder: 'https://api.cohere.ai/compatibility/v1',
-          value: 'https://api.cohere.ai/compatibility/v1',
-        },
-      },
-    ],
-    models: [],
   },
   {
     active: true,
@@ -294,64 +224,6 @@ export const predefinedProviders: ModelProvider[] = [
         title: 'API Key',
         description:
           "The Google API uses API keys for authentication. Visit your [API Keys](https://aistudio.google.com/apikey) page to retrieve the API key you'll use in your requests.",
-        controller_type: 'input',
-        controller_props: {
-          placeholder: 'Insert API Key',
-          value: '',
-          type: 'password',
-          input_actions: ['unobscure', 'copy'],
-        },
-      },
-    ],
-    models: [],
-  },
-  {
-    active: true,
-    api_key: '',
-    base_url: 'https://router.huggingface.co/v1',
-    explore_models_url:
-      'https://huggingface.co/models?pipeline_tag=text-generation&inference_provider=all',
-    provider: 'huggingface',
-    settings: [
-      {
-        key: 'api-key',
-        title: 'API Key',
-        description:
-          "The Hugging Face API uses tokens for authentication. Visit your [Access Tokens](https://huggingface.co/settings/tokens) page to retrieve the token you'll use in your requests.",
-        controller_type: 'input',
-        controller_props: {
-          placeholder: 'Insert API Token',
-          value: '',
-          type: 'password',
-          input_actions: ['unobscure', 'copy'],
-        },
-      },
-      {
-        key: 'base-url',
-        title: 'Base URL',
-        description:
-          'The base endpoint to use. See the [Hugging Face Inference Providers documentation](https://huggingface.co/docs/inference-providers) for more information.',
-        controller_type: 'input',
-        controller_props: {
-          placeholder: 'https://router.huggingface.co/v1',
-          value: 'https://router.huggingface.co/v1',
-        },
-      },
-    ],
-    models: [],
-  },
-  {
-    active: false,
-    api_key: '',
-    base_url: '',
-    explore_models_url: 'https://docs.x.ai/docs/models',
-    provider: 'xai',
-    settings: [
-      {
-        key: 'api-key',
-        title: 'API Key',
-        description:
-          "The xAI API uses API keys for authentication. Visit your [API Keys](https://console.x.ai/settings/api-keys) page to retrieve the API key you'll use in your requests.",
         controller_type: 'input',
         controller_props: {
           placeholder: 'Insert API Key',

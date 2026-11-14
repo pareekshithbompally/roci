@@ -1,7 +1,7 @@
 {
   "name": "kasset",
   "private": true,
-  "version": "1.0.8",
+  "version": "1.1.0",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -26,7 +26,6 @@
     "@ai-sdk/mistral": "^4.0.86",
     "@ai-sdk/openai": "^4.0.117",
     "@ai-sdk/openai-compatible": "^3.0.92",
-    "@ai-sdk/xai": "^5.0.45",
     "@huggingface/transformers": "^3.8.1",
     "@icons-pack/react-simple-icons": "^13.8.0",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -37,6 +36,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@ricky0123/vad-web": "^0.0.31",
     "@schedule-x/calendar": "^4.3.1",
     "@schedule-x/calendar-controls": "^4.3.1",
     "@schedule-x/event-modal": "^4.3.1",
@@ -62,9 +62,7 @@
     "lucide-react": "^0.562.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "react-markdown": "^10.1.0",
     "react-resizable-panels": "3.0.5",
-    "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
     "simple-icons": "^16.6.1",
     "sonner": "^2.0.7",
@@ -80,6 +78,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^22.14.0",
+    "@types/react": "19.2.14",
     "@vitejs/plugin-react": "^5.0.0",
     "@vitest/coverage-v8": "^4.0.18",
     "autoprefixer": "^10.4.24",
@@ -88,6 +87,7 @@
     "tailwindcss": "^3.4.19",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
+    "vite-plugin-static-copy": "^4.1.1",
     "vitest": "^4.0.18"
   }
 }

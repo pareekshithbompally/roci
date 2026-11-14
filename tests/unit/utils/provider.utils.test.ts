@@ -5,7 +5,7 @@ import { LOCAL_GENERIC_LOGO } from '@config/localServers.config';
 describe('getProviderTitle', () => {
   it('returns known cloud titles', () => {
     expect(getProviderTitle('openai')).toBe('OpenAI');
-    expect(getProviderTitle('xai')).toBe('xAI (Grok)');
+    expect(getProviderTitle('groq')).toBe('Groq');
   });
 
   it('titles known local servers from the local servers config', () => {

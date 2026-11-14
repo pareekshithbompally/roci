@@ -97,16 +97,51 @@ export const DOT_SCOPE_CONFIG = {
   /** Room around the plate on the canvas for the drop shadow, pt. */
   canvasMargin: { x: 16, y: 12 },
 
-  /** Takeover-lite band in the chat composer: while recording the plate
-   *  stretches across the text slot (a per-capture tuning widens the plate and
-   *  grows the column count, so the simulation runs unchanged on a longer
-   *  instrument), while transcribing it contracts to Hex's processing pill.
-   *  `plateHeight` sets the band's zoom (plateHeight / 26) and the slot's
-   *  height; `handoff` is how long the row waits — the done wipe — before the
-   *  textarea fades back in. See shared/components/dot-scope/band.ts. */
-  composerBand: {
-    plateHeight: 38,
-    handoff: 0.35,
+  /** Compact pill in the chat composer. While recording the composer box
+   *  shrinks away and the pill is the sole focus, with Stop/Pause floating
+   *  beneath it. `plateHeight` sets the pill zoom (plateHeight / 26);
+   *  `marginX`/`marginY` tighten the canvas so the controls hug the pill;
+   *  `handoff` is how long the box waits — the done wipe — before it expands
+   *  back with the transcript. */
+  composer: {
+    plateHeight: 40,
+    marginX: 10,
+    marginY: 6,
+    /** Delay after the transcription response lands before the box expands back, s. */
+    handoff: 0.2,
+  },
+
+  /** Composer palette: the app's accent blue for the recording traces (instead
+   *  of Hex's warm pearl), a glassier plate and lighter shadow so the pill
+   *  reads as a native instrument, not a slab, and a stronger glow that dances
+   *  with the voice. Merged over the dark/light base theme. */
+  composerTheme: {
+    dark: {
+      you: [0.29, 0.58, 1.0],
+      youCore: [0.72, 0.85, 1.0],
+      agent: [0.45, 0.6, 0.9],
+      agentCore: [0.78, 0.88, 1.0],
+      plate: [17 / 255, 17 / 255, 20 / 255, 0.92],
+      rim: [1, 1, 1, 0.16],
+      shadow: [0, 0, 0, 0],
+      unlit: 0.06,
+      full: 1.0,
+      curve: 0.9,
+      glowStrength: 0.6,
+    },
+    light: {
+      you: [0.145, 0.388, 0.922],
+      youCore: [0.55, 0.72, 1.0],
+      agent: [0.33, 0.42, 0.62],
+      agentCore: [0.62, 0.72, 0.9],
+      plate: [252 / 255, 251 / 255, 249 / 255, 0.94],
+      rim: [0, 0, 0, 0.1],
+      shadow: [0, 0, 0, 0],
+      unlit: 0.07,
+      full: 1.0,
+      curve: 0.75,
+      glowStrength: 0.5,
+    },
   },
 
   /** How long the done wipe plays before the pill fades out, s. */

@@ -14,6 +14,9 @@ import { activityStore } from '@shared/stores/activityStore';
 
 type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error';
 
+/** What a completed check found; the tray's toast reads it. */
+export type UpdateCheckResult = 'available' | 'current' | 'failed';
+
 interface UpdateInfo {
   version: string;
   body: string | null;
@@ -26,6 +29,8 @@ interface UseAppUpdateReturn {
   error: string | null;
   /** Returns true if an update is available, false if already up-to-date. */
   checkForUpdate: () => Promise<boolean>;
+  /** Check now and report the outcome (tray's Check for Updates…). */
+  checkNow: () => Promise<UpdateCheckResult>;
   downloadAndInstall: () => Promise<void>;
   dismiss: () => void;
 }
@@ -51,8 +56,8 @@ export function useAppUpdate(): UseAppUpdateReturn {
   const [error, setError] = useState<string | null>(null);
   const updateRef = useRef<Awaited<ReturnType<typeof import('@tauri-apps/plugin-updater')['check']>>>(null);
 
-  const checkForUpdate = useCallback(async (): Promise<boolean> => {
-    if (!isTauriEnvironment()) return false;
+  const runCheck = useCallback(async (): Promise<UpdateCheckResult> => {
+    if (!isTauriEnvironment()) return 'failed';
 
     setStatus('checking');
     setError(null);
@@ -69,19 +74,24 @@ export function useAppUpdate(): UseAppUpdateReturn {
           date: update.date ?? null,
         });
         setStatus('available');
-        return true;
+        return 'available';
       } else {
         setStatus('idle');
         setUpdateInfo(null);
-        return false;
+        return 'current';
       }
     } catch (err: unknown) {
       console.error('[useAppUpdate] Check failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to check for updates');
       setStatus('error');
-      return false;
+      return 'failed';
     }
   }, []);
+
+  const checkForUpdate = useCallback(
+    async (): Promise<boolean> => (await runCheck()) === 'available',
+    [runCheck],
+  );
 
   const downloadAndInstall = useCallback(async () => {
     const update = updateRef.current;
@@ -164,7 +174,7 @@ export function useAppUpdate(): UseAppUpdateReturn {
     updateRef.current = null;
   }, []);
 
-  return { status, updateInfo, error, checkForUpdate, downloadAndInstall, dismiss };
+  return { status, updateInfo, error, checkForUpdate, checkNow: runCheck, downloadAndInstall, dismiss };
 }
 
 /** Schedule a background update check after app startup settles. */

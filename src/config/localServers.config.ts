@@ -38,7 +38,6 @@ const GENERIC_LOGO = '/images/model-provider/local-server.png';
 export const LOCAL_SERVERS: readonly LocalServerEntry[] = [
   { id: 'local:ollama', label: 'Ollama', port: 11434, fingerprint: '/api/version', logo: GENERIC_LOGO },
   { id: 'local:lmstudio', label: 'LM Studio', port: 1234, fingerprint: '/api/v0/models', logo: GENERIC_LOGO },
-  { id: 'local:llamacpp', label: 'llama.cpp server', port: 8080, fingerprint: '/props', logo: GENERIC_LOGO },
   { id: 'local:vllm', label: 'vLLM', port: 8000, fingerprint: '/version', logo: GENERIC_LOGO },
   { id: 'local:jan', label: 'Jan', port: 1337, fingerprint: null, logo: '/images/model-provider/jan.png' },
 ];
@@ -50,4 +49,4 @@ export const LOCAL_GENERIC_LOGO = GENERIC_LOGO;
 export const LOCAL_SERVER_INFO = 'Runs on this Mac. Start and stop it in its own app; Kasset connects to it.';
 
 /** Hint under the Local list when nothing is running. */
-export const LOCAL_EMPTY_HINT = 'Nothing running? Start Ollama, LM Studio, or llama-server, then rescan.';
+export const LOCAL_EMPTY_HINT = 'Nothing running? Start Ollama or LM Studio, then rescan.';

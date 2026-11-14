@@ -72,15 +72,11 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 const PROVIDER_NAME_MAP: Record<string, string> = {
   openai: 'openai',
-  azure: 'azure',
   anthropic: 'anthropic',
-  cohere: 'cohere',
   openrouter: 'openrouter',
   mistral: 'mistral',
   groq: 'groq',
   gemini: 'google',
-  huggingface: 'huggingface',
-  xai: 'xai',
 };
 
 let cachedData: ModelsDevResponse | null = null;

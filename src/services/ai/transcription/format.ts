@@ -1,4 +1,4 @@
-import type { TranscriptResult } from './engines';
+import type { TranscriptResult } from './types';
 import type { StoredTranscriptSegment } from '@shared/types';
 
 function formatTimestamp(seconds: number): string {

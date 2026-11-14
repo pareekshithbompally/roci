@@ -22,3 +22,4 @@ export { useUnifiedSidebar } from './useUnifiedSidebar';
 
 // Interaction hooks
 export { useClickOutside } from './useClickOutside';
+export { useModelAvatarOrg } from './useModelAvatarOrg';

@@ -1,16 +1,13 @@
 /**
- * Hex engine — transcribes through the running Hex app (src-tauri/src/hex_stt).
- *
- * Orchestration lives here: convert to 16 kHz mono, split into parts Hex
- * accepts, send them one by one with progress and cancellation between parts.
- * Rust holds Hex's token and does one HTTP call per part.
+ * Hex — transcription through the running Hex app (src-tauri/src/hex_stt):
+ * status, downloaded models, error copy, and the per-part adapter. Splitting,
+ * progress and cancellation live in the shared pipeline.
  */
 
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from '@services/tauri';
-import { HEX_CONFIG } from '@config/hex.config';
-import { encodeWavInt16, splitSamples, toMonoSamples } from '@shared/utils/wav.utils';
-import type { Run, TranscriptSegment } from './engines';
+import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
+import type { TranscribePart } from './types';
 
 /** Mirrors the Rust `HexModel`. */
 export interface HexModel {
@@ -59,41 +56,21 @@ export function hexErrorMessage(error: unknown, model: string): string {
   }
 }
 
-async function resolveModel(modelId: string | undefined): Promise<string> {
-  if (modelId) return modelId;
+/** The model Hex uses when none is chosen: its first downloaded one. */
+export async function defaultHexModel(): Promise<string> {
   const first = installedHexModels(await getHexStatus())[0];
   if (!first) throw new Error("Hex isn't running or has no downloaded model. Open Hex, then retry.");
   return first.id;
 }
 
-async function transcribePart(part: Float32Array, model: string): Promise<string> {
-  const wav = encodeWavInt16(part, HEX_CONFIG.sampleRate);
+/** Hex adapter: one WAV part to the running Hex app (Rust holds the token). */
+export const hexTranscribePart: TranscribePart = async ({ wav, model }) => {
   try {
-    return await invoke<string>('hex_transcribe', wav, {
-      headers: { 'x-hex-model': model, 'x-hex-language': HEX_CONFIG.language },
+    const text = await invoke<string>('hex_transcribe', wav, {
+      headers: { 'x-hex-model': model, 'x-hex-language': TRANSCRIPTION_CONFIG.language },
     });
+    return { text: text.trim(), segments: [] };
   } catch (error: unknown) {
     throw new Error(hexErrorMessage(error, model), { cause: error });
   }
-}
-
-export const viaHex: Run = async (audio, { signal, onProgress, modelId }) => {
-  const model = await resolveModel(modelId);
-  const samples = await toMonoSamples(audio, HEX_CONFIG.sampleRate);
-  const parts = splitSamples(samples, HEX_CONFIG.chunkSeconds * HEX_CONFIG.sampleRate);
-  const duration = samples.length / HEX_CONFIG.sampleRate;
-  const segments: TranscriptSegment[] = [];
-
-  for (const [index, part] of parts.entries()) {
-    signal?.throwIfAborted();
-    onProgress?.({ current: index + 1, total: parts.length });
-    const startSecond = index * HEX_CONFIG.chunkSeconds;
-    segments.push({
-      text: (await transcribePart(part, model)).trim(),
-      startSecond,
-      endSecond: Math.min(startSecond + HEX_CONFIG.chunkSeconds, duration),
-    });
-  }
-
-  return { text: segments.map((s) => s.text).join('\n\n'), segments };
 };

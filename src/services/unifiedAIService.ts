@@ -21,13 +21,12 @@ import type { TokenUsage } from './ai/types';
 import type { MeetingContext } from '@core/ai/prompts/transcription.prompt';
 import type { AnalysisResult } from '@core/ai/schemas/transcription.schema';
 import {
-  ENGINES,
-  resolveCred,
+  runTranscription,
+  speechSelectionOf,
   formatTranscript,
   analyzeTranscript,
-  type RunContext,
+  type TranscribeOptions,
   type TranscriptResult,
-  type TranscriptionEngineId,
 } from './ai/transcription';
 
 const assertAudioSize = (blob: Blob): void => {
@@ -57,23 +56,25 @@ async function fileToSDKContent(file: File): Promise<UserContent> {
   return [filePart];
 }
 
-/** Cancellation and per-part progress for a transcription run. */
-export type TranscribeOptions = Pick<RunContext, 'signal' | 'onProgress'>;
-
 export async function transcribeAudio(
   audioBlob: Blob,
   settings: AppSettings,
   providers: ModelProvider[],
   options: TranscribeOptions = {},
 ): Promise<TranscriptResult> {
-  const engineId = (settings.transcriptionModel || 'whisper-1') as TranscriptionEngineId;
-  const engine = ENGINES[engineId];
-  if (!engine) {
-    throw new Error(`Unknown transcription engine "${engineId}".`);
+  const selection = speechSelectionOf(settings);
+  if (!selection) {
+    throw new Error('Choose a transcription model in Settings › Audio.');
   }
   assertAudioSize(audioBlob);
-  const cred = engine.providerId ? resolveCred(engine.providerId, providers) : null;
-  return engine.run(audioBlob, { ...options, cred, modelId: settings.transcriptionEngineModel });
+  const result = await runTranscription(audioBlob, selection, providers, options);
+  // VAD found no speech (or every part decoded to nothing): surfacing this as
+  // an error beats the alternative — the analyzer inventing a meeting about
+  // silence. Dictation callers swallow it into an empty insert.
+  if (!result.text.trim()) {
+    throw new Error('No speech detected in this recording — transcription skipped.');
+  }
+  return result;
 }
 
 async function analyzeStage(args: {

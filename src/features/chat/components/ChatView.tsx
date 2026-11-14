@@ -6,13 +6,15 @@
 
 import React from 'react';
 import { ChatShell } from './ChatShell';
+import { ANIMATION_CONFIG } from '@config/animations.config';
 
 export const ChatView: React.FC = () => {
   return (
     <ChatShell
       emptyStateMessage="Start a conversation..."
       placeholderText="Type @ to add meeting context..."
-      className="animate-chat-settle"
+      className="animate-fade-in"
+      composerLayoutId={ANIMATION_CONFIG.chat.composerLayoutId}
     />
   );
 };

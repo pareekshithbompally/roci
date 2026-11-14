@@ -17,6 +17,8 @@ export type { ChatShellProps } from './components';
 export { useChat } from './hooks';
 export { useSpeechInput } from './hooks/useSpeechInput';
 export type { SpeechState, UseSpeechInputResult } from './hooks/useSpeechInput';
+export { useVoiceCapture } from './hooks/useVoiceCapture';
+export type { UseVoiceCaptureOptions, UseVoiceCaptureResult } from './hooks/useVoiceCapture';
 
 // Stores
 export {

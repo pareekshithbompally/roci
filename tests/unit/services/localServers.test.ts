@@ -52,13 +52,19 @@ describe('detectLocalServers', () => {
     expect(servers.filter((s) => s.running)).toHaveLength(1);
   });
 
-  it('treats a shared port whose fingerprint misses as a custom server', async () => {
-    serve({ 'http://127.0.0.1:8080/v1/models': models('mlx-model') });
+  it('treats a known port whose fingerprint misses as a custom server', async () => {
+    serve({ 'http://127.0.0.1:11434/v1/models': models('mlx-model') });
     const servers = await detectLocalServers([]);
     const running = servers.filter((s) => s.running);
     expect(running).toEqual([
-      { id: 'local:127.0.0.1:8080', baseUrl: 'http://127.0.0.1:8080/v1', running: true, modelIds: ['mlx-model'] },
+      { id: 'local:127.0.0.1:11434', baseUrl: 'http://127.0.0.1:11434/v1', running: true, modelIds: ['mlx-model'] },
     ]);
+  });
+
+  it('does not probe ports with no known engine', async () => {
+    serve({ 'http://127.0.0.1:8080/v1/models': models('mlx-model') });
+    const servers = await detectLocalServers([]);
+    expect(servers.filter((s) => s.running)).toEqual([]);
   });
 
   it('probes a saved provider at its own URL and skips the known port it covers', async () => {

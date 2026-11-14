@@ -1,11 +1,19 @@
-export { ENGINES } from './engines';
-export type { TranscriptionEngineId, TranscriptResult, TranscriptSegment, TranscriptionEngine } from './engines';
+export { runTranscription } from './pipeline';
+export type { TranscribeOptions } from './pipeline';
+export {
+  speechModelOptions,
+  isSpeechSelectionReady,
+  defaultSpeechSelection,
+  speechSelectionOf,
+  speechSelectionKey,
+  parseSpeechSelectionKey,
+} from './catalog';
+export type { SpeechModelOption } from './catalog';
+export { getHexStatus, installedHexModels } from './hex';
+export type { HexModel, HexStatus } from './hex';
+export type { TranscriptResult, TranscriptSegment, TranscriptionProgress, SpeechSelection, SpeechRange } from './types';
+export { getSpeechSegments } from './vad';
 export { resolveCred } from './cred';
 export type { Cred } from './cred';
 export { formatTranscript } from './format';
 export { analyzeTranscript } from './analyze';
-export { getHexStatus, installedHexModels } from './hex';
-export type { HexModel, HexStatus } from './hex';
-export type { RunContext, TranscriptionProgress } from './engines';
-export { engineReadiness } from './readiness';
-export type { EngineReadiness } from './readiness';
