@@ -30,7 +30,8 @@ import {
 } from '@shared/ui';
 import { useToast } from '@shared/contexts/ToastContext';
 import { copyRichText } from '@shared/utils/clipboard';
-import { revealInFinder, saveTextFile } from '@services/tauri';
+import { saveTextFile } from '@services/tauri';
+import { toastSavedFile } from '@shared/utils/savedFileToast';
 import { useCopiedFlag } from '@shared/hooks';
 import { COPY_FORMATS, SAVE_FORMATS, TABLE_FORMATS, serializeTable } from './tableExport';
 import type { TableFormat } from './tableExport';
@@ -68,7 +69,7 @@ export function MarkdownTable({ children, node: _node, ...props }: TableProps) {
         kind: label,
         extension,
       });
-      if (path) showToast(`Saved to ${path}`, 'success', { label: 'Show in Finder', onClick: () => void revealInFinder(path) });
+      if (path) toastSavedFile(path);
     } catch (error: unknown) {
       console.error('[MarkdownTable] Save failed:', error);
       showToast("Couldn't save the table", 'error');

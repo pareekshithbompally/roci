@@ -30,6 +30,11 @@ export const UI_CONFIG = {
     },
   },
 
+  /** macOS app icons shown on buttons that open them */
+  appIcons: {
+    finder: '/images/macos-finder-sm.png',
+  },
+
   /** How long a copy button shows its "Copied" tick */
   copiedFeedbackMs: 2_000,
 

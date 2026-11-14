@@ -16,6 +16,8 @@ export type ToastTone = 'success' | 'error' | 'warning' | 'info';
 
 export interface ToastAction {
   label: string;
+  /** The app the action opens (an image path, e.g. `UI_CONFIG.appIcons.finder`). */
+  icon?: string;
   onClick: () => void;
 }
 
@@ -30,8 +32,9 @@ const CLASS_NAMES = {
   toast: 'flex w-full items-center gap-2.5 rounded-lg bg-raised-glass px-3 py-2.5 shadow-floating backdrop-blur-xl',
   icon: 'flex shrink-0',
   content: 'min-w-0 flex-1',
-  title: 'text-body text-primary',
-  description: 'text-callout text-muted',
+  // One line each: long text (a file path) truncates instead of growing the toast.
+  title: 'truncate text-body text-primary',
+  description: 'truncate text-callout text-muted',
   actionButton: `${buttonClasses('outline', 'sm')} shrink-0`,
 };
 
@@ -52,9 +55,21 @@ export function Toaster() {
   );
 }
 
+function actionLabel({ label, icon }: ToastAction) {
+  if (!icon) return label;
+  return (
+    <>
+      <img src={icon} alt="" aria-hidden className="size-4" />
+      {label}
+    </>
+  );
+}
+
 /** One line, a tone dot, and optionally a button. */
 export function showToast(message: string, tone: ToastTone = 'info', action?: ToastAction): void {
-  const options = action ? { action, duration: CONFIG.actionDurationMs } : {};
+  const options = action
+    ? { action: { label: actionLabel(action), onClick: action.onClick }, duration: CONFIG.actionDurationMs }
+    : {};
   toast[tone](message, options);
 }
 

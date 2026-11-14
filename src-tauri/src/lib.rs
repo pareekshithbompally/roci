@@ -16,27 +16,11 @@ mod meeting_reminders;
 /// Open a folder in the OS file manager (Finder on macOS).
 #[tauri::command]
 fn reveal_in_file_manager(path: String) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg(&path)
-            .spawn()
-            .map_err(|e| format!("Failed to open Finder: {}", e))?;
-    }
-    #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("explorer")
-            .arg(&path)
-            .spawn()
-            .map_err(|e| format!("Failed to open Explorer: {}", e))?;
-    }
-    #[cfg(target_os = "linux")]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(&path)
-            .spawn()
-            .map_err(|e| format!("Failed to open file manager: {}", e))?;
-    }
+    // `-R` selects the item in a Finder window instead of opening it.
+    std::process::Command::new("open")
+        .args(["-R", &path])
+        .spawn()
+        .map_err(|e| format!("Failed to reveal in Finder: {e}"))?;
     Ok(())
 }
 
