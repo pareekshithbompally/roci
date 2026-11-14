@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import { Bell, Blocks, ChartColumn, Cpu, Server, Settings2, Sparkles, Workflow, type LucideIcon } from 'lucide-react';
+import { Bell, Blocks, ChartColumn, Cpu, Server, Settings2, Sparkles, type LucideIcon } from 'lucide-react';
 import { useAppStore, useAppActions } from '@shared/stores/appStore';
 import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore';
 import { isTauriEnvironment } from '@services/tauri';
@@ -29,7 +29,6 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   { id: 'providers', label: 'Providers', icon: Cpu },
   { id: 'integrations', label: 'Integrations', icon: Blocks, tauriOnly: true },
   { id: 'notifications', label: 'Notifications', icon: Bell },
-  { id: 'categories', label: 'Workflow', icon: Workflow },
   { id: 'mcp', label: 'MCP Servers', icon: Server, tauriOnly: true },
   { id: 'usage', label: 'Usage', icon: ChartColumn },
 ];

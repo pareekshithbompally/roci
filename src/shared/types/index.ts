@@ -209,24 +209,9 @@ export interface AppSettings {
   kgExtractionModel?: string;
   apiKey?: string;
   defaultAudioSource?: AudioCaptureSource;
-  categories?: string[];
   jobProcessing?: {
     mode: 'sequential' | 'parallel';
     maxConcurrent: number;
-  };
-  /** What the LLM should extract from transcriptions */
-  summaryExtraction?: {
-    keyDiscussionPoints: boolean;
-    decisionsMade: boolean;
-    actionItems: boolean;
-    nextSteps: boolean;
-  };
-  /** Meeting behavior defaults */
-  meetingDefaults?: {
-    /** Auto-generate title from transcript content */
-    autoTitle: boolean;
-    /** Default meeting duration in minutes (for reminders) — 0 = no reminder */
-    durationReminderMinutes: number;
   };
   /** Composer Tools picker — which tools chat may use. Global, saved. */
   chatTools?: ChatToolPreferences;

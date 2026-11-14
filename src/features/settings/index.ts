@@ -8,7 +8,6 @@
 export { 
   SettingsPanel, 
   ProvidersPanel, 
-  CategoriesPanel, 
   GeneralPanel,
   CapabilitiesPanel,
   UpdateBanner,

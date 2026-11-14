@@ -19,6 +19,10 @@ import type { HistoryItem } from '@shared/types';
 import { store } from '@services/db';
 import { meetingService } from '@services/meeting.service';
 import { queryKeys } from '@shared/query/queryKeys';
+import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
+
+/** Categories the Summary model files meetings under (one list, from config). */
+const categories: string[] = [...TRANSCRIPTION_CONFIG.categories];
 
 // ── Types ──
 
@@ -36,9 +40,6 @@ interface HistoryDataContextValue {
   isLoading: boolean;
   setSearchQuery: (query: string) => void;
   setSelectedCategory: (category: string | null) => void;
-  setCategories: (categories: string[]) => void;
-  addCategory: (category: string) => void;
-  removeCategory: (category: string) => void;
   loadHistory: () => Promise<void>;
   addToHistory: (item: HistoryItem) => Promise<void>;
   renameItem: (itemId: string, newTitle: string) => Promise<boolean>;
@@ -122,7 +123,6 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
   // Ephemeral UI state (never server state — stays in useState)
   const [searchQuery, setSearchQueryRaw] = useState('');
   const [selectedCategory, setSelectedCategoryRaw] = useState<string | null>(null);
-  const [categories, setCategoriesRaw] = useState<string[]>(['Work', 'Personal', 'Meeting', 'Idea']);
 
   // ── Server state: meeting index ──
 
@@ -292,16 +292,6 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
 
   const setSearchQuery = useCallback((query: string) => setSearchQueryRaw(query), []);
   const setSelectedCategory = useCallback((category: string | null) => setSelectedCategoryRaw(category), []);
-  const setCategories = useCallback((cats: string[]) => setCategoriesRaw(cats), []);
-
-  const addCategory = useCallback((category: string) => {
-    if (!category.trim()) return;
-    setCategoriesRaw(prev => [...prev, category.trim()]);
-  }, []);
-
-  const removeCategory = useCallback((category: string) => {
-    setCategoriesRaw(prev => prev.filter(c => c !== category));
-  }, []);
 
   // ── UI methods ──
 
@@ -331,9 +321,6 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
     isLoading,
     setSearchQuery,
     setSelectedCategory,
-    setCategories,
-    addCategory,
-    removeCategory,
     loadHistory,
     addToHistory,
     renameItem,
@@ -341,7 +328,7 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
     deleteItem,
   }), [
     items, filteredItems, searchQuery, selectedCategory, categories, isLoading,
-    setSearchQuery, setSelectedCategory, setCategories, addCategory, removeCategory,
+    setSearchQuery, setSelectedCategory,
     loadHistory, addToHistory, renameItem, updateItem, deleteItem,
   ]);
 

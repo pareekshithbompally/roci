@@ -14,7 +14,6 @@ import { useAppStore } from '@shared/stores/appStore';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { ProvidersPanel } from './ProvidersPanel';
 import { ProvidersPanelErrorBoundary } from './ProvidersPanelErrorBoundary';
-import { CategoriesPanel } from './CategoriesPanel';
 import { GeneralPanel } from './GeneralPanel';
 import { CapabilitiesPanel } from './CapabilitiesPanel';
 import { UsagePanel } from './UsagePanel';
@@ -28,7 +27,6 @@ const PANEL_COMPONENTS: Record<SettingsPanelType, React.FC> = {
   general: GeneralPanel,
   capabilities: CapabilitiesPanel,
   providers: ProvidersPanel,
-  categories: CategoriesPanel,
   integrations: IntegrationsPanel,
   notifications: NotificationsPanel,
   mcp: McpServersPanel,

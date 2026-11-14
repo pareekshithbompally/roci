@@ -119,6 +119,9 @@ export const TRANSCRIPTION_CONFIG = {
     timeoutMs: 300_000,
   },
 
+  /** Categories the Summary model files each meeting under. */
+  categories: ['Work', 'Personal', 'Meeting', 'Idea'] as readonly string[],
+
   /** Fitting a transcript into the Summary model's context window (HEX `meeting/notes.rs`). */
   summaryBudget: {
     /** Characters per token for budgeting (HEX: 3 — conservative). */

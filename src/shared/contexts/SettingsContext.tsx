@@ -63,25 +63,14 @@ export const defaultSettings: AppSettings = {
   analyzeModel: '',
   apiKey: '',
   defaultAudioSource: 'systemAndMicrophone',
-  categories: ['Work', 'Personal', 'Meeting', 'Idea'],
   jobProcessing: { mode: 'sequential', maxConcurrent: 2 },
-  summaryExtraction: {
-    keyDiscussionPoints: true,
-    decisionsMade: true,
-    actionItems: true,
-    nextSteps: true,
-  },
-  meetingDefaults: {
-    autoTitle: true,
-    durationReminderMinutes: 60,
-  },
   notifications: DEFAULT_NOTIFICATION_SETTINGS,
 };
 
 const SETTINGS_KEYS: Array<keyof AppSettings> = [
   'transcriptionProvider', 'transcriptionModel', 'chatModel', 'analyzeModel', 'kgExtractionModel',
   'apiKey', 'defaultAudioSource',
-  'jobProcessing', 'summaryExtraction', 'meetingDefaults', 'calendarIntegration', 'notifications', 'remindersIntegration', 'hexIntegration', 'appleIntelligenceIntegration', 'appleNotesIntegration', 'showModelAvatars', 'hideToolCalls',
+  'jobProcessing', 'calendarIntegration', 'notifications', 'remindersIntegration', 'hexIntegration', 'appleIntelligenceIntegration', 'appleNotesIntegration', 'showModelAvatars', 'hideToolCalls',
 ];
 
 /**
