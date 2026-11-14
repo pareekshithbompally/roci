@@ -33,7 +33,7 @@ export const predefinedProviders: ModelProvider[] = [
     active: true,
     api_key: '',
     base_url: '',
-    explore_models_url: 'https://platform.openai.com/docs/models',
+    explore_models_url: 'https://developers.openai.com/api/docs/models',
     provider: 'openai',
     settings: [
       {
@@ -58,7 +58,7 @@ export const predefinedProviders: ModelProvider[] = [
     base_url: '',
     provider: 'anthropic',
     explore_models_url:
-      'https://docs.anthropic.com/en/docs/about-claude/models',
+      'https://platform.claude.com/docs/en/models/overview',
     settings: [
       {
         key: 'api-key',
@@ -90,7 +90,7 @@ export const predefinedProviders: ModelProvider[] = [
     active: true,
     api_key: '',
     base_url: '',
-    explore_models_url: 'https://ai.google.dev/gemini-api/docs/models/gemini',
+    explore_models_url: 'https://aistudio.google.com/docs/models',
     provider: 'gemini',
     settings: [
       {
@@ -148,7 +148,7 @@ export const predefinedProviders: ModelProvider[] = [
     api_key: '',
     base_url: '',
     explore_models_url:
-      'https://docs.mistral.ai/getting-started/models/models_overview/',
+      'https://docs.mistral.ai/models',
     provider: 'mistral',
     settings: [
       {

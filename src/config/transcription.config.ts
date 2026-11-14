@@ -62,7 +62,8 @@ export const TRANSCRIPTION_CONFIG = {
     ],
     deepgram: [{ id: 'nova-3', label: 'Nova-3 (diarized)' }],
     elevenlabs: [{ id: 'scribe_v1', label: 'Scribe v1' }],
-    gemini: [{ id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (multimodal)' }],
+    // Stable Flash-Lite: audio input at the text rate (ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite).
+    gemini: [{ id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite' }],
   } as Record<string, readonly SpeechModel[]>,
 
   /** Which models a local OpenAI-compatible server serves for speech-to-text, by id. */
@@ -74,7 +75,7 @@ export const TRANSCRIPTION_CONFIG = {
     { provider: 'groq', model: 'whisper-large-v3-turbo' },
     { provider: 'deepgram', model: 'nova-3' },
     { provider: 'elevenlabs', model: 'scribe_v1' },
-    { provider: 'gemini', model: 'gemini-2.0-flash' },
+    { provider: 'gemini', model: 'gemini-3.5-flash-lite' },
   ],
 
   /** Provider id of the running Hex app (no key; its models come from Hex). */
