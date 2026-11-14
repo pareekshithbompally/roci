@@ -42,10 +42,19 @@ import { fileToBase64 } from '@shared/utils/file.utils';
 import { queryClient } from '@shared/query/queryClient';
 import { useAppStore } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
+import { NOTIFICATIONS_CONFIG } from '@config/notifications.config';
+import { notifyInBackground } from '@services/notifications';
 import { queryKeys } from '@shared/query/queryKeys';
 import {
   CHAT_PAGE_SIZE,
 } from '@config/chat.config';
+
+/** "Reply ready" while Kasset is in the background (Settings › Notifications › Chat replies). */
+function notifyReply(sessionId: string, text: string): void {
+  const max = NOTIFICATIONS_CONFIG.chat.bodyMaxChars;
+  const body = text.length > max ? `${text.slice(0, max - 1)}…` : text;
+  void notifyInBackground({ id: `chat:${sessionId}`, kind: 'chatReplies', title: 'Reply ready', body });
+}
 
 /** Reconcile the mirrored session index with disk truth. */
 function invalidateChats(): void {
@@ -824,6 +833,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
       }
 
       set({ isLoading: false, aiActivity: null });
+      notifyReply(activeSessionId, mainText);
 
       // Title generation for new sessions (best-effort)
       if (isNewSession) {

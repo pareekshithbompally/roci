@@ -22,7 +22,6 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.9.5", features = ["tray-icon", "image-png", "macos-private-api"] }
 tauri-plugin-log = "2"
-tauri-plugin-notification = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-os = "2"
@@ -33,6 +32,7 @@ tauri-plugin-shell = "2"
 tauri-plugin-http = "2"
 tauri-plugin-store = { path = "plugins/tauri-plugin-store" }
 tauri-plugin-calendar = { path = "plugins/tauri-plugin-calendar" }
+tauri-plugin-notifications = { path = "plugins/tauri-plugin-notifications" }
 tauri-plugin-apple-intelligence = { path = "plugins/tauri-plugin-apple-intelligence" }
 tauri-plugin-apple-notes = { path = "plugins/tauri-plugin-apple-notes" }
 core-graphics = "0.24"
@@ -40,7 +40,6 @@ core-foundation = "0.10"
 base64 = "0.22"
 tauri-plugin-window-state = "2"
 tauri-plugin-updater = "2"
-mac-notification-sys = "0.6"
 block2 = "0.6.2"
 cpal = "0.18.2"
 eyre = "0.6.12"

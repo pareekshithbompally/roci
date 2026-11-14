@@ -94,6 +94,51 @@ public func calendarGetEventsInRange(
     return fetchEventsJSON(store: store, start: start, end: end)
 }
 
+// MARK: - Change count (HEX `hex_calendar_change_count`)
+
+/// One long-lived store to observe: `EKEventStoreChanged` is posted per store.
+private let observedStore = EKEventStore()
+private let changeLock = NSLock()
+private var changes: UInt64 = 0
+private var observing = false
+
+/// Counts EventKit store changes (any app, any calendar) since the first call
+/// with access. Readers reread events when the count moves.
+@_cdecl("calendar_change_count")
+public func calendarChangeCount() -> UInt64 {
+    guard hasFullAccess() else { return 0 }
+    changeLock.lock()
+    defer { changeLock.unlock() }
+    if !observing {
+        observing = true
+        // The store may predate the grant: drop what it cached without access.
+        observedStore.reset()
+        NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: observedStore, queue: nil) { _ in
+            changeLock.lock()
+            changes &+= 1
+            changeLock.unlock()
+        }
+    }
+    return changes
+}
+
+private func hasFullAccess() -> Bool {
+    if #available(macOS 14.0, *) {
+        return EKEventStore.authorizationStatus(for: .event) == .fullAccess
+    }
+    return EKEventStore.authorizationStatus(for: .event) == .authorized
+}
+
+/// Fetch events between two wall-clock times (milliseconds since 1970), for
+/// schedulers that keep epoch time.
+@_cdecl("calendar_get_events_between_ms")
+public func calendarGetEventsBetweenMs(_ startMs: Double, _ endMs: Double) -> UnsafeMutablePointer<CChar> {
+    let store = EKEventStore()
+    let start = Date(timeIntervalSince1970: startMs / 1000)
+    let end = Date(timeIntervalSince1970: endMs / 1000)
+    return fetchEventsJSON(store: store, start: start, end: end)
+}
+
 /// Free a string pointer previously returned by this bridge.
 @_cdecl("calendar_free_string")
 public func calendarFreeString(_ ptr: UnsafeMutablePointer<CChar>) {
@@ -115,7 +160,11 @@ private func fetchEventsJSON(store: EKEventStore, start: Date, end: Date) -> Uns
             "title": event.title ?? "Untitled",
             "start_date": formatter.string(from: event.startDate),
             "end_date": formatter.string(from: event.endDate),
+            "start_ms": event.startDate.timeIntervalSince1970 * 1000,
+            "end_ms": event.endDate.timeIntervalSince1970 * 1000,
             "is_all_day": event.isAllDay,
+            "is_cancelled": event.status == .canceled,
+            "is_free": event.availability == .free,
             "calendar_name": event.calendar?.title ?? "Unknown",
         ]
 

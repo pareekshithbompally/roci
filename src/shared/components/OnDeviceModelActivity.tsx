@@ -19,6 +19,7 @@ import type { VoiceModelEvent } from '@extensions/voice';
 import { activityStore } from '@shared/stores/activityStore';
 import type { ActivityItem } from '@shared/stores/activityStore';
 import { useToast } from '@shared/contexts/ToastContext';
+import { notifyInBackground } from '@services/notifications';
 
 // Only show download toasts if downloading lasts longer than this.
 // Cache hits complete in <200ms and should be silent.
@@ -114,6 +115,7 @@ export const OnDeviceModelActivity: React.FC = () => {
 
             if (trayVisible && !sessionNotified) {
               showToast(ui.readyToast, 'success');
+              void notifyInBackground({ id: `model:${ui.trayId}`, kind: 'modelDownloads', title: ui.readyToast, body: 'Download finished.' });
               sessionNotified = true;
             }
 

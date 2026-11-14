@@ -12,6 +12,8 @@ extern "C" {
     fn calendar_check_access() -> *mut c_char;
     fn calendar_get_upcoming_events(minutes_ahead: i32) -> *mut c_char;
     fn calendar_get_events_in_range(start_iso: *const c_char, end_iso: *const c_char) -> *mut c_char;
+    fn calendar_change_count() -> u64;
+    fn calendar_get_events_between_ms(start_ms: f64, end_ms: f64) -> *mut c_char;
     fn calendar_free_string(ptr: *mut c_char);
 
     fn reminders_request_access() -> *mut c_char;
@@ -35,6 +37,17 @@ fn parse_and_free<T: serde::de::DeserializeOwned>(ptr: *mut c_char) -> Result<T,
         s
     };
     serde_json::from_str(&json_str).map_err(|e| format!("JSON parse error: {e}"))
+}
+
+/// Fetch events between two epoch-millisecond times.
+pub fn get_events_between_ms(start_ms: i64, end_ms: i64) -> Result<EventsResponse, String> {
+    let ptr = unsafe { calendar_get_events_between_ms(start_ms as f64, end_ms as f64) };
+    parse_and_free(ptr)
+}
+
+/// EventKit store changes seen so far (any app); 0 without access.
+pub fn change_count() -> u64 {
+    unsafe { calendar_change_count() }
 }
 
 /// Request calendar access from the user.

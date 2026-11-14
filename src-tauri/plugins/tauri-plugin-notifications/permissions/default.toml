@@ -1,0 +1,11 @@
+[default]
+description = "macOS notifications: permission, posting, timed notices"
+permissions = [
+  "allow-status",
+  "allow-request",
+  "allow-post",
+  "allow-schedule",
+  "allow-remove",
+  "allow-add-categories",
+  "allow-set-muted",
+]

@@ -36,7 +36,6 @@ export interface RecordingMetadata extends BaseMetadata {
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
   autoSave: boolean;
-  notificationsEnabled: boolean;
   recordingQuality: 'low' | 'medium' | 'high';
   aiModel: string;
   autoTranscribe: boolean;

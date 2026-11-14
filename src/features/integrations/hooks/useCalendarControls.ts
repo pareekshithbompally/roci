@@ -1,6 +1,7 @@
 /**
- * useCalendarControls — macOS Calendar row: access, on/off, notify lead time.
- * (App-lifetime polling and notifications live in useCalendarRuntime.)
+ * useCalendarControls — macOS Calendar row: access and on/off.
+ * (Polling and meeting reminders live in useCalendarRuntime; the reminder
+ * switch and lead time are in Settings › Notifications.)
  */
 
 import { useCallback } from 'react';
@@ -17,17 +18,9 @@ const SOURCE = {
   settingsPane: 'calendars-settings',
 } as const;
 
-export interface CalendarControls extends IntegrationControls {
-  notifyMinutesBefore: number;
-  setNotifyMinutesBefore: (minutes: number) => void;
-}
-
-export function useCalendarControls(): CalendarControls {
+export function useCalendarControls(): IntegrationControls {
   const { settings, setSettings } = useSettings();
-  const current = settings.calendarIntegration ?? {
-    enabled: CALENDAR_DEFAULTS.enabled,
-    notifyMinutesBefore: CALENDAR_DEFAULTS.notify_minutes_before,
-  };
+  const current = settings.calendarIntegration ?? { enabled: CALENDAR_DEFAULTS.enabled };
   const { access, requestAccess, openSettings } = useSystemAccess(SOURCE);
 
   const setEnabled = useCallback(async (on: boolean) => {
@@ -43,7 +36,5 @@ export function useCalendarControls(): CalendarControls {
     setEnabled: (on) => { setEnabled(on).catch((e: unknown) => console.error('[useCalendarControls] toggle failed:', e)); },
     request: () => { requestAccess().catch((e: unknown) => console.error('[useCalendarControls] request failed:', e)); },
     openSettings,
-    notifyMinutesBefore: current.notifyMinutesBefore,
-    setNotifyMinutesBefore: (minutes) => setSettings({ calendarIntegration: { ...current, notifyMinutesBefore: minutes } }),
   };
 }

@@ -44,24 +44,6 @@ function formatDateLine(value: unknown): string {
   return date.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-/** Extract a meeting URL (Zoom, Meet, Teams, Webex) from text */
-function extractMeetingUrl(text?: string): string | null {
-  if (!text) return null;
-  const match = text.match(
-    /https?:\/\/[\w.-]*(zoom\.us|meet\.google\.com|teams\.microsoft\.com|webex\.com)[^\s)>]*/i
-  );
-  return match?.[0] ?? null;
-}
-
-/** Get the meeting service domain label */
-function getMeetingLabel(url: string): string {
-  if (url.includes('meet.google.com')) return 'meet.google.com';
-  if (url.includes('zoom.us')) return 'zoom.us';
-  if (url.includes('teams.microsoft.com')) return 'teams.microsoft.com';
-  if (url.includes('webex.com')) return 'webex.com';
-  return 'Video call';
-}
-
 /** Clean description: strip URLs, separators, HTML, Google Meet boilerplate, unicode junk */
 function cleanDescription(desc: string, meetingUrl: string | null): string {
   let cleaned = desc;
@@ -130,7 +112,8 @@ export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, o
   const startStr = formatTime(event.start);
   const endStr = formatTime(event.end);
   const dateStr = formatDateLine(event.start);
-  const meetingUrl = extractMeetingUrl(description);
+  const meetingUrl = (event.meetingUrl as string | null | undefined) ?? null;
+  const meetingProvider = (event.meetingProvider as string | null | undefined) ?? 'Video call';
   const cleanedDesc = description ? cleanDescription(description, meetingUrl) : '';
 
   return (
@@ -170,7 +153,7 @@ export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, o
           >
             <Icon icon={Video} size="sm" tone="muted" className="shrink-0" />
             <Text tone="muted" truncate className="flex-1">
-              {getMeetingLabel(meetingUrl)}
+              {meetingProvider}
             </Text>
             <Text variant="label" tone="accent" className="group-hover:underline">
               Join

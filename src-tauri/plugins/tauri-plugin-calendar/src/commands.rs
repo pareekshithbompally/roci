@@ -21,21 +21,13 @@ pub fn check_access() -> Result<AccessStatus, String> {
 #[command]
 pub fn get_upcoming_events(minutes_ahead: Option<u32>) -> Result<Vec<CalendarEvent>, String> {
     let ahead = minutes_ahead.unwrap_or(15);
-    let response = bridge::get_upcoming_events(ahead)?;
-    if let Some(err) = response.error {
-        return Err(err);
-    }
-    Ok(response.events)
+    crate::with_links(bridge::get_upcoming_events(ahead)?)
 }
 
 /// Fetch calendar events in an ISO 8601 date range.
 #[command]
 pub fn get_events_in_range(start: String, end: String) -> Result<Vec<CalendarEvent>, String> {
-    let response = bridge::get_events_in_range(&start, &end)?;
-    if let Some(err) = response.error {
-        return Err(err);
-    }
-    Ok(response.events)
+    crate::events_in_range(&start, &end)
 }
 
 // ─── Reminders ──────────────────────────────────────────────────────────────

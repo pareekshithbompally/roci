@@ -104,10 +104,12 @@ export const hexSync = {
     return catchingUp;
   },
 
-  /** A meeting Hex just finished: import, then summarize with the user's Summary model. */
-  async finished(hexId: string, context: SummaryContext): Promise<void> {
-    if (await exists(hexId)) return;
+  /** A meeting Hex just finished: import, then summarize with the user's Summary model. Resolves whether it was new. */
+  async finished(hexId: string, context: SummaryContext): Promise<boolean> {
+    if (await exists(hexId)) return false;
     const saved = await importOne(hexId);
-    if (saved) await summarize(saved, context);
+    if (!saved) return false;
+    await summarize(saved, context);
+    return true;
   },
 };

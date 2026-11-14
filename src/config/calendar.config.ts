@@ -12,17 +12,11 @@ export const CALENDAR_CONFIG = {
   /** How often to refresh the full event cache from EventKit (ms) */
   cacheRefreshIntervalMs: 2 * 60_000, // 2 minutes
 
-  /** Minutes past start time to still consider an event for notification (negative = already started) */
-  notificationGracePeriodMinutes: -5,
-
-  /** Snoozed events: re-notify within this many seconds of start */
-  snoozeThresholdSeconds: 30,
-
-  /** Default notify-before-meeting (minutes) */
-  defaultNotifyMinutesBefore: 2,
-
   /** Whether calendar integration is enabled by default */
   defaultEnabled: false,
+
+  /** Rust → webview (src-tauri/src/meeting_reminders): Record or Join & record was chosen. */
+  reminderRecordEvent: 'meeting-reminders://record',
 
   /** Schedule-X week view day boundaries */
   weekView: {

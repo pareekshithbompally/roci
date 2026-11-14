@@ -5,7 +5,6 @@
 
 export * from './types';
 export * from './environment.service';
-export * from './notification.service';
 export * from './dialog.service';
 export * from './fileSystem.service';
 export * from './saveFile.service';

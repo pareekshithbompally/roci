@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-add-categories"
+description = "Enables the add_categories command without any pre-configured scope."
+commands.allow = ["add_categories"]
+
+[[permission]]
+identifier = "deny-add-categories"
+description = "Denies the add_categories command without any pre-configured scope."
+commands.deny = ["add_categories"]

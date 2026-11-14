@@ -1,8 +1,12 @@
 mod bridge;
+mod call_link;
 mod commands;
 pub mod types;
 
 use std::sync::OnceLock;
+
+pub use call_link::{call_link, CallLink, CallProvider};
+use types::{CalendarEvent, EventsResponse};
 
 use tauri::{
     plugin::{Builder, TauriPlugin},
@@ -19,6 +23,38 @@ extern "C" fn reminders_changed() {
     if let Some(emit) = ON_REMINDERS_CHANGED.get() {
         emit();
     }
+}
+
+/// Events in an ISO 8601 range, each with its `meeting_url`.
+pub fn events_in_range(start: &str, end: &str) -> Result<Vec<CalendarEvent>, String> {
+    with_links(bridge::get_events_in_range(start, end)?)
+}
+
+/// Events between two epoch-millisecond times, each with its `meeting_url`.
+pub fn events_between_ms(start_ms: i64, end_ms: i64) -> Result<Vec<CalendarEvent>, String> {
+    with_links(bridge::get_events_between_ms(start_ms, end_ms)?)
+}
+
+/// EventKit store changes seen so far (any app): reread when it moves.
+pub fn change_count() -> u64 {
+    bridge::change_count()
+}
+
+fn with_links(response: EventsResponse) -> Result<Vec<CalendarEvent>, String> {
+    if let Some(err) = response.error {
+        return Err(err);
+    }
+    Ok(response
+        .events
+        .into_iter()
+        .map(|mut event| {
+            if let Some(link) = call_link(&event) {
+                event.meeting_provider = Some(link.provider.label().to_string());
+                event.meeting_url = Some(link.url);
+            }
+            event
+        })
+        .collect())
 }
 
 /// Initialize the EventKit Tauri plugin: calendar events (read) and reminders

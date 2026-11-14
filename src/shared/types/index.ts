@@ -179,6 +179,20 @@ export interface ChatToolPreferences {
   disabledMcpTools: string[];
 }
 
+/** A kind of notification the user can switch off (Settings › Notifications). */
+export type NotificationKind =
+  | 'meetingReminders'
+  | 'recordingReady'
+  | 'hexImports'
+  | 'modelDownloads'
+  | 'chatReplies'
+  | 'todoReminders';
+
+export type NotificationSettings = Record<NotificationKind, boolean> & {
+  /** Minutes before a calendar meeting its reminder shows. */
+  meetingLeadMinutes: number;
+};
+
 export interface AppSettings {
   /** Speech-to-text provider (`openai`, `groq`, `local:…`, `hex`, …); see transcription.config. */
   transcriptionProvider?: string;
@@ -219,9 +233,9 @@ export interface AppSettings {
   /** macOS Calendar integration (EventKit) */
   calendarIntegration?: {
     enabled: boolean;
-    /** Minutes before meeting start to show notification */
-    notifyMinutesBefore: number;
   };
+  /** Settings › Notifications: which kinds may notify, and the meeting lead time. */
+  notifications?: NotificationSettings;
   /** Apple Intelligence integration: on-device summary model + Apple speech engine */
   appleIntelligenceIntegration?: {
     enabled: boolean;

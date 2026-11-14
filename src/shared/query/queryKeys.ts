@@ -1,5 +1,5 @@
 /** Integrations whose macOS access is polled (Settings › Integrations). */
-export type AccessId = 'calendar' | 'reminders' | 'apple-notes';
+export type AccessId = 'calendar' | 'reminders' | 'apple-notes' | 'notifications';
 
 export const queryKeys = {
   notes: (meetingId: string) => ['notes', meetingId] as const,

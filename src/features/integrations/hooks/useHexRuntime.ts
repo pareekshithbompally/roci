@@ -15,13 +15,25 @@ import { hexErrorMessage } from '@services/ai/transcription/hex';
 import { isIntegrationEnabled } from '@shared/utils/integrations';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { useHexSyncStore } from '@features/integrations/stores/hexSyncStore';
+import { notifyInBackground } from '@services/notifications';
+
+/** Meetings that arrived from Hex, as a background notification. */
+function notifyImported(count: number): void {
+  if (count === 0) return;
+  void notifyInBackground({
+    id: 'hex-imports',
+    kind: 'hexImports',
+    title: 'Hex',
+    body: count === 1 ? '1 meeting imported' : `${count} meetings imported`,
+  });
+}
 
 /** One catch-up, reported to the row. Shared by the runtime and "Sync now". */
 export async function runHexCatchUp(): Promise<void> {
   const { syncStarted, syncFinished } = useHexSyncStore.getState();
   syncStarted();
   try {
-    await hexSync.catchUp();
+    notifyImported(await hexSync.catchUp());
     syncFinished(null);
   } catch (error: unknown) {
     console.error('[useHexRuntime] Catch-up failed:', error);
@@ -47,7 +59,7 @@ export function useHexRuntime(): void {
     void runHexCatchUp();
 
     const onFinished = hexMeetings.onFinished((id) => {
-      hexSync.finished(id, context.current).catch(report(`import ${id}`));
+      hexSync.finished(id, context.current).then((isNew) => notifyImported(isNew ? 1 : 0)).catch(report(`import ${id}`));
     });
     const onEvents = hexMeetings.onEventsState(store.setEvents);
     const onFocus = () => {

@@ -9,12 +9,6 @@ export const INTEGRATIONS_CONFIG = {
     description: 'Get notified before meetings and record them. Works with every account in macOS Calendar.',
     deniedHint: 'Kasset is off in System Settings › Privacy & Security › Calendars.',
     icon: '/images/macos-calendar-sm.png',
-    notifyOptions: [
-      { value: 1, label: '1 minute' },
-      { value: 2, label: '2 minutes' },
-      { value: 5, label: '5 minutes' },
-      { value: 10, label: '10 minutes' },
-    ],
   },
   appleIntelligence: {
     title: 'Apple Intelligence',

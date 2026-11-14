@@ -31,6 +31,16 @@ export interface CalendarEvent {
   url?: string;
   calendar_name: string;
   is_all_day: boolean;
+  /** Wall-clock milliseconds (native scheduler). */
+  start_ms: number;
+  end_ms: number;
+  is_cancelled: boolean;
+  /** Shown as free time. */
+  is_free: boolean;
+  /** Video call link, found natively (HEX `call_link`). */
+  meeting_url: string | null;
+  /** The call service behind `meeting_url` ("Zoom", "Google Meet", …). */
+  meeting_provider: string | null;
 }
 
 /** Calendar authorization status. */
@@ -38,8 +48,6 @@ export type CalendarAccessStatus = 'authorized' | 'denied' | 'not_determined' | 
 
 /** Calendar event enriched with derived fields for the frontend. */
 export interface EnrichedCalendarEvent extends CalendarEvent {
-  /** Extracted video call URL (Zoom, Meet, Teams, etc.) */
-  meeting_url: string | null;
   /** Non-declined attendee count */
   active_participant_count: number;
 }
@@ -47,12 +55,9 @@ export interface EnrichedCalendarEvent extends CalendarEvent {
 /** Calendar integration settings stored in AppSettings. */
 export interface CalendarIntegrationSettings {
   enabled: boolean;
-  /** Minutes before meeting start to show notification. */
-  notify_minutes_before: number;
 }
 
 /** Default calendar integration settings. */
 export const CALENDAR_DEFAULTS: CalendarIntegrationSettings = {
   enabled: CALENDAR_CONFIG.defaultEnabled,
-  notify_minutes_before: CALENDAR_CONFIG.defaultNotifyMinutesBefore,
 };

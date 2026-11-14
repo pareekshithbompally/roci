@@ -5,11 +5,11 @@ mod autostart;
 mod audio;
 mod screenshot;
 mod wake_lock;
-mod notification;
 mod permissions;
 mod hex;
 mod open_native;
 mod mcp;
+mod meeting_reminders;
 
 /// Open a folder in the OS file manager (Finder on macOS).
 #[tauri::command]
@@ -63,6 +63,9 @@ pub fn run() {
       // MCP: connect the servers the user left enabled.
       tauri::async_runtime::spawn(mcp::start_active_servers(app.handle().clone()));
 
+      // Calendar meeting reminders (HEX watcher): idle until the frontend enables them.
+      meeting_reminders::start(app.handle().clone());
+
       // Login-item / autostart launches pass --minimized: start hidden.
       // (Hex: LaunchWindow::OpenUnlessLoginItem stays quiet at login.)
       if std::env::args().any(|arg| arg == "--minimized")
@@ -73,7 +76,6 @@ pub fn run() {
 
       Ok(())
     })
-    .plugin(tauri_plugin_notification::init())
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_fs::init())
     .plugin(tauri_plugin_os::init())
@@ -82,6 +84,7 @@ pub fn run() {
     .plugin(tauri_plugin_http::init())
     .plugin(tauri_plugin_store::init())
     .plugin(tauri_plugin_calendar::init())
+    .plugin(tauri_plugin_notifications::init())
     .plugin(tauri_plugin_apple_intelligence::init())
     .plugin(tauri_plugin_apple_notes::init())
     .plugin(tauri_plugin_global_shortcut::Builder::new().build())
@@ -133,6 +136,7 @@ pub fn run() {
       permissions::commands::request_permission,
       permissions::commands::open_permission_settings,
       // Hex integration (transcription models + one-way meeting sync)
+      meeting_reminders::configure_meeting_reminders,
       hex::commands::hex_status,
       hex::commands::hex_transcribe,
       hex::commands::hex_meetings_list,
@@ -154,8 +158,6 @@ pub fn run() {
       // Wake lock commands (macOS: prevent idle sleep during recording)
       wake_lock::acquire_wake_lock,
       wake_lock::release_wake_lock,
-      // Notification commands (actionable notifications via mac-notification-sys)
-      notification::send_actionable_notification,
       // Utility commands
       reveal_in_file_manager,
       open_native::open_native,

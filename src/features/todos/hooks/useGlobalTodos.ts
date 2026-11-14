@@ -13,7 +13,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { store, type GlobalTodoEntry } from '@services/db';
-import { notificationScheduler } from '@services/notification-scheduler';
+import { reminderService } from '@services/reminder.service';
 import { queryKeys } from '@shared/query/queryKeys';
 import { remindersSync } from '@services/reminders';
 import { hashToNotificationId } from '@shared/utils/todo.utils';
@@ -104,12 +104,7 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
       const newCompleted = !todo.completed;
       await store.todos.setCompleted(todoId, newCompleted);
       if (newCompleted) {
-        try {
-          await notificationScheduler.cancel(`todo:${todoId}`);
-          await store.reminders.setStatus(todoId, 'cancelled');
-        } catch {
-          // reminder may not exist
-        }
+        await reminderService.cancel(todoId);
       }
     },
     onMutate: async ({ meetingId, todoId }) => {
@@ -217,27 +212,9 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
       dateTime: string | null;
     }) => {
       if (dateTime) {
-        const fireAt = new Date(dateTime).getTime();
-        const notificationId = hashToNotificationId(todoId);
-
-        // Schedule OS notification
-        await notificationScheduler.schedule(`todo:${todoId}`, {
-          at: new Date(dateTime),
-          title: meetingTitle,
-          body: todoText.length > 80 ? todoText.slice(0, 77) + '\u2026' : todoText,
-          actionTypeId: 'todo_reminder',
-          extra: { todoId, meetingId },
-        });
-
-        // Persist to DB
-        await store.reminders.upsert(todoId, notificationId, fireAt);
+        await reminderService.schedule({ todoId, meetingId, todoText, meetingTitle, reminderDateTime: dateTime });
       } else {
-        await notificationScheduler.cancel(`todo:${todoId}`);
-        try {
-          await store.reminders.setStatus(todoId, 'cancelled');
-        } catch {
-          // reminder may not exist
-        }
+        await reminderService.cancel(todoId);
       }
     },
     onMutate: async ({ meetingId, todoId, dateTime }) => {

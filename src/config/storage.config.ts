@@ -80,7 +80,6 @@ export const StorageConfig = {
   defaultSettings: {
     theme: 'system',
     autoSave: true,
-    notificationsEnabled: true,
     recordingQuality: 'high',
     aiModel: '',
     chatModel: '',

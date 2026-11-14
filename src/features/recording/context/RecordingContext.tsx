@@ -19,8 +19,9 @@ import { defaultSettings } from '@shared/contexts/SettingsContext';
 import type { AudioCaptureSource } from '@config/audio.config';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
-import { isTauriEnvironment, menubarService, notificationService } from '@services/tauri';
-import { notificationScheduler } from '@services/notification-scheduler';
+import { isTauriEnvironment, menubarService } from '@services/tauri';
+import { notifyInBackground, onNotificationResponse, postNotice, removeNotices } from '@services/notifications';
+import { NOTIFICATIONS_CONFIG } from '@config/notifications.config';
 import { coreAudioService, isPermissionRefusal, captureErrorMessage } from '@services/coreAudio.service';
 import { useAppStore } from '@shared/stores/appStore';
 import { recordingsService } from '@services/storage';
@@ -112,13 +113,40 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
   const abortControllerRefs = useRef<Map<string, AbortController>>(new Map());
   const lastLevelTimestampRef = useRef<number>(0);
 
-  // 60-min timeout alert refs (per-session, no React state needed)
+  // "Still recording?" refs (per-session, no React state needed): elapsed
+  // seconds at the last ask, and at the ask still awaiting an answer.
   const lastAlertElapsedRefs = useRef<Map<string, number>>(new Map());
-  const pendingAlertRefs = useRef<Map<string, boolean>>(new Map());
-  const timeoutAutoStopRefs = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  const alertedSessionRef = useRef<string | null>(null);
+  const pendingAskRefs = useRef<Map<string, number>>(new Map());
   // Stable ref to stopAndSaveSession so mount-only effects can call it without stale closures
   const stopAndSaveRef = useRef<(sessionId: string) => Promise<void>>(async () => {});
+
+  /**
+   * On each tick of a capture: ask "Still recording?" every hour, and stop
+   * (saving) when an ask goes unanswered. Runs on the recording timer, so
+   * nothing is scheduled ahead and a stopped session can't fire late.
+   */
+  const checkRecordingTimeout = useCallback((sessionId: string, elapsed: number) => {
+    const ask = NOTIFICATIONS_CONFIG.recording;
+    const id = `${ask.idPrefix}${sessionId}`;
+    const askedAt = pendingAskRefs.current.get(sessionId);
+    if (askedAt !== undefined) {
+      if (elapsed < askedAt + ask.autoStopAfterSeconds) return;
+      pendingAskRefs.current.delete(sessionId);
+      void postNotice({ id, title: 'Recording stopped', body: `No answer after ${Math.floor(elapsed / 60)} minutes, so Kasset stopped and saved it.` });
+      void stopAndSaveRef.current(sessionId);
+      return;
+    }
+    if (elapsed < (lastAlertElapsedRefs.current.get(sessionId) ?? 0) + ask.askEverySeconds) return;
+    lastAlertElapsedRefs.current.set(sessionId, elapsed);
+    pendingAskRefs.current.set(sessionId, elapsed);
+    void postNotice({
+      id,
+      title: 'Are you still recording?',
+      body: `Recording for ${Math.floor(elapsed / 60)} minutes. It stops in ${ask.autoStopAfterSeconds / 60} minutes unless you keep it going.`,
+      category: ask.category,
+      userInfo: { sessionId },
+    });
+  }, []);
 
   // Helper: update a single session
   const updateSession = useCallback((sessionId: string, updates: Partial<RecordingSession>) => {
@@ -166,12 +194,10 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     startTimeRefs.current.delete(sessionId);
     pausedTimeRefs.current.delete(sessionId);
     abortControllerRefs.current.delete(sessionId);
-    // Cancel OS-level auto-stop notification
-    notificationScheduler.cancel(`rec:autostop:${sessionId}`);
-    timeoutAutoStopRefs.current.delete(sessionId);
+    // Withdraw a "Still recording?" left on screen
+    void removeNotices([`${NOTIFICATIONS_CONFIG.recording.idPrefix}${sessionId}`]);
     lastAlertElapsedRefs.current.delete(sessionId);
-    pendingAlertRefs.current.delete(sessionId);
-    if (alertedSessionRef.current === sessionId) alertedSessionRef.current = null;
+    pendingAskRefs.current.delete(sessionId);
   }, [cleanupSessionTimer, cleanupSessionAudioUrl]);
 
   // Cleanup on unmount
@@ -179,13 +205,6 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     return () => {
       timerRefs.current.forEach((timer) => clearInterval(timer));
       audioUrlRefs.current.forEach((url) => URL.revokeObjectURL(url));
-
-      // Cancel any scheduled auto-stop notifications — the sessions are gone.
-      void notificationScheduler
-        .cancelAllForType('recording_autostop')
-        .catch((error: unknown) =>
-          console.error('[RecordingContext] Failed to cancel auto-stop notifications:', error)
-        );
 
       // Revert menubar to idle on unmount (safety net)
       void menubarService.setRecordingState(false, false).catch((error: unknown) =>
@@ -302,36 +321,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
 
           updateSession(sessionId, updates);
 
-          // 60-min timeout alert: fire when elapsed crosses each 60-min boundary
-          const lastAlertElapsed = lastAlertElapsedRefs.current.get(sessionId) ?? 0;
-          const alertPending = pendingAlertRefs.current.get(sessionId) ?? false;
-          if (elapsed >= lastAlertElapsed + 3600 && !alertPending) {
-            pendingAlertRefs.current.set(sessionId, true);
-            lastAlertElapsedRefs.current.set(sessionId, elapsed);
-            alertedSessionRef.current = sessionId;
-
-            const minutesElapsed = Math.floor(elapsed / 60);
-            notificationService.notifyWithActions({
-              title: 'Are you still recording?',
-              body: `Recording has been active for ${minutesElapsed} minutes. It will stop automatically in 5 minutes.`,
-              actionTypeId: 'recording_timeout',
-            });
-
-            // OS-level auto-stop notification at recording-start + 65 min
-            const startTime2 = startTimeRefs.current.get(sessionId);
-            if (startTime2 !== undefined) {
-              const autoStopAt = new Date(startTime2 + 65 * 60 * 1000);
-              const autoStopKey = `rec:autostop:${sessionId}`;
-              notificationScheduler.schedule(autoStopKey, {
-                at: autoStopAt,
-                title: 'Recording auto-stopped',
-                body: 'Recording has reached the 65-minute limit.',
-                actionTypeId: 'recording_autostop',
-                extra: { sessionId },
-              });
-              timeoutAutoStopRefs.current.set(sessionId, autoStopKey as unknown as ReturnType<typeof setTimeout>);
-            }
-          }
+          checkRecordingTimeout(sessionId, elapsed);
         }
       }, 1000);
       timerRefs.current.set(sessionId, timer);
@@ -583,36 +573,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
 
           updateSession(sessionId, updates);
 
-          // 60-min timeout alert: fire when elapsed crosses each 60-min boundary
-          const lastAlertElapsed = lastAlertElapsedRefs.current.get(sessionId) ?? 0;
-          const alertPending = pendingAlertRefs.current.get(sessionId) ?? false;
-          if (elapsed >= lastAlertElapsed + 3600 && !alertPending) {
-            pendingAlertRefs.current.set(sessionId, true);
-            lastAlertElapsedRefs.current.set(sessionId, elapsed);
-            alertedSessionRef.current = sessionId;
-
-            const minutesElapsed = Math.floor(elapsed / 60);
-            notificationService.notifyWithActions({
-              title: 'Are you still recording?',
-              body: `Recording has been active for ${minutesElapsed} minutes. It will stop automatically in 5 minutes.`,
-              actionTypeId: 'recording_timeout',
-            });
-
-            // OS-level auto-stop notification at recording-start + 65 min
-            const startTime3 = startTimeRefs.current.get(sessionId);
-            if (startTime3 !== undefined) {
-              const autoStopAt = new Date(startTime3 + 65 * 60 * 1000);
-              const autoStopKey = `rec:autostop:${sessionId}`;
-              notificationScheduler.schedule(autoStopKey, {
-                at: autoStopAt,
-                title: 'Recording auto-stopped',
-                body: 'Recording has reached the 65-minute limit.',
-                actionTypeId: 'recording_autostop',
-                extra: { sessionId },
-              });
-              timeoutAutoStopRefs.current.set(sessionId, autoStopKey as unknown as ReturnType<typeof setTimeout>);
-            }
-          }
+          checkRecordingTimeout(sessionId, elapsed);
         }
       }, 1000);
       timerRefs.current.set(sessionId, timer);
@@ -832,6 +793,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       if (setSelectedHistoryId) setSelectedHistoryId(newItem.id);
       if (setStatus) setStatus(AppStatus.RESULTS);
       showToast('Recording processed successfully', 'success');
+      void notifyInBackground({ id: `recording-ready:${recordingId}`, kind: 'recordingReady', title: data.title, body: 'Transcript and summary are ready.' });
 
       // Cleanup and remove session
       cleanupSessionRefs(sessionId);
@@ -851,6 +813,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       const errorMessage = message || 'Failed to process recording';
       updateSession(sessionId, { status: 'review', error: errorMessage });
       showToast(errorMessage, 'error');
+      void notifyInBackground({ id: `recording-ready:${sessionId}`, kind: 'recordingReady', title: 'Recording not processed', body: errorMessage });
       throw error;
     }
   }, [
@@ -1084,52 +1047,18 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     };
   }, [activeCaptureSessionId]);
 
-  // Handle notification action callbacks (Keep Recording / Stop Now).
-  // Mount-only — uses refs to avoid stale closures on frequently changing functions.
+  // "Still recording?" answers (Keep recording / Stop now). Mount-only; refs only.
   useEffect(() => {
-    const unsubTimeout = notificationService.onActionType('recording_timeout', (actionId) => {
-      const sessionId = alertedSessionRef.current;
-      if (!sessionId) return;
-
-      // Cancel the OS-level auto-stop notification
-      notificationScheduler.cancel(`rec:autostop:${sessionId}`);
-      timeoutAutoStopRefs.current.delete(sessionId);
-
-      if (actionId === 'keep_recording') {
-        // Allow the alert to re-fire after another 60 minutes and re-schedule auto-stop
-        pendingAlertRefs.current.set(sessionId, false);
-        const startTime = startTimeRefs.current.get(sessionId);
-        if (startTime !== undefined) {
-          const nextAutoStopAt = new Date(Date.now() + 65 * 60 * 1000);
-          notificationScheduler.schedule(`rec:autostop:${sessionId}`, {
-            at: nextAutoStopAt,
-            title: 'Recording auto-stopped',
-            body: 'Recording has reached the 65-minute limit.',
-            actionTypeId: 'recording_autostop',
-            extra: { sessionId },
-          });
-          timeoutAutoStopRefs.current.set(sessionId, `rec:autostop:${sessionId}` as unknown as ReturnType<typeof setTimeout>);
-        }
-        alertedSessionRef.current = null;
-      } else if (actionId === 'stop_now') {
-        alertedSessionRef.current = null;
-        stopAndSaveRef.current(sessionId);
+    const ask = NOTIFICATIONS_CONFIG.recording;
+    return onNotificationResponse(({ id, action, userInfo }) => {
+      const sessionId = userInfo.sessionId;
+      if (!id.startsWith(ask.idPrefix) || !sessionId) return;
+      if (action === ask.actions.keep) pendingAskRefs.current.delete(sessionId);
+      if (action === ask.actions.stop) {
+        pendingAskRefs.current.delete(sessionId);
+        void stopAndSaveRef.current(sessionId);
       }
     });
-
-    const unsubAutoStop = notificationService.onActionType('recording_autostop', (actionId, extra) => {
-      const sessionId = extra?.sessionId as string | undefined;
-      if (!sessionId) return;
-      alertedSessionRef.current = null;
-      pendingAlertRefs.current.delete(sessionId);
-      timeoutAutoStopRefs.current.delete(sessionId);
-      stopAndSaveRef.current(sessionId);
-    });
-
-    return () => {
-      unsubTimeout();
-      unsubAutoStop();
-    };
   }, []); // mount only
 
   // === LEGACY COMPAT: Derive single-session state from sessions Map ===

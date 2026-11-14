@@ -26,12 +26,6 @@ vi.mock('@tauri-apps/plugin-dialog', () => ({
   open: vi.fn(),
 }));
 
-vi.mock('@tauri-apps/plugin-notification', () => ({
-  sendNotification: vi.fn(),
-  isPermissionGranted: vi.fn(() => Promise.resolve(true)),
-  requestPermission: vi.fn(() => Promise.resolve('granted')),
-}));
-
 vi.mock('@tauri-apps/plugin-os', () => ({
   platform: vi.fn(() => Promise.resolve('darwin')),
 }));

@@ -19,6 +19,7 @@ import { GeneralPanel } from './GeneralPanel';
 import { CapabilitiesPanel } from './CapabilitiesPanel';
 import { UsagePanel } from './UsagePanel';
 import { IntegrationsPanel } from './IntegrationsPanel';
+import { NotificationsPanel } from './NotificationsPanel';
 import { McpServersPanel } from './mcp';
 import { Surface } from '@shared/ui';
 import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore';
@@ -29,6 +30,7 @@ const PANEL_COMPONENTS: Record<SettingsPanelType, React.FC> = {
   providers: ProvidersPanel,
   categories: CategoriesPanel,
   integrations: IntegrationsPanel,
+  notifications: NotificationsPanel,
   mcp: McpServersPanel,
   usage: UsagePanel,
 };

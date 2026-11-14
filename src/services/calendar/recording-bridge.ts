@@ -6,14 +6,14 @@
  * singleton store: set before starting, consume after stopping.
  *
  * Flow:
- * 1. User clicks "Record" or "Join & Record" from notification
- * 2. Notification handler calls setPendingCalendarEvent(event)
+ * 1. User chooses "Record" or "Join & record" on a meeting reminder
+ * 2. The calendar runtime calls setPendingCalendarEvent(event)
  * 3. Recording starts (its own ID is assigned internally)
  * 4. Recording stops → history item created
  * 5. History context calls consumePendingCalendarMeta() to attach metadata
  */
 
-import type { EnrichedCalendarEvent } from './types';
+import type { CalendarEvent } from './types';
 
 /** Calendar event metadata ready to attach to a history item. */
 export interface CalendarRecordingMeta {
@@ -28,7 +28,7 @@ export interface CalendarRecordingMeta {
 let pendingEvent: CalendarRecordingMeta | null = null;
 
 /** Store calendar metadata for the next recording about to start. */
-export function setPendingCalendarEvent(event: EnrichedCalendarEvent): void {
+export function setPendingCalendarEvent(event: CalendarEvent): void {
   pendingEvent = {
     calendarEventId: event.event_id,
     scheduledTitle: event.title,

@@ -1,0 +1,247 @@
+//! Calendar meeting reminders, the way HEX surfaces them (`meeting/watcher.rs`
+//! `Reminders`): one background thread wakes every 500 ms, rereads EventKit
+//! only when its change count moves or once a minute, and runs the pure
+//! [`scheduler::ReminderScheduler`] on the wall clock. Nothing is handed to
+//! the OS ahead of time, so a moved or cancelled meeting never fires stale.
+//!
+//! A due reminder is a notification (Record / Join & record / Not now) posted
+//! through `tauri-plugin-notifications` (permission, dev fallback). The running
+//! app handles the answer: Join opens the call link, and Record or Join emits
+//! [`RECORD_EVENT`] with the event for the frontend's existing recording start.
+
+mod scheduler;
+
+use std::collections::HashMap;
+use std::sync::{Mutex, MutexGuard, OnceLock};
+use std::thread;
+use std::time::Duration;
+
+use tauri::{AppHandle, Emitter};
+use tauri_plugin_calendar::types::CalendarEvent;
+use tauri_plugin_notifications::{self as notifications, Action, Category, Notice, Response};
+
+use crate::audio::commands::is_recording;
+use scheduler::{meetings, minutes_until, wall_clock_ms, CalendarMeeting, ReminderScheduler, ReminderUpdate};
+
+/// Frontend: start recording this meeting (`CalendarEvent`).
+const RECORD_EVENT: &str = "meeting-reminders://record";
+
+/// HEX's controller loop interval.
+const TICK: Duration = Duration::from_millis(500);
+/// How often the poll rereads the calendar without a change notification (HEX).
+const CALENDAR_REREAD_MS: i64 = 60_000;
+/// Events read either side of now: covers late grace behind and any lead ahead.
+const READ_WINDOW_MS: i64 = 60 * 60 * 1_000;
+
+const ID_PREFIX: &str = "meeting:";
+const CATEGORY: &str = "meeting";
+const CATEGORY_WITH_LINK: &str = "meeting_link";
+const ACTION_RECORD: &str = "record";
+const ACTION_JOIN_RECORD: &str = "join_record";
+const ACTION_NOT_NOW: &str = "not_now";
+
+#[derive(Default)]
+struct Reminders {
+    enabled: bool,
+    lead_ms: i64,
+    scheduler: ReminderScheduler,
+    meetings: Vec<CalendarMeeting>,
+    /// The events behind `meetings`, by id: what Record hands the frontend.
+    events: HashMap<String, CalendarEvent>,
+    change_count: Option<u64>,
+    /// Wall-clock time of the last read, so a wake from sleep rereads.
+    read_at_ms: Option<i64>,
+    read_failed: bool,
+}
+
+impl Reminders {
+    fn poll(&mut self, recording: bool) -> Option<ReminderUpdate> {
+        if !self.enabled {
+            self.meetings.clear();
+            self.change_count = None;
+            self.read_at_ms = None;
+            return self.scheduler.clear().map(ReminderUpdate::Withdraw);
+        }
+        let now_ms = wall_clock_ms();
+        self.reread_if_stale(now_ms);
+        // A reminder waits while Kasset records; it shows after, if still due.
+        if recording {
+            return None;
+        }
+        self.scheduler.poll(&self.meetings, now_ms, self.lead_ms)
+    }
+
+    fn reread_if_stale(&mut self, now_ms: i64) {
+        let changes = tauri_plugin_calendar::change_count();
+        let stale = self
+            .read_at_ms
+            .is_none_or(|read_at| (now_ms - read_at).abs() >= CALENDAR_REREAD_MS);
+        if !stale && self.change_count == Some(changes) {
+            return;
+        }
+        self.change_count = Some(changes);
+        self.read_at_ms = Some(now_ms);
+        match read_events(now_ms, self.lead_ms) {
+            Ok(events) => {
+                self.meetings = meetings(&events);
+                self.events = events.into_iter().map(|event| (event.event_id.clone(), event)).collect();
+                self.read_failed = false;
+            }
+            Err(error) => {
+                if !self.read_failed {
+                    log::warn!("[meeting-reminders] could not read calendar: {error}");
+                }
+                self.read_failed = true;
+                self.meetings.clear();
+            }
+        }
+    }
+
+    fn event_for(&self, occurrence: &str) -> Option<CalendarEvent> {
+        let meeting = self.meetings.iter().find(|meeting| meeting.occurrence() == occurrence)?;
+        self.events.get(&meeting.id).cloned()
+    }
+}
+
+static REMINDERS: OnceLock<Mutex<Reminders>> = OnceLock::new();
+static APP: OnceLock<AppHandle> = OnceLock::new();
+
+fn reminders() -> MutexGuard<'static, Reminders> {
+    REMINDERS
+        .get_or_init(Mutex::default)
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+}
+
+fn read_events(now_ms: i64, lead_ms: i64) -> Result<Vec<CalendarEvent>, String> {
+    tauri_plugin_calendar::events_between_ms(now_ms - READ_WINDOW_MS, now_ms + lead_ms + READ_WINDOW_MS)
+}
+
+// ── Lifecycle ──
+
+/// Start the reminder thread. Idle until the frontend turns reminders on.
+pub fn start(app: AppHandle) {
+    if APP.set(app).is_err() {
+        return;
+    }
+    notifications::add_categories(&categories());
+    notifications::on_response_received(handle_response);
+    let spawned = thread::Builder::new().name("meeting-reminders".into()).spawn(|| loop {
+        tick();
+        thread::sleep(TICK);
+    });
+    if let Err(error) = spawned {
+        log::error!("[meeting-reminders] thread failed to start: {error}");
+    }
+}
+
+fn tick() {
+    let update = reminders().poll(is_recording());
+    match update {
+        Some(ReminderUpdate::Show(meeting)) => show(&meeting),
+        Some(ReminderUpdate::Withdraw(occurrence)) => withdraw(&occurrence),
+        None => {}
+    }
+}
+
+/// Reminders on or off, and how many minutes before a meeting they show.
+#[tauri::command]
+pub fn configure_meeting_reminders(enabled: bool, lead_minutes: u32) {
+    let mut reminders = reminders();
+    reminders.enabled = enabled;
+    reminders.lead_ms = i64::from(lead_minutes) * 60_000;
+}
+
+// ── Notification ──
+
+fn categories() -> [Category; 2] {
+    let action = |id: &str, title: &str| Action { id: id.into(), title: title.into() };
+    [
+        Category {
+            id: CATEGORY.into(),
+            actions: vec![action(ACTION_RECORD, "Record"), action(ACTION_NOT_NOW, "Not now")],
+        },
+        Category {
+            id: CATEGORY_WITH_LINK.into(),
+            actions: vec![
+                action(ACTION_RECORD, "Record"),
+                action(ACTION_JOIN_RECORD, "Join & record"),
+                action(ACTION_NOT_NOW, "Not now"),
+            ],
+        },
+    ]
+}
+
+/// "Starts in 2 min · Zoom" (HEX's capsule wording).
+fn body(meeting: &CalendarMeeting) -> String {
+    let minutes = minutes_until(meeting.start_ms, wall_clock_ms());
+    let when = match minutes {
+        0 => "Starting now".to_string(),
+        n => format!("Starts in {n} min"),
+    };
+    match &meeting.link {
+        Some(link) => format!("{when} · {}", link.provider.label()),
+        None => when,
+    }
+}
+
+fn show(meeting: &CalendarMeeting) {
+    notifications::post(&Notice {
+        id: format!("{ID_PREFIX}{}", meeting.occurrence()),
+        title: meeting.display_title(),
+        body: body(meeting),
+        category: Some(if meeting.link.is_some() { CATEGORY_WITH_LINK } else { CATEGORY }.into()),
+        user_info: HashMap::new(),
+        // On/off is the watcher's own switch (`configure_meeting_reminders`).
+        kind: None,
+    });
+}
+
+fn withdraw(occurrence: &str) {
+    notifications::remove(&[format!("{ID_PREFIX}{occurrence}")]);
+}
+
+fn emit(name: &str, event: &CalendarEvent) {
+    if let Some(app) = APP.get() {
+        if let Err(error) = app.emit(name, event) {
+            log::warn!("[meeting-reminders] {name} failed: {error}");
+        }
+    }
+}
+
+// ── Answer ──
+
+fn handle_response(response: &Response) {
+    let Some(occurrence) = response.id.strip_prefix(ID_PREFIX) else { return };
+    let event = {
+        let mut reminders = reminders();
+        reminders.scheduler.answered(occurrence);
+        reminders.event_for(occurrence)
+    };
+    let Some(event) = event else { return };
+    match response.action.as_str() {
+        ACTION_RECORD => record(&event, false),
+        ACTION_JOIN_RECORD => record(&event, true),
+        _ => {}
+    }
+}
+
+/// Join opens the call link; Record is ignored while already recording (HEX).
+fn record(event: &CalendarEvent, join: bool) {
+    if join {
+        if let Some(url) = &event.meeting_url {
+            open_link(url);
+        }
+    }
+    if is_recording() {
+        log::info!("[meeting-reminders] already recording; Record ignored");
+        return;
+    }
+    emit(RECORD_EVENT, event);
+}
+
+fn open_link(url: &str) {
+    if let Err(error) = std::process::Command::new("open").arg(url).spawn() {
+        log::warn!("[meeting-reminders] could not open call link: {error}");
+    }
+}

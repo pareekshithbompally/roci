@@ -37,7 +37,7 @@ describe('Configuration Files', () => {
   });
 
   it('should import notifications config', async () => {
-    const { NotificationType } = await import('@config/notifications.config');
-    expect(NotificationType).toBeDefined();
+    const { NOTIFICATION_KINDS } = await import('@config/notifications.config');
+    expect(NOTIFICATION_KINDS.length).toBeGreaterThan(0);
   });
 });

@@ -1,6 +1,6 @@
 /**
  * useSystemAccess — macOS access for one integration (EventKit calendars and
- * reminders, Automation for Notes) in the shared permission vocabulary. Re-read while the panel is
+ * reminders, Automation for Notes, Notifications) in the shared permission vocabulary. Re-read while the panel is
  * open so a grant in System Settings flips the row, like the recording checklist.
  */
 
@@ -17,7 +17,8 @@ import type { AccessId } from '@shared/query/queryKeys';
 
 interface AccessSource {
   id: AccessId;
-  check: () => Promise<CalendarAccessStatus>;
+  /** `unavailable`: the permission can't exist here (e.g. notifications in a dev build). */
+  check: () => Promise<CalendarAccessStatus | 'unavailable'>;
   request: () => Promise<boolean>;
   /** The System Settings privacy pane for this kind of data. */
   settingsPane: NativeTarget;
@@ -50,5 +51,6 @@ export function useSystemAccess({ id, check, request, settingsPane }: AccessSour
       console.error(`[useSystemAccess] Opening ${id} settings failed:`, error));
   }, [id, settingsPane]);
 
-  return { access: status ? eventKitAccess(status) : 'unknown', requestAccess, openSettings };
+  const access: IntegrationAccess = status === 'unavailable' ? 'unavailable' : status ? eventKitAccess(status) : 'unknown';
+  return { access, requestAccess, openSettings };
 }

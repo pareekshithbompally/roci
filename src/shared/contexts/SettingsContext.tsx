@@ -12,6 +12,7 @@
  *   `saveSettings` remains as an immediate flush. No dirty tracking.
  */
 
+import { DEFAULT_NOTIFICATION_SETTINGS } from '@config/notifications.config';
 import React, { createContext, useContext, useCallback, ReactNode, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AppSettings } from '@shared/types';
@@ -74,12 +75,13 @@ export const defaultSettings: AppSettings = {
     autoTitle: true,
     durationReminderMinutes: 60,
   },
+  notifications: DEFAULT_NOTIFICATION_SETTINGS,
 };
 
 const SETTINGS_KEYS: Array<keyof AppSettings> = [
   'transcriptionProvider', 'transcriptionModel', 'chatModel', 'analyzeModel', 'kgExtractionModel',
   'apiKey', 'defaultAudioSource',
-  'jobProcessing', 'summaryExtraction', 'meetingDefaults', 'calendarIntegration', 'remindersIntegration', 'hexIntegration', 'appleIntelligenceIntegration', 'appleNotesIntegration', 'showModelAvatars', 'hideToolCalls',
+  'jobProcessing', 'summaryExtraction', 'meetingDefaults', 'calendarIntegration', 'notifications', 'remindersIntegration', 'hexIntegration', 'appleIntelligenceIntegration', 'appleNotesIntegration', 'showModelAvatars', 'hideToolCalls',
 ];
 
 /**

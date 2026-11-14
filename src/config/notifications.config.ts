@@ -1,66 +1,85 @@
 /**
- * Notification templates and configuration
- * Centralized notification messages for consistency
+ * Notifications — kinds the user can switch off (Settings › Notifications),
+ * their copy and defaults, and the native bridge's event names and buttons.
+ * The bridge itself is `tauri-plugin-notifications` (src-tauri/plugins).
  */
 
-export enum NotificationType {
-  RECORDING_STARTED = 'RECORDING_STARTED',
-  RECORDING_STOPPED = 'RECORDING_STOPPED',
-  TRANSCRIPTION_COMPLETE = 'TRANSCRIPTION_COMPLETE',
-  TRANSCRIPTION_FAILED = 'TRANSCRIPTION_FAILED',
-  FILE_SAVED = 'FILE_SAVED',
-  ERROR = 'ERROR',
-  RECORDING_TIMEOUT = 'RECORDING_TIMEOUT',
-  TODO_REMINDER = 'TODO_REMINDER',
-  MEETING_STARTING = 'MEETING_STARTING',
-}
+import type { NotificationKind, NotificationSettings } from '@shared/types';
 
-export interface NotificationTemplate {
-  title: string;
-  body: string;
-}
+export const NOTIFICATION_KINDS: ReadonlyArray<{ kind: NotificationKind; label: string; description: string }> = [
+  { kind: 'meetingReminders', label: 'Meeting reminders', description: 'A notification with Record before a calendar meeting starts.' },
+  { kind: 'recordingReady', label: 'Recording ready', description: 'When a recording has been transcribed and summarized, or fails.' },
+  { kind: 'hexImports', label: 'Hex meetings imported', description: 'When new meetings arrive from Hex.' },
+  { kind: 'modelDownloads', label: 'Model downloads', description: 'When an on-device model finishes downloading.' },
+  { kind: 'chatReplies', label: 'Chat replies', description: 'When a reply finishes while Kasset is in the background.' },
+  { kind: 'todoReminders', label: 'To-do reminders', description: 'At the time you set on a to-do.' },
+];
 
-export const NOTIFICATION_TEMPLATES: Record<NotificationType, NotificationTemplate> = {
-  [NotificationType.RECORDING_STARTED]: {
-    title: 'Recording Started',
-    body: 'Voice recording is now active',
-  },
-  [NotificationType.RECORDING_STOPPED]: {
-    title: 'Recording Stopped',
-    body: 'Processing your recording...',
-  },
-  [NotificationType.TRANSCRIPTION_COMPLETE]: {
-    title: 'Transcription Complete',
-    body: 'Your audio has been successfully transcribed',
-  },
-  [NotificationType.TRANSCRIPTION_FAILED]: {
-    title: 'Transcription Failed',
-    body: 'An error occurred while transcribing your audio',
-  },
-  [NotificationType.FILE_SAVED]: {
-    title: 'File Saved',
-    body: 'Your recording has been saved successfully',
-  },
-  [NotificationType.ERROR]: {
-    title: 'Error',
-    body: 'An unexpected error occurred',
-  },
-  [NotificationType.RECORDING_TIMEOUT]: {
-    title: 'Are you still recording?',
-    body: 'Recording has been active for 60 minutes. It will stop automatically in 5 minutes.',
-  },
-  [NotificationType.TODO_REMINDER]: {
-    title: 'To-Do Reminder',
-    body: 'You have a pending action item',
-  },
-  [NotificationType.MEETING_STARTING]: {
-    title: 'Meeting Starting Soon',
-    body: 'A meeting is about to begin',
-  },
+export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
+  meetingReminders: true,
+  recordingReady: true,
+  hexImports: true,
+  modelDownloads: true,
+  chatReplies: true,
+  todoReminders: true,
+  meetingLeadMinutes: 2,
 };
 
-export const NOTIFICATION_CONFIG = {
-  defaultIcon: 'icon.png',
-  duration: 5000, // 5 seconds
-  persistent: false,
+/** Lead times offered for meeting reminders. */
+export const MEETING_LEAD_OPTIONS = [
+  { value: 1, label: '1 min before' },
+  { value: 2, label: '2 min before' },
+  { value: 5, label: '5 min before' },
+  { value: 10, label: '10 min before' },
+] as const;
+
+export const NOTIFICATIONS_CONFIG = {
+  /** Rust → webview (tauri-plugin-notifications). */
+  events: {
+    /** The user answered a notification. */
+    response: 'notifications://response',
+  },
+
+  todo: {
+    idPrefix: 'todo:',
+    category: 'todo_reminder',
+    actions: { viewMeeting: 'view_meeting', snooze: 'snooze_15', dismiss: 'dismiss' },
+    snoozeMinutes: 15,
+    /** Longest to-do text shown in a notification. */
+    bodyMaxChars: 80,
+  },
+
+  chat: {
+    /** Longest reply excerpt shown in a "Reply ready" notification. */
+    bodyMaxChars: 120,
+  },
+
+  recording: {
+    idPrefix: 'recording:',
+    category: 'recording_timeout',
+    actions: { keep: 'keep_recording', stop: 'stop_now' },
+    /** Ask "Still recording?" each time a recording crosses this many seconds. */
+    askEverySeconds: 60 * 60,
+    /** Stop this long after asking, unless the user keeps recording. */
+    autoStopAfterSeconds: 5 * 60,
+  },
 } as const;
+
+/** Button sets registered with macOS (and shown on in-app fallbacks). */
+export const NOTIFICATION_CATEGORIES = [
+  {
+    id: NOTIFICATIONS_CONFIG.todo.category,
+    actions: [
+      { id: NOTIFICATIONS_CONFIG.todo.actions.viewMeeting, title: 'View meeting' },
+      { id: NOTIFICATIONS_CONFIG.todo.actions.snooze, title: 'Snooze 15 min' },
+      { id: NOTIFICATIONS_CONFIG.todo.actions.dismiss, title: 'Dismiss' },
+    ],
+  },
+  {
+    id: NOTIFICATIONS_CONFIG.recording.category,
+    actions: [
+      { id: NOTIFICATIONS_CONFIG.recording.actions.keep, title: 'Keep recording' },
+      { id: NOTIFICATIONS_CONFIG.recording.actions.stop, title: 'Stop now' },
+    ],
+  },
+];

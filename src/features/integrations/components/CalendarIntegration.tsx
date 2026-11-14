@@ -1,10 +1,11 @@
 /**
- * CalendarIntegration — macOS Calendar: meeting notifications and auto-record.
+ * CalendarIntegration — macOS Calendar: the connection and the week view.
+ * Meeting reminders are switched in Settings › Notifications.
  */
 
 import React from 'react';
 import { CalendarDays } from 'lucide-react';
-import { Button, CardRow, Icon, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui';
+import { Button, CardRow, Icon } from '@shared/ui';
 import { useAppActions } from '@shared/stores/appStore';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { useCalendarControls } from '@features/integrations/hooks/useCalendarControls';
@@ -25,26 +26,6 @@ export const CalendarIntegration: React.FC = () => {
       description={COPY.description}
       deniedHint={COPY.deniedHint}
     >
-      <CardRow
-        title="Notify before meeting starts"
-        actions={
-          <div className="w-36">
-            <Select
-              value={String(calendar.notifyMinutesBefore)}
-              onValueChange={(value) => calendar.setNotifyMinutesBefore(Number(value))}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {COPY.notifyOptions.map((option) => (
-                  <SelectItem key={option.value} value={String(option.value)}>{option.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        }
-      />
       <CardRow
         title="Your upcoming week"
         actions={

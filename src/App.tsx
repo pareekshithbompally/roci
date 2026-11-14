@@ -27,15 +27,15 @@ import { ConfirmHost, OnDeviceModelActivity, SearchOverlay } from '@shared/compo
 import { useAppShortcuts } from '@features/shortcuts';
 import { focusChatComposer, startNewChat } from '@features/chat';
 import { useAppleNotesRuntime, useCalendarRuntime, useHexRuntime, useRemindersRuntime } from '@features/integrations';
+import { useNotificationsRuntime } from '@features/notifications';
 
 // Services
 import { isTauriEnvironment } from '@services/tauri';
 import {
   initializeStorage,
 } from '@services/storage';
-import { notificationService, menubarService, TrayAction, SPEECH_MODEL_ACTION_PREFIX } from '@services/tauri';
+import { menubarService, TrayAction, SPEECH_MODEL_ACTION_PREFIX } from '@services/tauri';
 import { getHexStatus } from '@services/ai/transcription';
-import { notificationScheduler } from '@services/notification-scheduler';
 import { windowService } from '@services/window.service';
 import { dismissSplash } from '@/src/app/splash';
 import { shortcutsService } from '@services/shortcuts.service';
@@ -86,6 +86,7 @@ const App: React.FC = () => {
 
   // macOS Calendar integration — polls for upcoming meetings, shows notifications
   useCalendarRuntime();
+  useNotificationsRuntime();
   useRemindersRuntime();
   useHexRuntime();
   useAppleNotesRuntime();
@@ -210,10 +211,7 @@ const App: React.FC = () => {
     try {
       try { await initPlatformFetch(); } catch (e) { console.warn('Platform fetch init failed, using native fetch:', e); }
       await initializeStorage();
-      await notificationService.initialize();
-      await notificationService.requestPermission();
       await reminderService.initialize();
-      await notificationScheduler.reconcile();
       await windowService.initialize();
       await initializeShortcuts();
       await initializeMenubar();

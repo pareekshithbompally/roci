@@ -78,6 +78,16 @@ fn recorder() -> MutexGuard<'static, Option<Recorder>> {
     RECORDER.lock().unwrap_or_else(|error| error.into_inner())
 }
 
+/// Whether a recording is running. Never waits: a start or stop in progress
+/// holds the slot, and counts as recording.
+pub fn is_recording() -> bool {
+    match RECORDER.try_lock() {
+        Ok(active) => active.is_some(),
+        Err(TryLockError::WouldBlock) => true,
+        Err(TryLockError::Poisoned(poisoned)) => poisoned.into_inner().is_some(),
+    }
+}
+
 /// Whether a recording is capturing, for the quit and window-close prompts.
 /// A recorder held by a start or stop in progress counts as capturing.
 pub fn capture_active() -> bool {

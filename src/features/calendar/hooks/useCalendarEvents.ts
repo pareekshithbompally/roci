@@ -45,6 +45,8 @@ function toScheduleXEvent(event: EnrichedCalendarEvent): ScheduleXCalendarEvent 
     calendarId: event.calendar_name,
     location: event.location,
     description: event.notes,
+    meetingUrl: event.meeting_url,
+    meetingProvider: event.meeting_provider,
     people: event.attendees
       .filter((a) => a.status !== 'declined')
       .map((a) => a.name ?? a.email ?? 'Unknown'),

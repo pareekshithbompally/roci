@@ -8,6 +8,7 @@ export type NativeTarget =
   | 'speech-recognition-settings'
   | 'apple-intelligence-settings'
   | 'automation-settings'
+  | 'notifications-settings'
   | 'hex-app';
 
 /** Opens a System Settings privacy pane or a companion app. */

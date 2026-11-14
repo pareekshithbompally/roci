@@ -7,6 +7,11 @@ pub struct CalendarEvent {
     pub title: String,
     pub start_date: String,
     pub end_date: String,
+    /// Wall-clock milliseconds, for schedulers.
+    #[serde(default)]
+    pub start_ms: f64,
+    #[serde(default)]
+    pub end_ms: f64,
     pub organizer_name: Option<String>,
     pub organizer_email: Option<String>,
     pub attendees: Vec<Attendee>,
@@ -15,6 +20,17 @@ pub struct CalendarEvent {
     pub url: Option<String>,
     pub calendar_name: String,
     pub is_all_day: bool,
+    #[serde(default)]
+    pub is_cancelled: bool,
+    /// Shown as free time.
+    #[serde(default)]
+    pub is_free: bool,
+    /// The video call link (`call_link`), filled in Rust after reading.
+    #[serde(default)]
+    pub meeting_url: Option<String>,
+    /// The call service behind `meeting_url` ("Zoom", "Google Meet", …).
+    #[serde(default)]
+    pub meeting_provider: Option<String>,
 }
 
 /// A meeting participant.

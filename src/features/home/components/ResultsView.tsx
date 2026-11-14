@@ -32,8 +32,8 @@ import { LAYOUT } from '@config/layout.config';
 import { TodoList } from '@features/todos';
 import { NotesView } from '@features/notes';
 import { ResultsAudioPlayer } from './ResultsAudioPlayer';
-import { isTauriEnvironment, notificationService, saveTextFile } from '@services/tauri';
-import { NotificationType } from '@config/notifications.config';
+import { isTauriEnvironment, saveTextFile } from '@services/tauri';
+import { useToast } from '@shared/contexts/ToastContext';
 import { useTranscribeRecording } from '@shared/hooks/useTranscribeRecording';
 import { useMeetingPhase } from '@shared/stores/meetingJobsStore';
 import { MeetingStatus } from '@shared/components';
@@ -132,6 +132,7 @@ type ExportFormat = 'txt' | 'md' | 'html' | 'json';
 const EXPORT_KIND: Record<ExportFormat, string> = { txt: 'Plain Text', md: 'Markdown', html: 'HTML', json: 'JSON' };
 
 export const ResultsView: React.FC = () => {
+  const { showToast } = useToast();
   const result = useAppResult();
   const activeResultTab = useActiveResultTab();
   const selectedHistoryId = useSelectedHistoryId();
@@ -188,10 +189,10 @@ export const ResultsView: React.FC = () => {
   const downloadFile = async (filename: string, content: string, extension: ExportFormat) => {
     try {
       const path = await saveTextFile({ filename, content, kind: EXPORT_KIND[extension], extension });
-      if (path) await notificationService.notify(NotificationType.FILE_SAVED, `Saved to ${path}`);
+      if (path) showToast(`Saved to ${path}`, 'success');
     } catch (error: unknown) {
       console.error('[ResultsView] Save failed:', error);
-      await notificationService.notify(NotificationType.ERROR, 'Failed to save file');
+      showToast('Failed to save file', 'error');
     }
   };
 

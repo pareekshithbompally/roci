@@ -1,18 +1,20 @@
 /**
- * Reminder Service
+ * Reminder Service — to-do reminders, the one place they're scheduled.
  *
- * Schedules, cancels, and reconciles todo reminders using native OS notifications.
- * Persists to the unified store (kasset.db) via the store client.
- * Pure service — no React dependency.
+ * Timing is native (`tauri-plugin-notifications` timed notices, wall clock),
+ * and each reminder is persisted to the unified store (kasset.db) so launch
+ * re-arms the ones still ahead. The "To-do reminders" switch in Settings ›
+ * Notifications mutes them at post time. Pure service — no React dependency.
  */
 
-import { notificationService } from './tauri/notification.service';
-import { notificationScheduler } from './notification-scheduler';
+import { NOTIFICATIONS_CONFIG } from '@config/notifications.config';
+import { onNotificationResponse, removeNotices, scheduleNotice, type Notice } from '@services/notifications';
 import { store } from './db';
 import type { ReminderEntry } from '@shared/types';
 import { hashToNotificationId, formatReminderDate } from '@shared/utils/todo.utils';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+const TODO = NOTIFICATIONS_CONFIG.todo;
 
 type ViewMeetingHandler = (meetingId: string) => void;
 let viewMeetingHandler: ViewMeetingHandler | null = null;
@@ -25,78 +27,53 @@ export interface ScheduleReminderParams {
   reminderDateTime: string; // ISO 8601
 }
 
+const noticeId = (todoId: string) => `${TODO.idPrefix}${todoId}`;
+
+function reminderNotice({ todoId, meetingId, todoText, meetingTitle }: ScheduleReminderParams): Notice {
+  const body = todoText.length > TODO.bodyMaxChars ? `${todoText.slice(0, TODO.bodyMaxChars - 1)}…` : todoText;
+  return {
+    id: noticeId(todoId),
+    title: meetingTitle,
+    body,
+    category: TODO.category,
+    userInfo: { todoId, meetingId },
+    kind: 'todoReminders',
+  };
+}
+
 class ReminderService {
-  private initialized = false;
-  private unsubscribeAction: (() => void) | null = null;
+  private unsubscribeResponse: (() => void) | null = null;
 
   async initialize(): Promise<void> {
-    if (this.initialized) return;
-
-    this.unsubscribeAction = notificationService.onActionType(
-      'todo_reminder',
-      (actionId, extra) => this.handleAction(actionId, extra),
-    );
-
+    if (this.unsubscribeResponse) return;
+    this.unsubscribeResponse = onNotificationResponse((response) => {
+      if (!response.id.startsWith(TODO.idPrefix)) return;
+      this.handleAction(response.action, response.userInfo).catch((error: unknown) =>
+        console.error('[ReminderService] Action failed:', error),
+      );
+    });
     await this.reconcile();
-
-    this.initialized = true;
-    console.log('[ReminderService] Initialized');
   }
 
   async schedule(params: ScheduleReminderParams): Promise<boolean> {
-    const { todoId, meetingId, todoText, meetingTitle, reminderDateTime } = params;
-    const notificationId = hashToNotificationId(todoId);
-    const fireAt = new Date(reminderDateTime);
-
+    const fireAt = new Date(params.reminderDateTime);
     if (fireAt.getTime() <= Date.now()) {
       console.warn('[ReminderService] Cannot schedule reminder in the past');
       return false;
     }
-
-    // Cancel any existing reminder for this todo
-    await this.cancel(todoId);
-
-    // Schedule OS notification via the unified scheduler
-    const key = `todo:${todoId}`;
-    const scheduled = await notificationScheduler.schedule(key, {
-      at: fireAt,
-      title: meetingTitle,
-      body: todoText,
-      actionTypeId: 'todo_reminder',
-      extra: { todoId, meetingId },
-    });
-
-    if (!scheduled) return false;
-
-    // Persist to unified store
-    await store.reminders.upsert(todoId, notificationId, fireAt.getTime());
-
-    console.log(`[ReminderService] Scheduled reminder for "${todoText}" at ${formatReminderDate(reminderDateTime)}`);
+    await scheduleNotice(reminderNotice(params), fireAt);
+    await store.reminders.upsert(params.todoId, hashToNotificationId(params.todoId), fireAt.getTime());
+    console.log(`[ReminderService] Scheduled reminder at ${formatReminderDate(params.reminderDateTime)}`);
     return true;
   }
 
   async cancel(todoId: string): Promise<void> {
-    await notificationScheduler.cancel(`todo:${todoId}`);
+    await removeNotices([noticeId(todoId)]);
     try {
       await store.reminders.setStatus(todoId, 'cancelled');
     } catch {
       // reminder may not exist in DB
     }
-
-    console.log(`[ReminderService] Cancelled reminder for todo ${todoId}`);
-  }
-
-  async update(todoId: string, newDateTime: string, meetingId?: string): Promise<boolean> {
-    const due = await store.reminders.due();
-    const existing = due.find((r) => r.todoId === todoId);
-
-    if (!existing && !meetingId) return false;
-
-    const params: ScheduleReminderParams = existing
-      ? { ...existing, reminderDateTime: newDateTime }
-      : { todoId, meetingId: meetingId!, todoText: '', meetingTitle: '', reminderDateTime: newDateTime };
-
-    return this.schedule(params);
   }
 
   async getReminder(todoId: string): Promise<ReminderEntry | null> {
@@ -113,69 +90,40 @@ class ReminderService {
     return () => { viewMeetingHandler = null; };
   }
 
+  /** Launch: re-arm reminders still ahead (timed notices live in memory). */
   private async reconcile(): Promise<void> {
     try {
-      // Prune entries older than 7 days
       await store.reminders.prune(SEVEN_DAYS_MS);
-
-      const scheduled = await store.reminders.due();
-      if (scheduled.length === 0) return;
-
-      for (const entry of scheduled) {
+      for (const entry of await store.reminders.due()) {
         const fireAt = new Date(entry.reminderDateTime);
-
         if (fireAt.getTime() <= Date.now()) {
           await store.reminders.setStatus(entry.todoId, 'fired');
-        } else if (!notificationScheduler.isScheduled(`todo:${entry.todoId}`)) {
-          await notificationScheduler.schedule(`todo:${entry.todoId}`, {
-            at: fireAt,
-            title: entry.meetingTitle,
-            body: entry.todoText,
-            actionTypeId: 'todo_reminder',
-            extra: { todoId: entry.todoId, meetingId: entry.meetingId },
-          });
+        } else {
+          await scheduleNotice(reminderNotice(entry), fireAt);
         }
       }
-
-      console.log(`[ReminderService] Reconciled ${scheduled.length} scheduled reminders`);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[ReminderService] Reconciliation failed:', error);
     }
   }
 
-  private async handleAction(actionId: string, extra?: Record<string, unknown>): Promise<void> {
-    const todoId = extra?.todoId as string | undefined;
-    const meetingId = extra?.meetingId as string | undefined;
-
+  private async handleAction(action: string, info: Record<string, string>): Promise<void> {
+    const { todoId, meetingId } = info;
     if (!todoId) return;
 
-    switch (actionId) {
-      case 'view_meeting':
-        if (meetingId && viewMeetingHandler) {
-          viewMeetingHandler(meetingId);
-        }
-        await store.reminders.setStatus(todoId, 'fired');
-        break;
-
-      case 'snooze_15': {
-        const snoozeUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-        const due = await store.reminders.due();
-        const existing = due.find((r) => r.todoId === todoId);
-        if (existing) {
-          await this.schedule({ ...existing, reminderDateTime: snoozeUntil });
-        }
-        break;
-      }
-
-      case 'dismiss':
-        await store.reminders.setStatus(todoId, 'fired');
-        break;
+    if (action === TODO.actions.snooze) {
+      const existing = await this.getReminder(todoId);
+      const snoozeUntil = new Date(Date.now() + TODO.snoozeMinutes * 60_000).toISOString();
+      if (existing) await this.schedule({ ...existing, reminderDateTime: snoozeUntil });
+      return;
     }
+    if (action === TODO.actions.viewMeeting && meetingId) viewMeetingHandler?.(meetingId);
+    await store.reminders.setStatus(todoId, 'fired');
   }
 
   dispose(): void {
-    this.unsubscribeAction?.();
-    this.initialized = false;
+    this.unsubscribeResponse?.();
+    this.unsubscribeResponse = null;
   }
 }
 
