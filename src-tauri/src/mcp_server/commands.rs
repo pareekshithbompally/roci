@@ -11,10 +11,19 @@ use super::{
 };
 
 /// The webview's tool list (MCP wire shape), sent once it has loaded.
+///
+/// `async` so it runs off the main thread: `emit_status` rebuilds the menu bar
+/// under its lock, and a menu rebuild on another thread waits on the main thread
+/// to create items — a sync command here deadlocks the app at launch.
 #[tauri::command]
-pub fn mcp_host_publish_tools(app: AppHandle, state: State<'_, McpHostState>, tools: Vec<Tool>) {
+pub async fn mcp_host_publish_tools(
+    app: AppHandle,
+    state: State<'_, McpHostState>,
+    tools: Vec<Tool>,
+) -> Result<(), String> {
     state.publish_tools(tools);
     host::emit_status(&app);
+    Ok(())
 }
 
 /// The result of one `mcp-host://call`.

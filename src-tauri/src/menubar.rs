@@ -553,6 +553,10 @@ pub async fn menubar_set_speech_models(
 
 /// Kasset's MCP server changed state (listening, ready, agents connected):
 /// retitle its status row. Skips the rebuild when the text is unchanged.
+///
+/// Safe from any thread: the rebuild runs on a blocking worker, because
+/// building menu items waits on the main thread — called from the main thread
+/// while another rebuild holds the menu lock, it would deadlock.
 pub fn set_mcp_status(app: &AppHandle, label: String) {
     let Some(shared) = app.try_state::<MenubarShared>() else {
         return;
@@ -564,7 +568,8 @@ pub fn set_mcp_status(app: &AppHandle, label: String) {
         }
         state.mcp_status = label;
     }
-    rebuild_menu(app);
+    let app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || rebuild_menu(&app));
 }
 
 /// Set the tray tooltip.
