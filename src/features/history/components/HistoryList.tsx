@@ -6,6 +6,7 @@
 
 import React from 'react';
 import { useHistory } from '@shared/contexts/HistoryContext';
+import { useDeleteSession } from '@features/history/hooks/useDeleteSession';
 import { Text } from '@shared/ui';
 import { HistoryItem } from './HistoryItem';
 import type { HistoryItem as HistoryItemType } from '@shared/types';
@@ -29,6 +30,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
   searchQuery,
 }) => {
   const history = useHistory();
+  const deleteSession = useDeleteSession();
 
   if (items.length === 0) {
     return (
@@ -58,7 +60,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
           onRenameChange={history.setRenameValue}
           onRenameSubmit={() => history.renameItem(item.id, history.renameValue)}
           onRenameCancel={history.cancelRename}
-          onDeleteClick={() => history.setDeleteConfirmId(item.id)}
+          onDeleteClick={() => void deleteSession({ type: 'meeting', id: item.id })}
         />
       ))}
     </>

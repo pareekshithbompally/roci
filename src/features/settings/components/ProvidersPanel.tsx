@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { ExternalLink, Search, Loader2, Settings, Trash2, X } from 'lucide-react';
+import { ExternalLink, Search, Loader2, X } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-shell';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
@@ -20,14 +20,15 @@ import { modalitiesService } from '@services/modalities';
 import { getManagedSDKInfo, getDefaultBaseUrl } from '@shared/utils/modelResolver';
 import { MANAGED_MODELS, MANAGED_SDK_PROVIDERS } from '@config/providers.config';
 import { ModalityIcons } from './ModalityIcons';
-import { ModelSettingsModal } from './ModelSettingsModal';
+import { ModelRowMenu } from './ModelRowMenu';
+import { confirm } from '@shared/stores/confirmStore';
 import { ProviderGroup, ProviderListItem } from './ProviderListItem';
 import { LocalServersSection } from './LocalServersSection';
 import { LAYOUT } from '@config/layout.config';
 import { SettingsInput, SecretInput, SettingsPageHeader } from './shared';
 import { Button, Callout, CardRow, Icon, IconButton, Popover, PopoverAnchor, PopoverContent, ScrollArea, Section, Surface, Text } from '@shared/ui';
 import { Command, CommandList, CommandItem, CommandEmpty } from '@shared/ui';
-import type { ModelProvider } from '@shared/types/modelProviders';
+import type { Model as ProviderModel, ModelProvider } from '@shared/types/modelProviders';
 import type { ModelInfo } from '@services/modalities';
 
 const STORAGE_KEY = 'kasset_ai_last_provider_selection';
@@ -76,9 +77,6 @@ export const ProvidersPanel: React.FC = () => {
   const selectedProvider = effectiveSelectedProvider
     ? providers.find(p => p.provider === effectiveSelectedProvider)
     : null;
-
-  // Per-model settings modal state
-  const [modelSettingsTarget, setModelSettingsTarget] = useState<{ provider: string; modelId: string } | null>(null);
 
   const [modelSearch, setModelSearch] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -176,11 +174,28 @@ export const ProvidersPanel: React.FC = () => {
     setShowSearchDropdown(false);
   };
 
-  const handleRemoveModel = (modelId: string) => {
+  const handleRemoveModel = async (model: ProviderModel) => {
     if (!selectedProvider) return;
-
+    const confirmed = await confirm({
+      title: `Remove ${model.name || model.id}?`,
+      description: 'It leaves your model pickers. You can add it again any time.',
+      confirmLabel: 'Remove',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     updateProvider(selectedProvider.provider, {
-      models: (selectedProvider.models || []).filter(m => m.id !== modelId)
+      models: (selectedProvider.models || []).filter(m => m.id !== model.id)
+    });
+  };
+
+  /** Unset means the provider default: on for managed SDK providers. */
+  const toolsEnabledOf = (providerName: string, model: ProviderModel) =>
+    model.toolsEnabled ?? MANAGED_SDK_PROVIDERS.has(providerName);
+
+  const handleToolsChange = (modelId: string, toolsEnabled: boolean) => {
+    if (!selectedProvider) return;
+    updateProvider(selectedProvider.provider, {
+      models: (selectedProvider.models || []).map(m => (m.id === modelId ? { ...m, toolsEnabled } : m)),
     });
   };
 
@@ -424,22 +439,16 @@ export const ProvidersPanel: React.FC = () => {
                   {selectedProvider.models.map((model) => (
                     <CardRow
                       key={model.id}
-                      title={
-                        <span className="flex items-center gap-2.5 min-w-0">
-                          <ModelIcon provider={selectedProvider.provider} modelId={model.id} size={20} fallback="none" />
-                          <span className="truncate">{model.name || model.id}</span>
-                        </span>
-                      }
+                      leading={<ModelIcon provider={selectedProvider.provider} modelId={model.id} size={20} fallback="none" />}
+                      title={<span className="block truncate">{model.name || model.id}</span>}
                       actions={
                         <>
                           <ModalityIcons modelInfo={getModelInfo(selectedProvider.provider, model.id)} />
-                          <IconButton
-                            icon={Settings}
-                            label="Model settings"
-                            size="sm"
-                            onClick={() => setModelSettingsTarget({ provider: selectedProvider.provider, modelId: model.id })}
+                          <ModelRowMenu
+                            toolsEnabled={toolsEnabledOf(selectedProvider.provider, model)}
+                            onToolsChange={(enabled) => handleToolsChange(model.id, enabled)}
+                            onRemove={() => void handleRemoveModel(model)}
                           />
-                          <IconButton icon={Trash2} label="Remove" size="sm" variant="dangerGhost" onClick={() => handleRemoveModel(model.id)} />
                         </>
                       }
                     />
@@ -456,32 +465,6 @@ export const ProvidersPanel: React.FC = () => {
       </div>
       </div>
 
-      {/* Per-model settings modal */}
-      {modelSettingsTarget && providers.find(p => p.provider === modelSettingsTarget.provider) && (() => {
-        const targetProvider = providers.find(p => p.provider === modelSettingsTarget.provider)!;
-        const targetModel = targetProvider.models?.find(m => m.id === modelSettingsTarget.modelId);
-        if (!targetProvider || !targetModel) return null;
-
-        const currentToolsEnabled = targetModel.toolsEnabled !== undefined
-          ? targetModel.toolsEnabled
-          : MANAGED_SDK_PROVIDERS.has(targetProvider.provider);
-
-        return (
-          <ModelSettingsModal
-            open={!!modelSettingsTarget}
-            onClose={() => setModelSettingsTarget(null)}
-            providerName={targetProvider.provider}
-            modelId={targetModel.id}
-            toolsEnabled={currentToolsEnabled}
-            onSave={(toolsEnabled) => {
-              const updatedModels = (targetProvider.models || []).map(m =>
-                m.id === targetModel.id ? { ...m, toolsEnabled } : m
-              );
-              updateProvider(targetProvider.provider, { models: updatedModels });
-            }}
-          />
-        );
-      })()}
     </div>
   );
 };

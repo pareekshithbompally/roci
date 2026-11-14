@@ -1,7 +1,7 @@
 /**
  * RecordingExitPrompt
  *
- * Opens when the user quits (Cmd+Q or tray Quit) or closes the window while a
+ * Asks (via the app-wide confirm()) when the user quits (Cmd+Q or tray Quit) or closes the window while a
  * recording is capturing. Stop saves the recording to history first, then
  * quits or hides the window; Cancel keeps recording. A quit the app cannot
  * ask about (force quit, crash) is recovered at the next launch instead.
@@ -10,7 +10,7 @@
 import React, { useEffect } from 'react';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { exit } from '@tauri-apps/plugin-process';
-import { ConfirmDialog } from '@shared/components';
+import { confirm } from '@shared/stores/confirmStore';
 import { useAppStore, useRecordingExitPrompt, type ExitPromptKind } from '@shared/stores/appStore';
 import { isTauriEnvironment } from '@services/tauri';
 import { windowService } from '@services/window.service';
@@ -42,7 +42,6 @@ export const RecordingExitPrompt: React.FC = () => {
   }, [setPrompt]);
 
   const stop = async (requested: ExitPromptKind) => {
-    setPrompt(null);
     if (activeCaptureSessionId) {
       await stopAndSaveRecording(activeCaptureSessionId);
     }
@@ -53,23 +52,20 @@ export const RecordingExitPrompt: React.FC = () => {
     }
   };
 
-  const onStop = () => {
+  // A request (backend event or tray Quit) lands in the store; ask once, then clear it.
+  useEffect(() => {
     if (!prompt) return;
-    stop(prompt).catch((error: unknown) =>
-      console.error('[RecordingExitPrompt] Stop failed:', error),
-    );
-  };
+    setPrompt(null);
+    confirm({
+      title: 'Recording in progress',
+      description: 'Stop the recording and save it to History first?',
+      confirmLabel: STOP_LABEL[prompt],
+    })
+      .then((confirmed) => (confirmed ? stop(prompt) : undefined))
+      .catch((error: unknown) => console.error('[RecordingExitPrompt] Stop failed:', error));
+  }, [prompt, setPrompt, stop]);
 
-  return (
-    <ConfirmDialog
-      open={prompt !== null}
-      onOpenChange={(open) => { if (!open) setPrompt(null); }}
-      title="Recording in progress"
-      description="Stop the recording and save it to History first?"
-      confirmLabel={prompt ? STOP_LABEL[prompt] : ''}
-      onConfirm={onStop}
-    />
-  );
+  return null;
 };
 
 export default RecordingExitPrompt;

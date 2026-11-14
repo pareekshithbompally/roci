@@ -1,7 +1,7 @@
 import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
-import type { ComponentProps } from 'react';
+import type { ComponentProps, HTMLAttributes } from 'react';
 import { cn } from './utils';
-import { SCRIM, SHEET, SHEET_TITLE, SHEET_DESCRIPTION } from './recipes';
+import { ALERT_SHEET, SCRIM, SHEET_TITLE, SHEET_DESCRIPTION } from './recipes';
 
 export const AlertDialog = AlertDialogPrimitive.Root;
 export const AlertDialogTrigger = AlertDialogPrimitive.Trigger;
@@ -14,7 +14,12 @@ export function AlertDialogOverlay({ className, ...props }: ComponentProps<typeo
 }
 
 export function AlertDialogContent({ className, ...props }: ComponentProps<typeof AlertDialogPrimitive.Content>) {
-  return <AlertDialogPrimitive.Content className={cn(SHEET, 'max-w-md', className)} {...props} />;
+  return <AlertDialogPrimitive.Content className={cn(ALERT_SHEET, className)} {...props} />;
+}
+
+/** Trailing button row: Cancel first, the action last (macOS order). */
+export function AlertDialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('flex items-center justify-end gap-2 mt-5', className)} {...props} />;
 }
 
 export function AlertDialogTitle({ className, ...props }: ComponentProps<typeof AlertDialogPrimitive.Title>) {

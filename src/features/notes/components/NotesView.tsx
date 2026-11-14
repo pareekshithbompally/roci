@@ -9,6 +9,7 @@ import React from 'react';
 import { Plus, Loader2, StickyNote } from 'lucide-react';
 import { useNotes } from '@features/notes/hooks';
 import { EmptyState } from '@shared/components';
+import { confirmDelete } from '@shared/stores/confirmStore';
 import NoteItem from './NoteItem';
 import NoteEditor from './NoteEditor';
 import { Button, Callout, Card, Icon, Text } from '@shared/ui';
@@ -31,6 +32,11 @@ const NotesView: React.FC<NotesViewProps> = ({ className = '' }) => {
 
   const handleSaveNote = async (text: string) => {
     await addNote(text);
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!(await confirmDelete('note'))) return;
+    await deleteNote(noteId).catch((err: unknown) => console.error('[NotesView] Delete failed:', err));
   };
 
   const handleCancel = () => {
@@ -92,7 +98,7 @@ const NotesView: React.FC<NotesViewProps> = ({ className = '' }) => {
             <NoteItem
               key={note.id}
               note={note}
-              onDelete={deleteNote}
+              onDelete={(noteId) => void handleDeleteNote(noteId)}
               onUpdate={updateNote}
             />
           ))}

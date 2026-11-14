@@ -6,6 +6,7 @@ import { useTranscribeRecording } from '@shared/hooks/useTranscribeRecording';
 import { useMeetingJobs } from '@shared/stores/meetingJobsStore';
 import { deriveMeetingPhase } from '@shared/types/meetingPhase';
 import { useSentinel } from '@shared/hooks/useSentinel';
+import { useDeleteSession } from '@features/history/hooks/useDeleteSession';
 import { SidebarShimmer } from '@features/history/components/SidebarShimmer';
 import { UnifiedSidebarItem } from './UnifiedSidebarItem';
 import { RenameModal } from './RenameModal';
@@ -31,6 +32,7 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
   const chat = useChat();
   const { transcribe } = useTranscribeRecording();
   const jobs = useMeetingJobs();
+  const deleteSession = useDeleteSession();
 
   const [renameItem, setRenameItem] = React.useState<UnifiedSidebarItemType | null>(null);
   const [displayCount, setDisplayCount] = useState(SIDEBAR_PAGE_SIZE);
@@ -76,12 +78,8 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
     );
   }
 
-  const handleDelete = async (item: UnifiedSidebarItemType) => {
-    if (item.type === 'meeting') {
-      history.setDeleteConfirmId(item.id);
-    } else if (item.type === 'chat') {
-      chat.setDeleteConfirmId(item.id);
-    }
+  const handleDelete = (item: UnifiedSidebarItemType) => {
+    void deleteSession(item);
   };
 
   const handleRenameConfirm = async (newTitle: string) => {

@@ -130,7 +130,6 @@ export interface ChatStoreState {
     searchQuery?: string;
     thinkingContent?: string;
   } | null;
-  deleteConfirmId: string | null;
   pendingAttachments: ChatPart[];
 
   loadSessions: () => Promise<void>;
@@ -153,7 +152,6 @@ export interface ChatStoreState {
   copyMessage: (messageId: string, text: string) => void;
   setSelectedMeetingRefs: (meetings: MeetingListItem[]) => void;
   toggleWebSearch: () => void;
-  setDeleteConfirmId: (id: string | null) => void;
   rerunLastMessage: () => Promise<void>;
   addAttachment: (file: File) => Promise<void>;
   removeAttachment: (index: number) => void;
@@ -195,7 +193,6 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
   selectedMeetingRefs: [],
   webSearchEnabled: false,
   aiActivity: null,
-  deleteConfirmId: null,
   pendingAttachments: [],
 
   // ── Session management ──
@@ -311,7 +308,6 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
 
   toggleWebSearch: () => set((state) => ({ webSearchEnabled: !state.webSearchEnabled })),
 
-  setDeleteConfirmId: (deleteConfirmId) => set({ deleteConfirmId }),
 
   loadMoreSessions: () => set((state) => ({ indexPage: state.indexPage + 1 })),
 
@@ -611,7 +607,6 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
       transcriptionModel: '',
       chatModel: '',
       apiKey: '',
-      audioQualityPreset: 'voice' as const,
     };
 
     try {
@@ -1046,7 +1041,6 @@ export const useChatCopiedMessageId = () => useChatStore((s) => s.copiedMessageI
 export const useChatSelectedMeetingRefs = () => useChatStore((s) => s.selectedMeetingRefs);
 export const useChatWebSearchEnabled = () => useChatStore((s) => s.webSearchEnabled);
 export const useChatAiActivity = () => useChatStore((s) => s.aiActivity);
-export const useChatDeleteConfirmId = () => useChatStore((s) => s.deleteConfirmId);
 export const useChatPendingAttachments = () => useChatStore((s) => s.pendingAttachments);
 
 /** Derived: current session from cache */
@@ -1087,7 +1081,6 @@ export const useChatActions = () => {
   const copyMessage = useChatStore((s) => s.copyMessage);
   const setSelectedMeetingRefs = useChatStore((s) => s.setSelectedMeetingRefs);
   const toggleWebSearch = useChatStore((s) => s.toggleWebSearch);
-  const setDeleteConfirmId = useChatStore((s) => s.setDeleteConfirmId);
   const rerunLastMessage = useChatStore((s) => s.rerunLastMessage);
   const addAttachment = useChatStore((s) => s.addAttachment);
   const removeAttachment = useChatStore((s) => s.removeAttachment);
@@ -1111,7 +1104,6 @@ export const useChatActions = () => {
     copyMessage,
     setSelectedMeetingRefs,
     toggleWebSearch,
-    setDeleteConfirmId,
     rerunLastMessage,
     addAttachment,
     removeAttachment,

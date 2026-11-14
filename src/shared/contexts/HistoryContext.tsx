@@ -50,12 +50,10 @@ interface HistoryUIContextValue {
   menuOpenId: string | null;
   renameItemId: string | null;
   renameValue: string;
-  deleteConfirmId: string | null;
   setMenuOpenId: (id: string | null) => void;
   startRename: (itemId: string, currentTitle: string) => void;
   cancelRename: () => void;
   setRenameValue: (value: string) => void;
-  setDeleteConfirmId: (id: string | null) => void;
 }
 
 /** Combined type for backward-compat useHistory() */
@@ -131,7 +129,6 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
   const [menuOpenId, setMenuOpenIdRaw] = useState<string | null>(null);
   const [renameItemId, setRenameItemId] = useState<string | null>(null);
   const [renameValue, setRenameValueRaw] = useState('');
-  const [deleteConfirmId, setDeleteConfirmIdRaw] = useState<string | null>(null);
 
   // Filtered items
   const filteredItems = useMemo(() => {
@@ -282,7 +279,6 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
   const deleteItem = useCallback(async (itemId: string): Promise<boolean> => {
     try {
       await deleteMutation.mutateAsync(itemId);
-      setDeleteConfirmIdRaw(null);
       setMenuOpenIdRaw(null);
       return true;
     } catch (error) {
@@ -320,7 +316,6 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
   }, []);
 
   const setRenameValue = useCallback((value: string) => setRenameValueRaw(value), []);
-  const setDeleteConfirmId = useCallback((id: string | null) => setDeleteConfirmIdRaw(id), []);
 
   // ── Context values (memoized to prevent re-renders) ──
 
@@ -351,15 +346,13 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
     menuOpenId,
     renameItemId,
     renameValue,
-    deleteConfirmId,
     setMenuOpenId,
     startRename,
     cancelRename,
     setRenameValue,
-    setDeleteConfirmId,
   }), [
-    menuOpenId, renameItemId, renameValue, deleteConfirmId,
-    setMenuOpenId, startRename, cancelRename, setRenameValue, setDeleteConfirmId,
+    menuOpenId, renameItemId, renameValue,
+    setMenuOpenId, startRename, cancelRename, setRenameValue,
   ]);
 
   return (

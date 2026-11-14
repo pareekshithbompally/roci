@@ -84,19 +84,19 @@ export const McpServerCard: React.FC<McpServerCardProps> = ({
   return (
     <CardRow
       align="start"
-      title={
-        <span className="flex items-center gap-2">
-          <ServerIcon name={name} icon={icon} size="sm" />
-          {name}
-          <Status tone={tone} pulse={pulse}>{label}</Status>
-        </span>
-      }
+      leading={<ServerIcon name={name} icon={icon} size="sm" />}
+      title={name}
       description={<ServerDetails config={config} />}
+      status={
+        <>
+          <Status tone={tone} pulse={pulse}>{label}</Status>
+          {status === 'offline' && (
+            <Button variant="link" size="inline" onClick={onRetry} disabled={disabled}>Retry</Button>
+          )}
+        </>
+      }
       actions={
         <>
-          {status === 'offline' && (
-            <Button variant="outline" size="sm" onClick={onRetry} disabled={disabled}>Retry</Button>
-          )}
           <IconButton icon={Pencil} label="Edit server" size="sm" onClick={onEdit} disabled={disabled} />
           <IconButton icon={Trash2} label="Delete server" size="sm" variant="dangerGhost" onClick={onDelete} disabled={disabled} />
           <Switch size="sm" checked={!!config.active} onCheckedChange={onToggle} disabled={disabled} aria-label={`Enable ${name}`} />

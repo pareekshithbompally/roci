@@ -41,7 +41,6 @@ export interface AppSettings {
   aiModel: string;
   autoTranscribe: boolean;
   geminiApiKey?: string;
-  audioQualityPreset?: 'voice' | 'podcast' | 'music' | 'professional';
   
   // New fields for model providers
   providers?: ModelProvider[]; // Array of ModelProvider objects

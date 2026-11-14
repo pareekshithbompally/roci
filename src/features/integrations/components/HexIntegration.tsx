@@ -29,17 +29,16 @@ export const HexIntegration: React.FC = () => {
     <IntegrationRow {...hex} icon={<IntegrationIcon src={COPY.icon} alt="" />} title={COPY.title} description={COPY.description}>
       <CardRow
         title="Hex app"
-        actions={hex.running
-          ? <Status tone="success">Running</Status>
-          : <Button variant="outline" size="sm" onClick={hex.openHex}>Open Hex</Button>}
+        status={hex.running && <Status tone="success">Running</Status>}
+        actions={!hex.running && <Button variant="outline" size="sm" onClick={hex.openHex}>Open Hex</Button>}
       />
-      <CardRow title="New meetings" actions={<Status tone={events.tone}>{events.label}</Status>} />
+      <CardRow title="New meetings" status={<Status tone={events.tone}>{events.label}</Status>} />
       <CardRow
         title="Meetings"
         description={hex.syncError ?? 'Imported from Hex. Deleting in Hex keeps Kasset’s copy.'}
         actions={
-          <Button variant="outline" size="sm" onClick={hex.syncNow} disabled={hex.syncing}>
-            <Icon icon={RefreshCw} size="xs" className={hex.syncing ? 'animate-spin' : undefined} />
+          <Button variant="outline" size="sm" onClick={hex.syncNow} loading={hex.syncing}>
+            {!hex.syncing && <Icon icon={RefreshCw} size="xs" />}
             {hex.syncing ? 'Syncing…' : 'Sync now'}
           </Button>
         }

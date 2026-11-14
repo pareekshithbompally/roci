@@ -14,7 +14,7 @@ import { open as openExternal } from '@tauri-apps/plugin-shell';
 import { MCP_CONFIG } from '@config/mcp.config';
 import type { McpConfig } from '@config/mcp.config';
 import { useToast } from '@shared/contexts/ToastContext';
-import { ConfirmDialog } from '@shared/components';
+import { confirm } from '@shared/stores/confirmStore';
 import { Badge, Button, Callout, Icon, IconButton, Section, Text } from '@shared/ui';
 import { SettingsPage } from '@features/settings/components/shared';
 import {
@@ -44,7 +44,6 @@ export const McpServersPanel: React.FC = () => {
 
   const [editing, setEditing] = useState<{ name: string | null } | null>(null);
   const [jsonOpen, setJsonOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const busy = reconfigure.isPending;
   const pendingNames = new Set(busy ? reconfigure.variables?.affected : []);
@@ -64,6 +63,19 @@ export const McpServersPanel: React.FC = () => {
   const handleToggle = (name: string, active: boolean) => {
     apply((c) => toggleServer(c, name, active))
       .then(() => active && showToast(`${name} connected`, 'success'))
+      .catch((error: unknown) => showToast(errorMessage(error), 'error'));
+  };
+
+  const handleDelete = async (name: string) => {
+    const confirmed = await confirm({
+      title: `Delete "${name}"?`,
+      description: 'The server is disconnected and its configuration removed.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
+    apply((c) => deleteServer(c, name))
+      .then(() => showToast(`Deleted ${name}`, 'success'))
       .catch((error: unknown) => showToast(errorMessage(error), 'error'));
   };
 
@@ -105,7 +117,7 @@ export const McpServersPanel: React.FC = () => {
               onToggle={(active) => handleToggle(name, active)}
               onRetry={() => handleToggle(name, true)}
               onEdit={() => setEditing({ name })}
-              onDelete={() => setDeleteTarget(name)}
+              onDelete={() => void handleDelete(name)}
             />
           ))
         )}
@@ -125,21 +137,6 @@ export const McpServersPanel: React.FC = () => {
         title="Edit all MCP servers as JSON"
         value={config}
         onSave={(parsed) => apply((c) => applyJson(c, parsed))}
-      />
-
-      <ConfirmDialog
-        open={deleteTarget !== null}
-        onOpenChange={(isOpen) => !isOpen && setDeleteTarget(null)}
-        title="Delete MCP server"
-        description={`Remove "${deleteTarget ?? ''}"? It will be disconnected and its configuration deleted.`}
-        confirmLabel="Delete"
-        onConfirm={() => {
-          const name = deleteTarget;
-          if (!name) return;
-          apply((c) => deleteServer(c, name))
-            .then(() => showToast(`Deleted ${name}`, 'success'))
-            .catch((error: unknown) => showToast(errorMessage(error), 'error'));
-        }}
       />
     </PanelShell>
   );

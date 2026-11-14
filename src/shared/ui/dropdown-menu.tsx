@@ -1,7 +1,8 @@
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
-import { ChevronRight } from 'lucide-react';
+import { Check, ChevronRight } from 'lucide-react';
 import type { ComponentProps } from 'react';
 import { cn } from './utils';
+import { Icon } from './icon';
 import { MENU_LIST, MENU_ITEM, MENU_LABEL, MENU_SEPARATOR } from './recipes';
 
 export const DropdownMenu = DropdownMenuPrimitive.Root;
@@ -26,6 +27,25 @@ export function DropdownMenuItem({ variant = 'default', className, ...props }: D
       className={cn(MENU_ITEM, variant === 'danger' && 'text-danger data-[highlighted]:bg-danger-subtle', className)}
       {...props}
     />
+  );
+}
+
+/** A toggle row: label, trailing check when on. Stays open on select so the change is visible. */
+export function DropdownMenuCheckboxItem({ className, children, onSelect, ...props }: ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem>) {
+  return (
+    <DropdownMenuPrimitive.CheckboxItem
+      className={cn(MENU_ITEM, className)}
+      onSelect={(event) => {
+        event.preventDefault();
+        onSelect?.(event);
+      }}
+      {...props}
+    >
+      {children}
+      <DropdownMenuPrimitive.ItemIndicator className="ml-auto flex">
+        <Icon icon={Check} size="sm" tone="accent" />
+      </DropdownMenuPrimitive.ItemIndicator>
+    </DropdownMenuPrimitive.CheckboxItem>
   );
 }
 

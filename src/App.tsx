@@ -22,9 +22,8 @@ import { useMenubarSpeechModels } from '@features/settings';
 import { UpdateBanner } from '@features/settings';
 import { RemindersView } from '@features/todos';
 import { CalendarView } from '@features/calendar';
-import { DeleteConfirmModal } from '@features/history';
 import { Toaster } from 'sonner';
-import { ModelDownloadModal, SearchOverlay } from '@shared/components';
+import { ConfirmHost, OnDeviceModelActivity, SearchOverlay } from '@shared/components';
 import { Input } from '@shared/ui';
 import { useAppShortcuts } from '@features/shortcuts';
 import { focusChatComposer, startNewChat } from '@features/chat';
@@ -454,43 +453,16 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* RAG Model Download Consent Modal */}
-      <ModelDownloadModal />
+      {/* On-device model download + indexing progress → ActivityTray */}
+      <OnDeviceModelActivity />
 
       {/* Opens when a recording start is refused for a missing macOS permission */}
       <PermissionChecklist />
       {/* Asks Stop or Cancel when quitting or closing the window mid-recording */}
       <RecordingExitPrompt />
 
-      {/* Delete Confirmation Modal - Meeting */}
-      <DeleteConfirmModal
-        open={!!history.deleteConfirmId}
-        onOpenChange={(open) => { if (!open) history.setDeleteConfirmId(null); }}
-        onConfirm={async () => {
-          const success = await history.deleteItem(history.deleteConfirmId!);
-          if (success) {
-            toast.showToast('Session deleted successfully', 'success');
-          } else {
-            toast.showToast('Failed to delete session', 'error');
-          }
-        }}
-      />
-
-      {/* Delete Confirmation Modal - Chat */}
-      <DeleteConfirmModal
-        open={!!chat.deleteConfirmId}
-        onOpenChange={(open) => { if (!open) chat.setDeleteConfirmId(null); }}
-        onConfirm={async () => {
-          try {
-            await chat.deleteSession(chat.deleteConfirmId!);
-            chat.setDeleteConfirmId(null);
-            toast.showToast('Chat deleted successfully', 'success');
-          } catch (error) {
-            console.error('[App] Failed to delete chat:', error);
-            toast.showToast('Failed to delete chat', 'error');
-          }
-        }}
-      />
+      {/* The one app-wide confirm() prompt */}
+      <ConfirmHost />
     </>
   );
 };

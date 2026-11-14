@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { Badge, Card, CardRow, Switch } from '@shared/ui';
+import { Card, CardRow, Status, Switch } from '@shared/ui';
 import { PermissionAction } from '@shared/components';
 import type { IntegrationControls } from '@features/integrations/types';
 
@@ -30,14 +30,10 @@ export const IntegrationRow: React.FC<IntegrationRowProps> = ({
   return (
     <Card>
       <CardRow
-        title={
-          <span className="flex items-center gap-2">
-            {icon}
-            {title}
-            {connected && <Badge variant="success">Connected</Badge>}
-          </span>
-        }
+        leading={icon}
+        title={title}
         description={description}
+        status={connected && <Status tone="success">Connected</Status>}
         actions={
           <Switch
             size="sm"

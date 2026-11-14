@@ -32,10 +32,6 @@ export const SCORE_MEDIUM = 0.012;
 /** Default number of search results */
 export const DEFAULT_SEARCH_LIMIT = 5;
 
-// ── Consent ──
-/** Timeout for consent modal response (ms) */
-export const CONSENT_TIMEOUT_MS = 60_000;
-
 // ── Indexing ──
 /** How long to debounce before showing indexing toast (ms) */
 export const INDEXING_TOAST_DEBOUNCE_MS = 1000;

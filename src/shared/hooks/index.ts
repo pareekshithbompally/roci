@@ -23,3 +23,5 @@ export { useUnifiedSidebar } from './useUnifiedSidebar';
 // Interaction hooks
 export { useClickOutside } from './useClickOutside';
 export { useModelAvatarOrg } from './useModelAvatarOrg';
+export { useOnDeviceModel } from './useOnDeviceModel';
+export type { OnDeviceModel, OnDeviceModelKind, OnDeviceStatus } from './useOnDeviceModel';

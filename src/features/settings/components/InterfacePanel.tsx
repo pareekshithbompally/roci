@@ -19,7 +19,8 @@ import { Badge, Button, Card, CardRow, Icon, IconButton, Section, Select, Select
 
 import { useAppUpdate } from '@features/settings/hooks/useAppUpdate';
 import { getProviderTitle } from '@shared/utils/provider.utils';
-import { ConfirmDialog, ModelIcon } from '@shared/components';
+import { ModelIcon } from '@shared/components';
+import { confirm } from '@shared/stores/confirmStore';
 
 export const InterfacePanel: React.FC = () => {
   const { theme, setTheme } = useTheme();
@@ -38,7 +39,6 @@ export const InterfacePanel: React.FC = () => {
   } = useSystemInfo();
 
   const [storagePathCopied, setStoragePathCopied] = useState(false);
-  const [rebuildConfirmOpen, setRebuildConfirmOpen] = useState(false);
   const [rebuildingPhase, setRebuildingPhase] = useState<'meetings' | 'chats' | 'kg' | null>(null);
   const [isRebuilding, setIsRebuilding] = useState(false);
 
@@ -125,7 +125,13 @@ export const InterfacePanel: React.FC = () => {
   }, [settings, providers, showToast, loadIndexStats]);
 
   const handleRebuildIndex = useCallback(async () => {
-    setRebuildConfirmOpen(false);
+    const confirmed = await confirm({
+      title: 'Rebuild the search index?',
+      description: 'Clears and re-indexes every meeting and chat. This can take a while.',
+      confirmLabel: 'Rebuild',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     setIsRebuilding(true);
 
     try {
@@ -426,21 +432,13 @@ export const InterfacePanel: React.FC = () => {
             title="Rebuild All"
             description="Wipes and re-indexes all meetings, chats, and knowledge graph."
             actions={
-              <Button variant="outline" size="sm" onClick={() => setRebuildConfirmOpen(true)} disabled={indexBusy}>
+              <Button variant="outline" size="sm" onClick={() => void handleRebuildIndex()} disabled={indexBusy}>
                 <Icon icon={RefreshCw} size="xs" className={isRebuilding ? 'animate-spin' : ''} />
                 {isRebuilding ? 'Rebuilding…' : 'Rebuild All'}
               </Button>
             }
           />
 
-          <ConfirmDialog
-            open={rebuildConfirmOpen}
-            onOpenChange={setRebuildConfirmOpen}
-            title="Rebuild search index?"
-            description="This will clear the vector database and knowledge graph, then re-index all meetings and chats. This may take a while."
-            confirmLabel="Rebuild All"
-            onConfirm={handleRebuildIndex}
-          />
         </Section>
       )}
 

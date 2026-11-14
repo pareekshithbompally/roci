@@ -20,8 +20,26 @@ export function CommandInput({ className, ...props }: ComponentProps<typeof Comm
   );
 }
 
-export function CommandList({ className, ...props }: ComponentProps<typeof CommandPrimitive.List>) {
-  return <CommandPrimitive.List className={cn('max-h-72 overflow-y-auto custom-scrollbar p-1', className)} {...props} />;
+/**
+ * cmdk wraps List children in an inner `[cmdk-list-sizer]` div, so layout
+ * classes on the List never reach them. `fill` gives the list a fixed frame
+ * and makes the sizer a full-height column — a lone status child (empty /
+ * loading) can then `flex-1` and center in the frame.
+ */
+const LIST_FILL = 'h-72 [&>[cmdk-list-sizer]]:flex [&>[cmdk-list-sizer]]:min-h-full [&>[cmdk-list-sizer]]:flex-col';
+
+interface CommandListProps extends ComponentProps<typeof CommandPrimitive.List> {
+  /** Fixed-height frame whose sizer fills it (palettes that never resize). */
+  fill?: boolean;
+}
+
+export function CommandList({ fill, className, ...props }: CommandListProps) {
+  return (
+    <CommandPrimitive.List
+      className={cn('max-h-72 overflow-y-auto custom-scrollbar p-1', fill && LIST_FILL, className)}
+      {...props}
+    />
+  );
 }
 
 export function CommandEmpty({ className, ...props }: ComponentProps<typeof CommandPrimitive.Empty>) {

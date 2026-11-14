@@ -116,42 +116,6 @@ export const AUDIO_CONFIG = {
     },
   },
 
-  // Quality presets
-  presets: {
-    voice: {
-      name: 'Voice (16kHz)',
-      sampleRate: 16000,
-      bitrate: 64,
-      noiseSuppression: true,
-      echoCancellation: true,
-      description: 'Optimized for speech transcription',
-    },
-    podcast: {
-      name: 'Podcast (24kHz)',
-      sampleRate: 24000,
-      bitrate: 96,
-      noiseSuppression: true,
-      echoCancellation: false,
-      description: 'Balanced quality for podcasts',
-    },
-    music: {
-      name: 'Music (44.1kHz)',
-      sampleRate: 44100,
-      bitrate: 128,
-      noiseSuppression: false,
-      echoCancellation: false,
-      description: 'High quality for music recording',
-    },
-    professional: {
-      name: 'Professional (48kHz)',
-      sampleRate: 48000,
-      bitrate: 192,
-      noiseSuppression: false,
-      echoCancellation: false,
-      description: 'Professional studio quality',
-    },
-  },
-
   // Error messages
   errors: {
     permissionDenied: 'Microphone access denied. Please grant permission in your browser settings.',
@@ -213,18 +177,6 @@ export interface AudioDeviceInfo {
 }
 
 /**
- * Audio quality settings
- */
-export interface AudioQualitySettings {
-  sampleRate: number;
-  bitrate?: number;
-  codec?: string;
-  noiseSuppression: boolean;
-  echoCancellation: boolean;
-  autoGainControl: boolean;
-}
-
-/**
  * Audio capture source options
  */
 export type AudioCaptureSource =
@@ -232,20 +184,6 @@ export type AudioCaptureSource =
   | 'system'
   | 'systemAndMicrophone'
   | 'file-upload';
-
-/**
- * Get quality preset by name
- */
-export function getQualityPreset(name: keyof typeof AUDIO_CONFIG.presets): AudioQualitySettings {
-  const preset = AUDIO_CONFIG.presets[name];
-  return {
-    sampleRate: preset.sampleRate,
-    bitrate: preset.bitrate,
-    noiseSuppression: preset.noiseSuppression,
-    echoCancellation: preset.echoCancellation,
-    autoGainControl: true,
-  };
-}
 
 /**
  * Validate audio file size
@@ -259,15 +197,6 @@ export function isAudioFileSizeValid(sizeBytes: number): boolean {
  */
 export function isRecordingDurationValid(durationSeconds: number): boolean {
   return durationSeconds <= AUDIO_CONFIG.recording.maxDurationSeconds;
-}
-
-/**
- * Format audio quality for display
- */
-export function formatAudioQuality(settings: AudioQualitySettings): string {
-  const rate = settings.sampleRate / 1000;
-  const bitrate = settings.bitrate || 'auto';
-  return `${rate}kHz • ${bitrate}kbps`;
 }
 
 /**

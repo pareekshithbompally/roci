@@ -1,4 +1,5 @@
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from './utils';
 import { Icon } from './icon';
@@ -41,20 +42,34 @@ const SIZE_CLASSES: Record<ButtonSize, string> = {
 const BASE_CLASSES =
   'inline-flex items-center justify-center gap-1.5 font-medium transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 disabled:cursor-not-allowed';
 
+/**
+ * Busy, not disabled: full opacity (the work is happening, not unavailable),
+ * clicks swallowed, `aria-busy` for assistive tech.
+ */
+const LOADING_CLASSES = 'cursor-progress';
+
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  /** In-flight: a spinner leads the label and clicks are ignored. Pass no leading icon while loading. */
+  loading?: boolean;
   ref?: React.Ref<HTMLButtonElement>;
 }
 
-export function Button({ variant = 'primary', size = 'sm', className, type = 'button', ref, ...props }: ButtonProps) {
+export function Button({ variant = 'primary', size = 'sm', loading, className, type = 'button', ref, onClick, children, ...props }: ButtonProps) {
   return (
     <button
       ref={ref}
       type={type}
-      className={cn(BASE_CLASSES, VARIANT_CLASSES[variant], SIZE_CLASSES[size], className)}
+      className={cn(BASE_CLASSES, VARIANT_CLASSES[variant], SIZE_CLASSES[size], loading && LOADING_CLASSES, className)}
+      onClick={loading ? undefined : onClick}
+      aria-busy={loading || undefined}
+      aria-disabled={loading || undefined}
       {...props}
-    />
+    >
+      {loading && <Icon icon={Loader2} size={size === 'md' ? 'sm' : 'xs'} className="animate-spin" />}
+      {children}
+    </button>
   );
 }
 

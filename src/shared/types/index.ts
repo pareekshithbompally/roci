@@ -190,7 +190,6 @@ export interface AppSettings {
   /** Model used for KG entity extraction during rebuild. Falls back to chatModel if unset. */
   kgExtractionModel?: string;
   apiKey?: string;
-  audioQualityPreset?: 'voice' | 'podcast' | 'music' | 'professional';
   defaultAudioSource?: AudioCaptureSource;
   categories?: string[];
   jobProcessing?: {

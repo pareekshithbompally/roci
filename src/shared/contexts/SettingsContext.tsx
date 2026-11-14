@@ -61,7 +61,6 @@ export const defaultSettings: AppSettings = {
   chatModel: '',
   analyzeModel: '',
   apiKey: '',
-  audioQualityPreset: 'voice',
   defaultAudioSource: 'systemAndMicrophone',
   categories: ['Work', 'Personal', 'Meeting', 'Idea'],
   jobProcessing: { mode: 'sequential', maxConcurrent: 2 },
@@ -79,7 +78,7 @@ export const defaultSettings: AppSettings = {
 
 const SETTINGS_KEYS: Array<keyof AppSettings> = [
   'transcriptionProvider', 'transcriptionModel', 'chatModel', 'analyzeModel', 'kgExtractionModel',
-  'apiKey', 'audioQualityPreset', 'defaultAudioSource',
+  'apiKey', 'defaultAudioSource',
   'jobProcessing', 'summaryExtraction', 'meetingDefaults', 'calendarIntegration', 'remindersIntegration', 'hexIntegration', 'appleIntelligenceIntegration', 'showModelAvatars', 'hideToolCalls',
 ];
 

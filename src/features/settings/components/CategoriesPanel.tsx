@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
+import { confirm } from '@shared/stores/confirmStore';
 
 import { SettingsPage } from './shared';
 import { Button, CardRow, Icon, Input, Section, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Surface, Switch, Text } from '@shared/ui';
@@ -41,7 +42,9 @@ export const CategoriesPanel: React.FC = () => {
     setNewCategory('');
   };
 
-  const handleRemoveCategory = (category: string) => {
+  const handleRemoveCategory = async (category: string) => {
+    const confirmed = await confirm({ title: `Remove "${category}"?`, confirmLabel: 'Remove', tone: 'danger' });
+    if (!confirmed) return;
     setSettings({ categories: categories.filter(c => c !== category) });
   };
 
@@ -94,7 +97,7 @@ export const CategoriesPanel: React.FC = () => {
               {categories.map((category) => (
                 <Surface key={category} variant="inset" radius="md" className="inline-flex items-center gap-1.5 px-2.5 py-1">
                   <Text variant="label" tone="muted">{category}</Text>
-                  <Button variant="dangerGhost" size="inline" onClick={() => handleRemoveCategory(category)} aria-label={`Remove ${category}`}>
+                  <Button variant="dangerGhost" size="inline" onClick={() => void handleRemoveCategory(category)} aria-label={`Remove ${category}`}>
                     <Icon icon={X} size="xs" />
                   </Button>
                 </Surface>

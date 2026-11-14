@@ -10,6 +10,7 @@ import { Plus, ListTodo, Loader2, Calendar } from 'lucide-react';
 import { useSelectedHistoryId, useAppResult } from '@shared/stores/appStore';
 import { useMeetingTodos } from '@features/todos/hooks/useMeetingTodos';
 import { EmptyState } from '@shared/components';
+import { confirmDelete } from '@shared/stores/confirmStore';
 import { Button, DatePicker, Icon, Progress, Separator, Surface, Text, TimePicker, Textarea } from '@shared/ui';
 import { buildISOFromDateInput } from '@shared/utils/todo.utils';
 import TodoItem from './TodoItem';
@@ -23,6 +24,11 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
   const selectedHistoryId = useSelectedHistoryId();
   const result = useAppResult();
   const { userTodos, aiTodos, isLoading, addTodo, updateTodo, deleteTodo, toggleTodo } = useMeetingTodos(selectedHistoryId);
+
+  const handleDeleteTodo = async (todoId: string) => {
+    if (!(await confirmDelete('to-do'))) return;
+    await deleteTodo(todoId).catch((err: unknown) => console.error('[TodoList] Delete failed:', err));
+  };
   
   // Combine user todos and AI action items
   const allTodos = [
@@ -171,7 +177,7 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
                 meetingId={meetingId}
                 meetingTitle={meetingTitle}
                 onToggle={toggleTodo}
-                onDelete={todo.owner ? undefined : deleteTodo}
+                onDelete={todo.owner ? undefined : (todoId) => void handleDeleteTodo(todoId)}
                 onUpdate={todo.owner ? undefined : updateTodo}
                 onReminderChange={handleReminderChange}
               />

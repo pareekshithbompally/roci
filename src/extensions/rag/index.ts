@@ -4,7 +4,7 @@ export { vectorDB } from './client';
 export { ragIndexer, getRAGStatus } from './indexer';
 export { ragSearcher } from './searcher';
 export { chunkMeeting, computeContentHash } from './chunker';
-export { onConsentNeeded, hasConsent, revokeConsent } from './consent';
+export { hasConsent, grantConsent } from './consent';
 export { onRAGProgress, onEmbeddingProgress, emitProgress } from './progress';
 export type { RAGProgressEvent, EmbeddingModelEvent, IndexingProgressEvent, ExtractionProgressEvent, EmbeddingProgress } from './progress';
 export type { MeetingSearchResult } from './searcher';

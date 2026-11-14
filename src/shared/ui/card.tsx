@@ -15,14 +15,23 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
 export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {
   title: React.ReactNode;
   description?: React.ReactNode;
+  /** Icon or avatar before the copy, centred on the title line; the description indents under the title. */
+  leading?: React.ReactNode;
+  /**
+   * Row state (a kit `<Status>`, optionally with an inline link like Retry).
+   * Always rendered in one place — right-aligned, directly before `actions` —
+   * so states line up down a card no matter how long each title is.
+   */
+  status?: React.ReactNode;
   actions?: React.ReactNode;
   /** Control below the copy instead of beside it (wide editors, lists). */
   stacked?: boolean;
-  /** `start` pins actions to the title line when the description runs long. */
+  /** `start` pins status + actions to the title line when the description runs long. */
   align?: 'center' | 'start';
 }
 
-export function CardRow({ title, description, actions, stacked, align = 'center', className, children, ...props }: CardRowProps) {
+export function CardRow({ title, description, leading, status, actions, stacked, align = 'center', className, children, ...props }: CardRowProps) {
+  const trailing = status || actions;
   return (
     <div
       className={cn(
@@ -33,11 +42,20 @@ export function CardRow({ title, description, actions, stacked, align = 'center'
       )}
       {...props}
     >
-      <div className="min-w-0">
-        <Text as="p" variant="bodyStrong">{title}</Text>
-        {description && <Text as="p" variant="helper" tone="muted" className="mt-0.5">{description}</Text>}
+      <div className="flex min-w-0 items-start gap-2.5">
+        {/* One title line tall (1lh of the title style), so the icon centres on the title, not the block. */}
+        {leading && <Text as="div" variant="bodyStrong" className="flex h-[1lh] shrink-0 items-center">{leading}</Text>}
+        <div className="min-w-0">
+          <Text as="p" variant="bodyStrong">{title}</Text>
+          {description && <Text as="p" variant="helper" tone="muted" className="mt-0.5">{description}</Text>}
+        </div>
       </div>
-      {actions && <div className={cn('flex items-center gap-2', !stacked && 'shrink-0')}>{actions}</div>}
+      {trailing && (
+        <div className={cn('flex items-center gap-3', !stacked && 'shrink-0')}>
+          {status && <div className="flex items-center gap-2">{status}</div>}
+          {actions && <div className="flex items-center gap-2">{actions}</div>}
+        </div>
+      )}
       {children}
     </div>
   );

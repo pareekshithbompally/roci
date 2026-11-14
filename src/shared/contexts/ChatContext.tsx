@@ -55,7 +55,6 @@ interface ChatState {
     searchQuery?: string;
     thinkingContent?: string;
   } | null;
-  deleteConfirmId: string | null;
   pendingAttachments: ChatPart[];
 }
 
@@ -76,7 +75,6 @@ interface ChatContextValue extends ChatState {
   copyMessage: (messageId: string, text: string) => void;
   setSelectedMeetingRefs: (meetings: MeetingListItem[]) => void;
   toggleWebSearch: () => void;
-  setDeleteConfirmId: (id: string | null) => void;
   rerunLastMessage: (historyItems?: HistoryItem[], settings?: AppSettings, providers?: ModelProvider[]) => Promise<void>;
   addAttachment: (file: File) => Promise<void>;
   removeAttachment: (index: number) => void;
@@ -215,7 +213,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const selectedMeetingRefs = useChatStore((s) => s.selectedMeetingRefs);
   const webSearchEnabled = useChatStore((s) => s.webSearchEnabled);
   const aiActivity = useChatStore((s) => s.aiActivity);
-  const deleteConfirmId = useChatStore((s) => s.deleteConfirmId);
   const pendingAttachments = useChatStore((s) => s.pendingAttachments);
 
   const setInput = useCallback((v: string) => useChatStore.setState({ input: v }), []);
@@ -247,7 +244,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const copyMessageFn = useCallback((id: string, text: string) => useChatStore.getState().copyMessage(id, text), []);
   const setSelectedMeetingRefsFn = useCallback((m: MeetingListItem[]) => useChatStore.getState().setSelectedMeetingRefs(m), []);
   const toggleWebSearchFn = useCallback(() => useChatStore.getState().toggleWebSearch(), []);
-  const setDeleteConfirmIdFn = useCallback((id: string | null) => useChatStore.setState({ deleteConfirmId: id }), []);
   const rerunLastMessageFn = useCallback(async () => {
     await useChatStore.getState().rerunLastMessage();
   }, []);
@@ -273,7 +269,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       selectedMeetingRefs,
       webSearchEnabled,
       aiActivity,
-      deleteConfirmId,
       pendingAttachments,
       currentSession,
       filteredIndexEntries,
@@ -291,7 +286,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       copyMessage: copyMessageFn,
       setSelectedMeetingRefs: setSelectedMeetingRefsFn,
       toggleWebSearch: toggleWebSearchFn,
-      setDeleteConfirmId: setDeleteConfirmIdFn,
       rerunLastMessage: rerunLastMessageFn,
       addAttachment: addAttachmentFn,
       removeAttachment: removeAttachmentFn,
@@ -303,12 +297,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     [
       sessionIndex, cId, isSessionLoading, indexPage, input, isLoading,
       viewHistory, storeSearchQuery, debouncedSearchQuery, copiedMessageId,
-      selectedMeetingRefs, webSearchEnabled, aiActivity, deleteConfirmId,
+      selectedMeetingRefs, webSearchEnabled, aiActivity,
       pendingAttachments, currentSession, filteredIndexEntries,
       setInput, setCurrentSessionIdFn, setViewHistoryFn, setSearchQueryFn,
       newChatFn, sendMessageFn, loadSessionsFn, selectSessionFn,
       deleteSessionFn, renameSessionFn, stopGenerationFn, copyMessageFn,
-      setSelectedMeetingRefsFn, toggleWebSearchFn, setDeleteConfirmIdFn,
+      setSelectedMeetingRefsFn, toggleWebSearchFn,
       rerunLastMessageFn, addAttachmentFn, removeAttachmentFn,
       clearAttachmentsFn, addScreenshotAttachmentFn,
       getOrCreateMeetingSessionFn, loadMoreSessionsFn,

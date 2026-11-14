@@ -27,7 +27,6 @@ export {
   useChatSelectedMeetingRefs,
   useChatWebSearchEnabled,
   useChatAiActivity,
-  useChatDeleteConfirmId,
   useChatPendingAttachments,
   useCurrentSession,
   useFilteredIndexEntries,
