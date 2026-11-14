@@ -342,6 +342,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
           className={`shrink-0 ${LAYOUT.chatColumn}`}
           layout="position"
           layoutId={composerLayoutId}
+          layoutDependency={ANIMATION_CONFIG.chat.composerLayoutDependency.chat}
           transition={ANIMATION_CONFIG.chat.composerGlide}
         >
           <ToolApprovalBanner />

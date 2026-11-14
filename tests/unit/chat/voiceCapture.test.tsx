@@ -85,18 +85,19 @@ describe('ChatInput voice capture', () => {
     expect(screen.getByTitle('Stop recording')).toBeInTheDocument();
   });
 
-  it('starting: processing pill with only the master X cancel', () => {
+  it('starting: recording-shaped pill (no size jump), empty control slot (X appears only when transcribing)', () => {
     renderInput('starting');
 
     // The pill mounts on the mic-press commit, before the mic is warm —
-    // no frozen frame, no late cut. Only the kill switch is shown.
+    // no frozen frame, no late cut. The slot stays empty (same as the handoff
+    // beat) so Stop/Pause arrive once; Escape still cancels.
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     const pill = screen.getByTestId('dotscope');
-    expect(pill).toHaveAttribute('data-stage', 'processing');
+    expect(pill).toHaveAttribute('data-stage', 'recording');
     expect(pill).toHaveAttribute('aria-label', 'Starting');
     expect(screen.queryByTitle('Stop recording')).not.toBeInTheDocument();
     expect(screen.queryByTitle('Pause recording')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Cancel voice input')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Cancel voice input')).not.toBeInTheDocument();
   });
 
   it('transcribing: processing pill with only the master X cancel', () => {

@@ -24,7 +24,7 @@ import { LAYOUT } from '@config/layout.config';
 import { UI_CONFIG } from '@config/ui.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { Button, Dot, Icon, Surface, Text } from '@shared/ui';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 interface IdleViewProps {}
 
@@ -157,23 +157,24 @@ export const IdleView: React.FC<IdleViewProps> = () => {
         <div className={`${LAYOUT.chatColumn} space-y-6 overflow-visible`}>
           {hasConfiguredProviders ? (
             <>
-              {/* Greeting — fades out while the voice pill owns the view */}
-              <AnimatePresence initial={false}>
-                {!voice.isVoiceActive && (
-                  <motion.div
-                    key="greeting"
-                    className="text-center"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8, transition: { duration: 0.2 } }}
-                    transition={voice.chromeEnter}
-                  >
-                    <Text as="h1" variant="display">{greeting}</Text>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {/* Greeting — fades in place while the voice pill owns the view. It stays
+                  mounted so the column never reflows and the composer never moves. */}
+              <motion.div
+                className="text-center"
+                initial={false}
+                animate={voice.isVoiceActive ? { opacity: 0, y: -8 } : { opacity: 1, y: 0 }}
+                transition={voice.isVoiceActive ? { duration: 0.2 } : voice.chromeEnter}
+                aria-hidden={voice.isVoiceActive || undefined}
+              >
+                <Text as="h1" variant="display">{greeting}</Text>
+              </motion.div>
               {/* Shared ChatInput — glides to the bottom of the chat on first send */}
-              <motion.div layout="position" layoutId={ANIMATION_CONFIG.chat.composerLayoutId} transition={ANIMATION_CONFIG.chat.composerGlide}>
+              <motion.div
+                layout="position"
+                layoutId={ANIMATION_CONFIG.chat.composerLayoutId}
+                layoutDependency={ANIMATION_CONFIG.chat.composerLayoutDependency.idle}
+                transition={ANIMATION_CONFIG.chat.composerGlide}
+              >
                 <ChatInput
                   value={chatInput}
                   onChange={setInput}
@@ -198,37 +199,33 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                 />
               </motion.div>
 
-              {/* Action Chips — hidden while the voice pill owns the view */}
-              <AnimatePresence initial={false}>
-                {!voice.isVoiceActive && (
-                  <motion.div
-                    key="action-chips"
-                    className="flex flex-wrap items-center justify-center gap-2"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 8, transition: { duration: 0.2 } }}
-                    transition={voice.chromeEnter}
-                  >
-                    <Button variant="outline" size="sm" onClick={handleStartRecording} disabled={!recording.canRecord}>
-                      <Dot tone="danger" />
-                      Record
-                    </Button>
-                    <ImportButton />
-                    {historyItems.length > 0 && (
-                      <Button variant="outline" size="sm" onClick={handleOpenReminders}>
-                        <Icon icon={ListTodo} size="xs" />
-                        To-Dos
-                      </Button>
-                    )}
-                    {settings.calendarIntegration?.enabled && (
-                      <Button variant="outline" size="sm" onClick={handleOpenCalendar}>
-                        <Icon icon={CalendarDays} size="xs" />
-                        Upcoming
-                      </Button>
-                    )}
-                  </motion.div>
+              {/* Action Chips — fade in place while the voice pill owns the view (same reason) */}
+              <motion.div
+                className="flex flex-wrap items-center justify-center gap-2"
+                initial={false}
+                animate={voice.isVoiceActive ? { opacity: 0, y: 8 } : { opacity: 1, y: 0 }}
+                transition={voice.isVoiceActive ? { duration: 0.2 } : voice.chromeEnter}
+                aria-hidden={voice.isVoiceActive || undefined}
+                inert={voice.isVoiceActive || undefined}
+              >
+                <Button variant="outline" size="sm" onClick={handleStartRecording} disabled={!recording.canRecord}>
+                  <Dot tone="danger" />
+                  Record
+                </Button>
+                <ImportButton />
+                {historyItems.length > 0 && (
+                  <Button variant="outline" size="sm" onClick={handleOpenReminders}>
+                    <Icon icon={ListTodo} size="xs" />
+                    To-Dos
+                  </Button>
                 )}
-              </AnimatePresence>
+                {settings.calendarIntegration?.enabled && (
+                  <Button variant="outline" size="sm" onClick={handleOpenCalendar}>
+                    <Icon icon={CalendarDays} size="xs" />
+                    Upcoming
+                  </Button>
+                )}
+              </motion.div>
             </>
           ) : (
             <>

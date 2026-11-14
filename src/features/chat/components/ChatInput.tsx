@@ -323,9 +323,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const voiceActive = isCapturing || overlayOpen;
   const handoff = !isCapturing && overlayOpen;
 
-  // Processing while warming up, transcribing, or settling; recording otherwise.
+  // Recording shape from the mic press on — while warming up there is no stream yet,
+  // so the traces sit flat at full width (as when paused) and the pill opens at one
+  // size. It narrows to the processing shape only once transcription starts.
   const scopeStage: 'recording' | 'processing' =
-    isStarting || isTranscribing || handoff ? 'processing' : 'recording';
+    isTranscribing || handoff ? 'processing' : 'recording';
   const scopeLabel = isTranscribing || handoff
     ? 'Transcribing'
     : isStarting ? 'Starting' : isPaused ? 'Paused' : 'Recording';
@@ -423,7 +425,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                       {formattedElapsed}
                     </Text>
                   </motion.div>
-                ) : isTranscribing || isStarting ? (
+                ) : isTranscribing ? (
                   <motion.div
                     key="cancel"
                     className="flex flex-col items-center gap-1.5"
@@ -505,7 +507,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
         {/* Text input — the composer only mounts while idle; the pill owns
             this slot for the whole capture. */}
-        <Text as="div" variant="reading" className="px-3 pt-3 pb-1">
+        <Text as="div" variant="reading" className="relative px-3 pt-3 pb-1">
           <Textarea
             variant="bare"
             ref={inputRef}

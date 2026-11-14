@@ -161,6 +161,12 @@ export const ANIMATION_CONFIG = {
   chat: {
     /** Shared-element id: the composer glides from the landing page to the bottom of the chat */
     composerLayoutId: 'chat-composer',
+    /**
+     * framer-motion `layoutDependency` per composer host. Layout animates only when this
+     * value changes (landing → chat), never on content growth (chips, attachments, text).
+     * The two values must differ, or framer skips the shared glide.
+     */
+    composerLayoutDependency: { idle: 'idle', chat: 'chat' },
     /** Composer glide (framer-motion, seconds) — standard easeInOut */
     composerGlide: { duration: 0.3, ease: [0.4, 0, 0.2, 1] as const },
     messageAppearDelay: 100, // Delay between sequential messages

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Badge, Disclosure, Icon, Text } from '@shared/ui';
 import { ServerIcon } from '@shared/components';
@@ -30,13 +30,24 @@ function ToolCallMeta({ part }: { part: ToolCallPart }) {
 
 export interface ToolCallBlockProps {
   part: ToolCallPart;
-  defaultOpen?: boolean;
 }
 
-/** One tool call: collapsible header (glyph, title, status/duration) over its tool-specific body. */
-export const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ part, defaultOpen }) => (
+/**
+ * One tool call: collapsible header (glyph, title, status/duration) over its tool-specific body.
+ * Open while it runs, folds itself once when it finishes (so a chain of calls stays one line
+ * each); the user can open or close it any time after.
+ */
+export const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ part }) => {
+  const running = part.status === 'calling';
+  const [open, setOpen] = useState(running);
+  useEffect(() => {
+    if (!running) setOpen(false);
+  }, [running]);
+
+  return (
   <Disclosure
-    defaultOpen={defaultOpen}
+    open={open}
+    onOpenChange={setOpen}
     summary={
       <>
         <ToolCallGlyph part={part} />
@@ -47,4 +58,5 @@ export const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ part, defaultOpen 
   >
     <ToolCallBody part={part} />
   </Disclosure>
-);
+  );
+};

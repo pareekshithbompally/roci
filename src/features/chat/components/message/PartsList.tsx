@@ -27,7 +27,7 @@ const PartsList: React.FC<PartsListProps> = ({ parts, messageId, streaming, proc
       {parts.map((part, index) => {
         if (part.type === 'tool_call') {
           if (settings.hideToolCalls) return null;
-          return <ToolCallBlock key={part.toolCallId} part={part} defaultOpen={part.status === 'calling'} />;
+          return <ToolCallBlock key={part.toolCallId} part={part} />;
         }
         if (part.type === 'text') {
           const text = processText ? processText(part.text) : part.text;

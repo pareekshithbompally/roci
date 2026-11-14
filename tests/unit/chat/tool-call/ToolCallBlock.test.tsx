@@ -32,9 +32,24 @@ describe('ToolCallBlock', () => {
     expect(screen.getByText('chat body')).toBeInTheDocument();
   });
 
-  it('opens initially with defaultOpen', () => {
-    render(<ToolCallBlock part={part({})} defaultOpen />);
+  it('is open while running, folds itself when the call finishes, and can be reopened', () => {
+    const wrap = (ui: ReactElement) => <QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>;
+    const { rerender } = rtlRender(wrap(<ToolCallBlock part={part({ status: 'calling', result: undefined })} />));
     expect(screen.getByRole('button')).toHaveAttribute('aria-expanded', 'true');
+
+    rerender(wrap(<ToolCallBlock part={part({})} />));
+    const header = screen.getByRole('button', { name: /Retrieved chat/ });
+    expect(header).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(header);
+    expect(header).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('folds on error too', () => {
+    const wrap = (ui: ReactElement) => <QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>;
+    const { rerender } = rtlRender(wrap(<ToolCallBlock part={part({ status: 'calling', result: undefined })} />));
+    rerender(wrap(<ToolCallBlock part={part({ status: 'error', result: { content: 'boom', isError: true } })} />));
+    expect(screen.getByRole('button')).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('shows the duration when complete and no failure badge', () => {
