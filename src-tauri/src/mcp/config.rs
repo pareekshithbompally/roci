@@ -7,7 +7,9 @@ use tauri::{AppHandle, Manager};
 
 const CONFIG_FILE: &str = "mcp_config.json";
 
-/// Jan's starter servers (minus its browser bridge), all off until enabled.
+/// Jan's starter servers, all off until enabled. Only those that run as-is:
+/// Jan's `filesystem` (placeholder path) and `serper` (placeholder API key)
+/// and Jan's own browser bridge are left out; enabling them could only fail.
 const DEFAULT_MCP_CONFIG: &str = r#"{
   "mcpServers": {
     "fetch": {
@@ -16,22 +18,10 @@ const DEFAULT_MCP_CONFIG: &str = r#"{
       "env": {},
       "active": false
     },
-    "filesystem": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/other/allowed/dir"],
-      "env": {},
-      "active": false
-    },
     "sequential-thinking": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
       "env": {},
-      "active": false
-    },
-    "serper": {
-      "command": "npx",
-      "args": ["-y", "serper-search-scrape-mcp-server"],
-      "env": { "SERPER_API_KEY": "YOUR_SERPER_API_KEY_HERE" },
       "active": false
     },
     "browsermcp": {

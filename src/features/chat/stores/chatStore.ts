@@ -6,7 +6,7 @@
  *
  * Module-level refs for:
  *  - loadedSessions (Map) — session objects, accessed synchronously in callbacks
- *  - chatInputRef — HTMLTextAreaElement ref for Cmd+L focus
+ *  - chatInputRef — the mounted composer (⌘L: focusChatComposer)
  *  - abortRef — current AbortController
  *  - injectedRefs — settings/providers/historyItems from external providers
  */
@@ -39,6 +39,8 @@ import { generateSuggestions } from '@services/ai/suggestions';
 import { logUsage } from '@extensions/usage';
 import { fileToBase64 } from '@shared/utils/file.utils';
 import { queryClient } from '@shared/query/queryClient';
+import { useAppStore } from '@shared/stores/appStore';
+import { AppStatus } from '@shared/types';
 import { queryKeys } from '@shared/query/queryKeys';
 import {
   CHAT_PAGE_SIZE,
@@ -56,8 +58,44 @@ function invalidateChats(): void {
 /** Session objects — accessed synchronously in actions, no stale closure */
 let loadedSessionsCache = new Map<string, ChatSession>();
 
-/** HTMLTextAreaElement ref exposed for Cmd+L focus */
-export const chatInputRef: MutableRefObject<HTMLTextAreaElement | null> = { current: null };
+/** The mounted chat composer's textarea (⌘L focus target). */
+const chatInputRef: MutableRefObject<HTMLTextAreaElement | null> = { current: null };
+
+/** ⌘L arrived while no composer was mounted; the next one to mount takes focus. */
+let composerFocusPending = false;
+
+/**
+ * Focus the chat composer (⌘L). With none on screen, go where one is — home,
+ * or the open meeting's chat panel — and focus it as it mounts.
+ */
+export function focusChatComposer(): void {
+  if (chatInputRef.current) {
+    chatInputRef.current.focus();
+    return;
+  }
+  composerFocusPending = true;
+  const { selectedHistoryId, setCurrentView, setMeetingChatOpen } = useAppStore.getState();
+  setCurrentView('home');
+  if (selectedHistoryId) setMeetingChatOpen(true);
+}
+
+/** Back to the empty home composer: no meeting, session, or result selected (⌘N, New chat). */
+export function startNewChat(): void {
+  const app = useAppStore.getState();
+  app.setCurrentView('home');
+  app.setSelectedHistoryId(null);
+  app.setResult(null);
+  app.setStatus(AppStatus.IDLE);
+  useChatStore.getState().setCurrentSessionId(null);
+}
+
+/** ChatInput registers its textarea on mount (null on unmount). */
+export function registerChatComposer(textarea: HTMLTextAreaElement | null): void {
+  chatInputRef.current = textarea;
+  if (!textarea || !composerFocusPending) return;
+  composerFocusPending = false;
+  textarea.focus();
+}
 
 /** Current AbortController for generation */
 let abortControllerRef: AbortController | null = null;

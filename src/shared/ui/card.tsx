@@ -18,14 +18,16 @@ export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
   actions?: React.ReactNode;
   /** Control below the copy instead of beside it (wide editors, lists). */
   stacked?: boolean;
+  /** `start` pins actions to the title line when the description runs long. */
+  align?: 'center' | 'start';
 }
 
-export function CardRow({ title, description, actions, stacked, className, children, ...props }: CardRowProps) {
+export function CardRow({ title, description, actions, stacked, align = 'center', className, children, ...props }: CardRowProps) {
   return (
     <div
       className={cn(
         'flex gap-4 py-3',
-        stacked ? 'flex-col' : 'items-center justify-between',
+        stacked ? 'flex-col' : cn('justify-between', align === 'start' ? 'items-start' : 'items-center'),
         description ? 'min-h-15' : 'min-h-12',
         className,
       )}

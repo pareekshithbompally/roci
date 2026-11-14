@@ -15,7 +15,7 @@ import { useAppActions } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
 import { useChat } from '@shared/contexts/ChatContext';
 import { useMeetingDetailLoader } from '@shared/hooks/useMeetingDetailLoader';
-import { formatShortcut } from '@config/shortcuts.config';
+import { shortcutLabel } from '@features/shortcuts';
 import {
   SPOTLIGHT_DEBOUNCE_MS,
   SPOTLIGHT_MIN_QUERY_LENGTH,
@@ -174,7 +174,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
         {isSearching && (
           <Loader2 className="absolute right-10 w-3.5 h-3.5 animate-spin text-faint" />
         )}
-        <Kbd className="absolute right-3">{formatShortcut('CommandOrControl+K')}</Kbd>
+        <Kbd className="absolute right-3">{shortcutLabel('search')}</Kbd>
       </div>
       <CommandList className="min-h-40">
         <CommandEmpty>

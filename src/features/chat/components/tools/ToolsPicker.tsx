@@ -3,6 +3,9 @@
  * (`CommandPopover`: search partition, grouped list, bounded height); each
  * tool group opens its tools in a side flyout on hover (`CommandFlyout`).
  *
+ * Its own composer button (beside the model picker), never a + menu entry:
+ * a searchable list can't live inside a focus-trapping menu.
+ *
  *   Built-in     Web search (native, per provider) · Meetings & chats ›
  *   MCP servers  one row per live (connected) server, status + count + checkbox ›
  *   ─────────    approval mode · Manage MCP servers

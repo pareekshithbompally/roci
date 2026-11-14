@@ -1,6 +1,18 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, IconButton, Text } from '@shared/ui';
+import {
+  Dialog,
+  DialogBody,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+  IconButton,
+  Text,
+} from '@shared/ui';
 
 interface FormDialogProps {
   open: boolean;
@@ -40,7 +52,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
             </DialogClose>
           </div>
         </DialogHeader>
-        <div className="min-h-0 overflow-y-auto custom-scrollbar space-y-4">{children}</div>
+        <DialogBody>{children}</DialogBody>
         {error && (
           <Text as="p" role="alert" variant="helper" tone="danger" className="mt-3 whitespace-pre-wrap break-words">
             {error}

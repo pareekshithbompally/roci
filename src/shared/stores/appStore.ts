@@ -10,6 +10,8 @@ export type ExitPromptKind = 'quit' | 'close';
 
 interface AppStoreState {
   currentView: ViewType;
+  /** Where "Back to app" (and Esc) returns from settings. */
+  viewBeforeSettings: Exclude<ViewType, 'settings'>;
   status: AppStatus;
   result: ProcessedResult | null;
   selectedHistoryId: string | null;
@@ -23,6 +25,8 @@ interface AppStoreState {
   error: string | null;
 
   setCurrentView: (v: ViewType) => void;
+  /** Return from settings to the view it was opened from; no-op elsewhere. */
+  leaveSettings: () => void;
   setStatus: (s: AppStatus) => void;
   setResult: (r: ProcessedResult | null) => void;
   setSelectedHistoryId: (id: string | null) => void;
@@ -39,6 +43,7 @@ interface AppStoreState {
 
 export const useAppStore = create<AppStoreState>((set) => ({
   currentView: 'home',
+  viewBeforeSettings: 'home',
   status: AppStatus.IDLE,
   result: null,
   selectedHistoryId: null,
@@ -50,7 +55,14 @@ export const useAppStore = create<AppStoreState>((set) => ({
   isInitialized: false,
   error: null,
 
-  setCurrentView: (v) => set({ currentView: v }),
+  setCurrentView: (v) =>
+    set((s) => ({
+      currentView: v,
+      ...(v === 'settings' && s.currentView !== 'settings' && { viewBeforeSettings: s.currentView }),
+    })),
+
+  leaveSettings: () =>
+    set((s) => (s.currentView === 'settings' ? { currentView: s.viewBeforeSettings } : {})),
 
   setStatus: (s) =>
     set({
@@ -106,6 +118,7 @@ export const useAppError = () => useAppStore((s) => s.error);
 // Actions — stable references, never trigger re-render
 export const useAppActions = () => {
   const setCurrentView = useAppStore((s) => s.setCurrentView);
+  const leaveSettings = useAppStore((s) => s.leaveSettings);
   const setStatus = useAppStore((s) => s.setStatus);
   const setResult = useAppStore((s) => s.setResult);
   const setSelectedHistoryId = useAppStore((s) => s.setSelectedHistoryId);
@@ -119,6 +132,7 @@ export const useAppActions = () => {
 
   return {
     setCurrentView,
+    leaveSettings,
     setStatus,
     setResult,
     setSelectedHistoryId,

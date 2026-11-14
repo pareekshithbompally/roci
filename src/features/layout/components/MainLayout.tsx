@@ -10,10 +10,9 @@ import { useLeftPanel } from '@shared/hooks/useLeftPanel';
 import { useRightPanel } from '@shared/hooks/useRightPanel';
 import { useSmallScreen } from '@shared/hooks/useMediaQuery';
 import { useAppStatus, useSelectedHistoryId, useMeetingChatOpen, useAppResult, useAppActions } from '@shared/stores/appStore';
-import { useChat } from '@shared/contexts/ChatContext';
 import { useActivityItems } from '@shared/stores/activityStore';
 import { Sidebar } from './Sidebar';
-import { ChatPanel } from '@features/chat';
+import { ChatPanel, startNewChat } from '@features/chat';
 import { PanelLeft, SquarePen } from 'lucide-react';
 import { IS_MACOS } from '@platform/index';
 import { AppStatus } from '@shared/types';
@@ -37,20 +36,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const selectedHistoryId = useSelectedHistoryId();
   const meetingChatOpen = useMeetingChatOpen();
   const result = useAppResult();
-  const { setCurrentView, setStatus, setSelectedHistoryId, setResult, setMeetingChatOpen } = useAppActions();
-  const chat = useChat();
+  const { setMeetingChatOpen } = useAppActions();
   const activityItems = useActivityItems();
   const dragRef = useRef<{ startX: number; startWidth: number; side: 'left' | 'right' } | null>(null);
 
   const activityCount = useMemo(() => activityItems.length, [activityItems]);
-
-  const handleNewChat = useCallback(() => {
-    setCurrentView('home');
-    setSelectedHistoryId(null);
-    chat.setCurrentSessionId(null);
-    setResult(null);
-    setStatus(AppStatus.IDLE);
-  }, [setCurrentView, setSelectedHistoryId, chat, setResult, setStatus]);
 
   /** Shared resize handler for both left and right panels */
   const handleResizeStart = useCallback((e: React.MouseEvent, side: 'left' | 'right') => {
@@ -159,7 +149,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               <div className={`absolute top-3.5 z-50 flex items-center gap-1 ${
                 shouldOffsetMacControls ? LAYOUT.collapsedControls : LAYOUT.collapsedControlsFlush
               }`}>
-                <Button variant="ghost" size="icon" onClick={handleNewChat} aria-label="New chat">
+                <Button variant="ghost" size="icon" onClick={startNewChat} aria-label="New chat">
                   <Icon icon={SquarePen} size="sm" />
                 </Button>
                 <div className="relative">

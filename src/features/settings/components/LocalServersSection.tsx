@@ -11,12 +11,11 @@ import React, { useState } from 'react';
 import { Plus, RefreshCw } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
-import { LOCAL_EMPTY_HINT } from '@config/localServers.config';
+import { LOCAL_EMPTY_HINT, LOCAL_URL_DRAFT } from '@config/localServers.config';
 import { useLocalServers } from '@features/settings/hooks/useLocalServers';
 import { ProviderGroup, ProviderListItem } from './ProviderListItem';
-import { SettingsInput } from './shared';
 import type { LocalRow } from '@services/providers/localServers';
-import { Button, Icon, Text } from '@shared/ui';
+import { Button, IconButton, Input, Text } from '@shared/ui';
 
 interface LocalServersSectionProps {
   selectedProvider: string | null;
@@ -71,14 +70,10 @@ export const LocalServersSection: React.FC<LocalServersSectionProps> = ({ select
   };
 
   const actions = (
-    <div className="flex items-center gap-0.5">
-      <Button variant="ghost" size="iconSm" onClick={handleRescan} title="Rescan" aria-label="Rescan local servers">
-        <Icon icon={RefreshCw} size="xs" className={isScanning ? 'animate-spin' : ''} />
-      </Button>
-      <Button variant="ghost" size="iconSm" onClick={() => setUrlDraft('')} title="Add URL" aria-label="Add a local server by URL">
-        <Icon icon={Plus} size="xs" />
-      </Button>
-    </div>
+    <>
+      <IconButton icon={RefreshCw} label="Rescan local servers" size="sm" spin={isScanning} onClick={handleRescan} />
+      <IconButton icon={Plus} label="Add a local server by URL" size="sm" onClick={() => setUrlDraft(LOCAL_URL_DRAFT)} />
+    </>
   );
 
   return (
@@ -97,26 +92,28 @@ export const LocalServersSection: React.FC<LocalServersSectionProps> = ({ select
       ))}
 
       {urlDraft !== null && (
-        <div className="space-y-2">
-          <SettingsInput
+        <form
+          className="flex flex-wrap justify-end gap-2 pt-1"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleAddUrl();
+          }}
+        >
+          <Input
             autoFocus
             value={urlDraft}
             onChange={(e) => setUrlDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void handleAddUrl();
-              if (e.key === 'Escape') setUrlDraft(null);
-            }}
-            placeholder="http://localhost:9000"
+            onKeyDown={(e) => e.key === 'Escape' && setUrlDraft(null)}
+            aria-label="Local server URL"
+            className="basis-full"
           />
-          <div className="flex items-center gap-2">
-            <Button variant="primary" size="sm" onClick={() => void handleAddUrl()} disabled={isAdding || !urlDraft.trim()}>
-              {isAdding ? 'Connecting…' : 'Add'}
-            </Button>
-            <Button variant="ghost" size="inline" onClick={() => setUrlDraft(null)}>
-              Cancel
-            </Button>
-          </div>
-        </div>
+          <Button variant="ghost" size="sm" onClick={() => setUrlDraft(null)} disabled={isAdding}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary" size="sm" disabled={isAdding || !urlDraft.trim()}>
+            {isAdding ? 'Connecting…' : 'Add'}
+          </Button>
+        </form>
       )}
 
       {rows.length === 0 && urlDraft === null && (

@@ -4,7 +4,7 @@ use rmcp::model::{CallToolRequestParams, CallToolResult, ContentBlock};
 use serde::Serialize;
 use serde_json::{Map, Value};
 use std::{collections::HashMap, sync::Arc};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 use tokio::{sync::oneshot, time::timeout};
 
 use super::{
@@ -64,22 +64,6 @@ pub async fn activate_mcp_server(app: AppHandle, name: String, config: Value) ->
 #[tauri::command]
 pub async fn deactivate_mcp_server(app: AppHandle, name: String) -> Result<(), String> {
     runtime::stop_server(&app, &name).await;
-    Ok(())
-}
-
-/// Stop every connection and start the enabled servers again.
-#[tauri::command]
-pub async fn restart_mcp_servers(app: AppHandle) -> Result<(), String> {
-    runtime::stop_all(&app).await;
-    let active: Vec<(String, Value)> = app.state::<McpState>().active.lock().await.drain().collect();
-    for (name, entry) in active {
-        let app = app.clone();
-        tauri::async_runtime::spawn(async move {
-            if let Err(e) = runtime::start_server(&app, &name, entry).await {
-                log::error!("[mcp] {name} failed to restart: {e}");
-            }
-        });
-    }
     Ok(())
 }
 

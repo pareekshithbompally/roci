@@ -65,13 +65,15 @@ export interface IconButtonProps extends Omit<ButtonProps, 'size' | 'children'> 
   size?: 'sm' | 'md';
   /** Solid glyph (stop / play / pause) */
   filled?: boolean;
+  /** Rotate the glyph while work runs (Rescan, Sync) */
+  spin?: boolean;
 }
 
 /** Icon-only button: ghost by default, always labelled. */
-export function IconButton({ icon, label, size = 'md', variant = 'ghost', filled, ...props }: IconButtonProps) {
+export function IconButton({ icon, label, size = 'md', variant = 'ghost', filled, spin, ...props }: IconButtonProps) {
   return (
     <Button variant={variant} size={size === 'md' ? 'icon' : 'iconSm'} aria-label={label} title={label} {...props}>
-      <Icon icon={icon} size={size === 'md' ? 'md' : 'sm'} className={filled ? 'fill-current' : undefined} />
+      <Icon icon={icon} size={size === 'md' ? 'md' : 'sm'} className={cn(filled && 'fill-current', spin && 'animate-spin')} />
     </Button>
   );
 }

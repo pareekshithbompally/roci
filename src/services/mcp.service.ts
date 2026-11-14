@@ -63,10 +63,6 @@ class McpService {
     return invoke('deactivate_mcp_server', { name });
   }
 
-  restartAll(): Promise<void> {
-    return invoke('restart_mcp_servers');
-  }
-
   getConnectedServers(): Promise<string[]> {
     return invoke<string[]>('get_connected_mcp_servers');
   }

@@ -26,7 +26,8 @@ import { DeleteConfirmModal } from '@features/history';
 import { Toaster } from 'sonner';
 import { ModelDownloadModal, SearchOverlay } from '@shared/components';
 import { Input } from '@shared/ui';
-import { useAppShortcuts } from '@shared/hooks/useAppShortcuts';
+import { useAppShortcuts } from '@features/shortcuts';
+import { focusChatComposer, startNewChat } from '@features/chat';
 import { useCalendarRuntime, useHexRuntime, useRemindersRuntime } from '@features/integrations';
 
 // Services
@@ -39,7 +40,6 @@ import { getHexStatus } from '@services/ai/transcription';
 import { notificationScheduler } from '@services/notification-scheduler';
 import { windowService } from '@services/window.service';
 import { shortcutsService } from '@services/shortcuts.service';
-import { ShortcutAction } from '@config/shortcuts.config';
 import { unifiedAIService } from '@services/unifiedAIService';
 import { initPlatformFetch } from '@services/platform-fetch';
 import { searchIndexingService } from '@services/searchIndexing.service';
@@ -52,7 +52,7 @@ const App: React.FC = () => {
   const currentView = useCurrentView();
   const status = useAppStatus();
   const selectedHistoryId = useSelectedHistoryId();
-  const { setStatus, setCurrentView, setInitialized, setSelectedHistoryId, setActiveSettingsPanel } = useAppActions();
+  const { setStatus, setCurrentView, leaveSettings, setInitialized, setSelectedHistoryId, setActiveSettingsPanel } = useAppActions();
   
   const { setSettings, settings, providers } = useSettings();
   const history = useHistory();
@@ -68,13 +68,23 @@ const App: React.FC = () => {
 
   const openSearch = useCallback(() => setIsSearchOpen(true), []);
 
-  // In-app keyboard shortcuts (Cmd+K, Cmd+L)
+  // In-window shortcuts (registry: APP_SHORTCUTS). Leaving for another
+  // surface closes search first, so its focus trap can't hold focus.
   useAppShortcuts({
-    onToggleSearch: useCallback(() => setIsSearchOpen(prev => !prev), []),
-    onFocusChatInput: useCallback(() => {
-      // If in chat view, focus the chat input via context ref
-      chat.chatInputRef.current?.focus();
-    }, [chat.chatInputRef]),
+    search: () => setIsSearchOpen((open) => !open),
+    focusChat: () => {
+      setIsSearchOpen(false);
+      focusChatComposer();
+    },
+    newChat: () => {
+      setIsSearchOpen(false);
+      startNewChat();
+    },
+    openSettings: () => {
+      setIsSearchOpen(false);
+      setCurrentView('settings');
+    },
+    leaveSettings,
   });
 
   // macOS Calendar integration — polls for upcoming meetings, shows notifications
@@ -300,26 +310,20 @@ const App: React.FC = () => {
     try {
       await shortcutsService.initialize();
 
-      shortcutsService.on(ShortcutAction.TOGGLE_RECORDING, async () => {
-        if (status === AppStatus.IDLE) {
-          await recording.startRecording();
-        } else if (recording.status === 'recording') {
-          await recording.stopRecording();
-        }
+      // Read live recording state: this handler outlives the render it was made in.
+      shortcutsService.on('toggle-recording', async () => {
+        const rec = recordingRef.current;
+        if (rec.canRecord) await rec.startRecording();
+        else if (rec.isRecording) await rec.stopRecording();
       });
 
-      shortcutsService.on(ShortcutAction.SHOW_WINDOW, async () => {
+      shortcutsService.on('show-window', async () => {
         await windowService.show();
       });
 
-      shortcutsService.on(ShortcutAction.NEW_CHAT, () => {
-        setCurrentView('home');
-        setSelectedHistoryId(null);
-        chat.setCurrentSessionId(null);
-        setStatus(AppStatus.IDLE);
-      });
+      shortcutsService.on('new-chat', startNewChat);
 
-      shortcutsService.on(ShortcutAction.OPEN_SETTINGS, () => {
+      shortcutsService.on('open-settings', () => {
         setCurrentView('settings');
       });
 

@@ -332,18 +332,6 @@ pub async fn stop_server(app: &AppHandle, name: &str) {
     emit_update(app, name);
 }
 
-/// Stop every server, keeping their `active` configs (used by restart).
-pub async fn stop_all(app: &AppHandle) {
-    let state = app.state::<McpState>();
-    for (_, monitor) in state.monitors.lock().await.drain() {
-        monitor.abort();
-    }
-    let names: Vec<String> = state.servers.lock().await.keys().cloned().collect();
-    for name in names {
-        drop_connection(app, &name).await;
-    }
-}
-
 /// Synchronous last-resort teardown on app exit: signal every server's
 /// process group so no `npx`/`node` outlives Kasset.
 pub fn kill_all_children(app: &AppHandle) {

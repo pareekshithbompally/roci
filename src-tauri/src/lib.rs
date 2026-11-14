@@ -142,7 +142,6 @@ pub fn run() {
       mcp::commands::save_mcp_configs,
       mcp::commands::activate_mcp_server,
       mcp::commands::deactivate_mcp_server,
-      mcp::commands::restart_mcp_servers,
       mcp::commands::get_connected_mcp_servers,
       mcp::commands::get_mcp_server_info,
       mcp::commands::get_mcp_tools,

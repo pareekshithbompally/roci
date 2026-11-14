@@ -2,6 +2,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import type { ComponentProps, HTMLAttributes } from 'react';
 import { cn } from './utils';
 import { SCRIM, SHEET, SHEET_TITLE, SHEET_DESCRIPTION } from './recipes';
+import { ScrollArea } from './scroll-area';
 
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
@@ -39,6 +40,11 @@ export function DialogTitle({ className, ...props }: ComponentProps<typeof Dialo
 
 export function DialogDescription({ className, ...props }: ComponentProps<typeof DialogPrimitive.Description>) {
   return <DialogPrimitive.Description className={cn(SHEET_DESCRIPTION, className)} {...props} />;
+}
+
+/** The scrolling middle of a `scrollable` sheet, between header and footer. */
+export function DialogBody({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <ScrollArea className={cn('flex flex-col gap-4', className)} {...props} />;
 }
 
 export function DialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {

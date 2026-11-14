@@ -10,7 +10,9 @@ export {
 export type { TodoProposal } from './todoProposalStore';
 export {
   useChatStore,
-  chatInputRef,
+  focusChatComposer,
+  startNewChat,
+  registerChatComposer,
   injectChatRefs,
   useChatSessionIndex,
   useChatCurrentSessionId,

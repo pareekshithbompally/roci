@@ -49,7 +49,7 @@ export const SettingsNav: React.FC = () => {
   const visibleItems = SETTINGS_NAV_ITEMS.filter(({ tauriOnly }) => !tauriOnly || isTauriEnvironment());
 
   return (
-    <nav aria-label="Settings sections" className="flex flex-col pt-1">
+    <nav aria-label="Settings sections" className="flex flex-col">
       {visibleItems.map(({ id, label, icon }) => (
         <Row
           key={id}

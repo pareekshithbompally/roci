@@ -23,7 +23,9 @@ export type { UseVoiceCaptureOptions, UseVoiceCaptureResult } from './hooks/useV
 // Stores
 export {
   useChatStore,
-  chatInputRef,
+  focusChatComposer,
+  startNewChat,
+  registerChatComposer,
   injectChatRefs,
   useChatSessionIndex,
   useChatCurrentSessionId,

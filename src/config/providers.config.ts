@@ -27,6 +27,7 @@ export const MANAGED_DEFAULT_URLS: Record<string, string> = {
   groq: 'https://api.groq.com/openai/v1',
 };
 
+/** Display order everywhere: OpenAI, Anthropic, Gemini first; the rest follow. */
 export const predefinedProviders: ModelProvider[] = [
   {
     active: true,
@@ -84,6 +85,29 @@ export const predefinedProviders: ModelProvider[] = [
         value: 'true',
       },
     ],
+  },
+  {
+    active: true,
+    api_key: '',
+    base_url: '',
+    explore_models_url: 'https://ai.google.dev/gemini-api/docs/models/gemini',
+    provider: 'gemini',
+    settings: [
+      {
+        key: 'api-key',
+        title: 'API Key',
+        description:
+          "The Google API uses API keys for authentication. Visit your [API Keys](https://aistudio.google.com/apikey) page to retrieve the API key you'll use in your requests.",
+        controller_type: 'input',
+        controller_props: {
+          placeholder: 'Insert API Key',
+          value: '',
+          type: 'password',
+          input_actions: ['unobscure', 'copy'],
+        },
+      },
+    ],
+    models: [],
   },
   {
     active: true,
@@ -211,30 +235,7 @@ export const predefinedProviders: ModelProvider[] = [
       },
     ],
     models: [],
-  },
-  {
-    active: true,
-    api_key: '',
-    base_url: '',
-    explore_models_url: 'https://ai.google.dev/gemini-api/docs/models/gemini',
-    provider: 'gemini',
-    settings: [
-      {
-        key: 'api-key',
-        title: 'API Key',
-        description:
-          "The Google API uses API keys for authentication. Visit your [API Keys](https://aistudio.google.com/apikey) page to retrieve the API key you'll use in your requests.",
-        controller_type: 'input',
-        controller_props: {
-          placeholder: 'Insert API Key',
-          value: '',
-          type: 'password',
-          input_actions: ['unobscure', 'copy'],
-        },
-      },
-    ],
-    models: [],
-  },
+  }
 ]
 
 /**

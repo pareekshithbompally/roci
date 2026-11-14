@@ -50,3 +50,7 @@ export const LOCAL_SERVER_INFO = 'Runs on this Mac. Start and stop it in its own
 
 /** Hint under the Local list when nothing is running. */
 export const LOCAL_EMPTY_HINT = 'Nothing running? Start Ollama or LM Studio, then rescan.';
+
+/** "Add URL" starts filled with the host, so the field never reads as a
+ *  placeholder and Add is live; the user types the port. */
+export const LOCAL_URL_DRAFT = 'http://localhost:';

@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { RefreshCw } from 'lucide-react';
-import { Button, CardRow, Dot, Icon, Text } from '@shared/ui';
+import { Button, CardRow, Icon, Status } from '@shared/ui';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { useHexControls } from '@features/integrations/hooks/useHexControls';
 import { IntegrationRow } from './IntegrationRow';
@@ -20,14 +20,6 @@ const EVENTS: Record<HexEventsState | 'none', { tone: 'success' | 'warning' | 'm
   waiting: { tone: 'muted', label: 'Waiting for Hex' },
   none: { tone: 'muted', label: 'Waiting for Hex' },
 };
-
-/** A status dot and label; only a warning tints the text. */
-const Status: React.FC<{ tone: 'success' | 'warning' | 'muted'; children: React.ReactNode }> = ({ tone, children }) => (
-  <Text variant="helper" tone={tone === 'warning' ? 'warning' : 'muted'} className="flex items-center gap-1.5">
-    <Dot tone={tone} size="xs" />
-    {children}
-  </Text>
-);
 
 export const HexIntegration: React.FC = () => {
   const hex = useHexControls();

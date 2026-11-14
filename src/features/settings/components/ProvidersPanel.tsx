@@ -25,7 +25,7 @@ import { ProviderGroup, ProviderListItem } from './ProviderListItem';
 import { LocalServersSection } from './LocalServersSection';
 import { LAYOUT } from '@config/layout.config';
 import { SettingsInput, SecretInput, SettingsPageHeader } from './shared';
-import { Button, Callout, CardRow, Icon, IconButton, Popover, PopoverAnchor, PopoverContent, Section, Surface, Text } from '@shared/ui';
+import { Button, Callout, CardRow, Icon, IconButton, Popover, PopoverAnchor, PopoverContent, ScrollArea, Section, Surface, Text } from '@shared/ui';
 import { Command, CommandList, CommandItem, CommandEmpty } from '@shared/ui';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { ModelInfo } from '@services/modalities';
@@ -219,7 +219,7 @@ export const ProvidersPanel: React.FC = () => {
       <div className={`flex-1 min-h-0 flex ${LAYOUT.pageGutter} pb-6`}>
         <div className={`${LAYOUT.pageColumn} flex gap-6 min-h-0`}>
         {/* Left: Provider list — independent scroll */}
-        <div className="w-56 shrink-0 overflow-y-auto custom-scrollbar space-y-4">
+        <ScrollArea className="w-56 shrink-0 space-y-4">
           <ProviderGroup title="Cloud">
             {cloudProviders.map((provider) => (
               <ProviderListItem
@@ -236,10 +236,10 @@ export const ProvidersPanel: React.FC = () => {
             selectedProvider={effectiveSelectedProvider}
             onSelect={handleSelectProvider}
           />
-        </div>
+        </ScrollArea>
 
         {/* Right: Detail panel — independent scroll */}
-        <div className="flex-1 min-w-0 overflow-y-auto custom-scrollbar space-y-6 -mx-2 px-2 pb-2">
+        <ScrollArea className="flex-1 min-w-0 space-y-6">
           {selectedProvider ? (
             <>
               {showSetupBanner && !anyProviderHasModels && (
@@ -452,7 +452,7 @@ export const ProvidersPanel: React.FC = () => {
               Select a provider to configure
             </Text>
           )}
-        </div>
+        </ScrollArea>
       </div>
       </div>
 

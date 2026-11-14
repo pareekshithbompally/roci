@@ -5,7 +5,7 @@
  */
 
 import { DEFAULT_MCP_SETTINGS } from '@config/mcp.config';
-import type { McpConfig, McpServerConfig, McpServers } from '@config/mcp.config';
+import type { McpConfig, McpServers } from '@config/mcp.config';
 import type { McpReconfigureVars } from '@features/settings/hooks';
 import type { McpServerEntry } from './mcpServerForm';
 
@@ -62,24 +62,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** Apply the JSON editor: one server (`target`) or the whole config. */
-export function applyJson(config: McpConfig, parsed: unknown, target: string | null): McpReconfigureVars {
+/** Servers added, removed, or edited between two configs. */
+function changedServers(before: McpServers, after: McpServers): string[] {
+  const names = new Set([...Object.keys(before), ...Object.keys(after)]);
+  return [...names].filter((name) => JSON.stringify(before[name]) !== JSON.stringify(after[name]));
+}
+
+/**
+ * Apply the whole-config JSON editor. Only servers whose entry changed are
+ * reconnected, so saving untouched JSON restarts nothing.
+ */
+export function applyJson(config: McpConfig, parsed: unknown): McpReconfigureVars {
   if (!isRecord(parsed)) throw new Error('Expected a JSON object.');
-  if (target !== null) {
-    const server = { args: [], env: {}, command: '', ...parsed } as McpServerConfig;
-    return {
-      next: { ...config, mcpServers: { ...config.mcpServers, [target]: { ...server, active: Boolean(server.active) } } },
-      affected: [target],
-    };
-  }
   const wrapped = 'mcpServers' in parsed || 'mcpSettings' in parsed;
   const mcpServers = (wrapped ? parsed.mcpServers ?? {} : parsed) as McpServers;
   if (!isRecord(mcpServers)) throw new Error('"mcpServers" must be an object.');
   const mcpSettings = wrapped && isRecord(parsed.mcpSettings)
     ? { ...DEFAULT_MCP_SETTINGS, ...parsed.mcpSettings }
     : config.mcpSettings;
-  return {
-    next: { mcpServers, mcpSettings },
-    affected: [...Object.keys(config.mcpServers), ...Object.keys(mcpServers)],
-  };
+  return { next: { mcpServers, mcpSettings }, affected: changedServers(config.mcpServers, mcpServers) };
 }

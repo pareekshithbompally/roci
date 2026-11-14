@@ -7,7 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { Braces } from 'lucide-react';
 import { MCP_CONFIG } from '@config/mcp.config';
 import type { McpServerConfig } from '@config/mcp.config';
-import { Button, IconButton, Text, Textarea } from '@shared/ui';
+import { Button, IconButton, Tabs, Text, Textarea } from '@shared/ui';
 import { FormDialog, KeyValueEditor, SettingsInput, StringListEditor } from '@features/settings/components/shared';
 import {
   EMPTY_FORM,
@@ -143,19 +143,8 @@ const ServerFormFields: React.FC<ServerFormFieldsProps> = ({ form, patch, autoFo
 
     <div className="space-y-2">
       <Text variant="bodyStrong" tone="muted">Transport</Text>
-      <div role="radiogroup" aria-label="Transport" className="flex gap-2">
-        {MCP_CONFIG.transports.map(({ value, label }) => (
-          <Button
-            key={value}
-            role="radio"
-            aria-checked={form.transport === value}
-            variant={form.transport === value ? 'secondary' : 'outline'}
-            className="flex-1"
-            onClick={() => patch({ transport: value })}
-          >
-            {label}
-          </Button>
-        ))}
+      <div>
+        <Tabs items={MCP_CONFIG.transports} value={form.transport} onValueChange={(transport) => patch({ transport })} />
       </div>
     </div>
 

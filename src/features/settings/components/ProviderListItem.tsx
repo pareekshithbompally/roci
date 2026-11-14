@@ -75,7 +75,7 @@ export const ProviderGroup: React.FC<ProviderGroupProps> = ({ title, accessory, 
   <section className="space-y-0.5">
     <div className="flex items-center justify-between gap-2">
       <RowGroupLabel>{title}</RowGroupLabel>
-      {accessory}
+      {accessory && <span className="flex items-center gap-0.5">{accessory}</span>}
     </div>
     {children}
   </section>

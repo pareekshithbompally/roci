@@ -31,9 +31,9 @@ describe('Configuration Files', () => {
   });
 
   it('should import shortcuts config', async () => {
-    const { DEFAULT_SHORTCUTS } = await import('@config/shortcuts.config');
-    expect(DEFAULT_SHORTCUTS).toBeDefined();
-    expect(DEFAULT_SHORTCUTS.TOGGLE_RECORDING).toBeDefined();
+    const { APP_SHORTCUTS, GLOBAL_SHORTCUTS } = await import('@config/shortcuts.config');
+    expect(APP_SHORTCUTS.search).toBeDefined();
+    expect(GLOBAL_SHORTCUTS['toggle-recording']).toBeDefined();
   });
 
   it('should import notifications config', async () => {

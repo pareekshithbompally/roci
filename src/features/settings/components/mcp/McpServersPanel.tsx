@@ -3,7 +3,9 @@
  *
  * Header (Experimental badge, mcp.so link, edit-all-JSON, add), the
  * permissions/runtime section, then one row per configured server. Every change
- * runs through `useMcpReconfigure` (disconnect → save → reconnect).
+ * runs through `useMcpReconfigure` (disconnect → save → reconnect), one at a
+ * time: while a change is in flight every action waits (Jan's
+ * `reconfigurationPending` guard), so two changes never race to save.
  */
 
 import React, { useState } from 'react';
@@ -30,8 +32,6 @@ import { EditMcpJsonDialog } from './EditMcpJsonDialog';
 import { applyJson, deleteServer, toggleServer, updateSettings, upsertServers } from './mcpConfigEdits';
 import type { McpServerEntry } from './mcpServerForm';
 
-type JsonTarget = { server: string | null } | null;
-
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 export const McpServersPanel: React.FC = () => {
@@ -43,10 +43,11 @@ export const McpServersPanel: React.FC = () => {
   const { showToast } = useToast();
 
   const [editing, setEditing] = useState<{ name: string | null } | null>(null);
-  const [jsonTarget, setJsonTarget] = useState<JsonTarget>(null);
+  const [jsonOpen, setJsonOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
-  const pendingNames = reconfigure.isPending ? new Set(reconfigure.variables?.affected) : new Set<string>();
+  const busy = reconfigure.isPending;
+  const pendingNames = new Set(busy ? reconfigure.variables?.affected : []);
 
   /** Dialog saves rethrow so the dialog stays open with the error. */
   const apply = (build: (current: McpConfig) => McpReconfigureVars) => {
@@ -57,6 +58,13 @@ export const McpServersPanel: React.FC = () => {
   /** Inline actions (toggles, settings) report failures as a toast. */
   const applyAndToast = (build: (current: McpConfig) => McpReconfigureVars) => {
     apply(build).catch((error: unknown) => showToast(errorMessage(error), 'error'));
+  };
+
+  /** Turning a server on (or retrying it) can take a while; say when it lands. */
+  const handleToggle = (name: string, active: boolean) => {
+    apply((c) => toggleServer(c, name, active))
+      .then(() => active && showToast(`${name} connected`, 'success'))
+      .catch((error: unknown) => showToast(errorMessage(error), 'error'));
   };
 
   if (loadError) {
@@ -70,14 +78,13 @@ export const McpServersPanel: React.FC = () => {
 
   const serverEntries = Object.entries(config.mcpServers);
   const editingConfig = editing?.name ? config.mcpServers[editing.name] : undefined;
-  const jsonValue = jsonTarget?.server ? config.mcpServers[jsonTarget.server] : config;
 
   return (
-    <PanelShell onAdd={() => setEditing({ name: null })} onEditAll={() => setJsonTarget({ server: null })}>
+    <PanelShell onAdd={() => setEditing({ name: null })} onEditAll={() => setJsonOpen(true)} actionsDisabled={busy}>
       <Section title="Permissions & runtime">
         <McpRuntimeCard
           settings={config.mcpSettings}
-          disabled={reconfigure.isPending}
+          disabled={busy}
           onChange={(partial) => applyAndToast((c) => updateSettings(c, partial))}
         />
       </Section>
@@ -94,8 +101,9 @@ export const McpServersPanel: React.FC = () => {
               connected={connected.includes(name)}
               icon={serverInfo?.get(name)?.icon}
               pending={pendingNames.has(name)}
-              onToggle={(active) => applyAndToast((c) => toggleServer(c, name, active))}
-              onEditJson={() => setJsonTarget({ server: name })}
+              disabled={busy}
+              onToggle={(active) => handleToggle(name, active)}
+              onRetry={() => handleToggle(name, true)}
               onEdit={() => setEditing({ name })}
               onDelete={() => setDeleteTarget(name)}
             />
@@ -112,11 +120,11 @@ export const McpServersPanel: React.FC = () => {
       />
 
       <EditMcpJsonDialog
-        open={jsonTarget !== null}
-        onOpenChange={(isOpen) => !isOpen && setJsonTarget(null)}
-        title={jsonTarget?.server ? `Edit ${jsonTarget.server} as JSON` : 'Edit all MCP servers as JSON'}
-        value={jsonValue}
-        onSave={(parsed) => apply((c) => applyJson(c, parsed, jsonTarget?.server ?? null))}
+        open={jsonOpen}
+        onOpenChange={setJsonOpen}
+        title="Edit all MCP servers as JSON"
+        value={config}
+        onSave={(parsed) => apply((c) => applyJson(c, parsed))}
       />
 
       <ConfirmDialog

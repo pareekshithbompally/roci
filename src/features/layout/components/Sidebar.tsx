@@ -5,7 +5,7 @@
  */
 
 import React, { useRef, useCallback, useEffect } from 'react';
-import { Search, SquarePen, PanelLeft, Settings } from 'lucide-react';
+import { ChevronLeft, Search, SquarePen, PanelLeft, Settings } from 'lucide-react';
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
 import { useSmallScreen } from '@shared/hooks/useMediaQuery';
 import { useSelectedHistoryId, useCurrentView, useAppActions } from '@shared/stores/appStore';
@@ -17,7 +17,8 @@ import { AppStatus } from '@shared/types';
 import { LAYOUT } from '@config/layout.config';
 import { IconButton, Icon, Row, RowGroupLabel, Kbd } from '@shared/ui';
 import { ActivityTray } from '@shared/components';
-import { formatShortcut } from '@config/shortcuts.config';
+import { shortcutLabel } from '@features/shortcuts';
+import { startNewChat } from '@features/chat';
 import type { UnifiedSidebarItem } from '@shared/types';
 import { useMeetingDetailLoader } from '@shared/hooks/useMeetingDetailLoader';
 
@@ -36,7 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isSettingsView = currentView === 'settings';
   const { items } = useUnifiedSidebar();
   const selectedHistoryId = useSelectedHistoryId();
-  const { setCurrentView, setStatus, setSelectedHistoryId, setResult } = useAppActions();
+  const { setCurrentView, leaveSettings, setStatus, setSelectedHistoryId, setResult } = useAppActions();
   const chat = useChat();
   const listContainerRef = useRef<HTMLDivElement>(null);
   const loadMeetingDetail = useMeetingDetailLoader();
@@ -54,11 +55,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, [selectedHistoryId, chat.currentSessionId]);
 
   const handleHomeClick = () => {
-    setCurrentView('home');
-    setSelectedHistoryId(null);
-    chat.setCurrentSessionId(null);
-    setResult(null);
-    setStatus(AppStatus.IDLE);
+    startNewChat();
     if (isSmallScreen) setLeftPanel(false);
   };
 
@@ -97,7 +94,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <div className="flex flex-col h-full w-full overflow-hidden">
       {/* Header — icon buttons aligned with the macOS traffic lights */}
       <div className={LAYOUT.sidebarHeader}>
-        <IconButton icon={SquarePen} size="sm" onClick={handleHomeClick} label="New chat" />
+        {!isSettingsView && <IconButton icon={SquarePen} size="sm" onClick={handleHomeClick} label="New chat" />}
         <IconButton
           icon={PanelLeft}
           size="sm"
@@ -106,19 +103,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
       </div>
 
-      {/* Search trigger — sticky above scrollable list */}
+      {/* Top row — Search in the app; the way back out in settings */}
       <div className="shrink-0 px-2">
-        <Row onClick={onSearchClick}>
-          <Icon icon={Search} size="xs" className="shrink-0" />
-          <span className="flex-1">Search</span>
-          <Kbd>{formatShortcut('CommandOrControl+K')}</Kbd>
-        </Row>
+        {isSettingsView ? (
+          <Row onClick={leaveSettings}>
+            <Icon icon={ChevronLeft} size="xs" className="shrink-0" />
+            <span className="flex-1">Back to app</span>
+            <Kbd>{shortcutLabel('leaveSettings')}</Kbd>
+          </Row>
+        ) : (
+          <Row onClick={onSearchClick}>
+            <Icon icon={Search} size="xs" className="shrink-0" />
+            <span className="flex-1">Search</span>
+            <Kbd>{shortcutLabel('search')}</Kbd>
+          </Row>
+        )}
       </div>
 
       {/* Scrollable list — settings sections when in settings view */}
       <div ref={listContainerRef} className="flex-1 overflow-y-auto px-2 pb-1 scrollbar-overlay scroll-fade">
         {isSettingsView ? (
-          <SettingsNav />
+          <>
+            <RowGroupLabel>Settings</RowGroupLabel>
+            <SettingsNav />
+          </>
         ) : (
           <>
             <RowGroupLabel>Recents</RowGroupLabel>
@@ -135,17 +143,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Activity tray — transient, only visible when operations are in progress */}
       <ActivityTray />
 
-      {/* Settings */}
-      <div className="shrink-0 px-2 pb-2">
-        <Row
-          selected={isSettingsView}
-          onClick={handleSettingsClick}
-          aria-current={isSettingsView ? 'page' : undefined}
-        >
-          <Icon icon={Settings} size="xs" className="shrink-0" />
-          <span className="flex-1">Settings</span>
-        </Row>
-      </div>
+      {/* Settings entry — absent in settings, where the top row leads back out */}
+      {!isSettingsView && (
+        <div className="shrink-0 px-2 pb-2">
+          <Row onClick={handleSettingsClick}>
+            <Icon icon={Settings} size="xs" className="shrink-0" />
+            <span className="flex-1">Settings</span>
+          </Row>
+        </div>
+      )}
     </div>
   );
 };

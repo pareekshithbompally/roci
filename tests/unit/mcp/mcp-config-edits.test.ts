@@ -14,6 +14,7 @@ import {
   maskKeys,
   maskUrl,
   parseServerEntries,
+  serverStatus,
   validateForm,
   EMPTY_FORM,
 } from '@features/settings/components/mcp/mcpServerForm';
@@ -59,20 +60,25 @@ describe('mcpConfigEdits', () => {
   });
 
   it('applies whole-config JSON, wrapped or bare', () => {
-    const wrapped = applyJson(config(), { mcpServers: { z: stdio() }, mcpSettings: { toolCallTimeoutSeconds: 5 } }, null);
+    const wrapped = applyJson(config(), { mcpServers: { z: stdio() }, mcpSettings: { toolCallTimeoutSeconds: 5 } });
     expect(Object.keys(wrapped.next.mcpServers)).toEqual(['z']);
     expect(wrapped.next.mcpSettings.toolCallTimeoutSeconds).toBe(5);
     expect(wrapped.next.mcpSettings.maxToolOutputChars).toBe(DEFAULT_MCP_SETTINGS.maxToolOutputChars);
     expect(wrapped.affected.sort()).toEqual(['a', 'b', 'z']);
 
-    const bare = applyJson(config(), { z: stdio() }, null);
+    const bare = applyJson(config(), { z: stdio() });
     expect(Object.keys(bare.next.mcpServers)).toEqual(['z']);
   });
 
-  it('applies single-server JSON and rejects non-objects', () => {
-    const { next } = applyJson(config(), { command: 'node', args: [] }, 'a');
-    expect(next.mcpServers.a).toMatchObject({ command: 'node', active: false });
-    expect(() => applyJson(config(), [], 'a')).toThrow('Expected a JSON object.');
+  it('reconnects only the servers the JSON changed', () => {
+    const current = config();
+    expect(applyJson(current, current).affected).toEqual([]);
+    const edited = { ...current.mcpServers, b: stdio({ active: false, command: 'uvx' }) };
+    expect(applyJson(current, { mcpServers: edited }).affected).toEqual(['b']);
+  });
+
+  it('rejects non-object JSON', () => {
+    expect(() => applyJson(config(), [])).toThrow('Expected a JSON object.');
   });
 });
 
@@ -100,6 +106,14 @@ describe('mcpServerForm', () => {
     expect(entries).toEqual([['fs', { command: 'npx', args: ['a'], env: {} }]]);
     expect(() => parseServerEntries('{"command":"npx"}')).toThrow(/server name/);
     expect(() => parseServerEntries('{"x":{"type":"ws","url":"u"}}')).toThrow(/unknown type/);
+  });
+
+  it('derives the row status, flagging enabled-but-unconnected servers', () => {
+    expect(serverStatus(true, false, true)).toBe('connecting');
+    expect(serverStatus(false, true, true)).toBe('stopping');
+    expect(serverStatus(false, false, false)).toBe('off');
+    expect(serverStatus(true, true, false)).toBe('connected');
+    expect(serverStatus(true, false, false)).toBe('offline');
   });
 
   it('masks secrets for display', () => {

@@ -7,12 +7,12 @@
  * useChat() returns the same shape as before for backward compatibility.
  */
 
-import React, { createContext, useContext, useCallback, useEffect, useMemo, type ReactNode, type MutableRefObject } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ChatSession, ChatPart, ChatIndexEntry, AppSettings, HistoryItem } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { MeetingListItem } from '@services/meetingReferenceService';
-import { useChatStore, injectChatRefs, chatInputRef, useCurrentSession, useFilteredIndexEntries } from '@features/chat';
+import { useChatStore, injectChatRefs, useCurrentSession, useFilteredIndexEntries } from '@features/chat';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { chatService } from '@services/chat.service';
@@ -84,7 +84,6 @@ interface ChatContextValue extends ChatState {
   addScreenshotAttachment: (base64: string, name: string) => void;
   getOrCreateMeetingSession: (meetingId: string, meetingTitle: string) => void;
   loadMoreSessions: () => void;
-  chatInputRef: MutableRefObject<HTMLTextAreaElement | null>;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -300,7 +299,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       addScreenshotAttachment: addScreenshotAttachmentFn,
       getOrCreateMeetingSession: getOrCreateMeetingSessionFn,
       loadMoreSessions: loadMoreSessionsFn,
-      chatInputRef,
     }),
     [
       sessionIndex, cId, isSessionLoading, indexPage, input, isLoading,

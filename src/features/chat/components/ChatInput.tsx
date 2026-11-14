@@ -27,8 +27,8 @@ import {
 import { invoke } from '@tauri-apps/api/core';
 import { LAYOUT } from '@config/layout.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
-import { formatShortcut } from '@config/shortcuts.config';
-import { chatInputRef } from '@features/chat/stores';
+import { shortcutLabel } from '@features/shortcuts';
+import { registerChatComposer } from '@features/chat/stores';
 import type { MeetingListItem } from '@services/meetingReferenceService';
 import type { ChatPart } from '@shared/types';
 import type { SpeechState } from '@features/chat/hooks/useSpeechInput';
@@ -57,7 +57,7 @@ interface WindowInfo {
 const PLACEHOLDER_HINTS = [
   'Ask anything...',
   'Type @ to add meeting context',
-  `Press ${formatShortcut('CommandOrControl+L')} to jump here`,
+  `Press ${shortcutLabel('focusChat')} to jump here`,
   'Ask about your meetings...',
 ];
 
@@ -151,8 +151,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null);
   // Register this textarea with the store ref so Cmd+L can focus it
   useEffect(() => {
-    chatInputRef.current = inputRef.current;
-    return () => { chatInputRef.current = null; };
+    registerChatComposer(inputRef.current);
+    return () => registerChatComposer(null);
   }, []);
 
   // Cycle through placeholder hints

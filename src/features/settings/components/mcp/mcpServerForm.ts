@@ -110,6 +110,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+// ── Card status ──
+
+/**
+ * What a server row shows. `offline` is the case the switch alone hides: the
+ * server is enabled but Rust holds no connection (failed at launch, or the
+ * health monitor is reconnecting).
+ */
+export type McpServerStatus = 'connected' | 'connecting' | 'stopping' | 'offline' | 'off';
+
+export function serverStatus(active: boolean, connected: boolean, pending: boolean): McpServerStatus {
+  if (pending) return active ? 'connecting' : 'stopping';
+  if (!active) return 'off';
+  return connected ? 'connected' : 'offline';
+}
+
 // ── Display masking (Jan's maskSensitiveUrl) ──
 
 export function maskUrl(url: string): string {
