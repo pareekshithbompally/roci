@@ -15,7 +15,7 @@ import type { TodoEntry } from '@shared/types';
 export const todos = {
   /** List todos for a specific meeting. */
   async listForMeeting(meetingId: string): Promise<TodoEntry[]> {
-    const rows = await call<RustTodoRow[]>('todos_list_for_meeting', { meeting_id: meetingId });
+    const rows = await call<RustTodoRow[]>('todos_list_for_meeting', { meetingId });
     return rows.map(rustTodoToEntry);
   },
 

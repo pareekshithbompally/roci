@@ -8,7 +8,7 @@ import type { NoteEntry } from '@shared/types';
 export const notes = {
   /** List notes for a meeting. */
   async list(meetingId: string): Promise<NoteEntry[]> {
-    const rows = await call<RustNoteRow[]>('notes_list', { meeting_id: meetingId });
+    const rows = await call<RustNoteRow[]>('notes_list', { meetingId });
     return rows.map(rustNoteToEntry);
   },
 

@@ -71,7 +71,9 @@ describe('store invoke arg shapes match Rust command signatures', () => {
     expect(callsFor('chats_upsert')[0]).toMatchObject({ input: { id: 'c1' } });
   });
 
-  it('list/lookup calls use snake_case param names', async () => {
+  // Tauri maps camelCase top-level args to snake_case Rust params; sending snake_case fails
+  // with "missing required key meetingId". Only nested struct fields (serde) stay snake_case.
+  it('list/lookup calls use camelCase top-level arg names', async () => {
     const { notes } = await import('@services/db/domains/notes');
     const { todos } = await import('@services/db/domains/todos');
     const { reminders } = await import('@services/db/domains/reminders');
@@ -80,14 +82,14 @@ describe('store invoke arg shapes match Rust command signatures', () => {
     await reminders.upsert('t1', 7, 123);
     await reminders.setStatus('t1', 'fired');
     await reminders.prune(1000);
-    expect(callsFor('notes_list')).toEqual([{ meeting_id: 'm1' }]);
-    expect(callsFor('todos_list_for_meeting')).toEqual([{ meeting_id: 'm1' }]);
-    expect(callsFor('reminders_upsert')).toEqual([{ todo_id: 't1', notification_id: 7, fire_at: 123 }]);
-    expect(callsFor('reminders_set_status')).toEqual([{ todo_id: 't1', status: 'fired' }]);
-    expect(callsFor('reminders_prune')).toEqual([{ max_age_ms: 1000 }]);
+    expect(callsFor('notes_list')).toEqual([{ meetingId: 'm1' }]);
+    expect(callsFor('todos_list_for_meeting')).toEqual([{ meetingId: 'm1' }]);
+    expect(callsFor('reminders_upsert')).toEqual([{ todoId: 't1', notificationId: 7, fireAt: 123 }]);
+    expect(callsFor('reminders_set_status')).toEqual([{ todoId: 't1', status: 'fired' }]);
+    expect(callsFor('reminders_prune')).toEqual([{ maxAgeMs: 1000 }]);
   });
 
-  it('graph client uses snake_case param names', async () => {
+  it('graph client uses camelCase top-level args (nested params stay snake_case)', async () => {
     const { graphDB } = await import('@extensions/rag/graph-client');
     await graphDB.upsert({ meeting_id: 'm1', nodes: [], edges: [] });
     await graphDB.traverse({
@@ -100,11 +102,11 @@ describe('store invoke arg shapes match Rust command signatures', () => {
     });
     await graphDB.neighbors('meeting:m1', ['mentions'], 'outgoing');
     await graphDB.deleteMeeting('m1');
-    expect(callsFor('graph_upsert')).toEqual([{ meeting_id: 'm1', nodes: [], edges: [] }]);
+    expect(callsFor('graph_upsert')).toEqual([{ meetingId: 'm1', nodes: [], edges: [] }]);
     expect(callsFor('graph_traverse')[0]).toMatchObject({ params: { start_node_id: 'meeting:m1' } });
     expect(callsFor('graph_neighbors')).toEqual([
-      { node_id: 'meeting:m1', edge_types: ['mentions'], direction: 'outgoing' },
+      { nodeId: 'meeting:m1', edgeTypes: ['mentions'], direction: 'outgoing' },
     ]);
-    expect(callsFor('graph_delete_meeting')).toEqual([{ meeting_id: 'm1' }]);
+    expect(callsFor('graph_delete_meeting')).toEqual([{ meetingId: 'm1' }]);
   });
 });
