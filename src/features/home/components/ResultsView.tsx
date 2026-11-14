@@ -32,8 +32,7 @@ import { LAYOUT } from '@config/layout.config';
 import { TodoList } from '@features/todos';
 import { NotesView } from '@features/notes';
 import { ResultsAudioPlayer } from './ResultsAudioPlayer';
-import { isTauriEnvironment } from '@services/tauri';
-import { dialogService, fileSystemService, notificationService } from '@services/tauri';
+import { isTauriEnvironment, notificationService, saveTextFile } from '@services/tauri';
 import { NotificationType } from '@config/notifications.config';
 import { useTranscribeRecording } from '@shared/hooks/useTranscribeRecording';
 import { useMeetingPhase } from '@shared/stores/meetingJobsStore';
@@ -127,6 +126,11 @@ const CalendarMetaRow: React.FC<{ item: HistoryItem }> = ({ item }) => {
   );
 };
 
+type ExportFormat = 'txt' | 'md' | 'html' | 'json';
+
+/** Save-panel filter label per export format. */
+const EXPORT_KIND: Record<ExportFormat, string> = { txt: 'Plain Text', md: 'Markdown', html: 'HTML', json: 'JSON' };
+
 export const ResultsView: React.FC = () => {
   const result = useAppResult();
   const activeResultTab = useActiveResultTab();
@@ -181,57 +185,25 @@ export const ResultsView: React.FC = () => {
     setIsCopyMenuOpen(false);
   };
 
-  const downloadFile = async (filename: string, content: string, mimeType: string) => {
-    if (isTauriEnvironment()) {
-      try {
-        const { join, downloadDir } = await import('@tauri-apps/api/path');
-        const downloads = await downloadDir();
-        const defaultPath = await join(downloads, filename);
-
-        const savePath = await dialogService.save({
-          title: 'Save File',
-          defaultPath,
-          filters: [
-            {
-              name: 'Text Files',
-              extensions: filename.endsWith('.json') ? ['json'] : ['txt', 'md'],
-            },
-          ],
-        });
-
-        if (savePath) {
-          await fileSystemService.writeTextFile(savePath, content);
-          await notificationService.notify(NotificationType.FILE_SAVED, `Saved to ${savePath}`);
-        }
-      } catch (error) {
-        console.error('Failed to save file:', error);
-        await notificationService.notify(NotificationType.ERROR, 'Failed to save file');
-      }
-    } else {
-      const blob = new Blob([content], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+  const downloadFile = async (filename: string, content: string, extension: ExportFormat) => {
+    try {
+      const path = await saveTextFile({ filename, content, kind: EXPORT_KIND[extension], extension });
+      if (path) await notificationService.notify(NotificationType.FILE_SAVED, `Saved to ${path}`);
+    } catch (error: unknown) {
+      console.error('[ResultsView] Save failed:', error);
+      await notificationService.notify(NotificationType.ERROR, 'Failed to save file');
     }
   };
 
-  const handleDownload = (format: 'txt' | 'md' | 'html' | 'json', scope: 'current' | 'all') => {
+  const handleDownload = (format: ExportFormat, scope: 'current' | 'all') => {
     if (!result) return;
     setIsDownloadMenuOpen(false);
 
     let content = '';
-    let mime = 'text/plain';
-    let ext = format;
     const filenameBase = result.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
 
     if (format === 'json') {
       content = JSON.stringify(result, null, 2);
-      mime = 'application/json';
     } else {
       const getPart = (key: 'summary' | 'transcript') =>
         key === 'summary' ? result.summary : result.transcript;
@@ -256,13 +228,12 @@ export const ResultsView: React.FC = () => {
 
       if (format === 'html') {
         content = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${result.title}</title></head><body style="font-family: sans-serif; max-width: 800px; margin: 2rem auto; line-height: 1.6;">${body}</body></html>`;
-        mime = 'text/html';
       } else {
         content = body;
       }
     }
 
-    downloadFile(`${filenameBase}_${scope}.${ext}`, content, mime);
+    void downloadFile(`${filenameBase}_${scope}.${format}`, content, format);
   };
 
   const handleTitleEdit = () => {

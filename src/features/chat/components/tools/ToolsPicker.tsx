@@ -29,7 +29,6 @@ import {
 import { PICKER } from '@config/layout.config';
 import { useAppActions } from '@shared/stores/appStore';
 import {
-  Badge,
   Button,
   Checkbox,
   CommandFlyout,
@@ -65,7 +64,6 @@ export const ToolsPicker: React.FC = () => {
   };
 
   const { enabledCount, webSearch, modelSupportsTools } = catalog;
-  const showCount = modelSupportsTools && enabledCount > 0;
 
   // Only surface servers that are live. Disconnected servers are configured
   // and connected from Settings ("Manage MCP servers"), not from the picker.
@@ -88,7 +86,6 @@ export const ToolsPicker: React.FC = () => {
         >
           <Icon icon={SlidersHorizontal} size="xs" />
           Tools
-          {showCount && <Badge dot={false}>{enabledCount}</Badge>}
           {webSearch.enabled && <Icon icon={Globe} size="xs" tone="accent" label="Web search on" />}
           <Icon icon={ChevronDown} size="xs" className={cn('transition-transform', open && 'rotate-180')} />
         </Button>

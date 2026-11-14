@@ -13,7 +13,8 @@ export function DialogOverlay({ className, ...props }: ComponentProps<typeof Dia
   return <DialogPrimitive.Overlay className={cn(SCRIM, className)} {...props} />;
 }
 
-const DIALOG_SIZE = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-xl' } as const;
+/** `full` = wide content viewers (expanded tables) — nearly the window, still a sheet. */
+const DIALOG_SIZE = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-xl', full: 'max-w-[90vw]' } as const;
 
 export interface DialogContentProps extends ComponentProps<typeof DialogPrimitive.Content> {
   size?: keyof typeof DIALOG_SIZE;

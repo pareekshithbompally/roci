@@ -16,6 +16,7 @@ import { code } from '@streamdown/code';
 import remarkGfm from 'remark-gfm';
 import { rehypeCitationMarkers } from '@shared/utils/inlineCitationInjector';
 import { InlineCitationMarker } from './InlineCitationMarker';
+import { MarkdownTable } from './MarkdownTable';
 import type { WebCitation } from '@shared/types';
 
 interface MarkdownProps {
@@ -32,6 +33,8 @@ const REMARK_PLUGINS = [remarkGfm];
 const STREAMDOWN_PLUGINS = { code };
 const REHYPE_PLUGINS_DEFAULT = [defaultRehypePlugins.harden];
 const REHYPE_PLUGINS_CITATIONS = [defaultRehypePlugins.harden, rehypeCitationMarkers];
+/** Tables render through the kit (Streamdown's own table chrome isn't themeable here). */
+const BASE_COMPONENTS = { table: MarkdownTable };
 
 const MarkdownInner: React.FC<MarkdownProps> = ({
   content,
@@ -51,8 +54,9 @@ const MarkdownInner: React.FC<MarkdownProps> = ({
   const rehypePlugins = hasCitations ? REHYPE_PLUGINS_CITATIONS : REHYPE_PLUGINS_DEFAULT;
 
   const components = useMemo(() => {
-    if (!hasCitations) return undefined;
+    if (!hasCitations) return BASE_COMPONENTS;
     return {
+      ...BASE_COMPONENTS,
       span: (props: Record<string, unknown>) => {
         const dataCite = props.dataCite as string | undefined;
         if (dataCite) {
