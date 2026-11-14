@@ -76,8 +76,8 @@ function providerOptions(
 const isLocalSpeechModel = (p: ModelProvider, m: Model) =>
   isLocalProviderId(p.provider) && localSpeechModelPattern.test(m.id);
 
-const isAudioModel = (p: ModelProvider, m: Model) =>
-  capabilitiesOf(p.provider, m).audioInput;
+/** Audio models join the picker only when the user ticks "Audio input" — the curated list stays short. */
+const isTickedAudioModel = (_provider: ModelProvider, m: Model) => m.audioInput === true;
 
 function hexOptions(status: HexStatus | undefined): SpeechModelOption[] {
   const installed = installedHexModels(status).filter((m) => !TRANSCRIPTION_CONFIG.hiddenHexModels.includes(m.id));
@@ -104,14 +104,14 @@ function appleSpeechOptions(status: AppleSpeechStatus | undefined): SpeechModelO
 
 /**
  * Every speech model in picker order: curated cloud models, local speech models,
- * any other audio-input model, then integrations that are on. The first entry
- * per selection wins (curated labels).
+ * models the user ticked "Audio input" for, then integrations that are on. The
+ * first entry per selection wins (curated labels).
  */
 export function speechModelOptions(providers: ModelProvider[], integrations: IntegrationSpeech): SpeechModelOption[] {
   const options = [
     ...cloudOptions(providers),
     ...providerOptions(providers, isLocalSpeechModel),
-    ...providerOptions(providers, isAudioModel),
+    ...providerOptions(providers, isTickedAudioModel),
     ...(integrations.appleSpeech ? appleSpeechOptions(integrations.appleSpeech.status) : []),
     ...(integrations.hex ? hexOptions(integrations.hex.status) : []),
   ];

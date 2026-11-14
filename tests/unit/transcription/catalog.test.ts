@@ -1,4 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+// models.dev says this one hears audio; the user never ticked it.
+vi.mock('@services/modalities', () => ({
+  modalitiesService: {
+    getModelInfo: (_p: string, id: string) =>
+      id === 'gemini-2.5-pro' ? { modalities: { input: ['text', 'audio'], output: ['text'] }, capabilities: {} } : null,
+    getModelContextLimit: () => null,
+  },
+}));
 import { adapterFor, speechModelOptions, speechSelectionKey } from '@services/ai/transcription/catalog';
 import type { ModelProvider } from '@shared/types/modelProviders';
 
@@ -12,7 +21,10 @@ const providers: ModelProvider[] = [
     { id: 'gpt-audio', name: 'GPT Audio', audioInput: true },
     { id: 'gpt-text', audioInput: false },
   ]),
-  provider('gemini', [{ id: 'gemini-3.5-flash-lite', name: 'Listed name', audioInput: true }]),
+  provider('gemini', [
+    { id: 'gemini-3.5-flash-lite', name: 'Listed name', audioInput: true },
+    { id: 'gemini-2.5-pro' },
+  ]),
   provider('local:127.0.0.1:8000', [
     { id: 'Systran/faster-whisper-small' },
     { id: 'voice-llm', audioInput: true },
@@ -54,7 +66,11 @@ describe('speechModelOptions', () => {
   const options = speechModelOptions(providers, {});
   const keys = options.map(speechSelectionKey);
 
-  it('offers audio-input models from active providers, cloud and local', () => {
+  it('does not list a model just because models.dev says it hears audio', () => {
+    expect(keys).not.toContain('gemini::gemini-2.5-pro');
+  });
+
+  it('offers models the user ticked "Audio input" for, cloud and local', () => {
     expect(keys).toContain('openai::gpt-audio');
     expect(keys).toContain('local:127.0.0.1:8000::voice-llm');
     expect(keys).not.toContain('openai::gpt-text');
