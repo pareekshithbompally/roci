@@ -43,3 +43,6 @@ docs/
 
 # Playwright MCP debug logs
 .playwright-mcp/
+
+# Image-generation tool output (mockups)
+generated_images/
