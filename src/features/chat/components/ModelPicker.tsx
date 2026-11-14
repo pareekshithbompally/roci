@@ -7,11 +7,11 @@
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Check, ChevronDown, Wrench } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { ProvidersAvatar, ModelIcon } from '@shared/components';
 import { getProviderTitle } from '@shared/utils/provider.utils';
-import { groupChoices, modelChoices, resolveChatModel, supportsTools } from '@shared/utils/modelResolver';
+import { groupChoices, modelChoices } from '@shared/utils/modelResolver';
 import { modalitiesService } from '@services/modalities';
 import { ModalityIcons } from '@features/settings/components/ModalityIcons';
 import type { ModelInfo } from '@services/modalities';
@@ -61,12 +61,6 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
     }
   };
 
-  // Check if current model supports tool calling (for trigger display)
-  const selectedToolsEnabled = useMemo(() => {
-    const resolved = resolveChatModel(settings, providers);
-    return resolved ? supportsTools(resolved) : false;
-  }, [settings, providers]);
-
   const hasModels = groups.length > 0;
 
   return (
@@ -88,11 +82,6 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
               <Text variant="label" tone="inherit" truncate className="max-w-32">
                 {selected.label}
               </Text>
-              {selectedToolsEnabled && (
-                <span title="Meeting tools available" className="shrink-0 flex items-center">
-                  <Icon icon={Wrench} size="xs" tone="faint" />
-                </span>
-              )}
             </>
           ) : (
             <Text variant="label" tone="faint">
