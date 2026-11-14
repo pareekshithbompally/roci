@@ -18,8 +18,8 @@ export const HASH_CONCURRENCY = 10;
 export const IO_CONCURRENCY = 5;
 
 // ── Embedding ──
-export const EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2';
-export const EMBEDDING_DIM = 384;
+export const EMBEDDING_MODEL = 'onnx-community/embeddinggemma-300m-ONNX';
+export const EMBEDDING_DIM = 768;
 export const EMBEDDING_DTYPE = 'q8';
 /** Max texts to embed in a single batch call */
 export const EMBEDDING_BATCH_SIZE = 8;

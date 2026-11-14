@@ -7,6 +7,7 @@
  */
 
 import { embeddingService } from './embeddings';
+import { NOT_CONSENTED } from './types';
 import { vectorDB } from './client';
 import type { SearchHit } from './client';
 import type { SearchOptions } from './types';
@@ -35,7 +36,9 @@ async function searchMeetings(
     try {
       embedding = await embeddingService.embed(query);
     } catch (error) {
-      console.error('[RAGSearcher] Embedding failed, falling back to fulltext:', error);
+      if ((error as { code?: string })?.code !== NOT_CONSENTED) {
+        console.error('[RAGSearcher] Embedding failed, falling back to fulltext:', error);
+      }
       return searchMeetings(query, { ...options, mode: 'fulltext' });
     }
   }

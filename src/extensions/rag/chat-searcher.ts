@@ -6,6 +6,7 @@
  */
 
 import { embeddingService } from './embeddings';
+import { NOT_CONSENTED } from './types';
 import { vectorDB } from './client';
 import type { ChatSearchHit } from './client';
 import type { SearchOptions } from './types';
@@ -33,7 +34,9 @@ async function searchChats(
     try {
       embedding = await embeddingService.embed(query);
     } catch (error) {
-      console.error('[ChatSearcher] Embedding failed, falling back to fulltext:', error);
+      if ((error as { code?: string })?.code !== NOT_CONSENTED) {
+        console.error('[ChatSearcher] Embedding failed, falling back to fulltext:', error);
+      }
       return searchChats(query, { ...options, mode: 'fulltext' });
     }
   }

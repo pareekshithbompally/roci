@@ -1,5 +1,5 @@
 export * from './types';
-export { embeddingService, preloadModel, resetPipeline } from './embeddings';
+export { embeddingService, preloadModel, resetPipeline, isEmbeddingReady } from './embeddings';
 export { vectorDB } from './client';
 export { ragIndexer, getRAGStatus } from './indexer';
 export { ragSearcher } from './searcher';

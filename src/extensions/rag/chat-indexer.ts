@@ -9,6 +9,7 @@
 
 import type { ChatSession } from '@shared/types';
 import { embeddingService, preloadModel } from './embeddings';
+import { NOT_CONSENTED } from './types';
 import { vectorDB } from './client';
 import { chunkChatSession, computeChatHash } from './chat-chunker';
 import { emitProgress } from './progress';
@@ -133,9 +134,10 @@ async function indexAllSessions(
 
     // Warm up embedding model before entering the loop so the first session
     // doesn't silently block on model download while the tray shows "1/N".
+    // Never interactive here: background indexing must not prompt for consent.
     if (includeEmbeddings) {
       try {
-        await preloadModel();
+        await preloadModel({ interactive: false });
       } catch {
         console.warn('[ChatIndexer] Embedding model preload failed — will retry per-session');
       }
@@ -242,7 +244,9 @@ async function indexSessionInternal(
     try {
       embeddings = await embeddingService.embedBatch(chunkTexts);
     } catch (error) {
-      console.error(`[ChatIndexer] Embedding failed for session "${session.title}":`, error);
+      if ((error as { code?: string })?.code !== NOT_CONSENTED) {
+        console.error(`[ChatIndexer] Embedding failed for session "${session.title}":`, error);
+      }
     }
   }
 

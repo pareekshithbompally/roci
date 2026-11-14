@@ -17,6 +17,7 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { ChatInput } from '@features/chat';
 import { meetingReferenceService } from '@services/meetingReferenceService';
 import { LandingGlow } from './LandingGlow';
+import { OnDeviceModelsCard } from './OnDeviceModelsCard';
 import { RadioCard } from '@features/settings/components/shared';
 import { useVoiceCapture } from '@features/chat';
 import { useSpeechInputReady } from '@features/settings/hooks/useSpeechModels';
@@ -267,6 +268,9 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                   </div>
                 </RadioCard>
               </div>
+
+              {/* On-device models — zero state only; Skip or consent dismisses for good */}
+              <OnDeviceModelsCard />
 
               {/* Record button — always available */}
               <div className="flex flex-col items-center gap-2">

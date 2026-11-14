@@ -1,8 +1,11 @@
 export interface EmbeddingService {
-  embed(text: string): Promise<number[]>;
-  embedBatch(texts: string[]): Promise<number[][]>;
+  embed(text: string, opts?: { interactive?: boolean }): Promise<number[]>;
+  embedBatch(texts: string[], opts?: { interactive?: boolean }): Promise<number[][]>;
   isReady(): boolean;
 }
+
+/** Denial code for silent (non-interactive) load attempts without consent. */
+export const NOT_CONSENTED = 'NOT_CONSENTED';
 
 export interface SearchOptions {
   limit?: number;

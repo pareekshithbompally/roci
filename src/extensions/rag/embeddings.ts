@@ -10,6 +10,7 @@
  */
 
 import type { EmbeddingService } from './types';
+import { NOT_CONSENTED } from './types';
 import { requestConsent, hasConsent } from './consent';
 import { emitProgress } from './progress';
 import { EMBEDDING_MODEL, EMBEDDING_DTYPE, EMBEDDING_BATCH_SIZE } from './constants';
@@ -139,11 +140,21 @@ function sendRequest(type: 'embed' | 'embedBatch', payload: Record<string, unkno
   });
 }
 
-async function ensureLoaded(): Promise<void> {
+/**
+ * Load the model, gating on consent only when the call comes from an
+ * explicit user gesture (a Download button). Background flows stay silent:
+ * denial throws a coded error the callers already degrade on.
+ */
+async function ensureLoaded(opts: { interactive?: boolean } = {}): Promise<void> {
   if (ready) return;
   if (!loadPromise) {
     // Gate on user consent before downloading the model
     if (!hasConsent()) {
+      if (!opts.interactive) {
+        const err = new Error('Embedding model download not consented') as Error & { code?: string };
+        err.code = NOT_CONSENTED;
+        throw err;
+      }
       const granted = await requestConsent();
       if (!granted) {
         throw new Error('User declined embedding model download');
@@ -154,10 +165,12 @@ async function ensureLoaded(): Promise<void> {
       const onMsg = (e: MessageEvent) => {
         if (e.data.type === 'loaded') {
           w.removeEventListener('message', onMsg);
+          setEmbeddingReady(true);
           resolve();
         } else if (e.data.type === 'error' && !e.data.id) {
           w.removeEventListener('message', onMsg);
           loadPromise = null;
+          setEmbeddingReady(false);
           reject(new Error(e.data.message));
         }
       };
@@ -168,14 +181,14 @@ async function ensureLoaded(): Promise<void> {
   return loadPromise;
 }
 
-async function embed(text: string): Promise<number[]> {
-  await ensureLoaded();
+async function embed(text: string, opts?: { interactive?: boolean }): Promise<number[]> {
+  await ensureLoaded(opts);
   const results = await sendRequest('embed', { text });
   return results[0];
 }
 
-async function embedBatch(texts: string[]): Promise<number[][]> {
-  await ensureLoaded();
+async function embedBatch(texts: string[], opts?: { interactive?: boolean }): Promise<number[][]> {
+  await ensureLoaded(opts);
   // Process in small batches to avoid WebView memory pressure crashes
   if (texts.length <= EMBEDDING_BATCH_SIZE) {
     return sendRequest('embedBatch', { texts });
@@ -193,9 +206,36 @@ function isReady(): boolean {
   return ready;
 }
 
-/** Trigger model download/load without needing to embed anything */
-export async function preloadModel(): Promise<void> {
-  await ensureLoaded();
+/** Persisted download flag: the model has loaded successfully before. */
+const EMBEDDING_READY_KEY = 'rag_model_ready';
+
+export function isEmbeddingReady(): boolean {
+  try {
+    return localStorage.getItem(EMBEDDING_READY_KEY) === 'ready';
+  } catch {
+    return ready;
+  }
+}
+
+function setEmbeddingReady(value: boolean): void {
+  try {
+    if (value) {
+      localStorage.setItem(EMBEDDING_READY_KEY, 'ready');
+    } else {
+      localStorage.removeItem(EMBEDDING_READY_KEY);
+    }
+  } catch {
+    // localStorage unavailable
+  }
+}
+
+/**
+ * Trigger model download/load without needing to embed anything.
+ * Interactive (consent modal allowed) by default — background warm-ups
+ * must pass `{ interactive: false }` so they never prompt.
+ */
+export async function preloadModel(opts: { interactive?: boolean } = {}): Promise<void> {
+  await ensureLoaded({ interactive: opts.interactive ?? true });
 }
 
 /** Clear cached pipeline so the next call re-downloads. Used for retry. */

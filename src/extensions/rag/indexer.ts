@@ -9,6 +9,7 @@
 import type { HistoryItem, AppSettings, MeetingSummary } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { embeddingService, preloadModel } from './embeddings';
+import { NOT_CONSENTED } from './types';
 import { vectorDB } from './client';
 import { entityExtractor } from './entity-extractor';
 import { chunkMeeting, computeContentHash } from './chunker';
@@ -64,7 +65,9 @@ async function indexMeeting(
     try {
       embeddings = await embeddingService.embedBatch(chunkTexts);
     } catch (error) {
-      console.error(`[RAGIndexer] Failed to embed chunks for "${item.title}":`, error);
+      if ((error as { code?: string })?.code !== NOT_CONSENTED) {
+        console.error(`[RAGIndexer] Failed to embed chunks for "${item.title}":`, error);
+      }
     }
   }
 
@@ -159,9 +162,10 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
 
     // Warm up embedding model before the loop so the first meeting
     // doesn't silently block on model download while the tray shows "1/N".
+    // Never interactive here: background indexing must not prompt for consent.
     if (includeEmbeddings) {
       try {
-        await preloadModel();
+        await preloadModel({ interactive: false });
       } catch {
         console.warn('[RAGIndexer] Embedding model preload failed — will retry per-meeting');
       }

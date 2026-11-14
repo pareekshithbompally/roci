@@ -1,11 +1,11 @@
 use rusqlite::Connection;
 
 /// Current schema version for the new kasset.db.
-pub const SCHEMA_VERSION: u32 = 1;
+pub const SCHEMA_VERSION: u32 = 2;
 
 /// Default embedding model and dimension.
-pub const DEFAULT_MODEL: &str = "all-MiniLM-L6-v2";
-pub const DEFAULT_DIM: u32 = 384;
+pub const DEFAULT_MODEL: &str = "onnx-community/embeddinggemma-300m-ONNX";
+pub const DEFAULT_DIM: u32 = 768;
 
 /// Open an in-memory test database with the `sqlite_vec` extension loaded and
 /// the schema migrated. Shared by every test module in this crate so the vec
@@ -60,6 +60,53 @@ pub fn migrate(conn: &Connection) -> Result<(), String> {
             },
             Err(e) => {
                 log::error!("[store] Migration failed: {}", e);
+                return Err(e);
+            }
+        }
+    }
+
+    // v1 → v2: embedding model swap (MiniLM 384-dim → EmbeddingGemma 768-dim).
+    // Old vectors are unusable, so drop the vec tables and recreate them at the
+    // new dimension; NULL the embedding hashes so the normal Phase-2 indexing
+    // re-embeds every meeting and chat with the new model on the next run.
+    // FTS tables and chunk text are untouched.
+    if current == 1 {
+        let result = (|| -> Result<(), String> {
+            let tx = conn
+                .unchecked_transaction()
+                .map_err(|e| format!("begin migration v2 transaction: {}", e))?;
+            tx.execute_batch(&format!(
+                "DROP TABLE IF EXISTS vec_chunks;
+                 DROP TABLE IF EXISTS chat_vec_chunks;
+                 CREATE VIRTUAL TABLE vec_chunks USING vec0(
+                     chunk_id INTEGER PRIMARY KEY,
+                     embedding float[{}]
+                 );
+                 CREATE VIRTUAL TABLE chat_vec_chunks USING vec0(
+                     chunk_id INTEGER PRIMARY KEY,
+                     embedding float[{}]
+                 );
+                 UPDATE meeting_index_state SET embedding_hash = NULL;
+                 UPDATE chat_index_state SET embedding_hash = NULL;",
+                DEFAULT_DIM, DEFAULT_DIM,
+            ))
+            .map_err(|e| format!("migrate v1→v2 vec tables: {}", e))?;
+            set_schema_version(&tx, SCHEMA_VERSION)?;
+            tx.commit()
+                .map_err(|e| format!("commit migration v2: {}", e))?;
+            Ok(())
+        })();
+
+        match result {
+            Ok(()) => {
+                log::info!(
+                    "[store] Migrated schema v1→v2 (model={}, dim={})",
+                    DEFAULT_MODEL,
+                    DEFAULT_DIM,
+                );
+            }
+            Err(e) => {
+                log::error!("[store] Migration v1→v2 failed: {}", e);
                 return Err(e);
             }
         }
@@ -510,7 +557,7 @@ mod tests {
                 |row| row.get(0),
             )
             .expect("schema_version");
-        assert_eq!(sv, "1");
+        assert_eq!(sv, SCHEMA_VERSION.to_string());
 
         let model: String = conn
             .query_row(
@@ -836,18 +883,18 @@ mod tests {
 
         migrate(&conn).expect("migrate");
 
-        // After migration, schema_version is 1
+        // After migration, schema_version is current
         let sv: String = conn
             .query_row("SELECT value FROM meta WHERE key='schema_version'", [], |r| r.get(0))
             .expect("schema_version");
-        assert_eq!(sv, "1");
+        assert_eq!(sv, SCHEMA_VERSION.to_string());
 
         // Running migrate again is idempotent
         migrate(&conn).expect("migrate again");
         let sv2: String = conn
             .query_row("SELECT value FROM meta WHERE key='schema_version'", [], |r| r.get(0))
             .expect("schema_version");
-        assert_eq!(sv2, "1");
+        assert_eq!(sv2, SCHEMA_VERSION.to_string());
     }
 
     fn now_test_millis() -> i64 {
@@ -855,5 +902,83 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as i64
+    }
+
+    /// v1-shaped DB (MiniLM 384-dim vectors + stamped embedding hashes)
+    /// must migrate to v2: vec tables recreated at the new dimension with
+    /// old vectors gone, embedding hashes nulled so Phase-2 re-embeds.
+    #[test]
+    fn migrate_v1_to_v2_swaps_embedding_model() {
+        let conn = open_test_db();
+        conn.execute_batch(
+            "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+             INSERT INTO meta (key, value) VALUES ('schema_version', '1');
+             CREATE VIRTUAL TABLE vec_chunks USING vec0(
+                 chunk_id INTEGER PRIMARY KEY, embedding float[384]);
+             CREATE VIRTUAL TABLE chat_vec_chunks USING vec0(
+                 chunk_id INTEGER PRIMARY KEY, embedding float[384]);
+             CREATE TABLE meeting_index_state (
+                 meeting_id TEXT PRIMARY KEY, content_hash TEXT,
+                 embedding_hash TEXT, extraction_hash TEXT, indexed_at INTEGER);
+             INSERT INTO meeting_index_state VALUES ('m1', 'abc', 'abc', NULL, 1);
+             CREATE TABLE chat_index_state (
+                 chat_id TEXT PRIMARY KEY, content_hash TEXT,
+                 embedding_hash TEXT, indexed_at INTEGER);
+             INSERT INTO chat_index_state VALUES ('c1', 'def', 'def', 1);",
+        )
+        .expect("seed v1 db");
+
+        // One stale 384-dim vector, stored the way the app binds them.
+        let stale: Vec<u8> = (0..384u32)
+            .flat_map(|i| (i as f32).to_le_bytes())
+            .collect();
+        conn.execute(
+            "INSERT INTO vec_chunks (chunk_id, embedding) VALUES (1, ?1)",
+            params![stale],
+        )
+        .expect("seed stale vector");
+
+        migrate(&conn).expect("migrate v1→v2");
+
+        let sv: String = conn
+            .query_row("SELECT value FROM meta WHERE key='schema_version'", [], |r| r.get(0))
+            .expect("schema_version");
+        assert_eq!(sv, "2");
+
+        for table in ["vec_chunks", "chat_vec_chunks"] {
+            let sql: String = conn
+                .query_row(
+                    "SELECT sql FROM sqlite_master WHERE name = ?1",
+                    params![table],
+                    |r| r.get(0),
+                )
+                .expect("vec table sql");
+            assert!(
+                sql.contains("float[768]"),
+                "{table} not recreated at new dim: {sql}"
+            );
+        }
+
+        let remaining: i64 = conn
+            .query_row("SELECT COUNT(*) FROM vec_chunks", [], |r| r.get(0))
+            .expect("vec row count");
+        assert_eq!(remaining, 0, "stale vectors must be gone");
+
+        let m_hash: Option<String> = conn
+            .query_row(
+                "SELECT embedding_hash FROM meeting_index_state WHERE meeting_id = 'm1'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("meeting hash");
+        assert_eq!(m_hash, None);
+        let c_hash: Option<String> = conn
+            .query_row(
+                "SELECT embedding_hash FROM chat_index_state WHERE chat_id = 'c1'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("chat hash");
+        assert_eq!(c_hash, None);
     }
 }
