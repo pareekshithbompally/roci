@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 // Phase 6: Import App from new location with provider architecture
 import App from './src/app/App';
 import { IS_MACOS } from './src/platform/index';
-import './src/styles/tokens.css';
+import { raiseSplash } from './src/app/splash';
 import './index.css';
 import './src/styles/markdown.css';
 import './src/styles/glass.css';
@@ -20,6 +20,8 @@ if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window && /mac/i.t
 }
 
 console.log('[index.tsx] Starting app initialization, IS_MACOS:', IS_MACOS);
+
+raiseSplash();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

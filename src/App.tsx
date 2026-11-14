@@ -38,6 +38,7 @@ import { notificationService, menubarService, TrayAction, SPEECH_MODEL_ACTION_PR
 import { getHexStatus } from '@services/ai/transcription';
 import { notificationScheduler } from '@services/notification-scheduler';
 import { windowService } from '@services/window.service';
+import { dismissSplash } from '@/src/app/splash';
 import { shortcutsService } from '@services/shortcuts.service';
 import { unifiedAIService } from '@services/unifiedAIService';
 import { initPlatformFetch } from '@services/platform-fetch';
@@ -53,7 +54,7 @@ const App: React.FC = () => {
   const selectedHistoryId = useSelectedHistoryId();
   const { setStatus, setCurrentView, leaveSettings, setInitialized, setSelectedHistoryId, setActiveSettingsPanel } = useAppActions();
   
-  const { setSettings, settings, providers } = useSettings();
+  const { setSettings, settings, providers, isLoading: settingsLoading } = useSettings();
   const history = useHistory();
   const chat = useChat();
   const recording = useRecordingContext();
@@ -156,6 +157,11 @@ const App: React.FC = () => {
 
     return () => controller.abort();
   }, [history.items.length, chat.sessionIndex.length]);
+
+  // Fade the startup splash once the first screen renders with real settings
+  useEffect(() => {
+    if (!settingsLoading) dismissSplash();
+  }, [settingsLoading]);
 
   // Repaint compositor on focus — fixes transparent-window rendering glitch (Tauri #8255)
   useEffect(() => {

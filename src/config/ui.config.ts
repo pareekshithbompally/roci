@@ -93,6 +93,7 @@ export const UI_CONFIG = {
     popover: 1400,
     tooltip: 1500,
     notification: 1600,
+    splash: 1700, // startup splash sits above everything until the app is ready (src/app/splash.ts)
   },
 
   // Activity tray

@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Kasset.ai</title>
+    <!-- Tokens + splash load with the page, not the JS bundle, so the first frame is themed (src/app/splash.ts) -->
+    <link rel="stylesheet" href="/src/styles/tokens.css" />
+    <link rel="stylesheet" href="/src/styles/splash.css" />
     <script>
       // Synchronous theme init — runs BEFORE CSS paints to prevent light flash
       (function() {
@@ -17,6 +20,12 @@
   </head>
   <body class="text-primary antialiased overflow-hidden" id="app-body">
     <div id="root"></div>
+    <div id="splash" aria-hidden="true">
+      <!-- Kasset mark: the app icon's waveform, monochrome -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 13a2 2 0 0 0 2-2V7a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0V4a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0v-4a2 2 0 0 1 2-2" />
+      </svg>
+    </div>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>
