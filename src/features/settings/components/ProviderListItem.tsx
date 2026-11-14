@@ -10,7 +10,7 @@ import React from 'react';
 import { ProvidersAvatar } from '@shared/components';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { Dot, RowGroupLabel, Surface, Switch, Text } from '@shared/ui';
-import { activateOnKey } from './shared';
+import { activateOnKey } from '@shared/utils/activateOnKey';
 
 export type ProviderStatus = 'running' | 'stopped';
 

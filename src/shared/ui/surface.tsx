@@ -54,7 +54,7 @@ export interface SurfaceProps extends React.HTMLAttributes<HTMLElement> {
   radius?: keyof typeof RADIUS;
   /** Hairline edge(s) separating this region from its neighbours */
   edge?: keyof typeof EDGE | Array<keyof typeof EDGE>;
-  /** Hover tint for clickable surfaces */
+  /** Hover tint for clickable surfaces — layered over the variant's fill, never replacing it */
   interactive?: boolean;
   /** Selected state (list items, chosen cards) */
   selected?: boolean;
@@ -80,8 +80,8 @@ export function Surface({
         VARIANT[variant],
         RADIUS[radius],
         edges.map((e) => EDGE[e]).join(' '),
-        interactive && 'cursor-pointer transition-colors hover:bg-hover',
-        selected && 'bg-pressed',
+        interactive && 'cursor-pointer',
+        selected ? 'bg-tint-pressed' : interactive && 'hover:bg-tint-hover',
         className,
       )}
       {...props}

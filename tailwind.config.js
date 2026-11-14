@@ -44,6 +44,12 @@ export default {
       divideColor: roles('border', ['muted', 'base', 'strong']),
       ringColor: { focus: 'var(--border-focus)' },
       boxShadow: roles('shadow', ['input', 'raised', 'floating', 'overlay']),
+      // State tints as an image layer, so they shade a surface's fill instead of replacing it
+      // (a hovered white card stays opaque over the landing gradient).
+      backgroundImage: {
+        'tint-hover': 'linear-gradient(var(--bg-hover), var(--bg-hover))',
+        'tint-pressed': 'linear-gradient(var(--bg-pressed), var(--bg-pressed))',
+      },
       // ─── macOS text styles (SF Pro). `reading` is the one exception: long-form chat/transcript ───
       fontSize: {
         subheadline: ['11px', '14px'],

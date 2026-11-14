@@ -18,12 +18,12 @@ import { ChatInput } from '@features/chat';
 import { meetingReferenceService } from '@services/meetingReferenceService';
 import { LandingGlow } from './LandingGlow';
 import { OnDeviceModelsCard } from './OnDeviceModelsCard';
-import { RadioCard } from '@features/settings/components/shared';
 import { useVoiceCapture } from '@features/chat';
 import { useSpeechInputReady } from '@features/settings/hooks/useSpeechModels';
 import { LAYOUT } from '@config/layout.config';
 import { UI_CONFIG } from '@config/ui.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
+import { ActionCard } from '@shared/components';
 import { Button, Dot, Icon, Surface, Text } from '@shared/ui';
 import { motion } from 'framer-motion';
 
@@ -242,31 +242,18 @@ export const IdleView: React.FC<IdleViewProps> = () => {
 
               {/* Setup cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <RadioCard
-                  selected={false}
-                  onClick={handleSetupProviders}
+                <ActionCard
                   icon={<Icon icon={Key} size="md" />}
-                >
-                  <div className="space-y-1">
-                    <Text as="p" variant="bodyStrong">Cloud Providers</Text>
-                    <Text as="p" variant="helper" tone="muted">
-                      Connect OpenAI, Anthropic, Google, and more with an API key
-                    </Text>
-                  </div>
-                </RadioCard>
-
-                <RadioCard
-                  selected={false}
+                  title="Cloud Providers"
+                  description="Connect OpenAI, Anthropic, Google, and more with an API key"
                   onClick={handleSetupProviders}
+                />
+                <ActionCard
                   icon={<Icon icon={HardDrive} size="md" />}
-                >
-                  <div className="space-y-1">
-                    <Text as="p" variant="bodyStrong">Local Models</Text>
-                    <Text as="p" variant="helper" tone="muted">
-                      Use Ollama, LM Studio, or another server running on this Mac
-                    </Text>
-                  </div>
-                </RadioCard>
+                  title="Local Models"
+                  description="Use Ollama, LM Studio, or another server running on this Mac"
+                  onClick={handleSetupProviders}
+                />
               </div>
 
               {/* On-device models — zero state only; Skip or consent dismisses for good */}
