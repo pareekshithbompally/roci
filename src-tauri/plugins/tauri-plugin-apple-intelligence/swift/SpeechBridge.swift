@@ -27,8 +27,25 @@ public func appleSpeechStatus(_ language: UnsafePointer<CChar>) -> UnsafeMutable
 }
 
 /// Asks for Speech Recognition (prompts only while undecided). `{"granted": bool}`
+/// or `{"error": {"kind": "unavailable", "message"}}` when this process can't ask.
+///
+/// macOS charges a privacy request to the *responsible* process and aborts it when
+/// that process's Info.plist lacks `NSSpeechRecognitionUsageDescription`. HEX
+/// therefore asks only from a launched app bundle (`HEX Service.app`, its own
+/// Info.plist). Kasset follows the same rule: a decided state returns its verdict
+/// without asking; an undecided one asks only when Kasset runs as its `.app`.
+/// `tauri dev` runs the bare binary from a terminal — the terminal is responsible
+/// there — so it gets `unavailable` instead of a crash.
 @_cdecl("apple_speech_request_access")
 public func appleSpeechRequestAccess() -> UnsafeMutablePointer<CChar> {
+    switch SFSpeechRecognizer.authorizationStatus() {
+    case .authorized: return speechJSON(["granted": true])
+    case .denied, .restricted: return speechJSON(["granted": false])
+    default: break
+    }
+    guard canAskForSpeechRecognition() else {
+        return speechFailure("unavailable", "Speech Recognition can only be allowed from the Kasset app. Development builds run outside the app bundle, so macOS can't ask from here.")
+    }
     let semaphore = DispatchSemaphore(value: 0)
     var granted = false
     SFSpeechRecognizer.requestAuthorization { status in
@@ -108,6 +125,12 @@ private func transcribe(file: String, language: String) async throws -> [[String
 }
 
 // MARK: - Helpers
+
+/// A launched `.app` with the usage description is its own responsible process (HEX Service.app's rule).
+private func canAskForSpeechRecognition() -> Bool {
+    Bundle.main.bundleURL.pathExtension == "app"
+        && Bundle.main.object(forInfoDictionaryKey: "NSSpeechRecognitionUsageDescription") != nil
+}
 
 private func authorizationName() -> String {
     switch SFSpeechRecognizer.authorizationStatus() {

@@ -57,7 +57,7 @@ pub async fn speech_status(language: String) -> Result<SpeechStatus, AppleError>
 /// The Speech Recognition prompt (only while undecided); whether it's granted.
 #[command]
 pub async fn speech_request_access() -> Result<bool, AppleError> {
-    off_main(|| bridge::speech_request_access::<Granted>().map(|g| g.granted).map_err(AppleError::Failed)).await
+    off_main(|| take::<Granted>(bridge::speech_request_access()).map(|g| g.granted)).await
 }
 
 /// Downloads the language's speech model when missing.

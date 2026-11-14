@@ -1,6 +1,6 @@
 /**
  * AppleIntelligenceIntegration — Apple's on-device models. On: Apple
- * Intelligence joins Settings › Audio › Summary Model, and Apple Speech joins
+ * Intelligence joins Settings › Capabilities › Summaries, and Apple Speech joins
  * Transcription Model. Off: both disappear.
  */
 
@@ -29,14 +29,14 @@ export const AppleIntelligenceIntegration: React.FC = () => {
     >
       <CardRow
         title="Summaries"
-        description={`Choose Apple Intelligence in Settings › Audio › Summary Model. ${apple.contextTokens.toLocaleString()}-token context: long meetings are summarized from an excerpt.`}
+        description={`Choose Apple Intelligence in Settings › Capabilities › Summaries. ${apple.contextTokens.toLocaleString()}-token context: long meetings are summarized from an excerpt.`}
       />
       {speech && (
         <>
           <CardRow
             title="Speech Recognition"
-            description={speech.access === 'needs-settings' ? COPY.speechDeniedHint : 'Lets Apple Speech transcribe your recordings on this Mac.'}
-            actions={<PermissionAction state={speech.access} onRequest={speech.request} onOpenSettings={speech.openSettings} />}
+            description={speech.blocked ?? (speech.access === 'needs-settings' ? COPY.speechDeniedHint : 'Lets Apple Speech transcribe your recordings on this Mac.')}
+            actions={speech.blocked ? undefined : <PermissionAction state={speech.access} onRequest={speech.request} onOpenSettings={speech.openSettings} />}
           />
           <CardRow
             title="English speech model"

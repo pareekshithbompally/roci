@@ -10,7 +10,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { queryKeys } from '@shared/query/queryKeys';
 import { isIntegrationEnabled } from '@shared/utils/integrations';
-import { appleIntelligence, type AppleAvailability } from '@services/ai/apple/appleIntelligence.service';
+import { appleIntelligence, isAppleError, type AppleAvailability } from '@services/ai/apple/appleIntelligence.service';
 import { useAppleSpeechStatus } from './useIntegrationSpeech';
 import { PERMISSIONS_CONFIG } from '@config/permissions.config';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
@@ -46,6 +46,8 @@ export interface AppleIntelligenceControls extends IntegrationControls {
     access: PermissionState;
     request: () => void;
     openSettings: () => void;
+    /** Why macOS can't be asked from this build (a dev run outside the app bundle); null when it can. */
+    blocked: string | null;
     installed: boolean;
     downloading: boolean;
     download: () => void;
@@ -57,6 +59,7 @@ export function useAppleIntelligenceControls(): AppleIntelligenceControls {
   const { settings, setSettings } = useSettings();
   const enabled = isIntegrationEnabled(settings, 'appleIntelligence');
   const [downloading, setDownloading] = useState(false);
+  const [speechBlocked, setSpeechBlocked] = useState<string | null>(null);
 
   const { data: status } = useQuery({
     queryKey: queryKeys.appleIntelligenceStatus(),
@@ -101,7 +104,15 @@ export function useAppleIntelligenceControls(): AppleIntelligenceControls {
     contextTokens: status?.contextTokens ?? 0,
     speech: speech?.available ? {
       access: speechAccessOf(speech.authorization),
-      request: () => { appleIntelligence.speechRequestAccess().then(refreshSpeech).catch(report('request speech')); },
+      request: () => {
+        appleIntelligence.speechRequestAccess()
+          .then(refreshSpeech)
+          .catch((error: unknown) => {
+            if (isAppleError(error) && error.code === 'unavailable') return setSpeechBlocked(error.detail ?? null);
+            report('request speech')(error);
+          });
+      },
+      blocked: speechBlocked,
       openSettings: () => { openNative('speech-recognition-settings').catch(report('open speech settings')); },
       installed: speech.installed,
       downloading,
