@@ -45,6 +45,7 @@ export {
   useFilteredIndexEntries,
   useChatActions,
   todoProposalStore,
+  commitTodoProposal,
   useTodoProposals,
   useTodoProposal,
   GENERAL_MEETING_ID,

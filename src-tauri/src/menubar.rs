@@ -10,8 +10,9 @@
 //!   action events.
 //! - Rows follow Hex's `Row`/`ROWS` order in three groups: the meeting
 //!   recorder (one row — Record Meeting, or Stop Recording while it runs),
-//!   the Speech Model submenu, then the app (Show, Settings…, Check for
-//!   Updates…, Quit Kasset).
+//!   the Speech Model submenu, Kasset's MCP server status (a disabled row:
+//!   it runs with the app, so there is nothing to start or stop), then the
+//!   app (Show, Settings…, Check for Updates…, Quit Kasset).
 //! - The menu is rebuilt on every recorder or model-list change, so the
 //!   recorder never shows two competing rows (Hex hides the other one, but
 //!   Tauri menu items have no visibility flag).
@@ -56,6 +57,8 @@ pub mod item {
     pub const SETTINGS: &str = "settings";
     pub const CHECK_UPDATES: &str = "check_updates";
     pub const QUIT: &str = "quit";
+    /// Status-only row for Kasset's MCP server (disabled, never dispatched).
+    pub const MCP_STATUS: &str = "mcp_status";
 }
 
 /// Row labels, matching Hex's title casing.
@@ -67,6 +70,8 @@ const SHOW_LABEL: &str = "Show Kasset.ai";
 const SETTINGS_LABEL: &str = "Settings…";
 const UPDATE_LABEL: &str = "Check for Updates…";
 const QUIT_LABEL: &str = "Quit Kasset";
+/// Until Kasset's MCP server reports (`mcp_server::host::HostStatus::menu_label`).
+const MCP_STARTING_LABEL: &str = "MCP Server: Starting…";
 
 /// Default tooltip, mirroring `APP_CONFIG.tray.tooltip`.
 const DEFAULT_TOOLTIP: &str = "Kasset.ai";
@@ -113,6 +118,8 @@ struct StateData {
     hide_icon: bool,
     /// Downloaded Hex models, newest report wins.
     speech_models: Vec<SpeechModelEntry>,
+    /// Kasset's MCP server, as its status row reads.
+    mcp_status: String,
     /// The recorder row of the current menu: Record when idle, Stop while
     /// recording. The ticker retitles it with elapsed time.
     recording_item: Option<MenuItem<Wry>>,
@@ -127,6 +134,7 @@ impl Default for StateData {
             close_to_tray: true,
             hide_icon: false,
             speech_models: Vec::new(),
+            mcp_status: MCP_STARTING_LABEL.to_string(),
             recording_item: None,
         }
     }
@@ -149,6 +157,7 @@ struct MenuSnapshot {
     paused: bool,
     elapsed_secs: u64,
     speech_models: Vec<SpeechModelEntry>,
+    mcp_status: String,
 }
 
 impl StateData {
@@ -158,6 +167,7 @@ impl StateData {
             paused: self.paused,
             elapsed_secs: self.elapsed_secs,
             speech_models: self.speech_models.clone(),
+            mcp_status: self.mcp_status.clone(),
         }
     }
 }
@@ -327,6 +337,14 @@ fn build_menu(app: &AppHandle, state: &MenuSnapshot) -> tauri::Result<(Menu<Wry>
     let speech_models = build_speech_models(app, &state.speech_models)?;
     let separator0 = PredefinedMenuItem::separator(app)?;
     let separator1 = PredefinedMenuItem::separator(app)?;
+    let mcp_status = MenuItem::with_id(
+        app,
+        item::MCP_STATUS,
+        &state.mcp_status,
+        false,
+        None::<&str>,
+    )?;
+    let separator2 = PredefinedMenuItem::separator(app)?;
     let show_item = MenuItem::with_id(app, item::SHOW, SHOW_LABEL, true, None::<&str>)?;
     let settings_item = MenuItem::with_id(
         app,
@@ -346,6 +364,8 @@ fn build_menu(app: &AppHandle, state: &MenuSnapshot) -> tauri::Result<(Menu<Wry>
             &separator0,
             &speech_models,
             &separator1,
+            &mcp_status,
+            &separator2,
             &show_item,
             &settings_item,
             &update_item,
@@ -529,6 +549,22 @@ pub async fn menubar_set_speech_models(
     }
     rebuild_menu(&app);
     Ok(())
+}
+
+/// Kasset's MCP server changed state (listening, ready, agents connected):
+/// retitle its status row. Skips the rebuild when the text is unchanged.
+pub fn set_mcp_status(app: &AppHandle, label: String) {
+    let Some(shared) = app.try_state::<MenubarShared>() else {
+        return;
+    };
+    {
+        let mut state = shared.lock();
+        if state.mcp_status == label {
+            return;
+        }
+        state.mcp_status = label;
+    }
+    rebuild_menu(app);
 }
 
 /// Set the tray tooltip.

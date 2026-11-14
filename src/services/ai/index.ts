@@ -1,5 +1,5 @@
 export { createModel, getWebSearchTools } from './provider';
-export { toExecutableTools } from './tools-bridge';
+export { toExecutableTools, runTool } from './tools-bridge';
 export type { ExecutableToolsCallbacks } from './tools-bridge';
 export { toSDKMessages } from './message-converter';
 export { generateSuggestions } from './suggestions';

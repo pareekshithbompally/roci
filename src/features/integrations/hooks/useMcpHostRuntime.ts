@@ -1,0 +1,33 @@
+/**
+ * useMcpHostRuntime — mount once (App). Serves Kasset's tools to coding agents
+ * for as long as the app runs (Rust holds the socket; this answers the calls),
+ * and keeps the Integrations status fresh as agents connect and leave.
+ */
+
+import { useEffect } from 'react';
+import { isTauriEnvironment } from '@services/tauri';
+import { mcpHostService } from '@services/mcpHost.service';
+import { serveTools } from '@extensions/tools/mcp-host';
+import { queryClient } from '@shared/query/queryClient';
+import { queryKeys } from '@shared/query/queryKeys';
+
+export function useMcpHostRuntime(): void {
+  useEffect(() => {
+    if (!isTauriEnvironment()) return;
+    const stops: Array<() => void> = [];
+    let cancelled = false;
+    const keep = (stop: () => void) => (cancelled ? stop() : stops.push(stop));
+    const report = (action: string) => (error: unknown) => console.error(`[useMcpHostRuntime] ${action} failed:`, error);
+
+    serveTools().then(keep).catch(report('serve tools'));
+    mcpHostService
+      .onStatus(() => { void queryClient.invalidateQueries({ queryKey: queryKeys.mcpHost() }); })
+      .then(keep)
+      .catch(report('watch status'));
+
+    return () => {
+      cancelled = true;
+      stops.forEach((stop) => stop());
+    };
+  }, []);
+}

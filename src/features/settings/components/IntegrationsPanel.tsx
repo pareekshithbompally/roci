@@ -5,7 +5,8 @@
 
 import React from 'react';
 import { Section } from '@shared/ui';
-import { AppleIntelligenceIntegration, AppleNotesIntegration, CalendarIntegration, HexIntegration, RemindersIntegration } from '@features/integrations';
+import { AppleIntelligenceIntegration, AppleNotesIntegration, CalendarIntegration, CodingAgentsIntegration, HexIntegration, RemindersIntegration } from '@features/integrations';
+import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { SettingsPage } from './shared';
 
 export const IntegrationsPanel: React.FC = () => (
@@ -18,6 +19,9 @@ export const IntegrationsPanel: React.FC = () => (
     </Section>
     <Section title="Apps" layout="stack">
       <HexIntegration />
+    </Section>
+    <Section title={INTEGRATIONS_CONFIG.codingAgents.section}>
+      <CodingAgentsIntegration />
     </Section>
   </SettingsPage>
 );

@@ -111,15 +111,7 @@ export const todoProposalStore = {
     }
 
     emitChange();
-
-    // Invalidate all affected meeting-specific and global todo queries
-    const affectedMeetings = new Set(
-      pending.map(p => p.meetingId).filter(Boolean)
-    );
-    for (const meetingId of affectedMeetings) {
-      queryClient.invalidateQueries({ queryKey: queryKeys.todos(meetingId) });
-    }
-    queryClient.invalidateQueries({ queryKey: queryKeys.globalTodos() });
+    invalidateTodos(pending.map(p => p.meetingId));
 
     // Auto-clear after short delay so committed state is visible
     setTimeout(() => {
@@ -149,6 +141,23 @@ export const todoProposalStore = {
     return () => listeners.delete(listener);
   },
 };
+
+/**
+ * Write one proposal without the chat banner — for a caller that already got
+ * the user's approval (a coding agent on Kasset's MCP server).
+ */
+export async function commitTodoProposal(p: TodoProposal): Promise<void> {
+  await commitSingle(p);
+  invalidateTodos([p.meetingId]);
+}
+
+/** Refresh the affected meetings' todos and the global list. */
+function invalidateTodos(meetingIds: string[]): void {
+  for (const meetingId of new Set(meetingIds.filter(Boolean))) {
+    queryClient.invalidateQueries({ queryKey: queryKeys.todos(meetingId) });
+  }
+  queryClient.invalidateQueries({ queryKey: queryKeys.globalTodos() });
+}
 
 async function commitSingle(p: TodoProposal): Promise<void> {
   if (p.action === 'create') {

@@ -25,6 +25,10 @@ export const queryKeys = {
   mcpTools: () => ['mcp', 'tools'] as const,
   /** MCP: connected servers' self-description (title, icon) */
   mcpServerInfo: () => ['mcp', 'server-info'] as const,
+  /** Kasset's own MCP server: listening, agents connected, the command agents launch */
+  mcpHost: () => ['mcp-host', 'status'] as const,
+  /** Coding agents: installed, and whether their config registers Kasset */
+  codingAgents: () => ['mcp-host', 'coding-agents'] as const,
   /** macOS access for one integration (EventKit calendars / reminders, Automation → Notes) */
   integrationAccess: (id: AccessId) => ['integration-access', id] as const,
   /** macOS Reminders lists (Integrations › Reminders list picker) */

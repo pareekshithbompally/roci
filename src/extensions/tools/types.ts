@@ -48,6 +48,8 @@ export interface ToolDefinition {
   maxResultChars?: number | null;
   /** MCP server name, shown with the call in chat. Absent for built-ins. */
   source?: string;
+  /** Changes the user's data. Agents using Kasset's MCP server are told so (they ask before calling it). */
+  writes?: boolean;
 }
 
 // ── Tool Context (passed by orchestrator to tool execute()) ──
@@ -57,6 +59,11 @@ export interface ToolContext {
   historyItems: HistoryItem[];
   /** For cancellation during tool execution. */
   signal?: AbortSignal;
+  /**
+   * Who confirms a write: `chat` — Kasset's chat shows a proposal the user approves;
+   * `caller` — a coding agent on Kasset's MCP server, which asked the user before calling.
+   */
+  approval: 'chat' | 'caller';
 }
 
 // ── Tool Call (emitted by adapter when LLM requests a tool) ──

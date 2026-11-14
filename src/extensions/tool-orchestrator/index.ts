@@ -68,7 +68,7 @@ async function buildTools(
   if (definitions.length === 0) return webSearchTools;
   const meetingTools = toExecutableTools(
     definitions,
-    { historyItems: options.historyItems, signal: options.signal },
+    { historyItems: options.historyItems, signal: options.signal, approval: 'chat' },
     { onToolActivity },
   );
   return { ...meetingTools, ...webSearchTools };

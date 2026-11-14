@@ -8,10 +8,11 @@
  * For toggle/update/delete, uses fuzzy text matching to find the target todo.
  */
 
-import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
+import type { ToolContext, ToolDefinition, ToolResult } from '@extensions/tools/types';
 import { store } from '@services/db';
 import {
   todoProposalStore,
+  commitTodoProposal,
   GENERAL_MEETING_ID,
   GENERAL_MEETING_TITLE,
 } from '@features/chat';
@@ -22,7 +23,8 @@ export const manageTodoTool: ToolDefinition = {
   name: 'manage_todo',
   description:
     'Create, complete, update, or delete a todo/task/reminder. ' +
-    'Builds a proposal for user confirmation — the todo is NOT saved until the user approves.',
+    'In Kasset\'s chat the user confirms a proposal before anything is saved; ' +
+    'called from another app, the change is saved at once.',
   parameters: {
     type: 'object',
     properties: {
@@ -62,8 +64,9 @@ export const manageTodoTool: ToolDefinition = {
     },
     required: ['action', 'meeting_id'],
   },
+  writes: true,
 
-  async execute(params): Promise<ToolResult> {
+  async execute(params, context): Promise<ToolResult> {
     const action = params.action as TodoProposal['action'];
     const meetingId = params.meeting_id as string;
     const meetingTitle = (params.meeting_title as string) || (meetingId === GENERAL_MEETING_ID ? GENERAL_MEETING_TITLE : 'Unknown Meeting');
@@ -99,20 +102,13 @@ export const manageTodoTool: ToolDefinition = {
         status: 'pending',
       };
 
-      todoProposalStore.propose(proposal);
-
-      const parts = [`Proposed: Create todo "${text}"`];
+      const parts = [`Create todo "${text}"`];
       if (dueDate) parts.push(`due ${dueDate}`);
       if (reminderDatetime) parts.push(`reminder at ${reminderDatetime}`);
       if (owner) parts.push(`assigned to ${owner}`);
       parts.push(isGeneral ? '(general)' : `in "${meetingTitle}"`);
 
-      return {
-        toolCallId: '',
-        content: parts.join(' — ') + '\nAwaiting user confirmation.',
-        isError: false,
-        meta: { toolName: 'manage_todo', executionMs: 0 },
-      };
+      return submit(proposal, context, parts.join(' — '));
     }
 
     // For toggle/update/delete — need to find the existing todo
@@ -160,20 +156,30 @@ export const manageTodoTool: ToolDefinition = {
       status: 'pending',
     };
 
-    todoProposalStore.propose(proposal);
-
     const actionLabel = action === 'toggle'
       ? (matched.completed ? 'Mark as pending' : 'Mark as done')
       : action === 'delete' ? 'Delete' : 'Update';
 
-    return {
-      toolCallId: '',
-      content: `Proposed: ${actionLabel} todo "${matched.text}" in "${meetingTitle}".\nAwaiting user confirmation.`,
-      isError: false,
-      meta: { toolName: 'manage_todo', executionMs: 0 },
-    };
+    return submit(proposal, context, `${actionLabel} todo "${matched.text}" in "${meetingTitle}"`);
   },
 };
+
+/**
+ * Kasset's chat: queue the proposal for the user's approval. A caller that
+ * already asked the user (a coding agent on Kasset's MCP server): save it now.
+ */
+async function submit(proposal: TodoProposal, context: ToolContext, summary: string): Promise<ToolResult> {
+  if (context.approval === 'chat') {
+    todoProposalStore.propose(proposal);
+    return todoResult(`Proposed: ${summary}.\nAwaiting user confirmation.`);
+  }
+  await commitTodoProposal(proposal);
+  return todoResult(`Done: ${summary}.`);
+}
+
+function todoResult(content: string): ToolResult {
+  return { toolCallId: '', content, isError: false, meta: { toolName: 'manage_todo', executionMs: 0 } };
+}
 
 /**
  * Fuzzy match a todo by text content.

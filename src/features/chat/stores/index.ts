@@ -2,6 +2,7 @@ export { streamingStore, useStreamingText } from './streamingStore';
 export type { StreamingSnapshot } from './streamingStore';
 export {
   todoProposalStore,
+  commitTodoProposal,
   useTodoProposals,
   useTodoProposal,
   GENERAL_MEETING_ID,

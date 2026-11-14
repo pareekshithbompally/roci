@@ -4,11 +4,13 @@
 export { CalendarIntegration } from './components/CalendarIntegration';
 export { RemindersIntegration } from './components/RemindersIntegration';
 export { HexIntegration } from './components/HexIntegration';
+export { CodingAgentsIntegration } from './components/CodingAgentsIntegration';
 export { AppleIntelligenceIntegration } from './components/AppleIntelligenceIntegration';
 export { AppleNotesIntegration } from './components/AppleNotesIntegration';
 export { useCalendarRuntime } from './hooks/useCalendarRuntime';
 export { useRemindersRuntime } from './hooks/useRemindersRuntime';
 export { useHexRuntime } from './hooks/useHexRuntime';
+export { useMcpHostRuntime } from './hooks/useMcpHostRuntime';
 export { useAppleNotesRuntime } from './hooks/useAppleNotesRuntime';
 export { useIntegrationSpeech } from './hooks/useIntegrationSpeech';
 export type { IntegrationAccess, IntegrationControls } from './types';

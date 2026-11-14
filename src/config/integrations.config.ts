@@ -51,4 +51,33 @@ export const INTEGRATIONS_CONFIG = {
     /** Reminders fires several change notifications per edit; pull once they settle. */
     pullDebounceMs: 500,
   },
+  /** Kasset's tools in coding agents, through Kasset's MCP server (`Kasset mcp`). One card: server, agents, manual setup. */
+  codingAgents: {
+    section: 'Coding agents',
+    server: {
+      title: 'Kasset MCP server',
+      description: 'Agents get the same tools as Kasset’s chat, and open Kasset in the background when it isn’t running.',
+      ready: 'Ready',
+      starting: 'Starting',
+      connected: (count: number) => `${count} ${count === 1 ? 'agent' : 'agents'} connected`,
+    },
+    /** Agent row description once Kasset is added. */
+    added: 'Added. Start a new session to use Kasset’s tools.',
+    outdated: {
+      description: 'Added for a copy of Kasset that has moved. Update to fix.',
+      action: 'Update',
+    },
+    notInstalled: 'Not installed on this Mac.',
+    manual: {
+      title: 'Other agents',
+      description: 'Add a local (stdio) MCP server named “kasset” that runs:',
+      copy: 'Copy command',
+      copied: 'Command copied',
+    },
+    agents: {
+      'claude-code': { title: 'Claude Code', description: 'Added with Claude Code’s own command, for every project.', icon: '/images/model-provider/anthropic.svg' },
+      codex: { title: 'Codex', description: 'Added with Codex’s own command.', icon: '/images/model-provider/openai.svg' },
+      opencode: { title: 'OpenCode', description: 'Adds one entry to OpenCode’s global config; nothing else changes.', icon: '/images/opencode-app-sm.png' },
+    },
+  },
 } as const;

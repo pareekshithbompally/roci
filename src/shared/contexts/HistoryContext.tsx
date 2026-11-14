@@ -101,6 +101,15 @@ function indexEntryToHistoryItem(entry: {
   };
 }
 
+/** The meeting index query — the app's history list, and outside React (Kasset's MCP server). */
+export const meetingsQuery = {
+  queryKey: queryKeys.meetings(),
+  queryFn: async (): Promise<HistoryItem[]> => {
+    const result = await store.meetings.list(1000);
+    return result.items.map(indexEntryToHistoryItem);
+  },
+};
+
 // ── Provider ──
 
 interface HistoryProviderProps {
@@ -117,13 +126,7 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
 
   // ── Server state: meeting index ──
 
-  const { data: items = [], isLoading } = useQuery({
-    queryKey: queryKeys.meetings(),
-    queryFn: async () => {
-      const result = await store.meetings.list(1000);
-      return result.items.map(indexEntryToHistoryItem);
-    },
-  });
+  const { data: items = [], isLoading } = useQuery(meetingsQuery);
 
   // UI state (separate to avoid re-rendering data consumers)
   const [menuOpenId, setMenuOpenIdRaw] = useState<string | null>(null);
