@@ -1,11 +1,10 @@
 import React, { memo, useMemo } from 'react';
+import { Markdown } from '@shared/components';
 import { AnimatedProviderIcon } from '@features/chat/components/AnimatedProviderIcon';
-import { StreamingMarkdown } from '@features/chat/components/StreamingMarkdown';
 import { useStreamingText } from '@features/chat/stores/streamingStore';
 import { getProviderTitle } from '@shared/utils/provider.utils';
-import { toolLabel } from '@shared/utils/toolUtils';
-import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
-import { TEXT } from '@config/theme.config';
+import { toolCallTitle } from '@features/chat/components/tool-call';
+import { Text } from '@shared/ui';
 import { injectCitationTokens } from '@shared/utils/inlineCitationInjector';
 import PartsList from './PartsList';
 import AssistantActionBar from './AssistantActionBar';
@@ -35,17 +34,14 @@ const StreamingHeaderLabel = memo(({
     // Still in tool phase (no text yet) — show current tool label
     if (toolParts.length > 0 && !hasText) {
       const active = toolParts.find(p => p.status === 'calling') || toolParts[toolParts.length - 1];
-      if (active) {
-        const status = active.status === 'calling' ? 'calling' as const : 'complete' as const;
-        return <>{toolLabel(active.toolName, status, active.source)}</>;
-      }
+      if (active) return <>{toolCallTitle(active)}</>;
     }
   }
 
   return (
     <>
       {getProviderTitle(provider)}
-      {model && <span className={`font-normal ${TEXT.faint}`}> · {model}</span>}
+      {model && <Text variant="helper" tone="faint"> · {model}</Text>}
     </>
   );
 });
@@ -105,7 +101,7 @@ const CompletedContent: React.FC<{
   }
 
   return (
-    <StreamingMarkdown
+    <Markdown
       content={processedText}
       streaming={false}
       messageId={messageId}
@@ -153,11 +149,11 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   const effectiveMeetingCitations = meetingCitations || toolActivity?.citations;
 
   return (
-    <div className="w-full min-h-[60px]">
+    <div className="w-full min-h-15">
       {/* Provider/Model Header — always visible, consistent across all states */}
       <div className="flex items-center gap-2 mb-2">
-        <AnimatedProviderIcon provider={provider || 'unknown'} size={18} isAnimating={isLoading || isStreaming} />
-        <span className={`${TYPOGRAPHY_CLASSES.chatProvider} ${TEXT.muted}`}>
+        <AnimatedProviderIcon provider={provider || 'unknown'} modelId={model} size={18} isAnimating={isLoading || isStreaming} />
+        <Text variant="label" tone="muted">
           {isLoading
             ? loadingLabel || 'Working on it...'
             : isStreaming
@@ -165,10 +161,10 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
               : (
               <>
                 {getProviderTitle(provider)}
-                {model && <span className={`font-normal ${TEXT.faint}`}> · {model}</span>}
+                {model && <Text variant="helper" tone="faint"> · {model}</Text>}
               </>
             )}
-        </span>
+        </Text>
       </div>
 
       {/* STREAMING or COMPLETE STATE */}

@@ -176,10 +176,14 @@ export interface ChatToolPreferences {
 }
 
 export interface AppSettings {
-  /** STT engine id (e.g. 'whisper-1', 'groq-whisper', 'gemini', 'hex'). */
+  /** Speech-to-text provider (`openai`, `groq`, `local:…`, `hex`, …); see transcription.config. */
+  transcriptionProvider?: string;
+  /** Speech model of that provider (e.g. `gpt-4o-transcribe`, a Hex model id). */
   transcriptionModel: string;
-  /** Model within the selected engine, for engines that offer a choice (Hex). Empty = engine default. */
-  transcriptionEngineModel?: string;
+  /** Show Hugging Face org icons on local model rows (fetches from huggingface.co). Off by default. */
+  showModelAvatars?: boolean;
+  /** Hide the per-call tool blocks in chat answers (shown by default). */
+  hideToolCalls?: boolean;
   chatModel: string;
   /** LLM model for the Analyze phase — produces the structured meeting summary (Overview tab). */
   analyzeModel?: string;

@@ -18,7 +18,7 @@ import type { AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { store } from '@services/db';
 import { predefinedProviders, MANAGED_SDK_PROVIDERS } from '@config/providers.config';
-import { ENGINES } from '@services/ai/transcription';
+import { defaultSpeechSelection } from '@services/ai/transcription';
 import { queryKeys } from '@shared/query/queryKeys';
 
 interface SettingsState {
@@ -77,9 +77,9 @@ export const defaultSettings: AppSettings = {
 };
 
 const SETTINGS_KEYS: Array<keyof AppSettings> = [
-  'transcriptionModel', 'transcriptionEngineModel', 'chatModel', 'analyzeModel', 'kgExtractionModel',
+  'transcriptionProvider', 'transcriptionModel', 'chatModel', 'analyzeModel', 'kgExtractionModel',
   'apiKey', 'audioQualityPreset', 'defaultAudioSource',
-  'jobProcessing', 'summaryExtraction', 'meetingDefaults', 'calendarIntegration',
+  'jobProcessing', 'summaryExtraction', 'meetingDefaults', 'calendarIntegration', 'showModelAvatars', 'hideToolCalls',
 ];
 
 /**
@@ -169,6 +169,12 @@ const FALLBACK_SETTINGS: LoadedSettings = {
   selectedProviderName: null,
 };
 
+/**
+ * Provider ids removed from the app. Saved configs with these ids are
+ * deleted on load so retired providers never reappear in the UI.
+ */
+const RETIRED_PROVIDER_IDS = new Set(['azure', 'cohere', 'huggingface', 'xai', 'local:llamacpp']);
+
 export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) => {
   const queryClient = useQueryClient();
 
@@ -197,12 +203,38 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
 
       const savedProviders = await store.providers.list();
 
-      if (savedProviders.length > 0) {
-        console.log('[SettingsContext] Using saved providers, count:', savedProviders.length);
-        loadedProviders = mergeProviders(savedProviders, predefinedProviders);
+      // Retired providers (removed from the app) must never reappear:
+      // drop them from disk and from this load.
+      const liveProviders = savedProviders.filter((p) => !RETIRED_PROVIDER_IDS.has(p.provider));
+      const retired = savedProviders.filter((p) => RETIRED_PROVIDER_IDS.has(p.provider));
+      if (retired.length > 0) {
+        console.log('[SettingsContext] Removing retired providers:', retired.map((p) => p.provider));
+        await Promise.allSettled(retired.map((p) => store.providers.delete(p.provider)));
+      }
+
+      if (liveProviders.length > 0) {
+        console.log('[SettingsContext] Using saved providers, count:', liveProviders.length);
+        loadedProviders = mergeProviders(liveProviders, predefinedProviders);
       } else {
         console.log('[SettingsContext] No saved providers, using predefined');
         loadedProviders = predefinedProviders.map(p => ({ ...p }));
+      }
+
+      // Drop selections pointing at providers that no longer exist so the
+      // auto-select below picks something that works.
+      if (selectedProviderName && !loadedProviders.some((p) => p.provider === selectedProviderName)) {
+        console.log('[SettingsContext] Clearing dangling selected provider:', selectedProviderName);
+        selectedProviderName = null;
+      }
+      const modelServed = (id: string | undefined) =>
+        !!id && loadedProviders.some((p) => p.models?.some((m) => m.id === id));
+      if (loadedSettings.chatModel && !modelServed(loadedSettings.chatModel)) {
+        console.log('[SettingsContext] Clearing dangling chat model:', loadedSettings.chatModel);
+        loadedSettings.chatModel = '';
+      }
+      if (loadedSettings.analyzeModel && !modelServed(loadedSettings.analyzeModel)) {
+        console.log('[SettingsContext] Clearing dangling analyze model:', loadedSettings.analyzeModel);
+        loadedSettings.analyzeModel = '';
       }
 
       if (!selectedProviderName && loadedProviders.length > 0) {
@@ -247,19 +279,12 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         }
       }
 
-      if (!loadedSettings.transcriptionModel) {
-        const preferOrder = ['whisper-1', 'gpt-4o-transcribe', 'gpt-4o-transcribe-diarize', 'groq-whisper', 'gemini'] as const;
-        for (const engineId of preferOrder) {
-          const engine = ENGINES[engineId];
-          if (!engine) continue;
-          const provider = loadedProviders.find(
-            (p) => p.provider === engine.providerId && p.active && hasApiKey(p),
-          );
-          if (provider) {
-            loadedSettings.transcriptionModel = engineId;
-            console.log('[SettingsContext] Auto-selected transcription engine:', engineId);
-            break;
-          }
+      if (!loadedSettings.transcriptionProvider) {
+        const speech = defaultSpeechSelection(loadedProviders);
+        if (speech) {
+          loadedSettings.transcriptionProvider = speech.provider;
+          loadedSettings.transcriptionModel = speech.model;
+          console.log('[SettingsContext] Auto-selected transcription model:', speech);
         }
       }
 
