@@ -9,5 +9,8 @@
   <true/>
   <key>com.apple.security.personal-information.calendars</key>
   <true/>
+  <!-- Apple Notes integration: Apple Events to com.apple.Notes (user grants Automation per app). -->
+  <key>com.apple.security.automation.apple-events</key>
+  <true/>
 </dict>
 </plist>

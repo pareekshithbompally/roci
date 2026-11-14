@@ -6,13 +6,14 @@
 
 import type { AppSettings } from '@shared/types';
 
-export type IntegrationId = 'calendar' | 'reminders' | 'hex' | 'appleIntelligence';
+export type IntegrationId = 'calendar' | 'reminders' | 'hex' | 'appleIntelligence' | 'appleNotes';
 
 const SETTING: Record<IntegrationId, keyof AppSettings> = {
   calendar: 'calendarIntegration',
   reminders: 'remindersIntegration',
   hex: 'hexIntegration',
   appleIntelligence: 'appleIntelligenceIntegration',
+  appleNotes: 'appleNotesIntegration',
 };
 
 export function isIntegrationEnabled(settings: AppSettings, id: IntegrationId): boolean {

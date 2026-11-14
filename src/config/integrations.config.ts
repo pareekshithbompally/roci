@@ -30,6 +30,16 @@ export const INTEGRATIONS_CONFIG = {
       unknown: 'Apple Intelligence is unavailable right now.',
     },
   },
+  appleNotes: {
+    title: 'Notes',
+    description: 'Save each meeting’s summary and transcript as a note in Apple Notes.',
+    deniedHint: 'Kasset is off in System Settings › Privacy & Security › Automation › Notes.',
+    icon: '/images/macos-notes-sm.png',
+    /** Folder in the default Notes account; created on first save. */
+    folder: 'Kasset',
+    /** Line at the end of each note that ties it to its meeting. */
+    tagPrefix: 'Kasset meeting',
+  },
   hex: {
     title: 'Hex',
     description: "Use Hex's transcription models, and bring every Hex meeting into Kasset.",

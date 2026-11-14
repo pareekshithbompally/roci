@@ -7,7 +7,7 @@ import { useCallback } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { calendarService } from '@services/calendar';
 import { CALENDAR_DEFAULTS } from '@services/calendar/types';
-import { useEventKitAccess } from './useEventKitAccess';
+import { useSystemAccess } from './useSystemAccess';
 import type { IntegrationControls } from '@features/integrations/types';
 
 const SOURCE = {
@@ -28,7 +28,7 @@ export function useCalendarControls(): CalendarControls {
     enabled: CALENDAR_DEFAULTS.enabled,
     notifyMinutesBefore: CALENDAR_DEFAULTS.notify_minutes_before,
   };
-  const { access, requestAccess, openSettings } = useEventKitAccess(SOURCE);
+  const { access, requestAccess, openSettings } = useSystemAccess(SOURCE);
 
   const setEnabled = useCallback(async (on: boolean) => {
     // Turning on without access: ask while macOS can still prompt; once denied, only Settings can change it.

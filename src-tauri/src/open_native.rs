@@ -12,6 +12,7 @@ pub enum NativeTarget {
     RemindersSettings,
     SpeechRecognitionSettings,
     AppleIntelligenceSettings,
+    AutomationSettings,
     HexApp,
 }
 
@@ -21,6 +22,7 @@ fn open_args(target: &NativeTarget) -> [&'static str; 2] {
         NativeTarget::RemindersSettings => ["-u", "x-apple.systempreferences:com.apple.preference.security?Privacy_Reminders"],
         NativeTarget::SpeechRecognitionSettings => ["-u", "x-apple.systempreferences:com.apple.preference.security?Privacy_SpeechRecognition"],
         NativeTarget::AppleIntelligenceSettings => ["-u", "x-apple.systempreferences:com.apple.Siri-Settings.extension"],
+        NativeTarget::AutomationSettings => ["-u", "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation"],
         NativeTarget::HexApp => ["-a", "Hex"],
     }
 }

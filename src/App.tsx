@@ -27,7 +27,7 @@ import { ConfirmHost, OnDeviceModelActivity, SearchOverlay } from '@shared/compo
 import { Input } from '@shared/ui';
 import { useAppShortcuts } from '@features/shortcuts';
 import { focusChatComposer, startNewChat } from '@features/chat';
-import { useCalendarRuntime, useHexRuntime, useRemindersRuntime } from '@features/integrations';
+import { useAppleNotesRuntime, useCalendarRuntime, useHexRuntime, useRemindersRuntime } from '@features/integrations';
 
 // Services
 import { isTauriEnvironment } from '@services/tauri';
@@ -91,6 +91,7 @@ const App: React.FC = () => {
   useCalendarRuntime();
   useRemindersRuntime();
   useHexRuntime();
+  useAppleNotesRuntime();
 
   // Tray › Speech Model submenu: downloaded Hex models and the current pick
   useMenubarSpeechModels();

@@ -1,0 +1,14 @@
+[package]
+name = "tauri-plugin-apple-notes"
+version = "0.1.0"
+edition = "2021"
+description = "Tauri plugin for writing meeting notes into Apple Notes via Apple Events"
+links = "tauri-plugin-apple-notes"
+
+[build-dependencies]
+tauri-plugin = { version = "2", features = ["build"] }
+
+[dependencies]
+tauri = { version = "2.9.5" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

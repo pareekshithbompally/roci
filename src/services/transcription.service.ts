@@ -12,6 +12,7 @@ import { formatMeetingSummary } from './searchIndexing.service';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 import { remindersSync } from '@services/reminders';
+import { appleNotesSync } from '@services/appleNotes';
 
 export interface TranscriptionResult {
   meetingId: string;
@@ -105,8 +106,9 @@ class TranscriptionService {
         console.error('[TranscriptionService] Failed to invalidate meetings query:', error)
       );
 
-      // The meeting's action items → Reminders (no-op unless the integration is on).
+      // Integrations that mirror saved meetings (each a no-op unless switched on).
       void remindersSync.added(meetingId);
+      void appleNotesSync.meetingSaved(meetingId);
 
       // Fire-and-forget: index meeting into vector DB
       const now = new Date().toISOString();

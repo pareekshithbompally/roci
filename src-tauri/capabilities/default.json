@@ -44,6 +44,7 @@
     "store:default",
     "calendar:default",
     "apple-intelligence:default",
+    "apple-notes:default",
     "window-state:default",
     "updater:default",
     {

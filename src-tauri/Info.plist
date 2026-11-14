@@ -24,6 +24,9 @@
     <key>NSSpeechRecognitionUsageDescription</key>
     <string>Kasset.ai transcribes your recordings on this Mac with Apple's speech recognition when you choose it as your transcription model.</string>
 
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Kasset.ai saves each meeting's summary and transcript as a note in Apple Notes when you turn on the Apple Notes integration.</string>
+
     <key>NSUserNotificationAlertStyle</key>
     <string>alert</string>
 </dict>

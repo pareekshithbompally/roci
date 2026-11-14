@@ -7,6 +7,7 @@ export type NativeTarget =
   | 'reminders-settings'
   | 'speech-recognition-settings'
   | 'apple-intelligence-settings'
+  | 'automation-settings'
   | 'hex-app';
 
 /** Opens a System Settings privacy pane or a companion app. */

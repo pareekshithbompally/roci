@@ -1,6 +1,6 @@
 /**
- * useEventKitAccess — macOS access for one EventKit integration (calendars,
- * reminders) in the shared permission vocabulary. Re-read while the panel is
+ * useSystemAccess — macOS access for one integration (EventKit calendars and
+ * reminders, Automation for Notes) in the shared permission vocabulary. Re-read while the panel is
  * open so a grant in System Settings flips the row, like the recording checklist.
  */
 
@@ -13,23 +13,24 @@ import { eventKitAccess } from '@features/integrations/utils/eventKitAccess';
 import { openNative, type NativeTarget } from '@features/integrations/utils/openNative';
 import type { CalendarAccessStatus } from '@services/calendar/types';
 import type { IntegrationAccess } from '@features/integrations/types';
+import type { AccessId } from '@shared/query/queryKeys';
 
-interface EventKitSource {
-  id: 'calendar' | 'reminders';
+interface AccessSource {
+  id: AccessId;
   check: () => Promise<CalendarAccessStatus>;
   request: () => Promise<boolean>;
   /** The System Settings privacy pane for this kind of data. */
   settingsPane: NativeTarget;
 }
 
-export interface EventKitAccess {
+export interface SystemAccess {
   access: IntegrationAccess;
   /** Ask macOS; resolves whether access is now granted. */
   requestAccess: () => Promise<boolean>;
   openSettings: () => void;
 }
 
-export function useEventKitAccess({ id, check, request, settingsPane }: EventKitSource): EventKitAccess {
+export function useSystemAccess({ id, check, request, settingsPane }: AccessSource): SystemAccess {
   const queryClient = useQueryClient();
   const { data: status } = useQuery({
     queryKey: queryKeys.integrationAccess(id),
@@ -46,7 +47,7 @@ export function useEventKitAccess({ id, check, request, settingsPane }: EventKit
 
   const openSettings = useCallback(() => {
     openNative(settingsPane).catch((error: unknown) =>
-      console.error(`[useEventKitAccess] Opening ${id} settings failed:`, error));
+      console.error(`[useSystemAccess] Opening ${id} settings failed:`, error));
   }, [id, settingsPane]);
 
   return { access: status ? eventKitAccess(status) : 'unknown', requestAccess, openSettings };

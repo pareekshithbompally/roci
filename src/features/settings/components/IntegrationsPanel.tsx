@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Section } from '@shared/ui';
-import { AppleIntelligenceIntegration, CalendarIntegration, HexIntegration, RemindersIntegration } from '@features/integrations';
+import { AppleIntelligenceIntegration, AppleNotesIntegration, CalendarIntegration, HexIntegration, RemindersIntegration } from '@features/integrations';
 import { SettingsPage } from './shared';
 
 export const IntegrationsPanel: React.FC = () => (
@@ -14,6 +14,7 @@ export const IntegrationsPanel: React.FC = () => (
       <AppleIntelligenceIntegration />
       <CalendarIntegration />
       <RemindersIntegration />
+      <AppleNotesIntegration />
     </Section>
     <Section title="Apps" layout="stack">
       <HexIntegration />

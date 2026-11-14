@@ -226,6 +226,12 @@ export interface AppSettings {
   appleIntelligenceIntegration?: {
     enabled: boolean;
   };
+  /** Apple Notes integration: each meeting's summary + transcript as a note */
+  appleNotesIntegration?: {
+    enabled: boolean;
+    /** Epoch ms it was turned on; meetings from before aren't sent. */
+    since?: number;
+  };
   /** Hex integration: Hex's transcription models + one-way meeting sync */
   hexIntegration?: {
     enabled: boolean;

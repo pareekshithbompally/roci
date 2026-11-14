@@ -1,3 +1,6 @@
+/** Integrations whose macOS access is polled (Settings › Integrations). */
+export type AccessId = 'calendar' | 'reminders' | 'apple-notes';
+
 export const queryKeys = {
   notes: (meetingId: string) => ['notes', meetingId] as const,
   todos: (meetingId: string) => ['todos', meetingId] as const,
@@ -22,8 +25,8 @@ export const queryKeys = {
   mcpTools: () => ['mcp', 'tools'] as const,
   /** MCP: connected servers' self-description (title, icon) */
   mcpServerInfo: () => ['mcp', 'server-info'] as const,
-  /** macOS access for one integration (EventKit calendars / reminders) */
-  integrationAccess: (id: 'calendar' | 'reminders') => ['integration-access', id] as const,
+  /** macOS access for one integration (EventKit calendars / reminders, Automation → Notes) */
+  integrationAccess: (id: AccessId) => ['integration-access', id] as const,
   /** macOS Reminders lists (Integrations › Reminders list picker) */
   remindersLists: () => ['reminders', 'lists'] as const,
   /** Token usage summary for a time range (Settings → Usage) */

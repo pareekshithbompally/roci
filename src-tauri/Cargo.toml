@@ -34,6 +34,7 @@ tauri-plugin-http = "2"
 tauri-plugin-store = { path = "plugins/tauri-plugin-store" }
 tauri-plugin-calendar = { path = "plugins/tauri-plugin-calendar" }
 tauri-plugin-apple-intelligence = { path = "plugins/tauri-plugin-apple-intelligence" }
+tauri-plugin-apple-notes = { path = "plugins/tauri-plugin-apple-notes" }
 core-graphics = "0.24"
 core-foundation = "0.10"
 base64 = "0.22"

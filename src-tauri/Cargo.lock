@@ -31,6 +31,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-apple-intelligence",
+ "tauri-plugin-apple-notes",
  "tauri-plugin-autostart",
  "tauri-plugin-calendar",
  "tauri-plugin-dialog",
@@ -5501,6 +5502,16 @@ name = "tauri-plugin-apple-intelligence"
 version = "0.1.0"
 dependencies = [
  "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+]
+
+[[package]]
+name = "tauri-plugin-apple-notes"
+version = "0.1.0"
+dependencies = [
  "serde",
  "serde_json",
  "tauri",

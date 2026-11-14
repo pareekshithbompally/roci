@@ -10,7 +10,7 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { remindersService, remindersSync, type RemindersList } from '@services/reminders';
 import { queryKeys } from '@shared/query/queryKeys';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
-import { useEventKitAccess } from './useEventKitAccess';
+import { useSystemAccess } from './useSystemAccess';
 import type { IntegrationControls } from '@features/integrations/types';
 
 const SOURCE = {
@@ -29,7 +29,7 @@ export interface RemindersControls extends IntegrationControls {
 export function useRemindersControls(): RemindersControls {
   const { settings, setSettings } = useSettings();
   const current = settings.remindersIntegration ?? { enabled: false };
-  const { access, requestAccess, openSettings } = useEventKitAccess(SOURCE);
+  const { access, requestAccess, openSettings } = useSystemAccess(SOURCE);
 
   const { data: lists = [] } = useQuery({
     queryKey: queryKeys.remindersLists(),
