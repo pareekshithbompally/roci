@@ -18,7 +18,7 @@ import type { AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { store } from '@services/db';
 import { predefinedProviders, MANAGED_SDK_PROVIDERS } from '@config/providers.config';
-import { withIntegrationModels } from '@shared/utils/modelResolver';
+import { withSummaryModels } from '@shared/utils/modelResolver';
 import { defaultSpeechSelection } from '@services/ai/transcription';
 import { queryKeys } from '@shared/query/queryKeys';
 
@@ -79,7 +79,7 @@ export const defaultSettings: AppSettings = {
 const SETTINGS_KEYS: Array<keyof AppSettings> = [
   'transcriptionProvider', 'transcriptionModel', 'chatModel', 'analyzeModel', 'kgExtractionModel',
   'apiKey', 'defaultAudioSource',
-  'jobProcessing', 'summaryExtraction', 'meetingDefaults', 'calendarIntegration', 'remindersIntegration', 'hexIntegration', 'appleIntelligenceIntegration', 'showModelAvatars', 'hideToolCalls',
+  'jobProcessing', 'summaryExtraction', 'meetingDefaults', 'calendarIntegration', 'remindersIntegration', 'hexIntegration', 'appleIntelligenceIntegration', 'appleNotesIntegration', 'showModelAvatars', 'hideToolCalls',
 ];
 
 /**
@@ -226,15 +226,14 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         console.log('[SettingsContext] Clearing dangling selected provider:', selectedProviderName);
         selectedProviderName = null;
       }
-      const modelServed = (id: string | undefined) =>
-        !!id && loadedProviders.some((p) => p.models?.some((m) => m.id === id));
+      const servedBy = (sources: typeof loadedProviders, id: string) => sources.some((p) => p.models?.some((m) => m.id === id));
+      const modelServed = (id: string) => servedBy(loadedProviders, id);
+      // The summary model may also come from an integration (Apple Intelligence).
+      const summaryServed = (id: string) => servedBy(withSummaryModels(loadedProviders, loadedSettings), id);
       if (loadedSettings.chatModel && !modelServed(loadedSettings.chatModel)) {
         console.log('[SettingsContext] Clearing dangling chat model:', loadedSettings.chatModel);
         loadedSettings.chatModel = '';
       }
-      // The summary model may also come from an integration (Apple Intelligence).
-      const summaryServed = (id: string) =>
-        withIntegrationModels(loadedProviders, loadedSettings).some((p) => p.models?.some((m) => m.id === id));
       if (loadedSettings.analyzeModel && !summaryServed(loadedSettings.analyzeModel)) {
         console.log('[SettingsContext] Clearing dangling analyze model:', loadedSettings.analyzeModel);
         loadedSettings.analyzeModel = '';

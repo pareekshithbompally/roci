@@ -17,7 +17,10 @@ vi.mock('@config/providers.config', async (importOriginal) => ({
 import {
   getProviderType,
   supportsWebSearch,
+  supportsTools,
+  requiresApiKey,
   resolveModel,
+  resolveChatModel,
   getAllActiveModels,
 } from '@shared/utils/modelResolver';
 
@@ -144,6 +147,43 @@ describe('resolveModel', () => {
   });
 });
 
+// ── resolveChatModel ──────────────────────────────────────────────
+// Chat (and knowledge-graph extraction) resolve against the user's providers
+// only. Apple Intelligence is a summary source — no tool calling, 4k context —
+// so its switch never makes it a chat model.
+
+describe('resolveChatModel', () => {
+  const appleSettings = (enabled: boolean) =>
+    ({
+      chatModel: 'apple-intelligence',
+      appleIntelligenceIntegration: { enabled },
+    }) as any;
+
+  it('never resolves Apple Intelligence, whatever its switch', () => {
+    expect(resolveChatModel(appleSettings(true), [])).toBeNull();
+    expect(resolveChatModel(appleSettings(false), [])).toBeNull();
+  });
+
+  it('resolves user providers while the Apple switch is on', () => {
+    const providers = [makeProvider('openai', true, [makeModel('gpt-4o')])];
+    const settings = {
+      chatModel: 'gpt-4o',
+      appleIntelligenceIntegration: { enabled: true },
+    } as any;
+    const resolved = resolveChatModel(settings, providers as any);
+
+    expect(resolved!.provider).toBe('openai');
+  });
+
+  it('keyed providers still require a key', () => {
+    const providers = [makeProvider('openai', true, [makeModel('gpt-4o')])];
+    const resolved = resolveChatModel({ chatModel: 'gpt-4o' } as any, providers as any);
+
+    expect(requiresApiKey(resolved!)).toBe(true);
+    expect(supportsTools(resolved!)).toBe(true);
+  });
+});
+
 // ── getAllActiveModels ───────────────────────────────────────────
 
 describe('getAllActiveModels', () => {
@@ -203,10 +243,10 @@ describe('getAllActiveModels', () => {
 
 describe('summary models from integrations', () => {
   it('Apple Intelligence joins the summary sources only while its integration is on', async () => {
-    const { withIntegrationModels, resolveSummaryModel, requiresApiKey } = await import('@shared/utils/modelResolver');
+    const { withSummaryModels, resolveSummaryModel, requiresApiKey } = await import('@shared/utils/modelResolver');
     const off = { analyzeModel: 'apple-intelligence' } as never;
     const on = { analyzeModel: 'apple-intelligence', appleIntelligenceIntegration: { enabled: true } } as never;
-    expect(withIntegrationModels([], off)).toEqual([]);
+    expect(withSummaryModels([], off)).toEqual([]);
     expect(resolveSummaryModel(off, [])).toBeNull();
     const resolved = resolveSummaryModel(on, []);
     expect(resolved?.provider).toBe('apple-intelligence');

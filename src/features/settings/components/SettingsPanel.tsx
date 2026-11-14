@@ -15,8 +15,8 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { ProvidersPanel } from './ProvidersPanel';
 import { ProvidersPanelErrorBoundary } from './ProvidersPanelErrorBoundary';
 import { CategoriesPanel } from './CategoriesPanel';
-import { InterfacePanel } from './InterfacePanel';
-import { AudioPanel } from './AudioPanel';
+import { GeneralPanel } from './GeneralPanel';
+import { CapabilitiesPanel } from './CapabilitiesPanel';
 import { UsagePanel } from './UsagePanel';
 import { IntegrationsPanel } from './IntegrationsPanel';
 import { McpServersPanel } from './mcp';
@@ -24,12 +24,12 @@ import { Surface } from '@shared/ui';
 import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore';
 
 const PANEL_COMPONENTS: Record<SettingsPanelType, React.FC> = {
-  audio: AudioPanel,
+  general: GeneralPanel,
+  capabilities: CapabilitiesPanel,
   providers: ProvidersPanel,
   categories: CategoriesPanel,
   integrations: IntegrationsPanel,
   mcp: McpServersPanel,
-  interface: InterfacePanel,
   usage: UsagePanel,
 };
 

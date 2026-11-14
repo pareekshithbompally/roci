@@ -150,19 +150,64 @@ const APPLE_INTELLIGENCE_PROVIDER: ModelProvider = {
 };
 
 /**
- * The user's providers plus the models integrations contribute while switched on
- * (Apple Intelligence). Used by summary-model surfaces only — chat never sees them.
+ * Summary-model sources: the user's providers plus the models integrations
+ * contribute while switched on (Apple Intelligence). Summaries only — chat and
+ * knowledge-graph extraction use the user's providers (Apple's on-device model
+ * has no tool calling and a 4k context).
  */
-export function withIntegrationModels(providers: ModelProvider[], settings: AppSettings): ModelProvider[] {
+export function withSummaryModels(providers: ModelProvider[], settings: AppSettings): ModelProvider[] {
   return isIntegrationEnabled(settings, 'appleIntelligence') ? [...providers, APPLE_INTELLIGENCE_PROVIDER] : providers;
 }
 
-/** The Summary model (Settings › Audio), falling back to the chat model, resolved against every summary source. */
+/** The chat model (also knowledge-graph extraction), resolved against the user's providers. */
+export function resolveChatModel(settings: AppSettings, providers: ModelProvider[]): ResolvedModel | null {
+  return resolveModel(settings.chatModel, providers);
+}
+
+/** The Summary model (Settings › Capabilities), falling back to the chat model, resolved against every summary source. */
 export function resolveSummaryModel(settings: AppSettings, providers: ModelProvider[]): ResolvedModel | null {
-  return resolveModel(settings.analyzeModel || settings.chatModel, withIntegrationModels(providers, settings));
+  return resolveModel(settings.analyzeModel || settings.chatModel, withSummaryModels(providers, settings));
 }
 
 /** Whether calls need an API key (on-device models don't). */
 export function requiresApiKey(resolved: ResolvedModel): boolean {
   return getProviderType(resolved.provider) !== 'apple-intelligence';
+}
+
+/** One entry in a model picker (Settings › Capabilities): any job, any source. */
+export interface ModelChoice {
+  /** What the setting stores (model id, or a speech selection key). */
+  value: string;
+  provider: string;
+  modelId: string;
+  label: string;
+  /** Can run now; otherwise listed under "Needs setup" with `hint`. */
+  ready: boolean;
+  /** Next step when not ready ("Add OpenAI API key"). */
+  hint: string | null;
+}
+
+/** Every model the given sources offer, with whether it can run (a key where one is needed). */
+export function modelChoices(sources: ModelProvider[]): ModelChoice[] {
+  return sources
+    .filter((p) => p.active)
+    .flatMap((p) => (p.models ?? []).map((m) => {
+      const resolved = resolveModel(m.id, [p]);
+      const ready = !!resolved && (!requiresApiKey(resolved) || !!resolved.apiKey);
+      return {
+        value: m.id,
+        provider: p.provider,
+        modelId: m.id,
+        label: m.name || m.id,
+        ready,
+        hint: ready ? null : `Add ${getProviderTitle(p.provider)} API key`,
+      };
+    }));
+}
+
+/** Picker layout every model picker shares: usable models by provider, then one "Needs setup" list. */
+export function groupChoices(choices: ModelChoice[]): { groups: Array<[string, ModelChoice[]]>; needsSetup: ModelChoice[] } {
+  const byProvider = new Map<string, ModelChoice[]>();
+  choices.filter((c) => c.ready).forEach((c) => byProvider.set(c.provider, [...(byProvider.get(c.provider) ?? []), c]));
+  return { groups: [...byProvider.entries()], needsSetup: choices.filter((c) => !c.ready) };
 }

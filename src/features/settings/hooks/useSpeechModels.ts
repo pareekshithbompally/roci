@@ -1,5 +1,5 @@
 /**
- * Speech model hooks for the UI: what Settings › Audio and the composer mic can
+ * Speech model hooks for the UI: what Settings › Capabilities and the composer mic can
  * use. Integration sources (Hex, Apple Speech) come from features/integrations.
  */
 
@@ -13,7 +13,7 @@ import {
 } from '@services/ai/transcription';
 import type { SpeechModelOption } from '@services/ai/transcription';
 
-/** Every speech model with whether it can run now (Settings › Audio). */
+/** Every speech model with whether it can run now (Settings › Capabilities). */
 export function useSpeechModelOptions(): SpeechModelOption[] {
   const { providers } = useSettings();
   const integrations = useIntegrationSpeech();

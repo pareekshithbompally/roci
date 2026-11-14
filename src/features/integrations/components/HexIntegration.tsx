@@ -1,5 +1,5 @@
 /**
- * HexIntegration — Hex's transcription models (in Settings › Audio while on)
+ * HexIntegration — Hex's transcription models (in Settings › Capabilities while on)
  * and every Hex meeting kept in Kasset (one-way, Hex → Kasset).
  */
 

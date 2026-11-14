@@ -14,7 +14,7 @@ import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import type { FilePart, UserContent } from 'ai';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { ProcessedResult, AppSettings, MeetingSummary, StoredTranscriptSegment } from '@shared/types';
-import { resolveModel, resolveSummaryModel, requiresApiKey, type ResolvedModel } from '@shared/utils/modelResolver';
+import { resolveChatModel, resolveSummaryModel, requiresApiKey, type ResolvedModel } from '@shared/utils/modelResolver';
 import { MAX_AUDIO_SIZE_BYTES, MAX_AUDIO_SIZE_MB, MIN_AUDIO_SIZE_BYTES, WAV_HEADER_SIZE_BYTES } from '@shared/utils/audio.utils';
 import { parseVTT } from '@shared/utils/vtt.utils';
 import { buildTranscriptionRequest, formatTemporalContext } from '@core/ai';
@@ -67,7 +67,7 @@ export async function transcribeAudio(
 ): Promise<TranscriptResult> {
   const selection = speechSelectionOf(settings);
   if (!selection) {
-    throw new Error('Choose a transcription model in Settings › Audio.');
+    throw new Error('Choose a transcription model in Settings › Capabilities.');
   }
   const integration = TRANSCRIPTION_CONFIG.integrationByProvider[selection.provider];
   if (integration && !isIntegrationEnabled(settings, integration)) {
@@ -90,7 +90,7 @@ function summaryModelOrThrow(settings: AppSettings, providers: ModelProvider[]):
   const resolved = resolveSummaryModel(settings, providers);
   if (!resolved) {
     const id = settings.analyzeModel || settings.chatModel;
-    throw new Error(`Summary model "${id}" isn't available. Choose one in Settings › Audio.`);
+    throw new Error(`Summary model "${id}" isn't available. Choose one in Settings › Capabilities.`);
   }
   if (requiresApiKey(resolved) && !resolved.apiKey) {
     throw new Error(`API key not configured for ${resolved.provider}. Please add it in Settings → Providers.`);
@@ -187,8 +187,8 @@ class UnifiedAIService {
     providers: ModelProvider[],
   ): Promise<{ title: string; usage?: TokenUsage }> {
     const fallback = userMessage.slice(0, 30);
-    const resolved = resolveModel(settings.chatModel, providers);
-    if (!resolved?.apiKey) return { title: fallback };
+    const resolved = resolveChatModel(settings, providers);
+    if (!resolved || (requiresApiKey(resolved) && !resolved.apiKey)) return { title: fallback };
 
     try {
       const model = createModel(resolved);

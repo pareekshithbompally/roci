@@ -18,7 +18,7 @@ export function isContextWindowError(error: unknown): boolean {
   return appleFailure(error)?.code === 'context-window';
 }
 
-const OTHER_MODEL = 'Choose another Summary model in Settings › Audio, then retry.';
+const OTHER_MODEL = 'Choose another Summary model in Settings › Capabilities, then retry.';
 
 /** A sentence for the meeting's Failed state; non-Apple errors pass through unchanged. */
 export function summaryError(error: unknown): unknown {

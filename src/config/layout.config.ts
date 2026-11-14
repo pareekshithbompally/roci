@@ -22,6 +22,9 @@ export const LAYOUT = {
   /** Page column — Settings and the meeting view share one centred reading width */
   pageColumn: 'max-w-4xl mx-auto w-full',
 
+  /** Plain settings dropdowns (options, sources); model pickers are wider (ModelSelect) */
+  settingsSelect: 'w-48',
+
   /** Page gutter around the page column */
   pageGutter: 'px-6 md:px-8',
 } as const;

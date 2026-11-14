@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { AppStatus, type ProcessedResult } from '@shared/types';
 
 export type ViewType = 'home' | 'settings' | 'reminders' | 'calendar';
-export type SettingsPanel = 'audio' | 'providers' | 'categories' | 'integrations' | 'mcp' | 'usage' | 'interface';
+export type SettingsPanel = 'general' | 'capabilities' | 'providers' | 'categories' | 'integrations' | 'mcp' | 'usage';
 export type ResultTab = 'transcript' | 'summary' | 'todo' | 'notes';
 
 /** What the user asked for while a recording was capturing. */
@@ -48,7 +48,7 @@ export const useAppStore = create<AppStoreState>((set) => ({
   result: null,
   selectedHistoryId: null,
   activeResultTab: 'summary',
-  activeSettingsPanel: 'audio',
+  activeSettingsPanel: 'general',
   meetingChatOpen: false,
   permissionChecklistOpen: false,
   recordingExitPrompt: null,

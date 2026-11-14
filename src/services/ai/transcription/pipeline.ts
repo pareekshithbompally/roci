@@ -31,7 +31,7 @@ const { sampleRate, hexProvider } = TRANSCRIPTION_CONFIG;
 async function modelOf(selection: SpeechSelection): Promise<string> {
   if (selection.model) return selection.model;
   if (selection.provider === hexProvider) return defaultHexModel();
-  throw new Error('Choose a transcription model in Settings › Audio.');
+  throw new Error('Choose a transcription model in Settings › Capabilities.');
 }
 
 /** Part segments shifted to the recording's clock; a part without segments becomes one. */

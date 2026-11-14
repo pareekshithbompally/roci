@@ -11,7 +11,7 @@ import { useCallback, useMemo } from 'react';
 import { toolRegistry } from '@extensions/tools';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
-import { resolveModel, supportsTools, supportsWebSearch } from '@shared/utils/modelResolver';
+import { resolveChatModel, supportsTools, supportsWebSearch } from '@shared/utils/modelResolver';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { CHAT_TOOLS_CONFIG, DEFAULT_CHAT_TOOLS } from '@config/chatTools.config';
 import {
@@ -40,7 +40,7 @@ export function useToolCatalog() {
   const toggleWebSearch = useChatStore((s) => s.toggleWebSearch);
 
   const prefs = settings.chatTools ?? DEFAULT_CHAT_TOOLS;
-  const resolved = useMemo(() => resolveModel(settings.chatModel, providers), [settings.chatModel, providers]);
+  const resolved = useMemo(() => resolveChatModel(settings, providers), [settings, providers]);
 
   const catalog = useMemo(
     () =>

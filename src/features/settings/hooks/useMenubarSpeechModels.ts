@@ -1,6 +1,6 @@
 /**
  * Keeps the tray's Speech Model submenu in step with Hex's downloaded models
- * (only while the Hex integration is on — same gated options as Settings › Audio)
+ * (only while the Hex integration is on — same gated options as Settings › Capabilities)
  * and the selected speech engine (Hex: `status_item::update_transcription`).
  *
  * The tray is backend-owned, so it can't read the app's settings: this hook

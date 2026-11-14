@@ -1,5 +1,6 @@
 import * as SelectPrimitive from '@radix-ui/react-select';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import type React from 'react';
 import type { ComponentProps } from 'react';
 import { cn } from './utils';
 import { FIELD, MENU_LIST, MENU_ITEM, MENU_LABEL, MENU_SEPARATOR } from './recipes';
@@ -32,7 +33,8 @@ export function SelectContent({ className, children, position = 'popper', ...pro
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
-        className={cn(MENU_LIST, 'p-0 overflow-hidden', className)}
+        // Never taller than the room below the trigger (or the cap); the viewport scrolls inside.
+        className={cn(MENU_LIST, 'p-0 overflow-hidden max-h-[min(24rem,var(--radix-select-content-available-height))]', className)}
         position={position}
         sideOffset={position === 'popper' ? 4 : undefined}
         {...props}
@@ -53,10 +55,21 @@ export function SelectContent({ className, children, position = 'popper', ...pro
   );
 }
 
-export function SelectItem({ className, children, ...props }: ComponentProps<typeof SelectPrimitive.Item>) {
+export interface SelectItemProps extends ComponentProps<typeof SelectPrimitive.Item> {
+  /** Leading glyph (provider logo, model icon). */
+  icon?: React.ReactNode;
+  /** Second line under the label: status, next step. Not part of the selected value's text. */
+  description?: React.ReactNode;
+}
+
+export function SelectItem({ className, children, icon, description, ...props }: SelectItemProps) {
   return (
-    <SelectPrimitive.Item className={cn(MENU_ITEM, className)} {...props}>
-      <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+    <SelectPrimitive.Item className={cn(MENU_ITEM, description && 'items-start', className)} {...props}>
+      {icon && <span className={cn('shrink-0 flex', description && 'mt-0.5')}>{icon}</span>}
+      <span className="flex flex-col min-w-0">
+        <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+        {description && <span className="text-callout text-faint truncate">{description}</span>}
+      </span>
     </SelectPrimitive.Item>
   );
 }

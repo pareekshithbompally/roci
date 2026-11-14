@@ -29,7 +29,7 @@ import { StorageConfig, generateRecordingFilename, getRecordingIdFromFilename } 
 import { unifiedAIService } from '@services/unifiedAIService';
 import { activityStore } from '@shared/stores/activityStore';
 import type { ActivityAction } from '@shared/stores/activityStore';
-import { resolveModel } from '@shared/utils/modelResolver';
+import { resolveChatModel } from '@shared/utils/modelResolver';
 import { consumePendingCalendarMeta } from '@services/calendar/recording-bridge';
 import { RECORDING_EVENTS } from '@config/audio.config';
 import { useRecordingRecovery } from '@features/recording/hooks/useRecordingRecovery';
@@ -1010,8 +1010,8 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         // Review sessions: show compact row with process/later/discard.
         // Only include Summarize if a model is configured — otherwise clicking
         // would fail silently since there's nothing to route the request to.
-        const hasModel = !!resolveModel(
-          settingsContext?.settings?.chatModel || '',
+        const hasModel = !!settingsContext?.settings && !!resolveChatModel(
+          settingsContext.settings,
           settingsContext?.providers || []
         );
         const actions: ActivityAction[] = [];

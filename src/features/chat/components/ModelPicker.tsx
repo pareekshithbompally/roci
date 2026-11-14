@@ -11,29 +11,15 @@ import { Check, ChevronDown, Wrench } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { ProvidersAvatar, ModelIcon } from '@shared/components';
 import { getProviderTitle } from '@shared/utils/provider.utils';
-import { resolveModel, supportsTools } from '@shared/utils/modelResolver';
+import { groupChoices, modelChoices, resolveChatModel, supportsTools } from '@shared/utils/modelResolver';
 import { modalitiesService } from '@services/modalities';
 import { ModalityIcons } from '@features/settings/components/ModalityIcons';
-import { MANAGED_SDK_PROVIDERS } from '@config/providers.config';
 import type { ModelInfo } from '@services/modalities';
 import { Button, CommandPopover, CommandGroup, CommandItem, Icon, Text, cn } from '@shared/ui';
 
 interface ModelPickerProps {
   /** Compact mode for inline display */
   compact?: boolean;
-}
-
-interface ModelOption {
-  id: string;
-  name: string;
-  provider: string;
-  toolsEnabled: boolean;
-}
-
-/** Check if a model has tools enabled (without needing full ResolvedModel) */
-function modelHasTools(provider: string, toolsEnabledFlag?: boolean): boolean {
-  if (toolsEnabledFlag !== undefined) return toolsEnabledFlag;
-  return MANAGED_SDK_PROVIDERS.has(provider);
 }
 
 export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => {
@@ -51,46 +37,10 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
     return () => { cancelled = true; };
   }, [modalitiesReady]);
 
-  // Get all models from active providers, grouped by provider
-  const modelsByProvider = useMemo(() => {
-    const grouped: Record<string, { provider: string; models: ModelOption[] }> = {};
-
-    providers.forEach(provider => {
-      if (provider.active && provider.models && provider.models.length > 0) {
-        grouped[provider.provider] = {
-          provider: provider.provider,
-          models: provider.models.map(model => ({
-            id: model.id,
-            name: model.name || model.displayName || model.id,
-            provider: provider.provider,
-            toolsEnabled: modelHasTools(provider.provider, model.toolsEnabled),
-          })),
-        };
-      }
-    });
-
-    return grouped;
-  }, [providers]);
-
-  // Flat list for finding selected model
-  const allModels = useMemo(() => {
-    const models: ModelOption[] = [];
-    Object.values(modelsByProvider).forEach(group => {
-      models.push(...group.models);
-    });
-    return models;
-  }, [modelsByProvider]);
-
-  // Get currently selected model info
-  const selectedModel = useMemo(() => {
-    if (!settings.chatModel) return null;
-    return allModels.find(m => m.id === settings.chatModel) || {
-      id: settings.chatModel,
-      name: settings.chatModel,
-      provider: 'unknown',
-      toolsEnabled: false,
-    };
-  }, [settings.chatModel, allModels]);
+  // The same catalog and layout as Settings › Capabilities: usable models by provider, then "Needs setup".
+  const choices = useMemo(() => modelChoices(providers), [providers]);
+  const { groups, needsSetup } = useMemo(() => groupChoices(choices), [choices]);
+  const selected = choices.find((c) => c.value === settings.chatModel);
 
   const handleSelectModel = (modelId: string) => {
     setSettings({ chatModel: modelId });
@@ -98,12 +48,12 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
     setOpen(false);
 
     // Persist last-used model for auto-restore on next launch
-    const model = allModels.find(m => m.id === modelId);
+    const model = choices.find((c) => c.value === modelId);
     if (model) {
       try {
         localStorage.setItem('kasset_last_used_model', JSON.stringify({
           provider: model.provider,
-          modelId: model.id,
+          modelId: model.modelId,
         }));
       } catch {
         // localStorage not available — ignore
@@ -113,11 +63,11 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
 
   // Check if current model supports tool calling (for trigger display)
   const selectedToolsEnabled = useMemo(() => {
-    const resolved = resolveModel(settings.chatModel, providers);
+    const resolved = resolveChatModel(settings, providers);
     return resolved ? supportsTools(resolved) : false;
-  }, [settings.chatModel, providers]);
+  }, [settings, providers]);
 
-  const hasModels = allModels.length > 0;
+  const hasModels = groups.length > 0;
 
   return (
     <CommandPopover
@@ -132,11 +82,11 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
           disabled={!hasModels}
           title={hasModels ? 'Select model' : 'No models available - configure providers first'}
         >
-          {selectedModel ? (
+          {selected ? (
             <>
-              <ModelIcon provider={selectedModel.provider} modelId={selectedModel.id} size={compact ? 14 : 16} />
+              <ModelIcon provider={selected.provider} modelId={selected.modelId} size={compact ? 14 : 16} />
               <Text variant="label" tone="inherit" truncate className="max-w-32">
-                {selectedModel.name}
+                {selected.label}
               </Text>
               {selectedToolsEnabled && (
                 <span title="Meeting tools available" className="shrink-0 flex items-center">
@@ -153,31 +103,31 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
         </Button>
       }
     >
-      {Object.values(modelsByProvider).map(group => (
+      {groups.map(([provider, models]) => (
         <CommandGroup
-          key={group.provider}
+          key={provider}
           heading={
             <div className="flex items-center gap-2">
-              <ProvidersAvatar provider={group.provider} size={14} />
-              <span>{getProviderTitle(group.provider)}</span>
+              <ProvidersAvatar provider={provider} size={14} />
+              <span>{getProviderTitle(provider)}</span>
             </div>
           }
         >
-          {group.models.map(model => {
-            const isSelected = settings.chatModel === model.id;
+          {models.map((model) => {
+            const isSelected = settings.chatModel === model.value;
             const info: ModelInfo | null = modalitiesReady
-              ? modalitiesService.getModelInfo(model.provider, model.id)
+              ? modalitiesService.getModelInfo(model.provider, model.modelId)
               : null;
 
             return (
               <CommandItem
-                key={`${group.provider}-${model.id}`}
-                value={`${model.name} ${getProviderTitle(model.provider)}`}
-                onSelect={() => handleSelectModel(model.id)}
+                key={`${provider}-${model.value}`}
+                value={`${model.label} ${getProviderTitle(model.provider)}`}
+                onSelect={() => handleSelectModel(model.value)}
               >
-                <ModelIcon provider={model.provider} modelId={model.id} size={14} fallback="none" />
+                <ModelIcon provider={model.provider} modelId={model.modelId} size={14} fallback="none" />
                 <Text variant={isSelected ? 'bodyStrong' : 'body'} truncate className="flex-1">
-                  {model.name}
+                  {model.label}
                 </Text>
                 <div className="flex items-center gap-1.5 shrink-0 ml-2">
                   <ModalityIcons modelInfo={info} variant="compact" />
@@ -188,6 +138,19 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
           })}
         </CommandGroup>
       ))}
+      {needsSetup.length > 0 && (
+        <CommandGroup heading="Needs setup">
+          {needsSetup.map((model) => (
+            <CommandItem key={`setup-${model.provider}-${model.value}`} value={`${model.label} ${getProviderTitle(model.provider)}`} disabled>
+              <ModelIcon provider={model.provider} modelId={model.modelId} size={14} />
+              <span className="flex flex-col min-w-0 flex-1">
+                <Text truncate>{model.label}</Text>
+                <Text variant="helper" tone="faint" truncate>{model.hint}</Text>
+              </span>
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      )}
     </CommandPopover>
   );
 };

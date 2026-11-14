@@ -7,3 +7,4 @@ export { KeyValueEditor, pairsToRecord } from './KeyValueEditor';
 export type { KeyValuePair } from './KeyValueEditor';
 export { FormDialog } from './FormDialog';
 export { activateOnKey } from './activateOnKey';
+export { ModelSelect } from './ModelSelect';

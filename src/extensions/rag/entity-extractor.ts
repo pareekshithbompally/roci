@@ -10,7 +10,7 @@
 
 import type { MeetingSummary, AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
-import { resolveModel } from '@shared/utils/modelResolver';
+import { resolveChatModel, requiresApiKey } from '@shared/utils/modelResolver';
 import { generateText, Output, jsonSchema } from 'ai';
 import { createModel } from '@services/ai';
 import { buildEntityExtractionPrompt } from '@core/ai/prompts/entity-extraction.prompt';
@@ -110,8 +110,8 @@ async function callLLMForExtraction(
   categories: string[],
   signal?: AbortSignal,
 ): Promise<ExtractionResponse | null> {
-  const resolved = resolveModel(settings.chatModel, providers);
-  if (!resolved?.apiKey) {
+  const resolved = resolveChatModel(settings, providers);
+  if (!resolved || (requiresApiKey(resolved) && !resolved.apiKey)) {
     console.warn(`[EntityExtractor] No API key for chat model — skipping "${meetingTitle}"`);
     return null;
   }

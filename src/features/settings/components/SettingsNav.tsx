@@ -10,16 +10,7 @@
  */
 
 import React from 'react';
-import {
-  Mic,
-  KeyRound,
-  Workflow,
-  Blocks,
-  Server,
-  BarChart3,
-  SlidersHorizontal,
-  type LucideIcon,
-} from 'lucide-react';
+import { Blocks, ChartColumn, Cpu, Server, Settings2, Sparkles, Workflow, type LucideIcon } from 'lucide-react';
 import { useAppStore, useAppActions } from '@shared/stores/appStore';
 import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore';
 import { isTauriEnvironment } from '@services/tauri';
@@ -33,13 +24,13 @@ export interface SettingsNavItem {
 }
 
 export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
-  { id: 'audio', label: 'Audio', icon: Mic },
-  { id: 'providers', label: 'Providers', icon: KeyRound },
-  { id: 'categories', label: 'Workflow', icon: Workflow },
+  { id: 'general', label: 'General', icon: Settings2 },
+  { id: 'capabilities', label: 'Capabilities', icon: Sparkles },
+  { id: 'providers', label: 'Providers', icon: Cpu },
   { id: 'integrations', label: 'Integrations', icon: Blocks, tauriOnly: true },
+  { id: 'categories', label: 'Workflow', icon: Workflow },
   { id: 'mcp', label: 'MCP Servers', icon: Server, tauriOnly: true },
-  { id: 'usage', label: 'Usage', icon: BarChart3 },
-  { id: 'interface', label: 'System', icon: SlidersHorizontal },
+  { id: 'usage', label: 'Usage', icon: ChartColumn },
 ];
 
 export const SettingsNav: React.FC = () => {

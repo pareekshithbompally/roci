@@ -1,6 +1,6 @@
 /**
  * Speech model catalog — what the user can pick, whether it can run now, and
- * which adapter and credentials run it. Single rule used by Settings › Audio,
+ * which adapter and credentials run it. Single rule used by Settings › Capabilities,
  * the composer's mic, the menubar, and the pipeline.
  */
 

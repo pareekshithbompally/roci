@@ -9,7 +9,8 @@ export {
   SettingsPanel, 
   ProvidersPanel, 
   CategoriesPanel, 
-  InterfacePanel,
+  GeneralPanel,
+  CapabilitiesPanel,
   UpdateBanner,
 } from './components';
 

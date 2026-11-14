@@ -15,7 +15,7 @@
 
 import { streamText, isStepCount } from 'ai';
 import { createModel, toSDKMessages, getWebSearchTools, toExecutableTools } from '@services/ai';
-import { resolveModel } from '@shared/utils/modelResolver';
+import { resolveChatModel, requiresApiKey } from '@shared/utils/modelResolver';
 import { toolRegistry, loadMcpTools } from '@extensions/tools';
 import { DEFAULT_CHAT_TOOLS } from '@config/chatTools.config';
 import { extractTokenUsage } from '@services/ai/types';
@@ -46,11 +46,11 @@ export async function orchestrate(
 
   // ── Resolve model ──
 
-  const resolved = resolveModel(settings.chatModel, providers);
+  const resolved = resolveChatModel(settings, providers);
   if (!resolved) {
     throw new Error(`Model "${settings.chatModel}" not found. Please configure a model in Settings → Providers.`);
   }
-  if (!resolved.apiKey) {
+  if (requiresApiKey(resolved) && !resolved.apiKey) {
     throw new Error(`API key not configured for ${resolved.provider}. Please add it in Settings → Providers.`);
   }
 

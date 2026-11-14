@@ -1,12 +1,11 @@
 /**
- * InterfacePanel Component
+ * GeneralPanel — appearance, capture (input source), storage, search index, version.
  *
- * Settings for interface customization, storage, search index management.
  * Data (index stats, disk usage, storage path, version) from systemInfoStore.
  * Re-index actions stay inline (they're operations, not state).
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Sun, Moon, Monitor, Copy, Check, FolderOpen, FolderSearch, RefreshCw, Loader2 } from 'lucide-react';
 import { useTheme } from '@shared/hooks/useTheme';
 import { useSettings } from '@shared/contexts/SettingsContext';
@@ -15,14 +14,22 @@ import { isTauriEnvironment } from '@services/tauri';
 import { searchIndexingService } from '@services/searchIndexing.service';
 import { useSystemInfo, systemInfoStore, DISK_USAGE_LABELS } from '@features/settings/stores/systemInfoStore';
 import { SettingsPage } from './shared';
-import { Badge, Button, Card, CardRow, Icon, IconButton, Section, Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue, Switch, Tabs, Text } from '@shared/ui';
+import { Button, Card, CardRow, Icon, IconButton, Section, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Status, Switch, Tabs, Text } from '@shared/ui';
 
 import { useAppUpdate } from '@features/settings/hooks/useAppUpdate';
-import { getProviderTitle } from '@shared/utils/provider.utils';
-import { ModelIcon } from '@shared/components';
+import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
+import { LAYOUT } from '@config/layout.config';
 import { confirm } from '@shared/stores/confirmStore';
 
-export const InterfacePanel: React.FC = () => {
+/** Recording sources offered in General › Capture, and what each needs from macOS. */
+const CAPTURE_SOURCES = ['systemAndMicrophone', 'system', 'microphone'] as const;
+const CAPTURE_HINT: Record<(typeof CAPTURE_SOURCES)[number], string> = {
+  systemAndMicrophone: 'Screen Recording and Microphone access required.',
+  system: 'Screen Recording permission required.',
+  microphone: 'Microphone access required.',
+};
+
+export const GeneralPanel: React.FC = () => {
   const { theme, setTheme } = useTheme();
   const { settings, setSettings, providers } = useSettings();
   const { showToast } = useToast();
@@ -38,31 +45,11 @@ export const InterfacePanel: React.FC = () => {
     indexStats,
   } = useSystemInfo();
 
+  const captureSource = (settings.defaultAudioSource || 'systemAndMicrophone') as (typeof CAPTURE_SOURCES)[number];
   const [storagePathCopied, setStoragePathCopied] = useState(false);
   const [rebuildingPhase, setRebuildingPhase] = useState<'meetings' | 'chats' | 'kg' | null>(null);
   const [isRebuilding, setIsRebuilding] = useState(false);
 
-  // Derived from providers (reactive via context)
-  const allActiveModels = useMemo(() => {
-    const models: Array<{ id: string; provider: string; name: string }> = [];
-    providers.forEach(provider => {
-      if (provider.active && provider.models) {
-        provider.models.forEach(model => {
-          models.push({ id: model.id, provider: provider.provider, name: model.name || model.id });
-        });
-      }
-    });
-    return models;
-  }, [providers]);
-
-  const modelsByProvider = useMemo(() => {
-    const grouped: Record<string, typeof allActiveModels> = {};
-    allActiveModels.forEach((model) => {
-      if (!grouped[model.provider]) grouped[model.provider] = [];
-      grouped[model.provider].push(model);
-    });
-    return grouped;
-  }, [allActiveModels]);
 
   const loadIndexStats = useCallback(async () => {
     await systemInfoStore.refresh();
@@ -76,7 +63,7 @@ export const InterfacePanel: React.FC = () => {
       const indexed = await ragIndexer.indexAll(meetingItems, { includeEmbeddings: true, force: true });
       showToast(`Re-indexed ${indexed}/${meetingItems.length} meetings`, 'success');
     } catch (error: unknown) {
-      console.error('[InterfacePanel] Meeting re-index failed:', error);
+      console.error('[GeneralPanel] Meeting re-index failed:', error);
       showToast(error instanceof Error ? error.message : 'Meeting re-index failed', 'error');
     } finally {
       setRebuildingPhase(null);
@@ -92,7 +79,7 @@ export const InterfacePanel: React.FC = () => {
       const indexed = await chatIndexer.indexAllSessions(chatSessions, { includeEmbeddings: true, force: true });
       showToast(`Re-indexed ${indexed}/${chatSessions.length} chats`, 'success');
     } catch (error: unknown) {
-      console.error('[InterfacePanel] Chat re-index failed:', error);
+      console.error('[GeneralPanel] Chat re-index failed:', error);
       showToast(error instanceof Error ? error.message : 'Chat re-index failed', 'error');
     } finally {
       setRebuildingPhase(null);
@@ -116,7 +103,7 @@ export const InterfacePanel: React.FC = () => {
       );
       showToast(`Extracted entities for ${extracted} meetings`, 'success');
     } catch (error: unknown) {
-      console.error('[InterfacePanel] KG extraction failed:', error);
+      console.error('[GeneralPanel] KG extraction failed:', error);
       showToast(error instanceof Error ? error.message : 'KG extraction failed', 'error');
     } finally {
       setRebuildingPhase(null);
@@ -146,7 +133,7 @@ export const InterfacePanel: React.FC = () => {
         searchIndexingService.loadChatsForIndexing(),
       ]);
 
-      console.log(`[InterfacePanel] Rebuild: ${meetingItems.length} meetings, ${chatSessions.length} chats`);
+      console.log(`[GeneralPanel] Rebuild: ${meetingItems.length} meetings, ${chatSessions.length} chats`);
 
       setRebuildingPhase('meetings');
       let meetingsIndexed = 0;
@@ -160,7 +147,7 @@ export const InterfacePanel: React.FC = () => {
           extractionContext,
         });
       } catch (error: unknown) {
-        console.error('[InterfacePanel] Meeting indexing failed:', error);
+        console.error('[GeneralPanel] Meeting indexing failed:', error);
         showToast('Meeting indexing failed — continuing with chats', 'error');
       }
       loadIndexStats();
@@ -172,7 +159,7 @@ export const InterfacePanel: React.FC = () => {
           includeEmbeddings: true,
         });
       } catch (error: unknown) {
-        console.error('[InterfacePanel] Chat indexing failed:', error);
+        console.error('[GeneralPanel] Chat indexing failed:', error);
         showToast('Chat indexing failed', 'error');
       }
       loadIndexStats();
@@ -182,7 +169,7 @@ export const InterfacePanel: React.FC = () => {
         'success',
       );
     } catch (error: unknown) {
-      console.error('[InterfacePanel] Rebuild index failed:', error);
+      console.error('[GeneralPanel] Rebuild index failed:', error);
       showToast(error instanceof Error ? error.message : 'Failed to rebuild index', 'error');
     } finally {
       setRebuildingPhase(null);
@@ -197,7 +184,7 @@ export const InterfacePanel: React.FC = () => {
       const { invoke } = await import('@tauri-apps/api/core');
       await invoke('reveal_in_file_manager', { path: storagePath.replace(/[/\\]+$/, '') });
     } catch (error) {
-      console.error('[InterfacePanel] Failed to open in Finder:', error);
+      console.error('[GeneralPanel] Failed to open in Finder:', error);
     }
   };
 
@@ -208,7 +195,7 @@ export const InterfacePanel: React.FC = () => {
       setStoragePathCopied(true);
       setTimeout(() => setStoragePathCopied(false), 1500);
     } catch (error) {
-      console.error('[InterfacePanel] Failed to copy storage path:', error);
+      console.error('[GeneralPanel] Failed to copy storage path:', error);
     }
   };
 
@@ -237,7 +224,7 @@ export const InterfacePanel: React.FC = () => {
   const indexBusy = rebuildingPhase !== null || isRebuilding;
 
   return (
-    <SettingsPage title="System" description="Appearance, storage, and system information.">
+    <SettingsPage title="General" description="Appearance, capture, storage, and app information.">
       {/* Appearance — theme + import processing */}
       <Section title="Appearance">
         <CardRow title="Theme" actions={<Tabs items={themeTabs} value={theme} onValueChange={setTheme} />} />
@@ -274,7 +261,7 @@ export const InterfacePanel: React.FC = () => {
           description="How imported audio files are processed."
           actions={
             <>
-              <div className="w-36">
+              <div className={LAYOUT.settingsSelect}>
                 <Select
                   value={settings.jobProcessing?.mode || 'sequential'}
                   onValueChange={(val) => setSettings({
@@ -318,6 +305,27 @@ export const InterfacePanel: React.FC = () => {
                 </div>
               )}
             </>
+          }
+        />
+      </Section>
+
+      <Section title="Capture">
+        <CardRow
+          title="Input Source"
+          description={CAPTURE_HINT[captureSource]}
+          actions={
+            <div className={LAYOUT.settingsSelect}>
+              <Select value={captureSource} onValueChange={(source) => setSettings({ defaultAudioSource: source as AudioCaptureSource })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CAPTURE_SOURCES.map((source) => (
+                    <SelectItem key={source} value={source}>{AUDIO_CONFIG.captureSources[source].label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           }
         />
       </Section>
@@ -381,64 +389,17 @@ export const InterfacePanel: React.FC = () => {
                 busy={rebuildingPhase === 'kg'}
                 disabled={indexBusy}
               />
-              <CardRow
-                title="Extraction model"
-                actions={
-                  <div className="w-44">
-                    {allActiveModels.length > 0 ? (
-                      <Select
-                        value={settings.kgExtractionModel || settings.chatModel || undefined}
-                        onValueChange={(modelId: string) => setSettings({ kgExtractionModel: modelId })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select model">
-                            {(() => {
-                              const selectedId = settings.kgExtractionModel || settings.chatModel;
-                              const selected = allActiveModels.find(m => m.id === selectedId);
-                              if (!selected) return 'Select model';
-                              return (
-                                <span className="flex items-center gap-1.5 truncate">
-                                  <ModelIcon provider={selected.provider} modelId={selected.id} size={14} />
-                                  <span className="truncate">{selected.name}</span>
-                                </span>
-                              );
-                            })()}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(modelsByProvider).map(([provider, models]) => (
-                            <SelectGroup key={provider}>
-                              <SelectLabel>{getProviderTitle(provider)}</SelectLabel>
-                              {models.map((model) => (
-                                <SelectItem key={`kg-${model.provider}-${model.id}`} value={model.id}>
-                                  <div className="flex items-center gap-1.5">
-                                    <ModelIcon provider={model.provider} modelId={model.id} size={14} />
-                                    <span className="truncate">{model.name}</span>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Text variant="helper" tone="faint">No models available</Text>
-                    )}
-                  </div>
-                }
-              />
 
           <CardRow
             title="Rebuild All"
             description="Wipes and re-indexes all meetings, chats, and knowledge graph."
             actions={
-              <Button variant="outline" size="sm" onClick={() => void handleRebuildIndex()} disabled={indexBusy}>
-                <Icon icon={RefreshCw} size="xs" className={isRebuilding ? 'animate-spin' : ''} />
+              <Button variant="outline" size="sm" onClick={() => void handleRebuildIndex()} disabled={indexBusy && !isRebuilding} loading={isRebuilding}>
+                {!isRebuilding && <Icon icon={RefreshCw} size="xs" />}
                 {isRebuilding ? 'Rebuilding…' : 'Rebuild All'}
               </Button>
             }
           />
-
         </Section>
       )}
 
@@ -473,34 +434,24 @@ const IndexActionRow: React.FC<{
   disabled: boolean;
 }> = ({ label, indexed, total, detail, onReindex, busy, disabled }) => (
     <CardRow
-      title={
-        <span className="flex items-center gap-2.5">
-          {label}
-          {indexed === undefined ? <Text variant="mono" tone="faint">{PENDING}</Text> : <IndexStatus indexed={indexed} total={total} />}
-        </span>
-      }
-      description={detail}
+      title={label}
+      description={total != null && indexed !== undefined ? `${indexed} of ${total} indexed · ${detail}` : detail}
+      status={indexed === undefined ? <Status>{PENDING}</Status> : <IndexStatus indexed={indexed} total={total} />}
       actions={
-        <Button variant="outline" size="sm" onClick={onReindex} disabled={disabled}>
-          <Icon icon={RefreshCw} size="xs" className={busy ? 'animate-spin' : ''} />
+        <Button variant="outline" size="sm" onClick={onReindex} disabled={disabled && !busy} loading={busy}>
+          {!busy && <Icon icon={RefreshCw} size="xs" />}
           {busy ? 'Indexing…' : 'Re-index'}
         </Button>
       }
     />
 );
 
-/** Synced/Stale (or Active/Empty without a total) badge plus the count. */
+/** Synced / Stale against a total; Active / Empty without one. Counts live in the description. */
 const IndexStatus: React.FC<{ indexed: number; total?: number }> = ({ indexed, total }) => {
-  const isFresh = total == null ? indexed > 0 : indexed >= total;
-  const statusLabel = total == null
-    ? (indexed > 0 ? 'Active' : 'Empty')
-    : (indexed >= total ? 'Synced' : 'Stale');
-  return (
-    <>
-      <Badge variant={isFresh ? 'success' : 'error'}>{statusLabel}</Badge>
-      {total != null && <Text variant="mono" tone="faint">{indexed}/{total}</Text>}
-    </>
-  );
+  if (total == null) {
+    return indexed > 0 ? <Status tone="success">Active</Status> : <Status>Empty</Status>;
+  }
+  return indexed >= total ? <Status tone="success">Synced</Status> : <Status tone="warning">Stale</Status>;
 };
 
 /** Version number plus the update-check state. */
@@ -529,4 +480,4 @@ const VersionStatus: React.FC<{
   </>
 );
 
-export default InterfacePanel;
+export default GeneralPanel;

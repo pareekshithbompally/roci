@@ -272,7 +272,7 @@ const App: React.FC = () => {
             await windowService.show();
             break;
           case TrayAction.MANAGE_MODELS:
-            setActiveSettingsPanel('audio');
+            setActiveSettingsPanel('capabilities');
             setCurrentView('settings');
             await windowService.show();
             break;
