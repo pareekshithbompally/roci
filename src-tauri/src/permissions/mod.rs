@@ -3,6 +3,7 @@
 //! Reading a state never prompts; only a request does.
 
 pub mod commands;
+mod guide;
 pub(crate) mod macos;
 mod state;
 

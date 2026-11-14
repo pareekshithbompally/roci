@@ -1,7 +1,9 @@
 //! The permission checklist's Tauri commands.
 
-use super::macos;
+use tauri::AppHandle;
+
 use super::state::{PermissionKind, PermissionRow};
+use super::{guide, macos};
 
 /// Every permission a recording needs, in checklist order. Never prompts.
 #[tauri::command]
@@ -20,12 +22,10 @@ pub fn request_permission(kind: PermissionKind) {
     macos::request(kind);
 }
 
-/// Opens the System Settings pane that lists `kind`.
+/// Opens System Settings at the list that holds `kind`, with Hex's guide
+/// beside it (drag tile, or "switch on" for a refused microphone).
 #[tauri::command]
-pub fn open_permission_settings(kind: PermissionKind) -> Result<(), String> {
-    std::process::Command::new("/usr/bin/open")
-        .arg(macos::settings_url(kind))
-        .spawn()
-        .map(drop)
+pub fn open_permission_settings(app: AppHandle, kind: PermissionKind) -> Result<(), String> {
+    app.run_on_main_thread(move || guide::show(kind))
         .map_err(|error| format!("could not open System Settings: {error}"))
 }

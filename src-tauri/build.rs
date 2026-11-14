@@ -14,7 +14,27 @@ fn main() {
         println!("cargo:rustc-link-arg=-Wl,-rpath,/Library/Developer/CommandLineTools/usr/lib/swift/macosx");
 
         println!("cargo:rerun-if-changed=icons");
+
+        compile_permission_guide();
     }
 
     tauri_build::build()
+}
+
+/// Hex's permission guide (native/permission_guide.m), compiled as Hex does.
+#[cfg(target_os = "macos")]
+fn compile_permission_guide() {
+    println!("cargo:rerun-if-changed=native/permission_guide.m");
+    println!("cargo:rustc-link-lib=framework=AppKit");
+    println!("cargo:rustc-link-lib=framework=ApplicationServices");
+    println!("cargo:rustc-link-lib=framework=AVFoundation");
+    println!("cargo:rustc-link-lib=framework=CoreGraphics");
+    println!("cargo:rustc-link-lib=framework=CoreImage");
+    println!("cargo:rustc-link-lib=framework=IOKit");
+    println!("cargo:rustc-link-lib=framework=QuartzCore");
+
+    cc::Build::new()
+        .file("native/permission_guide.m")
+        .flag("-fobjc-arc")
+        .compile("kasset_permission_guide");
 }

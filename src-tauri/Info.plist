@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Kasset.ai needs access to your microphone to record and transcribe audio.</string>
+    <string>Kasset.ai uses your microphone to record your side of a meeting and for dictation, and keeps recordings on this Mac.</string>
     <key>NSAudioCaptureUsageDescription</key>
     <string>Kasset.ai records the other participants' audio only while you record a meeting, and keeps it on this Mac.</string>
     <key>NSScreenCaptureUsageDescription</key>
-    <string>Kasset.ai needs screen recording permission to capture system audio.</string>
+    <string>Kasset.ai uses Screen &amp; System Audio Recording only to hear the other participants of a meeting when System Audio Recording is unavailable. It never records your screen.</string>
 
     <key>NSCalendarsFullAccessUsageDescription</key>
     <string>Kasset.ai reads your calendar to notify you about upcoming meetings and help identify speakers during transcription.</string>

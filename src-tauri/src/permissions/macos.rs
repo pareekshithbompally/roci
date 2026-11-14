@@ -31,15 +31,6 @@ pub fn request(kind: PermissionKind) {
     }
 }
 
-/// The System Settings pane that lists `kind`.
-pub fn settings_url(kind: PermissionKind) -> String {
-    let pane = match kind {
-        PermissionKind::Microphone => "Privacy_Microphone",
-        PermissionKind::SystemAudio => "Privacy_AudioCapture",
-    };
-    format!("x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?{pane}")
-}
-
 fn system_audio_state() -> PermissionState {
     if system_audio_permitted() {
         return PermissionState::Ready;

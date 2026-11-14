@@ -3,9 +3,11 @@
  *
  * The tray icon, menu, visibility, and elapsed clock live in
  * `src-tauri/src/menubar.rs` (Hex-faithful owner). This service only:
- * - listens for `menubar-action` events (Show / Start / Stop / Quit), and
+ * - listens for `menubar-action` events (Show / Record / Stop / Settings /
+ *   Check for Updates / Manage Models / Quit, plus `speech_model:<id>`),
  * - reports recording transitions so the backend can swap the icon and
- *   retitle the Stop item.
+ *   swap the single Record / Stop row, and
+ * - reports the downloaded Hex models that fill the Speech Model submenu.
  *
  * It never constructs tray icons, menus, images, or timers.
  */
@@ -13,7 +15,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { isTauriEnvironment } from './environment.service';
-import { TrayAction } from './types';
+import type { TrayAction } from './types';
 
 export const MENUBAR_ACTION_EVENT = 'menubar-action';
 
@@ -25,7 +27,20 @@ export interface MenubarState {
   hideIcon: boolean;
 }
 
-type MenubarEventCallback = (action: TrayAction) => void;
+/** One row of the tray's Speech Model submenu (a downloaded Hex model). */
+export interface MenubarSpeechModel {
+  id: string;
+  name: string;
+  /** The model transcription currently uses; the tray checks it. */
+  selected: boolean;
+}
+
+/**
+ * Menu ids are fixed actions or `speech_model:<id>`, so the payload is a
+ * plain string rather than the `TrayAction` enum.
+ */
+type MenubarAction = TrayAction | string;
+type MenubarEventCallback = (action: MenubarAction) => void;
 
 class MenubarService {
   private unlisten: UnlistenFn | null = null;
@@ -47,7 +62,7 @@ class MenubarService {
     if (this.initialized) return Promise.resolve();
     if (this.initPromise) return this.initPromise;
 
-    this.initPromise = listen<TrayAction>(MENUBAR_ACTION_EVENT, (event) => {
+    this.initPromise = listen<string>(MENUBAR_ACTION_EVENT, (event) => {
       onEvent(event.payload);
     }).then((unlisten) => {
       this.unlisten = unlisten;
@@ -67,6 +82,19 @@ class MenubarService {
       await invoke('menubar_set_recording_state', { active, paused });
     } catch (error) {
       console.error('[Menubar] Failed to report recording state:', error);
+    }
+  }
+
+  /**
+   * Replace the Speech Model submenu (Hex: `update_transcription`).
+   * An empty list shows the disabled "No downloaded models" row.
+   */
+  async setSpeechModels(models: MenubarSpeechModel[]): Promise<void> {
+    if (!isTauriEnvironment()) return;
+    try {
+      await invoke('menubar_set_speech_models', { models });
+    } catch (error) {
+      console.error('[Menubar] Failed to report speech models:', error);
     }
   }
 
