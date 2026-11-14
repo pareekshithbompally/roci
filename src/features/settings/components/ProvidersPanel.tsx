@@ -206,8 +206,8 @@ export const ProvidersPanel: React.FC = () => {
   return (
     <div className="h-full flex flex-col">
       {/* Pinned Header */}
-      <div className={`shrink-0 ${LAYOUT.settingsPadding} pt-6 pb-4`}>
-        <div className={`${LAYOUT.settingsMaxWidth} mx-auto`}>
+      <div className={`shrink-0 ${LAYOUT.pageGutter} pt-6 pb-4`}>
+        <div className={`${LAYOUT.pageColumn}`}>
           <SettingsPageHeader
             title="Model Providers"
             description="Enable providers and configure API keys to access AI models."
@@ -216,8 +216,8 @@ export const ProvidersPanel: React.FC = () => {
       </div>
 
       {/* Split scroll body */}
-      <div className={`flex-1 min-h-0 flex ${LAYOUT.settingsPadding} pb-6`}>
-        <div className={`${LAYOUT.settingsMaxWidth} mx-auto w-full flex gap-6 min-h-0`}>
+      <div className={`flex-1 min-h-0 flex ${LAYOUT.pageGutter} pb-6`}>
+        <div className={`${LAYOUT.pageColumn} flex gap-6 min-h-0`}>
         {/* Left: Provider list — independent scroll */}
         <div className="w-56 shrink-0 overflow-y-auto custom-scrollbar space-y-4">
           <ProviderGroup title="Cloud">
@@ -239,7 +239,7 @@ export const ProvidersPanel: React.FC = () => {
         </div>
 
         {/* Right: Detail panel — independent scroll */}
-        <div className="flex-1 min-w-0 overflow-y-auto custom-scrollbar space-y-6">
+        <div className="flex-1 min-w-0 overflow-y-auto custom-scrollbar space-y-6 -mx-2 px-2 pb-2">
           {selectedProvider ? (
             <>
               {showSetupBanner && !anyProviderHasModels && (

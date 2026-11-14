@@ -37,8 +37,7 @@ export const ProviderListItem: React.FC<ProviderListItemProps> = ({
   const title = getProviderTitle(provider);
   return (
     <Surface
-      variant="card"
-      radius="lg"
+      radius="md"
       interactive
       selected={selected}
       role="button"
@@ -73,7 +72,7 @@ interface ProviderGroupProps {
 
 /** A labelled list of provider rows in the Providers sidebar. */
 export const ProviderGroup: React.FC<ProviderGroupProps> = ({ title, accessory, children }) => (
-  <section className="space-y-1">
+  <section className="space-y-0.5">
     <div className="flex items-center justify-between gap-2">
       <RowGroupLabel>{title}</RowGroupLabel>
       {accessory}

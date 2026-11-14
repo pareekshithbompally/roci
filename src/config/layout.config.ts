@@ -19,11 +19,11 @@ export const LAYOUT = {
   collapsedControls: 'left-[88px]',
   collapsedControlsFlush: 'left-3',
 
-  /** Settings content max width — uniform across all panels */
-  settingsMaxWidth: 'max-w-4xl',
+  /** Page column — Settings and the meeting view share one centred reading width */
+  pageColumn: 'max-w-4xl mx-auto w-full',
 
-  /** Settings content padding */
-  settingsPadding: 'px-6 md:px-8',
+  /** Page gutter around the page column */
+  pageGutter: 'px-6 md:px-8',
 } as const;
 
 /** Picker row trailing columns — fixed widths so every row's controls line up */

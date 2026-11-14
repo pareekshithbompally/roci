@@ -18,7 +18,7 @@ export const SHEET_DESCRIPTION = 'text-body text-muted mt-1';
 /** Menu list and row — DropdownMenu, Select, Command. */
 export const MENU_LIST = `${FLOATING_SURFACE} min-w-36 p-1`;
 export const MENU_ITEM =
-  'relative flex items-center gap-2 px-2 py-1.5 rounded text-body text-primary cursor-default select-none outline-none transition-colors data-[highlighted]:bg-hover data-[disabled]:opacity-50';
+  'relative flex items-center gap-2 px-2 py-1.5 rounded text-body text-primary cursor-default select-none outline-none transition-colors data-[highlighted]:bg-hover aria-disabled:opacity-50';
 export const MENU_LABEL = 'px-2 py-1.5 text-callout font-medium text-faint';
 export const MENU_SEPARATOR = 'h-px my-1 bg-separator';
 

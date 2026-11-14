@@ -6,6 +6,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { isTauriEnvironment } from '@services/tauri';
 
 export type Theme = 'light' | 'dark' | 'system';
 
@@ -40,6 +41,18 @@ interface ThemeProviderProps {
  * </ThemeProvider>
  * ```
  */
+/**
+ * Match the native window's appearance to the app theme, so AppKit chrome (traffic
+ * lights, title bar, vibrancy) is drawn for the same light/dark as the web content.
+ * 'system' hands the choice back to macOS.
+ */
+function syncNativeWindowTheme(theme: Theme): void {
+  if (!isTauriEnvironment()) return;
+  import('@tauri-apps/api/window')
+    .then(({ getCurrentWindow }) => getCurrentWindow().setTheme(theme === 'system' ? null : theme))
+    .catch((error: unknown) => console.error('[ThemeContext] Failed to set window theme:', error));
+}
+
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({
   children,
   defaultTheme = 'system',
@@ -71,6 +84,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({
 
     root.classList.add(effectiveTheme);
     setIsDark(effectiveTheme === 'dark');
+    syncNativeWindowTheme(theme);
   }, [theme]);
 
   // Listen for system theme changes

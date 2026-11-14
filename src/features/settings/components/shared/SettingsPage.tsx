@@ -22,8 +22,8 @@ export const SettingsPageHeader: React.FC<SettingsPageHeaderProps> = ({ title, d
 
 /** A scrolling settings panel: header, then its `Section`s. */
 export const SettingsPage: React.FC<SettingsPageHeaderProps & { children?: React.ReactNode }> = ({ children, ...header }) => (
-  <div className={`h-full overflow-y-auto custom-scrollbar ${LAYOUT.settingsPadding} py-6`}>
-    <div className={`${LAYOUT.settingsMaxWidth} mx-auto space-y-6`}>
+  <div className={`h-full overflow-y-auto custom-scrollbar ${LAYOUT.pageGutter} py-6`}>
+    <div className={`${LAYOUT.pageColumn} space-y-6`}>
       <SettingsPageHeader {...header} />
       {children}
     </div>

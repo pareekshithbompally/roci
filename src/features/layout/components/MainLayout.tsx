@@ -153,10 +153,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
         {/* Main content panel */}
         <div className="h-full flex flex-1 min-w-0">
-          <div
-            className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative"
-            style={{ paddingTop: UI_CONFIG.layout.titlebar.safeArea }}
-          >
+          <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
             {/* Sidebar actions when collapsed — traffic lights center at ~y:20px, button is 32px tall */}
             {!isLeftPanelOpen && !isSmallScreen && (
               <div className={`absolute top-3.5 z-50 flex items-center gap-1 ${
@@ -194,7 +191,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           {showChatPanel && (
             <div
               className="shrink-0 h-full relative"
-              style={{ width: rightPanelWidth, paddingTop: UI_CONFIG.layout.titlebar.safeArea }}
+              style={{ width: rightPanelWidth }}
             >
               {/* Resize handle — left edge */}
               <div

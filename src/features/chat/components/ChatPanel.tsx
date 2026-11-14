@@ -12,6 +12,7 @@ import { useChatStore } from '@features/chat/stores';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { meetingReferenceService } from '@services/meetingReferenceService';
 import { Surface, Text, IconButton } from '@shared/ui';
+import { UI_CONFIG } from '@config/ui.config';
 
 interface ChatPanelProps {
   meetingId: string;
@@ -49,7 +50,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ meetingId, meetingTitle, o
   );
 
   return (
-    <Surface variant="panel" edge="left" className="w-full h-full flex flex-col">
+    // Titlebar clearance inside the panel, so its edge and fill run the full window height.
+    <Surface variant="panel" edge="left" className="w-full h-full flex flex-col" style={{ paddingTop: UI_CONFIG.layout.titlebar.safeArea }}>
       <ChatShell
         emptyStateMessage="Ask about this meeting..."
         placeholderText="Ask about this meeting..."
