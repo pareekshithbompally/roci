@@ -6,7 +6,8 @@
  */
 
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@shared/query/queryKeys';
 import { getUsageSummary } from '@extensions/usage';
 import type { UsageSummary } from '@extensions/usage';
 
@@ -32,7 +33,9 @@ export function useUsageData(): UseUsageDataReturn {
   const [timeRange, setTimeRange] = useState<TimeRange>('30d');
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['usage', timeRange],
+    queryKey: queryKeys.usage(timeRange),
+    // Keep the last range on screen while the next one loads — no spinner swap.
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const since = timeRange === 'all' ? undefined : Date.now() - RANGE_MS[timeRange];
       return getUsageSummary(since);
@@ -46,7 +49,7 @@ export function useUsageData(): UseUsageDataReturn {
     timeRange,
     setTimeRange,
     refresh: () => {
-      queryClient.invalidateQueries({ queryKey: ['usage', timeRange] }).catch((err: unknown) =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.usage(timeRange) }).catch((err: unknown) =>
         console.error('[useUsageData] Failed to refresh usage:', err)
       );
     },

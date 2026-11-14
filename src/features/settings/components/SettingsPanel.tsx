@@ -8,7 +8,8 @@
  * is no tab bar here, no dirty tracking, and no save footer.
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { systemInfoStore } from '@features/settings/stores/systemInfoStore';
 import { useAppStore } from '@shared/stores/appStore';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { ProvidersPanel } from './ProvidersPanel';
@@ -35,6 +36,9 @@ const PANEL_COMPONENTS: Record<SettingsPanelType, React.FC> = {
 export const SettingsPanel: React.FC = () => {
   const activePanel = useAppStore((s) => s.activeSettingsPanel);
   const { isLoading } = useSettings();
+
+  // System panel data (paths, disk, index) loads while the user is still on another panel.
+  useEffect(() => systemInfoStore.preload(), []);
 
   if (isLoading) {
     return (

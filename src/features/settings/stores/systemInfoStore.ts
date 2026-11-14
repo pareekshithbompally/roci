@@ -26,6 +26,16 @@ export interface DiskUsageEntry {
   bytes: number;
 }
 
+/** Fixed Disk Usage rows (folder → label, plus the store DB) so the panel can lay them out before sizes load. */
+const DISK_USAGE_DIRS = [
+  { label: 'Meetings', name: 'meetings' },
+  { label: 'Recordings', name: 'recordings' },
+  { label: 'Chats', name: 'chats' },
+  { label: 'Cache', name: 'cache' },
+] as const;
+const STORE_DB = { label: 'Store DB', name: 'kasset.db' } as const;
+export const DISK_USAGE_LABELS: readonly string[] = [...DISK_USAGE_DIRS.map((d) => d.label), STORE_DB.label];
+
 interface SystemInfoSnapshot {
   storagePath: string | null;
   storagePathError: string | null;
@@ -76,6 +86,11 @@ export const systemInfoStore = {
       loadPromise = loadAllData();
     }
     return () => listeners.delete(listener);
+  },
+
+  /** Start loading early (Settings opened) so the System panel mounts with data. */
+  preload(): void {
+    if (!loadPromise) loadPromise = loadAllData();
   },
 
   /** Reload all data (for after rebuild operations) */
@@ -167,33 +182,16 @@ async function loadDiskUsage(basePath: string): Promise<DiskUsageEntry[]> {
     const { readDir, stat } = await import('@tauri-apps/plugin-fs');
     const { join } = await import('@tauri-apps/api/path');
 
-    const dirs = [
-      { label: 'Meetings', name: 'meetings' },
-      { label: 'Recordings', name: 'recordings' },
-      { label: 'Chats', name: 'chats' },
-      { label: 'Cache', name: 'cache' },
-    ];
-
     const sizes: DiskUsageEntry[] = [];
 
-    for (const dir of dirs) {
-      try {
-        const dirPath = await join(basePath, dir.name);
-        const total = await getDirSize(dirPath, readDir, stat, join);
-        if (total > 0) sizes.push({ label: dir.label, bytes: total });
-      } catch {
-        // Directory may not exist yet
-      }
+    // Every row is always present (0 B when missing) so the layout never changes on load.
+    for (const dir of DISK_USAGE_DIRS) {
+      const bytes = await getDirSize(await join(basePath, dir.name), readDir, stat, join).catch(() => 0);
+      sizes.push({ label: dir.label, bytes });
     }
 
-    // Add kasset.db size
-    try {
-      const dbPath = await join(basePath, 'kasset.db');
-      const dbStat = await stat(dbPath);
-      if (dbStat.size > 0) sizes.push({ label: 'Store DB', bytes: dbStat.size });
-    } catch {
-      // DB may not exist yet
-    }
+    const dbBytes = await stat(await join(basePath, STORE_DB.name)).then((s) => s.size).catch(() => 0);
+    sizes.push({ label: STORE_DB.label, bytes: dbBytes });
 
     return sizes;
   } catch (e: unknown) {

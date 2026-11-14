@@ -41,7 +41,8 @@ const CalendarIntegrationRows: React.FC = () => {
     notifyMinutesBefore: CALENDAR_DEFAULTS.notify_minutes_before,
   };
 
-  const [accessStatus, setAccessStatus] = useState<CalendarAccessStatus>('not_determined');
+  // null until macOS answers — no status rows render on a guess, so nothing flashes on mount.
+  const [accessStatus, setAccessStatus] = useState<CalendarAccessStatus | null>(null);
   const [isRequestingAccess, setIsRequestingAccess] = useState(false);
 
   // Guard async completion after unmount (no setState on unmounted card).

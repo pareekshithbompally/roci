@@ -13,7 +13,7 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { isTauriEnvironment } from '@services/tauri';
 import { searchIndexingService } from '@services/searchIndexing.service';
-import { useSystemInfo, systemInfoStore } from '@features/settings/stores/systemInfoStore';
+import { useSystemInfo, systemInfoStore, DISK_USAGE_LABELS } from '@features/settings/stores/systemInfoStore';
 import { SettingsPage } from './shared';
 import { Badge, Button, Card, CardRow, Icon, IconButton, Section, Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue, Switch, Tabs, Text } from '@shared/ui';
 
@@ -316,13 +316,13 @@ export const InterfacePanel: React.FC = () => {
         />
       </Section>
 
-      {storagePath && (
+      {isTauriEnvironment() && (
         <Section title="Storage Location">
           <div className="flex items-center gap-2 py-3">
             <Icon icon={FolderOpen} size="sm" tone="faint" className="shrink-0" />
-            <Text tone="muted" truncate className="flex-1">{storagePath}</Text>
-            <IconButton icon={FolderSearch} label="Open in Finder" size="sm" onClick={handleOpenInFinder} />
-            <Button variant="ghost" size="iconSm" onClick={handleCopyStoragePath} aria-label="Copy path">
+            <Text tone="muted" truncate className="flex-1">{storagePath ?? PENDING}</Text>
+            <IconButton icon={FolderSearch} label="Open in Finder" size="sm" onClick={handleOpenInFinder} disabled={!storagePath} />
+            <Button variant="ghost" size="iconSm" onClick={handleCopyStoragePath} aria-label="Copy path" disabled={!storagePath}>
               <Icon icon={storagePathCopied ? Check : Copy} size="sm" tone={storagePathCopied ? 'success' : 'faint'} />
             </Button>
           </div>
@@ -332,44 +332,45 @@ export const InterfacePanel: React.FC = () => {
         </Section>
       )}
 
-      {diskUsage && diskUsage.length > 0 && (
+      {isTauriEnvironment() && (
         <Section title="Disk Usage">
-          {diskUsage.map(({ label, bytes }) => (
-            <CardRow key={label} title={label} actions={<Text variant="mono" tone="muted">{formatBytes(bytes)}</Text>} />
-          ))}
+          {DISK_USAGE_LABELS.map((label) => {
+            const entry = diskUsage?.find((d) => d.label === label);
+            return (
+              <CardRow key={label} title={label} actions={<Text variant="mono" tone="muted">{entry ? formatBytes(entry.bytes) : PENDING}</Text>} />
+            );
+          })}
           <CardRow
             title="Total"
-            actions={<Text variant="mono" className="font-medium">{formatBytes(diskUsage.reduce((sum, d) => sum + d.bytes, 0))}</Text>}
+            actions={<Text variant="mono" className="font-medium">{diskUsage ? formatBytes(diskUsage.reduce((sum, d) => sum + d.bytes, 0)) : PENDING}</Text>}
           />
         </Section>
       )}
 
       {isTauriEnvironment() && (
         <Section title="Search Index">
-          {indexStats && (
-            <>
-              <IndexActionRow
+          <IndexActionRow
                 label="Meetings"
-                indexed={indexStats.meetings.indexed}
-                total={indexStats.meetings.onDisk}
-                detail={`${indexStats.chunks.transcript} transcript chunks`}
+                indexed={indexStats?.meetings.indexed}
+                total={indexStats?.meetings.onDisk}
+                detail={indexStats ? `${indexStats.chunks.transcript} transcript chunks` : PENDING}
                 onReindex={handleReindexMeetings}
                 busy={rebuildingPhase === 'meetings'}
                 disabled={indexBusy}
               />
               <IndexActionRow
                 label="Chats"
-                indexed={indexStats.chats.indexed}
-                total={indexStats.chats.onDisk}
-                detail={`${indexStats.chunks.total - indexStats.chunks.transcript} chat chunks`}
+                indexed={indexStats?.chats.indexed}
+                total={indexStats?.chats.onDisk}
+                detail={indexStats ? `${indexStats.chunks.total - indexStats.chunks.transcript} chat chunks` : PENDING}
                 onReindex={handleReindexChats}
                 busy={rebuildingPhase === 'chats'}
                 disabled={indexBusy}
               />
               <IndexActionRow
                 label="Knowledge Graph"
-                indexed={indexStats.kg.nodes}
-                detail={`${indexStats.kg.nodes} entities · ${indexStats.kg.edges} relationships`}
+                indexed={indexStats?.kg.nodes}
+                detail={indexStats ? `${indexStats.kg.nodes} entities · ${indexStats.kg.edges} relationships` : PENDING}
                 onReindex={handleReindexKG}
                 busy={rebuildingPhase === 'kg'}
                 disabled={indexBusy}
@@ -420,8 +421,6 @@ export const InterfacePanel: React.FC = () => {
                   </div>
                 }
               />
-            </>
-          )}
 
           <CardRow
             title="Rebuild All"
@@ -453,6 +452,9 @@ export const InterfacePanel: React.FC = () => {
   );
 };
 
+/** Shown in a value slot until its data loads, so rows keep their place. */
+const PENDING = '—';
+
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
   const units = ['B', 'KB', 'MB', 'GB'];
@@ -464,25 +466,19 @@ function formatBytes(bytes: number): string {
 /** Index row: status badge, counts, and a re-index button */
 const IndexActionRow: React.FC<{
   label: string;
-  indexed: number;
+  /** Undefined until stats load. */
+  indexed?: number;
   total?: number;
   detail?: string;
   onReindex: () => void;
   busy: boolean;
   disabled: boolean;
-}> = ({ label, indexed, total, detail, onReindex, busy, disabled }) => {
-  const isFresh = total == null ? indexed > 0 : indexed >= total;
-  const statusLabel = total == null
-    ? (indexed > 0 ? 'Active' : 'Empty')
-    : (indexed >= total ? 'Synced' : 'Stale');
-
-  return (
+}> = ({ label, indexed, total, detail, onReindex, busy, disabled }) => (
     <CardRow
       title={
         <span className="flex items-center gap-2.5">
           {label}
-          <Badge variant={isFresh ? 'success' : 'error'}>{statusLabel}</Badge>
-          {total != null && <Text variant="mono" tone="faint">{indexed}/{total}</Text>}
+          {indexed === undefined ? <Text variant="mono" tone="faint">{PENDING}</Text> : <IndexStatus indexed={indexed} total={total} />}
         </span>
       }
       description={detail}
@@ -493,6 +489,19 @@ const IndexActionRow: React.FC<{
         </Button>
       }
     />
+);
+
+/** Synced/Stale (or Active/Empty without a total) badge plus the count. */
+const IndexStatus: React.FC<{ indexed: number; total?: number }> = ({ indexed, total }) => {
+  const isFresh = total == null ? indexed > 0 : indexed >= total;
+  const statusLabel = total == null
+    ? (indexed > 0 ? 'Active' : 'Empty')
+    : (indexed >= total ? 'Synced' : 'Stale');
+  return (
+    <>
+      <Badge variant={isFresh ? 'success' : 'error'}>{statusLabel}</Badge>
+      {total != null && <Text variant="mono" tone="faint">{indexed}/{total}</Text>}
+    </>
   );
 };
 

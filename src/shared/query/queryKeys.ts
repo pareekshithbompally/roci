@@ -18,6 +18,8 @@ export const queryKeys = {
   mcpTools: () => ['mcp', 'tools'] as const,
   /** MCP: connected servers' self-description (title, icon) */
   mcpServerInfo: () => ['mcp', 'server-info'] as const,
+  /** Token usage summary for a time range (Settings → Usage) */
+  usage: (range: string) => ['usage', range] as const,
 
   // ── Unified store (single `kasset.db`) ──
   /** Store health / meta */
