@@ -42,7 +42,7 @@ export async function orchestrate(
     messages, systemPrompt, settings, providers, historyItems,
     signal, webSearchEnabled, skipRetrieval,
   } = options;
-  const { onChunk, onMediaPart, onToolActivity } = callbacks;
+  const { onChunk, onToolActivity } = callbacks;
 
   // ── Resolve model ──
 

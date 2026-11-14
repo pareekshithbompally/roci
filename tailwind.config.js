@@ -57,41 +57,6 @@ export default {
       },
       // 5.5 = a 14px icon + 8px gap (text indented under an icon); 15 = 60px described row
       spacing: { 5.5: '1.375rem', 15: '3.75rem' },
-      colors: {
-        // ─── Light mode: neutral system grays (macOS-like) ───
-        paper: {
-          50:  '#ffffff',   // Cards, modals
-          100: '#f5f5f7',   // Page background
-          150: '#ececf0',   // Sidebar, subtle input bg
-          200: '#e5e5ea',   // Selected, hover, chips
-          300: '#d1d1d6',   // Default borders
-          400: '#c7c7cc',   // Strong borders, input borders
-          500: '#aeaeb2',   // Scrollbar, faint borders
-          600: '#8e8e93',   // Faint text
-          700: '#636366',   // Muted text
-          800: '#48484a',   // Secondary text
-          900: '#1c1c1e',   // Primary text
-          950: '#000000',   // Headings, darkest
-        },
-        // ─── Dark mode: pure grayscale ───
-        night: {
-          50:  '#f5f5f5',   // Headings, brightest
-          100: '#ededed',   // Primary text
-          150: '#e0e0e0',   // (rarely used)
-          200: '#d4d4d4',   // Markdown body text
-          300: '#bbbbbb',   // (rarely used)
-          400: '#999999',   // Secondary text
-          500: '#666666',   // Muted text, placeholders
-          600: '#444444',   // Scrollbar thumb
-          650: '#333333',   // Strong borders, focus rings
-          700: '#2a2a2a',   // Default borders
-          750: '#222222',   // Selected/hover states
-          800: '#1c1c1c',   // Dropdowns, input fields, user chat bubble
-          850: '#181818',   // Elevated surfaces, cards, modals
-          900: '#151515',   // Page bg, idle/chat view
-          950: '#121212',   // Sidebar (deepest)
-        },
-      },
       keyframes: {
         'overlay-show': {
           from: { opacity: '0' },

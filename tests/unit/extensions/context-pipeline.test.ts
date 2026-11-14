@@ -305,7 +305,6 @@ describe('ContextPipeline', () => {
 
   describe('durationMs', () => {
     it('sets durationMs on provider output', async () => {
-      let capturedDuration: number | undefined;
       const provider: ContextProvider = {
         name: 'timed',
         priority: 1,

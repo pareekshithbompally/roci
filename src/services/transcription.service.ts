@@ -4,7 +4,7 @@
  * creates todos from AI action items — all atomically via store.meetings.saveTranscription().
  */
 
-import type { MeetingIndexEntry, MeetingSummary, TranscriptData, RecordingMeta, TodoEntry, AppSettings, HistoryItem, StoredTranscriptSegment } from '@shared/types';
+import type { MeetingSummary, AppSettings, HistoryItem, StoredTranscriptSegment } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { store } from '@services/db';
 import { normalizeDueDate } from '@shared/utils/todo.utils';

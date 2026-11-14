@@ -8,7 +8,7 @@
 import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
 import { meetingReferenceService } from '@services/meetingReferenceService';
 import { store } from '@services/db';
-import { GENERAL_MEETING_ID, GENERAL_MEETING_TITLE } from '@features/chat';
+import { GENERAL_MEETING_TITLE } from '@features/chat';
 import { MAX_ACTION_ITEM_MEETINGS, MAX_ACTION_ITEMS_FOR_LLM } from '@extensions/tools/constants';
 import type { HistoryItem, ActionItem } from '@shared/types';
 

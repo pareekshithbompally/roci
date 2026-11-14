@@ -33,9 +33,11 @@ These are hard constraints. They **override** convenience, speed, and your defau
 - **New React Context is the exception, not the default.** Allowed only for genuine dependency-injection (theme, settings, toast, history). If you reach for Context to share mutable state, you want a store or a query instead.
 
 ### I3 — Design system via tokens. Zero hardcoded values.
-- Colors/surfaces/borders/text/radius/shadow → `src/config/theme.config.ts` (`SURFACE`, `BORDER`, `TEXT`, `LAYOUT`, `RADIUS`, `SHADOW`, `SPACING`, `COMPONENT`).
-- Spacing, sizing, z-index, timeouts, typography → `src/config/*.config.ts` (`UI_CONFIG`, etc.).
-- **Never** inline a Tailwind color (`bg-blue-500`), a pixel value, a hex, a duration, or a threshold. Look up the token; if none exists, add it to the config, then import it. No magic numbers in components.
+- One-way contract: **tokens** (`src/styles/tokens.css`, light + `.dark`) → **config** (`tailwind.config.js` role utilities, `src/config/*.config.ts`) → **kit** (`@shared/ui`, barrel only) → `@shared/components` → **features**. A layer imports only from layers below it.
+- **Features only arrange kit parts.** They pass kit props (`variant`, `size`, `tone`, `edge`…) and write layout utilities (flex/grid/gap/width/position). They **never** write colour, font-size, radius, border, shadow, `dark:` or `[px]` classes, hex, raw `<button>/<input>/<textarea>`, Radix imports, or `@config/typography` imports.
+- Kit almost fits → add a variant/prop in `src/shared/ui` once. Never override with `className`, never hand-roll in a feature.
+- Spacing, sizing, z-index, timeouts, thresholds → `src/config/*.config.ts` (`UI_CONFIG`, etc.). No magic numbers. CSS files read colours from token vars only.
+- Sole exception: `src/features/home/components/LandingGlow.tsx` (brand gradient) and dot-scope shader data in `dotScope.config.ts`.
 
 ### I4 — AI access goes through the Vercel AI SDK abstraction. No raw provider SDKs.
 - All models are created by `services/ai/provider.ts` `createModel()` → AI SDK `LanguageModel`. Add providers there, behind the existing `ResolvedModel` mapping — never call OpenAI/Anthropic/etc. SDKs directly from features.
@@ -127,5 +129,5 @@ src-tauri/
 1. `npx tsc --noEmit` — must not exceed the known baseline error count. New errors = fail.
 2. `npm run build` succeeds.
 3. Touched Rust → `cargo build` clean, no new warnings; new Tauri calls have capability + (if native) Info.plist string.
-4. Grep your diff: no inline colors/px/hex/magic numbers (I3); no `../` imports (I9); no `globalThis.fetch` (I4); no raw provider SDK (I4); no selector returning a fresh object without `useShallow` (I2); no mutation missing `cancelQueries` (I2).
+4. `npm run audit:design` — every row 0 except the LandingGlow rows (`raw_tailwind_hues`, `px_outside_config`, `dark_variants`, `role_classes_in_features`); `unused_locals` 0; `colour_literal_files` 0. Then grep your diff: no magic numbers (I3); no `../` imports (I9); no `globalThis.fetch` (I4); no raw provider SDK (I4); no selector returning a fresh object without `useShallow` (I2); no mutation missing `cancelQueries` (I2).
 5. Every new function: who calls it, what it calls, data in/out, success path, failure path.

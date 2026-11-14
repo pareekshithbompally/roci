@@ -6,12 +6,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { 
-  DEFAULT_SHORTCUTS, 
-  ShortcutsConfig, 
-  ShortcutDefinition,
-  ShortcutAction 
-} from '@config/shortcuts.config';
+import { DEFAULT_SHORTCUTS, ShortcutsConfig } from '@config/shortcuts.config';
 
 export type ShortcutHandler = (action: string) => void | Promise<void>;
 

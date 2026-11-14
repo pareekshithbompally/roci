@@ -41,7 +41,6 @@ interface ScheduleNotificationOptions {
 class NotificationService {
   private isInitialized = false;
   private sendNotification: ((options: NotificationOptions) => void | Promise<void>) | null = null;
-  private isPermissionGranted: (() => Promise<boolean>) | null = null;
   private actionHandlers = new Map<string, Set<(actionId: string, extra?: Record<string, unknown>) => void>>();
   private notificationModule: typeof import('@tauri-apps/plugin-notification') | null = null;
   private registeredActionTypes = new Map<string, Array<{ id: string; title: string }>>();
@@ -58,7 +57,6 @@ class NotificationService {
         const notificationModule = await import('@tauri-apps/plugin-notification');
         this.notificationModule = notificationModule;
         this.sendNotification = notificationModule.sendNotification;
-        this.isPermissionGranted = notificationModule.isPermissionGranted;
 
         // Register action types for interactive notifications
         // Store them locally for use with our custom mac-notification-sys command
@@ -170,7 +168,6 @@ class NotificationService {
           new Notification(options.title, { body: options.body });
         }
       };
-      this.isPermissionGranted = async () => Notification.permission === 'granted';
       this.isInitialized = true;
     }
   }

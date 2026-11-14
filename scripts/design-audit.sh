@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Design-system ratchet. Read-only: counts what docs/plans/IN-PROGRESS/design-system/plan.md §8 tracks.
+# Design-system ratchet. Read-only: counts what docs/plans/DONE/design-system/plan.md §8 tracks.
 #   scripts/design-audit.sh                  print counts for src/
 #   scripts/design-audit.sh --scope <dir>    counts for one folder (unit agents)
 #   scripts/design-audit.sh --save <label>   also write audit/<label>.txt
@@ -74,7 +74,7 @@ report() {
 OUT="$(report)"
 echo "$OUT"
 if [ -n "$LABEL" ]; then
-  DIR=docs/plans/IN-PROGRESS/design-system/audit
+  DIR=docs/plans/DONE/design-system/audit
   mkdir -p "$DIR"
   echo "$OUT" > "$DIR/$LABEL.txt"
   echo "saved $DIR/$LABEL.txt"

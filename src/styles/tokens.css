@@ -5,7 +5,7 @@
  *   Only steps referenced by Tier 2 are declared. Components never read Tier 1.
  * Tier 2 (roles): what components and Tailwind utilities read (tailwind.config.js).
  *   `.dark` on <html> (ThemeContext) swaps the roles; nothing else changes on a theme switch.
- * Plan: docs/plans/IN-PROGRESS/design-system/plan.md §4.
+ * Plan: docs/plans/DONE/design-system/plan.md §4.
  */
 
 :root {

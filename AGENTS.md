@@ -160,12 +160,12 @@ import type { HistoryItem } from '@/types';
 
 ### Styling (Tailwind Only)
 - **No CSS modules, no inline styles**
-- Use `UI_CONFIG` constants from src/config/ui.config.ts
-- Use theme tokens: `SURFACE`, `BORDER`, `TEXT`, `COMPONENT` from src/config/theme.config.ts
-- Dark mode: `dark:` prefix
+- Contract: `src/styles/tokens.css` → `tailwind.config.js` / `src/config` → `@shared/ui` kit → features (see CLAUDE.md I3)
+- Features use kit props + layout utilities only — no colour/size/radius/border/shadow/`dark:` classes
+- `npm run audit:design` must stay at 0 (LandingGlow is the one exception)
 
 ```jsx
-<div className="bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+<Surface variant="card" radius="lg"><Text variant="body" tone="muted">…</Text></Surface>
 ```
 
 ### State Management

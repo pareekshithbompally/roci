@@ -290,8 +290,6 @@ class CalendarService {
         continue;
       }
 
-      const actionTypeId = event.meeting_url ? 'meeting_starting' : 'meeting_starting_no_url';
-
       notificationScheduler.schedule(key, {
         at: new Date(fireAtMs),
         title: event.title,

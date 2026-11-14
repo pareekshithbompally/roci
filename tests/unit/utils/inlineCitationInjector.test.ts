@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { injectCitationTokens } from '@shared/utils/inlineCitationInjector';
 
 import type { InlineCitationSpan } from '@shared/types';

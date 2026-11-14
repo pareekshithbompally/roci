@@ -1,23 +1,15 @@
 /**
- * Markdown Styling for Chat Messages
- *
- * Plain CSS — no @apply (Tailwind is CDN-only in this project).
- * Applied via .markdown-content class on the Streamdown wrapper.
- *
- * Code blocks: @streamdown/code handles syntax highlighting + chrome.
- * This file only styles text, inline code, blockquotes, lists, tables.
+ * Markdown styling for the shared Markdown renderer (.markdown-content on the Streamdown wrapper).
+ * Colours are semantic roles from tokens.css only — they switch with `.dark`, so no dark overrides.
+ * Code blocks: @streamdown/code handles highlighting + chrome; we restyle its frame below.
  */
 
 .markdown-content {
   font-size: 14px;
   line-height: 1.6;
-  color: #4a453e; /* paper-800 */
+  color: var(--text-primary);
   word-wrap: break-word;
   overflow-wrap: break-word;
-}
-
-.dark .markdown-content {
-  color: #d4d4d4; /* night-200 */
 }
 
 /* Headings */
@@ -25,11 +17,7 @@
   font-weight: 600;
   margin-top: 1em;
   margin-bottom: 0.5em;
-  color: #1e1c18; /* paper-900 */
-}
-
-.dark .markdown-content :is(h1, h2, h3, h4, h5, h6) {
-  color: #ededed; /* night-100 */
+  color: var(--text-primary);
 }
 
 .markdown-content h1 { font-size: 1.25em; line-height: 1.2; }
@@ -45,20 +33,11 @@
 
 .markdown-content strong {
   font-weight: 600;
-  color: #1e1c18; /* paper-900 */
+  color: var(--text-primary);
 }
 
-.dark .markdown-content strong {
-  color: #ededed; /* night-100 */
-}
-
-.markdown-content em {
-  font-style: italic;
-}
-
-.markdown-content del {
-  text-decoration: line-through;
-}
+.markdown-content em { font-style: italic; }
+.markdown-content del { text-decoration: line-through; }
 
 /* Lists */
 .markdown-content ul,
@@ -72,9 +51,7 @@
 .markdown-content ul { list-style-type: disc; }
 .markdown-content ol { list-style-type: decimal; }
 
-.markdown-content li {
-  margin-bottom: 0.5em;
-}
+.markdown-content li { margin-bottom: 0.5em; }
 
 .markdown-content li > p {
   display: inline;
@@ -90,43 +67,29 @@
 .markdown-content li > ul { list-style-type: circle; }
 .markdown-content li > ol { list-style-type: lower-roman; }
 
-/* Blockquotes — visually distinct with accent border + tinted bg */
+/* Blockquotes — accent rule + info tint */
 .markdown-content blockquote {
   line-height: 1.6;
-  border-left: 3px solid #60a5fa; /* blue-400 */
-  background-color: rgba(239, 246, 255, 0.5); /* blue-50/50 */
+  border-left: 3px solid var(--border-focus);
+  background-color: var(--info-bg);
   padding: 0.5em 1em;
   margin-left: 0;
   margin-bottom: 1em;
   border-radius: 0 6px 6px 0;
-  color: #4a453e; /* paper-800 */
+  color: var(--text-muted);
 }
 
-.dark .markdown-content blockquote {
-  border-left-color: #3b82f6; /* blue-500 */
-  background-color: rgba(23, 37, 84, 0.2); /* blue-950/20 */
-  color: #999999; /* night-400 */
-}
+.markdown-content blockquote p:last-child { margin-bottom: 0; }
 
-.markdown-content blockquote p:last-child {
-  margin-bottom: 0;
-}
-
-/* Inline code — only target code NOT inside pre */
+/* Inline code — only code NOT inside pre */
 .markdown-content :not(pre) > code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.85em;
-  background-color: #f0ede5; /* paper-200 */
-  color: #db2777; /* pink-600 */
-  border: 1px solid #e4e0d6; /* paper-300 */
+  background-color: var(--bg-layer-1);
+  color: var(--text-primary);
+  border: 1px solid var(--border-muted);
   padding: 0.15em 0.4em;
   border-radius: 4px;
-}
-
-.dark .markdown-content :not(pre) > code {
-  background-color: #1c1c1c; /* night-800 */
-  color: #f472b6; /* pink-400 */
-  border-color: #333333; /* night-650 */
 }
 
 /* Code blocks */
@@ -148,74 +111,45 @@
 
 /* Links */
 .markdown-content a {
-  color: #2563eb; /* blue-600 */
+  color: var(--text-accent);
   text-decoration: none;
 }
 
-.dark .markdown-content a {
-  color: #60a5fa; /* blue-400 */
-}
-
-.markdown-content a:hover {
-  text-decoration: underline;
-}
+.markdown-content a:hover { text-decoration: underline; }
 
 /* Tables */
 .markdown-content table {
   width: 100%;
   margin-bottom: 1em;
   border-collapse: collapse;
-  border: 1px solid #d5d0c4; /* paper-400 */
+  border: 1px solid var(--border-base);
   border-radius: 8px;
   overflow: hidden;
 }
 
-.dark .markdown-content table {
-  border-color: #333333; /* night-650 */
-}
-
-.markdown-content thead {
-  background-color: #f0ede5; /* paper-200 */
-}
-
-.dark .markdown-content thead {
-  background-color: #1c1c1c; /* night-800 */
-}
+.markdown-content thead { background-color: var(--bg-layer-1); }
 
 .markdown-content th {
   padding: 0.5em 1em;
   text-align: left;
   font-size: 0.875em;
   font-weight: 600;
-  color: #1e1c18; /* paper-900 */
-}
-
-.dark .markdown-content th {
-  color: #ededed; /* night-100 */
+  color: var(--text-primary);
 }
 
 .markdown-content td {
   padding: 0.5em 1em;
   font-size: 0.875em;
-  color: #4a453e; /* paper-800 */
-  border-top: 1px solid #e4e0d6; /* paper-300 */
-}
-
-.dark .markdown-content td {
-  color: #d4d4d4; /* night-200 */
-  border-top-color: #333333; /* night-650 */
+  color: var(--text-primary);
+  border-top: 1px solid var(--border-muted);
 }
 
 /* Horizontal rule */
 .markdown-content hr {
   border: 0;
   height: 1px;
-  background-color: #d5d0c4; /* paper-400 */
+  background-color: var(--border-base);
   margin: 2em 0;
-}
-
-.dark .markdown-content hr {
-  background-color: #333333; /* night-650 */
 }
 
 /* Images */
@@ -227,45 +161,34 @@
 }
 
 /* ============================================================
- * Code block overrides for @streamdown/code
- *
- * Streamdown uses shadcn CSS-variable classes (border-border,
- * bg-sidebar, text-muted-foreground) that need overriding with
- * our paper/night theme tokens.
- *
- * Grid layout puts the header + action buttons in row 1 and
- * the code body in row 2 — so copy/download sit inline with
- * the language label, not floating over it.
- *
- * content-visibility:visible prevents off-screen blocks from
- * losing highlight state.
+ * @streamdown/code overrides. Streamdown ships shadcn classes
+ * (border-border, bg-sidebar, …); we map its frame onto our roles.
+ * Grid puts the language label + actions in row 1, code in row 2.
+ * content-visibility:visible keeps off-screen highlight state.
  * ============================================================ */
 
-/* --- Light mode: container — grid layout, outer frame --- */
 .markdown-content [data-streamdown="code-block"] {
   display: grid !important;
   grid-template-columns: 1fr auto;
   grid-template-rows: auto 1fr;
-  border-color: #e4e0d6 !important;          /* paper-300 */
-  background-color: #f0ede5 !important;       /* paper-200 */
+  border-color: var(--border-muted) !important;
+  background-color: var(--bg-layer-1) !important;
   content-visibility: visible !important;
   overflow: hidden !important;
   gap: 0 !important;
   padding: 0 !important;
 }
 
-/* --- Light mode: header bar — full-width language label row --- */
 .markdown-content [data-streamdown="code-block-header"] {
   grid-column: 1 / -1;
   grid-row: 1;
-  background-color: #f7f5ef !important;       /* paper-150 */
-  border-bottom: 1px solid #e4e0d6 !important; /* paper-300 */
-  color: #6b655c !important;                  /* paper-700 */
+  background-color: var(--bg-deep) !important;
+  border-bottom: 1px solid var(--border-muted) !important;
+  color: var(--text-muted) !important;
   padding: 0.5rem 0.75rem !important;
   height: auto !important;
 }
 
-/* --- Light mode: actions wrapper — same row as header, right side --- */
 .markdown-content [data-streamdown="code-block"] > :has([data-streamdown="code-block-actions"]) {
   grid-column: 2;
   grid-row: 1;
@@ -278,7 +201,6 @@
   padding-right: 0.75rem;
 }
 
-/* Light mode: actions — stripped container, buttons as native header icons */
 .markdown-content [data-streamdown="code-block-actions"] {
   border-color: transparent !important;
   background-color: transparent !important;
@@ -289,22 +211,21 @@
 }
 
 .markdown-content [data-streamdown="code-block-actions"] button {
-  color: #6b655c !important;                  /* paper-700 */
+  color: var(--text-faint) !important;
   border-radius: 0.25rem;
   transition: background-color 0.15s ease;
 }
 
 .markdown-content [data-streamdown="code-block-actions"] button:hover {
-  color: #4a453e !important;                  /* paper-800 */
-  background-color: rgba(0, 0, 0, 0.06);
+  color: var(--text-muted) !important;
+  background-color: var(--bg-hover);
 }
 
-/* --- Light mode: code body — no inner border, seamless surface --- */
 .markdown-content [data-streamdown="code-block-body"] {
   grid-column: 1 / -1;
   grid-row: 2;
   border: none !important;
-  background-color: #f0ede5 !important;       /* paper-200 */
+  background-color: var(--bg-layer-1) !important;
   padding: 0.75rem 1rem !important;
   border-radius: 0 !important;
 }
@@ -320,68 +241,17 @@
   font-size: 13px;
 }
 
-/* --- Dark mode: container --- */
-.dark .markdown-content [data-streamdown="code-block"] {
-  border-color: #2a2a2a !important;           /* night-700 */
-  background-color: #181818 !important;        /* night-850 */
-}
-
-/* --- Dark mode: header --- */
-.dark .markdown-content [data-streamdown="code-block-header"] {
-  background-color: #181818 !important;        /* night-850 */
-  border-bottom-color: #2a2a2a !important;     /* night-700 */
-  color: #666666 !important;                  /* night-500 */
-}
-
-/* --- Dark mode: action buttons — stripped container, native header icons --- */
-.dark .markdown-content [data-streamdown="code-block-actions"] {
-  border-color: transparent !important;
-  background-color: transparent !important;
-  padding: 0 !important;
-  gap: 0 !important;
-  box-shadow: none !important;
-}
-
-.dark .markdown-content [data-streamdown="code-block-actions"] button {
-  color: #444444 !important;                  /* night-600 */
-  border-radius: 0.25rem;
-  transition: background-color 0.15s ease;
-}
-
-.dark .markdown-content [data-streamdown="code-block-actions"] button:hover {
-  color: #999999 !important;                  /* night-400 */
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-/* --- Dark mode: code body --- */
+/* Shiki dual theme: dark mode reads the dark token colours */
 .dark .markdown-content [data-streamdown="code-block-body"] {
-  background-color: #181818 !important;        /* night-850 */
-  color: var(--shiki-dark, #e6edf3) !important;
-  border-radius: 0 !important;
+  color: var(--shiki-dark, var(--text-primary)) !important;
 }
 
-.dark .markdown-content [data-streamdown="code-block-body"] pre {
-  background-color: transparent !important;
-  margin: 0 !important;
-}
-
-.dark .markdown-content [data-streamdown="code-block-body"] code {
-  background-color: transparent !important;
-}
-
-/* Dark mode: Shiki dual-theme token colors */
 .dark .markdown-content [data-streamdown="code-block-body"] code span {
   color: var(--shiki-dark, var(--sdm-c, inherit)) !important;
   background-color: transparent !important;
 }
 
-/* ============================================================
- * Inline citation markers (superscript badges within text)
- *
- * Rendered by InlineCitationMarker via the rehype citation plugin.
- * Small non-disruptive pills with favicon + number.
- * ============================================================ */
-
+/* Inline citation markers (InlineCitationMarker via the rehype citation plugin) */
 .markdown-content .cite-marker-btn {
   display: inline-flex;
   align-items: center;
@@ -392,28 +262,16 @@
   font-size: 10px;
   font-weight: 500;
   line-height: 1;
-  background-color: #eff6ff; /* blue-50 */
-  color: #2563eb; /* blue-600 */
-  border: 1px solid rgba(191, 219, 254, 0.6); /* blue-200/60 */
+  background-color: var(--info-bg);
+  color: var(--text-accent);
+  border: 1px solid var(--info-border);
   border-radius: 4px;
   cursor: pointer;
   text-decoration: none;
   transition: background-color 0.15s ease;
 }
 
-.markdown-content .cite-marker-btn:hover {
-  background-color: #dbeafe; /* blue-100 */
-}
-
-.dark .markdown-content .cite-marker-btn {
-  background-color: rgba(30, 58, 138, 0.3); /* blue-900/30 */
-  color: #60a5fa; /* blue-400 */
-  border-color: rgba(30, 64, 175, 0.4); /* blue-800/40 */
-}
-
-.dark .markdown-content .cite-marker-btn:hover {
-  background-color: rgba(30, 58, 138, 0.5); /* blue-900/50 */
-}
+.markdown-content .cite-marker-btn:hover { background-color: var(--bg-pressed); }
 
 .markdown-content .cite-marker-favicon {
   width: 10px;
@@ -422,10 +280,4 @@
 }
 
 /* Streamdown caret */
-.markdown-content *:last-child::after {
-  color: #6b655c !important; /* paper-700 */
-}
-
-.dark .markdown-content *:last-child::after {
-  color: #999999 !important; /* night-400 */
-}
+.markdown-content *:last-child::after { color: var(--text-muted) !important; }

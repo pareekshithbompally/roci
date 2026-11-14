@@ -28,11 +28,6 @@ async function getRecordingsPath(): Promise<string> {
   return recordingsDirPromise;
 }
 
-function ensureTrailingSeparator(path: string): string {
-  const separator = sep();
-  return path.endsWith(separator) ? path : `${path}${separator}`;
-}
-
 class RecordingsService {
   /**
    * Save a recording with metadata — writes binary .wav to disk + upserts row in kasset.db.
