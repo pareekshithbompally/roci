@@ -1,4 +1,4 @@
-//! Tauri commands for Hex transcription. The bearer token never leaves Rust.
+//! Tauri commands for the Hex integration. The bearer token never leaves Rust.
 
 use serde::Serialize;
 use std::path::PathBuf;
@@ -6,7 +6,8 @@ use tauri::ipc::{InvokeBody, Request};
 use tauri::{AppHandle, Manager};
 
 use super::client::{self, HexModel};
-use super::{discovery, HexError};
+use super::meetings::{self, HexMeeting, HexMeetingDetail};
+use super::{discovery, events, HexError, HexState};
 
 const MODEL_HEADER: &str = "x-hex-model";
 const LANGUAGE_HEADER: &str = "x-hex-language";
@@ -51,4 +52,30 @@ pub async fn hex_transcribe(app: AppHandle, request: Request<'_>) -> Result<Stri
     let language = header(&request, LANGUAGE_HEADER).unwrap_or(DEFAULT_LANGUAGE);
     let endpoint = discovery::read(&data_dir(&app)?)?;
     client::transcribe(&endpoint, wav.clone(), model, language).await
+}
+
+/// Every Hex meeting, newest first (Hex's CLI JSON, read-only).
+#[tauri::command]
+pub async fn hex_meetings_list() -> Result<Vec<HexMeeting>, HexError> {
+    meetings::list_all().await
+}
+
+/// One Hex meeting with its notes and full transcript.
+#[tauri::command]
+pub async fn hex_meeting_show(id: String) -> Result<HexMeetingDetail, HexError> {
+    meetings::show(&id).await
+}
+
+/// Starts or stops the meeting-finished watcher (the integration switch).
+#[tauri::command]
+pub fn hex_watch(app: AppHandle, state: tauri::State<'_, HexState>, on: bool) -> Result<(), HexError> {
+    let mut watcher = state.watcher.lock().map_err(|error| HexError::Rejected(error.to_string()))?;
+    if let Some(task) = watcher.take() {
+        task.abort();
+    }
+    if on {
+        let data_dir = data_dir(&app)?;
+        *watcher = Some(tauri::async_runtime::spawn(events::watch(app, data_dir)));
+    }
+    Ok(())
 }

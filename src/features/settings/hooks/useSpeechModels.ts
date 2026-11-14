@@ -1,41 +1,28 @@
 /**
- * Speech model hooks for the UI. Hex's status is a TanStack Query (re-checked
- * on window focus) and is only fetched where it matters.
+ * Speech model hooks for the UI: what Settings › Audio and the composer mic can
+ * use. Integration sources (Hex, Apple Speech) come from features/integrations.
  */
 
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { queryKeys } from '@shared/query/queryKeys';
-import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
+import { useIntegrationSpeech } from '@features/integrations';
 import {
-  getHexStatus,
   isSpeechSelectionReady,
   speechModelOptions,
   speechSelectionOf,
 } from '@services/ai/transcription';
 import type { SpeechModelOption } from '@services/ai/transcription';
 
-export function useHexStatus(enabled = true) {
-  return useQuery({
-    queryKey: queryKeys.hexStatus(),
-    queryFn: getHexStatus,
-    enabled,
-    refetchOnWindowFocus: true,
-  });
-}
-
 /** Every speech model with whether it can run now (Settings › Audio). */
 export function useSpeechModelOptions(): SpeechModelOption[] {
   const { providers } = useSettings();
-  const { data: hexStatus } = useHexStatus();
-  return useMemo(() => speechModelOptions(providers, hexStatus), [providers, hexStatus]);
+  const integrations = useIntegrationSpeech();
+  return useMemo(() => speechModelOptions(providers, integrations), [providers, integrations]);
 }
 
-/** Whether the selected speech model can run now (composer mic). Checks Hex only when it's selected. */
+/** Whether the selected speech model can run now (composer mic). */
 export function useSpeechInputReady(): boolean {
   const { settings, providers } = useSettings();
-  const selection = speechSelectionOf(settings);
-  const { data: hexStatus } = useHexStatus(selection?.provider === TRANSCRIPTION_CONFIG.hexProvider);
-  return isSpeechSelectionReady(selection, providers, hexStatus);
+  const integrations = useIntegrationSpeech();
+  return isSpeechSelectionReady(speechSelectionOf(settings), providers, integrations);
 }

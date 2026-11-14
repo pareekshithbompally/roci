@@ -8,10 +8,13 @@
  */
 
 import { generateText, Output, jsonSchema } from 'ai';
+import { isIntegrationEnabled } from '@shared/utils/integrations';
+import { getProviderTitle } from '@shared/utils/provider.utils';
+import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import type { FilePart, UserContent } from 'ai';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { ProcessedResult, AppSettings, MeetingSummary, StoredTranscriptSegment } from '@shared/types';
-import { resolveModel } from '@shared/utils/modelResolver';
+import { resolveModel, resolveSummaryModel, requiresApiKey, type ResolvedModel } from '@shared/utils/modelResolver';
 import { MAX_AUDIO_SIZE_BYTES, MAX_AUDIO_SIZE_MB, MIN_AUDIO_SIZE_BYTES, WAV_HEADER_SIZE_BYTES } from '@shared/utils/audio.utils';
 import { parseVTT } from '@shared/utils/vtt.utils';
 import { buildTranscriptionRequest, formatTemporalContext } from '@core/ai';
@@ -66,6 +69,11 @@ export async function transcribeAudio(
   if (!selection) {
     throw new Error('Choose a transcription model in Settings › Audio.');
   }
+  const integration = TRANSCRIPTION_CONFIG.integrationByProvider[selection.provider];
+  if (integration && !isIntegrationEnabled(settings, integration)) {
+    const name = getProviderTitle(selection.provider);
+    throw new Error(`${name} is off in Settings › Integrations. Turn it on, or choose another transcription model.`);
+  }
   assertAudioSize(audioBlob);
   const result = await runTranscription(audioBlob, selection, providers, options);
   // VAD found no speech (or every part decoded to nothing): surfacing this as
@@ -77,6 +85,19 @@ export async function transcribeAudio(
   return result;
 }
 
+/** The Summary model, ready to call — or why it can't run. */
+function summaryModelOrThrow(settings: AppSettings, providers: ModelProvider[]): ResolvedModel {
+  const resolved = resolveSummaryModel(settings, providers);
+  if (!resolved) {
+    const id = settings.analyzeModel || settings.chatModel;
+    throw new Error(`Summary model "${id}" isn't available. Choose one in Settings › Audio.`);
+  }
+  if (requiresApiKey(resolved) && !resolved.apiKey) {
+    throw new Error(`API key not configured for ${resolved.provider}. Please add it in Settings → Providers.`);
+  }
+  return resolved;
+}
+
 async function analyzeStage(args: {
   transcript: string;
   categories: string[];
@@ -84,14 +105,7 @@ async function analyzeStage(args: {
   providers: ModelProvider[];
   meetingContext?: MeetingContext;
 }): Promise<{ result: AnalysisResult; usage?: TokenUsage }> {
-  const analyzeModelId = args.settings.analyzeModel || args.settings.chatModel;
-  const resolved = resolveModel(analyzeModelId, args.providers);
-  if (!resolved) {
-    throw new Error(`Analyze model "${analyzeModelId}" not found. Please configure a model in Settings → Providers.`);
-  }
-  if (!resolved.apiKey) {
-    throw new Error(`API key not configured for ${resolved.provider}. Please add it in Settings → Providers.`);
-  }
+  const resolved = summaryModelOrThrow(args.settings, args.providers);
   return analyzeTranscript({
     transcript: args.transcript,
     categories: args.categories,
@@ -120,19 +134,20 @@ class UnifiedAIService {
     const t = await transcribeAudio(audioBlob, settings, providers, options);
     const { formatted: transcript, segments } = formatTranscript(t);
     options.onSummarizing?.();
+    return this.processTranscript(transcript, segments, categories, settings, providers, meetingContext);
+  }
 
-    const { result: analysis, usage } = await analyzeStage({
-      transcript,
-      categories,
-      settings,
-      providers,
-      meetingContext,
-    });
-
-    return {
-      result: this.toProcessedResult(analysis, transcript, segments),
-      usage,
-    };
+  /** A finished transcript → title, summary, action items, categories (the Summary model). */
+  async processTranscript(
+    transcript: string,
+    segments: StoredTranscriptSegment[] | undefined,
+    categories: string[],
+    settings: AppSettings,
+    providers: ModelProvider[],
+    meetingContext?: MeetingContext,
+  ): Promise<{ result: ProcessedResult; usage?: TokenUsage }> {
+    const { result: analysis, usage } = await analyzeStage({ transcript, categories, settings, providers, meetingContext });
+    return { result: this.toProcessedResult(analysis, transcript, segments), usage };
   }
 
   async processDocument(
@@ -143,14 +158,7 @@ class UnifiedAIService {
   ): Promise<{ result: ProcessedResult; usage?: TokenUsage }> {
     const content = await fileToSDKContent(file);
     const text = typeof content === 'string' ? content : '[binary file content]';
-    const analyzeModelId = settings.analyzeModel || settings.chatModel;
-    const resolved = resolveModel(analyzeModelId, providers);
-    if (!resolved) {
-      throw new Error(`Analyze model "${analyzeModelId}" not found. Please configure a model in Settings → Providers.`);
-    }
-    if (!resolved.apiKey) {
-      throw new Error(`API key not configured for ${resolved.provider}. Please add it in Settings → Providers.`);
-    }
+    const resolved = summaryModelOrThrow(settings, providers);
     const config = buildTranscriptionRequest({
       categories,
       supportsStructuredOutput: true,

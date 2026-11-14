@@ -1,8 +1,14 @@
 [default]
-description = "Allows all calendar plugin commands"
+description = "Allows all EventKit commands (calendar events + reminders)"
 permissions = [
   "allow-request-access",
   "allow-check-access",
   "allow-get-upcoming-events",
   "allow-get-events-in-range",
+  "allow-reminders-request-access",
+  "allow-reminders-check-access",
+  "allow-reminders-lists",
+  "allow-reminders-ensure-list",
+  "allow-reminders-upsert",
+  "allow-reminders-states",
 ]

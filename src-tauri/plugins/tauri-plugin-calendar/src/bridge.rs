@@ -1,7 +1,10 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
-use crate::types::{AccessResult, AccessStatus, EventsResponse};
+use crate::types::{
+    AccessResult, AccessStatus, BridgeReply, EventsResponse, ReminderInput, ReminderState, RemindersList,
+    RemindersListsResponse,
+};
 
 // FFI declarations for the Swift CalendarBridge
 extern "C" {
@@ -10,6 +13,14 @@ extern "C" {
     fn calendar_get_upcoming_events(minutes_ahead: i32) -> *mut c_char;
     fn calendar_get_events_in_range(start_iso: *const c_char, end_iso: *const c_char) -> *mut c_char;
     fn calendar_free_string(ptr: *mut c_char);
+
+    fn reminders_request_access() -> *mut c_char;
+    fn reminders_check_access() -> *mut c_char;
+    fn reminders_lists() -> *mut c_char;
+    fn reminders_ensure_list(title: *const c_char) -> *mut c_char;
+    fn reminders_upsert(input: *const c_char) -> *mut c_char;
+    fn reminders_states(list_id: *const c_char) -> *mut c_char;
+    fn reminders_observe_changes(callback: extern "C" fn());
 }
 
 /// Parse a JSON string from a C pointer, then free the pointer.
@@ -50,4 +61,54 @@ pub fn get_events_in_range(start: &str, end: &str) -> Result<EventsResponse, Str
     let end_c = CString::new(end).map_err(|e| format!("Invalid end date: {e}"))?;
     let ptr = unsafe { calendar_get_events_in_range(start_c.as_ptr(), end_c.as_ptr()) };
     parse_and_free(ptr)
+}
+
+// ─── Reminders ──────────────────────────────────────────────────────────────
+
+/// Request full reminders access from the user.
+pub fn request_reminders_access() -> Result<AccessResult, String> {
+    parse_and_free(unsafe { reminders_request_access() })
+}
+
+/// Current reminders authorization, without prompting.
+pub fn check_reminders_access() -> Result<AccessStatus, String> {
+    parse_and_free(unsafe { reminders_check_access() })
+}
+
+/// Every reminders list.
+pub fn reminders_list_all() -> Result<Vec<RemindersList>, String> {
+    parse_and_free::<RemindersListsResponse>(unsafe { reminders_lists() }).map(|r| r.lists)
+}
+
+/// The id of the list titled `title`, created when missing.
+pub fn ensure_reminders_list(title: &str) -> Result<String, String> {
+    let title = CString::new(title).map_err(|e| format!("Invalid list title: {e}"))?;
+    let reply: BridgeReply<ReminderState> = parse_and_free(unsafe { reminders_ensure_list(title.as_ptr()) })?;
+    reply_result(reply.error)?;
+    reply.id.ok_or_else(|| "Reminders list has no id".into())
+}
+
+/// Create or update the reminder for one to-do.
+pub fn upsert_reminder(input: &ReminderInput) -> Result<(), String> {
+    let json = serde_json::to_string(input).map_err(|e| format!("Invalid reminder: {e}"))?;
+    let json = CString::new(json).map_err(|e| format!("Invalid reminder: {e}"))?;
+    let reply: BridgeReply<ReminderState> = parse_and_free(unsafe { reminders_upsert(json.as_ptr()) })?;
+    reply_result(reply.error)
+}
+
+/// Completion of every Kasset-tagged reminder in a list.
+pub fn reminder_states(list_id: &str) -> Result<Vec<ReminderState>, String> {
+    let list_id = CString::new(list_id).map_err(|e| format!("Invalid list id: {e}"))?;
+    let reply: BridgeReply<ReminderState> = parse_and_free(unsafe { reminders_states(list_id.as_ptr()) })?;
+    reply_result(reply.error)?;
+    Ok(reply.items.unwrap_or_default())
+}
+
+/// Calls `callback` whenever the reminders database changes. Register once.
+pub fn observe_reminders(callback: extern "C" fn()) {
+    unsafe { reminders_observe_changes(callback) }
+}
+
+fn reply_result(error: Option<String>) -> Result<(), String> {
+    error.map_or(Ok(()), Err)
 }

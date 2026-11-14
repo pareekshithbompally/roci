@@ -43,6 +43,7 @@
     "shell:allow-open",
     "store:default",
     "calendar:default",
+    "apple-intelligence:default",
     "window-state:default",
     "updater:default",
     {

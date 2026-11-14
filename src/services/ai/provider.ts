@@ -5,6 +5,7 @@
  * This is the only place that maps provider names to SDK constructors.
  */
 
+import { appleIntelligenceModel } from '@services/ai/apple/appleLanguageModel';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogle } from '@ai-sdk/google';
@@ -45,6 +46,8 @@ export function createModel(
   const fetch = getPlatformFetch();
 
   switch (getProviderType(resolved.provider)) {
+    case 'apple-intelligence':
+      return appleIntelligenceModel();
     case 'anthropic': {
       const customHeaders = buildCustomHeaders(resolved.providerConfig);
       const provider = createAnthropic({

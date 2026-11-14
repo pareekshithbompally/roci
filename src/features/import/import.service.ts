@@ -5,15 +5,15 @@
  * Singleton. Non-React — receives dependencies via method args.
  */
 
-import type { AppSettings, MeetingSummary } from '@shared/types';
+import type { AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { dialogService } from '@services/tauri/dialog.service';
 import { fileSystemService } from '@services/tauri/fileSystem.service';
 import { unifiedAIService } from '@services/unifiedAIService';
-import { transcriptionService } from '@services/transcription.service';
+import { transcriptionService, meetingSummaryOf } from '@services/transcription.service';
 import { activityStore } from '@shared/stores/activityStore';
 import { logUsage } from '@extensions/usage';
-import { resolveModel } from '@shared/utils/modelResolver';
+import { resolveSummaryModel } from '@shared/utils/modelResolver';
 import { IMPORT_CONFIG } from '@config/audio.config';
 import { parseSubtitleFile } from './parsers/subtitle-parser';
 import { JobQueue } from './job-queue';
@@ -174,10 +174,10 @@ class ImportService {
     const { result, usage } = await unifiedAIService.processDocument(transcriptFile, categories, settings, providers);
     if (signal.aborted) throw new Error('Import cancelled');
 
-    const resolved = resolveModel(settings.analyzeModel || settings.chatModel, providers);
+    const resolved = resolveSummaryModel(settings, providers);
     logUsage({ category: 'transcription', sessionId: job.meetingId, provider: resolved?.provider, model: resolved?.modelId, usage }).catch(e => console.error('[UsageLog] transcription:', e));
 
-    const meetingSummary = this.buildMeetingSummary(result);
+    const meetingSummary = meetingSummaryOf(result);
 
     await transcriptionService.saveTranscriptionResult({
       meetingId: job.meetingId,
@@ -222,10 +222,10 @@ class ImportService {
     });
     if (signal.aborted) throw new Error('Import cancelled');
 
-    const resolvedAudio = resolveModel(settings.analyzeModel || settings.chatModel, providers);
+    const resolvedAudio = resolveSummaryModel(settings, providers);
     logUsage({ category: 'transcription', sessionId: job.meetingId, provider: resolvedAudio?.provider, model: resolvedAudio?.modelId, usage: audioUsage }).catch(e => console.error('[UsageLog] transcription:', e));
 
-    const meetingSummary = this.buildMeetingSummary(result);
+    const meetingSummary = meetingSummaryOf(result);
 
     await transcriptionService.saveTranscriptionResult({
       meetingId: job.meetingId,
@@ -241,21 +241,6 @@ class ImportService {
     });
 
     this.debouncedRefresh();
-  }
-
-  private buildMeetingSummary(result: import('@shared/types').ProcessedResult): MeetingSummary {
-    const ss = result.structuredSummary;
-    return {
-      overview: ss?.overview || result.summary,
-      keyDiscussionPoints: ss?.keyDiscussionPoints || [],
-      decisionsMade: ss?.decisionsMade || [],
-      actionItems: (ss?.actionItems || []).map(a => ({
-        text: a.text,
-        owner: a.owner,
-        dueDate: a.dueDate,
-      })),
-      nextSteps: ss?.nextSteps || [],
-    };
   }
 
   /** Debounce history refresh — coalesce rapid completions into one call */

@@ -17,6 +17,7 @@ import { createElevenLabs } from '@ai-sdk/elevenlabs';
 import { getPlatformFetch } from '@services/platform-fetch';
 import { VERBATIM_TRANSCRIBE_PROMPT } from '@core/ai/prompts/transcription.prompt';
 import { hexTranscribePart } from './hex';
+import { appleSpeechTranscribePart } from './appleSpeech';
 import type { TranscriptionAdapterId } from '@config/transcription.config';
 import type { TranscriptionModel } from 'ai';
 import type { Cred } from './cred';
@@ -72,4 +73,5 @@ export const ADAPTERS: Record<TranscriptionAdapterId, TranscribePart> = {
   elevenlabs: viaSDK((cred, model) => createElevenLabs({ apiKey: cred.apiKey }).transcription(model)),
   gemini: viaGeminiPrompt,
   hex: hexTranscribePart,
+  'apple-speech': appleSpeechTranscribePart,
 };

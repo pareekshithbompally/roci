@@ -8,8 +8,9 @@
  */
 
 import React from 'react';
-import { Check, X } from 'lucide-react';
-import { Button, Card, CardRow, Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, Icon, IconButton, Text } from '@shared/ui';
+import { X } from 'lucide-react';
+import { Card, CardRow, Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, IconButton, Text } from '@shared/ui';
+import { PermissionAction } from '@shared/components';
 import { useAppStore, usePermissionChecklistOpen } from '@shared/stores/appStore';
 import { permissionsService, type PermissionKind, type PermissionRow } from '@services/permissions.service';
 import { usePermissions } from '@features/recording/hooks/usePermissions';
@@ -29,30 +30,13 @@ function reportFailure(action: string) {
   return (error: unknown) => console.error(`[PermissionChecklist] ${action} failed:`, error);
 }
 
-const RowAction: React.FC<{ row: PermissionRow }> = ({ row }) => {
-  if (row.state === 'ready') {
-    return (
-      <span className="inline-flex items-center gap-1">
-        <Icon icon={Check} size="sm" tone="success" />
-        <Text variant="helper" tone="success">Allowed</Text>
-      </span>
-    );
-  }
-  if (row.state === 'needs-request') {
-    return (
-      <Button variant="primary" size="sm" onClick={() => permissionsService.request(row.kind).catch(reportFailure('request'))}
-      >
-        Allow
-      </Button>
-    );
-  }
-  return (
-    <Button variant="outline" size="sm" onClick={() => permissionsService.openSettings(row.kind).catch(reportFailure('open settings'))}
-    >
-      Open Settings
-    </Button>
-  );
-};
+const RowAction: React.FC<{ row: PermissionRow }> = ({ row }) => (
+  <PermissionAction
+    state={row.state}
+    onRequest={() => permissionsService.request(row.kind).catch(reportFailure('request'))}
+    onOpenSettings={() => permissionsService.openSettings(row.kind).catch(reportFailure('open settings'))}
+  />
+);
 
 export const PermissionChecklist: React.FC = () => {
   const open = usePermissionChecklistOpen();

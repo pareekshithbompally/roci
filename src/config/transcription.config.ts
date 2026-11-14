@@ -6,7 +6,9 @@
  * parts each adapter accepts, and runs that provider's adapter per part.
  */
 
-export type TranscriptionAdapterId = 'openai-compatible' | 'deepgram' | 'elevenlabs' | 'gemini' | 'hex';
+import type { IntegrationId } from '@shared/utils/integrations';
+
+export type TranscriptionAdapterId = 'openai-compatible' | 'deepgram' | 'elevenlabs' | 'gemini' | 'hex' | 'apple-speech';
 
 export interface SpeechModel {
   id: string;
@@ -32,6 +34,7 @@ export const TRANSCRIPTION_CONFIG = {
     elevenlabs: 900,
     gemini: 600,
     hex: 900,
+    'apple-speech': 900,
   } satisfies Record<TranscriptionAdapterId, number>,
 
   /** Provider id → adapter. Local servers (`local:*`) use the OpenAI-compatible adapter. */
@@ -42,6 +45,7 @@ export const TRANSCRIPTION_CONFIG = {
     elevenlabs: 'elevenlabs',
     gemini: 'gemini',
     hex: 'hex',
+    'apple-intelligence': 'apple-speech',
   } as Record<string, TranscriptionAdapterId>,
 
   /** Speech models each cloud provider offers, in the order they're listed. */
@@ -75,6 +79,14 @@ export const TRANSCRIPTION_CONFIG = {
 
   /** Provider id of the running Hex app (no key; its models come from Hex). */
   hexProvider: 'hex',
+  /** Apple speech (Integrations › Apple Intelligence): on this Mac, no key, one model. */
+  appleSpeech: { provider: 'apple-intelligence', model: 'apple-speech', label: 'Apple Speech' },
+  /** Speech providers that exist only while an integration is on (Settings › Integrations). */
+  integrationByProvider: { hex: 'hex', 'apple-intelligence': 'appleIntelligence' } as Record<string, IntegrationId>,
+  /** Speech providers that run without credentials. */
+  keylessProviders: ['hex', 'apple-intelligence'] as readonly string[],
+  /** Hex models Kasset doesn't offer: Apple speech is Kasset-native (Apple Intelligence), never via Hex. */
+  hiddenHexModels: ['apple_speech'] as readonly string[],
 
   /**
    * Silero VAD gate: speech spans are the only audio sent to transcription.

@@ -15,6 +15,15 @@
     <key>NSCalendarsUsageDescription</key>
     <string>Kasset.ai reads your calendar to notify you about upcoming meetings and help identify speakers during transcription.</string>
 
+    <key>NSRemindersFullAccessUsageDescription</key>
+    <string>Kasset.ai adds your meeting action items to Reminders and marks them done in Kasset when you complete them there.</string>
+
+    <key>NSRemindersUsageDescription</key>
+    <string>Kasset.ai adds your meeting action items to Reminders and marks them done in Kasset when you complete them there.</string>
+
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>Kasset.ai transcribes your recordings on this Mac with Apple's speech recognition when you choose it as your transcription model.</string>
+
     <key>NSUserNotificationAlertStyle</key>
     <string>alert</string>
 </dict>

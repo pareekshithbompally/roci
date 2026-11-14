@@ -7,7 +7,8 @@ mod screenshot;
 mod wake_lock;
 mod notification;
 mod permissions;
-mod hex_stt;
+mod hex;
+mod open_native;
 mod mcp;
 
 /// Open a folder in the OS file manager (Finder on macOS).
@@ -81,6 +82,7 @@ pub fn run() {
     .plugin(tauri_plugin_http::init())
     .plugin(tauri_plugin_store::init())
     .plugin(tauri_plugin_calendar::init())
+    .plugin(tauri_plugin_apple_intelligence::init())
     .plugin(tauri_plugin_global_shortcut::Builder::new().build())
     .plugin(tauri_plugin_autostart::init(
       MacosLauncher::LaunchAgent,
@@ -93,6 +95,7 @@ pub fn run() {
     })
     .manage(wake_lock::WakeLockState::new())
     .manage(mcp::McpState::default())
+    .manage(hex::HexState::default())
     .invoke_handler(tauri::generate_handler![
       // Shortcut commands
       shortcuts::register_shortcut,
@@ -128,9 +131,12 @@ pub fn run() {
       permissions::commands::get_permissions,
       permissions::commands::request_permission,
       permissions::commands::open_permission_settings,
-      // Hex transcription (running Hex app's local API)
-      hex_stt::commands::hex_status,
-      hex_stt::commands::hex_transcribe,
+      // Hex integration (transcription models + one-way meeting sync)
+      hex::commands::hex_status,
+      hex::commands::hex_transcribe,
+      hex::commands::hex_meetings_list,
+      hex::commands::hex_meeting_show,
+      hex::commands::hex_watch,
       // MCP client (servers, tools, calls)
       mcp::commands::get_mcp_configs,
       mcp::commands::save_mcp_configs,
@@ -152,6 +158,7 @@ pub fn run() {
       notification::send_actionable_notification,
       // Utility commands
       reveal_in_file_manager,
+      open_native::open_native,
     ])
     .build(tauri::generate_context!())
     .expect("error while building tauri application")

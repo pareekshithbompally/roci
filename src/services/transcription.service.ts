@@ -4,13 +4,14 @@
  * creates todos from AI action items — all atomically via store.meetings.saveTranscription().
  */
 
-import type { MeetingSummary, AppSettings, HistoryItem, StoredTranscriptSegment } from '@shared/types';
+import type { MeetingSummary, AppSettings, HistoryItem, ProcessedResult, StoredTranscriptSegment } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { store } from '@services/db';
 import { normalizeDueDate } from '@shared/utils/todo.utils';
 import { formatMeetingSummary } from './searchIndexing.service';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
+import { remindersSync } from '@services/reminders';
 
 export interface TranscriptionResult {
   meetingId: string;
@@ -28,6 +29,8 @@ export interface TranscriptionResult {
     settings: AppSettings;
     providers: ModelProvider[];
   };
+  /** When the meeting happened (epoch ms); defaults to now. Imports keep their original time. */
+  createdAt?: number;
   /** Calendar metadata to persist in the meeting index. */
   calendarMeta?: {
     calendarEventId: string;
@@ -36,6 +39,18 @@ export interface TranscriptionResult {
     scheduledStart: string;
     scheduledEnd: string;
     meetingUrl?: string;
+  };
+}
+
+/** The Summary model's structured result as the stored MeetingSummary. */
+export function meetingSummaryOf(result: ProcessedResult): MeetingSummary {
+  const structured = result.structuredSummary;
+  return {
+    overview: structured?.overview || result.summary,
+    keyDiscussionPoints: structured?.keyDiscussionPoints || [],
+    decisionsMade: structured?.decisionsMade || [],
+    actionItems: (structured?.actionItems || []).map((a) => ({ text: a.text, owner: a.owner, dueDate: a.dueDate })),
+    nextSteps: structured?.nextSteps || [],
   };
 }
 
@@ -78,7 +93,7 @@ class TranscriptionService {
         inputSource,
         calendarMeta: result.calendarMeta,
         actionItems: actionItems.length > 0 ? actionItems : undefined,
-        createdAt: new Date().getTime(),
+        createdAt: result.createdAt ?? Date.now(),
       });
 
       console.log('[TranscriptionService] Saved transcription result for meeting:', meetingId);
@@ -89,6 +104,9 @@ class TranscriptionService {
       queryClient.invalidateQueries({ queryKey: queryKeys.meetings() }).catch((error: unknown) =>
         console.error('[TranscriptionService] Failed to invalidate meetings query:', error)
       );
+
+      // The meeting's action items → Reminders (no-op unless the integration is on).
+      void remindersSync.added(meetingId);
 
       // Fire-and-forget: index meeting into vector DB
       const now = new Date().toISOString();

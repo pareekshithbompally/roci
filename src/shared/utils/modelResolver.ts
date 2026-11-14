@@ -7,7 +7,9 @@
 
 import type { ModelProvider, Model } from '@shared/types/modelProviders';
 import type { ProviderType } from '@services/ai/types';
-import { MANAGED_SDK_PROVIDERS, MANAGED_SDK_INFO, MANAGED_DEFAULT_URLS } from '@config/providers.config';
+import { MANAGED_SDK_PROVIDERS, MANAGED_SDK_INFO, MANAGED_DEFAULT_URLS, APPLE_INTELLIGENCE } from '@config/providers.config';
+import { isIntegrationEnabled } from '@shared/utils/integrations';
+import type { AppSettings } from '@shared/types';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 
 export interface ResolvedModel {
@@ -64,6 +66,7 @@ export function resolveModel(
  * 6-way: gemini | anthropic | openai | mistral | groq | openai-compat
  */
 export function getProviderType(provider: string): ProviderType {
+  if (provider === APPLE_INTELLIGENCE.provider) return 'apple-intelligence';
   if (provider === 'gemini') return 'gemini';
   if (provider === 'anthropic') return 'anthropic';
   if (provider === 'openai') return 'openai';
@@ -136,4 +139,30 @@ export function getManagedSDKInfo(provider: string): string | null {
 /** Default base URL for managed providers (used only for model listing) */
 export function getDefaultBaseUrl(provider: string): string | null {
   return MANAGED_DEFAULT_URLS[provider] ?? null;
+}
+
+/** Apple Intelligence as a provider entry (no key, one model). */
+const APPLE_INTELLIGENCE_PROVIDER: ModelProvider = {
+  provider: APPLE_INTELLIGENCE.provider,
+  active: true,
+  settings: [],
+  models: [{ id: APPLE_INTELLIGENCE.model, name: APPLE_INTELLIGENCE.name }],
+};
+
+/**
+ * The user's providers plus the models integrations contribute while switched on
+ * (Apple Intelligence). Used by summary-model surfaces only — chat never sees them.
+ */
+export function withIntegrationModels(providers: ModelProvider[], settings: AppSettings): ModelProvider[] {
+  return isIntegrationEnabled(settings, 'appleIntelligence') ? [...providers, APPLE_INTELLIGENCE_PROVIDER] : providers;
+}
+
+/** The Summary model (Settings › Audio), falling back to the chat model, resolved against every summary source. */
+export function resolveSummaryModel(settings: AppSettings, providers: ModelProvider[]): ResolvedModel | null {
+  return resolveModel(settings.analyzeModel || settings.chatModel, withIntegrationModels(providers, settings));
+}
+
+/** Whether calls need an API key (on-device models don't). */
+export function requiresApiKey(resolved: ResolvedModel): boolean {
+  return getProviderType(resolved.provider) !== 'apple-intelligence';
 }

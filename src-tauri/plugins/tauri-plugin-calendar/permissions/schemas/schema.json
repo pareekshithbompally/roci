@@ -331,6 +331,78 @@
           "markdownDescription": "Denies the get_upcoming_events command without any pre-configured scope."
         },
         {
+          "description": "Enables the reminders_check_access command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-reminders-check-access",
+          "markdownDescription": "Enables the reminders_check_access command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the reminders_check_access command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-reminders-check-access",
+          "markdownDescription": "Denies the reminders_check_access command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the reminders_ensure_list command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-reminders-ensure-list",
+          "markdownDescription": "Enables the reminders_ensure_list command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the reminders_ensure_list command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-reminders-ensure-list",
+          "markdownDescription": "Denies the reminders_ensure_list command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the reminders_lists command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-reminders-lists",
+          "markdownDescription": "Enables the reminders_lists command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the reminders_lists command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-reminders-lists",
+          "markdownDescription": "Denies the reminders_lists command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the reminders_request_access command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-reminders-request-access",
+          "markdownDescription": "Enables the reminders_request_access command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the reminders_request_access command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-reminders-request-access",
+          "markdownDescription": "Denies the reminders_request_access command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the reminders_states command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-reminders-states",
+          "markdownDescription": "Enables the reminders_states command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the reminders_states command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-reminders-states",
+          "markdownDescription": "Denies the reminders_states command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the reminders_upsert command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-reminders-upsert",
+          "markdownDescription": "Enables the reminders_upsert command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the reminders_upsert command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-reminders-upsert",
+          "markdownDescription": "Denies the reminders_upsert command without any pre-configured scope."
+        },
+        {
           "description": "Enables the request_access command without any pre-configured scope.",
           "type": "string",
           "const": "allow-request-access",
@@ -343,10 +415,10 @@
           "markdownDescription": "Denies the request_access command without any pre-configured scope."
         },
         {
-          "description": "Allows all calendar plugin commands\n#### This default permission set includes:\n\n- `allow-request-access`\n- `allow-check-access`\n- `allow-get-upcoming-events`\n- `allow-get-events-in-range`",
+          "description": "Allows all EventKit commands (calendar events + reminders)\n#### This default permission set includes:\n\n- `allow-request-access`\n- `allow-check-access`\n- `allow-get-upcoming-events`\n- `allow-get-events-in-range`\n- `allow-reminders-request-access`\n- `allow-reminders-check-access`\n- `allow-reminders-lists`\n- `allow-reminders-ensure-list`\n- `allow-reminders-upsert`\n- `allow-reminders-states`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Allows all calendar plugin commands\n#### This default permission set includes:\n\n- `allow-request-access`\n- `allow-check-access`\n- `allow-get-upcoming-events`\n- `allow-get-events-in-range`"
+          "markdownDescription": "Allows all EventKit commands (calendar events + reminders)\n#### This default permission set includes:\n\n- `allow-request-access`\n- `allow-check-access`\n- `allow-get-upcoming-events`\n- `allow-get-events-in-range`\n- `allow-reminders-request-access`\n- `allow-reminders-check-access`\n- `allow-reminders-lists`\n- `allow-reminders-ensure-list`\n- `allow-reminders-upsert`\n- `allow-reminders-states`"
         }
       ]
     }

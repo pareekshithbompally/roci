@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-speech-request-access"
+description = "Enables the speech_request_access command without any pre-configured scope."
+commands.allow = ["speech_request_access"]
+
+[[permission]]
+identifier = "deny-speech-request-access"
+description = "Denies the speech_request_access command without any pre-configured scope."
+commands.deny = ["speech_request_access"]

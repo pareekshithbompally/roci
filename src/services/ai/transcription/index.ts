@@ -8,8 +8,9 @@ export {
   speechSelectionKey,
   parseSpeechSelectionKey,
 } from './catalog';
-export type { SpeechModelOption } from './catalog';
+export type { SpeechModelOption, IntegrationSpeech } from './catalog';
 export { getHexStatus, installedHexModels } from './hex';
+export { getAppleSpeechStatus } from './appleSpeech';
 export type { HexModel, HexStatus } from './hex';
 export type { TranscriptResult, TranscriptSegment, TranscriptionProgress, SpeechSelection, SpeechRange } from './types';
 export { getSpeechSegments } from './vad';

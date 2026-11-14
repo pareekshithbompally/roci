@@ -15,6 +15,7 @@ import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { store, type GlobalTodoEntry } from '@services/db';
 import { notificationScheduler } from '@services/notification-scheduler';
 import { queryKeys } from '@shared/query/queryKeys';
+import { remindersSync } from '@services/reminders';
 import { hashToNotificationId } from '@shared/utils/todo.utils';
 
 /** @deprecated Use GlobalTodoEntry from @services/db */
@@ -128,6 +129,7 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
         queryClient.setQueryData(queryKeys.storeGlobalTodos(), context.previous);
       }
     },
+    onSuccess: (_data, { meetingId, todoId }) => { void remindersSync.changed(meetingId, todoId); },
     onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.storeGlobalTodos() });
       if (variables?.meetingId) {
@@ -191,6 +193,7 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
         queryClient.setQueryData(queryKeys.storeGlobalTodos(), context.previous);
       }
     },
+    onSuccess: (entry, { meetingId }) => { void remindersSync.added(meetingId, [entry.id]); },
     onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.storeGlobalTodos() });
       if (variables?.meetingId) {

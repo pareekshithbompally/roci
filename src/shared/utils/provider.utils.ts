@@ -25,6 +25,8 @@ export function getProviderLogo(provider: string) {
       return '/images/model-provider/groq.svg'
     case 'gemini':
       return '/images/model-provider/gemini.svg'
+    case 'apple-intelligence':
+      return '/images/apple-intelligence-sm.png'
     case 'openai':
       return '/images/model-provider/openai.svg'
     case 'deepgram':
@@ -49,6 +51,8 @@ export const getProviderTitle = (provider: string | undefined | null) => {
       return 'OpenRouter'
     case 'gemini':
       return 'Gemini'
+    case 'apple-intelligence':
+      return 'Apple Intelligence'
     case 'anthropic':
       return 'Anthropic'
     case 'groq':

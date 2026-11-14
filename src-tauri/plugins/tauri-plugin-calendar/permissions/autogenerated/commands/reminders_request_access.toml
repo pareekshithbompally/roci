@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-reminders-request-access"
+description = "Enables the reminders_request_access command without any pre-configured scope."
+commands.allow = ["reminders_request_access"]
+
+[[permission]]
+identifier = "deny-reminders-request-access"
+description = "Denies the reminders_request_access command without any pre-configured scope."
+commands.deny = ["reminders_request_access"]

@@ -31,7 +31,7 @@ struct ErrorBody {
     code: String,
 }
 
-fn client() -> &'static Client {
+pub(super) fn client() -> &'static Client {
     static CLIENT: OnceLock<Client> = OnceLock::new();
     CLIENT.get_or_init(|| {
         Client::builder()

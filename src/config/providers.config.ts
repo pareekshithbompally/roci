@@ -236,3 +236,14 @@ export const predefinedProviders: ModelProvider[] = [
     models: [],
   },
 ]
+
+/**
+ * Apple Intelligence — Kasset's built-in on-device provider (Integrations ›
+ * Apple Intelligence). Not stored with the user's providers: it joins the
+ * summary-model surfaces only while its integration is on.
+ */
+export const APPLE_INTELLIGENCE = {
+  provider: 'apple-intelligence',
+  model: 'apple-intelligence',
+  name: 'Apple Intelligence',
+} as const;

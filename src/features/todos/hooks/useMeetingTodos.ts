@@ -14,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { store } from '@services/db';
 import { queryKeys } from '@shared/query/queryKeys';
+import { remindersSync } from '@services/reminders';
 import type { TodoEntry, ActionItem } from '@shared/types';
 
 function mapEntryToActionItem(entry: TodoEntry): ActionItem {
@@ -96,6 +97,7 @@ export function useMeetingTodos(meetingId: string | null) {
         queryClient.setQueryData(queryKeys.storeTodos(meetingId!), context.previous);
       }
     },
+    onSuccess: (entry) => { void remindersSync.added(entry.meetingId, [entry.id]); },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.storeTodos(meetingId!) });
     },
@@ -134,6 +136,7 @@ export function useMeetingTodos(meetingId: string | null) {
         queryClient.setQueryData(queryKeys.storeTodos(meetingId!), context.previous);
       }
     },
+    onSuccess: (_data, { todoId }) => { void remindersSync.changed(meetingId!, todoId); },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.storeTodos(meetingId!) });
     },
@@ -205,6 +208,7 @@ export function useMeetingTodos(meetingId: string | null) {
         queryClient.setQueryData(queryKeys.storeTodos(meetingId!), context.previous);
       }
     },
+    onSuccess: (_data, todoId) => { void remindersSync.changed(meetingId!, todoId); },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.storeTodos(meetingId!) });
     },

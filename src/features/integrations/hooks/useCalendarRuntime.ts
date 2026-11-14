@@ -1,5 +1,5 @@
 /**
- * useCalendarIntegration Hook
+ * useCalendarRuntime
  *
  * Wires the calendar service to the app lifecycle:
  * - Starts/stops polling based on settings
@@ -23,7 +23,7 @@ import {
 } from '@services/calendar';
 import type { EnrichedCalendarEvent } from '@services/calendar';
 
-export function useCalendarIntegration(): void {
+export function useCalendarRuntime(): void {
   const { settings } = useSettings();
   const { startRecording } = useRecordingContext();
   const { showToast } = useToast();

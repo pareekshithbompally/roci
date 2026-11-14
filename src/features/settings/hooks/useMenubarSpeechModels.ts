@@ -1,5 +1,6 @@
 /**
  * Keeps the tray's Speech Model submenu in step with Hex's downloaded models
+ * (only while the Hex integration is on — same gated options as Settings › Audio)
  * and the selected speech engine (Hex: `status_item::update_transcription`).
  *
  * The tray is backend-owned, so it can't read the app's settings: this hook
@@ -9,17 +10,18 @@
 
 import { useEffect, useMemo } from 'react';
 import { isTauriEnvironment, menubarService, type MenubarSpeechModel } from '@services/tauri';
-import { installedHexModels } from '@services/ai/transcription';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useHexStatus } from './useSpeechModels';
+import { useSpeechModelOptions } from './useSpeechModels';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 
 export function useMenubarSpeechModels(): void {
   const { settings } = useSettings();
-  const { data: hexStatus } = useHexStatus();
+  const options = useSpeechModelOptions();
 
   const models = useMemo<MenubarSpeechModel[]>(() => {
-    const installed = installedHexModels(hexStatus);
+    const installed = options
+      .filter((o) => o.provider === TRANSCRIPTION_CONFIG.hexProvider && o.ready)
+      .map((o) => ({ id: o.model, name: o.label }));
     // The Hex engine falls back to the first downloaded model when no
     // specific one was chosen (see `defaultHexModel` in services/ai/transcription).
     const selectedId = settings.transcriptionProvider === TRANSCRIPTION_CONFIG.hexProvider
@@ -30,7 +32,7 @@ export function useMenubarSpeechModels(): void {
       name: model.name,
       selected: model.id === selectedId,
     }));
-  }, [hexStatus, settings.transcriptionProvider, settings.transcriptionModel]);
+  }, [options, settings.transcriptionProvider, settings.transcriptionModel]);
 
   useEffect(() => {
     if (!isTauriEnvironment()) return;

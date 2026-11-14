@@ -9,6 +9,8 @@ import { getDefaultBaseUrl } from '@shared/utils/modelResolver';
 import { getProviderTitle, isLocalProviderId } from '@shared/utils/provider.utils';
 import { resolveCred } from './cred';
 import { installedHexModels } from './hex';
+import { appleSpeechHint, isAppleSpeechReady } from './appleSpeech';
+import type { AppleSpeechStatus } from '@services/ai/apple/appleIntelligence.service';
 import type { TranscriptionAdapterId } from '@config/transcription.config';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { Cred } from './cred';
@@ -60,7 +62,7 @@ function localOptions(providers: ModelProvider[]): SpeechModelOption[] {
 }
 
 function hexOptions(status: HexStatus | undefined): SpeechModelOption[] {
-  const installed = installedHexModels(status);
+  const installed = installedHexModels(status).filter((m) => !TRANSCRIPTION_CONFIG.hiddenHexModels.includes(m.id));
   if (installed.length > 0) {
     return installed.map((m) => ({ provider: hexProvider, model: m.id, label: m.name, ready: true, hint: null }));
   }
@@ -68,19 +70,41 @@ function hexOptions(status: HexStatus | undefined): SpeechModelOption[] {
   return [{ provider: hexProvider, model: '', label: 'Hex', ready: false, hint }];
 }
 
-/** Every speech model in picker order: cloud providers, local servers, Hex. */
-export function speechModelOptions(providers: ModelProvider[], hexStatus: HexStatus | undefined): SpeechModelOption[] {
-  return [...cloudOptions(providers), ...localOptions(providers), ...hexOptions(hexStatus)];
+/**
+ * Speech sources contributed by integrations. A key is present only while that
+ * integration is on (its status may still be loading); absent → it offers nothing.
+ */
+export interface IntegrationSpeech {
+  hex?: { status: HexStatus | undefined };
+  appleSpeech?: { status: AppleSpeechStatus | undefined };
+}
+
+function appleSpeechOptions(status: AppleSpeechStatus | undefined): SpeechModelOption[] {
+  const { provider, model, label } = TRANSCRIPTION_CONFIG.appleSpeech;
+  return [{ provider, model, label, ready: isAppleSpeechReady(status), hint: appleSpeechHint(status) }];
+}
+
+/** Every speech model in picker order: cloud providers, local servers, then integrations that are on. */
+export function speechModelOptions(providers: ModelProvider[], integrations: IntegrationSpeech): SpeechModelOption[] {
+  return [
+    ...cloudOptions(providers),
+    ...localOptions(providers),
+    ...(integrations.appleSpeech ? appleSpeechOptions(integrations.appleSpeech.status) : []),
+    ...(integrations.hex ? hexOptions(integrations.hex.status) : []),
+  ];
 }
 
 /** Whether the selection can transcribe right now. */
 export function isSpeechSelectionReady(
   selection: SpeechSelection | null,
   providers: ModelProvider[],
-  hexStatus: HexStatus | undefined,
+  integrations: IntegrationSpeech,
 ): boolean {
   if (!selection || !adapterFor(selection.provider)) return false;
-  if (selection.provider === hexProvider) return installedHexModels(hexStatus).length > 0;
+  if (selection.provider === hexProvider) return !!integrations.hex && installedHexModels(integrations.hex.status).length > 0;
+  if (selection.provider === TRANSCRIPTION_CONFIG.appleSpeech.provider) {
+    return !!integrations.appleSpeech && isAppleSpeechReady(integrations.appleSpeech.status);
+  }
   return keyHint(selection.provider, providers) === null;
 }
 

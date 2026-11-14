@@ -27,7 +27,7 @@ import { Toaster } from 'sonner';
 import { ModelDownloadModal, SearchOverlay } from '@shared/components';
 import { Input } from '@shared/ui';
 import { useAppShortcuts } from '@shared/hooks/useAppShortcuts';
-import { useCalendarIntegration } from '@shared/hooks/useCalendarIntegration';
+import { useCalendarRuntime, useHexRuntime, useRemindersRuntime } from '@features/integrations';
 
 // Services
 import { isTauriEnvironment } from '@services/tauri';
@@ -78,7 +78,9 @@ const App: React.FC = () => {
   });
 
   // macOS Calendar integration — polls for upcoming meetings, shows notifications
-  useCalendarIntegration();
+  useCalendarRuntime();
+  useRemindersRuntime();
+  useHexRuntime();
 
   // Tray › Speech Model submenu: downloaded Hex models and the current pick
   useMenubarSpeechModels();

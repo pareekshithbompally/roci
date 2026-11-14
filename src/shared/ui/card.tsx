@@ -45,17 +45,19 @@ export interface SectionProps extends Omit<React.HTMLAttributes<HTMLElement>, 't
   title: React.ReactNode;
   /** Control on the label line (Add, Advanced…); ends where row controls do. */
   accessory?: React.ReactNode;
+  /** `card` (default): children are rows of one card. `stack`: children are their own cards, spaced apart. */
+  layout?: 'card' | 'stack';
 }
 
-/** A titled card of rows: label line, then the card. */
-export function Section({ title, accessory, className, children, ...props }: SectionProps) {
+/** A titled card of rows (or a stack of cards): label line, then the content. */
+export function Section({ title, accessory, layout = 'card', className, children, ...props }: SectionProps) {
   return (
     <section className={cn('flex flex-col gap-2', className)} {...props}>
       <div className="flex items-center justify-between gap-2 h-4 mx-4">
         <Text as="h2" variant="label" tone="muted">{title}</Text>
         {accessory}
       </div>
-      <Card>{children}</Card>
+      {layout === 'card' ? <Card>{children}</Card> : <div className="flex flex-col gap-3">{children}</div>}
     </section>
   );
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('@config/providers.config', () => ({
+vi.mock('@config/providers.config', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@config/providers.config')>()),
   MANAGED_SDK_PROVIDERS: new Set(['openai', 'anthropic', 'gemini']),
   MANAGED_SDK_INFO: {
     openai: 'OpenAI SDK',
@@ -197,5 +198,18 @@ describe('getAllActiveModels', () => {
     const provider = makeProvider('openai', true);
     (provider as any).models = undefined;
     expect(getAllActiveModels([provider] as any)).toEqual([]);
+  });
+});
+
+describe('summary models from integrations', () => {
+  it('Apple Intelligence joins the summary sources only while its integration is on', async () => {
+    const { withIntegrationModels, resolveSummaryModel, requiresApiKey } = await import('@shared/utils/modelResolver');
+    const off = { analyzeModel: 'apple-intelligence' } as never;
+    const on = { analyzeModel: 'apple-intelligence', appleIntelligenceIntegration: { enabled: true } } as never;
+    expect(withIntegrationModels([], off)).toEqual([]);
+    expect(resolveSummaryModel(off, [])).toBeNull();
+    const resolved = resolveSummaryModel(on, []);
+    expect(resolved?.provider).toBe('apple-intelligence');
+    expect(requiresApiKey(resolved!)).toBe(false);
   });
 });

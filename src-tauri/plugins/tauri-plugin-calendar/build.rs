@@ -3,6 +3,12 @@ const COMMANDS: &[&str] = &[
     "check_access",
     "get_upcoming_events",
     "get_events_in_range",
+    "reminders_request_access",
+    "reminders_check_access",
+    "reminders_lists",
+    "reminders_ensure_list",
+    "reminders_upsert",
+    "reminders_states",
 ];
 
 fn main() {
@@ -29,6 +35,7 @@ fn main() {
                 "-module-name", "CalendarBridge",
                 "-o", lib_path.to_str().unwrap(),
                 swift_src.join("CalendarBridge.swift").to_str().unwrap(),
+                swift_src.join("RemindersBridge.swift").to_str().unwrap(),
                 "-framework", "EventKit",
                 "-framework", "Foundation",
             ])
@@ -42,6 +49,7 @@ fn main() {
         println!("cargo:rustc-link-lib=framework=EventKit");
         println!("cargo:rustc-link-lib=framework=Foundation");
         println!("cargo:rerun-if-changed=swift/CalendarBridge.swift");
+        println!("cargo:rerun-if-changed=swift/RemindersBridge.swift");
     }
 
     tauri_plugin::Builder::new(COMMANDS).build();

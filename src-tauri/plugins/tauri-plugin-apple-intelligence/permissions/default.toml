@@ -1,0 +1,10 @@
+[default]
+description = "Allows all Apple Intelligence commands (on-device language model + speech)"
+permissions = [
+  "allow-availability",
+  "allow-generate",
+  "allow-speech-status",
+  "allow-speech-request-access",
+  "allow-speech-prepare",
+  "allow-speech-transcribe",
+]

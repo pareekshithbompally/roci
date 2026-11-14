@@ -219,6 +219,20 @@ export interface AppSettings {
     /** Minutes before meeting start to show notification */
     notifyMinutesBefore: number;
   };
+  /** Apple Intelligence integration: on-device summary model + Apple speech engine */
+  appleIntelligenceIntegration?: {
+    enabled: boolean;
+  };
+  /** Hex integration: Hex's transcription models + one-way meeting sync */
+  hexIntegration?: {
+    enabled: boolean;
+  };
+  /** macOS Reminders integration (EventKit): action items ↔ a reminders list */
+  remindersIntegration?: {
+    enabled: boolean;
+    /** EventKit list id; the "Kasset" list is created on first enable */
+    listId?: string;
+  };
 }
 
 // ============ New Data Layer Types ============

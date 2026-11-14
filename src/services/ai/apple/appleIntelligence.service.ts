@@ -1,0 +1,69 @@
+/**
+ * Apple Intelligence — wrappers over the apple-intelligence plugin
+ * (src-tauri/plugins/tauri-plugin-apple-intelligence): the on-device language
+ * model (availability, guided generation) and Apple speech.
+ */
+
+import { invoke } from '@tauri-apps/api/core';
+import { isTauriEnvironment } from '@services/tauri';
+
+const PLUGIN = 'plugin:apple-intelligence|';
+
+/** Mirrors the Rust `Availability` (HEX `apple_intelligence::Availability`). */
+export type AppleAvailability =
+  | 'available'
+  | 'device-not-eligible'
+  | 'apple-intelligence-off'
+  | 'model-not-ready'
+  | 'unsupported-system'
+  | 'unknown';
+
+export interface AppleModelStatus {
+  availability: AppleAvailability;
+  /** Context window in tokens; 0 when unavailable. */
+  contextTokens: number;
+}
+
+/** Mirrors the Rust `AppleError` (`{ code, detail? }`). */
+export interface AppleErrorPayload {
+  code: 'context-window' | 'refused' | 'unavailable' | 'timeout' | 'not-authorized' | 'model-not-ready' | 'unsupported-language' | 'failed';
+  detail?: string;
+}
+
+export interface AppleSpeechStatus {
+  available: boolean;
+  authorization: 'authorized' | 'denied' | 'not_determined' | 'restricted';
+  /** The language's speech model is downloaded. */
+  installed: boolean;
+}
+
+export interface AppleSpeechSegment {
+  start: number;
+  end: number;
+  text: string;
+}
+
+const UNSUPPORTED: AppleModelStatus = { availability: 'unsupported-system', contextTokens: 0 };
+
+export function isAppleError(error: unknown): error is AppleErrorPayload {
+  return typeof error === 'object' && error !== null && 'code' in error;
+}
+
+export const appleIntelligence = {
+  async status(): Promise<AppleModelStatus> {
+    if (!isTauriEnvironment()) return UNSUPPORTED;
+    const raw = await invoke<{ availability: AppleAvailability; context_tokens: number }>(`${PLUGIN}availability`);
+    return { availability: raw.availability, contextTokens: raw.context_tokens };
+  },
+
+  /** One generation; `schema` (JSON Schema) makes it guided JSON output. */
+  generate(instructions: string, prompt: string, schema?: object): Promise<string> {
+    return invoke<string>(`${PLUGIN}generate`, { instructions, prompt, schema: schema ? JSON.stringify(schema) : null });
+  },
+
+  speechStatus: (language: string) => invoke<AppleSpeechStatus>(`${PLUGIN}speech_status`, { language }),
+  speechRequestAccess: () => invoke<boolean>(`${PLUGIN}speech_request_access`),
+  speechPrepare: (language: string) => invoke<void>(`${PLUGIN}speech_prepare`, { language }),
+  speechTranscribe: (path: string, language: string) =>
+    invoke<AppleSpeechSegment[]>(`${PLUGIN}speech_transcribe`, { path, language }),
+};

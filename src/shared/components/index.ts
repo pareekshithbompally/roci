@@ -5,6 +5,7 @@ export { ConfirmDialog } from './ConfirmDialog';
 export { EmptyState } from './EmptyState';
 export { HighlightedText } from './HighlightedText';
 export { MeetingStatus } from './MeetingStatus';
+export { PermissionAction } from './PermissionAction';
 export { ModelAvatar } from './ModelAvatar';
 export { ModelDownloadModal } from './ModelDownloadModal';
 export { ModelIcon } from './ModelIcon';

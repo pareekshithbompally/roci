@@ -106,7 +106,7 @@ export async function runTranscription(
   const adapterId = adapterFor(selection.provider);
   if (!adapterId) throw new Error(`"${selection.provider}" can't transcribe audio.`);
   const transcribe = transcribePart ?? ADAPTERS[adapterId];
-  const cred = selection.provider === hexProvider ? null : speechCred(selection.provider, providers);
+  const cred = TRANSCRIPTION_CONFIG.keylessProviders.includes(selection.provider) ? null : speechCred(selection.provider, providers);
   const model = await modelOf(selection);
 
   const samples = await toMonoSamples(audio, sampleRate);

@@ -13,6 +13,7 @@ import { useModalities } from '@features/settings/stores/modalitiesStore';
 import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
 import { modalitiesService } from '@services/modalities';
 import { getProviderTitle } from '@shared/utils/provider.utils';
+import { withIntegrationModels } from '@shared/utils/modelResolver';
 import { ProvidersAvatar, ModelIcon } from '@shared/components';
 import { SettingsPage } from './shared';
 import { Callout, CardRow, Section, Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue, Text } from '@shared/ui';
@@ -26,9 +27,10 @@ export const AudioPanel: React.FC = () => {
   const modalitiesLoaded = useModalities();
 
 
+  // Summary models: the user's providers plus integrations that are on (Apple Intelligence).
   const allActiveModels = useMemo(() => {
     const models: Array<{ id: string; provider: string; name: string }> = [];
-    providers.forEach(provider => {
+    withIntegrationModels(providers, settings).forEach(provider => {
       if (provider.active && provider.models) {
         provider.models.forEach(model => {
           models.push({
@@ -40,7 +42,7 @@ export const AudioPanel: React.FC = () => {
       }
     });
     return models;
-  }, [providers]);
+  }, [providers, settings]);
 
   const modelsByProvider = useMemo(() => {
     const grouped: Record<string, typeof allActiveModels> = {};

@@ -46,3 +46,45 @@ pub struct EventsResponse {
     pub events: Vec<CalendarEvent>,
     pub error: Option<String>,
 }
+
+/// A reminders list (an EventKit reminder calendar).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemindersList {
+    pub id: String,
+    pub title: String,
+}
+
+/// Wrapper for the lists response from the Swift bridge.
+#[derive(Debug, Clone, Deserialize)]
+pub struct RemindersListsResponse {
+    pub lists: Vec<RemindersList>,
+}
+
+/// One to-do as a reminder (input to `reminders_upsert`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReminderInput {
+    pub list_id: String,
+    pub todo_id: String,
+    pub title: String,
+    pub notes: Option<String>,
+    /// `YYYY-MM-DD`
+    pub due_date: Option<String>,
+    pub completed: bool,
+    /// Create when missing (new action items); otherwise update an existing reminder only.
+    pub create: bool,
+}
+
+/// Completion of the reminder tagged with a to-do id.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReminderState {
+    pub todo_id: String,
+    pub completed: bool,
+}
+
+/// Bridge reply carrying an optional id, items, or an error.
+#[derive(Debug, Clone, Deserialize)]
+pub struct BridgeReply<T> {
+    pub id: Option<String>,
+    pub items: Option<Vec<T>>,
+    pub error: Option<String>,
+}

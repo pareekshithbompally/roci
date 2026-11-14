@@ -8,15 +8,15 @@
 import { useCallback } from 'react';
 import { recordingsService } from '@services/storage';
 import { unifiedAIService } from '@services/unifiedAIService';
-import { transcriptionService } from '@services/transcription.service';
+import { transcriptionService, meetingSummaryOf } from '@services/transcription.service';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useAppActions } from '@shared/stores/appStore';
 import { useToast } from '@shared/contexts/ToastContext';
 import { AppStatus } from '@shared/types';
 import { logUsage } from '@extensions/usage';
-import { resolveModel } from '@shared/utils/modelResolver';
-import type { HistoryItem, MeetingSummary } from '@shared/types';
+import { resolveSummaryModel } from '@shared/utils/modelResolver';
+import type { HistoryItem } from '@shared/types';
 import { meetingJobs, useMeetingJobsStore } from '@shared/stores/meetingJobsStore';
 import { deriveMeetingPhase, isMeetingBusy, type MeetingPipelineStage } from '@shared/types/meetingPhase';
 
@@ -81,7 +81,7 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
       );
 
       // Log transcription usage (fire-and-forget)
-      const resolved = resolveModel(settings.analyzeModel || settings.chatModel, providers);
+      const resolved = resolveSummaryModel(settings, providers);
       logUsage({
         category: 'transcription',
         sessionId: item.id,
@@ -90,18 +90,7 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
         usage,
       }).catch(e => console.error('[UsageLog] transcription:', e));
 
-      // Build MeetingSummary from structured result
-      const meetingSummary: MeetingSummary = {
-        overview: data.structuredSummary?.overview || data.summary,
-        keyDiscussionPoints: data.structuredSummary?.keyDiscussionPoints || [],
-        decisionsMade: data.structuredSummary?.decisionsMade || [],
-        actionItems: (data.structuredSummary?.actionItems || []).map(a => ({
-          text: a.text,
-          owner: a.owner,
-          dueDate: a.dueDate,
-        })),
-        nextSteps: data.structuredSummary?.nextSteps || [],
-      };
+      const meetingSummary = meetingSummaryOf(data);
 
       // Save everything via transcription service (single call)
       await transcriptionService.saveTranscriptionResult({

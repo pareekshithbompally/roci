@@ -24,7 +24,7 @@ export interface HexStatus {
 
 /** Mirrors the Rust `HexError` (`{ code, detail? }`). */
 interface HexErrorPayload {
-  code: 'not-running' | 'incompatible' | 'unauthorized' | 'model-not-ready' | 'busy' | 'too-large' | 'rejected';
+  code: 'not-running' | 'not-installed' | 'incompatible' | 'unauthorized' | 'model-not-ready' | 'busy' | 'too-large' | 'rejected';
   detail?: string;
 }
 
@@ -48,6 +48,7 @@ export function hexErrorMessage(error: unknown, model: string): string {
   if (!isHexError(error)) return error instanceof Error ? error.message : String(error);
   switch (error.code) {
     case 'not-running': return "Hex isn't running. Open Hex, then retry.";
+    case 'not-installed': return "Hex isn't installed in Applications.";
     case 'unauthorized': return "Hex rejected Kasset's request. Restart Hex, then retry.";
     case 'model-not-ready': return `${model} isn't downloaded in Hex. Download it in Hex › Models.`;
     case 'busy': return 'Hex is busy. Retry when it\'s done.';

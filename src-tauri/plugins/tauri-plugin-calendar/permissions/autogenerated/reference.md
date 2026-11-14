@@ -1,6 +1,6 @@
 ## Default Permission
 
-Allows all calendar plugin commands
+Allows all EventKit commands (calendar events + reminders)
 
 #### This default permission set includes the following:
 
@@ -8,6 +8,12 @@ Allows all calendar plugin commands
 - `allow-check-access`
 - `allow-get-upcoming-events`
 - `allow-get-events-in-range`
+- `allow-reminders-request-access`
+- `allow-reminders-check-access`
+- `allow-reminders-lists`
+- `allow-reminders-ensure-list`
+- `allow-reminders-upsert`
+- `allow-reminders-states`
 
 ## Permission Table
 
@@ -92,6 +98,162 @@ Enables the get_upcoming_events command without any pre-configured scope.
 <td>
 
 Denies the get_upcoming_events command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`calendar:allow-reminders-check-access`
+
+</td>
+<td>
+
+Enables the reminders_check_access command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`calendar:deny-reminders-check-access`
+
+</td>
+<td>
+
+Denies the reminders_check_access command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`calendar:allow-reminders-ensure-list`
+
+</td>
+<td>
+
+Enables the reminders_ensure_list command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`calendar:deny-reminders-ensure-list`
+
+</td>
+<td>
+
+Denies the reminders_ensure_list command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`calendar:allow-reminders-lists`
+
+</td>
+<td>
+
+Enables the reminders_lists command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`calendar:deny-reminders-lists`
+
+</td>
+<td>
+
+Denies the reminders_lists command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`calendar:allow-reminders-request-access`
+
+</td>
+<td>
+
+Enables the reminders_request_access command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`calendar:deny-reminders-request-access`
+
+</td>
+<td>
+
+Denies the reminders_request_access command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`calendar:allow-reminders-states`
+
+</td>
+<td>
+
+Enables the reminders_states command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`calendar:deny-reminders-states`
+
+</td>
+<td>
+
+Denies the reminders_states command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`calendar:allow-reminders-upsert`
+
+</td>
+<td>
+
+Enables the reminders_upsert command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`calendar:deny-reminders-upsert`
+
+</td>
+<td>
+
+Denies the reminders_upsert command without any pre-configured scope.
 
 </td>
 </tr>
