@@ -82,6 +82,18 @@ export default {
           from: { opacity: '1', transform: 'translateY(0)' },
           to: { opacity: '0', transform: 'translateY(-4px)' },
         },
+        // NOTE: both frames carry translateX(-50%) because the palette is
+        // centered with -translate-x-1/2, and a keyframed `transform`
+        // overrides that utility for the whole animation. Without it the
+        // dialog renders right-shifted until the animation ends.
+        'palette-show': {
+          from: { opacity: '0', transform: 'translate(-50%, -8px)' },
+          to: { opacity: '1', transform: 'translate(-50%, 0)' },
+        },
+        'palette-hide': {
+          from: { opacity: '1', transform: 'translate(-50%, 0)' },
+          to: { opacity: '0', transform: 'translate(-50%, -4px)' },
+        },
         'placeholder-fade-in': {
           from: { opacity: '0' },
           to: { opacity: '1' },
@@ -111,6 +123,8 @@ export default {
         'content-hide': 'content-hide 150ms ease-in',
         'select-content-show': 'select-content-show 150ms ease-out',
         'select-content-hide': 'select-content-hide 150ms ease-in',
+        'palette-show': 'palette-show 150ms ease-out',
+        'palette-hide': 'palette-hide 120ms ease-in',
         'placeholder-fade-in': 'placeholder-fade-in 600ms ease-out',
         'glow-drift-1': 'glow-drift-1 22s ease-in-out infinite',
         'glow-drift-2': 'glow-drift-2 28s ease-in-out infinite',

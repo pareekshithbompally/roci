@@ -19,12 +19,20 @@ export interface DialogContentProps extends ComponentProps<typeof DialogPrimitiv
   size?: keyof typeof DIALOG_SIZE;
   /** Height-capped sheet whose body scrolls (forms, JSON editors) */
   scrollable?: boolean;
+  /**
+   * Skip the sheet chrome (centering, padding, shadow, enter animation) —
+   * for surfaces that position and animate themselves, like command palettes.
+   * Keeps size + scrollable + className.
+   */
+  bare?: boolean;
 }
 
-export function DialogContent({ size = 'md', scrollable, className, ...props }: DialogContentProps) {
+const BARE = 'fixed z-50 focus:outline-none';
+
+export function DialogContent({ size = 'md', scrollable, bare, className, ...props }: DialogContentProps) {
   return (
     <DialogPrimitive.Content
-      className={cn(SHEET, DIALOG_SIZE[size], scrollable && 'max-h-[85vh] flex flex-col', className)}
+      className={cn(bare ? BARE : SHEET, DIALOG_SIZE[size], scrollable && 'max-h-[85vh] flex flex-col', className)}
       {...props}
     />
   );

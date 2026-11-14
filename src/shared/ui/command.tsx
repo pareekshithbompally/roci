@@ -1,4 +1,5 @@
 import { Command as CommandPrimitive } from 'cmdk';
+import { Title as DialogPrimitiveTitle } from '@radix-ui/react-dialog';
 import type { ComponentProps, ReactNode } from 'react';
 import { Dialog, DialogPortal, DialogOverlay, DialogContent } from './dialog';
 import { cn } from './utils';
@@ -73,12 +74,20 @@ interface CommandDialogProps {
   shouldFilter?: boolean;
 }
 
+/**
+ * Command palette dialog: top-anchored, slides down on open. Positions and
+ * animates itself on a bare dialog surface — no overrides of sheet chrome.
+ */
 export function CommandDialog({ open, onOpenChange, children, shouldFilter }: CommandDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPortal>
         <DialogOverlay />
-        <DialogContent className="!p-0 overflow-hidden max-w-lg top-[20vh] !-translate-y-0">
+        <DialogContent
+          bare
+          className="left-1/2 top-[18vh] w-full max-w-lg -translate-x-1/2 overflow-hidden rounded-xl bg-base p-0 shadow-overlay data-[state=open]:animate-palette-show data-[state=closed]:animate-palette-hide"
+        >
+          <DialogPrimitiveTitle className="sr-only">Search</DialogPrimitiveTitle>
           <Command shouldFilter={shouldFilter}>{children}</Command>
         </DialogContent>
       </DialogPortal>
