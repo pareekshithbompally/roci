@@ -43,3 +43,5 @@ export { Disclosure } from './disclosure';
 export type { DisclosureProps } from './disclosure';
 export { ContextRing } from './context-ring';
 export type { ContextRingProps } from './context-ring';
+export { Toaster, showToast, dismissToast } from './sonner';
+export type { ToastTone, ToastAction } from './sonner';

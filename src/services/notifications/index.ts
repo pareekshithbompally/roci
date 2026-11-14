@@ -46,15 +46,6 @@ export async function requestNotifications(): Promise<NotificationStatus> {
   return call<NotificationStatus>('request');
 }
 
-/**
- * An app event (a Settings › Notifications kind): a macOS notification only
- * while Kasset isn't the focused window — in front, the app already shows it.
- */
-export async function notifyInBackground(notice: Notice & { kind: NotificationKind }): Promise<void> {
-  if (document.hasFocus()) return;
-  await postNotice(notice);
-}
-
 export async function postNotice(notice: Notice): Promise<void> {
   if (!isTauriEnvironment()) return;
   await call('post', { notice });

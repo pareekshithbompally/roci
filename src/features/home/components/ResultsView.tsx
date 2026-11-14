@@ -32,7 +32,7 @@ import { LAYOUT } from '@config/layout.config';
 import { TodoList } from '@features/todos';
 import { NotesView } from '@features/notes';
 import { ResultsAudioPlayer } from './ResultsAudioPlayer';
-import { isTauriEnvironment, saveTextFile } from '@services/tauri';
+import { isTauriEnvironment, revealInFinder, saveTextFile } from '@services/tauri';
 import { useToast } from '@shared/contexts/ToastContext';
 import { useTranscribeRecording } from '@shared/hooks/useTranscribeRecording';
 import { useMeetingPhase } from '@shared/stores/meetingJobsStore';
@@ -189,7 +189,7 @@ export const ResultsView: React.FC = () => {
   const downloadFile = async (filename: string, content: string, extension: ExportFormat) => {
     try {
       const path = await saveTextFile({ filename, content, kind: EXPORT_KIND[extension], extension });
-      if (path) showToast(`Saved to ${path}`, 'success');
+      if (path) showToast(`Saved to ${path}`, 'success', { label: 'Show in Finder', onClick: () => void revealInFinder(path) });
     } catch (error: unknown) {
       console.error('[ResultsView] Save failed:', error);
       showToast('Failed to save file', 'error');

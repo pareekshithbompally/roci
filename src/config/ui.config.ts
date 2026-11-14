@@ -30,6 +30,22 @@ export const UI_CONFIG = {
     },
   },
 
+  /** How long a copy button shows its "Copied" tick */
+  copiedFeedbackMs: 2_000,
+
+  // In-app toasts (Sonner, themed in @shared/ui/sonner)
+  toast: {
+    position: 'top-right',
+    /** Below the titlebar safe area, clear of the window edge */
+    offset: 48,
+    widthPx: 340,
+    gap: 6,
+    visible: 4,
+    durationMs: 5_000,
+    /** Toasts with a button stay longer so there's time to use it */
+    actionDurationMs: 8_000,
+  },
+
   // Command popovers (composer pickers) and their hover flyouts
   picker: {
     /** Gap between trigger and popover */

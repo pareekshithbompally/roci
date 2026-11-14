@@ -95,10 +95,6 @@ code, pre {
   transition: none !important;
 }
 
-/* Toast — hide default Sonner icons (we removed custom icons) */
-.kasset-toast [data-icon] {
-  display: none !important;
-}
 
 /* Toast slide-in animation */
 @keyframes slide-in-right {

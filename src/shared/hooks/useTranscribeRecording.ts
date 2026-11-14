@@ -5,6 +5,7 @@
  * Used by sidebar (Transcribe/Re-transcribe) and ResultsView.
  */
 
+import { notifyAppEvent } from '@shared/utils/appEvents';
 import { useCallback } from 'react';
 import { recordingsService } from '@services/storage';
 import { unifiedAIService } from '@services/unifiedAIService';
@@ -116,12 +117,12 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
       setStatus(AppStatus.RESULTS);
 
       meetingJobs.clear(item.id);
-      showToast('Transcription complete', 'success');
+      notifyAppEvent({ id: `recording-ready:${item.id}`, kind: 'recordingReady', tone: 'success', inFront: 'quiet', title: item.title, body: 'Transcript and summary are ready.' });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to transcribe recording';
       console.error('[useTranscribeRecording] Error:', error);
       meetingJobs.set(item.id, { stage: 'failed', failedAt: stage, message });
-      showToast(message, 'error');
+      notifyAppEvent({ id: `recording-ready:${item.id}`, kind: 'recordingReady', tone: 'error', inFront: 'toast', title: 'Transcription failed', body: message });
     }
   }, [categories, settings, providers, updateItem, setResult, setSelectedHistoryId, setStatus, showToast]);
 

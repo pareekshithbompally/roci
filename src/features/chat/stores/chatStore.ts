@@ -43,7 +43,7 @@ import { queryClient } from '@shared/query/queryClient';
 import { useAppStore } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
 import { NOTIFICATIONS_CONFIG } from '@config/notifications.config';
-import { notifyInBackground } from '@services/notifications';
+import { notifyAppEvent } from '@shared/utils/appEvents';
 import { queryKeys } from '@shared/query/queryKeys';
 import {
   CHAT_PAGE_SIZE,
@@ -53,7 +53,7 @@ import {
 function notifyReply(sessionId: string, text: string): void {
   const max = NOTIFICATIONS_CONFIG.chat.bodyMaxChars;
   const body = text.length > max ? `${text.slice(0, max - 1)}…` : text;
-  void notifyInBackground({ id: `chat:${sessionId}`, kind: 'chatReplies', title: 'Reply ready', body });
+  notifyAppEvent({ id: `chat:${sessionId}`, kind: 'chatReplies', tone: 'success', inFront: 'quiet', title: 'Reply ready', body });
 }
 
 /** Reconcile the mirrored session index with disk truth. */

@@ -12,7 +12,7 @@
 
 import { useRef, useState } from 'react';
 import type { ComponentProps } from 'react';
-import { Copy, Download, Maximize2, X } from 'lucide-react';
+import { Check, Copy, Download, Maximize2, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import {
   Dialog,
@@ -30,7 +30,8 @@ import {
 } from '@shared/ui';
 import { useToast } from '@shared/contexts/ToastContext';
 import { copyRichText } from '@shared/utils/clipboard';
-import { saveTextFile } from '@services/tauri';
+import { revealInFinder, saveTextFile } from '@services/tauri';
+import { useCopiedFlag } from '@shared/hooks';
 import { COPY_FORMATS, SAVE_FORMATS, TABLE_FORMATS, serializeTable } from './tableExport';
 import type { TableFormat } from './tableExport';
 
@@ -42,13 +43,14 @@ export function MarkdownTable({ children, node: _node, ...props }: TableProps) {
   const tableRef = useRef<HTMLTableElement>(null);
   const [expanded, setExpanded] = useState(false);
   const { showToast } = useToast();
+  const { copied, markCopied } = useCopiedFlag();
 
   const copy = async (format: TableFormat) => {
     const table = tableRef.current;
     if (!table) return;
     try {
       await copyRichText(serializeTable(table, format), table.outerHTML);
-      showToast(`Copied as ${TABLE_FORMATS[format].label}`, 'success');
+      markCopied();
     } catch (error: unknown) {
       console.error('[MarkdownTable] Copy failed:', error);
       showToast("Couldn't copy the table", 'error');
@@ -66,7 +68,7 @@ export function MarkdownTable({ children, node: _node, ...props }: TableProps) {
         kind: label,
         extension,
       });
-      if (path) showToast(`Saved to ${path}`, 'success');
+      if (path) showToast(`Saved to ${path}`, 'success', { label: 'Show in Finder', onClick: () => void revealInFinder(path) });
     } catch (error: unknown) {
       console.error('[MarkdownTable] Save failed:', error);
       showToast("Couldn't save the table", 'error');
@@ -75,7 +77,7 @@ export function MarkdownTable({ children, node: _node, ...props }: TableProps) {
 
   const actions = (
     <>
-      <FormatMenu icon={Copy} label="Copy table" formats={COPY_FORMATS} onPick={(f) => void copy(f)} />
+      <FormatMenu icon={copied ? Check : Copy} label={copied ? 'Copied' : 'Copy table'} formats={COPY_FORMATS} onPick={(f) => void copy(f)} />
       <FormatMenu icon={Download} label="Save table" formats={SAVE_FORMATS} onPick={(f) => void save(f)} />
     </>
   );

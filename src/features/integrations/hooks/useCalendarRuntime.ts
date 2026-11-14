@@ -64,7 +64,6 @@ export function useCalendarRuntime(): void {
       try {
         setPendingCalendarEvent(event);
         await startRecordingRef.current();
-        showToastRef.current(`Recording started: ${event.title}`, 'success');
       } catch (error: unknown) {
         console.error('[useCalendarRuntime] Failed to start recording:', error);
         showToastRef.current('Failed to start recording', 'error');

@@ -8,7 +8,6 @@
 import React, { useMemo } from 'react';
 import { AudioLines, MessageSquare, NotebookText, ScanSearch, Volume2, Waypoints, type LucideIcon } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useToast } from '@shared/contexts/ToastContext';
 import { useOnDeviceModel } from '@shared/hooks/useOnDeviceModel';
 import { ModelDownloadButton } from '@shared/components';
 import { modelChoices, withSummaryModels, type ModelChoice } from '@shared/utils/modelResolver';
@@ -32,7 +31,6 @@ const CapabilityRow: React.FC<{ icon: LucideIcon; job: { title: string; descript
 
 export const CapabilitiesPanel: React.FC = () => {
   const { settings, setSettings, providers } = useSettings();
-  const { showToast } = useToast();
   const searchModel = useOnDeviceModel('rag');
   const voiceModel = useOnDeviceModel('voice');
 
@@ -54,7 +52,6 @@ export const CapabilitiesPanel: React.FC = () => {
     const option = speechOptions.find((o) => speechSelectionKey(o) === key);
     if (!option) return;
     setSettings({ transcriptionProvider: option.provider, transcriptionModel: option.model });
-    showToast(`${option.label} is ready`, 'success');
   };
 
   return (

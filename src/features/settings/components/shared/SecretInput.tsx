@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Eye, EyeOff, Copy, Check } from 'lucide-react';
+import { useCopiedFlag } from '@shared/hooks';
 import { SettingsInput } from './SettingsInput';
 import { Button, Icon } from '@shared/ui';
 
@@ -25,14 +26,13 @@ export const SecretInput: React.FC<SecretInputProps> = ({
   disabled,
 }) => {
   const [showSecret, setShowSecret] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const { copied, markCopied } = useCopiedFlag();
 
   const handleCopy = useCallback(async () => {
     if (!value) return;
     await navigator.clipboard.writeText(value);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [value]);
+    markCopied();
+  }, [value, markCopied]);
 
   return (
     <SettingsInput

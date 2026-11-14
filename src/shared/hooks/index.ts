@@ -30,3 +30,4 @@ export { CONTEXT_WARNING_PERCENT, CONTEXT_CRITICAL_PERCENT } from './useContextU
 export type { ContextUsage, ContextLevel } from './useContextUsage';
 export { useOnDeviceModel } from './useOnDeviceModel';
 export type { OnDeviceModel, OnDeviceModelKind, OnDeviceStatus } from './useOnDeviceModel';
+export { useCopiedFlag } from './useCopiedFlag';

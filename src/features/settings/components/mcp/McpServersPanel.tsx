@@ -59,11 +59,9 @@ export const McpServersPanel: React.FC = () => {
     apply(build).catch((error: unknown) => showToast(errorMessage(error), 'error'));
   };
 
-  /** Turning a server on (or retrying it) can take a while; say when it lands. */
+  /** The row's status shows the connection; only a failure needs a toast. */
   const handleToggle = (name: string, active: boolean) => {
-    apply((c) => toggleServer(c, name, active))
-      .then(() => active && showToast(`${name} connected`, 'success'))
-      .catch((error: unknown) => showToast(errorMessage(error), 'error'));
+    apply((c) => toggleServer(c, name, active)).catch((error: unknown) => showToast(errorMessage(error), 'error'));
   };
 
   const handleDelete = async (name: string) => {
@@ -74,9 +72,7 @@ export const McpServersPanel: React.FC = () => {
       tone: 'danger',
     });
     if (!confirmed) return;
-    apply((c) => deleteServer(c, name))
-      .then(() => showToast(`Deleted ${name}`, 'success'))
-      .catch((error: unknown) => showToast(errorMessage(error), 'error'));
+    apply((c) => deleteServer(c, name)).catch((error: unknown) => showToast(errorMessage(error), 'error'));
   };
 
   if (loadError) {

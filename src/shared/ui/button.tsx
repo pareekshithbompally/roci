@@ -56,12 +56,17 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   ref?: React.Ref<HTMLButtonElement>;
 }
 
+/** The button recipe, for kit parts that style a third-party button (toast actions). */
+export function buttonClasses(variant: ButtonVariant, size: ButtonSize): string {
+  return cn(BASE_CLASSES, VARIANT_CLASSES[variant], SIZE_CLASSES[size]);
+}
+
 export function Button({ variant = 'primary', size = 'sm', loading, className, type = 'button', ref, onClick, children, ...props }: ButtonProps) {
   return (
     <button
       ref={ref}
       type={type}
-      className={cn(BASE_CLASSES, VARIANT_CLASSES[variant], SIZE_CLASSES[size], loading && LOADING_CLASSES, className)}
+      className={cn(buttonClasses(variant, size), loading && LOADING_CLASSES, className)}
       onClick={loading ? undefined : onClick}
       aria-busy={loading || undefined}
       aria-disabled={loading || undefined}

@@ -10,7 +10,8 @@ import { Sun, Moon, Monitor, Copy, Check, FolderOpen, FolderSearch, RefreshCw, L
 import { useTheme } from '@shared/hooks/useTheme';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
-import { isTauriEnvironment } from '@services/tauri';
+import { useCopiedFlag } from '@shared/hooks';
+import { isTauriEnvironment, revealInFinder } from '@services/tauri';
 import { searchIndexingService } from '@services/searchIndexing.service';
 import { useSystemInfo, systemInfoStore, DISK_USAGE_LABELS } from '@features/settings/stores/systemInfoStore';
 import { SettingsPage } from './shared';
@@ -46,7 +47,9 @@ export const GeneralPanel: React.FC = () => {
   } = useSystemInfo();
 
   const captureSource = (settings.defaultAudioSource || 'systemAndMicrophone') as (typeof CAPTURE_SOURCES)[number];
-  const [storagePathCopied, setStoragePathCopied] = useState(false);
+  const { copied: storagePathCopied, markCopied: markStoragePathCopied } = useCopiedFlag();
+  const [upToDate, setUpToDate] = useState(false);
+  const kgModel = settings.kgExtractionModel || settings.chatModel;
   const [rebuildingPhase, setRebuildingPhase] = useState<'meetings' | 'chats' | 'kg' | null>(null);
   const [isRebuilding, setIsRebuilding] = useState(false);
 
@@ -60,11 +63,10 @@ export const GeneralPanel: React.FC = () => {
     try {
       const { ragIndexer } = await import('@extensions/rag');
       const meetingItems = await searchIndexingService.loadMeetingsForIndexing();
-      const indexed = await ragIndexer.indexAll(meetingItems, { includeEmbeddings: true, force: true });
-      showToast(`Re-indexed ${indexed}/${meetingItems.length} meetings`, 'success');
+      await ragIndexer.indexAll(meetingItems, { includeEmbeddings: true, force: true });
     } catch (error: unknown) {
       console.error('[GeneralPanel] Meeting re-index failed:', error);
-      showToast(error instanceof Error ? error.message : 'Meeting re-index failed', 'error');
+      showToast('Couldn’t re-index meetings', 'error');
     } finally {
       setRebuildingPhase(null);
       loadIndexStats();
@@ -76,11 +78,10 @@ export const GeneralPanel: React.FC = () => {
     try {
       const { chatIndexer } = await import('@extensions/rag');
       const chatSessions = await searchIndexingService.loadChatsForIndexing();
-      const indexed = await chatIndexer.indexAllSessions(chatSessions, { includeEmbeddings: true, force: true });
-      showToast(`Re-indexed ${indexed}/${chatSessions.length} chats`, 'success');
+      await chatIndexer.indexAllSessions(chatSessions, { includeEmbeddings: true, force: true });
     } catch (error: unknown) {
       console.error('[GeneralPanel] Chat re-index failed:', error);
-      showToast(error instanceof Error ? error.message : 'Chat re-index failed', 'error');
+      showToast('Couldn’t re-index chats', 'error');
     } finally {
       setRebuildingPhase(null);
       loadIndexStats();
@@ -88,23 +89,15 @@ export const GeneralPanel: React.FC = () => {
   }, [showToast, loadIndexStats]);
 
   const handleReindexKG = useCallback(async () => {
-    const kgModel = settings.kgExtractionModel || settings.chatModel;
-    if (!kgModel) {
-      showToast('Select an extraction model first', 'error');
-      return;
-    }
+    if (!kgModel) return;
     setRebuildingPhase('kg');
     try {
       const { ragIndexer } = await import('@extensions/rag');
       const meetingItems = await searchIndexingService.loadMeetingsForIndexing();
-      const extracted = await ragIndexer.extractAll(
-        meetingItems,
-        { settings: { ...settings, chatModel: kgModel }, providers },
-      );
-      showToast(`Extracted entities for ${extracted} meetings`, 'success');
+      await ragIndexer.extractAll(meetingItems, { settings: { ...settings, chatModel: kgModel }, providers });
     } catch (error: unknown) {
       console.error('[GeneralPanel] KG extraction failed:', error);
-      showToast(error instanceof Error ? error.message : 'KG extraction failed', 'error');
+      showToast('Couldn’t extract entities', 'error');
     } finally {
       setRebuildingPhase(null);
       loadIndexStats();
@@ -136,41 +129,33 @@ export const GeneralPanel: React.FC = () => {
       console.log(`[GeneralPanel] Rebuild: ${meetingItems.length} meetings, ${chatSessions.length} chats`);
 
       setRebuildingPhase('meetings');
-      let meetingsIndexed = 0;
       try {
-        const kgModel = settings.kgExtractionModel || settings.chatModel;
         const extractionContext = kgModel
           ? { settings: { ...settings, chatModel: kgModel }, providers }
           : undefined;
-        meetingsIndexed = await ragIndexer.indexAll(meetingItems, {
+        await ragIndexer.indexAll(meetingItems, {
           includeEmbeddings: true,
           extractionContext,
         });
       } catch (error: unknown) {
         console.error('[GeneralPanel] Meeting indexing failed:', error);
-        showToast('Meeting indexing failed — continuing with chats', 'error');
+        showToast('Couldn’t re-index meetings; chats continue', 'error');
       }
       loadIndexStats();
 
       setRebuildingPhase('chats');
-      let chatsIndexed = 0;
       try {
-        chatsIndexed = await chatIndexer.indexAllSessions(chatSessions, {
+        await chatIndexer.indexAllSessions(chatSessions, {
           includeEmbeddings: true,
         });
       } catch (error: unknown) {
         console.error('[GeneralPanel] Chat indexing failed:', error);
-        showToast('Chat indexing failed', 'error');
+        showToast('Couldn’t re-index chats', 'error');
       }
       loadIndexStats();
-
-      showToast(
-        `Rebuilt index: ${meetingsIndexed}/${meetingItems.length} meetings, ${chatsIndexed}/${chatSessions.length} chats`,
-        'success',
-      );
     } catch (error: unknown) {
       console.error('[GeneralPanel] Rebuild index failed:', error);
-      showToast(error instanceof Error ? error.message : 'Failed to rebuild index', 'error');
+      showToast('Couldn’t rebuild the index', 'error');
     } finally {
       setRebuildingPhase(null);
       setIsRebuilding(false);
@@ -181,8 +166,7 @@ export const GeneralPanel: React.FC = () => {
   const handleOpenInFinder = async () => {
     if (!storagePath) return;
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('reveal_in_file_manager', { path: storagePath.replace(/[/\\]+$/, '') });
+      await revealInFinder(storagePath);
     } catch (error) {
       console.error('[GeneralPanel] Failed to open in Finder:', error);
     }
@@ -192,18 +176,14 @@ export const GeneralPanel: React.FC = () => {
     if (!storagePath) return;
     try {
       await navigator.clipboard.writeText(storagePath);
-      setStoragePathCopied(true);
-      setTimeout(() => setStoragePathCopied(false), 1500);
+      markStoragePathCopied();
     } catch (error) {
       console.error('[GeneralPanel] Failed to copy storage path:', error);
     }
   };
 
   const handleCheckForUpdate = async () => {
-    const hasUpdate = await appUpdate.checkForUpdate();
-    if (!hasUpdate) {
-      showToast('You\u2019re on the latest version', 'success');
-    }
+    setUpToDate(!(await appUpdate.checkForUpdate()));
   };
 
   const themeOptions = [
@@ -384,10 +364,10 @@ export const GeneralPanel: React.FC = () => {
               <IndexActionRow
                 label="Knowledge Graph"
                 indexed={indexStats?.kg.nodes}
-                detail={indexStats ? `${indexStats.kg.nodes} entities · ${indexStats.kg.edges} relationships` : PENDING}
+                detail={!kgModel ? 'Choose an extraction model in Capabilities first.' : indexStats ? `${indexStats.kg.nodes} entities · ${indexStats.kg.edges} relationships` : PENDING}
                 onReindex={handleReindexKG}
                 busy={rebuildingPhase === 'kg'}
-                disabled={indexBusy}
+                disabled={indexBusy || !kgModel}
               />
 
           <CardRow
@@ -405,7 +385,7 @@ export const GeneralPanel: React.FC = () => {
 
       {/* App Info & Updates */}
       <Card>
-        <CardRow title="Version" actions={<VersionStatus appVersion={appVersion} appUpdate={appUpdate} onCheck={handleCheckForUpdate} />} />
+        <CardRow title="Version" actions={<VersionStatus appVersion={appVersion} appUpdate={appUpdate} upToDate={upToDate} onCheck={handleCheckForUpdate} />} />
       </Card>
     </SettingsPage>
   );
@@ -458,8 +438,10 @@ const IndexStatus: React.FC<{ indexed: number; total?: number }> = ({ indexed, t
 const VersionStatus: React.FC<{
   appVersion: string;
   appUpdate: ReturnType<typeof useAppUpdate>;
+  /** The last check found nothing newer. */
+  upToDate: boolean;
   onCheck: () => void;
-}> = ({ appVersion, appUpdate, onCheck }) => (
+}> = ({ appVersion, appUpdate, upToDate, onCheck }) => (
   <>
     <Text variant="mono" tone="muted">{appVersion || '…'}</Text>
     {appUpdate.status === 'checking' && (
@@ -467,6 +449,9 @@ const VersionStatus: React.FC<{
         <Icon icon={Loader2} size="xs" className="animate-spin" />
         Checking…
       </Text>
+    )}
+    {appUpdate.status === 'idle' && !appUpdate.updateInfo && upToDate && (
+      <Text variant="helper" tone="muted">Up to date</Text>
     )}
     {appUpdate.status === 'idle' && !appUpdate.updateInfo && (
       <Button variant="link" size="inline" onClick={onCheck}>Check for Updates</Button>

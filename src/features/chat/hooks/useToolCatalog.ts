@@ -85,7 +85,8 @@ export function useToolCatalog() {
     (name: string) => {
       if (!mcpConfig) return;
       reconfigure.mutateAsync(toggleServer(mcpConfig, name, true)).catch((error: unknown) => {
-        showToast(error instanceof Error ? error.message : String(error), 'error');
+        console.error(`[useToolCatalog] Connecting ${name} failed:`, error);
+        showToast(`Couldn’t connect ${name}`, 'error');
       });
     },
     [mcpConfig, reconfigure, showToast],

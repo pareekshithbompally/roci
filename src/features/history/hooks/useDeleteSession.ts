@@ -38,7 +38,7 @@ export function useDeleteSession(): (session: SessionRef) => Promise<void> {
       if (!(await confirmDelete(noun))) return;
 
       const deleted = type === 'meeting' ? await deleteItem(id) : await deleteChat(id);
-      showToast(deleted ? `Deleted ${noun}` : `Couldn't delete ${noun}`, deleted ? 'success' : 'error');
+      if (!deleted) showToast(`Couldn't delete ${noun}`, 'error');
     },
     [deleteItem, deleteChat, showToast],
   );

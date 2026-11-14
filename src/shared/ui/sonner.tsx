@@ -1,0 +1,63 @@
+import type { CSSProperties } from 'react';
+import { Toaster as Sonner, toast } from 'sonner';
+import { UI_CONFIG } from '@config/ui.config';
+import { buttonClasses } from './button';
+import { Dot } from './surface';
+
+/**
+ * In-app toasts: Sonner (stacking, timing, swipe, a11y, its markup and API),
+ * themed through its own unstyled + `classNames` hooks — floating surface,
+ * token text, a tone dot as the only colour, a kit-styled action button.
+ *
+ * Render `<Toaster />` once; post with `showToast`.
+ */
+
+export type ToastTone = 'success' | 'error' | 'warning' | 'info';
+
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
+const TONE_ICONS = {
+  success: <Dot tone="success" size="xs" />,
+  error: <Dot tone="danger" size="xs" />,
+  warning: <Dot tone="warning" size="xs" />,
+  info: <Dot tone="info" size="xs" />,
+};
+
+const CLASS_NAMES = {
+  toast: 'flex w-full items-center gap-2.5 rounded-lg bg-raised-glass px-3 py-2.5 shadow-floating backdrop-blur-xl',
+  icon: 'flex shrink-0',
+  content: 'min-w-0 flex-1',
+  title: 'text-body text-primary',
+  description: 'text-callout text-muted',
+  actionButton: `${buttonClasses('outline', 'sm')} shrink-0`,
+};
+
+const { toast: CONFIG } = UI_CONFIG;
+
+export function Toaster() {
+  return (
+    <Sonner
+      position={CONFIG.position}
+      offset={CONFIG.offset}
+      gap={CONFIG.gap}
+      visibleToasts={CONFIG.visible}
+      duration={CONFIG.durationMs}
+      icons={TONE_ICONS}
+      style={{ '--width': `${CONFIG.widthPx}px` } as CSSProperties}
+      toastOptions={{ unstyled: true, classNames: CLASS_NAMES }}
+    />
+  );
+}
+
+/** One line, a tone dot, and optionally a button. */
+export function showToast(message: string, tone: ToastTone = 'info', action?: ToastAction): void {
+  const options = action ? { action, duration: CONFIG.actionDurationMs } : {};
+  toast[tone](message, options);
+}
+
+export function dismissToast(id?: string): void {
+  toast.dismiss(id);
+}

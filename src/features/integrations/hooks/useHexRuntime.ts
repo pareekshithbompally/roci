@@ -15,16 +15,18 @@ import { hexErrorMessage } from '@services/ai/transcription/hex';
 import { isIntegrationEnabled } from '@shared/utils/integrations';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { useHexSyncStore } from '@features/integrations/stores/hexSyncStore';
-import { notifyInBackground } from '@services/notifications';
+import { notifyAppEvent } from '@shared/utils/appEvents';
 
 /** Meetings that arrived from Hex, as a background notification. */
 function notifyImported(count: number): void {
   if (count === 0) return;
-  void notifyInBackground({
+  notifyAppEvent({
     id: 'hex-imports',
     kind: 'hexImports',
-    title: 'Hex',
-    body: count === 1 ? '1 meeting imported' : `${count} meetings imported`,
+    tone: 'success',
+    inFront: 'toast',
+    title: count === 1 ? '1 meeting imported from Hex' : `${count} meetings imported from Hex`,
+    body: 'Open Kasset to see them.',
   });
 }
 

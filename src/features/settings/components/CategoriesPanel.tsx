@@ -7,7 +7,6 @@
 import React, { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useToast } from '@shared/contexts/ToastContext';
 import { confirm } from '@shared/stores/confirmStore';
 
 import { SettingsPage } from './shared';
@@ -15,7 +14,6 @@ import { Button, CardRow, Icon, Input, Section, Select, SelectContent, SelectIte
 
 export const CategoriesPanel: React.FC = () => {
   const { settings, setSettings, isLoading } = useSettings();
-  const { showToast } = useToast();
   if (isLoading) return null;
 
   const [newCategory, setNewCategory] = useState('');
@@ -32,12 +30,10 @@ export const CategoriesPanel: React.FC = () => {
     durationReminderMinutes: 60,
   };
 
+  const duplicate = categories.includes(newCategory.trim());
+
   const handleAddCategory = () => {
-    if (!newCategory.trim()) return;
-    if (categories.includes(newCategory.trim())) {
-      showToast('This category already exists', 'warning');
-      return;
-    }
+    if (!newCategory.trim() || duplicate) return;
     setSettings({ categories: [...categories, newCategory.trim()] });
     setNewCategory('');
   };
@@ -86,11 +82,12 @@ export const CategoriesPanel: React.FC = () => {
               placeholder="Add category..."
               className="flex-1"
             />
-            <Button variant="primary" size="sm" onClick={handleAddCategory} disabled={!newCategory.trim()}>
+            <Button variant="primary" size="sm" onClick={handleAddCategory} disabled={!newCategory.trim() || duplicate}>
               <Icon icon={Plus} size="xs" />
               Add
             </Button>
           </div>
+          {duplicate && <Text as="p" variant="helper" tone="muted">Already in your categories.</Text>}
 
           {categories.length > 0 ? (
             <div className="flex flex-wrap gap-2">

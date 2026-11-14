@@ -20,7 +20,8 @@ import type { AudioCaptureSource } from '@config/audio.config';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment, menubarService } from '@services/tauri';
-import { notifyInBackground, onNotificationResponse, postNotice, removeNotices } from '@services/notifications';
+import { onNotificationResponse, postNotice, removeNotices } from '@services/notifications';
+import { notifyAppEvent } from '@shared/utils/appEvents';
 import { NOTIFICATIONS_CONFIG } from '@config/notifications.config';
 import { coreAudioService, isPermissionRefusal, captureErrorMessage } from '@services/coreAudio.service';
 import { useAppStore } from '@shared/stores/appStore';
@@ -484,7 +485,6 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           recordedAt: session.createdAt,
           calendarMeta: session.calendarMeta,
         });
-        showToast('Recording saved', 'success');
       } catch (saveError) {
         console.error('[RecordingContext] stopAndSaveSession save error:', saveError);
         showToast('Recording stopped but could not be saved', 'warning');
@@ -610,8 +610,6 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
 
       cleanupSessionRefs(sessionId);
       removeSession(sessionId);
-
-      showToast('Recording deleted', 'success');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to discard recording';
       updateSession(sessionId, { error: errorMessage });
@@ -639,8 +637,6 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       // Cleanup and remove session
       cleanupSessionRefs(sessionId);
       removeSession(sessionId);
-
-      showToast('Recording saved for later', 'success');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to save recording';
       updateSession(sessionId, { error: errorMessage });
@@ -792,8 +788,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       if (setResult) setResult(data);
       if (setSelectedHistoryId) setSelectedHistoryId(newItem.id);
       if (setStatus) setStatus(AppStatus.RESULTS);
-      showToast('Recording processed successfully', 'success');
-      void notifyInBackground({ id: `recording-ready:${recordingId}`, kind: 'recordingReady', title: data.title, body: 'Transcript and summary are ready.' });
+      notifyAppEvent({ id: `recording-ready:${recordingId}`, kind: 'recordingReady', tone: 'success', inFront: 'quiet', title: data.title, body: 'Transcript and summary are ready.' });
 
       // Cleanup and remove session
       cleanupSessionRefs(sessionId);
@@ -806,14 +801,12 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
 
       if (message === 'Processing aborted by user') {
         updateSession(sessionId, { status: 'review', error: null });
-        showToast('Processing cancelled', 'info');
         return;
       }
 
       const errorMessage = message || 'Failed to process recording';
       updateSession(sessionId, { status: 'review', error: errorMessage });
-      showToast(errorMessage, 'error');
-      void notifyInBackground({ id: `recording-ready:${sessionId}`, kind: 'recordingReady', title: 'Recording not processed', body: errorMessage });
+      notifyAppEvent({ id: `recording-ready:${sessionId}`, kind: 'recordingReady', tone: 'error', inFront: 'toast', title: 'Recording not processed', body: errorMessage });
       throw error;
     }
   }, [

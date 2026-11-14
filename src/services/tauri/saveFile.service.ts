@@ -37,3 +37,10 @@ export async function saveTextFile({ filename, content, kind, extension }: TextF
   await fileSystemService.writeTextFile(path, content);
   return path;
 }
+
+/** Select a saved file (or folder) in Finder. */
+export async function revealInFinder(path: string): Promise<void> {
+  if (!isTauriEnvironment()) return;
+  const { invoke } = await import('@tauri-apps/api/core');
+  await invoke('reveal_in_file_manager', { path: path.replace(/[/\\]+$/, '') });
+}

@@ -12,7 +12,6 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHistory } from '@shared/contexts/HistoryContext';
 import { useChat } from '@shared/contexts/ChatContext';
 import { useToast } from '@shared/contexts/ToastContext';
-import { useThemeContext } from '@shared/contexts/ThemeContext';
 import { useRecordingContext, PermissionChecklist, RecordingExitPrompt } from '@features/recording';
 import { MainLayout } from '@features/layout';
 import { HomeView } from '@features/home';
@@ -22,8 +21,8 @@ import { useMenubarSpeechModels } from '@features/settings';
 import { UpdateBanner } from '@features/settings';
 import { RemindersView } from '@features/todos';
 import { CalendarView } from '@features/calendar';
-import { Toaster } from 'sonner';
 import { ConfirmHost, OnDeviceModelActivity, SearchOverlay } from '@shared/components';
+import { Toaster } from '@shared/ui';
 import { useAppShortcuts } from '@features/shortcuts';
 import { focusChatComposer, startNewChat } from '@features/chat';
 import { useAppleNotesRuntime, useCalendarRuntime, useHexRuntime, useMcpHostRuntime, useRemindersRuntime } from '@features/integrations';
@@ -59,7 +58,6 @@ const App: React.FC = () => {
   const recordingRef = useRef(recording);
   recordingRef.current = recording;
   const toast = useToast();
-  const { isDark } = useThemeContext();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const appUpdate = useAppUpdate();
 
@@ -239,7 +237,6 @@ const App: React.FC = () => {
         return;
       }
       setSettings({ transcriptionProvider: TRANSCRIPTION_CONFIG.hexProvider, transcriptionModel: modelId });
-      toast.showToast(`Speech model set to ${model.name}`, 'success');
     } catch (error) {
       console.error('[App] Failed to switch speech model:', error);
       toast.showToast('Could not switch the speech model', 'error');
@@ -378,29 +375,7 @@ const App: React.FC = () => {
       </MainLayout>
 
       {/* Sonner Toast Container — top-right corner */}
-      <Toaster
-        position="top-right"
-        offset={24}
-        theme={isDark ? 'dark' : 'light'}
-        richColors
-        closeButton
-        duration={5000}
-        visibleToasts={4}
-        gap={6}
-        toastOptions={{
-          classNames: {
-            toast: 'kasset-toast',
-          },
-          style: {
-            fontSize: '13px',
-            padding: '10px 14px',
-            minHeight: 'unset',
-            gap: '0px',
-            width: 'fit-content',
-            maxWidth: '340px',
-          },
-        }}
-      />
+      <Toaster />
 
       {/* Search Overlay (Cmd+K) */}
       <SearchOverlay open={isSearchOpen} onOpenChange={setIsSearchOpen} />

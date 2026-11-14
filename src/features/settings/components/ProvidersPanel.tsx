@@ -117,17 +117,7 @@ export const ProvidersPanel: React.FC = () => {
       return;
     }
 
-    if (isManaged) {
-      if (!apiKey) {
-        showToast('Please configure your API key first', 'error');
-        return;
-      }
-    } else {
-      if (!apiKey || !baseUrl) {
-        showToast('Please configure API key and Base URL first', 'error');
-        return;
-      }
-    }
+    if (searchDisabled) return;
 
     const providerWithConfig: ModelProvider = {
       ...selectedProvider,
@@ -152,8 +142,7 @@ export const ProvidersPanel: React.FC = () => {
       setShowSearchDropdown(true);
     } catch (error) {
       console.error('[ProvidersPanel] Failed to search models:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      showToast(`Failed to search models: ${errorMessage}`, 'error');
+      showToast(`Couldn’t load models from ${getProviderTitle(providerName)}`, 'error');
       setShowSearchDropdown(false);
     } finally {
       setIsSearching(false);
@@ -366,6 +355,7 @@ export const ProvidersPanel: React.FC = () => {
                             }}
                             placeholder="Search model name..."
                             disabled={searchDisabled}
+                            helper={searchDisabled ? (isManaged ? 'Add your API key above to search models.' : 'Add your API key and base URL above to search models.') : undefined}
                             icon={Search}
                           />
                         </div>

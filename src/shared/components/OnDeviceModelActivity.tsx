@@ -19,7 +19,7 @@ import type { VoiceModelEvent } from '@extensions/voice';
 import { activityStore } from '@shared/stores/activityStore';
 import type { ActivityItem } from '@shared/stores/activityStore';
 import { useToast } from '@shared/contexts/ToastContext';
-import { notifyInBackground } from '@services/notifications';
+import { notifyAppEvent } from '@shared/utils/appEvents';
 
 // Only show download toasts if downloading lasts longer than this.
 // Cache hits complete in <200ms and should be silent.
@@ -114,8 +114,7 @@ export const OnDeviceModelActivity: React.FC = () => {
             activityStore.remove(ui.trayId);
 
             if (trayVisible && !sessionNotified) {
-              showToast(ui.readyToast, 'success');
-              void notifyInBackground({ id: `model:${ui.trayId}`, kind: 'modelDownloads', title: ui.readyToast, body: 'Download finished.' });
+              notifyAppEvent({ id: `model:${ui.trayId}`, kind: 'modelDownloads', tone: 'success', inFront: 'toast', title: ui.readyToast, body: 'Download finished.' });
               sessionNotified = true;
             }
 
@@ -236,10 +235,8 @@ export const OnDeviceModelActivity: React.FC = () => {
 
         case 'error':
           activityStore.remove(activityId);
-          showErrorWithRetry(
-            event.error || `${label} failed`,
-            () => {},
-          );
+          console.error(`[OnDeviceModelActivity] ${label} failed:`, event.error);
+          showToast(`Couldn’t finish ${label.toLowerCase()}`, 'error');
           break;
       }
     }
