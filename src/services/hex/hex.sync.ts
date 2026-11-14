@@ -68,8 +68,9 @@ async function importOne(hexId: string): Promise<TranscriptionResult | null> {
 async function summarize(saved: TranscriptionResult, context: SummaryContext): Promise<void> {
   meetingJobs.set(saved.meetingId, { stage: 'summarizing' });
   try {
-    const { result } = await unifiedAIService.processTranscript(
+    const result = await unifiedAIService.processTranscript(
       saved.transcript, saved.segments, context.categories, context.settings, context.providers,
+      { meetingId: saved.meetingId },
     );
     await transcriptionService.saveTranscriptionResult({
       ...saved,

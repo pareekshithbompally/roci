@@ -729,14 +729,15 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         categories,
         settings,
         providers,
-        meetingContext,
         {
+          meetingContext,
+          meetingId: session.recordingId,
           signal: abortController.signal,
           onProgress: (processingStep) => updateSession(sessionId, { processingStep }),
         },
       );
 
-      const { result: data } = await Promise.race([
+      const data = await Promise.race([
         processingPromise,
         new Promise<never>((_, reject) => {
           abortController.signal.addEventListener('abort', () => {

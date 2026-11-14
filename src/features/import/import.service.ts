@@ -12,8 +12,6 @@ import { fileSystemService } from '@services/tauri/fileSystem.service';
 import { unifiedAIService } from '@services/unifiedAIService';
 import { transcriptionService, meetingSummaryOf } from '@services/transcription.service';
 import { activityStore } from '@shared/stores/activityStore';
-import { logUsage } from '@extensions/usage';
-import { resolveSummaryModel } from '@shared/utils/modelResolver';
 import { IMPORT_CONFIG } from '@config/audio.config';
 import { parseSubtitleFile } from './parsers/subtitle-parser';
 import { JobQueue } from './job-queue';
@@ -166,16 +164,11 @@ class ImportService {
 
     activityStore.update(job.id, { detail: 'Analyzing...' });
 
-    const transcriptFile = new File(
-      [`Transcript:\n${transcript}`],
-      'transcript.txt',
-      { type: 'text/plain' },
+    // Subtitle text has no timed segments once parsed.
+    const result = await unifiedAIService.processTranscript(
+      transcript, undefined, categories, settings, providers, { meetingId: job.meetingId },
     );
-    const { result, usage } = await unifiedAIService.processDocument(transcriptFile, categories, settings, providers);
     if (signal.aborted) throw new Error('Import cancelled');
-
-    const resolved = resolveSummaryModel(settings, providers);
-    logUsage({ category: 'transcription', sessionId: job.meetingId, provider: resolved?.provider, model: resolved?.modelId, usage }).catch(e => console.error('[UsageLog] transcription:', e));
 
     const meetingSummary = meetingSummaryOf(result);
 
@@ -216,14 +209,12 @@ class ImportService {
 
     activityStore.update(job.id, { detail: 'Transcribing...' });
 
-    const { result, usage: audioUsage } = await unifiedAIService.processAudio(blob, categories, settings, providers, undefined, {
+    const result = await unifiedAIService.processAudio(blob, categories, settings, providers, {
+      meetingId: job.meetingId,
       signal,
       onProgress: (step) => activityStore.update(job.id, { step }),
     });
     if (signal.aborted) throw new Error('Import cancelled');
-
-    const resolvedAudio = resolveSummaryModel(settings, providers);
-    logUsage({ category: 'transcription', sessionId: job.meetingId, provider: resolvedAudio?.provider, model: resolvedAudio?.modelId, usage: audioUsage }).catch(e => console.error('[UsageLog] transcription:', e));
 
     const meetingSummary = meetingSummaryOf(result);
 

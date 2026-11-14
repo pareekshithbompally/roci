@@ -11,16 +11,18 @@ import { ExternalLink, Search, Loader2, X } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-shell';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
-import { useModalities } from '@features/settings/stores/modalitiesStore';
+import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { getProviderTitle, isLocalProviderId } from '@shared/utils/provider.utils';
 import { LOCAL_SERVER_INFO } from '@config/localServers.config';
 import { providersService } from '@services/providers';
 import { ModelIcon } from '@shared/components';
 import { modalitiesService } from '@services/modalities';
+import { capabilitiesOf } from '@services/ai/capabilities';
 import { getManagedSDKInfo, getDefaultBaseUrl } from '@shared/utils/modelResolver';
 import { MANAGED_MODELS, MANAGED_SDK_PROVIDERS } from '@config/providers.config';
 import { ModalityIcons } from './ModalityIcons';
 import { ModelRowMenu } from './ModelRowMenu';
+import type { ModelCapabilityFlag } from './ModelRowMenu';
 import { confirm } from '@shared/stores/confirmStore';
 import { ProviderGroup, ProviderListItem } from './ProviderListItem';
 import { LocalServersSection } from './LocalServersSection';
@@ -43,7 +45,7 @@ export const ProvidersPanel: React.FC = () => {
   } = useSettings();
 
   const { showToast } = useToast();
-  const modalitiesLoaded = useModalities();
+  const modalitiesLoaded = useModelCatalog();
   const [showSetupBanner, setShowSetupBanner] = useState(true);
 
   const anyProviderHasModels = providers.some(p => p.active && p.models && p.models.length > 0);
@@ -188,14 +190,11 @@ export const ProvidersPanel: React.FC = () => {
     });
   };
 
-  /** Unset means the provider default: on for managed SDK providers. */
-  const toolsEnabledOf = (providerName: string, model: ProviderModel) =>
-    model.toolsEnabled ?? MANAGED_SDK_PROVIDERS.has(providerName);
-
-  const handleToolsChange = (modelId: string, toolsEnabled: boolean) => {
+  /** Writes one per-model capability override (Tool calling, Audio input). */
+  const handleModelFlagChange = (modelId: string, flag: ModelCapabilityFlag, value: boolean) => {
     if (!selectedProvider) return;
     updateProvider(selectedProvider.provider, {
-      models: (selectedProvider.models || []).map(m => (m.id === modelId ? { ...m, toolsEnabled } : m)),
+      models: (selectedProvider.models || []).map(m => (m.id === modelId ? { ...m, [flag]: value } : m)),
     });
   };
 
@@ -445,8 +444,8 @@ export const ProvidersPanel: React.FC = () => {
                         <>
                           <ModalityIcons modelInfo={getModelInfo(selectedProvider.provider, model.id)} />
                           <ModelRowMenu
-                            toolsEnabled={toolsEnabledOf(selectedProvider.provider, model)}
-                            onToolsChange={(enabled) => handleToolsChange(model.id, enabled)}
+                            capabilities={capabilitiesOf(selectedProvider.provider, model)}
+                            onFlagChange={(flag, value) => handleModelFlagChange(model.id, flag, value)}
                             onRemove={() => void handleRemoveModel(model)}
                           />
                         </>

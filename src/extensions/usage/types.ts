@@ -4,7 +4,7 @@
  * Mirrors the Rust UsageRecord / UsageSummary structs in commands.rs.
  */
 
-export type UsageCategory = 'chat' | 'transcription' | 'title-gen';
+export type UsageCategory = 'chat' | 'title-gen' | 'transcription' | 'summary' | 'extraction' | 'suggestions';
 
 export interface UsageRecord {
   id: string;

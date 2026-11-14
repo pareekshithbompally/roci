@@ -2,47 +2,23 @@
  * useContextLimit Hook (chat feature)
  *
  * Resolves the active chat model's context window in tokens via
- * `modalitiesService.getModelContextLimit`, using the same
- * `resolveChatModel` path the send flow uses.
+ * `capabilitiesOf(...).contextTokens`, using the same `resolveChatModel`
+ * path the send flow uses. Derived synchronously; `useModelCatalog`
+ * re-renders it when the models.dev cache arrives.
  *
- * Returns null while loading or when the model reports no limit (e.g.
- * local-server models with no models.dev entry) — callers treat null as
- * "unknown, hide the gauge".
+ * Returns null while the catalog loads or when the model reports no limit
+ * (e.g. local-server models with no models.dev entry) — callers treat null
+ * as "unknown, hide the gauge".
  */
 
-import { useEffect, useState } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
+import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { resolveChatModel } from '@shared/utils/modelResolver';
-import { modalitiesService } from '@services/modalities';
+import { capabilitiesOf } from '@services/ai/capabilities';
 
 export function useContextLimit(): number | null {
   const { settings, providers } = useSettings();
-  const [limit, setLimit] = useState<number | null>(null);
-
-  const chatModel = settings.chatModel;
-
-  useEffect(() => {
-    if (!chatModel) {
-      setLimit(null);
-      return;
-    }
-    let cancelled = false;
-    modalitiesService
-      .ensureLoaded()
-      .then(() => {
-        if (cancelled) return;
-        const resolved = settings ? resolveChatModel(settings, providers) : null;
-        setLimit(
-          resolved ? modalitiesService.getModelContextLimit(resolved.provider, resolved.modelId) : null
-        );
-      })
-      .catch(() => {
-        if (!cancelled) setLimit(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [chatModel, providers, settings]);
-
-  return limit;
+  useModelCatalog();
+  const resolved = resolveChatModel(settings, providers);
+  return resolved ? capabilitiesOf(resolved.provider, resolved.model).contextTokens : null;
 }

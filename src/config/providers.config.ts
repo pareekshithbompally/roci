@@ -11,6 +11,9 @@ export const MANAGED_MODELS: Record<string, string[]> = {}
 /** Providers that use a native SDK (no user-configurable base URL) */
 export const MANAGED_SDK_PROVIDERS = new Set(['openai', 'anthropic', 'gemini', 'mistral', 'groq']);
 
+/** Providers whose AI SDK exposes a native web search tool (see `getWebSearchTools`). */
+export const WEB_SEARCH_PROVIDERS = new Set(['openai', 'anthropic', 'gemini', 'groq']);
+
 /** SDK description shown in settings UI */
 export const MANAGED_SDK_INFO: Record<string, string> = {
   openai: 'Connects directly to the OpenAI API via the AI SDK. No endpoint configuration needed.',

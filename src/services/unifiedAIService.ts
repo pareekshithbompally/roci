@@ -7,20 +7,20 @@
  * Pipeline:  transcribeAudio (STT) → analyzeTranscript (LLM) = ProcessedResult
  */
 
-import { generateText, Output, jsonSchema } from 'ai';
+import { generateText } from 'ai';
 import { isIntegrationEnabled } from '@shared/utils/integrations';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
-import type { FilePart, UserContent } from 'ai';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { ProcessedResult, AppSettings, MeetingSummary, StoredTranscriptSegment } from '@shared/types';
 import { resolveChatModel, resolveSummaryModel, requiresApiKey, type ResolvedModel } from '@shared/utils/modelResolver';
 import { MAX_AUDIO_SIZE_BYTES, MAX_AUDIO_SIZE_MB, MIN_AUDIO_SIZE_BYTES, WAV_HEADER_SIZE_BYTES } from '@shared/utils/audio.utils';
-import { parseVTT } from '@shared/utils/vtt.utils';
-import { buildTranscriptionRequest, formatTemporalContext } from '@core/ai';
+import { formatTemporalContext } from '@core/ai';
 import { createModel } from './ai';
 import { extractTokenUsage } from './ai/types';
 import type { TokenUsage } from './ai/types';
+import { recordUsage } from '@extensions/usage';
+import { modalitiesService } from '@services/modalities';
 import type { MeetingContext } from '@core/ai/prompts/transcription.prompt';
 import type { AnalysisResult } from '@core/ai/schemas/transcription.schema';
 import {
@@ -31,6 +31,15 @@ import {
   type TranscribeOptions,
   type TranscriptResult,
 } from './ai/transcription';
+
+/** Which meeting a summary belongs to, and its calendar context. */
+export interface SummaryOptions {
+  meetingContext?: MeetingContext;
+  /** The meeting id; usage rows are attributed to it. */
+  meetingId?: string;
+}
+
+export type ProcessAudioOptions = TranscribeOptions & SummaryOptions & { onSummarizing?: () => void };
 
 const assertAudioSize = (blob: Blob): void => {
   if (blob.size > MAX_AUDIO_SIZE_BYTES) {
@@ -44,26 +53,12 @@ const assertAudioSize = (blob: Blob): void => {
   }
 };
 
-async function fileToSDKContent(file: File): Promise<UserContent> {
-  if (file.name.endsWith('.vtt') || file.type === 'text/vtt') {
-    const { fullText } = parseVTT(await file.text());
-    return `Transcript:\n${fullText}`;
-  }
-
-  if (file.type === 'text/plain' || file.type === 'text/markdown' || file.name.endsWith('.md')) {
-    return await file.text();
-  }
-
-  const buffer = new Uint8Array(await file.arrayBuffer());
-  const filePart: FilePart = { type: 'file', data: buffer, mediaType: file.type || 'application/octet-stream' };
-  return [filePart];
-}
-
 export async function transcribeAudio(
   audioBlob: Blob,
   settings: AppSettings,
   providers: ModelProvider[],
   options: TranscribeOptions = {},
+  meetingId?: string,
 ): Promise<TranscriptResult> {
   const selection = speechSelectionOf(settings);
   if (!selection) {
@@ -75,7 +70,12 @@ export async function transcribeAudio(
     throw new Error(`${name} is off in Settings › Integrations. Turn it on, or choose another transcription model.`);
   }
   assertAudioSize(audioBlob);
+  // An audio model chosen via models.dev resolves its adapter from the catalog.
+  await modalitiesService.ensureLoaded();
   const result = await runTranscription(audioBlob, selection, providers, options);
+  if (result.usage) {
+    recordUsage('transcription', { provider: selection.provider, modelId: selection.model }, result.usage, meetingId);
+  }
   // VAD found no speech (or every part decoded to nothing): surfacing this as
   // an error beats the alternative — the analyzer inventing a meeting about
   // silence. Dictation callers swallow it into an empty insert.
@@ -98,22 +98,6 @@ function summaryModelOrThrow(settings: AppSettings, providers: ModelProvider[]):
   return resolved;
 }
 
-async function analyzeStage(args: {
-  transcript: string;
-  categories: string[];
-  settings: AppSettings;
-  providers: ModelProvider[];
-  meetingContext?: MeetingContext;
-}): Promise<{ result: AnalysisResult; usage?: TokenUsage }> {
-  const resolved = summaryModelOrThrow(args.settings, args.providers);
-  return analyzeTranscript({
-    transcript: args.transcript,
-    categories: args.categories,
-    resolved,
-    meetingContext: args.meetingContext,
-  });
-}
-
 export async function audioToRawText(
   audioBlob: Blob,
   settings: AppSettings,
@@ -123,18 +107,19 @@ export async function audioToRawText(
 }
 
 class UnifiedAIService {
+  /** Audio → transcript (the speech model) → summary (the Summary model). Both stages log their usage. */
   async processAudio(
     audioBlob: Blob,
     categories: string[],
     settings: AppSettings,
     providers: ModelProvider[],
-    meetingContext?: MeetingContext,
-    options: TranscribeOptions & { onSummarizing?: () => void } = {},
-  ): Promise<{ result: ProcessedResult; usage?: TokenUsage }> {
-    const t = await transcribeAudio(audioBlob, settings, providers, options);
+    options: ProcessAudioOptions = {},
+  ): Promise<ProcessedResult> {
+    const { meetingContext, meetingId, onSummarizing, ...transcribeOptions } = options;
+    const t = await transcribeAudio(audioBlob, settings, providers, transcribeOptions, meetingId);
     const { formatted: transcript, segments } = formatTranscript(t);
-    options.onSummarizing?.();
-    return this.processTranscript(transcript, segments, categories, settings, providers, meetingContext);
+    onSummarizing?.();
+    return this.processTranscript(transcript, segments, categories, settings, providers, { meetingContext, meetingId });
   }
 
   /** A finished transcript → title, summary, action items, categories (the Summary model). */
@@ -144,40 +129,11 @@ class UnifiedAIService {
     categories: string[],
     settings: AppSettings,
     providers: ModelProvider[],
-    meetingContext?: MeetingContext,
-  ): Promise<{ result: ProcessedResult; usage?: TokenUsage }> {
-    const { result: analysis, usage } = await analyzeStage({ transcript, categories, settings, providers, meetingContext });
-    return { result: this.toProcessedResult(analysis, transcript, segments), usage };
-  }
-
-  async processDocument(
-    file: File,
-    categories: string[],
-    settings: AppSettings,
-    providers: ModelProvider[],
-  ): Promise<{ result: ProcessedResult; usage?: TokenUsage }> {
-    const content = await fileToSDKContent(file);
-    const text = typeof content === 'string' ? content : '[binary file content]';
+    options: SummaryOptions = {},
+  ): Promise<ProcessedResult> {
     const resolved = summaryModelOrThrow(settings, providers);
-    const config = buildTranscriptionRequest({
-      categories,
-      supportsStructuredOutput: true,
-      temporalContext: formatTemporalContext(),
-    });
-    if (!config.outputSchema) {
-      throw new Error('Structured output schema unavailable for transcription analysis.');
-    }
-    const result = await generateText({
-      model: createModel(resolved),
-      instructions: config.prompt,
-      messages: [{ role: 'user', content }],
-      output: Output.object({ schema: jsonSchema(config.outputSchema.schema) }),
-    });
-    const analysis = result.output as AnalysisResult;
-    return {
-      result: this.toProcessedResult(analysis, text),
-      usage: extractTokenUsage(result.usage),
-    };
+    const analysis = await analyzeTranscript({ transcript, categories, resolved, ...options });
+    return this.toProcessedResult(analysis, transcript, segments);
   }
 
   async generateTitle(

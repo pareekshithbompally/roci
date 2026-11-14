@@ -16,8 +16,6 @@ vi.mock('@config/providers.config', async (importOriginal) => ({
 
 import {
   getProviderType,
-  supportsWebSearch,
-  supportsTools,
   requiresApiKey,
   resolveModel,
   resolveChatModel,
@@ -67,24 +65,6 @@ describe('getProviderType', () => {
     expect(getProviderType('xai')).toBe('openai-compat');
     expect(getProviderType('')).toBe('openai-compat');
   });
-});
-
-// ── supportsWebSearch ───────────────────────────────────────────
-
-describe('supportsWebSearch', () => {
-  it.each(['gemini', 'openai', 'anthropic', 'groq'])(
-    'returns true for %s',
-    (provider) => {
-      expect(supportsWebSearch(provider)).toBe(true);
-    }
-  );
-
-  it.each(['mistral', 'local:ollama', ''])(
-    'returns false for %s',
-    (provider) => {
-      expect(supportsWebSearch(provider)).toBe(false);
-    }
-  );
 });
 
 // ── resolveModel ────────────────────────────────────────────────
@@ -180,7 +160,6 @@ describe('resolveChatModel', () => {
     const resolved = resolveChatModel({ chatModel: 'gpt-4o' } as any, providers as any);
 
     expect(requiresApiKey(resolved!)).toBe(true);
-    expect(supportsTools(resolved!)).toBe(true);
   });
 });
 

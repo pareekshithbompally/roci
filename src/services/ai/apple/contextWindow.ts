@@ -1,11 +1,4 @@
-import { getProviderType, type ResolvedModel } from '@shared/utils/modelResolver';
-import { appleIntelligence, isAppleError } from './appleIntelligence.service';
-
-/** The model's context window when it is small enough to matter (Apple Intelligence); null otherwise. */
-export async function contextTokensFor(resolved: ResolvedModel): Promise<number | null> {
-  if (getProviderType(resolved.provider) !== 'apple-intelligence') return null;
-  return (await appleIntelligence.status()).contextTokens || null;
-}
+import { isAppleError } from './appleIntelligence.service';
 
 /** The Apple Intelligence failure inside an AI SDK error (it may be wrapped as `cause`). */
 function appleFailure(error: unknown) {

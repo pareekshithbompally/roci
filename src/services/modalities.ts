@@ -134,11 +134,6 @@ class ModalitiesService {
     return null;
   }
 
-  /** @deprecated Use getModelInfo() instead for full capability data */
-  getModalities(providerName: string, modelId: string): ModelModalities | null {
-    return this.findModel(providerName, modelId)?.modalities ?? null;
-  }
-
   /**
    * Get combined modality + capability info for a model.
    * Returns null if the model isn't found in the models.dev data.

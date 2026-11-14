@@ -19,7 +19,7 @@ describe('ToolRegistry', () => {
       const tool = makeTool('search');
 
       expect(() => registry.register(tool)).not.toThrow();
-      expect(registry.getTool('search')).toBe(tool);
+      expect(registry.getTools()).toEqual([tool]);
     });
 
     it('throws on duplicate tool name', () => {
@@ -41,69 +41,15 @@ describe('ToolRegistry', () => {
     });
   });
 
-  describe('getSchemas', () => {
-    it('returns empty array when no tools registered', () => {
+  describe('getTools', () => {
+    it('returns the registered definitions in insertion order', () => {
       const registry = new ToolRegistry();
-      expect(registry.getSchemas()).toEqual([]);
-    });
+      const alpha = makeTool('alpha');
+      const beta = makeTool('beta');
+      registry.register(alpha);
+      registry.register(beta);
 
-    it('returns schemas with name, description, and parameters only', () => {
-      const registry = new ToolRegistry();
-      const tool = makeTool('search');
-      registry.register(tool);
-
-      const schemas = registry.getSchemas();
-      expect(schemas).toHaveLength(1);
-      expect(schemas[0]).toEqual({
-        name: 'search',
-        description: 'Test tool: search',
-        parameters: tool.parameters,
-      });
-    });
-
-    it('does not include execute function in schemas', () => {
-      const registry = new ToolRegistry();
-      registry.register(makeTool('search'));
-
-      const schemas = registry.getSchemas();
-      expect(schemas[0]).not.toHaveProperty('execute');
-    });
-
-    it('returns schemas for all registered tools', () => {
-      const registry = new ToolRegistry();
-      registry.register(makeTool('alpha'));
-      registry.register(makeTool('beta'));
-      registry.register(makeTool('gamma'));
-
-      const schemas = registry.getSchemas();
-      expect(schemas).toHaveLength(3);
-      expect(schemas.map(s => s.name)).toEqual(['alpha', 'beta', 'gamma']);
-    });
-  });
-
-  describe('getTool', () => {
-    it('returns the registered tool definition', () => {
-      const registry = new ToolRegistry();
-      const tool = makeTool('search');
-      registry.register(tool);
-
-      const result = registry.getTool('search');
-      expect(result).toBe(tool);
-      expect(result.execute).toBe(tool.execute);
-    });
-
-    it('throws for unknown tool name', () => {
-      const registry = new ToolRegistry();
-      expect(() => registry.getTool('nonexistent')).toThrowError(
-        '[ToolRegistry] Unknown tool: "nonexistent"',
-      );
-    });
-
-    it('throws for empty name', () => {
-      const registry = new ToolRegistry();
-      expect(() => registry.getTool('')).toThrowError(
-        '[ToolRegistry] Unknown tool: ""',
-      );
+      expect(registry.getTools()).toEqual([alpha, beta]);
     });
   });
 
@@ -142,7 +88,6 @@ describe('ToolRegistry', () => {
 
       expect(reg1.getToolNames()).toEqual(['tool-a']);
       expect(reg2.getToolNames()).toEqual(['tool-b']);
-      expect(() => reg1.getTool('tool-b')).toThrow();
     });
   });
 });

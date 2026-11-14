@@ -3,7 +3,7 @@
  *
  * Sources: saved tool preferences (AppSettings.chatTools), MCP config /
  * connection / tools queries, the chat store's web search switch, and the
- * selected model's capabilities. Every toggle writes the saved preferences;
+ * selected model's capabilities (`capabilitiesOf`). Every toggle writes the saved preferences;
  * "Connect" enables the server through the same reconfigure path as Settings.
  */
 
@@ -11,7 +11,9 @@ import { useCallback, useMemo } from 'react';
 import { toolRegistry } from '@extensions/tools';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
-import { resolveChatModel, supportsTools, supportsWebSearch } from '@shared/utils/modelResolver';
+import { resolveChatModel } from '@shared/utils/modelResolver';
+import { capabilitiesOf } from '@services/ai/capabilities';
+import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { CHAT_TOOLS_CONFIG, DEFAULT_CHAT_TOOLS } from '@config/chatTools.config';
 import {
@@ -39,8 +41,12 @@ export function useToolCatalog() {
   const webSearchEnabled = useChatStore((s) => s.webSearchEnabled);
   const toggleWebSearch = useChatStore((s) => s.toggleWebSearch);
 
+  useModelCatalog();
+
   const prefs = settings.chatTools ?? DEFAULT_CHAT_TOOLS;
   const resolved = useMemo(() => resolveChatModel(settings, providers), [settings, providers]);
+  // Derived each render: useModelCatalog re-renders this hook when the models.dev cache arrives.
+  const capabilities = resolved ? capabilitiesOf(resolved.provider, resolved.model) : null;
 
   const catalog = useMemo(
     () =>
@@ -85,10 +91,10 @@ export function useToolCatalog() {
     [mcpConfig, reconfigure, showToast],
   );
 
-  const webSearchAvailable = !!resolved && supportsWebSearch(resolved.provider);
+  const webSearchAvailable = capabilities?.webSearch ?? false;
 
   return {
-    modelSupportsTools: !!resolved && supportsTools(resolved),
+    modelSupportsTools: capabilities?.tools ?? false,
     modelName: resolved?.modelId ?? settings.chatModel,
     webSearch: {
       available: webSearchAvailable,

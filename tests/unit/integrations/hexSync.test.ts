@@ -71,8 +71,9 @@ describe('hexSync.catchUp', () => {
 
 describe('hexSync.finished', () => {
   it('imports, then summarizes with the Summary model and clears the phase', async () => {
-    processTranscript.mockResolvedValue({ result: { title: 'Better title', summary: 'Full', categories: ['Work'] } });
+    processTranscript.mockResolvedValue({ title: 'Better title', summary: 'Full', categories: ['Work'] });
     await hexSync.finished('h2', context);
+    expect(processTranscript.mock.calls[0][5]).toEqual({ meetingId: 'hex-h2' });
     expect(save).toHaveBeenCalledTimes(2);
     expect(jobs.set).toHaveBeenCalledWith('hex-h2', { stage: 'summarizing' });
     expect(save.mock.calls[1][0]).toMatchObject({ meetingId: 'hex-h2', title: 'Better title', categories: ['Work'] });

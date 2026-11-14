@@ -7,7 +7,6 @@
 import type { ChatMessage, HistoryItem, AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { StreamMetadata } from '@services/ai/types';
-import type { ChatPart } from '@shared/types';
 import type { ToolCall, ToolResult } from '@extensions/tools/types';
 
 // ── Orchestrator Options ──
@@ -17,7 +16,6 @@ export interface OrchestratorOptions {
   messages: ChatMessage[];
   /** Required — built by buildChatRequest(), no fallback needed */
   systemPrompt: string;
-  contextBlock?: string;
   settings: AppSettings;
   providers: ModelProvider[];
   historyItems: HistoryItem[];
@@ -25,10 +23,6 @@ export interface OrchestratorOptions {
   webSearchEnabled?: boolean;
   /** Whether to skip tool attachment (model doesn't support tools). Default: false */
   skipRetrieval?: boolean;
-  /** Formatted temporal context string from formatTemporalContext(). */
-  temporalContext?: string;
-  /** Meeting IDs from @mentions — enables scoped vector search in retrieval */
-  mentionedMeetingIds?: string[];
 }
 
 // ── Callbacks ──
@@ -36,7 +30,6 @@ export interface OrchestratorOptions {
 /** Callbacks the orchestrator uses to communicate with the UI layer */
 export interface OrchestratorCallbacks {
   onChunk: (text: string, metadata?: StreamMetadata) => void;
-  onMediaPart?: (part: ChatPart) => void;
   onToolActivity: (activity: ToolActivity) => void;
 }
 

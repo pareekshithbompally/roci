@@ -24,7 +24,6 @@ import { RemindersView } from '@features/todos';
 import { CalendarView } from '@features/calendar';
 import { Toaster } from 'sonner';
 import { ConfirmHost, OnDeviceModelActivity, SearchOverlay } from '@shared/components';
-import { Input } from '@shared/ui';
 import { useAppShortcuts } from '@features/shortcuts';
 import { focusChatComposer, startNewChat } from '@features/chat';
 import { useAppleNotesRuntime, useCalendarRuntime, useHexRuntime, useRemindersRuntime } from '@features/integrations';
@@ -40,7 +39,6 @@ import { notificationScheduler } from '@services/notification-scheduler';
 import { windowService } from '@services/window.service';
 import { dismissSplash } from '@/src/app/splash';
 import { shortcutsService } from '@services/shortcuts.service';
-import { unifiedAIService } from '@services/unifiedAIService';
 import { initPlatformFetch } from '@services/platform-fetch';
 import { searchIndexingService } from '@services/searchIndexing.service';
 import { reminderService } from '@services/reminder.service';
@@ -52,7 +50,7 @@ const App: React.FC = () => {
   const currentView = useCurrentView();
   const status = useAppStatus();
   const selectedHistoryId = useSelectedHistoryId();
-  const { setStatus, setCurrentView, leaveSettings, setInitialized, setSelectedHistoryId, setActiveSettingsPanel } = useAppActions();
+  const { setCurrentView, leaveSettings, setInitialized, setActiveSettingsPanel } = useAppActions();
   
   const { setSettings, settings, providers, isLoading: settingsLoading } = useSettings();
   const history = useHistory();
@@ -62,7 +60,6 @@ const App: React.FC = () => {
   recordingRef.current = recording;
   const toast = useToast();
   const { isDark } = useThemeContext();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const appUpdate = useAppUpdate();
 
@@ -349,37 +346,6 @@ const App: React.FC = () => {
     }
   };
 
-  // File upload handler
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    toast.showToast('Processing document...', 'info');
-    try {
-      const { result: data } = await unifiedAIService.processDocument(file, history.categories, settings, providers);
-      data.timestamp = Date.now();
-
-      const newItem = {
-        ...data,
-        id: crypto.randomUUID(),
-        timestamp: Date.now(),
-        recordingId: crypto.randomUUID(),
-      };
-
-      await history.addToHistory(newItem);
-      setStatus(AppStatus.RESULTS);
-      setSelectedHistoryId(newItem.id);
-      toast.showToast('Document processed successfully', 'success');
-    } catch (err: unknown) {
-      toast.showToast(err instanceof Error ? err.message : 'Failed to process document', 'error');
-    }
-    
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
   // Determine if IdleView, ChatView, or ResultsView is being shown (needs edge-to-edge layout without padding)
   const hasSelectedMeeting = selectedHistoryId !== null;
   const showIdleView = currentView === 'home' && (
@@ -391,15 +357,6 @@ const App: React.FC = () => {
 
   return (
     <>
-      {/* Hidden file input */}
-      <Input
-        type="file"
-        ref={fileInputRef}
-        className="hidden"
-        accept=".txt,.md,.pdf,.vtt"
-        onChange={handleFileUpload}
-      />
-
       <MainLayout onSearchClick={openSearch}>
         {/* Main Content */}
         <main

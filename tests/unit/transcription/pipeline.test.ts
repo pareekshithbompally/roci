@@ -5,9 +5,9 @@ import type { SpeechRange, TranscriptResult } from '@services/ai/transcription/t
 
 const SAMPLE_RATE = 16_000;
 
-/** 3 s mono: 1 s of loud sine (speech stand-in), 2 s of digital silence. */
-function mixedAudio(): Blob {
-  const samples = new Float32Array(SAMPLE_RATE * 3);
+/** Mono: 1 s of loud sine (speech stand-in), then digital silence (3 s total by default). */
+function mixedAudio(seconds = 3): Blob {
+  const samples = new Float32Array(SAMPLE_RATE * seconds);
   for (let i = 0; i < SAMPLE_RATE; i++) {
     samples[i] = 0.3 * Math.sin((2 * Math.PI * 440 * i) / SAMPLE_RATE);
   }
@@ -85,5 +85,30 @@ describe('runTranscription VAD gate', () => {
     });
     expect(part.fn).toHaveBeenCalledOnce();
     expect(result.text).toBe('hello');
+  });
+});
+
+describe('runTranscription usage', () => {
+  /** Two speech ranges further apart than the merge gap: two parts. */
+  const ranges = (): SpeechRange[] => [
+    { startSample: 0, endSample: SAMPLE_RATE * 2 },
+    { startSample: SAMPLE_RATE * 6, endSample: SAMPLE_RATE * 8 },
+  ];
+
+  it('sums token usage across parts', async () => {
+    const part = vi.fn(async (): Promise<TranscriptResult> => ({
+      text: 'hi',
+      segments: [],
+      usage: { inputTokens: 10, outputTokens: 2, totalTokens: 12 },
+    }));
+    const result = await runTranscription(mixedAudio(8), selection, [], { vad: async () => ranges(), transcribePart: part });
+    expect(part).toHaveBeenCalledTimes(2);
+    expect(result.usage).toMatchObject({ inputTokens: 20, outputTokens: 4, totalTokens: 24 });
+  });
+
+  it('leaves usage undefined when no part reports it', async () => {
+    const part = stubPart();
+    const result = await runTranscription(mixedAudio(8), selection, [], { vad: async () => ranges(), transcribePart: part.fn });
+    expect(result.usage).toBeUndefined();
   });
 });

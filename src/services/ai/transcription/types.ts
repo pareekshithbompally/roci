@@ -1,4 +1,5 @@
-import type { Cred } from './cred';
+import type { ResolvedModel } from '@shared/utils/modelResolver';
+import type { TokenUsage } from '@services/ai/types';
 
 export interface TranscriptSegment {
   text: string;
@@ -10,6 +11,8 @@ export interface TranscriptSegment {
 export interface TranscriptResult {
   text: string;
   segments: TranscriptSegment[];
+  /** Tokens spent, for engines billed by tokens (multimodal prompt); summed across parts. */
+  usage?: TokenUsage;
 }
 
 export interface TranscriptionProgress {
@@ -27,8 +30,8 @@ export interface SpeechSelection {
 export interface PartRequest {
   wav: Uint8Array;
   model: string;
-  /** The provider's credentials; null for Hex (no key). */
-  cred: Cred | null;
+  /** The provider + model with its key and base URL; null for keyless engines (Hex, Apple speech). */
+  resolved: ResolvedModel | null;
   signal?: AbortSignal;
 }
 

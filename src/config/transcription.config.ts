@@ -3,12 +3,14 @@
  *
  * One speech-to-text layer: the user picks a provider + model (like chat
  * models), the pipeline converts audio to 16 kHz mono WAV, splits it into
- * parts each adapter accepts, and runs that provider's adapter per part.
+ * parts each adapter accepts, and runs the selection's adapter per part:
+ * its provider's speech endpoint for speech models, otherwise the multimodal
+ * adapter (a prompt with the audio) for any model that accepts audio input.
  */
 
 import type { IntegrationId } from '@shared/utils/integrations';
 
-export type TranscriptionAdapterId = 'openai-compatible' | 'deepgram' | 'elevenlabs' | 'gemini' | 'hex' | 'apple-speech';
+export type TranscriptionAdapterId = 'openai-compatible' | 'deepgram' | 'elevenlabs' | 'multimodal' | 'hex' | 'apple-speech';
 
 export interface SpeechModel {
   id: string;
@@ -32,23 +34,28 @@ export const TRANSCRIPTION_CONFIG = {
     'openai-compatible': 600,
     deepgram: 900,
     elevenlabs: 900,
-    gemini: 600,
+    multimodal: 600,
     hex: 900,
     'apple-speech': 900,
   } satisfies Record<TranscriptionAdapterId, number>,
 
-  /** Provider id → adapter. Local servers (`local:*`) use the OpenAI-compatible adapter. */
-  adapterByProvider: {
+  /**
+   * Provider id → its speech endpoint adapter. Local servers (`local:*`) use the
+   * OpenAI-compatible adapter. Providers without one (Gemini) transcribe via `multimodal`.
+   */
+  speechEndpointByProvider: {
     openai: 'openai-compatible',
     groq: 'openai-compatible',
     deepgram: 'deepgram',
     elevenlabs: 'elevenlabs',
-    gemini: 'gemini',
     hex: 'hex',
     'apple-intelligence': 'apple-speech',
   } as Record<string, TranscriptionAdapterId>,
 
-  /** Speech models each cloud provider offers, in the order they're listed. */
+  /**
+   * Curated speech models per cloud provider, in picker order (their labels win).
+   * Each runs on its provider's speech endpoint, or `multimodal` when the provider has none.
+   */
   providerModels: {
     openai: [
       { id: 'gpt-4o-transcribe', label: 'GPT-4o Transcribe' },
@@ -110,5 +117,17 @@ export const TRANSCRIPTION_CONFIG = {
     minRangeMs: 1500,
     /** Upper bound for VAD on one recording (2 h audio ≈ 1–2 min single-thread). */
     timeoutMs: 300_000,
+  },
+
+  /** Fitting a transcript into the Summary model's context window (HEX `meeting/notes.rs`). */
+  summaryBudget: {
+    /** Characters per token for budgeting (HEX: 3 — conservative). */
+    charsPerToken: 3,
+    /** Tokens kept free for the model's answer. */
+    outputTokens: 1_000,
+    /** The opening's share of an excerpt; the rest is the end. */
+    headShare: 0.6,
+    /** A second try after "didn't fit" uses this share of the first budget. */
+    retryShare: 0.6,
   },
 } as const;

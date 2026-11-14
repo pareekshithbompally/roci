@@ -1,23 +1,25 @@
+import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { generateText, Output, jsonSchema } from 'ai';
 import { buildTranscriptionRequest, formatTemporalContext } from '@core/ai';
 import { createModel } from '@services/ai/provider';
 import { extractTokenUsage } from '@services/ai/types';
-import type { TokenUsage } from '@services/ai/types';
+import { recordUsage } from '@extensions/usage';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { MeetingContext } from '@core/ai/prompts/transcription.prompt';
 import type { AnalysisResult } from '@core/ai/schemas/transcription.schema';
-import { contextTokensFor, isContextWindowError, summaryError } from '@services/ai/apple/contextWindow';
-import { excerptTranscript, transcriptBudget } from './excerpt';
+import { isContextWindowError, summaryError } from '@services/ai/apple/contextWindow';
+import { contextTokensFor, excerptTranscript, transcriptBudget } from './excerpt';
 
-/** A second try after "didn't fit" uses this share of the first budget. */
-const RETRY_BUDGET_SHARE = 0.6;
 
+/** Title, summary, action items and categories from a transcript (the Summary model); logs its usage. */
 export async function analyzeTranscript(args: {
   transcript: string;
   categories: string[];
   resolved: ResolvedModel;
   meetingContext?: MeetingContext;
-}): Promise<{ result: AnalysisResult; usage?: TokenUsage }> {
+  /** The meeting this summary belongs to, for the usage row. */
+  meetingId?: string;
+}): Promise<AnalysisResult> {
   const config = buildTranscriptionRequest({
     categories: args.categories,
     meetingContext: args.meetingContext,
@@ -33,17 +35,15 @@ export async function analyzeTranscript(args: {
     output: Output.object({ schema: jsonSchema(config.outputSchema!.schema) }),
   });
 
-  // Small-window models get an excerpt; if it still doesn't fit, one shorter try (HEX).
+  // Known-window models get an excerpt when needed; if it still doesn't fit, one shorter try (HEX).
   const budget = transcriptBudget(await contextTokensFor(args.resolved), config.prompt);
   const result = await run(budget)
     .catch((error: unknown) => {
       if (budget === null || !isContextWindowError(error)) throw error;
-      return run(Math.floor(budget * RETRY_BUDGET_SHARE));
+      return run(Math.floor(budget * TRANSCRIPTION_CONFIG.summaryBudget.retryShare));
     })
     .catch((error: unknown) => { throw summaryError(error); });
 
-  return {
-    result: result.output as AnalysisResult,
-    usage: extractTokenUsage(result.usage),
-  };
+  recordUsage('summary', args.resolved, extractTokenUsage(result.usage), args.meetingId);
+  return result.output as AnalysisResult;
 }

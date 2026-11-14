@@ -6,9 +6,10 @@
  * Uses Radix Popover + cmdk Command for accessible search/selection.
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
+import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { ProvidersAvatar, ModelIcon } from '@shared/components';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { groupChoices, modelChoices } from '@shared/utils/modelResolver';
@@ -25,17 +26,7 @@ interface ModelPickerProps {
 export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => {
   const { providers, settings, setSettings, saveSettings } = useSettings();
   const [open, setOpen] = useState(false);
-  const [modalitiesReady, setModalitiesReady] = useState(modalitiesService.isLoaded());
-
-  // Ensure modalities data is loaded (guard completion after unmount)
-  useEffect(() => {
-    if (modalitiesReady) return;
-    let cancelled = false;
-    modalitiesService.ensureLoaded().then(() => {
-      if (!cancelled) setModalitiesReady(true);
-    });
-    return () => { cancelled = true; };
-  }, [modalitiesReady]);
+  const catalogLoaded = useModelCatalog();
 
   // The same catalog and layout as Settings › Capabilities: usable models by provider, then "Needs setup".
   const choices = useMemo(() => modelChoices(providers), [providers]);
@@ -104,7 +95,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
         >
           {models.map((model) => {
             const isSelected = settings.chatModel === model.value;
-            const info: ModelInfo | null = modalitiesReady
+            const info: ModelInfo | null = catalogLoaded
               ? modalitiesService.getModelInfo(model.provider, model.modelId)
               : null;
 

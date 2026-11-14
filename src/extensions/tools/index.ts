@@ -1,11 +1,10 @@
 /**
  * Tool System Entry Point
  *
- * Registers all tool definitions and exports the registry + executor singletons.
+ * Registers all tool definitions and exports the registry singleton.
  */
 
 import { ToolRegistry } from './registry';
-import { ToolExecutor } from './executor';
 import { searchMeetingsTool } from './definitions/search-meetings.tool';
 import { getMeetingTool } from './definitions/get-meeting.tool';
 import { listMeetingsTool } from './definitions/list-meetings.tool';
@@ -27,9 +26,7 @@ toolRegistry.register(searchChatsTool);
 toolRegistry.register(getChatTool);
 toolRegistry.register(listChatsTool);
 
-export const toolExecutor = new ToolExecutor(toolRegistry);
-
 export { loadMcpTools } from './mcp-tools';
 
 // Re-export types for convenience
-export type { ToolDefinition, ToolContext, ToolCall, ToolResult, ToolSchema } from './types';
+export type { ToolDefinition, ToolContext, ToolCall, ToolResult } from './types';

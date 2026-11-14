@@ -18,13 +18,7 @@ export {
 export { useSettings, useAppUpdate, scheduleStartupCheck, useMenubarSpeechModels } from './hooks';
 
 // Stores
-export {
-  modalitiesStore,
-  useModalities,
-  ensureModalitiesLoaded,
-  systemInfoStore,
-  useSystemInfo,
-} from './stores';
+export { systemInfoStore, useSystemInfo } from './stores';
 export type { IndexStats, DiskUsageEntry } from './stores';
 
 // Re-export context for provider usage

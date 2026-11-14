@@ -21,6 +21,15 @@ export interface ResolvedModel {
   providerConfig: ModelProvider;
 }
 
+/** A provider's API key and base URL: the settings rows win over the stored fields. */
+export function providerCredentials(provider: ModelProvider): { apiKey: string; baseUrl: string } {
+  const valueOf = (key: string) => provider.settings.find(s => s.key === key)?.controller_props.value as string | undefined;
+  return {
+    apiKey: valueOf('api-key') || provider.api_key || '',
+    baseUrl: valueOf('base-url') || provider.base_url || '',
+  };
+}
+
 /**
  * Resolve a model ID to its full configuration
  * @param modelId The model ID (e.g., "gpt-4o", "claude-3-5-sonnet")
@@ -40,25 +49,33 @@ export function resolveModel(
     // Find the model in this provider's model list
     const model = provider.models?.find(m => m.id === modelId);
     if (model) {
-      // Get API key and base URL from provider settings
-      const apiKeySetting = provider.settings.find(s => s.key === 'api-key');
-      const baseUrlSetting = provider.settings.find(s => s.key === 'base-url');
-
-      const apiKey = (apiKeySetting?.controller_props.value as string) || provider.api_key || '';
-      const baseUrl = (baseUrlSetting?.controller_props.value as string) || provider.base_url || '';
-
-      return {
-        modelId,
-        provider: provider.provider,
-        apiKey,
-        baseUrl,
-        model,
-        providerConfig: provider,
-      };
+      return { modelId, provider: provider.provider, ...providerCredentials(provider), model, providerConfig: provider };
     }
   }
 
   return null;
+}
+
+/**
+ * Resolve a model on one named provider — for selections stored as
+ * provider + model (speech), where the model need not be in the provider's list.
+ */
+export function resolveProviderModel(
+  providerId: string,
+  modelId: string,
+  providers: ModelProvider[]
+): ResolvedModel | null {
+  const provider = providers.find(p => p.active && p.provider === providerId);
+  if (!provider || !modelId) return null;
+  const { apiKey, baseUrl } = providerCredentials(provider);
+  return {
+    modelId,
+    provider: providerId,
+    apiKey,
+    baseUrl: baseUrl || getDefaultBaseUrl(providerId) || '',
+    model: provider.models?.find(m => m.id === modelId) ?? { id: modelId },
+    providerConfig: provider,
+  };
 }
 
 /**
@@ -73,25 +90,6 @@ export function getProviderType(provider: string): ProviderType {
   if (provider === 'mistral') return 'mistral';
   if (provider === 'groq') return 'groq';
   return 'openai-compat';
-}
-
-/**
- * Check if a resolved model has tool calling enabled.
- * Defaults to true for managed SDK providers, false otherwise.
- */
-export function supportsTools(resolved: ResolvedModel): boolean {
-  if (resolved.model.toolsEnabled !== undefined) {
-    return resolved.model.toolsEnabled;
-  }
-  // Default: true for remote managed providers, false for local/unknown
-  return MANAGED_SDK_PROVIDERS.has(resolved.provider);
-}
-
-/**
- * Check if a provider supports web search tool calling
- */
-export function supportsWebSearch(provider: string): boolean {
-  return provider === 'gemini' || provider === 'openai' || provider === 'anthropic' || provider === 'groq';
 }
 
 /**

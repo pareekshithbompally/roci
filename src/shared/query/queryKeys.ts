@@ -29,6 +29,8 @@ export const queryKeys = {
   integrationAccess: (id: AccessId) => ['integration-access', id] as const,
   /** macOS Reminders lists (Integrations › Reminders list picker) */
   remindersLists: () => ['reminders', 'lists'] as const,
+  /** models.dev catalog: model capabilities, context limits, pricing */
+  modelCatalog: () => ['model-catalog'] as const,
   /** Token usage summary for a time range (Settings → Usage) */
   usage: (range: string) => ['usage', range] as const,
 

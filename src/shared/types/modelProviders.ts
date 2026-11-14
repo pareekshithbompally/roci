@@ -27,6 +27,8 @@ export type Model = {
   settings?: Record<string, ProviderSetting>
   /** Per-model toggle for LLM tool calling. Defaults false for local, true for remote. */
   toolsEnabled?: boolean
+  /** Per-model override: accepts audio input (transcribes via prompt). Unset → models.dev. */
+  audioInput?: boolean
 }
 
 export type ProviderCustomHeader = {

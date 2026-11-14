@@ -5,35 +5,37 @@
  * - openai-compatible: OpenAI, Groq and any local server exposing
  *   `/audio/transcriptions` (Speaches, LocalAI, whisper servers); only the base URL differs.
  * - deepgram, elevenlabs: their AI SDK providers.
- * - gemini: multimodal prompt (no transcription endpoint).
+ * - multimodal: any audio-input model `createModel()` supports, prompted to transcribe.
  * - hex: the running Hex app (see hex.ts).
+ * - apple-speech: Apple's on-device speech (see appleSpeech.ts).
  */
 
 import { experimental_transcribe as transcribe, generateText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createDeepgram } from '@ai-sdk/deepgram';
 import { createElevenLabs } from '@ai-sdk/elevenlabs';
+import { createModel } from '@services/ai/provider';
+import { extractTokenUsage } from '@services/ai/types';
 import { getPlatformFetch } from '@services/platform-fetch';
 import { VERBATIM_TRANSCRIBE_PROMPT } from '@core/ai/prompts/transcription.prompt';
 import { hexTranscribePart } from './hex';
 import { appleSpeechTranscribePart } from './appleSpeech';
 import type { TranscriptionAdapterId } from '@config/transcription.config';
 import type { TranscriptionModel } from 'ai';
-import type { Cred } from './cred';
+import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { PartRequest, TranscribePart, TranscriptResult } from './types';
 
-/** Cloud adapters always receive credentials: the pipeline resolves them for every keyed provider. */
-function credOf(request: PartRequest): Cred {
-  if (!request.cred) throw new Error('This transcription provider needs credentials.');
-  return request.cred;
+/** Keyed adapters always receive a resolved model: the pipeline resolves one for every keyed provider. */
+function resolvedOf(request: PartRequest): ResolvedModel {
+  if (!request.resolved) throw new Error('This transcription provider needs credentials.');
+  return request.resolved;
 }
 
 /** Any AI SDK transcription model → the shared result shape. */
-const viaSDK = (modelFor: (cred: Cred, model: string) => TranscriptionModel): TranscribePart =>
+const viaSDK = (modelFor: (resolved: ResolvedModel) => TranscriptionModel): TranscribePart =>
   async (request) => {
     const result = await transcribe({
-      model: modelFor(credOf(request), request.model),
+      model: modelFor(resolvedOf(request)),
       audio: request.wav,
       abortSignal: request.signal,
     });
@@ -48,9 +50,9 @@ const viaSDK = (modelFor: (cred: Cred, model: string) => TranscriptionModel): Tr
     };
   };
 
-const viaGeminiPrompt: TranscribePart = async (request): Promise<TranscriptResult> => {
+const viaMultimodalPrompt: TranscribePart = async (request): Promise<TranscriptResult> => {
   const result = await generateText({
-    model: createGoogleGenerativeAI({ apiKey: credOf(request).apiKey, fetch: getPlatformFetch() })(request.model),
+    model: createModel(resolvedOf(request)),
     abortSignal: request.signal,
     messages: [
       {
@@ -62,16 +64,16 @@ const viaGeminiPrompt: TranscribePart = async (request): Promise<TranscriptResul
       },
     ],
   });
-  return { text: result.text.trim(), segments: [] };
+  return { text: result.text.trim(), segments: [], usage: extractTokenUsage(result.usage) };
 };
 
 export const ADAPTERS: Record<TranscriptionAdapterId, TranscribePart> = {
-  'openai-compatible': viaSDK((cred, model) =>
-    createOpenAI({ apiKey: cred.apiKey, baseURL: cred.baseUrl, fetch: getPlatformFetch() }).transcription(model),
+  'openai-compatible': viaSDK((r) =>
+    createOpenAI({ apiKey: r.apiKey, baseURL: r.baseUrl || undefined, fetch: getPlatformFetch() }).transcription(r.modelId),
   ),
-  deepgram: viaSDK((cred, model) => createDeepgram({ apiKey: cred.apiKey }).transcription(model)),
-  elevenlabs: viaSDK((cred, model) => createElevenLabs({ apiKey: cred.apiKey }).transcription(model)),
-  gemini: viaGeminiPrompt,
+  deepgram: viaSDK((r) => createDeepgram({ apiKey: r.apiKey, fetch: getPlatformFetch() }).transcription(r.modelId)),
+  elevenlabs: viaSDK((r) => createElevenLabs({ apiKey: r.apiKey, fetch: getPlatformFetch() }).transcription(r.modelId)),
+  multimodal: viaMultimodalPrompt,
   hex: hexTranscribePart,
   'apple-speech': appleSpeechTranscribePart,
 };

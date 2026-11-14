@@ -20,12 +20,8 @@ import { Icon, Surface, Text, Tooltip } from '@shared/ui';
 import type { ModelInfo, ModelCapabilities } from '@services/modalities';
 
 interface ModalityIconsProps {
-  /** Full model info from modalitiesService.getModelInfo() — preferred */
+  /** Model info from modalitiesService.getModelInfo(); null renders nothing. */
   modelInfo?: ModelInfo | null;
-  /** Legacy: input modalities array (used if modelInfo not provided) */
-  input?: string[];
-  /** Legacy: output modalities array (used if modelInfo not provided) */
-  output?: string[];
   /** Show capability badges (tool call, reasoning, etc). Defaults true. */
   showCapabilities?: boolean;
   /** "expanded" = individual badges, "compact" = I/O/Wrench with hover details */
@@ -199,13 +195,11 @@ const CompactVariant: React.FC<{
 
 export const ModalityIcons: React.FC<ModalityIconsProps> = ({
   modelInfo,
-  input: legacyInput,
-  output: legacyOutput,
   showCapabilities = true,
   variant = 'expanded',
 }) => {
-  const input = modelInfo?.modalities?.input ?? legacyInput;
-  const output = modelInfo?.modalities?.output ?? legacyOutput;
+  const input = modelInfo?.modalities?.input;
+  const output = modelInfo?.modalities?.output;
   const capabilities = modelInfo?.capabilities;
 
   if (variant === 'compact') {

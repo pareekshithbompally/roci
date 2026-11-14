@@ -30,7 +30,8 @@ import type { ModelProvider } from '@shared/types/modelProviders';
 import type { MeetingListItem } from '@services/meetingReferenceService';
 import { chatService } from '@services/chat.service';
 import { unifiedAIService } from '@services/unifiedAIService';
-import { resolveChatModel, supportsTools } from '@shared/utils/modelResolver';
+import { resolveChatModel } from '@shared/utils/modelResolver';
+import { capabilitiesOf } from '@services/ai/capabilities';
 import { contextPipeline } from '@extensions/context-pipeline';
 import { orchestrate } from '@extensions/tool-orchestrator';
 import { streamingStore } from './streamingStore';
@@ -620,19 +621,18 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
         signal: abortControllerRef?.signal,
       });
       const contextBlock = pipelineResult.text;
-      const mentionedMeetingIds = pipelineResult.mentionedMeetingIds;
 
       streamingStore.start(assistantMsgId);
       let hasStartedStreaming = false;
       let streamStartTime = 0;
 
-      const temporalContext = formatTemporalContext();
+      const hasToolSupport = capabilitiesOf(resolved.provider, resolved.model).tools;
 
       const config = buildChatRequest({
         contextBlock: contextBlock || undefined,
-        hasToolAccess: !!(resolved && supportsTools(resolved)),
+        hasToolAccess: hasToolSupport,
         meetingCount: (injectedRefs.historyItems || []).length,
-        temporalContext,
+        temporalContext: formatTemporalContext(),
       });
 
       const allCitations: MeetingCitation[] = [];
@@ -691,49 +691,21 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
         }
       };
 
-      const handleMediaPart = (part: ChatPart) => {
-        if (!hasStartedStreaming) {
-          hasStartedStreaming = true;
-          streamStartTime = Date.now();
-          set({ aiActivity: null });
-          const cacheS = loadedSessionsCache.get(activeSessionId);
-          if (cacheS) {
-            const updated = {
-              ...cacheS,
-              messages: cacheS.messages.map((m) =>
-                m.id === assistantMsgId ? { ...m, state: 'streaming' as const } : m
-              ),
-            };
-            loadedSessionsCache.set(activeSessionId, updated);
-            const nm = new Map(get().loadedSessions);
-            nm.set(activeSessionId, updated);
-            set({ loadedSessions: nm });
-          }
-        }
-        streamingStore.pushPart(part);
-      };
-
-      const hasToolSupport = !!(resolved && supportsTools(resolved));
-
       const orchestrateResult = await orchestrate(
         {
           messages: targetSession.messages.filter(
             (m) => m.state !== 'loading' && m.state !== 'streaming'
           ),
           systemPrompt: config.systemPrompt,
-          contextBlock: contextBlock || undefined,
           settings: effectiveSettings,
           providers: effectiveProviders,
           historyItems: injectedRefs.historyItems || [],
           signal: abortControllerRef?.signal,
           webSearchEnabled,
           skipRetrieval: !hasToolSupport,
-          temporalContext,
-          mentionedMeetingIds,
         },
         {
           onChunk: handleChunk,
-          onMediaPart: handleMediaPart,
           onToolActivity: (activity) => {
             if (!hasStartedStreaming) {
               hasStartedStreaming = true;
@@ -879,6 +851,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
           userMessage: textToSend,
           responsePreview: mainText.slice(0, 500),
           signal: abortControllerRef?.signal,
+          sessionId: activeSessionId,
         })
           .then((suggestions) => {
             if (suggestions.length > 0) {

@@ -10,6 +10,8 @@
 
 import { generateText, Output, jsonSchema } from 'ai';
 import { createModel } from './provider';
+import { extractTokenUsage } from './types';
+import { recordUsage } from '@extensions/usage';
 import { formatTemporalContext } from '@core/ai';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 
@@ -31,8 +33,10 @@ export async function generateSuggestions(options: {
   userMessage: string;
   responsePreview: string;
   signal?: AbortSignal;
+  /** The chat session, for the usage row. */
+  sessionId?: string;
 }): Promise<string[]> {
-  const { resolved, userMessage, responsePreview, signal } = options;
+  const { resolved, userMessage, responsePreview, signal, sessionId } = options;
   const temporalContext = formatTemporalContext();
 
   const result = await generateText({
@@ -47,6 +51,7 @@ export async function generateSuggestions(options: {
     output: Output.object({ schema: jsonSchema(SUGGESTIONS_SCHEMA) }),
     abortSignal: signal,
   });
+  recordUsage('suggestions', resolved, extractTokenUsage(result.usage), sessionId);
 
   const output = result.output as { suggestions?: unknown } | null;
   if (!output || !Array.isArray(output.suggestions)) return [];

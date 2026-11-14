@@ -101,10 +101,3 @@ export interface ToolResultMeta {
   citations?: MeetingCitation[];
 }
 
-// ── Tool Schema (returned by registry for adapter consumption) ──
-
-export interface ToolSchema {
-  name: string;
-  description: string;
-  parameters: JSONSchema;
-}

@@ -61,6 +61,21 @@ export async function logUsage(params: {
   }
 }
 
+/** Which model a call ran on: a resolved chat/summary model or a speech selection. */
+export interface UsageSource {
+  provider: string;
+  modelId: string;
+}
+
+/**
+ * Record one AI call's tokens, from inside the service that made the call.
+ * Fire-and-forget: a logging failure never reaches the caller.
+ */
+export function recordUsage(category: UsageCategory, source: UsageSource, usage: TokenUsage, sessionId?: string): void {
+  logUsage({ category, sessionId, provider: source.provider, model: source.modelId, usage })
+    .catch((error: unknown) => console.error(`[Usage] ${category}:`, error));
+}
+
 /**
  * Query aggregated usage summary for a time range.
  * @param since — epoch ms timestamp, or undefined for all time

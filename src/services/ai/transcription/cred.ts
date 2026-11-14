@@ -1,26 +1,28 @@
-import type { ModelProvider } from '@shared/types/modelProviders';
+/**
+ * Speech credentials — built on the shared `providerCredentials()` reader
+ * (via `resolveProviderModel`), with the user-facing reason a provider can't run.
+ */
 
-export interface Cred {
-  apiKey: string;
-  baseUrl?: string;
+import { providerCredentials, resolveProviderModel } from '@shared/utils/modelResolver';
+import { getProviderTitle } from '@shared/utils/provider.utils';
+import type { ModelProvider } from '@shared/types/modelProviders';
+import type { ResolvedModel } from '@shared/utils/modelResolver';
+
+/** Why a keyed speech provider can't run (off, or no API key), or null when it can. */
+export function credentialsError(providerId: string, providers: ModelProvider[]): string | null {
+  const provider = providers.find((p) => p.active && p.provider === providerId);
+  if (!provider) return `Provider "${providerId}" is not configured or is inactive.`;
+  if (!providerCredentials(provider).apiKey.trim()) {
+    return `Configure ${getProviderTitle(providerId)} API key in Settings → Providers.`;
+  }
+  return null;
 }
 
-export function resolveCred(providerId: string, providers: ModelProvider[]): Cred {
-  const provider = providers.find((p) => p.provider === providerId && p.active);
-  if (!provider) {
-    throw new Error(`Provider "${providerId}" is not configured or is inactive.`);
-  }
-
-  const apiKeySetting = provider.settings?.find((s) => s.key === 'api-key');
-  const apiKey = (apiKeySetting?.controller_props?.value as string) || provider.api_key || '';
-  if (!apiKey || apiKey.trim() === '') {
-    throw new Error(
-      `Configure ${providerId.charAt(0).toUpperCase() + providerId.slice(1)} API key in Settings → Providers.`,
-    );
-  }
-
-  const baseUrlSetting = provider.settings?.find((s) => s.key === 'base-url');
-  const baseUrl = (baseUrlSetting?.controller_props?.value as string) || provider.base_url || undefined;
-
-  return { apiKey, baseUrl };
+/** The provider + model to call, with its key and base URL; throws the user-facing reason when it can't run. */
+export function resolveSpeechModel(providerId: string, modelId: string, providers: ModelProvider[]): ResolvedModel {
+  const error = credentialsError(providerId, providers);
+  if (error) throw new Error(error);
+  const resolved = resolveProviderModel(providerId, modelId, providers);
+  if (!resolved) throw new Error('Choose a transcription model in Settings › Capabilities.');
+  return resolved;
 }

@@ -23,7 +23,7 @@ export const TRANSCRIPTION_SCHEMA = {
         decisionsMade: {
           type: 'array' as const,
           items: { type: 'string' },
-          description: 'Array of decisions made. Use ["No formal decisions were recorded"] if none.',
+          description: 'Array of decisions made. Empty array if none.',
         },
         actionItems: {
           type: 'array' as const,

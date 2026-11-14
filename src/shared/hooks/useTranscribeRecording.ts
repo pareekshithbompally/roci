@@ -14,8 +14,6 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { useAppActions } from '@shared/stores/appStore';
 import { useToast } from '@shared/contexts/ToastContext';
 import { AppStatus } from '@shared/types';
-import { logUsage } from '@extensions/usage';
-import { resolveSummaryModel } from '@shared/utils/modelResolver';
 import type { HistoryItem } from '@shared/types';
 import { meetingJobs, useMeetingJobsStore } from '@shared/stores/meetingJobsStore';
 import { deriveMeetingPhase, isMeetingBusy, type MeetingPipelineStage } from '@shared/types/meetingPhase';
@@ -65,13 +63,14 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
         : undefined;
 
       // Process with unified AI service
-      const { result: data, usage } = await unifiedAIService.processAudio(
+      const data = await unifiedAIService.processAudio(
         audioBlob,
         categories,
         settings,
         providers,
-        meetingContext,
         {
+          meetingContext,
+          meetingId: item.id,
           onProgress: (part) => meetingJobs.set(item.id, { stage: 'transcribing', part }),
           onSummarizing: () => {
             stage = 'summarize';
@@ -79,16 +78,6 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
           },
         },
       );
-
-      // Log transcription usage (fire-and-forget)
-      const resolved = resolveSummaryModel(settings, providers);
-      logUsage({
-        category: 'transcription',
-        sessionId: item.id,
-        provider: resolved?.provider,
-        model: resolved?.modelId,
-        usage,
-      }).catch(e => console.error('[UsageLog] transcription:', e));
 
       const meetingSummary = meetingSummaryOf(data);
 

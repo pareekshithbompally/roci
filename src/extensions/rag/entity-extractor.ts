@@ -13,6 +13,8 @@ import type { ModelProvider } from '@shared/types/modelProviders';
 import { resolveChatModel, requiresApiKey } from '@shared/utils/modelResolver';
 import { generateText, Output, jsonSchema } from 'ai';
 import { createModel } from '@services/ai';
+import { extractTokenUsage } from '@services/ai/types';
+import { recordUsage } from '@extensions/usage';
 import { buildEntityExtractionPrompt } from '@core/ai/prompts/entity-extraction.prompt';
 import { formatTemporalContext } from '@core/ai';
 import { ENTITY_EXTRACTION_SCHEMA } from '@core/ai/schemas/entity-extraction.schema';
@@ -40,7 +42,7 @@ export async function extractAndUpsert(
     const input = buildExtractionInput(title, summary, transcript, categories);
 
     // 2. Call LLM for extraction
-    const extracted = await callLLMForExtraction(input, title, settings, providers, categories, signal);
+    const extracted = await callLLMForExtraction(input, meetingId, title, settings, providers, categories, signal);
     if (!extracted || (extracted.entities.length === 0 && extracted.relationships.length === 0)) {
       console.log(`[EntityExtractor] No entities found for "${title}"`);
       return false;
@@ -104,6 +106,7 @@ function buildExtractionInput(
 /** Call LLM for structured entity extraction (60s timeout per meeting) */
 async function callLLMForExtraction(
   input: string,
+  meetingId: string,
   meetingTitle: string,
   settings: AppSettings,
   providers: ModelProvider[],
@@ -139,6 +142,7 @@ async function callLLMForExtraction(
       abortSignal: controller.signal,
     });
 
+    recordUsage('extraction', resolved, extractTokenUsage(result.usage), meetingId);
     return result.output as ExtractionResponse;
   } finally {
     clearTimeout(timer);

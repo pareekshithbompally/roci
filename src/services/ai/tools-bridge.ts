@@ -2,7 +2,7 @@
  * Tool Bridge — Schema & Executable Conversion
  *
  * Converts tool definitions (registry + MCP) into AI SDK ToolSet format.
- * - toExecutableTools(): Full tools with execute wrappers, activity tracking, citations.
+ * - toExecutableTools(): Full tools with execute wrappers and activity tracking.
  *
  * IMPORTANT (AI SDK 5.0+):
  * - Use `inputSchema:` NOT `parameters:` — parameters was removed in 5.0
@@ -11,7 +11,7 @@
 
 import { tool, jsonSchema } from 'ai';
 import type { ToolSet } from 'ai';
-import type { ToolContext, ToolDefinition, ToolResult, MeetingCitation } from '@extensions/tools/types';
+import type { ToolContext, ToolDefinition, ToolResult } from '@extensions/tools/types';
 import type { ToolActivity } from '@extensions/tool-orchestrator/types';
 import { MAX_TOOL_RESULT_CHARS, TOOL_TIMEOUT_MS } from '@extensions/tools/constants';
 
@@ -37,7 +37,6 @@ function labelFor(toolName: string): string {
 
 export interface ExecutableToolsCallbacks {
   onToolActivity: (activity: ToolActivity) => void;
-  onCitations: (citations: MeetingCitation[]) => void;
 }
 
 // ── Limits ──
@@ -102,7 +101,7 @@ async function runTool(
  * Each tool's execute wrapper handles:
  * - UI activity tracking (calling/done) via onToolActivity
  * - Timeout enforcement and result truncation (per-definition limits)
- * - Citation extraction and forwarding
+ * - Citations ride on the 'done' activity's result.meta.citations
  * - Error handling (never throws, returns error string)
  *
  * The returned ToolSet can be spread with web search tools and passed to streamText.
@@ -130,11 +129,6 @@ export function toExecutableTools(
         callbacks.onToolActivity({ toolName: name, source, label: labelFor(name), status: 'calling', toolCall });
 
         const result = await runTool(definition, args, context, callId);
-
-        const citations = result.meta?.citations;
-        if (citations?.length) {
-          callbacks.onCitations(citations);
-        }
 
         callbacks.onToolActivity({ toolName: name, source, label: labelFor(name), status: 'done', toolCall, result });
 
