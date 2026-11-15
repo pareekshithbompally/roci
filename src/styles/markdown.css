@@ -1,19 +1,32 @@
 /* Markdown styling for .markdown-content; colours are tokens.css roles only, so no dark overrides. */
 
 .markdown-content {
+  /* Text colour for body, headings, bold and tables; the `aside` variant quiets it. */
+  --markdown-text: var(--text-primary);
   font-size: 14px;
   line-height: 1.6;
-  color: var(--text-primary);
+  color: var(--markdown-text);
   word-wrap: break-word;
   overflow-wrap: break-word;
 }
 
+/* Aside: content beside the answer (the model's thinking), muted, at callout size, tight. Spacing below is in em, so it scales. */
+.markdown-content[data-variant='aside'] {
+  --markdown-text: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.markdown-content[data-variant='aside'] :is(p, ul, ol, blockquote) { line-height: 1.45; margin-bottom: 0.5em; }
+.markdown-content[data-variant='aside'] li { margin-bottom: 0.15em; }
+.markdown-content[data-variant='aside'] :is(h1, h2, h3, h4, h5, h6) { margin-top: 0.5em; margin-bottom: 0.25em; }
+
 /* Headings */
+
 .markdown-content :is(h1, h2, h3, h4, h5, h6) {
   font-weight: 600;
   margin-top: 1em;
   margin-bottom: 0.5em;
-  color: var(--text-primary);
+  color: var(--markdown-text);
 }
 
 .markdown-content h1 { font-size: 1.25em; line-height: 1.2; }
@@ -29,7 +42,7 @@
 
 .markdown-content strong {
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--markdown-text);
 }
 
 .markdown-content em { font-style: italic; }
@@ -130,13 +143,13 @@
   text-align: left;
   font-size: 0.875em;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--markdown-text);
 }
 
 .markdown-content td {
   padding: 0.5em 1em;
   font-size: 0.875em;
-  color: var(--text-primary);
+  color: var(--markdown-text);
   border-top: 1px solid var(--border-muted);
 }
 

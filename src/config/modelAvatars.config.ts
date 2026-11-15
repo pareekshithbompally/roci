@@ -5,8 +5,6 @@ export const MODEL_AVATARS_CONFIG = {
   avatarsUrl: 'https://huggingface.co/api/avatars',
   /** Host prefixes Ollama/LM Studio put in front of HF repo ids (`hf.co/unsloth/...`). */
   hostPrefixes: ['hf.co/', 'huggingface.co/'],
-  /** After a failed load, show the monogram and don't retry that org for this long. */
-  failureCooldownMs: 60_000,
   /** Orgs whose avatar is black-on-transparent; inverted in dark mode. */
   darkLogoOrgs: ['openai'],
   /** Monogram background: hue from the org name, fixed saturation/lightness. */

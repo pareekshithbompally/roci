@@ -86,6 +86,8 @@ export type MediaSource =
 /** A single content part within a chat message */
 export type ChatPart =
   | { type: 'text'; text: string }
+  /** The model's thinking before or between its answer, as the provider streamed it. */
+  | { type: 'reasoning'; text: string }
   | { type: 'image'; mimeType: string; source: MediaSource; alt?: string }
   | { type: 'audio'; mimeType: string; source: MediaSource; durationMs?: number }
   | { type: 'video'; mimeType: string; source: MediaSource; alt?: string }
@@ -148,12 +150,17 @@ export interface ChatMessage {
   inlineCitations?: InlineCitationSpan[];
 }
 
+/** How hard a model thinks before answering, in the AI SDK's own `reasoning` levels: `provider-default` leaves it to the model, `none` turns it off. */
+export type ReasoningEffort = 'provider-default' | 'none' | 'low' | 'medium' | 'high' | 'max';
+
 export interface ChatSession {
   id: string;
   title: string;
   lastMessageAt: number;
   messages: ChatMessage[];
   meetingId?: string;
+  /** This chat's thinking level; absent means `provider-default`. */
+  reasoningEffort?: ReasoningEffort;
 }
 
 /** Sidebar item: either a meeting (history item) or a chat session. */

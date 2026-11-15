@@ -6,12 +6,11 @@ import { open } from '@tauri-apps/plugin-shell';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
-import { getProviderTitle, isLocalProviderId } from '@shared/utils/provider.utils';
+import { getModelDisplayName, getProviderTitle, isLocalProviderId } from '@shared/utils/provider.utils';
 import { LOCAL_SERVER_INFO } from '@config/localServers.config';
 import { providersService } from '@services/providers';
-import { ModelIcon } from '@shared/components';
-import { modalitiesService } from '@services/modalities';
-import { capabilitiesOf } from '@services/ai/capabilities';
+import { ModelIcon, RenameModal } from '@shared/components';
+import { capabilitiesOf, modelInfoOf } from '@services/ai/capabilities';
 import { getManagedSDKInfo, getDefaultBaseUrl } from '@shared/utils/modelResolver';
 import { MANAGED_MODELS, MANAGED_SDK_PROVIDERS } from '@config/providers.config';
 import { ModalityIcons } from './ModalityIcons';
@@ -77,6 +76,7 @@ export const ProvidersPanel: React.FC = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<string[]>([]);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [renamingModel, setRenamingModel] = useState<ProviderModel | null>(null);
 
   const cloudProviders = providers.filter(p => !isLocalProviderId(p.provider));
 
@@ -161,7 +161,7 @@ export const ProvidersPanel: React.FC = () => {
   const handleRemoveModel = async (model: ProviderModel) => {
     if (!selectedProvider) return;
     const confirmed = await confirm({
-      title: `Remove ${model.name || model.id}?`,
+      title: `Remove ${getModelDisplayName(model)}?`,
       description: 'It leaves your model pickers. You can add it again any time.',
       confirmLabel: 'Remove',
       tone: 'danger',
@@ -169,6 +169,14 @@ export const ProvidersPanel: React.FC = () => {
     if (!confirmed) return;
     updateProvider(selectedProvider.provider, {
       models: (selectedProvider.models || []).filter(m => m.id !== model.id)
+    });
+  };
+
+  /** Saves the model's display name everywhere; an empty name clears the rename back to its id. */
+  const handleRenameModel = (modelId: string, name: string) => {
+    if (!selectedProvider) return;
+    updateProvider(selectedProvider.provider, {
+      models: (selectedProvider.models || []).map(m => (m.id === modelId ? { ...m, displayName: name || undefined } : m)),
     });
   };
 
@@ -192,9 +200,9 @@ export const ProvidersPanel: React.FC = () => {
     return baseUrlSetting?.controller_props.value as string || '';
   };
 
-  const getModelInfo = (providerName: string, modelId: string): ModelInfo | null => {
+  const getModelInfo = (providerName: string, model: Pick<ProviderModel, 'id' | 'served'>): ModelInfo | null => {
     if (!modalitiesLoaded) return null;
-    return modalitiesService.getModelInfo(providerName, modelId);
+    return modelInfoOf(providerName, model);
   };
 
   const searchDisabled = !hasHardcodedModels && (!getApiKeyValue() || (!isManaged && !getBaseUrlValue()));
@@ -376,7 +384,7 @@ export const ProvidersPanel: React.FC = () => {
                               </Surface>
                             )}
                             {searchResults.map((modelId) => {
-                              const info = selectedProvider ? getModelInfo(selectedProvider.provider, modelId) : null;
+                              const info = selectedProvider ? getModelInfo(selectedProvider.provider, { id: modelId }) : null;
                               return (
                                 <CommandItem
                                   key={modelId}
@@ -414,13 +422,14 @@ export const ProvidersPanel: React.FC = () => {
                     <CardRow
                       key={model.id}
                       leading={<ModelIcon provider={selectedProvider.provider} modelId={model.id} size={20} fallback="none" />}
-                      title={<span className="block truncate">{model.name || model.id}</span>}
+                      title={<span className="block truncate">{getModelDisplayName(model)}</span>}
                       actions={
                         <>
-                          <ModalityIcons modelInfo={getModelInfo(selectedProvider.provider, model.id)} />
+                          <ModalityIcons modelInfo={getModelInfo(selectedProvider.provider, model)} />
                           <ModelRowMenu
                             capabilities={capabilitiesOf(selectedProvider.provider, model)}
                             onFlagChange={(flag, value) => handleModelFlagChange(model.id, flag, value)}
+                            onRename={() => setRenamingModel(model)}
                             onRemove={() => void handleRemoveModel(model)}
                           />
                         </>
@@ -429,6 +438,14 @@ export const ProvidersPanel: React.FC = () => {
                   ))}
                 </Section>
               )}
+              <RenameModal
+                open={renamingModel !== null}
+                onOpenChange={(open) => { if (!open) setRenamingModel(null); }}
+                currentTitle={renamingModel?.displayName ?? ''}
+                placeholder={renamingModel?.id}
+                clearable
+                onConfirm={(name) => renamingModel && handleRenameModel(renamingModel.id, name)}
+              />
             </>
           ) : (
             <Text as="div" tone="faint" className="flex items-center justify-center py-12">

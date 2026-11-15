@@ -1,20 +1,28 @@
-/** Streaming message store; text deltas batch per animation frame so only the streaming message re-renders. */
+/** Streaming message store; text and thinking deltas batch per animation frame so only the streaming message re-renders. */
 
 import { useSyncExternalStore } from 'react';
 import type { ChatPart } from '@shared/types';
+import type { GenerationStats } from '@services/ai/types';
 
 export interface StreamingSnapshot {
   parts: ChatPart[];
   msgId: string | null;
+  /** Tokens and speed while the model thinks, when a local server reports them. */
+  generation: GenerationStats | null;
 }
+
+/** The streamed kinds of text: the answer, and the model's thinking. */
+type StreamedKind = 'text' | 'reasoning';
 
 type Listener = () => void;
 
 const listeners = new Set<Listener>();
-let snapshot: StreamingSnapshot = { parts: [], msgId: null };
+const EMPTY: StreamingSnapshot = { parts: [], msgId: null, generation: null };
+let snapshot: StreamingSnapshot = EMPTY;
 
-// RAF batching state for text deltas
-let pendingText = '';
+// RAF batching state: deltas of one kind, and the latest generation stats
+let pending: { kind: StreamedKind; text: string } | null = null;
+let pendingGeneration: GenerationStats | null = null;
 let rafId: number | null = null;
 
 function emitChange() {
@@ -31,43 +39,52 @@ function getTextFromParts(parts: ChatPart[]): string {
     .join('');
 }
 
-/** Apply accumulated text buffer to the snapshot and notify listeners. */
+/** `parts` with `text` added to a trailing part of the same kind, or as a new part. */
+function appendText(parts: ChatPart[], kind: StreamedKind, text: string): ChatPart[] {
+  const last = parts[parts.length - 1];
+  if (last?.type === kind) return [...parts.slice(0, -1), { type: kind, text: last.text + text }];
+  return [...parts, { type: kind, text }];
+}
+
+/** Apply buffered deltas and stats to the snapshot and notify listeners. */
 function flushTextBuffer() {
+  if (rafId !== null) cancelAnimationFrame(rafId);
   rafId = null;
-  if (!pendingText) return;
-
-  const chunk = pendingText;
-  pendingText = '';
-
-  const parts = [...snapshot.parts];
-  const lastPart = parts[parts.length - 1];
-
-  if (lastPart && lastPart.type === 'text') {
-    parts[parts.length - 1] = { type: 'text', text: lastPart.text + chunk };
-  } else {
-    parts.push({ type: 'text', text: chunk });
-  }
-
-  snapshot = { ...snapshot, parts };
+  if (!pending && !pendingGeneration) return;
+  const parts = pending ? appendText(snapshot.parts, pending.kind, pending.text) : snapshot.parts;
+  snapshot = { ...snapshot, parts, generation: pendingGeneration ?? snapshot.generation };
+  pending = null;
+  pendingGeneration = null;
   emitChange();
 }
 
-/** Cancel any pending RAF and discard buffered text. */
+/** Buffer a delta of `kind` for the next frame; a change of kind flushes what's buffered first, keeping order. */
+function bufferText(kind: StreamedKind, text: string) {
+  if (pending && pending.kind !== kind) flushTextBuffer();
+  pending = { kind, text: (pending?.text ?? '') + text };
+  if (rafId === null) rafId = requestAnimationFrame(flushTextBuffer);
+}
+
+/** Cancel any pending RAF and discard buffered deltas. */
 function cancelPendingFlush() {
   if (rafId !== null) {
     cancelAnimationFrame(rafId);
     rafId = null;
   }
-  pendingText = '';
+  pending = null;
+  pendingGeneration = null;
 }
 
 export const streamingStore = {
-  /** Push a text chunk; it flushes to the snapshot once per display frame. */
+  /** Push an answer chunk; it flushes to the snapshot once per display frame. */
   push(chunk: string) {
-    pendingText += chunk;
-    if (rafId === null) {
-      rafId = requestAnimationFrame(flushTextBuffer);
-    }
+    bufferText('text', chunk);
+  },
+
+  /** Push a thinking chunk, with the server's latest tokens and speed when it reports them. */
+  pushReasoning(chunk: string, generation?: GenerationStats) {
+    if (generation) pendingGeneration = generation;
+    bufferText('reasoning', chunk);
   },
 
   /** Push a media part (image, audio, video, tool_call). Flushes pending text first. */
@@ -90,7 +107,7 @@ export const streamingStore = {
   /** Start tracking a new streaming message. Cancels any prior pending flush. */
   start(msgId: string) {
     cancelPendingFlush();
-    snapshot = { parts: [], msgId };
+    snapshot = { ...EMPTY, msgId };
     emitChange();
   },
 
@@ -99,7 +116,7 @@ export const streamingStore = {
     flushTextBuffer();
     const text = getTextFromParts(snapshot.parts);
     const parts = snapshot.parts;
-    snapshot = { parts: [], msgId: null };
+    snapshot = EMPTY;
     emitChange();
     return { text, parts };
   },
@@ -107,7 +124,7 @@ export const streamingStore = {
   /** Reset without returning content (abort / error). */
   reset() {
     cancelPendingFlush();
-    snapshot = { parts: [], msgId: null };
+    snapshot = EMPTY;
     emitChange();
   },
 

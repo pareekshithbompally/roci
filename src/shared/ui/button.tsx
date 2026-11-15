@@ -2,12 +2,12 @@ import React from 'react';
 import { Loader2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from './utils';
-import { Icon } from './icon';
+import { Icon, type IconSize } from './icon';
 
 /** Canonical button: colour lives in `variant`, shape in `size`; call sites never pass colour or padding classes. */
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'success' | 'accent' | 'ghost' | 'dangerGhost' | 'link' | 'ai';
 
-export type ButtonSize = 'inline' | 'sm' | 'md' | 'icon' | 'iconSm' | 'iconXs';
+export type ButtonSize = 'inline' | 'toolbar' | 'sm' | 'md' | 'icon' | 'iconSm' | 'iconXs';
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary: 'bg-inverse text-inverse hover:opacity-90',
@@ -28,6 +28,8 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
 const SIZE_CLASSES: Record<ButtonSize, string> = {
   /** No box — sits in a line of text */
   inline: 'text-callout gap-1',
+  /** Dense control in a toolbar row (composer): tight padding, at least square so an icon alone is 28×28 */
+  toolbar: 'h-7 min-w-7 px-1.5 text-callout rounded-md',
   sm: 'h-7 px-3 text-callout rounded-md',
   md: 'h-8 px-4 text-body rounded-md',
   icon: 'h-8 w-8 rounded-full',
@@ -76,7 +78,7 @@ export interface IconButtonProps extends Omit<ButtonProps, 'size' | 'children'> 
   icon: LucideIcon;
   /** Accessible name — required: an icon alone has none. */
   label: string;
-  size?: 'sm' | 'md';
+  size?: 'toolbar' | 'sm' | 'md';
   /** Solid glyph (stop / play / pause) */
   filled?: boolean;
   /** Rotate the glyph while work runs (Rescan, Sync) */
@@ -84,10 +86,18 @@ export interface IconButtonProps extends Omit<ButtonProps, 'size' | 'children'> 
 }
 
 /** Icon-only button: ghost by default, always labelled. */
+/** Each icon-button size as its button shape and glyph size; toolbar glyphs match the labelled controls beside them. */
+const ICON_BUTTON_SIZES: Record<NonNullable<IconButtonProps['size']>, { button: ButtonSize; icon: IconSize }> = {
+  toolbar: { button: 'toolbar', icon: 'xs' },
+  sm: { button: 'iconSm', icon: 'sm' },
+  md: { button: 'icon', icon: 'md' },
+};
+
 export function IconButton({ icon, label, size = 'md', variant = 'ghost', filled, spin, ...props }: IconButtonProps) {
+  const shape = ICON_BUTTON_SIZES[size];
   return (
-    <Button variant={variant} size={size === 'md' ? 'icon' : 'iconSm'} aria-label={label} title={label} {...props}>
-      <Icon icon={icon} size={size === 'md' ? 'md' : 'sm'} className={cn(filled && 'fill-current', spin && 'animate-spin')} />
+    <Button variant={variant} size={shape.button} aria-label={label} title={label} {...props}>
+      <Icon icon={icon} size={shape.icon} className={cn(filled && 'fill-current', spin && 'animate-spin')} />
     </Button>
   );
 }

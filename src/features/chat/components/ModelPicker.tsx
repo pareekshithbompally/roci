@@ -7,10 +7,12 @@ import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { ProvidersAvatar, ModelIcon } from '@shared/components';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { groupChoices, modelChoices } from '@shared/utils/modelResolver';
-import { modalitiesService } from '@services/modalities';
+import { modelInfoOf } from '@services/ai/capabilities';
 import { ModalityIcons } from '@features/settings/components/ModalityIcons';
 import type { ModelInfo } from '@services/modalities';
-import { Button, CommandPopover, CommandGroup, CommandItem, Icon, Text, cn } from '@shared/ui';
+import { Button, CommandPopover, CommandGroup, CommandRow, Dot, Icon, Text, Tooltip, cn } from '@shared/ui';
+import { MODEL_PICKER_COPY } from '@config/chat.config';
+import { useLocalServerProbe } from '@features/settings/hooks';
 
 interface ModelPickerProps {
   /** Compact mode for inline display */
@@ -21,6 +23,10 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
   const { providers, settings, setSettings, saveSettings } = useSettings();
   const [open, setOpen] = useState(false);
   const catalogLoaded = useModelCatalog();
+  // The shared local-server probe: keeps local models' server info current and says which model is loaded.
+  const { data: servers } = useLocalServerProbe();
+  const isLoaded = (provider: string, modelId: string) =>
+    servers?.find((server) => server.id === provider)?.models.find((model) => model.id === modelId)?.loaded ?? false;
 
   // The same catalog and layout as Settings › Capabilities: usable models by provider, then "Needs setup".
   const choices = useMemo(() => modelChoices(providers), [providers]);
@@ -57,7 +63,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
       trigger={
         <Button
           variant="ghost"
-          size="sm"
+          size="toolbar"
           disabled={!hasModels}
           title={hasModels ? 'Select model' : 'No models available - configure providers first'}
         >
@@ -90,24 +96,25 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
           {models.map((model) => {
             const isSelected = settings.chatModel === model.value;
             const info: ModelInfo | null = catalogLoaded
-              ? modalitiesService.getModelInfo(model.provider, model.modelId)
+              ? modelInfoOf(model.provider, { id: model.modelId, served: model.served })
               : null;
 
             return (
-              <CommandItem
+              <CommandRow
                 key={`${provider}-${model.value}`}
                 value={`${model.label} ${getProviderTitle(model.provider)}`}
                 onSelect={() => handleSelectModel(model.value)}
-              >
-                <ModelIcon provider={model.provider} modelId={model.modelId} size={14} fallback="none" />
-                <Text variant={isSelected ? 'bodyStrong' : 'body'} truncate className="flex-1">
-                  {model.label}
-                </Text>
-                <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                  <ModalityIcons modelInfo={info} variant="compact" />
-                </div>
-                {isSelected && <Icon icon={Check} size="sm" tone="accent" className="shrink-0" />}
-              </CommandItem>
+                leading={<ModelIcon provider={model.provider} modelId={model.modelId} size={14} fallback="none" />}
+                label={model.label}
+                labelVariant={isSelected ? 'bodyStrong' : 'body'}
+                status={isLoaded(model.provider, model.modelId) && (
+                  <Tooltip content={MODEL_PICKER_COPY.loaded}>
+                    <span aria-label={MODEL_PICKER_COPY.loaded} className="inline-flex"><Dot tone="success" size="xs" /></span>
+                  </Tooltip>
+                )}
+                meta={<ModalityIcons modelInfo={info} variant="compact" />}
+                check={isSelected ? <Icon icon={Check} size="sm" tone="accent" /> : null}
+              />
             );
           })}
         </CommandGroup>
@@ -115,13 +122,14 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
       {needsSetup.length > 0 && (
         <CommandGroup heading="Needs setup">
           {needsSetup.map((model) => (
-            <CommandItem key={`setup-${model.provider}-${model.value}`} value={`${model.label} ${getProviderTitle(model.provider)}`} disabled>
-              <ModelIcon provider={model.provider} modelId={model.modelId} size={14} />
-              <span className="flex flex-col min-w-0 flex-1">
-                <Text truncate>{model.label}</Text>
-                <Text variant="helper" tone="faint" truncate>{model.hint}</Text>
-              </span>
-            </CommandItem>
+            <CommandRow
+              key={`setup-${model.provider}-${model.value}`}
+              value={`${model.label} ${getProviderTitle(model.provider)}`}
+              disabled
+              leading={<ModelIcon provider={model.provider} modelId={model.modelId} size={14} />}
+              label={model.label}
+              description={model.hint}
+            />
           ))}
         </CommandGroup>
       )}

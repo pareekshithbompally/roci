@@ -19,8 +19,10 @@ export interface McpServerInfo {
   name: string;
   title: string | null;
   version: string | null;
-  /** Icon URL or `data:` URI, when the server offers one. */
+  /** Icon URL or `data:` URI for light backgrounds or any theme, when the server offers one. */
   icon: string | null;
+  /** Its icon for dark backgrounds, when it offers one. */
+  iconDark: string | null;
   websiteUrl: string | null;
 }
 

@@ -17,7 +17,7 @@ interface LocalServersSectionProps {
 
 function rowDetail(row: LocalRow): string {
   if (!row.running) return 'Not running';
-  return row.modelIds.length === 1 ? '1 model' : `${row.modelIds.length} models`;
+  return row.models.length === 1 ? '1 model' : `${row.models.length} models`;
 }
 
 export const LocalServersSection: React.FC<LocalServersSectionProps> = ({ selectedProvider, onSelect }) => {

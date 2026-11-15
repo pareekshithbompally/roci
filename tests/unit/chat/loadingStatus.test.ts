@@ -13,16 +13,6 @@ describe('loadingStatusOf', () => {
       .toBe(CHAT_LOADING_DETAIL.secondsLeft(3));
   });
 
-  it('says the model is thinking while it reasons', () => {
-    expect(loadingStatusOf({ isThinking: true, thinkingContent: 'hmm' }))
-      .toEqual({ label: CHAT_LOADING_COPY.thinking, percent: null, detail: null });
-  });
-
-  it('shows tokens and speed while thinking when the server reports them', () => {
-    expect(loadingStatusOf({ isThinking: true, generation: { tokens: 214, tokensPerSecond: 9.43 } }).detail)
-      .toBe(CHAT_LOADING_DETAIL.generation(214, 9.43));
-  });
-
   it('says it is searching only for web search', () => {
     expect(loadingStatusOf({ isSearching: true }).label).toBe(CHAT_LOADING_COPY.searching);
   });

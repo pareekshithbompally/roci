@@ -1,4 +1,4 @@
-/** Model capabilities as badge chips (`expanded`) or three tiny indicators with hover tooltips (`compact`). */
+/** Model capabilities as badge chips (`expanded`), or one fixed row of small marks for pickers (`compact`). */
 
 import React from 'react';
 import {
@@ -13,7 +13,7 @@ interface ModalityIconsProps {
   modelInfo?: ModelInfo | null;
   /** Show capability badges (tool call, reasoning, etc). Defaults true. */
   showCapabilities?: boolean;
-  /** "expanded" = individual badges, "compact" = I/O/Wrench with hover details */
+  /** "expanded" = individual badges; "compact" = fixed mark columns that line up across picker rows */
   variant?: 'expanded' | 'compact';
 }
 
@@ -47,10 +47,13 @@ const CAPABILITY_DEFS: CapabilityDef[] = [
   { key: 'structuredOutput', icon: Braces, label: 'Structured output' },
 ];
 
+/** One mark's box: every compact mark and its empty stand-in share it, so columns line up. */
+const MARK_BOX = 'inline-flex items-center justify-center w-4 h-4 shrink-0';
+
 /** One capability as a tiny muted icon with its name on hover (model pickers). */
 export const CapabilityMark: React.FC<{ icon: LucideIcon; label: string }> = ({ icon, label }) => (
   <Tooltip content={label}>
-    <Text variant="caption" tone="muted" aria-label={label} className="inline-flex items-center justify-center w-4 h-4 leading-none">
+    <Text variant="caption" tone="muted" aria-label={label} className={`${MARK_BOX} leading-none`}>
       <Icon icon={icon} size="xs" />
     </Text>
   </Tooltip>
@@ -112,75 +115,24 @@ const ExpandedVariant: React.FC<{
 
 // ── Compact variant ─────────────────────────────────────────────
 
-/** Builds the tooltip items list from a modalities array */
-function toTooltipItems(mods: string[] | undefined) {
-  return (mods || []).map(mod => {
-    const k = mod.toLowerCase();
-    return { icon: MODALITY_ICONS[k] || Sparkles, label: MODALITY_LABELS[k] || mod };
-  });
-}
+/**
+ * The compact marks, each in its own fixed column (text input is a given, so not shown). A mark a model lacks
+ * leaves its column empty, so the same mark sits at the same place on every picker row.
+ */
+const COMPACT_COLUMNS: ReadonlyArray<{ key: string; icon: LucideIcon; label: string; has: (input: string[], capabilities?: ModelCapabilities) => boolean }> = [
+  { key: 'image', icon: Image, label: 'Image input', has: (input) => input.includes('image') },
+  { key: 'audio', icon: AudioLines, label: 'Audio input', has: (input) => input.includes('audio') },
+  { key: 'video', icon: Video, label: 'Video input', has: (input) => input.includes('video') },
+  { key: 'tools', icon: Wrench, label: 'Tool calling', has: (_, capabilities) => !!capabilities?.toolCall },
+  { key: 'reasoning', icon: Brain, label: 'Reasoning', has: (_, capabilities) => !!capabilities?.reasoning },
+];
 
-/** A single compact indicator (letter or icon) with a rich hover tooltip. */
-const CompactIndicator: React.FC<{
-  /** Render either a letter label or an icon */
-  label?: string;
-  icon?: LucideIcon;
-  /** Rows shown in the hover tooltip */
-  tooltipItems: Array<{ icon: LucideIcon; label: string }>;
-}> = ({ label, icon, tooltipItems }) => {
-  const indicator = (
-    <Text variant="caption" tone="muted" className="inline-flex items-center justify-center w-4 h-4 font-semibold leading-none">
-      {icon ? <Icon icon={icon} size="xs" /> : label}
-    </Text>
-  );
-  if (tooltipItems.length === 0) return indicator;
-  return (
-    <Tooltip
-      content={
-        <span className="flex flex-col gap-1">
-          {tooltipItems.map(({ icon: tipIcon, label: tip }) => (
-            <span key={tip} className="flex items-center gap-1.5">
-              <Icon icon={tipIcon} size="xs" className="opacity-70" />
-              {tip}
-            </span>
-          ))}
-        </span>
-      }
-    >
-      {indicator}
-    </Tooltip>
-  );
-};
-
-const CompactVariant: React.FC<{
-  input?: string[];
-  output?: string[];
-  capabilities?: ModelCapabilities;
-  showCapabilities: boolean;
-}> = ({ input, output, capabilities, showCapabilities }) => {
-  const inputItems = toTooltipItems(input);
-  const outputItems = toTooltipItems(output);
-
-  const activeCapabilities = showCapabilities && capabilities
-    ? CAPABILITY_DEFS.filter(def => capabilities[def.key])
-    : [];
-
-  if (inputItems.length === 0 && outputItems.length === 0 && activeCapabilities.length === 0) return null;
-
+const CompactVariant: React.FC<{ input?: string[]; capabilities?: ModelCapabilities }> = ({ input = [], capabilities }) => {
+  const kinds = input.map((mod) => mod.toLowerCase());
   return (
     <span className="inline-flex items-center gap-0.5 shrink-0">
-      {activeCapabilities.map(def => (
-        <CompactIndicator
-          key={def.key}
-          icon={def.icon}
-          tooltipItems={[{ icon: def.icon, label: def.label }]}
-        />
-      ))}
-      {inputItems.length > 0 && (
-        <CompactIndicator label="I" tooltipItems={inputItems} />
-      )}
-      {outputItems.length > 0 && (
-        <CompactIndicator label="O" tooltipItems={outputItems} />
+      {COMPACT_COLUMNS.map(({ key, icon, label, has }) =>
+        has(kinds, capabilities) ? <CapabilityMark key={key} icon={icon} label={label} /> : <span key={key} aria-hidden className={MARK_BOX} />,
       )}
     </span>
   );
@@ -197,16 +149,7 @@ export const ModalityIcons: React.FC<ModalityIconsProps> = ({
   const output = modelInfo?.modalities?.output;
   const capabilities = modelInfo?.capabilities;
 
-  if (variant === 'compact') {
-    return (
-      <CompactVariant
-        input={input}
-        output={output}
-        capabilities={capabilities}
-        showCapabilities={showCapabilities}
-      />
-    );
-  }
+  if (variant === 'compact') return <CompactVariant input={input} capabilities={showCapabilities ? capabilities : undefined} />;
 
   return (
     <ExpandedVariant

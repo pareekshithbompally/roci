@@ -8,6 +8,7 @@ import { MeetingMentionPopup } from './MeetingMentionPopup';
 import { ContextChips } from './ContextChips';
 import { ModelPicker } from './ModelPicker';
 import { ToolsPicker } from './tools/ToolsPicker';
+import { ReasoningPicker } from './ReasoningPicker';
 import { ContextRing, Icon, IconButton, Input, Popover, PopoverAnchor, Surface, Text, Textarea } from '@shared/ui';
 import type { ContextUsage } from '@shared/hooks/useContextUsage';
 import {
@@ -519,13 +520,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
         {/* Toolbar mounts only while idle, so it never competes with the pill's controls. */}
           <div className="flex items-center justify-between px-3 pb-2">
-            {/* Left: Attach, model, tools, context gauge */}
-            <div className="flex items-center gap-2">
+            {/* Left: Attach, model, tools, thinking, context gauge — toolbar-size controls, close together */}
+            <div className="flex items-center gap-0.5">
               {/* Attach — files and screenshots only; tools have their own picker */}
               {onAttach && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <IconButton icon={Plus} label="Attach" />
+                    <IconButton icon={Plus} label="Attach" size="toolbar" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent side="top" align="start" sideOffset={8}>
                     <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_IMAGES)}>
@@ -592,6 +593,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
               <ModelPicker compact />
               <ToolsPicker />
+              <ReasoningPicker />
 
               {/* Context-window gauge (hides when the limit is unknown or no usage yet) */}
               <ContextRing usage={contextUsage ?? null} />

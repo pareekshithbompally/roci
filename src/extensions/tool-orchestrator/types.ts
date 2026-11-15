@@ -1,8 +1,8 @@
 /** Orchestration loop inputs, callbacks and activity state. */
 
-import type { ChatMessage, HistoryItem, AppSettings } from '@shared/types';
+import type { ChatMessage, HistoryItem, AppSettings, ReasoningEffort } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
-import type { StreamMetadata } from '@services/ai/types';
+import type { GenerationStats, StreamMetadata } from '@services/ai/types';
 import type { ToolCall, ToolResult } from '@extensions/tools/types';
 
 // ── Orchestrator Options ──
@@ -19,6 +19,8 @@ export interface OrchestratorOptions {
   webSearchEnabled?: boolean;
   /** Whether to skip tool attachment (model doesn't support tools). Default: false */
   skipRetrieval?: boolean;
+  /** The chat's thinking level. */
+  reasoningEffort: ReasoningEffort;
 }
 
 // ── Callbacks ──
@@ -26,6 +28,8 @@ export interface OrchestratorOptions {
 /** Callbacks the orchestrator uses to communicate with the UI layer */
 export interface OrchestratorCallbacks {
   onChunk: (text: string, metadata?: StreamMetadata) => void;
+  /** The model's thinking as it streams, with tokens and speed when a local server reports them. */
+  onReasoning: (text: string, generation?: GenerationStats) => void;
   onToolActivity: (activity: ToolActivity) => void;
 }
 

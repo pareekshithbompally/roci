@@ -15,6 +15,16 @@ export type ProviderSetting = {
   controller_props: ControllerProps
 }
 
+/** What a model's own server reports about it (llama-server `/models`); hosted models get this from models.dev instead. */
+export type ServedModelInfo = {
+  /** Kinds of input and output it takes and gives (text, image, audio, video). */
+  modalities?: { input: string[]; output: string[] }
+  /** The context window the server runs it with, in tokens. */
+  contextTokens?: number
+  /** The server takes a thinking level for it (llama-server). */
+  thinking?: boolean
+}
+
 export type Model = {
   id: string
   model?: string
@@ -29,6 +39,8 @@ export type Model = {
   toolsEnabled?: boolean
   /** Per-model override: accepts audio input (transcribes via prompt). Unset → models.dev. */
   audioInput?: boolean
+  /** Read from its server on detection; never edited by the user. */
+  served?: ServedModelInfo
 }
 
 export type ProviderCustomHeader = {

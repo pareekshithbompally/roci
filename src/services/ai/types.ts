@@ -74,17 +74,16 @@ export interface StreamProgress {
 /** Tokens a local server has generated so far, and how fast (llama-server). */
 export interface GenerationStats {
   tokens: number;
+  /** Time spent generating so far, ms. */
+  elapsedMs: number;
   tokensPerSecond: number;
 }
 
 /** Stream metadata for UI state */
 export interface StreamMetadata {
   progress?: StreamProgress;
-  generation?: GenerationStats;
-  isThinking?: boolean;
   isSearching?: boolean;
   searchQuery?: string;
-  thinkingContent?: string;
   webCitations?: WebCitation[];
   inlineCitations?: InlineCitationSpan[];
 }

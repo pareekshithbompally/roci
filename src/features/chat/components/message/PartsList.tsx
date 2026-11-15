@@ -2,8 +2,10 @@ import React from 'react';
 import { Markdown } from '@shared/components';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { MediaPartRenderer } from '@features/chat/components/MediaPartRenderer';
-import { ToolCallBlock, ToolCallGroup, groupToolCalls, type PartSegment } from '@features/chat/components/tool-call';
 import type { WebCitation, ChatPart } from '@shared/types';
+import type { GenerationStats } from '@services/ai/types';
+import { ActivityRun } from './ActivityRun';
+import { groupActivity, type PartSegment } from './groupActivity';
 
 interface PartsListProps {
   parts: ChatPart[];
@@ -13,21 +15,22 @@ interface PartsListProps {
   processText?: (text: string) => string;
   /** Passed to Markdown for inline citation rendering */
   webCitations?: WebCitation[];
+  /** Tokens and speed while the model thinks, when a local server reports them. */
+  generation?: GenerationStats | null;
 }
 
-/** A message's parts in order; back-to-back tool calls render as one group. */
-const PartsList: React.FC<PartsListProps> = ({ parts, messageId, streaming, processText, webCitations }) => {
+/** A message's parts in order; the model's work shows as rows, folded into one once the answer follows it. */
+const PartsList: React.FC<PartsListProps> = ({ parts, messageId, streaming, processText, webCitations, generation }) => {
   const { settings } = useSettings();
+  const liveIndex = streaming ? parts.length - 1 : null;
 
   const render = (segment: PartSegment) => {
-    if (segment.kind === 'tools') {
-      if (settings.hideToolCalls) return null;
-      const [first] = segment.parts;
-      return segment.parts.length === 1
-        ? <ToolCallBlock key={first.toolCallId} part={first} />
-        : <ToolCallGroup key={first.toolCallId} parts={segment.parts} />;
+    if (segment.kind === 'activity') {
+      const items = settings.hideToolCalls ? segment.items.filter(({ part }) => part.type !== 'tool_call') : segment.items;
+      if (items.length === 0) return null;
+      return <ActivityRun key={`run-${items[0].index}`} items={items} settled={segment.settled} liveIndex={liveIndex} generation={generation} />;
     }
-    const { part, index } = segment;
+    const { part, index } = segment.item;
     if (part.type === 'text') {
       const text = processText ? processText(part.text) : part.text;
       if (!text) return null;
@@ -36,7 +39,7 @@ const PartsList: React.FC<PartsListProps> = ({ parts, messageId, streaming, proc
     return <MediaPartRenderer key={index} part={part} />;
   };
 
-  return <>{groupToolCalls(parts).map(render)}</>;
+  return <>{groupActivity(parts).map(render)}</>;
 };
 
 export default PartsList;

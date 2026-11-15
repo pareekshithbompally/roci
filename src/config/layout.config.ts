@@ -32,6 +32,8 @@ export const LAYOUT = {
 
 /** Picker row trailing columns — fixed widths so every row's controls line up */
 export const PICKER = {
+  /** Short facts (a count, a status word, small marks): sized to them and right-aligned against the fixed columns after */
+  metaSlot: 'shrink-0 flex items-center justify-end gap-1',
   checkSlot: 'w-4 shrink-0 flex items-center justify-center',
   chevronSlot: 'w-3.5 shrink-0 flex items-center justify-center',
 } as const;

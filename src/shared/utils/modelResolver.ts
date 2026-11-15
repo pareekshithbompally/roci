@@ -1,11 +1,11 @@
 /** Resolves a model id to its provider and configuration for routing API calls. */
 
-import type { ModelProvider, Model } from '@shared/types/modelProviders';
+import type { ModelProvider, Model, ServedModelInfo } from '@shared/types/modelProviders';
 import type { ProviderType } from '@services/ai/types';
 import { MANAGED_SDK_PROVIDERS, MANAGED_SDK_INFO, MANAGED_DEFAULT_URLS, APPLE_INTELLIGENCE } from '@config/providers.config';
 import { isIntegrationEnabled } from '@shared/utils/integrations';
 import type { AppSettings } from '@shared/types';
-import { getProviderTitle } from '@shared/utils/provider.utils';
+import { getModelDisplayName, getProviderTitle } from '@shared/utils/provider.utils';
 import type { LucideIcon } from 'lucide-react';
 
 export interface ResolvedModel {
@@ -96,7 +96,7 @@ export function getAllActiveModels(providers: ModelProvider[]): Array<{
     for (const model of provider.models || []) {
       models.push({
         id: model.id,
-        name: model.name || model.displayName || model.id,
+        name: getModelDisplayName(model),
         provider: provider.provider,
         providerName: getProviderTitle(provider.provider),
       });
@@ -160,6 +160,8 @@ export interface ModelChoice {
   ready: boolean;
   /** Next step when not ready ("Add OpenAI API key"). */
   hint: string | null;
+  /** What its own server reports about it (llama-server), for its picker row's modalities. */
+  served?: ServedModelInfo;
   /** A step that makes it usable, run from its picker row (download, allow). */
   setup?: ChoiceSetup;
   /** Capabilities shown as small marks on its picker row (e.g. real-time transcription). */
@@ -192,7 +194,8 @@ export function modelChoices(sources: ModelProvider[]): ModelChoice[] {
         value: m.id,
         provider: p.provider,
         modelId: m.id,
-        label: m.name || m.id,
+        label: getModelDisplayName(m),
+        served: m.served,
         ready,
         hint: ready ? null : `Add ${getProviderTitle(p.provider)} API key`,
       };

@@ -1,4 +1,4 @@
-/** Compact dialog for renaming sidebar items. */
+/** Compact rename dialog (sidebar items, models); `clearable` lets an empty name clear the rename. */
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Button, Dialog, DialogContent, DialogOverlay, DialogPortal, DialogTitle, Input } from '@shared/ui';
@@ -7,7 +7,11 @@ interface RenameModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentTitle: string;
+  /** Called with the new name; '' only when `clearable`. */
   onConfirm: (newTitle: string) => void;
+  /** An empty name is allowed and means "back to the original"; the placeholder shows that original. */
+  clearable?: boolean;
+  placeholder?: string;
 }
 
 export const RenameModal: React.FC<RenameModalProps> = ({
@@ -15,6 +19,8 @@ export const RenameModal: React.FC<RenameModalProps> = ({
   onOpenChange,
   currentTitle,
   onConfirm,
+  clearable = false,
+  placeholder = 'Enter a title',
 }) => {
   const [value, setValue] = useState(currentTitle);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -26,15 +32,13 @@ export const RenameModal: React.FC<RenameModalProps> = ({
     }
   }, [open, currentTitle]);
 
+  const trimmed = value.trim();
+  const canSave = trimmed !== currentTitle && (!!trimmed || clearable);
+
   const handleSubmit = () => {
-    const trimmed = value.trim();
-    if (trimmed && trimmed !== currentTitle) {
-      onConfirm(trimmed);
-    }
+    if (canSave) onConfirm(trimmed);
     onOpenChange(false);
   };
-
-  const isUnchanged = !value.trim() || value.trim() === currentTitle;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -55,9 +59,9 @@ export const RenameModal: React.FC<RenameModalProps> = ({
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !isUnchanged) handleSubmit();
+              if (e.key === 'Enter' && canSave) handleSubmit();
             }}
-            placeholder="Enter a title"
+            placeholder={placeholder}
           />
 
           <div className="flex justify-end gap-2.5 mt-5">
@@ -65,7 +69,7 @@ export const RenameModal: React.FC<RenameModalProps> = ({
               Cancel
             </Button>
             <Button variant="primary" size="md" onClick={handleSubmit}
-              disabled={isUnchanged}>
+              disabled={!canSave}>
               Save
             </Button>
           </div>
@@ -75,4 +79,3 @@ export const RenameModal: React.FC<RenameModalProps> = ({
   );
 };
 
-export default RenameModal;

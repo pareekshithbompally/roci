@@ -3,6 +3,7 @@ import { Markdown } from '@shared/components';
 import { AnimatedProviderIcon } from '@features/chat/components/AnimatedProviderIcon';
 import { useStreamingText } from '@features/chat/stores/streamingStore';
 import { getProviderTitle } from '@shared/utils/provider.utils';
+import { useModelLabel } from '@shared/hooks/useModelLabel';
 import { toolCallTitle } from '@features/chat/components/tool-call';
 import { Progress, Text } from '@shared/ui';
 import { useReadAloud } from '@shared/hooks/useReadAloud';
@@ -14,6 +15,17 @@ import AssistantActionBar from './AssistantActionBar';
 import ErrorMessageBox from './ErrorMessageBox';
 import type { AssistantMessageProps } from './types';
 import type { ChatPart, WebCitation, InlineCitationSpan } from '@shared/types';
+
+/** "localhost:9931 · Gemma": the provider, then the model by its display name (its rename, if any). */
+function ProviderModelLabel({ provider, model }: { provider?: string; model?: string }) {
+  const modelLabel = useModelLabel(provider, model);
+  return (
+    <>
+      {getProviderTitle(provider)}
+      {modelLabel && <Text variant="helper" tone="faint"> · {modelLabel}</Text>}
+    </>
+  );
+}
 
 /** Header label (active tool, then provider/model), isolated so only it re-renders on stream updates. */
 const StreamingHeaderLabel = memo(({
@@ -36,12 +48,7 @@ const StreamingHeaderLabel = memo(({
     }
   }
 
-  return (
-    <>
-      {getProviderTitle(provider)}
-      {model && <Text variant="helper" tone="faint"> · {model}</Text>}
-    </>
-  );
+  return <ProviderModelLabel provider={provider} model={model} />;
 });
 
 StreamingHeaderLabel.displayName = 'StreamingHeaderLabel';
@@ -57,6 +64,7 @@ const StreamingContent = memo(({ msgId }: { msgId: string }) => {
       parts={streaming.parts}
       messageId={msgId}
       streaming={true}
+      generation={streaming.generation}
     />
   );
 });
@@ -159,15 +167,9 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
             ? status.label
             : isStreaming
               ? <StreamingHeaderLabel msgId={id} provider={provider} model={model} />
-              : (
-              <>
-                {getProviderTitle(provider)}
-                {model && <Text variant="helper" tone="faint"> · {model}</Text>}
-              </>
-            )}
+              : <ProviderModelLabel provider={provider} model={model} />}
         </Text>
-        {isLoading && status.percent !== null && <Progress key={status.label} percent={status.percent} size="compact" />}
-        {isLoading && status.detail && <Text variant="mono" tone="faint">{status.detail}</Text>}
+        {isLoading && status.percent !== null && <Progress key={status.label} percent={status.percent} detail={status.detail} size="compact" />}
       </div>
 
       {/* STREAMING or COMPLETE STATE */}

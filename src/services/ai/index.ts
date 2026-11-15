@@ -1,4 +1,4 @@
-export { createModel, getWebSearchTools } from './provider';
+export { createModel, getWebSearchTools, reasoningCallSettings } from './provider';
 export { toExecutableTools, runTool } from './tools-bridge';
 export type { ExecutableToolsCallbacks } from './tools-bridge';
 export { toSDKMessages } from './message-converter';

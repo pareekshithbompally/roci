@@ -27,9 +27,28 @@ beforeEach(() => vi.unstubAllGlobals());
 afterEach(() => vi.unstubAllGlobals());
 
 describe('probeModels', () => {
-  it('returns model ids from an OpenAI-compatible /models', async () => {
+  it('returns only model ids from a server that is not llama-server', async () => {
     serve({ 'http://127.0.0.1:11434/v1/models': models('llama3.2', 'qwen3:8b') });
-    expect(await probeModels('http://127.0.0.1:11434/v1')).toEqual(['llama3.2', 'qwen3:8b']);
+    expect(await probeModels('http://127.0.0.1:11434/v1')).toEqual([{ id: 'llama3.2' }, { id: 'qwen3:8b' }]);
+  });
+
+  it('adds what llama-server reports: modalities, running context, thinking, loaded', async () => {
+    serve({
+      'http://127.0.0.1:9931/props': { build_info: 'b12110' },
+      'http://127.0.0.1:9931/v1/models': {
+        data: [{
+          id: 'ggml-org/LFM3-Omni-2B-GGUF:Q8_0',
+          architecture: { input_modalities: ['text', 'image', 'audio', 'video'], output_modalities: ['text', 'audio'] },
+          context_length: 128000,
+          status: { value: 'loaded', preset: '[ggml-org/LFM3-Omni-2B-GGUF:Q8_0]\nctx-size = 32768\nn-predict = 8192\n' },
+        }],
+      },
+    });
+    expect(await probeModels('http://127.0.0.1:9931/v1')).toEqual([{
+      id: 'ggml-org/LFM3-Omni-2B-GGUF:Q8_0',
+      served: { modalities: { input: ['text', 'image', 'audio', 'video'], output: ['text', 'audio'] }, contextTokens: 32768, thinking: true },
+      loaded: true,
+    }]);
   });
 
   it('returns null when nothing listens, on non-200, or on a non-OpenAI body', async () => {
@@ -48,7 +67,7 @@ describe('detectLocalServers', () => {
     });
     const servers = await detectLocalServers([]);
     const ollama = servers.find((s) => s.id === 'local:ollama');
-    expect(ollama).toMatchObject({ running: true, modelIds: ['llama3.2'] });
+    expect(ollama).toMatchObject({ running: true, models: [{ id: 'llama3.2' }] });
     expect(servers.filter((s) => s.running)).toHaveLength(1);
   });
 
@@ -57,7 +76,7 @@ describe('detectLocalServers', () => {
     const servers = await detectLocalServers([]);
     const running = servers.filter((s) => s.running);
     expect(running).toEqual([
-      { id: 'local:127.0.0.1:11434', baseUrl: 'http://127.0.0.1:11434/v1', running: true, modelIds: ['mlx-model'] },
+      { id: 'local:127.0.0.1:11434', baseUrl: 'http://127.0.0.1:11434/v1', running: true, models: [{ id: 'mlx-model' }] },
     ]);
   });
 
@@ -69,17 +88,17 @@ describe('detectLocalServers', () => {
 
   it('probes a saved provider at its own URL and skips the known port it covers', async () => {
     serve({ 'http://127.0.0.1:9000/v1/models': models('custom') });
-    const saved = toLocalProvider({ id: 'local:ollama', baseUrl: 'http://127.0.0.1:9000/v1', running: true, modelIds: [] });
+    const saved = toLocalProvider({ id: 'local:ollama', baseUrl: 'http://127.0.0.1:9000/v1', running: true, models: [] });
     const servers = await detectLocalServers([saved]);
     expect(servers.filter((s) => s.id === 'local:ollama')).toEqual([
-      { id: 'local:ollama', baseUrl: 'http://127.0.0.1:9000/v1', running: true, modelIds: ['custom'] },
+      { id: 'local:ollama', baseUrl: 'http://127.0.0.1:9000/v1', running: true, models: [{ id: 'custom' }] },
     ]);
   });
 });
 
 describe('toLocalProvider', () => {
   it('saves an active provider with the uniform default key, base URL and served models', () => {
-    const p = toLocalProvider({ id: 'local:ollama', baseUrl: 'http://127.0.0.1:11434/v1', running: true, modelIds: ['a'] });
+    const p = toLocalProvider({ id: 'local:ollama', baseUrl: 'http://127.0.0.1:11434/v1', running: true, models: [{ id: 'a' }] });
     expect(p).toMatchObject({ active: true, provider: 'local:ollama', api_key: LOCAL_SERVER_DEFAULT_API_KEY });
     expect(p.settings.find((s) => s.key === 'api-key')?.controller_props.value).toBe(LOCAL_SERVER_DEFAULT_API_KEY);
     expect(p.settings.find((s) => s.key === 'base-url')?.controller_props.value).toBe('http://127.0.0.1:11434/v1');
@@ -88,10 +107,10 @@ describe('toLocalProvider', () => {
 });
 
 describe('syncModels', () => {
-  it('keeps per-model settings, adds new ids, drops ids no longer served', () => {
-    const existing = [{ id: 'keep', name: 'keep', toolsEnabled: true }, { id: 'gone', name: 'gone' }];
-    expect(syncModels(existing, ['keep', 'new'])).toEqual([
-      { id: 'keep', name: 'keep', toolsEnabled: true },
+  it('keeps the user\'s own choices, refreshes what the server reports, adds new ids, drops the rest', () => {
+    const existing = [{ id: 'keep', name: 'keep', displayName: 'Keep', toolsEnabled: true, served: { contextTokens: 4096 } }, { id: 'gone', name: 'gone' }];
+    expect(syncModels(existing, [{ id: 'keep', served: { contextTokens: 32768 } }, { id: 'new' }])).toEqual([
+      { id: 'keep', name: 'keep', displayName: 'Keep', toolsEnabled: true, served: { contextTokens: 32768 } },
       { id: 'new', name: 'new' },
     ]);
   });
@@ -99,12 +118,12 @@ describe('syncModels', () => {
 
 describe('localRows', () => {
   it('shows running servers and saved ones that stopped, attaching the saved provider', () => {
-    const saved: ModelProvider = toLocalProvider({ id: 'local:vllm', baseUrl: 'http://127.0.0.1:8000/v1', running: true, modelIds: [] });
+    const saved: ModelProvider = toLocalProvider({ id: 'local:vllm', baseUrl: 'http://127.0.0.1:8000/v1', running: true, models: [] });
     const rows = localRows(
       [
-        { id: 'local:ollama', baseUrl: 'u1', running: true, modelIds: ['m'] },
-        { id: 'local:vllm', baseUrl: 'u2', running: false, modelIds: [] },
-        { id: 'local:jan', baseUrl: 'u3', running: false, modelIds: [] },
+        { id: 'local:ollama', baseUrl: 'u1', running: true, models: [{ id: 'm' }] },
+        { id: 'local:vllm', baseUrl: 'u2', running: false, models: [] },
+        { id: 'local:jan', baseUrl: 'u3', running: false, models: [] },
       ],
       [saved],
     );

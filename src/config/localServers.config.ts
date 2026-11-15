@@ -1,3 +1,5 @@
+import type { ReasoningEffort } from '@shared/types';
+
 /** User-run OpenAI-compatible servers, detected on their standard ports; Kasset never starts or installs them. */
 
 /** Provider id prefix for every local server (`local:ollama`, `local:127.0.0.1:9000`). */
@@ -13,6 +15,9 @@ export const LOCAL_SERVER_API_PATH = '/v1';
 
 /** Share of a model's load progress for each part after its main weights (draft model, projector). */
 export const MODEL_LOAD_PART_SHARE = 0.1;
+
+/** llama-server thinking budget per level, tokens (-1 = unlimited); `none` and `provider-default` send no budget. */
+export const LLAMA_THINKING_BUDGET_TOKENS: Partial<Record<ReasoningEffort, number>> = { low: 512, medium: 2048, high: 8192, max: -1 };
 
 /** Prompt reading shows no time left until it has run this long, ms (the first reports are too early to tell). */
 export const PROMPT_ETA_MIN_ELAPSED_MS = 500;

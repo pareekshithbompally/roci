@@ -1,6 +1,7 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import type { ReactNode } from 'react';
 import { ANIMATION_CONFIG } from '@config/animations.config';
+import { META_SEPARATOR } from '@config/ui.config';
 import { Text } from './text';
 import { cn } from './utils';
 
@@ -14,11 +15,13 @@ export interface ProgressProps {
   tone?: keyof typeof FILL;
   /** `full` spans its container; `compact` is a short inline bar with its percent beside it. */
   size?: 'full' | 'compact';
+  /** Compact only: a fact after the percent, e.g. "3s left". */
+  detail?: string | null;
   className?: string;
 }
 
 /** Thin progress track: determinate fill, or a sweeping segment when indeterminate. */
-export function Progress({ percent, tone = 'neutral', size = 'full', className }: ProgressProps) {
+export function Progress({ percent, tone = 'neutral', size = 'full', detail, className }: ProgressProps) {
   const track = (
     <div
       role="progressbar"
@@ -43,11 +46,12 @@ export function Progress({ percent, tone = 'neutral', size = 'full', className }
       )}
     </div>
   );
-  return size === 'full' ? track : <CompactProgress percent={percent} className={className}>{track}</CompactProgress>;
+  return size === 'full' ? track : <CompactProgress percent={percent} detail={detail} className={className}>{track}</CompactProgress>;
 }
 
-/** A compact bar fades in with its percent beside it, in even-width digits so the number doesn't wobble. */
-function CompactProgress({ percent, className, children }: { percent: number | null; className?: string; children: ReactNode }) {
+/** A compact bar fades in with its percent (and any detail) beside it, in even-width digits so nothing wobbles. */
+function CompactProgress({ percent, detail, className, children }: { percent: number | null; detail?: string | null; className?: string; children: ReactNode }) {
+  const facts = [percent !== null && `${percent}%`, detail].filter(Boolean).join(META_SEPARATOR);
   const reduceMotion = useReducedMotion();
   return (
     <motion.span
@@ -57,7 +61,7 @@ function CompactProgress({ percent, className, children }: { percent: number | n
       transition={reduceMotion ? { duration: 0 } : appear}
     >
       {children}
-      {percent !== null && <Text variant="mono" tone="faint" className="tabular-nums">{percent}%</Text>}
+      {facts && <Text variant="mono" tone="faint" className="tabular-nums">{facts}</Text>}
     </motion.span>
   );
 }

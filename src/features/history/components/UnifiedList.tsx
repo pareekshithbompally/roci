@@ -9,7 +9,7 @@ import { useSentinel } from '@shared/hooks/useSentinel';
 import { useDeleteSession } from '@features/history/hooks/useDeleteSession';
 import { SidebarShimmer } from '@features/history/components/SidebarShimmer';
 import { UnifiedSidebarItem } from './UnifiedSidebarItem';
-import { RenameModal } from './RenameModal';
+import { RenameModal } from '@shared/components';
 import type { UnifiedSidebarItem as UnifiedSidebarItemType } from '@shared/types';
 import { Text } from '@shared/ui';
 

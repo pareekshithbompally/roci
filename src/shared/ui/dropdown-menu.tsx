@@ -49,6 +49,20 @@ export function DropdownMenuCheckboxItem({ className, children, onSelect, ...pro
   );
 }
 
+export const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
+
+/** One choice of several: label, trailing check on the chosen one. Closes on select. */
+export function DropdownMenuRadioItem({ className, children, ...props }: ComponentProps<typeof DropdownMenuPrimitive.RadioItem>) {
+  return (
+    <DropdownMenuPrimitive.RadioItem className={cn(MENU_ITEM, className)} {...props}>
+      {children}
+      <DropdownMenuPrimitive.ItemIndicator className="ml-auto flex">
+        <Icon icon={Check} size="sm" tone="accent" />
+      </DropdownMenuPrimitive.ItemIndicator>
+    </DropdownMenuPrimitive.RadioItem>
+  );
+}
+
 export function DropdownMenuSeparator({ className, ...props }: ComponentProps<typeof DropdownMenuPrimitive.Separator>) {
   return <DropdownMenuPrimitive.Separator className={cn(MENU_SEPARATOR, className)} {...props} />;
 }

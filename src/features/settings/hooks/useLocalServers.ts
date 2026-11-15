@@ -1,20 +1,17 @@
 /** Detected local servers merged with saved ones, plus switch on, rescan and add-by-URL; re-probes on focus. */
 
 import { useCallback, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { queryKeys } from '@shared/query/queryKeys';
 import {
   customServerId,
-  detectLocalServers,
   localRows,
   normalizeLocalUrl,
   probeModels,
   savedLocalProviders,
-  savedTargetKeys,
   syncModels,
   toLocalProvider,
 } from '@services/providers/localServers';
+import { useLocalServerProbe } from './useLocalServerProbe';
 import type { LocalRow, LocalServer } from '@services/providers/localServers';
 
 export type AddLocalUrlResult = { ok: true; id: string } | { ok: false; error: string };
@@ -23,11 +20,7 @@ export function useLocalServers() {
   const { providers, addProvider, updateProvider, setSelectedProviderName } = useSettings();
   const saved = useMemo(() => savedLocalProviders(providers), [providers]);
 
-  const query = useQuery({
-    queryKey: queryKeys.localServers(savedTargetKeys(saved)),
-    queryFn: () => detectLocalServers(saved),
-    refetchOnWindowFocus: true,
-  });
+  const query = useLocalServerProbe();
 
   const { refetch } = query;
   const rows: LocalRow[] = useMemo(() => localRows(query.data ?? [], providers), [query.data, providers]);
@@ -43,7 +36,7 @@ export function useLocalServers() {
     const { data } = await refetch();
     for (const row of localRows(data ?? [], providers)) {
       if (!row.saved || !row.running) continue;
-      updateProvider(row.id, { models: syncModels(row.saved.models ?? [], row.modelIds) });
+      updateProvider(row.id, { models: syncModels(row.saved.models ?? [], row.models) });
     }
   }, [refetch, providers, updateProvider]);
 
@@ -58,10 +51,10 @@ export function useLocalServers() {
       return { ok: true, id };
     }
 
-    const modelIds = await probeModels(baseUrl);
-    if (!modelIds) return { ok: false, error: `No OpenAI-compatible server answered at ${baseUrl}.` };
+    const models = await probeModels(baseUrl);
+    if (!models) return { ok: false, error: `No OpenAI-compatible server answered at ${baseUrl}.` };
 
-    enable({ id, baseUrl, running: true, modelIds });
+    enable({ id, baseUrl, running: true, models });
     return { ok: true, id };
   }, [saved, enable, setSelectedProviderName]);
 

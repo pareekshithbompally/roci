@@ -2,7 +2,7 @@
 
 import { streamText, isStepCount } from 'ai';
 import type { TextStreamPart, ToolSet } from 'ai';
-import { createModel, toSDKMessages, getWebSearchTools, toExecutableTools } from '@services/ai';
+import { createModel, reasoningCallSettings, toSDKMessages, getWebSearchTools, toExecutableTools } from '@services/ai';
 import { resolveChatModel, requiresApiKey } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { isLocalProviderId } from '@shared/utils/provider.utils';
@@ -62,7 +62,7 @@ interface StreamState {
   generation?: GenerationStats;
 }
 
-/** llama-server's own chunk: prompt-reading progress is shown, generation stats are kept for the next status. */
+/** llama-server's own chunk: prompt-reading progress is shown, generation stats are kept for the thinking that follows. */
 function handleRaw(chunk: unknown, state: StreamState, onChunk: OrchestratorCallbacks['onChunk']): void {
   const progress = promptProgress(chunk);
   if (progress) onChunk('', { progress });
@@ -70,7 +70,8 @@ function handleRaw(chunk: unknown, state: StreamState, onChunk: OrchestratorCall
 }
 
 /** One stream part → UI callbacks and collected state. Throws on a stream error. */
-function handlePart(part: TextStreamPart<ToolSet>, state: StreamState, onChunk: OrchestratorCallbacks['onChunk'], webSearchActive: boolean): void {
+function handlePart(part: TextStreamPart<ToolSet>, state: StreamState, callbacks: OrchestratorCallbacks, webSearchActive: boolean): void {
+  const { onChunk } = callbacks;
   switch (part.type) {
     case 'text-delta': {
       state.hasText = true;
@@ -79,7 +80,7 @@ function handlePart(part: TextStreamPart<ToolSet>, state: StreamState, onChunk: 
       return;
     }
     case 'reasoning-delta':
-      onChunk('', { isThinking: true, thinkingContent: part.text, generation: state.generation });
+      callbacks.onReasoning(part.text, state.generation);
       return;
     // Only native web search runs on the provider's side; meeting and MCP tools are tracked in tools-bridge.
     case 'tool-input-start':
@@ -111,7 +112,7 @@ export async function orchestrate(
   options: OrchestratorOptions,
   callbacks: OrchestratorCallbacks,
 ): Promise<{ provider?: string; model?: string; tokenUsage?: TokenUsage }> {
-  const { messages, systemPrompt, settings, providers, signal, webSearchEnabled } = options;
+  const { messages, systemPrompt, settings, providers, signal, webSearchEnabled, reasoningEffort } = options;
   const { onChunk, onToolActivity } = callbacks;
 
   const resolved = chatModelOrThrow(settings, providers);
@@ -121,7 +122,8 @@ export async function orchestrate(
   const reportsProgress = isLocalProviderId(resolved.provider) && (await isLlamaServer(resolved.baseUrl));
 
   const result = streamText({
-    model: createModel(resolved, { webSearch: !!webSearchTools, serverProgress: reportsProgress }),
+    model: createModel(resolved, { webSearch: !!webSearchTools, ...(reportsProgress && { llamaServer: { reasoningEffort } }) }),
+    ...reasoningCallSettings(resolved, reasoningEffort),
     instructions: systemPrompt,
     messages: toSDKMessages(messages),
     abortSignal: signal,
@@ -136,7 +138,7 @@ export async function orchestrate(
   try {
     for await (const part of result.stream) {
       if (signal?.aborted) break;
-      handlePart(part, state, onChunk, !!webSearchTools);
+      handlePart(part, state, callbacks, !!webSearchTools);
     }
   } finally {
     stopFollowingLoad();

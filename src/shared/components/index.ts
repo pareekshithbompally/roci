@@ -11,6 +11,7 @@ export { ModelDownloadButton, ModelReadyStatus } from './ModelDownloadButton';
 export { ModelIcon } from './ModelIcon';
 export { OnDeviceModelActivity } from './OnDeviceModelActivity';
 export { ProvidersAvatar } from './ProvidersAvatar';
+export { RenameModal } from './RenameModal';
 export { SearchOverlay } from './SearchOverlayDialog';
 export { ServerIcon } from './ServerIcon';
 export { Markdown } from './markdown/Markdown';

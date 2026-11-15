@@ -1,6 +1,6 @@
 /** Shared chat layout for ChatView and ChatPanel: messages, composer, citation drawers, speech input. */
 
-import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { ArrowDown, Loader2 } from 'lucide-react';
 import { useChatStore, useChatActions } from '@features/chat/stores';
 import { useSettings } from '@shared/contexts/SettingsContext';
@@ -18,6 +18,7 @@ import { meetingReferenceService } from '@services/meetingReferenceService';
 import { meetingService } from '@services/meeting.service';
 import { useVoiceCapture } from '@features/chat';
 import { useContextLimit } from '@features/chat/hooks';
+import { useFollowBottom } from '@features/chat/hooks/useFollowBottom';
 import { useContextUsage } from '@shared/hooks/useContextUsage';
 import { useSpeechInputReady } from '@features/settings/hooks/useSpeechModels';
 import { LAYOUT } from '@config/layout.config';
@@ -197,55 +198,20 @@ export const ChatShell: React.FC<ChatShellProps> = ({
     [handleCitationClick, handleShowAllMeetingCitations, handleShowAllWebCitations]
   );
 
-  const handleSend = useCallback(() => {
-    // Re-arm follow so the response streams into view below the sent message.
-    followRef.current = true;
-    sendMessage();
-  }, [sendMessage]);
-
   // ── Scroll ──
   // Follow new content only while at the bottom; after scrolling up, offer "jump to bottom" instead.
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const contentRef = useRef<HTMLDivElement | null>(null);
   const [showScrollDown, setShowScrollDown] = useState(false);
-  const followRef = useRef(true);
+  const showJumpUnlessAtBottom = useCallback((atBottom: boolean) => setShowScrollDown(!atBottom), []);
+  const { scrollRef, contentRef, follow, scrollToBottom, onScroll, onWheel } = useFollowBottom(showJumpUnlessAtBottom);
 
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior });
-    followRef.current = true;
-    setShowScrollDown(false);
-  }, []);
-
-  const handleScroll = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
-    setShowScrollDown(!atBottom);
-    if (atBottom) followRef.current = true;
-  }, []);
-
-  // Scrolling up breaks follow; the user stays put while content grows below.
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (e.deltaY < 0) followRef.current = false;
-  }, []);
-
-  // Follow new content (streaming growth, new messages) while stuck to bottom.
-  useEffect(() => {
-    const el = scrollRef.current;
-    const content = contentRef.current;
-    if (!el || !content) return;
-    const ro = new ResizeObserver(() => {
-      if (followRef.current) el.scrollTop = el.scrollHeight;
-    });
-    ro.observe(content);
-    return () => ro.disconnect();
-  }, []);
+  const handleSend = useCallback(() => {
+    // Re-arm follow so the response streams into view below the sent message.
+    follow();
+    sendMessage();
+  }, [follow, sendMessage]);
 
   // Switching sessions returns to the bottom.
   useEffect(() => {
-    followRef.current = true;
     scrollToBottom('auto');
   }, [currentSession?.id, scrollToBottom]);
 
@@ -287,8 +253,8 @@ export const ChatShell: React.FC<ChatShellProps> = ({
         <div className="relative min-h-0 flex-1">
           <PageScroll
             ref={scrollRef}
-            onScroll={handleScroll}
-            onWheel={handleWheel}
+            onScroll={onScroll}
+            onWheel={onWheel}
             underTitlebar={underTitlebar}
             fadeBottom
             className="h-full"

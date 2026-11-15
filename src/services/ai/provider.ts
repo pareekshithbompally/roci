@@ -11,9 +11,12 @@ import { anthropic } from '@ai-sdk/anthropic';
 import { google } from '@ai-sdk/google';
 import { openai } from '@ai-sdk/openai';
 import { getPlatformFetch } from '@services/platform-fetch';
+import { capabilitiesOf } from '@services/ai/capabilities';
+import { llamaServerRequestBody } from '@services/ai/llamaServer';
 import { getProviderType } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
-import type { LanguageModel, ToolSet } from 'ai';
+import type { ReasoningEffort } from '@shared/types';
+import type { LanguageModel, LanguageModelCallOptions, streamText, ToolSet } from 'ai';
 
 /** Extract custom headers from provider config (for OpenRouter, etc.) */
 function buildCustomHeaders(providerConfig: ResolvedModel['providerConfig']): Record<string, string> {
@@ -26,14 +29,13 @@ function buildCustomHeaders(providerConfig: ResolvedModel['providerConfig']): Re
   return headers;
 }
 
-/** llama-server's request flag for streaming `prompt_progress` chunks. */
-/** llama-server's own progress: prompt reading (`return_progress`) and tokens generated (`timings_per_token`). */
-const withServerProgress = (body: Record<string, unknown>) => ({ ...body, return_progress: true, timings_per_token: true });
-
-/** AI SDK model for a resolved model; `webSearch` picks OpenAI's Responses API, `serverProgress` asks llama-server for its progress. */
+/**
+ * AI SDK model for a resolved model; `webSearch` picks OpenAI's Responses API, and `llamaServer` (the chat's
+ * thinking level) adds llama-server's own progress and thinking-budget fields.
+ */
 export function createModel(
   resolved: ResolvedModel,
-  options?: { webSearch?: boolean; serverProgress?: boolean },
+  options?: { webSearch?: boolean; llamaServer?: { reasoningEffort: ReasoningEffort } },
 ): LanguageModel {
   const fetch = getPlatformFetch();
 
@@ -79,11 +81,31 @@ export function createModel(
         baseURL: resolved.baseUrl,
         fetch,
         ...(Object.keys(customHeaders).length > 0 && { headers: customHeaders }),
-        ...(options?.serverProgress && { transformRequestBody: withServerProgress }),
+        ...(options?.llamaServer && { transformRequestBody: llamaServerRequestBody(options.llamaServer.reasoningEffort) }),
       });
       return provider.chatModel(resolved.modelId);
     }
   }
+}
+
+/** Gemini and OpenAI only return a thinking model's thoughts when asked; Anthropic and local servers always do. */
+const SHOW_THINKING = {
+  gemini: { google: { thinkingConfig: { includeThoughts: true } } },
+  openai: { openai: { reasoningSummary: 'auto' } },
+} as const;
+
+/**
+ * The chat's thinking level as AI SDK call settings: the SDK's own `reasoning` (each provider maps it to its
+ * effort or budget), and for a thinking model, asking its provider to return the thoughts.
+ */
+export function reasoningCallSettings(
+  resolved: ResolvedModel,
+  effort: ReasoningEffort,
+): Pick<LanguageModelCallOptions, 'reasoning'> & Pick<Parameters<typeof streamText>[0], 'providerOptions'> {
+  const thinks = effort !== 'none' && capabilitiesOf(resolved.provider, resolved.model).reasoning;
+  const type = getProviderType(resolved.provider);
+  const showThinking = thinks && (type === 'gemini' || type === 'openai') ? SHOW_THINKING[type] : undefined;
+  return { reasoning: effort, ...(showThinking && { providerOptions: showThinking }) };
 }
 
 /** The provider's native web search tools; undefined when it has none. */

@@ -24,6 +24,9 @@ vi.mock('@features/chat/components/tools/ToolsPicker', () => ({
 vi.mock('@features/chat/components/ModelPicker', () => ({
   ModelPicker: () => null,
 }));
+vi.mock('@features/chat/components/ReasoningPicker', () => ({
+  ReasoningPicker: () => null,
+}));
 
 const baseProps = {
   value: '',

@@ -28,6 +28,7 @@ export {
   useChatCopiedMessageId,
   useChatSelectedMeetingRefs,
   useChatWebSearchEnabled,
+  useChatReasoningEffort,
   useChatAiActivity,
   useChatPendingAttachments,
   useCurrentSession,

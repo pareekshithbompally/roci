@@ -2,7 +2,9 @@
 
 import { getPlatformFetch } from '@services/platform-fetch';
 import { failureLogger } from '@shared/utils/errors';
-import { MODEL_LOAD_PART_SHARE, PROMPT_ETA_MIN_ELAPSED_MS } from '@config/localServers.config';
+import { LLAMA_THINKING_BUDGET_TOKENS, MODEL_LOAD_PART_SHARE, PROMPT_ETA_MIN_ELAPSED_MS } from '@config/localServers.config';
+import type { ReasoningEffort } from '@shared/types';
+import type { ServedModelInfo } from '@shared/types/modelProviders';
 import type { GenerationStats, StreamProgress } from './types';
 
 const report = failureLogger('llamaServer');
@@ -25,6 +27,44 @@ export function isLlamaServer(baseUrl: string): Promise<boolean> {
     void known.then((isServer) => isServer || recognised.delete(root));
   }
   return known;
+}
+
+/** One model as llama-server's `/models` describes it (router mode); every field optional. */
+interface LlamaModelEntry {
+  architecture?: { input_modalities?: string[]; output_modalities?: string[] };
+  context_length?: number;
+  status?: { value?: string; preset?: string };
+}
+
+/** The `ctx-size = N` line of a model's preset: the context it actually runs with. */
+const presetContext = (preset: string | undefined) => Number(preset?.match(/^ctx-size\s*=\s*(\d+)\s*$/m)?.[1]) || undefined;
+
+/** What llama-server reports about one model: its modalities, its running context (preset, else its maximum), thinking. */
+export function servedModelInfo(entry: unknown): ServedModelInfo {
+  const model = entry as LlamaModelEntry;
+  const input = model.architecture?.input_modalities;
+  return {
+    ...(input && { modalities: { input, output: model.architecture?.output_modalities ?? [] } }),
+    contextTokens: presetContext(model.status?.preset) ?? model.context_length,
+    thinking: true,
+  };
+}
+
+/** Whether llama-server has this model loaded now (router mode); others are loaded on first use, unloading the current one. */
+export const isModelLoaded = (entry: unknown) => (entry as LlamaModelEntry).status?.value === 'loaded';
+
+/**
+ * llama-server's own request fields: its progress (`return_progress`, `timings_per_token`) and the chat's
+ * thinking budget (`thinking_budget_tokens`). Turning thinking off travels as the SDK's `reasoning_effort: "none"`.
+ */
+export function llamaServerRequestBody(effort: ReasoningEffort) {
+  const budget = LLAMA_THINKING_BUDGET_TOKENS[effort];
+  return (body: Record<string, unknown>) => ({
+    ...body,
+    return_progress: true,
+    timings_per_token: true,
+    ...(budget !== undefined && { thinking_budget_tokens: budget }),
+  });
 }
 
 const percentOf = (done: number, total: number) => Math.min(100, Math.max(0, Math.round((done / total) * 100)));
@@ -50,9 +90,9 @@ export function promptProgress(chunk: unknown): StreamProgress | null {
 
 /** Tokens generated so far and the speed, from one raw stream chunk; null before the first token. */
 export function generationStats(chunk: unknown): GenerationStats | null {
-  const timings = (chunk as { timings?: { predicted_n?: number; predicted_per_second?: number } } | null)?.timings;
+  const timings = (chunk as { timings?: { predicted_n?: number; predicted_ms?: number; predicted_per_second?: number } } | null)?.timings;
   if (!timings?.predicted_n) return null;
-  return { tokens: timings.predicted_n, tokensPerSecond: timings.predicted_per_second ?? 0 };
+  return { tokens: timings.predicted_n, elapsedMs: timings.predicted_ms ?? 0, tokensPerSecond: timings.predicted_per_second ?? 0 };
 }
 
 interface ModelEvent {

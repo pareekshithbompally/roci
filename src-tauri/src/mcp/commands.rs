@@ -1,6 +1,6 @@
 //! Tauri commands for MCP, Kasset-namespaced.
 
-use rmcp::model::{CallToolRequestParams, CallToolResult, ContentBlock};
+use rmcp::model::{CallToolRequestParams, CallToolResult, ContentBlock, Icon, IconTheme};
 use serde::Serialize;
 use serde_json::{Map, Value};
 use std::{collections::HashMap, sync::Arc};
@@ -79,9 +79,18 @@ pub struct McpServerInfo {
     name: String,
     title: Option<String>,
     version: Option<String>,
-    /// First icon the server offers (URL or `data:` URI).
+    /// The server's icon for light backgrounds or any theme (URL or `data:` URI).
     icon: Option<String>,
+    /// Its icon for dark backgrounds, when it offers one.
+    icon_dark: Option<String>,
     website_url: Option<String>,
+}
+
+/// The first icon for a dark or light background: dark takes only dark icons; light takes light or theme-less ones, else any.
+fn icon_for(icons: &[Icon], dark: bool) -> Option<String> {
+    let chosen = icons.iter().find(|icon| matches!(icon.theme, Some(IconTheme::Dark)) == dark);
+    let fallback = if dark { None } else { icons.first() };
+    chosen.or(fallback).map(|icon| icon.src.clone())
 }
 
 #[tauri::command]
@@ -91,15 +100,13 @@ pub async fn get_mcp_server_info(state: State<'_, McpState>) -> Result<Vec<McpSe
         .iter()
         .map(|(name, service)| {
             let info = service.peer_info().and_then(|p| p.server_info.clone());
+            let icons = info.as_ref().and_then(|i| i.icons.clone()).unwrap_or_default();
             McpServerInfo {
                 name: name.clone(),
                 title: info.as_ref().and_then(|i| i.title.clone()),
                 version: info.as_ref().map(|i| i.version.clone()),
-                icon: info
-                    .as_ref()
-                    .and_then(|i| i.icons.as_ref())
-                    .and_then(|icons| icons.first())
-                    .map(|icon| icon.src.clone()),
+                icon: icon_for(&icons, false),
+                icon_dark: icon_for(&icons, true),
                 website_url: info.and_then(|i| i.website_url),
             }
         })

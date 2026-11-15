@@ -4,10 +4,11 @@ import { ANIMATION_CONFIG } from '@config/animations.config';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { ToolCallBlock, type ToolCallPart } from '@features/chat/components/tool-call';
+import { ThemeProvider } from '@shared/contexts/ThemeContext';
 
-/** MCP blocks read server icons through TanStack Query. */
+/** MCP blocks read server icons through TanStack Query, picked for the current theme. */
 const render = (ui: ReactElement) =>
-  rtlRender(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);
+  rtlRender(<ThemeProvider><QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider></ThemeProvider>);
 
 function part(overrides: Partial<ToolCallPart>): ToolCallPart {
   return {
@@ -22,7 +23,7 @@ function part(overrides: Partial<ToolCallPart>): ToolCallPart {
 }
 
 /** Lets the finished call's fold delay pass. */
-const afterFoldDelay = () => act(() => { vi.advanceTimersByTime(ANIMATION_CONFIG.chat.toolFoldDelayMs); });
+const afterFoldDelay = () => act(() => { vi.advanceTimersByTime(ANIMATION_CONFIG.chat.activityFoldDelayMs); });
 
 describe('ToolCallBlock', () => {
   afterEach(() => { vi.useRealTimers(); });

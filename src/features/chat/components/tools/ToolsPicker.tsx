@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import {
   ChevronDown,
-  ChevronRight,
   Globe,
   Info,
   Library,
@@ -15,7 +14,6 @@ import {
   TriangleAlert,
   type LucideIcon,
 } from 'lucide-react';
-import { PICKER } from '@config/layout.config';
 import { useAppActions } from '@shared/stores/appStore';
 import {
   Button,
@@ -24,12 +22,13 @@ import {
   CommandGroup,
   CommandItem,
   CommandPopover,
+  CommandRow,
   CommandSeparator,
   Icon,
   Text,
   cn,
 } from '@shared/ui';
-import type { CheckboxState, TextTone } from '@shared/ui';
+import type { CheckboxState, CommandRowProps } from '@shared/ui';
 import { useToolCatalog } from '@features/chat/hooks';
 import type { ToolCatalog } from '@features/chat/hooks';
 import type { CatalogGroup } from '@features/chat/hooks/toolCatalog';
@@ -68,7 +67,7 @@ export const ToolsPicker: React.FC = () => {
       trigger={
         <Button
           variant="ghost"
-          size="sm"
+          size="toolbar"
           title="Tools"
           aria-label={`Tools, ${modelSupportsTools ? enabledCount : 0} on`}
         >
@@ -105,50 +104,43 @@ export const ToolsPicker: React.FC = () => {
             <GroupItem key={group.key} group={group} catalog={catalog} flyout={flyout} setFlyout={setFlyout} />
           ))}
           {catalog.servers.length === 0 && (
-            <CommandItem value="add mcp server" onSelect={openMcpSettings} onPointerEnter={() => setFlyout(null)}>
-              <RowIcon icon={Plus} />
-              <span className="flex-1">Add MCP server</span>
-              <Trailing hint="files, browsers, APIs" />
-            </CommandItem>
+            <CommandRow
+              value="add mcp server"
+              onSelect={openMcpSettings}
+              onPointerEnter={() => setFlyout(null)}
+              leading={<RowIcon icon={Plus} />}
+              label="Add MCP server…"
+              description="Files, browsers, APIs"
+            />
           )}
           {catalog.servers.length > 0 && liveServers.length === 0 && (
-            <CommandItem value="manage mcp servers" onSelect={openMcpSettings} onPointerEnter={() => setFlyout(null)}>
-              <RowIcon icon={Settings2} />
-              <Text tone="muted" className="flex-1">No connected servers</Text>
-              <Trailing chevron />
-            </CommandItem>
+            <CommandRow
+              value="manage mcp servers"
+              onSelect={openMcpSettings}
+              onPointerEnter={() => setFlyout(null)}
+              leading={<RowIcon icon={Settings2} />}
+              label="No connected servers"
+              labelTone="muted"
+              description="Manage MCP servers…"
+            />
           )}
         </CommandGroup>
       )}
 
       <CommandSeparator />
       <CommandGroup>
-        <FooterItems askBeforeRunning={catalog.askBeforeRunning} onOpenSettings={openMcpSettings} onHover={() => setFlyout(null)} />
+        <FooterItems
+          askBeforeRunning={catalog.askBeforeRunning}
+          onAskChange={catalog.setAskBeforeRunning}
+          onOpenSettings={openMcpSettings}
+          onHover={() => setFlyout(null)}
+        />
       </CommandGroup>
     </CommandPopover>
   );
 };
 
-// ── Row anatomy ──
-// Fixed-width slots (icon, label, hint, checkbox, chevron) keep every row's controls aligned.
-
-interface TrailingProps {
-  hint?: React.ReactNode;
-  hintTone?: TextTone;
-  check?: React.ReactNode;
-  chevron?: boolean;
-}
-
-const Trailing: React.FC<TrailingProps> = ({ hint, hintTone = 'faint', check, chevron = false }) => (
-  <>
-    {hint !== undefined && <Text variant="helper" tone={hintTone} className="shrink-0 tabular-nums">{hint}</Text>}
-    <span className={PICKER.checkSlot}>{check}</span>
-    <span className={PICKER.chevronSlot}>
-      {chevron && <Icon icon={ChevronRight} size="xs" tone="faint" />}
-    </span>
-  </>
-);
-
+/** A row's leading glyph, at the picker's icon size and tone. */
 const RowIcon: React.FC<{ icon: LucideIcon }> = ({ icon }) => <Icon icon={icon} size="xs" tone="muted" className="shrink-0" />;
 
 // ── Rows ──
@@ -156,26 +148,24 @@ const RowIcon: React.FC<{ icon: LucideIcon }> = ({ icon }) => <Icon icon={icon} 
 const WebSearchItem: React.FC<{ catalog: ToolCatalog; onHover: () => void }> = ({ catalog, onHover }) => {
   const { webSearch } = catalog;
   return (
-    <CommandItem
+    <CommandRow
       value="web search browse internet"
       disabled={!webSearch.available}
       onSelect={webSearch.toggle}
       onPointerEnter={onHover}
-    >
-      <RowIcon icon={Globe} />
-      <span className="flex-1 truncate">Web search</span>
-      <Trailing
-        hint={webSearch.available ? `via ${webSearch.providerLabel}` : 'Not available for this model'}
-        check={
-          <Checkbox
-            checked={webSearch.enabled}
-            onCheckedChange={webSearch.toggle}
-            disabled={!webSearch.available}
-            aria-label="Web search"
-          />
-        }
-      />
-    </CommandItem>
+      leading={<RowIcon icon={Globe} />}
+      label="Web search"
+      description={webSearch.available ? `via ${webSearch.providerLabel}` : 'Not available for this model'}
+      check={
+        <Checkbox
+          checked={webSearch.enabled}
+          onCheckedChange={webSearch.toggle}
+          disabled={!webSearch.available}
+          aria-label="Web search"
+        />
+      }
+      chevron={false}
+    />
   );
 };
 
@@ -198,16 +188,16 @@ const GroupItem: React.FC<GroupItemProps> = ({ group, icon, catalog, flyout, set
   const connecting = group.status === 'connecting' || catalog.connectingServer === group.label;
 
   const row = (
-    <CommandItem
+    <CommandRow
       value={`${group.label} ${group.tools.map((t) => t.name).join(' ')}`}
       onPointerEnter={() => setFlyout(usable ? group.key : null)}
       onSelect={() => (usable ? setFlyout(group.key) : group.status === 'off' && catalog.connectServer(group.label))}
       disabled={connecting}
-    >
-      {icon ? <RowIcon icon={icon} /> : <ServerIcon name={group.label} icon={group.icon} />}
-      <Text tone={usable ? 'inherit' : 'muted'} truncate className="flex-1">{group.label}</Text>
-      <GroupTrailing group={group} usable={usable} connecting={connecting} onToggle={(on) => catalog.setGroupEnabled(group, on)} />
-    </CommandItem>
+      leading={icon ? <RowIcon icon={icon} /> : <ServerIcon name={group.label} icon={group.icon} />}
+      label={group.label}
+      labelTone={usable ? 'inherit' : 'muted'}
+      {...groupColumns(group, usable, connecting, (on) => catalog.setGroupEnabled(group, on))}
+    />
   );
 
   if (!usable) return row;
@@ -241,50 +231,56 @@ const GroupItem: React.FC<GroupItemProps> = ({ group, icon, catalog, flyout, set
   );
 };
 
-const GroupTrailing: React.FC<{
-  group: CatalogGroup;
-  usable: boolean;
-  connecting: boolean;
-  onToggle: (enabled: boolean) => void;
-}> = ({ group, usable, connecting, onToggle }) => {
-  if (connecting) return <Trailing hint="Connecting…" />;
-  if (group.status === 'off') return <Trailing hint="Connect" hintTone="accent" />;
-  if (!usable) return <Trailing hint="No tools" />;
-  return (
-    <Trailing
-      hint={`${group.enabledCount}/${group.tools.length}`}
-      chevron
-      check={
-        <Checkbox
-          checked={groupState(group)}
-          onCheckedChange={onToggle}
-          aria-label={`${groupState(group) === true ? 'Disable' : 'Enable'} all ${group.label} tools`}
-        />
-      }
-    />
-  );
-};
+/** A group row's trailing columns: its state while connecting or off (check and chevron kept empty so it lines up), else tools on of total, a checkbox and its flyout. */
+function groupColumns(
+  group: CatalogGroup,
+  usable: boolean,
+  connecting: boolean,
+  onToggle: (enabled: boolean) => void,
+): Pick<CommandRowProps, 'meta' | 'metaTone' | 'check' | 'chevron'> {
+  const empty = { check: null, chevron: false };
+  if (connecting) return { meta: 'Connecting…', ...empty };
+  if (group.status === 'off') return { meta: 'Connect', metaTone: 'accent', ...empty };
+  if (!usable) return { meta: 'No tools', ...empty };
+  return {
+    meta: `${group.enabledCount}/${group.tools.length}`,
+    chevron: true,
+    check: (
+      <Checkbox
+        checked={groupState(group)}
+        onCheckedChange={onToggle}
+        aria-label={`${groupState(group) === true ? 'Disable' : 'Enable'} all ${group.label} tools`}
+      />
+    ),
+  };
+}
 
-const FooterItems: React.FC<{ askBeforeRunning: boolean; onOpenSettings: () => void; onHover: () => void }> = ({
-  askBeforeRunning,
-  onOpenSettings,
-  onHover,
-}) => {
+/** The approval setting, toggled right here, and the way to MCP settings. */
+const FooterItems: React.FC<{
+  askBeforeRunning: boolean;
+  onAskChange: (ask: boolean) => void;
+  onOpenSettings: () => void;
+  onHover: () => void;
+}> = ({ askBeforeRunning, onAskChange, onOpenSettings, onHover }) => {
   const ApprovalIcon = askBeforeRunning ? ShieldQuestion : ShieldCheck;
   return (
     <>
-      <CommandItem value="tool approval permissions" onSelect={onOpenSettings} onPointerEnter={onHover}>
-        <RowIcon icon={ApprovalIcon} />
-        <Text tone="muted" className="flex-1">
-          {askBeforeRunning ? 'Asks before running MCP tools' : 'Runs MCP tools without asking'}
-        </Text>
-        <Trailing />
-      </CommandItem>
-      <CommandItem value="manage mcp servers settings" onSelect={onOpenSettings} onPointerEnter={onHover}>
-        <RowIcon icon={Settings2} />
-        <Text tone="muted" className="flex-1">Manage MCP servers</Text>
-        <Trailing chevron />
-      </CommandItem>
+      <CommandRow
+        value="ask before running mcp tools approval permissions"
+        onSelect={() => onAskChange(!askBeforeRunning)}
+        onPointerEnter={onHover}
+        leading={<RowIcon icon={ApprovalIcon} />}
+        label="Ask before running MCP tools"
+        check={<Checkbox checked={askBeforeRunning} onCheckedChange={(on) => onAskChange(on === true)} aria-label="Ask before running MCP tools" />}
+      />
+      <CommandRow
+        value="manage mcp servers settings"
+        onSelect={onOpenSettings}
+        onPointerEnter={onHover}
+        leading={<RowIcon icon={Settings2} />}
+        label="Manage MCP servers…"
+        labelTone="muted"
+      />
     </>
   );
 };

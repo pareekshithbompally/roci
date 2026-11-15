@@ -1,4 +1,4 @@
-/** ⋯ menu on a selected-model row: capability toggles (apply at once) and Remove (asks first). */
+/** ⋯ menu on a selected-model row: Rename, capability toggles (apply at once) and Remove (asks first). */
 
 import React from 'react';
 import { MoreHorizontal } from 'lucide-react';
@@ -26,15 +26,18 @@ interface ModelRowMenuProps {
   /** Effective capabilities (override → models.dev → provider default). */
   capabilities: ModelCapabilities;
   onFlagChange: (flag: ModelCapabilityFlag, value: boolean) => void;
+  onRename: () => void;
   onRemove: () => void;
 }
 
-export const ModelRowMenu: React.FC<ModelRowMenuProps> = ({ capabilities, onFlagChange, onRemove }) => (
+export const ModelRowMenu: React.FC<ModelRowMenuProps> = ({ capabilities, onFlagChange, onRename, onRemove }) => (
   <DropdownMenu>
     <DropdownMenuTrigger asChild>
       <IconButton icon={MoreHorizontal} label="Model options" size="sm" />
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end">
+      <DropdownMenuItem onSelect={onRename}>Rename…</DropdownMenuItem>
+      <DropdownMenuSeparator />
       {FLAG_ITEMS.map(({ flag, capability, label }) => (
         <DropdownMenuCheckboxItem
           key={flag}

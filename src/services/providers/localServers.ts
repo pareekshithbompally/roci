@@ -11,21 +11,25 @@ import {
 } from '@config/localServers.config';
 import type { LocalServerEntry } from '@config/localServers.config';
 import { isLocalProviderId } from '@shared/utils/provider.utils';
-import type { Model, ModelProvider, ProviderSetting } from '@shared/types/modelProviders';
+import { isLlamaServer, isModelLoaded, servedModelInfo } from '@services/ai/llamaServer';
+import type { Model, ModelProvider, ProviderSetting, ServedModelInfo } from '@shared/types/modelProviders';
+
+/** One model a server offers: its id, and for llama-server what it reports about it and whether it's loaded. */
+export interface ServedModel {
+  id: string;
+  served?: ServedModelInfo;
+  loaded?: boolean;
+}
 
 export interface LocalServer {
   id: string;
   baseUrl: string;
   running: boolean;
-  modelIds: string[];
+  models: ServedModel[];
 }
 
 /** One row of the Local list: a detected server, a saved provider, or both. */
-export interface LocalRow {
-  id: string;
-  baseUrl: string;
-  running: boolean;
-  modelIds: string[];
+export interface LocalRow extends LocalServer {
   saved: ModelProvider | null;
 }
 
@@ -77,15 +81,21 @@ async function getWithTimeout(url: string): Promise<Response | null> {
   }
 }
 
-/** Model ids served at `{baseUrl}/models`, or null when no OpenAI-compatible server answers. */
-export async function probeModels(baseUrl: string): Promise<string[] | null> {
+/** One `/models` entry: its id, plus llama-server's own fields when the server is llama-server (others report only ids). */
+function servedModel(entry: { id?: unknown }, llama: boolean): ServedModel | null {
+  if (typeof entry.id !== 'string') return null;
+  return llama ? { id: entry.id, served: servedModelInfo(entry), loaded: isModelLoaded(entry) } : { id: entry.id };
+}
+
+/** Models served at `{baseUrl}/models`, or null when no OpenAI-compatible server answers. */
+export async function probeModels(baseUrl: string): Promise<ServedModel[] | null> {
   const response = await getWithTimeout(`${baseUrl.replace(/\/$/, '')}/models`);
   if (!response?.ok) return null;
   try {
-    const body: unknown = await response.json();
-    const data = (body as { data?: Array<{ id?: unknown }> }).data;
+    const data = ((await response.json()) as { data?: Array<{ id?: unknown }> }).data;
     if (!Array.isArray(data)) return null;
-    return data.map((m) => m.id).filter((id): id is string => typeof id === 'string');
+    const llama = await isLlamaServer(baseUrl);
+    return data.map((entry) => servedModel(entry, llama)).filter((model): model is ServedModel => model !== null);
   } catch {
     return null;
   }
@@ -99,12 +109,12 @@ async function fingerprintMatches(entry: LocalServerEntry, baseUrl: string): Pro
 }
 
 async function probeTarget(target: ProbeTarget): Promise<LocalServer> {
-  const modelIds = await probeModels(target.baseUrl);
-  if (!modelIds) return { id: target.id, baseUrl: target.baseUrl, running: false, modelIds: [] };
+  const models = await probeModels(target.baseUrl);
+  if (!models) return { id: target.id, baseUrl: target.baseUrl, running: false, models: [] };
 
   const confirmed = !target.entry || (await fingerprintMatches(target.entry, target.baseUrl));
   const id = confirmed ? target.id : customServerId(target.baseUrl);
-  return { id, baseUrl: target.baseUrl, running: true, modelIds };
+  return { id, baseUrl: target.baseUrl, running: true, models };
 }
 
 /** Saved local providers are probed at their own URL; known engines not yet saved at their default port. */
@@ -167,14 +177,20 @@ export function toLocalProvider(server: LocalServer): ModelProvider {
     api_key: LOCAL_SERVER_DEFAULT_API_KEY,
     base_url: server.baseUrl,
     settings: localProviderSettings(server.baseUrl),
-    models: syncModels([], server.modelIds),
+    models: syncModels([], server.models),
   };
 }
 
-/** Keep existing model entries (and their per-model settings) still served; add new ids; drop the rest. */
-export function syncModels(existing: Model[], ids: string[]): Model[] {
+/** Keep served models with the user's own choices (rename, overrides), refresh what the server reports, add new, drop the rest. */
+export function syncModels(existing: Model[], served: ServedModel[]): Model[] {
   const byId = new Map(existing.map((m) => [m.id, m]));
-  return ids.map((id) => byId.get(id) ?? { id, name: id });
+  return served.map(({ id, served: info }) => ({ ...(byId.get(id) ?? { id, name: id }), served: info }));
+}
+
+/** The saved models with what their server now reports; which models are listed changes only on enable or Rescan. */
+export function refreshServedInfo(existing: Model[], served: ServedModel[]): Model[] {
+  const reported = new Map(served.map((model) => [model.id, model.served]));
+  return existing.map((model) => (reported.has(model.id) ? { ...model, served: reported.get(model.id) } : model));
 }
 
 /** Detected servers merged with saved local providers. Not-running servers show only when saved. */

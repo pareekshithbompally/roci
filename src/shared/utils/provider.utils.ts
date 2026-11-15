@@ -75,6 +75,7 @@ export const getProviderTitle = (provider: string | undefined | null) => {
   }
 }
 
+/** A model's one display name everywhere: the user's rename, else the provider's name, else its id. */
 export function getModelDisplayName(model: Model): string {
-  return model.displayName || model.id
+  return model.displayName || model.name || model.id
 }

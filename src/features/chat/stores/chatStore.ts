@@ -14,6 +14,7 @@ import type {
   MeetingCitation,
   WebCitation,
   InlineCitationSpan,
+  ReasoningEffort,
 } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { MeetingListItem } from '@services/meetingReferenceService';
@@ -129,6 +130,8 @@ export interface ChatStoreState {
   copiedMessageId: string | null;
   selectedMeetingRefs: MeetingListItem[];
   webSearchEnabled: boolean;
+  /** The thinking level picked before a new chat exists; the chat keeps it once created. */
+  draftReasoningEffort: ReasoningEffort;
   aiActivity: StreamMetadata | null;
   pendingAttachments: ChatPart[];
 
@@ -152,6 +155,8 @@ export interface ChatStoreState {
   copyMessage: (messageId: string, text: string) => void;
   setSelectedMeetingRefs: (meetings: MeetingListItem[]) => void;
   toggleWebSearch: () => void;
+  /** Sets the current chat's thinking level (saved with the chat), or the new chat's before it exists. */
+  setReasoningEffort: (effort: ReasoningEffort) => void;
   rerunLastMessage: () => Promise<void>;
   addAttachment: (file: File) => Promise<void>;
   removeAttachment: (index: number) => void;
@@ -192,6 +197,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
   copiedMessageId: null,
   selectedMeetingRefs: [],
   webSearchEnabled: false,
+  draftReasoningEffort: 'provider-default',
   aiActivity: null,
   pendingAttachments: [],
 
@@ -237,6 +243,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
   newChat: () =>
     set({
       currentSessionId: null,
+      draftReasoningEffort: 'provider-default',
       input: '',
       viewHistory: false,
       searchQuery: '',
@@ -306,6 +313,21 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
   setSelectedMeetingRefs: (selectedMeetingRefs) => set({ selectedMeetingRefs }),
 
   toggleWebSearch: () => set((state) => ({ webSearchEnabled: !state.webSearchEnabled })),
+
+  setReasoningEffort: (effort) => {
+    const { currentSessionId, persistSession, setLoadedSessions } = get();
+    const session = currentSessionId ? loadedSessionsCache.get(currentSessionId) : undefined;
+    if (!session) {
+      set({ draftReasoningEffort: effort });
+      return;
+    }
+    // In memory at once, so the very next message uses it; then saved.
+    const updated = { ...session, reasoningEffort: effort };
+    setLoadedSessions((prev) => new Map(prev).set(updated.id, updated));
+    persistSession(updated).catch((error: unknown) =>
+      console.error('[ChatStore] Failed to save thinking level:', error)
+    );
+  },
 
 
   loadMoreSessions: () => set((state) => ({ indexPage: state.indexPage + 1 })),
@@ -444,11 +466,13 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
     let targetSession: ChatSession;
 
     if (isNewSession) {
+      const { draftReasoningEffort } = get();
       targetSession = {
         id: activeSessionId,
         title: textToSend.slice(0, 30),
         lastMessageAt: Date.now(),
         messages: [],
+        ...(draftReasoningEffort !== 'provider-default' && { reasoningEffort: draftReasoningEffort }),
       };
       const next = new Map(get().loadedSessions);
       next.set(activeSessionId, targetSession);
@@ -459,6 +483,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
           ...get().sessionIndex,
         ],
         currentSessionId: activeSessionId,
+        draftReasoningEffort: 'provider-default',
         input: isRegenerate ? get().input : '',
         isLoading: true,
         selectedMeetingRefs: [],
@@ -637,6 +662,25 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
       const webCitationUrls = new Set<string>();
       const allInlineCitations: InlineCitationSpan[] = [];
 
+      /** The reply's first content (text, thinking or a tool call) switches it from loading to streaming. */
+      const markStreaming = () => {
+        if (hasStartedStreaming) return;
+        hasStartedStreaming = true;
+        set({ aiActivity: null });
+        const cacheS = loadedSessionsCache.get(activeSessionId);
+        if (!cacheS) return;
+        const updated = {
+          ...cacheS,
+          messages: cacheS.messages.map((m) =>
+            m.id === assistantMsgId ? { ...m, state: 'streaming' as const } : m
+          ),
+        };
+        loadedSessionsCache.set(activeSessionId, updated);
+        const nm = new Map(get().loadedSessions);
+        nm.set(activeSessionId, updated);
+        set({ loadedSessions: nm });
+      };
+
       const handleChunk = (
         chunk: string,
         metadata?: StreamMetadata
@@ -657,26 +701,8 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
         }
 
         if (chunk) {
-          if (!hasStartedStreaming) {
-            hasStartedStreaming = true;
-            streamStartTime = Date.now();
-            set({ aiActivity: null });
-            const cacheS = loadedSessionsCache.get(activeSessionId);
-            if (cacheS) {
-              const updated = {
-                ...cacheS,
-                messages: cacheS.messages.map((m) =>
-                  m.id === assistantMsgId ? { ...m, state: 'streaming' as const } : m
-                ),
-              };
-              loadedSessionsCache.set(activeSessionId, updated);
-              const nm = new Map(get().loadedSessions);
-              nm.set(activeSessionId, updated);
-              set({ loadedSessions: nm });
-            }
-          } else if (streamStartTime === 0) {
-            streamStartTime = Date.now();
-          }
+          markStreaming();
+          if (streamStartTime === 0) streamStartTime = Date.now();
           streamingStore.push(chunk);
         }
       };
@@ -693,26 +719,16 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
           signal: abortControllerRef?.signal,
           webSearchEnabled,
           skipRetrieval: !hasToolSupport,
+          reasoningEffort: targetSession.reasoningEffort ?? 'provider-default',
         },
         {
           onChunk: handleChunk,
+          onReasoning: (text, generation) => {
+            markStreaming();
+            streamingStore.pushReasoning(text, generation);
+          },
           onToolActivity: (activity) => {
-            if (!hasStartedStreaming) {
-              hasStartedStreaming = true;
-              const cacheS = loadedSessionsCache.get(activeSessionId);
-              if (cacheS) {
-                const updated = {
-                  ...cacheS,
-                  messages: cacheS.messages.map((m) =>
-                    m.id === assistantMsgId ? { ...m, state: 'streaming' as const } : m
-                  ),
-                };
-                loadedSessionsCache.set(activeSessionId, updated);
-                const nm = new Map(get().loadedSessions);
-                nm.set(activeSessionId, updated);
-                set({ loadedSessions: nm });
-              }
-            }
+            markStreaming();
 
             const toolCallId = activity.toolCall.id;
 
@@ -1008,6 +1024,12 @@ export const useChatDebouncedSearchQuery = () => useChatStore((s) => s.debounced
 export const useChatCopiedMessageId = () => useChatStore((s) => s.copiedMessageId);
 export const useChatSelectedMeetingRefs = () => useChatStore((s) => s.selectedMeetingRefs);
 export const useChatWebSearchEnabled = () => useChatStore((s) => s.webSearchEnabled);
+/** The current chat's thinking level, or the level picked for the chat about to start. */
+export const useChatReasoningEffort = () =>
+  useChatStore((s) => {
+    const session = s.currentSessionId ? s.loadedSessions.get(s.currentSessionId) : undefined;
+    return session ? session.reasoningEffort ?? 'provider-default' : s.draftReasoningEffort;
+  });
 export const useChatAiActivity = () => useChatStore((s) => s.aiActivity);
 export const useChatPendingAttachments = () => useChatStore((s) => s.pendingAttachments);
 

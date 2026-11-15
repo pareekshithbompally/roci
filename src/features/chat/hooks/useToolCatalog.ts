@@ -17,7 +17,7 @@ import {
   useMcpTools,
   useMcpUpdateListener,
 } from '@features/settings/hooks';
-import { toggleServer } from '@features/settings/components/mcp';
+import { toggleServer, updateSettings } from '@features/settings/components/mcp';
 import { useChatStore } from '@features/chat/stores/chatStore';
 import { buildCatalog, countEnabled, setToolsEnabled } from './toolCatalog';
 import type { CatalogGroup } from './toolCatalog';
@@ -85,6 +85,18 @@ export function useToolCatalog() {
     [mcpConfig, reconfigure, showToast],
   );
 
+  /** Ask before running MCP tools, or run them without asking: the same setting as Settings › MCP. */
+  const setAskBeforeRunning = useCallback(
+    (ask: boolean) => {
+      if (!mcpConfig) return;
+      reconfigure.mutateAsync(updateSettings(mcpConfig, { allowAllTools: !ask })).catch((error: unknown) => {
+        console.error('[useToolCatalog] Changing tool approval failed:', error);
+        showToast('Couldn’t change tool approval', 'error');
+      });
+    },
+    [mcpConfig, reconfigure, showToast],
+  );
+
   const webSearchAvailable = capabilities?.webSearch ?? false;
 
   return {
@@ -104,6 +116,7 @@ export function useToolCatalog() {
     setGroupEnabled,
     setToolEnabled,
     connectServer,
+    setAskBeforeRunning,
   };
 }
 

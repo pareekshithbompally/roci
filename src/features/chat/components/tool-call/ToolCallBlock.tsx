@@ -1,12 +1,13 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 import { Badge, Disclosure, Icon, Text } from '@shared/ui';
+import type { DisclosureVariant } from '@shared/ui';
 import { ServerIcon } from '@shared/components';
 import { useMcpServerInfo } from '@features/settings/hooks';
 import { formatExecutionMs, toolCallTitle, type ToolCallPart } from './toolCallTitle';
 import { toolCallIcon } from './toolCallIcons';
 import { ToolCallBody } from './ToolCallBody';
-import { useAutoFold } from './useAutoFold';
+import { useAutoFold } from '@features/chat/hooks/useAutoFold';
 
 /** The MCP server's own icon, looked up from the connected servers. */
 function McpToolGlyph({ source }: { source: string }) {
@@ -31,16 +32,19 @@ function ToolCallMeta({ part }: { part: ToolCallPart }) {
 
 export interface ToolCallBlockProps {
   part: ToolCallPart;
-  /** Open while it runs and fold after (default); off inside a group, which follows instead. */
+  /** Open while it runs and fold after (default); off once its run has folded. */
   follow?: boolean;
+  /** `inline` at the top of a reply, flush with its text; `row` (default) when nested in a folded run. */
+  variant?: DisclosureVariant;
 }
 
 /** One collapsible tool call; alone it follows the call's progress, inside a group it starts folded. */
-export const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ part, follow = true }) => {
+export const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ part, follow = true, variant }) => {
   const [open, setOpen] = useAutoFold(follow && part.status === 'calling');
 
   return (
   <Disclosure
+    variant={variant}
     open={open}
     onOpenChange={setOpen}
     summary={

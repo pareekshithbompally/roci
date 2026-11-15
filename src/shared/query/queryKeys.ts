@@ -39,6 +39,8 @@ export const queryKeys = {
   remindersLists: () => ['reminders', 'lists'] as const,
   /** models.dev catalog: model capabilities, context limits, pricing */
   modelCatalog: () => ['model-catalog'] as const,
+  /** A remote image (model avatar, MCP server icon) as a cached `data:` source, by URL */
+  cachedImage: (url: string) => ['cached-image', url] as const,
   /** Token usage summary for a time range (Settings → Usage) */
   usage: (range: string) => ['usage', range] as const,
 

@@ -79,8 +79,8 @@ describe('promptProgress', () => {
 
 describe('generationStats', () => {
   it('reads tokens so far and speed from a chunk\'s timings', () => {
-    const chunk = { choices: [{ delta: { reasoning_content: '7' } }], timings: { prompt_n: 27, predicted_n: 12, predicted_per_second: 7.5 } };
-    expect(generationStats(chunk)).toEqual({ tokens: 12, tokensPerSecond: 7.5 });
+    const chunk = { choices: [{ delta: { reasoning_content: '7' } }], timings: { prompt_n: 27, predicted_n: 12, predicted_ms: 1466.652, predicted_per_second: 7.5 } };
+    expect(generationStats(chunk)).toEqual({ tokens: 12, elapsedMs: 1466.652, tokensPerSecond: 7.5 });
   });
 
   it('is null before the first token', () => {

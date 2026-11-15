@@ -15,6 +15,8 @@ interface MarkdownProps {
   messageId?: string;
   /** When provided, enables inline citation marker rendering */
   webCitations?: WebCitation[];
+  /** `aside`: content beside the answer (the model's thinking) — muted, smaller and tight. */
+  variant?: 'answer' | 'aside';
 }
 
 // Stable module-level plugin refs so Streamdown does not remount CodeBlocks on every streaming render.
@@ -29,6 +31,7 @@ const MarkdownInner: React.FC<MarkdownProps> = ({
   content,
   streaming,
   webCitations,
+  variant = 'answer',
 }) => {
   // While streaming, render the deferred value so token bursts coalesce into one re-parse.
   const deferredContent = useDeferredValue(content);
@@ -58,7 +61,7 @@ const MarkdownInner: React.FC<MarkdownProps> = ({
   }, [hasCitations, webCitations]);
 
   return (
-    <div className="markdown-content">
+    <div className="markdown-content" data-variant={variant}>
       <Streamdown
         mode={streaming ? 'streaming' : 'static'}
         parseIncompleteMarkdown={streaming}
@@ -80,5 +83,6 @@ export const Markdown = memo(
   (prev, next) =>
     prev.content === next.content &&
     prev.streaming === next.streaming &&
-    prev.webCitations === next.webCitations
+    prev.webCitations === next.webCitations &&
+    prev.variant === next.variant
 );

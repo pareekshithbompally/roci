@@ -1,15 +1,9 @@
-/** A model's Hugging Face org icon, else a monogram; failed orgs aren't retried until a shared cooldown passes. */
+/** A model's Hugging Face org icon (cached, so it loads once), else a monogram when the org has none. */
 
-import React, { useState } from 'react';
+import React from 'react';
 import { MODEL_AVATARS_CONFIG } from '@config/modelAvatars.config';
 import { getAvatarUrl, orgHue } from '@services/modelAvatars';
-
-const failedAt = new Map<string, number>();
-
-function recentlyFailed(org: string): boolean {
-  const at = failedAt.get(org);
-  return at !== undefined && Date.now() - at < MODEL_AVATARS_CONFIG.failureCooldownMs;
-}
+import { useCachedImage } from '@shared/hooks/useCachedImage';
 
 interface ModelAvatarProps {
   org: string;
@@ -17,7 +11,7 @@ interface ModelAvatarProps {
 }
 
 export const ModelAvatar: React.FC<ModelAvatarProps> = ({ org, size }) => {
-  const [failed, setFailed] = useState(() => recentlyFailed(org));
+  const { src, failed } = useCachedImage(getAvatarUrl(org));
   const box = { width: size, height: size };
 
   if (failed) {
@@ -33,19 +27,17 @@ export const ModelAvatar: React.FC<ModelAvatarProps> = ({ org, size }) => {
     );
   }
 
+  // Holds the space while the first load runs, so nothing shifts when the icon arrives.
+  if (!src) return <span aria-hidden className="shrink-0" style={box} />;
+
   const darkLogo = (MODEL_AVATARS_CONFIG.darkLogoOrgs as readonly string[]).includes(org.toLowerCase());
   return (
     <img
-      src={getAvatarUrl(org)}
+      src={src}
       alt=""
-      loading="lazy"
       draggable={false}
       className={`shrink-0 rounded-full object-cover ${darkLogo ? '[filter:var(--logo-filter)]' : ''}`}
       style={box}
-      onError={() => {
-        failedAt.set(org, Date.now());
-        setFailed(true);
-      }}
     />
   );
 };

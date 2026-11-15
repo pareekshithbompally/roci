@@ -1,6 +1,6 @@
 /** MCP config and connections as queries; a server that fails to connect is saved disabled and reported. */
 
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { mcpService } from '@services/mcp.service';
@@ -9,6 +9,8 @@ import { queryKeys } from '@shared/query/queryKeys';
 import { MCP_CONFIG } from '@config/mcp.config';
 import type { McpConfig } from '@config/mcp.config';
 import { errorMessage } from '@shared/utils/errors';
+import { useThemeContext } from '@shared/contexts/ThemeContext';
+import type { McpServerInfo } from '@services/mcp.service';
 
 export function useMcpConfig() {
   return useQuery({
@@ -35,11 +37,18 @@ export function useMcpTools() {
   });
 }
 
-/** Connected servers' title/icon, by server name (picker, settings cards, chat). */
+/** Connected servers' title/icon by server name (picker, settings cards, chat); `icon` is the one for the current theme. */
 export function useMcpServerInfo() {
+  const { isDark } = useThemeContext();
+  const forTheme = useCallback(
+    (servers: McpServerInfo[]) =>
+      new Map(servers.map((info) => [info.name, { ...info, icon: (isDark && info.iconDark) || info.icon }])),
+    [isDark],
+  );
   return useQuery({
     queryKey: queryKeys.mcpServerInfo(),
-    queryFn: async () => new Map((await mcpService.getServerInfo()).map((info) => [info.name, info])),
+    queryFn: () => mcpService.getServerInfo(),
+    select: forTheme,
     enabled: isTauriEnvironment(),
   });
 }

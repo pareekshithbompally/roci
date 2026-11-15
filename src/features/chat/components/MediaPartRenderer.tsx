@@ -54,7 +54,7 @@ interface MediaPartRendererProps {
 export const MediaPartRenderer: React.FC<MediaPartRendererProps> = ({ part }) => {
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
-  if (part.type === 'text' || part.type === 'tool_call') return null;
+  if (part.type === 'text' || part.type === 'reasoning' || part.type === 'tool_call') return null;
 
   const src = useMemo(() => resolveMediaSrc(part.source, part.mimeType), [part]);
   const handleOpen = useCallback(() => setLightboxOpen(true), []);
