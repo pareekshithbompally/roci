@@ -1,4 +1,4 @@
-/** Event bridge so the non-React embedder and indexers report model, indexing and extraction progress to the UI. */
+/** Event bridge so the non-React embedder and indexers report model and indexing progress to the UI. */
 
 /** Embedding model lifecycle events */
 export interface EmbeddingModelEvent {
@@ -29,20 +29,7 @@ export interface IndexingProgressEvent {
   error?: string;
 }
 
-/** Knowledge graph entity extraction progress events */
-export interface ExtractionProgressEvent {
-  kind: 'extraction';
-  status: 'started' | 'progress' | 'complete' | 'error';
-  /** Current meeting being extracted (1-based) */
-  current?: number;
-  /** Total meetings to extract */
-  total?: number;
-  /** Title of current meeting */
-  currentTitle?: string;
-  error?: string;
-}
-
-export type RAGProgressEvent = EmbeddingModelEvent | IndexingProgressEvent | ExtractionProgressEvent;
+export type RAGProgressEvent = EmbeddingModelEvent | IndexingProgressEvent;
 
 /** @deprecated Use RAGProgressEvent instead */
 export type EmbeddingProgress = EmbeddingModelEvent;

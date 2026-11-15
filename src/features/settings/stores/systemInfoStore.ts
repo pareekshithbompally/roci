@@ -12,7 +12,6 @@ export interface IndexStats {
   meetings: { indexed: number; onDisk: number };
   chats: { indexed: number; onDisk: number };
   chunks: { total: number; transcript: number };
-  kg: { nodes: number; edges: number };
 }
 
 export interface DiskUsageEntry {
@@ -121,7 +120,6 @@ async function loadAllData(): Promise<void> {
           meetings: { indexed: stats.total_meetings, onDisk: diskMeetings.length },
           chats: { indexed: stats.chat_sessions, onDisk: diskChats },
           chunks: { total: stats.total_chunks, transcript: stats.transcript_chunks },
-          kg: { nodes: stats.kg_nodes, edges: stats.kg_edges },
         }
       : null;
 
@@ -150,8 +148,6 @@ async function loadIndexStatsInternal(): Promise<{
   chat_sessions: number;
   total_chunks: number;
   transcript_chunks: number;
-  kg_nodes: number;
-  kg_edges: number;
 } | null> {
   try {
     const { vectorDB } = await import('@extensions/rag');

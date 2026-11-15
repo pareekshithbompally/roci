@@ -1,11 +1,9 @@
 /** Indexes meetings into sqlite-vec via Rust: chunk, embed, upsert; content hashes skip unchanged meetings. */
 
-import type { HistoryItem, AppSettings, MeetingSummary } from '@shared/types';
-import type { ModelProvider } from '@shared/types/modelProviders';
+import type { HistoryItem } from '@shared/types';
 import { embeddingService, preloadModel } from './embeddings';
 import { NOT_CONSENTED } from './types';
 import { vectorDB } from './client';
-import { entityExtractor } from './entity-extractor';
 import { chunkMeeting, computeContentHash } from './chunker';
 import { emitProgress } from './progress';
 import { EMBEDDING_MODEL, HASH_CONCURRENCY } from './constants';
@@ -18,10 +16,6 @@ export interface IndexOptions {
   includeEmbeddings?: boolean;
   /** Skip staleness check and re-index everything (for manual re-index) */
   force?: boolean;
-  extractionContext?: {
-    settings: AppSettings;
-    providers: ModelProvider[];
-  };
 }
 
 /** Chunk → embed → upsert; content_hash is stamped only after the chunks are confirmed in the DB. */
@@ -88,13 +82,12 @@ async function indexMeeting(
   };
 }
 
-/** Content, embedding and extraction staleness are tracked separately, so FTS-only runs never block embedding. */
+/** Content and embedding staleness are tracked separately, so FTS-only runs never block embedding. */
 async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptions): Promise<number> {
   if (items.length === 0) return 0;
 
   const signal = options instanceof AbortSignal ? options : options?.signal;
   const includeEmbeddings = options instanceof AbortSignal ? true : options?.includeEmbeddings ?? true;
-  const extractionContext = options instanceof AbortSignal ? undefined : options?.extractionContext;
   const force = options instanceof AbortSignal ? false : options?.force ?? false;
 
   await vectorDB.initialize();
@@ -243,90 +236,7 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
     }
   }
 
-  // ── Step 3: Entity extraction for extraction-stale meetings ──
-  if (extractionContext) {
-    const extractable = items.filter(item => item.structuredSummary);
-    if (extractable.length === 0) {
-      console.log('[RAGIndexer] Step 3 skipped: no meetings have structuredSummary');
-    } else {
-      const extractableIds = extractable.map(i => i.id);
-      const needsExtractionIds = await vectorDB.getMeetingsNeedingExtraction(extractableIds);
-
-      if (needsExtractionIds.length === 0) {
-        console.log('[RAGIndexer] Step 3 skipped: all meetings already extracted');
-      } else {
-        const needsExtractionSet = new Set(needsExtractionIds);
-        const extractionItems = extractable.filter(i => needsExtractionSet.has(i.id));
-
-        console.log(`[RAGIndexer] Step 3: extracting entities for ${extractionItems.length} meetings`);
-        emitProgress({ kind: 'extraction', status: 'started', total: extractionItems.length });
-
-        let extracted = 0;
-        for (let i = 0; i < extractionItems.length; i++) {
-          if (signal?.aborted) break;
-          const item = extractionItems[i];
-
-          emitProgress({
-            kind: 'extraction',
-            status: 'progress',
-            current: i + 1,
-            total: extractionItems.length,
-            currentTitle: item.title,
-          });
-
-          if (!item.structuredSummary) {
-            console.warn('[RAGIndexer] Skipping extraction for meeting without summary:', item.id);
-            continue;
-          }
-          try {
-            const summary = toMeetingSummary(item.structuredSummary);
-            // Pass an excerpt so the full transcript isn't held in the closure for 60s per meeting.
-            const transcriptExcerpt = item.transcript?.slice(0, 3000) ?? '';
-            const success = await entityExtractor.extractAndUpsert(
-              item.id, item.title, summary, transcriptExcerpt,
-              extractionContext.settings, extractionContext.providers,
-              item.categories || [],
-              signal,
-            );
-            if (success) {
-              await vectorDB.markMeetingExtracted(item.id);
-              extracted++;
-            }
-          } catch (err) {
-            console.error(`[RAGIndexer] Entity extraction failed for "${item.title}":`, err);
-          }
-        }
-
-        emitProgress({
-          kind: 'extraction',
-          status: 'complete',
-          current: extracted,
-          total: extractionItems.length,
-        });
-
-        console.log(`[RAGIndexer] Step 3 complete: extracted ${extracted}/${extractionItems.length} meetings`);
-      }
-    }
-  } else {
-    console.log('[RAGIndexer] Step 3 skipped: no extractionContext (chatModel not configured)');
-  }
-
   return indexed;
-}
-
-/** Convert StructuredSummary to MeetingSummary for entity extraction */
-function toMeetingSummary(s: NonNullable<HistoryItem['structuredSummary']>): MeetingSummary {
-  return {
-    overview: s.overview || s.tldr || '',
-    keyDiscussionPoints: s.keyDiscussionPoints || [],
-    decisionsMade: s.decisionsMade || [],
-    actionItems: (s.actionItems || []).map(a => ({
-      text: a.text,
-      owner: a.owner,
-      dueDate: a.dueDate,
-    })),
-    nextSteps: s.nextSteps || [],
-  };
 }
 
 /** Items that are new or stale. */
@@ -361,83 +271,8 @@ export async function getRAGStatus(): Promise<RAGStatus> {
   };
 }
 
-/** Runs only KG extraction for extraction-stale meetings; assumes they are already indexed. */
-async function extractAll(
-  items: HistoryItem[],
-  extractionContext: { settings: AppSettings; providers: ModelProvider[] },
-  signal?: AbortSignal,
-): Promise<number> {
-  await vectorDB.initialize();
-
-  const extractable = items.filter(item => item.structuredSummary);
-  if (extractable.length === 0) {
-    console.log('[RAGIndexer] extractAll: no meetings have structuredSummary');
-    return 0;
-  }
-
-  const extractableIds = extractable.map(i => i.id);
-  const needsExtractionIds = await vectorDB.getMeetingsNeedingExtraction(extractableIds);
-
-  if (needsExtractionIds.length === 0) {
-    console.log('[RAGIndexer] extractAll: all meetings already extracted');
-    return 0;
-  }
-
-  const needsExtractionSet = new Set(needsExtractionIds);
-  const extractionItems = extractable.filter(i => needsExtractionSet.has(i.id));
-
-  console.log(`[RAGIndexer] extractAll: ${extractionItems.length} meetings need entity extraction`);
-  emitProgress({ kind: 'extraction', status: 'started', total: extractionItems.length });
-
-  let extracted = 0;
-  for (let i = 0; i < extractionItems.length; i++) {
-    if (signal?.aborted) break;
-    const item = extractionItems[i];
-
-    emitProgress({
-      kind: 'extraction',
-      status: 'progress',
-      current: i + 1,
-      total: extractionItems.length,
-      currentTitle: item.title,
-    });
-
-    if (!item.structuredSummary) {
-      console.warn('[RAGIndexer] Skipping extraction for meeting without summary:', item.id);
-      continue;
-    }
-    try {
-      const summary = toMeetingSummary(item.structuredSummary);
-      const transcriptExcerpt = item.transcript?.slice(0, 3000) ?? '';
-      const success = await entityExtractor.extractAndUpsert(
-        item.id, item.title, summary, transcriptExcerpt,
-        extractionContext.settings, extractionContext.providers,
-        item.categories || [],
-        signal,
-      );
-      if (success) {
-        await vectorDB.markMeetingExtracted(item.id);
-        extracted++;
-      }
-    } catch (err) {
-      console.error(`[RAGIndexer] Entity extraction failed for "${item.title}":`, err);
-    }
-  }
-
-  emitProgress({
-    kind: 'extraction',
-    status: 'complete',
-    current: extracted,
-    total: extractionItems.length,
-  });
-
-  console.log(`[RAGIndexer] extractAll complete: ${extracted}/${extractionItems.length} meetings`);
-  return extracted;
-}
-
 export const ragIndexer = {
   indexMeeting,
   indexAll,
-  extractAll,
   needsReindex,
 };

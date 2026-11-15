@@ -23,8 +23,6 @@ export interface StoreStats {
   transcript_chunks: number;
   chat_sessions: number;
   chat_chunks: number;
-  kg_nodes: number;
-  kg_edges: number;
   db_size_bytes: number;
   fts_chunks: number;
   fts_chat_chunks: number;

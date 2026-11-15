@@ -167,6 +167,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
             )}
         </Text>
         {isLoading && status.percent !== null && <Progress key={status.label} percent={status.percent} size="compact" />}
+        {isLoading && status.detail && <Text variant="mono" tone="faint">{status.detail}</Text>}
       </div>
 
       {/* STREAMING or COMPLETE STATE */}

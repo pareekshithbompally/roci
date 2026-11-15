@@ -95,8 +95,6 @@ export interface DbStats {
   transcript_chunks: number;
   chat_sessions: number;
   chat_chunks: number;
-  kg_nodes: number;
-  kg_edges: number;
   db_size_bytes: number;
   fts_chunks: number;
   fts_chat_chunks: number;
@@ -148,19 +146,9 @@ export const vectorDB = {
     return invoke('plugin:store|get_meetings_needing_embeddings', { meetingIds });
   },
 
-  async getMeetingsNeedingExtraction(meetingIds: string[]): Promise<string[]> {
-    await ensureInitialized();
-    return invoke('plugin:store|get_meetings_needing_extraction', { meetingIds });
-  },
-
   async markMeetingEmbedded(meetingId: string): Promise<void> {
     await ensureInitialized();
     await invoke('plugin:store|mark_meeting_embedded', { meetingId });
-  },
-
-  async markMeetingExtracted(meetingId: string): Promise<void> {
-    await ensureInitialized();
-    await invoke('plugin:store|mark_meeting_extracted', { meetingId });
   },
 
   async getIndexedIds(): Promise<string[]> {

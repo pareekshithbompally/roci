@@ -8,7 +8,7 @@ const sseResponse = (events: unknown[]) =>
 const fetchMock = vi.fn();
 vi.mock('@services/platform-fetch', () => ({ getPlatformFetch: () => fetchMock }));
 
-const { followModelLoad, promptProgressPercent } = await import('@services/ai/llamaServer');
+const { followModelLoad, generationStats, promptProgress } = await import('@services/ai/llamaServer');
 
 const MODEL = 'nvidia/Nemotron:Q4_K_M';
 const loading = (current: string, value: number, stages: string[]) => ({
@@ -61,13 +61,30 @@ describe('followModelLoad', () => {
   });
 });
 
-describe('promptProgressPercent', () => {
-  it('counts only the tokens that are not already cached', () => {
-    expect(promptProgressPercent({ prompt_progress: { total: 300, cache: 100, processed: 200 } })).toBe(50);
+describe('promptProgress', () => {
+  it('counts only the tokens that are not already cached, and the time left at the pace so far', () => {
+    expect(promptProgress({ prompt_progress: { total: 300, cache: 100, processed: 200, time_ms: 2000 } }))
+      .toEqual({ stage: 'reading-prompt', percent: 50, secondsLeft: 2 });
+  });
+
+  it('gives no time left before anything is read or too early to tell', () => {
+    expect(promptProgress({ prompt_progress: { total: 3019, cache: 0, processed: 0, time_ms: 0 } })?.secondsLeft).toBeUndefined();
+    expect(promptProgress({ prompt_progress: { total: 3019, cache: 0, processed: 8, time_ms: 16 } })?.secondsLeft).toBeUndefined();
   });
 
   it('is null for chunks that carry no progress', () => {
-    expect(promptProgressPercent({ choices: [] })).toBeNull();
+    expect(promptProgress({ choices: [] })).toBeNull();
+  });
+});
+
+describe('generationStats', () => {
+  it('reads tokens so far and speed from a chunk\'s timings', () => {
+    const chunk = { choices: [{ delta: { reasoning_content: '7' } }], timings: { prompt_n: 27, predicted_n: 12, predicted_per_second: 7.5 } };
+    expect(generationStats(chunk)).toEqual({ tokens: 12, tokensPerSecond: 7.5 });
+  });
+
+  it('is null before the first token', () => {
+    expect(generationStats({ timings: { prompt_n: 27, predicted_n: 0 } })).toBeNull();
   });
 });
 

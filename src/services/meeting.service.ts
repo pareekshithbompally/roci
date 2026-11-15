@@ -33,15 +33,6 @@ class MeetingService {
         }
       }
 
-      // Chunks and vectors went with the meeting delete; only the knowledge graph needs an orphan-node prune.
-      import('@extensions/rag/graph-client').then(({ graphDB }) => {
-        graphDB.deleteMeeting(id).catch(err =>
-          console.warn('[MeetingService] Graph cleanup failed for', id, err)
-        );
-      }).catch((error: unknown) =>
-        console.warn('[MeetingService] Graph client unavailable, skipping cleanup for', id, error)
-      );
-
       return true;
     } catch (error) {
       console.error('[MeetingService] Failed to delete meeting:', id, error);

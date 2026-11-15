@@ -1,7 +1,6 @@
 /** Saves a transcription's transcript, summary, recording meta and todos in one atomic store write. */
 
-import type { MeetingSummary, AppSettings, HistoryItem, ProcessedResult, StoredTranscriptSegment } from '@shared/types';
-import type { ModelProvider } from '@shared/types/modelProviders';
+import type { MeetingSummary, HistoryItem, ProcessedResult, StoredTranscriptSegment } from '@shared/types';
 import { store } from '@services/db';
 import { normalizeDueDate } from '@shared/utils/todo.utils';
 import { formatMeetingSummary } from './searchIndexing.service';
@@ -21,11 +20,6 @@ export interface TranscriptionResult {
   model?: string;
   language?: string;
   segments?: StoredTranscriptSegment[];
-  /** Optional: settings + providers for entity extraction. If omitted, extraction is skipped. */
-  extractionContext?: {
-    settings: AppSettings;
-    providers: ModelProvider[];
-  };
   /** When the meeting happened (epoch ms); defaults to now. Imports keep their original time. */
   createdAt?: number;
   /** Calendar metadata to persist in the meeting index. */
@@ -118,19 +112,6 @@ class TranscriptionService {
           console.error('[TranscriptionService] Meeting indexing failed (non-fatal):', meetingId, err)
         );
       }).catch(err => console.error('[TranscriptionService] Failed to load RAG indexer:', err));
-
-      // Trigger entity extraction (non-blocking, non-fatal)
-      if (result.extractionContext) {
-        const ctx = result.extractionContext;
-        import('@extensions/rag/entity-extractor').then(({ entityExtractor }) => {
-          entityExtractor.extractAndUpsert(
-            meetingId, title, summary, transcript,
-            ctx.settings,
-            ctx.providers,
-            result.categories || [],
-          ).catch(err => console.error('[TranscriptionService] Entity extraction failed:', err));
-        }).catch(err => console.error('[TranscriptionService] Failed to load entity extractor:', err));
-      }
 
       return true;
     } catch (error) {

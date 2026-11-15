@@ -174,7 +174,6 @@ class ImportService {
       summary: meetingSummary,
       categories: result.categories,
       inputSource: 'transcript-import',
-      extractionContext: { settings, providers },
     });
 
     this.debouncedRefresh();
@@ -223,7 +222,6 @@ class ImportService {
       inputSource: 'audio-import',
       model: settings.transcriptionModel,
       segments: result.segments,
-      extractionContext: { settings, providers },
     });
 
     this.debouncedRefresh();

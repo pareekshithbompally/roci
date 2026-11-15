@@ -31,7 +31,7 @@ const CAPTURE_HINT: Record<(typeof CAPTURE_SOURCES)[number], string> = {
 
 export const GeneralPanel: React.FC = () => {
   const { theme, setTheme } = useTheme();
-  const { settings, setSettings, providers } = useSettings();
+  const { settings, setSettings } = useSettings();
   const liveDictation = useLiveDictation();
   const { liveCopy } = TRANSCRIPTION_CONFIG;
   const { showToast } = useToast();
@@ -51,8 +51,7 @@ export const GeneralPanel: React.FC = () => {
   const captureSource = (settings.defaultAudioSource || 'systemAndMicrophone') as (typeof CAPTURE_SOURCES)[number];
   const { copied: storagePathCopied, markCopied: markStoragePathCopied } = useCopiedFlag();
   const [upToDate, setUpToDate] = useState(false);
-  const kgModel = settings.kgExtractionModel || settings.chatModel;
-  const [rebuildingPhase, setRebuildingPhase] = useState<'meetings' | 'chats' | 'kg' | null>(null);
+  const [rebuildingPhase, setRebuildingPhase] = useState<'meetings' | 'chats' | null>(null);
   const [isRebuilding, setIsRebuilding] = useState(false);
 
 
@@ -90,22 +89,6 @@ export const GeneralPanel: React.FC = () => {
     }
   }, [showToast, loadIndexStats]);
 
-  const handleReindexKG = useCallback(async () => {
-    if (!kgModel) return;
-    setRebuildingPhase('kg');
-    try {
-      const { ragIndexer } = await import('@extensions/rag');
-      const meetingItems = await searchIndexingService.loadMeetingsForIndexing();
-      await ragIndexer.extractAll(meetingItems, { settings: { ...settings, chatModel: kgModel }, providers });
-    } catch (error: unknown) {
-      console.error('[GeneralPanel] KG extraction failed:', error);
-      showToast('Couldn’t extract entities', 'error');
-    } finally {
-      setRebuildingPhase(null);
-      loadIndexStats();
-    }
-  }, [settings, providers, showToast, loadIndexStats]);
-
   const handleRebuildIndex = useCallback(async () => {
     const confirmed = await confirm({
       title: 'Rebuild the search index?',
@@ -132,12 +115,8 @@ export const GeneralPanel: React.FC = () => {
 
       setRebuildingPhase('meetings');
       try {
-        const extractionContext = kgModel
-          ? { settings: { ...settings, chatModel: kgModel }, providers }
-          : undefined;
         await ragIndexer.indexAll(meetingItems, {
           includeEmbeddings: true,
-          extractionContext,
         });
       } catch (error: unknown) {
         console.error('[GeneralPanel] Meeting indexing failed:', error);
@@ -163,7 +142,7 @@ export const GeneralPanel: React.FC = () => {
       setIsRebuilding(false);
       loadIndexStats();
     }
-  }, [settings, providers, showToast, loadIndexStats]);
+  }, [showToast, loadIndexStats]);
 
   const handleOpenInFinder = async () => {
     if (!storagePath) return;
@@ -379,18 +358,10 @@ export const GeneralPanel: React.FC = () => {
                 busy={rebuildingPhase === 'chats'}
                 disabled={indexBusy}
               />
-              <IndexActionRow
-                label="Knowledge Graph"
-                indexed={indexStats?.kg.nodes}
-                detail={!kgModel ? 'Choose an extraction model in Capabilities first.' : indexStats ? `${indexStats.kg.nodes} entities · ${indexStats.kg.edges} relationships` : PENDING}
-                onReindex={handleReindexKG}
-                busy={rebuildingPhase === 'kg'}
-                disabled={indexBusy || !kgModel}
-              />
 
           <CardRow
             title="Rebuild All"
-            description="Wipes and re-indexes all meetings, chats, and knowledge graph."
+            description="Wipes and re-indexes all meetings and chats."
             actions={
               <Button variant="outline" size="sm" onClick={() => void handleRebuildIndex()} disabled={indexBusy && !isRebuilding} loading={isRebuilding}>
                 {!isRebuilding && <Icon icon={RefreshCw} size="xs" />}

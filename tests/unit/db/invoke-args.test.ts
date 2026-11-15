@@ -87,25 +87,4 @@ describe('store invoke arg shapes match Rust command signatures', () => {
     expect(callsFor('reminders_set_status')).toEqual([{ todoId: 't1', status: 'fired' }]);
     expect(callsFor('reminders_prune')).toEqual([{ maxAgeMs: 1000 }]);
   });
-
-  it('graph client uses camelCase top-level args (nested params stay snake_case)', async () => {
-    const { graphDB } = await import('@extensions/rag/graph-client');
-    await graphDB.upsert({ meeting_id: 'm1', nodes: [], edges: [] });
-    await graphDB.traverse({
-      start_node_id: 'meeting:m1',
-      edge_types: [],
-      target_node_types: [],
-      max_depth: 1,
-      direction: 'outgoing',
-      limit: 10,
-    });
-    await graphDB.neighbors('meeting:m1', ['mentions'], 'outgoing');
-    await graphDB.deleteMeeting('m1');
-    expect(callsFor('graph_upsert')).toEqual([{ meetingId: 'm1', nodes: [], edges: [] }]);
-    expect(callsFor('graph_traverse')[0]).toMatchObject({ params: { start_node_id: 'meeting:m1' } });
-    expect(callsFor('graph_neighbors')).toEqual([
-      { nodeId: 'meeting:m1', edgeTypes: ['mentions'], direction: 'outgoing' },
-    ]);
-    expect(callsFor('graph_delete_meeting')).toEqual([{ meetingId: 'm1' }]);
-  });
 });

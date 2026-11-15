@@ -88,7 +88,7 @@ const App: React.FC = () => {
   // Tray › Speech Model submenu: downloaded Hex models and the current pick
   useMenubarSpeechModels();
 
-  // Index warm-up: FTS first so Cmd+K works at once, then embeddings + KG only if the model is ready and consented.
+  // Index warm-up: FTS first so Cmd+K works at once, then embeddings only if the model is ready and consented.
   const indexingRanRef = useRef(false);
 
   useEffect(() => {
@@ -120,7 +120,7 @@ const App: React.FC = () => {
 
         console.log('[App] Phase 1 complete: FTS spotlight corpus populated');
 
-        // Phase 2: add embeddings + KG extraction if model is available
+        // Phase 2: add embeddings if the model is available
         if (controller.signal.aborted) return;
         const shouldEmbed = embeddingService.isReady() || hasConsent();
         if (!shouldEmbed) return;
@@ -128,7 +128,6 @@ const App: React.FC = () => {
         await ragIndexer.indexAll(meetingItems, {
           signal: controller.signal,
           includeEmbeddings: true,
-          extractionContext: settings.chatModel ? { settings, providers } : undefined,
         });
 
         if (controller.signal.aborted) return;

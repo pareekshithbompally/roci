@@ -2,7 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { onRAGProgress, preloadModel, resetPipeline } from '@extensions/rag';
-import type { RAGProgressEvent, IndexingProgressEvent, ExtractionProgressEvent } from '@extensions/rag';
+import type { RAGProgressEvent, IndexingProgressEvent } from '@extensions/rag';
 import { activityStore } from '@shared/stores/activityStore';
 import type { ActivityItem } from '@shared/stores/activityStore';
 import { useToast } from '@shared/contexts/ToastContext';
@@ -211,70 +211,11 @@ export const OnDeviceModelActivity: React.FC = () => {
       }
     }
 
-    function handleExtractionEvent(event: ExtractionProgressEvent) {
-      switch (event.status) {
-        case 'started':
-          if (event.total && event.total > 0) {
-            activityStore.add({
-              id: 'rag-extraction',
-              type: 'indexing',
-              label: 'Extracting entities',
-              status: 'active',
-              percent: null,
-              step: { current: 0, total: event.total },
-              detail: null,
-              error: null,
-              actions: [],
-            });
-          }
-          break;
-
-        case 'progress':
-          if (event.current && event.total) {
-            const percent = Math.round((event.current / event.total) * 100);
-            const title = event.currentTitle ?? null;
-
-            if (activityStore.get('rag-extraction')) {
-              activityStore.update('rag-extraction', {
-                step: { current: event.current, total: event.total },
-                percent,
-                detail: title,
-              });
-            } else {
-              activityStore.add({
-                id: 'rag-extraction',
-                type: 'indexing',
-                label: 'Extracting entities',
-                status: 'active',
-                percent,
-                step: { current: event.current, total: event.total },
-                detail: title,
-                error: null,
-                actions: [],
-              });
-            }
-          }
-          break;
-
-        case 'complete':
-          if (activityStore.get('rag-extraction')) {
-            activityStore.remove('rag-extraction');
-          }
-          break;
-
-        case 'error':
-          activityStore.remove('rag-extraction');
-          break;
-      }
-    }
-
     const unsubscribe = onRAGProgress((event: RAGProgressEvent) => {
       if (event.kind === 'model') {
         handleModelEvent(event);
       } else if (event.kind === 'indexing') {
         handleIndexingEvent(event);
-      } else if (event.kind === 'extraction') {
-        handleExtractionEvent(event);
       }
     });
 
@@ -283,7 +224,6 @@ export const OnDeviceModelActivity: React.FC = () => {
       ragHandlers.dispose();
       activityStore.remove('rag-indexing-meetings');
       activityStore.remove('rag-indexing-chats');
-      activityStore.remove('rag-extraction');
     };
   }, [showToast, showErrorWithRetry]);
 

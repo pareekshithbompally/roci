@@ -729,7 +729,6 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           inputSource: session.audioSource,
           model: settings.transcriptionModel,
           segments: data.segments,
-          extractionContext: { settings, providers },
           ...calendarMeta && {
             calendarMeta: {
               calendarEventId: calendarMeta.calendarEventId,
