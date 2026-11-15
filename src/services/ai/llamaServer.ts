@@ -2,6 +2,8 @@
 
 import { getPlatformFetch } from '@services/platform-fetch';
 import { failureLogger } from '@shared/utils/errors';
+import { MODEL_LOAD_PART_SHARE } from '@config/localServers.config';
+import type { StreamProgress } from './types';
 
 const report = failureLogger('llamaServer');
 
@@ -20,6 +22,7 @@ export function isLlamaServer(baseUrl: string): Promise<boolean> {
       .then((props: { build_info?: unknown } | null) => typeof props?.build_info === 'string')
       .catch(() => false);
     recognised.set(root, known);
+    void known.then((isServer) => isServer || recognised.delete(root));
   }
   return known;
 }
@@ -40,13 +43,25 @@ interface ModelEvent {
   data?: { status?: string; progress?: { stages?: string[]; current?: string; value?: number } };
 }
 
-/** Overall load percent across a model's stages (text model, then vision/audio projector). */
-function loadPercent(event: ModelEvent): number | null {
+/** The server's load stages, as the reply header names them. */
+const LOAD_STAGES: Record<string, StreamProgress['stage']> = {
+  text_model: 'loading-weights',
+  spec_model: 'loading-draft',
+  mmproj_model: 'loading-projector',
+};
+
+/** The stage being loaded and the overall percent: the main weights fill all but one share per later part (draft, projector). */
+function loadProgress(event: ModelEvent): StreamProgress | null {
   const progress = event.data?.progress;
-  const stages = progress?.stages;
-  if (!stages?.length || typeof progress?.value !== 'number') return null;
-  const stage = Math.max(0, stages.indexOf(progress.current ?? ''));
-  return percentOf(stage + progress.value, stages.length);
+  const stage = LOAD_STAGES[progress?.current ?? ''];
+  if (!stage || typeof progress?.value !== 'number') return null;
+  const stages = progress.stages ?? [];
+  const weightsShare = 1 - Math.max(stages.length - 1, 0) * MODEL_LOAD_PART_SHARE;
+  const index = stages.indexOf(progress.current ?? '');
+  const done = index <= 0
+    ? progress.value * weightsShare
+    : weightsShare + (index - 1 + progress.value) * MODEL_LOAD_PART_SHARE;
+  return { stage, percent: percentOf(done, 1) };
 }
 
 /** Each `data:` line's JSON in a stream of server-sent events. */
@@ -64,11 +79,8 @@ async function* sseEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<unkn
   }
 }
 
-/**
- * Reports `model`'s load percent while llama-server loads it; stops once it's
- * loaded or failed, or when the returned function is called.
- */
-export function followModelLoad(baseUrl: string, model: string, onPercent: (percent: number) => void): () => void {
+/** Reports a model's load stage and percent until it's loaded, fails, or the returned stop function is called. */
+export function followModelLoad(baseUrl: string, model: string, onProgress: (progress: StreamProgress) => void): () => void {
   const controller = new AbortController();
   const follow = async () => {
     const response = await getPlatformFetch()(`${rootOf(baseUrl)}/models/sse`, { signal: controller.signal });
@@ -77,8 +89,8 @@ export function followModelLoad(baseUrl: string, model: string, onPercent: (perc
       if (event.model !== model) continue;
       const status = event.data?.status;
       if (status === 'loaded' || status === 'failed') break;
-      const percent = loadPercent(event);
-      if (percent !== null) onPercent(percent);
+      const progress = loadProgress(event);
+      if (progress) onProgress(progress);
     }
     controller.abort();
   };

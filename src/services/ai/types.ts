@@ -63,7 +63,8 @@ export function mergeTokenUsage(a?: TokenUsage, b?: TokenUsage): TokenUsage {
 
 /** What a local server reports before the reply starts (llama-server). */
 export interface StreamProgress {
-  stage: 'loading-model' | 'reading-prompt';
+  /** Loading the model's main weights, its draft model or its vision/audio projector; then reading the prompt. */
+  stage: 'loading-weights' | 'loading-draft' | 'loading-projector' | 'reading-prompt';
   /** 0–100 */
   percent: number;
 }

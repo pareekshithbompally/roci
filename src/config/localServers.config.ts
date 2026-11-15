@@ -11,6 +11,9 @@ export const LOCAL_SERVER_HOST = '127.0.0.1';
 /** OpenAI-compatible API path served by every supported engine. */
 export const LOCAL_SERVER_API_PATH = '/v1';
 
+/** Share of a model's load progress for each part after its main weights (draft model, projector). */
+export const MODEL_LOAD_PART_SHARE = 0.1;
+
 /** A port that doesn't answer within this window counts as "not running". */
 export const LOCAL_PROBE_TIMEOUT_MS = 600;
 

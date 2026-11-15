@@ -74,7 +74,7 @@ function handlePart(part: TextStreamPart<ToolSet>, state: StreamState, onChunk: 
       return;
     // Only native web search runs on the provider's side; meeting and MCP tools are tracked in tools-bridge.
     case 'tool-input-start':
-      onChunk('', { isSearching: true });
+      if (part.providerExecuted) onChunk('', { isSearching: true });
       return;
     case 'source':
       if (part.sourceType === 'url') state.sources.push({ url: part.url, title: part.title || '' });
@@ -124,7 +124,7 @@ export async function orchestrate(
   });
 
   const stopFollowingLoad = reportsProgress
-    ? followModelLoad(resolved.baseUrl, resolved.modelId, (percent) => onChunk('', { progress: { stage: 'loading-model', percent } }))
+    ? followModelLoad(resolved.baseUrl, resolved.modelId, (progress) => onChunk('', { progress }))
     : () => undefined;
   const state: StreamState = { hasText: false, sources: [] };
   try {
