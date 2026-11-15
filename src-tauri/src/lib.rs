@@ -18,6 +18,8 @@ mod mcp;
 mod mcp_server;
 mod url_actions;
 mod meeting_reminders;
+#[cfg(target_os = "macos")]
+mod call_detection;
 
 /// Open a folder in the OS file manager (Finder on macOS).
 #[tauri::command]
