@@ -1,6 +1,6 @@
 //! Which applications hold the microphone, and which call apps and
 //! browsers they are. Applications are keyed by macOS bundle identifiers;
-//! the executable names in `EXECUTABLES` map to the same keys through
+//! helper and variant bundle identifiers map to the same keys through
 //! [`canonical_bundle_id`](ActiveMicrophoneApplication::canonical_bundle_id).
 
 use std::ffi::c_void;
@@ -75,54 +75,8 @@ fn is_browser_id(canonical_bundle_id: Option<&str>) -> bool {
     )
 }
 
-/// Linux and Windows executables (lowercase, without `.exe`) by the bundle
-/// identifier of the same app on macOS.
-const EXECUTABLES: [(&str, &str); 32] = [
-    // Discord and its Canary and PTB builds, on Windows and Linux (the
-    // Flatpak runs the same binary).
-    ("discord", "com.hnc.Discord"),
-    ("discordcanary", "com.hnc.Discord"),
-    ("discordptb", "com.hnc.Discord"),
-    ("discord-canary", "com.hnc.Discord"),
-    ("discord-ptb", "com.hnc.Discord"),
-    ("com.discordapp.discord", "com.hnc.Discord"),
-    // Gather for Windows.
-    ("gather", "com.gather.GatherV2"),
-    ("gatherv2", "com.gather.GatherV2"),
-    // WhatsApp for Windows, before and after its WinUI rewrite.
-    ("whatsapp", "net.whatsapp.WhatsApp"),
-    ("whatsapp.root", "net.whatsapp.WhatsApp"),
-    ("zoom", "us.zoom.xos"),
-    ("ms-teams", "com.microsoft.teams2"),
-    ("teams", "com.microsoft.teams2"),
-    ("teams-for-linux", "com.microsoft.teams2"),
-    ("slack", "com.tinyspeck.slackmacgap"),
-    ("chrome", "com.google.Chrome"),
-    ("google-chrome", "com.google.Chrome"),
-    ("google-chrome-stable", "com.google.Chrome"),
-    ("chromium", "com.google.Chrome"),
-    ("chromium-browser", "com.google.Chrome"),
-    ("brave", "com.brave.Browser"),
-    ("brave-browser", "com.brave.Browser"),
-    ("firefox", "org.mozilla.firefox"),
-    ("firefox-bin", "org.mozilla.firefox"),
-    ("firefox-esr", "org.mozilla.firefox"),
-    ("msedge", "com.microsoft.edgemac"),
-    ("microsoft-edge", "com.microsoft.edgemac"),
-    ("microsoft-edge-stable", "com.microsoft.edgemac"),
-    // Vivaldi, its web apps (PWAs) included: they run in the same process.
-    ("vivaldi", "com.vivaldi.Vivaldi"),
-    ("vivaldi-bin", "com.vivaldi.Vivaldi"),
-    ("vivaldi-stable", "com.vivaldi.Vivaldi"),
-    ("vivaldi-snapshot", "com.vivaldi.Vivaldi"),
-];
-
 fn canonical_bundle_id_for(bundle_id: &str, name: Option<&str>) -> Option<&'static str> {
     let bundle = bundle_id.to_ascii_lowercase();
-    let executable = bundle.strip_suffix(".exe").unwrap_or(&bundle);
-    if let Some((_, canonical)) = EXECUTABLES.iter().find(|(known, _)| *known == executable) {
-        return Some(canonical);
-    }
     if bundle == "com.apple.webkit.gpu" {
         return name
             .is_some_and(|name| name.to_ascii_lowercase().starts_with("safari"))
@@ -762,29 +716,6 @@ mod tests {
             ),
             ("company.thebrowser.dia", "Dia", None, false),
             ("anomaly.hex", "Hex", None, false),
-            ("zoom", "Zoom", Some("us.zoom.xos"), false),
-            (
-                "ms-teams.exe",
-                "ms-teams",
-                Some("com.microsoft.teams2"),
-                false,
-            ),
-            (
-                "Slack.exe",
-                "Slack",
-                Some("com.tinyspeck.slackmacgap"),
-                false,
-            ),
-            ("chrome", "Google Chrome", Some("com.google.Chrome"), true),
-            ("firefox.exe", "Firefox", Some("org.mozilla.firefox"), true),
-            (
-                "msedge.exe",
-                "Microsoft Edge",
-                Some("com.microsoft.edgemac"),
-                true,
-            ),
-            ("vivaldi-bin", "Vivaldi", Some("com.vivaldi.Vivaldi"), true),
-            ("vivaldi.exe", "Vivaldi", Some("com.vivaldi.Vivaldi"), true),
             (
                 "com.vivaldi.Vivaldi.helper",
                 "Vivaldi Helper",
