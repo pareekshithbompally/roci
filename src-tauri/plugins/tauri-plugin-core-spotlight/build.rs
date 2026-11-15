@@ -1,4 +1,4 @@
-const COMMANDS: &[&str] = &["status"];
+const COMMANDS: &[&str] = &[];
 
 fn main() {
     // Compile the Swift bridge for macOS (same route as tauri-plugin-notifications).

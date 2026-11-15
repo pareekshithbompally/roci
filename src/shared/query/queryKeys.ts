@@ -19,8 +19,6 @@ export const queryKeys = {
   appleSpeechStatus: () => ['apple-speech-status'] as const,
   /** Apple Intelligence language model availability (Integrations row) */
   appleIntelligenceStatus: () => ['apple-intelligence-status'] as const,
-  /** Spotlight indexing support in this build */
-  spotlightStatus: () => ['spotlight-status'] as const,
   /** Local OpenAI-compatible servers on this Mac (keyed by the saved local providers it also probes) */
   localServers: (savedTargets: readonly string[]) => ['local-servers', savedTargets] as const,
   /** MCP: `mcp_config.json` (servers + settings), owned by Rust */

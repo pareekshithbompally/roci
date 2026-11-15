@@ -45,7 +45,6 @@
     "notifications:default",
     "apple-intelligence:default",
     "apple-notes:default",
-    "core-spotlight:default",
     "window-state:default",
     "updater:default",
     {

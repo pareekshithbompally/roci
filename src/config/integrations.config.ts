@@ -38,7 +38,6 @@ export const INTEGRATIONS_CONFIG = {
   spotlight: {
     title: 'Spotlight',
     description: 'Find meetings from Spotlight (⌘Space) by title, attendees, summary, notes, or to-dos. Transcripts stay in Kasset.',
-    unavailable: 'Spotlight needs the installed Kasset app.',
     icon: '/images/macos-spotlight-sm.png',
   },
   hex: {

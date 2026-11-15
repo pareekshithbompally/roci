@@ -9,7 +9,6 @@
 //! the item's id.
 
 mod bridge;
-mod commands;
 
 use std::ffi::CStr;
 use std::os::raw::c_char;
@@ -34,12 +33,6 @@ pub struct SpotlightItem {
     pub keywords: Vec<String>,
     /// When the meeting happened (wall clock).
     pub created_ms: i64,
-}
-
-/// Webview: whether Spotlight indexing can run.
-#[derive(Debug, Clone, Copy, Serialize)]
-pub struct Status {
-    pub supported: bool,
 }
 
 type Handler = Box<dyn Fn(String) + Send + Sync>;
@@ -84,9 +77,7 @@ extern "C" fn opened(id: *const c_char) {
 }
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-    Builder::new("core-spotlight")
-        .invoke_handler(tauri::generate_handler![commands::status])
-        .build()
+    Builder::new("core-spotlight").build()
 }
 
 #[cfg(test)]
