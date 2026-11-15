@@ -20,10 +20,9 @@ import { OnDeviceModelsCard } from './OnDeviceModelsCard';
 import { useVoiceCapture } from '@features/chat';
 import { useSpeechInputReady } from '@features/settings/hooks/useSpeechModels';
 import { LAYOUT } from '@config/layout.config';
-import { UI_CONFIG } from '@config/ui.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { ActionCard } from '@shared/components';
-import { Button, Dot, Icon, Surface, Text } from '@shared/ui';
+import { Button, Dot, Icon, Surface, Text, TitlebarSpacer } from '@shared/ui';
 import { motion } from 'framer-motion';
 
 interface IdleViewProps {}
@@ -109,19 +108,11 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   };
 
   return (
-    // Full-bleed background: pull up over MainLayout's titlebar safe-area
-    // padding and compensate with equal inner padding, so LandingGlow
-    // (plain inset-0) paints continuously under the drag strip while flow
-    // content stays exactly where the layout intends. Both offsets derive
-    // from UI_CONFIG.layout.titlebar.safeArea — no magic numbers here.
-    <div
-      className="flex-1 w-full flex flex-col animate-fade-in relative"
-      style={{
-        marginTop: -UI_CONFIG.layout.titlebar.safeArea,
-        paddingTop: UI_CONFIG.layout.titlebar.safeArea,
-      }}
-    >
+    // Full-bleed: the view runs to the window top, so LandingGlow (inset-0)
+    // paints under the titlebar; the spacer keeps flow content below it.
+    <div className="flex-1 w-full flex flex-col animate-fade-in relative">
       <LandingGlow paused={voice.isVoiceActive} />
+      <TitlebarSpacer />
 
       {/* Settings load asynchronously over Tauri IPC — until they arrive the
          provider list is empty and we can't tell zero-state from landing.

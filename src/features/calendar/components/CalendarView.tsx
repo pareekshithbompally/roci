@@ -18,7 +18,7 @@ import { useAppActions } from '@shared/stores/appStore';
 import { CalendarWeek } from './CalendarWeek';
 import type { CalendarControls } from './CalendarWeek';
 import { EventPopover } from './EventPopover';
-import { DatePicker, Button, Icon, IconButton, Surface, Text, cn } from '@shared/ui';
+import { DatePicker, Button, Icon, IconButton, Surface, Text, TitlebarSpacer, cn } from '@shared/ui';
 import { EmptyState } from '@shared/components';
 import { useCalendarEvents } from '@features/calendar/hooks/useCalendarEvents';
 import { AppStatus } from '@shared/types';
@@ -165,6 +165,7 @@ export const CalendarView: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden animate-fade-in">
+      <TitlebarSpacer />
       {/* Header */}
       <Surface as="header" edge="bottom" className="shrink-0 px-5 py-2.5 flex items-center">
         <IconButton icon={ArrowLeft} label="Back to home" size="sm" className="mr-2.5" onClick={handleBack} />

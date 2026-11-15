@@ -15,6 +15,7 @@ export const ChatView: React.FC = () => {
       placeholderText="Type @ to add meeting context..."
       className="animate-fade-in"
       composerLayoutId={ANIMATION_CONFIG.chat.composerLayoutId}
+      underTitlebar
     />
   );
 };

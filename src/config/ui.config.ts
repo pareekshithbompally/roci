@@ -18,8 +18,8 @@ export const UI_CONFIG = {
     maxContentWidthPx: '1800px', // Maximum pixel width cap
     /**
      * Titlebar safe area (macOS traffic lights + Tauri drag region).
-     * Single source of truth — MainLayout's content padding, the drag
-     * strip geometry, and full-bleed views (IdleView) all derive from this.
+     * Single source of truth — the drag strip geometry and the kit
+     * `PageScroll` / `TitlebarSpacer` every view clears it with derive from this.
      * dragOffset + dragHeight === safeArea: leaves 4px for the native
      * resize edge so move + resize never trigger together.
      */
@@ -27,6 +27,10 @@ export const UI_CONFIG = {
       safeArea: 40,
       dragOffset: 4,
       dragHeight: 36,
+    },
+    /** Page scrollers (kit `PageScroll`): length of a faded bottom edge (matches the titlebar band). */
+    pageScroll: {
+      edgeFadePx: 40,
     },
   },
 
@@ -43,7 +47,8 @@ export const UI_CONFIG = {
     position: 'top-right',
     /** Below the titlebar safe area, clear of the window edge */
     offset: 48,
-    widthPx: 340,
+    /** A toast hugs its text, up to this width (then the text truncates). */
+    maxWidthPx: 340,
     gap: 6,
     visible: 4,
     durationMs: 5_000,

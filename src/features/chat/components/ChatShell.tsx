@@ -33,7 +33,7 @@ import { LAYOUT } from '@config/layout.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { MeetingCitation, WebCitation } from '@shared/types';
-import { IconButton, Icon, Text } from '@shared/ui';
+import { IconButton, Icon, PageScroll, Text, cn } from '@shared/ui';
 
 const ScrollToBottomBtn: React.FC<{ onClick: () => void }> = ({ onClick }) => (
   <IconButton
@@ -52,6 +52,8 @@ export interface ChatShellProps {
   className?: string;
   /** Shared-element id so the composer glides in from the landing page (main chat view only). */
   composerLayoutId?: string;
+  /** Messages run to the window top and fade under the titlebar (main chat view, not the side panel). */
+  underTitlebar?: boolean;
 }
 
 export const ChatShell: React.FC<ChatShellProps> = ({
@@ -60,6 +62,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
   headerSlot,
   className = '',
   composerLayoutId,
+  underTitlebar = false,
 }) => {
   const { settings, providers } = useSettings();
   const history = useHistoryData();
@@ -265,121 +268,117 @@ export const ChatShell: React.FC<ChatShellProps> = ({
   const contextLimit = useContextLimit();
   const contextUsage = useContextUsage(currentMessages, contextLimit);
 
-  return (
-    <div className={`h-full w-full ${className}`}>
-      <div className="h-full flex flex-col overflow-hidden">
-        {/* Header slot (ChatPanel header bar) */}
-        {headerSlot}
-
-        {/* Messages Area */}
-        {isSessionLoading && !currentSession ? (
-          <div className="flex-1 flex items-center justify-center">
-            <Icon icon={Loader2} size="md" tone="faint" className="animate-spin" />
-          </div>
-        ) : currentMessages.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center">
-            <AnimatePresence initial={false}>
-              {!voice.isVoiceActive && (
-                <motion.div
-                  key="empty-state"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, transition: { duration: 0.2 } }}
-                  transition={voice.chromeEnter}
-                >
-                  <Text as="p" variant="helper" tone="faint">{emptyStateMessage}</Text>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        ) : (
-          <div className="relative flex-1 min-h-0">
-            <div
-              ref={scrollRef}
-              onScroll={handleScroll}
-              onWheel={handleWheel}
-              className={`h-full overflow-y-auto ${voice.isVoiceActive ? '[-webkit-mask-image:linear-gradient(to_bottom,black_calc(100%-64px),transparent)] [mask-image:linear-gradient(to_bottom,black_calc(100%-64px),transparent)]' : ''}`}
-            >
-              <div
-                ref={contentRef}
-                role="log"
-                className={`flex flex-col space-y-4 px-4 py-4 ${LAYOUT.chatColumn}`}
-              >
-                {currentMessages.map((message, index) => (
-                  <ChatMessage
-                    key={message.id}
-                    id={message.id}
-                    role={message.role}
-                    text={message.text}
-                    parts={message.parts}
-                    meetingRefs={message.meetingRefs}
-                    timestamp={message.timestamp}
-                    suggestions={message.suggestions}
-                    onSuggestionClick={(suggestion) => sendMessage(suggestion)}
-                    isLastMessage={index === currentMessages.length - 1}
-                    provider={message.provider}
-                    model={message.model}
-                    state={message.state}
-                    loadingLabel={
-                      message.state === 'loading' && aiActivity?.isSearching
-                        ? 'Searching the web…'
-                        : undefined
-                    }
-                    tokenCount={message.tokenCount}
-                    inputTokenCount={message.inputTokenCount}
-                    tokensPerSecond={message.tokensPerSecond}
-                    toolActivity={message.toolActivity}
-                    meetingCitations={message.meetingCitations}
-                    isCopied={copiedMessageId === message.id}
-                    actions={sharedActions}
-                    citationHandlers={citationHandlers}
-                    webCitations={message.webCitations}
-                    inlineCitations={message.inlineCitations}
-                    isError={message.isError}
-                  />
-                ))}
-              </div>
-            </div>
-            {showScrollDown && <ScrollToBottomBtn onClick={() => scrollToBottom()} />}
-          </div>
-        )}
-
-        {/* Input Area */}
+  const isLoadingSession = isSessionLoading && !currentSession;
+  const emptyState = (
+    <AnimatePresence initial={false}>
+      {!voice.isVoiceActive && (
         <motion.div
-          className={`shrink-0 ${LAYOUT.chatColumn}`}
-          layout="position"
-          layoutId={composerLayoutId}
-          layoutDependency={ANIMATION_CONFIG.chat.composerLayoutDependency.chat}
-          transition={ANIMATION_CONFIG.chat.composerGlide}
+          key="empty-state"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, transition: { duration: 0.2 } }}
+          transition={voice.chromeEnter}
         >
-          <ToolApprovalBanner />
-          <TodoConfirmationBanner />
-          <ChatInput
-            value={chatInput}
-            onChange={setInput}
-            onSend={handleSend}
-            onStop={stopGeneration}
-            isLoading={isGenerating}
-            contextUsage={contextUsage}
-            placeholder={placeholderText}
-            availableMeetings={availableMeetings}
-            selectedMeetings={selectedMeetingRefs}
-            onMeetingSelect={setSelectedMeetingRefs}
-            attachments={pendingAttachments}
-            onAttach={addAttachment}
-            onRemoveAttachment={removeAttachment}
-            onScreenshot={addScreenshotAttachment}
-            showSpeechInput={showSpeechInput}
-            speechState={voice.speech.state}
-            micStream={voice.speech.stream}
-            speechElapsed={voice.speech.elapsed}
-            onSpeechStart={voice.speech.start}
-            onSpeechStop={voice.handleSpeechStop}
-            onSpeechTogglePause={voice.speech.togglePause}
-            onSpeechCancel={voice.speech.cancel}
-          />
+          <Text as="p" variant="helper" tone="faint">{emptyStateMessage}</Text>
         </motion.div>
-      </div>
+      )}
+    </AnimatePresence>
+  );
+
+  return (
+    <div className={cn('relative flex h-full w-full flex-col overflow-hidden', className)}>
+      {headerSlot}
+
+      {isLoadingSession || currentMessages.length === 0 ? (
+        <div className="flex flex-1 items-center justify-center">
+          {isLoadingSession ? <Icon icon={Loader2} size="md" tone="faint" className="animate-spin" /> : emptyState}
+        </div>
+      ) : (
+        // Messages fade out at both edges: under the titlebar and into the composer.
+        <div className="relative min-h-0 flex-1">
+          <PageScroll
+            ref={scrollRef}
+            onScroll={handleScroll}
+            onWheel={handleWheel}
+            underTitlebar={underTitlebar}
+            fadeBottom
+            className="h-full"
+          >
+            <div ref={contentRef} role="log" className={`flex flex-col space-y-4 px-4 py-4 ${LAYOUT.chatColumn}`}>
+              {currentMessages.map((message, index) => (
+                <ChatMessage
+                  key={message.id}
+                  id={message.id}
+                  role={message.role}
+                  text={message.text}
+                  parts={message.parts}
+                  meetingRefs={message.meetingRefs}
+                  timestamp={message.timestamp}
+                  suggestions={message.suggestions}
+                  onSuggestionClick={(suggestion) => sendMessage(suggestion)}
+                  isLastMessage={index === currentMessages.length - 1}
+                  provider={message.provider}
+                  model={message.model}
+                  state={message.state}
+                  loadingLabel={
+                    message.state === 'loading' && aiActivity?.isSearching
+                      ? 'Searching the web…'
+                      : undefined
+                  }
+                  tokenCount={message.tokenCount}
+                  inputTokenCount={message.inputTokenCount}
+                  tokensPerSecond={message.tokensPerSecond}
+                  toolActivity={message.toolActivity}
+                  meetingCitations={message.meetingCitations}
+                  isCopied={copiedMessageId === message.id}
+                  actions={sharedActions}
+                  citationHandlers={citationHandlers}
+                  webCitations={message.webCitations}
+                  inlineCitations={message.inlineCitations}
+                  isError={message.isError}
+                />
+              ))}
+            </div>
+          </PageScroll>
+          {showScrollDown && <ScrollToBottomBtn onClick={() => scrollToBottom()} />}
+        </div>
+      )}
+
+      {/* Composer */}
+      <motion.div
+        className={`shrink-0 ${LAYOUT.chatColumn}`}
+        layout="position"
+        layoutId={composerLayoutId}
+        layoutDependency={ANIMATION_CONFIG.chat.composerLayoutDependency.chat}
+        transition={ANIMATION_CONFIG.chat.composerGlide}
+      >
+        <ToolApprovalBanner />
+        <TodoConfirmationBanner />
+        <ChatInput
+          value={chatInput}
+          onChange={setInput}
+          onSend={handleSend}
+          onStop={stopGeneration}
+          isLoading={isGenerating}
+          contextUsage={contextUsage}
+          placeholder={placeholderText}
+          availableMeetings={availableMeetings}
+          selectedMeetings={selectedMeetingRefs}
+          onMeetingSelect={setSelectedMeetingRefs}
+          attachments={pendingAttachments}
+          onAttach={addAttachment}
+          onRemoveAttachment={removeAttachment}
+          onScreenshot={addScreenshotAttachment}
+          showSpeechInput={showSpeechInput}
+          speechState={voice.speech.state}
+          micStream={voice.speech.stream}
+          speechElapsed={voice.speech.elapsed}
+          onSpeechStart={voice.speech.start}
+          onSpeechStop={voice.handleSpeechStop}
+          onSpeechTogglePause={voice.speech.togglePause}
+          onSpeechCancel={voice.speech.cancel}
+        />
+      </motion.div>
 
       {/* Citation drawers */}
       <MeetingCitationDrawer

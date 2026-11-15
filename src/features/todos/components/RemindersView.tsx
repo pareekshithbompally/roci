@@ -15,6 +15,7 @@ import type { TodoFilter, GlobalTodo } from '@features/todos/hooks/useGlobalTodo
 import {
   Button, Checkbox, DatePicker, Icon, IconButton, Input, Popover, PopoverContent, PopoverTrigger,
   Row, Surface, Tabs, Text, Textarea, TimePicker, cn,
+  TitlebarSpacer,
 } from '@shared/ui';
 import { EmptyState } from '@shared/components';
 import { AppStatus } from '@shared/types';
@@ -322,6 +323,7 @@ export const RemindersView: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden animate-fade-in">
+      <TitlebarSpacer />
       {/* Header */}
       <Surface as="header" edge="bottom" className="shrink-0 px-6 pt-2 pb-3">
         {/* Search + Create row — inline with stats */}

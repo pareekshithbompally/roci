@@ -43,7 +43,6 @@ import { initPlatformFetch } from '@services/platform-fetch';
 import { searchIndexingService } from '@services/searchIndexing.service';
 import { reminderService } from '@services/reminder.service';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
-import { UI_CONFIG } from '@config/ui.config';
 
 const App: React.FC = () => {
   console.log('[App] Rendering App component');
@@ -366,9 +365,8 @@ const App: React.FC = () => {
                 ? 'p-0 overflow-hidden'
                 : 'p-6 md:p-10 overflow-hidden'
           }`}
-          // Titlebar clearance lives on the clipping element itself, so a full-bleed
-          // view (IdleView's glow) can pull up into this padding without being cut off.
-          style={{ paddingTop: UI_CONFIG.layout.titlebar.safeArea }}
+          // No titlebar padding here: each view runs to the window top and clears the
+          // titlebar itself (kit `PageScroll` / `TitlebarSpacer`), so content fades under it.
         >
           {currentView === 'home' ? <HomeView />
             : currentView === 'reminders' ? <RemindersView />

@@ -1,0 +1,57 @@
+import { forwardRef, type HTMLAttributes } from 'react';
+import { UI_CONFIG } from '@config/ui.config';
+import { cn } from './utils';
+
+const { safeArea } = UI_CONFIG.layout.titlebar;
+const { edgeFadePx } = UI_CONFIG.layout.pageScroll;
+
+/** Empty room that keeps content clear of a band (the titlebar, a faded edge). */
+function Band({ height }: { height: number }) {
+  return <div aria-hidden className="shrink-0" style={{ height }} />;
+}
+
+/** Reserves the titlebar band (traffic lights + drag strip) above a view's fixed header. */
+export function TitlebarSpacer() {
+  return <Band height={safeArea} />;
+}
+
+function edgeMask(underTitlebar: boolean, fadeBottom: boolean): string | undefined {
+  if (!underTitlebar && !fadeBottom) return undefined;
+  const top = underTitlebar ? `transparent, black ${safeArea}px` : 'black';
+  const bottom = fadeBottom ? `black calc(100% - ${edgeFadePx}px), transparent` : 'black';
+  return `linear-gradient(to bottom, ${top}, ${bottom})`;
+}
+
+export interface PageScrollProps extends HTMLAttributes<HTMLDivElement> {
+  /**
+   * Runs full height to the window top: content starts below the titlebar and,
+   * scrolled up, fades out under it instead of stopping at a hard edge.
+   */
+  underTitlebar?: boolean;
+  /** Content fades out at the bottom edge too (into a composer below). Scrolled to the end, the last content rests above the fade. */
+  fadeBottom?: boolean;
+}
+
+/**
+ * A view's vertical page scroller (chat, a settings pane). Callers add layout
+ * and padding; edges fade per the props. For an inset region inside a page,
+ * use `ScrollArea`.
+ */
+export const PageScroll = forwardRef<HTMLDivElement, PageScrollProps>(
+  ({ underTitlebar = true, fadeBottom = false, className, style, children, ...props }, ref) => {
+    const mask = edgeMask(underTitlebar, fadeBottom);
+    return (
+      <div
+        ref={ref}
+        className={cn('min-h-0 overflow-y-auto custom-scrollbar', className)}
+        style={mask ? { maskImage: mask, WebkitMaskImage: mask, ...style } : style}
+        {...props}
+      >
+        {underTitlebar && <TitlebarSpacer />}
+        {children}
+        {fadeBottom && <Band height={edgeFadePx} />}
+      </div>
+    );
+  },
+);
+PageScroll.displayName = 'PageScroll';

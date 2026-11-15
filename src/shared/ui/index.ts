@@ -37,6 +37,8 @@ export { Progress } from './progress';
 export type { ProgressProps } from './progress';
 export { Surface, Separator, Dot, Status } from './surface';
 export { ScrollArea } from './scroll-area';
+export { PageScroll, TitlebarSpacer } from './page-scroll';
+export type { PageScrollProps } from './page-scroll';
 export { ButtonGroup } from './button-group';
 export type { SurfaceProps, SurfaceVariant, DotTone } from './surface';
 export { Disclosure } from './disclosure';

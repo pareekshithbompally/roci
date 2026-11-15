@@ -29,7 +29,8 @@ const TONE_ICONS = {
 };
 
 const CLASS_NAMES = {
-  toast: 'flex w-full items-center gap-2.5 rounded-lg bg-raised-glass px-3 py-2.5 shadow-floating backdrop-blur-xl',
+  // Sonner stacks toasts absolutely inside its max-width toaster: hug the text, pinned right.
+  toast: 'right-0 flex w-max max-w-full items-center gap-2.5 rounded-lg bg-raised-glass px-3 py-2.5 shadow-floating backdrop-blur-xl',
   icon: 'flex shrink-0',
   content: 'min-w-0 flex-1',
   // One line each: long text (a file path) truncates instead of growing the toast.
@@ -49,7 +50,7 @@ export function Toaster() {
       visibleToasts={CONFIG.visible}
       duration={CONFIG.durationMs}
       icons={TONE_ICONS}
-      style={{ '--width': `${CONFIG.widthPx}px` } as CSSProperties}
+      style={{ '--width': `${CONFIG.maxWidthPx}px` } as CSSProperties}
       toastOptions={{ unstyled: true, classNames: CLASS_NAMES }}
     />
   );

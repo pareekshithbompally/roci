@@ -57,6 +57,7 @@ import {
   Surface,
   Tabs,
   Text,
+  TitlebarSpacer,
 } from '@shared/ui';
 import type { TabItem } from '@shared/ui';
 
@@ -260,6 +261,7 @@ export const ResultsView: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
+      <TitlebarSpacer />
       {/* Meeting title — same page column as Settings */}
       <div className={`${LAYOUT.pageGutter} pt-3 pb-3`}>
       <div className={LAYOUT.pageColumn}>

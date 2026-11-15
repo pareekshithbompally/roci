@@ -11,9 +11,9 @@
  * implementations (Google's Gemini pages, Linear-style auroras) do it.
  *
  * Layout contract: this layer is deliberately layout-agnostic (`inset-0`
- * of its parent). Full-bleed under the titlebar drag strip is the PARENT's
- * job — IdleView negates MainLayout's titlebar safe-area padding with an
- * equal negative margin (both from UI_CONFIG.layout.titlebar.safeArea).
+ * of its parent). Views run to the window top, so IdleView's full-bleed
+ * box puts the glow under the titlebar; its `TitlebarSpacer` keeps the flow
+ * content below it.
  * Don't add offsets here to chase layout metrics.
  *
  * Drift keyframes live in tailwind.config.js (`glow-drift-*`) and only run
