@@ -9,7 +9,7 @@ mod search;
 mod spotlight;
 
 pub use changes::{meeting_detail, meeting_ids, on_meeting_change, MeetingChange};
-pub use commands::{MeetingDetail, NoteRow, SummaryRow, TodoRow};
+pub use commands::{MeetingDetail, NoteRow, SummaryRow, TodoRow, TranscriptRow};
 pub use error::StoreError;
 
 use commands::StoreState;

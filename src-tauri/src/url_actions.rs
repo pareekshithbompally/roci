@@ -66,18 +66,36 @@ pub fn setup(app: &AppHandle) {
     });
 }
 
+impl Queue {
+    /// The action to run now, or `None` when it waits for the webview.
+    fn submit(&mut self, action: UrlAction) -> Option<UrlAction> {
+        if self.ready {
+            return Some(action);
+        }
+        self.pending.push(action);
+        None
+    }
+}
+
 fn receive(app: &AppHandle, url: &Url) {
     let Some(action) = action_for(url) else {
         log::warn!("[url-actions] ignored unknown URL: {url}");
         return;
     };
+    submit(app, action);
+}
+
+/// Open meeting `id` in the webview (a Spotlight result), once it is ready.
+pub(crate) fn open_meeting(app: &AppHandle, id: String) {
+    submit(app, UrlAction::Meeting(id));
+}
+
+/// Run `action` now, or queue it until `url_actions_ready`.
+fn submit(app: &AppHandle, action: UrlAction) {
     let state = app.state::<UrlActionsState>();
-    let mut queue = state.inner.lock().unwrap_or_else(|e| e.into_inner());
-    if queue.ready {
-        drop(queue);
+    let now = state.inner.lock().unwrap_or_else(|e| e.into_inner()).submit(action);
+    if let Some(action) = now {
         run(app, action);
-    } else {
-        queue.pending.push(action);
     }
 }
 
@@ -193,6 +211,17 @@ mod tests {
     fn rejects_other_schemes_and_hosts() {
         assert_eq!(action("https://record"), None);
         assert_eq!(action("kasset://format-disk"), None);
+    }
+
+    #[test]
+    fn open_meeting_waits_until_ready() {
+        let mut queue = Queue::default();
+        let meeting = |id: &str| UrlAction::Meeting(id.into());
+        assert_eq!(queue.submit(meeting("m1")), None);
+        assert_eq!(queue.pending, [meeting("m1")]);
+        queue.ready = true;
+        assert_eq!(queue.submit(meeting("m2")), Some(meeting("m2")));
+        assert_eq!(queue.pending, [meeting("m1")]);
     }
 
     #[test]

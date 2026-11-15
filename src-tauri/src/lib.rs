@@ -20,6 +20,8 @@ mod url_actions;
 mod meeting_reminders;
 #[cfg(target_os = "macos")]
 mod call_detection;
+#[cfg(target_os = "macos")]
+mod meeting_spotlight;
 
 /// Open a folder in the OS file manager (Finder on macOS).
 #[tauri::command]
@@ -79,6 +81,10 @@ pub fn run() {
       // Detected calls (HEX): offer to record when a call app takes the microphone.
       #[cfg(target_os = "macos")]
       call_detection::start(app.handle().clone());
+
+      // Meetings in Spotlight: follows meeting writes; idle until the frontend turns it on.
+      #[cfg(target_os = "macos")]
+      meeting_spotlight::start(app.handle().clone());
 
       // Login-item / autostart launches pass --minimized: start hidden.
       // (Hex: LaunchWindow::OpenUnlessLoginItem stays quiet at login.)
@@ -158,6 +164,9 @@ pub fn run() {
       permissions::commands::open_permission_settings,
       // Hex integration (transcription models + one-way meeting sync)
       meeting_reminders::configure_meeting_reminders,
+      // Meetings in Spotlight (on/off)
+      #[cfg(target_os = "macos")]
+      meeting_spotlight::configure_meeting_spotlight,
       hex::commands::hex_status,
       hex::commands::hex_transcribe,
       hex::commands::hex_meetings_list,
