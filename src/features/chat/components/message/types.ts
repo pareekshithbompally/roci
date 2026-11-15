@@ -1,3 +1,4 @@
+import type { LoadingStatus } from './loadingStatus';
 import type { ChatPart, MeetingCitation, WebCitation, InlineCitationSpan } from '@shared/types';
 
 /** Shared action callbacks — stable via useMemo in parent */
@@ -27,8 +28,8 @@ export interface ChatMessageProps {
   provider?: string;
   model?: string;
   state?: 'loading' | 'streaming' | 'complete';
-  /** Override the loading state label (e.g. "Searching the web…") */
-  loadingLabel?: string;
+  /** What the header shows before the first word (label, and a percent when known) */
+  loadingStatus?: LoadingStatus;
   isError?: boolean;
   tokenCount?: number;
   inputTokenCount?: number;
@@ -70,8 +71,8 @@ export interface AssistantMessageProps {
   provider?: string;
   model?: string;
   state: 'loading' | 'streaming' | 'complete';
-  /** Override the loading state label (e.g. "Searching the web…") */
-  loadingLabel?: string;
+  /** What the header shows before the first word (label, and a percent when known) */
+  loadingStatus?: LoadingStatus;
   isError?: boolean;
   tokenCount?: number;
   inputTokenCount?: number;

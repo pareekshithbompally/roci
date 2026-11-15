@@ -27,3 +27,11 @@ export const SPOTLIGHT_MIN_QUERY_LENGTH = 2;
 
 /** Max results per source type returned by spotlight_search. */
 export const SPOTLIGHT_RESULTS_PER_SOURCE = 6;
+
+/** What a reply's header says before its first word, in the order it's checked. */
+export const CHAT_LOADING_COPY = {
+  'loading-model': 'Loading model…',
+  'reading-prompt': 'Reading your message…',
+  searching: 'Searching the web…',
+  working: 'Working on it…',
+} as const;

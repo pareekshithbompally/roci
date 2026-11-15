@@ -31,6 +31,7 @@ import type { MeetingListItem } from '@services/meetingReferenceService';
 import { chatService } from '@services/chat.service';
 import { unifiedAIService } from '@services/unifiedAIService';
 import { resolveChatModel } from '@shared/utils/modelResolver';
+import type { StreamMetadata } from '@services/ai/types';
 import { capabilitiesOf } from '@services/ai/capabilities';
 import { contextPipeline } from '@extensions/context-pipeline';
 import { orchestrate } from '@extensions/tool-orchestrator';
@@ -142,12 +143,7 @@ export interface ChatStoreState {
   copiedMessageId: string | null;
   selectedMeetingRefs: MeetingListItem[];
   webSearchEnabled: boolean;
-  aiActivity: {
-    isThinking?: boolean;
-    isSearching?: boolean;
-    searchQuery?: string;
-    thinkingContent?: string;
-  } | null;
+  aiActivity: StreamMetadata | null;
   pendingAttachments: ChatPart[];
 
   loadSessions: () => Promise<void>;
@@ -659,14 +655,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
 
       const handleChunk = (
         chunk: string,
-        metadata?: {
-          isThinking?: boolean;
-          isSearching?: boolean;
-          searchQuery?: string;
-          thinkingContent?: string;
-          webCitations?: WebCitation[];
-          inlineCitations?: InlineCitationSpan[];
-        }
+        metadata?: StreamMetadata
       ) => {
         if (metadata) {
           if (metadata.webCitations) {

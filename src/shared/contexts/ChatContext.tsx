@@ -12,6 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ChatSession, ChatPart, ChatIndexEntry, AppSettings, HistoryItem } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { MeetingListItem } from '@services/meetingReferenceService';
+import type { StreamMetadata } from '@services/ai/types';
 import { useChatStore, injectChatRefs, useCurrentSession, useFilteredIndexEntries } from '@features/chat';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
@@ -49,12 +50,7 @@ interface ChatState {
   copiedMessageId: string | null;
   selectedMeetingRefs: MeetingListItem[];
   webSearchEnabled: boolean;
-  aiActivity: {
-    isThinking?: boolean;
-    isSearching?: boolean;
-    searchQuery?: string;
-    thinkingContent?: string;
-  } | null;
+  aiActivity: StreamMetadata | null;
   pendingAttachments: ChatPart[];
 }
 

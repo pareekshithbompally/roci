@@ -4,11 +4,12 @@ import { AnimatedProviderIcon } from '@features/chat/components/AnimatedProvider
 import { useStreamingText } from '@features/chat/stores/streamingStore';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { toolCallTitle } from '@features/chat/components/tool-call';
-import { Text } from '@shared/ui';
+import { Progress, Text } from '@shared/ui';
 import { useReadAloud } from '@shared/hooks/useReadAloud';
 import { useSpeechHighlight } from '@shared/hooks/useSpeechHighlight';
 import { injectCitationTokens } from '@shared/utils/inlineCitationInjector';
 import PartsList from './PartsList';
+import { loadingStatusOf } from './loadingStatus';
 import AssistantActionBar from './AssistantActionBar';
 import ErrorMessageBox from './ErrorMessageBox';
 import type { AssistantMessageProps } from './types';
@@ -115,13 +116,14 @@ const CompletedContent: React.FC<{
 const AssistantMessage: React.FC<AssistantMessageProps> = ({
   id, text, parts, timestamp,
   suggestions, onSuggestionClick, isLastMessage,
-  provider, model, state, loadingLabel,
+  provider, model, state, loadingStatus,
   tokenCount, inputTokenCount, tokensPerSecond,
   toolActivity, meetingCitations,
   isCopied, actions, citationHandlers,
   webCitations, inlineCitations, isError,
 }) => {
   const isLoading = state === 'loading';
+  const status = loadingStatus ?? loadingStatusOf(null);
   const isStreaming = state === 'streaming';
   const isComplete = state === 'complete';
 
@@ -162,7 +164,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
         <AnimatedProviderIcon provider={provider || 'unknown'} modelId={model} size={18} isAnimating={isLoading || isStreaming} />
         <Text variant="label" tone="muted">
           {isLoading
-            ? loadingLabel || 'Working on it...'
+            ? status.label
             : isStreaming
               ? <StreamingHeaderLabel msgId={id} provider={provider} model={model} />
               : (
@@ -172,6 +174,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
               </>
             )}
         </Text>
+        {isLoading && status.percent !== null && <Progress percent={status.percent} className="w-24" />}
       </div>
 
       {/* STREAMING or COMPLETE STATE */}

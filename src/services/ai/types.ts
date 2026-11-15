@@ -65,8 +65,16 @@ export function mergeTokenUsage(a?: TokenUsage, b?: TokenUsage): TokenUsage {
   };
 }
 
+/** What a local server reports before the reply starts (llama-server). */
+export interface StreamProgress {
+  stage: 'loading-model' | 'reading-prompt';
+  /** 0–100 */
+  percent: number;
+}
+
 /** Stream metadata for UI state */
 export interface StreamMetadata {
+  progress?: StreamProgress;
   isThinking?: boolean;
   isSearching?: boolean;
   searchQuery?: string;

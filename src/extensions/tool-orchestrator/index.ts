@@ -18,6 +18,8 @@ import type { TextStreamPart, ToolSet } from 'ai';
 import { createModel, toSDKMessages, getWebSearchTools, toExecutableTools } from '@services/ai';
 import { resolveChatModel, requiresApiKey } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
+import { isLocalProviderId } from '@shared/utils/provider.utils';
+import { followModelLoad, isLlamaServer, promptProgressPercent } from '@services/ai/llamaServer';
 import { toolRegistry, loadMcpTools } from '@extensions/tools';
 import { DEFAULT_CHAT_TOOLS } from '@config/chatTools.config';
 import { extractTokenUsage } from '@services/ai/types';
@@ -99,6 +101,12 @@ function handlePart(part: TextStreamPart<ToolSet>, state: StreamState, onChunk: 
     case 'source':
       if (part.sourceType === 'url') state.sources.push({ url: part.url, title: part.title || '' });
       return;
+    // llama-server's own chunks (raw): how much of the prompt it has read.
+    case 'raw': {
+      const percent = promptProgressPercent(part.rawValue);
+      if (percent !== null) onChunk('', { progress: { stage: 'reading-prompt', percent } });
+      return;
+    }
     case 'error':
       console.error('[Orchestrator] Stream error:', part.error);
       throw part.error instanceof Error ? part.error : new Error(String(part.error ?? 'Model returned a stream error'));
@@ -131,19 +139,29 @@ export async function orchestrate(
   const resolved = chatModelOrThrow(settings, providers);
   const webSearchTools = webSearchEnabled ? getWebSearchTools(resolved) : undefined;
   const tools = await buildTools(options, webSearchTools, onToolActivity);
+  // A local llama-server reports loading the model and reading the prompt before it replies.
+  const reportsProgress = isLocalProviderId(resolved.provider) && (await isLlamaServer(resolved.baseUrl));
 
   const result = streamText({
-    model: createModel(resolved, { webSearch: !!webSearchTools }),
+    model: createModel(resolved, { webSearch: !!webSearchTools, promptProgress: reportsProgress }),
     instructions: systemPrompt,
     messages: toSDKMessages(messages),
     abortSignal: signal,
+    includeRawChunks: reportsProgress,
     ...(tools && { tools, toolChoice: 'auto' as const, stopWhen: isStepCount(MAX_AGENT_STEPS) }),
   });
 
+  const stopFollowingLoad = reportsProgress
+    ? followModelLoad(resolved.baseUrl, resolved.modelId, (percent) => onChunk('', { progress: { stage: 'loading-model', percent } }))
+    : () => undefined;
   const state: StreamState = { hasText: false, sources: [] };
-  for await (const part of result.stream) {
-    if (signal?.aborted) break;
-    handlePart(part, state, onChunk, !!webSearchTools);
+  try {
+    for await (const part of result.stream) {
+      if (signal?.aborted) break;
+      handlePart(part, state, onChunk, !!webSearchTools);
+    }
+  } finally {
+    stopFollowingLoad();
   }
 
   if (!state.hasText && !signal?.aborted) throw emptyResponseError(await result.finishReason);

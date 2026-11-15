@@ -16,7 +16,7 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useAppActions } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
-import { ChatMessage } from './message';
+import { ChatMessage, loadingStatusOf } from './message';
 import TodoConfirmationBanner from './TodoConfirmationBanner';
 import ToolApprovalBanner from './ToolApprovalBanner';
 import type { ActionProps, CitationHandlers } from './message';
@@ -75,6 +75,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
   const isSessionLoading = useChatStore((s) => s.isSessionLoading);
   const isGenerating = useChatStore((s) => s.isLoading);
   const aiActivity = useChatStore((s) => s.aiActivity);
+  const replyStatus = useMemo(() => loadingStatusOf(aiActivity), [aiActivity]);
   const chatInput = useChatStore((s) => s.input);
   const copiedMessageId = useChatStore((s) => s.copiedMessageId);
   const selectedMeetingRefs = useChatStore((s) => s.selectedMeetingRefs);
@@ -320,11 +321,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
                   provider={message.provider}
                   model={message.model}
                   state={message.state}
-                  loadingLabel={
-                    message.state === 'loading' && aiActivity?.isSearching
-                      ? 'Searching the web…'
-                      : undefined
-                  }
+                  loadingStatus={message.state === 'loading' ? replyStatus : undefined}
                   tokenCount={message.tokenCount}
                   inputTokenCount={message.inputTokenCount}
                   tokensPerSecond={message.tokensPerSecond}

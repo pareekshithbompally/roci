@@ -31,6 +31,9 @@ function buildCustomHeaders(providerConfig: ResolvedModel['providerConfig']): Re
   return headers;
 }
 
+/** llama-server's request flag for streaming `prompt_progress` chunks. */
+const withPromptProgress = (body: Record<string, unknown>) => ({ ...body, return_progress: true });
+
 /**
  * Create an AI SDK LanguageModel for the given resolved model.
  * Provider instances are lightweight — no caching needed.
@@ -38,10 +41,12 @@ function buildCustomHeaders(providerConfig: ResolvedModel['providerConfig']): Re
  * @param options.webSearch - When true, uses the Responses API for providers
  *   whose Chat API doesn't support provider-defined tools (OpenAI).
  *   Gemini and Anthropic handle web search natively in their Chat API.
+ * @param options.promptProgress - When true (a llama-server), the server is
+ *   asked to stream how much of the prompt it has read (`return_progress`).
  */
 export function createModel(
   resolved: ResolvedModel,
-  options?: { webSearch?: boolean },
+  options?: { webSearch?: boolean; promptProgress?: boolean },
 ): LanguageModel {
   const fetch = getPlatformFetch();
 
@@ -87,6 +92,7 @@ export function createModel(
         baseURL: resolved.baseUrl,
         fetch,
         ...(Object.keys(customHeaders).length > 0 && { headers: customHeaders }),
+        ...(options?.promptProgress && { transformRequestBody: withPromptProgress }),
       });
       return provider.chatModel(resolved.modelId);
     }
