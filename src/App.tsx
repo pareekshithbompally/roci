@@ -26,7 +26,7 @@ import { Toaster } from '@shared/ui';
 import { useDownloadToasts } from '@shared/hooks';
 import { useAppShortcuts } from '@features/shortcuts';
 import { focusChatComposer, startNewChat } from '@features/chat';
-import { useAppleNotesRuntime, useCalendarRuntime, useHexRuntime, useMcpHostRuntime, useRemindersRuntime, useUrlActionsRuntime } from '@features/integrations';
+import { useAppleNotesRuntime, useCalendarRuntime, useHexRuntime, useMcpHostRuntime, useRemindersRuntime, useSpotlightRuntime, useUrlActionsRuntime } from '@features/integrations';
 import { useNotificationsRuntime } from '@features/notifications';
 
 // Services
@@ -91,6 +91,7 @@ const App: React.FC = () => {
   useMcpHostRuntime();
   useUrlActionsRuntime();
   useAppleNotesRuntime();
+  useSpotlightRuntime();
 
   // Tray › Speech Model submenu: downloaded Hex models and the current pick
   useMenubarSpeechModels();

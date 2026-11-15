@@ -18,6 +18,8 @@ export const queryKeys = {
   /** Apple Speech on this Mac: available, Speech Recognition allowed, language model downloaded */
   appleSpeechStatus: () => ['apple-speech-status'] as const,
   /** Apple Intelligence language model availability (Integrations row) */
+  /** Spotlight indexing support in this build */
+  spotlight: () => ['spotlight'] as const,
   appleIntelligenceStatus: () => ['apple-intelligence-status'] as const,
   /** Local OpenAI-compatible servers on this Mac (keyed by the saved local providers it also probes) */
   localServers: (savedTargets: readonly string[]) => ['local-servers', savedTargets] as const,

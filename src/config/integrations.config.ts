@@ -35,6 +35,12 @@ export const INTEGRATIONS_CONFIG = {
     /** Line at the end of each note that ties it to its meeting. */
     tagPrefix: 'Kasset meeting',
   },
+  spotlight: {
+    title: 'Spotlight',
+    description: 'Find meetings from Spotlight (⌘Space) by title, attendees, summary, notes, or to-dos. Transcripts stay in Kasset.',
+    unavailable: 'Spotlight needs the installed Kasset app.',
+    icon: '/images/macos-spotlight-sm.png',
+  },
   hex: {
     title: 'Hex',
     description: "Use Hex's transcription models, and bring every Hex meeting into Kasset.",

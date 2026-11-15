@@ -239,6 +239,10 @@ export interface AppSettings {
     /** Epoch ms it was turned on; meetings from before aren't sent. */
     since?: number;
   };
+  /** Spotlight integration: meetings searchable from macOS Spotlight */
+  spotlightIntegration?: {
+    enabled: boolean;
+  };
   /** Hex integration: Hex's transcription models + one-way meeting sync */
   hexIntegration?: {
     enabled: boolean;
