@@ -1,6 +1,6 @@
 import React from 'react';
 import { LAYOUT } from '@config/layout.config';
-import { PageScroll, Text } from '@shared/ui';
+import { PageScroll, Text, TitlebarSpacer } from '@shared/ui';
 
 interface SettingsPageHeaderProps {
   title: React.ReactNode;
@@ -20,12 +20,37 @@ export const SettingsPageHeader: React.FC<SettingsPageHeaderProps> = ({ title, d
   </header>
 );
 
-/** A scrolling settings panel: header, then its `Section`s. */
-export const SettingsPage: React.FC<SettingsPageHeaderProps & { children?: React.ReactNode }> = ({ children, ...header }) => (
-  <PageScroll className={`h-full ${LAYOUT.pageGutter} pb-6`}>
-    <div className={`${LAYOUT.pageColumn} space-y-6 pt-6`}>
-      <SettingsPageHeader {...header} />
-      {children}
+interface SettingsPageProps extends SettingsPageHeaderProps {
+  /**
+   * `scroll` (default): the whole pane scrolls, fading under the titlebar.
+   * `fill`: the header stays put and the body fills the rest of the window,
+   * for panes whose columns scroll on their own (Providers).
+   */
+  layout?: 'scroll' | 'fill';
+  children?: React.ReactNode;
+}
+
+/** The page column every pane shares: centred, its header the same distance from the titlebar. */
+const COLUMN = `${LAYOUT.pageColumn} pt-6`;
+
+/**
+ * The one frame of every settings pane — titlebar clearance, gutter, column,
+ * header, and the spacing between its sections. Panes supply only their content.
+ */
+export const SettingsPage: React.FC<SettingsPageProps> = ({ layout = 'scroll', children, ...header }) =>
+  layout === 'scroll' ? (
+    <PageScroll className={`h-full ${LAYOUT.pageGutter} pb-6`}>
+      <div className={`${COLUMN} space-y-6`}>
+        <SettingsPageHeader {...header} />
+        {children}
+      </div>
+    </PageScroll>
+  ) : (
+    <div className={`flex h-full flex-col ${LAYOUT.pageGutter} pb-6`}>
+      <TitlebarSpacer />
+      <div className={`${COLUMN} flex min-h-0 flex-1 flex-col gap-6`}>
+        <SettingsPageHeader {...header} />
+        <div className="flex min-h-0 flex-1">{children}</div>
+      </div>
     </div>
-  </PageScroll>
-);
+  );

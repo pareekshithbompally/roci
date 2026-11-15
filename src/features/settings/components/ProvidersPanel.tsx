@@ -26,8 +26,7 @@ import type { ModelCapabilityFlag } from './ModelRowMenu';
 import { confirm } from '@shared/stores/confirmStore';
 import { ProviderGroup, ProviderListItem } from './ProviderListItem';
 import { LocalServersSection } from './LocalServersSection';
-import { LAYOUT } from '@config/layout.config';
-import { SettingsInput, SecretInput, SettingsPageHeader } from './shared';
+import { SettingsInput, SecretInput, SettingsPage } from './shared';
 import { Button, Callout, CardRow, Icon, IconButton, Popover, PopoverAnchor, PopoverContent, ScrollArea, Section, Surface, Text } from '@shared/ui';
 import { Command, CommandList, CommandItem, CommandEmpty } from '@shared/ui';
 import type { Model as ProviderModel, ModelProvider } from '@shared/types/modelProviders';
@@ -207,20 +206,12 @@ export const ProvidersPanel: React.FC = () => {
   const searchDisabled = !hasHardcodedModels && (!getApiKeyValue() || (!isManaged && !getBaseUrlValue()));
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Pinned Header */}
-      <div className={`shrink-0 ${LAYOUT.pageGutter} pt-6 pb-4`}>
-        <div className={`${LAYOUT.pageColumn}`}>
-          <SettingsPageHeader
-            title="Model Providers"
-            description="Enable providers and configure API keys to access AI models."
-          />
-        </div>
-      </div>
-
-      {/* Split scroll body */}
-      <div className={`flex-1 min-h-0 flex ${LAYOUT.pageGutter} pb-6`}>
-        <div className={`${LAYOUT.pageColumn} flex gap-6 min-h-0`}>
+    <SettingsPage
+      title="Model Providers"
+      description="Enable providers and configure API keys to access AI models."
+      layout="fill"
+    >
+      <div className="flex min-h-0 w-full gap-6">
         {/* Left: Provider list — independent scroll */}
         <ScrollArea className="w-56 shrink-0 space-y-4">
           <ProviderGroup title="Cloud">
@@ -452,9 +443,7 @@ export const ProvidersPanel: React.FC = () => {
           )}
         </ScrollArea>
       </div>
-      </div>
-
-    </div>
+    </SettingsPage>
   );
 };
 
