@@ -13,14 +13,17 @@ export const LiveTranscript: React.FC<{ text: LiveText }> = ({ text }) => {
     <Surface variant="floating" radius="full" className="flex w-full items-center px-4" style={{ height: heightPx }}>
       {/* A right-to-left line around left-to-right text: overflow trims the start, not the end. */}
       <Text as="p" variant="headline" truncate dir="rtl" className="w-full text-center" aria-live="polite">
-        {empty ? (
-          <Text tone="faint">{placeholder}</Text>
-        ) : (
-          <bdi>
-            {text.committed}
-            <Text tone="faint">{text.tentative}</Text>
-          </bdi>
-        )}
+        {/* bdi keeps every line's own direction, so trailing punctuation stays at the end. */}
+        <bdi>
+          {empty ? (
+            <Text tone="faint">{placeholder}</Text>
+          ) : (
+            <>
+              {text.committed}
+              <Text tone="faint">{text.tentative}</Text>
+            </>
+          )}
+        </bdi>
       </Text>
     </Surface>
   );
