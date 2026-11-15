@@ -21,13 +21,15 @@ use tauri_plugin_calendar::types::CalendarEvent;
 use tauri_plugin_notifications::{self as notifications, Action, Category, Notice, Response};
 
 use crate::audio::commands::is_recording;
-use scheduler::{meetings, minutes_until, wall_clock_ms, CalendarMeeting, ReminderScheduler, ReminderUpdate};
+use scheduler::{
+    current_for_call, meetings, minutes_until, wall_clock_ms, CalendarMeeting, ReminderScheduler, ReminderUpdate,
+};
 
 /// Frontend: start recording this meeting (`CalendarEvent`).
 const RECORD_EVENT: &str = "meeting-reminders://record";
 
 /// HEX's controller loop interval.
-const TICK: Duration = Duration::from_millis(500);
+pub(crate) const TICK: Duration = Duration::from_millis(500);
 /// How often the poll rereads the calendar without a change notification (HEX).
 const CALENDAR_REREAD_MS: i64 = 60_000;
 /// Events read either side of now: covers late grace behind and any lead ahead.
@@ -73,9 +75,7 @@ impl Reminders {
 
     fn reread_if_stale(&mut self, now_ms: i64) {
         let changes = tauri_plugin_calendar::change_count();
-        let stale = self
-            .read_at_ms
-            .is_none_or(|read_at| (now_ms - read_at).abs() >= CALENDAR_REREAD_MS);
+        let stale = self.read_at_ms.is_none_or(|read_at| (now_ms - read_at).abs() >= CALENDAR_REREAD_MS);
         if !stale && self.change_count == Some(changes) {
             return;
         }
@@ -107,10 +107,7 @@ static REMINDERS: OnceLock<Mutex<Reminders>> = OnceLock::new();
 static APP: OnceLock<AppHandle> = OnceLock::new();
 
 fn reminders() -> MutexGuard<'static, Reminders> {
-    REMINDERS
-        .get_or_init(Mutex::default)
-        .lock()
-        .unwrap_or_else(|error| error.into_inner())
+    REMINDERS.get_or_init(Mutex::default).lock().unwrap_or_else(|error| error.into_inner())
 }
 
 fn read_events(now_ms: i64, lead_ms: i64) -> Result<Vec<CalendarEvent>, String> {
@@ -212,7 +209,9 @@ fn emit(name: &str, event: &CalendarEvent) {
 // ── Answer ──
 
 fn handle_response(response: &Response) {
-    let Some(occurrence) = response.id.strip_prefix(ID_PREFIX) else { return };
+    let Some(occurrence) = response.id.strip_prefix(ID_PREFIX) else {
+        return;
+    };
     let event = {
         let mut reminders = reminders();
         reminders.scheduler.answered(occurrence);
@@ -227,7 +226,7 @@ fn handle_response(response: &Response) {
 }
 
 /// Join opens the call link; Record is ignored while already recording (HEX).
-fn record(event: &CalendarEvent, join: bool) {
+pub(crate) fn record(event: &CalendarEvent, join: bool) {
     if join {
         if let Some(url) = &event.meeting_url {
             open_link(url);
@@ -240,8 +239,62 @@ fn record(event: &CalendarEvent, join: bool) {
     emit(RECORD_EVENT, event);
 }
 
+/// The calendar meeting in progress that a detected call's app belongs to.
+/// Known only while reminders are on, which is what reads the calendar.
+pub(crate) fn event_for_call(application: &str) -> Option<CalendarEvent> {
+    let reminders = reminders();
+    let meeting = current_for_call(&reminders.meetings, &[application], wall_clock_ms(), reminders.lead_ms)?;
+    reminders.events.get(&meeting.id).cloned()
+}
+
+/// What a calendar meeting's answered reminder covers: its call service's
+/// detected-call keys until the meeting ends. Without a call link, the next
+/// call of any service, but only around the scheduled start, so one
+/// dismissal never silences other calls for the rest of a long event.
+pub(crate) fn calendar_snooze(meeting: &CalendarMeeting) -> (Vec<String>, i64) {
+    match &meeting.link {
+        Some(link) => (link.provider.detection_keys().iter().map(|key| key.to_string()).collect(), meeting.end_ms),
+        None => (Vec::new(), (meeting.start_ms + scheduler::LATE_GRACE_MS).min(meeting.end_ms)),
+    }
+}
+
 fn open_link(url: &str) {
     if let Err(error) = std::process::Command::new("open").arg(url).spawn() {
         log::warn!("[meeting-reminders] could not open call link: {error}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tauri_plugin_calendar::{CallLink, CallProvider};
+
+    const MINUTE: i64 = 60_000;
+
+    fn meeting(start_minute: i64, minutes: i64) -> CalendarMeeting {
+        CalendarMeeting {
+            id: "m".into(),
+            title: "Sync".into(),
+            start_ms: start_minute * MINUTE,
+            end_ms: (start_minute + minutes) * MINUTE,
+            attendees: vec!["Ana Ruiz".into()],
+            link: None,
+        }
+    }
+
+    #[test]
+    fn calendar_snooze_without_link_lapses_after_grace() {
+        let workshop = meeting(100, 240);
+        assert_eq!(calendar_snooze(&workshop), (Vec::new(), 100 * MINUTE + scheduler::LATE_GRACE_MS));
+        assert_eq!(calendar_snooze(&meeting(100, 3)), (Vec::new(), 103 * MINUTE));
+    }
+
+    #[test]
+    fn calendar_snooze_with_link_covers_its_service_until_the_end() {
+        let mut zoom = meeting(100, 240);
+        zoom.link = Some(CallLink { provider: CallProvider::Zoom, url: "https://zoom.us/j/1".into() });
+        let (keys, until_ms) = calendar_snooze(&zoom);
+        assert!(keys.iter().any(|key| key == "us.zoom.xos"), "{keys:?}");
+        assert_eq!(until_ms, zoom.end_ms);
     }
 }

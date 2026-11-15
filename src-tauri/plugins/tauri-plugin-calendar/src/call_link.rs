@@ -27,6 +27,22 @@ impl CallProvider {
             Self::Webex => "Webex",
         }
     }
+
+    /// Every app bundle ID and website host a detected call from this
+    /// service can carry. A website matches its subdomains too.
+    pub fn detection_keys(self) -> &'static [&'static str] {
+        match self {
+            Self::Zoom => &["us.zoom.xos", "zoom.us", "zoomgov.com"],
+            Self::GoogleMeet => &["meet.google.com"],
+            Self::Teams => &[
+                "com.microsoft.teams2",
+                "teams.microsoft.com",
+                "teams.live.com",
+            ],
+            Self::Slack => &["com.tinyspeck.slackmacgap", "app.slack.com"],
+            Self::Webex => &["webex.com"],
+        }
+    }
 }
 
 /// The call an invitation links to.
@@ -51,7 +67,9 @@ fn links(text: &str) -> impl Iterator<Item = Url> + '_ {
         let start = rest.find("http")?;
         let candidate = &rest[start..];
         let end = candidate
-            .find(|character: char| character.is_whitespace() || "<>\"'()[]{}|\\^`".contains(character))
+            .find(|character: char| {
+                character.is_whitespace() || "<>\"'()[]{}|\\^`".contains(character)
+            })
             .unwrap_or(candidate.len());
         let token = candidate[..end].trim_end_matches(['.', ',', ';', ':', '!', '?']);
         if !(token.starts_with("https://") || token.starts_with("http://")) {
@@ -67,14 +85,25 @@ fn links(text: &str) -> impl Iterator<Item = Url> + '_ {
 }
 
 fn host_is(host: &str, domain: &str) -> bool {
-    host == domain || host.strip_suffix(domain).is_some_and(|prefix| prefix.ends_with('.'))
+    host == domain
+        || host
+            .strip_suffix(domain)
+            .is_some_and(|prefix| prefix.ends_with('.'))
+}
+
+/// Whether a detected call's app bundle ID or website host is `known`.
+pub fn key_matches(key: &str, known: &str) -> bool {
+    let key = key.to_ascii_lowercase();
+    key == known || host_is(&key, known)
 }
 
 fn classify(url: &Url) -> Option<CallLink> {
     let host = url.host_str()?.to_ascii_lowercase();
     let path = url.path().to_ascii_lowercase();
     let provider = if (host_is(&host, "zoom.us") || host_is(&host, "zoomgov.com"))
-        && ["/j/", "/my/", "/w/", "/s/"].iter().any(|prefix| path.starts_with(prefix))
+        && ["/j/", "/my/", "/w/", "/s/"]
+            .iter()
+            .any(|prefix| path.starts_with(prefix))
     {
         CallProvider::Zoom
     } else if host == "meet.google.com" && is_meet_path(&path) {
@@ -95,7 +124,10 @@ fn classify(url: &Url) -> Option<CallLink> {
     } else {
         return None;
     };
-    Some(CallLink { provider, url: url.to_string() })
+    Some(CallLink {
+        provider,
+        url: url.to_string(),
+    })
 }
 
 /// A meeting code such as `/abc-defg-hij`, or a nickname path; not the
@@ -105,7 +137,9 @@ fn is_meet_path(path: &str) -> bool {
     !path.is_empty()
         && !path.contains('/')
         && !matches!(path, "landing" | "new" | "_meet")
-        && path.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+        && path
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
 }
 
 #[cfg(test)]
@@ -142,6 +176,17 @@ mod tests {
         assert_eq!(zoom.url, "https://acme.zoom.us/j/123?pwd=x");
         let meet = call_link(&event("http_link:https://meet.google.com/abc-defg-hij", "")).unwrap();
         assert_eq!(meet.provider, CallProvider::GoogleMeet);
-        assert!(call_link(&event("https://meet.google.com/landing", "https://example.com/j/1")).is_none());
+        assert!(call_link(&event(
+            "https://meet.google.com/landing",
+            "https://example.com/j/1"
+        ))
+        .is_none());
+    }
+
+    #[test]
+    fn key_matches_bundle_and_subdomain() {
+        assert!(key_matches("US.ZOOM.XOS", "us.zoom.xos"));
+        assert!(key_matches("x.zoom.us", "zoom.us"));
+        assert!(!key_matches("notzoom.us", "zoom.us"));
     }
 }

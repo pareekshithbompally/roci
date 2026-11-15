@@ -5,7 +5,7 @@ pub mod types;
 
 use std::sync::OnceLock;
 
-pub use call_link::{call_link, CallLink, CallProvider};
+pub use call_link::{call_link, key_matches, CallLink, CallProvider};
 use types::{CalendarEvent, EventsResponse};
 
 use tauri::{

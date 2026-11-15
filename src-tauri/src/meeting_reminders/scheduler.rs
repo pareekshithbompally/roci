@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 
-use tauri_plugin_calendar::{call_link, types::CalendarEvent, CallLink};
+use tauri_plugin_calendar::{call_link, key_matches, types::CalendarEvent, CallLink};
 
 /// How late a reminder may still show, for a Mac that wakes after the
 /// meeting started.
@@ -69,10 +69,7 @@ fn others(event: &CalendarEvent) -> Vec<String> {
 }
 
 fn declined(event: &CalendarEvent) -> bool {
-    event
-        .attendees
-        .iter()
-        .any(|attendee| attendee.is_current_user == Some(true) && attendee.status == "declined")
+    event.attendees.iter().any(|attendee| attendee.is_current_user == Some(true) && attendee.status == "declined")
 }
 
 /// A meeting is an event with other people or a call link that the user
@@ -89,13 +86,27 @@ pub fn is_meeting(event: &CalendarEvent) -> bool {
 
 /// The meetings among `events`, soonest first.
 pub fn meetings(events: &[CalendarEvent]) -> Vec<CalendarMeeting> {
-    let mut meetings = events
-        .iter()
-        .filter(|event| is_meeting(event))
-        .map(CalendarMeeting::from_event)
-        .collect::<Vec<_>>();
+    let mut meetings =
+        events.iter().filter(|event| is_meeting(event)).map(CalendarMeeting::from_event).collect::<Vec<_>>();
     meetings.sort_by_key(|meeting| meeting.start_ms);
     meetings
+}
+
+/// The meeting happening now that a detected call belongs to: one whose
+/// link names the call's service, from its reminder lead until it ends.
+pub fn current_for_call<'a>(
+    meetings: &'a [CalendarMeeting],
+    keys: &[&str],
+    now_ms: i64,
+    lead_ms: i64,
+) -> Option<&'a CalendarMeeting> {
+    meetings.iter().find(|meeting| {
+        now_ms >= meeting.start_ms - lead_ms.max(5 * 60 * 1_000)
+            && now_ms < meeting.end_ms
+            && meeting.link.as_ref().is_some_and(|link| {
+                link.provider.detection_keys().iter().any(|known| keys.iter().any(|key| key_matches(key, known)))
+            })
+    })
 }
 
 /// Decides when each meeting's reminder shows. Times are wall-clock
@@ -144,11 +155,7 @@ impl ReminderScheduler {
 
     /// The user answered the reminder, or it closed.
     pub fn answered(&mut self, occurrence: &str) {
-        if self
-            .showing
-            .as_ref()
-            .is_some_and(|(showing, _)| showing.occurrence() == occurrence)
-        {
+        if self.showing.as_ref().is_some_and(|(showing, _)| showing.occurrence() == occurrence) {
             self.showing = None;
         }
     }
@@ -185,6 +192,7 @@ pub fn wall_clock_ms() -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tauri_plugin_calendar::CallProvider;
 
     const MINUTE: i64 = 60_000;
 
@@ -217,5 +225,28 @@ mod tests {
         let moved = [meeting("a", 11 * MINUTE)];
         assert_eq!(scheduler.poll(&moved, 9 * MINUTE, 2 * MINUTE), Some(ReminderUpdate::Withdraw("a@600000".into())));
         assert!(matches!(scheduler.poll(&moved, 9 * MINUTE, 2 * MINUTE), Some(ReminderUpdate::Show(_))));
+    }
+
+    fn with_link(mut meeting: CalendarMeeting, provider: CallProvider) -> CalendarMeeting {
+        meeting.link = Some(CallLink { provider, url: "https://zoom.us/j/1".into() });
+        meeting
+    }
+
+    #[test]
+    fn current_for_call_matches_provider_in_window() {
+        let meetings = [with_link(meeting("z", 100 * MINUTE), CallProvider::Zoom)];
+        let keys = ["us.zoom.xos"];
+        assert!(current_for_call(&meetings, &keys, 100 * MINUTE, MINUTE).is_some());
+        assert!(current_for_call(&meetings, &keys, 95 * MINUTE, MINUTE).is_some());
+        assert!(current_for_call(&meetings, &keys, 94 * MINUTE, MINUTE).is_none());
+        assert!(current_for_call(&meetings, &keys, 130 * MINUTE, MINUTE).is_none());
+    }
+
+    #[test]
+    fn current_for_call_ignores_other_provider() {
+        let meetings = [with_link(meeting("z", 100 * MINUTE), CallProvider::Zoom)];
+        assert!(current_for_call(&meetings, &["com.microsoft.teams2"], 100 * MINUTE, MINUTE).is_none());
+        let unlinked = [meeting("n", 100 * MINUTE)];
+        assert!(current_for_call(&unlinked, &["us.zoom.xos"], 100 * MINUTE, MINUTE).is_none());
     }
 }
