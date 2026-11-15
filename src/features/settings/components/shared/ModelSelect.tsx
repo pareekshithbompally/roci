@@ -1,14 +1,17 @@
 /**
  * ModelSelect — the one model picker in Settings: usable models grouped by
  * provider, then a single "Needs setup" group whose rows say the next step.
- * Every capability (chat, transcription, summaries, knowledge graph) uses it.
+ * A row with a `setup` step (download a voice, allow Speech Recognition) shows
+ * it at its end, and choosing that row runs the step instead of selecting it.
+ * Every capability (chat, speech, summaries, knowledge graph, read aloud) uses it.
  */
 
 import React, { useMemo } from 'react';
+import { Download, Loader2 } from 'lucide-react';
 import { ModelIcon } from '@shared/components';
 import { getProviderTitle } from '@shared/utils/provider.utils';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue, Text } from '@shared/ui';
-import { groupChoices, type ModelChoice } from '@shared/utils/modelResolver';
+import { Icon, Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue, Text } from '@shared/ui';
+import { groupChoices, type ChoiceSetup, type ModelChoice } from '@shared/utils/modelResolver';
 
 interface ModelSelectProps {
   value: string | undefined;
@@ -18,12 +21,27 @@ interface ModelSelectProps {
   leading?: Array<{ value: string; label: string }>;
 }
 
+/** The step a row needs: Download / Allow, or progress while it runs. */
+const SetupMark: React.FC<{ setup: ChoiceSetup }> = ({ setup }) => {
+  if (setup.busy) {
+    return (
+      <span className="inline-flex items-center gap-1">
+        <Icon icon={Loader2} size="xs" tone="muted" className="animate-spin" />
+        {setup.percent !== null && <Text variant="helper" tone="muted" className="tabular-nums">{setup.percent}%</Text>}
+      </span>
+    );
+  }
+  if (setup.kind === 'allow') return <Text variant="helper" tone="accent">Allow</Text>;
+  return <Icon icon={Download} size="xs" tone="accent" label="Download" />;
+};
+
 const Item: React.FC<{ choice: ModelChoice }> = ({ choice }) => (
   <SelectItem
     value={choice.value}
-    disabled={!choice.ready}
+    disabled={!choice.ready && !choice.setup}
     icon={<ModelIcon provider={choice.provider} modelId={choice.modelId} size={16} />}
     description={choice.hint ?? undefined}
+    trailing={!choice.ready && choice.setup ? <SetupMark setup={choice.setup} /> : undefined}
   >
     {choice.label}
   </SelectItem>
@@ -34,13 +52,23 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({ value, choices, onChan
   const selected = choices.find((c) => c.value === value);
   const selectedLeading = leading.find((l) => l.value === value);
 
+  /** A row that needs setup runs its step; the selection stays until it's ready. */
+  const choose = (next: string) => {
+    const choice = choices.find((c) => c.value === next);
+    if (choice && !choice.ready && choice.setup) {
+      if (!choice.setup.busy) choice.setup.run();
+      return;
+    }
+    onChange(next);
+  };
+
   if (choices.length === 0 && leading.length === 0) {
     return <Text variant="helper" tone="faint">No models yet — add a provider</Text>;
   }
 
   return (
     <div className="w-64">
-    <Select value={value} onValueChange={onChange}>
+    <Select value={value} onValueChange={choose}>
       <SelectTrigger>
         <SelectValue placeholder="Select model">
           {selected ? (

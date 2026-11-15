@@ -28,7 +28,7 @@ export { useModelAvatarOrg } from './useModelAvatarOrg';
 export { deriveContextUsage, useContextUsage, contextLevelFor } from './useContextUsage';
 export { CONTEXT_WARNING_PERCENT, CONTEXT_CRITICAL_PERCENT } from './useContextUsage';
 export type { ContextUsage, ContextLevel } from './useContextUsage';
-export { useOnDeviceModel } from './useOnDeviceModel';
+export { useOnDeviceModel, useOnDeviceModels } from './useOnDeviceModel';
 export type { OnDeviceModel, OnDeviceModelKind, OnDeviceStatus } from './useOnDeviceModel';
 export { useCopiedFlag } from './useCopiedFlag';
 export { useDownloadToasts } from './useDownloadToasts';

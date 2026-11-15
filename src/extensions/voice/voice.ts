@@ -1,171 +1,166 @@
 /**
- * Voice Service — on-device TTS model lifecycle.
+ * Read aloud — speak a reply with the chosen voice, stop it, and download the
+ * downloadable voices (one worker holds one loaded voice at a time).
  *
- * Mirrors the embedding service: consent-gated download, worker-isolated
- * load, persisted ready flag, idle teardown. Synthesis (`speak`) arrives
- * with the TTS engine step; this service covers download + readiness only.
+ * macOS voices go through WebKit's `speechSynthesis` (Apple's system voices);
+ * Kokoro and Supertonic synthesize sentence by sentence in the worker and
+ * play through Web Audio, the next chunk synthesizing while one plays.
  */
 
-import { VOICE_MODEL, VOICE_DTYPE, VOICE_READY_KEY } from './constants';
-import { requestVoiceConsent, hasVoiceConsent } from './consent';
+import { DOWNLOADABLE_VOICES, voiceReadyKey } from './constants';
+import type { DownloadableVoiceId, VoiceId } from './constants';
 import { emitVoiceProgress } from './progress';
+import { sentenceChunks, speakableText } from './text';
+
+interface Clip {
+  audio: Float32Array;
+  samplingRate: number;
+}
+
+interface Waiter<T> {
+  resolve: (value: T) => void;
+  reject: (error: Error) => void;
+}
 
 let worker: Worker | null = null;
-let ready = false;
-let loadPromise: Promise<void> | null = null;
-let idleTimer: ReturnType<typeof setTimeout> | null = null;
+const loads = new Map<DownloadableVoiceId, { promise: Promise<void>; waiter: Waiter<void> }>();
+const clips = new Map<number, Waiter<Clip>>();
+let nextRequest = 0;
 
-/** Idle worker lifetime before teardown (mirrors the embedding service). */
-const VOICE_IDLE_TIMEOUT_MS = 60_000;
+// ── Downloads ──
 
-function getWorker(): Worker {
-  if (worker) return worker;
-
-  worker = new Worker(
-    new URL('./voice.worker.ts', import.meta.url),
-    { type: 'module' },
-  );
-
-  worker.onmessage = (e: MessageEvent) => {
-    const msg = e.data;
-
-    switch (msg.type) {
-      // The worker's `loaded` is the only completion signal: Kokoro loads via
-      // model/tokenizer `from_pretrained`, and transformers emits a `ready`
-      // progress event only from `pipeline()`, so none arrives on its own.
-      case 'loaded':
-        ready = true;
-        setVoiceReady(true);
-        emitVoiceProgress({ kind: 'voice-model', status: 'ready' });
-        console.log('[VoiceService] Model loaded in worker');
-        break;
-
-      case 'progress':
-        // Forward model download progress to the UI bridge
-        switch (msg.status) {
-          case 'initiate':
-          case 'download':
-            emitVoiceProgress({ kind: 'voice-model', status: 'downloading', file: msg.file, percent: 0 });
-            break;
-          case 'progress':
-            emitVoiceProgress({
-              kind: 'voice-model',
-              status: 'downloading',
-              file: msg.file,
-              loaded: msg.loaded,
-              total: msg.total,
-              percent: Math.round(msg.progress ?? 0),
-            });
-            break;
-          case 'done':
-            emitVoiceProgress({ kind: 'voice-model', status: 'loading', file: msg.file });
-            break;
-        }
-        break;
-
-      case 'error':
-        console.error('[VoiceService] Worker error:', msg.message);
-        setVoiceReady(false);
-        emitVoiceProgress({ kind: 'voice-model', status: 'error', error: msg.message });
-        break;
-    }
-  };
-
-  worker.onerror = (e) => {
-    console.error('[VoiceService] Worker uncaught error:', e);
-    setVoiceReady(false);
-    emitVoiceProgress({ kind: 'voice-model', status: 'error', error: 'Voice worker crashed' });
-  };
-
-  return worker;
-}
-
-function resetIdleTimer(): void {
-  if (idleTimer) clearTimeout(idleTimer);
-  idleTimer = setTimeout(() => {
-    if (worker) {
-      worker.terminate();
-      worker = null;
-    }
-    idleTimer = null;
-  }, VOICE_IDLE_TIMEOUT_MS);
-}
-
-/** Whether the voice model has successfully loaded before (persisted). */
-export function isVoiceReady(): boolean {
+export function isVoiceReady(id: DownloadableVoiceId): boolean {
   try {
-    return localStorage.getItem(VOICE_READY_KEY) === 'ready';
+    return localStorage.getItem(voiceReadyKey(id)) === 'ready';
   } catch {
-    return ready;
+    return false;
   }
 }
 
-function setVoiceReady(value: boolean): void {
+function setReady(id: DownloadableVoiceId, ready: boolean): void {
   try {
-    if (value) {
-      localStorage.setItem(VOICE_READY_KEY, 'ready');
-    } else {
-      localStorage.removeItem(VOICE_READY_KEY);
-    }
+    if (ready) localStorage.setItem(voiceReadyKey(id), 'ready');
+    else localStorage.removeItem(voiceReadyKey(id));
   } catch {
     // localStorage unavailable
   }
 }
 
-/**
- * Load the model, gating on consent only when the call comes from an
- * explicit user gesture (a Download button). Silent otherwise.
- */
-async function ensureLoaded(opts: { interactive?: boolean } = {}): Promise<void> {
-  if (ready) return;
-  if (!loadPromise) {
-    // Gate on user consent before downloading the model
-    if (!hasVoiceConsent()) {
-      if (!opts.interactive) {
-        const err = new Error('Voice model download not consented') as Error & { code?: string };
-        err.code = 'NOT_CONSENTED';
-        throw err;
-      }
-      const granted = await requestVoiceConsent();
-      if (!granted) {
-        throw new Error('User declined voice model download');
-      }
-    }
-    loadPromise = new Promise<void>((resolve, reject) => {
-      const w = getWorker();
-      const onMsg = (e: MessageEvent) => {
-        if (e.data.type === 'loaded') {
-          w.removeEventListener('message', onMsg);
-          resetIdleTimer();
-          resolve();
-        } else if (e.data.type === 'error') {
-          w.removeEventListener('message', onMsg);
-          loadPromise = null;
-          reject(new Error(e.data.message));
-        }
-      };
-      w.addEventListener('message', onMsg);
-      w.postMessage({ type: 'load', model: VOICE_MODEL, dtype: VOICE_DTYPE });
-    });
+function onProgress(id: DownloadableVoiceId, msg: { status: string; file?: string; progress?: number }): void {
+  if (msg.status === 'initiate' || msg.status === 'download' || msg.status === 'progress') {
+    emitVoiceProgress({ kind: 'voice-model', voice: id, status: 'downloading', file: msg.file, percent: Math.round(msg.progress ?? 0) });
+  } else if (msg.status === 'done') {
+    emitVoiceProgress({ kind: 'voice-model', voice: id, status: 'loading', file: msg.file });
   }
-  await loadPromise;
 }
 
-/**
- * Trigger model download/load without needing to synthesize anything.
- * Interactive (consent modal allowed) by default.
- */
-export async function preloadVoice(opts: { interactive?: boolean } = {}): Promise<void> {
-  await ensureLoaded({ interactive: opts.interactive ?? true });
+function settleLoad(id: DownloadableVoiceId, error?: string): void {
+  const load = loads.get(id);
+  loads.delete(id);
+  setReady(id, !error);
+  emitVoiceProgress({ kind: 'voice-model', voice: id, status: error ? 'error' : 'ready', error });
+  if (error) load?.waiter.reject(new Error(error));
+  else load?.waiter.resolve();
 }
 
-/** Clear cached worker so the next load retries. Does not wipe the download. */
-export function resetVoice(): void {
-  if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
-  if (worker) {
-    worker.terminate();
-    worker = null;
+function handleMessage({ data: msg }: MessageEvent): void {
+  if (msg.type === 'progress') onProgress(msg.id, msg);
+  else if (msg.type === 'loaded') settleLoad(msg.id);
+  else if (msg.type === 'audio') clips.get(msg.requestId)?.resolve({ audio: msg.audio, samplingRate: msg.samplingRate });
+  else if (msg.type === 'error' && msg.id) settleLoad(msg.id, msg.message);
+  else if (msg.type === 'error') clips.get(msg.requestId)?.reject(new Error(msg.message));
+}
+
+function getWorker(): Worker {
+  if (worker) return worker;
+  worker = new Worker(new URL('./voice.worker.ts', import.meta.url), { type: 'module' });
+  worker.onmessage = handleMessage;
+  worker.onerror = (event) => {
+    console.error('[Voice] Worker crashed:', event);
+    for (const id of loads.keys()) settleLoad(id, 'Voice worker crashed');
+  };
+  return worker;
+}
+
+/** Download (first time) and load a voice. A Download press is the consent. */
+export function loadVoice(id: DownloadableVoiceId): Promise<void> {
+  const pending = loads.get(id);
+  if (pending) return pending.promise;
+  let waiter!: Waiter<void>;
+  const promise = new Promise<void>((resolve, reject) => (waiter = { resolve, reject }));
+  loads.set(id, { promise, waiter });
+  getWorker().postMessage({ type: 'load', id, spec: DOWNLOADABLE_VOICES[id] });
+  return promise;
+}
+
+/** Forget a voice's ready flag so the next load downloads it again. */
+export function resetVoice(id: DownloadableVoiceId): void {
+  setReady(id, false);
+  worker?.terminate();
+  worker = null;
+}
+
+// ── Speaking ──
+
+let session = 0;
+let context: AudioContext | null = null;
+let source: AudioBufferSourceNode | null = null;
+
+function synthesize(text: string): Promise<Clip> {
+  const requestId = ++nextRequest;
+  return new Promise<Clip>((resolve, reject) => {
+    clips.set(requestId, { resolve, reject });
+    getWorker().postMessage({ type: 'speak', requestId, text });
+  }).finally(() => clips.delete(requestId));
+}
+
+function play({ audio, samplingRate }: Clip): Promise<void> {
+  context ??= new AudioContext();
+  const buffer = context.createBuffer(1, audio.length, samplingRate);
+  buffer.copyToChannel(audio, 0);
+  source = context.createBufferSource();
+  source.buffer = buffer;
+  source.connect(context.destination);
+  const done = new Promise<void>((resolve) => { source!.onended = () => resolve(); });
+  source.start();
+  return done;
+}
+
+function speakWithSystem(text: string): Promise<void> {
+  return new Promise((resolve) => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.onend = () => resolve();
+    utterance.onerror = () => resolve();
+    speechSynthesis.speak(utterance);
+  });
+}
+
+async function speakWithModel(id: DownloadableVoiceId, text: string, mine: number): Promise<void> {
+  await loadVoice(id);
+  const chunks = sentenceChunks(text);
+  let next = chunks.length > 0 ? synthesize(chunks[0]) : null;
+  for (let i = 0; next && i < chunks.length; i += 1) {
+    const clip = await next;
+    if (mine !== session) return;
+    next = i + 1 < chunks.length ? synthesize(chunks[i + 1]) : null;
+    await play(clip);
+    if (mine !== session) return;
   }
-  loadPromise = null;
-  ready = false;
+}
+
+/** Speak a reply (markdown) with `voice`; resolves when it finishes or is stopped. */
+export async function speak(markdown: string, voice: VoiceId): Promise<void> {
+  stopSpeaking();
+  const mine = session;
+  const text = speakableText(markdown);
+  if (!text) return;
+  if (voice === 'macos') return speakWithSystem(text);
+  return speakWithModel(voice, text, mine);
+}
+
+export function stopSpeaking(): void {
+  session += 1;
+  speechSynthesis.cancel();
+  source?.stop();
+  source = null;
 }

@@ -9,10 +9,10 @@ export const CAPABILITIES_CONFIG = {
   sameAsChat: { value: 'same-as-chat', label: 'Same as chat' },
   jobs: {
     chat: { title: 'Chat', description: 'Default model for new chats.' },
-    transcription: { title: 'Transcription', description: 'Recordings, imports and dictation.' },
+    transcription: { title: 'Speech recognition', description: 'Recordings, imports and dictation.' },
     summaries: { title: 'Summaries', description: 'Overview, decisions and action items for each meeting.' },
     knowledgeGraph: { title: 'Knowledge graph', description: 'People, topics and how meetings connect.' },
     meetingSearch: { title: 'Meeting search', description: 'Embedding model for semantic search. ≈325 MB download, cached after.' },
-    readAloud: { title: 'Read-aloud', description: 'Natural voice for any reply. ≈95 MB download, cached after.' },
+    readAloud: { title: 'Read aloud', description: 'The voice replies are spoken in. macOS voices are built in; the others download once.' },
   },
 } as const;

@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { OnDeviceModelsCard } from '@features/home/components/OnDeviceModelsCard';
 
 const RAG_READY_KEY = 'rag_model_ready';
-const VOICE_READY_KEY = 'voice_model_ready';
+const VOICE_READY_KEY = 'voice_model_ready:kokoro';
 const DISMISSED_KEY = 'onboarding_models_dismissed';
 
 beforeEach(() => {

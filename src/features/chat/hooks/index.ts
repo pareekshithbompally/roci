@@ -10,3 +10,4 @@ export type { UseVoiceCaptureOptions, UseVoiceCaptureResult } from './useVoiceCa
 export { useToolCatalog } from './useToolCatalog';
 export type { ToolCatalog } from './useToolCatalog';
 export { useContextLimit } from './useContextLimit';
+export { useReadAloud } from './useReadAloud';

@@ -1,22 +1,19 @@
 /**
  * useAppleIntelligenceControls — Apple Intelligence row: the on-device model's
- * availability (no permission — only device, setting, model and macOS), the
- * on/off switch, and Apple Speech's own needs: Speech Recognition (a real macOS
- * permission) and the language model download.
+ * availability (no permission — only device, setting, model and macOS) and the
+ * on/off switch. Apple Speech's own setup (permission, model download) lives on
+ * its row in Settings › Capabilities (useAppleSpeechSetup).
  */
 
-import { useCallback, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { queryKeys } from '@shared/query/queryKeys';
 import { isIntegrationEnabled } from '@shared/utils/integrations';
-import { appleIntelligence, isAppleError, type AppleAvailability } from '@services/ai/apple/appleIntelligence.service';
-import { useAppleSpeechStatus } from './useIntegrationSpeech';
+import { appleIntelligence, type AppleAvailability } from '@services/ai/apple/appleIntelligence.service';
 import { PERMISSIONS_CONFIG } from '@config/permissions.config';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
-import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { openNative } from '@features/integrations/utils/openNative';
-import type { PermissionState } from '@services/permissions.service';
 import type { IntegrationAccess, IntegrationControls } from '@features/integrations/types';
 
 const COPY = INTEGRATIONS_CONFIG.appleIntelligence;
@@ -33,63 +30,29 @@ function accessOf(availability: AppleAvailability | undefined): IntegrationAcces
   return 'unavailable';
 }
 
-function speechAccessOf(authorization: string): PermissionState {
-  if (authorization === 'authorized') return 'ready';
-  if (authorization === 'not_determined') return 'needs-request';
-  return 'needs-settings';
-}
-
 export interface AppleIntelligenceControls extends IntegrationControls {
   contextTokens: number;
-  /** Absent when Apple Speech can't run on this Mac (before macOS 26). */
-  speech?: {
-    access: PermissionState;
-    request: () => void;
-    openSettings: () => void;
-    /** Why macOS can't be asked from this build (a dev run outside the app bundle); null when it can. */
-    blocked: string | null;
-    installed: boolean;
-    downloading: boolean;
-    download: () => void;
-  };
 }
 
 export function useAppleIntelligenceControls(): AppleIntelligenceControls {
-  const queryClient = useQueryClient();
   const { settings, setSettings } = useSettings();
   const enabled = isIntegrationEnabled(settings, 'appleIntelligence');
-  const [downloading, setDownloading] = useState(false);
-  const [speechBlocked, setSpeechBlocked] = useState<string | null>(null);
 
   const { data: status } = useQuery({
     queryKey: queryKeys.appleIntelligenceStatus(),
     queryFn: () => appleIntelligence.status(),
     refetchInterval: PERMISSIONS_CONFIG.pollIntervalMs,
   });
-  const { data: speech } = useAppleSpeechStatus(enabled);
   const access = accessOf(status?.availability);
 
   const openSettings = useCallback(() => {
     openNative('apple-intelligence-settings').catch(report('open settings'));
   }, []);
 
-  const refreshSpeech = useCallback(
-    () => queryClient.invalidateQueries({ queryKey: queryKeys.appleSpeechStatus() }),
-    [queryClient],
-  );
-
   const setEnabled = (on: boolean) => {
     // Off in System Settings: that is where it gets turned on.
     if (on && access === 'needs-settings') return openSettings();
     setSettings({ appleIntelligenceIntegration: { enabled: on } });
-  };
-
-  const download = () => {
-    setDownloading(true);
-    appleIntelligence.speechPrepare(TRANSCRIPTION_CONFIG.language)
-      .then(refreshSpeech)
-      .catch(report('download speech model'))
-      .finally(() => setDownloading(false));
   };
 
   return {
@@ -102,21 +65,5 @@ export function useAppleIntelligenceControls(): AppleIntelligenceControls {
       ? COPY.unavailable[status.availability as keyof typeof COPY.unavailable] ?? COPY.unavailable.unknown
       : undefined,
     contextTokens: status?.contextTokens ?? 0,
-    speech: speech?.available ? {
-      access: speechAccessOf(speech.authorization),
-      request: () => {
-        appleIntelligence.speechRequestAccess()
-          .then(refreshSpeech)
-          .catch((error: unknown) => {
-            if (isAppleError(error) && error.code === 'unavailable') return setSpeechBlocked(error.detail ?? null);
-            report('request speech')(error);
-          });
-      },
-      blocked: speechBlocked,
-      openSettings: () => { openNative('speech-recognition-settings').catch(report('open speech settings')); },
-      installed: speech.installed,
-      downloading,
-      download,
-    } : undefined,
   };
 }

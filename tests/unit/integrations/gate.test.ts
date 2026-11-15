@@ -37,7 +37,7 @@ describe('integration gate', () => {
       speechModelOptions([], { appleSpeech: { status } }).find((o) => o.provider === 'apple-intelligence');
     expect(speechModelOptions([], {}).some((o) => o.provider === 'apple-intelligence')).toBe(false);
     expect(apple({ available: true, authorization: 'authorized', installed: true })).toMatchObject({ ready: true, hint: null });
-    expect(apple({ available: true, authorization: 'not_determined', installed: true })?.hint).toBe('Allow Speech Recognition in Integrations');
-    expect(apple({ available: true, authorization: 'authorized', installed: false })?.hint).toBe('Download the speech model in Integrations');
+    expect(apple({ available: true, authorization: 'not_determined', installed: true })?.hint).toBe('Allow Speech Recognition');
+    expect(apple({ available: true, authorization: 'authorized', installed: false })?.hint).toBe('Download the English speech model');
   });
 });

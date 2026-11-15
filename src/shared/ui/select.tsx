@@ -60,16 +60,19 @@ export interface SelectItemProps extends ComponentProps<typeof SelectPrimitive.I
   icon?: React.ReactNode;
   /** Second line under the label: status, next step. Not part of the selected value's text. */
   description?: React.ReactNode;
+  /** At the row's end: a status or the step it needs (download, allow). */
+  trailing?: React.ReactNode;
 }
 
-export function SelectItem({ className, children, icon, description, ...props }: SelectItemProps) {
+export function SelectItem({ className, children, icon, description, trailing, ...props }: SelectItemProps) {
   return (
     <SelectPrimitive.Item className={cn(MENU_ITEM, description && 'items-start', className)} {...props}>
       {icon && <span className={cn('shrink-0 flex', description && 'mt-0.5')}>{icon}</span>}
-      <span className="flex flex-col min-w-0">
+      <span className="flex flex-col min-w-0 flex-1">
         <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
         {description && <span className="text-callout text-faint truncate">{description}</span>}
       </span>
+      {trailing && <span className="shrink-0 flex items-center">{trailing}</span>}
     </SelectPrimitive.Item>
   );
 }

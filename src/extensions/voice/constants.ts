@@ -1,19 +1,43 @@
 /**
- * Voice (TTS) Constants
- *
- * Single source of truth for the on-device speech model. Like RAG, the model
- * is downloaded on demand and cached — nothing is embedded in the bundle.
+ * Read-aloud voices — the single source of truth. macOS voices are built in
+ * (WebKit's speechSynthesis, Apple's system voices); the others are
+ * downloaded once from Hugging Face and run on this Mac in a worker.
  */
 
-/** Kokoro TTS weights (verified on transformers v4, q8, single runtime). */
-export const VOICE_MODEL = 'onnx-community/Kokoro-82M-v1.0-ONNX';
-export const VOICE_DTYPE = 'q8' as const;
-/** Default voice (af_heart = Heart, en-us Female). */
-export const DEFAULT_VOICE = 'af_heart';
+export type DownloadableVoiceId = 'kokoro' | 'supertonic';
+export type VoiceId = 'macos' | DownloadableVoiceId;
 
-/** Persisted consent + readiness flags (localStorage, mirrored per model). */
-export const VOICE_CONSENT_KEY = 'voice_model_consent';
-export const VOICE_READY_KEY = 'voice_model_ready';
+export type VoiceEngine = 'kokoro' | 'supertonic';
 
-/** ActivityTray row id for the voice model download. */
-export const VOICE_TRAY_ID = 'voice-model';
+export interface DownloadableVoice {
+  label: string;
+  /** Download size, as shown in the picker. */
+  size: string;
+  engine: VoiceEngine;
+  model: string;
+  dtype?: 'q8' | 'fp32' | 'fp16' | 'q4' | 'q4f16';
+  /** The speaker: a Kokoro voice name, or a Supertonic voice file stem. */
+  voice: string;
+}
+
+export const MACOS_VOICE = { label: 'macOS voices', size: 'Built in' } as const;
+
+export const DOWNLOADABLE_VOICES: Record<DownloadableVoiceId, DownloadableVoice> = {
+  kokoro: { label: 'Kokoro 82M', size: '92 MB', engine: 'kokoro', model: 'onnx-community/Kokoro-82M-v1.0-ONNX', dtype: 'q8', voice: 'af_heart' },
+  supertonic: { label: 'Supertonic 2', size: '263 MB', engine: 'supertonic', model: 'onnx-community/Supertonic-TTS-2-ONNX', voice: 'F1' },
+};
+
+export const DOWNLOADABLE_VOICE_IDS = Object.keys(DOWNLOADABLE_VOICES) as DownloadableVoiceId[];
+
+/** Ready to speak with no download. */
+export const DEFAULT_VOICE: VoiceId = 'macos';
+
+/** ActivityTray row for a voice download. */
+export const voiceTrayId = (id: DownloadableVoiceId) => `voice-model:${id}`;
+/** Persisted "downloaded and loaded once" flag. */
+export const voiceReadyKey = (id: DownloadableVoiceId) => `voice_model_ready:${id}`;
+
+/** Longest text synthesized in one pass; longer replies are split at sentences. */
+export const MAX_CHUNK_CHARS = 240;
+/** Supertonic quality/speed (its model card's defaults). */
+export const SUPERTONIC_OPTIONS = { num_inference_steps: 5, speed: 1.05 } as const;

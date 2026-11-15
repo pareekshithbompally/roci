@@ -14,7 +14,7 @@
 import React, { useEffect } from 'react';
 import { onRAGProgress, preloadModel, resetPipeline } from '@extensions/rag';
 import type { RAGProgressEvent, IndexingProgressEvent, ExtractionProgressEvent } from '@extensions/rag';
-import { onVoiceProgress, preloadVoice, resetVoice } from '@extensions/voice';
+import { DOWNLOADABLE_VOICES, DOWNLOADABLE_VOICE_IDS, loadVoice, onVoiceProgress, resetVoice, voiceTrayId } from '@extensions/voice';
 import type { VoiceModelEvent } from '@extensions/voice';
 import { activityStore } from '@shared/stores/activityStore';
 import type { ActivityItem } from '@shared/stores/activityStore';
@@ -156,24 +156,27 @@ export const OnDeviceModelActivity: React.FC = () => {
       },
     });
 
-    const voiceHandlers = createModelHandlers({
-      trayId: 'voice-model',
-      downloadingLabel: 'Downloading voice model',
-      loadingLabel: 'Initializing voice model',
-      readyToast: 'Voice read-aloud ready',
-      loadError: 'Voice model failed to load',
-      retry: () => {
-        resetVoice();
-        preloadVoice().catch(() => {});
-      },
-    });
+    const voiceHandlers = Object.fromEntries(DOWNLOADABLE_VOICE_IDS.map((id) => {
+      const { label } = DOWNLOADABLE_VOICES[id];
+      return [id, createModelHandlers({
+        trayId: voiceTrayId(id),
+        downloadingLabel: `Downloading ${label}`,
+        loadingLabel: `Initializing ${label}`,
+        readyToast: `${label} ready to read aloud`,
+        loadError: `${label} failed to load`,
+        retry: () => {
+          resetVoice(id);
+          loadVoice(id).catch(() => {});
+        },
+      })];
+    }));
 
     function handleModelEvent(event: RAGProgressEvent & { kind: 'model' }) {
       ragHandlers.handleEvent(event);
     }
 
     function handleVoiceEvent(event: VoiceModelEvent) {
-      voiceHandlers.handleEvent(event);
+      voiceHandlers[event.voice]?.handleEvent(event);
     }
 
     function handleIndexingEvent(event: IndexingProgressEvent) {
@@ -314,7 +317,7 @@ export const OnDeviceModelActivity: React.FC = () => {
       unsubscribe();
       unsubscribeVoice();
       ragHandlers.dispose();
-      voiceHandlers.dispose();
+      Object.values(voiceHandlers).forEach((handlers) => handlers.dispose());
       activityStore.remove('rag-indexing-meetings');
       activityStore.remove('rag-indexing-chats');
       activityStore.remove('rag-extraction');

@@ -3,17 +3,23 @@
  * from Providers (keys, local servers) and switched-on Integrations (Apple
  * Intelligence for summaries and speech, Hex for speech). The composer's model
  * picker quick-switches chat; this sets the default.
+ *
+ * A choice that needs a step (download a voice, allow or download Apple
+ * Speech) runs it from its own row in the picker.
  */
 
 import React, { useMemo } from 'react';
 import { AudioLines, MessageSquare, NotebookText, ScanSearch, Volume2, Waypoints, type LucideIcon } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useOnDeviceModel } from '@shared/hooks/useOnDeviceModel';
+import { useOnDeviceModel, useOnDeviceModels } from '@shared/hooks/useOnDeviceModel';
 import { ModelDownloadButton } from '@shared/components';
 import { modelChoices, withSummaryModels, type ModelChoice } from '@shared/utils/modelResolver';
 import { speechSelectionKey, speechSelectionOf } from '@services/ai/transcription';
+import { DEFAULT_VOICE, DOWNLOADABLE_VOICES, DOWNLOADABLE_VOICE_IDS, MACOS_VOICE, type VoiceId } from '@extensions/voice';
 import { CAPABILITIES_CONFIG } from '@config/capabilities.config';
+import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { useSpeechModelOptions } from '@features/settings/hooks/useSpeechModels';
+import { useAppleSpeechSetup } from '@features/integrations';
 import { CardRow, Icon, Section } from '@shared/ui';
 import { ModelSelect, SettingsPage } from './shared';
 
@@ -29,29 +35,52 @@ const CapabilityRow: React.FC<{ icon: LucideIcon; job: { title: string; descript
   />
 );
 
-export const CapabilitiesPanel: React.FC = () => {
-  const { settings, setSettings, providers } = useSettings();
-  const searchModel = useOnDeviceModel('rag');
-  const voiceModel = useOnDeviceModel('voice');
-
-  const chatChoices = useMemo(() => modelChoices(providers), [providers]);
-  const summaryChoices = useMemo(() => modelChoices(withSummaryModels(providers, settings)), [providers, settings]);
-
-  const speechOptions = useSpeechModelOptions();
-  const speechChoices = useMemo<ModelChoice[]>(() => speechOptions.map((o) => ({
+/** Speech recognition: every speech model, with Apple Speech's remaining step on its row. */
+function useSpeechChoices(): ModelChoice[] {
+  const options = useSpeechModelOptions();
+  const appleSetup = useAppleSpeechSetup();
+  return useMemo(() => options.map((o) => ({
     value: speechSelectionKey(o),
     provider: o.provider,
     modelId: o.model,
     label: o.label,
     ready: o.ready,
     hint: o.hint,
-  })), [speechOptions]);
+    setup: o.provider === TRANSCRIPTION_CONFIG.appleSpeech.provider ? appleSetup ?? undefined : undefined,
+  })), [options, appleSetup]);
+}
+
+/** Read aloud: macOS voices (built in), then each downloadable voice with its download. */
+function useVoiceChoices(): ModelChoice[] {
+  const models = useOnDeviceModels(DOWNLOADABLE_VOICE_IDS);
+  const macos: ModelChoice = { value: 'macos', provider: 'apple', modelId: 'macos', label: MACOS_VOICE.label, ready: true, hint: MACOS_VOICE.size };
+  return [macos, ...DOWNLOADABLE_VOICE_IDS.map((id) => {
+    const model = models[id];
+    return {
+      value: id,
+      provider: id,
+      modelId: DOWNLOADABLE_VOICES[id].model,
+      label: DOWNLOADABLE_VOICES[id].label,
+      ready: model.status === 'ready',
+      hint: DOWNLOADABLE_VOICES[id].size,
+      setup: { kind: 'download' as const, busy: model.status === 'busy', percent: model.percent, run: model.download },
+    };
+  })];
+}
+
+export const CapabilitiesPanel: React.FC = () => {
+  const { settings, setSettings, providers } = useSettings();
+  const searchModel = useOnDeviceModel('rag');
+
+  const chatChoices = useMemo(() => modelChoices(providers), [providers]);
+  const summaryChoices = useMemo(() => modelChoices(withSummaryModels(providers, settings)), [providers, settings]);
+  const speechChoices = useSpeechChoices();
+  const voiceChoices = useVoiceChoices();
   const speech = speechSelectionOf(settings);
 
   const setSpeech = (key: string) => {
-    const option = speechOptions.find((o) => speechSelectionKey(o) === key);
-    if (!option) return;
-    setSettings({ transcriptionProvider: option.provider, transcriptionModel: option.model });
+    const choice = speechChoices.find((c) => c.value === key);
+    if (choice) setSettings({ transcriptionProvider: choice.provider, transcriptionModel: choice.modelId });
   };
 
   return (
@@ -62,10 +91,20 @@ export const CapabilitiesPanel: React.FC = () => {
         </CapabilityRow>
       </Section>
 
-      <Section title="Meetings">
+      <Section title="Speech">
         <CapabilityRow icon={AudioLines} job={JOBS.transcription}>
           <ModelSelect value={speech ? speechSelectionKey(speech) : undefined} choices={speechChoices} onChange={setSpeech} />
         </CapabilityRow>
+        <CapabilityRow icon={Volume2} job={JOBS.readAloud}>
+          <ModelSelect
+            value={settings.readAloudVoice ?? DEFAULT_VOICE}
+            choices={voiceChoices}
+            onChange={(voice) => setSettings({ readAloudVoice: voice as VoiceId })}
+          />
+        </CapabilityRow>
+      </Section>
+
+      <Section title="Meetings">
         <CapabilityRow icon={NotebookText} job={JOBS.summaries}>
           <ModelSelect
             value={settings.analyzeModel || settings.chatModel || undefined}
@@ -86,9 +125,6 @@ export const CapabilitiesPanel: React.FC = () => {
       <Section title="On this Mac">
         <CapabilityRow icon={ScanSearch} job={JOBS.meetingSearch}>
           <ModelDownloadButton model={searchModel} allowRedownload />
-        </CapabilityRow>
-        <CapabilityRow icon={Volume2} job={JOBS.readAloud}>
-          <ModelDownloadButton model={voiceModel} allowRedownload />
         </CapabilityRow>
       </Section>
     </SettingsPage>

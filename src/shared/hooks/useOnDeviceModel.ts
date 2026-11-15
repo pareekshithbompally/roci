@@ -17,10 +17,12 @@
 import { useReducer } from 'react';
 import { create } from 'zustand';
 import { grantConsent, isEmbeddingReady, preloadModel, resetPipeline } from '@extensions/rag';
-import { VOICE_TRAY_ID, grantVoiceConsent, isVoiceReady, preloadVoice, resetVoice } from '@extensions/voice';
+import { DOWNLOADABLE_VOICE_IDS, isVoiceReady, loadVoice, resetVoice, voiceTrayId } from '@extensions/voice';
+import type { DownloadableVoiceId } from '@extensions/voice';
 import { useActivityItems } from '@shared/stores/activityStore';
 
-export type OnDeviceModelKind = 'rag' | 'voice';
+/** The embedding model, or a downloadable read-aloud voice. */
+export type OnDeviceModelKind = 'rag' | DownloadableVoiceId;
 export type OnDeviceStatus = 'idle' | 'busy' | 'ready';
 
 export interface OnDeviceModel {
@@ -31,42 +33,68 @@ export interface OnDeviceModel {
   redownload: () => void;
 }
 
-const MODELS = {
+interface ModelSource {
+  trayId: string;
+  isReady: () => boolean;
+  /** Record consent where an implicit trigger asks first (RAG); a voice downloads only on a press. */
+  grant?: () => void;
+  load: () => Promise<unknown>;
+  reset: () => void;
+}
+
+const voiceSource = (id: DownloadableVoiceId): ModelSource => ({
+  trayId: voiceTrayId(id),
+  isReady: () => isVoiceReady(id),
+  load: () => loadVoice(id),
+  reset: () => resetVoice(id),
+});
+
+const MODELS: Record<OnDeviceModelKind, ModelSource> = {
   rag: { trayId: 'rag-model', isReady: isEmbeddingReady, grant: grantConsent, load: preloadModel, reset: resetPipeline },
-  voice: { trayId: VOICE_TRAY_ID, isReady: isVoiceReady, grant: grantVoiceConsent, load: preloadVoice, reset: resetVoice },
-} as const;
+  ...Object.fromEntries(DOWNLOADABLE_VOICE_IDS.map((id) => [id, voiceSource(id)])),
+} as Record<OnDeviceModelKind, ModelSource>;
 
 /** Loads started from a Download press — shared so every surface agrees. */
-const usePendingStore = create<Record<OnDeviceModelKind, boolean>>()(() => ({ rag: false, voice: false }));
+const usePendingStore = create<Partial<Record<OnDeviceModelKind, boolean>>>()(() => ({}));
 const setPending = (kind: OnDeviceModelKind, pending: boolean) => usePendingStore.setState({ [kind]: pending });
 
-export function useOnDeviceModel(kind: OnDeviceModelKind): OnDeviceModel {
-  const pending = usePendingStore((s) => s[kind]);
+function startLoad(kind: OnDeviceModelKind, fresh: boolean, settled: () => void): void {
+  if (usePendingStore.getState()[kind]) return;
+  const model = MODELS[kind];
+  setPending(kind, true);
+  model.grant?.();
+  if (fresh) model.reset();
+  model
+    .load()
+    .catch((error: unknown) => console.error(`[useOnDeviceModel] ${kind} load failed:`, error))
+    .finally(() => {
+      setPending(kind, false);
+      settled();
+    });
+}
+
+/** Several models at once (e.g. every downloadable voice), by kind. */
+export function useOnDeviceModels<K extends OnDeviceModelKind>(kinds: readonly K[]): Record<K, OnDeviceModel> {
+  const pending = usePendingStore();
   const items = useActivityItems();
   // Readiness lives outside React; re-render once a load settles.
   const [, refresh] = useReducer((x: number) => x + 1, 0);
-  const model = MODELS[kind];
-  const item = items.find((i) => i.id === model.trayId);
-  const busy = pending || item?.status === 'active';
 
-  const run = (fresh: boolean) => () => {
-    if (usePendingStore.getState()[kind]) return;
-    setPending(kind, true);
-    model.grant();
-    if (fresh) model.reset();
-    model
-      .load()
-      .catch((error: unknown) => console.error(`[useOnDeviceModel] ${kind} load failed:`, error))
-      .finally(() => {
-        setPending(kind, false);
-        refresh();
-      });
-  };
+  const entries = kinds.map((kind) => {
+    const model = MODELS[kind];
+    const item = items.find((i) => i.id === model.trayId);
+    const busy = (pending[kind] ?? false) || item?.status === 'active';
+    const state: OnDeviceModel = {
+      status: busy ? 'busy' : model.isReady() ? 'ready' : 'idle',
+      percent: busy ? (item?.percent ?? null) : null,
+      download: () => startLoad(kind, false, refresh),
+      redownload: () => startLoad(kind, true, refresh),
+    };
+    return [kind, state] as const;
+  });
+  return Object.fromEntries(entries) as Record<K, OnDeviceModel>;
+}
 
-  return {
-    status: busy ? 'busy' : model.isReady() ? 'ready' : 'idle',
-    percent: busy ? (item?.percent ?? null) : null,
-    download: run(false),
-    redownload: run(true),
-  };
+export function useOnDeviceModel(kind: OnDeviceModelKind): OnDeviceModel {
+  return useOnDeviceModels([kind])[kind];
 }

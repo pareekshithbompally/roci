@@ -15,4 +15,5 @@ export { useMcpHostRuntime } from './hooks/useMcpHostRuntime';
 export { useUrlActionsRuntime } from './hooks/useUrlActionsRuntime';
 export { useAppleNotesRuntime } from './hooks/useAppleNotesRuntime';
 export { useIntegrationSpeech } from './hooks/useIntegrationSpeech';
+export { useAppleSpeechSetup } from './hooks/useAppleSpeechSetup';
 export type { IntegrationAccess, IntegrationControls } from './types';

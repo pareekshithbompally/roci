@@ -183,6 +183,17 @@ export interface ModelChoice {
   ready: boolean;
   /** Next step when not ready ("Add OpenAI API key"). */
   hint: string | null;
+  /** A step that makes it usable, run from its picker row (download, allow). */
+  setup?: ChoiceSetup;
+}
+
+/** One step that makes a choice usable: download a model, or allow a permission. */
+export interface ChoiceSetup {
+  kind: 'download' | 'allow';
+  /** Running now: a spinner, with `percent` once known. */
+  busy: boolean;
+  percent: number | null;
+  run: () => void;
 }
 
 /** Every model the given sources offer, with whether it can run (a key where one is needed). */

@@ -1,13 +1,12 @@
 /**
  * AppleIntelligenceIntegration — Apple's on-device models. On: Apple
  * Intelligence joins Settings › Capabilities › Summaries, and Apple Speech joins
- * Transcription Model. Off: both disappear.
+ * Speech recognition (its permission and model download are set up there).
+ * Off: both disappear.
  */
 
 import React from 'react';
-import { Check, Download, Loader2 } from 'lucide-react';
-import { Button, CardRow, Icon, Text } from '@shared/ui';
-import { PermissionAction } from '@shared/components';
+import { CardRow } from '@shared/ui';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { useAppleIntelligenceControls } from '@features/integrations/hooks/useAppleIntelligenceControls';
 import { IntegrationRow } from './IntegrationRow';
@@ -17,7 +16,6 @@ const COPY = INTEGRATIONS_CONFIG.appleIntelligence;
 
 export const AppleIntelligenceIntegration: React.FC = () => {
   const apple = useAppleIntelligenceControls();
-  const { speech } = apple;
 
   return (
     <IntegrationRow
@@ -31,30 +29,10 @@ export const AppleIntelligenceIntegration: React.FC = () => {
         title="Summaries"
         description={`Choose Apple Intelligence in Settings › Capabilities › Summaries. ${apple.contextTokens.toLocaleString()}-token context: long meetings are summarized from an excerpt.`}
       />
-      {speech && (
-        <>
-          <CardRow
-            title="Speech Recognition"
-            description={speech.blocked ?? (speech.access === 'needs-settings' ? COPY.speechDeniedHint : 'Lets Apple Speech transcribe your recordings on this Mac.')}
-            actions={speech.blocked ? undefined : <PermissionAction state={speech.access} onRequest={speech.request} onOpenSettings={speech.openSettings} />}
-          />
-          <CardRow
-            title="English speech model"
-            description="Downloaded once by macOS; shared with other apps."
-            actions={speech.installed ? (
-              <span className="inline-flex items-center gap-1">
-                <Icon icon={Check} size="sm" tone="success" />
-                <Text variant="helper" tone="success">Installed</Text>
-              </span>
-            ) : (
-              <Button variant="outline" size="sm" onClick={speech.download} disabled={speech.downloading}>
-                <Icon icon={speech.downloading ? Loader2 : Download} size="xs" className={speech.downloading ? 'animate-spin' : undefined} />
-                {speech.downloading ? 'Downloading…' : 'Download'}
-              </Button>
-            )}
-          />
-        </>
-      )}
+      <CardRow
+        title="Speech recognition"
+        description="Choose Apple Speech in Settings › Capabilities › Speech recognition. Allow and download it there."
+      />
     </IntegrationRow>
   );
 };

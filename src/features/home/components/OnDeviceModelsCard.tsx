@@ -49,7 +49,7 @@ interface ModelRow {
 
 export const OnDeviceModelsCard: React.FC = () => {
   const searchModel = useOnDeviceModel('rag');
-  const voiceModel = useOnDeviceModel('voice');
+  const voiceModel = useOnDeviceModel('kokoro');
   const [dismissed, setDismissedState] = useState(isDismissed);
 
   // Zero state only, and only until dismissed or done.

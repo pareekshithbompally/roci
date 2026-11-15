@@ -14,7 +14,6 @@ export const INTEGRATIONS_CONFIG = {
     title: 'Apple Intelligence',
     description: 'Summaries and transcription on this Mac. Nothing leaves your Mac.',
     deniedHint: 'Apple Intelligence is off in System Settings › Apple Intelligence & Siri.',
-    speechDeniedHint: 'Kasset is off in System Settings › Privacy & Security › Speech Recognition.',
     icon: '/images/apple-intelligence-sm.png',
     /** Why the model can't run (HEX `apple_intelligence::Availability::description`). */
     unavailable: {

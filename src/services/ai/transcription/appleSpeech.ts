@@ -17,8 +17,8 @@ export function isAppleSpeechReady(status: AppleSpeechStatus | undefined): boole
 /** The next step when Apple Speech can't run yet; null when ready. */
 export function appleSpeechHint(status: AppleSpeechStatus | undefined): string | null {
   if (!status?.available) return 'Not available on this Mac';
-  if (status.authorization !== 'authorized') return 'Allow Speech Recognition in Integrations';
-  if (!status.installed) return 'Download the speech model in Integrations';
+  if (status.authorization !== 'authorized') return 'Allow Speech Recognition';
+  if (!status.installed) return 'Download the English speech model';
   return null;
 }
 

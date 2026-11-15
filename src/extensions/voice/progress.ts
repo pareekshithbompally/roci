@@ -6,9 +6,13 @@
  * The download modal subscribes to both and writes per-model tray rows.
  */
 
+import type { DownloadableVoiceId } from './constants';
+
 /** Voice model lifecycle events */
 export interface VoiceModelEvent {
   kind: 'voice-model';
+  /** Which downloadable voice. */
+  voice: DownloadableVoiceId;
   status: 'downloading' | 'loading' | 'ready' | 'error';
   /** File currently being downloaded */
   file?: string;

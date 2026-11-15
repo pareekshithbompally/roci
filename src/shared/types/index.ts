@@ -1,6 +1,7 @@
 import type { AudioCaptureSource } from '@config/audio.config';
 import type { MeetingCitation } from '@extensions/tools/types';
 import type { WebCitation, InlineCitationSpan } from '@services/ai/types';
+import type { VoiceId } from '@extensions/voice';
 export type { MeetingCitation, WebCitation, InlineCitationSpan };
 
 export interface ActionItem {
@@ -221,6 +222,8 @@ export interface AppSettings {
   };
   /** Settings › Notifications: which kinds may notify, and the meeting lead time. */
   notifications?: NotificationSettings;
+  /** Settings › Capabilities › Read aloud: the voice replies are spoken in. */
+  readAloudVoice?: VoiceId;
   /** Apple Intelligence integration: on-device summary model + Apple speech engine */
   appleIntelligenceIntegration?: {
     enabled: boolean;
