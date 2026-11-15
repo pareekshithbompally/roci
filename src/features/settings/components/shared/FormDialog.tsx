@@ -2,6 +2,7 @@ import React from 'react';
 import { X } from 'lucide-react';
 import {
   Dialog,
+  type DialogContentProps,
   DialogBody,
   DialogClose,
   DialogContent,
@@ -22,7 +23,8 @@ interface FormDialogProps {
   headerAction?: React.ReactNode;
   /** Shown above the footer when set. */
   error?: string | null;
-  footer: React.ReactNode;
+  footer?: React.ReactNode;
+  size?: DialogContentProps['size'];
   children: React.ReactNode;
 }
 
@@ -34,12 +36,13 @@ export const FormDialog: React.FC<FormDialogProps> = ({
   headerAction,
   error,
   footer,
+  size = 'lg',
   children,
 }) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogPortal>
       <DialogOverlay />
-      <DialogContent size="lg" scrollable onInteractOutside={(e) => e.preventDefault()} aria-describedby={undefined}>
+      <DialogContent size={size} scrollable onInteractOutside={(e) => e.preventDefault()} aria-describedby={undefined}>
         <DialogHeader className="shrink-0">
           <DialogTitle>{title}</DialogTitle>
           <div className="flex items-center gap-1 -mr-1">
@@ -55,7 +58,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
             {error}
           </Text>
         )}
-        <DialogFooter className="shrink-0">{footer}</DialogFooter>
+        {footer && <DialogFooter className="shrink-0">{footer}</DialogFooter>}
       </DialogContent>
     </DialogPortal>
   </Dialog>

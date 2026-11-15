@@ -138,6 +138,14 @@ kasset-ai/
 
 See [AGENTS.md](AGENTS.md) for detailed development guidelines, architecture overview, and code conventions.
 
+## Acknowledgements
+
+Kasset is built on open-source software. Portions of Kasset are derived from [Hex](https://github.com/anomalyco/hex) (MIT) and [Jan](https://github.com/janhq/jan) (Apache-2.0), and the app depends on projects including Tauri, React, the Vercel AI SDK and SQLite.
+
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) lists every project with its licence and copyright notice, followed by the full licence texts. The same list is in the app under **Settings › General › Acknowledgements**.
+
+All product names, logos and brands are property of their respective owners. They are used for identification only; their use does not imply endorsement.
+
 ## 📄 License
 
-MIT
+Kasset is released under the [MIT License](LICENSE). Copyright © 2026 Pareekshith Bompally.

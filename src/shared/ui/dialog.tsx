@@ -14,7 +14,7 @@ export function DialogOverlay({ className, ...props }: ComponentProps<typeof Dia
 }
 
 /** `full` = wide content viewers (expanded tables) — nearly the window, still a sheet. */
-const DIALOG_SIZE = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-xl', full: 'max-w-[90vw]' } as const;
+const DIALOG_SIZE = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-xl', xl: 'max-w-2xl', full: 'max-w-[90vw]' } as const;
 
 export interface DialogContentProps extends ComponentProps<typeof DialogPrimitive.Content> {
   size?: keyof typeof DIALOG_SIZE;

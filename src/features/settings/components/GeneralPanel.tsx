@@ -13,6 +13,7 @@ import { SettingsPage } from './shared';
 import { Button, Card, CardRow, Icon, IconButton, Section, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Status, Switch, Tabs, Text } from '@shared/ui';
 
 import { useAppUpdate } from '@features/settings/hooks/useAppUpdate';
+import { AcknowledgementsDialog } from './AcknowledgementsDialog';
 import { useLiveDictation } from '@features/settings/hooks/useSpeechModels';
 import { LIVE_TRANSCRIPTION_MARK } from './shared';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
@@ -36,6 +37,7 @@ export const GeneralPanel: React.FC = () => {
   const { showToast } = useToast();
 
   const appUpdate = useAppUpdate();
+  const [acknowledgementsOpen, setAcknowledgementsOpen] = useState(false);
 
   // Data from store (survives unmounts)
   const {
@@ -402,7 +404,13 @@ export const GeneralPanel: React.FC = () => {
       {/* App Info & Updates */}
       <Card>
         <CardRow title="Version" actions={<VersionStatus appVersion={appVersion} appUpdate={appUpdate} upToDate={upToDate} onCheck={handleCheckForUpdate} />} />
+        <CardRow
+          title="Acknowledgements"
+          description="Open-source software used in Kasset."
+          actions={<Button variant="outline" size="sm" onClick={() => setAcknowledgementsOpen(true)}>View</Button>}
+        />
       </Card>
+      <AcknowledgementsDialog open={acknowledgementsOpen} onOpenChange={setAcknowledgementsOpen} />
     </SettingsPage>
   );
 };
@@ -470,7 +478,7 @@ const VersionStatus: React.FC<{
       <Text variant="helper" tone="muted">Up to date</Text>
     )}
     {appUpdate.status === 'idle' && !appUpdate.updateInfo && (
-      <Button variant="link" size="inline" onClick={onCheck}>Check for Updates</Button>
+      <Button variant="outline" size="sm" onClick={onCheck}>Check for Updates</Button>
     )}
     {appUpdate.status === 'available' && appUpdate.updateInfo && (
       <Text variant="helper" tone="success">v{appUpdate.updateInfo.version} available</Text>
