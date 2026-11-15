@@ -152,7 +152,9 @@ pub fn request() -> Status {
 pub fn add_categories(categories: &[Category]) {
     let all = {
         let mut state = state();
-        state.categories.retain(|known| !categories.iter().any(|new| new.id == known.id));
+        state
+            .categories
+            .retain(|known| !categories.iter().any(|new| new.id == known.id));
         state.categories.extend_from_slice(categories);
         state.categories.clone()
     };
@@ -166,9 +168,14 @@ pub fn set_muted(kinds: impl IntoIterator<Item = String>) {
     state().muted = kinds.into_iter().collect();
 }
 
+/// Whether the user switched `kind` off in Settings › Notifications.
+pub fn is_muted(kind: &str) -> bool {
+    state().muted.contains(kind)
+}
+
 /// Show `notice` now: skipped when its kind is muted, permission asked when undecided.
 pub fn post(notice: &Notice) {
-    if notice.kind.as_ref().is_some_and(|kind| state().muted.contains(kind)) {
+    if notice.kind.as_deref().is_some_and(is_muted) {
         return;
     }
     let status = match status() {
@@ -263,14 +270,28 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             }));
             // Before the app finishes launching, so a response that woke it is kept.
             bridge::setup(on_response);
-            let timer = thread::Builder::new().name("notifications".into()).spawn(|| loop {
-                post_due();
-                thread::sleep(TICK);
-            });
+            let timer = thread::Builder::new()
+                .name("notifications".into())
+                .spawn(|| loop {
+                    post_due();
+                    thread::sleep(TICK);
+                });
             if let Err(error) = timer {
                 log::error!("[notifications] timer failed to start: {error}");
             }
             Ok(())
         })
         .build()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn muted_kind_reports_muted() {
+        set_muted(["detectedCalls".into()]);
+        assert!(is_muted("detectedCalls"));
+        assert!(!is_muted("chatReplies"));
+    }
 }
