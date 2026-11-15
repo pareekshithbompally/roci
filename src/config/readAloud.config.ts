@@ -11,8 +11,6 @@ export const READ_ALOUD_CONFIG = {
   phonon: { modelId: 'phonon-31m', repoUrl: 'https://huggingface.co/gradium/phonon-31m-en' },
   /** Spoken until another engine is chosen: ready with no download. */
   defaultEngine: 'macos',
-  /** The voice picker's first entry: the engine's own default voice. */
-  defaultVoice: { value: 'default', label: 'Default' },
   /** What the voice picker's play button says. */
   sampleText: 'Hi! This is how your replies will sound when Kasset reads them aloud.',
   /** Rust → webview: request `id` is now speaking `text`, one chunk of the reply (`{ id, text }`). */

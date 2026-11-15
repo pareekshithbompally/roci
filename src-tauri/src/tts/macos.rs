@@ -22,12 +22,21 @@ use objc2_foundation::{NSObject, NSObjectProtocol, NSString};
 use super::VoiceOption;
 use crate::models::LocalError;
 
+/// The first voice listed: the one set in Spoken Content (no voice passed to AVFAudio).
+const SYSTEM_VOICE: &str = "system";
+
 /// How long the speaking thread waits for progress before checking `stop`.
 const POLL: Duration = Duration::from_millis(50);
 
-/// The installed voices for `language` (e.g. `en`), best quality first;
-/// novelty voices (Bells, Zarvox…) are left out. `id` is the voice identifier.
+/// The system voice, then the installed voices for `language` (e.g. `en`),
+/// best quality first; novelty voices (Bells, Zarvox…) are left out. `id` is
+/// the voice identifier.
 pub fn voices(language: &str) -> Vec<VoiceOption> {
+    let system = VoiceOption { id: SYSTEM_VOICE.to_string(), name: "System voice".to_string(), detail: None };
+    std::iter::once(system).chain(installed(language)).collect()
+}
+
+fn installed(language: &str) -> Vec<VoiceOption> {
     let prefix = format!("{language}-");
     let mut found: Vec<(isize, VoiceOption)> = unsafe { AVSpeechSynthesisVoice::speechVoices() }
         .iter()
@@ -100,10 +109,11 @@ impl SpeechProgress {
     }
 }
 
-/// Speaks `chunks` in order in voice `voice` (an identifier; None = the system
-/// voice), calling `on_chunk` as each begins. Returns when done, or as soon as
-/// `stop` is set.
+/// Speaks `chunks` in order in voice `voice` (an identifier; None or the
+/// system voice = Spoken Content's), calling `on_chunk` as each begins.
+/// Returns when done, or as soon as `stop` is set.
 pub fn speak(chunks: &[String], voice: Option<&str>, stop: &AtomicBool, mut on_chunk: impl FnMut(&str)) -> Result<(), LocalError> {
+    let voice = voice.filter(|id| *id != SYSTEM_VOICE);
     let (events, inbox) = mpsc::channel();
     let progress = SpeechProgress::new(events);
     let synthesizer = unsafe { AVSpeechSynthesizer::new() };

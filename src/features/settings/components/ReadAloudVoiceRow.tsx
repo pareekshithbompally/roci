@@ -1,6 +1,7 @@
 /**
  * ReadAloudVoiceRow — Settings › Capabilities › Speech: the voice of the
- * chosen read-aloud engine (its default first), and a button to hear a sample
+ * chosen read-aloud engine (the engine lists its default first; that one is
+ * stored as no choice), and a button to hear a sample
  * in it. The sample plays like a reply's Read aloud: a spinner while the voice
  * gets ready, then Stop.
  */
@@ -17,7 +18,7 @@ import { LAYOUT } from '@config/layout.config';
 import { READ_ALOUD_CONFIG, type ReadAloudEngine } from '@config/readAloud.config';
 import { CardRow, Icon, IconButton, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui';
 
-const { defaultVoice, sampleText } = READ_ALOUD_CONFIG;
+const { sampleText } = READ_ALOUD_CONFIG;
 const SAMPLE_ICON: Record<ReadAloudState, typeof Play> = { idle: Play, preparing: Loader2, speaking: Square };
 
 interface ReadAloudVoiceRowProps {
@@ -36,7 +37,8 @@ export const ReadAloudVoiceRow: React.FC<ReadAloudVoiceRowProps> = ({ engine, re
   });
   const sample = useReadAloud('voice-sample', sampleText);
 
-  const choose = (value: string) => setSettings({ readAloudVoice: value === defaultVoice.value ? undefined : value });
+  const defaultVoice = voices[0]?.id;
+  const choose = (value: string) => setSettings({ readAloudVoice: value === defaultVoice ? undefined : value });
 
   return (
     <CardRow
@@ -54,12 +56,11 @@ export const ReadAloudVoiceRow: React.FC<ReadAloudVoiceRowProps> = ({ engine, re
             onClick={sample.toggle}
           />
           <div className={LAYOUT.capabilityPicker}>
-            <Select value={settings.readAloudVoice ?? defaultVoice.value} onValueChange={choose}>
+            <Select value={settings.readAloudVoice ?? defaultVoice} onValueChange={choose}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={defaultVoice.value}>{defaultVoice.label}</SelectItem>
                 {voices.map((voice) => (
                   <SelectItem key={voice.id} value={voice.id} description={voice.detail ?? undefined}>{voice.name}</SelectItem>
                 ))}

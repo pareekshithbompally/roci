@@ -19,7 +19,7 @@ struct Chunk {
     text: String,
 }
 
-/// The voices `engine` can speak in (Phonon's are listed before it's downloaded).
+/// The voices `engine` can speak in, its default first (Phonon's are listed before it's downloaded).
 #[tauri::command]
 pub fn tts_voices(engine: String) -> Result<Vec<VoiceOption>, LocalError> {
     if engine == MACOS_VOICE {
