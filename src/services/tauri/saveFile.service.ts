@@ -10,6 +10,7 @@
 import { dialogService } from './dialog.service';
 import { fileSystemService } from './fileSystem.service';
 import { isTauriEnvironment } from './environment.service';
+import { DOWNLOAD_FINISHED_EVENT } from '@config/window.config';
 
 export interface TextFile {
   /** Suggested name, extension included (`table.csv`). */
@@ -43,4 +44,29 @@ export async function revealInFinder(path: string): Promise<void> {
   if (!isTauriEnvironment()) return;
   const { invoke } = await import('@tauri-apps/api/core');
   await invoke('reveal_in_file_manager', { path: path.replace(/[/\\]+$/, '') });
+}
+
+export interface FinishedDownload {
+  /** Where it was saved (~/Downloads), when known. */
+  path: string | null;
+  success: boolean;
+}
+
+/**
+ * Web downloads (`<a download>`, blob links from Streamdown and other
+ * libraries) land in ~/Downloads natively; this reports each one. Returns the
+ * unsubscribe.
+ */
+export function onDownloadFinished(handler: (download: FinishedDownload) => void): () => void {
+  if (!isTauriEnvironment()) return () => undefined;
+  let unlisten: (() => void) | undefined;
+  let disposed = false;
+  import('@tauri-apps/api/event')
+    .then(({ listen }) => listen<FinishedDownload>(DOWNLOAD_FINISHED_EVENT, ({ payload }) => handler(payload)))
+    .then((fn) => (disposed ? fn() : (unlisten = fn)))
+    .catch((error: unknown) => console.error('[onDownloadFinished] listen failed:', error));
+  return () => {
+    disposed = true;
+    unlisten?.();
+  };
 }

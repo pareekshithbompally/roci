@@ -93,6 +93,9 @@ export const DEFAULT_WINDOW_CONFIG: WindowConfig = {
  */
 export const WINDOW_STATE_KEY = 'window-state';
 
+/** Rust → webview (src-tauri/src/downloads.rs): a web download finished. */
+export const DOWNLOAD_FINISHED_EVENT = 'downloads://finished';
+
 /**
  * Default window state (used if no saved state exists)
  */

@@ -23,6 +23,7 @@ import { RemindersView } from '@features/todos';
 import { CalendarView } from '@features/calendar';
 import { ConfirmHost, OnDeviceModelActivity, SearchOverlay } from '@shared/components';
 import { Toaster } from '@shared/ui';
+import { useDownloadToasts } from '@shared/hooks';
 import { useAppShortcuts } from '@features/shortcuts';
 import { focusChatComposer, startNewChat } from '@features/chat';
 import { useAppleNotesRuntime, useCalendarRuntime, useHexRuntime, useMcpHostRuntime, useRemindersRuntime, useUrlActionsRuntime } from '@features/integrations';
@@ -85,6 +86,7 @@ const App: React.FC = () => {
   // macOS Calendar integration — polls for upcoming meetings, shows notifications
   useCalendarRuntime();
   useNotificationsRuntime();
+  useDownloadToasts();
   useRemindersRuntime();
   useHexRuntime();
   useMcpHostRuntime();

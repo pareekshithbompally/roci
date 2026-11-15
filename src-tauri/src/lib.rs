@@ -8,6 +8,7 @@ mod wake_lock;
 mod permissions;
 mod hex;
 mod open_native;
+mod downloads;
 mod mcp;
 mod mcp_server;
 mod url_actions;
@@ -35,6 +36,13 @@ use tauri_plugin_autostart::MacosLauncher;
 pub fn run() {
   tauri::Builder::default()
     .setup(|app| {
+      // The main window is built here (`create: false` in tauri.conf.json) so
+      // its webview can take web downloads, which WKWebView otherwise drops.
+      let main = app.config().app.windows.iter().find(|w| w.label == "main").cloned().ok_or("main window config missing")?;
+      tauri::WebviewWindowBuilder::from_config(app.handle(), &main)?
+        .on_download(downloads::handle)
+        .build()?;
+
       if cfg!(debug_assertions) {
         app.handle().plugin(
           tauri_plugin_log::Builder::default()
