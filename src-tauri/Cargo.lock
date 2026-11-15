@@ -37,6 +37,7 @@ dependencies = [
  "tauri-plugin-apple-notes",
  "tauri-plugin-autostart",
  "tauri-plugin-calendar",
+ "tauri-plugin-core-spotlight",
  "tauri-plugin-deep-link",
  "tauri-plugin-dialog",
  "tauri-plugin-fs",
@@ -5829,6 +5830,17 @@ dependencies = [
  "tauri",
  "tauri-plugin",
  "url",
+]
+
+[[package]]
+name = "tauri-plugin-core-spotlight"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
 ]
 
 [[package]]
