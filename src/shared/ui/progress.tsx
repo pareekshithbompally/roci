@@ -1,39 +1,63 @@
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import type { ReactNode } from 'react';
+import { ANIMATION_CONFIG } from '@config/animations.config';
+import { Text } from './text';
 import { cn } from './utils';
 
 const FILL = { neutral: 'bg-inverse', success: 'bg-success', warning: 'bg-warning', error: 'bg-danger' } as const;
+
+const { fill, sweep, appear } = ANIMATION_CONFIG.progress;
 
 export interface ProgressProps {
   /** 0–100, or null for indeterminate */
   percent: number | null;
   tone?: keyof typeof FILL;
+  /** `full` spans its container; `compact` is a short inline bar with its percent beside it. */
+  size?: 'full' | 'compact';
   className?: string;
 }
 
 /** Thin progress track: determinate fill, or a sweeping segment when indeterminate. */
-export function Progress({ percent, tone = 'neutral', className }: ProgressProps) {
-  return (
+export function Progress({ percent, tone = 'neutral', size = 'full', className }: ProgressProps) {
+  const track = (
     <div
       role="progressbar"
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={percent ?? undefined}
-      className={cn('relative w-full h-1 rounded-full overflow-hidden bg-layer-3', className)}
+      className={cn('relative h-1 rounded-full overflow-hidden bg-layer-3', size === 'full' ? 'w-full' : 'w-16 shrink-0', size === 'full' && className)}
     >
       {percent !== null ? (
         <motion.div
           className={cn('h-full rounded-full', FILL[tone])}
           initial={false}
           animate={{ width: `${percent}%` }}
-          transition={{ duration: 0.3, ease: 'easeOut' }}
+          transition={fill}
         />
       ) : (
         <motion.div
           className={cn('h-full w-1/4 rounded-full', FILL[tone])}
           animate={{ x: ['0%', '300%', '0%'] }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+          transition={sweep}
         />
       )}
     </div>
+  );
+  return size === 'full' ? track : <CompactProgress percent={percent} className={className}>{track}</CompactProgress>;
+}
+
+/** A compact bar fades in with its percent beside it, in even-width digits so the number doesn't wobble. */
+function CompactProgress({ percent, className, children }: { percent: number | null; className?: string; children: ReactNode }) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <motion.span
+      className={cn('inline-flex items-center gap-2', className)}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={reduceMotion ? { duration: 0 } : appear}
+    >
+      {children}
+      {percent !== null && <Text variant="mono" tone="faint" className="tabular-nums">{percent}%</Text>}
+    </motion.span>
   );
 }

@@ -176,6 +176,13 @@ export const ANIMATION_CONFIG = {
     scrollDuration: 300, // Smooth scroll to new message
   },
 
+  /** Progress bar (framer-motion, seconds): the fill easing to its value, the indeterminate sweep, a compact bar fading in. */
+  progress: {
+    fill: { duration: 0.3, ease: 'easeOut' },
+    sweep: { duration: 1.5, repeat: Infinity, ease: 'easeInOut' },
+    appear: { duration: 0.2, ease: [0.4, 0, 0.2, 1] as const },
+  },
+
   /** Disclosure open/close (framer-motion, seconds): height and fade together. */
   disclosure: { duration: 0.2, ease: [0.4, 0, 0.2, 1] as const },
 
