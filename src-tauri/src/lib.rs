@@ -76,6 +76,10 @@ pub fn run() {
       // Calendar meeting reminders (HEX watcher): idle until the frontend enables them.
       meeting_reminders::start(app.handle().clone());
 
+      // Detected calls (HEX): offer to record when a call app takes the microphone.
+      #[cfg(target_os = "macos")]
+      call_detection::start(app.handle().clone());
+
       // Login-item / autostart launches pass --minimized: start hidden.
       // (Hex: LaunchWindow::OpenUnlessLoginItem stays quiet at login.)
       if std::env::args().any(|arg| arg == "--minimized")

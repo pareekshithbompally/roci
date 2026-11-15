@@ -8,6 +8,7 @@ import type { NotificationKind, NotificationSettings } from '@shared/types';
 
 export const NOTIFICATION_KINDS: ReadonlyArray<{ kind: NotificationKind; label: string; description: string }> = [
   { kind: 'meetingReminders', label: 'Meeting reminders', description: 'A notification with Record before a calendar meeting starts.' },
+  { kind: 'detectedCalls', label: 'Detected calls', description: 'Offers to record when Zoom, Teams, Meet or another call app starts using the microphone.' },
   { kind: 'recordingReady', label: 'Recording ready', description: 'When a recording has been transcribed and summarized, or fails.' },
   { kind: 'hexImports', label: 'Hex meetings imported', description: 'When new meetings arrive from Hex.' },
   { kind: 'modelDownloads', label: 'Model downloads', description: 'When an on-device model finishes downloading.' },
@@ -17,6 +18,7 @@ export const NOTIFICATION_KINDS: ReadonlyArray<{ kind: NotificationKind; label: 
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   meetingReminders: true,
+  detectedCalls: true,
   recordingReady: true,
   hexImports: true,
   modelDownloads: true,

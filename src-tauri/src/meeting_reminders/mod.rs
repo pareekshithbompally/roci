@@ -98,8 +98,12 @@ impl Reminders {
         }
     }
 
+    fn meeting_for(&self, occurrence: &str) -> Option<&CalendarMeeting> {
+        self.meetings.iter().find(|meeting| meeting.occurrence() == occurrence)
+    }
+
     fn event_for(&self, occurrence: &str) -> Option<CalendarEvent> {
-        let meeting = self.meetings.iter().find(|meeting| meeting.occurrence() == occurrence)?;
+        let meeting = self.meeting_for(occurrence)?;
         self.events.get(&meeting.id).cloned()
     }
 }
@@ -213,11 +217,18 @@ fn handle_response(response: &Response) {
     let Some(occurrence) = response.id.strip_prefix(ID_PREFIX) else {
         return;
     };
-    let event = {
+    let (meeting, event) = {
         let mut reminders = reminders();
         reminders.scheduler.answered(occurrence);
-        reminders.event_for(occurrence)
+        (reminders.meeting_for(occurrence).cloned(), reminders.event_for(occurrence))
     };
+    // Answered with a button: its call is not offered again (HEX).
+    #[cfg(target_os = "macos")]
+    if let Some(meeting) = &meeting
+        && matches!(response.action.as_str(), ACTION_RECORD | ACTION_JOIN_RECORD | ACTION_NOT_NOW)
+    {
+        crate::call_detection::snooze_calendar_call(calendar_snooze(meeting));
+    }
     let Some(event) = event else { return };
     match response.action.as_str() {
         ACTION_RECORD => record(&event, false),

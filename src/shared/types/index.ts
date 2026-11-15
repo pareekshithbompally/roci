@@ -183,6 +183,7 @@ export interface ChatToolPreferences {
 /** A kind of notification the user can switch off (Settings › Notifications). */
 export type NotificationKind =
   | 'meetingReminders'
+  | 'detectedCalls'
   | 'recordingReady'
   | 'hexImports'
   | 'modelDownloads'

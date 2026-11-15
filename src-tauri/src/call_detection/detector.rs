@@ -175,11 +175,7 @@ impl MeetingDetector {
     /// The call that was offered is still on the microphone, as a running
     /// recording's call app is: its snooze must last from now, not from the
     /// last detection pass.
-    pub fn keep_snooze_alive(&mut self) {
-        self.keep_snooze_alive_at(Instant::now());
-    }
-
-    fn keep_snooze_alive_at(&mut self, now: Instant) {
+    pub(super) fn keep_snooze_alive_at(&mut self, now: Instant) {
         self.last_present = Some(now);
     }
 
@@ -194,21 +190,6 @@ impl MeetingDetector {
     pub fn offer_timed_out(&mut self) {
         if self.offered.is_some() {
             self.timed_out = true;
-        }
-    }
-
-    /// Whether the call app is on the microphone, seen while a recording is
-    /// transcribing and detection doesn't run: an absence then still ends
-    /// the snooze.
-    pub fn observe_call_app(&mut self, present: bool) {
-        self.observe_call_app_at(present, Instant::now());
-    }
-
-    fn observe_call_app_at(&mut self, present: bool, now: Instant) {
-        if present {
-            self.last_present = Some(now);
-        } else {
-            self.absent_at(now);
         }
     }
 
@@ -251,15 +232,7 @@ impl MeetingDetector {
 
     /// One observation. Returns the call to offer, once it has been stable
     /// long enough and is not snoozed.
-    pub fn detect(&mut self, candidate: Option<MeetingCandidate>) -> Option<MeetingCandidate> {
-        self.detect_at(
-            candidate,
-            Instant::now(),
-            crate::meeting_reminders::wall_clock_ms(),
-        )
-    }
-
-    fn detect_at(
+    pub(super) fn detect_at(
         &mut self,
         candidate: Option<MeetingCandidate>,
         now: Instant,
@@ -582,17 +555,6 @@ mod tests {
         // Not stopped by hand: the minute still applies.
         assert!(watch.run(None, 20_000).is_empty());
         assert!(watch.run(Some(&slack), 5_000).is_empty());
-
-        // The absence is seen while the stopped recording transcribes.
-        let mut watch = Watch::new();
-        assert!(watch.stable(&slack).is_some());
-        watch.detector.recording_stopped();
-        for _ in 0..8 {
-            let now = watch.base + Duration::from_millis(watch.elapsed_ms);
-            watch.detector.observe_call_app_at(false, now);
-            watch.elapsed_ms += STEP_MS;
-        }
-        assert_eq!(watch.stable(&slack), Some(slack));
     }
 
     #[test]
