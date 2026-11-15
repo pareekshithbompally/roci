@@ -29,8 +29,6 @@ const CATEGORY: &str = "detected_call";
 const BODY: &str = "Record it with Kasset?";
 const ACTION_RECORD: &str = "record";
 const ACTION_NOT_NOW: &str = "not_now";
-/// Closed without a button: the offer is treated as timed out (HEX).
-const DISMISSED: &str = "dismiss";
 /// `user_info` key carrying the call app's canonical bundle id.
 const APPLICATION_KEY: &str = "application";
 /// After a failed microphone read, wait this long before the next (HEX).
@@ -47,7 +45,6 @@ enum Effect {
 enum Answer {
     Record,
     AlreadyRecording,
-    TimedOut,
 }
 
 /// The detector and the offer on screen. Pure: the thread passes in what it
@@ -130,7 +127,6 @@ fn answer(action: &str, recording: bool) -> Option<Answer> {
     match action {
         ACTION_RECORD if recording => Some(Answer::AlreadyRecording),
         ACTION_RECORD => Some(Answer::Record),
-        DISMISSED => Some(Answer::TimedOut),
         _ => None,
     }
 }
@@ -174,6 +170,10 @@ pub(crate) fn snooze_calendar_call((keys, until_ms): (Vec<String>, i64)) {
 
 /// One pass; returns how long to wait before the next.
 fn tick() -> Duration {
+    // Until the webview has sent its settings every kind would read unmuted.
+    if !notifications::muted_known() {
+        return TICK;
+    }
     let muted = notifications::is_muted(KIND);
     let apps = if muted { None } else { read_microphone() };
     let effects = watch().step(
@@ -253,7 +253,6 @@ fn handle_response(response: &Response) {
         Some(Answer::AlreadyRecording) => {
             log::info!("[call-detection] already recording; Record ignored")
         }
-        Some(Answer::TimedOut) => watch().detector.offer_timed_out(),
         None => {}
     }
 }
@@ -390,7 +389,6 @@ mod tests {
     fn record_ignored_while_recording() {
         assert_eq!(answer("record", true), Some(Answer::AlreadyRecording));
         assert_eq!(answer("record", false), Some(Answer::Record));
-        assert_eq!(answer("dismiss", true), Some(Answer::TimedOut));
         assert_eq!(answer("not_now", false), None);
         assert_eq!(answer("open", false), None);
     }

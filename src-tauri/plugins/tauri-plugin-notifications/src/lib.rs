@@ -103,6 +103,8 @@ type Emit = Box<dyn Fn(&str, serde_json::Value) + Send + Sync>;
 struct State {
     categories: Vec<Category>,
     muted: HashSet<String>,
+    /// Set by the first [`set_muted`]: until then `muted` is only a default.
+    muted_known: bool,
     timed: Vec<(i64, Notice)>,
 }
 
@@ -165,7 +167,14 @@ pub fn add_categories(categories: &[Category]) {
 
 /// Kinds the user switched off in Settings › Notifications.
 pub fn set_muted(kinds: impl IntoIterator<Item = String>) {
-    state().muted = kinds.into_iter().collect();
+    let mut state = state();
+    state.muted = kinds.into_iter().collect();
+    state.muted_known = true;
+}
+
+/// Whether Settings has sent the muted kinds yet; before that every kind reads unmuted.
+pub fn muted_known() -> bool {
+    state().muted_known
 }
 
 /// Whether the user switched `kind` off in Settings › Notifications.
@@ -293,5 +302,6 @@ mod tests {
         set_muted(["detectedCalls".into()]);
         assert!(is_muted("detectedCalls"));
         assert!(!is_muted("chatReplies"));
+        assert!(muted_known());
     }
 }
