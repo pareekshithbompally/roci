@@ -11,7 +11,6 @@ const LABELS: Record<string, [string, string]> = {
   get_meeting: ['Retrieving meeting', 'Retrieved meeting'],
   list_meetings: ['Listing meetings', 'Listed meetings'],
   get_action_items: ['Getting action items', 'Found action items'],
-  query_graph: ['Querying knowledge graph', 'Queried knowledge graph'],
   // Chat history + todo tools
   search_chats: ['Searching chats', 'Searched chats'],
   get_chat: ['Retrieving chat', 'Retrieved chat'],
@@ -52,7 +51,6 @@ function meetingDetail(part: ToolCallPart): string | undefined {
 const DETAILS: Record<string, (part: ToolCallPart) => string | undefined> = {
   search_meetings: queryDetail,
   search_chats: queryDetail,
-  query_graph: queryDetail,
   webSearch: queryDetail,
   googleSearch: queryDetail,
   webSearchPreview: queryDetail,

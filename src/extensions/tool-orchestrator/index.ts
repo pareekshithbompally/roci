@@ -6,11 +6,11 @@ import { createModel, toSDKMessages, getWebSearchTools, toExecutableTools } from
 import { resolveChatModel, requiresApiKey } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { isLocalProviderId } from '@shared/utils/provider.utils';
-import { followModelLoad, isLlamaServer, promptProgressPercent } from '@services/ai/llamaServer';
+import { followModelLoad, generationStats, isLlamaServer, promptProgress } from '@services/ai/llamaServer';
 import { toolRegistry, loadMcpTools } from '@extensions/tools';
 import { DEFAULT_CHAT_TOOLS } from '@config/chatTools.config';
 import { extractTokenUsage } from '@services/ai/types';
-import type { TokenUsage } from '@services/ai/types';
+import type { GenerationStats, TokenUsage } from '@services/ai/types';
 import type { OrchestratorOptions, OrchestratorCallbacks } from './types';
 
 /** Safety cap for the agentic loop. Most queries resolve in 1–3 tool calls. */
@@ -58,6 +58,15 @@ async function buildTools(
 interface StreamState {
   hasText: boolean;
   sources: Array<{ url: string; title: string }>;
+  /** Latest tokens-so-far and speed llama-server reported (its chunks arrive just before the text they carry). */
+  generation?: GenerationStats;
+}
+
+/** llama-server's own chunk: prompt-reading progress is shown, generation stats are kept for the next status. */
+function handleRaw(chunk: unknown, state: StreamState, onChunk: OrchestratorCallbacks['onChunk']): void {
+  const progress = promptProgress(chunk);
+  if (progress) onChunk('', { progress });
+  state.generation = generationStats(chunk) ?? state.generation;
 }
 
 /** One stream part → UI callbacks and collected state. Throws on a stream error. */
@@ -70,7 +79,7 @@ function handlePart(part: TextStreamPart<ToolSet>, state: StreamState, onChunk: 
       return;
     }
     case 'reasoning-delta':
-      onChunk('', { isThinking: true, thinkingContent: part.text });
+      onChunk('', { isThinking: true, thinkingContent: part.text, generation: state.generation });
       return;
     // Only native web search runs on the provider's side; meeting and MCP tools are tracked in tools-bridge.
     case 'tool-input-start':
@@ -79,12 +88,9 @@ function handlePart(part: TextStreamPart<ToolSet>, state: StreamState, onChunk: 
     case 'source':
       if (part.sourceType === 'url') state.sources.push({ url: part.url, title: part.title || '' });
       return;
-    // llama-server's own chunks (raw): how much of the prompt it has read.
-    case 'raw': {
-      const percent = promptProgressPercent(part.rawValue);
-      if (percent !== null) onChunk('', { progress: { stage: 'reading-prompt', percent } });
+    case 'raw':
+      handleRaw(part.rawValue, state, onChunk);
       return;
-    }
     case 'error':
       console.error('[Orchestrator] Stream error:', part.error);
       throw part.error instanceof Error ? part.error : new Error(String(part.error ?? 'Model returned a stream error'));
@@ -115,7 +121,7 @@ export async function orchestrate(
   const reportsProgress = isLocalProviderId(resolved.provider) && (await isLlamaServer(resolved.baseUrl));
 
   const result = streamText({
-    model: createModel(resolved, { webSearch: !!webSearchTools, promptProgress: reportsProgress }),
+    model: createModel(resolved, { webSearch: !!webSearchTools, serverProgress: reportsProgress }),
     instructions: systemPrompt,
     messages: toSDKMessages(messages),
     abortSignal: signal,

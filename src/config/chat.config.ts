@@ -31,3 +31,9 @@ export const CHAT_LOADING_COPY = {
   searching: 'Searching the web…',
   working: 'Working on it…',
 } as const;
+
+/** The detail beside the reply header's status, from what a local server reports. */
+export const CHAT_LOADING_DETAIL = {
+  secondsLeft: (seconds: number) => `${seconds}s left`,
+  generation: (tokens: number, tokensPerSecond: number) => `${tokens} tokens · ${tokensPerSecond.toFixed(1)} tok/s`,
+} as const;

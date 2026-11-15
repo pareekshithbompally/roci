@@ -18,7 +18,6 @@ describe('toolCallTitle — built-in tools', () => {
     ['get_meeting', { meeting_id: 'm-42' }, 'Retrieving meeting “m-42”…', 'Retrieved meeting “m-42”'],
     ['list_meetings', { count: 10 }, 'Listing meetings (up to 10 meetings)…', 'Listed meetings (up to 10 meetings)'],
     ['get_action_items', {}, 'Getting action items…', 'Found action items'],
-    ['query_graph', { operation: 'search', query: 'Alice' }, 'Querying knowledge graph for “Alice”…', 'Queried knowledge graph for “Alice”'],
     ['search_chats', { query: 'roadmap' }, 'Searching chats for “roadmap”…', 'Searched chats for “roadmap”'],
     ['get_chat', { session_id: 's1' }, 'Retrieving chat…', 'Retrieved chat'],
     ['list_chats', { limit: 5 }, 'Listing chats (up to 5 chats)…', 'Listed chats (up to 5 chats)'],
@@ -74,6 +73,10 @@ describe('toolCallTitle — MCP, unknown, error', () => {
   it('unknown built-in tools fall back to Running/Used', () => {
     expect(toolCallTitle(part({ toolName: 'do_thing', status: 'calling' }))).toBe('Running do thing…');
     expect(toolCallTitle(part({ toolName: 'do_thing' }))).toBe('Used do thing');
+  });
+
+  it('titles a legacy query_graph call with the generic fallback', () => {
+    expect(toolCallTitle(part({ toolName: 'query_graph', arguments: { query: 'Alice' }, status: 'complete' }))).toBe('Used query graph');
   });
 
   it('error state reads "<tool> failed"', () => {

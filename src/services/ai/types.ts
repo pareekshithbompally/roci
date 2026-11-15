@@ -67,11 +67,20 @@ export interface StreamProgress {
   stage: 'loading-weights' | 'loading-draft' | 'loading-projector' | 'reading-prompt';
   /** 0–100 */
   percent: number;
+  /** Seconds left reading the prompt, once enough of it has been read to tell. */
+  secondsLeft?: number;
+}
+
+/** Tokens a local server has generated so far, and how fast (llama-server). */
+export interface GenerationStats {
+  tokens: number;
+  tokensPerSecond: number;
 }
 
 /** Stream metadata for UI state */
 export interface StreamMetadata {
   progress?: StreamProgress;
+  generation?: GenerationStats;
   isThinking?: boolean;
   isSearching?: boolean;
   searchQuery?: string;

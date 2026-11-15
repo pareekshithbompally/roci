@@ -27,12 +27,13 @@ function buildCustomHeaders(providerConfig: ResolvedModel['providerConfig']): Re
 }
 
 /** llama-server's request flag for streaming `prompt_progress` chunks. */
-const withPromptProgress = (body: Record<string, unknown>) => ({ ...body, return_progress: true });
+/** llama-server's own progress: prompt reading (`return_progress`) and tokens generated (`timings_per_token`). */
+const withServerProgress = (body: Record<string, unknown>) => ({ ...body, return_progress: true, timings_per_token: true });
 
-/** AI SDK model for a resolved model; `webSearch` picks OpenAI's Responses API, `promptProgress` asks llama-server. */
+/** AI SDK model for a resolved model; `webSearch` picks OpenAI's Responses API, `serverProgress` asks llama-server for its progress. */
 export function createModel(
   resolved: ResolvedModel,
-  options?: { webSearch?: boolean; promptProgress?: boolean },
+  options?: { webSearch?: boolean; serverProgress?: boolean },
 ): LanguageModel {
   const fetch = getPlatformFetch();
 
@@ -78,7 +79,7 @@ export function createModel(
         baseURL: resolved.baseUrl,
         fetch,
         ...(Object.keys(customHeaders).length > 0 && { headers: customHeaders }),
-        ...(options?.promptProgress && { transformRequestBody: withPromptProgress }),
+        ...(options?.serverProgress && { transformRequestBody: withServerProgress }),
       });
       return provider.chatModel(resolved.modelId);
     }

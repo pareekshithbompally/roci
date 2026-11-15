@@ -25,7 +25,6 @@ Use your tools when the user asks about their meetings, action items, or past co
 - get_action_items reads todos. manage_todo creates, updates, completes, or deletes one — for a meeting todo, get its meeting_id from search_meetings first; for a general todo use meeting_id "_general" and meeting_title "General".
 - manage_todo only proposes: the user confirms it in the UI card. Say what you proposed, never that you created or saved it.
 - For broad catch-ups, combine list_meetings and get_action_items.
-- query_graph answers who-is-connected-to-what questions across meetings.
 - search_chats and get_chat find past AI conversations.`;
 
 function meetingsRole(meetingCount: number): string {

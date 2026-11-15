@@ -15,7 +15,6 @@ const TOOL_LABELS: Record<string, string> = {
   list_meetings: 'Listing meetings\u2026',
   get_action_items: 'Getting action items\u2026',
   manage_todo: 'Managing todo\u2026',
-  query_graph: 'Querying knowledge graph\u2026',
   search_chats: 'Searching chats\u2026',
   get_chat: 'Loading chat\u2026',
   list_chats: 'Listing chats\u2026',
