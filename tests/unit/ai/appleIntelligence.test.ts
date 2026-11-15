@@ -48,7 +48,7 @@ describe('appleIntelligenceModel (AI SDK v4)', () => {
   });
 });
 
-describe('transcript excerpt (HEX budget)', () => {
+describe('transcript excerpt (context budget)', () => {
   it('no window → no trimming', () => {
     expect(transcriptBudget(null, 'x')).toBeNull();
     expect(excerptTranscript('abc', null)).toBe('abc');
