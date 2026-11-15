@@ -43,7 +43,7 @@ const App: React.FC = () => {
   const selectedHistoryId = useSelectedHistoryId();
   const { setCurrentView, leaveSettings, setInitialized, setActiveSettingsPanel } = useAppActions();
   
-  const { setSettings, settings, providers, isLoading: settingsLoading } = useSettings();
+  const { setSettings, providers, isLoading: settingsLoading } = useSettings();
   const history = useHistory();
   const chat = useChat();
   const recording = useRecordingContext();

@@ -1,7 +1,7 @@
 # Kasset AI — Claude Code Instructions
 
 > **macOS meeting-intelligence app — private, local-first, with built-in AI chat.**
-> Tauri 2.x + React 19 + TS + Vite | Vercel AI SDK (multi-provider) | Rust Core Audio tap + cpal audio | sqlite-vec RAG + Knowledge Graph
+> Tauri 2.x + React 19 + TS + Vite | Vercel AI SDK (multi-provider) | Rust Core Audio tap + cpal audio | sqlite-vec RAG
 > **Pre-release, zero users.** Never add migrations, backward-compat, or legacy support unless explicitly asked.
 
 ---
@@ -102,7 +102,7 @@ services/
   repositories/   Per-meeting file storage (BaseRepository readJson/writeJson)
   transcription.service.ts  unifiedAIService.ts  platform-fetch.ts  reminder.service.ts
 extensions/
-  rag/            sqlite-vec embeddings + hybrid search + knowledge graph
+  rag/            sqlite-vec embeddings + hybrid search
   tools/          LLM tool registry + executor      tool-orchestrator/  intent→retrieval→synthesis
 src-tauri/
   src/audio/      capture: supervisors, process tap, mic, tracks, mixdown   src/permissions/  consent checks
