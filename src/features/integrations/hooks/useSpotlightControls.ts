@@ -15,13 +15,19 @@ const COPY = INTEGRATIONS_CONFIG.spotlight;
 
 export function useSpotlightControls(): IntegrationControls {
   const { settings, setSettings } = useSettings();
-  const { data: status } = useQuery({
-    queryKey: queryKeys.spotlight(),
+  const { data: status, isError } = useQuery({
+    queryKey: queryKeys.spotlightStatus(),
     queryFn: () => spotlightService.status(),
     staleTime: Infinity,
   });
 
-  const access: IntegrationAccess = !status ? 'unknown' : status.supported ? 'ready' : 'unavailable';
+  const access: IntegrationAccess = isError
+    ? 'unavailable'
+    : !status
+      ? 'unknown'
+      : status.supported
+        ? 'ready'
+        : 'unavailable';
 
   return {
     access,

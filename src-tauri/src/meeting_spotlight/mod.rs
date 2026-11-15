@@ -23,7 +23,7 @@ use tauri::AppHandle;
 use tauri_plugin_core_spotlight as spotlight;
 use tauri_plugin_store::{MeetingChange, meeting_detail, meeting_ids};
 
-pub use item::item_for;
+use item::item_for;
 
 use crate::url_actions;
 
@@ -48,20 +48,21 @@ enum Work {
     RemoveAll,
 }
 
-/// The pure state of the sync: on or off, and the saved meetings waiting for
-/// [`DEBOUNCE`].
+/// The pure state of the sync: on, off, or not yet known (a fresh launch, so
+/// the first switch value always runs, and clears stale items when off), and
+/// the saved meetings waiting for [`DEBOUNCE`].
 #[derive(Debug, Default)]
-struct Sync {
-    enabled: bool,
+struct IndexState {
+    enabled: Option<bool>,
     pending: BTreeSet<String>,
 }
 
-impl Sync {
-    /// The work `input` needs now. Saves wait in `pending` for [`Sync::flush`].
+impl IndexState {
+    /// The work `input` needs now. Saves wait in `pending` for [`IndexState::flush`].
     fn plan(&mut self, input: Input) -> Option<Work> {
         match input {
             Input::Enable(enabled) => self.set_enabled(enabled),
-            Input::Change(_) if !self.enabled => None,
+            Input::Change(_) if self.enabled != Some(true) => None,
             Input::Change(MeetingChange::Saved(id)) => {
                 self.pending.insert(id);
                 None
@@ -74,10 +75,10 @@ impl Sync {
     }
 
     fn set_enabled(&mut self, enabled: bool) -> Option<Work> {
-        if self.enabled == enabled {
+        if self.enabled == Some(enabled) {
             return None;
         }
-        self.enabled = enabled;
+        self.enabled = Some(enabled);
         self.pending.clear();
         Some(if enabled {
             Work::ReindexAll
@@ -128,6 +129,8 @@ pub fn start(app: AppHandle) {
 }
 
 /// Spotlight on or off (Settings). Off removes every Kasset meeting from it.
+/// The webview calls this only after settings load from the open store DB,
+/// which `ReindexAll` relies on to read the meetings.
 #[tauri::command]
 pub fn configure_meeting_spotlight(enabled: bool) {
     let Some(sender) = SENDER.get() else {
@@ -141,7 +144,7 @@ pub fn configure_meeting_spotlight(enabled: bool) {
 // ── Worker ──
 
 fn follow(app: &AppHandle, receiver: &Receiver<Input>) {
-    let mut sync = Sync::default();
+    let mut sync = IndexState::default();
     let mut due: Option<Instant> = None;
     loop {
         let work = match next(receiver, due) {
@@ -171,7 +174,7 @@ fn next(receiver: &Receiver<Input>, due: Option<Instant>) -> Result<Input, RecvT
 }
 
 /// The debounce runs from the first pending save, so steady writes still flush.
-fn due_after(sync: &Sync, due: Option<Instant>) -> Option<Instant> {
+fn due_after(sync: &IndexState, due: Option<Instant>) -> Option<Instant> {
     if sync.pending.is_empty() {
         return None;
     }
@@ -194,7 +197,9 @@ fn reindex_all(app: &AppHandle) -> Result<(), String> {
     spotlight::remove_all()?;
     let ids = meeting_ids(app).map_err(|e| e.to_string())?;
     for batch in ids.chunks(BATCH) {
-        reindex(app, batch)?;
+        if let Err(error) = reindex(app, batch) {
+            log::error!("[meeting-spotlight] index batch failed: {error}");
+        }
     }
     log::info!("[meeting-spotlight] indexed meetings: {}", ids.len());
     Ok(())
@@ -205,9 +210,10 @@ fn reindex(app: &AppHandle, ids: &[String]) -> Result<(), String> {
     let mut items = Vec::new();
     let mut missing = Vec::new();
     for id in ids {
-        match meeting_detail(app, id).map_err(|e| e.to_string())? {
-            Some(detail) => items.push(item_for(&detail)),
-            None => missing.push(id.clone()),
+        match meeting_detail(app, id) {
+            Ok(Some(detail)) => items.push(item_for(&detail)),
+            Ok(None) => missing.push(id.clone()),
+            Err(error) => log::error!("[meeting-spotlight] could not read meeting {id}: {error}"),
         }
     }
     if !items.is_empty() {
@@ -227,15 +233,15 @@ mod tests {
         Input::Change(MeetingChange::Saved(id.into()))
     }
 
-    fn enabled() -> Sync {
-        let mut sync = Sync::default();
+    fn enabled() -> IndexState {
+        let mut sync = IndexState::default();
         sync.plan(Input::Enable(true));
         sync
     }
 
     #[test]
     fn changes_ignored_while_disabled() {
-        let mut sync = Sync::default();
+        let mut sync = IndexState::default();
         assert_eq!(sync.plan(saved("a")), None);
         assert_eq!(
             sync.plan(Input::Change(MeetingChange::Deleted("a".into()))),
@@ -245,8 +251,15 @@ mod tests {
     }
 
     #[test]
+    fn first_disable_removes_all() {
+        let mut sync = IndexState::default();
+        assert_eq!(sync.plan(Input::Enable(false)), Some(Work::RemoveAll));
+        assert_eq!(sync.plan(Input::Enable(false)), None);
+    }
+
+    #[test]
     fn enable_reindexes_all() {
-        let mut sync = Sync::default();
+        let mut sync = IndexState::default();
         assert_eq!(sync.plan(Input::Enable(true)), Some(Work::ReindexAll));
         assert_eq!(sync.plan(Input::Enable(true)), None);
     }

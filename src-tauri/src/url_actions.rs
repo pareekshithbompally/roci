@@ -12,7 +12,8 @@
 //!
 //! The first four are menu bar actions and go through [`menubar::dispatch`],
 //! so a link and a click share one path. `ask` and `meeting` carry a value and
-//! go to the webview on [`ACTION_EVENT`].
+//! go to the webview on [`ACTION_EVENT`]. Spotlight results also open meetings
+//! through `open_meeting`.
 //!
 //! macOS hands Kasset the URL (launching it first when needed) before the
 //! webview listens, so actions wait until the frontend calls
