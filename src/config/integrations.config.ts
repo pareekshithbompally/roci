@@ -3,6 +3,9 @@
  * Behaviour lives in features/integrations; this is presentation data only.
  */
 
+/** Apple Notes folder in the default account; created on first save. */
+const NOTES_FOLDER = 'Kasset';
+
 export const INTEGRATIONS_CONFIG = {
   calendar: {
     title: 'Calendar',
@@ -12,7 +15,7 @@ export const INTEGRATIONS_CONFIG = {
   },
   appleIntelligence: {
     title: 'Apple Intelligence',
-    description: 'Summaries and transcription on this Mac. Nothing leaves your Mac.',
+    description: 'Adds Apple Intelligence to Summaries and Apple Speech to Speech recognition in Settings › Capabilities. Nothing leaves your Mac.',
     deniedHint: 'Apple Intelligence is off in System Settings › Apple Intelligence & Siri.',
     icon: '/images/apple-intelligence-sm.png',
     /** Why the model can't run (HEX `apple_intelligence::Availability::description`). */
@@ -25,11 +28,10 @@ export const INTEGRATIONS_CONFIG = {
   },
   appleNotes: {
     title: 'Notes',
-    description: 'Save each meeting’s summary and transcript as a note in Apple Notes.',
+    description: `Save each meeting’s summary and transcript as a note in the “${NOTES_FOLDER}” folder of Apple Notes. Saving again updates the note.`,
     deniedHint: 'Kasset is off in System Settings › Privacy & Security › Automation › Notes.',
     icon: '/images/macos-notes-sm.png',
-    /** Folder in the default Notes account; created on first save. */
-    folder: 'Kasset',
+    folder: NOTES_FOLDER,
     /** Line at the end of each note that ties it to its meeting. */
     tagPrefix: 'Kasset meeting',
   },

@@ -3,6 +3,9 @@
  * then the macOS access row while it still needs the user, then the
  * integration's own settings once connected. Every integration renders
  * through this; none draws its own permission UI.
+ *
+ * A settings row must show a status or hold an action. What only explains
+ * goes in the integration's description, never in a row of its own.
  */
 
 import React from 'react';
@@ -16,7 +19,7 @@ interface IntegrationRowProps extends IntegrationControls {
   description: string;
   /** Shown when the user denied access, so they know where to change it. */
   deniedHint?: string;
-  /** The integration's settings rows, rendered only when connected. */
+  /** Settings rows (each with a status or an action), rendered only when connected. */
   children?: React.ReactNode;
 }
 

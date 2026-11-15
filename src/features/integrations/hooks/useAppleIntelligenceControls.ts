@@ -30,11 +30,7 @@ function accessOf(availability: AppleAvailability | undefined): IntegrationAcces
   return 'unavailable';
 }
 
-export interface AppleIntelligenceControls extends IntegrationControls {
-  contextTokens: number;
-}
-
-export function useAppleIntelligenceControls(): AppleIntelligenceControls {
+export function useAppleIntelligenceControls(): IntegrationControls {
   const { settings, setSettings } = useSettings();
   const enabled = isIntegrationEnabled(settings, 'appleIntelligence');
 
@@ -64,6 +60,5 @@ export function useAppleIntelligenceControls(): AppleIntelligenceControls {
     unavailableReason: status && access === 'unavailable'
       ? COPY.unavailable[status.availability as keyof typeof COPY.unavailable] ?? COPY.unavailable.unknown
       : undefined,
-    contextTokens: status?.contextTokens ?? 0,
   };
 }
