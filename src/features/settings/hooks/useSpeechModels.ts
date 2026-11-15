@@ -14,10 +14,11 @@ import {
   getAppleSpeechStatus,
   getHexStatus,
   isSpeechSelectionReady,
+  liveEngineFor,
   speechModelOptions,
   speechSelectionOf,
 } from '@services/ai/transcription';
-import type { SpeechModelOption, SpeechSources } from '@services/ai/transcription';
+import type { LiveEngine, SpeechModelOption, SpeechSources } from '@services/ai/transcription';
 import { getLocalModels } from '@services/localModels.service';
 import type { LocalModel } from '@services/localModels.service';
 import { useLocalModels } from './useLocalModels';
@@ -44,6 +45,30 @@ export function useSpeechModelOptions(): SpeechModelOption[] {
     // catalogLoaded: capabilitiesOf() reads the catalog it loads.
     [providers, sources, catalogLoaded],
   );
+}
+
+/** The live engine and model a dictation streams to. */
+export interface LiveDictation {
+  engine: LiveEngine;
+  model: string;
+}
+
+/**
+ * How dictation transcribes now: live when Real-time transcription is on and
+ * the chosen speech model streams and is ready; null → it transcribes the
+ * clip when it ends.
+ */
+export function useLiveDictation(): LiveDictation | null {
+  const { settings } = useSettings();
+  const options = useSpeechModelOptions();
+  const { liveTranscription, transcriptionProvider, transcriptionModel } = settings;
+  return useMemo(() => {
+    const selection = speechSelectionOf({ transcriptionProvider, transcriptionModel });
+    if (!liveTranscription || !selection) return null;
+    const option = options.find((o) => o.provider === selection.provider && o.model === selection.model);
+    const engine = liveEngineFor(selection.provider);
+    return option?.live && option.ready && engine ? { engine, model: selection.model } : null;
+  }, [liveTranscription, transcriptionProvider, transcriptionModel, options]);
 }
 
 /** Whether the selected speech model can run now (composer mic). */

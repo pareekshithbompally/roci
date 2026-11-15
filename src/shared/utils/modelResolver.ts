@@ -11,6 +11,7 @@ import { MANAGED_SDK_PROVIDERS, MANAGED_SDK_INFO, MANAGED_DEFAULT_URLS, APPLE_IN
 import { isIntegrationEnabled } from '@shared/utils/integrations';
 import type { AppSettings } from '@shared/types';
 import { getProviderTitle } from '@shared/utils/provider.utils';
+import type { LucideIcon } from 'lucide-react';
 
 export interface ResolvedModel {
   modelId: string;
@@ -185,6 +186,14 @@ export interface ModelChoice {
   hint: string | null;
   /** A step that makes it usable, run from its picker row (download, allow). */
   setup?: ChoiceSetup;
+  /** Capabilities shown as small marks on its picker row (e.g. real-time transcription). */
+  marks?: ChoiceMark[];
+}
+
+/** A capability mark on a picker row: its icon, and its name on hover. */
+export interface ChoiceMark {
+  icon: LucideIcon;
+  label: string;
 }
 
 /** One step that makes a choice usable: download a model, or allow a permission. */

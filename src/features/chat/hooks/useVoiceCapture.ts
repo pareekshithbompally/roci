@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import type { Transition } from 'framer-motion';
+import { useLiveDictation } from '@features/settings';
 import { useSpeechInput } from './useSpeechInput';
 import type { UseSpeechInputResult } from './useSpeechInput';
 import { voiceChromeEnter } from '@features/chat/components/voice/voiceTransition';
@@ -42,7 +43,7 @@ export function useVoiceCapture({
   providers,
   appendTranscript,
 }: UseVoiceCaptureOptions): UseVoiceCaptureResult {
-  const speech = useSpeechInput(settings, providers);
+  const speech = useSpeechInput(settings, providers, useLiveDictation());
   const reduceMotion = useReducedMotion() ?? false;
 
   const isVoiceActive = speech.state !== 'idle';

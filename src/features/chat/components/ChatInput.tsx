@@ -34,6 +34,8 @@ import type { MeetingListItem } from '@services/meetingReferenceService';
 import type { ChatPart } from '@shared/types';
 import type { SpeechState } from '@features/chat/hooks/useSpeechInput';
 import { DotScope } from '@features/chat/components/dot-scope';
+import { LiveTranscript } from '@features/chat/components/voice/LiveTranscript';
+import type { LiveText } from '@services/ai/transcription';
 import { DOT_SCOPE_CONFIG } from '@config/dotScope.config';
 import {
   voiceTransition,
@@ -92,6 +94,8 @@ interface ChatInputProps {
   speechState?: SpeechState;
   /** Live mic stream for waveform visualization */
   micStream?: MediaStream | null;
+  /** Dictation's text so far when it's live (shown under the pill); null otherwise. */
+  liveText?: LiveText | null;
   /** Elapsed recording seconds */
   speechElapsed?: number;
   onSpeechStart?: () => void;
@@ -140,6 +144,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   showSpeechInput = false,
   speechState = 'idle',
   micStream = null,
+  liveText = null,
   speechElapsed = 0,
   onSpeechStart,
   onSpeechStop,
@@ -445,6 +450,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 ) : null}
                 </AnimatePresence>
               </div>
+              {liveText && <LiveTranscript text={liveText} />}
             </motion.div>
           )}
         </AnimatePresence>

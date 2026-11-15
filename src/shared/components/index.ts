@@ -8,7 +8,7 @@ export { HighlightedText } from './HighlightedText';
 export { MeetingStatus } from './MeetingStatus';
 export { PermissionAction } from './PermissionAction';
 export { ModelAvatar } from './ModelAvatar';
-export { ModelDownloadButton } from './ModelDownloadButton';
+export { ModelDownloadButton, ModelReadyStatus } from './ModelDownloadButton';
 export { ModelIcon } from './ModelIcon';
 export { OnDeviceModelActivity } from './OnDeviceModelActivity';
 export { ProvidersAvatar } from './ProvidersAvatar';

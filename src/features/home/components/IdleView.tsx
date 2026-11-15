@@ -170,6 +170,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                   showSpeechInput={showSpeechInput}
                   speechState={voice.speech.state}
                   micStream={voice.speech.stream}
+                  liveText={voice.speech.liveText}
                   speechElapsed={voice.speech.elapsed}
                   onSpeechStart={voice.speech.start}
                   onSpeechStop={voice.handleSpeechStop}

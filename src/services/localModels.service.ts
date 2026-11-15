@@ -15,6 +15,8 @@ export interface LocalModel {
   id: string;
   name: string;
   kind: LocalModelKind;
+  /** Transcribes audio while it's still arriving (live dictation). */
+  streams: boolean;
   bytes: number;
   installed: boolean;
   downloading: boolean;

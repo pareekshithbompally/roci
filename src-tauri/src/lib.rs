@@ -10,6 +10,7 @@ mod hex;
 mod ipc;
 mod models;
 mod stt;
+mod sync;
 mod tts;
 mod open_native;
 mod downloads;
@@ -161,6 +162,11 @@ pub fn run() {
       models::commands::local_model_cancel,
       models::commands::local_model_remove,
       stt::commands::stt_transcribe,
+      stt::commands::stt_live_start,
+      stt::commands::stt_live_feed,
+      stt::commands::stt_live_finish,
+      stt::commands::stt_live_cancel,
+      tts::commands::tts_voices,
       tts::commands::tts_speak,
       tts::commands::tts_stop,
       // MCP client (servers, tools, calls)

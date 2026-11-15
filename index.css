@@ -52,6 +52,16 @@ code, pre {
   background-color: var(--text-faint);
 }
 
+/* Read aloud: the sentence being spoken (READ_ALOUD_CONFIG.highlight; useSpeechHighlight). */
+::highlight(read-aloud) {
+  background-color: var(--bg-speaking);
+}
+
+/* Kit select menus: Radix hides the viewport's scrollbar; show the app's instead. */
+[data-radix-select-viewport].custom-scrollbar::-webkit-scrollbar {
+  display: block;
+}
+
 /* ─── Native overlay scrollbar — thin track, OS handles show-on-scroll + fade ─── */
 .scrollbar-overlay::-webkit-scrollbar {
   width: 5px;

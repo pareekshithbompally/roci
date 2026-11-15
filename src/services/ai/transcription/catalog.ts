@@ -22,6 +22,8 @@ import type { SpeechSelection } from './types';
 export interface SpeechModelOption extends SpeechSelection {
   label: string;
   ready: boolean;
+  /** Can transcribe dictation while it's spoken (an engine with a live mode, on a model that streams). */
+  live: boolean;
   /** Short next step when not ready ("Add OpenAI API key", "Open Hex"). */
   hint: string | null;
 }
@@ -56,7 +58,7 @@ function keyHint(provider: string, providers: ModelProvider[]): string | null {
 function cloudOptions(providers: ModelProvider[]): SpeechModelOption[] {
   return Object.entries(providerModels).flatMap(([provider, models]) => {
     const hint = keyHint(provider, providers);
-    return models.map((m) => ({ provider, model: m.id, label: m.label, ready: hint === null, hint }));
+    return models.map((m) => ({ provider, model: m.id, label: m.label, ready: hint === null, hint, live: false }));
   });
 }
 
@@ -71,7 +73,7 @@ function providerOptions(
       const hint = keyHint(p.provider, providers);
       return (p.models ?? [])
         .filter((m) => include(p, m))
-        .map((m) => ({ provider: p.provider, model: m.id, label: m.name || m.id, ready: hint === null, hint }));
+        .map((m) => ({ provider: p.provider, model: m.id, label: m.name || m.id, ready: hint === null, hint, live: false }));
     });
 }
 
@@ -84,10 +86,10 @@ const isTickedAudioModel = (_provider: ModelProvider, m: Model) => m.audioInput 
 function hexOptions(status: HexStatus | undefined): SpeechModelOption[] {
   const installed = installedHexModels(status).filter((m) => !TRANSCRIPTION_CONFIG.hiddenHexModels.includes(m.id));
   if (installed.length > 0) {
-    return installed.map((m) => ({ provider: hexProvider, model: m.id, label: m.name, ready: true, hint: null }));
+    return installed.map((m) => ({ provider: hexProvider, model: m.id, label: m.name, ready: true, hint: null, live: false }));
   }
   const hint = status?.running ? 'Download a model in Hex' : 'Open Hex';
-  return [{ provider: hexProvider, model: '', label: 'Hex', ready: false, hint }];
+  return [{ provider: hexProvider, model: '', label: 'Hex', ready: false, hint, live: false }];
 }
 
 /**
@@ -110,27 +112,30 @@ function onDeviceOptions(models: LocalModel[]): SpeechModelOption[] {
     label: m.name,
     ready: m.installed,
     hint: m.installed ? null : formatFileSize(m.bytes),
+    live: m.streams,
   }));
 }
 
 function appleSpeechOptions(status: AppleSpeechStatus | undefined): SpeechModelOption[] {
   const { provider, model, label } = TRANSCRIPTION_CONFIG.appleSpeech;
-  return [{ provider, model, label, ready: isAppleSpeechReady(status), hint: appleSpeechHint(status) }];
+  return [{ provider, model, label, ready: isAppleSpeechReady(status), hint: appleSpeechHint(status), live: false }];
 }
 
 /**
- * Every speech model in picker order: curated cloud models, local speech models,
- * models the user ticked "Audio input" for, Kasset's own engine, then
- * integrations that are on. The first entry per selection wins (curated labels).
+ * Every speech model in picker order — what runs on this Mac first: Apple
+ * Speech, Kasset's own models, Hex; then curated cloud models, local servers'
+ * speech models, and models the user ticked "Audio input" for. The picker keeps
+ * this order in both its ready groups and "Needs setup", so on-device choices
+ * lead and key-gated ones trail. The first entry per selection wins (curated labels).
  */
 export function speechModelOptions(providers: ModelProvider[], sources: SpeechSources): SpeechModelOption[] {
   const options = [
+    ...(sources.appleSpeech ? appleSpeechOptions(sources.appleSpeech.status) : []),
+    ...(sources.onDevice ? onDeviceOptions(sources.onDevice.models) : []),
+    ...(sources.hex ? hexOptions(sources.hex.status) : []),
     ...cloudOptions(providers),
     ...providerOptions(providers, isLocalSpeechModel),
     ...providerOptions(providers, isTickedAudioModel),
-    ...(sources.onDevice ? onDeviceOptions(sources.onDevice.models) : []),
-    ...(sources.appleSpeech ? appleSpeechOptions(sources.appleSpeech.status) : []),
-    ...(sources.hex ? hexOptions(sources.hex.status) : []),
   ];
   return uniqueBySelection(options);
 }

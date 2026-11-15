@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, Check, RefreshCw, Gauge, Square, Volume2 } from 'lucide-react';
-import { useReadAloud } from '@features/chat/hooks/useReadAloud';
+import { Copy, Check, RefreshCw, Gauge, Loader2, Square, Volume2 } from 'lucide-react';
+import type { ReadAloud, ReadAloudState } from '@shared/hooks/useReadAloud';
 import SuggestionsList from './SuggestionsList';
 import SourcesList from './SourcesList';
 import type { ActionProps, CitationHandlers } from './types';
 import type { MeetingCitation, WebCitation } from '@shared/types';
 import { Tooltip, Tabs, Button, IconButton, Separator, Dot, Text } from '@shared/ui';
+
+/** Read aloud's glyph: speaker, then a spinner while the voice gets ready, then stop. */
+const READ_ALOUD_ICON: Record<ReadAloudState, typeof Volume2> = { idle: Volume2, preparing: Loader2, speaking: Square };
 
 interface AssistantActionBarProps {
   id: string;
@@ -22,6 +25,8 @@ interface AssistantActionBarProps {
   onSuggestionClick?: (suggestion: string) => void;
   citationHandlers: CitationHandlers;
   webCitations?: WebCitation[];
+  /** The reply's Read aloud (its message owns it, to highlight what's spoken). */
+  readAloud: ReadAloud;
 }
 
 const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
@@ -29,10 +34,9 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
   tokenCount, inputTokenCount, tokensPerSecond,
   actions, meetingCitations,
   suggestions, onSuggestionClick,
-  citationHandlers, webCitations,
+  citationHandlers, webCitations, readAloud,
 }) => {
   const { onCopy, onRerun } = actions;
-  const readAloud = useReadAloud(id, text);
   const { onCitationClick, onShowAllMeetingCitations, onShowAllWebCitations } = citationHandlers;
 
   const hasSuggestions = !!(suggestions && suggestions.length > 0 && onSuggestionClick && isLastMessage);
@@ -111,8 +115,9 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
             <IconButton icon={isCopied ? Check : Copy} label="Copy message" size="sm" onClick={() => onCopy(id, text)} />
           )}
           <IconButton
-            icon={readAloud.speaking ? Square : Volume2}
-            label={readAloud.speaking ? 'Stop reading' : 'Read aloud'}
+            icon={READ_ALOUD_ICON[readAloud.state]}
+            spin={readAloud.state === 'preparing'}
+            label={readAloud.state === 'idle' ? 'Read aloud' : 'Stop reading'}
             size="sm"
             onClick={readAloud.toggle}
           />

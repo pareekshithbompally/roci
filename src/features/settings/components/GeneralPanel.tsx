@@ -18,6 +18,9 @@ import { SettingsPage } from './shared';
 import { Button, Card, CardRow, Icon, IconButton, Section, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Status, Switch, Tabs, Text } from '@shared/ui';
 
 import { useAppUpdate } from '@features/settings/hooks/useAppUpdate';
+import { useLiveDictation } from '@features/settings/hooks/useSpeechModels';
+import { LIVE_TRANSCRIPTION_MARK } from './shared';
+import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
 import { LAYOUT } from '@config/layout.config';
 import { confirm } from '@shared/stores/confirmStore';
@@ -33,6 +36,8 @@ const CAPTURE_HINT: Record<(typeof CAPTURE_SOURCES)[number], string> = {
 export const GeneralPanel: React.FC = () => {
   const { theme, setTheme } = useTheme();
   const { settings, setSettings, providers } = useSettings();
+  const liveDictation = useLiveDictation();
+  const { liveCopy } = TRANSCRIPTION_CONFIG;
   const { showToast } = useToast();
 
   const appUpdate = useAppUpdate();
@@ -306,6 +311,22 @@ export const GeneralPanel: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
+          }
+        />
+        <CardRow
+          title="Real-time Transcription"
+          description={settings.liveTranscription && !liveDictation ? (
+            <>
+              {liveCopy.unavailable.before} <Icon icon={LIVE_TRANSCRIPTION_MARK.icon} size="xs" label={LIVE_TRANSCRIPTION_MARK.label} className="inline align-text-bottom" /> {liveCopy.unavailable.after}
+            </>
+          ) : liveCopy.description}
+          actions={
+            <Switch
+              size="sm"
+              checked={!!settings.liveTranscription}
+              onCheckedChange={(checked) => setSettings({ liveTranscription: checked })}
+              aria-label="Real-time transcription"
+            />
           }
         />
       </Section>

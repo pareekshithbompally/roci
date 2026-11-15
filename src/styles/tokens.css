@@ -67,6 +67,8 @@
   --bg-layer-4: var(--grey-400);
   --bg-inverse: var(--grey-1100);
   --bg-accent: var(--blue-600);
+  /* The sentence being read aloud (::highlight(read-aloud)): a soft accent tint behind the text */
+  --bg-speaking: color-mix(in srgb, var(--bg-accent) 16%, transparent);
   --bg-knob: var(--grey-50);
   --bg-hover: rgb(0 0 0 / 0.04);
   --bg-pressed: rgb(0 0 0 / 0.08);
@@ -134,6 +136,7 @@
   --bg-hover: rgb(255 255 255 / 0.06);
   --bg-pressed: rgb(255 255 255 / 0.1);
   --bg-scrim: rgb(0 0 0 / 0.6);
+  --bg-speaking: color-mix(in srgb, var(--bg-accent) 30%, transparent);
   --bg-base-glass: color-mix(in srgb, var(--grey-1100) 90%, transparent);
   --bg-deep-glass: color-mix(in srgb, var(--grey-1200) 85%, transparent);
   --bg-raised-glass: color-mix(in srgb, var(--grey-1000) 92%, transparent);

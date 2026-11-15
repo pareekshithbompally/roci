@@ -70,7 +70,7 @@ export const defaultSettings: AppSettings = {
 const SETTINGS_KEYS: Array<keyof AppSettings> = [
   'transcriptionProvider', 'transcriptionModel', 'chatModel', 'analyzeModel', 'kgExtractionModel',
   'apiKey', 'defaultAudioSource',
-  'jobProcessing', 'calendarIntegration', 'notifications', 'readAloudVoice', 'remindersIntegration', 'hexIntegration', 'appleIntelligenceIntegration', 'appleNotesIntegration', 'showModelAvatars', 'hideToolCalls',
+  'jobProcessing', 'calendarIntegration', 'notifications', 'readAloudEngine', 'readAloudVoice', 'remindersIntegration', 'hexIntegration', 'appleIntelligenceIntegration', 'appleNotesIntegration', 'showModelAvatars', 'hideToolCalls', 'liveTranscription',
 ];
 
 /**

@@ -17,6 +17,7 @@ use tokio::io::AsyncWriteExt;
 
 use super::catalog::{LocalModel, ModelFile};
 use super::LocalError;
+use crate::sync::lock;
 
 /// Rust → webview: one download's progress or outcome.
 pub const DOWNLOAD_EVENT: &str = "models://download";
@@ -50,7 +51,7 @@ pub struct Downloads {
 impl Downloads {
     /// Registers a download; None when that model is already downloading.
     pub fn begin(&self, id: &'static str) -> Option<Arc<AtomicBool>> {
-        let mut active = self.active.lock().unwrap_or_else(|e| e.into_inner());
+        let mut active = lock(&self.active);
         if active.contains_key(id) {
             return None;
         }
@@ -60,17 +61,17 @@ impl Downloads {
     }
 
     pub fn end(&self, id: &str) {
-        self.active.lock().unwrap_or_else(|e| e.into_inner()).remove(id);
+        lock(&self.active).remove(id);
     }
 
     pub fn cancel(&self, id: &str) {
-        if let Some(flag) = self.active.lock().unwrap_or_else(|e| e.into_inner()).get(id) {
+        if let Some(flag) = lock(&self.active).get(id) {
             flag.store(true, Ordering::Relaxed);
         }
     }
 
     pub fn is_active(&self, id: &str) -> bool {
-        self.active.lock().unwrap_or_else(|e| e.into_inner()).contains_key(id)
+        lock(&self.active).contains_key(id)
     }
 }
 
@@ -148,6 +149,9 @@ async fn fetch_all(model: &'static LocalModel, dir: &Path, cancel: &AtomicBool, 
     for file in model.files {
         if !has_file(dir, file) {
             let part = dir.join(format!("{}.part", file.name));
+            if let Some(parent) = part.parent() {
+                fs::create_dir_all(parent)?; // voice files sit in a subfolder
+            }
             if !fetch(&model.url(file), file, &part, done, cancel, reporter).await? {
                 return Ok(DownloadState::Cancelled);
             }
@@ -161,9 +165,7 @@ async fn fetch_all(model: &'static LocalModel, dir: &Path, cancel: &AtomicBool, 
 
 async fn verify_and_place(file: &ModelFile, part: &Path, target: &Path) -> Result<(), LocalError> {
     let checked = part.to_path_buf();
-    let digest = tauri::async_runtime::spawn_blocking(move || sha256_hex(&checked))
-        .await
-        .map_err(|e| LocalError::Io(e.to_string()))??;
+    let digest = super::blocking(move || sha256_hex(&checked)).await?;
     if digest != file.sha256 {
         fs::remove_file(part)?;
         return Err(LocalError::Download(format!("{} didn't match its checksum; download it again", file.name)));

@@ -57,7 +57,7 @@ describe('useSpeechInput warm-up', () => {
   });
 
   const renderInput = () =>
-    renderHook(() => useSpeechInput({} as AppSettings, []));
+    renderHook(() => useSpeechInput({} as AppSettings, [], null));
 
   const fakeStream = (onTrackStop: () => void) =>
     ({

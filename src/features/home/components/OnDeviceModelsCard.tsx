@@ -11,7 +11,7 @@ import React, { useState } from 'react';
 import { Search, Volume2 } from 'lucide-react';
 import { SiHuggingface } from '@icons-pack/react-simple-icons';
 import { open } from '@tauri-apps/plugin-shell';
-import { ModelDownloadButton } from '@shared/components';
+import { ModelDownloadButton, ModelReadyStatus } from '@shared/components';
 import { useOnDeviceModel } from '@shared/hooks/useOnDeviceModel';
 import { useLocalModelControls } from '@features/settings';
 import { READ_ALOUD_CONFIG } from '@config/readAloud.config';
@@ -112,7 +112,8 @@ export const OnDeviceModelsCard: React.FC = () => {
                   <Text variant="bodyStrong" truncate>
                     {row.title}
                   </Text>
-                  <div className="shrink-0">
+                  <div className="flex shrink-0 items-center gap-3">
+                    <ModelReadyStatus model={row.model} />
                     <ModelDownloadButton model={row.model} />
                   </div>
                 </div>

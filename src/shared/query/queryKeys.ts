@@ -13,6 +13,8 @@ export const queryKeys = {
   hexStatus: () => ['hex-status'] as const,
   /** Kasset's curated on-device models (src-tauri/src/models): speech and voice, which are downloaded */
   localModels: () => ['local-models'] as const,
+  /** Read aloud: the voices an engine can speak in (macOS system voices, a voice model's) */
+  readAloudVoices: (engine: string) => ['read-aloud-voices', engine] as const,
   /** Apple Speech on this Mac: available, Speech Recognition allowed, language model downloaded */
   appleSpeechStatus: () => ['apple-speech-status'] as const,
   /** Apple Intelligence language model availability (Integrations row) */

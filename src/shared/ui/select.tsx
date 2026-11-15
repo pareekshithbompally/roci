@@ -1,5 +1,5 @@
 import * as SelectPrimitive from '@radix-ui/react-select';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import type React from 'react';
 import type { ComponentProps } from 'react';
 import { cn } from './utils';
@@ -33,23 +33,18 @@ export function SelectContent({ className, children, position = 'popper', ...pro
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
-        // Never taller than the room below the trigger (or the cap); the viewport scrolls inside.
-        className={cn(MENU_LIST, 'p-0 overflow-hidden max-h-[min(24rem,var(--radix-select-content-available-height))]', className)}
+        // About eight rows at most (never more than the room below the trigger); the list scrolls inside.
+        className={cn(MENU_LIST, 'p-0 overflow-hidden max-h-[min(16rem,var(--radix-select-content-available-height))]', className)}
         position={position}
         sideOffset={position === 'popper' ? 4 : undefined}
         {...props}
       >
-        <SelectPrimitive.ScrollUpButton className="flex items-center justify-center h-6 text-muted">
-          <ChevronUp className="h-4 w-4" />
-        </SelectPrimitive.ScrollUpButton>
+        {/* Scrolls like every other list in the app (thin bar on hover), not with Radix's arrow rows. */}
         <SelectPrimitive.Viewport
-          className={cn('p-1', position === 'popper' && 'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]')}
+          className={cn('custom-scrollbar p-1', position === 'popper' && 'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]')}
         >
           {children}
         </SelectPrimitive.Viewport>
-        <SelectPrimitive.ScrollDownButton className="flex items-center justify-center h-6 text-muted">
-          <ChevronDown className="h-4 w-4" />
-        </SelectPrimitive.ScrollDownButton>
       </SelectPrimitive.Content>
     </SelectPrimitive.Portal>
   );

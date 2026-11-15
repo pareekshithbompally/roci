@@ -1,0 +1,73 @@
+/**
+ * ReadAloudVoiceRow — Settings › Capabilities › Speech: the voice of the
+ * chosen read-aloud engine (its default first), and a button to hear a sample
+ * in it. The sample plays like a reply's Read aloud: a spinner while the voice
+ * gets ready, then Stop.
+ */
+
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Loader2, Play, Speech, Square } from 'lucide-react';
+import { useSettings } from '@shared/contexts/SettingsContext';
+import { queryKeys } from '@shared/query/queryKeys';
+import { readAloud } from '@services/readAloud.service';
+import { useReadAloud, type ReadAloudState } from '@shared/hooks/useReadAloud';
+import { CAPABILITIES_CONFIG } from '@config/capabilities.config';
+import { LAYOUT } from '@config/layout.config';
+import { READ_ALOUD_CONFIG, type ReadAloudEngine } from '@config/readAloud.config';
+import { CardRow, Icon, IconButton, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui';
+
+const { defaultVoice, sampleText } = READ_ALOUD_CONFIG;
+const SAMPLE_ICON: Record<ReadAloudState, typeof Play> = { idle: Play, preparing: Loader2, speaking: Square };
+
+interface ReadAloudVoiceRowProps {
+  engine: ReadAloudEngine;
+  /** The engine can speak now (a voice model is downloaded). */
+  ready: boolean;
+}
+
+export const ReadAloudVoiceRow: React.FC<ReadAloudVoiceRowProps> = ({ engine, ready }) => {
+  const { settings, setSettings } = useSettings();
+  // Re-read on focus: voices downloaded in System Settings › Spoken Content show up on return.
+  const { data: voices = [] } = useQuery({
+    queryKey: queryKeys.readAloudVoices(engine),
+    queryFn: () => readAloud.voices(engine),
+    refetchOnWindowFocus: true,
+  });
+  const sample = useReadAloud('voice-sample', sampleText);
+
+  const choose = (value: string) => setSettings({ readAloudVoice: value === defaultVoice.value ? undefined : value });
+
+  return (
+    <CardRow
+      leading={<Icon icon={Speech} size="sm" tone="muted" />}
+      title={CAPABILITIES_CONFIG.jobs.voice.title}
+      description={CAPABILITIES_CONFIG.jobs.voice.description}
+      actions={
+        <div className="flex items-center gap-2">
+          <IconButton
+            icon={SAMPLE_ICON[sample.state]}
+            spin={sample.state === 'preparing'}
+            label={sample.state === 'idle' ? 'Play a sample' : 'Stop the sample'}
+            size="sm"
+            disabled={!ready}
+            onClick={sample.toggle}
+          />
+          <div className={LAYOUT.capabilityPicker}>
+            <Select value={settings.readAloudVoice ?? defaultVoice.value} onValueChange={choose}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={defaultVoice.value}>{defaultVoice.label}</SelectItem>
+                {voices.map((voice) => (
+                  <SelectItem key={voice.id} value={voice.id} description={voice.detail ?? undefined}>{voice.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      }
+    />
+  );
+};

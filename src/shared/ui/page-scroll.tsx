@@ -1,5 +1,6 @@
 import { forwardRef, type HTMLAttributes } from 'react';
 import { UI_CONFIG } from '@config/ui.config';
+import { edgeFade } from './fade';
 import { cn } from './utils';
 
 const { safeArea } = UI_CONFIG.layout.titlebar;
@@ -13,13 +14,6 @@ function Band({ height }: { height: number }) {
 /** Reserves the titlebar band (traffic lights + drag strip) above a view's fixed header. */
 export function TitlebarSpacer() {
   return <Band height={safeArea} />;
-}
-
-function edgeMask(underTitlebar: boolean, fadeBottom: boolean): string | undefined {
-  if (!underTitlebar && !fadeBottom) return undefined;
-  const top = underTitlebar ? `transparent, black ${safeArea}px` : 'black';
-  const bottom = fadeBottom ? `black calc(100% - ${edgeFadePx}px), transparent` : 'black';
-  return `linear-gradient(to bottom, ${top}, ${bottom})`;
 }
 
 export interface PageScrollProps extends HTMLAttributes<HTMLDivElement> {
@@ -39,12 +33,12 @@ export interface PageScrollProps extends HTMLAttributes<HTMLDivElement> {
  */
 export const PageScroll = forwardRef<HTMLDivElement, PageScrollProps>(
   ({ underTitlebar = true, fadeBottom = false, className, style, children, ...props }, ref) => {
-    const mask = edgeMask(underTitlebar, fadeBottom);
+    const fade = edgeFade({ top: underTitlebar ? safeArea : 0, bottom: fadeBottom ? edgeFadePx : 0 });
     return (
       <div
         ref={ref}
         className={cn('min-h-0 overflow-y-auto custom-scrollbar', className)}
-        style={mask ? { maskImage: mask, WebkitMaskImage: mask, ...style } : style}
+        style={{ ...fade, ...style }}
         {...props}
       >
         {underTitlebar && <TitlebarSpacer />}

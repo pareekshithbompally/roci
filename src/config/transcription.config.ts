@@ -21,6 +21,18 @@ export interface SpeechModel {
 export const TRANSCRIPTION_CONFIG = {
   /** Every part is sent as 16-bit PCM WAV at this rate, mono. */
   sampleRate: 16_000,
+  /** Live dictation: the mic is sent to the engine in slices this long, ms. */
+  liveChunkMs: 100,
+  /**
+   * Real-time transcription copy: the General setting (what it does; why it
+   * isn't showing yet, around the mark's icon) and the mark on speech models
+   * that support it.
+   */
+  liveCopy: {
+    description: 'Show words under the dictation pill as you speak. Works with select speech models.',
+    unavailable: { before: "Your speech model doesn't support this. Pick one marked", after: 'in Settings › Capabilities.' },
+    mark: 'Real-time transcription',
+  },
   /** Spoken language sent to engines that take one; a language setting is out of scope. */
   language: 'en',
   /** Plain-text transcripts reflow into paragraphs of about this many characters (ends on a sentence). */

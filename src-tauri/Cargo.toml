@@ -66,15 +66,17 @@ tokio = { version = "1", features = ["process", "io-util", "time", "sync", "macr
 # Coding agents: read Codex's config.toml to show whether Kasset is registered.
 toml = "0.9"
 reqwest = { version = "0.13", default-features = false, features = ["native-tls"] }
-# On-device speech-to-text: Hex's engine at Hex's pin (ggml, Metal). See [patch.crates-io].
+# On-device speech-to-text (ggml, Metal). Pinned with [patch.crates-io] below.
 transcribe-cpp = "=0.4.1"
 sha2 = "0.10"
 # Read aloud: Phonon (Gradium, MIT/Apache-2.0 code; Apache-2.0 31M model) in Rust. CPU with
 # Accelerate + KleidiAI for the Q8 weights; `hf` = the tokenizer.
 ptts = { version = "=0.7.1", features = ["hf", "accelerate", "kai"] }
+# Read aloud: the macOS system voices (names, quality, novelty flag) for the voice picker.
+objc2-avf-audio = { version = "0.3.2", default-features = false, features = ["std", "AVSpeechSynthesis"] }
 
-# transcribe-cpp at Hex's fork and revision (Hex Cargo.toml): Parakeet vocabulary
-# rescoring and the Metal residency heartbeat, ahead of upstream.
+# transcribe-cpp at a fork revision carrying Parakeet vocabulary rescoring and a
+# Metal residency fix ahead of upstream.
 [patch.crates-io]
 transcribe-cpp = { git = "https://github.com/anomalyco/transcribe.cpp", rev = "2778ae4bf5ca5f394d129a39467f4ad9552dc34f" }
 transcribe-cpp-sys = { git = "https://github.com/anomalyco/transcribe.cpp", rev = "2778ae4bf5ca5f394d129a39467f4ad9552dc34f" }

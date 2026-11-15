@@ -93,16 +93,16 @@ describe('speechModelOptions', () => {
 describe('on this Mac', () => {
   const onDevice = {
     models: [
-      { id: 'parakeet-unified-en', name: 'Parakeet (English)', kind: 'speech' as const, bytes: 731_357_568, installed: true, downloading: false },
-      { id: 'cohere-transcribe', name: 'Cohere Transcribe', kind: 'speech' as const, bytes: 2_410_655_232, installed: false, downloading: false },
+      { id: 'parakeet-unified-en', name: 'Parakeet (English)', kind: 'speech' as const, streams: true, bytes: 731_357_568, installed: true, downloading: false },
+      { id: 'cohere-transcribe', name: 'Cohere Transcribe', kind: 'speech' as const, streams: false, bytes: 2_410_655_232, installed: false, downloading: false },
     ],
   };
 
   it('lists every curated model; one not downloaded shows its size', () => {
     const options = speechModelOptions([], { onDevice }).filter((o) => o.provider === 'on-device');
     expect(options).toEqual([
-      { provider: 'on-device', model: 'parakeet-unified-en', label: 'Parakeet (English)', ready: true, hint: null },
-      { provider: 'on-device', model: 'cohere-transcribe', label: 'Cohere Transcribe', ready: false, hint: '2.4 GB' },
+      { provider: 'on-device', model: 'parakeet-unified-en', label: 'Parakeet (English)', ready: true, hint: null, live: true },
+      { provider: 'on-device', model: 'cohere-transcribe', label: 'Cohere Transcribe', ready: false, hint: '2.4 GB', live: false },
     ]);
   });
 
@@ -110,5 +110,14 @@ describe('on this Mac', () => {
     expect(isSpeechSelectionReady({ provider: 'on-device', model: 'parakeet-unified-en' }, [], { onDevice })).toBe(true);
     expect(isSpeechSelectionReady({ provider: 'on-device', model: 'cohere-transcribe' }, [], { onDevice })).toBe(false);
     expect(isSpeechSelectionReady({ provider: 'on-device', model: 'parakeet-unified-en' }, [], {})).toBe(false);
+  });
+});
+
+describe('picker order', () => {
+  it('lists what runs on this Mac before key-gated cloud models', () => {
+    const onDevice = { models: [{ id: 'parakeet-unified-en', name: 'Parakeet (English)', kind: 'speech' as const, streams: true, bytes: 1, installed: false, downloading: false }] };
+    const providers = Object.keys(speechModelOptions([], { onDevice }).reduce((seen, o) => ({ ...seen, [o.provider]: true }), {} as Record<string, true>));
+    expect(providers[0]).toBe('on-device');
+    expect(providers.indexOf('on-device')).toBeLessThan(providers.indexOf('openai'));
   });
 });

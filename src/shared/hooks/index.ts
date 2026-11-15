@@ -33,3 +33,6 @@ export type { OnDeviceModel, OnDeviceModelKind, OnDeviceStatus } from './useOnDe
 export { useCopiedFlag } from './useCopiedFlag';
 export { useDownloadToasts } from './useDownloadToasts';
 export { useTauriEvent } from './useTauriEvent';
+export { useReadAloud } from './useReadAloud';
+export type { ReadAloud, ReadAloudState } from './useReadAloud';
+export { useSpeechHighlight } from './useSpeechHighlight';

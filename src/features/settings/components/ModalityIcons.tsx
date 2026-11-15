@@ -58,6 +58,15 @@ const CAPABILITY_DEFS: CapabilityDef[] = [
   { key: 'structuredOutput', icon: Braces, label: 'Structured output' },
 ];
 
+/** One capability as a tiny muted icon with its name on hover (model pickers). */
+export const CapabilityMark: React.FC<{ icon: LucideIcon; label: string }> = ({ icon, label }) => (
+  <Tooltip content={label}>
+    <Text variant="caption" tone="muted" aria-label={label} className="inline-flex items-center justify-center w-4 h-4 leading-none">
+      <Icon icon={icon} size="xs" />
+    </Text>
+  </Tooltip>
+);
+
 // ── Expanded variant ────────────────────────────────────────────
 
 const ModalityBadge: React.FC<{ icon: LucideIcon; title: string }> = ({ icon, title }) => (

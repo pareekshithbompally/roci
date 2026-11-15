@@ -4,28 +4,36 @@
  * Manages the full chat voice-input lifecycle:
  *   idle → starting → recording ⇄ paused → transcribing → idle
  *
- * `starting` covers the microphone warm-up gap (getUserMedia + recorder
- * setup) so the pill mounts on the same commit as the mic press — the UI
- * never freezes on the old frame and then cuts in late.
+ * `starting` covers the microphone warm-up gap (getUserMedia + capture setup)
+ * so the pill mounts on the same commit as the mic press — the UI never
+ * freezes on the old frame and then cuts in late.
  *
  * Exposes the live MediaStream so callers can drive a waveform visualizer.
- * Transcription is delegated to audioToRawText() — the shared primitive that
- * routes to Whisper (openai/groq) or Gemini multimodal depending on the
- * configured transcription model provider.
+ * How the audio becomes text is a `DictationCapture`: live (text while it's
+ * spoken, `liveText`) when `live` is given, else recorded and transcribed by
+ * the speech model when it ends.
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { audioToRawText } from '@services/unifiedAIService';
+import { EMPTY_LIVE_TEXT, liveCapture, recordedCapture } from '@services/ai/transcription';
+import type { DictationCapture, LiveText } from '@services/ai/transcription';
+import type { LiveDictation } from '@features/settings';
+import { failureLogger } from '@shared/utils/errors';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { AppSettings } from '@shared/types';
 import { VOICE_ENTER_BEAT_MS } from '@features/chat/components/voice/voiceTransition';
 
 export type SpeechState = 'idle' | 'starting' | 'recording' | 'paused' | 'transcribing';
 
+const report = failureLogger('useSpeechInput');
+
 export interface UseSpeechInputResult {
   state: SpeechState;
   /** Live microphone stream — the composer's DotScope reads its level while recording */
   stream: MediaStream | null;
+  /** The text so far while dictating live; null when dictation isn't live. */
+  liveText: LiveText | null;
   /** Elapsed recording time in seconds (frozen while paused) */
   elapsed: number;
   start: () => Promise<void>;
@@ -41,21 +49,24 @@ export interface UseSpeechInputResult {
   cancel: () => void;
 }
 
+const stopTracks = (stream: MediaStream | null) => stream?.getTracks().forEach((t) => t.stop());
+
 export function useSpeechInput(
   settings: AppSettings,
   providers: ModelProvider[],
+  live: LiveDictation | null,
 ): UseSpeechInputResult {
   const [state, setState] = useState<SpeechState>('idle');
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [liveText, setLiveText] = useState<LiveText | null>(null);
   const [elapsed, setElapsed] = useState(0);
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  const captureRef = useRef<DictationCapture | null>(null);
   /** Set when the master X cancels an in-flight transcription so its late
       result is discarded instead of landing in the composer. */
   const transcriptionCancelledRef = useRef(false);
-  /** Set when stop/cancel wins the race against a pending getUserMedia, so
-      the late-arriving mic tracks are released instead of going live. */
+  /** Set when stop/cancel wins the race against a pending start, so the
+      late-arriving mic and capture are released instead of going live. */
   const startCancelledRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -75,96 +86,99 @@ export function useSpeechInput(
     }, 1000);
   }, [stopTimer]);
 
+  /** Releases the mic and resets the visible state (the capture is the caller's). */
   const cleanup = useCallback(() => {
     stopTimer();
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
-    }
+    stopTracks(streamRef.current);
+    streamRef.current = null;
+    captureRef.current = null;
     if (!mountedRef.current) return;
     setStream(null);
+    setLiveText(null);
     setElapsed(0);
   }, [stopTimer]);
 
-  // Stop mic tracks and timers if the owning component unmounts mid-record.
+  // Stop mic tracks, capture and timers if the owning component unmounts mid-record.
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       stopTimer();
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
-        streamRef.current = null;
-      }
-      const recorder = mediaRecorderRef.current;
-      if (recorder && recorder.state !== 'inactive') {
-        try { recorder.stop(); } catch { /* already stopped */ }
-      }
+      stopTracks(streamRef.current);
+      streamRef.current = null;
+      captureRef.current?.cancel();
+      captureRef.current = null;
     };
   }, [stopTimer]);
+
+  const beginCapture = useCallback((micStream: MediaStream): Promise<DictationCapture> => {
+    if (live) {
+      return liveCapture(micStream, live.engine, live.model, (text) => {
+        if (mountedRef.current) setLiveText(text);
+      });
+    }
+    return Promise.resolve(recordedCapture(micStream, (audio) => audioToRawText(audio, settings, providers)));
+  }, [live, settings, providers]);
 
   const start = useCallback(async () => {
     if (state !== 'idle') return;
     startCancelledRef.current = false;
     transcriptionCancelledRef.current = false;
-    // Mount the pill on this commit — the mic warms up underneath it.
+    // Mount the pill on this commit — the mic warms up underneath it. A live
+    // dictation's transcript line is part of the pill from this first frame.
     const startedAt = Date.now();
     setState('starting');
+    if (live) setLiveText(EMPTY_LIVE_TEXT);
 
     let micStream: MediaStream;
+    let capture: DictationCapture;
     try {
       micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch (err) {
-      console.error('[useSpeechInput] Microphone unavailable:', err);
+    } catch (error: unknown) {
+      report('open the microphone')(error);
+      cleanup();
+      if (mountedRef.current) setState('idle');
+      return;
+    }
+    try {
+      // Capture starts now — no audio is lost.
+      capture = await beginCapture(micStream);
+    } catch (error: unknown) {
+      report('start capture')(error);
+      stopTracks(micStream);
+      cleanup();
       if (mountedRef.current) setState('idle');
       return;
     }
 
-    if (!mountedRef.current || startCancelledRef.current) {
-      micStream.getTracks().forEach(t => t.stop());
-      return;
-    }
-
-    // Capture starts now — no audio is lost — but the UI stays on the
-    // starting pill until its enter beat lands. Flipping to recording
-    // mid-enter (analyser spin-up + control swap + scope restage) drops
-    // frames and reads as a cut.
-    chunksRef.current = [];
-    const recorder = new MediaRecorder(micStream);
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunksRef.current.push(e.data);
-    };
-    recorder.start(100); // collect chunks every 100ms
-
+    // The UI stays on the starting pill until its enter beat lands. Flipping
+    // to recording mid-enter (analyser spin-up + control swap + scope
+    // restage) drops frames and reads as a cut.
     await new Promise(r => setTimeout(r, Math.max(0, VOICE_ENTER_BEAT_MS - (Date.now() - startedAt))));
     if (!mountedRef.current || startCancelledRef.current) {
-      micStream.getTracks().forEach(t => t.stop());
-      try { recorder.stop(); } catch { /* already stopped */ }
-      mediaRecorderRef.current = null;
-      chunksRef.current = [];
+      capture.cancel();
+      stopTracks(micStream);
       cleanup();
       return;
     }
 
     streamRef.current = micStream;
-    mediaRecorderRef.current = recorder;
+    captureRef.current = capture;
     setStream(micStream);
     setState('recording');
     startTimer();
-  }, [state, startTimer]);
+  }, [state, live, beginCapture, cleanup, startTimer]);
 
   const pause = useCallback(() => {
-    const recorder = mediaRecorderRef.current;
-    if (!recorder || state !== 'recording') return;
-    try { recorder.pause(); } catch { /* no-op */ }
+    if (!captureRef.current || state !== 'recording') return;
+    captureRef.current.pause();
     stopTimer();
     setState('paused');
   }, [state, stopTimer]);
 
   const resume = useCallback(() => {
-    const recorder = mediaRecorderRef.current;
-    if (!recorder || state !== 'paused') return;
-    try { recorder.resume(); } catch { /* no-op */ }
+    if (!captureRef.current || state !== 'paused') return;
+    captureRef.current.resume();
     startTimer();
     setState('recording');
   }, [state, startTimer]);
@@ -174,51 +188,36 @@ export function useSpeechInput(
     else if (state === 'recording') pause();
   }, [state, pause, resume]);
 
-  const stop = useCallback((): Promise<string> => {
-    return new Promise((resolve) => {
-      // A stop during warm-up wins the race against getUserMedia.
-      startCancelledRef.current = true;
-      const recorder = mediaRecorderRef.current;
-      if (!recorder || (state !== 'recording' && state !== 'paused')) {
-        cleanup();
-        setState('idle');
-        resolve('');
-        return;
-      }
+  const stop = useCallback(async (): Promise<string> => {
+    // A stop during warm-up wins the race against the pending start.
+    startCancelledRef.current = true;
+    const capture = captureRef.current;
+    if (!capture || (state !== 'recording' && state !== 'paused')) {
+      cleanup();
+      setState('idle');
+      return '';
+    }
 
-      stopTimer();
-
-      recorder.onstop = async () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        chunksRef.current = [];
-
-        // Stop mic tracks
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach(t => t.stop());
-          streamRef.current = null;
-        }
-        if (mountedRef.current) setStream(null);
-
-        if (mountedRef.current) setState('transcribing');
-        try {
-          const text = await audioToRawText(blob, settings, providers);
-          // A master-cancel during transcription wins over the late result.
-          resolve(transcriptionCancelledRef.current ? '' : text);
-          transcriptionCancelledRef.current = false;
-        } catch (err) {
-          console.error('[useSpeechInput] Transcription failed:', err);
-          resolve('');
-        } finally {
-          if (mountedRef.current) {
-            setState('idle');
-            setElapsed(0);
-          }
-        }
-      };
-
-      recorder.stop();
-    });
-  }, [state, settings, providers, cleanup, stopTimer]);
+    stopTimer();
+    setState('transcribing');
+    // finish() stops the capture before it awaits; the mic is released at once.
+    const finishing = capture.finish();
+    stopTracks(streamRef.current);
+    streamRef.current = null;
+    setStream(null);
+    try {
+      const text = await finishing;
+      // A master-cancel during transcription wins over the late result.
+      return transcriptionCancelledRef.current ? '' : text;
+    } catch (error: unknown) {
+      report('transcribe')(error);
+      return '';
+    } finally {
+      transcriptionCancelledRef.current = false;
+      cleanup();
+      if (mountedRef.current) setState('idle');
+    }
+  }, [state, cleanup, stopTimer]);
 
   const cancel = useCallback(() => {
     // Cancelling mid-transcription marks the in-flight result for discard —
@@ -226,17 +225,10 @@ export function useSpeechInput(
     if (state === 'transcribing') transcriptionCancelledRef.current = true;
     // Cancelling mid-warm-up releases the mic as soon as it arrives.
     if (state === 'starting') startCancelledRef.current = true;
-    const recorder = mediaRecorderRef.current;
-    if (recorder && recorder.state !== 'inactive') {
-      recorder.ondataavailable = null;
-      recorder.onstop = null;
-      recorder.stop();
-    }
-    mediaRecorderRef.current = null;
-    chunksRef.current = [];
+    captureRef.current?.cancel();
     cleanup();
     setState('idle');
   }, [cleanup, state]);
 
-  return { state, stream, elapsed, start, stop, pause, resume, togglePause, cancel };
+  return { state, stream, liveText, elapsed, start, stop, pause, resume, togglePause, cancel };
 }

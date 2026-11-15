@@ -9,6 +9,8 @@
 import React, { useMemo } from 'react';
 import { Download, Loader2 } from 'lucide-react';
 import { ModelIcon } from '@shared/components';
+import { CapabilityMark } from '@features/settings/components/ModalityIcons';
+import { LAYOUT } from '@config/layout.config';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { Icon, Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue, Text } from '@shared/ui';
 import { groupChoices, type ChoiceSetup, type ModelChoice } from '@shared/utils/modelResolver';
@@ -35,13 +37,25 @@ const SetupMark: React.FC<{ setup: ChoiceSetup }> = ({ setup }) => {
   return <Icon icon={Download} size="xs" tone="accent" label="Download" />;
 };
 
+/** A row's end: its capability marks, then its setup step while it isn't ready. */
+const RowEnd: React.FC<{ choice: ModelChoice }> = ({ choice }) => {
+  const setup = !choice.ready && choice.setup;
+  if (!choice.marks?.length && !setup) return null;
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {choice.marks?.map((mark) => <CapabilityMark key={mark.label} icon={mark.icon} label={mark.label} />)}
+      {setup && <SetupMark setup={setup} />}
+    </span>
+  );
+};
+
 const Item: React.FC<{ choice: ModelChoice }> = ({ choice }) => (
   <SelectItem
     value={choice.value}
     disabled={!choice.ready && !choice.setup}
     icon={<ModelIcon provider={choice.provider} modelId={choice.modelId} size={16} />}
     description={choice.hint ?? undefined}
-    trailing={!choice.ready && choice.setup ? <SetupMark setup={choice.setup} /> : undefined}
+    trailing={<RowEnd choice={choice} />}
   >
     {choice.label}
   </SelectItem>
@@ -67,7 +81,7 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({ value, choices, onChan
   }
 
   return (
-    <div className="w-64">
+    <div className={LAYOUT.capabilityPicker}>
     <Select value={value} onValueChange={choose}>
       <SelectTrigger>
         <SelectValue placeholder="Select model">

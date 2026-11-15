@@ -14,7 +14,8 @@ export {
 } from './components';
 
 // Hooks
-export { useSettings, useAppUpdate, scheduleStartupCheck, useMenubarSpeechModels, useLocalModelDownloads, useLocalModelControls, freshSpeechSources } from './hooks';
+export { useSettings, useAppUpdate, scheduleStartupCheck, useMenubarSpeechModels, useLocalModelDownloads, useLocalModelControls, useLiveDictation, freshSpeechSources } from './hooks';
+export type { LiveDictation } from './hooks';
 export type { LocalModelControl } from './hooks';
 
 // Stores

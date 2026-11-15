@@ -11,6 +11,7 @@ use std::time::Duration;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use rubato::audioadapter_buffers::direct::InterleavedSlice;
 use rubato::{Fft, FixedSync, Resampler, WindowFunction};
+use crate::sync::lock;
 
 const RESAMPLE_CHUNK: usize = 1024;
 const POLL: Duration = Duration::from_millis(20);
@@ -27,7 +28,7 @@ pub fn play(samples: &[f32], rate: u32, stop: &AtomicBool) -> Result<(), String>
         .build_output_stream(
             config.config(),
             move |out: &mut [f32], _| {
-                let mut queue = feed.lock().unwrap_or_else(|e| e.into_inner());
+                let mut queue = lock(&feed);
                 for frame in out.chunks_mut(channels) {
                     frame.fill(queue.pop_front().unwrap_or(0.0));
                 }
@@ -38,7 +39,7 @@ pub fn play(samples: &[f32], rate: u32, stop: &AtomicBool) -> Result<(), String>
         .map_err(|e| e.to_string())?;
     stream.play().map_err(|e| e.to_string())?;
 
-    while !stop.load(Ordering::Relaxed) && !queue.lock().unwrap_or_else(|e| e.into_inner()).is_empty() {
+    while !stop.load(Ordering::Relaxed) && !lock(&queue).is_empty() {
         thread::sleep(POLL);
     }
     Ok(())

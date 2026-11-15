@@ -1,10 +1,12 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useRef } from 'react';
 import { Markdown } from '@shared/components';
 import { AnimatedProviderIcon } from '@features/chat/components/AnimatedProviderIcon';
 import { useStreamingText } from '@features/chat/stores/streamingStore';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { toolCallTitle } from '@features/chat/components/tool-call';
 import { Text } from '@shared/ui';
+import { useReadAloud } from '@shared/hooks/useReadAloud';
+import { useSpeechHighlight } from '@shared/hooks/useSpeechHighlight';
 import { injectCitationTokens } from '@shared/utils/inlineCitationInjector';
 import PartsList from './PartsList';
 import AssistantActionBar from './AssistantActionBar';
@@ -123,6 +125,11 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   const isStreaming = state === 'streaming';
   const isComplete = state === 'complete';
 
+  // Read aloud: the action bar's button, and the spoken chunk highlighted in the body.
+  const readAloud = useReadAloud(id, text);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useSpeechHighlight(bodyRef, readAloud.spoken);
+
   // Lazy migration: synthesize tool_call parts from legacy toolActivity data
   const effectiveParts = useMemo(() => {
     const base = parts || [];
@@ -171,7 +178,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
       {(isStreaming || isComplete) && (
         <>
           {/* Message Content */}
-          <div className="relative">
+          <div ref={bodyRef} className="relative">
             {isStreaming ? (
               <StreamingContent msgId={id} />
             ) : isError && text ? (
@@ -204,6 +211,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
               onSuggestionClick={onSuggestionClick}
               citationHandlers={citationHandlers}
               webCitations={webCitations}
+              readAloud={readAloud}
             />
           )}
         </>

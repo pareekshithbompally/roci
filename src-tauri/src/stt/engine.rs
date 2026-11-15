@@ -1,6 +1,8 @@
 //! The warm engine: one transcribe.cpp model loaded at a time, reloaded when
 //! another model is asked for, and dropped after an idle period so its memory
-//! goes back to the system. Calls are blocking; run them off the async runtime.
+//! goes back to the system. Whole clips (`transcribe`) and live dictation
+//! (`live`) both run through `with_loaded`, one at a time. Calls are blocking;
+//! run them off the async runtime.
 
 use std::io::Cursor;
 use std::ops::Range;
@@ -12,6 +14,7 @@ use serde::Serialize;
 use transcribe_cpp::{DeviceType, Model, RunOptions, Session, SessionOptions};
 
 use crate::models::LocalError;
+use crate::sync::lock;
 
 /// The engine's input: 16 kHz mono (the pipeline sends 16-bit PCM WAV at this rate).
 const SAMPLE_RATE: usize = 16_000;
@@ -27,11 +30,32 @@ pub struct TimedText {
     pub end: f64,
 }
 
-struct Loaded {
+pub struct Loaded {
     id: &'static str,
-    session: Session,
+    pub session: Session,
     /// Longest audio per run in samples; 0 = no limit (the family chunks itself).
     max_samples: usize,
+    /// The model can transcribe audio while it's still arriving.
+    pub streams: bool,
+    /// The language codes the model takes (`en`, or locales like `en-US`); empty = any.
+    languages: Vec<String>,
+}
+
+impl Loaded {
+    /// Run options in the model's own spelling of `language`.
+    pub fn run_options(&self, language: &str) -> RunOptions {
+        RunOptions { language: hint_for(&self.languages, language), ..RunOptions::default() }
+    }
+}
+
+/// `language` as the model advertises it: itself, else its first locale
+/// (`en` → `en-US`); None leaves it to the model to detect.
+fn hint_for(advertised: &[String], language: &str) -> Option<String> {
+    if advertised.is_empty() || advertised.iter().any(|l| l == language) {
+        return Some(language.to_string());
+    }
+    let prefix = format!("{language}-");
+    advertised.iter().find(|l| l.starts_with(&prefix)).cloned()
 }
 
 #[derive(Default)]
@@ -54,35 +78,43 @@ impl Engine {
     }
 
     fn unload(&self) {
-        self.loaded.lock().unwrap_or_else(|e| e.into_inner()).take();
+        lock(&self.loaded).take();
     }
 
     /// Lets go of a model about to be deleted (no-op when another is warm).
     pub fn forget(&self, id: &str) {
-        let mut loaded = self.loaded.lock().unwrap_or_else(|e| e.into_inner());
+        let mut loaded = lock(&self.loaded);
         if loaded.as_ref().is_some_and(|l| l.id == id) {
             loaded.take();
         }
     }
 
-    /// Transcribes 16 kHz mono samples with the model at `path` (loaded if needed).
-    pub fn transcribe(&self, id: &'static str, path: &Path, pcm: &[f32], language: &str) -> Result<Vec<TimedText>, LocalError> {
-        let mut guard = self.loaded.lock().unwrap_or_else(|e| e.into_inner());
+    /// Runs `work` on the model at `path` (loaded if needed), holding it for
+    /// the whole call: nothing else uses the engine meanwhile.
+    pub fn with_loaded<R>(&self, id: &'static str, path: &Path, work: impl FnOnce(&mut Loaded) -> Result<R, LocalError>) -> Result<R, LocalError> {
+        let mut guard = lock(&self.loaded);
         if guard.as_ref().map(|l| l.id) != Some(id) {
             guard.take();
             *guard = Some(load(id, path)?);
         }
-        let loaded = guard.as_mut().ok_or(LocalError::NotDownloaded)?;
-        let options = RunOptions { language: Some(language.to_string()), ..RunOptions::default() };
-        let mut out = Vec::new();
-        for window in windows(pcm, loaded.max_samples) {
-            let span = (seconds(window.start), seconds(window.end));
-            let transcript = loaded.session.run(&pcm[window], &options).map_err(engine_error)?;
-            out.extend(timed(transcript, span));
-        }
-        Ok(out)
+        work(guard.as_mut().ok_or(LocalError::NotDownloaded)?)
+    }
+
+    /// Transcribes 16 kHz mono samples with the model at `path`.
+    pub fn transcribe(&self, id: &'static str, path: &Path, pcm: &[f32], language: &str) -> Result<Vec<TimedText>, LocalError> {
+        self.with_loaded(id, path, |loaded| {
+            let options = loaded.run_options(language);
+            let mut out = Vec::new();
+            for window in windows(pcm, loaded.max_samples) {
+                let span = (seconds(window.start), seconds(window.end));
+                let transcript = loaded.session.run(&pcm[window], &options).map_err(engine_error)?;
+                out.extend(timed(transcript, span));
+            }
+            Ok(out)
+        })
     }
 }
+
 
 /// 16-bit PCM WAV at the engine's rate, mono → samples in [-1, 1].
 pub fn decode_wav(bytes: &[u8]) -> Result<Vec<f32>, LocalError> {
@@ -102,17 +134,24 @@ fn load(id: &'static str, path: &Path) -> Result<Loaded, LocalError> {
     static LOGGING: Once = Once::new();
     LOGGING.call_once(transcribe_cpp::init_logging);
     let model = Model::load(path).map_err(engine_error)?;
-    let max_ms = model.capabilities().map_err(engine_error)?.max_audio_ms.max(0) as usize;
+    let capabilities = model.capabilities().map_err(engine_error)?;
+    let max_ms = capabilities.max_audio_ms.max(0) as usize;
     // On a GPU only the per-token decoder runs on the CPU; extra ggml worker
-    // threads spin and stall it (Hex's session_options).
+    // threads would spin and stall it.
     let on_gpu = model.device().is_ok_and(|d| matches!(d.device_type, DeviceType::Gpu | DeviceType::Igpu));
     let session_options = SessionOptions { n_threads: if on_gpu { 1 } else { 0 }, ..SessionOptions::default() };
     let session = model.session_with(&session_options).map_err(engine_error)?;
     log::info!("[stt] loaded {id} on {} (max {max_ms} ms per run)", model.backend());
-    Ok(Loaded { id, session, max_samples: max_ms * SAMPLE_RATE / 1000 })
+    Ok(Loaded {
+        id,
+        session,
+        max_samples: max_ms * SAMPLE_RATE / 1000,
+        streams: capabilities.supports_streaming,
+        languages: capabilities.languages,
+    })
 }
 
-fn engine_error(error: transcribe_cpp::Error) -> LocalError {
+pub fn engine_error(error: transcribe_cpp::Error) -> LocalError {
     LocalError::Engine(error.to_string())
 }
 
@@ -186,6 +225,15 @@ mod tests {
         assert_eq!(decode_wav(&wav(16_000, 1)).unwrap(), vec![0.0, 1.0, -1.0, 0.0]);
         assert!(decode_wav(&wav(48_000, 1)).is_err());
         assert!(decode_wav(&wav(16_000, 2)).is_err());
+    }
+
+    #[test]
+    fn language_in_the_models_spelling() {
+        let locales = vec!["de-DE".to_string(), "en-US".to_string()];
+        assert_eq!(hint_for(&locales, "en"), Some("en-US".into()));
+        assert_eq!(hint_for(&["en".to_string()], "en"), Some("en".into()));
+        assert_eq!(hint_for(&[], "en"), Some("en".into()));
+        assert_eq!(hint_for(&locales, "ja"), None);
     }
 
     #[test]

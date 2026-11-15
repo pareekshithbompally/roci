@@ -13,6 +13,15 @@ pub mod store;
 
 use serde::Serialize;
 
+/// The language Kasset speaks and transcribes in unless told otherwise
+/// (mirrors `TRANSCRIPTION_CONFIG.language` in the webview).
+pub const LANGUAGE: &str = "en";
+
+/// Runs blocking work (a model, the disk) off the async runtime.
+pub async fn blocking<T: Send + 'static>(work: impl FnOnce() -> Result<T, LocalError> + Send + 'static) -> Result<T, LocalError> {
+    tauri::async_runtime::spawn_blocking(work).await.map_err(|e| LocalError::Engine(e.to_string()))?
+}
+
 /// Downloads running now, managed by Tauri.
 #[derive(Default)]
 pub struct ModelsState {

@@ -24,6 +24,10 @@ export const LAYOUT = {
 
   /** Plain settings dropdowns (options, sources); model pickers are wider (ModelSelect) */
   settingsSelect: 'w-48',
+  /** Settings › Capabilities pickers (model, voice): one column width. */
+  capabilityPicker: 'w-64',
+  /** A row's model action (Download, 42%, Delete, Re-download): one width, so actions and states align down a card. */
+  modelAction: 'w-32',
 
   /** Page gutter around the page column */
   pageGutter: 'px-6 md:px-8',

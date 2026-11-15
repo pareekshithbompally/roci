@@ -1,7 +1,7 @@
 import type { AudioCaptureSource } from '@config/audio.config';
 import type { MeetingCitation } from '@extensions/tools/types';
 import type { WebCitation, InlineCitationSpan } from '@services/ai/types';
-import type { ReadAloudVoice } from '@config/readAloud.config';
+import type { ReadAloudEngine } from '@config/readAloud.config';
 export type { MeetingCitation, WebCitation, InlineCitationSpan };
 
 export interface ActionItem {
@@ -203,6 +203,8 @@ export interface AppSettings {
   showModelAvatars?: boolean;
   /** Hide the per-call tool blocks in chat answers (shown by default). */
   hideToolCalls?: boolean;
+  /** Settings › General › Capture: show dictation as it's spoken, with a speech model that streams. */
+  liveTranscription?: boolean;
   chatModel: string;
   /** LLM model for the Analyze phase — produces the structured meeting summary (Overview tab). */
   analyzeModel?: string;
@@ -222,8 +224,10 @@ export interface AppSettings {
   };
   /** Settings › Notifications: which kinds may notify, and the meeting lead time. */
   notifications?: NotificationSettings;
-  /** Settings › Capabilities › Read aloud: the voice replies are spoken in. */
-  readAloudVoice?: ReadAloudVoice;
+  /** Settings › Capabilities › Read aloud: the engine replies are spoken with. */
+  readAloudEngine?: ReadAloudEngine;
+  /** The voice within `readAloudEngine` (its id from the engine's voice list); unset = the engine's default. */
+  readAloudVoice?: string;
   /** Apple Intelligence integration: on-device summary model + Apple speech engine */
   appleIntelligenceIntegration?: {
     enabled: boolean;

@@ -109,6 +109,9 @@ export const DOT_SCOPE_CONFIG = {
     marginY: 6,
     /** Delay after the transcription response lands before the box expands back, s. */
     handoff: 0.2,
+    /** Live dictation: one fixed-height line below the controls, the newest
+     *  words in view; shown from the first frame so nothing moves. */
+    liveText: { heightPx: 40, placeholder: 'Listening…' },
   },
 
   /** Composer palette: the app's accent blue for the recording traces (instead

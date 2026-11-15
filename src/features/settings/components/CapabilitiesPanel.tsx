@@ -14,7 +14,7 @@ import React, { useMemo } from 'react';
 import { AudioLines, MessageSquare, NotebookText, ScanSearch, Volume2, Waypoints, type LucideIcon } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useOnDeviceModel } from '@shared/hooks/useOnDeviceModel';
-import { ModelDownloadButton } from '@shared/components';
+import { ModelDownloadButton, ModelReadyStatus } from '@shared/components';
 import { formatFileSize } from '@shared/utils/formatters';
 import { modelChoices, withSummaryModels, type ModelChoice } from '@shared/utils/modelResolver';
 import { speechSelectionKey, speechSelectionOf } from '@services/ai/transcription';
@@ -27,16 +27,24 @@ import { downloadSetup, useLocalModelControls, useLocalModels, type LocalModelCo
 import { useAppleSpeechSetup } from '@features/integrations';
 import { CardRow, Icon, Section } from '@shared/ui';
 import type { LocalModel } from '@services/localModels.service';
-import { ModelSelect, SettingsPage } from './shared';
+import { LIVE_TRANSCRIPTION_MARK, ModelSelect, SettingsPage } from './shared';
+import { ReadAloudVoiceRow } from './ReadAloudVoiceRow';
 
 const { jobs: JOBS, sameAsChat: SAME_AS_CHAT } = CAPABILITIES_CONFIG;
 
 /** A capability row: job icon + title, its description, and its control (picker or download). */
-const CapabilityRow: React.FC<{ icon: LucideIcon; job: { title: string; description: string }; children: React.ReactNode }> = ({ icon, job, children }) => (
+const CapabilityRow: React.FC<{
+  icon: LucideIcon;
+  job: { title: string; description: string };
+  /** Row state, aligned with every other row's (e.g. ● Ready). */
+  status?: React.ReactNode;
+  children: React.ReactNode;
+}> = ({ icon, job, status, children }) => (
   <CardRow
     leading={<Icon icon={icon} size="sm" tone="muted" />}
     title={job.title}
     description={job.description}
+    status={status}
     actions={children}
   />
 );
@@ -61,12 +69,13 @@ function useSpeechChoices(controls: Controls): ModelChoice[] {
       ready: o.ready,
       hint: o.hint,
       setup: setupOf(o.provider, o.model),
+      marks: o.live ? [LIVE_TRANSCRIPTION_MARK] : undefined,
     }));
   }, [options, appleSetup, controls]);
 }
 
-/** Read aloud: the macOS system voice (built in), then each local voice model with its download. */
-function voiceChoices(models: LocalModel[], controls: Controls): ModelChoice[] {
+/** Read aloud engines: the macOS system voices (built in), then each local voice model with its download. */
+function readAloudEngineChoices(models: LocalModel[], controls: Controls): ModelChoice[] {
   const { macos } = READ_ALOUD_CONFIG;
   const system: ModelChoice = { value: macos.id, provider: macos.provider, modelId: macos.id, label: macos.label, ready: true, hint: macos.hint };
   const local = models.filter((m) => m.kind === 'voice').map((m) => ({
@@ -89,6 +98,7 @@ const LocalModelRow: React.FC<{ model: LocalModel; control: LocalModelControl }>
     leading={<Icon icon={KIND_ICON[model.kind]} size="sm" tone="muted" />}
     title={model.name}
     description={`${LOCAL_MODELS_CONFIG.kindLabels[model.kind]} · ${formatFileSize(model.bytes)}`}
+    status={<ModelReadyStatus model={control} />}
     actions={<ModelDownloadButton model={control} onRemove={control.remove} />}
   />
 );
@@ -102,8 +112,9 @@ export const CapabilitiesPanel: React.FC = () => {
   const { data: localModels = [] } = useLocalModels();
   const controls = useLocalModelControls();
   const speechChoices = useSpeechChoices(controls);
-  const voices = useMemo(() => voiceChoices(localModels, controls), [localModels, controls]);
+  const engines = useMemo(() => readAloudEngineChoices(localModels, controls), [localModels, controls]);
   const speech = speechSelectionOf(settings);
+  const readAloudEngine = settings.readAloudEngine ?? READ_ALOUD_CONFIG.defaultEngine;
 
   const setSpeech = (key: string) => {
     const choice = speechChoices.find((c) => c.value === key);
@@ -124,11 +135,12 @@ export const CapabilitiesPanel: React.FC = () => {
         </CapabilityRow>
         <CapabilityRow icon={Volume2} job={JOBS.readAloud}>
           <ModelSelect
-            value={settings.readAloudVoice ?? READ_ALOUD_CONFIG.defaultVoice}
-            choices={voices}
-            onChange={(readAloudVoice) => setSettings({ readAloudVoice })}
+            value={readAloudEngine}
+            choices={engines}
+            onChange={(engine) => setSettings({ readAloudEngine: engine, readAloudVoice: undefined })}
           />
         </CapabilityRow>
+        <ReadAloudVoiceRow engine={readAloudEngine} ready={engines.find((e) => e.value === readAloudEngine)?.ready ?? false} />
       </Section>
 
       <Section title="Meetings">
@@ -150,7 +162,7 @@ export const CapabilitiesPanel: React.FC = () => {
       </Section>
 
       <Section title="On this Mac">
-        <CapabilityRow icon={ScanSearch} job={JOBS.meetingSearch}>
+        <CapabilityRow icon={ScanSearch} job={JOBS.meetingSearch} status={<ModelReadyStatus model={searchModel} />}>
           <ModelDownloadButton model={searchModel} allowRedownload />
         </CapabilityRow>
         {localModels.map((m) => controls[m.id] && <LocalModelRow key={m.id} model={m} control={controls[m.id]} />)}

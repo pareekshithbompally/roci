@@ -1,16 +1,21 @@
-//! On-device speech-to-text: transcribe.cpp (ggml, Metal) at Hex's pin,
-//! running in this process, on the curated speech models in `crate::models`.
-//! There is no endpoint: the webview calls `stt_transcribe`, and everything
-//! else reaches transcription through Kasset (MCP).
+//! On-device speech-to-text: transcribe.cpp (ggml, Metal) running in this
+//! process, on the curated speech models in `crate::models`. There is no
+//! endpoint: the webview calls these commands, and everything else reaches
+//! transcription through Kasset (MCP).
 //!
 //! - `engine`: one warm model at a time, unloaded after an idle period.
-//! - `commands`: transcribe one WAV part.
+//! - `live`: dictation transcribed while it's spoken (models that stream).
+//! - `commands`: transcribe one WAV part; start / feed / finish / cancel live.
 
 pub mod commands;
 mod engine;
+mod live;
 
-/// The warm engine, managed by Tauri.
+use std::sync::Mutex;
+
+/// The warm engine and the live dictation, if one is running.
 #[derive(Default)]
 pub struct SttState {
     pub engine: engine::Engine,
+    live: Mutex<Option<live::LiveSession>>,
 }
