@@ -1,6 +1,6 @@
 /**
  * useSpotlightRuntime — mount once (App). Points the meeting indexer at the
- * current setting.
+ * current setting, once settings have loaded (before that they are fallbacks).
  */
 
 import { useEffect } from 'react';
@@ -9,10 +9,11 @@ import { isIntegrationEnabled } from '@shared/utils/integrations';
 import { spotlightService } from '@services/spotlight.service';
 
 export function useSpotlightRuntime(): void {
-  const { settings } = useSettings();
+  const { settings, isLoading } = useSettings();
   const enabled = isIntegrationEnabled(settings, 'spotlight');
 
   useEffect(() => {
+    if (isLoading) return;
     spotlightService.configure(enabled).catch((error: unknown) => console.error('[useSpotlightRuntime] configure failed:', error));
-  }, [enabled]);
+  }, [enabled, isLoading]);
 }

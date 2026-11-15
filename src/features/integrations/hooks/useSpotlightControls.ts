@@ -13,6 +13,12 @@ import type { IntegrationAccess, IntegrationControls } from '@features/integrati
 
 const COPY = INTEGRATIONS_CONFIG.spotlight;
 
+function accessFor(isError: boolean, status: { supported: boolean } | undefined): IntegrationAccess {
+  if (isError) return 'unavailable';
+  if (!status) return 'unknown';
+  return status.supported ? 'ready' : 'unavailable';
+}
+
 export function useSpotlightControls(): IntegrationControls {
   const { settings, setSettings } = useSettings();
   const { data: status, isError } = useQuery({
@@ -21,13 +27,7 @@ export function useSpotlightControls(): IntegrationControls {
     staleTime: Infinity,
   });
 
-  const access: IntegrationAccess = isError
-    ? 'unavailable'
-    : !status
-      ? 'unknown'
-      : status.supported
-        ? 'ready'
-        : 'unavailable';
+  const access = accessFor(isError, status);
 
   return {
     access,

@@ -12,7 +12,7 @@ import { DEFAULT_NOTIFICATION_SETTINGS, NOTIFICATION_CATEGORIES, NOTIFICATION_KI
 import { addNotificationCategories, setMutedNotifications } from '@services/notifications';
 
 export function useNotificationsRuntime(): void {
-  const { settings } = useSettings();
+  const { settings, isLoading } = useSettings();
 
   useEffect(() => {
     addNotificationCategories(NOTIFICATION_CATEGORIES).catch((error: unknown) =>
@@ -25,7 +25,8 @@ export function useNotificationsRuntime(): void {
     [preferences],
   );
   useEffect(() => {
+    if (isLoading) return;
     setMutedNotifications(muted).catch((error: unknown) =>
       console.error('[useNotificationsRuntime] Updating muted kinds failed:', error));
-  }, [muted]);
+  }, [muted, isLoading]);
 }
