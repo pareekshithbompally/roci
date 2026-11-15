@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Loader2 } from 'lucide-react';
 import { Badge, Disclosure, Icon, Text } from '@shared/ui';
 import { ServerIcon } from '@shared/components';
@@ -6,6 +6,7 @@ import { useMcpServerInfo } from '@features/settings/hooks';
 import { formatExecutionMs, toolCallTitle, type ToolCallPart } from './toolCallTitle';
 import { toolCallIcon } from './toolCallIcons';
 import { ToolCallBody } from './ToolCallBody';
+import { useAutoFold } from './useAutoFold';
 
 /** The MCP server's own icon, looked up from the connected servers. */
 function McpToolGlyph({ source }: { source: string }) {
@@ -14,7 +15,7 @@ function McpToolGlyph({ source }: { source: string }) {
 }
 
 /** Spinner while running, the server icon for MCP tools, else the tool's glyph. */
-function ToolCallGlyph({ part }: { part: ToolCallPart }) {
+export function ToolCallGlyph({ part }: { part: ToolCallPart }) {
   if (part.status === 'calling') return <Icon icon={Loader2} size="xs" tone="faint" className="shrink-0 animate-spin" />;
   if (part.source) return <McpToolGlyph source={part.source} />;
   return <Icon icon={toolCallIcon(part.toolName)} size="xs" tone="faint" className="shrink-0" />;
@@ -30,19 +31,17 @@ function ToolCallMeta({ part }: { part: ToolCallPart }) {
 
 export interface ToolCallBlockProps {
   part: ToolCallPart;
+  /** Open while it runs and fold after (default); off inside a group, which follows instead. */
+  follow?: boolean;
 }
 
 /**
- * One tool call: collapsible header (glyph, title, status/duration) over its tool-specific body.
- * Open while it runs, folds itself once when it finishes (so a chain of calls stays one line
- * each); the user can open or close it any time after.
+ * One tool call: collapsible header (glyph, title, status/duration) over its
+ * tool-specific body. On its own it follows the call (open while it runs,
+ * folding a beat after); inside a group it starts folded.
  */
-export const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ part }) => {
-  const running = part.status === 'calling';
-  const [open, setOpen] = useState(running);
-  useEffect(() => {
-    if (!running) setOpen(false);
-  }, [running]);
+export const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ part, follow = true }) => {
+  const [open, setOpen] = useAutoFold(follow && part.status === 'calling');
 
   return (
   <Disclosure

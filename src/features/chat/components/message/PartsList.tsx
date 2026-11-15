@@ -2,8 +2,8 @@ import React from 'react';
 import { Markdown } from '@shared/components';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { MediaPartRenderer } from '@features/chat/components/MediaPartRenderer';
-import { ToolCallBlock } from '@features/chat/components/tool-call';
-import type { ChatPart, WebCitation } from '@shared/types';
+import { ToolCallBlock, ToolCallGroup, groupToolCalls, type PartSegment } from '@features/chat/components/tool-call';
+import type { WebCitation, ChatPart } from '@shared/types';
 
 interface PartsListProps {
   parts: ChatPart[];
@@ -16,30 +16,30 @@ interface PartsListProps {
 }
 
 /**
- * Renders a message's parts in the order they happened: text, media and one
- * collapsible block per tool call (the running call is open).
+ * Renders a message's parts in the order they happened: text, media, and its
+ * tool calls — one call as its own block, calls made back to back as one group.
  */
 const PartsList: React.FC<PartsListProps> = ({ parts, messageId, streaming, processText, webCitations }) => {
   const { settings } = useSettings();
 
-  return (
-    <>
-      {parts.map((part, index) => {
-        if (part.type === 'tool_call') {
-          if (settings.hideToolCalls) return null;
-          return <ToolCallBlock key={part.toolCallId} part={part} />;
-        }
-        if (part.type === 'text') {
-          const text = processText ? processText(part.text) : part.text;
-          if (!text) return null;
-          return (
-            <Markdown key={index} content={text} streaming={streaming} messageId={messageId} webCitations={webCitations} />
-          );
-        }
-        return <MediaPartRenderer key={index} part={part} />;
-      })}
-    </>
-  );
+  const render = (segment: PartSegment) => {
+    if (segment.kind === 'tools') {
+      if (settings.hideToolCalls) return null;
+      const [first] = segment.parts;
+      return segment.parts.length === 1
+        ? <ToolCallBlock key={first.toolCallId} part={first} />
+        : <ToolCallGroup key={first.toolCallId} parts={segment.parts} />;
+    }
+    const { part, index } = segment;
+    if (part.type === 'text') {
+      const text = processText ? processText(part.text) : part.text;
+      if (!text) return null;
+      return <Markdown key={index} content={text} streaming={streaming} messageId={messageId} webCitations={webCitations} />;
+    }
+    return <MediaPartRenderer key={index} part={part} />;
+  };
+
+  return <>{groupToolCalls(parts).map(render)}</>;
 };
 
 export default PartsList;

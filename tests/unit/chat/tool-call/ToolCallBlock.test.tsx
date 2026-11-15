@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { render as rtlRender, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render as rtlRender, screen, fireEvent, act } from '@testing-library/react';
+import { ANIMATION_CONFIG } from '@config/animations.config';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { ToolCallBlock, type ToolCallPart } from '@features/chat/components/tool-call';
@@ -20,7 +21,12 @@ function part(overrides: Partial<ToolCallPart>): ToolCallPart {
   };
 }
 
+/** Lets the finished call's fold delay pass. */
+const afterFoldDelay = () => act(() => { vi.advanceTimersByTime(ANIMATION_CONFIG.chat.toolFoldDelayMs); });
+
 describe('ToolCallBlock', () => {
+  afterEach(() => { vi.useRealTimers(); });
+
   it('is collapsed by default and toggles its body', () => {
     render(<ToolCallBlock part={part({})} />);
     const header = screen.getByRole('button', { name: /Retrieved chat/ });
@@ -32,13 +38,16 @@ describe('ToolCallBlock', () => {
     expect(screen.getByText('chat body')).toBeInTheDocument();
   });
 
-  it('is open while running, folds itself when the call finishes, and can be reopened', () => {
+  it('is open while running, folds itself a beat after the call finishes, and can be reopened', () => {
+    vi.useFakeTimers();
     const wrap = (ui: ReactElement) => <QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>;
     const { rerender } = rtlRender(wrap(<ToolCallBlock part={part({ status: 'calling', result: undefined })} />));
     expect(screen.getByRole('button')).toHaveAttribute('aria-expanded', 'true');
 
     rerender(wrap(<ToolCallBlock part={part({})} />));
     const header = screen.getByRole('button', { name: /Retrieved chat/ });
+    expect(header).toHaveAttribute('aria-expanded', 'true');
+    afterFoldDelay();
     expect(header).toHaveAttribute('aria-expanded', 'false');
 
     fireEvent.click(header);
@@ -46,9 +55,11 @@ describe('ToolCallBlock', () => {
   });
 
   it('folds on error too', () => {
+    vi.useFakeTimers();
     const wrap = (ui: ReactElement) => <QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>;
     const { rerender } = rtlRender(wrap(<ToolCallBlock part={part({ status: 'calling', result: undefined })} />));
     rerender(wrap(<ToolCallBlock part={part({ status: 'error', result: { content: 'boom', isError: true } })} />));
+    afterFoldDelay();
     expect(screen.getByRole('button')).toHaveAttribute('aria-expanded', 'false');
   });
 

@@ -1,4 +1,7 @@
 export { ToolCallBlock } from './ToolCallBlock';
+export { ToolCallGroup } from './ToolCallGroup';
+export { groupToolCalls } from './groupToolCalls';
+export type { PartSegment } from './groupToolCalls';
 export type { ToolCallBlockProps } from './ToolCallBlock';
 export { ToolCallBody, toolBodyFor } from './ToolCallBody';
 export { DefaultToolBody } from './DefaultToolBody';

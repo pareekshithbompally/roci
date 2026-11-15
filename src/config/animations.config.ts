@@ -169,10 +169,15 @@ export const ANIMATION_CONFIG = {
     composerLayoutDependency: { idle: 'idle', chat: 'chat' },
     /** Composer glide (framer-motion, seconds) — standard easeInOut */
     composerGlide: { duration: 0.3, ease: [0.4, 0, 0.2, 1] as const },
+    /** A finished tool call (or group) stays open this long before folding, ms — time to see what happened. */
+    toolFoldDelayMs: 600,
     messageAppearDelay: 100, // Delay between sequential messages
     typingIndicatorSpeed: 1000, // Typing indicator animation
     scrollDuration: 300, // Smooth scroll to new message
   },
+
+  /** Disclosure open/close (framer-motion, seconds): height and fade together. */
+  disclosure: { duration: 0.2, ease: [0.4, 0, 0.2, 1] as const },
 
   // Theme transition
   theme: {
