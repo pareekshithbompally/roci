@@ -13,13 +13,14 @@ import { SiHuggingface } from '@icons-pack/react-simple-icons';
 import { open } from '@tauri-apps/plugin-shell';
 import { ModelDownloadButton } from '@shared/components';
 import { useOnDeviceModel } from '@shared/hooks/useOnDeviceModel';
+import { useLocalModelControls } from '@features/settings';
+import { READ_ALOUD_CONFIG } from '@config/readAloud.config';
 import type { OnDeviceModel } from '@shared/hooks/useOnDeviceModel';
 import { Button, Icon, Progress, Separator, Surface, Text } from '@shared/ui';
 
 const DISMISSED_KEY = 'onboarding_models_dismissed';
 
 const RAG_REPO_URL = 'https://huggingface.co/onnx-community/embeddinggemma-300m-ONNX';
-const VOICE_REPO_URL = 'https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX';
 
 function isDismissed(): boolean {
   try {
@@ -49,11 +50,11 @@ interface ModelRow {
 
 export const OnDeviceModelsCard: React.FC = () => {
   const searchModel = useOnDeviceModel('rag');
-  const voiceModel = useOnDeviceModel('kokoro');
+  const voiceModel = useLocalModelControls()[READ_ALOUD_CONFIG.phonon.modelId];
   const [dismissed, setDismissedState] = useState(isDismissed);
 
   // Zero state only, and only until dismissed or done.
-  if (dismissed || (searchModel.status === 'ready' && voiceModel.status === 'ready')) return null;
+  if (dismissed || (searchModel.status === 'ready' && voiceModel?.status === 'ready')) return null;
 
   const dismiss = () => {
     setDismissed();
@@ -70,15 +71,15 @@ export const OnDeviceModelsCard: React.FC = () => {
       modelUrl: RAG_REPO_URL,
       model: searchModel,
     },
-    {
+    ...(voiceModel ? [{
       key: 'voice',
       icon: Volume2,
-      title: 'Text to speech',
+      title: 'Read aloud',
       purpose: 'Listen to any reply',
-      modelName: 'Kokoro 82M',
-      modelUrl: VOICE_REPO_URL,
+      modelName: 'Phonon 31M',
+      modelUrl: READ_ALOUD_CONFIG.phonon.repoUrl,
       model: voiceModel,
-    },
+    }] : []),
   ];
 
   const openRepo = (url: string) => () => {

@@ -1,15 +1,19 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { OnDeviceModelsCard } from '@features/home/components/OnDeviceModelsCard';
+import type { LocalModelControl } from '@features/settings';
 
 const RAG_READY_KEY = 'rag_model_ready';
-const VOICE_READY_KEY = 'voice_model_ready:kokoro';
 const DISMISSED_KEY = 'onboarding_models_dismissed';
+
+/** Phonon's control as `useLocalModelControls` reports it (Rust owns its state). */
+const phonon: LocalModelControl = { status: 'idle', percent: null, download: vi.fn(), redownload: vi.fn(), remove: vi.fn() };
+vi.mock('@features/settings', () => ({ useLocalModelControls: () => ({ 'phonon-31m': phonon }) }));
 
 beforeEach(() => {
   localStorage.removeItem(RAG_READY_KEY);
-  localStorage.removeItem(VOICE_READY_KEY);
   localStorage.removeItem(DISMISSED_KEY);
+  phonon.status = 'idle';
 });
 
 describe('OnDeviceModelsCard', () => {
@@ -17,9 +21,9 @@ describe('OnDeviceModelsCard', () => {
     render(<OnDeviceModelsCard />);
 
     expect(screen.getByText('Meeting search')).toBeInTheDocument();
-    expect(screen.getByText('Text to speech')).toBeInTheDocument();
+    expect(screen.getByText('Read aloud')).toBeInTheDocument();
     expect(screen.getByText('EmbeddingGemma 300M')).toBeInTheDocument();
-    expect(screen.getByText('Kokoro 82M')).toBeInTheDocument();
+    expect(screen.getByText('Phonon 31M')).toBeInTheDocument();
     expect(screen.getByText('Models download live from Hugging Face')).toBeInTheDocument();
     expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /skip/i })).toBeInTheDocument();
@@ -45,7 +49,7 @@ describe('OnDeviceModelsCard', () => {
 
   it('stands down once both models are ready', () => {
     localStorage.setItem(RAG_READY_KEY, 'ready');
-    localStorage.setItem(VOICE_READY_KEY, 'ready');
+    phonon.status = 'ready';
     const { container } = render(<OnDeviceModelsCard />);
 
     expect(container).toBeEmptyDOMElement();

@@ -2,12 +2,13 @@
 
 use serde::Serialize;
 use std::path::PathBuf;
-use tauri::ipc::{InvokeBody, Request};
+use tauri::ipc::Request;
 use tauri::{AppHandle, Manager};
 
 use super::client::{self, HexModel};
 use super::meetings::{self, HexMeeting, HexMeetingDetail};
 use super::{discovery, events, HexError, HexState};
+use crate::ipc::{header, raw_body};
 
 const MODEL_HEADER: &str = "x-hex-model";
 const LANGUAGE_HEADER: &str = "x-hex-language";
@@ -21,10 +22,6 @@ pub struct HexStatus {
 
 fn data_dir(app: &AppHandle) -> Result<PathBuf, HexError> {
     app.path().data_dir().map_err(|error| HexError::Rejected(error.to_string()))
-}
-
-fn header<'a>(request: &'a Request<'_>, name: &str) -> Option<&'a str> {
-    request.headers().get(name).and_then(|value| value.to_str().ok())
 }
 
 /// Whether Hex is running, and its models (installed or not). Hex not running is a normal state.
@@ -45,13 +42,11 @@ pub async fn hex_status(app: AppHandle) -> Result<HexStatus, HexError> {
 /// Headers: `x-hex-model` (required), `x-hex-language` (default `en`).
 #[tauri::command]
 pub async fn hex_transcribe(app: AppHandle, request: Request<'_>) -> Result<String, HexError> {
-    let InvokeBody::Raw(wav) = request.body() else {
-        return Err(HexError::Rejected("expected a raw WAV body".into()));
-    };
+    let wav = raw_body(&request).ok_or_else(|| HexError::Rejected("expected a raw WAV body".into()))?;
     let model = header(&request, MODEL_HEADER).ok_or_else(|| HexError::Rejected("missing model".into()))?;
     let language = header(&request, LANGUAGE_HEADER).unwrap_or(DEFAULT_LANGUAGE);
     let endpoint = discovery::read(&data_dir(&app)?)?;
-    client::transcribe(&endpoint, wav.clone(), model, language).await
+    client::transcribe(&endpoint, wav.to_vec(), model, language).await
 }
 
 /// Every Hex meeting, newest first (Hex's CLI JSON, read-only).

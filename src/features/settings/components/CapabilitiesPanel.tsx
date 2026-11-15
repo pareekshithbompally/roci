@@ -1,26 +1,32 @@
 /**
  * CapabilitiesPanel — every model choice in one place, by job. Sources come
- * from Providers (keys, local servers) and switched-on Integrations (Apple
- * Intelligence for summaries and speech, Hex for speech). The composer's model
- * picker quick-switches chat; this sets the default.
+ * from Providers (keys, local servers), switched-on Integrations (Apple
+ * Intelligence for summaries and speech, Hex for speech), and Kasset's own
+ * local models. The composer's model picker quick-switches chat; this sets
+ * the default.
  *
- * A choice that needs a step (download a voice, allow or download Apple
- * Speech) runs it from its own row in the picker.
+ * A choice that needs a step (download a local model, allow or download
+ * Apple Speech) runs it from its own row in the picker. On this Mac lists
+ * every local model with its download, and Delete once downloaded.
  */
 
 import React, { useMemo } from 'react';
 import { AudioLines, MessageSquare, NotebookText, ScanSearch, Volume2, Waypoints, type LucideIcon } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useOnDeviceModel, useOnDeviceModels } from '@shared/hooks/useOnDeviceModel';
+import { useOnDeviceModel } from '@shared/hooks/useOnDeviceModel';
 import { ModelDownloadButton } from '@shared/components';
+import { formatFileSize } from '@shared/utils/formatters';
 import { modelChoices, withSummaryModels, type ModelChoice } from '@shared/utils/modelResolver';
 import { speechSelectionKey, speechSelectionOf } from '@services/ai/transcription';
-import { DEFAULT_VOICE, DOWNLOADABLE_VOICES, DOWNLOADABLE_VOICE_IDS, MACOS_VOICE, type VoiceId } from '@extensions/voice';
 import { CAPABILITIES_CONFIG } from '@config/capabilities.config';
+import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
+import { READ_ALOUD_CONFIG } from '@config/readAloud.config';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { useSpeechModelOptions } from '@features/settings/hooks/useSpeechModels';
+import { downloadSetup, useLocalModelControls, useLocalModels, type LocalModelControl } from '@features/settings/hooks/useLocalModels';
 import { useAppleSpeechSetup } from '@features/integrations';
 import { CardRow, Icon, Section } from '@shared/ui';
+import type { LocalModel } from '@services/localModels.service';
 import { ModelSelect, SettingsPage } from './shared';
 
 const { jobs: JOBS, sameAsChat: SAME_AS_CHAT } = CAPABILITIES_CONFIG;
@@ -35,38 +41,57 @@ const CapabilityRow: React.FC<{ icon: LucideIcon; job: { title: string; descript
   />
 );
 
-/** Speech recognition: every speech model, with Apple Speech's remaining step on its row. */
-function useSpeechChoices(): ModelChoice[] {
+type Controls = Record<string, LocalModelControl>;
+
+/** Speech recognition: every speech model, with the step it still needs on its row (download, allow). */
+function useSpeechChoices(controls: Controls): ModelChoice[] {
   const options = useSpeechModelOptions();
   const appleSetup = useAppleSpeechSetup();
-  return useMemo(() => options.map((o) => ({
-    value: speechSelectionKey(o),
-    provider: o.provider,
-    modelId: o.model,
-    label: o.label,
-    ready: o.ready,
-    hint: o.hint,
-    setup: o.provider === TRANSCRIPTION_CONFIG.appleSpeech.provider ? appleSetup ?? undefined : undefined,
-  })), [options, appleSetup]);
+  return useMemo(() => {
+    const setupOf = (provider: string, model: string) => {
+      if (provider === TRANSCRIPTION_CONFIG.appleSpeech.provider) return appleSetup ?? undefined;
+      if (provider === TRANSCRIPTION_CONFIG.onDevice.provider) return downloadSetup(controls[model]);
+      return undefined;
+    };
+    return options.map((o) => ({
+      value: speechSelectionKey(o),
+      provider: o.provider,
+      modelId: o.model,
+      label: o.label,
+      ready: o.ready,
+      hint: o.hint,
+      setup: setupOf(o.provider, o.model),
+    }));
+  }, [options, appleSetup, controls]);
 }
 
-/** Read aloud: macOS voices (built in), then each downloadable voice with its download. */
-function useVoiceChoices(): ModelChoice[] {
-  const models = useOnDeviceModels(DOWNLOADABLE_VOICE_IDS);
-  const macos: ModelChoice = { value: 'macos', provider: 'apple', modelId: 'macos', label: MACOS_VOICE.label, ready: true, hint: MACOS_VOICE.size };
-  return [macos, ...DOWNLOADABLE_VOICE_IDS.map((id) => {
-    const model = models[id];
-    return {
-      value: id,
-      provider: id,
-      modelId: DOWNLOADABLE_VOICES[id].model,
-      label: DOWNLOADABLE_VOICES[id].label,
-      ready: model.status === 'ready',
-      hint: DOWNLOADABLE_VOICES[id].size,
-      setup: { kind: 'download' as const, busy: model.status === 'busy', percent: model.percent, run: model.download },
-    };
-  })];
+/** Read aloud: the macOS system voice (built in), then each local voice model with its download. */
+function voiceChoices(models: LocalModel[], controls: Controls): ModelChoice[] {
+  const { macos } = READ_ALOUD_CONFIG;
+  const system: ModelChoice = { value: macos.id, provider: macos.provider, modelId: macos.id, label: macos.label, ready: true, hint: macos.hint };
+  const local = models.filter((m) => m.kind === 'voice').map((m) => ({
+    value: m.id,
+    provider: LOCAL_MODELS_CONFIG.provider.id,
+    modelId: m.id,
+    label: m.name,
+    ready: m.installed,
+    hint: formatFileSize(m.bytes),
+    setup: downloadSetup(controls[m.id]),
+  }));
+  return [system, ...local];
 }
+
+const KIND_ICON: Record<LocalModel['kind'], LucideIcon> = { speech: AudioLines, voice: Volume2 };
+
+/** A local model on this Mac: what it's for, its size, and Download / Delete. */
+const LocalModelRow: React.FC<{ model: LocalModel; control: LocalModelControl }> = ({ model, control }) => (
+  <CardRow
+    leading={<Icon icon={KIND_ICON[model.kind]} size="sm" tone="muted" />}
+    title={model.name}
+    description={`${LOCAL_MODELS_CONFIG.kindLabels[model.kind]} · ${formatFileSize(model.bytes)}`}
+    actions={<ModelDownloadButton model={control} onRemove={control.remove} />}
+  />
+);
 
 export const CapabilitiesPanel: React.FC = () => {
   const { settings, setSettings, providers } = useSettings();
@@ -74,8 +99,10 @@ export const CapabilitiesPanel: React.FC = () => {
 
   const chatChoices = useMemo(() => modelChoices(providers), [providers]);
   const summaryChoices = useMemo(() => modelChoices(withSummaryModels(providers, settings)), [providers, settings]);
-  const speechChoices = useSpeechChoices();
-  const voiceChoices = useVoiceChoices();
+  const { data: localModels = [] } = useLocalModels();
+  const controls = useLocalModelControls();
+  const speechChoices = useSpeechChoices(controls);
+  const voices = useMemo(() => voiceChoices(localModels, controls), [localModels, controls]);
   const speech = speechSelectionOf(settings);
 
   const setSpeech = (key: string) => {
@@ -97,9 +124,9 @@ export const CapabilitiesPanel: React.FC = () => {
         </CapabilityRow>
         <CapabilityRow icon={Volume2} job={JOBS.readAloud}>
           <ModelSelect
-            value={settings.readAloudVoice ?? DEFAULT_VOICE}
-            choices={voiceChoices}
-            onChange={(voice) => setSettings({ readAloudVoice: voice as VoiceId })}
+            value={settings.readAloudVoice ?? READ_ALOUD_CONFIG.defaultVoice}
+            choices={voices}
+            onChange={(readAloudVoice) => setSettings({ readAloudVoice })}
           />
         </CapabilityRow>
       </Section>
@@ -126,6 +153,7 @@ export const CapabilitiesPanel: React.FC = () => {
         <CapabilityRow icon={ScanSearch} job={JOBS.meetingSearch}>
           <ModelDownloadButton model={searchModel} allowRedownload />
         </CapabilityRow>
+        {localModels.map((m) => controls[m.id] && <LocalModelRow key={m.id} model={m} control={controls[m.id]} />)}
       </Section>
     </SettingsPage>
   );

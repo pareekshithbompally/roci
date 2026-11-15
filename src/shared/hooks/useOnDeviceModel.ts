@@ -17,12 +17,10 @@
 import { useReducer } from 'react';
 import { create } from 'zustand';
 import { grantConsent, isEmbeddingReady, preloadModel, resetPipeline } from '@extensions/rag';
-import { DOWNLOADABLE_VOICE_IDS, isVoiceReady, loadVoice, resetVoice, voiceTrayId } from '@extensions/voice';
-import type { DownloadableVoiceId } from '@extensions/voice';
 import { useActivityItems } from '@shared/stores/activityStore';
 
-/** The embedding model, or a downloadable read-aloud voice. */
-export type OnDeviceModelKind = 'rag' | DownloadableVoiceId;
+/** The embedding model (transformers.js). Kasset's other local models: `useLocalModels`. */
+export type OnDeviceModelKind = 'rag';
 export type OnDeviceStatus = 'idle' | 'busy' | 'ready';
 
 export interface OnDeviceModel {
@@ -36,23 +34,15 @@ export interface OnDeviceModel {
 interface ModelSource {
   trayId: string;
   isReady: () => boolean;
-  /** Record consent where an implicit trigger asks first (RAG); a voice downloads only on a press. */
+  /** Record consent where an implicit trigger asks first (RAG). */
   grant?: () => void;
   load: () => Promise<unknown>;
   reset: () => void;
 }
 
-const voiceSource = (id: DownloadableVoiceId): ModelSource => ({
-  trayId: voiceTrayId(id),
-  isReady: () => isVoiceReady(id),
-  load: () => loadVoice(id),
-  reset: () => resetVoice(id),
-});
-
 const MODELS: Record<OnDeviceModelKind, ModelSource> = {
   rag: { trayId: 'rag-model', isReady: isEmbeddingReady, grant: grantConsent, load: preloadModel, reset: resetPipeline },
-  ...Object.fromEntries(DOWNLOADABLE_VOICE_IDS.map((id) => [id, voiceSource(id)])),
-} as Record<OnDeviceModelKind, ModelSource>;
+};
 
 /** Loads started from a Download press — shared so every surface agrees. */
 const usePendingStore = create<Partial<Record<OnDeviceModelKind, boolean>>>()(() => ({}));
@@ -73,28 +63,18 @@ function startLoad(kind: OnDeviceModelKind, fresh: boolean, settled: () => void)
     });
 }
 
-/** Several models at once (e.g. every downloadable voice), by kind. */
-export function useOnDeviceModels<K extends OnDeviceModelKind>(kinds: readonly K[]): Record<K, OnDeviceModel> {
-  const pending = usePendingStore();
+export function useOnDeviceModel(kind: OnDeviceModelKind): OnDeviceModel {
+  const pending = usePendingStore((st) => st[kind] ?? false);
   const items = useActivityItems();
   // Readiness lives outside React; re-render once a load settles.
   const [, refresh] = useReducer((x: number) => x + 1, 0);
-
-  const entries = kinds.map((kind) => {
-    const model = MODELS[kind];
-    const item = items.find((i) => i.id === model.trayId);
-    const busy = (pending[kind] ?? false) || item?.status === 'active';
-    const state: OnDeviceModel = {
-      status: busy ? 'busy' : model.isReady() ? 'ready' : 'idle',
-      percent: busy ? (item?.percent ?? null) : null,
-      download: () => startLoad(kind, false, refresh),
-      redownload: () => startLoad(kind, true, refresh),
-    };
-    return [kind, state] as const;
-  });
-  return Object.fromEntries(entries) as Record<K, OnDeviceModel>;
-}
-
-export function useOnDeviceModel(kind: OnDeviceModelKind): OnDeviceModel {
-  return useOnDeviceModels([kind])[kind];
+  const model = MODELS[kind];
+  const item = items.find((i) => i.id === model.trayId);
+  const busy = pending || item?.status === 'active';
+  return {
+    status: busy ? 'busy' : model.isReady() ? 'ready' : 'idle',
+    percent: busy ? (item?.percent ?? null) : null,
+    download: () => startLoad(kind, false, refresh),
+    redownload: () => startLoad(kind, true, refresh),
+  };
 }

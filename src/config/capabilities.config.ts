@@ -13,6 +13,6 @@ export const CAPABILITIES_CONFIG = {
     summaries: { title: 'Summaries', description: 'Overview, decisions and action items for each meeting.' },
     knowledgeGraph: { title: 'Knowledge graph', description: 'People, topics and how meetings connect.' },
     meetingSearch: { title: 'Meeting search', description: 'Embedding model for semantic search. ≈325 MB download, cached after.' },
-    readAloud: { title: 'Read aloud', description: 'The voice replies are spoken in. macOS voices are built in; the others download once.' },
+    readAloud: { title: 'Read aloud', description: 'The voice replies are spoken in. macOS voices are built in; Phonon downloads once.' },
   },
 } as const;

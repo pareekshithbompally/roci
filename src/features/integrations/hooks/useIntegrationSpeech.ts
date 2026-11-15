@@ -10,7 +10,7 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { queryKeys } from '@shared/query/queryKeys';
 import { isIntegrationEnabled } from '@shared/utils/integrations';
 import { getAppleSpeechStatus, getHexStatus } from '@services/ai/transcription';
-import type { IntegrationSpeech } from '@services/ai/transcription';
+import type { SpeechSources } from '@services/ai/transcription';
 
 export function useHexStatus(enabled = true) {
   return useQuery({
@@ -31,7 +31,7 @@ export function useAppleSpeechStatus(enabled = true) {
 }
 
 /** Speech sources from integrations that are on (Hex, Apple Speech); each status is fetched only while on. */
-export function useIntegrationSpeech(): IntegrationSpeech {
+export function useIntegrationSpeech(): Pick<SpeechSources, 'hex' | 'appleSpeech'> {
   const { settings } = useSettings();
   const hexOn = isIntegrationEnabled(settings, 'hex');
   const appleOn = isIntegrationEnabled(settings, 'appleIntelligence');

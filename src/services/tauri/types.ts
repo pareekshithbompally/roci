@@ -43,7 +43,8 @@ export enum TrayAction {
 }
 
 /**
- * Prefix of a Speech Model submenu item's id: `speech_model:<hex model id>`.
+ * Prefix of a Speech Model submenu item's id: `speech_model:<provider::model>`
+ * (the speech selection key).
  * The model id is dynamic, so these arrive as plain strings, not enum members.
  */
 export const SPEECH_MODEL_ACTION_PREFIX = 'speech_model:';

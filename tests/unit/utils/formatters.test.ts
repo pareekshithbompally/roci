@@ -117,36 +117,15 @@ describe('formatRelativeTime', () => {
 });
 
 describe('formatFileSize', () => {
-  it('formats 0 bytes', () => {
-    expect(formatFileSize(0)).toBe('0 Bytes');
+  it('counts bytes below a kilobyte', () => {
+    expect(formatFileSize(0)).toBe('0 bytes');
+    expect(formatFileSize(500)).toBe('500 bytes');
   });
 
-  it('formats bytes (< 1KB)', () => {
-    expect(formatFileSize(500)).toBe('500 Bytes');
-  });
-
-  it('formats kilobytes', () => {
-    expect(formatFileSize(1024)).toBe('1 KB');
-    expect(formatFileSize(1536)).toBe('1.5 KB');
-  });
-
-  it('formats megabytes', () => {
-    expect(formatFileSize(1048576)).toBe('1 MB');
-    expect(formatFileSize(1572864)).toBe('1.5 MB');
-  });
-
-  it('formats gigabytes', () => {
-    expect(formatFileSize(1073741824)).toBe('1 GB');
-  });
-
-  it('formats with decimal precision', () => {
-    // 1.5 MB = 1572864
-    const result = formatFileSize(1572864);
-    expect(result).toBe('1.5 MB');
-  });
-
-  it('handles 1 byte', () => {
-    expect(formatFileSize(1)).toBe('1 Bytes');
+  it('uses decimal units like Finder', () => {
+    expect(formatFileSize(1500)).toBe('1.5 kB');
+    expect(formatFileSize(731_357_568)).toBe('731.4 MB');
+    expect(formatFileSize(2_410_655_232)).toBe('2.4 GB');
   });
 });
 

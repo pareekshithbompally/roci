@@ -6,6 +6,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from '@services/tauri';
+import { isCodedError } from '@shared/utils/errors';
 
 const PLUGIN = 'plugin:apple-intelligence|';
 
@@ -37,17 +38,9 @@ export interface AppleSpeechStatus {
   installed: boolean;
 }
 
-export interface AppleSpeechSegment {
-  start: number;
-  end: number;
-  text: string;
-}
-
 const UNSUPPORTED: AppleModelStatus = { availability: 'unsupported-system', contextTokens: 0 };
 
-export function isAppleError(error: unknown): error is AppleErrorPayload {
-  return typeof error === 'object' && error !== null && 'code' in error;
-}
+export const isAppleError = (error: unknown): error is AppleErrorPayload => isCodedError<AppleErrorPayload>(error);
 
 export const appleIntelligence = {
   async status(): Promise<AppleModelStatus> {
@@ -64,6 +57,4 @@ export const appleIntelligence = {
   speechStatus: (language: string) => invoke<AppleSpeechStatus>(`${PLUGIN}speech_status`, { language }),
   speechRequestAccess: () => invoke<boolean>(`${PLUGIN}speech_request_access`),
   speechPrepare: (language: string) => invoke<void>(`${PLUGIN}speech_prepare`, { language }),
-  speechTranscribe: (path: string, language: string) =>
-    invoke<AppleSpeechSegment[]>(`${PLUGIN}speech_transcribe`, { path, language }),
 };

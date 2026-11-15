@@ -8,6 +8,7 @@
  * - multimodal: any audio-input model `createModel()` supports, prompted to transcribe.
  * - hex: the running Hex app (see hex.ts).
  * - apple-speech: Apple's on-device speech (see appleSpeech.ts).
+ * - on-device: Kasset's own engine, transcribe.cpp in Rust (see onDevice.ts).
  */
 
 import { experimental_transcribe as transcribe, generateText } from 'ai';
@@ -20,6 +21,7 @@ import { getPlatformFetch } from '@services/platform-fetch';
 import { VERBATIM_TRANSCRIBE_PROMPT } from '@core/ai/prompts/transcription.prompt';
 import { hexTranscribePart } from './hex';
 import { appleSpeechTranscribePart } from './appleSpeech';
+import { onDeviceTranscribePart } from './onDevice';
 import type { TranscriptionAdapterId } from '@config/transcription.config';
 import type { TranscriptionModel } from 'ai';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
@@ -76,4 +78,5 @@ export const ADAPTERS: Record<TranscriptionAdapterId, TranscribePart> = {
   multimodal: viaMultimodalPrompt,
   hex: hexTranscribePart,
   'apple-speech': appleSpeechTranscribePart,
+  'on-device': onDeviceTranscribePart,
 };

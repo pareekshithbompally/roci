@@ -50,17 +50,17 @@ export function formatRelativeTime(date: Date | string | number): string {
   return formatDate(date);
 }
 
+const SIZE_UNITS = ['kilobyte', 'megabyte', 'gigabyte', 'terabyte'] as const;
+
 /**
- * Format file size in human readable format
+ * A size as macOS shows it (Finder: decimal units, 1 kB = 1,000 bytes),
+ * in the system locale: "731.4 MB", "2.4 GB".
  */
 export function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+  if (bytes < 1000) return `${bytes} bytes`;
+  const exponent = Math.min(Math.floor(Math.log10(bytes) / 3), SIZE_UNITS.length);
+  const format = new Intl.NumberFormat(undefined, { style: 'unit', unit: SIZE_UNITS[exponent - 1], maximumFractionDigits: 1 });
+  return format.format(bytes / 1000 ** exponent);
 }
 
 /**

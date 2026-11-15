@@ -7,6 +7,10 @@ mod screenshot;
 mod wake_lock;
 mod permissions;
 mod hex;
+mod ipc;
+mod models;
+mod stt;
+mod tts;
 mod open_native;
 mod downloads;
 mod mcp;
@@ -106,6 +110,9 @@ pub fn run() {
     .manage(mcp_server::McpHostState::default())
     .manage(url_actions::UrlActionsState::default())
     .manage(hex::HexState::default())
+    .manage(models::ModelsState::default())
+    .manage(stt::SttState::default())
+    .manage(tts::TtsState::default())
     .invoke_handler(tauri::generate_handler![
       // Shortcut commands
       shortcuts::register_shortcut,
@@ -148,6 +155,14 @@ pub fn run() {
       hex::commands::hex_meetings_list,
       hex::commands::hex_meeting_show,
       hex::commands::hex_watch,
+      // Curated on-device models (download / delete), speech-to-text, read aloud
+      models::commands::local_models,
+      models::commands::local_model_download,
+      models::commands::local_model_cancel,
+      models::commands::local_model_remove,
+      stt::commands::stt_transcribe,
+      tts::commands::tts_speak,
+      tts::commands::tts_stop,
       // MCP client (servers, tools, calls)
       mcp::commands::get_mcp_configs,
       mcp::commands::save_mcp_configs,

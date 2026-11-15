@@ -8,7 +8,7 @@ vi.mock('@services/modalities', () => ({
     getModelContextLimit: () => null,
   },
 }));
-import { adapterFor, speechModelOptions, speechSelectionKey } from '@services/ai/transcription/catalog';
+import { adapterFor, isSpeechSelectionReady, speechModelOptions, speechSelectionKey } from '@services/ai/transcription/catalog';
 import type { ModelProvider } from '@shared/types/modelProviders';
 
 function provider(id: string, models: ModelProvider['models'], apiKey = 'key'): ModelProvider {
@@ -59,6 +59,7 @@ describe('adapterFor', () => {
   it('runs keyless integration engines on their own adapters', () => {
     expect(adapterFor({ provider: 'hex', model: '' }, [])).toBe('hex');
     expect(adapterFor({ provider: 'apple-intelligence', model: 'apple-speech' }, [])).toBe('apple-speech');
+    expect(adapterFor({ provider: 'on-device', model: 'whisper-large-v3-turbo' }, [])).toBe('on-device');
   });
 });
 
@@ -86,5 +87,28 @@ describe('speechModelOptions', () => {
     const noKey = speechModelOptions([provider('openai', [{ id: 'gpt-audio', audioInput: true }], '')], {});
     expect(noKey.find((o) => o.model === 'gpt-audio')).toMatchObject({ ready: false, hint: 'Add OpenAI API key' });
     expect(options.find((o) => o.model === 'gpt-audio')).toMatchObject({ ready: true, hint: null });
+  });
+});
+
+describe('on this Mac', () => {
+  const onDevice = {
+    models: [
+      { id: 'parakeet-unified-en', name: 'Parakeet (English)', kind: 'speech' as const, bytes: 731_357_568, installed: true, downloading: false },
+      { id: 'cohere-transcribe', name: 'Cohere Transcribe', kind: 'speech' as const, bytes: 2_410_655_232, installed: false, downloading: false },
+    ],
+  };
+
+  it('lists every curated model; one not downloaded shows its size', () => {
+    const options = speechModelOptions([], { onDevice }).filter((o) => o.provider === 'on-device');
+    expect(options).toEqual([
+      { provider: 'on-device', model: 'parakeet-unified-en', label: 'Parakeet (English)', ready: true, hint: null },
+      { provider: 'on-device', model: 'cohere-transcribe', label: 'Cohere Transcribe', ready: false, hint: '2.4 GB' },
+    ]);
+  });
+
+  it('is ready only once the chosen model is downloaded', () => {
+    expect(isSpeechSelectionReady({ provider: 'on-device', model: 'parakeet-unified-en' }, [], { onDevice })).toBe(true);
+    expect(isSpeechSelectionReady({ provider: 'on-device', model: 'cohere-transcribe' }, [], { onDevice })).toBe(false);
+    expect(isSpeechSelectionReady({ provider: 'on-device', model: 'parakeet-unified-en' }, [], {})).toBe(false);
   });
 });

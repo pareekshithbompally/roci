@@ -1,0 +1,155 @@
+/**
+ * Local models in the UI — one source for every surface (speech and voice
+ * pickers, Settings › Capabilities › On this Mac, the Home card):
+ *
+ * - `useLocalModels`: the curated models and which are downloaded (TanStack Query).
+ * - `useLocalModelControls`: per model, the download button's state (shared
+ *   `OnDeviceModel` shape) plus Delete, which asks first.
+ * - `downloadSetup`: the Download step a picker row shows until a model is ready.
+ * - `useLocalModelDownloads`: mounted once (App); turns Rust's download events
+ *   into the activity tray row, the finished notice, and a model-list refresh.
+ */
+
+import { useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryClient } from '@shared/query/queryClient';
+import { queryKeys } from '@shared/query/queryKeys';
+import { activityStore, useActivityItems, type ActivityItem } from '@shared/stores/activityStore';
+import { confirm } from '@shared/stores/confirmStore';
+import { notifyAppEvent } from '@shared/utils/appEvents';
+import { failureLogger } from '@shared/utils/errors';
+import { formatFileSize } from '@shared/utils/formatters';
+import { useTauriEvent } from '@shared/hooks/useTauriEvent';
+import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
+import {
+  cancelLocalModelDownload,
+  downloadLocalModel,
+  downloadPercent,
+  getLocalModels,
+  removeLocalModel,
+} from '@services/localModels.service';
+import type { LocalModel, LocalModelDownload } from '@services/localModels.service';
+import type { OnDeviceModel } from '@shared/hooks/useOnDeviceModel';
+import type { ChoiceSetup } from '@shared/utils/modelResolver';
+
+const report = failureLogger('useLocalModels');
+const { activityId } = LOCAL_MODELS_CONFIG;
+const modelsKey = queryKeys.localModels();
+
+export function useLocalModels() {
+  return useQuery({ queryKey: modelsKey, queryFn: getLocalModels });
+}
+
+function nameOf(id: string): string {
+  return queryClient.getQueryData<LocalModel[]>(modelsKey)?.find((m) => m.id === id)?.name ?? id;
+}
+
+/** The activity tray row for a download (once per download). */
+function showActivity(id: string): void {
+  if (activityStore.get(activityId(id))) return;
+  activityStore.add({
+    id: activityId(id),
+    type: 'download',
+    label: `Downloading ${nameOf(id)}`,
+    status: 'active',
+    percent: 0,
+    step: null,
+    detail: null,
+    error: null,
+    actions: [{ icon: 'x', label: 'Cancel', onClick: () => void cancelLocalModelDownload(id).catch(report('cancel')) }],
+  });
+}
+
+function startDownload(id: string): void {
+  showActivity(id);
+  downloadLocalModel(id).catch((error: unknown) => {
+    activityStore.remove(activityId(id));
+    report('download')(error);
+  });
+}
+
+function useRemoveLocalModel() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: removeLocalModel,
+    onMutate: async (id: string) => {
+      await client.cancelQueries({ queryKey: modelsKey });
+      const previous = client.getQueryData<LocalModel[]>(modelsKey);
+      client.setQueryData<LocalModel[]>(modelsKey, previous?.map((m) => (m.id === id ? { ...m, installed: false } : m)));
+      return { previous };
+    },
+    onError: (error: unknown, _id, context) => {
+      client.setQueryData(modelsKey, context?.previous);
+      report('delete')(error);
+    },
+    onSettled: () => client.invalidateQueries({ queryKey: modelsKey }),
+  });
+}
+
+/** A local model's download button state, plus Delete. */
+export interface LocalModelControl extends OnDeviceModel {
+  remove: () => void;
+}
+
+function controlOf(model: LocalModel, activity: ActivityItem | undefined, remove: (id: string) => void): LocalModelControl {
+  const busy = model.downloading || !!activity;
+  const status = model.installed ? 'ready' : busy ? 'busy' : 'idle';
+  const download = () => startDownload(model.id);
+  return { status, percent: busy ? (activity?.percent ?? null) : null, download, redownload: download, remove: () => remove(model.id) };
+}
+
+/** Every local model's control, by id. */
+export function useLocalModelControls(): Record<string, LocalModelControl> {
+  const { data: models = [] } = useLocalModels();
+  const activities = useActivityItems();
+  const { mutate } = useRemoveLocalModel();
+  return useMemo(() => {
+    const remove = (id: string) => {
+      const model = models.find((m) => m.id === id);
+      if (!model) return;
+      void confirm({
+        title: `Delete ${model.name}?`,
+        description: `Frees ${formatFileSize(model.bytes)}. You can download it again anytime.`,
+        confirmLabel: 'Delete',
+        tone: 'danger',
+      }).then((confirmed) => confirmed && mutate(id));
+    };
+    return Object.fromEntries(models.map((m) => [m.id, controlOf(m, activities.find((a) => a.id === activityId(m.id)), remove)]));
+  }, [models, activities, mutate]);
+}
+
+/** The step a picker row shows until its model is downloaded. */
+export function downloadSetup(control: LocalModelControl | undefined): ChoiceSetup | undefined {
+  if (!control || control.status === 'ready') return undefined;
+  return { kind: 'download', busy: control.status === 'busy', percent: control.percent, run: control.download };
+}
+
+function applyDownload(download: LocalModelDownload): void {
+  const id = activityId(download.id);
+  switch (download.state) {
+    case 'downloading':
+      showActivity(download.id); // also after a webview reload mid-download
+      activityStore.update(id, {
+        percent: downloadPercent(download),
+        detail: `${formatFileSize(download.received)} of ${formatFileSize(download.total)}`,
+      });
+      return;
+    case 'verifying':
+      activityStore.update(id, { label: `Checking ${nameOf(download.id)}`, percent: null, detail: null, actions: [] });
+      return;
+    case 'done':
+      notifyAppEvent({ id, kind: 'modelDownloads', tone: 'success', inFront: 'toast', title: `${nameOf(download.id)} is ready`, body: 'Download finished.' });
+      break;
+    case 'failed':
+      notifyAppEvent({ id, kind: 'modelDownloads', tone: 'error', inFront: 'toast', title: `${nameOf(download.id)} didn't download`, body: download.error ?? 'Try again.' });
+      break;
+    case 'cancelled':
+      break;
+  }
+  activityStore.remove(id);
+  void queryClient.invalidateQueries({ queryKey: modelsKey });
+}
+
+export function useLocalModelDownloads(): void {
+  useTauriEvent<LocalModelDownload>(LOCAL_MODELS_CONFIG.downloadEvent, applyDownload);
+}

@@ -4,7 +4,7 @@
  * Renders nothing. Bridges on-device model and indexing progress events into
  * ActivityTray rows, with toasts for completion and errors. Download consent
  * is not here: an explicit Download click is consent, and implicit triggers
- * ask through the app-wide `confirm()` (see the rag/voice consent gates).
+ * ask through the app-wide `confirm()` (see the rag consent gate).
  *
  * Cache-hit suppression: the embedding service fires rapid download/done/ready
  * events even on cache hits (~100ms total). We debounce on the UI side — only
@@ -14,8 +14,6 @@
 import React, { useEffect } from 'react';
 import { onRAGProgress, preloadModel, resetPipeline } from '@extensions/rag';
 import type { RAGProgressEvent, IndexingProgressEvent, ExtractionProgressEvent } from '@extensions/rag';
-import { DOWNLOADABLE_VOICES, DOWNLOADABLE_VOICE_IDS, loadVoice, onVoiceProgress, resetVoice, voiceTrayId } from '@extensions/voice';
-import type { VoiceModelEvent } from '@extensions/voice';
 import { activityStore } from '@shared/stores/activityStore';
 import type { ActivityItem } from '@shared/stores/activityStore';
 import { useToast } from '@shared/contexts/ToastContext';
@@ -29,7 +27,7 @@ export const OnDeviceModelActivity: React.FC = () => {
   const { showToast, showErrorWithRetry } = useToast();
 
   useEffect(() => {
-    // ── Per-model download state (rag + voice share this shape) ──
+    // ── Per-model download state ──
     interface ModelUI {
       trayId: string;
       downloadingLabel: string;
@@ -156,27 +154,8 @@ export const OnDeviceModelActivity: React.FC = () => {
       },
     });
 
-    const voiceHandlers = Object.fromEntries(DOWNLOADABLE_VOICE_IDS.map((id) => {
-      const { label } = DOWNLOADABLE_VOICES[id];
-      return [id, createModelHandlers({
-        trayId: voiceTrayId(id),
-        downloadingLabel: `Downloading ${label}`,
-        loadingLabel: `Initializing ${label}`,
-        readyToast: `${label} ready to read aloud`,
-        loadError: `${label} failed to load`,
-        retry: () => {
-          resetVoice(id);
-          loadVoice(id).catch(() => {});
-        },
-      })];
-    }));
-
     function handleModelEvent(event: RAGProgressEvent & { kind: 'model' }) {
       ragHandlers.handleEvent(event);
-    }
-
-    function handleVoiceEvent(event: VoiceModelEvent) {
-      voiceHandlers[event.voice]?.handleEvent(event);
     }
 
     function handleIndexingEvent(event: IndexingProgressEvent) {
@@ -311,13 +290,9 @@ export const OnDeviceModelActivity: React.FC = () => {
       }
     });
 
-    const unsubscribeVoice = onVoiceProgress(handleVoiceEvent);
-
     return () => {
       unsubscribe();
-      unsubscribeVoice();
       ragHandlers.dispose();
-      Object.values(voiceHandlers).forEach((handlers) => handlers.dispose());
       activityStore.remove('rag-indexing-meetings');
       activityStore.remove('rag-indexing-chats');
       activityStore.remove('rag-extraction');

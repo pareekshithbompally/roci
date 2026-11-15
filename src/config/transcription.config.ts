@@ -8,9 +8,10 @@
  * adapter (a prompt with the audio) for any model that accepts audio input.
  */
 
+import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import type { IntegrationId } from '@shared/utils/integrations';
 
-export type TranscriptionAdapterId = 'openai-compatible' | 'deepgram' | 'elevenlabs' | 'multimodal' | 'hex' | 'apple-speech';
+export type TranscriptionAdapterId = 'openai-compatible' | 'deepgram' | 'elevenlabs' | 'multimodal' | 'hex' | 'apple-speech' | 'on-device';
 
 export interface SpeechModel {
   id: string;
@@ -28,7 +29,8 @@ export const TRANSCRIPTION_CONFIG = {
   /**
    * Longest part each adapter receives, in seconds (16 kHz × 2 B = 32 kB/s):
    * OpenAI-compatible uploads are capped at 25 MB (600 s = 19.2 MB);
-   * Hex at 64 MiB and ~17.5 min of samples (900 s = 28.8 MB).
+   * Hex at 64 MiB and ~17.5 min of samples (900 s = 28.8 MB). On this Mac,
+   * the engine splits further when a model has a per-run limit (Cohere).
    */
   partSeconds: {
     'openai-compatible': 600,
@@ -37,6 +39,7 @@ export const TRANSCRIPTION_CONFIG = {
     multimodal: 600,
     hex: 900,
     'apple-speech': 900,
+    'on-device': 900,
   } satisfies Record<TranscriptionAdapterId, number>,
 
   /**
@@ -50,6 +53,7 @@ export const TRANSCRIPTION_CONFIG = {
     elevenlabs: 'elevenlabs',
     hex: 'hex',
     'apple-intelligence': 'apple-speech',
+    'on-device': 'on-device',
   } as Record<string, TranscriptionAdapterId>,
 
   /**
@@ -89,10 +93,12 @@ export const TRANSCRIPTION_CONFIG = {
   hexProvider: 'hex',
   /** Apple speech (Integrations › Apple Intelligence): on this Mac, no key, one model. */
   appleSpeech: { provider: 'apple-intelligence', model: 'apple-speech', label: 'Apple Speech' },
+  /** Kasset's own engine (transcribe.cpp, src-tauri/src/stt): no key, its speech models are local models. */
+  onDevice: { provider: LOCAL_MODELS_CONFIG.provider.id },
   /** Speech providers that exist only while an integration is on (Settings › Integrations). */
   integrationByProvider: { hex: 'hex', 'apple-intelligence': 'appleIntelligence' } as Record<string, IntegrationId>,
   /** Speech providers that run without credentials. */
-  keylessProviders: ['hex', 'apple-intelligence'] as readonly string[],
+  keylessProviders: ['hex', 'apple-intelligence', 'on-device'] as readonly string[],
   /** Hex models Kasset doesn't offer: Apple speech is Kasset-native (Apple Intelligence), never via Hex. */
   hiddenHexModels: ['apple_speech'] as readonly string[],
 

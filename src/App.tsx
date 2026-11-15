@@ -17,7 +17,7 @@ import { MainLayout } from '@features/layout';
 import { HomeView } from '@features/home';
 import { SettingsPanel } from '@features/settings';
 import { useAppUpdate, scheduleStartupCheck } from '@features/settings';
-import { useMenubarSpeechModels } from '@features/settings';
+import { useMenubarSpeechModels, useLocalModelDownloads, freshSpeechSources } from '@features/settings';
 import { UpdateBanner } from '@features/settings';
 import { RemindersView } from '@features/todos';
 import { CalendarView } from '@features/calendar';
@@ -35,14 +35,13 @@ import {
   initializeStorage,
 } from '@services/storage';
 import { menubarService, TrayAction, SPEECH_MODEL_ACTION_PREFIX } from '@services/tauri';
-import { getHexStatus } from '@services/ai/transcription';
+import { isSpeechSelectionReady, parseSpeechSelectionKey } from '@services/ai/transcription';
 import { windowService } from '@services/window.service';
 import { dismissSplash } from '@/src/app/splash';
 import { shortcutsService } from '@services/shortcuts.service';
 import { initPlatformFetch } from '@services/platform-fetch';
 import { searchIndexingService } from '@services/searchIndexing.service';
 import { reminderService } from '@services/reminder.service';
-import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 
 const App: React.FC = () => {
   console.log('[App] Rendering App component');
@@ -86,6 +85,7 @@ const App: React.FC = () => {
   useCalendarRuntime();
   useNotificationsRuntime();
   useDownloadToasts();
+  useLocalModelDownloads();
   useRemindersRuntime();
   useHexRuntime();
   useMcpHostRuntime();
@@ -223,22 +223,17 @@ const App: React.FC = () => {
   };
 
   /**
-   * Tray › Speech Model: switch transcription to the picked Hex model.
-   * The row only reaches here when Hex listed it, but Hex may have quit or
-   * dropped the model since, so the pick is verified before saving.
+   * A tray Speech Model pick (`provider::model`). The tray may be stale — Hex
+   * quit or a model was removed since it was built — so the pick is checked first.
    */
-  const applySpeechModel = async (modelId: string) => {
+  const applySpeechModel = async (key: string) => {
     try {
-      const hexStatus = await getHexStatus();
-      const model = hexStatus.models.find((m) => m.id === modelId);
-      if (!hexStatus.running || !model?.installed) {
-        toast.showToast(
-          "That model isn't downloaded in Hex. Open Hex › Models, then retry.",
-          'warning',
-        );
+      const selection = parseSpeechSelectionKey(key);
+      if (!isSpeechSelectionReady(selection, providers, await freshSpeechSources())) {
+        toast.showToast("That speech model isn't ready. Check Settings › Capabilities.", 'warning');
         return;
       }
-      setSettings({ transcriptionProvider: TRANSCRIPTION_CONFIG.hexProvider, transcriptionModel: modelId });
+      setSettings({ transcriptionProvider: selection.provider, transcriptionModel: selection.model });
     } catch (error) {
       console.error('[App] Failed to switch speech model:', error);
       toast.showToast('Could not switch the speech model', 'error');

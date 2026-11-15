@@ -1,4 +1,5 @@
 import { LOCAL_PROVIDER_PREFIX, LOCAL_SERVERS, LOCAL_GENERIC_LOGO } from '@config/localServers.config'
+import { LOCAL_MODELS_CONFIG } from '@config/localModels.config'
 import type { Model } from '@shared/types/modelProviders'
 
 /** Local servers (`local:ollama`, `local:127.0.0.1:9000`) run on this Mac. */
@@ -10,11 +11,16 @@ function localEntry(provider: string) {
   return LOCAL_SERVERS.find((s) => s.id === provider)
 }
 
+const ON_DEVICE = LOCAL_MODELS_CONFIG.provider
+
 export function getProviderLogo(provider: string) {
   if (isLocalProviderId(provider)) return localEntry(provider)?.logo ?? LOCAL_GENERIC_LOGO
+  if (provider === ON_DEVICE.id) return LOCAL_GENERIC_LOGO
   switch (provider) {
     case 'hex':
       return '/images/model-provider/hex.png'
+    case 'apple':
+      return '/images/model-provider/apple.svg'
     case 'anthropic':
       return '/images/model-provider/anthropic.svg'
     case 'mistral':
@@ -43,6 +49,7 @@ export const getProviderTitle = (provider: string | undefined | null) => {
   if (isLocalProviderId(provider)) {
     return localEntry(provider)?.label ?? provider.slice(LOCAL_PROVIDER_PREFIX.length)
   }
+  if (provider === ON_DEVICE.id) return ON_DEVICE.title
 
   switch (provider.toLowerCase()) {
     case 'openai':

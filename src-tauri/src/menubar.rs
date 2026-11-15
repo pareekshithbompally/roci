@@ -6,7 +6,7 @@
 //!
 //! - One backend module owns the tray icon, menu, and visibility state.
 //!   The frontend never constructs tray or menu objects; it reports
-//!   recording transitions and the Hex models it can offer, and receives
+//!   recording transitions and the speech models it can offer, and receives
 //!   action events.
 //! - Rows follow Hex's `Row`/`ROWS` order in three groups: the meeting
 //!   recorder (one row — Record Meeting, or Stop Recording while it runs),
@@ -50,7 +50,7 @@ pub mod item {
     pub const SHOW: &str = "show";
     pub const START_RECORDING: &str = "start_recording";
     pub const STOP_RECORDING: &str = "stop_recording";
-    /// Speech Model rows carry the Hex model id: `speech_model:<id>`.
+    /// Speech Model rows carry the speech selection key: `speech_model:<provider::model>`.
     pub const SPEECH_MODEL_PREFIX: &str = "speech_model:";
     pub const SPEECH_MODELS_EMPTY: &str = "speech_models_empty";
     pub const MANAGE_MODELS: &str = "manage_models";
@@ -116,7 +116,7 @@ struct StateData {
     elapsed_secs: u64,
     close_to_tray: bool,
     hide_icon: bool,
-    /// Downloaded Hex models, newest report wins.
+    /// Ready keyless speech models (this Mac, Apple Speech, Hex), newest report wins.
     speech_models: Vec<SpeechModelEntry>,
     /// Kasset's MCP server, as its status row reads.
     mcp_status: String,

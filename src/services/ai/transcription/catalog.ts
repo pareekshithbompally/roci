@@ -9,12 +9,14 @@ import { capabilitiesOf } from '@services/ai/capabilities';
 import { resolveProviderModel } from '@shared/utils/modelResolver';
 import { getProviderTitle, isLocalProviderId } from '@shared/utils/provider.utils';
 import { credentialsError } from './cred';
+import { formatFileSize } from '@shared/utils/formatters';
 import { installedHexModels } from './hex';
 import { appleSpeechHint, isAppleSpeechReady } from './appleSpeech';
 import type { AppleSpeechStatus } from '@services/ai/apple/appleIntelligence.service';
 import type { TranscriptionAdapterId } from '@config/transcription.config';
 import type { Model, ModelProvider } from '@shared/types/modelProviders';
 import type { HexStatus } from './hex';
+import type { LocalModel } from '@services/localModels.service';
 import type { SpeechSelection } from './types';
 
 export interface SpeechModelOption extends SpeechSelection {
@@ -89,12 +91,26 @@ function hexOptions(status: HexStatus | undefined): SpeechModelOption[] {
 }
 
 /**
- * Speech sources contributed by integrations. A key is present only while that
- * integration is on (its status may still be loading); absent → it offers nothing.
+ * Keyless speech sources: Kasset's own engine (always present once its model
+ * list loads) and integrations, each present only while that integration is
+ * on (its status may still be loading); absent → it offers nothing.
  */
-export interface IntegrationSpeech {
+export interface SpeechSources {
+  onDevice?: { models: LocalModel[] };
   hex?: { status: HexStatus | undefined };
   appleSpeech?: { status: AppleSpeechStatus | undefined };
+}
+
+/** Kasset's engine: every curated model; one not downloaded yet shows its size. */
+function onDeviceOptions(models: LocalModel[]): SpeechModelOption[] {
+  const { provider } = TRANSCRIPTION_CONFIG.onDevice;
+  return models.map((m) => ({
+    provider,
+    model: m.id,
+    label: m.name,
+    ready: m.installed,
+    hint: m.installed ? null : formatFileSize(m.bytes),
+  }));
 }
 
 function appleSpeechOptions(status: AppleSpeechStatus | undefined): SpeechModelOption[] {
@@ -104,16 +120,17 @@ function appleSpeechOptions(status: AppleSpeechStatus | undefined): SpeechModelO
 
 /**
  * Every speech model in picker order: curated cloud models, local speech models,
- * models the user ticked "Audio input" for, then integrations that are on. The
- * first entry per selection wins (curated labels).
+ * models the user ticked "Audio input" for, Kasset's own engine, then
+ * integrations that are on. The first entry per selection wins (curated labels).
  */
-export function speechModelOptions(providers: ModelProvider[], integrations: IntegrationSpeech): SpeechModelOption[] {
+export function speechModelOptions(providers: ModelProvider[], sources: SpeechSources): SpeechModelOption[] {
   const options = [
     ...cloudOptions(providers),
     ...providerOptions(providers, isLocalSpeechModel),
     ...providerOptions(providers, isTickedAudioModel),
-    ...(integrations.appleSpeech ? appleSpeechOptions(integrations.appleSpeech.status) : []),
-    ...(integrations.hex ? hexOptions(integrations.hex.status) : []),
+    ...(sources.onDevice ? onDeviceOptions(sources.onDevice.models) : []),
+    ...(sources.appleSpeech ? appleSpeechOptions(sources.appleSpeech.status) : []),
+    ...(sources.hex ? hexOptions(sources.hex.status) : []),
   ];
   return uniqueBySelection(options);
 }
@@ -132,12 +149,15 @@ function uniqueBySelection(options: SpeechModelOption[]): SpeechModelOption[] {
 export function isSpeechSelectionReady(
   selection: SpeechSelection | null,
   providers: ModelProvider[],
-  integrations: IntegrationSpeech,
+  sources: SpeechSources,
 ): boolean {
   if (!selection || !adapterFor(selection, providers)) return false;
-  if (selection.provider === hexProvider) return !!integrations.hex && installedHexModels(integrations.hex.status).length > 0;
+  if (selection.provider === hexProvider) return !!sources.hex && installedHexModels(sources.hex.status).length > 0;
   if (selection.provider === TRANSCRIPTION_CONFIG.appleSpeech.provider) {
-    return !!integrations.appleSpeech && isAppleSpeechReady(integrations.appleSpeech.status);
+    return !!sources.appleSpeech && isAppleSpeechReady(sources.appleSpeech.status);
+  }
+  if (selection.provider === TRANSCRIPTION_CONFIG.onDevice.provider) {
+    return !!sources.onDevice?.models.some((m) => m.id === selection.model && m.installed);
   }
   return keyHint(selection.provider, providers) === null;
 }

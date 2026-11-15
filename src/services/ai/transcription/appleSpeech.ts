@@ -4,10 +4,11 @@
  * Permission and model download are handled in Integrations › Apple Intelligence.
  */
 
-import { invoke } from '@tauri-apps/api/core';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
-import { appleIntelligence, isAppleError, type AppleSpeechSegment, type AppleSpeechStatus } from '@services/ai/apple/appleIntelligence.service';
+import { appleIntelligence, isAppleError, type AppleSpeechStatus } from '@services/ai/apple/appleIntelligence.service';
+import { transcribeNatively } from './native';
 import type { TranscribePart } from './types';
+import { errorMessage } from '@shared/utils/errors';
 
 /** Ready to transcribe: available, allowed, and the language model downloaded. */
 export function isAppleSpeechReady(status: AppleSpeechStatus | undefined): boolean {
@@ -26,7 +27,7 @@ export const getAppleSpeechStatus = (): Promise<AppleSpeechStatus> =>
   appleIntelligence.speechStatus(TRANSCRIPTION_CONFIG.language);
 
 function appleSpeechErrorMessage(error: unknown): string {
-  if (!isAppleError(error)) return error instanceof Error ? error.message : String(error);
+  if (!isAppleError(error)) return errorMessage(error);
   switch (error.code) {
     case 'not-authorized': return 'Speech Recognition is off for Kasset. Allow it in Settings › Integrations › Apple Intelligence.';
     case 'model-not-ready': return 'The Apple speech model isn\'t downloaded. Download it in Settings › Integrations › Apple Intelligence.';
@@ -37,16 +38,8 @@ function appleSpeechErrorMessage(error: unknown): string {
 }
 
 /** One WAV part → text with timestamps (Rust writes a temporary file for SpeechAnalyzer). */
-export const appleSpeechTranscribePart: TranscribePart = async ({ wav }) => {
-  try {
-    const segments = await invoke<AppleSpeechSegment[]>('plugin:apple-intelligence|speech_transcribe', wav, {
-      headers: { 'x-language': TRANSCRIPTION_CONFIG.language },
+export const appleSpeechTranscribePart: TranscribePart = ({ wav }) =>
+  transcribeNatively('plugin:apple-intelligence|speech_transcribe', wav, { 'x-language': TRANSCRIPTION_CONFIG.language })
+    .catch((error: unknown) => {
+      throw new Error(appleSpeechErrorMessage(error), { cause: error });
     });
-    return {
-      text: segments.map((s) => s.text).join(' ').trim(),
-      segments: segments.map((s) => ({ text: s.text, startSecond: s.start, endSecond: s.end })),
-    };
-  } catch (error: unknown) {
-    throw new Error(appleSpeechErrorMessage(error), { cause: error });
-  }
-};

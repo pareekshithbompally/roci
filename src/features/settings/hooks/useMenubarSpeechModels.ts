@@ -1,38 +1,36 @@
 /**
- * Keeps the tray's Speech Model submenu in step with Hex's downloaded models
- * (only while the Hex integration is on — same gated options as Settings › Capabilities)
- * and the selected speech engine (Hex: `status_item::update_transcription`).
+ * Keeps the tray's Speech Model submenu in step with the speech models that
+ * run without a key and are ready now (this Mac's engine, Apple Speech, Hex —
+ * the same options as Settings › Capabilities), and the selected one.
  *
  * The tray is backend-owned, so it can't read the app's settings: this hook
- * reports the list it should show. Picking a row comes back as
- * `speech_model:<id>` and is applied in `App.tsx`.
+ * reports the list it should show. Each row's id is the selection key
+ * (`provider::model`); picking one comes back as `speech_model:<key>` and is
+ * applied in `App.tsx` after `freshSpeechSources` confirms it's still ready.
  */
 
 import { useEffect, useMemo } from 'react';
 import { isTauriEnvironment, menubarService, type MenubarSpeechModel } from '@services/tauri';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useSpeechModelOptions } from './useSpeechModels';
+import { speechSelectionKey, speechSelectionOf, type SpeechModelOption } from '@services/ai/transcription';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
+import { useSpeechModelOptions } from './useSpeechModels';
+
+const { hexProvider, keylessProviders } = TRANSCRIPTION_CONFIG;
 
 export function useMenubarSpeechModels(): void {
   const { settings } = useSettings();
   const options = useSpeechModelOptions();
 
   const models = useMemo<MenubarSpeechModel[]>(() => {
-    const installed = options
-      .filter((o) => o.provider === TRANSCRIPTION_CONFIG.hexProvider && o.ready)
-      .map((o) => ({ id: o.model, name: o.label }));
-    // The Hex engine falls back to the first downloaded model when no
-    // specific one was chosen (see `defaultHexModel` in services/ai/transcription).
-    const selectedId = settings.transcriptionProvider === TRANSCRIPTION_CONFIG.hexProvider
-      ? settings.transcriptionModel || installed[0]?.id
-      : undefined;
-    return installed.map((model) => ({
-      id: model.id,
-      name: model.name,
-      selected: model.id === selectedId,
-    }));
-  }, [options, settings.transcriptionProvider, settings.transcriptionModel]);
+    const ready = options.filter((o) => o.ready && keylessProviders.includes(o.provider));
+    const selection = speechSelectionOf(settings);
+    // Hex with no model chosen uses its first downloaded one (`defaultHexModel`).
+    const firstHex = ready.find((o) => o.provider === hexProvider);
+    const isSelected = (o: SpeechModelOption) =>
+      selection?.provider === o.provider && (selection.model === o.model || (!selection.model && o === firstHex));
+    return ready.map((o) => ({ id: speechSelectionKey(o), name: o.label, selected: isSelected(o) }));
+  }, [options, settings]);
 
   useEffect(() => {
     if (!isTauriEnvironment()) return;

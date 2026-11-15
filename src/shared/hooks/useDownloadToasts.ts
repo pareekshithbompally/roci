@@ -4,14 +4,15 @@
  * Finder; or a plain error. Mount once.
  */
 
-import { useEffect } from 'react';
-import { onDownloadFinished } from '@services/tauri';
+import { DOWNLOAD_FINISHED_EVENT } from '@config/window.config';
 import { showToast } from '@shared/ui';
 import { toastSavedFile } from '@shared/utils/savedFileToast';
+import type { FinishedDownload } from '@services/tauri';
+import { useTauriEvent } from './useTauriEvent';
 
 export function useDownloadToasts(): void {
-  useEffect(() => onDownloadFinished(({ path, success }) => {
+  useTauriEvent<FinishedDownload>(DOWNLOAD_FINISHED_EVENT, ({ path, success }) => {
     if (success && path) toastSavedFile(path);
     else showToast('Couldn’t download the file', 'error');
-  }), []);
+  });
 }

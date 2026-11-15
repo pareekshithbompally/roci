@@ -1,0 +1,209 @@
+//! The warm engine: one transcribe.cpp model loaded at a time, reloaded when
+//! another model is asked for, and dropped after an idle period so its memory
+//! goes back to the system. Calls are blocking; run them off the async runtime.
+
+use std::io::Cursor;
+use std::ops::Range;
+use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, Once};
+
+use serde::Serialize;
+use transcribe_cpp::{DeviceType, Model, RunOptions, Session, SessionOptions};
+
+use crate::models::LocalError;
+
+/// The engine's input: 16 kHz mono (the pipeline sends 16-bit PCM WAV at this rate).
+const SAMPLE_RATE: usize = 16_000;
+/// A cut between windows lands on the quietest 20 ms in the window's last 3 s.
+const CUT_FRAME: usize = SAMPLE_RATE / 50;
+const CUT_SEARCH: usize = 3 * SAMPLE_RATE;
+
+/// One timed piece of text, in seconds from the start of the audio.
+#[derive(Debug, Serialize)]
+pub struct TimedText {
+    pub text: String,
+    pub start: f64,
+    pub end: f64,
+}
+
+struct Loaded {
+    id: &'static str,
+    session: Session,
+    /// Longest audio per run in samples; 0 = no limit (the family chunks itself).
+    max_samples: usize,
+}
+
+#[derive(Default)]
+pub struct Engine {
+    loaded: Mutex<Option<Loaded>>,
+    /// Bumped by every call, so an idle timer only unloads if nothing ran since.
+    generation: AtomicU64,
+}
+
+impl Engine {
+    /// Marks activity; the returned generation is what an idle timer checks.
+    pub fn touch(&self) -> u64 {
+        self.generation.fetch_add(1, Ordering::SeqCst) + 1
+    }
+
+    pub fn unload_if_idle(&self, generation: u64) {
+        if self.generation.load(Ordering::SeqCst) == generation {
+            self.unload();
+        }
+    }
+
+    fn unload(&self) {
+        self.loaded.lock().unwrap_or_else(|e| e.into_inner()).take();
+    }
+
+    /// Lets go of a model about to be deleted (no-op when another is warm).
+    pub fn forget(&self, id: &str) {
+        let mut loaded = self.loaded.lock().unwrap_or_else(|e| e.into_inner());
+        if loaded.as_ref().is_some_and(|l| l.id == id) {
+            loaded.take();
+        }
+    }
+
+    /// Transcribes 16 kHz mono samples with the model at `path` (loaded if needed).
+    pub fn transcribe(&self, id: &'static str, path: &Path, pcm: &[f32], language: &str) -> Result<Vec<TimedText>, LocalError> {
+        let mut guard = self.loaded.lock().unwrap_or_else(|e| e.into_inner());
+        if guard.as_ref().map(|l| l.id) != Some(id) {
+            guard.take();
+            *guard = Some(load(id, path)?);
+        }
+        let loaded = guard.as_mut().ok_or(LocalError::NotDownloaded)?;
+        let options = RunOptions { language: Some(language.to_string()), ..RunOptions::default() };
+        let mut out = Vec::new();
+        for window in windows(pcm, loaded.max_samples) {
+            let span = (seconds(window.start), seconds(window.end));
+            let transcript = loaded.session.run(&pcm[window], &options).map_err(engine_error)?;
+            out.extend(timed(transcript, span));
+        }
+        Ok(out)
+    }
+}
+
+/// 16-bit PCM WAV at the engine's rate, mono → samples in [-1, 1].
+pub fn decode_wav(bytes: &[u8]) -> Result<Vec<f32>, LocalError> {
+    let reader = hound::WavReader::new(Cursor::new(bytes)).map_err(|e| LocalError::BadInput(e.to_string()))?;
+    let spec = reader.spec();
+    if spec.channels != 1 || spec.sample_rate as usize != SAMPLE_RATE || spec.bits_per_sample != 16 {
+        return Err(LocalError::BadInput(format!("expected 16 kHz mono 16-bit, got {spec:?}")));
+    }
+    reader
+        .into_samples::<i16>()
+        .map(|s| s.map(|v| f32::from(v) / f32::from(i16::MAX)))
+        .collect::<Result<_, _>>()
+        .map_err(|e| LocalError::BadInput(e.to_string()))
+}
+
+fn load(id: &'static str, path: &Path) -> Result<Loaded, LocalError> {
+    static LOGGING: Once = Once::new();
+    LOGGING.call_once(transcribe_cpp::init_logging);
+    let model = Model::load(path).map_err(engine_error)?;
+    let max_ms = model.capabilities().map_err(engine_error)?.max_audio_ms.max(0) as usize;
+    // On a GPU only the per-token decoder runs on the CPU; extra ggml worker
+    // threads spin and stall it (Hex's session_options).
+    let on_gpu = model.device().is_ok_and(|d| matches!(d.device_type, DeviceType::Gpu | DeviceType::Igpu));
+    let session_options = SessionOptions { n_threads: if on_gpu { 1 } else { 0 }, ..SessionOptions::default() };
+    let session = model.session_with(&session_options).map_err(engine_error)?;
+    log::info!("[stt] loaded {id} on {} (max {max_ms} ms per run)", model.backend());
+    Ok(Loaded { id, session, max_samples: max_ms * SAMPLE_RATE / 1000 })
+}
+
+fn engine_error(error: transcribe_cpp::Error) -> LocalError {
+    LocalError::Engine(error.to_string())
+}
+
+fn seconds(sample: usize) -> f64 {
+    sample as f64 / SAMPLE_RATE as f64
+}
+
+/// Timed segments shifted onto the audio's clock. A model that returns text
+/// without timing (Cohere) gives one piece spanning its window.
+fn timed(transcript: transcribe_cpp::Transcript, (start, end): (f64, f64)) -> Vec<TimedText> {
+    let at = |ms: i64| start + ms as f64 / 1000.0;
+    let segments: Vec<TimedText> = transcript
+        .segments
+        .into_iter()
+        .filter(|s| s.t1_ms > s.t0_ms && !s.text.trim().is_empty())
+        .map(|s| TimedText { text: s.text.trim().to_string(), start: at(s.t0_ms), end: at(s.t1_ms) })
+        .collect();
+    let text = transcript.text.trim();
+    if !segments.is_empty() || text.is_empty() {
+        return segments;
+    }
+    vec![TimedText { text: text.to_string(), start, end }]
+}
+
+/// The audio as runs the model accepts: whole when it has no limit, else
+/// windows of at most `max` samples, each cut at a quiet moment.
+fn windows(pcm: &[f32], max: usize) -> Vec<Range<usize>> {
+    if max == 0 || pcm.len() <= max {
+        return vec![0..pcm.len()];
+    }
+    let mut out = Vec::new();
+    let mut start = 0;
+    while pcm.len() - start > max {
+        let end = quietest_cut(pcm, start + max.saturating_sub(CUT_SEARCH).max(1), start + max);
+        out.push(start..end);
+        start = end;
+    }
+    out.push(start..pcm.len());
+    out
+}
+
+/// The start of the lowest-energy frame in `from..to`.
+fn quietest_cut(pcm: &[f32], from: usize, to: usize) -> usize {
+    (from..to.saturating_sub(CUT_FRAME).max(from + 1))
+        .step_by(CUT_FRAME)
+        .min_by(|&a, &b| energy(&pcm[a..a + CUT_FRAME]).total_cmp(&energy(&pcm[b..b + CUT_FRAME])))
+        .unwrap_or(to)
+}
+
+fn energy(frame: &[f32]) -> f32 {
+    frame.iter().map(|s| s * s).sum()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn wav(rate: u32, channels: u16) -> Vec<u8> {
+        let spec = hound::WavSpec { channels, sample_rate: rate, bits_per_sample: 16, sample_format: hound::SampleFormat::Int };
+        let mut out = Cursor::new(Vec::new());
+        let mut writer = hound::WavWriter::new(&mut out, spec).unwrap();
+        for sample in [0i16, i16::MAX, -i16::MAX, 0] {
+            writer.write_sample(sample).unwrap();
+        }
+        writer.finalize().unwrap();
+        out.into_inner()
+    }
+
+    #[test]
+    fn decodes_16k_mono_only() {
+        assert_eq!(decode_wav(&wav(16_000, 1)).unwrap(), vec![0.0, 1.0, -1.0, 0.0]);
+        assert!(decode_wav(&wav(48_000, 1)).is_err());
+        assert!(decode_wav(&wav(16_000, 2)).is_err());
+    }
+
+    #[test]
+    fn short_audio_is_one_window() {
+        assert_eq!(windows(&[0.0; 100], 0), vec![0..100]);
+        assert_eq!(windows(&[0.0; 100], 200), vec![0..100]);
+    }
+
+    #[test]
+    fn long_audio_is_cut_at_the_quiet_moment() {
+        let max = 10 * SAMPLE_RATE;
+        let mut pcm = vec![0.5f32; 25 * SAMPLE_RATE];
+        let silence = 8 * SAMPLE_RATE;
+        pcm[silence..silence + CUT_FRAME].fill(0.0);
+        let windows = windows(&pcm, max);
+        assert_eq!(windows[0], 0..silence);
+        assert!(windows.iter().all(|w| w.len() <= max));
+        assert_eq!(windows.last().unwrap().end, pcm.len());
+    }
+}
+

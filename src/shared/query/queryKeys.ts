@@ -11,6 +11,8 @@ export const queryKeys = {
   permissions: () => ['permissions'] as const,
   /** Running Hex app: whether it answers and its models (transcription engine) */
   hexStatus: () => ['hex-status'] as const,
+  /** Kasset's curated on-device models (src-tauri/src/models): speech and voice, which are downloaded */
+  localModels: () => ['local-models'] as const,
   /** Apple Speech on this Mac: available, Speech Recognition allowed, language model downloaded */
   appleSpeechStatus: () => ['apple-speech-status'] as const,
   /** Apple Intelligence language model availability (Integrations row) */
