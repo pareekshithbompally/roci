@@ -219,29 +219,33 @@ impl MeetingDetector {
 
     /// Whether `candidate` is the offered call: the same key, or the same app.
     fn snoozes(&self, candidate: &MeetingCandidate) -> bool {
-        self.offered.as_deref() == Some(&candidate.key)
-            || (candidate.application.is_some()
-                && self.offered_application == candidate.application)
-    }
-
-    fn end_snooze(&mut self) {
-        self.offered = None;
-        self.offered_application = None;
-        self.stopped = false;
-        self.timed_out = false;
+        if self.offered.as_deref() == Some(&candidate.key) {
+            return true;
+        }
+        candidate.application.is_some() && self.offered_application == candidate.application
     }
 
     /// No candidate is on the microphone: the snooze ends once that has
     /// lasted long enough.
     fn absent_at(&mut self, now: Instant) {
         let since = *self.last_present.get_or_insert(now);
+        if self.timed_out {
+            self.offered = None;
+            self.offered_application = None;
+            self.stopped = false;
+            self.timed_out = false;
+            return;
+        }
         let reset_after = if self.stopped {
             CALL_ENDED_AFTER
         } else {
             ABSENT_FOR_RESET
         };
-        if self.timed_out || now.saturating_duration_since(since) >= reset_after {
-            self.end_snooze();
+        if now.saturating_duration_since(since) >= reset_after {
+            self.offered = None;
+            self.offered_application = None;
+            self.stopped = false;
+            self.timed_out = false;
         }
     }
 
@@ -251,7 +255,7 @@ impl MeetingDetector {
         self.detect_at(
             candidate,
             Instant::now(),
-            crate::meeting_reminders::scheduler::wall_clock_ms(),
+            crate::meeting_reminders::wall_clock_ms(),
         )
     }
 

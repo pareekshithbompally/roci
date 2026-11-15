@@ -9,7 +9,7 @@
 //! app handles the answer: Join opens the call link, and Record or Join emits
 //! [`RECORD_EVENT`] with the event for the frontend's existing recording start.
 
-pub(crate) mod scheduler;
+mod scheduler;
 
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard, OnceLock};
@@ -21,8 +21,9 @@ use tauri_plugin_calendar::types::CalendarEvent;
 use tauri_plugin_notifications::{self as notifications, Action, Category, Notice, Response};
 
 use crate::audio::commands::is_recording;
+pub(crate) use scheduler::wall_clock_ms;
 use scheduler::{
-    current_for_call, meetings, minutes_until, wall_clock_ms, CalendarMeeting, ReminderScheduler, ReminderUpdate,
+    current_for_call, meetings, minutes_until, CalendarMeeting, ReminderScheduler, ReminderUpdate,
 };
 
 /// Frontend: start recording this meeting (`CalendarEvent`).
