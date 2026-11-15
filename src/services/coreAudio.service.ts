@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { readFile } from '@tauri-apps/plugin-fs'
 import type { AudioCaptureSource } from '@config/audio.config'
 import type { PermissionKind } from '@services/permissions.service'
+import { isCodedError } from '@shared/utils/errors'
 
 export interface AudioCaptureOptions {
   source: AudioCaptureSource
@@ -29,9 +30,7 @@ export type CaptureError =
   | { code: 'permission'; kind: PermissionKind }
   | { code: 'capture'; message: string }
 
-function isCaptureError(error: unknown): error is CaptureError {
-  return typeof error === 'object' && error !== null && 'code' in error
-}
+const isCaptureError = (error: unknown): error is CaptureError => isCodedError<CaptureError>(error)
 
 /** A start refused for a missing permission: open the checklist, no error toast. */
 export function isPermissionRefusal(error: unknown): boolean {

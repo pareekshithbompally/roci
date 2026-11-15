@@ -8,6 +8,7 @@
 
 import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
 import { chatService } from '@services/chat.service';
+import { errorMessage } from '@shared/utils/errors';
 
 export const listChatsTool: ToolDefinition = {
   name: 'list_chats',
@@ -39,7 +40,7 @@ export const listChatsTool: ToolDefinition = {
     } catch (error) {
       return {
         toolCallId: '',
-        content: `Failed to list chats: ${error instanceof Error ? error.message : String(error)}`,
+        content: `Failed to list chats: ${errorMessage(error)}`,
         isError: true,
         meta: { toolName: 'list_chats', executionMs: 0 },
       };

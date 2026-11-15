@@ -10,6 +10,7 @@ import { mcpHostService } from '@services/mcpHost.service';
 import { serveTools } from '@extensions/tools/mcp-host';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
+import { failureLogger } from '@shared/utils/errors';
 
 export function useMcpHostRuntime(): void {
   useEffect(() => {
@@ -17,7 +18,7 @@ export function useMcpHostRuntime(): void {
     const stops: Array<() => void> = [];
     let cancelled = false;
     const keep = (stop: () => void) => (cancelled ? stop() : stops.push(stop));
-    const report = (action: string) => (error: unknown) => console.error(`[useMcpHostRuntime] ${action} failed:`, error);
+    const report = failureLogger('useMcpHostRuntime');
 
     serveTools().then(keep).catch(report('serve tools'));
     mcpHostService

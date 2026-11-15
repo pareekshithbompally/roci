@@ -16,6 +16,7 @@ import { isIntegrationEnabled } from '@shared/utils/integrations';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { useHexSyncStore } from '@features/integrations/stores/hexSyncStore';
 import { notifyAppEvent } from '@shared/utils/appEvents';
+import { failureLogger } from '@shared/utils/errors';
 
 /** Meetings that arrived from Hex, as a background notification. */
 function notifyImported(count: number): void {
@@ -55,7 +56,7 @@ export function useHexRuntime(): void {
   useEffect(() => {
     if (!isTauriEnvironment() || !enabled) return;
     const store = useHexSyncStore.getState();
-    const report = (action: string) => (error: unknown) => console.error(`[useHexRuntime] ${action} failed:`, error);
+    const report = failureLogger('useHexRuntime');
 
     hexMeetings.watch(true).catch(report('start watcher'));
     void runHexCatchUp();

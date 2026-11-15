@@ -15,9 +15,9 @@ import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { openNative } from '@features/integrations/utils/openNative';
 import type { ChoiceSetup } from '@shared/utils/modelResolver';
 import { useAppleSpeechStatus } from './useIntegrationSpeech';
+import { failureLogger } from '@shared/utils/errors';
 
-const report = (action: string) => (error: unknown) =>
-  console.error(`[useAppleSpeechSetup] ${action} failed:`, error);
+const report = failureLogger('useAppleSpeechSetup');
 
 export function useAppleSpeechSetup(): ChoiceSetup | null {
   const queryClient = useQueryClient();

@@ -11,6 +11,7 @@ import { store } from '@services/db';
 import { GENERAL_MEETING_TITLE } from '@features/chat';
 import { MAX_ACTION_ITEM_MEETINGS, MAX_ACTION_ITEMS_FOR_LLM } from '@extensions/tools/constants';
 import type { HistoryItem, ActionItem } from '@shared/types';
+import { errorMessage } from '@shared/utils/errors';
 
 interface MeetingActions {
   title: string;
@@ -69,7 +70,7 @@ export const getActionItemsTool: ToolDefinition = {
       console.error('[GetActionItemsTool] Failed to load action items:', error);
       return {
         toolCallId: '',
-        content: `Failed to load action items: ${error instanceof Error ? error.message : String(error)}`,
+        content: `Failed to load action items: ${errorMessage(error)}`,
         isError: true,
         meta: { toolName: 'get_action_items', executionMs: 0 },
       };

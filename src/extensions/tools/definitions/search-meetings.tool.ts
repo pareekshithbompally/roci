@@ -11,6 +11,7 @@ import { ragSearcher } from '@extensions/rag/searcher';
 import { ragIndexer } from '@extensions/rag/indexer';
 import { vectorDB } from '@extensions/rag/client';
 import { SCORE_HIGH, SCORE_MEDIUM } from '@extensions/rag/constants';
+import { errorMessage } from '@shared/utils/errors';
 
 export const searchMeetingsTool: ToolDefinition = {
   name: 'search_meetings',
@@ -55,7 +56,7 @@ export const searchMeetingsTool: ToolDefinition = {
       console.error('[SearchMeetingsTool] Search failed:', error);
       return {
         toolCallId: '',
-        content: `Search failed: ${error instanceof Error ? error.message : String(error)}`,
+        content: `Search failed: ${errorMessage(error)}`,
         isError: true,
         meta: { toolName: 'search_meetings', executionMs: 0 },
       };

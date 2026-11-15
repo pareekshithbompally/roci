@@ -8,6 +8,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from '@services/tauri';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import type { TranscribePart } from './types';
+import { errorMessage, isCodedError } from '@shared/utils/errors';
 
 /** Mirrors the Rust `HexModel`. */
 export interface HexModel {
@@ -39,13 +40,9 @@ export function installedHexModels(status: HexStatus | undefined): HexModel[] {
   return status?.models.filter((m) => m.installed) ?? [];
 }
 
-function isHexError(error: unknown): error is HexErrorPayload {
-  return typeof error === 'object' && error !== null && 'code' in error;
-}
-
 /** User-facing message for a Hex refusal; anything else passes through. */
 export function hexErrorMessage(error: unknown, model: string): string {
-  if (!isHexError(error)) return error instanceof Error ? error.message : String(error);
+  if (!isCodedError<HexErrorPayload>(error)) return errorMessage(error);
   switch (error.code) {
     case 'not-running': return "Hex isn't running. Open Hex, then retry.";
     case 'not-installed': return "Hex isn't installed in Applications.";

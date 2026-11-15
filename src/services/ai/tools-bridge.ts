@@ -14,6 +14,7 @@ import type { ToolSet } from 'ai';
 import type { ToolContext, ToolDefinition, ToolResult } from '@extensions/tools/types';
 import type { ToolActivity } from '@extensions/tool-orchestrator/types';
 import { MAX_TOOL_RESULT_CHARS, TOOL_TIMEOUT_MS } from '@extensions/tools/constants';
+import { errorMessage } from '@shared/utils/errors';
 
 // ── Friendly labels for UI activity indicators ──
 
@@ -82,7 +83,7 @@ export async function runTool(
       meta: { ...result.meta, toolName: definition.name, executionMs: performance.now() - start },
     };
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     console.error(`[ToolBridge] ${definition.name} failed:`, error);
     return {
       toolCallId: callId,

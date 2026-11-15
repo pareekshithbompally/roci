@@ -16,6 +16,7 @@ import { isTauriEnvironment } from '@services/tauri';
 import { queryKeys } from '@shared/query/queryKeys';
 import { MCP_CONFIG } from '@config/mcp.config';
 import type { McpConfig } from '@config/mcp.config';
+import { errorMessage } from '@shared/utils/errors';
 
 export function useMcpConfig() {
   return useQuery({
@@ -96,7 +97,7 @@ async function connect(next: McpConfig, names: string[]): Promise<{ saved: McpCo
       await mcpService.activate(name, server);
     } catch (error: unknown) {
       mcpServers[name] = { ...server, active: false };
-      failures.push(`${name}: ${error instanceof Error ? error.message : String(error)}`);
+      failures.push(`${name}: ${errorMessage(error)}`);
     }
   }
   return { saved: { ...next, mcpServers }, failures };

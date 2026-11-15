@@ -7,6 +7,7 @@
 import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
 import { chatService } from '@services/chat.service';
 import { MAX_CHAT_MESSAGES_FOR_LLM } from '@extensions/tools/constants';
+import { errorMessage } from '@shared/utils/errors';
 
 export const getChatTool: ToolDefinition = {
   name: 'get_chat',
@@ -34,7 +35,7 @@ export const getChatTool: ToolDefinition = {
     } catch (error) {
       return {
         toolCallId: '',
-        content: `Failed to load chat: ${error instanceof Error ? error.message : String(error)}`,
+        content: `Failed to load chat: ${errorMessage(error)}`,
         isError: true,
         meta: { toolName: 'get_chat', executionMs: 0 },
       };

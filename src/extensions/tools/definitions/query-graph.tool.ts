@@ -12,6 +12,7 @@
 import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
 import { graphDB } from '@extensions/rag/graph-client';
 import type { GraphNode, TraversalResult } from '@extensions/rag/graph-types';
+import { errorMessage } from '@shared/utils/errors';
 
 export const queryGraphTool: ToolDefinition = {
   name: 'query_graph',
@@ -134,7 +135,7 @@ export const queryGraphTool: ToolDefinition = {
       }
     } catch (error) {
       console.error('[QueryGraphTool] Failed:', error);
-      return errorResult(`Graph query failed: ${error instanceof Error ? error.message : String(error)}`);
+      return errorResult(`Graph query failed: ${errorMessage(error)}`);
     }
   },
 };

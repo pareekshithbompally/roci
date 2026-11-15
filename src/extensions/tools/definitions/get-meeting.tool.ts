@@ -8,6 +8,7 @@
 import type { ToolDefinition, ToolResult, MeetingCitation } from '@extensions/tools/types';
 import { meetingReferenceService } from '@services/meetingReferenceService';
 import type { MeetingField } from '@services/meetingReferenceService';
+import { errorMessage } from '@shared/utils/errors';
 
 const VALID_FIELDS: MeetingField[] = ['summary', 'transcript', 'notes', 'actionItems'];
 
@@ -71,7 +72,7 @@ export const getMeetingTool: ToolDefinition = {
       console.error('[GetMeetingTool] Failed to load meeting:', error);
       return {
         toolCallId: '',
-        content: `Failed to load meeting data: ${error instanceof Error ? error.message : String(error)}`,
+        content: `Failed to load meeting data: ${errorMessage(error)}`,
         isError: true,
         meta: { toolName: 'get_meeting', executionMs: 0 },
       };

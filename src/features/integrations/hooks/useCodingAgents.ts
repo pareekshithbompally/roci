@@ -10,6 +10,7 @@ import { useToast } from '@shared/contexts/ToastContext';
 import { isTauriEnvironment } from '@services/tauri';
 import { mcpHostService } from '@services/mcpHost.service';
 import type { CodingAgentId, CodingAgentStatus, McpHostStatus } from '@services/mcpHost.service';
+import { errorMessage } from '@shared/utils/errors';
 
 interface SetVars {
   id: CodingAgentId;
@@ -45,7 +46,7 @@ export function useCodingAgents(): CodingAgents {
     },
     onError: (error: unknown, _vars, context) => {
       queryClient.setQueryData(key, context?.previous);
-      showToast(error instanceof Error ? error.message : String(error), 'error');
+      showToast(errorMessage(error), 'error');
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
   });

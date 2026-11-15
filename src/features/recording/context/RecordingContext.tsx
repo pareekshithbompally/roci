@@ -42,6 +42,7 @@ import type {
   RecordingSession,
   RecordingSessionsContextValue,
 } from '@features/recording/types';
+import { errorMessage } from '@shared/utils/errors';
 
 const initialState: RecordingState = {
   status: 'idle',
@@ -797,16 +798,16 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
 
     } catch (error: unknown) {
       abortControllerRefs.current.delete(sessionId);
-      const message = error instanceof Error ? error.message : String(error);
+      const message = errorMessage(error);
 
       if (message === 'Processing aborted by user') {
         updateSession(sessionId, { status: 'review', error: null });
         return;
       }
 
-      const errorMessage = message || 'Failed to process recording';
-      updateSession(sessionId, { status: 'review', error: errorMessage });
-      notifyAppEvent({ id: `recording-ready:${sessionId}`, kind: 'recordingReady', tone: 'error', inFront: 'toast', title: 'Recording not processed', body: errorMessage });
+      const failure = message || 'Failed to process recording';
+      updateSession(sessionId, { status: 'review', error: failure });
+      notifyAppEvent({ id: `recording-ready:${sessionId}`, kind: 'recordingReady', tone: 'error', inFront: 'toast', title: 'Recording not processed', body: failure });
       throw error;
     }
   }, [

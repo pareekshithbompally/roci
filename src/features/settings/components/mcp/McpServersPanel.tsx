@@ -31,8 +31,8 @@ import { AddEditMcpServerDialog } from './AddEditMcpServerDialog';
 import { EditMcpJsonDialog } from './EditMcpJsonDialog';
 import { applyJson, deleteServer, toggleServer, updateSettings, upsertServers } from './mcpConfigEdits';
 import type { McpServerEntry } from './mcpServerForm';
+import { errorMessage } from '@shared/utils/errors';
 
-const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 export const McpServersPanel: React.FC = () => {
   useMcpUpdateListener();

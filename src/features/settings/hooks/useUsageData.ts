@@ -10,6 +10,7 @@ import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-quer
 import { queryKeys } from '@shared/query/queryKeys';
 import { getUsageSummary } from '@extensions/usage';
 import type { UsageSummary } from '@extensions/usage';
+import { errorMessage } from '@shared/utils/errors';
 
 export type TimeRange = '7d' | '30d' | 'all';
 
@@ -45,7 +46,7 @@ export function useUsageData(): UseUsageDataReturn {
   return {
     summary: data ?? null,
     isLoading,
-    error: error ? (error instanceof Error ? error.message : String(error)) : null,
+    error: error ? (errorMessage(error)) : null,
     timeRange,
     setTimeRange,
     refresh: () => {

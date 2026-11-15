@@ -9,6 +9,7 @@ import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
 import { chatSearcher } from '@extensions/rag/chat-searcher';
 import { vectorDB } from '@extensions/rag/client';
 import { SCORE_HIGH, SCORE_MEDIUM } from '@extensions/rag/constants';
+import { errorMessage } from '@shared/utils/errors';
 
 export const searchChatsTool: ToolDefinition = {
   name: 'search_chats',
@@ -47,7 +48,7 @@ export const searchChatsTool: ToolDefinition = {
     } catch (error) {
       return {
         toolCallId: '',
-        content: `Chat search failed: ${error instanceof Error ? error.message : String(error)}`,
+        content: `Chat search failed: ${errorMessage(error)}`,
         isError: true,
         meta: { toolName: 'search_chats', executionMs: 0 },
       };

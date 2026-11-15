@@ -19,6 +19,7 @@ import { queryClient } from '@shared/query/queryClient';
 import { askInNewChat } from '@features/chat';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import type { HistoryItem } from '@shared/types';
+import { failureLogger } from '@shared/utils/errors';
 
 export interface UrlActionHandlers {
   show: () => Promise<void>;
@@ -64,7 +65,7 @@ export function useUrlActionsRuntime(): void {
     if (!isTauriEnvironment() || settingsLoading) return;
     let cancelled = false;
     let unlisten: (() => void) | null = null;
-    const report = (step: string) => (error: unknown) => console.error(`[useUrlActionsRuntime] ${step} failed:`, error);
+    const report = failureLogger('useUrlActionsRuntime');
 
     const start = async () => {
       const stop = await urlActionsService.onAction((action) => {

@@ -14,6 +14,7 @@ import { queryClient } from '@shared/query/queryClient';
 import { meetingsQuery } from '@shared/contexts/HistoryContext';
 import { toolRegistry } from '@extensions/tools';
 import type { ToolDefinition } from './types';
+import { errorMessage } from '@shared/utils/errors';
 
 /** One registry tool in MCP's `tools/list` shape. */
 export function toWireTool(tool: ToolDefinition): McpWireTool {
@@ -54,6 +55,6 @@ async function execute(call: McpHostCall): Promise<{ text: string; isError: bool
     return { text: result.content, isError: result.isError };
   } catch (error: unknown) {
     console.error('[McpHost] could not load meetings for', call.name, error);
-    return { text: `Kasset could not load meetings: ${error instanceof Error ? error.message : String(error)}`, isError: true };
+    return { text: `Kasset could not load meetings: ${errorMessage(error)}`, isError: true };
   }
 }
