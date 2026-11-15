@@ -1,7 +1,7 @@
 /** Every model choice by job; sources are providers, enabled integrations and local models. Sets the defaults. */
 
 import React, { useMemo } from 'react';
-import { AudioLines, MessageSquare, NotebookText, ScanSearch, Volume2, Waypoints, type LucideIcon } from 'lucide-react';
+import { AudioLines, MessageSquare, NotebookText, ScanSearch, Volume2, type LucideIcon } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useOnDeviceModel } from '@shared/hooks/useOnDeviceModel';
 import { ModelDownloadButton, ModelReadyStatus } from '@shared/components';
@@ -20,7 +20,7 @@ import type { LocalModel } from '@services/localModels.service';
 import { LIVE_TRANSCRIPTION_MARK, ModelSelect, SettingsPage } from './shared';
 import { ReadAloudVoiceRow } from './ReadAloudVoiceRow';
 
-const { jobs: JOBS, sameAsChat: SAME_AS_CHAT } = CAPABILITIES_CONFIG;
+const { jobs: JOBS } = CAPABILITIES_CONFIG;
 
 /** A capability row: job icon + title, its description, and its control (picker or download). */
 const CapabilityRow: React.FC<{
@@ -139,14 +139,6 @@ export const CapabilitiesPanel: React.FC = () => {
             value={settings.analyzeModel || settings.chatModel || undefined}
             choices={summaryChoices}
             onChange={(analyzeModel) => setSettings({ analyzeModel })}
-          />
-        </CapabilityRow>
-        <CapabilityRow icon={Waypoints} job={JOBS.knowledgeGraph}>
-          <ModelSelect
-            value={settings.kgExtractionModel || SAME_AS_CHAT.value}
-            choices={chatChoices}
-            leading={[SAME_AS_CHAT]}
-            onChange={(id) => setSettings({ kgExtractionModel: id === SAME_AS_CHAT.value ? '' : id })}
           />
         </CapabilityRow>
       </Section>

@@ -13,8 +13,6 @@ interface ModelSelectProps {
   value: string | undefined;
   choices: ModelChoice[];
   onChange: (value: string) => void;
-  /** Fixed first entries above the models (e.g. "Same as chat"). */
-  leading?: Array<{ value: string; label: string }>;
 }
 
 /** The step a row needs: Download / Allow, or progress while it runs. */
@@ -55,10 +53,9 @@ const Item: React.FC<{ choice: ModelChoice }> = ({ choice }) => (
   </SelectItem>
 );
 
-export const ModelSelect: React.FC<ModelSelectProps> = ({ value, choices, onChange, leading = [] }) => {
+export const ModelSelect: React.FC<ModelSelectProps> = ({ value, choices, onChange }) => {
   const { groups, needsSetup } = useMemo(() => groupChoices(choices), [choices]);
   const selected = choices.find((c) => c.value === value);
-  const selectedLeading = leading.find((l) => l.value === value);
 
   /** A row that needs setup runs its step; the selection stays until it's ready. */
   const choose = (next: string) => {
@@ -70,7 +67,7 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({ value, choices, onChan
     onChange(next);
   };
 
-  if (choices.length === 0 && leading.length === 0) {
+  if (choices.length === 0) {
     return <Text variant="helper" tone="faint">No models yet — add a provider</Text>;
   }
 
@@ -79,17 +76,15 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({ value, choices, onChan
     <Select value={value} onValueChange={choose}>
       <SelectTrigger>
         <SelectValue placeholder="Select model">
-          {selected ? (
+          {selected && (
             <span className="flex items-center gap-2 truncate">
               <ModelIcon provider={selected.provider} modelId={selected.modelId} size={16} />
               <span className="truncate">{selected.label}</span>
             </span>
-          ) : selectedLeading?.label}
+          )}
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
-        {leading.map((l) => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
-        {leading.length > 0 && groups.length > 0 && <SelectSeparator />}
         {groups.map(([provider, items]) => (
           <SelectGroup key={provider}>
             <SelectLabel>{getProviderTitle(provider)}</SelectLabel>
@@ -98,7 +93,7 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({ value, choices, onChan
         ))}
         {needsSetup.length > 0 && (
           <>
-            {(groups.length > 0 || leading.length > 0) && <SelectSeparator />}
+            {groups.length > 0 && <SelectSeparator />}
             <SelectGroup>
               <SelectLabel>Needs setup</SelectLabel>
               {needsSetup.map((c) => <Item key={c.value} choice={c} />)}

@@ -134,7 +134,7 @@ export function withSummaryModels(providers: ModelProvider[], settings: AppSetti
   return isIntegrationEnabled(settings, 'appleIntelligence') ? [...providers, APPLE_INTELLIGENCE_PROVIDER] : providers;
 }
 
-/** The chat model (also knowledge-graph extraction), resolved against the user's providers. */
+/** The chat model, resolved against the user's providers. */
 export function resolveChatModel(settings: AppSettings, providers: ModelProvider[]): ResolvedModel | null {
   return resolveModel(settings.chatModel, providers);
 }

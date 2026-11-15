@@ -204,8 +204,6 @@ export interface AppSettings {
   chatModel: string;
   /** LLM model for the Analyze phase — produces the structured meeting summary (Overview tab). */
   analyzeModel?: string;
-  /** Model used for KG entity extraction during rebuild. Falls back to chatModel if unset. */
-  kgExtractionModel?: string;
   apiKey?: string;
   defaultAudioSource?: AudioCaptureSource;
   jobProcessing?: {
