@@ -1,3 +1,4 @@
+mod changes;
 mod commands;
 #[cfg(test)]
 mod consistency;
@@ -7,6 +8,8 @@ mod schema;
 mod search;
 mod spotlight;
 
+pub use changes::{meeting_detail, meeting_ids, on_meeting_change, MeetingChange};
+pub use commands::{MeetingDetail, NoteRow, SummaryRow, TodoRow};
 pub use error::StoreError;
 
 use commands::StoreState;

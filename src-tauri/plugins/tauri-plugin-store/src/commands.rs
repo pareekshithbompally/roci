@@ -1,3 +1,4 @@
+use crate::changes::{notify, MeetingChange};
 use crate::error::StoreError;
 use crate::graph;
 use crate::schema;
@@ -683,7 +684,7 @@ pub async fn meetings_list(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-fn meetings_get_impl(db: &Connection, id: &str) -> Result<MeetingDetail, StoreError> {
+pub(crate) fn meetings_get_impl(db: &Connection, id: &str) -> Result<MeetingDetail, StoreError> {
         let meeting: (String, String, Option<String>, bool, Option<String>, Option<String>, i64, i64) = db
             .query_row(
                 "SELECT id, title, input_source, pending_transcription,
@@ -857,6 +858,7 @@ pub async fn meetings_upsert(
     state: State<'_, StoreState>,
     input: MeetingUpsertInput,
 ) -> Result<(), StoreError> {
+    let meeting_id = input.id.clone();
     let conn_arc = Arc::clone(&state.conn);
     tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
@@ -864,7 +866,21 @@ pub async fn meetings_upsert(
         meetings_upsert_impl(db, &input)
     })
     .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))??;
+    notify(MeetingChange::Saved(meeting_id));
+    Ok(())
+}
+
+fn note_meeting_id(db: &Connection, id: &str) -> Result<Option<String>, StoreError> {
+    Ok(db
+        .query_row("SELECT meeting_id FROM notes WHERE id = ?1", [id], |row| row.get(0))
+        .optional()?)
+}
+
+fn todo_meeting_id(db: &Connection, id: &str) -> Result<Option<String>, StoreError> {
+    Ok(db
+        .query_row("SELECT meeting_id FROM todos WHERE id = ?1", [id], |row| row.get(0))
+        .optional()?)
 }
 
 fn meetings_delete_impl(db: &Connection, id: &str) -> Result<MeetingsDeleteResult, StoreError> {
@@ -909,14 +925,17 @@ pub async fn meetings_delete(
     state: State<'_, StoreState>,
     id: String,
 ) -> Result<MeetingsDeleteResult, StoreError> {
+    let deleted_id = id.clone();
     let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
+    let result = tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
         meetings_delete_impl(db, &id)
     })
     .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))??;
+    notify(MeetingChange::Deleted(deleted_id));
+    Ok(result)
 }
 
 fn save_transcription_impl(db: &Connection, input: &TranscriptionSaveInput) -> Result<(), StoreError> {
@@ -1053,6 +1072,7 @@ pub async fn save_transcription(
     state: State<'_, StoreState>,
     input: TranscriptionSaveInput,
 ) -> Result<(), StoreError> {
+    let meeting_id = input.meeting_id.clone();
     let conn_arc = Arc::clone(&state.conn);
     tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
@@ -1060,7 +1080,9 @@ pub async fn save_transcription(
         save_transcription_impl(db, &input)
     })
     .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))??;
+    notify(MeetingChange::Saved(meeting_id));
+    Ok(())
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -1345,6 +1367,7 @@ pub async fn notes_upsert(
     state: State<'_, StoreState>,
     input: NoteUpsertInput,
 ) -> Result<(), StoreError> {
+    let meeting_id = input.meeting_id.clone();
     let conn_arc = Arc::clone(&state.conn);
     tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
@@ -1370,10 +1393,12 @@ pub async fn notes_upsert(
         write_audit_log(&tx, "note", &input.id, op, None)?;
 
         tx.commit()?;
-        Ok(())
+        Ok::<_, StoreError>(())
     })
     .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))??;
+    notify(MeetingChange::Saved(meeting_id));
+    Ok(())
 }
 
 #[tauri::command]
@@ -1382,10 +1407,11 @@ pub async fn notes_delete(
     id: String,
 ) -> Result<(), StoreError> {
     let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
+    let meeting_id = tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
 
+        let meeting_id = note_meeting_id(db, &id)?;
         let tx = db.unchecked_transaction()?;
         let affected = tx.execute("DELETE FROM notes WHERE id = ?1", [&id])?;
         if affected == 0 {
@@ -1393,10 +1419,14 @@ pub async fn notes_delete(
         }
         write_audit_log(&tx, "note", &id, "delete", None)?;
         tx.commit()?;
-        Ok(())
+        Ok::<_, StoreError>(meeting_id)
     })
     .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))??;
+    if let Some(meeting_id) = meeting_id {
+        notify(MeetingChange::Saved(meeting_id));
+    }
+    Ok(())
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -1566,6 +1596,7 @@ pub async fn todos_upsert(
     state: State<'_, StoreState>,
     input: TodoUpsertInput,
 ) -> Result<(), StoreError> {
+    let meeting_id = input.meeting_id.clone();
     let conn_arc = Arc::clone(&state.conn);
     tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
@@ -1573,7 +1604,9 @@ pub async fn todos_upsert(
         todos_upsert_impl(db, &input)
     })
     .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))??;
+    notify(MeetingChange::Saved(meeting_id));
+    Ok(())
 }
 
 fn todos_set_completed_impl(db: &Connection, id: &str, completed: bool) -> Result<(), StoreError> {
@@ -1621,13 +1654,19 @@ pub async fn todos_delete(
     id: String,
 ) -> Result<(), StoreError> {
     let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
+    let meeting_id = tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        todos_delete_impl(db, &id)
+        let meeting_id = todo_meeting_id(db, &id)?;
+        todos_delete_impl(db, &id)?;
+        Ok::<_, StoreError>(meeting_id)
     })
     .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))??;
+    if let Some(meeting_id) = meeting_id {
+        notify(MeetingChange::Saved(meeting_id));
+    }
+    Ok(())
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -3225,6 +3264,24 @@ mod tests {
             },
         )
         .expect("seed todo");
+    }
+
+    #[test]
+    fn note_meeting_id_resolves_before_delete() {
+        let conn = db();
+        seed_meeting(&conn, "m1");
+        seed_note(&conn, "n1", "m1");
+        assert_eq!(note_meeting_id(&conn, "n1").unwrap(), Some("m1".to_string()));
+        assert_eq!(note_meeting_id(&conn, "missing").unwrap(), None);
+    }
+
+    #[test]
+    fn todo_meeting_id_resolves_before_delete() {
+        let conn = db();
+        seed_meeting(&conn, "m1");
+        seed_todo(&conn, "t1", "m1");
+        assert_eq!(todo_meeting_id(&conn, "t1").unwrap(), Some("m1".to_string()));
+        assert_eq!(todo_meeting_id(&conn, "missing").unwrap(), None);
     }
 
     fn audit_ops(conn: &Connection, entity_type: &str, entity_id: &str) -> Vec<String> {
