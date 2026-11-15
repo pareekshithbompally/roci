@@ -9,7 +9,7 @@
 //! app handles the answer: Join opens the call link, and Record or Join emits
 //! [`RECORD_EVENT`] with the event for the frontend's existing recording start.
 
-mod scheduler;
+pub(crate) mod scheduler;
 
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard, OnceLock};
