@@ -3,7 +3,6 @@ mod commands;
 #[cfg(test)]
 mod consistency;
 mod error;
-mod graph;
 mod schema;
 mod search;
 mod spotlight;
@@ -77,9 +76,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::meetings_search,
             commands::get_stale_meetings,
             commands::get_meetings_needing_embeddings,
-            commands::get_meetings_needing_extraction,
             commands::mark_meeting_embedded,
-            commands::mark_meeting_extracted,
             commands::mark_meeting_content_indexed,
             commands::mark_chat_content_indexed,
             // Chat indexing
@@ -93,14 +90,6 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::chats_search,
             // Spotlight
             commands::spotlight_search,
-            // Knowledge graph
-            commands::graph_upsert,
-            commands::graph_traverse,
-            commands::graph_neighbors,
-            commands::graph_search,
-            commands::graph_delete_meeting,
-            commands::graph_stats,
-            commands::graph_extracted_meeting_ids,
             // Usage
             commands::insert_usage,
             commands::get_usage_summary,

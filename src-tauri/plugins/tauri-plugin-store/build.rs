@@ -54,9 +54,7 @@ const COMMANDS: &[&str] = &[
     "meetings_search",
     "get_stale_meetings",
     "get_meetings_needing_embeddings",
-    "get_meetings_needing_extraction",
     "mark_meeting_embedded",
-    "mark_meeting_extracted",
     "mark_meeting_content_indexed",
     // RAG indexing (chat)
     "mark_chat_content_indexed",
@@ -70,14 +68,6 @@ const COMMANDS: &[&str] = &[
     "chats_search",
     // Spotlight
     "spotlight_search",
-    // Knowledge graph
-    "graph_upsert",
-    "graph_traverse",
-    "graph_neighbors",
-    "graph_search",
-    "graph_delete_meeting",
-    "graph_stats",
-    "graph_extracted_meeting_ids",
     // Usage
     "insert_usage",
     "get_usage_summary",

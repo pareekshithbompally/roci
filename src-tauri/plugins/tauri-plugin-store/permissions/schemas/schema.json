@@ -487,18 +487,6 @@
           "markdownDescription": "Denies the get_meetings_needing_embeddings command without any pre-configured scope."
         },
         {
-          "description": "Enables the get_meetings_needing_extraction command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-get-meetings-needing-extraction",
-          "markdownDescription": "Enables the get_meetings_needing_extraction command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the get_meetings_needing_extraction command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-get-meetings-needing-extraction",
-          "markdownDescription": "Denies the get_meetings_needing_extraction command without any pre-configured scope."
-        },
-        {
           "description": "Enables the get_meta command without any pre-configured scope.",
           "type": "string",
           "const": "allow-get-meta",
@@ -545,90 +533,6 @@
           "type": "string",
           "const": "deny-get-usage-summary",
           "markdownDescription": "Denies the get_usage_summary command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the graph_delete_meeting command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-graph-delete-meeting",
-          "markdownDescription": "Enables the graph_delete_meeting command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the graph_delete_meeting command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-graph-delete-meeting",
-          "markdownDescription": "Denies the graph_delete_meeting command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the graph_extracted_meeting_ids command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-graph-extracted-meeting-ids",
-          "markdownDescription": "Enables the graph_extracted_meeting_ids command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the graph_extracted_meeting_ids command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-graph-extracted-meeting-ids",
-          "markdownDescription": "Denies the graph_extracted_meeting_ids command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the graph_neighbors command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-graph-neighbors",
-          "markdownDescription": "Enables the graph_neighbors command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the graph_neighbors command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-graph-neighbors",
-          "markdownDescription": "Denies the graph_neighbors command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the graph_search command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-graph-search",
-          "markdownDescription": "Enables the graph_search command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the graph_search command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-graph-search",
-          "markdownDescription": "Denies the graph_search command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the graph_stats command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-graph-stats",
-          "markdownDescription": "Enables the graph_stats command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the graph_stats command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-graph-stats",
-          "markdownDescription": "Denies the graph_stats command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the graph_traverse command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-graph-traverse",
-          "markdownDescription": "Enables the graph_traverse command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the graph_traverse command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-graph-traverse",
-          "markdownDescription": "Denies the graph_traverse command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the graph_upsert command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-graph-upsert",
-          "markdownDescription": "Enables the graph_upsert command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the graph_upsert command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-graph-upsert",
-          "markdownDescription": "Denies the graph_upsert command without any pre-configured scope."
         },
         {
           "description": "Enables the initialize command without any pre-configured scope.",
@@ -713,18 +617,6 @@
           "type": "string",
           "const": "deny-mark-meeting-embedded",
           "markdownDescription": "Denies the mark_meeting_embedded command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the mark_meeting_extracted command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-mark-meeting-extracted",
-          "markdownDescription": "Enables the mark_meeting_extracted command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the mark_meeting_extracted command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-mark-meeting-extracted",
-          "markdownDescription": "Denies the mark_meeting_extracted command without any pre-configured scope."
         },
         {
           "description": "Enables the meetings_delete command without any pre-configured scope.",
@@ -1135,10 +1027,10 @@
           "markdownDescription": "Denies the upsert_meeting_index command without any pre-configured scope."
         },
         {
-          "description": "Allows all store plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-get-meta`\n- `allow-get-stats`\n- `allow-rebuild`\n- `allow-rebuild-fts`\n- `allow-get-indexed-ids`\n- `allow-meetings-list`\n- `allow-meetings-get`\n- `allow-meetings-upsert`\n- `allow-meetings-delete`\n- `allow-save-transcription`\n- `allow-recordings-upsert`\n- `allow-recordings-list-for-meeting`\n- `allow-recordings-list-orphan`\n- `allow-recordings-delete`\n- `allow-categories-list`\n- `allow-categories-rename`\n- `allow-categories-create`\n- `allow-categories-delete`\n- `allow-chats-list`\n- `allow-chats-get`\n- `allow-chats-upsert`\n- `allow-chats-rename`\n- `allow-chats-delete`\n- `allow-notes-list`\n- `allow-notes-upsert`\n- `allow-notes-delete`\n- `allow-todos-list-for-meeting`\n- `allow-todos-list-global`\n- `allow-todos-upsert`\n- `allow-todos-set-completed`\n- `allow-todos-delete`\n- `allow-reminders-upsert`\n- `allow-reminders-set-status`\n- `allow-reminders-due`\n- `allow-reminders-prune`\n- `allow-settings-get-all`\n- `allow-settings-set`\n- `allow-providers-list`\n- `allow-providers-upsert`\n- `allow-providers-set-active`\n- `allow-providers-delete`\n- `allow-upsert-meeting-index`\n- `allow-upsert-chunks`\n- `allow-meetings-search`\n- `allow-get-stale-meetings`\n- `allow-get-meetings-needing-embeddings`\n- `allow-get-meetings-needing-extraction`\n- `allow-mark-meeting-embedded`\n- `allow-mark-meeting-extracted`\n- `allow-mark-meeting-content-indexed`\n- `allow-mark-chat-content-indexed`\n- `allow-mark-chat-indexed`\n- `allow-upsert-chat-chunks`\n- `allow-delete-chat-session`\n- `allow-chat-is-stale`\n- `allow-chats-get-stale`\n- `allow-get-chats-needing-embeddings`\n- `allow-mark-chat-embedded`\n- `allow-chats-search`\n- `allow-spotlight-search`\n- `allow-graph-upsert`\n- `allow-graph-traverse`\n- `allow-graph-neighbors`\n- `allow-graph-search`\n- `allow-graph-delete-meeting`\n- `allow-graph-stats`\n- `allow-graph-extracted-meeting-ids`\n- `allow-insert-usage`\n- `allow-get-usage-summary`",
+          "description": "Allows all store plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-get-meta`\n- `allow-get-stats`\n- `allow-rebuild`\n- `allow-rebuild-fts`\n- `allow-get-indexed-ids`\n- `allow-meetings-list`\n- `allow-meetings-get`\n- `allow-meetings-upsert`\n- `allow-meetings-delete`\n- `allow-save-transcription`\n- `allow-recordings-upsert`\n- `allow-recordings-list-for-meeting`\n- `allow-recordings-list-orphan`\n- `allow-recordings-delete`\n- `allow-categories-list`\n- `allow-categories-rename`\n- `allow-categories-create`\n- `allow-categories-delete`\n- `allow-chats-list`\n- `allow-chats-get`\n- `allow-chats-upsert`\n- `allow-chats-rename`\n- `allow-chats-delete`\n- `allow-notes-list`\n- `allow-notes-upsert`\n- `allow-notes-delete`\n- `allow-todos-list-for-meeting`\n- `allow-todos-list-global`\n- `allow-todos-upsert`\n- `allow-todos-set-completed`\n- `allow-todos-delete`\n- `allow-reminders-upsert`\n- `allow-reminders-set-status`\n- `allow-reminders-due`\n- `allow-reminders-prune`\n- `allow-settings-get-all`\n- `allow-settings-set`\n- `allow-providers-list`\n- `allow-providers-upsert`\n- `allow-providers-set-active`\n- `allow-providers-delete`\n- `allow-upsert-meeting-index`\n- `allow-upsert-chunks`\n- `allow-meetings-search`\n- `allow-get-stale-meetings`\n- `allow-get-meetings-needing-embeddings`\n- `allow-mark-meeting-embedded`\n- `allow-mark-meeting-content-indexed`\n- `allow-mark-chat-content-indexed`\n- `allow-mark-chat-indexed`\n- `allow-upsert-chat-chunks`\n- `allow-delete-chat-session`\n- `allow-chat-is-stale`\n- `allow-chats-get-stale`\n- `allow-get-chats-needing-embeddings`\n- `allow-mark-chat-embedded`\n- `allow-chats-search`\n- `allow-spotlight-search`\n- `allow-insert-usage`\n- `allow-get-usage-summary`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Allows all store plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-get-meta`\n- `allow-get-stats`\n- `allow-rebuild`\n- `allow-rebuild-fts`\n- `allow-get-indexed-ids`\n- `allow-meetings-list`\n- `allow-meetings-get`\n- `allow-meetings-upsert`\n- `allow-meetings-delete`\n- `allow-save-transcription`\n- `allow-recordings-upsert`\n- `allow-recordings-list-for-meeting`\n- `allow-recordings-list-orphan`\n- `allow-recordings-delete`\n- `allow-categories-list`\n- `allow-categories-rename`\n- `allow-categories-create`\n- `allow-categories-delete`\n- `allow-chats-list`\n- `allow-chats-get`\n- `allow-chats-upsert`\n- `allow-chats-rename`\n- `allow-chats-delete`\n- `allow-notes-list`\n- `allow-notes-upsert`\n- `allow-notes-delete`\n- `allow-todos-list-for-meeting`\n- `allow-todos-list-global`\n- `allow-todos-upsert`\n- `allow-todos-set-completed`\n- `allow-todos-delete`\n- `allow-reminders-upsert`\n- `allow-reminders-set-status`\n- `allow-reminders-due`\n- `allow-reminders-prune`\n- `allow-settings-get-all`\n- `allow-settings-set`\n- `allow-providers-list`\n- `allow-providers-upsert`\n- `allow-providers-set-active`\n- `allow-providers-delete`\n- `allow-upsert-meeting-index`\n- `allow-upsert-chunks`\n- `allow-meetings-search`\n- `allow-get-stale-meetings`\n- `allow-get-meetings-needing-embeddings`\n- `allow-get-meetings-needing-extraction`\n- `allow-mark-meeting-embedded`\n- `allow-mark-meeting-extracted`\n- `allow-mark-meeting-content-indexed`\n- `allow-mark-chat-content-indexed`\n- `allow-mark-chat-indexed`\n- `allow-upsert-chat-chunks`\n- `allow-delete-chat-session`\n- `allow-chat-is-stale`\n- `allow-chats-get-stale`\n- `allow-get-chats-needing-embeddings`\n- `allow-mark-chat-embedded`\n- `allow-chats-search`\n- `allow-spotlight-search`\n- `allow-graph-upsert`\n- `allow-graph-traverse`\n- `allow-graph-neighbors`\n- `allow-graph-search`\n- `allow-graph-delete-meeting`\n- `allow-graph-stats`\n- `allow-graph-extracted-meeting-ids`\n- `allow-insert-usage`\n- `allow-get-usage-summary`"
+          "markdownDescription": "Allows all store plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-get-meta`\n- `allow-get-stats`\n- `allow-rebuild`\n- `allow-rebuild-fts`\n- `allow-get-indexed-ids`\n- `allow-meetings-list`\n- `allow-meetings-get`\n- `allow-meetings-upsert`\n- `allow-meetings-delete`\n- `allow-save-transcription`\n- `allow-recordings-upsert`\n- `allow-recordings-list-for-meeting`\n- `allow-recordings-list-orphan`\n- `allow-recordings-delete`\n- `allow-categories-list`\n- `allow-categories-rename`\n- `allow-categories-create`\n- `allow-categories-delete`\n- `allow-chats-list`\n- `allow-chats-get`\n- `allow-chats-upsert`\n- `allow-chats-rename`\n- `allow-chats-delete`\n- `allow-notes-list`\n- `allow-notes-upsert`\n- `allow-notes-delete`\n- `allow-todos-list-for-meeting`\n- `allow-todos-list-global`\n- `allow-todos-upsert`\n- `allow-todos-set-completed`\n- `allow-todos-delete`\n- `allow-reminders-upsert`\n- `allow-reminders-set-status`\n- `allow-reminders-due`\n- `allow-reminders-prune`\n- `allow-settings-get-all`\n- `allow-settings-set`\n- `allow-providers-list`\n- `allow-providers-upsert`\n- `allow-providers-set-active`\n- `allow-providers-delete`\n- `allow-upsert-meeting-index`\n- `allow-upsert-chunks`\n- `allow-meetings-search`\n- `allow-get-stale-meetings`\n- `allow-get-meetings-needing-embeddings`\n- `allow-mark-meeting-embedded`\n- `allow-mark-meeting-content-indexed`\n- `allow-mark-chat-content-indexed`\n- `allow-mark-chat-indexed`\n- `allow-upsert-chat-chunks`\n- `allow-delete-chat-session`\n- `allow-chat-is-stale`\n- `allow-chats-get-stale`\n- `allow-get-chats-needing-embeddings`\n- `allow-mark-chat-embedded`\n- `allow-chats-search`\n- `allow-spotlight-search`\n- `allow-insert-usage`\n- `allow-get-usage-summary`"
         }
       ]
     }

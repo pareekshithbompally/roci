@@ -42,8 +42,8 @@ const CALL_TIMEOUT: Duration = Duration::from_secs(45);
 const SOCKET_MODE: u32 = 0o600;
 
 const INSTRUCTIONS: &str = "Kasset holds the user's recorded meetings (transcripts, summaries, \
-action items), their todos, a knowledge graph of people, topics and decisions, and their Kasset \
-chat history. Start with search_meetings or list_meetings, then get_meeting for one meeting in full.";
+action items), their todos, and their Kasset chat history. Start with search_meetings or \
+list_meetings, then get_meeting for one meeting in full.";
 
 #[derive(Default)]
 pub struct McpHostState {

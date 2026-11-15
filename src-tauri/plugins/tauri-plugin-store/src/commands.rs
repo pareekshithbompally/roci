@@ -1,6 +1,5 @@
 use crate::changes::{notify, MeetingChange};
 use crate::error::StoreError;
-use crate::graph;
 use crate::schema;
 use crate::search::{hybrid_search, SearchHit, SearchParams};
 use rusqlite::{ffi::sqlite3_auto_extension, Connection, OptionalExtension};
@@ -292,8 +291,6 @@ pub struct DbStats {
     pub transcript_chunks: i64,
     pub chat_sessions: i64,
     pub chat_chunks: i64,
-    pub kg_nodes: i64,
-    pub kg_edges: i64,
     pub db_size_bytes: u64,
     pub fts_chunks: i64,
     pub fts_chat_chunks: i64,
@@ -2401,46 +2398,6 @@ pub async fn get_meetings_needing_embeddings(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-/// Return meeting IDs that need entity extraction.
-#[tauri::command]
-pub async fn get_meetings_needing_extraction(
-    state: State<'_, StoreState>,
-    meeting_ids: Vec<String>,
-) -> Result<Vec<String>, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        db.execute_batch(
-            "CREATE TEMP TABLE IF NOT EXISTS _check_ids (id TEXT PRIMARY KEY);"
-        )?;
-        db.execute("DELETE FROM _check_ids", [])?;
-
-        {
-            let mut stmt = db.prepare("INSERT INTO _check_ids (id) VALUES (?1)")?;
-            for id in &meeting_ids {
-                stmt.execute([id])?;
-            }
-        }
-
-        let mut stmt = db.prepare(
-            "SELECT ci.id FROM _check_ids ci
-             INNER JOIN meeting_index_state mis ON mis.meeting_id = ci.id
-             WHERE mis.extraction_hash IS NULL OR mis.extraction_hash != mis.content_hash"
-        )?;
-
-        let ids: Vec<String> = stmt
-            .query_map([], |row| row.get(0))?
-            .filter_map(|r| r.ok())
-            .collect();
-
-        Ok(ids)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
 /// Mark a meeting's embeddings as up-to-date.
 #[tauri::command]
 pub async fn mark_meeting_embedded(
@@ -2453,26 +2410,6 @@ pub async fn mark_meeting_embedded(
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
         db.execute(
             "UPDATE meeting_index_state SET embedding_hash = content_hash WHERE meeting_id = ?1",
-            [&meeting_id],
-        )?;
-        Ok(())
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-/// Mark a meeting's entity extraction as up-to-date.
-#[tauri::command]
-pub async fn mark_meeting_extracted(
-    state: State<'_, StoreState>,
-    meeting_id: String,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        db.execute(
-            "UPDATE meeting_index_state SET extraction_hash = content_hash WHERE meeting_id = ?1",
             [&meeting_id],
         )?;
         Ok(())
@@ -2543,8 +2480,6 @@ pub async fn get_stats(
         let transcript_chunks = count("SELECT COUNT(*) FROM chunks WHERE chunk_type = 'transcript'");
         let chat_sessions = count("SELECT COUNT(*) FROM chats");
         let chat_chunks = count("SELECT COUNT(*) FROM chat_chunks");
-        let kg_nodes = count("SELECT COUNT(*) FROM kg_nodes");
-        let kg_edges = count("SELECT COUNT(*) FROM kg_edges");
         let fts_chunks = count("SELECT COUNT(*) FROM chunks_fts");
         let fts_chat_chunks = count("SELECT COUNT(*) FROM chat_chunks_fts");
 
@@ -2562,8 +2497,6 @@ pub async fn get_stats(
             transcript_chunks,
             chat_sessions,
             chat_chunks,
-            kg_nodes,
-            kg_edges,
             db_size_bytes,
             fts_chunks,
             fts_chat_chunks,
@@ -2615,8 +2548,6 @@ pub async fn rebuild(
              DELETE FROM chunks;
              DELETE FROM meeting_index_state;
              INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild');
-             DELETE FROM kg_edges;
-             DELETE FROM kg_nodes;
              DELETE FROM chat_vec_chunks;
              DELETE FROM chat_chunks;
              DELETE FROM chat_index_state;
@@ -2648,123 +2579,6 @@ pub async fn rebuild_fts(
 
         log::info!("[store] FTS5 indexes rebuilt, content hashes cleared for re-indexing");
         Ok(())
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-// ── Knowledge Graph Commands ──
-
-#[tauri::command]
-pub async fn graph_upsert(
-    state: State<'_, StoreState>,
-    meeting_id: String,
-    nodes: Vec<graph::GraphNode>,
-    edges: Vec<graph::GraphEdge>,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        graph::upsert_meeting_graph(db, &meeting_id, &nodes, &edges)
-            .map_err(StoreError::from)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn graph_traverse(
-    state: State<'_, StoreState>,
-    params: graph::TraversalParams,
-) -> Result<Vec<graph::TraversalResult>, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        graph::traverse(db, &params).map_err(StoreError::from)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn graph_neighbors(
-    state: State<'_, StoreState>,
-    node_id: String,
-    edge_types: Option<Vec<String>>,
-    direction: Option<String>,
-) -> Result<Vec<graph::TraversalResult>, StoreError> {
-    let direction_owned = direction.unwrap_or_else(|| "both".to_string());
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        graph::neighbors(db, &node_id, edge_types.as_deref(), &direction_owned)
-            .map_err(StoreError::from)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn graph_search(
-    state: State<'_, StoreState>,
-    params: graph::GraphSearchParams,
-) -> Result<Vec<graph::GraphNode>, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        graph::search_nodes(db, &params).map_err(StoreError::from)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn graph_delete_meeting(
-    state: State<'_, StoreState>,
-    meeting_id: String,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        graph::delete_meeting_graph(db, &meeting_id).map_err(StoreError::from)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn graph_stats(
-    state: State<'_, StoreState>,
-) -> Result<graph::GraphStats, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        graph::stats(db).map_err(StoreError::from)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn graph_extracted_meeting_ids(
-    state: State<'_, StoreState>,
-) -> Result<Vec<String>, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        let mut stmt = db.prepare("SELECT DISTINCT meeting_id FROM kg_edges")?;
-        let ids: Vec<String> = stmt
-            .query_map([], |row| row.get(0))?
-            .filter_map(|r| r.ok())
-            .collect();
-        Ok(ids)
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?

@@ -1,7 +1,7 @@
 use rusqlite::Connection;
 
 /// Current schema version for the new kasset.db.
-pub const SCHEMA_VERSION: u32 = 2;
+pub const SCHEMA_VERSION: u32 = 3;
 
 /// Default embedding model and dimension.
 pub const DEFAULT_MODEL: &str = "onnx-community/embeddinggemma-300m-ONNX";
@@ -63,44 +63,28 @@ pub fn migrate(conn: &Connection) -> Result<(), String> {
         }
     }
 
-    // v1 → v2: 384→768-dim embedding model; recreate vec tables and NULL hashes so indexing re-embeds.
-    if current == 1 {
+    // v2 → v3: the built-in knowledge graph is gone; drop its tables and extraction state.
+    if current == 2 {
         let result = (|| -> Result<(), String> {
             let tx = conn
                 .unchecked_transaction()
-                .map_err(|e| format!("begin migration v2 transaction: {}", e))?;
-            tx.execute_batch(&format!(
-                "DROP TABLE IF EXISTS vec_chunks;
-                 DROP TABLE IF EXISTS chat_vec_chunks;
-                 CREATE VIRTUAL TABLE vec_chunks USING vec0(
-                     chunk_id INTEGER PRIMARY KEY,
-                     embedding float[{}]
-                 );
-                 CREATE VIRTUAL TABLE chat_vec_chunks USING vec0(
-                     chunk_id INTEGER PRIMARY KEY,
-                     embedding float[{}]
-                 );
-                 UPDATE meeting_index_state SET embedding_hash = NULL;
-                 UPDATE chat_index_state SET embedding_hash = NULL;",
-                DEFAULT_DIM, DEFAULT_DIM,
-            ))
-            .map_err(|e| format!("migrate v1→v2 vec tables: {}", e))?;
+                .map_err(|e| format!("begin migration v3 transaction: {}", e))?;
+            tx.execute_batch(
+                "DROP TABLE IF EXISTS kg_edges;
+                 DROP TABLE IF EXISTS kg_nodes;
+                 ALTER TABLE meeting_index_state DROP COLUMN extraction_hash;",
+            )
+            .map_err(|e| format!("migrate v2→v3 drop graph: {}", e))?;
             set_schema_version(&tx, SCHEMA_VERSION)?;
             tx.commit()
-                .map_err(|e| format!("commit migration v2: {}", e))?;
+                .map_err(|e| format!("commit migration v3: {}", e))?;
             Ok(())
         })();
 
         match result {
-            Ok(()) => {
-                log::info!(
-                    "[store] Migrated schema v1→v2 (model={}, dim={})",
-                    DEFAULT_MODEL,
-                    DEFAULT_DIM,
-                );
-            }
+            Ok(()) => log::info!("[store] Migrated schema v2→v3 (knowledge graph removed)"),
             Err(e) => {
-                log::error!("[store] Migration v1→v2 failed: {}", e);
+                log::error!("[store] Migration v2→v3 failed: {}", e);
                 return Err(e);
             }
         }
@@ -266,12 +250,11 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
         );
         CREATE INDEX idx_meeting_categories_category ON meeting_categories(category_id);
 
-        -- ── 2.4 Derived — search, vectors, knowledge graph, usage ────────
+        -- ── 2.4 Derived — search, vectors, usage ─────────────────────────
         CREATE TABLE meeting_index_state (
             meeting_id      TEXT PRIMARY KEY REFERENCES meetings(id) ON DELETE CASCADE,
             content_hash    TEXT,
             embedding_hash  TEXT,
-            extraction_hash TEXT,
             indexed_at      INTEGER
         );
 
@@ -364,39 +347,6 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
         ",
     )
     .map_err(|e| format!("create FTS5 triggers: {}", e))?;
-
-    // Knowledge graph
-    conn.execute_batch(
-        "
-        CREATE TABLE IF NOT EXISTS kg_nodes (
-            id          TEXT PRIMARY KEY,
-            type        TEXT NOT NULL,
-            name        TEXT NOT NULL,
-            name_lower  TEXT NOT NULL,
-            properties  TEXT NOT NULL DEFAULT '{}',
-            created_at  INTEGER NOT NULL,
-            updated_at  INTEGER NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_kg_nodes_type ON kg_nodes(type);
-        CREATE INDEX IF NOT EXISTS idx_kg_nodes_name_lower ON kg_nodes(name_lower);
-
-        CREATE TABLE IF NOT EXISTS kg_edges (
-            id          TEXT PRIMARY KEY,
-            source_id   TEXT    NOT NULL REFERENCES kg_nodes(id) ON DELETE CASCADE,
-            target_id   TEXT    NOT NULL REFERENCES kg_nodes(id) ON DELETE CASCADE,
-            type        TEXT    NOT NULL,
-            properties  TEXT    DEFAULT '{}',
-            meeting_id  TEXT    NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
-            created_at  INTEGER NOT NULL,
-            UNIQUE(source_id, target_id, type, meeting_id)
-        );
-        CREATE INDEX IF NOT EXISTS idx_kg_edges_source ON kg_edges(source_id, type);
-        CREATE INDEX IF NOT EXISTS idx_kg_edges_target ON kg_edges(target_id, type);
-        CREATE INDEX IF NOT EXISTS idx_kg_edges_meeting ON kg_edges(meeting_id);
-        CREATE INDEX IF NOT EXISTS idx_kg_edges_type ON kg_edges(type);
-        ",
-    )
-    .map_err(|e| format!("create knowledge graph tables: {}", e))?;
 
     // Usage log
     conn.execute_batch(
@@ -518,8 +468,6 @@ mod tests {
             "chat_chunks_fts",
             "vec_chunks",
             "chat_vec_chunks",
-            "kg_nodes",
-            "kg_edges",
             "usage_log",
             "audit_log",
         ];
@@ -627,23 +575,6 @@ mod tests {
         )
         .expect("insert chat");
 
-        // Insert kg_nodes + kg_edges
-        conn.execute(
-            "INSERT INTO kg_nodes (id, type, name, name_lower, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params!["kn1", "person", "Alice", "alice", now, now],
-        )
-        .expect("insert kg_node");
-        conn.execute(
-            "INSERT INTO kg_nodes (id, type, name, name_lower, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params!["kn2", "meeting", "Test Meeting", "test meeting", now, now],
-        )
-        .expect("insert kg_node");
-        conn.execute(
-            "INSERT INTO kg_edges (id, source_id, target_id, type, meeting_id, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params!["ke1", "kn1", "kn2", "attended", "m1", now],
-        )
-        .expect("insert kg_edge");
-
         // Insert index_state
         conn.execute(
             "INSERT INTO meeting_index_state (meeting_id, content_hash, indexed_at) VALUES (?1, ?2, ?3)",
@@ -695,11 +626,6 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM meeting_index_state WHERE meeting_id = ?1", params!["m1"], |r| r.get(0))
             .unwrap();
         assert_eq!(index_count, 0, "meeting_index_state should cascade-delete");
-
-        let kg_edges_count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM kg_edges WHERE meeting_id = ?1", params!["m1"], |r| r.get(0))
-            .unwrap();
-        assert_eq!(kg_edges_count, 0, "kg_edges should cascade-delete");
 
         // Chat should survive but meeting_id set to NULL
         let chat_meeting_id: Option<String> = conn
@@ -895,79 +821,45 @@ mod tests {
             .as_millis() as i64
     }
 
-    /// A v1 DB migrates to v2: vec tables recreated at 768 dims and embedding hashes nulled.
     #[test]
-    fn migrate_v1_to_v2_swaps_embedding_model() {
+    fn migrate_v2_to_v3_drops_graph() {
         let conn = open_test_db();
         conn.execute_batch(
             "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-             INSERT INTO meta (key, value) VALUES ('schema_version', '1');
-             CREATE VIRTUAL TABLE vec_chunks USING vec0(
-                 chunk_id INTEGER PRIMARY KEY, embedding float[384]);
-             CREATE VIRTUAL TABLE chat_vec_chunks USING vec0(
-                 chunk_id INTEGER PRIMARY KEY, embedding float[384]);
-             CREATE TABLE meeting_index_state (
-                 meeting_id TEXT PRIMARY KEY, content_hash TEXT,
+             INSERT INTO meta VALUES ('schema_version', '2');
+             CREATE TABLE meetings (id TEXT PRIMARY KEY, title TEXT NOT NULL,
+                 created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+             INSERT INTO meetings VALUES ('m1', 't', 0, 0);
+             CREATE TABLE meeting_index_state (meeting_id TEXT PRIMARY KEY, content_hash TEXT,
                  embedding_hash TEXT, extraction_hash TEXT, indexed_at INTEGER);
-             INSERT INTO meeting_index_state VALUES ('m1', 'abc', 'abc', NULL, 1);
-             CREATE TABLE chat_index_state (
-                 chat_id TEXT PRIMARY KEY, content_hash TEXT,
-                 embedding_hash TEXT, indexed_at INTEGER);
-             INSERT INTO chat_index_state VALUES ('c1', 'def', 'def', 1);",
+             INSERT INTO meeting_index_state VALUES ('m1', 'c', 'e', 'x', 0);
+             CREATE TABLE kg_nodes (id TEXT PRIMARY KEY);
+             CREATE TABLE kg_edges (id TEXT PRIMARY KEY);",
         )
-        .expect("seed v1 db");
+        .expect("seed v2 db");
 
-        // One stale 384-dim vector, stored the way the app binds them.
-        let stale: Vec<u8> = (0..384u32)
-            .flat_map(|i| (i as f32).to_le_bytes())
+        migrate(&conn).expect("migrate v2→v3");
+
+        let has = |t: &str| -> i64 {
+            conn.query_row("SELECT COUNT(*) FROM sqlite_master WHERE name = ?1", [t], |r| r.get(0))
+                .expect("sqlite_master")
+        };
+        assert_eq!(has("kg_nodes"), 0);
+        assert_eq!(has("kg_edges"), 0);
+
+        let cols: Vec<String> = conn
+            .prepare("SELECT name FROM pragma_table_info('meeting_index_state')")
+            .expect("prepare")
+            .query_map([], |r| r.get(0))
+            .expect("query")
+            .map(|c| c.expect("col"))
             .collect();
-        conn.execute(
-            "INSERT INTO vec_chunks (chunk_id, embedding) VALUES (1, ?1)",
-            params![stale],
-        )
-        .expect("seed stale vector");
+        assert!(!cols.contains(&"extraction_hash".to_string()));
 
-        migrate(&conn).expect("migrate v1→v2");
-
-        let sv: String = conn
-            .query_row("SELECT value FROM meta WHERE key='schema_version'", [], |r| r.get(0))
-            .expect("schema_version");
-        assert_eq!(sv, "2");
-
-        for table in ["vec_chunks", "chat_vec_chunks"] {
-            let sql: String = conn
-                .query_row(
-                    "SELECT sql FROM sqlite_master WHERE name = ?1",
-                    params![table],
-                    |r| r.get(0),
-                )
-                .expect("vec table sql");
-            assert!(
-                sql.contains("float[768]"),
-                "{table} not recreated at new dim: {sql}"
-            );
-        }
-
-        let remaining: i64 = conn
-            .query_row("SELECT COUNT(*) FROM vec_chunks", [], |r| r.get(0))
-            .expect("vec row count");
-        assert_eq!(remaining, 0, "stale vectors must be gone");
-
-        let m_hash: Option<String> = conn
-            .query_row(
-                "SELECT embedding_hash FROM meeting_index_state WHERE meeting_id = 'm1'",
-                [],
-                |r| r.get(0),
-            )
-            .expect("meeting hash");
-        assert_eq!(m_hash, None);
-        let c_hash: Option<String> = conn
-            .query_row(
-                "SELECT embedding_hash FROM chat_index_state WHERE chat_id = 'c1'",
-                [],
-                |r| r.get(0),
-            )
-            .expect("chat hash");
-        assert_eq!(c_hash, None);
+        let hash: String = conn
+            .query_row("SELECT content_hash FROM meeting_index_state WHERE meeting_id = 'm1'", [], |r| r.get(0))
+            .expect("index state kept");
+        assert_eq!(hash, "c");
+        assert_eq!(get_schema_version(&conn), 3);
     }
 }
