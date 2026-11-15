@@ -3,16 +3,23 @@
 import React, { useEffect, useRef } from 'react';
 import { usePresence, useReducedMotion } from 'framer-motion';
 import { DOT_SCOPE_CONFIG } from '@config/dotScope.config';
-import type { DotScopeTheme, DotScopeTuning } from '@config/dotScope.config';
+import { tokenRgb } from '@shared/utils/cssToken';
+import type { DotScopeLook, DotScopeTuning } from '@config/dotScope.config';
 import { Scope, loudness } from './scope';
 import type { Pose, Stage } from './scope';
 
 type Rgb = readonly [number, number, number];
 
-/** A flat theme override, or a nested one resolved against the current mode. */
-export type DotScopePalette =
-  | Partial<DotScopeTheme>
-  | { dark: Partial<DotScopeTheme>; light: Partial<DotScopeTheme> };
+/** Everything a frame paints with: the theme's look and its token colours. */
+type ScopeTheme = DotScopeLook & Record<keyof typeof DOT_SCOPE_CONFIG.colors, Rgb>;
+
+/** The theme for light or dark, its colours resolved on `element` from their tokens (once per theme, not per frame). */
+function readTheme(element: HTMLElement, dark: boolean): ScopeTheme {
+  const colors = Object.fromEntries(
+    Object.entries(DOT_SCOPE_CONFIG.colors).map(([part, token]) => [part, tokenRgb(element, token)]),
+  ) as Record<keyof typeof DOT_SCOPE_CONFIG.colors, Rgb>;
+  return { ...DOT_SCOPE_CONFIG.look[dark ? 'dark' : 'light'], ...colors };
+}
 
 export interface DotScopeProps {
   stage: Extract<Stage, 'recording' | 'processing' | 'failed'>;
@@ -24,9 +31,7 @@ export interface DotScopeProps {
   zoom?: number;
   /** Plate tuning; defaults to the standard plate. Must stay stable while mounted. */
   tuning?: DotScopeTuning;
-  /** Palette override merged over the dark/light theme (e.g. composer accent). */
-  palette?: DotScopePalette;
-  /** Canvas margins (pt) around the plate for the shadow; tighten to hug the pill. */
+  /** Canvas margins (pt) around the plate for its glow; tighten to hug the pill. */
   margins?: { x: number; y: number };
 }
 
@@ -34,8 +39,8 @@ const { canvasMargin, doneHold } = DOT_SCOPE_CONFIG;
 
 const mix = (a: number, b: number, t: number) => a + (b - a) * t;
 const mix3 = (a: Rgb, b: Rgb, t: number): Rgb => [mix(a[0], b[0], t), mix(a[1], b[1], t), mix(a[2], b[2], t)];
-/** CSS colour from sRGB 0–1 components; alpha from the 4th component unless given. */
-const css = (c: readonly number[], alpha = c[3] ?? 1) =>
+/** CSS colour from sRGB 0–1 components and an alpha. */
+const css = (c: Rgb, alpha: number) =>
   `rgba(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)},${alpha})`;
 const sstep = (a: number, b: number, x: number) => {
   const t = Math.min(Math.max((x - a) / (b - a), 0), 1);
@@ -60,24 +65,15 @@ function platePath(ctx: CanvasRenderingContext2D, hw: number, hh: number): void 
   ctx.roundRect(-hw, -hh, hw * 2, hh * 2, hh);
 }
 
-function drawPlate(ctx: CanvasRenderingContext2D, pose: Pose, theme: DotScopeTheme, base: Rgb, core: Rgb, deviceScale: number): void {
+function drawPlate(ctx: CanvasRenderingContext2D, pose: Pose, theme: ScopeTheme, base: Rgb, core: Rgb): void {
   const hw = pose.width / 2;
   const hh = pose.height / 2;
-  ctx.save();
-  // Shadow only when the palette asks; shadowBlur per frame is expensive.
-  if (theme.shadow[3] > 0) {
-    ctx.shadowColor = css(theme.shadow);
-    // Shadow sizes are in device pixels; the canvas transform doesn't apply to them.
-    ctx.shadowBlur = 13 * deviceScale * pose.scale;
-    ctx.shadowOffsetY = 3 * deviceScale * pose.scale;
-  }
   platePath(ctx, hw, hh);
-  ctx.fillStyle = css(theme.plate);
+  ctx.fillStyle = css(theme.plate, theme.plateAlpha);
   ctx.fill();
-  ctx.restore();
   platePath(ctx, hw - 0.3, hh - 0.3);
   ctx.lineWidth = 0.6;
-  ctx.strokeStyle = css(theme.rim);
+  ctx.strokeStyle = css(theme.rim, theme.rimAlpha);
   ctx.stroke();
   if (pose.glow > 0.01) {
     const reach = 34 + 20 * pose.glow;
@@ -90,7 +86,7 @@ function drawPlate(ctx: CanvasRenderingContext2D, pose: Pose, theme: DotScopeThe
   }
 }
 
-function drawDots(ctx: CanvasRenderingContext2D, scope: Scope, pose: Pose, theme: DotScopeTheme, base: Rgb, core: Rgb): void {
+function drawDots(ctx: CanvasRenderingContext2D, scope: Scope, pose: Pose, theme: ScopeTheme, base: Rgb, core: Rgb): void {
   const hw = pose.width / 2;
   const hh = pose.height / 2;
   const pitch = scope.tuning.spacing;
@@ -128,21 +124,14 @@ function drawDots(ctx: CanvasRenderingContext2D, scope: Scope, pose: Pose, theme
 function draw(
   ctx: CanvasRenderingContext2D,
   scope: Scope,
-  dark: boolean,
+  theme: ScopeTheme,
   deviceScale: number,
   canvasWidth: number,
   canvasHeight: number,
-  palette?: DotScopePalette,
 ): void {
   const pose = scope.pose();
-  const baseTheme = DOT_SCOPE_CONFIG.theme[dark ? 'dark' : 'light'];
-  const override =
-    palette && 'dark' in palette && 'light' in palette
-      ? (dark ? palette.dark : palette.light)
-      : palette;
-  const theme = { ...baseTheme, ...override };
-  const base = saturate(mix3(mix3(theme.you, theme.agent, pose.cool), theme.coral, pose.fail), scope.tuning.saturation);
-  const core = saturate(mix3(mix3(theme.youCore, theme.agentCore, pose.cool), theme.coralCore, pose.fail), scope.tuning.saturation);
+  const base = saturate(mix3(mix3(theme.you, theme.agent, pose.cool), theme.fail, pose.fail), scope.tuning.saturation);
+  const core = saturate(mix3(mix3(theme.youCore, theme.agentCore, pose.cool), theme.failCore, pose.fail), scope.tuning.saturation);
   ctx.setTransform(deviceScale, 0, 0, deviceScale, 0, 0);
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
   ctx.save();
@@ -150,7 +139,7 @@ function draw(
   ctx.scale(pose.scale, pose.scale);
   ctx.globalAlpha = pose.opacity;
   ctx.filter = pose.softness > 0.05 ? `blur(${pose.softness * 0.72}px)` : 'none';
-  drawPlate(ctx, pose, theme, base, core, deviceScale);
+  drawPlate(ctx, pose, theme, base, core);
   platePath(ctx, pose.width / 2, pose.height / 2);
   ctx.clip();
   drawDots(ctx, scope, pose, theme, base, core);
@@ -184,7 +173,7 @@ function useStreamLoudness(stream: MediaStream | null | undefined) {
   return read;
 }
 
-export const DotScope: React.FC<DotScopeProps> = ({ stage, stream, label, zoom = 1, tuning, palette, margins }) => {
+export const DotScope: React.FC<DotScopeProps> = ({ stage, stream, label, zoom = 1, tuning, margins }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isPresent, safeToRemove] = usePresence();
   const reduceMotion = useReducedMotion() ?? false;
@@ -207,6 +196,7 @@ export const DotScope: React.FC<DotScopeProps> = ({ stage, stream, label, zoom =
     let last = performance.now();
     let exitAt: number | null = null;
     let frame = 0;
+    let theme: { dark: boolean; value: ScopeTheme } | null = null;
 
     const tick = (now: number) => {
       const { stage: wanted, isPresent: present, reduceMotion: rm, safeToRemove: remove } = live.current;
@@ -216,7 +206,9 @@ export const DotScope: React.FC<DotScopeProps> = ({ stage, stream, label, zoom =
       const exiting = exitAt !== null;
       const visible = !exiting || (now - (exitAt ?? now)) / 1000 < doneHold;
       scope.advance(dt, { stage: exiting ? 'done' : wanted, visible, loudness: readLoudness.current(), reduceMotion: rm });
-      draw(ctx, scope, document.documentElement.classList.contains('dark'), deviceScale, canvasWidth, canvasHeight, palette);
+      const dark = document.documentElement.classList.contains('dark');
+      if (theme?.dark !== dark) theme = { dark, value: readTheme(canvas, dark) };
+      draw(ctx, scope, theme.value, deviceScale, canvasWidth, canvasHeight);
       if (exiting && !visible && scope.settled()) {
         remove?.();
         return;
@@ -225,7 +217,7 @@ export const DotScope: React.FC<DotScopeProps> = ({ stage, stream, label, zoom =
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [plate, canvasWidth, canvasHeight, readLoudness, zoom, palette]);
+  }, [plate, canvasWidth, canvasHeight, readLoudness, zoom]);
 
   return (
     <canvas

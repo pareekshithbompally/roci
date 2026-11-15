@@ -16,14 +16,20 @@
   --grey-1100: #161616;
   --grey-1200: #080808;
 
-  --blue-200: #ecf1fe;
-  --blue-300: #c3d4fd;
-  --blue-400: #a2bcff;
-  --blue-500: #7698fd;
-  --blue-600: #3b5cf6;
-  --blue-800: #3250df;
-  --blue-900: #2c47c8;
-
+  --copper-200: #fbd7a4;
+  --copper-400: #e39b4a;
+  --copper-500: #cf7440;
+  --copper-600: #b4532a;
+  --sand-100: #f3ebe0;
+  --sand-300: #e8d5b5;
+  --sand-700: #8c735c;
+  --sand-800: #6b5641;
+  --teal-200: #e6f4f2;
+  --teal-300: #b5ddd7;
+  --teal-500: #5cc2b4;
+  --teal-600: #24796f;
+  --teal-800: #1c5e57;
+  --teal-900: #164b45;
   --red-100: #fceceb;
   --red-300: #f2bbb7;
   --red-500: #f17471;
@@ -45,8 +51,6 @@
   --yellow-800: #cb9f34;
   --yellow-900: #ac8833;
 
-  --purple-500: #8271f8;
-  --purple-600: #7152f4;
 
   /* ─── Tier 2: roles (light) ──────────────────────────── */
   color-scheme: light;
@@ -58,7 +62,7 @@
   --bg-layer-3: var(--grey-300);
   --bg-layer-4: var(--grey-400);
   --bg-inverse: var(--grey-1100);
-  --bg-accent: var(--blue-600);
+  --bg-accent: var(--copper-600);
   /* The sentence being read aloud (::highlight(read-aloud)): a soft accent tint behind the text */
   --bg-speaking: color-mix(in srgb, var(--bg-accent) 16%, transparent);
   --bg-knob: var(--grey-50);
@@ -73,14 +77,14 @@
   --text-primary: var(--grey-1100);
   --text-muted: var(--grey-700);
   --text-faint: var(--grey-600);
-  --text-accent: var(--blue-600);
+  --text-accent: var(--copper-600);
   --text-inverse: var(--grey-50);
   --text-on-accent: var(--grey-50);
 
   --border-muted: rgb(0 0 0 / 0.08);
   --border-base: rgb(0 0 0 / 0.1);
   --border-strong: rgb(0 0 0 / 0.2);
-  --border-focus: var(--blue-500);
+  --border-focus: var(--copper-500);
 
   --danger-fg: var(--red-800);
   --danger-bg: var(--red-100);
@@ -94,10 +98,10 @@
   --success-bg: var(--green-100);
   --success-border: var(--green-300);
   --success-solid: var(--green-600);
-  --info-fg: var(--blue-800);
-  --info-bg: var(--blue-200);
-  --info-border: var(--blue-300);
-  --info-solid: var(--blue-600);
+  --info-fg: var(--teal-800);
+  --info-bg: var(--teal-200);
+  --info-border: var(--teal-300);
+  --info-solid: var(--teal-600);
 
   --shadow-input: #0000001a 0 1px 1.5px 0, #00000024 0 0 0 0.5px;
   --shadow-raised: #0000000a 0 2px 4px 0, #00000014 0 1px 2px -1px, #0000001f 0 0 0 0.5px;
@@ -105,10 +109,23 @@
   --shadow-overlay: #0000000a 0 16px 32px 0, #00000014 0 8px 16px 0, #0000001f 0 0 0 0.5px;
 
   /* AI moments only — matches the app icon waveform (app-icon.svg #aiGradient) */
-  --ai-gradient: linear-gradient(to right, #06b6d4, #3b82f6, #8b5cf6, #a855f7, #ec4899);
-  --ai-accent: var(--purple-600);
+  --ai-gradient: linear-gradient(to right, var(--copper-600), var(--copper-400));
+  --ai-accent: var(--copper-600);
   --ai-border: color-mix(in srgb, var(--ai-accent) 50%, transparent);
   --ai-glow: 0 10px 15px -3px color-mix(in srgb, var(--ai-accent) 25%, transparent);
+  /* Landing glow (LandingGlow): copper core, amber companion, copper wash */
+  --bg-glow-core: color-mix(in srgb, var(--copper-500) 45%, transparent);
+  --bg-glow-companion: color-mix(in srgb, var(--copper-400) 40%, transparent);
+  --bg-glow-wash: color-mix(in srgb, var(--copper-400) 25%, transparent);
+  /* Recording pill (DotScope canvas, read live): voice in copper, processing in sand, failure in danger red. */
+  --scope-you: var(--copper-600);
+  --scope-you-core: var(--copper-400);
+  --scope-agent: var(--sand-700);
+  --scope-agent-core: var(--sand-800);
+  --scope-fail: var(--danger-solid);
+  --scope-fail-core: var(--danger-fg);
+  --scope-plate: var(--grey-50);
+  --scope-rim: var(--grey-1200);
 
   /* Monochrome-black brand logos (e.g. some HF orgs) invert to stay visible in dark */
   --logo-filter: none;
@@ -136,7 +153,7 @@
   --text-primary: var(--grey-100);
   --text-muted: var(--grey-500);
   --text-faint: var(--grey-600);
-  --text-accent: var(--blue-400);
+  --text-accent: var(--copper-400);
   --text-inverse: var(--grey-1100);
 
   --border-muted: rgb(255 255 255 / 0.08);
@@ -152,16 +169,25 @@
   --success-fg: var(--green-500);
   --success-bg: color-mix(in srgb, var(--green-900) 18%, transparent);
   --success-border: var(--green-900);
-  --info-fg: var(--blue-500);
-  --info-bg: color-mix(in srgb, var(--blue-900) 18%, transparent);
-  --info-border: var(--blue-900);
+  --info-fg: var(--teal-500);
+  --info-bg: color-mix(in srgb, var(--teal-900) 18%, transparent);
+  --info-border: var(--teal-900);
 
   --shadow-input: #00000000 0 1px 2px 0, #ffffff29 0 0 0 0.5px, #ffffff0f 0 -0.5px 0 0;
   --shadow-raised: #0000004d 0 2px 4px 0, #0000004d 0 1px 2px 0, #ffffff29 0 0 0 0.5px, #ffffff0f 0 -0.5px 0 0;
   --shadow-floating: #0000004d 0 8px 16px 0, #0000004d 0 4px 8px 0, #ffffff29 0 0 0 0.5px, #ffffff0f 0 -0.5px 0 0;
   --shadow-overlay: #0000004d 0 16px 32px 0, #0000004d 0 8px 16px 0, #ffffff29 0 0 0 0.5px, #ffffff0f 0 -0.5px 0 0;
 
-  --ai-accent: var(--purple-500);
+  --ai-accent: var(--copper-400);
+  --bg-glow-core: color-mix(in srgb, var(--copper-500) 45%, transparent);
+  --bg-glow-companion: color-mix(in srgb, var(--copper-400) 40%, transparent);
+  --bg-glow-wash: color-mix(in srgb, var(--copper-600) 30%, transparent);
+  --scope-you: var(--copper-400);
+  --scope-you-core: var(--copper-200);
+  --scope-agent: var(--sand-300);
+  --scope-agent-core: var(--sand-100);
+  --scope-plate: var(--grey-1100);
+  --scope-rim: var(--grey-50);
 
   --logo-filter: invert(1);
 }

@@ -379,7 +379,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 stream={isPaused ? null : micStream}
                 label={scopeLabel}
                 zoom={scopeZoom}
-                palette={DOT_SCOPE_CONFIG.composerTheme}
                 margins={{ x: composer.marginX, y: composer.marginY }}
               />
               {/* Fixed height keeps the pill pinned while its controls swap. */}

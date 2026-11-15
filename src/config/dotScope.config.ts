@@ -37,19 +37,10 @@ export interface DotScopeTuning {
   processing: DotScopeProcessing;
 }
 
-type Rgb = readonly [number, number, number];
-type Rgba = readonly [number, number, number, number];
-
-export interface DotScopeTheme {
-  you: Rgb;
-  youCore: Rgb;
-  agent: Rgb;
-  agentCore: Rgb;
-  coral: Rgb;
-  coralCore: Rgb;
-  plate: Rgba;
-  rim: Rgba;
-  shadow: Rgba;
+/** The pill's look per theme; its colours come from the `--scope-*` tokens. */
+export interface DotScopeLook {
+  plateAlpha: number;
+  rimAlpha: number;
   /** Unlit dot floor alpha, full alpha, brightness curve, glow strength (shader). */
   unlit: number;
   full: number;
@@ -101,73 +92,28 @@ export const DOT_SCOPE_CONFIG = {
     liveText: { heightPx: 40, placeholder: 'Listening…' },
   },
 
-  /** Composer palette: the app's accent blue for the recording traces (instead
-   *  of Hex's warm pearl), a glassier plate and lighter shadow so the pill
-   *  reads as a native instrument, not a slab, and a stronger glow that dances
-   *  with the voice. Merged over the dark/light base theme. */
-  composerTheme: {
-    dark: {
-      you: [0.29, 0.58, 1.0],
-      youCore: [0.72, 0.85, 1.0],
-      agent: [0.45, 0.6, 0.9],
-      agentCore: [0.78, 0.88, 1.0],
-      plate: [17 / 255, 17 / 255, 20 / 255, 0.92],
-      rim: [1, 1, 1, 0.16],
-      shadow: [0, 0, 0, 0],
-      unlit: 0.06,
-      full: 1.0,
-      curve: 0.9,
-      glowStrength: 0.6,
-    },
-    light: {
-      you: [0.145, 0.388, 0.922],
-      youCore: [0.55, 0.72, 1.0],
-      agent: [0.33, 0.42, 0.62],
-      agentCore: [0.62, 0.72, 0.9],
-      plate: [252 / 255, 251 / 255, 249 / 255, 0.94],
-      rim: [0, 0, 0, 0.1],
-      shadow: [0, 0, 0, 0],
-      unlit: 0.07,
-      full: 1.0,
-      curve: 0.75,
-      glowStrength: 0.5,
-    },
+  /**
+   * Colour token per part (tokens.css `--scope-*`): copper voice, sand while
+   * processing, danger red on failure, and the plate and rim. Read live, so
+   * the pill follows the theme.
+   */
+  colors: {
+    you: '--scope-you',
+    youCore: '--scope-you-core',
+    agent: '--scope-agent',
+    agentCore: '--scope-agent-core',
+    fail: '--scope-fail',
+    failCore: '--scope-fail-core',
+    plate: '--scope-plate',
+    rim: '--scope-rim',
   },
+
+  /** A glassy plate and a glow that dances with the voice. */
+  look: {
+    dark: { plateAlpha: 0.92, rimAlpha: 0.16, unlit: 0.06, full: 1.0, curve: 0.9, glowStrength: 0.6 },
+    light: { plateAlpha: 0.94, rimAlpha: 0.1, unlit: 0.07, full: 1.0, curve: 0.75, glowStrength: 0.5 },
+  } satisfies Record<'dark' | 'light', DotScopeLook>,
 
   /** How long the done wipe plays before the pill fades out, s. */
   doneHold: 0.35,
-
-  /** Warm pearl while recording, cooling to agent blue while processing, coral on failure (sRGB 0–1). */
-  theme: {
-    dark: {
-      you: [0.86, 0.83, 0.77],
-      youCore: [0.98, 0.96, 0.92],
-      agent: [0.70, 0.78, 0.90],
-      agentCore: [0.92, 0.95, 1.0],
-      coral: [1.0, 0.38, 0.31],
-      coralCore: [1.0, 0.66, 0.6],
-      plate: [17 / 255, 17 / 255, 20 / 255, 0.94],
-      rim: [1, 1, 1, 0.11],
-      shadow: [0, 0, 0, 0.5],
-      unlit: 0.07,
-      full: 0.96,
-      curve: 0.9,
-      glowStrength: 0.3,
-    },
-    light: {
-      you: [0.62, 0.53, 0.40],
-      youCore: [0.47, 0.38, 0.26],
-      agent: [0.40, 0.47, 0.58],
-      agentCore: [0.24, 0.31, 0.43],
-      coral: [0.9, 0.27, 0.21],
-      coralCore: [0.7, 0.18, 0.13],
-      plate: [252 / 255, 251 / 255, 249 / 255, 0.96],
-      rim: [0, 0, 0, 0.09],
-      shadow: [20 / 255, 24 / 255, 40 / 255, 0.2],
-      unlit: 0.085,
-      full: 1.0,
-      curve: 0.75,
-      glowStrength: 0.19,
-    },
-  } satisfies Record<'dark' | 'light', DotScopeTheme>,
 } as const;
