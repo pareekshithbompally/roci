@@ -1,7 +1,4 @@
-/**
- * Spotlight service — turns meetings in macOS Spotlight on or off; Rust
- * (src-tauri/src/meeting_spotlight) keeps the index in step while on.
- */
+/** Turns meetings in macOS Spotlight on or off; Rust keeps the index in step while on. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from '@services/tauri';

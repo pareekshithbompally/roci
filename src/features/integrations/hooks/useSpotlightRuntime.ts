@@ -1,7 +1,4 @@
-/**
- * useSpotlightRuntime — mount once (App). Points the meeting indexer at the
- * current setting, once settings have loaded (before that they are fallbacks).
- */
+/** Mount once (App): points the meeting indexer at the current setting once settings have loaded. */
 
 import { useEffect } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';

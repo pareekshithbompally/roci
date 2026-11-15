@@ -1,11 +1,4 @@
-/**
- * VTT Parser Utility
- *
- * Parses WebVTT (.vtt) files to extract:
- * - Timestamps
- * - Speaker names (from cue settings or voice tags)
- * - Transcript text
- */
+/** WebVTT parser: timestamps, speaker names (cue settings or voice tags), and transcript text. */
 
 export interface VTTParsedSegment {
   timestamp: string;
@@ -19,11 +12,6 @@ export interface VTTParseResult {
   speakers: string[];
 }
 
-/**
- * Parse VTT file content
- * @param vttContent - Raw VTT file content as string
- * @returns Parsed VTT data with segments, full text, and speaker list
- */
 export function parseVTT(vttContent: string): VTTParseResult {
   const segments: VTTParsedSegment[] = [];
   const speakersSet = new Set<string>();
@@ -100,11 +88,7 @@ export function parseVTT(vttContent: string): VTTParseResult {
   };
 }
 
-/**
- * Format timestamp from VTT format (HH:MM:SS.mmm or MM:SS.mmm) to simplified MM:SS
- * @param timestamp - VTT timestamp string
- * @returns Formatted timestamp (MM:SS)
- */
+/** VTT timestamp (HH:MM:SS.mmm or MM:SS.mmm) as MM:SS. */
 function formatTimestamp(timestamp: string): string {
   const parts = timestamp.split(':');
 

@@ -1,14 +1,8 @@
-/**
- * Storage Service Types
- * Shared interfaces and types for all storage operations
- */
+/** Shared types for storage operations. */
 
 import type { AudioCaptureSource } from '@config/audio.config';
 import type { ModelProvider } from '@shared/types/modelProviders';
 
-/**
- * Base metadata for all stored items
- */
 export interface BaseMetadata {
   id: string;
   createdAt: string; // ISO timestamp
@@ -16,9 +10,6 @@ export interface BaseMetadata {
   version: number; // Schema version
 }
 
-/**
- * Recording metadata
- */
 export interface RecordingMetadata extends BaseMetadata {
   filename: string;
   duration: number; // seconds
@@ -30,9 +21,6 @@ export interface RecordingMetadata extends BaseMetadata {
   summaryId?: string;
 }
 
-/**
- * App settings
- */
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
   autoSave: boolean;
@@ -48,9 +36,6 @@ export interface AppSettings {
   [key: string]: unknown; // Allow arbitrary settings for migration compatibility
 }
 
-/**
- * Cache entry
- */
 export interface CacheEntry<T = unknown> {
   key: string;
   data: T;
@@ -59,9 +44,6 @@ export interface CacheEntry<T = unknown> {
   size: number; // bytes
 }
 
-/**
- * Cache statistics
- */
 export interface CacheStats {
   totalSize: number; // bytes
   entryCount: number;
@@ -75,18 +57,12 @@ export interface CacheStats {
   };
 }
 
-/**
- * Storage operation result
- */
 export interface StorageResult<T = void> {
   success: boolean;
   data?: T;
   error?: string;
 }
 
-/**
- * Directory info
- */
 export interface DirectoryInfo {
   path: string;
   exists: boolean;
@@ -94,9 +70,6 @@ export interface DirectoryInfo {
   fileCount: number;
 }
 
-/**
- * File operation options
- */
 export interface FileOperationOptions {
   createDir?: boolean; // Create directory if not exists
   overwrite?: boolean; // Overwrite existing file

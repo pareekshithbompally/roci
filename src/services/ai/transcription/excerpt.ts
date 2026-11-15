@@ -1,9 +1,4 @@
-/**
- * Fit a transcript to a model's context window (HEX `meeting/notes.rs` budget).
- * Any model with a known window is budgeted; an unknown window means the whole
- * transcript. A long meeting keeps its opening and its end — where the agenda
- * and the conclusions are — joined by `[…]`.
- */
+/** Fits a transcript to a known context window, keeping the opening and the end joined by `[…]`. */
 
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { capabilitiesOf } from '@services/ai/capabilities';

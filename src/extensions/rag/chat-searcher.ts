@@ -1,9 +1,4 @@
-/**
- * Chat Searcher
- *
- * Delegates hybrid search to the Rust store plugin.
- * Mirrors ragSearcher in structure.
- */
+/** Chat search, delegated to the Rust store plugin's hybrid search. */
 
 import { embeddingService } from './embeddings';
 import { NOT_CONSENTED } from './types';

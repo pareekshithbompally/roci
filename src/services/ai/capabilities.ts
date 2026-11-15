@@ -1,14 +1,4 @@
-/**
- * Model Capabilities — the one answer to "what can this model do?"
- *
- * Every consumer (chat tools, web search, the speech picker, summary
- * budgeting, Settings badges) reads capabilities here. Precedence per field:
- * the user's per-model override → models.dev → a provider-level default.
- *
- * Sync by design: it reads the models.dev cache the model-catalog query
- * loads (`useModelCatalog`). Before that cache loads, models.dev-derived
- * fields fall back to their defaults.
- */
+/** The one answer to what a model can do: user override → models.dev (cached) → provider default. */
 
 import { MANAGED_SDK_PROVIDERS, WEB_SEARCH_PROVIDERS } from '@config/providers.config';
 import { modalitiesService } from '@services/modalities';

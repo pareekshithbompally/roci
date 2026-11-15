@@ -1,9 +1,6 @@
 use serde::Serialize;
 
-/// Structured error contract for every store command.
-///
-/// Every command returns `Result<T, StoreError>`.
-/// Serialized as `{ code: string, message: string }` to the frontend.
+/// Error every store command returns, serialized to the frontend as `{ code, message }`.
 #[derive(Debug, Serialize)]
 pub struct StoreError {
     pub code: StoreErrorCode,
@@ -47,8 +44,7 @@ fn map_rusqlite_error(e: &rusqlite::Error) -> (StoreErrorCode, String) {
     }
 }
 
-/// Classifies a `SqliteFailure`'s underlying FFI error using its primary
-/// `ErrorCode` and, for constraint violations, its extended code.
+/// Classifies a `SqliteFailure` by its primary `ErrorCode` and, for constraint violations, its extended code.
 fn constraint_code(ffi_error: &rusqlite::ffi::Error) -> StoreErrorCode {
     if ffi_error.code != rusqlite::ErrorCode::ConstraintViolation {
         return StoreErrorCode::Db;
@@ -85,9 +81,7 @@ mod tests {
     use super::*;
     use rusqlite::Connection;
 
-    /// Connection with a `parents`/`children` schema covering UNIQUE,
-    /// CHECK, and FOREIGN KEY constraints, used to trigger real
-    /// `rusqlite::Error::SqliteFailure` values.
+    /// Schema with UNIQUE, CHECK and FOREIGN KEY constraints to trigger real `SqliteFailure` values.
     fn test_conn() -> Connection {
         let conn = Connection::open_in_memory().unwrap();
         conn.execute_batch(

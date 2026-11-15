@@ -1,9 +1,4 @@
-/**
- * Startup splash — linked from index.html so it paints on the first frame, before
- * any JS loads; the window never shows black. src/app/splash.ts fades it out once
- * the app is ready. Mirrors opencode desktop's startup-splash: the logo mark at
- * half opacity, gently pulsing.
- */
+/* Startup splash linked from index.html so it paints before JS loads: the logo mark, half opacity, pulsing. */
 
 html {
   background: var(--bg-base-glass);

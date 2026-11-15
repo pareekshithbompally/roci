@@ -1,10 +1,4 @@
-/**
- * MediaPartRenderer Component
- *
- * Renders non-text chat parts (images, audio, video) from multimodal AI responses.
- * Images display as constrained thumbnails; clicking opens a fullscreen lightbox.
- * Resolves MediaSource to a renderable src URL regardless of source kind.
- */
+/** Renders image, audio, and video chat parts; images open a fullscreen lightbox on click. */
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { X, FileText } from 'lucide-react';

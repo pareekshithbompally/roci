@@ -15,8 +15,7 @@ pub enum PermissionState {
 #[serde(rename_all = "kebab-case")]
 pub enum PermissionKind {
     Microphone,
-    /// System Audio Recording, which the process tap needs. Screen Recording
-    /// also counts: the ScreenCaptureKit fallback hears the system with it.
+    /// System Audio Recording for the process tap; Screen Recording also counts, for the fallback.
     SystemAudio,
 }
 

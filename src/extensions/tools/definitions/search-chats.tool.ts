@@ -1,9 +1,4 @@
-/**
- * search_chats tool
- *
- * Hybrid semantic + keyword search across the user's chat history.
- * Returns ranked excerpts the LLM can use to locate specific conversations.
- */
+/** search_chats: hybrid search over chat history, returning ranked excerpts. */
 
 import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
 import { chatSearcher } from '@extensions/rag/chat-searcher';

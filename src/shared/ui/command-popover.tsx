@@ -1,16 +1,4 @@
-/**
- * CommandPopover + CommandFlyout — the composer picker pattern.
- *
- * - `CommandPopover`: trigger + popover holding a searchable Command list
- *   (search partition on top, scrolling list, empty state). Used by the model
- *   picker and the tools picker so both look and behave identically.
- * - `CommandFlyout`: a second-level list that opens beside one row, on hover
- *   or Enter (submenu pattern). Rendered inside the parent's React tree, so
- *   clicks in it never dismiss the parent popover.
- *
- * Both stay inside the window (collision padding + Radix's measured
- * available height) and scroll instead of overflowing.
- */
+/** Composer pickers: a searchable popover list plus a side flyout submenu, both clamped to the window and scrolling. */
 
 import React from 'react';
 import { UI_CONFIG } from '@config/ui.config';

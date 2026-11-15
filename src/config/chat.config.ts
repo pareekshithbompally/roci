@@ -1,7 +1,4 @@
-/**
- * Chat Configuration
- * Single source of truth for chat UI and session management constants.
- */
+/** Chat UI and session management constants. */
 
 /** Number of session index entries to show per page in the sidebar */
 export const CHAT_PAGE_SIZE = 50;
@@ -9,20 +6,16 @@ export const CHAT_PAGE_SIZE = 50;
 /** Number of items to show initially in the unified sidebar. More load on scroll. */
 export const SIDEBAR_PAGE_SIZE = 25;
 
-/** Maximum number of fully-loaded ChatSession objects to hold in the LRU cache.
- *  Oldest session is evicted when this limit is exceeded (excluding currentSessionId). */
+/** Max fully loaded ChatSessions in the LRU cache; the oldest (never the current one) is evicted. */
 export const MAX_LOADED_SESSIONS = 10;
 
 /** Debounce delay (ms) for sidebar title search filtering */
 export const SIDEBAR_SEARCH_DEBOUNCE_MS = 200;
 
-/** Debounce delay (ms) before firing a spotlight search query.
- *  150ms is appropriate for local Rust backend (no network latency).
- *  300ms would feel sluggish; 50ms would fire on every keystroke. */
+/** Spotlight search debounce (ms), short because the search runs in the local Rust backend. */
 export const SPOTLIGHT_DEBOUNCE_MS = 150;
 
-/** Minimum query length to trigger a content search.
- *  1-char queries scan the entire dictionary (slow). 2 chars + prefix='2 3' is fast. */
+/** Minimum query length for content search; 1-char queries scan the whole dictionary. */
 export const SPOTLIGHT_MIN_QUERY_LENGTH = 2;
 
 /** Max results per source type returned by spotlight_search. */

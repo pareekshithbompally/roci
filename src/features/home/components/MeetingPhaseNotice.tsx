@@ -1,7 +1,4 @@
-/**
- * MeetingPhaseNotice — the line under a meeting title that says what is happening
- * and offers the one action that phase allows (Transcribe / Retry).
- */
+/** Line under a meeting title saying what phase it is in, with that phase's one action (Transcribe / Retry). */
 
 import React from 'react';
 import { Loader2 } from 'lucide-react';

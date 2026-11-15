@@ -1,7 +1,4 @@
-/**
- * Error Boundary for ProvidersPanel
- * Catches and displays errors gracefully without crashing the entire app
- */
+/** Error boundary so a ProvidersPanel crash doesn't take down the app. */
 
 import React, { Component, type ReactNode } from 'react';
 import { Button, Callout, Surface, Text } from '@shared/ui';

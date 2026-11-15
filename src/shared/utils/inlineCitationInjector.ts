@@ -1,16 +1,4 @@
-/**
- * Inline Citation Injector
- *
- * Post-processes completed response text to insert citation marker tokens
- * at positions defined by InlineCitationSpan[].
- *
- * Strategy: convert character-offset spans into marker insertions at endIndex
- * positions, working from the end of the string backward to preserve offsets.
- *
- * Also exports a rehype plugin that transforms {{cite:N}} text tokens in the
- * HTML AST into <span data-cite="N"> elements, which Streamdown's `components`
- * prop maps to <InlineCitationMarker> React components.
- */
+/** Inserts {{cite:N}} tokens at span ends and turns them into <span data-cite> elements for InlineCitationMarker. */
 
 import type { InlineCitationSpan } from '@shared/types';
 import { visit } from 'unist-util-visit';
@@ -21,10 +9,7 @@ const CITE_TOKEN_RE = /\{\{cite:(\d+(?:,\d+)*)\}\}/g;
 
 // ── Token injection ─────────────────────────────────────────────
 
-/**
- * Detect code block / inline code ranges so we can skip citation injection there.
- * Handles fenced code blocks (```) and inline code (`).
- */
+/** Fenced and inline code ranges, where citation injection is skipped. */
 function findCodeBlockRanges(text: string): Array<{ start: number; end: number }> {
   const ranges: Array<{ start: number; end: number }> = [];
   // Fenced code blocks first (triple backtick), then inline code (single backtick)
@@ -40,13 +25,7 @@ function isInsideCodeBlock(pos: number, ranges: Array<{ start: number; end: numb
   return ranges.some(r => pos >= r.start && pos <= r.end);
 }
 
-/**
- * Inject citation tokens into completed text.
- *
- * @param text — The completed response text
- * @param spans — Inline citation spans from the message
- * @returns Text with {{cite:N}} tokens inserted at span boundaries
- */
+/** Insert {{cite:N}} tokens at span ends, working backward so earlier offsets stay valid. */
 export function injectCitationTokens(
   text: string,
   spans: InlineCitationSpan[]
@@ -85,13 +64,7 @@ export function injectCitationTokens(
 
 // ── Rehype plugin ───────────────────────────────────────────────
 
-/**
- * Rehype plugin that transforms {{cite:N}} text tokens into
- * <span data-cite="N"> elements in the HAST.
- *
- * Runs AFTER sanitization so the generated elements aren't stripped.
- * The Streamdown `components` prop maps these spans to React components.
- */
+/** Rehype plugin turning {{cite:N}} into <span data-cite="N">; runs after sanitization so they are not stripped. */
 export function rehypeCitationMarkers() {
   return (tree: Root) => {
     visit(tree, 'text', (node: Text, index: number | undefined, parent: Element | Root | undefined) => {

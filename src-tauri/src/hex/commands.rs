@@ -38,8 +38,7 @@ pub async fn hex_status(app: AppHandle) -> Result<HexStatus, HexError> {
     }
 }
 
-/// Transcribes one complete PCM WAV sent as the raw invoke body.
-/// Headers: `x-hex-model` (required), `x-hex-language` (default `en`).
+/// Transcribes one WAV raw body; headers `x-hex-model` (required) and `x-hex-language` (default `en`).
 #[tauri::command]
 pub async fn hex_transcribe(app: AppHandle, request: Request<'_>) -> Result<String, HexError> {
     let wav = raw_body(&request).ok_or_else(|| HexError::Rejected("expected a raw WAV body".into()))?;

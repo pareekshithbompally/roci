@@ -1,16 +1,10 @@
-/**
- * Dialog service for Tauri
- * Provides native file open/save dialogs with fallbacks
- */
+/** Native file open/save dialogs with browser fallbacks. */
 
 import { isTauriEnvironment } from './environment.service';
 import type { FileDialogOptions, SaveDialogOptions } from './types';
 
 class DialogService {
-  /**
-   * Open a file selection dialog
-   * @returns Selected file path(s) or null if cancelled
-   */
+  /** @returns Selected file path(s), or null if cancelled */
   async open(options: FileDialogOptions = {}): Promise<string | string[] | null> {
     if (!isTauriEnvironment()) {
       return this.fallbackFileOpen(options.multiple);
@@ -30,10 +24,7 @@ class DialogService {
     }
   }
 
-  /**
-   * Open a save file dialog
-   * @returns Selected save path or null if cancelled
-   */
+  /** @returns Selected save path, or null if cancelled */
   async save(options: SaveDialogOptions = {}): Promise<string | null> {
     if (!isTauriEnvironment()) {
       return this.fallbackFileSave(options.defaultPath);
@@ -52,9 +43,6 @@ class DialogService {
     }
   }
 
-  /**
-   * Show a message dialog
-   */
   async message(title: string, message: string): Promise<void> {
     if (!isTauriEnvironment()) {
       alert(`${title}\n\n${message}`);
@@ -70,9 +58,6 @@ class DialogService {
     }
   }
 
-  /**
-   * Show a confirmation dialog
-   */
   async confirm(title: string, message: string): Promise<boolean> {
     if (!isTauriEnvironment()) {
       return confirm(`${title}\n\n${message}`);

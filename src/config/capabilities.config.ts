@@ -1,7 +1,4 @@
-/**
- * Settings › Capabilities — what Kasset can do and the copy for each job.
- * Pickers list models from Providers and from switched-on Integrations.
- */
+/** Settings › Capabilities copy; pickers list models from Providers and switched-on Integrations. */
 
 export const CAPABILITIES_CONFIG = {
   description: 'What Kasset can do, and the model behind each. Add sources in Providers or Integrations.',

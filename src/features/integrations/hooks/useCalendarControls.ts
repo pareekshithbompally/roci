@@ -1,8 +1,4 @@
-/**
- * useCalendarControls — macOS Calendar row: access and on/off.
- * (Polling and meeting reminders live in useCalendarRuntime; the reminder
- * switch and lead time are in Settings › Notifications.)
- */
+/** macOS Calendar row: access and on/off; polling and reminders live in useCalendarRuntime. */
 
 import { useCallback } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';

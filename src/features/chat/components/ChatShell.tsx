@@ -1,13 +1,4 @@
-/**
- * ChatShell Component
- *
- * Shared chat layout used by both ChatView (full-screen) and ChatPanel (meeting-scoped).
- * Owns: drawer state, citation handlers, message rendering, ChatInput config,
- * citation drawers, and speech input wiring.
- *
- * ChatView and ChatPanel are thin wrappers that provide only:
- *  - emptyStateMessage, placeholderText, optional headerSlot, optional className
- */
+/** Shared chat layout for ChatView and ChatPanel: messages, composer, citation drawers, speech input. */
 
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { ArrowDown, Loader2 } from 'lucide-react';
@@ -213,9 +204,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
   }, [sendMessage]);
 
   // ── Scroll ──
-  // Manual scroll container: follow new content only while the user is at the
-  // bottom; once they scroll up, stop yanking and offer a "jump to bottom"
-  // button instead. Replaces auto-stick (StickToBottom), which fought the user.
+  // Follow new content only while at the bottom; after scrolling up, offer "jump to bottom" instead.
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const [showScrollDown, setShowScrollDown] = useState(false);
@@ -264,8 +253,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
 
   const currentMessages = currentSession?.messages || [];
 
-  // Context-window gauge for the composer (hidden when the model limit is
-  // unknown or no usage has been recorded yet).
+  // Context gauge; hidden when the model limit or usage is unknown.
   const contextLimit = useContextLimit();
   const contextUsage = useContextUsage(currentMessages, contextLimit);
 

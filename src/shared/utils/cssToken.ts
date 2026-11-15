@@ -1,8 +1,4 @@
-/**
- * Live value of a design-token role (src/styles/tokens.css) for APIs that take
- * colour strings instead of classes — canvas, WaveSurfer. Re-read after a theme
- * change (the `.dark` class swaps the roles).
- */
+/** Live value of a token role for colour-string APIs (canvas, WaveSurfer); re-read after a theme change. */
 export function cssToken(name: `--${string}`): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }

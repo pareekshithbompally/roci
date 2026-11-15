@@ -1,8 +1,4 @@
-/**
- * useAutoFold — a section that follows work: open while it runs, folded a
- * beat after it finishes (so what happened is seen, not flashed). The user
- * can open or close it any time; their choice stands until work starts again.
- */
+/** Open while work runs, folded a beat after; a user toggle stands until work starts again. */
 
 import { useEffect, useRef, useState } from 'react';
 import { ANIMATION_CONFIG } from '@config/animations.config';

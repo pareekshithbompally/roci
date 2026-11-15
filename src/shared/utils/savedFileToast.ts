@@ -1,7 +1,4 @@
-/**
- * The toast after a "Save as…": where the file went, and a button that shows
- * it in Finder. One place for every export (meeting notes, chat tables).
- */
+/** The toast after any "Save as…": where the file went, with Show in Finder. */
 
 import { UI_CONFIG } from '@config/ui.config';
 import { revealInFinder } from '@services/tauri';

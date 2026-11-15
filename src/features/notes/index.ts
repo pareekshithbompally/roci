@@ -1,18 +1,4 @@
-/**
- * Notes Feature Module
- * 
- * Handles all notes-related functionality:
- * - Notes display and management
- * - Add, edit, delete notes
- * - Notes linked to meetings/recordings
- * 
- * Usage:
- * ```tsx
- * import { useNotes, NotesView } from '@/features/notes';
- * 
- * <NotesView />
- * ```
- */
+/** Notes feature: meeting-linked notes with add, edit, and delete. */
 
 // Hooks
 export { useNotes } from './hooks';

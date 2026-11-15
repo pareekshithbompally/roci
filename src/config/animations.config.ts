@@ -1,9 +1,4 @@
-/**
- * Animation Configuration
- * 
- * Centralized animation and transition settings for consistent motion design.
- * All timing values, easing functions, and animation parameters should be defined here.
- */
+/** Animation and transition timings, easings and parameters. */
 
 export const ANIMATION_CONFIG = {
   // Duration scale (in milliseconds)
@@ -161,11 +156,7 @@ export const ANIMATION_CONFIG = {
   chat: {
     /** Shared-element id: the composer glides from the landing page to the bottom of the chat */
     composerLayoutId: 'chat-composer',
-    /**
-     * framer-motion `layoutDependency` per composer host. Layout animates only when this
-     * value changes (landing → chat), never on content growth (chips, attachments, text).
-     * The two values must differ, or framer skips the shared glide.
-     */
+    /** framer-motion `layoutDependency` per composer host; values must differ or framer skips the shared glide. */
     composerLayoutDependency: { idle: 'idle', chat: 'chat' },
     /** Composer glide (framer-motion, seconds) — standard easeInOut */
     composerGlide: { duration: 0.3, ease: [0.4, 0, 0.2, 1] as const },
@@ -193,9 +184,7 @@ export const ANIMATION_CONFIG = {
   },
 } as const;
 
-/**
- * Helper to get CSS transition string
- */
+/** CSS transition string from config values. */
 export function getCSSTransition(
   transitionKey: keyof typeof ANIMATION_CONFIG.transition
 ): string {
@@ -203,16 +192,12 @@ export function getCSSTransition(
   return `${config.property} ${config.duration}ms ${config.easing}`;
 }
 
-/**
- * Helper to get animation duration in seconds (for CSS)
- */
+/** Animation duration in seconds, for CSS. */
 export function getDurationInSeconds(durationKey: keyof typeof ANIMATION_CONFIG.duration): string {
   return `${ANIMATION_CONFIG.duration[durationKey] / 1000}s`;
 }
 
-/**
- * Helper for requestAnimationFrame with target FPS
- */
+/** requestAnimationFrame loop throttled to a target FPS. */
 export function createAnimationLoop(
   callback: (deltaTime: number) => void,
   fps: number = 60
@@ -236,9 +221,7 @@ export function createAnimationLoop(
   return () => cancelAnimationFrame(animationId);
 }
 
-/**
- * Debounce helper using config values
- */
+/** Debounce using config delays. */
 export function createDebounce<T extends (...args: never[]) => void>(
   func: T,
   delayKey: keyof typeof ANIMATION_CONFIG.debounce
@@ -252,9 +235,7 @@ export function createDebounce<T extends (...args: never[]) => void>(
   };
 }
 
-/**
- * Throttle helper using config values
- */
+/** Throttle using config delays. */
 export function createThrottle<T extends (...args: never[]) => void>(
   func: T,
   delayKey: keyof typeof ANIMATION_CONFIG.debounce

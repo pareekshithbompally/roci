@@ -1,8 +1,4 @@
-/**
- * Local models — the curated models Kasset downloads and runs on this Mac
- * (src-tauri/src/models): their state, download, cancel and delete. Progress
- * arrives as `LOCAL_MODELS_CONFIG.downloadEvent`.
- */
+/** Curated on-device models (src-tauri/src/models): state, download, cancel, delete; progress on its download event. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from '@services/tauri';

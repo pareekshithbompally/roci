@@ -1,9 +1,4 @@
-/**
- * useUsageData Hook
- *
- * Aggregated usage summary from the store plugin, keyed by time range.
- * Query owns the fetch + cache; switching ranges hits cache when fresh.
- */
+/** Aggregated usage summary from the store plugin, cached per time range. */
 
 import { useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';

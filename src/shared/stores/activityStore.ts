@@ -1,12 +1,4 @@
-/**
- * Activity Store
- *
- * Generic external store for all ongoing background operations.
- * Uses useSyncExternalStore pattern (same as downloadStore).
- *
- * The store is dumb — it holds a list. Callers manage lifecycle
- * (add on start, update on progress, remove on completion).
- */
+/** Dumb list of ongoing background operations; callers add, update and remove items. */
 
 import { useSyncExternalStore } from 'react';
 
@@ -85,10 +77,7 @@ export const activityStore = {
   },
 };
 
-/**
- * React hook — returns all activity items.
- * Only triggers re-renders when the items array reference changes.
- */
+/** All activity items; re-renders only when the items array reference changes. */
 export function useActivityItems(): ActivityItem[] {
   return useSyncExternalStore(
     activityStore.subscribe,

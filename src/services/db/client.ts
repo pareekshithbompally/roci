@@ -1,9 +1,4 @@
-/**
- * Unified store client — the single TypeScript entry point for all DB operations.
- *
- * Every mutation goes through a Rust `tauri-plugin-store` command running inside a
- * SQLite transaction. Reads use TanStack Query hooks → this client → invoke().
- */
+/** The single TS entry for DB operations; each mutation is a Rust store command in one SQLite transaction. */
 
 import { call } from './internal';
 import type { StoreMeta } from './types';

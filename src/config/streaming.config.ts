@@ -1,8 +1,4 @@
-/**
- * Streaming Configuration
- * 
- * Constants for chat streaming behavior, layout, and animations.
- */
+/** Chat streaming behaviour, layout and animation constants. */
 
 export const STREAMING_CONFIG = {
   /** Base drain speed for buffer (20-50ms range) */

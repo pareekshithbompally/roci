@@ -2,10 +2,7 @@ import React from 'react';
 import { Check, Minus } from 'lucide-react';
 import { cn } from './utils';
 
-/**
- * Canonical checkbox with a third, mixed state (a group whose items are
- * partly on). Renders a button with `role="checkbox"` and `aria-checked`.
- */
+/** Canonical checkbox with a mixed state; renders a button with `role="checkbox"` and `aria-checked`. */
 export type CheckboxState = boolean | 'indeterminate';
 
 export interface CheckboxProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onChange'> {

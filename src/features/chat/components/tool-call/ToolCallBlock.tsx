@@ -35,11 +35,7 @@ export interface ToolCallBlockProps {
   follow?: boolean;
 }
 
-/**
- * One tool call: collapsible header (glyph, title, status/duration) over its
- * tool-specific body. On its own it follows the call (open while it runs,
- * folding a beat after); inside a group it starts folded.
- */
+/** One collapsible tool call; alone it follows the call's progress, inside a group it starts folded. */
 export const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ part, follow = true }) => {
   const [open, setOpen] = useAutoFold(follow && part.status === 'calling');
 

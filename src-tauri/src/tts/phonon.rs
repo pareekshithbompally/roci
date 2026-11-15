@@ -1,6 +1,4 @@
-//! Phonon 31M through `ptts`: loaded once from its downloaded folder with its
-//! curated voices, then each sentence chunk is synthesized in the chosen voice
-//! while the previous one plays.
+//! Phonon 31M through `ptts`: synthesizes each sentence chunk while the previous one plays.
 
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -26,9 +24,7 @@ impl Phonon {
         lock(&self.synth).take();
     }
 
-    /// Speaks `chunks` in order in `voice` (None = the model's default),
-    /// calling `on_chunk` as each one's audio begins. Returns when done or
-    /// once `stop` is set.
+    /// Speaks `chunks` in `voice` (None = default), calling `on_chunk` as each begins; stops on `stop`.
     pub fn speak(
         &self,
         model: &LocalModel,

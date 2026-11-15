@@ -62,10 +62,7 @@ export interface HistoryItem extends ProcessedResult {
   meetingUrl?: string;
 }
 
-/**
- * AppStatus represents VIEW state, not recording state.
- * Recording state is managed independently in RecordingContext.
- */
+/** View state, not recording state (recording is managed in RecordingContext). */
 export enum AppStatus {
   IDLE = 'IDLE',
   RESULTS = 'RESULTS',
@@ -159,9 +156,7 @@ export interface ChatSession {
   meetingId?: string;
 }
 
-/**
- * Unified sidebar item - represents either a meeting (history item) or a chat session
- */
+/** Sidebar item: either a meeting (history item) or a chat session. */
 export interface UnifiedSidebarItem {
   id: string;
   type: 'meeting' | 'chat';

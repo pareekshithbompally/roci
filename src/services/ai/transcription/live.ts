@@ -1,11 +1,4 @@
-/**
- * Live transcription — dictation turned into text while it's spoken.
- *
- * Any engine that can do it implements `LiveEngine` and is registered here by
- * its speech provider; the catalog marks which of a provider's models stream
- * (`SpeechModelOption.live`). Callers never branch on an engine: they ask
- * `liveEngineFor(provider)` and drive the same four calls.
- */
+/** Live engines registered by speech provider; callers use `liveEngineFor(provider)` and never branch on an engine. */
 
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { onDeviceLive } from './onDevice';

@@ -1,10 +1,4 @@
-/**
- * ProviderListItem
- *
- * One row of the Providers sidebar: logo, title, optional status line, and the
- * on/off switch. Shared by cloud providers and local servers so both lists look
- * and behave the same. `ProviderGroup` is the labelled list around them.
- */
+/** One Providers sidebar row (logo, title, status, switch), shared by cloud providers and local servers. */
 
 import React from 'react';
 import { ProvidersAvatar } from '@shared/components';

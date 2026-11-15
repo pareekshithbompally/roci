@@ -1,6 +1,3 @@
-/**
- * Recording Hooks Index
- */
 export { useRecording } from './useRecording';
 export { useRecordingTimer } from './useRecordingTimer';
 export { useAudioSource } from './useAudioSource';

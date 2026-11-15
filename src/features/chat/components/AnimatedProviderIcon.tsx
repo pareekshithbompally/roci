@@ -1,9 +1,4 @@
-/**
- * AnimatedProviderIcon Component
- *
- * Model icon (org avatar or provider logo) with animated gradient ring for loading/streaming state.
- * Uses a fixed outer size so the icon never shifts or resizes between states.
- */
+/** Model icon with an animated ring while loading or streaming; fixed outer size so it never shifts. */
 
 import React from 'react';
 import { ModelIcon } from '@shared/components';

@@ -1,6 +1,4 @@
-//! What a recording needs from macOS: the Microphone, and System Audio
-//! Recording (or Screen Recording, for the ScreenCaptureKit fallback).
-//! Reading a state never prompts; only a request does.
+//! Microphone and System Audio (or Screen) Recording consent; reading never prompts, only a request does.
 
 pub mod commands;
 mod guide;

@@ -1,8 +1,4 @@
-/**
- * useAudioSource Hook
- * 
- * Manages audio source selection and provides source information.
- */
+/** Audio source selection and source information. */
 
 import { useMemo, useCallback } from 'react';
 import { useRecordingContext } from '@features/recording/context';

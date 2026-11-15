@@ -1,16 +1,4 @@
-/**
- * Context Usage Derivation
- *
- * Measures how much of the active model's context window the current
- * conversation occupies. Mirrors llama.cpp's web UI approach: the total is
- * server-declared (see `getModelContextLimit`), and usage is measured from
- * provider-reported token counts — the last assistant message's input tokens
- * equal the full prompt the model saw (history + tool results), which is the
- * same property llama.cpp reads from `prompt_n`.
- *
- * Returns null when there is nothing to show (unknown total, or no usage
- * recorded yet) so callers can hide the gauge entirely.
- */
+/** Context-window use: total is server-declared, used is the last assistant message's input tokens; null hides it. */
 
 import { useMemo } from 'react';
 import type { ChatMessage } from '@shared/types';
@@ -53,12 +41,7 @@ function hasUsage(m: ChatMessage): boolean {
   return m.inputTokenCount != null || m.tokenCount != null;
 }
 
-/**
- * Derive context usage from persisted session messages.
- *
- * @param messages - Active session messages in order.
- * @param contextTotal - Model context window in tokens, or null when unknown.
- */
+/** Context usage from session messages; `contextTotal` is null when the model limit is unknown. */
 export function deriveContextUsage(
   messages: ChatMessage[],
   contextTotal: number | null

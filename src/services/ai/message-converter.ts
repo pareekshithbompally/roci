@@ -1,6 +1,4 @@
-/**
- * Message Converter — ChatMessage[] → AI SDK ModelMessage[]
- */
+/** ChatMessage[] → AI SDK ModelMessage[]. */
 
 import type { ModelMessage, FilePart, TextPart } from 'ai';
 import type { ChatMessage, ChatPart } from '@shared/types';
@@ -52,13 +50,7 @@ function hasMediaParts(msg: ChatMessage): boolean {
   return filterProviderParts(msg.parts).some(p => p.type !== 'text');
 }
 
-/**
- * Convert ChatMessage[] to AI SDK ModelMessage[].
- * - role 'model' → 'assistant'
- * - Multimodal parts mapped to FilePart (images use file parts with image mediaType)
- * - tool_call parts filtered (UI-only)
- * - loading / streaming messages filtered
- */
+/** `model` → `assistant`, attachments → file parts; tool_call parts and loading/streaming messages are dropped. */
 export function toSDKMessages(messages: ChatMessage[]): ModelMessage[] {
   return messages
     .filter(m => m.state !== 'loading' && m.state !== 'streaming')

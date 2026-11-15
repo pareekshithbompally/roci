@@ -1,9 +1,4 @@
-//! `Kasset mcp` — the command coding agents launch (stdio MCP transport).
-//!
-//! It joins stdin/stdout to the running app's socket byte for byte; the app
-//! speaks MCP. When Kasset isn't running it is opened in the background
-//! (hidden, no Dock bounce) and the relay waits for it. Runs before Tauri
-//! starts and never prints to stdout itself — stdout belongs to the protocol.
+//! `Kasset mcp`: pipes stdio to the app's socket, opening Kasset hidden first; never prints to stdout.
 
 use std::{
     io::{self, Write},
@@ -51,8 +46,7 @@ fn connect_or_launch() -> Result<UnixStream, String> {
     }
 }
 
-/// Open the Kasset.app this binary belongs to, hidden. A bare binary (a dev
-/// build) has no bundle to open: the developer starts it.
+/// Open this binary's Kasset.app hidden; a bare dev binary has no bundle to open.
 fn launch_app() -> Result<(), String> {
     let exe = std::env::current_exe().map_err(|e| format!("locate Kasset: {e}"))?;
     let bundle = app_bundle(&exe).ok_or("Kasset isn't running. Start it and try again.")?;
@@ -76,9 +70,7 @@ pub fn app_bundle(exe: &Path) -> Option<PathBuf> {
     is_app.then(|| bundle.to_path_buf())
 }
 
-/// Copy stdin → socket on a thread and socket → stdout here. The app closing
-/// the socket (quit) ends the relay; the agent closing stdin half-closes the
-/// socket so the app ends the session.
+/// Pipe stdin → socket and socket → stdout; either side closing ends the session.
 fn relay(stream: UnixStream) -> Result<(), String> {
     let mut upstream = stream.try_clone().map_err(|e| format!("socket: {e}"))?;
     thread::spawn(move || {

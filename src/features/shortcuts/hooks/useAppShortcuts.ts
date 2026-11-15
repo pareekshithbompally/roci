@@ -1,10 +1,4 @@
-/**
- * useAppShortcuts — the one window keydown listener for in-window shortcuts.
- *
- * Every `APP_SHORTCUTS` id must have a handler (the type enforces it), so a
- * shortcut in the registry can never be silently unbound. Acceptance rules:
- * see `accelerator.ts`.
- */
+/** The one window keydown listener; every `APP_SHORTCUTS` id must have a handler (type-enforced). */
 
 import { useEffect, useRef } from 'react';
 import type { AppShortcutId } from '@config/shortcuts.config';

@@ -1,8 +1,4 @@
-/**
- * Startup splash — the logo index.html paints before JS loads (styles in
- * src/styles/splash.css). Raised above the app as soon as JS runs, then faded
- * out and removed once the app has its first real screen.
- */
+/** Startup splash painted by index.html before JS loads; raised on boot, faded out once the app first renders. */
 
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { UI_CONFIG } from '@config/ui.config';

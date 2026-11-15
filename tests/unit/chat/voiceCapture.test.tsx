@@ -17,10 +17,7 @@ vi.mock('@features/chat/components/dot-scope', () => ({
   ),
 }));
 
-/**
- * Pickers are incidental to capture wiring but need Settings/Tauri providers —
- * stub them so the test stays focused on the pill/composer swap.
- */
+/** Pickers need Settings/Tauri providers, so stub them to keep the test on the pill/composer swap. */
 vi.mock('@features/chat/components/tools/ToolsPicker', () => ({
   ToolsPicker: () => null,
 }));
@@ -61,8 +58,7 @@ describe('ChatInput voice capture', () => {
   it('recording: pill is the sole focus, Stop + Pause below it', () => {
     renderInput('recording');
 
-    // Composer box stays mounted but inert — faded flat, out of the a11y tree
-    // (so no textbox resolves), pointer events off. Nothing reachable.
+    // The composer box stays mounted but inert: out of the a11y tree, pointer events off.
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     const box = screen.getByTestId('composer-box');
     expect(box).toHaveAttribute('aria-hidden', 'true');
@@ -88,9 +84,7 @@ describe('ChatInput voice capture', () => {
   it('starting: recording-shaped pill (no size jump), empty control slot (X appears only when transcribing)', () => {
     renderInput('starting');
 
-    // The pill mounts on the mic-press commit, before the mic is warm —
-    // no frozen frame, no late cut. The slot stays empty (same as the handoff
-    // beat) so Stop/Pause arrive once; Escape still cancels.
+    // The pill mounts on mic-press, before the mic is warm; the slot stays empty so Stop/Pause arrive once.
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     const pill = screen.getByTestId('dotscope');
     expect(pill).toHaveAttribute('data-stage', 'recording');
@@ -122,9 +116,7 @@ describe('ChatInput voice capture', () => {
   });
 
   it('holds the pill briefly after capture ends before the composer returns', async () => {
-    // The harness owns the capture state like IdleView/ChatShell do, so
-    // ChatInput stays mounted across the transition — exactly the app path.
-    // Real timers: the handoff beat (200ms) and the pill exit run on rAF.
+    // The harness owns capture state like the app does, so ChatInput stays mounted; real timers for the rAF beats.
     function Harness() {
       const [s, setS] = useState<SpeechState>('recording');
       return (
@@ -140,8 +132,7 @@ describe('ChatInput voice capture', () => {
     const frame = screen.getByTestId('composer-frame');
     expect(frame).toBeInTheDocument();
 
-    // Capture ends (transcription landed) — the handoff beat holds the pill,
-    // then the frame stretches into the box while the pill fades inside it.
+    // Capture ends: the handoff beat holds the pill, then the box stretches back while the pill fades inside it.
     fireEvent.click(screen.getByTestId('end-capture'));
     expect(screen.getByTestId('dotscope')).toBeInTheDocument();
     expect(screen.getByTestId('composer-frame')).toBe(frame);

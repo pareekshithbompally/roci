@@ -1,7 +1,3 @@
-/**
- * File utilities for handling file-to-base64 conversion.
- */
-
 import { APP_CONFIG } from '@config/app.config';
 
 const MAX_FILE_SIZE = APP_CONFIG.chat.maxAttachmentSizeBytes;

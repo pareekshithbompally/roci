@@ -1,9 +1,3 @@
-/**
- * Settings Feature Module
- * 
- * Complete settings management functionality.
- */
-
 // Components
 export { 
   SettingsPanel, 

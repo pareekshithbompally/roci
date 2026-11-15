@@ -1,13 +1,4 @@
-/**
- * RecordingRow — renders a recording-type activity in the tray.
- *
- * Handles all recording states via the shared ActivityRowLayout:
- * - Recording: red pulsing dot, pause/stop actions
- * - Paused: amber dot, resume/stop actions
- * - Review: neutral dot, summarize/later/discard actions
- *
- * Stall warning renders as an inline badge, not its own line.
- */
+/** A recording activity in the tray: recording, paused or review, each with its actions; stalls show as a badge. */
 
 import React from 'react';
 import { Badge } from '@shared/ui';

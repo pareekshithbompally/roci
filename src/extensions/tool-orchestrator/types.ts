@@ -1,8 +1,4 @@
-/**
- * Tool Orchestrator Types
- *
- * Defines the orchestration loop's inputs, callbacks, and activity state.
- */
+/** Orchestration loop inputs, callbacks and activity state. */
 
 import type { ChatMessage, HistoryItem, AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';

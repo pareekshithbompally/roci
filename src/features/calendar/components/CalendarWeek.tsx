@@ -1,10 +1,4 @@
-/**
- * CalendarWeek Component
- *
- * Schedule-X powered week view. Read-only — no drag/drop or resize.
- * Exposes calendarControls so the parent can drive navigation.
- * Event clicks are handled via callback (parent renders the popover).
- */
+/** Read-only Schedule-X week view; the parent drives navigation and renders the event popover. */
 
 // Schedule-X requires Temporal as a global — polyfill must load before any Schedule-X import
 import 'temporal-polyfill/global';

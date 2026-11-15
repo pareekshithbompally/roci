@@ -1,7 +1,4 @@
-/**
- * useAppleNotesRuntime — mount once (App). Points the meeting → note sync at
- * the current setting; meetings are sent from the single meeting-save point.
- */
+/** Mount once (App): points the meeting → note sync at the current setting. */
 
 import { useEffect } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';

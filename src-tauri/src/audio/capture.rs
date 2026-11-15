@@ -1,10 +1,4 @@
-//! Independent, self-healing meeting audio sources.
-//!
-//! The microphone and the system audio each run on their own supervisor
-//! thread. A source that fails is dropped and reopened with bounded backoff
-//! for as long as the meeting records, so losing one never stops the other.
-//! The system audio source is a Core Audio process tap, with
-//! ScreenCaptureKit as its fallback (`super::system_audio`).
+//! Self-healing audio sources: each runs on its own supervisor and reopens with backoff after a failure.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -22,12 +16,10 @@ use super::tracks::{AudioPacket, MeetingSource};
 const RETRY_INITIAL: Duration = Duration::from_millis(500);
 const RETRY_MAX: Duration = Duration::from_secs(5);
 pub(super) const POLL_INTERVAL: Duration = Duration::from_millis(100);
-/// Core Audio delivers silence continuously; this long without a buffer
-/// means the device or tap stopped.
+/// Core Audio delivers silence continuously; this long without a buffer means the device or tap stopped.
 pub(super) const STALL_TIMEOUT: Duration = Duration::from_secs(3);
 
-/// Delivers one source's 16 kHz audio to the track writer, stamped on the
-/// meeting's shared capture clock.
+/// Delivers one source's 16 kHz audio to the track writer, stamped on the shared capture clock.
 #[derive(Clone)]
 pub(super) struct PacketSink {
     pub(super) source: MeetingSource,
@@ -168,8 +160,7 @@ fn supervise(
     }
 }
 
-/// Converts any device rate to the 16 kHz meeting tracks so a reopened
-/// device with a different rate never changes a track's format.
+/// Converts any device rate to 16 kHz so a reopened device never changes a track's format.
 pub(super) struct To16k {
     pub(super) rate: u32,
     resampler: StreamingResampler,
@@ -217,9 +208,7 @@ impl MicrophoneSource {
         })
     }
 
-    /// Follows a change of the system default, or of the lid, by opening the
-    /// input it now resolves to before dropping the old one. A failed open
-    /// keeps the current input.
+    /// Follows a default-input or lid change by opening the new input first; a failed open keeps the current one.
     fn follow_route(&mut self) {
         let generation = microphone::input_route_generation();
         if generation == self.route_generation {

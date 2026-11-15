@@ -1,5 +1,4 @@
-// Ported verbatim from Hex (MIT, src-tauri/licenses/HEX-MIT.txt):
-// hex/native/permission_guide.m. Only the identity changed (Hex -> Kasset).
+// Floating Privacy & Security guide: opens a pane and shows Kasset's tile to drag or switch on.
 #import <AppKit/AppKit.h>
 #import <AVFoundation/AVFoundation.h>
 #import <ApplicationServices/ApplicationServices.h>
@@ -21,8 +20,7 @@ static BOOL sawSettingsWindow;
 static KassetPermission activePermission;
 static NSView *guideTile;
 
-/// The tile flies on its own from the click in Kasset's window to its place in
-/// the guide, so the eye can follow it to System Settings.
+/// The tile flies from the click in Kasset's window to the guide so the eye follows it to System Settings.
 static NSPanel *flightPanel;
 static CALayer *flightLayer;
 static NSTimer *flightTimer;
@@ -72,15 +70,13 @@ const char *kasset_permission_list_name(int permission) {
     return "Privacy & Security";
 }
 
-/// Asks macOS to register this running binary in Accessibility and show its
-/// prompt when untrusted.
+/// Registers this binary in Accessibility and shows the prompt when untrusted.
 bool kasset_prompt_accessibility_trust(void) {
     NSDictionary *options = @{(__bridge NSString *)kAXTrustedCheckOptionPrompt: @YES};
     return AXIsProcessTrustedWithOptions((__bridge CFDictionaryRef)options);
 }
 
-/// Writes the running `.app` bundle's identifier as UTF-8 into `buf`,
-/// returning its byte length, or 0 outside a `.app` bundle.
+/// Writes the running `.app` bundle id as UTF-8 into `buf`; returns its length, or 0 outside a bundle.
 size_t kasset_running_app_bundle_id(char *buf, size_t cap) {
     if (buf == NULL || cap == 0) {
         return 0;
@@ -245,9 +241,7 @@ static BOOL settingsHasWindow(void) {
     return NO;
 }
 
-/// Bit 0: System Settings has an open window.
-/// Bit 1: System Settings is the frontmost application.
-/// Bit 2: Kasset is the active application.
+/// Bit 0: System Settings has a window; bit 1: it is frontmost; bit 2: Kasset is active.
 int kasset_permission_settings_state(void) {
     NSCAssert(NSThread.isMainThread, @"settings state must run on the main thread");
     BOOL open = settingsHasWindow();
@@ -257,9 +251,7 @@ int kasset_permission_settings_state(void) {
     return (open ? 1 : 0) | (frontmost ? 2 : 0) | (active ? 4 : 0);
 }
 
-/// Opens System Settings at `url`. A System Settings that isn't running yet
-/// drops the pane in the URL while it restores the pane it showed last, so
-/// after a cold launch the URL goes again once its window is up and settled.
+/// Opens System Settings at `url`, resending it after a cold launch, which restores the last pane instead.
 static void openSettingsPane(NSURL *url) {
     BOOL cold =
         [NSRunningApplication runningApplicationsWithBundleIdentifier:settingsBundleID].count == 0;
@@ -303,8 +295,7 @@ static NSRect appKitFrame(CGRect frame) {
     );
 }
 
-/// System Audio Recording has no public query; TCC's preflight answers it
-/// (0 is granted). Without it, the guide waits for System Settings to close.
+/// System Audio Recording has no public query, so TCC's preflight answers it (0 is granted).
 static BOOL systemAudioGranted(void) {
     static int (*preflight)(CFStringRef, CFDictionaryRef);
     static dispatch_once_t once;
@@ -320,8 +311,7 @@ static BOOL systemAudioGranted(void) {
 
 static BOOL permissionGranted(void) {
     switch (activePermission) {
-        // What System Settings shows now: the preflights keep their launch
-        // answer until Kasset restarts.
+        // What System Settings shows now; the preflights keep their launch answer until restart.
         case KassetPermissionAccessibility:
             return AXIsProcessTrusted();
         case KassetPermissionMicrophone:
@@ -549,8 +539,7 @@ void kasset_show_permission_guide(int permission) {
             pane = @"Privacy_ScreenCapture";
             break;
     }
-    // The Microphone list only holds apps that asked, so a refused
-    // microphone is switched on rather than dragged in.
+    // The Microphone list only holds apps that asked, so a refused microphone is switched on, not dragged.
     BOOL draggable = activePermission != KassetPermissionMicrophone;
     NSURL *settingsURL = [NSURL URLWithString:[NSString stringWithFormat:
         @"x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?%@", pane]];

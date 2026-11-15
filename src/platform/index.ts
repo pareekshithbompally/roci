@@ -1,9 +1,4 @@
-/**
- * Platform Detection Module
- *
- * Compile-time constants via Vite `define` with runtime navigator fallback for browser dev.
- * Replaces fragmented `isMac` checks across the codebase.
- */
+/** Platform detection: Vite `define` compile-time constants, with a navigator fallback for browser dev. */
 
 declare const __PLATFORM_MACOS__: boolean;
 declare const __PLATFORM_WINDOWS__: boolean;

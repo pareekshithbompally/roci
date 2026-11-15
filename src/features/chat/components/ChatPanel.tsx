@@ -1,9 +1,4 @@
-/**
- * ChatPanel Component
- *
- * Meeting-scoped chat panel. Thin wrapper around ChatShell with a header bar.
- * Auto-attaches the viewed meeting as @ context on mount.
- */
+/** Meeting-scoped chat around ChatShell; attaches the viewed meeting as @ context. */
 
 import React, { useEffect, useMemo } from 'react';
 import { X } from 'lucide-react';
@@ -27,8 +22,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ meetingId, meetingTitle, o
     useChatStore.getState().getOrCreateMeetingSession(meetingId, meetingTitle);
   }, [meetingId, meetingTitle]);
 
-  // Attach the meeting as @ context once the history index has it.
-  // Keyed on historyItems so a late-loading index still resolves the ref.
+  // Keyed on historyItems so a late-loading index still resolves the meeting ref.
   useEffect(() => {
     const meetingRef = meetingReferenceService
       .getRecentMeetings(historyItems, 50)

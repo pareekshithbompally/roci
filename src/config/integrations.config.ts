@@ -1,7 +1,4 @@
-/**
- * Integrations — the copy and options each integration row shows.
- * Behaviour lives in features/integrations; this is presentation data only.
- */
+/** Copy and options each integration row shows; behaviour lives in features/integrations. */
 
 /** Apple Notes folder in the default account; created on first save. */
 const NOTES_FOLDER = 'Kasset';
@@ -18,7 +15,7 @@ export const INTEGRATIONS_CONFIG = {
     description: 'Adds Apple Intelligence to Summaries and Apple Speech to Speech recognition in Settings › Capabilities. Nothing leaves your Mac.',
     deniedHint: 'Apple Intelligence is off in System Settings › Apple Intelligence & Siri.',
     icon: '/images/apple-intelligence-sm.png',
-    /** Why the model can't run (HEX `apple_intelligence::Availability::description`). */
+    /** Why the model can't run, per availability reason. */
     unavailable: {
       'device-not-eligible': 'This Mac doesn’t support Apple Intelligence.',
       'model-not-ready': 'The Apple Intelligence model is still downloading. Try again soon.',

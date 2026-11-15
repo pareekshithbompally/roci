@@ -1,9 +1,4 @@
-/**
- * ActionCard — a raised card that does one thing when clicked (open a setup
- * page, start a flow): icon, title, one line of description. A button to
- * assistive tech; the hover tint shades the card without letting what's
- * behind it show through.
- */
+/** A raised card that does one thing on click: icon, title, one-line description; hover tint never shows through. */
 
 import React from 'react';
 import { Surface, Text } from '@shared/ui';

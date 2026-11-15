@@ -1,6 +1,4 @@
-/**
- * Todos domain — list (per-meeting and global), upsert, complete, delete.
- */
+/** Todos domain — list (per-meeting and global), upsert, complete, delete. */
 
 import {
   call,

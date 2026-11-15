@@ -1,9 +1,4 @@
-/**
- * useUnifiedSidebar Hook
- *
- * Merges history items (meetings) and chat sessions into a single
- * unified list sorted by timestamp for the sidebar.
- */
+/** Meetings and chat sessions merged into one timestamp-sorted sidebar list. */
 
 import { useMemo } from 'react';
 import { useHistoryData } from '@shared/contexts/HistoryContext';

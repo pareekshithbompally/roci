@@ -1,8 +1,4 @@
-/**
- * useAppleNotesControls — Notes row: Automation consent (the macOS prompt
- * "Kasset wants to control Notes"), and on/off. Turning it on records the time:
- * meetings saved from then on are written to Notes.
- */
+/** Notes row: Automation consent and on/off; turning on records the time, so only later meetings go to Notes. */
 
 import { useCallback } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';

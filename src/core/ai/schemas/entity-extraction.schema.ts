@@ -1,9 +1,4 @@
-/**
- * Entity Extraction Schema
- *
- * JSON Schema for structured entity/relationship extraction from meetings.
- * Used as a second LLM call after transcription, or as a deferred batch operation.
- */
+/** JSON Schema for entity/relationship extraction, run after transcription or as a deferred batch. */
 
 export const ENTITY_EXTRACTION_SCHEMA = {
   type: 'object' as const,

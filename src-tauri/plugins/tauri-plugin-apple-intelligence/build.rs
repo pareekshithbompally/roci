@@ -13,8 +13,7 @@ fn main() {
     tauri_plugin::Builder::new(COMMANDS).build();
 }
 
-/// Swift bridges → one static library. FoundationModels exists only on macOS 26+,
-/// so the library targets macOS 15 (the app's minimum) and weak-links it (HEX `build.rs`).
+/// Builds the Swift bridges for macOS 15, weak-linking FoundationModels (macOS 26+ only).
 #[cfg(target_os = "macos")]
 fn compile_swift() {
     use std::{env, path::PathBuf, process::Command};

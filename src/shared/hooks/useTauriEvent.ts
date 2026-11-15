@@ -1,9 +1,4 @@
-/**
- * useTauriEvent — subscribe a component to one Rust → webview event for its
- * lifetime. Services export the event name and payload type; this owns the
- * listen / unlisten lifecycle (async registration included) in one place.
- * The latest handler always runs, so callers needn't memoize it.
- */
+/** Subscribe to one Rust → webview event for the component lifetime; the latest handler always runs. */
 
 import { useEffect, useRef } from 'react';
 import { listen } from '@tauri-apps/api/event';

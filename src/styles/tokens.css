@@ -1,12 +1,4 @@
-/**
- * Design tokens — the single source of every colour, shadow and translucency.
- *
- * Tier 1 (primitives): opencode v2 ladders (anomalyco/rune@39301f6, themes/opencode, MIT).
- *   Only steps referenced by Tier 2 are declared. Components never read Tier 1.
- * Tier 2 (roles): what components and Tailwind utilities read (tailwind.config.js).
- *   `.dark` on <html> (ThemeContext) swaps the roles; nothing else changes on a theme switch.
- * Plan: docs/plans/DONE/design-system/plan.md §4.
- */
+/* Design tokens: Tier 1 primitives (never read by components), Tier 2 roles swapped by `.dark` on <html>. */
 
 :root {
   /* ─── Tier 1: primitives ─────────────────────────────── */

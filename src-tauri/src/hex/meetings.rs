@@ -1,7 +1,4 @@
-//! Hex meetings through Hex's versioned CLI JSON (`hex meetings list|show --json`,
-//! `"version": 1`). The CLI reads Hex's meetings folder read-only; Kasset never
-//! writes to Hex. (Hex's MCP server renders prose for agents, so it is not used
-//! as a data source.)
+//! Hex meetings read through its versioned CLI JSON (`hex meetings list|show --json`); read-only.
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;

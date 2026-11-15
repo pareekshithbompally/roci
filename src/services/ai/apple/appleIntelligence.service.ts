@@ -1,8 +1,4 @@
-/**
- * Apple Intelligence — wrappers over the apple-intelligence plugin
- * (src-tauri/plugins/tauri-plugin-apple-intelligence): the on-device language
- * model (availability, guided generation) and Apple speech.
- */
+/** Apple Intelligence plugin wrappers: on-device language model (availability, guided generation) and speech. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from '@services/tauri';
@@ -10,7 +6,7 @@ import { isCodedError } from '@shared/utils/errors';
 
 const PLUGIN = 'plugin:apple-intelligence|';
 
-/** Mirrors the Rust `Availability` (HEX `apple_intelligence::Availability`). */
+/** Mirrors the Rust `apple_intelligence::Availability`. */
 export type AppleAvailability =
   | 'available'
   | 'device-not-eligible'

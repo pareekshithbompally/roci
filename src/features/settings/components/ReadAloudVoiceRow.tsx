@@ -1,10 +1,4 @@
-/**
- * ReadAloudVoiceRow — Settings › Capabilities › Speech: the voice of the
- * chosen read-aloud engine (the engine lists its default first; that one is
- * stored as no choice), and a button to hear a sample
- * in it. The sample plays like a reply's Read aloud: a spinner while the voice
- * gets ready, then Stop.
- */
+/** Read-aloud voice picker (engine default stored as no choice) with a sample button that plays like Read aloud. */
 
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';

@@ -1,8 +1,4 @@
-/**
- * useDownloadToasts — every web download (code blocks, tables, diagrams,
- * images) ends in the same toast as a "Save as…": where it went, with Show in
- * Finder; or a plain error. Mount once.
- */
+/** Every web download ends in the "Save as…" toast (Show in Finder) or a plain error. Mount once. */
 
 import { DOWNLOAD_FINISHED_EVENT } from '@config/window.config';
 import { showToast } from '@shared/ui';

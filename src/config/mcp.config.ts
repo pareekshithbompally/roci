@@ -1,10 +1,4 @@
-/**
- * MCP (Model Context Protocol) configuration — single source of truth for
- * defaults, events, and limits used by the MCP settings panel and tool bridge.
- *
- * Shapes mirror Jan's `mcp_config.json` (Rust owns the file; see
- * src-tauri/src/mcp/config.rs).
- */
+/** MCP defaults, events and limits for the settings panel and tool bridge; Rust owns `mcp_config.json`. */
 
 export type McpTransport = 'stdio' | 'http' | 'sse';
 

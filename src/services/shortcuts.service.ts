@@ -1,8 +1,4 @@
-/**
- * Global Shortcuts Service — registers `GLOBAL_SHORTCUTS` with the OS (Tauri
- * global-shortcut, src-tauri/src/shortcuts.rs) and dispatches each trigger to
- * its handlers. In-window shortcuts are `@features/shortcuts`.
- */
+/** Registers `GLOBAL_SHORTCUTS` with the OS and dispatches triggers; in-window ones are `@features/shortcuts`. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -17,8 +13,7 @@ class ShortcutsService {
   private handlers = new Map<GlobalShortcutId, ShortcutHandler[]>();
   private initialized = false;
 
-  /** Listen for triggers, then register every global shortcut. A shortcut the
-   *  OS refuses (taken by another app) is logged and skipped. */
+  /** Listens, then registers every global shortcut; one the OS refuses is logged and skipped. */
   async initialize(): Promise<void> {
     if (this.initialized) return;
     await listen<string>(GLOBAL_SHORTCUT_EVENT, (event) => {

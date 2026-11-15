@@ -57,8 +57,7 @@ describe('runTranscription VAD gate', () => {
       return result;
     });
     void part;
-    // Speech covers second 1..2 of the 3 s recording. Ranges below the
-    // 1.5 s minimum are symmetrically extended: 0.75 s..2.25 s here.
+    // Speech covers 1..2 s of 3 s; ranges under the 1.5 s minimum extend symmetrically to 0.75..2.25 s.
     const vad = vi.fn(async (): Promise<SpeechRange[]> => [
       { startSample: SAMPLE_RATE, endSample: SAMPLE_RATE * 2 },
     ]);

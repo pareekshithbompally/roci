@@ -1,6 +1,4 @@
-/**
- * Composer Tools picker — defaults for which tools chat may use.
- */
+/** Composer Tools picker defaults for which tools chat may use. */
 
 import type { ChatToolPreferences } from '@shared/types';
 

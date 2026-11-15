@@ -1,6 +1,4 @@
-//! Speech output: mono samples resampled to the default output device and
-//! played through cpal. One clip at a time; `play` blocks its (non-main)
-//! thread until the clip ends or `stop` is set.
+//! Speech output through cpal: one clip at a time; `play` blocks its thread until done or stopped.
 
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};

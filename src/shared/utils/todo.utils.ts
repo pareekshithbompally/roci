@@ -1,17 +1,4 @@
-/**
- * Todo Utilities Module
- *
- * Single source of truth for all todo date/time logic:
- * normalization, overdue detection, formatting, and hashing.
- *
- * Every part of the app that deals with todo dates MUST use these functions.
- *
- * KEY DESIGN DECISION — Local-timezone parsing:
- * `new Date("YYYY-MM-DD")` treats date-only strings as UTC midnight per the JS spec.
- * That causes "today" dates to appear overdue by early afternoon in UTC- timezones.
- * All parsing goes through `parseDateLoose()`, which detects date-only strings and
- * constructs them as LOCAL midnight. This is the single fix for the whole system.
- */
+/** All todo date logic; date-only strings parse as LOCAL midnight (not UTC) so today never shows overdue. */
 
 import type { TodoReminder } from '@shared/types';
 
@@ -20,13 +7,7 @@ import type { TodoReminder } from '@shared/types';
 /** Matches YYYY-MM-DD with no time component */
 const DATE_ONLY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
-/**
- * Parse any date string into a valid Date, or null if unparseable.
- *
- * Date-only strings ("2026-04-15") are treated as LOCAL midnight,
- * not UTC midnight — fixing the JS `new Date("YYYY-MM-DD")` footgun.
- * Strings with a time component ("2026-04-15T09:00:00") parse normally.
- */
+/** Parse a date string or null; date-only "YYYY-MM-DD" is local midnight, not UTC. */
 export function parseDateLoose(input: string): Date | null {
   if (!input) return null;
 
@@ -41,10 +22,7 @@ export function parseDateLoose(input: string): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
-/**
- * Build a local Date from a YYYY-MM-DD string + optional HH:MM time.
- * Used by form inputs and ReminderPicker — always local timezone.
- */
+/** Local Date from YYYY-MM-DD plus optional HH:MM (form inputs, ReminderPicker). */
 export function localDateFromParts(dateStr: string, timeStr?: string): Date | null {
   const m = DATE_ONLY_RE.exec(dateStr);
   if (!m) {
@@ -70,12 +48,7 @@ export function localDateFromParts(dateStr: string, timeStr?: string): Date | nu
 
 // ── Date normalization ──────────────────────────────────────────
 
-/**
- * Normalize a date string to ISO 8601 format.
- * If the input is already ISO 8601, returns it as-is.
- * If the input is a loose format (e.g. "Mar 28, 2026"), parses and converts.
- * Returns the original string if unparseable (graceful degradation).
- */
+/** Normalize to ISO 8601; loose formats ("Mar 28, 2026") are converted, unparseable input returned unchanged. */
 export function normalizeDueDate(input: string): string {
   if (!input) return input;
   // Already ISO 8601 (date-only or with time component) — return as-is
@@ -86,19 +59,14 @@ export function normalizeDueDate(input: string): string {
 
 // ── Overdue detection ───────────────────────────────────────────
 
-/**
- * Check if a due date is in the past (i.e. the todo is overdue).
- * Date-only strings compare against local midnight (via parseDateLoose).
- */
+/** Whether a due date has passed; date-only strings compare at local midnight. */
 export function isOverdue(dueDate?: string): boolean {
   if (!dueDate) return false;
   const d = parseDateLoose(dueDate);
   return d !== null && d.getTime() < Date.now();
 }
 
-/**
- * Check if a reminder's scheduled time has passed without being fired.
- */
+/** Whether a reminder's scheduled time passed without it firing. */
 export function isReminderOverdue(reminder?: TodoReminder): boolean {
   if (!reminder?.dateTime) return false;
   const d = parseDateLoose(reminder.dateTime);
@@ -107,9 +75,7 @@ export function isReminderOverdue(reminder?: TodoReminder): boolean {
 
 // ── Formatting ──────────────────────────────────────────────────
 
-/**
- * Format a due date for display: "Mar 28, 2026"
- */
+/** Due date for display: "Mar 28, 2026". */
 export function formatDueDate(dueDate: string): string {
   const d = parseDateLoose(dueDate);
   if (!d) return dueDate;
@@ -120,9 +86,7 @@ export function formatDueDate(dueDate: string): string {
   });
 }
 
-/**
- * Format a reminder datetime for display: "Mar 28 at 9:00 AM"
- */
+/** Reminder datetime for display: "Mar 28 at 9:00 AM". */
 export function formatReminderDate(dateTime: string): string {
   const d = parseDateLoose(dateTime);
   if (!d) return dateTime;
@@ -136,10 +100,7 @@ export function formatReminderDate(dateTime: string): string {
 
 // ── Notification ID ─────────────────────────────────────────────
 
-/**
- * Deterministic 32-bit integer from a UUID string.
- * Required by Tauri notification API — must be non-zero.
- */
+/** Deterministic non-zero 32-bit id from a UUID, as the Tauri notification API requires. */
 export function hashToNotificationId(str: string): number {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -150,12 +111,7 @@ export function hashToNotificationId(str: string): number {
 
 // ── ISO date builders (for create forms) ────────────────────────
 
-/**
- * Build an ISO 8601 string from a date input value and optional time.
- * Constructs in LOCAL timezone (via localDateFromParts), then converts to ISO.
- * @param dateStr - YYYY-MM-DD from <input type="date">
- * @param timeStr - HH:MM from <input type="time"> (optional, defaults to end of day)
- */
+/** ISO string from date/time input values, built in local time; time defaults to end of day. */
 export function buildISOFromDateInput(dateStr: string, timeStr?: string): string {
   const d = localDateFromParts(dateStr, timeStr || '23:59');
   if (!d) return dateStr;

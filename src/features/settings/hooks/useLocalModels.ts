@@ -1,14 +1,4 @@
-/**
- * Local models in the UI — one source for every surface (speech and voice
- * pickers, Settings › Capabilities › On this Mac, the Home card):
- *
- * - `useLocalModels`: the curated models and which are downloaded (TanStack Query).
- * - `useLocalModelControls`: per model, the download button's state (shared
- *   `OnDeviceModel` shape) plus Delete, which asks first.
- * - `downloadSetup`: the Download step a picker row shows until a model is ready.
- * - `useLocalModelDownloads`: mounted once (App); turns Rust's download events
- *   into the activity tray row, the finished notice, and a model-list refresh.
- */
+/** Local models for every surface: list query, per-model download/delete controls, picker step, download events. */
 
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';

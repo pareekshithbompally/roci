@@ -1,8 +1,4 @@
-/**
- * NoteEditor Component
- *
- * Inline editor for creating new notes.
- */
+/** Inline editor for creating new notes. */
 
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Check } from 'lucide-react';

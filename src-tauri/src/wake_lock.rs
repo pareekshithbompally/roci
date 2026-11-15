@@ -1,12 +1,4 @@
-/// Wake lock via IOKit power management assertions.
-///
-/// Uses IOPMAssertionCreateWithName with assertion type
-/// "PreventUserIdleDisplaySleep" — prevents display idle sleep and cascades
-/// to prevent system idle sleep. This is the same assertion used by Zoom,
-/// QuickTime, and all recording/video apps on macOS.
-///
-/// No subprocess, no bindgen: calls IOKit directly using the core-foundation
-/// crate that is already a project dependency.
+/// Wake lock via an IOKit "PreventUserIdleDisplaySleep" assertion, which also blocks idle system sleep.
 use core_foundation::base::TCFType;
 use core_foundation::string::{CFString, CFStringRef};
 use std::sync::Mutex;
@@ -42,8 +34,7 @@ impl WakeLockState {
     }
 }
 
-/// Prevent display and system idle sleep.
-/// Idempotent — calling while already held is a no-op.
+/// Prevent display and system idle sleep; idempotent.
 #[tauri::command]
 pub fn acquire_wake_lock(state: tauri::State<WakeLockState>) -> Result<(), String> {
     let mut guard = state.assertion_id.lock().map_err(|e| e.to_string())?;

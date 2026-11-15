@@ -1,13 +1,4 @@
-/**
- * useGlobalTodos Hook
- *
- * Aggregates todos from ALL meetings into a single list.
- * One DB query per fetch (store.todos.listGlobal) — no per-meeting disk reads.
- * Supports search, create, toggle, and reminder management.
- *
- * Mutations invalidate both queryKeys.storeGlobalTodos() and queryKeys.storeTodos(meetingId),
- * ensuring the main meeting view and RemindersView stay in sync without window events.
- */
+/** All meetings' todos in one query; mutations invalidate both global and per-meeting todo keys. */
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';

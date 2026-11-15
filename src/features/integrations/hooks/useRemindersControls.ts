@@ -1,8 +1,4 @@
-/**
- * useRemindersControls — macOS Reminders row: access, on/off, target list.
- * Turning it on creates the "Kasset" list (once) and sends the open to-dos.
- * (Change watching and completion sync live in useRemindersRuntime.)
- */
+/** Reminders row: access, on/off, target list; turning on creates the "Kasset" list and sends open to-dos. */
 
 import { useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';

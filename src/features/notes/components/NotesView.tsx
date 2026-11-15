@@ -1,9 +1,4 @@
-/**
- * NotesView Component
- *
- * Main notes view with list and create functionality.
- * Uses the notes context for state and actions.
- */
+/** Notes view with the list and an editor for new notes. */
 
 import React from 'react';
 import { Plus, Loader2, StickyNote } from 'lucide-react';

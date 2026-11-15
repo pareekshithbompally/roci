@@ -1,9 +1,4 @@
-/**
- * Entity Extraction Prompt
- *
- * Instructs the LLM to extract structured entities and relationships
- * from a meeting's content. Designed for structured output (JSON schema).
- */
+/** Prompt that extracts entities and relationships from a meeting as structured JSON. */
 
 export function buildEntityExtractionPrompt(
   meetingTitle: string,

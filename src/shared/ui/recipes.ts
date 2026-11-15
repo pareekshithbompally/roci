@@ -1,7 +1,4 @@
-/**
- * Internal class recipes shared between kit components (not exported by the
- * barrel — features use components, never recipes).
- */
+/** Internal class recipes shared between kit components; not exported, features use components. */
 
 /** Floating panel: base surface, floating elevation (its 0.5px ring is the edge). */
 export const FLOATING_SURFACE =

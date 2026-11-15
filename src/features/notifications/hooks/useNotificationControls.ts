@@ -1,7 +1,4 @@
-/**
- * useNotificationControls — Settings › Notifications: the macOS permission (in
- * the shared integration-access vocabulary) and the per-kind switches.
- */
+/** Settings › Notifications: the macOS permission and the per-kind switches. */
 
 import { useCallback } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';

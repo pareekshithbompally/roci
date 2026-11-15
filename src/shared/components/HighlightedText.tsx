@@ -5,12 +5,7 @@ interface HighlightedTextProps {
   highlight: string;
 }
 
-/**
- * HighlightedText Component
- *
- * Highlights matching text segments with a yellow background.
- * Handles case-insensitive matching and escapes special regex characters.
- */
+/** Highlights case-insensitive matches of `highlight`, escaping regex characters. */
 export const HighlightedText: React.FC<HighlightedTextProps> = ({ text, highlight }) => {
   // No highlight - return plain text
   if (!highlight || !highlight.trim()) {

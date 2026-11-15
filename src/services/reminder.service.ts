@@ -1,11 +1,4 @@
-/**
- * Reminder Service — to-do reminders, the one place they're scheduled.
- *
- * Timing is native (`tauri-plugin-notifications` timed notices, wall clock),
- * and each reminder is persisted to the unified store (kasset.db) so launch
- * re-arms the ones still ahead. The "To-do reminders" switch in Settings ›
- * Notifications mutes them at post time. Pure service — no React dependency.
- */
+/** To-do reminders as native timed notifications, persisted in kasset.db so launch re-arms the ones still ahead. */
 
 import { NOTIFICATIONS_CONFIG } from '@config/notifications.config';
 import { onNotificationResponse, removeNotices, scheduleNotice, type Notice } from '@services/notifications';

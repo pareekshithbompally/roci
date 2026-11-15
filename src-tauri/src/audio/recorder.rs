@@ -1,5 +1,4 @@
-//! One recording: the source supervisors, the track writer, and the stop
-//! that mixes the tracks into the recording file.
+//! One recording: the source supervisors, the track writer, and the stop that mixes the tracks.
 
 use std::fs;
 use std::path::PathBuf;
@@ -51,8 +50,7 @@ impl Pause {
         }
     }
 
-    /// `None` while paused; otherwise the total paused time, in microseconds,
-    /// to take off packet arrivals.
+    /// `None` while paused; otherwise the total paused time (µs) to take off packet arrivals.
     pub(super) fn shift_us(&self) -> Option<u64> {
         let state = self.state();
         state
@@ -79,8 +77,7 @@ pub struct Recorder {
 }
 
 impl Recorder {
-    /// Starts capturing `sources` into tracks beside `output`, which `stop`
-    /// writes.
+    /// Starts capturing `sources` into tracks beside `output`, which `stop` writes.
     pub fn start(sources: Sources, output: PathBuf, app: AppHandle) -> Result<Self> {
         let directory = output.with_extension("");
         fs::create_dir_all(&directory)?;
@@ -104,8 +101,7 @@ impl Recorder {
             drops: drops.clone(),
             clock: capture_clock,
         };
-        // Each source recovers on its own: losing system audio (for example
-        // when ScreenCaptureKit loses its display) never stops the microphone.
+        // Each source recovers on its own, so losing system audio never stops the microphone.
         let microphone_capture = sources.microphone.then(|| {
             SourceSupervisor::microphone(sink(MeetingSource::Microphone, &microphone_drops))
         });
@@ -133,9 +129,7 @@ impl Recorder {
         self.pause.resume();
     }
 
-    /// Stops the sources, finishes the tracks, and mixes them into the
-    /// recording file. The tracks are removed only once the mix is written,
-    /// so a failed mix never loses audio.
+    /// Stops and mixes the tracks into the file; tracks are removed only once the mix is written.
     pub fn stop(self) -> Result<PathBuf> {
         let (directory, output) = (self.directory.clone(), self.output.clone());
         let stats = self.finish()?;
@@ -148,8 +142,7 @@ impl Recorder {
         Ok(output)
     }
 
-    /// Finishes the tracks and leaves them for the next launch to mix down,
-    /// for when the app quits mid-recording.
+    /// Finishes the tracks and leaves them for the next launch to mix down, for a quit mid-recording.
     pub fn abandon(self) {
         let directory = self.directory.clone();
         match self.finish() {

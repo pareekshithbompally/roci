@@ -1,9 +1,3 @@
-/**
- * Shared Contexts Module
- * 
- * Global contexts for app-wide state.
- */
-
 // Toast Context
 export { ToastProvider, useToast } from './ToastContext';
 export type { ToastType } from './ToastContext';

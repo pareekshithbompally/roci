@@ -1,16 +1,8 @@
-/**
- * File system service for Tauri
- * Provides native file operations with proper error handling
- */
+/** Native file operations with error handling. */
 
 import { isTauriEnvironment } from './environment.service';
 
 class FileSystemService {
-  /**
-   * Write binary data to a file
-   * @param path File path
-   * @param data Binary data to write
-   */
   async writeFile(path: string, data: Uint8Array | ArrayBuffer): Promise<void> {
     if (!isTauriEnvironment()) {
       this.fallbackDownload(path, data);
@@ -27,11 +19,6 @@ class FileSystemService {
     }
   }
 
-  /**
-   * Write text to a file
-   * @param path File path
-   * @param content Text content
-   */
   async writeTextFile(path: string, content: string): Promise<void> {
     if (!isTauriEnvironment()) {
       this.fallbackDownloadText(path, content);
@@ -47,10 +34,6 @@ class FileSystemService {
     }
   }
 
-  /**
-   * Read binary data from a file
-   * @param path File path
-   */
   async readFile(path: string): Promise<Uint8Array> {
     if (!isTauriEnvironment()) {
       throw new Error('File reading not supported in browser mode');
@@ -65,10 +48,6 @@ class FileSystemService {
     }
   }
 
-  /**
-   * Read text from a file
-   * @param path File path
-   */
   async readTextFile(path: string): Promise<string> {
     if (!isTauriEnvironment()) {
       throw new Error('File reading not supported in browser mode');
@@ -83,10 +62,6 @@ class FileSystemService {
     }
   }
 
-  /**
-   * Check if a file exists
-   * @param path File path
-   */
   async exists(path: string): Promise<boolean> {
     if (!isTauriEnvironment()) {
       return false;

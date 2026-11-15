@@ -7,9 +7,7 @@ pub const SCHEMA_VERSION: u32 = 2;
 pub const DEFAULT_MODEL: &str = "onnx-community/embeddinggemma-300m-ONNX";
 pub const DEFAULT_DIM: u32 = 768;
 
-/// Open an in-memory test database with the `sqlite_vec` extension loaded and
-/// the schema migrated. Shared by every test module in this crate so the vec
-/// extension is only registered once (a re-registration would panic).
+/// Registers `sqlite_vec` once for all test modules; a second registration would panic.
 #[cfg(test)]
 pub(crate) fn register_vec_extension_once() {
     use std::sync::Once;
@@ -65,11 +63,7 @@ pub fn migrate(conn: &Connection) -> Result<(), String> {
         }
     }
 
-    // v1 → v2: embedding model swap (MiniLM 384-dim → EmbeddingGemma 768-dim).
-    // Old vectors are unusable, so drop the vec tables and recreate them at the
-    // new dimension; NULL the embedding hashes so the normal Phase-2 indexing
-    // re-embeds every meeting and chat with the new model on the next run.
-    // FTS tables and chunk text are untouched.
+    // v1 → v2: 384→768-dim embedding model; recreate vec tables and NULL hashes so indexing re-embeds.
     if current == 1 {
         let result = (|| -> Result<(), String> {
             let tx = conn
@@ -136,8 +130,7 @@ fn set_schema_version(conn: &Connection, version: u32) -> Result<(), String> {
     Ok(())
 }
 
-/// Full baseline DDL — migration v1 of the new kasset.db.
-/// Creates every table from spec §2.1–§2.5 in one transaction.
+/// Baseline DDL (migration v1): creates every table in one transaction.
 fn create_baseline(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
         "
@@ -779,8 +772,7 @@ mod tests {
         );
         assert!(err.is_err(), "audit_log.actor should reject 'user'");
 
-        // 'upsert' is NOT a valid operation — commands must map to create/update/delete.
-        // (Regression guard: reminders_upsert previously wrote 'upsert' and rolled back every save.)
+        // 'upsert' is not a valid operation; commands must map to create/update/delete.
         let err = conn.execute(
             "INSERT INTO audit_log (id, entity_type, entity_id, operation, actor, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             params!["a3", "reminder", "t1", "upsert", "app", now],
@@ -788,8 +780,7 @@ mod tests {
         assert!(err.is_err(), "audit_log.operation should reject 'upsert'");
     }
 
-    /// Regression guard: recording chat RAG staleness (the mark_chat_indexed path) writes ONLY
-    /// chat_index_state and must never mutate the canonical `chats` row (title/last_message_at).
+    /// Marking a chat indexed writes only `chat_index_state`, never the `chats` row.
     #[test]
     fn chat_index_state_write_does_not_touch_chat_row() {
         let conn = open_test_db();
@@ -904,9 +895,7 @@ mod tests {
             .as_millis() as i64
     }
 
-    /// v1-shaped DB (MiniLM 384-dim vectors + stamped embedding hashes)
-    /// must migrate to v2: vec tables recreated at the new dimension with
-    /// old vectors gone, embedding hashes nulled so Phase-2 re-embeds.
+    /// A v1 DB migrates to v2: vec tables recreated at 768 dims and embedding hashes nulled.
     #[test]
     fn migrate_v1_to_v2_swaps_embedding_model() {
         let conn = open_test_db();

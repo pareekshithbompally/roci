@@ -1,16 +1,4 @@
-/**
- * Platform-aware fetch
- *
- * In Tauri: routes through @tauri-apps/plugin-http (Rust reqwest, no CORS).
- * In browser: uses native fetch (for dev/preview without Tauri).
- *
- * Call initPlatformFetch() once at app startup, before any SDK clients are created.
- * Then use getPlatformFetch() in SDK constructors.
- *
- * IMPORTANT: We do NOT override globalThis.fetch — that breaks the WebView's
- * internal mechanisms (Vite HMR, module loading, etc.). Instead, SDK constructors
- * explicitly pass getPlatformFetch() via their `fetch:` parameter.
- */
+/** SDK fetch: Tauri's HTTP plugin (no CORS) in the app, native fetch in a browser; never overrides globalThis.fetch. */
 
 import { isTauriEnvironment } from './tauri/environment.service';
 

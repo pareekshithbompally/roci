@@ -1,7 +1,4 @@
-/**
- * Text roles — macOS text styles (SF Pro). The sizes live in tailwind.config.js
- * `fontSize`; features pick a role, never a size.
- */
+/** Text roles (macOS text styles); sizes live in tailwind.config.js `fontSize`, features pick a role. */
 
 export const TYPOGRAPHY_CLASSES = {
   /** 11 — timestamps, counts, fine print */

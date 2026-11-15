@@ -1,17 +1,4 @@
-//! Command-surface consistency test.
-//!
-//! A Tauri plugin command is only reachable end-to-end when it appears in all
-//! three sources of truth:
-//!   1. `build.rs`'s `COMMANDS: &[&str]` array (generates the permission set),
-//!   2. the `tauri::generate_handler![ ... ]` macro in `src/lib.rs` (registers
-//!      the actual invoke handlers),
-//!   3. the `allow-<name>` entries in `permissions/default.toml` (grants access
-//!      at runtime).
-//!
-//! Drift between these has shipped real bugs (an unregistered `delete_meeting`
-//! invoked from TS; new domain commands missing from `default.toml`). This test
-//! parses each source at test time and asserts the three name sets are equal,
-//! so any drift fails the build with a message naming the offending commands.
+//! Fails when `build.rs` COMMANDS, `generate_handler!` in lib.rs, and `default.toml` allow-entries drift.
 
 #[cfg(test)]
 mod tests {
@@ -32,8 +19,7 @@ mod tests {
         }
     }
 
-    /// Command names from `build.rs`: every quoted string literal inside the
-    /// `COMMANDS: &[&str] = &[ ... ];` array.
+    /// Command names from `build.rs`: every quoted string inside the `COMMANDS` array.
     fn build_commands() -> BTreeSet<String> {
         let eq = BUILD_RS
             .find("COMMANDS")
@@ -62,8 +48,7 @@ mod tests {
             .collect()
     }
 
-    /// Command names from `lib.rs`: every `commands::<name>` entry inside the
-    /// `generate_handler![ ... ]` macro.
+    /// Command names from `lib.rs`: every `commands::<name>` inside `generate_handler!`.
     fn handler_commands() -> BTreeSet<String> {
         let start = LIB_RS
             .find("generate_handler!")
@@ -86,8 +71,7 @@ mod tests {
             .collect()
     }
 
-    /// Command names from `permissions/default.toml`: every `allow-<name>`
-    /// entry, hyphens converted to underscores to match Rust fn names.
+    /// Command names from `permissions/default.toml` `allow-<name>` entries, hyphens as underscores.
     fn permission_commands() -> BTreeSet<String> {
         PERMISSIONS_TOML
             .lines()

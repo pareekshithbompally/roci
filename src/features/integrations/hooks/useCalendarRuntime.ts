@@ -1,15 +1,4 @@
-/**
- * useCalendarRuntime
- *
- * Wires the calendar integration to the app lifecycle:
- * - the event cache the calendar UI reads (polling while enabled)
- * - native meeting reminders (src-tauri/src/meeting_reminders): on while the
- *   calendar is connected and Settings › Notifications allows them
- * - Record / Join & record from a reminder → the existing recording start,
- *   carrying the meeting's calendar metadata (recording-bridge)
- *
- * Mount once, in a component inside RecordingContext and SettingsContext.
- */
+/** Mount once inside Recording/Settings contexts: event cache polling, meeting reminders, record-from-reminder. */
 
 import { useEffect, useRef } from 'react';
 import { isTauriEnvironment } from '@services/tauri';

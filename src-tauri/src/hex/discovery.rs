@@ -1,5 +1,4 @@
-//! Reads Hex's discovery file: `<data dir>/hex/local-api.json` (`dirs::data_dir()`
-//! joined with `hex`, the same path Hex writes and its SDK reads).
+//! Reads the Hex app's discovery file at `<data dir>/hex/local-api.json`.
 
 use serde::Deserialize;
 use std::path::Path;

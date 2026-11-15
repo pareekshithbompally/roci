@@ -1,10 +1,4 @@
-/**
- * Dot scope simulation — ported line for line from Hex (MIT)
- * `src/rune_hud/dot_scope/scope.rs` and the level helpers of `dot_scope.rs`.
- *
- * Steps the voice, the braided traces and the phosphor at a fixed 240 Hz and
- * yields one (brightness, freshness) pair per dot, row by row.
- */
+/** Dot scope simulation at a fixed 240 Hz, yielding (brightness, freshness) per dot, row by row. */
 
 import { DOT_SCOPE_CONFIG } from '@config/dotScope.config';
 import type { DotScopeTuning } from '@config/dotScope.config';

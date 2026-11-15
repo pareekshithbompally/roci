@@ -3,8 +3,7 @@ import EventKit
 
 // MARK: - C-compatible JSON bridge for Rust FFI
 
-/// Request full access to calendar events.
-/// Returns a JSON string: `{"granted": true}` or `{"granted": false, "error": "..."}`
+/// Requests full calendar access: `{"granted": bool, "error"?}`.
 @_cdecl("calendar_request_access")
 public func calendarRequestAccess() -> UnsafeMutablePointer<CChar> {
     let store = EKEventStore()
@@ -33,8 +32,7 @@ public func calendarRequestAccess() -> UnsafeMutablePointer<CChar> {
     return jsonToPtr(result)
 }
 
-/// Check current authorization status.
-/// Returns a JSON string: `{"status": "authorized" | "denied" | "not_determined" | "restricted"}`
+/// `{"status": "authorized" | "denied" | "not_determined" | "restricted"}` without prompting.
 @_cdecl("calendar_check_access")
 public func calendarCheckAccess() -> UnsafeMutablePointer<CChar> {
     let status: String
@@ -59,9 +57,7 @@ public func calendarCheckAccess() -> UnsafeMutablePointer<CChar> {
     return jsonToPtr(["status": status])
 }
 
-/// Fetch events starting within the next `minutesAhead` minutes.
-/// Parameter: minutesAhead (Int32)
-/// Returns JSON array of CalendarEvent objects.
+/// Events starting within the next `minutesAhead` minutes.
 @_cdecl("calendar_get_upcoming_events")
 public func calendarGetUpcomingEvents(_ minutesAhead: Int32) -> UnsafeMutablePointer<CChar> {
     let store = EKEventStore()
@@ -72,9 +68,7 @@ public func calendarGetUpcomingEvents(_ minutesAhead: Int32) -> UnsafeMutablePoi
     return fetchEventsJSON(store: store, start: now, end: end)
 }
 
-/// Fetch events in an ISO 8601 date range.
-/// Parameters: startISO, endISO (C strings)
-/// Returns JSON array of CalendarEvent objects.
+/// Events in an ISO 8601 date range.
 @_cdecl("calendar_get_events_in_range")
 public func calendarGetEventsInRange(
     _ startISO: UnsafePointer<CChar>,
@@ -94,7 +88,7 @@ public func calendarGetEventsInRange(
     return fetchEventsJSON(store: store, start: start, end: end)
 }
 
-// MARK: - Change count (HEX `hex_calendar_change_count`)
+// MARK: - Change count
 
 /// One long-lived store to observe: `EKEventStoreChanged` is posted per store.
 private let observedStore = EKEventStore()
@@ -102,8 +96,7 @@ private let changeLock = NSLock()
 private var changes: UInt64 = 0
 private var observing = false
 
-/// Counts EventKit store changes (any app, any calendar) since the first call
-/// with access. Readers reread events when the count moves.
+/// EventKit changes (any app, any calendar) since the first call with access; readers reread when it moves.
 @_cdecl("calendar_change_count")
 public func calendarChangeCount() -> UInt64 {
     guard hasFullAccess() else { return 0 }
@@ -129,8 +122,7 @@ private func hasFullAccess() -> Bool {
     return EKEventStore.authorizationStatus(for: .event) == .authorized
 }
 
-/// Fetch events between two wall-clock times (milliseconds since 1970), for
-/// schedulers that keep epoch time.
+/// Events between two epoch-millisecond times, for schedulers that keep epoch time.
 @_cdecl("calendar_get_events_between_ms")
 public func calendarGetEventsBetweenMs(_ startMs: Double, _ endMs: Double) -> UnsafeMutablePointer<CChar> {
     let store = EKEventStore()

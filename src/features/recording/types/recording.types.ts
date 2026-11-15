@@ -1,9 +1,3 @@
-/**
- * Recording Feature Types
- * 
- * Type definitions for the recording feature module
- */
-
 import type { AudioCaptureSource } from '@config/audio.config';
 import type { CalendarRecordingMeta } from '@services/calendar/recording-bridge';
 

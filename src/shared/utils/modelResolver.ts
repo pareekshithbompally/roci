@@ -1,9 +1,4 @@
-/**
- * Model Resolver Utility
- * 
- * Resolves a model ID to its provider and configuration.
- * Used to route API calls to the correct provider service.
- */
+/** Resolves a model id to its provider and configuration for routing API calls. */
 
 import type { ModelProvider, Model } from '@shared/types/modelProviders';
 import type { ProviderType } from '@services/ai/types';
@@ -31,12 +26,7 @@ export function providerCredentials(provider: ModelProvider): { apiKey: string; 
   };
 }
 
-/**
- * Resolve a model ID to its full configuration
- * @param modelId The model ID (e.g., "gpt-4o", "claude-3-5-sonnet")
- * @param providers List of configured providers from settings
- * @returns ResolvedModel or null if not found
- */
+/** A model id resolved against the configured providers, or null if not found. */
 export function resolveModel(
   modelId: string,
   providers: ModelProvider[]
@@ -57,10 +47,7 @@ export function resolveModel(
   return null;
 }
 
-/**
- * Resolve a model on one named provider — for selections stored as
- * provider + model (speech), where the model need not be in the provider's list.
- */
+/** A model on one named provider (provider + model selections); the model need not be in the provider's list. */
 export function resolveProviderModel(
   providerId: string,
   modelId: string,
@@ -79,10 +66,7 @@ export function resolveProviderModel(
   };
 }
 
-/**
- * Get the provider type for adapter routing.
- * 6-way: gemini | anthropic | openai | mistral | groq | openai-compat
- */
+/** Adapter type: gemini | anthropic | openai | mistral | groq | openai-compat. */
 export function getProviderType(provider: string): ProviderType {
   if (provider === APPLE_INTELLIGENCE.provider) return 'apple-intelligence';
   if (provider === 'gemini') return 'gemini';
@@ -93,9 +77,6 @@ export function getProviderType(provider: string): ProviderType {
   return 'openai-compat';
 }
 
-/**
- * Get all available models from active providers
- */
 export function getAllActiveModels(providers: ModelProvider[]): Array<{
   id: string;
   name: string;
@@ -148,12 +129,7 @@ const APPLE_INTELLIGENCE_PROVIDER: ModelProvider = {
   models: [{ id: APPLE_INTELLIGENCE.model, name: APPLE_INTELLIGENCE.name }],
 };
 
-/**
- * Summary-model sources: the user's providers plus the models integrations
- * contribute while switched on (Apple Intelligence). Summaries only — chat and
- * knowledge-graph extraction use the user's providers (Apple's on-device model
- * has no tool calling and a 4k context).
- */
+/** Summary-only sources: user providers plus switched-on integration models (Apple's has no tools and a 4k context). */
 export function withSummaryModels(providers: ModelProvider[], settings: AppSettings): ModelProvider[] {
   return isIntegrationEnabled(settings, 'appleIntelligence') ? [...providers, APPLE_INTELLIGENCE_PROVIDER] : providers;
 }

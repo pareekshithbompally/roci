@@ -1,9 +1,4 @@
-/**
- * Core TypeScript types for the unified store client.
- *
- * All domain types consumed by features are defined in src/shared/types/.
- * This file defines only the store-layer pagination/result shapes.
- */
+/** Store-layer pagination and result shapes; domain types live in src/shared/types/. */
 
 /** Paginated list result — every `*_list` command returns this shape. */
 export interface PaginatedResult<T> {

@@ -1,23 +1,6 @@
-/**
- * Temporal Context for LLM Prompts
- *
- * Single source of truth for formatting the current date, time, and timezone
- * into a string suitable for LLM system prompts. Every LLM call site that
- * needs temporal awareness imports this function.
- *
- * Uses the browser's Intl API for timezone detection — no settings field needed
- * for a single-user desktop app.
- */
+/** Current date, time and timezone (from Intl) formatted for LLM system prompts. */
 
-/**
- * Format the current date, time, and timezone for LLM consumption.
- *
- * Returns a string like:
- *   "Current date: 2026-03-29 (Saturday). Time: 13:54 local. Timezone: America/Los_Angeles."
- *
- * Call once per LLM request and thread through — don't call multiple times
- * within the same request to avoid sub-second drift.
- */
+/** Call once per LLM request and thread it through, so one request never sees two different times. */
 export function formatTemporalContext(): string {
   const now = new Date();
 

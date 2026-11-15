@@ -1,6 +1,4 @@
-/**
- * useSpotlightControls — Spotlight row: on/off. No macOS permission is involved.
- */
+/** Spotlight row: on/off. No macOS permission is involved. */
 
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { isIntegrationEnabled } from '@shared/utils/integrations';

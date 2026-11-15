@@ -1,9 +1,4 @@
-/**
- * UI Configuration
- * 
- * Centralized UI constants for consistent styling across the application.
- * All dimensions, colors, spacing, and layout values should be defined here.
- */
+/** UI dimensions, spacing and layout constants. */
 
 export const UI_CONFIG = {
   // Layout dimensions
@@ -16,13 +11,7 @@ export const UI_CONFIG = {
     sidebarBreakpoint: 1024, // lg breakpoint in pixels
     maxContentWidth: '95%', // Stretch close to edges but not sticking
     maxContentWidthPx: '1800px', // Maximum pixel width cap
-    /**
-     * Titlebar safe area (macOS traffic lights + Tauri drag region).
-     * Single source of truth — the drag strip geometry and the kit
-     * `PageScroll` / `TitlebarSpacer` every view clears it with derive from this.
-     * dragOffset + dragHeight === safeArea: leaves 4px for the native
-     * resize edge so move + resize never trigger together.
-     */
+    /** Titlebar safe area; dragOffset + dragHeight === safeArea, leaving 4px for the native resize edge. */
     titlebar: {
       safeArea: 40,
       dragOffset: 4,
@@ -144,9 +133,7 @@ export const UI_CONFIG = {
 
 } as const;
 
-/**
- * Breakpoint utilities
- */
+/** Breakpoint values. */
 export const BREAKPOINTS = {
   sm: 640,
   md: 768,

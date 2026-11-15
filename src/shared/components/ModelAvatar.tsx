@@ -1,10 +1,4 @@
-/**
- * ModelAvatar — a model's Hugging Face org icon, with a monogram fallback.
- *
- * Same size API as ProvidersAvatar. Lazy-loaded remote image; on failure the
- * org shows its monogram and isn't retried until the cooldown passes
- * (module-level, shared by every row and header).
- */
+/** A model's Hugging Face org icon, else a monogram; failed orgs aren't retried until a shared cooldown passes. */
 
 import React, { useState } from 'react';
 import { MODEL_AVATARS_CONFIG } from '@config/modelAvatars.config';

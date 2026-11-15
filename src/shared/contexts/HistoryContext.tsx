@@ -1,17 +1,4 @@
-/**
- * History Context
- *
- * Split into two internal contexts to prevent UI-only state changes
- * (menu toggles, rename mode, delete confirmation) from re-rendering
- * data consumers (ChatPanel, ChatView, IdleView, etc.).
- *
- * - HistoryDataContext: items, categories, filtering, persistence
- * - HistoryUIContext: ephemeral UI state (menus, rename, delete confirm)
- *
- * Consumers:
- *   useHistory()     — full API (backward compat, for sidebar components)
- *   useHistoryData() — data only (for chat, idle, results views)
- */
+/** History split into data and UI contexts so menu/rename/delete-confirm state never re-renders data consumers. */
 
 import React, { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';

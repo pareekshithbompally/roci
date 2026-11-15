@@ -1,13 +1,4 @@
-/**
- * Apple Intelligence as an AI SDK language model (spec v4), so it is created by
- * `createModel()` like every other provider (I4) and callers such as
- * `analyzeTranscript` stay generic. System messages become the session
- * instructions; a JSON response format is passed through as the guided-
- * generation schema (DynamicGenerationSchema in the Swift bridge).
- *
- * Text in, text out: summaries and titles. No tools, no images — Apple
- * Intelligence is offered only where those aren't needed (never in chat).
- */
+/** Apple Intelligence as an AI SDK model (text only, never in chat); a JSON format becomes the guided schema. */
 
 import type {
   LanguageModelV4,

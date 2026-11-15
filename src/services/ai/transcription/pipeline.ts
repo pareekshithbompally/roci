@@ -1,11 +1,4 @@
-/**
- * The one transcription pipeline: every caller (recording, import,
- * re-transcribe, dictation) and every adapter go through it.
- *
- * Audio → 16 kHz mono → parts the adapter accepts → adapter per part, with
- * progress before each part and cancellation between parts → one result with
- * segment times offset to the whole recording.
- */
+/** The one transcription pipeline: audio → 16 kHz mono parts → adapter per part → one offset-timed result. */
 
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { encodeWavInt16, splitSamples, toMonoSamples } from '@shared/utils/wav.utils';
@@ -63,11 +56,7 @@ interface Chunk {
   startSecond: number;
 }
 
-/**
- * VAD ranges → transcribable chunks: clamp, drop empties, merge ranges split
- * by short pauses, extend stubs to a minimum length (engines need context),
- * then split anything longer than the adapter accepts.
- */
+/** VAD ranges → chunks: merge short pauses, extend stubs to a minimum length, split what the adapter can't take. */
 function toChunks(
   ranges: SpeechRange[],
   samples: Float32Array,
@@ -109,11 +98,7 @@ function toChunks(
   return chunks;
 }
 
-/**
- * Speech chunks of the recording. VAD gate: only speech reaches the model —
- * silence used to be transcribed into hallucinations (".", "Thank you.") that
- * polluted summaries. A VAD failure transcribes the full audio, never a new error.
- */
+/** Only speech reaches the model, so silence can't become hallucinated text; a VAD failure sends all audio. */
 async function speechChunks(
   samples: Float32Array,
   maxPartSamples: number,
@@ -157,8 +142,7 @@ async function transcribeChunks(
     segments.push(...placeSegments({ ...result, text: cleaned }, chunk.startSecond, endSecond));
   }
 
-  // Keep timestamps when the engine gave them or the audio was split;
-  // a single untimed part stays plain text (dictation, short clips).
+  // Timestamps when the engine gave them or the audio was split; one untimed part stays plain text.
   const timed = adapterTimed || texts.length > 1;
   return { text: texts.join('\n\n'), segments: timed ? segments : [], usage };
 }

@@ -1,9 +1,4 @@
-/**
- * useAppleIntelligenceControls — Apple Intelligence row: the on-device model's
- * availability (no permission — only device, setting, model and macOS) and the
- * on/off switch. Apple Speech's own setup (permission, model download) lives on
- * its row in Settings › Capabilities (useAppleSpeechSetup).
- */
+/** Apple Intelligence row: on-device model availability and the switch; Apple Speech setup is useAppleSpeechSetup. */
 
 import { useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';

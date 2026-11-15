@@ -1,14 +1,4 @@
-/**
- * Markdown — the app's single markdown renderer (chat messages and meeting summaries).
- *
- * Streamdown for both streaming and static content. This ensures consistent
- * styling with zero visual shift when streaming finishes.
- *
- * Styling is defined in src/styles/markdown.css via the .markdown-content class.
- *
- * When webCitations are provided, a rehype plugin transforms {{cite:N}} tokens
- * in the text into <InlineCitationMarker> React components via the components prop.
- */
+/** The single markdown renderer: Streamdown for streaming and static content, so finishing never shifts layout. */
 
 import React, { memo, useMemo, useDeferredValue } from 'react';
 import { defaultRehypePlugins, Streamdown } from 'streamdown';
@@ -27,8 +17,7 @@ interface MarkdownProps {
   webCitations?: WebCitation[];
 }
 
-// Module-level stable references — prevents Streamdown from re-creating its
-// plugin context and re-mounting CodeBlock components on every streaming render.
+// Stable module-level plugin refs so Streamdown does not remount CodeBlocks on every streaming render.
 const REMARK_PLUGINS = [remarkGfm];
 const STREAMDOWN_PLUGINS = { code };
 const REHYPE_PLUGINS_DEFAULT = [defaultRehypePlugins.harden];
@@ -41,9 +30,7 @@ const MarkdownInner: React.FC<MarkdownProps> = ({
   streaming,
   webCitations,
 }) => {
-  // While streaming, render the deferred (previous) value so rapid token
-  // arrivals don't force a full markdown re-parse every frame — React
-  // coalesces the deferred updates and only re-parses once it catches up.
+  // While streaming, render the deferred value so token bursts coalesce into one re-parse.
   const deferredContent = useDeferredValue(content);
   const effectiveContent = streaming ? deferredContent : content;
 

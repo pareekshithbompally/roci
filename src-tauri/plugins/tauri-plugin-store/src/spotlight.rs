@@ -1,8 +1,4 @@
-//! Spotlight search — fast FTS5-only search across meetings and chats.
-//! Does NOT use vector embeddings (no MiniLM inference needed for spotlight).
-//! Two tiers:
-//!   - Tier 0: title LIKE (always available, < 1ms)
-//!   - Tier 1: FTS5 snippet() (available after indexing, 5–20ms)
+//! Cmd+K search over meetings and chats: title LIKE, then FTS5 snippets; no embeddings.
 
 use rusqlite::{params_from_iter, types::Value, Connection};
 use serde::{Deserialize, Serialize};
@@ -16,8 +12,7 @@ pub struct SpotlightHit {
     pub source_id: String,
     /// Meeting title or chat session title
     pub title: String,
-    /// Matched excerpt with <<MARK>> / <</MARK>> markers around matched terms.
-    /// Empty string for title-only matches.
+    /// Excerpt with <<MARK>> / <</MARK>> around matched terms; empty for title-only matches.
     pub excerpt: String,
     /// Unix timestamp in milliseconds (meeting.created_at or chat.last_message_at)
     pub timestamp: i64,
@@ -32,19 +27,14 @@ pub struct SpotlightParams {
     pub limit: usize,
 }
 
-/// Open/close markers used in snippet() output.
-/// These are replaced with <mark> tags on the frontend.
+/// snippet() markers the frontend replaces with <mark> tags.
 pub const MARK_OPEN: &str = "<<MARK>>";
 pub const MARK_CLOSE: &str = "<</MARK>>";
 
-/// Max token window for the FTS5 snippet() function.
-/// 32 tokens ≈ 3–4 sentences — enough context without excessive length.
+/// snippet() window: 32 tokens ≈ 3–4 sentences.
 const SNIPPET_TOKENS: i32 = 32;
 
-/// Perform spotlight search: tier-0 title LIKE + tier-1 FTS5 content.
-/// Results are deduplicated per source. If a source matches both title and
-/// content, we keep the earlier row position while merging in the content
-/// excerpt so Cmd+K can still show a snippet.
+/// Title LIKE matches then FTS5 content matches, deduplicated per source.
 pub fn spotlight_search(
     conn: &Connection,
     params: &SpotlightParams,
@@ -53,8 +43,6 @@ pub fn spotlight_search(
     let mut hits: Vec<SpotlightHit> = Vec::new();
 
     // ── Tier 0: Title LIKE matches ──────────────────────────────────────────
-    // Fast scan on indexed title columns. No FTS overhead.
-    // Uses LOWER() for case-insensitive matching without collation overhead.
     let title_tokens = extract_search_terms(&params.query);
 
     if !title_tokens.is_empty() {
@@ -142,8 +130,6 @@ pub fn spotlight_search(
     }
 
     // ── Tier 1: FTS5 content matches with snippet() ─────────────────────────
-    // The last word in the query gets a * suffix for prefix search (search-as-you-type).
-    // Earlier words are exact-matched via "term" quoting.
     let fts_query = build_spotlight_fts_query(&params.query);
     if !fts_query.is_empty() {
         // Meeting content
@@ -236,23 +222,11 @@ pub fn spotlight_search(
     }
 
     // ── Dedup by (source_type, source_id) ───────────────────────────────────
-    // Keep the first hit position (title matches are inserted first), but merge
-    // in any later content excerpt so the UI can show a snippet when available.
     let deduped = dedup_spotlight_hits(hits);
     Ok(deduped)
 }
 
-/// Build an FTS5 query string for spotlight search-as-you-type.
-///
-/// All words except the last are wrapped in quotes for exact matching.
-/// The last word gets a trailing * for prefix search (matches partial words).
-///
-/// Example: "billing int" → `"billing" "int"*`
-/// Example: "billing"     → `"billing"*`
-/// Example: ""            → "" (empty, callers skip FTS tier)
-///
-/// The query is sanitized: FTS5 operators and special chars are stripped
-/// except apostrophes and hyphens (word-internal punctuation).
+/// Search-as-you-type FTS5 query: "billing int" → `"billing" "int"*`; empty input → empty.
 fn build_spotlight_fts_query(query: &str) -> String {
     let words = extract_search_terms(query);
     if words.is_empty() {
@@ -290,10 +264,7 @@ fn build_title_like_where(column: &str, token_count: usize) -> String {
         .join(" AND ")
 }
 
-/// Deduplicate hits by (source_type, source_id).
-/// The first hit keeps its rank position, but later duplicates can enrich it with
-/// a content excerpt. This preserves stable ordering while ensuring snippet text
-/// is not dropped when a source matches both title and content.
+/// Dedups by source, keeping the first hit's position but taking a later duplicate's excerpt.
 fn dedup_spotlight_hits(hits: Vec<SpotlightHit>) -> Vec<SpotlightHit> {
     let mut seen: std::collections::HashMap<(String, String), usize> =
         std::collections::HashMap::new();

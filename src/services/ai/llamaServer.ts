@@ -1,15 +1,4 @@
-/**
- * llama.cpp's llama-server, which reports what it's doing before the first
- * token — the two numbers its own web UI shows:
- *
- * - loading a model: `GET /models/sse` (router mode) streams each model's
- *   status, with `progress { stages, current, value 0–1 }` while it loads;
- * - reading the prompt: a request with `return_progress: true` streams
- *   `prompt_progress { total, cache, processed }` chunks before the reply.
- *
- * A local server is recognised once by `GET /props` (only llama-server
- * answers with `build_info`), remembered per address.
- */
+/** llama-server model-load and prompt-read progress; a server is recognised once by `build_info` on `GET /props`. */
 
 import { getPlatformFetch } from '@services/platform-fetch';
 import { failureLogger } from '@shared/utils/errors';
@@ -21,7 +10,7 @@ const rootOf = (baseUrl: string) => baseUrl.replace(/\/v1\/?$/, '').replace(/\/$
 
 const recognised = new Map<string, Promise<boolean>>();
 
-/** Whether `baseUrl` is served by llama-server (asked once per address). */
+/** Whether `baseUrl` is served by llama-server; a yes is remembered per address, a no (or no answer) is asked again next time. */
 export function isLlamaServer(baseUrl: string): Promise<boolean> {
   const root = rootOf(baseUrl);
   let known = recognised.get(root);

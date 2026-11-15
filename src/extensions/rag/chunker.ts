@@ -1,9 +1,4 @@
-/**
- * Transcript Chunker
- *
- * Splits meeting content into semantically meaningful chunks for vector indexing.
- * Strategy: sentence-boundary splitting with overlap for context continuity.
- */
+/** Splits meeting content into sentence-boundary chunks with overlap for vector indexing. */
 
 import type { HistoryItem } from '@shared/types';
 import { MAX_CHUNK_CHARS, OVERLAP_CHARS, MIN_NOTES_LENGTH } from './constants';
@@ -21,11 +16,7 @@ const SENTENCE_END = /(?<=[.!?])\s+/g;
 // Clause boundary fallback: comma or semicolon followed by whitespace
 const CLAUSE_END = /(?<=[,;])\s+/g;
 
-/**
- * Split text into chunks at sentence boundaries, with overlap.
- * Each chunk is at most `maxChars` characters. Adjacent chunks
- * share `overlapChars` characters of trailing/leading context.
- */
+/** Chunks of at most `maxChars` split at sentences; neighbours share `overlapChars` of context. */
 function splitBySentenceBoundary(
   text: string,
   maxChars = MAX_CHUNK_CHARS,
@@ -141,13 +132,7 @@ function hardSplit(text: string, maxChars: number): string[] {
   return chunks;
 }
 
-/**
- * Chunk a meeting into indexable segments.
- *
- * - Chunk 0: title + summary (high-level semantic anchor)
- * - Chunks 1..N: transcript segments (sentence-boundary split with overlap)
- * - Final chunk: user notes + action items (if present)
- */
+/** Chunk 0 is title + summary, then transcript chunks, then a final notes + action items chunk. */
 export function chunkMeeting(item: HistoryItem): Chunk[] {
   const chunks: Chunk[] = [];
 
@@ -191,10 +176,7 @@ export function chunkMeeting(item: HistoryItem): Chunk[] {
   return chunks;
 }
 
-/**
- * Compute a content hash for staleness detection.
- * Any change in title, summary, or transcript triggers re-indexing.
- */
+/** Content hash over title, summary and transcript, so any change triggers re-indexing. */
 export async function computeContentHash(item: HistoryItem): Promise<string> {
   const content = [
     item.title || '',

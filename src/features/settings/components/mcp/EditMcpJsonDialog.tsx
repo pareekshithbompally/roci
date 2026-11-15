@@ -1,7 +1,4 @@
-/**
- * EditMcpJsonDialog — raw JSON editor for one server or the whole config
- * (Jan's EditJsonMCPserver).
- */
+/** Raw JSON editor for one MCP server or the whole config. */
 
 import React, { useEffect, useState } from 'react';
 import { Button, Textarea } from '@shared/ui';

@@ -1,25 +1,4 @@
-/**
- * Silero VAD Web Worker
- *
- * Runs voice activity detection off the main thread: a 2-hour recording is
- * ~460 MB of samples and VAD is single-threaded WASM, so this must never run
- * where React renders.
- *
- * One NonRealTimeVAD lives for the worker's lifetime. That is state-safe:
- * run() always finishes through FrameProcessor.endSegment, which resets the
- * model's LSTM state, so consecutive recordings start clean with no leak.
- *
- * Communication protocol (postMessage):
- *   Main → Worker:
- *     { type: 'vad', id, samples, sampleRate } — Float32Array mono samples
- *       (transferred; the sender loses access)
- *   Worker → Main:
- *     { type: 'segments', id, segments: [{ startMs, endMs }] }
- *     { type: 'error', id?, message }
- *
- * Assets are self-hosted, never CDN (see vite.config.ts): the NRT path uses
- * the legacy Silero wrapper, so the model file must be silero_vad_legacy.onnx.
- */
+/** Silero VAD off the main thread; self-hosted assets, and the NRT path needs silero_vad_legacy.onnx. */
 
 import { NonRealTimeVAD } from '@ricky0123/vad-web';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';

@@ -3,8 +3,7 @@ use tauri::command;
 use crate::bridge;
 use crate::types::{AccessResult, AccessStatus, CalendarEvent, ReminderInput, ReminderState, RemindersList};
 
-/// Request calendar access permission from the user.
-/// Triggers macOS permission dialog if not yet determined.
+/// Requests calendar access; macOS prompts only while undecided.
 #[command]
 pub fn request_access() -> Result<AccessResult, String> {
     bridge::request_access()
@@ -16,8 +15,7 @@ pub fn check_access() -> Result<AccessStatus, String> {
     bridge::check_access()
 }
 
-/// Fetch calendar events starting within the next `minutes_ahead` minutes.
-/// Excludes events the user has declined.
+/// Events starting within the next `minutes_ahead` minutes, excluding declined ones.
 #[command]
 pub fn get_upcoming_events(minutes_ahead: Option<u32>) -> Result<Vec<CalendarEvent>, String> {
     let ahead = minutes_ahead.unwrap_or(15);
@@ -31,6 +29,7 @@ pub fn get_events_in_range(start: String, end: String) -> Result<Vec<CalendarEve
 }
 
 // ─── Reminders ──────────────────────────────────────────────────────────────
+
 // EventKit calls block on a semaphore, so they run off the main thread.
 
 async fn off_main<T: Send + 'static>(work: impl FnOnce() -> Result<T, String> + Send + 'static) -> Result<T, String> {

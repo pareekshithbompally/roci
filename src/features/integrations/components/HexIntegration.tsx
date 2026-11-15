@@ -1,7 +1,4 @@
-/**
- * HexIntegration — Hex's transcription models (in Settings › Capabilities while on)
- * and every Hex meeting kept in Kasset (one-way, Hex → Kasset).
- */
+/** Hex's transcription models in Capabilities while on, and every Hex meeting synced one-way into Kasset. */
 
 import React from 'react';
 import { RefreshCw } from 'lucide-react';

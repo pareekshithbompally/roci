@@ -71,8 +71,7 @@ describe('store invoke arg shapes match Rust command signatures', () => {
     expect(callsFor('chats_upsert')[0]).toMatchObject({ input: { id: 'c1' } });
   });
 
-  // Tauri maps camelCase top-level args to snake_case Rust params; sending snake_case fails
-  // with "missing required key meetingId". Only nested struct fields (serde) stay snake_case.
+  // Tauri maps camelCase top-level args to snake_case Rust params; only nested serde fields stay snake_case.
   it('list/lookup calls use camelCase top-level arg names', async () => {
     const { notes } = await import('@services/db/domains/notes');
     const { todos } = await import('@services/db/domains/todos');

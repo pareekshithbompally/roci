@@ -1,10 +1,4 @@
-/**
- * Cost Estimation
- *
- * Looks up model pricing from models.dev (via modalitiesService cache) and
- * calculates estimated cost from token usage. Returns 0 if pricing data is
- * not available for the provider/model.
- */
+/** Estimated cost from token usage and models.dev pricing; 0 when pricing is unknown. */
 
 import { modalitiesService } from '@services/modalities';
 import type { ModelPricing } from '@services/modalities';
@@ -12,11 +6,7 @@ import type { TokenUsage } from '@services/ai/types';
 
 export type { ModelPricing };
 
-/**
- * Find pricing for a provider + model combination via models.dev cache.
- * If the cache isn't loaded yet, triggers a background load for future calls.
- * Returns undefined if no pricing data is available.
- */
+/** Pricing from the models.dev cache, loading it in the background if needed; undefined when unknown. */
 export function findPricing(provider: string, model: string): ModelPricing | undefined {
   if (!modalitiesService.isLoaded()) {
     // Trigger background load so subsequent calls have data
@@ -26,10 +16,7 @@ export function findPricing(provider: string, model: string): ModelPricing | und
   return modalitiesService.getPricing(provider, model) ?? undefined;
 }
 
-/**
- * Estimate cost in USD from token usage and model pricing.
- * Returns 0 if no pricing data is found for the provider/model.
- */
+/** Estimated USD cost; 0 when no pricing is found. */
 export function estimateCost(
   provider: string,
   model: string,
@@ -45,8 +32,7 @@ export function estimateCost(
   const cacheReadTokens = usage.cacheReadTokens ?? 0;
   const cacheWriteTokens = usage.cacheWriteTokens ?? 0;
 
-  // Cache tokens are a subset of input tokens. If cache pricing exists,
-  // charge cache tokens at the cache rate and the remainder at the standard rate.
+  // Cache tokens are a subset of input; they're charged at the cache rate, the rest at the standard rate.
   const standardInputTokens = Math.max(0, inputTokens - cacheReadTokens - cacheWriteTokens);
   const cacheReadRate = pricing.cacheReadPer1M ?? pricing.inputPer1M;
   const cacheWriteRate = pricing.cacheWritePer1M ?? pricing.inputPer1M;

@@ -1,8 +1,4 @@
-/**
- * TodoItem Component
- * 
- * Displays a single todo with toggle, delete, edit, and reminder functionality.
- */
+/** A single todo with toggle, delete, edit, and reminder controls. */
 
 import React, { useState, useCallback } from 'react';
 import { Check, X, Edit2, Clock, AlertTriangle } from 'lucide-react';

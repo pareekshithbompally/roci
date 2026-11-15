@@ -1,9 +1,4 @@
-/**
- * Calendar Integration Configuration
- *
- * All polling intervals, cache windows, notification thresholds,
- * and UI constants for the calendar integration in one place.
- */
+/** Calendar integration polling intervals, cache windows, notification thresholds and UI constants. */
 
 export const CALENDAR_CONFIG = {
   /** How far ahead to fetch events for the lookahead cache (days) */

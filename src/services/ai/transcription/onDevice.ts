@@ -1,10 +1,4 @@
-/**
- * On this Mac — Kasset's own speech-to-text engine (transcribe.cpp in Rust,
- * src-tauri/src/stt): error copy, the per-part adapter, and its live engine.
- * The models and their downloads are local models
- * (`@services/localModels.service`); splitting, progress and cancellation of
- * whole recordings live in the shared pipeline.
- */
+/** Kasset's own STT engine (transcribe.cpp in Rust): error copy, per-part adapter and live engine. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';

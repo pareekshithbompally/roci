@@ -66,8 +66,7 @@ pub async fn speech_prepare(language: String) -> Result<(), AppleError> {
     off_main(move || take::<Empty>(bridge::speech_prepare(&language)).map(|_| ())).await
 }
 
-/// Transcribes one PCM WAV part on this Mac, sent as the raw invoke body (header `x-language`, default `en`).
-/// SpeechAnalyzer reads files, so the part goes through a temporary file that is removed afterwards.
+/// Transcribes a raw-body WAV part (header `x-language`) via a temp file, since SpeechAnalyzer reads files.
 #[command]
 pub async fn speech_transcribe(request: Request<'_>) -> Result<Vec<SpeechSegment>, AppleError> {
     let InvokeBody::Raw(wav) = request.body() else {

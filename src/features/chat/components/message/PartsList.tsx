@@ -15,10 +15,7 @@ interface PartsListProps {
   webCitations?: WebCitation[];
 }
 
-/**
- * Renders a message's parts in the order they happened: text, media, and its
- * tool calls — one call as its own block, calls made back to back as one group.
- */
+/** A message's parts in order; back-to-back tool calls render as one group. */
 const PartsList: React.FC<PartsListProps> = ({ parts, messageId, streaming, processText, webCitations }) => {
   const { settings } = useSettings();
 

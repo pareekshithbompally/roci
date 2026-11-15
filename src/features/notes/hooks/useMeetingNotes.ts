@@ -1,10 +1,4 @@
-/**
- * useMeetingNotes Hook
- *
- * TanStack Query-based notes hook for a single meeting.
- * Reads/writes via the unified store (Phase 3).
- * Provides optimistic mutations with rollback on failure.
- */
+/** One meeting's notes via TanStack Query, with optimistic mutations and rollback. */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback } from 'react';

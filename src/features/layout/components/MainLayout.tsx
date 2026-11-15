@@ -1,9 +1,4 @@
-/**
- * MainLayout Component
- *
- * Main application layout with resizable sidebar, content area, and resizable chat panel.
- * Both sidebar and chat panel are draggable via resize handles on their edges.
- */
+/** App layout: resizable sidebar, content area, and resizable chat panel. */
 
 import React, { useCallback, useRef, useMemo } from 'react';
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
@@ -91,8 +86,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   return (
     <Surface as="main" variant="page" className="relative h-screen overflow-hidden">
-      {/* Transparent drag strip over the titlebar safe area (geometry from
-          UI_CONFIG.layout.titlebar so content padding and drag region agree). */}
+      {/* Titlebar drag strip; geometry from UI_CONFIG.layout.titlebar so padding and drag region agree. */}
       <div
         className="fixed w-full z-20 select-none"
         style={{ top: UI_CONFIG.layout.titlebar.dragOffset, height: UI_CONFIG.layout.titlebar.dragHeight }}

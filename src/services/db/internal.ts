@@ -1,10 +1,4 @@
-/**
- * Shared internals for the store client domains.
- *
- * Holds the `call()` invoke helper, Rust row-shape interfaces, and the
- * mappers that convert Rust rows into the shared domain types. Each
- * `domains/*.ts` module builds on these primitives.
- */
+/** Shared store-client internals: the `call()` invoke helper, Rust row shapes, and row → domain mappers. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { parseStoreError } from './errors';

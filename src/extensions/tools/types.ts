@@ -1,9 +1,4 @@
-/**
- * Tool System Type Definitions
- *
- * Provider-agnostic interfaces for the tool calling system.
- * Adapters translate to/from these for each LLM provider.
- */
+/** Provider-agnostic tool calling interfaces. */
 
 import type { HistoryItem } from '@shared/types';
 
@@ -39,11 +34,7 @@ export interface ToolDefinition {
   parameters: JSONSchema;
   /** The actual implementation. Receives validated params + context. */
   execute: (params: Record<string, unknown>, context: ToolContext) => Promise<ToolResult>;
-  /**
-   * Bridge-enforced limits. Omit for the defaults (TOOL_TIMEOUT_MS /
-   * MAX_TOOL_RESULT_CHARS); `null` when the tool enforces its own — MCP tools
-   * are bounded in Rust by the user's settings and may wait on an approval prompt.
-   */
+  /** Bridge limits: omit for defaults, `null` when the tool bounds itself (MCP tools, in Rust). */
   timeoutMs?: number | null;
   maxResultChars?: number | null;
   /** MCP server name, shown with the call in chat. Absent for built-ins. */
@@ -59,10 +50,7 @@ export interface ToolContext {
   historyItems: HistoryItem[];
   /** For cancellation during tool execution. */
   signal?: AbortSignal;
-  /**
-   * Who confirms a write: `chat` — Kasset's chat shows a proposal the user approves;
-   * `caller` — a coding agent on Kasset's MCP server, which asked the user before calling.
-   */
+  /** Who confirms a write: `chat` shows a proposal; `caller` is an MCP agent that already asked the user. */
   approval: 'chat' | 'caller';
 }
 

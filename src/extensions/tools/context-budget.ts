@@ -1,14 +1,4 @@
-/**
- * LLM Context Budget
- *
- * Tracks cumulative context size across tool calls and @mentions.
- * Prevents unbounded accumulation in the retrieval executor.
- *
- * Usage:
- *   const budget = new LLMContextBudget(MAX_CONTEXT_BUDGET_CHARS);
- *   const fitted = budget.add(toolResult);  // returns truncated-to-fit version
- *   if (!budget.canFit(nextResult)) { ... } // check before expensive work
- */
+/** Tracks cumulative context size across tool calls and @mentions so retrieval can't grow unbounded. */
 
 import { truncateForLLM } from '@shared/utils/text.utils';
 
@@ -33,11 +23,7 @@ export class LLMContextBudget {
     return this.remaining() === 0;
   }
 
-  /**
-   * Add text to the budget, truncating if necessary.
-   * Returns the (possibly truncated) text that was added.
-   * Consumes the corresponding amount from the budget.
-   */
+  /** Adds text, truncated to fit, consumes that much budget, and returns what was added. */
   add(text: string): string {
     if (!text) return text;
 

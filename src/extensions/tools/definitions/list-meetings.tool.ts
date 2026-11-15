@@ -1,9 +1,4 @@
-/**
- * list_meetings tool
- *
- * Simple listing of recent meetings for browsing.
- * No RAG dependency — just reads from context.historyItems.
- */
+/** list_meetings: recent meetings from context.historyItems, no RAG needed. */
 
 import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
 

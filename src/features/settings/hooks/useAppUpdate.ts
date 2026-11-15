@@ -1,12 +1,4 @@
-/**
- * useAppUpdate Hook
- *
- * Manages the full app update lifecycle: check → download → install → relaunch.
- * Integrates with ActivityTray for download progress.
- *
- * Uses @tauri-apps/plugin-updater for the native update channel
- * and @tauri-apps/plugin-process for relaunch.
- */
+/** App update lifecycle (check → download → install → relaunch), with download progress in the ActivityTray. */
 
 import { useState, useCallback, useRef } from 'react';
 import { isTauriEnvironment } from '@services/tauri';
@@ -24,12 +16,7 @@ interface UpdateInfo {
 }
 
 export interface UpdateCheckOptions {
-  /**
-   * Silent checks (e.g. the automatic startup check) treat an unreachable
-   * endpoint as "no update" instead of surfacing an error — the endpoint 404s
-   * until the first release with updater artifacts is published, and dev
-   * builds can never be updated.
-   */
+  /** Treat an unreachable endpoint as "no update" (it 404s until the first release with updater artifacts). */
   silent?: boolean;
 }
 
@@ -48,10 +35,7 @@ interface UseAppUpdateReturn {
 const ACTIVITY_ID = 'app-update';
 const STARTUP_CHECK_DELAY_MS = 10_000;
 
-/**
- * Dynamically imports updater + process plugins so non-Tauri
- * environments don't crash on import.
- */
+/** Imported dynamically so non-Tauri environments don't crash on import. */
 async function getUpdaterPlugins() {
   const [{ check }, { relaunch }] = await Promise.all([
     import('@tauri-apps/plugin-updater'),
@@ -197,8 +181,7 @@ export function useAppUpdate(): UseAppUpdateReturn {
 /** Schedule a background update check after app startup settles. */
 export function scheduleStartupCheck(checkFn: () => Promise<void>) {
   if (!isTauriEnvironment()) return;
-  // Dev builds are never distributed releases, so the updater endpoint can
-  // never serve them — skip instead of logging an updater ERROR on every launch.
+  // Dev builds can never be served by the updater, so skip instead of logging an error every launch.
   if (import.meta.env.DEV) return;
   const timer = setTimeout(checkFn, STARTUP_CHECK_DELAY_MS);
   return () => clearTimeout(timer);

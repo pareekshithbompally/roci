@@ -1,6 +1,4 @@
-//! Locking shared state. A poisoned mutex (a thread panicked mid-update) is
-//! recovered rather than propagated: the state is still the best we have, and
-//! a crash in one task must not take every later caller down with it.
+//! Locking shared state: a poisoned mutex is recovered, so one panicked task can't break later callers.
 
 use std::sync::{Mutex, MutexGuard, PoisonError};
 

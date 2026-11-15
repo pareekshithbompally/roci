@@ -1,11 +1,4 @@
-/**
- * Calendar Service
- *
- * Bridges macOS EventKit (via Tauri plugin) with the calendar UI: a 7-day
- * event cache, refreshed every 2 minutes, that components subscribe to via
- * onEventsUpdated(). Meeting reminders are not here — they run natively
- * (src-tauri/src/meeting_reminders), so a hidden window can't delay them.
- */
+/** 7-day EventKit cache refreshed every 2 min; meeting reminders run natively so a hidden window can't stall them. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from '@services/tauri/environment.service';

@@ -1,13 +1,4 @@
-/**
- * Context Ring
- *
- * Llama-style context-window gauge for the chat composer: a small SVG arc
- * showing used/total percent, opening a breakdown popover (this turn,
- * cumulative, cache split, speed). Built only from kit primitives
- * (`Popover`, `Progress`, `Text`) and token roles — no hard-coded colors.
- *
- * Render nothing when `usage` is null (unknown model limit or no usage yet).
- */
+/** Context-window gauge for the composer: an arc of used/total with a breakdown popover; nothing when usage is null. */
 
 import React from 'react';
 import type { ContextUsage, ContextLevel } from '@shared/hooks/useContextUsage';

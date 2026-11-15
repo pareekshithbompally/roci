@@ -1,8 +1,4 @@
-/**
- * Apple Notes — wrappers over the apple-notes plugin
- * (src-tauri/plugins/tauri-plugin-apple-notes). Apple Events under the hood:
- * Automation consent for Notes, and one note per meeting.
- */
+/** Apple Notes plugin wrappers (Apple Events): Automation consent and one note per meeting. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from '@services/tauri';

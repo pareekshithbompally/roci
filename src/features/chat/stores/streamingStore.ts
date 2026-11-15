@@ -1,23 +1,4 @@
-/**
- * Streaming Store
- *
- * Lightweight external store for streaming message content.
- * Uses useSyncExternalStore pattern so only the streaming ChatMessage
- * re-renders during streaming — the rest of the UI stays untouched.
- *
- * Text deltas are batched via requestAnimationFrame — chunks accumulate
- * in a buffer and flush once per display frame (~16ms at 60Hz, ~8ms at
- * 120Hz). This caps re-renders at the display refresh rate regardless
- * of how frequently the provider sends deltas.
- *
- * Non-text operations (pushPart, updatePartByKey, finish, reset) flush
- * the text buffer synchronously first to preserve part ordering and
- * ensure callers always see the latest accumulated state.
- *
- * Supports multimodal content: text deltas are appended to the current
- * text part, while media parts (image/audio/video) are pushed as
- * separate entries in the parts array.
- */
+/** Streaming message store; text deltas batch per animation frame so only the streaming message re-renders. */
 
 import { useSyncExternalStore } from 'react';
 import type { ChatPart } from '@shared/types';
@@ -81,10 +62,7 @@ function cancelPendingFlush() {
 }
 
 export const streamingStore = {
-  /**
-   * Push a text chunk. Batched via requestAnimationFrame —
-   * accumulated text flushes to the snapshot once per display frame.
-   */
+  /** Push a text chunk; it flushes to the snapshot once per display frame. */
   push(chunk: string) {
     pendingText += chunk;
     if (rafId === null) {
@@ -144,10 +122,7 @@ export const streamingStore = {
   },
 };
 
-/**
- * Hook to subscribe to streaming content updates.
- * Only triggers re-renders when the snapshot changes (at most once per display frame).
- */
+/** Subscribe to streaming content; re-renders at most once per display frame. */
 export function useStreamingText(): StreamingSnapshot {
   return useSyncExternalStore(
     streamingStore.subscribe,

@@ -1,8 +1,4 @@
-/**
- * Usage Tracking Types
- *
- * Mirrors the Rust UsageRecord / UsageSummary structs in commands.rs.
- */
+/** Mirrors the Rust UsageRecord / UsageSummary structs in commands.rs. */
 
 export type UsageCategory = 'chat' | 'title-gen' | 'transcription' | 'summary' | 'extraction' | 'suggestions';
 

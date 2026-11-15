@@ -1,9 +1,4 @@
-/**
- * ToolCallGroup — calls made back to back, as one row that updates in place:
- * the current call while they run ("Searching meetings…"), then
- * "Used 3 tools · 1.2s" (or how many failed). Open while they run, folding a
- * beat after; each call is listed inside, folded, for anyone who wants detail.
- */
+/** Back-to-back tool calls as one row showing the current call, then a summary like "Used 3 tools · 1.2s". */
 
 import React from 'react';
 import { Layers } from 'lucide-react';

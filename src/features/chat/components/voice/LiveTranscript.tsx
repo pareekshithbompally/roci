@@ -1,9 +1,4 @@
-/**
- * LiveTranscript — dictation as it's spoken: one line in a pill below the
- * voice controls, settled words then the latest ones (fainter, still being
- * revised). When the line is full the newest words stay in view and the start
- * is elided. Its size never changes, so the scope and controls never move.
- */
+/** Fixed-size one-line live dictation; newest words stay in view, the start is elided. */
 
 import React from 'react';
 import { DOT_SCOPE_CONFIG } from '@config/dotScope.config';

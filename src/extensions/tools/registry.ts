@@ -1,8 +1,4 @@
-/**
- * Tool Registry
- *
- * Singleton collection of the built-in tool definitions.
- */
+/** Singleton collection of the built-in tool definitions. */
 
 import type { ToolDefinition } from './types';
 

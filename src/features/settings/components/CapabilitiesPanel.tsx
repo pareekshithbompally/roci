@@ -1,14 +1,4 @@
-/**
- * CapabilitiesPanel — every model choice in one place, by job. Sources come
- * from Providers (keys, local servers), switched-on Integrations (Apple
- * Intelligence for summaries and speech, Hex for speech), and Kasset's own
- * local models. The composer's model picker quick-switches chat; this sets
- * the default.
- *
- * A choice that needs a step (download a local model, allow or download
- * Apple Speech) runs it from its own row in the picker. On this Mac lists
- * every local model with its download, and Delete once downloaded.
- */
+/** Every model choice by job; sources are providers, enabled integrations and local models. Sets the defaults. */
 
 import React, { useMemo } from 'react';
 import { AudioLines, MessageSquare, NotebookText, ScanSearch, Volume2, Waypoints, type LucideIcon } from 'lucide-react';

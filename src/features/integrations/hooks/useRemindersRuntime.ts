@@ -1,8 +1,4 @@
-/**
- * useRemindersRuntime — mount once (App). Points the to-do sync at the chosen
- * list and pulls completion from Reminders when its database changes (any
- * app) or when Kasset comes to the front.
- */
+/** Mount once (App): syncs to-dos to the chosen list and pulls completions when Reminders changes or on focus. */
 
 import { useEffect } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';

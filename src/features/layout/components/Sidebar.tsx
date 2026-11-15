@@ -1,8 +1,4 @@
-/**
- * Sidebar Component
- *
- * Left sidebar with search, action buttons, unified history/chat list, and settings button.
- */
+/** Left sidebar: search, actions, unified history/chat list, and settings button. */
 
 import React, { useRef, useCallback, useEffect } from 'react';
 import { ChevronLeft, Search, SquarePen, PanelLeft, Settings } from 'lucide-react';

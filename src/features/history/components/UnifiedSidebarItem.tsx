@@ -1,10 +1,4 @@
-/**
- * UnifiedSidebarItem Component
- *
- * Renders a single item in the unified sidebar list (one 32px Row).
- * Meetings show their phase via MeetingStatus (or a speaker while playing);
- * chats are plain text.
- */
+/** One sidebar row: meetings show their phase via MeetingStatus (or a speaker while playing); chats are text. */
 
 import React, { useState, useEffect, useRef } from 'react';
 import { MoreHorizontal, Edit2, Trash2, Mic, Volume2 } from 'lucide-react';

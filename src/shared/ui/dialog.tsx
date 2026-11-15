@@ -20,11 +20,7 @@ export interface DialogContentProps extends ComponentProps<typeof DialogPrimitiv
   size?: keyof typeof DIALOG_SIZE;
   /** Height-capped sheet whose body scrolls (forms, JSON editors) */
   scrollable?: boolean;
-  /**
-   * Skip the sheet chrome (centering, padding, shadow, enter animation) —
-   * for surfaces that position and animate themselves, like command palettes.
-   * Keeps size + scrollable + className.
-   */
+  /** Skip the sheet chrome (centering, padding, shadow, animation) for surfaces that position themselves. */
   bare?: boolean;
 }
 

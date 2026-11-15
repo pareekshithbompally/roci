@@ -1,16 +1,4 @@
-/**
- * CalendarView Component
- *
- * Full-screen week view of upcoming calendar events.
- * Layout: [← Back | 📅 Schedule] ———— [◀ ▶ | range | 📅 picker | Today | Sync]
- * Event clicks open a custom popover with details.
- *
- * State-aware empty states:
- *   - Calendar not enabled → prompt to enable in Settings
- *   - Enabled, initial fetch pending → loading spinner
- *   - Enabled, no upcoming events → informative empty state
- *   - Events available → Schedule-X week view
- */
+/** Full-screen week view of upcoming events, with empty states for disabled, loading and no events. */
 
 import React, { useCallback, useState, useRef } from 'react';
 import { ArrowLeft, CalendarDays, RefreshCw, ChevronLeft, ChevronRight, Settings } from 'lucide-react';

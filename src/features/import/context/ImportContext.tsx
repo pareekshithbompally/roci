@@ -1,9 +1,4 @@
-/**
- * Import Context — React wrapper around ImportService.
- *
- * Provides import actions to children. Listens to settings changes
- * to update concurrency. Passes loadHistory as onMeetingSaved callback.
- */
+/** React wrapper around ImportService; concurrency follows settings, saves refresh history. */
 
 import React, { createContext, useContext, useRef, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';

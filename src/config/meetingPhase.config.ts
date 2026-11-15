@@ -1,7 +1,4 @@
-/**
- * Meeting phase presentation — the one place a meeting status gets its words,
- * colour and icon. Read only by `MeetingStatus` (@shared/components).
- */
+/** Words, colour and icon for each meeting status; read only by `MeetingStatus`. */
 
 import { AlertCircle, AudioWaveform, Loader2, Mic, type LucideIcon } from 'lucide-react';
 import type { MeetingPhase } from '@shared/types/meetingPhase';

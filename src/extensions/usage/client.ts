@@ -1,9 +1,4 @@
-/**
- * Usage Tracking Client
- *
- * Thin wrapper around Tauri invoke calls for usage logging and querying.
- * All logging is fire-and-forget — never blocks the primary flow.
- */
+/** Usage logging and queries via Tauri; logging is fire-and-forget. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from '@services/tauri';
@@ -23,10 +18,7 @@ function ensureInitialized(): Promise<void> {
   return initPromise;
 }
 
-/**
- * Log a usage record from token data. Handles the mapping from
- * our TokenUsage interface to the flat UsageRecord the Rust side expects.
- */
+/** Logs a usage record, mapping TokenUsage to the flat UsageRecord Rust expects. */
 export async function logUsage(params: {
   category: UsageCategory;
   sessionId?: string;
@@ -67,19 +59,13 @@ export interface UsageSource {
   modelId: string;
 }
 
-/**
- * Record one AI call's tokens, from inside the service that made the call.
- * Fire-and-forget: a logging failure never reaches the caller.
- */
+/** Records one AI call's tokens; a logging failure never reaches the caller. */
 export function recordUsage(category: UsageCategory, source: UsageSource, usage: TokenUsage, sessionId?: string): void {
   logUsage({ category, sessionId, provider: source.provider, model: source.modelId, usage })
     .catch((error: unknown) => console.error(`[Usage] ${category}:`, error));
 }
 
-/**
- * Query aggregated usage summary for a time range.
- * @param since — epoch ms timestamp, or undefined for all time
- */
+/** Aggregated usage since `since` (epoch ms), or for all time when undefined. */
 export async function getUsageSummary(since?: number): Promise<UsageSummary> {
   if (!isTauriEnvironment()) {
     return {

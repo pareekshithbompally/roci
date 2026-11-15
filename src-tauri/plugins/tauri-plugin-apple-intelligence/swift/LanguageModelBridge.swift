@@ -3,14 +3,7 @@ import Foundation
 import FoundationModels
 #endif
 
-// MARK: - Apple Intelligence (FoundationModels) — C-compatible JSON bridge for Rust FFI
-//
-// Mirrors HEX `src/apple_intelligence.swift`: availability codes, context size,
-// guided generation, tagged errors, a timeout around every call. Generation is
-// schema-driven: the caller passes a JSON Schema (object / array / string /
-// number / integer / boolean / string enum) that becomes a DynamicGenerationSchema,
-// so Kasset's AI SDK request shape is used as-is. Every function returns a JSON
-// C string freed with `apple_intelligence_free_string`.
+// MARK: - Apple Intelligence (FoundationModels) — JSON C-string bridge, freed with `apple_intelligence_free_string`
 
 private struct BridgeError: LocalizedError {
     let kind: String
@@ -46,8 +39,7 @@ public func appleIntelligenceContextSize() -> Int {
     #endif
 }
 
-/// Guided generation. `schemaJson` empty → plain text.
-/// Returns `{"text": "<json or text>"}` or `{"error": {"kind": "context-window"|"refused"|"unavailable"|"timeout"|"failed", "message"}}`.
+/// Generation guided by a JSON Schema (empty → plain text); returns `{"text"}` or `{"error": {"kind", "message"}}`.
 @_cdecl("apple_intelligence_generate")
 public func appleIntelligenceGenerate(
     _ instructions: UnsafePointer<CChar>,
@@ -146,7 +138,7 @@ private final class BlockingResult<Value: Sendable>: @unchecked Sendable {
     func take() -> Result<Value, Error> { lock.withLock { value! } }
 }
 
-/// Runs `operation` off the caller's thread; gives up after `timeoutMs` (HEX `blocking`).
+/// Runs `operation` off the caller's thread; gives up after `timeoutMs`.
 private func blocking<Value: Sendable>(timeoutMs: UInt64, _ operation: @escaping @Sendable () async throws -> Value) -> Result<Value, Error> {
     let semaphore = DispatchSemaphore(value: 0)
     let result = BlockingResult<Value>()

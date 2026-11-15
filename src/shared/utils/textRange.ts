@@ -1,9 +1,4 @@
-/**
- * Finding spoken text in rendered text. Read aloud speaks a plain version of
- * the reply (src-tauri/src/tts/text.rs: markup and code dropped, whitespace
- * collapsed), so both sides are compared without whitespace and without the
- * markup characters that version removes.
- */
+/** Locates spoken text in rendered text, comparing both without whitespace or the markup read-aloud drops. */
 
 /** Characters left out of the comparison: whitespace, and markup text.rs strips (`` ` * _ ~ | ``). */
 const IGNORED = /[\s`*_~|]/;
@@ -29,11 +24,7 @@ function compared(root: Node): { text: string; at: Located[] } {
   return { text, at };
 }
 
-/**
- * The range of `needle` in `root`'s text, searching from compared position
- * `from` (so repeated sentences are found in order); `end` is where to
- * search next. Null when it isn't there.
- */
+/** Range of `needle` in `root` from compared position `from` (repeats found in order); `end` is where to resume. */
 export function findTextRange(root: Node, needle: string, from: number): { range: Range; end: number } | null {
   const target = [...needle].filter((char) => !IGNORED.test(char)).join('');
   if (!target) return null;

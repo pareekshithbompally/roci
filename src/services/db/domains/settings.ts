@@ -1,6 +1,4 @@
-/**
- * Settings domain — get all key-value settings, set a single key.
- */
+/** Settings domain — get all key-value settings, set a single key. */
 
 import { call, type RustSettingsEntry } from '@services/db/internal';
 

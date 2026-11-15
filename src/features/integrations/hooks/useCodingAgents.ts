@@ -1,8 +1,4 @@
-/**
- * useCodingAgents — the Coding agents section: each agent's registration
- * (read from its config by Rust) with an optimistic add/remove, and the state
- * of Kasset's MCP server.
- */
+/** Coding agents section: each agent's registration with optimistic add/remove, and Kasset's MCP server state. */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@shared/query/queryKeys';

@@ -1,8 +1,4 @@
-/**
- * Configuration Import Tests
- * 
- * Verifies all configuration files are properly structured and importable.
- */
+/** Verifies every configuration file is properly structured and importable. */
 
 import { describe, it, expect } from 'vitest';
 

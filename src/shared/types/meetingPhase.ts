@@ -1,10 +1,4 @@
-/**
- * MeetingPhase — the single answer to "what state is this meeting in?".
- *
- * Derived, never stored: `deriveMeetingPhase` combines the in-flight job
- * (meetingJobsStore) with the persisted flag (HistoryItem.pendingTranscription).
- * Plan: docs/plans/IN-PROGRESS/meeting-state/plan.md
- */
+/** A meeting's state, derived (never stored) from its in-flight job and the persisted pendingTranscription flag. */
 
 /** Part being sent for engines that split long audio. */
 export interface MeetingJobPart {

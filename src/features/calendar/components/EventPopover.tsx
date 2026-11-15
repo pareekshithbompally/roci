@@ -1,9 +1,4 @@
-/**
- * EventPopover Component
- *
- * macOS Calendar-inspired event detail popover with card-based sections.
- * Each section (meeting link, date/alerts, invitees, notes) is a distinct card.
- */
+/** Event detail popover with one card per section (meeting link, date/alerts, invitees, notes). */
 
 import React, { useEffect, useRef, useCallback } from 'react';
 import { X, Video } from 'lucide-react';
@@ -16,11 +11,7 @@ interface EventPopoverProps {
   onClose: () => void;
 }
 
-/**
- * Parse a Temporal ZonedDateTime string or plain ISO string into a Date.
- * Temporal format: "2026-03-29T21:25:00+05:30[Asia/Calcutta]"
- * Strip the bracket annotation so Date can parse the offset portion.
- */
+/** Parse a Temporal ZonedDateTime or ISO string, dropping the `[Zone]` suffix Date can't read. */
 function parseToDate(value: unknown): Date | null {
   if (!value) return null;
   const str = String(value).replace(/\[.*\]$/, ''); // strip [timezone] annotation

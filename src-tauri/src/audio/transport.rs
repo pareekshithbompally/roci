@@ -1,5 +1,4 @@
-//! How an input device connects (built in, Bluetooth, virtual), as each
-//! platform reports it.
+//! How an input device connects (built in, Bluetooth, virtual), as each platform reports it.
 
 use cpal::Device;
 use cpal::traits::DeviceTrait;
@@ -7,23 +6,17 @@ use cpal::traits::DeviceTrait;
 /// How an input connects, as far as resolving it cares.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum Transport {
-    /// The internal microphone, switched off while a MacBook's lid is
-    /// closed. A built-in headphone-jack input is `Other`.
+    /// The internal microphone, off while the lid is closed; a headphone-jack input is `Other`.
     BuiltIn,
-    /// Bluetooth or Bluetooth LE: opening its microphone switches the
-    /// headset into low-quality call audio.
+    /// Bluetooth or LE: opening its microphone switches the headset into low-quality call audio.
     Bluetooth,
-    /// A virtual or aggregate device, such as Microsoft Teams Audio, which
-    /// may record silence outside its own app, so it never stands in.
+    /// A virtual or aggregate device (e.g. Teams Audio) that may record silence, so it never stands in.
     Virtual,
-    /// An iPhone microphone offered through Continuity, wired or wireless.
-    /// Opening it prompts on the phone and can fail, so it never stands in,
-    /// though a Continuity default, saved microphone, or `--device` is used.
+    /// An iPhone Continuity microphone; it prompts and can fail, so it is used only when chosen, never as a stand-in.
     Continuity,
     Other,
 }
 
-/// CoreAudio's Continuity Capture transport types,
 /// `kAudioDeviceTransportTypeContinuityCaptureWired` and `…Wireless`.
 const CONTINUITY_CAPTURE_WIRED: u32 = u32::from_be_bytes(*b"ccwd");
 const CONTINUITY_CAPTURE_WIRELESS: u32 = u32::from_be_bytes(*b"ccwl");
@@ -33,11 +26,7 @@ fn is_continuity_capture(kind: u32) -> bool {
     kind == CONTINUITY_CAPTURE_WIRED || kind == CONTINUITY_CAPTURE_WIRELESS
 }
 
-/// Whether a built-in CoreAudio input is the internal microphone the lid
-/// switches off, from its UID and selected input data source. A microphone
-/// in the headphone jack is built in too, but stays on with the lid closed:
-/// Apple silicon lists it as its own device (`BuiltInHeadphoneInputDevice`),
-/// older Macs as the built-in input's external-microphone or line-in source.
+/// Whether a built-in input is the lid-switched mic (by UID and data source), not a headphone-jack input.
 fn is_lid_switched_microphone(uid: &str, data_source: Option<u32>) -> bool {
     const EXTERNAL_MICROPHONE: u32 = u32::from_be_bytes(*b"emic");
     const LINE_IN: u32 = u32::from_be_bytes(*b"line");
@@ -47,10 +36,7 @@ fn is_lid_switched_microphone(uid: &str, data_source: Option<u32>) -> bool {
     !matches!(data_source, Some(EXTERNAL_MICROPHONE | LINE_IN))
 }
 
-/// How CoreAudio reports `device` connects: built in, such as a MacBook's
-/// microphone, or Bluetooth (classic or LE), such as AirPods. A
-/// headphone-jack microphone counts as other, since closing the lid leaves
-/// it on.
+/// How CoreAudio reports `device` connects; a headphone-jack mic counts as other, as the lid leaves it on.
 pub(super) fn transport(device: &Device) -> Transport {
     use std::ffi::c_void;
     use std::ptr::NonNull;

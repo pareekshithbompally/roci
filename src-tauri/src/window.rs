@@ -18,8 +18,6 @@ pub async fn save_window_state(
     _app: AppHandle,
     state: WindowState,
 ) -> Result<(), String> {
-    // State will be saved by the frontend using the storage service
-    // This command exists for potential future backend-driven state saving
     log::info!("Window state update: {:?}", state);
     Ok(())
 }
@@ -121,8 +119,7 @@ pub fn show_main(app: &AppHandle) {
     }
 }
 
-/// Handle window close event (minimize to tray instead; while recording, ask
-/// the user first)
+/// Handle window close: hide to tray instead, and ask first while recording.
 pub fn setup_window_handlers(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let window_clone = window.clone();
@@ -139,9 +136,7 @@ pub fn setup_window_handlers(app: &AppHandle) {
                         return;
                     }
 
-                    // Close hides to tray when the preference is on
-                    // (Hex: accessory app closes to menu bar); otherwise the
-                    // window really closes and Quit comes from the menubar.
+                    // Close hides to tray when the preference is on; otherwise Quit comes from the menubar.
                     if crate::menubar::close_to_tray(&app_handle) {
                         api.prevent_close();
                         let _ = window_clone.hide();

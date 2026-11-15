@@ -209,9 +209,7 @@ describe('isOverdue', () => {
   it('handles edge case: date exactly now', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-06-15T12:00:00Z'));
-    // A date set to now should NOT be overdue (not strictly less than)
-    // But parseDateLoose('2025-06-15') creates local midnight which may be in the past
-    // depending on timezone. Just verify it returns a boolean.
+    // Local-midnight parsing makes the answer timezone-dependent, so only the type is checked.
     const result = isOverdue('2025-06-15T12:00:00Z');
     expect(typeof result).toBe('boolean');
     vi.useRealTimers();

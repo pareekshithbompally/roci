@@ -57,9 +57,7 @@ fn with_links(response: EventsResponse) -> Result<Vec<CalendarEvent>, String> {
         .collect())
 }
 
-/// Initialize the EventKit Tauri plugin: calendar events (read) and reminders
-/// (Kasset's to-dos, read/write). Requires `NSCalendarsFullAccessUsageDescription`
-/// and `NSRemindersFullAccessUsageDescription` in Info.plist.
+/// EventKit plugin: read calendar events, read/write reminders; needs both `NS*FullAccessUsageDescription` keys.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("calendar")
         .invoke_handler(tauri::generate_handler![

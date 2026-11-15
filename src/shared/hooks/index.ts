@@ -1,9 +1,3 @@
-/**
- * Shared Hooks Module
- * 
- * Global hooks used across features.
- */
-
 // Theme hooks
 export { useTheme } from './useTheme';
 export type { Theme } from './useTheme';

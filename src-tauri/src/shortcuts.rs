@@ -20,8 +20,7 @@ pub async fn register_shortcut(
     let parsed_shortcut = shortcut.parse::<Shortcut>()
         .map_err(|e| format!("Invalid shortcut format: {}", e))?;
 
-    // Idempotent re-registration: the plugin is the source of truth, so an
-    // already-registered shortcut is a no-op instead of stacking duplicates.
+    // The plugin is the source of truth, so an already-registered shortcut is a no-op, not a duplicate.
     if app.global_shortcut().is_registered(parsed_shortcut) {
         return Ok(());
     }

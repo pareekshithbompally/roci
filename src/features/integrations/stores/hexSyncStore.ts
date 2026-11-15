@@ -1,7 +1,4 @@
-/**
- * hexSyncStore — what the Hex integration row shows: the meeting-finished
- * watcher's state and the last catch-up. Written by useHexRuntime only.
- */
+/** Hex row state: the meeting-finished watcher and the last catch-up; written only by useHexRuntime. */
 
 import { create } from 'zustand';
 import type { HexEventsState } from '@services/hex';

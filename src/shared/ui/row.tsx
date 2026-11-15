@@ -2,16 +2,7 @@ import React from 'react';
 import { cn } from './utils';
 import { Text } from './text';
 
-/**
- * Canonical list/sidebar row — tight, borderless, truncated, 32px — so every
- * list shares one shape.
- *
- * - `Row` — button row for clickable items (suggestions, citations, nav).
- * - `rowClasses` — same recipe for non-button shells (rows hosting nested buttons).
- * - `actionRowClasses` + `RowAction` — a row whose trailing ⋯ action overlays the
- *   right edge (no reflow) and keeps the row highlighted while its menu is open.
- * - `RowGroupLabel` — muted label above a group of rows ("Recents").
- */
+/** Canonical 32px list/sidebar row (Row, rowClasses, RowAction, RowGroupLabel) so every list shares one shape. */
 export function rowClasses(selected?: boolean): string {
   return cn(
     'flex w-full h-8 items-center gap-2 rounded-md px-2.5 text-left text-body text-primary transition-colors cursor-pointer min-w-0',

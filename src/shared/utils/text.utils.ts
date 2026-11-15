@@ -1,20 +1,6 @@
-/**
- * Text Utilities
- *
- * Reusable text processing for LLM context preparation.
- * All truncation goes through here — never inline slice() for LLM content.
- */
+/** Text prep for LLM context; all LLM truncation goes through here, never inline slice(). */
 
-/**
- * Truncate text at a sentence boundary near `maxChars`.
- *
- * Looks for the last sentence-ending punctuation (. ! ? followed by space or newline)
- * within the maxChars window. Falls back to the last newline, then hard cut.
- * Appends a notice so the LLM knows content was trimmed.
- *
- * @example
- * const excerpt = truncateForLLM(transcript, MAX_TRANSCRIPT_FOR_LLM);
- */
+/** Cut near `maxChars` at a sentence end, else a newline, else hard, and append a trimmed notice for the LLM. */
 export function truncateForLLM(text: string, maxChars: number): string {
   if (!text || text.length <= maxChars) return text;
 

@@ -1,8 +1,4 @@
-/**
- * MCP Service — thin invoke wrappers over the Rust MCP client
- * (src-tauri/src/mcp/commands.rs). Rust owns connections and the config file;
- * nothing here talks to a server directly.
- */
+/** Invoke wrappers over the Rust MCP client, which owns connections and the config file. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { DEFAULT_MCP_SETTINGS } from '@config/mcp.config';

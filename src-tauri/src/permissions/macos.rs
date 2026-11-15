@@ -92,23 +92,19 @@ unsafe extern "C" {
     fn CGRequestScreenCaptureAccess() -> bool;
 }
 
-/// Whether macOS currently allows Screen & System Audio Recording, which
-/// meeting capture needs for remote audio.
+/// Whether macOS allows Screen & System Audio Recording, which capture needs for remote audio.
 pub(crate) fn screen_recording_permitted() -> bool {
     // SAFETY: A CoreGraphics query without arguments or side effects.
     unsafe { CGPreflightScreenCaptureAccess() }
 }
 
-/// Asks macOS to list Kasset under Screen & System Audio Recording. The system
-/// prompts at most once; later requests return the current state.
+/// Lists Kasset under Screen & System Audio Recording; macOS prompts at most once.
 pub(crate) fn request_screen_recording() -> bool {
     // SAFETY: A CoreGraphics request without arguments.
     unsafe { CGRequestScreenCaptureAccess() }
 }
 
-/// Whether meeting capture can hear the other participants: through the
-/// System Audio Recording consent process taps need, or Screen Recording for
-/// the ScreenCaptureKit fallback.
+/// Whether capture can hear others: System Audio Recording (process tap) or Screen Recording (fallback).
 pub(crate) fn system_audio_permitted() -> bool {
     system_audio_ready() || screen_recording_permitted()
 }
@@ -121,8 +117,7 @@ pub(crate) fn system_audio_ready() -> bool {
     )
 }
 
-/// macOS "System Audio Recording" consent (TCC `kTCCServiceAudioCapture`),
-/// which process taps need. Screen Recording consent does not imply it.
+/// System Audio Recording consent (TCC `kTCCServiceAudioCapture`); Screen Recording does not imply it.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SystemAudioAuthorization {
     Granted,
@@ -187,8 +182,7 @@ pub fn system_audio_authorization() -> SystemAudioAuthorization {
 
 static SYSTEM_AUDIO_REQUESTED: AtomicBool = AtomicBool::new(false);
 
-/// Shows the macOS System Audio Recording prompt when consent is undecided.
-/// Returns whether a prompt was requested.
+/// Shows the System Audio Recording prompt when consent is undecided; returns whether it was requested.
 pub fn request_system_audio_access() -> bool {
     if system_audio_authorization() != SystemAudioAuthorization::NotDetermined
         || SYSTEM_AUDIO_REQUESTED.swap(true, Ordering::Relaxed)

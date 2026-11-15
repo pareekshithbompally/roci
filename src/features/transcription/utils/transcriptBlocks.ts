@@ -1,12 +1,4 @@
-/**
- * transcriptBlocks — turns any stored transcript into readable blocks.
- *
- * Structured STT segments map 1:1. Plain text (imports: captions, .txt, .vtt
- * dumps) is normalized first: caption artifacts (`\h`) dropped, the repeated
- * lines auto-captions emit collapsed, `[Name]` lines read as speaker turns,
- * `[MM:SS]` prefixes read as times, and hard-wrapped lines reflowed into
- * sentence-bounded paragraphs.
- */
+/** Turns any stored transcript into blocks; plain-text imports are cleaned, split by speaker and reflowed. */
 
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import type { StoredTranscriptSegment } from '@shared/types';

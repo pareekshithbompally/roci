@@ -1,12 +1,4 @@
-/**
- * Confirm Store
- *
- * One app-wide confirmation prompt. Anything — a component, a hook, a
- * non-React service — awaits `confirm(...)`; the single <ConfirmHost/>
- * renders it and settles the promise. No per-site open/target state.
- *
- *   if (await confirm({ title: 'Delete note?', confirmLabel: 'Delete', tone: 'danger' })) remove();
- */
+/** One app-wide confirmation prompt: anything awaits `confirm(...)`, the single <ConfirmHost/> settles it. */
 
 import { create } from 'zustand';
 

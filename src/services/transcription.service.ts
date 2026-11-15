@@ -1,8 +1,4 @@
-/**
- * Transcription Service
- * Post-transcription pipeline: saves transcript, summary, recording meta,
- * creates todos from AI action items — all atomically via store.meetings.saveTranscription().
- */
+/** Saves a transcription's transcript, summary, recording meta and todos in one atomic store write. */
 
 import type { MeetingSummary, AppSettings, HistoryItem, ProcessedResult, StoredTranscriptSegment } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
@@ -56,10 +52,7 @@ export function meetingSummaryOf(result: ProcessedResult): MeetingSummary {
 }
 
 class TranscriptionService {
-  /**
-   * Single entry point after transcription completes.
-   * Saves all data atomically via the store plugin.
-   */
+  /** Single entry point after transcription; saves everything atomically. */
   async saveTranscriptionResult(result: TranscriptionResult): Promise<boolean> {
     const { meetingId, title, transcript, summary, categories, recordingFileName, inputSource, model, language, segments } = result;
 
@@ -99,9 +92,7 @@ class TranscriptionService {
 
       console.log('[TranscriptionService] Saved transcription result for meeting:', meetingId);
 
-      // Single choke point for all meeting writes (recording, import, recovery):
-      // tell every meetings-query observer to refetch instead of relying on
-      // per-caller callbacks.
+      // Every meeting write passes here, so refetch all meetings queries instead of per-caller callbacks.
       queryClient.invalidateQueries({ queryKey: queryKeys.meetings() }).catch((error: unknown) =>
         console.error('[TranscriptionService] Failed to invalidate meetings query:', error)
       );

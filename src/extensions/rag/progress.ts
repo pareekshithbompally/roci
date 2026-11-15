@@ -1,14 +1,4 @@
-/**
- * RAG Progress Bridge
- *
- * Event-based bridge (same pattern as consent.ts) so the non-React
- * embedding service and indexer can report progress to the React UI.
- *
- * Supports two event kinds via discriminated union:
- *   - 'model': embedding model download/load lifecycle
- *   - 'indexing': meeting/chat indexing progress (FTS + embeddings)
- *   - 'extraction': knowledge graph entity extraction progress
- */
+/** Event bridge so the non-React embedder and indexers report model, indexing and extraction progress to the UI. */
 
 /** Embedding model lifecycle events */
 export interface EmbeddingModelEvent {
@@ -66,10 +56,7 @@ export function emitProgress(event: RAGProgressEvent): void {
   listener?.(event);
 }
 
-/**
- * Subscribe to all RAG progress events (model + indexing).
- * Returns an unsubscribe function.
- */
+/** Subscribes to all RAG progress events; returns an unsubscribe function. */
 export function onRAGProgress(cb: ProgressListener): () => void {
   listener = cb;
   return () => { listener = null; };

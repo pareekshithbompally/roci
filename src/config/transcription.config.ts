@@ -1,12 +1,4 @@
-/**
- * Transcription Configuration
- *
- * One speech-to-text layer: the user picks a provider + model (like chat
- * models), the pipeline converts audio to 16 kHz mono WAV, splits it into
- * parts each adapter accepts, and runs the selection's adapter per part:
- * its provider's speech endpoint for speech models, otherwise the multimodal
- * adapter (a prompt with the audio) for any model that accepts audio input.
- */
+/** Speech-to-text: audio → 16 kHz mono WAV parts, each run on its provider's speech endpoint or multimodal. */
 
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import type { IntegrationId } from '@shared/utils/integrations';
@@ -23,11 +15,7 @@ export const TRANSCRIPTION_CONFIG = {
   sampleRate: 16_000,
   /** Live dictation: the mic is sent to the engine in slices this long, ms. */
   liveChunkMs: 100,
-  /**
-   * Real-time transcription copy: the General setting (what it does; why it
-   * isn't showing yet, around the mark's icon) and the mark on speech models
-   * that support it.
-   */
+  /** Real-time transcription copy for the General setting and the mark on speech models that support it. */
   liveCopy: {
     description: 'Show words under the dictation pill as you speak. Works with select speech models.',
     unavailable: { before: "Your speech model doesn't support this. Pick one marked", after: 'in Settings › Capabilities.' },
@@ -38,12 +26,7 @@ export const TRANSCRIPTION_CONFIG = {
   /** Plain-text transcripts reflow into paragraphs of about this many characters (ends on a sentence). */
   paragraphChars: 480,
 
-  /**
-   * Longest part each adapter receives, in seconds (16 kHz × 2 B = 32 kB/s):
-   * OpenAI-compatible uploads are capped at 25 MB (600 s = 19.2 MB);
-   * Hex at 64 MiB and ~17.5 min of samples (900 s = 28.8 MB). On this Mac,
-   * the engine splits further when a model has a per-run limit (Cohere).
-   */
+  /** Longest part per adapter in seconds (32 kB/s): OpenAI-compatible caps uploads at 25 MB, Hex at 64 MiB. */
   partSeconds: {
     'openai-compatible': 600,
     deepgram: 900,
@@ -54,10 +37,7 @@ export const TRANSCRIPTION_CONFIG = {
     'on-device': 900,
   } satisfies Record<TranscriptionAdapterId, number>,
 
-  /**
-   * Provider id → its speech endpoint adapter. Local servers (`local:*`) use the
-   * OpenAI-compatible adapter. Providers without one (Gemini) transcribe via `multimodal`.
-   */
+  /** Provider id → speech endpoint adapter; `local:*` uses OpenAI-compatible, others fall back to `multimodal`. */
   speechEndpointByProvider: {
     openai: 'openai-compatible',
     groq: 'openai-compatible',
@@ -68,10 +48,7 @@ export const TRANSCRIPTION_CONFIG = {
     'on-device': 'on-device',
   } as Record<string, TranscriptionAdapterId>,
 
-  /**
-   * Curated speech models per cloud provider, in picker order (their labels win).
-   * Each runs on its provider's speech endpoint, or `multimodal` when the provider has none.
-   */
+  /** Curated speech models per cloud provider, in picker order. */
   providerModels: {
     openai: [
       { id: 'gpt-4o-transcribe', label: 'GPT-4o Transcribe' },
@@ -114,12 +91,7 @@ export const TRANSCRIPTION_CONFIG = {
   /** Hex models Kasset doesn't offer: Apple speech is Kasset-native (Apple Intelligence), never via Hex. */
   hiddenHexModels: ['apple_speech'] as readonly string[],
 
-  /**
-   * Silero VAD gate: speech spans are the only audio sent to transcription.
-   * Tuned for recall — a missed word is lost content, a false alarm is just
-   * one more adapter call (today's behavior). Thresholds mirror vad-web's
-   * NonRealTimeVAD defaults; merging/padding is in recording-clock units.
-   */
+  /** Silero VAD gate (only speech spans are transcribed), tuned for recall; spans are in recording-clock units. */
   vad: {
     positiveSpeechThreshold: 0.5,
     negativeSpeechThreshold: 0.35,
@@ -140,9 +112,9 @@ export const TRANSCRIPTION_CONFIG = {
   /** Categories the Summary model files each meeting under. */
   categories: ['Work', 'Personal', 'Meeting', 'Idea'] as readonly string[],
 
-  /** Fitting a transcript into the Summary model's context window (HEX `meeting/notes.rs`). */
+  /** Fitting a transcript into the Summary model's context window. */
   summaryBudget: {
-    /** Characters per token for budgeting (HEX: 3 — conservative). */
+    /** Characters per token for budgeting (conservative). */
     charsPerToken: 3,
     /** Tokens kept free for the model's answer. */
     outputTokens: 1_000,

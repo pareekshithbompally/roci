@@ -1,7 +1,4 @@
-/**
- * useCopiedFlag — the "Copied" tick on a copy button: true briefly after
- * `markCopied()`, then false. The button itself is the feedback; no toast.
- */
+/** The "Copied" tick: true briefly after `markCopied()`; the button is the feedback, no toast. */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { UI_CONFIG } from '@config/ui.config';

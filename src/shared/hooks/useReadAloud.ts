@@ -1,12 +1,4 @@
-/**
- * useReadAloud — speak a text with the engine and voice chosen in Settings ›
- * Capabilities › Read aloud, or stop. One text speaks at a time; starting
- * another stops the first (Rust stops it too). Shared by a reply's Read aloud
- * button and the voice picker's sample.
- *
- * `state`: idle → preparing (the engine is getting ready; nothing heard yet)
- * → speaking → idle. `spoken` is the chunk being heard now, for highlighting.
- */
+/** Speak or stop text with the Settings voice, one at a time; state idle → preparing → speaking, `spoken` the chunk. */
 
 import { create } from 'zustand';
 import { useSettings } from '@shared/contexts/SettingsContext';

@@ -1,10 +1,4 @@
-/**
- * appleNotesSync — each meeting saved after the integration was turned on
- * becomes one note in Apple Notes ("Kasset" folder): title, summary sections,
- * and the transcript. Saving the meeting again updates the same note (found by
- * its tag line). One-way, Kasset → Notes. Logs and never throws, so a Notes
- * failure can't fail the save that called it.
- */
+/** One-way meeting → Apple Notes sync, updating the same note on resave; logs and never throws. */
 
 import { store } from '@services/db';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';

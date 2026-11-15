@@ -1,8 +1,3 @@
-/**
- * Tauri services - Central export point
- * Provides unified access to all Tauri services
- */
-
 export * from './types';
 export * from './environment.service';
 export * from './dialog.service';

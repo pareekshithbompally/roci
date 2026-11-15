@@ -2,13 +2,8 @@ import Foundation
 import UserNotifications
 
 // MARK: - C-compatible JSON bridge for Rust FFI
-//
-// Every call returns a JSON C-string, freed by `notifications_free_string`.
-// Responses (a button, a click, a dismissal) arrive through the C callback set
-// by `notifications_setup`, as `{"id","action","userInfo"}`.
 
-/// `UNUserNotificationCenter` crashes without an app bundle; report
-/// `unsupported` instead.
+/// `UNUserNotificationCenter` crashes without an app bundle; report `unsupported` instead.
 private let supported = Bundle.main.bundleURL.pathExtension == "app"
 
 private typealias ResponseCallback = @convention(c) (UnsafePointer<CChar>) -> Void
@@ -47,8 +42,7 @@ private final class Delegate: NSObject, UNUserNotificationCenterDelegate {
 
 private let delegate = Delegate()
 
-/// Install the delegate (so a response that wakes the app is not lost) and the
-/// callback that hands responses to Rust. Call once, at plugin setup.
+/// Installs the delegate early, so a response that wakes the app is not lost, and the callback to Rust.
 @_cdecl("notifications_setup")
 public func notificationsSetup(_ callback: @escaping @convention(c) (UnsafePointer<CChar>) -> Void) {
     guard supported else { return }
@@ -62,8 +56,7 @@ public func notificationsStatus() -> UnsafeMutablePointer<CChar> {
     reply(["status": currentStatus()])
 }
 
-/// Raises the macOS prompt when undecided; returns the resulting status.
-/// Blocks its (non-main) caller until the user answers.
+/// Raises the macOS prompt when undecided; blocks its (non-main) caller until the user answers.
 @_cdecl("notifications_request")
 public func notificationsRequest() -> UnsafeMutablePointer<CChar> {
     guard supported else { return reply(["status": "unsupported"]) }
@@ -90,8 +83,7 @@ public func notificationsSetCategories(_ json: UnsafePointer<CChar>) -> UnsafeMu
     return reply(["ok": true])
 }
 
-/// Shows a notification now: `{"id","title","body","category"?,"userInfo"?}`.
-/// Reusing an id replaces the earlier notification.
+/// Shows a notification now; reusing an id replaces the earlier one.
 @_cdecl("notifications_show")
 public func notificationsShow(_ json: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar> {
     guard supported else { return reply(["ok": false, "error": "unsupported"]) }

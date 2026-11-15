@@ -1,12 +1,4 @@
-/**
- * MCP server hooks — TanStack Query over the Rust-owned `mcp_config.json`
- * and live connection list (Jan's useMCPServers + settings-page lifecycle).
- *
- * Every change goes through `useMcpReconfigure`: one transaction that
- * disconnects the affected servers, saves, and reconnects the enabled ones
- * (Jan's `reconfigureServers`). A server that fails to connect is saved as
- * disabled and reported, so the toggle never shows a state Rust doesn't have.
- */
+/** MCP config and connections as queries; a server that fails to connect is saved disabled and reported. */
 
 import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';

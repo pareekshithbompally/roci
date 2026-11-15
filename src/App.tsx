@@ -1,10 +1,3 @@
-/**
- * App.tsx
- * 
- * Main application component - minimal orchestrator.
- * Uses feature modules and contexts for all functionality.
- */
-
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore, useCurrentView, useAppStatus, useSelectedHistoryId, useAppActions } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
@@ -62,8 +55,7 @@ const App: React.FC = () => {
 
   const openSearch = useCallback(() => setIsSearchOpen(true), []);
 
-  // In-window shortcuts (registry: APP_SHORTCUTS). Leaving for another
-  // surface closes search first, so its focus trap can't hold focus.
+  // In-window shortcuts (APP_SHORTCUTS); leaving for another surface closes search so its focus trap lets go.
   useAppShortcuts({
     search: () => setIsSearchOpen((open) => !open),
     focusChat: () => {
@@ -96,12 +88,7 @@ const App: React.FC = () => {
   // Tray › Speech Model submenu: downloaded Hex models and the current pick
   useMenubarSpeechModels();
 
-  // Background search-index warm-up: two phases.
-  // Phase 1 (fast): FTS-only — populates spotlight corpus so Cmd+K works immediately.
-  // Phase 2 (slow, optional): embeddings + KG extraction — only if model is ready/consented.
-  //
-  // Multi-phase staleness tracking (embedding_hash, extraction_hash) ensures Phase 1
-  // doesn't poison Phase 2: each concern tracks its own completion independently.
+  // Index warm-up: FTS first so Cmd+K works at once, then embeddings + KG only if the model is ready and consented.
   const indexingRanRef = useRef(false);
 
   useEffect(() => {
@@ -223,10 +210,7 @@ const App: React.FC = () => {
     }
   };
 
-  /**
-   * A tray Speech Model pick (`provider::model`). The tray may be stale — Hex
-   * quit or a model was removed since it was built — so the pick is checked first.
-   */
+  /** Applies a tray Speech Model pick (`provider::model`), checked first because the tray menu may be stale. */
   const applySpeechModel = async (key: string) => {
     try {
       const selection = parseSpeechSelectionKey(key);
@@ -332,8 +316,7 @@ const App: React.FC = () => {
 
   const loadAppData = async () => {
     try {
-      // Settings and Chat sessions are now loaded automatically by their respective contexts
-      // Just load history
+      // Settings and chat sessions load in their own contexts; only history loads here.
       await history.loadHistory();
     } catch (e) {
       console.error('[App] Failed to load data:', e);
@@ -361,8 +344,7 @@ const App: React.FC = () => {
                 ? 'p-0 overflow-hidden'
                 : 'p-6 md:p-10 overflow-hidden'
           }`}
-          // No titlebar padding here: each view runs to the window top and clears the
-          // titlebar itself (kit `PageScroll` / `TitlebarSpacer`), so content fades under it.
+          // No titlebar padding: each view clears the titlebar itself (`PageScroll` / `TitlebarSpacer`).
         >
           {currentView === 'home' ? <HomeView />
             : currentView === 'reminders' ? <RemindersView />

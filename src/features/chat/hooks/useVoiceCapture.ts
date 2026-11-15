@@ -1,17 +1,4 @@
-/**
- * useVoiceCapture
- *
- * The single owner of the chat voice-input experience, shared by the idle
- * landing view and the open conversation alike. Wraps useSpeechInput with:
- *   - isVoiceActive: the pill owns the composer slot (capture, warm-up,
- *     transcription, or the handoff beat after it).
- *   - returningFromVoice + chromeEnter: the second beat of the return —
- *     titles above and buttons below trail the pill fade together.
- *   - handleSpeechStop: stops the capture and appends the transcript.
- *
- * Callers stay thin: render chrome gated on isVoiceActive with chromeEnter,
- * and drive ChatInput from speech + handleSpeechStop.
- */
+/** Single owner of chat voice input for landing and conversation: pill state, return beat, transcript append. */
 
 import { useCallback, useEffect, useRef } from 'react';
 import { useReducedMotion } from 'framer-motion';
@@ -48,9 +35,7 @@ export function useVoiceCapture({
 
   const isVoiceActive = speech.state !== 'idle';
 
-  // True on the pass where the pill hands back to the composer, so the
-  // chrome trails the pill fade instead of popping in first. First paint
-  // always reads false, so load-in is unaffected.
+  // True on the pass where the pill hands back, so chrome trails the fade; first paint is false.
   const prevVoiceActiveRef = useRef(false);
   useEffect(() => {
     prevVoiceActiveRef.current = isVoiceActive;

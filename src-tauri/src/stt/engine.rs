@@ -1,8 +1,4 @@
-//! The warm engine: one transcribe.cpp model loaded at a time, reloaded when
-//! another model is asked for, and dropped after an idle period so its memory
-//! goes back to the system. Whole clips (`transcribe`) and live dictation
-//! (`live`) both run through `with_loaded`, one at a time. Calls are blocking;
-//! run them off the async runtime.
+//! The warm engine: one model loaded at a time, dropped when idle; calls are blocking and serialized.
 
 use std::io::Cursor;
 use std::ops::Range;
@@ -48,8 +44,7 @@ impl Loaded {
     }
 }
 
-/// `language` as the model advertises it: itself, else its first locale
-/// (`en` → `en-US`); None leaves it to the model to detect.
+/// `language` as the model advertises it (itself, else its first locale); None lets the model detect.
 fn hint_for(advertised: &[String], language: &str) -> Option<String> {
     if advertised.is_empty() || advertised.iter().any(|l| l == language) {
         return Some(language.to_string());
@@ -89,8 +84,7 @@ impl Engine {
         }
     }
 
-    /// Runs `work` on the model at `path` (loaded if needed), holding it for
-    /// the whole call: nothing else uses the engine meanwhile.
+    /// Runs `work` on the model at `path` (loaded if needed), holding the engine for the whole call.
     pub fn with_loaded<R>(&self, id: &'static str, path: &Path, work: impl FnOnce(&mut Loaded) -> Result<R, LocalError>) -> Result<R, LocalError> {
         let mut guard = lock(&self.loaded);
         if guard.as_ref().map(|l| l.id) != Some(id) {
@@ -136,8 +130,7 @@ fn load(id: &'static str, path: &Path) -> Result<Loaded, LocalError> {
     let model = Model::load(path).map_err(engine_error)?;
     let capabilities = model.capabilities().map_err(engine_error)?;
     let max_ms = capabilities.max_audio_ms.max(0) as usize;
-    // On a GPU only the per-token decoder runs on the CPU; extra ggml worker
-    // threads would spin and stall it.
+    // On a GPU only the decoder runs on the CPU; extra ggml worker threads would spin and stall it.
     let on_gpu = model.device().is_ok_and(|d| matches!(d.device_type, DeviceType::Gpu | DeviceType::Igpu));
     let session_options = SessionOptions { n_threads: if on_gpu { 1 } else { 0 }, ..SessionOptions::default() };
     let session = model.session_with(&session_options).map_err(engine_error)?;
@@ -159,8 +152,7 @@ fn seconds(sample: usize) -> f64 {
     sample as f64 / SAMPLE_RATE as f64
 }
 
-/// Timed segments shifted onto the audio's clock. A model that returns text
-/// without timing (Cohere) gives one piece spanning its window.
+/// Timed segments shifted onto the audio's clock; untimed text gives one piece spanning its window.
 fn timed(transcript: transcribe_cpp::Transcript, (start, end): (f64, f64)) -> Vec<TimedText> {
     let at = |ms: i64| start + ms as f64 / 1000.0;
     let segments: Vec<TimedText> = transcript
@@ -176,8 +168,7 @@ fn timed(transcript: transcribe_cpp::Transcript, (start, end): (f64, f64)) -> Ve
     vec![TimedText { text: text.to_string(), start, end }]
 }
 
-/// The audio as runs the model accepts: whole when it has no limit, else
-/// windows of at most `max` samples, each cut at a quiet moment.
+/// The audio as runs the model accepts: whole, or windows of at most `max` samples cut at quiet moments.
 fn windows(pcm: &[f32], max: usize) -> Vec<Range<usize>> {
     if max == 0 || pcm.len() <= max {
         return vec![0..pcm.len()];

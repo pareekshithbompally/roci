@@ -1,10 +1,4 @@
-/**
- * useRecordingRecovery
- *
- * Once at launch, adds recordings a quit or crash left unfinished to History:
- * the backend mixes their tracks down, and each is saved like any finished
- * recording. One recording failing to save never skips the others.
- */
+/** At launch, mixes down and saves recordings a quit or crash left unfinished; one failure skips none. */
 
 import { useEffect, useRef } from 'react';
 import { coreAudioService } from '@services/coreAudio.service';

@@ -1,13 +1,4 @@
-/**
- * SettingsNav Component
- *
- * Vertical settings navigation rendered inside the left sidebar when the app
- * is in the settings view. Clicking an entry switches `activeSettingsPanel`,
- * which the main content area (`SettingsPanel`) renders.
- *
- * Edits save on edit (debounced write-through in SettingsContext), so
- * switching entries is always safe — no navigation guard, no dirty state.
- */
+/** Settings nav in the left sidebar; edits save on edit, so switching panels needs no dirty-state guard. */
 
 import React from 'react';
 import { Bell, Blocks, ChartColumn, Cpu, Server, Settings2, Sparkles, type LucideIcon } from 'lucide-react';

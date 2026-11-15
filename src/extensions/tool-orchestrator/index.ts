@@ -1,17 +1,4 @@
-/**
- * Tool Orchestrator — Agentic Tool Loop (AI SDK v7)
- *
- * Single `streamText` call where the LLM autonomously decides which tools to call,
- * the SDK handles execution and re-invocation, and the stream delivers text + tool
- * activity to the UI.
- *
- * Replaces the previous 3-step intent-routed architecture:
- *   Step 1 (classify intent) → deleted, LLM expresses intent via tool selection
- *   Step 2 (programmatic retrieval) → deleted, tool execute functions handle data fetching
- *   Step 3 (synthesis) → merged into the single streamText call
- *
- * Single call site: chatStore.sendMessage().
- */
+/** Agentic tool loop: one streamText call where the LLM picks tools; called only by chatStore.sendMessage(). */
 
 import { streamText, isStepCount } from 'ai';
 import type { TextStreamPart, ToolSet } from 'ai';
@@ -29,11 +16,7 @@ import type { OrchestratorOptions, OrchestratorCallbacks } from './types';
 /** Safety cap for the agentic loop. Most queries resolve in 1–3 tool calls. */
 const MAX_AGENT_STEPS = 10;
 
-/**
- * Drop provider citation markers (<cite> tags: OpenAI; [N]: xAI/Grok) when
- * web search tools are active — those sources render in the Sources panel.
- * Without web search the text is untouched, so code like `arr[0]` survives.
- */
+/** Drops provider citation markers only while web search is on, so code like `arr[0]` survives otherwise. */
 export function stripWebCitations(text: string, webSearchActive: boolean): string {
   if (!webSearchActive) return text;
   return text.replace(/<\/?cite[^>]*>/g, '').replace(/\[(\d+)\](?!\()/g, '');
@@ -51,11 +34,7 @@ function chatModelOrThrow(settings: OrchestratorOptions['settings'], providers: 
   return resolved;
 }
 
-/**
- * Built-in tools + connected MCP tools the user left on (composer Tools
- * picker), through one bridge, plus web search. Nothing on → undefined
- * (an empty tool set is rejected by some providers).
- */
+/** Built-in + enabled MCP tools plus web search; undefined when none, since some providers reject an empty set. */
 async function buildTools(
   options: OrchestratorOptions,
   webSearchTools: ToolSet | undefined,
@@ -93,8 +72,7 @@ function handlePart(part: TextStreamPart<ToolSet>, state: StreamState, onChunk: 
     case 'reasoning-delta':
       onChunk('', { isThinking: true, thinkingContent: part.text });
       return;
-    // Native provider tools (web search) — signal inline status.
-    // Meeting tool activity is tracked by the execute wrapper in tools-bridge.
+    // Only native web search runs on the provider's side; meeting and MCP tools are tracked in tools-bridge.
     case 'tool-input-start':
       onChunk('', { isSearching: true });
       return;
@@ -122,13 +100,7 @@ function emptyResponseError(finishReason: string | undefined): Error {
   );
 }
 
-/**
- * Run the agentic tool loop.
- *
- * The LLM sees all meeting tools + connected MCP tools + web search tools and
- * autonomously decides whether to call tools, which ones and in what order,
- * and when to stop and answer.
- */
+/** Runs the agentic loop: the LLM decides which meeting, MCP and web search tools to call, and when to answer. */
 export async function orchestrate(
   options: OrchestratorOptions,
   callbacks: OrchestratorCallbacks,

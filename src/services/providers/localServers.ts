@@ -1,11 +1,4 @@
-/**
- * Local Servers
- *
- * Detects OpenAI-compatible servers the user runs on this Mac (Ollama, LM Studio,
- * vLLM, Jan, or any URL they add) and turns them into ordinary
- * `ModelProvider`s. Chat, analysis and model listing then use the same
- * openai-compat path and the same key handling as every other provider.
- */
+/** Detects local OpenAI-compatible servers (Ollama, LM Studio, vLLM, Jan, any URL) as ordinary `ModelProvider`s. */
 
 import { getPlatformFetch } from '@services/platform-fetch';
 import {
@@ -59,10 +52,7 @@ function originOf(baseUrl: string): string {
   return new URL(baseUrl).origin;
 }
 
-/**
- * A user-typed server address as an OpenAI-compatible base URL, or null if it isn't a URL.
- * `localhost:9000` and `http://localhost:9000/` both become `http://localhost:9000/v1`.
- */
+/** A typed server address as a base URL (`localhost:9000` → `http://localhost:9000/v1`); null if not a URL. */
 export function normalizeLocalUrl(input: string): string | null {
   const trimmed = input.trim();
   if (!trimmed) return null;

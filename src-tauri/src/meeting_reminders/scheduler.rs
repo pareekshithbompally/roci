@@ -1,16 +1,10 @@
-//! When each meeting's reminder shows — ported from HEX `src/calendar.rs`
-//! (`CalendarMeeting`, `is_meeting`, `meetings`, `ReminderScheduler`,
-//! `reminder_until_ms`, `minutes_until`, `wall_clock_ms`; MIT, see
-//! `src-tauri/licenses/HEX-MIT.txt`). The scheduler is HEX's, unchanged;
-//! `from_event` / `is_meeting` read Kasset's EventKit event shape, and there is
-//! no per-calendar include filter (Kasset reminds for every calendar).
+//! When each meeting's reminder shows, from Kasset's EventKit events across every calendar.
 
 use std::collections::HashMap;
 
 use tauri_plugin_calendar::{call_link, key_matches, types::CalendarEvent, CallLink};
 
-/// How late a reminder may still show, for a Mac that wakes after the
-/// meeting started.
+/// How late a reminder may still show, for a Mac that wakes after the meeting started.
 pub const LATE_GRACE_MS: i64 = 5 * 60 * 1_000;
 /// How long a reminder stays up after its meeting starts.
 pub const REMINDER_AFTER_START_MS: i64 = 60 * 1_000;
@@ -72,8 +66,7 @@ fn declined(event: &CalendarEvent) -> bool {
     event.attendees.iter().any(|attendee| attendee.is_current_user == Some(true) && attendee.status == "declined")
 }
 
-/// A meeting is an event with other people or a call link that the user
-/// will attend: not all-day, declined, cancelled, or shown as free.
+/// An event the user will attend with other people or a call link: not all-day, declined, cancelled or free.
 pub fn is_meeting(event: &CalendarEvent) -> bool {
     if event.is_all_day || declined(event) || event.is_cancelled || event.is_free {
         return false;
@@ -92,8 +85,7 @@ pub fn meetings(events: &[CalendarEvent]) -> Vec<CalendarMeeting> {
     meetings
 }
 
-/// The meeting happening now that a detected call belongs to: one whose
-/// link names the call's service, from its reminder lead until it ends.
+/// The current meeting whose link names the call's service, from its reminder lead until it ends.
 pub fn current_for_call<'a>(
     meetings: &'a [CalendarMeeting],
     keys: &[&str],
@@ -109,10 +101,7 @@ pub fn current_for_call<'a>(
     })
 }
 
-/// Decides when each meeting's reminder shows. Times are wall-clock
-/// milliseconds, so a Mac that sleeps through the lead time still reminds on
-/// wake if the meeting began less than [`LATE_GRACE_MS`] ago, and a moved
-/// meeting (a new start) is reminded again.
+/// Decides when each reminder shows, on wall-clock ms so sleep and moved meetings still remind.
 #[derive(Default)]
 pub struct ReminderScheduler {
     /// Occurrences already reminded, with when they end, so each reminds once.
@@ -121,15 +110,13 @@ pub struct ReminderScheduler {
     showing: Option<(CalendarMeeting, i64)>,
 }
 
-/// When a reminder shown at `shown_ms` closes on its own: a minute after its
-/// meeting starts, and never sooner than [`REMINDER_MIN_MS`] after showing.
+/// A reminder closes a minute after its meeting starts, never sooner than [`REMINDER_MIN_MS`] after showing.
 pub fn reminder_until_ms(start_ms: i64, shown_ms: i64) -> i64 {
     (start_ms + REMINDER_AFTER_START_MS).max(shown_ms + REMINDER_MIN_MS)
 }
 
 impl ReminderScheduler {
-    /// One reminder shows at a time: while it is up, an overlapping
-    /// meeting's reminder waits until it is answered or closes.
+    /// One reminder at a time: an overlapping meeting's waits until it is answered or closes.
     pub fn poll(&mut self, meetings: &[CalendarMeeting], now_ms: i64, lead_ms: i64) -> Option<ReminderUpdate> {
         // Bounded: occurrences are forgotten an hour after they end.
         self.reminded.retain(|_, end_ms| *end_ms + 60 * 60 * 1_000 > now_ms);
@@ -170,8 +157,7 @@ impl ReminderScheduler {
 #[derive(Clone, Debug, PartialEq)]
 pub enum ReminderUpdate {
     Show(CalendarMeeting),
-    /// The showing reminder's meeting (this occurrence) was cancelled,
-    /// moved, declined, or is long past: withdraw it.
+    /// The showing reminder's meeting was cancelled, moved, declined, or is long past: withdraw it.
     Withdraw(String),
 }
 
@@ -180,8 +166,7 @@ pub fn minutes_until(start_ms: i64, now_ms: i64) -> i64 {
     ((start_ms - now_ms).max(0) + 59_999) / 60_000
 }
 
-/// Milliseconds since the Unix epoch. Reminders use the wall clock, which
-/// keeps counting while the Mac sleeps.
+/// Milliseconds since the Unix epoch; the wall clock keeps counting while the Mac sleeps.
 pub fn wall_clock_ms() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

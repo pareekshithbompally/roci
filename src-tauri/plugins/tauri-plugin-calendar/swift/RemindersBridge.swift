@@ -1,13 +1,7 @@
 import Foundation
 import EventKit
 
-// MARK: - Reminders (EventKit) — C-compatible JSON bridge for Rust FFI
-//
-// Same conventions as CalendarBridge: every function returns a JSON C string
-// the caller frees with `calendar_free_string`. One long-lived store, used only
-// on `queue`, so change notifications arrive and EventKit is never shared
-// across threads. Kasset tags each reminder with `kasset://todo/<id>` (its
-// URL) — that tag is the only link between a reminder and its to-do.
+// MARK: - Reminders (EventKit) — JSON C-string bridge; each reminder's URL `kasset://todo/<id>` links it to its to-do
 
 private let store = EKEventStore()
 private let queue = DispatchQueue(label: "ai.kasset.reminders")
@@ -91,9 +85,7 @@ public func remindersEnsureList(_ title: UnsafePointer<CChar>) -> UnsafeMutableP
     })
 }
 
-/// Update the reminder for one to-do; create it only when `create` (new action items),
-/// so a reminder the user deleted in Reminders never comes back on an edit.
-/// Input: `{"list_id", "todo_id", "title", "notes"?, "due_date"? (YYYY-MM-DD), "completed", "create"}` → `{}` or `{"error"}`
+/// Updates a to-do's reminder; creates it only when `create`, so one deleted in Reminders never returns on edit.
 @_cdecl("reminders_upsert")
 public func remindersUpsert(_ input: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar> {
     guard let data = String(cString: input).data(using: .utf8),

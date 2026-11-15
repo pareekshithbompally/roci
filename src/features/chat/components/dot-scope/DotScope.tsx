@@ -1,18 +1,4 @@
-/**
- * DotScope — Hex's recording indicator: a pill of dots lit by a braided pair
- * of oscilloscope traces that follow the voice, cooling to blue light that
- * flows through the braid while transcribing.
- *
- * Simulation: `scope.ts` (Hex `dot_scope/scope.rs`). Drawing: Hex's
- * `rune_hud.wgsl` plate, rim, glow and dots, on a 2D canvas.
- *
- * The plate takes any `DotScopeTuning` — the composer's band passes a
- * per-capture tuning with a wider plate and more columns (`band.ts`), and the
- * simulation and drawing run unchanged, just on a longer instrument.
- *
- * Mount it inside framer-motion's <AnimatePresence>: on exit it plays Hex's
- * done wipe (the field clears from the middle out), fades, then unmounts.
- */
+/** Recording indicator: dots lit by braided voice-driven traces; mount in AnimatePresence for the exit wipe. */
 
 import React, { useEffect, useRef } from 'react';
 import { usePresence, useReducedMotion } from 'framer-motion';
@@ -34,9 +20,9 @@ export interface DotScopeProps {
   stream?: MediaStream | null;
   /** Accessible label (e.g. "Recording", "Transcribing"). */
   label: string;
-  /** Draws the whole pill larger (1 = Hex's 112×26 pt plate). */
+  /** Draws the whole pill larger (1 = the default 112×26 pt plate). */
   zoom?: number;
-  /** Plate tuning; defaults to Hex's. Must stay stable while mounted. */
+  /** Plate tuning; defaults to the standard plate. Must stay stable while mounted. */
   tuning?: DotScopeTuning;
   /** Palette override merged over the dark/light theme (e.g. composer accent). */
   palette?: DotScopePalette;
@@ -78,8 +64,7 @@ function drawPlate(ctx: CanvasRenderingContext2D, pose: Pose, theme: DotScopeThe
   const hw = pose.width / 2;
   const hh = pose.height / 2;
   ctx.save();
-  // Drop shadow only when the palette asks for one — the composer disables it
-  // (shadowBlur per frame is expensive and reads as a dull halo).
+  // Shadow only when the palette asks; shadowBlur per frame is expensive.
   if (theme.shadow[3] > 0) {
     ctx.shadowColor = css(theme.shadow);
     // Shadow sizes are in device pixels; the canvas transform doesn't apply to them.
@@ -172,7 +157,7 @@ function draw(
   ctx.restore();
 }
 
-/** RMS loudness of a live stream, dBFS (Hex `loudness`), read once per frame. */
+/** RMS loudness of a live stream, dBFS, read once per frame. */
 function useStreamLoudness(stream: MediaStream | null | undefined) {
   const read = useRef<() => number>(() => -120);
   useEffect(() => {

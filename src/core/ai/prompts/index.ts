@@ -1,8 +1,3 @@
-/**
- * Prompts Index
- * Re-exports all prompt builders
- */
-
 export { buildChatSystemPrompt } from './chat.prompt';
 export type { ChatPromptOptions } from './chat.prompt';
 

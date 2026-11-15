@@ -1,8 +1,4 @@
-/**
- * Tool System Entry Point
- *
- * Registers all tool definitions and exports the registry singleton.
- */
+/** Registers every tool definition and exports the registry singleton. */
 
 import { ToolRegistry } from './registry';
 import { searchMeetingsTool } from './definitions/search-meetings.tool';

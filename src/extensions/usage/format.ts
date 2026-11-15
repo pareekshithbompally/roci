@@ -1,8 +1,4 @@
-/**
- * Usage Display Formatting
- *
- * Compact token count and cost formatters for the usage UI.
- */
+/** Compact token count and cost formatters for the usage UI. */
 
 /** Format token count with SI suffixes: "1.2k", "125.3k", "1.5M" */
 export function formatTokenCount(n: number): string {

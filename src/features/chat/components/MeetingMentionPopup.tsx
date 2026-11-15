@@ -1,13 +1,4 @@
-/**
- * MeetingMentionPopup Component
- *
- * Dropdown popup for selecting meetings when user types "@" in chat input.
- * Shows recent meetings with search functionality and multi-select support.
- * Uses Radix Popover + cmdk Command for accessible search/selection.
- *
- * Must be rendered inside a <Popover> provided by the parent (ChatInput).
- * This component only renders the PopoverContent portion.
- */
+/** "@" meeting picker content with search and multi-select; the parent ChatInput supplies the Popover. */
 
 import React from 'react';
 import { FileAudio, Check } from 'lucide-react';

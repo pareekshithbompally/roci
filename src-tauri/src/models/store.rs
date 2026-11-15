@@ -1,7 +1,4 @@
-//! Where models live (`<app data>/models/<id>/`) and how they arrive: each
-//! file streamed to `<file>.part` (resumed with a `Range` request after a
-//! cancel or failure), checked against its pinned size and SHA-256, then
-//! renamed into place. A model counts as downloaded once all its files exist.
+//! Model storage under `<app data>/models/<id>/`: resumable `.part` downloads checked by size and SHA-256.
 
 use std::collections::HashMap;
 use std::fs::{self, File};

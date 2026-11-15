@@ -1,10 +1,4 @@
-/**
- * Context Pipeline
- *
- * Runs registered ContextProviders in priority order.
- * First high-confidence result (>=0.9) short-circuits.
- * Fail-open: provider errors are caught and logged, pipeline continues.
- */
+/** Runs ContextProviders by priority; a result with confidence >= 0.9 short-circuits, provider errors are logged. */
 
 import type { ContextInput, ContextOutput, ContextProvider, ContextPipelineResult } from './types';
 
@@ -51,8 +45,7 @@ export class ContextPipeline {
           break;
         }
       } catch (error: unknown) {
-        // Re-throw abort errors (DOMException is not an Error instance —
-        // match structurally on `name`)
+        // Re-throw aborts, matched on `name` because DOMException is not an Error instance.
         const errorName =
           error instanceof Error
             ? error.name

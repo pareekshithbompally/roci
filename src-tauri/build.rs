@@ -21,7 +21,7 @@ fn main() {
     tauri_build::build()
 }
 
-/// Hex's permission guide (native/permission_guide.m), compiled as Hex does.
+/// Compiles the native permission guide (native/permission_guide.m) with ARC.
 #[cfg(target_os = "macos")]
 fn compile_permission_guide() {
     println!("cargo:rerun-if-changed=native/permission_guide.m");

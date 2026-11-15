@@ -1,7 +1,4 @@
-/**
- * NotificationsPanel — Settings › Notifications: the macOS permission and one
- * switch per kind of notification (meeting reminders carry their lead time).
- */
+/** Settings › Notifications: the macOS permission and one switch per notification kind. */
 
 import React from 'react';
 import { LAYOUT } from '@config/layout.config';

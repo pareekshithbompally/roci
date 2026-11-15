@@ -45,8 +45,7 @@ use tauri_plugin_autostart::MacosLauncher;
 pub fn run() {
   tauri::Builder::default()
     .setup(|app| {
-      // The main window is built here (`create: false` in tauri.conf.json) so
-      // its webview can take web downloads, which WKWebView otherwise drops.
+      // Built here (`create: false` in tauri.conf.json) so its webview can take web downloads.
       let main = app.config().app.windows.iter().find(|w| w.label == "main").cloned().ok_or("main window config missing")?;
       tauri::WebviewWindowBuilder::from_config(app.handle(), &main)?
         .on_download(downloads::handle)
@@ -75,10 +74,10 @@ pub fn run() {
       // kasset:// URL actions (queued until the webview is ready).
       url_actions::setup(app.handle());
 
-      // Calendar meeting reminders (HEX watcher): idle until the frontend enables them.
+      // Calendar meeting reminders: idle until the frontend enables them.
       meeting_reminders::start(app.handle().clone());
 
-      // Detected calls (HEX): offer to record when a call app takes the microphone.
+      // Detected calls: offer to record when a call app takes the microphone.
       #[cfg(target_os = "macos")]
       call_detection::start(app.handle().clone());
 
@@ -87,7 +86,6 @@ pub fn run() {
       meeting_spotlight::start(app.handle().clone());
 
       // Login-item / autostart launches pass --minimized: start hidden.
-      // (Hex: LaunchWindow::OpenUnlessLoginItem stays quiet at login.)
       if std::env::args().any(|arg| arg == "--minimized")
         && let Some(window) = app.handle().get_webview_window("main")
       {
@@ -221,8 +219,7 @@ pub fn run() {
           window::show_main(app_handle);
         }
       }
-      // Cmd+Q while recording: ask the user (stop and quit, or cancel).
-      // A programmatic exit (code set) is the answer, so it goes through.
+      // Cmd+Q while recording asks the user; a programmatic exit (code set) goes through.
       tauri::RunEvent::ExitRequested { code: None, api, .. }
         if audio::commands::capture_active() =>
       {

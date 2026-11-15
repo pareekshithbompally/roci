@@ -1,9 +1,4 @@
-/**
- * AppleIntelligenceIntegration — Apple's on-device models. On: Apple
- * Intelligence joins Settings › Capabilities › Summaries, and Apple Speech joins
- * Speech recognition (its permission and model download are set up there).
- * Off: both disappear.
- */
+/** Apple's on-device models: on adds Apple Intelligence to Summaries and Apple Speech to Speech recognition. */
 
 import React from 'react';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';

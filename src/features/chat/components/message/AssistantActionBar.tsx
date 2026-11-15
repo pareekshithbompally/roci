@@ -49,8 +49,7 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
     hasSuggestions ? 'suggestions' : 'sources'
   );
 
-  // Reset the tab when the available tabs change — a one-way sync orphans
-  // 'sources' after suggestions clear.
+  // Reset when available tabs change, or 'sources' is orphaned after suggestions clear.
   useEffect(() => {
     if (hasSuggestions) setActiveTab('suggestions');
     else if (hasCitations) setActiveTab('sources');
@@ -129,7 +128,7 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
         </div>
       </div>
 
-      {/* Tab content - only show when suggestions are present and activeTab is suggestions, or when sources are expanded via tab */}
+      {/* Tab content: suggestions, or sources when expanded via the tab */}
       {hasTabs && hasSuggestions && (
         <div className="flex flex-col gap-1 mt-2.5">
           {activeTab === 'suggestions' && (

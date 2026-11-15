@@ -1,9 +1,4 @@
-/**
- * CodingAgentsIntegration — the rows of the Coding agents card: Kasset's MCP
- * server, one row per agent (its switch adds or removes the single `kasset`
- * entry in that agent's config), then the command for any other agent.
- * The Settings section supplies the card.
- */
+/** Coding agents rows: Kasset's MCP server, one switch per agent's `kasset` config entry, then a manual command. */
 
 import React from 'react';
 import { Copy, SquareTerminal } from 'lucide-react';

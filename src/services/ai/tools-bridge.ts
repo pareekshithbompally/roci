@@ -1,13 +1,4 @@
-/**
- * Tool Bridge — Schema & Executable Conversion
- *
- * Converts tool definitions (registry + MCP) into AI SDK ToolSet format.
- * - toExecutableTools(): Full tools with execute wrappers and activity tracking.
- *
- * IMPORTANT (AI SDK 5.0+):
- * - Use `inputSchema:` NOT `parameters:` — parameters was removed in 5.0
- * - Return type is ToolSet (from 'ai'), not Record<string, CoreTool>
- */
+/** Registry and MCP tools as an AI SDK 5 ToolSet (schemas use `inputSchema:`, not the removed `parameters:`). */
 
 import { tool, jsonSchema } from 'ai';
 import type { ToolSet } from 'ai';
@@ -96,18 +87,7 @@ export async function runTool(
 
 // ── Executable Tools ──
 
-/**
- * Build AI SDK tools with working execute functions from tool definitions
- * (the built-in registry plus any connected MCP tools).
- *
- * Each tool's execute wrapper handles:
- * - UI activity tracking (calling/done) via onToolActivity
- * - Timeout enforcement and result truncation (per-definition limits)
- * - Citations ride on the 'done' activity's result.meta.citations
- * - Error handling (never throws, returns error string)
- *
- * The returned ToolSet can be spread with web search tools and passed to streamText.
- */
+/** Executable tools with activity tracking, timeouts, truncation and citations; execute never throws. */
 export function toExecutableTools(
   definitions: ToolDefinition[],
   context: ToolContext,

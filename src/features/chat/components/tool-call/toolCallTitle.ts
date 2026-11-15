@@ -81,11 +81,7 @@ function baseTitle(part: ToolCallPart): string {
   return builtInTitle(part);
 }
 
-/**
- * Human title for one tool call: verb + argument snippet for built-in tools
- * ("Searched meetings for “pricing”"), `server · tool` for MCP tools,
- * "<tool> failed" on error and a trailing ellipsis while running.
- */
+/** Human title for a tool call: verb + argument for built-ins, `server · tool` for MCP, "failed" on error. */
 export function toolCallTitle(part: ToolCallPart): string {
   const prefix = part.source ? `${part.source} · ` : '';
   if (part.status === 'error') return `${prefix}${formatToolName(part.toolName)} failed`;

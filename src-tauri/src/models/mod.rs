@@ -1,11 +1,4 @@
-//! Kasset's curated on-device models: what can be downloaded, where it lives,
-//! and its downloads (resume, SHA-256, cancel) and deletion. Every engine that
-//! runs a model on this Mac (speech-to-text, read aloud) finds its files here;
-//! nothing is bundled in the app.
-//!
-//! - `catalog`: the curated models, each file pinned to a revision and checksum.
-//! - `store`: one folder per model under `<app data>/models/`, and its downloads.
-//! - `commands`: list, download, cancel, delete.
+//! Kasset's curated on-device models: catalog, per-model storage, downloads and deletion.
 
 pub mod catalog;
 pub mod commands;
@@ -13,8 +6,7 @@ pub mod store;
 
 use serde::Serialize;
 
-/// The language Kasset speaks and transcribes in unless told otherwise
-/// (mirrors `TRANSCRIPTION_CONFIG.language` in the webview).
+/// The default speak/transcribe language; mirrors `TRANSCRIPTION_CONFIG.language` in the webview.
 pub const LANGUAGE: &str = "en";
 
 /// Runs blocking work (a model, the disk) off the async runtime.
@@ -28,8 +20,7 @@ pub struct ModelsState {
     downloads: store::Downloads,
 }
 
-/// Errors of every local-model command (models, speech-to-text, read aloud),
-/// serialized as `{ code, detail? }` for the webview to map to copy.
+/// Errors of every local-model command, serialized as `{ code, detail? }` for the webview.
 #[derive(Debug, Serialize)]
 #[serde(tag = "code", content = "detail", rename_all = "kebab-case")]
 pub enum LocalError {

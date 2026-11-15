@@ -1,11 +1,4 @@
-/**
- * Toast Context — the React handle on in-app toasts. The toasts themselves
- * (Sonner, themed to the design system) and the one `showToast` live in
- * `@shared/ui` (sonner.tsx); `<Toaster />` is rendered once in App.tsx.
- *
- * Toasts are for what you can't see where you are: an error, or something
- * that finished elsewhere. Results visible where you acted get no toast.
- */
+/** React handle on in-app toasts; only for what you can't see where you are (errors, work finished elsewhere). */
 
 import React, { createContext, useContext, type ReactNode } from 'react';
 import { dismissToast, showToast } from '@shared/ui';

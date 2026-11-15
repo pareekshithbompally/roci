@@ -1,9 +1,4 @@
-/**
- * UpdateBanner — floating card shown when a new version is available.
- *
- * Rendered at the bottom-right of the main content area.
- * Actions: Show Release Notes (opens browser), Remind Me Later (dismiss), Update Now.
- */
+/** Bottom-right card shown when an update is available: release notes, remind later, update now. */
 
 import React from 'react';
 import { Download } from 'lucide-react';

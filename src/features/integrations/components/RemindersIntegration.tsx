@@ -1,6 +1,4 @@
-/**
- * RemindersIntegration — macOS Reminders: action items ↔ a reminders list.
- */
+/** macOS Reminders: action items ↔ a reminders list. */
 
 import React from 'react';
 import { CardRow, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui';

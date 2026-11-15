@@ -1,16 +1,4 @@
-/**
- * Todo Proposal Store
- *
- * Lightweight external store (useSyncExternalStore pattern, matches streamingStore.ts).
- * Holds an ordered queue of TodoProposals — supports batch creation from multi-todo requests.
- *
- * Lifecycle:
- * 1. Orchestrator detects manage_todos intent → calls propose() for each mutation
- * 2. TodoConfirmationBanner renders all proposals (via useTodoProposals hook)
- * 3. User edits fields → updateField(id, field, value)
- * 4. User clicks Create All → commitAll() writes each to DB + schedules reminders
- * 5. User can remove individual proposals or cancel all
- */
+/** Queue of proposed todos awaiting the user's edit and confirm in TodoConfirmationBanner. */
 
 import { useSyncExternalStore } from 'react';
 import { store } from '@services/db';
@@ -142,10 +130,7 @@ export const todoProposalStore = {
   },
 };
 
-/**
- * Write one proposal without the chat banner — for a caller that already got
- * the user's approval (a coding agent on Kasset's MCP server).
- */
+/** Write one proposal without the banner, for a caller that already has approval (an MCP coding agent). */
 export async function commitTodoProposal(p: TodoProposal): Promise<void> {
   await commitSingle(p);
   invalidateTodos([p.meetingId]);

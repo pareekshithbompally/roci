@@ -1,11 +1,4 @@
-/**
- * Dot Scope Configuration — Hex's recording indicator (the dot-matrix pill).
- *
- * Ported from Hex (MIT, src-tauri/licenses/HEX-MIT.txt):
- * `src/rune_hud/dot_scope.rs` (Tuning defaults), `dot_scope/scope.rs`
- * (palette), `rune_hud/spring.rs` (MORPH) and `rune_hud.wgsl` (dot look).
- * Values are Hex's defaults; change them here, never in the component.
- */
+/** Dot Scope recording indicator (the dot-matrix pill); tune it here, never in the component. */
 
 export type DotScopeProcessing = 'sweep' | 'flow' | 'pulse';
 
@@ -91,26 +84,20 @@ export const DOT_SCOPE_CONFIG = {
     processing: 'flow',
   } satisfies DotScopeTuning,
 
-  /** Short opacity-only fade under Reduce Motion (Hex REDUCED_FADE). */
+  /** Short opacity-only fade under Reduce Motion. */
   reducedFade: { duration: 0.16, bounce: 0 },
 
   /** Room around the plate on the canvas for the drop shadow, pt. */
   canvasMargin: { x: 16, y: 12 },
 
-  /** Compact pill in the chat composer. While recording the composer box
-   *  shrinks away and the pill is the sole focus, with Stop/Pause floating
-   *  beneath it. `plateHeight` sets the pill zoom (plateHeight / 26);
-   *  `marginX`/`marginY` tighten the canvas so the controls hug the pill;
-   *  `handoff` is how long the box waits — the done wipe — before it expands
-   *  back with the transcript. */
+  /** Composer pill, alone while recording; `plateHeight` sets zoom, `handoff` the wait before the box returns. */
   composer: {
     plateHeight: 40,
     marginX: 10,
     marginY: 6,
     /** Delay after the transcription response lands before the box expands back, s. */
     handoff: 0.2,
-    /** Live dictation: one fixed-height line below the controls, the newest
-     *  words in view; shown from the first frame so nothing moves. */
+    /** Live dictation line below the controls, fixed height and shown from the first frame so nothing moves. */
     liveText: { heightPx: 40, placeholder: 'Listening…' },
   },
 

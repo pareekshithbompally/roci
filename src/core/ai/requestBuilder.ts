@@ -1,9 +1,4 @@
-/**
- * Request Builders — The Core Coupling Layer
- *
- * Prompt builder for chat and transcription requests.
- * Both unifiedAIService and the tool orchestrator call these builders.
- */
+/** Prompt builders for chat and transcription, shared by unifiedAIService and the tool orchestrator. */
 
 import { TRANSCRIPTION_SCHEMA } from './schemas/transcription.schema';
 import { buildChatSystemPrompt } from './prompts/chat.prompt';
@@ -20,10 +15,7 @@ export interface ChatRequestOptions {
   temporalContext?: string;
 }
 
-/**
- * Build the complete chat request configuration.
- * Returns the system prompt for the chat — plain text, no JSON wrapping.
- */
+/** Plain-text system prompt for a chat request. */
 export function buildChatRequest(options: ChatRequestOptions): ChatRequestConfig {
   const {
     contextBlock,
@@ -46,9 +38,7 @@ export interface TranscriptionRequestOptions {
   temporalContext?: string;
 }
 
-/**
- * Same pattern for transcription — prompt + schema as atomic pair.
- */
+/** Transcription prompt and schema, built as one pair. */
 export function buildTranscriptionRequest(options: TranscriptionRequestOptions): TranscriptionRequestConfig {
   const { categories, supportsStructuredOutput = false, meetingContext, temporalContext } = options;
 

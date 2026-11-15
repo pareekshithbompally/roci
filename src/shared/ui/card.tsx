@@ -2,11 +2,7 @@ import React from 'react';
 import { cn } from './utils';
 import { Text } from './text';
 
-/**
- * Grouped settings surface (macOS System Settings / HEX `controls.rs`):
- * a muted label above a raised card whose rows are split by hairlines inset
- * 16px on both sides. Rows are 48px, or 60px with a description.
- */
+/** Grouped settings surface: muted label above a raised card; rows 48px (60px with description), inset hairlines. */
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return <div className={cn('bg-base shadow-raised rounded-lg px-4 divide-y divide-muted', className)} {...props} />;
@@ -17,11 +13,7 @@ export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
   description?: React.ReactNode;
   /** Icon or avatar before the copy, centred on the title line; the description indents under the title. */
   leading?: React.ReactNode;
-  /**
-   * Row state (a kit `<Status>`, optionally with an inline link like Retry).
-   * Always rendered in one place — right-aligned, directly before `actions` —
-   * so states line up down a card no matter how long each title is.
-   */
+  /** Row state, always right-aligned just before `actions` so states line up down a card. */
   status?: React.ReactNode;
   actions?: React.ReactNode;
   /** Control below the copy instead of beside it (wide editors, lists). */

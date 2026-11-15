@@ -1,9 +1,4 @@
-/**
- * ProcessingRow — renders a processing-type activity in the tray.
- *
- * Uses ActivityRowLayout for consistent single-line display.
- * Now renders item.actions inline (e.g. cancel button).
- */
+/** A processing activity in the tray, with its actions (e.g. cancel) inline. */
 
 import React from 'react';
 import { Loader2 } from 'lucide-react';

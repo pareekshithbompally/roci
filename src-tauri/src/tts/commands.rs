@@ -1,5 +1,4 @@
-//! Tauri commands for read aloud: the voices of an engine, speaking a reply in
-//! one, and stopping.
+//! Tauri commands for read aloud: list an engine's voices, speak a reply, stop.
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -29,9 +28,7 @@ pub fn tts_voices(engine: String) -> Result<Vec<VoiceOption>, LocalError> {
     Ok(model.voices.iter().map(|v| VoiceOption { id: v.name.to_string(), name: v.name.to_string(), detail: None }).collect())
 }
 
-/// Speaks a reply's markdown with `engine` in `voice` (None = the engine's
-/// default); emits `tts://chunk` as each chunk's audio begins; resolves when
-/// it's done or stopped.
+/// Speaks a reply's markdown with `engine` in `voice`, emitting `tts://chunk` as each chunk begins.
 #[tauri::command]
 pub async fn tts_speak(app: AppHandle, id: u64, text: String, engine: String, voice: Option<String>) -> Result<(), LocalError> {
     let speakable = text::speakable(&text);

@@ -1,10 +1,4 @@
-/**
- * list_chats tool
- *
- * Lists recent chat sessions with metadata.
- * Use when the user asks to see their recent chats or when
- * search_chats might return too broad results.
- */
+/** list_chats: recent chat sessions with metadata, for when search_chats would be too broad. */
 
 import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
 import { chatService } from '@services/chat.service';

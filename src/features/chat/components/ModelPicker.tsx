@@ -1,10 +1,4 @@
-/**
- * ModelPicker Component
- *
- * Dropdown picker for selecting AI chat model. Shows provider icons, model names,
- * modality badges, and tool support indicators.
- * Uses Radix Popover + cmdk Command for accessible search/selection.
- */
+/** Searchable chat model picker with provider icons, modality badges, and tool support. */
 
 import React, { useState, useMemo } from 'react';
 import { Check, ChevronDown } from 'lucide-react';

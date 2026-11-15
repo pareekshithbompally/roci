@@ -1,8 +1,4 @@
-/**
- * useSystemAccess — macOS access for one integration (EventKit calendars and
- * reminders, Automation for Notes, Notifications) in the shared permission vocabulary. Re-read while the panel is
- * open so a grant in System Settings flips the row, like the recording checklist.
- */
+/** macOS access for one integration, re-read while the panel is open so a grant in System Settings shows. */
 
 import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';

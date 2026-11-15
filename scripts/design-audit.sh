@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-# Design-system ratchet. Read-only: counts what docs/plans/DONE/design-system/plan.md §8 tracks.
-#   scripts/design-audit.sh                  print counts for src/
-#   scripts/design-audit.sh --scope <dir>    counts for one folder (unit agents)
-#   scripts/design-audit.sh --save <label>   also write audit/<label>.txt
+# Read-only design-system ratchet; usage: design-audit.sh [--scope <dir>] [--save <label>].
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -22,8 +19,7 @@ HUE_RE='\b[a-z]+-('"$HUES"')-[0-9]{2,3}\b'
 ROLE_RE='(^|[^-a-z])(bg-(base|deep|layer-[1-4]|inverse|accent|knob|hover|pressed|scrim|separator|ai|(base|deep|raised)-glass|(danger|warning|success|info)(-subtle)?)|text-(primary|muted|faint|accent|inverse|on-accent|danger|warning|success|info|ai)|border-(muted|base|strong|focus|accent|danger|warning|success|info)|divide-(muted|base|strong)|ring-focus|shadow-(input|raised|floating|overlay)|rounded(-(sm|md|lg|xl|2xl|full))?)\b'
 CODE=(--include='*.ts' --include='*.tsx')
 
-# occurrences of an extended regex in .ts/.tsx under $1
-# Comment lines (JSDoc `*`, `//`) are not code: skip them so prose like "<input type=date>" isn't counted.
+# Occurrences of an extended regex in .ts/.tsx under $1, skipping comment lines.
 COMMENT_RE='^[^:]*:[[:space:]]*(\*|//|/\*)'
 hits() { { grep -rHE "$2" "$1" "${CODE[@]}" 2>/dev/null || true; } | { grep -vE "$COMMENT_RE" || true; } | cut -d: -f2- | { grep -oE "$2" || true; } | wc -l | tr -d ' '; }
 # same, excluding a path prefix

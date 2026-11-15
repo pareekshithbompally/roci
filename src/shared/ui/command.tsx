@@ -21,12 +21,7 @@ export function CommandInput({ className, ...props }: ComponentProps<typeof Comm
   );
 }
 
-/**
- * cmdk wraps List children in an inner `[cmdk-list-sizer]` div, so layout
- * classes on the List never reach them. `fill` gives the list a fixed frame
- * and makes the sizer a full-height column — a lone status child (empty /
- * loading) can then `flex-1` and center in the frame.
- */
+/** cmdk wraps List children in a sizer div; `fill` makes it a full-height column so a lone status child can center. */
 const LIST_FILL = 'h-72 [&>[cmdk-list-sizer]]:flex [&>[cmdk-list-sizer]]:min-h-full [&>[cmdk-list-sizer]]:flex-col';
 
 interface CommandListProps extends ComponentProps<typeof CommandPrimitive.List> {
@@ -74,10 +69,7 @@ interface CommandDialogProps {
   shouldFilter?: boolean;
 }
 
-/**
- * Command palette dialog: top-anchored, slides down on open. Positions and
- * animates itself on a bare dialog surface — no overrides of sheet chrome.
- */
+/** Command palette dialog: top-anchored and slides down on open, on a bare dialog surface. */
 export function CommandDialog({ open, onOpenChange, children, shouldFilter }: CommandDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

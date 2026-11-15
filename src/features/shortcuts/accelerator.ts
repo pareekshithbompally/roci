@@ -1,17 +1,4 @@
-/**
- * Accelerators → matching and labels. Pure; the registry and key vocabulary
- * live in `@config/shortcuts.config`.
- *
- * Acceptance — a keydown triggers an app shortcut only when:
- *  1. no focused component already handled it (`defaultPrevented`),
- *  2. it is not mid IME composition and not a key-repeat,
- *  3. its modifiers are exactly the accelerator's (⌘⇧K is not ⌘K), and
- *  4. its key is the accelerator's key, and
- *  5. a bare-key shortcut (Esc) is not aimed at a field, dialog, menu or list
- *     that owns that key (`BARE_SHORTCUT_BLOCKERS`).
- * ⌘ shortcuts fire everywhere, text fields included.
- * Kasset is macOS-only: `CommandOrControl` means ⌘.
- */
+/** Pure accelerator matching and labels; a bare-key shortcut never fires in a field or menu that owns the key. */
 
 import {
   APP_SHORTCUTS,

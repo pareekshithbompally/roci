@@ -1,5 +1,4 @@
-//! FFI to `swift/CoreSpotlightBridge.swift`: JSON in, JSON out, every returned
-//! string freed through `core_spotlight_free_string`.
+//! FFI to `swift/CoreSpotlightBridge.swift`: JSON in/out, returned strings freed by `core_spotlight_free_string`.
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;

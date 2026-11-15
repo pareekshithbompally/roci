@@ -1,9 +1,4 @@
-//! The app side: serve MCP on the socket, run tools in the webview.
-//!
-//! The webview publishes its tool list once it has loaded
-//! (`mcp_host_publish_tools`) and answers each call it is sent on
-//! [`CALL_EVENT`] with `mcp_host_reply`. A request that arrives before the
-//! webview is ready waits for it (the relay may have just launched Kasset).
+//! App side: serves MCP on the socket and runs each tool call in the webview, waiting for it to be ready.
 
 use std::{
     collections::HashMap,
@@ -41,8 +36,7 @@ pub const STATUS_EVENT: &str = "mcp-host://status";
 
 /// How long a request waits for the webview after Kasset launches.
 const WEBVIEW_READY_TIMEOUT: Duration = Duration::from_secs(30);
-/// The webview bounds each tool itself (`TOOL_TIMEOUT_MS`, 30 s); this only
-/// catches a webview that went away mid-call (reload, quit).
+/// Only catches a webview that went away mid-call; the webview bounds each tool itself.
 const CALL_TIMEOUT: Duration = Duration::from_secs(45);
 /// Owner read/write only: other users on this Mac can't connect.
 const SOCKET_MODE: u32 = 0o600;
@@ -179,8 +173,7 @@ async fn listen(app: &AppHandle) -> Result<(), String> {
     }
 }
 
-/// Bind the socket, taking over a stale file but never a live server (a
-/// second Kasset, e.g. a dev build beside the installed app).
+/// Bind the socket, taking over a stale file but never a live server (e.g. a second Kasset).
 async fn bind(path: &Path) -> Result<UnixListener, String> {
     if UnixStream::connect(path).await.is_ok() {
         return Err("another copy of Kasset is already serving coding agents".into());

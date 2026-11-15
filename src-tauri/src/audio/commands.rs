@@ -8,8 +8,7 @@ use super::recorder::{Recorder, Sources};
 use super::recovery::{self, Recovered};
 use crate::permissions::{self, PermissionKind};
 
-/// Capture source: the three capture members of the frontend
-/// `AudioCaptureSource` union (its `file-upload` is never captured).
+/// The capture members of the frontend `AudioCaptureSource` union (`file-upload` is never captured).
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum AudioCaptureSource {
@@ -78,8 +77,7 @@ fn recorder() -> MutexGuard<'static, Option<Recorder>> {
     RECORDER.lock().unwrap_or_else(|error| error.into_inner())
 }
 
-/// Whether a recording is running. Never waits: a start or stop in progress
-/// holds the slot, and counts as recording.
+/// Whether a recording is running; never waits, and a start or stop in progress counts as recording.
 pub fn is_recording() -> bool {
     match RECORDER.try_lock() {
         Ok(active) => active.is_some(),
@@ -88,8 +86,7 @@ pub fn is_recording() -> bool {
     }
 }
 
-/// Whether a recording is capturing, for the quit and window-close prompts.
-/// A recorder held by a start or stop in progress counts as capturing.
+/// Whether a recording is capturing, for the quit and close prompts; a start or stop in progress counts.
 pub fn capture_active() -> bool {
     match RECORDER.try_lock() {
         Ok(active) => active.is_some(),
@@ -98,8 +95,7 @@ pub fn capture_active() -> bool {
     }
 }
 
-/// Finishes a running recording's tracks so the next launch recovers it;
-/// called as the app exits.
+/// Finishes a running recording's tracks on exit so the next launch recovers it.
 pub fn abandon_active() {
     if let Some(active) = recorder().take() {
         active.abandon();
@@ -143,9 +139,7 @@ pub async fn start_audio_capture(
     Ok(())
 }
 
-/// Starts a recording, holding the recorder for the whole start so two
-/// starts never interleave. A recording still running (the frontend lost
-/// it, e.g. on reload) is left for recovery, never discarded.
+/// Starts a recording under the recorder lock; one still running (lost on reload) is left for recovery.
 fn start(app: AppHandle, options: AudioCaptureOptions) -> eyre::Result<()> {
     let mut active = recorder();
     if let Some(previous) = active.take() {
@@ -157,14 +151,10 @@ fn start(app: AppHandle, options: AudioCaptureOptions) -> eyre::Result<()> {
     Ok(())
 }
 
-/// Stops the recording and returns the mixed file's path; `None` when no
-/// recording was running.
+/// Stops the recording and returns the mixed file's path; `None` when none was running.
 #[tauri::command]
 pub async fn stop_audio_capture() -> Result<Option<String>, CaptureError> {
-    // Stopping joins the capture threads and writes the mix: blocking work,
-    // kept off the async runtime so other IPC never stalls. The recorder stays
-    // held until the mix is written, so nothing (recovery, a quit) sees its
-    // tracks as abandoned mid-stop.
+    // Blocking work off the async runtime; the recorder stays held so nothing sees the tracks as abandoned.
     let output = tauri::async_runtime::spawn_blocking(|| {
         let mut active = recorder();
         active.take().map(Recorder::stop).transpose()
@@ -219,9 +209,7 @@ impl From<Recovered> for RecoveredRecording {
     }
 }
 
-/// Mixes down recordings a quit, crash, or failed mix left as tracks. It holds
-/// the recorder, and does nothing while a recording runs, so a recording's
-/// own tracks are never touched.
+/// Mixes down tracks left by a quit, crash, or failed mix; does nothing while a recording runs.
 #[tauri::command]
 pub async fn recover_recordings(
     app: AppHandle,

@@ -1,23 +1,4 @@
-/**
- * Recording Feature Module
- *
- * Handles all recording-related functionality:
- * - Recording controls (start, stop, pause, resume)
- * - Audio source selection
- *
- * Usage:
- * ```tsx
- * import { RecordingProvider, useRecording } from '@/features/recording';
- *
- * // Wrap your app with the provider
- * <RecordingProvider>
- *   <App />
- * </RecordingProvider>
- *
- * // Use the hook in components
- * const { startRecording, stopRecording, status } = useRecording();
- * ```
- */
+/** Recording feature: provider, controls, and audio source selection. */
 
 // Context
 export { RecordingProvider, useRecordingContext, useRecordingSessions } from './context';

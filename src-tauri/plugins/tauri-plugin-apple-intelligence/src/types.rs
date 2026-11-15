@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// Why Apple Intelligence can or can't run (HEX `apple_intelligence::Availability`).
+/// Why Apple Intelligence can or can't run.
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Availability {

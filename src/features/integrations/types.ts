@@ -1,9 +1,6 @@
 import type { PermissionState } from '@services/permissions.service';
 
-/**
- * macOS access for an integration; `unknown` until macOS answers, so nothing renders on a guess.
- * `unavailable`: this Mac can't run it (and the user can't fix that here) — see `unavailableReason`.
- */
+/** macOS access for an integration; `unknown` until macOS answers, `unavailable` when this Mac can't run it. */
 export type IntegrationAccess = PermissionState | 'unknown' | 'unavailable';
 
 /** What every integration hook returns; `IntegrationRow` renders exactly this. */

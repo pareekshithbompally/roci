@@ -1,12 +1,4 @@
-/**
- * useAppUpdate endpoint-failure tests.
- *
- * The updater endpoint (latest.json on GitHub Releases) 404s until the first
- * release with updater artifacts is published, and dev builds can never be
- * updated. The automatic startup check must stay silent in those cases instead
- * of tripping the hook into an error state (and the Rust updater ERROR log),
- * while a manual "Check for Updates" must still surface real failures.
- */
+/** The startup update check stays silent when the endpoint 404s or in dev; a manual check surfaces failures. */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';

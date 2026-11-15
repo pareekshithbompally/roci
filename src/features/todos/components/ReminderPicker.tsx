@@ -1,7 +1,4 @@
-/**
- * ReminderPicker — Popover for setting/editing a todo reminder.
- * Kit Popover with quick options and a custom DatePicker/TimePicker.
- */
+/** Popover for setting or editing a todo reminder: quick options plus a custom date/time picker. */
 
 import React, { useState, useMemo } from 'react';
 import { Bell, BellRing, Clock } from 'lucide-react';

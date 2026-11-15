@@ -220,8 +220,7 @@ describe('isValidAudioFile', () => {
   });
 
   it('rejects file that is too large', () => {
-    // Blob constructor creates actual data, so file.size is the real byte count.
-    // Create a file larger than maxSizeMB (use tiny limit to keep test fast)
+    // Blob gives a real byte size; a tiny limit keeps the test fast.
     const file = makeFile('test.mp3', 'audio/mpeg', 200);
     // 200 bytes > 0.0001 MB (~104 bytes)
     const result = isValidAudioFile(file, 0.0001);

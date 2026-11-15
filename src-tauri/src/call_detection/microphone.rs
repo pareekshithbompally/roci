@@ -1,7 +1,4 @@
-//! Which applications hold the microphone, and which call apps and
-//! browsers they are. Applications are keyed by macOS bundle identifiers;
-//! helper and variant bundle identifiers map to the same keys through
-//! [`canonical_bundle_id`](ActiveMicrophoneApplication::canonical_bundle_id).
+//! Which apps hold the microphone and which call apps or browsers they are, keyed by canonical bundle id.
 
 use std::ffi::c_void;
 use std::mem::size_of;
@@ -50,8 +47,7 @@ impl ActiveMicrophoneApplication {
     }
 }
 
-/// One entry per application: a call app's helpers and windows hold the
-/// microphone as one.
+/// One entry per application: a call app's helpers and windows hold the microphone as one.
 fn deduplicated(
     mut applications: Vec<ActiveMicrophoneApplication>,
 ) -> Vec<ActiveMicrophoneApplication> {
@@ -193,10 +189,7 @@ fn resolve_application_with(
         });
     }
 
-    // Chromium and Electron run microphone input in a sandboxed utility
-    // process (`audio.mojom.AudioService`) that does not register with
-    // LaunchServices, so `NSRunningApplication(processIdentifier:)` returns
-    // nil for the helper PID while its parent process is the host browser/app.
+    // Chromium/Electron mic helpers are not in LaunchServices, so walk up to the parent host app.
     let mut current_pid = pid;
     for _ in 0..4 {
         let Some(parent) = lookup_parent_pid(current_pid) else {
@@ -301,9 +294,7 @@ fn parent_pid(pid: i32) -> Option<i32> {
     (ppid > 1 && ppid != pid).then_some(ppid)
 }
 
-/// AppKit returns these lookups autoreleased. The meeting watcher polls from
-/// a plain thread with no pool to drain them, so each poll would otherwise
-/// keep every `NSRunningApplication` it touched for the life of the process.
+/// Wraps AppKit lookups in an autorelease pool; the watcher's plain thread would otherwise leak each poll.
 pub fn active_microphone_applications() -> Result<Vec<ActiveMicrophoneApplication>> {
     objc2::rc::autoreleasepool(|_| inspect_microphone_applications())
 }
@@ -482,8 +473,7 @@ mod tests {
         info.ri_phys_footprint
     }
 
-    /// Polls like the meeting watcher, from a thread without an autorelease
-    /// pool. Run alone: footprint is process-wide.
+    /// Polls like the meeting watcher, from a thread without an autorelease pool; run alone (process-wide).
     #[test]
     #[ignore = "measures process footprint; needs another app using the microphone"]
     fn polling_microphone_activity_does_not_accumulate_running_applications() {
@@ -506,9 +496,7 @@ mod tests {
 
     #[test]
     fn resolves_unregistered_chromium_and_electron_audio_helpers_to_their_host_apps() {
-        // Brave's sandboxed `audio.mojom.AudioService` helper is not registered in
-        // `NSRunningApplication`, reports `com.brave.Browser.helper` to CoreAudio,
-        // and is a child of the main `Brave Browser` process.
+        // Brave's unregistered audio helper reports `com.brave.Browser.helper` and is a child of Brave.
         let brave = resolve_application_with(
             2352,
             Some("com.brave.Browser.helper".into()),

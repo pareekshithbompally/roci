@@ -83,8 +83,7 @@ pub async fn models(endpoint: &Endpoint) -> Result<Vec<HexModel>, HexError> {
     read_json(response).await
 }
 
-/// Sends one complete PCM WAV. `Vec<u8>` bodies carry `Content-Length` (Hex refuses chunked uploads).
-/// No overall timeout: a 15-minute part on a large model can legitimately take minutes.
+/// Sends one WAV with `Content-Length` (Hex refuses chunked uploads) and no overall timeout.
 pub async fn transcribe(endpoint: &Endpoint, wav: Vec<u8>, model: &str, language: &str) -> Result<String, HexError> {
     let response = client()
         .post(format!("{}/transcriptions", endpoint.base_url))

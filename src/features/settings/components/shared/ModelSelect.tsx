@@ -1,10 +1,4 @@
-/**
- * ModelSelect — the one model picker in Settings: usable models grouped by
- * provider, then a single "Needs setup" group whose rows say the next step.
- * A row with a `setup` step (download a voice, allow Speech Recognition) shows
- * it at its end, and choosing that row runs the step instead of selecting it.
- * Every capability (chat, speech, summaries, knowledge graph, read aloud) uses it.
- */
+/** The one Settings model picker: usable models by provider, then "Needs setup" rows that run their step. */
 
 import React, { useMemo } from 'react';
 import { Download, Loader2 } from 'lucide-react';

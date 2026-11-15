@@ -1,7 +1,4 @@
-/**
- * CalendarIntegration — macOS Calendar: the connection and the week view.
- * Meeting reminders are switched in Settings › Notifications.
- */
+/** macOS Calendar connection and week view; meeting reminders are switched in Settings › Notifications. */
 
 import React from 'react';
 import { CalendarDays } from 'lucide-react';

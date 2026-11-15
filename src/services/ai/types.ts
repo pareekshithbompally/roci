@@ -1,7 +1,3 @@
-/**
- * AI SDK Layer — Slim Type Definitions
- */
-
 /** A citation from a web search result */
 export interface WebCitation {
   url: string;

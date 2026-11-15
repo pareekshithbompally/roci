@@ -1,9 +1,4 @@
-/**
- * Theme Context
- * 
- * Global theme management (light/dark/system).
- * Provides useThemeContext() for accessing theme state.
- */
+/** Global light/dark/system theme. */
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { isTauriEnvironment } from '@services/tauri';
@@ -29,23 +24,7 @@ interface ThemeProviderProps {
   storageKey?: string;
 }
 
-/**
- * ThemeProvider
- * 
- * Manages theme state and applies it to the document.
- * 
- * @example
- * ```tsx
- * <ThemeProvider>
- *   <App />
- * </ThemeProvider>
- * ```
- */
-/**
- * Match the native window's appearance to the app theme, so AppKit chrome (traffic
- * lights, title bar, vibrancy) is drawn for the same light/dark as the web content.
- * 'system' hands the choice back to macOS.
- */
+/** Match the native window's appearance to the app theme so AppKit chrome agrees; 'system' defers to macOS. */
 function syncNativeWindowTheme(theme: Theme): void {
   if (!isTauriEnvironment()) return;
   import('@tauri-apps/api/window')
@@ -111,22 +90,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({
   );
 };
 
-/**
- * useThemeContext Hook
- * 
- * Access theme state and controls.
- * 
- * @example
- * ```tsx
- * const { theme, setTheme, isDark } = useThemeContext();
- * 
- * return (
- *   <button onClick={() => setTheme(isDark ? 'light' : 'dark')}>
- *     Toggle Theme
- *   </button>
- * );
- * ```
- */
 export const useThemeContext = (): ThemeContextValue => {
   const context = useContext(ThemeContext);
   if (!context) {

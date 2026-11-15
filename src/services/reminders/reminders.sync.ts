@@ -1,16 +1,4 @@
-/**
- * remindersSync — keeps Kasset to-dos and the chosen Reminders list in step.
- *
- *  Kasset → Reminders   `added` creates reminders for new action items;
- *                       `changed` updates an existing one only (a reminder the
- *                       user deleted in Reminders never comes back on an edit).
- *  Reminders → Kasset   `pull` copies completion back when the reminders
- *                       database changes or the app comes to the front.
- *
- * Kasset's own writes echo back as change events; their states already match,
- * so `pull` changes nothing — there is no loop. Every method logs and never
- * throws, so a sync failure can't fail the to-do mutation that called it.
- */
+/** Two-way to-do ↔ Reminders sync (completion pulls back); own writes echo harmlessly; logs and never throws. */
 
 import { store } from '@services/db';
 import { queryClient } from '@shared/query/queryClient';

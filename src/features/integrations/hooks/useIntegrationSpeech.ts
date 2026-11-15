@@ -1,8 +1,4 @@
-/**
- * Integration speech sources — Hex and Apple Speech status as TanStack queries
- * (re-checked on window focus), fetched only while each integration is on.
- * Surfaces (Settings › Capabilities, composer mic, menubar) read `useIntegrationSpeech`.
- */
+/** Hex and Apple Speech status as queries (re-checked on focus), fetched only while each integration is on. */
 
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';

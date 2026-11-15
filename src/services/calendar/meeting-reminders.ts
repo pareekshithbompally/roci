@@ -1,10 +1,4 @@
-/**
- * Meeting reminders — the webview side of the native reminder watcher
- * (src-tauri/src/meeting_reminders, HEX's reminder poll). Rust decides when a
- * reminder shows and posts the macOS notification; the webview only says
- * whether reminders are on (and the lead time), and starts the recording when
- * Record or Join & record is chosen.
- */
+/** Meeting reminders: Rust times and posts them; the webview sends on/lead time and starts recording on Record. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';

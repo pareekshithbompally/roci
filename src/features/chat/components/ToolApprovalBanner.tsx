@@ -1,10 +1,4 @@
-/**
- * ToolApprovalBanner
- *
- * "May this MCP tool run?" prompt above the chat input (Jan's tool approval
- * dialog). Shows the oldest pending request; answers resolve the awaiting
- * tool call. Same shell as TodoConfirmationBanner.
- */
+/** "May this MCP tool run?" above the chat input; answers resolve the oldest pending tool call. */
 
 import React from 'react';
 import { ShieldQuestion } from 'lucide-react';

@@ -1,10 +1,4 @@
-//! The Hex integration: Hex's transcription models (its loopback HTTP API) and
-//! one-way meeting sync (its versioned CLI JSON + the meeting-finished stream).
-//!
-//! Hex publishes its loopback port and bearer token in an owner-only discovery
-//! file, read on every call (both change per Hex launch); the token stays in
-//! Rust. Splitting long recordings, progress and the meeting import happen in
-//! TypeScript. Kasset never writes to Hex.
+//! Hex app integration: its transcription models over loopback HTTP and one-way meeting sync.
 
 pub mod commands;
 mod client;

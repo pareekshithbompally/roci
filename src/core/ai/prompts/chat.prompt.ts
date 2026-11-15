@@ -1,9 +1,4 @@
-/**
- * Chat System Prompt
- *
- * Single source of truth for the Kasset chat system prompt.
- * Schema enforcement handles structure; this prompt describes content expectations.
- */
+/** Chat system prompt: describes content; structure is enforced by schema. */
 
 export interface ChatPromptOptions {
   contextBlock?: string;

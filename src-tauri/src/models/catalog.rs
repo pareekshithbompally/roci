@@ -1,7 +1,4 @@
-//! The curated models. Every file is pinned to a Hugging Face revision verified
-//! with the engine version in Cargo.toml, with its size and SHA-256; Phonon is
-//! the commit `ptts` itself loads by default (`ptts::checkpoint::DEFAULT_MODEL`),
-//! and its voices come from Gradium's voice catalog (Apache-2.0).
+//! The curated models, every file pinned to a Hugging Face revision with its size and SHA-256.
 
 use serde::Serialize;
 

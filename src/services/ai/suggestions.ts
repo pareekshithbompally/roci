@@ -1,12 +1,4 @@
-/**
- * Post-Response Suggestions
- *
- * Generates follow-up suggestions after a chat response completes.
- * Uses generateText() with Output.object() — non-streaming, so no
- * conflicts with native provider tools or web search.
- *
- * Best-effort: callers should .catch() and treat failure as no suggestions.
- */
+/** Best-effort follow-up suggestions after a reply, via non-streaming generateText; callers treat failure as none. */
 
 import { generateText, Output, jsonSchema } from 'ai';
 import { createModel } from './provider';

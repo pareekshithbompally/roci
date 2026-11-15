@@ -1,11 +1,4 @@
-/**
- * Unified AI Service — Thin Orchestrator
- *
- * Resolves models, builds prompts, delegates to the AI SDK,
- * and parses responses. No provider-specific logic lives here.
- *
- * Pipeline:  transcribeAudio (STT) → analyzeTranscript (LLM) = ProcessedResult
- */
+/** Thin AI orchestrator: transcribeAudio (STT) → analyzeTranscript (LLM); no provider-specific logic. */
 
 import { generateText } from 'ai';
 import { isIntegrationEnabled } from '@shared/utils/integrations';
@@ -76,9 +69,7 @@ export async function transcribeAudio(
   if (result.usage) {
     recordUsage('transcription', { provider: selection.provider, modelId: selection.model }, result.usage, meetingId);
   }
-  // VAD found no speech (or every part decoded to nothing): surfacing this as
-  // an error beats the alternative — the analyzer inventing a meeting about
-  // silence. Dictation callers swallow it into an empty insert.
+  // No speech is an error so the analyzer can't invent a meeting from silence; dictation treats it as empty.
   if (!result.text.trim()) {
     throw new Error('No speech detected in this recording — transcription skipped.');
   }

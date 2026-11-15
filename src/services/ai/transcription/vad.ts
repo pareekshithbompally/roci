@@ -1,13 +1,4 @@
-/**
- * Silero VAD Service
- *
- * Proxies speech detection to a Web Worker (see vad.worker.ts) so a large
- * recording never blocks the main thread. Returns speech spans in samples;
- * the pipeline decides what to transcribe from them.
- *
- * A VAD failure never blocks transcription — callers treat a rejection as
- * "unknown, transcribe everything" (today's behavior, logged loudly).
- */
+/** Speech detection via the VAD worker; callers treat a rejection as "transcribe everything". */
 
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import type { SpeechRange } from './types';
@@ -41,11 +32,7 @@ function getWorker(): Worker {
   return worker;
 }
 
-/**
- * Speech spans in `samples` at `sampleRate`, sorted and non-overlapping.
- * The input buffer is transferred to the worker (zero-copy); the caller
- * must not use it afterwards — slice first if the samples are still needed.
- */
+/** Sorted speech spans in samples; `samples` is transferred to the worker, so slice first if you still need it. */
 export async function getSpeechSegments(
   samples: Float32Array,
   sampleRate: number,

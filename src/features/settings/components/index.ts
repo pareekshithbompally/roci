@@ -1,7 +1,3 @@
-/**
- * Settings Feature Components
- */
-
 export { SettingsPanel } from './SettingsPanel';
 export { SettingsNav, SETTINGS_NAV_ITEMS } from './SettingsNav';
 export type { SettingsNavItem } from './SettingsNav';

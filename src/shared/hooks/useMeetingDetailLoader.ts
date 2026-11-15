@@ -45,14 +45,7 @@ function buildMeetingResult(detail: MeetingDetail): ProcessedResult {
   };
 }
 
-/**
- * Load a meeting's full detail into the result view.
- *
- * Uses the cached transcript/summary when present; otherwise shows a
- * placeholder immediately and fills in the disk detail when it arrives.
- * A generation counter drops late responses when the user selects another
- * item before the load finishes — the newest selection always wins.
- */
+/** Load a meeting's detail (cache, else placeholder then disk); a generation counter makes the newest selection win. */
 export function useMeetingDetailLoader() {
   const { setResult } = useAppActions();
   const generationRef = useRef(0);

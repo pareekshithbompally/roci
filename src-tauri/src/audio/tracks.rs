@@ -21,8 +21,7 @@ pub struct TrackManifest {
     pub first_arrival_us: Option<u64>,
     pub samples: u64,
     pub dropped_packets: u64,
-    /// Stretches where this source captured nothing while the meeting kept
-    /// recording, filled with silence so the track stays on the timeline.
+    /// Stretches this source missed while the meeting recorded, filled with silence to keep the timeline.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub gaps: Vec<TrackGap>,
 }
@@ -34,22 +33,16 @@ pub struct TrackGap {
     pub duration_ms: u64,
 }
 
-/// Written beside the tracks when capture ends, so a recording left behind
-/// by a quit or a failed mix is recovered with its alignment.
+/// Written beside the tracks when capture ends, so recovery keeps their alignment.
 pub(super) const STATS_FILE: &str = "tracks.json";
 
-/// How often the writer rewrites each track's WAV header, so a crash or
-/// force quit leaves tracks readable up to the last refresh.
+/// How often each WAV header is rewritten, so a crash leaves tracks readable up to the last refresh.
 const HEADER_REFRESH_INTERVAL: Duration = Duration::from_secs(1);
 
-/// A source that resumes after at least this much silence is padded back
-/// onto the timeline. Ordinary callback jitter and clock drift stay below it.
+/// A source resuming after this much silence is padded; callback jitter and clock drift stay below it.
 const GAP_PAD_THRESHOLD_MS: u64 = 1_000;
 
-/// Samples missing before `packet`, judged from its arrival on the shared
-/// capture clock against the samples this track already holds. Packets are
-/// stamped as they finish, so the packet's own length is subtracted; the
-/// estimate errs toward padding slightly too little rather than too much.
+/// Samples missing before `packet` by the capture clock, minus its own length; errs toward too little padding.
 fn missing_samples(track: &TrackManifest, packet: &AudioPacket) -> u64 {
     let Some(first_arrival_us) = track.first_arrival_us else {
         return 0;
@@ -86,10 +79,7 @@ pub(super) struct CaptureStats {
     pub(super) microphone: TrackManifest,
 }
 
-/// Writes each source's packets to its own 16 kHz track. Packets that arrive
-/// while `pause` holds are dropped, and later arrivals move back by the
-/// paused span, so a pause leaves no gap. `on_packet` sees every written
-/// packet.
+/// Writes each source to its own 16 kHz track; paused packets are dropped and the pause leaves no gap.
 pub(super) fn write_tracks(
     directory: &Path,
     receiver: Receiver<AudioPacket>,
@@ -213,8 +203,7 @@ pub(super) fn has_recorded_audio(stats: &CaptureStats) -> bool {
     stats.system.samples > 0 || stats.microphone.samples > 0
 }
 
-/// Removes a recording's tracks once they are no longer needed. A failure
-/// leaves them for recovery rather than failing the recording.
+/// Removes a recording's tracks; a failure leaves them for recovery rather than failing the recording.
 pub(super) fn remove_tracks(directory: &Path) {
     if let Err(error) = fs::remove_dir_all(directory) {
         tracing::warn!(%error, directory = %directory.display(), "could not remove meeting tracks");

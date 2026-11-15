@@ -1,10 +1,4 @@
-/**
- * useModelCatalog
- *
- * Loads the models.dev catalog (disk cache, else network) once per app run.
- * `capabilitiesOf()` and pricing read it synchronously; components call this
- * hook so they re-render when it arrives. Returns whether it has loaded.
- */
+/** Loads the models.dev catalog once per run so components re-render when it arrives; returns whether loaded. */
 
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@shared/query/queryKeys';

@@ -1,9 +1,4 @@
-/**
- * useRecording Hook
- * 
- * Main hook for accessing recording functionality.
- * Wraps the RecordingContext for convenient usage.
- */
+/** Convenience access to the recording context. */
 
 import { useRecordingContext } from '@features/recording/context';
 

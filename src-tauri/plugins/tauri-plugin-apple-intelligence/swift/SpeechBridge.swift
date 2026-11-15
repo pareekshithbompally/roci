@@ -2,13 +2,7 @@ import Foundation
 import AVFAudio
 import Speech
 
-// MARK: - Apple Speech (SpeechAnalyzer, macOS 26+) — C-compatible JSON bridge for Rust FFI
-//
-// Mirrors HEX `src/apple_speech.swift`: Speech Recognition authorization (the
-// native prompt; Info.plist `NSSpeechRecognitionUsageDescription`), the
-// per-locale model install (AssetInventory), then file transcription with
-// timestamps. Every function returns a JSON C string freed with
-// `apple_intelligence_free_string`.
+// MARK: - Apple Speech (SpeechAnalyzer, macOS 26+) — JSON C-string bridge, freed with `apple_intelligence_free_string`
 
 private struct SpeechFailure: Error {
     let kind: String
@@ -26,16 +20,7 @@ public func appleSpeechStatus(_ language: UnsafePointer<CChar>) -> UnsafeMutable
     return speechJSON(["available": true, "authorization": authorizationName(), "installed": (try? installed.get()) ?? false])
 }
 
-/// Asks for Speech Recognition (prompts only while undecided). `{"granted": bool}`
-/// or `{"error": {"kind": "unavailable", "message"}}` when this process can't ask.
-///
-/// macOS charges a privacy request to the *responsible* process and aborts it when
-/// that process's Info.plist lacks `NSSpeechRecognitionUsageDescription`. HEX
-/// therefore asks only from a launched app bundle (`HEX Service.app`, its own
-/// Info.plist). Kasset follows the same rule: a decided state returns its verdict
-/// without asking; an undecided one asks only when Kasset runs as its `.app`.
-/// `tauri dev` runs the bare binary from a terminal — the terminal is responsible
-/// there — so it gets `unavailable` instead of a crash.
+/// `{"granted"}`; asks only from the `.app` (else `unavailable`): macOS aborts a responsible process lacking the key.
 @_cdecl("apple_speech_request_access")
 public func appleSpeechRequestAccess() -> UnsafeMutablePointer<CChar> {
     switch SFSpeechRecognizer.authorizationStatus() {
@@ -126,7 +111,7 @@ private func transcribe(file: String, language: String) async throws -> [[String
 
 // MARK: - Helpers
 
-/// A launched `.app` with the usage description is its own responsible process (HEX Service.app's rule).
+/// A launched `.app` with the usage description is its own responsible process for privacy prompts.
 private func canAskForSpeechRecognition() -> Bool {
     Bundle.main.bundleURL.pathExtension == "app"
         && Bundle.main.object(forInfoDictionaryKey: "NSSpeechRecognitionUsageDescription") != nil

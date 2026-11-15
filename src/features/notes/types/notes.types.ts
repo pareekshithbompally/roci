@@ -1,9 +1,3 @@
-/**
- * Notes Feature Types
- * 
- * Type definitions for the notes feature module
- */
-
 export interface Note {
   id: string;
   text: string;

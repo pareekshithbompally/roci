@@ -1,17 +1,4 @@
-/**
- * useCalendarEvents Hook
- *
- * Subscribes to the calendarService event cache, polling state,
- * and initial fetch status. Transforms events into Schedule-X format.
- *
- * Exposes:
- * - events: raw EnrichedCalendarEvent[] from the cache
- * - scheduleXEvents: transformed events for Schedule-X consumption
- * - isEmpty: whether there are no displayable (non-all-day) events
- * - isEnabled: whether calendar polling is active (integration enabled + authorized)
- * - isInitialFetchDone: whether at least one cache refresh has completed
- * - refresh: trigger an immediate cache refresh (for Sync button)
- */
+/** Calendar event cache, polling and first-fetch state, plus the events mapped to Schedule-X format. */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Temporal } from 'temporal-polyfill';
@@ -19,11 +6,7 @@ import { calendarService } from '@services/calendar';
 import type { EnrichedCalendarEvent } from '@services/calendar';
 import type { CalendarEvent as ScheduleXCalendarEvent } from '@schedule-x/calendar';
 
-/**
- * Sanitize an EventKit event ID for use as a Schedule-X event ID.
- * Schedule-X uses IDs in CSS selectors (document.querySelector), so characters
- * like `:`, `@`, `.` that are invalid in CSS idents must be stripped.
- */
+/** Schedule-X puts event IDs in CSS selectors, so strip characters invalid in CSS idents. */
 function sanitizeEventId(eventId: string): string {
   return eventId.replace(/[^a-zA-Z0-9_-]/g, '-');
 }

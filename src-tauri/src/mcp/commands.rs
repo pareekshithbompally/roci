@@ -1,4 +1,4 @@
-//! Tauri commands for MCP (Jan's `commands.rs` surface, Kasset-namespaced).
+//! Tauri commands for MCP, Kasset-namespaced.
 
 use rmcp::model::{CallToolRequestParams, CallToolResult, ContentBlock};
 use serde::Serialize;
@@ -72,8 +72,7 @@ pub async fn get_connected_mcp_servers(state: State<'_, McpState>) -> Result<Vec
     Ok(state.servers.lock().await.keys().cloned().collect())
 }
 
-/// What a connected server says about itself in `initialize` (MCP
-/// `serverInfo`): display title, version, icon, website.
+/// What a connected server reports in `initialize` (`serverInfo`): title, version, icon, website.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct McpServerInfo {
@@ -109,8 +108,7 @@ pub async fn get_mcp_server_info(state: State<'_, McpState>) -> Result<Vec<McpSe
 
 // ── Tools ──
 
-/// Every tool from every connected server. A name offered by more than one
-/// server is dropped: a call to it could not be held to one server (Jan).
+/// Every tool from every connected server; a name offered by more than one server is dropped.
 #[tauri::command]
 pub async fn get_mcp_tools(state: State<'_, McpState>) -> Result<Vec<McpTool>, String> {
     let limit = state.settings.lock().await.tool_call_timeout();
@@ -160,8 +158,7 @@ fn drop_ambiguous(tools: Vec<McpTool>) -> Vec<McpTool> {
         .collect()
 }
 
-/// Call one tool on the named server, bounded by the timeout setting and
-/// cancellable through `cancel_mcp_tool_call(cancellation_token)`.
+/// Call one tool on the named server, bounded by the timeout and cancellable via `cancel_mcp_tool_call`.
 #[tauri::command]
 pub async fn call_mcp_tool(
     state: State<'_, McpState>,
@@ -210,7 +207,7 @@ pub async fn cancel_mcp_tool_call(
     Ok(())
 }
 
-// ── Result shaping (Jan's `truncate.rs`, flattened to text) ──
+// ── Result shaping ──
 
 fn block_text(block: &ContentBlock) -> String {
     match block {
@@ -222,8 +219,7 @@ fn block_text(block: &ContentBlock) -> String {
     }
 }
 
-/// Join the blocks (plus structured content when there is no text) and cap
-/// at `max_chars`, announcing the cut. `0` disables the cap.
+/// Join the blocks (structured content when there is no text) and cap at `max_chars`; `0` disables it.
 fn flatten_result(result: &CallToolResult, max_chars: u64) -> McpToolOutput {
     let mut text = result.content.iter().map(block_text).collect::<Vec<_>>().join("\n");
     if text.trim().is_empty()

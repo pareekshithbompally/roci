@@ -1,8 +1,4 @@
-/**
- * Consent gate for on-device model downloads. One persisted flag per model;
- * an explicit Download click grants it directly, and implicit triggers ask
- * once through the app-wide confirm(). Concurrent requests share one prompt.
- */
+/** On-device download consent: one flag per model; Download grants it, implicit triggers share one confirm(). */
 
 import { confirm, type ConfirmRequest } from '@shared/stores/confirmStore';
 

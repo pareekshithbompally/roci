@@ -1,12 +1,4 @@
-/**
- * manage_todo tool
- *
- * Builds a TodoProposal for user confirmation — does NOT write to DB directly.
- * The todoProposalStore.commit() handles the actual write after user approval.
- *
- * Supports: create, toggle, update, delete.
- * For toggle/update/delete, uses fuzzy text matching to find the target todo.
- */
+/** manage_todo: builds a create/toggle/update/delete TodoProposal; the write happens only after approval. */
 
 import type { ToolContext, ToolDefinition, ToolResult } from '@extensions/tools/types';
 import { store } from '@services/db';
@@ -164,10 +156,7 @@ export const manageTodoTool: ToolDefinition = {
   },
 };
 
-/**
- * Kasset's chat: queue the proposal for the user's approval. A caller that
- * already asked the user (a coding agent on Kasset's MCP server): save it now.
- */
+/** Chat queues the proposal for approval; a caller that already asked the user (MCP agent) saves at once. */
 async function submit(proposal: TodoProposal, context: ToolContext, summary: string): Promise<ToolResult> {
   if (context.approval === 'chat') {
     todoProposalStore.propose(proposal);
@@ -181,10 +170,7 @@ function todoResult(content: string): ToolResult {
   return { toolCallId: '', content, isError: false, meta: { toolName: 'manage_todo', executionMs: 0 } };
 }
 
-/**
- * Fuzzy match a todo by text content.
- * Scores based on: exact substring match > word overlap > partial word match.
- */
+/** Fuzzy-matches a todo by text: exact substring > word overlap > partial word. */
 function fuzzyMatchTodo(todos: TodoEntry[], query: string): TodoEntry | null {
   const queryLower = query.toLowerCase().trim();
   const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);

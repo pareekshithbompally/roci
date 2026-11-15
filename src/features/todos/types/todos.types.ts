@@ -1,9 +1,3 @@
-/**
- * Todos Feature Types
- * 
- * Type definitions for the todos feature module
- */
-
 import type { TodoReminder } from '@shared/types';
 
 export type TodoPriority = 'low' | 'medium' | 'high';

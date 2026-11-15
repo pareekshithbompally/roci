@@ -1,8 +1,4 @@
-/**
- * Calendar Service
- *
- * Public API for macOS Calendar integration via EventKit.
- */
+/** Public API for macOS Calendar via EventKit. */
 
 export { calendarService } from './calendar.service';
 export { configureMeetingReminders, onMeetingRecord } from './meeting-reminders';

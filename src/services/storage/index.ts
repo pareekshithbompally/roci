@@ -1,8 +1,4 @@
-/**
- * Storage Services - Central Export
- * Binary file services (cache, recordings, paths) for the app.
- * Data persistence is handled by kasset.db via @services/db.
- */
+/** Binary file storage (cache, recordings, paths); data lives in kasset.db via @services/db. */
 
 import { pathsService } from './paths.service';
 import { cacheService } from './cache.service';
@@ -22,9 +18,7 @@ export type {
   FileOperationOptions,
 } from './types';
 
-/**
- * Initialize storage — creates directories for recordings and cache.
- */
+/** Creates the recordings and cache directories. */
 export async function initializeStorage(): Promise<void> {
   console.log('[Storage] ========== Initializing storage system ==========');
 

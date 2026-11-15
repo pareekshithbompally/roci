@@ -1,5 +1,4 @@
-//! Shared helpers for commands that take a raw invoke body (audio, files) with
-//! their arguments in headers — the webview sends bytes without JSON encoding.
+//! Helpers for commands that take a raw invoke body (audio, files) with their arguments in headers.
 
 use tauri::ipc::{InvokeBody, Request};
 

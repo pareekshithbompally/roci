@@ -1,11 +1,4 @@
-/**
- * Recording Service
- * 
- * Business logic layer for recording operations.
- * Wraps coreAudioService with additional functionality like:
- * - Metadata management
- * - Error handling
- */
+/** Recording operations over coreAudioService, adding metadata management and error handling. */
 
 import { coreAudioService } from '@services/coreAudio.service';
 import { recordingsService } from '@services/storage';
@@ -35,16 +28,10 @@ class RecordingService {
   private currentFilename: string | null = null;
   private startTime: number | null = null;
 
-  /**
-   * Check if native recording is available
-   */
   isAvailable(): boolean {
     return isTauriEnvironment();
   }
 
-  /**
-   * Start a new recording
-   */
   async startRecording(options: StartRecordingOptions): Promise<StartRecordingResult> {
     if (!this.isAvailable()) {
       throw new Error('Native recording is available in the desktop app only.');
@@ -66,9 +53,6 @@ class RecordingService {
     return { recordingId, filename };
   }
 
-  /**
-   * Stop the current recording
-   */
   async stopRecording(): Promise<StopRecordingResult | null> {
     const result = await coreAudioService.stopCapture();
     
@@ -94,23 +78,15 @@ class RecordingService {
     return stopResult;
   }
 
-  /**
-   * Pause the current recording
-   */
   async pauseRecording(): Promise<void> {
     await coreAudioService.pauseCapture();
   }
 
-  /**
-   * Resume the current recording
-   */
   async resumeRecording(): Promise<void> {
     await coreAudioService.resumeCapture();
   }
 
-  /**
-   * Discard a recording (delete file if exists)
-   */
+  /** Discard a recording, deleting its file if it exists. */
   async discardRecording(filename?: string): Promise<void> {
     const fileToDelete = filename || this.currentFilename;
     
@@ -124,9 +100,6 @@ class RecordingService {
     this.startTime = null;
   }
 
-  /**
-   * Register recording metadata
-   */
   async registerRecording(
     filename: string,
     metadata: Omit<RecordingMetadata, 'filename' | 'createdAt'>
@@ -147,9 +120,6 @@ class RecordingService {
     return fullMetadata;
   }
 
-  /**
-   * Update recording metadata
-   */
   async updateRecordingMetadata(
     filename: string,
     updates: Partial<RecordingMetadata>
@@ -160,9 +130,6 @@ class RecordingService {
     });
   }
 
-  /**
-   * Get current recording info
-   */
   getCurrentRecording(): { recordingId: string | null; filename: string | null } {
     return {
       recordingId: this.currentRecordingId,

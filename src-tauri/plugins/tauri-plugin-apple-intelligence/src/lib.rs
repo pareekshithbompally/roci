@@ -1,7 +1,4 @@
-//! Apple's on-device models for Kasset: FoundationModels (summaries, through
-//! the AI SDK model in services/ai) and SpeechAnalyzer (a transcription engine).
-//! Requires `NSSpeechRecognitionUsageDescription` in Info.plist. Language-model
-//! calls need no permission — only availability (device, setting, model, macOS).
+//! On-device FoundationModels and SpeechAnalyzer; speech needs `NSSpeechRecognitionUsageDescription`.
 
 mod bridge;
 mod commands;

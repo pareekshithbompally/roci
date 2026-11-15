@@ -4,10 +4,7 @@ import type { LucideIcon } from 'lucide-react';
 import { cn } from './utils';
 import { Icon } from './icon';
 
-/**
- * Canonical button. Colour lives in `variant`, shape in `size` — call sites
- * pass props, never colour or padding classes.
- */
+/** Canonical button: colour lives in `variant`, shape in `size`; call sites never pass colour or padding classes. */
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'success' | 'accent' | 'ghost' | 'dangerGhost' | 'link' | 'ai';
 
 export type ButtonSize = 'inline' | 'sm' | 'md' | 'icon' | 'iconSm' | 'iconXs';
@@ -42,10 +39,7 @@ const SIZE_CLASSES: Record<ButtonSize, string> = {
 const BASE_CLASSES =
   'inline-flex items-center justify-center gap-1.5 font-medium transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 disabled:cursor-not-allowed';
 
-/**
- * Busy, not disabled: full opacity (the work is happening, not unavailable),
- * clicks swallowed, `aria-busy` for assistive tech.
- */
+/** Busy, not disabled: full opacity, clicks swallowed, `aria-busy` for assistive tech. */
 const LOADING_CLASSES = 'cursor-progress';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {

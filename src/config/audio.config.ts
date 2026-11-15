@@ -1,9 +1,4 @@
-/**
- * Audio Configuration
- * 
- * Centralized audio settings for recording, processing, and playback.
- * All audio-related parameters should be defined here.
- */
+/** Audio settings for recording, processing and playback. */
 
 export const AUDIO_CONFIG = {
   // Recording settings
@@ -49,8 +44,7 @@ export const AUDIO_CONFIG = {
     maxSizeBytes: 500 * 1024 * 1024,
     maxDurationSeconds: 7200, // 2 hours
 
-    // WAV validation thresholds
-    // WAV header is exactly 44 bytes. Any file ≤ this size contains no audio data.
+    // The WAV header is 44 bytes; any file this size or smaller holds no audio.
     wavHeaderSizeBytes: 44,
     // Minimum meaningful audio: header + at least 1 second of 16kHz 16-bit mono PCM = 32044 bytes
     minAudioSizeBytes: 44 + (16000 * 2),
@@ -130,11 +124,7 @@ export const AUDIO_CONFIG = {
   },
 } as const;
 
-/**
- * Import Configuration
- *
- * Constants for importing audio files and subtitle/transcript files.
- */
+/** Limits for importing audio and subtitle/transcript files. */
 export const IMPORT_CONFIG = {
   audio: {
     extensions: ['wav', 'mp3', 'm4a', 'webm', 'ogg', 'flac'],
@@ -165,9 +155,7 @@ export const IMPORT_CONFIG = {
   },
 } as const;
 
-/**
- * Audio device information
- */
+/** Audio device information. */
 export interface AudioDeviceInfo {
   deviceId: string;
   label: string;
@@ -176,33 +164,22 @@ export interface AudioDeviceInfo {
   isDefault?: boolean;
 }
 
-/**
- * Audio capture source options
- */
+/** Audio capture source options. */
 export type AudioCaptureSource =
   | 'microphone'
   | 'system'
   | 'systemAndMicrophone'
   | 'file-upload';
 
-/**
- * Validate audio file size
- */
 export function isAudioFileSizeValid(sizeBytes: number): boolean {
   return sizeBytes <= AUDIO_CONFIG.recording.maxSizeBytes;
 }
 
-/**
- * Validate recording duration
- */
 export function isRecordingDurationValid(durationSeconds: number): boolean {
   return durationSeconds <= AUDIO_CONFIG.recording.maxDurationSeconds;
 }
 
-/**
- * Backend events of the recording pipeline. Names mirror the Rust constants
- * (`audio/level.rs` LEVEL_EVENT, `window.rs` *_REQUESTED_EVENT).
- */
+/** Recording pipeline events; names mirror the Rust constants (`audio/level.rs`, `window.rs`). */
 export const RECORDING_EVENTS = {
   /** Level-meter frame; the frontend uses it as the capture heartbeat. */
   level: 'coreaudio-level',

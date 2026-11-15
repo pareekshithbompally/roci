@@ -1,13 +1,4 @@
-//! macOS notifications through `UNUserNotificationCenter` (Swift bridge, the
-//! calendar-plugin pattern).
-//!
-//! One way in: [`post`] (now) or [`schedule`] (at a wall-clock time, checked
-//! by an in-process timer like the meeting watcher — nothing is handed to the
-//! OS ahead of time). Posting skips muted kinds and asks for permission at the
-//! point of use.
-//!
-//! One way out: every answer goes to the Rust handlers
-//! ([`on_response_received`]) and to the webview as [`RESPONSE_EVENT`].
+//! macOS notifications; [`schedule`] uses an in-process timer, so nothing is handed to the OS ahead of time.
 
 mod bridge;
 mod commands;
@@ -79,14 +70,12 @@ pub struct Notice {
     pub category: Option<String>,
     #[serde(default)]
     pub user_info: HashMap<String, String>,
-    /// The user-facing kind (a Settings › Notifications switch); `None` is
-    /// never muted.
+    /// The user-facing kind (a Settings › Notifications switch); `None` is never muted.
     #[serde(default)]
     pub kind: Option<String>,
 }
 
-/// What the user did with a notification: an action id, `open` (clicked the
-/// banner) or `dismiss`.
+/// What the user did with a notification: an action id, `open` (clicked the banner) or `dismiss`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Response {
@@ -141,16 +130,14 @@ pub fn status() -> Status {
     bridge::status().map_or(Status::NotDetermined, |reply| Status::parse(&reply.status))
 }
 
-/// Ask macOS when undecided (raises its prompt). Blocks until answered, so
-/// never call it on the main thread.
+/// Raises the macOS prompt when undecided; blocks until answered, so never call it on the main thread.
 pub fn request() -> Status {
     bridge::request().map_or(Status::NotDetermined, |reply| Status::parse(&reply.status))
 }
 
 // ── Posting ──
 
-/// Add button sets. macOS keeps one set for the app, so every caller's
-/// categories are merged and registered together.
+/// Adds button sets; macOS keeps one set per app, so all callers' categories are merged and registered together.
 pub fn add_categories(categories: &[Category]) {
     let all = {
         let mut state = state();
@@ -201,8 +188,7 @@ pub fn post(notice: &Notice) {
     }
 }
 
-/// Post `notice` at `at_ms` (wall clock), replacing any timed notice with the
-/// same id. A past time posts on the next tick.
+/// Posts `notice` at `at_ms`, replacing a timed notice with the same id; a past time posts on the next tick.
 pub fn schedule(notice: Notice, at_ms: i64) {
     let mut state = state();
     state.timed.retain(|(_, timed)| timed.id != notice.id);

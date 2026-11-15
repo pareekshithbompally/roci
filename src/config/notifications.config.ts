@@ -1,8 +1,4 @@
-/**
- * Notifications — kinds the user can switch off (Settings › Notifications),
- * their copy and defaults, and the native bridge's event names and buttons.
- * The bridge itself is `tauri-plugin-notifications` (src-tauri/plugins).
- */
+/** Notification kinds, copy and defaults, plus the native bridge's event names and buttons. */
 
 import type { NotificationKind, NotificationSettings } from '@shared/types';
 

@@ -1,6 +1,4 @@
-/**
- * Embedding model download consent (see createConsentGate).
- */
+/** Embedding model download consent (see createConsentGate). */
 
 import { createConsentGate } from '@shared/utils/consentGate';
 

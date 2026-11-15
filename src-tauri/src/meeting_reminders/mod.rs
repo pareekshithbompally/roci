@@ -1,13 +1,4 @@
-//! Calendar meeting reminders, the way HEX surfaces them (`meeting/watcher.rs`
-//! `Reminders`): one background thread wakes every 500 ms, rereads EventKit
-//! only when its change count moves or once a minute, and runs the pure
-//! [`scheduler::ReminderScheduler`] on the wall clock. Nothing is handed to
-//! the OS ahead of time, so a moved or cancelled meeting never fires stale.
-//!
-//! A due reminder is a notification (Record / Join & record / Not now) posted
-//! through `tauri-plugin-notifications` (permission, dev fallback). The running
-//! app handles the answer: Join opens the call link, and Record or Join emits
-//! [`RECORD_EVENT`] with the event for the frontend's existing recording start.
+//! Calendar meeting reminders: a 500 ms poll of EventKit drives the scheduler and posts notifications.
 
 mod scheduler;
 
@@ -29,9 +20,9 @@ use scheduler::{
 /// Frontend: start recording this meeting (`CalendarEvent`).
 const RECORD_EVENT: &str = "meeting-reminders://record";
 
-/// HEX's controller loop interval.
+/// Controller loop interval.
 pub(crate) const TICK: Duration = Duration::from_millis(500);
-/// How often the poll rereads the calendar without a change notification (HEX).
+/// How often the poll rereads the calendar without a change notification.
 const CALENDAR_REREAD_MS: i64 = 60_000;
 /// Events read either side of now: covers late grace behind and any lead ahead.
 const READ_WINDOW_MS: i64 = 60 * 60 * 1_000;
@@ -174,7 +165,7 @@ fn categories() -> [Category; 2] {
     ]
 }
 
-/// "Starts in 2 min · Zoom" (HEX's capsule wording).
+/// "Starts in 2 min · Zoom".
 fn body(meeting: &CalendarMeeting) -> String {
     let minutes = minutes_until(meeting.start_ms, wall_clock_ms());
     let when = match minutes {
@@ -222,7 +213,7 @@ fn handle_response(response: &Response) {
         reminders.scheduler.answered(occurrence);
         (reminders.meeting_for(occurrence).cloned(), reminders.event_for(occurrence))
     };
-    // Answered with a button: its call is not offered again (HEX).
+    // Answered with a button: its call is not offered again.
     #[cfg(target_os = "macos")]
     if let Some(meeting) = &meeting
         && matches!(response.action.as_str(), ACTION_RECORD | ACTION_JOIN_RECORD | ACTION_NOT_NOW)
@@ -237,7 +228,7 @@ fn handle_response(response: &Response) {
     }
 }
 
-/// Join opens the call link; Record is ignored while already recording (HEX).
+/// Join opens the call link; Record is ignored while already recording.
 pub(crate) fn record(event: &CalendarEvent, join: bool) {
     if join {
         if let Some(url) = &event.meeting_url {
@@ -251,18 +242,14 @@ pub(crate) fn record(event: &CalendarEvent, join: bool) {
     emit(RECORD_EVENT, event);
 }
 
-/// The calendar meeting in progress that a detected call's app belongs to.
-/// Known only while reminders are on, which is what reads the calendar.
+/// The in-progress calendar meeting a detected call's app belongs to; known only while reminders are on.
 pub(crate) fn event_for_call(application: &str) -> Option<CalendarEvent> {
     let reminders = reminders();
     let meeting = current_for_call(&reminders.meetings, &[application], wall_clock_ms(), reminders.lead_ms)?;
     reminders.events.get(&meeting.id).cloned()
 }
 
-/// What a calendar meeting's answered reminder covers: its call service's
-/// detected-call keys until the meeting ends. Without a call link, the next
-/// call of any service, but only around the scheduled start, so one
-/// dismissal never silences other calls for the rest of a long event.
+/// An answered reminder's snooze: its service's calls until the meeting ends, else any call near the start.
 pub(crate) fn calendar_snooze(meeting: &CalendarMeeting) -> (Vec<String>, i64) {
     match &meeting.link {
         Some(link) => (link.provider.detection_keys().iter().map(|key| key.to_string()).collect(), meeting.end_ms),

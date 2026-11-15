@@ -1,7 +1,4 @@
-/**
- * useDeleteSession — confirm, delete, report. The one delete path for
- * sidebar sessions (meetings and chats).
- */
+/** The one delete path for sidebar sessions (meetings and chats): confirm, delete, report. */
 
 import { useCallback } from 'react';
 import { useHistoryData } from '@shared/contexts/HistoryContext';

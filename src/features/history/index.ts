@@ -1,9 +1,3 @@
-/**
- * History Feature Module
- * 
- * Complete history management functionality.
- */
-
 // Components
 export { HistoryItem, HistoryList, UnifiedSidebarItem, UnifiedList } from './components';
 

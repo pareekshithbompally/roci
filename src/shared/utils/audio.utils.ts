@@ -8,9 +8,7 @@ export const MAX_AUDIO_SIZE_BYTES = AUDIO_CONFIG.recording.maxSizeBytes;
 export const WAV_HEADER_SIZE_BYTES = AUDIO_CONFIG.recording.wavHeaderSizeBytes;
 export const MIN_AUDIO_SIZE_BYTES = AUDIO_CONFIG.recording.minAudioSizeBytes;
 
-/**
- * Detects the best supported audio MIME type for MediaRecorder in the current browser.
- */
+/** Best audio MIME type MediaRecorder supports in this webview. */
 export function getSupportedMimeType(): string | undefined {
   if (typeof MediaRecorder === 'undefined') return undefined;
 
@@ -30,9 +28,6 @@ export function getSupportedMimeType(): string | undefined {
   return undefined;
 }
 
-/**
- * Converts a Blob to a Base64 string for API usage.
- */
 export function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -47,9 +42,7 @@ export function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
-/**
- * Formats seconds into MM:SS format.
- */
+/** Seconds as MM:SS. */
 export function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);

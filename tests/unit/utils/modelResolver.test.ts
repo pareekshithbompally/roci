@@ -128,10 +128,8 @@ describe('resolveModel', () => {
 });
 
 // ── resolveChatModel ──────────────────────────────────────────────
-// Chat (and knowledge-graph extraction) resolve against the user's providers
-// only. Apple Intelligence is a summary source — no tool calling, 4k context —
-// so its switch never makes it a chat model.
 
+// Apple Intelligence is a summary source only (no tool calling, 4k context), never a chat model.
 describe('resolveChatModel', () => {
   const appleSettings = (enabled: boolean) =>
     ({

@@ -1,7 +1,3 @@
-/**
- * Chat Feature Components
- */
-
 export { ChatShell } from './ChatShell';
 export type { ChatShellProps } from './ChatShell';
 export { ChatPanel } from './ChatPanel';

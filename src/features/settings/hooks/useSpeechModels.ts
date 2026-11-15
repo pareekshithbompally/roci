@@ -1,8 +1,4 @@
-/**
- * Speech model hooks for the UI: what Settings › Capabilities and the composer mic can
- * use. Keyless sources: Kasset's own engine (its speech local models) and the
- * integrations (Hex, Apple Speech) from features/integrations.
- */
+/** Speech models for Settings and the composer mic; keyless sources are local models, Hex and Apple Speech. */
 
 import { useMemo } from 'react';
 import { queryClient } from '@shared/query/queryClient';
@@ -32,10 +28,7 @@ function useSpeechSources(): SpeechSources {
   return useMemo(() => ({ ...integrations, ...(models ? { onDevice: { models: speechModels(models) } } : {}) }), [integrations, models]);
 }
 
-/**
- * Every speech model with whether it can run now (Settings › Capabilities).
- * Audio-input models come from models.dev, so the list refreshes once the catalog loads.
- */
+/** Every speech model and whether it can run now; refreshes once the models.dev catalog loads. */
 export function useSpeechModelOptions(): SpeechModelOption[] {
   const { providers } = useSettings();
   const sources = useSpeechSources();
@@ -53,11 +46,7 @@ export interface LiveDictation {
   model: string;
 }
 
-/**
- * How dictation transcribes now: live when Real-time transcription is on and
- * the chosen speech model streams and is ready; null → it transcribes the
- * clip when it ends.
- */
+/** Live dictation when Real-time transcription is on and the model streams; null → transcribe the clip at end. */
 export function useLiveDictation(): LiveDictation | null {
   const { settings } = useSettings();
   const options = useSpeechModelOptions();
@@ -79,10 +68,7 @@ export function useSpeechInputReady(): boolean {
   return isSpeechSelectionReady(speechSelectionOf(settings), providers, sources);
 }
 
-/**
- * Every keyless source read again now, for a pick made outside the window
- * (the tray): a model may have been removed or Hex quit since the list was built.
- */
+/** Re-read keyless sources for a tray pick, since a model may have gone or Hex quit since the list was built. */
 export async function freshSpeechSources(): Promise<SpeechSources> {
   const [models, hex, apple] = await Promise.all([
     queryClient.fetchQuery({ queryKey: queryKeys.localModels(), queryFn: getLocalModels, staleTime: 0 }),

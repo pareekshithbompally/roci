@@ -1,9 +1,4 @@
-/**
- * HomeView Component
- * 
- * Main home view that renders different states based on app status.
- * Recording UI is handled by ActivityTray (global overlay).
- */
+/** Home view switched on app status; the recording UI lives in ActivityTray instead. */
 
 import React from 'react';
 import { LayoutGroup } from 'framer-motion';

@@ -1,10 +1,4 @@
-/**
- * System Info Store
- *
- * External store for InterfacePanel data: index stats, disk usage,
- * storage path, and app version. Loads lazily once, cached in-module.
- * Uses useSyncExternalStore — survives component unmounts.
- */
+/** Lazily loaded, module-cached index stats, disk usage, storage path and version for the General panel. */
 
 import { useSyncExternalStore } from 'react';
 import { isTauriEnvironment } from '@services/tauri';

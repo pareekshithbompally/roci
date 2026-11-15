@@ -1,9 +1,4 @@
-/**
- * RenameModal Component
- *
- * Compact dialog for renaming sidebar items.
- * Uses Radix Dialog primitives from @shared/ui.
- */
+/** Compact dialog for renaming sidebar items. */
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Button, Dialog, DialogContent, DialogOverlay, DialogPortal, DialogTitle, Input } from '@shared/ui';

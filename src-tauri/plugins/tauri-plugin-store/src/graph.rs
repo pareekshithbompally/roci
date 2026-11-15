@@ -77,8 +77,7 @@ fn validate_filter_value(value: &str) -> Result<(), String> {
 
 // ── Core Functions ──
 
-/// Upsert nodes and edges for a meeting.
-/// Deletes all existing edges from this meeting first (idempotent re-extraction).
+/// Upserts a meeting's nodes and edges, first deleting its old edges so re-extraction is idempotent.
 pub fn upsert_meeting_graph(
     conn: &Connection,
     meeting_id: &str,
@@ -402,8 +401,7 @@ pub fn stats(conn: &Connection) -> Result<GraphStats, String> {
     })
 }
 
-/// Prune nodes with zero edges (orphans).
-/// Meeting nodes are preserved — they are anchors even without edges.
+/// Prunes nodes with no edges, keeping meeting nodes as anchors.
 fn prune_orphan_nodes(conn: &Connection) -> Result<u64, String> {
     let deleted = conn
         .execute(

@@ -1,6 +1,4 @@
-//! Opens the few native places Kasset sends the user to — System Settings
-//! privacy panes and the Hex app — by name. The webview can't open arbitrary
-//! URLs (the shell scope only allows web links), so the targets live here.
+//! Opens the native places Kasset sends the user to (privacy panes, the Hex app); the webview can't.
 
 use serde::Deserialize;
 use std::process::Command;

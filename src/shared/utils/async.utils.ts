@@ -1,26 +1,6 @@
-/**
- * Async Utilities
- *
- * Reusable concurrency primitives for bounded-parallel operations.
- * Use these instead of raw Promise.all(items.map(...)) when the item count
- * is unbounded or could grow with user data (meetings, chats, files).
- */
+/** Bounded-concurrency primitives for item counts that grow with user data (meetings, chats, files). */
 
-/**
- * Like `Promise.all(items.map(fn))` but with bounded concurrency.
- *
- * - Processes at most `limit` items simultaneously
- * - Returns results in original order (same contract as Promise.all)
- * - Respects AbortSignal for cancellation (skips remaining items)
- * - On individual item failure: rejects immediately (fail-fast)
- *
- * @example
- * const hashes = await concurrencyMap(
- *   meetings,
- *   (m) => computeContentHash(m),
- *   { limit: HASH_CONCURRENCY }
- * );
- */
+/** `Promise.all(items.map(fn))` with at most `limit` in flight: ordered results, fail-fast, stops on abort. */
 export async function concurrencyMap<T, R>(
   items: T[],
   fn: (item: T, index: number) => Promise<R>,

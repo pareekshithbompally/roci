@@ -1,8 +1,4 @@
-/**
- * McpServerCard — one configured server row: labelled live status (with Retry
- * when an enabled server is not connected), transport details (secrets
- * masked), edit / delete actions, and the enable switch.
- */
+/** One MCP server row: live status (Retry when offline), masked transport details, edit/delete, enable switch. */
 
 import React from 'react';
 import { Pencil, Trash2 } from 'lucide-react';

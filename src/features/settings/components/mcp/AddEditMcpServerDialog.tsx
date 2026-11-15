@@ -1,7 +1,4 @@
-/**
- * AddEditMcpServerDialog — add or edit one server by form, or paste JSON
- * (Jan's AddEditMCPServer: STDIO / HTTP / SSE, args, env, headers, timeout).
- */
+/** Add or edit one MCP server by form (STDIO / HTTP / SSE, args, env, headers, timeout) or pasted JSON. */
 
 import React, { useEffect, useState } from 'react';
 import { Braces } from 'lucide-react';

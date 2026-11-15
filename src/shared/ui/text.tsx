@@ -2,12 +2,7 @@ import React from 'react';
 import { cn } from './utils';
 import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 
-/**
- * Canonical text. `variant` picks the macOS text style, `tone` the colour role —
- * features never write font sizes or text colours.
- *
- *   <Text variant="helper" tone="muted">Saved automatically</Text>
- */
+/** Canonical text: `variant` picks the macOS text style, `tone` the colour role; features never write either. */
 /** `inherit` keeps the surrounding size (inline links inside headings / table cells). */
 export type TextVariant = keyof typeof TYPOGRAPHY_CLASSES | 'inherit';
 

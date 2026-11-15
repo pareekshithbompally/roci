@@ -1,7 +1,4 @@
-/**
- * useOpenMeeting — show one meeting's results on home: the sidebar, search,
- * and `kasset://meeting/<id>` all open a meeting through this.
- */
+/** Show one meeting on home; the sidebar, search and `kasset://meeting/<id>` all open meetings through this. */
 
 import { useCallback } from 'react';
 import { useAppActions } from '@shared/stores/appStore';

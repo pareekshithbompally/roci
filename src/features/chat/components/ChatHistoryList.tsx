@@ -1,9 +1,4 @@
-/**
- * ChatHistoryList Component
- *
- * Displays a searchable, paginated list of chat sessions.
- * Renders from the lightweight index (no messages required).
- */
+/** Searchable, paginated chat session list, rendered from the index alone. */
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, MessageSquare, Trash2, Edit2, Check, X } from 'lucide-react';

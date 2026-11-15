@@ -1,8 +1,4 @@
-/**
- * ChatView Component
- *
- * Full-screen chat view for main layout. Thin wrapper around ChatShell.
- */
+/** Full-screen chat view around ChatShell. */
 
 import React from 'react';
 import { ChatShell } from './ChatShell';

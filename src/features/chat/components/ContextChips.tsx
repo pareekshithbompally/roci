@@ -1,8 +1,4 @@
-/**
- * ContextChips Component
- * 
- * Displays selected meeting references as removable chips above the chat input.
- */
+/** Selected meeting references as removable chips above the chat input. */
 
 import React from 'react';
 import { X, FileAudio } from 'lucide-react';

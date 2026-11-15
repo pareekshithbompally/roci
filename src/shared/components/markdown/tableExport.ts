@@ -1,7 +1,4 @@
-/**
- * Markdown table → text, via Streamdown's own converters (single source of
- * truth for parsing a rendered table). Formats are data; menus map over them.
- */
+/** Markdown table to text via Streamdown's own converters; formats are data that menus map over. */
 
 import { extractTableDataFromElement, tableDataToCSV, tableDataToMarkdown, tableDataToTSV } from 'streamdown';
 import type { TableData } from 'streamdown';

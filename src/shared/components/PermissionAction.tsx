@@ -1,8 +1,4 @@
-/**
- * PermissionAction — the one control for a macOS permission row:
- * ✓ Allowed · [Allow] (macOS can still prompt) · [Open Settings] (only the user can change it).
- * Used by the recording permission checklist and every integration row.
- */
+/** The one control for a macOS permission row: Allowed, [Allow] while macOS can prompt, else [Open Settings]. */
 
 import React from 'react';
 import { Check } from 'lucide-react';

@@ -1,8 +1,4 @@
-/**
- * Local models — the curated models Kasset downloads and runs on this Mac
- * (src-tauri/src/models): speech-to-text (transcribe.cpp) and read-aloud
- * voices (Phonon). Nothing is bundled; each downloads on demand.
- */
+/** Curated local models (speech-to-text and read-aloud voices), each downloaded on demand. */
 
 export const LOCAL_MODELS_CONFIG = {
   /** The picker group local models run under (speech and voice). */

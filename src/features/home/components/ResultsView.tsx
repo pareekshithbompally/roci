@@ -1,9 +1,4 @@
-/**
- * ResultsView Component
- * 
- * Display processed results with tabs for summary, transcript, todos, and notes.
- * Redesigned with native app look - no iframe wrapper, integrated with app header.
- */
+/** Processed meeting results with tabs for summary, transcript, todos, and notes. */
 
 import React, { useState, useRef, useEffect } from 'react';
 import {

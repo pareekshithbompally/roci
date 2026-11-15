@@ -1,9 +1,4 @@
-/**
- * Calendar Integration Types
- *
- * Types shared between the calendar service, notification system,
- * and meeting metadata pipeline.
- */
+/** Calendar types shared by the calendar service, notifications and meeting metadata. */
 
 import { CALENDAR_CONFIG } from '@config/calendar.config';
 
@@ -37,7 +32,7 @@ export interface CalendarEvent {
   is_cancelled: boolean;
   /** Shown as free time. */
   is_free: boolean;
-  /** Video call link, found natively (HEX `call_link`). */
+  /** Video call link, found natively. */
   meeting_url: string | null;
   /** The call service behind `meeting_url` ("Zoom", "Google Meet", …). */
   meeting_provider: string | null;

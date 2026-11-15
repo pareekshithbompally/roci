@@ -21,8 +21,7 @@ export const ResultsAudioPlayer: React.FC<ResultsAudioPlayerProps> = ({
   const startSession = useAudioPlayerStore((s) => s.startSession);
   const currentSession = useAudioPlayerStore((s) => s.session);
 
-  // Auto-start once per loaded URL. A plain currentSession dep would
-  // resurrect playback after the user stops it (session nulls out).
+  // Auto-start once per URL; keying on the session would restart playback after the user stops it.
   const startedForUrlRef = useRef<string | null>(null);
 
   useEffect(() => {

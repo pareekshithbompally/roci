@@ -1,17 +1,4 @@
-/**
- * Calendar-Recording Bridge
- *
- * Stores the calendar event for the next recording session.
- * Since only one recording can be active at a time, this is a simple
- * singleton store: set before starting, consume after stopping.
- *
- * Flow:
- * 1. User chooses "Record" or "Join & record" on a meeting reminder
- * 2. The calendar runtime calls setPendingCalendarEvent(event)
- * 3. Recording starts (its own ID is assigned internally)
- * 4. Recording stops → history item created
- * 5. History context calls consumePendingCalendarMeta() to attach metadata
- */
+/** Holds the calendar event for the next recording: set when a reminder starts it, consumed when it's saved. */
 
 import type { CalendarEvent } from './types';
 
@@ -45,11 +32,7 @@ export function setPendingCalendarEvent(event: CalendarEvent): void {
   };
 }
 
-/**
- * Retrieve and consume the pending calendar metadata.
- * Returns null if no calendar event is pending.
- * Automatically clears the pending state after consumption.
- */
+/** Takes and clears the pending calendar metadata; null when none is pending. */
 export function consumePendingCalendarMeta(): CalendarRecordingMeta | null {
   const meta = pendingEvent;
   pendingEvent = null;

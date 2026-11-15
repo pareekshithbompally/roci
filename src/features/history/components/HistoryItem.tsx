@@ -1,9 +1,3 @@
-/**
- * HistoryItem Component
- * 
- * Renders a single history item with actions.
- */
-
 import React from 'react';
 import { MoreHorizontal, Edit2, Trash2 } from 'lucide-react';
 import { HighlightedText } from '@shared/components';

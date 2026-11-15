@@ -1,7 +1,4 @@
-//! Apple Notes for Kasset: one note per meeting (summary + transcript) in a
-//! "Kasset" folder, written with Apple Events (Notes has no public API).
-//! Requires the `com.apple.security.automation.apple-events` entitlement and
-//! `NSAppleEventsUsageDescription`; the user grants Automation → Notes.
+//! One Apple Note per meeting, written via Apple Events; needs the apple-events entitlement and Automation consent.
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;

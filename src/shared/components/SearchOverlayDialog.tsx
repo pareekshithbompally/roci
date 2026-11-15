@@ -1,10 +1,4 @@
-/**
- * SearchOverlay Component
- *
- * Spotlight-style command palette triggered by Cmd+K.
- * Searches meeting content AND chat content via FTS5 in the Rust backend.
- * Built on cmdk (CommandDialog) for keyboard nav and focus management.
- */
+/** Cmd+K palette searching meeting and chat content via FTS5 in the Rust backend. */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AudioWaveform, Loader2, MessageSquare, Search, SearchX } from 'lucide-react';
@@ -68,11 +62,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
   </CommandDialog>
 );
 
-/**
- * Palette body. Mounts with the dialog content and unmounts after its exit
- * animation, so every open starts fresh and closing never blanks the frame
- * mid-animation — no reset effect needed.
- */
+/** Palette body; mounts and unmounts with the dialog content, so every open starts fresh with no reset effect. */
 function SpotlightBody({ onClose }: { onClose: () => void }) {
   const { items } = useUnifiedSidebar();
   const { setCurrentView, setStatus, setSelectedHistoryId, setResult } = useAppActions();
@@ -84,8 +74,7 @@ function SpotlightBody({ onClose }: { onClose: () => void }) {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Bumped on every keystroke and on unmount, so any in-flight response for an
-  // older query is dropped — newest query wins.
+  // Bumped per keystroke and on unmount so responses for older queries are dropped.
   const searchGenRef = useRef(0);
 
   const recentItems = useMemo(() => items.slice(0, RECENT_LIMIT), [items]);
@@ -94,8 +83,7 @@ function SpotlightBody({ onClose }: { onClose: () => void }) {
   const search = useCallback(
     async (q: string, gen: number) => {
       const memoryHits = titleHits(items, q);
-      // Paint title hits instantly only onto an empty list; otherwise hold the
-      // previous rows until the merged set lands — never a half-swapped list.
+      // Title hits paint only onto an empty list; otherwise keep rows until the merged set lands.
       setResults((prev) => (prev.length === 0 ? memoryHits : prev));
       try {
         const dbHits = await vectorDB.spotlightSearch({ query: q, limit: SPOTLIGHT_RESULTS_PER_SOURCE });
@@ -179,9 +167,7 @@ function SpotlightBody({ onClose }: { onClose: () => void }) {
           ) : null}
         </div>
       </div>
-      {/* Fixed frame: the dialog opens at its final size and never resizes as
-          results stream in. The status block renders from the same `results`
-          state as the rows, so status text and hits never share a frame. */}
+      {/* Fixed frame so the dialog never resizes as results stream in. */}
       <CommandList fill>
         {showRecents ? (
           <CommandGroup heading="Recent">
@@ -323,10 +309,7 @@ function FooterHints() {
 /** Server excerpts wrap matched terms in <<MARK>>…<</MARK>>. */
 const MARK_SPLIT = /<<MARK>>|<<\/MARK>>/;
 
-/**
- * Renders an excerpt with matched terms emphasised. Splitting on both markers
- * leaves matched terms at odd indices; a missing close marker degrades to text.
- */
+/** Excerpt with matched terms emphasised; a missing close marker degrades to plain text. */
 function HighlightedExcerpt({ raw }: { raw: string }) {
   return (
     <Text as="span" variant="helper" tone="muted" className="block truncate mt-0.5">

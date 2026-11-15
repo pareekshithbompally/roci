@@ -70,16 +70,7 @@ const ActionItemsSection: React.FC<{ items?: ActionItem[]; withOwner: boolean }>
   );
 };
 
-/**
- * SummaryView Component
- *
- * Renders structured summary fields directly — no regex/markdown parsing needed.
- * - Overview block
- * - Bullet lists: keyDiscussionPoints, decisionsMade, nextSteps
- * - Action items with owner/dueDate
- *
- * Falls back to raw markdown for legacy data (tldr/notes fields).
- */
+/** Renders structured summary fields directly; falls back to raw markdown for tldr/notes data. */
 const SummaryView: React.FC<SummaryViewProps> = ({ summary, structuredSummary }) => {
   // No summary data at all
   if (!summary && !structuredSummary) {

@@ -1,8 +1,4 @@
-/**
- * The microphone as engine-rate samples, in slices, while it records — for
- * live transcription. Taps an existing MediaStream (the composer's visualizer
- * keeps reading the same one); stopping releases only the tap.
- */
+/** Taps an existing mic MediaStream for engine-rate sample slices; stopping releases only the tap. */
 
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { failureLogger } from '@shared/utils/errors';

@@ -1,8 +1,4 @@
-/**
- * ServerIcon — an MCP server's own icon (from its `serverInfo.icons`), or a
- * neutral server glyph when it offers none or the image fails to load.
- * Presentational: callers look the icon up (useMcpServerInfo).
- */
+/** An MCP server's own icon, or a neutral server glyph when it has none or fails to load. */
 
 import React, { useState } from 'react';
 import { Server } from 'lucide-react';

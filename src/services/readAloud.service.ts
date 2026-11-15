@@ -1,8 +1,4 @@
-/**
- * Read aloud (src-tauri/src/tts): an engine's voices, speaking a reply's
- * markdown in one, and stopping. `speak` reports each chunk of text as its
- * audio begins and resolves when the reply has been spoken or was stopped.
- */
+/** Read aloud: voices, speak a reply's markdown (reporting each chunk as it starts), and stop. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';

@@ -1,11 +1,4 @@
-/**
- * Tool Approval Store
- *
- * In-flight "may this tool run?" prompts (Jan's useToolApprovalRequests).
- * The MCP tool bridge awaits `requestApproval`; the chat's ToolApprovalBanner
- * renders `pending` and answers with `resolveApproval`. Persisting an
- * "always allow" grant is the caller's job — this store only holds prompts.
- */
+/** Pending "may this tool run?" prompts between the MCP tool bridge and the banner; grants persist elsewhere. */
 
 import { create } from 'zustand';
 

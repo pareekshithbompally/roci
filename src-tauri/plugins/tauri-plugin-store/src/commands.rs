@@ -603,9 +603,7 @@ pub async fn initialize<R: Runtime>(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-// ══════════════════════════════════════════════════════════════════
-// Meeting Domain Commands (Phase 1)
-// ══════════════════════════════════════════════════════════════════
+// ── Meeting Domain Commands ──
 
 #[tauri::command]
 pub async fn meetings_list(
@@ -908,8 +906,7 @@ fn meetings_delete_impl(db: &Connection, id: &str) -> Result<MeetingsDeleteResul
         // Delete chunks (FTS5 triggers handle cleanup)
         tx.execute("DELETE FROM chunks WHERE meeting_id = ?1", [&id])?;
 
-        // Delete meeting — CASCADE handles: transcripts, summaries, recordings,
-        // notes, todos, reminders, meeting_categories, meeting_index_state, kg_edges
+        // CASCADE removes the meeting's transcripts, summaries, notes, todos, reminders, index state and KG edges.
         tx.execute("DELETE FROM meetings WHERE id = ?1", [&id])?;
 
         write_audit_log(&tx, "meeting", &id, "delete", None)?;
@@ -1085,9 +1082,7 @@ pub async fn save_transcription(
     Ok(())
 }
 
-// ══════════════════════════════════════════════════════════════════
-// Recording Commands
-// ══════════════════════════════════════════════════════════════════
+// ── Recording Commands ──
 
 #[derive(Debug, Deserialize)]
 pub struct RecordingUpsertInput {
@@ -1230,9 +1225,7 @@ pub async fn recordings_delete(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-// ══════════════════════════════════════════════════════════════════
-// Category Commands
-// ══════════════════════════════════════════════════════════════════
+// ── Category Commands ──
 
 #[tauri::command]
 pub async fn categories_list(
@@ -1329,9 +1322,7 @@ pub async fn categories_delete(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-// ══════════════════════════════════════════════════════════════════
-// Notes Commands (Phase 3)
-// ══════════════════════════════════════════════════════════════════
+// ── Notes Commands ──
 
 #[tauri::command]
 pub async fn notes_list(
@@ -1429,9 +1420,7 @@ pub async fn notes_delete(
     Ok(())
 }
 
-// ══════════════════════════════════════════════════════════════════
-// Todos Commands (Phase 3)
-// ══════════════════════════════════════════════════════════════════
+// ── Todos Commands ──
 
 fn collect_todos_with_reminders(
     conn: &Connection,
@@ -1669,9 +1658,7 @@ pub async fn todos_delete(
     Ok(())
 }
 
-// ══════════════════════════════════════════════════════════════════
-// Reminders Commands (Phase 3)
-// ══════════════════════════════════════════════════════════════════
+// ── Reminders Commands ──
 
 fn reminders_upsert_impl(
     db: &Connection,
@@ -1810,9 +1797,7 @@ pub async fn reminders_prune(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-// ══════════════════════════════════════════════════════════════════
-// Settings Commands (Phase 4)
-// ══════════════════════════════════════════════════════════════════
+// ── Settings Commands ──
 
 #[tauri::command]
 pub async fn settings_get_all(
@@ -1870,9 +1855,7 @@ pub async fn settings_set(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-// ══════════════════════════════════════════════════════════════════
-// Providers Commands (Phase 4)
-// ══════════════════════════════════════════════════════════════════
+// ── Providers Commands ──
 
 #[tauri::command]
 pub async fn providers_list(
@@ -1999,9 +1982,7 @@ pub async fn providers_delete(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-// ══════════════════════════════════════════════════════════════════
-// Chat Domain Commands (Phase 2)
-// ══════════════════════════════════════════════════════════════════
+// ── Chat Domain Commands ──
 
 #[tauri::command]
 pub async fn chats_list(
@@ -2231,12 +2212,9 @@ pub async fn chats_delete(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-// ══════════════════════════════════════════════════════════════════
-// RAG Indexing Commands (fixed for new schema)
-// ══════════════════════════════════════════════════════════════════
+// ── RAG Indexing Commands ──
 
-/// Insert or update a meeting's RAG metadata in meeting_index_state.
-/// Used by the RAG indexer to track staleness.
+/// Upserts a meeting's `meeting_index_state` so the RAG indexer can track staleness.
 #[tauri::command]
 pub async fn upsert_meeting_index(
     state: State<'_, StoreState>,
@@ -2675,9 +2653,7 @@ pub async fn rebuild_fts(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-// ══════════════════════════════════════════════════════════════════
-// Knowledge Graph Commands (unchanged logic, fixed error type)
-// ══════════════════════════════════════════════════════════════════
+// ── Knowledge Graph Commands ──
 
 #[tauri::command]
 pub async fn graph_upsert(
@@ -2794,9 +2770,7 @@ pub async fn graph_extracted_meeting_ids(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-// ══════════════════════════════════════════════════════════════════
-// Usage Tracking Commands (unchanged logic)
-// ══════════════════════════════════════════════════════════════════
+// ── Usage Tracking Commands ──
 
 #[tauri::command]
 pub async fn insert_usage(
@@ -2912,13 +2886,10 @@ pub async fn get_usage_summary(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-// ══════════════════════════════════════════════════════════════════
-// Chat Indexing Commands (fixed: chat_sessions → chats, session_id → chat_id)
-// ══════════════════════════════════════════════════════════════════
+// ── Chat Indexing Commands ──
 
 #[tauri::command]
-/// Record a chat's RAG staleness in chat_index_state. Does NOT touch the canonical
-/// `chats` table — that row is owned solely by `chats_upsert`. Mirrors `upsert_meeting_index`.
+/// Records a chat's RAG staleness in `chat_index_state`; never touches `chats`, which `chats_upsert` owns.
 fn mark_chat_indexed_impl(db: &Connection, session: &ChatSessionMeta) -> Result<(), StoreError> {
         let now = now_millis();
         db.execute(
@@ -3216,13 +3187,7 @@ pub async fn spotlight_search(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-// ══════════════════════════════════════════════════════════════════
-// Command-logic integration tests
-//
-// These exercise the `_impl` cores against an in-memory DB (the same
-// migrated schema the app uses). They guard the mutation flows that
-// `State<'_, StoreState>` makes impossible to test at the command layer.
-// ══════════════════════════════════════════════════════════════════
+// ── Command-logic tests: `_impl` cores on an in-memory DB, since `State` blocks command-layer tests ──
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3287,9 +3252,7 @@ mod tests {
     fn audit_ops(conn: &Connection, entity_type: &str, entity_id: &str) -> Vec<String> {
         let mut stmt = conn
             .prepare(
-                // Order by implicit rowid = true insertion order. created_at can tie on the same
-                // millisecond (create+update within one test), and the UUID `id` tiebreak is
-                // random — ordering by rowid keeps the asserted op sequence deterministic.
+                // rowid is insertion order; created_at can tie within a millisecond and `id` is random.
                 "SELECT operation FROM audit_log
                  WHERE entity_type = ?1 AND entity_id = ?2
                  ORDER BY rowid",
@@ -3306,11 +3269,8 @@ mod tests {
     }
 
     // ── Reminders regression (historical bug #1) ──────────────────────
-    //
-    // `reminders_upsert` once wrote audit_log.operation = "upsert", which the
-    // CHECK(operation IN ('create','update','delete')) rejected, silently
-    // rolling back every reminder save. This test fails if that regresses:
-    // it asserts a scheduled reminder row AND a VALID create/update audit op.
+
+    // A reminder save must write a create/update audit op; "upsert" fails the CHECK and rolls back.
 
     #[test]
     fn reminders_upsert_writes_valid_audit_op_and_persists() {
@@ -3524,9 +3484,7 @@ mod tests {
         assert_eq!(count(&conn, "SELECT COUNT(*) FROM recordings WHERE meeting_id = ?1", "m1"), 1);
     }
 
-    /// Regression: a meeting linked to a calendar event must keep that linkage through a
-    /// plain rename (meetings_upsert with no calendar fields) AND through save_transcription
-    /// (which never supplies calendar fields). Previously both wiped calendar_event_id to NULL.
+    /// Calendar linkage survives a rename and save_transcription, neither of which sends calendar fields.
     #[test]
     fn calendar_linkage_survives_rename_and_save_transcription() {
         let conn = db();
@@ -3589,10 +3547,7 @@ mod tests {
     fn save_transcription_rolls_back_fully_on_failure() {
         let conn = db();
 
-        // Force a deterministic failure at the summary insert stage (step 4),
-        // AFTER the meeting + transcript writes. A BEFORE INSERT trigger that
-        // RAISE(ABORT) makes the whole transaction roll back, so NOTHING for
-        // this meeting may persist.
+        // Abort at the summary insert, after the meeting and transcript writes; nothing may persist.
         conn.execute_batch(
             "CREATE TRIGGER fail_on_summary BEFORE INSERT ON summaries BEGIN
                  SELECT RAISE(ABORT, 'forced failure');

@@ -1,10 +1,4 @@
-/**
- * Settings auto-persist (save-on-edit) tests.
- *
- * Every mutation through SettingsContext must write through to disk after a
- * short debounce, with no explicit saveSettings() call — this is what replaced
- * the old dirty-tracking / save-footer machinery.
- */
+/** Every SettingsContext mutation must write through to disk after a short debounce, without saveSettings(). */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act, waitFor, fireEvent } from '@testing-library/react';

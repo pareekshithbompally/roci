@@ -1,6 +1,4 @@
-/**
- * Providers domain — list/upsert/activate/delete AI model providers.
- */
+/** Providers domain — list/upsert/activate/delete AI model providers. */
 
 import { call, modelProviderToRust, rustProviderToModelProvider, type RustProviderRow } from '@services/db/internal';
 import type { ModelProvider } from '@shared/types/modelProviders';

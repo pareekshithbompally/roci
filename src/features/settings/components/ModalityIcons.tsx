@@ -1,15 +1,4 @@
-/**
- * ModalityIcons Component
- *
- * Two variants for displaying model capabilities:
- *
- * "expanded" (default) — Individual badge chips for each modality + capability.
- *   Best for settings panels where space is available.
- *
- * "compact" — Three tiny indicators: Wrench, I, O.
- *   Hovering I/O reveals a rich tooltip listing the actual modalities with icons.
- *   Best for model pickers and tight inline contexts.
- */
+/** Model capabilities as badge chips (`expanded`) or three tiny indicators with hover tooltips (`compact`). */
 
 import React from 'react';
 import {
@@ -131,10 +120,7 @@ function toTooltipItems(mods: string[] | undefined) {
   });
 }
 
-/**
- * A single compact indicator (letter or icon) with a rich hover tooltip.
- * All elements are inline-flex so they sit on the same line.
- */
+/** A single compact indicator (letter or icon) with a rich hover tooltip. */
 const CompactIndicator: React.FC<{
   /** Render either a letter label or an icon */
   label?: string;

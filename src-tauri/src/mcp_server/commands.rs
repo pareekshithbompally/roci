@@ -1,5 +1,4 @@
-//! Webview ⇄ MCP server: tool publishing and replies (host), and the coding
-//! agents rows (Settings › Integrations).
+//! Webview ⇄ MCP server: tool publishing and replies, and the coding agents rows.
 
 use rmcp::model::Tool;
 use serde::Serialize;
@@ -10,11 +9,7 @@ use super::{
     host::{self, HostStatus, McpHostState, ToolReply},
 };
 
-/// The webview's tool list (MCP wire shape), sent once it has loaded.
-///
-/// `async` so it runs off the main thread: `emit_status` rebuilds the menu bar
-/// under its lock, and a menu rebuild on another thread waits on the main thread
-/// to create items — a sync command here deadlocks the app at launch.
+/// The webview's tool list; `async` because a sync command here deadlocks the menu rebuild at launch.
 #[tauri::command]
 pub async fn mcp_host_publish_tools(
     app: AppHandle,

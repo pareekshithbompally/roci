@@ -1,9 +1,4 @@
-/**
- * useAppleSpeechSetup — the one step Apple Speech still needs, for its row in
- * Settings › Capabilities › Speech recognition: allow Speech Recognition (the
- * macOS prompt, or System Settings once denied), then download the language's
- * speech model. Null once it can transcribe, or while Apple Intelligence is off.
- */
+/** Apple Speech's next setup step (allow Speech Recognition, then download the model); null once it can run. */
 
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';

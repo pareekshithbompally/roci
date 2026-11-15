@@ -1,9 +1,4 @@
-/**
- * NoteItem Component
- *
- * Displays a single note with edit and delete functionality.
- * Uses the notes context for actions.
- */
+/** A single note with edit and delete actions. */
 
 import React, { useState } from 'react';
 import { Trash2, Edit2, Check, X } from 'lucide-react';

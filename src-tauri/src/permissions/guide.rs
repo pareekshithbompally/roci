@@ -1,10 +1,4 @@
-//! The floating guide beside System Settings' Privacy & Security pane, ported
-//! from Hex (`src/desktop/permission_guide.rs` + `native/permission_guide.m`):
-//! it opens the pane for one permission, flies Kasset's tile from the click to
-//! a drag tile beside System Settings (or, for a refused microphone, asks to
-//! switch Kasset on), and closes once the permission is granted.
-//!
-//! Hex's retired-identity TCC cleanup is not ported: Kasset has one bundle id.
+//! Floating guide beside Privacy & Security: opens one permission's pane and closes once it is granted.
 
 use objc2::MainThreadMarker;
 

@@ -1,11 +1,4 @@
-/**
- * PermissionChecklist
- *
- * Opens when a recording start is refused for a missing macOS permission
- * (HEX: refused with code `permission`, no error tone, the permission helper
- * opens). Rows come from the backend in checklist order and flip to Allowed
- * as soon as the grant lands, by polling while open.
- */
+/** Opens when a recording start is refused for a missing permission; polls so rows flip to Allowed. */
 
 import React from 'react';
 import { X } from 'lucide-react';

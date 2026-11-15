@@ -1,9 +1,4 @@
-//! The user's login-shell `PATH`.
-//!
-//! A macOS app launched from Finder/Dock inherits launchd's minimal `PATH`
-//! (`/usr/bin:/bin:/usr/sbin:/sbin`), so `npx`/`uvx` from Homebrew, nvm or
-//! volta are not found and every stdio server fails to spawn. Jan avoids this
-//! by bundling bun/uv; Kasset asks the login shell once instead.
+//! The login-shell `PATH`, since Finder/Dock launches get launchd's minimal one without `npx`/`uvx`.
 
 use std::time::Duration;
 use tokio::{process::Command, sync::OnceCell, time::timeout};
@@ -13,8 +8,7 @@ const FALLBACK_SHELL: &str = "/bin/zsh";
 
 static LOGIN_PATH: OnceCell<Option<String>> = OnceCell::const_new();
 
-/// `PATH` as the user's interactive login shell sets it, or `None` when the
-/// shell could not be asked (the inherited `PATH` is then used as-is).
+/// `PATH` as the user's interactive login shell sets it, or `None` when the shell could not be asked.
 pub async fn login_path() -> Option<String> {
     LOGIN_PATH.get_or_init(query_login_path).await.clone()
 }

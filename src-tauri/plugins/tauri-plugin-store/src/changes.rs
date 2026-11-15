@@ -23,8 +23,7 @@ pub fn on_meeting_change(handler: impl Fn(&MeetingChange) + Send + Sync + 'stati
     }
 }
 
-/// Call after the write has committed and the connection lock is released. Handlers are cloned
-/// out first so none runs under the registry lock and a handler may itself register another.
+/// Call after commit and lock release; handlers are cloned out so one may register another.
 pub(crate) fn notify(change: MeetingChange) {
     let handlers: Vec<Handler> = match HANDLERS.lock() {
         Ok(handlers) => handlers.clone(),
@@ -52,8 +51,7 @@ pub fn meeting_ids<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<String>, StoreE
     Ok(ids)
 }
 
-/// Blocking; never on the main thread. `None` when the meeting is missing or the database is
-/// not open yet.
+/// Blocking; never on the main thread. `None` when the meeting is missing or the database is not open yet.
 pub fn meeting_detail<R: Runtime>(
     app: &AppHandle<R>,
     id: &str,

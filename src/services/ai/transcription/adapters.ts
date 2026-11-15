@@ -1,15 +1,4 @@
-/**
- * Transcription adapters — one per speech API family, all with the same shape:
- * one complete 16 kHz mono WAV part in, its text (and segments) out.
- *
- * - openai-compatible: OpenAI, Groq and any local server exposing
- *   `/audio/transcriptions` (Speaches, LocalAI, whisper servers); only the base URL differs.
- * - deepgram, elevenlabs: their AI SDK providers.
- * - multimodal: any audio-input model `createModel()` supports, prompted to transcribe.
- * - hex: the running Hex app (see hex.ts).
- * - apple-speech: Apple's on-device speech (see appleSpeech.ts).
- * - on-device: Kasset's own engine, transcribe.cpp in Rust (see onDevice.ts).
- */
+/** One adapter per speech API family, each taking one 16 kHz mono WAV part and returning its text and segments. */
 
 import { experimental_transcribe as transcribe, generateText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';

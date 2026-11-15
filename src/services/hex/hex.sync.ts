@@ -1,12 +1,4 @@
-/**
- * hexSync — one-way import of Hex meetings into Kasset (Hex → Kasset only).
- *
- * Each Hex meeting becomes the Kasset meeting `hex-<id>`, saved through the same
- * path as every other meeting (list, search index, Reminders). Catch-up imports
- * with Hex's own notes; a meeting that finishes while Kasset runs is then
- * summarized with the user's Summary model (its phase shows in the meeting view).
- * Deleting in Hex never deletes Kasset's copy; Kasset never writes to Hex.
- */
+/** One-way import of Hex meetings as `hex-<id>` meetings; never deletes Kasset's copy or writes to Hex. */
 
 import { store } from '@services/db';
 import { transcriptionService, meetingSummaryOf } from '@services/transcription.service';

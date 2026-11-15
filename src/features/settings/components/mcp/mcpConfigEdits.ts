@@ -1,18 +1,11 @@
-/**
- * Pure config transforms behind every MCP panel action. Each returns the
- * next config plus the servers whose connection must follow it — the input
- * to `useMcpReconfigure`.
- */
+/** Pure MCP config transforms; each returns the next config plus servers to reconnect, for `useMcpReconfigure`. */
 
 import { DEFAULT_MCP_SETTINGS } from '@config/mcp.config';
 import type { McpConfig, McpServers } from '@config/mcp.config';
 import type { McpReconfigureVars } from '@features/settings/hooks';
 import type { McpServerEntry } from './mcpServerForm';
 
-/**
- * Add or edit servers. Editing one server may rename it in place (order kept);
- * new servers are appended and start enabled unless they say otherwise.
- */
+/** Add or edit servers; an edit may rename in place, new servers append and start enabled unless stated. */
 export function upsertServers(config: McpConfig, editingName: string | null, entries: McpServerEntry[]): McpReconfigureVars {
   const servers = config.mcpServers;
   const withActive = ([name, server]: McpServerEntry): McpServerEntry => [
@@ -46,8 +39,7 @@ export function toggleServer(config: McpConfig, name: string, active: boolean): 
   };
 }
 
-/** Deleting a server also drops its saved permission, so a later server
- *  under the same name does not inherit the trust. */
+/** Also drops the server's saved permission, so a later server with the same name doesn't inherit trust. */
 export function deleteServer(config: McpConfig, name: string): McpReconfigureVars {
   const { [name]: _removed, ...mcpServers } = config.mcpServers;
   const trustedServers = config.mcpSettings.trustedServers.filter((s) => s !== name);
@@ -68,10 +60,7 @@ function changedServers(before: McpServers, after: McpServers): string[] {
   return [...names].filter((name) => JSON.stringify(before[name]) !== JSON.stringify(after[name]));
 }
 
-/**
- * Apply the whole-config JSON editor. Only servers whose entry changed are
- * reconnected, so saving untouched JSON restarts nothing.
- */
+/** Apply the whole-config JSON; only changed servers reconnect, so saving untouched JSON restarts nothing. */
 export function applyJson(config: McpConfig, parsed: unknown): McpReconfigureVars {
   if (!isRecord(parsed)) throw new Error('Expected a JSON object.');
   const wrapped = 'mcpServers' in parsed || 'mcpSettings' in parsed;

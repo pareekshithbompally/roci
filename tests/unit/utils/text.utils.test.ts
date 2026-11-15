@@ -24,8 +24,7 @@ describe('truncateForLLM', () => {
   });
 
   it('truncates at sentence boundary when found after 60% mark', () => {
-    // Build text where a sentence ends after 60% of maxChars
-    // maxChars = 100, so sentence end must be after char 60
+    // maxChars = 100, so the sentence must end after char 60 (60%).
     const firstSentence = 'A'.repeat(70) + '.';  // 71 chars, sentence ends at index 70
     const rest = ' ' + 'B'.repeat(100);           // push total well over 100
     const text = firstSentence + rest;
@@ -60,8 +59,7 @@ describe('truncateForLLM', () => {
     // Sentence ends very early (at 20%), should not be used
     const text = 'Hi. ' + 'A'.repeat(200);
     const result = truncateForLLM(text, 100);
-    // The sentence boundary at index 2 is at 2% — way below 60%
-    // Should fall through to newline or hard cut
+    // The boundary at 2% is below 60%, so it falls through to a newline or hard cut.
     expect(result).toContain('[Truncated');
   });
 
@@ -93,8 +91,7 @@ describe('truncateForLLM', () => {
     // Sentence end at ~75%, newline at ~80%
     const text = 'A'.repeat(72) + '. ' + 'B'.repeat(3) + '\n' + 'C'.repeat(200);
     const result = truncateForLLM(text, 100);
-    // The sentence regex looks for [.!?][\s\n] — the '. ' at index 72
-    // That's at 72% > 60%, so it should cut there
+    // The '. ' at index 72 is past 60%, so the cut lands there.
     expect(result.startsWith('A'.repeat(72) + '.')).toBe(true);
   });
 });

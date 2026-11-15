@@ -1,9 +1,4 @@
-/**
- * useTranscribeRecording Hook
- *
- * Encapsulates the flow: load recording blob -> processAudio -> save via transcriptionService.
- * Used by sidebar (Transcribe/Re-transcribe) and ResultsView.
- */
+/** Load a recording, process it, and save the transcript; used by the sidebar and ResultsView. */
 
 import { notifyAppEvent } from '@shared/utils/appEvents';
 import { useCallback } from 'react';
@@ -103,9 +98,7 @@ export const useTranscribeRecording = (): UseTranscribeRecordingReturn => {
         } : undefined,
       });
 
-      // Update global history state: clear pendingTranscription flag and update title.
-      // This single push fixes the stuck amber Mic icon, ResultsView button state,
-      // and stale meeting title in the sidebar.
+      // Clear pendingTranscription and update the title so the sidebar and results view refresh.
       await updateItem(item.id, {
         title: data.title || item.title,
         pendingTranscription: false,

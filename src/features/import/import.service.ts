@@ -1,9 +1,4 @@
-/**
- * Import Service — Orchestrates file import pipeline.
- *
- * Connects: dialog -> file read -> parse -> AI process -> save -> tray updates.
- * Singleton. Non-React — receives dependencies via method args.
- */
+/** Non-React singleton running the import pipeline: dialog → read → parse → AI → save → tray. */
 
 import type { AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';

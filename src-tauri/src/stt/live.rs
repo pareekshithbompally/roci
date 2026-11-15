@@ -1,10 +1,4 @@
-//! Live dictation: one transcription stream at a time, fed 16 kHz mono audio
-//! while it is spoken and answering with the text so far — `committed` (settled,
-//! only ever grows) and `tentative` (the latest words, still being revised).
-//!
-//! The stream borrows the warm engine's session, so it lives on its own thread
-//! for the whole dictation and takes requests over a channel; whole-clip
-//! transcription waits until it ends.
+//! Live dictation: one stream on its own thread, returning committed and tentative text as audio arrives.
 
 use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, Sender};
@@ -47,8 +41,7 @@ pub struct LiveSession {
 }
 
 impl LiveSession {
-    /// Loads the model if needed and begins a stream; fails when the model
-    /// can't stream.
+    /// Loads the model if needed and begins a stream; fails when the model can't stream.
     pub fn start(app: AppHandle, id: &'static str, path: PathBuf, language: String) -> Result<Self, LocalError> {
         let (requests, inbox) = mpsc::channel();
         let (ready, started) = mpsc::channel();
@@ -84,8 +77,7 @@ fn ended() -> LocalError {
     LocalError::Engine("live transcription ended".into())
 }
 
-/// The stream's thread: begin, report ready, then answer requests until
-/// Finish or until the handle is dropped (cancel).
+/// The stream's thread: begin, report ready, answer requests until Finish or the handle drops (cancel).
 fn serve(loaded: &mut Loaded, language: &str, ready: &Sender<Result<(), LocalError>>, inbox: &Receiver<(Request, Sender<Reply>)>) -> Result<(), LocalError> {
     if !loaded.streams {
         return Err(LocalError::BadInput("this model can't transcribe live".into()));

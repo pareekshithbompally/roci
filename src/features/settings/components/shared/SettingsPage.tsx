@@ -21,11 +21,7 @@ export const SettingsPageHeader: React.FC<SettingsPageHeaderProps> = ({ title, d
 );
 
 interface SettingsPageProps extends SettingsPageHeaderProps {
-  /**
-   * `scroll` (default): the whole pane scrolls, fading under the titlebar.
-   * `fill`: the header stays put and the body fills the rest of the window,
-   * for panes whose columns scroll on their own (Providers).
-   */
+  /** `scroll` (default): whole pane scrolls; `fill`: header fixed, body fills for self-scrolling columns. */
   layout?: 'scroll' | 'fill';
   children?: React.ReactNode;
 }
@@ -33,10 +29,7 @@ interface SettingsPageProps extends SettingsPageHeaderProps {
 /** The page column every pane shares: centred, its header the same distance from the titlebar. */
 const COLUMN = `${LAYOUT.pageColumn} pt-6`;
 
-/**
- * The one frame of every settings pane — titlebar clearance, gutter, column,
- * header, and the spacing between its sections. Panes supply only their content.
- */
+/** The one frame of every settings pane (titlebar clearance, gutter, header, section spacing). */
 export const SettingsPage: React.FC<SettingsPageProps> = ({ layout = 'scroll', children, ...header }) =>
   layout === 'scroll' ? (
     <PageScroll className={`h-full ${LAYOUT.pageGutter} pb-6`}>

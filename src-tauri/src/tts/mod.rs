@@ -1,14 +1,4 @@
-//! Read aloud on this Mac. Two engines, one path: the reply's markdown becomes
-//! plain sentences (`text`), then
-//! - `macos`: the installed system voices, spoken natively (AVSpeechSynthesizer);
-//! - Phonon 31M (`ptts`, Apache-2.0), downloaded via `crate::models` with its
-//!   curated voices, synthesizing the next sentence while `playback` plays
-//!   the current one.
-//!
-//! Each engine lists its voices (`tts_voices`); a reply is spoken in one
-//! (`tts_speak`), sentence chunk by chunk, reporting `tts://chunk` with each
-//! chunk's text as its audio begins. One reply speaks at a time: starting
-//! another stops the first.
+//! Read aloud: markdown becomes sentence chunks spoken by macOS voices or Phonon, one reply at a time.
 
 pub mod commands;
 mod macos;

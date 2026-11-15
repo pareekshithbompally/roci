@@ -1,6 +1,4 @@
-/**
- * Chats domain — list/get/upsert/rename/delete chat sessions.
- */
+/** Chats domain — list/get/upsert/rename/delete chat sessions. */
 
 import { call, extractDataBlob, rowToMessage } from '@services/db/internal';
 import type { ChatSession, ChatIndexEntry } from '@shared/types';

@@ -1,7 +1,4 @@
-/**
- * Layout tokens — widths, gutters, measured offsets. Geometry only (no colour,
- * shadow, border or radius), so feature code may import it.
- */
+/** Layout geometry tokens (widths, gutters, measured offsets) that feature code may import. */
 
 // ─── LAYOUT TOKENS ──────────────────────────────────────────────
 

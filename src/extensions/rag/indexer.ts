@@ -1,10 +1,4 @@
-/**
- * RAG Indexer
- *
- * Indexes meetings into the sqlite-vec vector store via the Rust backend.
- * Chunks transcripts, embeds each chunk, and upserts to the store plugin.
- * Uses content hashing for staleness detection — only re-indexes changed meetings.
- */
+/** Indexes meetings into sqlite-vec via Rust: chunk, embed, upsert; content hashes skip unchanged meetings. */
 
 import type { HistoryItem, AppSettings, MeetingSummary } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
@@ -30,10 +24,7 @@ export interface IndexOptions {
   };
 }
 
-/**
- * Index a single meeting: chunk → embed → upsert to Rust backend.
- * content_hash is stamped ONLY after chunks are confirmed in DB.
- */
+/** Chunk → embed → upsert; content_hash is stamped only after the chunks are confirmed in the DB. */
 async function indexMeeting(
   item: HistoryItem,
   options?: Pick<IndexOptions, 'includeEmbeddings'>,
@@ -97,18 +88,7 @@ async function indexMeeting(
   };
 }
 
-/**
- * Index all meetings using multi-phase staleness tracking.
- *
- * Three independent concerns, each with its own completion tracking:
- *   Step 1: Content-stale meetings → chunk + FTS (+ embeddings if available)
- *   Step 2: Embedding-stale meetings → re-index with embeddings (content already fresh)
- *   Step 3: Extraction-stale meetings → extract KG entities
- *
- * Phase 1 (FTS-only) writes content_hash but NOT embedding_hash. Phase 2 finds
- * embedding_hash != content_hash and fills in embeddings. This eliminates the
- * single-hash poisoning bug where Phase 1 prevented Phase 2 from running.
- */
+/** Content, embedding and extraction staleness are tracked separately, so FTS-only runs never block embedding. */
 async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptions): Promise<number> {
   if (items.length === 0) return 0;
 
@@ -146,7 +126,6 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
   let indexed = 0;
 
   // ── Step 1: Index content-stale meetings (chunks + FTS + optional embeddings) ──
-  // When force=true, skip staleness check and re-index everything
   let staleItems: HistoryItem[];
   if (force) {
     staleItems = items;
@@ -160,9 +139,7 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
   if (staleItems.length > 0) {
     emitProgress({ kind: 'indexing', status: 'started', total: staleItems.length, currentTitle: 'Loading embedding model…' });
 
-    // Warm up embedding model before the loop so the first meeting
-    // doesn't silently block on model download while the tray shows "1/N".
-    // Never interactive here: background indexing must not prompt for consent.
+    // Warm the model first so meeting 1 doesn't block on download; never interactive, so no consent prompt.
     if (includeEmbeddings) {
       try {
         await preloadModel({ interactive: false });
@@ -303,8 +280,7 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
           }
           try {
             const summary = toMeetingSummary(item.structuredSummary);
-            // Pass only an excerpt — extractor already truncates to 3000 chars,
-            // but passing the full string keeps it in the closure for 60s per meeting
+            // Pass an excerpt so the full transcript isn't held in the closure for 60s per meeting.
             const transcriptExcerpt = item.transcript?.slice(0, 3000) ?? '';
             const success = await entityExtractor.extractAndUpsert(
               item.id, item.title, summary, transcriptExcerpt,
@@ -353,9 +329,7 @@ function toMeetingSummary(s: NonNullable<HistoryItem['structuredSummary']>): Mee
   };
 }
 
-/**
- * Check if any items need indexing (new or stale).
- */
+/** Items that are new or stale. */
 async function needsReindex(items: HistoryItem[]): Promise<HistoryItem[]> {
   if (items.length === 0) return [];
 
@@ -373,9 +347,7 @@ async function needsReindex(items: HistoryItem[]): Promise<HistoryItem[]> {
   return items.filter((item) => staleSet.has(item.id));
 }
 
-/**
- * Get current RAG system status (index stats, model state).
- */
+/** Current RAG status (index stats, model state). */
 export async function getRAGStatus(): Promise<RAGStatus> {
   const stats = await vectorDB.getStats();
   const meta = await vectorDB.getMeta();
@@ -389,10 +361,7 @@ export async function getRAGStatus(): Promise<RAGStatus> {
   };
 }
 
-/**
- * Run ONLY the KG entity extraction step for extraction-stale meetings.
- * Does NOT re-chunk or re-embed — assumes meetings are already indexed.
- */
+/** Runs only KG extraction for extraction-stale meetings; assumes they are already indexed. */
 async function extractAll(
   items: HistoryItem[],
   extractionContext: { settings: AppSettings; providers: ModelProvider[] },

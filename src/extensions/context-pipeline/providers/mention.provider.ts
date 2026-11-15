@@ -1,9 +1,4 @@
-/**
- * Mention Provider (priority: 10)
- *
- * Handles manually selected @ mentions. When the user explicitly picks meetings,
- * this fires first with confidence 1.0, short-circuiting the pipeline.
- */
+/** Manually picked @ mentions; runs first with confidence 1.0 and short-circuits the pipeline. */
 
 import type { ContextInput, ContextOutput, ContextProvider } from '@extensions/context-pipeline/types';
 import { meetingReferenceService } from '@services/meetingReferenceService';
@@ -25,9 +20,7 @@ export class MentionProvider implements ContextProvider {
       return { text: '', provider: this.name, confidence: 0, durationMs: 0 };
     }
 
-    // Load only summary, notes, and action items — NOT full transcript.
-    // formatForLLM already truncates transcript, but avoiding the load entirely
-    // prevents holding large strings in memory during context assembly.
+    // Skip the full transcript so large strings aren't held in memory during context assembly.
     const references = await meetingReferenceService.loadSelectiveContext(
       referencedItems,
       ['summary', 'notes', 'actionItems'],

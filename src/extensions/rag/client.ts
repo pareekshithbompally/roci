@@ -1,9 +1,4 @@
-/**
- * Vector DB Client
- *
- * Thin wrapper around Tauri invoke calls to the store Rust plugin.
- * All vector storage and search happens in the Rust backend (sqlite-vec).
- */
+/** Thin wrapper over the store plugin's invoke calls; storage and search run in Rust (sqlite-vec). */
 
 import { invoke } from '@tauri-apps/api/core';
 
@@ -88,8 +83,7 @@ export interface SpotlightHit {
   source_type: 'meeting' | 'chat';
   source_id: string;
   title: string;
-  /** Matched excerpt with <<MARK>> / <</MARK>> markers around matched terms.
-   *  Empty string for title-only matches. */
+  /** Excerpt with <<MARK>> / <</MARK>> around matched terms; empty for title-only matches. */
   excerpt: string;
   timestamp: number;
   match_type: 'title' | 'content';

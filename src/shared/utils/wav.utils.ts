@@ -1,10 +1,4 @@
-/**
- * WAV utilities — parse PCM WAV, encode 16-bit PCM WAV, split, and convert any
- * audio the webview can decode to mono samples at a target rate.
- *
- * Recordings (float32 16 kHz mono WAV) are parsed directly with no decode;
- * imports (mp3/m4a/flac/ogg/webm) and chat dictation (mp4) are decoded.
- */
+/** WAV parse/encode/split; recordings parse directly, other audio is decoded by the webview to mono samples. */
 
 const RIFF_HEADER_BYTES = 12;
 const CHUNK_HEADER_BYTES = 8;
@@ -126,10 +120,7 @@ async function decodeToMono(bytes: Uint8Array, sampleRate: number): Promise<Floa
   }
 }
 
-/**
- * Mono samples at `sampleRate`. A WAV already at that rate is parsed without
- * decoding; anything else is decoded (and resampled) by the webview.
- */
+/** Mono samples at `sampleRate`: a WAV already at that rate is parsed, anything else decoded and resampled. */
 export async function toMonoSamples(audio: Blob, sampleRate: number): Promise<Float32Array> {
   const bytes = new Uint8Array(await audio.arrayBuffer());
   const wav = readWavMono(bytes);

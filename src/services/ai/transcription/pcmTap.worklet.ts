@@ -1,8 +1,4 @@
-/**
- * Audio worklet: the microphone, resampled to the engine rate (linear, state
- * carried across render blocks) and posted in fixed slices as Float32Arrays.
- * Rates arrive as processor options so the worklet holds no settings of its own.
- */
+/** Worklet: mic resampled to the engine rate and posted in fixed Float32Array slices; rates come as options. */
 
 declare const sampleRate: number;
 declare function registerProcessor(name: string, processor: unknown): void;

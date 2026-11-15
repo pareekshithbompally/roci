@@ -5,10 +5,6 @@ import ObjectiveC
 import UniformTypeIdentifiers
 
 // MARK: - C-compatible JSON bridge for Rust FFI
-//
-// Index and remove calls return a JSON C-string `{"ok","error"?}`, freed by
-// `core_spotlight_free_string`. A Spotlight result the user opens arrives
-// through the C callback set by `core_spotlight_setup`, as the item's id.
 
 /// Core Spotlight needs an app bundle; without one every call reports `unsupported`.
 private let supported = Bundle.main.bundleURL.pathExtension == "app"
@@ -30,8 +26,7 @@ private var onOpen: OpenCallback?
 private var originalContinue: ContinueIMP?
 private var originalWillContinue: WillContinueIMP?
 
-/// Route Spotlight opens to `callback`. Installs the app-delegate hooks once,
-/// on the main thread.
+/// Routes Spotlight opens to `callback`, installing the app-delegate hooks once on the main thread.
 @_cdecl("core_spotlight_setup")
 public func coreSpotlightSetup(_ callback: @escaping @convention(c) (UnsafePointer<CChar>) -> Void) {
     guard supported else { return }
@@ -47,8 +42,7 @@ public func coreSpotlightSupported() -> Bool {
     supported
 }
 
-/// Adds or replaces items by id: `[{"id","title","description"?,"text","keywords","createdMs"}]`.
-/// Blocks its (non-main) caller until Core Spotlight answers.
+/// Adds or replaces items by id; blocks its (non-main) caller until Core Spotlight answers.
 @_cdecl("core_spotlight_index")
 public func coreSpotlightIndex(_ json: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar> {
     guard supported else { return reply(["ok": false, "error": "unsupported"]) }

@@ -4,8 +4,7 @@ use std::sync::OnceLock;
 use objc2_core_foundation::CFString;
 
 const MAIN_PORT_DEFAULT: u32 = 0;
-/// `kIOPMMessageClamshellStateChange`:
-/// `iokit_family_msg(sub_iokit_powermanagement, 0x100)`.
+/// `kIOPMMessageClamshellStateChange`: `iokit_family_msg(sub_iokit_powermanagement, 0x100)`.
 const CLAMSHELL_STATE_CHANGE: u32 = 0xE003_4100;
 
 type InterestCallback = unsafe extern "C" fn(*mut c_void, u32, u32, *mut c_void);
@@ -45,8 +44,7 @@ unsafe extern "C" {
 fn root_domain() -> Option<u32> {
     static ROOT: OnceLock<Option<u32>> = OnceLock::new();
     *ROOT.get_or_init(|| {
-        // SAFETY: the matching dictionary is consumed by the lookup, and
-        // the returned service is kept for the life of the process.
+        // SAFETY: the lookup consumes the matching dictionary; the service lives for the process.
         let service = unsafe {
             let matching = IOServiceMatching(c"IOPMrootDomain".as_ptr());
             if matching.is_null() {
@@ -64,8 +62,7 @@ pub fn closed() -> bool {
     };
     let key = CFString::from_str("AppleClamshellState");
     let key: *const CFString = &*key;
-    // SAFETY: `root` is a live service and `key` a live CFString; the
-    // copied property is released after the comparison.
+    // SAFETY: `root` and `key` are live; the copied property is released after the comparison.
     unsafe {
         let value = IORegistryEntryCreateCFProperty(root, key.cast(), std::ptr::null(), 0);
         if value.is_null() {
@@ -98,8 +95,7 @@ pub fn watch(changed: fn()) {
     if CHANGED.set(changed).is_err() {
         return;
     }
-    // SAFETY: the port and notification live for the process, and the
-    // callback only reads a static.
+    // SAFETY: the port and notification live for the process, and the callback only reads a static.
     let status = unsafe {
         let port = IONotificationPortCreate(MAIN_PORT_DEFAULT);
         if port.is_null() {

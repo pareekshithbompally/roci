@@ -1,11 +1,4 @@
-/**
- * Chat Indexer
- *
- * Indexes chat sessions into the store (FTS5 + sqlite-vec).
- * Uses multi-phase staleness tracking:
- *   - content_hash: tracks chunk/FTS identity
- *   - embedding_hash: tracks embedding completion
- */
+/** Indexes chat sessions (FTS5 + sqlite-vec), tracking content_hash and embedding_hash separately. */
 
 import type { ChatSession } from '@shared/types';
 import { embeddingService, preloadModel } from './embeddings';
@@ -22,11 +15,7 @@ interface ChatIndexOptions {
   includeEmbeddings?: boolean;
 }
 
-/**
- * Index a single chat session.
- * No-ops if the session is already indexed with the same content hash.
- * Used for fire-and-forget indexing after chat save.
- */
+/** Indexes one session after save; no-op when its content hash is unchanged. */
 async function indexSession(
   session: ChatSession,
   options?: ChatIndexOptions,
@@ -64,12 +53,7 @@ async function indexSession(
   }
 }
 
-/**
- * Batch index all chat sessions using multi-phase staleness tracking.
- *
- *   Step 1: Content-stale sessions → chunk + FTS (+ embeddings if available)
- *   Step 2: Embedding-stale sessions → re-index with embeddings
- */
+/** Indexes content-stale sessions first, then re-embeds embedding-stale ones. */
 async function indexAllSessions(
   sessions: ChatSession[],
   options?: ChatIndexOptions & { signal?: AbortSignal; force?: boolean },
@@ -117,7 +101,6 @@ async function indexAllSessions(
   let indexed = 0;
 
   // ── Step 1: Index content-stale sessions (chunks + FTS + optional embeddings) ──
-  // When force=true, skip staleness check and re-index everything
   let staleItems: ChatSession[];
   if (force) {
     staleItems = nonEmpty;
@@ -132,9 +115,7 @@ async function indexAllSessions(
     console.log(`[ChatIndexer] Step 1: ${staleItems.length} sessions need indexing`);
     emitProgress({ kind: 'indexing', status: 'started', total: staleItems.length, currentTitle: 'Chat: loading embedding model…' });
 
-    // Warm up embedding model before entering the loop so the first session
-    // doesn't silently block on model download while the tray shows "1/N".
-    // Never interactive here: background indexing must not prompt for consent.
+    // Warm the model first so session 1 doesn't block on download; never interactive, so no consent prompt.
     if (includeEmbeddings) {
       try {
         await preloadModel({ interactive: false });
@@ -213,10 +194,7 @@ async function indexAllSessions(
   return indexed;
 }
 
-/**
- * Core indexing logic: chunk → embed → upsert.
- * content_hash is stamped ONLY after chunks are confirmed in DB.
- */
+/** Chunk → embed → upsert; content_hash is stamped only after the chunks are confirmed in the DB. */
 async function indexSessionInternal(
   session: ChatSession,
   contentHash: string,
@@ -270,10 +248,7 @@ async function indexSessionInternal(
   };
 }
 
-/**
- * Remove a chat session and all its chunks/vectors from the index.
- * Called when a session is deleted.
- */
+/** Removes a deleted session and all its chunks/vectors from the index. */
 async function removeSession(sessionId: string): Promise<void> {
   try {
     await vectorDB.deleteChatSession(sessionId);

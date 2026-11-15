@@ -1,16 +1,4 @@
-/**
- * Settings Context
- *
- * Manages application settings and model providers.
- * Reads/writes via the unified store (Phase 4).
- *
- * Key features:
- * - Persists settings as key-value pairs in kasset.db
- * - Merges saved providers with predefined providers (for new providers added in updates)
- * - Loads settings on mount
- * - Save-on-edit: every mutation auto-persists after a short debounce;
- *   `saveSettings` remains as an immediate flush. No dirty tracking.
- */
+/** App settings and model providers, merged with predefined providers and auto-persisted after each edit. */
 
 import { DEFAULT_NOTIFICATION_SETTINGS } from '@config/notifications.config';
 import React, { createContext, useContext, useCallback, ReactNode, useEffect, useRef } from 'react';
@@ -73,12 +61,7 @@ const SETTINGS_KEYS: Array<keyof AppSettings> = [
   'jobProcessing', 'calendarIntegration', 'notifications', 'readAloudEngine', 'readAloudVoice', 'remindersIntegration', 'hexIntegration', 'appleIntelligenceIntegration', 'appleNotesIntegration', 'showModelAvatars', 'hideToolCalls', 'liveTranscription',
 ];
 
-/**
- * Save-on-edit delay. Every settings mutation writes through to disk after
- * this trailing debounce so rapid edits (typing an API key, toggling a list)
- * coalesce into a single write. Matches the debounced-settings pattern used
- * by Jan; Hex persists every mutation immediately at the model layer.
- */
+/** Trailing debounce so rapid edits (typing an API key, toggling a list) coalesce into one disk write. */
 const AUTOSAVE_DELAY_MS = 500;
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
@@ -160,10 +143,7 @@ const FALLBACK_SETTINGS: LoadedSettings = {
   selectedProviderName: null,
 };
 
-/**
- * Provider ids removed from the app. Saved configs with these ids are
- * deleted on load so retired providers never reappear in the UI.
- */
+/** Provider ids removed from the app; saved configs with them are deleted on load. */
 const RETIRED_PROVIDER_IDS = new Set(['azure', 'cohere', 'huggingface', 'xai', 'local:llamacpp']);
 
 export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) => {
@@ -178,10 +158,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     p => p.provider === loaded.selectedProviderName
   );
 
-  /**
-   * Load the full settings snapshot. Runs as the settings query function on
-   * mount (and on explicit invalidation) — no manual effect needed.
-   */
+  /** The settings query function: loads the full snapshot on mount and on invalidation. */
   async function loadAllSettings(): Promise<LoadedSettings> {
     console.log('[SettingsContext] Loading settings...');
 
@@ -194,8 +171,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
 
       const savedProviders = await store.providers.list();
 
-      // Retired providers (removed from the app) must never reappear:
-      // drop them from disk and from this load.
+      // Retired providers must never reappear: drop them from disk and from this load.
       const liveProviders = savedProviders.filter((p) => !RETIRED_PROVIDER_IDS.has(p.provider));
       const retired = savedProviders.filter((p) => RETIRED_PROVIDER_IDS.has(p.provider));
       if (retired.length > 0) {
@@ -211,8 +187,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         loadedProviders = predefinedProviders.map(p => ({ ...p }));
       }
 
-      // Drop selections pointing at providers that no longer exist so the
-      // auto-select below picks something that works.
+      // Drop selections of providers that no longer exist so the auto-select below picks a working one.
       if (selectedProviderName && !loadedProviders.some((p) => p.provider === selectedProviderName)) {
         console.log('[SettingsContext] Clearing dangling selected provider:', selectedProviderName);
         selectedProviderName = null;
@@ -339,11 +314,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     return queryClient.getQueryData<LoadedSettings>(queryKeys.storeSettings());
   }, [queryClient]);
 
-  /**
-   * Schedule a debounced write-through after a mutation. Rapid successive
-   * edits coalesce into one disk write; the trailing edge persists the
-   * latest cached snapshot.
-   */
+  /** Debounced write-through: the trailing edge persists the latest cached snapshot. */
   const schedulePersist = useCallback(() => {
     if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
     persistTimerRef.current = setTimeout(() => {
@@ -357,8 +328,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     }, AUTOSAVE_DELAY_MS);
   }, [persistSnapshot, readSnapshot]);
 
-  // Flush any pending debounced write on unmount so a late edit (e.g. typing
-  // an API key then immediately switching panels) is never lost.
+  // Flush a pending write on unmount so a late edit (typing a key, then switching panels) is never lost.
   useEffect(() => {
     return () => {
       if (persistTimerRef.current) {
@@ -391,10 +361,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     }
   }, [persistSnapshot, queryClient, readSnapshot]);
 
-  /**
-   * Apply an optimistic cache update, then debounce the disk write.
-   * Sync like before — Query's setQueryData is synchronous.
-   */
+  /** Optimistic, synchronous cache update, then a debounced disk write. */
   const updateCache = useCallback((updater: (prev: LoadedSettings) => LoadedSettings) => {
     queryClient.setQueryData<LoadedSettings>(queryKeys.storeSettings(), (old) =>
       updater(old ?? FALLBACK_SETTINGS)
@@ -504,11 +471,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   );
 };
 
-/**
- * useSettings Hook
- *
- * Access settings state and operations.
- */
 export const useSettings = (): SettingsContextValue => {
   const context = useContext(SettingsContext);
   if (!context) {

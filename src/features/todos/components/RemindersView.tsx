@@ -1,10 +1,4 @@
-/**
- * RemindersView Component
- *
- * Full-screen view showing all todos/reminders across all meetings.
- * Navigated to via IdleView pill; uses same pattern as Settings view.
- * Grouped by meeting, filterable, searchable, with create support.
- */
+/** Full-screen view of todos across all meetings, grouped by meeting, filterable, with create support. */
 
 import React, { useCallback, useState, useMemo } from 'react';
 import { ArrowLeft, ListTodo, AlertTriangle, Bell, CalendarDays, Inbox, Search, Plus, X, ChevronDown } from 'lucide-react';

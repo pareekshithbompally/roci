@@ -1,15 +1,4 @@
-/**
- * Chat Store
- *
- * Zustand store replacing the monolithic ChatContext. Follows the same
- * selector + action hook pattern as appStore.ts.
- *
- * Module-level refs for:
- *  - loadedSessions (Map) — session objects, accessed synchronously in callbacks
- *  - chatInputRef — the mounted composer (⌘L: focusChatComposer)
- *  - abortRef — current AbortController
- *  - injectedRefs — settings/providers/historyItems from external providers
- */
+/** Chat Zustand store; sessions, composer ref, abort controller, and injected providers live in module refs. */
 
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
@@ -75,10 +64,7 @@ const chatInputRef: MutableRefObject<HTMLTextAreaElement | null> = { current: nu
 /** ⌘L arrived while no composer was mounted; the next one to mount takes focus. */
 let composerFocusPending = false;
 
-/**
- * Focus the chat composer (⌘L). With none on screen, go where one is — home,
- * or the open meeting's chat panel — and focus it as it mounts.
- */
+/** Focus the composer (⌘L); with none on screen, navigate to one and focus it as it mounts. */
 export function focusChatComposer(): void {
   if (chatInputRef.current) {
     chatInputRef.current.focus();
@@ -212,8 +198,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
   // ── Session management ──
 
   loadSessions: async () => {
-    // Single owner: ChatProvider's chats query fetches and mirrors into the
-    // store. Here we only ask it to refetch (deduped by Query).
+    // ChatProvider's chats query owns the fetch; just ask it to refetch.
     await queryClient.invalidateQueries({ queryKey: queryKeys.chats() });
   },
 
@@ -436,8 +421,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
       viewHistory: false,
     }));
 
-    // Persist the new session (was previously memory-only and lost on
-    // reload) and reconcile the index query.
+    // Persist the new session and reconcile the index query.
     get()
       .persistSession(newSession)
       .catch((error: unknown) =>

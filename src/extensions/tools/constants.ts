@@ -1,9 +1,4 @@
-/**
- * Tool System Constants
- *
- * Single source of truth for all tool execution and LLM context limits.
- * Import from here — never hardcode these values in tool definitions.
- */
+/** Tool execution and LLM context limits. */
 
 // ── Tool Execution ──
 

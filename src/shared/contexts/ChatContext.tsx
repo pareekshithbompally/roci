@@ -1,11 +1,4 @@
-/**
- * Chat Context (Backward-Compat Wrapper)
- *
- * Now delegates to the chatStore (Zustand).
- * ChatProvider is retained for the provider hierarchy — it calls useChatStoreInit
- * to wire up settings/history injection and auto-load/auto-save effects.
- * useChat() returns the same shape as before for backward compatibility.
- */
+/** ChatProvider wires chatStore (settings/history injection, auto-load/save); useChat() reads the store. */
 
 import React, { createContext, useContext, useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -106,8 +99,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   }, [searchQuery]);
 
   // ── Session index: owned by Query, mirrored into the store ──
-  // Direct store readers (selectors, ChatShell) keep working; Query gives
-  // dedup + caching. Mutations reconcile via invalidation (see below).
+  // Query gives dedup + caching; mutations reconcile via invalidation.
 
   const indexQuery = useQuery({
     queryKey: queryKeys.chats(),
@@ -138,9 +130,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   }, [currentSessionId, loadedSessions, isStoreInit]);
 
   // ── Demand-load current session: owned by Query, cached in the store ──
-  // Query dedups concurrent mounts and drops stale responses on session
-  // switch (replacing the manual cancelled flag). The store Map stays the
-  // synchronous session cache with bounded eviction.
+  // Query dedups concurrent mounts and drops stale responses on session switch; the store Map is the sync cache.
 
   const isCached = !!currentSessionId && loadedSessions.has(currentSessionId);
 

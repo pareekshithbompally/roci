@@ -1,9 +1,4 @@
-/**
- * Store error types — mirrors the Rust StoreError contract.
- *
- * Every command returns `{ code, message }` on failure.
- * Map raw invoke errors to typed StoreError for callers to handle specific failure modes.
- */
+/** Typed store errors mirroring the Rust `{ code, message }` StoreError contract. */
 
 export type StoreErrorCode =
   | 'not_found'
@@ -28,10 +23,7 @@ export class StoreError extends Error {
   }
 }
 
-/**
- * Parse a raw invoke error (string or unknown) into a typed StoreError.
- * Falls back to `db` code when the raw error isn't a structured StoreError.
- */
+/** Parses a raw invoke error into a StoreError, with code `db` when it isn't structured. */
 export function parseStoreError(raw: unknown): StoreError {
   if (raw instanceof StoreError) return raw;
 

@@ -1,8 +1,4 @@
-/**
- * Read aloud — how replies are spoken (src-tauri/src/tts): an engine, either
- * the macOS system voices (built in) or a downloaded voice model (Phonon 31M,
- * by its model id), and one of that engine's voices.
- */
+/** Read-aloud engine (macOS system voices or a downloaded voice model) and its voice. */
 
 export const READ_ALOUD_CONFIG = {
   /** The system voices' engine. */

@@ -1,8 +1,4 @@
-/**
- * Window Management Service
- * 
- * Handles window state persistence, positioning, and behavior.
- */
+/** Main window show/hide/toggle, always-on-top, minimize, maximize and center. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -29,13 +25,7 @@ class WindowService {
     return this.currentWindow;
   }
 
-  /**
-   * Initialize window management.
-   *
-   * Window state persistence (size, position, maximized) is handled entirely by
-   * the Rust `tauri-plugin-window-state` plugin — no frontend save/restore needed.
-   * This service only handles show/hide/toggle and always-on-top.
-   */
+  /** Size and position persist via the Rust window-state plugin; this only handles visibility and always-on-top. */
   async initialize(): Promise<void> {
     if (!isTauriEnvironment()) {
       return;
@@ -60,9 +50,6 @@ class WindowService {
     }
   }
 
-  /**
-   * Show and focus the window
-   */
   async show(): Promise<void> {
     if (!isTauriEnvironment()) {
       return;
@@ -83,9 +70,6 @@ class WindowService {
     }
   }
 
-  /**
-   * Hide the window
-   */
   async hide(): Promise<void> {
     if (!isTauriEnvironment()) {
       return;
@@ -105,9 +89,6 @@ class WindowService {
     }
   }
 
-  /**
-   * Toggle window visibility
-   */
   async toggle(): Promise<void> {
     if (!isTauriEnvironment()) {
       return;
@@ -131,9 +112,6 @@ class WindowService {
     }
   }
 
-  /**
-   * Set window to always on top
-   */
   async setAlwaysOnTop(alwaysOnTop: boolean): Promise<void> {
     if (!isTauriEnvironment()) {
       return;
@@ -152,10 +130,7 @@ class WindowService {
     }
   }
 
-  /**
-   * Minimize window to the Dock/taskbar (native minimize — not a tray hide;
-   * close-to-tray hiding is owned by the Rust window close handler).
-   */
+  /** Native minimize to the Dock; close-to-tray hiding belongs to the Rust close handler. */
   async minimize(): Promise<void> {
     if (!isTauriEnvironment()) {
       return;
@@ -173,9 +148,6 @@ class WindowService {
     }
   }
 
-  /**
-   * Maximize window
-   */
   async maximize(): Promise<void> {
     const currentWindow = this.getWindow();
     if (!currentWindow) {
@@ -189,9 +161,6 @@ class WindowService {
     }
   }
 
-  /**
-   * Center window on screen
-   */
   async center(): Promise<void> {
     const currentWindow = this.getWindow();
     if (!currentWindow) {

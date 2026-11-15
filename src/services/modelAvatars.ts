@@ -1,15 +1,9 @@
-/**
- * Model avatars — HF org parsing and avatar URL (llama.cpp WebUI pattern).
- */
+/** Hugging Face org parsing and avatar URLs for models. */
 
 import { MODEL_AVATARS_CONFIG } from '@config/modelAvatars.config';
 import { isLocalProviderId } from '@shared/utils/provider.utils';
 
-/**
- * The Hugging Face org of a model id, or null when the id has none.
- * `qwen/qwen3-8b` → `qwen`; `~org/name` → `org`; `hf.co/unsloth/Qwen3-8B-GGUF:Q4_K_M` → `unsloth`;
- * `llama3.2` (Ollama library model) → null.
- */
+/** A model id's Hugging Face org (`hf.co/unsloth/Qwen3-8B-GGUF:Q4_K_M` → `unsloth`); null when it has none. */
 export function modelOrg(modelId: string): string | null {
   const prefix = MODEL_AVATARS_CONFIG.hostPrefixes.find((p) => modelId.startsWith(p));
   const repo = prefix ? modelId.slice(prefix.length) : modelId;
@@ -30,11 +24,7 @@ export function orgHue(org: string): number {
   return Math.abs(hash) % 360;
 }
 
-/**
- * The org whose avatar represents a model, or null to show no org avatar.
- * Only local models get one, and only when the user enabled model icons
- * (that is the only time Kasset requests anything from huggingface.co).
- */
+/** Org avatar for a local model, only when model icons are on (the sole huggingface.co request); else null. */
 export function modelAvatarOrg(provider: string, modelId: string | undefined, enabled: boolean): string | null {
   if (!enabled || !modelId || !isLocalProviderId(provider)) return null;
   return modelOrg(modelId);

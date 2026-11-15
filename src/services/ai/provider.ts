@@ -1,9 +1,4 @@
-/**
- * AI SDK Provider Factory
- *
- * Single function that maps a ResolvedModel to an AI SDK LanguageModel.
- * This is the only place that maps provider names to SDK constructors.
- */
+/** The only place provider names map to AI SDK constructors. */
 
 import { appleIntelligenceModel } from '@services/ai/apple/appleLanguageModel';
 import { createOpenAI } from '@ai-sdk/openai';
@@ -34,16 +29,7 @@ function buildCustomHeaders(providerConfig: ResolvedModel['providerConfig']): Re
 /** llama-server's request flag for streaming `prompt_progress` chunks. */
 const withPromptProgress = (body: Record<string, unknown>) => ({ ...body, return_progress: true });
 
-/**
- * Create an AI SDK LanguageModel for the given resolved model.
- * Provider instances are lightweight — no caching needed.
- *
- * @param options.webSearch - When true, uses the Responses API for providers
- *   whose Chat API doesn't support provider-defined tools (OpenAI).
- *   Gemini and Anthropic handle web search natively in their Chat API.
- * @param options.promptProgress - When true (a llama-server), the server is
- *   asked to stream how much of the prompt it has read (`return_progress`).
- */
+/** AI SDK model for a resolved model; `webSearch` picks OpenAI's Responses API, `promptProgress` asks llama-server. */
 export function createModel(
   resolved: ResolvedModel,
   options?: { webSearch?: boolean; promptProgress?: boolean },
@@ -99,11 +85,7 @@ export function createModel(
   }
 }
 
-/**
- * Return provider-specific web search tools for the given model.
- * Each provider exposes web search as a native tool in the AI SDK.
- * Returns undefined for providers that don't support web search.
- */
+/** The provider's native web search tools; undefined when it has none. */
 export function getWebSearchTools(resolved: ResolvedModel): ToolSet | undefined {
   switch (getProviderType(resolved.provider)) {
     case 'anthropic':

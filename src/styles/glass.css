@@ -1,8 +1,4 @@
-/**
- * macOS window vibrancy. `.platform-macos` is set on <html> at startup (index.tsx).
- * The webview is transparent so the native window material shows through the
- * glass roles in tokens.css (opaque in light, translucent in dark).
- */
+/* macOS window vibrancy: the webview is transparent so the native material shows through glass roles. */
 
 html.platform-macos,
 html.platform-macos body,

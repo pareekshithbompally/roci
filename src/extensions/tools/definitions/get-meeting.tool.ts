@@ -1,9 +1,4 @@
-/**
- * get_meeting tool
- *
- * Loads specific fields of a meeting by ID.
- * Wraps meetingReferenceService.loadSelectiveContext + formatForLLM.
- */
+/** get_meeting: loads chosen fields of a meeting by ID, formatted for the LLM. */
 
 import type { ToolDefinition, ToolResult, MeetingCitation } from '@extensions/tools/types';
 import { meetingReferenceService } from '@services/meetingReferenceService';

@@ -1,9 +1,4 @@
-/**
- * get_action_items tool
- *
- * Retrieves action items / todos from meetings.
- * Can filter by meeting or across all meetings, and by completion status.
- */
+/** get_action_items: todos from one or all meetings, filterable by completion. */
 
 import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
 import { meetingReferenceService } from '@services/meetingReferenceService';

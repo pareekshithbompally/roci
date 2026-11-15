@@ -70,8 +70,7 @@ code, pre {
 .scrollbar-overlay::-webkit-scrollbar-track {
   background: transparent;
 }
-/* No ::-webkit-scrollbar-thumb rule — lets the OS draw its own overlay thumb
-   that appears on scroll and auto-fades after a delay (macOS native behavior). */
+/* No ::-webkit-scrollbar-thumb rule, so macOS draws its own auto-fading overlay thumb. */
 
 /* ─── Scroll fade — bottom gradient mask only (top is fully opaque) ─── */
 .scroll-fade {
@@ -232,8 +231,7 @@ code, pre {
 }
 
 /* ─── Schedule-X Calendar Theme Overrides ─────────────────── */
-/* Maps Schedule-X CSS variables to the app's paper/night design tokens
-   so the calendar feels native rather than an embedded iframe. */
+/* Maps Schedule-X CSS variables onto the app's design tokens so the calendar looks native. */
 
 /* Roles from tokens.css — swap with .dark like everything else */
 .sx__calendar-wrapper {

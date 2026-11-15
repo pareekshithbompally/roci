@@ -1,7 +1,4 @@
-/**
- * ModelRowMenu — the ⋯ menu on a provider's selected-model row:
- * capability toggles (Tool calling, Audio input — apply at once) and Remove (asks first).
- */
+/** ⋯ menu on a selected-model row: capability toggles (apply at once) and Remove (asks first). */
 
 import React from 'react';
 import { MoreHorizontal } from 'lucide-react';

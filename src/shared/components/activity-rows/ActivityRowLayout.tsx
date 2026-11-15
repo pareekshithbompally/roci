@@ -1,14 +1,4 @@
-/**
- * ActivityRowLayout — shared two-line layout for all ActivityTray rows.
- *
- * Anatomy:
- *   Line 1: [icon]  label  [badge]
- *   Line 2:         detail text    [action buttons]
- *   Line 3: optional thin progress bar (only when percent != null)
- *
- * Splitting label and detail onto separate lines prevents truncation in the
- * narrow sidebar where a single-line layout cannot fit all three elements.
- */
+/** Two-line tray row (label line, detail line, optional progress bar) so nothing truncates in the narrow sidebar. */
 
 import React from 'react';
 import { Pause, Play, Square, Trash2, Timer, Sparkles, X } from 'lucide-react';

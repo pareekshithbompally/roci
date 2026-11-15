@@ -1,10 +1,4 @@
-/**
- * ModelIcon — the one icon for a model anywhere in the app.
- *
- * Local models with an org (and Model Icons enabled) show the org avatar;
- * everything else shows the provider logo, or nothing when `fallback="none"`
- * (list rows that already sit under their provider's heading).
- */
+/** The one model icon: org avatar for local models with an org, else the provider logo (none if fallback="none"). */
 
 import React from 'react';
 import { ProvidersAvatar } from './ProvidersAvatar';

@@ -1,10 +1,4 @@
-/**
- * ProvidersPanel Component
- *
- * Two-column master-detail layout: sticky provider sidebar + scrollable detail panel.
- * Uses the context's selectedProviderName as single source of truth (with localStorage
- * fallback for first-mount initialization only).
- */
+/** Master-detail providers layout; selectedProviderName is the source of truth, localStorage seeds first mount. */
 
 import React, { useState, useEffect } from 'react';
 import { ExternalLink, Search, Loader2, X } from 'lucide-react';

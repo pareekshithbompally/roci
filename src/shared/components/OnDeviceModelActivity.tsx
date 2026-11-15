@@ -1,15 +1,4 @@
-/**
- * OnDeviceModelActivity
- *
- * Renders nothing. Bridges on-device model and indexing progress events into
- * ActivityTray rows, with toasts for completion and errors. Download consent
- * is not here: an explicit Download click is consent, and implicit triggers
- * ask through the app-wide `confirm()` (see the rag consent gate).
- *
- * Cache-hit suppression: the embedding service fires rapid download/done/ready
- * events even on cache hits (~100ms total). We debounce on the UI side — only
- * show tray rows if the download phase persists beyond 400ms.
- */
+/** Renders nothing: bridges on-device model and indexing progress events into ActivityTray rows and toasts. */
 
 import React, { useEffect } from 'react';
 import { onRAGProgress, preloadModel, resetPipeline } from '@extensions/rag';
@@ -19,8 +8,7 @@ import type { ActivityItem } from '@shared/stores/activityStore';
 import { useToast } from '@shared/contexts/ToastContext';
 import { notifyAppEvent } from '@shared/utils/appEvents';
 
-// Only show download toasts if downloading lasts longer than this.
-// Cache hits complete in <200ms and should be silent.
+// Downloads shorter than this are cache hits and stay silent.
 const DOWNLOAD_DEBOUNCE_MS = 400;
 
 export const OnDeviceModelActivity: React.FC = () => {

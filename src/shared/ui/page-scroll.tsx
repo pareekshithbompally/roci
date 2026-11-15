@@ -17,20 +17,13 @@ export function TitlebarSpacer() {
 }
 
 export interface PageScrollProps extends HTMLAttributes<HTMLDivElement> {
-  /**
-   * Runs full height to the window top: content starts below the titlebar and,
-   * scrolled up, fades out under it instead of stopping at a hard edge.
-   */
+  /** Runs to the window top: content starts below the titlebar and fades out under it when scrolled. */
   underTitlebar?: boolean;
   /** Content fades out at the bottom edge too (into a composer below). Scrolled to the end, the last content rests above the fade. */
   fadeBottom?: boolean;
 }
 
-/**
- * A view's vertical page scroller (chat, a settings pane). Callers add layout
- * and padding; edges fade per the props. For an inset region inside a page,
- * use `ScrollArea`.
- */
+/** A view's vertical page scroller with edge fades; callers add layout and padding. Use `ScrollArea` for insets. */
 export const PageScroll = forwardRef<HTMLDivElement, PageScrollProps>(
   ({ underTitlebar = true, fadeBottom = false, className, style, children, ...props }, ref) => {
     const fade = edgeFade({ top: underTitlebar ? safeArea : 0, bottom: fadeBottom ? edgeFadePx : 0 });

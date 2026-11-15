@@ -1,11 +1,4 @@
-//! On-device speech-to-text: transcribe.cpp (ggml, Metal) running in this
-//! process, on the curated speech models in `crate::models`. There is no
-//! endpoint: the webview calls these commands, and everything else reaches
-//! transcription through Kasset (MCP).
-//!
-//! - `engine`: one warm model at a time, unloaded after an idle period.
-//! - `live`: dictation transcribed while it's spoken (models that stream).
-//! - `commands`: transcribe one WAV part; start / feed / finish / cancel live.
+//! On-device speech-to-text in-process on the curated models; the webview calls these commands.
 
 pub mod commands;
 mod engine;

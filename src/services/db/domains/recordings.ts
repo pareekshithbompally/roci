@@ -1,6 +1,4 @@
-/**
- * Recordings domain — upsert/list/delete recording rows.
- */
+/** Recordings domain — upsert/list/delete recording rows. */
 
 import { call } from '@services/db/internal';
 

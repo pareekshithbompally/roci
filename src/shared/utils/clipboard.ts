@@ -1,7 +1,4 @@
-/**
- * Copy text that pastes well everywhere: plain text for editors and
- * terminals, plus HTML for rich targets (Notes, Mail, Docs) when given.
- */
+/** Copy plain text for editors and terminals, plus HTML for rich targets (Notes, Mail, Docs) when given. */
 export async function copyRichText(plain: string, html?: string): Promise<void> {
   if (!html) {
     await navigator.clipboard.writeText(plain);

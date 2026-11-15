@@ -1,8 +1,4 @@
-/**
- * ImportButton — Split dropdown for importing existing meetings.
- *
- * Uses existing DropdownMenu primitives. Matches IdleView action chip styling.
- */
+/** Split dropdown for importing existing meetings, styled like the IdleView action chips. */
 
 import React from 'react';
 import { Plus, AudioWaveform, Subtitles, ChevronDown } from 'lucide-react';

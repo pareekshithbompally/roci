@@ -1,25 +1,4 @@
-//! `kasset://` URL actions — Shortcuts ("Open URL"), Raycast, Alfred, Stream
-//! Deck, `open kasset://record`, and links in notes drive Kasset.
-//!
-//! | URL                         | Action                                    |
-//! |-----------------------------|-------------------------------------------|
-//! | `kasset://record`           | start recording (ignored while recording) |
-//! | `kasset://stop`             | stop and transcribe                       |
-//! | `kasset://show`             | bring up the window                       |
-//! | `kasset://settings`         | open Settings                             |
-//! | `kasset://ask?q=<question>` | new chat with that question               |
-//! | `kasset://meeting/<id>`     | open that meeting                         |
-//!
-//! The first four are menu bar actions and go through [`menubar::dispatch`],
-//! so a link and a click share one path. `ask` and `meeting` carry a value and
-//! go to the webview on [`ACTION_EVENT`]. Spotlight results also open meetings
-//! through `open_meeting`.
-//!
-//! macOS hands Kasset the URL (launching it first when needed) before the
-//! webview listens, so actions wait until the frontend calls
-//! `url_actions_ready`. Unknown or malformed URLs are logged and dropped. A
-//! link can come from a web page, so recording from one is never hidden: the
-//! menu bar icon is forced visible and red while recording.
+//! `kasset://` URL actions (record, stop, show, settings, ask, meeting), queued until the webview is ready.
 
 use std::sync::Mutex;
 

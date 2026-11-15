@@ -1,10 +1,4 @@
-/**
- * Model Avatars Configuration
- *
- * Per-model org icons for local models, loaded from Hugging Face's public
- * avatar endpoint (same approach as the llama.cpp WebUI). Off by default:
- * nothing is requested from huggingface.co until the user enables it.
- */
+/** Hugging Face org avatars for local models; off by default, so nothing is requested until enabled. */
 
 export const MODEL_AVATARS_CONFIG = {
   /** `${avatarsUrl}/${org}` redirects to the org's avatar image. */

@@ -1,12 +1,4 @@
-/**
- * McpServersPanel — Settings → MCP Servers (Jan's settings/mcp-servers page).
- *
- * Header (Experimental badge, mcp.so link, edit-all-JSON, add), the
- * permissions/runtime section, then one row per configured server. Every change
- * runs through `useMcpReconfigure` (disconnect → save → reconnect), one at a
- * time: while a change is in flight every action waits (Jan's
- * `reconfigurationPending` guard), so two changes never race to save.
- */
+/** MCP servers settings; changes run one at a time through `useMcpReconfigure` so two saves never race. */
 
 import React, { useState } from 'react';
 import { Braces, Plus } from 'lucide-react';

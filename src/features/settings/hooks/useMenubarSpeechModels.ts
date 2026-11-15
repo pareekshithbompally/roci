@@ -1,13 +1,4 @@
-/**
- * Keeps the tray's Speech Model submenu in step with the speech models that
- * run without a key and are ready now (this Mac's engine, Apple Speech, Hex —
- * the same options as Settings › Capabilities), and the selected one.
- *
- * The tray is backend-owned, so it can't read the app's settings: this hook
- * reports the list it should show. Each row's id is the selection key
- * (`provider::model`); picking one comes back as `speech_model:<key>` and is
- * applied in `App.tsx` after `freshSpeechSources` confirms it's still ready.
- */
+/** Reports the ready keyless speech models and the selection to the backend-owned tray submenu. */
 
 import { useEffect, useMemo } from 'react';
 import { isTauriEnvironment, menubarService, type MenubarSpeechModel } from '@services/tauri';

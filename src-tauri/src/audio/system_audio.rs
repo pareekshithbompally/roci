@@ -1,5 +1,4 @@
-//! System audio: a Core Audio process tap, with ScreenCaptureKit as the
-//! fallback when the tap is not authorized.
+//! System audio: a Core Audio process tap, with ScreenCaptureKit when the tap is not authorized.
 
 use std::ffi::CStr;
 use std::ptr::NonNull;
@@ -72,8 +71,7 @@ pub(super) fn open_system_audio(sink: &PacketSink) -> Result<Box<dyn LiveSource>
     ScreenCaptureSource::start(sink).map(|source| Box::new(source) as Box<dyn LiveSource>)
 }
 
-/// Whole-system output, minus Kasset's own sounds, through a private Core Audio
-/// process tap on a private aggregate device. It has no display dependency.
+/// Whole-system output minus Kasset's sounds, via a private process tap; no display dependency.
 struct ProcessTapSource {
     tap: AudioObjectID,
     aggregate: AudioObjectID,
@@ -86,8 +84,7 @@ struct ProcessTapSource {
     resample: To16k,
 }
 
-// SAFETY: The Core Audio object IDs and IOProc handle are plain identifiers
-// used only from the owning supervisor thread.
+// SAFETY: The object IDs and IOProc handle are plain identifiers used only by the owning supervisor thread.
 unsafe impl Send for ProcessTapSource {}
 
 impl ProcessTapSource {
@@ -226,8 +223,7 @@ impl LiveSource for ProcessTapSource {
 
 impl Drop for ProcessTapSource {
     fn drop(&mut self) {
-        // SAFETY: Each identifier was created by this source and is torn down
-        // once, in reverse order of creation.
+        // SAFETY: Each identifier was created here and is torn down once, in reverse order of creation.
         unsafe {
             if self.aggregate != 0 {
                 if self.io_proc.is_some() {
@@ -317,8 +313,7 @@ fn object<T: objc2::Message>(value: Retained<T>) -> Retained<AnyObject> {
     unsafe { Retained::cast_unchecked(value) }
 }
 
-/// A private aggregate device that reads one process tap. `uid` must differ
-/// for each concurrent tap of this process.
+/// A private aggregate device reading one process tap; `uid` must differ per concurrent tap.
 fn create_tap_aggregate(
     tap_uid: &NSString,
     name: &str,
@@ -366,10 +361,7 @@ fn create_tap_aggregate(
     Ok(aggregate)
 }
 
-/// Mixes one IO cycle's float buffers to mono.
-///
-/// # Safety
-/// `list` must point at a valid `AudioBufferList` of 32-bit float samples.
+/// Mixes one IO cycle's buffers to mono; safety: `list` must be a valid `AudioBufferList` of f32 samples.
 unsafe fn mono_samples(
     list: NonNull<AudioBufferList>,
     channels: usize,
@@ -416,9 +408,7 @@ unsafe fn mono_samples(
     }
 }
 
-/// ScreenCaptureKit system audio, used only when the tap is unavailable.
-/// It depends on an available display, so display sleep can end it; the
-/// supervisor then reopens it once a display returns.
+/// ScreenCaptureKit system audio when the tap is unavailable; needs a display, so sleep can end it.
 struct ScreenCaptureSource {
     stream: SCStream,
     error: Arc<Mutex<Option<String>>>,

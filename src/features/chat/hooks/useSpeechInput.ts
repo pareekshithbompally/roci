@@ -1,18 +1,4 @@
-/**
- * useSpeechInput
- *
- * Manages the full chat voice-input lifecycle:
- *   idle → starting → recording ⇄ paused → transcribing → idle
- *
- * `starting` covers the microphone warm-up gap (getUserMedia + capture setup)
- * so the pill mounts on the same commit as the mic press — the UI never
- * freezes on the old frame and then cuts in late.
- *
- * Exposes the live MediaStream so callers can drive a waveform visualizer.
- * How the audio becomes text is a `DictationCapture`: live (text while it's
- * spoken, `liveText`) when `live` is given, else recorded and transcribed by
- * the speech model when it ends.
- */
+/** Chat voice input lifecycle (idle → starting → recording ⇄ paused → transcribing), live or recorded. */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { audioToRawText } from '@services/unifiedAIService';
@@ -62,11 +48,9 @@ export function useSpeechInput(
   const [elapsed, setElapsed] = useState(0);
 
   const captureRef = useRef<DictationCapture | null>(null);
-  /** Set when the master X cancels an in-flight transcription so its late
-      result is discarded instead of landing in the composer. */
+  /** Set when cancel hits an in-flight transcription so its late result is discarded. */
   const transcriptionCancelledRef = useRef(false);
-  /** Set when stop/cancel wins the race against a pending start, so the
-      late-arriving mic and capture are released instead of going live. */
+  /** Set when stop/cancel beats a pending start so the late mic and capture are released. */
   const startCancelledRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -124,8 +108,7 @@ export function useSpeechInput(
     if (state !== 'idle') return;
     startCancelledRef.current = false;
     transcriptionCancelledRef.current = false;
-    // Mount the pill on this commit — the mic warms up underneath it. A live
-    // dictation's transcript line is part of the pill from this first frame.
+    // Mount the pill now; the mic warms up underneath it.
     const startedAt = Date.now();
     setState('starting');
     if (live) setLiveText(EMPTY_LIVE_TEXT);
@@ -151,9 +134,7 @@ export function useSpeechInput(
       return;
     }
 
-    // The UI stays on the starting pill until its enter beat lands. Flipping
-    // to recording mid-enter (analyser spin-up + control swap + scope
-    // restage) drops frames and reads as a cut.
+    // Stay on the starting pill until its enter beat lands; flipping mid-enter drops frames.
     await new Promise(r => setTimeout(r, Math.max(0, VOICE_ENTER_BEAT_MS - (Date.now() - startedAt))));
     if (!mountedRef.current || startCancelledRef.current) {
       capture.cancel();
@@ -220,8 +201,7 @@ export function useSpeechInput(
   }, [state, cleanup, stopTimer]);
 
   const cancel = useCallback(() => {
-    // Cancelling mid-transcription marks the in-flight result for discard —
-    // the awaiting stop() resolves to '' instead of filling the composer.
+    // Cancelling mid-transcription makes the awaiting stop() resolve to ''.
     if (state === 'transcribing') transcriptionCancelledRef.current = true;
     // Cancelling mid-warm-up releases the mic as soon as it arrives.
     if (state === 'starting') startCancelledRef.current = true;

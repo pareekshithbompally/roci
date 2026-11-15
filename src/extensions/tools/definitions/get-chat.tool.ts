@@ -1,8 +1,4 @@
-/**
- * get_chat tool
- *
- * Loads a full chat session by ID and returns a summary of its conversation.
- */
+/** get_chat: loads a chat session by ID and summarises its conversation. */
 
 import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
 import { chatService } from '@services/chat.service';

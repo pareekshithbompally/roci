@@ -1,14 +1,4 @@
-/**
- * useMeetingTodos Hook
- *
- * TanStack Query-based todos hook for a single meeting.
- * Reads/writes via the unified store (Phase 3).
- * Provides optimistic mutations with rollback on failure.
- *
- * Preserves reminder side-effects:
- * - Cancel reminder when deleting a todo
- * - Cancel reminder when toggling a todo to completed
- */
+/** One meeting's todos with optimistic mutations; deleting or completing a todo cancels its reminder. */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';

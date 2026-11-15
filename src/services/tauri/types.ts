@@ -1,7 +1,3 @@
-/**
- * Shared types for Tauri services
- */
-
 export interface TauriEnvironment {
   isTauri: boolean;
   platform?: string;
@@ -42,10 +38,6 @@ export enum TrayAction {
   QUIT = 'quit',
 }
 
-/**
- * Prefix of a Speech Model submenu item's id: `speech_model:<provider::model>`
- * (the speech selection key).
- * The model id is dynamic, so these arrive as plain strings, not enum members.
- */
+/** Speech Model menu item id prefix (`speech_model:<provider::model>`); dynamic, so not an enum member. */
 export const SPEECH_MODEL_ACTION_PREFIX = 'speech_model:';
 

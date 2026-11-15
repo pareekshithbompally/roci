@@ -1,5 +1,4 @@
-//! The microphone: resolving and opening the input, following the system
-//! default and the audio service, and which format a stream opens in.
+//! The microphone: resolving, opening, and following the input, and choosing its stream format.
 
 use std::ffi::c_void;
 use std::sync::Once;
@@ -29,10 +28,7 @@ pub fn audio_service_restart_generation() -> u64 {
     AUDIO_SERVICE_RESTART_GENERATION.load(Ordering::Acquire)
 }
 
-/// Advances when the OS's default input or its list of inputs changes, or
-/// a MacBook's lid opens or closes, so an input following the system
-/// default resolves again. macOS reports these through CoreAudio listeners
-/// and an IOKit interest notification.
+/// Advances when the default input, the input list, or the lid changes, so the input resolves again.
 pub fn input_route_generation() -> u64 {
     INPUT_ROUTE_GENERATION.load(Ordering::Acquire)
 }
@@ -41,9 +37,7 @@ fn notify_input_route_changed() {
     INPUT_ROUTE_GENERATION.fetch_add(1, Ordering::AcqRel);
 }
 
-/// Registers the CoreAudio listeners behind [`audio_service_restart_generation`]
-/// and [`input_route_generation`]. Their callbacks run on CoreAudio's
-/// notification thread, never the audio callback, and only bump a counter.
+/// Registers the listeners behind the generation counters; their callbacks only bump a counter.
 pub fn watch_input_devices() {
     #[repr(C)]
     struct AudioObjectPropertyAddress {
@@ -110,8 +104,7 @@ pub fn watch_input_devices() {
                 tracing::warn!(status, "could not watch CoreAudio input devices");
             }
         }
-        // Closing the lid switches the built-in microphone off without
-        // changing CoreAudio's device list or default input.
+        // Closing the lid switches the built-in mic off without changing the device list or default.
         lid::watch(notify_input_route_changed);
     });
 }
@@ -127,9 +120,7 @@ pub struct AudioInput {
     last_delivery: Mutex<Instant>,
 }
 
-/// A running stream delivers audio every few milliseconds, even silence. One
-/// that has delivered nothing for this long has stopped without reporting an
-/// error and is reopened.
+/// A running stream delivers even silence every few ms; this long without audio means it silently stopped.
 const STREAM_STALL_TIMEOUT: Duration = Duration::from_secs(4);
 
 pub enum AudioInputEvent {
@@ -149,10 +140,7 @@ pub enum Opened {
 enum InputTarget {
     /// The OS's default input.
     SystemDefault,
-    /// A real input standing in for a default that is the built-in
-    /// microphone with the lid closed, or missing: the built-in microphone
-    /// while the lid is open, else the first usable one listed, never a
-    /// virtual input or an iPhone's Continuity microphone.
+    /// A real input standing in for a missing or lid-closed default; never virtual or Continuity.
     StandIn(usize),
 }
 
@@ -180,8 +168,7 @@ impl AudioInput {
         if audio_service_restart_generation() != self.restart_generation {
             return AudioInputEvent::StreamFailed("CoreAudio service restarted".into());
         }
-        // A stream failure reported before or during the wait outranks any
-        // chunk delivered alongside it.
+        // A stream failure reported before or during the wait outranks any chunk delivered alongside it.
         if let Ok(error) = self.stream_errors.try_recv() {
             return AudioInputEvent::StreamFailed(error);
         }
@@ -220,9 +207,7 @@ impl AudioInput {
     }
 }
 
-/// Resolves the input to capture from: the system default, unless it is the
-/// built-in microphone with the lid closed (switched off in hardware though
-/// still listed) or missing, when a real input stands in.
+/// The system default input, or a stand-in when it is missing or the built-in mic with the lid closed.
 fn resolve_input(
     names: &[String],
     default: Option<&str>,
@@ -237,9 +222,7 @@ fn resolve_input(
     if default_usable {
         return Ok(InputTarget::SystemDefault);
     }
-    // A virtual device or an iPhone's Continuity microphone is used only as
-    // the default, never as a stand-in: a virtual one can record silence
-    // while its app is idle, and the iPhone prompts and can fail.
+    // Virtual inputs can record silence and Continuity can prompt or fail, so neither stands in.
     let usable = || {
         (0..names.len()).filter(|&index| {
             !off(index) && !matches!(transport(index), Transport::Virtual | Transport::Continuity)
@@ -258,9 +241,7 @@ fn resolve_input(
         })
 }
 
-/// The input devices whose names can be read, with those names. A device
-/// without a readable name, such as CoreAudio's placeholder when no input
-/// exists, cannot be opened, so it is left out.
+/// Input devices with readable names; an unnamed device (a placeholder) cannot be opened, so it is skipped.
 fn input_devices_of(host: &cpal::Host) -> Result<(Vec<Device>, Vec<String>)> {
     Ok(host
         .input_devices()
@@ -269,17 +250,14 @@ fn input_devices_of(host: &cpal::Host) -> Result<(Vec<Device>, Vec<String>)> {
         .unzip())
 }
 
-/// The system default input with its name, or `None` when there is none or
-/// its name cannot be read.
+/// The system default input with its name, or `None` when there is none or its name is unreadable.
 fn default_input_of(host: &cpal::Host) -> Option<(Device, String)> {
     let device = host.default_input_device()?;
     let name = device_name(&device)?;
     Some((device, name))
 }
 
-/// The device's name. cpal's `Display` for `Device` returns `fmt::Error`
-/// when the name cannot be read, which makes `to_string` panic, so read the
-/// description directly.
+/// The device's name, read directly because cpal's `Display` makes `to_string` panic on an unreadable name.
 fn device_name(device: &Device) -> Option<String> {
     description_name(device.description())
 }
@@ -296,8 +274,7 @@ fn description_name<E: std::fmt::Display>(
     }
 }
 
-/// Opens the microphone a meeting records, or keeps the open one named
-/// `keep` when it resolves to that again.
+/// Opens the meeting microphone, or keeps the open one named `keep` when it resolves to that again.
 pub fn open_meeting_input(keep: Option<&str>) -> Result<Opened> {
     let host = cpal::default_host();
     let (devices, names) = input_devices_of(&host)?;
@@ -311,8 +288,7 @@ pub fn open_meeting_input(keep: Option<&str>) -> Result<Opened> {
         lid_closed,
     )
     .map_err(|error| eyre!(error))?;
-    // Keeping the open device returns before logging, so a route change
-    // that resolves to the same input logs nothing.
+    // Keeping the open device returns before logging, so an unchanged route logs nothing.
     let (device, name) = match target {
         InputTarget::StandIn(index) => (devices[index].clone(), names[index].clone()),
         InputTarget::SystemDefault => (
@@ -347,9 +323,7 @@ fn report_stream_error(sender: &SyncSender<String>, error: cpal::Error) {
         error.kind(),
         cpal::ErrorKind::Xrun | cpal::ErrorKind::RealtimeDenied
     ) {
-        // CoreAudio reports processor overloads, common while a cold device
-        // starts, without stopping the stream. Real sample gaps still surface as
-        // capture discontinuities.
+        // Processor overloads are common as a cold device starts and do not stop the stream.
         tracing::warn!(%error, "microphone stream glitched; continuing");
         return;
     }
@@ -389,9 +363,7 @@ struct StartedStream {
 /// The most formats tried after a device refuses its default one.
 const MAX_ALTERNATIVE_INPUT_CONFIGS: usize = 12;
 
-/// Starts a stream in the device's default format. Some drivers refuse a
-/// stream in the format they report as their default, so the other formats
-/// they list are tried before failing with the default's error.
+/// Starts a stream in the default format, then the other listed formats, since some drivers refuse their default.
 fn start_stream_with_fallback(device: &Device, device_name: &str) -> Result<StartedStream> {
     let supported = device
         .default_input_config()
@@ -405,9 +377,7 @@ fn start_stream_with_fallback(device: &Device, device_name: &str) -> Result<Star
         device = %device_name,
         "the microphone refused its default format; trying the others it lists"
     );
-    // Some drivers refuse every format with the backend's default buffer
-    // yet accept the same format with an explicit buffer duration, so each
-    // format is tried with explicit buffers too.
+    // Some drivers refuse the default buffer but accept an explicit one, so each format tries both.
     let mut candidates = fixed_buffer_sizes(supported.sample_rate(), supported.buffer_size())
         .into_iter()
         .map(|buffer| (supported, buffer))
@@ -440,10 +410,7 @@ fn start_stream_with_fallback(device: &Device, device_name: &str) -> Result<Star
     Err(error)
 }
 
-/// Explicit buffers to try at `rate`: about 20 ms within the range the
-/// device reports, then 20 ms and 100 ms as they are. The reported range
-/// can top out at the device's short default period, which some drivers
-/// refuse in shared mode while they take 20 ms or more.
+/// Explicit buffers: ~20 ms within the reported range, then raw 20 and 100 ms, as some ranges top out too short.
 fn fixed_buffer_sizes(rate: u32, reported: &SupportedBufferSize) -> Vec<BufferSize> {
     let twenty_ms = (rate / 50).max(1);
     let clamped = match *reported {
@@ -477,8 +444,7 @@ fn describe_config(config: &SupportedStreamConfig) -> String {
     )
 }
 
-/// The other formats `device` lists, at the default rate where they allow
-/// it, without `default` and duplicates.
+/// The other formats `device` lists, at the default rate where allowed, minus `default` and duplicates.
 fn alternative_input_configs(
     device: &Device,
     default: &SupportedStreamConfig,
@@ -517,8 +483,7 @@ fn alternative_input_configs(
     candidates
 }
 
-/// Opens and starts a stream on `device` in `supported`'s format. The error
-/// names the format the device refused.
+/// Opens and starts a stream on `device` in `supported`'s format; the error names the refused format.
 fn start_stream(
     device: &Device,
     supported: &SupportedStreamConfig,
@@ -572,8 +537,7 @@ fn start_stream(
             .wrap_err("could not start microphone capture")?;
         Ok(stream)
     })
-    // One message, so a log line or status that shows only the outer error
-    // still names the refused format and the driver's reason.
+    // One message, so a log showing only the outer error still names the format and the driver's reason.
     .map_err(|error| {
         eyre!(
             "could not open the microphone ({}): {error:#}",

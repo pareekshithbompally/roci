@@ -1,10 +1,4 @@
-/**
- * MeetingCitationDrawer
- *
- * Slide-in panel that opens when user clicks a citation card in ChatView.
- * Shows meeting summary and transcript (with excerpt highlighted).
- * Uses CSS transition, not a Radix Dialog — it's a positional overlay within ChatView.
- */
+/** Slide-in meeting summary and transcript for a clicked citation; a positional overlay, not a dialog. */
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { X, ExternalLink, FileText, Mic, ArrowLeft, AudioWaveform, Loader2 } from 'lucide-react';
@@ -45,8 +39,7 @@ export const MeetingCitationDrawer: React.FC<MeetingCitationDrawerProps> = ({
   const [activeTab, setActiveTab] = useState<DrawerTab>('transcript');
   const isOpen = (mode === 'list' && citations !== null && citations.length > 0) || (mode === 'detail' && activeCitation !== null);
 
-  // Reset to transcript tab when the citation content changes — meetingId
-  // alone misses a new excerpt from the same meeting.
+  // Key on the whole citation: meetingId alone misses a new excerpt from the same meeting.
   const citationKey = activeCitation
     ? `${activeCitation.meetingId}:${activeCitation.excerpt}`
     : null;

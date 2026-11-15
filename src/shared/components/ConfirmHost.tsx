@@ -1,10 +1,4 @@
-/**
- * ConfirmHost
- *
- * Renders the one app-wide `confirm()` prompt (see confirmStore). Mounted
- * once at the app root. Radix AlertDialog: no click-outside dismiss, Esc and
- * Cancel resolve `false`, the action resolves `true`.
- */
+/** Renders the one app-wide `confirm()` prompt; no click-outside dismiss, Esc and Cancel resolve false. */
 
 import React from 'react';
 import {

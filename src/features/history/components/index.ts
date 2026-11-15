@@ -1,7 +1,3 @@
-/**
- * History Feature Components
- */
-
 export { HistoryItem } from './HistoryItem';
 export { HistoryList } from './HistoryList';
 export { RenameModal } from './RenameModal';

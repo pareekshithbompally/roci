@@ -3,11 +3,7 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 
-/**
- * Self-hosted Silero VAD assets (local-first: no CDN, works offline).
- * The Ort WASM pair must come from vad-web's own nested onnxruntime-web copy —
- * the version its bundled JS was built against — not the hoisted one.
- */
+/** Self-hosted Silero VAD assets; the Ort WASM pair must come from vad-web's own nested onnxruntime-web. */
 const VAD_ORT_DIR = 'node_modules/@ricky0123/vad-web/node_modules/onnxruntime-web/dist';
 
 export default defineConfig(({ mode }) => {
@@ -29,8 +25,7 @@ export default defineConfig(({ mode }) => {
               dest: 'models',
               rename: { stripBase: true, name: 'silero_vad_legacy.onnx' },
             },
-            // Exactly the pair the loader fetches (verified in headless Chrome):
-            // both resolve under wasmPaths, so both live flat in dist/ort/.
+            // Exactly the pair the loader fetches; both resolve under wasmPaths, so both live flat in dist/ort/.
             {
               src: `${VAD_ORT_DIR}/ort-wasm-simd-threaded.jsep.mjs`,
               dest: 'ort',

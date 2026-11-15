@@ -1,9 +1,4 @@
-/**
- * GeneralPanel — appearance, capture (input source), storage, search index, version.
- *
- * Data (index stats, disk usage, storage path, version) from systemInfoStore.
- * Re-index actions stay inline (they're operations, not state).
- */
+/** Appearance, capture input, storage, search index and version; data comes from systemInfoStore. */
 
 import React, { useState, useCallback } from 'react';
 import { Sun, Moon, Monitor, Copy, Check, FolderOpen, FolderSearch, RefreshCw, Loader2 } from 'lucide-react';

@@ -4,13 +4,7 @@ import { UI_CONFIG } from '@config/ui.config';
 import { buttonClasses } from './button';
 import { Dot } from './surface';
 
-/**
- * In-app toasts: Sonner (stacking, timing, swipe, a11y, its markup and API),
- * themed through its own unstyled + `classNames` hooks — floating surface,
- * token text, a tone dot as the only colour, a kit-styled action button.
- *
- * Render `<Toaster />` once; post with `showToast`.
- */
+/** In-app toasts: Sonner themed via its `classNames` hooks; render `<Toaster />` once, post with `showToast`. */
 
 export type ToastTone = 'success' | 'error' | 'warning' | 'info';
 

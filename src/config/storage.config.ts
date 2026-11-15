@@ -1,18 +1,9 @@
-/**
- * Storage Configuration
- * Defines directory structure, file naming, and cache policies for binary files.
- * Data persistence (meetings, chats, settings) is handled by kasset.db via @services/db.
- */
+/** Storage layout, file naming and cache policies for binary files; data lives in kasset.db. */
 
 export const StorageConfig = {
-  /**
-   * Application name for storage directory
-   */
   appName: 'Kasset AI',
 
-  /**
-   * Directory structure within Application Support
-   */
+  /** Directory structure within Application Support. */
   directories: {
     recordings: 'recordings',
     cache: 'cache',
@@ -20,17 +11,11 @@ export const StorageConfig = {
     cacheApi: 'cache/api',
   },
 
-  /**
-   * File naming patterns
-   */
   fileNames: {
     recordingPrefix: 'rec',
     cacheTempPrefix: 'temp',
   },
 
-  /**
-   * File format specifications
-   */
   formats: {
     recording: {
       defaultExtension: '.wav',
@@ -38,9 +23,6 @@ export const StorageConfig = {
     },
   },
 
-  /**
-   * Cache policies
-   */
   cache: {
     audio: {
       ttlHours: 24,
@@ -55,28 +37,18 @@ export const StorageConfig = {
     cleanupThresholdPercent: 90,
   },
 
-  /**
-   * Retry configuration for file operations
-   */
+  /** Retry policy for file operations. */
   retry: {
     maxAttempts: 3,
     initialDelayMs: 100,
     backoffMultiplier: 2,
   },
 
-  /**
-   * Metadata version for future migrations
-   */
   metadataVersion: 1,
 
-  /**
-   * Maximum entries to keep in history
-   */
+  /** Maximum entries to keep in history. */
   maxHistoryEntries: 1000,
 
-  /**
-   * Default settings
-   */
   defaultSettings: {
     theme: 'system',
     autoSave: true,
@@ -88,9 +60,6 @@ export const StorageConfig = {
   },
 } as const;
 
-/**
- * Generate filename for recording
- */
 export function generateRecordingFilename(extension?: string): string {
   const timestamp = Date.now();
   const uuid = crypto.randomUUID().split('-')[0];
@@ -98,9 +67,6 @@ export function generateRecordingFilename(extension?: string): string {
   return `${StorageConfig.fileNames.recordingPrefix}_${timestamp}_${uuid}${ext}`;
 }
 
-/**
- * Extract a recording ID from a filename
- */
 export function getRecordingIdFromFilename(filename: string): string {
   const lastDotIndex = filename.lastIndexOf('.');
   if (lastDotIndex <= 0) {
@@ -109,9 +75,6 @@ export function getRecordingIdFromFilename(filename: string): string {
   return filename.slice(0, lastDotIndex);
 }
 
-/**
- * Generate filename for cache entry
- */
 export function generateCacheFilename(key: string, extension: string = '.cache'): string {
   const hash = key.split('').reduce((a, b) => {
     a = ((a << 5) - a) + b.charCodeAt(0);

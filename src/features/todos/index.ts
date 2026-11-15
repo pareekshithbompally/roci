@@ -1,19 +1,4 @@
-/**
- * Todos Feature Module
- * 
- * Handles all todos-related functionality:
- * - Todo list display
- * - Add, toggle, delete todos
- * - AI-generated action items
- * - Todos linked to meetings/recordings
- * 
- * Usage:
- * ```tsx
- * import { TodoList } from '@/features/todos';
- * 
- * <TodoList />
- * ```
- */
+/** Todos feature: todo list, AI action items, and meeting-linked todos. */
 
 // Hooks
 export { useGlobalTodos } from './hooks';

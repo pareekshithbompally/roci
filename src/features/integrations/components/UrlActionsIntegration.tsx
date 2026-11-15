@@ -1,7 +1,4 @@
-/**
- * UrlActionsIntegration — the rows of the URL actions card: every `kasset://`
- * link Kasset answers, with a copy button. The Settings section supplies the card.
- */
+/** URL actions rows: every `kasset://` link Kasset answers, with a copy button. */
 
 import React from 'react';
 import { Copy } from 'lucide-react';

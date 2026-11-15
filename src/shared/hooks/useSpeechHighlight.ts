@@ -1,9 +1,4 @@
-/**
- * useSpeechHighlight — marks the text being read aloud inside `root` (a
- * reply's rendered body) with the CSS Custom Highlight API: no markup added,
- * nothing re-rendered. Chunks are found in order; one that can't be found
- * (e.g. text the voice skipped) simply isn't marked.
- */
+/** Marks the chunk being read aloud via the CSS Custom Highlight API; chunks that cannot be found stay unmarked. */
 
 import { useEffect, useRef, type RefObject } from 'react';
 import { READ_ALOUD_CONFIG } from '@config/readAloud.config';

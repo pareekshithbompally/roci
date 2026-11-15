@@ -1,7 +1,4 @@
-/**
- * Notifications Feature Module — app-lifetime wiring for native notifications.
- * The bridge is `@services/notifications`; the switches are Settings › Notifications.
- */
+/** App-lifetime wiring for native notifications; switches live in Settings › Notifications. */
 
 export { useNotificationsRuntime } from './hooks/useNotificationsRuntime';
 export { useNotificationControls } from './hooks/useNotificationControls';

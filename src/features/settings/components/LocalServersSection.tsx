@@ -1,11 +1,4 @@
-/**
- * LocalServersSection
- *
- * The "Local" group of the Providers sidebar: servers running on this Mac
- * (detected on their standard ports) and the ones the user saved. Switching a
- * detected server on saves it as a provider; Rescan refreshes model lists;
- * "Add URL" connects a server on any other address.
- */
+/** Providers sidebar "Local" group: detected and saved servers on this Mac, with Rescan and Add URL. */
 
 import React, { useState } from 'react';
 import { Plus, RefreshCw } from 'lucide-react';

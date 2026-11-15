@@ -1,16 +1,4 @@
-/**
- * Menubar service — thin frontend sync for the backend-owned tray.
- *
- * The tray icon, menu, visibility, and elapsed clock live in
- * `src-tauri/src/menubar.rs` (Hex-faithful owner). This service only:
- * - listens for `menubar-action` events (Show / Record / Stop / Settings /
- *   Check for Updates / Manage Models / Quit, plus `speech_model:<id>`),
- * - reports recording transitions so the backend can swap the icon and
- *   swap the single Record / Stop row, and
- * - reports the downloaded Hex models that fill the Speech Model submenu.
- *
- * It never constructs tray icons, menus, images, or timers.
- */
+/** Frontend sync for the Rust-owned tray: menu actions in; recording state and downloaded Hex models out. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
@@ -35,10 +23,7 @@ export interface MenubarSpeechModel {
   selected: boolean;
 }
 
-/**
- * Menu ids are fixed actions or `speech_model:<id>`, so the payload is a
- * plain string rather than the `TrayAction` enum.
- */
+/** Menu ids are fixed actions or `speech_model:<id>`, so the payload is a plain string. */
 type MenubarAction = TrayAction | string;
 type MenubarEventCallback = (action: MenubarAction) => void;
 
@@ -59,11 +44,7 @@ class MenubarService {
     return this.initialized;
   }
 
-  /**
-   * Attach the `menubar-action` listener. Concurrent calls (StrictMode
-   * double-mount) share one in-flight attempt; a failed attempt resets so
-   * a later call can retry.
-   */
+  /** Attaches the listener once; concurrent calls share the attempt, and a failure resets so a later call can retry. */
   initialize(onEvent: MenubarEventCallback): Promise<void> {
     if (!isTauriEnvironment()) return Promise.resolve();
     if (this.initialized) return Promise.resolve();
@@ -93,10 +74,7 @@ class MenubarService {
     }
   }
 
-  /**
-   * Replace the Speech Model submenu (Hex: `update_transcription`).
-   * An empty list shows the disabled "No downloaded models" row.
-   */
+  /** Replaces the Speech Model submenu; an empty list shows the disabled "No downloaded models" row. */
   async setSpeechModels(models: MenubarSpeechModel[]): Promise<void> {
     if (!isTauriEnvironment()) return;
     try {
@@ -137,10 +115,7 @@ class MenubarService {
     }
   }
 
-  /**
-   * Quit through the single backend exit path (runs the existing
-   * ExitRequested guard and cleanup).
-   */
+  /** Quits through the single backend exit path, which runs its guard and cleanup. */
   async quit(): Promise<void> {
     if (!isTauriEnvironment()) return;
     try {

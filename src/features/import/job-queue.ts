@@ -1,9 +1,4 @@
-/**
- * Job Queue — Generic async job queue with concurrency control.
- *
- * Plain TypeScript, no React dependency.
- * Each job gets its own AbortController for cancellation.
- */
+/** Generic async job queue with a concurrency limit; each job gets its own AbortController. */
 
 import type { JobStatus } from './types';
 

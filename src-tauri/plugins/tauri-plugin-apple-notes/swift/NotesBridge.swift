@@ -2,16 +2,7 @@ import AppKit
 import CoreServices
 import Foundation
 
-// MARK: - Apple Notes (Apple Events) — C-compatible JSON bridge for Rust FFI
-//
-// Notes has no public API; the sanctioned route for a Developer ID app is Apple
-// Events to Notes' scripting dictionary. That needs the hardened-runtime
-// entitlement `com.apple.security.automation.apple-events`, Info.plist
-// `NSAppleEventsUsageDescription`, and the user's Automation consent for
-// com.apple.Notes, checked/requested with `AEDeterminePermissionToAutomateTarget`.
-// Scripts run in-process (NSAppleScript) — Apple Events from a child process
-// such as osascript are blocked under the hardened runtime. Every function
-// returns a JSON C string freed with `apple_notes_free_string`.
+// MARK: - Apple Notes (in-process Apple Events; osascript is blocked by hardened runtime) — JSON C-string bridge
 
 private let notesBundleId = "com.apple.Notes"
 
@@ -22,9 +13,7 @@ public func appleNotesAccess(_ ask: Bool) -> UnsafeMutablePointer<CChar> {
     return notesJSON(["status": automationStatus(ask: ask)])
 }
 
-/// Creates or updates the note for one meeting in `folder` (created when missing).
-/// Input `{"folder", "tag", "title", "html"}` — `tag` is a line in the note that identifies it on later saves.
-/// Returns `{}` or `{"error": {"kind", "message"}}`.
+/// Upserts a meeting's note `{"folder", "tag", "title", "html"}`, found later by its `tag` line; `{}` or `{"error"}`.
 @_cdecl("apple_notes_upsert")
 public func appleNotesUpsert(_ input: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar> {
     guard let data = String(cString: input).data(using: .utf8),

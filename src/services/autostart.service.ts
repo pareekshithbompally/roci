@@ -1,15 +1,8 @@
-/**
- * Auto-Launch Service
- * 
- * Manages application auto-launch on system startup.
- */
+/** Turns launch-at-login on and off. */
 
 import { invoke } from '@tauri-apps/api/core';
 
 class AutostartService {
-  /**
-   * Enable auto-launch on system startup
-   */
   async enable(): Promise<void> {
     try {
       await invoke('enable_autostart');
@@ -20,9 +13,6 @@ class AutostartService {
     }
   }
 
-  /**
-   * Disable auto-launch on system startup
-   */
   async disable(): Promise<void> {
     try {
       await invoke('disable_autostart');
@@ -33,9 +23,6 @@ class AutostartService {
     }
   }
 
-  /**
-   * Check if auto-launch is enabled
-   */
   async isEnabled(): Promise<boolean> {
     try {
       return await invoke<boolean>('is_autostart_enabled');
@@ -45,9 +32,6 @@ class AutostartService {
     }
   }
 
-  /**
-   * Toggle auto-launch
-   */
   async toggle(): Promise<boolean> {
     const isEnabled = await this.isEnabled();
     

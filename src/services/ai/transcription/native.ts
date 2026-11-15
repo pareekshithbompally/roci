@@ -1,8 +1,4 @@
-/**
- * The contract shared by the engines that run on this Mac (Apple Speech in
- * Swift, transcribe.cpp in Rust): one WAV part goes in as the raw invoke body,
- * its options as headers, and text with time spans comes back.
- */
+/** On-Mac engine contract: the WAV part is the raw invoke body, options are headers, text and spans come back. */
 
 import { invoke } from '@tauri-apps/api/core';
 import type { TranscriptResult } from './types';

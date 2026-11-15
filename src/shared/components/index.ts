@@ -1,5 +1,4 @@
-// App-wide compositions built from @shared/ui. Import from '@shared/components' only.
-// Shared means used by 2+ features (or the app shell); single-feature components live in that feature.
+// App-wide compositions used by 2+ features; import from '@shared/components' only.
 export { ActionCard } from './ActionCard';
 export { ActivityTray } from './ActivityTray';
 export { ConfirmHost } from './ConfirmHost';

@@ -1,30 +1,6 @@
-/**
- * useDebounce Hook
- * 
- * Debounces a value, returning the debounced value after the specified delay.
- * Useful for search inputs, resize handlers, etc.
- */
-
 import { useState, useEffect } from 'react';
 
-/**
- * Debounce a value
- * 
- * @param value - The value to debounce
- * @param delay - Delay in milliseconds (default: 300)
- * @returns The debounced value
- * 
- * @example
- * ```tsx
- * const [searchTerm, setSearchTerm] = useState('');
- * const debouncedSearch = useDebounce(searchTerm, 500);
- * 
- * useEffect(() => {
- *   // This only runs 500ms after user stops typing
- *   performSearch(debouncedSearch);
- * }, [debouncedSearch]);
- * ```
- */
+/** `value`, updated only after it stops changing for `delay` ms. */
 export function useDebounce<T>(value: T, delay: number = 300): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
@@ -41,21 +17,7 @@ export function useDebounce<T>(value: T, delay: number = 300): T {
   return debouncedValue;
 }
 
-/**
- * Create a debounced function
- * 
- * @param fn - Function to debounce
- * @param delay - Delay in milliseconds (default: 300)
- * @returns Debounced function
- * 
- * @example
- * ```tsx
- * const handleResize = useDebouncedCallback(
- *   (width: number) => console.log('Resized to:', width),
- *   200
- * );
- * ```
- */
+/** `fn` debounced by `delay` ms. */
 export function useDebouncedCallback<T extends (...args: unknown[]) => unknown>(
   fn: T,
   delay: number = 300

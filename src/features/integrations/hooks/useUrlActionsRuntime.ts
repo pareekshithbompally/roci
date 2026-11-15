@@ -1,10 +1,4 @@
-/**
- * useUrlActionsRuntime — mount once (App). Runs `kasset://ask` and
- * `kasset://meeting/<id>` links, then tells Rust the webview is ready so any
- * link that launched Kasset runs now. Ready waits for settings (an ask needs
- * the chat model) and for the menu bar listener (record/stop/show/settings
- * links arrive as menu bar actions).
- */
+/** Mount once (App): runs `kasset://` links, signalling ready once settings and the menu bar listener exist. */
 
 import { useEffect, useRef } from 'react';
 import { isTauriEnvironment, menubarService } from '@services/tauri';

@@ -1,4 +1,4 @@
-//! `mcp_config.json`: the one file every MCP setting lives in (Jan's shape).
+//! `mcp_config.json`: the one file every MCP setting lives in.
 
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
@@ -7,9 +7,7 @@ use tauri::{AppHandle, Manager};
 
 const CONFIG_FILE: &str = "mcp_config.json";
 
-/// Jan's starter servers, all off until enabled. Only those that run as-is:
-/// Jan's `filesystem` (placeholder path) and `serper` (placeholder API key)
-/// and Jan's own browser bridge are left out; enabling them could only fail.
+/// Starter servers, all off until enabled; only those that run without placeholder paths or keys.
 const DEFAULT_MCP_CONFIG: &str = r#"{
   "mcpServers": {
     "fetch": {
@@ -42,8 +40,7 @@ const DEFAULT_MCP_CONFIG: &str = r#"{
   }
 }"#;
 
-/// The runtime settings Rust acts on. The webview owns the rest of
-/// `mcpSettings` (tool permissions); serde ignores those fields here.
+/// Runtime settings Rust acts on; serde ignores the webview-owned fields (tool permissions).
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct McpSettings {
@@ -96,8 +93,7 @@ pub enum Transport {
     },
 }
 
-/// Parse one server entry. `type` `http` and the deprecated `sse` both connect
-/// over Streamable HTTP (rmcp 3 dropped the SSE client, as in Jan).
+/// Parse one server entry; `http` and deprecated `sse` both connect over Streamable HTTP.
 pub fn parse_transport(entry: &Value) -> Option<Transport> {
     let obj = entry.as_object()?;
     match obj.get("type").and_then(Value::as_str) {
@@ -155,9 +151,7 @@ fn config_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir.join(CONFIG_FILE))
 }
 
-/// Read the config, writing Jan's defaults on first use. An unparsable file
-/// is an error the user must fix (the JSON editor shows it), never silently
-/// replaced.
+/// Read the config, writing defaults on first use; an unparsable file is an error, never replaced.
 pub fn read(app: &AppHandle) -> Result<Value, String> {
     let path = config_path(app)?;
     if !path.exists() {

@@ -1,9 +1,4 @@
-/**
- * IdleView Component
- * 
- * Landing page when app is idle - shows main action buttons and chat composer.
- * Uses shared ChatInput component for consistent chat experience.
- */
+/** Idle landing page: main actions and the shared chat composer. */
 
 import React, { useMemo, useState, useCallback } from 'react';
 import { Key, HardDrive, ListTodo, CalendarDays } from 'lucide-react';
@@ -108,16 +103,12 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   };
 
   return (
-    // Full-bleed: the view runs to the window top, so LandingGlow (inset-0)
-    // paints under the titlebar; the spacer keeps flow content below it.
+    // Full-bleed so LandingGlow paints under the titlebar; the spacer keeps content below it.
     <div className="flex-1 w-full flex flex-col animate-fade-in relative">
       <LandingGlow paused={voice.isVoiceActive} />
       <TitlebarSpacer />
 
-      {/* Settings load asynchronously over Tauri IPC — until they arrive the
-         provider list is empty and we can't tell zero-state from landing.
-         Gate the first paint on the same flag SettingsPanel uses, with a
-         skeleton mirroring the landing layout so load-in is seamless. */}
+      {/* Settings load async; until then show a skeleton so an empty provider list is not read as zero-state. */}
       {settingsLoading ? (
         <div className="flex-1 flex flex-col items-center justify-center w-full px-2 relative z-20">
           <div className={`${LAYOUT.chatColumn} space-y-6`}>
@@ -136,8 +127,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
         <div className={`${LAYOUT.chatColumn} space-y-6 overflow-visible`}>
           {hasConfiguredProviders ? (
             <>
-              {/* Greeting — fades in place while the voice pill owns the view. It stays
-                  mounted so the column never reflows and the composer never moves. */}
+              {/* Stays mounted and only fades, so the column never reflows under the voice pill. */}
               <motion.div
                 className="text-center"
                 initial={false}

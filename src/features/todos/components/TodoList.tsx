@@ -1,9 +1,4 @@
-/**
- * TodoList Component
- * 
- * Main todos view with list and create functionality.
- * Shows both user-created todos and AI-generated action items.
- */
+/** Todos view listing user-created todos and AI-generated action items, with create support. */
 
 import React, { useState, useCallback } from 'react';
 import { Plus, ListTodo, Loader2, Calendar } from 'lucide-react';

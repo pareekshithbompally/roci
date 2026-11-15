@@ -1,6 +1,4 @@
-/**
- * Categories domain — list/create/rename/delete meeting categories.
- */
+/** Categories domain — list/create/rename/delete meeting categories. */
 
 import { call, type RustCategoryRow } from '@services/db/internal';
 

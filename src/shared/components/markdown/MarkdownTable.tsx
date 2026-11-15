@@ -1,14 +1,4 @@
-/**
- * MarkdownTable — replaces Streamdown's table wrapper (whose controls use
- * shadcn colour classes this app doesn't define, and an `<a download>` the
- * Tauri webview ignores). Built from kit parts only:
- *
- *   [Copy ▾] [Save ▾] [Expand]      ← IconButton + DropdownMenu
- *   ┌ table ┐                       ← styled by .markdown-content (markdown.css)
- *
- * Expand opens a kit Dialog with the same rows. Copy is rich (text + HTML);
- * Save goes through the shared saveTextFile (native save panel).
- */
+/** Streamdown's table wrapper rebuilt from kit parts (Copy, Save via native panel, Expand) for the Tauri webview. */
 
 import { useRef, useState } from 'react';
 import type { ComponentProps } from 'react';

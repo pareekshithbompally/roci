@@ -1,8 +1,4 @@
-/**
- * URL actions service — `kasset://` links (src-tauri/src/url_actions.rs).
- * Rust parses every link: record/stop/show/settings arrive as menu bar actions;
- * `ask` and `meeting` arrive here. Rust holds them until `ready()`.
- */
+/** `kasset://` links parsed in Rust; `ask` and `meeting` arrive here, held until `ready()`. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';

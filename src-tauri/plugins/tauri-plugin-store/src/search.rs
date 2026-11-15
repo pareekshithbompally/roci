@@ -29,14 +29,10 @@ pub struct SearchHit {
 /// RRF constant (k=60 is standard)
 const RRF_K: f64 = 60.0;
 
-/// BM25 score threshold for FTS5 results entering RRF.
-/// FTS5 rank is negative (more negative = better). Results closer to 0.0 matched
-/// only on high-IDF-penalized (common) words. Threshold filters noise before RRF
-/// so rank-position fusion doesn't give irrelevant docs meaningful scores.
+/// FTS5 rank cutoff before RRF (negative is better); near-0 hits matched only common words.
 const BM25_MIN_SCORE: f64 = -0.5;
 
-/// Hybrid search: KNN vector search + FTS5 full-text, merged via Reciprocal Rank Fusion,
-/// grouped by meeting_id, returning the best chunk per meeting.
+/// KNN + FTS5 merged via Reciprocal Rank Fusion, returning the best chunk per meeting.
 pub fn hybrid_search(
     conn: &Connection,
     params: &SearchParams,
@@ -68,9 +64,7 @@ pub fn hybrid_search(
 
     let mut chunk_scores: HashMap<i64, f64> = HashMap::new();
 
-    // Vector KNN search
-    // sqlite-vec virtual tables don't support compound WHERE, so we over-fetch
-    // and post-filter by meeting_id when scoped.
+    // sqlite-vec can't take a compound WHERE, so over-fetch and post-filter by meeting_id when scoped.
     if mode == "hybrid" || mode == "vector" {
         let embedding_bytes = floats_to_bytes(&params.embedding);
         let vec_fetch = if scoped { fetch_limit * 3 } else { fetch_limit };
@@ -306,8 +300,7 @@ pub struct ChatSearchParams {
     pub mode: Option<String>,
 }
 
-/// Hybrid search over chat chunks: KNN + FTS5, RRF-merged, grouped by session.
-/// Mirrors hybrid_search() but queries chat_chunks + chat_vec_chunks + chat_sessions.
+/// `hybrid_search` over chat chunks, grouped by session.
 pub fn chat_hybrid_search(
     conn: &Connection,
     params: &ChatSearchParams,
@@ -448,12 +441,8 @@ fn floats_to_bytes(floats: &[f32]) -> Vec<u8> {
     floats.iter().flat_map(|f| f.to_le_bytes()).collect()
 }
 
-/// Sanitize a query string for FTS5 MATCH.
-/// Strips FTS5 operators while preserving word-internal punctuation (apostrophes, hyphens).
-/// Wraps each term in quotes for exact matching.
+/// Quotes each term for FTS5 MATCH, stripping operators but keeping in-word apostrophes and hyphens.
 fn sanitize_fts_query(query: &str) -> String {
-    // Keep: alphanumeric, whitespace, apostrophes, hyphens (within words)
-    // Strip: FTS5 operators (* " ( ) + ^ : etc.)
     let cleaned: String = query
         .chars()
         .filter(|c| c.is_alphanumeric() || c.is_whitespace() || *c == '\'' || *c == '-')

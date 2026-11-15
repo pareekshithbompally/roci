@@ -1,39 +1,18 @@
-/**
- * Shared AI Types
- *
- * Types that flow through the entire LLM call chain:
- * request builder → unified service → orchestrator → adapter → callback → parser.
- */
+/** Types that flow through the LLM call chain, from request builder to parser. */
 
-/**
- * Provider-agnostic output schema descriptor.
- * Each adapter maps this to its native structured output parameter.
- *
- * `name` is optional — only OpenAI requires it. Adapters that need a name
- * and don't receive one should derive it (e.g., from the schema's top-level
- * property names or use a sensible default like 'response').
- */
+/** Provider-agnostic output schema; `name` is optional (only OpenAI requires one). */
 export interface OutputSchema {
   name?: string;
   schema: Record<string, unknown>;
 }
 
-/**
- * The single configuration object for an LLM chat request.
- * Built once by buildChatRequest(), threaded through the entire chain.
- *
- * The model responds with plain text (markdown). Suggestions are generated
- * via a separate async call after the response completes.
- */
+/** Chat request config built once by buildChatRequest(); the model replies in plain markdown. */
 export interface ChatRequestConfig {
   /** The system prompt */
   systemPrompt: string;
 }
 
-/**
- * Same pattern for transcription requests.
- * Prompt always describes JSON fields. Schema provides API-level enforcement.
- */
+/** Transcription request config: the prompt describes the JSON fields, the schema enforces them. */
 export interface TranscriptionRequestConfig {
   prompt: string;
   outputSchema: OutputSchema | undefined;

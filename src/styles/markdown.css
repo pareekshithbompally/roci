@@ -1,8 +1,4 @@
-/**
- * Markdown styling for the shared Markdown renderer (.markdown-content on the Streamdown wrapper).
- * Colours are semantic roles from tokens.css only — they switch with `.dark`, so no dark overrides.
- * Code blocks: @streamdown/code handles highlighting + chrome; we restyle its frame below.
- */
+/* Markdown styling for .markdown-content; colours are tokens.css roles only, so no dark overrides. */
 
 .markdown-content {
   font-size: 14px;
@@ -160,12 +156,7 @@
   margin-bottom: 1em;
 }
 
-/* ============================================================
- * @streamdown/code overrides. Streamdown ships shadcn classes
- * (border-border, bg-sidebar, …); we map its frame onto our roles.
- * Grid puts the language label + actions in row 1, code in row 2.
- * content-visibility:visible keeps off-screen highlight state.
- * ============================================================ */
+/* @streamdown/code overrides: maps its shadcn frame classes onto our roles. */
 
 .markdown-content [data-streamdown="code-block"] {
   display: grid !important;

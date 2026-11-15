@@ -1,12 +1,3 @@
-/**
- * Formatter Utilities Module
- * 
- * Date, time, and text formatting functions.
- */
-
-/**
- * Format a date to a readable string
- */
 export function formatDate(date: Date | string | number): string {
   const d = new Date(date);
   return d.toLocaleDateString(undefined, {
@@ -16,9 +7,6 @@ export function formatDate(date: Date | string | number): string {
   });
 }
 
-/**
- * Format a date to include time
- */
 export function formatDateTime(date: Date | string | number): string {
   const d = new Date(date);
   return d.toLocaleString(undefined, {
@@ -30,9 +18,7 @@ export function formatDateTime(date: Date | string | number): string {
   });
 }
 
-/**
- * Format a relative time (e.g., "2 hours ago")
- */
+/** Relative time, e.g. "2 hours ago". */
 export function formatRelativeTime(date: Date | string | number): string {
   const d = new Date(date);
   const now = new Date();
@@ -52,10 +38,7 @@ export function formatRelativeTime(date: Date | string | number): string {
 
 const SIZE_UNITS = ['kilobyte', 'megabyte', 'gigabyte', 'terabyte'] as const;
 
-/**
- * A size as macOS shows it (Finder: decimal units, 1 kB = 1,000 bytes),
- * in the system locale: "731.4 MB", "2.4 GB".
- */
+/** Size as Finder shows it (decimal units) in the system locale: "731.4 MB". */
 export function formatFileSize(bytes: number): string {
   if (bytes < 1000) return `${bytes} bytes`;
   const exponent = Math.min(Math.floor(Math.log10(bytes) / 3), SIZE_UNITS.length);
@@ -63,9 +46,6 @@ export function formatFileSize(bytes: number): string {
   return format.format(bytes / 1000 ** exponent);
 }
 
-/**
- * Format duration in seconds to readable format
- */
 export function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
@@ -79,9 +59,6 @@ export function formatDuration(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-/**
- * Truncate text with ellipsis
- */
 export function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength - 3) + '...';

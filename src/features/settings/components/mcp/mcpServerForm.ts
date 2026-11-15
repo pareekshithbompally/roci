@@ -1,7 +1,4 @@
-/**
- * Pure helpers for the MCP server form and cards: config ⇄ form state,
- * validation, JSON entry parsing, and secret masking (Jan's dialog + page logic).
- */
+/** Pure MCP form helpers: config ⇄ form state, validation, JSON entry parsing, and secret masking. */
 
 import { MCP_CONFIG } from '@config/mcp.config';
 import type { McpServerConfig, McpTransport } from '@config/mcp.config';
@@ -83,10 +80,7 @@ export function validateForm(form: McpServerForm): string | null {
 
 const TRANSPORTS: readonly string[] = MCP_CONFIG.transports.map((t) => t.value);
 
-/**
- * Parse `{ "<name>": { command|url, ... }, ... }` (the shape most MCP READMEs
- * publish; a wrapping `mcpServers` key is accepted too). Throws a readable Error.
- */
+/** Parse `{ "<name>": { command|url, ... } }` (optionally wrapped in `mcpServers`); throws a readable Error. */
 export function parseServerEntries(text: string): McpServerEntry[] {
   const parsed: unknown = JSON.parse(text);
   if (!isRecord(parsed)) throw new Error('Expected a JSON object of servers.');
@@ -112,11 +106,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 // ── Card status ──
 
-/**
- * What a server row shows. `offline` is the case the switch alone hides: the
- * server is enabled but Rust holds no connection (failed at launch, or the
- * health monitor is reconnecting).
- */
+/** Row status; `offline` means enabled but Rust holds no connection (failed at launch, or reconnecting). */
 export type McpServerStatus = 'connected' | 'connecting' | 'stopping' | 'offline' | 'off';
 
 export function serverStatus(active: boolean, connected: boolean, pending: boolean): McpServerStatus {
@@ -125,7 +115,7 @@ export function serverStatus(active: boolean, connected: boolean, pending: boole
   return connected ? 'connected' : 'offline';
 }
 
-// ── Display masking (Jan's maskSensitiveUrl) ──
+// ── Display masking ──
 
 export function maskUrl(url: string): string {
   try {

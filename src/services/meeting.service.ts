@@ -1,7 +1,4 @@
-/**
- * Meeting Service
- * Orchestrates meeting CRUD via the unified store (kasset.db).
- */
+/** Meeting CRUD via the unified store (kasset.db). */
 
 import type { MeetingDetail, MeetingIndexEntry } from '@shared/types';
 import { store } from '@services/db';
@@ -36,8 +33,7 @@ class MeetingService {
         }
       }
 
-      // Chunks/vectors/FTS were already removed inside store.meetings.delete (cascade + manual
-      // vec_chunks cleanup). Only the knowledge graph needs a separate pass to prune orphan nodes.
+      // Chunks and vectors went with the meeting delete; only the knowledge graph needs an orphan-node prune.
       import('@extensions/rag/graph-client').then(({ graphDB }) => {
         graphDB.deleteMeeting(id).catch(err =>
           console.warn('[MeetingService] Graph cleanup failed for', id, err)

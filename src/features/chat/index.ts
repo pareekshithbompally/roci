@@ -1,7 +1,3 @@
-/**
- * Chat Feature Module
- */
-
 // Components
 export {
   ChatShell,

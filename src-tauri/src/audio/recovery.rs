@@ -1,5 +1,4 @@
-//! Recordings a quit, crash, or failed mix left as track folders: mixed
-//! down at the next launch so no meeting is lost.
+//! Mixes down track folders left by a quit, crash, or failed mix at the next launch.
 
 use std::fs;
 use std::io::ErrorKind;
@@ -26,8 +25,7 @@ pub struct Recovered {
     pub duration_secs: u64,
 }
 
-/// Mixes down every track folder in `recordings`, oldest first. A folder
-/// that cannot be recovered is kept and logged.
+/// Mixes down every track folder in `recordings`, oldest first; an unrecoverable folder is kept and logged.
 pub fn recover(recordings: &Path) -> Result<Vec<Recovered>> {
     let mut directories: Vec<PathBuf> = fs::read_dir(recordings)?
         .flatten()
@@ -80,8 +78,7 @@ fn recover_one(directory: &Path) -> Result<Option<Recovered>> {
     }))
 }
 
-/// The stats written when capture ended, else (after a crash) the tracks'
-/// lengths up to their last header refresh, aligned at their start.
+/// The stats written when capture ended, else (after a crash) the tracks' lengths, aligned at their start.
 fn read_stats(directory: &Path) -> Result<CaptureStats> {
     match fs::read(directory.join(STATS_FILE)) {
         Ok(data) => Ok(serde_json::from_slice(&data)?),

@@ -1,7 +1,3 @@
-/**
- * Import Feature Types
- */
-
 export type ImportSource = 'audio' | 'transcript';
 
 export type JobStatus = 'queued' | 'active' | 'complete' | 'error' | 'cancelled';

@@ -1,10 +1,4 @@
-/**
- * WebCitationDrawer
- *
- * Slide-in panel showing all web citations for a message.
- * Opens when user clicks "+more" in the Sources tab.
- * Each row links to the source URL.
- */
+/** Slide-in list of a message's web citations, opened from "+more" in the Sources tab. */
 
 import React, { useCallback } from 'react';
 import { X, Globe, ExternalLink } from 'lucide-react';

@@ -1,7 +1,4 @@
-/**
- * Capability marks shown on picker rows, defined once so a picker and the
- * copy that points at it show the same icon and name.
- */
+/** Capability marks for picker rows, defined once so pickers and copy show the same icon and name. */
 
 import { Captions } from 'lucide-react';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';

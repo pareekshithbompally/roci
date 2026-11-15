@@ -35,7 +35,7 @@ export async function analyzeTranscript(args: {
     output: Output.object({ schema: jsonSchema(config.outputSchema!.schema) }),
   });
 
-  // Known-window models get an excerpt when needed; if it still doesn't fit, one shorter try (HEX).
+  // Known-window models get an excerpt when needed; if it still doesn't fit, one shorter try.
   const budget = transcriptBudget(await contextTokensFor(args.resolved), config.prompt);
   const result = await run(budget)
     .catch((error: unknown) => {

@@ -1,7 +1,4 @@
-/**
- * Speech credentials — built on the shared `providerCredentials()` reader
- * (via `resolveProviderModel`), with the user-facing reason a provider can't run.
- */
+/** Speech credentials from `providerCredentials()`, with the user-facing reason a provider can't run. */
 
 import { providerCredentials, resolveProviderModel } from '@shared/utils/modelResolver';
 import { getProviderTitle } from '@shared/utils/provider.utils';

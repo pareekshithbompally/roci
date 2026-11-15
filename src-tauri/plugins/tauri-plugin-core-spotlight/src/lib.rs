@@ -1,12 +1,4 @@
-//! Kasset meetings in macOS Spotlight through Core Spotlight (Swift bridge, the
-//! notifications-plugin pattern).
-//!
-//! In: [`index`], [`remove`] and [`remove_all`] keep the `meetings` domain of
-//! the on-device index in step. They block until Core Spotlight answers, so
-//! never call them on the main thread.
-//!
-//! Out: a Spotlight result the user opens goes to the [`on_open`] handler with
-//! the item's id.
+//! Meetings in Core Spotlight; index/remove calls block, so keep them off the main thread.
 
 mod bridge;
 
@@ -59,8 +51,7 @@ pub fn remove_all() -> Result<(), String> {
     bridge::remove_all()
 }
 
-/// Call `handler` with the item id when the user opens a Spotlight result.
-/// The first handler wins; later calls are ignored.
+/// Calls `handler` with the item id when the user opens a Spotlight result; the first handler wins.
 pub fn on_open(handler: impl Fn(String) + Send + Sync + 'static) {
     if HANDLER.set(Box::new(handler)).is_err() {
         log::warn!("[core-spotlight] open handler already set");

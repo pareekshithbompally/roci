@@ -1,7 +1,4 @@
-//! The video call an invitation links to — ported from HEX `src/calendar.rs`
-//! (`call_link`, `links`, `classify`, `is_meet_path`, `host_is`; MIT, see
-//! `src-tauri/licenses/HEX-MIT.txt`). Event fields adapted to Kasset's
-//! `CalendarEvent`; the matching is HEX's, unchanged.
+//! Finds the video call a calendar invitation links to.
 
 use url::Url;
 
@@ -28,8 +25,7 @@ impl CallProvider {
         }
     }
 
-    /// Every app bundle ID and website host a detected call from this
-    /// service can carry. A website matches its subdomains too.
+    /// App bundle IDs and website hosts (subdomains included) a detected call from this service can carry.
     pub fn detection_keys(self) -> &'static [&'static str] {
         match self {
             Self::Zoom => &["us.zoom.xos", "zoom.us", "zoomgov.com"],
@@ -130,8 +126,7 @@ fn classify(url: &Url) -> Option<CallLink> {
     })
 }
 
-/// A meeting code such as `/abc-defg-hij`, or a nickname path; not the
-/// landing or new-meeting pages.
+/// A meeting code such as `/abc-defg-hij` or a nickname path; not the landing or new-meeting pages.
 fn is_meet_path(path: &str) -> bool {
     let path = path.trim_matches('/');
     !path.is_empty()

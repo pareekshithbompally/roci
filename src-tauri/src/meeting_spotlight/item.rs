@@ -1,5 +1,4 @@
-//! One meeting as a Spotlight item: title, summary overview, notes, to-dos and
-//! calendar attendees. Never the transcript (large, verbatim private speech).
+//! One meeting as a Spotlight item: title, overview, notes, to-dos and attendees, never the transcript.
 
 use serde_json::Value;
 use tauri_plugin_core_spotlight::SpotlightItem;
@@ -35,9 +34,7 @@ fn body(detail: &MeetingDetail) -> String {
         .join("\n")
 }
 
-/// `participants` from the calendar metadata the webview stores: names (or
-/// emails) of `{ name?, email? }` attendees, or plain strings. Empty when the
-/// metadata is missing or malformed.
+/// Attendee names (or emails) from the stored calendar metadata; empty when missing or malformed.
 fn participants(calendar_meta: Option<&str>) -> Vec<String> {
     let Some(meta) = calendar_meta.and_then(|meta| serde_json::from_str::<Value>(meta).ok()) else {
         return Vec::new();

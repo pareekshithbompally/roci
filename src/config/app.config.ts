@@ -1,7 +1,4 @@
-/**
- * Application-wide configuration constants
- * Centralized configuration to avoid hardcoding values throughout the codebase
- */
+/** Application-wide configuration constants. */
 
 export const APP_CONFIG = {
   name: 'Kasset.ai',

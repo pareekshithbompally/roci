@@ -22,8 +22,7 @@ pub fn request_permission(kind: PermissionKind) {
     macos::request(kind);
 }
 
-/// Opens System Settings at the list that holds `kind`, with Hex's guide
-/// beside it (drag tile, or "switch on" for a refused microphone).
+/// Opens System Settings at the list for `kind`, with the floating guide beside it.
 #[tauri::command]
 pub fn open_permission_settings(app: AppHandle, kind: PermissionKind) -> Result<(), String> {
     app.run_on_main_thread(move || guide::show(kind))

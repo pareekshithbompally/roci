@@ -1,8 +1,4 @@
-/**
- * Hex — transcription through the running Hex app (src-tauri/src/hex_stt):
- * status, downloaded models, error copy, and the per-part adapter. Splitting,
- * progress and cancellation live in the shared pipeline.
- */
+/** Transcription through the running Hex app: status, downloaded models, error copy, per-part adapter. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from '@services/tauri';

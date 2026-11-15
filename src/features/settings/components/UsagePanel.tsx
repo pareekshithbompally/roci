@@ -1,12 +1,4 @@
-/**
- * UsagePanel Component
- *
- * Displays token usage and estimated costs across all AI operations.
- * Read-only panel — no save footer needed.
- *
- * Single grouped table: rows grouped by provider with subtotal headers,
- * model rows nested within. Category shown as compact secondary section.
- */
+/** Read-only token usage and estimated cost, grouped by provider with subtotals. */
 
 import React, { useMemo } from 'react';
 import { DollarSign, Zap, TrendingUp, Loader2, AlertTriangle } from 'lucide-react';

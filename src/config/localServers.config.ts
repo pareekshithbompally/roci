@@ -1,19 +1,9 @@
-/**
- * Local Servers Configuration
- *
- * OpenAI-compatible servers the user runs themselves on this Mac. Kasset never
- * starts, installs, or downloads anything for them — it detects them on their
- * standard ports and connects through the regular openai-compat provider path.
- */
+/** User-run OpenAI-compatible servers, detected on their standard ports; Kasset never starts or installs them. */
 
 /** Provider id prefix for every local server (`local:ollama`, `local:127.0.0.1:9000`). */
 export const LOCAL_PROVIDER_PREFIX = 'local:';
 
-/**
- * Key saved with every local server. Keys stay uniform across all providers;
- * these servers ignore the bearer token unless started with one, in which case
- * the user replaces it.
- */
+/** Placeholder key saved with every local server; servers ignore it unless started with a key. */
 export const LOCAL_SERVER_DEFAULT_API_KEY = 'local';
 
 export const LOCAL_SERVER_HOST = '127.0.0.1';
@@ -51,6 +41,5 @@ export const LOCAL_SERVER_INFO = 'Runs on this Mac. Start and stop it in its own
 /** Hint under the Local list when nothing is running. */
 export const LOCAL_EMPTY_HINT = 'Nothing running? Start Ollama or LM Studio, then rescan.';
 
-/** "Add URL" starts filled with the host, so the field never reads as a
- *  placeholder and Add is live; the user types the port. */
+/** "Add URL" starts with the host filled in so Add is live; the user types the port. */
 export const LOCAL_URL_DRAFT = 'http://localhost:';

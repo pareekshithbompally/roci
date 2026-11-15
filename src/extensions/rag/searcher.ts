@@ -1,10 +1,4 @@
-/**
- * RAG Searcher
- *
- * Delegates all search to the Rust store plugin.
- * The Rust backend performs hybrid search (KNN + FTS5 + Reciprocal Rank Fusion)
- * and returns results grouped by meeting.
- */
+/** Meeting search via the Rust store plugin's hybrid search (KNN + FTS5 + RRF), grouped by meeting. */
 
 import { embeddingService } from './embeddings';
 import { NOT_CONSENTED } from './types';

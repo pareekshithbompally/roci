@@ -1,7 +1,4 @@
-/**
- * MeetingStatus — how every screen shows a meeting's phase.
- * `icon` for list rows, `badge` for headers. Words/colours: meetingPhase.config.
- */
+/** A meeting's phase: `icon` for list rows, `badge` for headers; words and colours in meetingPhase.config. */
 
 import React from 'react';
 import { Badge, Icon } from '@shared/ui';

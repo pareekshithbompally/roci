@@ -1,9 +1,4 @@
-//! Detected calls: a background thread checks every 500 ms which apps hold
-//! the microphone and runs the [`MeetingDetector`] on them. A call it offers
-//! becomes a notification (Record / Not now) through
-//! `tauri-plugin-notifications`, withdrawn once its snooze ends. Record names
-//! the recording after the calendar meeting in progress for that call when
-//! there is one, else starts a plain recording from the menu bar path.
+//! Call detection: polls mic-holding apps every 500 ms and offers a Record / Not now notification per call.
 
 pub mod detector;
 pub mod microphone;
@@ -31,7 +26,7 @@ const ACTION_RECORD: &str = "record";
 const ACTION_NOT_NOW: &str = "not_now";
 /// `user_info` key carrying the call app's canonical bundle id.
 const APPLICATION_KEY: &str = "application";
-/// After a failed microphone read, wait this long before the next (HEX).
+/// After a failed microphone read, wait this long before the next.
 const READ_RETRY: Duration = Duration::from_secs(2);
 
 #[derive(Debug, PartialEq)]
@@ -47,8 +42,7 @@ enum Answer {
     AlreadyRecording,
 }
 
-/// The detector and the offer on screen. Pure: the thread passes in what it
-/// read from the OS and the clock.
+/// The detector and the offer on screen; pure, as the thread passes in what it read from the OS and clock.
 #[derive(Default)]
 struct Watch {
     detector: MeetingDetector,

@@ -1,9 +1,4 @@
-/**
- * Subtitle Parser — SRT/VTT to plain text.
- *
- * Strips timecodes, cue identifiers, HTML tags,
- * WebVTT headers, STYLE/NOTE blocks, and positioning metadata.
- */
+/** SRT/VTT to plain text: strips timecodes, cue ids, HTML tags, headers, STYLE/NOTE blocks and positioning. */
 
 /** Timestamp patterns for SRT and VTT */
 const TIMESTAMP_LINE = /^\d{2}:\d{2}[:.]\d{2}[.,]\d{3}\s*-->\s*\d{2}:\d{2}[:.]\d{2}[.,]\d{3}/;
@@ -17,10 +12,7 @@ const HTML_TAGS = /<\/?[^>]+>/g;
 /** VTT cue settings (position, align, etc.) after timestamp */
 const CUE_SETTINGS = /\s+(position|align|line|size|vertical|region|snap):[^\s]+/g;
 
-/**
- * Parse a subtitle file into clean plain text.
- * Line breaks between cues are preserved.
- */
+/** Parse a subtitle file into plain text, keeping line breaks between cues. */
 export function parseSubtitleFile(content: string, format: 'srt' | 'vtt'): string {
   const lines = content.replace(/\r\n/g, '\n').split('\n');
   const textLines: string[] = [];

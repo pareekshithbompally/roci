@@ -1,11 +1,6 @@
 import type { ModelProvider } from '@shared/types/modelProviders'
 
-/**
- * Hardcoded model lists for providers that have no /models discovery endpoint.
- * NOTE: anthropic and gemini are intentionally NOT here — they both support
- * live model discovery (Anthropic SDK client.models.list(), Gemini REST v1beta/models)
- * and should never be hardcoded so they stay up-to-date automatically.
- */
+/** Model lists for providers without /models discovery; Anthropic and Gemini are discovered live, never listed. */
 export const MANAGED_MODELS: Record<string, string[]> = {}
 
 /** Providers that use a native SDK (no user-configurable base URL) */
@@ -241,11 +236,7 @@ export const predefinedProviders: ModelProvider[] = [
   }
 ]
 
-/**
- * Apple Intelligence — Kasset's built-in on-device provider (Integrations ›
- * Apple Intelligence). Not stored with the user's providers: it joins the
- * summary-model surfaces only while its integration is on.
- */
+/** Built-in on-device Apple Intelligence provider; offered for summaries only while its integration is on. */
 export const APPLE_INTELLIGENCE = {
   provider: 'apple-intelligence',
   model: 'apple-intelligence',

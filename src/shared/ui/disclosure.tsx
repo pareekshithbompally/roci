@@ -20,12 +20,7 @@ export interface DisclosureProps {
 const COLLAPSED = { height: 0, opacity: 0 };
 const EXPANDED = { height: 'auto', opacity: 1 };
 
-/**
- * Collapsible section: a row header that toggles a region below it
- * (tool-call blocks, activity groups, advanced settings). The region opens
- * and closes smoothly (height and fade), instantly under Reduce Motion, and
- * never animates on first render.
- */
+/** Collapsible section that animates height and fade, instantly under Reduce Motion, never on first render. */
 export function Disclosure({ summary, children, open, defaultOpen = false, onOpenChange, className }: DisclosureProps) {
   const [innerOpen, setInnerOpen] = useState(defaultOpen);
   const isOpen = open ?? innerOpen;

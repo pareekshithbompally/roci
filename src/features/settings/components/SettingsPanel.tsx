@@ -1,12 +1,4 @@
-/**
- * SettingsPanel Component
- *
- * Main settings view — renders the active settings panel selected from the
- * left sidebar (`SettingsNav`). Only the active panel is mounted.
- *
- * Edits save on edit (debounced write-through in SettingsContext), so there
- * is no tab bar here, no dirty tracking, and no save footer.
- */
+/** Renders only the active settings panel; edits save on edit, so there is no save footer. */
 
 import React, { useEffect } from 'react';
 import { systemInfoStore } from '@features/settings/stores/systemInfoStore';

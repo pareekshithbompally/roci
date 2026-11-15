@@ -1,16 +1,4 @@
-/**
- * ActivityTray — sidebar section for all ongoing operations.
- *
- * Structure:
- *   Header: "Activity (N)" + collapse/expand + dismiss-completed
- *   Body:   scrollable list of rows (max ~5 visible, scroll for rest)
- *   Footer: overflow count + "Cancel all" (when imports queued)
- *
- * Reads from activityStore. Empty = renders nothing (transient).
- * Priority ordering: recording > active > queued > complete/error/cancelled.
- *
- * Position: in-flow sidebar footer. Animates in/out with height transition.
- */
+/** Sidebar footer listing ongoing operations (recording first); renders nothing when activityStore is empty. */
 
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';

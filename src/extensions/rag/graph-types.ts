@@ -1,9 +1,4 @@
-/**
- * Knowledge Graph Types
- *
- * Single source of truth for entity and relationship types.
- * Rust backend mirrors these as string constants in graph.rs.
- */
+/** Entity and relationship types; Rust mirrors them as string constants in graph.rs. */
 
 // ── Entity Types ──
 

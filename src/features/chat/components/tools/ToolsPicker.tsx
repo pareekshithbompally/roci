@@ -1,15 +1,4 @@
-/**
- * ToolsPicker — the composer's Tools picker. Same shell as the ModelPicker
- * (`CommandPopover`: search partition, grouped list, bounded height); each
- * tool group opens its tools in a side flyout on hover (`CommandFlyout`).
- *
- * Its own composer button (beside the model picker), never a + menu entry:
- * a searchable list can't live inside a focus-trapping menu.
- *
- *   Built-in     Web search (native, per provider) · Meetings & chats ›
- *   MCP servers  one row per live (connected) server, status + count + checkbox ›
- *   ─────────    approval mode · Manage MCP servers
- */
+/** Composer Tools picker: its own searchable popover (not a menu entry) with per-group side flyouts. */
 
 import React, { useState } from 'react';
 import {
@@ -65,8 +54,7 @@ export const ToolsPicker: React.FC = () => {
 
   const { enabledCount, webSearch, modelSupportsTools } = catalog;
 
-  // Only surface servers that are live. Disconnected servers are configured
-  // and connected from Settings ("Manage MCP servers"), not from the picker.
+  // Only live servers; disconnected ones are managed from Settings, not here.
   const liveServers = catalog.servers.filter(
     (g) => g.status === 'connected' || g.status === 'connecting',
   );
@@ -142,8 +130,7 @@ export const ToolsPicker: React.FC = () => {
 };
 
 // ── Row anatomy ──
-// [icon 14] [label, flex] [hint] [checkbox slot] [chevron slot]
-// Fixed-width slots keep every row's controls in the same columns.
+// Fixed-width slots (icon, label, hint, checkbox, chevron) keep every row's controls aligned.
 
 interface TrailingProps {
   hint?: React.ReactNode;

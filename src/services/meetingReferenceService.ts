@@ -1,9 +1,4 @@
-/**
- * Meeting Reference Service
- * 
- * Provides meeting data for @ mentions in chat.
- * Fetches meetings with their full context (summary, notes, todos) from kasset.db.
- */
+/** Meetings for chat @ mentions, with their summary, notes and todos from kasset.db. */
 
 import type { HistoryItem, Note, ActionItem, NoteEntry, TodoEntry } from '@shared/types';
 import { store } from '@services/db';
@@ -12,9 +7,7 @@ import { truncateForLLM } from '@shared/utils/text.utils';
 import { IO_CONCURRENCY } from '@extensions/rag/constants';
 import { MAX_TRANSCRIPT_FOR_LLM } from '@extensions/tools/constants';
 
-/**
- * Meeting reference with full context for AI chat
- */
+/** A meeting with its full context for AI chat. */
 export interface MeetingReference {
   id: string;
   title: string;
@@ -28,9 +21,7 @@ export interface MeetingReference {
 
 export type MeetingField = 'summary' | 'actionItems' | 'notes' | 'transcript';
 
-/**
- * Lightweight meeting item for display in popup
- */
+/** Lightweight meeting row for the mention popup. */
 export interface MeetingListItem {
   id: string;
   title: string;
@@ -38,9 +29,6 @@ export interface MeetingListItem {
 }
 
 class MeetingReferenceService {
-  /**
-   * Get recent meetings for popup display
-   */
   getRecentMeetings(historyItems: HistoryItem[], limit: number = 4): MeetingListItem[] {
     return historyItems
       .slice()
@@ -53,9 +41,6 @@ class MeetingReferenceService {
       }));
   }
 
-  /**
-   * Search meetings by title
-   */
   searchMeetings(historyItems: HistoryItem[], query: string): MeetingListItem[] {
     if (!query.trim()) {
       return this.getRecentMeetings(historyItems, 10);
@@ -73,10 +58,7 @@ class MeetingReferenceService {
       }));
   }
 
-  /**
-   * Load full context for a meeting from the store.
-   * Prefers in-memory data on the historyItem, falls back to store read.
-   */
+  /** Full context for a meeting: in-memory data on the history item first, else a store read. */
   async loadMeetingContext(historyItem: HistoryItem): Promise<MeetingReference> {
     const reference: MeetingReference = {
       id: historyItem.id,
@@ -152,9 +134,6 @@ class MeetingReferenceService {
     return reference;
   }
 
-  /**
-   * Load context for multiple meetings
-   */
   async loadMeetingsContext(historyItems: HistoryItem[]): Promise<MeetingReference[]> {
     return concurrencyMap(
       historyItems,
@@ -163,10 +142,7 @@ class MeetingReferenceService {
     );
   }
 
-  /**
-   * Load meetings with only the requested fields.
-   * Used by the agentic context pipeline to minimize token usage.
-   */
+  /** Meetings with only the requested fields, to keep agentic context small. */
   async loadSelectiveContext(
     historyItems: HistoryItem[],
     fields: MeetingField[]
@@ -262,9 +238,6 @@ class MeetingReferenceService {
     return references;
   }
 
-  /**
-   * Format meeting references for LLM context
-   */
   formatForLLM(references: MeetingReference[]): string {
     if (references.length === 0) return '';
 

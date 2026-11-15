@@ -1,8 +1,4 @@
-//! Watches Hex's `GET /meetings/events` (Server-Sent Events) while the Hex
-//! integration is on, and tells the webview `hex://meeting-finished` per id.
-//! Hex allows one subscriber; the route answers 404 while its Labs toggle
-//! "Meeting finished event" is off. The watcher reconnects with backoff and
-//! reports its state on `hex://events` so the integration row can say why.
+//! Watches the Hex app's meeting-finished SSE stream, reconnecting with backoff and reporting on `hex://events`.
 
 use serde::Serialize;
 use std::path::PathBuf;

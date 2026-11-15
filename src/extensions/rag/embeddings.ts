@@ -1,13 +1,4 @@
-/**
- * Local Embedding Service
- *
- * Proxies embedding requests to a Web Worker running Transformers.js WASM.
- * This keeps the main thread free for CSS animations, React renders, and
- * user interaction during indexing.
- *
- * Model download progress is forwarded from the worker via emitProgress().
- * Gated behind user consent before first download.
- */
+/** Proxies embedding to a Web Worker, forwarding download progress; first download is gated on consent. */
 
 import type { EmbeddingService } from './types';
 import { NOT_CONSENTED } from './types';
@@ -140,11 +131,7 @@ function sendRequest(type: 'embed' | 'embedBatch', payload: Record<string, unkno
   });
 }
 
-/**
- * Load the model, gating on consent only when the call comes from an
- * explicit user gesture (a Download button). Background flows stay silent:
- * denial throws a coded error the callers already degrade on.
- */
+/** Loads the model; asks consent only when interactive, otherwise denial throws a coded error callers degrade on. */
 async function ensureLoaded(opts: { interactive?: boolean } = {}): Promise<void> {
   if (ready) return;
   if (!loadPromise) {
@@ -229,11 +216,7 @@ function setEmbeddingReady(value: boolean): void {
   }
 }
 
-/**
- * Trigger model download/load without needing to embed anything.
- * Interactive (consent modal allowed) by default — background warm-ups
- * must pass `{ interactive: false }` so they never prompt.
- */
+/** Downloads/loads the model; background warm-ups must pass `{ interactive: false }` so they never prompt. */
 export async function preloadModel(opts: { interactive?: boolean } = {}): Promise<void> {
   await ensureLoaded({ interactive: opts.interactive ?? true });
 }

@@ -1,9 +1,4 @@
-/**
- * ChatInput Component
- *
- * Chat message input with send button, keyboard shortcuts, @ mention support,
- * file attachments, and web search toggle.
- */
+/** Chat composer: send, shortcuts, @ mentions, attachments, web search, and voice input. */
 
 import React, { KeyboardEvent, useRef, useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -311,9 +306,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const composer = DOT_SCOPE_CONFIG.composer;
   const scopeZoom = composer.plateHeight / DOT_SCOPE_CONFIG.tuning.height;
 
-  // The pill takes over on capture start and holds for a handoff beat after
-  // the transcription lands, so the processing state reads before the box
-  // returns. Beat length is shared via voiceTransition.
+  // Pill holds through a handoff beat after transcription so the processing state is seen.
   const [overlayOpen, setOverlayOpen] = useState(false);
   useEffect(() => {
     if (isCapturing) {
@@ -324,17 +317,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     return () => clearTimeout(timer);
   }, [isCapturing]);
 
-  // The pill owns the composer slot from capture start until the handoff beat
-  // after the transcription lands, so it is the sole active element throughout.
-  // Mirror choreography: forward, the pill rises in (scale 0.55→1, y 14→0)
-  // while the box fades flat; on return the pill sinks back down into the box
-  // (scale→0.55, y→14) while the box fades flat in. Same beat, opposite sides.
+  // Pill owns the slot from capture start until the handoff beat; it rises in and sinks back mirrored.
   const voiceActive = isCapturing || overlayOpen;
   const handoff = !isCapturing && overlayOpen;
 
-  // Recording shape from the mic press on — while warming up there is no stream yet,
-  // so the traces sit flat at full width (as when paused) and the pill opens at one
-  // size. It narrows to the processing shape only once transcription starts.
+  // Recording shape from mic press (flat traces while warming up); processing shape once transcription starts.
   const scopeStage: 'recording' | 'processing' =
     isTranscribing || handoff ? 'processing' : 'recording';
   const scopeLabel = isTranscribing || handoff
@@ -351,8 +338,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     return () => window.removeEventListener('keydown', onKey);
   }, [voiceActive, onSpeechCancel]);
 
-  // Hand the caret back to the textarea once the transcript has landed and
-  // the box has expanded back.
+  // Return the caret to the textarea once the box has expanded back.
   const wasVoiceActive = useRef(false);
   useEffect(() => {
     if (wasVoiceActive.current && !voiceActive) {
@@ -361,23 +347,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     wasVoiceActive.current = voiceActive;
   }, [voiceActive]);
 
-  // The composer (box, transcript, toolbar, placeholder) returns as one unit;
-  // the titles above and buttons below follow as the second beat.
-  // Every animation here is a tween — no springs anywhere, so nothing can
-  // overshoot the frame or stick on remeasurement.
+  // Composer returns as one unit, titles and buttons as a second beat; tweens only, never springs.
   const formattedElapsed = `${String(Math.floor(speechElapsed / 60)).padStart(2, '0')}:${String(speechElapsed % 60).padStart(2, '0')}`;
 
   return (
     <div className={`relative ${LAYOUT.chatColumn} px-4 py-2`}>
       <Popover open={showMentionPopup} onOpenChange={(open) => { if (!open) closeMentionPopup(); }}>
       <PopoverAnchor asChild>
-      {/* One stable frame: the composer never unmounts — AnimatePresence
-          reverts an exiting branch to full opacity for one frame on unmount,
-          and that flash of box chrome is what read as a cut. The composer
-          only fades flat in place; the pill is a transparent absolute overlay
-          bottom-anchored to the frame, so its controls sit where the toolbar
-          was and it can never spill past the window edge. Mounting or
-          unmounting it paints no box and moves no layout. */}
+      {/* Composer never unmounts (an exit flashes box chrome); the pill is an overlay that moves no layout. */}
       <Surface
         data-testid="composer-frame"
         variant={voiceActive ? 'plain' : 'field'}
@@ -405,8 +382,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 palette={DOT_SCOPE_CONFIG.composerTheme}
                 margins={{ x: composer.marginX, y: composer.marginY }}
               />
-              {/* Reserved control slot: fixed height keeps the pill pinned while
-                  the controls swap between recording, paused and transcribing. */}
+              {/* Fixed height keeps the pill pinned while its controls swap. */}
               <div className="mt-1 flex h-16 items-start justify-center">
                 <AnimatePresence initial={false} mode="wait">
                 {(isRecording || isPaused) ? (
@@ -443,8 +419,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     exit={{ opacity: 0, y: -4, transition: voiceTransition(reduceMotion, 'controlOut') }}
                     transition={voiceTransition(reduceMotion, 'controlIn')}
                   >
-                    {/* The pill itself reads "Transcribing" — the X is the only
-                        control, and it is unmissably red. */}
+                    {/* The pill already reads "Transcribing", so cancel is the only control. */}
                     <IconButton icon={X} label="Cancel voice input" variant="danger" onClick={onSpeechCancel} />
                   </motion.div>
                 ) : null}
@@ -515,8 +490,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           className="hidden"
         />
 
-        {/* Text input — the composer only mounts while idle; the pill owns
-            this slot for the whole capture. */}
+        {/* Text input mounts only while idle; the pill owns this slot during capture. */}
         <Text as="div" variant="reading" className="relative px-3 pt-3 pb-1">
           <Textarea
             variant="bare"
@@ -544,8 +518,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           )}
         </Text>
 
-        {/* Bottom toolbar — the composer only mounts while idle, so the
-            Stop/Pause/cancel controls under the pill never compete with it. */}
+        {/* Toolbar mounts only while idle, so it never competes with the pill's controls. */}
           <div className="flex items-center justify-between px-3 pb-2">
             {/* Left: Attach, model, tools, context gauge */}
             <div className="flex items-center gap-2">

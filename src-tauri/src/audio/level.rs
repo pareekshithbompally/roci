@@ -1,5 +1,4 @@
-//! The `coreaudio-level` event: a level-meter frame the frontend also uses
-//! as its capture heartbeat.
+//! The `coreaudio-level` event: a level-meter frame the frontend also uses as its capture heartbeat.
 
 use std::time::{Duration, Instant};
 

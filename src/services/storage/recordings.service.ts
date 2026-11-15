@@ -1,9 +1,4 @@
-/**
- * Recordings Storage Service
- *
- * Manages audio recording file operations. Metadata is stored in kasset.db via the
- * store plugin (no more .meta.json sidecars). Raw audio bytes stay on disk.
- */
+/** Recording WAV files on disk; their metadata rows live in kasset.db. */
 
 import { writeFile, readFile, remove, exists, stat } from '@tauri-apps/plugin-fs';
 import { appDataDir, join, sep } from '@tauri-apps/api/path';
@@ -29,9 +24,7 @@ async function getRecordingsPath(): Promise<string> {
 }
 
 class RecordingsService {
-  /**
-   * Save a recording with metadata — writes binary .wav to disk + upserts row in kasset.db.
-   */
+  /** Writes the WAV to disk and upserts its row in kasset.db. */
   async saveRecording(
     audioData: Uint8Array,
     metadata: Partial<RecordingMetadata>,
@@ -79,10 +72,7 @@ class RecordingsService {
     }
   }
 
-  /**
-   * Register an existing recording file (WAV already on disk from Swift capture).
-   * Creates a row in kasset.db.
-   */
+  /** Adds a kasset.db row for a WAV already on disk from native capture. */
   async registerRecording(
     filename: string,
     metadata: Partial<RecordingMetadata> = {},
@@ -129,13 +119,9 @@ class RecordingsService {
     }
   }
 
-  /**
-   * Load recording metadata from kasset.db.
-   */
+  /** Recording metadata built from the WAV file on disk. */
   async getRecordingMetadata(filename: string): Promise<StorageResult<RecordingMetadata>> {
     try {
-      // Find recording by listing orphans + all meetings
-      // The simplest approach: try to find by looking at the recording on disk
       const dir = await getRecordingsPath();
       const fullPath = `${dir}${filename}`;
 
@@ -165,9 +151,6 @@ class RecordingsService {
     }
   }
 
-  /**
-   * Load recording audio data (binary .wav from disk).
-   */
   async getRecordingData(filename: string): Promise<StorageResult<Uint8Array>> {
     try {
       const dir = await getRecordingsPath();
@@ -186,9 +169,7 @@ class RecordingsService {
     }
   }
 
-  /**
-   * List all recordings (scans record files on disk).
-   */
+  /** Every recording, by scanning the files on disk. */
   async listRecordings(): Promise<StorageResult<RecordingMetadata[]>> {
     try {
       const dir = await getRecordingsPath();
@@ -217,10 +198,7 @@ class RecordingsService {
     }
   }
 
-  /**
-   * Delete a recording — removes the WAV file.
-   * The DB row cascades from the meeting deletion.
-   */
+  /** Removes the WAV; its DB row cascades from the meeting delete. */
   async deleteRecording(filename: string): Promise<StorageResult> {
     try {
       const dir = await getRecordingsPath();
@@ -245,9 +223,6 @@ class RecordingsService {
     }
   }
 
-  /**
-   * Update recording metadata in kasset.db.
-   */
   async updateRecordingMetadata(
     filename: string,
     updates: Partial<RecordingMetadata>,
@@ -280,9 +255,6 @@ class RecordingsService {
     }
   }
 
-  /**
-   * Get recording file path on disk.
-   */
   async getRecordingPath(filename: string): Promise<string> {
     const dir = await getRecordingsPath();
     return `${dir}${filename}`;

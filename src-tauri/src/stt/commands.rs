@@ -1,5 +1,4 @@
-//! Tauri commands for on-device speech-to-text: transcribe one WAV part, and
-//! live dictation (start, feed audio as it's spoken, finish or cancel).
+//! Tauri commands for on-device speech-to-text: transcribe one WAV part, and live dictation.
 
 use std::time::Duration;
 
@@ -19,8 +18,7 @@ const LANGUAGE_HEADER: &str = "x-stt-language";
 /// A warm model is dropped after this long without a transcription.
 const IDLE_UNLOAD: Duration = Duration::from_secs(10 * 60);
 
-/// Transcribes one complete WAV part sent as the raw invoke body.
-/// Headers: `x-stt-model` (required), `x-stt-language` (default `en`).
+/// Transcribes one WAV raw body; headers `x-stt-model` (required) and `x-stt-language` (default `en`).
 #[tauri::command]
 pub async fn stt_transcribe(app: AppHandle, request: Request<'_>) -> Result<Vec<TimedText>, LocalError> {
     let wav = raw_body(&request).ok_or_else(|| LocalError::BadInput("expected a raw WAV body".into()))?;

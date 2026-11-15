@@ -1,9 +1,4 @@
-/**
- * Notifications — the webview side of `tauri-plugin-notifications`
- * (src-tauri/plugins). Rust posts, times and withdraws notices, checks the
- * user's switches and asks for permission at the point of use; this module
- * only forwards. Answers come back through `onNotificationResponse`.
- */
+/** Forwards to `tauri-plugin-notifications` (Rust posts and times notices); answers via `onNotificationResponse`. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';

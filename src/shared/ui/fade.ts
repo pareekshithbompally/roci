@@ -1,9 +1,6 @@
 import type { CSSProperties } from 'react';
 
-/**
- * Content fading out at a box's edges instead of being cut: a mask, `top` /
- * `bottom` px long. None when neither edge fades.
- */
+/** Mask that fades content out over `top` / `bottom` px instead of cutting it; none when neither edge fades. */
 export function edgeFade({ top = 0, bottom = 0 }: { top?: number; bottom?: number }): CSSProperties | undefined {
   if (!top && !bottom) return undefined;
   const start = top ? `transparent, black ${top}px` : 'black';

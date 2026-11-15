@@ -19,11 +19,7 @@ export class DefaultProvidersService implements ProvidersService {
     return {}
   }
 
-  /**
-   * Build request headers for a provider.
-   * Sends both Authorization and x-api-key for maximum compatibility (Jan pattern).
-   * Merges provider's custom_header array and platform-specific headers.
-   */
+  /** Headers with both Authorization and x-api-key for compatibility, plus custom and platform headers. */
   private buildHeaders(provider: ModelProvider, baseUrl: string): Record<string, string> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',

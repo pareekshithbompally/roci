@@ -2,13 +2,7 @@ import React from 'react';
 import { cn } from './utils';
 import { Text } from './text';
 
-/**
- * Canonical container surface. Features pick a role, a corner and which edges
- * get a hairline — never a background, border, shadow or radius class.
- *
- *   <Surface variant="sidebar" edge="right">…</Surface>
- *   <Surface variant="card" radius="lg" interactive selected={isActive}>…</Surface>
- */
+/** Canonical container: features pick a role, corner and hairline edges, never background, border, shadow or radius. */
 const VARIANT = {
   /** Window background (vibrancy in dark) */
   page: 'bg-base-glass',
@@ -122,10 +116,7 @@ export function Dot({ tone = 'muted', size = 'sm', pulse }: { tone?: DotTone; si
   );
 }
 
-/**
- * A status dot and its label (Connected, Waiting for Hex…). The label stays
- * muted unless the state needs attention: warning and danger tint it too.
- */
+/** A status dot and label (Connected, Waiting for Hex…); the label is muted unless warning or danger. */
 export function Status({ tone = 'muted', pulse, children }: { tone?: DotTone; pulse?: boolean; children: React.ReactNode }) {
   const textTone = tone === 'warning' || tone === 'danger' ? tone : 'muted';
   return (

@@ -1,9 +1,4 @@
-/**
- * DownloadRow — renders a download-type activity in the tray.
- *
- * Uses ActivityRowLayout for consistent single-line display.
- * Byte detail and percent are merged into the detail string on line 1.
- */
+/** A download activity in the tray; bytes and percent merged into the detail. */
 
 import React from 'react';
 import { Download, Loader2 } from 'lucide-react';

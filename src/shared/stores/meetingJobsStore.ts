@@ -1,10 +1,4 @@
-/**
- * meetingJobsStore — in-flight transcription/summary jobs, keyed by meeting id.
- *
- * One copy for the whole app, so the sidebar and the meeting view always agree
- * on what is running. Read it through `useMeetingPhase`; write it from the job
- * runner (`useTranscribeRecording`) through `meetingJobs`.
- */
+/** In-flight transcription/summary jobs by meeting id, so every view agrees on what is running. */
 
 import { create } from 'zustand';
 import { deriveMeetingPhase, type MeetingJob, type MeetingPhase } from '@shared/types/meetingPhase';

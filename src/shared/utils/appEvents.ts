@@ -1,9 +1,4 @@
-/**
- * App events — one channel per moment (Settings › Notifications kinds):
- * Kasset in front → an in-app toast, or nothing when the result is already on
- * screen; in the background → a macOS notification (its switch applies).
- * Never both.
- */
+/** One channel per app event: in front → in-app toast (or nothing if on screen); in background → macOS notification. */
 
 import { showToast } from '@shared/ui';
 import type { ToastTone } from '@shared/ui';

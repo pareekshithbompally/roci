@@ -1,12 +1,4 @@
-/**
- * IntegrationRow — one integration as its own settings Card: identity + switch,
- * then the macOS access row while it still needs the user, then the
- * integration's own settings once connected. Every integration renders
- * through this; none draws its own permission UI.
- *
- * A settings row must show a status or hold an action. What only explains
- * goes in the integration's description, never in a row of its own.
- */
+/** One integration card: switch, macOS access row while needed, then its settings; rows show a status or action. */
 
 import React from 'react';
 import { Card, CardRow, Status, Switch } from '@shared/ui';

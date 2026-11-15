@@ -1,9 +1,4 @@
-/**
- * RAG Constants
- *
- * Single source of truth for all configurable RAG parameters.
- * Import from here — never hardcode these values in other files.
- */
+/** Configurable RAG parameters. */
 
 // ── Chunking ──
 export const MAX_CHUNK_CHARS = 2000;
@@ -38,12 +33,10 @@ export const INDEXING_TOAST_DEBOUNCE_MS = 1000;
 
 // ── Chat Indexing ──
 
-/** Minimum character length for a chat turn to be worth indexing.
- *  Turns shorter than this (e.g., "ok", "thanks") are skipped. */
+/** Chat turns shorter than this ("ok", "thanks") are not indexed. */
 export const MIN_TURN_LENGTH = 30;
 
-/** Maximum characters from an assistant message to include in a turn chunk.
- *  Long AI responses are capped to keep chunk size manageable for embedding. */
+/** Cap on assistant text per turn chunk, to keep chunks a manageable size to embed. */
 export const MAX_ASSISTANT_CHUNK_CHARS = 1000;
 
 /** Default number of chat search results to return */

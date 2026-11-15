@@ -1,5 +1,4 @@
-// The kit's public API. Import from '@shared/ui' only — never a file path.
-// Internal recipes (./recipes) are deliberately not exported.
+// The kit's public API: import from '@shared/ui' only; internal recipes are deliberately not exported.
 export * from './dialog';
 export * from './alert-dialog';
 export * from './select';

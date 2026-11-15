@@ -1,6 +1,4 @@
-/**
- * Integrations — native macOS apps and Hex, one row style and one permission vocabulary.
- */
+/** Integrations — native macOS apps and Hex, one row style and one permission vocabulary. */
 export { CalendarIntegration } from './components/CalendarIntegration';
 export { RemindersIntegration } from './components/RemindersIntegration';
 export { HexIntegration } from './components/HexIntegration';

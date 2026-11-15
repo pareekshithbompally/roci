@@ -1,8 +1,4 @@
-/**
- * Apple Speech — transcription on this Mac (SpeechAnalyzer, macOS 26+) through
- * the apple-intelligence plugin: status, error copy, and the per-part adapter.
- * Permission and model download are handled in Integrations › Apple Intelligence.
- */
+/** Apple Speech (SpeechAnalyzer, macOS 26+) via the apple-intelligence plugin: status, error copy, adapter. */
 
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { appleIntelligence, isAppleError, type AppleSpeechStatus } from '@services/ai/apple/appleIntelligence.service';

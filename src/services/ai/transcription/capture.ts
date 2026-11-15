@@ -1,11 +1,4 @@
-/**
- * Dictation capture — one dictation's microphone audio becoming text, behind
- * one interface so the composer never branches on how:
- *
- * - `recordedCapture`: records the clip; transcribes it when it ends (any speech model).
- * - `liveCapture`: feeds a live engine as it's spoken, reporting the text so
- *   far; the final text is ready the moment it ends.
- */
+/** Dictation capture behind one interface: record-then-transcribe, or live engine text as it's spoken. */
 
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { failureLogger } from '@shared/utils/errors';
@@ -52,11 +45,7 @@ export function recordedCapture(stream: MediaStream, transcribe: (audio: Blob) =
   };
 }
 
-/**
- * Recording starts at once; the engine warms up alongside (a model's first
- * load takes a moment). Audio spoken meanwhile waits in order and is fed the
- * moment the engine is ready, so nothing is lost and the controls never wait.
- */
+/** Records at once while the engine warms up; audio spoken meanwhile is queued and fed in order when it's ready. */
 export async function liveCapture(
   stream: MediaStream,
   engine: LiveEngine,

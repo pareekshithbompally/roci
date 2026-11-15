@@ -1,7 +1,4 @@
-/**
- * Hex meetings — wrappers over the Hex integration's Rust commands
- * (src-tauri/src/hex). Read-only: Kasset never writes to Hex.
- */
+/** Wrappers over the Hex integration's Rust commands; read-only, Kasset never writes to Hex. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';

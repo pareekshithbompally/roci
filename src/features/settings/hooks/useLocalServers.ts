@@ -1,12 +1,4 @@
-/**
- * useLocalServers
- *
- * Local OpenAI-compatible servers on this Mac merged with the saved local
- * providers, plus the three things the user can do with them: switch one on,
- * rescan (refreshes each saved server's model list), and add a server by URL.
- * Detection re-probes when the window regains focus; no polling. Every write
- * goes through the regular SettingsContext provider actions (save-on-edit).
- */
+/** Detected local servers merged with saved ones, plus switch on, rescan and add-by-URL; re-probes on focus. */
 
 import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';

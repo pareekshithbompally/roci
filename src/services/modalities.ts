@@ -1,12 +1,4 @@
-/**
- * Modalities Service
- *
- * Fetches and caches model capability data from the models.dev API.
- * Provides lookup of input/output modalities and feature capabilities
- * (tool calling, reasoning, structured output) for any provider + model.
- *
- * Cache is stored on disk via cacheService in the app data directory.
- */
+/** Model modalities, capabilities and pricing from models.dev, cached on disk. */
 
 import { cacheService } from './storage/cache.service';
 
@@ -134,10 +126,7 @@ class ModalitiesService {
     return null;
   }
 
-  /**
-   * Get combined modality + capability info for a model.
-   * Returns null if the model isn't found in the models.dev data.
-   */
+  /** Modalities and capabilities for a model; null when models.dev doesn't list it. */
   getModelInfo(providerName: string, modelId: string): ModelInfo | null {
     const model = this.findModel(providerName, modelId);
     if (!model) return null;
@@ -153,10 +142,7 @@ class ModalitiesService {
     };
   }
 
-  /**
-   * Get pricing for a provider + model from models.dev cost data.
-   * Returns null if the model isn't found or has no cost data.
-   */
+  /** Pricing from models.dev cost data; null when the model or its cost is missing. */
   getPricing(providerName: string, modelId: string): ModelPricing | null {
     const model = this.findModel(providerName, modelId);
     if (!model?.cost?.input || !model?.cost?.output) return null;
@@ -168,11 +154,7 @@ class ModalitiesService {
     };
   }
 
-  /**
-   * Get the context window size (in tokens) for a provider + model.
-   * Returns null when the model isn't found or reports no limit —
-   * callers treat null as "unknown, hide the gauge".
-   */
+  /** Context window in tokens; null when unknown, which hides the gauge. */
   getModelContextLimit(providerName: string, modelId: string): number | null {
     return this.findModel(providerName, modelId)?.limit?.context ?? null;
   }

@@ -1,18 +1,4 @@
-/**
- * useOnDeviceModel — one on-device model's download state and actions.
- *
- * Lifecycle, as the button shows it:
- *   idle ──click──▶ busy (spinner from the click; % once the download reports)
- *        ◀─fail──   busy ──ok──▶ ready ──Re-download──▶ busy …
- *
- * "Busy" is the union of two truths: a load we started (pending, marked on
- * click and cleared when it settles — the tray row is debounced 400ms to
- * hide cache hits, so it can't carry the click) and a tray row from a load
- * started elsewhere (e.g. Rebuild index). A failed load returns to idle;
- * OnDeviceModelActivity raises the error toast with Retry.
- *
- * A Download press is explicit consent: it grants the gate, then loads.
- */
+/** One on-device model: busy covers our own pending load and any tray row; a Download press grants consent. */
 
 import { useReducer } from 'react';
 import { create } from 'zustand';

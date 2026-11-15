@@ -1,8 +1,4 @@
-/**
- * useMcpHostRuntime — mount once (App). Serves Kasset's tools to coding agents
- * for as long as the app runs (Rust holds the socket; this answers the calls),
- * and keeps the Integrations status fresh as agents connect and leave.
- */
+/** Mount once (App): answers coding agents' tool calls and keeps the Integrations status fresh. */
 
 import { useEffect } from 'react';
 import { isTauriEnvironment } from '@services/tauri';

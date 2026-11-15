@@ -44,8 +44,7 @@ export default {
       divideColor: roles('border', ['muted', 'base', 'strong']),
       ringColor: { focus: 'var(--border-focus)' },
       boxShadow: roles('shadow', ['input', 'raised', 'floating', 'overlay']),
-      // State tints as an image layer, so they shade a surface's fill instead of replacing it
-      // (a hovered white card stays opaque over the landing gradient).
+      // State tints as an image layer, so they shade a surface's fill instead of replacing it.
       backgroundImage: {
         'tint-hover': 'linear-gradient(var(--bg-hover), var(--bg-hover))',
         'tint-pressed': 'linear-gradient(var(--bg-pressed), var(--bg-pressed))',
@@ -88,10 +87,7 @@ export default {
           from: { opacity: '1', transform: 'translateY(0)' },
           to: { opacity: '0', transform: 'translateY(-4px)' },
         },
-        // NOTE: both frames carry translateX(-50%) because the palette is
-        // centered with -translate-x-1/2, and a keyframed `transform`
-        // overrides that utility for the whole animation. Without it the
-        // dialog renders right-shifted until the animation ends.
+        // Both frames carry translateX(-50%): a keyframed transform overrides the palette's -translate-x-1/2.
         'palette-show': {
           from: { opacity: '0', transform: 'translate(-50%, -8px)' },
           to: { opacity: '1', transform: 'translate(-50%, 0)' },
@@ -104,10 +100,7 @@ export default {
           from: { opacity: '0' },
           to: { opacity: '1' },
         },
-        // Landing glow (LandingGlow): solid-colour blobs drifting inside a
-        // blurred field. Long, out-of-phase cycles keep the field organic.
-        // Each transform starts with translate(-50%, -50%) so the blob's
-        // `left/top` percentages denote its CENTRE, not its top-left corner.
+        // Landing glow blobs; translate(-50%, -50%) makes `left/top` mark each blob's centre.
         'glow-drift-1': {
           '0%, 100%': { transform: 'translate(-50%, -50%) translate(0, 0) scale(1)' },
           '33%': { transform: 'translate(-50%, -50%) translate(3rem, 2rem) scale(1.08)' },

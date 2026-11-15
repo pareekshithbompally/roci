@@ -1,10 +1,4 @@
-/**
- * useHexRuntime — mount once (App). While the Hex integration is on:
- * holds Hex's meeting-finished stream (Rust watcher), imports each finished
- * meeting and summarizes it with the Summary model, and catches up on
- * meetings finished while Kasset was closed (on enable, launch and focus).
- * Off → the watcher stops; nothing else reaches Hex.
- */
+/** Mount once (App): while on, imports and summarizes each meeting Hex finishes, catching up on missed ones. */
 
 import { useEffect, useRef } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';

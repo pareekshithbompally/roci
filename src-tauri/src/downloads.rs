@@ -1,7 +1,4 @@
-//! Web downloads — `<a download>` and blob links (Streamdown's code-block and
-//! table buttons, diagrams, images). WKWebView drops them unless the app takes
-//! them, so the main webview takes every one: it lands in ~/Downloads (never
-//! overwriting), and the webview gets [`FINISHED_EVENT`] with where it went.
+//! Web downloads (`<a download>`, blob links) saved to ~/Downloads; WKWebView drops them otherwise.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

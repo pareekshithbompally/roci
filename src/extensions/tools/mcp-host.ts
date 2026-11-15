@@ -1,11 +1,4 @@
-/**
- * Kasset's tools as an MCP server — the registry chat uses, served to coding
- * agents through Rust (src-tauri/src/mcp_server). One registry, one runner
- * (`runTool`): chat and agents get the same tools and the same limits.
- *
- * Agents ask the user before a tool that writes (`destructiveHint`), so writes
- * run with `approval: 'caller'` — saved at once, no chat proposal.
- */
+/** Serves chat's tool registry to coding agents over MCP; writes run with `approval: 'caller'`. */
 
 import { runTool } from '@services/ai';
 import { mcpHostService } from '@services/mcpHost.service';
@@ -27,10 +20,7 @@ export function toWireTool(tool: ToolDefinition): McpWireTool {
   };
 }
 
-/**
- * Answer agents' calls and publish the tool list (listen first, so no call
- * is missed). Returns the stop function.
- */
+/** Listens for agents' calls, then publishes the tool list so none is missed; returns the stop function. */
 export async function serveTools(): Promise<() => void> {
   const unlisten = await mcpHostService.onCall((call) => { void answer(call); });
   await mcpHostService.publishTools(toolRegistry.getTools().map(toWireTool));

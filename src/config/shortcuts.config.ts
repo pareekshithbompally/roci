@@ -1,10 +1,4 @@
-/**
- * Keyboard shortcuts — the single registry. Data only; matching and labels
- * live in `@features/shortcuts`.
- *
- * Accelerators use Tauri's accelerator syntax (`CommandOrControl+Shift+K`,
- * `Option+Comma`) for both scopes, so one vocabulary describes every key.
- */
+/** Keyboard shortcut registry (data only), in Tauri accelerator syntax for both scopes. */
 
 export interface ShortcutDefinition {
   accelerator: string;
@@ -22,10 +16,7 @@ export const APP_SHORTCUTS = {
 
 export type AppShortcutId = keyof typeof APP_SHORTCUTS;
 
-/**
- * System-wide shortcuts, registered with the OS (Tauri global-shortcut). The
- * key is the action Rust emits on `shortcut-triggered`.
- */
+/** System-wide shortcuts registered with the OS; the key is the action Rust emits on `shortcut-triggered`. */
 export const GLOBAL_SHORTCUTS = {
   'toggle-recording': { accelerator: 'Option+Shift+R', description: 'Start or stop recording' },
   'show-window': { accelerator: 'Option+Shift+A', description: 'Show Kasset' },
@@ -38,10 +29,7 @@ export type GlobalShortcutId = keyof typeof GLOBAL_SHORTCUTS;
 /** Rust → webview: a global shortcut fired; payload is its `GlobalShortcutId`. */
 export const GLOBAL_SHORTCUT_EVENT = 'shortcut-triggered';
 
-/**
- * Where a shortcut with no ⌘/⌃/⌥ (Esc) is left to the focused element: text
- * fields, and dialogs, menus and lists that use Esc to close themselves.
- */
+/** Where a bare shortcut (Esc) is left to the focused element: text fields, dialogs, menus and lists. */
 export const BARE_SHORTCUT_BLOCKERS =
   'input, textarea, select, [contenteditable="true"], [role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]';
 
@@ -57,10 +45,7 @@ export const SHORTCUT_MODIFIERS = {
 
 export type ShortcutModifierFlag = 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey';
 
-/**
- * Named key tokens → the `KeyboardEvent.key` they produce, which is also how
- * they display. Single letters and digits need no entry.
- */
+/** Named key tokens → the `KeyboardEvent.key` they produce and display as; letters and digits need no entry. */
 export const SHORTCUT_KEYS: Record<string, string> = {
   Comma: ',',
 };

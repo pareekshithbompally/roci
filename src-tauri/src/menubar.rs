@@ -1,30 +1,4 @@
-//! Backend-owned menubar (system tray) for Kasset.ai.
-//!
-//! Faithful port of Hex's menubar pattern (`src/macos_rune/status_item.rs`
-//! driven by the pump in `src/macos_rune.rs`, shared menu model in
-//! `src/desktop/tray_menu.rs`):
-//!
-//! - One backend module owns the tray icon, menu, and visibility state.
-//!   The frontend never constructs tray or menu objects; it reports
-//!   recording transitions and the speech models it can offer, and receives
-//!   action events.
-//! - Rows follow Hex's `Row`/`ROWS` order in three groups: the meeting
-//!   recorder (one row — Record Meeting, or Stop Recording while it runs),
-//!   the Speech Model submenu, Kasset's MCP server status (a disabled row:
-//!   it runs with the app, so there is nothing to start or stop), then the
-//!   app (Show, Settings…, Check for Updates…, Quit Kasset).
-//! - The menu is rebuilt on every recorder or model-list change, so the
-//!   recorder never shows two competing rows (Hex hides the other one, but
-//!   Tauri menu items have no visibility flag).
-//! - `icon_shown(!hide_icon || recording_active)`: the icon can be hidden
-//!   by preference but is forced visible while recording.
-//! - Recording transitions swap the icon (template idle <-> red recording)
-//!   and retitle the Stop row with elapsed time, like Hex's
-//!   `update_meeting()`.
-//! - Menu clicks dispatch through one function, like Hex's
-//!   `Pump::status_action`. Show is handled inline; recording, model, and
-//!   app actions go to the frontend, and the real exit runs once through
-//!   `menubar_quit` so the existing `ExitRequested` guard always runs.
+//! Backend-owned menubar (system tray): icon, menu and visibility; the frontend only reports and receives.
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -42,10 +16,7 @@ pub const TRAY_ID: &str = "kasset-menubar";
 /// Frontend event name carrying a menu item id as payload.
 pub const MENUBAR_ACTION_EVENT: &str = "menubar-action";
 
-/// Menu item ids. These are the wire contract: the frontend maps them to
-/// `TrayAction` and Hex's `TrayCommand`/`StatusItemAction` equivalents are
-/// `Show`, `StartRecording`/`RecordMeeting`, `StopRecording`/`StopMeeting`,
-/// `SelectModel`, `OpenSettings`, `Update`, `Quit`.
+/// Menu item ids: the wire contract the frontend maps to `TrayAction`.
 pub mod item {
     pub const SHOW: &str = "show";
     pub const START_RECORDING: &str = "start_recording";
@@ -61,7 +32,7 @@ pub mod item {
     pub const MCP_STATUS: &str = "mcp_status";
 }
 
-/// Row labels, matching Hex's title casing.
+/// Row labels.
 const RECORD_LABEL: &str = "Record Meeting";
 const SPEECH_MODEL_LABEL: &str = "Speech Model";
 const NO_MODELS_LABEL: &str = "No downloaded models";
@@ -80,8 +51,7 @@ const DEFAULT_TOOLTIP: &str = "Kasset.ai";
 const IDLE_ICON_RESOURCE: &str = "icons/iconTemplate@2x.png";
 const RECORDING_ICON_RESOURCE: &str = "icons/iconRecordingTemplate@2x.png";
 
-/// One row of the Speech Model submenu. The frontend reports these because
-/// the app's settings live there (Hex keeps them backend-side).
+/// One row of the Speech Model submenu, reported by the frontend because the settings live there.
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct SpeechModelEntry {
     id: String,
@@ -108,8 +78,7 @@ impl From<SpeechModelArg> for SpeechModelEntry {
     }
 }
 
-/// Menubar state shared between commands and the ticker thread.
-/// Item handles are cloned `Arc` wrappers, so sharing them is cheap.
+/// Menubar state shared between commands and the ticker thread; item handles are cheap `Arc` clones.
 struct StateData {
     recording_active: bool,
     paused: bool,
@@ -120,8 +89,7 @@ struct StateData {
     speech_models: Vec<SpeechModelEntry>,
     /// Kasset's MCP server, as its status row reads.
     mcp_status: String,
-    /// The recorder row of the current menu: Record when idle, Stop while
-    /// recording. The ticker retitles it with elapsed time.
+    /// The recorder row: Record when idle, Stop while recording; the ticker retitles it with elapsed time.
     recording_item: Option<MenuItem<Wry>>,
 }
 
@@ -140,13 +108,11 @@ impl Default for StateData {
     }
 }
 
-/// Managed menubar state (Hex: settings + tray state behind the pump).
+/// Managed menubar state.
 #[derive(Clone, Default)]
 pub struct MenubarShared {
     state: Arc<Mutex<StateData>>,
-    /// Serializes menu rebuilds, so an older snapshot never lands last.
-    /// Kept apart from the state lock because building menu items blocks on
-    /// the main thread, which also reads the state (window close handler).
+    /// Serializes menu rebuilds; apart from the state lock because building items blocks on the main thread.
     menu: Arc<Mutex<()>>,
 }
 
@@ -197,7 +163,7 @@ impl MenubarShared {
     }
 }
 
-/// Hex visibility rule: preference hides the icon, recording forces it back.
+/// Preference hides the icon, recording forces it back.
 fn icon_shown(hide_icon: bool, recording_active: bool) -> bool {
     !hide_icon || recording_active
 }
@@ -216,7 +182,7 @@ fn stop_item_text(elapsed_secs: u64, paused: bool) -> String {
     }
 }
 
-/// Menu id of one Speech Model row (Hex: `model:<id>`).
+/// Menu id of one Speech Model row.
 fn speech_model_action(model_id: &str) -> String {
     format!("{}{}", item::SPEECH_MODEL_PREFIX, model_id)
 }
@@ -253,8 +219,7 @@ fn apply_icon(app: &AppHandle, recording: bool) {
         if let Err(e) = tray.set_icon(Some(image)) {
             log::error!("[Menubar] Failed to set tray icon: {e}");
         }
-        // Recording icon carries its own red color; idle icon is a template
-        // image so macOS tints it (Hex: template image + STATUS_ICON_POINTS).
+        // The recording icon carries its own red; the idle icon is a template image so macOS tints it.
         if let Err(e) = tray.set_icon_as_template(!recording) {
             log::error!("[Menubar] Failed to set icon template flag: {e}");
         }
@@ -276,8 +241,7 @@ fn apply_visibility(app: &AppHandle) {
     }
 }
 
-/// The Speech Model submenu: downloaded models as check rows (Hex:
-/// `model_menu_entries`), or a disabled placeholder, then Manage Models…
+/// The Speech Model submenu: downloaded models as check rows, or a disabled placeholder, then Manage Models…
 fn build_speech_models(
     app: &AppHandle,
     models: &[SpeechModelEntry],
@@ -293,7 +257,7 @@ fn build_speech_models(
         )?));
     } else {
         for model in models {
-            // The selected model never picks again (Hex disables it).
+            // The selected model never picks again.
             rows.push(Box::new(CheckMenuItem::with_id(
                 app,
                 speech_model_action(&model.id),
@@ -317,11 +281,9 @@ fn build_speech_models(
     Submenu::with_items(app, SPEECH_MODEL_LABEL, true, &rows)
 }
 
-/// Build the tray menu from the current state (Hex: `Row`/`ROWS`). Groups:
-/// the meeting recorder, the Speech Model submenu, then the app.
+/// Build the tray menu from state: the meeting recorder, the Speech Model submenu, then the app.
 fn build_menu(app: &AppHandle, state: &MenuSnapshot) -> tauri::Result<(Menu<Wry>, MenuItem<Wry>)> {
-    // One recorder row: Record when idle, Stop while recording. The frontend
-    // drives transitions, so the two never show together (Hex hides instead).
+    // One recorder row: Tauri menu items have no visibility flag, so Record and Stop never show together.
     let recording_item = if state.recording_active {
         MenuItem::with_id(
             app,
@@ -376,14 +338,12 @@ fn build_menu(app: &AppHandle, state: &MenuSnapshot) -> tauri::Result<(Menu<Wry>
     Ok((menu, recording_item))
 }
 
-/// Rebuild the tray menu from state and swap it in. Called on recorder
-/// transitions, model-list reports, and at install time.
+/// Rebuild the tray menu from state and swap it in.
 fn rebuild_menu(app: &AppHandle) {
     let Some(shared) = app.try_state::<MenubarShared>() else {
         return;
     };
-    // One rebuild at a time: each takes its snapshot after the previous one
-    // finished, so the last report always wins.
+    // One rebuild at a time, each snapshotting after the previous finished, so the last report wins.
     let _build = shared.lock_menu();
     let snapshot = shared.snapshot();
     let (menu, recording_item) = match build_menu(app, &snapshot) {
@@ -403,8 +363,7 @@ fn rebuild_menu(app: &AppHandle) {
     }
 }
 
-/// Refresh the menu, icon, and visibility for the current recording state
-/// (Hex: `update_meeting`).
+/// Refresh the menu, icon, and visibility for the current recording state.
 fn refresh_recording_items(app: &AppHandle) {
     let Some(shared) = app.try_state::<MenubarShared>() else {
         return;
@@ -416,8 +375,7 @@ fn refresh_recording_items(app: &AppHandle) {
     apply_visibility(app);
 }
 
-/// Dispatch a menu action (Hex: `Pump::status_action`). `kasset://record`,
-/// `stop`, `show` and `settings` come through here too (`url_actions`).
+/// Dispatch a menu action; `kasset://record`, `stop`, `show` and `settings` come through here too.
 pub(crate) fn dispatch(app: &AppHandle, action: &str) {
     if action == item::SHOW {
         crate::window::show_main(app);
@@ -441,8 +399,7 @@ pub(crate) fn dispatch(app: &AppHandle, action: &str) {
     }
 }
 
-/// Build the tray icon and menu (Hex: `status_item::install`). Row order
-/// mirrors Hex's `ROWS`: recorder, speech model, app actions.
+/// Build the tray icon and menu: recorder, speech model, app actions.
 fn install(app: &AppHandle, shared: &MenubarShared) -> tauri::Result<()> {
     let (menu, recording_item) = build_menu(app, &shared.snapshot())?;
     shared.lock().recording_item = Some(recording_item);
@@ -465,8 +422,7 @@ fn install(app: &AppHandle, shared: &MenubarShared) -> tauri::Result<()> {
     Ok(())
 }
 
-/// Create the shared state, install the tray, and start the ticker.
-/// Call once from the Tauri setup hook.
+/// Create the shared state, install the tray, and start the ticker; call once from setup.
 pub fn setup(app: &AppHandle) {
     let shared = MenubarShared::default();
     app.manage(shared.clone());
@@ -476,8 +432,7 @@ pub fn setup(app: &AppHandle) {
     }
 }
 
-/// Start the 1s elapsed ticker (Hex: elapsed button title in `update_meeting`).
-/// Backend owns the clock: pause freezes it, resume continues, stop resets.
+/// Start the 1s elapsed ticker; the backend owns the clock (pause freezes, resume continues, stop resets).
 fn spawn_ticker(shared: MenubarShared) {
     std::thread::Builder::new()
         .name("menubar-ticker".to_string())
@@ -507,8 +462,7 @@ fn spawn_ticker(shared: MenubarShared) {
         .expect("failed to spawn menubar ticker thread");
 }
 
-/// Report a recording transition from the frontend. Backend resets, freezes,
-/// and resumes its own elapsed clock; the frontend keeps no tray timer.
+/// Report a recording transition from the frontend; the backend keeps the only elapsed clock.
 #[tauri::command]
 pub async fn menubar_set_recording_state(
     app: AppHandle,
@@ -533,9 +487,7 @@ pub async fn menubar_set_recording_state(
     Ok(())
 }
 
-/// Replace the Speech Model submenu with the models Hex has downloaded
-/// (Hex: `update_transcription`). Rebuilding keeps the selected check mark
-/// and the never-two-rows recorder rule in one place.
+/// Replace the Speech Model submenu with the ready models, keeping the check mark and one recorder row.
 #[tauri::command]
 pub async fn menubar_set_speech_models(
     app: AppHandle,
@@ -552,12 +504,7 @@ pub async fn menubar_set_speech_models(
     Ok(())
 }
 
-/// Kasset's MCP server changed state (listening, ready, agents connected):
-/// retitle its status row. Skips the rebuild when the text is unchanged.
-///
-/// Safe from any thread: the rebuild runs on a blocking worker, because
-/// building menu items waits on the main thread — called from the main thread
-/// while another rebuild holds the menu lock, it would deadlock.
+/// Retitle the MCP status row; the rebuild runs on a blocking worker to avoid a main-thread deadlock.
 pub fn set_mcp_status(app: &AppHandle, label: String) {
     let Some(shared) = app.try_state::<MenubarShared>() else {
         return;
@@ -595,7 +542,7 @@ pub async fn menubar_set_visible(app: AppHandle, visible: bool) -> Result<(), St
     Ok(())
 }
 
-/// Behaviour preferences (Hex: `hide_menu_bar_icon`, `quit_closes_window` labs).
+/// Behaviour preferences: hide the menu bar icon, close the window to the tray.
 #[tauri::command]
 pub async fn menubar_set_prefs(
     app: AppHandle,
@@ -641,8 +588,7 @@ pub async fn menubar_quit(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// Read the close-to-tray preference for the window close handler.
-/// Defaults to `true` when menubar state is unavailable.
+/// Read the close-to-tray preference for the window close handler; `true` when state is unavailable.
 pub fn close_to_tray(app: &AppHandle) -> bool {
     app.try_state::<MenubarShared>()
         .map(|shared| shared.close_to_tray())
@@ -693,7 +639,7 @@ mod tests {
         assert!(icon_shown(false, false));
         assert!(icon_shown(false, true));
         assert!(!icon_shown(true, false));
-        // Hex rule: hide preference never hides an active recording.
+        // The hide preference never hides an active recording.
         assert!(icon_shown(true, true));
     }
 }

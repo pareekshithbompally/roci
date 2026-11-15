@@ -1,7 +1,4 @@
-/**
- * Cache Management Service
- * Handles temporary data with TTL and size limits
- */
+/** Temporary audio/API data with TTL and size limits. */
 
 import { writeFile, readFile, remove, exists, readDir } from '@tauri-apps/plugin-fs';
 import { StorageConfig, generateCacheFilename } from '@config/storage.config';
@@ -9,9 +6,6 @@ import { pathsService } from './paths.service';
 import type { CacheEntry, CacheStats, StorageResult } from './types';
 
 class CacheService {
-  /**
-   * Set cache entry with TTL
-   */
   async set<T>(
     key: string,
     data: T,
@@ -63,9 +57,7 @@ class CacheService {
     }
   }
 
-  /**
-   * Get cache entry if valid
-   */
+  /** The entry when present and not expired. */
   async get<T>(key: string, category: 'audio' | 'api' = 'api'): Promise<StorageResult<T>> {
     try {
       const path = category === 'audio' 
@@ -108,17 +100,11 @@ class CacheService {
     }
   }
 
-  /**
-   * Check if cache entry exists and is valid
-   */
   async has(key: string, category: 'audio' | 'api' = 'api'): Promise<boolean> {
     const result = await this.get(key, category);
     return result.success;
   }
 
-  /**
-   * Remove specific cache entry
-   */
   async delete(key: string, category: 'audio' | 'api' = 'api'): Promise<StorageResult> {
     try {
       const path = category === 'audio' 
@@ -142,9 +128,6 @@ class CacheService {
     }
   }
 
-  /**
-   * Clear all expired cache entries
-   */
   async clearExpired(): Promise<StorageResult<number>> {
     let clearedCount = 0;
 
@@ -168,9 +151,6 @@ class CacheService {
     }
   }
 
-  /**
-   * Clear all cache (audio and API)
-   */
   async clearAll(): Promise<StorageResult<number>> {
     let clearedCount = 0;
 
@@ -194,9 +174,6 @@ class CacheService {
     }
   }
 
-  /**
-   * Get cache statistics
-   */
   async getStats(): Promise<StorageResult<CacheStats>> {
     try {
       const audioPath = await pathsService.getAudioCachePath();
@@ -222,9 +199,6 @@ class CacheService {
     }
   }
 
-  /**
-   * Clear expired entries in a directory
-   */
   private async clearExpiredInDirectory(path: string): Promise<number> {
     let count = 0;
     const now = new Date();
@@ -257,9 +231,6 @@ class CacheService {
     return count;
   }
 
-  /**
-   * Clear all files in a directory
-   */
   private async clearDirectory(path: string): Promise<number> {
     let count = 0;
 
@@ -280,9 +251,6 @@ class CacheService {
     return count;
   }
 
-  /**
-   * Get directory statistics
-   */
   private async getDirectoryStats(path: string): Promise<{ size: number; count: number }> {
     let size = 0;
     let count = 0;
@@ -310,9 +278,7 @@ class CacheService {
     return { size, count };
   }
 
-  /**
-   * Enforce storage size limits (LRU eviction)
-   */
+  /** Clears expired entries once the cache passes its cleanup threshold. */
   private async enforceStorageSize(category: 'audio' | 'api'): Promise<void> {
     const maxSizeMB = category === 'audio' 
       ? StorageConfig.cache.audio.maxSizeMB
@@ -335,9 +301,7 @@ class CacheService {
       // Clear expired first
       await this.clearExpiredInDirectory(path);
       
-      // If still over, implement LRU eviction
-      // For simplicity, we'll just clear expired for now
-      // TODO: Implement full LRU if needed
+      // TODO: LRU eviction when still over the limit; only expired entries are cleared today.
     }
   }
 }

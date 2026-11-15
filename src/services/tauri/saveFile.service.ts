@@ -1,11 +1,4 @@
-/**
- * saveTextFile — the app's one "Save as…" for text exports.
- *
- * Native save dialog (defaulting to ~/Downloads), then a plugin-fs write.
- * The dialog plugin adds the chosen path to the fs scope, so any location
- * the user picks is writable. Outside Tauri both steps fall back to the
- * browser (prompt + blob download) inside the underlying services.
- */
+/** The app's one "Save as…" for text: native dialog (default ~/Downloads) then fs write; browser fallback. */
 
 import { dialogService } from './dialog.service';
 import { fileSystemService } from './fileSystem.service';

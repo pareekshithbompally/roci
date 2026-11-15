@@ -1,9 +1,3 @@
-/**
- * HistoryList Component
- * 
- * Displays the history items in a list.
- */
-
 import React from 'react';
 import { useHistory } from '@shared/contexts/HistoryContext';
 import { useDeleteSession } from '@features/history/hooks/useDeleteSession';

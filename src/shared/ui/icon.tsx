@@ -3,13 +3,7 @@ import { cn } from './utils';
 import { UI_CONFIG } from '@config/ui.config';
 import { TONE_CLASSES, type TextTone } from './text';
 
-/**
- * Canonical icon — the single way Lucide glyphs are rendered app-wide.
- * One stroke weight (macOS-native feel), the shared size scale, and a colour
- * role via `tone` (defaults to inheriting the surrounding text colour).
- *
- *   <Icon icon={Check} size="sm" tone="success" />
- */
+/** The single way Lucide glyphs render: one stroke weight, the shared size scale, and a colour role via `tone`. */
 export const ICON_STROKE_WIDTH = 1.5;
 
 export type IconSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';

@@ -1,22 +1,11 @@
-/**
- * Citation Utilities
- *
- * Helpers for web citation display: favicon URLs, domain extraction, deduplication.
- */
+/** Web citation helpers: favicon URLs, domain extraction, deduplication. */
 
 import type { WebCitation, InlineCitationSpan } from '@shared/types';
 
 const FAVICON_BASE = 'https://www.google.com/s2/favicons';
 const WWW_PREFIX = /^www\./;
 
-/**
- * Extract the domain from a URL for display purposes.
- * Returns the hostname without 'www.' prefix.
- *
- * @example
- * extractDomain('https://www.example.com/path') // 'example.com'
- * extractDomain('https://docs.rust-lang.org/book/') // 'docs.rust-lang.org'
- */
+/** Display hostname without the 'www.' prefix, e.g. 'example.com'. */
 export function extractDomain(url: string): string {
   try {
     return new URL(url).hostname.replace(WWW_PREFIX, '');
@@ -25,21 +14,13 @@ export function extractDomain(url: string): string {
   }
 }
 
-/**
- * Get a favicon URL for a given website URL.
- * Uses Google's favicon service which reliably returns favicons at the requested size.
- */
+/** Favicon URL from Google's favicon service at the requested size. */
 export function getFaviconUrl(url: string, size = 16): string {
   const domain = extractDomain(url);
   return `${FAVICON_BASE}?domain=${encodeURIComponent(domain)}&sz=${size}`;
 }
 
-/**
- * Deduplicate web citations by URL.
- * Keeps the first occurrence (preserving order).
- *
- * @returns Deduped array and a mapping from old indices to new indices.
- */
+/** Dedupe citations by URL keeping first occurrences; returns the list and an old→new index map. */
 export function deduplicateCitations(
   citations: WebCitation[]
 ): { citations: WebCitation[]; indexMap: Map<number, number> } {
@@ -64,10 +45,7 @@ export function deduplicateCitations(
   return { citations: deduped, indexMap };
 }
 
-/**
- * Remap inline citation source indices after deduplication.
- * Returns a new array with updated sourceIndices (deduped per span).
- */
+/** Remap inline citation source indices after deduplication (deduped per span). */
 export function remapInlineCitations(
   spans: InlineCitationSpan[],
   indexMap: Map<number, number>

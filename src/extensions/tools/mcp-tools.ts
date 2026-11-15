@@ -1,13 +1,4 @@
-/**
- * MCP Tools
- *
- * Tools from connected MCP servers, as ToolDefinitions, so they ride the same
- * bridge (tools-bridge → streamText) and activity UI as the built-in tools.
- * Ported from Jan's chat-transport MCP wiring + tool approval flow.
- *
- * Called once per chat turn by the orchestrator; never throws — a failure to
- * reach Rust leaves the turn with built-in tools only.
- */
+/** Connected MCP servers' tools as ToolDefinitions; never throws, so a Rust failure leaves built-in tools only. */
 
 import { mcpService } from '@services/mcp.service';
 import type { McpTool } from '@services/mcp.service';
@@ -21,11 +12,7 @@ import type { JSONSchema, ToolDefinition, ToolResult } from './types';
 
 type ApprovalGate = (tool: McpTool, args: Record<string, unknown>, signal?: AbortSignal) => Promise<boolean>;
 
-/**
- * Connected MCP tools for this turn, minus those the user switched off in the
- * composer Tools picker (`disabledKeys`, see `mcpToolKey`). `reservedNames`
- * (built-in tools) win a name clash — an MCP tool may not shadow one.
- */
+/** Connected MCP tools minus those switched off; built-in `reservedNames` win any name clash. */
 export async function loadMcpTools(
   reservedNames: ReadonlySet<string>,
   disabledKeys: ReadonlySet<string> = new Set(),
@@ -54,8 +41,7 @@ function toDefinition(tool: McpTool, gate: ApprovalGate): ToolDefinition {
     description: tool.description || `Tool "${tool.name}" from the ${tool.server} MCP server.`,
     parameters: toObjectSchema(tool.inputSchema),
     source: tool.server,
-    // Rust bounds the call (timeout + output cap settings); the approval
-    // prompt may wait on the user, so the bridge must not time it out.
+    // Rust bounds the call; the approval prompt may wait on the user, so the bridge must not time it out.
     timeoutMs: null,
     maxResultChars: null,
     execute: async (args, context) => {
@@ -101,7 +87,7 @@ async function callWithCancellation(
   }
 }
 
-// ── Approval (Jan: "Allow all MCP tool permissions" + per-server grants) ──
+// ── Approval ("Allow all MCP tool permissions" + per-server grants) ──
 
 /** One gate per turn: an "always allow" answer covers the rest of the turn too. */
 function createApprovalGate(settings: McpSettings): ApprovalGate {

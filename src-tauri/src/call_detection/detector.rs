@@ -8,24 +8,18 @@ use super::microphone::{ActiveMicrophoneApplication, canonical_application_name}
 
 /// A known call service must keep the microphone for about 2 s.
 const STABLE_FOR: Duration = Duration::from_secs(2);
-/// A browser using the microphone on a page that is not a known call site
-/// must keep it for about 20 s: voice notes and dictation fields open the
-/// microphone for a few seconds, calls hold it for minutes.
+/// How long a browser off known call sites must hold the mic: dictation takes seconds, calls take minutes.
 const BROWSER_STABLE_FOR: Duration = Duration::from_secs(20);
-/// An offered call stays snoozed until its app has been off the microphone
-/// for about a minute, so one call is offered once.
+/// An offered call stays snoozed until its app has been off the mic this long, so one call is offered once.
 const ABSENT_FOR_RESET: Duration = Duration::from_secs(60);
 /// About three seconds without the call app on the microphone.
 const CALL_ENDED_AFTER: Duration = Duration::from_secs(3);
-/// Observations further apart than this (a sleeping Mac, a stalled loop) do
-/// not make one run: the clock restarts rather than counting the gap.
+/// Observations further apart than this (sleep, a stalled loop) restart the clock instead of counting the gap.
 const MAX_OBSERVATION_GAP: Duration = Duration::from_secs(10);
-/// A call that drops off one microphone check (or two, on a slow loop) and
-/// is back right after keeps its time toward the offer (#835).
+/// A call that drops off a mic check or two and comes right back keeps its time toward the offer.
 const DROPOUT_GRACE: Duration = Duration::from_secs(2);
 
-/// How long a condition has held across observations, by the monotonic
-/// clock, so a slow loop iteration cannot stretch a threshold.
+/// How long a condition has held, by the monotonic clock, so a slow loop cannot stretch a threshold.
 #[derive(Clone, Copy, Debug)]
 struct Run {
     since: Instant,
@@ -78,8 +72,7 @@ impl MeetingCandidate {
 
     fn required_stability(&self) -> Duration {
         match self.source {
-            // WhatsApp also takes the microphone for voice notes (#835), and
-            // Gather can hold it while you sit in a space (#855).
+            // WhatsApp also takes the mic for voice notes, and Gather holds it while you sit in a space.
             MeetingSource::BrowserCall | MeetingSource::WhatsApp | MeetingSource::Gather => {
                 BROWSER_STABLE_FOR
             }
@@ -121,12 +114,9 @@ pub struct MeetingDetector {
     pending: Option<Pending>,
     offered: Option<String>,
     offered_application: Option<String>,
-    /// The offered call's recording was stopped by hand: the snooze ends
-    /// once its app has been off the microphone for [`CALL_ENDED_AFTER`],
-    /// not a minute, so the next call is offered (#1113).
+    /// Recording stopped by hand: the snooze ends after [`CALL_ENDED_AFTER`] off the mic, not a minute.
     stopped: bool,
-    /// When a candidate was last on the microphone (or known to be, while
-    /// recording); absence is counted from here, gaps included.
+    /// When a candidate was last on the mic (or known to be, while recording); absence counts from here.
     last_present: Option<Instant>,
     calendar: Option<CalendarSnooze>,
 }
@@ -137,15 +127,12 @@ struct Pending {
     run: Run,
 }
 
-/// A call the user already answered a calendar reminder for: recorded it,
-/// or dismissed it.
+/// A call whose calendar reminder the user already answered, by recording or dismissing it.
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct CalendarSnooze {
-    /// App bundle IDs of the meeting's call service; empty when the
-    /// invitation had no call link, which covers the next call alone.
+    /// Bundle IDs of the meeting's call service; empty (no call link) covers the next call alone.
     keys: Vec<String>,
-    /// When the snooze lapses, in wall-clock milliseconds: the meeting's
-    /// end, or shortly after its start when it has no call link.
+    /// When the snooze lapses (wall-clock ms): the meeting's end, or just after its start without a call link.
     until_ms: i64,
 }
 
@@ -161,16 +148,12 @@ impl CalendarSnooze {
 }
 
 impl MeetingDetector {
-    /// A calendar reminder was answered: its call, when detected before
-    /// `until_ms`, is treated as already offered. `keys` names the call
-    /// service; empty covers the next call detected.
+    /// A calendar reminder was answered: its call, detected before `until_ms`, counts as already offered.
     pub fn snooze_calendar_call(&mut self, keys: Vec<String>, until_ms: i64) {
         self.calendar = Some(CalendarSnooze { keys, until_ms });
     }
 
-    /// The call that was offered is still on the microphone, as a running
-    /// recording's call app is: its snooze must last from now, not from the
-    /// last detection pass.
+    /// The offered call is still on the mic (it is being recorded), so its snooze lasts from now.
     pub(super) fn keep_snooze_alive_at(&mut self, now: Instant) {
         self.last_present = Some(now);
     }
@@ -195,8 +178,7 @@ impl MeetingDetector {
         candidate.application.is_some() && self.offered_application == candidate.application
     }
 
-    /// No candidate is on the microphone: the snooze ends once that has
-    /// lasted long enough.
+    /// No candidate is on the microphone: the snooze ends once that has lasted long enough.
     fn absent_at(&mut self, now: Instant) {
         let since = *self.last_present.get_or_insert(now);
         let reset_after = if self.stopped {
@@ -211,8 +193,7 @@ impl MeetingDetector {
         }
     }
 
-    /// One observation. Returns the call to offer, once it has been stable
-    /// long enough and is not snoozed.
+    /// One observation; returns the call to offer once it is stable long enough and not snoozed.
     pub(super) fn detect_at(
         &mut self,
         candidate: Option<MeetingCandidate>,
@@ -302,8 +283,7 @@ pub fn candidate_from_microphone(
     Some(candidate)
 }
 
-/// The call to offer among the applications on the microphone: a call app
-/// before a browser.
+/// The call to offer among the applications on the microphone: a call app before a browser.
 pub fn best_candidate(applications: &[ActiveMicrophoneApplication]) -> Option<MeetingCandidate> {
     applications
         .iter()
@@ -357,8 +337,7 @@ mod tests {
             }
         }
 
-        /// Observes `candidate` every `step_ms` for `ms`, the first at the
-        /// current time, and returns each offer with the time it came.
+        /// Observes `candidate` every `step_ms` for `ms`, returning each offer with its time.
         fn run_every(
             &mut self,
             candidate: Option<&MeetingCandidate>,
@@ -393,9 +372,7 @@ mod tests {
             self.elapsed_ms += ms;
         }
 
-        /// Observes until the candidate has been stable for just under its
-        /// threshold, then once more; returns what that last observation
-        /// offered.
+        /// Observes until just under the stability threshold, then once more; returns that last offer.
         fn stable(&mut self, candidate: &MeetingCandidate) -> Option<MeetingCandidate> {
             let required = candidate.required_stability().as_millis() as u64;
             assert!(self.run(Some(candidate), required).is_empty());
@@ -592,15 +569,13 @@ mod tests {
         let mut watch = Watch::new();
         assert!(watch.run(Some(&slack), 2_000).is_empty());
         assert_eq!(watch.run(Some(&slack), 500).len(), 1);
-        // Recorded for an hour; the app left the microphone after 5 minutes,
-        // so the first pass after Stop already ends the snooze.
+        // Recorded an hour, app off the mic after 5 minutes: the first pass after Stop ends the snooze.
         watch.skip(3_600_000);
         assert!(watch.run(None, 500).is_empty());
         assert!(watch.run(Some(&slack), 2_000).is_empty());
         assert_eq!(watch.run(Some(&slack), 500).len(), 1);
 
-        // While the recording sees the app on the microphone, the snooze
-        // counts from the last such moment.
+        // While the recording sees the app on the mic, the snooze counts from the last such moment.
         let mut watch = Watch::new();
         watch.run(Some(&slack), 2_500);
         watch.skip(97_500);
@@ -658,7 +633,7 @@ mod tests {
 
     #[test]
     fn vivaldi_on_the_microphone_is_a_browser_call() {
-        // A Teams web app in Vivaldi runs in Vivaldi's own process (#1105).
+        // A Teams web app in Vivaldi runs in Vivaldi's own process.
         let vivaldi = app("com.vivaldi.Vivaldi", "Vivaldi");
         let call = candidate_from_microphone(&vivaldi).unwrap();
         assert_eq!(call.source, MeetingSource::BrowserCall);

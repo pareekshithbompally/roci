@@ -1,8 +1,4 @@
-/**
- * McpRuntimeCard — tool permissions and runtime limits (Jan's MCP settings
- * card: allow-all, saved permissions with revoke, timeout, output cap).
- * Renders the rows of a `Section`.
- */
+/** MCP tool permissions and runtime limits (allow-all, saved permissions, timeout, output cap) as Section rows. */
 
 import React, { useEffect, useState } from 'react';
 import { DEFAULT_MCP_SETTINGS, MCP_CONFIG } from '@config/mcp.config';

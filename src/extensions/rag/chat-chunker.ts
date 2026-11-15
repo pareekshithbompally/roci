@@ -1,10 +1,4 @@
-/**
- * Chat Session Chunker
- *
- * Splits a chat session into indexable conversation turns.
- * Each turn = one user message + the assistant's response.
- * This is the semantic unit of a chat: a question and its answer.
- */
+/** Splits a chat session into indexable turns: one user message plus the assistant's reply. */
 
 import type { ChatSession, ChatMessage } from '@shared/types';
 import { MIN_TURN_LENGTH, MAX_ASSISTANT_CHUNK_CHARS } from './constants';
@@ -15,11 +9,7 @@ export interface ChatChunk {
   type: 'turn';
 }
 
-/**
- * Chunk a chat session into conversation turns for indexing.
- * Pairs each user message with the following assistant message.
- * Short turns (< MIN_TURN_LENGTH chars) are skipped.
- */
+/** Pairs each user message with the next assistant message; turns under MIN_TURN_LENGTH are skipped. */
 export function chunkChatSession(session: ChatSession): ChatChunk[] {
   const chunks: ChatChunk[] = [];
   const messages = session.messages;
@@ -54,10 +44,7 @@ export function chunkChatSession(session: ChatSession): ChatChunk[] {
   return chunks;
 }
 
-/**
- * Compute a content hash for staleness detection.
- * Hash covers all message texts — any edit triggers re-indexing.
- */
+/** Content hash over every message, so any edit triggers re-indexing. */
 export async function computeChatHash(session: ChatSession): Promise<string> {
   const content = session.messages
     .map(m => `${m.role}:${m.text ?? ''}`)

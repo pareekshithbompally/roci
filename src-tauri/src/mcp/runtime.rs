@@ -1,4 +1,4 @@
-//! Server lifecycle — connect, monitor, reconnect, stop (Jan's `helpers.rs`).
+//! Server lifecycle — connect, monitor, reconnect, stop.
 
 use rmcp::{
     model::{ClientCapabilities, ClientConfig, Implementation},
@@ -31,8 +31,7 @@ use super::{
 
 pub type Service = RunningService<RoleClient, ClientConfig>;
 
-/// Health probe cadence. Jan: 30s, not 2s — every probe is a tools/list the
-/// server may log to stderr.
+/// Health probe cadence; slow because every probe is a tools/list the server may log to stderr.
 const HEALTH_INTERVAL: Duration = Duration::from_secs(30);
 const HEALTH_TIMEOUT: Duration = Duration::from_secs(2);
 /// A server that exits within this window after `initialize` failed to start.
@@ -43,8 +42,7 @@ const VERIFY_BACKOFF: Duration = Duration::from_secs(1);
 /// All MCP runtime state, managed by Tauri.
 #[derive(Default)]
 pub struct McpState {
-    /// Live connections by server name. `Arc` so a tool call clones its
-    /// server and releases the map instead of blocking every other server.
+    /// Live connections by name; `Arc` so a tool call clones its server instead of holding the map.
     pub(super) servers: Mutex<HashMap<String, Arc<Service>>>,
     /// Servers the user enabled (config by name), whether or not connected.
     pub(super) active: Mutex<HashMap<String, Value>>,
@@ -94,8 +92,7 @@ pub async fn start_active_servers(app: AppHandle) {
 
 // ── Start ──
 
-/// Connect one server and monitor it. Idempotent: a running or starting
-/// server is left alone (two `initialize`s break streamable-http servers).
+/// Connect one server and monitor it; idempotent, since two `initialize`s break streamable-http servers.
 pub async fn start_server(app: &AppHandle, name: &str, entry: Value) -> Result<(), String> {
     let state = app.state::<McpState>();
     if state.servers.lock().await.contains_key(name) {
@@ -109,8 +106,7 @@ pub async fn start_server(app: &AppHandle, name: &str, entry: Value) -> Result<(
     let result = connect_and_register(app, name, &entry).await;
     state.starting.lock().await.remove(name);
     if let Err(e) = result {
-        // A failed first start is not "enabled": the webview saves it as off,
-        // so neither restart nor a monitor may bring it back.
+        // A failed first start is saved as off, so neither restart nor a monitor may bring it back.
         state.active.lock().await.remove(name);
         drop_connection(app, name).await;
         return Err(e);
@@ -184,8 +180,7 @@ async fn connect_stdio(
         cmd.env("PATH", path);
     }
     cmd.args(args).envs(env.iter().cloned()).kill_on_drop(true);
-    // Process-group leader (pgid == pid) so teardown reaches the grandchildren
-    // `npx`/`uvx` fork, which otherwise outlive a single-PID kill.
+    // Process-group leader so teardown reaches the grandchildren `npx`/`uvx` fork.
     #[cfg(unix)]
     cmd.process_group(0);
 
@@ -232,8 +227,7 @@ async fn drain_stderr(name: String, mut stderr: ChildStderr) {
     }
 }
 
-/// A stdio server can exit right after `initialize`, or need a moment before
-/// tools/list answers (`npx mcp-remote`). Fail the first; wait out the second.
+/// Fail a stdio server that exits right after `initialize`; wait out one slow to answer tools/list.
 async fn verify_stdio_server(app: &AppHandle, name: &str) -> Result<(), String> {
     sleep(STARTUP_SETTLE).await;
     let state = app.state::<McpState>();
@@ -251,14 +245,13 @@ async fn verify_stdio_server(app: &AppHandle, name: &str) -> Result<(), String> 
         log::warn!("[mcp] {name} tools/list not ready (attempt {attempt}/{VERIFY_ATTEMPTS})");
         sleep(VERIFY_BACKOFF).await;
     }
-    // Jan proceeds anyway: the health monitor takes over from here.
+    // Proceed anyway: the health monitor takes over from here.
     Ok(())
 }
 
 // ── Monitor ──
 
-/// Probe health; on failure drop the connection and reconnect with backoff.
-/// Exits once the user deactivates the server.
+/// Probe health; on failure reconnect with backoff, until the user deactivates the server.
 async fn monitor(app: AppHandle, name: String, entry: Value) {
     let mut failures: u32 = 0;
     loop {
@@ -311,9 +304,7 @@ async fn reconnect_with_backoff(app: &AppHandle, name: &str, entry: &Value, fail
 async fn drop_connection(app: &AppHandle, name: &str) {
     let state = app.state::<McpState>();
     let service = state.servers.lock().await.remove(name);
-    // An in-flight call may still hold a clone; dropping ours then lets the
-    // last holder's drop guard close the transport (the group kill below
-    // ends the call either way).
+    // An in-flight call may still hold a clone; its drop guard then closes the transport.
     if let Some(Ok(service)) = service.map(Arc::try_unwrap) {
         let _ = service.cancel().await;
     }
@@ -332,8 +323,7 @@ pub async fn stop_server(app: &AppHandle, name: &str) {
     emit_update(app, name);
 }
 
-/// Synchronous last-resort teardown on app exit: signal every server's
-/// process group so no `npx`/`node` outlives Kasset.
+/// Last-resort teardown on app exit: signal every server's process group so no `npx`/`node` outlives Kasset.
 pub fn kill_all_children(app: &AppHandle) {
     let Some(state) = app.try_state::<McpState>() else { return };
     let pids: Vec<u32> = state.pids.lock().expect("pids lock").drain().map(|(_, pid)| pid).collect();

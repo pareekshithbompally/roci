@@ -26,10 +26,7 @@ interface FormDialogProps {
   children: React.ReactNode;
 }
 
-/**
- * Settings form dialog: title + close, a scrolling body, inline error, footer.
- * Outside clicks are ignored so a half-filled form is never lost.
- */
+/** Settings form dialog; outside clicks are ignored so a half-filled form is never lost. */
 export const FormDialog: React.FC<FormDialogProps> = ({
   open,
   onOpenChange,

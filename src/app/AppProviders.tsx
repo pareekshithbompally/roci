@@ -1,24 +1,4 @@
-/**
- * AppProviders.tsx - All Context Providers
- * 
- * Composes all context providers into a single wrapper.
- * Order matters: outer providers are available to inner providers.
- * 
- * Provider order (outer → inner):
- * 1. ErrorBoundary - Debugging error boundary
- * 2. ThemeProvider - Basic theming, no dependencies
- * 3. ToastProvider - Notifications, no dependencies
- *    TooltipProvider - shared hover delay for every @shared/ui Tooltip
- * 4. QueryClientProvider - TanStack Query for server/disk data
- * 5. SettingsProvider - App settings, needed by others (save-on-edit, no dirty tracking)
- * 6. HistoryProvider - History management
- * 7. ImportProvider - Audio/transcript file import
- * 8. ChatProvider - Chat functionality
- * 9. RecordingProvider - Recording functionality (with context dependencies)
- *
- * Note: appStore (Zustand) replaces AppContext; useMeetingNotes/useMeetingTodos
- * (TanStack Query) replace MeetingContext, NotesContext, TodosContext.
- */
+/** Composes every context provider; order matters because inner providers read outer ones. */
 
 import React, { ReactNode, Component, ErrorInfo } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -33,9 +13,7 @@ import { queryClient } from '@shared/query/queryClient';
 import { Surface, Text, TooltipProvider } from '@shared/ui';
 import { useAppActions } from '@shared/stores/appStore';
 
-/**
- * Error Boundary for debugging render errors
- */
+/** Error boundary that shows render errors instead of a blank window. */
 interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
@@ -81,12 +59,7 @@ interface AppProvidersProps {
   children: ReactNode;
 }
 
-/**
- * RecordingProviderWrapper
- * 
- * Wrapper component that injects context dependencies into RecordingProvider.
- * Must be inside Settings, History, App, and Toast providers to access their contexts.
- */
+/** Injects Settings, History, App and Toast context dependencies into RecordingProvider. */
 const RecordingProviderWrapper: React.FC<{ children: ReactNode }> = ({ children }) => {
   const settingsContext = useSettings();
   const historyContext = useHistory();
@@ -103,18 +76,7 @@ const RecordingProviderWrapper: React.FC<{ children: ReactNode }> = ({ children 
   );
 };
 
-/**
- * AppProviders
- * 
- * Wrap the app root with this component to enable all context providers.
- * 
- * @example
- * ```tsx
- * <AppProviders>
- *   <App />
- * </AppProviders>
- * ```
- */
+/** Wrap the app root with this to enable every context provider. */
 export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
   return (
     <ErrorBoundary>

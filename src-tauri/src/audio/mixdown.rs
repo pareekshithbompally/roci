@@ -1,5 +1,4 @@
-//! Mixes the per-source tracks into the one recording that playback and
-//! transcription use.
+//! Mixes the per-source tracks into the one recording that playback and transcription use.
 
 use std::iter;
 use std::path::Path;
@@ -10,13 +9,10 @@ use hound::{SampleFormat, WavReader, WavSpec, WavWriter};
 use super::SAMPLE_RATE;
 use super::tracks::TrackManifest;
 
-/// One track's samples on the mix's timeline: silence until it starts, then
-/// the track, then silence.
+/// One track's samples on the mix's timeline: silence until it starts, the track, then silence.
 type Lane = Box<dyn Iterator<Item = hound::Result<f32>>>;
 
-/// Writes the average of the recorded `tracks` in `directory` to `output` as
-/// 16 kHz mono 16-bit PCM. Each track starts where its first packet arrived,
-/// relative to the earliest track, so the sources stay aligned.
+/// Averages `tracks` into 16 kHz mono PCM, each offset by its first packet's arrival so sources align.
 pub(super) fn mixdown(directory: &Path, tracks: &[&TrackManifest], output: &Path) -> Result<()> {
     let recorded: Vec<&TrackManifest> = tracks
         .iter()

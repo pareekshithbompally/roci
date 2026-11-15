@@ -1,8 +1,4 @@
-/**
- * Frame-rate independent spring physics — ported from Hex
- * `src/rune_hud/spring.rs` (MIT). Duration + bounce, SwiftUI mapping
- * (ω = 2π / duration, ζ = 1 − bounce), solved analytically.
- */
+/** Frame-rate independent spring: ω = 2π / duration, ζ = 1 − bounce, solved analytically. */
 
 const CRITICAL_DAMPING_TOLERANCE = 1e-4;
 

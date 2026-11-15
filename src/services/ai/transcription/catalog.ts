@@ -1,8 +1,4 @@
-/**
- * Speech model catalog — what the user can pick, whether it can run now, and
- * which adapter and credentials run it. Single rule used by Settings › Capabilities,
- * the composer's mic, the menubar, and the pipeline.
- */
+/** Speech model catalog: what can be picked, whether it can run now, and which adapter and credentials run it. */
 
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { capabilitiesOf } from '@services/ai/capabilities';
@@ -43,10 +39,7 @@ function acceptsAudio({ provider, model }: SpeechSelection, providers: ModelProv
   return !!resolved && capabilitiesOf(provider, resolved.model).audioInput;
 }
 
-/**
- * Which adapter transcribes a selection: the speech endpoint for speech models,
- * else the multimodal prompt for any model that accepts audio, else none.
- */
+/** Speech endpoint for speech models, else the multimodal prompt for audio-input models, else null. */
 export function adapterFor(selection: SpeechSelection, providers: ModelProvider[]): TranscriptionAdapterId | null {
   return speechModelAdapter(selection) ?? (acceptsAudio(selection, providers) ? 'multimodal' : null);
 }
@@ -62,7 +55,7 @@ function cloudOptions(providers: ModelProvider[]): SpeechModelOption[] {
   });
 }
 
-/** Models on active providers that pass `include`, ready when the provider has a key (local servers get a default one). */
+/** Models on active providers that pass `include`; ready once the provider has a key (local servers get a default). */
 function providerOptions(
   providers: ModelProvider[],
   include: (provider: ModelProvider, model: Model) => boolean,
@@ -92,11 +85,7 @@ function hexOptions(status: HexStatus | undefined): SpeechModelOption[] {
   return [{ provider: hexProvider, model: '', label: 'Hex', ready: false, hint, live: false }];
 }
 
-/**
- * Keyless speech sources: Kasset's own engine (always present once its model
- * list loads) and integrations, each present only while that integration is
- * on (its status may still be loading); absent → it offers nothing.
- */
+/** Keyless speech sources; an integration is present only while it's on, and absent offers nothing. */
 export interface SpeechSources {
   onDevice?: { models: LocalModel[] };
   hex?: { status: HexStatus | undefined };
@@ -121,13 +110,7 @@ function appleSpeechOptions(status: AppleSpeechStatus | undefined): SpeechModelO
   return [{ provider, model, label, ready: isAppleSpeechReady(status), hint: appleSpeechHint(status), live: false }];
 }
 
-/**
- * Every speech model in picker order — what runs on this Mac first: Apple
- * Speech, Kasset's own models, Hex; then curated cloud models, local servers'
- * speech models, and models the user ticked "Audio input" for. The picker keeps
- * this order in both its ready groups and "Needs setup", so on-device choices
- * lead and key-gated ones trail. The first entry per selection wins (curated labels).
- */
+/** Every speech model in picker order, on-device first; the first entry per selection wins. */
 export function speechModelOptions(providers: ModelProvider[], sources: SpeechSources): SpeechModelOption[] {
   const options = [
     ...(sources.appleSpeech ? appleSpeechOptions(sources.appleSpeech.status) : []),

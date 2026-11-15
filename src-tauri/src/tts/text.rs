@@ -1,6 +1,4 @@
-//! What a voice says: a reply's markdown as plain sentences (code blocks,
-//! images and markup dropped; link text kept), packed into chunks a model
-//! synthesizes quickly, so playback starts after the first one.
+//! A reply's markdown as plain sentences, packed into chunks so playback starts after the first.
 
 /// Longest text synthesized in one pass.
 const MAX_CHUNK_CHARS: usize = 240;
@@ -77,8 +75,7 @@ fn collapse_spaces(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// Sentences packed into chunks of at most [`MAX_CHUNK_CHARS`] (a longer
-/// sentence stays whole).
+/// Sentences packed into chunks of at most [`MAX_CHUNK_CHARS`]; a longer sentence stays whole.
 pub fn chunks(text: &str) -> Vec<String> {
     let mut chunks = Vec::new();
     let mut current = String::new();

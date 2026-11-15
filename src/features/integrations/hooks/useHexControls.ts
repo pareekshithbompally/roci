@@ -1,7 +1,4 @@
-/**
- * useHexControls — Hex row: on/off (no macOS permission), Hex's running
- * state, the meeting stream's state, and "Sync now".
- */
+/** Hex row: on/off (no macOS permission), whether Hex is running, the meeting stream's state, and "Sync now". */
 
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHexStatus } from './useIntegrationSpeech';

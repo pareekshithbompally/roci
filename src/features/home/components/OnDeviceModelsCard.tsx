@@ -1,11 +1,4 @@
-/**
- * OnDeviceModelsCard — zero-state onboarding for local models.
- *
- * Shows only before first setup: two downloadable models, plain names,
- * real model identities, one Hugging Face attribution. A Download press
- * is consent and starts the download; Skip dismisses the card for good
- * (Settings → Capabilities holds the only other copy).
- */
+/** First-run card offering two local model downloads; Skip dismisses it for good. */
 
 import React, { useState } from 'react';
 import { Search, Volume2 } from 'lucide-react';

@@ -1,13 +1,4 @@
-/**
- * query_graph tool
- *
- * Traverses the knowledge graph to answer relationship questions:
- * who's involved in what, what decisions affect which projects,
- * how topics connect across meetings, aggregate queries.
- *
- * Complements search_meetings (vector RAG) — the LLM chooses
- * which tool fits the query type.
- */
+/** query_graph: answers relationship questions from the knowledge graph; complements search_meetings. */
 
 import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
 import { graphDB } from '@extensions/rag/graph-client';

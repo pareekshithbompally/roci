@@ -1,15 +1,4 @@
-/**
- * An on-device model's row controls, in two parts a row places in its own
- * slots (CardRow `status` / `actions`), so states and actions line up down a card:
- *
- *   ModelReadyStatus      ● Ready once downloaded; nothing before.
- *   ModelDownloadButton   one fixed-width action that changes in place:
- *     idle   [⬇ Download]
- *     busy   [◌ Preparing…] → [◌ 42%] → [◌ Preparing…] (initializing)
- *     ready  [↻ Re-download] or [🗑 Delete] where offered; otherwise none
- *
- * Errors return to idle; the error toast carries Retry.
- */
+/** On-device model row controls: a Ready status and one fixed-width Download/progress/Re-download action. */
 
 import React from 'react';
 import { Download, RotateCw, Trash2 } from 'lucide-react';

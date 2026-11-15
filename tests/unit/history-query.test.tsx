@@ -1,12 +1,4 @@
-/**
- * History query migration tests.
- *
- * HistoryContext now owns the meeting index through TanStack Query:
- * load on mount, optimistic add/delete with rollback on failure,
- * and explicit reload via loadHistory. The mocked store below behaves
- * like the real one (list reflects prior upserts/deletes) so the
- * settle-and-refetch loop converges on truth.
- */
+/** HistoryContext via TanStack Query; the mocked store reflects prior upserts/deletes so refetches converge. */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
@@ -114,8 +106,7 @@ describe('history query', () => {
 
     fireEvent.click(screen.getByTestId('add'));
 
-    // Optimistic update shows immediately, then the refetch confirms it
-    // (server order wins after settle — Third is present either way).
+    // The optimistic update shows at once and the refetch confirms it (server order wins after settle).
     await waitFor(() => expect(meetingsUpsert).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.getByTestId('count').textContent).toBe('3'));
     expect(screen.getByTestId('titles').textContent).toContain('Third');

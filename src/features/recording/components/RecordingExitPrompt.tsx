@@ -1,11 +1,4 @@
-/**
- * RecordingExitPrompt
- *
- * Asks (via the app-wide confirm()) when the user quits (Cmd+Q or tray Quit) or closes the window while a
- * recording is capturing. Stop saves the recording to history first, then
- * quits or hides the window; Cancel keeps recording. A quit the app cannot
- * ask about (force quit, crash) is recovered at the next launch instead.
- */
+/** On quit or window close mid-capture, asks to stop and save first; Cancel keeps recording. */
 
 import React, { useEffect } from 'react';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';

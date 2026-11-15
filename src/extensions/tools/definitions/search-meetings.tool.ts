@@ -1,10 +1,4 @@
-/**
- * search_meetings tool
- *
- * Wraps the existing RAG hybrid search (sqlite-vec KNN + FTS5 + RRF).
- * Returns ranked meeting snippets the LLM can use to decide which
- * meetings to load in full via get_meeting.
- */
+/** search_meetings: hybrid RAG search returning ranked snippets, so the LLM knows which meetings to load. */
 
 import type { ToolDefinition, ToolResult, MeetingCitation } from '@extensions/tools/types';
 import { ragSearcher } from '@extensions/rag/searcher';
@@ -101,8 +95,7 @@ export const searchMeetingsTool: ToolDefinition = {
       );
     }
 
-    // Build UI-only citation cards — only high-confidence matches
-    // so Sources shows the truly relevant meetings, not every vague hit.
+    // Citation cards for high-confidence matches only, so Sources shows truly relevant meetings.
     const citations: MeetingCitation[] = [];
     for (const [, hits] of byMeeting) {
       const first = hits[0];

@@ -1,8 +1,4 @@
-/**
- * The integration gate. An integration's switch (Settings › Integrations) is the
- * only thing that decides whether its surfaces exist: every place that can use
- * an integration (model pickers, sync, …) asks here. On → it shows up; off → gone.
- */
+/** The integration gate: an integration's switch alone decides whether any of its surfaces exist. */
 
 import type { AppSettings } from '@shared/types';
 

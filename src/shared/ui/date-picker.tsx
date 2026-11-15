@@ -1,7 +1,4 @@
-/**
- * DatePicker — Custom calendar popover built on Radix Popover.
- * Replaces native <input type="date"> with a themed, app-consistent calendar.
- */
+/** Themed calendar popover in place of native <input type="date">. */
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';

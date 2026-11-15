@@ -1,9 +1,3 @@
-/**
- * Shared Utilities Module
- * 
- * Utility functions used across the app.
- */
-
 // Formatters
 export * from './formatters';
 

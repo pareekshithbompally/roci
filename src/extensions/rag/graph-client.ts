@@ -1,9 +1,4 @@
-/**
- * Knowledge Graph Client
- *
- * Thin wrapper around Tauri invoke calls to graph commands
- * in the store Rust plugin. Same pattern as client.ts.
- */
+/** Thin wrapper over the store plugin's knowledge graph invoke calls. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { vectorDB } from './client';
@@ -52,9 +47,6 @@ export const graphDB = {
     return invoke('plugin:store|graph_stats');
   },
 
-  /**
-   * Find all meetings that belong to a specific category
-   */
   async findMeetingsByCategory(category: string, limit = 10): Promise<GraphNode[]> {
     await vectorDB.initialize();
     return this.traverse({
@@ -67,9 +59,6 @@ export const graphDB = {
     });
   },
 
-  /**
-   * Find all categories in the graph
-   */
   async findAllCategories(limit = 50): Promise<GraphNode[]> {
     await vectorDB.initialize();
     return this.search({
@@ -78,9 +67,6 @@ export const graphDB = {
     });
   },
 
-  /**
-   * Get all meetings and their categories
-   */
   async findMeetingsWithCategories(limit = 20): Promise<{
     meeting: GraphNode;
     categories: GraphNode[];

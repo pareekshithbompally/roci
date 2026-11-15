@@ -1,15 +1,4 @@
-//! Kasset meetings in macOS Spotlight. The store plugin announces every
-//! committed meeting write; one `meeting-spotlight` thread follows those
-//! changes and keeps the Core Spotlight index in step while the user has
-//! Spotlight on. Saves are coalesced for [`DEBOUNCE`]; a delete is removed at
-//! once. Turning Spotlight on re-indexes every meeting; turning it off removes
-//! them all.
-//!
-//! A Spotlight result the user opens goes through `url_actions`, so it waits
-//! for the webview on a cold launch.
-//!
-//! Core Spotlight needs an app bundle: without one the thread never starts and
-//! [`configure_meeting_spotlight`] does nothing.
+//! Keeps the Core Spotlight index in step with meeting writes while Spotlight is on; needs an app bundle.
 
 mod item;
 
@@ -48,9 +37,7 @@ enum Work {
     RemoveAll,
 }
 
-/// The pure state of the sync: on, off, or not yet known (a fresh launch, so
-/// the first switch value always runs, and clears stale items when off), and
-/// the saved meetings waiting for [`DEBOUNCE`].
+/// Sync state: on, off or unknown (first switch value always runs), plus saves waiting for [`DEBOUNCE`].
 #[derive(Debug, Default)]
 struct IndexState {
     enabled: Option<bool>,
@@ -102,8 +89,7 @@ static SENDER: OnceLock<Sender<Input>> = OnceLock::new();
 
 // ── Lifecycle ──
 
-/// Follow meeting writes and open chosen results. Called once from setup
-/// (Core Spotlight's open hook needs the app delegate, which exists then).
+/// Follow meeting writes and open chosen results; called once from setup, when the app delegate exists.
 pub fn start(app: AppHandle) {
     if !spotlight::supported() {
         log::info!("[meeting-spotlight] Core Spotlight unavailable (no app bundle); indexing off");
@@ -128,9 +114,7 @@ pub fn start(app: AppHandle) {
     let _ = SENDER.set(sender);
 }
 
-/// Spotlight on or off (Settings). Off removes every Kasset meeting from it.
-/// The webview calls this only after settings load from the open store DB,
-/// which `ReindexAll` relies on to read the meetings.
+/// Spotlight on or off; called only after settings load, which `ReindexAll` relies on.
 #[tauri::command]
 pub fn configure_meeting_spotlight(enabled: bool) {
     let Some(sender) = SENDER.get() else {

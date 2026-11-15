@@ -1,14 +1,4 @@
-/**
- * Recording Context
- *
- * Session-based recording engine supporting multiple concurrent recording sessions.
- * Only one session can own OS audio capture at a time (recording/paused).
- * Multiple sessions can be in review/processing simultaneously.
- *
- * Provides both:
- * - Legacy RecordingContextValue (backward compat for existing consumers)
- * - RecordingSessionsContextValue (new session-based API)
- */
+/** Session-based recording; one session owns OS capture at a time, many can be in review or processing. */
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { useToast } from '@shared/contexts/ToastContext';
@@ -115,18 +105,13 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
   const abortControllerRefs = useRef<Map<string, AbortController>>(new Map());
   const lastLevelTimestampRef = useRef<number>(0);
 
-  // "Still recording?" refs (per-session, no React state needed): elapsed
-  // seconds at the last ask, and at the ask still awaiting an answer.
+  // Per-session elapsed seconds at the last "Still recording?" ask, and at the ask awaiting an answer.
   const lastAlertElapsedRefs = useRef<Map<string, number>>(new Map());
   const pendingAskRefs = useRef<Map<string, number>>(new Map());
   // Stable ref to stopAndSaveSession so mount-only effects can call it without stale closures
   const stopAndSaveRef = useRef<(sessionId: string) => Promise<void>>(async () => {});
 
-  /**
-   * On each tick of a capture: ask "Still recording?" every hour, and stop
-   * (saving) when an ask goes unanswered. Runs on the recording timer, so
-   * nothing is scheduled ahead and a stopped session can't fire late.
-   */
+  /** Per tick: ask "Still recording?" hourly, and stop (saving) when an ask goes unanswered. */
   const checkRecordingTimeout = useCallback((sessionId: string, elapsed: number) => {
     const ask = NOTIFICATIONS_CONFIG.recording;
     const id = `${ask.idPrefix}${sessionId}`;
@@ -239,9 +224,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     };
   }, []);
 
-  // Note: menubar icon/menu state is reported via
-  // menubarService.setRecordingState at each lifecycle point; the backend
-  // owns the icon, menu items, and elapsed clock.
+  // Menubar state is pushed via menubarService.setRecordingState; the backend owns icon, menu, and clock.
 
   // === SESSION-SCOPED ACTIONS ===
 
@@ -308,9 +291,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           const elapsed = Math.floor((Date.now() - startTime) / 1000) - pausedTime;
           const updates: Partial<RecordingSession> = { elapsedTime: Math.max(0, elapsed) };
 
-          // Stall detection: if no audio levels for 5 seconds while actively recording.
-          // When lastLevel === 0, no levels have EVER been received — treat as stalled
-          // after a grace period (5s from session start) so the UI warns immediately.
+          // Stalled: no levels for 5s, or none ever received 5s after session start.
           const lastLevel = lastLevelTimestampRef.current;
           const timeSinceLevel = lastLevel > 0
             ? Date.now() - lastLevel
@@ -344,8 +325,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     }
   }, [activeCaptureSessionId, audioSource, settingsContext, updateSession, showToast, setPermissionChecklistOpen]);
 
-  // One stop at a time: a second request (e.g. Quit while a Stop is mixing)
-  // shares the running stop's result instead of stopping again.
+  // A second stop request (e.g. Quit during a Stop) shares the running stop's result.
   const stopInFlightRef = useRef<ReturnType<typeof coreAudioService.stopCapture> | null>(null);
   const stopCaptureOnce = useCallback(() => {
     stopInFlightRef.current ??= coreAudioService.stopCapture().finally(() => {
@@ -384,8 +364,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           stalled: false,
         });
       } else {
-        // Capture was already stopped — benign. Do NOT set an error here: the
-        // review row renders any error as a "stall" badge.
+        // Already stopped is benign; no error, since the review row shows any error as a stall badge.
         updateSession(sessionId, { status: 'review', isPaused: false, stalled: false });
       }
 
@@ -394,8 +373,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         console.error('[RecordingContext] Menubar sync failed:', error)
       );
     } catch (error) {
-      // The backend released the capture even though stopping failed; its
-      // tracks are kept and recovered at the next launch.
+      // The backend released capture anyway; its tracks are recovered at the next launch.
       cleanupSessionTimer(sessionId);
       setActiveCaptureSessionId(null);
       void menubarService.setRecordingState(false, false).catch((error: unknown) =>
@@ -443,9 +421,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
 
   useRecordingRecovery(Boolean(historyContext?.addToHistory), saveToHistory, showToast);
 
-  // Stop + immediately save to history sidebar.
-  // Used by stall stop and 60-min auto-stop — avoids two-step stop→saveLater flow
-  // and the stale-closure problem of chaining those calls.
+  // Stop and save in one step (stall and auto-stop), avoiding a stale closure across chained calls.
   const stopAndSaveSession = useCallback(async (sessionId: string) => {
     const session = sessions.get(sessionId);
     if (!session) return;
@@ -784,8 +760,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
         inputSource: session.audioSource,
       };
 
-      // Note: transcriptionService.saveTranscriptionResult() already adds to the meeting index.
-      // Do NOT call addToHistory here — it would create a duplicate index entry.
+      // saveTranscriptionResult() already adds the index entry; calling addToHistory would duplicate it.
       if (setResult) setResult(data);
       if (setSelectedHistoryId) setSelectedHistoryId(newItem.id);
       if (setStatus) setStatus(AppStatus.RESULTS);
@@ -838,9 +813,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
   // Computed
   const canStartNewCapture = isTauriEnvironment() && activeCaptureSessionId === null;
 
-  // === ActivityTray bridge ===
-  // Sync recording sessions → activityStore so the unified tray renders them.
-  // Format time as MM:SS for the tray detail field.
+  // === ActivityTray bridge: mirror recording sessions into activityStore ===
   const formatTimeForTray = useCallback((seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -965,9 +938,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
           activityStore.add({ id, ...patch });
         }
       } else if (session.status === 'review') {
-        // Review sessions: show compact row with process/later/discard.
-        // Only include Summarize if a model is configured — otherwise clicking
-        // would fail silently since there's nothing to route the request to.
+        // Offer Summarize only when a model is configured, otherwise it has nowhere to route.
         const hasModel = !!settingsContext?.settings && !!resolveChatModel(
           settingsContext.settings,
           settingsContext?.providers || []
@@ -1012,9 +983,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
       }
     });
 
-    // Remove activity items for sessions that no longer exist.
-    // Only touch items with recording/processing type and UUID-format IDs
-    // (to avoid removing non-recording items like 'rag-model').
+    // Drop tray items for gone sessions; only recording/processing items with UUID ids (not e.g. 'rag-model').
     const storeItems = activityStore.getSnapshot();
     for (const item of storeItems) {
       if (
@@ -1027,8 +996,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     }
   }, [sessions, activeCaptureSessionId, formatTimeForTray, settingsContext]);
 
-  // Prevent system idle sleep while OS audio capture is active.
-  // Acquire when activeCaptureSessionId becomes non-null, release on cleanup.
+  // Hold a wake lock to prevent idle sleep while OS audio capture is active.
   useEffect(() => {
     if (!isTauriEnvironment() || !activeCaptureSessionId) return;
     invoke('acquire_wake_lock').catch((e: unknown) => {
@@ -1055,8 +1023,7 @@ export const RecordingProvider: React.FC<RecordingProviderProps> = ({
     });
   }, []); // mount only
 
-  // === LEGACY COMPAT: Derive single-session state from sessions Map ===
-  // Find the "active" session for legacy consumers (active capture or most recent review)
+  // Single-session view for older consumers: the active capture, else the most recent review.
   const activeSession = activeCaptureSessionId
     ? sessions.get(activeCaptureSessionId)
     : Array.from(sessions.values())

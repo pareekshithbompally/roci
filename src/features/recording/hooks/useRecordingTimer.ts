@@ -1,8 +1,4 @@
-/**
- * useRecordingTimer Hook
- * 
- * Formats and manages the recording timer display.
- */
+/** Formats the recording timer display. */
 
 import { useMemo } from 'react';
 import { useRecordingContext } from '@features/recording/context';

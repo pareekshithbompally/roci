@@ -1,12 +1,4 @@
-/**
- * Entity Extractor
- *
- * Extracts entities and relationships from a processed meeting
- * and upserts them into the knowledge graph.
- *
- * Called after transcriptionService.saveTranscriptionResult() succeeds.
- * Failure is non-fatal — the meeting is already saved.
- */
+/** Extracts entities and relationships from a saved meeting into the knowledge graph; failure is non-fatal. */
 
 import type { MeetingSummary, AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
@@ -23,10 +15,7 @@ import { graphDB } from './graph-client';
 import { ENTITY_TYPES, RELATIONSHIP_TYPES } from './graph-types';
 import type { GraphNode, GraphEdge } from './graph-types';
 
-/**
- * Extract entities from a meeting and upsert to the knowledge graph.
- * Non-fatal: catches all errors and logs them. Never throws.
- */
+/** Extracts and upserts a meeting's entities; logs errors and never throws. */
 export async function extractAndUpsert(
   meetingId: string,
   title: string,
@@ -156,8 +145,7 @@ function buildGraphPayload(
   extracted: ExtractionResponse,
   categories: string[],
 ): { nodes: GraphNode[]; edges: GraphEdge[] } {
-  // Two maps: nodeMap stores GraphNode objects keyed by node ID,
-  // nameIndex resolves entity names to node IDs for relationship resolution.
+  // nodeMap holds nodes by ID; nameIndex resolves entity names to node IDs for relationships.
   const nodeMap = new Map<string, GraphNode>();
   const nameIndex = new Map<string, string>(); // lowercase name → node ID
 

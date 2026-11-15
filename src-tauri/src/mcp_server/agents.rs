@@ -1,15 +1,4 @@
-//! Register Kasset in coding agents — one `kasset` entry, nothing else touched.
-//!
-//! - Claude Code and Codex: their own CLI (`claude mcp add|remove --scope user`,
-//!   `codex mcp add|remove`). The agent writes its own config file, so Kasset
-//!   never races Claude Code's frequent rewrites of `~/.claude.json`.
-//! - OpenCode (`~/.config/opencode/opencode.json`) has no non-interactive
-//!   CLI: Kasset edits the file itself — only the
-//!   `kasset` key, keys kept in order, written atomically through symlinks,
-//!   and a file that isn't plain JSON is left untouched.
-//!
-//! Status is read straight from each config file; reading never writes.
-//! Everything here is in the user's home folder: no Full Disk Access.
+//! Registers one `kasset` entry in coding agents' configs via their CLI, or by editing OpenCode's file.
 
 use std::{
     fs,
@@ -270,8 +259,7 @@ fn current_command() -> Option<String> {
         .map(|p| p.display().to_string())
 }
 
-/// This binary, refused when agents couldn't rely on it: macOS runs apps
-/// opened from Downloads or a disk image from a temporary, randomized path.
+/// This binary, refused when macOS runs it from a randomized translocation path (Downloads, disk image).
 fn registrable_command() -> Result<String, String> {
     let command = current_command().ok_or("Kasset couldn't find its own location")?;
     if command.contains("/AppTranslocation/") || command.starts_with("/Volumes/") {
@@ -305,8 +293,7 @@ async fn run_cli(name: &str, args: &[&str]) -> Result<(), String> {
     cli_output(name, args).await.map(|_| ())
 }
 
-/// Run an agent's CLI from the home folder (so no project scope applies) with
-/// the login PATH (Claude Code and Codex may be Node scripts).
+/// Run an agent's CLI from the home folder (no project scope) with the login PATH.
 async fn cli_output(name: &str, args: &[&str]) -> Result<String, String> {
     let program = find_cli(name)
         .await
@@ -385,8 +372,7 @@ fn object_at<'a>(
         .ok_or_else(|| format!("\"{key}\" isn't an object, so Kasset left the file untouched."))
 }
 
-/// Read → change only what `edit` changes → write atomically. A symlinked
-/// config (dotfiles repo) is edited at its target, keeping the link.
+/// Read, change only what `edit` changes, write atomically; a symlinked config is edited at its target.
 fn edit_json(
     path: &Path,
     edit: impl FnOnce(&mut Map<String, Value>) -> Result<(), String>,
@@ -399,8 +385,7 @@ fn edit_json(
     write_atomic(&target, &text)
 }
 
-/// Write beside the file, keep its permissions, then rename over it — a crash
-/// leaves the old file or the new one, never half of one.
+/// Write beside the file, keep its permissions, then rename over it, so a crash never leaves half a file.
 fn write_atomic(path: &Path, text: &str) -> Result<(), String> {
     let dir = path.parent().ok_or("config path has no folder")?;
     fs::create_dir_all(dir).map_err(|e| format!("create {}: {e}", dir.display()))?;

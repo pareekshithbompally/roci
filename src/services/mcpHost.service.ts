@@ -1,9 +1,4 @@
-/**
- * MCP host service — invoke wrappers over Kasset's own MCP server
- * (src-tauri/src/mcp_server): the webview publishes its tools and answers calls;
- * Settings registers Kasset in coding agents. Rust owns the socket and the
- * agents' config files.
- */
+/** Invoke wrappers over Kasset's own MCP server; Rust owns the socket and the coding agents' config files. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';

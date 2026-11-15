@@ -1,8 +1,4 @@
-/**
- * Tool catalog — the pure view model behind the composer Tools picker
- * (llama.cpp's grouped tools submenu): built-in group + one group per
- * configured MCP server, with enabled counts.
- */
+/** View model for the Tools picker: built-in group plus one group per MCP server, with enabled counts. */
 
 import { mcpToolKey } from '@config/mcp.config';
 import type { McpServers } from '@config/mcp.config';

@@ -1,11 +1,4 @@
-/**
- * Errors — one way to read and report an `unknown` error everywhere.
- *
- * - `errorMessage`: the text of any thrown value.
- * - `isCodedError`: a native command's refusal, serialized by Rust as
- *   `{ code, detail? }` (serde `tag = "code"`), so callers can map codes to copy.
- * - `failureLogger`: `[Scope] action failed:` console reports, per the logging convention.
- */
+/** Read and report `unknown` errors: message text, coded native refusals (`{ code, detail? }`), scoped console logs. */
 
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);

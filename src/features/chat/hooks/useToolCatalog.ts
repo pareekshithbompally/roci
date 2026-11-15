@@ -1,11 +1,4 @@
-/**
- * useToolCatalog — state + actions for the composer Tools picker.
- *
- * Sources: saved tool preferences (AppSettings.chatTools), MCP config /
- * connection / tools queries, the chat store's web search switch, and the
- * selected model's capabilities (`capabilitiesOf`). Every toggle writes the saved preferences;
- * "Connect" enables the server through the same reconfigure path as Settings.
- */
+/** Tools picker state and actions; every toggle writes the saved chat tool preferences. */
 
 import { useCallback, useMemo } from 'react';
 import { toolRegistry } from '@extensions/tools';

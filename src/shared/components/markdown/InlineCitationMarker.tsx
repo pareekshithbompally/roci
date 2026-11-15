@@ -1,12 +1,4 @@
-/**
- * InlineCitationMarker
- *
- * A superscript badge rendered inline within markdown text.
- * Shows favicon + citation number (e.g. [🌐 1]).
- *
- * On hover: tooltip with source URL
- * On click: opens source URL in a new tab
- */
+/** Inline superscript favicon + citation number; hover shows the URL, click opens it. */
 
 import React from 'react';
 import { getFaviconUrl } from '@shared/utils/citationUtils';

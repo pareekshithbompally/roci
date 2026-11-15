@@ -5,8 +5,7 @@ use super::SAMPLE_RATE;
 
 const CHUNK_SIZE: usize = 1024;
 
-/// Incremental resampling to 16 kHz for long recordings that must not be
-/// held in memory. Output excludes the resampler delay.
+/// Incremental 16 kHz resampling for long recordings, excluding the resampler delay.
 pub struct StreamingResampler {
     resampler: Option<Fft<f32>>,
     input: Vec<f32>,

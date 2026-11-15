@@ -15,12 +15,7 @@ import ErrorMessageBox from './ErrorMessageBox';
 import type { AssistantMessageProps } from './types';
 import type { ChatPart, WebCitation, InlineCitationSpan } from '@shared/types';
 
-/**
- * Streaming-aware header label — subscribes to the external store.
- * During tool phase (no text yet): shows active tool name.
- * During text phase: shows provider/model.
- * Isolated so only this component re-renders on streaming store changes.
- */
+/** Header label (active tool, then provider/model), isolated so only it re-renders on stream updates. */
 const StreamingHeaderLabel = memo(({
   msgId, provider, model,
 }: {
@@ -51,10 +46,7 @@ const StreamingHeaderLabel = memo(({
 
 StreamingHeaderLabel.displayName = 'StreamingHeaderLabel';
 
-/**
- * Inner streaming content — subscribes to the external store.
- * Isolated so that only this component re-renders on each streaming chunk.
- */
+/** Streaming content, isolated so only it re-renders on each chunk. */
 const StreamingContent = memo(({ msgId }: { msgId: string }) => {
   const streaming = useStreamingText();
 

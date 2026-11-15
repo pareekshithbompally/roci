@@ -1,10 +1,4 @@
-//! The macOS system voices, natively through AVFAudio: listed with
-//! AVSpeechSynthesisVoice (name, quality, novelty flag) and spoken with
-//! AVSpeechSynthesizer — every chunk queued as one utterance, so speech is
-//! seamless, while a delegate reports each utterance starting, like Phonon's
-//! chunks. AVFAudio calls the delegate on the main thread (the app's event
-//! loop), so the speaking thread only waits on a channel. No voice chosen
-//! follows System Settings › Accessibility › Spoken Content (voice and rate).
+//! macOS system voices via AVFAudio; the delegate fires on the main thread, so speaking waits on a channel.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
@@ -28,9 +22,7 @@ const SYSTEM_VOICE: &str = "system";
 /// How long the speaking thread waits for progress before checking `stop`.
 const POLL: Duration = Duration::from_millis(50);
 
-/// The system voice, then the installed voices for `language` (e.g. `en`),
-/// best quality first; novelty voices (Bells, Zarvox…) are left out. `id` is
-/// the voice identifier.
+/// The system voice, then installed voices for `language`, best quality first, novelty voices left out.
 pub fn voices(language: &str) -> Vec<VoiceOption> {
     let system = VoiceOption { id: SYSTEM_VOICE.to_string(), name: "System voice".to_string(), detail: None };
     std::iter::once(system).chain(installed(language)).collect()
@@ -109,9 +101,7 @@ impl SpeechProgress {
     }
 }
 
-/// Speaks `chunks` in order in voice `voice` (an identifier; None or the
-/// system voice = Spoken Content's), calling `on_chunk` as each begins.
-/// Returns when done, or as soon as `stop` is set.
+/// Speaks `chunks` in `voice` (None = Spoken Content's), calling `on_chunk` as each begins; stops on `stop`.
 pub fn speak(chunks: &[String], voice: Option<&str>, stop: &AtomicBool, mut on_chunk: impl FnMut(&str)) -> Result<(), LocalError> {
     let voice = voice.filter(|id| *id != SYSTEM_VOICE);
     let (events, inbox) = mpsc::channel();

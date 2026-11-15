@@ -1,7 +1,4 @@
-/**
- * IntegrationsPanel — every integration as one row in a grouped card
- * (rows, permissions and settings come from features/integrations).
- */
+/** Every integration as one row in a grouped card (rows come from features/integrations). */
 
 import React from 'react';
 import { Section } from '@shared/ui';

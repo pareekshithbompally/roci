@@ -1,10 +1,4 @@
-/**
- * TodoConfirmationBanner
- *
- * Renders a list of pending todo proposals above chat input.
- * Supports batch confirm/cancel and individual removal.
- * Matches ChatInput styling: same px-12 wrapper and field surface.
- */
+/** Pending todo proposals above the chat input, with batch confirm/cancel and per-item removal. */
 
 import React, { useCallback, useState } from 'react';
 import {

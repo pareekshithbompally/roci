@@ -1,10 +1,4 @@
-/**
- * useNotificationsRuntime — app-lifetime wiring for native notifications:
- * registers the button sets and keeps the muted kinds in step with Settings ›
- * Notifications.
- *
- * Mount once, in a component inside SettingsContext.
- */
+/** Mount once inside SettingsContext: registers button sets and keeps muted kinds in step with Settings. */
 
 import { useEffect, useMemo } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';

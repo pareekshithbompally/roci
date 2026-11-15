@@ -1,9 +1,4 @@
-/**
- * IndexingRow — renders an indexing-type activity in the tray.
- *
- * Uses ActivityRowLayout for consistent single-line display.
- * Step counter and percent are merged into the detail string.
- */
+/** An indexing activity in the tray; step counter and percent merged into the detail. */
 
 import React from 'react';
 import { Loader2 } from 'lucide-react';
