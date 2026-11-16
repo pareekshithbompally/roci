@@ -5,6 +5,7 @@ import { listen } from '@tauri-apps/api/event';
 import { READ_ALOUD_CONFIG, type ReadAloudEngine } from '@config/readAloud.config';
 import { errorMessage, failureLogger, isCodedError } from '@shared/utils/errors';
 import { isTauriEnvironment } from '@services/tauri';
+import { platform } from '@platform/index';
 import type { LocalErrorPayload } from '@services/localModels.service';
 
 const report = failureLogger('readAloud');
@@ -30,7 +31,7 @@ let nextRequest = 0;
 
 export const readAloud = {
   voices: async (engine: ReadAloudEngine): Promise<ReadAloudVoice[]> =>
-    isTauriEnvironment() ? invoke<ReadAloudVoice[]>('tts_voices', { engine }) : [],
+    platform.hasOnDeviceModels && isTauriEnvironment() ? invoke<ReadAloudVoice[]>('tts_voices', { engine }) : [],
 
   /** `voice` undefined = the engine's default. `onChunk` gets each chunk's text as its audio begins. */
   async speak(text: string, engine: ReadAloudEngine, voice: string | undefined, onChunk: (spoken: string) => void): Promise<void> {

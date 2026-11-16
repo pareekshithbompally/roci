@@ -23,6 +23,8 @@ import { withIntegrationModels } from '@shared/utils/modelResolver';
 import { ActionCard, AppImage } from '@shared/components';
 import { Button, cn, Dot, Icon, Surface, Text, TitlebarSpacer } from '@shared/ui';
 import { motion } from 'framer-motion';
+import { platform } from '@platform/index';
+import { isIntegrationEnabled } from '@shared/utils/integrations';
 
 interface IdleViewProps {}
 
@@ -188,10 +190,12 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                 aria-hidden={voice.isVoiceActive || undefined}
                 inert={voice.isVoiceActive || undefined}
               >
-                <Button variant="outline" size="sm" onClick={handleStartRecording} disabled={!canRecord}>
-                  <Dot tone="danger" />
-                  Record
-                </Button>
+                {platform.canRecord && (
+                  <Button variant="outline" size="sm" onClick={handleStartRecording} disabled={!canRecord}>
+                    <Dot tone="danger" />
+                    Record
+                  </Button>
+                )}
                 <ImportButton />
                 {historyItems.length > 0 && (
                   <Button variant="outline" size="sm" onClick={handleOpenReminders}>
@@ -199,7 +203,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                     To-Dos
                   </Button>
                 )}
-                {settings.calendarIntegration?.enabled && (
+                {isIntegrationEnabled(settings, 'calendar') && (
                   <Button variant="outline" size="sm" onClick={handleOpenCalendar}>
                     <Icon icon={CalendarDays} size="xs" />
                     Upcoming
@@ -246,16 +250,18 @@ export const IdleView: React.FC<IdleViewProps> = () => {
               {/* On-device models — zero state only; Skip or consent dismisses for good */}
               <OnDeviceModelsCard />
 
-              {/* Record button — always available */}
-              <div className="flex flex-col items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handleStartRecording} disabled={!canRecord}>
-                  <Dot tone="danger" />
-                  Record
-                </Button>
-                <Text as="p" variant="helper" tone="faint">
-                  Recording works offline. Set up a provider for AI summaries.
-                </Text>
-              </div>
+              {/* Record button — on devices that record */}
+              {platform.canRecord && (
+                <div className="flex flex-col items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={handleStartRecording} disabled={!canRecord}>
+                    <Dot tone="danger" />
+                    Record
+                  </Button>
+                  <Text as="p" variant="helper" tone="faint">
+                    Recording works offline. Set up a provider for AI summaries.
+                  </Text>
+                </div>
+              )}
             </>
           )}
         </div>

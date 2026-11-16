@@ -3,12 +3,13 @@
 import { useEffect } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { isTauriEnvironment } from '@services/tauri';
+import { isIntegrationEnabled } from '@shared/utils/integrations';
 import { remindersService, remindersSync } from '@services/reminders';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 
 export function useRemindersRuntime(): void {
   const { settings } = useSettings();
-  const enabled = !!settings.remindersIntegration?.enabled;
+  const enabled = isIntegrationEnabled(settings, 'reminders');
   const listId = settings.remindersIntegration?.listId;
 
   useEffect(() => {

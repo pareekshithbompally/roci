@@ -22,6 +22,7 @@ import { AppIcon } from '@shared/components';
 import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
 import { LAYOUT } from '@config/layout.config';
 import { confirm } from '@shared/stores/confirmStore';
+import { platform } from '@platform/index';
 
 /** Recording sources offered in General › Capture, and what each needs from macOS. */
 const CAPTURE_SOURCES = ['systemAndMicrophone', 'system', 'microphone'] as const;
@@ -272,63 +273,67 @@ export const GeneralPanel: React.FC = () => {
         />
       </Section>
 
-      <Section title="Capture">
-        <CardRow
-          title="Input Source"
-          description={CAPTURE_HINT[captureSource]}
-          actions={
-            <div className={LAYOUT.settingsSelect}>
-              <Select value={captureSource} onValueChange={(source) => setSettings({ defaultAudioSource: source as AudioCaptureSource })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CAPTURE_SOURCES.map((source) => (
-                    <SelectItem key={source} value={source}>{AUDIO_CONFIG.captureSources[source].label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          }
-        />
-        <CardRow
-          title="Real-time Transcription"
-          description={settings.liveTranscription && !liveDictation ? (
-            <>
-              {liveCopy.unavailable.before} <Icon icon={LIVE_TRANSCRIPTION_MARK.icon} size="xs" label={LIVE_TRANSCRIPTION_MARK.label} className="inline align-text-bottom" /> {liveCopy.unavailable.after}
-            </>
-          ) : liveCopy.description}
-          actions={
-            <Switch
-              size="sm"
-              checked={!!settings.liveTranscription}
-              onCheckedChange={(checked) => setSettings({ liveTranscription: checked })}
-              aria-label="Real-time transcription"
-            />
-          }
-        />
-        <CardRow
-          title="Transcribe After Recording"
-          description="Start the transcript and summary as soon as a recording stops. Off: it waits in the sidebar until you press Transcribe."
-          actions={
-            <Switch
-              size="sm"
-              checked={!!settings.autoTranscribe}
-              onCheckedChange={(checked) => setSettings({ autoTranscribe: checked })}
-              aria-label="Transcribe after recording"
-            />
-          }
-        />
-      </Section>
+      {platform.canRecord && (
+        <Section title="Capture">
+          <CardRow
+            title="Input Source"
+            description={CAPTURE_HINT[captureSource]}
+            actions={
+              <div className={LAYOUT.settingsSelect}>
+                <Select value={captureSource} onValueChange={(source) => setSettings({ defaultAudioSource: source as AudioCaptureSource })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CAPTURE_SOURCES.map((source) => (
+                      <SelectItem key={source} value={source}>{AUDIO_CONFIG.captureSources[source].label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            }
+          />
+          <CardRow
+            title="Real-time Transcription"
+            description={settings.liveTranscription && !liveDictation ? (
+              <>
+                {liveCopy.unavailable.before} <Icon icon={LIVE_TRANSCRIPTION_MARK.icon} size="xs" label={LIVE_TRANSCRIPTION_MARK.label} className="inline align-text-bottom" /> {liveCopy.unavailable.after}
+              </>
+            ) : liveCopy.description}
+            actions={
+              <Switch
+                size="sm"
+                checked={!!settings.liveTranscription}
+                onCheckedChange={(checked) => setSettings({ liveTranscription: checked })}
+                aria-label="Real-time transcription"
+              />
+            }
+          />
+          <CardRow
+            title="Transcribe After Recording"
+            description="Start the transcript and summary as soon as a recording stops. Off: it waits in the sidebar until you press Transcribe."
+            actions={
+              <Switch
+                size="sm"
+                checked={!!settings.autoTranscribe}
+                onCheckedChange={(checked) => setSettings({ autoTranscribe: checked })}
+                aria-label="Transcribe after recording"
+              />
+            }
+          />
+        </Section>
+      )}
 
       {isTauriEnvironment() && (
         <Section title="Storage Location">
           <div className="flex items-center gap-2 py-3">
             <Icon icon={FolderOpen} size="sm" tone="faint" className="shrink-0" />
             <Text tone="muted" truncate className="flex-1">{storagePath ?? PENDING}</Text>
-            <Button variant="ghost" size="iconSm" onClick={handleOpenInFinder} aria-label="Open in Finder" title="Open in Finder" disabled={!storagePath}>
-              <AppIcon app={APP_CONFIG.macApps.finder} size="sm" />
-            </Button>
+            {platform.hasFileManager && (
+              <Button variant="ghost" size="iconSm" onClick={handleOpenInFinder} aria-label="Open in Finder" title="Open in Finder" disabled={!storagePath}>
+                <AppIcon app={APP_CONFIG.macApps.finder} size="sm" />
+              </Button>
+            )}
             <Button variant="ghost" size="iconSm" onClick={handleCopyStoragePath} aria-label="Copy path" disabled={!storagePath}>
               <Icon icon={storagePathCopied ? Check : Copy} size="sm" tone={storagePathCopied ? 'success' : 'faint'} />
             </Button>
@@ -464,7 +469,7 @@ const VersionStatus: React.FC<{
     {appUpdate.status === 'idle' && !appUpdate.updateInfo && upToDate && (
       <Text variant="helper" tone="muted">Up to date</Text>
     )}
-    {appUpdate.status === 'idle' && !appUpdate.updateInfo && (
+    {platform.hasUpdater && appUpdate.status === 'idle' && !appUpdate.updateInfo && (
       <Button variant="outline" size="sm" onClick={onCheck}>Check for Updates</Button>
     )}
     {appUpdate.status === 'available' && appUpdate.updateInfo && (

@@ -2,6 +2,7 @@
 
 import { Channel, invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from '@services/tauri';
+import { platform } from '@platform/index';
 import { failureLogger, isCodedError } from '@shared/utils/errors';
 
 const PLUGIN = 'plugin:apple-intelligence|';
@@ -51,7 +52,7 @@ export const isAppleError = (error: unknown): error is AppleErrorPayload => isCo
 
 export const appleIntelligence = {
   async status(): Promise<AppleModelStatus> {
-    if (!isTauriEnvironment()) return UNSUPPORTED;
+    if (!platform.hasAppleIntelligence || !isTauriEnvironment()) return UNSUPPORTED;
     const raw = await invoke<{ availability: AppleAvailability; context_tokens: number }>(`${PLUGIN}availability`);
     return { availability: raw.availability, contextTokens: raw.context_tokens };
   },

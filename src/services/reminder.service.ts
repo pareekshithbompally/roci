@@ -5,6 +5,7 @@ import { onNotificationResponse, removeNotices, scheduleNotice, type Notice } fr
 import { store } from './db';
 import type { ReminderEntry } from '@shared/types';
 import { hashToNotificationId, formatReminderDate } from '@shared/utils/todo.utils';
+import { platform } from '@platform/index';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const TODO = NOTIFICATIONS_CONFIG.todo;
@@ -49,6 +50,7 @@ class ReminderService {
   }
 
   async schedule(params: ScheduleReminderParams): Promise<boolean> {
+    if (!platform.hasNotifications) return false;
     const fireAt = new Date(params.reminderDateTime);
     if (fireAt.getTime() <= Date.now()) {
       console.warn('[ReminderService] Cannot schedule reminder in the past');
@@ -61,7 +63,7 @@ class ReminderService {
   }
 
   async cancel(todoId: string): Promise<void> {
-    await removeNotices([noticeId(todoId)]);
+    if (platform.hasNotifications) await removeNotices([noticeId(todoId)]);
     try {
       await store.reminders.setStatus(todoId, 'cancelled');
     } catch {

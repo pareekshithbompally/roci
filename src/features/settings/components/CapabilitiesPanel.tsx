@@ -20,6 +20,7 @@ import { CardRow, Icon, Section } from '@shared/ui';
 import type { LocalModel } from '@services/localModels.service';
 import { LIVE_TRANSCRIPTION_MARK, ModelSelect, SettingsPage } from './shared';
 import { ReadAloudVoiceRow } from './ReadAloudVoiceRow';
+import { platform } from '@platform/index';
 
 const { jobs: JOBS } = CAPABILITIES_CONFIG;
 
@@ -122,14 +123,18 @@ export const CapabilitiesPanel: React.FC = () => {
         <CapabilityRow icon={AudioLines} job={JOBS.transcription}>
           <ModelSelect value={speech ? speechSelectionKey(speech) : undefined} choices={speechChoices} onChange={setSpeech} />
         </CapabilityRow>
-        <CapabilityRow icon={Volume2} job={JOBS.readAloud}>
-          <ModelSelect
-            value={readAloudEngine}
-            choices={engines}
-            onChange={(engine) => setSettings({ readAloudEngine: engine, readAloudVoice: undefined })}
-          />
-        </CapabilityRow>
-        <ReadAloudVoiceRow engine={readAloudEngine} ready={engines.find((e) => e.value === readAloudEngine)?.ready ?? false} />
+        {platform.hasOnDeviceModels && (
+          <>
+            <CapabilityRow icon={Volume2} job={JOBS.readAloud}>
+              <ModelSelect
+                value={readAloudEngine}
+                choices={engines}
+                onChange={(engine) => setSettings({ readAloudEngine: engine, readAloudVoice: undefined })}
+              />
+            </CapabilityRow>
+            <ReadAloudVoiceRow engine={readAloudEngine} ready={engines.find((e) => e.value === readAloudEngine)?.ready ?? false} />
+          </>
+        )}
       </Section>
 
       <Section title="Meetings">

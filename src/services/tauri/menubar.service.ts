@@ -3,6 +3,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { isTauriEnvironment } from './environment.service';
+import { platform } from '@platform/index';
 import type { TrayAction } from './types';
 
 export const MENUBAR_ACTION_EVENT = 'menubar-action';
@@ -103,7 +104,7 @@ class MenubarService {
 
   /** One report to the Rust-owned menu; a failure is logged (the menu keeps its last state). */
   private async report(command: string, args: Record<string, unknown>, what: string): Promise<void> {
-    if (!isTauriEnvironment()) return;
+    if (!platform.hasMenuBar || !isTauriEnvironment()) return;
     try {
       await invoke(command, args);
     } catch (error: unknown) {
@@ -123,7 +124,7 @@ class MenubarService {
 
   /** Read backend menubar status for settings sync. */
   async getState(): Promise<MenubarState | null> {
-    if (!isTauriEnvironment()) return null;
+    if (!platform.hasMenuBar || !isTauriEnvironment()) return null;
     try {
       return await invoke<MenubarState>('menubar_get_state');
     } catch (error) {

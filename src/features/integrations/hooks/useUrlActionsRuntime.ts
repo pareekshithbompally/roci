@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { isTauriEnvironment, menubarService } from '@services/tauri';
 import { windowService } from '@services/window.service';
 import { urlActionsService } from '@services/urlActions.service';
+import { platform } from '@platform/index';
 import type { UrlAction } from '@services/urlActions.service';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
@@ -56,7 +57,7 @@ export function useUrlActionsRuntime(): void {
   handlers.current = latest;
 
   useEffect(() => {
-    if (!isTauriEnvironment() || settingsLoading) return;
+    if (!platform.hasUrlActions || !isTauriEnvironment() || settingsLoading) return;
     let cancelled = false;
     let unlisten: (() => void) | null = null;
     const report = failureLogger('useUrlActionsRuntime');

@@ -16,6 +16,7 @@ import {
 import { AppIcon } from '@shared/components';
 import { APP_CONFIG } from '@config/app.config';
 import { revealInFinder, saveTextFile } from '@services/tauri';
+import { platform } from '@platform/index';
 import { toastSavedFile } from '@shared/utils/savedFileToast';
 import type { ProcessedResult } from '@shared/types';
 import { buildExport, EXPORT_KIND, type ExportFormat, type ExportPart, type ExportScope } from '@features/home/utils/meetingExport';
@@ -97,7 +98,7 @@ export const MeetingActionsMenu: React.FC<MeetingActionsMenuProps> = ({ result, 
           <Icon icon={icon} size="sm" /> {label}
         </DropdownMenuItem>
       ))}
-      {recordingPath && (
+      {platform.hasFileManager && recordingPath && (
         <>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => reveal(recordingPath)}>

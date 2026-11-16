@@ -1,5 +1,8 @@
 import '@testing-library/jest-dom';
 
+// Unit tests run as the macOS build: every `platform` capability flag on.
+(globalThis as { __TAURI_PLATFORM__?: string }).__TAURI_PLATFORM__ = 'darwin';
+
 // Mock Tauri API for tests
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),

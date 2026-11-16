@@ -16,6 +16,7 @@ import { AppStatus } from '@shared/types';
 import type { HistoryItem } from '@shared/types';
 import { isOverdue, formatDueDate, formatReminderDate, isReminderOverdue, buildISOFromDateInput } from '@shared/utils/todo.utils';
 import ReminderPicker from './ReminderPicker';
+import { platform } from '@platform/index';
 
 // ── Filter chip config ──────────────────────────────────────────
 
@@ -253,7 +254,7 @@ const TodoRow: React.FC<TodoRowProps> = ({ todo, onToggle, onReminderSet }) => {
       </div>
 
       {/* Reminder bell — always visible when active, hover when not */}
-      {!todo.completed && (
+      {platform.hasNotifications && !todo.completed && (
         <div className={cn('shrink-0 transition-opacity', !todo.reminder && 'opacity-0 group-hover:opacity-100')}>
           <ReminderPicker
             todoId={todo.id}

@@ -2,6 +2,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from '@services/tauri';
+import { platform } from '@platform/index';
 
 /** Mirrors the Rust `Kind`: speech-to-text, or a read-aloud voice. */
 export type LocalModelKind = 'speech' | 'voice';
@@ -34,7 +35,7 @@ export interface LocalErrorPayload {
 }
 
 export async function getLocalModels(): Promise<LocalModel[]> {
-  if (!isTauriEnvironment()) return [];
+  if (!platform.hasOnDeviceModels || !isTauriEnvironment()) return [];
   return invoke<LocalModel[]>('local_models');
 }
 

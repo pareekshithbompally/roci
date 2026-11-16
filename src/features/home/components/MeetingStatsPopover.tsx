@@ -5,6 +5,7 @@ import { Info } from 'lucide-react';
 import { Button, IconButton, Popover, PopoverContent, PopoverTrigger, RowGroupLabel, Separator, Text, showToast } from '@shared/ui';
 import { AppIcon } from '@shared/components';
 import { revealInFinder } from '@services/tauri';
+import { platform } from '@platform/index';
 import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
 import { formatDuration, formatFileSize } from '@shared/utils/formatters';
 import { formatCost, formatTokenCount } from '@extensions/usage/format';
@@ -57,9 +58,11 @@ const RecordingSection: React.FC<{ stats: MeetingStats }> = ({ stats }) => {
       {file && (
         <StatRow label="File">
           <Value>{formatFileSize(file.sizeBytes)}</Value>
-          <Button variant="ghost" size="iconSm" onClick={() => reveal(file.path)} aria-label="Show in Finder" title="Show in Finder">
-            <AppIcon app={APP_CONFIG.macApps.finder} size="sm" />
-          </Button>
+          {platform.hasFileManager && (
+            <Button variant="ghost" size="iconSm" onClick={() => reveal(file.path)} aria-label="Show in Finder" title="Show in Finder">
+              <AppIcon app={APP_CONFIG.macApps.finder} size="sm" />
+            </Button>
+          )}
         </StatRow>
       )}
     </Section>

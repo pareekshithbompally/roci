@@ -2,6 +2,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from './environment.service';
+import { platform } from '@platform/index';
 
 /** A window that can be captured, as the Rust core lists it. */
 export interface CapturableWindow {
@@ -11,8 +12,8 @@ export interface CapturableWindow {
   icon_base64?: string;
 }
 
-/** Whether screenshots can be taken here (the app, not a browser tab). */
-export const canTakeScreenshots = (): boolean => isTauriEnvironment();
+/** Whether screenshots can be taken here (the app on a device that can, not a browser tab). */
+export const canTakeScreenshots = (): boolean => platform.canTakeScreenshots && isTauriEnvironment();
 
 /** Windows on screen that can be captured; none outside the app. */
 export async function listCapturableWindows(): Promise<CapturableWindow[]> {

@@ -33,6 +33,7 @@ import { dismissSplash } from '@/src/app/splash';
 import { shortcutsService } from '@services/shortcuts.service';
 import { searchIndexingService } from '@services/searchIndexing.service';
 import { reminderService } from '@services/reminder.service';
+import { platform } from '@platform/index';
 
 const App: React.FC = () => {
   console.log('[App] Rendering App component');
@@ -200,10 +201,10 @@ const App: React.FC = () => {
   const initializeTauriServices = async () => {
     try {
       await initializeStorage();
-      await reminderService.initialize();
-      await windowService.initialize();
-      await initializeShortcuts();
-      await initializeMenubar();
+      if (platform.hasNotifications) await reminderService.initialize();
+      if (platform.hasWindowChrome) await windowService.initialize();
+      if (platform.hasGlobalShortcuts) await initializeShortcuts();
+      if (platform.hasMenuBar) await initializeMenubar();
       console.log('Tauri services initialized');
     } catch (error) {
       console.error('Failed to initialize Tauri services:', error);

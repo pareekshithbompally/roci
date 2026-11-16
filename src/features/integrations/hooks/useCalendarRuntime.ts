@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { isTauriEnvironment } from '@services/tauri';
+import { platform } from '@platform/index';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useStartRecording } from '@features/recording';
 import { useToast } from '@shared/contexts/ToastContext';
@@ -28,7 +29,7 @@ export function useCalendarRuntime(): void {
     showToastRef.current = showToast;
   });
 
-  const enabled = isTauriEnvironment() && (settings.calendarIntegration?.enabled ?? CALENDAR_DEFAULTS.enabled);
+  const enabled = platform.hasCalendar && isTauriEnvironment() && (settings.calendarIntegration?.enabled ?? CALENDAR_DEFAULTS.enabled);
   const notifications = settings.notifications ?? DEFAULT_NOTIFICATION_SETTINGS;
   const remindersOn = enabled && notifications.meetingReminders;
   const leadMinutes = notifications.meetingLeadMinutes;
@@ -42,6 +43,7 @@ export function useCalendarRuntime(): void {
 
   // Native calendar reading follows the integration; reminders follow their own setting
   useEffect(() => {
+    if (!platform.hasCalendar) return;
     configureMeetingReminders(enabled, remindersOn, leadMinutes).catch((error: unknown) =>
       console.error('[useCalendarRuntime] Failed to configure meeting reminders:', error),
     );
@@ -49,6 +51,7 @@ export function useCalendarRuntime(): void {
 
   // Record / Join & record (Rust already opened the call link for Join)
   useEffect(() => {
+    if (!platform.hasCalendar) return;
     const record = async (event: CalendarEvent) => {
       try {
         setPendingCalendarEvent(event);

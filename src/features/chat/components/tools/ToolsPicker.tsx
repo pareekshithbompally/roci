@@ -33,6 +33,7 @@ import { useToolCatalog } from '@features/chat/hooks';
 import type { ToolCatalog } from '@features/chat/hooks';
 import type { CatalogGroup } from '@features/chat/hooks/toolCatalog';
 import { ServerIcon } from '@shared/components';
+import { platform } from '@platform/index';
 
 export const ToolsPicker: React.FC = () => {
   const catalog = useToolCatalog();
@@ -98,7 +99,7 @@ export const ToolsPicker: React.FC = () => {
         )}
       </CommandGroup>
 
-      {modelSupportsTools && (
+      {platform.supportsChildProcessMcp && modelSupportsTools && (
         <CommandGroup heading="MCP servers">
           {liveServers.map((group) => (
             <GroupItem key={group.key} group={group} catalog={catalog} flyout={flyout} setFlyout={setFlyout} />
@@ -127,15 +128,19 @@ export const ToolsPicker: React.FC = () => {
         </CommandGroup>
       )}
 
-      <CommandSeparator />
-      <CommandGroup>
-        <FooterItems
-          askBeforeRunning={catalog.askBeforeRunning}
-          onAskChange={catalog.setAskBeforeRunning}
-          onOpenSettings={openMcpSettings}
-          onHover={() => setFlyout(null)}
-        />
-      </CommandGroup>
+      {platform.supportsChildProcessMcp && (
+        <>
+          <CommandSeparator />
+          <CommandGroup>
+            <FooterItems
+              askBeforeRunning={catalog.askBeforeRunning}
+              onAskChange={catalog.setAskBeforeRunning}
+              onOpenSettings={openMcpSettings}
+              onHover={() => setFlyout(null)}
+            />
+          </CommandGroup>
+        </>
+      )}
     </CommandPopover>
   );
 };

@@ -6,6 +6,7 @@ import SourcesList from './SourcesList';
 import type { ActionProps, CitationHandlers } from './types';
 import type { MeetingCitation, WebCitation } from '@shared/types';
 import { Tooltip, Tabs, Button, IconButton, Separator, Dot, Text } from '@shared/ui';
+import { platform } from '@platform/index';
 
 /** Read aloud's glyph: speaker, then a spinner while the voice gets ready, then stop. */
 const READ_ALOUD_ICON: Record<ReadAloudState, typeof Volume2> = { idle: Volume2, preparing: Loader2, speaking: Square };
@@ -110,13 +111,15 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
           {onCopy && (
             <IconButton icon={isCopied ? Check : Copy} label="Copy message" size="sm" onClick={() => onCopy(id, text)} />
           )}
-          <IconButton
-            icon={READ_ALOUD_ICON[readAloud.state]}
-            spin={readAloud.state === 'preparing'}
-            label={readAloud.state === 'idle' ? 'Read aloud' : 'Stop reading'}
-            size="sm"
-            onClick={readAloud.toggle}
-          />
+          {platform.hasOnDeviceModels && (
+            <IconButton
+              icon={READ_ALOUD_ICON[readAloud.state]}
+              spin={readAloud.state === 'preparing'}
+              label={readAloud.state === 'idle' ? 'Read aloud' : 'Stop reading'}
+              size="sm"
+              onClick={readAloud.toggle}
+            />
+          )}
           {timestamp && (
             <Text variant="caption" tone="faint">
               {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { isTauriEnvironment } from '@services/tauri';
+import { platform } from '@platform/index';
 import { mcpHostService } from '@services/mcpHost.service';
 import { serveTools } from '@extensions/tools/mcp-host';
 import { queryClient } from '@shared/query/queryClient';
@@ -10,7 +11,7 @@ import { failureLogger } from '@shared/utils/errors';
 
 export function useMcpHostRuntime(): void {
   useEffect(() => {
-    if (!isTauriEnvironment()) return;
+    if (!platform.hasCodingAgents || !isTauriEnvironment()) return;
     const stops: Array<() => void> = [];
     let cancelled = false;
     const keep = (stop: () => void) => (cancelled ? stop() : stops.push(stop));

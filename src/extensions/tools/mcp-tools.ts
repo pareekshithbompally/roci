@@ -3,6 +3,7 @@
 import { mcpService } from '@services/mcp.service';
 import type { McpTool } from '@services/mcp.service';
 import { isTauriEnvironment } from '@services/tauri';
+import { platform } from '@platform/index';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 import { useToolApprovalStore } from '@shared/stores/toolApprovalStore';
@@ -17,7 +18,7 @@ export async function loadMcpTools(
   reservedNames: ReadonlySet<string>,
   disabledKeys: ReadonlySet<string> = new Set(),
 ): Promise<ToolDefinition[]> {
-  if (!isTauriEnvironment()) return [];
+  if (!platform.supportsChildProcessMcp || !isTauriEnvironment()) return [];
   try {
     const [tools, config] = await Promise.all([mcpService.getTools(), mcpService.getConfig()]);
     const gate = createApprovalGate(config.mcpSettings);

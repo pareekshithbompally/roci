@@ -5,6 +5,7 @@ import { openUrl } from '@services/tauri';
 import { isTauriEnvironment } from '@services/tauri';
 import { activityStore, type ActivityItem } from '@shared/stores/activityStore';
 import { APP_CONFIG } from '@config/app.config';
+import { platform } from '@platform/index';
 
 type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error';
 
@@ -206,7 +207,7 @@ export function useAppUpdate(): UseAppUpdateReturn {
 
 /** Schedule a background update check after app startup settles. */
 export function scheduleStartupCheck(checkFn: () => Promise<void>) {
-  if (!isTauriEnvironment()) return;
+  if (!platform.hasUpdater || !isTauriEnvironment()) return;
   // Dev builds can never be served by the updater, so skip instead of logging an error every launch.
   if (import.meta.env.DEV) return;
   const timer = setTimeout(checkFn, STARTUP_CHECK_DELAY_MS);

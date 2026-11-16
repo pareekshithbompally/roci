@@ -11,12 +11,16 @@ import type { McpConfig } from '@config/mcp.config';
 import { errorMessage } from '@shared/utils/errors';
 import { useThemeContext } from '@shared/contexts/ThemeContext';
 import type { McpServerInfo } from '@services/mcp.service';
+import { platform } from '@platform/index';
+
+/** MCP servers run as child processes, so only inside the app on a device that launches them. */
+const mcpAvailable = (): boolean => platform.supportsChildProcessMcp && isTauriEnvironment();
 
 export function useMcpConfig() {
   return useQuery({
     queryKey: queryKeys.mcpConfig(),
     queryFn: () => mcpService.getConfig(),
-    enabled: isTauriEnvironment(),
+    enabled: mcpAvailable(),
   });
 }
 
@@ -24,7 +28,7 @@ export function useMcpConnectedServers() {
   return useQuery({
     queryKey: queryKeys.mcpConnected(),
     queryFn: () => mcpService.getConnectedServers(),
-    enabled: isTauriEnvironment(),
+    enabled: mcpAvailable(),
   });
 }
 
@@ -33,7 +37,7 @@ export function useMcpTools() {
   return useQuery({
     queryKey: queryKeys.mcpTools(),
     queryFn: () => mcpService.getTools(),
-    enabled: isTauriEnvironment(),
+    enabled: mcpAvailable(),
   });
 }
 
@@ -49,7 +53,7 @@ export function useMcpServerInfo() {
     queryKey: queryKeys.mcpServerInfo(),
     queryFn: () => mcpService.getServerInfo(),
     select: forTheme,
-    enabled: isTauriEnvironment(),
+    enabled: mcpAvailable(),
   });
 }
 
@@ -57,7 +61,7 @@ export function useMcpServerInfo() {
 export function useMcpUpdateListener() {
   const queryClient = useQueryClient();
   useEffect(() => {
-    if (!isTauriEnvironment()) return;
+    if (!mcpAvailable()) return;
     let unlisten: UnlistenFn | undefined;
     let disposed = false;
     listen(MCP_CONFIG.updateEvent, () => {

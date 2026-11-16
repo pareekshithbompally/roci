@@ -17,6 +17,7 @@ import {
   useRecordingStore,
 } from '@features/recording/stores/recordingStore';
 import { checkStillRecording, listenForStillRecordingAnswers } from '@features/recording/stillRecording';
+import { platform } from '@platform/index';
 
 const RECORDING_ROW = 'recording';
 const SAVED_ROW = 'recording:saved';
@@ -54,7 +55,7 @@ function usePipelineContext(): void {
 
   const resumed = useRef(false);
   useEffect(() => {
-    if (isLoading || resumed.current) return;
+    if (!platform.canRecord || isLoading || resumed.current) return;
     resumed.current = true;
     meetingPipeline.resume().catch((error: unknown) => console.error('[useRecordingRuntime] Resume failed:', error));
   }, [isLoading]);
@@ -67,7 +68,9 @@ function useRecordingRow(): void {
   const busy = useRecordingBusy();
 
   // The recorder outlives the page: after a reload, pick up a recording that is still running.
-  useEffect(() => void recording.sync(), []);
+  useEffect(() => {
+    if (platform.canRecord) void recording.sync();
+  }, []);
 
   useEffect(() => {
     if (!meetingId) {

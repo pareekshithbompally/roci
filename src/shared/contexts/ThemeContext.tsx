@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { isTauriEnvironment } from '@services/tauri';
+import { platform } from '@platform/index';
 
 export type Theme = 'light' | 'dark' | 'system';
 
@@ -26,7 +27,7 @@ interface ThemeProviderProps {
 
 /** Match the native window's appearance to the app theme so AppKit chrome agrees; 'system' defers to macOS. */
 function syncNativeWindowTheme(theme: Theme): void {
-  if (!isTauriEnvironment()) return;
+  if (!platform.hasWindowChrome || !isTauriEnvironment()) return;
   import('@tauri-apps/api/window')
     .then(({ getCurrentWindow }) => getCurrentWindow().setTheme(theme === 'system' ? null : theme))
     .catch((error: unknown) => console.error('[ThemeContext] Failed to set window theme:', error));

@@ -4,6 +4,7 @@ import { showToast } from '@shared/ui';
 import type { ToastTone } from '@shared/ui';
 import { postNotice, type Notice } from '@services/notifications';
 import type { NotificationKind } from '@shared/types';
+import { platform } from '@platform/index';
 
 export interface AppEvent extends Notice {
   kind: NotificationKind;
@@ -17,5 +18,6 @@ export function notifyAppEvent({ tone, inFront, ...notice }: AppEvent): void {
     if (inFront === 'toast') showToast(notice.title, tone);
     return;
   }
+  if (!platform.hasNotifications) return;
   postNotice(notice).catch((error: unknown) => console.error('[notifyAppEvent] post failed:', error));
 }

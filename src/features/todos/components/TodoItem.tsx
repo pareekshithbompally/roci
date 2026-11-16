@@ -6,6 +6,7 @@ import type { ActionItem } from '@shared/types';
 import { isOverdue, formatDueDate, formatReminderDate, isReminderOverdue } from '@shared/utils/todo.utils';
 import ReminderPicker from './ReminderPicker';
 import { Checkbox, Icon, IconButton, Input, Text, cn } from '@shared/ui';
+import { platform } from '@platform/index';
 
 interface TodoItemProps {
   todo: ActionItem;
@@ -104,7 +105,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, meetingId, meetingTitle, onTo
         {/* Actions — always show bell when reminder active, rest on hover */}
         <div className="flex gap-1 shrink-0">
           {/* Reminder bell — always visible when active */}
-          {!isEditing && !todo.completed && onReminderChange && (
+          {platform.hasNotifications && !isEditing && !todo.completed && onReminderChange && (
             <div className={todo.reminder ? '' : 'opacity-0 group-hover:opacity-100 transition-opacity'}>
               <ReminderPicker
                 todoId={todo.id}

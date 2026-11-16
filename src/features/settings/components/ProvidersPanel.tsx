@@ -10,6 +10,7 @@ import type { ProviderRowState } from './ProviderListItem';
 import { LocalServersSection } from './LocalServersSection';
 import { ProviderDetail } from './ProviderDetail';
 import { SettingsPage } from './shared';
+import { platform } from '@platform/index';
 
 const STORAGE_KEY = 'roci_last_provider_selection';
 
@@ -72,7 +73,9 @@ export const ProvidersPanel: React.FC = () => {
               />
             ))}
           </ProviderGroup>
-          <LocalServersSection selectedProvider={effectiveSelectedProvider} onSelect={setSelectedProviderName} />
+          {platform.supportsLocalServers && (
+            <LocalServersSection selectedProvider={effectiveSelectedProvider} onSelect={setSelectedProviderName} />
+          )}
         </ScrollArea>
 
         <ScrollArea className="flex-1 min-w-0 space-y-6">
