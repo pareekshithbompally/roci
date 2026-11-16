@@ -14,13 +14,8 @@ export class DefaultProvidersService implements ProvidersService {
     return predefinedProviders
   }
 
-  /** Hook for subclasses to inject platform-specific headers */
-  protected buildExtraHeaders(_provider: ModelProvider, _baseUrl: string): Record<string, string> {
-    return {}
-  }
-
-  /** Headers with both Authorization and x-api-key for compatibility, plus custom and platform headers. */
-  private buildHeaders(provider: ModelProvider, baseUrl: string): Record<string, string> {
+  /** Headers with both Authorization and x-api-key for compatibility, plus the provider's custom headers. */
+  private buildHeaders(provider: ModelProvider): Record<string, string> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     }
@@ -30,15 +25,12 @@ export class DefaultProvidersService implements ProvidersService {
       headers['x-api-key'] = provider.api_key
     }
 
-    // Merge provider-specific custom headers (e.g. anthropic-version, anthropic-dangerous-direct-browser-access)
+    // Merge provider-specific custom headers (e.g. anthropic-version)
     if (provider.custom_header) {
       for (const h of provider.custom_header) {
         headers[h.header] = h.value
       }
     }
-
-    // Merge platform-specific headers from subclass (e.g. Origin for localhost in Tauri)
-    Object.assign(headers, this.buildExtraHeaders(provider, baseUrl))
 
     return headers
   }
@@ -81,7 +73,7 @@ export class DefaultProvidersService implements ProvidersService {
     try {
       const response = await getPlatformFetch()(`${baseUrl}/models`, {
         method: 'GET',
-        headers: this.buildHeaders(provider, baseUrl),
+        headers: this.buildHeaders(provider),
       })
 
       if (!response.ok) {

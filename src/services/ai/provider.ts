@@ -47,10 +47,7 @@ export function createModel(
       const provider = createAnthropic({
         apiKey: resolved.apiKey,
         fetch,
-        headers: {
-          'anthropic-dangerous-direct-browser-access': 'true',
-          ...customHeaders,
-        },
+        headers: customHeaders,
       });
       return provider(resolved.modelId);
     }

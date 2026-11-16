@@ -78,10 +78,6 @@ export const predefinedProviders: ModelProvider[] = [
         header: 'anthropic-version',
         value: '2023-06-01',
       },
-      {
-        header: 'anthropic-dangerous-direct-browser-access',
-        value: 'true',
-      },
     ],
   },
   {
