@@ -29,6 +29,8 @@
     "opener:default",
     "store:default",
     "apple-intelligence:default",
+    "calendar:default",
+    "notifications:default",
     {
       "identifier": "http:default",
       "allow": [

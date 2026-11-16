@@ -2,6 +2,8 @@ import Foundation
 import EventKit
 #if os(macOS)
 import AppKit
+#elseif os(iOS)
+import UIKit
 #endif
 
 // MARK: - C-compatible JSON bridge for Rust FFI
@@ -85,7 +87,7 @@ private let observedStore = EKEventStore()
 private var onChange: (@convention(c) () -> Void)?
 
 /// Calls `callback` whenever upcoming events may differ: the calendar changed (any app), a new day,
-/// a clock or time-zone change, or (macOS) the Mac woke. Register once.
+/// a clock or time-zone change, the Mac woke, or (iOS) the app came back to the foreground. Register once.
 @_cdecl("calendar_observe_changes")
 public func calendarObserveChanges(_ callback: @escaping @convention(c) () -> Void) {
     onChange = callback
@@ -98,6 +100,10 @@ public func calendarObserveChanges(_ callback: @escaping @convention(c) () -> Vo
     NSWorkspace.shared.notificationCenter.addObserver(
         forName: NSWorkspace.didWakeNotification, object: nil, queue: nil
     ) { _ in callback() }
+    #elseif os(iOS)
+    for name in [UIApplication.significantTimeChangeNotification, UIApplication.willEnterForegroundNotification] {
+        center.addObserver(forName: name, object: nil, queue: nil) { _ in callback() }
+    }
     #endif
 }
 

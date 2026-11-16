@@ -77,7 +77,9 @@ pub fn run() {
     .plugin(tauri_plugin_http::init())
     .plugin(tauri_plugin_opener::init())
     .plugin(tauri_plugin_store::init())
-    .plugin(tauri_plugin_apple_intelligence::init());
+    .plugin(tauri_plugin_apple_intelligence::init())
+    .plugin(tauri_plugin_calendar::init())
+    .plugin(tauri_plugin_notifications::init());
   platform::extend(builder)
     .build(tauri::generate_context!())
     .expect(concat!("error while running ", env!("APP_NAME")))

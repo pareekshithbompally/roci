@@ -28,8 +28,6 @@ pub fn extend_window(window: WebviewWindowBuilder<'_, Wry, AppHandle>) -> Webvie
 pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
   builder
     .plugin(tauri_plugin_process::init())
-    .plugin(tauri_plugin_calendar::init())
-    .plugin(tauri_plugin_notifications::init())
     .plugin(tauri_plugin_apple_notes::init())
     .plugin(tauri_plugin_core_spotlight::init())
     .plugin(tauri_plugin_global_shortcut::Builder::new().build())

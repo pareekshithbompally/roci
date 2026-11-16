@@ -36,14 +36,15 @@ tauri-plugin-opener = "2"
 tauri-plugin-store = { path = "plugins/tauri-plugin-store" }
 # On-device model (Foundation Models) and speech (SpeechAnalyzer).
 tauri-plugin-apple-intelligence = { path = "plugins/tauri-plugin-apple-intelligence" }
+# Calendar + Reminders (EventKit) and local notifications (UserNotifications).
+tauri-plugin-calendar = { path = "plugins/tauri-plugin-calendar" }
+tauri-plugin-notifications = { path = "plugins/tauri-plugin-notifications" }
 
 # macOS only, until each piece is made shared (docs: platform/apple-platforms/code-organization.md, R2).
 [target.'cfg(target_os = "macos")'.dependencies]
 tauri-plugin-process = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-autostart = "2"
-tauri-plugin-calendar = { path = "plugins/tauri-plugin-calendar" }
-tauri-plugin-notifications = { path = "plugins/tauri-plugin-notifications" }
 tauri-plugin-apple-notes = { path = "plugins/tauri-plugin-apple-notes" }
 status-menu = { path = "plugins/status-menu" }
 tauri-plugin-core-spotlight = { path = "plugins/tauri-plugin-core-spotlight" }
