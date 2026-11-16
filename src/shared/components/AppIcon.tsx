@@ -27,9 +27,13 @@ export function useAppIcon(app: string): string | null {
   return data ?? null;
 }
 
-export const AppIcon: React.FC<AppIconProps> = ({ app, size, fallback }) => {
-  const src = useAppIcon(app) ?? fallback;
+/** An app's icon image at a kit icon size; an empty slot of the same size when there is none, so rows line up. */
+export const AppImage: React.FC<{ src?: string | null; size: IconSize }> = ({ src, size }) => {
   const px = ICON_SIZE_PX[size];
   if (!src) return <span aria-hidden className="shrink-0 inline-block" style={{ width: px, height: px }} />;
   return <img src={src} alt="" aria-hidden width={px} height={px} className="shrink-0" />;
 };
+
+export const AppIcon: React.FC<AppIconProps> = ({ app, size, fallback }) => (
+  <AppImage src={useAppIcon(app) ?? fallback} size={size} />
+);

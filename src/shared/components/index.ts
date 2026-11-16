@@ -9,7 +9,7 @@ export { PermissionAction } from './PermissionAction';
 export { ModelAvatar } from './ModelAvatar';
 export { ModelDownloadButton, ModelReadyStatus } from './ModelDownloadButton';
 export { ModelIcon } from './ModelIcon';
-export { AppIcon, useAppIcon } from './AppIcon';
+export { AppIcon, AppImage, useAppIcon } from './AppIcon';
 export { OnDeviceModelActivity } from './OnDeviceModelActivity';
 export { ProvidersAvatar } from './ProvidersAvatar';
 export { RenameModal } from './RenameModal';

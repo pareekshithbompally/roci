@@ -1,7 +1,7 @@
 /** Appearance, capture input, storage, search index and version; data comes from systemInfoStore. */
 
 import React, { useState, useCallback } from 'react';
-import { Sun, Moon, Monitor, Copy, Check, FolderOpen, FolderSearch, RefreshCw, Loader2 } from 'lucide-react';
+import { Sun, Moon, Monitor, Copy, Check, FolderOpen, RefreshCw, Loader2 } from 'lucide-react';
 import { useTheme } from '@shared/hooks/useTheme';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
@@ -10,13 +10,15 @@ import { isTauriEnvironment, revealInFinder } from '@services/tauri';
 import { searchIndexingService } from '@services/searchIndexing.service';
 import { useSystemInfo, systemInfoStore, DISK_USAGE_LABELS } from '@features/settings/stores/systemInfoStore';
 import { SettingsPage } from './shared';
-import { Button, Card, CardRow, Icon, IconButton, Section, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Status, Switch, Tabs, Text } from '@shared/ui';
+import { Button, Card, CardRow, Icon, Section, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Status, Switch, Tabs, Text } from '@shared/ui';
 
 import { useAppUpdate } from '@features/settings/hooks/useAppUpdate';
 import { AcknowledgementsDialog } from './AcknowledgementsDialog';
 import { useLiveDictation } from '@features/settings/hooks/useSpeechModels';
 import { LIVE_TRANSCRIPTION_MARK } from './shared';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
+import { APP_CONFIG } from '@config/app.config';
+import { AppIcon } from '@shared/components';
 import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
 import { LAYOUT } from '@config/layout.config';
 import { confirm } from '@shared/stores/confirmStore';
@@ -324,7 +326,9 @@ export const GeneralPanel: React.FC = () => {
           <div className="flex items-center gap-2 py-3">
             <Icon icon={FolderOpen} size="sm" tone="faint" className="shrink-0" />
             <Text tone="muted" truncate className="flex-1">{storagePath ?? PENDING}</Text>
-            <IconButton icon={FolderSearch} label="Open in Finder" size="sm" onClick={handleOpenInFinder} disabled={!storagePath} />
+            <Button variant="ghost" size="iconSm" onClick={handleOpenInFinder} aria-label="Open in Finder" title="Open in Finder" disabled={!storagePath}>
+              <AppIcon app={APP_CONFIG.macApps.finder} size="sm" />
+            </Button>
             <Button variant="ghost" size="iconSm" onClick={handleCopyStoragePath} aria-label="Copy path" disabled={!storagePath}>
               <Icon icon={storagePathCopied ? Check : Copy} size="sm" tone={storagePathCopied ? 'success' : 'faint'} />
             </Button>

@@ -23,6 +23,8 @@ import {
 } from '@shared/ui';
 import { invoke } from '@tauri-apps/api/core';
 import { LAYOUT } from '@config/layout.config';
+import { UI_CONFIG } from '@config/ui.config';
+import { AppImage } from '@shared/components';
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { shortcutLabel } from '@features/shortcuts';
 import { registerChatComposer } from '@features/chat/stores';
@@ -528,7 +530,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   <DropdownMenuTrigger asChild>
                     <IconButton icon={Plus} label="Attach" size="toolbar" />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent side="top" align="start" sideOffset={8}>
+                  <DropdownMenuContent side="top" align="start" sideOffset={UI_CONFIG.picker.sideOffset}>
                     <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_IMAGES)}>
                       <Icon icon={ImageIcon} size="sm" />
                       <span>Images</span>
@@ -549,7 +551,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                           <Icon icon={Camera} size="sm" />
                           <span>Take Screenshot</span>
                         </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent sideOffset={8}>
+                        <DropdownMenuSubContent sideOffset={UI_CONFIG.picker.flyoutOffset}>
                           <DropdownMenuItem
                             onSelect={() => handleTakeScreenshot(null, 'Full Screen')}
                             disabled={screenshotLoading !== null}
@@ -570,16 +572,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                             >
                               {screenshotLoading === win.app_name ? (
                                 <Icon icon={Loader2} size="sm" className="animate-spin" />
-                              ) : win.icon_base64 ? (
-                                <img
-                                  src={`data:image/png;base64,${win.icon_base64}`}
-                                  alt={win.app_name}
-                                  className="w-4 h-4"
-                                />
                               ) : (
-                                <Text as="div" variant="caption" tone="muted" className="w-4 h-4 flex items-center justify-center font-medium">
-                                  {win.app_name.charAt(0)}
-                                </Text>
+                                <AppImage src={win.icon_base64 && `data:image/png;base64,${win.icon_base64}`} size="sm" />
                               )}
                               <Text variant="inherit" tone="inherit" truncate className="max-w-40">{win.app_name}</Text>
                             </DropdownMenuItem>

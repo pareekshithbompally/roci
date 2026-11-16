@@ -6,14 +6,14 @@ const NOTES_FOLDER = 'Kasset';
 export const INTEGRATIONS_CONFIG = {
   calendar: {
     title: 'Calendar',
-    description: 'Get notified before meetings and record them. Works with every account in macOS Calendar.',
+    description: 'Get notified before meetings and record them.',
     deniedHint: 'Kasset is off in System Settings › Privacy & Security › Calendars.',
     /** Bundle id: the row shows the app's own icon from macOS. */
     app: 'com.apple.iCal',
   },
   appleIntelligence: {
     title: 'Apple Intelligence',
-    description: 'Adds Apple Intelligence to Summaries and Apple Speech to Speech recognition in Settings › Capabilities. Nothing leaves your Mac.',
+    description: 'On-device summaries and speech recognition. Nothing leaves your Mac.',
     deniedHint: 'Apple Intelligence is off in System Settings › Apple Intelligence & Siri.',
     icon: '/images/apple-intelligence-sm.png',
     /** Why the model can't run, per availability reason. */
@@ -26,7 +26,7 @@ export const INTEGRATIONS_CONFIG = {
   },
   appleNotes: {
     title: 'Notes',
-    description: `Save each meeting’s summary and transcript as a note in the “${NOTES_FOLDER}” folder of Apple Notes. Saving again updates the note.`,
+    description: `Save each meeting’s summary and transcript to the “${NOTES_FOLDER}” folder in Notes.`,
     deniedHint: 'Kasset is off in System Settings › Privacy & Security › Automation › Notes.',
     app: 'com.apple.Notes',
     folder: NOTES_FOLDER,
@@ -35,7 +35,7 @@ export const INTEGRATIONS_CONFIG = {
   },
   spotlight: {
     title: 'Spotlight',
-    description: 'Find meetings from Spotlight (⌘Space) by title, attendees, summary, notes, or to-dos. Transcripts stay in Kasset.',
+    description: 'Find meetings from Spotlight (⌘Space).',
     app: 'com.apple.Spotlight',
   },
   hex: {
