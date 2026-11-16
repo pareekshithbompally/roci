@@ -111,7 +111,7 @@ jobs:
             --arg version "$VERSION" \
             --arg pubdate "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg sig "$(cat "$SIG_PATH")" \
-            --arg url "https://github.com/pareekshithbompally/kasset-ai/releases/download/$TAG/$TAR_NAME" \
+            --arg url "https://github.com/pareekshithbompally/roci/releases/download/$TAG/$TAR_NAME" \
             '{version:$version, notes:("Roci "+$version), pub_date:$pubdate, platforms:{"darwin-aarch64":{signature:$sig, url:$url}}}' \
             > latest.json
           echo "Generated latest.json:"; cat latest.json

@@ -4,7 +4,7 @@ version = "1.2.0"
 description = "AI-powered voice capture, transcription, and insights"
 authors = ["Pareekshith Bompally"]
 license = "MIT"
-repository = "https://github.com/pareekshithbompally/kasset-ai"
+repository = "https://github.com/pareekshithbompally/roci"
 edition = "2024"
 rust-version = "1.91"
 

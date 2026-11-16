@@ -18,8 +18,8 @@ Steps:
 3. Install Rust with rustup (not brew): `rustup default 1.93.0`, then `rustup target add aarch64-apple-darwin`.
 4. Install Node 22 with fnm or nvm and make it the default. Check `node -v` and `npm -v`.
 5. If the repo isn't cloned yet, clone it into ~/Programs/my-projects:
-   `git clone https://github.com/pareekshithbompally/kasset-ai.git`
-   (if a GitHub login is needed, tell me to run `gh auth login`). Run `cd kasset-ai && npm ci`.
+   `git clone https://github.com/pareekshithbompally/roci.git`
+   (if a GitHub login is needed, tell me to run `gh auth login`). Run `cd roci && npm ci`.
 6. Run the checks and report each result:
    - `npx tsc --noEmit`
    - `npm test`

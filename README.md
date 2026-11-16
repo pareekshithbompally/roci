@@ -91,8 +91,8 @@ nvm install 20
 ### Development
 ```bash
 # Clone the repository
-git clone https://github.com/pariyelern/kasset-ai.git
-cd kasset-ai
+git clone https://github.com/pareekshithbompally/roci.git
+cd roci
 
 # Install dependencies
 npm install
@@ -120,7 +120,7 @@ npm run test:coverage # Coverage report
 ## 📁 Project Structure
 
 ```
-kasset-ai/
+roci/
 ├── src/
 │   ├── app/              # App bootstrap
 │   ├── features/         # 12 feature modules (chat, recording, history, etc.)
