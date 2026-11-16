@@ -33,8 +33,12 @@ export const UI_CONFIG = {
     finder: '/images/macos-finder-sm.png',
   },
 
-  /** Provider logos fanned like cards in one icon slot: tiles pivot on a point below them, middle one on top. */
-  providerFan: { width: 52, height: 40, tile: 28, logo: 18, spreadDeg: 22, pivot: '50% 170%' },
+  /** A choice card's icon slot: every icon centres in the same box, so titles line up whatever the icon's width. */
+  choiceIconSlot: { width: 64, height: 44 },
+  /** A glyph on an app-icon-sized tile, so a bare glyph weighs the same as the app icons beside it. */
+  glyphTile: { tile: 34, glyph: 24 },
+  /** Provider logos fanned like cards: each tile slides out and tilts about its base, middle on top, every logo in view. */
+  providerFan: { width: 64, height: 44, tile: 26, logo: 16, shiftPx: 19, spreadDeg: 14 },
 
   /** How long a copy button shows its "Copied" tick */
   copiedFeedbackMs: 2_000,

@@ -13,6 +13,7 @@ export { AppIcon, AppImage, useAppIcon } from './AppIcon';
 export { OnDeviceModelActivity } from './OnDeviceModelActivity';
 export { ProvidersAvatar } from './ProvidersAvatar';
 export { ProviderFan } from './ProviderFan';
+export { GlyphTile } from './GlyphTile';
 export { RenameModal } from './RenameModal';
 export { ServerIcon } from './ServerIcon';
 export { Markdown } from './markdown/Markdown';

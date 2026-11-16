@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button, Text } from '@shared/ui';
-import { ActionCard, AppImage } from '@shared/components';
+import { ActionCard } from '@shared/components';
 import { useAppActions } from '@shared/stores/appStore';
 import { useAppleIntelligenceControls, useAppleIntelligenceSetup } from '@features/integrations';
 import type { IntegrationAccess } from '@features/integrations';
@@ -38,7 +38,7 @@ const AppleTile: React.FC = () => {
 
   return (
     <ActionCard
-      icon={<AppImage src={APPLE.icon} size="xl" />}
+      icon={<OnboardingIcon source={ONBOARDING_ICONS.appleIntelligence} />}
       tone="brand"
       title={APPLE.title}
       description={APPLE.onboarding.description}

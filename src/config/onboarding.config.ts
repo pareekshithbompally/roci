@@ -1,11 +1,14 @@
 /** First-run flow copy and the macOS icons it shows: permissions, then AI setup. */
 
+import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
+
 /** System Settings panes ship as ExtensionKit bundles; Launch Services resolves apps by id but not these, so they go by path. */
 const SETTINGS_PANES = '/System/Library/ExtensionKit/Extensions';
 
 /** A row's icon: one macOS draws (an app's bundle id, or a settings pane's path), a bundled light/dark image, or a fan of provider logos. */
 export type OnboardingIconSource =
   | { app: string }
+  | { glyph: string }
   | { image: { light: string; dark: string } }
   | { providers: readonly string[] };
 
@@ -15,6 +18,8 @@ export const ONBOARDING_ICONS = {
   'system-audio': { app: `${SETTINGS_PANES}/Sound.appex` },
   notifications: { app: `${SETTINGS_PANES}/NotificationsSettings.appex` },
   calendar: { app: 'com.apple.iCal' },
+  // Apple Intelligence's own mark is a bare glyph: on a tile it weighs the same as the app icons beside it.
+  appleIntelligence: { glyph: INTEGRATIONS_CONFIG.appleIntelligence.icon },
   local: { app: 'com.apple.Terminal' },
   remote: { providers: ['gemini', 'openai', 'anthropic'] },
 } satisfies Record<string, OnboardingIconSource>;
