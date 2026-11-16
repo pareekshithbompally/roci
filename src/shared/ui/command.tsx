@@ -5,7 +5,7 @@ import { Title as DialogPrimitiveTitle } from '@radix-ui/react-dialog';
 import type { ComponentProps, ReactNode } from 'react';
 import { Dialog, DialogPortal, DialogOverlay, DialogContent } from './dialog';
 import { cn } from './utils';
-import { MENU_ITEM, MENU_SEPARATOR } from './recipes';
+import { MENU_ITEM, MENU_SEPARATOR, SHEET_SURFACE } from './recipes';
 import { Icon } from './icon';
 import { Text, type TextTone, type TextVariant } from './text';
 
@@ -118,7 +118,7 @@ interface CommandDialogProps {
   shouldFilter?: boolean;
 }
 
-/** Command palette dialog: top-anchored and slides down on open, on a bare dialog surface. */
+/** Command palette dialog: top-anchored, with the same sheet surface and motion as every modal. */
 export function CommandDialog({ open, onOpenChange, children, shouldFilter }: CommandDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -126,7 +126,7 @@ export function CommandDialog({ open, onOpenChange, children, shouldFilter }: Co
         <DialogOverlay />
         <DialogContent
           bare
-          className="left-1/2 top-[18vh] w-full max-w-lg -translate-x-1/2 overflow-hidden rounded-xl bg-base p-0 shadow-overlay data-[state=open]:animate-palette-show data-[state=closed]:animate-palette-hide"
+          className={cn(SHEET_SURFACE, 'left-1/2 top-[18vh] w-full max-w-lg -translate-x-1/2 overflow-hidden p-0')}
         >
           <DialogPrimitiveTitle className="sr-only">Search</DialogPrimitiveTitle>
           <Command shouldFilter={shouldFilter}>{children}</Command>

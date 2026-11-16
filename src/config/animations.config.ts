@@ -50,65 +50,6 @@ export const ANIMATION_CONFIG = {
       easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
       property: 'all',
     },
-    modal: {
-      duration: 300,
-      easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
-      property: 'all',
-    },
-    dropdown: {
-      duration: 200,
-      easing: 'cubic-bezier(0, 0, 0.2, 1)',
-      property: 'all',
-    },
-    tooltip: {
-      duration: 150,
-      easing: 'cubic-bezier(0, 0, 0.2, 1)',
-      property: 'opacity',
-    },
-  },
-
-  // Animation keyframes (for CSS animations)
-  keyframes: {
-    fadeIn: {
-      name: 'fade-in',
-      from: { opacity: 0 },
-      to: { opacity: 1 },
-    },
-    fadeOut: {
-      name: 'fade-out',
-      from: { opacity: 1 },
-      to: { opacity: 0 },
-    },
-    slideInFromRight: {
-      name: 'slide-in-right',
-      from: { transform: 'translateX(100%)' },
-      to: { transform: 'translateX(0)' },
-    },
-    slideInFromLeft: {
-      name: 'slide-in-left',
-      from: { transform: 'translateX(-100%)' },
-      to: { transform: 'translateX(0)' },
-    },
-    slideUp: {
-      name: 'slide-up',
-      from: { transform: 'translateY(10px)', opacity: 0 },
-      to: { transform: 'translateY(0)', opacity: 1 },
-    },
-    scaleIn: {
-      name: 'scale-in',
-      from: { transform: 'scale(0.95)', opacity: 0 },
-      to: { transform: 'scale(1)', opacity: 1 },
-    },
-    pulse: {
-      name: 'pulse',
-      '0%, 100%': { opacity: 1 },
-      '50%': { opacity: 0.5 },
-    },
-    spin: {
-      name: 'spin',
-      from: { transform: 'rotate(0deg)' },
-      to: { transform: 'rotate(360deg)' },
-    },
   },
 
   // Delay scale (in milliseconds)

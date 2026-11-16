@@ -7,8 +7,10 @@ export const FLOATING_SURFACE =
 /** Dialog and AlertDialog sheets. */
 export const SCRIM =
   'fixed inset-0 z-modal bg-scrim backdrop-blur-sm data-[state=open]:animate-overlay-show data-[state=closed]:animate-overlay-hide';
-const SHEET_FRAME =
-  'fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-modal w-full bg-base rounded-xl shadow-overlay focus:outline-none data-[state=open]:animate-content-show data-[state=closed]:animate-content-hide';
+/** Modal surface chrome + motion, shared by centred sheets and the top-anchored command palette. */
+export const SHEET_SURFACE =
+  'z-modal bg-base rounded-xl shadow-overlay focus:outline-none data-[state=open]:animate-sheet-show data-[state=closed]:animate-sheet-hide';
+const SHEET_FRAME = `fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full ${SHEET_SURFACE}`;
 export const SHEET = `${SHEET_FRAME} p-6`;
 /** Compact sheet for alerts and confirmations: title, one line, buttons. */
 export const ALERT_SHEET = `${SHEET_FRAME} max-w-sm p-5`;
