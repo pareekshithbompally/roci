@@ -1,6 +1,6 @@
-# Roci AI — Claude Code Instructions
+# Roci — Claude Code Instructions
 
-> **macOS meeting-intelligence app — private, local-first, with built-in AI chat.**
+> **Apple-platforms (macOS, iOS, iPadOS) meeting-intelligence app — private, local-first, with built-in AI chat.**
 > Tauri 2.x + React 19 + TS + Vite | Vercel AI SDK (multi-provider) | Rust Core Audio tap + cpal audio | sqlite-vec RAG
 > **Pre-release, zero users.** Never add migrations, backward-compat, or legacy support unless explicitly asked.
 
