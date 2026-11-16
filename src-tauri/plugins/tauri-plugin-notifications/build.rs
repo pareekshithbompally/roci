@@ -14,7 +14,6 @@ fn main() {
         module: "NotificationsBridge",
         sources: &["swift/NotificationsBridge.swift"],
         frameworks: &["UserNotifications", "Foundation"],
-        weak_frameworks: &[],
     }
     .build();
     tauri_plugin::Builder::new(COMMANDS).build();

@@ -6,7 +6,6 @@ fn main() {
         module: "AppleNotesBridge",
         sources: &["swift/NotesBridge.swift"],
         frameworks: &["AppKit", "CoreServices"],
-        weak_frameworks: &[],
     }
     .build();
     tauri_plugin::Builder::new(COMMANDS).build();

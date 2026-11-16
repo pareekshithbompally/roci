@@ -1,7 +1,5 @@
 import Foundation
-#if canImport(FoundationModels)
 import FoundationModels
-#endif
 
 // MARK: - Apple Intelligence (FoundationModels) — JSON C-string bridge, freed with `apple_intelligence_free_string`
 
@@ -11,11 +9,9 @@ private struct BridgeError: LocalizedError {
     var errorDescription: String? { message }
 }
 
-/// 0 available · 1 device not eligible · 2 Apple Intelligence off · 3 model not ready · 4 macOS < 26 · 5 unknown
+/// 0 available · 1 device not eligible · 2 Apple Intelligence off · 3 model not ready · 5 unknown
 @_cdecl("apple_intelligence_availability")
 public func appleIntelligenceAvailability() -> Int32 {
-    #if canImport(FoundationModels)
-    guard #available(macOS 26.0, *) else { return 4 }
     switch SystemLanguageModel.default.availability {
     case .available: return 0
     case .unavailable(.deviceNotEligible): return 1
@@ -23,20 +19,12 @@ public func appleIntelligenceAvailability() -> Int32 {
     case .unavailable(.modelNotReady): return 3
     case .unavailable: return 5
     }
-    #else
-    return 4
-    #endif
 }
 
 /// The model's context window in tokens; 0 when unavailable.
 @_cdecl("apple_intelligence_context_size")
 public func appleIntelligenceContextSize() -> Int {
-    #if canImport(FoundationModels)
-    guard #available(macOS 26.0, *) else { return 0 }
-    return SystemLanguageModel.default.contextSize
-    #else
-    return 0
-    #endif
+    SystemLanguageModel.default.contextSize
 }
 
 /// Generation guided by a JSON Schema (empty → plain text); returns `{"text"}` or `{"error": {"kind", "message"}}`.
@@ -47,8 +35,6 @@ public func appleIntelligenceGenerate(
     _ schemaJson: UnsafePointer<CChar>,
     _ timeoutMs: UInt64
 ) -> UnsafeMutablePointer<CChar> {
-    #if canImport(FoundationModels)
-    guard #available(macOS 26.0, *) else { return failure("unavailable", "Apple Intelligence requires macOS 26 or later.") }
     let input = (String(cString: instructions), String(cString: prompt), String(cString: schemaJson))
     let result = blocking(timeoutMs: timeoutMs) { try await generate(instructions: input.0, prompt: input.1, schemaJson: input.2) }
     switch result {
@@ -56,9 +42,6 @@ public func appleIntelligenceGenerate(
     case .failure(let error as BridgeError): return failure(error.kind, error.message)
     case .failure(let error): return failure("failed", error.localizedDescription)
     }
-    #else
-    return failure("unavailable", "Apple Intelligence requires macOS 26 or later.")
-    #endif
 }
 
 /// Receives one streamed text piece; returns false to stop the stream.
@@ -73,8 +56,6 @@ public func appleIntelligenceStream(
     _ onDelta: AppleIntelligenceDelta,
     _ timeoutMs: UInt64
 ) -> UnsafeMutablePointer<CChar> {
-    #if canImport(FoundationModels)
-    guard #available(macOS 26.0, *) else { return failure("unavailable", "Apple Intelligence requires macOS 26 or later.") }
     guard let request = try? JSONDecoder().decode(ChatRequest.self, from: Data(String(cString: requestJson).utf8)),
           let prompt = request.turns.last, prompt.role == "user" else {
         return failure("failed", "Invalid chat request")
@@ -87,9 +68,6 @@ public func appleIntelligenceStream(
     case .failure(let error as BridgeError): return failure(error.kind, error.message)
     case .failure(let error): return failure("failed", error.localizedDescription)
     }
-    #else
-    return failure("unavailable", "Apple Intelligence requires macOS 26 or later.")
-    #endif
 }
 
 @_cdecl("apple_intelligence_free_string")
@@ -99,8 +77,6 @@ public func appleIntelligenceFreeString(_ ptr: UnsafeMutablePointer<CChar>) {
 
 // MARK: - Generation
 
-#if canImport(FoundationModels)
-@available(macOS 26.0, *)
 private func generate(instructions: String, prompt: String, schemaJson: String) async throws -> String {
     let model = SystemLanguageModel(useCase: .general, guardrails: .permissiveContentTransformations)
     let session = LanguageModelSession(model: model, instructions: instructions)
@@ -129,7 +105,6 @@ private struct ChatRequest: Decodable {
 
 /// Streams the reply to `prompt` after the earlier turns. Each snapshot is the whole text so far (it only grows), so
 /// only its new end is sent, counted in Unicode scalars: a combining mark or emoji modifier can join the last character.
-@available(macOS 26.0, *)
 private func streamReply(_ request: ChatRequest, prompt: String, to sink: DeltaSink) async throws {
     let session = LanguageModelSession(model: SystemLanguageModel.default, transcript: transcript(of: request))
     var sent = 0
@@ -146,7 +121,6 @@ private func streamReply(_ request: ChatRequest, prompt: String, to sink: DeltaS
 }
 
 /// The instructions and every turn before the last, as the session's history.
-@available(macOS 26.0, *)
 private func transcript(of request: ChatRequest) -> Transcript {
     let instructions: [Transcript.Entry] = request.instructions.isEmpty
         ? []
@@ -159,13 +133,11 @@ private func transcript(of request: ChatRequest) -> Transcript {
     return Transcript(entries: instructions + history)
 }
 
-@available(macOS 26.0, *)
 private func segment(_ text: String) -> Transcript.Segment {
     .text(Transcript.TextSegment(content: text))
 }
 
 /// Generation failures the webview tells apart; anything else passes through.
-@available(macOS 26.0, *)
 private func bridged(_ error: Error) -> Error {
     switch error {
     case LanguageModelSession.GenerationError.exceededContextWindowSize(let context):
@@ -179,7 +151,6 @@ private func bridged(_ error: Error) -> Error {
     }
 }
 
-@available(macOS 26.0, *)
 private func generationSchema(from json: String) throws -> GenerationSchema {
     guard let data = json.data(using: .utf8),
           let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
@@ -189,7 +160,6 @@ private func generationSchema(from json: String) throws -> GenerationSchema {
 }
 
 /// JSON Schema node → DynamicGenerationSchema (object, array, string, number, integer, boolean, string enum).
-@available(macOS 26.0, *)
 private func dynamicSchema(_ node: [String: Any], name: String) -> DynamicGenerationSchema {
     if let choices = node["enum"] as? [String] {
         return DynamicGenerationSchema(name: name, description: node["description"] as? String, anyOf: choices)
@@ -217,7 +187,6 @@ private func dynamicSchema(_ node: [String: Any], name: String) -> DynamicGenera
     default: return DynamicGenerationSchema(type: String.self)
     }
 }
-#endif
 
 // MARK: - Helpers
 

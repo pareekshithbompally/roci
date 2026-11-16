@@ -17,7 +17,6 @@ fn main() {
         module: "CalendarBridge",
         sources: &["swift/CalendarBridge.swift", "swift/RemindersBridge.swift"],
         frameworks: &["EventKit", "Foundation"],
-        weak_frameworks: &[],
     }
     .build();
     tauri_plugin::Builder::new(COMMANDS).build();

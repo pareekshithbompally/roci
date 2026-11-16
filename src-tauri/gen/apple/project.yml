@@ -2,7 +2,7 @@ name: Roci
 options:
   bundleIdPrefix: ai.roci.roci
   deploymentTarget:
-    iOS: 18.0
+    iOS: 26.0
 fileGroups: [../../src]
 configs:
   debug: debug

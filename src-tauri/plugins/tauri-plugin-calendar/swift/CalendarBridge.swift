@@ -11,18 +11,10 @@ public func calendarRequestAccess() -> UnsafeMutablePointer<CChar> {
     var granted = false
     var errorMsg: String?
 
-    if #available(macOS 14.0, *) {
-        store.requestFullAccessToEvents { success, error in
-            granted = success
-            errorMsg = error?.localizedDescription
-            semaphore.signal()
-        }
-    } else {
-        store.requestAccess(to: .event) { success, error in
-            granted = success
-            errorMsg = error?.localizedDescription
-            semaphore.signal()
-        }
+    store.requestFullAccessToEvents { success, error in
+        granted = success
+        errorMsg = error?.localizedDescription
+        semaphore.signal()
     }
 
     semaphore.wait()
@@ -36,23 +28,13 @@ public func calendarRequestAccess() -> UnsafeMutablePointer<CChar> {
 @_cdecl("calendar_check_access")
 public func calendarCheckAccess() -> UnsafeMutablePointer<CChar> {
     let status: String
-    if #available(macOS 14.0, *) {
-        switch EKEventStore.authorizationStatus(for: .event) {
-        case .fullAccess: status = "authorized"
-        case .writeOnly: status = "denied"
-        case .denied: status = "denied"
-        case .notDetermined: status = "not_determined"
-        case .restricted: status = "restricted"
-        @unknown default: status = "not_determined"
-        }
-    } else {
-        switch EKEventStore.authorizationStatus(for: .event) {
-        case .authorized: status = "authorized"
-        case .denied: status = "denied"
-        case .notDetermined: status = "not_determined"
-        case .restricted: status = "restricted"
-        @unknown default: status = "not_determined"
-        }
+    switch EKEventStore.authorizationStatus(for: .event) {
+    case .fullAccess: status = "authorized"
+    case .writeOnly: status = "denied"
+    case .denied: status = "denied"
+    case .notDetermined: status = "not_determined"
+    case .restricted: status = "restricted"
+    @unknown default: status = "not_determined"
     }
     return jsonToPtr(["status": status])
 }
@@ -116,10 +98,7 @@ public func calendarChangeCount() -> UInt64 {
 }
 
 private func hasFullAccess() -> Bool {
-    if #available(macOS 14.0, *) {
-        return EKEventStore.authorizationStatus(for: .event) == .fullAccess
-    }
-    return EKEventStore.authorizationStatus(for: .event) == .authorized
+    EKEventStore.authorizationStatus(for: .event) == .fullAccess
 }
 
 /// Events between two epoch-millisecond times, for schedulers that keep epoch time.

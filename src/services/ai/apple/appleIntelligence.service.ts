@@ -6,7 +6,7 @@ import { failureLogger, isCodedError } from '@shared/utils/errors';
 
 const PLUGIN = 'plugin:apple-intelligence|';
 
-/** Mirrors the Rust `apple_intelligence::Availability`. */
+/** Mirrors the Rust `apple_intelligence::Availability`, plus `unsupported-system` outside the native app. */
 export type AppleAvailability =
   | 'available'
   | 'device-not-eligible'

@@ -19,11 +19,7 @@ public func remindersRequestAccess() -> UnsafeMutablePointer<CChar> {
         errorMsg = error?.localizedDescription
         semaphore.signal()
     }
-    if #available(macOS 14.0, *) {
-        store.requestFullAccessToReminders(completion: done)
-    } else {
-        store.requestAccess(to: .reminder, completion: done)
-    }
+    store.requestFullAccessToReminders(completion: done)
     semaphore.wait()
     var result: [String: Any] = ["granted": granted]
     if let errorMsg { result["error"] = errorMsg }
@@ -34,22 +30,12 @@ public func remindersRequestAccess() -> UnsafeMutablePointer<CChar> {
 @_cdecl("reminders_check_access")
 public func remindersCheckAccess() -> UnsafeMutablePointer<CChar> {
     let status: String
-    if #available(macOS 14.0, *) {
-        switch EKEventStore.authorizationStatus(for: .reminder) {
-        case .fullAccess: status = "authorized"
-        case .writeOnly, .denied: status = "denied"
-        case .restricted: status = "restricted"
-        case .notDetermined: status = "not_determined"
-        @unknown default: status = "not_determined"
-        }
-    } else {
-        switch EKEventStore.authorizationStatus(for: .reminder) {
-        case .authorized: status = "authorized"
-        case .denied: status = "denied"
-        case .restricted: status = "restricted"
-        case .notDetermined: status = "not_determined"
-        @unknown default: status = "not_determined"
-        }
+    switch EKEventStore.authorizationStatus(for: .reminder) {
+    case .fullAccess: status = "authorized"
+    case .writeOnly, .denied: status = "denied"
+    case .restricted: status = "restricted"
+    case .notDetermined: status = "not_determined"
+    @unknown default: status = "not_determined"
     }
     return remindersJSON(["status": status])
 }

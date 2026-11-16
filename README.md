@@ -60,7 +60,7 @@ Roci AI captures, transcribes, and analyzes your meetings — entirely on your m
 | **UI Components** | Radix UI primitives, Lucide icons, Framer Motion |
 | **AI** | Vercel AI SDK (@ai-sdk/*) |
 | **Desktop** | Tauri 2.x (Rust) |
-| **Audio** | ScreenCaptureKit (macOS 15.0+) |
+| **Audio** | Core Audio process tap, ScreenCaptureKit |
 | **Search** | sqlite-vec (vector), FTS5 (full-text), Knowledge Graph |
 | **Embeddings** | Transformers.js (all-MiniLM-L6-v2, WASM) |
 | **Local LLM** | Any local OpenAI-compatible server (Ollama, LM Studio, llama.cpp server, vLLM, Jan) |
@@ -68,7 +68,7 @@ Roci AI captures, transcribes, and analyzes your meetings — entirely on your m
 
 ## 📋 Requirements
 
-- **macOS 15.0+** (Sequoia or later)
+- **macOS 26+ / iOS 26+ / iPadOS 26+** (Tahoe or later)
 - **Apple Silicon** (M1 or later recommended)
 - Node.js 20+
 - Rust 1.77+

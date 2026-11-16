@@ -3,9 +3,9 @@
 use std::{env, path::PathBuf, process::Command};
 
 /// Minimum macOS when Cargo does not set one (`bundle.macOS.minimumSystemVersion`).
-const DEFAULT_MACOS: &str = "15.0";
+const DEFAULT_MACOS: &str = "26.0";
 /// Minimum iOS when Cargo does not set one (`bundle.iOS.minimumSystemVersion`).
-const DEFAULT_IOS: &str = "18.0";
+const DEFAULT_IOS: &str = "26.0";
 
 /// A Swift static library linked into the crate that builds it.
 pub struct SwiftLibrary<'a> {
@@ -15,8 +15,6 @@ pub struct SwiftLibrary<'a> {
     /// Swift files, relative to the crate's manifest directory.
     pub sources: &'a [&'a str],
     pub frameworks: &'a [&'a str],
-    /// Frameworks newer than the minimum OS, linked weak so the app still launches without them.
-    pub weak_frameworks: &'a [&'a str],
 }
 
 /// The `swiftc -target` triple and the `xcrun --sdk` it builds against.
@@ -63,9 +61,6 @@ impl SwiftLibrary<'_> {
         for framework in self.frameworks {
             println!("cargo:rustc-link-lib=framework={framework}");
         }
-        for framework in self.weak_frameworks {
-            println!("cargo:rustc-link-arg=-Wl,-weak_framework,{framework}");
-        }
         for source in self.sources {
             println!("cargo:rerun-if-changed={source}");
         }
@@ -99,23 +94,23 @@ mod tests {
 
     #[test]
     fn maps_macos_targets() {
-        assert_eq!(mapped("aarch64-apple-darwin"), Some(("arm64-apple-macosx15.0".into(), "macosx")));
-        assert_eq!(mapped("x86_64-apple-darwin"), Some(("x86_64-apple-macosx15.0".into(), "macosx")));
+        assert_eq!(mapped("aarch64-apple-darwin"), Some(("arm64-apple-macosx26.0".into(), "macosx")));
+        assert_eq!(mapped("x86_64-apple-darwin"), Some(("x86_64-apple-macosx26.0".into(), "macosx")));
     }
 
     #[test]
     fn maps_ios_device_and_simulator_targets() {
-        assert_eq!(mapped("aarch64-apple-ios"), Some(("arm64-apple-ios18.0".into(), "iphoneos")));
-        assert_eq!(mapped("aarch64-apple-ios-sim"), Some(("arm64-apple-ios18.0-simulator".into(), "iphonesimulator")));
-        assert_eq!(mapped("x86_64-apple-ios"), Some(("x86_64-apple-ios18.0-simulator".into(), "iphonesimulator")));
+        assert_eq!(mapped("aarch64-apple-ios"), Some(("arm64-apple-ios26.0".into(), "iphoneos")));
+        assert_eq!(mapped("aarch64-apple-ios-sim"), Some(("arm64-apple-ios26.0-simulator".into(), "iphonesimulator")));
+        assert_eq!(mapped("x86_64-apple-ios"), Some(("x86_64-apple-ios26.0-simulator".into(), "iphonesimulator")));
     }
 
     #[test]
     fn uses_the_given_deployment_targets() {
-        let target = swift_target("aarch64-apple-ios", "14.0", "26.1").unwrap();
+        let target = swift_target("aarch64-apple-ios", "26.0", "26.1").unwrap();
         assert_eq!(target.triple, "arm64-apple-ios26.1");
-        let target = swift_target("aarch64-apple-darwin", "26.0", "18.0").unwrap();
-        assert_eq!(target.triple, "arm64-apple-macosx26.0");
+        let target = swift_target("aarch64-apple-darwin", "26.1", "26.0").unwrap();
+        assert_eq!(target.triple, "arm64-apple-macosx26.1");
     }
 
     #[test]

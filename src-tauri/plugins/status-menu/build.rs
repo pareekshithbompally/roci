@@ -6,7 +6,6 @@ fn main() {
         module: "StatusMenu",
         sources: &["swift/StatusMenu.swift"],
         frameworks: &["AppKit", "Foundation"],
-        weak_frameworks: &[],
     }
     .build();
 }

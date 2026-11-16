@@ -16,7 +16,7 @@ private struct SpeechFailure: Error {
 @_cdecl("apple_speech_status")
 public func appleSpeechStatus(_ language: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar> {
     let code = String(cString: language)
-    guard #available(macOS 26.0, *), SpeechTranscriber.isAvailable else {
+    guard SpeechTranscriber.isAvailable else {
         return speechJSON(["available": false, "authorization": authorizationName(), "installed": false])
     }
     let installed = speechBlocking { await installedTranscriber(code) != nil }
@@ -48,7 +48,6 @@ public func appleSpeechRequestAccess() -> UnsafeMutablePointer<CChar> {
 @_cdecl("apple_speech_prepare")
 public func appleSpeechPrepare(_ language: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar> {
     let code = String(cString: language)
-    guard #available(macOS 26.0, *) else { return speechFailure("unavailable", "Apple speech requires macOS 26 or later.") }
     let result = speechBlocking { () throws -> Bool in
         let transcriber = try await transcriber(for: code)
         if let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
@@ -65,7 +64,6 @@ public func appleSpeechPrepare(_ language: UnsafePointer<CChar>) -> UnsafeMutabl
 public func appleSpeechTranscribe(_ path: UnsafePointer<CChar>, _ language: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar> {
     let file = String(cString: path)
     let code = String(cString: language)
-    guard #available(macOS 26.0, *) else { return speechFailure("unavailable", "Apple speech requires macOS 26 or later.") }
     guard SFSpeechRecognizer.authorizationStatus() == .authorized else {
         return speechFailure("not-authorized", "Speech Recognition is off for \(appName).")
     }
@@ -78,7 +76,6 @@ public func appleSpeechTranscribe(_ path: UnsafePointer<CChar>, _ language: Unsa
 
 // MARK: - Transcription
 
-@available(macOS 26.0, *)
 private func transcriber(for language: String) async throws -> SpeechTranscriber {
     guard let locale = await SpeechTranscriber.supportedLocale(equivalentTo: Locale(identifier: language)) else {
         throw SpeechFailure(kind: "unsupported-language", message: "Apple speech doesn't support \(language).")
@@ -86,13 +83,11 @@ private func transcriber(for language: String) async throws -> SpeechTranscriber
     return SpeechTranscriber(locale: locale, transcriptionOptions: [], reportingOptions: [], attributeOptions: [.audioTimeRange])
 }
 
-@available(macOS 26.0, *)
 private func installedTranscriber(_ language: String) async -> SpeechTranscriber? {
     guard let transcriber = try? await transcriber(for: language) else { return nil }
     return await AssetInventory.status(forModules: [transcriber]) == .installed ? transcriber : nil
 }
 
-@available(macOS 26.0, *)
 private func transcribe(file: String, language: String) async throws -> [[String: Any]] {
     guard let transcriber = await installedTranscriber(language) else {
         throw SpeechFailure(kind: "model-not-ready", message: "The Apple speech model for \(language) isn't downloaded.")

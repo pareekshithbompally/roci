@@ -6,7 +6,6 @@ fn main() {
         module: "CoreSpotlightBridge",
         sources: &["swift/CoreSpotlightBridge.swift"],
         frameworks: &["CoreSpotlight", "AppKit", "Foundation", "UniformTypeIdentifiers"],
-        weak_frameworks: &[],
     }
     .build();
     tauri_plugin::Builder::new(COMMANDS).build();

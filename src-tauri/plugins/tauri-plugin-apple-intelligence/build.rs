@@ -14,8 +14,7 @@ fn main() {
         name: "apple_intelligence_bridge",
         module: "AppleIntelligenceBridge",
         sources: &["swift/LanguageModelBridge.swift", "swift/SpeechBridge.swift"],
-        frameworks: &["Speech", "AVFAudio"],
-        weak_frameworks: &["FoundationModels"],
+        frameworks: &["Speech", "AVFAudio", "FoundationModels"],
     }
     .build();
     tauri_plugin::Builder::new(COMMANDS).build();

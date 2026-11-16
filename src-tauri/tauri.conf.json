@@ -91,7 +91,7 @@
     "shortDescription": "AI-powered voice capture, transcription, and insights",
     "longDescription": "Roci is a powerful desktop application for real-time system audio capture, transcription, and intelligent summarization. Perfect for meetings, lectures, podcasts, and any audio content that needs to be transcribed and analyzed.",
     "macOS": {
-      "minimumSystemVersion": "15.0",
+      "minimumSystemVersion": "26.0",
       "signingIdentity": "-",
       "entitlements": "entitlements.plist",
       "frameworks": [],
@@ -114,7 +114,7 @@
     },
     "iOS": {
       "developmentTeam": "8TV3HMU3KY",
-      "minimumSystemVersion": "18.0"
+      "minimumSystemVersion": "26.0"
     }
   }
 }

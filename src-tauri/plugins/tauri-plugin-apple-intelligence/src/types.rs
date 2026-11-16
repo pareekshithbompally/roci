@@ -8,7 +8,6 @@ pub enum Availability {
     DeviceNotEligible,
     AppleIntelligenceOff,
     ModelNotReady,
-    UnsupportedSystem,
     Unknown,
 }
 
@@ -19,7 +18,6 @@ impl Availability {
             1 => Self::DeviceNotEligible,
             2 => Self::AppleIntelligenceOff,
             3 => Self::ModelNotReady,
-            4 => Self::UnsupportedSystem,
             _ => Self::Unknown,
         }
     }
