@@ -11,7 +11,7 @@ private typealias ResponseCallback = @convention(c) (UnsafePointer<CChar>) -> Vo
 private final class Delegate: NSObject, UNUserNotificationCenterDelegate {
     var onResponse: ResponseCallback?
 
-    /// Shown while Kasset is in front too: the app only posts what must be seen.
+    /// Shown while Roci is in front too: the app only posts what must be seen.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,

@@ -15,7 +15,7 @@ export const queryKeys = {
   permissions: () => ['permissions'] as const,
   /** Running Hex app: whether it answers and its models (transcription engine) */
   hexStatus: () => ['hex-status'] as const,
-  /** Kasset's curated on-device models (src-tauri/src/models): speech and voice, which are downloaded */
+  /** Roci's curated on-device models (src-tauri/src/models): speech and voice, which are downloaded */
   localModels: () => ['local-models'] as const,
   /** Read aloud: the voices an engine can speak in (macOS system voices, a voice model's) */
   readAloudVoices: (engine: string) => ['read-aloud-voices', engine] as const,
@@ -35,9 +35,9 @@ export const queryKeys = {
   mcpTools: () => ['mcp', 'tools'] as const,
   /** MCP: connected servers' self-description (title, icon) */
   mcpServerInfo: () => ['mcp', 'server-info'] as const,
-  /** Kasset's own MCP server: listening, agents connected, the command agents launch */
+  /** Roci's own MCP server: listening, agents connected, the command agents launch */
   mcpHost: () => ['mcp-host', 'status'] as const,
-  /** Coding agents: installed, and whether their config registers Kasset */
+  /** Coding agents: installed, and whether their config registers Roci */
   codingAgents: () => ['mcp-host', 'coding-agents'] as const,
   /** macOS access for one integration (EventKit calendars / reminders, Automation → Notes) */
   integrationAccess: (id: AccessId) => ['integration-access', id] as const,
@@ -50,7 +50,7 @@ export const queryKeys = {
   /** Token usage summary for a time range (Settings → Usage) */
   usage: (range: string) => ['usage', range] as const,
 
-  // ── Unified store (single `kasset.db`) ──
+  // ── Unified store (single `roci.db`) ──
   /** Store health / meta */
   storeMeta: () => ['store', 'meta'] as const,
   /** Store statistics */

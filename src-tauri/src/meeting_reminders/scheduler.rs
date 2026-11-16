@@ -1,4 +1,4 @@
-//! When each meeting's reminder shows, from Kasset's EventKit events across every calendar.
+//! When each meeting's reminder shows, from Roci's EventKit events across every calendar.
 
 use std::collections::HashMap;
 

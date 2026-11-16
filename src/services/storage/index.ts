@@ -1,4 +1,4 @@
-/** Binary file storage (cache, recordings, paths); data lives in kasset.db via @services/db. */
+/** Binary file storage (cache, recordings, paths); data lives in roci.db via @services/db. */
 
 import { pathsService } from './paths.service';
 import { cacheService } from './cache.service';

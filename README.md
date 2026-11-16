@@ -1,8 +1,8 @@
-# Kasset AI
+# Roci AI
 
 > **Private, local-first meeting intelligence for macOS**
 
-Kasset AI captures, transcribes, and analyzes your meetings — entirely on your machine. Built-in AI chat lets you search across meetings, extract action items, and get instant answers from your meeting history.
+Roci AI captures, transcribes, and analyzes your meetings — entirely on your machine. Built-in AI chat lets you search across meetings, extract action items, and get instant answers from your meeting history.
 
 ## ✨ Features
 
@@ -140,7 +140,7 @@ See [AGENTS.md](AGENTS.md) for detailed development guidelines, architecture ove
 
 ## Acknowledgements
 
-Kasset is built on open-source software. Portions of Kasset are derived from [Hex](https://github.com/anomalyco/hex) (MIT) and [Jan](https://github.com/janhq/jan) (Apache-2.0), and the app depends on projects including Tauri, React, the Vercel AI SDK and SQLite.
+Roci is built on open-source software. Portions of Roci are derived from [Hex](https://github.com/anomalyco/hex) (MIT) and [Jan](https://github.com/janhq/jan) (Apache-2.0), and the app depends on projects including Tauri, React, the Vercel AI SDK and SQLite.
 
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) lists every project with its licence and copyright notice, followed by the full licence texts. The same list is in the app under **Settings › General › Acknowledgements**.
 
@@ -148,4 +148,4 @@ All product names, logos and brands are property of their respective owners. The
 
 ## 📄 License
 
-Kasset is released under the [MIT License](LICENSE). Copyright © 2026 Pareekshith Bompally.
+Roci is released under the [MIT License](LICENSE). Copyright © 2026 Pareekshith Bompally.

@@ -49,7 +49,7 @@ export const PermissionChecklist: React.FC = () => {
             </DialogClose>
           </DialogHeader>
           <DialogDescription>
-            macOS needs these before Kasset can record.
+            macOS needs these before Roci can record.
           </DialogDescription>
 
           <Card className="mt-4">

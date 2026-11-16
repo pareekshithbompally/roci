@@ -3,7 +3,7 @@
 Paste the prompt below into Claude Code on the new Mac. Cloning the repo is enough; nothing outside it is needed.
 
 ```text
-Set up this Mac to build and test the Kasset app (Tauri 2 + React 19 + Rust + Swift plugins, macOS only).
+Set up this Mac to build and test the Roci app (Tauri 2 + React 19 + Rust + Swift plugins, macOS only).
 Use npm only, never pnpm or yarn. Don't edit any project files. Stop and tell me if a step fails.
 
 Target versions:
@@ -36,4 +36,4 @@ Notes:
 
 ## App data
 
-Meetings, chats and settings live in `~/Library/Application Support/ai.kasset.desktop/`. To keep them, copy that folder to the new Mac with the app closed on both machines.
+Meetings, chats and settings live in `~/Library/Application Support/ai.roci.app/`. To keep them, copy that folder to the new Mac with the app closed on both machines.

@@ -35,7 +35,7 @@ export interface OrchestratorCallbacks {
 
 // ── Tool Activity ──
 
-/** One tool's progress as it streams, for Kasset's tools and providers' built-in ones alike: the chat's only tool contract. */
+/** One tool's progress as it streams, for Roci's tools and providers' built-in ones alike: the chat's only tool contract. */
 export type ToolActivity = {
   toolCallId: string;
   toolName: string;

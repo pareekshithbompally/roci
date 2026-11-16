@@ -218,7 +218,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         let autoSelectedModel: string | null = null;
 
         try {
-          const lastUsed = localStorage.getItem('kasset_last_used_model');
+          const lastUsed = localStorage.getItem('roci_last_used_model');
           if (lastUsed) {
             const { provider: lastProvider, modelId: lastModelId } = JSON.parse(lastUsed);
             const providerMatch = loadedProviders.find(

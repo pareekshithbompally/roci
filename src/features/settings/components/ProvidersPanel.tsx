@@ -11,7 +11,7 @@ import { LocalServersSection } from './LocalServersSection';
 import { ProviderDetail } from './ProviderDetail';
 import { SettingsPage } from './shared';
 
-const STORAGE_KEY = 'kasset_ai_last_provider_selection';
+const STORAGE_KEY = 'roci_last_provider_selection';
 
 function cloudRowState(provider: ModelProvider): ProviderRowState {
   if (!provider.active) return 'off';

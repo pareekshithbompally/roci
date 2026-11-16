@@ -9,7 +9,7 @@ import UniformTypeIdentifiers
 /// Core Spotlight needs an app bundle; without one every call reports `unsupported`.
 private let supported = Bundle.main.bundleURL.pathExtension == "app"
 
-/// Every Kasset item lives in this domain, so `remove_all` clears only meetings.
+/// Every Roci item lives in this domain, so `remove_all` clears only meetings.
 private let domain = "meetings"
 
 private typealias OpenCallback = @convention(c) (UnsafePointer<CChar>) -> Void

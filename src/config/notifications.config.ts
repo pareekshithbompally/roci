@@ -8,7 +8,7 @@ export const NOTIFICATION_KINDS: ReadonlyArray<{ kind: NotificationKind; label: 
   { kind: 'recordingReady', label: 'Recording ready', description: 'When a recording has been transcribed and summarized, or fails.' },
   { kind: 'hexImports', label: 'Hex meetings imported', description: 'When new meetings arrive from Hex.' },
   { kind: 'modelDownloads', label: 'Model downloads', description: 'When an on-device model finishes downloading.' },
-  { kind: 'chatReplies', label: 'Chat replies', description: 'When a reply finishes while Kasset is in the background.' },
+  { kind: 'chatReplies', label: 'Chat replies', description: 'When a reply finishes while Roci is in the background.' },
   { kind: 'todoReminders', label: 'To-do reminders', description: 'At the time you set on a to-do.' },
 ];
 

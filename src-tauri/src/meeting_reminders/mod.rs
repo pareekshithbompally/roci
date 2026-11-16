@@ -64,7 +64,7 @@ impl Reminders {
         if !self.enabled {
             return self.scheduler.clear().map(ReminderUpdate::Withdraw);
         }
-        // A reminder waits while Kasset records; it shows after, if still due.
+        // A reminder waits while Roci records; it shows after, if still due.
         if recording {
             return None;
         }

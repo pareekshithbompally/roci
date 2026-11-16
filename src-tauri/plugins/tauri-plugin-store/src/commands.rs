@@ -601,7 +601,7 @@ pub async fn initialize<R: Runtime>(
         .map_err(|e| StoreError::from(format!("Failed to get app data dir: {}", e)))?;
     std::fs::create_dir_all(&app_data)
         .map_err(|e| StoreError::from(format!("Failed to create app data dir: {}", e)))?;
-    let db_path = app_data.join("kasset.db");
+    let db_path = app_data.join("roci.db");
 
     let conn_arc = Arc::clone(&state.conn);
     tauri::async_runtime::spawn_blocking(move || {

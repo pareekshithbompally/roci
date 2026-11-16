@@ -22,7 +22,7 @@ pub const RESPONSE_EVENT: &str = "notifications://response";
 /// How often timed notices are checked (the meeting watcher's interval).
 const TICK: Duration = Duration::from_millis(500);
 
-/// Whether Kasset may post notifications.
+/// Whether Roci may post notifications.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Status {

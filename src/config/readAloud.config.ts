@@ -8,7 +8,7 @@ export const READ_ALOUD_CONFIG = {
   /** Spoken until another engine is chosen: ready with no download. */
   defaultEngine: 'macos',
   /** What the voice picker's play button says. */
-  sampleText: 'Hi! This is how your replies will sound when Kasset reads them aloud.',
+  sampleText: 'Hi! This is how your replies will sound when Roci reads them aloud.',
   /** Rust → webview: request `id` is now speaking `text`, one chunk of the reply (`{ id, text }`). */
   chunkEvent: 'tts://chunk',
   /** The CSS highlight the spoken chunk is drawn with (`::highlight(read-aloud)` in index.css). */

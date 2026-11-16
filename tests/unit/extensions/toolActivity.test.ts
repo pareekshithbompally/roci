@@ -18,7 +18,7 @@ describe('toolActivityOf', () => {
       .toEqual({ toolCallId: 'c1', toolName: 'search_meetings', phase: 'input', arguments: { query: 'budget' } });
   });
 
-  it("ends a Kasset tool with runTool's result, timing and citations", () => {
+  it("ends a Roci tool with runTool's result, timing and citations", () => {
     const citations = [{ meetingId: 'm1', score: 0.9 }];
     const output = { toolCallId: 'c1', content: '2 meetings', isError: false, meta: { toolName: 'search_meetings', executionMs: 42, citations } };
     expect(toolActivityOf(part({ type: 'tool-result', toolCallId: 'c1', toolName: 'search_meetings', output }), NO_SOURCES))

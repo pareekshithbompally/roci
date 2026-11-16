@@ -98,7 +98,7 @@ pub(crate) fn screen_recording_permitted() -> bool {
     unsafe { CGPreflightScreenCaptureAccess() }
 }
 
-/// Lists Kasset under Screen & System Audio Recording; macOS prompts at most once.
+/// Lists Roci under Screen & System Audio Recording; macOS prompts at most once.
 pub(crate) fn request_screen_recording() -> bool {
     // SAFETY: A CoreGraphics request without arguments.
     unsafe { CGRequestScreenCaptureAccess() }

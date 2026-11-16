@@ -23,7 +23,7 @@ export const useLeftPanel = create<LeftPanelStoreState>()(
       }),
     }),
     {
-      name: 'kasset-ai-left-panel',
+      name: 'roci-left-panel',
       storage: createJSONStorage(() => localStorage),
     }
   )

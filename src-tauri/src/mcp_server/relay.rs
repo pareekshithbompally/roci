@@ -1,4 +1,4 @@
-//! `Kasset mcp`: pipes stdio to the app's socket, opening Kasset hidden first; never prints to stdout.
+//! `Roci mcp`: pipes stdio to the app's socket, opening Roci hidden first; never prints to stdout.
 
 use std::{
     io::{self, Write},
@@ -21,7 +21,7 @@ pub fn run() -> i32 {
     match connect_or_launch().and_then(relay) {
         Ok(()) => 0,
         Err(e) => {
-            eprintln!("[Kasset mcp] {e}");
+            eprintln!("[Roci mcp] {e}");
             1
         }
     }
@@ -39,31 +39,31 @@ fn connect_or_launch() -> Result<UnixStream, String> {
         match UnixStream::connect(&path) {
             Ok(stream) => return Ok(stream),
             Err(e) if Instant::now() >= deadline => {
-                return Err(format!("Kasset did not start serving in time ({e})"));
+                return Err(format!("Roci did not start serving in time ({e})"));
             }
             Err(_) => {}
         }
     }
 }
 
-/// Open this binary's Kasset.app hidden; a bare dev binary has no bundle to open.
+/// Open this binary's Roci.app hidden; a bare dev binary has no bundle to open.
 fn launch_app() -> Result<(), String> {
-    let exe = std::env::current_exe().map_err(|e| format!("locate Kasset: {e}"))?;
-    let bundle = app_bundle(&exe).ok_or("Kasset isn't running. Start it and try again.")?;
+    let exe = std::env::current_exe().map_err(|e| format!("locate Roci: {e}"))?;
+    let bundle = app_bundle(&exe).ok_or("Roci isn't running. Start it and try again.")?;
     let status = Command::new("/usr/bin/open")
         .args(["-g", "-j"])
         .arg(&bundle)
         .args(["--args", "--minimized"])
         .status()
-        .map_err(|e| format!("open Kasset: {e}"))?;
+        .map_err(|e| format!("open Roci: {e}"))?;
     if status.success() {
         Ok(())
     } else {
-        Err(format!("open Kasset exited with {status}"))
+        Err(format!("open Roci exited with {status}"))
     }
 }
 
-/// `…/Kasset.app` for `…/Kasset.app/Contents/MacOS/Kasset`.
+/// `…/Roci.app` for `…/Roci.app/Contents/MacOS/Roci`.
 pub fn app_bundle(exe: &Path) -> Option<PathBuf> {
     let bundle = exe.parent()?.parent()?.parent()?;
     let is_app = bundle.extension().is_some_and(|ext| ext == "app");

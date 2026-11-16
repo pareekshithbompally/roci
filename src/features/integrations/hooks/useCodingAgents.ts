@@ -1,4 +1,4 @@
-/** Coding agents section: each agent's registration with optimistic add/remove, and Kasset's MCP server state. */
+/** Coding agents section: each agent's registration with optimistic add/remove, and Roci's MCP server state. */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@shared/query/queryKeys';

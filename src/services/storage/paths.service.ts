@@ -1,4 +1,4 @@
-/** Paths for recordings and caches; meetings, chats and settings live in kasset.db. */
+/** Paths for recordings and caches; meetings, chats and settings live in roci.db. */
 
 import { appDataDir, join, sep } from '@tauri-apps/api/path';
 import { exists, mkdir, readDir } from '@tauri-apps/plugin-fs';

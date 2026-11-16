@@ -1,4 +1,4 @@
-//! Opens the native places Kasset sends the user to (privacy panes, the Hex app); the webview can't.
+//! Opens the native places Roci sends the user to (privacy panes, the Hex app); the webview can't.
 
 use serde::Deserialize;
 use std::process::Command;

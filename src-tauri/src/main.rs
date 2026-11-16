@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-  // `Kasset mcp`: the stdio relay coding agents launch — no window, no Tauri.
+  // `Roci mcp`: the stdio relay coding agents launch — no window, no Tauri.
   if std::env::args().nth(1).as_deref() == Some(app_lib::MCP_RELAY_ARG) {
     std::process::exit(app_lib::run_mcp_relay());
   }

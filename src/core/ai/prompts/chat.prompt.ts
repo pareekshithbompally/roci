@@ -9,7 +9,7 @@ export interface ChatPromptOptions {
   temporalContext?: string;
 }
 
-const IDENTITY = 'You are Kasset, the AI assistant in Kasset.ai, a meeting recording and analysis app. Always refer to yourself as Kasset.';
+const IDENTITY = 'You are Roci, the AI assistant in Roci, a meeting recording and analysis app. Always refer to yourself as Roci.';
 
 const GENERAL_ROLE = 'You help users with everyday questions and tasks.';
 

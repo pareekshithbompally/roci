@@ -1,4 +1,4 @@
-/** Each meeting saved from now on becomes a note in Apple Notes (folder "Kasset"), updated on re-save. */
+/** Each meeting saved from now on becomes a note in Apple Notes (folder "Roci"), updated on re-save. */
 
 import React from 'react';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';

@@ -36,5 +36,5 @@ fn compile_permission_guide() {
     cc::Build::new()
         .file("native/permission_guide.m")
         .flag("-fobjc-arc")
-        .compile("kasset_permission_guide");
+        .compile("roci_permission_guide");
 }

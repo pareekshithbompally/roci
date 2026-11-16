@@ -38,7 +38,7 @@ describe('remindersSync', () => {
     const items = service.upsert.mock.calls[0][0];
     expect(items).toHaveLength(2);
     expect(items[0]).toEqual({
-      list_id: 'L1', todo_id: 'a', title: 'do a', notes: 'From “Standup” in Kasset',
+      list_id: 'L1', todo_id: 'a', title: 'do a', notes: 'From “Standup” in Roci',
       due_date: '2026-11-20', completed: false, create: true,
     });
   });
@@ -66,9 +66,9 @@ describe('remindersSync', () => {
 
   it('pull: copies completion only where it differs, for to-dos that exist', async () => {
     service.states.mockResolvedValue([
-      { todo_id: 'a', completed: true },   // ticked in Reminders → complete in Kasset
+      { todo_id: 'a', completed: true },   // ticked in Reminders → complete in Roci
       { todo_id: 'b', completed: true },   // already matches → untouched
-      { todo_id: 'gone', completed: true }, // deleted in Kasset → ignored
+      { todo_id: 'gone', completed: true }, // deleted in Roci → ignored
     ]);
     db.listGlobal.mockResolvedValue({ items: [{ ...todo('a'), meetingId: 'm1' }, { ...todo('b', true), meetingId: 'm1' }], total: 2 });
     await remindersSync.pull();

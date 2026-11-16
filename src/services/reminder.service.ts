@@ -1,4 +1,4 @@
-/** To-do reminders as native timed notifications, persisted in kasset.db so launch re-arms the ones still ahead. */
+/** To-do reminders as native timed notifications, persisted in roci.db so launch re-arms the ones still ahead. */
 
 import { NOTIFICATIONS_CONFIG } from '@config/notifications.config';
 import { onNotificationResponse, removeNotices, scheduleNotice, type Notice } from '@services/notifications';

@@ -1,6 +1,6 @@
 use rusqlite::Connection;
 
-/// Current schema version for the new kasset.db.
+/// Current schema version for the new roci.db.
 pub const SCHEMA_VERSION: u32 = 4;
 
 /// Default embedding model and dimension.

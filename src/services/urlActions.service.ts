@@ -1,4 +1,4 @@
-/** `kasset://` links parsed in Rust; `ask` and `meeting` arrive here, held until `ready()`. */
+/** `roci://` links parsed in Rust; `ask` and `meeting` arrive here, held until `ready()`. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';

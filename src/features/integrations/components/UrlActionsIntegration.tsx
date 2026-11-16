@@ -1,4 +1,4 @@
-/** URL actions rows: every `kasset://` link Kasset answers, with a copy button. */
+/** URL actions rows: every `roci://` link Roci answers, with a copy button. */
 
 import React from 'react';
 import { Copy } from 'lucide-react';

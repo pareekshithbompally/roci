@@ -71,7 +71,7 @@ fn get_app_icon_base64(pid: u32) -> Option<String> {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
-    let tmp_png = format!("/tmp/kasset_icon_{}_{}.png", pid, ts);
+    let tmp_png = format!("/tmp/roci_icon_{}_{}.png", pid, ts);
     let output = std::process::Command::new("sips")
         .args(["-s", "format", "png", "-z", "32", "32", &icns_path, "--out", &tmp_png])
         .stderr(std::process::Stdio::null())
@@ -242,7 +242,7 @@ pub async fn take_screenshot(window_id: Option<u32>) -> Result<String, String> {
         .unwrap_or_default()
         .as_millis();
 
-    let tmp_path = PathBuf::from(format!("/tmp/kasset_screenshot_{}.png", timestamp));
+    let tmp_path = PathBuf::from(format!("/tmp/roci_screenshot_{}.png", timestamp));
     let tmp_str = tmp_path.to_string_lossy().to_string();
 
     let mut cmd = std::process::Command::new("screencapture");

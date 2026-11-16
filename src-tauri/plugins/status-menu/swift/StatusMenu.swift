@@ -1,4 +1,4 @@
-// Kasset's menu bar menu: Swift owns the status item and its native NSMenu; Rust drives it over a C bridge.
+// Roci's menu bar menu: Swift owns the status item and its native NSMenu; Rust drives it over a C bridge.
 // Contract (mirrors the calendar bridge): replies are `{"ok":bool,"error":?}` C strings freed with `status_menu_free_string`;
 // picked items go back to Rust as action ids through the callback given to `status_menu_install`.
 // Rust owns every row and its words (`src-tauri/src/menubar/menu.rs`); this file only turns them into menu items.

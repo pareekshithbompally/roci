@@ -3,29 +3,29 @@
 <plist version="1.0">
 <dict>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Kasset.ai uses your microphone to record your side of a meeting and for dictation, and keeps recordings on this Mac.</string>
+    <string>Roci uses your microphone to record your side of a meeting and for dictation, and keeps recordings on this Mac.</string>
     <key>NSAudioCaptureUsageDescription</key>
-    <string>Kasset.ai records the other participants' audio only while you record a meeting, and keeps it on this Mac.</string>
+    <string>Roci records the other participants' audio only while you record a meeting, and keeps it on this Mac.</string>
     <key>NSScreenCaptureUsageDescription</key>
-    <string>Kasset.ai uses Screen &amp; System Audio Recording only to hear the other participants of a meeting when System Audio Recording is unavailable. It never records your screen.</string>
+    <string>Roci uses Screen &amp; System Audio Recording only to hear the other participants of a meeting when System Audio Recording is unavailable. It never records your screen.</string>
 
     <key>NSCalendarsFullAccessUsageDescription</key>
-    <string>Kasset.ai reads your calendar to notify you about upcoming meetings and help identify speakers during transcription.</string>
+    <string>Roci reads your calendar to notify you about upcoming meetings and help identify speakers during transcription.</string>
 
     <key>NSCalendarsUsageDescription</key>
-    <string>Kasset.ai reads your calendar to notify you about upcoming meetings and help identify speakers during transcription.</string>
+    <string>Roci reads your calendar to notify you about upcoming meetings and help identify speakers during transcription.</string>
 
     <key>NSRemindersFullAccessUsageDescription</key>
-    <string>Kasset.ai adds your meeting action items to Reminders and marks them done in Kasset when you complete them there.</string>
+    <string>Roci adds your meeting action items to Reminders and marks them done in Roci when you complete them there.</string>
 
     <key>NSRemindersUsageDescription</key>
-    <string>Kasset.ai adds your meeting action items to Reminders and marks them done in Kasset when you complete them there.</string>
+    <string>Roci adds your meeting action items to Reminders and marks them done in Roci when you complete them there.</string>
 
     <key>NSSpeechRecognitionUsageDescription</key>
-    <string>Kasset.ai transcribes your recordings on this Mac with Apple's speech recognition when you choose it as your transcription model.</string>
+    <string>Roci transcribes your recordings on this Mac with Apple's speech recognition when you choose it as your transcription model.</string>
 
     <key>NSAppleEventsUsageDescription</key>
-    <string>Kasset.ai saves each meeting's summary and transcript as a note in Apple Notes when you turn on the Apple Notes integration.</string>
+    <string>Roci saves each meeting's summary and transcript as a note in Apple Notes when you turn on the Apple Notes integration.</string>
 
     <key>NSUserNotificationAlertStyle</key>
     <string>alert</string>

@@ -29,7 +29,7 @@ beforeEach(() => {
 });
 
 describe('hexSync.catchUp', () => {
-  it('imports only finished meetings Kasset does not have, keeping their own notes', async () => {
+  it('imports only finished meetings Roci does not have, keeping their own notes', async () => {
     hex.list.mockResolvedValue([meeting('new'), meeting('have'), meeting('live', true)]);
     db.get.mockImplementation(async (id: string) => (id === 'hex-have' ? {} : null));
     await expect(hexSync.catchUp()).resolves.toBe(1);
@@ -63,7 +63,7 @@ describe('hexSync.finished', () => {
     expect(saveSummary).not.toHaveBeenCalled();
   });
 
-  it('skips a meeting already in Kasset', async () => {
+  it('skips a meeting already in Roci', async () => {
     db.get.mockResolvedValue({});
     await expect(hexSync.finished('h4')).resolves.toBeNull();
     expect(hex.show).not.toHaveBeenCalled();

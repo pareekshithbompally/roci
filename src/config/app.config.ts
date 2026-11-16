@@ -1,19 +1,19 @@
 /** Application-wide configuration constants. */
 
 export const APP_CONFIG = {
-  name: 'Kasset.ai',
+  name: 'Roci',
   version: '1.0.0',
-  identifier: 'ai.kasset.desktop',
+  identifier: 'ai.roci.app',
   /** Release notes for the latest version (the update row's Release notes action). */
   releasesUrl: 'https://github.com/pareekshithbompally/kasset-ai/releases/latest',
 
-  /** Mac apps Kasset shows the icon of (bundle ids). */
+  /** Mac apps Roci shows the icon of (bundle ids). */
   macApps: {
     finder: 'com.apple.finder',
   },
   
   window: {
-    title: 'Kasset.ai',
+    title: 'Roci',
     minWidth: 800,
     minHeight: 600,
     defaultWidth: 1200,
@@ -45,7 +45,7 @@ export const APP_CONFIG = {
   },
   
   tray: {
-    tooltip: 'Kasset.ai',
+    tooltip: 'Roci',
     /** Meetings in the menu bar's Recent Meetings submenu. */
     recentMeetings: 3,
   },

@@ -68,7 +68,7 @@ pub async fn reminders_upsert(items: Vec<ReminderInput>) -> Result<(), String> {
     off_main(move || items.iter().try_for_each(bridge::upsert_reminder)).await
 }
 
-/// Completion of every Kasset-tagged reminder in a list.
+/// Completion of every Roci-tagged reminder in a list.
 #[command]
 pub async fn reminders_states(list_id: String) -> Result<Vec<ReminderState>, String> {
     off_main(move || bridge::reminder_states(&list_id)).await

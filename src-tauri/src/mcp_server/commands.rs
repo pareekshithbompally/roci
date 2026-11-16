@@ -59,7 +59,7 @@ pub async fn coding_agents_status() -> Vec<AgentStatus> {
     statuses
 }
 
-/// Add (`registered: true`) or remove Kasset in one agent's config.
+/// Add (`registered: true`) or remove Roci in one agent's config.
 #[tauri::command]
 pub async fn coding_agent_set(id: AgentId, registered: bool) -> Result<AgentStatus, String> {
     agents::set(id, registered)

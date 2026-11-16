@@ -254,7 +254,7 @@ const App: React.FC = () => {
         await windowService.show();
         const outcome = await appUpdate.checkNow();
         if (outcome === 'available') toast.showToast('An update is available', 'info');
-        else if (outcome === 'current') toast.showToast('Kasset is up to date', 'success');
+        else if (outcome === 'current') toast.showToast('Roci is up to date', 'success');
         else toast.showToast('Could not check for updates', 'error');
       },
       [TrayAction.INSTALL_UPDATE]: () => appUpdate.downloadAndInstall(),

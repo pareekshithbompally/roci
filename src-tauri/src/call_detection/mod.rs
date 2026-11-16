@@ -21,7 +21,7 @@ use microphone::{ActiveMicrophoneApplication, active_microphone_applications};
 const KIND: &str = "detectedCalls";
 const ID_PREFIX: &str = "call:";
 const CATEGORY: &str = "detected_call";
-const BODY: &str = "Record it with Kasset?";
+const BODY: &str = "Record it with Roci?";
 const ACTION_RECORD: &str = "record";
 const ACTION_NOT_NOW: &str = "not_now";
 /// `user_info` key carrying the call app's canonical bundle id.

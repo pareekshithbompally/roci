@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TAURI_DIR="$ROOT_DIR/src-tauri"
 TARGET_DIR="${CARGO_TARGET_DIR:-$TAURI_DIR/target}"
-APP_BINARY="Kasset"
+APP_BINARY="Roci"
 
 # Prefer the cross-compilation target path (--target), else the default one.
 if [[ -n "${TAURI_TARGET_TRIPLE:-}" && -f "$TARGET_DIR/$TAURI_TARGET_TRIPLE/release/$APP_BINARY" ]]; then

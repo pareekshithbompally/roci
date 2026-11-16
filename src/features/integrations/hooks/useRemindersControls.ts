@@ -1,4 +1,4 @@
-/** Reminders row: access, on/off, target list; turning on creates the "Kasset" list and sends open to-dos. */
+/** Reminders row: access, on/off, target list; turning on creates the "Roci" list and sends open to-dos. */
 
 import { useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';

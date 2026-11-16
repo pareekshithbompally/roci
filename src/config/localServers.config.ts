@@ -1,6 +1,6 @@
 import type { ReasoningEffort } from '@shared/types';
 
-/** User-run OpenAI-compatible servers, detected on their standard ports; Kasset never starts or installs them. */
+/** User-run OpenAI-compatible servers, detected on their standard ports; Roci never starts or installs them. */
 
 /** Provider id prefix for every local server (`local:ollama`, `local:127.0.0.1:9000`). */
 export const LOCAL_PROVIDER_PREFIX = 'local:';

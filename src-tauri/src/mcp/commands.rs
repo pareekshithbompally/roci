@@ -1,4 +1,4 @@
-//! Tauri commands for MCP, Kasset-namespaced.
+//! Tauri commands for MCP, Roci-namespaced.
 
 use rmcp::model::{CallToolRequestParams, CallToolResult, ContentBlock, Icon, IconTheme};
 use serde::Serialize;

@@ -1,4 +1,4 @@
-/** Show one meeting on home; the sidebar, search and `kasset://meeting/<id>` all open meetings through this. */
+/** Show one meeting on home; the sidebar, search and `roci://meeting/<id>` all open meetings through this. */
 
 import { useCallback } from 'react';
 import { useAppActions } from '@shared/stores/appStore';

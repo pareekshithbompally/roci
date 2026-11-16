@@ -23,7 +23,7 @@ public func appleNotesUpsert(_ input: UnsafePointer<CChar>) -> UnsafeMutablePoin
     // Consent is only known for a running target, so start Notes first.
     launchNotesIfNeeded()
     guard automationStatus(ask: false) == "authorized" else {
-        return notesFailure("not-authorized", "Kasset isn't allowed to control Notes.")
+        return notesFailure("not-authorized", "Roci isn't allowed to control Notes.")
     }
     return runOnMain { run(script: upsertScript(note)) }
 }

@@ -1,4 +1,4 @@
-/** Mount once (App): runs `kasset://` links, signalling ready once settings and the menu bar listener exist. */
+/** Mount once (App): runs `roci://` links, signalling ready once settings and the menu bar listener exist. */
 
 import { useEffect, useRef } from 'react';
 import { isTauriEnvironment, menubarService } from '@services/tauri';
@@ -23,7 +23,7 @@ export interface UrlActionHandlers {
   notFound: () => void;
 }
 
-/** Run one link: bring Kasset forward, then ask or open the meeting. */
+/** Run one link: bring Roci forward, then ask or open the meeting. */
 export async function runUrlAction(action: UrlAction, handlers: UrlActionHandlers): Promise<void> {
   if (action.kind === 'ask') {
     await handlers.show();

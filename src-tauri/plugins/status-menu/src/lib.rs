@@ -1,4 +1,4 @@
-//! Kasset's menu bar menu (macOS): Swift owns an `NSStatusItem` with a native `NSMenu`; this crate is its safe Rust face.
+//! Roci's menu bar menu (macOS): Swift owns an `NSStatusItem` with a native `NSMenu`; this crate is its safe Rust face.
 //! Rust sends the menu's state as JSON; the menu sends picked items back as action ids.
 
 #[cfg(target_os = "macos")]

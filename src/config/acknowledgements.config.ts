@@ -1,10 +1,10 @@
-// Open-source software Kasset uses; the single source for Settings › Acknowledgements and THIRD_PARTY_NOTICES.md.
+// Open-source software Roci uses; the single source for Settings › Acknowledgements and THIRD_PARTY_NOTICES.md.
 
-/** Trademark notice for the provider and app logos Kasset shows. */
+/** Trademark notice for the provider and app logos Roci shows. */
 export const TRADEMARK_NOTICE =
   'All product names, logos and brands are property of their respective owners. They are used for identification only; their use does not imply endorsement.';
 
-/** Licences whose full text ships with Kasset (src/config/licenses/<id>.txt). */
+/** Licences whose full text ships with Roci (src/config/licenses/<id>.txt). */
 export const LICENSE_TEXT_IDS = ['MIT', 'Apache-2.0', 'BSD-3-Clause', 'ISC'] as const;
 export type LicenseTextId = (typeof LICENSE_TEXT_IDS)[number];
 
@@ -30,7 +30,7 @@ export interface AcknowledgementGroup {
 export const ACKNOWLEDGEMENTS: readonly AcknowledgementGroup[] = [
   {
     title: 'Derived code',
-    description: 'Parts of Kasset are derived from these projects.',
+    description: 'Parts of Roci are derived from these projects.',
     items: [
       { name: 'Hex', url: 'https://github.com/anomalyco/hex', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2026 Christopher Langton' },
       {
@@ -104,7 +104,7 @@ export const ACKNOWLEDGEMENTS: readonly AcknowledgementGroup[] = [
   },
   {
     title: 'Models (downloaded on request)',
-    description: 'Kasset downloads these from Hugging Face only when you choose to use them.',
+    description: 'Roci downloads these from Hugging Face only when you choose to use them.',
     items: [
       {
         name: 'EmbeddingGemma 300M',

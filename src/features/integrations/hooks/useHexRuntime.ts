@@ -21,7 +21,7 @@ function notifyImported(count: number): void {
     tone: 'success',
     inFront: 'toast',
     title: count === 1 ? '1 meeting imported from Hex' : `${count} meetings imported from Hex`,
-    body: 'Open Kasset to see them.',
+    body: 'Open Roci to see them.',
   });
 }
 

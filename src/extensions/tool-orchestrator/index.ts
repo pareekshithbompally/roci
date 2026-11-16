@@ -53,9 +53,9 @@ async function buildTools(options: OrchestratorOptions, webSearchTools: ToolSet 
     ...(await loadMcpTools(new Set(toolRegistry.getToolNames()), new Set(prefs.disabledMcpTools))),
   ];
   if (definitions.length === 0) return none;
-  const kassetTools = toExecutableTools(definitions, { historyItems: options.historyItems, signal: options.signal, approval: 'chat' });
+  const rociTools = toExecutableTools(definitions, { historyItems: options.historyItems, signal: options.signal, approval: 'chat' });
   const sources = new Map(definitions.flatMap((d) => (d.source ? [[d.name, d.source] as const] : [])));
-  return { tools: { ...kassetTools, ...webSearchTools }, sources };
+  return { tools: { ...rociTools, ...webSearchTools }, sources };
 }
 
 interface StreamState {

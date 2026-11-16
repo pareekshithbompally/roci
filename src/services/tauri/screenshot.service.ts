@@ -22,6 +22,6 @@ export async function listCapturableWindows(): Promise<CapturableWindow[]> {
 
 /** A PNG (base64) of one window, or the whole screen when `windowId` is null. */
 export async function takeScreenshot(windowId: number | null): Promise<string> {
-  if (!isTauriEnvironment()) throw new Error('Screenshots need the Kasset app');
+  if (!isTauriEnvironment()) throw new Error('Screenshots need the Roci app');
   return invoke<string>('take_screenshot', { windowId });
 }

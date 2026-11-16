@@ -89,7 +89,7 @@ function indexEntryToHistoryItem(entry: {
   };
 }
 
-/** The meeting index query — the app's history list, and outside React (Kasset's MCP server). */
+/** The meeting index query — the app's history list, and outside React (Roci's MCP server). */
 export const meetingsQuery = {
   queryKey: queryKeys.meetings(),
   queryFn: async (): Promise<HistoryItem[]> => {

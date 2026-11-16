@@ -1,4 +1,4 @@
-/** Hex's transcription models in Capabilities while on, and every Hex meeting synced one-way into Kasset. */
+/** Hex's transcription models in Capabilities while on, and every Hex meeting synced one-way into Roci. */
 
 import React from 'react';
 import { RefreshCw } from 'lucide-react';
@@ -32,7 +32,7 @@ export const HexIntegration: React.FC = () => {
       <CardRow title="New meetings" status={<Status tone={events.tone}>{events.label}</Status>} />
       <CardRow
         title="Meetings"
-        description={hex.syncError ?? 'Imported from Hex. Deleting in Hex keeps Kasset’s copy.'}
+        description={hex.syncError ?? 'Imported from Hex. Deleting in Hex keeps Roci’s copy.'}
         actions={
           <Button variant="outline" size="sm" onClick={hex.syncNow} loading={hex.syncing}>
             {!hex.syncing && <Icon icon={RefreshCw} size="xs" />}

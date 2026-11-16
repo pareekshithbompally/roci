@@ -191,7 +191,7 @@ export function useAppUpdate(): UseAppUpdateReturn {
   useEffect(() => {
     if (status !== 'available' || !updateInfo) return;
     putUpdateRow({
-      label: `Kasset v${updateInfo.version} available`,
+      label: `Roci v${updateInfo.version} available`,
       status: 'waiting',
       actions: [
         { icon: 'external-link', label: 'Release notes', onClick: openReleaseNotes },

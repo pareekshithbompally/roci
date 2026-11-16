@@ -21,11 +21,11 @@ const MANAGE_MODELS_LABEL: &str = "Manage Models…";
 const NEW_CHAT_LABEL: &str = "New Chat";
 const SEARCH_LABEL: &str = "Search";
 const RECENT_LABEL: &str = "Recent Meetings";
-const OPEN_LABEL: &str = "Open Kasset";
+const OPEN_LABEL: &str = "Open Roci";
 const SETTINGS_LABEL: &str = "Settings…";
 const CHECK_UPDATES_LABEL: &str = "Check for Updates…";
-const QUIT_LABEL: &str = "Quit Kasset";
-const APP_LABEL: &str = "Kasset";
+const QUIT_LABEL: &str = "Quit Roci";
+const APP_LABEL: &str = "Roci";
 
 /// Longest meeting title a row shows before it ends in an ellipsis.
 const TITLE_MAX_CHARS: usize = 40;
@@ -60,7 +60,7 @@ pub(super) struct RecentMeetingEntry {
     pub title: String,
 }
 
-/// One connected agent's row: its title and, for agents Kasset knows, its icon file.
+/// One connected agent's row: its title and, for agents Roci knows, its icon file.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct AgentEntry {
     pub title: String,
@@ -179,7 +179,7 @@ fn recorder_section(s: &MenuSnapshot) -> Vec<MenuRow> {
     rows
 }
 
-/// One row per background job, with its percent once known; clicking opens Kasset.
+/// One row per background job, with its percent once known; clicking opens Roci.
 fn activity_section(activity: &[ActivityEntry]) -> Vec<MenuRow> {
     activity.iter().map(|job| MenuRow::action(activity_text(job), item::SHOW)).collect()
 }

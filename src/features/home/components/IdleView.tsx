@@ -212,7 +212,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
               {/* Zero-state: Setup guidance */}
               <div className="text-center space-y-2">
                 <Text as="h1" variant="display">
-                  Welcome to Kasset
+                  Welcome to Roci
                 </Text>
                 <Text as="p" tone="muted">
                   Set up a provider to start chatting and get AI summaries

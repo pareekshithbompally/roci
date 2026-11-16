@@ -1,13 +1,13 @@
 /** Copy and options each integration row shows; behaviour lives in features/integrations. */
 
 /** Apple Notes folder in the default account; created on first save. */
-const NOTES_FOLDER = 'Kasset';
+const NOTES_FOLDER = 'Roci';
 
 export const INTEGRATIONS_CONFIG = {
   calendar: {
     title: 'Calendar',
     description: 'Get notified before meetings and record them.',
-    deniedHint: 'Kasset is off in System Settings › Privacy & Security › Calendars.',
+    deniedHint: 'Roci is off in System Settings › Privacy & Security › Calendars.',
     /** Bundle id: the row shows the app's own icon from macOS. */
     app: 'com.apple.iCal',
   },
@@ -32,11 +32,11 @@ export const INTEGRATIONS_CONFIG = {
   appleNotes: {
     title: 'Notes',
     description: `Save each meeting’s summary and transcript to the “${NOTES_FOLDER}” folder in Notes.`,
-    deniedHint: 'Kasset is off in System Settings › Privacy & Security › Automation › Notes.',
+    deniedHint: 'Roci is off in System Settings › Privacy & Security › Automation › Notes.',
     app: 'com.apple.Notes',
     folder: NOTES_FOLDER,
     /** Line at the end of each note that ties it to its meeting. */
-    tagPrefix: 'Kasset meeting',
+    tagPrefix: 'Roci meeting',
   },
   spotlight: {
     title: 'Spotlight',
@@ -45,7 +45,7 @@ export const INTEGRATIONS_CONFIG = {
   },
   hex: {
     title: 'Hex',
-    description: "Use Hex's transcription models, and bring every Hex meeting into Kasset.",
+    description: "Use Hex's transcription models, and bring every Hex meeting into Roci.",
     app: 'anomaly.hex',
     /** Shown until Hex is installed. */
     icon: '/images/hex-app-sm.png',
@@ -54,34 +54,34 @@ export const INTEGRATIONS_CONFIG = {
   },
   reminders: {
     title: 'Reminders',
-    description: 'Send meeting action items to Reminders. Completing one there completes it in Kasset.',
-    deniedHint: 'Kasset is off in System Settings › Privacy & Security › Reminders.',
+    description: 'Send meeting action items to Reminders. Completing one there completes it in Roci.',
+    deniedHint: 'Roci is off in System Settings › Privacy & Security › Reminders.',
     app: 'com.apple.reminders',
     /** List created on first enable */
-    defaultListTitle: 'Kasset',
+    defaultListTitle: 'Roci',
     /** Reminders fires several change notifications per edit; pull once they settle. */
     pullDebounceMs: 500,
   },
-  /** Kasset's tools in coding agents, through Kasset's MCP server (`Kasset mcp`). One card: server, agents, manual setup. */
+  /** Roci's tools in coding agents, through Roci's MCP server (`Roci mcp`). One card: server, agents, manual setup. */
   codingAgents: {
     section: 'Coding agents',
     server: {
-      title: 'Kasset MCP server',
-      description: 'Agents get the same tools as Kasset’s chat, and open Kasset in the background when it isn’t running.',
+      title: 'Roci MCP server',
+      description: 'Agents get the same tools as Roci’s chat, and open Roci in the background when it isn’t running.',
       ready: 'Ready',
       starting: 'Starting',
       connected: (count: number) => `${count} ${count === 1 ? 'agent' : 'agents'} connected`,
     },
-    /** Agent row description once Kasset is added. */
-    added: 'Added. Start a new session to use Kasset’s tools.',
+    /** Agent row description once Roci is added. */
+    added: 'Added. Start a new session to use Roci’s tools.',
     outdated: {
-      description: 'Added for a copy of Kasset that has moved. Update to fix.',
+      description: 'Added for a copy of Roci that has moved. Update to fix.',
       action: 'Update',
     },
     notInstalled: 'Not installed on this Mac.',
     manual: {
       title: 'Other agents',
-      description: 'Add a local (stdio) MCP server named “kasset” that runs:',
+      description: 'Add a local (stdio) MCP server named “roci” that runs:',
       copy: 'Copy command',
       copied: 'Command copied',
     },
@@ -91,19 +91,19 @@ export const INTEGRATIONS_CONFIG = {
       opencode: { title: 'OpenCode', description: 'Adds one entry to OpenCode’s global config; nothing else changes.', icon: '/images/opencode-app-sm.png' },
     },
   },
-  /** `kasset://` links (src-tauri/src/url_actions.rs) for Shortcuts, Raycast, Alfred and notes. */
+  /** `roci://` links (src-tauri/src/url_actions.rs) for Shortcuts, Raycast, Alfred and notes. */
   urlActions: {
     section: 'URL actions',
     copy: 'Copy link',
     copied: 'Link copied',
-    meetingNotFound: 'That meeting isn’t in Kasset.',
+    meetingNotFound: 'That meeting isn’t in Roci.',
     actions: [
-      { url: 'kasset://record', description: 'Start recording. The menu bar icon turns red.' },
-      { url: 'kasset://stop', description: 'Stop recording and transcribe.' },
-      { url: 'kasset://ask?q=', description: 'Ask in a new chat. Put the question after q=.' },
-      { url: 'kasset://meeting/<id>', description: 'Open a meeting by its ID.' },
-      { url: 'kasset://show', description: 'Bring up Kasset.' },
-      { url: 'kasset://settings', description: 'Open Settings.' },
+      { url: 'roci://record', description: 'Start recording. The menu bar icon turns red.' },
+      { url: 'roci://stop', description: 'Stop recording and transcribe.' },
+      { url: 'roci://ask?q=', description: 'Ask in a new chat. Put the question after q=.' },
+      { url: 'roci://meeting/<id>', description: 'Open a meeting by its ID.' },
+      { url: 'roci://show', description: 'Bring up Roci.' },
+      { url: 'roci://settings', description: 'Open Settings.' },
     ],
   },
 } as const;

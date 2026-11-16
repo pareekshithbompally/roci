@@ -15,7 +15,7 @@ export const manageTodoTool: ToolDefinition = {
   name: 'manage_todo',
   description:
     'Create, complete, update, or delete a todo/task/reminder. ' +
-    'In Kasset\'s chat the user confirms a proposal before anything is saved; ' +
+    'In Roci\'s chat the user confirms a proposal before anything is saved; ' +
     'called from another app, the change is saved at once.',
   parameters: {
     type: 'object',

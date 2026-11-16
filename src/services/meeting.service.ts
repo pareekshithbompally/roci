@@ -1,4 +1,4 @@
-/** Meeting CRUD via the unified store (kasset.db). */
+/** Meeting CRUD via the unified store (roci.db). */
 
 import type { MeetingDetail, MeetingIndexEntry } from '@shared/types';
 import { store } from '@services/db';

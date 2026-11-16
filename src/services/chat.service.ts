@@ -1,4 +1,4 @@
-/** Chat session CRUD via the unified store (kasset.db). */
+/** Chat session CRUD via the unified store (roci.db). */
 
 import type { ChatSession, ChatIndexEntry } from '@shared/types';
 import { store } from '@services/db';

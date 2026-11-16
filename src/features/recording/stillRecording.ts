@@ -16,7 +16,7 @@ function stopUnanswered(meetingId: string, seconds: number): void {
   void postNotice({
     id: noticeId(meetingId),
     title: 'Recording stopped',
-    body: `No answer after ${Math.floor(seconds / 60)} minutes, so Kasset stopped and saved it.`,
+    body: `No answer after ${Math.floor(seconds / 60)} minutes, so Roci stopped and saved it.`,
   });
   recording.stop().catch((error: unknown) => console.error('[stillRecording] Auto-stop failed:', error));
 }

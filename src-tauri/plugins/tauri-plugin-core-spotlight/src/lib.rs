@@ -46,7 +46,7 @@ pub fn remove(ids: &[String]) -> Result<(), String> {
     bridge::remove(&ids)
 }
 
-/// Remove every Kasset meeting from Spotlight. Blocks; never call on the main thread.
+/// Remove every Roci meeting from Spotlight. Blocks; never call on the main thread.
 pub fn remove_all() -> Result<(), String> {
     bridge::remove_all()
 }

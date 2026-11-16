@@ -65,7 +65,7 @@ export const useAudioPlayerStore = create<AudioPlayerStoreState>()(
         set({ session: null, isPlaying: false, currentTime: 0 }),
     }),
     {
-      name: 'kasset-ai-audio-player',
+      name: 'roci-audio-player',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         playbackRate: state.playbackRate,

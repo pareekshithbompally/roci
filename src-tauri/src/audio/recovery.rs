@@ -69,7 +69,7 @@ mod tests {
 
     /// A recordings folder with one meeting's track folder; returns (folder, tracks, output).
     fn scratch(name: &str) -> (PathBuf, PathBuf, PathBuf) {
-        let recordings = std::env::temp_dir().join(format!("kasset-recovery-{name}-{}", std::process::id()));
+        let recordings = std::env::temp_dir().join(format!("roci-recovery-{name}-{}", std::process::id()));
         let tracks = recordings.join("rec_1_a");
         fs::create_dir_all(&tracks).unwrap();
         let output = recordings.join("rec_1_a.wav");

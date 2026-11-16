@@ -42,7 +42,7 @@ import { UI_CONFIG } from '@config/ui.config';
 import { canSendDraft, draftTitle } from '@features/chat/utils';
 import { errorMessage } from '@shared/utils/errors';
 
-/** "Reply ready" while Kasset is in the background (Settings › Notifications › Chat replies). */
+/** "Reply ready" while Roci is in the background (Settings › Notifications › Chat replies). */
 function notifyReply(sessionId: string, text: string): void {
   const max = NOTIFICATIONS_CONFIG.chat.bodyMaxChars;
   const body = text.length > max ? `${text.slice(0, max - 1)}…` : text;
@@ -126,7 +126,7 @@ export function closeMeetingChat(): void {
   chat.setSelectedMeetingRefs([]);
 }
 
-/** Sends in a fresh chat on home: the composer's draft, or `text` (`kasset://ask`). The draft is read before anything is reset. */
+/** Sends in a fresh chat on home: the composer's draft, or `text` (`roci://ask`). The draft is read before anything is reset. */
 export function askInNewChat(text?: string): void {
   startNewChat();
   useChatStore.setState({ draftMeetingId: null });
@@ -258,7 +258,7 @@ interface Question {
   meetings: MeetingListItem[];
 }
 
-/** The composer's whole draft, or only `textOverride` (a suggestion, `kasset://ask`), which leaves the draft alone. */
+/** The composer's whole draft, or only `textOverride` (a suggestion, `roci://ask`), which leaves the draft alone. */
 function questionToSend(textOverride: string | undefined): Question {
   if (textOverride !== undefined) return { text: textOverride.trim(), attachments: [], meetings: [] };
   const { input, pendingAttachments, selectedMeetingRefs } = useChatStore.getState();

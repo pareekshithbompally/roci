@@ -725,7 +725,7 @@ mod tests {
     #[test]
     fn webkit_gpu_of_a_non_safari_app_is_not_a_browser() {
         assert_eq!(
-            canonical_bundle_id_for("com.apple.WebKit.GPU", Some("Kasset")),
+            canonical_bundle_id_for("com.apple.WebKit.GPU", Some("Roci")),
             None
         );
     }

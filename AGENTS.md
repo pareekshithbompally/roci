@@ -1,4 +1,4 @@
-# Kasset AI - AI Agent Instructions
+# Roci AI - AI Agent Instructions
 
 > **macOS meeting intelligence app — private, local-first, with built-in general-purpose AI chat**
 > Tauri 2.x + React 19 + TypeScript + Vite | Multi-provider AI (Vercel AI SDK) | ScreenCaptureKit audio | sqlite-vec RAG + Knowledge Graph
@@ -216,7 +216,7 @@ Intent types: general, meeting_search, meeting_recall, meeting_detail, meeting_l
 - **Consent**: Gated behind user consent before first embedding model download
 
 ### Storage Architecture
-All data stored in Tauri app data directory (`~/Library/Application Support/ai.kasset.desktop/`):
+All data stored in Tauri app data directory (`~/Library/Application Support/ai.roci.app/`):
 ```
 meetings/
 ├── index.json                    # Lightweight meeting index for sidebar

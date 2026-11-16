@@ -61,7 +61,7 @@ export async function prepareAppleSpeech(): Promise<boolean> {
 function appleSpeechErrorMessage(error: unknown): string {
   if (!isAppleError(error)) return errorMessage(error);
   switch (error.code) {
-    case 'not-authorized': return 'Speech Recognition is off for Kasset. Allow it in Settings › Integrations › Apple Intelligence.';
+    case 'not-authorized': return 'Speech Recognition is off for Roci. Allow it in Settings › Integrations › Apple Intelligence.';
     case 'model-not-ready': return 'The Apple speech model isn\'t downloaded. Download it in Settings › Integrations › Apple Intelligence.';
     case 'unsupported-language': return 'Apple speech doesn\'t support this language.';
     case 'unavailable': return error.detail ?? 'Apple speech isn\'t available on this Mac.';

@@ -268,7 +268,7 @@ mod tests {
     #[test]
     fn writer_fills_a_capture_gap_with_silence_and_records_it() {
         let directory = std::env::temp_dir().join(format!(
-            "kasset-meeting-gap-{}",
+            "roci-meeting-gap-{}",
             std::process::id()
         ));
         fs::create_dir_all(&directory).unwrap();

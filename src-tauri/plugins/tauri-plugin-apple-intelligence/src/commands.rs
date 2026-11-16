@@ -127,7 +127,7 @@ pub async fn speech_transcribe(request: Request<'_>) -> Result<Vec<SpeechSegment
     let wav = wav.clone();
     off_main(move || {
         let stamp = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or_default();
-        let path = std::env::temp_dir().join(format!("kasset-apple-speech-{}-{stamp}.wav", std::process::id()));
+        let path = std::env::temp_dir().join(format!("roci-apple-speech-{}-{stamp}.wav", std::process::id()));
         std::fs::write(&path, &wav).map_err(|e| AppleError::Failed(e.to_string()))?;
         let result = take::<Transcription>(bridge::speech_transcribe(&path.to_string_lossy(), &language));
         let _ = std::fs::remove_file(&path);

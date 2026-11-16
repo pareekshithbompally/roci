@@ -1,4 +1,4 @@
-/** Calendar plugin's Reminders commands; each reminder Kasset writes is tagged with its to-do id. */
+/** Calendar plugin's Reminders commands; each reminder Roci writes is tagged with its to-do id. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';

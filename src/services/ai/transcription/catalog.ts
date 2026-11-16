@@ -92,7 +92,7 @@ export interface SpeechSources {
   appleSpeech?: { status: AppleSpeechStatus | undefined };
 }
 
-/** Kasset's engine: every curated model; one not downloaded yet shows its size. */
+/** Roci's engine: every curated model; one not downloaded yet shows its size. */
 function onDeviceOptions(models: LocalModel[]): SpeechModelOption[] {
   const { provider } = TRANSCRIPTION_CONFIG.onDevice;
   return models.map((m) => ({

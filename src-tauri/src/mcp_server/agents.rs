@@ -1,4 +1,4 @@
-//! Registers one `kasset` entry in coding agents' configs via their CLI, or by editing OpenCode's file.
+//! Registers one `roci` entry in coding agents' configs via their CLI, or by editing OpenCode's file.
 
 use std::{
     fs,
@@ -28,13 +28,13 @@ pub enum AgentId {
 
 pub const AGENTS: [AgentId; 3] = [AgentId::ClaudeCode, AgentId::Codex, AgentId::Opencode];
 
-/// Whether the agent's config has Kasset, and whether it points at this copy of Kasset.
+/// Whether the agent's config has Roci, and whether it points at this copy of Roci.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Registration {
     None,
     Current,
-    /// Registered for a Kasset that has moved (or another build): re-add to fix.
+    /// Registered for a Roci that has moved (or another build): re-add to fix.
     Outdated,
 }
 
@@ -44,9 +44,9 @@ pub struct AgentStatus {
     pub id: AgentId,
     pub installed: bool,
     pub registration: Registration,
-    /// The config file Kasset reads (and, for OpenCode, writes).
+    /// The config file Roci reads (and, for OpenCode, writes).
     pub config_path: String,
-    /// The config couldn't be read; Kasset won't edit it.
+    /// The config couldn't be read; Roci won't edit it.
     pub problem: Option<String>,
 }
 
@@ -100,14 +100,14 @@ fn opencode_config_path() -> Result<PathBuf, String> {
     let jsonc = json.with_extension("jsonc");
     if !json.exists() && jsonc.exists() {
         return Err(format!(
-            "{} has comments, so Kasset won't edit it. Add Kasset by hand.",
+            "{} has comments, so Roci won't edit it. Add Roci by hand.",
             jsonc.display()
         ));
     }
     Ok(json)
 }
 
-/// The command the agent's `kasset` entry launches, if it has one.
+/// The command the agent's `roci` entry launches, if it has one.
 fn registered_command(id: AgentId, path: &Path) -> Result<Option<String>, String> {
     if id == AgentId::Codex {
         return codex_registered_command(path);
@@ -153,7 +153,7 @@ fn opencode_entry(root: &Map<String, Value>) -> Option<&Value> {
 
 // ── Add / remove ──
 
-/// Add (`on`) or remove Kasset in one agent; returns the agent's new status.
+/// Add (`on`) or remove Roci in one agent; returns the agent's new status.
 pub async fn set(id: AgentId, on: bool) -> Result<AgentStatus, String> {
     let path = config_path(id)?;
     let registered = registered_command(id, &path)?.is_some();
@@ -261,16 +261,16 @@ fn current_command() -> Option<String> {
 
 /// This binary, refused when macOS runs it from a randomized translocation path (Downloads, disk image).
 fn registrable_command() -> Result<String, String> {
-    let command = current_command().ok_or("Kasset couldn't find its own location")?;
+    let command = current_command().ok_or("Roci couldn't find its own location")?;
     if command.contains("/AppTranslocation/") || command.starts_with("/Volumes/") {
         return Err(
-            "Move Kasset to your Applications folder and open it from there, then add it.".into(),
+            "Move Roci to your Applications folder and open it from there, then add it.".into(),
         );
     }
     Ok(command)
 }
 
-/// What another agent's config needs to launch Kasset (Settings › manual setup).
+/// What another agent's config needs to launch Roci (Settings › manual setup).
 pub fn manual_command() -> Option<(String, String)> {
     current_command().map(|command| (command, RELAY_ARG.to_string()))
 }
@@ -351,11 +351,11 @@ fn read_json_object(path: &Path) -> Result<Option<Map<String, Value>>, String> {
     match serde_json::from_str(&text) {
         Ok(Value::Object(map)) => Ok(Some(map)),
         Ok(_) => Err(format!(
-            "{} isn't a JSON object, so Kasset left it untouched.",
+            "{} isn't a JSON object, so Roci left it untouched.",
             path.display()
         )),
         Err(_) => Err(format!(
-            "{} isn't plain JSON (it may have comments), so Kasset left it untouched. Add Kasset by hand.",
+            "{} isn't plain JSON (it may have comments), so Roci left it untouched. Add Roci by hand.",
             path.display()
         )),
     }
@@ -369,7 +369,7 @@ fn object_at<'a>(
     map.entry(key)
         .or_insert_with(|| Value::Object(Map::new()))
         .as_object_mut()
-        .ok_or_else(|| format!("\"{key}\" isn't an object, so Kasset left the file untouched."))
+        .ok_or_else(|| format!("\"{key}\" isn't an object, so Roci left the file untouched."))
 }
 
 /// Read, change only what `edit` changes, write atomically; a symlinked config is edited at its target.
@@ -393,7 +393,7 @@ fn write_atomic(path: &Path, text: &str) -> Result<(), String> {
         .file_name()
         .ok_or("config path has no file name")?
         .to_string_lossy();
-    let tmp = dir.join(format!(".{name}.kasset-tmp"));
+    let tmp = dir.join(format!(".{name}.roci-tmp"));
     let result = (|| {
         let mut file = fs::File::create(&tmp)?;
         file.write_all(text.as_bytes())?;
@@ -414,14 +414,14 @@ mod tests {
     use super::*;
 
     fn scratch(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("kasset-agents-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("roci-agents-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
     }
 
     #[test]
-    fn edit_json_touches_only_the_kasset_key_and_keeps_order() {
+    fn edit_json_touches_only_the_roci_key_and_keeps_order() {
         let path = scratch("order").join("mcp.json");
         fs::write(
             &path,
@@ -437,7 +437,7 @@ mod tests {
         let keys: Vec<_> = root.as_object().unwrap().keys().cloned().collect();
         assert_eq!(keys, ["z", "mcpServers", "a"]);
         assert_eq!(root["mcpServers"]["other"]["command"], "x");
-        assert_eq!(root["mcpServers"]["kasset"]["command"], "k");
+        assert_eq!(root["mcpServers"]["roci"]["command"], "k");
     }
 
     #[test]
@@ -473,11 +473,11 @@ mod tests {
     #[test]
     fn opencode_entry_reads_both_layouts() {
         let v2: Map<String, Value> = serde_json::from_value(
-            json!({ "mcp": { "servers": { "kasset": { "command": ["k"] } } } }),
+            json!({ "mcp": { "servers": { "roci": { "command": ["k"] } } } }),
         )
         .unwrap();
         let v1: Map<String, Value> =
-            serde_json::from_value(json!({ "mcp": { "kasset": { "command": ["k"] } } })).unwrap();
+            serde_json::from_value(json!({ "mcp": { "roci": { "command": ["k"] } } })).unwrap();
         assert!(opencode_entry(&v2).is_some());
         assert!(opencode_entry(&v1).is_some());
     }

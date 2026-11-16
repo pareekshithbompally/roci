@@ -65,13 +65,13 @@ pub(super) fn open_system_audio(sink: &PacketSink) -> Result<Box<dyn LiveSource>
     }
     if !screen_permitted {
         return Err(eyre!(
-            "Allow Kasset under System Settings › Privacy & Security › Screen & System Audio Recording"
+            "Allow Roci under System Settings › Privacy & Security › Screen & System Audio Recording"
         ));
     }
     ScreenCaptureSource::start(sink).map(|source| Box::new(source) as Box<dyn LiveSource>)
 }
 
-/// Whole-system output minus Kasset's sounds, via a private process tap; no display dependency.
+/// Whole-system output minus Roci's sounds, via a private process tap; no display dependency.
 struct ProcessTapSource {
     tap: AudioObjectID,
     aggregate: AudioObjectID,
@@ -99,7 +99,7 @@ impl ProcessTapSource {
                 CATapDescription::alloc(),
                 &excluded,
             );
-            description.setName(&NSString::from_str("Kasset meeting system audio"));
+            description.setName(&NSString::from_str("Roci meeting system audio"));
             description.setPrivate(true);
             description.setMuteBehavior(CATapMuteBehavior::Unmuted);
             description
@@ -136,8 +136,8 @@ impl ProcessTapSource {
         let tap_uid = unsafe { description.UUID() }.UUIDString();
         source.aggregate = create_tap_aggregate(
             &tap_uid,
-            "Kasset Meeting System Audio",
-            &format!("ai.kasset.meeting-tap.{}", std::process::id()),
+            "Roci Meeting System Audio",
+            &format!("ai.roci.app.meeting-tap.{}", std::process::id()),
         )?;
 
         let channels = format.mChannelsPerFrame.max(1) as usize;

@@ -1,11 +1,11 @@
 import Foundation
 import EventKit
 
-// MARK: - Reminders (EventKit) — JSON C-string bridge; each reminder's URL `kasset://todo/<id>` links it to its to-do
+// MARK: - Reminders (EventKit) — JSON C-string bridge; each reminder's URL `roci://todo/<id>` links it to its to-do
 
 private let store = EKEventStore()
-private let queue = DispatchQueue(label: "ai.kasset.reminders")
-private let todoScheme = "kasset://todo/"
+private let queue = DispatchQueue(label: "ai.roci.app.reminders")
+private let todoScheme = "roci://todo/"
 
 /// Request full access to reminders. `{"granted": bool, "error"?: string}`
 @_cdecl("reminders_request_access")
@@ -114,7 +114,7 @@ public func remindersUpsert(_ input: UnsafePointer<CChar>) -> UnsafeMutablePoint
     })
 }
 
-/// Completion of every Kasset-tagged reminder in a list. `{"items": [{"todo_id", "completed"}]}` or `{"error"}`
+/// Completion of every Roci-tagged reminder in a list. `{"items": [{"todo_id", "completed"}]}` or `{"error"}`
 @_cdecl("reminders_states")
 public func remindersStates(_ listId: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar> {
     let id = String(cString: listId)
@@ -145,7 +145,7 @@ private struct ReminderInput: Decodable {
     let create: Bool
 }
 
-/// Kasset-tagged reminders in `list`, keyed by to-do id. Runs on `queue`.
+/// Roci-tagged reminders in `list`, keyed by to-do id. Runs on `queue`.
 private func tagged(in list: EKCalendar) -> [String: EKReminder] {
     let semaphore = DispatchSemaphore(value: 0)
     var found: [EKReminder] = []

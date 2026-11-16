@@ -42,19 +42,19 @@ pub mod item {
 }
 
 /// Default tooltip, mirroring `APP_CONFIG.tray.tooltip`.
-const DEFAULT_TOOLTIP: &str = "Kasset.ai";
+const DEFAULT_TOOLTIP: &str = "Roci";
 
 /// Bundled images (see `tauri.conf.json > bundle.resources`); the status menu draws the status item image 18 pt tall.
 const IDLE_ICON_RESOURCE: &str = "icons/iconTemplate@2x.png";
 const RECORDING_ICON_RESOURCE: &str = "icons/iconRecordingTemplate@2x.png";
 
-/// Agents Kasset knows, by the MCP client name each announces (read from their own builds): their name and icon.
+/// Agents Roci knows, by the MCP client name each announces (read from their own builds): their name and icon.
 const KNOWN_AGENTS: [(&str, &str, &str); 2] = [
     ("claude-code", "Claude Code", "icons/agents/claude-code.png"),
     ("opencode", "OpenCode", "icons/agents/opencode.png"),
 ];
 
-/// A connected agent's row: Kasset's name for it when known, else the title it announced.
+/// A connected agent's row: Roci's name for it when known, else the title it announced.
 fn agent_entry(images: &Images, name: &str, title: &str) -> AgentEntry {
     let known = KNOWN_AGENTS.iter().find(|(client, _, _)| *client == name);
     AgentEntry {
@@ -277,7 +277,7 @@ fn emit_action(app: &AppHandle, action: &str) {
     }
 }
 
-/// Dispatch a menu action; `kasset://record`, `stop`, `show` and `settings` come through here too.
+/// Dispatch a menu action; `roci://record`, `stop`, `show` and `settings` come through here too.
 /// The window, next-meeting and recent-meeting actions are handled here; the rest go to the webview.
 pub(crate) fn dispatch(app: &AppHandle, action: &str) {
     if action == item::SHOW {
@@ -287,7 +287,7 @@ pub(crate) fn dispatch(app: &AppHandle, action: &str) {
     } else if let Some(occurrence) = action.strip_prefix(item::NEXT_MEETING_RECORD_PREFIX) {
         crate::meeting_reminders::record_occurrence(occurrence, false);
     } else if let Some(id) = action.strip_prefix(item::OPEN_MEETING_PREFIX) {
-        // The same path as `kasset://meeting/<id>` and Spotlight results.
+        // The same path as `roci://meeting/<id>` and Spotlight results.
         crate::url_actions::open_meeting(app, id.to_string());
     } else if WEBVIEW_ACTIONS.contains(&action) || action.starts_with(item::SPEECH_MODEL_PREFIX) {
         emit_action(app, action);
@@ -495,7 +495,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn known_agents_show_kasset_s_name_for_them() {
+    fn known_agents_show_roci_s_name_for_them() {
         let images = Images::default();
         assert_eq!(agent_entry(&images, "opencode", "opencode").title, "OpenCode");
         assert_eq!(agent_entry(&images, "cursor", "Cursor").title, "Cursor");

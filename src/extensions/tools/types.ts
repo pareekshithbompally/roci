@@ -39,7 +39,7 @@ export interface ToolDefinition {
   maxResultChars?: number | null;
   /** MCP server name, shown with the call in chat. Absent for built-ins. */
   source?: string;
-  /** Changes the user's data. Agents using Kasset's MCP server are told so (they ask before calling it). */
+  /** Changes the user's data. Agents using Roci's MCP server are told so (they ask before calling it). */
   writes?: boolean;
 }
 

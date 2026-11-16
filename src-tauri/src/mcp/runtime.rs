@@ -57,7 +57,7 @@ pub struct McpState {
 fn client_info() -> ClientConfig {
     ClientConfig::new(
         ClientCapabilities::default(),
-        Implementation::new("Kasset", env!("CARGO_PKG_VERSION")),
+        Implementation::new("Roci", env!("CARGO_PKG_VERSION")),
     )
 }
 
@@ -323,7 +323,7 @@ pub async fn stop_server(app: &AppHandle, name: &str) {
     emit_update(app, name);
 }
 
-/// Last-resort teardown on app exit: signal every server's process group so no `npx`/`node` outlives Kasset.
+/// Last-resort teardown on app exit: signal every server's process group so no `npx`/`node` outlives Roci.
 pub fn kill_all_children(app: &AppHandle) {
     let Some(state) = app.try_state::<McpState>() else { return };
     let pids: Vec<u32> = state.pids.lock().expect("pids lock").drain().map(|(_, pid)| pid).collect();

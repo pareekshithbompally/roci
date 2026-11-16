@@ -82,13 +82,13 @@ export const TRANSCRIPTION_CONFIG = {
   hexProvider: 'hex',
   /** Apple speech (Integrations › Apple Intelligence): on this Mac, no key, one model. */
   appleSpeech: { provider: 'apple-intelligence', model: 'apple-speech', label: 'Apple Speech' },
-  /** Kasset's own engine (transcribe.cpp, src-tauri/src/stt): no key, its speech models are local models. */
+  /** Roci's own engine (transcribe.cpp, src-tauri/src/stt): no key, its speech models are local models. */
   onDevice: { provider: LOCAL_MODELS_CONFIG.provider.id },
   /** Speech providers that exist only while an integration is on (Settings › Integrations). */
   integrationByProvider: { hex: 'hex', 'apple-intelligence': 'appleIntelligence' } as Record<string, IntegrationId>,
   /** Speech providers that run without credentials. */
   keylessProviders: ['hex', 'apple-intelligence', 'on-device'] as readonly string[],
-  /** Hex models Kasset doesn't offer: Apple speech is Kasset-native (Apple Intelligence), never via Hex. */
+  /** Hex models Roci doesn't offer: Apple speech is Roci-native (Apple Intelligence), never via Hex. */
   hiddenHexModels: ['apple_speech'] as readonly string[],
 
   /** Silero VAD gate (only speech spans are transcribed), tuned for recall; spans are in recording-clock units. */

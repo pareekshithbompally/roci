@@ -1,4 +1,4 @@
-/** One-way import of Hex meetings as `hex-<id>` meetings; never deletes Kasset's copy or writes to Hex. */
+/** One-way import of Hex meetings as `hex-<id>` meetings; never deletes Roci's copy or writes to Hex. */
 
 import { store } from '@services/db';
 import { transcriptionService } from '@services/transcription.service';
@@ -8,7 +8,7 @@ import type { MeetingSummary, StoredTranscriptSegment } from '@shared/types';
 const ID_PREFIX = 'hex-';
 const SPEAKER = { microphone: 'You', system: 'Them' } as const;
 
-export const kassetMeetingId = (hexId: string): string => `${ID_PREFIX}${hexId}`;
+export const rociMeetingId = (hexId: string): string => `${ID_PREFIX}${hexId}`;
 
 /** A finished meeting with something to read (in-progress ones arrive later). */
 const importable = (meeting: HexMeeting): boolean => !meeting.in_progress;
@@ -23,13 +23,13 @@ function notesSummaryOf(detail: HexMeetingDetail): MeetingSummary {
 }
 
 async function exists(hexId: string): Promise<boolean> {
-  return (await store.meetings.get(kassetMeetingId(hexId))) !== null;
+  return (await store.meetings.get(rociMeetingId(hexId))) !== null;
 }
 
 /** Creates the meeting with its transcript (`transcribed`); null when there's nothing to import. */
 async function importOne(detail: HexMeetingDetail): Promise<{ meetingId: string; transcript: string } | null> {
   if (!importable(detail.meeting) || detail.entries.length === 0) return null;
-  const meetingId = kassetMeetingId(detail.meeting.id);
+  const meetingId = rociMeetingId(detail.meeting.id);
   const segments = detail.entries.map(segmentOf);
   await store.meetings.create({
     id: meetingId,
@@ -65,7 +65,7 @@ async function runCatchUp(): Promise<number> {
 }
 
 export const hexSync = {
-  /** Imports every meeting Kasset doesn't have yet, with the notes it came with. One run at a time. */
+  /** Imports every meeting Roci doesn't have yet, with the notes it came with. One run at a time. */
   catchUp(): Promise<number> {
     catchingUp ??= runCatchUp().finally(() => { catchingUp = null; });
     return catchingUp;

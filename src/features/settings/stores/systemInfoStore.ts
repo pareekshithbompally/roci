@@ -26,7 +26,7 @@ const DISK_USAGE_DIRS = [
   { label: 'Chats', name: 'chats' },
   { label: 'Cache', name: 'cache' },
 ] as const;
-const STORE_DB = { label: 'Store DB', name: 'kasset.db' } as const;
+const STORE_DB = { label: 'Store DB', name: 'roci.db' } as const;
 export const DISK_USAGE_LABELS: readonly string[] = [...DISK_USAGE_DIRS.map((d) => d.label), STORE_DB.label];
 
 interface SystemInfoSnapshot {

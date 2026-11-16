@@ -109,7 +109,7 @@ export type ChatPart =
       };
     };
 
-/** A tool's row in a chat message: Kasset's own tools, MCP tools, and providers' built-in ones (web search). */
+/** A tool's row in a chat message: Roci's own tools, MCP tools, and providers' built-in ones (web search). */
 export type ToolCallPart = Extract<ChatPart, { type: 'tool_call' }>;
 
 export interface ChatMessage {
@@ -246,14 +246,14 @@ export interface AppSettings {
   /** macOS Reminders integration (EventKit): action items ↔ a reminders list */
   remindersIntegration?: {
     enabled: boolean;
-    /** EventKit list id; the "Kasset" list is created on first enable */
+    /** EventKit list id; the "Roci" list is created on first enable */
     listId?: string;
   };
 }
 
 // ============ New Data Layer Types ============
 
-/** Lightweight entry for sidebar listing — stored in kasset.db meetings table */
+/** Lightweight entry for sidebar listing — stored in roci.db meetings table */
 export interface MeetingIndexEntry {
   id: string;
   title: string;
@@ -359,7 +359,7 @@ export interface MeetingDetail {
   todos: TodoEntry[];
 }
 
-/** Chat index entry — stored in kasset.db chats table */
+/** Chat index entry — stored in roci.db chats table */
 export interface ChatIndexEntry {
   id: string;
   title: string;

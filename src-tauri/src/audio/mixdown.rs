@@ -109,7 +109,7 @@ mod tests {
     }
 
     fn scratch(name: &str) -> PathBuf {
-        let directory = std::env::temp_dir().join(format!("kasset-mixdown-{name}-{}", std::process::id()));
+        let directory = std::env::temp_dir().join(format!("roci-mixdown-{name}-{}", std::process::id()));
         fs::create_dir_all(&directory).unwrap();
         directory
     }

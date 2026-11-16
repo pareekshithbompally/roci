@@ -66,7 +66,7 @@ enum Progress {
 define_class!(
     // SAFETY: NSObject has no subclassing requirements; this class has no Drop.
     #[unsafe(super(NSObject))]
-    #[name = "KassetSpeechProgress"]
+    #[name = "RociSpeechProgress"]
     #[ivars = Sender<Progress>]
     struct SpeechProgress;
 

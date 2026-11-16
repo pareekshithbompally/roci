@@ -1,4 +1,4 @@
-/** Coding agents rows: Kasset's MCP server, one switch per agent's `kasset` config entry, then a manual command. */
+/** Coding agents rows: Roci's MCP server, one switch per agent's `roci` config entry, then a manual command. */
 
 import React from 'react';
 import { Copy, SquareTerminal } from 'lucide-react';
@@ -65,7 +65,7 @@ const AgentRow: React.FC<AgentRowProps> = ({ agent, pending, setRegistered }) =>
           checked={agent.registration !== 'none'}
           disabled={blocked || pending}
           onCheckedChange={setRegistered}
-          aria-label={`Use Kasset in ${copy.title}`}
+          aria-label={`Use Roci in ${copy.title}`}
         />
       }
     />

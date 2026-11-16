@@ -41,7 +41,7 @@ mod tests {
     use std::path::PathBuf;
 
     fn scratch(name: &str) -> PathBuf {
-        let directory = std::env::temp_dir().join(format!("kasset-hex-{name}-{}", std::process::id()));
+        let directory = std::env::temp_dir().join(format!("roci-hex-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&directory);
         std::fs::create_dir_all(&directory).unwrap();
         directory

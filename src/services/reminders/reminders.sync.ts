@@ -38,7 +38,7 @@ function toReminder(listId: string, todo: TodoEntry, notes: string | null, creat
 async function meetingTodos(meetingId: string): Promise<{ todos: TodoEntry[]; notes: string | null }> {
   const meeting = await store.meetings.get(meetingId);
   const title = meeting?.index.title;
-  return { todos: meeting?.todos ?? [], notes: title ? `From “${title}” in Kasset` : null };
+  return { todos: meeting?.todos ?? [], notes: title ? `From “${title}” in Roci` : null };
 }
 
 async function send(listId: string, meetingId: string, pick: (todo: TodoEntry) => boolean, create: boolean): Promise<void> {

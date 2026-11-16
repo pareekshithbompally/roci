@@ -109,7 +109,7 @@ pub fn upsert_reminder(input: &ReminderInput) -> Result<(), String> {
     reply_result(reply.error)
 }
 
-/// Completion of every Kasset-tagged reminder in a list.
+/// Completion of every Roci-tagged reminder in a list.
 pub fn reminder_states(list_id: &str) -> Result<Vec<ReminderState>, String> {
     let list_id = CString::new(list_id).map_err(|e| format!("Invalid list id: {e}"))?;
     let reply: BridgeReply<ReminderState> = parse_and_free(unsafe { reminders_states(list_id.as_ptr()) })?;

@@ -14,7 +14,7 @@ const PermissionRow: React.FC<{ controls: NotificationControls }> = ({ controls 
   return (
     <CardRow
       title="Allow notifications"
-      description="Kasset notifies you while it is in the background or hidden."
+      description="Roci notifies you while it is in the background or hidden."
       actions={access !== 'unknown' && access !== 'unavailable' && (
         <PermissionAction state={access} onRequest={request} onOpenSettings={openSettings} />
       )}
@@ -45,7 +45,7 @@ export const NotificationsPanel: React.FC = () => {
   const controls = useNotificationControls();
 
   return (
-    <SettingsPage title="Notifications" description="Choose what Kasset tells you about.">
+    <SettingsPage title="Notifications" description="Choose what Roci tells you about.">
       <Section title="macOS notifications">
         <PermissionRow controls={controls} />
       </Section>

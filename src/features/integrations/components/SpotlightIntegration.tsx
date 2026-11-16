@@ -1,4 +1,4 @@
-/** Meetings appear in macOS Spotlight (title, attendees, summary, notes, to-dos); transcripts stay in Kasset. */
+/** Meetings appear in macOS Spotlight (title, attendees, summary, notes, to-dos); transcripts stay in Roci. */
 
 import React from 'react';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';

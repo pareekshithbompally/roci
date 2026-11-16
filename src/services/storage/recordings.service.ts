@@ -1,4 +1,4 @@
-/** Recording audio files on disk (`recordings/{meeting id}.{ext}`); their rows live in kasset.db with the meeting. */
+/** Recording audio files on disk (`recordings/{meeting id}.{ext}`); their rows live in roci.db with the meeting. */
 
 import { writeFile, readFile, exists, mkdir, stat } from '@tauri-apps/plugin-fs';
 import { appDataDir, join, sep } from '@tauri-apps/api/path';

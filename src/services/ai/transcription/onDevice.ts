@@ -1,4 +1,4 @@
-/** Kasset's own STT engine (transcribe.cpp in Rust): error copy, per-part adapter and live engine. */
+/** Roci's own STT engine (transcribe.cpp in Rust): error copy, per-part adapter and live engine. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';

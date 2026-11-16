@@ -22,8 +22,8 @@ const texts = LICENSE_TEXT_IDS.map((id) => `### ${id}\n\n\`\`\`text\n${licenseTe
 
 const document = [
   '# Third-Party Notices',
-  "Kasset includes or depends on the open-source software listed below. Each entry gives the project's licence and source, and its copyright notice where the project states one. The full licence texts follow the list.",
-  'Where a project offers a choice of licences, the entry names the one Kasset uses.',
+  "Roci includes or depends on the open-source software listed below. Each entry gives the project's licence and source, and its copyright notice where the project states one. The full licence texts follow the list.",
+  'Where a project offers a choice of licences, the entry names the one Roci uses.',
   'This file is generated from `src/config/acknowledgements.config.ts` by `npm run notices`. Do not edit it by hand.',
   ...sections,
   '## Trademarks',

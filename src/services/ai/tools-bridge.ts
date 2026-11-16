@@ -30,7 +30,7 @@ function truncate(result: ToolResult, maxChars: number | null): ToolResult {
   };
 }
 
-/** Run one tool with its limits; never throws. Chat (below) and Kasset's MCP server share it. */
+/** Run one tool with its limits; never throws. Chat (below) and Roci's MCP server share it. */
 export async function runTool(
   definition: ToolDefinition,
   args: Record<string, unknown>,

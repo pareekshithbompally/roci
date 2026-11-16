@@ -42,7 +42,7 @@ export function hexErrorMessage(error: unknown, model: string): string {
   switch (error.code) {
     case 'not-running': return "Hex isn't running. Open Hex, then retry.";
     case 'not-installed': return "Hex isn't installed in Applications.";
-    case 'unauthorized': return "Hex rejected Kasset's request. Restart Hex, then retry.";
+    case 'unauthorized': return "Hex rejected Roci's request. Restart Hex, then retry.";
     case 'model-not-ready': return `${model} isn't downloaded in Hex. Download it in Hex › Models.`;
     case 'busy': return 'Hex is busy. Retry when it\'s done.';
     case 'incompatible': return "This Hex version isn't supported. Update Hex.";

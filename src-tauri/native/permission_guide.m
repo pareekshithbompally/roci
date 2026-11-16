@@ -1,4 +1,4 @@
-// Floating Privacy & Security guide: opens a pane and shows Kasset's tile to drag or switch on.
+// Floating Privacy & Security guide: opens a pane and shows Roci's tile to drag or switch on.
 #import <AppKit/AppKit.h>
 #import <AVFoundation/AVFoundation.h>
 #import <ApplicationServices/ApplicationServices.h>
@@ -7,20 +7,20 @@
 #import <QuartzCore/QuartzCore.h>
 #import <dlfcn.h>
 
-typedef NS_ENUM(NSInteger, KassetPermission) {
-    KassetPermissionAccessibility = 1,
-    KassetPermissionMicrophone = 2,
-    KassetPermissionSystemAudio = 3,
-    KassetPermissionScreenRecording = 4,
+typedef NS_ENUM(NSInteger, RociPermission) {
+    RociPermissionAccessibility = 1,
+    RociPermissionMicrophone = 2,
+    RociPermissionSystemAudio = 3,
+    RociPermissionScreenRecording = 4,
 };
 
 static NSPanel *guidePanel;
 static NSTimer *guideTimer;
 static BOOL sawSettingsWindow;
-static KassetPermission activePermission;
+static RociPermission activePermission;
 static NSView *guideTile;
 
-/// The tile flies from the click in Kasset's window to the guide so the eye follows it to System Settings.
+/// The tile flies from the click in Roci's window to the guide so the eye follows it to System Settings.
 static NSPanel *flightPanel;
 static CALayer *flightLayer;
 static NSTimer *flightTimer;
@@ -33,7 +33,7 @@ static const CFTimeInterval flightDuration = 0.62;
 /// Settings that has not opened by then gets no flight.
 static const CFTimeInterval flightPatience = 4;
 
-@interface KassetDragView : NSView <NSDraggingSource>
+@interface RociDragView : NSView <NSDraggingSource>
 @property(nonatomic, strong) NSURL *bundleURL;
 @property(nonatomic, strong) NSImage *appIcon;
 @property(nonatomic, copy) NSString *appName;
@@ -41,12 +41,12 @@ static const CFTimeInterval flightPatience = 4;
 @end
 
 /// The name System Settings lists the app under.
-static NSString *kassetAppName(NSURL *bundleURL) {
+static NSString *rociAppName(NSURL *bundleURL) {
     NSString *name = [[NSFileManager defaultManager] displayNameAtPath:bundleURL.path];
     if ([name.pathExtension.lowercaseString isEqualToString:@"app"]) {
         name = name.stringByDeletingPathExtension;
     }
-    return name.length > 0 ? name : @"Kasset";
+    return name.length > 0 ? name : @"Roci";
 }
 
 /// macOS 27 renamed the Accessibility list.
@@ -56,28 +56,28 @@ static BOOL accessibilityRenamed(void) {
 }
 
 /// The name of the Privacy & Security list each permission lives in.
-const char *kasset_permission_list_name(int permission) {
-    switch ((KassetPermission)permission) {
-        case KassetPermissionAccessibility:
+const char *roci_permission_list_name(int permission) {
+    switch ((RociPermission)permission) {
+        case RociPermissionAccessibility:
             return accessibilityRenamed() ? "Device Control and Data Access" : "Accessibility";
-        case KassetPermissionMicrophone:
+        case RociPermissionMicrophone:
             return "Microphone";
-        case KassetPermissionSystemAudio:
+        case RociPermissionSystemAudio:
             return "System Audio Recording Only";
-        case KassetPermissionScreenRecording:
+        case RociPermissionScreenRecording:
             return "Screen & System Audio Recording";
     }
     return "Privacy & Security";
 }
 
 /// Registers this binary in Accessibility and shows the prompt when untrusted.
-bool kasset_prompt_accessibility_trust(void) {
+bool roci_prompt_accessibility_trust(void) {
     NSDictionary *options = @{(__bridge NSString *)kAXTrustedCheckOptionPrompt: @YES};
     return AXIsProcessTrustedWithOptions((__bridge CFDictionaryRef)options);
 }
 
 /// Writes the running `.app` bundle id as UTF-8 into `buf`; returns its length, or 0 outside a bundle.
-size_t kasset_running_app_bundle_id(char *buf, size_t cap) {
+size_t roci_running_app_bundle_id(char *buf, size_t cap) {
     if (buf == NULL || cap == 0) {
         return 0;
     }
@@ -125,7 +125,7 @@ static void drawTile(NSRect bounds, NSImage *icon, NSString *name, BOOL dark) {
     [name drawAtPoint:NSMakePoint(52, 14) withAttributes:attributes];
 }
 
-@implementation KassetDragView
+@implementation RociDragView
 
 - (instancetype)initWithFrame:(NSRect)frame bundleURL:(NSURL *)bundleURL {
     self = [super initWithFrame:frame];
@@ -133,7 +133,7 @@ static void drawTile(NSRect bounds, NSImage *icon, NSString *name, BOOL dark) {
         _bundleURL = bundleURL;
         _appIcon = [[NSWorkspace sharedWorkspace] iconForFile:bundleURL.path];
         _appIcon.size = NSMakeSize(32, 32);
-        _appName = kassetAppName(bundleURL);
+        _appName = rociAppName(bundleURL);
     }
     return self;
 }
@@ -241,8 +241,8 @@ static BOOL settingsHasWindow(void) {
     return NO;
 }
 
-/// Bit 0: System Settings has a window; bit 1: it is frontmost; bit 2: Kasset is active.
-int kasset_permission_settings_state(void) {
+/// Bit 0: System Settings has a window; bit 1: it is frontmost; bit 2: Roci is active.
+int roci_permission_settings_state(void) {
     NSCAssert(NSThread.isMainThread, @"settings state must run on the main thread");
     BOOL open = settingsHasWindow();
     NSRunningApplication *front = NSWorkspace.sharedWorkspace.frontmostApplication;
@@ -312,14 +312,14 @@ static BOOL systemAudioGranted(void) {
 static BOOL permissionGranted(void) {
     switch (activePermission) {
         // What System Settings shows now; the preflights keep their launch answer until restart.
-        case KassetPermissionAccessibility:
+        case RociPermissionAccessibility:
             return AXIsProcessTrusted();
-        case KassetPermissionMicrophone:
+        case RociPermissionMicrophone:
             return [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio] ==
                    AVAuthorizationStatusAuthorized;
-        case KassetPermissionSystemAudio:
+        case RociPermissionSystemAudio:
             return systemAudioGranted();
-        case KassetPermissionScreenRecording:
+        case RociPermissionScreenRecording:
             return CGPreflightScreenCaptureAccess();
     }
     return NO;
@@ -405,8 +405,8 @@ static void stepFlight(void) {
     }
 }
 
-/// The click that asked for the guide, when it was in one of Kasset's windows.
-static BOOL clickInKassetWindow(NSPoint point) {
+/// The click that asked for the guide, when it was in one of Roci's windows.
+static BOOL clickInRociWindow(NSPoint point) {
     for (NSWindow *window in NSApp.windows) {
         if (window.visible && window != guidePanel && window != flightPanel &&
             NSPointInRect(point, window.frame)) {
@@ -416,14 +416,14 @@ static BOOL clickInKassetWindow(NSPoint point) {
     return NO;
 }
 
-/// Lifts a copy of the tile out of Kasset's window at `origin`.
+/// Lifts a copy of the tile out of Roci's window at `origin`.
 static void beginFlight(NSPoint origin, NSURL *bundleURL, NSSize tileSize) {
     flightOrigin = origin;
     flightShownAt = CACurrentMediaTime();
     flightStartedAt = 0;
     NSImage *icon = [[NSWorkspace sharedWorkspace] iconForFile:bundleURL.path];
     icon.size = NSMakeSize(32, 32);
-    NSString *name = kassetAppName(bundleURL);
+    NSString *name = rociAppName(bundleURL);
     BOOL dark = isDark(NSApp.effectiveAppearance);
     NSImage *image = [NSImage imageWithSize:tileSize
                                     flipped:NO
@@ -513,34 +513,34 @@ static void updateGuidePosition(void) {
     [guidePanel orderFrontRegardless];
 }
 
-void kasset_show_permission_guide(int permission) {
+void roci_show_permission_guide(int permission) {
     NSCAssert(NSThread.isMainThread, @"permission guide must run on the main thread");
     NSPoint click = NSEvent.mouseLocation;
-    BOOL fly = clickInKassetWindow(click) &&
+    BOOL fly = clickInRociWindow(click) &&
                !NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion;
     closeGuide();
-    activePermission = (KassetPermission)permission;
+    activePermission = (RociPermission)permission;
 
     NSURL *bundleURL = NSBundle.mainBundle.bundleURL.standardizedURL;
-    NSString *listName = [NSString stringWithUTF8String:kasset_permission_list_name(permission)];
-    NSString *appName = kassetAppName(bundleURL);
+    NSString *listName = [NSString stringWithUTF8String:roci_permission_list_name(permission)];
+    NSString *appName = rociAppName(bundleURL);
     NSString *pane;
     switch (activePermission) {
-        case KassetPermissionAccessibility:
+        case RociPermissionAccessibility:
             pane = @"Privacy_Accessibility";
             break;
-        case KassetPermissionMicrophone:
+        case RociPermissionMicrophone:
             pane = @"Privacy_Microphone";
             break;
-        case KassetPermissionSystemAudio:
+        case RociPermissionSystemAudio:
             pane = @"Privacy_AudioCapture";
             break;
-        case KassetPermissionScreenRecording:
+        case RociPermissionScreenRecording:
             pane = @"Privacy_ScreenCapture";
             break;
     }
     // The Microphone list only holds apps that asked, so a refused microphone is switched on, not dragged.
-    BOOL draggable = activePermission != KassetPermissionMicrophone;
+    BOOL draggable = activePermission != RociPermissionMicrophone;
     NSURL *settingsURL = [NSURL URLWithString:[NSString stringWithFormat:
         @"x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?%@", pane]];
     openSettingsPane(settingsURL);
@@ -584,7 +584,7 @@ void kasset_show_permission_guide(int permission) {
     [content addSubview:instruction];
 
     if (draggable) {
-        KassetDragView *dragView = [[KassetDragView alloc]
+        RociDragView *dragView = [[RociDragView alloc]
             initWithFrame:NSMakeRect(18, 17, panelSize.width - 36, 44)
                  bundleURL:bundleURL];
         [content addSubview:dragView];

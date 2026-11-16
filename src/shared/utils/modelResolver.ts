@@ -111,7 +111,7 @@ export function isManagedSDK(provider: string): boolean {
   return MANAGED_SDK_PROVIDERS.has(provider);
 }
 
-/** Whether Kasset can list the provider's models (and so test its key): a managed SDK, or a base URL to call. */
+/** Whether Roci can list the provider's models (and so test its key): a managed SDK, or a base URL to call. */
 export function canListModels(provider: ModelProvider): boolean {
   return isManagedSDK(provider.provider) || provider.settings.some((s) => s.key === 'base-url');
 }

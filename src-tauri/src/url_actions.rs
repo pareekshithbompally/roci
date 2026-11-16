@@ -1,4 +1,4 @@
-//! `kasset://` URL actions (record, stop, show, settings, ask, meeting), queued until the webview is ready.
+//! `roci://` URL actions (record, stop, show, settings, ask, meeting), queued until the webview is ready.
 
 use std::sync::Mutex;
 
@@ -9,7 +9,7 @@ use tauri_plugin_deep_link::DeepLinkExt;
 use crate::menubar::{self, item};
 
 /// The scheme registered in tauri.conf.json (`plugins.deep-link.desktop.schemes`).
-const SCHEME: &str = "kasset";
+const SCHEME: &str = "roci";
 /// Rust → webview: an action with a value (`UrlAction::Ask` / `Meeting`).
 const ACTION_EVENT: &str = "url-action";
 
@@ -114,7 +114,7 @@ fn question(url: &Url) -> Option<String> {
     (!q.is_empty()).then(|| q.to_string())
 }
 
-/// The single path segment of `kasset://meeting/<id>`.
+/// The single path segment of `roci://meeting/<id>`.
 fn meeting_id(url: &Url) -> Option<String> {
     let mut segments = url.path_segments()?.filter(|s| !s.is_empty());
     let id = segments.next()?;
@@ -149,16 +149,16 @@ mod tests {
     #[test]
     fn maps_fixed_actions_to_menu_ids() {
         assert_eq!(
-            action("kasset://record"),
+            action("roci://record"),
             Some(UrlAction::Menu(item::START_RECORDING))
         );
         assert_eq!(
-            action("kasset://stop/"),
+            action("roci://stop/"),
             Some(UrlAction::Menu(item::STOP_RECORDING))
         );
-        assert_eq!(action("kasset://show"), Some(UrlAction::Menu(item::SHOW)));
+        assert_eq!(action("roci://show"), Some(UrlAction::Menu(item::SHOW)));
         assert_eq!(
-            action("kasset://settings"),
+            action("roci://settings"),
             Some(UrlAction::Menu(item::SETTINGS))
         );
     }
@@ -166,31 +166,31 @@ mod tests {
     #[test]
     fn ask_carries_the_decoded_question() {
         assert_eq!(
-            action("kasset://ask?q=what%20did%20we%20decide%3F"),
+            action("roci://ask?q=what%20did%20we%20decide%3F"),
             Some(UrlAction::Ask("what did we decide?".into()))
         );
         assert_eq!(
-            action("kasset://ask?q=a+b"),
+            action("roci://ask?q=a+b"),
             Some(UrlAction::Ask("a b".into()))
         );
-        assert_eq!(action("kasset://ask?q=%20%20"), None);
-        assert_eq!(action("kasset://ask"), None);
+        assert_eq!(action("roci://ask?q=%20%20"), None);
+        assert_eq!(action("roci://ask"), None);
     }
 
     #[test]
     fn meeting_takes_exactly_one_id() {
         assert_eq!(
-            action("kasset://meeting/rec_123"),
+            action("roci://meeting/rec_123"),
             Some(UrlAction::Meeting("rec_123".into()))
         );
-        assert_eq!(action("kasset://meeting/"), None);
-        assert_eq!(action("kasset://meeting/a/b"), None);
+        assert_eq!(action("roci://meeting/"), None);
+        assert_eq!(action("roci://meeting/a/b"), None);
     }
 
     #[test]
     fn rejects_other_schemes_and_hosts() {
         assert_eq!(action("https://record"), None);
-        assert_eq!(action("kasset://format-disk"), None);
+        assert_eq!(action("roci://format-disk"), None);
     }
 
     #[test]

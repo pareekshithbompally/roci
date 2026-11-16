@@ -44,12 +44,12 @@ interface AcknowledgementsDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/** Settings › General › Acknowledgements: every open-source project Kasset uses, with its licence text. */
+/** Settings › General › Acknowledgements: every open-source project Roci uses, with its licence text. */
 export const AcknowledgementsDialog: React.FC<AcknowledgementsDialogProps> = ({ open: isOpen, onOpenChange }) => (
   <FormDialog open={isOpen} onOpenChange={onOpenChange} title="Acknowledgements" size="xl">
     <div className="flex flex-col gap-6">
       <Text as="p" variant="helper" tone="muted" className="mx-4">
-        Kasset is built with the following open-source software.
+        Roci is built with the following open-source software.
       </Text>
       {ACKNOWLEDGEMENTS.map((group) => (
         <Section key={group.title} title={group.title}>

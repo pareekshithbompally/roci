@@ -155,7 +155,7 @@ export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connec
           </span>
         }
       >
-        {models.length === 0 && <CardRow title="No models yet" description="Add one to use it in Kasset's model pickers." />}
+        {models.length === 0 && <CardRow title="No models yet" description="Add one to use it in Roci's model pickers." />}
         {models.map((model) => (
           <CardRow
             key={model.id}

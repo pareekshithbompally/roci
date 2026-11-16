@@ -42,7 +42,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
     const model = choices.find((c) => c.value === modelId);
     if (model) {
       try {
-        localStorage.setItem('kasset_last_used_model', JSON.stringify({
+        localStorage.setItem('roci_last_used_model', JSON.stringify({
           provider: model.provider,
           modelId: model.modelId,
         }));

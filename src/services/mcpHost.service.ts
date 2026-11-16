@@ -1,4 +1,4 @@
-/** Invoke wrappers over Kasset's own MCP server; Rust owns the socket and the coding agents' config files. */
+/** Invoke wrappers over Roci's own MCP server; Rust owns the socket and the coding agents' config files. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -26,7 +26,7 @@ export interface McpHostCall {
 /** Rust `ServerOverview`. */
 export interface McpHostStatus {
   listening: boolean;
-  /** Kasset's tools are loaded: calls run at once. */
+  /** Roci's tools are loaded: calls run at once. */
   ready: boolean;
   /** Agents connected right now. */
   clients: number;
@@ -42,10 +42,10 @@ export type CodingAgentId = 'claude-code' | 'codex' | 'opencode';
 export interface CodingAgentStatus {
   id: CodingAgentId;
   installed: boolean;
-  /** `outdated`: registered for a Kasset that has moved — add again to fix. */
+  /** `outdated`: registered for a Roci that has moved — add again to fix. */
   registration: 'none' | 'current' | 'outdated';
   configPath: string;
-  /** The config can't be read, so Kasset won't edit it. */
+  /** The config can't be read, so Roci won't edit it. */
   problem: string | null;
 }
 

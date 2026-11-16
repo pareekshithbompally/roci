@@ -45,6 +45,6 @@ async function execute(call: McpHostCall): Promise<{ text: string; isError: bool
     return { text: result.content, isError: result.isError };
   } catch (error: unknown) {
     console.error('[McpHost] could not load meetings for', call.name, error);
-    return { text: `Kasset could not load meetings: ${errorMessage(error)}`, isError: true };
+    return { text: `Roci could not load meetings: ${errorMessage(error)}`, isError: true };
   }
 }

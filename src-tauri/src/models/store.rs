@@ -222,7 +222,7 @@ mod tests {
 
     #[test]
     fn sha256_of_known_bytes() {
-        let path = std::env::temp_dir().join("kasset-models-sha-test");
+        let path = std::env::temp_dir().join("roci-models-sha-test");
         fs::write(&path, b"abc").unwrap();
         assert_eq!(sha256_hex(&path).unwrap(), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
         fs::remove_file(path).unwrap();

@@ -1,4 +1,4 @@
-//! Kasset's curated on-device models: catalog, per-model storage, downloads and deletion.
+//! Roci's curated on-device models: catalog, per-model storage, downloads and deletion.
 
 pub mod catalog;
 pub mod commands;

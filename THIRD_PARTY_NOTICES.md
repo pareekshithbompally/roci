@@ -1,14 +1,14 @@
 # Third-Party Notices
 
-Kasset includes or depends on the open-source software listed below. Each entry gives the project's licence and source, and its copyright notice where the project states one. The full licence texts follow the list.
+Roci includes or depends on the open-source software listed below. Each entry gives the project's licence and source, and its copyright notice where the project states one. The full licence texts follow the list.
 
-Where a project offers a choice of licences, the entry names the one Kasset uses.
+Where a project offers a choice of licences, the entry names the one Roci uses.
 
 This file is generated from `src/config/acknowledgements.config.ts` by `npm run notices`. Do not edit it by hand.
 
 ## Derived code
 
-Parts of Kasset are derived from these projects.
+Parts of Roci are derived from these projects.
 
 ### Hex
 
@@ -255,7 +255,7 @@ Parts of Kasset are derived from these projects.
 
 ## Models (downloaded on request)
 
-Kasset downloads these from Hugging Face only when you choose to use them.
+Roci downloads these from Hugging Face only when you choose to use them.
 
 ### EmbeddingGemma 300M
 

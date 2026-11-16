@@ -6,7 +6,7 @@ import { EMBEDDING_MODEL_NAME, EMBEDDING_MODEL_SIZE, grantConsent, isEmbeddingRe
 import { confirm } from '@shared/stores/confirmStore';
 import { useActivityItems } from '@shared/stores/activityStore';
 
-/** The embedding model (transformers.js). Kasset's other local models: `useLocalModels`. */
+/** The embedding model (transformers.js). Roci's other local models: `useLocalModels`. */
 export type OnDeviceModelKind = 'rag';
 export type OnDeviceStatus = 'idle' | 'busy' | 'ready';
 

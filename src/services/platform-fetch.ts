@@ -2,7 +2,7 @@
 
 import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 
-/** Kasset is a native client, not a web page: an empty Origin makes the plugin send none, so servers never apply browser CORS rules. */
+/** Roci is a native client, not a web page: an empty Origin makes the plugin send none, so servers never apply browser CORS rules. */
 const nativeFetch: typeof globalThis.fetch = (input, init) => {
   const headers = new Headers(init?.headers);
   headers.set('Origin', '');

@@ -20,7 +20,7 @@ function handlers(found?: HistoryItem): UrlActionHandlers {
 }
 
 describe('runUrlAction', () => {
-  it('brings Kasset forward and asks in a new chat', async () => {
+  it('brings Roci forward and asks in a new chat', async () => {
     const h = handlers();
     await runUrlAction({ kind: 'ask', value: 'what did we decide?' }, h);
     expect(h.show).toHaveBeenCalled();
@@ -34,7 +34,7 @@ describe('runUrlAction', () => {
     expect(h.openMeeting).toHaveBeenCalledWith(MEETING);
   });
 
-  it('says so, without opening the window, when the meeting is not in Kasset', async () => {
+  it('says so, without opening the window, when the meeting is not in Roci', async () => {
     const h = handlers(undefined);
     await runUrlAction({ kind: 'meeting', value: 'gone' }, h);
     expect(h.notFound).toHaveBeenCalled();

@@ -7,7 +7,7 @@ import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { SettingsPage } from './shared';
 
 export const IntegrationsPanel: React.FC = () => (
-  <SettingsPage title="Integrations" description="Connect Kasset to apps on this Mac.">
+  <SettingsPage title="Integrations" description="Connect Roci to apps on this Mac.">
     <Section title="macOS" layout="stack">
       <AppleIntelligenceIntegration />
       <CalendarIntegration />

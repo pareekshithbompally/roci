@@ -1,4 +1,4 @@
-/** Meetings for chat @ mentions, with their summary, notes and todos from kasset.db. */
+/** Meetings for chat @ mentions, with their summary, notes and todos from roci.db. */
 
 import type { HistoryItem, Note, ActionItem, NoteEntry, TodoEntry } from '@shared/types';
 import { store } from '@services/db';

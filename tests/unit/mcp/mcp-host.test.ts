@@ -27,7 +27,7 @@ import { serveTools, toWireTool } from '@extensions/tools/mcp-host';
 import { manageTodoTool } from '@extensions/tools/definitions/manage-todo.tool';
 import { toolRegistry } from '@extensions/tools';
 
-describe('Kasset MCP host', () => {
+describe('Roci MCP host', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     host.handler = null;

@@ -5,7 +5,7 @@ export interface ShortcutDefinition {
   description: string;
 }
 
-/** In-window shortcuts: matched on keydown while a Kasset window has focus. */
+/** In-window shortcuts: matched on keydown while a Roci window has focus. */
 export const APP_SHORTCUTS = {
   search: { accelerator: 'CommandOrControl+K', description: 'Search meetings and chats' },
   focusChat: { accelerator: 'CommandOrControl+L', description: 'Jump to the chat composer' },
@@ -19,7 +19,7 @@ export type AppShortcutId = keyof typeof APP_SHORTCUTS;
 /** System-wide shortcuts registered with the OS; the key is the action Rust emits on `shortcut-triggered`. */
 export const GLOBAL_SHORTCUTS = {
   'toggle-recording': { accelerator: 'Option+Shift+R', description: 'Start or stop recording' },
-  'show-window': { accelerator: 'Option+Shift+A', description: 'Show Kasset' },
+  'show-window': { accelerator: 'Option+Shift+A', description: 'Show Roci' },
   'new-chat': { accelerator: 'Option+Shift+N', description: 'Start a new chat' },
   'open-settings': { accelerator: 'Option+Shift+Comma', description: 'Open settings' },
 } as const satisfies Record<string, ShortcutDefinition>;

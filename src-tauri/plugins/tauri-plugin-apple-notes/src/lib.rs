@@ -20,7 +20,7 @@ extern "C" {
 #[derive(Debug, Serialize)]
 #[serde(tag = "code", content = "detail", rename_all = "kebab-case")]
 pub enum NotesError {
-    /// Automation → Notes isn't allowed for Kasset.
+    /// Automation → Notes isn't allowed for Roci.
     NotAuthorized,
     Failed(String),
 }

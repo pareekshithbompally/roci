@@ -42,7 +42,7 @@ pub enum AppleError {
     Refused,
     Unavailable(String),
     Timeout,
-    /// Speech Recognition is off for Kasset.
+    /// Speech Recognition is off for Roci.
     NotAuthorized,
     /// The language's speech model isn't downloaded.
     ModelNotReady,

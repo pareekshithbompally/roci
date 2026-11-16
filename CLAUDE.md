@@ -1,4 +1,4 @@
-# Kasset AI — Claude Code Instructions
+# Roci AI — Claude Code Instructions
 
 > **macOS meeting-intelligence app — private, local-first, with built-in AI chat.**
 > Tauri 2.x + React 19 + TS + Vite | Vercel AI SDK (multi-provider) | Rust Core Audio tap + cpal audio | sqlite-vec RAG
@@ -111,7 +111,7 @@ src-tauri/
   plugins/        tauri-plugin-{store,calendar}
 ```
 
-**Data layout** (`~/Library/Application Support/ai.kasset.desktop/`): `meetings/{id}/{transcript,summary,todos,notes,recording-meta}.json` + `meetings/index.json`; `chats/{sessionId}.json` + `chats/index.json`; `recordings/*.wav`; `vectordb.sqlite`; `settings.json` (API keys AES-256-GCM).
+**Data layout** (`~/Library/Application Support/ai.roci.app/`): `meetings/{id}/{transcript,summary,todos,notes,recording-meta}.json` + `meetings/index.json`; `chats/{sessionId}.json` + `chats/index.json`; `recordings/*.wav`; `vectordb.sqlite`; `settings.json` (API keys AES-256-GCM).
 
 **Transcription pipeline** — two clearly separated stages with their own model settings:
 - `transcriptionModel` (STT engine ID: `whisper-1`, `groq-whisper`, `deepgram`, `elevenlabs`, `gemini`) → fills the **Transcript** tab with verbatim STT output.
