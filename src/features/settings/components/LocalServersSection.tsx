@@ -2,11 +2,11 @@
 
 import React, { useState } from 'react';
 import { Plus, RefreshCw } from 'lucide-react';
-import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { LOCAL_EMPTY_HINT, LOCAL_URL_DRAFT } from '@config/localServers.config';
 import { useLocalServers } from '@features/settings/hooks/useLocalServers';
 import { ProviderGroup, ProviderListItem } from './ProviderListItem';
+import type { ProviderRowState } from './ProviderListItem';
 import type { LocalRow } from '@services/providers/localServers';
 import { Button, IconButton, Input, Text } from '@shared/ui';
 
@@ -15,13 +15,17 @@ interface LocalServersSectionProps {
   onSelect: (provider: string) => void;
 }
 
+function rowState(row: LocalRow): ProviderRowState {
+  if (!row.saved?.active) return 'off';
+  return row.running ? 'ready' : 'attention';
+}
+
 function rowDetail(row: LocalRow): string {
   if (!row.running) return 'Not running';
   return row.models.length === 1 ? '1 model' : `${row.models.length} models`;
 }
 
 export const LocalServersSection: React.FC<LocalServersSectionProps> = ({ selectedProvider, onSelect }) => {
-  const { updateProvider } = useSettings();
   const { showToast } = useToast();
   const { rows, isScanning, enable, rescan, addUrl } = useLocalServers();
   const [urlDraft, setUrlDraft] = useState<string | null>(null);
@@ -57,11 +61,6 @@ export const LocalServersSection: React.FC<LocalServersSectionProps> = ({ select
     else enable(row);
   };
 
-  const handleToggle = (row: LocalRow, checked: boolean) => {
-    if (row.saved) updateProvider(row.id, { active: checked });
-    else if (checked) enable(row);
-  };
-
   const actions = (
     <>
       <IconButton icon={RefreshCw} label="Rescan local servers" size="sm" spin={isScanning} onClick={handleRescan} />
@@ -76,11 +75,9 @@ export const LocalServersSection: React.FC<LocalServersSectionProps> = ({ select
           key={row.id}
           provider={row.id}
           selected={selectedProvider === row.id}
-          active={row.saved?.active ?? false}
+          state={rowState(row)}
           onSelect={() => handleSelect(row)}
-          onToggle={(checked) => handleToggle(row, checked)}
           detail={rowDetail(row)}
-          status={row.running ? 'running' : 'stopped'}
         />
       ))}
 

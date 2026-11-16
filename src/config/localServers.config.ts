@@ -46,9 +46,6 @@ export const LOCAL_SERVERS: readonly LocalServerEntry[] = [
 /** Logo for a server that isn't a known engine (a custom URL, or port 8080 serving MLX/LocalAI). */
 export const LOCAL_GENERIC_LOGO = GENERIC_LOGO;
 
-/** Info line shown in the provider detail pane for every local server. */
-export const LOCAL_SERVER_INFO = 'Runs on this Mac. Start and stop it in its own app; Kasset connects to it.';
-
 /** Hint under the Local list when nothing is running. */
 export const LOCAL_EMPTY_HINT = 'Nothing running? Start Ollama or LM Studio, then rescan.';
 

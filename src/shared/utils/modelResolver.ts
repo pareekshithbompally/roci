@@ -2,7 +2,7 @@
 
 import type { ModelProvider, Model, ServedModelInfo } from '@shared/types/modelProviders';
 import type { ProviderType } from '@services/ai/types';
-import { MANAGED_SDK_PROVIDERS, MANAGED_SDK_INFO, MANAGED_DEFAULT_URLS, APPLE_INTELLIGENCE } from '@config/providers.config';
+import { MANAGED_SDK_PROVIDERS, MANAGED_DEFAULT_URLS, APPLE_INTELLIGENCE } from '@config/providers.config';
 import { isIntegrationEnabled } from '@shared/utils/integrations';
 import type { AppSettings } from '@shared/types';
 import { getModelDisplayName, getProviderTitle } from '@shared/utils/provider.utils';
@@ -111,9 +111,9 @@ export function isManagedSDK(provider: string): boolean {
   return MANAGED_SDK_PROVIDERS.has(provider);
 }
 
-/** SDK description shown in settings UI for managed providers */
-export function getManagedSDKInfo(provider: string): string | null {
-  return MANAGED_SDK_INFO[provider] ?? null;
+/** Whether Kasset can list the provider's models (and so test its key): a managed SDK, or a base URL to call. */
+export function canListModels(provider: ModelProvider): boolean {
+  return isManagedSDK(provider.provider) || provider.settings.some((s) => s.key === 'base-url');
 }
 
 /** Default base URL for managed providers (used only for model listing) */

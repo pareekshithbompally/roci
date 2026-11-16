@@ -1,61 +1,47 @@
-/** One Providers sidebar row (logo, title, status, switch), shared by cloud providers and local servers. */
+/** One Providers sidebar row (logo, title, detail, status dot), shared by cloud providers and local servers. */
 
 import React from 'react';
 import { ProvidersAvatar } from '@shared/components';
 import { getProviderTitle } from '@shared/utils/provider.utils';
-import { Dot, RowGroupLabel, Surface, Switch, Text } from '@shared/ui';
+import { Dot, RowGroupLabel, Surface, Text } from '@shared/ui';
+import type { DotTone } from '@shared/ui';
 import { activateOnKey } from '@shared/utils/activateOnKey';
 
-export type ProviderStatus = 'running' | 'stopped';
+/** On and usable (key set, server running), on but not usable yet, or off. */
+export type ProviderRowState = 'ready' | 'attention' | 'off';
+
+const ROW_DOT: Record<Exclude<ProviderRowState, 'off'>, DotTone> = { ready: 'success', attention: 'warning' };
 
 interface ProviderListItemProps {
   provider: string;
   selected: boolean;
-  active: boolean;
+  state: ProviderRowState;
   onSelect: () => void;
-  onToggle: (checked: boolean) => void;
   /** Second line under the title (e.g. "12 models", "Not running"). */
   detail?: string;
-  status?: ProviderStatus;
 }
 
-export const ProviderListItem: React.FC<ProviderListItemProps> = ({
-  provider,
-  selected,
-  active,
-  onSelect,
-  onToggle,
-  detail,
-  status,
-}) => {
-  const title = getProviderTitle(provider);
-  return (
-    <Surface
-      radius="md"
-      interactive
-      selected={selected}
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={activateOnKey(onSelect)}
-      className="w-full flex items-center gap-2.5 px-3 py-2 text-left"
-    >
-      <ProvidersAvatar provider={provider} size={20} />
-      <span className="flex-1 min-w-0">
-        <Text as="span" variant="bodyStrong" truncate className="block">{title}</Text>
-        {detail && (
-          <Text as="span" variant="helper" tone="faint" className="flex items-center gap-1.5 truncate">
-            {status && <Dot tone={status === 'running' ? 'success' : 'muted'} size="xs" />}
-            {detail}
-          </Text>
-        )}
-      </span>
-      <div onClick={(e) => e.stopPropagation()}>
-        <Switch size="sm" checked={active} onCheckedChange={onToggle} aria-label={`Toggle ${title}`} />
-      </div>
-    </Surface>
-  );
-};
+export const ProviderListItem: React.FC<ProviderListItemProps> = ({ provider, selected, state, onSelect, detail }) => (
+  <Surface
+    radius="md"
+    interactive
+    selected={selected}
+    role="button"
+    tabIndex={0}
+    onClick={onSelect}
+    onKeyDown={activateOnKey(onSelect)}
+    className="w-full flex items-center gap-2.5 px-3 py-2 text-left"
+  >
+    <ProvidersAvatar provider={provider} size={20} />
+    <span className="flex-1 min-w-0">
+      <Text as="span" variant="bodyStrong" tone={state === 'off' ? 'faint' : undefined} truncate className="block">
+        {getProviderTitle(provider)}
+      </Text>
+      {detail && <Text as="span" variant="helper" tone="faint" truncate className="block">{detail}</Text>}
+    </span>
+    {state !== 'off' && <Dot tone={ROW_DOT[state]} size="xs" />}
+  </Surface>
+);
 
 interface ProviderGroupProps {
   title: string;

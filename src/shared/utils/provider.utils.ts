@@ -1,6 +1,6 @@
 import { LOCAL_PROVIDER_PREFIX, LOCAL_SERVERS, LOCAL_GENERIC_LOGO } from '@config/localServers.config'
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config'
-import type { Model } from '@shared/types/modelProviders'
+import type { Model, ModelProvider } from '@shared/types/modelProviders'
 
 /** Local servers (`local:ollama`, `local:127.0.0.1:9000`) run on this Mac. */
 export function isLocalProviderId(provider: string): boolean {
@@ -78,4 +78,10 @@ export const getProviderTitle = (provider: string | undefined | null) => {
 /** A model's one display name everywhere: the user's rename, else the provider's name, else its id. */
 export function getModelDisplayName(model: Model): string {
   return model.displayName || model.name || model.id
+}
+
+/** A provider setting's saved value (`api-key`, `base-url`); empty when unset. */
+export function providerSetting(provider: ModelProvider, key: string): string {
+  const value = provider.settings.find((s) => s.key === key)?.controller_props.value
+  return typeof value === 'string' ? value : ''
 }

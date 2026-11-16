@@ -3,6 +3,8 @@ export { useUsageData } from './useUsageData';
 export { useAppUpdate, scheduleStartupCheck } from './useAppUpdate';
 export { useLocalServers } from './useLocalServers';
 export { useLocalServerProbe } from './useLocalServerProbe';
+export { useProviderConnection } from './useProviderConnection';
+export type { ConnectionStatus, ProviderConnection } from './useProviderConnection';
 export { useSpeechModelOptions, useSpeechInputReady, useLiveDictation, freshSpeechSources } from './useSpeechModels';
 export type { LiveDictation } from './useSpeechModels';
 export { useMenubarSpeechModels } from './useMenubarSpeechModels';

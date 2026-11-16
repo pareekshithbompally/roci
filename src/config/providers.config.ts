@@ -9,15 +9,6 @@ export const MANAGED_SDK_PROVIDERS = new Set(['openai', 'anthropic', 'gemini', '
 /** Providers whose AI SDK exposes a native web search tool (see `getWebSearchTools`). */
 export const WEB_SEARCH_PROVIDERS = new Set(['openai', 'anthropic', 'gemini', 'groq']);
 
-/** SDK description shown in settings UI */
-export const MANAGED_SDK_INFO: Record<string, string> = {
-  openai: 'Connects directly to the OpenAI API via the AI SDK. No endpoint configuration needed.',
-  anthropic: 'Connects directly to the Anthropic API via the AI SDK. No endpoint configuration needed.',
-  gemini: 'Connects directly to the Google Gemini API via the AI SDK. No endpoint configuration needed.',
-  mistral: 'Connects directly to the Mistral API via the AI SDK. No endpoint configuration needed.',
-  groq: 'Connects directly to the Groq API via the AI SDK. No endpoint configuration needed.',
-};
-
 /** Default base URLs for model listing (not chat — adapters have their own defaults) */
 export const MANAGED_DEFAULT_URLS: Record<string, string> = {
   openai: 'https://api.openai.com/v1',

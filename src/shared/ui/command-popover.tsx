@@ -16,9 +16,14 @@ interface CommandPopoverProps {
   /** The trigger button (rendered via PopoverTrigger asChild). */
   trigger: React.ReactElement;
   searchPlaceholder: string;
+  /** Controlled search text, for callers that act on what was typed (e.g. add a name the list lacks). */
+  search?: string;
+  onSearchChange?: (search: string) => void;
   emptyText: string;
   side?: 'top' | 'bottom';
   align?: 'start' | 'end';
+  /** `false` keeps it on `side` near a window edge (it shortens and scrolls) instead of flipping. */
+  avoidCollisions?: boolean;
   className?: string;
   children: React.ReactNode;
 }
@@ -28,9 +33,12 @@ export function CommandPopover({
   onOpenChange,
   trigger,
   searchPlaceholder,
+  search,
+  onSearchChange,
   emptyText,
   side = 'top',
   align = 'start',
+  avoidCollisions,
   className,
   children,
 }: CommandPopoverProps) {
@@ -40,13 +48,14 @@ export function CommandPopover({
       <PopoverContent
         side={side}
         align={align}
+        avoidCollisions={avoidCollisions}
         sideOffset={UI_CONFIG.picker.sideOffset}
         collisionPadding={UI_CONFIG.picker.collisionPadding}
         width="xl"
         className={cn(SHELL, className)}
       >
         <Command className="min-h-0">
-          <CommandInput placeholder={searchPlaceholder} />
+          <CommandInput placeholder={searchPlaceholder} value={search} onValueChange={onSearchChange} />
           <CommandList className={LIST}>
             <CommandEmpty>{emptyText}</CommandEmpty>
             {children}

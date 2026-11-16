@@ -3,11 +3,6 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('@config/providers.config', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@config/providers.config')>()),
   MANAGED_SDK_PROVIDERS: new Set(['openai', 'anthropic', 'gemini']),
-  MANAGED_SDK_INFO: {
-    openai: 'OpenAI SDK',
-    anthropic: 'Anthropic SDK',
-    gemini: 'Google GenAI SDK',
-  },
   MANAGED_DEFAULT_URLS: {
     openai: 'https://api.openai.com',
     anthropic: 'https://api.anthropic.com',
