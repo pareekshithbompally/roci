@@ -1,4 +1,4 @@
-/** Shared chat layout for ChatView and ChatPanel: messages, composer, citation drawers, speech input. */
+/** Shared chat layout for ChatView and MeetingChatPopout: messages, composer, citation drawers, speech input. */
 
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { ArrowDown, Loader2 } from 'lucide-react';
@@ -279,7 +279,6 @@ export const ChatShell: React.FC<ChatShellProps> = ({
                   tokenCount={message.tokenCount}
                   inputTokenCount={message.inputTokenCount}
                   tokensPerSecond={message.tokensPerSecond}
-                  toolActivity={message.toolActivity}
                   meetingCitations={message.meetingCitations}
                   isCopied={copiedMessageId === message.id}
                   actions={sharedActions}

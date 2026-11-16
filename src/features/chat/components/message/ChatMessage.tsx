@@ -7,7 +7,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({
   id, role, text, parts, meetingRefs, timestamp, suggestions, onSuggestionClick,
   isLastMessage = false, provider, model,
   state = 'complete', loadingStatus, tokenCount, inputTokenCount, tokensPerSecond,
-  toolActivity, meetingCitations,
+  meetingCitations,
   isCopied, actions, citationHandlers,
   webCitations, inlineCitations, isError,
 }) => {
@@ -24,7 +24,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({
           isLastMessage={isLastMessage} provider={provider} model={model}
           state={state} loadingStatus={loadingStatus}
           tokenCount={tokenCount} inputTokenCount={inputTokenCount} tokensPerSecond={tokensPerSecond}
-          toolActivity={toolActivity} meetingCitations={meetingCitations}
+          meetingCitations={meetingCitations}
           isCopied={isCopied} actions={actions} citationHandlers={citationHandlers}
           webCitations={webCitations} inlineCitations={inlineCitations}
           isError={isError}
@@ -47,7 +47,6 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({
     prev.tokenCount === next.tokenCount &&
     prev.inputTokenCount === next.inputTokenCount &&
     prev.tokensPerSecond === next.tokensPerSecond &&
-    prev.toolActivity === next.toolActivity &&
     prev.meetingCitations === next.meetingCitations &&
     prev.actions === next.actions &&
     prev.citationHandlers === next.citationHandlers &&

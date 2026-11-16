@@ -51,7 +51,6 @@ export function extractDataBlob(msg: ChatMessage): Record<string, unknown> | und
   if (msg.parts !== undefined) data.parts = msg.parts;
   if (msg.meetingRefs !== undefined) data.meetingRefs = msg.meetingRefs;
   if (msg.suggestions !== undefined) data.suggestions = msg.suggestions;
-  if (msg.toolActivity !== undefined) data.toolActivity = msg.toolActivity;
   if (msg.meetingCitations !== undefined) data.meetingCitations = msg.meetingCitations;
   if (msg.webCitations !== undefined) data.webCitations = msg.webCitations;
   if (msg.inlineCitations !== undefined) data.inlineCitations = msg.inlineCitations;

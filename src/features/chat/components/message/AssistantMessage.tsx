@@ -118,7 +118,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   suggestions, onSuggestionClick, isLastMessage,
   provider, model, state, loadingStatus,
   tokenCount, inputTokenCount, tokensPerSecond,
-  toolActivity, meetingCitations,
+  meetingCitations,
   isCopied, actions, citationHandlers,
   webCitations, inlineCitations, isError,
 }) => {
@@ -131,31 +131,6 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   const readAloud = useReadAloud(id, text);
   const bodyRef = useRef<HTMLDivElement>(null);
   useSpeechHighlight(bodyRef, readAloud.spoken);
-
-  // Lazy migration: synthesize tool_call parts from legacy toolActivity data
-  const effectiveParts = useMemo(() => {
-    const base = parts || [];
-    if (base.some(p => p.type === 'tool_call')) return base;
-    if (!toolActivity?.calls?.length) return base;
-    return [
-      ...base,
-      ...toolActivity.calls.map((c, index) => ({
-        type: 'tool_call' as const,
-        toolCallId: `legacy-${c.toolName}-${index}`,
-        toolName: c.toolName,
-        arguments: {} as Record<string, unknown>,
-        status: 'complete' as const,
-        result: {
-          content: c.resultSummary || 'Done',
-          isError: false,
-          executionMs: c.executionMs,
-        },
-      })),
-    ];
-  }, [parts, toolActivity]);
-
-  // Merge meetingCitations from both new and legacy sources
-  const effectiveMeetingCitations = meetingCitations || toolActivity?.citations;
 
   return (
     <div className="w-full min-h-15">
@@ -184,7 +159,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
             ) : (
               <CompletedContent
                 text={text}
-                parts={effectiveParts}
+                parts={parts}
                 messageId={id}
                 webCitations={webCitations}
                 inlineCitations={inlineCitations}
@@ -204,7 +179,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
               inputTokenCount={inputTokenCount}
               tokensPerSecond={tokensPerSecond}
               actions={actions}
-              meetingCitations={effectiveMeetingCitations}
+              meetingCitations={meetingCitations}
               suggestions={suggestions}
               onSuggestionClick={onSuggestionClick}
               citationHandlers={citationHandlers}

@@ -133,17 +133,6 @@ export interface ChatMessage {
   cacheWriteTokens?: number;
   /** Tokens per second during streaming */
   tokensPerSecond?: number;
-  /** Metadata about tool calls made during this response (persisted) */
-  toolActivity?: {
-    calls: Array<{
-      toolName: string;
-      executionMs: number;
-      resultSummary?: string;
-    }>;
-    totalIterations: number;
-    /** Citation cards gathered from search_meetings tool calls (UI-only) */
-    citations?: MeetingCitation[];
-  };
   /** Meeting citations gathered from tool calls */
   meetingCitations?: MeetingCitation[];
   /** Web search citations attached to this response */
