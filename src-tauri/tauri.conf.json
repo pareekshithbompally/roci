@@ -112,11 +112,6 @@
         }
       }
     },
-    "windows": {
-      "certificateThumbprint": null,
-      "digestAlgorithm": "sha256",
-      "timestampUrl": ""
-    },
     "iOS": {
       "developmentTeam": "8TV3HMU3KY",
       "minimumSystemVersion": "18.0"
