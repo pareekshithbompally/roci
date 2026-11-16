@@ -2,7 +2,9 @@
 
 import { useCallback } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { DEFAULT_NOTIFICATION_SETTINGS } from '@config/notifications.config';
+import { DEFAULT_NOTIFICATION_SETTINGS, NOTIFICATION_PERMISSION_COPY } from '@config/notifications.config';
+import { useToast } from '@shared/contexts/ToastContext';
+import { errorMessage } from '@shared/utils/errors';
 import { notificationStatus, requestNotifications } from '@services/notifications';
 import { useSystemAccess } from '@features/integrations/hooks/useSystemAccess';
 import type { CalendarAccessStatus } from '@services/calendar/types';
@@ -33,6 +35,7 @@ export function useNotificationControls(): NotificationControls {
   const { settings, setSettings } = useSettings();
   const preferences = settings.notifications ?? DEFAULT_NOTIFICATION_SETTINGS;
   const { access, requestAccess, openSettings } = useSystemAccess(SOURCE);
+  const { showToast } = useToast();
 
   const update = useCallback(
     (patch: Partial<NotificationSettings>) => setSettings({ notifications: { ...preferences, ...patch } }),
@@ -41,7 +44,12 @@ export function useNotificationControls(): NotificationControls {
 
   return {
     access,
-    request: () => { requestAccess().catch((e: unknown) => console.error('[useNotificationControls] request failed:', e)); },
+    request: () => {
+      requestAccess().catch((error: unknown) => {
+        console.error('[useNotificationControls] request failed:', error);
+        showToast(`${NOTIFICATION_PERMISSION_COPY.requestFailed}: ${errorMessage(error)}`, 'error');
+      });
+    },
     openSettings,
     preferences,
     setEnabled: (kind, on) => update({ [kind]: on }),

@@ -12,6 +12,11 @@ export const NOTIFICATION_KINDS: ReadonlyArray<{ kind: NotificationKind; label: 
   { kind: 'todoReminders', label: 'To-do reminders', description: 'At the time you set on a to-do.' },
 ];
 
+/** Settings › Notifications › Allow failing, shown as an error toast with macOS's reason after it. */
+export const NOTIFICATION_PERMISSION_COPY = {
+  requestFailed: 'macOS didn’t ask for notification access',
+} as const;
+
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   meetingReminders: true,
   detectedCalls: true,

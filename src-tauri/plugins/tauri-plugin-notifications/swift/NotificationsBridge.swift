@@ -61,9 +61,15 @@ public func notificationsStatus() -> UnsafeMutablePointer<CChar> {
 public func notificationsRequest() -> UnsafeMutablePointer<CChar> {
     guard supported else { return reply(["status": "unsupported"]) }
     let done = DispatchSemaphore(value: 0)
-    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in done.signal() }
+    var failure: Error?
+    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, error in
+        failure = error
+        done.signal()
+    }
     done.wait()
-    return reply(["status": currentStatus()])
+    var result: [String: Any] = ["status": currentStatus()]
+    if let failure { result["error"] = String(describing: failure) }
+    return reply(result)
 }
 
 /// Registers action categories: `[{"id","actions":[{"id","title"}]}]`.

@@ -131,8 +131,13 @@ pub fn status() -> Status {
 }
 
 /// Raises the macOS prompt when undecided; blocks until answered, so never call it on the main thread.
-pub fn request() -> Status {
-    bridge::request().map_or(Status::NotDetermined, |reply| Status::parse(&reply.status))
+/// `Err` is macOS's reason when it refused to ask at all (e.g. a bundle without a sealed signature).
+pub fn request() -> Result<Status, String> {
+    let reply = bridge::request()?;
+    match reply.error {
+        Some(error) => Err(error),
+        None => Ok(Status::parse(&reply.status)),
+    }
 }
 
 // ── Posting ──
@@ -175,7 +180,10 @@ pub fn post(notice: &Notice) {
         return;
     }
     let status = match status() {
-        Status::NotDetermined => request(),
+        Status::NotDetermined => request().unwrap_or_else(|error| {
+            log::warn!("[notifications] permission request refused: {error}");
+            Status::NotDetermined
+        }),
         status => status,
     };
     match status {

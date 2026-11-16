@@ -19,6 +19,8 @@ extern "C" {
 #[derive(serde::Deserialize)]
 pub struct StatusReply {
     pub status: String,
+    /// Set when macOS refused the request (e.g. an unsigned bundle).
+    pub error: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
