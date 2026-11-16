@@ -99,7 +99,8 @@ const CustomAudioPlayer: React.FC<CustomAudioPlayerProps> = ({ src, duration, me
     normalize: true,
     cursorWidth: 0,
     cursorColor: 'transparent',
-    backend: 'WebAudio',
+    // Default MediaElement backend: wavesurfer's WebAudio backend sets the page's audio session to `playback`,
+    // after which WebKit refuses the microphone (dictation fails with "AudioSession category is not compatible").
     autoplay: false,
     plugins: useMemo(() => [hoverPlugin], []),
   });

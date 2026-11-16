@@ -5,7 +5,9 @@ import { audioToRawText } from '@services/unifiedAIService';
 import { EMPTY_LIVE_TEXT, liveCapture, recordedCapture } from '@services/ai/transcription';
 import type { DictationCapture, LiveText } from '@services/ai/transcription';
 import type { LiveDictation } from '@features/settings';
-import { failureLogger } from '@shared/utils/errors';
+import { errorMessage, failureLogger } from '@shared/utils/errors';
+import { showToast } from '@shared/ui';
+import { DICTATION_COPY } from '@config/chat.config';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { AppSettings } from '@shared/types';
 import { VOICE_ENTER_BEAT_MS } from '@features/chat/components/voice/voiceTransition';
@@ -13,6 +15,21 @@ import { VOICE_ENTER_BEAT_MS } from '@features/chat/components/voice/voiceTransi
 export type SpeechState = 'idle' | 'starting' | 'recording' | 'paused' | 'transcribing';
 
 const report = failureLogger('useSpeechInput');
+
+/** The page's audio session (W3C Audio Session API, WebKit); not in TypeScript's DOM types yet. */
+type AudioSessionType = 'auto' | 'playback' | 'transient' | 'transient-solo' | 'ambient' | 'play-and-record';
+
+/** The microphone only runs while the page's session is `play-and-record` or `auto` (spec); dictation declares it, then hands back. */
+function setAudioSession(type: AudioSessionType): void {
+  const session = (navigator as Navigator & { audioSession?: { type: AudioSessionType } }).audioSession;
+  if (session) session.type = type;
+}
+
+/** A dictation failure is logged and told to the user with its reason (the pill closes either way). */
+function fail(step: string, copy: string, error: unknown): void {
+  report(step)(error);
+  showToast(`${copy}: ${errorMessage(error)}`, 'error');
+}
 
 export interface UseSpeechInputResult {
   state: SpeechState;
@@ -76,6 +93,7 @@ export function useSpeechInput(
     stopTracks(streamRef.current);
     streamRef.current = null;
     captureRef.current = null;
+    setAudioSession('auto');
     if (!mountedRef.current) return;
     setStream(null);
     setLiveText(null);
@@ -92,6 +110,7 @@ export function useSpeechInput(
       streamRef.current = null;
       captureRef.current?.cancel();
       captureRef.current = null;
+      setAudioSession('auto');
     };
   }, [stopTimer]);
 
@@ -116,9 +135,10 @@ export function useSpeechInput(
     let micStream: MediaStream;
     let capture: DictationCapture;
     try {
+      setAudioSession('play-and-record');
       micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (error: unknown) {
-      report('open the microphone')(error);
+      fail('open the microphone', DICTATION_COPY.startFailed, error);
       cleanup();
       if (mountedRef.current) setState('idle');
       return;
@@ -127,7 +147,7 @@ export function useSpeechInput(
       // Capture starts now — no audio is lost.
       capture = await beginCapture(micStream);
     } catch (error: unknown) {
-      report('start capture')(error);
+      fail('start capture', DICTATION_COPY.startFailed, error);
       stopTracks(micStream);
       cleanup();
       if (mountedRef.current) setState('idle');
@@ -191,7 +211,7 @@ export function useSpeechInput(
       // A master-cancel during transcription wins over the late result.
       return transcriptionCancelledRef.current ? '' : text;
     } catch (error: unknown) {
-      report('transcribe')(error);
+      fail('transcribe', DICTATION_COPY.transcribeFailed, error);
       return '';
     } finally {
       transcriptionCancelledRef.current = false;

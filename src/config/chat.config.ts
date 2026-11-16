@@ -26,6 +26,12 @@ export const SPOTLIGHT_RESULTS_PER_SOURCE = 6;
 /** A tool row keeps this much of a tool's output for its expanded view. */
 export const TOOL_RESULT_PREVIEW_CHARS = 500;
 
+/** Dictation failures, shown as an error toast with the reason after them. */
+export const DICTATION_COPY = {
+  startFailed: 'Couldn’t start dictation',
+  transcribeFailed: 'Couldn’t transcribe dictation',
+} as const;
+
 /** What a reply's header says before its first word, in the order it's checked. */
 export const CHAT_LOADING_COPY = {
   'loading-weights': 'Loading weights',
