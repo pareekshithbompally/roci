@@ -1,6 +1,7 @@
 // Components
 export { 
-  SettingsPanel, 
+  SettingsPanel,
+  SettingsHome, 
   ProvidersPanel, 
   GeneralPanel,
   CapabilitiesPanel,

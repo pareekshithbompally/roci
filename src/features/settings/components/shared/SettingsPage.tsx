@@ -1,6 +1,7 @@
 import React from 'react';
 import { LAYOUT } from '@config/layout.config';
 import { PageScroll, Text, TitlebarSpacer } from '@shared/ui';
+import { useFormFactor } from '@platform/formFactor';
 
 interface SettingsPageHeaderProps {
   title: React.ReactNode;
@@ -29,8 +30,24 @@ interface SettingsPageProps extends SettingsPageHeaderProps {
 /** The page column every pane shares: centred, its header the same distance from the titlebar. */
 const COLUMN = `${LAYOUT.pageColumn} pt-6`;
 
+/** Phone: the screen's bar already shows the title; the description is a short intro, the screen scrolls. */
+const PhonePage: React.FC<SettingsPageProps> = ({ description, accessory, children }) => (
+  <div className="flex flex-col gap-6 px-4 pb-6">
+    {(description || accessory) && (
+      <div className="flex items-start justify-between gap-4">
+        {description && <Text as="p" tone="muted">{description}</Text>}
+        {accessory && <div className="flex shrink-0 items-center gap-1">{accessory}</div>}
+      </div>
+    )}
+    {children}
+  </div>
+);
+
 /** The one frame of every settings pane (titlebar clearance, gutter, header, section spacing). */
-export const SettingsPage: React.FC<SettingsPageProps> = ({ layout = 'scroll', children, ...header }) =>
+export const SettingsPage: React.FC<SettingsPageProps> = (props) =>
+  useFormFactor() === 'phone' ? <PhonePage {...props} /> : <DesktopPage {...props} />;
+
+const DesktopPage: React.FC<SettingsPageProps> = ({ layout = 'scroll', children, ...header }) =>
   layout === 'scroll' ? (
     <PageScroll className={`h-full ${LAYOUT.pageGutter} pb-6`}>
       <div className={`${COLUMN} space-y-6`}>

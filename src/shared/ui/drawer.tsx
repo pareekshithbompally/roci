@@ -45,6 +45,7 @@ export function Drawer({ open, onClose, label, side = 'end', children }: DrawerP
         onKeyDown={closeOnEscape}
         className={cn('absolute flex flex-col overflow-hidden transition-transform duration-300 ease-out', placement.panel, !open && placement.closed)}
       >
+        {side === 'bottom' && <div aria-hidden className="mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-layer-4" />}
         <div className={cn('flex min-h-0 flex-1 flex-col', NO_INSETS)}>{children}</div>
       </Surface>
     </div>

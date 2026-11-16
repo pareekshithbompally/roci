@@ -12,18 +12,20 @@ export interface SettingsNavItem {
   id: SettingsPanelType;
   label: string;
   icon: LucideIcon;
+  /** Heading of the group the row sits in on a phone's grouped Settings list. */
+  group: string;
   /** False hides the section on devices without the feature; omitted means always shown. */
   available?: boolean;
 }
 
 export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
-  { id: 'general', label: 'General', icon: Settings2 },
-  { id: 'capabilities', label: 'Capabilities', icon: Sparkles },
-  { id: 'providers', label: 'Providers', icon: Cpu },
-  { id: 'integrations', label: 'Integrations', icon: Blocks, available: hasIntegrations },
-  { id: 'notifications', label: 'Notifications', icon: Bell, available: platform.hasNotifications },
-  { id: 'mcp', label: 'MCP Servers', icon: Server, available: platform.supportsChildProcessMcp },
-  { id: 'usage', label: 'Usage', icon: ChartColumn },
+  { id: 'general', label: 'General', icon: Settings2, group: 'App' },
+  { id: 'capabilities', label: 'Capabilities', icon: Sparkles, group: 'App' },
+  { id: 'providers', label: 'Providers', icon: Cpu, group: 'AI' },
+  { id: 'integrations', label: 'Integrations', icon: Blocks, group: 'Connections', available: hasIntegrations },
+  { id: 'notifications', label: 'Notifications', icon: Bell, group: 'Connections', available: platform.hasNotifications },
+  { id: 'mcp', label: 'MCP Servers', icon: Server, group: 'Connections', available: platform.supportsChildProcessMcp },
+  { id: 'usage', label: 'Usage', icon: ChartColumn, group: 'Activity' },
 ];
 
 export const SettingsNav: React.FC = () => {

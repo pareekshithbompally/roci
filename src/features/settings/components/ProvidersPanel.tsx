@@ -1,10 +1,10 @@
 /** Master-detail providers layout; selectedProviderName is the source of truth, localStorage seeds first mount. */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { getProviderTitle, isLocalProviderId, providerSetting } from '@shared/utils/provider.utils';
 import { ProvidersAvatar } from '@shared/components';
-import { Card, CardRow, PushScreen, ScrollArea, Text } from '@shared/ui';
+import { Card, CardRow, ScrollArea, Text, useNavStack } from '@shared/ui';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { ProviderGroup, ProviderListItem, ProviderStatus } from './ProviderListItem';
 import type { ProviderRowState } from './ProviderListItem';
@@ -21,10 +21,20 @@ function cloudRowState(provider: ModelProvider): ProviderRowState {
   return providerSetting(provider, 'api-key') ? 'ready' : 'attention';
 }
 
+/** A provider's detail on its own screen; reads the provider by id so edits show at once. */
+const ProviderDetailScreen: React.FC<{ id: string }> = ({ id }) => {
+  const provider = useSettings().providers.find((p) => p.provider === id);
+  return provider ? (
+    <div className="flex flex-col gap-6 p-4">
+      <ProviderDetail provider={provider} />
+    </div>
+  ) : null;
+};
+
 /** Phone: one row per provider (logo, name, state); a row pushes its detail. */
 const PhoneProviders: React.FC<{ providers: ModelProvider[] }> = ({ providers }) => {
-  const [openId, setOpenId] = useState<string | null>(null);
-  const opened = providers.find((p) => p.provider === openId);
+  const { push } = useNavStack();
+  const open = (id: string) => push({ title: getProviderTitle(id), content: <ProviderDetailScreen id={id} /> });
 
   return (
     <div className="p-4">
@@ -35,17 +45,10 @@ const PhoneProviders: React.FC<{ providers: ModelProvider[] }> = ({ providers })
             title={getProviderTitle(provider.provider)}
             leading={<ProvidersAvatar provider={provider.provider} size={20} />}
             status={<ProviderStatus state={cloudRowState(provider)} />}
-            onOpen={() => setOpenId(provider.provider)}
+            onOpen={() => open(provider.provider)}
           />
         ))}
       </Card>
-      <PushScreen open={!!opened} title={opened && getProviderTitle(opened.provider)} backLabel="Providers" onBack={() => setOpenId(null)}>
-        {opened && (
-          <div className="flex flex-col gap-6 p-4">
-            <ProviderDetail provider={opened} />
-          </div>
-        )}
-      </PushScreen>
     </div>
   );
 };

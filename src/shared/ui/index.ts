@@ -50,5 +50,5 @@ export { Toaster, showToast, dismissToast } from './sonner';
 export type { ToastTone, ToastAction } from './sonner';
 export { TopBar } from './top-bar';
 export type { TopBarProps } from './top-bar';
-export { PushScreen } from './push-screen';
-export type { PushScreenProps } from './push-screen';
+export { NavStack, useNavStack } from './nav-stack';
+export type { NavScreen, NavStackProps } from './nav-stack';

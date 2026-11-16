@@ -1,4 +1,4 @@
-export { SettingsPanel } from './SettingsPanel';
+export { SettingsPanel, SettingsHome } from './SettingsPanel';
 export { SettingsNav, SETTINGS_NAV_ITEMS } from './SettingsNav';
 export type { SettingsNavItem } from './SettingsNav';
 export { ProvidersPanel } from './ProvidersPanel';

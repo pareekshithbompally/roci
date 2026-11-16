@@ -1,14 +1,14 @@
 /** iPhone shell: a plain chatbot — top bar (sidebar · model · New chat / Record), the content; the sidebar slides over from the left, Settings rises as a sheet. */
 
 import React from 'react';
-import { PanelLeft, SquarePen } from 'lucide-react';
+import { PanelLeft, SquarePen, X } from 'lucide-react';
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
 import { useAppActions, useCurrentView } from '@shared/stores/appStore';
 import { ModelPicker, startNewChat } from '@features/chat';
-import { SettingsPanel } from '@features/settings';
+import { SettingsHome } from '@features/settings';
 import { useRecordingBusy, useRecordingMeetingId, useStartRecording } from '@features/recording';
 import { platform } from '@platform/index';
-import { Button, Dot, Drawer, IconButton, Surface, TopBar } from '@shared/ui';
+import { Button, Dot, Drawer, IconButton, NavStack, Surface, TopBar } from '@shared/ui';
 import { Sidebar } from './Sidebar';
 
 interface PhoneShellProps {
@@ -49,8 +49,11 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children, onSearchClick 
         <Sidebar shouldOffsetMacControls={false} onSearchClick={onSearchClick} />
       </Drawer>
       <Drawer side="bottom" open={inSettings} onClose={leaveSettings} label="Settings">
-        <TopBar title="Settings" trailing={<Button variant="link" size="inline" onClick={leaveSettings}>Done</Button>} />
-        <div className="relative min-h-0 flex-1">{inSettings && <SettingsPanel />}</div>
+        {inSettings && (
+          <NavStack title="Settings" action={<IconButton icon={X} label="Close" size="fab" variant="outline" onClick={leaveSettings} />}>
+            <SettingsHome />
+          </NavStack>
+        )}
       </Drawer>
     </Surface>
   );
