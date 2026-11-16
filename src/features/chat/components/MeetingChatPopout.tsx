@@ -6,7 +6,7 @@ import { IconButton, Surface, Text } from '@shared/ui';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { meetingReferenceService } from '@services/meetingReferenceService';
 import { UI_CONFIG } from '@config/ui.config';
-import { closeMeetingChat, expandMeetingChat, useChatStore } from '@features/chat/stores/chatStore';
+import { closeMeetingChat, expandMeetingChat, useChatCurrentSessionId, useChatStore } from '@features/chat/stores/chatStore';
 import { ChatShell } from './ChatShell';
 
 interface MeetingChatPopoutProps {
@@ -40,23 +40,25 @@ function useMeetingDraft(meetingId: string): () => void {
   return () => start.current();
 }
 
-const { chatPopout, titlebar } = UI_CONFIG.layout;
+const { meetingChat, titlebar } = UI_CONFIG.layout;
 
 /** Bottom-right, `inset` from the window edges; shorter than `maxHeight` only when the window can't fit it below the titlebar. */
 const POPOUT_GEOMETRY: React.CSSProperties = {
-  right: chatPopout.inset,
-  bottom: chatPopout.inset,
-  width: chatPopout.width,
-  height: `min(${chatPopout.maxHeight}px, calc(100vh - ${titlebar.safeArea + chatPopout.inset}px))`,
+  right: meetingChat.inset,
+  bottom: meetingChat.inset,
+  width: meetingChat.popout.width,
+  height: `min(${meetingChat.popout.maxHeight}px, calc(100vh - ${titlebar.safeArea + meetingChat.inset}px))`,
 };
 
 export const MeetingChatPopout: React.FC<MeetingChatPopoutProps> = ({ meetingId, meetingTitle }) => {
   const startNew = useMeetingDraft(meetingId);
+  // A chat exists once its first message is sent; before that the window already is a new chat.
+  const hasConversation = useChatCurrentSessionId() !== null;
 
   const header = (
     <Surface edge="bottom" className="flex items-center gap-1 pl-4 pr-2 h-11 shrink-0">
       <Text as="h2" variant="bodyStrong" truncate className="flex-1">{meetingTitle}</Text>
-      <IconButton icon={SquarePen} label="New chat" size="sm" onClick={startNew} />
+      {hasConversation && <IconButton icon={SquarePen} label="New chat" size="sm" onClick={startNew} />}
       <IconButton icon={Maximize2} label="Open full chat" size="sm" onClick={expandMeetingChat} />
       <IconButton icon={ChevronDown} label="Minimize" size="sm" onClick={closeMeetingChat} />
     </Surface>

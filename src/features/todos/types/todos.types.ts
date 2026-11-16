@@ -54,20 +54,3 @@ export function calculateTodoStats(todos: Todo[]): TodoStats {
     overdue: todos.filter(t => !t.completed && isOverdue(t.dueDate)).length,
   };
 }
-
-export interface TodosState {
-  todos: Todo[];
-  isLoading: boolean;
-  error: string | null;
-  isCreating: boolean;
-}
-
-export interface TodosActions {
-  loadTodos: (meetingId: string) => Promise<void>;
-  addTodo: (text: string, dueDate?: string) => Promise<void>;
-  updateTodo: (todoId: string, updates: { text?: string; dueDate?: string }) => Promise<void>;
-  deleteTodo: (todoId: string) => Promise<void>;
-  toggleTodo: (todoId: string) => Promise<void>;
-  clearTodos: () => void;
-  setCreating: (isCreating: boolean) => void;
-}

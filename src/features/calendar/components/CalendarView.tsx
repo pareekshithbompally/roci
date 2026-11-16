@@ -208,7 +208,7 @@ export const CalendarView: React.FC = () => {
       )}
 
       {/* Event detail popover */}
-      {popoverEvent && (
+      {popoverEvent && popoverRect && (
         <EventPopover
           event={popoverEvent}
           anchorRect={popoverRect}

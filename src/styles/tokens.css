@@ -77,6 +77,9 @@
   --bg-knob: var(--grey-50);
   --bg-hover: rgb(0 0 0 / 0.04);
   --bg-pressed: rgb(0 0 0 / 0.08);
+  /* Pop-up buttons (pickers): a tint, so they read on the page, on a grouped card, and in dark mode alike. */
+  --bg-control: rgb(0 0 0 / 0.05);
+  --bg-control-hover: rgb(0 0 0 / 0.09);
   --bg-scrim: rgb(0 0 0 / 0.4);
   /* macOS vibrancy material; opaque in light (window material follows the system, not the app) */
   --bg-base-glass: var(--bg-base);
@@ -153,6 +156,8 @@
   --bg-inverse: var(--grey-50);
   --bg-hover: rgb(255 255 255 / 0.06);
   --bg-pressed: rgb(255 255 255 / 0.1);
+  --bg-control: rgb(255 255 255 / 0.08);
+  --bg-control-hover: rgb(255 255 255 / 0.12);
   --bg-scrim: rgb(0 0 0 / 0.6);
   --bg-speaking: color-mix(in srgb, var(--bg-accent) 30%, transparent);
   --bg-base-glass: color-mix(in srgb, var(--grey-1100) 90%, transparent);

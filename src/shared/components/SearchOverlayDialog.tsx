@@ -215,19 +215,17 @@ function SearchStatus({ query, isSearching, error }: SearchStatusProps) {
         icon={Search}
         message="Search meetings & chats"
         description="Type to find anything across your sessions"
-        className="flex-1"
       />
     );
   }
   if (isSearching) {
-    return <EmptyState icon={Search} message="Searching…" className="flex-1" />;
+    return <EmptyState icon={Search} message="Searching…" />;
   }
   return (
     <EmptyState
       icon={SearchX}
       message={`No results for “${query}”`}
       description={error ?? 'Try different keywords'}
-      className="flex-1"
     />
   );
 }

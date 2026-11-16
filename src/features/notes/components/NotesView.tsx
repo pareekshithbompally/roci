@@ -1,31 +1,26 @@
-/** Notes view with the list and an editor for new notes. */
+/** Notes view with the list and an editor for new notes; the tab bar's Add opens the editor. */
 
 import React from 'react';
-import { Plus, Loader2, StickyNote } from 'lucide-react';
+import { Loader2, StickyNote } from 'lucide-react';
 import { useNotes } from '@features/notes/hooks';
 import { EmptyState } from '@shared/components';
 import { confirmDelete } from '@shared/stores/confirmStore';
 import NoteItem from './NoteItem';
 import NoteEditor from './NoteEditor';
-import { Button, Callout, Card, Icon, Text } from '@shared/ui';
+import { Callout, Card, Icon, Text, cn } from '@shared/ui';
 
 interface NotesViewProps {
+  /** The new-note editor is open (the meeting's tab bar Add opens it). */
+  creating: boolean;
+  onCreatingChange: (creating: boolean) => void;
   className?: string;
 }
 
-const NotesView: React.FC<NotesViewProps> = ({ className = '' }) => {
-  const {
-    notes,
-    isLoading,
-    error,
-    isCreating,
-    addNote,
-    updateNote,
-    deleteNote,
-    setCreating,
-  } = useNotes();
+const NotesView: React.FC<NotesViewProps> = ({ creating, onCreatingChange, className = '' }) => {
+  const { notes, isLoading, error, addNote, updateNote, deleteNote } = useNotes();
 
   const handleSaveNote = async (text: string) => {
+    onCreatingChange(false);
     await addNote(text);
   };
 
@@ -35,7 +30,7 @@ const NotesView: React.FC<NotesViewProps> = ({ className = '' }) => {
   };
 
   const handleCancel = () => {
-    setCreating(false);
+    onCreatingChange(false);
   };
 
   // Loading state
@@ -57,24 +52,16 @@ const NotesView: React.FC<NotesViewProps> = ({ className = '' }) => {
   }
 
   return (
-    <div className={`flex flex-col flex-1 gap-y-3 ${className}`}>
-      {/* Top action bar - always visible */}
-      <div className="flex items-center gap-4 shrink-0">
-        <div className="flex-1">
-          {notes.length > 0 && (
-            <Text variant="label" tone="muted">
-              {notes.length} {notes.length === 1 ? 'note' : 'notes'}
-            </Text>
-          )}
-        </div>
-        <Button variant="primary" size="sm" onClick={() => setCreating(true)} disabled={isCreating}>
-          <Icon icon={Plus} size="xs" />
-          Add Note
-        </Button>
-      </div>
+    <div className={cn('flex flex-1 flex-col gap-y-3', className)}>
+      {/* Count, once there are notes */}
+      {notes.length > 0 && (
+        <Text variant="label" tone="muted" className="shrink-0">
+          {notes.length} {notes.length === 1 ? 'note' : 'notes'}
+        </Text>
+      )}
 
       {/* New note editor */}
-      {isCreating && (
+      {creating && (
         <NoteEditor
           onSave={handleSaveNote}
           onCancel={handleCancel}
@@ -83,10 +70,8 @@ const NotesView: React.FC<NotesViewProps> = ({ className = '' }) => {
       )}
 
       {/* Content: empty state or notes list */}
-      {notes.length === 0 && !isCreating ? (
-        <div className="flex-1 flex items-center justify-center">
-          <EmptyState icon={StickyNote} message="No notes yet" />
-        </div>
+      {notes.length === 0 && !creating ? (
+        <EmptyState icon={StickyNote} message="No notes yet" />
       ) : notes.length > 0 ? (
         <Card>
           {notes.map((note) => (

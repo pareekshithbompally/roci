@@ -7,7 +7,7 @@ import { Icon, type IconSize } from './icon';
 /** Canonical button: colour lives in `variant`, shape in `size`; call sites never pass colour or padding classes. */
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'success' | 'accent' | 'ghost' | 'dangerGhost' | 'link' | 'ai';
 
-export type ButtonSize = 'inline' | 'toolbar' | 'sm' | 'md' | 'icon' | 'iconSm' | 'iconXs';
+export type ButtonSize = 'inline' | 'toolbar' | 'sm' | 'md' | 'icon' | 'iconSm' | 'iconXs' | 'fab';
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary: 'bg-inverse text-inverse hover:opacity-90',
@@ -36,6 +36,8 @@ const SIZE_CLASSES: Record<ButtonSize, string> = {
   iconSm: 'h-7 w-7 rounded-full',
   /** Inline row actions (tray rows, list rows) */
   iconXs: 'h-6 w-6 rounded-md',
+  /** Floating action button: the one round action pinned to a window corner (meeting chat) */
+  fab: 'h-11 w-11 rounded-full',
 };
 
 const BASE_CLASSES =
@@ -78,7 +80,7 @@ export interface IconButtonProps extends Omit<ButtonProps, 'size' | 'children'> 
   icon: LucideIcon;
   /** Accessible name — required: an icon alone has none. */
   label: string;
-  size?: 'toolbar' | 'sm' | 'md';
+  size?: 'toolbar' | 'sm' | 'md' | 'fab';
   /** Solid glyph (stop / play / pause) */
   filled?: boolean;
   /** Rotate the glyph while work runs (Rescan, Sync) */
@@ -91,6 +93,7 @@ const ICON_BUTTON_SIZES: Record<NonNullable<IconButtonProps['size']>, { button: 
   toolbar: { button: 'toolbar', icon: 'xs' },
   sm: { button: 'iconSm', icon: 'sm' },
   md: { button: 'icon', icon: 'md' },
+  fab: { button: 'fab', icon: 'md' },
 };
 
 export function IconButton({ icon, label, size = 'md', variant = 'ghost', filled, spin, ...props }: IconButtonProps) {

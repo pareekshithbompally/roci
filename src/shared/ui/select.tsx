@@ -1,9 +1,9 @@
 import * as SelectPrimitive from '@radix-ui/react-select';
-import { ChevronDown } from 'lucide-react';
+import { ChevronsUpDown } from 'lucide-react';
 import type React from 'react';
 import type { ComponentProps } from 'react';
 import { cn } from './utils';
-import { FIELD, MENU_LIST, MENU_ITEM, MENU_LABEL, MENU_SEPARATOR } from './recipes';
+import { POPUP_BUTTON, MENU_LIST, MENU_ITEM, MENU_LABEL, MENU_SEPARATOR } from './recipes';
 
 export const Select = SelectPrimitive.Root;
 export const SelectGroup = SelectPrimitive.Group;
@@ -13,8 +13,9 @@ export function SelectTrigger({ className, children, ...props }: ComponentProps<
   return (
     <SelectPrimitive.Trigger
       className={cn(
-        FIELD,
-        'h-8 flex items-center justify-between gap-2 min-w-0 overflow-hidden data-[placeholder]:text-faint',
+        POPUP_BUTTON,
+        // Hugs its value like a macOS pop-up button, up to its container's width (then the value truncates).
+        'w-auto max-w-full flex items-center gap-2 min-w-0 overflow-hidden data-[placeholder]:text-faint',
         // Radix renders Select.Value as the direct span child: let it shrink, not push the chevron out.
         '[&>span]:min-w-0 [&>span]:truncate',
         className,
@@ -23,19 +24,21 @@ export function SelectTrigger({ className, children, ...props }: ComponentProps<
     >
       {children}
       <SelectPrimitive.Icon asChild>
-        <ChevronDown className="h-4 w-4 text-muted shrink-0" />
+        <ChevronsUpDown className="h-3.5 w-3.5 text-muted shrink-0" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );
 }
 
-export function SelectContent({ className, children, position = 'popper', ...props }: ComponentProps<typeof SelectPrimitive.Content>) {
+/** Opens under its pop-up button, right edges aligned (pickers sit at the end of their row). */
+export function SelectContent({ className, children, position = 'popper', align = 'end', ...props }: ComponentProps<typeof SelectPrimitive.Content>) {
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
         // About eight rows at most (never more than the room below the trigger); the list scrolls inside.
         className={cn(MENU_LIST, 'p-0 overflow-hidden max-h-[min(16rem,var(--radix-select-content-available-height))]', className)}
         position={position}
+        align={align}
         sideOffset={position === 'popper' ? 4 : undefined}
         {...props}
       >

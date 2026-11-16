@@ -10,6 +10,4 @@ export { NotesView, NoteItem, NoteEditor } from './components';
 export type {
   Note,
   NoteInput,
-  NotesState,
-  NotesActions,
 } from './types';

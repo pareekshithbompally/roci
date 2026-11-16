@@ -369,7 +369,7 @@ export const RemindersView: React.FC = () => {
       </Surface>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
+      <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar">
         {/* Create form */}
         {isCreating && (
           <div className="px-5 pt-4">

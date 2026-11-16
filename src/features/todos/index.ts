@@ -13,6 +13,4 @@ export type {
   TodoInput,
   TodoPriority,
   TodoStats,
-  TodosState,
-  TodosActions,
 } from './types';

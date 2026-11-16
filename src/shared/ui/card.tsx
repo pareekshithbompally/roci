@@ -2,10 +2,10 @@ import React from 'react';
 import { cn } from './utils';
 import { Text } from './text';
 
-/** Grouped settings surface: muted label above a raised card; rows 48px (60px with description), inset hairlines. */
+/** Grouped settings surface (macOS grouped section): muted label above a filled card; rows 48px (60px with description), inset hairlines. */
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('bg-base shadow-raised rounded-lg px-4 divide-y divide-muted', className)} {...props} />;
+  return <div className={cn('bg-layer-2 rounded-xl px-4 divide-y divide-muted', className)} {...props} />;
 }
 
 export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {

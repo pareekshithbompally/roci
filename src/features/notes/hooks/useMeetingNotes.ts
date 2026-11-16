@@ -1,7 +1,7 @@
 /** One meeting's notes via TanStack Query, with optimistic mutations and rollback. */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { store } from '@services/db';
 import { queryKeys } from '@shared/query/queryKeys';
 import type { NoteEntry } from '@shared/types';
@@ -21,7 +21,6 @@ function mapEntryToNote(entry: NoteEntry, meetingId: string): Note {
 
 export function useMeetingNotes(meetingId: string | null) {
   const queryClient = useQueryClient();
-  const [isCreating, setIsCreating] = useState(false);
 
   const {
     data: notes = [],
@@ -122,7 +121,6 @@ export function useMeetingNotes(meetingId: string | null) {
   const addNote = useCallback(
     async (text: string) => {
       if (!meetingId) return;
-      setIsCreating(false);
       await addNoteMutate.mutateAsync(text);
     },
     [meetingId, addNoteMutate]
@@ -144,20 +142,15 @@ export function useMeetingNotes(meetingId: string | null) {
     [meetingId, deleteNoteMutate]
   );
 
-  const setCreating = useCallback((v: boolean) => setIsCreating(v), []);
-
   return {
     notes,
     isLoading,
     error: queryError,
-    isCreating,
     meetingId,
     notesCount: notes.length,
     hasNotes: notes.length > 0,
     addNote,
     updateNote,
     deleteNote,
-    clearNotes: () => {},
-    setCreating,
   };
 }

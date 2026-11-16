@@ -1,8 +1,8 @@
 /** Processed meeting results with tabs for summary, transcript, todos, and notes. */
 
 import React, { useState, useEffect } from 'react';
-import { Pencil, Sparkles, Clock, Users, ExternalLink } from 'lucide-react';
-import { useAppResult, useActiveResultTab, useSelectedHistoryId, useMeetingChatOpen, useAppActions } from '@shared/stores/appStore';
+import { Pencil, Plus, Clock, Users, ExternalLink } from 'lucide-react';
+import { useAppResult, useActiveResultTab, useSelectedHistoryId, useAppActions } from '@shared/stores/appStore';
 import type { ResultTab } from '@shared/stores/appStore';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { SummaryView } from '@features/summary';
@@ -33,6 +33,7 @@ import {
   Text,
   TitlebarSpacer,
   Tooltip,
+  cn,
 } from '@shared/ui';
 import type { TabItem } from '@shared/ui';
 
@@ -42,6 +43,9 @@ const TAB_ITEMS: readonly TabItem<ResultTab>[] = [
   { value: 'todo', label: 'To-Do' },
   { value: 'notes', label: 'Notes' },
 ];
+
+/** Tabs that hold the user's own items: the tab bar's + adds one. */
+const ADD_LABELS: Partial<Record<ResultTab, string>> = { todo: 'Add to-do', notes: 'Add note' };
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -134,8 +138,7 @@ export const ResultsView: React.FC = () => {
   const result = useAppResult();
   const activeResultTab = useActiveResultTab();
   const selectedHistoryId = useSelectedHistoryId();
-  const meetingChatOpen = useMeetingChatOpen();
-  const { setActiveResultTab, setMeetingChatOpen, setResult } = useAppActions();
+  const { setActiveResultTab, setResult } = useAppActions();
   const { items: historyItems, renameItem } = useHistoryData();
 
   const currentHistoryItem = selectedHistoryId
@@ -150,6 +153,15 @@ export const ResultsView: React.FC = () => {
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
+  /** The tab whose new-item form is open (To-Do or Notes); one at a time, closed when the meeting changes. */
+  const [draftingTab, setDraftingTab] = useState<ResultTab | null>(null);
+  const addLabel = ADD_LABELS[activeResultTab];
+  const draftProps = (tab: ResultTab) => ({
+    creating: draftingTab === tab,
+    onCreatingChange: (creating: boolean) => setDraftingTab(creating ? tab : null),
+  });
+
+  useEffect(() => setDraftingTab(null), [selectedHistoryId]);
 
   // Sync the editable title when a new result loads.
   useEffect(() => {
@@ -233,17 +245,16 @@ export const ResultsView: React.FC = () => {
       <Surface edge="bottom" className={LAYOUT.pageGutter}>
       <div className={`${LAYOUT.pageColumn} flex items-center gap-2 h-11`}>
         <Tabs items={TAB_ITEMS} value={activeResultTab} onValueChange={setActiveResultTab} />
-        <div className="flex items-center gap-2 ml-auto">
-          <Button
-            variant={meetingChatOpen ? 'ai' : 'ghost'}
-            size="iconSm"
-            onClick={() => setMeetingChatOpen(!meetingChatOpen)}
-            aria-label="Chat about this meeting"
-            title="Chat about this meeting"
-          >
-            <Icon icon={Sparkles} size="xs" tone={meetingChatOpen ? 'inherit' : 'ai'} />
-          </Button>
-        </div>
+        {addLabel && (
+          <IconButton
+            icon={Plus}
+            label={addLabel}
+            size="sm"
+            className="ml-auto"
+            disabled={draftingTab === activeResultTab}
+            onClick={() => setDraftingTab(activeResultTab)}
+          />
+        )}
       </div>
       </Surface>
 
@@ -257,11 +268,11 @@ export const ResultsView: React.FC = () => {
       )}
 
       {/* Tab Content */}
-      <div className={`flex-1 overflow-y-auto custom-scrollbar ${LAYOUT.pageGutter} py-4`}>
+      <div className={cn('flex-1 overflow-y-auto custom-scrollbar pt-4', LAYOUT.pageGutter, LAYOUT.meetingChatClearance)}>
       <div className={`${LAYOUT.pageColumn} min-h-full flex flex-col`}>
         {activeResultTab === 'summary' && (
           <>
-            {stats && (
+            {stats && (result.summary || result.structuredSummary) && (
               <div className="mb-4">
                 <ModelCreditLine transcribedBy={stats.transcribedBy} summarizedBy={stats.summarizedBy} />
               </div>
@@ -278,10 +289,10 @@ export const ResultsView: React.FC = () => {
           <ParsedTranscript text={result.transcript} segments={result.segments} />
         )}
         {activeResultTab === 'todo' && (
-          <TodoList />
+          <TodoList {...draftProps('todo')} />
         )}
         {activeResultTab === 'notes' && (
-          <NotesView />
+          <NotesView {...draftProps('notes')} />
         )}
       </div>
       </div>

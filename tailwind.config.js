@@ -24,7 +24,7 @@ export default {
       // ─── Semantic roles (tokens.css). Alpha lives in the token: no `/NN` modifiers. ───
       backgroundColor: {
         ...roles('bg', ['base', 'deep', 'layer-1', 'layer-2', 'layer-3', 'layer-4', 'inverse', 'accent', 'knob',
-          'hover', 'pressed', 'scrim', 'base-glass', 'deep-glass', 'raised-glass', 'glow-core', 'glow-companion', 'glow-wash']),
+          'hover', 'pressed', 'control', 'control-hover', 'scrim', 'base-glass', 'deep-glass', 'raised-glass', 'glow-core', 'glow-companion', 'glow-wash']),
         ...stateRoles('bg', '-subtle'),
         ...stateRoles('solid'),
         separator: 'var(--border-muted)',

@@ -3,9 +3,10 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { cn } from './utils';
-import { FIELD } from './recipes';
+import { POPUP_BUTTON } from './recipes';
 import { IconButton } from './button';
 import { Popover, PopoverTrigger, PopoverContent } from './popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './select';
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -212,7 +213,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         <button
           type="button"
           disabled={disabled}
-          className={cn(FIELD, 'h-8 inline-flex items-center gap-1.5 w-auto', !value && 'text-faint', className)}
+          className={cn(POPUP_BUTTON, 'inline-flex items-center gap-1.5 w-auto', !value && 'text-faint', className)}
         >
           <Calendar className="w-3 h-3 shrink-0" />
           <span className="truncate">{value ? formatDisplayDate(value) : placeholder}</span>
@@ -248,25 +249,16 @@ function formatTimeLabel(hhmm: string): string {
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
-export const TimePicker: React.FC<TimePickerProps> = ({
-  value,
-  onChange,
-  disabled,
-  className,
-}) => {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={disabled}
-      className={cn(FIELD, 'h-8 w-auto pr-6 appearance-none bg-no-repeat bg-[right_0.5rem_center] bg-[length:12px] cursor-pointer', className)}
-      style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
-      }}
-    >
-      {TIME_OPTIONS.map(t => (
-        <option key={t} value={t}>{formatTimeLabel(t)}</option>
+/** A time of day in half-hour steps, as a kit Select (one chooser for the whole app). */
+export const TimePicker: React.FC<TimePickerProps> = ({ value, onChange, disabled, className }) => (
+  <Select value={value} onValueChange={onChange} disabled={disabled}>
+    <SelectTrigger className={cn('w-auto', className)}>
+      <SelectValue />
+    </SelectTrigger>
+    <SelectContent>
+      {TIME_OPTIONS.map((t) => (
+        <SelectItem key={t} value={t}>{formatTimeLabel(t)}</SelectItem>
       ))}
-    </select>
-  );
-};
+    </SelectContent>
+  </Select>
+);

@@ -1,4 +1,4 @@
-/** Todos view listing user-created todos and AI-generated action items, with create support. */
+/** Todos view listing user-created todos and AI-generated action items; the tab bar's Add opens its create form. */
 
 import React, { useState, useCallback } from 'react';
 import { Plus, ListTodo, Loader2, Calendar } from 'lucide-react';
@@ -6,16 +6,18 @@ import { useSelectedHistoryId, useAppResult } from '@shared/stores/appStore';
 import { useMeetingTodos } from '@features/todos/hooks/useMeetingTodos';
 import { EmptyState } from '@shared/components';
 import { confirmDelete } from '@shared/stores/confirmStore';
-import { Button, DatePicker, Icon, Progress, Separator, Surface, Text, TimePicker, Textarea } from '@shared/ui';
+import { Button, DatePicker, Icon, Progress, Separator, Surface, Text, TimePicker, Textarea, cn } from '@shared/ui';
 import { buildISOFromDateInput } from '@shared/utils/todo.utils';
 import TodoItem from './TodoItem';
 
 interface TodoListProps {
+  /** The create form is open (the meeting's tab bar Add opens it). */
+  creating: boolean;
+  onCreatingChange: (creating: boolean) => void;
   className?: string;
-  title?: string;
 }
 
-const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List' }) => {
+const TodoList: React.FC<TodoListProps> = ({ creating, onCreatingChange, className = '' }) => {
   const selectedHistoryId = useSelectedHistoryId();
   const result = useAppResult();
   const { userTodos, aiTodos, isLoading, addTodo, updateTodo, deleteTodo, toggleTodo } = useMeetingTodos(selectedHistoryId);
@@ -34,7 +36,6 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
   const [newItemText, setNewItemText] = useState('');
   const [newItemDate, setNewItemDate] = useState('');
   const [newItemTime, setNewItemTime] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
   
   // Calculate stats from combined list
   const completedCount = allTodos.filter(todo => todo.completed).length;
@@ -53,7 +54,7 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
       setNewItemText('');
       setNewItemDate('');
       setNewItemTime('');
-      setIsCreating(false);
+      onCreatingChange(false);
     }
   };
 
@@ -61,7 +62,7 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
     setNewItemText('');
     setNewItemDate('');
     setNewItemTime('');
-    setIsCreating(false);
+    onCreatingChange(false);
   };
 
   const handleReminderChange = useCallback((todoId: string, reminderDateTime: string | null) => {
@@ -78,30 +79,19 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
   }
 
   return (
-    <div className={`flex flex-col min-h-full gap-y-5 ${className}`}>
-      {/* Top action bar - always visible */}
-      <div className="flex items-center gap-4 shrink-0">
-        {/* Progress section - only show if there are items */}
-        {totalCount > 0 && (
-          <div className="flex items-center gap-3 flex-1">
-            <Text variant="label" tone="muted" className="whitespace-nowrap">
-              {completedCount}/{totalCount} done
-            </Text>
-            <Progress percent={progress} tone="success" className="w-32" />
-          </div>
-        )}
-        {/* Spacer when no items */}
-        {totalCount === 0 && <div className="flex-1" />}
-        {/* Add button - always on the right */}
-        <Button variant="primary" size="sm" className="ml-auto" onClick={() => setIsCreating(true)}
-          disabled={isCreating}>
-          <Icon icon={Plus} size="xs" />
-          Add To-Do
-        </Button>
-      </div>
+    <div className={cn('flex flex-1 flex-col gap-y-5', className)}>
+      {/* Progress, once there's something to track */}
+      {totalCount > 0 && (
+        <div className="flex items-center gap-3 shrink-0">
+          <Text variant="label" tone="muted" className="whitespace-nowrap">
+            {completedCount}/{totalCount} done
+          </Text>
+          <Progress percent={progress} tone="success" className="w-32" />
+        </div>
+      )}
 
       {/* New to-do input */}
-      {isCreating && (
+      {creating && (
         <Surface variant="subtle" radius="xl" edge="all" className="p-4 space-y-3 animate-fade-in">
           <Textarea
             value={newItemText}
@@ -158,10 +148,8 @@ const TodoList: React.FC<TodoListProps> = ({ className = '', title = 'To-Do List
       )}
 
       {/* Content: empty state or item list */}
-      {totalCount === 0 && !isCreating ? (
-        <div className="flex-1 flex items-center justify-center">
-          <EmptyState icon={ListTodo} message="No to-do items yet" />
-        </div>
+      {totalCount === 0 && !creating ? (
+        <EmptyState icon={ListTodo} message="No to-do items yet" />
       ) : totalCount > 0 ? (
         <div>
           {allTodos.map((todo, i) => (

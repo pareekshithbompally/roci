@@ -1,13 +1,14 @@
 /** Event detail popover with one card per section (meeting link, date/alerts, invitees, notes). */
 
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useMemo } from 'react';
 import { X, Video } from 'lucide-react';
-import { Icon, IconButton, Surface, Text } from '@shared/ui';
+import { Icon, IconButton, Popover, PopoverAnchor, PopoverContent, Surface, Text } from '@shared/ui';
 import type { CalendarEvent as ScheduleXCalendarEvent } from '@schedule-x/calendar';
 
 interface EventPopoverProps {
   event: ScheduleXCalendarEvent;
-  anchorRect: DOMRect | null;
+  /** Where the clicked event is drawn. */
+  anchorRect: DOMRect;
   onClose: () => void;
 }
 
@@ -54,47 +55,8 @@ function cleanDescription(desc: string, meetingUrl: string | null): string {
 }
 
 export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, onClose }) => {
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  const handleClickOutside = useCallback((e: MouseEvent) => {
-    if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-      onClose();
-    }
-  }, [onClose]);
-
-  const handleEscape = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') onClose();
-  }, [onClose]);
-
-  useEffect(() => {
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [handleClickOutside, handleEscape]);
-
-  // Position near anchor
-  const style: React.CSSProperties = {};
-  if (anchorRect) {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const pw = 288; // w-72
-    const ph = 380;
-
-    let left = anchorRect.right + 10;
-    if (left + pw > vw - 16) left = anchorRect.left - pw - 10;
-    if (left < 16) left = 16;
-
-    let top = anchorRect.top + anchorRect.height / 2 - ph / 2;
-    if (top + ph > vh - 16) top = vh - ph - 16;
-    if (top < 16) top = 16;
-
-    style.position = 'fixed';
-    style.left = left;
-    style.top = top;
-  }
+  // The calendar hands over where the event was drawn; the kit popover anchors to it, flips at edges, and closes itself.
+  const anchor = useMemo(() => ({ current: { getBoundingClientRect: () => anchorRect } }), [anchorRect]);
 
   const location = event.location as string | undefined;
   const description = event.description as string | undefined;
@@ -107,13 +69,9 @@ export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, o
   const cleanedDesc = description ? cleanDescription(description, meetingUrl) : '';
 
   return (
-    <Surface
-      ref={popoverRef}
-      variant="floating"
-      radius="xl"
-      style={style}
-      className="z-popover w-72 animate-fade-in overflow-hidden"
-    >
+    <Popover open onOpenChange={(open) => !open && onClose()}>
+      <PopoverAnchor virtualRef={anchor} />
+      <PopoverContent side="right" align="center" width="lg" className="overflow-hidden">
       {/* ── Title card ── */}
       <div className="px-4 pt-3.5 pb-3">
         <div className="flex items-start justify-between gap-2">
@@ -196,6 +154,7 @@ export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, o
           </Surface>
         )}
       </div>
-    </Surface>
+      </PopoverContent>
+    </Popover>
   );
 };

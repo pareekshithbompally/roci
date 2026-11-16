@@ -14,8 +14,9 @@ interface EmptyStateProps {
   className?: string;
 }
 
+/** Fills the rest of its flex-column parent and centres itself both ways: one position wherever it's used. */
 export const EmptyState: React.FC<EmptyStateProps> = ({ icon, message, description, action, loading, className }) => (
-  <div className={cn('flex flex-col items-center justify-center gap-3 w-full h-full min-h-60 text-center', className)}>
+  <div className={cn('flex flex-1 flex-col items-center justify-center gap-3 w-full min-h-60 text-center', className)}>
     <Surface variant="inset" radius="xl" className="flex items-center justify-center w-14 h-14">
       <Icon icon={icon} size="lg" tone="faint" className={loading ? 'animate-spin' : undefined} />
     </Surface>

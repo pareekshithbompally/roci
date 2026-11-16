@@ -19,15 +19,18 @@ export const LAYOUT = {
   /** Page column — Settings and the meeting view share one centred reading width */
   pageColumn: 'max-w-4xl mx-auto w-full',
 
-  /** Plain settings dropdowns (options, sources); model pickers are wider (ModelSelect) */
-  settingsSelect: 'w-48',
-  /** Settings › Capabilities pickers (model, voice): one column width. */
-  capabilityPicker: 'w-64',
+  /** Plain settings pop-ups (options, sources): they hug their value up to this width, right-aligned in the row */
+  settingsSelect: 'max-w-48',
+  /** Settings › Capabilities pickers (model, voice): hug their value up to this width, right-aligned in the row */
+  capabilityPicker: 'max-w-64',
   /** A row's model action (Download, 42%, Delete): one width, so actions and states align down a card. */
   modelAction: 'w-32',
 
   /** Meeting title: longer titles end in an ellipsis (full title on hover) so the actions after it stay put */
   meetingTitle: 'max-w-2xl',
+
+  /** Room under a meeting tab's last line, so the meeting chat button (kit `fab`, 44px, `UI_CONFIG.layout.meetingChat.inset` from the edge) never covers it */
+  meetingChatClearance: 'pb-16',
 
   /** Page gutter around the page column */
   pageGutter: 'px-6 md:px-8',

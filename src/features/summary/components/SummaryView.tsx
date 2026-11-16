@@ -74,11 +74,7 @@ const ActionItemsSection: React.FC<{ items?: ActionItem[]; withOwner: boolean }>
 const SummaryView: React.FC<SummaryViewProps> = ({ summary, structuredSummary }) => {
   // No summary data at all
   if (!summary && !structuredSummary) {
-    return (
-      <div className="flex flex-col min-h-full items-center justify-center">
-        <EmptyState icon={Sparkles} message="No summary available" />
-      </div>
-    );
+    return <EmptyState icon={Sparkles} message="No summary available" />;
   }
 
   // No structured summary — render raw markdown

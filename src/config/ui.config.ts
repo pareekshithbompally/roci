@@ -17,11 +17,10 @@ export const UI_CONFIG = {
       dragOffset: 4,
       dragHeight: 36,
     },
-    /** Meeting chat mini window: anchored bottom-right, `inset` from the window edges, never taller than the space below the titlebar. */
-    chatPopout: {
-      width: 400,
-      maxHeight: 600,
+    /** Meeting chat, anchored bottom-right `inset` from the window edges: its floating button, or its window (never taller than the space below the titlebar). */
+    meetingChat: {
       inset: 16,
+      popout: { width: 400, maxHeight: 600 },
     },
     /** Page scrollers (kit `PageScroll`): length of a faded bottom edge (matches the titlebar band). */
     pageScroll: {
