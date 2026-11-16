@@ -4,6 +4,7 @@ import {
   detectLocalServers,
   toLocalProvider,
   syncModels,
+  mergeServed,
   localRows,
   customServerId,
   normalizeLocalUrl,
@@ -35,9 +36,14 @@ describe('probeModels', () => {
     expect(await probeModels('http://127.0.0.1:11434/v1')).toEqual([{ id: 'llama3.2' }, { id: 'qwen3:8b' }]);
   });
 
-  it('adds what llama-server reports: modalities, running context, thinking, loaded', async () => {
+  it('adds what llama-server reports: modalities, running context, loaded, and a loaded model\'s tools and thinking', async () => {
+    const lfm = 'ggml-org/LFM3-Omni-2B-GGUF:Q8_0';
     serve({
       'http://127.0.0.1:9931/props': { build_info: 'b12110' },
+      [`http://127.0.0.1:9931/props?${new URLSearchParams({ model: lfm, autoload: 'false' })}`]: {
+        chat_template: '{%- if enable_thinking %}<think>{% endif %}',
+        chat_template_caps: { supports_tools: true },
+      },
       'http://127.0.0.1:9931/v1/models': {
         data: [{
           id: 'ggml-org/LFM3-Omni-2B-GGUF:Q8_0',
@@ -49,9 +55,17 @@ describe('probeModels', () => {
     });
     expect(await probeModels('http://127.0.0.1:9931/v1')).toEqual([{
       id: 'ggml-org/LFM3-Omni-2B-GGUF:Q8_0',
-      served: { modalities: { input: ['text', 'image', 'audio', 'video'], output: ['text', 'audio'] }, contextTokens: 32768, thinking: true },
+      served: { modalities: { input: ['text', 'image', 'audio', 'video'], output: ['text', 'audio'] }, contextTokens: 32768, tools: true, thinking: true },
       loaded: true,
     }]);
+  });
+
+  it('leaves an unloaded llama-server model without tools or thinking (it is never loaded to ask)', async () => {
+    serve({
+      'http://127.0.0.1:9932/props': { build_info: 'b12110' },
+      'http://127.0.0.1:9932/v1/models': { data: [{ id: 'gemma', context_length: 4096, status: { value: 'unloaded' } }] },
+    });
+    expect(await probeModels('http://127.0.0.1:9932/v1')).toEqual([{ id: 'gemma', served: { contextTokens: 4096 }, loaded: false }]);
   });
 
   it('returns null when nothing listens, on non-200, or on a non-OpenAI body', async () => {
@@ -153,5 +167,20 @@ describe('normalizeLocalUrl', () => {
   it('rejects empty or invalid input', () => {
     expect(normalizeLocalUrl('  ')).toBeNull();
     expect(normalizeLocalUrl('http://')).toBeNull();
+  });
+});
+
+describe('mergeServed', () => {
+  it('keeps tools and thinking learned while loaded when the list no longer says', () => {
+    expect(mergeServed({ contextTokens: 8, tools: true, thinking: false }, { contextTokens: 16 }))
+      .toEqual({ contextTokens: 16, tools: true, thinking: false });
+  });
+
+  it('takes what the server reports now over what was learned before', () => {
+    expect(mergeServed({ tools: true, thinking: true }, { tools: false, thinking: false })).toEqual({ tools: false, thinking: false });
+  });
+
+  it('adds nothing a server never reported', () => {
+    expect(mergeServed(undefined, { contextTokens: 4 })).toEqual({ contextTokens: 4 });
   });
 });

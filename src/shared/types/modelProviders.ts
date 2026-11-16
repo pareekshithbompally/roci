@@ -21,7 +21,9 @@ export type ServedModelInfo = {
   modalities?: { input: string[]; output: string[] }
   /** The context window the server runs it with, in tokens. */
   contextTokens?: number
-  /** The server takes a thinking level for it (llama-server). */
+  /** Its chat template takes tool definitions (llama-server). Unset until the model has been loaded once. */
+  tools?: boolean
+  /** Its chat template thinks (llama-server). Unset until the model has been loaded once. */
   thinking?: boolean
 }
 

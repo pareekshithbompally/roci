@@ -22,6 +22,27 @@ export const LLAMA_THINKING_BUDGET_TOKENS: Partial<Record<ReasoningEffort, numbe
 /** Prompt reading shows no time left until it has run this long, ms (the first reports are too early to tell). */
 export const PROMPT_ETA_MIN_ELAPSED_MS = 500;
 
+/**
+ * How llama-server's own web UI (build b12359) tells a chat template thinks: a reasoning variable inside a template
+ * expression, a thinking conditional, or a thinking marker pair (`null`: the opening marker alone suffices).
+ */
+export const LLAMA_THINKING_TEMPLATE = {
+  variables: ['enable_thinking', 'reasoning_effort', 'thinking_budget'],
+  conditionals: [
+    /\{%-?\s*if\s+\(?\s*\w*enable[\s_]+\w*(thinking|think|reasoning)/i,
+    /\{%-?\s*if\s+\w*(thinking|reasoning)\s*(is not|==|!=)/i,
+    /\{%-?\s*if\s+not\s+\w*enable/i,
+    /\{%-?\s*if\s+ns\.enable_thinking/i,
+  ],
+  markers: [
+    ['<think>', '</think>'],
+    ['<|channel>thought', '<|channel|>'],
+    ['<|think|>', '</|think|>'],
+    ['<seed:think|>', '</seed:think|>'],
+    ['<think></think>', null],
+  ] as ReadonlyArray<readonly [string, string | null]>,
+} as const;
+
 /** A port that doesn't answer within this window counts as "not running". */
 export const LOCAL_PROBE_TIMEOUT_MS = 600;
 

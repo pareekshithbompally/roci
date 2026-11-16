@@ -11,8 +11,11 @@ import {
 } from '@config/localServers.config';
 import type { LocalServerEntry } from '@config/localServers.config';
 import { isLocalProviderId } from '@shared/utils/provider.utils';
-import { isLlamaServer, isModelLoaded, servedModelInfo } from '@services/ai/llamaServer';
+import { fetchTemplateCapabilities, isLlamaServer, isModelLoaded, servedModelInfo } from '@services/ai/llamaServer';
+import { failureLogger } from '@shared/utils/errors';
 import type { Model, ModelProvider, ProviderSetting, ServedModelInfo } from '@shared/types/modelProviders';
+
+const report = failureLogger('localServers');
 
 /** One model a server offers: its id, and for llama-server what it reports about it and whether it's loaded. */
 export interface ServedModel {
@@ -87,6 +90,16 @@ function servedModel(entry: { id?: unknown }, llama: boolean): ServedModel | nul
   return llama ? { id: entry.id, served: servedModelInfo(entry), loaded: isModelLoaded(entry) } : { id: entry.id };
 }
 
+/** A loaded llama-server model with what its chat template can do (tools, thinking); unloaded ones are left as listed. */
+async function withTemplateCapabilities(baseUrl: string, model: ServedModel): Promise<ServedModel> {
+  if (!model.loaded) return model;
+  const capabilities = await fetchTemplateCapabilities(baseUrl, model.id).catch((error: unknown) => {
+    report('read model capabilities')(error);
+    return null;
+  });
+  return capabilities ? { ...model, served: { ...model.served, ...capabilities } } : model;
+}
+
 /** Models served at `{baseUrl}/models`, or null when no OpenAI-compatible server answers. */
 export async function probeModels(baseUrl: string): Promise<ServedModel[] | null> {
   const response = await getWithTimeout(`${baseUrl.replace(/\/$/, '')}/models`);
@@ -95,7 +108,8 @@ export async function probeModels(baseUrl: string): Promise<ServedModel[] | null
     const data = ((await response.json()) as { data?: Array<{ id?: unknown }> }).data;
     if (!Array.isArray(data)) return null;
     const llama = await isLlamaServer(baseUrl);
-    return data.map((entry) => servedModel(entry, llama)).filter((model): model is ServedModel => model !== null);
+    const models = data.map((entry) => servedModel(entry, llama)).filter((model): model is ServedModel => model !== null);
+    return llama ? await Promise.all(models.map((model) => withTemplateCapabilities(baseUrl, model))) : models;
   } catch {
     return null;
   }
@@ -181,16 +195,30 @@ export function toLocalProvider(server: LocalServer): ModelProvider {
   };
 }
 
+/**
+ * What the server reports now, keeping the template capabilities (tools, thinking) learned while the model was loaded:
+ * the model list doesn't carry them, so an unloaded model keeps what was learned instead of losing it.
+ */
+export function mergeServed(previous: ServedModelInfo | undefined, reported: ServedModelInfo | undefined): ServedModelInfo | undefined {
+  if (!reported) return previous;
+  const tools = reported.tools ?? previous?.tools;
+  const thinking = reported.thinking ?? previous?.thinking;
+  return { ...reported, ...(tools !== undefined && { tools }), ...(thinking !== undefined && { thinking }) };
+}
+
 /** Keep served models with the user's own choices (rename, overrides), refresh what the server reports, add new, drop the rest. */
 export function syncModels(existing: Model[], served: ServedModel[]): Model[] {
   const byId = new Map(existing.map((m) => [m.id, m]));
-  return served.map(({ id, served: info }) => ({ ...(byId.get(id) ?? { id, name: id }), served: info }));
+  return served.map(({ id, served: info }) => {
+    const saved = byId.get(id);
+    return { ...(saved ?? { id, name: id }), served: mergeServed(saved?.served, info) };
+  });
 }
 
 /** The saved models with what their server now reports; which models are listed changes only on enable or Rescan. */
 export function refreshServedInfo(existing: Model[], served: ServedModel[]): Model[] {
   const reported = new Map(served.map((model) => [model.id, model.served]));
-  return existing.map((model) => (reported.has(model.id) ? { ...model, served: reported.get(model.id) } : model));
+  return existing.map((model) => (reported.has(model.id) ? { ...model, served: mergeServed(model.served, reported.get(model.id)) } : model));
 }
 
 /** Detected servers merged with saved local providers. Not-running servers show only when saved. */

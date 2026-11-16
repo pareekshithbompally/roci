@@ -14,7 +14,7 @@ export interface ModelCapabilities {
   audioInput: boolean;
   /** Context window in tokens; null when unknown. */
   contextTokens: number | null;
-  /** Takes a thinking level: its server says so (llama-server), or models.dev lists it as a reasoning model. */
+  /** Takes a thinking level: its server's chat template thinks (llama-server), or models.dev lists it as a reasoning model. */
   reasoning: boolean;
 }
 
@@ -23,8 +23,10 @@ type CapabilityModel = Pick<Model, 'id' | 'toolsEnabled' | 'audioInput' | 'serve
 
 /** A model's modalities and capabilities: what its own server reports (local), else models.dev; null when neither knows. */
 export function modelInfoOf(provider: string, model: Pick<Model, 'id' | 'served'>): ModelInfo | null {
-  const served = model.served?.modalities;
-  if (served) return { modalities: served, capabilities: {} };
+  const served = model.served;
+  if (served?.modalities) {
+    return { modalities: served.modalities, capabilities: { toolCall: served.tools, reasoning: served.thinking } };
+  }
   return modalitiesService.getModelInfo(provider, model.id);
 }
 
@@ -35,6 +37,6 @@ export function capabilitiesOf(provider: string, model: CapabilityModel): ModelC
     webSearch: WEB_SEARCH_PROVIDERS.has(provider),
     audioInput: model.audioInput ?? info?.modalities?.input.includes('audio') ?? false,
     contextTokens: model.served?.contextTokens ?? modalitiesService.getModelContextLimit(provider, model.id),
-    reasoning: model.served?.thinking ?? info?.capabilities.reasoning ?? false,
+    reasoning: info?.capabilities.reasoning ?? false,
   };
 }

@@ -8,7 +8,7 @@ const sseResponse = (events: unknown[]) =>
 const fetchMock = vi.fn();
 vi.mock('@services/platform-fetch', () => ({ getPlatformFetch: () => fetchMock }));
 
-const { followModelLoad, generationStats, promptProgress } = await import('@services/ai/llamaServer');
+const { fetchTemplateCapabilities, followModelLoad, generationStats, promptProgress, templateThinks } = await import('@services/ai/llamaServer');
 
 const MODEL = 'nvidia/Nemotron:Q4_K_M';
 const loading = (current: string, value: number, stages: string[]) => ({
@@ -95,5 +95,36 @@ describe('isLlamaServer', () => {
     expect(await isLlamaServer('http://127.0.0.1:9932/v1')).toBe(false);
     fetchMock.mockResolvedValueOnce(Response.json({ build_info: 'b1' }));
     await vi.waitFor(async () => expect(await isLlamaServer('http://127.0.0.1:9932/v1')).toBe(true));
+  });
+});
+
+describe('templateThinks (llama-server web UI rule)', () => {
+  it.each([
+    ['a reasoning variable in an expression', '{{ bos }}{% if reasoning_effort %}x{% endif %}'],
+    ['a thinking conditional', '{%- if not enable_thinking -%}'],
+    ['a think marker pair', 'a <think> b </think>'],
+    ['an empty think block', '<think></think>'],
+  ])('thinks with %s', (_, template) => {
+    expect(templateThinks(template)).toBe(true);
+  });
+
+  it('does not think on a plain template', () => {
+    expect(templateThinks('{{ messages[0].content }}')).toBe(false);
+  });
+});
+
+describe('fetchTemplateCapabilities', () => {
+  it('asks without loading, and reads tools and thinking from the template', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({
+      chat_template: '<think></think>',
+      chat_template_caps: { supports_tools: true },
+    }), { status: 200 }));
+    expect(await fetchTemplateCapabilities('http://127.0.0.1:9931/v1', 'org/m:Q8')).toEqual({ tools: true, thinking: true });
+    expect(fetchMock).toHaveBeenLastCalledWith('http://127.0.0.1:9931/props?model=org%2Fm%3AQ8&autoload=false');
+  });
+
+  it('gives null for a model that is not loaded', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: { code: 400 } }), { status: 400 }));
+    expect(await fetchTemplateCapabilities('http://127.0.0.1:9931/v1', 'org/m:Q8')).toBeNull();
   });
 });

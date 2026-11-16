@@ -1,8 +1,8 @@
-/** llama-server model-load and prompt-read progress; a server is recognised once by `build_info` on `GET /props`. */
+/** llama-server: what it reports about its models, their load and prompt-read progress; recognised once by `build_info` on `GET /props`. */
 
 import { getPlatformFetch } from '@services/platform-fetch';
 import { failureLogger } from '@shared/utils/errors';
-import { LLAMA_THINKING_BUDGET_TOKENS, MODEL_LOAD_PART_SHARE, PROMPT_ETA_MIN_ELAPSED_MS } from '@config/localServers.config';
+import { LLAMA_THINKING_BUDGET_TOKENS, LLAMA_THINKING_TEMPLATE, MODEL_LOAD_PART_SHARE, PROMPT_ETA_MIN_ELAPSED_MS } from '@config/localServers.config';
 import type { ReasoningEffort } from '@shared/types';
 import type { ServedModelInfo } from '@shared/types/modelProviders';
 import type { GenerationStats, StreamProgress } from './types';
@@ -39,14 +39,43 @@ interface LlamaModelEntry {
 /** The `ctx-size = N` line of a model's preset: the context it actually runs with. */
 const presetContext = (preset: string | undefined) => Number(preset?.match(/^ctx-size\s*=\s*(\d+)\s*$/m)?.[1]) || undefined;
 
-/** What llama-server reports about one model: its modalities, its running context (preset, else its maximum), thinking. */
+/** What llama-server's model list says about one model: its modalities and its running context (preset, else its maximum). */
 export function servedModelInfo(entry: unknown): ServedModelInfo {
   const model = entry as LlamaModelEntry;
   const input = model.architecture?.input_modalities;
   return {
     ...(input && { modalities: { input, output: model.architecture?.output_modalities ?? [] } }),
     contextTokens: presetContext(model.status?.preset) ?? model.context_length,
-    thinking: true,
+  };
+}
+
+/** Whether a chat template thinks, by llama-server's own web UI rule (`LLAMA_THINKING_TEMPLATE`). */
+export function templateThinks(template: string): boolean {
+  const { variables, conditionals, markers } = LLAMA_THINKING_TEMPLATE;
+  const inExpression = (name: string) =>
+    new RegExp(`(\\{\\{[^{}]*\\b${name}\\b[^{}]*\\}\\}|\\{%[^{}]*\\b${name}\\b[^{}]*%\\})`, 'i').test(template);
+  return variables.some(inExpression)
+    || conditionals.some((pattern) => pattern.test(template))
+    || markers.some(([open, close]) => template.includes(open) && (close === null || template.includes(close)));
+}
+
+interface LlamaModelProps {
+  chat_template?: string;
+  chat_template_caps?: { supports_tools?: boolean };
+}
+
+/**
+ * What a loaded model's chat template can do (tools, thinking), from `GET /props?model=…&autoload=false`.
+ * `autoload=false` means this never loads a model; a model that isn't loaded answers 400 and gives null.
+ */
+export async function fetchTemplateCapabilities(baseUrl: string, model: string): Promise<Pick<ServedModelInfo, 'tools' | 'thinking'> | null> {
+  const query = new URLSearchParams({ model, autoload: 'false' });
+  const response = await getPlatformFetch()(`${rootOf(baseUrl)}/props?${query}`);
+  if (!response.ok) return null;
+  const props = (await response.json()) as LlamaModelProps;
+  return {
+    tools: props.chat_template_caps?.supports_tools === true,
+    thinking: templateThinks(props.chat_template ?? ''),
   };
 }
 
