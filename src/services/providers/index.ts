@@ -1,12 +1,6 @@
-import { isTauriEnvironment } from '@services/tauri';
-import { TauriProvidersService } from './tauri';
-import { WebProvidersService } from './web';
+import { DefaultProvidersService } from './default';
 
-export const providersService = isTauriEnvironment()
-  ? new TauriProvidersService()
-  : new WebProvidersService();
+export const providersService = new DefaultProvidersService();
 
 export type { ProvidersService } from './types';
-export { TauriProvidersService } from './tauri';
-export { WebProvidersService } from './web';
 export { DefaultProvidersService } from './default';

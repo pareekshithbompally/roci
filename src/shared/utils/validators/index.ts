@@ -1,3 +1,8 @@
+/** A plain object (not null, not an array): the shape every JSON object takes once parsed. */
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 export function isEmpty(value: string | null | undefined): boolean {
   return !value || value.trim().length === 0;
 }

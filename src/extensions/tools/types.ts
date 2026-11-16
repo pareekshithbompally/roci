@@ -54,21 +54,10 @@ export interface ToolContext {
   approval: 'chat' | 'caller';
 }
 
-// ── Tool Call (emitted by adapter when LLM requests a tool) ──
-
-export interface ToolCall {
-  /** Provider-assigned ID for result matching. */
-  id: string;
-  /** Tool name. */
-  name: string;
-  /** Parsed arguments from the LLM. */
-  arguments: Record<string, unknown>;
-}
-
 // ── Tool Result (returned by executor) ──
 
 export interface ToolResult {
-  /** Matches ToolCall.id. */
+  /** The SDK's id for the call this result answers. */
   toolCallId: string;
   /** Stringified result for LLM consumption. */
   content: string;

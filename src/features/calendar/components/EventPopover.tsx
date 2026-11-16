@@ -94,7 +94,6 @@ export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, o
     style.position = 'fixed';
     style.left = left;
     style.top = top;
-    style.zIndex = 200;
   }
 
   const location = event.location as string | undefined;
@@ -113,7 +112,7 @@ export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, o
       variant="floating"
       radius="xl"
       style={style}
-      className="w-72 animate-fade-in overflow-hidden"
+      className="z-popover w-72 animate-fade-in overflow-hidden"
     >
       {/* ── Title card ── */}
       <div className="px-4 pt-3.5 pb-3">

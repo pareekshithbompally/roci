@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { toolCallTitle, formatExecutionMs, type ToolCallPart } from '@features/chat/components/tool-call';
+import type { ToolCallPart } from '@shared/types';
+import { toolCallTitle, formatExecutionMs } from '@features/chat/components/tool-call';
 
 function part(overrides: Partial<ToolCallPart>): ToolCallPart {
   return {
@@ -23,6 +24,7 @@ describe('toolCallTitle — built-in tools', () => {
     ['list_chats', { limit: 5 }, 'Listing chats (up to 5 chats)…', 'Listed chats (up to 5 chats)'],
     ['manage_todo', { action: 'create', text: 'Send deck' }, 'Drafting todo “Send deck”…', 'Drafted todo “Send deck”'],
     ['webSearch', { query: 'tauri 2' }, 'Searching the web for “tauri 2”…', 'Searched the web for “tauri 2”'],
+    ['webSearch', { url: 'https://www.nytimes.com/a' }, 'Searching the web on nytimes.com…', 'Searched the web on nytimes.com'],
     ['googleSearch', {}, 'Searching the web…', 'Searched the web'],
     ['webSearchPreview', {}, 'Searching the web…', 'Searched the web'],
     ['browserSearch', {}, 'Searching the web…', 'Searched the web'],

@@ -23,4 +23,4 @@ toolRegistry.register(listChatsTool);
 export { loadMcpTools } from './mcp-tools';
 
 // Re-export types for convenience
-export type { ToolDefinition, ToolContext, ToolCall, ToolResult } from './types';
+export type { ToolDefinition, ToolContext, ToolResult } from './types';

@@ -11,6 +11,9 @@ import {
 import { LOCAL_SERVER_DEFAULT_API_KEY } from '@config/localServers.config';
 import type { ModelProvider } from '@shared/types/modelProviders';
 
+/** The app's fetch is the Tauri plugin's; here it goes to the fake network below. */
+vi.mock('@services/platform-fetch', () => ({ getPlatformFetch: () => (...args: Parameters<typeof fetch>) => globalThis.fetch(...args) }));
+
 /** Fake network: url → JSON body (200) | number (status). Anything else is refused. */
 function serve(routes: Record<string, unknown>) {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {

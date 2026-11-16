@@ -17,9 +17,8 @@ export function extractDomain(url: string): string {
   }
 }
 
-/** Favicon URL from Google's favicon service at the requested size. */
-export function getFaviconUrl(url: string, size = 16): string {
-  const domain = extractDomain(url);
+/** Favicon URL for a site (a bare domain, e.g. `describeCitation(c).site`) from Google's favicon service. */
+export function getFaviconUrl(domain: string, size = 16): string {
   return `${FAVICON_BASE}?domain=${encodeURIComponent(domain)}&sz=${size}`;
 }
 

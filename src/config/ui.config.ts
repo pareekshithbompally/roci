@@ -17,6 +17,12 @@ export const UI_CONFIG = {
       dragOffset: 4,
       dragHeight: 36,
     },
+    /** Meeting chat mini window: anchored bottom-right, `inset` from the window edges, never taller than the space below the titlebar. */
+    chatPopout: {
+      width: 400,
+      maxHeight: 600,
+      inset: 16,
+    },
     /** Page scrollers (kit `PageScroll`): length of a faded bottom edge (matches the titlebar band). */
     pageScroll: {
       edgeFadePx: 40,
@@ -98,25 +104,11 @@ export const UI_CONFIG = {
 
 
 
-  // Z-index scale
-  zIndex: {
-    base: 0,
-    dropdown: 1000,
-    sticky: 1100,
-    overlay: 1200,
-    modal: 1300,
-    popover: 1400,
-    tooltip: 1500,
-    notification: 1600,
-    splash: 1700, // startup splash sits above everything until the app is ready (src/app/splash.ts)
-  },
-
   // Activity tray
   activityTray: {
     width: 360,
     maxVisibleRows: 5,
     rowHeight: 44, // approximate px per row for max-height calc
-    zIndex: 1200,
     autoRemoveDelay: 3000, // ms before completed items auto-dismiss
   },
 

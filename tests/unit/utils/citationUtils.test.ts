@@ -53,36 +53,16 @@ describe('extractDomain', () => {
 // ── getFaviconUrl ───────────────────────────────────────────────
 
 describe('getFaviconUrl', () => {
-  it('returns correct format with default size', () => {
-    const result = getFaviconUrl('https://example.com');
-    expect(result).toBe(
-      'https://www.google.com/s2/favicons?domain=example.com&sz=16'
-    );
+  it('builds the favicon URL for a site at the default size', () => {
+    expect(getFaviconUrl('example.com')).toBe('https://www.google.com/s2/favicons?domain=example.com&sz=16');
   });
 
-  it('uses custom size parameter', () => {
-    const result = getFaviconUrl('https://example.com', 32);
-    expect(result).toBe(
-      'https://www.google.com/s2/favicons?domain=example.com&sz=32'
-    );
+  it('uses a custom size', () => {
+    expect(getFaviconUrl('example.com', 32)).toBe('https://www.google.com/s2/favicons?domain=example.com&sz=32');
   });
 
-  it('encodes domain with special characters', () => {
-    const result = getFaviconUrl('https://exämple.com');
-    expect(result).toContain('domain=');
-    expect(result).toContain('&sz=16');
-  });
-
-  it('strips www. from domain in favicon URL', () => {
-    const result = getFaviconUrl('https://www.github.com');
-    expect(result).toContain('domain=github.com');
-  });
-
-  it('handles invalid URL gracefully', () => {
-    const result = getFaviconUrl('not-a-url');
-    expect(result).toBe(
-      'https://www.google.com/s2/favicons?domain=not-a-url&sz=16'
-    );
+  it('encodes the domain', () => {
+    expect(getFaviconUrl('exämple.com')).toBe('https://www.google.com/s2/favicons?domain=ex%C3%A4mple.com&sz=16');
   });
 });
 

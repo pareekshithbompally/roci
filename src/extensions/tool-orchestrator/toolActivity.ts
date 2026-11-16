@@ -1,8 +1,9 @@
-/** Stream tool events → ToolActivity; the only code that knows the shape of providers' built-in tool output. */
+/** Stream tool events → ToolActivity: data only (the UI words it); the only code that knows providers' built-in tool output. */
 
 import type { TextStreamPart, ToolSet } from 'ai';
 import type { ToolResult } from '@extensions/tools/types';
 import { errorMessage } from '@shared/utils/errors';
+import { isRecord } from '@shared/utils/validators';
 import type { ToolActivity, ToolOutcome } from './types';
 
 type Args = Record<string, unknown>;
@@ -10,60 +11,38 @@ type Args = Record<string, unknown>;
 /** Tool name → the MCP server it came from. */
 export type ToolSources = ReadonlyMap<string, string>;
 
-/** A built-in tool's details and its summary line(s). */
-interface BuiltInOutput {
-  arguments?: Args;
-  content: string;
-}
+type Identity = Pick<ToolActivity, 'toolCallId' | 'toolName' | 'source'>;
 
-function isRecord(value: unknown): value is Args {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+/** The fields of OpenAI's web search action that say what it did (`search`, `openPage`, `findInPage`). */
+const ACTION_FIELDS = ['query', 'queries', 'url', 'pattern'] as const;
 
 function isToolResult(value: unknown): value is ToolResult {
   return isRecord(value) && typeof value.content === 'string' && typeof value.isError === 'boolean';
 }
 
-/** One line per web result: its title and URL, or just the URL. */
-function resultLines(results: unknown[]): string {
-  return results
-    .filter(isRecord)
-    .map((r) => (typeof r.title === 'string' && r.title ? `${r.title} · ${r.url}` : String(r.url)))
-    .join('\n');
+function hasText(value: unknown): boolean {
+  if (typeof value === 'string') return value.trim().length > 0;
+  return Array.isArray(value) && value.length > 0 && value.every((v) => typeof v === 'string');
 }
 
-/** OpenAI web search: `{ action: search | openPage | findInPage, sources? }`. */
-function openAiAction(action: Args, sources: unknown): BuiltInOutput | null {
-  switch (action.type) {
-    case 'search':
-      return {
-        arguments: { query: action.query, ...(Array.isArray(action.queries) && { queries: action.queries }) },
-        content: Array.isArray(sources) ? resultLines(sources) : '',
-      };
-    case 'openPage':
-      return { arguments: { url: action.url }, content: String(action.url) };
-    case 'findInPage':
-      return { arguments: { url: action.url, pattern: action.pattern }, content: `“${action.pattern}” in ${action.url}` };
-    default:
-      return null;
-  }
+/** What a built-in search did, from OpenAI's `action`; fields the provider left empty are left out. */
+function actionArguments(output: unknown): Args | undefined {
+  if (!isRecord(output) || !isRecord(output.action)) return undefined;
+  const { action } = output;
+  const args = Object.fromEntries(ACTION_FIELDS.filter((key) => hasText(action[key])).map((key) => [key, action[key]]));
+  return Object.keys(args).length > 0 ? args : undefined;
 }
 
-/** A built-in tool's output: OpenAI's action record, or Anthropic's list of results. */
-function builtInOutput(output: unknown): BuiltInOutput {
-  if (Array.isArray(output)) return { content: resultLines(output) };
-  if (isRecord(output) && isRecord(output.action)) return openAiAction(output.action, output.sources) ?? { content: '' };
-  return { content: '' };
+/** Anthropic's results carry encrypted page content; only their title and URL are readable. */
+function readable(output: unknown): unknown {
+  if (!Array.isArray(output)) return output;
+  return output.filter(isRecord).map(({ title, url }) => ({ ...(hasText(title) && { title }), url }));
 }
 
-/** Error text from a thrown error or a provider's error record (`{ errorCode }`, `{ status }`). */
-function errorText(error: unknown): string {
-  if (!isRecord(error) || error instanceof Error) return errorMessage(error);
-  const code = error.errorCode ?? error.status;
-  return code === undefined ? JSON.stringify(error) : `Failed (${String(code)})`;
+/** A value as the text a tool row shows: strings as they are, anything else as JSON. */
+function asText(value: unknown): string {
+  return typeof value === 'string' ? value : (JSON.stringify(value) ?? '');
 }
-
-type Identity = Pick<ToolActivity, 'toolCallId' | 'toolName' | 'source'>;
 
 function endOf(part: Extract<TextStreamPart<ToolSet>, { type: 'tool-result' }>, id: Identity): ToolActivity {
   const { output } = part;
@@ -72,8 +51,8 @@ function endOf(part: Extract<TextStreamPart<ToolSet>, { type: 'tool-result' }>, 
     const result: ToolOutcome = { content, isError, executionMs: meta?.executionMs, citations: meta?.citations };
     return { ...id, phase: 'end', result };
   }
-  const { arguments: args, content } = builtInOutput(output);
-  return { ...id, phase: 'end', ...(args && { arguments: args }), result: { content, isError: false } };
+  const args = actionArguments(output);
+  return { ...id, phase: 'end', ...(args && { arguments: args }), result: { content: asText(readable(output)), isError: false } };
 }
 
 function identityOf(toolCallId: string, toolName: string, sources: ToolSources): Identity {
@@ -94,12 +73,10 @@ export function toolActivityOf(part: TextStreamPart<ToolSet>, sources: ToolSourc
       };
     case 'tool-result':
       return endOf(part, identityOf(part.toolCallId, part.toolName, sources));
-    case 'tool-error':
-      return {
-        ...identityOf(part.toolCallId, part.toolName, sources),
-        phase: 'end',
-        result: { content: errorText(part.error), isError: true },
-      };
+    case 'tool-error': {
+      const content = part.error instanceof Error ? errorMessage(part.error) : asText(part.error);
+      return { ...identityOf(part.toolCallId, part.toolName, sources), phase: 'end', result: { content, isError: true } };
+    }
     default:
       return null;
   }

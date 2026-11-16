@@ -630,7 +630,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       {previewImage && createPortal(
         <Surface
           variant="scrim"
-          className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in"
+          className="fixed inset-0 z-modal flex items-center justify-center animate-fade-in"
           onClick={() => setPreviewImage(null)}
           onKeyDown={(e) => { if (e.key === 'Escape') setPreviewImage(null); }}
           tabIndex={-1}

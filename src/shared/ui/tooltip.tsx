@@ -20,7 +20,7 @@ export function Tooltip({ content, side = 'top', children }: TooltipProps) {
         <TooltipPrimitive.Content
           side={side}
           sideOffset={6}
-          className="z-50 px-2 py-1 rounded-md bg-inverse text-inverse text-callout shadow-floating data-[state=delayed-open]:animate-content-show"
+          className="z-tooltip px-2 py-1 rounded-md bg-inverse text-inverse text-callout shadow-floating data-[state=delayed-open]:animate-content-show"
         >
           {content}
         </TooltipPrimitive.Content>

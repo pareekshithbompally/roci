@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ToolCallPart } from './toolCallTitle';
+import type { ToolCallPart } from '@shared/types';
 import { DefaultToolBody } from './DefaultToolBody';
 import { MeetingResultsBody } from './MeetingResultsBody';
 

@@ -1,7 +1,7 @@
 /** Streaming message store; text and thinking deltas batch per animation frame so only the streaming message re-renders. */
 
 import { useSyncExternalStore } from 'react';
-import type { ChatPart } from '@shared/types';
+import type { ChatPart, ToolCallPart } from '@shared/types';
 import type { GenerationStats } from '@services/ai/types';
 
 export interface StreamingSnapshot {
@@ -45,8 +45,6 @@ function appendText(parts: ChatPart[], kind: StreamedKind, text: string): ChatPa
   if (last?.type === kind) return [...parts.slice(0, -1), { type: kind, text: last.text + text }];
   return [...parts, { type: kind, text }];
 }
-
-type ToolCallPart = Extract<ChatPart, { type: 'tool_call' }>;
 
 /** What a tool event changes on its row; a new row starts as a call with no arguments yet. */
 export type ToolCallPatch = Partial<Omit<ToolCallPart, 'type' | 'toolCallId'>> & Pick<ToolCallPart, 'toolName'>;

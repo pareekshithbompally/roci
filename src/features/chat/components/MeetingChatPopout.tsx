@@ -2,10 +2,9 @@
 
 import React, { useEffect, useRef } from 'react';
 import { ChevronDown, Maximize2, SquarePen } from 'lucide-react';
-import { cn, IconButton, Surface, Text } from '@shared/ui';
+import { IconButton, Surface, Text } from '@shared/ui';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { meetingReferenceService } from '@services/meetingReferenceService';
-import { LAYOUT } from '@config/layout.config';
 import { UI_CONFIG } from '@config/ui.config';
 import { closeMeetingChat, expandMeetingChat, useChatStore } from '@features/chat/stores/chatStore';
 import { ChatShell } from './ChatShell';
@@ -41,6 +40,16 @@ function useMeetingDraft(meetingId: string): () => void {
   return () => start.current();
 }
 
+const { chatPopout, titlebar } = UI_CONFIG.layout;
+
+/** Bottom-right, `inset` from the window edges; shorter than `maxHeight` only when the window can't fit it below the titlebar. */
+const POPOUT_GEOMETRY: React.CSSProperties = {
+  right: chatPopout.inset,
+  bottom: chatPopout.inset,
+  width: chatPopout.width,
+  height: `min(${chatPopout.maxHeight}px, calc(100vh - ${titlebar.safeArea + chatPopout.inset}px))`,
+};
+
 export const MeetingChatPopout: React.FC<MeetingChatPopoutProps> = ({ meetingId, meetingTitle }) => {
   const startNew = useMeetingDraft(meetingId);
 
@@ -58,8 +67,8 @@ export const MeetingChatPopout: React.FC<MeetingChatPopoutProps> = ({ meetingId,
       variant="floating"
       radius="xl"
       edge="all"
-      className={cn(LAYOUT.chatPopout, 'flex flex-col overflow-hidden animate-content-show')}
-      style={{ zIndex: UI_CONFIG.zIndex.overlay }}
+      className="fixed z-floating flex flex-col overflow-hidden animate-content-show"
+      style={POPOUT_GEOMETRY}
       role="dialog"
       aria-label={`Chat about ${meetingTitle}`}
     >

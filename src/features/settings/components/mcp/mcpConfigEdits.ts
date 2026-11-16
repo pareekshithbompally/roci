@@ -1,6 +1,7 @@
 /** Pure MCP config transforms; each returns the next config plus servers to reconnect, for `useMcpReconfigure`. */
 
 import { DEFAULT_MCP_SETTINGS } from '@config/mcp.config';
+import { isRecord } from '@shared/utils/validators';
 import type { McpConfig, McpServers } from '@config/mcp.config';
 import type { McpReconfigureVars } from '@features/settings/hooks';
 import type { McpServerEntry } from './mcpServerForm';
@@ -48,10 +49,6 @@ export function deleteServer(config: McpConfig, name: string): McpReconfigureVar
 
 export function updateSettings(config: McpConfig, partial: Partial<McpConfig['mcpSettings']>): McpReconfigureVars {
   return { next: { ...config, mcpSettings: { ...config.mcpSettings, ...partial } }, affected: [] };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /** Servers added, removed, or edited between two configs. */

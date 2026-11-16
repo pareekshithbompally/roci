@@ -3,7 +3,8 @@ import { render as rtlRender, screen, fireEvent, act } from '@testing-library/re
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
-import { ToolCallBlock, type ToolCallPart } from '@features/chat/components/tool-call';
+import type { ToolCallPart } from '@shared/types';
+import { ToolCallBlock } from '@features/chat/components/tool-call';
 import { ThemeProvider } from '@shared/contexts/ThemeContext';
 
 /** MCP blocks read server icons through TanStack Query, picked for the current theme. */

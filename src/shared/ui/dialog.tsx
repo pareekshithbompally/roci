@@ -24,7 +24,7 @@ export interface DialogContentProps extends ComponentProps<typeof DialogPrimitiv
   bare?: boolean;
 }
 
-const BARE = 'fixed z-50 focus:outline-none';
+const BARE = 'fixed z-modal focus:outline-none';
 
 export function DialogContent({ size = 'md', scrollable, bare, className, ...props }: DialogContentProps) {
   return (

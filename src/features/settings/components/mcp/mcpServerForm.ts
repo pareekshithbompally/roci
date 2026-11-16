@@ -1,6 +1,7 @@
 /** Pure MCP form helpers: config ⇄ form state, validation, JSON entry parsing, and secret masking. */
 
 import { MCP_CONFIG } from '@config/mcp.config';
+import { isRecord } from '@shared/utils/validators';
 import type { McpServerConfig, McpTransport } from '@config/mcp.config';
 import { pairsToRecord } from '@features/settings/components/shared';
 import type { KeyValuePair } from '@features/settings/components/shared';
@@ -98,10 +99,6 @@ export function parseServerEntries(text: string): McpServerEntry[] {
     }
     return [name, { args: [], env: {}, command: '', ...value } as McpServerConfig];
   });
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 // ── Card status ──

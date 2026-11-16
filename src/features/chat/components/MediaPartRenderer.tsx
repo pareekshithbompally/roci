@@ -2,7 +2,6 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { X, FileText } from 'lucide-react';
-import { UI_CONFIG } from '@config/ui.config';
 import { Button, IconButton, Icon, Surface, Text } from '@shared/ui';
 import type { ChatPart, MediaSource } from '@shared/types';
 
@@ -35,8 +34,7 @@ const ImageLightbox: React.FC<{ src: string; alt: string; onClose: () => void }>
   return (
     <Surface
       variant="scrim"
-      className="fixed inset-0 flex items-center justify-center animate-in fade-in duration-200"
-      style={{ zIndex: UI_CONFIG.zIndex.modal }}
+      className="fixed inset-0 z-modal flex items-center justify-center animate-in fade-in duration-200"
       onClick={onClose}
     >
       <IconButton icon={X} label="Close" variant="secondary" className="absolute top-4 right-4" onClick={onClose} />

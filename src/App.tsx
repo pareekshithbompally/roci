@@ -32,7 +32,6 @@ import { isSpeechSelectionReady, parseSpeechSelectionKey } from '@services/ai/tr
 import { windowService } from '@services/window.service';
 import { dismissSplash } from '@/src/app/splash';
 import { shortcutsService } from '@services/shortcuts.service';
-import { initPlatformFetch } from '@services/platform-fetch';
 import { searchIndexingService } from '@services/searchIndexing.service';
 import { reminderService } from '@services/reminder.service';
 
@@ -199,7 +198,6 @@ const App: React.FC = () => {
 
   const initializeTauriServices = async () => {
     try {
-      try { await initPlatformFetch(); } catch (e) { console.warn('Platform fetch init failed, using native fetch:', e); }
       await initializeStorage();
       await reminderService.initialize();
       await windowService.initialize();

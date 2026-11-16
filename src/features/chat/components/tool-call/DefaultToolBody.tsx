@@ -1,6 +1,6 @@
 import React from 'react';
 import { Surface, Text } from '@shared/ui';
-import type { ToolCallPart } from './toolCallTitle';
+import type { ToolCallPart } from '@shared/types';
 
 const JSON_INDENT = 2;
 

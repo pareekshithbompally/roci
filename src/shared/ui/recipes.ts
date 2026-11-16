@@ -2,13 +2,13 @@
 
 /** Floating panel: base surface, floating elevation (its 0.5px ring is the edge). */
 export const FLOATING_SURFACE =
-  'z-50 bg-base rounded-lg shadow-floating outline-none data-[state=open]:animate-content-show data-[state=closed]:animate-content-hide';
+  'z-popover bg-base rounded-lg shadow-floating outline-none data-[state=open]:animate-content-show data-[state=closed]:animate-content-hide';
 
 /** Dialog and AlertDialog sheets. */
 export const SCRIM =
-  'fixed inset-0 z-50 bg-scrim backdrop-blur-sm data-[state=open]:animate-overlay-show data-[state=closed]:animate-overlay-hide';
+  'fixed inset-0 z-modal bg-scrim backdrop-blur-sm data-[state=open]:animate-overlay-show data-[state=closed]:animate-overlay-hide';
 const SHEET_FRAME =
-  'fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full bg-base rounded-xl shadow-overlay focus:outline-none data-[state=open]:animate-content-show data-[state=closed]:animate-content-hide';
+  'fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-modal w-full bg-base rounded-xl shadow-overlay focus:outline-none data-[state=open]:animate-content-show data-[state=closed]:animate-content-hide';
 export const SHEET = `${SHEET_FRAME} p-6`;
 /** Compact sheet for alerts and confirmations: title, one line, buttons. */
 export const ALERT_SHEET = `${SHEET_FRAME} max-w-sm p-5`;

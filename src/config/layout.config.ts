@@ -23,14 +23,11 @@ export const LAYOUT = {
   settingsSelect: 'w-48',
   /** Settings › Capabilities pickers (model, voice): one column width. */
   capabilityPicker: 'w-64',
-  /** A row's model action (Download, 42%, Delete, Re-download): one width, so actions and states align down a card. */
+  /** A row's model action (Download, 42%, Delete): one width, so actions and states align down a card. */
   modelAction: 'w-32',
 
   /** Meeting title: longer titles end in an ellipsis (full title on hover) so the actions after it stay put */
   meetingTitle: 'max-w-2xl',
-
-  /** Meeting chat mini window: bottom-right, capped below the titlebar on short windows */
-  chatPopout: 'fixed bottom-4 right-4 w-[400px] h-[min(600px,calc(100vh-56px))]',
 
   /** Page gutter around the page column */
   pageGutter: 'px-6 md:px-8',

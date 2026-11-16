@@ -29,6 +29,8 @@ tauri-plugin-process = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-autostart = "2"
 tauri-plugin-shell = "2"
+# `unsafe-headers`: lets the webview send an empty Origin, which the plugin then drops (src/services/platform-fetch.ts),
+# so servers never apply browser CORS rules to this native client. Kasset sets no other restricted header.
 tauri-plugin-http = { version = "2", features = ["unsafe-headers"] }
 tauri-plugin-store = { path = "plugins/tauri-plugin-store" }
 tauri-plugin-calendar = { path = "plugins/tauri-plugin-calendar" }

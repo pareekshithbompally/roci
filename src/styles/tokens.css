@@ -1,6 +1,15 @@
 /* Design tokens: Tier 1 primitives (never read by components), Tier 2 roles swapped by `.dark` on <html>. */
 
 :root {
+  /* ─── Stacking: one scale for everything that floats above the app shell (theme-independent).
+         Non-modal floating panels < dialogs < menus and popovers (a select in a dialog opens above it)
+         < tooltips < the startup splash. The shell orders its own parts with z-10…z-50, below all of these. ─── */
+  --z-floating: 100;
+  --z-modal: 200;
+  --z-popover: 300;
+  --z-tooltip: 400;
+  --z-splash: 500;
+
   /* ─── Tier 1: primitives ─────────────────────────────── */
   --grey-50: #ffffff;
   --grey-100: #fafafa;

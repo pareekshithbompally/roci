@@ -25,29 +25,41 @@ describe('toolActivityOf', () => {
       .toEqual({ toolCallId: 'c1', toolName: 'search_meetings', phase: 'end', result: { content: '2 meetings', isError: false, executionMs: 42, citations } });
   });
 
-  it('reads the query and results of an OpenAI web search', () => {
-    const output = { action: { type: 'search', query: 'ai index' }, sources: [{ type: 'url', url: 'https://a.com/x' }] };
-    expect(toolActivityOf(part({ type: 'tool-result', toolCallId: 'ws1', toolName: 'webSearch', output, providerExecuted: true }), NO_SOURCES))
-      .toEqual({ toolCallId: 'ws1', toolName: 'webSearch', phase: 'end', arguments: { query: 'ai index' }, result: { content: 'https://a.com/x', isError: false } });
+  const webEnd = (output: unknown) =>
+    toolActivityOf(part({ type: 'tool-result', toolCallId: 'ws', toolName: 'webSearch', output, providerExecuted: true }), NO_SOURCES);
+
+  it('passes on what an OpenAI search did, and its raw output', () => {
+    const output = { action: { type: 'search', query: 'ai index' }, sources: [{ type: 'url', url: 'https://a.com/x' }, { type: 'api', name: 'oai-weather' }] };
+    expect(webEnd(output)).toEqual({
+      toolCallId: 'ws', toolName: 'webSearch', phase: 'end',
+      arguments: { query: 'ai index' },
+      result: { content: JSON.stringify(output), isError: false },
+    });
   });
 
-  it('reads the page an OpenAI web search opened', () => {
-    const output = { action: { type: 'openPage', url: 'https://a.com/x' } };
-    const activity = toolActivityOf(part({ type: 'tool-result', toolCallId: 'ws2', toolName: 'webSearch', output, providerExecuted: true }), NO_SOURCES);
-    expect(activity).toMatchObject({ phase: 'end', arguments: { url: 'https://a.com/x' }, result: { content: 'https://a.com/x' } });
+  it('passes on the page an OpenAI search opened or searched in', () => {
+    expect(webEnd({ action: { type: 'openPage', url: 'https://a.com/x' } })).toMatchObject({ arguments: { url: 'https://a.com/x' } });
+    expect(webEnd({ action: { type: 'findInPage', url: 'https://a.com/x', pattern: 'GDP' } }))
+      .toMatchObject({ arguments: { url: 'https://a.com/x', pattern: 'GDP' } });
   });
 
-  it("lists an Anthropic web search's results by title and URL", () => {
-    const output = [{ url: 'https://a.com', title: 'A' }, { url: 'https://b.com' }];
-    const activity = toolActivityOf(part({ type: 'tool-result', toolCallId: 'ws3', toolName: 'webSearch', output, providerExecuted: true }), NO_SOURCES);
-    expect(activity).toMatchObject({ phase: 'end', result: { content: 'A · https://a.com\nhttps://b.com', isError: false } });
+  it('leaves out fields the provider sent empty, never the text "null"', () => {
+    const activity = webEnd({ action: { type: 'openPage', url: null } });
+    expect(activity).not.toHaveProperty('arguments');
+    expect(webEnd({ action: { type: 'search', query: null, queries: ['a', 'b'] } })).toMatchObject({ arguments: { queries: ['a', 'b'] } });
+  });
+
+  it("keeps an Anthropic search's readable title and URL, not its encrypted page content", () => {
+    const output = [{ url: 'https://a.com', title: 'A', encryptedContent: 'xyz', pageAge: null }, { url: 'https://b.com', encryptedContent: 'q' }];
+    const activity = webEnd(output);
+    expect(activity).toMatchObject({ result: { content: JSON.stringify([{ title: 'A', url: 'https://a.com' }, { url: 'https://b.com' }]), isError: false } });
     expect(activity).not.toHaveProperty('arguments');
   });
 
-  it("ends a failed built-in search with the provider's error code", () => {
+  it("ends a failed built-in search with the provider's error record", () => {
     const error = { type: 'web_search_tool_result_error', errorCode: 'max_uses_exceeded' };
     expect(toolActivityOf(part({ type: 'tool-error', toolCallId: 'ws4', toolName: 'webSearch', error, providerExecuted: true }), NO_SOURCES))
-      .toMatchObject({ phase: 'end', result: { content: 'Failed (max_uses_exceeded)', isError: true } });
+      .toMatchObject({ phase: 'end', result: { content: JSON.stringify(error), isError: true } });
   });
 
   it('ends a thrown tool error with its message', () => {

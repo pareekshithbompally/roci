@@ -14,7 +14,7 @@ import { loadingStatusOf } from './loadingStatus';
 import AssistantActionBar from './AssistantActionBar';
 import ErrorMessageBox from './ErrorMessageBox';
 import type { AssistantMessageProps } from './types';
-import type { ChatPart, WebCitation, InlineCitationSpan } from '@shared/types';
+import type { ChatPart, ToolCallPart, WebCitation, InlineCitationSpan } from '@shared/types';
 
 /** "localhost:9931 · Gemma": the provider, then the model by its display name (its rename, if any). */
 function ProviderModelLabel({ provider, model }: { provider?: string; model?: string }) {
@@ -37,7 +37,7 @@ const StreamingHeaderLabel = memo(({
 
   if (streaming.msgId === msgId) {
     const toolParts = streaming.parts.filter(
-      (p): p is Extract<ChatPart, { type: 'tool_call' }> => p.type === 'tool_call'
+      (p): p is ToolCallPart => p.type === 'tool_call'
     );
     const hasText = streaming.parts.some(p => p.type === 'text');
 

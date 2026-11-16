@@ -44,6 +44,7 @@ export default {
       divideColor: roles('border', ['muted', 'base', 'strong']),
       ringColor: { focus: 'var(--border-focus)' },
       boxShadow: roles('shadow', ['input', 'raised', 'floating', 'overlay']),
+      zIndex: roles('z', ['floating', 'modal', 'popover', 'tooltip', 'splash']),
       // State tints as an image layer, so they shade a surface's fill instead of replacing it.
       backgroundImage: {
         'tint-hover': 'linear-gradient(var(--bg-hover), var(--bg-hover))',

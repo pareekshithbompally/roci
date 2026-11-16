@@ -109,6 +109,9 @@ export type ChatPart =
       };
     };
 
+/** A tool's row in a chat message: Kasset's own tools, MCP tools, and providers' built-in ones (web search). */
+export type ToolCallPart = Extract<ChatPart, { type: 'tool_call' }>;
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'model';

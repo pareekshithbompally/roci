@@ -1,14 +1,13 @@
 /** Startup splash painted by index.html before JS loads; raised on boot, faded out once the app first renders. */
 
 import { ANIMATION_CONFIG } from '@config/animations.config';
-import { UI_CONFIG } from '@config/ui.config';
 
 const SPLASH_ID = 'splash';
 
 /** Keep the splash above the app's own layers while React mounts underneath it. */
 export function raiseSplash(): void {
   const splash = document.getElementById(SPLASH_ID);
-  if (splash) splash.style.zIndex = String(UI_CONFIG.zIndex.splash);
+  if (splash) splash.style.zIndex = 'var(--z-splash)';
 }
 
 /** Fade the splash out and remove it. Safe to call more than once. */

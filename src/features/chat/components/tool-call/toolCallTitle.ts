@@ -1,8 +1,7 @@
-import type { ChatPart } from '@shared/types';
+import type { ToolCallPart } from '@shared/types';
 import { truncate } from '@shared/utils/formatters';
+import { extractDomain } from '@shared/utils/citationUtils';
 import { UI_CONFIG } from '@config/ui.config';
-
-export type ToolCallPart = Extract<ChatPart, { type: 'tool_call' }>;
 
 /** [in-flight, done] verbs for built-in and native provider tools. */
 const LABELS: Record<string, [string, string]> = {
@@ -42,6 +41,12 @@ function queryDetail(part: ToolCallPart): string | undefined {
   return query && `for ${query}`;
 }
 
+/** A web search: what it searched for, or the site it read when it opened a page. */
+function webDetail(part: ToolCallPart): string | undefined {
+  const { url } = part.arguments;
+  return queryDetail(part) ?? (typeof url === 'string' && url ? `on ${extractDomain(url)}` : undefined);
+}
+
 function meetingDetail(part: ToolCallPart): string | undefined {
   const title = part.result?.content.match(MEETING_HEADER)?.[1];
   return quoted(title ?? part.arguments.meeting_id);
@@ -51,10 +56,10 @@ function meetingDetail(part: ToolCallPart): string | undefined {
 const DETAILS: Record<string, (part: ToolCallPart) => string | undefined> = {
   search_meetings: queryDetail,
   search_chats: queryDetail,
-  webSearch: queryDetail,
-  googleSearch: queryDetail,
-  webSearchPreview: queryDetail,
-  browserSearch: queryDetail,
+  webSearch: webDetail,
+  googleSearch: webDetail,
+  webSearchPreview: webDetail,
+  browserSearch: webDetail,
   get_meeting: meetingDetail,
   get_action_items: (part) => quoted(part.arguments.meeting_title),
   list_meetings: (part) => upTo(part.arguments.count, 'meetings'),
