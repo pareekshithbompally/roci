@@ -69,6 +69,21 @@ export function meetingPhaseAction(phase: MeetingPhase): string | null {
   }
 }
 
+/** Whether the phase's action can run with the AI ready now: transcribing needs a speech engine, summarizing a text model. */
+export function meetingPhaseActionReady(phase: MeetingPhase, ready: { text: boolean; speech: boolean }): boolean {
+  switch (phase.kind) {
+    case 'pending':
+    case 'ready':
+      return ready.speech;
+    case 'transcribed':
+      return ready.text;
+    case 'failed':
+      return phase.failedAt === 'summarize' ? ready.text : ready.speech;
+    default:
+      return true;
+  }
+}
+
 /** One sentence under the meeting title explaining the phase; null when there is nothing to say. */
 export function meetingPhaseDetail(phase: MeetingPhase): string | null {
   switch (phase.kind) {

@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { Sun, Moon, Monitor, Copy, Check, FolderOpen, RefreshCw, Loader2 } from 'lucide-react';
-import { useTheme } from '@shared/hooks/useTheme';
+import { useThemeContext } from '@shared/contexts/ThemeContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { useCopiedFlag } from '@shared/hooks';
@@ -33,7 +33,7 @@ const CAPTURE_HINT: Record<(typeof CAPTURE_SOURCES)[number], string> = {
 };
 
 export const GeneralPanel: React.FC = () => {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme } = useThemeContext();
   const { settings, setSettings } = useSettings();
   const liveDictation = useLiveDictation();
   const { liveCopy } = TRANSCRIPTION_CONFIG;

@@ -3,8 +3,8 @@
 import React from 'react';
 import { Button, Text } from '@shared/ui';
 import { ActionCard } from '@shared/components';
-import { useAppActions } from '@shared/stores/appStore';
 import { useAppleIntelligenceControls, useAppleIntelligenceSetup } from '@features/integrations';
+import { useOpenAISetup } from '@features/settings';
 import type { IntegrationAccess } from '@features/integrations';
 import { platform } from '@platform/index';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
@@ -52,11 +52,10 @@ const AppleTile: React.FC = () => {
 export const SetupStep: React.FC = () => {
   const setStep = useSetOnboardingStep();
   const finish = useFinishOnboarding();
-  const { setActiveSettingsPanel, setCurrentView } = useAppActions();
+  const openAISetup = useOpenAISetup();
 
   const openProviders = () => {
-    setActiveSettingsPanel('providers');
-    setCurrentView('settings');
+    openAISetup();
     finish();
   };
 

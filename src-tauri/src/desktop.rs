@@ -156,6 +156,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
   url_actions::setup(app.handle());
 
   // Calendar meeting reminders: idle until the frontend enables them.
+  permissions::emit_answers(app.handle().clone());
   meeting_reminders::start(app.handle().clone());
 
   // Detected calls: offer to record when a call app takes the microphone.

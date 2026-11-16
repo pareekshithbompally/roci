@@ -18,6 +18,7 @@ import {
 } from '@features/recording/stores/recordingStore';
 import { checkStillRecording, listenForStillRecordingAnswers, nextStillRecordingCheckAt } from '@features/recording/stillRecording';
 import { useDocumentVisible } from '@shared/hooks';
+import { useAIReadiness } from '@features/settings';
 import { platform } from '@platform/index';
 
 const RECORDING_ROW = 'recording';
@@ -109,9 +110,10 @@ function useRecordingRow(): void {
   useEffect(() => listenForStillRecordingAnswers(), []);
 }
 
-/** The recording that just stopped, with Transcribe, until it is transcribed or dismissed. */
+/** The recording that just stopped, with Transcribe (once a speech engine is set up), until it is transcribed or dismissed. */
 function useSavedRow(items: HistoryItem[]): void {
   const justStopped = useJustStopped();
+  const canTranscribe = useAIReadiness().speech;
 
   useEffect(() => {
     const meeting = justStopped ? items.find((item) => item.id === justStopped) : undefined;
@@ -133,8 +135,8 @@ function useSavedRow(items: HistoryItem[]): void {
         void meetingPipeline.run(meeting.id);
       },
     };
-    put({ ...ROW_DEFAULTS, id: SAVED_ROW, type: 'recording', status: 'active', label: 'Saved · Not transcribed', detail: meeting.title, actions: [transcribe, dismiss] });
-  }, [justStopped, items]);
+    put({ ...ROW_DEFAULTS, id: SAVED_ROW, type: 'recording', status: 'active', label: 'Saved · Not transcribed', detail: meeting.title, actions: canTranscribe ? [transcribe, dismiss] : [dismiss] });
+  }, [justStopped, items, canTranscribe]);
 }
 
 function meetingRow(meeting: HistoryItem, part: ActivityItem['step']): ActivityItem {

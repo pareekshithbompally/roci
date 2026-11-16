@@ -1,5 +1,8 @@
 import { invoke } from '@tauri-apps/api/core'
 
+/** Mirrors the Rust `permissions::CHANGED_EVENT`: a prompt was answered. */
+export const PERMISSIONS_CHANGED_EVENT = 'permissions://changed'
+
 /** Mirrors the Rust `PermissionKind` (src-tauri/src/permissions/state.rs). */
 export type PermissionKind = 'microphone' | 'system-audio'
 

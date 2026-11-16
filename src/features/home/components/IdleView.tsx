@@ -14,9 +14,9 @@ import { meetingReferenceService } from '@services/meetingReferenceService';
 import { LandingGlow } from './LandingGlow';
 import { useVoiceCapture } from '@features/chat';
 import { useSpeechInputReady } from '@features/settings/hooks/useSpeechModels';
+import { useAIReadiness, useOpenAISetup } from '@features/settings';
 import { LAYOUT } from '@config/layout.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
-import { withIntegrationModels } from '@shared/utils/modelResolver';
 import { Button, Dot, Icon, Surface, Text, TitlebarSpacer } from '@shared/ui';
 import { motion } from 'framer-motion';
 import { platform } from '@platform/index';
@@ -37,7 +37,7 @@ const GREETING_POOL = [
 ];
 
 export const IdleView: React.FC<IdleViewProps> = () => {
-  const { setCurrentView, setActiveSettingsPanel } = useAppActions();
+  const { setCurrentView } = useAppActions();
   const [greeting] = useState(() => GREETING_POOL[Math.floor(Math.random() * GREETING_POOL.length)]);
   const startRecording = useStartRecording();
   const recordingMeetingId = useRecordingMeetingId();
@@ -75,16 +75,8 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   const voice = useVoiceCapture({ settings, providers, appendTranscript });
 
 
-  // Any model to chat with: the user's providers, or a switched-on integration (Apple Intelligence).
-  const hasConfiguredProviders = useMemo(
-    () => withIntegrationModels(providers, settings).some((p) => p.active && p.models && p.models.length > 0),
-    [providers, settings],
-  );
-
-  const handleSetupProviders = () => {
-    setActiveSettingsPanel('providers');
-    setCurrentView('settings');
-  };
+  const hasConfiguredProviders = useAIReadiness().text;
+  const handleSetupProviders = useOpenAISetup();
 
   const handleOpenReminders = () => {
     setCurrentView('reminders');

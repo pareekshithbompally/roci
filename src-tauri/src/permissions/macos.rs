@@ -11,6 +11,22 @@ use objc2_foundation::NSString;
 
 use super::state::{PermissionKind, PermissionState};
 
+/// Runs when macOS reports a consent answer (a prompt was answered); set once at setup.
+static ON_ANSWERED: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
+
+/// Call `handler` whenever a microphone or System Audio Recording prompt is answered. Register once.
+pub(crate) fn on_answered(handler: impl Fn() + Send + Sync + 'static) {
+    if ON_ANSWERED.set(Box::new(handler)).is_err() {
+        tracing::warn!("permission answer handler already registered");
+    }
+}
+
+fn answered() {
+    if let Some(handler) = ON_ANSWERED.get() {
+        handler();
+    }
+}
+
 /// How `kind` stands now. Never prompts.
 pub fn state(kind: PermissionKind) -> PermissionState {
     match kind {
@@ -53,6 +69,7 @@ pub fn request_microphone() {
             granted = granted.as_bool(),
             "microphone permission request finished"
         );
+        answered();
     });
     unsafe {
         let _: () = msg_send![
@@ -198,6 +215,7 @@ pub fn request_system_audio_access() -> bool {
             granted = granted.as_bool(),
             "system audio recording consent answered"
         );
+        answered();
     });
     // SAFETY: TCC copies the completion block before returning.
     unsafe {

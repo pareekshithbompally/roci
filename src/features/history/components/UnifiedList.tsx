@@ -5,6 +5,8 @@ import { SIDEBAR_PAGE_SIZE } from '@config/chat.config';
 import { meetingPipeline } from '@features/recording';
 import { useMeetingParts } from '@shared/stores/meetingProgressStore';
 import { deriveMeetingPhase } from '@shared/types/meetingPhase';
+import { meetingPhaseActionReady } from '@config/meetingPhase.config';
+import { useAIReadiness } from '@features/settings';
 import { useSentinel } from '@shared/hooks/useSentinel';
 import { useDeleteSession } from '@features/history/hooks/useDeleteSession';
 import { SidebarShimmer } from '@features/history/components/SidebarShimmer';
@@ -32,6 +34,8 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
   const renameSession = useChatStore((s) => s.renameSession);
   const parts = useMeetingParts();
   const deleteSession = useDeleteSession();
+  // Once for the list: a meeting offers Transcribe / Summarize only when the AI it needs is set up.
+  const aiReady = useAIReadiness();
 
   const [renameItem, setRenameItem] = React.useState<UnifiedSidebarItemType | null>(null);
   const [displayCount, setDisplayCount] = useState(SIDEBAR_PAGE_SIZE);
@@ -98,19 +102,22 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
   return (
     <>
       <div>
-        {displayedItems.map((item) => (
-          <UnifiedSidebarItem
-            key={`${item.type}-${item.id}`}
-            item={item}
-            searchQuery={searchQuery}
-            isSelected={selectedId === item.id}
-            onClick={() => onSelect(item)}
-            onStartRename={() => setRenameItem(item)}
-            onDeleteClick={() => handleDelete(item)}
-            phase={item.type === 'meeting' ? deriveMeetingPhase(item.historyItem?.status, parts[item.id] ?? null) : undefined}
-            onTranscribeClick={item.type === 'meeting' ? () => handleTranscribe(item) : undefined}
-          />
-        ))}
+        {displayedItems.map((item) => {
+          const phase = item.type === 'meeting' ? deriveMeetingPhase(item.historyItem?.status, parts[item.id] ?? null) : undefined;
+          return (
+            <UnifiedSidebarItem
+              key={`${item.type}-${item.id}`}
+              item={item}
+              searchQuery={searchQuery}
+              isSelected={selectedId === item.id}
+              onClick={() => onSelect(item)}
+              onStartRename={() => setRenameItem(item)}
+              onDeleteClick={() => handleDelete(item)}
+              phase={phase}
+              onTranscribeClick={phase && meetingPhaseActionReady(phase, aiReady) ? () => handleTranscribe(item) : undefined}
+            />
+          );
+        })}
 
         {isLoadingMore && hasMore && (
           <SidebarShimmer count={Math.min(SIDEBAR_PAGE_SIZE, items.length - displayCount)} />

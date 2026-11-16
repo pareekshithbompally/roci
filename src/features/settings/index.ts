@@ -9,7 +9,8 @@ export {
 // Hooks
 export { useLocalServers } from './hooks/useLocalServers';
 export { useSettings, useAppUpdate, scheduleStartupCheck, useMenubarSpeechModels, useMenubarReports, useLocalModelDownloads, useLiveDictation, freshSpeechSources } from './hooks';
-export type { LiveDictation } from './hooks';
+export type { LiveDictation, AIReadiness } from './hooks';
+export { useAIReadiness, useOpenAISetup } from './hooks';
 
 // Stores
 export { systemInfoStore, useSystemInfo } from './stores';
