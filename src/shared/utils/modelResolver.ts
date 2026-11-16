@@ -129,19 +129,19 @@ const APPLE_INTELLIGENCE_PROVIDER: ModelProvider = {
   models: [{ id: APPLE_INTELLIGENCE.model, name: APPLE_INTELLIGENCE.name }],
 };
 
-/** Summary-only sources: user providers plus switched-on integration models (Apple's has no tools and a 4k context). */
-export function withSummaryModels(providers: ModelProvider[], settings: AppSettings): ModelProvider[] {
+/** Every model source: user providers plus switched-on integration models (Apple Intelligence: no tools, small context). */
+export function withIntegrationModels(providers: ModelProvider[], settings: AppSettings): ModelProvider[] {
   return isIntegrationEnabled(settings, 'appleIntelligence') ? [...providers, APPLE_INTELLIGENCE_PROVIDER] : providers;
 }
 
-/** The chat model, resolved against the user's providers. */
+/** The chat model, resolved against every model source. */
 export function resolveChatModel(settings: AppSettings, providers: ModelProvider[]): ResolvedModel | null {
-  return resolveModel(settings.chatModel, providers);
+  return resolveModel(settings.chatModel, withIntegrationModels(providers, settings));
 }
 
-/** The Summary model (Settings › Capabilities), falling back to the chat model, resolved against every summary source. */
+/** The Summary model (Settings › Capabilities), falling back to the chat model, resolved against every model source. */
 export function resolveSummaryModel(settings: AppSettings, providers: ModelProvider[]): ResolvedModel | null {
-  return resolveModel(settings.analyzeModel || settings.chatModel, withSummaryModels(providers, settings));
+  return resolveModel(settings.analyzeModel || settings.chatModel, withIntegrationModels(providers, settings));
 }
 
 /** Whether calls need an API key (on-device models don't). */

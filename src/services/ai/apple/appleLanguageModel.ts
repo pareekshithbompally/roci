@@ -1,15 +1,18 @@
-/** Apple Intelligence as an AI SDK model (text only, never in chat); a JSON format becomes the guided schema. */
+/** Apple Intelligence as an AI SDK model (text only): generate is one guided call, stream is the native token stream. */
 
 import type {
   LanguageModelV4,
   LanguageModelV4CallOptions,
   LanguageModelV4GenerateResult,
   LanguageModelV4Prompt,
+  LanguageModelV4StreamPart,
   LanguageModelV4StreamResult,
   LanguageModelV4Usage,
 } from '@ai-sdk/provider';
 import { APPLE_INTELLIGENCE } from '@config/providers.config';
 import { appleIntelligence } from './appleIntelligence.service';
+import type { AppleChatRequest } from './appleIntelligence.service';
+import { appleFailureError, TEXT_ONLY_ERROR } from './contextWindow';
 
 /** Apple's session doesn't report token counts. */
 const NO_USAGE: LanguageModelV4Usage = {
@@ -17,20 +20,30 @@ const NO_USAGE: LanguageModelV4Usage = {
   outputTokens: { total: undefined, text: undefined, reasoning: undefined },
 };
 
-/** The prompt as Apple's session takes it: instructions (system) + one prompt (user text). */
-function split(prompt: LanguageModelV4Prompt): { instructions: string; text: string } {
-  const instructions = prompt.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n');
-  const text = prompt
-    .flatMap((m) => (m.role === 'user' || m.role === 'assistant' ? m.content : []))
-    .flatMap((part) => (part.type === 'text' ? [part.text] : []))
-    .join('\n\n');
-  return { instructions, text };
+const TEXT_ID = '0';
+
+/** A message's text parts, joined. */
+function textOf(message: LanguageModelV4Prompt[number]): string {
+  if (message.role === 'system') return message.content;
+  const parts = [...message.content];
+  return parts.flatMap((part) => (part.type === 'text' ? [part.text] : [])).join('\n\n');
+}
+
+/** The prompt as Apple's session takes it: instructions (system) + the conversation's text turns. */
+function toChat(prompt: LanguageModelV4Prompt): AppleChatRequest {
+  const instructions = prompt.filter((m) => m.role === 'system').map(textOf).join('\n\n');
+  const turns = prompt.flatMap((m) => (m.role === 'user' || m.role === 'assistant' ? [{ role: m.role, text: textOf(m) }] : []))
+    .filter((turn) => turn.text.length > 0);
+  return { instructions, turns };
 }
 
 async function generate(options: LanguageModelV4CallOptions): Promise<LanguageModelV4GenerateResult> {
-  const { instructions, text } = split(options.prompt);
+  const { instructions, turns } = toChat(options.prompt);
   const schema = options.responseFormat?.type === 'json' ? options.responseFormat.schema : undefined;
-  const output = await appleIntelligence.generate(instructions, text, schema);
+  const text = turns.map((turn) => turn.text).join('\n\n');
+  const output = await appleIntelligence.generate(instructions, text, schema).catch((error: unknown) => {
+    throw appleFailureError(error, 'model');
+  });
   return {
     content: [{ type: 'text', text: output }],
     finishReason: { unified: 'stop', raw: undefined },
@@ -39,19 +52,28 @@ async function generate(options: LanguageModelV4CallOptions): Promise<LanguageMo
   };
 }
 
-/** Guided generation returns whole, so the stream carries it as one text part. */
+/** Pieces arrive as FoundationModels writes them; Stop (the abort signal) or cancelling the stream ends generation on the device. */
 async function stream(options: LanguageModelV4CallOptions): Promise<LanguageModelV4StreamResult> {
-  const result = await generate(options);
-  const text = result.content.map((part) => (part.type === 'text' ? part.text : '')).join('');
+  const request = toChat(options.prompt);
+  if (request.turns.at(-1)?.role !== 'user') throw new Error(TEXT_ONLY_ERROR);
+  const cancelled = new AbortController();
+  const signal = options.abortSignal ? AbortSignal.any([options.abortSignal, cancelled.signal]) : cancelled.signal;
   return {
-    stream: new ReadableStream({
+    stream: new ReadableStream<LanguageModelV4StreamPart>({
       start(controller) {
         controller.enqueue({ type: 'stream-start', warnings: [] });
-        controller.enqueue({ type: 'text-start', id: '0' });
-        controller.enqueue({ type: 'text-delta', id: '0', delta: text });
-        controller.enqueue({ type: 'text-end', id: '0' });
-        controller.enqueue({ type: 'finish', usage: result.usage, finishReason: result.finishReason });
-        controller.close();
+        controller.enqueue({ type: 'text-start', id: TEXT_ID });
+        appleIntelligence
+          .stream(request, (delta) => controller.enqueue({ type: 'text-delta', id: TEXT_ID, delta }), signal)
+          .then(() => {
+            controller.enqueue({ type: 'text-end', id: TEXT_ID });
+            controller.enqueue({ type: 'finish', usage: NO_USAGE, finishReason: { unified: 'stop', raw: undefined } });
+            controller.close();
+          })
+          .catch((error: unknown) => controller.error(appleFailureError(error, 'model')));
+      },
+      cancel() {
+        cancelled.abort();
       },
     }),
   };

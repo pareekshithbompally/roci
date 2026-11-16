@@ -124,7 +124,7 @@ describe('resolveModel', () => {
 
 // ── resolveChatModel ──────────────────────────────────────────────
 
-// Apple Intelligence is a summary source only (no tool calling, 4k context), never a chat model.
+// Apple Intelligence is a chat model while its integration is on (no tool calling, small context).
 describe('resolveChatModel', () => {
   const appleSettings = (enabled: boolean) =>
     ({
@@ -132,8 +132,8 @@ describe('resolveChatModel', () => {
       appleIntelligenceIntegration: { enabled },
     }) as any;
 
-  it('never resolves Apple Intelligence, whatever its switch', () => {
-    expect(resolveChatModel(appleSettings(true), [])).toBeNull();
+  it('resolves Apple Intelligence only while its switch is on', () => {
+    expect(resolveChatModel(appleSettings(true), [])?.provider).toBe('apple-intelligence');
     expect(resolveChatModel(appleSettings(false), [])).toBeNull();
   });
 
@@ -213,12 +213,12 @@ describe('getAllActiveModels', () => {
   });
 });
 
-describe('summary models from integrations', () => {
-  it('Apple Intelligence joins the summary sources only while its integration is on', async () => {
-    const { withSummaryModels, resolveSummaryModel, requiresApiKey } = await import('@shared/utils/modelResolver');
+describe('models from integrations', () => {
+  it('Apple Intelligence joins the model sources only while its integration is on', async () => {
+    const { withIntegrationModels, resolveSummaryModel, requiresApiKey } = await import('@shared/utils/modelResolver');
     const off = { analyzeModel: 'apple-intelligence' } as never;
     const on = { analyzeModel: 'apple-intelligence', appleIntelligenceIntegration: { enabled: true } } as never;
-    expect(withSummaryModels([], off)).toEqual([]);
+    expect(withIntegrationModels([], off)).toEqual([]);
     expect(resolveSummaryModel(off, [])).toBeNull();
     const resolved = resolveSummaryModel(on, []);
     expect(resolved?.provider).toBe('apple-intelligence');

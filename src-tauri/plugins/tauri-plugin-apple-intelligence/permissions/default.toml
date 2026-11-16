@@ -3,6 +3,8 @@ description = "Allows all Apple Intelligence commands (on-device language model 
 permissions = [
   "allow-availability",
   "allow-generate",
+  "allow-stream",
+  "allow-stream-cancel",
   "allow-speech-status",
   "allow-speech-request-access",
   "allow-speech-prepare",

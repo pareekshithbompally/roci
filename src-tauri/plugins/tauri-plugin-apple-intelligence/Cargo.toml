@@ -2,7 +2,7 @@
 name = "tauri-plugin-apple-intelligence"
 version = "0.1.0"
 edition = "2021"
-description = "Tauri plugin for Apple's on-device models: FoundationModels (summaries) and SpeechAnalyzer (transcription)"
+description = "Tauri plugin for Apple's on-device models: FoundationModels (chat, summaries) and SpeechAnalyzer (transcription)"
 links = "tauri-plugin-apple-intelligence"
 
 [build-dependencies]

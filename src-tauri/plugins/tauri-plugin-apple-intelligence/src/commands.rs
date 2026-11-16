@@ -1,13 +1,18 @@
 //! Tauri commands. Bridge calls block (Swift semaphores), so they run off the main thread.
 
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use tauri::command;
-use tauri::ipc::{InvokeBody, Request};
+use tauri::ipc::{Channel, InvokeBody, Request};
+use tauri::State;
 
 use crate::bridge;
 use crate::types::{
-    AppleError, Availability, Empty, Generated, Granted, ModelStatus, Reply, SpeechSegment, SpeechStatus, Transcription,
+    AppleError, Availability, Empty, Generated, Granted, ModelStatus, Reply, SpeechSegment, SpeechStatus, StreamEvent,
+    Transcription,
 };
 
 /// Longest one generation may take (a full summary measured ~20 s on Apple silicon).
@@ -47,6 +52,47 @@ pub async fn generate(instructions: String, prompt: String, schema: Option<Strin
         take::<Generated>(bridge::generate(&instructions, &prompt, schema.as_deref().unwrap_or(""), timeout)).map(|g| g.text)
     })
     .await
+}
+
+/// Each streaming reply's stop flag, by its channel id.
+#[derive(Default)]
+pub struct Streams(Mutex<HashMap<u32, Arc<AtomicBool>>>);
+
+/// Commands run concurrently, so a Stop can arrive before its stream starts: whichever comes first makes the flag.
+impl Streams {
+    fn flag(&self, id: u32) -> Arc<AtomicBool> {
+        self.0.lock().unwrap_or_else(|e| e.into_inner()).entry(id).or_default().clone()
+    }
+
+    fn stop(&self, id: u32) {
+        self.flag(id).store(true, Ordering::Relaxed);
+    }
+
+    fn end(&self, id: u32) {
+        self.0.lock().unwrap_or_else(|e| e.into_inner()).remove(&id);
+    }
+}
+
+/// A chat reply (`{instructions, turns}` JSON) streamed to `on_delta`, closed by `finish`; `stream_cancel` stops it.
+#[command]
+pub async fn stream(request: String, on_delta: Channel<StreamEvent>, streams: State<'_, Streams>) -> Result<(), AppleError> {
+    let id = on_delta.id();
+    let stop = streams.flag(id);
+    let result = off_main(move || {
+        let timeout = GENERATE_TIMEOUT.as_millis() as u64;
+        let send = |delta: &str| !stop.load(Ordering::Relaxed) && on_delta.send(StreamEvent::Delta(delta.to_owned())).is_ok();
+        take::<Empty>(bridge::stream(&request, timeout, send))?;
+        on_delta.send(StreamEvent::Finish).map_err(|e| AppleError::Failed(e.to_string()))
+    })
+    .await;
+    streams.end(id);
+    result
+}
+
+/// Stops the reply streaming to channel `channel_id`; what it sent so far stays.
+#[command]
+pub fn stream_cancel(channel_id: u32, streams: State<'_, Streams>) {
+    streams.stop(channel_id);
 }
 
 #[command]

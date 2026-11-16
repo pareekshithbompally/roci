@@ -225,7 +225,7 @@ export interface AppSettings {
   readAloudEngine?: ReadAloudEngine;
   /** The voice within `readAloudEngine` (its id from the engine's voice list); unset = the engine's default. */
   readAloudVoice?: string;
-  /** Apple Intelligence integration: on-device summary model + Apple speech engine */
+  /** Apple Intelligence integration: on-device chat and summary model + Apple speech engine */
   appleIntelligenceIntegration?: {
     enabled: boolean;
   };

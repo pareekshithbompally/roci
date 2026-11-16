@@ -6,7 +6,7 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { ProvidersAvatar, ModelIcon } from '@shared/components';
 import { getProviderTitle } from '@shared/utils/provider.utils';
-import { groupChoices, modelChoices } from '@shared/utils/modelResolver';
+import { groupChoices, modelChoices, withIntegrationModels } from '@shared/utils/modelResolver';
 import { modelInfoOf } from '@services/ai/capabilities';
 import { ModalityIcons } from '@features/settings/components/ModalityIcons';
 import type { ModelInfo } from '@services/modalities';
@@ -29,7 +29,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
     servers?.find((server) => server.id === provider)?.models.find((model) => model.id === modelId)?.loaded ?? false;
 
   // The same catalog and layout as Settings › Capabilities: usable models by provider, then "Needs setup".
-  const choices = useMemo(() => modelChoices(providers), [providers]);
+  const choices = useMemo(() => modelChoices(withIntegrationModels(providers, settings)), [providers, settings]);
   const { groups, needsSetup } = useMemo(() => groupChoices(choices), [choices]);
   const selected = choices.find((c) => c.value === settings.chatModel);
 

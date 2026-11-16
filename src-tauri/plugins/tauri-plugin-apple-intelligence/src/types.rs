@@ -80,6 +80,14 @@ pub struct Reply<T> {
     pub error: Option<BridgeFailure>,
 }
 
+/// One message of a streamed chat reply: a text piece, then `finish` once it's complete.
+#[derive(Clone, Serialize)]
+#[serde(tag = "event", content = "data", rename_all = "kebab-case")]
+pub enum StreamEvent {
+    Delta(String),
+    Finish,
+}
+
 #[derive(Deserialize)]
 pub struct Generated {
     pub text: String,

@@ -11,16 +11,52 @@ export function isAppleSpeechReady(status: AppleSpeechStatus | undefined): boole
   return !!status?.available && status.authorization === 'authorized' && status.installed;
 }
 
+/** What stands between Apple Speech and transcribing: the prompt (undecided), a denial, or the model download. */
+export type AppleSpeechStep = 'ask' | 'denied' | 'download';
+
+/** Apple Speech's next setup step; null when it's ready or this Mac doesn't have it. */
+export function appleSpeechStep(status: AppleSpeechStatus | undefined): AppleSpeechStep | null {
+  if (!status?.available || isAppleSpeechReady(status)) return null;
+  if (status.authorization === 'not_determined') return 'ask';
+  if (status.authorization !== 'authorized') return 'denied';
+  return 'download';
+}
+
+const STEP_HINTS: Record<AppleSpeechStep, string> = {
+  ask: 'Allow Speech Recognition',
+  denied: 'Allow Speech Recognition',
+  download: 'Download the English speech model',
+};
+
 /** The next step when Apple Speech can't run yet; null when ready. */
 export function appleSpeechHint(status: AppleSpeechStatus | undefined): string | null {
   if (!status?.available) return 'Not available on this Mac';
-  if (status.authorization !== 'authorized') return 'Allow Speech Recognition';
-  if (!status.installed) return 'Download the English speech model';
-  return null;
+  const step = appleSpeechStep(status);
+  return step ? STEP_HINTS[step] : null;
 }
 
 export const getAppleSpeechStatus = (): Promise<AppleSpeechStatus> =>
   appleIntelligence.speechStatus(TRANSCRIPTION_CONFIG.language);
+
+/** The system Speech Recognition prompt; only shows while undecided. */
+export const requestAppleSpeechAccess = (): Promise<boolean> => appleIntelligence.speechRequestAccess();
+
+/** Downloads the speech model for the transcription language. */
+export const downloadAppleSpeechModel = (): Promise<void> => appleIntelligence.speechPrepare(TRANSCRIPTION_CONFIG.language);
+
+/** Asks while undecided, then downloads the model; whether Apple Speech can transcribe afterwards (a denial stays). */
+export async function prepareAppleSpeech(): Promise<boolean> {
+  let status = await getAppleSpeechStatus();
+  if (appleSpeechStep(status) === 'ask') {
+    await requestAppleSpeechAccess();
+    status = await getAppleSpeechStatus();
+  }
+  if (appleSpeechStep(status) === 'download') {
+    await downloadAppleSpeechModel();
+    status = await getAppleSpeechStatus();
+  }
+  return isAppleSpeechReady(status);
+}
 
 function appleSpeechErrorMessage(error: unknown): string {
   if (!isAppleError(error)) return errorMessage(error);

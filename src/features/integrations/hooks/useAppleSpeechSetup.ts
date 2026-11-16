@@ -5,8 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { queryKeys } from '@shared/query/queryKeys';
 import { isIntegrationEnabled } from '@shared/utils/integrations';
-import { appleIntelligence } from '@services/ai/apple/appleIntelligence.service';
-import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
+import { appleSpeechStep, downloadAppleSpeechModel, requestAppleSpeechAccess } from '@services/ai/transcription';
 import { openNative } from '@features/integrations/utils/openNative';
 import type { ChoiceSetup } from '@shared/utils/modelResolver';
 import { useAppleSpeechStatus } from './useIntegrationSpeech';
@@ -28,15 +27,10 @@ export function useAppleSpeechSetup(): ChoiceSetup | null {
       .finally(() => setBusy(false));
   };
 
-  if (!status?.available) return null;
-  if (status.authorization === 'not_determined') {
-    return { kind: 'allow', busy, percent: null, run: () => after(appleIntelligence.speechRequestAccess(), 'request access') };
+  switch (appleSpeechStep(status)) {
+    case 'ask': return { kind: 'allow', busy, percent: null, run: () => after(requestAppleSpeechAccess(), 'request access') };
+    case 'denied': return { kind: 'allow', busy: false, percent: null, run: () => after(openNative('speech-recognition-settings'), 'open settings') };
+    case 'download': return { kind: 'download', busy, percent: null, run: () => after(downloadAppleSpeechModel(), 'download') };
+    default: return null;
   }
-  if (status.authorization !== 'authorized') {
-    return { kind: 'allow', busy: false, percent: null, run: () => after(openNative('speech-recognition-settings'), 'open settings') };
-  }
-  if (!status.installed) {
-    return { kind: 'download', busy, percent: null, run: () => after(appleIntelligence.speechPrepare(TRANSCRIPTION_CONFIG.language), 'download') };
-  }
-  return null;
 }

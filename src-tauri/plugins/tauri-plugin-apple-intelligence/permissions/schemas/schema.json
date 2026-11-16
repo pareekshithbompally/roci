@@ -367,10 +367,34 @@
           "markdownDescription": "Denies the speech_transcribe command without any pre-configured scope."
         },
         {
-          "description": "Allows all Apple Intelligence commands (on-device language model + speech)\n#### This default permission set includes:\n\n- `allow-availability`\n- `allow-generate`\n- `allow-speech-status`\n- `allow-speech-request-access`\n- `allow-speech-prepare`\n- `allow-speech-transcribe`",
+          "description": "Enables the stream command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-stream",
+          "markdownDescription": "Enables the stream command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the stream command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-stream",
+          "markdownDescription": "Denies the stream command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the stream_cancel command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-stream-cancel",
+          "markdownDescription": "Enables the stream_cancel command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the stream_cancel command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-stream-cancel",
+          "markdownDescription": "Denies the stream_cancel command without any pre-configured scope."
+        },
+        {
+          "description": "Allows all Apple Intelligence commands (on-device language model + speech)\n#### This default permission set includes:\n\n- `allow-availability`\n- `allow-generate`\n- `allow-stream`\n- `allow-stream-cancel`\n- `allow-speech-status`\n- `allow-speech-request-access`\n- `allow-speech-prepare`\n- `allow-speech-transcribe`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Allows all Apple Intelligence commands (on-device language model + speech)\n#### This default permission set includes:\n\n- `allow-availability`\n- `allow-generate`\n- `allow-speech-status`\n- `allow-speech-request-access`\n- `allow-speech-prepare`\n- `allow-speech-transcribe`"
+          "markdownDescription": "Allows all Apple Intelligence commands (on-device language model + speech)\n#### This default permission set includes:\n\n- `allow-availability`\n- `allow-generate`\n- `allow-stream`\n- `allow-stream-cancel`\n- `allow-speech-status`\n- `allow-speech-request-access`\n- `allow-speech-prepare`\n- `allow-speech-transcribe`"
         }
       ]
     }

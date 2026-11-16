@@ -7,7 +7,7 @@ import { useOnDeviceModel, type OnDeviceModel } from '@shared/hooks/useOnDeviceM
 import { EMBEDDING_MODEL_NAME, EMBEDDING_MODEL_SIZE } from '@extensions/rag';
 import { ModelDownloadButton, ModelReadyStatus } from '@shared/components';
 import { formatFileSize } from '@shared/utils/formatters';
-import { modelChoices, withSummaryModels, type ModelChoice } from '@shared/utils/modelResolver';
+import { modelChoices, withIntegrationModels, type ModelChoice } from '@shared/utils/modelResolver';
 import { speechSelectionKey, speechSelectionOf } from '@services/ai/transcription';
 import { CAPABILITIES_CONFIG } from '@config/capabilities.config';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
@@ -97,8 +97,7 @@ export const CapabilitiesPanel: React.FC = () => {
   const { settings, setSettings, providers } = useSettings();
   const searchModel = useOnDeviceModel('rag');
 
-  const chatChoices = useMemo(() => modelChoices(providers), [providers]);
-  const summaryChoices = useMemo(() => modelChoices(withSummaryModels(providers, settings)), [providers, settings]);
+  const textChoices = useMemo(() => modelChoices(withIntegrationModels(providers, settings)), [providers, settings]);
   const { data: localModels = [] } = useLocalModels();
   const controls = useLocalModelControls();
   const speechChoices = useSpeechChoices(controls);
@@ -115,7 +114,7 @@ export const CapabilitiesPanel: React.FC = () => {
     <SettingsPage title="Capabilities" description={CAPABILITIES_CONFIG.description}>
       <Section title="Conversation">
         <CapabilityRow icon={MessageSquare} job={JOBS.chat}>
-          <ModelSelect value={settings.chatModel || undefined} choices={chatChoices} onChange={(chatModel) => setSettings({ chatModel })} />
+          <ModelSelect value={settings.chatModel || undefined} choices={textChoices} onChange={(chatModel) => setSettings({ chatModel })} />
         </CapabilityRow>
       </Section>
 
@@ -137,7 +136,7 @@ export const CapabilitiesPanel: React.FC = () => {
         <CapabilityRow icon={NotebookText} job={JOBS.summaries}>
           <ModelSelect
             value={settings.analyzeModel || settings.chatModel || undefined}
-            choices={summaryChoices}
+            choices={textChoices}
             onChange={(analyzeModel) => setSettings({ analyzeModel })}
           />
         </CapabilityRow>

@@ -223,7 +223,7 @@ export const predefinedProviders: ModelProvider[] = [
   }
 ]
 
-/** Built-in on-device Apple Intelligence provider; offered for summaries only while its integration is on. */
+/** Built-in on-device Apple Intelligence provider; a chat and summary model while its integration is on. */
 export const APPLE_INTELLIGENCE = {
   provider: 'apple-intelligence',
   model: 'apple-intelligence',

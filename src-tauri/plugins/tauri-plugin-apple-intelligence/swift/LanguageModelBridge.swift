@@ -61,6 +61,37 @@ public func appleIntelligenceGenerate(
     #endif
 }
 
+/// Receives one streamed text piece; returns false to stop the stream.
+public typealias AppleIntelligenceDelta = @convention(c) (UnsafeMutableRawPointer?, UnsafePointer<CChar>) -> Bool
+
+/// A chat reply streamed to `onDelta`; request `{"instructions", "turns": [{"role", "text"}]}` (last turn: the user's).
+/// Returns `{}` once done or stopped, or `{"error": {"kind", "message"}}`.
+@_cdecl("apple_intelligence_stream")
+public func appleIntelligenceStream(
+    _ requestJson: UnsafePointer<CChar>,
+    _ context: UnsafeMutableRawPointer?,
+    _ onDelta: AppleIntelligenceDelta,
+    _ timeoutMs: UInt64
+) -> UnsafeMutablePointer<CChar> {
+    #if canImport(FoundationModels)
+    guard #available(macOS 26.0, *) else { return failure("unavailable", "Apple Intelligence requires macOS 26 or later.") }
+    guard let request = try? JSONDecoder().decode(ChatRequest.self, from: Data(String(cString: requestJson).utf8)),
+          let prompt = request.turns.last, prompt.role == "user" else {
+        return failure("failed", "Invalid chat request")
+    }
+    let sink = DeltaSink(context: context, onDelta: onDelta)
+    let result = blocking(timeoutMs: timeoutMs) { try await streamReply(request, prompt: prompt.text, to: sink) }
+    sink.close()
+    switch result {
+    case .success: return bridgeJSON([:])
+    case .failure(let error as BridgeError): return failure(error.kind, error.message)
+    case .failure(let error): return failure("failed", error.localizedDescription)
+    }
+    #else
+    return failure("unavailable", "Apple Intelligence requires macOS 26 or later.")
+    #endif
+}
+
 @_cdecl("apple_intelligence_free_string")
 public func appleIntelligenceFreeString(_ ptr: UnsafeMutablePointer<CChar>) {
     ptr.deallocate()
@@ -80,12 +111,71 @@ private func generate(instructions: String, prompt: String, schemaJson: String) 
         }
         let response = try await session.respond(to: prompt, schema: try generationSchema(from: schemaJson), options: options)
         return response.content.jsonString
-    } catch LanguageModelSession.GenerationError.exceededContextWindowSize(let context) {
-        throw BridgeError(kind: "context-window", message: context.debugDescription)
-    } catch LanguageModelSession.GenerationError.refusal(_, let context) {
-        throw BridgeError(kind: "refused", message: context.debugDescription)
-    } catch LanguageModelSession.GenerationError.guardrailViolation(let context) {
-        throw BridgeError(kind: "refused", message: context.debugDescription)
+    } catch {
+        throw bridged(error)
+    }
+}
+
+// MARK: - Chat
+
+private struct ChatRequest: Decodable {
+    struct Turn: Decodable {
+        let role: String
+        let text: String
+    }
+    let instructions: String
+    let turns: [Turn]
+}
+
+/// Streams the reply to `prompt` after the earlier turns. Each snapshot is the whole text so far (it only grows), so
+/// only its new end is sent, counted in Unicode scalars: a combining mark or emoji modifier can join the last character.
+@available(macOS 26.0, *)
+private func streamReply(_ request: ChatRequest, prompt: String, to sink: DeltaSink) async throws {
+    let session = LanguageModelSession(model: SystemLanguageModel.default, transcript: transcript(of: request))
+    var sent = 0
+    do {
+        for try await snapshot in session.streamResponse(to: prompt) {
+            let scalars = snapshot.content.unicodeScalars
+            guard scalars.count > sent else { continue }
+            guard sink.send(String(String.UnicodeScalarView(scalars.dropFirst(sent)))) else { return }
+            sent = scalars.count
+        }
+    } catch {
+        throw bridged(error)
+    }
+}
+
+/// The instructions and every turn before the last, as the session's history.
+@available(macOS 26.0, *)
+private func transcript(of request: ChatRequest) -> Transcript {
+    let instructions: [Transcript.Entry] = request.instructions.isEmpty
+        ? []
+        : [.instructions(Transcript.Instructions(segments: [segment(request.instructions)], toolDefinitions: []))]
+    let history: [Transcript.Entry] = request.turns.dropLast().map { turn in
+        turn.role == "user"
+            ? .prompt(Transcript.Prompt(segments: [segment(turn.text)]))
+            : .response(Transcript.Response(assetIDs: [], segments: [segment(turn.text)]))
+    }
+    return Transcript(entries: instructions + history)
+}
+
+@available(macOS 26.0, *)
+private func segment(_ text: String) -> Transcript.Segment {
+    .text(Transcript.TextSegment(content: text))
+}
+
+/// Generation failures the webview tells apart; anything else passes through.
+@available(macOS 26.0, *)
+private func bridged(_ error: Error) -> Error {
+    switch error {
+    case LanguageModelSession.GenerationError.exceededContextWindowSize(let context):
+        return BridgeError(kind: "context-window", message: context.debugDescription)
+    case LanguageModelSession.GenerationError.refusal(_, let context):
+        return BridgeError(kind: "refused", message: context.debugDescription)
+    case LanguageModelSession.GenerationError.guardrailViolation(let context):
+        return BridgeError(kind: "refused", message: context.debugDescription)
+    default:
+        return error
     }
 }
 
@@ -130,6 +220,26 @@ private func dynamicSchema(_ node: [String: Any], name: String) -> DynamicGenera
 #endif
 
 // MARK: - Helpers
+
+/// The caller's delta callback; closed once the call returns, so a timed-out task can't call into freed memory.
+private final class DeltaSink: @unchecked Sendable {
+    private let lock = NSLock()
+    private let context: UnsafeMutableRawPointer?
+    private let onDelta: AppleIntelligenceDelta
+    private var open = true
+
+    init(context: UnsafeMutableRawPointer?, onDelta: @escaping AppleIntelligenceDelta) {
+        self.context = context
+        self.onDelta = onDelta
+    }
+
+    /// Whether the caller wants more.
+    func send(_ text: String) -> Bool {
+        lock.withLock { open && text.withCString { onDelta(context, $0) } }
+    }
+
+    func close() { lock.withLock { open = false } }
+}
 
 private final class BlockingResult<Value: Sendable>: @unchecked Sendable {
     private let lock = NSLock()

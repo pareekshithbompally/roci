@@ -13,9 +13,14 @@ export const INTEGRATIONS_CONFIG = {
   },
   appleIntelligence: {
     title: 'Apple Intelligence',
-    description: 'On-device summaries and speech recognition. Nothing leaves your Mac.',
+    description: 'On-device chat, summaries and speech recognition. Nothing leaves your Mac.',
     deniedHint: 'Apple Intelligence is off in System Settings › Apple Intelligence & Siri.',
     icon: '/images/apple-intelligence-sm.png',
+    /** The welcome screen's third option: every basic job on Apple's models in one click. */
+    onboarding: {
+      description: 'Chat, summaries, speech and voice on this Mac. No keys, nothing leaves it',
+      needsSettings: 'Turn on Apple Intelligence in System Settings, then come back',
+    },
     /** Why the model can't run, per availability reason. */
     unavailable: {
       'device-not-eligible': 'This Mac doesn’t support Apple Intelligence.',

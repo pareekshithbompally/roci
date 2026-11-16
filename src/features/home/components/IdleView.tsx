@@ -3,6 +3,7 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { Key, HardDrive, ListTodo, CalendarDays } from 'lucide-react';
 import { ImportButton } from '@features/import';
+import { useAppleIntelligenceSetup } from '@features/integrations';
 import { useAppActions } from '@shared/stores/appStore';
 import { useRecordingBusy, useRecordingMeetingId, useStartRecording } from '@features/recording';
 import { isTauriEnvironment } from '@services/tauri';
@@ -17,11 +18,15 @@ import { useVoiceCapture } from '@features/chat';
 import { useSpeechInputReady } from '@features/settings/hooks/useSpeechModels';
 import { LAYOUT } from '@config/layout.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
-import { ActionCard } from '@shared/components';
-import { Button, Dot, Icon, Surface, Text, TitlebarSpacer } from '@shared/ui';
+import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
+import { withIntegrationModels } from '@shared/utils/modelResolver';
+import { ActionCard, AppImage } from '@shared/components';
+import { Button, cn, Dot, Icon, Surface, Text, TitlebarSpacer } from '@shared/ui';
 import { motion } from 'framer-motion';
 
 interface IdleViewProps {}
+
+const APPLE = INTEGRATIONS_CONFIG.appleIntelligence;
 
 const GREETING_POOL = [
   'Ready to explore some new ideas?',
@@ -74,10 +79,12 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   const voice = useVoiceCapture({ settings, providers, appendTranscript });
 
 
-  // Check if any provider is configured with models
-  const hasConfiguredProviders = useMemo(() => {
-    return providers.some(p => p.active && p.models && p.models.length > 0);
-  }, [providers]);
+  // Any model to chat with: the user's providers, or a switched-on integration (Apple Intelligence).
+  const hasConfiguredProviders = useMemo(
+    () => withIntegrationModels(providers, settings).some((p) => p.active && p.models && p.models.length > 0),
+    [providers, settings],
+  );
+  const appleSetup = useAppleIntelligenceSetup();
 
   const handleSetupProviders = () => {
     setActiveSettingsPanel('providers');
@@ -213,7 +220,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
               </div>
 
               {/* Setup cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className={cn('grid grid-cols-1 gap-3', appleSetup ? 'sm:grid-cols-3' : 'sm:grid-cols-2')}>
                 <ActionCard
                   icon={<Icon icon={Key} size="md" />}
                   title="Cloud Providers"
@@ -226,6 +233,14 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                   description="Use Ollama, LM Studio, or another server running on this Mac"
                   onClick={handleSetupProviders}
                 />
+                {appleSetup && (
+                  <ActionCard
+                    icon={<AppImage src={APPLE.icon} size="md" />}
+                    title={APPLE.title}
+                    description={appleSetup.needsSettings ? APPLE.onboarding.needsSettings : APPLE.onboarding.description}
+                    onClick={appleSetup.setUp}
+                  />
+                )}
               </div>
 
               {/* On-device models — zero state only; Skip or consent dismisses for good */}

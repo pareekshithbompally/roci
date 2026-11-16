@@ -1,6 +1,8 @@
 const COMMANDS: &[&str] = &[
     "availability",
     "generate",
+    "stream",
+    "stream_cancel",
     "speech_status",
     "speech_request_access",
     "speech_prepare",

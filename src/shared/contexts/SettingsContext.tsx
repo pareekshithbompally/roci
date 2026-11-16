@@ -7,7 +7,7 @@ import type { AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { store } from '@services/db';
 import { predefinedProviders, MANAGED_SDK_PROVIDERS } from '@config/providers.config';
-import { withSummaryModels } from '@shared/utils/modelResolver';
+import { withIntegrationModels } from '@shared/utils/modelResolver';
 import { defaultSpeechSelection } from '@services/ai/transcription';
 import { queryKeys } from '@shared/query/queryKeys';
 
@@ -117,7 +117,9 @@ async function loadSettingsFromStore(): Promise<{ settings: AppSettings; selecte
   for (const key of SETTINGS_KEYS) {
     if (raw[key]) {
       try {
-        (loaded as any)[key] = JSON.parse(raw[key]);
+        const value = JSON.parse(raw[key]);
+        // `null` is a cleared setting (see persistSnapshot): left out, so its default applies.
+        if (value !== null) (loaded as any)[key] = value;
       } catch {
         (loaded as any)[key] = raw[key];
       }
@@ -193,15 +195,13 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         console.log('[SettingsContext] Clearing dangling selected provider:', selectedProviderName);
         selectedProviderName = null;
       }
-      const servedBy = (sources: typeof loadedProviders, id: string) => sources.some((p) => p.models?.some((m) => m.id === id));
-      const modelServed = (id: string) => servedBy(loadedProviders, id);
-      // The summary model may also come from an integration (Apple Intelligence).
-      const summaryServed = (id: string) => servedBy(withSummaryModels(loadedProviders, loadedSettings), id);
+      // A model may also come from an integration (Apple Intelligence).
+      const modelServed = (id: string) => withIntegrationModels(loadedProviders, loadedSettings).some((p) => p.models?.some((m) => m.id === id));
       if (loadedSettings.chatModel && !modelServed(loadedSettings.chatModel)) {
         console.log('[SettingsContext] Clearing dangling chat model:', loadedSettings.chatModel);
         loadedSettings.chatModel = '';
       }
-      if (loadedSettings.analyzeModel && !summaryServed(loadedSettings.analyzeModel)) {
+      if (loadedSettings.analyzeModel && !modelServed(loadedSettings.analyzeModel)) {
         console.log('[SettingsContext] Clearing dangling analyze model:', loadedSettings.analyzeModel);
         loadedSettings.analyzeModel = '';
       }
@@ -285,12 +285,9 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       : snapshot.settings;
 
     try {
-      // Save individual settings as key-value pairs
+      // Save individual settings as key-value pairs; an unset one is saved as `null`, so clearing it sticks.
       for (const key of SETTINGS_KEYS) {
-        const value = effectiveSettings[key];
-        if (value !== undefined) {
-          await store.settings.set(key, JSON.stringify(value));
-        }
+        await store.settings.set(key, JSON.stringify(effectiveSettings[key] ?? null));
       }
 
       // Save selectedProviderName

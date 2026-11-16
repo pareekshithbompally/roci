@@ -10,7 +10,14 @@ export {
 } from './catalog';
 export type { SpeechModelOption, SpeechSources } from './catalog';
 export { getHexStatus, installedHexModels } from './hex';
-export { getAppleSpeechStatus } from './appleSpeech';
+export {
+  getAppleSpeechStatus,
+  appleSpeechStep,
+  requestAppleSpeechAccess,
+  downloadAppleSpeechModel,
+  prepareAppleSpeech,
+} from './appleSpeech';
+export type { AppleSpeechStep } from './appleSpeech';
 export { liveEngineFor, EMPTY_LIVE_TEXT } from './live';
 export { recordedCapture, liveCapture } from './capture';
 export type { DictationCapture } from './capture';

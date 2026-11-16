@@ -6,6 +6,8 @@ Allows all Apple Intelligence commands (on-device language model + speech)
 
 - `allow-availability`
 - `allow-generate`
+- `allow-stream`
+- `allow-stream-cancel`
 - `allow-speech-status`
 - `allow-speech-request-access`
 - `allow-speech-prepare`
@@ -172,6 +174,58 @@ Enables the speech_transcribe command without any pre-configured scope.
 <td>
 
 Denies the speech_transcribe command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`apple-intelligence:allow-stream`
+
+</td>
+<td>
+
+Enables the stream command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`apple-intelligence:deny-stream`
+
+</td>
+<td>
+
+Denies the stream command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`apple-intelligence:allow-stream-cancel`
+
+</td>
+<td>
+
+Enables the stream_cancel command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`apple-intelligence:deny-stream-cancel`
+
+</td>
+<td>
+
+Denies the stream_cancel command without any pre-configured scope.
 
 </td>
 </tr>

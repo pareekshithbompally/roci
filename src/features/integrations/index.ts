@@ -16,4 +16,6 @@ export { useAppleNotesRuntime } from './hooks/useAppleNotesRuntime';
 export { useSpotlightRuntime } from './hooks/useSpotlightRuntime';
 export { useIntegrationSpeech } from './hooks/useIntegrationSpeech';
 export { useAppleSpeechSetup } from './hooks/useAppleSpeechSetup';
+export { useAppleIntelligenceSetup } from './hooks/useAppleIntelligenceSetup';
+export type { AppleIntelligenceSetup } from './hooks/useAppleIntelligenceSetup';
 export type { IntegrationAccess, IntegrationControls } from './types';
