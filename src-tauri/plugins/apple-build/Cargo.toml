@@ -1,0 +1,6 @@
+[package]
+name = "apple-build"
+version = "0.1.0"
+edition = "2021"
+description = "Build-script helper that compiles a plugin's Swift bridge into a static library for the Cargo target (macOS, iOS, iOS simulator)"
+publish = false

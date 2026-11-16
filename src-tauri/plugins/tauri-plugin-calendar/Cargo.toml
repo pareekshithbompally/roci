@@ -7,6 +7,7 @@ links = "tauri-plugin-calendar"
 
 [build-dependencies]
 tauri-plugin = { version = "2", features = ["build"] }
+apple-build = { path = "../apple-build" }
 
 [dependencies]
 tauri = { version = "2.9.5" }

@@ -5,3 +5,5 @@ edition = "2021"
 description = "Roci's menu bar menu: an NSStatusItem with a native NSMenu, driven by Rust over a C bridge"
 links = "status-menu"
 
+[build-dependencies]
+apple-build = { path = "../apple-build" }
