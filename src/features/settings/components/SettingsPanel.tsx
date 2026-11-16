@@ -1,8 +1,10 @@
 /** Renders only the active settings panel; edits save on edit, so there is no save footer. */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { systemInfoStore } from '@features/settings/stores/systemInfoStore';
-import { useAppStore } from '@shared/stores/appStore';
+import { useAppActions, useAppStore } from '@shared/stores/appStore';
+import { useFormFactor } from '@platform/formFactor';
+import { SETTINGS_NAV_ITEMS } from './SettingsNav';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { ProvidersPanel } from './ProvidersPanel';
 import { ProvidersPanelErrorBoundary } from './ProvidersPanelErrorBoundary';
@@ -12,7 +14,7 @@ import { UsagePanel } from './UsagePanel';
 import { IntegrationsPanel } from './IntegrationsPanel';
 import { NotificationsPanel } from './NotificationsPanel';
 import { McpServersPanel } from './mcp';
-import { Surface } from '@shared/ui';
+import { Card, CardRow, Icon, PushScreen, Surface } from '@shared/ui';
 import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore';
 
 const PANEL_COMPONENTS: Record<SettingsPanelType, React.FC> = {
@@ -25,9 +27,50 @@ const PANEL_COMPONENTS: Record<SettingsPanelType, React.FC> = {
   usage: UsagePanel,
 };
 
+const PanelView: React.FC<{ id: SettingsPanelType }> = ({ id }) =>
+  id === 'providers' ? (
+    <ProvidersPanelErrorBoundary>
+      <ProvidersPanel />
+    </ProvidersPanelErrorBoundary>
+  ) : (
+    React.createElement(PANEL_COMPONENTS[id])
+  );
+
+/** Phone: Settings is a grouped list, one row per section; a row pushes that section's panel. */
+const PhoneSettings: React.FC<{ activePanel: SettingsPanelType }> = ({ activePanel }) => {
+  const { setActiveSettingsPanel } = useAppActions();
+  const [pushed, setPushed] = useState(false);
+  const items = SETTINGS_NAV_ITEMS.filter(({ available }) => available !== false);
+  const open = (id: SettingsPanelType) => {
+    setActiveSettingsPanel(id);
+    setPushed(true);
+  };
+
+  return (
+    <div className="relative h-full overflow-hidden">
+      <div className="h-full overflow-y-auto p-4">
+        <Card>
+          {items.map(({ id, label, icon }) => (
+            <CardRow key={id} title={label} leading={<Icon icon={icon} size="sm" />} onOpen={() => open(id)} />
+          ))}
+        </Card>
+      </div>
+      <PushScreen
+        open={pushed}
+        title={items.find(({ id }) => id === activePanel)?.label}
+        backLabel="Settings"
+        onBack={() => setPushed(false)}
+      >
+        {pushed && <PanelView id={activePanel} />}
+      </PushScreen>
+    </div>
+  );
+};
+
 export const SettingsPanel: React.FC = () => {
   const activePanel = useAppStore((s) => s.activeSettingsPanel);
   const { isLoading } = useSettings();
+  const formFactor = useFormFactor();
 
   // System panel data (paths, disk, index) loads while the user is still on another panel.
   useEffect(() => systemInfoStore.preload(), []);
@@ -40,19 +83,12 @@ export const SettingsPanel: React.FC = () => {
     );
   }
 
-  const ActivePanel =
-    activePanel === 'providers' ? (
-      <ProvidersPanelErrorBoundary>
-        <ProvidersPanel />
-      </ProvidersPanelErrorBoundary>
-    ) : (
-      React.createElement(PANEL_COMPONENTS[activePanel])
-    );
+  if (formFactor === 'phone') return <PhoneSettings activePanel={activePanel} />;
 
   return (
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 min-w-0 min-h-0 overflow-hidden relative h-full">
-        {ActivePanel}
+        <PanelView id={activePanel} />
       </div>
     </div>
   );
