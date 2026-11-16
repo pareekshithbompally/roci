@@ -11,6 +11,12 @@ function Band({ height }: { height: number }) {
   return <div aria-hidden className="shrink-0" style={{ height }} />;
 }
 
+/** The window's drag strip across the titlebar; geometry from UI_CONFIG so padding and drag region agree. */
+export function TitlebarDragRegion() {
+  const { dragOffset, dragHeight } = UI_CONFIG.layout.titlebar;
+  return <div className="fixed w-full z-20 select-none" style={{ top: dragOffset, height: dragHeight }} data-tauri-drag-region />;
+}
+
 /** Reserves the titlebar band (traffic lights + drag strip) above a view's fixed header. */
 export function TitlebarSpacer() {
   return <Band height={safeArea} />;

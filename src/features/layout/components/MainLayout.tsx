@@ -11,8 +11,7 @@ import { PanelLeft, SquarePen } from 'lucide-react';
 import { platform } from '@platform/index';
 import { AppStatus } from '@shared/types';
 import { LAYOUT } from '@config/layout.config';
-import { UI_CONFIG } from '@config/ui.config';
-import { Badge, Button, Icon, Separator, Surface } from '@shared/ui';
+import { Badge, Button, Icon, Separator, Surface, TitlebarDragRegion } from '@shared/ui';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -76,12 +75,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   return (
     <Surface as="main" variant="page" className="relative h-screen overflow-hidden">
-      {/* Titlebar drag strip; geometry from UI_CONFIG.layout.titlebar so padding and drag region agree. */}
-      <div
-        className="fixed w-full z-20 select-none"
-        style={{ top: UI_CONFIG.layout.titlebar.dragOffset, height: UI_CONFIG.layout.titlebar.dragHeight }}
-        data-tauri-drag-region
-      />
+      <TitlebarDragRegion />
 
       {/* Mobile Sidebar Overlay */}
       {isSmallScreen && isLeftPanelOpen && (
