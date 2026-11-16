@@ -32,4 +32,4 @@ export const FIELD =
 
 /** Pop-up buttons — Select, DatePicker and TimePicker triggers: a soft tint, no outline, the same 32px height as a field. */
 export const POPUP_BUTTON =
-  'h-8 bg-control text-primary text-body rounded-md px-2.5 outline-none transition-colors hover:bg-control-hover data-[state=open]:bg-control-hover focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 disabled:cursor-not-allowed';
+  'h-control-md bg-control text-primary text-body rounded-md px-2.5 outline-none transition-colors hover:bg-control-hover data-[state=open]:bg-control-hover focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 disabled:cursor-not-allowed';

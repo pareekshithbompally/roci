@@ -12,6 +12,8 @@ export type PlatformKind = 'macos' | 'ios' | 'browser';
 
 export const platform = {
   kind: (mac ? 'macos' : ios ? 'ios' : 'browser') as PlatformKind,
+  /** Touch screen: iOS text sizes, 44 pt targets and larger glyphs (tokens.css `html.platform-ios`, kit icon scale). */
+  hasTouchScreen: ios,
   /** Traffic lights and a translucent window: the layout leaves room for them. */
   hasWindowChrome: mac,
   hasMenuBar: mac,

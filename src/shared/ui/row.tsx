@@ -5,7 +5,7 @@ import { Text } from './text';
 /** Canonical 32px list/sidebar row (Row, rowClasses, RowAction, RowGroupLabel) so every list shares one shape. */
 export function rowClasses(selected?: boolean): string {
   return cn(
-    'flex w-full h-8 items-center gap-2 rounded-md px-2.5 text-left text-body text-primary transition-colors cursor-pointer min-w-0',
+    'flex w-full h-control-md items-center gap-2 rounded-md px-2.5 text-left text-body text-primary transition-colors cursor-pointer min-w-0',
     selected ? 'bg-pressed' : 'hover:bg-hover',
   );
 }
@@ -59,7 +59,7 @@ export function RowAction({ className, type = 'button', ref, ...props }: RowActi
       ref={ref}
       type={type}
       className={cn(
-        'absolute right-1 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-md text-muted outline-none transition-opacity',
+        'absolute right-1 top-1/2 -translate-y-1/2 flex h-control-xs w-control-xs items-center justify-center rounded-md text-muted outline-none transition-opacity',
         'opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 data-[state=open]:opacity-100 hover:bg-pressed',
         className,
       )}

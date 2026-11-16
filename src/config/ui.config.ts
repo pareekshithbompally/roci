@@ -95,6 +95,14 @@ export const UI_CONFIG = {
       medium: 20,
       large: 24,
       xlarge: 40,
+      /** Touch screens (iOS text scale, 17 pt body): the same steps, larger. */
+      touch: {
+        xsmall: 17,
+        small: 20,
+        medium: 24,
+        large: 28,
+        xlarge: 48,
+      },
     },
     avatar: {
       small: '2rem',

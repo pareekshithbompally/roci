@@ -66,17 +66,18 @@ export default {
       backgroundSize: { shimmer: '200% 100%' },
       // ─── macOS text styles (SF Pro). `reading` is the one exception: long-form chat/transcript ───
       fontSize: {
-        subheadline: ['11px', '14px'],
-        callout: ['12px', '16px'],
-        body: ['13px', '16px'],
-        reading: ['14px', '22px'],
-        title3: ['15px', '20px'],
-        title2: ['17px', '22px'],
-        title1: ['22px', '26px'],
-        largeTitle: ['26px', '32px'],
+        // Sizes come from tokens.css: macOS by default, iOS under html.platform-ios.
+        subheadline: ['var(--fs-subheadline)', 'var(--lh-subheadline)'],
+        callout: ['var(--fs-callout)', 'var(--lh-callout)'],
+        body: ['var(--fs-body)', 'var(--lh-body)'],
+        reading: ['var(--fs-reading)', 'var(--lh-reading)'],
+        title3: ['var(--fs-title3)', 'var(--lh-title3)'],
+        title2: ['var(--fs-title2)', 'var(--lh-title2)'],
+        title1: ['var(--fs-title1)', 'var(--lh-title1)'],
+        largeTitle: ['var(--fs-large-title)', 'var(--lh-large-title)'],
       },
       // 5.5 = a 14px icon + 8px gap (text indented under an icon); 15 = 60px described row
-      spacing: { 5.5: '1.375rem', 15: '3.75rem', 'safe-top': 'var(--safe-top)', 'safe-bottom': 'var(--safe-bottom)' },
+      spacing: { 5.5: '1.375rem', 15: '3.75rem', 'safe-top': 'var(--safe-top)', 'safe-bottom': 'var(--safe-bottom)', 'control-xs': 'var(--control-xs)', 'control-sm': 'var(--control-sm)', 'control-md': 'var(--control-md)' },
       keyframes: {
         'overlay-show': {
           from: { opacity: '0' },

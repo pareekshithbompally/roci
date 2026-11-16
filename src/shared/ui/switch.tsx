@@ -7,9 +7,16 @@ export interface SwitchProps extends ComponentProps<typeof SwitchPrimitive.Root>
   size?: 'sm' | 'md';
 }
 
+/** Dimensions come from tokens.css (macOS sizes; the iOS 51×31 switch under html.platform-ios). */
 const SIZE = {
-  sm: { root: 'h-3.5 w-6', thumb: 'h-2.5 w-2.5 data-[state=checked]:translate-x-2.5' },
-  md: { root: 'h-5 w-9', thumb: 'h-4 w-4 data-[state=checked]:translate-x-4' },
+  sm: {
+    root: 'h-[var(--switch-sm-h)] w-[var(--switch-sm-w)]',
+    thumb: 'h-[var(--switch-sm-thumb)] w-[var(--switch-sm-thumb)] data-[state=checked]:translate-x-[var(--switch-sm-travel)]',
+  },
+  md: {
+    root: 'h-[var(--switch-md-h)] w-[var(--switch-md-w)]',
+    thumb: 'h-[var(--switch-md-thumb)] w-[var(--switch-md-thumb)] data-[state=checked]:translate-x-[var(--switch-md-travel)]',
+  },
 };
 
 export function Switch({ className, size = 'md', ...props }: SwitchProps) {

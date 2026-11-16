@@ -12,7 +12,7 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 
 /** Canonical single-line text field. */
 export function Input({ icon, className, ref, ...props }: InputProps) {
-  const field = <input ref={ref} className={cn(FIELD, 'h-8', icon && 'pl-8', className)} {...props} />;
+  const field = <input ref={ref} className={cn(FIELD, 'h-control-md', icon && 'pl-8', className)} {...props} />;
   if (!icon) return field;
   return (
     <div className="relative w-full">

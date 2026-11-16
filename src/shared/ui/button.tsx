@@ -29,19 +29,19 @@ const SIZE_CLASSES: Record<ButtonSize, string> = {
   /** No box — sits in a line of text */
   inline: 'text-callout gap-1',
   /** Dense control in a toolbar row (composer): tight padding, at least square so an icon alone is 28×28 */
-  toolbar: 'h-7 min-w-7 px-1.5 text-callout rounded-md',
-  sm: 'h-7 px-3 text-callout rounded-md',
-  md: 'h-8 px-4 text-body rounded-md',
-  icon: 'h-8 w-8 rounded-full',
-  iconSm: 'h-7 w-7 rounded-full',
+  toolbar: 'h-control-sm min-w-control-sm px-1.5 text-callout rounded-md',
+  sm: 'h-control-sm px-3 text-callout rounded-md',
+  md: 'h-control-md px-4 text-body rounded-md',
+  icon: 'h-control-md w-control-md rounded-full',
+  iconSm: 'h-control-sm w-control-sm rounded-full',
   /** Inline row actions (tray rows, list rows) */
-  iconXs: 'h-6 w-6 rounded-md',
+  iconXs: 'h-control-xs w-control-xs rounded-md',
   /** Floating action button: the one round action pinned to a window corner (meeting chat) */
   fab: 'h-11 w-11 rounded-full',
 };
 
 const BASE_CLASSES =
-  'inline-flex items-center justify-center gap-1.5 font-medium transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 disabled:cursor-not-allowed';
+  'inline-flex items-center justify-center gap-1.5 whitespace-nowrap font-medium transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 disabled:cursor-not-allowed';
 
 /** Busy, not disabled: full opacity, clicks swallowed, `aria-busy` for assistive tech. */
 const LOADING_CLASSES = 'cursor-progress';
