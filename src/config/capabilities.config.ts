@@ -6,7 +6,7 @@ export const CAPABILITIES_CONFIG = {
     chat: { title: 'Chat', description: 'Default model for new chats.' },
     transcription: { title: 'Speech recognition', description: 'Recordings, imports and dictation.' },
     summaries: { title: 'Summaries', description: 'Overview, decisions and action items for each meeting.' },
-    meetingSearch: { title: 'Meeting search', description: 'Embedding model for semantic search. ≈325 MB download, cached after.' },
+    meetingSearch: { title: 'Meeting search' },
     readAloud: { title: 'Read aloud', description: 'How replies are spoken. macOS voices are built in; Phonon downloads once.' },
     voice: { title: 'Voice', description: 'Play a sample to hear it.' },
   },

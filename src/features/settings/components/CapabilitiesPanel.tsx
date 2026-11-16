@@ -3,7 +3,8 @@
 import React, { useMemo } from 'react';
 import { AudioLines, MessageSquare, NotebookText, ScanSearch, Volume2, type LucideIcon } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useOnDeviceModel } from '@shared/hooks/useOnDeviceModel';
+import { useOnDeviceModel, type OnDeviceModel } from '@shared/hooks/useOnDeviceModel';
+import { EMBEDDING_MODEL_NAME, EMBEDDING_MODEL_SIZE } from '@extensions/rag';
 import { ModelDownloadButton, ModelReadyStatus } from '@shared/components';
 import { formatFileSize } from '@shared/utils/formatters';
 import { modelChoices, withSummaryModels, type ModelChoice } from '@shared/utils/modelResolver';
@@ -13,7 +14,7 @@ import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import { READ_ALOUD_CONFIG } from '@config/readAloud.config';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { useSpeechModelOptions } from '@features/settings/hooks/useSpeechModels';
-import { downloadSetup, useLocalModelControls, useLocalModels, type LocalModelControl } from '@features/settings/hooks/useLocalModels';
+import { downloadSetup, useLocalModelControls, useLocalModels } from '@features/settings/hooks/useLocalModels';
 import { useAppleSpeechSetup } from '@features/integrations';
 import { CardRow, Icon, Section } from '@shared/ui';
 import type { LocalModel } from '@services/localModels.service';
@@ -22,24 +23,21 @@ import { ReadAloudVoiceRow } from './ReadAloudVoiceRow';
 
 const { jobs: JOBS } = CAPABILITIES_CONFIG;
 
-/** A capability row: job icon + title, its description, and its control (picker or download). */
+/** A capability row: job icon + title, its description, and its picker. */
 const CapabilityRow: React.FC<{
   icon: LucideIcon;
   job: { title: string; description: string };
-  /** Row state, aligned with every other row's (e.g. ● Ready). */
-  status?: React.ReactNode;
   children: React.ReactNode;
-}> = ({ icon, job, status, children }) => (
+}> = ({ icon, job, children }) => (
   <CardRow
     leading={<Icon icon={icon} size="sm" tone="muted" />}
     title={job.title}
     description={job.description}
-    status={status}
     actions={children}
   />
 );
 
-type Controls = Record<string, LocalModelControl>;
+type Controls = Record<string, OnDeviceModel>;
 
 /** Speech recognition: every speech model, with the step it still needs on its row (download, allow). */
 function useSpeechChoices(controls: Controls): ModelChoice[] {
@@ -82,14 +80,16 @@ function readAloudEngineChoices(models: LocalModel[], controls: Controls): Model
 
 const KIND_ICON: Record<LocalModel['kind'], LucideIcon> = { speech: AudioLines, voice: Volume2 };
 
-/** A local model on this Mac: what it's for, its size, and Download / Delete. */
-const LocalModelRow: React.FC<{ model: LocalModel; control: LocalModelControl }> = ({ model, control }) => (
+/** A model on this Mac, whichever runtime owns it: its name, what it's for and its size, Ready, and Download / Delete. */
+const OnDeviceModelRow: React.FC<{ icon: LucideIcon; name: string; use: string; size: string; control: OnDeviceModel }> = ({
+  icon, name, use, size, control,
+}) => (
   <CardRow
-    leading={<Icon icon={KIND_ICON[model.kind]} size="sm" tone="muted" />}
-    title={model.name}
-    description={`${LOCAL_MODELS_CONFIG.kindLabels[model.kind]} · ${formatFileSize(model.bytes)}`}
+    leading={<Icon icon={icon} size="sm" tone="muted" />}
+    title={name}
+    description={`${use} · ${size}`}
     status={<ModelReadyStatus model={control} />}
-    actions={<ModelDownloadButton model={control} onRemove={control.remove} />}
+    actions={<ModelDownloadButton model={control} removable />}
   />
 );
 
@@ -144,10 +144,23 @@ export const CapabilitiesPanel: React.FC = () => {
       </Section>
 
       <Section title="On this Mac">
-        <CapabilityRow icon={ScanSearch} job={JOBS.meetingSearch} status={<ModelReadyStatus model={searchModel} />}>
-          <ModelDownloadButton model={searchModel} allowRedownload />
-        </CapabilityRow>
-        {localModels.map((m) => controls[m.id] && <LocalModelRow key={m.id} model={m} control={controls[m.id]} />)}
+        <OnDeviceModelRow
+          icon={ScanSearch}
+          name={EMBEDDING_MODEL_NAME}
+          use={JOBS.meetingSearch.title}
+          size={EMBEDDING_MODEL_SIZE}
+          control={searchModel}
+        />
+        {localModels.map((m) => controls[m.id] && (
+          <OnDeviceModelRow
+            key={m.id}
+            icon={KIND_ICON[m.kind]}
+            name={m.name}
+            use={LOCAL_MODELS_CONFIG.kindLabels[m.kind]}
+            size={formatFileSize(m.bytes)}
+            control={controls[m.id]}
+          />
+        ))}
       </Section>
     </SettingsPage>
   );

@@ -16,6 +16,9 @@ export const IO_CONCURRENCY = 5;
 export const EMBEDDING_MODEL = 'onnx-community/embeddinggemma-300m-ONNX';
 export const EMBEDDING_DIM = 768;
 export const EMBEDDING_DTYPE = 'q8';
+/** How the embedding model is named and sized wherever it's offered for download or deletion. */
+export const EMBEDDING_MODEL_NAME = 'EmbeddingGemma 300M';
+export const EMBEDDING_MODEL_SIZE = '≈325 MB';
 /** Max texts to embed in a single batch call */
 export const EMBEDDING_BATCH_SIZE = 8;
 

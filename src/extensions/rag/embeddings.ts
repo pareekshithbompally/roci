@@ -2,7 +2,7 @@
 
 import type { EmbeddingService } from './types';
 import { NOT_CONSENTED } from './types';
-import { requestConsent, hasConsent } from './consent';
+import { requestConsent, hasConsent, revokeConsent } from './consent';
 import { emitProgress } from './progress';
 import { EMBEDDING_MODEL, EMBEDDING_DTYPE, EMBEDDING_BATCH_SIZE } from './constants';
 
@@ -221,7 +221,7 @@ export async function preloadModel(opts: { interactive?: boolean } = {}): Promis
   await ensureLoaded({ interactive: opts.interactive ?? true });
 }
 
-/** Clear cached pipeline so the next call re-downloads. Used for retry. */
+/** Stops the worker and drops the loaded model; requests still waiting on it fail rather than hang. */
 export function resetPipeline(): void {
   if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
   if (worker) {
@@ -230,7 +230,17 @@ export function resetPipeline(): void {
   }
   loadPromise = null;
   ready = false;
+  for (const entry of pending.values()) entry.reject(new Error('Embedding model was unloaded'));
   pending.clear();
+}
+
+/** Deletes the downloaded model: consent is withdrawn first so no indexer fetches it again, then its cached files go. */
+export async function removeModel(): Promise<void> {
+  revokeConsent();
+  setEmbeddingReady(false);
+  resetPipeline();
+  const { ModelRegistry } = await import('@huggingface/transformers');
+  await ModelRegistry.clear_pipeline_cache('feature-extraction', EMBEDDING_MODEL, { dtype: EMBEDDING_DTYPE });
 }
 
 export const embeddingService: EmbeddingService = {

@@ -7,6 +7,8 @@ const GRANTED = 'granted';
 export interface ConsentGate {
   has: () => boolean;
   grant: () => void;
+  /** Withdraws consent, so nothing downloads the model again until the user agrees. */
+  revoke: () => void;
   /** Resolves true at once when already granted; otherwise asks the user. */
   request: () => Promise<boolean>;
 }
@@ -16,6 +18,7 @@ export function createConsentGate(storageKey: string, prompt: ConfirmRequest): C
 
   const has = () => localStorage.getItem(storageKey) === GRANTED;
   const grant = () => localStorage.setItem(storageKey, GRANTED);
+  const revoke = () => localStorage.removeItem(storageKey);
 
   const ask = async (): Promise<boolean> => {
     const granted = await confirm(prompt);
@@ -30,5 +33,5 @@ export function createConsentGate(storageKey: string, prompt: ConfirmRequest): C
     return pending;
   };
 
-  return { has, grant, request };
+  return { has, grant, revoke, request };
 }

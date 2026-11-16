@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 import { activityStore, useActivityItems, type ActivityItem } from '@shared/stores/activityStore';
-import { confirm } from '@shared/stores/confirmStore';
 import { notifyAppEvent } from '@shared/utils/appEvents';
 import { failureLogger } from '@shared/utils/errors';
 import { formatFileSize } from '@shared/utils/formatters';
@@ -19,7 +18,7 @@ import {
   removeLocalModel,
 } from '@services/localModels.service';
 import type { LocalModel, LocalModelDownload } from '@services/localModels.service';
-import type { OnDeviceModel } from '@shared/hooks/useOnDeviceModel';
+import { confirmModelDelete, type OnDeviceModel } from '@shared/hooks/useOnDeviceModel';
 import type { ChoiceSetup } from '@shared/utils/modelResolver';
 
 const report = failureLogger('useLocalModels');
@@ -76,20 +75,14 @@ function useRemoveLocalModel() {
   });
 }
 
-/** A local model's download button state, plus Delete. */
-export interface LocalModelControl extends OnDeviceModel {
-  remove: () => void;
-}
-
-function controlOf(model: LocalModel, activity: ActivityItem | undefined, remove: (id: string) => void): LocalModelControl {
+function controlOf(model: LocalModel, activity: ActivityItem | undefined, remove: (id: string) => void): OnDeviceModel {
   const busy = model.downloading || !!activity;
   const status = model.installed ? 'ready' : busy ? 'busy' : 'idle';
-  const download = () => startDownload(model.id);
-  return { status, percent: busy ? (activity?.percent ?? null) : null, download, redownload: download, remove: () => remove(model.id) };
+  return { status, percent: busy ? (activity?.percent ?? null) : null, download: () => startDownload(model.id), remove: () => remove(model.id) };
 }
 
 /** Every local model's control, by id. */
-export function useLocalModelControls(): Record<string, LocalModelControl> {
+export function useLocalModelControls(): Record<string, OnDeviceModel> {
   const { data: models = [] } = useLocalModels();
   const activities = useActivityItems();
   const { mutate } = useRemoveLocalModel();
@@ -97,19 +90,14 @@ export function useLocalModelControls(): Record<string, LocalModelControl> {
     const remove = (id: string) => {
       const model = models.find((m) => m.id === id);
       if (!model) return;
-      void confirm({
-        title: `Delete ${model.name}?`,
-        description: `Frees ${formatFileSize(model.bytes)}. You can download it again anytime.`,
-        confirmLabel: 'Delete',
-        tone: 'danger',
-      }).then((confirmed) => confirmed && mutate(id));
+      void confirmModelDelete(model.name, formatFileSize(model.bytes)).then((confirmed) => confirmed && mutate(id));
     };
     return Object.fromEntries(models.map((m) => [m.id, controlOf(m, activities.find((a) => a.id === activityId(m.id)), remove)]));
   }, [models, activities, mutate]);
 }
 
 /** The step a picker row shows until its model is downloaded. */
-export function downloadSetup(control: LocalModelControl | undefined): ChoiceSetup | undefined {
+export function downloadSetup(control: OnDeviceModel | undefined): ChoiceSetup | undefined {
   if (!control || control.status === 'ready') return undefined;
   return { kind: 'download', busy: control.status === 'busy', percent: control.percent, run: control.download };
 }

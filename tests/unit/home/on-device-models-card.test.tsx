@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { OnDeviceModelsCard } from '@features/home/components/OnDeviceModelsCard';
-import type { LocalModelControl } from '@features/settings';
+import type { OnDeviceModel } from '@shared/hooks/useOnDeviceModel';
 
 const RAG_READY_KEY = 'rag_model_ready';
 const DISMISSED_KEY = 'onboarding_models_dismissed';
 
 /** Phonon's control as `useLocalModelControls` reports it (Rust owns its state). */
-const phonon: LocalModelControl = { status: 'idle', percent: null, download: vi.fn(), redownload: vi.fn(), remove: vi.fn() };
+const phonon: OnDeviceModel = { status: 'idle', percent: null, download: vi.fn(), remove: vi.fn() };
 vi.mock('@features/settings', () => ({ useLocalModelControls: () => ({ 'phonon-31m': phonon }) }));
 
 beforeEach(() => {

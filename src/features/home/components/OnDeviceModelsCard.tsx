@@ -6,6 +6,7 @@ import { SiHuggingface } from '@icons-pack/react-simple-icons';
 import { open } from '@tauri-apps/plugin-shell';
 import { ModelDownloadButton, ModelReadyStatus } from '@shared/components';
 import { useOnDeviceModel } from '@shared/hooks/useOnDeviceModel';
+import { EMBEDDING_MODEL_NAME } from '@extensions/rag';
 import { useLocalModelControls } from '@features/settings';
 import { READ_ALOUD_CONFIG } from '@config/readAloud.config';
 import type { OnDeviceModel } from '@shared/hooks/useOnDeviceModel';
@@ -60,7 +61,7 @@ export const OnDeviceModelsCard: React.FC = () => {
       icon: Search,
       title: 'Meeting search',
       purpose: 'Find anything across your meetings',
-      modelName: 'EmbeddingGemma 300M',
+      modelName: EMBEDDING_MODEL_NAME,
       modelUrl: RAG_REPO_URL,
       model: searchModel,
     },

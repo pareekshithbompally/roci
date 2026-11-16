@@ -7,7 +7,6 @@ export { useSpeechModelOptions, useSpeechInputReady, useLiveDictation, freshSpee
 export type { LiveDictation } from './useSpeechModels';
 export { useMenubarSpeechModels } from './useMenubarSpeechModels';
 export { useLocalModels, useLocalModelControls, useLocalModelDownloads, downloadSetup } from './useLocalModels';
-export type { LocalModelControl } from './useLocalModels';
 export {
   useMcpConfig,
   useMcpConnectedServers,

@@ -10,7 +10,6 @@ export {
 // Hooks
 export { useSettings, useAppUpdate, scheduleStartupCheck, useMenubarSpeechModels, useLocalModelDownloads, useLocalModelControls, useLiveDictation, freshSpeechSources } from './hooks';
 export type { LiveDictation } from './hooks';
-export type { LocalModelControl } from './hooks';
 
 // Stores
 export { systemInfoStore, useSystemInfo } from './stores';
