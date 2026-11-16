@@ -111,7 +111,7 @@ src-tauri/
   plugins/        tauri-plugin-{store,calendar}
 ```
 
-**Data layout** (`~/Library/Application Support/ai.roci.app/`): `meetings/{id}/{transcript,summary,todos,notes,recording-meta}.json` + `meetings/index.json`; `chats/{sessionId}.json` + `chats/index.json`; `recordings/*.wav`; `vectordb.sqlite`; `settings.json` (API keys AES-256-GCM).
+**Data layout** (`~/Library/Application Support/ai.roci.roci/`): `meetings/{id}/{transcript,summary,todos,notes,recording-meta}.json` + `meetings/index.json`; `chats/{sessionId}.json` + `chats/index.json`; `recordings/*.wav`; `vectordb.sqlite`; `settings.json` (API keys AES-256-GCM).
 
 **Transcription pipeline** — two clearly separated stages with their own model settings:
 - `transcriptionModel` (STT engine ID: `whisper-1`, `groq-whisper`, `deepgram`, `elevenlabs`, `gemini`) → fills the **Transcript** tab with verbatim STT output.

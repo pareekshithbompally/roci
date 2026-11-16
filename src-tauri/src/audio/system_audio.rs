@@ -137,7 +137,7 @@ impl ProcessTapSource {
         source.aggregate = create_tap_aggregate(
             &tap_uid,
             "Roci Meeting System Audio",
-            &format!("ai.roci.app.meeting-tap.{}", std::process::id()),
+            &format!("ai.roci.roci.meeting-tap.{}", std::process::id()),
         )?;
 
         let channels = format.mChannelsPerFrame.max(1) as usize;

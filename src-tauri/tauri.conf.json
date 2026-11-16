@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Roci",
   "version": "1.2.0",
-  "identifier": "ai.roci.app",
+  "identifier": "ai.roci.roci",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",

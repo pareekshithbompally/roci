@@ -14,10 +14,10 @@ pub const RELAY_ARG: &str = "mcp";
 /// The server's name in every agent's config, and in `initialize`.
 pub const SERVER_NAME: &str = "roci";
 /// `identifier` in tauri.conf.json, hardcoded because the relay runs without Tauri.
-const BUNDLE_ID: &str = "ai.roci.app";
+const BUNDLE_ID: &str = "ai.roci.roci";
 const SOCKET_FILE: &str = "mcp.sock";
 
-/// `~/Library/Application Support/ai.roci.app/mcp.sock`, shared by host and relay.
+/// `~/Library/Application Support/ai.roci.roci/mcp.sock`, shared by host and relay.
 pub fn socket_path() -> Result<PathBuf, String> {
     let home = std::env::var_os("HOME").ok_or("HOME is not set")?;
     Ok(PathBuf::from(home)

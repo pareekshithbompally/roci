@@ -1,6 +1,6 @@
 name: Roci
 options:
-  bundleIdPrefix: ai.roci.app
+  bundleIdPrefix: ai.roci.roci
   deploymentTarget:
     iOS: 18.0
 fileGroups: [../../src]
@@ -11,7 +11,7 @@ settingGroups:
   app:
     base:
       PRODUCT_NAME: Roci
-      PRODUCT_BUNDLE_IDENTIFIER: ai.roci.app
+      PRODUCT_BUNDLE_IDENTIFIER: ai.roci.roci
       DEVELOPMENT_TEAM: 8TV3HMU3KY
 targetTemplates:
   app:

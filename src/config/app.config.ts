@@ -3,7 +3,7 @@
 export const APP_CONFIG = {
   name: 'Roci',
   version: '1.0.0',
-  identifier: 'ai.roci.app',
+  identifier: 'ai.roci.roci',
   /** Release notes for the latest version (the update row's Release notes action). */
   releasesUrl: 'https://github.com/pareekshithbompally/kasset-ai/releases/latest',
 

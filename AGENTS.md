@@ -216,7 +216,7 @@ Intent types: general, meeting_search, meeting_recall, meeting_detail, meeting_l
 - **Consent**: Gated behind user consent before first embedding model download
 
 ### Storage Architecture
-All data stored in Tauri app data directory (`~/Library/Application Support/ai.roci.app/`):
+All data stored in Tauri app data directory (`~/Library/Application Support/ai.roci.roci/`):
 ```
 meetings/
 ├── index.json                    # Lightweight meeting index for sidebar

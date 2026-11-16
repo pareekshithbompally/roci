@@ -4,7 +4,7 @@ import EventKit
 // MARK: - Reminders (EventKit) — JSON C-string bridge; each reminder's URL `roci://todo/<id>` links it to its to-do
 
 private let store = EKEventStore()
-private let queue = DispatchQueue(label: "ai.roci.app.reminders")
+private let queue = DispatchQueue(label: "ai.roci.roci.reminders")
 private let todoScheme = "roci://todo/"
 
 /// Request full access to reminders. `{"granted": bool, "error"?: string}`

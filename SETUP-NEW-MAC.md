@@ -36,4 +36,4 @@ Notes:
 
 ## App data
 
-Meetings, chats and settings live in `~/Library/Application Support/ai.roci.app/`. To keep them, copy that folder to the new Mac with the app closed on both machines.
+Meetings, chats and settings live in `~/Library/Application Support/ai.roci.roci/`. To keep them, copy that folder to the new Mac with the app closed on both machines.
