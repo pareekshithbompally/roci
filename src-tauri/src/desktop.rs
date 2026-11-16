@@ -1,84 +1,34 @@
 //! macOS: the full app (menu bar, shortcuts, audio capture, MCP, coding agents …).
 
 use crate::{
-  app_icon, audio, autostart, downloads, hex, mcp, mcp_server, meeting_reminders, menubar, models, open_native,
-  permissions, screenshot, shortcuts, stt, tts, url_actions, window,
+  app_icon, audio, autostart, call_detection, downloads, hex, mcp, mcp_server, meeting_reminders, meeting_spotlight,
+  menubar, models, open_native, permissions, screenshot, shortcuts, stt, tts, url_actions, window,
 };
-#[cfg(target_os = "macos")]
-use crate::{call_detection, meeting_spotlight};
 use std::sync::Mutex;
-use tauri::{Emitter, Manager};
+use tauri::{App, AppHandle, Builder, Emitter, Manager, RunEvent, WebviewWindowBuilder, Wry};
 use tauri_plugin_autostart::MacosLauncher;
 
 /// Open a folder in the OS file manager (Finder on macOS).
 #[tauri::command]
 fn reveal_in_file_manager(path: String) -> Result<(), String> {
-    // `-R` selects the item in a Finder window instead of opening it.
-    std::process::Command::new("open")
-        .args(["-R", &path])
-        .spawn()
-        .map_err(|e| format!("Failed to reveal in Finder: {e}"))?;
-    Ok(())
+  // `-R` selects the item in a Finder window instead of opening it.
+  std::process::Command::new("open")
+    .args(["-R", &path])
+    .spawn()
+    .map_err(|e| format!("Failed to reveal in Finder: {e}"))?;
+  Ok(())
 }
 
-pub fn run() {
-  tauri::Builder::default()
-    .setup(|app| {
-      // Built here (`create: false` in tauri.conf.json) so its webview can take web downloads.
-      let main = app.config().app.windows.iter().find(|w| w.label == "main").cloned().ok_or("main window config missing")?;
-      tauri::WebviewWindowBuilder::from_config(app.handle(), &main)?
-        .on_download(downloads::handle)
-        .build()?;
+/// The main window's webview takes web downloads.
+pub fn extend_window(window: WebviewWindowBuilder<'_, Wry, AppHandle>) -> WebviewWindowBuilder<'_, Wry, AppHandle> {
+  window.on_download(downloads::handle)
+}
 
-      if cfg!(debug_assertions) {
-        app.handle().plugin(
-          tauri_plugin_log::Builder::default()
-            .level(log::LevelFilter::Info)
-            .build(),
-        )?;
-      }
-      
-      // Setup window close handler (close hides to tray by preference)
-      window::setup_window_handlers(app.handle());
-
-      // Backend-owned menubar: tray icon, menu, visibility, quit path.
-      menubar::setup(app.handle());
-
-      // MCP: connect the servers the user left enabled.
-      tauri::async_runtime::spawn(mcp::start_active_servers(app.handle().clone()));
-
-      // Roci as an MCP server for coding agents (socket in the app data folder).
-      mcp_server::start(app.handle().clone());
-
-      // roci:// URL actions (queued until the webview is ready).
-      url_actions::setup(app.handle());
-
-      // Calendar meeting reminders: idle until the frontend enables them.
-      meeting_reminders::start(app.handle().clone());
-
-      // Detected calls: offer to record when a call app takes the microphone.
-      #[cfg(target_os = "macos")]
-      call_detection::start(app.handle().clone());
-
-      // Meetings in Spotlight: follows meeting writes; idle until the frontend turns it on.
-      #[cfg(target_os = "macos")]
-      meeting_spotlight::start(app.handle().clone());
-
-      // Login-item / autostart launches pass --minimized: start hidden.
-      if std::env::args().any(|arg| arg == "--minimized")
-        && let Some(window) = app.handle().get_webview_window("main")
-      {
-        let _ = window.hide();
-      }
-
-      Ok(())
-    })
-    .plugin(tauri_plugin_dialog::init())
-    .plugin(tauri_plugin_fs::init())
-    .plugin(tauri_plugin_os::init())
+/// Desktop plugins, state and commands on the shared builder.
+pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
+  builder
     .plugin(tauri_plugin_process::init())
     .plugin(tauri_plugin_shell::init())
-    .plugin(tauri_plugin_http::init())
     .plugin(tauri_plugin_store::init())
     .plugin(tauri_plugin_calendar::init())
     .plugin(tauri_plugin_notifications::init())
@@ -142,11 +92,11 @@ pub fn run() {
       permissions::commands::get_permissions,
       permissions::commands::request_permission,
       permissions::commands::open_permission_settings,
-      // Hex integration (transcription models + one-way meeting sync)
+      // Meeting reminders (on/off)
       meeting_reminders::configure_meeting_reminders,
       // Meetings in Spotlight (on/off)
-      #[cfg(target_os = "macos")]
       meeting_spotlight::configure_meeting_spotlight,
+      // Hex integration (transcription models + one-way meeting sync)
       hex::commands::hex_status,
       hex::commands::hex_transcribe,
       hex::commands::hex_meetings_list,
@@ -191,26 +141,62 @@ pub fn run() {
       reveal_in_file_manager,
       open_native::open_native,
     ])
-    .build(tauri::generate_context!())
-    .expect("error while building tauri application")
-    .run(|app_handle, event| match event {
-      tauri::RunEvent::Reopen { has_visible_windows, .. } => {
-        if !has_visible_windows {
-          window::show_main(app_handle);
-        }
-      }
-      // Cmd+Q while recording asks the user; a programmatic exit (code set) goes through.
-      tauri::RunEvent::ExitRequested { code: None, api, .. }
-        if audio::commands::capture_active() =>
-      {
-        api.prevent_exit();
+}
+
+/// Desktop setup, after the shared main window and log.
+pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
+  // Setup window close handler (close hides to tray by preference)
+  window::setup_window_handlers(app.handle());
+
+  // Backend-owned menubar: tray icon, menu, visibility, quit path.
+  menubar::setup(app.handle());
+
+  // MCP: connect the servers the user left enabled.
+  tauri::async_runtime::spawn(mcp::start_active_servers(app.handle().clone()));
+
+  // Roci as an MCP server for coding agents (socket in the app data folder).
+  mcp_server::start(app.handle().clone());
+
+  // roci:// URL actions (queued until the webview is ready).
+  url_actions::setup(app.handle());
+
+  // Calendar meeting reminders: idle until the frontend enables them.
+  meeting_reminders::start(app.handle().clone());
+
+  // Detected calls: offer to record when a call app takes the microphone.
+  call_detection::start(app.handle().clone());
+
+  // Meetings in Spotlight: follows meeting writes; idle until the frontend turns it on.
+  meeting_spotlight::start(app.handle().clone());
+
+  // Login-item / autostart launches pass --minimized: start hidden.
+  if std::env::args().any(|arg| arg == "--minimized")
+    && let Some(window) = app.handle().get_webview_window("main")
+  {
+    let _ = window.hide();
+  }
+
+  Ok(())
+}
+
+/// App lifecycle: Dock reopen, quit while recording, exit cleanup.
+pub fn on_event(app_handle: &AppHandle, event: RunEvent) {
+  match event {
+    RunEvent::Reopen { has_visible_windows, .. } => {
+      if !has_visible_windows {
         window::show_main(app_handle);
-        let _ = app_handle.emit(window::QUIT_REQUESTED_EVENT, ());
       }
-      tauri::RunEvent::Exit => {
-        audio::commands::abandon_active();
-        mcp::kill_all_children(app_handle);
-      }
-      _ => {}
-    });
+    }
+    // Cmd+Q while recording asks the user; a programmatic exit (code set) goes through.
+    RunEvent::ExitRequested { code: None, api, .. } if audio::commands::capture_active() => {
+      api.prevent_exit();
+      window::show_main(app_handle);
+      let _ = app_handle.emit(window::QUIT_REQUESTED_EVENT, ());
+    }
+    RunEvent::Exit => {
+      audio::commands::abandon_active();
+      mcp::kill_all_children(app_handle);
+    }
+    _ => {}
+  }
 }

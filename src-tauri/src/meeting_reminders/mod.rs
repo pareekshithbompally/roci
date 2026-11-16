@@ -254,7 +254,6 @@ fn handle_response(response: &Response) {
         (reminders.meeting_for(occurrence).cloned(), reminders.event_for(occurrence))
     };
     // Answered with a button: its call is not offered again.
-    #[cfg(target_os = "macos")]
     if let Some(meeting) = &meeting
         && matches!(response.action.as_str(), ACTION_RECORD | ACTION_JOIN_RECORD | ACTION_NOT_NOW)
     {

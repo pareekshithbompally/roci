@@ -238,14 +238,8 @@ impl MenubarShared {
     }
 }
 
-#[cfg(target_os = "macos")]
 fn send_to_menu(json: &str) -> Result<(), String> {
     status_menu::update(json)
-}
-
-#[cfg(not(target_os = "macos"))]
-fn send_to_menu(_json: &str) -> Result<(), String> {
-    Ok(())
 }
 
 /// Preference hides the icon, recording forces it back.
@@ -320,15 +314,9 @@ fn resolve_images(app: &AppHandle) -> Images {
     }
 }
 
-#[cfg(target_os = "macos")]
 fn install_menu(app: &AppHandle) -> Result<(), String> {
     let handle = app.clone();
     status_menu::install(move |action| dispatch(&handle, action))
-}
-
-#[cfg(not(target_os = "macos"))]
-fn install_menu(_app: &AppHandle) -> Result<(), String> {
-    Ok(())
 }
 
 /// Create the shared state, install the menu, show the first state and start the ticker; call once from setup.
