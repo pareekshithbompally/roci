@@ -46,6 +46,22 @@ function appendText(parts: ChatPart[], kind: StreamedKind, text: string): ChatPa
   return [...parts, { type: kind, text }];
 }
 
+type ToolCallPart = Extract<ChatPart, { type: 'tool_call' }>;
+
+/** What a tool event changes on its row; a new row starts as a call with no arguments yet. */
+export type ToolCallPatch = Partial<Omit<ToolCallPart, 'type' | 'toolCallId'>> & Pick<ToolCallPart, 'toolName'>;
+
+/** `parts` with the tool row for `toolCallId` patched, or a new row appended. */
+function upsertToolPart(parts: ChatPart[], toolCallId: string, patch: ToolCallPatch): ChatPart[] {
+  const index = parts.findIndex((p) => p.type === 'tool_call' && p.toolCallId === toolCallId);
+  if (index === -1) {
+    return [...parts, { type: 'tool_call', toolCallId, arguments: {}, status: 'calling', ...patch }];
+  }
+  const next = [...parts];
+  next[index] = { ...(parts[index] as ToolCallPart), ...patch };
+  return next;
+}
+
 /** Apply buffered deltas and stats to the snapshot and notify listeners. */
 function flushTextBuffer() {
   if (rafId !== null) cancelAnimationFrame(rafId);
@@ -87,20 +103,10 @@ export const streamingStore = {
     bufferText('reasoning', chunk);
   },
 
-  /** Push a media part (image, audio, video, tool_call). Flushes pending text first. */
-  pushPart(part: ChatPart) {
+  /** Merge `patch` into the tool row for `toolCallId`, adding the row where the stream is when it's new. Flushes pending text first. */
+  upsertToolCall(toolCallId: string, patch: ToolCallPatch) {
     flushTextBuffer();
-    snapshot = { ...snapshot, parts: [...snapshot.parts, part] };
-    emitChange();
-  },
-
-  /** Update an existing tool_call part by its toolCallId. Flushes pending text first. */
-  updatePartByKey(toolCallId: string, updater: (part: ChatPart) => ChatPart) {
-    flushTextBuffer();
-    const parts = snapshot.parts.map(p =>
-      p.type === 'tool_call' && p.toolCallId === toolCallId ? updater(p) : p
-    );
-    snapshot = { ...snapshot, parts };
+    snapshot = { ...snapshot, parts: upsertToolPart(snapshot.parts, toolCallId, patch) };
     emitChange();
   },
 

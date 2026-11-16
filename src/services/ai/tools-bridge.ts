@@ -3,32 +3,8 @@
 import { tool, jsonSchema } from 'ai';
 import type { ToolSet } from 'ai';
 import type { ToolContext, ToolDefinition, ToolResult } from '@extensions/tools/types';
-import type { ToolActivity } from '@extensions/tool-orchestrator/types';
 import { MAX_TOOL_RESULT_CHARS, TOOL_TIMEOUT_MS } from '@extensions/tools/constants';
 import { errorMessage } from '@shared/utils/errors';
-
-// ── Friendly labels for UI activity indicators ──
-
-const TOOL_LABELS: Record<string, string> = {
-  search_meetings: 'Searching meetings\u2026',
-  get_meeting: 'Loading meeting\u2026',
-  list_meetings: 'Listing meetings\u2026',
-  get_action_items: 'Getting action items\u2026',
-  manage_todo: 'Managing todo\u2026',
-  search_chats: 'Searching chats\u2026',
-  get_chat: 'Loading chat\u2026',
-  list_chats: 'Listing chats\u2026',
-};
-
-function labelFor(toolName: string): string {
-  return TOOL_LABELS[toolName] ?? `Running ${toolName}\u2026`;
-}
-
-// ── Types ──
-
-export interface ExecutableToolsCallbacks {
-  onToolActivity: (activity: ToolActivity) => void;
-}
 
 // ── Limits ──
 
@@ -86,38 +62,17 @@ export async function runTool(
 
 // ── Executable Tools ──
 
-/** Executable tools with activity tracking, timeouts, truncation and citations; execute never throws. */
-export function toExecutableTools(
-  definitions: ToolDefinition[],
-  context: ToolContext,
-  callbacks: ExecutableToolsCallbacks,
-): ToolSet {
+/** Executable tools with timeouts and truncation; execute never throws, returns the full result (its tool row reads it
+ *  from the stream), and the model is given only its text. */
+export function toExecutableTools(definitions: ToolDefinition[], context: ToolContext): ToolSet {
   const tools: ToolSet = {};
-  let callCounter = 0;
-
   for (const definition of definitions) {
-    const { name } = definition;
-
-    tools[name] = tool({
+    tools[definition.name] = tool({
       description: definition.description,
       inputSchema: jsonSchema(definition.parameters as Parameters<typeof jsonSchema>[0]),
-
-      execute: async (args: Record<string, unknown>) => {
-        const callId = `agentic-${name}-${++callCounter}`;
-        const toolCall = { id: callId, name, arguments: args };
-
-        const { source } = definition;
-        callbacks.onToolActivity({ toolName: name, source, label: labelFor(name), status: 'calling', toolCall });
-
-        const result = await runTool(definition, args, context, callId);
-
-        callbacks.onToolActivity({ toolName: name, source, label: labelFor(name), status: 'done', toolCall, result });
-
-        // Content string — what the SDK feeds back to the LLM
-        return result.content;
-      },
+      execute: (args: Record<string, unknown>, { toolCallId }) => runTool(definition, args, context, toolCallId),
+      toModelOutput: ({ output }: { output: ToolResult }) => ({ type: 'text' as const, value: output.content }),
     });
   }
-
   return tools;
 }

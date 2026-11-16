@@ -15,5 +15,5 @@ export function loadingStatusOf(activity: StreamMetadata | null): LoadingStatus 
     const detail = progress.secondsLeft === undefined ? null : CHAT_LOADING_DETAIL.secondsLeft(progress.secondsLeft);
     return { label: CHAT_LOADING_COPY[progress.stage], percent: progress.percent, detail };
   }
-  return { label: CHAT_LOADING_COPY[activity?.isSearching ? 'searching' : 'working'], percent: null, detail: null };
+  return { label: CHAT_LOADING_COPY.working, percent: null, detail: null };
 }

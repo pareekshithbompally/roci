@@ -12,9 +12,14 @@ import { DEFAULT_CHAT_TOOLS } from '@config/chatTools.config';
 import { extractTokenUsage } from '@services/ai/types';
 import type { GenerationStats, TokenUsage } from '@services/ai/types';
 import type { OrchestratorOptions, OrchestratorCallbacks } from './types';
+import { toolActivityOf } from './toolActivity';
+import type { ToolSources } from './toolActivity';
 
 /** Safety cap for the agentic loop. Most queries resolve in 1–3 tool calls. */
 const MAX_AGENT_STEPS = 10;
+
+/** Separates a model's thinking blocks (OpenAI streams each reasoning summary as its own block). */
+const REASONING_BLOCK_BREAK = '\n\n';
 
 /** Drops provider citation markers only while web search is on, so code like `arr[0]` survives otherwise. */
 export function stripWebCitations(text: string, webSearchActive: boolean): string {
@@ -34,29 +39,31 @@ function chatModelOrThrow(settings: OrchestratorOptions['settings'], providers: 
   return resolved;
 }
 
-/** Built-in + enabled MCP tools plus web search; undefined when none, since some providers reject an empty set. */
-async function buildTools(
-  options: OrchestratorOptions,
-  webSearchTools: ToolSet | undefined,
-  onToolActivity: OrchestratorCallbacks['onToolActivity'],
-): Promise<ToolSet | undefined> {
-  if (options.skipRetrieval) return webSearchTools;
+interface ChatTools {
+  /** Built-in + enabled MCP tools plus web search; undefined when none, since some providers reject an empty set. */
+  tools: ToolSet | undefined;
+  /** Which MCP server each MCP tool came from, for its row in chat. */
+  sources: ToolSources;
+}
+
+async function buildTools(options: OrchestratorOptions, webSearchTools: ToolSet | undefined): Promise<ChatTools> {
+  const none: ChatTools = { tools: webSearchTools, sources: new Map() };
+  if (options.skipRetrieval) return none;
   const prefs = options.settings.chatTools ?? DEFAULT_CHAT_TOOLS;
   const definitions = [
     ...(prefs.meetingTools ? toolRegistry.getTools() : []),
     ...(await loadMcpTools(new Set(toolRegistry.getToolNames()), new Set(prefs.disabledMcpTools))),
   ];
-  if (definitions.length === 0) return webSearchTools;
-  const meetingTools = toExecutableTools(
-    definitions,
-    { historyItems: options.historyItems, signal: options.signal, approval: 'chat' },
-    { onToolActivity },
-  );
-  return { ...meetingTools, ...webSearchTools };
+  if (definitions.length === 0) return none;
+  const kassetTools = toExecutableTools(definitions, { historyItems: options.historyItems, signal: options.signal, approval: 'chat' });
+  const sources = new Map(definitions.flatMap((d) => (d.source ? [[d.name, d.source] as const] : [])));
+  return { tools: { ...kassetTools, ...webSearchTools }, sources };
 }
 
 interface StreamState {
   hasText: boolean;
+  /** The last thing streamed was thinking text, so a new thinking block starts a new paragraph. */
+  hasReasoning: boolean;
   sources: Array<{ url: string; title: string }>;
   /** Latest tokens-so-far and speed llama-server reported (its chunks arrive just before the text they carry). */
   generation?: GenerationStats;
@@ -70,21 +77,33 @@ function handleRaw(chunk: unknown, state: StreamState, onChunk: OrchestratorCall
 }
 
 /** One stream part → UI callbacks and collected state. Throws on a stream error. */
-function handlePart(part: TextStreamPart<ToolSet>, state: StreamState, callbacks: OrchestratorCallbacks, webSearchActive: boolean): void {
+function handlePart(
+  part: TextStreamPart<ToolSet>,
+  state: StreamState,
+  callbacks: OrchestratorCallbacks,
+  context: { webSearchActive: boolean; toolSources: ToolSources },
+): void {
   const { onChunk } = callbacks;
+  const activity = toolActivityOf(part, context.toolSources);
+  if (activity) {
+    state.hasReasoning = false;
+    callbacks.onToolActivity(activity);
+    return;
+  }
   switch (part.type) {
     case 'text-delta': {
       state.hasText = true;
-      const text = stripWebCitations(part.text, webSearchActive);
+      state.hasReasoning = false;
+      const text = stripWebCitations(part.text, context.webSearchActive);
       if (text) onChunk(text);
       return;
     }
-    case 'reasoning-delta':
-      callbacks.onReasoning(part.text, state.generation);
+    case 'reasoning-start':
+      if (state.hasReasoning) callbacks.onReasoning(REASONING_BLOCK_BREAK, state.generation);
       return;
-    // Only native web search runs on the provider's side; meeting and MCP tools are tracked in tools-bridge.
-    case 'tool-input-start':
-      if (part.providerExecuted) onChunk('', { isSearching: true });
+    case 'reasoning-delta':
+      state.hasReasoning ||= part.text.length > 0;
+      callbacks.onReasoning(part.text, state.generation);
       return;
     case 'source':
       if (part.sourceType === 'url') state.sources.push({ url: part.url, title: part.title || '' });
@@ -113,11 +132,11 @@ export async function orchestrate(
   callbacks: OrchestratorCallbacks,
 ): Promise<{ provider?: string; model?: string; tokenUsage?: TokenUsage }> {
   const { messages, systemPrompt, settings, providers, signal, webSearchEnabled, reasoningEffort } = options;
-  const { onChunk, onToolActivity } = callbacks;
+  const { onChunk } = callbacks;
 
   const resolved = chatModelOrThrow(settings, providers);
   const webSearchTools = webSearchEnabled ? getWebSearchTools(resolved) : undefined;
-  const tools = await buildTools(options, webSearchTools, onToolActivity);
+  const { tools, sources: toolSources } = await buildTools(options, webSearchTools);
   // A local llama-server reports loading the model and reading the prompt before it replies.
   const reportsProgress = isLocalProviderId(resolved.provider) && (await isLlamaServer(resolved.baseUrl));
 
@@ -134,11 +153,11 @@ export async function orchestrate(
   const stopFollowingLoad = reportsProgress
     ? followModelLoad(resolved.baseUrl, resolved.modelId, (progress) => onChunk('', { progress }))
     : () => undefined;
-  const state: StreamState = { hasText: false, sources: [] };
+  const state: StreamState = { hasText: false, hasReasoning: false, sources: [] };
   try {
     for await (const part of result.stream) {
       if (signal?.aborted) break;
-      handlePart(part, state, callbacks, !!webSearchTools);
+      handlePart(part, state, callbacks, { webSearchActive: !!webSearchTools, toolSources });
     }
   } finally {
     stopFollowingLoad();

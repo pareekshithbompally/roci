@@ -3,7 +3,7 @@
 import type { ChatMessage, HistoryItem, AppSettings, ReasoningEffort } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { GenerationStats, StreamMetadata } from '@services/ai/types';
-import type { ToolCall, ToolResult } from '@extensions/tools/types';
+import type { MeetingCitation } from '@extensions/tools/types';
 
 // ── Orchestrator Options ──
 
@@ -35,18 +35,22 @@ export interface OrchestratorCallbacks {
 
 // ── Tool Activity ──
 
-/** UI-facing tool activity state */
-export interface ToolActivity {
-  /** Which tool is currently executing */
+/** One tool's progress as it streams, for Kasset's tools and providers' built-in ones alike: the chat's only tool contract. */
+export type ToolActivity = {
+  toolCallId: string;
   toolName: string;
-  /** MCP server that owns the tool; absent for built-ins */
+  /** MCP server that owns the tool; absent for built-ins. */
   source?: string;
-  /** Friendly label for the UI (e.g. "Searching meetings…") */
-  label: string;
-  /** 'calling' while executing, 'done' after result received */
-  status: 'calling' | 'done';
-  /** The tool call that triggered this activity */
-  toolCall: ToolCall;
-  /** Result, populated when status is 'done' */
-  result?: ToolResult;
+} & (
+  | { phase: 'start' }
+  | { phase: 'input'; arguments: Record<string, unknown> }
+  | { phase: 'end'; arguments?: Record<string, unknown>; result: ToolOutcome }
+);
+
+/** What a finished tool shows: its text, whether it failed, how long it took, and any meeting citations. */
+export interface ToolOutcome {
+  content: string;
+  isError: boolean;
+  executionMs?: number;
+  citations?: MeetingCitation[];
 }

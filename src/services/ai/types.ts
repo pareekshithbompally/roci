@@ -82,8 +82,6 @@ export interface GenerationStats {
 /** Stream metadata for UI state */
 export interface StreamMetadata {
   progress?: StreamProgress;
-  isSearching?: boolean;
-  searchQuery?: string;
   webCitations?: WebCitation[];
   inlineCitations?: InlineCitationSpan[];
 }

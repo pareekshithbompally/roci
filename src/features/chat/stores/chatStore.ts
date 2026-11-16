@@ -26,6 +26,8 @@ import { capabilitiesOf } from '@services/ai/capabilities';
 import { contextPipeline } from '@extensions/context-pipeline';
 import { orchestrate } from '@extensions/tool-orchestrator';
 import { streamingStore } from './streamingStore';
+import type { ToolCallPatch } from './streamingStore';
+import type { ToolActivity } from '@extensions/tool-orchestrator/types';
 import { buildChatRequest, formatTemporalContext } from '@core/ai';
 import { generateSuggestions } from '@services/ai/suggestions';
 import { logUsage } from '@extensions/usage';
@@ -38,6 +40,7 @@ import { notifyAppEvent } from '@shared/utils/appEvents';
 import { queryKeys } from '@shared/query/queryKeys';
 import {
   CHAT_PAGE_SIZE,
+  TOOL_RESULT_PREVIEW_CHARS,
 } from '@config/chat.config';
 
 /** "Reply ready" while Kasset is in the background (Settings › Notifications › Chat replies). */
@@ -52,6 +55,36 @@ function invalidateChats(): void {
   queryClient.invalidateQueries({ queryKey: queryKeys.chats() }).catch((error: unknown) =>
     console.error('[ChatStore] Failed to invalidate chats query:', error)
   );
+}
+
+/** What one tool event changes on its row in the streaming message. */
+function toolCallPatch(activity: ToolActivity): ToolCallPatch {
+  const { toolName, source } = activity;
+  switch (activity.phase) {
+    case 'start':
+      return { toolName, source, status: 'calling' };
+    case 'input':
+      return { toolName, source, arguments: activity.arguments };
+    case 'end': {
+      const { content, isError, executionMs } = activity.result;
+      return {
+        toolName,
+        source,
+        ...(activity.arguments && { arguments: activity.arguments }),
+        status: isError ? 'error' : 'complete',
+        result: { content: content.slice(0, TOOL_RESULT_PREVIEW_CHARS), isError, executionMs },
+      };
+    }
+  }
+}
+
+/** Adds a tool's meeting citations, keeping each meeting's best-scoring one. */
+function mergeCitations(into: MeetingCitation[], citations: MeetingCitation[]): void {
+  for (const citation of citations) {
+    const existingIdx = into.findIndex((c) => c.meetingId === citation.meetingId);
+    if (existingIdx === -1) into.push(citation);
+    else if (citation.score > into[existingIdx].score) into[existingIdx] = citation;
+  }
 }
 
 // ── Module-level refs ──
@@ -723,41 +756,8 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
           },
           onToolActivity: (activity) => {
             markStreaming();
-
-            const toolCallId = activity.toolCall.id;
-
-            if (activity.status === 'calling') {
-              streamingStore.pushPart({
-                type: 'tool_call',
-                toolCallId,
-                toolName: activity.toolName,
-                source: activity.source,
-                arguments: activity.toolCall.arguments,
-                status: 'calling',
-              });
-            } else if (activity.status === 'done') {
-              const isError = activity.result?.isError ?? false;
-              const content = activity.result?.content?.slice(0, 500) ?? 'Done';
-              const executionMs = activity.result?.meta?.executionMs;
-
-              streamingStore.updatePartByKey(toolCallId, (prev) => ({
-                ...(prev as Extract<ChatPart, { type: 'tool_call' }>),
-                status: isError ? ('error' as const) : ('complete' as const),
-                result: { content, isError, executionMs },
-              }));
-
-              const newCitations = activity.result?.meta?.citations ?? [];
-              for (const citation of newCitations) {
-                const existingIdx = allCitations.findIndex(
-                  (c) => c.meetingId === citation.meetingId
-                );
-                if (existingIdx === -1) {
-                  allCitations.push(citation);
-                } else if (citation.score > allCitations[existingIdx].score) {
-                  allCitations[existingIdx] = citation;
-                }
-              }
-            }
+            streamingStore.upsertToolCall(activity.toolCallId, toolCallPatch(activity));
+            if (activity.phase === 'end') mergeCitations(allCitations, activity.result.citations ?? []);
           },
         }
       );
