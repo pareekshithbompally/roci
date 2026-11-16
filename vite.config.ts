@@ -11,6 +11,8 @@ export default defineConfig(({ mode }) => {
     return {
       server: {
         port: 5173,
+        // devUrl points at 5173: a second dev server must fail, not drift to 5174 and leave the app on the other one.
+        strictPort: true,
         host: '0.0.0.0',
       },
       worker: {
