@@ -51,7 +51,7 @@ These are hard constraints. They **override** convenience, speed, and your defau
 ### I6 — Rust/Tauri: compiles clean, permissions declared, OS prompts handled natively.
 - `src-tauri` must `cargo build` with no errors and no new warnings. Treat a warning you introduced as a failure.
 - Any Tauri API a feature calls must be allow-listed in `src-tauri/capabilities/desktop.json` (macOS) and/or `mobile.json` (iOS / iPadOS), per the platforms that call it. Adding an `invoke`/plugin call without its permission is incomplete.
-- macOS permission strings live in `src-tauri/Info.plist` (`NS*UsageDescription`). Adding a capability that touches mic/screen/calendar/etc. **requires** its usage string.
+- Permission strings (`NS*UsageDescription`): macOS in `src-tauri/Info.plist`, iOS wording in `src-tauri/Info.ios.plist` (merged on top of `Info.plist` for iOS). Adding a capability that touches mic/screen/calendar/etc. **requires** its usage string on every platform that uses it.
 - Request OS permission the **native** way, at the point of use — let the system framework raise the prompt (e.g. `SCShareableContent.getWithCompletionHandler` triggers Screen Recording; `AVCaptureDevice`/EventKit `requestAccess` for mic/calendar). Handle denial as an expected, recoverable state surfaced to the UI — never crash, never silently no-op.
 
 ### I7 — Clean code: minimal cognitive & cyclomatic complexity.

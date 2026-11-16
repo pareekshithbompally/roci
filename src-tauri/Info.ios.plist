@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Roci uses your microphone to record meetings and for dictation, and keeps recordings on this device.</string>
+
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>Roci transcribes your recordings on this device with Apple's speech recognition when you choose it as your transcription model.</string>
+
+    <key>NSCalendarsFullAccessUsageDescription</key>
+    <string>Roci reads your calendar to notify you about upcoming meetings and help identify speakers during transcription.</string>
+
+    <key>NSRemindersFullAccessUsageDescription</key>
+    <string>Roci adds your meeting action items to Reminders and marks them done in Roci when you complete them there.</string>
+
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
+</dict>
+</plist>

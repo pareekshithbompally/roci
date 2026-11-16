@@ -12,13 +12,7 @@
     <key>NSCalendarsFullAccessUsageDescription</key>
     <string>Roci reads your calendar to notify you about upcoming meetings and help identify speakers during transcription.</string>
 
-    <key>NSCalendarsUsageDescription</key>
-    <string>Roci reads your calendar to notify you about upcoming meetings and help identify speakers during transcription.</string>
-
     <key>NSRemindersFullAccessUsageDescription</key>
-    <string>Roci adds your meeting action items to Reminders and marks them done in Roci when you complete them there.</string>
-
-    <key>NSRemindersUsageDescription</key>
     <string>Roci adds your meeting action items to Reminders and marks them done in Roci when you complete them there.</string>
 
     <key>NSSpeechRecognitionUsageDescription</key>
