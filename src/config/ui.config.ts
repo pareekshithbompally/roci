@@ -17,6 +17,8 @@ export const UI_CONFIG = {
       dragOffset: 4,
       dragHeight: 36,
     },
+    /** Onboarding panel's top edge: pinned, so a taller or shorter next step grows downward instead of re-centring. */
+    onboardingPanelTop: '14vh',
     /** Meeting chat, anchored bottom-right `inset` from the window edges: its floating button, or its window (never taller than the space below the titlebar). */
     meetingChat: {
       inset: 16,

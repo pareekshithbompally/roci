@@ -1,7 +1,8 @@
-/** The first-run window: one centred panel per step (permissions, AI setup, local server), in place of the app. */
+/** The first-run window: one panel, pinned at the top, whose content fades between steps (permissions, AI setup, local server). */
 
 import React from 'react';
 import { Surface, TitlebarDragRegion } from '@shared/ui';
+import { UI_CONFIG } from '@config/ui.config';
 import { useOnboardingStep } from '@features/onboarding/stores/onboardingStore';
 import { PermissionsStep } from './PermissionsStep';
 import { SetupStep } from './SetupStep';
@@ -17,11 +18,18 @@ export const OnboardingView: React.FC = () => {
   const step = useOnboardingStep();
   const Step = STEPS[step];
   return (
-    <Surface as="main" variant="page" className="relative flex h-screen items-center justify-center overflow-y-auto p-6">
+    <Surface
+      as="main"
+      variant="page"
+      className="relative flex h-screen justify-center overflow-y-auto px-6 pb-6"
+      style={{ paddingTop: UI_CONFIG.layout.onboardingPanelTop }}
+    >
       <TitlebarDragRegion />
-      {/* Keyed by step, so each step enters with the shared sheet motion. */}
-      <Surface key={step} variant="card" radius="xl" edge="all" className="w-full max-w-lg p-8 animate-sheet-show">
-        <Step />
+      {/* The panel stays put across steps; only its content changes, with a fade and no movement. */}
+      <Surface variant="card" radius="xl" edge="all" className="h-fit w-full max-w-lg p-8 animate-sheet-show">
+        <div key={step} className="animate-fade-in">
+          <Step />
+        </div>
       </Surface>
     </Surface>
   );

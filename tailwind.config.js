@@ -116,6 +116,8 @@ export default {
       animation: {
         'overlay-show': `overlay-show ${ENTER}`,
         'overlay-hide': `overlay-hide ${EXIT}`,
+        // A plain fade with no movement (the scrim's keyframes): content swapping in place, a view mounting.
+        'fade-in': `overlay-show ${ENTER}`,
         'content-show': `content-show ${ENTER}`,
         'content-hide': `content-hide ${EXIT}`,
         'sheet-show': `sheet-show ${ENTER}`,
