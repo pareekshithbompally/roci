@@ -29,6 +29,9 @@ export const LAYOUT = {
   /** Meeting title: longer titles end in an ellipsis (full title on hover) so the actions after it stay put */
   meetingTitle: 'max-w-2xl',
 
+  /** Meeting chat mini window: bottom-right, capped below the titlebar on short windows */
+  chatPopout: 'fixed bottom-4 right-4 w-[400px] h-[min(600px,calc(100vh-56px))]',
+
   /** Page gutter around the page column */
   pageGutter: 'px-6 md:px-8',
 } as const;

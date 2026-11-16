@@ -1,7 +1,7 @@
 // Components
 export {
   ChatShell,
-  ChatPanel,
+  MeetingChatPopout,
   ChatView,
   ChatMessage,
   ChatInput,

@@ -1,6 +1,6 @@
 export { ChatShell } from './ChatShell';
 export type { ChatShellProps } from './ChatShell';
-export { ChatPanel } from './ChatPanel';
+export { MeetingChatPopout } from './MeetingChatPopout';
 export { ChatView } from './ChatView';
 export { ChatMessage } from './message';
 export { ChatInput } from './ChatInput';

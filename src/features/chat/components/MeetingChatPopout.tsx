@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { ChevronDown, Maximize2, SquarePen } from 'lucide-react';
-import { IconButton, Surface, Text } from '@shared/ui';
+import { cn, IconButton, Surface, Text } from '@shared/ui';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { meetingReferenceService } from '@services/meetingReferenceService';
 import { LAYOUT } from '@config/layout.config';
@@ -58,7 +58,7 @@ export const MeetingChatPopout: React.FC<MeetingChatPopoutProps> = ({ meetingId,
       variant="floating"
       radius="xl"
       edge="all"
-      className={`${LAYOUT.chatPopout} flex flex-col overflow-hidden animate-content-show`}
+      className={cn(LAYOUT.chatPopout, 'flex flex-col overflow-hidden animate-content-show')}
       style={{ zIndex: UI_CONFIG.zIndex.overlay }}
       role="dialog"
       aria-label={`Chat about ${meetingTitle}`}
