@@ -3,9 +3,9 @@
 import React from 'react';
 import { PanelLeft, SquarePen, X } from 'lucide-react';
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
-import { useAppActions, useCurrentView } from '@shared/stores/appStore';
+import { useAppActions, useAppStore, useCurrentView } from '@shared/stores/appStore';
 import { ModelPicker, startNewChat } from '@features/chat';
-import { SettingsHome } from '@features/settings';
+import { SettingsHome, settingsScreen } from '@features/settings';
 import { useRecordingBusy, useRecordingMeetingId, useStartRecording } from '@features/recording';
 import { platform } from '@platform/index';
 import { Button, Dot, Drawer, IconButton, NavStack, Surface, TopBar } from '@shared/ui';
@@ -36,6 +36,7 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children, onSearchClick 
   const setLeftPanel = useLeftPanel((s) => s.setLeftPanel);
   const inSettings = useCurrentView() === 'settings';
   const { leaveSettings } = useAppActions();
+  const settingsRequest = useAppStore((s) => s.settingsRequest);
 
   return (
     <Surface as="main" variant="page" className="relative flex h-screen flex-col overflow-hidden">
@@ -50,7 +51,11 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children, onSearchClick 
       </Drawer>
       <Drawer side="bottom" open={inSettings} onClose={leaveSettings} label="Settings">
         {inSettings && (
-          <NavStack title="Settings" action={<IconButton icon={X} label="Close" size="fab" variant="outline" onClick={leaveSettings} />}>
+          <NavStack
+            title="Settings"
+            action={<IconButton icon={X} label="Close" size="fab" variant="outline" onClick={leaveSettings} />}
+            initial={settingsRequest ? settingsScreen(settingsRequest) : undefined}
+          >
             <SettingsHome />
           </NavStack>
         )}

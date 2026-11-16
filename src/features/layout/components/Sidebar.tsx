@@ -31,7 +31,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isSettingsView = currentView === 'settings';
   const { items } = useUnifiedSidebar();
   const selectedHistoryId = useSelectedHistoryId();
-  const { setCurrentView, leaveSettings, setStatus, setSelectedHistoryId, setResult } = useAppActions();
+  const { setCurrentView, openSettings, leaveSettings, setStatus, setSelectedHistoryId, setResult } = useAppActions();
   const currentChatId = useChatStore((s) => s.currentSessionId);
   const selectSession = useChatStore((s) => s.selectSession);
   const listContainerRef = useRef<HTMLDivElement>(null);
@@ -55,7 +55,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const handleSettingsClick = () => {
-    setCurrentView('settings');
+    openSettings();
     if (isSmallScreen) setLeftPanel(false);
   };
 

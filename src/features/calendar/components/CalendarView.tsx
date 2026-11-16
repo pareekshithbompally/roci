@@ -91,7 +91,7 @@ const CalendarEmptyState: React.FC<{
 // ─── Component ──────────────────────────────────────────────────────
 
 export const CalendarView: React.FC = () => {
-  const { setCurrentView, setStatus, setSelectedHistoryId, setResult } = useAppActions();
+  const { setCurrentView, openSettings, setStatus, setSelectedHistoryId, setResult } = useAppActions();
   const { scheduleXEvents, isEmpty, isEnabled, isInitialFetchDone, refresh } = useCalendarEvents();
   const [isSyncing, setIsSyncing] = useState(false);
   const [rangeLabel, setRangeLabel] = useState('');
@@ -108,9 +108,7 @@ export const CalendarView: React.FC = () => {
     setStatus(AppStatus.IDLE);
   }, [setCurrentView, setSelectedHistoryId, setResult, setStatus]);
 
-  const handleGoToSettings = useCallback(() => {
-    setCurrentView('settings');
-  }, [setCurrentView]);
+  const handleGoToSettings = useCallback(() => openSettings(), [openSettings]);
 
   const handleSync = useCallback(async () => {
     setIsSyncing(true);

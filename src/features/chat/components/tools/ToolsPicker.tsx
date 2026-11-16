@@ -39,7 +39,7 @@ export const ToolsPicker: React.FC = () => {
   const catalog = useToolCatalog();
   const [open, setOpen] = useState(false);
   const [flyout, setFlyout] = useState<string | null>(null);
-  const { setCurrentView, setActiveSettingsPanel } = useAppActions();
+  const { openSettings } = useAppActions();
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
@@ -48,8 +48,7 @@ export const ToolsPicker: React.FC = () => {
 
   const openMcpSettings = () => {
     handleOpenChange(false);
-    setActiveSettingsPanel('mcp');
-    setCurrentView('settings');
+    openSettings('mcp');
   };
 
   const { enabledCount, webSearch, modelSupportsTools } = catalog;

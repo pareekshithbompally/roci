@@ -14,6 +14,7 @@ import { IntegrationsPanel } from './IntegrationsPanel';
 import { NotificationsPanel } from './NotificationsPanel';
 import { McpServersPanel } from './mcp';
 import { CardRow, Icon, Section, Surface, useNavStack } from '@shared/ui';
+import type { NavScreen } from '@shared/ui';
 import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore';
 
 const PANEL_COMPONENTS: Record<SettingsPanelType, React.FC> = {
@@ -35,6 +36,12 @@ const PanelView: React.FC<{ id: SettingsPanelType }> = ({ id }) =>
     React.createElement(PANEL_COMPONENTS[id])
   );
 
+/** A settings panel as a phone navigation screen (its row's label as the title). */
+export function settingsScreen(id: SettingsPanelType): NavScreen {
+  const label = SETTINGS_NAV_ITEMS.find((item) => item.id === id)?.label ?? '';
+  return { title: label, content: <PanelView id={id} /> };
+}
+
 /** Phone: the root of the Settings sheet — sections grouped under headings; a row pushes its panel. */
 export const SettingsHome: React.FC = () => {
   const { push } = useNavStack();
@@ -46,12 +53,7 @@ export const SettingsHome: React.FC = () => {
       {groups.map((group) => (
         <Section key={group} title={group}>
           {items.filter((item) => item.group === group).map(({ id, label, icon }) => (
-            <CardRow
-              key={id}
-              title={label}
-              leading={<Icon icon={icon} size="sm" />}
-              onOpen={() => push({ title: label, content: <PanelView id={id} /> })}
-            />
+            <CardRow key={id} title={label} leading={<Icon icon={icon} size="sm" />} onOpen={() => push(settingsScreen(id))} />
           ))}
         </Section>
       ))}

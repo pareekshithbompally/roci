@@ -13,7 +13,7 @@ export const INTEGRATIONS_CONFIG = {
   },
   appleIntelligence: {
     title: 'Apple Intelligence',
-    description: 'On-device chat, summaries and speech recognition. Nothing leaves your Mac.',
+    description: 'On-device AI. Nothing leaves this device.',
     deniedHint: 'Apple Intelligence is off in System Settings › Apple Intelligence & Siri.',
     icon: '/images/apple-intelligence-sm.png',
     /** The welcome screen's third option: every basic job on Apple's models in one click. */
@@ -31,7 +31,7 @@ export const INTEGRATIONS_CONFIG = {
   },
   appleNotes: {
     title: 'Notes',
-    description: `Save each meeting’s summary and transcript to the “${NOTES_FOLDER}” folder in Notes.`,
+    description: `Save meetings to the “${NOTES_FOLDER}” folder.`,
     deniedHint: 'Roci is off in System Settings › Privacy & Security › Automation › Notes.',
     app: 'com.apple.Notes',
     folder: NOTES_FOLDER,
@@ -45,7 +45,7 @@ export const INTEGRATIONS_CONFIG = {
   },
   hex: {
     title: 'Hex',
-    description: "Use Hex's transcription models, and bring every Hex meeting into Roci.",
+    description: "Hex’s speech models and meetings in Roci.",
     app: 'anomaly.hex',
     /** Shown until Hex is installed. */
     icon: '/images/hex-app-sm.png',
@@ -54,7 +54,7 @@ export const INTEGRATIONS_CONFIG = {
   },
   reminders: {
     title: 'Reminders',
-    description: 'Send meeting action items to Reminders. Completing one there completes it in Roci.',
+    description: 'Action items in Reminders, kept in sync.',
     deniedHint: 'Roci is off in System Settings › Privacy & Security › Reminders.',
     app: 'com.apple.reminders',
     /** List created on first enable */
@@ -67,7 +67,7 @@ export const INTEGRATIONS_CONFIG = {
     section: 'Coding agents',
     server: {
       title: 'Roci MCP server',
-      description: 'Agents get the same tools as Roci’s chat, and open Roci in the background when it isn’t running.',
+      description: 'Coding agents get Roci’s chat tools.',
       ready: 'Ready',
       starting: 'Starting',
       connected: (count: number) => `${count} ${count === 1 ? 'agent' : 'agents'} connected`,

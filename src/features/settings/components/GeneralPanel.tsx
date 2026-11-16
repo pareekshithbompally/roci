@@ -10,7 +10,7 @@ import { isTauriEnvironment, revealInFinder } from '@services/tauri';
 import { searchIndexingService } from '@services/searchIndexing.service';
 import { useSystemInfo, systemInfoStore, DISK_USAGE_LABELS } from '@features/settings/stores/systemInfoStore';
 import { SettingsPage } from './shared';
-import { Button, Card, CardRow, Icon, Section, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Status, Switch, Tabs, Text } from '@shared/ui';
+import { Button, Card, CardRow, ChoiceControl, Icon, Section, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Status, Switch, Text } from '@shared/ui';
 
 import { useAppUpdate } from '@features/settings/hooks/useAppUpdate';
 import { AcknowledgementsDialog } from './AcknowledgementsDialog';
@@ -191,12 +191,12 @@ export const GeneralPanel: React.FC = () => {
     <SettingsPage title="General" description="Appearance, capture, storage, and app information.">
       {/* Appearance — theme + import processing */}
       <Section title="Appearance">
-        <CardRow title="Theme" actions={<Tabs items={themeTabs} value={theme} onValueChange={setTheme} />} />
+        <CardRow title="Theme" actions={<ChoiceControl items={themeTabs} value={theme} onValueChange={setTheme} />} />
 
         {/* Model icons — opt-in: loads org avatars from huggingface.co */}
         <CardRow
           title="Model Icons"
-          description="Show Hugging Face org icons on local models. Loads images from huggingface.co."
+          description="Org icons on local models, from huggingface.co."
           actions={
             <Switch
               size="sm"
@@ -209,7 +209,7 @@ export const GeneralPanel: React.FC = () => {
 
         <CardRow
           title="Tool Activity"
-          description="Show each tool the assistant uses, inline in its answer."
+          description="Show the tools used in each answer."
           actions={
             <Switch
               size="sm"
@@ -311,7 +311,7 @@ export const GeneralPanel: React.FC = () => {
           />
           <CardRow
             title="Transcribe After Recording"
-            description="Start the transcript and summary as soon as a recording stops. Off: it waits in the sidebar until you press Transcribe."
+            description="Transcribe and summarize when a recording stops."
             actions={
               <Switch
                 size="sm"
@@ -398,7 +398,7 @@ export const GeneralPanel: React.FC = () => {
         <CardRow title="Version" actions={<VersionStatus appVersion={appVersion} appUpdate={appUpdate} upToDate={upToDate} onCheck={handleCheckForUpdate} />} />
         <CardRow
           title="Setup"
-          description="Walk through permissions and choosing your AI again."
+          description="Go through permissions and AI setup again."
           actions={<Button variant="outline" size="sm" onClick={() => setSettings({ onboarding: { completed: false } })}>Run Again</Button>}
         />
         <CardRow

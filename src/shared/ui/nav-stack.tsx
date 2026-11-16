@@ -40,13 +40,15 @@ export interface NavStackProps {
   title: string;
   /** The root screen's action at the top right (Close). */
   action?: React.ReactNode;
+  /** A screen already open above the root when the stack appears (Settings opened at a panel). */
+  initial?: NavScreen;
   /** The root screen's content. */
   children: React.ReactNode;
 }
 
 /** iOS navigation stack: the root has a large title, each pushed screen a round back button and a centred title; one header per screen, at any depth. */
-export function NavStack({ title, action, children }: NavStackProps) {
-  const [stack, setStack] = useState<NavScreen[]>([]);
+export function NavStack({ title, action, initial, children }: NavStackProps) {
+  const [stack, setStack] = useState<NavScreen[]>(() => (initial ? [initial] : []));
   const push = useCallback((screen: NavScreen) => setStack((s) => [...s, screen]), []);
   const pop = useCallback(() => setStack((s) => s.slice(0, -1)), []);
   const api = useMemo(() => ({ push, pop }), [push, pop]);

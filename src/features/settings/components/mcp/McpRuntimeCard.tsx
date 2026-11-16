@@ -51,7 +51,7 @@ export const McpRuntimeCard: React.FC<McpRuntimeCardProps> = ({ settings, disabl
   <>
     <CardRow
       title="Allow all MCP tool permissions"
-      description="Run every MCP tool without asking first. Otherwise each tool asks, and “Always allow” saves a permission here."
+      description="Run MCP tools without asking first."
       actions={
         <Switch
           size="sm"
@@ -66,7 +66,7 @@ export const McpRuntimeCard: React.FC<McpRuntimeCardProps> = ({ settings, disabl
       <CardRow
         key={server}
         title={`Always allow ${server}`}
-        description="Saved permission: every tool from this server runs without asking."
+        description="Every tool from this server runs without asking."
         actions={
           <Button
             variant="outline"
@@ -80,7 +80,7 @@ export const McpRuntimeCard: React.FC<McpRuntimeCardProps> = ({ settings, disabl
     ))}
     <CardRow
       title="Tool call timeout (seconds)"
-      description="How long a single tool call may run before it is stopped."
+      description="The longest a tool call may run."
       actions={
         <NumberSetting
           label="Tool call timeout"
@@ -94,7 +94,7 @@ export const McpRuntimeCard: React.FC<McpRuntimeCardProps> = ({ settings, disabl
     />
     <CardRow
       title="Max tool output characters"
-      description="Longer results are cut before they reach the model. 0 keeps everything."
+      description="Longer results are cut. 0 keeps everything."
       actions={
         <NumberSetting
           label="Max tool output characters"

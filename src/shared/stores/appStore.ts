@@ -17,6 +17,8 @@ interface AppStoreState {
   selectedHistoryId: string | null;
   activeResultTab: ResultTab;
   activeSettingsPanel: SettingsPanel;
+  /** The panel Settings was opened at (Set up AI → Providers); null when opened plainly. A phone opens it on arrival. */
+  settingsRequest: SettingsPanel | null;
   meetingChatOpen: boolean;
   permissionChecklistOpen: boolean;
   /** Quit or window close asked while recording: which one, or none. */
@@ -25,6 +27,8 @@ interface AppStoreState {
   error: string | null;
 
   setCurrentView: (v: ViewType) => void;
+  /** The one way into Settings, optionally at a panel. */
+  openSettings: (panel?: SettingsPanel) => void;
   /** Return from settings to the view it was opened from; no-op elsewhere. */
   leaveSettings: () => void;
   setStatus: (s: AppStatus) => void;
@@ -49,6 +53,7 @@ export const useAppStore = create<AppStoreState>((set) => ({
   selectedHistoryId: null,
   activeResultTab: 'summary',
   activeSettingsPanel: 'general',
+  settingsRequest: null,
   meetingChatOpen: false,
   permissionChecklistOpen: false,
   recordingExitPrompt: null,
@@ -61,8 +66,16 @@ export const useAppStore = create<AppStoreState>((set) => ({
       ...(v === 'settings' && s.currentView !== 'settings' && { viewBeforeSettings: s.currentView }),
     })),
 
+  openSettings: (panel) =>
+    set((s) => ({
+      currentView: 'settings',
+      ...(s.currentView !== 'settings' && { viewBeforeSettings: s.currentView }),
+      ...(panel && { activeSettingsPanel: panel }),
+      settingsRequest: panel ?? null,
+    })),
+
   leaveSettings: () =>
-    set((s) => (s.currentView === 'settings' ? { currentView: s.viewBeforeSettings } : {})),
+    set((s) => (s.currentView === 'settings' ? { currentView: s.viewBeforeSettings, settingsRequest: null } : {})),
 
   setStatus: (s) =>
     set({
@@ -119,6 +132,7 @@ export const useAppError = () => useAppStore((s) => s.error);
 export const useAppActions = () => {
   const setCurrentView = useAppStore((s) => s.setCurrentView);
   const leaveSettings = useAppStore((s) => s.leaveSettings);
+  const openSettings = useAppStore((s) => s.openSettings);
   const setStatus = useAppStore((s) => s.setStatus);
   const setResult = useAppStore((s) => s.setResult);
   const setSelectedHistoryId = useAppStore((s) => s.setSelectedHistoryId);
@@ -132,6 +146,7 @@ export const useAppActions = () => {
 
   return {
     setCurrentView,
+    openSettings,
     leaveSettings,
     setStatus,
     setResult,

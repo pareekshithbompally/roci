@@ -3,12 +3,12 @@
 import type { NotificationKind, NotificationSettings } from '@shared/types';
 
 export const NOTIFICATION_KINDS: ReadonlyArray<{ kind: NotificationKind; label: string; description: string }> = [
-  { kind: 'meetingReminders', label: 'Meeting reminders', description: 'A notification with Record before a calendar meeting starts.' },
-  { kind: 'detectedCalls', label: 'Detected calls', description: 'Offers to record when Zoom, Teams, Meet or another call app starts using the microphone.' },
-  { kind: 'recordingReady', label: 'Recording ready', description: 'When a recording has been transcribed and summarized, or fails.' },
+  { kind: 'meetingReminders', label: 'Meeting reminders', description: 'Before a calendar meeting, with Record.' },
+  { kind: 'detectedCalls', label: 'Detected calls', description: 'When a call app starts using the microphone.' },
+  { kind: 'recordingReady', label: 'Recording ready', description: 'When a recording is summarized, or fails.' },
   { kind: 'hexImports', label: 'Hex meetings imported', description: 'When new meetings arrive from Hex.' },
   { kind: 'modelDownloads', label: 'Model downloads', description: 'When an on-device model finishes downloading.' },
-  { kind: 'chatReplies', label: 'Chat replies', description: 'When a reply finishes while Roci is in the background.' },
+  { kind: 'chatReplies', label: 'Chat replies', description: 'When a reply finishes in the background.' },
   { kind: 'todoReminders', label: 'To-do reminders', description: 'At the time you set on a to-do.' },
 ];
 

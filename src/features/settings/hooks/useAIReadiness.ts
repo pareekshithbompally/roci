@@ -25,9 +25,6 @@ export function useAIReadiness(): AIReadiness {
 
 /** Opens Settings › Providers, where AI is set up. */
 export function useOpenAISetup(): () => void {
-  const { setActiveSettingsPanel, setCurrentView } = useAppActions();
-  return useCallback(() => {
-    setActiveSettingsPanel('providers');
-    setCurrentView('settings');
-  }, [setActiveSettingsPanel, setCurrentView]);
+  const { openSettings } = useAppActions();
+  return useCallback(() => openSettings('providers'), [openSettings]);
 }

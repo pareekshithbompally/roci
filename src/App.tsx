@@ -44,7 +44,7 @@ const App: React.FC = () => {
   const formFactor = useFormFactor();
   const status = useAppStatus();
   const selectedHistoryId = useSelectedHistoryId();
-  const { setCurrentView, leaveSettings, setInitialized, setActiveSettingsPanel } = useAppActions();
+  const { openSettings, leaveSettings, setInitialized } = useAppActions();
   
   const { settings, setSettings, providers, isLoading: settingsLoading } = useSettings();
   const history = useHistory();
@@ -71,7 +71,7 @@ const App: React.FC = () => {
     },
     openSettings: () => {
       setIsSearchOpen(false);
-      setCurrentView('settings');
+      openSettings();
     },
     leaveSettings,
   });
@@ -233,9 +233,8 @@ const App: React.FC = () => {
   /** What each menu bar action does here (Rust handles the window, next-meeting and recent-meeting rows itself). */
   const menubarActions = (): Record<TrayAction, () => Promise<void>> => {
     const isRecording = () => useRecordingStore.getState().meetingId !== null;
-    const openSettings = async (panel?: SettingsPanelId) => {
-      if (panel) setActiveSettingsPanel(panel);
-      setCurrentView('settings');
+    const openSettingsWindow = async (panel?: SettingsPanelId) => {
+      openSettings(panel);
       await windowService.show();
     };
     return {
@@ -244,9 +243,9 @@ const App: React.FC = () => {
       [TrayAction.STOP_RECORDING]: async () => { if (isRecording()) await recording.stop(); },
       [TrayAction.PAUSE_RECORDING]: async () => { if (isRecording()) await recording.pause(); },
       [TrayAction.RESUME_RECORDING]: async () => { if (isRecording()) await recording.resume(); },
-      [TrayAction.MANAGE_MODELS]: () => openSettings('capabilities'),
-      [TrayAction.MANAGE_AGENTS]: () => openSettings('integrations'),
-      [TrayAction.SETTINGS]: () => openSettings(),
+      [TrayAction.MANAGE_MODELS]: () => openSettingsWindow('capabilities'),
+      [TrayAction.MANAGE_AGENTS]: () => openSettingsWindow('integrations'),
+      [TrayAction.SETTINGS]: () => openSettingsWindow(),
       [TrayAction.NEW_CHAT]: async () => {
         await windowService.show();
         startNewChat();
@@ -311,9 +310,7 @@ const App: React.FC = () => {
 
       shortcutsService.on('new-chat', startNewChat);
 
-      shortcutsService.on('open-settings', () => {
-        setCurrentView('settings');
-      });
+      shortcutsService.on('open-settings', () => openSettings());
 
       console.log('Keyboard shortcuts initialized');
     } catch (error) {

@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import { DollarSign, Zap, TrendingUp, Loader2, AlertTriangle } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { Callout, Icon, Surface, Tabs, Text } from '@shared/ui';
+import { Callout, ChoiceControl, Icon, Surface, Text } from '@shared/ui';
 import { SettingsPage } from './shared';
 import { useUsageData } from '@features/settings/hooks/useUsageData';
 import type { TimeRange } from '@features/settings/hooks/useUsageData';
@@ -61,7 +61,7 @@ export const UsagePanel: React.FC = () => {
     <SettingsPage
       title="Usage"
       description="Token usage and estimated costs across all AI operations."
-      accessory={<Tabs items={TIME_RANGE_OPTIONS} value={timeRange} onValueChange={setTimeRange} />}
+      accessory={<ChoiceControl items={TIME_RANGE_OPTIONS} value={timeRange} onValueChange={setTimeRange} />}
     >
       {isLoading && (
         <div className="flex items-center justify-center py-12">
