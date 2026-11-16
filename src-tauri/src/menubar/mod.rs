@@ -48,11 +48,20 @@ const DEFAULT_TOOLTIP: &str = "Kasset.ai";
 const IDLE_ICON_RESOURCE: &str = "icons/iconTemplate@2x.png";
 const RECORDING_ICON_RESOURCE: &str = "icons/iconRecordingTemplate@2x.png";
 
-/// Agents' icons, keyed by the MCP client name each announces (read from their own builds: Claude Code, OpenCode).
-const AGENT_ICON_RESOURCES: [(&str, &str); 2] = [
-    ("claude-code", "icons/agents/claude-code.png"),
-    ("opencode", "icons/agents/opencode.png"),
+/// Agents Kasset knows, by the MCP client name each announces (read from their own builds): their name and icon.
+const KNOWN_AGENTS: [(&str, &str, &str); 2] = [
+    ("claude-code", "Claude Code", "icons/agents/claude-code.png"),
+    ("opencode", "OpenCode", "icons/agents/opencode.png"),
 ];
+
+/// A connected agent's row: Kasset's name for it when known, else the title it announced.
+fn agent_entry(images: &Images, name: &str, title: &str) -> AgentEntry {
+    let known = KNOWN_AGENTS.iter().find(|(client, _, _)| *client == name);
+    AgentEntry {
+        title: known.map_or(title, |(_, known_title, _)| known_title).to_string(),
+        icon: images.agents.get(name).cloned(),
+    }
+}
 
 /// How often the ticker re-reads the next meeting (its row counts down in minutes).
 const NEXT_MEETING_REFRESH_SECS: u64 = 15;
@@ -198,7 +207,7 @@ impl MenubarShared {
                 .mcp
                 .agents
                 .iter()
-                .map(|(name, title)| AgentEntry { title: title.clone(), icon: self.images.agents.get(name).cloned() })
+                .map(|(name, title)| agent_entry(&self.images, name, title))
                 .collect(),
             speech_models: state.speech_models.clone(),
             recent_meetings: state.recent_meetings.clone(),
@@ -304,9 +313,9 @@ fn resolve_images(app: &AppHandle) -> Images {
     Images {
         idle: resource_path(app, IDLE_ICON_RESOURCE),
         recording: resource_path(app, RECORDING_ICON_RESOURCE),
-        agents: AGENT_ICON_RESOURCES
+        agents: KNOWN_AGENTS
             .iter()
-            .map(|(name, resource)| (name.to_string(), resource_path(app, resource)))
+            .map(|(name, _, resource)| (name.to_string(), resource_path(app, resource)))
             .collect(),
     }
 }
@@ -484,6 +493,13 @@ pub fn close_to_tray(app: &AppHandle) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn known_agents_show_kasset_s_name_for_them() {
+        let images = Images::default();
+        assert_eq!(agent_entry(&images, "opencode", "opencode").title, "OpenCode");
+        assert_eq!(agent_entry(&images, "cursor", "Cursor").title, "Cursor");
+    }
 
     #[test]
     fn recording_forces_icon_visible() {

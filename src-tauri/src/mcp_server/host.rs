@@ -144,18 +144,26 @@ impl McpHostState {
     }
 
     pub fn status(&self) -> HostStatus {
+        let agents = self.agents();
         HostStatus {
             listening: self.listening.load(Ordering::Relaxed),
             ready: self.sender().borrow().is_some(),
-            clients: self.agents().len(),
-            agents: self.agents(),
+            clients: agents.len(),
+            agents,
             error: self.error.lock().unwrap_or_else(|e| e.into_inner()).clone(),
         }
     }
 
+    /// The agents connected, once each: an agent can hold several sessions (OpenCode starts its MCP servers twice).
     fn agents(&self) -> Vec<ConnectedAgent> {
-        let agents = self.agents.lock().unwrap_or_else(|e| e.into_inner());
-        agents.iter().map(|(_, agent)| agent.clone()).collect()
+        let sessions = self.agents.lock().unwrap_or_else(|e| e.into_inner());
+        let mut agents: Vec<ConnectedAgent> = Vec::with_capacity(sessions.len());
+        for (_, agent) in sessions.iter() {
+            if !agents.iter().any(|known| known.name == agent.name) {
+                agents.push(agent.clone());
+            }
+        }
+        agents
     }
 
     fn connect(&self, agent: ConnectedAgent) -> u64 {
@@ -365,7 +373,7 @@ impl ServerHandler for KassetServer {
 
 #[cfg(test)]
 mod tests {
-    use super::{ConnectedAgent, HostStatus};
+    use super::{ConnectedAgent, HostStatus, McpHostState};
     use crate::menubar::StatusLevel;
 
     fn status(listening: bool, ready: bool, agents: usize, error: Option<&str>) -> HostStatus {
@@ -387,5 +395,19 @@ mod tests {
         assert_eq!(read(status(true, true, 1, None)), ("1 agent connected".into(), StatusLevel::Available, 1));
         assert_eq!(read(status(true, true, 3, None)), ("3 agents connected".into(), StatusLevel::Available, 3));
         assert_eq!(read(status(false, false, 0, Some("taken"))), ("Unavailable".into(), StatusLevel::Unavailable, 0));
+    }
+
+    #[test]
+    fn an_agent_with_several_sessions_counts_once_until_its_last_session_ends() {
+        let host = McpHostState::default();
+        let agent = |name: &str| ConnectedAgent { name: name.into(), title: name.into() };
+        let first = host.connect(agent("opencode"));
+        let second = host.connect(agent("opencode"));
+        host.connect(agent("claude-code"));
+        assert_eq!(host.status().clients, 2);
+        host.disconnect(first);
+        assert_eq!(host.status().clients, 2);
+        host.disconnect(second);
+        assert_eq!(host.status().agents, vec![agent("claude-code")]);
     }
 }
