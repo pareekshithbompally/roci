@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Braces, Plus } from 'lucide-react';
-import { open as openExternal } from '@tauri-apps/plugin-shell';
+import { openUrl } from '@services/tauri';
 import { MCP_CONFIG } from '@config/mcp.config';
 import type { McpConfig } from '@config/mcp.config';
 import { useToast } from '@shared/contexts/ToastContext';
@@ -139,11 +139,7 @@ interface PanelShellProps {
   children?: React.ReactNode;
 }
 
-const openDirectory = () => {
-  openExternal(MCP_CONFIG.directoryUrl).catch((error: unknown) => {
-    console.error('[McpServersPanel] Failed to open MCP directory:', error);
-  });
-};
+const openDirectory = () => void openUrl(MCP_CONFIG.directoryUrl);
 
 const PanelShell: React.FC<PanelShellProps> = ({ onAdd, onEditAll, actionsDisabled, children }) => (
   <SettingsPage

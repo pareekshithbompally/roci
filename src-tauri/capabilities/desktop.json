@@ -39,7 +39,7 @@
     "fs:scope-appdata-recursive",
     "os:default",
     "process:default",
-    "shell:allow-open",
+    "opener:default",
     "store:default",
     "calendar:default",
     "notifications:default",

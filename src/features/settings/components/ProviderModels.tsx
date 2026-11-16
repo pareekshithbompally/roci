@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { ExternalLink, Plus } from 'lucide-react';
-import { open } from '@tauri-apps/plugin-shell';
+import { openUrl } from '@services/tauri';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { ModelIcon, RenameModal } from '@shared/components';
@@ -135,9 +135,7 @@ export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connec
     <Button
       variant="link"
       size="inline"
-      onClick={() => {
-        open(provider.explore_models_url!).catch((error: unknown) => console.error('[ProviderModels] open link failed:', error));
-      }}
+      onClick={() => void openUrl(provider.explore_models_url!)}
     >
       Browse models
       <Icon icon={ExternalLink} size="xs" />

@@ -1,6 +1,6 @@
 import React from 'react';
 import { ExternalLink } from 'lucide-react';
-import { open } from '@tauri-apps/plugin-shell';
+import { openUrl } from '@services/tauri';
 import { CardRow, Disclosure, IconButton, Section, Text } from '@shared/ui';
 import { ACKNOWLEDGEMENTS, LICENSE_TEXT_IDS, TRADEMARK_NOTICE, type Acknowledgement, type LicenseTextId } from '@config/acknowledgements.config';
 import mitText from '@config/licenses/MIT.txt?raw';
@@ -14,10 +14,6 @@ const LICENSE_TEXTS: Record<LicenseTextId, string> = {
   'Apache-2.0': apacheText,
   'BSD-3-Clause': bsd3Text,
   ISC: iscText,
-};
-
-const openLink = (url: string) => {
-  open(url).catch((error: unknown) => console.error('[AcknowledgementsDialog] open link failed:', error));
 };
 
 /** Copyright line and any attribution the licence asks to be reproduced. */
@@ -35,7 +31,7 @@ const AcknowledgementRow: React.FC<{ item: Acknowledgement }> = ({ item }) => (
     description={item.copyright || item.notice ? <Attribution item={item} /> : undefined}
     align="start"
     status={<Text variant="helper" tone="muted">{item.license}</Text>}
-    actions={<IconButton icon={ExternalLink} label={`Open ${item.name}`} size="sm" onClick={() => openLink(item.url)} />}
+    actions={<IconButton icon={ExternalLink} label={`Open ${item.name}`} size="sm" onClick={() => void openUrl(item.url)} />}
   />
 );
 

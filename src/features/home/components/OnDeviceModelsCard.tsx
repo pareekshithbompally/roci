@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Search, Volume2 } from 'lucide-react';
 import { SiHuggingface } from '@icons-pack/react-simple-icons';
-import { open } from '@tauri-apps/plugin-shell';
+import { openUrl } from '@services/tauri';
 import { ModelDownloadButton, ModelReadyStatus } from '@shared/components';
 import { useOnDeviceModel } from '@shared/hooks/useOnDeviceModel';
 import { EMBEDDING_MODEL_NAME } from '@extensions/rag';
@@ -76,9 +76,7 @@ export const OnDeviceModelsCard: React.FC = () => {
     }] : []),
   ];
 
-  const openRepo = (url: string) => () => {
-    open(url).catch(() => window.open(url, '_blank', 'noopener,noreferrer'));
-  };
+  const openRepo = (url: string) => () => void openUrl(url);
 
   return (
     <Surface variant="card" radius="lg" edge="all" className="w-full p-4">

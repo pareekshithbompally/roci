@@ -4,5 +4,6 @@ export * from './dialog.service';
 export * from './fileSystem.service';
 export * from './saveFile.service';
 export * from './screenshot.service';
+export * from './opener.service';
 export { menubarService, MENUBAR_ACTION_EVENT } from './menubar.service';
 export type { MenubarState, MenubarSpeechModel, MenubarActivity, MenubarRecentMeeting } from './menubar.service';

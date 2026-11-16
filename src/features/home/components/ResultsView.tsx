@@ -11,7 +11,7 @@ import { LAYOUT } from '@config/layout.config';
 import { TodoList } from '@features/todos';
 import { NotesView } from '@features/notes';
 import { ResultsAudioPlayer } from './ResultsAudioPlayer';
-import { isTauriEnvironment } from '@services/tauri';
+import { openUrl } from '@services/tauri';
 import { formatDuration } from '@shared/utils/formatters';
 import { meetingPipeline } from '@features/recording';
 import { useMeetingPhase } from '@shared/stores/meetingProgressStore';
@@ -65,14 +65,8 @@ const CalendarMetaRow: React.FC<{ item: HistoryItem }> = ({ item }) => {
   const hasParticipants = item.participants && item.participants.length > 0;
   const hasMeetingUrl = !!item.meetingUrl;
 
-  const handleJoinMeeting = async () => {
-    if (!item.meetingUrl) return;
-    if (isTauriEnvironment()) {
-      const { open } = await import('@tauri-apps/plugin-shell');
-      await open(item.meetingUrl);
-    } else {
-      window.open(item.meetingUrl, '_blank');
-    }
+  const handleJoinMeeting = () => {
+    if (item.meetingUrl) void openUrl(item.meetingUrl);
   };
 
   return (

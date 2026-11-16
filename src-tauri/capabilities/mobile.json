@@ -26,6 +26,7 @@
     "fs:allow-appdata-write-recursive",
     "fs:scope-appdata-recursive",
     "os:default",
+    "opener:default",
     "store:default",
     {
       "identifier": "http:default",

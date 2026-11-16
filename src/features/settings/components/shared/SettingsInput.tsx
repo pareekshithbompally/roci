@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import { open } from '@tauri-apps/plugin-shell';
+import { openUrl } from '@services/tauri';
 import type { LucideIcon } from 'lucide-react';
 import { Button, Input, Text } from '@shared/ui';
 
@@ -17,9 +17,7 @@ function renderWithLinks(text: string): React.ReactNode {
         key={i}
         variant="link"
         size="inline"
-        onClick={() => {
-          open(href).catch(() => window.open(href, '_blank', 'noopener,noreferrer'));
-        }}
+        onClick={() => void openUrl(href)}
       >
         {label}
       </Button>

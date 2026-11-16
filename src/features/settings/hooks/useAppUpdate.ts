@@ -1,7 +1,7 @@
 /** App update lifecycle (check → offer → download → install → relaunch) as one ActivityTray row, from "available" to "installing". */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { open } from '@tauri-apps/plugin-shell';
+import { openUrl } from '@services/tauri';
 import { isTauriEnvironment } from '@services/tauri';
 import { activityStore, type ActivityItem } from '@shared/stores/activityStore';
 import { APP_CONFIG } from '@config/app.config';
@@ -47,7 +47,7 @@ function putUpdateRow(fields: Pick<ActivityItem, 'label' | 'status'> & Partial<A
 }
 
 function openReleaseNotes(): void {
-  open(APP_CONFIG.releasesUrl).catch((error: unknown) => console.error('[useAppUpdate] Open release notes failed:', error));
+  void openUrl(APP_CONFIG.releasesUrl);
 }
 
 /** Imported dynamically so non-Tauri environments don't crash on import. */
