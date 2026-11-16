@@ -13,6 +13,7 @@ extern "C" {
     fn notifications_set_categories(json: *const c_char) -> *mut c_char;
     fn notifications_show(json: *const c_char) -> *mut c_char;
     fn notifications_remove(json: *const c_char) -> *mut c_char;
+    fn notifications_remove_pending_prefix(json: *const c_char) -> *mut c_char;
     fn notifications_free_string(ptr: *mut c_char);
 }
 
@@ -75,4 +76,8 @@ pub fn show(notice: &impl Serialize) -> Result<(), String> {
 
 pub fn remove(ids: &impl Serialize) -> Result<(), String> {
     call_ok(ids, notifications_remove)
+}
+
+pub fn remove_pending_prefix(prefix: &str) -> Result<(), String> {
+    call_ok(&prefix, notifications_remove_pending_prefix)
 }

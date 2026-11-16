@@ -1,6 +1,6 @@
 //! When each meeting's reminder shows, from Roci's EventKit events across every calendar.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use tauri_plugin_calendar::{call_link, key_matches, types::CalendarEvent, CallLink};
 
@@ -136,7 +136,7 @@ impl ReminderScheduler {
         lead_ms: i64,
         paused: bool,
     ) -> Vec<ReminderUpdate> {
-        let mut updates = self.withdraw(meetings, now_ms, paused);
+        let mut updates = self.withdraw(meetings, now_ms, lead_ms, paused);
         self.queued.retain(|_, queued| queued.end_ms + FORGET_AFTER_END_MS > now_ms);
         if !paused {
             updates.extend(self.queue(meetings, now_ms, lead_ms));
@@ -144,16 +144,20 @@ impl ReminderScheduler {
         updates
     }
 
-    /// Past its time, gone from the calendar (cancelled, moved, declined, off), or not yet shown while paused.
-    fn withdraw(&mut self, meetings: &[CalendarMeeting], now_ms: i64, paused: bool) -> Vec<ReminderUpdate> {
-        let current: HashSet<String> = meetings.iter().map(CalendarMeeting::occurrence).collect();
+    /// Past its time, gone from the calendar (cancelled, moved, declined, off), or not yet shown while paused
+    /// or at a time the lead no longer gives (the lead changed), to be queued afresh.
+    fn withdraw(&mut self, meetings: &[CalendarMeeting], now_ms: i64, lead_ms: i64, paused: bool) -> Vec<ReminderUpdate> {
+        let starts: HashMap<String, i64> =
+            meetings.iter().map(|meeting| (meeting.occurrence(), meeting.start_ms)).collect();
         let mut updates = Vec::new();
         self.queued.retain(|occurrence, queued| {
             if queued.done {
                 return true;
             }
             let expired = queued.until_ms <= now_ms;
-            let unwanted = !current.contains(occurrence) || (paused && queued.fire_ms > now_ms);
+            let pending = queued.fire_ms > now_ms;
+            let retimed = starts.get(occurrence).is_some_and(|start| (start - lead_ms).max(now_ms) != queued.fire_ms);
+            let unwanted = !starts.contains_key(occurrence) || (pending && (paused || retimed));
             if expired || unwanted {
                 updates.push(ReminderUpdate::Withdraw(occurrence.clone()));
             }
@@ -303,6 +307,18 @@ mod tests {
         // Stopped two minutes into the meeting: shown now.
         let updates = scheduler.reconcile(&meetings, 12 * MINUTE, 2 * MINUTE, false);
         assert_eq!(scheduled_at(&updates), [("a@600000".to_string(), 12 * MINUTE)]);
+    }
+
+    #[test]
+    fn a_new_lead_time_requeues_reminders_not_yet_shown() {
+        let mut scheduler = ReminderScheduler::default();
+        let meetings = [meeting("a", 30 * MINUTE)];
+        scheduler.reconcile(&meetings, 10 * MINUTE, 5 * MINUTE, false);
+        let updates = scheduler.reconcile(&meetings, 11 * MINUTE, 15 * MINUTE, false);
+        assert_eq!(updates[0], ReminderUpdate::Withdraw("a@1800000".into()));
+        assert_eq!(scheduled_at(&updates), [("a@1800000".to_string(), 15 * MINUTE)]);
+        // Unchanged lead: nothing to redo.
+        assert!(scheduler.reconcile(&meetings, 12 * MINUTE, 15 * MINUTE, false).is_empty());
     }
 
     #[test]

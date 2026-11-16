@@ -212,6 +212,13 @@ pub fn remove(ids: &[String]) {
     }
 }
 
+/// Withdraws notices queued with macOS by an earlier run under `prefix`; their owner re-queues what still applies.
+pub fn remove_pending_with_prefix(prefix: &str) {
+    if let Err(error) = bridge::remove_pending_prefix(prefix) {
+        log::debug!("[notifications] pending {prefix}* not removed: {error}");
+    }
+}
+
 /// What the bridge shows: the notice, and when macOS should deliver it (`None` = now).
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]

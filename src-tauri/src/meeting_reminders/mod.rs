@@ -133,6 +133,8 @@ pub fn start(app: AppHandle) {
     }
     notifications::add_categories(&categories());
     notifications::on_response_received(handle_response);
+    // macOS keeps reminders queued by an earlier run; this run's first reconcile queues what still applies.
+    notifications::remove_pending_with_prefix(ID_PREFIX);
     tauri_plugin_calendar::on_events_changed(|| send(Event::CalendarChanged));
     let spawned = thread::Builder::new().name("meeting-reminders".into()).spawn(move || run(&receiver));
     if let Err(error) = spawned {

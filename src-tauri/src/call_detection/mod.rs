@@ -160,15 +160,15 @@ pub fn start(app: AppHandle) {
     notifications::add_categories(&[category()]);
     notifications::on_response_received(handle_response);
     notifications::on_muted_changed(|| send(Event::MutedChanged));
+    // Listening first: a process that starts before the worker's first sync still arrives as an event.
+    if let Err(error) = listener::listen(|change| send(Event::CoreAudio(change))) {
+        log::error!("[call-detection] Core Audio listeners not started: {error}");
+    }
     let spawned = thread::Builder::new()
         .name("call-detection".into())
         .spawn(move || Worker::default().run(&receiver));
     if let Err(error) = spawned {
         log::error!("[call-detection] thread failed to start: {error}");
-        return;
-    }
-    if let Err(error) = listener::listen(|change| send(Event::CoreAudio(change))) {
-        log::error!("[call-detection] Core Audio listeners not started: {error}");
     }
 }
 

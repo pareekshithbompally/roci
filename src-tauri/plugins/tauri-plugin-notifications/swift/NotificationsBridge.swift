@@ -123,6 +123,22 @@ public func notificationsRemove(_ json: UnsafePointer<CChar>) -> UnsafeMutablePo
     return reply(["ok": true])
 }
 
+/// Withdraws every notice still waiting with the system whose id starts with the prefix (`"meeting:"`), queued by an earlier run.
+@_cdecl("notifications_remove_pending_prefix")
+public func notificationsRemovePendingPrefix(_ json: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar> {
+    guard supported else { return reply(["ok": false, "error": "unsupported"]) }
+    guard let start = decode(String.self, json) else { return reply(["ok": false, "error": "Invalid prefix"]) }
+    let center = UNUserNotificationCenter.current()
+    // Waits, like `notifications_show`, so nothing queued right after can be caught by this removal.
+    let done = DispatchSemaphore(value: 0)
+    center.getPendingNotificationRequests { requests in
+        center.removePendingNotificationRequests(withIdentifiers: requests.map(\.identifier).filter { $0.hasPrefix(start) })
+        done.signal()
+    }
+    done.wait()
+    return reply(["ok": true])
+}
+
 /// Free a string returned by this bridge.
 @_cdecl("notifications_free_string")
 public func notificationsFreeString(_ ptr: UnsafeMutablePointer<CChar>) {
@@ -149,12 +165,13 @@ private struct ShowInput: Decodable {
     let atMs: Double?
 }
 
-/// macOS delivers at that wall-clock moment, through sleep and clock changes; none (or past) shows now.
+/// macOS delivers at that absolute moment (the components carry the time zone), through sleep and clock changes;
+/// none, past, or under a second away (the trigger has whole seconds) shows now.
 private func trigger(atMs: Double?) -> UNNotificationTrigger? {
     guard let atMs else { return nil }
     let date = Date(timeIntervalSince1970: atMs / 1000)
-    guard date > Date() else { return nil }
-    let parts = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
+    guard date.timeIntervalSinceNow >= 1 else { return nil }
+    let parts = Calendar.current.dateComponents([.timeZone, .year, .month, .day, .hour, .minute, .second], from: date)
     return UNCalendarNotificationTrigger(dateMatching: parts, repeats: false)
 }
 
