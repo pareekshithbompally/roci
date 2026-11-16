@@ -10,6 +10,12 @@
   --z-tooltip: 400;
   --z-splash: 500;
 
+  /* ─── Device safe areas (iPhone notch, home indicator); 0 on macOS. ─── */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Slide-over sidebar on a phone: most of the screen, never wider than the desktop sidebar's max. */
+  --drawer-start-width: min(85vw, 20rem);
+
   /* ─── Tier 1: primitives ─────────────────────────────── */
   --grey-50: #ffffff;
   --grey-100: #fafafa;

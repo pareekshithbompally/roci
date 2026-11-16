@@ -7,11 +7,19 @@ export interface DrawerProps {
   onClose: () => void;
   /** The panel's accessible name. */
   label: string;
+  /** `end` (default): a panel from the right. `start`: the sidebar from the left (phone). */
+  side?: 'start' | 'end';
   children: React.ReactNode;
 }
 
-/** A panel that slides in from the right edge of its positioned parent over a scrim; the scrim or Escape closes it. */
-export function Drawer({ open, onClose, label, children }: DrawerProps) {
+const SIDE = {
+  start: { edge: 'right', panel: 'left-0 w-[var(--drawer-start-width)] pt-[var(--safe-top)] pb-[var(--safe-bottom)]', closed: '-translate-x-full' },
+  end: { edge: 'left', panel: 'right-0 w-96', closed: 'translate-x-full' },
+} as const;
+
+/** A panel that slides in from one edge of its positioned parent over a scrim; the scrim or Escape closes it. */
+export function Drawer({ open, onClose, label, side = 'end', children }: DrawerProps) {
+  const placement = SIDE[side];
   const closeOnEscape = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') onClose();
   };
@@ -26,12 +34,12 @@ export function Drawer({ open, onClose, label, children }: DrawerProps) {
       />
       <Surface
         variant="card"
-        edge="left"
+        edge={placement.edge}
         role="dialog"
         aria-label={label}
         aria-modal="true"
         onKeyDown={closeOnEscape}
-        className={cn('absolute inset-y-0 right-0 flex w-96 flex-col transition-transform duration-300 ease-out', !open && 'translate-x-full')}
+        className={cn('absolute inset-y-0 flex flex-col transition-transform duration-300 ease-out', placement.panel, !open && placement.closed)}
       >
         {children}
       </Surface>

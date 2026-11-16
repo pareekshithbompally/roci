@@ -1,6 +1,8 @@
 import React from 'react';
+import { ChevronRight } from 'lucide-react';
 import { cn } from './utils';
 import { Text } from './text';
+import { Icon } from './icon';
 
 /** Grouped settings surface (macOS grouped section): muted label above a filled card; rows 48px (60px with description), inset hairlines. */
 
@@ -20,13 +22,21 @@ export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
   stacked?: boolean;
   /** `start` pins status + actions to the title line when the description runs long. */
   align?: 'center' | 'start';
+  /** Drill-down row (iOS): the whole row is the button and a chevron ends it. */
+  onOpen?: () => void;
 }
 
-export function CardRow({ title, description, leading, status, actions, stacked, align = 'center', className, children, ...props }: CardRowProps) {
-  const trailing = status || actions;
+export function CardRow({ title, description, leading, status, actions, stacked, align = 'center', onOpen, className, children, ...props }: CardRowProps) {
+  const chevron = onOpen && <Icon icon={ChevronRight} size="sm" className="text-faint" />;
+  const trailing = status || actions || chevron;
+  const openOnKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') onOpen?.();
+  };
   return (
     <div
+      {...(onOpen && { role: 'button', tabIndex: 0, onClick: onOpen, onKeyDown: openOnKey })}
       className={cn(
+        onOpen && 'cursor-pointer active:bg-tint-pressed',
         'flex gap-4 py-3',
         stacked ? 'flex-col' : cn('justify-between', align === 'start' ? 'items-start' : 'items-center'),
         description ? 'min-h-15' : 'min-h-12',
@@ -46,6 +56,7 @@ export function CardRow({ title, description, leading, status, actions, stacked,
         <div className={cn('flex items-center gap-3', !stacked && 'shrink-0')}>
           {status && <div className="flex items-center gap-2">{status}</div>}
           {actions && <div className="flex items-center gap-2">{actions}</div>}
+          {chevron}
         </div>
       )}
       {children}
