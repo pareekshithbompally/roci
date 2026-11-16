@@ -1,10 +1,7 @@
-//! The tray menu as rows, built from one snapshot: recorder, background work, status, quick actions, app, quit.
-//! Sections with nothing to show are left out with their separator.
+//! What the menu bar menu shows, as one serializable view model: Rust owns every row and its words, Swift only turns them into menu items.
+//! Sections with nothing to show are left out.
 
-use tauri::image::Image;
-use tauri::menu::{CheckMenuItem, IconMenuItem, IsMenuItem, Menu, MenuItem, NativeIcon, PredefinedMenuItem, Submenu};
-use tauri::path::BaseDirectory;
-use tauri::{AppHandle, Manager, Wry};
+use serde::Serialize;
 
 use super::{item, McpMenuStatus, StatusLevel};
 use crate::meeting_reminders::NextMeeting;
@@ -28,25 +25,20 @@ const OPEN_LABEL: &str = "Open Kasset";
 const SETTINGS_LABEL: &str = "Settings…";
 const CHECK_UPDATES_LABEL: &str = "Check for Updates…";
 const QUIT_LABEL: &str = "Quit Kasset";
+const APP_LABEL: &str = "Kasset";
 
-/// Longest meeting title the Next row shows before it ends in an ellipsis.
-const NEXT_TITLE_MAX_CHARS: usize = 40;
+/// Longest meeting title a row shows before it ends in an ellipsis.
+const TITLE_MAX_CHARS: usize = 40;
 
-/// The app's own shortcuts, mirrored from `APP_SHORTCUTS` (`src/config/shortcuts.config.ts`).
-const NEW_CHAT_ACCELERATOR: &str = "CmdOrCtrl+N";
-const SEARCH_ACCELERATOR: &str = "CmdOrCtrl+K";
-const SETTINGS_ACCELERATOR: &str = "CmdOrCtrl+,";
-const QUIT_ACCELERATOR: &str = "CmdOrCtrl+Q";
+/// ⌘ keys the menu answers to while open: the app's own (`APP_SHORTCUTS`, `src/config/shortcuts.config.ts`), and Quit's.
+const NEW_CHAT_KEY: &str = "n";
+const SEARCH_KEY: &str = "k";
+const SETTINGS_KEY: &str = ",";
+const QUIT_KEY: &str = "q";
 
-/// Agents' icons, keyed by the MCP client name each announces (read from their own builds: Claude Code, OpenCode).
-const AGENT_ICONS: [(&str, &str); 2] = [
-    ("claude-code", "icons/agents/claude-code.png"),
-    ("opencode", "icons/agents/opencode.png"),
-];
+// ── What the menu is built from ──
 
-// ── What the menu shows ──
-
-/// One row of the Speech Model submenu, reported by the frontend because the settings live there.
+/// One row of the Speech Model choices, reported by the frontend because the settings live there.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct SpeechModelEntry {
     pub id: String,
@@ -68,29 +60,72 @@ pub(super) struct RecentMeetingEntry {
     pub title: String,
 }
 
-/// Everything the menu is built from, copied out under the state lock.
+/// One connected agent's row: its title and, for agents Kasset knows, its icon file.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct AgentEntry {
+    pub title: String,
+    pub icon: Option<String>,
+}
+
+/// Everything the menu is built from, copied out under the state lock (icon paths already resolved).
 #[derive(Clone, Default)]
 pub(super) struct MenuSnapshot {
+    /// The app's version (`tauri.conf.json`), shown in the header.
+    pub version: String,
     pub recording_active: bool,
     pub paused: bool,
     pub elapsed_secs: u64,
     pub next_meeting: Option<NextMeeting>,
     pub activity: Vec<ActivityEntry>,
     pub mcp: McpMenuStatus,
+    pub agents: Vec<AgentEntry>,
     pub speech_models: Vec<SpeechModelEntry>,
     pub recent_meetings: Vec<RecentMeetingEntry>,
     pub update_version: Option<String>,
 }
 
-type Row = Box<dyn IsMenuItem<Wry>>;
+// ── The view model (the JSON contract with `StatusMenu.swift`) ──
 
-/// Rows whose text changes while the menu may be open (elapsed time, minutes to the next meeting, a job's percent).
-/// They're retitled in place: replacing the menu under an open menu throws the user's click away.
-#[derive(Clone, Default)]
-pub(super) struct LiveRows {
-    pub recording: Option<MenuItem<Wry>>,
-    pub next_meeting: Option<Submenu<Wry>>,
-    pub activity: Vec<MenuItem<Wry>>,
+/// One menu item. A row with `children` opens them as a submenu; a row with `action` sends it when picked; the rest only show.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct MenuRow {
+    pub label: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub action: Option<String>,
+    /// The key that, with ⌘, picks this row (its key equivalent).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shortcut: Option<&'static str>,
+    /// A status dot before the label (the system's status images).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dot: Option<StatusLevel>,
+    /// An image file shown before the label (agents' icons).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub checked: bool,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub children: Vec<MenuRow>,
+}
+
+impl MenuRow {
+    fn text(label: impl Into<String>) -> Self {
+        Self { label: label.into(), ..Self::default() }
+    }
+
+    fn action(label: impl Into<String>, action: impl Into<String>) -> Self {
+        Self { label: label.into(), action: Some(action.into()), ..Self::default() }
+    }
+
+    /// A row that opens `children` as a submenu; with none, plain text.
+    fn submenu(label: impl Into<String>, children: Vec<MenuRow>) -> Self {
+        Self { label: label.into(), children, ..Self::default() }
+    }
+
+    fn shortcut(mut self, key: &'static str) -> Self {
+        self.shortcut = Some(key);
+        self
+    }
 }
 
 // ── Formatting ──
@@ -99,7 +134,7 @@ pub(super) fn format_elapsed(total_secs: u64) -> String {
     format!("{}:{:02}", total_secs / 60, total_secs % 60)
 }
 
-pub(super) fn stop_item_text(elapsed_secs: u64, paused: bool) -> String {
+fn stop_text(elapsed_secs: u64, paused: bool) -> String {
     let elapsed = format_elapsed(elapsed_secs);
     if paused {
         format!("Stop Recording · {elapsed} (paused)")
@@ -115,234 +150,185 @@ fn truncated(text: &str, max_chars: usize) -> String {
     format!("{}…", text.chars().take(max_chars - 1).collect::<String>().trim_end())
 }
 
-pub(super) fn next_meeting_text(meeting: &NextMeeting) -> String {
+fn next_meeting_text(meeting: &NextMeeting) -> String {
     let when = if meeting.minutes == 0 { "now".to_string() } else { format!("in {} min", meeting.minutes) };
-    format!("Next: {} · {when}", truncated(&meeting.title, NEXT_TITLE_MAX_CHARS))
-}
-
-pub(super) fn activity_text(entry: &ActivityEntry) -> String {
-    match entry.percent {
-        Some(percent) => format!("{} · {percent}%", entry.label),
-        None => entry.label.clone(),
-    }
-}
-
-fn status_icon(level: StatusLevel) -> NativeIcon {
-    match level {
-        StatusLevel::Available => NativeIcon::StatusAvailable,
-        StatusLevel::Starting => NativeIcon::StatusPartiallyAvailable,
-        StatusLevel::Unavailable => NativeIcon::StatusUnavailable,
-    }
-}
-
-/// A bundled image (`tauri.conf.json > bundle.resources`); None, logged, when it's missing.
-pub(super) fn load_resource_image(app: &AppHandle, resource: &str) -> Option<Image<'static>> {
-    let path = app
-        .path()
-        .resolve(resource, BaseDirectory::Resource)
-        .map_err(|e| log::error!("[Menubar] Failed to resolve resource {resource}: {e}"))
-        .ok()?;
-    Image::from_path(&path)
-        .map_err(|e| log::error!("[Menubar] Failed to load image {resource}: {e}"))
-        .ok()
-}
-
-fn agent_icon(app: &AppHandle, client_name: &str) -> Option<Image<'static>> {
-    let (_, resource) = AGENT_ICONS.iter().find(|(name, _)| *name == client_name)?;
-    load_resource_image(app, resource)
-}
-
-fn plain(app: &AppHandle, id: impl AsRef<str>, text: &str, accelerator: Option<&str>) -> tauri::Result<Row> {
-    Ok(Box::new(MenuItem::with_id(app, id.as_ref(), text, true, accelerator)?))
-}
-
-fn submenu(app: &AppHandle, id: &str, text: &str, rows: &[Row]) -> tauri::Result<Submenu<Wry>> {
-    let refs: Vec<&dyn IsMenuItem<Wry>> = rows.iter().map(|row| row.as_ref()).collect();
-    Submenu::with_id_and_items(app, id, text, true, &refs)
+    format!("Next: {} · {when}", truncated(&meeting.title, TITLE_MAX_CHARS))
 }
 
 // ── Sections ──
 
 /// The next meeting (when not recording), then Record — or Stop and Pause/Resume while recording.
-fn recorder_section(app: &AppHandle, s: &MenuSnapshot, live: &mut LiveRows) -> tauri::Result<Vec<Row>> {
-    let mut rows: Vec<Row> = Vec::new();
-    if !s.recording_active {
-        if let Some(meeting) = &s.next_meeting {
-            let mut choices = Vec::new();
-            if meeting.joinable {
-                choices.push(plain(app, format!("{}{}", item::NEXT_MEETING_JOIN_PREFIX, meeting.occurrence), JOIN_RECORD_LABEL, None)?);
-            }
-            choices.push(plain(app, format!("{}{}", item::NEXT_MEETING_RECORD_PREFIX, meeting.occurrence), RECORD_NEXT_LABEL, None)?);
-            let next = submenu(app, item::NEXT_MEETING, &next_meeting_text(meeting), &choices)?;
-            live.next_meeting = Some(next.clone());
-            rows.push(Box::new(next));
-        }
-    }
-    // One recorder row the ticker retitles: Tauri items have no visibility flag, so Record and Stop never show together.
-    let recording_item = if s.recording_active {
-        MenuItem::with_id(app, item::STOP_RECORDING, stop_item_text(s.elapsed_secs, s.paused), true, None::<&str>)?
-    } else {
-        MenuItem::with_id(app, item::START_RECORDING, RECORD_LABEL, true, None::<&str>)?
-    };
-    live.recording = Some(recording_item.clone());
-    rows.push(Box::new(recording_item));
+fn recorder_section(s: &MenuSnapshot) -> Vec<MenuRow> {
     if s.recording_active {
-        let (id, text) = if s.paused { (item::RESUME_RECORDING, RESUME_LABEL) } else { (item::PAUSE_RECORDING, PAUSE_LABEL) };
-        rows.push(plain(app, id, text, None)?);
+        let (pause_id, pause_label) = if s.paused { (item::RESUME_RECORDING, RESUME_LABEL) } else { (item::PAUSE_RECORDING, PAUSE_LABEL) };
+        return vec![
+            MenuRow { dot: Some(StatusLevel::Unavailable), ..MenuRow::action(stop_text(s.elapsed_secs, s.paused), item::STOP_RECORDING) },
+            MenuRow::action(pause_label, pause_id),
+        ];
     }
-    Ok(rows)
-}
-
-/// One row per background job; clicking opens Kasset.
-fn activity_section(app: &AppHandle, activity: &[ActivityEntry], live: &mut LiveRows) -> tauri::Result<Vec<Row>> {
-    let mut rows: Vec<Row> = Vec::with_capacity(activity.len());
-    for (i, entry) in activity.iter().enumerate() {
-        let row = MenuItem::with_id(app, format!("{}{i}", item::ACTIVITY_PREFIX), activity_text(entry), true, None::<&str>)?;
-        live.activity.push(row.clone());
-        rows.push(Box::new(row));
-    }
-    Ok(rows)
-}
-
-/// MCP server with macOS's own status dot (a submenu of connected agents when any), then the Speech Model submenu.
-fn status_section(app: &AppHandle, s: &MenuSnapshot) -> tauri::Result<Vec<Row>> {
-    let text = format!("{MCP_LABEL} · {}", s.mcp.summary);
-    let icon = Some(status_icon(s.mcp.level));
-    let mcp: Row = if s.mcp.agents.is_empty() {
-        Box::new(IconMenuItem::with_id_and_native_icon(app, item::MCP_STATUS, &text, false, icon, None::<&str>)?)
-    } else {
-        let mut rows: Vec<Row> = Vec::with_capacity(s.mcp.agents.len() + 2);
-        for (i, (name, title)) in s.mcp.agents.iter().enumerate() {
-            let id = format!("{}{i}", item::AGENT_PREFIX);
-            rows.push(Box::new(IconMenuItem::with_id(app, id, title, true, agent_icon(app, name), None::<&str>)?));
+    let mut rows = Vec::new();
+    if let Some(meeting) = &s.next_meeting {
+        let mut choices = Vec::new();
+        if meeting.joinable {
+            choices.push(MenuRow::action(JOIN_RECORD_LABEL, format!("{}{}", item::NEXT_MEETING_JOIN_PREFIX, meeting.occurrence)));
         }
-        rows.push(Box::new(PredefinedMenuItem::separator(app)?));
-        rows.push(plain(app, item::MANAGE_AGENTS, MANAGE_AGENTS_LABEL, None)?);
-        let menu = submenu(app, item::MCP_STATUS, &text, &rows)?;
-        menu.set_native_icon(icon)?;
-        Box::new(menu)
-    };
-    Ok(vec![mcp, Box::new(speech_models_menu(app, &s.speech_models)?)])
+        choices.push(MenuRow::action(RECORD_NEXT_LABEL, format!("{}{}", item::NEXT_MEETING_RECORD_PREFIX, meeting.occurrence)));
+        rows.push(MenuRow::submenu(next_meeting_text(meeting), choices));
+    }
+    rows.push(MenuRow::action(RECORD_LABEL, item::START_RECORDING));
+    rows
 }
 
-/// The Speech Model submenu, titled with the selected model: downloaded models as check rows, then Manage Models…
-fn speech_models_menu(app: &AppHandle, models: &[SpeechModelEntry]) -> tauri::Result<Submenu<Wry>> {
-    let mut rows: Vec<Row> = Vec::with_capacity(models.len() + 2);
-    if models.is_empty() {
-        rows.push(Box::new(MenuItem::with_id(app, item::SPEECH_MODELS_EMPTY, NO_MODELS_LABEL, false, None::<&str>)?));
+/// One row per background job, with its percent once known; clicking opens Kasset.
+fn activity_section(activity: &[ActivityEntry]) -> Vec<MenuRow> {
+    activity.iter().map(|job| MenuRow::action(activity_text(job), item::SHOW)).collect()
+}
+
+fn activity_text(job: &ActivityEntry) -> String {
+    match job.percent {
+        Some(percent) => format!("{} · {percent}%", job.label),
+        None => job.label.clone(),
     }
-    for model in models {
-        // The selected model never picks again.
-        let id = format!("{}{}", item::SPEECH_MODEL_PREFIX, model.id);
-        rows.push(Box::new(CheckMenuItem::with_id(app, id, &model.name, !model.selected, model.selected, None::<&str>)?));
+}
+
+/// MCP server with its status dot (its connected agents open from it), then the Speech Model choices.
+fn status_section(s: &MenuSnapshot) -> Vec<MenuRow> {
+    let mut agents: Vec<MenuRow> = s
+        .agents
+        .iter()
+        .map(|agent| MenuRow { icon: agent.icon.clone(), ..MenuRow::action(agent.title.clone(), item::MANAGE_AGENTS) })
+        .collect();
+    if !agents.is_empty() {
+        agents.push(MenuRow::action(MANAGE_AGENTS_LABEL, item::MANAGE_AGENTS));
     }
-    rows.push(Box::new(PredefinedMenuItem::separator(app)?));
-    rows.push(plain(app, item::MANAGE_MODELS, MANAGE_MODELS_LABEL, None)?);
-    let title = match models.iter().find(|model| model.selected) {
+    let mcp = MenuRow { dot: Some(s.mcp.level), ..MenuRow::submenu(format!("{MCP_LABEL} · {}", s.mcp.summary), agents) };
+    vec![mcp, speech_models_row(&s.speech_models)]
+}
+
+/// The Speech Model row, titled with the selected model: downloaded models to pick from, then Manage Models…
+fn speech_models_row(models: &[SpeechModelEntry]) -> MenuRow {
+    let mut choices: Vec<MenuRow> = models
+        .iter()
+        .map(|model| {
+            // The selected model never picks again.
+            let action = (!model.selected).then(|| format!("{}{}", item::SPEECH_MODEL_PREFIX, model.id));
+            MenuRow { action, checked: model.selected, ..MenuRow::text(model.name.clone()) }
+        })
+        .collect();
+    if choices.is_empty() {
+        choices.push(MenuRow::text(NO_MODELS_LABEL));
+    }
+    choices.push(MenuRow::action(MANAGE_MODELS_LABEL, item::MANAGE_MODELS));
+    let label = match models.iter().find(|model| model.selected) {
         Some(model) => format!("{SPEECH_MODEL_LABEL} · {}", model.name),
         None => SPEECH_MODEL_LABEL.to_string(),
     };
-    submenu(app, item::SPEECH_MODELS, &title, &rows)
+    MenuRow::submenu(label, choices)
 }
 
 /// New Chat, Search, and the recent meetings.
-fn quick_section(app: &AppHandle, recent: &[RecentMeetingEntry]) -> tauri::Result<Vec<Row>> {
+fn quick_section(recent: &[RecentMeetingEntry]) -> Vec<MenuRow> {
     let mut rows = vec![
-        plain(app, item::NEW_CHAT, NEW_CHAT_LABEL, Some(NEW_CHAT_ACCELERATOR))?,
-        plain(app, item::SEARCH, SEARCH_LABEL, Some(SEARCH_ACCELERATOR))?,
+        MenuRow::action(NEW_CHAT_LABEL, item::NEW_CHAT).shortcut(NEW_CHAT_KEY),
+        MenuRow::action(SEARCH_LABEL, item::SEARCH).shortcut(SEARCH_KEY),
     ];
     if !recent.is_empty() {
         let meetings = recent
             .iter()
-            .map(|m| plain(app, format!("{}{}", item::OPEN_MEETING_PREFIX, m.id), &truncated(&m.title, NEXT_TITLE_MAX_CHARS), None))
-            .collect::<tauri::Result<Vec<_>>>()?;
-        rows.push(Box::new(submenu(app, item::RECENT_MEETINGS, RECENT_LABEL, &meetings)?));
+            .map(|m| MenuRow::action(truncated(&m.title, TITLE_MAX_CHARS), format!("{}{}", item::OPEN_MEETING_PREFIX, m.id)))
+            .collect();
+        rows.push(MenuRow::submenu(RECENT_LABEL, meetings));
     }
-    Ok(rows)
+    rows
 }
 
-/// Open, Settings, and the update row (Update to vX… when one is waiting).
-fn app_section(app: &AppHandle, update_version: Option<&str>) -> tauri::Result<Vec<Row>> {
+/// Open, Settings, and the update row (Update to vX… when one is waiting), then Quit.
+fn app_section(update_version: Option<&str>) -> Vec<MenuRow> {
     let update = match update_version {
-        Some(version) => plain(app, item::INSTALL_UPDATE, &format!("Update to v{version}…"), None)?,
-        None => plain(app, item::CHECK_UPDATES, CHECK_UPDATES_LABEL, None)?,
+        Some(version) => MenuRow::action(format!("Update to v{version}…"), item::INSTALL_UPDATE),
+        None => MenuRow::action(CHECK_UPDATES_LABEL, item::CHECK_UPDATES),
     };
-    Ok(vec![
-        plain(app, item::SHOW, OPEN_LABEL, None)?,
-        plain(app, item::SETTINGS, SETTINGS_LABEL, Some(SETTINGS_ACCELERATOR))?,
+    vec![
+        MenuRow::action(OPEN_LABEL, item::SHOW),
+        MenuRow::action(SETTINGS_LABEL, item::SETTINGS).shortcut(SETTINGS_KEY),
         update,
-    ])
+        MenuRow::action(QUIT_LABEL, item::QUIT).shortcut(QUIT_KEY),
+    ]
 }
 
-/// The tray menu and its live rows (kept so changing text is retitled in place, never by a rebuild).
-pub(super) fn build_menu(app: &AppHandle, s: &MenuSnapshot) -> tauri::Result<(Menu<Wry>, LiveRows)> {
-    let mut live = LiveRows::default();
-    let sections = [
-        recorder_section(app, s, &mut live)?,
-        activity_section(app, &s.activity, &mut live)?,
-        status_section(app, s)?,
-        quick_section(app, &s.recent_meetings)?,
-        app_section(app, s.update_version.as_deref())?,
-        vec![plain(app, item::QUIT, QUIT_LABEL, Some(QUIT_ACCELERATOR))?],
-    ];
-    let mut rows: Vec<Row> = Vec::new();
-    for section in sections.into_iter().filter(|section| !section.is_empty()) {
-        if !rows.is_empty() {
-            rows.push(Box::new(PredefinedMenuItem::separator(app)?));
-        }
-        rows.extend(section);
-    }
-    let refs: Vec<&dyn IsMenuItem<Wry>> = rows.iter().map(|row| row.as_ref()).collect();
-    Ok((Menu::with_items(app, &refs)?, live))
+/// The header: the app, its version, and whether it's recording.
+fn header_section(s: &MenuSnapshot) -> Vec<MenuRow> {
+    let dot = if s.recording_active { StatusLevel::Unavailable } else { StatusLevel::Available };
+    vec![MenuRow { dot: Some(dot), ..MenuRow::text(format!("{APP_LABEL} · v{}", s.version)) }]
 }
 
-/// Whether two reports show the same rows (jobs by label), so only their text changed.
-pub(super) fn same_activity_rows(a: &[ActivityEntry], b: &[ActivityEntry]) -> bool {
-    a.len() == b.len() && a.iter().zip(b).all(|(x, y)| x.label == y.label)
-}
-
-/// Whether the next meeting is the same row (same occurrence and choices), so only its minutes changed.
-pub(super) fn same_next_meeting_row(a: &Option<NextMeeting>, b: &Option<NextMeeting>) -> bool {
-    match (a, b) {
-        (Some(x), Some(y)) => x.occurrence == y.occurrence && x.joinable == y.joinable,
-        (None, None) => true,
-        _ => false,
-    }
+/// The menu's sections, top to bottom; empty ones are left out.
+pub(super) fn menu_sections(s: &MenuSnapshot) -> Vec<Vec<MenuRow>> {
+    [
+        header_section(s),
+        recorder_section(s),
+        activity_section(&s.activity),
+        status_section(s),
+        quick_section(&s.recent_meetings),
+        app_section(s.update_version.as_deref()),
+    ]
+    .into_iter()
+    .filter(|section| !section.is_empty())
+    .collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn formats_elapsed_and_the_stop_row() {
-        assert_eq!(format_elapsed(0), "0:00");
-        assert_eq!(format_elapsed(65), "1:05");
-        assert_eq!(stop_item_text(65, false), "Stop Recording · 1:05");
-        assert_eq!(stop_item_text(65, true), "Stop Recording · 1:05 (paused)");
+    fn labels(section: &[MenuRow]) -> Vec<&str> {
+        section.iter().map(|row| row.label.as_str()).collect()
     }
 
     #[test]
-    fn reads_the_next_meeting_and_shortens_long_titles() {
-        let meeting = |title: &str, minutes| NextMeeting { occurrence: "o".into(), title: title.into(), minutes, joinable: true };
-        assert_eq!(next_meeting_text(&meeting("Weekly", 12)), "Next: Weekly · in 12 min");
-        assert_eq!(next_meeting_text(&meeting("Weekly", 0)), "Next: Weekly · now");
+    fn formats_elapsed_and_the_stop_row() {
+        assert_eq!(format_elapsed(0), "0:00");
+        assert_eq!(format_elapsed(3600), "60:00");
+        assert_eq!(stop_text(65, false), "Stop Recording · 1:05");
+        assert_eq!(stop_text(65, true), "Stop Recording · 1:05 (paused)");
+    }
+
+    #[test]
+    fn shows_the_next_meeting_before_record_and_hides_it_while_recording() {
+        let meeting = NextMeeting { occurrence: "o".into(), title: "Weekly".into(), minutes: 12, joinable: true };
+        let idle = MenuSnapshot { next_meeting: Some(meeting.clone()), ..MenuSnapshot::default() };
+        let rows = recorder_section(&idle);
+        assert_eq!(labels(&rows), ["Next: Weekly · in 12 min", "Record Meeting"]);
+        assert_eq!(labels(&rows[0].children), ["Join & Record", "Record"]);
+        let recording = MenuSnapshot { recording_active: true, paused: true, elapsed_secs: 5, next_meeting: Some(meeting), ..MenuSnapshot::default() };
+        assert_eq!(labels(&recorder_section(&recording)), ["Stop Recording · 0:05 (paused)", "Resume"]);
+    }
+
+    #[test]
+    fn the_selected_speech_model_titles_its_row_and_cannot_be_picked_again() {
+        let models = vec![
+            SpeechModelEntry { id: "a".into(), name: "Parakeet".into(), selected: true },
+            SpeechModelEntry { id: "b".into(), name: "Whisper".into(), selected: false },
+        ];
+        let row = speech_models_row(&models);
+        assert_eq!(row.label, "Speech Model · Parakeet");
+        assert!(row.children[0].checked && row.children[0].action.is_none());
+        assert_eq!(row.children[1].action.as_deref(), Some("speech_model:b"));
+    }
+
+    #[test]
+    fn leaves_out_empty_sections_and_shortens_long_titles() {
+        assert_eq!(menu_sections(&MenuSnapshot::default()).len(), 5); // header, recorder, status, quick, app — no jobs
         assert_eq!(truncated("abcdef", 4), "abc…");
     }
 
     #[test]
-    fn shows_a_jobs_percent_when_known() {
-        assert_eq!(activity_text(&ActivityEntry { label: "Downloading".into(), percent: Some(42) }), "Downloading · 42%");
-        assert_eq!(activity_text(&ActivityEntry { label: "Indexing".into(), percent: None }), "Indexing");
-    }
-
-    #[test]
-    fn tells_a_text_change_from_a_row_change() {
-        let job = |label: &str, percent| ActivityEntry { label: label.into(), percent };
-        assert!(same_activity_rows(&[job("Downloading", Some(1))], &[job("Downloading", Some(40))]));
-        assert!(!same_activity_rows(&[job("Downloading", Some(1))], &[]));
-        let meeting = |occurrence: &str, minutes| Some(NextMeeting { occurrence: occurrence.into(), title: "W".into(), minutes, joinable: true });
-        assert!(same_next_meeting_row(&meeting("a", 12), &meeting("a", 11)));
-        assert!(!same_next_meeting_row(&meeting("a", 12), &meeting("b", 12)));
+    fn serializes_only_what_a_row_uses() {
+        let row = MenuRow::action("New Chat", item::NEW_CHAT).shortcut(NEW_CHAT_KEY);
+        assert_eq!(serde_json::to_string(&row).unwrap(), r#"{"label":"New Chat","action":"new_chat","shortcut":"n"}"#);
+        let empty = MenuRow::submenu("Recent", Vec::new());
+        assert_eq!(serde_json::to_string(&empty).unwrap(), r#"{"label":"Recent"}"#);
+        let job = ActivityEntry { label: "Downloading Parakeet".into(), percent: Some(42) };
+        assert_eq!(activity_text(&job), "Downloading Parakeet · 42%");
     }
 }

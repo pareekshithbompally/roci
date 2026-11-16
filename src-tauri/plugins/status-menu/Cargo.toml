@@ -1,0 +1,7 @@
+[package]
+name = "status-menu"
+version = "0.1.0"
+edition = "2021"
+description = "Kasset's menu bar menu: an NSStatusItem with a native NSMenu, driven by Rust over a C bridge"
+links = "status-menu"
+

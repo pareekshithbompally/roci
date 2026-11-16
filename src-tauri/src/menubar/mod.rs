@@ -1,57 +1,42 @@
-//! Backend-owned menubar (system tray): icon, menu and visibility; the frontend only reports and receives.
-//! `menu` builds the rows from one snapshot; this module owns the state, the reports in and the actions out.
+//! Backend-owned menu bar: a native menu on the status item (`status-menu` crate). The frontend only reports and
+//! receives; `menu` turns the state into the menu's rows, and this module owns the state, the reports in and the actions out.
 
 mod menu;
 
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use serde::Deserialize;
-use tauri::tray::TrayIconBuilder;
+use serde::{Deserialize, Serialize};
+use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Emitter, Manager};
 
-use menu::{
-    activity_text, build_menu, load_resource_image, next_meeting_text, same_activity_rows, same_next_meeting_row, stop_item_text,
-    ActivityEntry, LiveRows, MenuSnapshot, RecentMeetingEntry, SpeechModelEntry,
-};
+use menu::{menu_sections, ActivityEntry, AgentEntry, MenuSnapshot, MenuRow, RecentMeetingEntry, SpeechModelEntry};
 
-/// Tray icon id. Single instance for the whole app lifetime.
-pub const TRAY_ID: &str = "kasset-menubar";
-
-/// Frontend event name carrying a menu item id as payload.
+/// Frontend event name carrying an action id as payload.
 pub const MENUBAR_ACTION_EVENT: &str = "menubar-action";
 
-/// Menu item ids: the wire contract the frontend maps to `TrayAction` (`src/services/tauri/types.ts`).
+/// Action ids: the wire contract the frontend maps to `TrayAction` (`src/services/tauri/types.ts`).
 pub mod item {
     pub const SHOW: &str = "show";
     pub const START_RECORDING: &str = "start_recording";
     pub const STOP_RECORDING: &str = "stop_recording";
     pub const PAUSE_RECORDING: &str = "pause_recording";
     pub const RESUME_RECORDING: &str = "resume_recording";
-    /// Speech Model rows carry the speech selection key: `speech_model:<provider::model>`.
+    /// Speech Model choices carry the speech selection key: `speech_model:<provider::model>`.
     pub const SPEECH_MODEL_PREFIX: &str = "speech_model:";
-    pub const SPEECH_MODELS: &str = "speech_models";
-    pub const SPEECH_MODELS_EMPTY: &str = "speech_models_empty";
     pub const MANAGE_MODELS: &str = "manage_models";
     pub const MANAGE_AGENTS: &str = "manage_agents";
     pub const NEW_CHAT: &str = "new_chat";
     pub const SEARCH: &str = "search";
-    pub const RECENT_MEETINGS: &str = "recent_meetings";
-    // Handled here too: recent meeting rows carry the meeting id, `open_meeting:<id>`.
-    pub const OPEN_MEETING_PREFIX: &str = "open_meeting:";
     pub const SETTINGS: &str = "settings";
     pub const CHECK_UPDATES: &str = "check_updates";
     pub const INSTALL_UPDATE: &str = "install_update";
     pub const QUIT: &str = "quit";
-    /// Status row for Kasset's MCP server (a submenu of connected agents when any).
-    pub const MCP_STATUS: &str = "mcp_status";
     // Handled here, never sent to the webview:
-    /// One connected agent's row (opens Manage Agents).
-    pub const AGENT_PREFIX: &str = "agent:";
-    /// One background job's row (opens Kasset).
-    pub const ACTIVITY_PREFIX: &str = "activity:";
-    pub const NEXT_MEETING: &str = "next_meeting";
-    /// Next meeting's choices carry its occurrence: `next_meeting_join:<occurrence>`.
+    /// Recent meetings carry the meeting id: `open_meeting:<id>`.
+    pub const OPEN_MEETING_PREFIX: &str = "open_meeting:";
+    /// The next meeting's choices carry its occurrence: `next_meeting_join:<occurrence>`.
     pub const NEXT_MEETING_JOIN_PREFIX: &str = "next_meeting_join:";
     pub const NEXT_MEETING_RECORD_PREFIX: &str = "next_meeting_record:";
 }
@@ -59,17 +44,24 @@ pub mod item {
 /// Default tooltip, mirroring `APP_CONFIG.tray.tooltip`.
 const DEFAULT_TOOLTIP: &str = "Kasset.ai";
 
-/// Bundled icon resources (see `tauri.conf.json > bundle.resources`); macOS draws them 18 pt tall.
+/// Bundled images (see `tauri.conf.json > bundle.resources`); the status menu draws the status item image 18 pt tall.
 const IDLE_ICON_RESOURCE: &str = "icons/iconTemplate@2x.png";
 const RECORDING_ICON_RESOURCE: &str = "icons/iconRecordingTemplate@2x.png";
+
+/// Agents' icons, keyed by the MCP client name each announces (read from their own builds: Claude Code, OpenCode).
+const AGENT_ICON_RESOURCES: [(&str, &str); 2] = [
+    ("claude-code", "icons/agents/claude-code.png"),
+    ("opencode", "icons/agents/opencode.png"),
+];
 
 /// How often the ticker re-reads the next meeting (its row counts down in minutes).
 const NEXT_MEETING_REFRESH_SECS: u64 = 15;
 
 // ── Reports in ──
 
-/// How healthy a status row's service is, drawn as macOS's own status dot.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+/// How healthy a status row's service is, drawn as a coloured dot.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum StatusLevel {
     Available,
     #[default]
@@ -91,7 +83,7 @@ impl Default for McpMenuStatus {
     }
 }
 
-/// A Speech Model row as the frontend sends it.
+/// A Speech Model choice as the frontend sends it.
 #[derive(Clone, Debug, Deserialize)]
 pub struct SpeechModelArg {
     pub id: String,
@@ -116,53 +108,70 @@ pub struct RecentMeetingArg {
 
 // ── State ──
 
-/// Menubar state shared between commands and the ticker thread; item handles are cheap `Arc` clones.
-#[derive(Default)]
+/// Menu bar state shared by the commands, the MCP host and the ticker.
 struct StateData {
     recording_active: bool,
     paused: bool,
     elapsed_secs: u64,
     close_to_tray: bool,
     hide_icon: bool,
+    tooltip: String,
     /// Ready keyless speech models (this Mac, Apple Speech, Hex), newest report wins.
     speech_models: Vec<SpeechModelEntry>,
     mcp: McpMenuStatus,
     activity: Vec<ActivityEntry>,
     recent_meetings: Vec<RecentMeetingEntry>,
     update_version: Option<String>,
-    /// The rows retitled in place (elapsed time, next meeting's minutes, jobs' percent) instead of rebuilt.
-    live: LiveRows,
 }
 
-impl StateData {
-    fn snapshot(&self) -> MenuSnapshot {
-        MenuSnapshot {
-            recording_active: self.recording_active,
-            paused: self.paused,
-            elapsed_secs: self.elapsed_secs,
-            next_meeting: None,
-            activity: self.activity.clone(),
-            mcp: self.mcp.clone(),
-            speech_models: self.speech_models.clone(),
-            recent_meetings: self.recent_meetings.clone(),
-            update_version: self.update_version.clone(),
+impl Default for StateData {
+    fn default() -> Self {
+        Self {
+            recording_active: false,
+            paused: false,
+            elapsed_secs: 0,
+            close_to_tray: true,
+            hide_icon: false,
+            tooltip: DEFAULT_TOOLTIP.to_string(),
+            speech_models: Vec::new(),
+            mcp: McpMenuStatus::default(),
+            activity: Vec::new(),
+            recent_meetings: Vec::new(),
+            update_version: None,
         }
     }
 }
 
-/// Managed menubar state.
-#[derive(Clone)]
-pub struct MenubarShared {
-    state: Arc<Mutex<StateData>>,
-    /// Serializes menu rebuilds; apart from the state lock because building items blocks on the main thread.
-    menu: Arc<Mutex<()>>,
+/// Image files the menu loads, resolved once at setup.
+#[derive(Default)]
+struct Images {
+    idle: String,
+    recording: String,
+    /// Agents' icons by announced client name.
+    agents: HashMap<String, String>,
 }
 
-impl Default for MenubarShared {
-    fn default() -> Self {
-        let state = StateData { close_to_tray: true, ..StateData::default() };
-        Self { state: Arc::new(Mutex::new(state)), menu: Arc::default() }
-    }
+/// Managed menu bar state.
+#[derive(Clone, Default)]
+pub struct MenubarShared {
+    state: Arc<Mutex<StateData>>,
+    images: Arc<Images>,
+    /// The app's version, shown in the menu's header.
+    version: String,
+    /// Serializes pushes so the menu receives each state in order (Swift applies them on the main queue in turn).
+    push: Arc<Mutex<()>>,
+}
+
+/// What the menu receives: the status item (visibility, tooltip, image) and the rows.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MenuState<'a> {
+    visible: bool,
+    tooltip: &'a str,
+    icon: &'a str,
+    /// The idle image is a template (macOS tints it); the recording image carries its own red.
+    icon_template: bool,
+    sections: Vec<Vec<MenuRow>>,
 }
 
 impl MenubarShared {
@@ -173,24 +182,61 @@ impl MenubarShared {
         })
     }
 
-    fn lock_menu(&self) -> std::sync::MutexGuard<'_, ()> {
-        self.menu.lock().unwrap_or_else(|poisoned| {
-            log::error!("[Menubar] Menu mutex poisoned, recovering");
-            poisoned.into_inner()
-        })
+    /// The menu's state as JSON; the next meeting is read from the calendar cache before taking the state lock.
+    fn menu_json(&self) -> Result<String, String> {
+        let next_meeting = crate::meeting_reminders::next_meeting();
+        let state = self.lock();
+        let snapshot = MenuSnapshot {
+            version: self.version.clone(),
+            recording_active: state.recording_active,
+            paused: state.paused,
+            elapsed_secs: state.elapsed_secs,
+            next_meeting,
+            activity: state.activity.clone(),
+            mcp: state.mcp.clone(),
+            agents: state
+                .mcp
+                .agents
+                .iter()
+                .map(|(name, title)| AgentEntry { title: title.clone(), icon: self.images.agents.get(name).cloned() })
+                .collect(),
+            speech_models: state.speech_models.clone(),
+            recent_meetings: state.recent_meetings.clone(),
+            update_version: state.update_version.clone(),
+        };
+        let recording = state.recording_active;
+        let menu_state = MenuState {
+            visible: icon_shown(state.hide_icon, recording),
+            tooltip: &state.tooltip,
+            icon: if recording { &self.images.recording } else { &self.images.idle },
+            icon_template: !recording,
+            sections: menu_sections(&snapshot),
+        };
+        serde_json::to_string(&menu_state).map_err(|e| format!("menu state: {e}"))
     }
 
-    /// What the menu shows now; the next meeting is read from the calendar cache outside the state lock.
-    fn snapshot(&self) -> MenuSnapshot {
-        let mut snapshot = self.lock().snapshot();
-        snapshot.next_meeting = crate::meeting_reminders::next_meeting();
-        snapshot
+    /// Send the current state to the menu, in order with every other push.
+    fn push(&self) {
+        let _ordered = self.push.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Err(e) = self.menu_json().and_then(|json| send_to_menu(&json)) {
+            log::error!("[Menubar] Failed to update the menu: {e}");
+        }
     }
 
-    /// Whether closing the window should hide to tray instead of quitting.
+    /// Whether closing the window should hide to the menu bar instead of quitting.
     pub fn close_to_tray(&self) -> bool {
         self.lock().close_to_tray
     }
+}
+
+#[cfg(target_os = "macos")]
+fn send_to_menu(json: &str) -> Result<(), String> {
+    status_menu::update(json)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn send_to_menu(_json: &str) -> Result<(), String> {
+    Ok(())
 }
 
 /// Preference hides the icon, recording forces it back.
@@ -198,79 +244,9 @@ fn icon_shown(hide_icon: bool, recording_active: bool) -> bool {
     !hide_icon || recording_active
 }
 
-fn apply_icon(app: &AppHandle, recording: bool) {
-    let Some(tray) = app.tray_by_id(TRAY_ID) else {
-        return;
-    };
-    let resource = if recording {
-        RECORDING_ICON_RESOURCE
-    } else {
-        IDLE_ICON_RESOURCE
-    };
-    if let Some(image) = load_resource_image(app, resource) {
-        if let Err(e) = tray.set_icon(Some(image)) {
-            log::error!("[Menubar] Failed to set tray icon: {e}");
-        }
-        // The recording icon carries its own red; the idle icon is a template image so macOS tints it.
-        if let Err(e) = tray.set_icon_as_template(!recording) {
-            log::error!("[Menubar] Failed to set icon template flag: {e}");
-        }
-    }
-}
+// ── Actions out ──
 
-fn apply_visibility(app: &AppHandle) {
-    let (hide_icon, recording_active) = {
-        let Some(shared) = app.try_state::<MenubarShared>() else {
-            return;
-        };
-        let state = shared.lock();
-        (state.hide_icon, state.recording_active)
-    };
-    if let Some(tray) = app.tray_by_id(TRAY_ID)
-        && let Err(e) = tray.set_visible(icon_shown(hide_icon, recording_active))
-    {
-        log::error!("[Menubar] Failed to set tray visibility: {e}");
-    }
-}
-
-/// Rebuild the tray menu from state and swap it in.
-fn rebuild_menu(app: &AppHandle) {
-    let Some(shared) = app.try_state::<MenubarShared>() else {
-        return;
-    };
-    // One rebuild at a time, each snapshotting after the previous finished, so the last report wins.
-    let _build = shared.lock_menu();
-    let snapshot = shared.snapshot();
-    let (menu, live) = match build_menu(app, &snapshot) {
-        Ok(built) => built,
-        Err(e) => {
-            log::error!("[Menubar] Failed to build menu: {e}");
-            return;
-        }
-    };
-    shared.lock().live = live;
-
-    let Some(tray) = app.tray_by_id(TRAY_ID) else {
-        return;
-    };
-    if let Err(e) = tray.set_menu(Some(menu)) {
-        log::error!("[Menubar] Failed to set tray menu: {e}");
-    }
-}
-
-/// Refresh the menu, icon, and visibility for the current recording state.
-fn refresh_recording_items(app: &AppHandle) {
-    let Some(shared) = app.try_state::<MenubarShared>() else {
-        return;
-    };
-    let recording_active = shared.lock().recording_active;
-
-    rebuild_menu(app);
-    apply_icon(app, recording_active);
-    apply_visibility(app);
-}
-
-/// Actions the webview carries out (it owns recording, chat, search, settings, updates and meetings).
+/// Actions the webview carries out (it owns recording, chat, search, settings, updates and models).
 const WEBVIEW_ACTIONS: [&str; 12] = [
     item::START_RECORDING,
     item::STOP_RECORDING,
@@ -286,9 +262,6 @@ const WEBVIEW_ACTIONS: [&str; 12] = [
     item::QUIT,
 ];
 
-/// Webview actions that carry an id after their prefix.
-const WEBVIEW_ACTION_PREFIXES: [&str; 1] = [item::SPEECH_MODEL_PREFIX];
-
 fn emit_action(app: &AppHandle, action: &str) {
     if let Err(e) = app.emit(MENUBAR_ACTION_EVENT, action) {
         log::error!("[Menubar] Failed to emit menubar action: {e}");
@@ -296,12 +269,10 @@ fn emit_action(app: &AppHandle, action: &str) {
 }
 
 /// Dispatch a menu action; `kasset://record`, `stop`, `show` and `settings` come through here too.
-/// Window, background-job, next-meeting and recent-meeting rows are handled here; the rest go to the webview.
+/// The window, next-meeting and recent-meeting actions are handled here; the rest go to the webview.
 pub(crate) fn dispatch(app: &AppHandle, action: &str) {
-    if action == item::SHOW || action.starts_with(item::ACTIVITY_PREFIX) {
+    if action == item::SHOW {
         crate::window::show_main(app);
-    } else if action.starts_with(item::AGENT_PREFIX) {
-        emit_action(app, item::MANAGE_AGENTS);
     } else if let Some(occurrence) = action.strip_prefix(item::NEXT_MEETING_JOIN_PREFIX) {
         crate::meeting_reminders::record_occurrence(occurrence, true);
     } else if let Some(occurrence) = action.strip_prefix(item::NEXT_MEETING_RECORD_PREFIX) {
@@ -309,48 +280,68 @@ pub(crate) fn dispatch(app: &AppHandle, action: &str) {
     } else if let Some(id) = action.strip_prefix(item::OPEN_MEETING_PREFIX) {
         // The same path as `kasset://meeting/<id>` and Spotlight results.
         crate::url_actions::open_meeting(app, id.to_string());
-    } else if WEBVIEW_ACTIONS.contains(&action) || WEBVIEW_ACTION_PREFIXES.iter().any(|p| action.starts_with(p)) {
+    } else if WEBVIEW_ACTIONS.contains(&action) || action.starts_with(item::SPEECH_MODEL_PREFIX) {
         emit_action(app, action);
     } else {
-        log::warn!("[Menubar] Unknown menu action: {action}");
+        log::warn!("[Menubar] Unknown menu bar action: {action}");
     }
 }
 
-/// Build the tray icon and menu: recorder, speech model, app actions.
-fn install(app: &AppHandle, shared: &MenubarShared) -> tauri::Result<()> {
-    let (menu, live) = build_menu(app, &shared.snapshot())?;
-    shared.lock().live = live;
+// ── Lifecycle ──
 
-    let mut builder = TrayIconBuilder::with_id(TRAY_ID)
-        .tooltip(DEFAULT_TOOLTIP)
-        .icon_as_template(true)
-        .menu(&menu)
-        .show_menu_on_left_click(true)
-        .on_menu_event(|app, event| dispatch(app, event.id.as_ref()));
-
-    match load_resource_image(app, IDLE_ICON_RESOURCE) {
-        Some(icon) => builder = builder.icon(icon),
-        None => log::error!("[Menubar] Idle icon missing, tray starts without icon"),
+/// A bundled file's absolute path; empty (logged) when it can't be resolved.
+fn resource_path(app: &AppHandle, resource: &str) -> String {
+    match app.path().resolve(resource, BaseDirectory::Resource) {
+        Ok(path) => path.to_string_lossy().into_owned(),
+        Err(e) => {
+            log::error!("[Menubar] Failed to resolve resource {resource}: {e}");
+            String::new()
+        }
     }
+}
 
-    builder.build(app)?;
+fn resolve_images(app: &AppHandle) -> Images {
+    Images {
+        idle: resource_path(app, IDLE_ICON_RESOURCE),
+        recording: resource_path(app, RECORDING_ICON_RESOURCE),
+        agents: AGENT_ICON_RESOURCES
+            .iter()
+            .map(|(name, resource)| (name.to_string(), resource_path(app, resource)))
+            .collect(),
+    }
+}
 
-    log::info!("[Menubar] Tray installed");
+#[cfg(target_os = "macos")]
+fn install_menu(app: &AppHandle) -> Result<(), String> {
+    let handle = app.clone();
+    status_menu::install(move |action| dispatch(&handle, action))
+}
+
+#[cfg(not(target_os = "macos"))]
+fn install_menu(_app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// Create the shared state, install the tray, and start the ticker; call once from setup.
+/// Create the shared state, install the menu, show the first state and start the ticker; call once from setup.
 pub fn setup(app: &AppHandle) {
-    let shared = MenubarShared::default();
+    let shared = MenubarShared {
+        images: Arc::new(resolve_images(app)),
+        version: app.package_info().version.to_string(),
+        ..MenubarShared::default()
+    };
     app.manage(shared.clone());
-    match install(app, &shared) {
-        Ok(()) => spawn_ticker(app.clone(), shared),
-        Err(e) => log::error!("[Menubar] Tray installation failed: {e}"),
+    match install_menu(app) {
+        Ok(()) => {
+            shared.push();
+            spawn_ticker(shared);
+            log::info!("[Menubar] Menu installed");
+        }
+        Err(e) => log::error!("[Menubar] Menu installation failed: {e}"),
     }
 }
 
-/// Start the 1s elapsed ticker; the backend owns the clock (pause freezes, resume continues, stop resets).
-fn spawn_ticker(app: AppHandle, shared: MenubarShared) {
+/// Each second: the recording clock (pause freezes, resume continues, stop resets) and, every few seconds, the next meeting.
+fn spawn_ticker(shared: MenubarShared) {
     std::thread::Builder::new()
         .name("menubar-ticker".to_string())
         .spawn(move || {
@@ -359,148 +350,66 @@ fn spawn_ticker(app: AppHandle, shared: MenubarShared) {
             loop {
                 std::thread::sleep(Duration::from_secs(1));
                 seconds = seconds.wrapping_add(1);
-                if seconds % NEXT_MEETING_REFRESH_SECS == 0 {
-                    refresh_next_meeting(&app, &mut next_meeting);
-                }
-                let (active, paused, elapsed, recording_item) = {
+                let ticking = {
                     let mut state = shared.lock();
-                    if state.recording_active && !state.paused {
+                    let ticking = state.recording_active && !state.paused;
+                    if ticking {
                         state.elapsed_secs = state.elapsed_secs.saturating_add(1);
                     }
-                    (
-                        state.recording_active,
-                        state.paused,
-                        state.elapsed_secs,
-                        state.live.recording.clone(),
-                    )
+                    ticking
                 };
-                if !active {
-                    continue;
-                }
-                if let Some(item) = recording_item {
-                    let _ = item.set_text(stop_item_text(elapsed, paused));
+                let meeting_changed = seconds % NEXT_MEETING_REFRESH_SECS == 0 && {
+                    let next = crate::meeting_reminders::next_meeting();
+                    std::mem::replace(&mut next_meeting, next.clone()) != next
+                };
+                if ticking || meeting_changed {
+                    shared.push();
                 }
             }
         })
         .expect("failed to spawn menubar ticker thread");
 }
 
-/// Follow the next meeting: its minutes are retitled in place; a different meeting (or none) rebuilds the menu.
-fn refresh_next_meeting(app: &AppHandle, last: &mut Option<crate::meeting_reminders::NextMeeting>) {
-    let next = crate::meeting_reminders::next_meeting();
-    if next == *last {
-        return;
-    }
-    let same_row = same_next_meeting_row(last, &next);
-    *last = next;
-    let row = app.try_state::<MenubarShared>().and_then(|shared| shared.lock().live.next_meeting.clone());
-    match (same_row, row, last.as_ref()) {
-        (true, Some(row), Some(meeting)) => {
-            let _ = row.set_text(next_meeting_text(meeting));
-        }
-        _ => rebuild_menu(app),
-    }
-}
+// ── Commands ──
 
-/// Report a recording transition from the frontend; the backend keeps the only elapsed clock.
-#[tauri::command]
-pub async fn menubar_set_recording_state(
-    app: AppHandle,
-    active: bool,
-    paused: bool,
-) -> Result<(), String> {
-    let shared = app
-        .try_state::<MenubarShared>()
-        .ok_or_else(|| "Menubar not installed".to_string())?;
-    {
-        let mut state = shared.lock();
-        if active && !state.recording_active {
-            state.elapsed_secs = 0;
-        }
-        state.recording_active = active;
-        state.paused = active && paused;
-        if !active {
-            state.elapsed_secs = 0;
-        }
-    }
-    refresh_recording_items(&app);
-    Ok(())
-}
-
-/// Replace the Speech Model submenu with the ready models, keeping the check mark and one recorder row.
-#[tauri::command]
-pub async fn menubar_set_speech_models(
-    app: AppHandle,
-    models: Vec<SpeechModelArg>,
-) -> Result<(), String> {
-    let shared = app
-        .try_state::<MenubarShared>()
-        .ok_or_else(|| "Menubar not installed".to_string())?;
-    {
-        let mut state = shared.lock();
-        state.speech_models = models
-            .into_iter()
-            .map(|m| SpeechModelEntry { id: m.id, name: m.name, selected: m.selected })
-            .collect();
-    }
-    rebuild_menu(&app);
-    Ok(())
-}
-
-/// Update the MCP status row (dot and agents); the rebuild runs on a blocking worker to avoid a main-thread deadlock.
-pub fn set_mcp_status(app: &AppHandle, status: McpMenuStatus) {
-    let Some(shared) = app.try_state::<MenubarShared>() else {
-        return;
-    };
-    {
-        let mut state = shared.lock();
-        if state.mcp == status {
-            return;
-        }
-        state.mcp = status;
-    }
-    let app = app.clone();
-    tauri::async_runtime::spawn_blocking(move || rebuild_menu(&app));
-}
-
-/// Apply one report to the state and rebuild the menu only when it changed what the menu shows.
+/// Apply one report and push the menu when it changed what the menu shows.
 fn report(app: &AppHandle, apply: impl FnOnce(&mut StateData) -> bool) -> Result<(), String> {
     let shared = app
         .try_state::<MenubarShared>()
         .ok_or_else(|| "Menubar not installed".to_string())?;
     let changed = apply(&mut shared.lock());
     if changed {
-        rebuild_menu(app);
+        shared.push();
     }
     Ok(())
 }
 
-/// The background jobs running now (the webview's activity tray), one row each. A percent change retitles the rows
-/// in place; only a job starting or ending rebuilds the menu (a rebuild under an open menu loses the user's click).
+/// Report a recording transition from the frontend; the backend keeps the only elapsed clock.
+#[tauri::command]
+pub async fn menubar_set_recording_state(app: AppHandle, active: bool, paused: bool) -> Result<(), String> {
+    report(&app, |state| {
+        if active != state.recording_active {
+            state.elapsed_secs = 0;
+        }
+        state.recording_active = active;
+        state.paused = active && paused;
+        true
+    })
+}
+
+/// The ready keyless speech models and the selected one.
+#[tauri::command]
+pub async fn menubar_set_speech_models(app: AppHandle, models: Vec<SpeechModelArg>) -> Result<(), String> {
+    let models: Vec<SpeechModelEntry> =
+        models.into_iter().map(|m| SpeechModelEntry { id: m.id, name: m.name, selected: m.selected }).collect();
+    report(&app, |state| std::mem::replace(&mut state.speech_models, models.clone()) != models)
+}
+
+/// The background jobs running now (the webview's activity tray), one row each.
 #[tauri::command]
 pub async fn menubar_set_activity(app: AppHandle, items: Vec<ActivityArg>) -> Result<(), String> {
-    let shared = app
-        .try_state::<MenubarShared>()
-        .ok_or_else(|| "Menubar not installed".to_string())?;
     let activity: Vec<ActivityEntry> = items.into_iter().map(|a| ActivityEntry { label: a.label, percent: a.percent }).collect();
-    let rows = {
-        let mut state = shared.lock();
-        if state.activity == activity {
-            return Ok(());
-        }
-        let same_rows = same_activity_rows(&state.activity, &activity);
-        state.activity = activity.clone();
-        same_rows.then(|| state.live.activity.clone())
-    };
-    match rows {
-        Some(rows) => {
-            for (row, entry) in rows.iter().zip(&activity) {
-                let _ = row.set_text(activity_text(entry));
-            }
-        }
-        None => rebuild_menu(&app),
-    }
-    Ok(())
+    report(&app, |state| std::mem::replace(&mut state.activity, activity.clone()) != activity)
 }
 
 /// The update waiting to install, if any: its row reads "Update to vX…" instead of "Check for Updates…".
@@ -509,59 +418,42 @@ pub async fn menubar_set_update(app: AppHandle, version: Option<String>) -> Resu
     report(&app, |state| std::mem::replace(&mut state.update_version, version.clone()) != version)
 }
 
-/// The most recent meetings, newest first, for the Recent Meetings submenu.
+/// The most recent meetings, newest first.
 #[tauri::command]
 pub async fn menubar_set_recent_meetings(app: AppHandle, meetings: Vec<RecentMeetingArg>) -> Result<(), String> {
     let recent: Vec<RecentMeetingEntry> = meetings.into_iter().map(|m| RecentMeetingEntry { id: m.id, title: m.title }).collect();
     report(&app, |state| std::mem::replace(&mut state.recent_meetings, recent.clone()) != recent)
 }
 
-/// Set the tray tooltip.
+/// Update the MCP server row (its dot and connected agents); called by the MCP host.
+pub fn set_mcp_status(app: &AppHandle, status: McpMenuStatus) {
+    let _ = report(app, |state| std::mem::replace(&mut state.mcp, status.clone()) != status);
+}
+
+/// Set the status item's tooltip.
 #[tauri::command]
 pub async fn menubar_set_tooltip(app: AppHandle, tooltip: String) -> Result<(), String> {
-    let Some(tray) = app.tray_by_id(TRAY_ID) else {
-        return Err("Menubar not installed".to_string());
-    };
-    tray.set_tooltip(Some(tooltip))
-        .map_err(|e| format!("Failed to set tooltip: {e}"))?;
-    Ok(())
+    report(&app, |state| std::mem::replace(&mut state.tooltip, tooltip.clone()) != tooltip)
 }
 
-/// Show or hide the icon, subject to the recording force-visible rule.
+/// Show or hide the status item, subject to the recording force-visible rule.
 #[tauri::command]
 pub async fn menubar_set_visible(app: AppHandle, visible: bool) -> Result<(), String> {
-    let shared = app
-        .try_state::<MenubarShared>()
-        .ok_or_else(|| "Menubar not installed".to_string())?;
-    shared.lock().hide_icon = !visible;
-    apply_visibility(&app);
-    Ok(())
+    report(&app, |state| std::mem::replace(&mut state.hide_icon, !visible) == visible)
 }
 
-/// Behaviour preferences: hide the menu bar icon, close the window to the tray.
+/// Behaviour preferences: hide the menu bar icon, close the window to the menu bar.
 #[tauri::command]
-pub async fn menubar_set_prefs(
-    app: AppHandle,
-    close_to_tray: Option<bool>,
-    hide_icon: Option<bool>,
-) -> Result<(), String> {
-    let shared = app
-        .try_state::<MenubarShared>()
-        .ok_or_else(|| "Menubar not installed".to_string())?;
-    {
-        let mut state = shared.lock();
+pub async fn menubar_set_prefs(app: AppHandle, close_to_tray: Option<bool>, hide_icon: Option<bool>) -> Result<(), String> {
+    report(&app, |state| {
         if let Some(value) = close_to_tray {
             state.close_to_tray = value;
         }
-        if let Some(value) = hide_icon {
-            state.hide_icon = value;
-        }
-    }
-    apply_visibility(&app);
-    Ok(())
+        hide_icon.is_some_and(|value| std::mem::replace(&mut state.hide_icon, value) != value)
+    })
 }
 
-/// Current menubar status for frontend sync.
+/// Current menu bar status for frontend sync.
 #[tauri::command]
 pub async fn menubar_get_state(app: AppHandle) -> Result<serde_json::Value, String> {
     let shared = app
@@ -586,9 +478,7 @@ pub async fn menubar_quit(app: AppHandle) -> Result<(), String> {
 
 /// Read the close-to-tray preference for the window close handler; `true` when state is unavailable.
 pub fn close_to_tray(app: &AppHandle) -> bool {
-    app.try_state::<MenubarShared>()
-        .map(|shared| shared.close_to_tray())
-        .unwrap_or(true)
+    app.try_state::<MenubarShared>().map(|shared| shared.close_to_tray()).unwrap_or(true)
 }
 
 #[cfg(test)]
@@ -605,10 +495,9 @@ mod tests {
     }
 
     #[test]
-    fn webview_actions_cover_the_rows_it_handles() {
+    fn webview_actions_cover_what_it_handles() {
         assert!(WEBVIEW_ACTIONS.contains(&item::PAUSE_RECORDING));
         assert!(WEBVIEW_ACTIONS.contains(&item::INSTALL_UPDATE));
         assert!(!WEBVIEW_ACTIONS.contains(&item::SHOW));
-        assert!(WEBVIEW_ACTION_PREFIXES.iter().any(|p| "speech_model:on-device::parakeet".starts_with(p)));
     }
 }
