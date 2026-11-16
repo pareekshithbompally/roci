@@ -29,7 +29,6 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
   builder
     .plugin(tauri_plugin_process::init())
     .plugin(tauri_plugin_shell::init())
-    .plugin(tauri_plugin_store::init())
     .plugin(tauri_plugin_calendar::init())
     .plugin(tauri_plugin_notifications::init())
     .plugin(tauri_plugin_apple_intelligence::init())

@@ -30,6 +30,8 @@ tauri-plugin-os = "2"
 # `unsafe-headers`: lets the webview send an empty Origin, which the plugin then drops (src/services/platform-fetch.ts),
 # so servers never apply browser CORS rules to this native client. Roci sets no other restricted header.
 tauri-plugin-http = { version = "2", features = ["unsafe-headers"] }
+# Meetings, chats, settings and RAG (SQLite + sqlite-vec).
+tauri-plugin-store = { path = "plugins/tauri-plugin-store" }
 
 # macOS only, until each piece is made shared (docs: platform/apple-platforms/code-organization.md, R2).
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -37,7 +39,6 @@ tauri-plugin-process = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-autostart = "2"
 tauri-plugin-shell = "2"
-tauri-plugin-store = { path = "plugins/tauri-plugin-store" }
 tauri-plugin-calendar = { path = "plugins/tauri-plugin-calendar" }
 tauri-plugin-notifications = { path = "plugins/tauri-plugin-notifications" }
 tauri-plugin-apple-intelligence = { path = "plugins/tauri-plugin-apple-intelligence" }
