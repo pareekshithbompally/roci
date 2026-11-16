@@ -11,7 +11,6 @@ import { HomeView } from '@features/home';
 import { SettingsPanel } from '@features/settings';
 import { useAppUpdate, scheduleStartupCheck } from '@features/settings';
 import { useMenubarSpeechModels, useLocalModelDownloads, freshSpeechSources } from '@features/settings';
-import { UpdateBanner } from '@features/settings';
 import { RemindersView } from '@features/todos';
 import { CalendarView } from '@features/calendar';
 import { ConfirmHost, OnDeviceModelActivity, SearchOverlay } from '@shared/components';
@@ -358,17 +357,6 @@ const App: React.FC = () => {
 
       {/* Search Overlay (Cmd+K) */}
       <SearchOverlay open={isSearchOpen} onOpenChange={setIsSearchOpen} />
-
-      {/* App Update Banner */}
-      {(appUpdate.status === 'available' || appUpdate.status === 'downloading') && appUpdate.updateInfo && (
-        <UpdateBanner
-          version={appUpdate.updateInfo.version}
-          releaseNotes={appUpdate.updateInfo.body}
-          onUpdate={appUpdate.downloadAndInstall}
-          onDismiss={appUpdate.dismiss}
-          isDownloading={appUpdate.status === 'downloading'}
-        />
-      )}
 
       {/* On-device model download + indexing progress → ActivityTray */}
       <OnDeviceModelActivity />

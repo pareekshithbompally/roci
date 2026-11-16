@@ -1,8 +1,10 @@
-/** App update lifecycle (check → download → install → relaunch), with download progress in the ActivityTray. */
+/** App update lifecycle (check → offer → download → install → relaunch) as one ActivityTray row, from "available" to "installing". */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { open } from '@tauri-apps/plugin-shell';
 import { isTauriEnvironment } from '@services/tauri';
-import { activityStore } from '@shared/stores/activityStore';
+import { activityStore, type ActivityItem } from '@shared/stores/activityStore';
+import { APP_CONFIG } from '@config/app.config';
 
 type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error';
 
@@ -34,6 +36,19 @@ interface UseAppUpdateReturn {
 
 const ACTIVITY_ID = 'app-update';
 const STARTUP_CHECK_DELAY_MS = 10_000;
+
+/** The update's tray row: patched in place as it moves from offered to downloading to installing. */
+function putUpdateRow(fields: Pick<ActivityItem, 'label' | 'status'> & Partial<ActivityItem>): void {
+  if (activityStore.get(ACTIVITY_ID)) {
+    activityStore.update(ACTIVITY_ID, fields);
+    return;
+  }
+  activityStore.add({ id: ACTIVITY_ID, type: 'download', percent: null, step: null, detail: null, error: null, actions: [], ...fields });
+}
+
+function openReleaseNotes(): void {
+  open(APP_CONFIG.releasesUrl).catch((error: unknown) => console.error('[useAppUpdate] Open release notes failed:', error));
+}
 
 /** Imported dynamically so non-Tauri environments don't crash on import. */
 async function getUpdaterPlugins() {
@@ -100,16 +115,12 @@ export function useAppUpdate(): UseAppUpdateReturn {
 
     setStatus('downloading');
 
-    // Show progress in ActivityTray
-    activityStore.add({
-      id: ACTIVITY_ID,
-      type: 'download',
+    // The offered row becomes the download's progress row.
+    putUpdateRow({
       label: `Updating to v${update.version}`,
       status: 'active',
       percent: 0,
-      step: null,
       detail: 'Starting download…',
-      error: null,
       actions: [],
     });
 
@@ -170,10 +181,25 @@ export function useAppUpdate(): UseAppUpdateReturn {
   }, []);
 
   const dismiss = useCallback(() => {
+    activityStore.remove(ACTIVITY_ID);
     setStatus('idle');
     setUpdateInfo(null);
     updateRef.current = null;
   }, []);
+
+  // An update found by a check is offered in the tray: Release notes, Update now, Later.
+  useEffect(() => {
+    if (status !== 'available' || !updateInfo) return;
+    putUpdateRow({
+      label: `Kasset v${updateInfo.version} available`,
+      status: 'waiting',
+      actions: [
+        { icon: 'external-link', label: 'Release notes', onClick: openReleaseNotes },
+        { icon: 'download', label: 'Update now', onClick: () => void downloadAndInstall() },
+        { icon: 'x', label: 'Later', onClick: dismiss },
+      ],
+    });
+  }, [status, updateInfo, downloadAndInstall, dismiss]);
 
   return { status, updateInfo, error, checkForUpdate, checkNow: runCheck, downloadAndInstall, dismiss };
 }

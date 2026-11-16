@@ -11,7 +11,8 @@ export type ActivityType =
   | 'indexing'
   | 'import';
 
-export type ActivityStatus = 'active' | 'complete' | 'error' | 'cancelled';
+/** `waiting`: nothing is running yet; the row needs the user (e.g. an update to install). */
+export type ActivityStatus = 'active' | 'waiting' | 'complete' | 'error' | 'cancelled';
 
 export interface ActivityAction {
   icon: string;

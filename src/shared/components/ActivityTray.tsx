@@ -28,9 +28,10 @@ const TYPE_PRIORITY: Record<ActivityType, number> = {
 
 const STATUS_PRIORITY: Record<ActivityStatus, number> = {
   active: 0,
-  error: 1,
-  complete: 2,
-  cancelled: 3,
+  waiting: 1,
+  error: 2,
+  complete: 3,
+  cancelled: 4,
 };
 
 function sortItems(items: ActivityItem[]): ActivityItem[] {

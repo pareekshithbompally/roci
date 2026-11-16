@@ -4,7 +4,6 @@ export {
   ProvidersPanel, 
   GeneralPanel,
   CapabilitiesPanel,
-  UpdateBanner,
 } from './components';
 
 // Hooks

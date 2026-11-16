@@ -9,4 +9,3 @@ export { McpServersPanel } from './mcp';
 export { UsagePanel } from './UsagePanel';
 export { ProvidersPanelErrorBoundary } from './ProvidersPanelErrorBoundary';
 export { ModalityIcons } from './ModalityIcons';
-export { UpdateBanner } from './UpdateBanner';

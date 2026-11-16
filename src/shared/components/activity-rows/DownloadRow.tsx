@@ -1,4 +1,4 @@
-/** A download activity in the tray; bytes and percent merged into the detail. */
+/** A download activity in the tray; bytes and percent merged into the detail. A `waiting` row hasn't started (it offers its actions). */
 
 import React from 'react';
 import { Download, Loader2 } from 'lucide-react';
@@ -6,7 +6,7 @@ import type { ActivityItem } from '@shared/stores/activityStore';
 import { ActivityRowLayout } from './ActivityRowLayout';
 
 export const DownloadRow: React.FC<{ item: ActivityItem }> = ({ item }) => {
-  const isIndeterminate = item.percent === null;
+  const isIndeterminate = item.status === 'active' && item.percent === null;
 
   // Merge byte detail + percent into one compact string
   const detailParts: string[] = [];

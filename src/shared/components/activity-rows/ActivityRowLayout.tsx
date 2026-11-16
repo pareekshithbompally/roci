@@ -1,7 +1,7 @@
 /** Two-line tray row (label line, detail line, optional progress bar) so nothing truncates in the narrow sidebar. */
 
 import React from 'react';
-import { Pause, Play, Square, Sparkles, RefreshCw, X } from 'lucide-react';
+import { Download, ExternalLink, Pause, Play, Square, Sparkles, RefreshCw, X } from 'lucide-react';
 import type { ActivityAction } from '@shared/stores/activityStore';
 import { Button, Progress, Text, cn } from '@shared/ui';
 
@@ -79,6 +79,10 @@ const ActionIcon: React.FC<{ name: string; className?: string }> = ({ name, clas
       return <Sparkles className={cls} />;
     case 'refresh-cw':
       return <RefreshCw className={cls} />;
+    case 'download':
+      return <Download className={cls} />;
+    case 'external-link':
+      return <ExternalLink className={cls} />;
     case 'x':
       return <X className={cls} />;
     default:
