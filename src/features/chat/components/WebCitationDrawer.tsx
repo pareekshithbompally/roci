@@ -2,7 +2,7 @@
 
 import React, { useCallback } from 'react';
 import { X, Globe, ExternalLink } from 'lucide-react';
-import { getFaviconUrl, extractDomain } from '@shared/utils/citationUtils';
+import { getFaviconUrl, describeCitation } from '@shared/utils/citationUtils';
 import type { WebCitation } from '@shared/types';
 import { IconButton, Icon, Surface, Text } from '@shared/ui';
 
@@ -59,7 +59,9 @@ export const WebCitationDrawer: React.FC<WebCitationDrawerProps> = ({
 
         {/* Citation list */}
         <div className="flex-1 overflow-y-auto custom-scrollbar py-1">
-          {citations?.map((citation, i) => (
+          {citations?.map((citation, i) => {
+            const label = describeCitation(citation);
+            return (
             <Surface
               as="a"
               key={`${i}-${citation.url}`}
@@ -70,7 +72,7 @@ export const WebCitationDrawer: React.FC<WebCitationDrawerProps> = ({
               className="group flex items-center gap-2.5 px-4 py-2.5"
             >
               <img
-                src={getFaviconUrl(citation.url)}
+                src={getFaviconUrl(label.site)}
                 alt=""
                 className="w-4 h-4 shrink-0"
                 loading="lazy"
@@ -78,15 +80,18 @@ export const WebCitationDrawer: React.FC<WebCitationDrawerProps> = ({
               />
               <div className="min-w-0 flex-1">
                 <Text as="p" variant="label" truncate className="group-hover:underline">
-                  {citation.title || extractDomain(citation.url)}
+                  {label.name}
                 </Text>
-                <Text as="p" variant="caption" tone="faint" truncate className="mt-0.5">
-                  {extractDomain(citation.url)}
-                </Text>
+                {label.detail && (
+                  <Text as="p" variant="caption" tone="faint" truncate className="mt-0.5">
+                    {label.detail}
+                  </Text>
+                )}
               </div>
               <Icon icon={ExternalLink} size="xs" tone="faint" className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
             </Surface>
-          ))}
+            );
+          })}
         </div>
       </Surface>
     </>

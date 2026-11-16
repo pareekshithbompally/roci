@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   extractDomain,
   getFaviconUrl,
+  describeCitation,
   deduplicateCitations,
   remapInlineCitations,
 } from '@shared/utils/citationUtils';
@@ -221,5 +222,28 @@ describe('remapInlineCitations', () => {
     remapInlineCitations(original, indexMap);
 
     expect(original[0].sourceIndices).toEqual([0, 1]);
+  });
+});
+
+// ── describeCitation ────────────────────────────────────────────
+
+describe('describeCitation', () => {
+  it('shows a titled source as title over site', () => {
+    expect(describeCitation({ url: 'https://www.nature.com/articles/x', title: 'A study' }))
+      .toEqual({ name: 'A study', site: 'nature.com', detail: 'nature.com' });
+  });
+
+  it('tells untitled pages of one site apart by path', () => {
+    expect(describeCitation({ url: 'https://www.humanbaseline.org/benchmarks/?utm_source=openai', title: '' }))
+      .toEqual({ name: 'humanbaseline.org', site: 'humanbaseline.org', detail: '/benchmarks' });
+  });
+
+  it('gives an untitled home page no detail line', () => {
+    expect(describeCitation({ url: 'https://www.humanbaseline.org/', title: '' }).detail).toBeNull();
+  });
+
+  it('reads the real site of a Gemini search redirect from its title', () => {
+    expect(describeCitation({ url: 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/abc', title: 'mit.edu' }))
+      .toEqual({ name: 'mit.edu', site: 'mit.edu', detail: null });
   });
 });

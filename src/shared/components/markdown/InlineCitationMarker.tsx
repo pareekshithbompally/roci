@@ -1,7 +1,7 @@
 /** Inline superscript favicon + citation number; hover shows the URL, click opens it. */
 
 import React from 'react';
-import { getFaviconUrl } from '@shared/utils/citationUtils';
+import { getFaviconUrl, describeCitation } from '@shared/utils/citationUtils';
 import type { WebCitation } from '@shared/types';
 import { Button } from '@shared/ui';
 
@@ -37,10 +37,10 @@ export const InlineCitationMarker: React.FC<InlineCitationMarkerProps> = ({
             onClick={handleClick}
             className="cite-marker-btn"
             title={citation.url}
-            aria-label={`Source ${displayIndex}: ${citation.title || citation.url}`}
+            aria-label={`Source ${displayIndex}: ${describeCitation(citation).name}`}
           >
             <img
-              src={getFaviconUrl(citation.url, 12)}
+              src={getFaviconUrl(describeCitation(citation).site, 12)}
               alt=""
               className="cite-marker-favicon"
               loading="lazy"

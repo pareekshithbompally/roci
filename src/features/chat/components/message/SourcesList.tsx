@@ -1,6 +1,6 @@
 import React from 'react';
 import { AudioWaveform } from 'lucide-react';
-import { getFaviconUrl, extractDomain } from '@shared/utils/citationUtils';
+import { getFaviconUrl, describeCitation } from '@shared/utils/citationUtils';
 import { Row, rowClasses, Text, Icon, Button } from '@shared/ui';
 import type { MeetingCitation, WebCitation } from '@shared/types';
 
@@ -48,7 +48,9 @@ const SourcesList: React.FC<SourcesListProps> = ({
           +{moreMeetingCount} more
         </Button>
       )}
-      {hasWebCitations && visibleWebCitations!.map((citation, i) => (
+      {hasWebCitations && visibleWebCitations!.map((citation, i) => {
+        const label = describeCitation(citation);
+        return (
         <a
           key={`web-${i}-${citation.url}`}
           href={citation.url}
@@ -57,18 +59,21 @@ const SourcesList: React.FC<SourcesListProps> = ({
           className={rowClasses()}
         >
           <img
-            src={getFaviconUrl(citation.url)}
+            src={getFaviconUrl(label.site)}
             alt=""
             className="w-3 h-3 shrink-0"
             loading="lazy"
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
-          <span className="truncate">{citation.title || extractDomain(citation.url)}</span>
-          <Text variant="caption" tone="faint" truncate className="ml-auto shrink-0 max-w-24">
-            {extractDomain(citation.url)}
-          </Text>
+          <span className="truncate">{label.name}</span>
+          {label.detail && (
+            <Text variant="caption" tone="faint" truncate className="ml-auto shrink-0 max-w-24">
+              {label.detail}
+            </Text>
+          )}
         </a>
-      ))}
+        );
+      })}
       {hasWebCitations && moreWebCount > 0 && (
         <Button variant="ghost" size="inline" className="self-start mx-2.5 my-1" onClick={() => onShowAllWebCitations?.(webCitations!)}>
           +{moreWebCount} more
