@@ -27,6 +27,11 @@ Use your tools when the user asks about their meetings, action items, or past co
 - For broad catch-ups, combine list_meetings and get_action_items.
 - search_chats and get_chat find past AI conversations.`;
 
+/** Sent as the last message when the agent loop must stop calling tools and answer. */
+export const FINAL_ANSWER_PROMPT = `Tools are now off for this reply. Do not call any tools.
+
+Answer the user's question now, using the tool results above. If they do not cover part of the question, say what is missing.`;
+
 function meetingsRole(meetingCount: number): string {
   return `The user has ${meetingCount} recorded meeting(s) in the app. You help them get insights from those meetings and answer general questions.
 

@@ -8,15 +8,13 @@ import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { isLocalProviderId } from '@shared/utils/provider.utils';
 import { followModelLoad, generationStats, isLlamaServer, promptProgress } from '@services/ai/llamaServer';
 import { toolRegistry, loadMcpTools } from '@extensions/tools';
-import { DEFAULT_CHAT_TOOLS } from '@config/chatTools.config';
+import { AGENT_LOOP_CONFIG, DEFAULT_CHAT_TOOLS } from '@config/chatTools.config';
 import { extractTokenUsage } from '@services/ai/types';
 import type { GenerationStats, TokenUsage } from '@services/ai/types';
 import type { OrchestratorOptions, OrchestratorCallbacks } from './types';
 import { toolActivityOf } from './toolActivity';
 import type { ToolSources } from './toolActivity';
-
-/** Safety cap for the agentic loop. Most queries resolve in 1–3 tool calls. */
-const MAX_AGENT_STEPS = 10;
+import { prepareFinalStep } from './stepGuard';
 
 /** Separates a model's thinking blocks (OpenAI streams each reasoning summary as its own block). */
 const REASONING_BLOCK_BREAK = '\n\n';
@@ -147,7 +145,12 @@ export async function orchestrate(
     messages: toSDKMessages(messages),
     abortSignal: signal,
     includeRawChunks: reportsProgress,
-    ...(tools && { tools, toolChoice: 'auto' as const, stopWhen: isStepCount(MAX_AGENT_STEPS) }),
+    ...(tools && {
+      tools,
+      toolChoice: 'auto' as const,
+      prepareStep: prepareFinalStep,
+      stopWhen: isStepCount(AGENT_LOOP_CONFIG.maxSteps),
+    }),
   });
 
   const stopFollowingLoad = reportsProgress
