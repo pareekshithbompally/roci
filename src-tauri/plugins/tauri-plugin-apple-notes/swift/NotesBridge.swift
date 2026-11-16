@@ -5,6 +5,8 @@ import Foundation
 // MARK: - Apple Notes (in-process Apple Events; osascript is blocked by hardened runtime) — JSON C-string bridge
 
 private let notesBundleId = "com.apple.Notes"
+/// The app's name from its Info.plist (Tauri embeds one in dev builds too).
+private let appName = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "This app"
 
 /// `{"status": "authorized" | "denied" | "not_determined"}`; `ask` raises the macOS prompt while undecided.
 @_cdecl("apple_notes_access")
@@ -23,7 +25,7 @@ public func appleNotesUpsert(_ input: UnsafePointer<CChar>) -> UnsafeMutablePoin
     // Consent is only known for a running target, so start Notes first.
     launchNotesIfNeeded()
     guard automationStatus(ask: false) == "authorized" else {
-        return notesFailure("not-authorized", "Roci isn't allowed to control Notes.")
+        return notesFailure("not-authorized", "\(appName) isn't allowed to control Notes.")
     }
     return runOnMain { run(script: upsertScript(note)) }
 }

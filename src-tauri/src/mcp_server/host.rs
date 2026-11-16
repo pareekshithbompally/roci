@@ -41,9 +41,12 @@ const CALL_TIMEOUT: Duration = Duration::from_secs(45);
 /// Owner read/write only: other users on this Mac can't connect.
 const SOCKET_MODE: u32 = 0o600;
 
-const INSTRUCTIONS: &str = "Roci holds the user's recorded meetings (transcripts, summaries, \
-action items), their todos, and their Roci chat history. Start with search_meetings or \
-list_meetings, then get_meeting for one meeting in full.";
+const INSTRUCTIONS: &str = concat!(
+    env!("APP_NAME"),
+    " holds the user's recorded meetings (transcripts, summaries, action items), their todos, and their ",
+    env!("APP_NAME"),
+    " chat history. Start with search_meetings or list_meetings, then get_meeting for one meeting in full."
+);
 
 #[derive(Default)]
 pub struct McpHostState {
@@ -220,7 +223,7 @@ async fn listen(app: &AppHandle) -> Result<(), String> {
 /// Bind the socket, taking over a stale file but never a live server (e.g. a second Roci).
 async fn bind(path: &Path) -> Result<UnixListener, String> {
     if UnixStream::connect(path).await.is_ok() {
-        return Err("another copy of Roci is already serving coding agents".into());
+        return Err(concat!("another copy of ", env!("APP_NAME"), " is already serving coding agents").into());
     }
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
@@ -287,7 +290,7 @@ impl RociServer {
         match ready {
             Ok(Ok(tools)) => Ok(tools.clone().unwrap_or_default()),
             _ => Err(McpError::internal_error(
-                "Roci is still starting; try again",
+                concat!(env!("APP_NAME"), " is still starting; try again"),
                 None,
             )),
         }
@@ -318,7 +321,7 @@ impl RociServer {
             },
         ) {
             state.forget(id);
-            return error_result(format!("Roci could not run {name}: {e}"));
+            return error_result(format!("{} could not run {name}: {e}", env!("APP_NAME")));
         }
 
         let outcome = tokio::select! {
@@ -332,7 +335,7 @@ impl RociServer {
         match outcome {
             Ok(Ok(reply)) if reply.is_error => error_result(reply.text),
             Ok(Ok(reply)) => CallToolResult::success(vec![ContentBlock::text(reply.text)]),
-            _ => error_result(format!("Roci did not finish {name} in time")),
+            _ => error_result(format!("{} did not finish {name} in time", env!("APP_NAME"))),
         }
     }
 }

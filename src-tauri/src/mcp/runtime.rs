@@ -57,7 +57,7 @@ pub struct McpState {
 fn client_info() -> ClientConfig {
     ClientConfig::new(
         ClientCapabilities::default(),
-        Implementation::new("Roci", env!("CARGO_PKG_VERSION")),
+        Implementation::new(env!("APP_NAME"), env!("CARGO_PKG_VERSION")),
     )
 }
 

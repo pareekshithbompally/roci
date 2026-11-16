@@ -21,7 +21,7 @@ pub fn run() -> i32 {
     match connect_or_launch().and_then(relay) {
         Ok(()) => 0,
         Err(e) => {
-            eprintln!("[Roci mcp] {e}");
+            eprintln!("[{} mcp] {e}", env!("APP_NAME"));
             1
         }
     }
@@ -39,7 +39,7 @@ fn connect_or_launch() -> Result<UnixStream, String> {
         match UnixStream::connect(&path) {
             Ok(stream) => return Ok(stream),
             Err(e) if Instant::now() >= deadline => {
-                return Err(format!("Roci did not start serving in time ({e})"));
+                return Err(format!("{} did not start serving in time ({e})", env!("APP_NAME")));
             }
             Err(_) => {}
         }
@@ -48,18 +48,18 @@ fn connect_or_launch() -> Result<UnixStream, String> {
 
 /// Open this binary's Roci.app hidden; a bare dev binary has no bundle to open.
 fn launch_app() -> Result<(), String> {
-    let exe = std::env::current_exe().map_err(|e| format!("locate Roci: {e}"))?;
-    let bundle = app_bundle(&exe).ok_or("Roci isn't running. Start it and try again.")?;
+    let exe = std::env::current_exe().map_err(|e| format!("locate {}: {e}", env!("APP_NAME")))?;
+    let bundle = app_bundle(&exe).ok_or(concat!(env!("APP_NAME"), " isn't running. Start it and try again."))?;
     let status = Command::new("/usr/bin/open")
         .args(["-g", "-j"])
         .arg(&bundle)
         .args(["--args", "--minimized"])
         .status()
-        .map_err(|e| format!("open Roci: {e}"))?;
+        .map_err(|e| format!("open {}: {e}", env!("APP_NAME")))?;
     if status.success() {
         Ok(())
     } else {
-        Err(format!("open Roci exited with {status}"))
+        Err(format!("open {} exited with {status}", env!("APP_NAME")))
     }
 }
 

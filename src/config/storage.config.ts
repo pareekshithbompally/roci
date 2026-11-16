@@ -1,8 +1,6 @@
 /** Storage layout, file naming and cache policies for binary files; data lives in roci.db. */
 
 export const StorageConfig = {
-  appName: 'Roci AI',
-
   /** Directory structure within Application Support. */
   directories: {
     recordings: 'recordings',

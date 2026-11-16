@@ -4,8 +4,21 @@ fn main() {
         link_macos_swift_runtime();
         compile_permission_guide();
     }
+    emit_identity();
+    println!("cargo:rerun-if-changed=icons");
 
     tauri_build::build()
+}
+
+/// `productName` and `identifier` from tauri.conf.json as `env!("APP_NAME")` / `env!("APP_IDENTIFIER")`.
+fn emit_identity() {
+    println!("cargo:rerun-if-changed=tauri.conf.json");
+    let text = std::fs::read_to_string("tauri.conf.json").expect("read tauri.conf.json");
+    let conf: serde_json::Value = serde_json::from_str(&text).expect("parse tauri.conf.json");
+    for (key, var) in [("productName", "APP_NAME"), ("identifier", "APP_IDENTIFIER")] {
+        let value = conf[key].as_str().unwrap_or_else(|| panic!("tauri.conf.json has no {key}"));
+        println!("cargo:rustc-env={var}={value}");
+    }
 }
 
 /// Swift runtime search paths and rpaths for the macOS app.
@@ -16,7 +29,6 @@ fn link_macos_swift_runtime() {
     println!("cargo:rustc-link-arg=-Wl,-rpath,/usr/lib/swift");
     println!("cargo:rustc-link-arg=-Wl,-rpath,/Library/Developer/CommandLineTools/usr/lib/swift-5.5/macosx");
     println!("cargo:rustc-link-arg=-Wl,-rpath,/Library/Developer/CommandLineTools/usr/lib/swift/macosx");
-    println!("cargo:rerun-if-changed=icons");
 }
 
 /// Compiles the native permission guide (native/permission_guide.m) with ARC.

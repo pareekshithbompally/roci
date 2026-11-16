@@ -4,6 +4,9 @@ import Speech
 
 // MARK: - Apple Speech (SpeechAnalyzer, macOS 26+) — JSON C-string bridge, freed with `apple_intelligence_free_string`
 
+/// The app's name from its Info.plist (Tauri embeds one in dev builds too).
+private let appName = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "This app"
+
 private struct SpeechFailure: Error {
     let kind: String
     let message: String
@@ -29,7 +32,7 @@ public func appleSpeechRequestAccess() -> UnsafeMutablePointer<CChar> {
     default: break
     }
     guard canAskForSpeechRecognition() else {
-        return speechFailure("unavailable", "Speech Recognition can only be allowed from the Roci app. Development builds run outside the app bundle, so macOS can't ask from here.")
+        return speechFailure("unavailable", "Speech Recognition can only be allowed from the \(appName) app. Development builds run outside the app bundle, so macOS can't ask from here.")
     }
     let semaphore = DispatchSemaphore(value: 0)
     var granted = false
@@ -64,7 +67,7 @@ public func appleSpeechTranscribe(_ path: UnsafePointer<CChar>, _ language: Unsa
     let code = String(cString: language)
     guard #available(macOS 26.0, *) else { return speechFailure("unavailable", "Apple speech requires macOS 26 or later.") }
     guard SFSpeechRecognizer.authorizationStatus() == .authorized else {
-        return speechFailure("not-authorized", "Speech Recognition is off for Roci.")
+        return speechFailure("not-authorized", "Speech Recognition is off for \(appName).")
     }
     let result = speechBlocking { try await transcribe(file: file, language: code) }
     switch result {

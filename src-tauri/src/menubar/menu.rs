@@ -21,11 +21,11 @@ const MANAGE_MODELS_LABEL: &str = "Manage Models…";
 const NEW_CHAT_LABEL: &str = "New Chat";
 const SEARCH_LABEL: &str = "Search";
 const RECENT_LABEL: &str = "Recent Meetings";
-const OPEN_LABEL: &str = "Open Roci";
+const OPEN_LABEL: &str = concat!("Open ", env!("APP_NAME"));
 const SETTINGS_LABEL: &str = "Settings…";
 const CHECK_UPDATES_LABEL: &str = "Check for Updates…";
-const QUIT_LABEL: &str = "Quit Roci";
-const APP_LABEL: &str = "Roci";
+const QUIT_LABEL: &str = concat!("Quit ", env!("APP_NAME"));
+const APP_LABEL: &str = env!("APP_NAME");
 
 /// Longest meeting title a row shows before it ends in an ellipsis.
 const TITLE_MAX_CHARS: usize = 40;

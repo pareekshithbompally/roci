@@ -9,8 +9,8 @@ import UniformTypeIdentifiers
 /// Core Spotlight needs an app bundle; without one every call reports `unsupported`.
 private let supported = Bundle.main.bundleURL.pathExtension == "app"
 
-/// Every Roci item lives in this domain, so `remove_all` clears only meetings.
-private let domain = "meetings"
+/// `<bundle id>.meetings`: every item lives here, so `remove_all` clears only meetings (only used inside a bundle).
+private let domain = "\(Bundle.main.bundleIdentifier ?? "app").meetings"
 
 private typealias OpenCallback = @convention(c) (UnsafePointer<CChar>) -> Void
 private typealias RestorationHandler = @convention(block) ([Any]?) -> Void

@@ -100,8 +100,9 @@ fn opencode_config_path() -> Result<PathBuf, String> {
     let jsonc = json.with_extension("jsonc");
     if !json.exists() && jsonc.exists() {
         return Err(format!(
-            "{} has comments, so Roci won't edit it. Add Roci by hand.",
-            jsonc.display()
+            "{} has comments, so {app} won't edit it. Add {app} by hand.",
+            jsonc.display(),
+            app = env!("APP_NAME")
         ));
     }
     Ok(json)
@@ -261,10 +262,10 @@ fn current_command() -> Option<String> {
 
 /// This binary, refused when macOS runs it from a randomized translocation path (Downloads, disk image).
 fn registrable_command() -> Result<String, String> {
-    let command = current_command().ok_or("Roci couldn't find its own location")?;
+    let command = current_command().ok_or(concat!(env!("APP_NAME"), " couldn't find its own location"))?;
     if command.contains("/AppTranslocation/") || command.starts_with("/Volumes/") {
         return Err(
-            "Move Roci to your Applications folder and open it from there, then add it.".into(),
+            concat!("Move ", env!("APP_NAME"), " to your Applications folder and open it from there, then add it.").into(),
         );
     }
     Ok(command)
@@ -351,12 +352,14 @@ fn read_json_object(path: &Path) -> Result<Option<Map<String, Value>>, String> {
     match serde_json::from_str(&text) {
         Ok(Value::Object(map)) => Ok(Some(map)),
         Ok(_) => Err(format!(
-            "{} isn't a JSON object, so Roci left it untouched.",
-            path.display()
+            "{} isn't a JSON object, so {app} left it untouched.",
+            path.display(),
+            app = env!("APP_NAME")
         )),
         Err(_) => Err(format!(
-            "{} isn't plain JSON (it may have comments), so Roci left it untouched. Add Roci by hand.",
-            path.display()
+            "{} isn't plain JSON (it may have comments), so {app} left it untouched. Add {app} by hand.",
+            path.display(),
+            app = env!("APP_NAME")
         )),
     }
 }
@@ -369,7 +372,7 @@ fn object_at<'a>(
     map.entry(key)
         .or_insert_with(|| Value::Object(Map::new()))
         .as_object_mut()
-        .ok_or_else(|| format!("\"{key}\" isn't an object, so Roci left the file untouched."))
+        .ok_or_else(|| format!("\"{key}\" isn't an object, so {} left the file untouched.", env!("APP_NAME")))
 }
 
 /// Read, change only what `edit` changes, write atomically; a symlinked config is edited at its target.

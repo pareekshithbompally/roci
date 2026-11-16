@@ -41,8 +41,8 @@ pub mod item {
     pub const NEXT_MEETING_RECORD_PREFIX: &str = "next_meeting_record:";
 }
 
-/// Default tooltip, mirroring `APP_CONFIG.tray.tooltip`.
-const DEFAULT_TOOLTIP: &str = "Roci";
+/// Default tooltip: the app name.
+const DEFAULT_TOOLTIP: &str = env!("APP_NAME");
 
 /// Bundled images (see `tauri.conf.json > bundle.resources`); the status menu draws the status item image 18 pt tall.
 const IDLE_ICON_RESOURCE: &str = "icons/iconTemplate@2x.png";

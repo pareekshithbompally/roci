@@ -15,6 +15,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2.7", features = [] }
 cc = "1"
+serde_json = "1.0"
 
 # Shared by every Apple target (macOS, iOS, iPadOS).
 [dependencies]
