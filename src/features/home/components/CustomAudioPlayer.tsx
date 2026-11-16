@@ -107,22 +107,22 @@ const CustomAudioPlayer: React.FC<CustomAudioPlayerProps> = ({ src, duration, me
 
   const effectiveDuration = wavesurfer ? wavesurfer.getDuration() : duration;
 
-  // Seek to stored position when the session matches and audio is ready
-  const storeCurrentTime = useAudioPlayerStore((s) => s.currentTime);
+  // Restore the stored position once per player; tracking it live would seek back on every timeupdate.
   useEffect(() => {
-    if (!wavesurfer || !isOwner || storeCurrentTime <= 0) return;
+    const storedTime = useAudioPlayerStore.getState().currentTime;
+    if (!wavesurfer || !isOwner || storedTime <= 0) return;
     const onReady = () => {
-      wavesurfer.setTime(storeCurrentTime);
+      wavesurfer.setTime(storedTime);
     };
     if (wavesurfer.getDuration() > 0) {
-      wavesurfer.setTime(storeCurrentTime);
+      wavesurfer.setTime(storedTime);
     } else {
       wavesurfer.once('ready', onReady);
       return () => {
         wavesurfer.un('ready', onReady);
       };
     }
-  }, [wavesurfer, isOwner, storeCurrentTime]);
+  }, [wavesurfer, isOwner]);
 
   // Persist playback position on unmount (only when this player owns the session)
   useEffect(() => {
