@@ -27,7 +27,8 @@ pub struct MeetingRow {
     pub id: String,
     pub title: String,
     pub input_source: Option<String>,
-    pub pending_transcription: bool,
+    #[serde(flatten)]
+    pub status: MeetingStatus,
     pub calendar_event_id: Option<String>,
     pub calendar_meta: Option<String>,
     pub created_at: i64,
@@ -36,18 +37,49 @@ pub struct MeetingRow {
     pub recording_filename: Option<String>,
 }
 
+/// Where a meeting is in its pipeline; `failed_step` and `error` are set only when `status` is `failed`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MeetingStatus {
+    pub status: String,
+    pub failed_step: Option<String>,
+    pub error: Option<String>,
+}
+
+impl MeetingStatus {
+    pub fn at(status: &str) -> Self {
+        Self { status: status.into(), failed_step: None, error: None }
+    }
+
+    pub fn failed(step: &str, error: impl Into<String>) -> Self {
+        Self { status: "failed".into(), failed_step: Some(step.into()), error: Some(error.into()) }
+    }
+}
+
+/// A new meeting, created before its pipeline starts (at Record, or by an import).
+#[derive(Debug, Deserialize)]
+pub struct MeetingCreateInput {
+    pub id: String,
+    pub title: String,
+    pub status: String,
+    pub input_source: Option<String>,
+    pub recording_filename: Option<String>,
+    pub calendar_event_id: Option<String>,
+    pub calendar_meta: Option<String>,
+    pub created_at: Option<i64>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MeetingListResult {
     pub items: Vec<MeetingRow>,
     pub total: i64,
 }
 
+/// A meeting update; only the fields given change.
 #[derive(Debug, Deserialize)]
 pub struct MeetingUpsertInput {
     pub id: String,
-    pub title: String,
+    pub title: Option<String>,
     pub input_source: Option<String>,
-    pub pending_transcription: Option<bool>,
     pub calendar_event_id: Option<String>,
     pub calendar_meta: Option<String>,
     pub categories: Option<Vec<String>>,
@@ -59,7 +91,8 @@ pub struct MeetingDetail {
     pub id: String,
     pub title: String,
     pub input_source: Option<String>,
-    pub pending_transcription: bool,
+    #[serde(flatten)]
+    pub status: MeetingStatus,
     pub calendar_event_id: Option<String>,
     pub calendar_meta: Option<String>,
     pub created_at: i64,
@@ -124,24 +157,25 @@ pub struct ActionItemInput {
     pub due_date: Option<String>,
 }
 
+/// A finished transcript; saving it moves the meeting to `transcribed`.
 #[derive(Debug, Deserialize)]
-pub struct TranscriptionSaveInput {
+pub struct TranscriptSaveInput {
+    pub meeting_id: String,
+    pub text: String,
+    pub language: Option<String>,
+    pub model: Option<String>,
+    pub segments: Option<String>,
+}
+
+/// A finished summary with its title, categories and action items; saving it moves the meeting to `ready`.
+#[derive(Debug, Deserialize)]
+pub struct SummarySaveInput {
     pub meeting_id: String,
     pub title: String,
-    pub transcript: String,
-    pub transcript_language: Option<String>,
-    pub transcript_model: Option<String>,
-    pub transcript_segments: Option<String>,
-    pub summary_overview: String,
-    pub summary_data: String,
-    pub categories: Option<Vec<String>>,
-    pub recording_filename: Option<String>,
-    pub recording_duration: Option<f64>,
-    pub recording_input_source: Option<String>,
-    pub input_source: Option<String>,
-    pub calendar_meta: Option<String>,
-    pub action_items: Option<Vec<ActionItemInput>>,
-    pub created_at: Option<i64>,
+    pub overview: String,
+    pub data: String,
+    pub categories: Vec<String>,
+    pub action_items: Vec<ActionItemInput>,
 }
 
 #[derive(Debug, Serialize)]
@@ -622,18 +656,18 @@ pub async fn meetings_list(
         )?;
 
         let mut stmt = db.prepare(
-            "SELECT m.id, m.title, m.input_source, m.pending_transcription,
+            "SELECT m.id, m.title, m.input_source, m.status, m.failed_step, m.error,
                     m.calendar_event_id, m.calendar_meta, m.created_at, m.updated_at
              FROM meetings m
              ORDER BY m.created_at DESC
              LIMIT ?1 OFFSET ?2",
         )?;
 
-        let meeting_rows: Vec<(String, String, Option<String>, bool, Option<String>, Option<String>, i64, i64)> = stmt
+        let meeting_rows: Vec<(String, String, Option<String>, MeetingStatus, Option<String>, Option<String>, i64, i64)> = stmt
             .query_map(rusqlite::params![limit, offset], |row| {
                 Ok((
-                    row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?,
-                    row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?,
+                    row.get(0)?, row.get(1)?, row.get(2)?, status_at(row, 3)?,
+                    row.get(6)?, row.get(7)?, row.get(8)?, row.get(9)?,
                 ))
             })?
             .filter_map(|r| r.ok())
@@ -655,14 +689,14 @@ pub async fn meetings_list(
 
         let items: Vec<MeetingRow> = meeting_rows
             .into_iter()
-            .map(|(id, title, input_source, pending, ceid, cmeta, cat, uat)| {
+            .map(|(id, title, input_source, status, ceid, cmeta, cat, uat)| {
                 let categories = category_map.get(&id).cloned().unwrap_or_default();
                 let rec_fn = rec_filenames.get(&id).and_then(|v| v.clone());
                 MeetingRow {
                     id,
                     title,
                     input_source,
-                    pending_transcription: pending,
+                    status,
                     calendar_event_id: ceid,
                     calendar_meta: cmeta,
                     created_at: cat,
@@ -679,16 +713,25 @@ pub async fn meetings_list(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
+/// The status columns starting at `first` (status, failed_step, error).
+fn status_at(row: &rusqlite::Row<'_>, first: usize) -> rusqlite::Result<MeetingStatus> {
+    Ok(MeetingStatus {
+        status: row.get(first)?,
+        failed_step: row.get(first + 1)?,
+        error: row.get(first + 2)?,
+    })
+}
+
 pub(crate) fn meetings_get_impl(db: &Connection, id: &str) -> Result<MeetingDetail, StoreError> {
-        let meeting: (String, String, Option<String>, bool, Option<String>, Option<String>, i64, i64) = db
+        let meeting: (String, String, Option<String>, MeetingStatus, Option<String>, Option<String>, i64, i64) = db
             .query_row(
-                "SELECT id, title, input_source, pending_transcription,
+                "SELECT id, title, input_source, status, failed_step, error,
                         calendar_event_id, calendar_meta, created_at, updated_at
                  FROM meetings WHERE id = ?1",
                 [&id],
                 |row| Ok((
-                    row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?,
-                    row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?,
+                    row.get(0)?, row.get(1)?, row.get(2)?, status_at(row, 3)?,
+                    row.get(6)?, row.get(7)?, row.get(8)?, row.get(9)?,
                 )),
             )
             .map_err(|_| StoreError::from("Meeting not found"))?;
@@ -771,7 +814,7 @@ pub(crate) fn meetings_get_impl(db: &Connection, id: &str) -> Result<MeetingDeta
             id: meeting.0,
             title: meeting.1,
             input_source: meeting.2,
-            pending_transcription: meeting.3,
+            status: meeting.3,
             calendar_event_id: meeting.4,
             calendar_meta: meeting.5,
             created_at: meeting.6,
@@ -812,20 +855,18 @@ fn meetings_upsert_impl(db: &Connection, input: &MeetingUpsertInput) -> Result<(
 
         let created_at = input.created_at.unwrap_or(now);
         tx.execute(
-            "INSERT INTO meetings (id, title, input_source, pending_transcription, calendar_event_id, calendar_meta, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+            "INSERT INTO meetings (id, title, input_source, calendar_event_id, calendar_meta, created_at, updated_at)
+             VALUES (?1, COALESCE(?2, ''), ?3, ?4, ?5, ?6, ?7)
              ON CONFLICT(id) DO UPDATE SET
-                title = excluded.title,
-                input_source = excluded.input_source,
-                pending_transcription = excluded.pending_transcription,
+                title = COALESCE(?2, meetings.title),
+                input_source = COALESCE(excluded.input_source, meetings.input_source),
                 calendar_event_id = COALESCE(excluded.calendar_event_id, meetings.calendar_event_id),
                 calendar_meta = COALESCE(excluded.calendar_meta, meetings.calendar_meta),
-                updated_at = ?8",
+                updated_at = ?7",
             rusqlite::params![
                 input.id,
                 input.title,
                 input.input_source,
-                input.pending_transcription.unwrap_or(false) as i32,
                 input.calendar_event_id,
                 input.calendar_meta,
                 created_at,
@@ -878,7 +919,7 @@ fn todo_meeting_id(db: &Connection, id: &str) -> Result<Option<String>, StoreErr
         .optional()?)
 }
 
-fn meetings_delete_impl(db: &Connection, id: &str) -> Result<MeetingsDeleteResult, StoreError> {
+pub(crate) fn meetings_delete_impl(db: &Connection, id: &str) -> Result<MeetingsDeleteResult, StoreError> {
         // Collect recording filenames BEFORE cascade deletes them
         let mut stmt = db.prepare("SELECT filename FROM recordings WHERE meeting_id = ?1")?;
         let filenames: Vec<String> = stmt
@@ -932,51 +973,48 @@ pub async fn meetings_delete(
     Ok(result)
 }
 
-fn save_transcription_impl(db: &Connection, input: &TranscriptionSaveInput) -> Result<(), StoreError> {
-        let now = now_millis();
-        let created_at = input.created_at.unwrap_or(now);
-
+pub(crate) fn meetings_create_impl(db: &Connection, input: &MeetingCreateInput) -> Result<(), StoreError> {
+        let created_at = input.created_at.unwrap_or_else(now_millis);
         let tx = db.unchecked_transaction()?;
-
-        // 1. Upsert meeting
-        let pending: i32 = 0; // transcription complete → not pending
-        let is_new: bool = tx.query_row(
-            "SELECT COUNT(*) FROM meetings WHERE id = ?1",
-            [&input.meeting_id],
-            |row| row.get::<_, i64>(0),
-        ).map(|c| c == 0)?;
-
         tx.execute(
-            "INSERT INTO meetings (id, title, input_source, pending_transcription, calendar_event_id, calendar_meta, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
-             ON CONFLICT(id) DO UPDATE SET
-                title = excluded.title,
-                input_source = excluded.input_source,
-                pending_transcription = excluded.pending_transcription,
-                calendar_event_id = COALESCE(excluded.calendar_event_id, meetings.calendar_event_id),
-                calendar_meta = COALESCE(excluded.calendar_meta, meetings.calendar_meta),
-                updated_at = ?8",
+            "INSERT INTO meetings (id, title, status, input_source, calendar_event_id, calendar_meta, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)",
             rusqlite::params![
-                input.meeting_id,
+                input.id,
                 input.title,
+                input.status,
                 input.input_source,
-                pending,
-                None::<String>,  // calendar_event_id: never supplied here; COALESCE above preserves any existing value
+                input.calendar_event_id,
                 input.calendar_meta,
                 created_at,
-                now,
             ],
         )?;
-
-        // 2. Categories
-        if let Some(cat_names) = &input.categories {
-            if !cat_names.is_empty() {
-                let cat_ids = upsert_categories(&tx, cat_names, now)?;
-                sync_meeting_categories(&tx, &input.meeting_id, &cat_ids)?;
-            }
+        if let Some(filename) = &input.recording_filename {
+            tx.execute(
+                "INSERT INTO recordings (id, meeting_id, filename, input_source, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                rusqlite::params![generate_id(), input.id, filename, input.input_source, created_at],
+            )?;
         }
+        write_audit_log(&tx, "meeting", &input.id, "create", None)?;
+        tx.commit()?;
+        Ok(())
+}
 
-        // 3. Transcript
+pub(crate) fn meetings_set_status_impl(db: &Connection, id: &str, status: &MeetingStatus) -> Result<(), StoreError> {
+        let changed = db.execute(
+            "UPDATE meetings SET status = ?2, failed_step = ?3, error = ?4, updated_at = ?5 WHERE id = ?1",
+            rusqlite::params![id, status.status, status.failed_step, status.error, now_millis()],
+        )?;
+        if changed == 0 {
+            return Err(StoreError::from("Meeting not found"));
+        }
+        Ok(())
+}
+
+fn transcripts_save_impl(db: &Connection, input: &TranscriptSaveInput) -> Result<(), StoreError> {
+        let now = now_millis();
+        let tx = db.unchecked_transaction()?;
         tx.execute(
             "INSERT INTO transcripts (meeting_id, text, language, model, segments, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)
@@ -985,98 +1023,92 @@ fn save_transcription_impl(db: &Connection, input: &TranscriptionSaveInput) -> R
                 language = excluded.language,
                 model = excluded.model,
                 segments = excluded.segments",
-            rusqlite::params![
-                input.meeting_id,
-                input.transcript,
-                input.transcript_language,
-                input.transcript_model,
-                input.transcript_segments,
-                created_at,
-            ],
+            rusqlite::params![input.meeting_id, input.text, input.language, input.model, input.segments, now],
         )?;
+        meetings_set_status_impl(&tx, &input.meeting_id, &MeetingStatus::at("transcribed"))?;
+        write_audit_log(&tx, "meeting", &input.meeting_id, "update", None)?;
+        tx.commit()?;
+        Ok(())
+}
 
-        // 4. Summary
+fn summaries_save_impl(db: &Connection, input: &SummarySaveInput) -> Result<(), StoreError> {
+        let now = now_millis();
+        let tx = db.unchecked_transaction()?;
         tx.execute(
             "INSERT INTO summaries (meeting_id, overview, data, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5)
+             VALUES (?1, ?2, ?3, ?4, ?4)
              ON CONFLICT(meeting_id) DO UPDATE SET
                 overview = excluded.overview,
                 data = excluded.data,
-                updated_at = ?5",
-            rusqlite::params![
-                input.meeting_id,
-                input.summary_overview,
-                input.summary_data,
-                created_at,
-                now,
-            ],
+                updated_at = ?4",
+            rusqlite::params![input.meeting_id, input.overview, input.data, now],
         )?;
-
-        // 5. Recording (optional)
-        if let Some(ref filename) = input.recording_filename {
+        tx.execute(
+            "UPDATE meetings SET title = ?2 WHERE id = ?1 AND ?2 <> ''",
+            rusqlite::params![input.meeting_id, input.title],
+        )?;
+        if !input.categories.is_empty() {
+            let cat_ids = upsert_categories(&tx, &input.categories, now)?;
+            sync_meeting_categories(&tx, &input.meeting_id, &cat_ids)?;
+        }
+        for item in &input.action_items {
             tx.execute(
-                "INSERT INTO recordings (id, meeting_id, filename, duration_seconds, input_source, created_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                rusqlite::params![
-                    generate_id(),
-                    input.meeting_id,
-                    filename,
-                    input.recording_duration,
-                    input.recording_input_source,
-                    created_at,
-                ],
+                "INSERT INTO todos (id, meeting_id, text, owner, due_date, completed, source, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, 0, 'ai', ?6)",
+                rusqlite::params![generate_id(), input.meeting_id, item.text, item.owner, item.due_date, now],
             )?;
         }
-
-        // 6. Action items → todos (AI-sourced)
-        if let Some(action_items) = &input.action_items {
-            for item in action_items {
-                tx.execute(
-                    "INSERT INTO todos (id, meeting_id, text, owner, due_date, completed, source, created_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5, 0, 'ai', ?6)",
-                    rusqlite::params![
-                        generate_id(),
-                        input.meeting_id,
-                        item.text,
-                        item.owner,
-                        item.due_date,
-                        created_at,
-                    ],
-                )?;
-            }
-        }
-
-        // 7. Audit log
-        let op = if is_new { "create" } else { "update" };
-        write_audit_log(&tx, "meeting", &input.meeting_id, op, None)?;
-
+        meetings_set_status_impl(&tx, &input.meeting_id, &MeetingStatus::at("ready"))?;
+        write_audit_log(&tx, "meeting", &input.meeting_id, "update", None)?;
         tx.commit()?;
-
         log::info!(
-            "[store] Saved transcription for meeting {}: action_items={}, categories={:?}",
+            "[store] Saved summary for meeting {}: action_items={}",
             input.meeting_id,
-            input.action_items.as_ref().map_or(0, |a| a.len()),
-            input.categories,
+            input.action_items.len(),
         );
         Ok(())
 }
 
-#[tauri::command]
-pub async fn save_transcription(
-    state: State<'_, StoreState>,
-    input: TranscriptionSaveInput,
-) -> Result<(), StoreError> {
-    let meeting_id = input.meeting_id.clone();
+/// Runs `write` on the open database off the async runtime, then announces the meeting change.
+async fn write_meeting<F>(state: &StoreState, meeting_id: String, write: F) -> Result<(), StoreError>
+where
+    F: FnOnce(&Connection) -> Result<(), StoreError> + Send + 'static,
+{
     let conn_arc = Arc::clone(&state.conn);
     tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        save_transcription_impl(db, &input)
+        write(db)
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))??;
     notify(MeetingChange::Saved(meeting_id));
     Ok(())
+}
+
+#[tauri::command]
+pub async fn meetings_create(state: State<'_, StoreState>, input: MeetingCreateInput) -> Result<(), StoreError> {
+    write_meeting(&state, input.id.clone(), move |db| meetings_create_impl(db, &input)).await
+}
+
+#[tauri::command]
+pub async fn meetings_set_status(
+    state: State<'_, StoreState>,
+    id: String,
+    status: MeetingStatus,
+) -> Result<(), StoreError> {
+    let target = id.clone();
+    write_meeting(&state, id, move |db| meetings_set_status_impl(db, &target, &status)).await
+}
+
+#[tauri::command]
+pub async fn transcripts_save(state: State<'_, StoreState>, input: TranscriptSaveInput) -> Result<(), StoreError> {
+    write_meeting(&state, input.meeting_id.clone(), move |db| transcripts_save_impl(db, &input)).await
+}
+
+#[tauri::command]
+pub async fn summaries_save(state: State<'_, StoreState>, input: SummarySaveInput) -> Result<(), StoreError> {
+    write_meeting(&state, input.meeting_id.clone(), move |db| summaries_save_impl(db, &input)).await
 }
 
 // ── Recording Commands ──
@@ -2621,6 +2653,54 @@ pub async fn insert_usage(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
+/// One AI call made for a meeting (transcription, summary), newest first.
+#[derive(Debug, Serialize)]
+pub struct MeetingUsageRow {
+    pub category: String,
+    pub provider: String,
+    pub model: String,
+    pub input_tokens: i64,
+    pub output_tokens: i64,
+    pub estimated_cost: f64,
+    pub timestamp: i64,
+}
+
+fn meeting_usage_impl(db: &Connection, meeting_id: &str) -> Result<Vec<MeetingUsageRow>, StoreError> {
+    let mut stmt = db.prepare(
+        "SELECT category, provider, model, input_tokens, output_tokens, COALESCE(estimated_cost, 0), timestamp
+         FROM usage_log WHERE session_id = ?1 ORDER BY timestamp DESC",
+    )?;
+    let rows = stmt
+        .query_map([meeting_id], |row| {
+            Ok(MeetingUsageRow {
+                category: row.get(0)?,
+                provider: row.get(1)?,
+                model: row.get(2)?,
+                input_tokens: row.get(3)?,
+                output_tokens: row.get(4)?,
+                estimated_cost: row.get(5)?,
+                timestamp: row.get(6)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows)
+}
+
+#[tauri::command]
+pub async fn get_meeting_usage(
+    state: State<'_, StoreState>,
+    meeting_id: String,
+) -> Result<Vec<MeetingUsageRow>, StoreError> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
+        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+        meeting_usage_impl(db, &meeting_id)
+    })
+    .await
+    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+}
+
 #[tauri::command]
 pub async fn get_usage_summary(
     state: State<'_, StoreState>,
@@ -3016,9 +3096,8 @@ mod tests {
             conn,
             &MeetingUpsertInput {
                 id: id.to_string(),
-                title: "Seed".into(),
+                title: Some("Seed".into()),
                 input_source: None,
-                pending_transcription: None,
                 calendar_event_id: None,
                 calendar_meta: None,
                 categories: None,
@@ -3219,165 +3298,158 @@ mod tests {
 
     // ── Meetings ──────────────────────────────────────────────────────
 
-    #[test]
-    fn meetings_upsert_get_roundtrip_with_categories() {
-        let conn = db();
-        meetings_upsert_impl(
-            &conn,
-            &MeetingUpsertInput {
-                id: "m1".into(),
-                title: "Standup".into(),
-                input_source: Some("mic".into()),
-                pending_transcription: Some(true),
-                calendar_event_id: None,
-                calendar_meta: None,
-                categories: Some(vec!["work".into(), "team".into()]),
-                created_at: Some(1234),
-            },
-        )
-        .unwrap();
-
-        let detail = meetings_get_impl(&conn, "m1").expect("get ok");
-        assert_eq!(detail.title, "Standup");
-        assert_eq!(detail.pending_transcription, true);
-        assert_eq!(detail.created_at, 1234);
-        assert_eq!(detail.categories, vec!["team".to_string(), "work".to_string()]);
-
-        // Missing meeting → error.
-        assert_eq!(meetings_get_impl(&conn, "nope").unwrap_err().message, "Meeting not found");
-    }
-
-    // ── save_transcription atomicity ─────────────────────────────────
-
-    fn transcription_input(meeting_id: &str) -> TranscriptionSaveInput {
-        TranscriptionSaveInput {
-            meeting_id: meeting_id.to_string(),
-            title: "Recorded call".into(),
-            transcript: "hello world".into(),
-            transcript_language: Some("en".into()),
-            transcript_model: Some("whisper-1".into()),
-            transcript_segments: None,
-            summary_overview: "An overview".into(),
-            summary_data: "{}".into(),
-            categories: Some(vec!["sales".into()]),
-            recording_filename: Some("rec.wav".into()),
-            recording_duration: Some(12.5),
-            recording_input_source: Some("mix".into()),
-            input_source: Some("mix".into()),
+    fn update(id: &str) -> MeetingUpsertInput {
+        MeetingUpsertInput {
+            id: id.into(),
+            title: None,
+            input_source: None,
+            calendar_event_id: None,
             calendar_meta: None,
-            action_items: Some(vec![
-                ActionItemInput { text: "Follow up".into(), owner: Some("bob".into()), due_date: None },
-                ActionItemInput { text: "Send notes".into(), owner: None, due_date: Some("2026-01-01".into()) },
-            ]),
-            created_at: Some(5000),
+            categories: None,
+            created_at: None,
         }
     }
 
-    #[test]
-    fn save_transcription_persists_all_children() {
-        let conn = db();
-        save_transcription_impl(&conn, &transcription_input("m1")).expect("save ok");
-
-        assert_eq!(count(&conn, "SELECT COUNT(*) FROM meetings WHERE id = ?1", "m1"), 1);
-        assert_eq!(count(&conn, "SELECT COUNT(*) FROM transcripts WHERE meeting_id = ?1", "m1"), 1);
-        assert_eq!(count(&conn, "SELECT COUNT(*) FROM summaries WHERE meeting_id = ?1", "m1"), 1);
-        assert_eq!(
-            count(&conn, "SELECT COUNT(*) FROM todos WHERE meeting_id = ?1", "m1"),
-            2,
-            "both action items become todos"
-        );
-        let ai_count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM todos WHERE meeting_id = 'm1' AND source = 'ai'", [], |r| r.get(0))
-            .unwrap();
-        assert_eq!(ai_count, 2);
-
-        let cat_count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM meeting_categories WHERE meeting_id = 'm1'", [], |r| r.get(0))
-            .unwrap();
-        assert_eq!(cat_count, 1, "category linked");
-        assert_eq!(count(&conn, "SELECT COUNT(*) FROM recordings WHERE meeting_id = ?1", "m1"), 1);
-    }
-
-    /// Calendar linkage survives a rename and save_transcription, neither of which sends calendar fields.
-    #[test]
-    fn calendar_linkage_survives_rename_and_save_transcription() {
-        let conn = db();
-
-        // Meeting created from a calendar event.
-        meetings_upsert_impl(
-            &conn,
-            &MeetingUpsertInput {
-                id: "m1".into(),
-                title: "Standup".into(),
-                input_source: None,
-                pending_transcription: None,
+    fn create_recording(conn: &Connection, id: &str) {
+        meetings_create_impl(
+            conn,
+            &MeetingCreateInput {
+                id: id.into(),
+                title: "Recording".into(),
+                status: "recording".into(),
+                input_source: Some("systemAndMicrophone".into()),
+                recording_filename: Some(format!("{id}.wav")),
                 calendar_event_id: Some("evt-123".into()),
                 calendar_meta: Some(r#"{"scheduledTitle":"Standup"}"#.into()),
-                categories: None,
-                created_at: None,
+                created_at: Some(1234),
             },
         )
-        .expect("create with calendar linkage");
+        .expect("create meeting");
+    }
 
-        // Plain rename — no calendar fields supplied.
-        meetings_upsert_impl(
-            &conn,
-            &MeetingUpsertInput {
-                id: "m1".into(),
-                title: "Renamed".into(),
-                input_source: None,
-                pending_transcription: None,
-                calendar_event_id: None,
-                calendar_meta: None,
-                categories: None,
-                created_at: None,
-            },
-        )
-        .expect("rename");
+    fn transcript(meeting_id: &str) -> TranscriptSaveInput {
+        TranscriptSaveInput {
+            meeting_id: meeting_id.into(),
+            text: "hello world".into(),
+            language: Some("en".into()),
+            model: Some("whisper-1".into()),
+            segments: None,
+        }
+    }
 
-        let (evt, meta): (Option<String>, Option<String>) = conn
-            .query_row(
-                "SELECT calendar_event_id, calendar_meta FROM meetings WHERE id = 'm1'",
-                [],
-                |r| Ok((r.get(0)?, r.get(1)?)),
-            )
-            .unwrap();
-        assert_eq!(evt.as_deref(), Some("evt-123"), "rename must preserve calendar_event_id");
-        assert!(meta.is_some(), "rename must preserve calendar_meta");
+    fn summary(meeting_id: &str) -> SummarySaveInput {
+        SummarySaveInput {
+            meeting_id: meeting_id.into(),
+            title: "Recorded call".into(),
+            overview: "An overview".into(),
+            data: "{}".into(),
+            categories: vec!["sales".into()],
+            action_items: vec![
+                ActionItemInput { text: "Follow up".into(), owner: Some("bob".into()), due_date: None },
+                ActionItemInput { text: "Send notes".into(), owner: None, due_date: Some("2026-01-01".into()) },
+            ],
+        }
+    }
 
-        // save_transcription supplies no calendar_event_id — must preserve existing linkage.
-        save_transcription_impl(&conn, &transcription_input("m1")).expect("save transcription");
-        let evt2: Option<String> = conn
-            .query_row("SELECT calendar_event_id FROM meetings WHERE id = 'm1'", [], |r| r.get(0))
-            .unwrap();
+    fn status_of(conn: &Connection, id: &str) -> MeetingStatus {
+        meetings_get_impl(conn, id).expect("get ok").status
+    }
+
+    #[test]
+    fn meeting_created_at_record_has_its_recording_and_status() {
+        let conn = db();
+        create_recording(&conn, "m1");
+
+        let detail = meetings_get_impl(&conn, "m1").expect("get ok");
+        assert_eq!(detail.status, MeetingStatus::at("recording"));
+        assert_eq!(detail.created_at, 1234);
+        assert_eq!(detail.recordings.len(), 1);
+        assert_eq!(detail.recordings[0].filename, "m1.wav");
+        assert_eq!(meetings_get_impl(&conn, "nope").unwrap_err().message, "Meeting not found");
+    }
+
+    #[test]
+    fn partial_update_changes_only_given_fields() {
+        let conn = db();
+        create_recording(&conn, "m1");
+
+        meetings_upsert_impl(&conn, &MeetingUpsertInput { title: Some("Renamed".into()), ..update("m1") })
+            .expect("rename");
+
+        let detail = meetings_get_impl(&conn, "m1").unwrap();
+        assert_eq!(detail.title, "Renamed");
+        assert_eq!(detail.input_source.as_deref(), Some("systemAndMicrophone"));
+        assert_eq!(detail.calendar_event_id.as_deref(), Some("evt-123"));
+        assert!(detail.calendar_meta.is_some());
+        assert_eq!(detail.status, MeetingStatus::at("recording"));
+
+        meetings_upsert_impl(&conn, &MeetingUpsertInput { categories: Some(vec!["work".into()]), ..update("m1") })
+            .expect("categorise");
+        assert_eq!(meetings_get_impl(&conn, "m1").unwrap().title, "Renamed");
+    }
+
+    #[test]
+    fn status_moves_through_the_pipeline() {
+        let conn = db();
+        create_recording(&conn, "m1");
+
+        meetings_set_status_impl(&conn, "m1", &MeetingStatus::at("captured")).unwrap();
+        assert_eq!(status_of(&conn, "m1"), MeetingStatus::at("captured"));
+
+        meetings_set_status_impl(&conn, "m1", &MeetingStatus::failed("transcribe", "no key")).unwrap();
+        assert_eq!(status_of(&conn, "m1"), MeetingStatus::failed("transcribe", "no key"));
+
+        transcripts_save_impl(&conn, &transcript("m1")).unwrap();
+        assert_eq!(status_of(&conn, "m1"), MeetingStatus::at("transcribed"), "saving the transcript clears the failure");
+
+        summaries_save_impl(&conn, &summary("m1")).unwrap();
+        let detail = meetings_get_impl(&conn, "m1").unwrap();
+        assert_eq!(detail.status, MeetingStatus::at("ready"));
+        assert_eq!(detail.title, "Recorded call");
+        assert_eq!(detail.categories, vec!["sales".to_string()]);
+        assert_eq!(detail.todos.len(), 2);
+        assert!(detail.todos.iter().all(|t| t.source == "ai"));
+        assert_eq!(detail.calendar_event_id.as_deref(), Some("evt-123"));
+
         assert_eq!(
-            evt2.as_deref(),
-            Some("evt-123"),
-            "save_transcription must preserve calendar_event_id"
+            meetings_set_status_impl(&conn, "nope", &MeetingStatus::at("ready")).unwrap_err().message,
+            "Meeting not found"
         );
     }
 
     #[test]
-    fn save_transcription_rolls_back_fully_on_failure() {
+    fn failed_summary_keeps_the_transcript() {
         let conn = db();
+        create_recording(&conn, "m1");
+        transcripts_save_impl(&conn, &transcript("m1")).unwrap();
 
-        // Abort at the summary insert, after the meeting and transcript writes; nothing may persist.
         conn.execute_batch(
             "CREATE TRIGGER fail_on_summary BEFORE INSERT ON summaries BEGIN
                  SELECT RAISE(ABORT, 'forced failure');
              END;",
         )
         .unwrap();
-
-        let err = save_transcription_impl(&conn, &transcription_input("m1")).unwrap_err();
+        let err = summaries_save_impl(&conn, &summary("m1")).unwrap_err();
         assert!(err.message.contains("forced failure"), "got: {}", err.message);
 
-        // Full rollback: nothing for m1 persisted.
-        assert_eq!(count(&conn, "SELECT COUNT(*) FROM meetings WHERE id = ?1", "m1"), 0);
-        assert_eq!(count(&conn, "SELECT COUNT(*) FROM transcripts WHERE meeting_id = ?1", "m1"), 0);
-        assert_eq!(count(&conn, "SELECT COUNT(*) FROM summaries WHERE meeting_id = ?1", "m1"), 0);
+        assert_eq!(count(&conn, "SELECT COUNT(*) FROM transcripts WHERE meeting_id = ?1", "m1"), 1);
         assert_eq!(count(&conn, "SELECT COUNT(*) FROM todos WHERE meeting_id = ?1", "m1"), 0);
-        assert_eq!(count(&conn, "SELECT COUNT(*) FROM recordings WHERE meeting_id = ?1", "m1"), 0);
+        assert_eq!(status_of(&conn, "m1"), MeetingStatus::at("transcribed"));
+    }
+
+    #[test]
+    fn meeting_usage_lists_only_that_meeting_newest_first() {
+        let conn = db();
+        for (id, session, category, ts) in [("u1", "m1", "transcription", 1), ("u2", "m1", "summary", 2), ("u3", "m2", "summary", 3)] {
+            conn.execute(
+                "INSERT INTO usage_log (id, timestamp, category, session_id, provider, model, input_tokens, output_tokens)
+                 VALUES (?1, ?2, ?3, ?4, 'openai', 'gpt', 10, 5)",
+                rusqlite::params![id, ts, category, session],
+            )
+            .unwrap();
+        }
+        let rows = meeting_usage_impl(&conn, "m1").unwrap();
+        assert_eq!(rows.iter().map(|r| r.category.as_str()).collect::<Vec<_>>(), vec!["summary", "transcription"]);
     }
 
     // ── meetings_delete cascade ───────────────────────────────────────
@@ -3385,7 +3457,9 @@ mod tests {
     #[test]
     fn meetings_delete_cascades_children_keeps_chat() {
         let conn = db();
-        save_transcription_impl(&conn, &transcription_input("m1")).unwrap();
+        create_recording(&conn, "m1");
+        transcripts_save_impl(&conn, &transcript("m1")).unwrap();
+        summaries_save_impl(&conn, &summary("m1")).unwrap();
 
         // Add a note, a chunk + index_state, and a chat linked to the meeting.
         seed_note(&conn, "n1", "m1");
@@ -3413,7 +3487,7 @@ mod tests {
         .unwrap();
 
         let result = meetings_delete_impl(&conn, "m1").expect("delete ok");
-        assert_eq!(result.recording_filenames, vec!["rec.wav".to_string()]);
+        assert_eq!(result.recording_filenames, vec!["m1.wav".to_string()]);
 
         for (table, col) in [
             ("transcripts", "meeting_id"),

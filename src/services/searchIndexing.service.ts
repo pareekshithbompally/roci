@@ -68,7 +68,7 @@ function toHistoryItem(detail: MeetingDetail): HistoryItem {
     timestamp: Date.parse(detail.index.createdAt) || Date.now(),
     recordingFileName: detail.recording?.filename ?? detail.index.recordingFileName,
     inputSource,
-    pendingTranscription: detail.index.pendingTranscription,
+    status: detail.index.status,
     transcript: detail.transcript?.text ?? '',
     summary: formatMeetingSummary(detail.summary),
     structuredSummary: detail.summary ? {

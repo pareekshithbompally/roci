@@ -8,7 +8,8 @@ export const ICON_STROKE_WIDTH = 1.5;
 
 export type IconSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
-const SIZE_TO_PX: Record<IconSize, number> = {
+/** Pixel edge per icon size; other glyph-like images (app icons) size from the same scale. */
+export const ICON_SIZE_PX: Record<IconSize, number> = {
   xs: UI_CONFIG.size.icon.xsmall,
   sm: UI_CONFIG.size.icon.small,
   md: UI_CONFIG.size.icon.medium,
@@ -31,7 +32,7 @@ export interface IconProps {
 export function Icon({ icon: IconComponent, size = 'md', tone = 'inherit', strokeWidth = ICON_STROKE_WIDTH, className, label }: IconProps) {
   return (
     <IconComponent
-      size={SIZE_TO_PX[size]}
+      size={ICON_SIZE_PX[size]}
       strokeWidth={strokeWidth}
       className={cn(TONE_CLASSES[tone], className)}
       aria-hidden={label ? undefined : true}

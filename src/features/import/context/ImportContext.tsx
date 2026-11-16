@@ -15,8 +15,8 @@ interface ImportContextValue {
 const ImportContext = createContext<ImportContextValue | null>(null);
 
 export const ImportProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { settings, providers } = useSettings();
-  const { loadHistory, categories } = useHistoryData();
+  const { settings } = useSettings();
+  const { loadHistory } = useHistoryData();
 
   const serviceRef = useRef<ImportService | null>(null);
 
@@ -41,12 +41,12 @@ export const ImportProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   }, [settings.jobProcessing]);
 
   const importAudio = useCallback(async () => {
-    await serviceRef.current?.importAudio(settings, providers, categories);
-  }, [settings, providers, categories]);
+    await serviceRef.current?.importAudio();
+  }, []);
 
   const importTranscripts = useCallback(async () => {
-    await serviceRef.current?.importTranscripts(settings, providers, categories);
-  }, [settings, providers, categories]);
+    await serviceRef.current?.importTranscripts();
+  }, []);
 
   const cancelJob = useCallback((id: string) => {
     serviceRef.current?.cancelJob(id);

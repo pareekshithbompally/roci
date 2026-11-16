@@ -42,18 +42,23 @@ describe('store invoke arg shapes match Rust command signatures', () => {
     expect(typeof args.input.data).toBe('string');
   });
 
-  it('meetings.upsert and saveTranscription wrap payloads in `input`', async () => {
+  it('meeting writes wrap payloads in `input`; a partial update sends null for fields not given', async () => {
     const { meetings } = await import('@services/db/domains/meetings');
-    await meetings.upsert({ id: 'm1', title: 'Standup' });
-    await meetings.saveTranscription({
+    await meetings.create({ id: 'm1', title: 'Standup', status: 'captured', recordingFilename: 'm1.wav' });
+    await meetings.upsert({ id: 'm1', title: 'Renamed' });
+    await meetings.saveTranscript({ meetingId: 'm1', text: 'hello' });
+    await meetings.saveSummary({
       meetingId: 'm1',
       title: 'Standup',
-      transcript: 'hello',
-      summaryOverview: 'ov',
-      summaryData: '{}',
+      categories: [],
+      summary: { overview: 'ov', keyDiscussionPoints: [], decisionsMade: [], actionItems: [{ text: 'ship' }], nextSteps: [] },
     });
-    expect(callsFor('meetings_upsert')[0]).toMatchObject({ input: { id: 'm1' } });
-    expect(callsFor('save_transcription')[0]).toMatchObject({ input: { meeting_id: 'm1' } });
+    await meetings.setStatus('m1', { status: 'failed', failedStep: 'summarize', error: 'quota' });
+    expect(callsFor('meetings_create')[0]).toMatchObject({ input: { id: 'm1', status: 'captured', recording_filename: 'm1.wav' } });
+    expect(callsFor('meetings_upsert')[0]).toMatchObject({ input: { id: 'm1', title: 'Renamed', input_source: null, categories: null } });
+    expect(callsFor('transcripts_save')[0]).toMatchObject({ input: { meeting_id: 'm1', text: 'hello' } });
+    expect(callsFor('summaries_save')[0]).toMatchObject({ input: { meeting_id: 'm1', action_items: [{ text: 'ship', owner: null, due_date: null }] } });
+    expect(callsFor('meetings_set_status')[0]).toEqual({ id: 'm1', status: { status: 'failed', failed_step: 'summarize', error: 'quota' } });
   });
 
   it('recordings/notes/todos/chats upserts wrap payloads in `input`', async () => {

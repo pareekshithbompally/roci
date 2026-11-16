@@ -4,14 +4,12 @@ import React, { ReactNode, Component, ErrorInfo } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@shared/contexts/ThemeContext';
 import { ToastProvider } from '@shared/contexts/ToastContext';
-import { SettingsProvider, useSettings } from '@shared/contexts/SettingsContext';
-import { HistoryProvider, useHistory } from '@shared/contexts/HistoryContext';
+import { SettingsProvider } from '@shared/contexts/SettingsContext';
+import { HistoryProvider } from '@shared/contexts/HistoryContext';
 import { ChatProvider } from '@shared/contexts/ChatContext';
-import { RecordingProvider } from '@features/recording';
 import { ImportProvider } from '@features/import';
 import { queryClient } from '@shared/query/queryClient';
 import { Surface, Text, TooltipProvider } from '@shared/ui';
-import { useAppActions } from '@shared/stores/appStore';
 
 /** Error boundary that shows render errors instead of a blank window. */
 interface ErrorBoundaryState {
@@ -59,23 +57,6 @@ interface AppProvidersProps {
   children: ReactNode;
 }
 
-/** Injects Settings, History, App and Toast context dependencies into RecordingProvider. */
-const RecordingProviderWrapper: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const settingsContext = useSettings();
-  const historyContext = useHistory();
-  const appContext = useAppActions();
-
-  return (
-    <RecordingProvider
-      settingsContext={settingsContext}
-      historyContext={historyContext}
-      appContext={appContext}
-    >
-      {children}
-    </RecordingProvider>
-  );
-};
-
 /** Wrap the app root with this to enable every context provider. */
 export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
   return (
@@ -88,9 +69,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
                 <HistoryProvider>
                   <ImportProvider>
                     <ChatProvider>
-                      <RecordingProviderWrapper>
-                        {children}
-                      </RecordingProviderWrapper>
+                      {children}
                     </ChatProvider>
                   </ImportProvider>
                 </HistoryProvider>

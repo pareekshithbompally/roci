@@ -19,6 +19,8 @@ export async function analyzeTranscript(args: {
   meetingContext?: MeetingContext;
   /** The meeting this summary belongs to, for the usage row. */
   meetingId?: string;
+  /** Cancels the request. */
+  signal?: AbortSignal;
 }): Promise<AnalysisResult> {
   const config = buildTranscriptionRequest({
     categories: args.categories,
@@ -33,6 +35,7 @@ export async function analyzeTranscript(args: {
     instructions: config.prompt,
     prompt: `Transcript:\n${excerptTranscript(args.transcript, budget)}`,
     output: Output.object({ schema: jsonSchema(config.outputSchema!.schema) }),
+    abortSignal: args.signal,
   });
 
   // Known-window models get an excerpt when needed; if it still doesn't fit, one shorter try.

@@ -77,6 +77,26 @@ export function focusChatComposer(): void {
   if (selectedHistoryId) setMeetingChatOpen(true);
 }
 
+/** The meeting chat full screen: the same chat, now the selected one in the sidebar (or the home composer if unsent). */
+export function expandMeetingChat(): void {
+  const app = useAppStore.getState();
+  const { currentSessionId } = useChatStore.getState();
+  app.setMeetingChatOpen(false);
+  app.setCurrentView('home');
+  app.setSelectedHistoryId(null);
+  app.setResult(null);
+  app.setStatus(currentSessionId ? AppStatus.CHAT : AppStatus.IDLE);
+}
+
+/** Closes the meeting chat; an unsent draft (and its meeting chip) goes with it. */
+export function closeMeetingChat(): void {
+  useAppStore.getState().setMeetingChatOpen(false);
+  const chat = useChatStore.getState();
+  if (chat.currentSessionId) return;
+  chat.newChat();
+  chat.setSelectedMeetingRefs([]);
+}
+
 /** Send a question in a fresh chat on home (the home composer, `kasset://ask`). */
 export function askInNewChat(text: string): void {
   startNewChat();
@@ -129,6 +149,8 @@ export interface ChatStoreState {
   debouncedSearchQuery: string;
   copiedMessageId: string | null;
   selectedMeetingRefs: MeetingListItem[];
+  /** The meeting a not-yet-sent chat belongs to (meeting chat); the first message saves the chat linked to it. */
+  draftMeetingId: string | null;
   webSearchEnabled: boolean;
   /** The thinking level picked before a new chat exists; the chat keeps it once created. */
   draftReasoningEffort: ReasoningEffort;
@@ -162,7 +184,8 @@ export interface ChatStoreState {
   removeAttachment: (index: number) => void;
   clearAttachments: () => void;
   addScreenshotAttachment: (base64: string, name: string) => void;
-  getOrCreateMeetingSession: (meetingId: string, meetingTitle: string) => void;
+  /** A fresh, unsaved chat about `meeting`, with the meeting attached as context. */
+  startMeetingChat: (meeting: MeetingListItem) => void;
   loadMoreSessions: () => void;
   /** Persist a session to disk and update store atomically */
   persistSession: (session: ChatSession) => Promise<void>;
@@ -196,6 +219,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
   debouncedSearchQuery: '',
   copiedMessageId: null,
   selectedMeetingRefs: [],
+  draftMeetingId: null,
   webSearchEnabled: false,
   draftReasoningEffort: 'provider-default',
   aiActivity: null,
@@ -242,6 +266,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
 
   newChat: () =>
     set({
+      draftMeetingId: null,
       currentSessionId: null,
       draftReasoningEffort: 'provider-default',
       input: '',
@@ -408,54 +433,21 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
       return { pendingAttachments: [...state.pendingAttachments, part] };
     }),
 
-  getOrCreateMeetingSession: (meetingId, meetingTitle) => {
-    const { loadedSessions } = get();
-    for (const [, session] of loadedSessions) {
-      if (session.meetingId === meetingId) {
-        set({ currentSessionId: session.id, viewHistory: false });
-        return;
-      }
-    }
-
-    const newSession: ChatSession = {
-      id: Date.now().toString(),
-      title: `Chat: ${meetingTitle}`,
-      lastMessageAt: Date.now(),
-      messages: [],
-      meetingId,
-    };
-
-    const next = new Map(loadedSessions);
-    next.set(newSession.id, newSession);
-    loadedSessionsCache = next;
-
-    set((state) => ({
-      loadedSessions: next,
-      sessionIndex: [
-        {
-          id: newSession.id,
-          title: newSession.title,
-          lastMessageAt: newSession.lastMessageAt,
-        },
-        ...state.sessionIndex,
-      ],
-      currentSessionId: newSession.id,
+  startMeetingChat: (meeting) =>
+    set({
+      currentSessionId: null,
+      draftMeetingId: meeting.id,
+      selectedMeetingRefs: [meeting],
+      input: '',
+      pendingAttachments: [],
+      draftReasoningEffort: 'provider-default',
       viewHistory: false,
-    }));
-
-    // Persist the new session and reconcile the index query.
-    get()
-      .persistSession(newSession)
-      .catch((error: unknown) =>
-        console.error('[ChatStore] Failed to persist meeting session:', error)
-      );
-    invalidateChats();
-  },
+    }),
 
   // ── Send Message ──
 
   sendMessage: async (textOverride, options = {}) => {
-    const { input, isLoading, currentSessionId, selectedMeetingRefs, webSearchEnabled, pendingAttachments } = get();
+    const { input, isLoading, currentSessionId, selectedMeetingRefs, webSearchEnabled, pendingAttachments, draftMeetingId } = get();
     const textToSend = textOverride || input;
     if (!textToSend.trim() || isLoading) return;
 
@@ -472,6 +464,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
         title: textToSend.slice(0, 30),
         lastMessageAt: Date.now(),
         messages: [],
+        ...(draftMeetingId && { meetingId: draftMeetingId }),
         ...(draftReasoningEffort !== 'provider-default' && { reasoningEffort: draftReasoningEffort }),
       };
       const next = new Map(get().loadedSessions);
@@ -484,6 +477,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
         ],
         currentSessionId: activeSessionId,
         draftReasoningEffort: 'provider-default',
+        draftMeetingId: null,
         input: isRegenerate ? get().input : '',
         isLoading: true,
         selectedMeetingRefs: [],
@@ -1076,7 +1070,6 @@ export const useChatActions = () => {
   const removeAttachment = useChatStore((s) => s.removeAttachment);
   const clearAttachments = useChatStore((s) => s.clearAttachments);
   const addScreenshotAttachment = useChatStore((s) => s.addScreenshotAttachment);
-  const getOrCreateMeetingSession = useChatStore((s) => s.getOrCreateMeetingSession);
   const loadMoreSessions = useChatStore((s) => s.loadMoreSessions);
 
   return {
@@ -1099,7 +1092,6 @@ export const useChatActions = () => {
     removeAttachment,
     clearAttachments,
     addScreenshotAttachment,
-    getOrCreateMeetingSession,
     loadMoreSessions,
   };
 };

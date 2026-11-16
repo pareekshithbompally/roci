@@ -1,10 +1,10 @@
-/** Mount once (App): while on, imports and summarizes each meeting Hex finishes, catching up on missed ones. */
+/** Mount once (App): while on, imports each meeting Hex finishes and hands it to the pipeline to summarize; catches up on missed ones. */
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { isTauriEnvironment } from '@services/tauri';
-import { hexMeetings, hexSync, type SummaryContext } from '@services/hex';
+import { hexMeetings, hexSync } from '@services/hex';
+import { meetingPipeline } from '@features/recording';
 import { hexErrorMessage } from '@services/ai/transcription/hex';
 import { isIntegrationEnabled } from '@shared/utils/integrations';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
@@ -39,13 +39,8 @@ export async function runHexCatchUp(): Promise<void> {
 }
 
 export function useHexRuntime(): void {
-  const { settings, providers } = useSettings();
-  const { categories } = useHistoryData();
+  const { settings } = useSettings();
   const enabled = isIntegrationEnabled(settings, 'hex');
-
-  // Latest app context for summaries, without re-subscribing on every change.
-  const context = useRef<SummaryContext>({ settings, providers, categories });
-  context.current = { settings, providers, categories };
 
   useEffect(() => {
     if (!isTauriEnvironment() || !enabled) return;
@@ -56,7 +51,14 @@ export function useHexRuntime(): void {
     void runHexCatchUp();
 
     const onFinished = hexMeetings.onFinished((id) => {
-      hexSync.finished(id, context.current).then((isNew) => notifyImported(isNew ? 1 : 0)).catch(report(`import ${id}`));
+      hexSync
+        .finished(id)
+        .then((meetingId) => {
+          if (!meetingId) return;
+          notifyImported(1);
+          void meetingPipeline.run(meetingId);
+        })
+        .catch(report(`import ${id}`));
     });
     const onEvents = hexMeetings.onEventsState(store.setEvents);
     const onFocus = () => {

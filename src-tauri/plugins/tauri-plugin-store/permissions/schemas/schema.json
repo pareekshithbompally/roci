@@ -475,6 +475,18 @@
           "markdownDescription": "Denies the get_indexed_ids command without any pre-configured scope."
         },
         {
+          "description": "Enables the get_meeting_usage command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-meeting-usage",
+          "markdownDescription": "Enables the get_meeting_usage command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_meeting_usage command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-meeting-usage",
+          "markdownDescription": "Denies the get_meeting_usage command without any pre-configured scope."
+        },
+        {
           "description": "Enables the get_meetings_needing_embeddings command without any pre-configured scope.",
           "type": "string",
           "const": "allow-get-meetings-needing-embeddings",
@@ -619,6 +631,18 @@
           "markdownDescription": "Denies the mark_meeting_embedded command without any pre-configured scope."
         },
         {
+          "description": "Enables the meetings_create command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-meetings-create",
+          "markdownDescription": "Enables the meetings_create command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the meetings_create command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-meetings-create",
+          "markdownDescription": "Denies the meetings_create command without any pre-configured scope."
+        },
+        {
           "description": "Enables the meetings_delete command without any pre-configured scope.",
           "type": "string",
           "const": "allow-meetings-delete",
@@ -665,6 +689,18 @@
           "type": "string",
           "const": "deny-meetings-search",
           "markdownDescription": "Denies the meetings_search command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the meetings_set_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-meetings-set-status",
+          "markdownDescription": "Enables the meetings_set_status command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the meetings_set_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-meetings-set-status",
+          "markdownDescription": "Denies the meetings_set_status command without any pre-configured scope."
         },
         {
           "description": "Enables the meetings_upsert command without any pre-configured scope.",
@@ -883,18 +919,6 @@
           "markdownDescription": "Denies the reminders_upsert command without any pre-configured scope."
         },
         {
-          "description": "Enables the save_transcription command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-save-transcription",
-          "markdownDescription": "Enables the save_transcription command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the save_transcription command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-save-transcription",
-          "markdownDescription": "Denies the save_transcription command without any pre-configured scope."
-        },
-        {
           "description": "Enables the settings_get_all command without any pre-configured scope.",
           "type": "string",
           "const": "allow-settings-get-all",
@@ -929,6 +953,18 @@
           "type": "string",
           "const": "deny-spotlight-search",
           "markdownDescription": "Denies the spotlight_search command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the summaries_save command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-summaries-save",
+          "markdownDescription": "Enables the summaries_save command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the summaries_save command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-summaries-save",
+          "markdownDescription": "Denies the summaries_save command without any pre-configured scope."
         },
         {
           "description": "Enables the todos_delete command without any pre-configured scope.",
@@ -991,6 +1027,18 @@
           "markdownDescription": "Denies the todos_upsert command without any pre-configured scope."
         },
         {
+          "description": "Enables the transcripts_save command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-transcripts-save",
+          "markdownDescription": "Enables the transcripts_save command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the transcripts_save command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-transcripts-save",
+          "markdownDescription": "Denies the transcripts_save command without any pre-configured scope."
+        },
+        {
           "description": "Enables the upsert_chat_chunks command without any pre-configured scope.",
           "type": "string",
           "const": "allow-upsert-chat-chunks",
@@ -1027,10 +1075,10 @@
           "markdownDescription": "Denies the upsert_meeting_index command without any pre-configured scope."
         },
         {
-          "description": "Allows all store plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-get-meta`\n- `allow-get-stats`\n- `allow-rebuild`\n- `allow-rebuild-fts`\n- `allow-get-indexed-ids`\n- `allow-meetings-list`\n- `allow-meetings-get`\n- `allow-meetings-upsert`\n- `allow-meetings-delete`\n- `allow-save-transcription`\n- `allow-recordings-upsert`\n- `allow-recordings-list-for-meeting`\n- `allow-recordings-list-orphan`\n- `allow-recordings-delete`\n- `allow-categories-list`\n- `allow-categories-rename`\n- `allow-categories-create`\n- `allow-categories-delete`\n- `allow-chats-list`\n- `allow-chats-get`\n- `allow-chats-upsert`\n- `allow-chats-rename`\n- `allow-chats-delete`\n- `allow-notes-list`\n- `allow-notes-upsert`\n- `allow-notes-delete`\n- `allow-todos-list-for-meeting`\n- `allow-todos-list-global`\n- `allow-todos-upsert`\n- `allow-todos-set-completed`\n- `allow-todos-delete`\n- `allow-reminders-upsert`\n- `allow-reminders-set-status`\n- `allow-reminders-due`\n- `allow-reminders-prune`\n- `allow-settings-get-all`\n- `allow-settings-set`\n- `allow-providers-list`\n- `allow-providers-upsert`\n- `allow-providers-set-active`\n- `allow-providers-delete`\n- `allow-upsert-meeting-index`\n- `allow-upsert-chunks`\n- `allow-meetings-search`\n- `allow-get-stale-meetings`\n- `allow-get-meetings-needing-embeddings`\n- `allow-mark-meeting-embedded`\n- `allow-mark-meeting-content-indexed`\n- `allow-mark-chat-content-indexed`\n- `allow-mark-chat-indexed`\n- `allow-upsert-chat-chunks`\n- `allow-delete-chat-session`\n- `allow-chat-is-stale`\n- `allow-chats-get-stale`\n- `allow-get-chats-needing-embeddings`\n- `allow-mark-chat-embedded`\n- `allow-chats-search`\n- `allow-spotlight-search`\n- `allow-insert-usage`\n- `allow-get-usage-summary`",
+          "description": "Allows all store plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-get-meta`\n- `allow-get-stats`\n- `allow-rebuild`\n- `allow-rebuild-fts`\n- `allow-get-indexed-ids`\n- `allow-meetings-list`\n- `allow-meetings-get`\n- `allow-meetings-upsert`\n- `allow-meetings-delete`\n- `allow-meetings-create`\n- `allow-meetings-set-status`\n- `allow-transcripts-save`\n- `allow-summaries-save`\n- `allow-recordings-upsert`\n- `allow-recordings-list-for-meeting`\n- `allow-recordings-list-orphan`\n- `allow-recordings-delete`\n- `allow-categories-list`\n- `allow-categories-rename`\n- `allow-categories-create`\n- `allow-categories-delete`\n- `allow-chats-list`\n- `allow-chats-get`\n- `allow-chats-upsert`\n- `allow-chats-rename`\n- `allow-chats-delete`\n- `allow-notes-list`\n- `allow-notes-upsert`\n- `allow-notes-delete`\n- `allow-todos-list-for-meeting`\n- `allow-todos-list-global`\n- `allow-todos-upsert`\n- `allow-todos-set-completed`\n- `allow-todos-delete`\n- `allow-reminders-upsert`\n- `allow-reminders-set-status`\n- `allow-reminders-due`\n- `allow-reminders-prune`\n- `allow-settings-get-all`\n- `allow-settings-set`\n- `allow-providers-list`\n- `allow-providers-upsert`\n- `allow-providers-set-active`\n- `allow-providers-delete`\n- `allow-upsert-meeting-index`\n- `allow-upsert-chunks`\n- `allow-meetings-search`\n- `allow-get-stale-meetings`\n- `allow-get-meetings-needing-embeddings`\n- `allow-mark-meeting-embedded`\n- `allow-mark-meeting-content-indexed`\n- `allow-mark-chat-content-indexed`\n- `allow-mark-chat-indexed`\n- `allow-upsert-chat-chunks`\n- `allow-delete-chat-session`\n- `allow-chat-is-stale`\n- `allow-chats-get-stale`\n- `allow-get-chats-needing-embeddings`\n- `allow-mark-chat-embedded`\n- `allow-chats-search`\n- `allow-spotlight-search`\n- `allow-insert-usage`\n- `allow-get-usage-summary`\n- `allow-get-meeting-usage`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Allows all store plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-get-meta`\n- `allow-get-stats`\n- `allow-rebuild`\n- `allow-rebuild-fts`\n- `allow-get-indexed-ids`\n- `allow-meetings-list`\n- `allow-meetings-get`\n- `allow-meetings-upsert`\n- `allow-meetings-delete`\n- `allow-save-transcription`\n- `allow-recordings-upsert`\n- `allow-recordings-list-for-meeting`\n- `allow-recordings-list-orphan`\n- `allow-recordings-delete`\n- `allow-categories-list`\n- `allow-categories-rename`\n- `allow-categories-create`\n- `allow-categories-delete`\n- `allow-chats-list`\n- `allow-chats-get`\n- `allow-chats-upsert`\n- `allow-chats-rename`\n- `allow-chats-delete`\n- `allow-notes-list`\n- `allow-notes-upsert`\n- `allow-notes-delete`\n- `allow-todos-list-for-meeting`\n- `allow-todos-list-global`\n- `allow-todos-upsert`\n- `allow-todos-set-completed`\n- `allow-todos-delete`\n- `allow-reminders-upsert`\n- `allow-reminders-set-status`\n- `allow-reminders-due`\n- `allow-reminders-prune`\n- `allow-settings-get-all`\n- `allow-settings-set`\n- `allow-providers-list`\n- `allow-providers-upsert`\n- `allow-providers-set-active`\n- `allow-providers-delete`\n- `allow-upsert-meeting-index`\n- `allow-upsert-chunks`\n- `allow-meetings-search`\n- `allow-get-stale-meetings`\n- `allow-get-meetings-needing-embeddings`\n- `allow-mark-meeting-embedded`\n- `allow-mark-meeting-content-indexed`\n- `allow-mark-chat-content-indexed`\n- `allow-mark-chat-indexed`\n- `allow-upsert-chat-chunks`\n- `allow-delete-chat-session`\n- `allow-chat-is-stale`\n- `allow-chats-get-stale`\n- `allow-get-chats-needing-embeddings`\n- `allow-mark-chat-embedded`\n- `allow-chats-search`\n- `allow-spotlight-search`\n- `allow-insert-usage`\n- `allow-get-usage-summary`"
+          "markdownDescription": "Allows all store plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-get-meta`\n- `allow-get-stats`\n- `allow-rebuild`\n- `allow-rebuild-fts`\n- `allow-get-indexed-ids`\n- `allow-meetings-list`\n- `allow-meetings-get`\n- `allow-meetings-upsert`\n- `allow-meetings-delete`\n- `allow-meetings-create`\n- `allow-meetings-set-status`\n- `allow-transcripts-save`\n- `allow-summaries-save`\n- `allow-recordings-upsert`\n- `allow-recordings-list-for-meeting`\n- `allow-recordings-list-orphan`\n- `allow-recordings-delete`\n- `allow-categories-list`\n- `allow-categories-rename`\n- `allow-categories-create`\n- `allow-categories-delete`\n- `allow-chats-list`\n- `allow-chats-get`\n- `allow-chats-upsert`\n- `allow-chats-rename`\n- `allow-chats-delete`\n- `allow-notes-list`\n- `allow-notes-upsert`\n- `allow-notes-delete`\n- `allow-todos-list-for-meeting`\n- `allow-todos-list-global`\n- `allow-todos-upsert`\n- `allow-todos-set-completed`\n- `allow-todos-delete`\n- `allow-reminders-upsert`\n- `allow-reminders-set-status`\n- `allow-reminders-due`\n- `allow-reminders-prune`\n- `allow-settings-get-all`\n- `allow-settings-set`\n- `allow-providers-list`\n- `allow-providers-upsert`\n- `allow-providers-set-active`\n- `allow-providers-delete`\n- `allow-upsert-meeting-index`\n- `allow-upsert-chunks`\n- `allow-meetings-search`\n- `allow-get-stale-meetings`\n- `allow-get-meetings-needing-embeddings`\n- `allow-mark-meeting-embedded`\n- `allow-mark-meeting-content-indexed`\n- `allow-mark-chat-content-indexed`\n- `allow-mark-chat-indexed`\n- `allow-upsert-chat-chunks`\n- `allow-delete-chat-session`\n- `allow-chat-is-stale`\n- `allow-chats-get-stale`\n- `allow-get-chats-needing-embeddings`\n- `allow-mark-chat-embedded`\n- `allow-chats-search`\n- `allow-spotlight-search`\n- `allow-insert-usage`\n- `allow-get-usage-summary`\n- `allow-get-meeting-usage`"
         }
       ]
     }

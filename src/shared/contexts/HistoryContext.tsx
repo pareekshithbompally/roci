@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { HistoryItem } from '@shared/types';
+import type { MeetingStatus } from '@shared/types/meetingPhase';
 import { store } from '@services/db';
 import { meetingService } from '@services/meeting.service';
 import { queryKeys } from '@shared/query/queryKeys';
@@ -28,7 +29,6 @@ interface HistoryDataContextValue {
   setSearchQuery: (query: string) => void;
   setSelectedCategory: (category: string | null) => void;
   loadHistory: () => Promise<void>;
-  addToHistory: (item: HistoryItem) => Promise<void>;
   renameItem: (itemId: string, newTitle: string) => Promise<boolean>;
   updateItem: (itemId: string, updates: Partial<HistoryItem>) => Promise<boolean>;
   deleteItem: (itemId: string) => Promise<boolean>;
@@ -61,7 +61,7 @@ function indexEntryToHistoryItem(entry: {
   categories: string[];
   recordingFileName?: string;
   inputSource?: string;
-  pendingTranscription?: boolean;
+  status: MeetingStatus;
   createdAt: string;
   calendarEventId?: string;
   scheduledTitle?: string;
@@ -79,7 +79,7 @@ function indexEntryToHistoryItem(entry: {
     timestamp: new Date(entry.createdAt).getTime(),
     transcript: '',
     summary: '',
-    pendingTranscription: entry.pendingTranscription,
+    status: entry.status,
     calendarEventId: entry.calendarEventId,
     scheduledTitle: entry.scheduledTitle,
     participants: entry.participants,
@@ -158,42 +158,6 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
     return { previous: queryClient.getQueryData<HistoryItem[]>(queryKeys.meetings()) };
   }, [queryClient]);
 
-  const addMutation = useMutation<void, Error, HistoryItem, { previous?: HistoryItem[] }>({
-    mutationFn: async (item) => {
-      const now = Date.now();
-      await store.meetings.upsert({
-        id: item.id,
-        title: item.title,
-        inputSource: item.inputSource,
-        pendingTranscription: item.pendingTranscription,
-        calendarEventId: item.calendarEventId,
-        calendarMeta: item.scheduledStart ? {
-          scheduledTitle: item.scheduledTitle,
-          participants: item.participants,
-          scheduledStart: item.scheduledStart,
-          scheduledEnd: item.scheduledEnd,
-          meetingUrl: item.meetingUrl,
-        } : undefined,
-        categories: item.categories,
-        createdAt: now,
-      });
-    },
-    onMutate: async (item) => {
-      const context = await snapshotItems();
-      queryClient.setQueryData<HistoryItem[]>(queryKeys.meetings(), (old) => [item, ...(old || [])]);
-      return context;
-    },
-    ...mutateOptions,
-  });
-
-  const addToHistory = useCallback(async (item: HistoryItem) => {
-    try {
-      await addMutation.mutateAsync(item);
-    } catch (error) {
-      console.error('[HistoryContext] Error adding to history:', error);
-    }
-  }, [addMutation]);
-
   const renameMutation = useMutation<void, Error, { itemId: string; newTitle: string }, { previous?: HistoryItem[] }>({
     mutationFn: async ({ itemId, newTitle }) => {
       await store.meetings.upsert({ id: itemId, title: newTitle });
@@ -223,14 +187,13 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
 
   const updateMutation = useMutation<void, Error, { itemId: string; updates: Partial<HistoryItem> }, { previous?: HistoryItem[] }>({
     mutationFn: async ({ itemId, updates }) => {
-      const input: Parameters<typeof store.meetings.upsert>[0] = { id: itemId, title: updates.title || '' };
-      if (updates.categories) input.categories = updates.categories;
-      if (updates.inputSource) input.inputSource = updates.inputSource;
-      if (updates.pendingTranscription !== undefined) {
-        input.pendingTranscription = updates.pendingTranscription;
-      }
-      if (updates.calendarEventId) input.calendarEventId = updates.calendarEventId;
-      await store.meetings.upsert(input);
+      await store.meetings.upsert({
+        id: itemId,
+        title: updates.title,
+        categories: updates.categories,
+        inputSource: updates.inputSource,
+        calendarEventId: updates.calendarEventId,
+      });
     },
     onMutate: async ({ itemId, updates }) => {
       const context = await snapshotItems();
@@ -309,14 +272,13 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
     setSearchQuery,
     setSelectedCategory,
     loadHistory,
-    addToHistory,
     renameItem,
     updateItem,
     deleteItem,
   }), [
     items, filteredItems, searchQuery, selectedCategory, categories, isLoading,
     setSearchQuery, setSelectedCategory,
-    loadHistory, addToHistory, renameItem, updateItem, deleteItem,
+    loadHistory, renameItem, updateItem, deleteItem,
   ]);
 
   const uiValue: HistoryUIContextValue = useMemo(() => ({

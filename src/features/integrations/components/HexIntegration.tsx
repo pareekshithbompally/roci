@@ -23,7 +23,7 @@ export const HexIntegration: React.FC = () => {
   const events = EVENTS[hex.events ?? 'none'];
 
   return (
-    <IntegrationRow {...hex} icon={<IntegrationIcon src={COPY.icon} alt="" />} title={COPY.title} description={COPY.description}>
+    <IntegrationRow {...hex} icon={<IntegrationIcon app={COPY.app} src={COPY.icon} />} title={COPY.title} description={COPY.description}>
       <CardRow
         title="Hex app"
         status={hex.running && <Status tone="success">Running</Status>}

@@ -5,7 +5,7 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHistory } from '@shared/contexts/HistoryContext';
 import { useChat } from '@shared/contexts/ChatContext';
 import { useToast } from '@shared/contexts/ToastContext';
-import { useRecordingContext, PermissionChecklist, RecordingExitPrompt } from '@features/recording';
+import { PermissionChecklist, RecordingExitPrompt, recording, useRecordingStore, useRecordingRuntime, useStartRecording } from '@features/recording';
 import { MainLayout } from '@features/layout';
 import { HomeView } from '@features/home';
 import { SettingsPanel } from '@features/settings';
@@ -46,9 +46,9 @@ const App: React.FC = () => {
   const { setSettings, providers, isLoading: settingsLoading } = useSettings();
   const history = useHistory();
   const chat = useChat();
-  const recording = useRecordingContext();
-  const recordingRef = useRef(recording);
-  recordingRef.current = recording;
+  const startRecording = useStartRecording();
+  const startRecordingRef = useRef(startRecording);
+  startRecordingRef.current = startRecording;
   const toast = useToast();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const appUpdate = useAppUpdate();
@@ -73,6 +73,8 @@ const App: React.FC = () => {
     leaveSettings,
   });
 
+  // Recording + meeting pipeline: resumes unfinished meetings, mirrors them into the activity tray
+  useRecordingRuntime();
   // macOS Calendar integration — polls for upcoming meetings, shows notifications
   useCalendarRuntime();
   useNotificationsRuntime();
@@ -227,19 +229,19 @@ const App: React.FC = () => {
   const initializeMenubar = async () => {
     try {
       await menubarService.initialize(async (action) => {
-        const rec = recordingRef.current;
+        const recordingNow = useRecordingStore.getState().meetingId !== null;
         switch (action) {
           case TrayAction.SHOW:
             await windowService.show();
             break;
           case TrayAction.START_RECORDING:
-            if (rec.canRecord) {
-              await rec.startRecording();
+            if (!recordingNow) {
+              await startRecordingRef.current();
             }
             break;
           case TrayAction.STOP_RECORDING:
-            if (rec.isRecording || rec.status === 'recording') {
-              await rec.stopRecording();
+            if (recordingNow) {
+              await recording.stop();
             }
             break;
           case TrayAction.SETTINGS:
@@ -264,7 +266,7 @@ const App: React.FC = () => {
             break;
           }
           case TrayAction.QUIT:
-            if (rec.status === 'recording' || rec.status === 'paused') {
+            if (recordingNow) {
               useAppStore.getState().setRecordingExitPrompt('quit');
               await windowService.show();
             } else {
@@ -292,9 +294,10 @@ const App: React.FC = () => {
 
       // Read live recording state: this handler outlives the render it was made in.
       shortcutsService.on('toggle-recording', async () => {
-        const rec = recordingRef.current;
-        if (rec.canRecord) await rec.startRecording();
-        else if (rec.isRecording) await rec.stopRecording();
+        const { meetingId, busy } = useRecordingStore.getState();
+        if (busy) return;
+        if (meetingId) await recording.stop();
+        else await startRecordingRef.current();
       });
 
       shortcutsService.on('show-window', async () => {

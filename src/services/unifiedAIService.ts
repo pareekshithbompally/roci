@@ -19,7 +19,6 @@ import type { AnalysisResult } from '@core/ai/schemas/transcription.schema';
 import {
   runTranscription,
   speechSelectionOf,
-  formatTranscript,
   analyzeTranscript,
   type TranscribeOptions,
   type TranscriptResult,
@@ -30,9 +29,9 @@ export interface SummaryOptions {
   meetingContext?: MeetingContext;
   /** The meeting id; usage rows are attributed to it. */
   meetingId?: string;
+  /** Cancels the summary request. */
+  signal?: AbortSignal;
 }
-
-export type ProcessAudioOptions = TranscribeOptions & SummaryOptions & { onSummarizing?: () => void };
 
 const assertAudioSize = (blob: Blob): void => {
   if (blob.size > MAX_AUDIO_SIZE_BYTES) {
@@ -98,21 +97,6 @@ export async function audioToRawText(
 }
 
 class UnifiedAIService {
-  /** Audio → transcript (the speech model) → summary (the Summary model). Both stages log their usage. */
-  async processAudio(
-    audioBlob: Blob,
-    categories: string[],
-    settings: AppSettings,
-    providers: ModelProvider[],
-    options: ProcessAudioOptions = {},
-  ): Promise<ProcessedResult> {
-    const { meetingContext, meetingId, onSummarizing, ...transcribeOptions } = options;
-    const t = await transcribeAudio(audioBlob, settings, providers, transcribeOptions, meetingId);
-    const { formatted: transcript, segments } = formatTranscript(t);
-    onSummarizing?.();
-    return this.processTranscript(transcript, segments, categories, settings, providers, { meetingContext, meetingId });
-  }
-
   /** A finished transcript → title, summary, action items, categories (the Summary model). */
   async processTranscript(
     transcript: string,

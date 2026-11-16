@@ -1,4 +1,4 @@
-//! One recording: the source supervisors, the track writer, and the stop that mixes the tracks.
+//! One recording: the source supervisors, the track writer, the wake lock, and the stop that mixes the tracks.
 
 use std::fs;
 use std::path::PathBuf;
@@ -8,16 +8,16 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use eyre::{Result, eyre};
+use eyre::Result;
 use tauri::AppHandle;
 
 use super::capture::{PacketSink, SourceSupervisor};
 use super::level::LevelMeter;
-use super::mixdown::mixdown;
+use super::recovery::mix;
 use super::tracks::{
-    AudioPacket, CaptureStats, MeetingSource, STATS_FILE, has_recorded_audio,
-    join_audio_writer, remove_tracks, set_owner_only, write_tracks,
+    AudioPacket, CaptureStats, MeetingSource, STATS_FILE, join_audio_writer, set_owner_only, write_tracks,
 };
+use crate::wake_lock::WakeLock;
 
 const PACKET_QUEUE_CAPACITY: usize = 128;
 
@@ -74,6 +74,8 @@ pub struct Recorder {
     microphone_drops: Arc<AtomicU64>,
     system_drops: Arc<AtomicU64>,
     pause: Arc<Pause>,
+    /// Held for the capture's lifetime so idle sleep can't cut a meeting off.
+    _wake_lock: Option<WakeLock>,
 }
 
 impl Recorder {
@@ -118,6 +120,7 @@ impl Recorder {
             microphone_drops,
             system_drops,
             pause,
+            _wake_lock: WakeLock::acquire("Recording a meeting"),
         })
     }
 
@@ -129,17 +132,11 @@ impl Recorder {
         self.pause.resume();
     }
 
-    /// Stops and mixes the tracks into the file; tracks are removed only once the mix is written.
-    pub fn stop(self) -> Result<PathBuf> {
+    /// Stops and mixes the tracks into the file; returns its length in seconds.
+    pub fn stop(self) -> Result<f64> {
         let (directory, output) = (self.directory.clone(), self.output.clone());
         let stats = self.finish()?;
-        if !has_recorded_audio(&stats) {
-            remove_tracks(&directory);
-            return Err(eyre!("no meeting audio was captured"));
-        }
-        mixdown(&directory, &[&stats.system, &stats.microphone], &output)?;
-        remove_tracks(&directory);
-        Ok(output)
+        mix(&directory, &stats, &output)
     }
 
     /// Finishes the tracks and leaves them for the next launch to mix down, for a quit mid-recording.

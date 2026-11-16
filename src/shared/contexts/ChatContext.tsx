@@ -69,7 +69,6 @@ interface ChatContextValue extends ChatState {
   removeAttachment: (index: number) => void;
   clearAttachments: () => void;
   addScreenshotAttachment: (base64: string, name: string) => void;
-  getOrCreateMeetingSession: (meetingId: string, meetingTitle: string) => void;
   loadMoreSessions: () => void;
 }
 
@@ -237,7 +236,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const removeAttachmentFn = useCallback((i: number) => useChatStore.getState().removeAttachment(i), []);
   const clearAttachmentsFn = useCallback(() => useChatStore.getState().clearAttachments(), []);
   const addScreenshotAttachmentFn = useCallback((b64: string, name: string) => useChatStore.getState().addScreenshotAttachment(b64, name), []);
-  const getOrCreateMeetingSessionFn = useCallback((id: string, title: string) => useChatStore.getState().getOrCreateMeetingSession(id, title), []);
   const loadMoreSessionsFn = useCallback(() => useChatStore.getState().loadMoreSessions(), []);
 
   const value = useMemo<ChatContextValue>(
@@ -277,7 +275,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       removeAttachment: removeAttachmentFn,
       clearAttachments: clearAttachmentsFn,
       addScreenshotAttachment: addScreenshotAttachmentFn,
-      getOrCreateMeetingSession: getOrCreateMeetingSessionFn,
       loadMoreSessions: loadMoreSessionsFn,
     }),
     [
@@ -291,7 +288,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       setSelectedMeetingRefsFn, toggleWebSearchFn,
       rerunLastMessageFn, addAttachmentFn, removeAttachmentFn,
       clearAttachmentsFn, addScreenshotAttachmentFn,
-      getOrCreateMeetingSessionFn, loadMoreSessionsFn,
+      loadMoreSessionsFn,
     ]
   );
 

@@ -1,11 +1,12 @@
-/** Non-React singleton running the import pipeline: dialog → read → parse → AI → save → tray. */
+/** Non-React singleton for imports: dialog → read → create the meeting → hand it to the meeting pipeline. */
 
 import type { AppSettings } from '@shared/types';
-import type { ModelProvider } from '@shared/types/modelProviders';
 import { dialogService } from '@services/tauri/dialog.service';
 import { fileSystemService } from '@services/tauri/fileSystem.service';
-import { unifiedAIService } from '@services/unifiedAIService';
-import { transcriptionService, meetingSummaryOf } from '@services/transcription.service';
+import { store } from '@services/db';
+import { recordingsService } from '@services/storage';
+import { transcriptionService } from '@services/transcription.service';
+import { meetingPipeline } from '@features/recording';
 import { activityStore } from '@shared/stores/activityStore';
 import { IMPORT_CONFIG } from '@config/audio.config';
 import { parseSubtitleFile } from './parsers/subtitle-parser';
@@ -13,6 +14,9 @@ import { JobQueue } from './job-queue';
 import type { ImportJob, JobStatus } from './types';
 
 const AUTO_REMOVE_DELAY = 3000;
+
+/** A file name without its extension, as the meeting's first title. */
+const titleOf = (fileName: string): string => fileName.replace(/\.[^.]+$/, '');
 
 interface ImportServiceOptions {
   concurrency: number;
@@ -34,11 +38,7 @@ class ImportService {
     });
   }
 
-  async importTranscripts(
-    settings: AppSettings,
-    providers: ModelProvider[],
-    categories: string[],
-  ): Promise<void> {
+  async importTranscripts(): Promise<void> {
     const paths = await dialogService.open({
       title: IMPORT_CONFIG.transcript.dialogTitle,
       multiple: true,
@@ -71,16 +71,12 @@ class ImportService {
       this.queue.enqueue({
         id,
         label: fileName,
-        execute: (signal) => this.processTranscript(job, signal, settings, providers, categories),
+        execute: (signal) => this.processTranscript(job, signal),
       });
     }
   }
 
-  async importAudio(
-    settings: AppSettings,
-    providers: ModelProvider[],
-    categories: string[],
-  ): Promise<void> {
+  async importAudio(): Promise<void> {
     const paths = await dialogService.open({
       title: IMPORT_CONFIG.audio.dialogTitle,
       multiple: true,
@@ -113,7 +109,7 @@ class ImportService {
       this.queue.enqueue({
         id,
         label: fileName,
-        execute: (signal) => this.processAudio(job, signal, settings, providers, categories),
+        execute: (signal) => this.processAudio(job, signal),
       });
     }
   }
@@ -142,52 +138,26 @@ class ImportService {
 
   // ── Private ────────────────────────────────────────────────────
 
-  private async processTranscript(
-    job: ImportJob,
-    signal: AbortSignal,
-    settings: AppSettings,
-    providers: ModelProvider[],
-    categories: string[],
-  ): Promise<void> {
+  /** The meeting is created as `transcribed`; the pipeline writes its summary. */
+  private async processTranscript(job: ImportJob, signal: AbortSignal): Promise<void> {
     activityStore.update(job.id, { detail: 'Reading file...' });
-
     const text = await fileSystemService.readTextFile(job.filePath);
     if (signal.aborted) throw new Error('Import cancelled');
 
     const format = job.filePath.endsWith('.vtt') ? 'vtt' : 'srt';
-    const transcript = parseSubtitleFile(text, format);
-
-    activityStore.update(job.id, { detail: 'Analyzing...' });
-
-    // Subtitle text has no timed segments once parsed.
-    const result = await unifiedAIService.processTranscript(
-      transcript, undefined, categories, settings, providers, { meetingId: job.meetingId },
-    );
-    if (signal.aborted) throw new Error('Import cancelled');
-
-    const meetingSummary = meetingSummaryOf(result);
-
-    await transcriptionService.saveTranscriptionResult({
-      meetingId: job.meetingId,
-      title: result.title,
-      transcript,
-      summary: meetingSummary,
-      categories: result.categories,
+    await store.meetings.create({
+      id: job.meetingId,
+      title: titleOf(job.fileName),
+      status: 'transcribed',
       inputSource: 'transcript-import',
     });
-
-    this.debouncedRefresh();
+    await transcriptionService.saveTranscript({ meetingId: job.meetingId, text: parseSubtitleFile(text, format) });
+    this.handOff(job.meetingId);
   }
 
-  private async processAudio(
-    job: ImportJob,
-    signal: AbortSignal,
-    settings: AppSettings,
-    providers: ModelProvider[],
-    categories: string[],
-  ): Promise<void> {
+  /** The file is copied into recordings and the meeting created as `captured`; the pipeline transcribes it. */
+  private async processAudio(job: ImportJob, signal: AbortSignal): Promise<void> {
     activityStore.update(job.id, { detail: 'Reading file...' });
-
     const bytes = await fileSystemService.readFile(job.filePath);
     if (signal.aborted) throw new Error('Import cancelled');
 
@@ -197,34 +167,23 @@ class ImportService {
       );
     }
 
-    const ext = job.filePath.split('.').pop()!.toLowerCase();
-    const mime = IMPORT_CONFIG.audio.mimeTypes[ext] || 'audio/wav';
-    const blob = new Blob([bytes], { type: mime });
-
-    activityStore.update(job.id, { detail: 'Transcribing...' });
-
-    const result = await unifiedAIService.processAudio(blob, categories, settings, providers, {
-      meetingId: job.meetingId,
-      signal,
-      onProgress: (step) => activityStore.update(job.id, { step }),
-    });
-    if (signal.aborted) throw new Error('Import cancelled');
-
-    const meetingSummary = meetingSummaryOf(result);
-
-    await transcriptionService.saveTranscriptionResult({
-      meetingId: job.meetingId,
-      title: result.title,
-      transcript: result.transcript,
-      summary: meetingSummary,
-      categories: result.categories,
-      recordingFileName: job.fileName,
+    const extension = job.filePath.split('.').pop()?.toLowerCase() ?? 'wav';
+    const recordingFilename = `${job.meetingId}.${extension}`;
+    await recordingsService.writeRecording(recordingFilename, bytes);
+    await store.meetings.create({
+      id: job.meetingId,
+      title: titleOf(job.fileName),
+      status: 'captured',
       inputSource: 'audio-import',
-      model: settings.transcriptionModel,
-      segments: result.segments,
+      recordingFilename,
     });
+    this.handOff(job.meetingId);
+  }
 
+  /** The meeting is in the sidebar; transcription and summary run (and report) in the pipeline. */
+  private handOff(meetingId: string): void {
     this.debouncedRefresh();
+    void meetingPipeline.run(meetingId);
   }
 
   /** Debounce history refresh — coalesce rapid completions into one call */

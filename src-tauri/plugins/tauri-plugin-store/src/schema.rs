@@ -1,7 +1,7 @@
 use rusqlite::Connection;
 
 /// Current schema version for the new kasset.db.
-pub const SCHEMA_VERSION: u32 = 3;
+pub const SCHEMA_VERSION: u32 = 4;
 
 /// Default embedding model and dimension.
 pub const DEFAULT_MODEL: &str = "onnx-community/embeddinggemma-300m-ONNX";
@@ -75,7 +75,7 @@ pub fn migrate(conn: &Connection) -> Result<(), String> {
                  ALTER TABLE meeting_index_state DROP COLUMN extraction_hash;",
             )
             .map_err(|e| format!("migrate v2→v3 drop graph: {}", e))?;
-            set_schema_version(&tx, SCHEMA_VERSION)?;
+            set_schema_version(&tx, 3)?;
             tx.commit()
                 .map_err(|e| format!("commit migration v3: {}", e))?;
             Ok(())
@@ -90,6 +90,36 @@ pub fn migrate(conn: &Connection) -> Result<(), String> {
         }
     }
 
+    if current == 2 || current == 3 {
+        migrate_v4(conn)?;
+    }
+
+    Ok(())
+}
+
+/// v3 → v4: a meeting's pipeline status replaces the pending-transcription flag, and pending
+/// recordings saved without their file get it linked (their id is the file's stem).
+fn migrate_v4(conn: &Connection) -> Result<(), String> {
+    let tx = conn
+        .unchecked_transaction()
+        .map_err(|e| format!("begin migration v4 transaction: {}", e))?;
+    tx.execute_batch(
+        "ALTER TABLE meetings ADD COLUMN status TEXT NOT NULL DEFAULT 'ready' CHECK(status IN (
+             'recording','captured','transcribing','transcribed','summarizing','ready','failed'));
+         ALTER TABLE meetings ADD COLUMN failed_step TEXT CHECK(failed_step IN ('record','transcribe','summarize'));
+         ALTER TABLE meetings ADD COLUMN error TEXT;
+         UPDATE meetings SET status = 'captured' WHERE pending_transcription = 1;
+         INSERT INTO recordings (id, meeting_id, filename, created_at)
+             SELECT lower(hex(randomblob(16))), m.id, m.id || '.wav', m.created_at
+             FROM meetings m
+             WHERE m.status = 'captured' AND substr(m.id, 1, 4) = 'rec_'
+               AND NOT EXISTS (SELECT 1 FROM recordings r WHERE r.meeting_id = m.id);
+         ALTER TABLE meetings DROP COLUMN pending_transcription;",
+    )
+    .map_err(|e| format!("migrate v3→v4 meeting status: {}", e))?;
+    set_schema_version(&tx, SCHEMA_VERSION)?;
+    tx.commit().map_err(|e| format!("commit migration v4: {}", e))?;
+    log::info!("[store] Migrated schema v3→v4 (meeting status)");
     Ok(())
 }
 
@@ -129,7 +159,11 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
             id                    TEXT PRIMARY KEY,
             title                 TEXT    NOT NULL,
             input_source          TEXT,
-            pending_transcription INTEGER NOT NULL DEFAULT 0,
+            status                TEXT    NOT NULL DEFAULT 'ready' CHECK(status IN (
+                                      'recording','captured','transcribing','transcribed',
+                                      'summarizing','ready','failed')),
+            failed_step           TEXT CHECK(failed_step IN ('record','transcribe','summarize')),
+            error                 TEXT,
             calendar_event_id     TEXT,
             calendar_meta         TEXT,
             created_at            INTEGER NOT NULL,
@@ -828,8 +862,11 @@ mod tests {
             "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
              INSERT INTO meta VALUES ('schema_version', '2');
              CREATE TABLE meetings (id TEXT PRIMARY KEY, title TEXT NOT NULL,
+                 pending_transcription INTEGER NOT NULL DEFAULT 0,
                  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
-             INSERT INTO meetings VALUES ('m1', 't', 0, 0);
+             INSERT INTO meetings VALUES ('m1', 't', 0, 0, 0);
+             CREATE TABLE recordings (id TEXT PRIMARY KEY, meeting_id TEXT, filename TEXT NOT NULL,
+                 duration_seconds REAL, input_source TEXT, created_at INTEGER NOT NULL);
              CREATE TABLE meeting_index_state (meeting_id TEXT PRIMARY KEY, content_hash TEXT,
                  embedding_hash TEXT, extraction_hash TEXT, indexed_at INTEGER);
              INSERT INTO meeting_index_state VALUES ('m1', 'c', 'e', 'x', 0);
@@ -860,6 +897,46 @@ mod tests {
             .query_row("SELECT content_hash FROM meeting_index_state WHERE meeting_id = 'm1'", [], |r| r.get(0))
             .expect("index state kept");
         assert_eq!(hash, "c");
-        assert_eq!(get_schema_version(&conn), 3);
+        assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn migrate_v3_to_v4_turns_pending_into_captured_with_its_recording() {
+        let conn = open_test_db();
+        conn.execute_batch(
+            "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+             INSERT INTO meta VALUES ('schema_version', '3');
+             CREATE TABLE meetings (id TEXT PRIMARY KEY, title TEXT NOT NULL,
+                 pending_transcription INTEGER NOT NULL DEFAULT 0,
+                 created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+             CREATE TABLE recordings (id TEXT PRIMARY KEY, meeting_id TEXT, filename TEXT NOT NULL,
+                 duration_seconds REAL, input_source TEXT, created_at INTEGER NOT NULL);
+             INSERT INTO meetings VALUES ('rec_1_a', 'unlinked', 1, 0, 0);
+             INSERT INTO meetings VALUES ('rec_2_b', 'linked', 1, 0, 0);
+             INSERT INTO recordings VALUES ('r2', 'rec_2_b', 'rec_2_b.wav', NULL, NULL, 0);
+             INSERT INTO meetings VALUES ('done', 'transcribed', 0, 0, 0);",
+        )
+        .expect("seed v3 db");
+
+        migrate(&conn).expect("migrate v3→v4");
+
+        let status = |id: &str| -> String {
+            conn.query_row("SELECT status FROM meetings WHERE id = ?1", [id], |r| r.get(0)).expect("status")
+        };
+        let recordings = |id: &str| -> Vec<String> {
+            conn.prepare("SELECT filename FROM recordings WHERE meeting_id = ?1")
+                .expect("prepare")
+                .query_map([id], |r| r.get(0))
+                .expect("query")
+                .map(|f| f.expect("filename"))
+                .collect()
+        };
+        assert_eq!(status("rec_1_a"), "captured");
+        assert_eq!(status("rec_2_b"), "captured");
+        assert_eq!(status("done"), "ready");
+        assert_eq!(recordings("rec_1_a"), vec!["rec_1_a.wav".to_string()]);
+        assert_eq!(recordings("rec_2_b"), vec!["rec_2_b.wav".to_string()]);
+        assert!(recordings("done").is_empty());
+        assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
     }
 }

@@ -603,7 +603,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             <div className="flex items-center gap-2">
               {/* Mic voice input — only shown when idle and supported */}
               {showSpeechInput && onSpeechStart && !isLoading && (
-                <IconButton icon={Mic} label="Voice input" onClick={onSpeechStart} />
+                <IconButton icon={Mic} label="Voice input" size="toolbar" onClick={onSpeechStart} />
               )}
 
               {isLoading ? (

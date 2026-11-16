@@ -26,6 +26,9 @@ export const LAYOUT = {
   /** A row's model action (Download, 42%, Delete, Re-download): one width, so actions and states align down a card. */
   modelAction: 'w-32',
 
+  /** Meeting title: longer titles end in an ellipsis (full title on hover) so the actions after it stay put */
+  meetingTitle: 'max-w-2xl',
+
   /** Page gutter around the page column */
   pageGutter: 'px-6 md:px-8',
 } as const;

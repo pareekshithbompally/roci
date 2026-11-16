@@ -1,18 +1,17 @@
-/** A recording activity in the tray: recording, paused or review, each with its actions; stalls show as a badge. */
+/** A recording in the tray: recording, paused, or just saved (offering Transcribe). */
 
 import React from 'react';
-import { Badge } from '@shared/ui';
 import type { ActivityItem } from '@shared/stores/activityStore';
 import { ActivityRowLayout } from './ActivityRowLayout';
 
 export const RecordingRow: React.FC<{ item: ActivityItem }> = ({ item }) => {
   const isPaused = item.actions.some((a) => a.icon === 'play');
-  const isReview = item.label.toLowerCase().includes('review');
+  const isSaved = !item.actions.some((a) => a.icon === 'square' || a.icon === 'play');
 
   const dot = (
     <div
       className={`w-2.5 h-2.5 rounded-full ${
-        isReview
+        isSaved
           ? 'bg-info'
           : isPaused
             ? 'bg-warning'
@@ -21,13 +20,10 @@ export const RecordingRow: React.FC<{ item: ActivityItem }> = ({ item }) => {
     />
   );
 
-  const stallBadge = item.error ? <Badge variant="warning">stall</Badge> : undefined;
-
   return (
     <ActivityRowLayout
       icon={dot}
       label={item.label}
-      badge={stallBadge}
       detail={item.detail}
       actions={item.actions}
       percent={item.percent}

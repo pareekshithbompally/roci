@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { isTauriEnvironment } from '@services/tauri';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useRecordingContext } from '@features/recording';
+import { useStartRecording } from '@features/recording';
 import { useToast } from '@shared/contexts/ToastContext';
 import {
   calendarService,
@@ -17,7 +17,7 @@ import { DEFAULT_NOTIFICATION_SETTINGS } from '@config/notifications.config';
 
 export function useCalendarRuntime(): void {
   const { settings } = useSettings();
-  const { startRecording } = useRecordingContext();
+  const startRecording = useStartRecording();
   const { showToast } = useToast();
 
   // Latest callbacks without re-subscribing the listeners every render.

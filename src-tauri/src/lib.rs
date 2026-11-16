@@ -5,6 +5,7 @@ mod autostart;
 mod audio;
 mod screenshot;
 mod wake_lock;
+mod app_icon;
 mod permissions;
 mod hex;
 mod ipc;
@@ -117,7 +118,6 @@ pub fn run() {
     .manage(shortcuts::ShortcutState {
       registered: Mutex::new(Vec::new()),
     })
-    .manage(wake_lock::WakeLockState::new())
     .manage(mcp::McpState::default())
     .manage(mcp_server::McpHostState::default())
     .manage(url_actions::UrlActionsState::default())
@@ -155,7 +155,7 @@ pub fn run() {
       audio::commands::stop_audio_capture,
       audio::commands::pause_audio_capture,
       audio::commands::resume_audio_capture,
-      audio::commands::recover_recordings,
+      audio::commands::recover_meetings,
       // Permission checklist commands (macOS)
       permissions::commands::get_permissions,
       permissions::commands::request_permission,
@@ -204,10 +204,8 @@ pub fn run() {
       // Screenshot commands
       screenshot::list_capturable_windows,
       screenshot::take_screenshot,
-      // Wake lock commands (macOS: prevent idle sleep during recording)
-      wake_lock::acquire_wake_lock,
-      wake_lock::release_wake_lock,
       // Utility commands
+      app_icon::app_icon,
       reveal_in_file_manager,
       open_native::open_native,
     ])

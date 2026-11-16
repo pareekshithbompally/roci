@@ -53,7 +53,7 @@ const AgentRow: React.FC<AgentRowProps> = ({ agent, pending, setRegistered }) =>
   const blocked = agent.problem !== null || !agent.installed;
   return (
     <CardRow
-      leading={<IntegrationIcon src={copy.icon} alt="" />}
+      leading={<IntegrationIcon src={copy.icon} />}
       title={copy.title}
       description={describe(agent)}
       status={agent.registration === 'outdated' && (

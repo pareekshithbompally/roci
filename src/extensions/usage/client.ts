@@ -84,3 +84,21 @@ export async function getUsageSummary(since?: number): Promise<UsageSummary> {
     since: since ?? null,
   });
 }
+
+/** One AI call made for a meeting (Rust `MeetingUsageRow`), newest first. */
+export interface MeetingUsage {
+  category: UsageCategory;
+  provider: string;
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  estimated_cost: number;
+  timestamp: number;
+}
+
+/** The AI calls made for one meeting (its usage rows carry the meeting id). */
+export async function getMeetingUsage(meetingId: string): Promise<MeetingUsage[]> {
+  if (!isTauriEnvironment()) return [];
+  await ensureInitialized();
+  return invoke<MeetingUsage[]>('plugin:store|get_meeting_usage', { meetingId });
+}

@@ -17,17 +17,13 @@ export function useAudioQuery(recordingFileName: string): AudioQueryResult {
   } = useQuery({
     queryKey: queryKeys.recordingAudio(recordingFileName),
     queryFn: async () => {
-      const [metaResult, dataResult] = await Promise.all([
-        recordingsService.getRecordingMetadata(recordingFileName),
-        recordingsService.getRecordingData(recordingFileName),
-      ]);
+      const dataResult = await recordingsService.getRecordingData(recordingFileName);
 
-      const duration = metaResult.success && metaResult.data ? metaResult.data.duration || 0 : 0;
-
+      // Duration 0: the player reads the real length from the audio once it loads.
       if (dataResult.success && dataResult.data) {
         const blob = new Blob([dataResult.data], { type: 'audio/wav' });
         const audioUrl = URL.createObjectURL(blob);
-        return { audioUrl, duration };
+        return { audioUrl, duration: 0 };
       }
 
       throw new Error('Could not load audio file');

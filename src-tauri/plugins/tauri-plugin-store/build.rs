@@ -11,7 +11,10 @@ const COMMANDS: &[&str] = &[
     "meetings_get",
     "meetings_upsert",
     "meetings_delete",
-    "save_transcription",
+    "meetings_create",
+    "meetings_set_status",
+    "transcripts_save",
+    "summaries_save",
     // Recordings
     "recordings_upsert",
     "recordings_list_for_meeting",
@@ -71,6 +74,7 @@ const COMMANDS: &[&str] = &[
     // Usage
     "insert_usage",
     "get_usage_summary",
+    "get_meeting_usage",
 ];
 
 fn main() {

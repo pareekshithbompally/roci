@@ -1,28 +1,12 @@
-/** Recording feature: provider, controls, and audio source selection. */
+/** Recording feature: the live recording, the meeting pipeline, permissions, and the exit prompt. */
 
-// Context
-export { RecordingProvider, useRecordingContext, useRecordingSessions } from './context';
-
-// Hooks
-export { useRecording, useRecordingTimer, useAudioSource } from './hooks';
-export type { AudioSourceOption } from './hooks';
-
-// Services
-export { recordingService } from './services';
-export type { StartRecordingOptions, StartRecordingResult, StopRecordingResult } from './services';
-
-// Components
+export {
+  recording,
+  useRecordingStore,
+  useRecordingMeetingId,
+  useRecordingPaused,
+  useRecordingBusy,
+} from './stores/recordingStore';
+export { meetingPipeline } from './pipeline/meetingPipeline';
+export { useRecordingRuntime, useStartRecording } from './hooks';
 export { PermissionChecklist, RecordingExitPrompt } from './components';
-
-// Types
-export type {
-  RecordingStatus,
-  RecordingState,
-  RecordingMetadata,
-  RecordingActions,
-  RecordingContextValue,
-  RecordingSession,
-  RecordingSessionStatus,
-  RecordingSessionActions,
-  RecordingSessionsContextValue,
-} from './types';

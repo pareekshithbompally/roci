@@ -8,7 +8,7 @@ import { useAppStore, useRecordingExitPrompt, type ExitPromptKind } from '@share
 import { isTauriEnvironment } from '@services/tauri';
 import { windowService } from '@services/window.service';
 import { RECORDING_EVENTS } from '@config/audio.config';
-import { useRecordingSessions } from '@features/recording/context';
+import { recording } from '@features/recording/stores/recordingStore';
 
 /** The backend events that ask, and which prompt each opens. */
 const PROMPT_EVENTS: Array<[string, ExitPromptKind]> = [
@@ -24,7 +24,6 @@ const STOP_LABEL: Record<ExitPromptKind, string> = {
 export const RecordingExitPrompt: React.FC = () => {
   const prompt = useRecordingExitPrompt();
   const setPrompt = useAppStore((s) => s.setRecordingExitPrompt);
-  const { activeCaptureSessionId, stopAndSaveRecording } = useRecordingSessions();
 
   useEffect(() => {
     if (!isTauriEnvironment()) return;
@@ -35,9 +34,7 @@ export const RecordingExitPrompt: React.FC = () => {
   }, [setPrompt]);
 
   const stop = async (requested: ExitPromptKind) => {
-    if (activeCaptureSessionId) {
-      await stopAndSaveRecording(activeCaptureSessionId);
-    }
+    await recording.stop();
     if (requested === 'quit') {
       await exit(0);
     } else {

@@ -1,7 +1,7 @@
 /** Two-line tray row (label line, detail line, optional progress bar) so nothing truncates in the narrow sidebar. */
 
 import React from 'react';
-import { Pause, Play, Square, Trash2, Timer, Sparkles, X } from 'lucide-react';
+import { Pause, Play, Square, Sparkles, RefreshCw, X } from 'lucide-react';
 import type { ActivityAction } from '@shared/stores/activityStore';
 import { Button, Progress, Text, cn } from '@shared/ui';
 
@@ -75,12 +75,10 @@ const ActionIcon: React.FC<{ name: string; className?: string }> = ({ name, clas
       return <Play className={cn(cls, 'fill-current')} />;
     case 'square':
       return <Square className={cn(cls, 'fill-current')} />;
-    case 'trash-2':
-      return <Trash2 className={cls} />;
-    case 'timer':
-      return <Timer className={cls} />;
     case 'sparkles':
       return <Sparkles className={cls} />;
+    case 'refresh-cw':
+      return <RefreshCw className={cls} />;
     case 'x':
       return <X className={cls} />;
     default:

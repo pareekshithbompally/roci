@@ -80,6 +80,8 @@ export function createModel(
         apiKey: resolved.apiKey,
         baseURL: resolved.baseUrl,
         fetch,
+        // Streamed replies report their tokens only when asked: the context gauge and usage need them.
+        includeUsage: true,
         ...(Object.keys(customHeaders).length > 0 && { headers: customHeaders }),
         ...(options?.llamaServer && { transformRequestBody: llamaServerRequestBody(options.llamaServer.reasoningEffort) }),
       });

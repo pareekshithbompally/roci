@@ -11,7 +11,10 @@ permissions = [
   "allow-meetings-get",
   "allow-meetings-upsert",
   "allow-meetings-delete",
-  "allow-save-transcription",
+  "allow-meetings-create",
+  "allow-meetings-set-status",
+  "allow-transcripts-save",
+  "allow-summaries-save",
   "allow-recordings-upsert",
   "allow-recordings-list-for-meeting",
   "allow-recordings-list-orphan",
@@ -62,4 +65,5 @@ permissions = [
   "allow-spotlight-search",
   "allow-insert-usage",
   "allow-get-usage-summary",
+  "allow-get-meeting-usage",
 ]

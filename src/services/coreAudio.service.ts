@@ -1,28 +1,14 @@
 import { invoke } from '@tauri-apps/api/core'
-import { readFile } from '@tauri-apps/plugin-fs'
 import type { AudioCaptureSource } from '@config/audio.config'
 import type { PermissionKind } from '@services/permissions.service'
 import { isCodedError } from '@shared/utils/errors'
 
+/** What Record needs to create the meeting before capture starts (Rust `AudioCaptureOptions`). */
 export interface AudioCaptureOptions {
   source: AudioCaptureSource
-  fileName?: string
-  recordingsDir?: string
-}
-
-export interface AudioCaptureResult {
-  blob: Blob
-  path: string
-}
-
-/** A recording a quit or crash left unfinished, mixed down at launch (Rust `RecoveredRecording`). */
-export interface RecoveredRecording {
-  /** The mixed file's name inside the recordings directory. */
-  fileName: string
-  source: AudioCaptureSource
-  durationSecs: number
-  size: number
-  recordedAtMs: number
+  title: string
+  calendarEventId?: string
+  calendarMeta?: Record<string, unknown>
 }
 
 /** Why a capture command failed (Rust `CaptureError`). */
@@ -44,28 +30,21 @@ export function captureErrorMessage(error: unknown, fallback: string): string {
 }
 
 class CoreAudioService {
-  async startCapture(options: AudioCaptureOptions): Promise<void> {
-    await invoke('start_audio_capture', {
+  /** Creates the meeting and starts recording it; resolves with its id. */
+  async startCapture(options: AudioCaptureOptions): Promise<string> {
+    return invoke<string>('start_audio_capture', {
       options: {
         source: options.source,
-        fileName: options.fileName,
-        recordingsDir: options.recordingsDir,
+        title: options.title,
+        calendarEventId: options.calendarEventId ?? null,
+        calendarMeta: options.calendarMeta ? JSON.stringify(options.calendarMeta) : null,
       },
     })
   }
 
-  /** Stops the recording; `null` when none was running. */
-  async stopCapture(): Promise<AudioCaptureResult | null> {
-    const path = await invoke<string | null>('stop_audio_capture')
-    if (!path) return null
-
-    const data = await readFile(path)
-    return { blob: new Blob([data], { type: 'audio/wav' }), path }
-  }
-
-  /** Mixes down recordings a quit or crash left unfinished; none while a recording runs. */
-  async recoverRecordings(recordingsDir: string): Promise<RecoveredRecording[]> {
-    return invoke<RecoveredRecording[]>('recover_recordings', { recordingsDir })
+  /** Stops recording; the meeting becomes `captured` (or `failed`). Resolves with its id, `null` when none ran. */
+  async stopCapture(): Promise<string | null> {
+    return invoke<string | null>('stop_audio_capture')
   }
 
   async pauseCapture(): Promise<void> {

@@ -3,12 +3,14 @@ mod commands;
 #[cfg(test)]
 mod consistency;
 mod error;
+mod pipeline;
 mod schema;
 mod search;
 mod spotlight;
 
 pub use changes::{meeting_detail, meeting_ids, on_meeting_change, MeetingChange};
-pub use commands::{MeetingDetail, NoteRow, SummaryRow, TodoRow, TranscriptRow};
+pub use commands::{MeetingCreateInput, MeetingDetail, MeetingStatus, NoteRow, SummaryRow, TodoRow, TranscriptRow};
+pub use pipeline::{create_meeting, delete_meeting, meetings_with_status, set_meeting_status};
 pub use error::StoreError;
 
 use commands::StoreState;
@@ -33,7 +35,10 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::meetings_get,
             commands::meetings_upsert,
             commands::meetings_delete,
-            commands::save_transcription,
+            commands::meetings_create,
+            commands::meetings_set_status,
+            commands::transcripts_save,
+            commands::summaries_save,
             // Recordings (Phase 5)
             commands::recordings_upsert,
             commands::recordings_list_for_meeting,
@@ -93,6 +98,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             // Usage
             commands::insert_usage,
             commands::get_usage_summary,
+            commands::get_meeting_usage,
         ])
         .setup(|app, _api| {
             app.manage(StoreState::default());

@@ -8,8 +8,10 @@ import { isMeetingBusy, type MeetingPhase } from '@shared/types/meetingPhase';
 import type { CalloutVariant } from '@shared/ui';
 
 const VARIANT: Record<MeetingPhase['kind'], CalloutVariant> = {
+  recording: 'neutral',
   pending: 'warning',
   transcribing: 'neutral',
+  transcribed: 'warning',
   summarizing: 'neutral',
   failed: 'error',
   ready: 'neutral',
@@ -17,7 +19,7 @@ const VARIANT: Record<MeetingPhase['kind'], CalloutVariant> = {
 
 interface MeetingPhaseNoticeProps {
   phase: MeetingPhase;
-  /** Runs the phase action; omitted when the meeting has no recording to process. */
+  /** Runs the phase action (Transcribe, Retry, Cancel…). */
   onAction?: () => void;
 }
 

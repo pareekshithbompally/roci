@@ -69,7 +69,7 @@ mod tests {
             id: "m1".into(),
             title: "Q3 plan".into(),
             input_source: None,
-            pending_transcription: false,
+            status: tauri_plugin_store::MeetingStatus::at("ready"),
             calendar_event_id: None,
             calendar_meta: None,
             created_at: 1_700_000_000_000,

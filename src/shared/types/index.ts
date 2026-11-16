@@ -2,6 +2,7 @@ import type { AudioCaptureSource } from '@config/audio.config';
 import type { MeetingCitation } from '@extensions/tools/types';
 import type { WebCitation, InlineCitationSpan } from '@services/ai/types';
 import type { ReadAloudEngine } from '@config/readAloud.config';
+import type { MeetingStatus } from './meetingPhase';
 export type { MeetingCitation, WebCitation, InlineCitationSpan };
 
 export interface ActionItem {
@@ -52,7 +53,8 @@ export interface HistoryItem extends ProcessedResult {
   transcriptionId?: string;
   summaryId?: string;
   inputSource?: string;
-  pendingTranscription?: boolean;
+  /** Where the meeting is in its pipeline; absent for items that never had one (e.g. drafts). */
+  status?: MeetingStatus;
   /** Calendar integration fields (populated when recording started from a calendar event) */
   calendarEventId?: string;
   scheduledTitle?: string;
@@ -62,7 +64,7 @@ export interface HistoryItem extends ProcessedResult {
   meetingUrl?: string;
 }
 
-/** View state, not recording state (recording is managed in RecordingContext). */
+/** View state, not recording state (recording lives in recordingStore and the meeting's status). */
 export enum AppStatus {
   IDLE = 'IDLE',
   RESULTS = 'RESULTS',
@@ -213,6 +215,8 @@ export interface AppSettings {
   analyzeModel?: string;
   apiKey?: string;
   defaultAudioSource?: AudioCaptureSource;
+  /** Transcribe a recording as soon as it stops; off keeps it as "Not transcribed" until asked. */
+  autoTranscribe?: boolean;
   jobProcessing?: {
     mode: 'sequential' | 'parallel';
     maxConcurrent: number;
@@ -266,7 +270,7 @@ export interface MeetingIndexEntry {
   inputSource?: string;
   createdAt: string;
   updatedAt: string;
-  pendingTranscription?: boolean;
+  status: MeetingStatus;
   /** Calendar integration — populated when recording starts from a calendar notification */
   calendarEventId?: string;
   /** Original meeting title from the calendar (distinct from LLM-generated title) */

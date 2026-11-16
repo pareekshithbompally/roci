@@ -74,8 +74,18 @@ sha2 = "0.10"
 ptts = { version = "=0.7.1", features = ["hf", "accelerate", "kai"] }
 # Read aloud: the macOS system voices (names, quality, novelty flag) for the voice picker.
 objc2-avf-audio = { version = "0.3.2", default-features = false, features = ["std", "AVSpeechSynthesis"] }
-# Call detection: which running application holds the microphone.
-objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSRunningApplication"] }
+# Call detection (which app holds the microphone) and app icons.
+objc2-app-kit = { version = "0.3.2", default-features = false, features = [
+  "std",
+  "NSRunningApplication",
+  # App icons (Finder, …) rendered to PNG: NSWorkspace → NSImage → NSBitmapImageRep.
+  "NSWorkspace",
+  "NSImage",
+  "NSImageRep",
+  "NSBitmapImageRep",
+  "NSGraphicsContext",
+  "objc2-core-graphics",
+] }
 
 # transcribe-cpp fork revision: Parakeet vocabulary rescoring and a Metal residency fix.
 [patch.crates-io]

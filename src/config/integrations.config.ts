@@ -8,7 +8,8 @@ export const INTEGRATIONS_CONFIG = {
     title: 'Calendar',
     description: 'Get notified before meetings and record them. Works with every account in macOS Calendar.',
     deniedHint: 'Kasset is off in System Settings › Privacy & Security › Calendars.',
-    icon: '/images/macos-calendar-sm.png',
+    /** Bundle id: the row shows the app's own icon from macOS. */
+    app: 'com.apple.iCal',
   },
   appleIntelligence: {
     title: 'Apple Intelligence',
@@ -27,7 +28,7 @@ export const INTEGRATIONS_CONFIG = {
     title: 'Notes',
     description: `Save each meeting’s summary and transcript as a note in the “${NOTES_FOLDER}” folder of Apple Notes. Saving again updates the note.`,
     deniedHint: 'Kasset is off in System Settings › Privacy & Security › Automation › Notes.',
-    icon: '/images/macos-notes-sm.png',
+    app: 'com.apple.Notes',
     folder: NOTES_FOLDER,
     /** Line at the end of each note that ties it to its meeting. */
     tagPrefix: 'Kasset meeting',
@@ -35,11 +36,13 @@ export const INTEGRATIONS_CONFIG = {
   spotlight: {
     title: 'Spotlight',
     description: 'Find meetings from Spotlight (⌘Space) by title, attendees, summary, notes, or to-dos. Transcripts stay in Kasset.',
-    icon: '/images/macos-spotlight-sm.png',
+    app: 'com.apple.Spotlight',
   },
   hex: {
     title: 'Hex',
     description: "Use Hex's transcription models, and bring every Hex meeting into Kasset.",
+    app: 'anomaly.hex',
+    /** Shown until Hex is installed. */
     icon: '/images/hex-app-sm.png',
     /** Catch-up on focus at most this often (a full read of Hex's meeting list). */
     focusSyncIntervalMs: 60_000,
@@ -48,7 +51,7 @@ export const INTEGRATIONS_CONFIG = {
     title: 'Reminders',
     description: 'Send meeting action items to Reminders. Completing one there completes it in Kasset.',
     deniedHint: 'Kasset is off in System Settings › Privacy & Security › Reminders.',
-    icon: '/images/macos-reminders-sm.png',
+    app: 'com.apple.reminders',
     /** List created on first enable */
     defaultListTitle: 'Kasset',
     /** Reminders fires several change notifications per edit; pull once they settle. */

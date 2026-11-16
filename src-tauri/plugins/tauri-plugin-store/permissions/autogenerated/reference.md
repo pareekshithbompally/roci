@@ -14,7 +14,10 @@ Allows all store plugin commands
 - `allow-meetings-get`
 - `allow-meetings-upsert`
 - `allow-meetings-delete`
-- `allow-save-transcription`
+- `allow-meetings-create`
+- `allow-meetings-set-status`
+- `allow-transcripts-save`
+- `allow-summaries-save`
 - `allow-recordings-upsert`
 - `allow-recordings-list-for-meeting`
 - `allow-recordings-list-orphan`
@@ -65,6 +68,7 @@ Allows all store plugin commands
 - `allow-spotlight-search`
 - `allow-insert-usage`
 - `allow-get-usage-summary`
+- `allow-get-meeting-usage`
 
 ## Permission Table
 
@@ -468,6 +472,32 @@ Denies the get_indexed_ids command without any pre-configured scope.
 <tr>
 <td>
 
+`store:allow-get-meeting-usage`
+
+</td>
+<td>
+
+Enables the get_meeting_usage command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-get-meeting-usage`
+
+</td>
+<td>
+
+Denies the get_meeting_usage command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `store:allow-get-meetings-needing-embeddings`
 
 </td>
@@ -780,6 +810,32 @@ Denies the mark_meeting_embedded command without any pre-configured scope.
 <tr>
 <td>
 
+`store:allow-meetings-create`
+
+</td>
+<td>
+
+Enables the meetings_create command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-meetings-create`
+
+</td>
+<td>
+
+Denies the meetings_create command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `store:allow-meetings-delete`
 
 </td>
@@ -877,6 +933,32 @@ Enables the meetings_search command without any pre-configured scope.
 <td>
 
 Denies the meetings_search command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-meetings-set-status`
+
+</td>
+<td>
+
+Enables the meetings_set_status command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-meetings-set-status`
+
+</td>
+<td>
+
+Denies the meetings_set_status command without any pre-configured scope.
 
 </td>
 </tr>
@@ -1352,32 +1434,6 @@ Denies the reminders_upsert command without any pre-configured scope.
 <tr>
 <td>
 
-`store:allow-save-transcription`
-
-</td>
-<td>
-
-Enables the save_transcription command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-save-transcription`
-
-</td>
-<td>
-
-Denies the save_transcription command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
 `store:allow-settings-get-all`
 
 </td>
@@ -1449,6 +1505,32 @@ Enables the spotlight_search command without any pre-configured scope.
 <td>
 
 Denies the spotlight_search command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-summaries-save`
+
+</td>
+<td>
+
+Enables the summaries_save command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-summaries-save`
+
+</td>
+<td>
+
+Denies the summaries_save command without any pre-configured scope.
 
 </td>
 </tr>
@@ -1579,6 +1661,32 @@ Enables the todos_upsert command without any pre-configured scope.
 <td>
 
 Denies the todos_upsert command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-transcripts-save`
+
+</td>
+<td>
+
+Enables the transcripts_save command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-transcripts-save`
+
+</td>
+<td>
+
+Denies the transcripts_save command without any pre-configured scope.
 
 </td>
 </tr>

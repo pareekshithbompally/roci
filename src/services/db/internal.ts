@@ -11,6 +11,7 @@ import type {
   MeetingIndexEntry,
 } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
+import type { MeetingStatus } from '@shared/types/meetingPhase';
 
 const PLUGIN = 'plugin:store|';
 
@@ -276,25 +277,40 @@ export function modelProviderToRust(provider: ModelProvider): {
   };
 }
 
-export function toMeetingIndexEntry(row: {
+/** The status columns every meeting row carries. */
+export interface RustMeetingStatus {
+  status: MeetingStatus['status'];
+  failed_step: MeetingStatus['failedStep'] | null;
+  error: string | null;
+}
+
+export function toMeetingStatus(row: RustMeetingStatus): MeetingStatus {
+  const status: MeetingStatus = { status: row.status };
+  if (row.failed_step) status.failedStep = row.failed_step;
+  if (row.error) status.error = row.error;
+  return status;
+}
+
+export interface RustMeetingRow extends RustMeetingStatus {
   id: string;
   title: string;
   input_source: string | null;
-  pending_transcription: boolean;
   calendar_event_id: string | null;
   calendar_meta: string | null;
   created_at: number;
   updated_at: number;
   categories: string[];
   recording_filename: string | null;
-}): MeetingIndexEntry {
+}
+
+export function toMeetingIndexEntry(row: RustMeetingRow): MeetingIndexEntry {
   const entry: MeetingIndexEntry = {
     id: row.id,
     title: row.title,
     categories: row.categories,
     recordingFileName: row.recording_filename ?? undefined,
     inputSource: (row.input_source ?? undefined) as MeetingIndexEntry['inputSource'],
-    pendingTranscription: row.pending_transcription,
+    status: toMeetingStatus(row),
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
   };

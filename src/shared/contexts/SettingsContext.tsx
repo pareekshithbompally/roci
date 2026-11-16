@@ -51,13 +51,14 @@ export const defaultSettings: AppSettings = {
   analyzeModel: '',
   apiKey: '',
   defaultAudioSource: 'systemAndMicrophone',
+  autoTranscribe: false,
   jobProcessing: { mode: 'sequential', maxConcurrent: 2 },
   notifications: DEFAULT_NOTIFICATION_SETTINGS,
 };
 
 const SETTINGS_KEYS: Array<keyof AppSettings> = [
   'transcriptionProvider', 'transcriptionModel', 'chatModel', 'analyzeModel',
-  'apiKey', 'defaultAudioSource',
+  'apiKey', 'defaultAudioSource', 'autoTranscribe',
   'jobProcessing', 'calendarIntegration', 'notifications', 'readAloudEngine', 'readAloudVoice', 'remindersIntegration', 'hexIntegration', 'appleIntelligenceIntegration', 'appleNotesIntegration', 'showModelAvatars', 'hideToolCalls', 'liveTranscription',
 ];
 

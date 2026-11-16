@@ -1,31 +1,34 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { deriveMeetingPhase, isMeetingBusy } from '@shared/types/meetingPhase';
-import { meetingJobs, useMeetingJobsStore } from '@shared/stores/meetingJobsStore';
+import { meetingProgress, useMeetingProgressStore } from '@shared/stores/meetingProgressStore';
+import { meetingPhaseAction, meetingPhaseLabel, meetingPhaseDetail } from '@config/meetingPhase.config';
 
 describe('deriveMeetingPhase', () => {
-  it('is ready with no job and no pending flag', () => {
-    expect(deriveMeetingPhase(undefined, {})).toEqual({ kind: 'ready' });
-    expect(deriveMeetingPhase(undefined, null)).toEqual({ kind: 'ready' });
+  it('is ready when the meeting has no status', () => {
+    expect(deriveMeetingPhase(undefined)).toEqual({ kind: 'ready' });
   });
 
-  it('is pending when the recording was never transcribed', () => {
-    expect(deriveMeetingPhase(undefined, { pendingTranscription: true })).toEqual({ kind: 'pending' });
+  it('maps each stored status onto its phase', () => {
+    expect(deriveMeetingPhase({ status: 'recording' })).toEqual({ kind: 'recording' });
+    expect(deriveMeetingPhase({ status: 'captured' })).toEqual({ kind: 'pending' });
+    expect(deriveMeetingPhase({ status: 'transcribed' })).toEqual({ kind: 'transcribed' });
+    expect(deriveMeetingPhase({ status: 'summarizing' })).toEqual({ kind: 'summarizing' });
+    expect(deriveMeetingPhase({ status: 'ready' })).toEqual({ kind: 'ready' });
   });
 
-  it('a running job wins over the persisted flag', () => {
+  it('adds live part progress while transcribing', () => {
     const part = { current: 2, total: 5 };
-    expect(deriveMeetingPhase({ stage: 'transcribing', part }, { pendingTranscription: true }))
-      .toEqual({ kind: 'transcribing', part });
-    expect(deriveMeetingPhase({ stage: 'summarizing' }, { pendingTranscription: true }))
-      .toEqual({ kind: 'summarizing' });
+    expect(deriveMeetingPhase({ status: 'transcribing' }, part)).toEqual({ kind: 'transcribing', part });
+    expect(deriveMeetingPhase({ status: 'transcribing' })).toEqual({ kind: 'transcribing', part: null });
   });
 
-  it('keeps the failed stage and message', () => {
-    expect(deriveMeetingPhase({ stage: 'failed', failedAt: 'summarize', message: 'quota' }, { pendingTranscription: true }))
+  it('keeps the failed step and message', () => {
+    expect(deriveMeetingPhase({ status: 'failed', failedStep: 'summarize', error: 'quota' }))
       .toEqual({ kind: 'failed', failedAt: 'summarize', message: 'quota' });
   });
 
-  it('only transcribing and summarizing count as busy', () => {
+  it('recording, transcribing and summarizing count as busy', () => {
+    expect(isMeetingBusy({ kind: 'recording' })).toBe(true);
     expect(isMeetingBusy({ kind: 'transcribing', part: null })).toBe(true);
     expect(isMeetingBusy({ kind: 'summarizing' })).toBe(true);
     expect(isMeetingBusy({ kind: 'failed', failedAt: 'transcribe', message: 'x' })).toBe(false);
@@ -34,26 +37,19 @@ describe('deriveMeetingPhase', () => {
   });
 });
 
-describe('meetingJobsStore', () => {
-  beforeEach(() => useMeetingJobsStore.setState({ jobs: {} }));
-
-  it('one shared copy: a job set anywhere is visible everywhere', () => {
-    meetingJobs.set('m1', { stage: 'summarizing' });
-    expect(useMeetingJobsStore.getState().jobs.m1).toEqual({ stage: 'summarizing' });
-  });
+describe('meetingProgressStore', () => {
+  beforeEach(() => useMeetingProgressStore.setState({ parts: {} }));
 
   it('clear removes only that meeting and is a no-op when absent', () => {
-    meetingJobs.set('m1', { stage: 'summarizing' });
-    meetingJobs.set('m2', { stage: 'transcribing', part: null });
-    const before = useMeetingJobsStore.getState().jobs;
-    meetingJobs.clear('missing');
-    expect(useMeetingJobsStore.getState().jobs).toBe(before);
-    meetingJobs.clear('m1');
-    expect(Object.keys(useMeetingJobsStore.getState().jobs)).toEqual(['m2']);
+    meetingProgress.set('m1', { current: 1, total: 2 });
+    meetingProgress.set('m2', { current: 1, total: 3 });
+    const before = useMeetingProgressStore.getState().parts;
+    meetingProgress.clear('missing');
+    expect(useMeetingProgressStore.getState().parts).toBe(before);
+    meetingProgress.clear('m1');
+    expect(Object.keys(useMeetingProgressStore.getState().parts)).toEqual(['m2']);
   });
 });
-
-import { meetingPhaseAction, meetingPhaseLabel, meetingPhaseDetail } from '@config/meetingPhase.config';
 
 describe('meeting phase copy', () => {
   it('labels every phase, with part progress when known', () => {
@@ -61,13 +57,17 @@ describe('meeting phase copy', () => {
     expect(meetingPhaseLabel({ kind: 'transcribing', part: null })).toBe('Transcribing');
     expect(meetingPhaseLabel({ kind: 'failed', failedAt: 'summarize', message: 'x' })).toBe("Couldn't summarize");
     expect(meetingPhaseLabel({ kind: 'pending' })).toBe('Not transcribed');
+    expect(meetingPhaseLabel({ kind: 'transcribed' })).toBe('Not summarized');
   });
 
-  it('offers one action per phase and none while busy', () => {
+  it('offers one action per phase: Cancel while running, none for a failed recording', () => {
     expect(meetingPhaseAction({ kind: 'pending' })).toBe('Transcribe');
+    expect(meetingPhaseAction({ kind: 'transcribed' })).toBe('Summarize');
     expect(meetingPhaseAction({ kind: 'failed', failedAt: 'transcribe', message: 'x' })).toBe('Retry');
+    expect(meetingPhaseAction({ kind: 'failed', failedAt: 'record', message: 'x' })).toBeNull();
     expect(meetingPhaseAction({ kind: 'ready' })).toBe('Re-transcribe');
-    expect(meetingPhaseAction({ kind: 'summarizing' })).toBeNull();
+    expect(meetingPhaseAction({ kind: 'summarizing' })).toBe('Cancel');
+    expect(meetingPhaseAction({ kind: 'recording' })).toBeNull();
   });
 
   it('shows the failure message as the detail, nothing when ready', () => {

@@ -4,7 +4,8 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { Key, HardDrive, ListTodo, CalendarDays } from 'lucide-react';
 import { ImportButton } from '@features/import';
 import { useAppActions } from '@shared/stores/appStore';
-import { useRecordingContext } from '@features/recording';
+import { useRecordingBusy, useRecordingMeetingId, useStartRecording } from '@features/recording';
+import { isTauriEnvironment } from '@services/tauri';
 import { askInNewChat, useChatStore } from '@features/chat';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
@@ -37,7 +38,10 @@ const GREETING_POOL = [
 export const IdleView: React.FC<IdleViewProps> = () => {
   const { setCurrentView, setActiveSettingsPanel } = useAppActions();
   const [greeting] = useState(() => GREETING_POOL[Math.floor(Math.random() * GREETING_POOL.length)]);
-  const recording = useRecordingContext();
+  const startRecording = useStartRecording();
+  const recordingMeetingId = useRecordingMeetingId();
+  const recordingBusy = useRecordingBusy();
+  const canRecord = isTauriEnvironment() && !recordingMeetingId && !recordingBusy;
 
   const chatInput = useChatStore((s) => s.input);
   const isGenerating = useChatStore((s) => s.isLoading);
@@ -90,7 +94,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
 
   const handleStartRecording = async () => {
     try {
-      await recording.startRecording();
+      await startRecording();
     } catch (error) {
       console.error('[IdleView] Failed to start recording:', error);
     }
@@ -178,7 +182,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                 aria-hidden={voice.isVoiceActive || undefined}
                 inert={voice.isVoiceActive || undefined}
               >
-                <Button variant="outline" size="sm" onClick={handleStartRecording} disabled={!recording.canRecord}>
+                <Button variant="outline" size="sm" onClick={handleStartRecording} disabled={!canRecord}>
                   <Dot tone="danger" />
                   Record
                 </Button>
@@ -230,7 +234,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
 
               {/* Record button — always available */}
               <div className="flex flex-col items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handleStartRecording} disabled={!recording.canRecord}>
+                <Button variant="outline" size="sm" onClick={handleStartRecording} disabled={!canRecord}>
                   <Dot tone="danger" />
                   Record
                 </Button>

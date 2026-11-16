@@ -305,6 +305,18 @@ export const GeneralPanel: React.FC = () => {
             />
           }
         />
+        <CardRow
+          title="Transcribe After Recording"
+          description="Start the transcript and summary as soon as a recording stops. Off: it waits in the sidebar until you press Transcribe."
+          actions={
+            <Switch
+              size="sm"
+              checked={!!settings.autoTranscribe}
+              onCheckedChange={(checked) => setSettings({ autoTranscribe: checked })}
+              aria-label="Transcribe after recording"
+            />
+          }
+        />
       </Section>
 
       {isTauriEnvironment() && (

@@ -1,12 +1,17 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, TryLockError};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
+use tauri_plugin_store::{MeetingCreateInput, MeetingStatus};
 
 use super::recorder::{Recorder, Sources};
-use super::recovery::{self, Recovered};
+use super::recovery;
 use crate::permissions::{self, PermissionKind};
+
+/// Recordings live in this folder of the app data directory, one `{meeting id}.wav` each.
+const RECORDINGS_DIR: &str = "recordings";
 
 /// The capture members of the frontend `AudioCaptureSource` union (`file-upload` is never captured).
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -29,12 +34,12 @@ impl AudioCaptureSource {
         }
     }
 
-    /// The source a recovered recording was captured with, from its tracks.
-    fn recorded(has_system: bool, has_microphone: bool) -> Self {
-        match (has_system, has_microphone) {
-            (true, true) => AudioCaptureSource::SystemAndMicrophone,
-            (true, false) => AudioCaptureSource::System,
-            _ => AudioCaptureSource::Microphone,
+    /// The name the meeting stores as its input source.
+    fn name(self) -> &'static str {
+        match self {
+            AudioCaptureSource::System => "system",
+            AudioCaptureSource::Microphone => "microphone",
+            AudioCaptureSource::SystemAndMicrophone => "systemAndMicrophone",
         }
     }
 
@@ -46,12 +51,15 @@ impl AudioCaptureSource {
     }
 }
 
+/// What Record needs to create the meeting before capture starts.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AudioCaptureOptions {
     pub source: AudioCaptureSource,
-    pub file_name: Option<String>,
-    pub recordings_dir: Option<String>,
+    pub title: String,
+    pub calendar_event_id: Option<String>,
+    /// The calendar event as JSON, stored with the meeting.
+    pub calendar_meta: Option<String>,
 }
 
 /// Why a capture command failed, for the frontend to branch on `code`.
@@ -71,9 +79,21 @@ impl From<eyre::Report> for CaptureError {
     }
 }
 
-static RECORDER: Mutex<Option<Recorder>> = Mutex::new(None);
+impl From<tauri_plugin_store::StoreError> for CaptureError {
+    fn from(error: tauri_plugin_store::StoreError) -> Self {
+        Self::Capture { message: error.message }
+    }
+}
 
-fn recorder() -> MutexGuard<'static, Option<Recorder>> {
+/// The running recording and the meeting it belongs to.
+struct Active {
+    meeting_id: String,
+    recorder: Recorder,
+}
+
+static RECORDER: Mutex<Option<Active>> = Mutex::new(None);
+
+fn recorder() -> MutexGuard<'static, Option<Active>> {
     RECORDER.lock().unwrap_or_else(|error| error.into_inner())
 }
 
@@ -88,142 +108,144 @@ pub fn is_recording() -> bool {
 
 /// Whether a recording is capturing, for the quit and close prompts; a start or stop in progress counts.
 pub fn capture_active() -> bool {
-    match RECORDER.try_lock() {
-        Ok(active) => active.is_some(),
-        Err(TryLockError::Poisoned(poisoned)) => poisoned.into_inner().is_some(),
-        Err(TryLockError::WouldBlock) => true,
-    }
+    is_recording()
 }
 
-/// Finishes a running recording's tracks on exit so the next launch recovers it.
+/// Finishes a running recording's tracks on exit; the meeting stays `recording` until the next launch mixes it.
 pub fn abandon_active() {
     if let Some(active) = recorder().take() {
-        active.abandon();
+        active.recorder.abandon();
     }
 }
 
-fn recordings_path(app: &AppHandle, recordings_dir: Option<String>) -> eyre::Result<PathBuf> {
-    let data_dir = app.path().app_data_dir()?;
-    let recordings_path = data_dir.join(recordings_dir.unwrap_or_else(|| "recordings".into()));
-    std::fs::create_dir_all(&recordings_path)?;
-    Ok(recordings_path)
+fn recordings_path(app: &AppHandle) -> eyre::Result<PathBuf> {
+    let recordings = app.path().app_data_dir()?.join(RECORDINGS_DIR);
+    std::fs::create_dir_all(&recordings)?;
+    Ok(recordings)
 }
 
-fn create_output_path(
-    app: &AppHandle,
-    file_name: Option<String>,
-    recordings_dir: Option<String>,
-) -> eyre::Result<PathBuf> {
-    let recordings_path = recordings_path(app, recordings_dir)?;
-    let filename = file_name.unwrap_or_else(|| {
-        let ts = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_millis())
-            .unwrap_or_default();
-        format!("recording_{ts}.wav")
-    });
-    Ok(recordings_path.join(filename))
+/// `rec_{epoch ms}_{8 hex}`, the meeting id and its recording's file stem.
+fn new_meeting_id() -> String {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    format!("rec_{}_{:08x}", now.as_millis(), now.subsec_nanos() ^ std::process::id())
 }
 
+/// Starts recording a new meeting and returns its id.
 #[tauri::command]
 pub async fn start_audio_capture(
     app: AppHandle,
     options: AudioCaptureOptions,
-) -> Result<(), CaptureError> {
+) -> Result<String, CaptureError> {
     if let Some(kind) = permissions::missing(options.source.needs()) {
         return Err(CaptureError::Permission { kind });
     }
-    tauri::async_runtime::spawn_blocking(move || start(app, options))
+    tauri::async_runtime::spawn_blocking(move || start(&app, options))
         .await
-        .map_err(|error| eyre::eyre!("audio start task failed: {error}"))??;
-    Ok(())
+        .map_err(|error| eyre::eyre!("audio start task failed: {error}"))?
 }
 
-/// Starts a recording under the recorder lock; one still running (lost on reload) is left for recovery.
-fn start(app: AppHandle, options: AudioCaptureOptions) -> eyre::Result<()> {
+/// Creates the meeting, then starts capture under the recorder lock; a refused capture removes the meeting.
+fn start(app: &AppHandle, options: AudioCaptureOptions) -> Result<String, CaptureError> {
     let mut active = recorder();
     if let Some(previous) = active.take() {
-        previous.abandon();
+        finish(app, previous)?;
     }
-    let output = create_output_path(&app, options.file_name, options.recordings_dir)?;
+    let meeting_id = new_meeting_id();
+    let file_name = format!("{meeting_id}.wav");
+    tauri_plugin_store::create_meeting(
+        app,
+        &MeetingCreateInput {
+            id: meeting_id.clone(),
+            title: options.title,
+            status: "recording".into(),
+            input_source: Some(options.source.name().into()),
+            recording_filename: Some(file_name.clone()),
+            calendar_event_id: options.calendar_event_id,
+            calendar_meta: options.calendar_meta,
+            created_at: None,
+        },
+    )?;
+    let output = recordings_path(app)?.join(file_name);
     tracing::info!(output = %output.display(), "audio capture starting");
-    *active = Some(Recorder::start(options.source.sources(), output, app)?);
-    Ok(())
+    match Recorder::start(options.source.sources(), output, app.clone()) {
+        Ok(started) => {
+            *active = Some(Active { meeting_id: meeting_id.clone(), recorder: started });
+            Ok(meeting_id)
+        }
+        Err(error) => {
+            if let Err(cleanup) = tauri_plugin_store::delete_meeting(app, &meeting_id) {
+                tracing::error!(%cleanup, meeting_id, "could not remove a meeting whose capture never started");
+            }
+            Err(error.into())
+        }
+    }
 }
 
-/// Stops the recording and returns the mixed file's path; `None` when none was running.
+/// Stops the recording and returns its meeting id (`None` when none was running); the meeting becomes `captured`.
 #[tauri::command]
-pub async fn stop_audio_capture() -> Result<Option<String>, CaptureError> {
-    // Blocking work off the async runtime; the recorder stays held so nothing sees the tracks as abandoned.
-    let output = tauri::async_runtime::spawn_blocking(|| {
+pub async fn stop_audio_capture(app: AppHandle) -> Result<Option<String>, CaptureError> {
+    // The recorder stays held while stopping so nothing sees the tracks as abandoned.
+    tauri::async_runtime::spawn_blocking(move || {
         let mut active = recorder();
-        active.take().map(Recorder::stop).transpose()
+        active.take().map(|running| finish(&app, running)).transpose()
     })
     .await
-    .map_err(|error| eyre::eyre!("audio stop task failed: {error}"))??;
-    if let Some(output) = &output {
-        tracing::info!(output = %output.display(), "audio capture stopped");
+    .map_err(|error| eyre::eyre!("audio stop task failed: {error}"))?
+}
+
+/// Stops capture and records the outcome on the meeting: `captured`, or `failed` at `record`.
+fn finish(app: &AppHandle, active: Active) -> Result<String, CaptureError> {
+    let Active { meeting_id, recorder } = active;
+    let (status, duration) = outcome(recorder.stop());
+    tauri_plugin_store::set_meeting_status(app, &meeting_id, &status, duration)?;
+    tracing::info!(meeting_id, status = status.status, "audio capture stopped");
+    Ok(meeting_id)
+}
+
+fn outcome(mixed: eyre::Result<f64>) -> (MeetingStatus, Option<f64>) {
+    match mixed {
+        Ok(duration) => (MeetingStatus::at("captured"), Some(duration)),
+        Err(error) => (MeetingStatus::failed("record", format!("{error:#}")), None),
     }
-    Ok(output.map(|output| output.to_string_lossy().into_owned()))
 }
 
 #[tauri::command]
 pub async fn pause_audio_capture() {
     if let Some(active) = recorder().as_ref() {
-        active.pause();
+        active.recorder.pause();
     }
 }
 
 #[tauri::command]
 pub async fn resume_audio_capture() {
     if let Some(active) = recorder().as_ref() {
-        active.resume();
+        active.recorder.resume();
     }
 }
 
-/// A recording recovered at launch, for the frontend to add to history.
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RecoveredRecording {
-    /// The mixed file's name inside the recordings directory.
-    pub file_name: String,
-    pub source: AudioCaptureSource,
-    pub duration_secs: u64,
-    pub size: u64,
-    pub recorded_at_ms: u64,
-}
-
-impl From<Recovered> for RecoveredRecording {
-    fn from(recovered: Recovered) -> Self {
-        Self {
-            file_name: recovered
-                .path
-                .file_name()
-                .map(|name| name.to_string_lossy().into_owned())
-                .unwrap_or_default(),
-            source: AudioCaptureSource::recorded(recovered.has_system, recovered.has_microphone),
-            duration_secs: recovered.duration_secs,
-            size: recovered.size,
-            recorded_at_ms: recovered.recorded_at_ms,
-        }
-    }
-}
-
-/// Mixes down tracks left by a quit, crash, or failed mix; does nothing while a recording runs.
+/// At launch: mixes every meeting a quit or crash left `recording` (→ `captured`, or `failed`), and
+/// returns the meetings left mid-transcription or mid-summary for the pipeline to resume.
 #[tauri::command]
-pub async fn recover_recordings(
-    app: AppHandle,
-    recordings_dir: Option<String>,
-) -> Result<Vec<RecoveredRecording>, CaptureError> {
-    let recordings = recordings_path(&app, recordings_dir)?;
-    let recovered = tauri::async_runtime::spawn_blocking(move || {
+pub async fn recover_meetings(app: AppHandle) -> Result<Vec<String>, CaptureError> {
+    tauri::async_runtime::spawn_blocking(move || {
         let active = recorder();
-        if active.is_some() {
-            return Ok(Vec::new());
+        let running = active.as_ref().map(|current| current.meeting_id.clone());
+        let recordings = recordings_path(&app)?;
+        for id in tauri_plugin_store::meetings_with_status(&app, "recording")? {
+            if Some(&id) == running.as_ref() {
+                continue;
+            }
+            let (status, duration) = outcome(recover_meeting(&recordings, &id));
+            tauri_plugin_store::set_meeting_status(&app, &id, &status, duration)?;
         }
-        recovery::recover(&recordings)
+        let mut resumable = tauri_plugin_store::meetings_with_status(&app, "transcribing")?;
+        resumable.extend(tauri_plugin_store::meetings_with_status(&app, "summarizing")?);
+        Ok(resumable)
     })
     .await
-        .map_err(|error| eyre::eyre!("recording recovery task failed: {error}"))??;
-    Ok(recovered.into_iter().map(RecoveredRecording::from).collect())
+    .map_err(|error| eyre::eyre!("recording recovery task failed: {error}"))?
+}
+
+fn recover_meeting(recordings: &Path, id: &str) -> eyre::Result<f64> {
+    recovery::recover(&recordings.join(id), &recordings.join(format!("{id}.wav")))
 }

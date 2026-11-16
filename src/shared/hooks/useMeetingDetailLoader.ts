@@ -18,7 +18,7 @@ function buildSummaryMarkdown(summary: MeetingDetail['summary']): string {
   return lines.join('\n\n');
 }
 
-function buildMeetingResult(detail: MeetingDetail): ProcessedResult {
+export function buildMeetingResult(detail: MeetingDetail): ProcessedResult {
   const structuredSummary = detail.summary
     ? {
         overview: detail.summary.overview,

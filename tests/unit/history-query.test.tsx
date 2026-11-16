@@ -40,31 +40,20 @@ vi.mock('@services/meeting.service', () => ({
 import { store } from '@services/db';
 // eslint-disable-next-line import/first
 import { HistoryProvider, useHistoryData } from '@shared/contexts/HistoryContext';
-// eslint-disable-next-line import/first
-import type { HistoryItem } from '@shared/types';
 
 const meetingsList = store.meetings.list as unknown as ReturnType<typeof vi.fn>;
 const meetingsUpsert = store.meetings.upsert as unknown as ReturnType<typeof vi.fn>;
 
-const newItem = (id: string, title: string): HistoryItem => ({
-  id,
-  title,
-  transcript: 't',
-  summary: 's',
-  categories: [],
-  timestamp: Date.now(),
-});
-
 function Probe() {
-  const { items, isLoading, addToHistory, deleteItem } = useHistoryData();
+  const { items, isLoading, renameItem, deleteItem } = useHistoryData();
   return (
     <div>
       <span data-testid="loading">{isLoading ? 'loading' : 'ready'}</span>
       <span data-testid="count">{items.length}</span>
       <span data-testid="first">{items[0]?.title ?? 'none'}</span>
       <span data-testid="titles">{items.map((i) => i.title).join(',')}</span>
-      <button data-testid="add" onClick={() => addToHistory(newItem('m3', 'Third'))}>
-        add
+      <button data-testid="rename" onClick={() => renameItem('m1', 'Renamed')}>
+        rename
       </button>
       <button data-testid="del" onClick={() => deleteItem('m1')}>
         del
@@ -100,24 +89,22 @@ describe('history query', () => {
     expect(meetingsList).toHaveBeenCalledTimes(1);
   });
 
-  it('adds an item and converges on the persisted list', async () => {
+  it('renames an item and converges on the persisted list', async () => {
     renderProvider();
     await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('ready'));
 
-    fireEvent.click(screen.getByTestId('add'));
+    fireEvent.click(screen.getByTestId('rename'));
 
-    // The optimistic update shows at once and the refetch confirms it (server order wins after settle).
-    await waitFor(() => expect(meetingsUpsert).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.getByTestId('count').textContent).toBe('3'));
-    expect(screen.getByTestId('titles').textContent).toContain('Third');
+    await waitFor(() => expect(meetingsUpsert).toHaveBeenCalledWith({ id: 'm1', title: 'Renamed' }));
+    await waitFor(() => expect(screen.getByTestId('first').textContent).toBe('Renamed'));
   });
 
-  it('rolls back the optimistic add when the write fails', async () => {
+  it('rolls back the optimistic rename when the write fails', async () => {
     meetingsUpsert.mockRejectedValueOnce(new Error('disk full'));
     renderProvider();
     await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('ready'));
 
-    fireEvent.click(screen.getByTestId('add'));
+    fireEvent.click(screen.getByTestId('rename'));
 
     await waitFor(() => expect(meetingsUpsert).toHaveBeenCalledTimes(1));
     // Rollback + refetch restore the original list.

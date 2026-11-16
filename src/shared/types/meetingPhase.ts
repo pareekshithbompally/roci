@@ -1,4 +1,23 @@
-/** A meeting's state, derived (never stored) from its in-flight job and the persisted pendingTranscription flag. */
+/** A meeting's pipeline status (stored with the meeting) and the phase views show (status + live progress). */
+
+/** The step a failed meeting stopped at; Retry reruns only that step. */
+export type MeetingPipelineStage = 'record' | 'transcribe' | 'summarize';
+
+export type MeetingStatusName =
+  | 'recording'
+  | 'captured'
+  | 'transcribing'
+  | 'transcribed'
+  | 'summarizing'
+  | 'ready'
+  | 'failed';
+
+/** Stored on the meeting; `failedStep` and `error` only when `status` is `failed`. */
+export interface MeetingStatus {
+  status: MeetingStatusName;
+  failedStep?: MeetingPipelineStage;
+  error?: string;
+}
 
 /** Part being sent for engines that split long audio. */
 export interface MeetingJobPart {
@@ -6,38 +25,35 @@ export interface MeetingJobPart {
   total: number;
 }
 
-export type MeetingPipelineStage = 'transcribe' | 'summarize';
-
-/** A job running (or just failed) for one meeting. Lives only in meetingJobsStore. */
-export type MeetingJob =
-  | { stage: 'transcribing'; part: MeetingJobPart | null }
-  | { stage: 'summarizing' }
-  | { stage: 'failed'; failedAt: MeetingPipelineStage; message: string };
-
 export type MeetingPhase =
+  | { kind: 'recording' }
   | { kind: 'pending' }
   | { kind: 'transcribing'; part: MeetingJobPart | null }
+  | { kind: 'transcribed' }
   | { kind: 'summarizing' }
   | { kind: 'failed'; failedAt: MeetingPipelineStage; message: string }
   | { kind: 'ready' };
 
 // Shared instances keep the reference stable for memoised rows.
-const PENDING: MeetingPhase = { kind: 'pending' };
-const SUMMARIZING: MeetingPhase = { kind: 'summarizing' };
-const READY: MeetingPhase = { kind: 'ready' };
+const FIXED: Record<Exclude<MeetingStatusName, 'transcribing' | 'failed'>, MeetingPhase> = {
+  recording: { kind: 'recording' },
+  captured: { kind: 'pending' },
+  transcribed: { kind: 'transcribed' },
+  summarizing: { kind: 'summarizing' },
+  ready: { kind: 'ready' },
+};
 
-/** Job first (it is newer than disk), then the persisted pending flag, else ready. */
-export function deriveMeetingPhase(
-  job: MeetingJob | undefined,
-  item: { pendingTranscription?: boolean } | null | undefined,
-): MeetingPhase {
-  if (job?.stage === 'transcribing') return { kind: 'transcribing', part: job.part };
-  if (job?.stage === 'summarizing') return SUMMARIZING;
-  if (job?.stage === 'failed') return { kind: 'failed', failedAt: job.failedAt, message: job.message };
-  return item?.pendingTranscription ? PENDING : READY;
+/** The phase for a stored status; `part` is the live STT progress while transcribing. */
+export function deriveMeetingPhase(status: MeetingStatus | undefined, part: MeetingJobPart | null = null): MeetingPhase {
+  if (!status) return FIXED.ready;
+  if (status.status === 'transcribing') return { kind: 'transcribing', part };
+  if (status.status === 'failed') {
+    return { kind: 'failed', failedAt: status.failedStep ?? 'transcribe', message: status.error ?? 'Something went wrong' };
+  }
+  return FIXED[status.status];
 }
 
-/** True while a transcription or summary is running. */
+/** True while capture, transcription or a summary is running. */
 export function isMeetingBusy(phase: MeetingPhase): boolean {
-  return phase.kind === 'transcribing' || phase.kind === 'summarizing';
+  return phase.kind === 'recording' || phase.kind === 'transcribing' || phase.kind === 'summarizing';
 }
