@@ -208,6 +208,8 @@ impl Default for Worker {
 impl Worker {
     fn run(mut self, events: &Receiver<Event>) {
         self.subscriptions.sync();
+        // A call already on the microphone at launch is seen without waiting for a change.
+        self.decide();
         loop {
             let event = match self.deadline() {
                 Some(at) => match events.recv_timeout(at.saturating_duration_since(Instant::now())) {

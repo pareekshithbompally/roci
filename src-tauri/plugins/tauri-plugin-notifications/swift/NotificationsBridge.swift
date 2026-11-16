@@ -89,7 +89,7 @@ public func notificationsSetCategories(_ json: UnsafePointer<CChar>) -> UnsafeMu
     return reply(["ok": true])
 }
 
-/// Shows a notification now; reusing an id replaces the earlier one.
+/// Shows a notification now, or hands it to macOS for `atMs` (epoch ms); reusing an id replaces the earlier one.
 @_cdecl("notifications_show")
 public func notificationsShow(_ json: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar> {
     guard supported else { return reply(["ok": false, "error": "unsupported"]) }
@@ -103,7 +103,7 @@ public func notificationsShow(_ json: UnsafePointer<CChar>) -> UnsafeMutablePoin
 
     let done = DispatchSemaphore(value: 0)
     var failure: String?
-    let request = UNNotificationRequest(identifier: input.id, content: content, trigger: nil)
+    let request = UNNotificationRequest(identifier: input.id, content: content, trigger: trigger(atMs: input.atMs))
     UNUserNotificationCenter.current().add(request) { error in
         failure = error?.localizedDescription
         done.signal()
@@ -146,6 +146,16 @@ private struct ShowInput: Decodable {
     let body: String
     let category: String?
     let userInfo: [String: String]?
+    let atMs: Double?
+}
+
+/// macOS delivers at that wall-clock moment, through sleep and clock changes; none (or past) shows now.
+private func trigger(atMs: Double?) -> UNNotificationTrigger? {
+    guard let atMs else { return nil }
+    let date = Date(timeIntervalSince1970: atMs / 1000)
+    guard date > Date() else { return nil }
+    let parts = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
+    return UNCalendarNotificationTrigger(dateMatching: parts, repeats: false)
 }
 
 private func currentStatus() -> String {

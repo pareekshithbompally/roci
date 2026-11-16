@@ -12,7 +12,7 @@ extern "C" {
     fn calendar_check_access() -> *mut c_char;
     fn calendar_get_upcoming_events(minutes_ahead: i32) -> *mut c_char;
     fn calendar_get_events_in_range(start_iso: *const c_char, end_iso: *const c_char) -> *mut c_char;
-    fn calendar_change_count() -> u64;
+    fn calendar_observe_changes(callback: extern "C" fn());
     fn calendar_get_events_between_ms(start_ms: f64, end_ms: f64) -> *mut c_char;
     fn calendar_free_string(ptr: *mut c_char);
 
@@ -45,9 +45,9 @@ pub fn get_events_between_ms(start_ms: i64, end_ms: i64) -> Result<EventsRespons
     parse_and_free(ptr)
 }
 
-/// EventKit store changes seen so far (any app); 0 without access.
-pub fn change_count() -> u64 {
-    unsafe { calendar_change_count() }
+/// Calls `callback` whenever upcoming events may differ (calendar change, new day, clock change, wake). Register once.
+pub fn observe_events(callback: extern "C" fn()) {
+    unsafe { calendar_observe_changes(callback) }
 }
 
 /// Request calendar access from the user.

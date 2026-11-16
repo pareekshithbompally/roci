@@ -3,7 +3,7 @@ mod call_link;
 mod commands;
 pub mod types;
 
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 
 pub use call_link::{call_link, key_matches, CallLink, CallProvider};
 use types::{CalendarEvent, EventsResponse};
@@ -25,6 +25,29 @@ extern "C" fn reminders_changed() {
     }
 }
 
+/// Frontend event fired when upcoming calendar events may differ (calendar change, new day, clock change, wake).
+pub const CALENDAR_CHANGED_EVENT: &str = "calendar://changed";
+
+type ChangeHandler = Box<dyn Fn() + Send + Sync>;
+
+/// Rust subscribers to calendar changes, plus the frontend emit added at plugin setup.
+static ON_EVENTS_CHANGED: Mutex<Vec<ChangeHandler>> = Mutex::new(Vec::new());
+
+extern "C" fn events_changed() {
+    let handlers = ON_EVENTS_CHANGED.lock().unwrap_or_else(|error| error.into_inner());
+    for handler in handlers.iter() {
+        handler();
+    }
+}
+
+/// Call `handler` whenever upcoming events may differ, so readers reread instead of polling.
+pub fn on_events_changed(handler: impl Fn() + Send + Sync + 'static) {
+    ON_EVENTS_CHANGED
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .push(Box::new(handler));
+}
+
 /// Events in an ISO 8601 range, each with its `meeting_url`.
 pub fn events_in_range(start: &str, end: &str) -> Result<Vec<CalendarEvent>, String> {
     with_links(bridge::get_events_in_range(start, end)?)
@@ -33,11 +56,6 @@ pub fn events_in_range(start: &str, end: &str) -> Result<Vec<CalendarEvent>, Str
 /// Events between two epoch-millisecond times, each with its `meeting_url`.
 pub fn events_between_ms(start_ms: i64, end_ms: i64) -> Result<Vec<CalendarEvent>, String> {
     with_links(bridge::get_events_between_ms(start_ms, end_ms)?)
-}
-
-/// EventKit store changes seen so far (any app): reread when it moves.
-pub fn change_count() -> u64 {
-    bridge::change_count()
 }
 
 fn with_links(response: EventsResponse) -> Result<Vec<CalendarEvent>, String> {
@@ -82,6 +100,13 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             if ON_REMINDERS_CHANGED.set(Box::new(emit)).is_ok() {
                 bridge::observe_reminders(reminders_changed);
             }
+            let handle = app.clone();
+            on_events_changed(move || {
+                if let Err(error) = handle.emit(CALENDAR_CHANGED_EVENT, ()) {
+                    log::warn!("[calendar] calendar change event failed: {error}");
+                }
+            });
+            bridge::observe_events(events_changed);
             Ok(())
         })
         .build()

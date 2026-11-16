@@ -1,4 +1,4 @@
-/** Forwards to `tauri-plugin-notifications` (Rust posts and times notices); answers via `onNotificationResponse`. */
+/** Forwards to `tauri-plugin-notifications` (timed notices are handed to macOS with their time); answers via `onNotificationResponse`. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -46,7 +46,7 @@ export async function postNotice(notice: Notice): Promise<void> {
   await call('post', { notice });
 }
 
-/** Post at `at` (wall clock), replacing any timed notice with the same id. */
+/** macOS delivers it at `at` (wall clock), even while Roci is idle; replaces any timed notice with the same id. */
 export async function scheduleNotice(notice: Notice, at: Date): Promise<void> {
   if (!isTauriEnvironment()) return;
   await call('schedule', { notice, atMs: at.getTime() });

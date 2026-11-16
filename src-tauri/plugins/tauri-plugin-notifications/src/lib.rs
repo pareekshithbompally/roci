@@ -1,4 +1,4 @@
-//! macOS notifications; [`schedule`] uses an in-process timer, so nothing is handed to the OS ahead of time.
+//! macOS notifications; [`schedule`] hands each notice to macOS with its delivery time, so Roci keeps no timer.
 
 mod bridge;
 mod commands;
@@ -7,8 +7,6 @@ use std::collections::{HashMap, HashSet};
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::sync::{Mutex, MutexGuard, OnceLock};
-use std::thread;
-use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use tauri::{
@@ -18,9 +16,6 @@ use tauri::{
 
 /// Webview: the user answered a notification (`Response`).
 pub const RESPONSE_EVENT: &str = "notifications://response";
-
-/// How often timed notices are checked (the meeting watcher's interval).
-const TICK: Duration = Duration::from_millis(500);
 
 /// Whether Roci may post notifications.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -173,6 +168,7 @@ pub fn set_muted(kinds: impl IntoIterator<Item = String>) {
         state.muted = kinds.into_iter().collect();
         state.muted_known = true;
     }
+    requeue_timed();
     for handler in muted_handlers().iter() {
         handler();
     }
@@ -195,34 +191,20 @@ pub fn is_muted(kind: &str) -> bool {
 
 /// Show `notice` now: skipped when its kind is muted, permission asked when undecided.
 pub fn post(notice: &Notice) {
-    if notice.kind.as_deref().is_some_and(is_muted) {
-        return;
-    }
-    let status = match status() {
-        Status::NotDetermined => request().unwrap_or_else(|error| {
-            log::warn!("[notifications] permission request refused: {error}");
-            Status::NotDetermined
-        }),
-        status => status,
-    };
-    match status {
-        Status::Authorized => {
-            if let Err(error) = bridge::show(notice) {
-                log::warn!("[notifications] {} not shown: {error}", notice.id);
-            }
-        }
-        _ => log::info!("[notifications] {} not shown: {status:?}", notice.id),
-    }
+    deliver(notice, None);
 }
 
-/// Posts `notice` at `at_ms`, replacing a timed notice with the same id; a past time posts on the next tick.
+/// Hands `notice` to macOS for `at_ms` (wall clock), replacing a timed notice with the same id; a past time shows now.
 pub fn schedule(notice: Notice, at_ms: i64) {
-    let mut state = state();
-    state.timed.retain(|(_, timed)| timed.id != notice.id);
-    state.timed.push((at_ms, notice));
+    {
+        let mut state = state();
+        state.timed.retain(|(_, timed)| timed.id != notice.id);
+        state.timed.push((at_ms, notice.clone()));
+    }
+    deliver(&notice, Some(at_ms));
 }
 
-/// Withdraw notices by id: timed ones not yet posted, and shown ones.
+/// Withdraw notices by id: ones macOS still holds for later, and shown ones.
 pub fn remove(ids: &[String]) {
     state().timed.retain(|(_, timed)| !ids.contains(&timed.id));
     if let Err(error) = bridge::remove(&ids) {
@@ -230,17 +212,57 @@ pub fn remove(ids: &[String]) {
     }
 }
 
-fn post_due() {
+/// What the bridge shows: the notice, and when macOS should deliver it (`None` = now).
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Delivery<'a> {
+    #[serde(flatten)]
+    notice: &'a Notice,
+    at_ms: Option<i64>,
+}
+
+/// One path for every notice: skipped when its kind is muted, permission asked when undecided.
+fn deliver(notice: &Notice, at_ms: Option<i64>) {
+    if notice.kind.as_deref().is_some_and(is_muted) {
+        return;
+    }
+    match permitted() {
+        Status::Authorized => {
+            if let Err(error) = bridge::show(&Delivery { notice, at_ms }) {
+                log::warn!("[notifications] {} not shown: {error}", notice.id);
+            }
+        }
+        status => log::info!("[notifications] {} not shown: {status:?}", notice.id),
+    }
+}
+
+fn permitted() -> Status {
+    match status() {
+        Status::NotDetermined => request().unwrap_or_else(|error| {
+            log::warn!("[notifications] permission request refused: {error}");
+            Status::NotDetermined
+        }),
+        status => status,
+    }
+}
+
+/// A switch changed: notices still waiting with macOS follow it (muted ones withdrawn, unmuted ones queued again).
+fn requeue_timed() {
     let now_ms = wall_clock_ms();
-    let due: Vec<Notice> = {
+    let waiting: Vec<(i64, Notice)> = {
         let mut state = state();
-        let (due, waiting) = std::mem::take(&mut state.timed)
-            .into_iter()
-            .partition(|(at_ms, _)| *at_ms <= now_ms);
-        state.timed = waiting;
-        due.into_iter().map(|(_, notice)| notice).collect()
+        state.timed.retain(|(at_ms, _)| *at_ms > now_ms);
+        state.timed.clone()
     };
-    due.iter().for_each(post);
+    for (at_ms, notice) in waiting {
+        if notice.kind.as_deref().is_some_and(is_muted) {
+            if let Err(error) = bridge::remove(&[notice.id.as_str()]) {
+                log::debug!("[notifications] remove skipped: {error}");
+            }
+        } else {
+            deliver(&notice, Some(at_ms));
+        }
+    }
 }
 
 fn wall_clock_ms() -> i64 {
@@ -292,15 +314,6 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             }));
             // Before the app finishes launching, so a response that woke it is kept.
             bridge::setup(on_response);
-            let timer = thread::Builder::new()
-                .name("notifications".into())
-                .spawn(|| loop {
-                    post_due();
-                    thread::sleep(TICK);
-                });
-            if let Err(error) = timer {
-                log::error!("[notifications] timer failed to start: {error}");
-            }
             Ok(())
         })
         .build()
@@ -309,6 +322,23 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_timed_notice_reaches_the_bridge_with_its_time() {
+        let notice = Notice {
+            id: "todo:1".into(),
+            title: "Call Ana".into(),
+            body: String::new(),
+            category: None,
+            user_info: HashMap::new(),
+            kind: None,
+        };
+        let json = serde_json::to_value(Delivery { notice: &notice, at_ms: Some(42) }).unwrap();
+        assert_eq!(json["id"], "todo:1");
+        assert_eq!(json["atMs"], 42);
+        let now = serde_json::to_value(Delivery { notice: &notice, at_ms: None }).unwrap();
+        assert!(now["atMs"].is_null());
+    }
 
     #[test]
     fn muted_kind_reports_muted() {

@@ -385,6 +385,7 @@ fn report(app: &AppHandle, apply: impl FnOnce(&mut StateData) -> bool) -> Result
 #[tauri::command]
 pub async fn menubar_set_recording_state(app: AppHandle, active: bool, paused: bool) -> Result<(), String> {
     crate::call_detection::recording_changed(active);
+    crate::meeting_reminders::recording_changed(active);
     report(&app, |state| {
         if active != state.recording_active {
             state.elapsed_secs = 0;

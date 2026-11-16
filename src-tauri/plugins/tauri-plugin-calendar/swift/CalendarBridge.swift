@@ -1,5 +1,8 @@
 import Foundation
 import EventKit
+#if os(macOS)
+import AppKit
+#endif
 
 // MARK: - C-compatible JSON bridge for Rust FFI
 
@@ -18,6 +21,11 @@ public func calendarRequestAccess() -> UnsafeMutablePointer<CChar> {
     }
 
     semaphore.wait()
+    if granted {
+        // The observed store predates the grant: drop what it cached without access, then reread.
+        observedStore.reset()
+        onChange?()
+    }
 
     var result: [String: Any] = ["granted": granted]
     if let err = errorMsg { result["error"] = err }
@@ -70,35 +78,27 @@ public func calendarGetEventsInRange(
     return fetchEventsJSON(store: store, start: start, end: end)
 }
 
-// MARK: - Change count
+// MARK: - Changes
 
 /// One long-lived store to observe: `EKEventStoreChanged` is posted per store.
 private let observedStore = EKEventStore()
-private let changeLock = NSLock()
-private var changes: UInt64 = 0
-private var observing = false
+private var onChange: (@convention(c) () -> Void)?
 
-/// EventKit changes (any app, any calendar) since the first call with access; readers reread when it moves.
-@_cdecl("calendar_change_count")
-public func calendarChangeCount() -> UInt64 {
-    guard hasFullAccess() else { return 0 }
-    changeLock.lock()
-    defer { changeLock.unlock() }
-    if !observing {
-        observing = true
-        // The store may predate the grant: drop what it cached without access.
-        observedStore.reset()
-        NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: observedStore, queue: nil) { _ in
-            changeLock.lock()
-            changes &+= 1
-            changeLock.unlock()
-        }
+/// Calls `callback` whenever upcoming events may differ: the calendar changed (any app), a new day,
+/// a clock or time-zone change, or (macOS) the Mac woke. Register once.
+@_cdecl("calendar_observe_changes")
+public func calendarObserveChanges(_ callback: @escaping @convention(c) () -> Void) {
+    onChange = callback
+    let center = NotificationCenter.default
+    center.addObserver(forName: .EKEventStoreChanged, object: observedStore, queue: nil) { _ in callback() }
+    for name in [Notification.Name.NSCalendarDayChanged, .NSSystemClockDidChange, .NSSystemTimeZoneDidChange] {
+        center.addObserver(forName: name, object: nil, queue: nil) { _ in callback() }
     }
-    return changes
-}
-
-private func hasFullAccess() -> Bool {
-    EKEventStore.authorizationStatus(for: .event) == .fullAccess
+    #if os(macOS)
+    NSWorkspace.shared.notificationCenter.addObserver(
+        forName: NSWorkspace.didWakeNotification, object: nil, queue: nil
+    ) { _ in callback() }
+    #endif
 }
 
 /// Events between two epoch-millisecond times, for schedulers that keep epoch time.

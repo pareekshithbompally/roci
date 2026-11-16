@@ -1,15 +1,19 @@
 //! When each meeting's reminder shows, from Roci's EventKit events across every calendar.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use tauri_plugin_calendar::{call_link, key_matches, types::CalendarEvent, CallLink};
 
-/// How late a reminder may still show, for a Mac that wakes after the meeting started.
+/// How late a reminder may still show, for a meeting added (or a recording stopped) after it started.
 pub const LATE_GRACE_MS: i64 = 5 * 60 * 1_000;
 /// How long a reminder stays up after its meeting starts.
 pub const REMINDER_AFTER_START_MS: i64 = 60 * 1_000;
 /// The shortest time a reminder stays up, for one shown late.
 pub const REMINDER_MIN_MS: i64 = 30 * 1_000;
+/// Reminders handed to macOS at once; it keeps 64 pending per app, shared with to-do reminders.
+const MAX_QUEUED: usize = 32;
+/// How long an occurrence is remembered after it ends, so it reminds once.
+const FORGET_AFTER_END_MS: i64 = 60 * 60 * 1_000;
 
 /// A calendar event that counts as a meeting.
 #[derive(Clone, Debug, PartialEq)]
@@ -101,13 +105,21 @@ pub fn current_for_call<'a>(
     })
 }
 
-/// Decides when each reminder shows, on wall-clock ms so sleep and moved meetings still remind.
+/// A reminder handed to macOS.
+#[derive(Clone, Debug)]
+struct Queued {
+    fire_ms: i64,
+    /// When it is withdrawn from Notification Center.
+    until_ms: i64,
+    end_ms: i64,
+    /// Answered or withdrawn: kept only so the occurrence never reminds again.
+    done: bool,
+}
+
+/// Keeps macOS's queue of meeting reminders in line with the calendar; macOS delivers them on time.
 #[derive(Default)]
 pub struct ReminderScheduler {
-    /// Occurrences already reminded, with when they end, so each reminds once.
-    reminded: HashMap<String, i64>,
-    /// The reminder on screen and when it closes on its own.
-    showing: Option<(CalendarMeeting, i64)>,
+    queued: HashMap<String, Queued>,
 }
 
 /// A reminder closes a minute after its meeting starts, never sooner than [`REMINDER_MIN_MS`] after showing.
@@ -116,49 +128,99 @@ pub fn reminder_until_ms(start_ms: i64, shown_ms: i64) -> i64 {
 }
 
 impl ReminderScheduler {
-    /// One reminder at a time: an overlapping meeting's waits until it is answered or closes.
-    pub fn poll(&mut self, meetings: &[CalendarMeeting], now_ms: i64, lead_ms: i64) -> Option<ReminderUpdate> {
-        // Bounded: occurrences are forgotten an hour after they end.
-        self.reminded.retain(|_, end_ms| *end_ms + 60 * 60 * 1_000 > now_ms);
-        if let Some((showing, until_ms)) = &self.showing {
-            let current = meetings.iter().any(|meeting| meeting.occurrence() == showing.occurrence());
-            if !current || now_ms >= *until_ms {
-                let occurrence = showing.occurrence();
-                self.showing = None;
-                return Some(ReminderUpdate::Withdraw(occurrence));
+    /// Called on every change: `meetings` (empty when reminders are off), and `paused` while Roci records.
+    pub fn reconcile(
+        &mut self,
+        meetings: &[CalendarMeeting],
+        now_ms: i64,
+        lead_ms: i64,
+        paused: bool,
+    ) -> Vec<ReminderUpdate> {
+        let mut updates = self.withdraw(meetings, now_ms, paused);
+        self.queued.retain(|_, queued| queued.end_ms + FORGET_AFTER_END_MS > now_ms);
+        if !paused {
+            updates.extend(self.queue(meetings, now_ms, lead_ms));
+        }
+        updates
+    }
+
+    /// Past its time, gone from the calendar (cancelled, moved, declined, off), or not yet shown while paused.
+    fn withdraw(&mut self, meetings: &[CalendarMeeting], now_ms: i64, paused: bool) -> Vec<ReminderUpdate> {
+        let current: HashSet<String> = meetings.iter().map(CalendarMeeting::occurrence).collect();
+        let mut updates = Vec::new();
+        self.queued.retain(|occurrence, queued| {
+            if queued.done {
+                return true;
             }
-            return None;
-        }
-        let due = meetings.iter().find(|meeting| {
-            now_ms >= meeting.start_ms - lead_ms
-                && now_ms < meeting.start_ms + LATE_GRACE_MS
-                && now_ms < meeting.end_ms
-                && !self.reminded.contains_key(&meeting.occurrence())
-        })?;
-        self.reminded.insert(due.occurrence(), due.end_ms);
-        self.showing = Some((due.clone(), reminder_until_ms(due.start_ms, now_ms)));
-        Some(ReminderUpdate::Show(due.clone()))
+            let expired = queued.until_ms <= now_ms;
+            let unwanted = !current.contains(occurrence) || (paused && queued.fire_ms > now_ms);
+            if expired || unwanted {
+                updates.push(ReminderUpdate::Withdraw(occurrence.clone()));
+            }
+            // Expired ones stay (done) so they never remind again; unwanted ones go, to queue afresh later.
+            queued.done = expired;
+            !unwanted || expired
+        });
+        updates.sort_by_key(ReminderUpdate::occurrence);
+        updates
     }
 
-    /// The user answered the reminder, or it closed.
+    /// Every upcoming meeting not yet handed over: at its lead time, or now if that has passed.
+    fn queue(&mut self, meetings: &[CalendarMeeting], now_ms: i64, lead_ms: i64) -> Vec<ReminderUpdate> {
+        let mut updates = Vec::new();
+        for meeting in meetings {
+            if self.queued.len() >= MAX_QUEUED {
+                break;
+            }
+            let occurrence = meeting.occurrence();
+            let late = now_ms >= meeting.start_ms + LATE_GRACE_MS || now_ms >= meeting.end_ms;
+            if late || self.queued.contains_key(&occurrence) {
+                continue;
+            }
+            let fire_ms = (meeting.start_ms - lead_ms).max(now_ms);
+            self.queued.insert(
+                occurrence,
+                Queued {
+                    fire_ms,
+                    until_ms: reminder_until_ms(meeting.start_ms, fire_ms),
+                    end_ms: meeting.end_ms,
+                    done: false,
+                },
+            );
+            updates.push(ReminderUpdate::Schedule(meeting.clone(), fire_ms));
+        }
+        updates
+    }
+
+    /// The user answered the reminder: it is not withdrawn or shown again.
     pub fn answered(&mut self, occurrence: &str) {
-        if self.showing.as_ref().is_some_and(|(showing, _)| showing.occurrence() == occurrence) {
-            self.showing = None;
+        if let Some(queued) = self.queued.get_mut(occurrence) {
+            queued.done = true;
         }
     }
 
-    /// Reminders were turned off: forget the showing one, returning its occurrence.
-    pub fn clear(&mut self) -> Option<String> {
-        self.showing.take().map(|(showing, _)| showing.occurrence())
+    /// When the next reminder is due to be withdrawn; nothing else needs a timer.
+    pub fn next_deadline_ms(&self) -> Option<i64> {
+        self.queued.values().filter(|queued| !queued.done).map(|queued| queued.until_ms).min()
     }
 }
 
-/// What to do with the notification after a poll.
+/// What to tell macOS after a change.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ReminderUpdate {
-    Show(CalendarMeeting),
-    /// The showing reminder's meeting was cancelled, moved, declined, or is long past: withdraw it.
+    /// Hand this reminder to macOS for delivery at the given wall-clock ms.
+    Schedule(CalendarMeeting, i64),
+    /// Withdraw this occurrence's reminder, pending or shown.
     Withdraw(String),
+}
+
+impl ReminderUpdate {
+    fn occurrence(&self) -> String {
+        match self {
+            Self::Schedule(meeting, _) => meeting.occurrence(),
+            Self::Withdraw(occurrence) => occurrence.clone(),
+        }
+    }
 }
 
 /// Whole minutes until `start_ms`, rounded up; zero once it has started.
@@ -192,24 +254,83 @@ mod tests {
         }
     }
 
-    #[test]
-    fn reminds_once_at_lead_and_withdraws_after_start() {
-        let mut scheduler = ReminderScheduler::default();
-        let meetings = [meeting("a", 10 * MINUTE)];
-        assert_eq!(scheduler.poll(&meetings, 7 * MINUTE, 2 * MINUTE), None);
-        assert!(matches!(scheduler.poll(&meetings, 8 * MINUTE, 2 * MINUTE), Some(ReminderUpdate::Show(_))));
-        let until = reminder_until_ms(10 * MINUTE, 8 * MINUTE);
-        assert_eq!(scheduler.poll(&meetings, until, 2 * MINUTE), Some(ReminderUpdate::Withdraw("a@600000".into())));
-        assert_eq!(scheduler.poll(&meetings, until + 1, 2 * MINUTE), None);
+    fn scheduled_at(updates: &[ReminderUpdate]) -> Vec<(String, i64)> {
+        updates
+            .iter()
+            .filter_map(|update| match update {
+                ReminderUpdate::Schedule(meeting, at) => Some((meeting.occurrence(), *at)),
+                ReminderUpdate::Withdraw(_) => None,
+            })
+            .collect()
     }
 
     #[test]
-    fn a_moved_meeting_withdraws_and_reminds_again() {
+    fn hands_the_reminder_to_macos_once_for_its_lead_time_and_withdraws_it_after_start() {
         let mut scheduler = ReminderScheduler::default();
-        assert!(scheduler.poll(&[meeting("a", 10 * MINUTE)], 9 * MINUTE, 2 * MINUTE).is_some());
-        let moved = [meeting("a", 11 * MINUTE)];
-        assert_eq!(scheduler.poll(&moved, 9 * MINUTE, 2 * MINUTE), Some(ReminderUpdate::Withdraw("a@600000".into())));
-        assert!(matches!(scheduler.poll(&moved, 9 * MINUTE, 2 * MINUTE), Some(ReminderUpdate::Show(_))));
+        let meetings = [meeting("a", 10 * MINUTE)];
+        let updates = scheduler.reconcile(&meetings, 7 * MINUTE, 2 * MINUTE, false);
+        assert_eq!(scheduled_at(&updates), [("a@600000".to_string(), 8 * MINUTE)]);
+        // Nothing changes on later reconciles until the withdraw deadline.
+        assert!(scheduler.reconcile(&meetings, 9 * MINUTE, 2 * MINUTE, false).is_empty());
+        let until = reminder_until_ms(10 * MINUTE, 8 * MINUTE);
+        assert_eq!(scheduler.next_deadline_ms(), Some(until));
+        assert_eq!(
+            scheduler.reconcile(&meetings, until, 2 * MINUTE, false),
+            [ReminderUpdate::Withdraw("a@600000".into())]
+        );
+        assert!(scheduler.reconcile(&meetings, until + 1, 2 * MINUTE, false).is_empty());
+        assert_eq!(scheduler.next_deadline_ms(), None);
+    }
+
+    #[test]
+    fn a_moved_meeting_withdraws_and_queues_again() {
+        let mut scheduler = ReminderScheduler::default();
+        scheduler.reconcile(&[meeting("a", 10 * MINUTE)], 7 * MINUTE, 2 * MINUTE, false);
+        let updates = scheduler.reconcile(&[meeting("a", 11 * MINUTE)], 7 * MINUTE, 2 * MINUTE, false);
+        assert_eq!(updates[0], ReminderUpdate::Withdraw("a@600000".into()));
+        assert_eq!(scheduled_at(&updates), [("a@660000".to_string(), 9 * MINUTE)]);
+    }
+
+    #[test]
+    fn recording_holds_pending_reminders_and_shows_them_after_if_still_due() {
+        let mut scheduler = ReminderScheduler::default();
+        let meetings = [meeting("a", 10 * MINUTE)];
+        scheduler.reconcile(&meetings, 7 * MINUTE, 2 * MINUTE, false);
+        assert_eq!(
+            scheduler.reconcile(&meetings, 7 * MINUTE + 1, 2 * MINUTE, true),
+            [ReminderUpdate::Withdraw("a@600000".into())]
+        );
+        // Stopped two minutes into the meeting: shown now.
+        let updates = scheduler.reconcile(&meetings, 12 * MINUTE, 2 * MINUTE, false);
+        assert_eq!(scheduled_at(&updates), [("a@600000".to_string(), 12 * MINUTE)]);
+    }
+
+    #[test]
+    fn a_meeting_past_its_grace_is_not_reminded() {
+        let mut scheduler = ReminderScheduler::default();
+        let meetings = [meeting("a", 10 * MINUTE)];
+        assert!(scheduler.reconcile(&meetings, 10 * MINUTE + LATE_GRACE_MS, 2 * MINUTE, false).is_empty());
+    }
+
+    #[test]
+    fn turning_reminders_off_withdraws_everything_queued() {
+        let mut scheduler = ReminderScheduler::default();
+        scheduler.reconcile(&[meeting("a", 10 * MINUTE), meeting("b", 20 * MINUTE)], 7 * MINUTE, 2 * MINUTE, false);
+        assert_eq!(
+            scheduler.reconcile(&[], 7 * MINUTE, 2 * MINUTE, false),
+            [ReminderUpdate::Withdraw("a@600000".into()), ReminderUpdate::Withdraw("b@1200000".into())]
+        );
+        assert_eq!(scheduler.next_deadline_ms(), None);
+    }
+
+    #[test]
+    fn an_answered_reminder_is_neither_withdrawn_nor_shown_again() {
+        let mut scheduler = ReminderScheduler::default();
+        let meetings = [meeting("a", 10 * MINUTE)];
+        scheduler.reconcile(&meetings, 8 * MINUTE, 2 * MINUTE, false);
+        scheduler.answered("a@600000");
+        assert_eq!(scheduler.next_deadline_ms(), None);
+        assert!(scheduler.reconcile(&meetings, 12 * MINUTE, 2 * MINUTE, false).is_empty());
     }
 
     fn with_link(mut meeting: CalendarMeeting, provider: CallProvider) -> CalendarMeeting {
