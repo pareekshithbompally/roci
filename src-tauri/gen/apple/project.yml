@@ -42,6 +42,10 @@ targets:
         buildPhase: resources
         type: folder
       - path: LaunchScreen.storyboard
+      # Icon Composer app icon (Liquid Glass, light/dark/tinted); Xcode prefers it over AppIcon.appiconset.
+      - path: ../../icons/AppIcon.icon
+        type: file
+        buildPhase: resources
     info:
       path: Roci_iOS/Info.plist
       properties:
