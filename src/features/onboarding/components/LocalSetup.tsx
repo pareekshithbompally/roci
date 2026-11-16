@@ -51,7 +51,7 @@ export const LocalSetup: React.FC = () => {
       <Text as="h1" variant="pageTitle" className="text-center">{COPY.heading}</Text>
 
       {running.length > 0 ? (
-        <Card>
+        <Card tone="brand">
           {running.map((row) => (
             <CardRow
               key={row.id}

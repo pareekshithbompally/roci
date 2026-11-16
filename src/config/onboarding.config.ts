@@ -1,12 +1,24 @@
-/** First-run flow copy: permissions, then AI setup. */
+/** First-run flow copy and the macOS icons it shows: permissions, then AI setup. */
+
+/** System Settings panes ship as ExtensionKit bundles; Launch Services resolves apps by id but not these, so they go by path. */
+const SETTINGS_PANES = '/System/Library/ExtensionKit/Extensions';
+
+/** What macOS draws for each row and tile (`AppIcon`: a bundle id, or a pane's path); the images come from macOS. */
+export const ONBOARDING_ICONS = {
+  microphone: 'com.apple.VoiceMemos',
+  'system-audio': `${SETTINGS_PANES}/Sound.appex`,
+  notifications: `${SETTINGS_PANES}/NotificationsSettings.appex`,
+  calendar: 'com.apple.iCal',
+  appleIntelligence: `${SETTINGS_PANES}/SiriPreferenceExtension.appex`,
+  local: 'com.apple.Terminal',
+  remote: `${SETTINGS_PANES}/Network.appex`,
+} as const;
 
 export type OnboardingPermissionId = 'microphone' | 'system-audio' | 'notifications' | 'calendar';
 
 export interface OnboardingPermissionCopy {
   title: string;
   detail: string;
-  /** `IconTile` tone. */
-  tone: 'accent' | 'info' | 'danger' | 'success' | 'warning' | 'neutral';
   /** Recording needs it; Continue waits for every required row. */
   required: boolean;
 }
@@ -16,10 +28,10 @@ export const ONBOARDING_CONFIG = {
     heading: 'Roci needs your permission to record your meetings.',
     order: ['microphone', 'system-audio', 'notifications', 'calendar'] as const,
     rows: {
-      microphone: { title: 'Microphone', detail: 'Records your voice', tone: 'accent', required: true },
-      'system-audio': { title: 'System audio', detail: 'Records the other people on the call', tone: 'neutral', required: true },
-      notifications: { title: 'Notifications', detail: 'Offers to record calls and reminds you of meetings', tone: 'danger', required: false },
-      calendar: { title: 'Calendar', detail: 'Names meetings and reminds you before they start', tone: 'danger', required: false },
+      microphone: { title: 'Microphone', detail: 'Records your voice', required: true },
+      'system-audio': { title: 'System audio', detail: 'Records the other people on the call', required: true },
+      notifications: { title: 'Notifications', detail: 'Offers to record calls and reminds you of meetings', required: false },
+      calendar: { title: 'Calendar', detail: 'Names meetings and reminds you before they start', required: false },
     } satisfies Record<OnboardingPermissionId, OnboardingPermissionCopy>,
     optional: 'Optional',
   },

@@ -12,6 +12,8 @@ const VARIANT = {
   panel: 'bg-base-glass backdrop-blur-xl',
   /** Raised white card */
   card: 'bg-base shadow-raised',
+  /** Copper-washed card: a branded choice on a neutral panel (onboarding) */
+  brand: 'bg-accent-wash',
   /** Floating widget over content */
   floating: 'bg-raised-glass backdrop-blur-xl shadow-floating',
   /** Quiet filled area (code, previews, info lists) */

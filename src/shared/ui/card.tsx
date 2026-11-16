@@ -6,8 +6,18 @@ import { Icon } from './icon';
 
 /** Grouped settings surface (macOS grouped section): muted label above a filled card; rows 48px (60px with description), inset hairlines. */
 
-export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('bg-layer-2 rounded-xl px-4 divide-y divide-muted', className)} {...props} />;
+const CARD_TONE = {
+  default: 'bg-layer-2',
+  /** Copper-washed: a branded box on a neutral panel (onboarding). */
+  brand: 'bg-accent-wash',
+} as const;
+
+export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  tone?: keyof typeof CARD_TONE;
+}
+
+export function Card({ tone = 'default', className, ...props }: CardProps) {
+  return <div className={cn(CARD_TONE[tone], 'rounded-xl px-4 divide-y divide-muted', className)} {...props} />;
 }
 
 export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {
@@ -15,6 +25,8 @@ export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
   description?: React.ReactNode;
   /** Icon or avatar before the copy, centred on the title line; the description indents under the title. */
   leading?: React.ReactNode;
+  /** `row` centres a large leading image (an app icon) on title and description together, as System Settings does. */
+  leadingAlign?: 'title' | 'row';
   /** Row state, always right-aligned just before `actions` so states line up down a card. */
   status?: React.ReactNode;
   actions?: React.ReactNode;
@@ -26,7 +38,7 @@ export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
   onOpen?: () => void;
 }
 
-export function CardRow({ title, description, leading, status, actions, stacked, align = 'center', onOpen, className, children, ...props }: CardRowProps) {
+export function CardRow({ title, description, leading, leadingAlign = 'title', status, actions, stacked, align = 'center', onOpen, className, children, ...props }: CardRowProps) {
   const chevron = onOpen && <Icon icon={ChevronRight} size="sm" className="text-faint" />;
   const trailing = status || actions || chevron;
   const openOnKey = (e: React.KeyboardEvent) => {
@@ -44,9 +56,11 @@ export function CardRow({ title, description, leading, status, actions, stacked,
       )}
       {...props}
     >
-      <div className="flex min-w-0 items-start gap-2.5">
-        {/* One title line tall (1lh of the title style), so the icon centres on the title, not the block. */}
-        {leading && <Text as="div" variant="bodyStrong" className="flex h-[1lh] shrink-0 items-center">{leading}</Text>}
+      <div className={cn('flex min-w-0 gap-2.5', leadingAlign === 'row' ? 'items-center' : 'items-start')}>
+        {/* `title`: one title line tall (1lh of the title style), so the icon centres on the title, not the block. */}
+        {leading && (leadingAlign === 'row'
+          ? <div className="flex shrink-0 items-center">{leading}</div>
+          : <Text as="div" variant="bodyStrong" className="flex h-[1lh] shrink-0 items-center">{leading}</Text>)}
         <div className="min-w-0">
           <Text as="p" variant="bodyStrong">{title}</Text>
           {description && <Text as="p" variant="helper" tone="muted" className="mt-0.5">{description}</Text>}

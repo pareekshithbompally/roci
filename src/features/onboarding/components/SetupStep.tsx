@@ -1,15 +1,14 @@
 /** First-run step 2: the AI Roci uses. Apple Intelligence on this Mac, a local server, a remote provider, or later. */
 
 import React from 'react';
-import { Cloud, Server } from 'lucide-react';
-import { Button, Icon, Text } from '@shared/ui';
-import { ActionCard, AppImage } from '@shared/components';
+import { Button, Text } from '@shared/ui';
+import { ActionCard, AppIcon } from '@shared/components';
 import { useAppActions } from '@shared/stores/appStore';
 import { useAppleIntelligenceControls, useAppleIntelligenceSetup } from '@features/integrations';
 import type { IntegrationAccess } from '@features/integrations';
 import { platform } from '@platform/index';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
-import { ONBOARDING_CONFIG } from '@config/onboarding.config';
+import { ONBOARDING_CONFIG, ONBOARDING_ICONS } from '@config/onboarding.config';
 import { useFinishOnboarding } from '@features/onboarding/hooks/useFinishOnboarding';
 import { useSetOnboardingStep } from '@features/onboarding/stores/onboardingStore';
 
@@ -38,7 +37,8 @@ const AppleTile: React.FC = () => {
 
   return (
     <ActionCard
-      icon={<AppImage src={APPLE.icon} size="md" />}
+      icon={<AppIcon app={ONBOARDING_ICONS.appleIntelligence} size="xl" />}
+      tone="brand"
       title={APPLE.title}
       description={APPLE.onboarding.description}
       status={<AppleStatus access={access} reason={unavailableReason} />}
@@ -69,14 +69,16 @@ export const SetupStep: React.FC = () => {
         {platform.hasAppleIntelligence && <AppleTile />}
         {platform.supportsLocalServers && (
           <ActionCard
-            icon={<Icon icon={Server} size="md" />}
+            icon={<AppIcon app={ONBOARDING_ICONS.local} size="xl" />}
+            tone="brand"
             title={COPY.local.title}
             description={COPY.local.description}
             onClick={() => setStep('local')}
           />
         )}
         <ActionCard
-          icon={<Icon icon={Cloud} size="md" />}
+          icon={<AppIcon app={ONBOARDING_ICONS.remote} size="xl" />}
+          tone="brand"
           title={COPY.remote.title}
           description={COPY.remote.description}
           onClick={openProviders}
