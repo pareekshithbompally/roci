@@ -37,6 +37,7 @@ import type { SpeechState } from '@features/chat/hooks/useSpeechInput';
 import { DotScope } from '@features/chat/components/dot-scope';
 import { LiveTranscript } from '@features/chat/components/voice/LiveTranscript';
 import type { LiveText } from '@services/ai/transcription';
+import { ImportMeetingMenu } from '@features/import';
 import { DOT_SCOPE_CONFIG } from '@config/dotScope.config';
 import {
   voiceTransition,
@@ -523,21 +524,23 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               {onAttach && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <IconButton icon={Plus} label="Attach" size="toolbar" disabled={disabled} />
+                    <IconButton icon={Plus} label="Add" size="toolbar" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent side="top" align="start" sideOffset={UI_CONFIG.picker.sideOffset}>
-                    <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_IMAGES)}>
+                    <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_IMAGES)} disabled={disabled}>
                       <Icon icon={ImageIcon} size="sm" />
                       <span>Images</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_FILES)}>
+                    <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_FILES)} disabled={disabled}>
                       <Icon icon={FileText} size="sm" />
                       <span>Files</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_AUDIO)}>
+                    <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_AUDIO)} disabled={disabled}>
                       <Icon icon={Music} size="sm" />
                       <span>Audio</span>
                     </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <ImportMeetingMenu />
 
                     {canScreenshot && <DropdownMenuSeparator />}
                     {canScreenshot && (

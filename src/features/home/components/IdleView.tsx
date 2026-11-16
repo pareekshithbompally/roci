@@ -2,7 +2,6 @@
 
 import React, { useMemo, useState, useCallback } from 'react';
 import { ListTodo, CalendarDays } from 'lucide-react';
-import { ImportButton } from '@features/import';
 import { useAppActions } from '@shared/stores/appStore';
 import { useRecordingBusy, useRecordingMeetingId, useStartRecording } from '@features/recording';
 import { isTauriEnvironment } from '@services/tauri';
@@ -17,9 +16,10 @@ import { useSpeechInputReady } from '@features/settings/hooks/useSpeechModels';
 import { useAIReadiness, useOpenAISetup } from '@features/settings';
 import { LAYOUT } from '@config/layout.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
-import { Button, Dot, Icon, Surface, Text, TitlebarSpacer } from '@shared/ui';
+import { Button, cn, Dot, Icon, Surface, Text, TitlebarSpacer } from '@shared/ui';
 import { motion } from 'framer-motion';
 import { platform } from '@platform/index';
+import { useFormFactor } from '@platform/formFactor';
 import { isIntegrationEnabled } from '@shared/utils/integrations';
 
 interface IdleViewProps {}
@@ -77,6 +77,8 @@ export const IdleView: React.FC<IdleViewProps> = () => {
 
   const hasConfiguredProviders = useAIReadiness().text;
   const handleSetupProviders = useOpenAISetup();
+  // Phone: the greeting fills the screen and the composer sits at the bottom, above the keyboard.
+  const phone = useFormFactor() === 'phone';
 
   const handleOpenReminders = () => {
     setCurrentView('reminders');
@@ -119,12 +121,12 @@ export const IdleView: React.FC<IdleViewProps> = () => {
         </div>
       ) : (
       <>
-      {/* Chat Composer - Centered in remaining space */}
-      <div className="flex-1 flex flex-col items-center justify-center w-full px-2 relative z-20">
-        <div className={`${LAYOUT.chatColumn} space-y-6 overflow-visible`}>
+      {/* Chat composer: centred in the remaining space (desktop); pinned to the bottom (phone). */}
+      <div className={cn('relative z-20 flex w-full flex-1 flex-col', phone ? 'px-3 pb-safe-bottom' : 'items-center justify-center px-2')}>
+        <div className={phone ? 'flex flex-1 flex-col gap-4' : `${LAYOUT.chatColumn} space-y-6 overflow-visible`}>
               {/* Stays mounted and only fades, so the column never reflows under the voice pill. */}
               <motion.div
-                className="text-center"
+                className={cn('text-center', phone && 'flex flex-1 items-center justify-center')}
                 initial={false}
                 animate={voice.isVoiceActive ? { opacity: 0, y: -8 } : { opacity: 1, y: 0 }}
                 transition={voice.isVoiceActive ? { duration: 0.2 } : voice.chromeEnter}
@@ -134,6 +136,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
               </motion.div>
               {/* Shared ChatInput — glides to the bottom of the chat on first send */}
               <motion.div
+                className={cn(phone && 'order-last')}
                 layout="position"
                 layoutId={ANIMATION_CONFIG.chat.composerLayoutId}
                 layoutDependency={ANIMATION_CONFIG.chat.composerLayoutDependency.idle}
@@ -180,7 +183,6 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                     Record
                   </Button>
                 )}
-                <ImportButton />
                 {historyItems.length > 0 && (
                   <Button variant="outline" size="sm" onClick={handleOpenReminders}>
                     <Icon icon={ListTodo} size="xs" />

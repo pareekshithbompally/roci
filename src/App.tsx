@@ -35,10 +35,13 @@ import { shortcutsService } from '@services/shortcuts.service';
 import { searchIndexingService } from '@services/searchIndexing.service';
 import { reminderService } from '@services/reminder.service';
 import { platform } from '@platform/index';
+import { useFormFactor } from '@platform/formFactor';
 
 const App: React.FC = () => {
   console.log('[App] Rendering App component');
   const currentView = useCurrentView();
+  const viewBeforeSettings = useAppStore((s) => s.viewBeforeSettings);
+  const formFactor = useFormFactor();
   const status = useAppStatus();
   const selectedHistoryId = useSelectedHistoryId();
   const { setCurrentView, leaveSettings, setInitialized, setActiveSettingsPanel } = useAppActions();
@@ -327,14 +330,17 @@ const App: React.FC = () => {
     }
   };
 
+  // Phone: Settings is a sheet (PhoneShell) over the screen it was opened from, which stays in the content area.
+  const contentView = formFactor === 'phone' && currentView === 'settings' ? viewBeforeSettings : currentView;
+
   // Determine if IdleView, ChatView, or ResultsView is being shown (needs edge-to-edge layout without padding)
   const hasSelectedMeeting = selectedHistoryId !== null;
-  const showIdleView = currentView === 'home' && (
+  const showIdleView = contentView === 'home' && (
     status === AppStatus.IDLE || 
     status === AppStatus.CHAT
   );
-  const showChatView = currentView === 'home' && status === AppStatus.CHAT;
-  const showResultsView = currentView === 'home' && hasSelectedMeeting;
+  const showChatView = contentView === 'home' && status === AppStatus.CHAT;
+  const showResultsView = contentView === 'home' && hasSelectedMeeting;
 
   // First launch: permissions, then AI setup, in place of the app; waits for settings so a finished run never flashes.
   if (!settingsLoading && !settings.onboarding?.completed) {
@@ -355,7 +361,7 @@ const App: React.FC = () => {
         {/* Main Content */}
         <main
           className={`grow shrink min-h-0 flex flex-col custom-scrollbar relative ${
-            currentView === 'settings' || currentView === 'reminders' || currentView === 'calendar'
+            contentView === 'settings' || contentView === 'reminders' || contentView === 'calendar'
               ? 'p-0 items-stretch overflow-y-auto'
               : (showIdleView || showChatView || showResultsView)
                 ? 'p-0 overflow-hidden'
@@ -363,9 +369,9 @@ const App: React.FC = () => {
           }`}
           // No titlebar padding: each view clears the titlebar itself (`PageScroll` / `TitlebarSpacer`).
         >
-          {currentView === 'home' ? <HomeView />
-            : currentView === 'reminders' ? <RemindersView />
-            : currentView === 'calendar' ? <CalendarView />
+          {contentView === 'home' ? <HomeView />
+            : contentView === 'reminders' ? <RemindersView />
+            : contentView === 'calendar' ? <CalendarView />
             : <SettingsPanel />}
         </main>
       </MainLayout>

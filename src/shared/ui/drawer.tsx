@@ -7,15 +7,20 @@ export interface DrawerProps {
   onClose: () => void;
   /** The panel's accessible name. */
   label: string;
-  /** `end` (default): a panel from the right. `start`: the sidebar from the left (phone). */
-  side?: 'start' | 'end';
+  /** `end` (default): a panel from the right. `start`: the sidebar from the left (phone). `bottom`: a sheet (phone). */
+  side?: 'start' | 'end' | 'bottom';
   children: React.ReactNode;
 }
 
+/** `layer`: a side panel stays in the shell band; the phone sidebar and sheet cover the whole shell, top bar included. */
 const SIDE = {
-  start: { edge: 'right', panel: 'left-0 w-[var(--drawer-start-width)] pt-[var(--safe-top)] pb-[var(--safe-bottom)]', closed: '-translate-x-full' },
-  end: { edge: 'left', panel: 'right-0 w-96', closed: 'translate-x-full' },
+  start: { layer: 'z-50', edge: 'right', panel: 'inset-y-0 left-0 w-[var(--drawer-start-width)] pt-safe-top pb-safe-bottom', closed: '-translate-x-full' },
+  end: { layer: 'z-10', edge: 'left', panel: 'inset-y-0 right-0 w-96', closed: 'translate-x-full' },
+  bottom: { layer: 'z-50', edge: 'top', panel: 'inset-x-0 bottom-0 top-safe-top mt-2 rounded-t-2xl pb-safe-bottom', closed: 'translate-y-full' },
 } as const;
+
+/** The panel already clears the notch and home bar, so its content sees no safe-area insets. */
+const NO_INSETS = '[--safe-top:0px] [--safe-bottom:0px]';
 
 /** A panel that slides in from one edge of its positioned parent over a scrim; the scrim or Escape closes it. */
 export function Drawer({ open, onClose, label, side = 'end', children }: DrawerProps) {
@@ -24,8 +29,7 @@ export function Drawer({ open, onClose, label, side = 'end', children }: DrawerP
     if (e.key === 'Escape') onClose();
   };
   return (
-    // Part of the shell (z-10…z-50 band), so it stays under the titlebar strip and sidebar controls.
-    <div className={cn('absolute inset-0 z-10', !open && 'pointer-events-none')}>
+    <div className={cn('absolute inset-0', placement.layer, !open && 'pointer-events-none')}>
       <Surface
         variant="scrim"
         aria-hidden="true"
@@ -39,9 +43,9 @@ export function Drawer({ open, onClose, label, side = 'end', children }: DrawerP
         aria-label={label}
         aria-modal="true"
         onKeyDown={closeOnEscape}
-        className={cn('absolute inset-y-0 flex flex-col transition-transform duration-300 ease-out', placement.panel, !open && placement.closed)}
+        className={cn('absolute flex flex-col overflow-hidden transition-transform duration-300 ease-out', placement.panel, !open && placement.closed)}
       >
-        {children}
+        <div className={cn('flex min-h-0 flex-1 flex-col', NO_INSETS)}>{children}</div>
       </Surface>
     </div>
   );

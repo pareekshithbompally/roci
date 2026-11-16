@@ -1,13 +1,14 @@
-/** iPhone shell: a plain chatbot — top bar (sidebar · model · Record; Back in Settings), the content, the sidebar sliding over from the left. */
+/** iPhone shell: a plain chatbot — top bar (sidebar · model · New chat / Record), the content; the sidebar slides over from the left, Settings rises as a sheet. */
 
 import React from 'react';
-import { ChevronLeft, PanelLeft } from 'lucide-react';
+import { PanelLeft, SquarePen } from 'lucide-react';
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
 import { useAppActions, useCurrentView } from '@shared/stores/appStore';
-import { ModelPicker } from '@features/chat';
+import { ModelPicker, startNewChat } from '@features/chat';
+import { SettingsPanel } from '@features/settings';
 import { useRecordingBusy, useRecordingMeetingId, useStartRecording } from '@features/recording';
 import { platform } from '@platform/index';
-import { Button, Dot, Drawer, Icon, IconButton, Surface, TopBar } from '@shared/ui';
+import { Button, Dot, Drawer, IconButton, Surface, TopBar } from '@shared/ui';
 import { Sidebar } from './Sidebar';
 
 interface PhoneShellProps {
@@ -38,26 +39,18 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children, onSearchClick 
 
   return (
     <Surface as="main" variant="page" className="relative flex h-screen flex-col overflow-hidden">
-      {inSettings ? (
-        <TopBar
-          leading={
-            <Button variant="link" size="inline" onClick={leaveSettings}>
-              <Icon icon={ChevronLeft} size="sm" />
-              Back
-            </Button>
-          }
-          title="Settings"
-        />
-      ) : (
-        <TopBar
-          leading={<IconButton icon={PanelLeft} label="Open sidebar" onClick={() => setLeftPanel(true)} />}
-          title={<ModelPicker compact />}
-          trailing={platform.canRecord && <RecordButton />}
-        />
-      )}
+      <TopBar
+        leading={<IconButton icon={PanelLeft} label="Open sidebar" onClick={() => setLeftPanel(true)} />}
+        title={<ModelPicker compact />}
+        trailing={platform.canRecord ? <RecordButton /> : <IconButton icon={SquarePen} label="New chat" onClick={startNewChat} />}
+      />
       <div className="relative flex min-h-0 flex-1 flex-col">{children}</div>
       <Drawer side="start" open={open} onClose={() => setLeftPanel(false)} label="Sidebar">
         <Sidebar shouldOffsetMacControls={false} onSearchClick={onSearchClick} />
+      </Drawer>
+      <Drawer side="bottom" open={inSettings} onClose={leaveSettings} label="Settings">
+        <TopBar title="Settings" trailing={<Button variant="link" size="inline" onClick={leaveSettings}>Done</Button>} />
+        <div className="relative min-h-0 flex-1">{inSettings && <SettingsPanel />}</div>
       </Drawer>
     </Surface>
   );

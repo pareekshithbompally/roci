@@ -1,4 +1,5 @@
 import { forwardRef, type HTMLAttributes } from 'react';
+import { platform } from '@platform/index';
 import { UI_CONFIG } from '@config/ui.config';
 import { edgeFade } from './fade';
 import { cn } from './utils';
@@ -19,7 +20,7 @@ export function TitlebarDragRegion() {
 
 /** Reserves the titlebar band (traffic lights + drag strip) above a view's fixed header. */
 export function TitlebarSpacer() {
-  return <Band height={safeArea} />;
+  return platform.hasWindowChrome ? <Band height={safeArea} /> : null;
 }
 
 export interface PageScrollProps extends HTMLAttributes<HTMLDivElement> {

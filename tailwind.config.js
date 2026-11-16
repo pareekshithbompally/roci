@@ -76,7 +76,7 @@ export default {
         largeTitle: ['26px', '32px'],
       },
       // 5.5 = a 14px icon + 8px gap (text indented under an icon); 15 = 60px described row
-      spacing: { 5.5: '1.375rem', 15: '3.75rem' },
+      spacing: { 5.5: '1.375rem', 15: '3.75rem', 'safe-top': 'var(--safe-top)', 'safe-bottom': 'var(--safe-bottom)' },
       keyframes: {
         'overlay-show': {
           from: { opacity: '0' },

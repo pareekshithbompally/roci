@@ -40,7 +40,7 @@ export function PushScreen({ open, title, onBack, backLabel, trailing, children 
         title={title}
         trailing={trailing}
       />
-      <div className="min-h-0 flex-1 overflow-y-auto pb-[var(--safe-bottom)]">{children}</div>
+      <div className="min-h-0 flex-1 overflow-y-auto pb-safe-bottom">{children}</div>
     </Surface>
   );
 }
