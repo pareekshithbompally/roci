@@ -41,7 +41,7 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Roci uses your microphone to record your side of a meeting and for dictation, and keeps recordings on this Mac.</string>
+	<string>Roci uses your microphone to record meetings and for dictation, and keeps recordings on this device.</string>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>Roci records the other participants&apos; audio only while you record a meeting, and keeps it on this Mac.</string>
 	<key>NSScreenCaptureUsageDescription</key>
@@ -55,10 +55,12 @@
 	<key>NSRemindersUsageDescription</key>
 	<string>Roci adds your meeting action items to Reminders and marks them done in Roci when you complete them there.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Roci transcribes your recordings on this Mac with Apple&apos;s speech recognition when you choose it as your transcription model.</string>
+	<string>Roci transcribes your recordings on this device with Apple&apos;s speech recognition when you choose it as your transcription model.</string>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Roci saves each meeting&apos;s summary and transcript as a note in Apple Notes when you turn on the Apple Notes integration.</string>
 	<key>NSUserNotificationAlertStyle</key>
 	<string>alert</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
