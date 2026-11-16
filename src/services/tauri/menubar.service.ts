@@ -1,4 +1,4 @@
-/** Frontend sync for the Rust-owned tray: menu actions in; recording state and downloaded Hex models out. */
+/** Frontend sync for the Rust-owned tray: menu actions in; what only the webview knows out (recording, models, jobs, update, recent meetings). */
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
@@ -6,6 +6,18 @@ import { isTauriEnvironment } from './environment.service';
 import type { TrayAction } from './types';
 
 export const MENUBAR_ACTION_EVENT = 'menubar-action';
+
+/** A background job as its menu row reads: label, and percent when known. */
+export interface MenubarActivity {
+  label: string;
+  percent: number | null;
+}
+
+/** A recent meeting's menu row. */
+export interface MenubarRecentMeeting {
+  id: string;
+  title: string;
+}
 
 export interface MenubarState {
   recording: boolean;
@@ -66,42 +78,47 @@ class MenubarService {
 
   /** Report a recording transition. Backend owns the icon and clock. */
   async setRecordingState(active: boolean, paused = false): Promise<void> {
-    if (!isTauriEnvironment()) return;
-    try {
-      await invoke('menubar_set_recording_state', { active, paused });
-    } catch (error) {
-      console.error('[Menubar] Failed to report recording state:', error);
-    }
+    await this.report('menubar_set_recording_state', { active, paused }, 'recording state');
   }
 
   /** Replaces the Speech Model submenu; an empty list shows the disabled "No downloaded models" row. */
   async setSpeechModels(models: MenubarSpeechModel[]): Promise<void> {
+    await this.report('menubar_set_speech_models', { models }, 'speech models');
+  }
+
+  /** The background jobs running now, one menu row each. */
+  async setActivity(items: MenubarActivity[]): Promise<void> {
+    await this.report('menubar_set_activity', { items }, 'activity');
+  }
+
+  /** The update waiting to install (its version), or null: the row reads "Update to vX…" or "Check for Updates…". */
+  async setUpdate(version: string | null): Promise<void> {
+    await this.report('menubar_set_update', { version }, 'update');
+  }
+
+  /** The most recent meetings, newest first, for the Recent Meetings submenu. */
+  async setRecentMeetings(meetings: MenubarRecentMeeting[]): Promise<void> {
+    await this.report('menubar_set_recent_meetings', { meetings }, 'recent meetings');
+  }
+
+  /** One report to the Rust-owned menu; a failure is logged (the menu keeps its last state). */
+  private async report(command: string, args: Record<string, unknown>, what: string): Promise<void> {
     if (!isTauriEnvironment()) return;
     try {
-      await invoke('menubar_set_speech_models', { models });
-    } catch (error) {
-      console.error('[Menubar] Failed to report speech models:', error);
+      await invoke(command, args);
+    } catch (error: unknown) {
+      console.error(`[Menubar] Failed to report ${what}:`, error);
     }
   }
 
   /** Set the tray tooltip. */
   async setTooltip(tooltip: string): Promise<void> {
-    if (!isTauriEnvironment()) return;
-    try {
-      await invoke('menubar_set_tooltip', { tooltip });
-    } catch (error) {
-      console.error('[Menubar] Failed to set tooltip:', error);
-    }
+    await this.report('menubar_set_tooltip', { tooltip }, 'tooltip');
   }
 
   /** Show or hide the icon (recording still forces it visible). */
   async setVisible(visible: boolean): Promise<void> {
-    if (!isTauriEnvironment()) return;
-    try {
-      await invoke('menubar_set_visible', { visible });
-    } catch (error) {
-      console.error('[Menubar] Failed to set visibility:', error);
-    }
+    await this.report('menubar_set_visible', { visible }, 'visibility');
   }
 
   /** Read backend menubar status for settings sync. */

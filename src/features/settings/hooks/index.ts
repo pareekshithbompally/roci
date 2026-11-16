@@ -8,6 +8,7 @@ export type { ConnectionStatus, ProviderConnection } from './useProviderConnecti
 export { useSpeechModelOptions, useSpeechInputReady, useLiveDictation, freshSpeechSources } from './useSpeechModels';
 export type { LiveDictation } from './useSpeechModels';
 export { useMenubarSpeechModels } from './useMenubarSpeechModels';
+export { useMenubarReports } from './useMenubarReports';
 export { useLocalModels, useLocalModelControls, useLocalModelDownloads, downloadSetup } from './useLocalModels';
 export {
   useMcpConfig,

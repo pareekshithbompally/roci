@@ -28,13 +28,20 @@ export interface NotificationOptions {
   icon?: string;
 }
 
+/** Menu bar actions the webview carries out (`menubar::item` in Rust; Rust handles the window, next-meeting and recent-meeting rows). */
 export enum TrayAction {
   SHOW = 'show',
   START_RECORDING = 'start_recording',
   STOP_RECORDING = 'stop_recording',
+  PAUSE_RECORDING = 'pause_recording',
+  RESUME_RECORDING = 'resume_recording',
   MANAGE_MODELS = 'manage_models',
+  MANAGE_AGENTS = 'manage_agents',
+  NEW_CHAT = 'new_chat',
+  SEARCH = 'search',
   SETTINGS = 'settings',
   CHECK_UPDATES = 'check_updates',
+  INSTALL_UPDATE = 'install_update',
   QUIT = 'quit',
 }
 

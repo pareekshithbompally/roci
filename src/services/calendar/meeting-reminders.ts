@@ -6,10 +6,10 @@ import { CALENDAR_CONFIG } from '@config/calendar.config';
 import { isTauriEnvironment } from '@services/tauri/environment.service';
 import type { CalendarEvent } from './types';
 
-/** Turn native reminders on/off and set how many minutes before a meeting they show. */
-export async function configureMeetingReminders(enabled: boolean, leadMinutes: number): Promise<void> {
+/** Calendar reading (menu bar next meeting, call detection) and native reminders on/off, and the reminders' lead time. */
+export async function configureMeetingReminders(calendar: boolean, enabled: boolean, leadMinutes: number): Promise<void> {
   if (!isTauriEnvironment()) return;
-  await invoke('configure_meeting_reminders', { enabled, leadMinutes });
+  await invoke('configure_meeting_reminders', { calendar, enabled, leadMinutes });
 }
 
 /** Record or Join & record was chosen on a reminder: start recording `event`. Returns the unsubscribe. */

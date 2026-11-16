@@ -6,7 +6,7 @@ use std::{
     path::Path,
     sync::{
         Mutex,
-        atomic::{AtomicU64, AtomicUsize, Ordering},
+        atomic::{AtomicU64, Ordering},
     },
     time::Duration,
 };
@@ -51,7 +51,9 @@ pub struct McpHostState {
     tools: Mutex<Option<watch::Sender<Option<Vec<Tool>>>>>,
     pending: Mutex<HashMap<u64, oneshot::Sender<ToolReply>>>,
     next_call: AtomicU64,
-    clients: AtomicUsize,
+    next_session: AtomicU64,
+    /// Agents connected now, by session, as each announced itself when it connected.
+    agents: Mutex<Vec<(u64, ConnectedAgent)>>,
     /// Why the socket isn't listening, when it isn't.
     error: Mutex<Option<String>>,
     listening: std::sync::atomic::AtomicBool,
@@ -72,6 +74,22 @@ struct ToolCallRequest<'a> {
     arguments: serde_json::Value,
 }
 
+/// A connected agent as it announced itself (MCP `clientInfo`), e.g. `claude-code` / "Claude Code".
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct ConnectedAgent {
+    pub name: String,
+    pub title: String,
+}
+
+impl ConnectedAgent {
+    fn from_client(client: &rmcp::model::Implementation) -> Self {
+        Self {
+            name: client.name.clone(),
+            title: client.title.clone().unwrap_or_else(|| client.name.clone()),
+        }
+    }
+}
+
 /// What Settings › Integrations and the menu bar show about the server.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -80,24 +98,26 @@ pub struct HostStatus {
     /// The webview published its tools: calls run now instead of waiting.
     pub ready: bool,
     pub clients: usize,
+    pub agents: Vec<ConnectedAgent>,
     pub error: Option<String>,
 }
 
 impl HostStatus {
-    /// The menu bar row (status only — the server lives and dies with the app).
-    pub fn menu_label(&self) -> String {
-        let state = match (
-            self.error.is_some(),
-            self.listening && self.ready,
-            self.clients,
-        ) {
-            (true, _, _) => "Unavailable".to_string(),
-            (false, false, _) => "Starting…".to_string(),
-            (false, true, 0) => "Ready".to_string(),
-            (false, true, 1) => "1 agent connected".to_string(),
-            (false, true, n) => format!("{n} agents connected"),
+    /// The menu bar row: a summary, its status dot, and the agents connected (status only — the server lives with the app).
+    pub fn menu_status(&self) -> crate::menubar::McpMenuStatus {
+        use crate::menubar::StatusLevel;
+        let (summary, level) = match (self.error.is_some(), self.listening && self.ready, self.agents.len()) {
+            (true, _, _) => ("Unavailable".to_string(), StatusLevel::Unavailable),
+            (false, false, _) => ("Starting…".to_string(), StatusLevel::Starting),
+            (false, true, 0) => ("Ready".to_string(), StatusLevel::Available),
+            (false, true, 1) => ("1 agent connected".to_string(), StatusLevel::Available),
+            (false, true, n) => (format!("{n} agents connected"), StatusLevel::Available),
         };
-        format!("MCP Server: {state}")
+        crate::menubar::McpMenuStatus {
+            summary,
+            level,
+            agents: self.agents.iter().map(|a| (a.name.clone(), a.title.clone())).collect(),
+        }
     }
 }
 
@@ -127,9 +147,25 @@ impl McpHostState {
         HostStatus {
             listening: self.listening.load(Ordering::Relaxed),
             ready: self.sender().borrow().is_some(),
-            clients: self.clients.load(Ordering::Relaxed),
+            clients: self.agents().len(),
+            agents: self.agents(),
             error: self.error.lock().unwrap_or_else(|e| e.into_inner()).clone(),
         }
+    }
+
+    fn agents(&self) -> Vec<ConnectedAgent> {
+        let agents = self.agents.lock().unwrap_or_else(|e| e.into_inner());
+        agents.iter().map(|(_, agent)| agent.clone()).collect()
+    }
+
+    fn connect(&self, agent: ConnectedAgent) -> u64 {
+        let session = self.next_session.fetch_add(1, Ordering::Relaxed);
+        self.agents.lock().unwrap_or_else(|e| e.into_inner()).push((session, agent));
+        session
+    }
+
+    fn disconnect(&self, session: u64) {
+        self.agents.lock().unwrap_or_else(|e| e.into_inner()).retain(|(id, _)| *id != session);
     }
 
     fn forget(&self, id: u64) {
@@ -192,25 +228,33 @@ async fn bind(path: &Path) -> Result<UnixListener, String> {
     Ok(listener)
 }
 
+/// One agent's session: listed (by the name it announced) from initialize until it disconnects.
 async fn serve_client(app: AppHandle, stream: UnixStream) {
     let state = app.state::<McpHostState>();
-    state.clients.fetch_add(1, Ordering::Relaxed);
-    emit_status(&app);
-    match (KassetServer { app: app.clone() }).serve(stream).await {
-        Ok(service) => {
-            if let Err(e) = service.waiting().await {
-                log::warn!("[mcp-host] session ended abnormally: {e}");
-            }
+    let service = match (KassetServer { app: app.clone() }).serve(stream).await {
+        Ok(service) => service,
+        Err(e) => {
+            log::warn!("[mcp-host] agent failed to initialize: {e}");
+            return;
         }
-        Err(e) => log::warn!("[mcp-host] agent failed to initialize: {e}"),
+    };
+    let agent = service.peer_info().map_or_else(
+        || ConnectedAgent { name: "unknown".into(), title: "Unknown agent".into() },
+        |peer| ConnectedAgent::from_client(&peer.client_info),
+    );
+    log::info!("[mcp-host] {} ({}) connected", agent.title, agent.name);
+    let session = state.connect(agent);
+    emit_status(&app);
+    if let Err(e) = service.waiting().await {
+        log::warn!("[mcp-host] session ended abnormally: {e}");
     }
-    state.clients.fetch_sub(1, Ordering::Relaxed);
+    state.disconnect(session);
     emit_status(&app);
 }
 
 /// Tell the webview (Settings) and the menu bar that the server's state changed.
 pub fn emit_status(app: &AppHandle) {
-    crate::menubar::set_mcp_status(app, app.state::<McpHostState>().status().menu_label());
+    crate::menubar::set_mcp_status(app, app.state::<McpHostState>().status().menu_status());
     if let Err(e) = app.emit(STATUS_EVENT, ()) {
         log::error!("[mcp-host] failed to emit {STATUS_EVENT}: {e}");
     }
@@ -321,42 +365,27 @@ impl ServerHandler for KassetServer {
 
 #[cfg(test)]
 mod tests {
-    use super::HostStatus;
+    use super::{ConnectedAgent, HostStatus};
+    use crate::menubar::StatusLevel;
 
-    fn status(listening: bool, ready: bool, clients: usize, error: Option<&str>) -> HostStatus {
-        HostStatus {
-            listening,
-            ready,
-            clients,
-            error: error.map(str::to_string),
-        }
+    fn status(listening: bool, ready: bool, agents: usize, error: Option<&str>) -> HostStatus {
+        let agents: Vec<ConnectedAgent> = (0..agents)
+            .map(|i| ConnectedAgent { name: format!("agent-{i}"), title: format!("Agent {i}") })
+            .collect();
+        HostStatus { listening, ready, clients: agents.len(), agents, error: error.map(str::to_string) }
     }
 
     #[test]
-    fn menu_label_reads_the_server_state() {
-        assert_eq!(
-            status(false, false, 0, None).menu_label(),
-            "MCP Server: Starting…"
-        );
-        assert_eq!(
-            status(true, false, 0, None).menu_label(),
-            "MCP Server: Starting…"
-        );
-        assert_eq!(
-            status(true, true, 0, None).menu_label(),
-            "MCP Server: Ready"
-        );
-        assert_eq!(
-            status(true, true, 1, None).menu_label(),
-            "MCP Server: 1 agent connected"
-        );
-        assert_eq!(
-            status(true, true, 3, None).menu_label(),
-            "MCP Server: 3 agents connected"
-        );
-        assert_eq!(
-            status(false, false, 0, Some("taken")).menu_label(),
-            "MCP Server: Unavailable"
-        );
+    fn menu_status_reads_the_server_state() {
+        let read = |s: HostStatus| {
+            let m = s.menu_status();
+            (m.summary, m.level, m.agents.len())
+        };
+        assert_eq!(read(status(false, false, 0, None)), ("Starting…".into(), StatusLevel::Starting, 0));
+        assert_eq!(read(status(true, false, 0, None)), ("Starting…".into(), StatusLevel::Starting, 0));
+        assert_eq!(read(status(true, true, 0, None)), ("Ready".into(), StatusLevel::Available, 0));
+        assert_eq!(read(status(true, true, 1, None)), ("1 agent connected".into(), StatusLevel::Available, 1));
+        assert_eq!(read(status(true, true, 3, None)), ("3 agents connected".into(), StatusLevel::Available, 3));
+        assert_eq!(read(status(false, false, 0, Some("taken"))), ("Unavailable".into(), StatusLevel::Unavailable, 0));
     }
 }

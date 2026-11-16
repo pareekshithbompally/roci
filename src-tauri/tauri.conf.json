@@ -70,7 +70,9 @@
       "icons/iconTemplate.png",
       "icons/iconTemplate@2x.png",
       "icons/iconRecordingTemplate.png",
-      "icons/iconRecordingTemplate@2x.png"
+      "icons/iconRecordingTemplate@2x.png",
+      "icons/agents/claude-code.png",
+      "icons/agents/opencode.png"
     ],
     "publisher": "Kasset.ai",
     "copyright": "Copyright © 2026 Pareekshith Bompally",

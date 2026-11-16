@@ -145,6 +145,9 @@ pub fn run() {
       // Menubar commands (backend owns tray icon, menu, visibility)
       menubar::menubar_set_recording_state,
       menubar::menubar_set_speech_models,
+      menubar::menubar_set_activity,
+      menubar::menubar_set_update,
+      menubar::menubar_set_recent_meetings,
       menubar::menubar_set_tooltip,
       menubar::menubar_set_visible,
       menubar::menubar_set_prefs,

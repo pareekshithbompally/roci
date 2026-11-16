@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore, useCurrentView, useAppStatus, useSelectedHistoryId, useAppActions } from '@shared/stores/appStore';
+import type { SettingsPanel as SettingsPanelId } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHistory } from '@shared/contexts/HistoryContext';
@@ -10,7 +11,7 @@ import { MainLayout } from '@features/layout';
 import { HomeView } from '@features/home';
 import { SettingsPanel } from '@features/settings';
 import { useAppUpdate, scheduleStartupCheck } from '@features/settings';
-import { useMenubarSpeechModels, useLocalModelDownloads, freshSpeechSources } from '@features/settings';
+import { useMenubarSpeechModels, useMenubarReports, useLocalModelDownloads, freshSpeechSources } from '@features/settings';
 import { RemindersView } from '@features/todos';
 import { CalendarView } from '@features/calendar';
 import { ConfirmHost, OnDeviceModelActivity, SearchOverlay } from '@shared/components';
@@ -87,6 +88,7 @@ const App: React.FC = () => {
 
   // Tray › Speech Model submenu: downloaded Hex models and the current pick
   useMenubarSpeechModels();
+  useMenubarReports(appUpdate.status === 'available' ? appUpdate.updateInfo?.version ?? null : null);
 
   // Index warm-up: FTS first so Cmd+K works at once, then embeddings only if the model is ready and consented.
   const indexingRanRef = useRef(false);
@@ -223,60 +225,61 @@ const App: React.FC = () => {
     }
   };
 
+  /** What each menu bar action does here (Rust handles the window, next-meeting and recent-meeting rows itself). */
+  const menubarActions = (): Record<TrayAction, () => Promise<void>> => {
+    const isRecording = () => useRecordingStore.getState().meetingId !== null;
+    const openSettings = async (panel?: SettingsPanelId) => {
+      if (panel) setActiveSettingsPanel(panel);
+      setCurrentView('settings');
+      await windowService.show();
+    };
+    return {
+      [TrayAction.SHOW]: () => windowService.show(),
+      [TrayAction.START_RECORDING]: async () => { if (!isRecording()) await startRecordingRef.current(); },
+      [TrayAction.STOP_RECORDING]: async () => { if (isRecording()) await recording.stop(); },
+      [TrayAction.PAUSE_RECORDING]: async () => { if (isRecording()) await recording.pause(); },
+      [TrayAction.RESUME_RECORDING]: async () => { if (isRecording()) await recording.resume(); },
+      [TrayAction.MANAGE_MODELS]: () => openSettings('capabilities'),
+      [TrayAction.MANAGE_AGENTS]: () => openSettings('integrations'),
+      [TrayAction.SETTINGS]: () => openSettings(),
+      [TrayAction.NEW_CHAT]: async () => {
+        await windowService.show();
+        startNewChat();
+      },
+      [TrayAction.SEARCH]: async () => {
+        await windowService.show();
+        setIsSearchOpen(true);
+      },
+      [TrayAction.CHECK_UPDATES]: async () => {
+        await windowService.show();
+        const outcome = await appUpdate.checkNow();
+        if (outcome === 'available') toast.showToast('An update is available', 'info');
+        else if (outcome === 'current') toast.showToast('Kasset is up to date', 'success');
+        else toast.showToast('Could not check for updates', 'error');
+      },
+      [TrayAction.INSTALL_UPDATE]: () => appUpdate.downloadAndInstall(),
+      [TrayAction.QUIT]: async () => {
+        if (!isRecording()) {
+          await menubarService.quit();
+          return;
+        }
+        useAppStore.getState().setRecordingExitPrompt('quit');
+        await windowService.show();
+      },
+    };
+  };
+
   const initializeMenubar = async () => {
     try {
+      const actions = menubarActions();
       await menubarService.initialize(async (action) => {
-        const recordingNow = useRecordingStore.getState().meetingId !== null;
-        switch (action) {
-          case TrayAction.SHOW:
-            await windowService.show();
-            break;
-          case TrayAction.START_RECORDING:
-            if (!recordingNow) {
-              await startRecordingRef.current();
-            }
-            break;
-          case TrayAction.STOP_RECORDING:
-            if (recordingNow) {
-              await recording.stop();
-            }
-            break;
-          case TrayAction.SETTINGS:
-            setCurrentView('settings');
-            await windowService.show();
-            break;
-          case TrayAction.MANAGE_MODELS:
-            setActiveSettingsPanel('capabilities');
-            setCurrentView('settings');
-            await windowService.show();
-            break;
-          case TrayAction.CHECK_UPDATES: {
-            await windowService.show();
-            const outcome = await appUpdate.checkNow();
-            if (outcome === 'available') {
-              toast.showToast('An update is available', 'info');
-            } else if (outcome === 'current') {
-              toast.showToast('Kasset is up to date', 'success');
-            } else {
-              toast.showToast('Could not check for updates', 'error');
-            }
-            break;
-          }
-          case TrayAction.QUIT:
-            if (recordingNow) {
-              useAppStore.getState().setRecordingExitPrompt('quit');
-              await windowService.show();
-            } else {
-              await menubarService.quit();
-            }
-            break;
-          default: {
-            if (action.startsWith(SPEECH_MODEL_ACTION_PREFIX)) {
-              await applySpeechModel(action.slice(SPEECH_MODEL_ACTION_PREFIX.length));
-            }
-            break;
-          }
+        if (action.startsWith(SPEECH_MODEL_ACTION_PREFIX)) {
+          await applySpeechModel(action.slice(SPEECH_MODEL_ACTION_PREFIX.length));
+          return;
         }
+        const run = actions[action as TrayAction];
+        if (run) await run();
+        else console.warn('[App] Unknown menu bar action:', action);
       });
 
       console.log('Menubar initialized');

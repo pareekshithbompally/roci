@@ -46,6 +46,8 @@ export const APP_CONFIG = {
   
   tray: {
     tooltip: 'Kasset.ai',
+    /** Meetings in the menu bar's Recent Meetings submenu. */
+    recentMeetings: 3,
   },
 } as const;
 

@@ -36,6 +36,9 @@ const ACTION_NOT_NOW: &str = "not_now";
 
 #[derive(Default)]
 struct Reminders {
+    /// The calendar integration is on: meetings are read (menu bar, call detection) even with reminders off.
+    calendar: bool,
+    /// Reminder notifications are on.
     enabled: bool,
     lead_ms: i64,
     scheduler: ReminderScheduler,
@@ -50,7 +53,7 @@ struct Reminders {
 
 impl Reminders {
     fn poll(&mut self, recording: bool) -> Option<ReminderUpdate> {
-        if !self.enabled {
+        if !self.calendar {
             self.meetings.clear();
             self.change_count = None;
             self.read_at_ms = None;
@@ -58,6 +61,9 @@ impl Reminders {
         }
         let now_ms = wall_clock_ms();
         self.reread_if_stale(now_ms);
+        if !self.enabled {
+            return self.scheduler.clear().map(ReminderUpdate::Withdraw);
+        }
         // A reminder waits while Kasset records; it shows after, if still due.
         if recording {
             return None;
@@ -137,12 +143,46 @@ fn tick() {
     }
 }
 
-/// Reminders on or off, and how many minutes before a meeting they show.
+/// Calendar reading on or off, reminders on or off, and how many minutes before a meeting they show.
 #[tauri::command]
-pub fn configure_meeting_reminders(enabled: bool, lead_minutes: u32) {
+pub fn configure_meeting_reminders(calendar: bool, enabled: bool, lead_minutes: u32) {
     let mut reminders = reminders();
-    reminders.enabled = enabled;
+    reminders.calendar = calendar;
+    reminders.enabled = calendar && enabled;
     reminders.lead_ms = i64::from(lead_minutes) * 60_000;
+}
+
+/// The soonest meeting that hasn't ended, as the menu bar shows it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct NextMeeting {
+    pub occurrence: String,
+    pub title: String,
+    /// Whole minutes until it starts; 0 once it has.
+    pub minutes: i64,
+    /// It has a call link, so Join & Record can open it.
+    pub joinable: bool,
+}
+
+/// The next meeting from the calendar already read (no extra read); None when the calendar is off or the hour is clear.
+pub(crate) fn next_meeting() -> Option<NextMeeting> {
+    let now_ms = wall_clock_ms();
+    let reminders = reminders();
+    let meeting = reminders.meetings.iter().filter(|m| m.end_ms > now_ms).min_by_key(|m| m.start_ms)?;
+    Some(NextMeeting {
+        occurrence: meeting.occurrence(),
+        title: meeting.title.clone(),
+        minutes: minutes_until(meeting.start_ms, now_ms),
+        joinable: meeting.link.is_some(),
+    })
+}
+
+/// Record (or Join & Record) a meeting chosen in the menu bar, through the same path as its reminder.
+pub(crate) fn record_occurrence(occurrence: &str, join: bool) {
+    let event = reminders().event_for(occurrence);
+    match event {
+        Some(event) => record(&event, join),
+        None => log::warn!("[meeting-reminders] meeting {occurrence} is no longer in the calendar"),
+    }
 }
 
 // ── Notification ──
@@ -242,7 +282,7 @@ pub(crate) fn record(event: &CalendarEvent, join: bool) {
     emit(RECORD_EVENT, event);
 }
 
-/// The in-progress calendar meeting a detected call's app belongs to; known only while reminders are on.
+/// The in-progress calendar meeting a detected call's app belongs to; known while the calendar integration is on.
 pub(crate) fn event_for_call(application: &str) -> Option<CalendarEvent> {
     let reminders = reminders();
     let meeting = current_for_call(&reminders.meetings, &[application], wall_clock_ms(), reminders.lead_ms)?;

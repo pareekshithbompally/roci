@@ -40,12 +40,12 @@ export function useCalendarRuntime(): void {
     return () => calendarService.stopPolling();
   }, [enabled]);
 
-  // Native reminders follow the setting
+  // Native calendar reading follows the integration; reminders follow their own setting
   useEffect(() => {
-    configureMeetingReminders(remindersOn, leadMinutes).catch((error: unknown) =>
+    configureMeetingReminders(enabled, remindersOn, leadMinutes).catch((error: unknown) =>
       console.error('[useCalendarRuntime] Failed to configure meeting reminders:', error),
     );
-  }, [remindersOn, leadMinutes]);
+  }, [enabled, remindersOn, leadMinutes]);
 
   // Record / Join & record (Rust already opened the call link for Join)
   useEffect(() => {
