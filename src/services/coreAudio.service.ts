@@ -16,7 +16,12 @@ export type CaptureError =
   | { code: 'permission'; kind: PermissionKind }
   | { code: 'capture'; message: string }
 
-const isCaptureError = (error: unknown): error is CaptureError => isCodedError<CaptureError>(error)
+/** What the recorder is doing (Rust `RecorderState`): the one source of truth for the live recording. */
+export type RecorderState =
+  | { state: 'idle' }
+  | { state: 'recording'; meetingId: string; recordedMs: number; paused: boolean }
+
+const isCaptureError =(error: unknown): error is CaptureError => isCodedError<CaptureError>(error)
 
 /** A start refused for a missing permission: open the checklist, no error toast. */
 export function isPermissionRefusal(error: unknown): boolean {
@@ -53,6 +58,11 @@ class CoreAudioService {
 
   async resumeCapture(): Promise<void> {
     await invoke('resume_audio_capture')
+  }
+
+  /** Waits out a start or stop in progress, so it never reports a half-made recording. */
+  async recorderState(): Promise<RecorderState> {
+    return invoke<RecorderState>('recorder_state')
   }
 }
 

@@ -60,11 +60,14 @@ function usePipelineContext(): void {
   }, [isLoading]);
 }
 
-/** The live recording row: clock, pause/resume, stop; also drives the hourly "still recording?" ask. */
+/** The live recording row: clock, pause/resume, stop; also drives the hourly "still recording?" ask. Reads the recorder on mount. */
 function useRecordingRow(): void {
   const meetingId = useRecordingMeetingId();
   const paused = useRecordingPaused();
   const busy = useRecordingBusy();
+
+  // The recorder outlives the page: after a reload, pick up a recording that is still running.
+  useEffect(() => void recording.sync(), []);
 
   useEffect(() => {
     if (!meetingId) {

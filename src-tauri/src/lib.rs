@@ -155,6 +155,7 @@ pub fn run() {
       audio::commands::stop_audio_capture,
       audio::commands::pause_audio_capture,
       audio::commands::resume_audio_capture,
+      audio::commands::recorder_state,
       audio::commands::recover_meetings,
       // Permission checklist commands (macOS)
       permissions::commands::get_permissions,

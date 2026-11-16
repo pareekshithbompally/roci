@@ -50,6 +50,13 @@ impl Pause {
         }
     }
 
+    /// Total time paused, the running pause included, and whether a pause is running.
+    fn paused(&self) -> (Duration, bool) {
+        let state = self.state();
+        let running = state.since.map(|since| since.elapsed());
+        (state.shifted + running.unwrap_or_default(), running.is_some())
+    }
+
     /// `None` while paused; otherwise the total paused time (µs) to take off packet arrivals.
     pub(super) fn shift_us(&self) -> Option<u64> {
         let state = self.state();
@@ -64,7 +71,16 @@ impl Pause {
     }
 }
 
+/// How far a recording has got.
+pub struct Progress {
+    /// Time captured so far, pauses excluded.
+    pub recorded: Duration,
+    pub paused: bool,
+}
+
 pub struct Recorder {
+    /// When capture started; the clock `progress` measures from.
+    started: Instant,
     directory: PathBuf,
     output: PathBuf,
     sender: SyncSender<AudioPacket>,
@@ -111,6 +127,7 @@ impl Recorder {
             .system
             .then(|| SourceSupervisor::system(sink(MeetingSource::System, &system_drops)));
         Ok(Self {
+            started: capture_clock,
             directory,
             output,
             sender,
@@ -130,6 +147,14 @@ impl Recorder {
 
     pub fn resume(&self) {
         self.pause.resume();
+    }
+
+    pub fn progress(&self) -> Progress {
+        let (paused_for, paused) = self.pause.paused();
+        Progress {
+            recorded: self.started.elapsed().saturating_sub(paused_for),
+            paused,
+        }
     }
 
     /// Stops and mixes the tracks into the file; returns its length in seconds.

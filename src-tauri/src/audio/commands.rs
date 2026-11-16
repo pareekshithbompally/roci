@@ -91,6 +91,33 @@ struct Active {
     recorder: Recorder,
 }
 
+/// What the recorder is doing: the one source of truth for every view of the live recording.
+#[derive(Debug, Serialize)]
+#[serde(tag = "state", rename_all = "kebab-case", rename_all_fields = "camelCase")]
+pub enum RecorderState {
+    Idle,
+    Recording {
+        meeting_id: String,
+        /// Time captured so far, pauses excluded.
+        recorded_ms: u64,
+        paused: bool,
+    },
+}
+
+impl RecorderState {
+    fn of(active: Option<&Active>) -> Self {
+        let Some(active) = active else {
+            return Self::Idle;
+        };
+        let progress = active.recorder.progress();
+        Self::Recording {
+            meeting_id: active.meeting_id.clone(),
+            recorded_ms: u64::try_from(progress.recorded.as_millis()).unwrap_or(u64::MAX),
+            paused: progress.paused,
+        }
+    }
+}
+
 static RECORDER: Mutex<Option<Active>> = Mutex::new(None);
 
 fn recorder() -> MutexGuard<'static, Option<Active>> {
@@ -207,6 +234,15 @@ fn outcome(mixed: eyre::Result<f64>) -> (MeetingStatus, Option<f64>) {
         Ok(duration) => (MeetingStatus::at("captured"), Some(duration)),
         Err(error) => (MeetingStatus::failed("record", format!("{error:#}")), None),
     }
+}
+
+/// The recorder's state; waits out a start or stop in progress, so it never reports a half-made recording.
+#[tauri::command]
+pub async fn recorder_state() -> Result<RecorderState, CaptureError> {
+    let state = tauri::async_runtime::spawn_blocking(|| RecorderState::of(recorder().as_ref()))
+        .await
+        .map_err(|error| eyre::eyre!("recorder state task failed: {error}"))?;
+    Ok(state)
 }
 
 #[tauri::command]

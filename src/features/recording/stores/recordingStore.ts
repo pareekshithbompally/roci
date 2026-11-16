@@ -1,8 +1,12 @@
-/** The live recording (one at a time): its meeting, clock and pause state. The meeting itself lives in the store. */
+/**
+ * The live recording (one at a time), mirrored from the recorder. The recorder is the only source of truth:
+ * every control asks it to act and then reads its state back, and a reload reads it on mount.
+ */
 
 import { create } from 'zustand';
 import type { AudioCaptureSource } from '@config/audio.config';
 import { coreAudioService, isPermissionRefusal, captureErrorMessage } from '@services/coreAudio.service';
+import type { RecorderState } from '@services/coreAudio.service';
 import { consumePendingCalendarMeta, type CalendarRecordingMeta } from '@services/calendar/recording-bridge';
 import { isTauriEnvironment, menubarService } from '@services/tauri';
 import { removeNotices } from '@services/notifications';
@@ -16,36 +20,44 @@ import { meetingPipeline } from '@features/recording/pipeline/meetingPipeline';
 interface RecordingState {
   /** The meeting being recorded; null when idle. */
   meetingId: string | null;
-  startedAt: number;
-  /** When the current pause began; null while capturing. */
-  pausedAt: number | null;
-  /** Total time spent paused before the current pause. */
-  pausedMs: number;
+  /** Time recorded when the recorder was last read, pauses excluded. */
+  recordedMs: number;
+  /** When the recorder was last read; the clock runs on from here unless paused. */
+  readAt: number;
+  paused: boolean;
   /** True while Start or Stop is in flight. */
   busy: boolean;
   /** The recording that just stopped, offered in the tray with Transcribe until dismissed. */
   justStopped: string | null;
 }
 
-const IDLE: Pick<RecordingState, 'meetingId' | 'startedAt' | 'pausedAt' | 'pausedMs' | 'busy'> = {
-  meetingId: null,
-  startedAt: 0,
-  pausedAt: null,
-  pausedMs: 0,
-  busy: false,
-};
+type Mirror = Pick<RecordingState, 'meetingId' | 'recordedMs' | 'readAt' | 'paused'>;
 
-export const useRecordingStore = create<RecordingState>(() => ({ ...IDLE, justStopped: null }));
+export const useRecordingStore = create<RecordingState>(() => ({
+  meetingId: null,
+  recordedMs: 0,
+  readAt: 0,
+  paused: false,
+  busy: false,
+  justStopped: null,
+}));
 
 export const useRecordingMeetingId = () => useRecordingStore((s) => s.meetingId);
-export const useRecordingPaused = () => useRecordingStore((s) => s.pausedAt !== null);
+export const useRecordingPaused = () => useRecordingStore((s) => s.paused);
 export const useRecordingBusy = () => useRecordingStore((s) => s.busy);
 export const useJustStopped = () => useRecordingStore((s) => s.justStopped);
 
+/** The store's copy of the recorder's state, read at `now`. */
+export function mirrorOf(recorder: RecorderState, now: number): Mirror {
+  if (recorder.state === 'idle') return { meetingId: null, recordedMs: 0, readAt: now, paused: false };
+  return { meetingId: recorder.meetingId, recordedMs: recorder.recordedMs, readAt: now, paused: recorder.paused };
+}
+
 /** Seconds recorded so far, not counting pauses. */
-export function recordedSeconds(state: RecordingState, now = Date.now()): number {
-  const paused = state.pausedMs + (state.pausedAt !== null ? now - state.pausedAt : 0);
-  return Math.max(0, Math.floor((now - state.startedAt - paused) / 1000));
+export function recordedSeconds(state: Mirror, now = Date.now()): number {
+  const running = state.meetingId !== null && !state.paused;
+  const sinceRead = running ? now - state.readAt : 0;
+  return Math.max(0, Math.floor((state.recordedMs + sinceRead) / 1000));
 }
 
 function refreshMeetings(): void {
@@ -54,8 +66,17 @@ function refreshMeetings(): void {
   );
 }
 
-function syncMenubar(active: boolean, paused: boolean): void {
-  void menubarService.setRecordingState(active, paused);
+/** Reads the recorder into the store and the menu bar; a failed read is logged and leaves both as they were. */
+async function sync(): Promise<void> {
+  if (!isTauriEnvironment()) return;
+  try {
+    const recorder = await coreAudioService.recorderState();
+    const mirror = mirrorOf(recorder, Date.now());
+    useRecordingStore.setState(mirror);
+    void menubarService.setRecordingState(mirror.meetingId !== null, mirror.paused);
+  } catch (error: unknown) {
+    console.error('[recordingStore] Failed to read the recorder:', error);
+  }
 }
 
 function titleFor(calendar: CalendarRecordingMeta | null, startedAt: number): string {
@@ -76,6 +97,9 @@ function reportStartFailure(error: unknown): void {
 }
 
 export const recording = {
+  /** Mirrors the recorder; called on mount, so a reload picks up a recording that is still running. */
+  sync,
+
   /** Creates the meeting and starts capture; rejects (after telling the user) when it can't. */
   async start(source: AudioCaptureSource): Promise<string> {
     if (!isTauriEnvironment()) throw new Error('Native recording is available in the desktop app only.');
@@ -84,29 +108,28 @@ export const recording = {
     }
     // Taken with this start, so a refused start never hands it to a later recording.
     const calendar = consumePendingCalendarMeta();
-    const startedAt = Date.now();
     useRecordingStore.setState({ busy: true });
     try {
       const meetingId = await coreAudioService.startCapture({
         source,
-        title: titleFor(calendar, startedAt),
+        title: titleFor(calendar, Date.now()),
         calendarEventId: calendar?.calendarEventId,
         calendarMeta: calendar ? calendarMetaOf(calendar) : undefined,
       });
-      useRecordingStore.setState({ ...IDLE, meetingId, startedAt });
-      syncMenubar(true, false);
       refreshMeetings();
       return meetingId;
     } catch (error: unknown) {
-      useRecordingStore.setState({ busy: false });
       reportStartFailure(error);
       throw error;
+    } finally {
+      await sync();
+      useRecordingStore.setState({ busy: false });
     }
   },
 
   /** Stops capture; the meeting is saved as "Not transcribed" (or transcribes now, per the setting). */
   async stop(): Promise<string | null> {
-    if (!useRecordingStore.getState().meetingId) return null;
+    const { meetingId: recordingId } = useRecordingStore.getState();
     useRecordingStore.setState({ busy: true });
     try {
       const meetingId = await coreAudioService.stopCapture();
@@ -119,26 +142,21 @@ export const recording = {
       showToast(captureErrorMessage(error, 'Failed to stop recording'), 'error');
       throw error;
     } finally {
-      const { meetingId } = useRecordingStore.getState();
-      if (meetingId) void removeNotices([`${NOTIFICATIONS_CONFIG.recording.idPrefix}${meetingId}`]);
-      useRecordingStore.setState(IDLE);
-      syncMenubar(false, false);
+      if (recordingId) void removeNotices([`${NOTIFICATIONS_CONFIG.recording.idPrefix}${recordingId}`]);
+      await sync();
+      useRecordingStore.setState({ busy: false });
       refreshMeetings();
     }
   },
 
   async pause(): Promise<void> {
     await coreAudioService.pauseCapture();
-    useRecordingStore.setState((s) => (s.pausedAt === null ? { pausedAt: Date.now() } : s));
-    syncMenubar(true, true);
+    await sync();
   },
 
   async resume(): Promise<void> {
     await coreAudioService.resumeCapture();
-    useRecordingStore.setState((s) =>
-      s.pausedAt === null ? s : { pausedMs: s.pausedMs + Date.now() - s.pausedAt, pausedAt: null },
-    );
-    syncMenubar(true, false);
+    await sync();
   },
 
   /** Clears the tray's "just stopped" row. */
