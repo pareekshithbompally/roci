@@ -1,28 +1,25 @@
 fn main() {
-    // Add Swift runtime library paths for macOS
-    #[cfg(target_os = "macos")]
-    {
-        // Add system Swift library path
-        println!("cargo:rustc-link-search=native=/usr/lib/swift");
-        // Add Xcode Command Line Tools Swift 5.5 runtime path
-        println!("cargo:rustc-link-search=native=/Library/Developer/CommandLineTools/usr/lib/swift-5.5/macosx");
-        // Add general Xcode Swift runtime path
-        println!("cargo:rustc-link-search=native=/Library/Developer/CommandLineTools/usr/lib/swift/macosx");
-        // Set rpath to include Swift runtime locations
-        println!("cargo:rustc-link-arg=-Wl,-rpath,/usr/lib/swift");
-        println!("cargo:rustc-link-arg=-Wl,-rpath,/Library/Developer/CommandLineTools/usr/lib/swift-5.5/macosx");
-        println!("cargo:rustc-link-arg=-Wl,-rpath,/Library/Developer/CommandLineTools/usr/lib/swift/macosx");
-
-        println!("cargo:rerun-if-changed=icons");
-
+    // Build scripts run on the host: the target OS comes from Cargo, not from `cfg`.
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
+        link_macos_swift_runtime();
         compile_permission_guide();
     }
 
     tauri_build::build()
 }
 
+/// Swift runtime search paths and rpaths for the macOS app.
+fn link_macos_swift_runtime() {
+    println!("cargo:rustc-link-search=native=/usr/lib/swift");
+    println!("cargo:rustc-link-search=native=/Library/Developer/CommandLineTools/usr/lib/swift-5.5/macosx");
+    println!("cargo:rustc-link-search=native=/Library/Developer/CommandLineTools/usr/lib/swift/macosx");
+    println!("cargo:rustc-link-arg=-Wl,-rpath,/usr/lib/swift");
+    println!("cargo:rustc-link-arg=-Wl,-rpath,/Library/Developer/CommandLineTools/usr/lib/swift-5.5/macosx");
+    println!("cargo:rustc-link-arg=-Wl,-rpath,/Library/Developer/CommandLineTools/usr/lib/swift/macosx");
+    println!("cargo:rerun-if-changed=icons");
+}
+
 /// Compiles the native permission guide (native/permission_guide.m) with ARC.
-#[cfg(target_os = "macos")]
 fn compile_permission_guide() {
     println!("cargo:rerun-if-changed=native/permission_guide.m");
     println!("cargo:rustc-link-lib=framework=AppKit");

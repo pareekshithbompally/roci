@@ -33,7 +33,13 @@
           "y": 32
         },
         "windowEffects": {
-          "effects": ["fullScreenUI", "mica", "tabbed", "blur", "acrylic"],
+          "effects": [
+            "fullScreenUI",
+            "mica",
+            "tabbed",
+            "blur",
+            "acrylic"
+          ],
           "state": "active"
         },
         "dragDropEnabled": false
@@ -46,7 +52,9 @@
   "plugins": {
     "deep-link": {
       "desktop": {
-        "schemes": ["roci"]
+        "schemes": [
+          "roci"
+        ]
       }
     },
     "updater": {
@@ -59,7 +67,10 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
-    "targets": ["app", "dmg"],
+    "targets": [
+      "app",
+      "dmg"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -75,7 +86,7 @@
       "icons/agents/opencode.png"
     ],
     "publisher": "Roci",
-    "copyright": "Copyright © 2026 Pareekshith Bompally",
+    "copyright": "Copyright \u00a9 2026 Pareekshith Bompally",
     "category": "Productivity",
     "shortDescription": "AI-powered voice capture, transcription, and insights",
     "longDescription": "Roci is a powerful desktop application for real-time system audio capture, transcription, and intelligent summarization. Perfect for meetings, lectures, podcasts, and any audio content that needs to be transcribed and analyzed.",
@@ -105,6 +116,10 @@
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
       "timestampUrl": ""
+    },
+    "iOS": {
+      "developmentTeam": "8TV3HMU3KY",
+      "minimumSystemVersion": "18.0"
     }
   }
 }
