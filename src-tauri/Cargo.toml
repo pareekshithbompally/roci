@@ -34,6 +34,8 @@ tauri-plugin-http = { version = "2", features = ["unsafe-headers"] }
 tauri-plugin-opener = "2"
 # Meetings, chats, settings and RAG (SQLite + sqlite-vec).
 tauri-plugin-store = { path = "plugins/tauri-plugin-store" }
+# On-device model (Foundation Models) and speech (SpeechAnalyzer).
+tauri-plugin-apple-intelligence = { path = "plugins/tauri-plugin-apple-intelligence" }
 
 # macOS only, until each piece is made shared (docs: platform/apple-platforms/code-organization.md, R2).
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -42,7 +44,6 @@ tauri-plugin-global-shortcut = "2"
 tauri-plugin-autostart = "2"
 tauri-plugin-calendar = { path = "plugins/tauri-plugin-calendar" }
 tauri-plugin-notifications = { path = "plugins/tauri-plugin-notifications" }
-tauri-plugin-apple-intelligence = { path = "plugins/tauri-plugin-apple-intelligence" }
 tauri-plugin-apple-notes = { path = "plugins/tauri-plugin-apple-notes" }
 status-menu = { path = "plugins/status-menu" }
 tauri-plugin-core-spotlight = { path = "plugins/tauri-plugin-core-spotlight" }

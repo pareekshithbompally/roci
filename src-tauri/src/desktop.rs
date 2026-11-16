@@ -30,7 +30,6 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
     .plugin(tauri_plugin_process::init())
     .plugin(tauri_plugin_calendar::init())
     .plugin(tauri_plugin_notifications::init())
-    .plugin(tauri_plugin_apple_intelligence::init())
     .plugin(tauri_plugin_apple_notes::init())
     .plugin(tauri_plugin_core_spotlight::init())
     .plugin(tauri_plugin_global_shortcut::Builder::new().build())
