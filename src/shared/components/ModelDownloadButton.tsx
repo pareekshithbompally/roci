@@ -19,7 +19,7 @@ export const ModelDownloadButton: React.FC<ModelDownloadButtonProps> = ({ model,
   if (model.status === 'ready') {
     if (!removable) return null;
     return (
-      <Button variant="ghost" size="sm" onClick={model.remove} className={LAYOUT.modelAction}>
+      <Button variant="dangerGhost" size="sm" onClick={model.remove} className={LAYOUT.modelAction}>
         <Icon icon={Trash2} size="xs" />
         Delete
       </Button>

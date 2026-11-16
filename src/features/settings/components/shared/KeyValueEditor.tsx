@@ -36,7 +36,7 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
         <div key={index} className="flex items-center gap-2">
           <Input value={key} onChange={(e) => update(index, 0, e.target.value)} placeholder={keyPlaceholder} />
           <Input value={value} onChange={(e) => update(index, 1, e.target.value)} placeholder={valuePlaceholder} />
-          {rows.length > 1 && <IconButton icon={Trash2} size="sm" label="Remove" onClick={() => remove(index)} />}
+          {rows.length > 1 && <IconButton icon={Trash2} size="sm" variant="dangerGhost" label="Remove" onClick={() => remove(index)} />}
         </div>
       ))}
     </div>

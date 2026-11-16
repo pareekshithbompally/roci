@@ -26,7 +26,7 @@ export const StringListEditor: React.FC<StringListEditorProps> = ({ label, value
       {rows.map((value, index) => (
         <div key={index} className="flex items-center gap-2">
           <Input value={value} onChange={(e) => update(index, e.target.value)} placeholder={placeholder(index)} />
-          {rows.length > 1 && <IconButton icon={Trash2} size="sm" label="Remove" onClick={() => remove(index)} />}
+          {rows.length > 1 && <IconButton icon={Trash2} size="sm" variant="dangerGhost" label="Remove" onClick={() => remove(index)} />}
         </div>
       ))}
     </div>
