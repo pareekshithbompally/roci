@@ -50,7 +50,7 @@ These are hard constraints. They **override** convenience, speed, and your defau
 
 ### I6 — Rust/Tauri: compiles clean, permissions declared, OS prompts handled natively.
 - `src-tauri` must `cargo build` with no errors and no new warnings. Treat a warning you introduced as a failure.
-- Any Tauri API a feature calls must be allow-listed in `src-tauri/capabilities/default.json`. Adding an `invoke`/plugin call without its permission is incomplete.
+- Any Tauri API a feature calls must be allow-listed in `src-tauri/capabilities/desktop.json` (macOS) and/or `mobile.json` (iOS / iPadOS), per the platforms that call it. Adding an `invoke`/plugin call without its permission is incomplete.
 - macOS permission strings live in `src-tauri/Info.plist` (`NS*UsageDescription`). Adding a capability that touches mic/screen/calendar/etc. **requires** its usage string.
 - Request OS permission the **native** way, at the point of use — let the system framework raise the prompt (e.g. `SCShareableContent.getWithCompletionHandler` triggers Screen Recording; `AVCaptureDevice`/EventKit `requestAccess` for mic/calendar). Handle denial as an expected, recoverable state surfaced to the UI — never crash, never silently no-op.
 
@@ -65,6 +65,12 @@ These are hard constraints. They **override** convenience, speed, and your defau
 - New code goes in `src/features/<feature>/`; export the public API via the feature `index.ts`.
 - Path aliases only — `@features/ @shared/ @config/ @core/ @extensions/ @services/ @platform/`. **No** `../../../` relative imports. Type-only imports use `import type`.
 - Never add to legacy folders (`/components`, `/hooks`, `/utils`, `/consts`). npm only — never pnpm. Wrap native calls in `isTauriEnvironment()`.
+
+### I10 — Native events, never polling. (macOS today, iOS next.)
+- **Never read OS state on an interval.** When macOS/iOS offers a change notification or listener, subscribe to it: Core Audio property listeners (mic / process activity), `EKEventStoreChanged` (calendar), `NSWorkspace.didWakeNotification` + `NSSystemClockDidChange` (sleep / clock), `NSApplication.didBecomeActiveNotification` (re-check permissions on return from System Settings).
+- **Time-based work** = one timer armed for the next deadline, or an OS-scheduled notification (`UNNotificationRequest` triggers). Re-arm when the event that set it changes. No fixed-rate ticks.
+- **Shape:** OS event → state → effect. A native bridge that receives an event pushes it on (callback / Tauri event); it never bumps a counter for someone else to poll. The frontend listens to Rust events — no `setInterval`/`refetchInterval` over native state.
+- **Only visible clocks tick**, and only while visible (e.g. the recording timer while recording). The frozen audio capture loops (I5) are exempt.
 
 ---
 
@@ -107,7 +113,7 @@ extensions/
 src-tauri/
   src/audio/      capture: supervisors, process tap, mic, tracks, mixdown   src/permissions/  consent checks
   src/            lib.rs window.rs shortcuts.rs screenshot.rs wake_lock.rs
-  capabilities/   default.json (permission allowlist)   Info.plist (NS*UsageDescription)
+  capabilities/   desktop.json + mobile.json (permission allowlists)   Info.plist (NS*UsageDescription)
   plugins/        tauri-plugin-{store,calendar}
 ```
 

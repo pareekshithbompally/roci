@@ -14,35 +14,8 @@ const BROWSER_STABLE_FOR: Duration = Duration::from_secs(20);
 const ABSENT_FOR_RESET: Duration = Duration::from_secs(60);
 /// About three seconds without the call app on the microphone.
 const CALL_ENDED_AFTER: Duration = Duration::from_secs(3);
-/// Observations further apart than this (sleep, a stalled loop) restart the clock instead of counting the gap.
-const MAX_OBSERVATION_GAP: Duration = Duration::from_secs(10);
-/// A call that drops off a mic check or two and comes right back keeps its time toward the offer.
+/// A call that drops off the mic for a moment and comes right back keeps its time toward the offer.
 const DROPOUT_GRACE: Duration = Duration::from_secs(2);
-
-/// How long a condition has held, by the monotonic clock, so a slow loop cannot stretch a threshold.
-#[derive(Clone, Copy, Debug)]
-struct Run {
-    since: Instant,
-    last: Instant,
-}
-
-impl Run {
-    fn start(now: Instant) -> Self {
-        Self {
-            since: now,
-            last: now,
-        }
-    }
-
-    /// Records an observation and returns how long the run has lasted.
-    fn extend(&mut self, now: Instant) -> Duration {
-        if now.saturating_duration_since(self.last) > MAX_OBSERVATION_GAP {
-            self.since = now;
-        }
-        self.last = now;
-        now.saturating_duration_since(self.since)
-    }
-}
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct MeetingCandidate {
@@ -116,15 +89,37 @@ pub struct MeetingDetector {
     offered_application: Option<String>,
     /// Recording stopped by hand: the snooze ends after [`CALL_ENDED_AFTER`] off the mic, not a minute.
     stopped: bool,
-    /// When a candidate was last on the mic (or known to be, while recording); absence counts from here.
-    last_present: Option<Instant>,
+    /// Since when no candidate has been on the mic (or, while recording, the offered call); `None` while one is.
+    absent_since: Option<Instant>,
     calendar: Option<CalendarSnooze>,
 }
 
 /// A candidate that has been on the microphone but is not yet stable.
 struct Pending {
     key: String,
-    run: Run,
+    since: Instant,
+    stable_after: Duration,
+    /// When it left the microphone; back within [`DROPOUT_GRACE`] it keeps its time.
+    left_at: Option<Instant>,
+}
+
+impl Pending {
+    fn new(candidate: &MeetingCandidate, now: Instant) -> Self {
+        Self {
+            key: candidate.key.clone(),
+            since: now,
+            stable_after: candidate.required_stability(),
+            left_at: None,
+        }
+    }
+
+    /// Whether `candidate` continues this run: the same call, back before the grace ran out.
+    fn continues(&self, candidate: &MeetingCandidate, now: Instant) -> bool {
+        self.key == candidate.key
+            && self
+                .left_at
+                .is_none_or(|left| now.saturating_duration_since(left) < DROPOUT_GRACE)
+    }
 }
 
 /// A call whose calendar reminder the user already answered, by recording or dismissing it.
@@ -153,9 +148,13 @@ impl MeetingDetector {
         self.calendar = Some(CalendarSnooze { keys, until_ms });
     }
 
-    /// The offered call is still on the mic (it is being recorded), so its snooze lasts from now.
-    pub(super) fn keep_snooze_alive_at(&mut self, now: Instant) {
-        self.last_present = Some(now);
+    /// While recording: whether the offered call's app is on the mic, so its snooze counts from when it left.
+    pub(super) fn offered_on_microphone(&mut self, on: bool, now: Instant) {
+        if on {
+            self.absent_since = None;
+        } else {
+            self.absent_since.get_or_insert(now);
+        }
     }
 
     /// The snoozed call's recording was stopped by hand.
@@ -170,6 +169,29 @@ impl MeetingDetector {
         self.offered_application.as_deref() == Some(canonical_bundle_id)
     }
 
+    /// When [`Self::detect_at`] next has something to decide with nothing changing: an offer or a snooze ending.
+    pub(super) fn next_deadline(&self) -> Option<Instant> {
+        let stable = self
+            .pending
+            .as_ref()
+            .filter(|pending| pending.left_at.is_none())
+            .map(|pending| pending.since + pending.stable_after);
+        let reset = self
+            .offered
+            .as_ref()
+            .and(self.absent_since)
+            .map(|since| since + self.reset_after());
+        stable.into_iter().chain(reset).min()
+    }
+
+    fn reset_after(&self) -> Duration {
+        if self.stopped {
+            CALL_ENDED_AFTER
+        } else {
+            ABSENT_FOR_RESET
+        }
+    }
+
     /// Whether `candidate` is the offered call: the same key, or the same app.
     fn snoozes(&self, candidate: &MeetingCandidate) -> bool {
         if self.offered.as_deref() == Some(&candidate.key) {
@@ -178,22 +200,34 @@ impl MeetingDetector {
         candidate.application.is_some() && self.offered_application == candidate.application
     }
 
-    /// No candidate is on the microphone: the snooze ends once that has lasted long enough.
+    /// No candidate is on the microphone: the pending run starts its grace, and the snooze ends once long enough.
     fn absent_at(&mut self, now: Instant) {
-        let since = *self.last_present.get_or_insert(now);
-        let reset_after = if self.stopped {
-            CALL_ENDED_AFTER
-        } else {
-            ABSENT_FOR_RESET
-        };
-        if now.saturating_duration_since(since) >= reset_after {
+        if let Some(pending) = &mut self.pending {
+            pending.left_at.get_or_insert(now);
+        }
+        let since = *self.absent_since.get_or_insert(now);
+        if now.saturating_duration_since(since) >= self.reset_after() {
             self.offered = None;
             self.offered_application = None;
             self.stopped = false;
         }
     }
 
-    /// One observation; returns the call to offer once it is stable long enough and not snoozed.
+    /// Since when `candidate` has held the microphone in this run.
+    fn hold(&mut self, candidate: &MeetingCandidate, now: Instant) -> Instant {
+        if let Some(pending) = self
+            .pending
+            .as_mut()
+            .filter(|pending| pending.continues(candidate, now))
+        {
+            pending.left_at = None;
+            return pending.since;
+        }
+        self.pending = Some(Pending::new(candidate, now));
+        now
+    }
+
+    /// What is on the microphone now (called on each change and at [`Self::next_deadline`]); returns the call to offer.
     pub(super) fn detect_at(
         &mut self,
         candidate: Option<MeetingCandidate>,
@@ -201,32 +235,23 @@ impl MeetingDetector {
         now_ms: i64,
     ) -> Option<MeetingCandidate> {
         let Some(candidate) = candidate else {
-            if self.pending.as_ref().is_some_and(|pending| {
-                now.saturating_duration_since(pending.run.last) > DROPOUT_GRACE
-            }) {
-                self.pending = None;
-            }
             self.absent_at(now);
             return None;
         };
-        self.last_present = Some(now);
+        self.absent_since = None;
         if self.snoozes(&candidate) {
             self.pending = None;
             return None;
         }
-        let held = match &mut self.pending {
-            Some(pending) if pending.key == candidate.key => pending.run.extend(now),
-            _ => {
-                self.pending = Some(Pending {
-                    key: candidate.key.clone(),
-                    run: Run::start(now),
-                });
-                Duration::ZERO
-            }
-        };
-        if held < candidate.required_stability() {
+        let since = self.hold(&candidate, now);
+        if now.saturating_duration_since(since) < candidate.required_stability() {
             return None;
         }
+        self.offer(candidate, now_ms)
+    }
+
+    /// The candidate is stable: snooze it, unless its calendar reminder was already answered.
+    fn offer(&mut self, candidate: MeetingCandidate, now_ms: i64) -> Option<MeetingCandidate> {
         self.pending = None;
         self.offered = Some(candidate.key.clone());
         self.offered_application = candidate.application.clone();
@@ -317,9 +342,7 @@ fn opaque_key(source: MeetingSource, identity: &str) -> String {
 mod tests {
     use super::*;
 
-    const STEP_MS: u64 = 500;
-
-    /// A detector fed on a fake monotonic clock, like the watcher loop does.
+    /// A detector driven like the watcher: one call per microphone change, then one per deadline it arms.
     struct Watch {
         detector: MeetingDetector,
         base: Instant,
@@ -337,54 +360,50 @@ mod tests {
             }
         }
 
-        /// Observes `candidate` every `step_ms` for `ms`, returning each offer with its time.
-        fn run_every(
-            &mut self,
-            candidate: Option<&MeetingCandidate>,
-            ms: u64,
-            step_ms: u64,
-        ) -> Vec<(u64, MeetingCandidate)> {
-            let mut found = Vec::new();
+        fn observe(&mut self, candidate: Option<&MeetingCandidate>) -> Option<(u64, MeetingCandidate)> {
+            let now = self.base + Duration::from_millis(self.elapsed_ms);
+            self.detector
+                .detect_at(candidate.cloned(), now, self.wall_ms)
+                .map(|offer| (self.elapsed_ms, offer))
+        }
+
+        /// `candidate` (or nothing) holds the microphone for `ms`: the change, then every deadline before the end.
+        fn hold(&mut self, candidate: Option<&MeetingCandidate>, ms: u64) -> Vec<(u64, MeetingCandidate)> {
             let end = self.elapsed_ms + ms;
-            while self.elapsed_ms < end {
-                let now = self.base + Duration::from_millis(self.elapsed_ms);
-                if let Some(offer) = self
-                    .detector
-                    .detect_at(candidate.cloned(), now, self.wall_ms)
-                {
-                    found.push((self.elapsed_ms, offer));
+            let mut found: Vec<_> = self.observe(candidate).into_iter().collect();
+            while let Some(at) = self.detector.next_deadline() {
+                let at_ms = at.saturating_duration_since(self.base).as_millis() as u64;
+                if at_ms >= end {
+                    break;
                 }
-                self.elapsed_ms += step_ms;
+                self.elapsed_ms = at_ms.max(self.elapsed_ms);
+                found.extend(self.observe(candidate));
             }
+            self.elapsed_ms = end;
             found
         }
 
-        fn run(
-            &mut self,
-            candidate: Option<&MeetingCandidate>,
-            ms: u64,
-        ) -> Vec<(u64, MeetingCandidate)> {
-            self.run_every(candidate, ms, STEP_MS)
-        }
-
-        /// Time passes with no observation, as when the Mac sleeps.
+        /// Time passes with no microphone change.
         fn skip(&mut self, ms: u64) {
             self.elapsed_ms += ms;
         }
 
-        /// Observes until just under the stability threshold, then once more; returns that last offer.
+        fn now(&self) -> Instant {
+            self.base + Duration::from_millis(self.elapsed_ms)
+        }
+
+        /// Holds the microphone past the stability threshold; returns the offer, if any.
         fn stable(&mut self, candidate: &MeetingCandidate) -> Option<MeetingCandidate> {
             let required = candidate.required_stability().as_millis() as u64;
-            assert!(self.run(Some(candidate), required).is_empty());
-            self.run(Some(candidate), STEP_MS)
+            self.hold(Some(candidate), required + 1)
                 .pop()
                 .map(|(_, offer)| offer)
         }
 
         /// Off the microphone for longer than the snooze.
         fn leave(&mut self) {
-            let ms = ABSENT_FOR_RESET.as_millis() as u64 + STEP_MS;
-            assert!(self.run(None, ms).is_empty());
+            let ms = ABSENT_FOR_RESET.as_millis() as u64 + 1;
+            assert!(self.hold(None, ms).is_empty());
         }
     }
 
@@ -417,29 +436,25 @@ mod tests {
     }
 
     #[test]
-    fn call_app_offered_after_two_seconds() {
+    fn call_app_offered_two_seconds_after_taking_the_microphone() {
         let zoom = zoom();
         let mut watch = Watch::new();
-        assert!(watch.run(Some(&zoom), 2_000).is_empty());
-        assert_eq!(times(&watch.run(Some(&zoom), 500)), [2_000]);
+        assert_eq!(times(&watch.hold(Some(&zoom), 2_500)), [2_000]);
     }
 
     #[test]
-    fn browser_offered_after_twenty_seconds() {
+    fn browser_offered_twenty_seconds_after_taking_the_microphone() {
         let candidate = candidate_from_microphone(&brave()).unwrap();
         assert_eq!(candidate.source, MeetingSource::BrowserCall);
-        // The loop sleeps 500 ms but its browser inspection takes 400 ms more.
         let mut watch = Watch::new();
-        assert!(watch.run_every(Some(&candidate), 20_700, 900).is_empty());
-        assert_eq!(
-            times(&watch.run_every(Some(&candidate), 900, 900)),
-            [20_700]
-        );
+        assert_eq!(times(&watch.hold(Some(&candidate), 21_000)), [20_000]);
+    }
 
-        // The same call seen at the nominal pace offers at the same time.
+    #[test]
+    fn no_deadline_while_nothing_is_pending_or_offered() {
         let mut watch = Watch::new();
-        assert!(watch.run(Some(&candidate), 20_000).is_empty());
-        assert_eq!(times(&watch.run(Some(&candidate), 500)), [20_000]);
+        assert!(watch.hold(None, 1_000).is_empty());
+        assert_eq!(watch.detector.next_deadline(), None);
     }
 
     #[test]
@@ -447,36 +462,32 @@ mod tests {
         let candidate = candidate_from_microphone(&brave()).unwrap();
         let mut watch = Watch::new();
         // A six-second voice note, then the mic closes for a few seconds.
-        assert!(watch.run(Some(&candidate), 6_000).is_empty());
-        assert!(watch.run(None, 5_000).is_empty());
-        assert!(watch.run(Some(&candidate), 20_000).is_empty());
-        assert_eq!(watch.run(Some(&candidate), 500).len(), 1);
+        assert!(watch.hold(Some(&candidate), 6_000).is_empty());
+        assert!(watch.hold(None, 5_000).is_empty());
+        assert_eq!(times(&watch.hold(Some(&candidate), 20_500)), [31_000]);
     }
 
     #[test]
     fn offered_call_not_offered_again_until_absent_a_minute() {
         let zoom = zoom();
         let mut watch = Watch::new();
-        assert!(watch.run(Some(&zoom), 2_000).is_empty());
-        assert_eq!(times(&watch.run(Some(&zoom), 500)), [2_000]);
-        assert!(watch.run(Some(&zoom), 30_000).is_empty());
+        assert_eq!(times(&watch.hold(Some(&zoom), 2_500)), [2_000]);
+        assert!(watch.hold(Some(&zoom), 30_000).is_empty());
         // A minute off the microphone ends the call.
-        assert!(watch.run(None, 59_000).is_empty());
-        assert!(watch.run(Some(&zoom), 2_500).is_empty());
-        watch.run(None, 61_000);
-        assert!(watch.run(Some(&zoom), 2_000).is_empty());
-        assert_eq!(watch.run(Some(&zoom), 500).len(), 1);
+        assert!(watch.hold(None, 59_000).is_empty());
+        assert!(watch.hold(Some(&zoom), 2_500).is_empty());
+        assert!(watch.hold(None, 61_000).is_empty());
+        assert_eq!(watch.hold(Some(&zoom), 2_500).len(), 1);
     }
 
     #[test]
     fn a_brief_microphone_release_does_not_re_offer_the_same_call() {
         let zoom = zoom();
         let mut watch = Watch::new();
-        assert!(watch.run(Some(&zoom), 2_000).is_empty());
-        assert_eq!(watch.run(Some(&zoom), 500).len(), 1);
+        assert_eq!(watch.hold(Some(&zoom), 2_500).len(), 1);
         // Dismissed or ignored: twenty seconds off the microphone keeps it snoozed.
-        assert!(watch.run(None, 20_000).is_empty());
-        assert!(watch.run(Some(&zoom), 5_000).is_empty());
+        assert!(watch.hold(None, 20_000).is_empty());
+        assert!(watch.hold(Some(&zoom), 5_000).is_empty());
     }
 
     #[test]
@@ -486,107 +497,55 @@ mod tests {
         assert!(watch.stable(&slack).is_some());
         watch.detector.recording_stopped();
         // A moment off the microphone: still the same call.
-        assert!(watch.run(None, 2_000).is_empty());
-        assert!(watch.run(Some(&slack), 5_000).is_empty());
+        assert!(watch.hold(None, 2_000).is_empty());
+        assert!(watch.hold(Some(&slack), 5_000).is_empty());
         // Off for 3 s: the next call is offered.
-        assert!(watch.run(None, 3_500).is_empty());
+        assert!(watch.hold(None, 3_500).is_empty());
         assert_eq!(watch.stable(&slack), Some(slack.clone()));
 
         // Not stopped by hand: the minute still applies.
-        assert!(watch.run(None, 20_000).is_empty());
-        assert!(watch.run(Some(&slack), 5_000).is_empty());
+        assert!(watch.hold(None, 20_000).is_empty());
+        assert!(watch.hold(Some(&slack), 5_000).is_empty());
     }
 
     #[test]
-    fn a_missed_microphone_check_does_not_restart_the_wait_for_an_offer() {
+    fn a_brief_dropout_does_not_restart_the_wait_for_an_offer() {
         let call = candidate_from_microphone(&app("net.whatsapp.WhatsApp", "WhatsApp")).unwrap();
-        // One check misses the call 10 s in: still offered at 20 s.
+        // Off the microphone for half a second 10 s in: still offered at 20 s.
         let mut watch = Watch::new();
-        assert!(watch.run(Some(&call), 10_000).is_empty());
-        assert!(watch.run(None, 500).is_empty());
-        assert!(watch.run(Some(&call), 9_500).is_empty());
-        assert_eq!(times(&watch.run(Some(&call), 500)), [20_000]);
-
-        // On a slow loop, two missed checks in a row are still a dropout.
-        let mut watch = Watch::new();
-        assert!(watch.run_every(Some(&call), 9_900, 900).is_empty());
-        assert!(watch.run_every(None, 1_800, 900).is_empty());
-        assert!(watch.run_every(Some(&call), 9_000, 900).is_empty());
-        assert_eq!(times(&watch.run_every(Some(&call), 900, 900)), [20_700]);
+        assert!(watch.hold(Some(&call), 10_000).is_empty());
+        assert!(watch.hold(None, 500).is_empty());
+        assert_eq!(times(&watch.hold(Some(&call), 10_000)), [20_000]);
 
         // A longer release is the call (or voice note) ending: start over.
         let mut watch = Watch::new();
-        assert!(watch.run(Some(&call), 10_000).is_empty());
-        assert!(watch.run(None, 3_000).is_empty());
-        assert!(watch.run(Some(&call), 20_000).is_empty());
-        assert_eq!(times(&watch.run(Some(&call), 500)), [33_000]);
-    }
-
-    #[test]
-    fn a_slow_loop_still_ends_a_snooze_after_a_minute() {
-        let slack = slack_huddle();
-        let mut watch = Watch::new();
-        assert!(watch.run_every(Some(&slack), 2_700, 900).is_empty());
-        assert_eq!(watch.run_every(Some(&slack), 900, 900).len(), 1);
-        assert!(watch.run_every(None, 54_000, 900).is_empty());
-        assert!(watch.run_every(Some(&slack), 2_700, 900).is_empty());
-        watch.run_every(None, 63_000, 900);
-        assert!(watch.run_every(Some(&slack), 2_700, 900).is_empty());
-        assert_eq!(watch.run_every(Some(&slack), 900, 900).len(), 1);
-    }
-
-    #[test]
-    fn gap_restarts_the_clock() {
-        let candidate = candidate_from_microphone(&brave()).unwrap();
-        let mut watch = Watch::new();
-        assert!(watch.run(Some(&candidate), 1_000).is_empty());
-        // The Mac slept; the call is on the microphone again afterwards.
-        watch.skip(60_000);
-        assert!(watch.run(Some(&candidate), 20_000).is_empty());
-        assert_eq!(watch.run(Some(&candidate), 500).len(), 1);
-    }
-
-    #[test]
-    fn a_gap_with_the_app_absent_counts_as_absence() {
-        let slack = slack_huddle();
-        let mut watch = Watch::new();
-        assert!(watch.run(Some(&slack), 2_000).is_empty());
-        assert_eq!(watch.run(Some(&slack), 500).len(), 1);
-        // The Mac slept for a while; the call is over.
-        watch.skip(120_000);
-        assert!(watch.run(None, 500).is_empty());
-        assert!(watch.run(Some(&slack), 2_000).is_empty());
-        assert_eq!(watch.run(Some(&slack), 500).len(), 1);
-
-        // Still on the microphone after the gap: still the same call.
-        watch.skip(120_000);
-        assert!(watch.run(Some(&slack), 10_000).is_empty());
+        assert!(watch.hold(Some(&call), 10_000).is_empty());
+        assert!(watch.hold(None, 3_000).is_empty());
+        assert_eq!(times(&watch.hold(Some(&call), 20_500)), [33_000]);
     }
 
     #[test]
     fn a_recorded_call_that_left_the_microphone_is_not_snoozed_for_another_minute() {
         let slack = slack_huddle();
         let mut watch = Watch::new();
-        assert!(watch.run(Some(&slack), 2_000).is_empty());
-        assert_eq!(watch.run(Some(&slack), 500).len(), 1);
-        // Recorded an hour, app off the mic after 5 minutes: the first pass after Stop ends the snooze.
-        watch.skip(3_600_000);
-        assert!(watch.run(None, 500).is_empty());
-        assert!(watch.run(Some(&slack), 2_000).is_empty());
-        assert_eq!(watch.run(Some(&slack), 500).len(), 1);
+        assert_eq!(watch.hold(Some(&slack), 2_500).len(), 1);
+        // Recorded an hour, app off the mic after 5 minutes: the first change after Stop ends the snooze.
+        watch.skip(300_000);
+        watch.detector.offered_on_microphone(false, watch.now());
+        watch.skip(3_300_000);
+        watch.detector.recording_stopped();
+        assert!(watch.hold(None, 500).is_empty());
+        assert_eq!(watch.hold(Some(&slack), 2_500).len(), 1);
 
-        // While the recording sees the app on the mic, the snooze counts from the last such moment.
+        // Not stopped by hand: the snooze counts a minute from when the app left the mic.
         let mut watch = Watch::new();
-        watch.run(Some(&slack), 2_500);
+        assert_eq!(watch.hold(Some(&slack), 2_500).len(), 1);
         watch.skip(97_500);
-        watch
-            .detector
-            .keep_snooze_alive_at(watch.base + Duration::from_millis(watch.elapsed_ms));
-        assert!(watch.run(None, 59_500).is_empty());
-        assert!(watch.run(Some(&slack), 5_000).is_empty());
-        assert!(watch.run(None, 61_000).is_empty());
-        assert!(watch.run(Some(&slack), 2_000).is_empty());
-        assert_eq!(watch.run(Some(&slack), 500).len(), 1);
+        watch.detector.offered_on_microphone(false, watch.now());
+        assert!(watch.hold(None, 59_500).is_empty());
+        assert!(watch.hold(Some(&slack), 5_000).is_empty());
+        assert!(watch.hold(None, 61_000).is_empty());
+        assert_eq!(watch.hold(Some(&slack), 2_500).len(), 1);
     }
 
     #[test]

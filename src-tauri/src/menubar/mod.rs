@@ -396,6 +396,7 @@ fn report(app: &AppHandle, apply: impl FnOnce(&mut StateData) -> bool) -> Result
 /// Report a recording transition from the frontend; the backend keeps the only elapsed clock.
 #[tauri::command]
 pub async fn menubar_set_recording_state(app: AppHandle, active: bool, paused: bool) -> Result<(), String> {
+    crate::call_detection::recording_changed(active);
     report(&app, |state| {
         if active != state.recording_active {
             state.elapsed_secs = 0;

@@ -86,6 +86,7 @@ pub struct Response {
 }
 
 type Handler = Box<dyn Fn(&Response) + Send + Sync>;
+type MutedHandler = Box<dyn Fn() + Send + Sync>;
 type Emit = Box<dyn Fn(&str, serde_json::Value) + Send + Sync>;
 
 #[derive(Default)]
@@ -100,6 +101,7 @@ struct State {
 static STATE: OnceLock<Mutex<State>> = OnceLock::new();
 /// Separate from `STATE`, so a handler may post or remove notices.
 static HANDLERS: OnceLock<Mutex<Vec<Handler>>> = OnceLock::new();
+static MUTED_HANDLERS: OnceLock<Mutex<Vec<MutedHandler>>> = OnceLock::new();
 static EMIT: OnceLock<Emit> = OnceLock::new();
 
 fn state() -> MutexGuard<'static, State> {
@@ -111,6 +113,13 @@ fn state() -> MutexGuard<'static, State> {
 
 fn handlers() -> MutexGuard<'static, Vec<Handler>> {
     HANDLERS
+        .get_or_init(Mutex::default)
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+}
+
+fn muted_handlers() -> MutexGuard<'static, Vec<MutedHandler>> {
+    MUTED_HANDLERS
         .get_or_init(Mutex::default)
         .lock()
         .unwrap_or_else(|error| error.into_inner())
@@ -159,9 +168,19 @@ pub fn add_categories(categories: &[Category]) {
 
 /// Kinds the user switched off in Settings › Notifications.
 pub fn set_muted(kinds: impl IntoIterator<Item = String>) {
-    let mut state = state();
-    state.muted = kinds.into_iter().collect();
-    state.muted_known = true;
+    {
+        let mut state = state();
+        state.muted = kinds.into_iter().collect();
+        state.muted_known = true;
+    }
+    for handler in muted_handlers().iter() {
+        handler();
+    }
+}
+
+/// Call `handler` after every [`set_muted`], so a watcher reacts to the switch instead of polling it.
+pub fn on_muted_changed(handler: impl Fn() + Send + Sync + 'static) {
+    muted_handlers().push(Box::new(handler));
 }
 
 /// Whether Settings has sent the muted kinds yet; before that every kind reads unmuted.

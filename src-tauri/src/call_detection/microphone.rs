@@ -294,18 +294,22 @@ fn parent_pid(pid: i32) -> Option<i32> {
     (ppid > 1 && ppid != pid).then_some(ppid)
 }
 
-/// Wraps AppKit lookups in an autorelease pool; the watcher's plain thread would otherwise leak each poll.
+/// Wraps AppKit lookups in an autorelease pool; the watcher's plain thread would otherwise leak each read.
 pub fn active_microphone_applications() -> Result<Vec<ActiveMicrophoneApplication>> {
     objc2::rc::autoreleasepool(|_| inspect_microphone_applications())
 }
 
-fn inspect_microphone_applications() -> Result<Vec<ActiveMicrophoneApplication>> {
-    let process_objects = property_vec::<AudioObjectID>(
+/// Core Audio's object for every process doing audio I/O now.
+pub(super) fn process_objects() -> Result<Vec<AudioObjectID>> {
+    property_vec::<AudioObjectID>(
         kAudioObjectSystemObject as AudioObjectID,
         kAudioHardwarePropertyProcessObjectList,
-    )?;
+    )
+}
+
+fn inspect_microphone_applications() -> Result<Vec<ActiveMicrophoneApplication>> {
     let mut applications = Vec::new();
-    for process_object in process_objects {
+    for process_object in process_objects()? {
         let Ok(is_running_input) =
             property_value::<u32>(process_object, kAudioProcessPropertyIsRunningInput)
         else {
@@ -332,7 +336,7 @@ fn inspect_microphone_applications() -> Result<Vec<ActiveMicrophoneApplication>>
     Ok(deduplicated(applications))
 }
 
-fn property_address(selector: AudioObjectPropertySelector) -> AudioObjectPropertyAddress {
+pub(super) fn property_address(selector: AudioObjectPropertySelector) -> AudioObjectPropertyAddress {
     property_address_in(selector, kAudioObjectPropertyScopeGlobal)
 }
 
@@ -473,10 +477,10 @@ mod tests {
         info.ri_phys_footprint
     }
 
-    /// Polls like the meeting watcher, from a thread without an autorelease pool; run alone (process-wide).
+    /// Reads repeatedly, as the detection worker does on each change, from a thread without an autorelease pool; run alone (process-wide).
     #[test]
     #[ignore = "measures process footprint; needs another app using the microphone"]
-    fn polling_microphone_activity_does_not_accumulate_running_applications() {
+    fn repeated_microphone_reads_do_not_accumulate_running_applications() {
         std::thread::spawn(|| {
             assert!(
                 !active_microphone_applications().unwrap().is_empty(),
@@ -487,7 +491,7 @@ mod tests {
                 active_microphone_applications().unwrap();
             }
             let grown = physical_footprint().saturating_sub(before);
-            println!("footprint grew {} KB over 20,000 polls", grown / 1024);
+            println!("footprint grew {} KB over 20,000 reads", grown / 1024);
             assert!(grown < 2 * 1024 * 1024, "grew {grown} bytes");
         })
         .join()

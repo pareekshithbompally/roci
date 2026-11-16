@@ -1,20 +1,23 @@
-//! Call detection: polls mic-holding apps every 500 ms and offers a Record / Not now notification per call.
+//! Call detection: Core Audio tells us when an app takes or releases the microphone; a stable call app gets a Record / Not now notification.
 
 pub mod detector;
+mod listener;
 pub mod microphone;
 
 use std::collections::HashMap;
-use std::sync::{Mutex, MutexGuard, OnceLock};
+use std::sync::OnceLock;
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use tauri::AppHandle;
 use tauri_plugin_notifications::{self as notifications, Action, Category, Notice, Response};
 
 use crate::audio::commands::is_recording;
-use crate::meeting_reminders::{self, TICK, wall_clock_ms};
+use crate::meeting_reminders::{self, wall_clock_ms};
 use crate::menubar::{self, item};
 use detector::{MeetingCandidate, MeetingDetector, best_candidate};
+use listener::{Change, Subscriptions};
 use microphone::{ActiveMicrophoneApplication, active_microphone_applications};
 
 /// Settings › Notifications switch; muted, the detector idles.
@@ -26,8 +29,15 @@ const ACTION_RECORD: &str = "record";
 const ACTION_NOT_NOW: &str = "not_now";
 /// `user_info` key carrying the call app's canonical bundle id.
 const APPLICATION_KEY: &str = "application";
-/// After a failed microphone read, wait this long before the next.
-const READ_RETRY: Duration = Duration::from_secs(2);
+
+/// Everything that can change what detection decides; the worker sleeps until one arrives or a deadline passes.
+#[derive(Debug)]
+enum Event {
+    CoreAudio(Change),
+    Recording(bool),
+    MutedChanged,
+    CalendarSnooze(Vec<String>, i64),
+}
 
 #[derive(Debug, PartialEq)]
 enum Effect {
@@ -51,10 +61,10 @@ struct Watch {
 }
 
 impl Watch {
-    /// One tick. `apps` is `None` when the microphone could not be read.
+    /// One decision on what is on the microphone now, after a change or at a deadline.
     fn step(
         &mut self,
-        apps: Option<&[ActiveMicrophoneApplication]>,
+        apps: &[ActiveMicrophoneApplication],
         recording: bool,
         muted: bool,
         now: Instant,
@@ -67,9 +77,6 @@ impl Watch {
                 .into_iter()
                 .collect();
         }
-        let Some(apps) = apps else {
-            return Vec::new();
-        };
         if recording {
             self.while_recording(apps, now);
             return Vec::new();
@@ -86,7 +93,12 @@ impl Watch {
         effects
     }
 
-    /// The offered call's app still on the microphone keeps its snooze alive.
+    /// When to step again with nothing changing; none while recording, as nothing is offered then.
+    fn next_deadline(&self, recording: bool) -> Option<Instant> {
+        (!recording).then(|| self.detector.next_deadline()).flatten()
+    }
+
+    /// The offered call's app on the microphone keeps its snooze alive; leaving starts the absence.
     fn while_recording(&mut self, apps: &[ActiveMicrophoneApplication], now: Instant) {
         self.was_recording = true;
         let Some(offered) = self
@@ -96,12 +108,10 @@ impl Watch {
         else {
             return;
         };
-        if apps
+        let on = apps
             .iter()
-            .any(|app| app.canonical_bundle_id() == Some(offered))
-        {
-            self.detector.keep_snooze_alive_at(now);
-        }
+            .any(|app| app.canonical_bundle_id() == Some(offered));
+        self.detector.offered_on_microphone(on, now);
     }
 
     fn withdraw_if_unsnoozed(&mut self) -> Vec<Effect> {
@@ -125,72 +135,147 @@ fn answer(action: &str, recording: bool) -> Option<Answer> {
     }
 }
 
-static WATCH: OnceLock<Mutex<Watch>> = OnceLock::new();
+static EVENTS: OnceLock<Sender<Event>> = OnceLock::new();
 static APP: OnceLock<AppHandle> = OnceLock::new();
 
-fn watch() -> MutexGuard<'static, Watch> {
-    WATCH
-        .get_or_init(Mutex::default)
-        .lock()
-        .unwrap_or_else(|error| error.into_inner())
+/// Hands an event to the worker; called from Core Audio, notification and command threads.
+fn send(event: Event) {
+    let Some(events) = EVENTS.get() else { return };
+    if let Err(error) = events.send(event) {
+        log::warn!("[call-detection] worker gone; dropped {:?}", error.0);
+    }
 }
 
 // ── Lifecycle ──
 
-/// Start the detection thread. Idle while Detected calls is muted.
+/// Starts the worker and subscribes it to Core Audio, the Notifications switch and calendar answers.
 pub fn start(app: AppHandle) {
     if APP.set(app).is_err() {
         return;
     }
+    let (sender, receiver) = mpsc::channel();
+    if EVENTS.set(sender).is_err() {
+        return;
+    }
     notifications::add_categories(&[category()]);
     notifications::on_response_received(handle_response);
+    notifications::on_muted_changed(|| send(Event::MutedChanged));
     let spawned = thread::Builder::new()
         .name("call-detection".into())
-        .spawn(|| {
-            loop {
-                let wait = tick();
-                thread::sleep(wait);
-            }
-        });
+        .spawn(move || Worker::default().run(&receiver));
     if let Err(error) = spawned {
         log::error!("[call-detection] thread failed to start: {error}");
+        return;
+    }
+    if let Err(error) = listener::listen(|change| send(Event::CoreAudio(change))) {
+        log::error!("[call-detection] Core Audio listeners not started: {error}");
     }
 }
 
 /// A calendar reminder was answered: its call is not offered again.
 pub(crate) fn snooze_calendar_call((keys, until_ms): (Vec<String>, i64)) {
-    watch().detector.snooze_calendar_call(keys, until_ms);
+    send(Event::CalendarSnooze(keys, until_ms));
 }
 
-/// One pass; returns how long to wait before the next.
-fn tick() -> Duration {
-    // Until the webview has sent its settings every kind would read unmuted.
-    if !notifications::muted_known() {
-        return TICK;
-    }
-    let muted = notifications::is_muted(KIND);
-    let apps = if muted { None } else { read_microphone() };
-    let effects = watch().step(
-        apps.as_deref(),
-        is_recording(),
-        muted,
-        Instant::now(),
-        wall_clock_ms(),
-    );
-    effects.into_iter().for_each(apply);
-    if !muted && apps.is_none() {
-        READ_RETRY
-    } else {
-        TICK
+/// A recording started or stopped (reported with the menu bar's state).
+pub(crate) fn recording_changed(active: bool) {
+    send(Event::Recording(active));
+}
+
+/// Owns detection on one thread: applies each event, then decides; sleeps until the next event or deadline.
+struct Worker {
+    watch: Watch,
+    subscriptions: Subscriptions,
+    /// The last microphone read; a failed read keeps it.
+    apps: Vec<ActiveMicrophoneApplication>,
+    recording: bool,
+    /// The microphone changed since the last read.
+    stale: bool,
+}
+
+impl Default for Worker {
+    fn default() -> Self {
+        Self {
+            watch: Watch::default(),
+            subscriptions: Subscriptions::default(),
+            apps: Vec::new(),
+            recording: false,
+            stale: true,
+        }
     }
 }
 
-fn read_microphone() -> Option<Vec<ActiveMicrophoneApplication>> {
-    active_microphone_applications()
-        .inspect_err(|error| {
-            log::warn!("[call-detection] could not inspect microphone activity: {error}")
-        })
-        .ok()
+impl Worker {
+    fn run(mut self, events: &Receiver<Event>) {
+        self.subscriptions.sync();
+        loop {
+            let event = match self.deadline() {
+                Some(at) => match events.recv_timeout(at.saturating_duration_since(Instant::now())) {
+                    Ok(event) => Some(event),
+                    Err(RecvTimeoutError::Timeout) => None,
+                    Err(RecvTimeoutError::Disconnected) => return,
+                },
+                None => match events.recv() {
+                    Ok(event) => Some(event),
+                    Err(_) => return,
+                },
+            };
+            if let Some(event) = event {
+                self.handle(event);
+            }
+            self.decide();
+        }
+    }
+
+    fn handle(&mut self, event: Event) {
+        // Microphone use may differ after any Core Audio change or an unmute.
+        self.stale |= matches!(event, Event::CoreAudio(_) | Event::MutedChanged);
+        match event {
+            Event::CoreAudio(Change::Processes) => self.subscriptions.sync(),
+            Event::CoreAudio(Change::ServiceRestarted) => self.subscriptions.reset(),
+            Event::CoreAudio(Change::Microphone) | Event::MutedChanged => {}
+            Event::Recording(active) => self.recording = active,
+            Event::CalendarSnooze(keys, until_ms) => {
+                self.watch.detector.snooze_calendar_call(keys, until_ms);
+            }
+        }
+    }
+
+    /// `None` until Settings has sent the switches (every kind reads unmuted before that).
+    fn muted() -> Option<bool> {
+        notifications::muted_known().then(|| notifications::is_muted(KIND))
+    }
+
+    fn deadline(&self) -> Option<Instant> {
+        match Self::muted() {
+            Some(false) => self.watch.next_deadline(self.recording),
+            _ => None,
+        }
+    }
+
+    fn decide(&mut self) {
+        let Some(muted) = Self::muted() else { return };
+        if !muted && std::mem::take(&mut self.stale) {
+            self.read_microphone();
+        }
+        let effects = self.watch.step(
+            &self.apps,
+            self.recording,
+            muted,
+            Instant::now(),
+            wall_clock_ms(),
+        );
+        effects.into_iter().for_each(apply);
+    }
+
+    fn read_microphone(&mut self) {
+        match active_microphone_applications() {
+            Ok(apps) => self.apps = apps,
+            Err(error) => {
+                log::warn!("[call-detection] could not inspect microphone activity: {error}")
+            }
+        }
+    }
 }
 
 // ── Notification ──
@@ -268,8 +353,6 @@ mod tests {
     use super::*;
     use std::time::Duration;
 
-    const STEP_MS: u64 = 500;
-
     struct Clock {
         base: Instant,
         elapsed_ms: u64,
@@ -282,6 +365,10 @@ mod tests {
                 elapsed_ms: 0,
             }
         }
+
+        fn now(&self) -> Instant {
+            self.base + Duration::from_millis(self.elapsed_ms)
+        }
     }
 
     fn zoom() -> ActiveMicrophoneApplication {
@@ -292,29 +379,32 @@ mod tests {
         }
     }
 
-    /// Steps every 500 ms for `ms` and returns every effect.
+    /// `apps` hold the microphone for `ms`: one step for the change, then one per deadline, as the worker does.
     fn run(
         watch: &mut Watch,
         clock: &mut Clock,
-        apps: Option<&[ActiveMicrophoneApplication]>,
+        apps: &[ActiveMicrophoneApplication],
         recording: bool,
         muted: bool,
         ms: u64,
     ) -> Vec<Effect> {
-        let mut effects = Vec::new();
         let end = clock.elapsed_ms + ms;
-        while clock.elapsed_ms < end {
-            let now = clock.base + Duration::from_millis(clock.elapsed_ms);
-            effects.extend(watch.step(apps, recording, muted, now, 0));
-            clock.elapsed_ms += STEP_MS;
+        let mut effects = watch.step(apps, recording, muted, clock.now(), 0);
+        while let Some(at) = watch.next_deadline(recording).filter(|_| !muted) {
+            let at_ms = at.saturating_duration_since(clock.base).as_millis() as u64;
+            if at_ms >= end {
+                break;
+            }
+            clock.elapsed_ms = at_ms.max(clock.elapsed_ms);
+            effects.extend(watch.step(apps, recording, muted, clock.now(), 0));
         }
+        clock.elapsed_ms = end;
         effects
     }
 
     /// Zoom on the microphone until it is offered.
     fn offered(watch: &mut Watch, clock: &mut Clock) -> String {
-        let on_mic = [zoom()];
-        let effects = run(watch, clock, Some(&on_mic), false, false, 2_500);
+        let effects = run(watch, clock, &[zoom()], false, false, 2_500);
         let [Effect::Offer(candidate)] = effects.as_slice() else {
             panic!("expected one offer, got {effects:?}");
         };
@@ -326,9 +416,8 @@ mod tests {
     fn muted_resets_and_idles() {
         let (mut watch, mut clock) = (Watch::default(), Clock::new());
         let key = offered(&mut watch, &mut clock);
-        let on_mic = [zoom()];
         assert_eq!(
-            run(&mut watch, &mut clock, Some(&on_mic), false, true, 5_000),
+            run(&mut watch, &mut clock, &[zoom()], false, true, 5_000),
             [Effect::Withdraw(key)]
         );
         assert!(watch.offer.is_none());
@@ -337,21 +426,20 @@ mod tests {
     }
 
     #[test]
-    fn no_offer_while_recording() {
+    fn no_offer_and_no_deadline_while_recording() {
         let (mut watch, mut clock) = (Watch::default(), Clock::new());
-        let on_mic = [zoom()];
-        assert!(run(&mut watch, &mut clock, Some(&on_mic), true, false, 10_000).is_empty());
+        assert!(run(&mut watch, &mut clock, &[zoom()], true, false, 10_000).is_empty());
+        assert_eq!(watch.next_deadline(true), None);
     }
 
     #[test]
     fn recording_end_marks_stopped() {
         let (mut watch, mut clock) = (Watch::default(), Clock::new());
         let key = offered(&mut watch, &mut clock);
-        let on_mic = [zoom()];
-        assert!(run(&mut watch, &mut clock, Some(&on_mic), true, false, 120_000).is_empty());
+        assert!(run(&mut watch, &mut clock, &[zoom()], true, false, 120_000).is_empty());
         // Stopped: three seconds off the microphone end the call, not a minute.
         assert_eq!(
-            run(&mut watch, &mut clock, Some(&[]), false, false, 3_500),
+            run(&mut watch, &mut clock, &[], false, false, 3_500),
             [Effect::Withdraw(key)]
         );
         offered(&mut watch, &mut clock);
@@ -361,22 +449,12 @@ mod tests {
     fn withdraws_offer_when_snooze_ends() {
         let (mut watch, mut clock) = (Watch::default(), Clock::new());
         let key = offered(&mut watch, &mut clock);
-        assert!(run(&mut watch, &mut clock, Some(&[]), false, false, 59_000).is_empty());
+        assert!(run(&mut watch, &mut clock, &[], false, false, 59_000).is_empty());
         assert_eq!(
-            run(&mut watch, &mut clock, Some(&[]), false, false, 2_000),
+            run(&mut watch, &mut clock, &[], false, false, 2_000),
             [Effect::Withdraw(key)]
         );
         assert!(watch.offer.is_none());
-    }
-
-    #[test]
-    fn failed_mic_read_changes_nothing() {
-        let (mut watch, mut clock) = (Watch::default(), Clock::new());
-        let key = offered(&mut watch, &mut clock);
-        assert!(run(&mut watch, &mut clock, None, false, false, 120_000).is_empty());
-        assert_eq!(watch.offer.as_ref().map(|offer| &offer.key), Some(&key));
-        let on_mic = [zoom()];
-        assert!(run(&mut watch, &mut clock, Some(&on_mic), false, false, 5_000).is_empty());
     }
 
     #[test]
