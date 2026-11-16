@@ -8,5 +8,5 @@ export {
   useRecordingBusy,
 } from './stores/recordingStore';
 export { meetingPipeline } from './pipeline/meetingPipeline';
-export { useRecordingRuntime, useStartRecording } from './hooks';
+export { useRecordingRuntime, useStartRecording, usePermissions } from './hooks';
 export { PermissionChecklist, RecordingExitPrompt } from './components';

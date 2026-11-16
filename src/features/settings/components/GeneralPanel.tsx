@@ -397,6 +397,11 @@ export const GeneralPanel: React.FC = () => {
       <Card>
         <CardRow title="Version" actions={<VersionStatus appVersion={appVersion} appUpdate={appUpdate} upToDate={upToDate} onCheck={handleCheckForUpdate} />} />
         <CardRow
+          title="Setup"
+          description="Walk through permissions and choosing your AI again."
+          actions={<Button variant="outline" size="sm" onClick={() => setSettings({ onboarding: { completed: false } })}>Run Again</Button>}
+        />
+        <CardRow
           title="Acknowledgements"
           description="Open-source software used in Roci."
           actions={<Button variant="outline" size="sm" onClick={() => setAcknowledgementsOpen(true)}>View</Button>}

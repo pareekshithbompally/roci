@@ -1,9 +1,8 @@
 /** Idle landing page: main actions and the shared chat composer. */
 
 import React, { useMemo, useState, useCallback } from 'react';
-import { Key, HardDrive, ListTodo, CalendarDays } from 'lucide-react';
+import { ListTodo, CalendarDays } from 'lucide-react';
 import { ImportButton } from '@features/import';
-import { useAppleIntelligenceSetup } from '@features/integrations';
 import { useAppActions } from '@shared/stores/appStore';
 import { useRecordingBusy, useRecordingMeetingId, useStartRecording } from '@features/recording';
 import { isTauriEnvironment } from '@services/tauri';
@@ -13,22 +12,17 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { ChatInput } from '@features/chat';
 import { meetingReferenceService } from '@services/meetingReferenceService';
 import { LandingGlow } from './LandingGlow';
-import { OnDeviceModelsCard } from './OnDeviceModelsCard';
 import { useVoiceCapture } from '@features/chat';
 import { useSpeechInputReady } from '@features/settings/hooks/useSpeechModels';
 import { LAYOUT } from '@config/layout.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
-import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { withIntegrationModels } from '@shared/utils/modelResolver';
-import { ActionCard, AppImage } from '@shared/components';
-import { Button, cn, Dot, Icon, Surface, Text, TitlebarSpacer } from '@shared/ui';
+import { Button, Dot, Icon, Surface, Text, TitlebarSpacer } from '@shared/ui';
 import { motion } from 'framer-motion';
 import { platform } from '@platform/index';
 import { isIntegrationEnabled } from '@shared/utils/integrations';
 
 interface IdleViewProps {}
-
-const APPLE = INTEGRATIONS_CONFIG.appleIntelligence;
 
 const GREETING_POOL = [
   'Ready to explore some new ideas?',
@@ -86,7 +80,6 @@ export const IdleView: React.FC<IdleViewProps> = () => {
     () => withIntegrationModels(providers, settings).some((p) => p.active && p.models && p.models.length > 0),
     [providers, settings],
   );
-  const appleSetup = useAppleIntelligenceSetup();
 
   const handleSetupProviders = () => {
     setActiveSettingsPanel('providers');
@@ -137,8 +130,6 @@ export const IdleView: React.FC<IdleViewProps> = () => {
       {/* Chat Composer - Centered in remaining space */}
       <div className="flex-1 flex flex-col items-center justify-center w-full px-2 relative z-20">
         <div className={`${LAYOUT.chatColumn} space-y-6 overflow-visible`}>
-          {hasConfiguredProviders ? (
-            <>
               {/* Stays mounted and only fades, so the column never reflows under the voice pill. */}
               <motion.div
                 className="text-center"
@@ -161,7 +152,8 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                   onChange={setInput}
                   onSend={handleSendMessage}
                   isLoading={isGenerating}
-                  placeholder="Type @ to add meeting context..."
+                  disabled={!hasConfiguredProviders}
+                  placeholder={hasConfiguredProviders ? 'Type @ to add meeting context...' : 'Set up AI to start chatting'}
                   availableMeetings={availableMeetings}
                   selectedMeetings={selectedMeetingRefs}
                   onMeetingSelect={setSelectedMeetingRefs}
@@ -210,60 +202,14 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                   </Button>
                 )}
               </motion.div>
-            </>
-          ) : (
-            <>
-              {/* Zero-state: Setup guidance */}
-              <div className="text-center space-y-2">
-                <Text as="h1" variant="display">
-                  Welcome to Roci
-                </Text>
-                <Text as="p" tone="muted">
-                  Set up a provider to start chatting and get AI summaries
-                </Text>
-              </div>
 
-              {/* Setup cards */}
-              <div className={cn('grid grid-cols-1 gap-3', appleSetup ? 'sm:grid-cols-3' : 'sm:grid-cols-2')}>
-                <ActionCard
-                  icon={<Icon icon={Key} size="md" />}
-                  title="Cloud Providers"
-                  description="Connect OpenAI, Anthropic, Google, and more with an API key"
-                  onClick={handleSetupProviders}
-                />
-                <ActionCard
-                  icon={<Icon icon={HardDrive} size="md" />}
-                  title="Local Models"
-                  description="Use Ollama, LM Studio, or another server running on this Mac"
-                  onClick={handleSetupProviders}
-                />
-                {appleSetup && (
-                  <ActionCard
-                    icon={<AppImage src={APPLE.icon} size="md" />}
-                    title={APPLE.title}
-                    description={appleSetup.needsSettings ? APPLE.onboarding.needsSettings : APPLE.onboarding.description}
-                    onClick={appleSetup.setUp}
-                  />
-                )}
-              </div>
-
-              {/* On-device models — zero state only; Skip or consent dismisses for good */}
-              <OnDeviceModelsCard />
-
-              {/* Record button — on devices that record */}
-              {platform.canRecord && (
-                <div className="flex flex-col items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={handleStartRecording} disabled={!canRecord}>
-                    <Dot tone="danger" />
-                    Record
-                  </Button>
-                  <Text as="p" variant="helper" tone="faint">
-                    Recording works offline. Set up a provider for AI summaries.
-                  </Text>
+              {/* No AI yet (set up later): everything shows, chat waits for a provider. */}
+              {!hasConfiguredProviders && (
+                <div className="flex items-center justify-center gap-2">
+                  <Text as="p" variant="helper" tone="faint">Chat, transcripts and summaries need an AI.</Text>
+                  <Button variant="ghost" size="sm" onClick={handleSetupProviders}>Set up AI</Button>
                 </div>
               )}
-            </>
-          )}
         </div>
       </div>
       </>

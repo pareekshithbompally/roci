@@ -13,6 +13,7 @@ import { useAppUpdate, scheduleStartupCheck } from '@features/settings';
 import { useMenubarSpeechModels, useMenubarReports, useLocalModelDownloads, freshSpeechSources } from '@features/settings';
 import { RemindersView } from '@features/todos';
 import { CalendarView } from '@features/calendar';
+import { OnboardingView } from '@features/onboarding';
 import { ConfirmHost, OnDeviceModelActivity } from '@shared/components';
 import { Toaster } from '@shared/ui';
 import { useDownloadToasts } from '@shared/hooks';
@@ -42,7 +43,7 @@ const App: React.FC = () => {
   const selectedHistoryId = useSelectedHistoryId();
   const { setCurrentView, leaveSettings, setInitialized, setActiveSettingsPanel } = useAppActions();
   
-  const { setSettings, providers, isLoading: settingsLoading } = useSettings();
+  const { settings, setSettings, providers, isLoading: settingsLoading } = useSettings();
   const history = useHistory();
   const chatCount = useChatIndex().length;
   const startRecording = useStartRecording();
@@ -334,6 +335,17 @@ const App: React.FC = () => {
   );
   const showChatView = currentView === 'home' && status === AppStatus.CHAT;
   const showResultsView = currentView === 'home' && hasSelectedMeeting;
+
+  // First launch: permissions, then AI setup, in place of the app; waits for settings so a finished run never flashes.
+  if (!settingsLoading && !settings.onboarding?.completed) {
+    return (
+      <>
+        <OnboardingView />
+        <Toaster />
+        <ConfirmHost />
+      </>
+    );
+  }
 
   return (
     <>

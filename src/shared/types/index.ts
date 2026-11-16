@@ -192,6 +192,10 @@ export type NotificationSettings = Record<NotificationKind, boolean> & {
 };
 
 export interface AppSettings {
+  /** First-run flow (permissions, then AI setup) finished or skipped; Settings › General can run it again. */
+  onboarding?: {
+    completed: boolean;
+  };
   /** Speech-to-text provider (`openai`, `groq`, `local:…`, `hex`, …); see transcription.config. */
   transcriptionProvider?: string;
   /** Speech model of that provider (e.g. `gpt-4o-transcribe`, a Hex model id). */

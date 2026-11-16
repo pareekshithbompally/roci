@@ -9,24 +9,30 @@ interface ActionCardProps {
   title: string;
   description: string;
   onClick: () => void;
+  /** A line under the description for the card's current state (checking, needs System Settings, ready). */
+  status?: React.ReactNode;
+  /** Can't be used here; the description or status says why. */
+  disabled?: boolean;
 }
 
-export const ActionCard: React.FC<ActionCardProps> = ({ icon, title, description, onClick }) => (
+export const ActionCard: React.FC<ActionCardProps> = ({ icon, title, description, onClick, status, disabled }) => (
   <Surface
     variant="card"
     radius="lg"
-    interactive
+    interactive={!disabled}
     role="button"
-    tabIndex={0}
-    onClick={onClick}
-    onKeyDown={activateOnKey(onClick)}
+    tabIndex={disabled ? -1 : 0}
+    aria-disabled={disabled || undefined}
+    onClick={disabled ? undefined : onClick}
+    onKeyDown={disabled ? undefined : activateOnKey(onClick)}
     className="w-full p-4"
   >
     <div className="flex items-start gap-3">
-      <Text as="div" tone="muted" className="mt-0.5 shrink-0">{icon}</Text>
+      <Text as="div" tone={disabled ? 'faint' : 'muted'} className="mt-0.5 shrink-0">{icon}</Text>
       <div className="min-w-0 flex-1 space-y-1 text-left">
-        <Text as="p" variant="bodyStrong">{title}</Text>
-        <Text as="p" variant="helper" tone="muted">{description}</Text>
+        <Text as="p" variant="bodyStrong" tone={disabled ? 'faint' : 'primary'}>{title}</Text>
+        <Text as="p" variant="helper" tone={disabled ? 'faint' : 'muted'}>{description}</Text>
+        {status}
       </div>
     </div>
   </Surface>

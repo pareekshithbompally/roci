@@ -7,6 +7,7 @@ export {
 } from './components';
 
 // Hooks
+export { useLocalServers } from './hooks/useLocalServers';
 export { useSettings, useAppUpdate, scheduleStartupCheck, useMenubarSpeechModels, useMenubarReports, useLocalModelDownloads, useLocalModelControls, useLiveDictation, freshSpeechSources } from './hooks';
 export type { LiveDictation } from './hooks';
 
