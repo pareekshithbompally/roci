@@ -3,7 +3,7 @@
 import React from 'react';
 import { ProvidersAvatar } from '@shared/components';
 import { getProviderTitle } from '@shared/utils/provider.utils';
-import { Dot, RowGroupLabel, Surface, Text } from '@shared/ui';
+import { Dot, RowGroupLabel, Status, Surface, Text } from '@shared/ui';
 import type { DotTone } from '@shared/ui';
 import { activateOnKey } from '@shared/utils/activateOnKey';
 
@@ -11,6 +11,13 @@ import { activateOnKey } from '@shared/utils/activateOnKey';
 export type ProviderRowState = 'ready' | 'attention' | 'off';
 
 const ROW_DOT: Record<Exclude<ProviderRowState, 'off'>, DotTone> = { ready: 'success', attention: 'warning' };
+
+const ROW_LABEL: Record<ProviderRowState, string> = { ready: 'On', attention: 'Needs key', off: 'Off' };
+
+/** A provider's state as a dot and word (phone list rows). */
+export const ProviderStatus: React.FC<{ state: ProviderRowState }> = ({ state }) => (
+  <Status tone={state === 'off' ? 'muted' : ROW_DOT[state]}>{ROW_LABEL[state]}</Status>
+);
 
 interface ProviderListItemProps {
   provider: string;

@@ -1,16 +1,18 @@
 /** Master-detail providers layout; selectedProviderName is the source of truth, localStorage seeds first mount. */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { isLocalProviderId, providerSetting } from '@shared/utils/provider.utils';
-import { ScrollArea, Text } from '@shared/ui';
+import { getProviderTitle, isLocalProviderId, providerSetting } from '@shared/utils/provider.utils';
+import { ProvidersAvatar } from '@shared/components';
+import { Card, CardRow, PushScreen, ScrollArea, Text } from '@shared/ui';
 import type { ModelProvider } from '@shared/types/modelProviders';
-import { ProviderGroup, ProviderListItem } from './ProviderListItem';
+import { ProviderGroup, ProviderListItem, ProviderStatus } from './ProviderListItem';
 import type { ProviderRowState } from './ProviderListItem';
 import { LocalServersSection } from './LocalServersSection';
 import { ProviderDetail } from './ProviderDetail';
 import { SettingsPage } from './shared';
 import { platform } from '@platform/index';
+import { useFormFactor } from '@platform/formFactor';
 
 const STORAGE_KEY = 'roci_last_provider_selection';
 
@@ -19,8 +21,38 @@ function cloudRowState(provider: ModelProvider): ProviderRowState {
   return providerSetting(provider, 'api-key') ? 'ready' : 'attention';
 }
 
+/** Phone: one row per provider (logo, name, state); a row pushes its detail. */
+const PhoneProviders: React.FC<{ providers: ModelProvider[] }> = ({ providers }) => {
+  const [openId, setOpenId] = useState<string | null>(null);
+  const opened = providers.find((p) => p.provider === openId);
+
+  return (
+    <div className="p-4">
+      <Card>
+        {providers.map((provider) => (
+          <CardRow
+            key={provider.provider}
+            title={getProviderTitle(provider.provider)}
+            leading={<ProvidersAvatar provider={provider.provider} size={20} />}
+            status={<ProviderStatus state={cloudRowState(provider)} />}
+            onOpen={() => setOpenId(provider.provider)}
+          />
+        ))}
+      </Card>
+      <PushScreen open={!!opened} title={opened && getProviderTitle(opened.provider)} backLabel="Providers" onBack={() => setOpenId(null)}>
+        {opened && (
+          <div className="flex flex-col gap-6 p-4">
+            <ProviderDetail provider={opened} />
+          </div>
+        )}
+      </PushScreen>
+    </div>
+  );
+};
+
 export const ProvidersPanel: React.FC = () => {
   const { providers, selectedProviderName, setSelectedProviderName } = useSettings();
+  const formFactor = useFormFactor();
 
   // Initialize selectedProviderName: context first, localStorage fallback
   const effectiveSelectedProvider = selectedProviderName
@@ -53,6 +85,8 @@ export const ProvidersPanel: React.FC = () => {
     : null;
 
   const cloudProviders = providers.filter(p => !isLocalProviderId(p.provider));
+
+  if (formFactor === 'phone') return <PhoneProviders providers={cloudProviders} />;
 
   return (
     <SettingsPage
