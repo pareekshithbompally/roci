@@ -21,6 +21,16 @@ const pending = new Map<number, {
   reject: (error: Error) => void;
 }>();
 
+/** The whole download as one bar: a percent of the known total, then "initializing" once every byte is in. */
+function emitDownload(loaded: number, total: number | null): void {
+  if (total !== null && loaded >= total) {
+    emitProgress({ kind: 'model', status: 'loading' });
+    return;
+  }
+  const percent = total ? Math.round((loaded / total) * 100) : undefined;
+  emitProgress({ kind: 'model', status: 'downloading', loaded, total: total ?? undefined, percent });
+}
+
 function getWorker(): Worker {
   if (worker) return worker;
 
@@ -36,32 +46,11 @@ function getWorker(): Worker {
       case 'loaded':
         ready = true;
         console.log('[EmbeddingService] Model loaded in worker');
+        emitProgress({ kind: 'model', status: 'ready' });
         break;
 
-      case 'progress':
-        // Forward model download progress to the UI bridge
-        switch (msg.status) {
-          case 'initiate':
-          case 'download':
-            emitProgress({ kind: 'model', status: 'downloading', file: msg.file, percent: 0 });
-            break;
-          case 'progress':
-            emitProgress({
-              kind: 'model',
-              status: 'downloading',
-              file: msg.file,
-              loaded: msg.loaded,
-              total: msg.total,
-              percent: Math.round(msg.progress ?? 0),
-            });
-            break;
-          case 'done':
-            emitProgress({ kind: 'model', status: 'loading', file: msg.file });
-            break;
-          case 'ready':
-            emitProgress({ kind: 'model', status: 'ready' });
-            break;
-        }
+      case 'download':
+        emitDownload(msg.loaded, msg.total);
         break;
 
       case 'result': {

@@ -4,8 +4,6 @@
 export interface EmbeddingModelEvent {
   kind: 'model';
   status: 'downloading' | 'loading' | 'ready' | 'error';
-  /** File currently being downloaded (Transformers.js downloads multiple shards) */
-  file?: string;
   /** Bytes loaded so far */
   loaded?: number;
   /** Total bytes expected */
@@ -31,8 +29,6 @@ export interface IndexingProgressEvent {
 
 export type RAGProgressEvent = EmbeddingModelEvent | IndexingProgressEvent;
 
-/** @deprecated Use RAGProgressEvent instead */
-export type EmbeddingProgress = EmbeddingModelEvent;
 
 type ProgressListener = (event: RAGProgressEvent) => void;
 
@@ -48,6 +44,3 @@ export function onRAGProgress(cb: ProgressListener): () => void {
   listener = cb;
   return () => { listener = null; };
 }
-
-/** @deprecated Use onRAGProgress instead — kept for backward compat */
-export const onEmbeddingProgress = onRAGProgress;
