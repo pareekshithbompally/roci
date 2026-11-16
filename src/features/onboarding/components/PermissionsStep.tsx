@@ -2,10 +2,11 @@
 
 import React from 'react';
 import { Badge, Button, Card, CardRow, Text } from '@shared/ui';
-import { AppIcon, PermissionAction } from '@shared/components';
+import { PermissionAction } from '@shared/components';
 import { ONBOARDING_CONFIG, ONBOARDING_ICONS } from '@config/onboarding.config';
 import { useOnboardingPermissions, type OnboardingPermission } from '@features/onboarding/hooks/useOnboardingPermissions';
 import { useSetOnboardingStep } from '@features/onboarding/stores/onboardingStore';
+import { OnboardingIcon } from './OnboardingIcon';
 
 const COPY = ONBOARDING_CONFIG.permissions;
 const ACTIONS = ONBOARDING_CONFIG.actions;
@@ -14,7 +15,7 @@ const PermissionRow: React.FC<{ row: OnboardingPermission }> = ({ row }) => {
   const copy = COPY.rows[row.id];
   return (
     <CardRow
-      leading={<AppIcon app={ONBOARDING_ICONS[row.id]} size="xl" />}
+      leading={<OnboardingIcon source={ONBOARDING_ICONS[row.id]} />}
       leadingAlign="row"
       title={
         <span className="inline-flex items-center gap-2">

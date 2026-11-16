@@ -12,6 +12,7 @@ export { ModelIcon } from './ModelIcon';
 export { AppIcon, AppImage, useAppIcon } from './AppIcon';
 export { OnDeviceModelActivity } from './OnDeviceModelActivity';
 export { ProvidersAvatar } from './ProvidersAvatar';
+export { ProviderFan } from './ProviderFan';
 export { RenameModal } from './RenameModal';
 export { ServerIcon } from './ServerIcon';
 export { Markdown } from './markdown/Markdown';

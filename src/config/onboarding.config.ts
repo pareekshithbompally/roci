@@ -3,16 +3,21 @@
 /** System Settings panes ship as ExtensionKit bundles; Launch Services resolves apps by id but not these, so they go by path. */
 const SETTINGS_PANES = '/System/Library/ExtensionKit/Extensions';
 
-/** What macOS draws for each row and tile (`AppIcon`: a bundle id, or a pane's path); the images come from macOS. */
+/** A row's icon: one macOS draws (an app's bundle id, or a settings pane's path), a bundled light/dark image, or a fan of provider logos. */
+export type OnboardingIconSource =
+  | { app: string }
+  | { image: { light: string; dark: string } }
+  | { providers: readonly string[] };
+
+/** macOS has no current microphone icon to draw, so that one is bundled in the same style (SF Symbol mic.fill on the icon tile). */
 export const ONBOARDING_ICONS = {
-  microphone: 'com.apple.VoiceMemos',
-  'system-audio': `${SETTINGS_PANES}/Sound.appex`,
-  notifications: `${SETTINGS_PANES}/NotificationsSettings.appex`,
-  calendar: 'com.apple.iCal',
-  appleIntelligence: `${SETTINGS_PANES}/SiriPreferenceExtension.appex`,
-  local: 'com.apple.Terminal',
-  remote: `${SETTINGS_PANES}/Network.appex`,
-} as const;
+  microphone: { image: { light: '/images/permission-microphone-light.png', dark: '/images/permission-microphone-dark.png' } },
+  'system-audio': { app: `${SETTINGS_PANES}/Sound.appex` },
+  notifications: { app: `${SETTINGS_PANES}/NotificationsSettings.appex` },
+  calendar: { app: 'com.apple.iCal' },
+  local: { app: 'com.apple.Terminal' },
+  remote: { providers: ['gemini', 'openai', 'anthropic'] },
+} satisfies Record<string, OnboardingIconSource>;
 
 export type OnboardingPermissionId = 'microphone' | 'system-audio' | 'notifications' | 'calendar';
 

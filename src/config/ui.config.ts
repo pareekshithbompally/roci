@@ -33,6 +33,9 @@ export const UI_CONFIG = {
     finder: '/images/macos-finder-sm.png',
   },
 
+  /** Provider logos fanned like cards in one icon slot: tiles pivot on a point below them, middle one on top. */
+  providerFan: { width: 52, height: 40, tile: 28, logo: 18, spreadDeg: 22, pivot: '50% 170%' },
+
   /** How long a copy button shows its "Copied" tick */
   copiedFeedbackMs: 2_000,
 

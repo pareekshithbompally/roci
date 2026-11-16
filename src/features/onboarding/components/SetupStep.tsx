@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button, Text } from '@shared/ui';
-import { ActionCard, AppIcon } from '@shared/components';
+import { ActionCard, AppImage } from '@shared/components';
 import { useAppActions } from '@shared/stores/appStore';
 import { useAppleIntelligenceControls, useAppleIntelligenceSetup } from '@features/integrations';
 import type { IntegrationAccess } from '@features/integrations';
@@ -11,6 +11,7 @@ import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { ONBOARDING_CONFIG, ONBOARDING_ICONS } from '@config/onboarding.config';
 import { useFinishOnboarding } from '@features/onboarding/hooks/useFinishOnboarding';
 import { useSetOnboardingStep } from '@features/onboarding/stores/onboardingStore';
+import { OnboardingIcon } from './OnboardingIcon';
 
 const COPY = ONBOARDING_CONFIG.setup;
 const APPLE = INTEGRATIONS_CONFIG.appleIntelligence;
@@ -37,7 +38,7 @@ const AppleTile: React.FC = () => {
 
   return (
     <ActionCard
-      icon={<AppIcon app={ONBOARDING_ICONS.appleIntelligence} size="xl" />}
+      icon={<AppImage src={APPLE.icon} size="xl" />}
       tone="brand"
       title={APPLE.title}
       description={APPLE.onboarding.description}
@@ -69,7 +70,7 @@ export const SetupStep: React.FC = () => {
         {platform.hasAppleIntelligence && <AppleTile />}
         {platform.supportsLocalServers && (
           <ActionCard
-            icon={<AppIcon app={ONBOARDING_ICONS.local} size="xl" />}
+            icon={<OnboardingIcon source={ONBOARDING_ICONS.local} />}
             tone="brand"
             title={COPY.local.title}
             description={COPY.local.description}
@@ -77,7 +78,7 @@ export const SetupStep: React.FC = () => {
           />
         )}
         <ActionCard
-          icon={<AppIcon app={ONBOARDING_ICONS.remote} size="xl" />}
+          icon={<OnboardingIcon source={ONBOARDING_ICONS.remote} />}
           tone="brand"
           title={COPY.remote.title}
           description={COPY.remote.description}
