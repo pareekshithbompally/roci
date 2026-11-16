@@ -1,10 +1,9 @@
-/** macOS access for one integration, re-read while the panel is open so a grant in System Settings shows. */
+/** macOS access for one integration, re-read after a request and whenever Roci regains focus, so a grant in System Settings shows. */
 
 import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { isTauriEnvironment } from '@services/tauri';
 import { queryKeys } from '@shared/query/queryKeys';
-import { PERMISSIONS_CONFIG } from '@config/permissions.config';
 import { eventKitAccess } from '@features/integrations/utils/eventKitAccess';
 import { openNative, type NativeTarget } from '@features/integrations/utils/openNative';
 import type { CalendarAccessStatus } from '@services/calendar/types';
@@ -33,7 +32,7 @@ export function useSystemAccess({ id, check, request, settingsPane }: AccessSour
     queryKey: queryKeys.integrationAccess(id),
     queryFn: check,
     enabled: isTauriEnvironment(),
-    refetchInterval: PERMISSIONS_CONFIG.pollIntervalMs,
+    refetchOnWindowFocus: 'always',
   });
 
   const requestAccess = useCallback(async () => {

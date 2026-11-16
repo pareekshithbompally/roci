@@ -6,7 +6,6 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { queryKeys } from '@shared/query/queryKeys';
 import { isIntegrationEnabled } from '@shared/utils/integrations';
 import { appleIntelligence, type AppleAvailability } from '@services/ai/apple/appleIntelligence.service';
-import { PERMISSIONS_CONFIG } from '@config/permissions.config';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { openNative } from '@features/integrations/utils/openNative';
 import type { IntegrationAccess, IntegrationControls } from '@features/integrations/types';
@@ -32,7 +31,8 @@ export function useAppleIntelligenceControls(): IntegrationControls {
   const { data: status } = useQuery({
     queryKey: queryKeys.appleIntelligenceStatus(),
     queryFn: () => appleIntelligence.status(),
-    refetchInterval: PERMISSIONS_CONFIG.pollIntervalMs,
+    // Turned on in System Settings: seen when Roci regains focus.
+    refetchOnWindowFocus: 'always',
   });
   const access = accessOf(status?.availability);
 

@@ -1,4 +1,4 @@
-/** Calendar event cache, polling and first-fetch state, plus the events mapped to Schedule-X format. */
+/** Calendar event cache, watching and first-fetch state, plus the events mapped to Schedule-X format. */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Temporal } from 'temporal-polyfill';
@@ -50,13 +50,13 @@ export function useCalendarEvents(): CalendarEventsState {
     () => calendarService.getCachedEvents()
   );
 
-  const [isEnabled, setIsEnabled] = useState(() => calendarService.isPollingActive());
+  const [isEnabled, setIsEnabled] = useState(() => calendarService.isWatching());
   const [isInitialFetchDone, setIsInitialFetchDone] = useState(() => calendarService.hasInitialFetchDone());
 
   useEffect(() => {
     const unsubscribe = calendarService.onEventsUpdated((updatedEvents) => {
       setEvents(updatedEvents);
-      setIsEnabled(calendarService.isPollingActive());
+      setIsEnabled(calendarService.isWatching());
       setIsInitialFetchDone(calendarService.hasInitialFetchDone());
     });
     return unsubscribe;

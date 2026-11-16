@@ -1,4 +1,4 @@
-/** Opens when a recording start is refused for a missing permission; polls so rows flip to Allowed. */
+/** Opens when a recording start is refused for a missing permission; rows re-check after a request and on returning to Roci. */
 
 import React from 'react';
 import { X } from 'lucide-react';
@@ -23,10 +23,15 @@ function reportFailure(action: string) {
   return (error: unknown) => console.error(`[PermissionChecklist] ${action} failed:`, error);
 }
 
-const RowAction: React.FC<{ row: PermissionRow }> = ({ row }) => (
+interface RowActionProps {
+  row: PermissionRow;
+  request: (kind: PermissionKind) => Promise<void>;
+}
+
+const RowAction: React.FC<RowActionProps> = ({ row, request }) => (
   <PermissionAction
     state={row.state}
-    onRequest={() => permissionsService.request(row.kind).catch(reportFailure('request'))}
+    onRequest={() => request(row.kind).catch(reportFailure('request'))}
     onOpenSettings={() => permissionsService.openSettings(row.kind).catch(reportFailure('open settings'))}
   />
 );
@@ -34,7 +39,7 @@ const RowAction: React.FC<{ row: PermissionRow }> = ({ row }) => (
 export const PermissionChecklist: React.FC = () => {
   const open = usePermissionChecklistOpen();
   const setOpen = useAppStore((s) => s.setPermissionChecklistOpen);
-  const { data: rows = [] } = usePermissions(open);
+  const { data: rows = [], request } = usePermissions(open);
   const allReady = rows.length > 0 && rows.every((row) => row.state === 'ready');
 
   return (
@@ -58,7 +63,7 @@ export const PermissionChecklist: React.FC = () => {
                 key={row.kind}
                 title={COPY[row.kind].title}
                 description={COPY[row.kind].detail}
-                actions={<RowAction row={row} />}
+                actions={<RowAction row={row} request={request} />}
               />
             ))}
           </Card>

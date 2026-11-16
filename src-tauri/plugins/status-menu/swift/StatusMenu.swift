@@ -69,8 +69,11 @@ enum MenuMetrics {
 
 /// The status item and its menu for the app's lifetime. Items are updated in place, so a menu that is open
 /// while the state changes (the recording timer, a download) keeps its highlight and the user's click.
-final class StatusMenu: NSObject {
+final class StatusMenu: NSObject, NSMenuDelegate {
     static var shared: StatusMenu?
+    /// Sent through the action callback as the menu opens, so rows that age (the next meeting's minutes) are fresh.
+    /// Mirrors `menubar::item::MENU_OPENED`.
+    static let openedAction = "menu_opened"
 
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let menu = StatusMenu.makeMenu()
@@ -82,7 +85,12 @@ final class StatusMenu: NSObject {
     init(callback: @escaping ActionCallback) {
         self.callback = callback
         super.init()
+        menu.delegate = self
         item.menu = menu
+    }
+
+    func menuWillOpen(_ menu: NSMenu) {
+        StatusMenu.openedAction.withCString { callback($0) }
     }
 
     /// Items are enabled by the rows (picked rows and submenus), not by AppKit's responder-chain validation.

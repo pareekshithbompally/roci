@@ -1,4 +1,4 @@
-/** Mount once inside Recording/Settings contexts: event cache polling, meeting reminders, record-from-reminder. */
+/** Mount once inside Recording/Settings contexts: event cache watching, meeting reminders, record-from-reminder. */
 
 import { useEffect, useRef } from 'react';
 import { isTauriEnvironment } from '@services/tauri';
@@ -36,8 +36,8 @@ export function useCalendarRuntime(): void {
   // Calendar UI cache
   useEffect(() => {
     if (!enabled) return;
-    calendarService.startPolling();
-    return () => calendarService.stopPolling();
+    calendarService.startWatching();
+    return () => calendarService.stopWatching();
   }, [enabled]);
 
   // Native calendar reading follows the integration; reminders follow their own setting

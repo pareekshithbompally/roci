@@ -1,14 +1,22 @@
-import { useQuery } from '@tanstack/react-query';
-import { permissionsService } from '@services/permissions.service';
+import { useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { permissionsService, type PermissionKind } from '@services/permissions.service';
 import { queryKeys } from '@shared/query/queryKeys';
-import { PERMISSIONS_CONFIG } from '@config/permissions.config';
 
-/** Live permission rows; polls only while `enabled` so a grant flips its row. */
+/** Permission rows while `enabled`; re-read after a request and whenever Roci regains focus (back from System Settings). */
 export function usePermissions(enabled: boolean) {
-  return useQuery({
+  const queryClient = useQueryClient();
+  const query = useQuery({
     queryKey: queryKeys.permissions(),
     queryFn: () => permissionsService.getPermissions(),
     enabled,
-    refetchInterval: enabled ? PERMISSIONS_CONFIG.pollIntervalMs : false,
+    refetchOnWindowFocus: 'always',
   });
+
+  const request = useCallback(async (kind: PermissionKind) => {
+    await permissionsService.request(kind);
+    await queryClient.invalidateQueries({ queryKey: queryKeys.permissions() });
+  }, [queryClient]);
+
+  return { ...query, request };
 }

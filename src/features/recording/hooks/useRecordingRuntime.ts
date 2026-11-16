@@ -81,6 +81,8 @@ function useRecordingRow(): void {
       if (!paused && !busy) checkStillRecording(meetingId, seconds);
     };
     render();
+    // Only a running clock ticks; paused or stopping shows a still frame.
+    if (paused || busy) return;
     const timer = setInterval(render, TICK_MS);
     return () => clearInterval(timer);
   }, [meetingId, paused, busy]);

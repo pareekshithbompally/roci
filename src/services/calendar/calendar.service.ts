@@ -1,6 +1,7 @@
-/** 7-day EventKit cache refreshed every 2 min; meeting reminders run natively so a hidden window can't stall them. */
+/** 7-day EventKit cache, reread when the calendar plugin reports a change; meeting reminders run natively. */
 
 import { invoke } from '@tauri-apps/api/core';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { isTauriEnvironment } from '@services/tauri/environment.service';
 import { CALENDAR_CONFIG } from '@config/calendar.config';
 import type { CalendarEvent, CalendarAccessStatus, EnrichedCalendarEvent } from './types';
@@ -8,11 +9,9 @@ import type { CalendarEvent, CalendarAccessStatus, EnrichedCalendarEvent } from 
 type EventsUpdatedCallback = (events: EnrichedCalendarEvent[]) => void;
 
 class CalendarService {
-  // -- Timers --
-  private cacheRefreshTimer: ReturnType<typeof setInterval> | null = null;
-
   // -- Lifecycle --
-  private pollingActive = false;
+  private unlistenChanged: Promise<UnlistenFn> | null = null;
+  private watching = false;
   private initialFetchDone = false;
 
   // -- Event cache --
@@ -85,8 +84,8 @@ class CalendarService {
     return this.cachedEvents;
   }
 
-  isPollingActive(): boolean {
-    return this.pollingActive;
+  isWatching(): boolean {
+    return this.watching;
   }
 
   hasInitialFetchDone(): boolean {
@@ -107,32 +106,28 @@ class CalendarService {
     await this.refreshCache();
   }
 
-  // ─── Polling ─────────────────────────────────────────────────────
+  // ─── Watching ────────────────────────────────────────────────────
 
-  startPolling(): void {
-    this.stopPollingTimer();
+  /** Reads now, then rereads on every `calendar://changed` until stopped. */
+  startWatching(): void {
+    this.stopListening();
 
-    this.pollingActive = true;
+    this.watching = true;
     this.initialFetchDone = false;
 
     for (const listener of this.eventListeners) {
       listener(this.cachedEvents);
     }
 
-    this.refreshCache();
-    this.cacheRefreshTimer = setInterval(
-      () => this.refreshCache(),
-      CALENDAR_CONFIG.cacheRefreshIntervalMs
-    );
-
-    console.log('[CalendarService] Polling started (cache: %dms)',
-      CALENDAR_CONFIG.cacheRefreshIntervalMs
-    );
+    void this.refreshCache();
+    this.unlistenChanged = listen(CALENDAR_CONFIG.changedEvent, () => void this.refreshCache());
+    this.unlistenChanged.catch((error: unknown) =>
+      console.error('[CalendarService] Listening for calendar changes failed:', error));
   }
 
-  stopPolling(): void {
-    this.stopPollingTimer();
-    this.pollingActive = false;
+  stopWatching(): void {
+    this.stopListening();
+    this.watching = false;
     this.initialFetchDone = false;
     this.cachedEvents = [];
     for (const listener of this.eventListeners) {
@@ -156,11 +151,10 @@ class CalendarService {
     }
   }
 
-  private stopPollingTimer(): void {
-    if (this.cacheRefreshTimer) {
-      clearInterval(this.cacheRefreshTimer);
-      this.cacheRefreshTimer = null;
-    }
+  private stopListening(): void {
+    const unlisten = this.unlistenChanged;
+    this.unlistenChanged = null;
+    unlisten?.then((stop) => stop()).catch(() => undefined);
   }
 
   // ─── Internal: helpers ───────────────────────────────────────────

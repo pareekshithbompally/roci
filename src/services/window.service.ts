@@ -1,4 +1,4 @@
-/** Main window show/hide/toggle, always-on-top, minimize, maximize and center. */
+/** Main window show/hide/toggle, always-on-top, minimize, maximize, center and native focus changes. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -146,6 +146,17 @@ class WindowService {
     } catch (error) {
       console.error('Failed to minimize window:', error);
     }
+  }
+
+  /** Native key-window changes (the app returning from System Settings, say); returns the unsubscribe. */
+  onFocusChanged(handler: (focused: boolean) => void): () => void {
+    const currentWindow = this.getWindow();
+    if (!currentWindow) return () => undefined;
+    const unlisten = currentWindow.onFocusChanged(({ payload }) => handler(payload));
+    unlisten.catch((error: unknown) => console.error('[WindowService] focus listener failed:', error));
+    return () => {
+      unlisten.then((stop) => stop()).catch(() => undefined);
+    };
   }
 
   async maximize(): Promise<void> {

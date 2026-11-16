@@ -1,4 +1,4 @@
-/** macOS Calendar row: access and on/off; polling and reminders live in useCalendarRuntime. */
+/** macOS Calendar row: access and on/off; watching and reminders live in useCalendarRuntime. */
 
 import { useCallback } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';

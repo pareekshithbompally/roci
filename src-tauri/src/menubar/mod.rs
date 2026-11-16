@@ -4,7 +4,8 @@
 mod menu;
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -39,6 +40,8 @@ pub mod item {
     /// The next meeting's choices carry its occurrence: `next_meeting_join:<occurrence>`.
     pub const NEXT_MEETING_JOIN_PREFIX: &str = "next_meeting_join:";
     pub const NEXT_MEETING_RECORD_PREFIX: &str = "next_meeting_record:";
+    /// The menu is opening (sent by the status menu itself): refresh rows that age, like the next meeting's minutes.
+    pub const MENU_OPENED: &str = "menu_opened";
 }
 
 /// Default tooltip: the app name.
@@ -63,8 +66,11 @@ fn agent_entry(images: &Images, name: &str, title: &str) -> AgentEntry {
     }
 }
 
-/// How often the ticker re-reads the next meeting (its row counts down in minutes).
-const NEXT_MEETING_REFRESH_SECS: u64 = 15;
+/// The recording clock's step.
+const TICK: Duration = Duration::from_secs(1);
+
+/// Wakes the ticker when recording starts, pauses, resumes or stops.
+static TICKER: OnceLock<Sender<()>> = OnceLock::new();
 
 // ── Reports in ──
 
@@ -131,6 +137,13 @@ struct StateData {
     activity: Vec<ActivityEntry>,
     recent_meetings: Vec<RecentMeetingEntry>,
     update_version: Option<String>,
+}
+
+impl StateData {
+    /// The recording clock is running.
+    fn ticking(&self) -> bool {
+        self.recording_active && !self.paused
+    }
 }
 
 impl Default for StateData {
@@ -224,6 +237,18 @@ impl MenubarShared {
         serde_json::to_string(&menu_state).map_err(|e| format!("menu state: {e}"))
     }
 
+    /// One second of recording, when the clock is still running.
+    fn tick(&self) {
+        {
+            let mut state = self.lock();
+            if !state.ticking() {
+                return;
+            }
+            state.elapsed_secs = state.elapsed_secs.saturating_add(1);
+        }
+        self.push();
+    }
+
     /// Send the current state to the menu, in order with every other push.
     fn push(&self) {
         let _ordered = self.push.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -274,7 +299,11 @@ fn emit_action(app: &AppHandle, action: &str) {
 /// Dispatch a menu action; `roci://record`, `stop`, `show` and `settings` come through here too.
 /// The window, next-meeting and recent-meeting actions are handled here; the rest go to the webview.
 pub(crate) fn dispatch(app: &AppHandle, action: &str) {
-    if action == item::SHOW {
+    if action == item::MENU_OPENED {
+        if let Some(shared) = app.try_state::<MenubarShared>() {
+            shared.push();
+        }
+    } else if action == item::SHOW {
         crate::window::show_main(app);
     } else if let Some(occurrence) = action.strip_prefix(item::NEXT_MEETING_JOIN_PREFIX) {
         crate::meeting_reminders::record_occurrence(occurrence, true);
@@ -337,34 +366,40 @@ pub fn setup(app: &AppHandle) {
     }
 }
 
-/// Each second: the recording clock (pause freezes, resume continues, stop resets) and, every few seconds, the next meeting.
+/// The recording clock: a tick a second while recording and not paused; otherwise asleep until the state changes.
 fn spawn_ticker(shared: MenubarShared) {
-    std::thread::Builder::new()
+    let (wake, woken) = mpsc::channel();
+    if TICKER.set(wake).is_err() {
+        return;
+    }
+    let spawned = std::thread::Builder::new()
         .name("menubar-ticker".to_string())
-        .spawn(move || {
-            let mut next_meeting = crate::meeting_reminders::next_meeting();
-            let mut seconds: u64 = 0;
-            loop {
-                std::thread::sleep(Duration::from_secs(1));
-                seconds = seconds.wrapping_add(1);
-                let ticking = {
-                    let mut state = shared.lock();
-                    let ticking = state.recording_active && !state.paused;
-                    if ticking {
-                        state.elapsed_secs = state.elapsed_secs.saturating_add(1);
-                    }
-                    ticking
-                };
-                let meeting_changed = seconds % NEXT_MEETING_REFRESH_SECS == 0 && {
-                    let next = crate::meeting_reminders::next_meeting();
-                    std::mem::replace(&mut next_meeting, next.clone()) != next
-                };
-                if ticking || meeting_changed {
-                    shared.push();
-                }
-            }
-        })
-        .expect("failed to spawn menubar ticker thread");
+        .spawn(move || run_ticker(&shared, &woken));
+    if let Err(error) = spawned {
+        log::error!("[Menubar] ticker thread failed to start: {error}");
+    }
+}
+
+fn run_ticker(shared: &MenubarShared, woken: &Receiver<()>) {
+    loop {
+        let next = if shared.lock().ticking() {
+            woken.recv_timeout(TICK)
+        } else {
+            woken.recv().map_err(|_| RecvTimeoutError::Disconnected)
+        };
+        match next {
+            Ok(()) => {}
+            Err(RecvTimeoutError::Timeout) => shared.tick(),
+            Err(RecvTimeoutError::Disconnected) => return,
+        }
+    }
+}
+
+fn wake_ticker() {
+    let Some(ticker) = TICKER.get() else { return };
+    if ticker.send(()).is_err() {
+        log::warn!("[Menubar] ticker gone; recording clock not updated");
+    }
 }
 
 // ── Commands ──
@@ -386,14 +421,16 @@ fn report(app: &AppHandle, apply: impl FnOnce(&mut StateData) -> bool) -> Result
 pub async fn menubar_set_recording_state(app: AppHandle, active: bool, paused: bool) -> Result<(), String> {
     crate::call_detection::recording_changed(active);
     crate::meeting_reminders::recording_changed(active);
-    report(&app, |state| {
+    let reported = report(&app, |state| {
         if active != state.recording_active {
             state.elapsed_secs = 0;
         }
         state.recording_active = active;
         state.paused = active && paused;
         true
-    })
+    });
+    wake_ticker();
+    reported
 }
 
 /// The ready keyless speech models and the selected one.
