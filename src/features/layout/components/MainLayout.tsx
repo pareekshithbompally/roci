@@ -8,7 +8,7 @@ import { useActivityItems } from '@shared/stores/activityStore';
 import { Sidebar } from './Sidebar';
 import { MeetingChat, startNewChat } from '@features/chat';
 import { PanelLeft, SquarePen } from 'lucide-react';
-import { IS_MACOS } from '@platform/index';
+import { platform } from '@platform/index';
 import { AppStatus } from '@shared/types';
 import { LAYOUT } from '@config/layout.config';
 import { UI_CONFIG } from '@config/ui.config';
@@ -57,7 +57,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     document.body.style.userSelect = 'none';
   }, [sidebarWidth, setLeftPanelWidth]);
 
-  const shouldOffsetMacControls = IS_MACOS && (isSmallScreen || !isLeftPanelOpen);
+  const shouldOffsetMacControls = platform.hasWindowChrome && (isSmallScreen || !isLeftPanelOpen);
 
   // Meeting chat works on a selected meeting's results; it shows as its button or its window.
   const meetingChatAvailable = selectedHistoryId && status === AppStatus.RESULTS;
