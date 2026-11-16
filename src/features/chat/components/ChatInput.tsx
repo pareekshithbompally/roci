@@ -523,7 +523,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               {onAttach && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <IconButton icon={Plus} label="Attach" size="toolbar" />
+                    <IconButton icon={Plus} label="Attach" size="toolbar" disabled={disabled} />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent side="top" align="start" sideOffset={UI_CONFIG.picker.sideOffset}>
                     <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_IMAGES)}>
@@ -592,7 +592,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             <div className="flex items-center gap-2">
               {/* Mic voice input — only shown when idle and supported */}
               {showSpeechInput && onSpeechStart && !isLoading && (
-                <IconButton icon={Mic} label="Voice input" size="toolbar" onClick={onSpeechStart} />
+                <IconButton icon={Mic} label="Voice input" size="toolbar" onClick={onSpeechStart} disabled={disabled} />
               )}
 
               {isLoading ? (

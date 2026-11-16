@@ -4,6 +4,7 @@ export type { Theme } from './useTheme';
 
 // Media query hooks
 export { useSmallScreen, useMobileScreen } from './useMediaQuery';
+export { useDocumentVisible } from './useDocumentVisible';
 
 // Panel hooks
 export { useLeftPanel } from './useLeftPanel';

@@ -85,7 +85,7 @@ class ReminderService {
     return () => { viewMeetingHandler = null; };
   }
 
-  /** Launch: re-arm reminders still ahead (timed notices live in memory). */
+  /** Launch: re-arm reminders still ahead, so macOS holds exactly what the database does (same id replaces). */
   private async reconcile(): Promise<void> {
     try {
       await store.reminders.prune(SEVEN_DAYS_MS);

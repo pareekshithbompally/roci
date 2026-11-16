@@ -32,9 +32,12 @@ const PermissionRow: React.FC<{ row: OnboardingPermission }> = ({ row }) => {
 };
 
 export const PermissionsStep: React.FC = () => {
-  const { rows, requiredReady } = useOnboardingPermissions();
+  const { rows, requiredReady, applyGranted } = useOnboardingPermissions();
   const setStep = useSetOnboardingStep();
-  const next = () => setStep('setup');
+  const next = () => {
+    applyGranted();
+    setStep('setup');
+  };
 
   return (
     <div className="flex flex-col items-center gap-6">

@@ -21,7 +21,14 @@ function stopUnanswered(meetingId: string, seconds: number): void {
   recording.stop().catch((error: unknown) => console.error('[stillRecording] Auto-stop failed:', error));
 }
 
-/** Per recording tick. */
+/** Recorded second at which `checkStillRecording` next has work: a pending ask's auto-stop, else the next ask. */
+export function nextStillRecordingCheckAt(meetingId: string): number {
+  const askedAt = pendingAskAt.get(meetingId);
+  if (askedAt !== undefined) return askedAt + ask.autoStopAfterSeconds;
+  return (lastAskedAt.get(meetingId) ?? 0) + ask.askEverySeconds;
+}
+
+/** At the recorded second `nextStillRecordingCheckAt` names: ask, or stop an ask left unanswered. */
 export function checkStillRecording(meetingId: string, seconds: number): void {
   const askedAt = pendingAskAt.get(meetingId);
   if (askedAt !== undefined) {

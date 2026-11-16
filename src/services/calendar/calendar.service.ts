@@ -142,6 +142,8 @@ class CalendarService {
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const end = new Date(now.getTime() + CALENDAR_CONFIG.lookaheadDays * 86_400_000);
     const events = await this.getEventsInRange(startOfDay.toISOString(), end.toISOString());
+    // Stopped while reading: the integration is off, so the cache stays empty.
+    if (!this.watching) return;
 
     this.cachedEvents = events;
     this.initialFetchDone = true;

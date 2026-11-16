@@ -342,6 +342,8 @@ const App: React.FC = () => {
       <>
         <OnboardingView />
         <Toaster />
+        {/* A recording started meanwhile (menu bar, URL action) that macOS refuses still asks here */}
+        <PermissionChecklist />
         <ConfirmHost />
       </>
     );

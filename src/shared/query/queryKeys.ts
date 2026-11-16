@@ -1,4 +1,4 @@
-/** Integrations whose macOS access is polled (Settings › Integrations). */
+/** Integrations whose macOS access is checked (Settings › Integrations), again on returning to Roci. */
 export type AccessId = 'calendar' | 'reminders' | 'apple-notes' | 'notifications';
 
 export const queryKeys = {

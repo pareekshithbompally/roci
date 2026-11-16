@@ -8,7 +8,7 @@ export {
 
 // Hooks
 export { useLocalServers } from './hooks/useLocalServers';
-export { useSettings, useAppUpdate, scheduleStartupCheck, useMenubarSpeechModels, useMenubarReports, useLocalModelDownloads, useLocalModelControls, useLiveDictation, freshSpeechSources } from './hooks';
+export { useSettings, useAppUpdate, scheduleStartupCheck, useMenubarSpeechModels, useMenubarReports, useLocalModelDownloads, useLiveDictation, freshSpeechSources } from './hooks';
 export type { LiveDictation } from './hooks';
 
 // Stores

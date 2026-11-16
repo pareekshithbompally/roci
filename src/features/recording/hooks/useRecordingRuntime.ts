@@ -16,7 +16,8 @@ import {
   useRecordingPaused,
   useRecordingStore,
 } from '@features/recording/stores/recordingStore';
-import { checkStillRecording, listenForStillRecordingAnswers } from '@features/recording/stillRecording';
+import { checkStillRecording, listenForStillRecordingAnswers, nextStillRecordingCheckAt } from '@features/recording/stillRecording';
+import { useDocumentVisible } from '@shared/hooks';
 import { platform } from '@platform/index';
 
 const RECORDING_ROW = 'recording';
@@ -66,6 +67,7 @@ function useRecordingRow(): void {
   const meetingId = useRecordingMeetingId();
   const paused = useRecordingPaused();
   const busy = useRecordingBusy();
+  const visible = useDocumentVisible();
 
   // The recorder outlives the page: after a reload, pick up a recording that is still running.
   useEffect(() => {
@@ -81,13 +83,27 @@ function useRecordingRow(): void {
       const seconds = recordedSeconds(useRecordingStore.getState());
       const label = busy ? 'Stopping…' : paused ? 'Paused' : 'Recording';
       put({ ...ROW_DEFAULTS, id: RECORDING_ROW, type: 'recording', status: 'active', label, detail: clock(seconds), actions: recordingActions(paused, busy) });
-      if (!paused && !busy) checkStillRecording(meetingId, seconds);
     };
     render();
-    // Only a running clock ticks; paused or stopping shows a still frame.
-    if (paused || busy) return;
+    // A visible clock: ticks only while running and on screen; hidden, paused or stopping shows a still frame.
+    if (paused || busy || !visible) return;
     const timer = setInterval(render, TICK_MS);
     return () => clearInterval(timer);
+  }, [meetingId, paused, busy, visible]);
+
+  // The "still recording?" ask: one timer armed for its next deadline, on screen or not.
+  useEffect(() => {
+    if (!meetingId || paused || busy) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const arm = () => {
+      const seconds = recordedSeconds(useRecordingStore.getState());
+      timer = setTimeout(() => {
+        checkStillRecording(meetingId, recordedSeconds(useRecordingStore.getState()));
+        arm();
+      }, Math.max(0, nextStillRecordingCheckAt(meetingId) - seconds) * TICK_MS);
+    };
+    arm();
+    return () => clearTimeout(timer);
   }, [meetingId, paused, busy]);
 
   useEffect(() => listenForStillRecordingAnswers(), []);
