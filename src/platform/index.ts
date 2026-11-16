@@ -6,6 +6,7 @@ declare const __TAURI_PLATFORM__: string;
 const target = typeof __TAURI_PLATFORM__ !== 'undefined' ? __TAURI_PLATFORM__ : '';
 const mac = target === 'darwin';
 const ios = target === 'ios';
+const apple = mac || ios;
 
 export type PlatformKind = 'macos' | 'ios' | 'browser';
 
@@ -30,8 +31,8 @@ export const platform = {
   hasCodingAgents: mac,
   /** On-device speech and voice models (transcribe.cpp, Phonon). */
   hasOnDeviceModels: mac,
-  hasAppleIntelligence: mac,
-  hasNotifications: mac,
+  hasAppleIntelligence: apple,
+  hasNotifications: apple,
   hasCalendar: mac,
   hasSpotlight: mac,
   hasAppleNotes: mac,
