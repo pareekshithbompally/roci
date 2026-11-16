@@ -1,4 +1,4 @@
-/** App layout: resizable sidebar, content area, and the floating meeting chat. */
+/** App layout: resizable sidebar, content area, and the floating meeting chat; a phone gets `PhoneShell`. */
 
 import React, { useCallback, useRef, useMemo } from 'react';
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
@@ -9,6 +9,8 @@ import { Sidebar } from './Sidebar';
 import { MeetingChat, startNewChat } from '@features/chat';
 import { PanelLeft, SquarePen } from 'lucide-react';
 import { platform } from '@platform/index';
+import { useFormFactor } from '@platform/formFactor';
+import { PhoneShell } from './PhoneShell';
 import { AppStatus } from '@shared/types';
 import { LAYOUT } from '@config/layout.config';
 import { Badge, Button, Icon, Separator, Surface, TitlebarDragRegion } from '@shared/ui';
@@ -31,6 +33,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
   const activityCount = useMemo(() => activityItems.length, [activityItems]);
+  const formFactor = useFormFactor();
 
   /** Sidebar resize: drag the right edge */
   const handleResizeStart = useCallback((e: React.MouseEvent) => {
@@ -72,6 +75,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       ? 'opacity-100 visible'
       : 'opacity-0 invisible pointer-events-none'
   }`;
+
+  if (formFactor === 'phone') return <PhoneShell onSearchClick={onSearchClick}>{children}</PhoneShell>;
 
   return (
     <Surface as="main" variant="page" className="relative h-screen overflow-hidden">

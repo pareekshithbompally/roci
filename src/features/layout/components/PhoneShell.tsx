@@ -1,0 +1,49 @@
+/** iPhone shell: a plain chatbot — top bar (sidebar · model · Record), the content, the sidebar sliding over from the left. */
+
+import React from 'react';
+import { PanelLeft } from 'lucide-react';
+import { useLeftPanel } from '@shared/hooks/useLeftPanel';
+import { ModelPicker } from '@features/chat';
+import { useRecordingBusy, useRecordingMeetingId, useStartRecording } from '@features/recording';
+import { platform } from '@platform/index';
+import { Button, Dot, Drawer, IconButton, Surface, TopBar } from '@shared/ui';
+import { Sidebar } from './Sidebar';
+
+interface PhoneShellProps {
+  children: React.ReactNode;
+  onSearchClick?: () => void;
+}
+
+const RecordButton: React.FC = () => {
+  const startRecording = useStartRecording();
+  const busy = useRecordingBusy();
+  const meetingId = useRecordingMeetingId();
+  const record = () => {
+    startRecording().catch((error: unknown) => console.error('[PhoneShell] Failed to start recording:', error));
+  };
+  return (
+    <Button variant="outline" size="sm" onClick={record} disabled={busy || !!meetingId}>
+      <Dot tone="danger" />
+      Record
+    </Button>
+  );
+};
+
+export const PhoneShell: React.FC<PhoneShellProps> = ({ children, onSearchClick }) => {
+  const open = useLeftPanel((s) => s.open);
+  const setLeftPanel = useLeftPanel((s) => s.setLeftPanel);
+
+  return (
+    <Surface as="main" variant="page" className="relative flex h-screen flex-col overflow-hidden">
+      <TopBar
+        leading={<IconButton icon={PanelLeft} label="Open sidebar" onClick={() => setLeftPanel(true)} />}
+        title={<ModelPicker compact />}
+        trailing={platform.canRecord && <RecordButton />}
+      />
+      <div className="relative flex min-h-0 flex-1 flex-col">{children}</div>
+      <Drawer side="start" open={open} onClose={() => setLeftPanel(false)} label="Sidebar">
+        <Sidebar shouldOffsetMacControls={false} onSearchClick={onSearchClick} />
+      </Drawer>
+    </Surface>
+  );
+};

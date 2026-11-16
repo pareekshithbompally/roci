@@ -5,6 +5,7 @@ export {
   ChatView,
   ChatMessage,
   ChatInput,
+  ModelPicker,
 } from './components';
 export type { ChatShellProps } from './components';
 
