@@ -41,9 +41,8 @@ features/
 
 **Context Provider Hierarchy** (defined in AppProviders.tsx):
 ```
-ErrorBoundary → ThemeProvider → ToastProvider → SettingsProvider → UnsavedChangesProvider →
-  AppProvider → HistoryProvider → MeetingProvider → MeetingDataProviders (Notes + Todos) →
-  ImportProvider → ChatProvider → RecordingProviderWrapper
+ErrorBoundary → ThemeProvider → ToastProvider → TooltipProvider → QueryClientProvider →
+  SettingsProvider → HistoryProvider → ImportProvider
 ```
 Order matters: outer providers are available to inner providers.
 

@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import UserMessage from './UserMessage';
 import AssistantMessage from './AssistantMessage';
 import type { ChatMessageProps } from './types';
+import { cn } from '@shared/ui';
 
 export const ChatMessage: React.FC<ChatMessageProps> = memo(({
   id, role, text, parts, meetingRefs, timestamp, suggestions, onSuggestionClick,
@@ -14,7 +15,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({
   const isUser = role === 'user';
 
   return (
-    <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={cn('flex gap-3', isUser ? 'justify-end' : 'justify-start')}>
       {isUser ? (
         <UserMessage id={id} text={text} parts={parts} meetingRefs={meetingRefs} timestamp={timestamp} isCopied={isCopied} actions={actions} />
       ) : (

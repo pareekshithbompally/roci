@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
-import { useChat } from '@shared/contexts/ChatContext';
+import { useChatStore } from '@features/chat';
 import { useToast } from '@shared/contexts/ToastContext';
 import { confirmDelete } from '@shared/stores/confirmStore';
 import type { UnifiedSidebarItem } from '@shared/types';
@@ -13,7 +13,7 @@ type SessionRef = Pick<UnifiedSidebarItem, 'type' | 'id'>;
 
 export function useDeleteSession(): (session: SessionRef) => Promise<void> {
   const { deleteItem } = useHistoryData();
-  const { deleteSession } = useChat();
+  const deleteSession = useChatStore((s) => s.deleteSession);
   const { showToast } = useToast();
 
   const deleteChat = useCallback(

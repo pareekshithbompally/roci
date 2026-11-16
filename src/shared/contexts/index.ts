@@ -9,8 +9,5 @@ export type { Theme } from './ThemeContext';
 // History Context
 export { HistoryProvider, useHistory } from './HistoryContext';
 
-// Chat Context
-export { ChatProvider, useChat } from './ChatContext';
-
 // Settings Context
 export { SettingsProvider, useSettings } from './SettingsContext';

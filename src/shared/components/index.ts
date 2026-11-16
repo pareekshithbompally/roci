@@ -13,6 +13,5 @@ export { AppIcon, AppImage, useAppIcon } from './AppIcon';
 export { OnDeviceModelActivity } from './OnDeviceModelActivity';
 export { ProvidersAvatar } from './ProvidersAvatar';
 export { RenameModal } from './RenameModal';
-export { SearchOverlay } from './SearchOverlayDialog';
 export { ServerIcon } from './ServerIcon';
 export { Markdown } from './markdown/Markdown';

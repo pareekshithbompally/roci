@@ -14,11 +14,6 @@ export function useFollowBottom(onAtBottomChange?: (atBottom: boolean) => void) 
   const contentRef = useRef<HTMLDivElement | null>(null);
   const followRef = useRef(true);
 
-  /** Follow again from the next growth, without scrolling now. */
-  const follow = useCallback(() => {
-    followRef.current = true;
-  }, []);
-
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     const el = scrollRef.current;
     if (!el) return;
@@ -51,5 +46,5 @@ export function useFollowBottom(onAtBottomChange?: (atBottom: boolean) => void) 
     return () => observer.disconnect();
   }, []);
 
-  return { scrollRef, contentRef, follow, scrollToBottom, onScroll, onWheel };
+  return { scrollRef, contentRef, scrollToBottom, onScroll, onWheel };
 }

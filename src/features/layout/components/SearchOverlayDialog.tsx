@@ -6,12 +6,11 @@ import type { LucideIcon } from 'lucide-react';
 import { vectorDB } from '@extensions/rag/client';
 import { CommandDialog, CommandInput, CommandList, CommandGroup, CommandItem, CommandSeparator, Icon, Kbd, Separator, Text } from '@shared/ui';
 import { EmptyState } from '@shared/components/EmptyState';
-import { useUnifiedSidebar } from '@shared/hooks/useUnifiedSidebar';
+import { useOpenMeeting, useUnifiedSidebar } from '@features/history/hooks';
 import { useAppActions } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
 import type { UnifiedSidebarItem } from '@shared/types';
-import { useChat } from '@shared/contexts/ChatContext';
-import { useOpenMeeting } from '@shared/hooks/useOpenMeeting';
+import { useChatStore } from '@features/chat';
 import { formatRelativeTime } from '@shared/utils/formatters';
 import {
   SPOTLIGHT_DEBOUNCE_MS,
@@ -66,7 +65,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ open, onOpenChange
 function SpotlightBody({ onClose }: { onClose: () => void }) {
   const { items } = useUnifiedSidebar();
   const { setCurrentView, setStatus, setSelectedHistoryId, setResult } = useAppActions();
-  const chat = useChat();
+  const selectSession = useChatStore((s) => s.selectSession);
   const openMeeting = useOpenMeeting();
 
   const [query, setQuery] = useState('');
@@ -134,7 +133,7 @@ function SpotlightBody({ onClose }: { onClose: () => void }) {
           await openMeeting(sidebarItem.historyItem);
         }
       } else {
-        chat.selectSession(hit.source_id);
+        selectSession(hit.source_id);
         setCurrentView('home');
         setSelectedHistoryId(null);
         setResult(null);
@@ -142,7 +141,7 @@ function SpotlightBody({ onClose }: { onClose: () => void }) {
       }
       onClose();
     },
-    [items, setCurrentView, setSelectedHistoryId, setStatus, setResult, chat, onClose, openMeeting],
+    [items, setCurrentView, setSelectedHistoryId, setStatus, setResult, selectSession, onClose, openMeeting],
   );
 
   const meetingHits = results.filter((h) => h.source_type === 'meeting');

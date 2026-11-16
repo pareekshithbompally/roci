@@ -6,6 +6,7 @@ import { extractTokenUsage } from './types';
 import { recordUsage } from '@extensions/usage';
 import { formatTemporalContext } from '@core/ai';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
+import { REPLY_PREVIEW_CHARS } from '@config/chat.config';
 
 const SUGGESTIONS_SCHEMA = {
   type: 'object' as const,
@@ -37,7 +38,7 @@ export async function generateSuggestions(options: {
     messages: [
       {
         role: 'user',
-        content: `User: ${userMessage}\n\nAssistant: ${responsePreview.slice(0, 500)}`,
+        content: `User: ${userMessage}\n\nAssistant: ${responsePreview.slice(0, REPLY_PREVIEW_CHARS)}`,
       },
     ],
     output: Output.object({ schema: jsonSchema(SUGGESTIONS_SCHEMA) }),

@@ -92,7 +92,7 @@ src/
   shared/
     stores/       Zustand (appStore + panel/streaming stores)   ui/  Radix primitives
     query/        queryClient + queryKeys factory               components/  shared UI
-    contexts/     DI-only contexts (Theme Settings Toast History Chat …)
+    contexts/     DI-only contexts (Theme Settings Toast History …)
     hooks/ utils/ types/
   core/ai/        prompts, Zod schemas, requestBuilder, temporal, types
   config/         *.config.ts — theme + UI + domain tokens (single source of truth)

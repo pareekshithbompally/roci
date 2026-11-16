@@ -42,6 +42,8 @@ export { ButtonGroup } from './button-group';
 export type { SurfaceProps, SurfaceVariant, DotTone } from './surface';
 export { Disclosure } from './disclosure';
 export type { DisclosureProps, DisclosureVariant } from './disclosure';
+export { Drawer } from './drawer';
+export type { DrawerProps } from './drawer';
 export { ContextRing } from './context-ring';
 export type { ContextRingProps } from './context-ring';
 export { Toaster, showToast, dismissToast } from './sonner';

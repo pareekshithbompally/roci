@@ -32,13 +32,23 @@ export interface TextProps extends React.HTMLAttributes<HTMLElement> {
   variant?: TextVariant;
   tone?: TextTone;
   truncate?: boolean;
+  /** Work in progress: a light band sweeps across the words in place of `tone`; faint, still text under Reduce Motion. */
+  shimmer?: boolean;
   htmlFor?: string;
 }
 
-export function Text({ as: Tag = 'span', variant = 'body', tone = 'primary', truncate, className, ...props }: TextProps) {
+const SHIMMER_CLASSES =
+  'bg-text-shimmer bg-shimmer bg-clip-text text-transparent animate-text-shimmer motion-reduce:animate-none motion-reduce:bg-none motion-reduce:text-faint';
+
+export function Text({ as: Tag = 'span', variant = 'body', tone = 'primary', truncate, shimmer, className, ...props }: TextProps) {
   return (
     <Tag
-      className={cn(variant === 'inherit' ? '' : TYPOGRAPHY_CLASSES[variant], TONE_CLASSES[tone], truncate && 'truncate', className)}
+      className={cn(
+        variant === 'inherit' ? '' : TYPOGRAPHY_CLASSES[variant],
+        shimmer ? SHIMMER_CLASSES : TONE_CLASSES[tone],
+        truncate && 'truncate',
+        className,
+      )}
       {...props}
     />
   );

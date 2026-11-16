@@ -6,7 +6,6 @@ import { ThemeProvider } from '@shared/contexts/ThemeContext';
 import { ToastProvider } from '@shared/contexts/ToastContext';
 import { SettingsProvider } from '@shared/contexts/SettingsContext';
 import { HistoryProvider } from '@shared/contexts/HistoryContext';
-import { ChatProvider } from '@shared/contexts/ChatContext';
 import { ImportProvider } from '@features/import';
 import { queryClient } from '@shared/query/queryClient';
 import { Surface, Text, TooltipProvider } from '@shared/ui';
@@ -68,9 +67,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
               <SettingsProvider>
                 <HistoryProvider>
                   <ImportProvider>
-                    <ChatProvider>
-                      {children}
-                    </ChatProvider>
+                    {children}
                   </ImportProvider>
                 </HistoryProvider>
               </SettingsProvider>

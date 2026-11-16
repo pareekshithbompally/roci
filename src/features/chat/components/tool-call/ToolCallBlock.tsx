@@ -1,5 +1,4 @@
 import React from 'react';
-import { Loader2 } from 'lucide-react';
 import { Badge, Disclosure, Icon, Text } from '@shared/ui';
 import type { DisclosureVariant } from '@shared/ui';
 import { ServerIcon } from '@shared/components';
@@ -8,7 +7,6 @@ import type { ToolCallPart } from '@shared/types';
 import { formatExecutionMs, toolCallTitle } from './toolCallTitle';
 import { toolCallIcon } from './toolCallIcons';
 import { ToolCallBody } from './ToolCallBody';
-import { useAutoFold } from '@features/chat/hooks/useAutoFold';
 
 /** The MCP server's own icon, looked up from the connected servers. */
 function McpToolGlyph({ source }: { source: string }) {
@@ -16,9 +14,8 @@ function McpToolGlyph({ source }: { source: string }) {
   return <ServerIcon name={source} icon={serverInfo?.get(source)?.icon} />;
 }
 
-/** Spinner while running, the server icon for MCP tools, else the tool's glyph. */
-export function ToolCallGlyph({ part }: { part: ToolCallPart }) {
-  if (part.status === 'calling') return <Icon icon={Loader2} size="xs" tone="faint" className="shrink-0 animate-spin" />;
+/** The server icon for MCP tools, else the tool's glyph; it never swaps while the call runs. */
+function ToolCallGlyph({ part }: { part: ToolCallPart }) {
   if (part.source) return <McpToolGlyph source={part.source} />;
   return <Icon icon={toolCallIcon(part.toolName)} size="xs" tone="faint" className="shrink-0" />;
 }
@@ -33,30 +30,22 @@ function ToolCallMeta({ part }: { part: ToolCallPart }) {
 
 export interface ToolCallBlockProps {
   part: ToolCallPart;
-  /** Open while it runs and fold after (default); off once its run has folded. */
-  follow?: boolean;
   /** `inline` at the top of a reply, flush with its text; `row` (default) when nested in a folded run. */
   variant?: DisclosureVariant;
 }
 
-/** One collapsible tool call; alone it follows the call's progress, inside a group it starts folded. */
-export const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ part, follow = true, variant }) => {
-  const [open, setOpen] = useAutoFold(follow && part.status === 'calling');
-
-  return (
+/** One tool call as a folded line that shimmers while it runs; opening it shows the call in place. */
+export const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ part, variant }) => (
   <Disclosure
     variant={variant}
-    open={open}
-    onOpenChange={setOpen}
     summary={
       <>
         <ToolCallGlyph part={part} />
-        <Text tone="muted" truncate className="flex-1 min-w-0">{toolCallTitle(part)}</Text>
+        <Text tone="muted" shimmer={part.status === 'calling'} truncate className="min-w-0 mr-auto">{toolCallTitle(part)}</Text>
         <ToolCallMeta part={part} />
       </>
     }
   >
     <ToolCallBody part={part} />
   </Disclosure>
-  );
-};
+);

@@ -4,18 +4,16 @@ import React from 'react';
 import { LayoutGroup } from 'framer-motion';
 import { useAppStatus, useSelectedHistoryId } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
-import { useChat } from '@shared/contexts/ChatContext';
-import { ChatView } from '@features/chat';
+import { ChatView, useChatCurrentSessionId } from '@features/chat';
 import { IdleView } from './IdleView';
 import { ResultsView } from './ResultsView';
 
 export const HomeView: React.FC = () => {
   const status = useAppStatus();
   const selectedHistoryId = useSelectedHistoryId();
-  const chat = useChat();
 
   // Determine what to show based on selections and status
-  const hasSelectedChat = chat.currentSessionId !== null;
+  const hasSelectedChat = useChatCurrentSessionId() !== null;
   const hasSelectedMeeting = selectedHistoryId !== null;
 
   // Status takes precedence over selections: "New Chat" sets IDLE, which shows IdleView

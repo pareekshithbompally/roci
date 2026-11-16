@@ -5,18 +5,16 @@ import { ChevronLeft, Search, SquarePen, PanelLeft, Settings } from 'lucide-reac
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
 import { useSmallScreen } from '@shared/hooks/useMediaQuery';
 import { useSelectedHistoryId, useCurrentView, useAppActions } from '@shared/stores/appStore';
-import { useChat } from '@shared/contexts/ChatContext';
 import { UnifiedList } from '@features/history';
 import { SettingsNav } from '@features/settings/components/SettingsNav';
-import { useUnifiedSidebar } from '@shared/hooks/useUnifiedSidebar';
+import { useOpenMeeting, useUnifiedSidebar } from '@features/history/hooks';
 import { AppStatus } from '@shared/types';
 import { LAYOUT } from '@config/layout.config';
 import { IconButton, Icon, Row, RowGroupLabel, Kbd } from '@shared/ui';
 import { ActivityTray } from '@shared/components';
 import { shortcutLabel } from '@features/shortcuts';
-import { startNewChat } from '@features/chat';
+import { startNewChat, useChatStore } from '@features/chat';
 import type { UnifiedSidebarItem } from '@shared/types';
-import { useOpenMeeting } from '@shared/hooks/useOpenMeeting';
 
 interface SidebarProps {
   shouldOffsetMacControls: boolean;
@@ -34,21 +32,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { items } = useUnifiedSidebar();
   const selectedHistoryId = useSelectedHistoryId();
   const { setCurrentView, leaveSettings, setStatus, setSelectedHistoryId, setResult } = useAppActions();
-  const chat = useChat();
+  const currentChatId = useChatStore((s) => s.currentSessionId);
+  const selectSession = useChatStore((s) => s.selectSession);
   const listContainerRef = useRef<HTMLDivElement>(null);
   const openMeeting = useOpenMeeting();
 
   // Scroll the selected item into view when selection changes (e.g. from spotlight)
   useEffect(() => {
     if (!selectedHistoryId || !listContainerRef.current) return;
-    const chatId = chat.currentSessionId;
+    const chatId = currentChatId;
     const itemType = chatId ? 'chat' : 'meeting';
     const itemId = chatId || selectedHistoryId;
     const el = listContainerRef.current.querySelector(`[data-sidebar-id="${itemType}-${itemId}"]`);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
-  }, [selectedHistoryId, chat.currentSessionId]);
+  }, [selectedHistoryId, currentChatId]);
 
   const handleHomeClick = () => {
     startNewChat();
@@ -64,18 +63,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (item.type === 'meeting' && item.historyItem) {
       await openMeeting(item.historyItem);
     } else if (item.type === 'chat') {
-      chat.selectSession(item.id);
+      selectSession(item.id);
       setCurrentView('home');
       setSelectedHistoryId(null);
       setResult(null);
       setStatus(AppStatus.CHAT);
     }
     if (isSmallScreen) setLeftPanel(false);
-  }, [setCurrentView, setSelectedHistoryId, setResult, setStatus, chat, isSmallScreen, setLeftPanel, openMeeting]);
+  }, [setCurrentView, setSelectedHistoryId, setResult, setStatus, selectSession, isSmallScreen, setLeftPanel, openMeeting]);
 
   const getSelectedId = (): string | null => {
     if (selectedHistoryId) return selectedHistoryId;
-    if (chat.currentSessionId) return chat.currentSessionId;
+    if (currentChatId) return currentChatId;
     return null;
   };
 

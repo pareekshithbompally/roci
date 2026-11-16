@@ -1,8 +1,7 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render as rtlRender, screen, fireEvent, act } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { render as rtlRender, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
-import { ANIMATION_CONFIG } from '@config/animations.config';
 import { CHAT_ACTIVITY_COPY, CHAT_REASONING_COPY } from '@config/chat.config';
 import { ActivityRun } from '@features/chat/components/message/ActivityRun';
 import type { ActivityPart, IndexedPart } from '@features/chat/components/message/groupActivity';
@@ -18,8 +17,6 @@ const call = (id: string, index: number, status: 'calling' | 'complete' = 'compl
 });
 
 describe('ActivityRun', () => {
-  afterEach(() => { vi.useRealTimers(); });
-
   it('shows each thinking block and tool call as its own row while the model works', () => {
     render(<ActivityRun items={[thought, call('a', 1), call('b', 2, 'calling')]} settled={false} liveIndex={2} />);
     expect(screen.getAllByRole('button')).toHaveLength(3);
@@ -36,12 +33,10 @@ describe('ActivityRun', () => {
   });
 
   it('folds the same run in place the moment the answer starts, keeping its rows', () => {
-    vi.useFakeTimers();
     const items = [thought, call('a', 1), call('b', 2)];
     const { rerender } = rtlRender(wrap(<ActivityRun items={items} settled={false} liveIndex={2} />));
     expect(screen.getAllByRole('button')).toHaveLength(3);
     rerender(wrap(<ActivityRun items={items} settled liveIndex={3} />));
-    act(() => { vi.runOnlyPendingTimers(); });
     const run = screen.getByRole('button', { name: new RegExp(CHAT_ACTIVITY_COPY.tools(2)) });
     expect(run).toHaveAttribute('aria-expanded', 'false');
   });
@@ -54,7 +49,7 @@ describe('ActivityRun', () => {
     expect(screen.queryByText(CHAT_ACTIVITY_COPY.thought)).not.toBeInTheDocument();
   });
 
-  it('shows live thinking open with the server stats joined by dots', () => {
+  it('keeps live thinking folded with a shimmering label and the server stats joined by dots', () => {
     render(
       <ActivityRun
         items={[thought]}
@@ -63,19 +58,20 @@ describe('ActivityRun', () => {
         generation={{ tokens: 214, elapsedMs: 12300, tokensPerSecond: 9.43 }}
       />,
     );
-    expect(screen.getByRole('button', { name: new RegExp(CHAT_REASONING_COPY.thinking) })).toHaveAttribute('aria-expanded', 'true');
+    const row = screen.getByRole('button', { name: new RegExp(CHAT_REASONING_COPY.thinking) });
+    expect(row).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByText(CHAT_REASONING_COPY.thinking)).toHaveClass('animate-text-shimmer');
     expect(screen.getByText('214 tokens · 12.3s · 9.4 tok/s')).toBeInTheDocument();
-    expect(screen.getByText('Let me check the meetings.')).toBeInTheDocument();
+    expect(screen.queryByText('Let me check the meetings.')).not.toBeInTheDocument();
   });
 
-  it('keeps a row the user closed by hand closed, even while it runs', () => {
-    vi.useFakeTimers();
-    const { rerender } = rtlRender(wrap(<ActivityRun items={[call('a', 0, 'calling')]} settled={false} liveIndex={0} />));
-    const row = screen.getByRole('button');
-    fireEvent.click(row);
-    expect(row).toHaveAttribute('aria-expanded', 'false');
-    rerender(wrap(<ActivityRun items={[call('a', 0)]} settled={false} liveIndex={0} />));
-    act(() => { vi.advanceTimersByTime(ANIMATION_CONFIG.chat.activityFoldDelayMs); });
-    expect(row).toHaveAttribute('aria-expanded', 'false');
+  it('opens one running row in place, leaving the others folded, and keeps it open when it finishes', () => {
+    const { rerender } = rtlRender(wrap(<ActivityRun items={[call('a', 0), call('b', 1, 'calling')]} settled={false} liveIndex={1} />));
+    const [first, running] = screen.getAllByRole('button');
+    fireEvent.click(running);
+    expect(running).toHaveAttribute('aria-expanded', 'true');
+    expect(first).toHaveAttribute('aria-expanded', 'false');
+    rerender(wrap(<ActivityRun items={[call('a', 0), call('b', 1)]} settled={false} liveIndex={1} />));
+    expect(running).toHaveAttribute('aria-expanded', 'true');
   });
 });

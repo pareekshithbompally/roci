@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { SearchOverlay } from '@shared/components/SearchOverlayDialog';
+import { SearchOverlay } from '@features/layout/components/SearchOverlayDialog';
 import { SPOTLIGHT_DEBOUNCE_MS } from '@config/chat.config';
 
-vi.mock('@shared/hooks/useUnifiedSidebar', () => ({
+vi.mock('@features/history/hooks/useUnifiedSidebar', () => ({
   useUnifiedSidebar: () => ({
     items: [
       { id: 'm1', type: 'meeting', title: 'Weekly Sync', timestamp: Date.now(), historyItem: { id: 'm1', title: 'Weekly Sync' } },
@@ -11,10 +11,6 @@ vi.mock('@shared/hooks/useUnifiedSidebar', () => ({
     ],
     isLoading: false,
   }),
-}));
-
-vi.mock('@shared/contexts/ChatContext', () => ({
-  useChat: () => ({ setCurrentSessionId: vi.fn(), selectSession: vi.fn() }),
 }));
 
 vi.mock('@shared/hooks/useMeetingDetailLoader', () => ({

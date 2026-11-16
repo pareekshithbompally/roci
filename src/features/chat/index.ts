@@ -5,12 +5,12 @@ export {
   ChatView,
   ChatMessage,
   ChatInput,
-  ChatHistoryList,
 } from './components';
 export type { ChatShellProps } from './components';
 
 // Hooks
-export { useChat } from './hooks';
+export { useChatRuntime, useChatIndex } from './hooks';
+export { canSendDraft } from './utils';
 export { useSpeechInput } from './hooks/useSpeechInput';
 export type { SpeechState, UseSpeechInputResult } from './hooks/useSpeechInput';
 export { useVoiceCapture } from './hooks/useVoiceCapture';
@@ -22,25 +22,7 @@ export {
   focusChatComposer,
   startNewChat,
   askInNewChat,
-  registerChatComposer,
-  injectChatRefs,
-  useChatSessionIndex,
   useChatCurrentSessionId,
-  useChatInitialized,
-  useChatSessionLoading,
-  useChatInput,
-  useChatIsLoading,
-  useChatViewHistory,
-  useChatSearchQuery,
-  useChatDebouncedSearchQuery,
-  useChatCopiedMessageId,
-  useChatSelectedMeetingRefs,
-  useChatWebSearchEnabled,
-  useChatAiActivity,
-  useChatPendingAttachments,
-  useCurrentSession,
-  useFilteredIndexEntries,
-  useChatActions,
   todoProposalStore,
   commitTodoProposal,
   useTodoProposals,

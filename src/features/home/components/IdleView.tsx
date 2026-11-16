@@ -6,7 +6,7 @@ import { ImportButton } from '@features/import';
 import { useAppActions } from '@shared/stores/appStore';
 import { useRecordingBusy, useRecordingMeetingId, useStartRecording } from '@features/recording';
 import { isTauriEnvironment } from '@services/tauri';
-import { askInNewChat, useChatStore } from '@features/chat';
+import { askInNewChat, canSendDraft, useChatStore } from '@features/chat';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { ChatInput } from '@features/chat';
@@ -44,7 +44,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   const canRecord = isTauriEnvironment() && !recordingMeetingId && !recordingBusy;
 
   const chatInput = useChatStore((s) => s.input);
-  const isGenerating = useChatStore((s) => s.isLoading);
+  const isGenerating = useChatStore((s) => s.replyingSessionId !== null);
   const pendingAttachments = useChatStore((s) => s.pendingAttachments);
   const selectedMeetingRefs = useChatStore((s) => s.selectedMeetingRefs);
 
@@ -101,9 +101,8 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   };
 
   const handleSendMessage = () => {
-    if (!chatInput.trim() || isGenerating) return;
-
-    askInNewChat(chatInput);
+    if (!canSendDraft(chatInput, pendingAttachments) || isGenerating) return;
+    askInNewChat();
   };
 
   return (

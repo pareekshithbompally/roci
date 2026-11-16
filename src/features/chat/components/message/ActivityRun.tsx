@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Layers } from 'lucide-react';
 import { Badge, Disclosure, Icon, Text } from '@shared/ui';
 import { CHAT_ACTIVITY_COPY } from '@config/chat.config';
@@ -6,7 +6,6 @@ import { META_SEPARATOR } from '@config/ui.config';
 import type { ToolCallPart } from '@shared/types';
 import { ToolCallBlock, formatExecutionMs } from '@features/chat/components/tool-call';
 import type { GenerationStats } from '@services/ai/types';
-import { useAutoFold } from '@features/chat/hooks/useAutoFold';
 import { ReasoningBlock } from './ReasoningBlock';
 import type { ActivityPart, IndexedPart } from './groupActivity';
 
@@ -41,10 +40,10 @@ function RunMeta({ items }: { items: IndexedPart<ActivityPart>[] }) {
 }
 
 /**
- * Each thinking block and tool call as its own row; rows follow their work unless the run has settled.
+ * Each thinking block and tool call as its own folded row.
  * At the top of a reply they sit flush with its text (`inline`); nested in a folded run they're indented rows.
  */
-function ActivityRows({ items, settled, liveIndex, generation, nested }: ActivityRunProps & { nested: boolean }) {
+function ActivityRows({ items, liveIndex, generation, nested }: Omit<ActivityRunProps, 'settled'> & { nested: boolean }) {
   const variant = nested ? 'row' : 'inline';
   return (
     <>
@@ -52,7 +51,7 @@ function ActivityRows({ items, settled, liveIndex, generation, nested }: Activit
         part.type === 'reasoning' ? (
           <ReasoningBlock key={index} text={part.text} thinking={index === liveIndex} generation={generation} variant={variant} />
         ) : (
-          <ToolCallBlock key={part.toolCallId} part={part} follow={!settled} variant={variant} />
+          <ToolCallBlock key={part.toolCallId} part={part} variant={variant} />
         ),
       )}
     </>
@@ -64,21 +63,21 @@ function RunSummary({ items }: { items: IndexedPart<ActivityPart>[] }) {
   return (
     <>
       <Icon icon={Layers} size="xs" tone="faint" className="shrink-0" />
-      <Text tone="muted" truncate className="flex-1 min-w-0">{runTitle(items)}</Text>
+      <Text tone="muted" truncate className="min-w-0 mr-auto">{runTitle(items)}</Text>
       <RunMeta items={items} />
     </>
   );
 }
 
 /**
- * One run of the model's work: separate rows while it works; the moment the answer starts, two or more fold
- * into one line. One tree for the run's whole life, so rows keep their state and the fold animates.
+ * One run of the model's work: separate folded rows while it works; the moment the answer starts, two or more
+ * fold into one line. One tree for the run's whole life, so rows keep their state and the fold animates.
  */
 export const ActivityRun: React.FC<ActivityRunProps> = (props) => {
   const folds = props.settled && props.items.length > 1;
-  const [open, setOpen] = useAutoFold(!folds, 0);
+  const [reopened, setReopened] = useState(false);
   return (
-    <Disclosure variant="inline" open={open} onOpenChange={setOpen} summary={folds ? <RunSummary items={props.items} /> : undefined}>
+    <Disclosure variant="inline" open={!folds || reopened} onOpenChange={setReopened} summary={folds ? <RunSummary items={props.items} /> : undefined}>
       <ActivityRows {...props} nested={folds} />
     </Disclosure>
   );

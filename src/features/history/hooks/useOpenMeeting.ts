@@ -2,14 +2,14 @@
 
 import { useCallback } from 'react';
 import { useAppActions } from '@shared/stores/appStore';
-import { useChat } from '@shared/contexts/ChatContext';
+import { useChatStore } from '@features/chat';
 import { AppStatus } from '@shared/types';
 import type { HistoryItem } from '@shared/types';
-import { useMeetingDetailLoader } from './useMeetingDetailLoader';
+import { useMeetingDetailLoader } from '@shared/hooks/useMeetingDetailLoader';
 
 export function useOpenMeeting(): (meeting: HistoryItem) => Promise<void> {
   const { setCurrentView, setSelectedHistoryId, setStatus } = useAppActions();
-  const { setCurrentSessionId } = useChat();
+  const setCurrentSessionId = useChatStore((s) => s.setCurrentSessionId);
   const loadMeetingDetail = useMeetingDetailLoader();
 
   return useCallback(async (meeting: HistoryItem) => {

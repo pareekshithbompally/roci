@@ -1,8 +1,8 @@
 /** Shared chat layout for ChatView and MeetingChatPopout: messages, composer, citation drawers, speech input. */
 
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { ArrowDown, Loader2 } from 'lucide-react';
-import { useChatStore, useChatActions } from '@features/chat/stores';
+import { useChatStore, useCurrentSession } from '@features/chat/stores';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useAppActions } from '@shared/stores/appStore';
@@ -22,6 +22,7 @@ import { useFollowBottom } from '@features/chat/hooks/useFollowBottom';
 import { useContextUsage } from '@shared/hooks/useContextUsage';
 import { useSpeechInputReady } from '@features/settings/hooks/useSpeechModels';
 import { LAYOUT } from '@config/layout.config';
+import { MENTION_RECENT_MEETINGS } from '@config/chat.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { MeetingCitation, WebCitation } from '@shared/types';
@@ -61,11 +62,9 @@ export const ChatShell: React.FC<ChatShellProps> = ({
   const { items: historyItems } = history;
   const app = useAppActions();
 
-  const currentSession = useChatStore((s) =>
-    s.currentSessionId ? s.loadedSessions.get(s.currentSessionId) ?? null : null
-  );
+  const currentSession = useCurrentSession();
   const isSessionLoading = useChatStore((s) => s.isSessionLoading);
-  const isGenerating = useChatStore((s) => s.isLoading);
+  const isGenerating = useChatStore((s) => s.replyingSessionId !== null);
   const aiActivity = useChatStore((s) => s.aiActivity);
   const replyStatus = useMemo(() => loadingStatusOf(aiActivity), [aiActivity]);
   const chatInput = useChatStore((s) => s.input);
@@ -73,16 +72,14 @@ export const ChatShell: React.FC<ChatShellProps> = ({
   const selectedMeetingRefs = useChatStore((s) => s.selectedMeetingRefs);
   const pendingAttachments = useChatStore((s) => s.pendingAttachments);
 
-  const {
-    sendMessage,
-    setInput,
-    stopGeneration,
-    copyMessage,
-    setSelectedMeetingRefs,
-    addAttachment,
-    removeAttachment,
-    addScreenshotAttachment,
-  } = useChatActions();
+  const sendMessage = useChatStore((s) => s.sendMessage);
+  const setInput = useChatStore((s) => s.setInput);
+  const stopGeneration = useChatStore((s) => s.stopGeneration);
+  const copyMessage = useChatStore((s) => s.copyMessage);
+  const setSelectedMeetingRefs = useChatStore((s) => s.setSelectedMeetingRefs);
+  const addAttachment = useChatStore((s) => s.addAttachment);
+  const removeAttachment = useChatStore((s) => s.removeAttachment);
+  const addScreenshotAttachment = useChatStore((s) => s.addScreenshotAttachment);
 
   // ── Drawer state ──
   const [activeCitation, setActiveCitation] = useState<MeetingCitation | null>(null);
@@ -163,7 +160,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
   // ── Computed values ──
 
   const availableMeetings = useMemo(
-    () => meetingReferenceService.getRecentMeetings(historyItems, 20),
+    () => meetingReferenceService.getRecentMeetings(historyItems, MENTION_RECENT_MEETINGS),
     [historyItems]
   );
 
@@ -179,15 +176,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
 
   // ── Actions ──
 
-  const sharedActions = useMemo<ActionProps>(
-    () => ({
-      onCopy: copyMessage,
-      onRerun: () => {
-        useChatStore.getState().rerunLastMessage();
-      },
-    }),
-    [copyMessage]
-  );
+  const sharedActions = useMemo<ActionProps>(() => ({ onCopy: copyMessage }), [copyMessage]);
 
   const citationHandlers = useMemo<CitationHandlers>(
     () => ({
@@ -199,25 +188,28 @@ export const ChatShell: React.FC<ChatShellProps> = ({
   );
 
   // ── Scroll ──
-  // Follow new content only while at the bottom; after scrolling up, offer "jump to bottom" instead.
+  // Never follows streaming output. A new message (the question, then its reply's placeholder) scrolls into view once;
+  // after that the user scrolls freely, with "jump to bottom" whenever they're above the end.
   const [showScrollDown, setShowScrollDown] = useState(false);
   const showJumpUnlessAtBottom = useCallback((atBottom: boolean) => setShowScrollDown(!atBottom), []);
-  const { scrollRef, contentRef, follow, scrollToBottom, onScroll, onWheel } = useFollowBottom(showJumpUnlessAtBottom);
-
-  const handleSend = useCallback(() => {
-    // Re-arm follow so the response streams into view below the sent message.
-    follow();
-    sendMessage();
-  }, [follow, sendMessage]);
-
-  // Switching sessions returns to the bottom.
-  useEffect(() => {
-    scrollToBottom('auto');
-  }, [currentSession?.id, scrollToBottom]);
-
-  // ── Message list ──
+  const { scrollRef, scrollToBottom, onScroll } = useFollowBottom(showJumpUnlessAtBottom);
 
   const currentMessages = currentSession?.messages || [];
+  const sessionId = currentSession?.id;
+  const lastMessageId = currentMessages.at(-1)?.id;
+  // Empty at mount, so the first anchor lands at the end at once instead of gliding through the history.
+  const anchoredSession = useRef<string | undefined>(undefined);
+
+  const handleSend = useCallback(() => sendMessage(), [sendMessage]);
+
+  // Opening a chat lands at its end; a new message in the same chat glides there.
+  useEffect(() => {
+    const sameSession = anchoredSession.current === sessionId;
+    anchoredSession.current = sessionId;
+    scrollToBottom(sameSession ? 'smooth' : 'auto');
+  }, [sessionId, lastMessageId, scrollToBottom]);
+
+  // ── Message list ──
 
   // Context gauge; hidden when the model limit or usage is unknown.
   const contextLimit = useContextLimit();
@@ -254,12 +246,11 @@ export const ChatShell: React.FC<ChatShellProps> = ({
           <PageScroll
             ref={scrollRef}
             onScroll={onScroll}
-            onWheel={onWheel}
             underTitlebar={underTitlebar}
             fadeBottom
             className="h-full"
           >
-            <div ref={contentRef} role="log" className={`flex flex-col space-y-4 px-4 py-4 ${LAYOUT.chatColumn}`}>
+            <div role="log" className={cn('flex flex-col space-y-4 px-4 py-4', LAYOUT.chatColumn)}>
               {currentMessages.map((message, index) => (
                 <ChatMessage
                   key={message.id}
@@ -296,7 +287,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
 
       {/* Composer */}
       <motion.div
-        className={`shrink-0 ${LAYOUT.chatColumn}`}
+        className={cn('shrink-0', LAYOUT.chatColumn)}
         layout="position"
         layoutId={composerLayoutId}
         layoutDependency={ANIMATION_CONFIG.chat.composerLayoutDependency.chat}

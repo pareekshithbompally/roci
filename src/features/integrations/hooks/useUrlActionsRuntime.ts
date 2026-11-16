@@ -8,7 +8,7 @@ import type { UrlAction } from '@services/urlActions.service';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { meetingsQuery } from '@shared/contexts/HistoryContext';
-import { useOpenMeeting } from '@shared/hooks/useOpenMeeting';
+import { useOpenMeeting } from '@features/history/hooks';
 import { queryClient } from '@shared/query/queryClient';
 import { askInNewChat } from '@features/chat';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';

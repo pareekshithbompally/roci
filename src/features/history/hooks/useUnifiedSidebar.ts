@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
-import { useChat } from '@shared/contexts/ChatContext';
+import { useChatIndex } from '@features/chat';
 import type { UnifiedSidebarItem } from '@shared/types';
 
 interface UseUnifiedSidebarReturn {
@@ -14,7 +14,7 @@ interface UseUnifiedSidebarReturn {
 
 export const useUnifiedSidebar = (): UseUnifiedSidebarReturn => {
   const history = useHistoryData();
-  const chat = useChat();
+  const sessionIndex = useChatIndex();
 
   const unifiedItems = useMemo(() => {
     const items: UnifiedSidebarItem[] = [];
@@ -31,7 +31,7 @@ export const useUnifiedSidebar = (): UseUnifiedSidebarReturn => {
     });
 
     // Add chat sessions from index — skip entries with no messages
-    chat.sessionIndex.forEach(entry => {
+    sessionIndex.forEach(entry => {
       if (entry.messageCount === 0) return;
       items.push({
         id: entry.id,
@@ -43,7 +43,7 @@ export const useUnifiedSidebar = (): UseUnifiedSidebarReturn => {
 
     // Sort by timestamp descending (newest first)
     return items.sort((a, b) => b.timestamp - a.timestamp);
-  }, [history.filteredItems, chat.sessionIndex]);
+  }, [history.filteredItems, sessionIndex]);
 
   return {
     items: unifiedItems,

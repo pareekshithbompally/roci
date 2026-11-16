@@ -1,6 +1,5 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render as rtlRender, screen, fireEvent, act } from '@testing-library/react';
-import { ANIMATION_CONFIG } from '@config/animations.config';
+import { describe, it, expect } from 'vitest';
+import { render as rtlRender, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import type { ToolCallPart } from '@shared/types';
@@ -23,12 +22,7 @@ function part(overrides: Partial<ToolCallPart>): ToolCallPart {
   };
 }
 
-/** Lets the finished call's fold delay pass. */
-const afterFoldDelay = () => act(() => { vi.advanceTimersByTime(ANIMATION_CONFIG.chat.activityFoldDelayMs); });
-
 describe('ToolCallBlock', () => {
-  afterEach(() => { vi.useRealTimers(); });
-
   it('is collapsed by default and toggles its body', () => {
     render(<ToolCallBlock part={part({})} />);
     const header = screen.getByRole('button', { name: /Retrieved chat/ });
@@ -40,29 +34,15 @@ describe('ToolCallBlock', () => {
     expect(screen.getByText('chat body')).toBeInTheDocument();
   });
 
-  it('is open while running, folds itself a beat after the call finishes, and can be reopened', () => {
-    vi.useFakeTimers();
+  it('stays folded while running and after, unless the user opens it', () => {
     const wrap = (ui: ReactElement) => <QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>;
     const { rerender } = rtlRender(wrap(<ToolCallBlock part={part({ status: 'calling', result: undefined })} />));
-    expect(screen.getByRole('button')).toHaveAttribute('aria-expanded', 'true');
-
-    rerender(wrap(<ToolCallBlock part={part({})} />));
-    const header = screen.getByRole('button', { name: /Retrieved chat/ });
-    expect(header).toHaveAttribute('aria-expanded', 'true');
-    afterFoldDelay();
+    const header = screen.getByRole('button');
     expect(header).toHaveAttribute('aria-expanded', 'false');
 
     fireEvent.click(header);
+    rerender(wrap(<ToolCallBlock part={part({})} />));
     expect(header).toHaveAttribute('aria-expanded', 'true');
-  });
-
-  it('folds on error too', () => {
-    vi.useFakeTimers();
-    const wrap = (ui: ReactElement) => <QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>;
-    const { rerender } = rtlRender(wrap(<ToolCallBlock part={part({ status: 'calling', result: undefined })} />));
-    rerender(wrap(<ToolCallBlock part={part({ status: 'error', result: { content: 'boom', isError: true } })} />));
-    afterFoldDelay();
-    expect(screen.getByRole('button')).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('shows the duration when complete and no failure badge', () => {
@@ -78,10 +58,10 @@ describe('ToolCallBlock', () => {
     expect(screen.queryByText('5ms')).not.toBeInTheDocument();
   });
 
-  it('shows a spinner and no duration while calling', () => {
-    const { container } = render(<ToolCallBlock part={part({ status: 'calling', result: undefined })} />);
-    expect(screen.getByText('Retrieving chat…')).toBeInTheDocument();
-    expect(container.querySelector('.animate-spin')).not.toBeNull();
+  it('shimmers its title and shows no duration while calling', () => {
+    render(<ToolCallBlock part={part({ status: 'calling', result: undefined })} />);
+    expect(screen.getByText('Retrieving chat…')).toHaveClass('animate-text-shimmer');
+    expect(screen.queryByText('1.2s')).not.toBeInTheDocument();
   });
 
   it('titles MCP tools with their server', () => {

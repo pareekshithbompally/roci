@@ -4,7 +4,6 @@ export { MeetingChat } from './MeetingChat';
 export { ChatView } from './ChatView';
 export { ChatMessage } from './message';
 export { ChatInput } from './ChatInput';
-export { ChatHistoryList } from './ChatHistoryList';
 export { MeetingMentionPopup } from './MeetingMentionPopup';
 export { ContextChips } from './ContextChips';
 export { ModelPicker } from './ModelPicker';

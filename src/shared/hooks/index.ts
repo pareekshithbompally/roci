@@ -12,7 +12,6 @@ export { useLeftPanel } from './useLeftPanel';
 export { useDebounce, useDebouncedCallback } from './useDebounce';
 
 // Sidebar hooks
-export { useUnifiedSidebar } from './useUnifiedSidebar';
 
 // Interaction hooks
 export { useClickOutside } from './useClickOutside';

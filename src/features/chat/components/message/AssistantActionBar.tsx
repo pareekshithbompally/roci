@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, Check, RefreshCw, Gauge, Loader2, Square, Volume2 } from 'lucide-react';
+import { Copy, Check, Gauge, Loader2, Square, Volume2 } from 'lucide-react';
 import type { ReadAloud, ReadAloudState } from '@shared/hooks/useReadAloud';
 import SuggestionsList from './SuggestionsList';
 import SourcesList from './SourcesList';
@@ -36,7 +36,7 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
   suggestions, onSuggestionClick,
   citationHandlers, webCitations, readAloud,
 }) => {
-  const { onCopy, onRerun } = actions;
+  const { onCopy } = actions;
   const { onCitationClick, onShowAllMeetingCitations, onShowAllWebCitations } = citationHandlers;
 
   const hasSuggestions = !!(suggestions && suggestions.length > 0 && onSuggestionClick && isLastMessage);
@@ -106,9 +106,6 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
             >
               <IconButton icon={Gauge} label="Token usage" size="sm" />
             </Tooltip>
-          )}
-          {onRerun && isLastMessage && (
-            <IconButton icon={RefreshCw} label="Regenerate response" size="sm" onClick={onRerun} />
           )}
           {onCopy && (
             <IconButton icon={isCopied ? Check : Copy} label="Copy message" size="sm" onClick={() => onCopy(id, text)} />

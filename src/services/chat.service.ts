@@ -20,49 +20,25 @@ class ChatService {
     }
   }
 
-  /** Persist a session — writes to store + fire-and-forget RAG indexing */
-  async persistSession(session: ChatSession): Promise<boolean> {
-    try {
-      await store.chats.upsert(session);
-    } catch (error) {
-      console.error('[ChatService] Persist failed:', error);
-      return false;
-    }
-
-    // Fire-and-forget: index session into vector DB asynchronously
-    chatIndexer.indexSession(session).catch(err =>
-      console.error('[ChatService] Chat indexing failed (non-fatal):', session.id, err)
+  /** Writes a session; the vector index follows in the background. Throws when the write fails. */
+  async persistSession(session: ChatSession): Promise<void> {
+    await store.chats.upsert(session);
+    chatIndexer.indexSession(session).catch((error: unknown) =>
+      console.error('[ChatService] Chat indexing failed (non-fatal):', session.id, error)
     );
-
-    return true;
   }
 
-  /** Delete a session — removes from store + fire-and-forget RAG cleanup */
-  async deleteSession(sessionId: string): Promise<boolean> {
-    try {
-      await store.chats.delete(sessionId);
-    } catch (error) {
-      console.error('[ChatService] Delete failed:', error);
-      return false;
-    }
-
-    // Fire-and-forget: remove from vector index
-    chatIndexer.removeSession(sessionId).catch(err =>
-      console.warn('[ChatService] Chat index cleanup failed (non-fatal):', sessionId, err)
+  /** Deletes a session; its vector index entries go in the background. Throws when the delete fails. */
+  async deleteSession(sessionId: string): Promise<void> {
+    await store.chats.delete(sessionId);
+    chatIndexer.removeSession(sessionId).catch((error: unknown) =>
+      console.warn('[ChatService] Chat index cleanup failed (non-fatal):', sessionId, error)
     );
-
-    return true;
   }
 
-  /** Rename a session — updates store */
-  async renameSession(sessionId: string, newTitle: string): Promise<boolean> {
-    try {
-      await store.chats.rename(sessionId, newTitle);
-      return true;
-    } catch (error) {
-      console.error('[ChatService] Rename failed:', error);
-      return false;
-    }
+  /** Renames a session. Throws when the write fails. */
+  async renameSession(sessionId: string, newTitle: string): Promise<void> {
+    await store.chats.rename(sessionId, newTitle);
   }
 }
 

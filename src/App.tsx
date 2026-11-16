@@ -4,21 +4,20 @@ import type { SettingsPanel as SettingsPanelId } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHistory } from '@shared/contexts/HistoryContext';
-import { useChat } from '@shared/contexts/ChatContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { PermissionChecklist, RecordingExitPrompt, recording, useRecordingStore, useRecordingRuntime, useStartRecording } from '@features/recording';
-import { MainLayout } from '@features/layout';
+import { MainLayout, SearchOverlay } from '@features/layout';
 import { HomeView } from '@features/home';
 import { SettingsPanel } from '@features/settings';
 import { useAppUpdate, scheduleStartupCheck } from '@features/settings';
 import { useMenubarSpeechModels, useMenubarReports, useLocalModelDownloads, freshSpeechSources } from '@features/settings';
 import { RemindersView } from '@features/todos';
 import { CalendarView } from '@features/calendar';
-import { ConfirmHost, OnDeviceModelActivity, SearchOverlay } from '@shared/components';
+import { ConfirmHost, OnDeviceModelActivity } from '@shared/components';
 import { Toaster } from '@shared/ui';
 import { useDownloadToasts } from '@shared/hooks';
 import { useAppShortcuts } from '@features/shortcuts';
-import { focusChatComposer, startNewChat } from '@features/chat';
+import { focusChatComposer, startNewChat, useChatIndex, useChatRuntime } from '@features/chat';
 import { useAppleNotesRuntime, useCalendarRuntime, useHexRuntime, useMcpHostRuntime, useRemindersRuntime, useSpotlightRuntime, useUrlActionsRuntime } from '@features/integrations';
 import { useNotificationsRuntime } from '@features/notifications';
 
@@ -44,7 +43,7 @@ const App: React.FC = () => {
   
   const { setSettings, providers, isLoading: settingsLoading } = useSettings();
   const history = useHistory();
-  const chat = useChat();
+  const chatCount = useChatIndex().length;
   const startRecording = useStartRecording();
   const startRecordingRef = useRef(startRecording);
   startRecordingRef.current = startRecording;
@@ -77,6 +76,7 @@ const App: React.FC = () => {
   // macOS Calendar integration — polls for upcoming meetings, shows notifications
   useCalendarRuntime();
   useNotificationsRuntime();
+  useChatRuntime();
   useDownloadToasts();
   useLocalModelDownloads();
   useRemindersRuntime();
@@ -95,7 +95,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (indexingRanRef.current) return;
-    if (history.items.length === 0 && chat.sessionIndex.length === 0) return;
+    if (history.items.length === 0 && chatCount === 0) return;
 
     indexingRanRef.current = true;
     const controller = new AbortController();
@@ -145,7 +145,7 @@ const App: React.FC = () => {
     warmUp();
 
     return () => controller.abort();
-  }, [history.items.length, chat.sessionIndex.length]);
+  }, [history.items.length, chatCount]);
 
   // Fade the startup splash once the first screen renders with real settings
   useEffect(() => {

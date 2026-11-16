@@ -1,4 +1,5 @@
-export { useChat } from './useChat';
+export { useChatRuntime } from './useChatRuntime';
+export { useChatIndex } from './useChatIndex';
 export { useSpeechInput } from './useSpeechInput';
 export type { SpeechState, UseSpeechInputResult } from './useSpeechInput';
 export { useVoiceCapture } from './useVoiceCapture';

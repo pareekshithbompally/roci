@@ -4,7 +4,6 @@ import type { ChatPart, MeetingCitation, WebCitation, InlineCitationSpan } from 
 /** Shared action callbacks — stable via useMemo in parent */
 export interface ActionProps {
   onCopy?: (id: string, text: string) => void;
-  onRerun?: () => void;
 }
 
 /** Citation handler callbacks — stable via useMemo in parent */

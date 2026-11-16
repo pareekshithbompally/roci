@@ -49,7 +49,10 @@ export default {
       backgroundImage: {
         'tint-hover': 'linear-gradient(var(--bg-hover), var(--bg-hover))',
         'tint-pressed': 'linear-gradient(var(--bg-pressed), var(--bg-pressed))',
+        // Running-work label: a brighter band sweeps across faint text (Text `shimmer`).
+        'text-shimmer': 'linear-gradient(90deg, var(--text-faint) 35%, var(--text-primary) 50%, var(--text-faint) 65%)',
       },
+      backgroundSize: { shimmer: '200% 100%' },
       // ─── macOS text styles (SF Pro). `reading` is the one exception: long-form chat/transcript ───
       fontSize: {
         subheadline: ['11px', '14px'],
@@ -97,6 +100,10 @@ export default {
           from: { opacity: '1', transform: 'translate(-50%, 0)' },
           to: { opacity: '0', transform: 'translate(-50%, -4px)' },
         },
+        'text-shimmer': {
+          from: { backgroundPosition: '100% 0' },
+          to: { backgroundPosition: '-100% 0' },
+        },
         'placeholder-fade-in': {
           from: { opacity: '0' },
           to: { opacity: '1' },
@@ -126,6 +133,7 @@ export default {
         'palette-show': 'palette-show 150ms ease-out',
         'palette-hide': 'palette-hide 120ms ease-in',
         'placeholder-fade-in': 'placeholder-fade-in 600ms ease-out',
+        'text-shimmer': 'text-shimmer 2s linear infinite',
         'glow-drift-1': 'glow-drift-1 22s ease-in-out infinite',
         'glow-drift-2': 'glow-drift-2 28s ease-in-out infinite',
         'glow-drift-3': 'glow-drift-3 36s ease-in-out infinite',

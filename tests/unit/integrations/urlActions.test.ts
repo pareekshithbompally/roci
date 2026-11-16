@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('@features/chat', () => ({ askInNewChat: vi.fn() }));
-vi.mock('@shared/hooks/useOpenMeeting', () => ({ useOpenMeeting: vi.fn() }));
+vi.mock('@features/history/hooks/useOpenMeeting', () => ({ useOpenMeeting: vi.fn() }));
 
 import { runUrlAction } from '@features/integrations/hooks/useUrlActionsRuntime';
 import type { UrlActionHandlers } from '@features/integrations/hooks/useUrlActionsRuntime';

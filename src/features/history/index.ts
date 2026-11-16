@@ -2,7 +2,7 @@
 export { HistoryItem, HistoryList, UnifiedSidebarItem, UnifiedList } from './components';
 
 // Hooks
-export { useHistory, useDeleteSession } from './hooks';
+export { useHistory, useDeleteSession, useUnifiedSidebar, useOpenMeeting } from './hooks';
 
 // Re-export context for provider usage
 export { HistoryProvider, useHistory as useHistoryContext } from '@shared/contexts/HistoryContext';

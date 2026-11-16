@@ -4,6 +4,7 @@ import { generateText } from 'ai';
 import { isIntegrationEnabled } from '@shared/utils/integrations';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
+import { CHAT_TITLE_MAX_CHARS, REPLY_PREVIEW_CHARS } from '@config/chat.config';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { ProcessedResult, AppSettings, MeetingSummary, StoredTranscriptSegment } from '@shared/types';
 import { resolveChatModel, resolveSummaryModel, requiresApiKey, type ResolvedModel } from '@shared/utils/modelResolver';
@@ -117,7 +118,7 @@ class UnifiedAIService {
     settings: AppSettings,
     providers: ModelProvider[],
   ): Promise<{ title: string; usage?: TokenUsage }> {
-    const fallback = userMessage.slice(0, 30);
+    const fallback = userMessage.slice(0, CHAT_TITLE_MAX_CHARS);
     const resolved = resolveChatModel(settings, providers);
     if (!resolved || (requiresApiKey(resolved) && !resolved.apiKey)) return { title: fallback };
 
@@ -129,7 +130,7 @@ class UnifiedAIService {
         instructions: `You are a title generator. ${temporalContext} Your ONLY job is to output a short 3-6 word topic title summarizing what the conversation is about. Output NOTHING else — no explanation, no apology, no commentary. Just the title words. Never start with "I".`,
         messages: [{
           role: 'user',
-          content: `User: ${userMessage}\nAssistant: ${assistantResponse.slice(0, 500)}`,
+          content: `User: ${userMessage}\nAssistant: ${assistantResponse.slice(0, REPLY_PREVIEW_CHARS)}`,
         }],
       });
 

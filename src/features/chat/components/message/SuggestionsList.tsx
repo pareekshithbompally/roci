@@ -6,14 +6,13 @@ interface SuggestionsListProps {
   onSuggestionClick: (suggestion: string) => void;
 }
 
-/** Renders suggestion rows with arrow prefix and staggered animation */
+/** Suggestion rows, each with an arrow prefix. */
 const SuggestionsList: React.FC<SuggestionsListProps> = ({ suggestions, onSuggestionClick }) => (
   <>
     {suggestions.map((suggestion, i) => (
       <Row
         key={i}
         onClick={() => onSuggestionClick(suggestion)}
-        style={{ animationDelay: `${i * 50}ms` }}
       >
         <Text tone="faint" className="shrink-0">&#8594;</Text>
         <span className="line-clamp-1">{suggestion}</span>

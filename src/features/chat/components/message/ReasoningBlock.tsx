@@ -6,13 +6,12 @@ import { Markdown } from '@shared/components';
 import { CHAT_REASONING_COPY } from '@config/chat.config';
 import { META_SEPARATOR } from '@config/ui.config';
 import { formatExecutionMs } from '@features/chat/components/tool-call';
-import { useAutoFold } from '@features/chat/hooks/useAutoFold';
 import { useFollowBottom } from '@features/chat/hooks/useFollowBottom';
 import type { GenerationStats } from '@services/ai/types';
 
 interface ReasoningBlockProps {
   text: string;
-  /** The model is still thinking: the block is open, capped, and follows the newest line. */
+  /** The model is still thinking: the label shimmers; opened, the text is capped and follows its newest line. */
   thinking: boolean;
   /** Tokens and speed while thinking, when a local server reports them. */
   generation?: GenerationStats | null;
@@ -37,18 +36,14 @@ function ReasoningText({ text, thinking }: { text: string; thinking: boolean }) 
   );
 }
 
-/** The model's thinking: open and rolling while it thinks, folded once the answer starts, reopenable any time. */
-export const ReasoningBlock: React.FC<ReasoningBlockProps> = ({ text, thinking, generation, variant }) => {
-  const [open, setOpen] = useAutoFold(thinking);
-  return (
+/** The model's thinking: one folded line that shimmers while it thinks; opening it shows the text in place. */
+export const ReasoningBlock: React.FC<ReasoningBlockProps> = ({ text, thinking, generation, variant }) => (
     <Disclosure
       variant={variant}
-      open={open}
-      onOpenChange={setOpen}
       summary={
         <>
           <Icon icon={Lightbulb} size="xs" tone="faint" className="shrink-0" />
-          <Text tone="muted" truncate className="flex-1 min-w-0">
+          <Text tone="muted" shimmer={thinking} truncate className="min-w-0 mr-auto">
             {thinking ? CHAT_REASONING_COPY.thinking : CHAT_REASONING_COPY.done}
           </Text>
           {thinking && generation && (
@@ -61,5 +56,4 @@ export const ReasoningBlock: React.FC<ReasoningBlockProps> = ({ text, thinking, 
     >
       <ReasoningText text={text} thinking={thinking} />
     </Disclosure>
-  );
-};
+);

@@ -2,17 +2,11 @@
 
 import type { ReasoningEffort } from '@shared/types';
 
-/** Number of session index entries to show per page in the sidebar */
-export const CHAT_PAGE_SIZE = 50;
-
 /** Number of items to show initially in the unified sidebar. More load on scroll. */
 export const SIDEBAR_PAGE_SIZE = 25;
 
-/** Max fully loaded ChatSessions in the LRU cache; the oldest (never the current one) is evicted. */
+/** Most chats kept loaded in memory; the first-loaded one (never the one being opened) makes room. */
 export const MAX_LOADED_SESSIONS = 10;
-
-/** Debounce delay (ms) for sidebar title search filtering */
-export const SIDEBAR_SEARCH_DEBOUNCE_MS = 200;
 
 /** Spotlight search debounce (ms), short because the search runs in the local Rust backend. */
 export const SPOTLIGHT_DEBOUNCE_MS = 150;
@@ -25,6 +19,26 @@ export const SPOTLIGHT_RESULTS_PER_SOURCE = 6;
 
 /** A tool row keeps this much of a tool's output for its expanded view. */
 export const TOOL_RESULT_PREVIEW_CHARS = 500;
+
+/** Attachments one message can carry. */
+export const CHAT_MAX_ATTACHMENTS = 10;
+
+/** A new chat's title is the question's first this-many characters until the model names it. */
+export const CHAT_TITLE_MAX_CHARS = 30;
+
+/** The title and follow-up suggestion helpers see this much of the reply. */
+export const REPLY_PREVIEW_CHARS = 500;
+
+/** The composer's textarea grows with its text up to this height, px, then scrolls. */
+export const COMPOSER_MAX_HEIGHT_PX = 200;
+
+/** Meetings offered in the composer's @ list, newest first. */
+export const MENTION_RECENT_MEETINGS = 20;
+
+/** Words for a draft with no text of its own. */
+export const CHAT_DRAFT_COPY = {
+  untitledAttachment: 'Attachment',
+} as const;
 
 /** Dictation failures, shown as an error toast with the reason after them. */
 export const DICTATION_COPY = {

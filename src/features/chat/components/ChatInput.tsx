@@ -9,7 +9,7 @@ import { ContextChips } from './ContextChips';
 import { ModelPicker } from './ModelPicker';
 import { ToolsPicker } from './tools/ToolsPicker';
 import { ReasoningPicker } from './ReasoningPicker';
-import { ContextRing, Icon, IconButton, Input, Popover, PopoverAnchor, Surface, Text, Textarea } from '@shared/ui';
+import { ContextRing, Icon, IconButton, Input, Popover, PopoverAnchor, Surface, Text, Textarea, cn } from '@shared/ui';
 import type { ContextUsage } from '@shared/hooks/useContextUsage';
 import {
   DropdownMenu,
@@ -21,13 +21,16 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from '@shared/ui';
-import { invoke } from '@tauri-apps/api/core';
+import { canTakeScreenshots, listCapturableWindows, takeScreenshot } from '@services/tauri';
+import type { CapturableWindow } from '@services/tauri';
 import { LAYOUT } from '@config/layout.config';
 import { UI_CONFIG } from '@config/ui.config';
 import { AppImage } from '@shared/components';
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { shortcutLabel } from '@features/shortcuts';
 import { registerChatComposer } from '@features/chat/stores';
+import { canSendDraft } from '@features/chat/utils';
+import { COMPOSER_MAX_HEIGHT_PX } from '@config/chat.config';
 import type { MeetingListItem } from '@services/meetingReferenceService';
 import type { ChatPart } from '@shared/types';
 import type { SpeechState } from '@features/chat/hooks/useSpeechInput';
@@ -47,13 +50,6 @@ const ACCEPTED_FILE_TYPES = 'image/*,audio/*,video/*,.pdf,.txt,.md,.csv,.json,.d
 const FILE_ACCEPT_IMAGES = 'image/*';
 const FILE_ACCEPT_FILES = '.pdf,.txt,.md,.csv,.json,.doc,.docx';
 const FILE_ACCEPT_AUDIO = 'audio/*';
-
-interface WindowInfo {
-  window_id: number;
-  app_name: string;
-  title: string;
-  icon_base64?: string;
-}
 
 const PLACEHOLDER_HINTS = [
   'Ask anything...',
@@ -153,7 +149,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showMentionPopup, setShowMentionPopup] = useState(false);
   const [hintIndex, setHintIndex] = useState(() => Math.floor(Math.random() * PLACEHOLDER_HINTS.length));
-  const [capturableWindows, setCapturableWindows] = useState<WindowInfo[]>([]);
+  const [capturableWindows, setCapturableWindows] = useState<CapturableWindow[]>([]);
   const [screenshotLoading, setScreenshotLoading] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null);
   // Register this textarea as the composer ⌘L focuses
@@ -175,7 +171,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     const id = requestAnimationFrame(() => {
       if (inputRef.current) {
         inputRef.current.style.height = 'auto';
-        inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 200)}px`;
+        inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, COMPOSER_MAX_HEIGHT_PX)}px`;
       }
     });
     return () => cancelAnimationFrame(id);
@@ -260,7 +256,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // Load capturable windows when screenshot sub-menu opens
   const handleScreenshotSubOpen = async () => {
     try {
-      const windows = await invoke<WindowInfo[]>('list_capturable_windows');
+      const windows = await listCapturableWindows();
       if (mountedRef.current) setCapturableWindows(windows);
     } catch (err) {
       console.error('[ChatInput] Failed to list windows:', err);
@@ -273,9 +269,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     if (!onScreenshot) return;
     setScreenshotLoading(name);
     try {
-      const base64 = await invoke<string>('take_screenshot', {
-        windowId,
-      });
+      const base64 = await takeScreenshot(windowId);
       onScreenshot(base64, name);
     } catch (err) {
       console.error('[ChatInput] Screenshot failed:', err);
@@ -290,14 +284,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (!isLoading && (value.trim() || attachments.length > 0)) {
+      if (!isLoading && canSendDraft(value, attachments)) {
         // Defer send by one frame so macOS autocorrect can commit its replacement first
         requestAnimationFrame(() => onSend());
       }
     }
   };
 
-  const canSend = !isLoading && !disabled && (value.trim().length > 0 || attachments.length > 0);
+  const canSend = !isLoading && !disabled && canSendDraft(value, attachments);
+  const canScreenshot = !!onScreenshot && canTakeScreenshots();
   const isStarting = speechState === 'starting';
   const isRecording = speechState === 'recording';
   const isPaused = speechState === 'paused';
@@ -354,7 +349,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const formattedElapsed = `${String(Math.floor(speechElapsed / 60)).padStart(2, '0')}:${String(speechElapsed % 60).padStart(2, '0')}`;
 
   return (
-    <div className={`relative ${LAYOUT.chatColumn} px-4 py-2`}>
+    <div className={cn('relative px-4 py-2', LAYOUT.chatColumn)}>
       <Popover open={showMentionPopup} onOpenChange={(open) => { if (!open) closeMentionPopup(); }}>
       <PopoverAnchor asChild>
       {/* Composer never unmounts (an exit flashes box chrome); the pill is an overlay that moves no layout. */}
@@ -544,8 +539,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                       <span>Audio</span>
                     </DropdownMenuItem>
 
-                    {onScreenshot && <DropdownMenuSeparator />}
-                    {onScreenshot && (
+                    {canScreenshot && <DropdownMenuSeparator />}
+                    {canScreenshot && (
                       <DropdownMenuSub>
                         <DropdownMenuSubTrigger onPointerEnter={handleScreenshotSubOpen}>
                           <Icon icon={Camera} size="sm" />

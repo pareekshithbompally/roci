@@ -1,13 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useChatStore } from '@features/chat/stores/chatStore';
+import { renderHook } from '@testing-library/react';
+import { useChatStore, useChatReasoningEffort } from '@features/chat/stores/chatStore';
 import type { ChatSession } from '@shared/types';
 
 const session: ChatSession = { id: 's1', title: 'Chat', lastMessageAt: 1, messages: [] };
-const effortNow = () => {
-  const s = useChatStore.getState();
-  const current = s.currentSessionId ? s.loadedSessions.get(s.currentSessionId) : undefined;
-  return current ? current.reasoningEffort ?? 'provider-default' : s.draftReasoningEffort;
-};
+/** What the composer's thinking control shows, read through its own hook. */
+const effortNow = () => renderHook(() => useChatReasoningEffort()).result.current;
 
 describe('per-chat thinking level', () => {
   beforeEach(() => {
