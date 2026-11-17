@@ -122,7 +122,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
       ) : (
       <>
       {/* Chat composer: centred in the remaining space (desktop); pinned to the bottom (phone). */}
-      <div className={cn('relative z-20 flex w-full flex-1 flex-col', phone ? 'px-3 pb-safe-bottom' : 'items-center justify-center px-2')}>
+      <div className={cn('relative z-20 flex w-full flex-1 flex-col', phone ? 'px-3' : 'items-center justify-center px-2')}>
         <div className={phone ? 'flex flex-1 flex-col gap-4' : `${LAYOUT.chatColumn} space-y-6 overflow-visible`}>
               {/* Stays mounted and only fades, so the column never reflows under the voice pill. */}
               <motion.div

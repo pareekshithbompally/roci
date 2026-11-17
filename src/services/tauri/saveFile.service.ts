@@ -3,6 +3,7 @@
 import { dialogService } from './dialog.service';
 import { fileSystemService } from './fileSystem.service';
 import { isTauriEnvironment } from './environment.service';
+import { revealItemInDir } from '@tauri-apps/plugin-opener';
 
 export interface TextFile {
   /** Suggested name, extension included (`table.csv`). */
@@ -34,8 +35,7 @@ export async function saveTextFile({ filename, content, kind, extension }: TextF
 /** Select a saved file (or folder) in Finder. */
 export async function revealInFinder(path: string): Promise<void> {
   if (!isTauriEnvironment()) return;
-  const { invoke } = await import('@tauri-apps/api/core');
-  await invoke('reveal_in_file_manager', { path: path.replace(/[/\\]+$/, '') });
+  await revealItemInDir(path.replace(/[/\\]+$/, ''));
 }
 
 /** Payload of `DOWNLOAD_FINISHED_EVENT`: a web download (`<a download>`, blob links) saved natively. */

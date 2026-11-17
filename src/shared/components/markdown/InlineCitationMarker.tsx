@@ -4,6 +4,7 @@ import React from 'react';
 import { getFaviconUrl, describeCitation } from '@shared/utils/citationUtils';
 import type { WebCitation } from '@shared/types';
 import { Button } from '@shared/ui';
+import { openUrl } from '@services/tauri';
 
 interface InlineCitationMarkerProps {
   /** Comma-separated 0-based source indices (from data-cite attribute) */
@@ -26,7 +27,7 @@ export const InlineCitationMarker: React.FC<InlineCitationMarkerProps> = ({
 
         const handleClick = (e: React.MouseEvent) => {
           e.stopPropagation();
-          window.open(citation.url, '_blank', 'noopener,noreferrer');
+          void openUrl(citation.url);
         };
 
         return (

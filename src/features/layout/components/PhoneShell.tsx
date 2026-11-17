@@ -45,7 +45,8 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children, onSearchClick 
         title={<ModelPicker compact />}
         trailing={platform.canRecord ? <RecordButton /> : <IconButton icon={SquarePen} label="New chat" onClick={startNewChat} />}
       />
-      <div className="relative flex min-h-0 flex-1 flex-col">{children}</div>
+      {/* Clear of the home indicator once, for every screen (idle, chat, meeting). */}
+      <div className="relative flex min-h-0 flex-1 flex-col pb-safe-bottom">{children}</div>
       <Drawer side="start" open={open} onClose={() => setLeftPanel(false)} label="Sidebar">
         <Sidebar shouldOffsetMacControls={false} onSearchClick={onSearchClick} />
       </Drawer>

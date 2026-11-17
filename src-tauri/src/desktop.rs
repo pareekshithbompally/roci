@@ -8,17 +8,6 @@ use std::sync::Mutex;
 use tauri::{App, AppHandle, Builder, Emitter, Manager, RunEvent, WebviewWindowBuilder, Wry};
 use tauri_plugin_autostart::MacosLauncher;
 
-/// Open a folder in the OS file manager (Finder on macOS).
-#[tauri::command]
-fn reveal_in_file_manager(path: String) -> Result<(), String> {
-  // `-R` selects the item in a Finder window instead of opening it.
-  std::process::Command::new("open")
-    .args(["-R", &path])
-    .spawn()
-    .map_err(|e| format!("Failed to reveal in Finder: {e}"))?;
-  Ok(())
-}
-
 /// The main window's webview takes web downloads.
 pub fn extend_window(window: WebviewWindowBuilder<'_, Wry, AppHandle>) -> WebviewWindowBuilder<'_, Wry, AppHandle> {
   window.on_download(downloads::handle)
@@ -135,7 +124,6 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       screenshot::take_screenshot,
       // Utility commands
       app_icon::app_icon,
-      reveal_in_file_manager,
       open_native::open_native,
     ])
 }

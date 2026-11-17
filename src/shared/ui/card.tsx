@@ -3,6 +3,7 @@ import { ChevronRight } from 'lucide-react';
 import { cn } from './utils';
 import { Text } from './text';
 import { Icon } from './icon';
+import { activateOnKey } from '@shared/utils/activateOnKey';
 
 /** Grouped settings surface (macOS grouped section): muted label above a filled card; rows 48px (60px with description), inset hairlines. */
 
@@ -44,12 +45,9 @@ export function CardRow({ title, description, leading, leadingAlign = 'title', s
   const press = onOpen ?? onPress;
   const chevron = onOpen && <Icon icon={ChevronRight} size="sm" className="text-faint" />;
   const trailing = status || actions || chevron;
-  const pressOnKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') press?.();
-  };
   return (
     <div
-      {...(press && { role: 'button', tabIndex: 0, onClick: press, onKeyDown: pressOnKey })}
+      {...(press && { role: 'button', tabIndex: 0, onClick: press, onKeyDown: activateOnKey(press) })}
       className={cn(
         press && 'cursor-pointer active:bg-tint-pressed',
         'flex gap-4 py-3',
