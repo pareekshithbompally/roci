@@ -154,6 +154,21 @@ pub const MODELS: &[LocalModel] = &[
         }],
     },
     LocalModel {
+        id: "whisper-small",
+        maker: "openai",
+        name: "Whisper Small",
+        kind: Kind::Speech,
+        streams: false,
+        voices: &[],
+        source: Source { repository: "handy-computer/whisper-small-gguf", revision: "4afdc7942ecf1997f359deae48a63506b062eac4" },
+        files: &[ModelFile {
+            name: "whisper-small-Q8_0.gguf",
+            bytes: 269_751_136,
+            sha256: "9b9c8811bbcc82a7766f0fb0925614bdacb0923b2cc630daeac17108b655b860",
+            source: None,
+        }],
+    },
+    LocalModel {
         id: "cohere-transcribe",
         maker: "CohereLabs",
         name: "Cohere Transcribe",
