@@ -13,7 +13,7 @@ import { useFormFactor } from '@platform/formFactor';
 import { PhoneShell } from './PhoneShell';
 import { AppStatus } from '@shared/types';
 import { LAYOUT } from '@config/layout.config';
-import { Badge, Button, Icon, Separator, Surface, TitlebarDragRegion } from '@shared/ui';
+import { Badge, Button, Drawer, Icon, Separator, Surface, TitlebarDragRegion } from '@shared/ui';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -64,32 +64,16 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   // Meeting chat works on a selected meeting's results; it shows as its button or its window.
   const meetingChatAvailable = selectedHistoryId && status === AppStatus.RESULTS;
 
-  const leftPanelShellClassName = `overflow-hidden ${
-    isSmallScreen
-      ? 'fixed inset-y-0 left-0 h-full z-50 px-1 w-full md:w-72'
-      : isLeftPanelOpen
-        ? `shrink-0 ${LAYOUT.sidebarShell}`
-        : 'w-0 shrink-0 m-0'
-  } ${
-    isLeftPanelOpen
-      ? 'opacity-100 visible'
-      : 'opacity-0 invisible pointer-events-none'
-  }`;
-
   if (formFactor === 'phone') return <PhoneShell onSearchClick={onSearchClick}>{children}</PhoneShell>;
 
   return (
     <Surface as="main" variant="page" className="relative h-screen overflow-hidden">
       <TitlebarDragRegion />
 
-      {/* Mobile Sidebar Overlay */}
-      {isSmallScreen && isLeftPanelOpen && (
-        <Surface
-          variant="scrim"
-          className="fixed inset-0 z-40 animate-fade-in"
-          onClick={() => setLeftPanel(false)}
-        />
-      )}
+      {/* Narrow window: the sidebar slides over the content (the same drawer as on a phone). */}
+      <Drawer side="start" open={isSmallScreen && isLeftPanelOpen} onClose={() => setLeftPanel(false)} label="Sidebar">
+        <Sidebar shouldOffsetMacControls={shouldOffsetMacControls} onSearchClick={onSearchClick} />
+      </Drawer>
 
       {/* Main layout */}
       <div className="flex h-full">
@@ -110,18 +94,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               <Separator orientation="vertical" className="h-full ml-auto opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity" />
             </div>
           </div>
-        )}
-
-        {/* Mobile sidebar overlay */}
-        {isSmallScreen && isLeftPanelOpen && (
-          <aside className={leftPanelShellClassName}>
-            <Surface variant="sidebar" className="h-full w-full overflow-hidden">
-              <Sidebar
-                shouldOffsetMacControls={shouldOffsetMacControls}
-                onSearchClick={onSearchClick}
-              />
-            </Surface>
-          </aside>
         )}
 
         {/* Main content panel */}

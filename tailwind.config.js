@@ -23,6 +23,15 @@ const RISE = {
 };
 const RISE_ENTER = '350ms cubic-bezier(0.32, 0.72, 0, 1)';
 const RISE_EXIT = '250ms ease-in';
+/** A drawer sliding in from its edge (kit Drawer): from the left (`start`) or the right (`end`). */
+const edgeSlide = (from) => ({
+  show: { from: { translate: `${from} 0` }, to: { translate: '0 0' } },
+  hide: { from: { translate: '0 0' }, to: { translate: `${from} 0` } },
+});
+const SLIDE_START = edgeSlide('-100%');
+const SLIDE_END = edgeSlide('100%');
+const DRAWER_ENTER = '300ms ease-out';
+const DRAWER_EXIT = '250ms ease-in';
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -103,6 +112,10 @@ export default {
         'sheet-hide': SHEET_SLIDE.hide,
         'rise-show': RISE.show,
         'rise-hide': RISE.hide,
+        'drawer-start-show': SLIDE_START.show,
+        'drawer-start-hide': SLIDE_START.hide,
+        'drawer-end-show': SLIDE_END.show,
+        'drawer-end-hide': SLIDE_END.hide,
         'text-shimmer': {
           from: { backgroundPosition: '100% 0' },
           to: { backgroundPosition: '-100% 0' },
@@ -137,6 +150,10 @@ export default {
         'sheet-hide': `sheet-hide ${EXIT}`,
         'rise-show': `rise-show ${RISE_ENTER}`,
         'rise-hide': `rise-hide ${RISE_EXIT}`,
+        'drawer-start-show': `drawer-start-show ${DRAWER_ENTER}`,
+        'drawer-start-hide': `drawer-start-hide ${DRAWER_EXIT}`,
+        'drawer-end-show': `drawer-end-show ${DRAWER_ENTER}`,
+        'drawer-end-hide': `drawer-end-hide ${DRAWER_EXIT}`,
         'placeholder-fade-in': 'placeholder-fade-in 600ms ease-out',
         'text-shimmer': 'text-shimmer 2s linear infinite',
         'glow-drift-1': 'glow-drift-1 22s ease-in-out infinite',
