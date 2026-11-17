@@ -11,7 +11,6 @@ import {
 import {
   configFromForm,
   formFromConfig,
-  maskKeys,
   maskUrl,
   parseServerEntries,
   serverStatus,
@@ -118,6 +117,5 @@ describe('mcpServerForm', () => {
 
   it('masks secrets for display', () => {
     expect(maskUrl('https://x.dev/mcp?api_key=abc&q=1')).toBe('https://x.dev/mcp?api_key=******&q=1');
-    expect(maskKeys({ TOKEN: 'secret', B: 'x' })).toBe('TOKEN=******, B=******');
   });
 });

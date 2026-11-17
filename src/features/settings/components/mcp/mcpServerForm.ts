@@ -127,8 +127,3 @@ export function maskUrl(url: string): string {
     return query === -1 ? url : `${url.slice(0, query + 1)}${MCP_CONFIG.mask}`;
   }
 }
-
-/** `KEY=******, OTHER=******` — values are secrets more often than not. */
-export function maskKeys(record: Record<string, string> | undefined): string {
-  return Object.keys(record ?? {}).map((key) => `${key}=${MCP_CONFIG.mask}`).join(', ');
-}

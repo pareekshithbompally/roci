@@ -1,4 +1,4 @@
-/** A raised card that does one thing on click: icon, title, one-line description; hover tint never shows through. */
+/** A raised card that does one thing on click: icon, title, one line under it; every card the same height. */
 
 import React from 'react';
 import { Surface, Text } from '@shared/ui';
@@ -12,7 +12,7 @@ interface ActionCardProps {
   title: string;
   description: string;
   onClick: () => void;
-  /** A line under the description for the card's current state (checking, needs System Settings, ready). */
+  /** The card's current state (checking, needs System Settings, unavailable); takes the description's line. */
   status?: React.ReactNode;
   /** Can't be used here; the description or status says why. */
   disabled?: boolean;
@@ -39,9 +39,8 @@ export const ActionCard: React.FC<ActionCardProps> = ({ icon, title, description
         {icon}
       </Text>
       <div className="min-w-0 flex-1 space-y-1 text-left">
-        <Text as="p" variant="bodyStrong" tone={disabled ? 'faint' : 'primary'}>{title}</Text>
-        <Text as="p" variant="helper" tone={disabled ? 'faint' : 'muted'}>{description}</Text>
-        {status}
+        <Text as="p" variant="bodyStrong" tone={disabled ? 'faint' : 'primary'} truncate>{title}</Text>
+        {status ?? <Text as="p" variant="helper" tone={disabled ? 'faint' : 'muted'} truncate>{description}</Text>}
       </div>
     </div>
   </Surface>

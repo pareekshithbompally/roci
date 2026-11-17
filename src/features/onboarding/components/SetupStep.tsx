@@ -16,13 +16,13 @@ import { OnboardingIcon } from './OnboardingIcon';
 const COPY = ONBOARDING_CONFIG.setup;
 const APPLE = INTEGRATIONS_CONFIG.appleIntelligence;
 
-/** The tile's state line; none once Apple Intelligence is ready. */
-const AppleStatus: React.FC<{ access: IntegrationAccess; reason?: string }> = ({ access, reason }) => {
-  if (access === 'unknown') return <Text as="p" variant="helper" tone="faint">{COPY.checking}</Text>;
-  if (access === 'needs-settings') return <Text as="p" variant="helper" tone="warning">{APPLE.onboarding.needsSettings}</Text>;
-  if (access === 'unavailable') return <Text as="p" variant="helper" tone="faint">{reason}</Text>;
-  return null;
-};
+/** The tile's state, in place of its description; none once Apple Intelligence is ready. */
+function appleStatus(access: IntegrationAccess, reason?: string): React.ReactNode {
+  if (access === 'unknown') return <Text as="p" variant="helper" tone="faint" truncate>{COPY.checking}</Text>;
+  if (access === 'needs-settings') return <Text as="p" variant="helper" tone="warning" truncate>{APPLE.onboarding.needsSettings}</Text>;
+  if (access === 'unavailable') return <Text as="p" variant="helper" tone="faint" truncate>{reason}</Text>;
+  return undefined;
+}
 
 /** Ready: set up and go. Off: open System Settings and stay (returning re-checks). Unsupported: disabled, with why. */
 const AppleTile: React.FC = () => {
@@ -42,7 +42,7 @@ const AppleTile: React.FC = () => {
       tone="brand"
       title={APPLE.title}
       description={APPLE.onboarding.description}
-      status={<AppleStatus access={access} reason={unavailableReason} />}
+      status={appleStatus(access, unavailableReason)}
       disabled={access === 'unknown' || access === 'unavailable'}
       onClick={choose}
     />

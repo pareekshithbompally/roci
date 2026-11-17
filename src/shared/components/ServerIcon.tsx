@@ -1,34 +1,43 @@
-/** An MCP server's own icon (cached, so it loads once), or a neutral server glyph when it has none or fails to load. */
+/** An MCP server's own icon (cached, so it loads once), or the MCP mark when it has none or fails to load. */
 
 import React from 'react';
-import { Server } from 'lucide-react';
-import { cn } from '@shared/ui';
+import { SiModelcontextprotocol } from '@icons-pack/react-simple-icons';
+import { cn, ICON_SIZE_PX, ICON_TILE_PX, IconTile } from '@shared/ui';
+import { TILE_DOMAIN } from '@config/ui.config';
 import { useCachedImage } from '@shared/hooks/useCachedImage';
 
 interface ServerIconProps {
   name: string;
   icon?: string | null;
-  /** Matches the kit Icon scale: xs 14 · sm 16 · md 20 */
-  size?: 'xs' | 'sm' | 'md';
+  /** `tile`: a Settings row (tile-sized, MCP tile as fallback). Inline sizes match the kit Icon scale: xs 14 · sm 16 · md 20. */
+  size?: 'xs' | 'sm' | 'md' | 'tile';
   /** Layout only */
   className?: string;
 }
 
-const SIZE = { xs: 'w-3.5 h-3.5', sm: 'w-4 h-4', md: 'w-5 h-5' } as const;
+const PX = { xs: ICON_SIZE_PX.xs, sm: ICON_SIZE_PX.sm, md: ICON_SIZE_PX.md, tile: ICON_TILE_PX } as const;
+
+/** No icon of its own: the MCP mark, on a connections tile in Settings, muted inline elsewhere. */
+const Fallback: React.FC<{ size: keyof typeof PX; className?: string }> = ({ size, className }) =>
+  size === 'tile' ? (
+    <IconTile icon={SiModelcontextprotocol} tint={TILE_DOMAIN.connections} />
+  ) : (
+    <SiModelcontextprotocol size={PX[size]} title="" aria-hidden className={cn('shrink-0 text-muted', className)} />
+  );
 
 export const ServerIcon: React.FC<ServerIconProps> = ({ name, icon, size = 'xs', className }) => {
   const { src, failed } = useCachedImage(icon);
-  if (!icon || failed) {
-    return <Server className={cn('shrink-0 text-muted', SIZE[size], className)} aria-hidden />;
-  }
+  const box = { width: PX[size], height: PX[size] };
+  if (!icon || failed) return <Fallback size={size} className={className} />;
   // Holds the space while the first load runs, so nothing shifts when the icon arrives.
-  if (!src) return <span aria-hidden className={cn('shrink-0', SIZE[size], className)} />;
+  if (!src) return <span aria-hidden className={cn('shrink-0', className)} style={box} />;
   return (
     <img
       src={src}
       alt=""
       title={name}
-      className={cn('shrink-0 rounded-sm object-contain', SIZE[size], className)}
+      className={cn('shrink-0 rounded-sm object-contain', className)}
+      style={box}
       draggable={false}
     />
   );

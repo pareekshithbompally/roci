@@ -50,7 +50,7 @@ export const ONBOARDING_CONFIG = {
     subheading: 'For chat, summaries and transcripts. You can change it any time in Settings.',
     local: {
       title: 'Local',
-      description: 'A server on this Mac or your network: Ollama, LM Studio, or any OpenAI-compatible address',
+      description: 'Ollama, LM Studio and other servers',
       heading: 'Connect a local server',
       scanning: 'Looking for servers…',
       none: 'No server found on this Mac. Enter its address below.',
@@ -59,7 +59,7 @@ export const ONBOARDING_CONFIG = {
     },
     remote: {
       title: 'Remote',
-      description: 'OpenAI, Anthropic, Google and more, with your API key',
+      description: 'OpenAI, Anthropic, Google, with a key',
     },
     checking: 'Checking…',
   },

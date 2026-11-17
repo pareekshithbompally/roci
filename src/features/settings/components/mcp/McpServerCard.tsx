@@ -1,13 +1,14 @@
-/** One MCP server row: live status (Retry when offline), masked transport details, edit/delete, enable switch. */
+/** One MCP server row: its icon, one line of masked transport details, live status (Retry when offline), edit/delete, enable switch. */
 
 import React from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { MCP_CONFIG } from '@config/mcp.config';
 import type { McpServerConfig } from '@config/mcp.config';
+import { META_SEPARATOR } from '@config/ui.config';
 import { Button, CardRow, IconButton, Status, Switch } from '@shared/ui';
 import type { DotTone } from '@shared/ui';
 import { ServerIcon } from '@shared/components';
-import { maskKeys, maskUrl, serverStatus, type McpServerStatus } from './mcpServerForm';
+import { maskUrl, serverStatus, type McpServerStatus } from './mcpServerForm';
 
 interface McpServerCardProps {
   name: string;
@@ -36,32 +37,20 @@ const STATUS: Record<McpServerStatus, { label: string; tone: DotTone; pulse?: bo
 const transportLabel = (config: McpServerConfig) =>
   MCP_CONFIG.transports.find((t) => t.value === (config.type ?? 'stdio'))?.label ?? 'STDIO';
 
-const Detail: React.FC<{ label: string; value?: string | number }> = ({ label, value }) =>
-  value === undefined || value === '' ? null : (
-    <span className="block break-all">{label}: {value}</span>
-  );
-
-const ServerDetails: React.FC<{ config: McpServerConfig }> = ({ config }) => {
-  const isStdio = (config.type ?? 'stdio') === 'stdio';
-  return (
-    <>
-      <Detail label="Transport" value={transportLabel(config)} />
-      {isStdio ? (
-        <>
-          <Detail label="Command" value={config.command} />
-          <Detail label="Args" value={config.args?.join(' ')} />
-          <Detail label="Env" value={maskKeys(config.env)} />
-        </>
-      ) : (
-        <>
-          <Detail label="URL" value={maskUrl(config.url ?? '')} />
-          <Detail label="Headers" value={maskKeys(config.headers)} />
-          <Detail label="Timeout" value={config.timeout ? `${config.timeout}s` : undefined} />
-        </>
-      )}
-    </>
-  );
+/** "2 env vars" / "1 header": secrets stay out of the row, only their count shows. */
+const countOf = (record: Record<string, string> | undefined, noun: string) => {
+  const n = Object.keys(record ?? {}).length;
+  return n === 0 ? undefined : `${n} ${noun}${n === 1 ? '' : 's'}`;
 };
+
+/** One line: the command a STDIO server runs, or a remote server's transport and masked URL. */
+function serverLine(config: McpServerConfig): string {
+  const isStdio = (config.type ?? 'stdio') === 'stdio';
+  const parts = isStdio
+    ? [[config.command, ...(config.args ?? [])].join(' '), countOf(config.env, 'env var')]
+    : [`${transportLabel(config)} ${maskUrl(config.url ?? '')}`, countOf(config.headers, 'header')];
+  return parts.filter(Boolean).join(META_SEPARATOR);
+}
 
 export const McpServerCard: React.FC<McpServerCardProps> = ({
   name,
@@ -79,10 +68,10 @@ export const McpServerCard: React.FC<McpServerCardProps> = ({
   const { label, tone, pulse } = STATUS[status];
   return (
     <CardRow
-      align="start"
-      leading={<ServerIcon name={name} icon={icon} size="sm" />}
+      leading={<ServerIcon name={name} icon={icon} size="tile" />}
+      leadingAlign="row"
       title={name}
-      description={<ServerDetails config={config} />}
+      description={<span className="block truncate" title={serverLine(config)}>{serverLine(config)}</span>}
       status={
         <>
           <Status tone={tone} pulse={pulse}>{label}</Status>
