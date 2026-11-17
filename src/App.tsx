@@ -358,7 +358,10 @@ const App: React.FC = () => {
           className={`grow shrink min-h-0 flex flex-col custom-scrollbar relative ${
             contentView === 'settings' || contentView === 'reminders' || contentView === 'calendar'
               ? 'p-0 items-stretch overflow-y-auto'
-              : (showIdleView || showChatView || showResultsView)
+              // The idle view's wash runs up behind the phone's clear top bar; the shell clips at the screen edge.
+              : showIdleView
+                ? 'p-0'
+              : (showChatView || showResultsView)
                 ? 'p-0 overflow-hidden'
                 : 'p-6 md:p-10 overflow-hidden'
           }`}

@@ -15,6 +15,8 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   /* Slide-over sidebar on a phone: most of the screen, never wider than the desktop sidebar's max. */
   --drawer-start-width: min(85vw, 20rem);
+  /* The phone's top bar below the status bar (TopBar; none on a Mac); a view's colour runs up behind it by this much plus the safe area. */
+  --top-bar-height: 0px;
 
   /* ─── Type and control scale: macOS here, iOS in `html.platform-ios` below (tailwind fontSize/spacing read these). ─── */
   --fs-subheadline: 11px;  --lh-subheadline: 14px;
@@ -158,9 +160,9 @@
   --ai-border: color-mix(in srgb, var(--ai-accent) 50%, transparent);
   --ai-glow: 0 10px 15px -3px color-mix(in srgb, var(--ai-accent) 25%, transparent);
   /* Landing glow (LandingGlow): copper core, amber companion, copper wash */
-  --bg-glow-core: color-mix(in srgb, var(--copper-500) 45%, transparent);
-  --bg-glow-companion: color-mix(in srgb, var(--copper-400) 40%, transparent);
-  --bg-glow-wash: color-mix(in srgb, var(--copper-400) 25%, transparent);
+  --bg-glow-core: color-mix(in srgb, var(--copper-500) 30%, transparent);
+  --bg-glow-companion: color-mix(in srgb, var(--copper-400) 26%, transparent);
+  --bg-glow-wash: color-mix(in srgb, var(--copper-400) 20%, transparent);
   /* Recording pill (DotScope canvas, read live): voice in copper, processing in sand, failure in danger red. */
   --scope-you: var(--copper-600);
   --scope-you-core: var(--copper-400);
@@ -198,6 +200,7 @@ html.platform-ios {
   --row-min-h: 52px;
   --row-icon-gap: 16px;
   --section-gap: 32px;
+  --top-bar-height: 4rem;
 }
 
 html.platform-ios.dark {
@@ -256,9 +259,9 @@ html.platform-ios.dark {
   --shadow-overlay: #0000004d 0 16px 32px 0, #0000004d 0 8px 16px 0, #ffffff29 0 0 0 0.5px, #ffffff0f 0 -0.5px 0 0;
 
   --ai-accent: var(--copper-400);
-  --bg-glow-core: color-mix(in srgb, var(--copper-500) 45%, transparent);
-  --bg-glow-companion: color-mix(in srgb, var(--copper-400) 40%, transparent);
-  --bg-glow-wash: color-mix(in srgb, var(--copper-600) 30%, transparent);
+  --bg-glow-core: color-mix(in srgb, var(--copper-500) 30%, transparent);
+  --bg-glow-companion: color-mix(in srgb, var(--copper-400) 26%, transparent);
+  --bg-glow-wash: color-mix(in srgb, var(--copper-600) 22%, transparent);
   --scope-you: var(--copper-400);
   --scope-you-core: var(--copper-200);
   --scope-agent: var(--sand-300);
