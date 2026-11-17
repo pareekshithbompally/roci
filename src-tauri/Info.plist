@@ -23,5 +23,9 @@
 
     <key>NSUserNotificationAlertStyle</key>
     <string>alert</string>
+
+    <!-- The Icon Composer icon (light, dark, clear, tinted) in Assets.car: scripts/build-app-icon.sh -->
+    <key>CFBundleIconName</key>
+    <string>AppIcon</string>
 </dict>
 </plist>

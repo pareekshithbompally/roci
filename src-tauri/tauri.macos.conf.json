@@ -8,7 +8,8 @@
       "icons/iconRecordingTemplate@2x.png": "icons/iconRecordingTemplate@2x.png",
       "icons/agents/claude-code.png": "icons/agents/claude-code.png",
       "icons/agents/opencode.png": "icons/agents/opencode.png",
-      "frameworks/mlx-swift_Cmlx.bundle": "mlx-swift_Cmlx.bundle"
+      "frameworks/mlx-swift_Cmlx.bundle": "mlx-swift_Cmlx.bundle",
+      "icons/compiled/Assets.car": "Assets.car"
     }
   }
 }

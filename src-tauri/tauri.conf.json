@@ -79,8 +79,7 @@
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/AppIcon.icon"
+      "icons/compiled/AppIcon.icns"
     ],
     "publisher": "Roci",
     "copyright": "Copyright \u00a9 2026 Pareekshith Bompally",
