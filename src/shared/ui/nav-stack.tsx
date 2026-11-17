@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft } from 'lucide-react';
 import { ANIMATION_CONFIG } from '@config/animations.config';
@@ -9,11 +10,16 @@ import { Text } from './text';
 export interface NavScreen {
   title: string;
   content: React.ReactNode;
+  /** Called when the user leaves the screen with Back. */
+  onPop?: () => void;
 }
 
 interface NavStackApi {
-  push: (screen: NavScreen) => void;
+  /** Pushes a screen; returns its id for `remove`. */
+  push: (screen: NavScreen) => number;
   pop: () => void;
+  /** Takes a screen off the stack by id (its owner closed it); no-op once it's gone. */
+  remove: (id: number) => void;
 }
 
 const NavStackContext = createContext<NavStackApi | null>(null);
@@ -72,9 +78,17 @@ export function NavStack({ title, action, initial, children }: NavStackProps) {
   const nextId = useRef(0);
   const entry = useCallback((screen: NavScreen): StackEntry => ({ ...screen, id: nextId.current++ }), []);
   const [stack, setStack] = useState<StackEntry[]>(() => (initial ? [entry(initial)] : []));
-  const push = useCallback((screen: NavScreen) => setStack((s) => [...s, entry(screen)]), [entry]);
-  const pop = useCallback(() => setStack((s) => s.slice(0, -1)), []);
-  const api = useMemo(() => ({ push, pop }), [push, pop]);
+  const push = useCallback((screen: NavScreen) => {
+    const next = entry(screen);
+    setStack((s) => [...s, next]);
+    return next.id;
+  }, [entry]);
+  const pop = useCallback(() => {
+    stack.at(-1)?.onPop?.();
+    setStack((s) => s.slice(0, -1));
+  }, [stack]);
+  const remove = useCallback((id: number) => setStack((s) => s.filter((screen) => screen.id !== id)), []);
+  const api = useMemo(() => ({ push, pop, remove }), [push, pop, remove]);
 
   return (
     <NavStackContext.Provider value={api}>
@@ -117,4 +131,31 @@ export function NavStack({ title, action, initial, children }: NavStackProps) {
       </div>
     </NavStackContext.Provider>
   );
+}
+
+interface PushedScreenProps {
+  open: boolean;
+  title: string;
+  /** The user went Back. */
+  onClose: () => void;
+  children: React.ReactNode;
+}
+
+/** Declarative push: while `open`, a screen titled `title` is on the enclosing stack, showing `children` live (state stays with the owner). */
+export function PushedScreen({ open, title, onClose, children }: PushedScreenProps) {
+  const { push, remove } = useNavStack();
+  const [target, setTarget] = useState<HTMLDivElement | null>(null);
+  const close = useRef(onClose);
+  close.current = onClose;
+
+  useEffect(() => {
+    if (!open) return;
+    const id = push({ title, content: <div ref={setTarget} />, onPop: () => close.current() });
+    return () => {
+      remove(id);
+      setTarget(null);
+    };
+  }, [open, title, push, remove]);
+
+  return target ? createPortal(children, target) : null;
 }

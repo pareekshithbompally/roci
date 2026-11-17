@@ -66,6 +66,7 @@ const AddModelPicker: React.FC<AddModelPickerProps> = ({ provider, connection, a
       onOpenChange={changeOpen}
       search={search}
       onSearchChange={setSearch}
+      title="Add Model"
       searchPlaceholder="Search models…"
       emptyText={emptyText(status)}
       side="bottom"

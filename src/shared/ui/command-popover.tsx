@@ -5,6 +5,8 @@ import { UI_CONFIG } from '@config/ui.config';
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from './popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandList } from './command';
 import { cn } from './utils';
+import { PushedScreen, useOptionalNavStack } from './nav-stack';
+import { useFormFactor } from '@platform/formFactor';
 
 /** Shell never taller than the space Radix measured; the list shrinks with it. */
 const SHELL = 'p-0 flex flex-col max-h-[var(--radix-popover-content-available-height)]';
@@ -13,8 +15,10 @@ const LIST = 'max-h-80 min-h-0 flex-1';
 interface CommandPopoverProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** The trigger button (rendered via PopoverTrigger asChild). */
-  trigger: React.ReactElement;
+  /** The trigger button (rendered via PopoverTrigger asChild; on a phone its click pushes the screen). */
+  trigger: React.ReactElement<{ onClick?: React.MouseEventHandler }>;
+  /** The pushed screen's title when it opens as a screen (phone, inside a NavStack). */
+  title?: string;
   searchPlaceholder: string;
   /** Controlled search text, for callers that act on what was typed (e.g. add a name the list lacks). */
   search?: string;
@@ -28,10 +32,12 @@ interface CommandPopoverProps {
   children: React.ReactNode;
 }
 
+/** A searchable list: a popover by its trigger; on a phone inside a NavStack, a pushed screen in the same sheet (iOS). */
 export function CommandPopover({
   open,
   onOpenChange,
   trigger,
+  title,
   searchPlaceholder,
   search,
   onSearchChange,
@@ -42,6 +48,24 @@ export function CommandPopover({
   className,
   children,
 }: CommandPopoverProps) {
+  const stack = useOptionalNavStack();
+  const phone = useFormFactor() === 'phone';
+  if (phone && stack) {
+    return (
+      <>
+        {React.cloneElement(trigger, { onClick: () => onOpenChange(true) })}
+        <PushedScreen open={open} title={title ?? searchPlaceholder} onClose={() => onOpenChange(false)}>
+          <Command className="rounded-none">
+            <CommandInput placeholder={searchPlaceholder} value={search} onValueChange={onSearchChange} className="px-4" />
+            <CommandList className="max-h-none overflow-visible">
+              <CommandEmpty>{emptyText}</CommandEmpty>
+              {children}
+            </CommandList>
+          </Command>
+        </PushedScreen>
+      </>
+    );
+  }
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
