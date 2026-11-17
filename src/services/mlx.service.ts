@@ -10,6 +10,8 @@ import type { StreamProgress } from '@services/ai/types';
 export interface MlxMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
+  /** A user turn's images, base64 of each file (the engine decodes them). */
+  images?: string[];
   toolCalls?: { id: string; function: { name: string; arguments: unknown } }[];
   toolCallId?: string;
   toolName?: string;

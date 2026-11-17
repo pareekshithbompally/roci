@@ -10,6 +10,7 @@ import type {
   LanguageModelV4StreamResult,
   LanguageModelV4Usage,
 } from '@ai-sdk/provider';
+import { convertToBase64, getTopLevelMediaType } from '@ai-sdk/provider-utils';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import { mlxCancel, mlxChat, type MlxChatRequest, type MlxChatResult, type MlxMessage } from '@services/mlx.service';
 
@@ -22,6 +23,18 @@ function textOf(message: Message): string {
   return message.content.flatMap((part) => (part.type === 'text' ? [part.text] : [])).join('\n\n');
 }
 
+/** A user turn's attached images as base64 (inline data only: an on-device model can't fetch a URL or a reference). */
+function imagesOf(message: Message): string[] {
+  if (message.role !== 'user') return [];
+  return message.content.flatMap((part) => {
+    if (part.type !== 'file' || getTopLevelMediaType(part.mediaType) !== 'image') return [];
+    const { data } = part;
+    if (data.type === 'data') return [convertToBase64(data.data)];
+    if (data.type === 'url' && data.url.protocol === 'data:') return [data.url.href.slice(data.url.href.indexOf(',') + 1)];
+    return [];
+  });
+}
+
 /** A tool result's payload as the model reads it. */
 function resultText(output: unknown): string {
   const value = (output as { value?: unknown } | null)?.value ?? output;
@@ -32,8 +45,11 @@ function resultText(output: unknown): string {
 function toTurns(message: Message): MlxMessage[] {
   switch (message.role) {
     case 'system':
-    case 'user':
-      return [{ role: message.role, content: textOf(message) }];
+      return [{ role: 'system', content: textOf(message) }];
+    case 'user': {
+      const images = imagesOf(message);
+      return [{ role: 'user', content: textOf(message), ...(images.length > 0 && { images }) }];
+    }
     case 'assistant': {
       const toolCalls = message.content.flatMap((part) =>
         part.type === 'tool-call' ? [{ id: part.toolCallId, function: { name: part.toolName, arguments: part.input } }] : []);

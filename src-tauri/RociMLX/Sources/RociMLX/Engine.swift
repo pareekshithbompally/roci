@@ -1,17 +1,20 @@
 // One loaded model per role (chat, embedding, voice), loaded from its downloaded folder on first use and kept until unloaded.
 
+import CoreImage
 import Foundation
 import MLX
 import MLXEmbedders
 import MLXLLM
+import MLXVLM
 import MLXAudioTTS
 import MLXLMCommon
 import Tokenizers
 
-/// A chat turn as the webview sends it (AI SDK prompt, flattened).
+/// A chat turn as the webview sends it (AI SDK prompt, flattened); a user turn may carry images (base64).
 struct ChatMessage: Decodable, Sendable {
     let role: String
     let content: String
+    let images: [String]?
     let toolCalls: [ToolCall]?
     let toolCallId: String?
     let toolName: String?
@@ -79,8 +82,12 @@ actor Engine {
         if let loaded = chatModel, loaded.dir == dir { return loaded.container }
         chatModel = nil
         Memory.clearCache()
+        // A model whose config declares a vision part loads on the engine's vision path (text, images, tools); else text.
+        let folder = URL(filePath: dir)
         let container = try await reportingLoad(role: "chat", dir: dir) {
-            try await LLMModelFactory.shared.loadContainer(from: URL(filePath: dir), using: FolderTokenizerLoader())
+            Self.hasVision(folder)
+                ? try await VLMModelFactory.shared.loadContainer(from: folder, using: FolderTokenizerLoader())
+                : try await LLMModelFactory.shared.loadContainer(from: folder, using: FolderTokenizerLoader())
         }
         chatModel = (dir, container)
         return container
@@ -106,7 +113,7 @@ actor Engine {
             topK: request.topK ?? 0)
         let generation = Task<GenerateCompletionInfo?, Error> {
             try await container.perform { (context: ModelContext) async throws -> GenerateCompletionInfo? in
-                let input = UserInput(chat: request.messages.map(Self.message), tools: request.tools?.map(Self.spec))
+                let input = UserInput(chat: try request.messages.map(Self.message), tools: request.tools?.map(Self.spec))
                 let prepared = try await context.processor.prepare(input: input)
                 var info: GenerateCompletionInfo?
                 for await event in try generate(input: prepared, parameters: parameters, context: context) {
@@ -148,13 +155,29 @@ actor Engine {
         return ["vectors": vectors]
     }
 
-    private static func message(_ m: ChatMessage) -> Chat.Message {
+    private static func message(_ m: ChatMessage) throws -> Chat.Message {
         switch m.role {
         case "system": .system(m.content)
         case "assistant": .assistant(m.content, toolCalls: m.toolCalls)
         case "tool": .tool(m.content, id: m.toolCallId, name: m.toolName)
-        default: .user(m.content)
+        default: .user(m.content, images: try (m.images ?? []).map(image))
         }
+    }
+
+    /// An attached image (base64 of its file: PNG, JPEG, HEIC …), decoded by Core Image.
+    private static func image(_ base64: String) throws -> UserInput.Image {
+        guard let data = Data(base64Encoded: base64), let decoded = CIImage(data: data) else {
+            throw EngineError(description: "An attached image couldn't be read.")
+        }
+        return .ciImage(decoded)
+    }
+
+    /// The model ships a vision encoder (`vision_config` in its config.json, as Gemma 4 does).
+    private static func hasVision(_ folder: URL) -> Bool {
+        guard let data = try? Data(contentsOf: folder.appending(path: "config.json")),
+              let config = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return false }
+        return config["vision_config"] != nil
     }
 
     private static func spec(_ value: JSONValue) -> ToolSpec {

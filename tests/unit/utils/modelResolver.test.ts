@@ -229,11 +229,12 @@ describe('models from integrations', () => {
     const { modelSources } = await import('@shared/utils/modelResolver');
     const gemma = {
       id: 'gemma-4-e2b', name: 'Gemma 4', maker: 'google', kind: 'chat' as const, streams: false, bytes: 1,
-      installed: true, downloading: false, contextTokens: 131_072, tools: true,
+      installed: true, downloading: false, contextTokens: 131_072, tools: true, vision: true,
     };
     const [onDevice] = modelSources([], {} as never, [gemma]);
     expect(onDevice.models[0].served?.contextTokens).toBe(131_072);
     const { capabilitiesOf } = await import('@services/ai/capabilities');
     expect(capabilitiesOf(onDevice.provider, onDevice.models[0]).tools).toBe(true);
+    expect(onDevice.models[0].served?.modalities?.input).toContain('image');
   });
 });

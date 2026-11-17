@@ -272,4 +272,22 @@ mod tests {
         unsafe { roci_mlx_unload(c"chat".as_ptr()) };
         unsafe { roci_mlx_unload(c"embedding".as_ptr()) };
     }
+
+    /// A vision chat model (Gemma 4) on the engine's vision path sees an attached image, with tools offered alongside.
+    #[test]
+    #[ignore = "needs a downloaded MLX vision model"]
+    fn chat_sees_an_image_with_tools_offered() {
+        let chat_dir = std::env::var("ROCI_MLX_CHAT_DIR").unwrap();
+        // A 32×32 solid crimson PNG.
+        let red = "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKklEQVR42mO4I2JDU8QwasGoBaMWjFowasGoBaMWjFowasGoBaMWDBULADahsD3KIXWxAAAAAElFTkSuQmCC";
+        let weather = json!({"type": "function", "function": {"name": "get_weather", "description": "Current weather for a city",
+            "parameters": {"type": "object", "properties": {"city": {"type": "string"}}, "required": ["city"]}}});
+        let request = to_c(&json!({"streamId": 2, "modelDir": chat_dir, "temperature": 0.0, "maxTokens": 20, "tools": [weather],
+            "messages": [{"role": "user", "content": "What colour is this image? Answer with one word.", "images": [red]}]})).unwrap();
+        let events = Mutex::new(Vec::<Value>::new());
+        take(unsafe { roci_mlx_chat(request.as_ptr(), collect, &events as *const _ as *mut c_void) }).unwrap();
+        let text: String = events.into_inner().unwrap().iter().filter_map(|e| e["text"].as_str()).collect();
+        assert!(text.to_lowercase().contains("red") || text.to_lowercase().contains("crimson"), "saw: {text}");
+        unsafe { roci_mlx_unload(c"chat".as_ptr()) };
+    }
 }

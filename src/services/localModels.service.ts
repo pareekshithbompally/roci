@@ -23,6 +23,8 @@ export interface LocalModel {
   contextTokens: number | null;
   /** A downloaded chat model's chat template takes tools (tool calling); null otherwise. */
   tools: boolean | null;
+  /** A downloaded chat model reads images (it ships a vision encoder); null otherwise. */
+  vision: boolean | null;
 }
 
 /** Payload of the download event (Rust `DownloadProgress`). */

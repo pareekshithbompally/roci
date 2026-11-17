@@ -22,6 +22,8 @@ pub struct LocalModelStatus {
     context_tokens: Option<u64>,
     /// A downloaded chat model's chat template takes tool definitions (tool calling); None otherwise.
     tools: Option<bool>,
+    /// A downloaded chat model ships a vision encoder, so it reads images (`vision_config`); None otherwise.
+    vision: Option<bool>,
 }
 
 /// Every curated model: downloaded, downloading, or neither.
@@ -43,6 +45,7 @@ pub fn local_models(app: AppHandle, state: State<'_, ModelsState>) -> Result<Vec
                 downloading: state.downloads.is_active(m.id),
                 context_tokens: (installed && m.kind == Kind::Chat).then(|| context_tokens(&dir)).flatten(),
                 tools: (installed && m.kind == Kind::Chat).then(|| takes_tools(&dir)),
+                vision: (installed && m.kind == Kind::Chat).then(|| model_config(&dir).is_some_and(|c| c.get("vision_config").is_some())),
             })
         })
         .collect()
@@ -51,10 +54,14 @@ pub fn local_models(app: AppHandle, state: State<'_, ModelsState>) -> Result<Vec
 /// The context window a model's config.json states: `max_position_embeddings`, at the top (text models) or in
 /// `text_config` (multimodal ones such as Gemma 4).
 fn context_tokens(dir: &std::path::Path) -> Option<u64> {
-    let text = std::fs::read_to_string(dir.join("config.json")).ok()?;
-    let config: serde_json::Value = serde_json::from_str(&text).ok()?;
+    let config = model_config(dir)?;
     let key = "max_position_embeddings";
     config.get(key).or_else(|| config.get("text_config")?.get(key))?.as_u64()
+}
+
+/// The model's config.json, as the model ships it.
+fn model_config(dir: &std::path::Path) -> Option<serde_json::Value> {
+    serde_json::from_str(&std::fs::read_to_string(dir.join("config.json")).ok()?).ok()
 }
 
 /// Whether the model's chat template takes tool definitions: a Jinja tag (`{% … %}`, `{{ … }}`) uses `tools` — prose
