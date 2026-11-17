@@ -22,6 +22,7 @@ import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
 import { LAYOUT } from '@config/layout.config';
 import { confirm } from '@shared/stores/confirmStore';
 import { platform } from '@platform/index';
+import { formatFileSize } from '@shared/utils/formatters';
 
 /** Recording sources offered in General › Capture, and what each needs from macOS. */
 const CAPTURE_SOURCES = ['systemAndMicrophone', 'system', 'microphone'] as const;
@@ -329,12 +330,12 @@ export const GeneralPanel: React.FC = () => {
           {DISK_USAGE_LABELS.map((label) => {
             const entry = diskUsage?.find((d) => d.label === label);
             return (
-              <CardRow key={label} title={label} actions={<Text variant="figure" tone="muted">{entry ? formatBytes(entry.bytes) : PENDING}</Text>} />
+              <CardRow key={label} title={label} actions={<Text variant="figure" tone="muted">{entry ? formatFileSize(entry.bytes) : PENDING}</Text>} />
             );
           })}
           <CardRow
             title="Total"
-            actions={<Text variant="figure">{diskUsage ? formatBytes(diskUsage.reduce((sum, d) => sum + d.bytes, 0)) : PENDING}</Text>}
+            actions={<Text variant="figure">{diskUsage ? formatFileSize(diskUsage.reduce((sum, d) => sum + d.bytes, 0)) : PENDING}</Text>}
           />
         </Section>
       )}
@@ -381,14 +382,6 @@ export const GeneralPanel: React.FC = () => {
 
 /** Shown in a value slot until its data loads, so rows keep their place. */
 const PENDING = '—';
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  const value = bytes / Math.pow(1024, i);
-  return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[i]}`;
-}
 
 /** Index row: status badge, counts, and a re-index button */
 const IndexActionRow: React.FC<{

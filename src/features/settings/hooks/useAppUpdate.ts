@@ -6,6 +6,7 @@ import { isTauriEnvironment } from '@services/tauri';
 import { activityStore, type ActivityItem } from '@shared/stores/activityStore';
 import { APP_CONFIG } from '@config/app.config';
 import { platform } from '@platform/index';
+import { formatFileSize } from '@shared/utils/formatters';
 
 type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error';
 
@@ -133,7 +134,7 @@ export function useAppUpdate(): UseAppUpdateReturn {
         if (event.event === 'Started') {
           totalBytes = event.data.contentLength ?? 0;
           activityStore.update(ACTIVITY_ID, {
-            detail: totalBytes ? formatBytes(totalBytes) : 'Downloading…',
+            detail: totalBytes ? formatFileSize(totalBytes) : 'Downloading…',
           });
         } else if (event.event === 'Progress') {
           downloadedBytes += event.data.chunkLength;
@@ -141,8 +142,8 @@ export function useAppUpdate(): UseAppUpdateReturn {
           activityStore.update(ACTIVITY_ID, {
             percent,
             detail: totalBytes
-              ? `${formatBytes(downloadedBytes)} / ${formatBytes(totalBytes)}`
-              : formatBytes(downloadedBytes),
+              ? `${formatFileSize(downloadedBytes)} / ${formatFileSize(totalBytes)}`
+              : formatFileSize(downloadedBytes),
           });
         } else if (event.event === 'Finished') {
           activityStore.update(ACTIVITY_ID, {
@@ -214,10 +215,3 @@ export function scheduleStartupCheck(checkFn: () => Promise<void>) {
   return () => clearTimeout(timer);
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  const value = bytes / Math.pow(1024, i);
-  return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[i]}`;
-}
