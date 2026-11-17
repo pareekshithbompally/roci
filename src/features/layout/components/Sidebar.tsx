@@ -129,7 +129,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </header>
         <div className="shrink-0 px-2"><TodosRow /></div>
         <div ref={listContainerRef} className="flex-1 overflow-y-auto px-2 pb-2">{list}</div>
-        <ActivityTray />
         <footer className="shrink-0 px-4 pt-2 pb-4">
           <IconButton icon={Settings} size="fab" variant="bar" onClick={handleSettingsClick} label="Settings" />
         </footer>

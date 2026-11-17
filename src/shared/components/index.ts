@@ -1,5 +1,6 @@
 // App-wide compositions used by 2+ features; import from '@shared/components' only.
 export { ActivityTray } from './ActivityTray';
+export { ActivityCapsule } from './ActivityCapsule';
 export { ConfirmHost } from './ConfirmHost';
 export { EmptyState } from './EmptyState';
 export { HighlightedText } from './HighlightedText';

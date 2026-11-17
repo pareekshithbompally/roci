@@ -7,6 +7,7 @@ import { useAppActions, useAppStore, useCurrentView } from '@shared/stores/appSt
 import { ModelPicker, startNewChat } from '@features/chat';
 import { SettingsHome, settingsScreen } from '@features/settings';
 import { BottomSheet, IconButton, NavStack, RevealLayout, Surface, TopBar } from '@shared/ui';
+import { ActivityCapsule } from '@shared/components';
 import { Sidebar } from './Sidebar';
 
 interface PhoneShellProps {
@@ -29,7 +30,11 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children }) => {
           trailing={<IconButton icon={SquarePen} size="fab" variant="bar" label="New chat" onClick={startNewChat} />}
         />
         {/* Clear of the home indicator once, for every screen (idle, chat, meeting). */}
-        <div className="relative flex min-h-0 flex-1 flex-col pb-safe-bottom">{children}</div>
+        <div className="relative flex min-h-0 flex-1 flex-col pb-safe-bottom">
+          {/* Work in progress shows here, under the bar, whatever the screen; the sidebar no longer carries it. */}
+          <ActivityCapsule />
+          {children}
+        </div>
       </Surface>
       <BottomSheet open={inSettings} onOpenChange={(open) => !open && leaveSettings()} title="Settings" size="full">
         <NavStack

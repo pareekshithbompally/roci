@@ -9,6 +9,9 @@ export const ANIMATION_CONFIG = {
     },
   },
 
+  /** The Mac activity tray opening and closing at the sidebar's foot (framer-motion seconds). */
+  activityTray: { duration: 0.2, ease: 'easeInOut' as const },
+
   /** A pushed screen sliding over the one below it (kit `NavStack`, framer-motion seconds; iOS navigation curve). */
   navigation: {
     push: { duration: 0.35, ease: [0.32, 0.72, 0, 1] as const },
