@@ -38,7 +38,6 @@ export const ReadAloudVoiceRow: React.FC<ReadAloudVoiceRowProps> = ({ engine, re
   return (
     <CardRow
       leading={<IconTile icon={JOB_GLYPH.voice} />}
-      leadingAlign="row"
       title={CAPABILITIES_CONFIG.jobs.voice.title}
       actions={
         <div className="flex items-center gap-2">

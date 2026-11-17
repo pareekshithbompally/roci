@@ -29,7 +29,6 @@ export const IntegrationRow: React.FC<IntegrationRowProps> = ({
     <Section footer={note ? `${description} ${note}` : description}>
       <CardRow
         leading={icon}
-        leadingAlign="row"
         title={title}
         actions={
           <Switch

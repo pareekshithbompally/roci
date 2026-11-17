@@ -16,7 +16,6 @@ const PermissionRow: React.FC<{ row: OnboardingPermission }> = ({ row }) => {
   return (
     <CardRow
       leading={<OnboardingIcon source={ONBOARDING_ICONS[row.id]} />}
-      leadingAlign="row"
       title={
         <span className="inline-flex items-center gap-2">
           {copy.title}

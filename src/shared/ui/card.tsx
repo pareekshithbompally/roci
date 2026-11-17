@@ -26,10 +26,8 @@ export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
   title: React.ReactNode;
   /** One line about this row's own data (an account, a size, a count), cut short; explanations go in the `Section` footer. */
   description?: React.ReactNode;
-  /** Icon or avatar before the copy, centred on the title line; the description indents under the title. */
+  /** Icon or avatar before the copy: centred on the row (iOS / macOS), or on the title line when the content is top-aligned or stacked. */
   leading?: React.ReactNode;
-  /** `row` centres a large leading image (an app icon) on title and description together, as System Settings does. */
-  leadingAlign?: 'title' | 'row';
   /** Row state, always right-aligned just before `actions` so states line up down a card. */
   status?: React.ReactNode;
   actions?: React.ReactNode;
@@ -45,7 +43,7 @@ export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
   tone?: 'accent' | 'danger';
 }
 
-export function CardRow({ title, description, leading, leadingAlign = 'title', status, actions, stacked, align = 'center', onOpen, onPress, tone, className, children, ...props }: CardRowProps) {
+export function CardRow({ title, description, leading, status, actions, stacked, align = 'center', onOpen, onPress, tone, className, children, ...props }: CardRowProps) {
   const press = onOpen ?? onPress;
   // Phone: the copy keeps the width — state reads under the description, the side holds only the control.
   const phone = useFormFactor() === 'phone';
@@ -63,10 +61,10 @@ export function CardRow({ title, description, leading, leadingAlign = 'title', s
       )}
       {...props}
     >
-      {/* `title`: one title line tall (1lh of the title style), so the icon centres on the title, not the block. */}
-      {leading && (leadingAlign === 'row'
-        ? <div className="flex shrink-0 items-center">{leading}</div>
-        : <Text as="div" variant="body" className="flex h-[1lh] shrink-0 items-center self-start mt-2">{leading}</Text>)}
+      {/* Pinned rows: a box one title line tall (1lh), so the icon centres on the title line, not on the block. */}
+      {leading && (align === 'start' || stacked
+        ? <Text as="div" variant="body" className="mt-2 flex h-[1lh] shrink-0 items-center self-start">{leading}</Text>
+        : <div className="flex shrink-0 items-center">{leading}</div>)}
       <div
         className={cn(
           // Row height comes from min-h (44 macOS, 52 iOS); 8pt padding lets any control fit inside it, so rows line up.

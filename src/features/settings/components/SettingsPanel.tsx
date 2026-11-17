@@ -55,7 +55,7 @@ export const SettingsHome: React.FC = () => {
       {groups.map((group) => (
         <Section key={group} title={group}>
           {items.filter((item) => item.group === group).map(({ id, label, icon }) => (
-            <CardRow key={id} title={label} leading={<IconTile icon={icon} />} leadingAlign="row" onOpen={() => push(settingsScreen(id))} />
+            <CardRow key={id} title={label} leading={<IconTile icon={icon} />} onOpen={() => push(settingsScreen(id))} />
           ))}
         </Section>
       ))}

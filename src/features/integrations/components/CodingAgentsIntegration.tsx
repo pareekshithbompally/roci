@@ -19,7 +19,6 @@ export const CodingAgentsIntegration: React.FC = () => {
     <>
       <CardRow
         leading={<IconTile icon={SiModelcontextprotocol} />}
-        leadingAlign="row"
         title={COPY.server.title}
         description={server?.error}
         status={<ServerStatus server={server} />}
@@ -56,7 +55,6 @@ const AgentRow: React.FC<AgentRowProps> = ({ agent, pending, setRegistered }) =>
   return (
     <CardRow
       leading={<IntegrationIcon src={copy.icon} />}
-      leadingAlign="row"
       title={copy.title}
       description={describe(agent)}
       status={agent.registration === 'outdated' && (

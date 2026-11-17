@@ -31,7 +31,7 @@ const CapabilityRow: React.FC<{
   job: { title: string };
   children: React.ReactNode;
 }> = ({ icon, job, children }) => (
-  <CardRow leading={<IconTile icon={icon} />} leadingAlign="row" title={job.title} actions={children} />
+  <CardRow leading={<IconTile icon={icon} />} title={job.title} actions={children} />
 );
 
 type Controls = Record<string, OnDeviceModel>;
@@ -134,7 +134,6 @@ const OnDeviceModelRow: React.FC<{ icon: TileGlyph; name: string; use: string; s
 }) => (
   <CardRow
     leading={<IconTile icon={icon} />}
-    leadingAlign="row"
     title={name}
     description={`${use} · ${size}`}
     status={<ModelReadyStatus model={control} />}

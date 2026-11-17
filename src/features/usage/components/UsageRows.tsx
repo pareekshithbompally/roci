@@ -29,7 +29,6 @@ export const MetricRow: React.FC<RowBase & { icon: TileGlyph; title: string; des
 }) => (
   <CardRow
     leading={<IconTile icon={icon} />}
-    leadingAlign="row"
     title={title}
     description={description}
     status={<Figure>{value}</Figure>}
@@ -45,7 +44,6 @@ export const ProviderRow: React.FC<RowBase & { provider: string; totals: UsageTo
 }) => (
   <CardRow
     leading={<ProvidersAvatar provider={provider} size={ICON_TILE_PX} />}
-    leadingAlign="row"
     title={getProviderTitle(provider)}
     description={usageLine(totals)}
     status={<Figure>{formatMetric(metric, metricValue(metric, totals))}</Figure>}
@@ -61,7 +59,6 @@ export const ModelRow: React.FC<RowBase & { row: ProviderModelBreakdown; metric:
 }) => (
   <CardRow
     leading={<ModelIcon provider={row.provider} modelId={row.model} size={ICON_TILE_PX} />}
-    leadingAlign="row"
     title={modelName(row.model)}
     description={usageLine(row, withProvider ? getProviderTitle(row.provider) : undefined)}
     status={<Figure>{formatMetric(metric, metricValue(metric, row))}</Figure>}

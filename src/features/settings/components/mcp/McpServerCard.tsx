@@ -69,7 +69,6 @@ export const McpServerCard: React.FC<McpServerCardProps> = ({
   return (
     <CardRow
       leading={<ServerIcon name={name} icon={icon} size="tile" />}
-      leadingAlign="row"
       title={name}
       description={<span title={serverLine(config)}>{serverLine(config)}</span>}
       status={
