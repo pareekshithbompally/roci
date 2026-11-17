@@ -161,10 +161,18 @@
   --ai-accent: var(--copper-600);
   --ai-border: color-mix(in srgb, var(--ai-accent) 50%, transparent);
   --ai-glow: 0 10px 15px -3px color-mix(in srgb, var(--ai-accent) 25%, transparent);
-  /* Landing glow (LandingGlow): copper core, amber companion, copper wash */
-  --bg-glow-core: color-mix(in srgb, var(--copper-500) 30%, transparent);
-  --bg-glow-companion: color-mix(in srgb, var(--copper-400) 26%, transparent);
-  --bg-glow-wash: color-mix(in srgb, var(--copper-400) 20%, transparent);
+  /* Idle wash (LandingGlow): one copper wash from the top. `--glow-wash-peak` is its strongest point; the gradient eases
+     out over many stops (as a blur would) to nothing by the middle of the view, so it reads as one soft light, no shapes. */
+  --glow-wash-peak: color-mix(in srgb, var(--copper-400) 30%, transparent);
+  --gradient-idle-wash: radial-gradient(ellipse 140% 85% at 50% 0%,
+    var(--glow-wash-peak) 0%,
+    color-mix(in srgb, var(--glow-wash-peak) 82%, transparent) 15%,
+    color-mix(in srgb, var(--glow-wash-peak) 60%, transparent) 30%,
+    color-mix(in srgb, var(--glow-wash-peak) 40%, transparent) 45%,
+    color-mix(in srgb, var(--glow-wash-peak) 22%, transparent) 60%,
+    color-mix(in srgb, var(--glow-wash-peak) 10%, transparent) 75%,
+    color-mix(in srgb, var(--glow-wash-peak) 3%, transparent) 90%,
+    transparent 100%);
   /* Dither over a soft gradient: a faint fractal grain breaks the 8-bit colour steps (banding) into a smooth blend. */
   --texture-dither: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   --dither-opacity: 0.05;
@@ -269,9 +277,7 @@ html.platform-ios.dark {
   --shadow-overlay: #0000004d 0 16px 32px 0, #0000004d 0 8px 16px 0, #ffffff29 0 0 0 0.5px, #ffffff0f 0 -0.5px 0 0;
 
   --ai-accent: var(--copper-400);
-  --bg-glow-core: color-mix(in srgb, var(--copper-500) 30%, transparent);
-  --bg-glow-companion: color-mix(in srgb, var(--copper-400) 26%, transparent);
-  --bg-glow-wash: color-mix(in srgb, var(--copper-600) 22%, transparent);
+  --glow-wash-peak: color-mix(in srgb, var(--copper-500) 34%, transparent);
   --scope-you: var(--copper-400);
   --scope-you-core: var(--copper-200);
   --scope-agent: var(--sand-300);

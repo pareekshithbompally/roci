@@ -1,22 +1,16 @@
 /**
- * Idle-view colour: a soft copper wash that flows down from the top of the screen (behind the phone's clear top bar)
- * and fades to the page by the middle, so the greeting sits on a calm, light ground. Solid shapes under a compositor
- * blur, with a faint dither over them, keep the gradient free of bands; the layer is still, so it is drawn once.
+ * Idle-view colour: one soft copper wash that flows down from the top of the screen (behind the phone's clear top bar)
+ * and fades to the page by the middle, so the greeting sits on a calm ground. A single eased gradient (tokens.css
+ * --gradient-idle-wash) under a faint dither: no shapes, no blur layers, no bands, the same on every window size.
  */
+
+import React from 'react';
 
 export const LandingGlow: React.FC = () => (
   // Starts above the view by the top bar and the status bar, so the wash runs behind them (a no-op on a Mac).
-  <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 -top-[calc(var(--safe-top)+var(--top-bar-height))] overflow-hidden">
-    {/* Oversized so the blur never reveals a hard edge at the clip bounds */}
-    <div className="absolute -inset-[25%] blur-[110px]">
-      {/* Copper wash — widest, across the top */}
-      <div className="absolute left-1/2 top-[18%] h-[40rem] w-[60rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-glow-wash" />
-      {/* Amber companion — top right */}
-      <div className="absolute left-[66%] top-[16%] h-[24rem] w-[28rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-glow-companion" />
-      {/* Copper core — top left, the warmest point, well above the greeting */}
-      <div className="absolute left-[36%] top-[14%] h-[20rem] w-[24rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-glow-core" />
-    </div>
-    {/* Dither: breaks the soft gradient's colour steps (banding) into a smooth blend. */}
+  <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 -top-[calc(var(--safe-top)+var(--top-bar-height))]">
+    <div className="absolute inset-0 bg-idle-wash" />
+    {/* Dither: breaks the gradient's 8-bit colour steps into a smooth blend. */}
     <div className="absolute inset-0 bg-dither opacity-dither mix-blend-overlay" />
   </div>
 );
