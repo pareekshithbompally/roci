@@ -24,12 +24,12 @@ export interface SettingsNavItem {
 
 export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   { id: 'general', label: 'General', icon: Settings2, tint: TILE_DOMAIN.system, group: 'App' },
+  { id: 'notifications', label: 'Notifications', icon: Bell, tint: TILE_DOMAIN.alerts, group: 'App', available: platform.hasNotifications },
+  { id: 'integrations', label: 'Integrations', icon: Blocks, tint: TILE_DOMAIN.connections, group: 'App', available: hasIntegrations },
   { id: 'capabilities', label: 'Capabilities', icon: Sparkles, tint: TILE_DOMAIN.intelligence, group: 'AI' },
   { id: 'providers', label: 'Providers', icon: Cpu, tint: TILE_DOMAIN.intelligence, group: 'AI' },
-  { id: 'integrations', label: 'Integrations', icon: Blocks, tint: TILE_DOMAIN.connections, group: 'Connections', available: hasIntegrations },
-  { id: 'mcp', label: 'MCP Servers', icon: SiModelcontextprotocol, tint: TILE_DOMAIN.connections, group: 'Connections', available: platform.supportsChildProcessMcp },
-  { id: 'notifications', label: 'Notifications', icon: Bell, tint: TILE_DOMAIN.alerts, group: 'Alerts & Activity', available: platform.hasNotifications },
-  { id: 'usage', label: 'Usage', icon: ChartColumn, tint: TILE_DOMAIN.activity, group: 'Alerts & Activity' },
+  { id: 'mcp', label: 'MCP Servers', icon: SiModelcontextprotocol, tint: TILE_DOMAIN.connections, group: 'AI', available: platform.supportsChildProcessMcp },
+  { id: 'usage', label: 'Usage', icon: ChartColumn, tint: TILE_DOMAIN.activity, group: 'Activity' },
 ];
 
 export const SettingsNav: React.FC = () => {
