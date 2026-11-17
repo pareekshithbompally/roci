@@ -19,6 +19,9 @@ export interface ImageRequest {
 }
 
 export interface GeneratedImageFile {
+  /** Inside app data (`images/….png`): what a chat keeps. */
+  appPath: string;
+  /** On this device now. */
   path: string;
   mediaType: string;
   /** The model that made it, for the tool's reply. */
@@ -53,6 +56,6 @@ export async function generateImageFile(request: ImageRequest): Promise<Generate
     ...target.shape,
     abortSignal: request.signal,
   });
-  const path = await imagesService.saveImage(image.uint8Array, image.mediaType);
-  return { path, mediaType: image.mediaType, model: target.modelId };
+  const { appPath, path } = await imagesService.saveImage(image.uint8Array, image.mediaType);
+  return { appPath, path, mediaType: image.mediaType, model: target.modelId };
 }

@@ -51,6 +51,8 @@ export const queryKeys = {
   cachedImage: (url: string) => ['cached-image', url] as const,
   /** Usage summed for one query: window, filters and buckets (Settings → Usage and its detail pages) */
   usage: (query: UsageQuery) => ['usage', query] as const,
+  /** The URL the webview loads for a file in app data (chat images) */
+  appFileUrl: (appPath: string) => ['app-file-url', appPath] as const,
   /** Every usage query (a logged request changes them all) */
   usageAll: () => ['usage'] as const,
 

@@ -1,6 +1,6 @@
 /** Orchestration loop inputs, callbacks and activity state. */
 
-import type { ChatMessage, HistoryItem, AppSettings, ReasoningEffort } from '@shared/types';
+import type { ChatMessage, HistoryItem, AppSettings, ImagePart, ReasoningEffort } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { GenerationStats, StreamMetadata } from '@services/ai/types';
 import type { MeetingCitation } from '@extensions/tools/types';
@@ -47,10 +47,11 @@ export type ToolActivity = {
   | { phase: 'end'; arguments?: Record<string, unknown>; result: ToolOutcome }
 );
 
-/** What a finished tool shows: its text, whether it failed, how long it took, and any meeting citations. */
+/** What a finished tool shows: its text, whether it failed, how long it took, any meeting citations, and an image it made. */
 export interface ToolOutcome {
   content: string;
   isError: boolean;
   executionMs?: number;
   citations?: MeetingCitation[];
+  image?: ImagePart;
 }

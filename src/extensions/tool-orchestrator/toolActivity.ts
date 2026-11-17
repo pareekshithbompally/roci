@@ -48,7 +48,7 @@ function endOf(part: Extract<TextStreamPart<ToolSet>, { type: 'tool-result' }>, 
   const { output } = part;
   if (!part.providerExecuted && isToolResult(output)) {
     const { content, isError, meta } = output;
-    const result: ToolOutcome = { content, isError, executionMs: meta?.executionMs, citations: meta?.citations };
+    const result: ToolOutcome = { content, isError, executionMs: meta?.executionMs, citations: meta?.citations, image: meta?.image };
     return { ...id, phase: 'end', result };
   }
   const args = actionArguments(output);

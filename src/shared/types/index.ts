@@ -83,6 +83,7 @@ export interface TranscriptSegment {
 export type MediaSource =
   | { kind: 'url'; url: string }
   | { kind: 'data'; base64: string }
+  /** A file in the app's data folder, by its path inside it (`images/….png`); the folder itself can move (iOS app updates). */
   | { kind: 'file'; path: string };
 
 /** A single content part within a chat message */
@@ -111,6 +112,9 @@ export type ChatPart =
 
 /** A tool's row in a chat message: Roci's own tools, MCP tools, and providers' built-in ones (web search). */
 export type ToolCallPart = Extract<ChatPart, { type: 'tool_call' }>;
+
+/** An image in a chat message: an attachment, or one a tool made (saved under app data). */
+export type ImagePart = Extract<ChatPart, { type: 'image' }>;
 
 export interface ChatMessage {
   id: string;

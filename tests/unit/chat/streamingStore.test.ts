@@ -29,3 +29,18 @@ describe('streamingStore.upsertToolCall', () => {
     ]);
   });
 });
+
+describe('streamingStore.addPart', () => {
+  beforeEach(() => streamingStore.start('msg'));
+
+  it("puts a tool's image right after its row, before the text that follows, and keeps it on finish", () => {
+    const image = { type: 'image' as const, mimeType: 'image/png', source: { kind: 'file' as const, path: 'images/a.png' }, alt: 'a fox' };
+    streamingStore.push('Drawing it.');
+    streamingStore.upsertToolCall('c1', { toolName: 'generate_image', status: 'complete' });
+    streamingStore.addPart(image);
+    streamingStore.push('Here it is.');
+    const { parts } = streamingStore.finish();
+    expect(parts.map((p) => p.type)).toEqual(['text', 'tool_call', 'image', 'text']);
+    expect(parts[2]).toEqual(image);
+  });
+});

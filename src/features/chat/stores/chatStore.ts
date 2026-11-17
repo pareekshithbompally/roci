@@ -388,7 +388,10 @@ async function streamReply(reply: Reply, request: ReplyRequest, tally: StreamTal
         if (!isLive(reply)) return;
         markStreaming();
         streamingStore.upsertToolCall(activity.toolCallId, toolCallPatch(activity));
-        if (activity.phase === 'end') mergeCitations(tally.meetingCitations, activity.result.citations ?? []);
+        if (activity.phase !== 'end') return;
+        mergeCitations(tally.meetingCitations, activity.result.citations ?? []);
+        // An image the tool made joins the reply right after the tool's row, and is saved with it.
+        if (activity.result.image) streamingStore.addPart(activity.result.image);
       },
     }
   );

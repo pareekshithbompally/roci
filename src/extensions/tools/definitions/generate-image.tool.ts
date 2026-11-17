@@ -49,7 +49,12 @@ export function generateImageTool(deps: { settings: AppSettings; providers: Mode
         toolCallId: '',
         content: `Created a ${aspectRatio} image with ${image.model}. It is shown to the user and saved at ${image.path}.`,
         isError: false,
-        meta: { toolName: GENERATE_IMAGE_TOOL, executionMs: 0 },
+        // The image itself joins the reply as an image part, right after this tool's row.
+        meta: {
+          toolName: GENERATE_IMAGE_TOOL,
+          executionMs: 0,
+          image: { type: 'image', mimeType: image.mediaType, source: { kind: 'file', path: image.appPath }, alt: params.prompt as string },
+        },
       };
     },
   };

@@ -25,6 +25,13 @@ describe('toolActivityOf', () => {
       .toEqual({ toolCallId: 'c1', toolName: 'search_meetings', phase: 'end', result: { content: '2 meetings', isError: false, executionMs: 42, citations } });
   });
 
+  it('passes on the image a tool made, as the chat part it joins the reply as', () => {
+    const image = { type: 'image', mimeType: 'image/png', source: { kind: 'file', path: 'images/a.png' }, alt: 'a fox' };
+    const output = { toolCallId: 'c2', content: 'Created', isError: false, meta: { toolName: 'generate_image', executionMs: 0, image } };
+    expect(toolActivityOf(part({ type: 'tool-result', toolCallId: 'c2', toolName: 'generate_image', output }), NO_SOURCES))
+      .toEqual({ toolCallId: 'c2', toolName: 'generate_image', phase: 'end', result: { content: 'Created', isError: false, executionMs: 0, image } });
+  });
+
   const webEnd = (output: unknown) =>
     toolActivityOf(part({ type: 'tool-result', toolCallId: 'ws', toolName: 'webSearch', output, providerExecuted: true }), NO_SOURCES);
 

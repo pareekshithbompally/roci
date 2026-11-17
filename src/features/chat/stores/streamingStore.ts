@@ -108,6 +108,13 @@ export const streamingStore = {
     emitChange();
   },
 
+  /** Add a finished part (an image a tool made) where the stream is now. Flushes pending text first. */
+  addPart(part: ChatPart) {
+    flushTextBuffer();
+    snapshot = { ...snapshot, parts: [...snapshot.parts, part] };
+    emitChange();
+  },
+
   /** Start tracking a new streaming message. Cancels any prior pending flush. */
   start(msgId: string) {
     cancelPendingFlush();

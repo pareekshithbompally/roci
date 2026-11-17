@@ -1,6 +1,6 @@
 /** Provider-agnostic tool calling interfaces. */
 
-import type { HistoryItem } from '@shared/types';
+import type { HistoryItem, ImagePart } from '@shared/types';
 
 // ── JSON Schema (subset used for tool parameter definitions) ──
 
@@ -83,5 +83,7 @@ export interface ToolResultMeta {
   resultCount?: number;
   /** UI-only citation cards to surface after search_meetings runs */
   citations?: MeetingCitation[];
+  /** UI-only: an image the tool made, shown in the reply where the tool ran (generate_image). */
+  image?: ImagePart;
 }
 
