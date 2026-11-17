@@ -30,6 +30,14 @@ export interface LocalModelDownload {
   error: string | null;
 }
 
+/** Payload of the model-load event (Rust `mlx::on_load`): which role's model, and where its load stands. */
+export interface ModelLoad {
+  role: 'chat' | 'embedding' | 'voice';
+  model: string;
+  name: string;
+  state: 'loading' | 'loaded' | 'failed';
+}
+
 /** Mirrors the Rust `LocalError` (`{ code, detail? }`), shared by every local-model command. */
 export interface LocalErrorPayload {
   code: 'unknown-model' | 'not-downloaded' | 'bad-input' | 'download' | 'engine' | 'io';

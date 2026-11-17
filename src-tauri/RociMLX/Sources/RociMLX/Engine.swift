@@ -69,7 +69,7 @@ actor Engine {
     func speakerModel(_ dir: String) async throws -> Speaker {
         if let loaded = speaker, loaded.dir == dir { return loaded }
         speaker = nil
-        let model = try await TTS.loadModel(modelRepo: dir)
+        let model = try await reportingLoad(role: "voice", dir: dir) { try await TTS.loadModel(modelRepo: dir) }
         let loaded = Speaker(dir: dir, model: model)
         speaker = loaded
         return loaded
@@ -79,7 +79,9 @@ actor Engine {
         if let loaded = chatModel, loaded.dir == dir { return loaded.container }
         chatModel = nil
         Memory.clearCache()
-        let container = try await LLMModelFactory.shared.loadContainer(from: URL(filePath: dir), using: FolderTokenizerLoader())
+        let container = try await reportingLoad(role: "chat", dir: dir) {
+            try await LLMModelFactory.shared.loadContainer(from: URL(filePath: dir), using: FolderTokenizerLoader())
+        }
         chatModel = (dir, container)
         return container
     }
@@ -87,7 +89,9 @@ actor Engine {
     private func embedderContainer(_ dir: String) async throws -> EmbedderModelContainer {
         if let loaded = embedder, loaded.dir == dir { return loaded.container }
         embedder = nil
-        let container = try await EmbedderModelFactory.shared.loadContainer(from: URL(filePath: dir), using: FolderTokenizerLoader())
+        let container = try await reportingLoad(role: "embedding", dir: dir) {
+            try await EmbedderModelFactory.shared.loadContainer(from: URL(filePath: dir), using: FolderTokenizerLoader())
+        }
         embedder = (dir, container)
         return container
     }

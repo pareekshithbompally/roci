@@ -31,6 +31,8 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
 }
 
 pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
+  // On-device model loads show in the activity tray.
+  mlx::report_loads(app.handle());
   if let Some(window) = app.get_webview_window("main") {
     // SAFETY: `inner()` is the live WKWebView; the closure runs on the main thread, where UIKit must be used.
     window.with_webview(|webview| unsafe { roci_webview_configure(webview.inner()) })?;

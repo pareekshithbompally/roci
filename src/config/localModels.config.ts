@@ -30,4 +30,8 @@ export const LOCAL_MODELS_CONFIG = {
   downloadEvent: 'models://download',
   /** Activity tray row id of a model's download. */
   activityId: (modelId: string) => `local-model:${modelId}`,
+  /** Rust → webview: an on-device model started or ended loading (`ModelLoad`). */
+  loadEvent: 'mlx://model',
+  /** Activity tray row id while a role's model loads (chat, embedding, voice). */
+  loadingActivityId: (role: string) => `mlx-model:${role}`,
 } as const;

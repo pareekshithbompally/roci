@@ -139,6 +139,9 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
   // Backend-owned menubar: tray icon, menu, visibility, quit path.
   menubar::setup(app.handle());
 
+  // On-device model loads show in the activity tray.
+  mlx::report_loads(app.handle());
+
 
   // MCP: connect the servers the user left enabled.
   tauri::async_runtime::spawn(mcp::start_active_servers(app.handle().clone()));

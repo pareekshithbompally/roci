@@ -3,10 +3,11 @@
 
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::OnceLock;
 
 use serde_json::{json, Value};
 use tauri::ipc::Channel;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::models::catalog::{self, Kind};
 use crate::models::{blocking, store, LocalError};
@@ -23,6 +24,36 @@ unsafe extern "C" {
     fn roci_mlx_speak(request: *const c_char) -> *mut c_char;
     fn roci_mlx_unload(role: *const c_char);
     fn roci_mlx_free_string(value: *mut c_char);
+    fn roci_mlx_set_load_listener(listener: extern "C" fn(*const c_char));
+}
+
+/// Rust → webview: a model started or ended loading (`{ role, model, name, state }`, state loading | loaded | failed).
+const MODEL_EVENT: &str = "mlx://model";
+
+/// Where load reports go: set once at startup.
+static APP: OnceLock<AppHandle> = OnceLock::new();
+
+/// Starts forwarding RociMLX's model-load reports to the webview; call once at setup.
+pub fn report_loads(app: &AppHandle) {
+    if APP.set(app.clone()).is_ok() {
+        // SAFETY: `on_load` is a plain `extern "C"` function that lives for the whole program.
+        unsafe { roci_mlx_set_load_listener(on_load) }
+    }
+}
+
+/// One load report from Swift: the model folder's name is its catalog id.
+extern "C" fn on_load(report: *const c_char) {
+    // SAFETY: Swift passes a valid C string for the duration of this call.
+    let report: Value = match serde_json::from_slice(unsafe { CStr::from_ptr(report) }.to_bytes()) {
+        Ok(report) => report,
+        Err(_) => return,
+    };
+    let id = std::path::Path::new(report["modelDir"].as_str().unwrap_or_default()).file_name().and_then(|n| n.to_str());
+    let (Some(app), Some(model)) = (APP.get(), id.and_then(|id| catalog::find(id).ok())) else { return };
+    let event = json!({ "role": report["role"], "model": model.id, "name": model.name, "state": report["state"] });
+    if let Err(error) = app.emit(MODEL_EVENT, event) {
+        log::warn!("[mlx] load report not delivered: {error}");
+    }
 }
 
 /// A model kind's slot: its name on the Swift side and how long it may idle.
