@@ -3,8 +3,8 @@ import { openUrl } from '@services/tauri';
 import type { LucideIcon } from 'lucide-react';
 import { Button, Input, Text } from '@shared/ui';
 
-/** Parse markdown-style [text](url) links into React elements */
-function renderWithLinks(text: string): React.ReactNode {
+/** Parse markdown-style [text](url) links into React elements (field help, section footers). */
+export function renderWithLinks(text: string): React.ReactNode {
   const parts = text.split(/(\[[^\]]+\]\([^)]+\))/g);
   if (parts.length === 1) return text;
 

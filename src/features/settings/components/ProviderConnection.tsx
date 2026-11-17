@@ -4,11 +4,11 @@ import React from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { isManagedSDK } from '@shared/utils/modelResolver';
 import { getProviderTitle } from '@shared/utils/provider.utils';
-import { Button, CardRow, Section, Status } from '@shared/ui';
+import { CardRow, Section, Status } from '@shared/ui';
 import type { DotTone } from '@shared/ui';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { ConnectionStatus, ProviderConnection as Connection } from '@features/settings/hooks/useProviderConnection';
-import { SecretInput, SettingsInput } from './shared';
+import { SecretInput, SettingsInput, renderWithLinks } from './shared';
 
 interface ProviderConnectionProps {
   provider: ModelProvider;
@@ -43,29 +43,36 @@ function testDescription(status: ConnectionStatus, title: string, needsUrl: bool
   return `Checks your key by listing ${title}'s models.`;
 }
 
-const TestRow: React.FC<{ connection: Connection }> = ({ connection: { status, test } }) => {
+/** The key's state as a value, then Test Connection as a tinted action row (iOS). */
+const TestRows: React.FC<{ connection: Connection }> = ({ connection: { status, test } }) => {
   const { label, tone, pulse } = statusView(status);
+  const canTest = status.state !== 'incomplete' && status.state !== 'checking';
   return (
-    <CardRow
-      title="Test connection"
-      status={<Status tone={tone} pulse={pulse}>{label}</Status>}
-      actions={
-        <Button variant="outline" size="sm" onClick={test} disabled={status.state === 'incomplete' || status.state === 'checking'}>
-          Test
-        </Button>
-      }
-    />
+    <>
+      <CardRow title="Status" actions={<Status tone={tone} pulse={pulse}>{label}</Status>} />
+      <CardRow title="Test Connection" tone={canTest ? 'accent' : undefined} onPress={canTest ? test : undefined} />
+    </>
   );
 };
 
 export const ProviderConnection: React.FC<ProviderConnectionProps> = ({ provider, connection }) => {
   const { updateProviderSetting } = useSettings();
   const managed = isManagedSDK(provider.provider);
+  // Each field's help reads under the group (System Settings footer), not inside the card.
+  const fieldHelp = provider.settings
+    .filter((setting) => !(managed && setting.key === 'base-url'))
+    .map((setting) => setting.description)
+    .filter((help): help is string => !!help);
 
   return (
     <Section
       title="Connection"
-      footer={connection && testDescription(connection.status, getProviderTitle(provider.provider), !managed)}
+      footer={(
+        <>
+          {fieldHelp.map((help, i) => <React.Fragment key={i}>{renderWithLinks(help)} </React.Fragment>)}
+          {connection && testDescription(connection.status, getProviderTitle(provider.provider), !managed)}
+        </>
+      )}
     >
       {provider.settings.map((setting, index) => {
         if (managed && setting.key === 'base-url') return null;
@@ -74,7 +81,6 @@ export const ProviderConnection: React.FC<ProviderConnectionProps> = ({ provider
           value,
           placeholder: setting.controller_props.placeholder,
           label: setting.title,
-          helper: setting.description,
         };
         return (
           <div key={setting.key} className="py-3">
@@ -86,7 +92,7 @@ export const ProviderConnection: React.FC<ProviderConnectionProps> = ({ provider
           </div>
         );
       })}
-      {connection && <TestRow connection={connection} />}
+      {connection && <TestRows connection={connection} />}
     </Section>
   );
 };

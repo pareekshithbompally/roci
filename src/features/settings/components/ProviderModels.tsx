@@ -9,7 +9,7 @@ import { ModelIcon, RenameModal } from '@shared/components';
 import { capabilitiesOf, modelInfoOf } from '@services/ai/capabilities';
 import { confirm } from '@shared/stores/confirmStore';
 import { getModelDisplayName } from '@shared/utils/provider.utils';
-import { Button, CardRow, CommandGroup, CommandPopover, CommandRow, Icon, Section } from '@shared/ui';
+import { CardRow, CommandGroup, CommandPopover, CommandRow, ICON_TILE_PX, Icon, Section } from '@shared/ui';
 import type { Model, ModelProvider } from '@shared/types/modelProviders';
 import type { ConnectionStatus, ProviderConnection } from '@features/settings/hooks/useProviderConnection';
 import { ModalityIcons } from './ModalityIcons';
@@ -72,12 +72,7 @@ const AddModelPicker: React.FC<AddModelPickerProps> = ({ provider, connection, a
       side="bottom"
       align="end"
       avoidCollisions={false}
-      trigger={
-        <Button variant="link" size="inline">
-          <Icon icon={Plus} size="xs" />
-          Add model
-        </Button>
-      }
+      trigger={<CardRow role="button" tabIndex={0} title="Add Model" tone="accent" className="cursor-pointer" />}
     >
       {unlisted && (
         <CommandGroup heading="Not in the provider's list">
@@ -132,34 +127,18 @@ export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connec
   const handleFlag = (modelId: string, flag: ModelCapabilityFlag, value: boolean) =>
     setModels(models.map((m) => (m.id === modelId ? { ...m, [flag]: value } : m)));
 
-  const browse = provider.explore_models_url && (
-    <Button
-      variant="link"
-      size="inline"
-      onClick={() => void openUrl(provider.explore_models_url!)}
-    >
-      Browse models
-      <Icon icon={ExternalLink} size="xs" />
-    </Button>
-  );
+  const exploreUrl = provider.explore_models_url;
 
   return (
     <>
       <Section
-        title={`Models · ${models.length}`}
-        footer={models.length === 0 ? 'Add a model to use it in Roci’s model pickers.' : undefined}
-        accessory={
-          <span className="flex items-center gap-4">
-            {browse}
-            {canAdd && <AddModelPicker provider={id} connection={connection} added={new Set(models.map((m) => m.id))} onAdd={handleAdd} />}
-          </span>
-        }
+        title="Models"
+        footer="Models you add here appear in Roci’s model pickers."
       >
-        {models.length === 0 && <CardRow title="No models yet" />}
         {models.map((model) => (
           <CardRow
             key={model.id}
-            leading={<ModelIcon provider={id} modelId={model.id} size={20} fallback="none" />}
+            leading={<ModelIcon provider={id} modelId={model.id} size={ICON_TILE_PX} />}
             title={<span className="block truncate">{getModelDisplayName(model)}</span>}
             actions={
               <>
@@ -174,6 +153,11 @@ export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connec
             }
           />
         ))}
+        {/* Actions end the list as tinted rows (iOS), not links on the header. */}
+        {canAdd && <AddModelPicker provider={id} connection={connection} added={new Set(models.map((m) => m.id))} onAdd={handleAdd} />}
+        {exploreUrl && (
+          <CardRow title="Browse Models" tone="accent" onPress={() => void openUrl(exploreUrl)} actions={<Icon icon={ExternalLink} size="sm" tone="accent" />} />
+        )}
       </Section>
       <RenameModal
         open={renaming !== null}

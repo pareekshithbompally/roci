@@ -41,9 +41,11 @@ export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
   onOpen?: () => void;
   /** Action row (iOS): the whole row is the button, no chevron (Choose photo, Import transcript). */
   onPress?: () => void;
+  /** An action row's title colour: `accent` for an action (Test Connection, Add Model), `danger` for a destructive one. */
+  tone?: 'accent' | 'danger';
 }
 
-export function CardRow({ title, description, leading, leadingAlign = 'title', status, actions, stacked, align = 'center', onOpen, onPress, className, children, ...props }: CardRowProps) {
+export function CardRow({ title, description, leading, leadingAlign = 'title', status, actions, stacked, align = 'center', onOpen, onPress, tone, className, children, ...props }: CardRowProps) {
   const press = onOpen ?? onPress;
   // Phone: the copy keeps the width — state reads under the description, the side holds only the control.
   const phone = useFormFactor() === 'phone';
@@ -75,7 +77,7 @@ export function CardRow({ title, description, leading, leadingAlign = 'title', s
       {/* Title first (iOS / macOS lists): it keeps its one line; the value side takes what is left and truncates. */}
       <div className={cn('flex min-w-0', trailing && !stacked ? 'max-w-[70%] shrink-0' : 'flex-1')}>
         <div className="min-w-0">
-          <Text as="p" variant="body" truncate>{title}</Text>
+          <Text as="p" variant="body" tone={tone} truncate>{title}</Text>
           {description && <Text as="p" variant="helper" tone="muted" truncate className="mt-0.5">{description}</Text>}
           {status && phone && <div className="mt-1 flex items-center gap-2">{status}</div>}
         </div>

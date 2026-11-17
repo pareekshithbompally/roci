@@ -1,5 +1,5 @@
 export { SettingsPage, SettingsPageHeader } from './SettingsPage';
-export { SettingsInput } from './SettingsInput';
+export { SettingsInput, renderWithLinks } from './SettingsInput';
 export { SecretInput } from './SecretInput';
 export { StringListEditor } from './StringListEditor';
 export { KeyValueEditor, pairsToRecord } from './KeyValueEditor';
