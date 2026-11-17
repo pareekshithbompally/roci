@@ -120,10 +120,6 @@ export default {
           from: { backgroundPosition: '100% 0' },
           to: { backgroundPosition: '-100% 0' },
         },
-        'placeholder-fade-in': {
-          from: { opacity: '0' },
-          to: { opacity: '1' },
-        },
         // Landing glow blobs; translate(-50%, -50%) makes `left/top` mark each blob's centre.
         'glow-drift-1': {
           '0%, 100%': { transform: 'translate(-50%, -50%) translate(0, 0) scale(1)' },
@@ -154,7 +150,6 @@ export default {
         'drawer-start-hide': `drawer-start-hide ${DRAWER_EXIT}`,
         'drawer-end-show': `drawer-end-show ${DRAWER_ENTER}`,
         'drawer-end-hide': `drawer-end-hide ${DRAWER_EXIT}`,
-        'placeholder-fade-in': 'placeholder-fade-in 600ms ease-out',
         'text-shimmer': 'text-shimmer 2s linear infinite',
         'glow-drift-1': 'glow-drift-1 22s ease-in-out infinite',
         'glow-drift-2': 'glow-drift-2 28s ease-in-out infinite',

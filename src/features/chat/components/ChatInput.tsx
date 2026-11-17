@@ -69,7 +69,6 @@ interface ChatInputProps {
   isLoading?: boolean;
   /** Derived context-window usage for the gauge; ring hides when null/undefined. */
   contextUsage?: ContextUsage | null;
-  placeholder?: string;
   disabled?: boolean;
   /** Available meetings for @ mention */
   availableMeetings?: MeetingListItem[];
@@ -129,7 +128,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onStop,
   isLoading = false,
   contextUsage,
-  placeholder = 'Ask a question...',
   disabled = false,
   availableMeetings = [],
   selectedMeetings = [],
@@ -363,11 +361,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const micInSendSlot = phone && canDictate && !canSendDraft(value, attachments);
 
   const textField = (
-    <Text as="div" variant="reading" className={cn('relative', phone ? 'min-w-0 flex-1 self-center py-1.5' : 'px-3 pt-3 pb-1')}>
+    <Text as="div" variant="reading" className={phone ? 'min-w-0 flex-1 self-center py-1.5' : 'px-3 pt-3 pb-1'}>
       <Textarea
         variant="bare"
         ref={inputRef}
         aria-label="Message"
+        placeholder={phone ? PHONE_PLACEHOLDER : PLACEHOLDER_HINTS[hintIndex]}
         value={value}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
@@ -378,16 +377,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         autoCapitalize="sentences"
         className={phone ? 'max-h-32' : 'min-h-9 max-h-48'}
       />
-      {!value && (
-        <Text
-          key={phone ? 'phone' : hintIndex}
-          variant="reading"
-          tone="faint"
-          className={cn('absolute pointer-events-none', phone ? 'top-1.5 left-0' : 'top-3 left-3 animate-placeholder-fade-in')}
-        >
-          {phone ? PHONE_PLACEHOLDER : PLACEHOLDER_HINTS[hintIndex]}
-        </Text>
-      )}
     </Text>
   );
 

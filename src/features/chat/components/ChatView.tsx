@@ -8,7 +8,6 @@ export const ChatView: React.FC = () => {
   return (
     <ChatShell
       emptyStateMessage="Start a conversation..."
-      placeholderText="Type @ to add meeting context..."
       className="animate-fade-in"
       composerLayoutId={ANIMATION_CONFIG.chat.composerLayoutId}
       underTitlebar

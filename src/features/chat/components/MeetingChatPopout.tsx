@@ -76,7 +76,6 @@ export const MeetingChatPopout: React.FC<MeetingChatPopoutProps> = ({ meetingId,
     >
       <ChatShell
         emptyStateMessage="Ask about this meeting..."
-        placeholderText="Ask about this meeting..."
         headerSlot={header}
       />
     </Surface>

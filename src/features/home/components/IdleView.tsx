@@ -148,7 +148,6 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                   onSend={handleSendMessage}
                   isLoading={isGenerating}
                   disabled={!hasConfiguredProviders}
-                  placeholder={hasConfiguredProviders ? 'Type @ to add meeting context...' : 'Set up AI to start chatting'}
                   availableMeetings={availableMeetings}
                   selectedMeetings={selectedMeetingRefs}
                   onMeetingSelect={setSelectedMeetingRefs}

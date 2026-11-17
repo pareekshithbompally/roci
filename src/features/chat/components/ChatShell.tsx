@@ -40,7 +40,6 @@ const ScrollToBottomBtn: React.FC<{ onClick: () => void }> = ({ onClick }) => (
 
 export interface ChatShellProps {
   emptyStateMessage: string;
-  placeholderText: string;
   headerSlot?: React.ReactNode;
   className?: string;
   /** Shared-element id so the composer glides in from the landing page (main chat view only). */
@@ -51,7 +50,6 @@ export interface ChatShellProps {
 
 export const ChatShell: React.FC<ChatShellProps> = ({
   emptyStateMessage,
-  placeholderText,
   headerSlot,
   className = '',
   composerLayoutId,
@@ -302,7 +300,6 @@ export const ChatShell: React.FC<ChatShellProps> = ({
           onStop={stopGeneration}
           isLoading={isGenerating}
           contextUsage={contextUsage}
-          placeholder={placeholderText}
           availableMeetings={availableMeetings}
           selectedMeetings={selectedMeetingRefs}
           onMeetingSelect={setSelectedMeetingRefs}
