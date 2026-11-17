@@ -13,6 +13,7 @@ import { SettingsPanel } from '@features/settings';
 import { useAppUpdate, scheduleStartupCheck } from '@features/settings';
 import { useMenubarSpeechModels, useMenubarReports, useLocalModelDownloads, useLocalModelIdle, useLocalModelLoading, freshSpeechSources } from '@features/settings';
 import { RemindersView } from '@features/todos';
+import { GalleryView } from '@features/gallery';
 import { CalendarView } from '@features/calendar';
 import { OnboardingView } from '@features/onboarding';
 import { ConfirmHost, SearchIndexActivity } from '@shared/components';
@@ -328,7 +329,7 @@ const App: React.FC = () => {
         {/* Main Content */}
         <main
           className={`grow shrink min-h-0 flex flex-col custom-scrollbar relative ${
-            contentView === 'settings' || contentView === 'reminders' || contentView === 'calendar'
+            contentView === 'settings' || contentView === 'reminders' || contentView === 'calendar' || contentView === 'gallery'
               ? 'p-0 items-stretch overflow-y-auto'
               // The idle view's wash runs up behind the phone's clear top bar; the shell clips at the screen edge.
               : showIdleView
@@ -342,6 +343,7 @@ const App: React.FC = () => {
           {contentView === 'home' ? <HomeView />
             : contentView === 'reminders' ? <RemindersView />
             : contentView === 'calendar' ? <CalendarView />
+            : contentView === 'gallery' ? <GalleryView />
             : <SettingsPanel />}
         </main>
       </MainLayout>

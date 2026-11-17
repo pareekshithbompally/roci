@@ -6,6 +6,8 @@ export type AccessId = 'calendar' | 'reminders' | 'apple-notes' | 'notifications
 export const queryKeys = {
   notes: (meetingId: string) => ['notes', meetingId] as const,
   todos: (meetingId: string) => ['todos', meetingId] as const,
+  /** Generated images (Gallery). */
+  gallery: () => ['gallery'] as const,
   meetings: () => ['meetings'] as const,
   /** One meeting's stats (length, words, models); under `meetings` so every meeting write refreshes it */
   meetingStats: (meetingId: string) => ['meetings', 'stats', meetingId] as const,

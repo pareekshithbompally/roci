@@ -13,6 +13,7 @@ export {
   useChatStore,
   focusChatComposer,
   startNewChat,
+  openChat,
   askInNewChat,
   registerChatComposer,
   injectChatRefs,

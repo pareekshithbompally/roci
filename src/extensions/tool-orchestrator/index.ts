@@ -55,7 +55,7 @@ async function buildTools(options: OrchestratorOptions, webSearchTools: ToolSet 
   const reservedNames = new Set([...toolRegistry.getToolNames(), GENERATE_IMAGE_TOOL]);
   const definitions = [
     ...(prefs.meetingTools ? toolRegistry.getTools() : []),
-    ...(hasImageModel(settings) && prefs.imageGeneration ? [generateImageTool({ settings, providers })] : []),
+    ...(hasImageModel(settings) && prefs.imageGeneration ? [generateImageTool({ settings, providers, sessionId: options.sessionId })] : []),
     ...(await loadMcpTools(reservedNames, new Set(prefs.disabledMcpTools))),
   ];
   if (definitions.length === 0) return none;

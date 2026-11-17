@@ -14,7 +14,7 @@ function aspectRatioOf(value: unknown): ImageAspectRatio {
 }
 
 /** The tool for one chat, bound to that chat's settings and providers (the image model and its key). */
-export function generateImageTool(deps: { settings: AppSettings; providers: ModelProvider[] }): ToolDefinition {
+export function generateImageTool(deps: { settings: AppSettings; providers: ModelProvider[]; sessionId?: string }): ToolDefinition {
   return {
     name: GENERATE_IMAGE_TOOL,
     description:
@@ -44,6 +44,7 @@ export function generateImageTool(deps: { settings: AppSettings; providers: Mode
         settings: deps.settings,
         providers: deps.providers,
         signal: context.signal,
+        sessionId: deps.sessionId,
       });
       return {
         toolCallId: '',

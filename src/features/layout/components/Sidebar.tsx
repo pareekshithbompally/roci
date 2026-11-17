@@ -1,14 +1,14 @@
 /** Left sidebar: search, the To-dos row, the unified history/chat list, and settings. */
 
 import React, { useRef, useCallback, useEffect } from 'react';
-import { CalendarDays, ChevronLeft, ListTodo, Search, SquarePen, PanelLeft, Settings } from 'lucide-react';
+import { CalendarDays, ChevronLeft, Images, ListTodo, Search, SquarePen, PanelLeft, Settings } from 'lucide-react';
+import { GALLERY_CONFIG } from '@config/gallery.config';
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
 import { useSmallScreen } from '@shared/hooks/useMediaQuery';
 import { useSelectedHistoryId, useCurrentView, useAppActions } from '@shared/stores/appStore';
 import { UnifiedList } from '@features/history';
 import { SettingsNav } from '@features/settings/components/SettingsNav';
 import { useOpenMeeting, useSessionSearch, useUnifiedSidebar } from '@features/history/hooks';
-import { AppStatus } from '@shared/types';
 import { LAYOUT } from '@config/layout.config';
 import { Button, IconButton, Icon, Row, RowGroupLabel, Kbd, SearchField, Text } from '@shared/ui';
 import { APP_CONFIG } from '@config/app.config';
@@ -17,7 +17,7 @@ import {
 } from '@shared/stores/sidebarSearchStore';
 import { ActivityTray, ActivityButton } from '@shared/components';
 import { shortcutLabel } from '@features/shortcuts';
-import { startNewChat, useChatStore } from '@features/chat';
+import { openChat, startNewChat, useChatStore } from '@features/chat';
 import type { UnifiedSidebarItem } from '@shared/types';
 import { DestinationRow } from './DestinationRow';
 import { TODOS_CONFIG } from '@config/todos.config';
@@ -42,9 +42,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isSettingsView = currentView === 'settings';
   const { items } = useUnifiedSidebar();
   const selectedHistoryId = useSelectedHistoryId();
-  const { setCurrentView, openSettings, leaveSettings, setStatus, setSelectedHistoryId, setResult } = useAppActions();
+  const { openSettings, leaveSettings } = useAppActions();
   const currentChatId = useChatStore((s) => s.currentSessionId);
-  const selectSession = useChatStore((s) => s.selectSession);
   const listContainerRef = useRef<HTMLDivElement>(null);
   const openMeeting = useOpenMeeting();
   const searchActive = useSidebarSearchActive();
@@ -78,15 +77,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (item.type === 'meeting' && item.historyItem) {
       await openMeeting(item.historyItem);
     } else if (item.type === 'chat') {
-      selectSession(item.id);
-      setCurrentView('home');
-      setSelectedHistoryId(null);
-      setResult(null);
-      setStatus(AppStatus.CHAT);
+      openChat(item.id);
     }
     endSidebarSearch();
     if (isSmallScreen) setLeftPanel(false);
-  }, [setCurrentView, setSelectedHistoryId, setResult, setStatus, selectSession, isSmallScreen, setLeftPanel, openMeeting]);
+  }, [isSmallScreen, setLeftPanel, openMeeting]);
 
   // A chat or meeting is highlighted only while it is what's on screen (not under To-dos or Upcoming).
   const getSelectedId = (): string | null => {
@@ -101,6 +96,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <>
       <DestinationRow view="reminders" icon={ListTodo} label={TODOS_CONFIG.title} />
       {calendarOn && <DestinationRow view="calendar" icon={CalendarDays} label={CALENDAR_CONFIG.title} />}
+      <DestinationRow view="gallery" icon={Images} label={GALLERY_CONFIG.title} />
     </>
   );
 

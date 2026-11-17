@@ -16,6 +16,8 @@ export interface ImageRequest {
   settings: AppSettings;
   providers: ModelProvider[];
   signal?: AbortSignal;
+  /** The chat asking, kept with the image so the gallery can open it. */
+  sessionId?: string;
 }
 
 export interface GeneratedImageFile {
@@ -56,6 +58,12 @@ export async function generateImageFile(request: ImageRequest): Promise<Generate
     ...target.shape,
     abortSignal: request.signal,
   });
-  const { appPath, path } = await imagesService.saveImage(image.uint8Array, image.mediaType);
+  const { appPath, path } = await imagesService.saveImage(image.uint8Array, image.mediaType, {
+    prompt: request.prompt,
+    model: target.modelId,
+    aspectRatio: request.aspectRatio,
+    createdAt: Date.now(),
+    sessionId: request.sessionId,
+  });
   return { appPath, path, mediaType: image.mediaType, model: target.modelId };
 }

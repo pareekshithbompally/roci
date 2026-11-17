@@ -144,6 +144,16 @@ export function startNewChat(): void {
   useChatStore.getState().setCurrentSessionId(null);
 }
 
+/** Opens a saved chat in the main view (the sidebar's chats, the gallery's "Open chat"). */
+export function openChat(sessionId: string): void {
+  useChatStore.getState().selectSession(sessionId);
+  const app = useAppStore.getState();
+  app.setCurrentView('home');
+  app.setSelectedHistoryId(null);
+  app.setResult(null);
+  app.setStatus(AppStatus.CHAT);
+}
+
 /** ChatInput registers its textarea on mount (null on unmount). */
 export function registerChatComposer(textarea: HTMLTextAreaElement | null): void {
   chatInputRef.current = textarea;
@@ -361,6 +371,7 @@ async function streamReply(reply: Reply, request: ReplyRequest, tally: StreamTal
       webSearchEnabled: useChatStore.getState().webSearchEnabled,
       skipRetrieval: !hasToolSupport,
       reasoningEffort: session.reasoningEffort ?? 'provider-default',
+      sessionId: reply.sessionId,
     },
     {
       onChunk: (chunk, metadata) => {

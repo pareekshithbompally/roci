@@ -22,6 +22,7 @@ export {
   useChatStore,
   focusChatComposer,
   startNewChat,
+  openChat,
   askInNewChat,
   useChatCurrentSessionId,
   todoProposalStore,
