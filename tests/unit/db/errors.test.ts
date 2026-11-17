@@ -53,4 +53,9 @@ describe('parseStoreError', () => {
     expect(result.code).toBe('db');
     expect(result.message).toBe('Unknown store error');
   });
+
+  it('reads the Rust command shape: a generic db code is refined from its message', () => {
+    expect(parseStoreError({ code: 'db', message: 'Meeting not found' }).code).toBe('not_found');
+    expect(parseStoreError({ code: 'conflict', message: 'already exists' }).code).toBe('conflict');
+  });
 });

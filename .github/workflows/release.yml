@@ -20,6 +20,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Select Xcode 26
+        # Xcode 26: macOS 26 SDK, Metal Toolchain (MLX), and actool that compiles AppIcon.icon (older ones skip it).
+        run: |
+          XCODE="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)"
+          if [ -z "$XCODE" ]; then echo "ERROR: no Xcode 26 on this runner"; ls -d /Applications/Xcode*.app; exit 1; fi
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -42,6 +50,10 @@ jobs:
           echo "${{ secrets.APPLE_API_KEY_P8_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/notary-key.p8"
           echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/notary-key.p8" >> "$GITHUB_ENV"
 
+      - name: Build on-device engine (RociMLX.framework)
+        # MLX Swift for on-device chat, meeting search and voices; Rust links it and Tauri bundles it.
+        run: scripts/build-mlx.sh
+
       - name: Build Tauri app
         run: npm run tauri build -- --target aarch64-apple-darwin
         env:
@@ -55,6 +67,12 @@ jobs:
           # Notarization is done explicitly AFTER the build (see "Notarize and
           # staple DMG" step). Tauri's built-in notary wait hangs in CI, so we
           # only let it SIGN here and notarize visibly with notarytool below.
+
+      - name: Verify app icon (Icon Composer, light, dark and tinted)
+        run: |
+          APP="$(find src-tauri/target/aarch64-apple-darwin/release/bundle/macos -maxdepth 1 -name "*.app" | head -1)"
+          test -f "$APP/Contents/Resources/Assets.car" || { echo "ERROR: AppIcon.icon was not compiled (Assets.car missing)"; exit 1; }
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIconName" "$APP/Contents/Info.plist"
 
       - name: Get version from tag
         id: version

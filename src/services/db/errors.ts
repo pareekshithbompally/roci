@@ -27,7 +27,12 @@ export class StoreError extends Error {
 export function parseStoreError(raw: unknown): StoreError {
   if (raw instanceof StoreError) return raw;
 
-  const msg = raw instanceof Error ? raw.message : typeof raw === 'string' ? raw : 'Unknown store error';
+  // Rust commands reject with `{ code, message }`: a specific code stands; a generic `db` is refined from the message.
+  const rust = typeof raw === 'object' && raw !== null && typeof (raw as { message?: unknown }).message === 'string'
+    ? (raw as { code?: StoreErrorCode; message: string })
+    : null;
+  if (rust?.code && rust.code !== 'db') return new StoreError(rust.code, rust.message);
+  const msg = rust?.message ?? (raw instanceof Error ? raw.message : typeof raw === 'string' ? raw : 'Unknown store error');
   const lower = msg.toLowerCase();
 
   // Try to parse JSON-shaped error from the Rust command
