@@ -25,7 +25,7 @@ const VARIANT = {
   /** Text-field look for custom inputs (composer shell) */
   field: 'bg-base shadow-input',
   /** Modal backdrop (small-screen sidebar) */
-  scrim: 'bg-scrim backdrop-blur-sm',
+  scrim: 'bg-scrim',
   /** No fill — edges/radius only */
   plain: '',
 } as const;

@@ -19,7 +19,10 @@ const RISE = {
   show: { from: { translate: '0 100%' }, to: { translate: '0 0' } },
   hide: { from: { translate: '0 0' }, to: { translate: '0 100%' } },
 };
-const RISE_ENTER = '350ms cubic-bezier(0.32, 0.72, 0, 1)';
+/** The iOS presentation curve and time (sheets rising, screens pushing, the sidebar sliding). */
+const IOS_EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
+const IOS_DURATION = '350ms';
+const RISE_ENTER = `${IOS_DURATION} ${IOS_EASE}`;
 const RISE_EXIT = '250ms ease-in';
 /** A drawer sliding in from its edge (kit Drawer): from the left (`start`) or the right (`end`). */
 const edgeSlide = (from) => ({
@@ -84,6 +87,8 @@ export default {
       // Grouped-list shape (tokens.css): macOS values by default, iOS under html.platform-ios.
       borderRadius: { card: 'var(--radius-card)', sheet: 'var(--radius-sheet)', field: 'calc(var(--control-md) / 2)' },
       minHeight: { row: 'var(--row-min-h)' },
+      transitionTimingFunction: { ios: IOS_EASE },
+      transitionDuration: { ios: IOS_DURATION },
       // ─── macOS text styles (SF Pro). `reading` is the one exception: long-form chat/transcript ───
       fontSize: {
         // Sizes come from tokens.css: macOS by default, iOS under html.platform-ios.
@@ -121,20 +126,6 @@ export default {
           from: { backgroundPosition: '100% 0' },
           to: { backgroundPosition: '-100% 0' },
         },
-        // Landing glow blobs; translate(-50%, -50%) makes `left/top` mark each blob's centre.
-        'glow-drift-1': {
-          '0%, 100%': { transform: 'translate(-50%, -50%) translate(0, 0) scale(1)' },
-          '33%': { transform: 'translate(-50%, -50%) translate(3rem, 2rem) scale(1.08)' },
-          '66%': { transform: 'translate(-50%, -50%) translate(-2rem, 3rem) scale(0.95)' },
-        },
-        'glow-drift-2': {
-          '0%, 100%': { transform: 'translate(-50%, -50%) translate(0, 0) scale(1)' },
-          '50%': { transform: 'translate(-50%, -50%) translate(-4rem, -2rem) scale(1.12)' },
-        },
-        'glow-drift-3': {
-          '0%, 100%': { transform: 'translate(-50%, -50%) translate(0, 0) scale(1)' },
-          '50%': { transform: 'translate(-50%, -50%) translate(5rem, -3rem) scale(0.92)' },
-        },
       },
       animation: {
         'overlay-show': `overlay-show ${ENTER}`,
@@ -152,9 +143,6 @@ export default {
         'drawer-end-show': `drawer-end-show ${DRAWER_ENTER}`,
         'drawer-end-hide': `drawer-end-hide ${DRAWER_EXIT}`,
         'text-shimmer': 'text-shimmer 2s linear infinite',
-        'glow-drift-1': 'glow-drift-1 22s ease-in-out infinite',
-        'glow-drift-2': 'glow-drift-2 28s ease-in-out infinite',
-        'glow-drift-3': 'glow-drift-3 36s ease-in-out infinite',
       },
     },
   },

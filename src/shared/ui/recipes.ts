@@ -8,7 +8,7 @@ export const FLOATING_SURFACE =
 
 /** Dialog and AlertDialog sheets. */
 export const SCRIM =
-  'fixed inset-0 z-modal bg-scrim backdrop-blur-sm data-[state=open]:animate-overlay-show data-[state=closed]:animate-overlay-hide';
+  'fixed inset-0 z-modal bg-scrim data-[state=open]:animate-overlay-show data-[state=closed]:animate-overlay-hide';
 /** Modal surface chrome + motion, shared by centred sheets and the top-anchored command palette. */
 export const SHEET_SURFACE =
   'z-modal bg-base rounded-xl shadow-overlay focus:outline-none data-[state=open]:animate-sheet-show data-[state=closed]:animate-sheet-hide';

@@ -40,9 +40,10 @@ export function RevealLayout({ open, onClose, pane, paneLabel, children }: Revea
       </nav>
       <div
         aria-hidden={open || undefined}
+        // Only the slide animates (compositor-cheap); corners and shadow switch with it rather than repainting per frame.
         className={cn(
-          'absolute inset-0 flex flex-col transition-[transform,border-radius] duration-300 ease-out',
-          open && 'translate-x-[var(--drawer-start-width)] overflow-hidden rounded-sheet shadow-overlay',
+          'absolute inset-0 flex flex-col overflow-hidden transition-transform duration-ios ease-ios will-change-transform',
+          open && 'translate-x-[var(--drawer-start-width)] rounded-sheet shadow-overlay',
         )}
       >
         {children}
