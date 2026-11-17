@@ -83,7 +83,7 @@ impl LocalModel {
 pub const MODELS: &[LocalModel] = &[
     LocalModel {
         id: "gemma-4-e2b",
-        name: "Gemma 4 E2B",
+        name: "Gemma 4",
         kind: Kind::Chat,
         streams: false,
         voices: &[],
@@ -101,7 +101,7 @@ pub const MODELS: &[LocalModel] = &[
     },
     LocalModel {
         id: "qwen3-embedding-0.6b",
-        name: "Qwen3 Embedding 0.6B",
+        name: "Qwen3 Embedding",
         kind: Kind::Embedding,
         streams: false,
         voices: &[],
@@ -138,7 +138,7 @@ pub const MODELS: &[LocalModel] = &[
     },
     LocalModel {
         id: "nemotron-3.5-asr",
-        name: "Nemotron 3.5 ASR (multilingual)",
+        name: "Nemotron (multilingual)",
         kind: Kind::Speech,
         streams: true,
         voices: &[],
@@ -152,7 +152,7 @@ pub const MODELS: &[LocalModel] = &[
     },
     LocalModel {
         id: "whisper-large-v3-turbo",
-        name: "Whisper large v3 turbo",
+        name: "Whisper Large Turbo",
         kind: Kind::Speech,
         streams: false,
         voices: &[],
@@ -180,7 +180,7 @@ pub const MODELS: &[LocalModel] = &[
     },
     LocalModel {
         id: "phonon-31m",
-        name: "Phonon 31M",
+        name: "Phonon",
         kind: Kind::Voice,
         streams: false,
         source: Source { repository: "gradium/phonon-31m-en", revision: "92741c5b07d085ff840e26fea8ce43110b87852f" },
@@ -261,7 +261,7 @@ pub const MODELS: &[LocalModel] = &[
     },
     LocalModel {
         id: "flux-2-klein-4b",
-        name: "FLUX.2 [klein] 4B",
+        name: "FLUX.2 Klein",
         kind: Kind::Image,
         streams: false,
         voices: &[],
