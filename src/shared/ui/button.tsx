@@ -29,7 +29,7 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
 const SIZE_CLASSES: Record<ButtonSize, string> = {
   /** No box — sits in a line of text; on touch screens an invisible overlay widens the tap area without moving the text */
   inline: cn('text-callout gap-1', platform.hasTouchScreen && "relative after:absolute after:-inset-2 after:content-['']"),
-  /** Dense control in a toolbar row (composer): tight padding, at least square so an icon alone is 28×28 */
+  /** Dense control in a toolbar row (composer): tight padding, at least square (control-sm) so an icon alone fits */
   toolbar: 'h-control-sm min-w-control-sm px-1.5 text-callout rounded-md',
   sm: 'h-control-sm px-3 text-callout rounded-md',
   md: 'h-control-md px-4 text-body rounded-md',
@@ -37,7 +37,7 @@ const SIZE_CLASSES: Record<ButtonSize, string> = {
   iconSm: 'h-control-sm w-control-sm rounded-full',
   /** Inline row actions (tray rows, list rows) */
   iconXs: 'h-control-xs w-control-xs rounded-md',
-  /** Floating action button: the one round action pinned to a window corner (meeting chat) */
+  /** Round 44 pt action: the meeting chat's floating button, the iOS sheet's Back and Close */
   fab: 'h-11 w-11 rounded-full',
 };
 
@@ -88,7 +88,6 @@ export interface IconButtonProps extends Omit<ButtonProps, 'size' | 'children'> 
   spin?: boolean;
 }
 
-/** Icon-only button: ghost by default, always labelled. */
 /** Each icon-button size as its button shape and glyph size; toolbar glyphs match the labelled controls beside them. */
 const ICON_BUTTON_SIZES: Record<NonNullable<IconButtonProps['size']>, { button: ButtonSize; icon: IconSize }> = {
   toolbar: { button: 'toolbar', icon: 'xs' },

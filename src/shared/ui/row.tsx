@@ -3,7 +3,7 @@ import { cn } from './utils';
 import { Text } from './text';
 import { platform } from '@platform/index';
 
-/** Canonical 32px list/sidebar row (Row, rowClasses, RowAction, RowGroupLabel) so every list shares one shape. */
+/** Canonical list/sidebar row (control-md: 32 px on macOS, 44 pt on iOS) (Row, rowClasses, RowAction, RowGroupLabel) so every list shares one shape. */
 export function rowClasses(selected?: boolean): string {
   return cn(
     'flex w-full h-control-md items-center gap-2 rounded-md px-2.5 text-left text-body text-primary transition-colors cursor-pointer min-w-0',

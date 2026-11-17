@@ -30,7 +30,7 @@ export const MENU_SEPARATOR = 'h-px my-1 bg-separator';
 export const FIELD =
   'w-full bg-base text-primary text-body placeholder:text-faint shadow-input rounded-md px-3 outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 disabled:cursor-not-allowed';
 
-/** Pop-up buttons — Select, DatePicker and TimePicker triggers: a soft tint, no outline, the same 32px height as a field. */
+/** Pop-up buttons — Select, DatePicker and TimePicker triggers: a soft tint, no outline, the same height as a field (control-md). */
 export const POPUP_BUTTON =
   'h-control-md bg-control text-primary text-body rounded-md px-2.5 outline-none transition-colors hover:bg-control-hover data-[state=open]:bg-control-hover focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 disabled:cursor-not-allowed';
 

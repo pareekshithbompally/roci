@@ -1,5 +1,4 @@
 import React from 'react';
-import { cn } from './utils';
 import { Surface } from './surface';
 import { Text } from './text';
 
@@ -10,13 +9,12 @@ export interface TopBarProps {
   title?: React.ReactNode;
   /** Actions at the end. */
   trailing?: React.ReactNode;
-  className?: string;
 }
 
 /** iOS navigation bar: translucent, below the status bar, 44 pt tall; the title stays centred whatever the sides hold. */
-export function TopBar({ leading, title, trailing, className }: TopBarProps) {
+export function TopBar({ leading, title, trailing }: TopBarProps) {
   return (
-    <Surface as="header" variant="panel" edge="bottom" className={cn('sticky top-0 z-20 shrink-0 pt-safe-top', className)}>
+    <Surface as="header" variant="panel" edge="bottom" className="sticky top-0 z-20 shrink-0 pt-safe-top">
       <div className="grid h-11 grid-cols-[1fr_auto_1fr] items-center gap-2 px-2">
         <div className="flex items-center gap-1 justify-self-start">{leading}</div>
         <div className="min-w-0 justify-self-center">

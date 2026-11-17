@@ -2,7 +2,7 @@ import * as SwitchPrimitive from '@radix-ui/react-switch';
 import type { ComponentProps } from 'react';
 import { cn } from './utils';
 
-/** macOS switch: accent when on, knob lifted by the input elevation. */
+/** Switch (macOS and iOS sizes): accent when on, knob lifted by the input elevation. */
 export interface SwitchProps extends ComponentProps<typeof SwitchPrimitive.Root> {
   size?: 'sm' | 'md';
 }

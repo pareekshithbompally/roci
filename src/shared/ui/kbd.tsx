@@ -1,8 +1,10 @@
 import React from 'react';
 import { cn } from './utils';
+import { platform } from '@platform/index';
 
-/** Keyboard shortcut badge (⌘K, ⌘L…). */
+/** Keyboard shortcut badge (⌘K, ⌘L…); not shown on touch screens, which have no shortcuts. */
 export function Kbd({ className, ...props }: React.HTMLAttributes<HTMLElement>) {
+  if (platform.hasTouchScreen) return null;
   return (
     <kbd
       className={cn(

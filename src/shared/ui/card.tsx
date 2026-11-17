@@ -91,7 +91,7 @@ export interface SectionProps extends Omit<React.HTMLAttributes<HTMLElement>, 't
 export function Section({ title, accessory, layout = 'card', className, children, ...props }: SectionProps) {
   return (
     <section className={cn('flex flex-col gap-2', className)} {...props}>
-      <div className="flex items-center justify-between gap-2 h-4 mx-4">
+      <div className="flex items-center justify-between gap-2 min-h-4 mx-4">
         <Text as="h2" variant="label" tone="muted">{title}</Text>
         {accessory}
       </div>

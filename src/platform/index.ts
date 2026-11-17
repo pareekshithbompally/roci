@@ -22,7 +22,6 @@ export const platform = {
   hasWindowChrome: mac,
   hasMenuBar: mac,
   hasGlobalShortcuts: mac,
-  hasLaunchAtLogin: mac,
   /** Self-updates from GitHub releases (iOS updates through the App Store). */
   hasUpdater: mac,
   /** Records meetings through the native audio core. */

@@ -48,7 +48,8 @@ import {
   VOICE_HANDOFF_S,
 } from './voice/voiceTransition';
 
-const ACCEPTED_FILE_TYPES = 'image/*,audio/*,video/*,.pdf,.txt,.md,.csv,.json,.doc,.docx';
+/** Everything + offers, plus video (drop and paste). */
+const ACCEPTED_FILE_TYPES = [...ATTACH_OPTIONS.map(({ accept }) => accept), 'video/*'].join(',');
 
 /** Phone: one short placeholder (iOS); the rotating hints are a desktop affordance (⌘ shortcuts, @). */
 const PHONE_PLACEHOLDER = 'Ask anything';
@@ -163,13 +164,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     return () => registerChatComposer(null);
   }, []);
 
-  // Cycle through placeholder hints
+  // Cycle through placeholder hints (desktop; the phone shows one short placeholder)
   useEffect(() => {
+    if (phone) return;
     const interval = setInterval(() => {
       setHintIndex(prev => (prev + 1) % PLACEHOLDER_HINTS.length);
     }, ANIMATION_CONFIG.timer.placeholderCycle);
     return () => clearInterval(interval);
-  }, []);
+  }, [phone]);
 
   // Auto-resize textarea (wrapped in rAF to avoid interrupting OS spell checker session)
   useEffect(() => {
