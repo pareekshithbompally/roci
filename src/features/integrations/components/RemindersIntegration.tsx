@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { CardRow, Picker } from '@shared/ui';
+import { LAYOUT } from '@config/layout.config';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { useRemindersControls } from '@features/integrations/hooks/useRemindersControls';
 import { IntegrationRow } from './IntegrationRow';
@@ -23,7 +24,7 @@ export const RemindersIntegration: React.FC = () => {
       <CardRow
         title="List"
         actions={
-          <div className="w-44">
+          <div className={LAYOUT.settingsSelect}>
             <Picker
               label="Reminders list"
               value={reminders.listId}

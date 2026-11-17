@@ -13,15 +13,21 @@ export function rowClasses(selected?: boolean): string {
 
 export interface RowProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   selected?: boolean;
-  /** An icon centred on the row's first line, however many lines its text wraps to. */
+  /** An icon on the text's first line, however many lines the text wraps to. */
   leading?: React.ReactNode;
 }
 
 export function Row({ selected, leading, className, type = 'button', children, ...props }: RowProps) {
   return (
     <button type={type} className={cn(rowClasses(selected), className)} {...props}>
-      {leading && <span className="flex h-[1lh] shrink-0 items-center self-start">{leading}</span>}
-      {children}
+      {leading ? (
+        // Icon and text are one group the row centres; inside it the icon's box is one text line tall (1lh), so it
+        // sits on the first line wherever the row places the text.
+        <span className="flex min-w-0 flex-1 items-start gap-2">
+          <span className="flex h-[1lh] shrink-0 items-center">{leading}</span>
+          <span className="min-w-0 flex-1">{children}</span>
+        </span>
+      ) : children}
     </button>
   );
 }
