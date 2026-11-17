@@ -1,11 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft } from 'lucide-react';
-import { ANIMATION_CONFIG } from '@config/animations.config';
 import { IconButton } from './button';
 import { Surface } from './surface';
 import { Text } from './text';
+import { cn } from './utils';
 
 export interface NavScreen {
   title: string;
@@ -36,9 +35,12 @@ export function useNavStack(): NavStackApi {
   return api;
 }
 
-/** A pushed screen with a stable identity (keys survive pop-then-push). */
+/** A pushed screen with a stable identity (keys survive pop-then-push). `leaving`: sliding out, gone when that ends.
+ *  `still`: shown without the slide (the screen a sheet opens on). */
 interface StackEntry extends NavScreen {
   id: number;
+  leaving?: boolean;
+  still?: boolean;
 }
 
 /** One screen: its header, then its own scrolling body. `covered`: a screen is pushed over it, so it is inert. */
@@ -74,27 +76,35 @@ function PushedTitle({ title }: { title: string }) {
   );
 }
 
+/** The screen in view: the last one not sliding out. */
+const topOf = (stack: StackEntry[]): StackEntry | undefined => [...stack].reverse().find((e) => !e.leaving);
+
 export function NavStack({ title, action, initial, children }: NavStackProps) {
   const nextId = useRef(0);
   const entry = useCallback((screen: NavScreen): StackEntry => ({ ...screen, id: nextId.current++ }), []);
-  const [stack, setStack] = useState<StackEntry[]>(() => (initial ? [entry(initial)] : []));
+  const [stack, setStack] = useState<StackEntry[]>(() => (initial ? [{ ...entry(initial), still: true }] : []));
   const push = useCallback((screen: NavScreen) => {
     const next = entry(screen);
     setStack((s) => [...s, next]);
     return next.id;
   }, [entry]);
+  // Leaving screens slide out first (CSS, on the compositor), then drop out of the stack.
+  const remove = useCallback((id: number) => setStack((s) => s.map((e) => (e.id === id ? { ...e, leaving: true } : e))), []);
   const pop = useCallback(() => {
-    stack.at(-1)?.onPop?.();
-    setStack((s) => s.slice(0, -1));
-  }, [stack]);
-  const remove = useCallback((id: number) => setStack((s) => s.filter((screen) => screen.id !== id)), []);
+    const top = topOf(stack);
+    if (!top) return;
+    top.onPop?.();
+    remove(top.id);
+  }, [stack, remove]);
+  const drop = useCallback((id: number) => setStack((s) => s.filter((e) => e.id !== id)), []);
   const api = useMemo(() => ({ push, pop, remove }), [push, pop, remove]);
+  const top = topOf(stack);
 
   return (
     <NavStackContext.Provider value={api}>
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <Screen
-          covered={stack.length > 0}
+          covered={!!top}
           header={
             <header className="flex shrink-0 items-start justify-between gap-2 px-4 pt-2">
               <Text as="h1" variant="display" className="pt-10">{title}</Text>
@@ -104,30 +114,25 @@ export function NavStack({ title, action, initial, children }: NavStackProps) {
         >
           {children}
         </Screen>
-        <AnimatePresence initial={false}>
-          {stack.map((screen, depth) => (
-            <motion.div
-              key={screen.id}
-              className="absolute inset-0"
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={ANIMATION_CONFIG.navigation.push}
+        {stack.map((screen) => (
+          <div
+            key={screen.id}
+            className={cn('absolute inset-0 will-change-transform', screen.leaving ? 'animate-push-out' : !screen.still && 'animate-push-in')}
+            onAnimationEnd={(e) => { if (screen.leaving && e.target === e.currentTarget) drop(screen.id); }}
+          >
+            <Screen
+              covered={screen !== top}
+              header={
+                <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pt-2 pb-3">
+                  <IconButton icon={ChevronLeft} label="Back" size="fab" variant="bar" onClick={pop} className="justify-self-start" />
+                  <PushedTitle title={screen.title} />
+                </header>
+              }
             >
-              <Screen
-                covered={depth < stack.length - 1}
-                header={
-                  <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pt-2 pb-3">
-                    <IconButton icon={ChevronLeft} label="Back" size="fab" variant="bar" onClick={pop} className="justify-self-start" />
-                    <PushedTitle title={screen.title} />
-                  </header>
-                }
-              >
-                {screen.content}
-              </Screen>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+              {screen.content}
+            </Screen>
+          </div>
+        ))}
       </div>
     </NavStackContext.Provider>
   );

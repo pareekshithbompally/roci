@@ -19,7 +19,7 @@ export interface SearchFieldProps {
  *  gives the platform's own clear button and Search key. */
 export function SearchField({ value, onChange, onCancel, placeholder = 'Search', autoFocus, busy, className }: SearchFieldProps) {
   return (
-    <div className={cn(SEARCH_FIELD, className)}>
+    <div className={cn(SEARCH_FIELD, 'min-w-0', className)}>
       <Icon icon={Search} size="sm" />
       <input
         type="search"

@@ -116,6 +116,9 @@ export default {
         'content-hide': FLOAT_SLIDE.hide,
         'sheet-show': SHEET_SLIDE.show,
         'sheet-hide': SHEET_SLIDE.hide,
+        // A screen pushed onto a sheet's stack (kit NavStack): in from the trailing edge, back out to it.
+        'push-in': { from: { translate: '100% 0' }, to: { translate: '0 0' } },
+        'push-out': { from: { translate: '0 0' }, to: { translate: '100% 0' } },
         'rise-show': RISE.show,
         'rise-hide': RISE.hide,
         'drawer-start-show': SLIDE_START.show,
@@ -136,6 +139,8 @@ export default {
         'content-hide': `content-hide ${EXIT}`,
         'sheet-show': `sheet-show ${ENTER}`,
         'sheet-hide': `sheet-hide ${EXIT}`,
+        'push-in': `push-in ${IOS_DURATION} ${IOS_EASE}`,
+        'push-out': `push-out ${IOS_DURATION} ${IOS_EASE} both`,
         'rise-show': `rise-show ${RISE_ENTER}`,
         'rise-hide': `rise-hide ${RISE_EXIT}`,
         'drawer-start-show': `drawer-start-show ${DRAWER_ENTER}`,

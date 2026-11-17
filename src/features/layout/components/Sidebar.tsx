@@ -100,7 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       value={query}
       onChange={setSidebarSearchQuery}
       onCancel={endSidebarSearch}
-      placeholder="Search meetings and chats"
+      placeholder="Search"
       autoFocus
       busy={search.searching}
       className="flex-1"

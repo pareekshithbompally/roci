@@ -206,6 +206,10 @@ html.platform-ios {
 html.platform-ios.dark {
   --bg-grouped: #000000;
   --bg-grouped-card: #1c1c1e;
+  /* The glass roles are macOS window vibrancy (the desktop through the window); iOS has none, so its views are solid —
+     nothing beneath a view (the sidebar under the chat) may show through. Floating controls keep raised-glass. */
+  --bg-base-glass: var(--bg-base);
+  --bg-deep-glass: var(--bg-deep);
 }
 
 /* ─── Tier 2: roles (dark) ─────────────────────────────── */
