@@ -2,15 +2,8 @@
 
 import React from 'react';
 import { MoreHorizontal } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  IconButton,
-} from '@shared/ui';
+import { IconButton } from '@shared/ui';
+import { Menu } from '@shared/components';
 import type { ModelCapabilities } from '@services/ai/capabilities';
 import type { Model } from '@shared/types/modelProviders';
 
@@ -31,26 +24,20 @@ interface ModelRowMenuProps {
 }
 
 export const ModelRowMenu: React.FC<ModelRowMenuProps> = ({ capabilities, onFlagChange, onRename, onRemove }) => (
-  <DropdownMenu>
-    <DropdownMenuTrigger asChild>
-      <IconButton icon={MoreHorizontal} label="Model options" size="sm" />
-    </DropdownMenuTrigger>
-    <DropdownMenuContent align="end">
-      <DropdownMenuItem onSelect={onRename}>Rename…</DropdownMenuItem>
-      <DropdownMenuSeparator />
-      {FLAG_ITEMS.map(({ flag, capability, label }) => (
-        <DropdownMenuCheckboxItem
-          key={flag}
-          checked={capabilities[capability]}
-          onCheckedChange={(checked) => onFlagChange(flag, checked === true)}
-        >
-          {label}
-        </DropdownMenuCheckboxItem>
-      ))}
-      <DropdownMenuSeparator />
-      <DropdownMenuItem variant="danger" onSelect={onRemove}>
-        Remove model…
-      </DropdownMenuItem>
-    </DropdownMenuContent>
-  </DropdownMenu>
+  <Menu
+    label="Model options"
+    trigger={<IconButton icon={MoreHorizontal} label="Model options" size="sm" />}
+    items={[
+      { type: 'item', label: 'Rename…', onSelect: onRename },
+      { type: 'separator' },
+      ...FLAG_ITEMS.map(({ flag, capability, label }) => ({
+        type: 'check' as const,
+        label,
+        checked: capabilities[capability],
+        onSelect: () => onFlagChange(flag, !capabilities[capability]),
+      })),
+      { type: 'separator' },
+      { type: 'item', label: 'Remove Model…', onSelect: onRemove, destructive: true },
+    ]}
+  />
 );

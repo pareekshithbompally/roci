@@ -2,7 +2,7 @@
 
 import React, { KeyboardEvent, useRef, useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUp, Square, Plus, X, FileText, Music, Film, Image as ImageIcon, Camera, Loader2, Mic, Pause, Play } from 'lucide-react';
+import { ArrowUp, Square, Plus, X, FileText, Music, Film, Image as ImageIcon, Mic, Pause, Play } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { MeetingMentionPopup } from './MeetingMentionPopup';
 import { ContextChips } from './ContextChips';
@@ -10,23 +10,12 @@ import { ModelPicker } from './ModelPicker';
 import { ToolsPicker } from './tools/ToolsPicker';
 import { ReasoningPicker } from './ReasoningPicker';
 import { ATTACH_OPTIONS, ComposerAddSheet } from './ComposerAddSheet';
+import { ComposerAddMenu } from './ComposerAddMenu';
 import { ContextRing, Icon, IconButton, Input, Popover, PopoverAnchor, Surface, Text, Textarea, cn } from '@shared/ui';
 import type { ContextUsage } from '@shared/hooks/useContextUsage';
 import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
 } from '@shared/ui';
-import { canTakeScreenshots, listCapturableWindows, takeScreenshot } from '@services/tauri';
-import type { CapturableWindow } from '@services/tauri';
 import { LAYOUT } from '@config/layout.config';
-import { UI_CONFIG } from '@config/ui.config';
-import { AppImage } from '@shared/components';
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { shortcutLabel } from '@features/shortcuts';
 import { registerChatComposer } from '@features/chat/stores';
@@ -38,7 +27,6 @@ import type { SpeechState } from '@features/chat/hooks/useSpeechInput';
 import { DotScope } from '@features/chat/components/dot-scope';
 import { LiveTranscript } from '@features/chat/components/voice/LiveTranscript';
 import type { LiveText } from '@services/ai/transcription';
-import { ImportMeetingMenu } from '@features/import';
 import { useFormFactor } from '@platform/formFactor';
 import { DOT_SCOPE_CONFIG } from '@config/dotScope.config';
 import {
@@ -150,8 +138,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showMentionPopup, setShowMentionPopup] = useState(false);
   const [hintIndex, setHintIndex] = useState(() => Math.floor(Math.random() * PLACEHOLDER_HINTS.length));
-  const [capturableWindows, setCapturableWindows] = useState<CapturableWindow[]>([]);
-  const [screenshotLoading, setScreenshotLoading] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null);
   // Phone (iOS): one row — + (opens the Add sheet) · the field · mic or send; the top bar owns the model.
   const phone = useFormFactor() === 'phone';
@@ -251,38 +237,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
-  // Guard async completion after unmount (menu may close mid-invoke).
-  const mountedRef = useRef(true);
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => { mountedRef.current = false; };
-  }, []);
-
-  // Load capturable windows when screenshot sub-menu opens
-  const handleScreenshotSubOpen = async () => {
-    try {
-      const windows = await listCapturableWindows();
-      if (mountedRef.current) setCapturableWindows(windows);
-    } catch (err) {
-      console.error('[ChatInput] Failed to list windows:', err);
-      if (mountedRef.current) setCapturableWindows([]);
-    }
-  };
-
-  // Take a screenshot (full screen or specific window)
-  const handleTakeScreenshot = async (windowId: number | null, name: string) => {
-    if (!onScreenshot) return;
-    setScreenshotLoading(name);
-    try {
-      const base64 = await takeScreenshot(windowId);
-      onScreenshot(base64, name);
-    } catch (err) {
-      console.error('[ChatInput] Screenshot failed:', err);
-    } finally {
-      if (mountedRef.current) setScreenshotLoading(null);
-    }
-  };
-
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // While mention popup is open, don't process sends from the textarea
     if (showMentionPopup) return;
@@ -299,7 +253,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   const canSend = !isLoading && !disabled && canSendDraft(value, attachments);
-  const canScreenshot = !!onScreenshot && canTakeScreenshots();
   const isStarting = speechState === 'starting';
   const isRecording = speechState === 'recording';
   const isPaused = speechState === 'paused';
@@ -550,61 +503,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             {/* Left: Attach, model, tools, thinking, context gauge — toolbar-size controls, close together */}
             <div className="flex items-center gap-0.5">
               {/* Attach — files and screenshots only; tools have their own picker */}
-              {onAttach && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <IconButton icon={Plus} label="Add" size="toolbar" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent side="top" align="start" sideOffset={UI_CONFIG.picker.sideOffset}>
-                    {ATTACH_OPTIONS.map(({ label, icon, accept }) => (
-                      <DropdownMenuItem key={label} onSelect={() => openFilePicker(accept)} disabled={disabled}>
-                        <Icon icon={icon} size="sm" />
-                        <span>{label}</span>
-                      </DropdownMenuItem>
-                    ))}
-                    <DropdownMenuSeparator />
-                    <ImportMeetingMenu />
-
-                    {canScreenshot && <DropdownMenuSeparator />}
-                    {canScreenshot && (
-                      <DropdownMenuSub>
-                        <DropdownMenuSubTrigger onPointerEnter={handleScreenshotSubOpen}>
-                          <Icon icon={Camera} size="sm" />
-                          <span>Take Screenshot</span>
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent sideOffset={UI_CONFIG.picker.flyoutOffset}>
-                          <DropdownMenuItem
-                            onSelect={() => handleTakeScreenshot(null, 'Full Screen')}
-                            disabled={screenshotLoading !== null}
-                          >
-                            {screenshotLoading === 'Full Screen' ? (
-                              <Icon icon={Loader2} size="sm" className="animate-spin" />
-                            ) : (
-                              <Icon icon={Camera} size="sm" />
-                            )}
-                            <span>Full Screen</span>
-                          </DropdownMenuItem>
-                          {capturableWindows.length > 0 && <DropdownMenuSeparator />}
-                          {capturableWindows.map((win) => (
-                            <DropdownMenuItem
-                              key={win.window_id}
-                              onSelect={() => handleTakeScreenshot(win.window_id, win.app_name)}
-                              disabled={screenshotLoading !== null}
-                            >
-                              {screenshotLoading === win.app_name ? (
-                                <Icon icon={Loader2} size="sm" className="animate-spin" />
-                              ) : (
-                                <AppImage src={win.icon_base64 && `data:image/png;base64,${win.icon_base64}`} size="sm" />
-                              )}
-                              <Text variant="inherit" tone="inherit" truncate className="max-w-40">{win.app_name}</Text>
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuSubContent>
-                      </DropdownMenuSub>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
+              {onAttach && <ComposerAddMenu onPickFiles={openFilePicker} disabled={disabled} onScreenshot={onScreenshot} />}
 
               <ModelPicker compact />
               <ToolsPicker />

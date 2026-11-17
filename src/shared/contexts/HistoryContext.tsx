@@ -35,10 +35,8 @@ interface HistoryDataContextValue {
 }
 
 interface HistoryUIContextValue {
-  menuOpenId: string | null;
   renameItemId: string | null;
   renameValue: string;
-  setMenuOpenId: (id: string | null) => void;
   startRename: (itemId: string, currentTitle: string) => void;
   cancelRename: () => void;
   setRenameValue: (value: string) => void;
@@ -116,7 +114,6 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
   const { data: items = [], isLoading } = useQuery(meetingsQuery);
 
   // UI state (separate to avoid re-rendering data consumers)
-  const [menuOpenId, setMenuOpenIdRaw] = useState<string | null>(null);
   const [renameItemId, setRenameItemId] = useState<string | null>(null);
   const [renameValue, setRenameValueRaw] = useState('');
 
@@ -232,7 +229,6 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
   const deleteItem = useCallback(async (itemId: string): Promise<boolean> => {
     try {
       await deleteMutation.mutateAsync(itemId);
-      setMenuOpenIdRaw(null);
       return true;
     } catch (error) {
       console.error('[HistoryContext] Error deleting item:', error);
@@ -245,12 +241,9 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
 
   // ── UI methods ──
 
-  const setMenuOpenId = useCallback((id: string | null) => setMenuOpenIdRaw(id), []);
-
   const startRename = useCallback((itemId: string, currentTitle: string) => {
     setRenameItemId(itemId);
     setRenameValueRaw(currentTitle);
-    setMenuOpenIdRaw(null);
   }, []);
 
   const cancelRename = useCallback(() => {
@@ -282,16 +275,14 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
   ]);
 
   const uiValue: HistoryUIContextValue = useMemo(() => ({
-    menuOpenId,
     renameItemId,
     renameValue,
-    setMenuOpenId,
     startRename,
     cancelRename,
     setRenameValue,
   }), [
-    menuOpenId, renameItemId, renameValue,
-    setMenuOpenId, startRename, cancelRename, setRenameValue,
+    renameItemId, renameValue,
+    startRename, cancelRename, setRenameValue,
   ]);
 
   return (

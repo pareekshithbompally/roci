@@ -1,13 +1,7 @@
 import React from 'react';
-import { MoreHorizontal, Edit2, Trash2 } from 'lucide-react';
-import { HighlightedText } from '@shared/components';
+import { MoreHorizontal } from 'lucide-react';
+import { HighlightedText, Menu } from '@shared/components';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  Icon,
   IconButton,
   Input,
   Surface,
@@ -21,11 +15,9 @@ interface HistoryItemProps {
   matchType?: string;
   searchQuery?: string;
   isSelected?: boolean;
-  isMenuOpen?: boolean;
   isRenaming?: boolean;
   renameValue?: string;
   onClick: () => void;
-  onMenuToggle: () => void;
   onStartRename: () => void;
   onRenameChange: (value: string) => void;
   onRenameSubmit: () => void;
@@ -40,11 +32,9 @@ export const HistoryItem: React.FC<HistoryItemProps> = ({
   matchType,
   searchQuery = '',
   isSelected,
-  isMenuOpen,
   isRenaming,
   renameValue = '',
   onClick,
-  onMenuToggle,
   onStartRename,
   onRenameChange,
   onRenameSubmit,
@@ -92,22 +82,15 @@ export const HistoryItem: React.FC<HistoryItemProps> = ({
 
       {/* 3-dots menu button - visible on hover */}
       <div className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <DropdownMenu open={isMenuOpen} onOpenChange={(open) => { if (open !== !!isMenuOpen) onMenuToggle(); }}>
-          <DropdownMenuTrigger asChild>
-            <IconButton icon={MoreHorizontal} size="sm" label={`Options for ${title}`} onClick={(e) => e.stopPropagation()} />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
-            <DropdownMenuItem onSelect={onStartRename}>
-              <Icon icon={Edit2} size="sm" />
-              Rename
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="danger" onSelect={onDeleteClick}>
-              <Icon icon={Trash2} size="sm" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Menu
+          label={`Options for ${title}`}
+          trigger={<IconButton icon={MoreHorizontal} size="sm" label={`Options for ${title}`} onClick={(e) => e.stopPropagation()} />}
+          items={[
+            { type: 'item', label: 'Rename', onSelect: onStartRename },
+            { type: 'separator' },
+            { type: 'item', label: 'Delete', onSelect: onDeleteClick, destructive: true },
+          ]}
+        />
       </div>
     </Surface>
   );

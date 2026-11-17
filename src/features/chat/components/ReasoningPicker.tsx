@@ -7,17 +7,8 @@ import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { resolveChatModel } from '@shared/utils/modelResolver';
 import { capabilitiesOf } from '@services/ai/capabilities';
 import { CHAT_REASONING_COPY, REASONING_EFFORT_LEVELS } from '@config/chat.config';
-import { UI_CONFIG } from '@config/ui.config';
-import {
-  Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-  Icon,
-} from '@shared/ui';
+import { Button, Icon } from '@shared/ui';
+import { Menu } from '@shared/components';
 import { useChatReasoningEffort, useChatStore } from '@features/chat/stores';
 import type { ReasoningEffort } from '@shared/types';
 
@@ -42,21 +33,19 @@ export const ReasoningPicker: React.FC = () => {
   const off = effort === 'none';
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <Menu
+      label={CHAT_REASONING_COPY.control}
+      align="start"
+      trigger={(
         <Button variant="ghost" size="toolbar" title={CHAT_REASONING_COPY.control} aria-label={`${CHAT_REASONING_COPY.control}: ${labelOf(effort)}`}>
           <Icon icon={off ? LightbulbOff : Lightbulb} size="xs" tone={off ? 'faint' : undefined} />
           {effort !== 'provider-default' && labelOf(effort)}
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side="top" align="start" sideOffset={UI_CONFIG.picker.sideOffset}>
-        <DropdownMenuLabel>{CHAT_REASONING_COPY.control}</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={effort} onValueChange={(value) => setReasoningEffort(value as ReasoningEffort)}>
-          {REASONING_EFFORT_LEVELS.map((level) => (
-            <DropdownMenuRadioItem key={level.value} value={level.value}>{level.label}</DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      )}
+      items={[
+        { type: 'label', label: CHAT_REASONING_COPY.control },
+        ...REASONING_EFFORT_LEVELS.map((level) => ({ type: 'check' as const, label: level.label, checked: level.value === effort, onSelect: () => setReasoningEffort(level.value) })),
+      ]}
+    />
   );
 };

@@ -2,10 +2,8 @@
 
 import React, { useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import {
-  BarChart, Button, Card, DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem,
-  DropdownMenuTrigger, Icon, Text,
-} from '@shared/ui';
+import { BarChart, Button, Card, Icon, Text } from '@shared/ui';
+import { Menu } from '@shared/components';
 import { UI_CONFIG } from '@config/ui.config';
 import { USAGE_CONFIG, type UsageMetric } from '@config/usage.config';
 import type { UsageSummary } from '@extensions/usage';
@@ -26,21 +24,17 @@ const MetricMenu: React.FC = () => {
   const metric = useUsageMetric();
   const setMetric = useSetUsageMetric();
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <Menu
+      label="Metric"
+      align="start"
+      trigger={(
         <Button variant="link" size="inline">
           {METRIC_LABEL[metric]}
           <Icon icon={ChevronDown} size="xs" />
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        <DropdownMenuRadioGroup value={metric} onValueChange={(v) => setMetric(v as UsageMetric)}>
-          {USAGE_CONFIG.metrics.map((m) => (
-            <DropdownMenuRadioItem key={m.value} value={m.value}>{m.label}</DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      )}
+      items={USAGE_CONFIG.metrics.map((m) => ({ type: 'check' as const, label: m.label, checked: m.value === metric, onSelect: () => setMetric(m.value) }))}
+    />
   );
 };
 

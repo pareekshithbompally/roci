@@ -1,20 +1,9 @@
 /** The meeting's one Actions menu: re-transcribe, copy, download, and show the recording in Finder. */
 
 import React from 'react';
-import { ChevronDown, Copy, FileCode, FileJson, FileText, FileType, MessageSquare, RefreshCw, type LucideIcon } from 'lucide-react';
-import {
-  Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  Icon,
-  showToast,
-} from '@shared/ui';
-import { AppIcon } from '@shared/components';
-import { APP_CONFIG } from '@config/app.config';
+import { ChevronDown } from 'lucide-react';
+import { Button, Icon, showToast } from '@shared/ui';
+import { Menu, type MenuEntry } from '@shared/components';
 import { revealInFinder, saveTextFile } from '@services/tauri';
 import { platform } from '@platform/index';
 import { toastSavedFile } from '@shared/utils/savedFileToast';
@@ -31,12 +20,12 @@ interface MeetingActionsMenuProps {
   onRetranscribe?: () => void;
 }
 
-const DOWNLOADS: ReadonlyArray<{ label: string; icon: LucideIcon; format: ExportFormat; scope: ExportScope }> = [
-  { label: 'Current view as Text', icon: FileText, format: 'txt', scope: 'current' },
-  { label: 'Current view as Markdown', icon: FileCode, format: 'md', scope: 'current' },
-  { label: 'Current view as HTML', icon: FileType, format: 'html', scope: 'current' },
-  { label: 'Full session as Markdown', icon: FileCode, format: 'md', scope: 'all' },
-  { label: 'Full session as JSON', icon: FileJson, format: 'json', scope: 'all' },
+const DOWNLOADS: ReadonlyArray<{ label: string; format: ExportFormat; scope: ExportScope }> = [
+  { label: 'Current View as Text', format: 'txt', scope: 'current' },
+  { label: 'Current View as Markdown', format: 'md', scope: 'current' },
+  { label: 'Current View as HTML', format: 'html', scope: 'current' },
+  { label: 'Full Session as Markdown', format: 'md', scope: 'all' },
+  { label: 'Full Session as JSON', format: 'json', scope: 'all' },
 ];
 
 async function copy(text: string, what: string): Promise<void> {
@@ -67,45 +56,31 @@ function reveal(path: string): void {
   });
 }
 
-export const MeetingActionsMenu: React.FC<MeetingActionsMenuProps> = ({ result, part, recordingPath, onRetranscribe }) => (
-  <DropdownMenu>
-    <DropdownMenuTrigger asChild>
+/** Re-transcribe (when it can), Copy, Download, and Show in Finder (when there is a recording and a file manager). */
+function menuItems({ result, part, recordingPath, onRetranscribe }: MeetingActionsMenuProps): MenuEntry[] {
+  return [
+    ...(onRetranscribe ? [{ type: 'item' as const, label: 'Re-transcribe', onSelect: onRetranscribe }, { type: 'separator' as const }] : []),
+    { type: 'label', label: 'Copy' },
+    { type: 'item', label: 'Summary', onSelect: () => void copy(result.summary, 'Summary') },
+    { type: 'item', label: 'Transcript', onSelect: () => void copy(result.transcript, 'Transcript') },
+    { type: 'separator' },
+    { type: 'label', label: 'Download' },
+    ...DOWNLOADS.map(({ label, format, scope }) => ({ type: 'item' as const, label, onSelect: () => void download(result, format, scope, part) })),
+    ...(platform.hasFileManager && recordingPath
+      ? [{ type: 'separator' as const }, { type: 'item' as const, label: 'Show Recording in Finder', onSelect: () => reveal(recordingPath) }]
+      : []),
+  ];
+}
+
+export const MeetingActionsMenu: React.FC<MeetingActionsMenuProps> = (props) => (
+  <Menu
+    label="Meeting actions"
+    trigger={(
       <Button variant="secondary" size="sm">
         Actions
         <Icon icon={ChevronDown} size="xs" />
       </Button>
-    </DropdownMenuTrigger>
-    <DropdownMenuContent align="end">
-      {onRetranscribe && (
-        <>
-          <DropdownMenuItem onSelect={onRetranscribe}>
-            <Icon icon={RefreshCw} size="sm" /> Re-transcribe
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-        </>
-      )}
-      <DropdownMenuLabel>Copy</DropdownMenuLabel>
-      <DropdownMenuItem onSelect={() => void copy(result.summary, 'Summary')}>
-        <Icon icon={Copy} size="sm" /> Summary
-      </DropdownMenuItem>
-      <DropdownMenuItem onSelect={() => void copy(result.transcript, 'Transcript')}>
-        <Icon icon={MessageSquare} size="sm" /> Transcript
-      </DropdownMenuItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuLabel>Download</DropdownMenuLabel>
-      {DOWNLOADS.map(({ label, icon, format, scope }) => (
-        <DropdownMenuItem key={label} onSelect={() => void download(result, format, scope, part)}>
-          <Icon icon={icon} size="sm" /> {label}
-        </DropdownMenuItem>
-      ))}
-      {platform.hasFileManager && recordingPath && (
-        <>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => reveal(recordingPath)}>
-            <AppIcon app={APP_CONFIG.macApps.finder} size="sm" /> Show Recording in Finder
-          </DropdownMenuItem>
-        </>
-      )}
-    </DropdownMenuContent>
-  </DropdownMenu>
+    )}
+    items={menuItems(props)}
+  />
 );

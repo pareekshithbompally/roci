@@ -1,9 +1,9 @@
 /** One sidebar row: meetings show their phase via MeetingStatus (or a speaker while playing); chats are text. */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MoreHorizontal, Edit2, Trash2, Mic, Volume2 } from 'lucide-react';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, actionRowClasses, RowAction, RowTitle, Icon } from '@shared/ui';
-import { HighlightedText, MeetingStatus } from '@shared/components';
+import { MoreHorizontal, Volume2 } from 'lucide-react';
+import { actionRowClasses, RowAction, RowTitle, Icon } from '@shared/ui';
+import { HighlightedText, MeetingStatus, Menu } from '@shared/components';
 import { meetingPhaseAction } from '@config/meetingPhase.config';
 import type { MeetingPhase } from '@shared/types/meetingPhase';
 import { useAudioPlayerStore } from '@shared/stores/audioPlayerStore';
@@ -71,48 +71,22 @@ export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = React.memo(
         <HighlightedText text={item.title} highlight={searchQuery} />
       </RowTitle>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+      <Menu
+        label={`Options for ${item.title}`}
+        align="start"
+        trigger={(
           <RowAction onClick={(e) => e.stopPropagation()} aria-label={`Options for ${item.title}`}>
             <Icon icon={MoreHorizontal} size="xs" />
           </RowAction>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent side="bottom" align="start" sideOffset={4}>
-          {hasRecording && onTranscribeClick && transcribeAction && (
-            <>
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onTranscribeClick();
-                }}
-              >
-                <Icon icon={Mic} size="sm" />
-                {transcribeAction}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-            </>
-          )}
-          <DropdownMenuItem
-            onClick={(e) => {
-              e.stopPropagation();
-              onStartRename();
-            }}
-          >
-            <Icon icon={Edit2} size="sm" />
-            Rename
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            variant="danger"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDeleteClick();
-            }}
-          >
-            <Icon icon={Trash2} size="sm" />
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        )}
+        items={[
+          ...(hasRecording && onTranscribeClick && transcribeAction
+            ? [{ type: 'item' as const, label: transcribeAction, onSelect: onTranscribeClick }, { type: 'separator' as const }]
+            : []),
+          { type: 'item', label: 'Rename', onSelect: onStartRename },
+          { type: 'item', label: 'Delete', onSelect: onDeleteClick, destructive: true },
+        ]}
+      />
     </div>
   );
 });

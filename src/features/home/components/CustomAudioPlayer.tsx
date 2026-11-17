@@ -7,7 +7,6 @@ import {
   Volume2,
   VolumeX,
   Volume1,
-  Check,
 } from 'lucide-react';
 import { useWavesurfer } from '@wavesurfer/react';
 import Hover from 'wavesurfer.js/dist/plugins/hover.esm.js';
@@ -15,13 +14,8 @@ import { formatTime } from '@shared/utils/audio.utils';
 import { useThemeContext } from '@shared/contexts/ThemeContext';
 import { useAudioPlayerStore, SPEED_OPTIONS } from '@shared/stores/audioPlayerStore';
 import { cssToken } from '@shared/utils/cssToken';
-import { PICKER } from '@config/layout.config';
 import {
   Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
   Icon,
   IconButton,
   Popover,
@@ -31,6 +25,7 @@ import {
   Surface,
   Text,
 } from '@shared/ui';
+import { Menu } from '@shared/components';
 
 interface CustomAudioPlayerProps {
   src: string;
@@ -59,7 +54,6 @@ const CustomAudioPlayer: React.FC<CustomAudioPlayerProps> = ({ src, duration, me
 
   const isOwner = !meetingId || session?.meetingId === meetingId;
 
-  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [showRemaining, setShowRemaining] = useState(false);
 
@@ -278,23 +272,16 @@ const CustomAudioPlayer: React.FC<CustomAudioPlayerProps> = ({ src, duration, me
           </PopoverAnchor>
         </Popover>
 
-        <DropdownMenu open={showSpeedMenu} onOpenChange={setShowSpeedMenu}>
-          <DropdownMenuTrigger asChild>
+        <Menu
+          label="Playback speed"
+          align="start"
+          trigger={(
             <Button variant="ghost" size="sm" aria-label={`Playback speed ${playbackRate}x`}>
               <Text variant="mono" tone="inherit">{playbackRate}x</Text>
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent side="top" align="center">
-            {SPEED_OPTIONS.map((speed) => (
-              <DropdownMenuItem key={speed} onSelect={() => setPlaybackRate(speed)}>
-                <Text variant="mono" tone="inherit" className="flex-1">{speed}x</Text>
-                <span className={PICKER.checkSlot}>
-                  {playbackRate === speed && <Icon icon={Check} size="xs" />}
-                </span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          )}
+          items={SPEED_OPTIONS.map((speed) => ({ type: 'check' as const, label: `${speed}×`, checked: playbackRate === speed, onSelect: () => setPlaybackRate(speed) }))}
+        />
 
         <Text variant="mono" tone="muted" className="tabular-nums min-w-16 text-right">
           {formatTime(effectiveDuration)}

@@ -45,11 +45,9 @@ export const HistoryList: React.FC<HistoryListProps> = ({
           matchType={item.matchType}
           searchQuery={searchQuery}
           isSelected={selectedId === item.id}
-          isMenuOpen={history.menuOpenId === item.id}
           isRenaming={history.renameItemId === item.id}
           renameValue={history.renameValue}
           onClick={() => onSelect(item)}
-          onMenuToggle={() => history.setMenuOpenId(history.menuOpenId === item.id ? null : item.id)}
           onStartRename={() => history.startRename(item.id, item.title)}
           onRenameChange={history.setRenameValue}
           onRenameSubmit={() => history.renameItem(item.id, history.renameValue)}

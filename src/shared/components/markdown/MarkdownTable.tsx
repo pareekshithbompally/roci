@@ -12,10 +12,6 @@ import {
   DialogOverlay,
   DialogPortal,
   DialogTitle,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
   IconButton,
 } from '@shared/ui';
 import { useToast } from '@shared/contexts/ToastContext';
@@ -25,6 +21,7 @@ import { toastSavedFile } from '@shared/utils/savedFileToast';
 import { useCopiedFlag } from '@shared/hooks';
 import { COPY_FORMATS, SAVE_FORMATS, TABLE_FORMATS, serializeTable } from './tableExport';
 import type { TableFormat } from './tableExport';
+import { Menu } from '@shared/components/Menu';
 
 const FILE_STEM = 'table';
 
@@ -117,17 +114,10 @@ interface FormatMenuProps {
 /** An icon button that opens a list of export formats. */
 function FormatMenu({ icon, label, formats, onPick }: FormatMenuProps) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <IconButton icon={icon} label={label} size="sm" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {formats.map((format) => (
-          <DropdownMenuItem key={format} onSelect={() => onPick(format)}>
-            {TABLE_FORMATS[format].label}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Menu
+      label={label}
+      trigger={<IconButton icon={icon} label={label} size="sm" />}
+      items={formats.map((format) => ({ type: 'item' as const, label: TABLE_FORMATS[format].label, onSelect: () => onPick(format) }))}
+    />
   );
 }
