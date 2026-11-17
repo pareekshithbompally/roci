@@ -1,7 +1,7 @@
 import { Loader2, Search } from 'lucide-react';
 import { cn } from './utils';
 import { Icon } from './icon';
-import { SEARCH_FIELD } from './recipes';
+import { LITERAL_TEXT, SEARCH_FIELD } from './recipes';
 
 export interface SearchFieldProps {
   value: string;
@@ -27,6 +27,7 @@ export function SearchField({ value, onChange, onCancel, placeholder = 'Search',
         placeholder={placeholder}
         value={value}
         autoFocus={autoFocus}
+        {...LITERAL_TEXT}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Escape') onCancel?.(); }}
         className="h-full min-w-0 flex-1 bg-transparent text-body text-primary outline-none placeholder:text-faint"

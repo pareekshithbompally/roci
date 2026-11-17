@@ -59,3 +59,6 @@ export const POPUP_VALUE =
 
 /** Content of a panel that already clears the notch and home bar: it sees no safe-area insets. */
 export const NO_INSETS = '[--safe-top:0px] [--safe-bottom:0px]';
+
+/** Text typed as-is (search queries, ids): the keyboard neither capitalises nor corrects it. */
+export const LITERAL_TEXT = { autoCapitalize: 'none', autoCorrect: 'off', spellCheck: false } as const;

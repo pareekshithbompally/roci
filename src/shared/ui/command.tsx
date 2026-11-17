@@ -1,4 +1,5 @@
 import { Command as CommandPrimitive } from 'cmdk';
+import { LITERAL_TEXT } from './recipes';
 import { ChevronRight } from 'lucide-react';
 import { PICKER } from '@config/layout.config';
 import type { ComponentProps, ReactNode } from 'react';
@@ -14,6 +15,7 @@ export function Command({ className, ...props }: ComponentProps<typeof CommandPr
 export function CommandInput({ className, ...props }: ComponentProps<typeof CommandPrimitive.Input>) {
   return (
     <CommandPrimitive.Input
+      {...LITERAL_TEXT}
       className={cn(
         'flex w-full px-3 py-3 bg-transparent border-b border-muted text-body text-primary placeholder:text-faint outline-none',
         className,
