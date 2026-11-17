@@ -42,20 +42,24 @@ export interface WelcomeAction {
 }
 
 export interface WelcomeStepProps {
+  /** An image above the title (the app icon on the first screen). */
+  icon?: string;
   title: string;
   subtitle?: string;
   /** The step's main action (Continue). */
   primary?: WelcomeAction;
   /** The way past it (Set up later, Back). */
   secondary?: WelcomeAction;
-  children: React.ReactNode;
+  /** The step's content; a step whose title and line say it all has none. */
+  children?: React.ReactNode;
 }
 
 /** One step: title (and a line under it), the content, then its actions. */
-export function WelcomeStep({ title, subtitle, primary, secondary, children }: WelcomeStepProps) {
+export function WelcomeStep({ icon, title, subtitle, primary, secondary, children }: WelcomeStepProps) {
   const phone = useFormFactor() === 'phone';
   const header = (
     <header className="flex flex-col items-center gap-2 text-center">
+      {icon && <img src={icon} alt="" className="mb-2 h-welcome-icon w-welcome-icon" />}
       <Text as="h1" variant={phone ? 'display' : 'pageTitle'}>{title}</Text>
       {subtitle && <Text as="p" variant="helper" tone="muted">{subtitle}</Text>}
     </header>
@@ -74,9 +78,12 @@ export function WelcomeStep({ title, subtitle, primary, secondary, children }: W
   if (phone) {
     return (
       <>
-        <div className="flex min-h-0 flex-1 flex-col gap-section overflow-y-auto px-6 pb-6 pt-section">
-          {header}
-          {children}
+        {/* Centred in the space above the button; scrolls instead when it doesn't fit (my-auto never clips the top). */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-section">
+          <div className="my-auto flex flex-col gap-section">
+            {header}
+            {children}
+          </div>
         </div>
         {actions && <footer className="shrink-0 px-6 pb-sheet-end pt-3">{actions}</footer>}
       </>
@@ -101,7 +108,7 @@ export interface FeatureRowProps {
 export function FeatureRow({ icon, title, children }: FeatureRowProps) {
   return (
     <div className="flex items-start gap-4">
-      <Icon icon={icon} size="xl" tone="accent" className="shrink-0" />
+      <Icon icon={icon} size="lg" tone="accent" className="shrink-0" />
       <div className="min-w-0 flex-1">
         <Text as="p" variant="bodyStrong">{title}</Text>
         <Text as="p" variant="helper" tone="muted">{children}</Text>

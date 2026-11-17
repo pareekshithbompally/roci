@@ -48,6 +48,8 @@ export const platform = {
   hasUrlActions: mac,
   /** Reveal in Finder and open files in other apps. */
   hasFileManager: mac,
+  /** Opens a specific System Settings pane (iOS gives apps no link to its Settings pages beyond their own). */
+  canOpenSettingsPanes: mac,
 } as const;
 
 /** A yes/no capability of this device, for data that names what it needs (`requires: 'hasCalendar'`). */

@@ -6,6 +6,8 @@ import { getProviderTitle } from '@shared/utils/provider.utils';
 import { Dot, RowGroupLabel, Status, Surface, Text } from '@shared/ui';
 import type { DotTone } from '@shared/ui';
 import { activateOnKey } from '@shared/utils/activateOnKey';
+import { providerSetting } from '@shared/utils/provider.utils';
+import type { ModelProvider } from '@shared/types/modelProviders';
 
 /** On and usable (key set, server running), on but not usable yet, or off. */
 export type ProviderRowState = 'ready' | 'attention' | 'off';
@@ -13,6 +15,12 @@ export type ProviderRowState = 'ready' | 'attention' | 'off';
 const ROW_DOT: Record<Exclude<ProviderRowState, 'off'>, DotTone> = { ready: 'success', attention: 'warning' };
 
 const ROW_LABEL: Record<ProviderRowState, string> = { ready: 'On', attention: 'Needs key', off: 'Off' };
+
+/** A cloud provider's state: off, on without a key, or on with one. */
+export function cloudRowState(provider: ModelProvider): ProviderRowState {
+  if (!provider.active) return 'off';
+  return providerSetting(provider, 'api-key') ? 'ready' : 'attention';
+}
 
 /** A provider's state as a dot and word (phone list rows). */
 export const ProviderStatus: React.FC<{ state: ProviderRowState }> = ({ state }) => (

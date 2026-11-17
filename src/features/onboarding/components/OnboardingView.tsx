@@ -7,11 +7,17 @@ import { WelcomeStepView } from './WelcomeStepView';
 import { PermissionsStep } from './PermissionsStep';
 import { SetupStep } from './SetupStep';
 import { LocalSetup } from './LocalSetup';
+import { AppleStep } from './AppleStep';
+import { ProvidersStep } from './ProvidersStep';
+import { ProviderKeyStep } from './ProviderKeyStep';
 
 const STEPS = {
   welcome: WelcomeStepView,
   permissions: PermissionsStep,
   setup: SetupStep,
+  apple: AppleStep,
+  providers: ProvidersStep,
+  provider: ProviderKeyStep,
   local: LocalSetup,
 } as const;
 

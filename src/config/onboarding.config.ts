@@ -1,6 +1,6 @@
 /** First-run flow copy and the icons it shows: welcome (no recording) or permissions (recording), then AI setup. */
 
-import { Lock, MessageCircle, Sparkles } from 'lucide-react';
+import { Lock, Mic, Sparkles } from 'lucide-react';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { platform } from '@platform/index';
 
@@ -39,9 +39,9 @@ export const ONBOARDING_CONFIG = {
   welcome: {
     heading: 'Welcome to Roci',
     features: [
-      { icon: MessageCircle, title: 'Ask anything', detail: 'Chat with the AI you choose, by typing or by voice.' },
-      { icon: Sparkles, title: 'On device or with your key', detail: `Apple Intelligence runs on this ${platform.deviceName}, or connect a provider with your own key.` },
-      { icon: Lock, title: 'Private by default', detail: `Your chats are saved on this ${platform.deviceName} only.` },
+      { icon: Sparkles, title: 'Your choice of AI', detail: 'Apple Intelligence, or your own key.' },
+      { icon: Lock, title: 'Private', detail: `Chats stay on this ${platform.deviceName}.` },
+      { icon: Mic, title: 'Talk or type', detail: 'Ask by voice or text, with photos and files.' },
     ],
   },
   /** Devices that record: what recording can't work without, asked up front; the rest is optional. */
@@ -60,15 +60,24 @@ export const ONBOARDING_CONFIG = {
   },
   setup: {
     heading: 'Choose your AI',
-    /** The footer, one sentence per option shown, then the last line. */
-    notes: {
-      apple: `Apple Intelligence runs privately on this ${platform.deviceName}, with no keys.`,
-      local: `A local server, such as Ollama or LM Studio, runs models on this ${platform.deviceName}.`,
-      remote: 'An online provider, such as OpenAI, Anthropic or Google, uses your own API key.',
-      change: 'You can change it any time in Settings.',
+    footer: 'You can change this in Settings.',
+    /** Apple Intelligence's own step: its state, and the way to use it. */
+    apple: {
+      ready: 'Runs privately on this device. No key needed.',
+      needsSettings: platform.canOpenSettingsPanes
+        ? `Turn it on in ${platform.settingsAppName}, then come back.`
+        : 'Turn it on in Settings › Apple Intelligence & Siri, then come back.',
+      use: 'Use Apple Intelligence',
     },
+    /** The online providers' step: pick one, then its key. */
+    providers: {
+      footer: 'Each uses your own API key.',
+    },
+    /** One short line under each option: what it needs. */
+    appleDetail: `On this ${platform.deviceName}, no key`,
     local: {
       title: 'Local server',
+      description: 'Ollama, LM Studio and others',
       heading: 'Connect a local server',
       scanning: 'Looking for servers…',
       none: 'No server found on this Mac. Enter its address below.',
@@ -77,6 +86,7 @@ export const ONBOARDING_CONFIG = {
     },
     remote: {
       title: 'Online provider',
+      description: 'Uses your API key',
     },
     checking: 'Checking…',
   },
@@ -86,6 +96,6 @@ export const ONBOARDING_CONFIG = {
     back: 'Back',
     use: 'Use',
     connect: 'Connect',
-    openSettings: 'Open System Settings',
+    openSettings: `Open ${platform.settingsAppName}`,
   },
 } as const;

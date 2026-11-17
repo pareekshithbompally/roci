@@ -2,12 +2,11 @@
 
 import React, { useEffect } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { getProviderTitle, isLocalProviderId, providerSetting } from '@shared/utils/provider.utils';
+import { getProviderTitle, isLocalProviderId } from '@shared/utils/provider.utils';
 import { ProvidersAvatar } from '@shared/components';
 import { Card, CardRow, ScrollArea, Text, useNavStack } from '@shared/ui';
 import type { ModelProvider } from '@shared/types/modelProviders';
-import { ProviderGroup, ProviderListItem, ProviderStatus } from './ProviderListItem';
-import type { ProviderRowState } from './ProviderListItem';
+import { ProviderGroup, ProviderListItem, ProviderStatus, cloudRowState } from './ProviderListItem';
 import { LocalServersSection } from './LocalServersSection';
 import { ProviderDetail } from './ProviderDetail';
 import { OnDeviceDetail } from './OnDeviceDetail';
@@ -18,11 +17,6 @@ import { useFormFactor } from '@platform/formFactor';
 
 const STORAGE_KEY = 'roci_last_provider_selection';
 const ON_DEVICE_ID = LOCAL_MODELS_CONFIG.provider.id;
-
-function cloudRowState(provider: ModelProvider): ProviderRowState {
-  if (!provider.active) return 'off';
-  return providerSetting(provider, 'api-key') ? 'ready' : 'attention';
-}
 
 /** The models on this device on their own screen. */
 const OnDeviceScreen: React.FC = () => (

@@ -4,12 +4,16 @@ export {
   SettingsHome,
   settingsScreen, 
   ProvidersPanel, 
+  ProviderConnection,
+  ProviderStatus,
+  cloudRowState,
   GeneralPanel,
   DefaultModelsPanel,
 } from './components';
 
 // Hooks
 export { useLocalServers } from './hooks/useLocalServers';
+export { useProviderConnection } from './hooks/useProviderConnection';
 export { useSettings, useAppUpdate, scheduleStartupCheck, useMenubarSpeechModels, useMenubarReports, useLocalModelDownloads, useLiveDictation, freshSpeechSources } from './hooks';
 export type { LiveDictation, AIReadiness } from './hooks';
 export { useAIReadiness, useOpenAISetup } from './hooks';

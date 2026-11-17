@@ -2,6 +2,8 @@
 
 export const APP_CONFIG = {
   name: 'Roci',
+  /** The app icon (hull and thrust), shown on the welcome screen. */
+  icon: '/favicon.svg',
   identifier: 'ai.roci.roci',
   /** Release notes for the latest version (the update row's Release notes action). */
   releasesUrl: 'https://github.com/pareekshithbompally/roci/releases/latest',
