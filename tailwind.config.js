@@ -82,7 +82,7 @@ export default {
       },
       backgroundSize: { shimmer: '200% 100%' },
       // Grouped-list shape (tokens.css): macOS values by default, iOS under html.platform-ios.
-      borderRadius: { card: 'var(--radius-card)', sheet: 'var(--radius-sheet)' },
+      borderRadius: { card: 'var(--radius-card)', sheet: 'var(--radius-sheet)', field: 'calc(var(--control-md) / 2)' },
       minHeight: { row: 'var(--row-min-h)' },
       // ─── macOS text styles (SF Pro). `reading` is the one exception: long-form chat/transcript ───
       fontSize: {

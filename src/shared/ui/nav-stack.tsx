@@ -118,7 +118,7 @@ export function NavStack({ title, action, initial, children }: NavStackProps) {
                 covered={depth < stack.length - 1}
                 header={
                   <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pt-2 pb-3">
-                    <IconButton icon={ChevronLeft} label="Back" size="fab" variant="outline" onClick={pop} className="justify-self-start" />
+                    <IconButton icon={ChevronLeft} label="Back" size="fab" variant="bar" onClick={pop} className="justify-self-start" />
                     <PushedTitle title={screen.title} />
                   </header>
                 }

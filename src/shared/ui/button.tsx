@@ -6,7 +6,7 @@ import { platform } from '@platform/index';
 import { Icon, type IconSize } from './icon';
 
 /** Canonical button: colour lives in `variant`, shape in `size`; call sites never pass colour or padding classes. */
-export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'success' | 'accent' | 'ghost' | 'dangerGhost' | 'link' | 'ai';
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'success' | 'accent' | 'ghost' | 'dangerGhost' | 'link' | 'ai' | 'bar';
 
 export type ButtonSize = 'inline' | 'toolbar' | 'sm' | 'md' | 'icon' | 'iconSm' | 'iconXs' | 'fab';
 
@@ -23,6 +23,8 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   dangerGhost: 'text-faint hover:text-danger hover:bg-danger-subtle',
   /** Inline text action (Update, Explore models) — pair with size="inline" */
   link: 'text-accent hover:underline',
+  /** iOS bar button: a round, translucent, softly lifted button floating over content (top bar, sheet Back / Close). */
+  bar: 'bg-raised-glass backdrop-blur-xl text-primary shadow-floating hover:bg-control-hover',
   /** AI moments only (meeting chat toggle) — the brand gradient */
   ai: 'bg-[image:var(--ai-gradient)] text-on-accent shadow-raised hover:opacity-90',
 };

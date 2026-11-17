@@ -1,1 +1,1 @@
-export { MainLayout, Sidebar, SearchOverlay } from './components';
+export { MainLayout, Sidebar } from './components';

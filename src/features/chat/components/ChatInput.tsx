@@ -351,15 +351,17 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   );
 
   return (
-    <div className={cn('relative px-4 py-2', LAYOUT.chatColumn)}>
+    <div className={cn('relative px-4 py-2', LAYOUT.chatColumn, phone && 'flex items-end gap-2')}>
+      {/* Phone (Messages): the round + stands apart from the capsule field; while dictating the pill has the row alone. */}
+      {phone && !voiceActive && <IconButton icon={Plus} label="Add" size="fab" variant="bar" onClick={() => setAddOpen(true)} />}
       <Popover anchored open={showMentionPopup} onOpenChange={(open) => { if (!open) closeMentionPopup(); }}>
       <PopoverAnchor asChild>
       {/* Composer never unmounts (an exit flashes box chrome); the pill is an overlay that moves no layout. */}
       <Surface
         data-testid="composer-frame"
         variant={voiceActive ? 'plain' : 'field'}
-        radius="xl"
-        className="relative transition-[background-color,box-shadow] duration-300 ease-out"
+        radius={phone ? 'field' : 'xl'}
+        className={cn('relative transition-[background-color,box-shadow] duration-300 ease-out', phone && 'min-w-0 flex-1')}
       >
         <AnimatePresence initial={false}>
           {voiceActive && (
@@ -490,8 +492,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         />
 
         {phone ? (
-          <div className="flex items-end gap-1 p-1">
-            <IconButton icon={Plus} label="Add" size={controlSize} onClick={() => setAddOpen(true)} />
+          <div className="flex items-end gap-1 p-1 pl-4">
             {textField}
             {sendControls}
           </div>

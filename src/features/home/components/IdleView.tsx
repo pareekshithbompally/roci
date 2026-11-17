@@ -1,7 +1,7 @@
 /** Idle landing page: main actions and the shared chat composer. */
 
 import React, { useMemo, useState, useCallback } from 'react';
-import { ListTodo, CalendarDays } from 'lucide-react';
+import { ListTodo, CalendarDays, ChevronRight } from 'lucide-react';
 import { useAppActions } from '@shared/stores/appStore';
 import { useRecordingBusy, useRecordingMeetingId, useStartRecording } from '@features/recording';
 import { isTauriEnvironment } from '@services/tauri';
@@ -198,9 +198,11 @@ export const IdleView: React.FC<IdleViewProps> = () => {
 
               {/* No AI yet (set up later): everything shows, chat waits for a provider. */}
               {!hasConfiguredProviders && (
-                <div className="flex items-center justify-center gap-2">
-                  <Text as="p" variant="helper" tone="faint">Chat, transcripts and summaries need an AI.</Text>
-                  <Button variant="ghost" size="sm" onClick={handleSetupProviders}>Set up AI</Button>
+                <div className="flex justify-center">
+                  <Button variant="outline" size="sm" onClick={handleSetupProviders}>
+                    Set up AI to start
+                    <Icon icon={ChevronRight} size="xs" />
+                  </Button>
                 </div>
               )}
         </div>

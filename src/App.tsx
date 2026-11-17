@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useAppStore, useCurrentView, useAppStatus, useSelectedHistoryId, useAppActions } from '@shared/stores/appStore';
 import type { SettingsPanel as SettingsPanelId } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
@@ -6,7 +6,8 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHistory } from '@shared/contexts/HistoryContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { PermissionChecklist, RecordingExitPrompt, recording, useRecordingStore, useRecordingRuntime, useStartRecording } from '@features/recording';
-import { MainLayout, SearchOverlay } from '@features/layout';
+import { MainLayout } from '@features/layout';
+import { endSidebarSearch, startSidebarSearch, toggleSidebarSearch } from '@shared/stores/sidebarSearchStore';
 import { HomeView } from '@features/home';
 import { SettingsPanel } from '@features/settings';
 import { useAppUpdate, scheduleStartupCheck } from '@features/settings';
@@ -53,24 +54,21 @@ const App: React.FC = () => {
   const startRecordingRef = useRef(startRecording);
   startRecordingRef.current = startRecording;
   const toast = useToast();
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const appUpdate = useAppUpdate();
 
-  const openSearch = useCallback(() => setIsSearchOpen(true), []);
-
-  // In-window shortcuts (APP_SHORTCUTS); leaving for another surface closes search so its focus trap lets go.
+  // In-window shortcuts (APP_SHORTCUTS); leaving for another surface ends a sidebar search.
   useAppShortcuts({
-    search: () => setIsSearchOpen((open) => !open),
+    search: toggleSidebarSearch,
     focusChat: () => {
-      setIsSearchOpen(false);
+      endSidebarSearch();
       focusChatComposer();
     },
     newChat: () => {
-      setIsSearchOpen(false);
+      endSidebarSearch();
       startNewChat();
     },
     openSettings: () => {
-      setIsSearchOpen(false);
+      endSidebarSearch();
       openSettings();
     },
     leaveSettings,
@@ -252,7 +250,7 @@ const App: React.FC = () => {
       },
       [TrayAction.SEARCH]: async () => {
         await windowService.show();
-        setIsSearchOpen(true);
+        startSidebarSearch();
       },
       [TrayAction.CHECK_UPDATES]: async () => {
         await windowService.show();
@@ -354,7 +352,7 @@ const App: React.FC = () => {
 
   return (
     <>
-      <MainLayout onSearchClick={openSearch}>
+      <MainLayout>
         {/* Main Content */}
         <main
           className={`grow shrink min-h-0 flex flex-col custom-scrollbar relative ${
@@ -377,7 +375,6 @@ const App: React.FC = () => {
       <Toaster />
 
       {/* Search Overlay (Cmd+K) */}
-      <SearchOverlay open={isSearchOpen} onOpenChange={setIsSearchOpen} />
 
       {/* On-device model download + indexing progress → ActivityTray */}
       <OnDeviceModelActivity />

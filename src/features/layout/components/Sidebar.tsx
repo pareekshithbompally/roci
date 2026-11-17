@@ -7,11 +7,14 @@ import { useSmallScreen } from '@shared/hooks/useMediaQuery';
 import { useSelectedHistoryId, useCurrentView, useAppActions } from '@shared/stores/appStore';
 import { UnifiedList } from '@features/history';
 import { SettingsNav } from '@features/settings/components/SettingsNav';
-import { useOpenMeeting, useUnifiedSidebar } from '@features/history/hooks';
+import { useOpenMeeting, useSessionSearch, useUnifiedSidebar } from '@features/history/hooks';
 import { AppStatus } from '@shared/types';
 import { LAYOUT } from '@config/layout.config';
-import { IconButton, Icon, Row, RowGroupLabel, Kbd, Surface, Text } from '@shared/ui';
+import { Button, IconButton, Icon, Row, RowGroupLabel, Kbd, SearchField, Text } from '@shared/ui';
 import { APP_CONFIG } from '@config/app.config';
+import {
+  endSidebarSearch, setSidebarSearchQuery, startSidebarSearch, useSidebarSearchActive, useSidebarSearchQuery,
+} from '@shared/stores/sidebarSearchStore';
 import { ActivityTray } from '@shared/components';
 import { shortcutLabel } from '@features/shortcuts';
 import { startNewChat, useChatStore } from '@features/chat';
@@ -19,15 +22,13 @@ import type { UnifiedSidebarItem } from '@shared/types';
 
 interface SidebarProps {
   shouldOffsetMacControls: boolean;
-  onSearchClick?: () => void;
-  /** `column` (Mac): window sidebar with its header and rows. `sheet` (phone): large app title and a round Settings
-   *  button on top, round Search and New chat buttons floating at the bottom (iOS). The recents list is the same. */
+  /** `column` (Mac): window sidebar with its header and rows. `sheet` (phone): the app name with Search and New chat at
+   *  the top, Settings at the bottom. The list and search are the same. */
   variant?: 'column' | 'sheet';
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   shouldOffsetMacControls,
-  onSearchClick,
   variant = 'column',
 }) => {
   const { open: isLeftPanelOpen, setLeftPanel } = useLeftPanel();
@@ -41,6 +42,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const selectSession = useChatStore((s) => s.selectSession);
   const listContainerRef = useRef<HTMLDivElement>(null);
   const openMeeting = useOpenMeeting();
+  const searchActive = useSidebarSearchActive();
+  const query = useSidebarSearchQuery();
+  const search = useSessionSearch(items, query);
 
   // Scroll the selected item into view when selection changes (e.g. from spotlight)
   useEffect(() => {
@@ -74,6 +78,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       setResult(null);
       setStatus(AppStatus.CHAT);
     }
+    endSidebarSearch();
     if (isSmallScreen) setLeftPanel(false);
   }, [setCurrentView, setSelectedHistoryId, setResult, setStatus, selectSession, isSmallScreen, setLeftPanel, openMeeting]);
 
@@ -83,31 +88,47 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return null;
   };
 
-  const recents = (
-    <UnifiedList items={items} selectedId={getSelectedId()} onSelect={handleSelectItem} searchQuery="" />
+  // One list: the recents, or while searching the matches (words highlighted).
+  const list = (
+    <>
+      <RowGroupLabel>{search.matches ? 'Results' : 'Recents'}</RowGroupLabel>
+      <UnifiedList items={search.matches ?? items} selectedId={getSelectedId()} onSelect={handleSelectItem} searchQuery={search.matches ? query : ''} />
+    </>
+  );
+  const searchField = (
+    <SearchField
+      value={query}
+      onChange={setSidebarSearchQuery}
+      onCancel={endSidebarSearch}
+      placeholder="Search meetings and chats"
+      autoFocus
+      busy={search.searching}
+      className="flex-1"
+    />
   );
 
   if (variant === 'sheet') {
     return (
-      <div className="relative flex h-full w-full flex-col overflow-hidden">
-        <header className="flex shrink-0 items-center justify-between gap-2 px-4 pt-2 pb-3">
-          <Text as="h1" variant="display">{APP_CONFIG.name}</Text>
-          <IconButton icon={Settings} size="fab" variant="outline" onClick={handleSettingsClick} label="Settings" />
+      <div className="flex h-full w-full flex-col overflow-hidden">
+        <header className="flex min-h-14 shrink-0 items-center gap-2 px-4 pt-2 pb-3">
+          {searchActive ? (
+            <>
+              {searchField}
+              <Button variant="link" size="inline" onClick={endSidebarSearch}>Cancel</Button>
+            </>
+          ) : (
+            <>
+              <Text as="h1" variant="title" className="flex-1">{APP_CONFIG.name}</Text>
+              <IconButton icon={Search} size="fab" variant="bar" onClick={startSidebarSearch} label="Search" />
+              <IconButton icon={SquarePen} size="fab" variant="bar" onClick={handleHomeClick} label="New chat" />
+            </>
+          )}
         </header>
-        <div ref={listContainerRef} className="flex-1 overflow-y-auto px-2 pb-24">
-          <RowGroupLabel>Recents</RowGroupLabel>
-          {recents}
-        </div>
+        <div ref={listContainerRef} className="flex-1 overflow-y-auto px-2 pb-2">{list}</div>
         <ActivityTray />
-        {/* Floating actions (iOS): search on the leading side, a new chat on the trailing side. */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between px-4 pb-4">
-          <Surface variant="floating" radius="full" className="pointer-events-auto">
-            <IconButton icon={Search} size="fab" onClick={onSearchClick} label="Search" />
-          </Surface>
-          <Surface variant="floating" radius="full" className="pointer-events-auto">
-            <IconButton icon={SquarePen} size="fab" variant="primary" onClick={handleHomeClick} label="New chat" />
-          </Surface>
-        </div>
+        <footer className="shrink-0 px-4 pt-2 pb-4">
+          <IconButton icon={Settings} size="fab" variant="bar" onClick={handleSettingsClick} label="Settings" />
+        </footer>
       </div>
     );
   }
@@ -134,11 +155,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <Kbd>{shortcutLabel('leaveSettings')}</Kbd>
           </Row>
         ) : (
-          <Row onClick={onSearchClick}>
-            <Icon icon={Search} size="xs" className="shrink-0" />
-            <span className="flex-1">Search</span>
-            <Kbd>{shortcutLabel('search')}</Kbd>
-          </Row>
+          searchActive ? searchField : (
+            <Row onClick={startSidebarSearch}>
+              <Icon icon={Search} size="xs" className="shrink-0" />
+              <span className="flex-1">Search</span>
+              <Kbd>{shortcutLabel('search')}</Kbd>
+            </Row>
+          )
         )}
       </div>
 
@@ -151,8 +174,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </>
         ) : (
           <>
-            <RowGroupLabel>Recents</RowGroupLabel>
-            {recents}
+            {list}
           </>
         )}
       </div>

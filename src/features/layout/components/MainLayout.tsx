@@ -17,12 +17,10 @@ import { Badge, Button, Drawer, Icon, Separator, Surface, TitlebarDragRegion } f
 
 interface MainLayoutProps {
   children: React.ReactNode;
-  onSearchClick?: () => void;
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({
   children,
-  onSearchClick,
 }) => {
   const { open: isLeftPanelOpen, setLeftPanel, width: sidebarWidth, setLeftPanelWidth } = useLeftPanel();
   const isSmallScreen = useSmallScreen();
@@ -64,7 +62,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   // Meeting chat works on a selected meeting's results; it shows as its button or its window.
   const meetingChatAvailable = selectedHistoryId && status === AppStatus.RESULTS;
 
-  if (formFactor === 'phone') return <PhoneShell onSearchClick={onSearchClick}>{children}</PhoneShell>;
+  if (formFactor === 'phone') return <PhoneShell>{children}</PhoneShell>;
 
   return (
     <Surface as="main" variant="page" className="relative h-screen overflow-hidden">
@@ -72,7 +70,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
       {/* Narrow window: the sidebar slides over the content (the same drawer as on a phone). */}
       <Drawer side="start" open={isSmallScreen && isLeftPanelOpen} onClose={() => setLeftPanel(false)} label="Sidebar">
-        <Sidebar shouldOffsetMacControls={shouldOffsetMacControls} onSearchClick={onSearchClick} />
+        <Sidebar shouldOffsetMacControls={shouldOffsetMacControls} />
       </Drawer>
 
       {/* Main layout */}
@@ -83,7 +81,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             <Surface as="aside" variant="sidebar" className="h-full w-full overflow-hidden">
               <Sidebar
                 shouldOffsetMacControls={shouldOffsetMacControls}
-                onSearchClick={onSearchClick}
+               
               />
             </Surface>
             {/* Resize handle */}

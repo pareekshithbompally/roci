@@ -11,11 +11,11 @@ export interface TopBarProps {
   trailing?: React.ReactNode;
 }
 
-/** iOS navigation bar: translucent, below the status bar, 44 pt tall; the title stays centred whatever the sides hold. */
+/** iOS 26 navigation bar: clear, below the status bar; round bar buttons at the sides, the title centred whatever they hold. */
 export function TopBar({ leading, title, trailing }: TopBarProps) {
   return (
-    <Surface as="header" variant="panel" edge="bottom" className="sticky top-0 z-20 shrink-0 pt-safe-top">
-      <div className="grid h-11 grid-cols-[1fr_auto_1fr] items-center gap-2 px-2">
+    <Surface as="header" variant="plain" className="sticky top-0 z-20 shrink-0 pt-safe-top">
+      <div className="grid min-h-14 grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-1">
         <div className="flex items-center gap-1 justify-self-start">{leading}</div>
         <div className="min-w-0 justify-self-center">
           {typeof title === 'string' ? <Text as="h1" variant="bodyStrong" className="truncate">{title}</Text> : title}

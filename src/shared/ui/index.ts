@@ -61,3 +61,7 @@ export { BottomSheet } from './bottom-sheet';
 export type { BottomSheetProps } from './bottom-sheet';
 export { Picker } from './picker';
 export type { PickerGroup, PickerOption, PickerProps } from './picker';
+export { SearchField } from './search-field';
+export type { SearchFieldProps } from './search-field';
+export { RevealLayout } from './reveal-layout';
+export type { RevealLayoutProps } from './reveal-layout';
