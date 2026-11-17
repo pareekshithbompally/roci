@@ -15,8 +15,9 @@ export type GlobalTodo = GlobalTodoEntry;
 export type TodoFilter = 'all' | 'pending' | 'completed';
 
 interface MeetingGroup {
-  meetingId: string;
-  meetingTitle: string;
+  /** Null for the group of to-dos without a meeting. */
+  meetingId: string | null;
+  meetingTitle: string | null;
   timestamp: number;
   todos: GlobalTodoEntry[];
 }
@@ -35,11 +36,11 @@ export interface UseGlobalTodosReturn {
   /** Set the search query */
   setSearchQuery: (q: string) => void;
   /** Toggle a todo's completion and persist */
-  toggleTodo: (meetingId: string, todoId: string) => Promise<void>;
+  toggleTodo: (meetingId: string | null, todoId: string) => Promise<void>;
   /** Create a new todo linked to a meeting */
   addTodo: (meetingId: string, text: string, dueDate?: string) => Promise<void>;
   /** Set or clear a reminder on a todo */
-  setReminder: (meetingId: string, todoId: string, todoText: string, meetingTitle: string, dateTime: string | null) => Promise<void>;
+  setReminder: (meetingId: string | null, todoId: string, todoText: string, meetingTitle: string | null, dateTime: string | null) => Promise<void>;
   /** Counts (based on search-filtered set, before filter tabs) */
   counts: { total: number; pending: number; completed: number };
   /** Loading state */
@@ -89,7 +90,7 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
   });
 
   const toggleTodoMutate = useMutation({
-    mutationFn: async ({ meetingId, todoId }: { meetingId: string; todoId: string }) => {
+    mutationFn: async ({ meetingId, todoId }: { meetingId: string | null; todoId: string }) => {
       const todo = allTodos.find((t) => t.id === todoId);
       if (!todo) throw new Error('Todo not found');
       const newCompleted = !todo.completed;
@@ -115,7 +116,7 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
         queryClient.setQueryData(queryKeys.storeGlobalTodos(), context.previous);
       }
     },
-    onSuccess: (_data, { meetingId, todoId }) => { void remindersSync.changed(meetingId, todoId); },
+    onSuccess: (_data, { todoId }) => { void remindersSync.changed(todoId); },
     onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.storeGlobalTodos() });
       if (variables?.meetingId) {
@@ -179,7 +180,7 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
         queryClient.setQueryData(queryKeys.storeGlobalTodos(), context.previous);
       }
     },
-    onSuccess: (entry, { meetingId }) => { void remindersSync.added(meetingId, [entry.id]); },
+    onSuccess: (entry) => { void remindersSync.added([entry.id]); },
     onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.storeGlobalTodos() });
       if (variables?.meetingId) {
@@ -196,10 +197,10 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
       meetingTitle,
       dateTime,
     }: {
-      meetingId: string;
+      meetingId: string | null;
       todoId: string;
       todoText: string;
-      meetingTitle: string;
+      meetingTitle: string | null;
       dateTime: string | null;
     }) => {
       if (dateTime) {
@@ -239,7 +240,7 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
   });
 
   const toggleTodo = useCallback(
-    async (meetingId: string, todoId: string) => {
+    async (meetingId: string | null, todoId: string) => {
       await toggleTodoMutate.mutateAsync({ meetingId, todoId });
     },
     [toggleTodoMutate]
@@ -256,10 +257,10 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
 
   const setReminder = useCallback(
     async (
-      meetingId: string,
+      meetingId: string | null,
       todoId: string,
       todoText: string,
-      meetingTitle: string,
+      meetingTitle: string | null,
       dateTime: string | null
     ) => {
       await setReminderMutate.mutateAsync({
@@ -283,7 +284,7 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
     if (searchTokens.length === 0) return allTodos;
     return allTodos.filter((t) =>
       matchesSearch(t.text, searchTokens) ||
-      matchesSearch(t.meetingTitle, searchTokens) ||
+      (t.meetingTitle && matchesSearch(t.meetingTitle, searchTokens)) ||
       (t.owner && matchesSearch(t.owner, searchTokens))
     );
   }, [allTodos, searchTokens]);
@@ -308,11 +309,12 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
   }, [searchFiltered, filter]);
 
   const groups = useMemo(() => {
-    const map = new Map<string, MeetingGroup>();
+    const map = new Map<string | null, MeetingGroup>();
     for (const todo of filtered) {
       let group = map.get(todo.meetingId);
       if (!group) {
-        const ts = meetingTimestampMap.get(todo.meetingId) ?? 0;
+        // To-dos of their own lead the list; meetings follow, newest first.
+        const ts = todo.meetingId ? meetingTimestampMap.get(todo.meetingId) ?? 0 : Number.MAX_SAFE_INTEGER;
         group = {
           meetingId: todo.meetingId,
           meetingTitle: todo.meetingTitle,

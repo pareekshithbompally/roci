@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client';
 import App from './src/app/App';
 import { platform } from './src/platform/index';
 import { raiseSplash } from './src/app/splash';
+import { forwardConsoleToLog } from './src/services/tauri';
 import './index.css';
 import './src/styles/markdown.css';
 import './src/styles/glass.css';
@@ -12,6 +13,7 @@ import 'sonner/dist/styles.css';
 // `platform-<kind>` on <html> selects platform CSS (glass.css on macOS).
 document.documentElement.classList.add(`platform-${platform.kind}`);
 
+forwardConsoleToLog();
 raiseSplash();
 
 const rootElement = document.getElementById('root');

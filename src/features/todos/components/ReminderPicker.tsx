@@ -9,9 +9,9 @@ import { parseDateLoose, localDateFromParts } from '@shared/utils/todo.utils';
 
 interface ReminderPickerProps {
   todoId: string;
-  meetingId: string;
+  meetingId: string | null;
   todoText: string;
-  meetingTitle: string;
+  meetingTitle: string | null;
   /** Currently active reminder ISO datetime, if any */
   reminderDateTime?: string;
   /** Due date string from the todo (may be loose format) */

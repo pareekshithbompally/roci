@@ -1,68 +1,27 @@
-/** list_chats: recent chat sessions with metadata, for when search_chats would be too broad. */
+/** list_chats: the user's chats with Roci, most recent first, read from roci.db. */
 
-import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
+import { z } from 'zod';
+import { defineTool, fail, limit, ok, toolDate } from '@extensions/tools/contract';
 import { chatService } from '@services/chat.service';
 import { errorMessage } from '@shared/utils/errors';
 
-export const listChatsTool: ToolDefinition = {
+export const listChatsTool = defineTool({
   name: 'list_chats',
   description:
-    "List the user's recent chat sessions with titles and dates. " +
-    'Use when the user wants to browse their chat history or when they ' +
-    'ask "what have I been chatting about recently?"',
-  parameters: {
-    type: 'object',
-    properties: {
-      limit: {
-        type: 'integer',
-        description: 'Maximum number of chats to list (most recent first).',
-        default: 10,
-        minimum: 1,
-        maximum: 50,
-      },
-    },
-    required: [],
-  },
+    "List the user's earlier chats with you, most recent first, with each chat's ID. Use it when the user asks what " +
+    'they talked about recently; to find a chat by topic, use search_chats.',
+  input: z.object({ limit: limit(10, 50) }),
 
-  async execute(params): Promise<ToolResult> {
-    const limit = (params.limit as number) ?? 10;
-
-    let sessions;
+  async execute({ limit: count }) {
+    let chats;
     try {
-      const index = await chatService.listSessions();
-      sessions = index.slice(0, limit);
-    } catch (error) {
-      return {
-        toolCallId: '',
-        content: `Failed to list chats: ${errorMessage(error)}`,
-        isError: true,
-        meta: { toolName: 'list_chats', executionMs: 0 },
-      };
+      chats = (await chatService.listSessions()).slice(0, count);
+    } catch (error: unknown) {
+      return fail(`Failed to list chats: ${errorMessage(error)}`);
     }
+    if (chats.length === 0) return ok('No chats yet.', { resultCount: 0 });
 
-    if (sessions.length === 0) {
-      return {
-        toolCallId: '',
-        content: 'No chat sessions found.',
-        isError: false,
-        meta: { toolName: 'list_chats', executionMs: 0 },
-      };
-    }
-
-    const lines: string[] = [`${sessions.length} recent chat(s):\n`];
-
-    sessions.forEach((s, i) => {
-      const date = new Date(s.lastMessageAt).toLocaleDateString('en-US', {
-        year: 'numeric', month: 'short', day: 'numeric',
-      });
-      lines.push(`${i + 1}. "${s.title}" — ${date} (ID: ${s.id})`);
-    });
-
-    return {
-      toolCallId: '',
-      content: lines.join('\n'),
-      isError: false,
-      meta: { toolName: 'list_chats', executionMs: 0, resultCount: sessions.length },
-    };
+    const lines = chats.map((c, i) => `${i + 1}. "${c.title}" — ${toolDate(c.lastMessageAt)} — ID: ${c.id}`);
+    return ok([`${chats.length} recent chat(s):`, '', ...lines].join('\n'), { resultCount: chats.length });
   },
-};
+});

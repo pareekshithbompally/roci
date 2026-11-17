@@ -21,8 +21,5 @@ export const MAX_TRANSCRIPT_FOR_LLM = 4_000;
 /** Max messages returned by get_chat tool */
 export const MAX_CHAT_MESSAGES_FOR_LLM = 50;
 
-/** Max meetings scanned by get_action_items when no specific meeting given */
-export const MAX_ACTION_ITEM_MEETINGS = 10;
-
-/** Max total action items returned by get_action_items */
-export const MAX_ACTION_ITEMS_FOR_LLM = 50;
+/** Most to-dos list_todos returns */
+export const MAX_TODOS_FOR_LLM = 50;

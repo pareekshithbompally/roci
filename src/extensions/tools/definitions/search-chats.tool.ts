@@ -1,86 +1,51 @@
-/** search_chats: hybrid search over chat history, returning ranked excerpts. */
+/** search_chats: hybrid search over the user's earlier chats, ranked excerpts with chat IDs. */
 
-import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
+import { z } from 'zod';
+import { defineTool, fail, limit, ok, text, toolDate } from '@extensions/tools/contract';
 import { chatSearcher } from '@extensions/rag/chat-searcher';
 import { vectorDB } from '@extensions/rag/client';
 import { SCORE_HIGH, SCORE_MEDIUM } from '@extensions/rag/constants';
 import { errorMessage } from '@shared/utils/errors';
 
-export const searchChatsTool: ToolDefinition = {
+export const searchChatsTool = defineTool({
   name: 'search_chats',
   description:
-    "Search across the user's chat conversation history using semantic + keyword hybrid search. " +
-    'Returns ranked excerpts with session IDs. ' +
-    'Use when the user asks about finding a specific chat, topic they discussed in a previous ' +
-    'conversation, or something they worked on with the AI assistant. ' +
-    'After getting results, use get_chat to load the full conversation.',
-  parameters: {
-    type: 'object',
-    properties: {
-      query: {
-        type: 'string',
-        description: 'The search query. Be specific — include topics, keywords, or phrases.',
-      },
-      limit: {
-        type: 'integer',
-        description: 'Maximum number of results to return.',
-        default: 5,
-        minimum: 1,
-        maximum: 20,
-      },
-    },
-    required: ['query'],
-  },
+    "Search the user's earlier chats with you by meaning and keywords. Returns matching excerpts with each chat's ID. " +
+    'Use it when the user refers to something discussed in a previous chat; then read it with get_chat.',
+  input: z.object({
+    query: text('What to look for: topics, keywords, phrases.'),
+    limit: limit(5, 20),
+  }),
 
-  async execute(params): Promise<ToolResult> {
-    const query = params.query as string;
-    const limit = (params.limit as number) ?? 5;
-
+  async execute({ query, limit: count }) {
     let results;
     try {
       await vectorDB.initialize();
-      results = await chatSearcher.search(query, { limit, mode: 'hybrid' });
+      results = await chatSearcher.search(query, { limit: count, mode: 'hybrid' });
     } catch (error) {
-      return {
-        toolCallId: '',
-        content: `Chat search failed: ${errorMessage(error)}`,
-        isError: true,
-        meta: { toolName: 'search_chats', executionMs: 0 },
-      };
+      return fail(`Chat search failed: ${errorMessage(error)}`);
     }
 
     if (results.length === 0) {
-      return {
-        toolCallId: '',
-        content: 'No chats found matching that query.',
-        isError: false,
-        meta: { toolName: 'search_chats', executionMs: 0, resultCount: 0 },
-      };
+      return ok('No chats match that search. Try other words, or list_chats to browse.', { resultCount: 0 });
     }
 
     const lines: string[] = [`Found ${results.length} relevant chat(s):\n`];
 
     for (let i = 0; i < results.length; i++) {
       const r = results[i];
-      const date = new Date(r.lastMessageAt).toLocaleDateString('en-US', {
-        year: 'numeric', month: 'short', day: 'numeric',
-      });
+      const date = toolDate(r.lastMessageAt);
       const snippet = r.chunkText.slice(0, 200).replace(/\n/g, ' ');
       const confidence = r.score >= SCORE_HIGH ? 'high' : r.score >= SCORE_MEDIUM ? 'medium' : 'low';
 
       lines.push(
         `${i + 1}. "${r.sessionTitle}" (${date})`,
         `   Relevance: ${confidence} | Excerpt: "${snippet}..."`,
-        `   Session ID: ${r.sessionId}`,
+        `   Chat ID: ${r.sessionId}`,
         '',
       );
     }
 
-    return {
-      toolCallId: '',
-      content: lines.join('\n'),
-      isError: false,
-      meta: { toolName: 'search_chats', executionMs: 0, resultCount: results.length },
-    };
+    return ok(lines.join('\n'), { resultCount: results.length });
   },
-};
+});

@@ -10,8 +10,8 @@ import { platform } from '@platform/index';
 
 interface TodoItemProps {
   todo: ActionItem;
-  meetingId: string;
-  meetingTitle: string;
+  meetingId: string | null;
+  meetingTitle: string | null;
   onToggle: (todoId: string) => void;
   onDelete?: (todoId: string) => void;
   onUpdate?: (todoId: string, updates: { text?: string; dueDate?: string }) => void;

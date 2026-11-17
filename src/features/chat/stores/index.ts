@@ -4,9 +4,6 @@ export {
   todoProposalStore,
   commitTodoProposal,
   useTodoProposals,
-  useTodoProposal,
-  GENERAL_MEETING_ID,
-  GENERAL_MEETING_TITLE,
 } from './todoProposalStore';
 export type { TodoProposal } from './todoProposalStore';
 export {

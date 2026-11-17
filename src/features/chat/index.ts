@@ -28,8 +28,5 @@ export {
   todoProposalStore,
   commitTodoProposal,
   useTodoProposals,
-  useTodoProposal,
-  GENERAL_MEETING_ID,
-  GENERAL_MEETING_TITLE,
 } from './stores';
 export type { TodoProposal } from './stores';

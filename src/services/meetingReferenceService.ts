@@ -1,6 +1,6 @@
 /** Meetings for chat @ mentions, with their summary, notes and todos from roci.db. */
 
-import type { HistoryItem, Note, ActionItem, NoteEntry, TodoEntry } from '@shared/types';
+import type { HistoryItem, Note, ActionItem, NoteEntry, TodoEntry, MeetingSummary } from '@shared/types';
 import { store } from '@services/db';
 import { concurrencyMap } from '@shared/utils/async.utils';
 import { truncateForLLM } from '@shared/utils/text.utils';
@@ -26,6 +26,21 @@ export interface MeetingListItem {
   id: string;
   title: string;
   timestamp: number;
+}
+
+const bullets = (heading: string, lines: string[]) => `${heading}:\n${lines.map((line) => `- ${line}`).join('\n')}`;
+
+/** A meeting's summary as plain text for a model: overview, then each list that has entries. */
+export function summaryText(summary: MeetingSummary): string {
+  const parts: string[] = [];
+  if (summary.overview) parts.push(summary.overview);
+  if (summary.keyDiscussionPoints?.length) parts.push(bullets('Key Discussion Points', summary.keyDiscussionPoints));
+  if (summary.decisionsMade?.length) parts.push(bullets('Decisions Made', summary.decisionsMade));
+  if (summary.actionItems?.length) {
+    parts.push(bullets('Action Items', summary.actionItems.map((a) => `${a.text}${a.owner ? ` (${a.owner})` : ''}${a.dueDate ? ` — due ${a.dueDate}` : ''}`)));
+  }
+  if (summary.nextSteps?.length) parts.push(bullets('Next Steps', summary.nextSteps));
+  return parts.join('\n\n');
 }
 
 class MeetingReferenceService {
@@ -172,26 +187,7 @@ class MeetingReferenceService {
         if (item.summary) {
           ref.summary = item.summary;
         } else if (detail?.summary) {
-          const s = detail.summary;
-          const parts: string[] = [];
-          if (s.overview) parts.push(s.overview);
-          if (s.keyDiscussionPoints?.length) {
-            parts.push('Key Discussion Points:\n' + s.keyDiscussionPoints.map(p => `- ${p}`).join('\n'));
-          }
-          if (s.decisionsMade?.length) {
-            parts.push('Decisions Made:\n' + s.decisionsMade.map(d => `- ${d}`).join('\n'));
-          }
-          if (s.actionItems?.length) {
-            parts.push('Action Items:\n' + s.actionItems.map(a => {
-              const owner = a.owner ? ` (${a.owner})` : '';
-              const due = a.dueDate ? ` — due ${a.dueDate}` : '';
-              return `- ${a.text}${owner}${due}`;
-            }).join('\n'));
-          }
-          if (s.nextSteps?.length) {
-            parts.push('Next Steps:\n' + s.nextSteps.map(s => `- ${s}`).join('\n'));
-          }
-          ref.summary = parts.join('\n\n');
+          ref.summary = summaryText(detail.summary);
         }
       }
 

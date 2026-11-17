@@ -1,7 +1,7 @@
 use rusqlite::Connection;
 
 /// Current schema version for the new roci.db.
-pub const SCHEMA_VERSION: u32 = 4;
+pub const SCHEMA_VERSION: u32 = 5;
 
 /// Default embedding model and dimension.
 pub const DEFAULT_MODEL: &str = "mlx-community/Qwen3-Embedding-0.6B-8bit";
@@ -93,6 +93,9 @@ pub fn migrate(conn: &Connection) -> Result<(), String> {
     if current == 2 || current == 3 {
         migrate_v4(conn)?;
     }
+    if (2..=4).contains(&current) {
+        migrate_v5(conn)?;
+    }
 
     match_embedding_model(conn)
 }
@@ -127,6 +130,51 @@ fn match_embedding_model(conn: &Connection) -> Result<(), String> {
     tx.commit().map_err(|e| format!("commit embedding model change: {}", e))?;
     log::info!("[store] Embedding model is now {} (old vectors dropped)", DEFAULT_MODEL);
     Ok(())
+}
+
+/// v4 → v5: a to-do may stand on its own (no meeting), so `todos.meeting_id` becomes optional. SQLite can't relax a
+/// column in place: the table is rebuilt with its rows and indexes (SQLite's documented rebuild), with foreign keys
+/// off meanwhile so dropping the old table can't cascade to reminders, and checked before commit.
+fn migrate_v5(conn: &Connection) -> Result<(), String> {
+    conn.execute_batch("PRAGMA foreign_keys=OFF;").map_err(|e| format!("migration v5 foreign keys off: {}", e))?;
+    let result = (|| -> Result<(), String> {
+        let tx = conn
+            .unchecked_transaction()
+            .map_err(|e| format!("begin migration v5 transaction: {}", e))?;
+        tx.execute_batch(
+            "CREATE TABLE todos_v5 (
+                 id         TEXT PRIMARY KEY,
+                 meeting_id TEXT    REFERENCES meetings(id) ON DELETE CASCADE,
+                 text       TEXT    NOT NULL,
+                 owner      TEXT,
+                 due_date   TEXT,
+                 completed  INTEGER NOT NULL DEFAULT 0,
+                 source     TEXT    NOT NULL CHECK(source IN ('ai','user')),
+                 created_at INTEGER NOT NULL
+             );
+             INSERT INTO todos_v5 (id, meeting_id, text, owner, due_date, completed, source, created_at)
+                 SELECT id, NULLIF(meeting_id, '_general'), text, owner, due_date, completed, source, created_at FROM todos;
+             DROP TABLE todos;
+             ALTER TABLE todos_v5 RENAME TO todos;
+             CREATE INDEX idx_todos_meeting ON todos(meeting_id);
+             CREATE INDEX idx_todos_open ON todos(completed, due_date);",
+        )
+        .map_err(|e| format!("migrate v4→v5 rebuild todos: {}", e))?;
+        let broken: i64 = tx
+            .query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |row| row.get(0))
+            .map_err(|e| format!("migrate v4→v5 check: {}", e))?;
+        if broken > 0 {
+            return Err(format!("migrate v4→v5: {broken} rows would point at nothing"));
+        }
+        set_schema_version(&tx, 5)?;
+        tx.commit().map_err(|e| format!("commit migration v5: {}", e))
+    })();
+    conn.execute_batch("PRAGMA foreign_keys=ON;").map_err(|e| format!("migration v5 foreign keys on: {}", e))?;
+    match &result {
+        Ok(()) => log::info!("[store] Migrated schema v4→v5 (to-dos may stand without a meeting)"),
+        Err(e) => log::error!("[store] Migration v4→v5 failed: {}", e),
+    }
+    result
 }
 
 /// v3 → v4: a meeting's pipeline status replaces the pending-transcription flag, and pending
@@ -242,7 +290,7 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
 
         CREATE TABLE todos (
             id         TEXT PRIMARY KEY,
-            meeting_id TEXT    NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+            meeting_id TEXT    REFERENCES meetings(id) ON DELETE CASCADE,
             text       TEXT    NOT NULL,
             owner      TEXT,
             due_date   TEXT,
@@ -888,6 +936,44 @@ mod tests {
     }
 
     #[test]
+    fn migrate_v4_to_v5_lets_a_todo_stand_alone_and_keeps_rows() {
+        let conn = open_test_db();
+        init_db(&conn);
+        // The v4 shape: every to-do had to belong to a meeting.
+        conn.execute_batch(
+            "PRAGMA foreign_keys=OFF;
+             DROP TABLE todos;
+             CREATE TABLE todos (
+                 id TEXT PRIMARY KEY,
+                 meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+                 text TEXT NOT NULL, owner TEXT, due_date TEXT,
+                 completed INTEGER NOT NULL DEFAULT 0,
+                 source TEXT NOT NULL CHECK(source IN ('ai','user')),
+                 created_at INTEGER NOT NULL);
+             PRAGMA foreign_keys=ON;
+             INSERT INTO meetings (id, title, created_at, updated_at) VALUES ('m1', 'Standup', 1, 1);
+             INSERT INTO todos (id, meeting_id, text, source, created_at) VALUES ('t1', 'm1', 'Ship it', 'user', 1);
+             INSERT INTO reminders (todo_id, notification_id, fire_at, status, created_at) VALUES ('t1', 7, 9, 'scheduled', 1);",
+        )
+        .expect("v4 shape");
+        set_schema_version(&conn, 4).expect("set v4");
+
+        migrate(&conn).expect("migrate v4→v5");
+
+        assert_eq!(get_schema_version(&conn), 5);
+        let meeting: String = conn.query_row("SELECT meeting_id FROM todos WHERE id = 't1'", [], |r| r.get(0)).unwrap();
+        assert_eq!(meeting, "m1");
+        let reminders: i64 = conn.query_row("SELECT COUNT(*) FROM reminders WHERE todo_id = 't1'", [], |r| r.get(0)).unwrap();
+        assert_eq!(reminders, 1, "reminders survive the rebuild");
+        conn.execute("INSERT INTO todos (id, meeting_id, text, source, created_at) VALUES ('t2', NULL, 'Book flight', 'user', 2)", [])
+            .expect("a to-do without a meeting");
+        let enforced: i64 = conn.query_row("PRAGMA foreign_keys", [], |r| r.get(0)).unwrap();
+        assert_eq!(enforced, 1, "foreign keys are back on");
+        let err = conn.execute("INSERT INTO todos (id, meeting_id, text, source, created_at) VALUES ('t3', 'nope', 'x', 'user', 3)", []);
+        assert!(err.is_err(), "a named meeting must still exist");
+    }
+
+    #[test]
     fn migrate_v2_to_v3_drops_graph() {
         let conn = open_test_db();
         conn.execute_batch(
@@ -902,6 +988,9 @@ mod tests {
              CREATE TABLE meeting_index_state (meeting_id TEXT PRIMARY KEY, content_hash TEXT,
                  embedding_hash TEXT, extraction_hash TEXT, indexed_at INTEGER);
              INSERT INTO meeting_index_state VALUES ('m1', 'c', 'e', 'x', 0);
+             CREATE TABLE todos (id TEXT PRIMARY KEY, meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+                 text TEXT NOT NULL, owner TEXT, due_date TEXT, completed INTEGER NOT NULL DEFAULT 0,
+                 source TEXT NOT NULL, created_at INTEGER NOT NULL);
              CREATE TABLE kg_nodes (id TEXT PRIMARY KEY);
              CREATE TABLE kg_edges (id TEXT PRIMARY KEY);",
         )
@@ -946,7 +1035,10 @@ mod tests {
              INSERT INTO meetings VALUES ('rec_1_a', 'unlinked', 1, 0, 0);
              INSERT INTO meetings VALUES ('rec_2_b', 'linked', 1, 0, 0);
              INSERT INTO recordings VALUES ('r2', 'rec_2_b', 'rec_2_b.wav', NULL, NULL, 0);
-             INSERT INTO meetings VALUES ('done', 'transcribed', 0, 0, 0);",
+             INSERT INTO meetings VALUES ('done', 'transcribed', 0, 0, 0);
+             CREATE TABLE todos (id TEXT PRIMARY KEY, meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+                 text TEXT NOT NULL, owner TEXT, due_date TEXT, completed INTEGER NOT NULL DEFAULT 0,
+                 source TEXT NOT NULL, created_at INTEGER NOT NULL);",
         )
         .expect("seed v3 db");
 

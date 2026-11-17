@@ -18,7 +18,7 @@ import { useToolApprovalStore } from '@shared/stores/toolApprovalStore';
 import type { ToolContext } from '@extensions/tools/types';
 
 const TOOL = { name: 'read_file', description: 'Read a file', inputSchema: { type: 'object', properties: { path: { type: 'string' } } }, server: 'fs', destructive: false };
-const ctx: ToolContext = { historyItems: [], approval: 'chat' };
+const ctx: ToolContext = { approval: 'chat' };
 
 function setup(settings: Partial<McpSettings> = {}) {
   const config = { mcpServers: {}, mcpSettings: { ...DEFAULT_MCP_SETTINGS, ...settings } };

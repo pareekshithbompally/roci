@@ -5,13 +5,11 @@ export type AccessId = 'calendar' | 'reminders' | 'apple-notes' | 'notifications
 
 export const queryKeys = {
   notes: (meetingId: string) => ['notes', meetingId] as const,
-  todos: (meetingId: string) => ['todos', meetingId] as const,
   /** Generated images (Gallery). */
   gallery: () => ['gallery'] as const,
   meetings: () => ['meetings'] as const,
   /** One meeting's stats (length, words, models); under `meetings` so every meeting write refreshes it */
   meetingStats: (meetingId: string) => ['meetings', 'stats', meetingId] as const,
-  globalTodos: () => ['todos', 'global'] as const,
   recordingAudio: (fileName: string) => ['recording-audio', fileName] as const,
   /** A Mac app's icon from macOS, by bundle id (Finder, Calendar, …) */
   appIcon: (bundleId: string) => ['app-icon', bundleId] as const,

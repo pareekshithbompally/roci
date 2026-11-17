@@ -48,6 +48,8 @@ export const NOTIFICATIONS_CONFIG = {
   todo: {
     idPrefix: 'todo:',
     category: 'todo_reminder',
+    /** A to-do of its own has no meeting to view. */
+    generalCategory: 'todo_reminder_general',
     actions: { viewMeeting: 'view_meeting', snooze: 'snooze_15', dismiss: 'dismiss' },
     snoozeMinutes: 15,
     /** Longest to-do text shown in a notification. */
@@ -76,6 +78,13 @@ export const NOTIFICATION_CATEGORIES = [
     id: NOTIFICATIONS_CONFIG.todo.category,
     actions: [
       { id: NOTIFICATIONS_CONFIG.todo.actions.viewMeeting, title: 'View meeting' },
+      { id: NOTIFICATIONS_CONFIG.todo.actions.snooze, title: 'Snooze 15 min' },
+      { id: NOTIFICATIONS_CONFIG.todo.actions.dismiss, title: 'Dismiss' },
+    ],
+  },
+  {
+    id: NOTIFICATIONS_CONFIG.todo.generalCategory,
+    actions: [
       { id: NOTIFICATIONS_CONFIG.todo.actions.snooze, title: 'Snooze 15 min' },
       { id: NOTIFICATIONS_CONFIG.todo.actions.dismiss, title: 'Dismiss' },
     ],

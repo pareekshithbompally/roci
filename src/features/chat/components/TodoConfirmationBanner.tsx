@@ -18,6 +18,7 @@ import {
 import { useTodoProposals, todoProposalStore } from '@features/chat';
 import type { TodoProposal } from '@features/chat';
 import { Button, Icon, IconButton, Input, Surface, Text } from '@shared/ui';
+import { TODOS_CONFIG } from '@config/todos.config';
 
 type EditingState = { proposalId: string; field: 'text' | 'dueDate' | 'reminderDateTime' | 'owner' } | null;
 
@@ -151,12 +152,26 @@ interface ProposalRowProps {
   showRemove: boolean;
 }
 
+/** What a change does to an existing to-do, named on its card; null for a new one. */
+function proposalVerb(p: TodoProposal): string | null {
+  if (p.action === 'create') return null;
+  if (p.action === 'delete') return 'Delete';
+  if (p.done === true) return 'Mark done';
+  if (p.done === false) return 'Reopen';
+  return 'Update';
+}
+
+/** A new to-do, or an edit of one, shows its fields to adjust; a delete or done/reopen shows only its name. */
+function showsFields(p: TodoProposal): boolean {
+  return p.action === 'create' || (p.action === 'update' && p.done === null);
+}
+
 const ProposalRow: React.FC<ProposalRowProps> = ({
   proposal: p, editing, editValue,
   onStartEdit, onEditChange, onSaveEdit, onCancelEdit, onKeyDown,
   onRemove, isDisabled, showRemove,
 }) => {
-  const isCreate = p.action === 'create';
+  const verb = proposalVerb(p);
   const committed = p.status === 'committed';
   const hasError = p.status === 'error';
 
@@ -166,12 +181,12 @@ const ProposalRow: React.FC<ProposalRowProps> = ({
       {committed && <Icon icon={CheckCircle2} size="xs" tone="success" className="shrink-0" />}
       {hasError && <Icon icon={AlertCircle} size="xs" tone="danger" className="shrink-0" />}
 
-      {/* For toggle/delete — show matched text */}
-      {!isCreate && p.matchedTodoText ? (
+      {verb && (
         <Text variant="helper">
-          {p.action === 'toggle' ? 'Complete' : p.action === 'delete' ? 'Delete' : 'Update'}: &ldquo;{p.matchedTodoText}&rdquo;
+          {verb}: &ldquo;{p.originalText}&rdquo;
         </Text>
-      ) : (
+      )}
+      {showsFields(p) && (
         <>
           {/* Task text chip */}
           <EditableChip
@@ -241,7 +256,7 @@ const ProposalRow: React.FC<ProposalRowProps> = ({
           {/* Meeting — read-only chip */}
           <Surface variant="inset" radius="md" className="inline-flex items-center gap-1 px-2 py-0.5">
             <Icon icon={Link2} size="xs" tone="muted" />
-            <Text variant="helper" tone="muted">{p.isGeneral ? 'General' : p.meetingTitle}</Text>
+            <Text variant="helper" tone="muted">{p.meetingTitle ?? TODOS_CONFIG.general}</Text>
           </Surface>
         </>
       )}

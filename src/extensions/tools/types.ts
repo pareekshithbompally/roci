@@ -1,6 +1,6 @@
 /** Provider-agnostic tool calling interfaces. */
 
-import type { HistoryItem, ImagePart } from '@shared/types';
+import type { ImagePart } from '@shared/types';
 
 // ── JSON Schema (subset used for tool parameter definitions) ──
 
@@ -30,9 +30,9 @@ export interface ToolDefinition {
   name: string;
   /** Shown to LLM as tool description. Quality matters for tool selection. */
   description: string;
-  /** JSON Schema for input validation. */
+  /** JSON Schema of the arguments, as the model is shown it (built-ins derive it from zod: see contract.ts). */
   parameters: JSONSchema;
-  /** The actual implementation. Receives validated params + context. */
+  /** Runs the call; built-ins check `params` against their schema first and answer a bad call with an error. */
   execute: (params: Record<string, unknown>, context: ToolContext) => Promise<ToolResult>;
   /** Bridge limits: omit for defaults, `null` when the tool bounds itself (MCP tools, in Rust). */
   timeoutMs?: number | null;
@@ -46,8 +46,6 @@ export interface ToolDefinition {
 // ── Tool Context (passed by orchestrator to tool execute()) ──
 
 export interface ToolContext {
-  /** All meetings available for lookup. */
-  historyItems: HistoryItem[];
   /** For cancellation during tool execution. */
   signal?: AbortSignal;
   /** Who confirms a write: `chat` shows a proposal; `caller` is an MCP agent that already asked the user. */

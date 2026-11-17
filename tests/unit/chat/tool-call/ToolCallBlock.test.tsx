@@ -15,7 +15,7 @@ function part(overrides: Partial<ToolCallPart>): ToolCallPart {
     type: 'tool_call',
     toolCallId: 'call-1',
     toolName: 'get_chat',
-    arguments: { session_id: 's1' },
+    arguments: { chat_id: 's1' },
     status: 'complete',
     result: { content: 'chat body', isError: false, executionMs: 1200 },
     ...overrides,

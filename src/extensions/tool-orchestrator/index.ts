@@ -58,7 +58,7 @@ async function buildTools(options: OrchestratorOptions, webSearchTools: ToolSet 
     ...(await loadMcpTools(reservedNames, new Set(prefs.disabledMcpTools))),
   ];
   if (definitions.length === 0) return none;
-  const rociTools = toExecutableTools(definitions, { historyItems: options.historyItems, signal: options.signal, approval: 'chat' });
+  const rociTools = toExecutableTools(definitions, { signal: options.signal, approval: 'chat' });
   const sources = new Map(definitions.flatMap((d) => (d.source ? [[d.name, d.source] as const] : [])));
   return { tools: { ...rociTools, ...webSearchTools }, sources };
 }

@@ -5,4 +5,6 @@ export const TODOS_CONFIG = {
   title: 'To-dos',
   /** The action that creates one (page and meeting tab). */
   add: 'Add to-do',
+  /** To-dos that aren't from a meeting: their group in the list, and their reminder's title. */
+  general: 'General',
 } as const;

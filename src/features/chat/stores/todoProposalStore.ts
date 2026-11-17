@@ -7,33 +7,31 @@ import { reminderService } from '@services/reminder.service';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 import { normalizeDueDate } from '@shared/utils/todo.utils';
+import { remindersSync } from '@services/reminders';
 
 export interface TodoProposal {
   id: string;
-  action: 'create' | 'toggle' | 'update' | 'delete';
+  action: 'create' | 'update' | 'delete';
+  /** The to-do it changes (update, delete); null when creating. */
+  todoId: string | null;
+  /** That to-do's text before the change, shown on the card (update, delete). */
+  originalText: string | null;
 
   // Editable fields
   text: string;
   dueDate: string | null;
   reminderDateTime: string | null;
   owner: string | null;
+  /** update: true marks it done, false opens it again; null leaves it as it is. */
+  done: boolean | null;
 
-  // Meeting linkage
-  meetingId: string;
-  meetingTitle: string;
-  isGeneral: boolean;
-
-  // For toggle/update/delete — the matched existing todo
-  matchedTodoId: string | null;
-  matchedTodoText: string | null;
+  /** The meeting it belongs to; null for a to-do of its own. */
+  meetingId: string | null;
+  meetingTitle: string | null;
 
   status: 'pending' | 'committing' | 'committed' | 'error' | 'cancelled';
   error?: string;
 }
-
-// General todos bucket — not a real meeting
-export const GENERAL_MEETING_ID = '_general';
-export const GENERAL_MEETING_TITLE = 'General';
 
 type Listener = () => void;
 
@@ -100,7 +98,7 @@ export const todoProposalStore = {
     }
 
     emitChange();
-    invalidateTodos(pending.map(p => p.meetingId));
+    invalidateTodos();
 
     // Auto-clear after short delay so committed state is visible
     setTimeout(() => {
@@ -134,66 +132,69 @@ export const todoProposalStore = {
 /** Write one proposal without the banner, for a caller that already has approval (an MCP coding agent). */
 export async function commitTodoProposal(p: TodoProposal): Promise<void> {
   await commitSingle(p);
-  invalidateTodos([p.meetingId]);
+  invalidateTodos();
 }
 
-/** Refresh the affected meetings' todos and the global list. */
-function invalidateTodos(meetingIds: string[]): void {
-  for (const meetingId of new Set(meetingIds.filter(Boolean))) {
-    queryClient.invalidateQueries({ queryKey: queryKeys.todos(meetingId) });
-  }
-  queryClient.invalidateQueries({ queryKey: queryKeys.globalTodos() });
+/** Every stored to-do list (each meeting's and the global one) reads again. */
+function invalidateTodos(): void {
+  void queryClient.invalidateQueries({ queryKey: queryKeys.storeTodosAll() });
+}
+
+async function create(p: TodoProposal): Promise<void> {
+  const todoId = crypto.randomUUID();
+  await store.todos.upsert({
+    id: todoId,
+    meetingId: p.meetingId,
+    text: p.text,
+    owner: p.owner || undefined,
+    dueDate: p.dueDate ? normalizeDueDate(p.dueDate) : undefined,
+    completed: false,
+    source: 'user',
+    createdAt: new Date().toISOString(),
+  });
+  if (p.reminderDateTime) await remind(todoId, p, p.reminderDateTime);
+  void remindersSync.added([todoId]);
+}
+
+/** Applies the proposal's fields over the stored to-do; what it doesn't name stays as it is. */
+async function update(p: TodoProposal, todoId: string): Promise<void> {
+  const [current] = await store.todos.get([todoId]);
+  if (!current) throw new Error('This to-do no longer exists');
+  const completed = p.done ?? current.completed;
+  await store.todos.upsert({
+    id: todoId,
+    meetingId: current.meetingId,
+    text: p.text,
+    owner: p.owner || undefined,
+    dueDate: p.dueDate ? normalizeDueDate(p.dueDate) : undefined,
+    completed,
+    source: current.source,
+  });
+  if (completed) await reminderService.cancel(todoId);
+  else if (p.reminderDateTime && p.reminderDateTime !== current.reminder?.dateTime) await remind(todoId, p, p.reminderDateTime);
+  void remindersSync.changed(todoId);
+}
+
+async function remove(todoId: string): Promise<void> {
+  await reminderService.cancel(todoId);
+  await store.todos.delete(todoId);
+}
+
+async function remind(todoId: string, p: TodoProposal, at: string): Promise<void> {
+  const ok = await reminderService.schedule({
+    todoId,
+    meetingId: p.meetingId,
+    todoText: p.text,
+    meetingTitle: p.meetingTitle,
+    reminderDateTime: at,
+  });
+  if (!ok) console.warn('[TodoProposalStore] Reminder not scheduled for:', p.text);
 }
 
 async function commitSingle(p: TodoProposal): Promise<void> {
-  if (p.action === 'create') {
-    const normalizedDueDate = p.dueDate ? normalizeDueDate(p.dueDate) : undefined;
-
-    const todoId = crypto.randomUUID();
-    await store.todos.upsert({
-      id: todoId,
-      meetingId: p.meetingId,
-      text: p.text,
-      owner: p.owner || undefined,
-      dueDate: normalizedDueDate,
-      completed: false,
-      source: 'user',
-      createdAt: new Date().toISOString(),
-    });
-
-    // Schedule OS reminder if requested
-    if (p.reminderDateTime) {
-      const reminderOk = await reminderService.schedule({
-        todoId,
-        meetingId: p.meetingId,
-        todoText: p.text,
-        meetingTitle: p.meetingTitle,
-        reminderDateTime: p.reminderDateTime,
-      });
-      if (!reminderOk) {
-        console.warn('[TodoProposalStore] Reminder scheduling failed for:', p.text);
-      }
-    }
-  } else if (p.action === 'toggle' && p.matchedTodoId) {
-    // Read current state to toggle
-    const todos = await store.todos.listForMeeting(p.meetingId);
-    const todo = todos.find(t => t.id === p.matchedTodoId);
-    if (todo) {
-      await store.todos.setCompleted(p.matchedTodoId, !todo.completed);
-    } else {
-      throw new Error('Todo not found');
-    }
-  } else if (p.action === 'update' && p.matchedTodoId) {
-    await store.todos.upsert({
-      id: p.matchedTodoId,
-      meetingId: p.meetingId,
-      text: p.text,
-      owner: p.owner || undefined,
-      dueDate: p.dueDate ? normalizeDueDate(p.dueDate) : undefined,
-    });
-  } else if (p.action === 'delete' && p.matchedTodoId) {
-    await store.todos.delete(p.matchedTodoId);
-  }
+  if (p.action === 'create') return create(p);
+  if (!p.todoId) throw new Error('No to-do to change');
+  return p.action === 'delete' ? remove(p.todoId) : update(p, p.todoId);
 }
 
 /** Hook to subscribe to proposals state. */
@@ -203,10 +204,4 @@ export function useTodoProposals(): TodoProposal[] {
     todoProposalStore.getSnapshot,
     todoProposalStore.getSnapshot,
   );
-}
-
-/** @deprecated Use useTodoProposals() — kept for backward compat during transition */
-export function useTodoProposal(): TodoProposal | null {
-  const all = useTodoProposals();
-  return all.length > 0 ? all[0] : null;
 }

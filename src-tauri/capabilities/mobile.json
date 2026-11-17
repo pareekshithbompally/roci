@@ -12,6 +12,7 @@
     "core:default",
     "core:path:default",
     "dialog:default",
+    "log:default",
     "fs:default",
     "fs:allow-read-file",
     "fs:allow-write-file",

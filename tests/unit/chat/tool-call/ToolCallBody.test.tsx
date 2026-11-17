@@ -93,10 +93,10 @@ describe('ToolCallBody rendering', () => {
   it('default body pretty-prints JSON arguments and output', () => {
     render(
       <ToolCallBody
-        part={part({ toolName: 'get_chat', arguments: { session_id: 's1' }, result: { content: '{"a":1}', isError: false } })}
+        part={part({ toolName: 'get_chat', arguments: { chat_id: 's1' }, result: { content: '{"a":1}', isError: false } })}
       />,
     );
-    expect(screen.getByText(/"session_id": "s1"/)).toBeInTheDocument();
+    expect(screen.getByText(/"chat_id": "s1"/)).toBeInTheDocument();
     expect(screen.getByText(/"a": 1/)).toBeInTheDocument();
   });
 

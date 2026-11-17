@@ -36,6 +36,7 @@ Allows all store plugin commands
 - `allow-notes-delete`
 - `allow-todos-list-for-meeting`
 - `allow-todos-list-global`
+- `allow-todos-get`
 - `allow-todos-upsert`
 - `allow-todos-set-completed`
 - `allow-todos-delete`
@@ -1557,6 +1558,32 @@ Enables the todos_delete command without any pre-configured scope.
 <td>
 
 Denies the todos_delete command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-todos-get`
+
+</td>
+<td>
+
+Enables the todos_get command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-todos-get`
+
+</td>
+<td>
+
+Denies the todos_get command without any pre-configured scope.
 
 </td>
 </tr>

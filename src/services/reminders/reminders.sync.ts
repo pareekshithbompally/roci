@@ -4,7 +4,7 @@ import { store } from '@services/db';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 import { remindersService, type ReminderInput } from './reminders.service';
-import type { TodoEntry } from '@shared/types';
+import type { GlobalTodoEntry } from '@services/db';
 
 interface SyncTarget {
   enabled: boolean;
@@ -23,28 +23,30 @@ async function readyList(): Promise<string | null> {
   return (await remindersService.checkAccess()) === 'authorized' ? target.listId : null;
 }
 
-function toReminder(listId: string, todo: TodoEntry, notes: string | null, create: boolean): ReminderInput {
+function toReminder(listId: string, todo: GlobalTodoEntry, create: boolean): ReminderInput {
   return {
     list_id: listId,
     todo_id: todo.id,
     title: todo.text,
-    notes,
+    notes: todo.meetingTitle ? `From “${todo.meetingTitle}” in Roci` : null,
     due_date: todo.dueDate?.match(YMD)?.[0] ?? null,
     completed: todo.completed,
     create,
   };
 }
 
-async function meetingTodos(meetingId: string): Promise<{ todos: TodoEntry[]; notes: string | null }> {
-  const meeting = await store.meetings.get(meetingId);
-  const title = meeting?.index.title;
-  return { todos: meeting?.todos ?? [], notes: title ? `From “${title}” in Roci` : null };
+async function send(listId: string, todos: GlobalTodoEntry[], create: boolean): Promise<void> {
+  if (todos.length > 0) await remindersService.upsert(todos.map((todo) => toReminder(listId, todo, create)));
 }
 
-async function send(listId: string, meetingId: string, pick: (todo: TodoEntry) => boolean, create: boolean): Promise<void> {
-  const { todos, notes } = await meetingTodos(meetingId);
-  const items = todos.filter(pick).map((todo) => toReminder(listId, todo, notes, create));
-  if (items.length > 0) await remindersService.upsert(items);
+/** Runs `work` with the synced list when the integration is on; logs failures, never throws. */
+async function withList(action: string, work: (listId: string) => Promise<void>): Promise<void> {
+  try {
+    const listId = await readyList();
+    if (listId) await work(listId);
+  } catch (error: unknown) {
+    report(action)(error);
+  }
 }
 
 async function allTodos(): Promise<Map<string, boolean>> {
@@ -66,33 +68,26 @@ export const remindersSync = {
     target = next;
   },
 
-  /** New action items of a meeting (all of them, or `todoIds`) → new reminders. */
-  async added(meetingId: string, todoIds?: string[]): Promise<void> {
-    const pick = todoIds ? (todo: TodoEntry) => todoIds.includes(todo.id) : () => true;
-    try {
-      const listId = await readyList();
-      if (listId) await send(listId, meetingId, pick, true);
-    } catch (error: unknown) {
-      report('add')(error);
-    }
+  /** New to-dos → new reminders. */
+  async added(todoIds: string[]): Promise<void> {
+    await withList('add', async (listId) => send(listId, await store.todos.get(todoIds), true));
   },
 
-  /** An edited or toggled to-do → its existing reminder. */
-  async changed(meetingId: string, todoId: string): Promise<void> {
-    try {
-      const listId = await readyList();
-      if (listId) await send(listId, meetingId, (todo) => todo.id === todoId, false);
-    } catch (error: unknown) {
-      report('update')(error);
-    }
+  /** A meeting's action items, just written by its summary → new reminders. */
+  async addedForMeeting(meetingId: string): Promise<void> {
+    await withList('add', async (listId) => send(listId, await store.todos.listForMeeting(meetingId), true));
+  },
+
+  /** An edited or completed to-do → its existing reminder. */
+  async changed(todoId: string): Promise<void> {
+    await withList('update', async (listId) => send(listId, await store.todos.get([todoId]), false));
   },
 
   /** Every open to-do → reminders in `listId`. Called once, when the user turns the integration on. */
   async sendOpen(listId: string): Promise<void> {
     try {
       const { items } = await store.todos.listGlobal(false, PAGE, 0);
-      const meetings = new Set(items.map((todo) => todo.meetingId));
-      await Promise.all([...meetings].map((meetingId) => send(listId, meetingId, (todo) => !todo.completed, true)));
+      await send(listId, items, true);
     } catch (error: unknown) {
       report('send open')(error);
     }

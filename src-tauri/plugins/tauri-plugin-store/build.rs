@@ -37,6 +37,7 @@ const COMMANDS: &[&str] = &[
     "notes_delete",
     "todos_list_for_meeting",
     "todos_list_global",
+    "todos_get",
     "todos_upsert",
     "todos_set_completed",
     "todos_delete",

@@ -348,9 +348,10 @@ export interface TodoEntry {
 /** Entry in the reminders table (joined to todos + meetings) */
 export interface ReminderEntry {
   todoId: string;
-  meetingId: string;
+  /** The to-do's meeting and its title; null for a to-do of its own. */
+  meetingId: string | null;
   todoText: string;
-  meetingTitle: string;
+  meetingTitle: string | null;
   reminderDateTime: string;  // ISO 8601
   notificationId: number;
   status: 'scheduled' | 'fired' | 'cancelled';

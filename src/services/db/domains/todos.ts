@@ -2,19 +2,23 @@
 
 import {
   call,
-  rustTodoToEntry,
   rustTodoToGlobalEntry,
   type GlobalTodoEntry,
   type RustTodoListResult,
   type RustTodoRow,
 } from '@services/db/internal';
-import type { TodoEntry } from '@shared/types';
 
 export const todos = {
   /** List todos for a specific meeting. */
-  async listForMeeting(meetingId: string): Promise<TodoEntry[]> {
+  async listForMeeting(meetingId: string): Promise<GlobalTodoEntry[]> {
     const rows = await call<RustTodoRow[]>('todos_list_for_meeting', { meetingId });
-    return rows.map(rustTodoToEntry);
+    return rows.map(rustTodoToGlobalEntry);
+  },
+
+  /** The to-dos with these ids, with their meeting; unknown ids are left out. */
+  async get(ids: string[]): Promise<GlobalTodoEntry[]> {
+    const rows = await call<RustTodoRow[]>('todos_get', { ids });
+    return rows.map(rustTodoToGlobalEntry);
   },
 
   /** List todos globally, optionally filtered by completion status. */
@@ -30,10 +34,10 @@ export const todos = {
     };
   },
 
-  /** Create or update a todo. */
+  /** Create or update a todo; `meetingId` null for a to-do of its own. */
   async upsert(todo: {
     id: string;
-    meetingId: string;
+    meetingId: string | null;
     text: string;
     owner?: string;
     dueDate?: string;

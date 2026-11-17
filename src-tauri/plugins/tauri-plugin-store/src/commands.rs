@@ -207,7 +207,8 @@ pub struct NoteUpsertInput {
 #[derive(Debug, Deserialize)]
 pub struct TodoUpsertInput {
     pub id: String,
-    pub meeting_id: String,
+    /// The meeting it came from; none for a to-do of its own.
+    pub meeting_id: Option<String>,
     pub text: String,
     pub owner: Option<String>,
     pub due_date: Option<String>,
@@ -219,8 +220,8 @@ pub struct TodoUpsertInput {
 #[derive(Debug, Serialize)]
 pub struct TodoWithReminder {
     pub id: String,
-    pub meeting_id: String,
-    pub meeting_title: String,
+    pub meeting_id: Option<String>,
+    pub meeting_title: Option<String>,
     pub text: String,
     pub owner: Option<String>,
     pub due_date: Option<String>,
@@ -249,9 +250,10 @@ pub struct ReminderRow {
 #[derive(Debug, Serialize)]
 pub struct ReminderDueItem {
     pub todo_id: String,
-    pub meeting_id: String,
+    /// The to-do's meeting and its title; none for a to-do of its own.
+    pub meeting_id: Option<String>,
     pub todo_text: String,
-    pub meeting_title: String,
+    pub meeting_title: Option<String>,
     pub fire_at: i64,
     pub notification_id: i32,
 }
@@ -949,8 +951,9 @@ fn note_meeting_id(db: &Connection, id: &str) -> Result<Option<String>, StoreErr
 
 fn todo_meeting_id(db: &Connection, id: &str) -> Result<Option<String>, StoreError> {
     Ok(db
-        .query_row("SELECT meeting_id FROM todos WHERE id = ?1", [id], |row| row.get(0))
-        .optional()?)
+        .query_row("SELECT meeting_id FROM todos WHERE id = ?1", [id], |row| row.get::<_, Option<String>>(0))
+        .optional()?
+        .flatten())
 }
 
 pub(crate) fn meetings_delete_impl(db: &Connection, id: &str) -> Result<MeetingsDeleteResult, StoreError> {
@@ -1485,6 +1488,36 @@ pub async fn notes_delete(
 
 // ── Todos Commands ──
 
+/// A to-do row with its meeting's title (none for a to-do of its own) and its scheduled reminder.
+const TODO_SELECT: &str = "SELECT t.id, t.meeting_id, m.title, t.text, t.owner, t.due_date, t.completed, t.source, t.created_at,
+        r.notification_id, r.fire_at, r.status, r.created_at
+ FROM todos t
+ LEFT JOIN meetings m ON m.id = t.meeting_id
+ LEFT JOIN reminders r ON r.todo_id = t.id AND r.status = 'scheduled'";
+
+fn todo_row(row: &rusqlite::Row) -> rusqlite::Result<TodoWithReminder> {
+    let reminder = row.get::<_, Option<i32>>(9)?.map(|notification_id| -> rusqlite::Result<ReminderRow> {
+        Ok(ReminderRow {
+            notification_id,
+            fire_at: row.get::<_, Option<i64>>(10)?.unwrap_or(0),
+            status: row.get::<_, Option<String>>(11)?.unwrap_or_else(|| "scheduled".into()),
+            created_at: row.get::<_, Option<i64>>(12)?.unwrap_or(0),
+        })
+    }).transpose()?;
+    Ok(TodoWithReminder {
+        id: row.get(0)?,
+        meeting_id: row.get(1)?,
+        meeting_title: row.get(2)?,
+        text: row.get(3)?,
+        owner: row.get(4)?,
+        due_date: row.get(5)?,
+        completed: row.get::<_, i32>(6)? != 0,
+        source: row.get(7)?,
+        created_at: row.get(8)?,
+        reminder,
+    })
+}
+
 fn collect_todos_with_reminders(
     conn: &Connection,
     meeting_id_opt: Option<&str>,
@@ -1492,82 +1525,39 @@ fn collect_todos_with_reminders(
     limit: Option<u32>,
     offset: Option<u32>,
 ) -> Result<(Vec<TodoWithReminder>, i64), StoreError> {
-    let limit = limit.unwrap_or(200);
-    let offset = offset.unwrap_or(0);
-
-    let mut where_bits: Vec<String> = Vec::new();
-    let mut count_params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
-    let mut list_params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
-
-    if let Some(mid) = meeting_id_opt {
-        where_bits.push("t.meeting_id = ?1".to_string());
-        count_params.push(Box::new(mid.to_string()));
-        list_params.push(Box::new(mid.to_string()));
-    }
-    if let Some(comp) = completed_filter {
-        let idx = list_params.len() + 1;
-        where_bits.push(format!("t.completed = ?{}", idx));
-        count_params.push(Box::new(comp as i32));
-        list_params.push(Box::new(comp as i32));
-    }
-
-    let where_str = if where_bits.is_empty() {
-        String::from("1=1")
-    } else {
-        where_bits.join(" AND ")
-    };
-
-    let count_sql = format!("SELECT COUNT(*) FROM todos t WHERE {}", where_str);
-    let count_param_refs: Vec<&dyn rusqlite::types::ToSql> = count_params.iter().map(|p| p.as_ref()).collect();
-    let total: i64 = conn.query_row(&count_sql, count_param_refs.as_slice(), |row| row.get(0))?;
-
-    let lim_idx = list_params.len() + 1;
-    let off_idx = list_params.len() + 2;
-    list_params.push(Box::new(limit));
-    list_params.push(Box::new(offset));
-
-    let list_sql = format!(
-        "SELECT t.id, t.meeting_id, m.title, t.text, t.owner, t.due_date, t.completed, t.source, t.created_at,
-                r.notification_id, r.fire_at, r.status, r.created_at
-         FROM todos t
-         JOIN meetings m ON m.id = t.meeting_id
-         LEFT JOIN reminders r ON r.todo_id = t.id AND r.status = 'scheduled'
-         WHERE {}
-         ORDER BY t.created_at DESC
-         LIMIT ?{} OFFSET ?{}",
-        where_str, lim_idx, off_idx,
-    );
-
-    let mut stmt = conn.prepare(&list_sql)?;
-
-    type TodoRow = (String, String, String, String, Option<String>, Option<String>, i32, String, i64, Option<i32>, Option<i64>, Option<String>, Option<i64>);
-
-    let map_row = |row: &rusqlite::Row| -> rusqlite::Result<TodoRow> {
-        Ok((
-            row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?,
-            row.get(5)?, row.get(6)?, row.get(7)?, row.get(8)?,
-            row.get(9)?, row.get(10)?, row.get(11)?, row.get(12)?,
-        ))
-    };
-
-    let list_param_refs: Vec<&dyn rusqlite::types::ToSql> = list_params.iter().map(|p| p.as_ref()).collect();
-    let rows = stmt.query_map(list_param_refs.as_slice(), map_row)?;
-
-    let items: Vec<TodoWithReminder> = rows.filter_map(|r| r.ok()).map(|(id, meeting_id, meeting_title, text, owner, due_date, completed, source, created_at, notif_id, fire_at, status, created_at_r)| {
-        let reminder = notif_id.map(|nid| ReminderRow {
-            notification_id: nid,
-            fire_at: fire_at.unwrap_or(0),
-            status: status.unwrap_or_else(|| "scheduled".into()),
-            created_at: created_at_r.unwrap_or(0),
-        });
-        TodoWithReminder {
-            id, meeting_id, meeting_title, text, owner, due_date,
-            completed: completed != 0,
-            source, created_at, reminder,
-        }
-    }).collect();
-
+    let filter = "(?1 IS NULL OR t.meeting_id = ?1) AND (?2 IS NULL OR t.completed = ?2)";
+    let filters = rusqlite::params![meeting_id_opt, completed_filter.map(i32::from)];
+    let total: i64 = conn.query_row(&format!("SELECT COUNT(*) FROM todos t WHERE {filter}"), filters, |row| row.get(0))?;
+    let mut stmt = conn.prepare(&format!("{TODO_SELECT} WHERE {filter} ORDER BY t.created_at DESC LIMIT ?3 OFFSET ?4"))?;
+    let rows = stmt.query_map(
+        rusqlite::params![meeting_id_opt, completed_filter.map(i32::from), limit.unwrap_or(200), offset.unwrap_or(0)],
+        todo_row,
+    )?;
+    let items = rows.collect::<rusqlite::Result<Vec<_>>>()?;
     Ok((items, total))
+}
+
+/// The to-dos with these ids, in no particular order; unknown ids are left out.
+fn todos_get_impl(conn: &Connection, ids: &[String]) -> Result<Vec<TodoWithReminder>, StoreError> {
+    let ids = serde_json::to_string(ids).map_err(|e| StoreError::from(format!("encode ids: {}", e)))?;
+    let mut stmt = conn.prepare(&format!("{TODO_SELECT} WHERE t.id IN (SELECT value FROM json_each(?1))"))?;
+    let rows = stmt.query_map([ids], todo_row)?;
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
+#[tauri::command]
+pub async fn todos_get(
+    state: State<'_, StoreState>,
+    ids: Vec<String>,
+) -> Result<Vec<TodoWithReminder>, StoreError> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
+        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+        todos_get_impl(db, &ids)
+    })
+    .await
+    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
 #[tauri::command]
@@ -1657,7 +1647,9 @@ pub async fn todos_upsert(
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))??;
-    notify(MeetingChange::Saved(meeting_id));
+    if let Some(meeting_id) = meeting_id {
+        notify(MeetingChange::Saved(meeting_id));
+    }
     Ok(())
 }
 
@@ -1802,7 +1794,7 @@ fn reminders_due_impl(db: &Connection) -> Result<Vec<ReminderDueItem>, StoreErro
             "SELECT r.todo_id, t.meeting_id, t.text, m.title, r.fire_at, r.notification_id
              FROM reminders r
              JOIN todos t ON t.id = r.todo_id
-             JOIN meetings m ON m.id = t.meeting_id
+             LEFT JOIN meetings m ON m.id = t.meeting_id
              WHERE r.status = 'scheduled'
              ORDER BY r.fire_at",
         )?;
@@ -3190,7 +3182,7 @@ mod tests {
             conn,
             &TodoUpsertInput {
                 id: todo_id.to_string(),
-                meeting_id: meeting_id.to_string(),
+                meeting_id: Some(meeting_id.to_string()),
                 text: "Do the thing".into(),
                 owner: None,
                 due_date: None,
@@ -3200,6 +3192,41 @@ mod tests {
             },
         )
         .expect("seed todo");
+    }
+
+    #[test]
+    fn a_todo_without_a_meeting_saves_lists_and_resolves_by_id() {
+        let conn = db();
+        seed_meeting(&conn, "m1");
+        seed_todo(&conn, "t1", "m1");
+        todos_upsert_impl(
+            &conn,
+            &TodoUpsertInput {
+                id: "t2".into(),
+                meeting_id: None,
+                text: "Book the flight".into(),
+                owner: None,
+                due_date: Some("2026-11-20".into()),
+                completed: None,
+                source: None,
+                created_at: None,
+            },
+        )
+        .expect("a to-do of its own");
+
+        let (all, total) = collect_todos_with_reminders(&conn, None, None, None, None).unwrap();
+        assert_eq!(total, 2);
+        let own = all.iter().find(|t| t.id == "t2").expect("listed");
+        assert_eq!((own.meeting_id.as_deref(), own.meeting_title.as_deref()), (None, None));
+        let (open, _) = collect_todos_with_reminders(&conn, None, Some(false), None, None).unwrap();
+        assert_eq!(open.len(), 2);
+        let (in_meeting, _) = collect_todos_with_reminders(&conn, Some("m1"), None, None, None).unwrap();
+        assert_eq!(in_meeting.iter().map(|t| t.id.as_str()).collect::<Vec<_>>(), vec!["t1"]);
+        assert_eq!(in_meeting[0].meeting_title.as_deref(), Some("Seed"));
+
+        let found = todos_get_impl(&conn, &["t2".into(), "missing".into()]).unwrap();
+        assert_eq!(found.iter().map(|t| t.id.as_str()).collect::<Vec<_>>(), vec!["t2"]);
+        assert_eq!(todo_meeting_id(&conn, "t2").unwrap(), None);
     }
 
     #[test]
@@ -3333,7 +3360,7 @@ mod tests {
             &conn,
             &TodoUpsertInput {
                 id: "t1".into(),
-                meeting_id: "m1".into(),
+                meeting_id: Some("m1".into()),
                 text: "Changed".into(),
                 owner: Some("alice".into()),
                 due_date: None,

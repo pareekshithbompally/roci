@@ -1,54 +1,28 @@
-/** get_chat: loads a chat session by ID and summarises its conversation. */
+/** get_chat: one earlier chat's conversation by its ID, most recent messages first to fit. */
 
-import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
+import { z } from 'zod';
+import { defineTool, fail, idFrom, ok, toolDate } from '@extensions/tools/contract';
 import { chatService } from '@services/chat.service';
 import { MAX_CHAT_MESSAGES_FOR_LLM } from '@extensions/tools/constants';
 import { errorMessage } from '@shared/utils/errors';
 
-export const getChatTool: ToolDefinition = {
+export const getChatTool = defineTool({
   name: 'get_chat',
   description:
-    'Load the full content of a specific chat session by its ID. ' +
-    'Returns the conversation history as a readable summary. ' +
-    'Use after search_chats when you need the full conversation context.',
-  parameters: {
-    type: 'object',
-    properties: {
-      session_id: {
-        type: 'string',
-        description: 'The chat session ID from search_chats results.',
-      },
-    },
-    required: ['session_id'],
-  },
+    'Read one of the user\'s earlier chats by its ID: the conversation, with its latest messages. ' +
+    'Get the ID from search_chats or list_chats first.',
+  input: z.object({ chat_id: idFrom('search_chats or list_chats') }),
 
-  async execute(params): Promise<ToolResult> {
-    const sessionId = params.session_id as string;
-
+  async execute({ chat_id }) {
     let session;
     try {
-      session = await chatService.loadSession(sessionId);
-    } catch (error) {
-      return {
-        toolCallId: '',
-        content: `Failed to load chat: ${errorMessage(error)}`,
-        isError: true,
-        meta: { toolName: 'get_chat', executionMs: 0 },
-      };
+      session = await chatService.loadSession(chat_id);
+    } catch (error: unknown) {
+      return fail(`Failed to load chat: ${errorMessage(error)}`);
     }
+    if (!session) return fail(`No chat has the ID "${chat_id}". Get chat IDs from search_chats or list_chats.`);
 
-    if (!session) {
-      return {
-        toolCallId: '',
-        content: `Chat session not found: ${sessionId}`,
-        isError: false,
-        meta: { toolName: 'get_chat', executionMs: 0 },
-      };
-    }
-
-    const date = new Date(session.lastMessageAt).toLocaleDateString('en-US', {
-      year: 'numeric', month: 'long', day: 'numeric',
-    });
+    const date = toolDate(session.lastMessageAt);
 
     // Prioritize recent messages to stay within LLM context budget
     const messages = session.messages.length > MAX_CHAT_MESSAGES_FOR_LLM
@@ -76,11 +50,6 @@ export const getChatTool: ToolDefinition = {
       lines.push(`${role}: ${text}`, '');
     }
 
-    return {
-      toolCallId: '',
-      content: lines.join('\n'),
-      isError: false,
-      meta: { toolName: 'get_chat', executionMs: 0 },
-    };
+    return ok(lines.join('\n'), { resultCount: 1 });
   },
-};
+});

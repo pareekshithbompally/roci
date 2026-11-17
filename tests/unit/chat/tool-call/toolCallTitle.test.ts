@@ -17,12 +17,14 @@ describe('toolCallTitle — built-in tools', () => {
   const cases: Array<[string, Record<string, unknown>, string, string]> = [
     ['search_meetings', { query: 'pricing' }, 'Searching meetings for “pricing”…', 'Searched meetings for “pricing”'],
     ['get_meeting', { meeting_id: 'm-42' }, 'Retrieving meeting “m-42”…', 'Retrieved meeting “m-42”'],
-    ['list_meetings', { count: 10 }, 'Listing meetings (up to 10 meetings)…', 'Listed meetings (up to 10 meetings)'],
-    ['get_action_items', {}, 'Getting action items…', 'Found action items'],
+    ['list_meetings', { limit: 10 }, 'Listing meetings (up to 10 meetings)…', 'Listed meetings (up to 10 meetings)'],
+    ['list_todos', {}, 'Reading to-dos…', 'Read to-dos'],
     ['search_chats', { query: 'roadmap' }, 'Searching chats for “roadmap”…', 'Searched chats for “roadmap”'],
-    ['get_chat', { session_id: 's1' }, 'Retrieving chat…', 'Retrieved chat'],
+    ['get_chat', { chat_id: 's1' }, 'Retrieving chat…', 'Retrieved chat'],
     ['list_chats', { limit: 5 }, 'Listing chats (up to 5 chats)…', 'Listed chats (up to 5 chats)'],
-    ['manage_todo', { action: 'create', text: 'Send deck' }, 'Drafting todo “Send deck”…', 'Drafted todo “Send deck”'],
+    ['create_todo', { text: 'Send deck' }, 'Drafting to-do “Send deck”…', 'Drafted to-do “Send deck”'],
+    ['update_todo', { todo_id: 't1', done: true }, 'Drafting to-do change…', 'Drafted to-do change'],
+    ['delete_todo', { todo_id: 't1' }, 'Drafting to-do removal…', 'Drafted to-do removal'],
     ['webSearch', { query: 'tauri 2' }, 'Searching the web for “tauri 2”…', 'Searched the web for “tauri 2”'],
     ['webSearch', { url: 'https://www.nytimes.com/a' }, 'Searching the web on nytimes.com…', 'Searched the web on nytimes.com'],
     ['googleSearch', {}, 'Searching the web…', 'Searched the web'],
@@ -42,11 +44,6 @@ describe('toolCallTitle — built-in tools', () => {
       result: { content: '## Meeting: Weekly sync\n\n### Summary\nShipped.', isError: false },
     });
     expect(toolCallTitle(p)).toBe('Retrieved meeting “Weekly sync”');
-  });
-
-  it('uses meeting_title for get_action_items when given', () => {
-    expect(toolCallTitle(part({ toolName: 'get_action_items', arguments: { meeting_title: 'Kickoff' } })))
-      .toBe('Found action items “Kickoff”');
   });
 
   it('truncates long query snippets', () => {

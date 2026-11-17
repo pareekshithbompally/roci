@@ -9,12 +9,14 @@ const LABELS: Record<string, [string, string]> = {
   search_meetings: ['Searching meetings', 'Searched meetings'],
   get_meeting: ['Retrieving meeting', 'Retrieved meeting'],
   list_meetings: ['Listing meetings', 'Listed meetings'],
-  get_action_items: ['Getting action items', 'Found action items'],
-  // Chat history + todo tools
+  list_todos: ['Reading to-dos', 'Read to-dos'],
+  // Chat history + to-do tools
   search_chats: ['Searching chats', 'Searched chats'],
   get_chat: ['Retrieving chat', 'Retrieved chat'],
   list_chats: ['Listing chats', 'Listed chats'],
-  manage_todo: ['Drafting todo', 'Drafted todo'],
+  create_todo: ['Drafting to-do', 'Drafted to-do'],
+  update_todo: ['Drafting to-do change', 'Drafted to-do change'],
+  delete_todo: ['Drafting to-do removal', 'Drafted to-do removal'],
   // Native provider tools (web search)
   webSearch: ['Searching the web', 'Searched the web'],
   googleSearch: ['Searching the web', 'Searched the web'],
@@ -61,10 +63,10 @@ const DETAILS: Record<string, (part: ToolCallPart) => string | undefined> = {
   webSearchPreview: webDetail,
   browserSearch: webDetail,
   get_meeting: meetingDetail,
-  get_action_items: (part) => quoted(part.arguments.meeting_title),
-  list_meetings: (part) => upTo(part.arguments.count, 'meetings'),
+  list_meetings: (part) => upTo(part.arguments.limit, 'meetings'),
   list_chats: (part) => upTo(part.arguments.limit, 'chats'),
-  manage_todo: (part) => quoted(part.arguments.text),
+  create_todo: (part) => quoted(part.arguments.text),
+  update_todo: (part) => quoted(part.arguments.text),
 };
 
 function formatToolName(toolName: string): string {

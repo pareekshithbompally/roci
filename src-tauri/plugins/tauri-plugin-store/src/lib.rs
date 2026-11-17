@@ -61,6 +61,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::notes_delete,
             commands::todos_list_for_meeting,
             commands::todos_list_global,
+            commands::todos_get,
             commands::todos_upsert,
             commands::todos_set_completed,
             commands::todos_delete,

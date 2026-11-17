@@ -26,8 +26,8 @@ const FILTERS: { key: TodoFilter; label: string; countKey: 'total' | 'pending' |
 
 interface TodoRowProps {
   todo: GlobalTodo;
-  onToggle: (meetingId: string, todoId: string) => void;
-  onReminderSet: (meetingId: string, todoId: string, todoText: string, meetingTitle: string, dateTime: string | null) => void;
+  onToggle: (meetingId: string | null, todoId: string) => void;
+  onReminderSet: (meetingId: string | null, todoId: string, todoText: string, meetingTitle: string | null, dateTime: string | null) => void;
 }
 
 const TodoRow: React.FC<TodoRowProps> = ({ todo, onToggle, onReminderSet }) => {
@@ -106,7 +106,7 @@ export const RemindersView: React.FC = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleToggle = useCallback(async (meetingId: string, todoId: string) => {
+  const handleToggle = useCallback(async (meetingId: string | null, todoId: string) => {
     await toggleTodo(meetingId, todoId);
   }, [toggleTodo]);
 
@@ -216,15 +216,17 @@ export const RemindersView: React.FC = () => {
           /* Grouped list */
           <div className="py-2">
             {groups.map((group) => (
-              <div key={group.meetingId} className="mb-1">
+              <div key={group.meetingId ?? TODOS_CONFIG.general} className="mb-1">
                 {/* Meeting header */}
                 <Surface variant="page" edge="bottom" className={`sticky top-0 z-10 ${LAYOUT.listGutter} py-1.5 flex items-center gap-2`}>
                   <Text as="h2" variant="label" tone="muted" truncate>
-                    {group.meetingTitle}
+                    {group.meetingTitle ?? TODOS_CONFIG.general}
                   </Text>
-                  <Text variant="caption" tone="faint" className="shrink-0">
-                    {formatMeetingDate(group.timestamp)}
-                  </Text>
+                  {group.meetingId && (
+                    <Text variant="caption" tone="faint" className="shrink-0">
+                      {formatMeetingDate(group.timestamp)}
+                    </Text>
+                  )}
                   <Text variant="caption" tone="faint" className="shrink-0 ml-auto">
                     {group.todos.filter(t => !t.completed).length}/{group.todos.length}
                   </Text>

@@ -87,7 +87,7 @@ export function useMeetingTodos(meetingId: string | null) {
         queryClient.setQueryData(queryKeys.storeTodos(meetingId!), context.previous);
       }
     },
-    onSuccess: (entry) => { void remindersSync.added(entry.meetingId, [entry.id]); },
+    onSuccess: (entry) => { void remindersSync.added([entry.id]); },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.storeTodos(meetingId!) });
     },
@@ -126,7 +126,7 @@ export function useMeetingTodos(meetingId: string | null) {
         queryClient.setQueryData(queryKeys.storeTodos(meetingId!), context.previous);
       }
     },
-    onSuccess: (_data, { todoId }) => { void remindersSync.changed(meetingId!, todoId); },
+    onSuccess: (_data, { todoId }) => { void remindersSync.changed(todoId); },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.storeTodos(meetingId!) });
     },
@@ -198,7 +198,7 @@ export function useMeetingTodos(meetingId: string | null) {
         queryClient.setQueryData(queryKeys.storeTodos(meetingId!), context.previous);
       }
     },
-    onSuccess: (_data, todoId) => { void remindersSync.changed(meetingId!, todoId); },
+    onSuccess: (_data, todoId) => { void remindersSync.changed(todoId); },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.storeTodos(meetingId!) });
     },

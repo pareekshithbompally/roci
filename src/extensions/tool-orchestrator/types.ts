@@ -1,6 +1,6 @@
 /** Orchestration loop inputs, callbacks and activity state. */
 
-import type { ChatMessage, HistoryItem, AppSettings, ImagePart, ReasoningEffort } from '@shared/types';
+import type { ChatMessage, AppSettings, ImagePart, ReasoningEffort } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { GenerationStats, StreamMetadata } from '@services/ai/types';
 import type { MeetingCitation } from '@extensions/tools/types';
@@ -14,7 +14,6 @@ export interface OrchestratorOptions {
   systemPrompt: string;
   settings: AppSettings;
   providers: ModelProvider[];
-  historyItems: HistoryItem[];
   signal?: AbortSignal;
   webSearchEnabled?: boolean;
   /** Whether to skip tool attachment (model doesn't support tools). Default: false */

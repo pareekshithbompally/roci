@@ -98,8 +98,9 @@ export interface RustNoteRow {
 
 export interface RustTodoRow {
   id: string;
-  meeting_id: string;
-  meeting_title: string;
+  /** Null for a to-do of its own (not from a meeting); its title is null then too. */
+  meeting_id: string | null;
+  meeting_title: string | null;
   text: string;
   owner: string | null;
   due_date: string | null;
@@ -114,10 +115,10 @@ export interface RustTodoListResult {
   total: number;
 }
 
-/** TodoEntry enriched with meeting info for global views. */
+/** A to-do with the meeting it came from; both null for a to-do of its own. */
 export interface GlobalTodoEntry extends TodoEntry {
-  meetingId: string;
-  meetingTitle: string;
+  meetingId: string | null;
+  meetingTitle: string | null;
 }
 
 export interface RustReminderRow {
@@ -129,9 +130,9 @@ export interface RustReminderRow {
 
 export interface RustReminderDueItem {
   todo_id: string;
-  meeting_id: string;
+  meeting_id: string | null;
   todo_text: string;
-  meeting_title: string;
+  meeting_title: string | null;
   fire_at: number;
   notification_id: number;
 }
@@ -204,24 +205,7 @@ export function rustTodoToActionItem(row: RustTodoRow): ActionItem {
 }
 
 export function rustTodoToGlobalEntry(row: RustTodoRow): GlobalTodoEntry {
-  const entry: GlobalTodoEntry = {
-    id: row.id,
-    text: row.text,
-    completed: row.completed,
-    source: row.source as 'ai' | 'user',
-    createdAt: new Date(row.created_at).toISOString(),
-    meetingId: row.meeting_id,
-    meetingTitle: row.meeting_title || 'Untitled Meeting',
-  };
-  if (row.owner) entry.owner = row.owner;
-  if (row.due_date) entry.dueDate = row.due_date;
-  if (row.reminder) {
-    entry.reminder = {
-      dateTime: new Date(row.reminder.fire_at).toISOString(),
-      notificationId: row.reminder.notification_id,
-    };
-  }
-  return entry;
+  return { ...rustTodoToEntry(row), meetingId: row.meeting_id, meetingTitle: row.meeting_title };
 }
 
 export function rustReminderDueToEntry(row: RustReminderDueItem): ReminderEntry {

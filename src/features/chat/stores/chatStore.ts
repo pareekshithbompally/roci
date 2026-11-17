@@ -366,7 +366,6 @@ async function streamReply(reply: Reply, request: ReplyRequest, tally: StreamTal
       systemPrompt: config.systemPrompt,
       settings,
       providers,
-      historyItems,
       signal,
       webSearchEnabled: useChatStore.getState().webSearchEnabled,
       skipRetrieval: !hasToolSupport,

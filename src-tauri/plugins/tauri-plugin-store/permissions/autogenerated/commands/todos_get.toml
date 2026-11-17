@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-todos-get"
+description = "Enables the todos_get command without any pre-configured scope."
+commands.allow = ["todos_get"]
+
+[[permission]]
+identifier = "deny-todos-get"
+description = "Denies the todos_get command without any pre-configured scope."
+commands.deny = ["todos_get"]

@@ -33,6 +33,7 @@ permissions = [
   "allow-notes-delete",
   "allow-todos-list-for-meeting",
   "allow-todos-list-global",
+  "allow-todos-get",
   "allow-todos-upsert",
   "allow-todos-set-completed",
   "allow-todos-delete",

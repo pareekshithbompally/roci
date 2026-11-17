@@ -8,3 +8,4 @@ export * from './opener.service';
 export { menubarService, MENUBAR_ACTION_EVENT } from './menubar.service';
 export type { MenubarState, MenubarSpeechModel, MenubarActivity, MenubarRecentMeeting } from './menubar.service';
 export { popupMenu } from './contextMenu.service';
+export { forwardConsoleToLog } from './log.service';

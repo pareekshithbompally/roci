@@ -76,7 +76,7 @@ export const transcriptionService = {
   async saveSummary(input: SummarySave): Promise<void> {
     await store.meetings.saveSummary(input);
     refreshMeetings();
-    void remindersSync.added(input.meetingId);
+    void remindersSync.addedForMeeting(input.meetingId);
     void appleNotesSync.meetingSaved(input.meetingId);
     indexForSearch(input);
   },

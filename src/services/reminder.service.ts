@@ -1,6 +1,7 @@
 /** To-do reminders as native timed notifications, persisted in roci.db so launch re-arms the ones still ahead. */
 
 import { NOTIFICATIONS_CONFIG } from '@config/notifications.config';
+import { TODOS_CONFIG } from '@config/todos.config';
 import { askNotificationsOnFirstUse, onNotificationResponse, removeNotices, scheduleNotice, type Notice } from '@services/notifications';
 import { store } from './db';
 import type { ReminderEntry } from '@shared/types';
@@ -15,9 +16,10 @@ let viewMeetingHandler: ViewMeetingHandler | null = null;
 
 export interface ScheduleReminderParams {
   todoId: string;
-  meetingId: string;
+  /** The meeting it came from; null for a to-do of its own (the notice then has no View Meeting). */
+  meetingId: string | null;
   todoText: string;
-  meetingTitle: string;
+  meetingTitle: string | null;
   reminderDateTime: string; // ISO 8601
 }
 
@@ -27,10 +29,10 @@ function reminderNotice({ todoId, meetingId, todoText, meetingTitle }: ScheduleR
   const body = todoText.length > TODO.bodyMaxChars ? `${todoText.slice(0, TODO.bodyMaxChars - 1)}…` : todoText;
   return {
     id: noticeId(todoId),
-    title: meetingTitle,
+    title: meetingTitle ?? TODOS_CONFIG.general,
     body,
-    category: TODO.category,
-    userInfo: { todoId, meetingId },
+    category: meetingId ? TODO.category : TODO.generalCategory,
+    userInfo: meetingId ? { todoId, meetingId } : { todoId },
     kind: 'todoReminders',
   };
 }

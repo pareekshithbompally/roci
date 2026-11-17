@@ -1,68 +1,45 @@
-/** search_meetings: hybrid RAG search returning ranked snippets, so the LLM knows which meetings to load. */
+/** search_meetings: hybrid search over meeting transcripts, summaries and notes, ranked snippets with meeting IDs. */
 
-import type { ToolDefinition, ToolResult, MeetingCitation } from '@extensions/tools/types';
+import { z } from 'zod';
+import type { MeetingCitation } from '@extensions/tools/types';
+import { defineTool, fail, limit, ok, text, toolDate } from '@extensions/tools/contract';
+import { currentMeetings } from '@extensions/tools/data';
 import { ragSearcher } from '@extensions/rag/searcher';
 import { ragIndexer } from '@extensions/rag/indexer';
 import { vectorDB } from '@extensions/rag/client';
 import { SCORE_HIGH, SCORE_MEDIUM } from '@extensions/rag/constants';
 import { errorMessage } from '@shared/utils/errors';
 
-export const searchMeetingsTool: ToolDefinition = {
+export const searchMeetingsTool = defineTool({
   name: 'search_meetings',
   description:
-    'Search across the user\'s recorded meeting transcripts, summaries, and notes ' +
-    'using semantic + keyword hybrid search. Returns ranked snippets with meeting IDs. ' +
-    'Use when the user asks about specific meetings, discussions, people, or decisions ' +
-    'from their work. After getting results, use get_meeting to load full details.',
-  parameters: {
-    type: 'object',
-    properties: {
-      query: {
-        type: 'string',
-        description: 'The search query. Be specific — include keywords, topics, or names.',
-      },
-      limit: {
-        type: 'integer',
-        description: 'Maximum number of results to return.',
-        default: 5,
-        minimum: 1,
-        maximum: 20,
-      },
-    },
-    required: ['query'],
-  },
+    "Search the user's meetings (transcripts, summaries and notes) by meaning and keywords. Returns the best-matching " +
+    'meetings with a snippet and each meeting\'s ID. Use it when the user asks about a topic, person, decision or ' +
+    'discussion; then read a meeting with get_meeting.',
+  input: z.object({
+    query: text('What to look for: topics, names, keywords.'),
+    limit: limit(5, 20),
+  }),
 
-  async execute(params, context): Promise<ToolResult> {
-    const query = params.query as string;
-    const limit = (params.limit as number) ?? 5;
-
+  async execute({ query, limit: count }, context) {
     let results;
     try {
       // Ensure store is initialized and meetings are indexed
       await vectorDB.initialize();
-      const stale = await ragIndexer.needsReindex(context.historyItems);
+      const meetings = await currentMeetings();
+      const stale = await ragIndexer.needsReindex(meetings);
       if (stale.length > 0) {
-        await ragIndexer.indexAll(context.historyItems, context.signal);
+        await ragIndexer.indexAll(meetings, context.signal);
       }
 
-      results = await ragSearcher.search(query, { limit, mode: 'hybrid' });
+      results = await ragSearcher.search(query, { limit: count, mode: 'hybrid' });
     } catch (error) {
       console.error('[SearchMeetingsTool] Search failed:', error);
-      return {
-        toolCallId: '',
-        content: `Search failed: ${errorMessage(error)}`,
-        isError: true,
-        meta: { toolName: 'search_meetings', executionMs: 0 },
-      };
+      return fail(`Search failed: ${errorMessage(error)}`);
     }
 
     if (results.length === 0) {
-      return {
-        toolCallId: '',
-        content: 'No meetings found matching that query.',
-        isError: false,
-        meta: { toolName: 'search_meetings', executionMs: 0, resultCount: 0 },
-      };
+      return ok('No meetings match that search. Try other words, or list_meetings to browse by date.', { resultCount: 0 });
     }
 
     // Group by meeting to show deduplicated entries
@@ -79,11 +56,7 @@ export const searchMeetingsTool: ToolDefinition = {
     for (const [, hits] of byMeeting) {
       index++;
       const first = hits[0];
-      const date = new Date(first.created_at).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      });
+      const date = toolDate(first.created_at);
       const snippet = first.chunkText.slice(0, 200).replace(/\n/g, ' ');
       const confidence = first.score >= SCORE_HIGH ? 'high' : first.score >= SCORE_MEDIUM ? 'medium' : 'low';
 
@@ -110,11 +83,6 @@ export const searchMeetingsTool: ToolDefinition = {
       }
     }
 
-    return {
-      toolCallId: '',
-      content: lines.join('\n'),
-      isError: false,
-      meta: { toolName: 'search_meetings', executionMs: 0, resultCount: byMeeting.size, citations },
-    };
+    return ok(lines.join('\n'), { resultCount: byMeeting.size, citations });
   },
-};
+});
