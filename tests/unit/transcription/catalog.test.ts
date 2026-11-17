@@ -93,8 +93,8 @@ describe('speechModelOptions', () => {
 describe('on this Mac', () => {
   const onDevice = {
     models: [
-      { id: 'parakeet-unified-en', name: 'Parakeet (English)', kind: 'speech' as const, streams: true, bytes: 731_357_568, installed: true, downloading: false },
-      { id: 'cohere-transcribe', name: 'Cohere Transcribe', kind: 'speech' as const, streams: false, bytes: 2_410_655_232, installed: false, downloading: false },
+      { id: 'parakeet-unified-en', name: 'Parakeet (English)', maker: 'nvidia', kind: 'speech' as const, streams: true, bytes: 731_357_568, installed: true, downloading: false },
+      { id: 'cohere-transcribe', name: 'Cohere Transcribe', maker: 'nvidia', kind: 'speech' as const, streams: false, bytes: 2_410_655_232, installed: false, downloading: false },
     ],
   };
 
@@ -115,7 +115,7 @@ describe('on this Mac', () => {
 
 describe('picker order', () => {
   it('lists what runs on this Mac before key-gated cloud models', () => {
-    const onDevice = { models: [{ id: 'parakeet-unified-en', name: 'Parakeet (English)', kind: 'speech' as const, streams: true, bytes: 1, installed: false, downloading: false }] };
+    const onDevice = { models: [{ id: 'parakeet-unified-en', name: 'Parakeet (English)', maker: 'nvidia', kind: 'speech' as const, streams: true, bytes: 1, installed: false, downloading: false }] };
     const providers = Object.keys(speechModelOptions([], { onDevice }).reduce((seen, o) => ({ ...seen, [o.provider]: true }), {} as Record<string, true>));
     expect(providers[0]).toBe('on-device');
     expect(providers.indexOf('on-device')).toBeLessThan(providers.indexOf('openai'));

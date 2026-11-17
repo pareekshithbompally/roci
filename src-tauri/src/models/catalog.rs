@@ -43,6 +43,8 @@ pub struct ModelFile {
 pub struct LocalModel {
     pub id: &'static str,
     pub name: &'static str,
+    /// The Hugging Face org that made the model (not who converted it): its logo marks the model in pickers.
+    pub maker: &'static str,
     pub kind: Kind,
     /// Transcribes audio while it's still arriving (live dictation).
     pub streams: bool,
@@ -74,6 +76,7 @@ impl LocalModel {
 pub const MODELS: &[LocalModel] = &[
     LocalModel {
         id: "gemma-4-e2b",
+        maker: "google",
         name: "Gemma 4",
         kind: Kind::Chat,
         streams: false,
@@ -92,6 +95,7 @@ pub const MODELS: &[LocalModel] = &[
     },
     LocalModel {
         id: "qwen3-embedding-0.6b",
+        maker: "Qwen",
         name: "Qwen3 Embedding",
         kind: Kind::Embedding,
         streams: false,
@@ -115,6 +119,7 @@ pub const MODELS: &[LocalModel] = &[
     },
     LocalModel {
         id: "parakeet-unified-en",
+        maker: "nvidia",
         name: "Parakeet (English)",
         kind: Kind::Speech,
         streams: true,
@@ -129,6 +134,7 @@ pub const MODELS: &[LocalModel] = &[
     },
     LocalModel {
         id: "nemotron-3.5-asr",
+        maker: "nvidia",
         name: "Nemotron (multilingual)",
         kind: Kind::Speech,
         streams: true,
@@ -143,6 +149,7 @@ pub const MODELS: &[LocalModel] = &[
     },
     LocalModel {
         id: "whisper-large-v3-turbo",
+        maker: "openai",
         name: "Whisper Large Turbo",
         kind: Kind::Speech,
         streams: false,
@@ -157,6 +164,7 @@ pub const MODELS: &[LocalModel] = &[
     },
     LocalModel {
         id: "cohere-transcribe",
+        maker: "CohereLabs",
         name: "Cohere Transcribe",
         kind: Kind::Speech,
         streams: false,
@@ -171,6 +179,7 @@ pub const MODELS: &[LocalModel] = &[
     },
     LocalModel {
         id: "soprano",
+        maker: "ekwek",
         name: "Soprano",
         kind: Kind::Voice,
         streams: false,
@@ -187,6 +196,7 @@ pub const MODELS: &[LocalModel] = &[
     },
     LocalModel {
         id: "pocket-tts",
+        maker: "kyutai",
         name: "Pocket TTS",
         kind: Kind::Voice,
         streams: false,
@@ -210,6 +220,7 @@ pub const MODELS: &[LocalModel] = &[
     },
     LocalModel {
         id: "qwen3-tts",
+        maker: "Qwen",
         name: "Qwen3 TTS",
         kind: Kind::Voice,
         streams: false,

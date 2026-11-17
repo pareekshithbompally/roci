@@ -11,6 +11,8 @@ export type LocalModelKind = 'speech' | 'voice' | 'embedding' | 'chat';
 export interface LocalModel {
   id: string;
   name: string;
+  /** The Hugging Face org that made it, whose logo marks it in pickers. */
+  maker: string;
   kind: LocalModelKind;
   /** Transcribes audio while it's still arriving (live dictation). */
   streams: boolean;

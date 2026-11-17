@@ -20,7 +20,6 @@ export function getProviderApp(provider: string): string | undefined {
 
 export function getProviderLogo(provider: string) {
   if (isLocalProviderId(provider)) return localEntry(provider)?.logo ?? LOCAL_GENERIC_LOGO
-  if (provider === ON_DEVICE.id) return LOCAL_GENERIC_LOGO
   switch (provider) {
     case 'hex':
       return '/images/model-provider/hex.png'

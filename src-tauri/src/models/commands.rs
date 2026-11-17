@@ -13,6 +13,7 @@ use crate::{stt::SttState, tts::TtsState};
 pub struct LocalModelStatus {
     id: &'static str,
     name: &'static str,
+    maker: &'static str,
     kind: Kind,
     streams: bool,
     bytes: u64,
@@ -30,6 +31,7 @@ pub fn local_models(app: AppHandle, state: State<'_, ModelsState>) -> Result<Vec
             Ok(LocalModelStatus {
                 id: m.id,
                 name: m.name,
+                maker: m.maker,
                 kind: m.kind,
                 streams: m.streams,
                 bytes: m.bytes(),

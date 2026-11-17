@@ -8,12 +8,15 @@ import { useCachedImage } from '@shared/hooks/useCachedImage';
 interface ModelAvatarProps {
   org: string;
   size: number;
+  /** Shown instead of the monogram when the org's icon can't load. */
+  fallback?: React.ReactNode;
 }
 
-export const ModelAvatar: React.FC<ModelAvatarProps> = ({ org, size }) => {
+export const ModelAvatar: React.FC<ModelAvatarProps> = ({ org, size, fallback }) => {
   const { src, failed } = useCachedImage(getAvatarUrl(org));
   const box = { width: size, height: size };
 
+  if (failed && fallback) return <>{fallback}</>;
   if (failed) {
     const { monogramSaturation: s, monogramLightness: l } = MODEL_AVATARS_CONFIG;
     return (
