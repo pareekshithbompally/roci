@@ -32,10 +32,6 @@ export function PopoverAnchor(props: ComponentProps<typeof PopoverPrimitive.Anch
   return useContext(AsSheet) ? <>{props.children}</> : <PopoverPrimitive.Anchor {...props} />;
 }
 
-export function PopoverClose(props: ComponentProps<typeof PopoverPrimitive.Close>) {
-  return useContext(AsSheet) ? <DialogPrimitive.Close {...props} /> : <PopoverPrimitive.Close {...props} />;
-}
-
 /** Width lives in a prop: class merging is not available, so a className width would fight the default. */
 const WIDTH = {
   sm: 'w-56',

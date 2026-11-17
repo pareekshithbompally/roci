@@ -6,7 +6,6 @@ import { ScrollArea } from './scroll-area';
 import { useFormFactor } from '@platform/formFactor';
 
 export const Dialog = DialogPrimitive.Root;
-export const DialogTrigger = DialogPrimitive.Trigger;
 export const DialogPortal = DialogPrimitive.Portal;
 export const DialogClose = DialogPrimitive.Close;
 

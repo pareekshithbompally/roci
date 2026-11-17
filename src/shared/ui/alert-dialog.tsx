@@ -4,7 +4,6 @@ import { cn } from './utils';
 import { ALERT_SHEET, SCRIM, SHEET_TITLE, SHEET_DESCRIPTION } from './recipes';
 
 export const AlertDialog = AlertDialogPrimitive.Root;
-export const AlertDialogTrigger = AlertDialogPrimitive.Trigger;
 export const AlertDialogPortal = AlertDialogPrimitive.Portal;
 export const AlertDialogAction = AlertDialogPrimitive.Action;
 export const AlertDialogCancel = AlertDialogPrimitive.Cancel;
