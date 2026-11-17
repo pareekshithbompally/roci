@@ -86,7 +86,9 @@ targets:
     dependencies:
       - framework: libapp.a
         embed: false
+      # A dynamic framework: copied into the app, or the app can't launch.
       - package: RociMLX
+        embed: true
       - sdk: CoreGraphics.framework
       - sdk: Metal.framework
       - sdk: MetalKit.framework
