@@ -32,6 +32,11 @@ export function BottomSheet({ open, onOpenChange, title, size = 'auto', children
         <DialogPrimitive.Content
           ref={contentRef}
           aria-describedby={undefined}
+          // Focus lands on the sheet itself, without scrolling it to a control further down (it opens at its top).
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            contentRef.current?.focus({ preventScroll: true });
+          }}
           className={cn(
             'fixed inset-x-0 bottom-0 z-modal flex flex-col overflow-hidden rounded-t-sheet bg-grouped pb-safe-bottom shadow-overlay focus:outline-none',
             'data-[state=open]:animate-rise-show data-[state=closed]:animate-rise-hide',

@@ -307,7 +307,8 @@ export const GeneralPanel: React.FC = () => {
         </Section>
       )}
 
-      {isTauriEnvironment() && (
+      {/* A folder path means something only where there is a file manager (a Mac); iOS keeps data inside the app. */}
+      {isTauriEnvironment() && platform.hasFileManager && (
         <Section title="Storage Location">
           <div className="flex items-center gap-2 py-3">
             <Icon icon={FolderOpen} size="sm" tone="faint" className="shrink-0" />
@@ -332,12 +333,12 @@ export const GeneralPanel: React.FC = () => {
           {DISK_USAGE_LABELS.map((label) => {
             const entry = diskUsage?.find((d) => d.label === label);
             return (
-              <CardRow key={label} title={label} actions={<Text variant="mono" tone="muted">{entry ? formatBytes(entry.bytes) : PENDING}</Text>} />
+              <CardRow key={label} title={label} actions={<Text variant="figure" tone="muted">{entry ? formatBytes(entry.bytes) : PENDING}</Text>} />
             );
           })}
           <CardRow
             title="Total"
-            actions={<Text variant="mono" className="font-medium">{diskUsage ? formatBytes(diskUsage.reduce((sum, d) => sum + d.bytes, 0)) : PENDING}</Text>}
+            actions={<Text variant="figure">{diskUsage ? formatBytes(diskUsage.reduce((sum, d) => sum + d.bytes, 0)) : PENDING}</Text>}
           />
         </Section>
       )}
@@ -434,7 +435,7 @@ const VersionStatus: React.FC<{
   onCheck: () => void;
 }> = ({ appVersion, appUpdate, upToDate, onCheck }) => (
   <>
-    <Text variant="mono" tone="muted">{appVersion || '…'}</Text>
+    <Text variant="figure" tone="muted">{appVersion || '…'}</Text>
     {appUpdate.status === 'checking' && (
       <Text variant="helper" tone="muted" className="flex items-center gap-1.5">
         <Icon icon={Loader2} size="xs" className="animate-spin" />

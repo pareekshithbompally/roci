@@ -31,7 +31,7 @@ export const MetricRow: React.FC<RowBase & { icon: TileGlyph; title: string; des
     leading={<IconTile icon={icon} />}
     title={title}
     description={description}
-    status={<Figure>{value}</Figure>}
+    actions={<Figure>{value}</Figure>}
     onOpen={onOpen}
     onPointerEnter={onPrefetch}
     onFocus={onPrefetch}

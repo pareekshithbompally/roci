@@ -21,7 +21,7 @@ export const PermissionAction: React.FC<PermissionActionProps> = ({ state, onReq
     );
   }
   if (state === 'needs-request') {
-    return <Button variant="primary" size="sm" onClick={onRequest}>Allow</Button>;
+    return <Button variant="outline" size="sm" onClick={onRequest}>Allow</Button>;
   }
   return <Button variant="outline" size="sm" onClick={onOpenSettings}>Open Settings</Button>;
 };

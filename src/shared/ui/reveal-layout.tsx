@@ -27,7 +27,8 @@ export function RevealLayout({ open, onClose, pane, paneLabel, children }: Revea
 
   useEffect(() => {
     if (!open) return;
-    paneRef.current?.querySelector<HTMLElement>('button, a[href], input')?.focus();
+    // The pane itself takes focus (VoiceOver starts there); a first button would show its focus ring on touch.
+    paneRef.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -37,9 +38,10 @@ export function RevealLayout({ open, onClose, pane, paneLabel, children }: Revea
     <Surface variant="page" className="relative h-screen w-full overflow-hidden">
       <nav
         ref={paneRef}
+        tabIndex={-1}
         aria-label={paneLabel}
         inert={!open || undefined}
-        className="absolute inset-y-0 left-0 flex w-[var(--drawer-start-width)] flex-col pt-safe-top pb-safe-bottom"
+        className="absolute inset-y-0 left-0 flex w-[var(--drawer-start-width)] flex-col pt-safe-top pb-safe-bottom outline-none"
       >
         {pane}
       </nav>

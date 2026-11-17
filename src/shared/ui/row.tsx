@@ -37,6 +37,8 @@ export function RowTitle({ className, ...props }: React.HTMLAttributes<HTMLSpanE
         'group-hover/row:[mask-image:linear-gradient(to_left,transparent_28px,black_48px)]',
         'group-focus-within/row:[mask-image:linear-gradient(to_left,transparent_28px,black_48px)]',
         'group-has-[[data-state=open]]/row:[mask-image:linear-gradient(to_left,transparent_28px,black_48px)]',
+        // Touch has no hover: the row action is always shown, so the title always fades before it.
+        platform.hasTouchScreen && '[mask-image:linear-gradient(to_left,transparent_28px,black_48px)]',
         className,
       )}
       {...props}

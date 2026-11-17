@@ -58,7 +58,8 @@ const SheetRow: React.FC<{ entry: MenuEntry; done: () => void }> = ({ entry, don
   return (
     <CardRow
       title={entry.label}
-      tone={entry.type === 'item' && entry.destructive ? 'danger' : 'accent'}
+      // iOS: actions are tinted (red when destructive); a checkable option is plain text with its checkmark.
+      tone={entry.type === 'check' ? undefined : entry.destructive ? 'danger' : 'accent'}
       onPress={entry.disabled ? undefined : run}
       actions={entry.type === 'check' && entry.checked ? <Icon icon={Check} size="sm" tone="accent" /> : undefined}
     />
