@@ -1,7 +1,7 @@
 import React from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from './utils';
-import { FIELD } from './recipes';
+import { FIELD, LITERAL_TEXT } from './recipes';
 import { Icon } from './icon';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -13,7 +13,9 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 }
 
 /** Canonical single-line text field. */
-export function Input({ icon, trailing, className, ref, ...props }: InputProps) {
+export function Input({ icon, trailing, className, ref, ...fieldProps }: InputProps) {
+  // Addresses are typed as-is: no auto-capital, no autocorrect.
+  const props = fieldProps.type === 'url' || fieldProps.type === 'email' ? { ...LITERAL_TEXT, ...fieldProps } : fieldProps;
   if (trailing) {
     // The field look moves to the frame; the input fills what the buttons leave.
     return (

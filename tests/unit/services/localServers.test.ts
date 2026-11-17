@@ -98,9 +98,17 @@ describe('detectLocalServers', () => {
   });
 
   it('does not probe ports with no known engine', async () => {
-    serve({ 'http://127.0.0.1:8080/v1/models': models('mlx-model') });
+    serve({ 'http://127.0.0.1:9000/v1/models': models('custom') });
     const servers = await detectLocalServers([]);
     expect(servers.filter((s) => s.running)).toEqual([]);
+  });
+
+  it('shows a server on llama.cpp\'s port that is not llama.cpp (MLX, LocalAI) as a generic local server', async () => {
+    serve({ 'http://127.0.0.1:8080/v1/models': models('mlx-model') });
+    const servers = await detectLocalServers([]);
+    expect(servers.filter((s) => s.running)).toEqual([
+      { id: 'local:127.0.0.1:8080', baseUrl: 'http://127.0.0.1:8080/v1', running: true, models: [{ id: 'mlx-model' }] },
+    ]);
   });
 
   it('probes a saved provider at its own URL and skips the known port it covers', async () => {
@@ -167,6 +175,14 @@ describe('normalizeLocalUrl', () => {
   it('rejects empty or invalid input', () => {
     expect(normalizeLocalUrl('  ')).toBeNull();
     expect(normalizeLocalUrl('http://')).toBeNull();
+  });
+
+  it('rejects a bare word (a typo, not a host) and accepts localhost, IPs and dotted names', () => {
+    expect(normalizeLocalUrl('dkjcnwkcjnwnvc')).toBeNull();
+    expect(normalizeLocalUrl('http://server')).toBeNull();
+    expect(normalizeLocalUrl('localhost:11434')).toBe('http://localhost:11434/v1');
+    expect(normalizeLocalUrl('192.168.1.20:8080')).toBe('http://192.168.1.20:8080/v1');
+    expect(normalizeLocalUrl('https://llm.example.com')).toBe('https://llm.example.com/v1');
   });
 });
 

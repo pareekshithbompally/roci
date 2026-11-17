@@ -30,6 +30,8 @@ export type OnboardingPermissionId = 'microphone' | 'system-audio' | 'notificati
 
 export interface OnboardingPermissionCopy {
   title: string;
+  /** What it's for, one sentence; a section's footer is the sentences of the rows it shows. */
+  why: string;
   /** Recording needs it; Continue waits for every required row. */
   required: boolean;
 }
@@ -50,13 +52,13 @@ export const ONBOARDING_CONFIG = {
     subheading: `Roci records your meetings on this ${platform.deviceName}.`,
     order: ['microphone', 'system-audio', 'notifications', 'calendar'] as const,
     rows: {
-      microphone: { title: 'Microphone', required: true },
-      'system-audio': { title: 'System audio', required: true },
-      notifications: { title: 'Notifications', required: false },
-      calendar: { title: 'Calendar', required: false },
+      microphone: { title: 'Microphone', why: 'The microphone records your voice.', required: true },
+      'system-audio': { title: 'System audio', why: 'System audio records the other people on the call.', required: true },
+      notifications: { title: 'Notifications', why: 'Notifications offer to record calls and remind you of meetings.', required: false },
+      calendar: { title: 'Calendar', why: 'Calendar names meetings and reminds you before they start.', required: false },
     } satisfies Record<OnboardingPermissionId, OnboardingPermissionCopy>,
-    required: { title: 'Needed to record', footer: 'The microphone records your voice; system audio records the other people on the call.' },
-    optional: { title: 'Optional', footer: 'Notifications offer to record calls and remind you of meetings. Calendar names meetings and reminds you before they start.' },
+    required: { title: 'Needed to record' },
+    optional: { title: 'Optional' },
   },
   setup: {
     heading: 'Choose your AI',
@@ -79,9 +81,14 @@ export const ONBOARDING_CONFIG = {
       title: 'Local server',
       description: 'Ollama, LM Studio and others',
       heading: 'Connect a local server',
+      /** The servers already running, each with Use. */
+      found: `Found on this ${platform.deviceName}`,
       scanning: 'Looking for servers…',
-      none: 'No server found on this Mac. Enter its address below.',
+      none: `No server found on this ${platform.deviceName}.`,
+      /** One by address, for a server elsewhere or not found. */
       address: 'Server address',
+      addressHint: 'The address of an OpenAI-compatible server, such as Ollama or LM Studio.',
+      addressInvalid: 'Enter an address like http://localhost:11434.',
       placeholder: 'http://localhost:11434',
     },
     remote: {

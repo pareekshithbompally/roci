@@ -1,4 +1,5 @@
-import { getProviderLogo, getProviderTitle } from '@shared/utils/provider.utils'
+import { getProviderApp, getProviderLogo, getProviderTitle } from '@shared/utils/provider.utils'
+import { useAppIcon } from './AppIcon'
 
 interface ProvidersAvatarProps {
   provider: string;
@@ -6,14 +7,16 @@ interface ProvidersAvatarProps {
 }
 
 export const ProvidersAvatar = ({ provider, size = 24 }: ProvidersAvatarProps) => {
-  const logo = getProviderLogo(provider)
+  // A local server's own Mac app icon when it's installed (drawn by macOS), else the provider's logo.
+  const appIcon = useAppIcon(getProviderApp(provider))
+  const logo = appIcon ?? getProviderLogo(provider)
   const title = getProviderTitle(provider)
 
   return logo ? (
     <img
       src={logo}
       alt={`${title} - Logo`}
-      className="object-contain rounded-full"
+      className={appIcon ? 'object-contain' : 'object-contain rounded-full'}
       style={{
         imageRendering: '-webkit-optimize-contrast',
         width: `${size}px`,

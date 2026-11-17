@@ -12,6 +12,9 @@ import { OnboardingIcon } from './OnboardingIcon';
 const COPY = ONBOARDING_CONFIG.permissions;
 const ACTIONS = ONBOARDING_CONFIG.actions;
 
+/** A section's footer: what each row it shows is for. */
+const whyOf = (rows: OnboardingPermission[]) => rows.map((row) => COPY.rows[row.id].why).join(' ');
+
 const PermissionRow: React.FC<{ row: OnboardingPermission }> = ({ row }) => (
   <CardRow
     leading={<OnboardingIcon source={ONBOARDING_ICONS[row.id]} />}
@@ -40,12 +43,12 @@ export const PermissionsStep: React.FC = () => {
       secondary={{ label: ACTIONS.later, onClick: next }}
     >
       {required.length > 0 && (
-        <Section title={COPY.required.title} footer={COPY.required.footer}>
+        <Section title={COPY.required.title} footer={whyOf(required)}>
           {required.map((row) => <PermissionRow key={row.id} row={row} />)}
         </Section>
       )}
       {optional.length > 0 && (
-        <Section title={COPY.optional.title} footer={COPY.optional.footer}>
+        <Section title={COPY.optional.title} footer={whyOf(optional)}>
           {optional.map((row) => <PermissionRow key={row.id} row={row} />)}
         </Section>
       )}

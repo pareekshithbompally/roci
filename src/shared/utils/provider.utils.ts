@@ -13,6 +13,11 @@ function localEntry(provider: string) {
 
 const ON_DEVICE = LOCAL_MODELS_CONFIG.provider
 
+/** The Mac app behind a local server, when its entry names one (its icon is drawn by macOS). */
+export function getProviderApp(provider: string): string | undefined {
+  return isLocalProviderId(provider) ? localEntry(provider)?.app : undefined
+}
+
 export function getProviderLogo(provider: string) {
   if (isLocalProviderId(provider)) return localEntry(provider)?.logo ?? LOCAL_GENERIC_LOGO
   if (provider === ON_DEVICE.id) return LOCAL_GENERIC_LOGO

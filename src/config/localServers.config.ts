@@ -53,15 +53,21 @@ export interface LocalServerEntry {
   /** GET path only this engine serves; null when the port alone identifies it. */
   fingerprint: string | null;
   logo: string;
+  /** Bundle id of the engine's Mac app: when it's installed, macOS draws its icon (else `logo`). */
+  app?: string;
 }
 
 const GENERIC_LOGO = '/images/model-provider/local-server.png';
 
+// Default ports from each engine's docs: Ollama 11434, LM Studio 1234, vLLM 8000, Jan 1337, llama.cpp's llama-server
+// 8080 (also LocalAI and MLX; anything else answering there shows as a generic local server), KoboldCpp 5001.
 export const LOCAL_SERVERS: readonly LocalServerEntry[] = [
-  { id: 'local:ollama', label: 'Ollama', port: 11434, fingerprint: '/api/version', logo: GENERIC_LOGO },
-  { id: 'local:lmstudio', label: 'LM Studio', port: 1234, fingerprint: '/api/v0/models', logo: GENERIC_LOGO },
+  { id: 'local:ollama', label: 'Ollama', port: 11434, fingerprint: '/api/version', logo: GENERIC_LOGO, app: 'com.electron.ollama' },
+  { id: 'local:lmstudio', label: 'LM Studio', port: 1234, fingerprint: '/api/v0/models', logo: GENERIC_LOGO, app: 'ai.elementlabs.lmstudio' },
   { id: 'local:vllm', label: 'vLLM', port: 8000, fingerprint: '/version', logo: GENERIC_LOGO },
-  { id: 'local:jan', label: 'Jan', port: 1337, fingerprint: null, logo: '/images/model-provider/jan.png' },
+  { id: 'local:jan', label: 'Jan', port: 1337, fingerprint: null, logo: '/images/model-provider/jan.png', app: 'jan.ai.app' },
+  { id: 'local:llamacpp', label: 'llama.cpp', port: 8080, fingerprint: '/props', logo: GENERIC_LOGO },
+  { id: 'local:koboldcpp', label: 'KoboldCpp', port: 5001, fingerprint: '/api/extra/version', logo: GENERIC_LOGO },
 ];
 
 /** Logo for a server that isn't a known engine (a custom URL, or port 8080 serving MLX/LocalAI). */

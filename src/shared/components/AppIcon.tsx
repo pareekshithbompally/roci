@@ -18,11 +18,11 @@ interface AppIconProps {
 }
 
 /** Icons never change while the app runs: fetched once per bundle id. */
-export function useAppIcon(app: string): string | null {
+export function useAppIcon(app: string | undefined): string | null {
   const { data } = useQuery({
-    queryKey: queryKeys.appIcon(app),
+    queryKey: queryKeys.appIcon(app ?? ''),
     queryFn: () => invoke<string | null>('app_icon', { app }),
-    enabled: isTauriEnvironment(),
+    enabled: isTauriEnvironment() && !!app,
     staleTime: Infinity,
   });
   return data ?? null;

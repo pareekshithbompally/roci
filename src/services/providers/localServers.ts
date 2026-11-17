@@ -59,13 +59,19 @@ function originOf(baseUrl: string): string {
   return new URL(baseUrl).origin;
 }
 
-/** A typed server address as a base URL (`localhost:9000` → `http://localhost:9000/v1`); null if not a URL. */
+/** A host a server can be at: `localhost`, an IP address, or a name with a dot (a bare word is a typo, not a host). */
+function isServerHost(hostname: string): boolean {
+  return hostname === 'localhost' || hostname.includes('.') || hostname.includes(':') || hostname.startsWith('[');
+}
+
+/** A typed server address as a base URL (`localhost:9000` → `http://localhost:9000/v1`); null if not a server address. */
 export function normalizeLocalUrl(input: string): string | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
   const withScheme = /^https?:\/\//.test(trimmed) ? trimmed : `http://${trimmed}`;
   try {
     const url = new URL(withScheme);
+    if (!isServerHost(url.hostname)) return null;
     const path = url.pathname.replace(/\/+$/, '') || LOCAL_SERVER_API_PATH;
     return `${url.origin}${path}`;
   } catch {
