@@ -8,7 +8,7 @@ import { Icon, type IconSize } from './icon';
 /** Canonical button: colour lives in `variant`, shape in `size`; call sites never pass colour or padding classes. */
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'success' | 'accent' | 'ghost' | 'dangerGhost' | 'link' | 'ai' | 'bar';
 
-export type ButtonSize = 'inline' | 'toolbar' | 'sm' | 'md' | 'icon' | 'iconSm' | 'iconXs' | 'fab';
+export type ButtonSize = 'inline' | 'toolbar' | 'sm' | 'md' | 'lg' | 'icon' | 'iconSm' | 'iconXs' | 'fab';
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary: 'bg-inverse text-inverse hover:opacity-90',
@@ -36,6 +36,8 @@ const SIZE_CLASSES: Record<ButtonSize, string> = {
   toolbar: 'h-control-sm min-w-control-sm px-1.5 text-callout rounded-md',
   sm: 'h-control-sm px-3 text-callout rounded-full',
   md: 'h-control-md px-4 text-body rounded-full',
+  /** A screen's main action (first-run Continue): iOS prominent button height. */
+  lg: 'h-control-lg px-6 text-body rounded-full',
   icon: 'h-control-md w-control-md rounded-full',
   iconSm: 'h-control-sm w-control-sm rounded-full',
   /** Inline row actions (tray rows, list rows) */

@@ -1,6 +1,8 @@
-/** First-run flow copy and the macOS icons it shows: permissions, then AI setup. */
+/** First-run flow copy and the icons it shows: welcome (no recording) or permissions (recording), then AI setup. */
 
+import { Lock, MessageCircle, Sparkles } from 'lucide-react';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
+import { platform } from '@platform/index';
 
 /** System Settings panes ship as ExtensionKit bundles; Launch Services resolves apps by id but not these, so they go by path. */
 const SETTINGS_PANES = '/System/Library/ExtensionKit/Extensions';
@@ -28,29 +30,45 @@ export type OnboardingPermissionId = 'microphone' | 'system-audio' | 'notificati
 
 export interface OnboardingPermissionCopy {
   title: string;
-  detail: string;
   /** Recording needs it; Continue waits for every required row. */
   required: boolean;
 }
 
 export const ONBOARDING_CONFIG = {
+  /** Devices that don't record: what Roci does; access is asked when a feature first needs it. */
+  welcome: {
+    heading: 'Welcome to Roci',
+    features: [
+      { icon: MessageCircle, title: 'Ask anything', detail: 'Chat with the AI you choose, by typing or by voice.' },
+      { icon: Sparkles, title: 'On device or with your key', detail: `Apple Intelligence runs on this ${platform.deviceName}, or connect a provider with your own key.` },
+      { icon: Lock, title: 'Private by default', detail: `Your chats are saved on this ${platform.deviceName} only.` },
+    ],
+  },
+  /** Devices that record: what recording can't work without, asked up front; the rest is optional. */
   permissions: {
-    heading: 'Roci needs your permission to record your meetings.',
+    heading: 'Allow access',
+    subheading: `Roci records your meetings on this ${platform.deviceName}.`,
     order: ['microphone', 'system-audio', 'notifications', 'calendar'] as const,
     rows: {
-      microphone: { title: 'Microphone', detail: 'Records your voice', required: true },
-      'system-audio': { title: 'System audio', detail: 'Records the other people on the call', required: true },
-      notifications: { title: 'Notifications', detail: 'Offers to record calls and reminds you of meetings', required: false },
-      calendar: { title: 'Calendar', detail: 'Names meetings and reminds you before they start', required: false },
+      microphone: { title: 'Microphone', required: true },
+      'system-audio': { title: 'System audio', required: true },
+      notifications: { title: 'Notifications', required: false },
+      calendar: { title: 'Calendar', required: false },
     } satisfies Record<OnboardingPermissionId, OnboardingPermissionCopy>,
-    optional: 'Optional',
+    required: { title: 'Needed to record', footer: 'The microphone records your voice; system audio records the other people on the call.' },
+    optional: { title: 'Optional', footer: 'Notifications offer to record calls and remind you of meetings. Calendar names meetings and reminds you before they start.' },
   },
   setup: {
-    heading: 'Choose the AI Roci uses',
-    subheading: 'For chat, summaries and transcripts. You can change it any time in Settings.',
+    heading: 'Choose your AI',
+    /** The footer, one sentence per option shown, then the last line. */
+    notes: {
+      apple: `Apple Intelligence runs privately on this ${platform.deviceName}, with no keys.`,
+      local: `A local server, such as Ollama or LM Studio, runs models on this ${platform.deviceName}.`,
+      remote: 'An online provider, such as OpenAI, Anthropic or Google, uses your own API key.',
+      change: 'You can change it any time in Settings.',
+    },
     local: {
-      title: 'Local',
-      description: 'Ollama, LM Studio and other servers',
+      title: 'Local server',
       heading: 'Connect a local server',
       scanning: 'Looking for servers…',
       none: 'No server found on this Mac. Enter its address below.',
@@ -58,8 +76,7 @@ export const ONBOARDING_CONFIG = {
       placeholder: 'http://localhost:11434',
     },
     remote: {
-      title: 'Remote',
-      description: 'OpenAI, Anthropic, Google, with a key',
+      title: 'Online provider',
     },
     checking: 'Checking…',
   },

@@ -20,7 +20,6 @@ export const INTEGRATIONS_CONFIG = {
     icon: '/images/apple-intelligence-sm.png',
     /** The welcome screen's third option: every basic job on Apple's models in one click. */
     onboarding: {
-      description: `Private, on this ${platform.deviceName}. No keys`,
       needsSettings: `Turn it on in ${platform.settingsAppName}`,
     },
     /** Why the model can't run, per availability reason. */

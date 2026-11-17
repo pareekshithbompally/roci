@@ -39,7 +39,7 @@ const FOOTER = {
   imports: 'How many imported audio files Roci processes at the same time.',
   afterRecording: 'Transcribe After Recording also writes the summary.',
   rebuild: 'Rebuild All wipes and re-indexes every meeting and chat.',
-  setup: 'Run Setup Again walks through permissions and AI setup.',
+  setup: 'Run Setup Again shows the first-run steps, including choosing your AI.',
 } as const;
 
 const CAPTURE_HINT: Record<(typeof CAPTURE_SOURCES)[number], string> = {

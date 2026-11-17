@@ -1,7 +1,7 @@
 /** First-run Local option: a server found on this Mac, or one by address; picking one finishes setup. */
 
 import React, { useState } from 'react';
-import { Button, Callout, Card, CardRow, ICON_SIZE_PX, Input, Text } from '@shared/ui';
+import { Button, Callout, CardRow, ICON_SIZE_PX, Input, Section, Text, WelcomeStep } from '@shared/ui';
 import { ProvidersAvatar } from '@shared/components';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { getProviderTitle } from '@shared/utils/provider.utils';
@@ -47,11 +47,9 @@ export const LocalSetup: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      <Text as="h1" variant="pageTitle" className="text-center">{COPY.heading}</Text>
-
+    <WelcomeStep title={COPY.heading} secondary={{ label: ACTIONS.back, onClick: () => setStep('setup') }}>
       {running.length > 0 ? (
-        <Card tone="brand">
+        <Section>
           {running.map((row) => (
             <CardRow
               key={row.id}
@@ -61,7 +59,7 @@ export const LocalSetup: React.FC = () => {
               actions={<Button variant="outline" size="sm" onClick={() => use(row)}>{ACTIONS.use}</Button>}
             />
           ))}
-        </Card>
+        </Section>
       ) : (
         <Text as="p" variant="helper" tone="muted" className="text-center">
           {isScanning ? COPY.scanning : COPY.none}
@@ -87,10 +85,6 @@ export const LocalSetup: React.FC = () => {
         </Button>
       </form>
       {error && <Callout variant="error">{error}</Callout>}
-
-      <Button variant="ghost" size="sm" onClick={() => setStep('setup')} className="self-center">
-        {ACTIONS.back}
-      </Button>
-    </div>
+    </WelcomeStep>
   );
 };

@@ -66,3 +66,5 @@ export { RevealLayout } from './reveal-layout';
 export type { RevealLayoutProps } from './reveal-layout';
 export { Chip } from './chip';
 export type { ChipProps } from './chip';
+export { WelcomeFrame, WelcomeStep, FeatureRow } from './welcome-frame';
+export type { WelcomeFrameProps, WelcomeStepProps, WelcomeAction, FeatureRowProps } from './welcome-frame';

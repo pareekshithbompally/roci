@@ -1,8 +1,7 @@
-/** First-run step 2: the AI Roci uses. Apple Intelligence on this Mac, a local server, a remote provider, or later. */
+/** First-run step: the AI Roci uses. Apple Intelligence on this device, a local server, an online provider, or later. */
 
 import React from 'react';
-import { Button, Text } from '@shared/ui';
-import { ActionCard } from '@shared/components';
+import { CardRow, Section, WelcomeStep } from '@shared/ui';
 import { useAppleIntelligenceControls, useAppleIntelligenceSetup } from '@features/integrations';
 import { useOpenAISetup } from '@features/settings';
 import type { IntegrationAccess } from '@features/integrations';
@@ -16,19 +15,28 @@ import { OnboardingIcon } from './OnboardingIcon';
 const COPY = ONBOARDING_CONFIG.setup;
 const APPLE = INTEGRATIONS_CONFIG.appleIntelligence;
 
-/** The tile's state, in place of its description; none once Apple Intelligence is ready. */
-function appleStatus(access: IntegrationAccess, reason?: string): React.ReactNode {
-  if (access === 'unknown') return <Text as="p" variant="helper" tone="faint" truncate>{COPY.checking}</Text>;
-  if (access === 'needs-settings') return <Text as="p" variant="helper" tone="warning" truncate>{APPLE.onboarding.needsSettings}</Text>;
-  if (access === 'unavailable') return <Text as="p" variant="helper" tone="faint" truncate>{reason}</Text>;
+/** The row's state while it isn't ready (what it is lives in the footer); nothing once it is. */
+function appleState(access: IntegrationAccess, reason?: string): string | undefined {
+  if (access === 'unknown') return COPY.checking;
+  if (access === 'needs-settings') return APPLE.onboarding.needsSettings;
+  if (access === 'unavailable') return reason;
   return undefined;
 }
 
-/** Ready: set up and go. Off: open System Settings and stay (returning re-checks). Unsupported: disabled, with why. */
-const AppleTile: React.FC = () => {
+/** One sentence per option this device offers, then how to change it later. */
+const FOOTER = [
+  platform.hasAppleIntelligence && COPY.notes.apple,
+  platform.supportsLocalServers && COPY.notes.local,
+  COPY.notes.remote,
+  COPY.notes.change,
+].filter(Boolean).join(' ');
+
+/** Ready: set up and go. Off: open System Settings and stay (returning re-checks). Unsupported or checking: not tappable. */
+const AppleRow: React.FC = () => {
   const { access, openSettings, unavailableReason } = useAppleIntelligenceControls();
   const setup = useAppleIntelligenceSetup();
   const finish = useFinishOnboarding();
+  const usable = access !== 'unknown' && access !== 'unavailable';
 
   const choose = () => {
     if (access === 'needs-settings') return openSettings();
@@ -37,14 +45,11 @@ const AppleTile: React.FC = () => {
   };
 
   return (
-    <ActionCard
-      icon={<OnboardingIcon source={ONBOARDING_ICONS.appleIntelligence} />}
-      tone="brand"
+    <CardRow
+      leading={<OnboardingIcon source={ONBOARDING_ICONS.appleIntelligence} />}
       title={APPLE.title}
-      description={APPLE.onboarding.description}
-      status={appleStatus(access, unavailableReason)}
-      disabled={access === 'unknown' || access === 'unavailable'}
-      onClick={choose}
+      description={appleState(access, unavailableReason)}
+      onOpen={usable ? choose : undefined}
     />
   );
 };
@@ -54,37 +59,29 @@ export const SetupStep: React.FC = () => {
   const finish = useFinishOnboarding();
   const openAISetup = useOpenAISetup();
 
+  // Settings opens at Providers over the app, where the key is entered.
   const openProviders = () => {
-    openAISetup();
     finish();
+    openAISetup();
   };
 
   return (
-    <div className="flex flex-col items-center gap-6">
-      <div className="flex flex-col items-center gap-1 text-center">
-        <Text as="h1" variant="pageTitle">{COPY.heading}</Text>
-        <Text as="p" variant="helper" tone="muted">{COPY.subheading}</Text>
-      </div>
-      <div className="flex w-full flex-col gap-3">
-        {platform.hasAppleIntelligence && <AppleTile />}
+    <WelcomeStep title={COPY.heading} secondary={{ label: ONBOARDING_CONFIG.actions.later, onClick: finish }}>
+      <Section footer={FOOTER}>
+        {platform.hasAppleIntelligence && <AppleRow />}
         {platform.supportsLocalServers && (
-          <ActionCard
-            icon={<OnboardingIcon source={ONBOARDING_ICONS.local} />}
-            tone="brand"
+          <CardRow
+            leading={<OnboardingIcon source={ONBOARDING_ICONS.local} />}
             title={COPY.local.title}
-            description={COPY.local.description}
-            onClick={() => setStep('local')}
+            onOpen={() => setStep('local')}
           />
         )}
-        <ActionCard
-          icon={<OnboardingIcon source={ONBOARDING_ICONS.remote} />}
-          tone="brand"
+        <CardRow
+          leading={<OnboardingIcon source={ONBOARDING_ICONS.remote} />}
           title={COPY.remote.title}
-          description={COPY.remote.description}
-          onClick={openProviders}
+          onOpen={openProviders}
         />
-      </div>
-      <Button variant="ghost" size="sm" onClick={finish}>{ONBOARDING_CONFIG.actions.later}</Button>
-    </div>
+      </Section>
+    </WelcomeStep>
   );
 };

@@ -15,7 +15,6 @@ export const UI_CONFIG = {
       dragHeight: 36,
     },
     /** Onboarding panel's top edge: pinned, so a taller or shorter next step grows downward instead of re-centring. */
-    onboardingPanelTop: '14vh',
     /** Meeting chat, anchored bottom-right `inset` from the window edges: its floating button, or its window (never taller than the space below the titlebar). */
     meetingChat: {
       inset: 16,
@@ -32,8 +31,6 @@ export const UI_CONFIG = {
     finder: '/images/macos-finder-sm.png',
   },
 
-  /** A choice card's icon slot: every icon centres in the same box, so titles line up whatever the icon's width. */
-  choiceIconSlot: { width: 64, height: 44 },
   /** A glyph on an app-icon-sized tile, so a bare glyph weighs the same as the app icons beside it. */
   glyphTile: { tile: 34, glyph: 24 },
   /** Bar chart (usage trends): plot height (taller on touch), bar cap and gap, data-end radius, axis gutters, label density, dimmed bars. */

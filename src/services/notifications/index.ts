@@ -46,7 +46,13 @@ export async function postNotice(notice: Notice): Promise<void> {
   await call('post', { notice });
 }
 
-/** macOS delivers it at `at` (wall clock), even while Roci is idle; replaces any timed notice with the same id. */
+/** Asks the first time the user turns on something that notifies (the system prompts only while undecided), as Apple
+ *  advises; call it from that user action, never at launch. */
+export async function askNotificationsOnFirstUse(): Promise<void> {
+  if ((await notificationStatus()) === 'not_determined') await requestNotifications();
+}
+
+/** The system delivers it at `at` (wall clock), even while Roci is idle; replaces any timed notice with the same id. */
 export async function scheduleNotice(notice: Notice, at: Date): Promise<void> {
   if (!isTauriEnvironment()) return;
   await call('schedule', { notice, atMs: at.getTime() });

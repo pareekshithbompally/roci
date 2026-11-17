@@ -1,7 +1,7 @@
 /** To-do reminders as native timed notifications, persisted in roci.db so launch re-arms the ones still ahead. */
 
 import { NOTIFICATIONS_CONFIG } from '@config/notifications.config';
-import { onNotificationResponse, removeNotices, scheduleNotice, type Notice } from '@services/notifications';
+import { askNotificationsOnFirstUse, onNotificationResponse, removeNotices, scheduleNotice, type Notice } from '@services/notifications';
 import { store } from './db';
 import type { ReminderEntry } from '@shared/types';
 import { hashToNotificationId, formatReminderDate } from '@shared/utils/todo.utils';
@@ -56,6 +56,8 @@ class ReminderService {
       console.warn('[ReminderService] Cannot schedule reminder in the past');
       return false;
     }
+    // Setting a reminder is the first use of notifications on a device that didn't ask during setup.
+    await askNotificationsOnFirstUse();
     await scheduleNotice(reminderNotice(params), fireAt);
     await store.reminders.upsert(params.todoId, hashToNotificationId(params.todoId), fireAt.getTime());
     console.log(`[ReminderService] Scheduled reminder at ${formatReminderDate(params.reminderDateTime)}`);
