@@ -107,7 +107,7 @@ export const ToolsPicker: React.FC = () => {
         )}
       </CommandGroup>
 
-      {platform.supportsChildProcessMcp && modelSupportsTools && (
+      {platform.hasMcp && modelSupportsTools && (
         <CommandGroup heading="MCP servers">
           {liveServers.map((group) => (
             <GroupItem key={group.key} group={group} catalog={catalog} flyout={flyout} setFlyout={setFlyout} />
@@ -136,7 +136,7 @@ export const ToolsPicker: React.FC = () => {
         </CommandGroup>
       )}
 
-      {platform.supportsChildProcessMcp && (
+      {platform.hasMcp && (
         <>
           <CommandSeparator />
           <CommandGroup>

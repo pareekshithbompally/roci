@@ -1,5 +1,7 @@
 /** MCP defaults, events and limits for the settings panel and tool bridge; Rust owns `mcp_config.json`. */
 
+import type { PlatformCapability } from '@platform/index';
+
 export type McpTransport = 'stdio' | 'http' | 'sse';
 
 export interface McpServerConfig {
@@ -52,11 +54,12 @@ export const MCP_CONFIG = {
   updateEvent: 'mcp-update',
   /** Directory of public MCP servers, linked from the panel header. */
   directoryUrl: 'https://mcp.so/',
+  /** `requires`: the device capability a transport needs (launched programs run only on the Mac). */
   transports: [
-    { value: 'stdio', label: 'STDIO' },
+    { value: 'stdio', label: 'STDIO', requires: 'canLaunchMcpServers' },
     { value: 'http', label: 'HTTP' },
     { value: 'sse', label: 'SSE' },
-  ] as const satisfies ReadonlyArray<{ value: McpTransport; label: string }>,
+  ] as const satisfies ReadonlyArray<{ value: McpTransport; label: string; requires?: PlatformCapability }>,
   /** Bounds for the runtime settings inputs. */
   minToolCallTimeoutSeconds: 1,
   toolOutputCharsStep: 1_000,

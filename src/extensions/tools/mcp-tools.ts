@@ -18,7 +18,7 @@ export async function loadMcpTools(
   reservedNames: ReadonlySet<string>,
   disabledKeys: ReadonlySet<string> = new Set(),
 ): Promise<ToolDefinition[]> {
-  if (!platform.supportsChildProcessMcp || !isTauriEnvironment()) return [];
+  if (!platform.hasMcp || !isTauriEnvironment()) return [];
   try {
     const [tools, config] = await Promise.all([mcpService.getTools(), mcpService.getConfig()]);
     const gate = createApprovalGate(config.mcpSettings);

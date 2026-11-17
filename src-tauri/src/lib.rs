@@ -39,7 +39,6 @@ mod mlx;
 mod open_native;
 #[cfg(desktop)]
 mod downloads;
-#[cfg(desktop)]
 mod mcp;
 #[cfg(desktop)]
 mod mcp_server;

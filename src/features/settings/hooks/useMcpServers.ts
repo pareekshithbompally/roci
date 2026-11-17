@@ -14,7 +14,7 @@ import type { McpServerInfo } from '@services/mcp.service';
 import { platform } from '@platform/index';
 
 /** MCP servers run as child processes, so only inside the app on a device that launches them. */
-const mcpAvailable = (): boolean => platform.supportsChildProcessMcp && isTauriEnvironment();
+const mcpAvailable = (): boolean => platform.hasMcp && isTauriEnvironment();
 
 export function useMcpConfig() {
   return useQuery({

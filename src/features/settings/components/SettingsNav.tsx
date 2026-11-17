@@ -26,7 +26,7 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   { id: 'integrations', label: 'Integrations', icon: Puzzle, group: 'App', available: hasIntegrations },
   { id: 'defaultModels', label: 'Default Models', icon: Sparkles, group: 'AI' },
   { id: 'providers', label: 'Providers', icon: Box, group: 'AI' },
-  { id: 'mcp', label: 'MCP Servers', icon: SiModelcontextprotocol, group: 'AI', available: platform.supportsChildProcessMcp },
+  { id: 'mcp', label: 'MCP Servers', icon: SiModelcontextprotocol, group: 'AI', available: platform.hasMcp },
   { id: 'usage', label: 'Usage', icon: ChartColumn, group: 'Activity' },
 ];
 

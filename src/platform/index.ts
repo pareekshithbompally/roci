@@ -32,8 +32,10 @@ export const platform = {
   hasCallDetection: mac,
   /** Inference servers on this machine (Ollama, LM Studio …). */
   supportsLocalServers: mac,
-  /** MCP servers launched as child processes. */
-  supportsChildProcessMcp: mac,
+  /** MCP servers: remote ones (Streamable HTTP) everywhere. */
+  hasMcp: apple,
+  /** MCP servers Roci launches as programs (stdio): iOS doesn't let apps start other programs. */
+  canLaunchMcpServers: mac,
   /** Serves Roci's tools to coding agents over a local socket. */
   hasCodingAgents: mac,
   /** Downloads models and runs them on this device: MLX (chat, search, voices) and transcribe.cpp (speech). */

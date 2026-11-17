@@ -5,6 +5,7 @@ import { isRecord } from '@shared/utils/validators';
 import type { McpServerConfig, McpTransport } from '@config/mcp.config';
 import { pairsToRecord } from '@features/settings/components/shared';
 import type { KeyValuePair } from '@features/settings/components/shared';
+import { platform } from '@platform/index';
 
 export interface McpServerForm {
   name: string;
@@ -19,9 +20,12 @@ export interface McpServerForm {
 
 export type McpServerEntry = [name: string, config: McpServerConfig];
 
+/** The transports this device can connect over (launched programs only on the Mac). */
+export const DEVICE_TRANSPORTS = MCP_CONFIG.transports.filter((t) => !('requires' in t) || platform[t.requires]);
+
 export const EMPTY_FORM: McpServerForm = {
   name: '',
-  transport: 'stdio',
+  transport: DEVICE_TRANSPORTS[0].value,
   command: '',
   args: [],
   env: [],

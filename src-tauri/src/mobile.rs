@@ -2,7 +2,7 @@
 
 use tauri::{App, AppHandle, Builder, Manager, RunEvent, WebviewWindowBuilder, Wry};
 
-use crate::{mlx, models, stt, tts};
+use crate::{mcp, mlx, models, stt, tts};
 
 unsafe extern "C" {
   /// native/RociWebView.swift: pinned page, resized above the keyboard, no form toolbar.
@@ -13,9 +13,10 @@ pub fn extend_window(window: WebviewWindowBuilder<'_, Wry, AppHandle>) -> Webvie
   window
 }
 
-/// On-device models (MLX chat, meeting search and voices; transcribe.cpp speech): catalog, downloads and engines.
+/// On-device models (MLX chat, meeting search and voices; transcribe.cpp speech) and remote MCP servers.
 pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
   builder
+    .manage(mcp::McpState::default())
     .manage(models::ModelsState::default())
     .manage(mlx::MlxState::default())
     .manage(stt::SttState::default())
@@ -37,12 +38,23 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       tts::commands::tts_voices,
       tts::commands::tts_speak,
       tts::commands::tts_stop,
+      mcp::commands::get_mcp_configs,
+      mcp::commands::save_mcp_configs,
+      mcp::commands::activate_mcp_server,
+      mcp::commands::deactivate_mcp_server,
+      mcp::commands::get_connected_mcp_servers,
+      mcp::commands::get_mcp_server_info,
+      mcp::commands::get_mcp_tools,
+      mcp::commands::call_mcp_tool,
+      mcp::commands::cancel_mcp_tool_call,
     ])
 }
 
 pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
   // On-device model loads show in the activity tray.
   mlx::report_loads(app.handle());
+  // MCP: connect the remote servers the user left enabled.
+  tauri::async_runtime::spawn(mcp::start_active_servers(app.handle().clone()));
   if let Some(window) = app.get_webview_window("main") {
     // SAFETY: `inner()` is the live WKWebView; the closure runs on the main thread, where UIKit must be used.
     window.with_webview(|webview| unsafe { roci_webview_configure(webview.inner()) })?;

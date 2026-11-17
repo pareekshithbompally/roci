@@ -3,41 +3,31 @@
 use rmcp::{
     model::{ClientCapabilities, ClientConfig, Implementation},
     service::RunningService,
-    transport::{
-        streamable_http_client::StreamableHttpClientTransportConfig,
-        StreamableHttpClientTransport, TokioChildProcess,
-    },
+    transport::{streamable_http_client::StreamableHttpClientTransportConfig, StreamableHttpClientTransport},
     RoleClient, ServiceExt,
 };
 use serde_json::Value;
 use std::{
     collections::{HashMap, HashSet},
-    process::Stdio,
     sync::Arc,
     time::Duration,
 };
 use tauri::{async_runtime::JoinHandle, AppHandle, Emitter, Manager};
 use tokio::{
-    io::AsyncReadExt,
-    process::{ChildStderr, Command},
     sync::{oneshot, Mutex},
     time::{sleep, timeout},
 };
 
 use super::{
     config::{self, McpSettings, Transport},
-    shell_path, MCP_UPDATE_EVENT,
+    MCP_UPDATE_EVENT,
 };
 
 pub type Service = RunningService<RoleClient, ClientConfig>;
 
 /// Health probe cadence; slow because every probe is a tools/list the server may log to stderr.
 const HEALTH_INTERVAL: Duration = Duration::from_secs(30);
-const HEALTH_TIMEOUT: Duration = Duration::from_secs(2);
-/// A server that exits within this window after `initialize` failed to start.
-const STARTUP_SETTLE: Duration = Duration::from_millis(500);
-const VERIFY_ATTEMPTS: u32 = 3;
-const VERIFY_BACKOFF: Duration = Duration::from_secs(1);
+pub(super) const HEALTH_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// All MCP runtime state, managed by Tauri.
 #[derive(Default)]
@@ -50,11 +40,12 @@ pub struct McpState {
     pub(super) cancellations: Mutex<HashMap<String, oneshot::Sender<()>>>,
     starting: Mutex<HashSet<String>>,
     monitors: Mutex<HashMap<String, JoinHandle<()>>>,
-    /// stdio child PIDs (each a process-group leader), for teardown.
-    pids: std::sync::Mutex<HashMap<String, u32>>,
+    /// Launched servers' process groups, for teardown (the Mac only).
+    #[cfg(desktop)]
+    pub(super) processes: super::stdio::Processes,
 }
 
-fn client_info() -> ClientConfig {
+pub(super) fn client_info() -> ClientConfig {
     ClientConfig::new(
         ClientCapabilities::default(),
         Implementation::new(env!("APP_NAME"), env!("CARGO_PKG_VERSION")),
@@ -122,17 +113,23 @@ pub async fn start_server(app: &AppHandle, name: &str, entry: Value) -> Result<(
 async fn connect_and_register(app: &AppHandle, name: &str, entry: &Value) -> Result<(), String> {
     let transport = config::parse_transport(entry)
         .ok_or_else(|| format!("Invalid configuration for MCP server '{name}'"))?;
-    let is_stdio = matches!(transport, Transport::Stdio { .. });
+    #[cfg(desktop)]
+    let launched = matches!(transport, Transport::Stdio { .. });
     let service = match transport {
         Transport::Http { url, headers, timeout } => connect_http(&url, &headers, timeout).await?,
-        Transport::Stdio { command, args, env } => connect_stdio(app, name, &command, &args, &env).await?,
+        #[cfg(desktop)]
+        Transport::Stdio { command, args, env } => super::stdio::connect(app, name, &command, &args, &env).await?,
+        #[cfg(mobile)]
+        Transport::Stdio { .. } => return Err(format!("'{name}' is launched as a program, which runs only on the Mac")),
     };
     log::info!("[mcp] connected {name}: {:?}", service.peer_info().map(|p| p.server_info.clone()));
     app.state::<McpState>().servers.lock().await.insert(name.to_string(), Arc::new(service));
 
-    if is_stdio {
-        verify_stdio_server(app, name).await?;
+    #[cfg(desktop)]
+    if launched {
+        super::stdio::verify(app, name).await?;
     }
+
     emit_update(app, name);
     Ok(())
 }
@@ -166,86 +163,6 @@ fn header_map(headers: &[(String, String)]) -> reqwest::header::HeaderMap {
             Some((name, value))
         })
         .collect()
-}
-
-async fn connect_stdio(
-    app: &AppHandle,
-    name: &str,
-    command: &str,
-    args: &[String],
-    env: &[(String, String)],
-) -> Result<Service, String> {
-    let mut cmd = Command::new(command);
-    if let Some(path) = shell_path::login_path().await {
-        cmd.env("PATH", path);
-    }
-    cmd.args(args).envs(env.iter().cloned()).kill_on_drop(true);
-    // Process-group leader so teardown reaches the grandchildren `npx`/`uvx` fork.
-    cmd.process_group(0);
-
-    let (process, stderr) = TokioChildProcess::builder(cmd)
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| format!("Failed to run '{command}' for MCP server '{name}': {e}"))?;
-    let pid = process.id();
-
-    match client_info().serve(process).await {
-        Ok(service) => {
-            if let Some(pid) = pid {
-                app.state::<McpState>().pids.lock().expect("pids lock").insert(name.to_string(), pid);
-            }
-            if let Some(stderr) = stderr {
-                tauri::async_runtime::spawn(drain_stderr(name.to_string(), stderr));
-            }
-            Ok(service)
-        }
-        Err(e) => Err(startup_error(name, &e.to_string(), stderr).await),
-    }
-}
-
-/// Prefer the server's own stderr over rmcp's opaque handshake error.
-async fn startup_error(name: &str, error: &str, stderr: Option<ChildStderr>) -> String {
-    let mut buffer = String::new();
-    if let Some(mut stream) = stderr {
-        let _ = timeout(HEALTH_TIMEOUT, stream.read_to_string(&mut buffer)).await;
-    }
-    let detail = if buffer.trim().is_empty() { error } else { buffer.trim() };
-    format!("Failed to start MCP server '{name}': {detail}")
-}
-
-/// Keep the stderr pipe open (a closed pipe SIGPIPEs the server) and log it.
-async fn drain_stderr(name: String, mut stderr: ChildStderr) {
-    let mut buf = [0u8; 1024];
-    while let Ok(n) = stderr.read(&mut buf).await {
-        if n == 0 {
-            break;
-        }
-        for line in String::from_utf8_lossy(&buf[..n]).lines().filter(|l| !l.trim().is_empty()) {
-            log::info!("[mcp-stderr:{name}] {line}");
-        }
-    }
-}
-
-/// Fail a stdio server that exits right after `initialize`; wait out one slow to answer tools/list.
-async fn verify_stdio_server(app: &AppHandle, name: &str) -> Result<(), String> {
-    sleep(STARTUP_SETTLE).await;
-    let state = app.state::<McpState>();
-    for attempt in 1..=VERIFY_ATTEMPTS {
-        let probe = {
-            let servers = state.servers.lock().await;
-            let Some(service) = servers.get(name) else {
-                return Err(format!("MCP server '{name}' quit immediately after starting"));
-            };
-            timeout(HEALTH_TIMEOUT, service.list_all_tools()).await
-        };
-        if matches!(probe, Ok(Ok(_))) {
-            return Ok(());
-        }
-        log::warn!("[mcp] {name} tools/list not ready (attempt {attempt}/{VERIFY_ATTEMPTS})");
-        sleep(VERIFY_BACKOFF).await;
-    }
-    // Proceed anyway: the health monitor takes over from here.
-    Ok(())
 }
 
 // ── Monitor ──
@@ -299,7 +216,7 @@ async fn reconnect_with_backoff(app: &AppHandle, name: &str, entry: &Value, fail
 
 // ── Stop ──
 
-/// Remove a live connection, close it, and reap its process group.
+/// Remove a live connection, close it, and (launched servers) reap its process group.
 async fn drop_connection(app: &AppHandle, name: &str) {
     let state = app.state::<McpState>();
     let service = state.servers.lock().await.remove(name);
@@ -307,8 +224,8 @@ async fn drop_connection(app: &AppHandle, name: &str) {
     if let Some(Ok(service)) = service.map(Arc::try_unwrap) {
         let _ = service.cancel().await;
     }
-    let pid = state.pids.lock().expect("pids lock").remove(name);
-    kill_group(pid);
+    #[cfg(desktop)]
+    state.processes.reap(name);
 }
 
 /// User turned a server off: forget it, stop monitoring, disconnect.
@@ -322,18 +239,3 @@ pub async fn stop_server(app: &AppHandle, name: &str) {
     emit_update(app, name);
 }
 
-/// Last-resort teardown on app exit: signal every server's process group so no `npx`/`node` outlives Roci.
-pub fn kill_all_children(app: &AppHandle) {
-    let Some(state) = app.try_state::<McpState>() else { return };
-    let pids: Vec<u32> = state.pids.lock().expect("pids lock").drain().map(|(_, pid)| pid).collect();
-    for pid in pids {
-        kill_group(Some(pid));
-    }
-}
-
-fn kill_group(pid: Option<u32>) {
-    if let Some(pid) = pid.and_then(|p| libc::pid_t::try_from(p).ok()) {
-        // SAFETY: killpg only signals; pid is a group we created (pgid == pid).
-        unsafe { libc::killpg(pid, libc::SIGTERM) };
-    }
-}

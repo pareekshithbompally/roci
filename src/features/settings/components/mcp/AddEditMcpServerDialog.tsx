@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { Braces } from 'lucide-react';
-import { MCP_CONFIG } from '@config/mcp.config';
 import type { McpServerConfig } from '@config/mcp.config';
 import { Button, IconButton, Tabs, Text, Textarea } from '@shared/ui';
 import { FormDialog, KeyValueEditor, SettingsInput, StringListEditor } from '@features/settings/components/shared';
@@ -14,6 +13,7 @@ import {
   validateForm,
   type McpServerEntry,
   type McpServerForm,
+  DEVICE_TRANSPORTS,
 } from './mcpServerForm';
 
 const JSON_PLACEHOLDER = `{
@@ -141,7 +141,7 @@ const ServerFormFields: React.FC<ServerFormFieldsProps> = ({ form, patch, autoFo
     <div className="space-y-2">
       <Text variant="bodyStrong" tone="muted">Transport</Text>
       <div>
-        <Tabs items={MCP_CONFIG.transports} value={form.transport} onValueChange={(transport) => patch({ transport })} />
+        <Tabs items={DEVICE_TRANSPORTS} value={form.transport} onValueChange={(transport) => patch({ transport })} />
       </div>
     </div>
 

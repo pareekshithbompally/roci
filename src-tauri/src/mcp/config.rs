@@ -7,29 +7,19 @@ use tauri::{AppHandle, Manager};
 
 const CONFIG_FILE: &str = "mcp_config.json";
 
-/// Starter servers, all off until enabled; only those that run without placeholder paths or keys.
-const DEFAULT_MCP_CONFIG: &str = r#"{
-  "mcpServers": {
-    "fetch": {
-      "command": "uvx",
-      "args": ["mcp-server-fetch"],
-      "env": {},
-      "active": false
-    },
-    "sequential-thinking": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
-      "env": {},
-      "active": false
-    },
-    "browsermcp": {
-      "command": "npx",
-      "args": ["@browsermcp/mcp"],
-      "env": {},
-      "active": false
-    }
-  },
-  "mcpSettings": {
+/// Starter servers in a new `mcp_config.json`, all off until enabled: on the Mac, launched programs that need no
+/// placeholder paths or keys; iPhone and iPad connect only to remote servers, so they start with none.
+#[cfg(desktop)]
+const STARTER_SERVERS: &str = r#"{
+    "fetch": { "command": "uvx", "args": ["mcp-server-fetch"], "env": {}, "active": false },
+    "sequential-thinking": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"], "env": {}, "active": false },
+    "browsermcp": { "command": "npx", "args": ["@browsermcp/mcp"], "env": {}, "active": false }
+  }"#;
+#[cfg(mobile)]
+const STARTER_SERVERS: &str = "{}";
+
+/// Runtime settings a new `mcp_config.json` starts with.
+const STARTER_SETTINGS: &str = r#"{
     "toolCallTimeoutSeconds": 30,
     "maxToolOutputChars": 40000,
     "baseRestartDelayMs": 1000,
@@ -37,8 +27,12 @@ const DEFAULT_MCP_CONFIG: &str = r#"{
     "backoffMultiplier": 2.0,
     "allowAllTools": false,
     "trustedServers": []
-  }
-}"#;
+  }"#;
+
+/// The first `mcp_config.json` on this device.
+fn default_config() -> String {
+    format!("{{\n  \"mcpServers\": {STARTER_SERVERS},\n  \"mcpSettings\": {STARTER_SETTINGS}\n}}\n")
+}
 
 /// Runtime settings Rust acts on; serde ignores the webview-owned fields (tool permissions).
 #[derive(Debug, Clone, Deserialize)]
@@ -81,6 +75,8 @@ impl McpSettings {
 /// How to reach one server, parsed from its `mcpServers` entry.
 #[derive(Debug, Clone)]
 pub enum Transport {
+    /// A program Roci launches (the Mac only; iPhone and iPad report it as unsupported).
+    #[cfg_attr(mobile, expect(dead_code, reason = "launched servers run only on the Mac"))]
     Stdio {
         command: String,
         args: Vec<String>,
@@ -155,7 +151,7 @@ fn config_path(app: &AppHandle) -> Result<PathBuf, String> {
 pub fn read(app: &AppHandle) -> Result<Value, String> {
     let path = config_path(app)?;
     if !path.exists() {
-        fs::write(&path, DEFAULT_MCP_CONFIG)
+        fs::write(&path, default_config())
             .map_err(|e| format!("Failed to create MCP config: {e}"))?;
     }
     let body = fs::read_to_string(&path).map_err(|e| e.to_string())?;
@@ -188,7 +184,7 @@ mod tests {
 
     #[test]
     fn default_config_parses_every_server() {
-        let value: Value = serde_json::from_str(DEFAULT_MCP_CONFIG).unwrap();
+        let value: Value = serde_json::from_str(&default_config()).unwrap();
         for (name, entry) in servers(&value) {
             assert!(parse_transport(&entry).is_some(), "{name} should parse");
             assert!(!is_active(&entry));
