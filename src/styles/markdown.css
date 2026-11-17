@@ -3,7 +3,8 @@
 .markdown-content {
   /* Text colour for body, headings, bold and tables; the `aside` variant quiets it. */
   --markdown-text: var(--text-primary);
-  font-size: 14px;
+  /* The platform reading size (14 macOS, 17 iOS), so a reply matches the text around it. */
+  font-size: var(--fs-reading);
   line-height: 1.6;
   color: var(--markdown-text);
   word-wrap: break-word;
@@ -13,7 +14,7 @@
 /* Aside: content beside the answer (the model's thinking), muted, at callout size, tight. Spacing below is in em, so it scales. */
 .markdown-content[data-variant='aside'] {
   --markdown-text: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--fs-callout);
   line-height: 1.45;
 }
 .markdown-content[data-variant='aside'] :is(p, ul, ol, blockquote) { line-height: 1.45; margin-bottom: 0.5em; }
@@ -113,7 +114,8 @@
   color: inherit;
   border: none;
   padding: 0;
-  font-size: 13px;
+  /* Code a step below the text (13 beside 14 on a Mac), scaling with it. */
+  font-size: 0.93em;
   display: block;
   border-radius: 0;
 }
@@ -242,7 +244,7 @@
 
 .markdown-content [data-streamdown="code-block-body"] code {
   background-color: transparent !important;
-  font-size: 13px;
+  font-size: 0.93em;
 }
 
 /* Shiki dual theme: dark mode reads the dark token colours */
@@ -263,7 +265,7 @@
   vertical-align: super;
   margin: 0 1px;
   padding: 0 4px;
-  font-size: 10px;
+  font-size: 0.72em;
   font-weight: 500;
   line-height: 1;
   background-color: var(--info-bg);

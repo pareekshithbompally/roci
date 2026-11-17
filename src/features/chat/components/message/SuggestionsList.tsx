@@ -14,7 +14,7 @@ const SuggestionsList: React.FC<SuggestionsListProps> = ({ suggestions, onSugges
         key={i}
         onClick={() => onSuggestionClick(suggestion)}
       >
-        <Text tone="faint" className="shrink-0">&#8594;</Text>
+        <Text tone="faint" className="shrink-0 self-start">&#8594;</Text>
         <span className="line-clamp-2">{suggestion}</span>
       </Row>
     ))}

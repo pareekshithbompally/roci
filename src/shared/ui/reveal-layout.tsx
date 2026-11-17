@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { cn } from './utils';
+import React, { useEffect, useLayoutEffect, useRef } from 'react';
+import { cn, dismissKeyboard } from './utils';
 import { Surface } from './surface';
 
 export interface RevealLayoutProps {
@@ -19,6 +19,11 @@ export interface RevealLayoutProps {
  */
 export function RevealLayout({ open, onClose, pane, paneLabel, children }: RevealLayoutProps) {
   const paneRef = useRef<HTMLElement>(null);
+
+  // Before the first frame of the slide: a field in the main view lets go (its caret would not slide with it).
+  useLayoutEffect(() => {
+    if (open) dismissKeyboard(paneRef.current);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;

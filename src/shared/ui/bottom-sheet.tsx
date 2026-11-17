@@ -1,6 +1,6 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import React from 'react';
-import { cn } from './utils';
+import React, { useLayoutEffect, useRef } from 'react';
+import { cn, dismissKeyboard } from './utils';
 import { NO_INSETS, SCRIM } from './recipes';
 
 /** `auto`: as tall as its content (action sheets). `full`: the whole screen below the status bar (Settings). */
@@ -20,11 +20,17 @@ export interface BottomSheetProps {
 
 /** iOS sheet: rises from the bottom over a scrim, with a grabber; the scrim or Escape closes it. Portalled above the whole app. */
 export function BottomSheet({ open, onOpenChange, title, size = 'auto', children }: BottomSheetProps) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  // Before the first frame of the rise: the field behind lets go (its own search field may keep focus).
+  useLayoutEffect(() => {
+    if (open) dismissKeyboard(contentRef.current);
+  }, [open]);
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className={SCRIM} />
         <DialogPrimitive.Content
+          ref={contentRef}
           aria-describedby={undefined}
           className={cn(
             'fixed inset-x-0 bottom-0 z-modal flex flex-col overflow-hidden rounded-t-sheet bg-grouped pb-safe-bottom shadow-overlay focus:outline-none',
