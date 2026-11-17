@@ -7,11 +7,13 @@ import { resolveChatModel, requiresApiKey } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { isLocalProviderId } from '@shared/utils/provider.utils';
 import { followModelLoad, generationStats, isLlamaServer, promptProgress } from '@services/ai/llamaServer';
+import { followMlxLoad } from '@services/mlx.service';
+import { getProviderType } from '@shared/utils/modelResolver';
 import { toolRegistry, loadMcpTools, generateImageTool, GENERATE_IMAGE_TOOL } from '@extensions/tools';
 import { hasImageModel } from '@services/ai/image';
 import { AGENT_LOOP_CONFIG, DEFAULT_CHAT_TOOLS } from '@config/chatTools.config';
 import { extractTokenUsage } from '@services/ai/types';
-import type { GenerationStats, TokenUsage } from '@services/ai/types';
+import type { GenerationStats, StreamProgress, TokenUsage } from '@services/ai/types';
 import type { OrchestratorOptions, OrchestratorCallbacks } from './types';
 import { toolActivityOf } from './toolActivity';
 import type { ToolSources } from './toolActivity';
@@ -142,6 +144,14 @@ export async function orchestrate(
   // A local llama-server reports loading the model and reading the prompt before it replies.
   const reportsProgress = isLocalProviderId(resolved.provider) && (await isLlamaServer(resolved.baseUrl));
 
+  // Model loads show in the reply header: llama-server's staged progress, MLX's start (followed before the request).
+  const showProgress = (progress: StreamProgress) => onChunk('', { progress });
+  const stopFollowingLoad = reportsProgress
+    ? followModelLoad(resolved.baseUrl, resolved.modelId, showProgress)
+    : getProviderType(resolved.provider) === 'on-device'
+      ? await followMlxLoad(resolved.modelId, showProgress)
+      : () => undefined;
+
   const result = streamText({
     model: createModel(resolved, { webSearch: !!webSearchTools, ...(reportsProgress && { llamaServer: { reasoningEffort } }) }),
     ...reasoningCallSettings(resolved, reasoningEffort),
@@ -157,9 +167,6 @@ export async function orchestrate(
     }),
   });
 
-  const stopFollowingLoad = reportsProgress
-    ? followModelLoad(resolved.baseUrl, resolved.modelId, (progress) => onChunk('', { progress }))
-    : () => undefined;
   const state: StreamState = { hasText: false, hasReasoning: false, sources: [] };
   try {
     for await (const part of result.stream) {

@@ -47,7 +47,8 @@ export function generateImageTool(deps: { settings: AppSettings; providers: Mode
       });
       return {
         toolCallId: '',
-        content: `Created a ${aspectRatio} image with ${image.model}. It is shown to the user and saved at ${image.path}.`,
+        // No file path for the model: it would echo it as a link. The image is in the reply already.
+        content: `Created a ${aspectRatio} image with ${image.model}. It is already shown to the user in this reply, so don't link, embed or describe where it is saved.`,
         isError: false,
         // The image itself joins the reply as an image part, right after this tool's row.
         meta: {
