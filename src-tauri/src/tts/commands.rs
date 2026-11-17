@@ -3,7 +3,9 @@
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use super::{audio_session, system, text, voice_model, TtsState, VoiceOption};
+use super::{system, text, voice_model, TtsState, VoiceOption};
+#[cfg(target_os = "ios")]
+use crate::audio_session::{self, Use};
 use crate::models::catalog::{self, Kind};
 use crate::models::{blocking, store, LocalError, LANGUAGE};
 
@@ -43,7 +45,9 @@ pub async fn tts_speak(app: AppHandle, id: u64, text: String, engine: String, vo
             log::warn!("[tts] chunk event failed: {e}");
         }
     };
-    audio_session::for_playback()?;
+    // iPhone: the shared session, refused while a recording holds it; heard with the silent switch on.
+    #[cfg(target_os = "ios")]
+    audio_session::activate(Use::Playback).map_err(LocalError::Engine)?;
     let used = app.clone();
     let spoken = blocking(move || {
         if engine == SYSTEM_VOICES {
@@ -54,6 +58,8 @@ pub async fn tts_speak(app: AppHandle, id: u64, text: String, engine: String, vo
         voice_model::speak(&dir, chunks, voice.as_deref(), stop, on_chunk)
     })
     .await;
+    #[cfg(target_os = "ios")]
+    audio_session::deactivate(Use::Playback);
     crate::mlx::touch(&used, Kind::Voice);
     spoken
 }

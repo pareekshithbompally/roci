@@ -1,7 +1,6 @@
 //! Read aloud: markdown becomes sentence chunks spoken by macOS voices or a downloaded voice model, one reply at a time.
 
 pub mod commands;
-mod audio_session;
 mod system;
 mod playback;
 mod text;
