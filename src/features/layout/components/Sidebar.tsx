@@ -10,7 +10,8 @@ import { SettingsNav } from '@features/settings/components/SettingsNav';
 import { useOpenMeeting, useUnifiedSidebar } from '@features/history/hooks';
 import { AppStatus } from '@shared/types';
 import { LAYOUT } from '@config/layout.config';
-import { IconButton, Icon, Row, RowGroupLabel, Kbd } from '@shared/ui';
+import { IconButton, Icon, Row, RowGroupLabel, Kbd, Surface, Text } from '@shared/ui';
+import { APP_CONFIG } from '@config/app.config';
 import { ActivityTray } from '@shared/components';
 import { shortcutLabel } from '@features/shortcuts';
 import { startNewChat, useChatStore } from '@features/chat';
@@ -19,11 +20,15 @@ import type { UnifiedSidebarItem } from '@shared/types';
 interface SidebarProps {
   shouldOffsetMacControls: boolean;
   onSearchClick?: () => void;
+  /** `column` (Mac): window sidebar with its header and rows. `sheet` (phone): large app title and a round Settings
+   *  button on top, round Search and New chat buttons floating at the bottom (iOS). The recents list is the same. */
+  variant?: 'column' | 'sheet';
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   shouldOffsetMacControls,
   onSearchClick,
+  variant = 'column',
 }) => {
   const { open: isLeftPanelOpen, setLeftPanel } = useLeftPanel();
   const isSmallScreen = useSmallScreen();
@@ -78,6 +83,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return null;
   };
 
+  const recents = (
+    <UnifiedList items={items} selectedId={getSelectedId()} onSelect={handleSelectItem} searchQuery="" />
+  );
+
+  if (variant === 'sheet') {
+    return (
+      <div className="relative flex h-full w-full flex-col overflow-hidden">
+        <header className="flex shrink-0 items-center justify-between gap-2 px-4 pt-2 pb-3">
+          <Text as="h1" variant="display">{APP_CONFIG.name}</Text>
+          <IconButton icon={Settings} size="fab" variant="outline" onClick={handleSettingsClick} label="Settings" />
+        </header>
+        <div ref={listContainerRef} className="flex-1 overflow-y-auto px-2 pb-24">
+          <RowGroupLabel>Recents</RowGroupLabel>
+          {recents}
+        </div>
+        <ActivityTray />
+        {/* Floating actions (iOS): search on the leading side, a new chat on the trailing side. */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between px-4 pb-4">
+          <Surface variant="floating" radius="full" className="pointer-events-auto">
+            <IconButton icon={Search} size="fab" onClick={onSearchClick} label="Search" />
+          </Surface>
+          <Surface variant="floating" radius="full" className="pointer-events-auto">
+            <IconButton icon={SquarePen} size="fab" variant="primary" onClick={handleHomeClick} label="New chat" />
+          </Surface>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full w-full overflow-hidden">
       {/* Header — icon buttons aligned with the macOS traffic lights */}
@@ -118,12 +152,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ) : (
           <>
             <RowGroupLabel>Recents</RowGroupLabel>
-            <UnifiedList
-              items={items}
-              selectedId={getSelectedId()}
-              onSelect={handleSelectItem}
-              searchQuery=""
-            />
+            {recents}
           </>
         )}
       </div>

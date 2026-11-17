@@ -1,6 +1,6 @@
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import React, { createContext, useContext, type ComponentProps } from 'react';
+import { createContext, useContext, type ComponentProps } from 'react';
 import { cn } from './utils';
 import { FLOATING_SURFACE, NO_INSETS, SCRIM } from './recipes';
 import { useFormFactor } from '@platform/formFactor';

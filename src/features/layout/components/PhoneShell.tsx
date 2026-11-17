@@ -31,7 +31,7 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children, onSearchClick 
       {/* Clear of the home indicator once, for every screen (idle, chat, meeting). */}
       <div className="relative flex min-h-0 flex-1 flex-col pb-safe-bottom">{children}</div>
       <Drawer side="start" open={open} onClose={() => setLeftPanel(false)} label="Sidebar">
-        <Sidebar shouldOffsetMacControls={false} onSearchClick={onSearchClick} />
+        <Sidebar variant="sheet" shouldOffsetMacControls={false} onSearchClick={onSearchClick} />
       </Drawer>
       <BottomSheet open={inSettings} onOpenChange={(open) => !open && leaveSettings()} title="Settings" size="full">
         <NavStack
