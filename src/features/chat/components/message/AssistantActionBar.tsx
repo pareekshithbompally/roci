@@ -107,7 +107,7 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
           {onCopy && (
             <IconButton icon={isCopied ? Check : Copy} label="Copy message" size="sm" onClick={() => onCopy(id, text)} />
           )}
-          {platform.hasOnDeviceModels && (
+          {platform.hasLocalModels && (
             <IconButton
               icon={READ_ALOUD_ICON[readAloud.state]}
               spin={readAloud.state === 'preparing'}

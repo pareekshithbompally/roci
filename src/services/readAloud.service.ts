@@ -31,7 +31,7 @@ let nextRequest = 0;
 
 export const readAloud = {
   voices: async (engine: ReadAloudEngine): Promise<ReadAloudVoice[]> =>
-    platform.hasOnDeviceModels && isTauriEnvironment() ? invoke<ReadAloudVoice[]>('tts_voices', { engine }) : [],
+    platform.hasLocalModels && isTauriEnvironment() ? invoke<ReadAloudVoice[]>('tts_voices', { engine }) : [],
 
   /** `voice` undefined = the engine's default. `onChunk` gets each chunk's text as its audio begins. */
   async speak(text: string, engine: ReadAloudEngine, voice: string | undefined, onChunk: (spoken: string) => void): Promise<void> {

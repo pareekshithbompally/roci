@@ -20,7 +20,6 @@ unsafe extern "C" {
     fn roci_mlx_chat(request: *const c_char, on_event: EventFn, context: *mut c_void) -> *mut c_char;
     fn roci_mlx_cancel(stream_id: u64);
     fn roci_mlx_embed(request: *const c_char) -> *mut c_char;
-    #[cfg(desktop)]
     fn roci_mlx_speak(request: *const c_char) -> *mut c_char;
     fn roci_mlx_unload(role: *const c_char);
     fn roci_mlx_free_string(value: *mut c_char);
@@ -142,7 +141,6 @@ pub async fn mlx_embed(app: AppHandle, model: String, texts: Vec<String>) -> Res
 }
 
 /// One sentence spoken by the voice model in `dir`: mono samples and their rate (runs on the caller's thread).
-#[cfg(desktop)]
 pub fn speak(dir: &std::path::Path, text: &str, voice: Option<&str>) -> Result<(Vec<f32>, u32), LocalError> {
     use base64::Engine as _;
     let request = to_c(&json!({ "modelDir": dir, "text": text, "voice": voice }))?;
@@ -178,7 +176,6 @@ fn model_dir(app: &AppHandle, id: &str, kind: Kind) -> Result<String, LocalError
 }
 
 /// Marks `kind`'s model as just used, so it stays loaded until it idles.
-#[cfg(desktop)]
 pub fn touch(app: &AppHandle, kind: Kind) {
     if let Some(role) = Role::of(kind) {
         rearm_idle(app, role);

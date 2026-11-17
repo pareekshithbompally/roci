@@ -1,4 +1,4 @@
-//! macOS system voices via AVFAudio; the delegate fires on the main thread, so speaking waits on a channel.
+//! System voices via AVFAudio (Mac, iPhone, iPad); the delegate fires on the main thread, so speaking waits on a channel.
 
 use std::sync::mpsc::{self, Sender};
 

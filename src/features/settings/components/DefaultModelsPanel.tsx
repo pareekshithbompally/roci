@@ -59,10 +59,10 @@ function useSpeechChoices(controls: Controls): ModelChoice[] {
   }, [options, appleSetup, controls]);
 }
 
-/** Read aloud engines: the macOS system voices (built in), then each local voice model with its download. */
+/** Read aloud engines: the system voices (built in), then each local voice model with its download. */
 function readAloudEngineChoices(models: LocalModel[], controls: Controls): ModelChoice[] {
-  const { macos } = READ_ALOUD_CONFIG;
-  const system: ModelChoice = { value: macos.id, provider: macos.provider, modelId: macos.id, label: macos.label, ready: true, hint: macos.hint };
+  const { system: voices } = READ_ALOUD_CONFIG;
+  const system: ModelChoice = { value: voices.id, provider: voices.provider, modelId: voices.id, label: voices.label, ready: true, hint: voices.hint };
   const local = models.filter((m) => m.kind === 'voice').map((m) => ({
     value: m.id,
     provider: LOCAL_MODELS_CONFIG.provider.id,
@@ -142,11 +142,11 @@ export const DefaultModelsPanel: React.FC = () => {
         </CapabilityRow>
       </Section>
 
-      <Section title="Speech" footer={platform.hasOnDeviceModels ? `${FOOTERS.speech} ${FOOTERS.readAloud}` : FOOTERS.speech}>
+      <Section title="Speech" footer={platform.hasLocalModels ? `${FOOTERS.speech} ${FOOTERS.readAloud}` : FOOTERS.speech}>
         <CapabilityRow icon={JOB_GLYPH.transcription} job={JOBS.transcription}>
           <ModelSelect value={speech ? speechSelectionKey(speech) : undefined} choices={speechChoices} onChange={setSpeech} />
         </CapabilityRow>
-        {platform.hasOnDeviceModels && (
+        {platform.hasLocalModels && (
           <>
             <CapabilityRow icon={JOB_GLYPH.readAloud} job={JOBS.readAloud}>
               <ModelSelect

@@ -40,12 +40,12 @@ const DownloadRow: React.FC<{ icon: TileGlyph; model: LocalModel; control: OnDev
 const BuiltIn: React.FC = () => (
   <Section title={COPY.builtIn} layout="stack">
     {isIntegrationAvailable('appleIntelligence') && <AppleIntelligenceIntegration />}
-    {platform.hasOnDeviceModels && (
+    {platform.hasLocalModels && (
       <Section footer={COPY.systemVoices}>
         <CardRow
           leading={<IconTile icon={JOB_GLYPH.readAloud} />}
-          title={READ_ALOUD_CONFIG.macos.label}
-          status={<Status tone="success">{READ_ALOUD_CONFIG.macos.hint}</Status>}
+          title={READ_ALOUD_CONFIG.system.label}
+          status={<Status tone="success">{READ_ALOUD_CONFIG.system.hint}</Status>}
         />
       </Section>
     )}

@@ -1,8 +1,11 @@
 /** Read-aloud engine (macOS system voices or a downloaded voice model) and its voice. */
 
+import { platform } from '@platform/index';
+
 export const READ_ALOUD_CONFIG = {
   /** The system voices' engine. */
-  macos: { id: 'macos', provider: 'apple', label: 'macOS voices', hint: 'Built in' },
+  /** The system's own voices (`id` predates iPhone support and stays, so saved choices keep working). */
+  system: { id: 'macos', provider: 'apple', label: `${platform.systemName} voices`, hint: 'Built in' },
   /** Spoken until another engine is chosen: ready with no download. */
   defaultEngine: 'macos',
   /** What the voice picker's play button says. */

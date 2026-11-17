@@ -18,7 +18,7 @@ const APPLE_DEFAULTS: Partial<AppSettings> = {
   appleIntelligenceIntegration: { enabled: true },
   chatModel: APPLE_INTELLIGENCE.model,
   analyzeModel: APPLE_INTELLIGENCE.model,
-  readAloudEngine: READ_ALOUD_CONFIG.macos.id,
+  readAloudEngine: READ_ALOUD_CONFIG.system.id,
   readAloudVoice: undefined,
 };
 

@@ -44,6 +44,17 @@ tauri-plugin-notifications = { path = "plugins/tauri-plugin-notifications" }
 tokio = { version = "1", features = ["process", "io-util", "time", "sync", "macros", "rt", "net", "fs"] }
 reqwest = { version = "0.13", default-features = false, features = ["native-tls"] }
 sha2 = "0.10"
+# On-device speech: transcription (transcribe.cpp, ggml on Metal; pinned with [patch.crates-io] below) and read aloud
+# (system voices via AVSpeechSynthesis, MLX voices' samples as base64, played through cpal at the device's rate);
+# hound reads the WAVs transcription takes.
+transcribe-cpp = "=0.4.1"
+objc2-avf-audio = { version = "0.3.2", default-features = false, features = ["std", "AVSpeechSynthesis", "AVAudioSession"] }
+cpal = "0.18.2"
+rubato = "5.0.1"
+base64 = "0.22"
+hound = "3.5.1"
+objc2 = "0.6.4"
+objc2-foundation = "0.3.2"
 
 # macOS only, until each piece is made shared (docs: platform/apple-platforms/code-organization.md, R2).
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -55,22 +66,16 @@ status-menu = { path = "plugins/status-menu" }
 tauri-plugin-core-spotlight = { path = "plugins/tauri-plugin-core-spotlight" }
 core-graphics = "0.24"
 core-foundation = "0.10"
-base64 = "0.22"
 tauri-plugin-window-state = "2"
 tauri-plugin-updater = "2"
 # roci:// URL actions (Shortcuts, Raycast, Alfred, links in notes)
 tauri-plugin-deep-link = "2"
 block2 = "0.6.2"
-cpal = "0.18.2"
 eyre = "0.6.12"
-hound = "3.5.1"
 libc = "0.2.189"
-objc2 = "0.6.4"
 objc2-core-audio = "0.3.2"
 objc2-core-audio-types = "0.3.2"
 objc2-core-foundation = "0.3.2"
-objc2-foundation = "0.3.2"
-rubato = "5.0.1"
 screencapturekit = { version = "=11.0.0", features = ["macos_15_0"] }
 tracing = { version = "0.1.44", features = ["log"] }
 # MCP client: stdio child-process + Streamable HTTP transports.
@@ -82,10 +87,6 @@ rmcp = { version = "3.10.0", features = [
 ] }
 # Coding agents: read Codex's config.toml to show whether Roci is registered.
 toml = "0.9"
-# On-device speech-to-text (ggml, Metal). Pinned with [patch.crates-io] below.
-transcribe-cpp = "=0.4.1"
-# Read aloud: the macOS system voices (names, quality, novelty flag) for the voice picker.
-objc2-avf-audio = { version = "0.3.2", default-features = false, features = ["std", "AVSpeechSynthesis"] }
 # Call detection (which app holds the microphone) and app icons.
 objc2-app-kit = { version = "0.3.2", default-features = false, features = [
   "std",

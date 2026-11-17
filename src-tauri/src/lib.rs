@@ -29,13 +29,10 @@ mod app_icon;
 mod permissions;
 #[cfg(desktop)]
 mod hex;
-#[cfg(desktop)]
 mod ipc;
 mod models;
-#[cfg(desktop)]
 mod stt;
 mod sync;
-#[cfg(desktop)]
 mod tts;
 mod mlx;
 #[cfg(desktop)]

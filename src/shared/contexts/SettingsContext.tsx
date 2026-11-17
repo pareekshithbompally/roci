@@ -178,7 +178,7 @@ const RETIRED_PROVIDER_IDS = new Set(['azure', 'cohere', 'huggingface', 'xai', '
 /** A read-aloud engine that's no longer offered (a removed voice model) falls back to the system voices. */
 function dropRemovedVoiceEngine(settings: AppSettings, localModels: LocalModel[]): void {
   const engine = settings.readAloudEngine;
-  if (!engine || engine === READ_ALOUD_CONFIG.macos.id || localModels.some((m) => m.kind === 'voice' && m.id === engine)) return;
+  if (!engine || engine === READ_ALOUD_CONFIG.system.id || localModels.some((m) => m.kind === 'voice' && m.id === engine)) return;
   console.log('[SettingsContext] Clearing removed read-aloud engine:', engine);
   settings.readAloudEngine = undefined;
   settings.readAloudVoice = undefined;

@@ -3,12 +3,12 @@
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use super::{macos, text, voice_model, TtsState, VoiceOption};
+use super::{audio_session, system, text, voice_model, TtsState, VoiceOption};
 use crate::models::catalog::{self, Kind};
 use crate::models::{blocking, store, LocalError, LANGUAGE};
 
-/// The system voices' engine; every other engine id is a downloaded voice model.
-const MACOS_VOICE: &str = "macos";
+/// The system voices' engine (its id predates iPhone support); every other engine id is a downloaded voice model.
+const SYSTEM_VOICES: &str = "macos";
 /// Rust → webview: request `id` is now speaking `text` (one chunk of the reply).
 const CHUNK_EVENT: &str = "tts://chunk";
 
@@ -21,8 +21,8 @@ struct Chunk {
 /// The voices `engine` can speak in, its default first (a model's are listed before it's downloaded).
 #[tauri::command]
 pub fn tts_voices(engine: String) -> Result<Vec<VoiceOption>, LocalError> {
-    if engine == MACOS_VOICE {
-        return Ok(macos::voices(LANGUAGE));
+    if engine == SYSTEM_VOICES {
+        return Ok(system::voices(LANGUAGE));
     }
     let model = catalog::find_kind(&engine, Kind::Voice)?;
     Ok(model.voices.iter().map(|&v| VoiceOption { id: v.to_lowercase(), name: v.to_string(), detail: None }).collect())
@@ -43,10 +43,11 @@ pub async fn tts_speak(app: AppHandle, id: u64, text: String, engine: String, vo
             log::warn!("[tts] chunk event failed: {e}");
         }
     };
+    audio_session::for_playback()?;
     let used = app.clone();
     let spoken = blocking(move || {
-        if engine == MACOS_VOICE {
-            return macos::speak(&chunks, voice.as_deref(), &stop, on_chunk);
+        if engine == SYSTEM_VOICES {
+            return system::speak(&chunks, voice.as_deref(), &stop, on_chunk);
         }
         let model = catalog::find_kind(&engine, Kind::Voice)?;
         let dir = store::installed_dir(&app, model)?;
