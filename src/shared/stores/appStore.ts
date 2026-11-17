@@ -26,7 +26,8 @@ interface AppStoreState {
   isInitialized: boolean;
   error: string | null;
 
-  setCurrentView: (v: ViewType) => void;
+  /** Switch between app views; Settings opens only through `openSettings`. */
+  setCurrentView: (v: Exclude<ViewType, 'settings'>) => void;
   /** The one way into Settings, optionally at a panel. */
   openSettings: (panel?: SettingsPanel) => void;
   /** Return from settings to the view it was opened from; no-op elsewhere. */
@@ -60,11 +61,7 @@ export const useAppStore = create<AppStoreState>((set) => ({
   isInitialized: false,
   error: null,
 
-  setCurrentView: (v) =>
-    set((s) => ({
-      currentView: v,
-      ...(v === 'settings' && s.currentView !== 'settings' && { viewBeforeSettings: s.currentView }),
-    })),
+  setCurrentView: (v) => set({ currentView: v }),
 
   openSettings: (panel) =>
     set((s) => ({

@@ -5,25 +5,31 @@ import { Section } from '@shared/ui';
 import { AppleIntelligenceIntegration, AppleNotesIntegration, CalendarIntegration, CodingAgentsIntegration, HexIntegration, RemindersIntegration, SpotlightIntegration, UrlActionsIntegration } from '@features/integrations';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { platform } from '@platform/index';
+import { isIntegrationAvailable, type IntegrationId } from '@shared/utils/integrations';
 import { SettingsPage } from './shared';
 
-const hasSystemIntegrations = platform.hasAppleIntelligence || platform.hasCalendar || platform.hasAppleNotes || platform.hasSpotlight;
+/** The system integrations in display order; a device shows the ones it has. */
+const SYSTEM_ROWS: ReadonlyArray<readonly [IntegrationId, React.FC]> = [
+  ['appleIntelligence', AppleIntelligenceIntegration],
+  ['calendar', CalendarIntegration],
+  ['reminders', RemindersIntegration],
+  ['appleNotes', AppleNotesIntegration],
+  ['spotlight', SpotlightIntegration],
+];
+const systemRows = SYSTEM_ROWS.filter(([id]) => isIntegrationAvailable(id));
 
 /** Whether this device has any integration, so the panel is worth showing. */
-export const hasIntegrations = hasSystemIntegrations || platform.hasHex || platform.hasCodingAgents || platform.hasUrlActions;
+export const hasIntegrations =
+  systemRows.length > 0 || isIntegrationAvailable('hex') || platform.hasCodingAgents || platform.hasUrlActions;
 
 export const IntegrationsPanel: React.FC = () => (
   <SettingsPage title="Integrations" description={`Connect Roci to apps on this ${platform.deviceName}.`}>
-    {hasSystemIntegrations && (
+    {systemRows.length > 0 && (
       <Section title={platform.systemName} layout="stack">
-        {platform.hasAppleIntelligence && <AppleIntelligenceIntegration />}
-        {platform.hasCalendar && <CalendarIntegration />}
-        {platform.hasCalendar && <RemindersIntegration />}
-        {platform.hasAppleNotes && <AppleNotesIntegration />}
-        {platform.hasSpotlight && <SpotlightIntegration />}
+        {systemRows.map(([id, Row]) => <Row key={id} />)}
       </Section>
     )}
-    {platform.hasHex && (
+    {isIntegrationAvailable('hex') && (
       <Section title="Apps" layout="stack">
         <HexIntegration />
       </Section>
