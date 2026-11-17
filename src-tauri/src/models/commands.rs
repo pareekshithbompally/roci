@@ -18,6 +18,8 @@ pub struct LocalModelStatus {
     bytes: u64,
     installed: bool,
     downloading: bool,
+    /// A downloaded chat model's context window, as its own config states (the chat's context ring); None otherwise.
+    context_tokens: Option<u64>,
 }
 
 /// Every curated model: downloaded, downloading, or neither.
@@ -26,6 +28,8 @@ pub fn local_models(app: AppHandle, state: State<'_, ModelsState>) -> Result<Vec
     MODELS
         .iter()
         .map(|m| {
+            let dir = store::model_dir(&app, m)?;
+            let installed = store::is_installed(&dir, m);
             Ok(LocalModelStatus {
                 id: m.id,
                 name: m.name,
@@ -33,11 +37,21 @@ pub fn local_models(app: AppHandle, state: State<'_, ModelsState>) -> Result<Vec
                 kind: m.kind,
                 streams: m.streams,
                 bytes: m.bytes(),
-                installed: store::is_installed(&store::model_dir(&app, m)?, m),
+                installed,
                 downloading: state.downloads.is_active(m.id),
+                context_tokens: (installed && m.kind == Kind::Chat).then(|| context_tokens(&dir)).flatten(),
             })
         })
         .collect()
+}
+
+/// The context window a model's config.json states: `max_position_embeddings`, at the top (text models) or in
+/// `text_config` (multimodal ones such as Gemma 4).
+fn context_tokens(dir: &std::path::Path) -> Option<u64> {
+    let text = std::fs::read_to_string(dir.join("config.json")).ok()?;
+    let config: serde_json::Value = serde_json::from_str(&text).ok()?;
+    let key = "max_position_embeddings";
+    config.get(key).or_else(|| config.get("text_config")?.get(key))?.as_u64()
 }
 
 /// Starts a download; progress and the outcome arrive as `models://download` events.

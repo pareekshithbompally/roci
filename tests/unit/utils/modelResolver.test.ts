@@ -224,4 +224,14 @@ describe('models from integrations', () => {
     expect(resolved?.provider).toBe('apple-intelligence');
     expect(requiresApiKey(resolved!)).toBe(false);
   });
+
+  it('a downloaded chat model reports its context window, as a server does, so the context ring shows', async () => {
+    const { modelSources } = await import('@shared/utils/modelResolver');
+    const gemma = {
+      id: 'gemma-4-e2b', name: 'Gemma 4', maker: 'google', kind: 'chat' as const, streams: false, bytes: 1,
+      installed: true, downloading: false, contextTokens: 131_072,
+    };
+    const [onDevice] = modelSources([], {} as never, [gemma]);
+    expect(onDevice.models[0].served?.contextTokens).toBe(131_072);
+  });
 });

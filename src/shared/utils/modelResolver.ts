@@ -141,9 +141,11 @@ export function cachedLocalModels(): LocalModel[] {
   return queryClient.getQueryData<LocalModel[]>(queryKeys.localModels()) ?? [];
 }
 
-/** Chat models downloaded to this device as one provider entry (no key). */
+/** Chat models downloaded to this device as one provider entry (no key); each reports its context window as a server does. */
 function onDeviceChatProvider(localModels: LocalModel[]): ModelProvider | null {
-  const models = localModels.filter((m) => m.kind === 'chat' && m.installed).map((m) => ({ id: m.id, name: m.name }));
+  const models = localModels
+    .filter((m) => m.kind === 'chat' && m.installed)
+    .map((m) => ({ id: m.id, name: m.name, ...(m.contextTokens ? { served: { contextTokens: m.contextTokens } } : {}) }));
   return models.length > 0 ? { provider: ON_DEVICE, active: true, settings: [], models } : null;
 }
 
