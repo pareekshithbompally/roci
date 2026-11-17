@@ -2,6 +2,7 @@
 
 import React, { ReactNode, Component, ErrorInfo } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
+import { MotionConfig } from 'framer-motion';
 import { ThemeProvider } from '@shared/contexts/ThemeContext';
 import { ToastProvider } from '@shared/contexts/ToastContext';
 import { SettingsProvider } from '@shared/contexts/SettingsContext';
@@ -60,21 +61,24 @@ interface AppProvidersProps {
 export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
   return (
     <ErrorBoundary>
-      <ThemeProvider>
-        <ToastProvider>
-          <TooltipProvider>
-            <QueryClientProvider client={queryClient}>
-              <SettingsProvider>
-                <HistoryProvider>
-                  <ImportProvider>
-                    {children}
-                  </ImportProvider>
-                </HistoryProvider>
-              </SettingsProvider>
-            </QueryClientProvider>
-          </TooltipProvider>
-        </ToastProvider>
-      </ThemeProvider>
+      {/* Reduce Motion (system setting) turns framer-motion transitions into instant changes. */}
+      <MotionConfig reducedMotion="user">
+        <ThemeProvider>
+          <ToastProvider>
+            <TooltipProvider>
+              <QueryClientProvider client={queryClient}>
+                <SettingsProvider>
+                  <HistoryProvider>
+                    <ImportProvider>
+                      {children}
+                    </ImportProvider>
+                  </HistoryProvider>
+                </SettingsProvider>
+              </QueryClientProvider>
+            </TooltipProvider>
+          </ToastProvider>
+        </ThemeProvider>
+      </MotionConfig>
     </ErrorBoundary>
   );
 };

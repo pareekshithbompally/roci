@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from './utils';
 import { Text } from './text';
+import { platform } from '@platform/index';
 
 /** Canonical 32px list/sidebar row (Row, rowClasses, RowAction, RowGroupLabel) so every list shares one shape. */
 export function rowClasses(selected?: boolean): string {
@@ -60,7 +61,9 @@ export function RowAction({ className, type = 'button', ref, ...props }: RowActi
       type={type}
       className={cn(
         'absolute right-1 top-1/2 -translate-y-1/2 flex h-control-xs w-control-xs items-center justify-center rounded-md text-muted outline-none transition-opacity',
-        'opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 data-[state=open]:opacity-100 hover:bg-pressed',
+        // Touch screens have no hover: the action stays visible there.
+        platform.hasTouchScreen ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 data-[state=open]:opacity-100',
+        'hover:bg-pressed',
         className,
       )}
       {...props}

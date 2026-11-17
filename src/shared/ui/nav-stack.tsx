@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft } from 'lucide-react';
 import { ANIMATION_CONFIG } from '@config/animations.config';
@@ -30,10 +30,15 @@ export function useNavStack(): NavStackApi {
   return api;
 }
 
-/** One screen: its header, then its own scrolling body. */
-function Screen({ header, children }: { header: React.ReactNode; children: React.ReactNode }) {
+/** A pushed screen with a stable identity (keys survive pop-then-push). */
+interface StackEntry extends NavScreen {
+  id: number;
+}
+
+/** One screen: its header, then its own scrolling body. `covered`: a screen is pushed over it, so it is inert. */
+function Screen({ header, covered, children }: { header: React.ReactNode; covered: boolean; children: React.ReactNode }) {
   return (
-    <Surface variant="page" className="absolute inset-0 flex flex-col">
+    <Surface variant="page" inert={covered || undefined} className="absolute inset-0 flex flex-col">
       {header}
       <div className="min-h-0 flex-1 overflow-y-auto pb-safe-bottom">{children}</div>
     </Surface>
@@ -52,9 +57,22 @@ export interface NavStackProps {
 }
 
 /** iOS navigation stack: the root has a large title, each pushed screen a round back button and a centred title; one header per screen, at any depth. */
+/** A pushed screen's title takes focus as it appears, so VoiceOver starts on the new screen. */
+function PushedTitle({ title }: { title: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => ref.current?.focus(), []);
+  return (
+    <div ref={ref} tabIndex={-1} className="min-w-0 outline-none">
+      <Text as="h1" variant="bodyStrong" truncate>{title}</Text>
+    </div>
+  );
+}
+
 export function NavStack({ title, action, initial, children }: NavStackProps) {
-  const [stack, setStack] = useState<NavScreen[]>(() => (initial ? [initial] : []));
-  const push = useCallback((screen: NavScreen) => setStack((s) => [...s, screen]), []);
+  const nextId = useRef(0);
+  const entry = useCallback((screen: NavScreen): StackEntry => ({ ...screen, id: nextId.current++ }), []);
+  const [stack, setStack] = useState<StackEntry[]>(() => (initial ? [entry(initial)] : []));
+  const push = useCallback((screen: NavScreen) => setStack((s) => [...s, entry(screen)]), [entry]);
   const pop = useCallback(() => setStack((s) => s.slice(0, -1)), []);
   const api = useMemo(() => ({ push, pop }), [push, pop]);
 
@@ -62,6 +80,7 @@ export function NavStack({ title, action, initial, children }: NavStackProps) {
     <NavStackContext.Provider value={api}>
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <Screen
+          covered={stack.length > 0}
           header={
             <header className="flex shrink-0 items-start justify-between gap-2 px-4 pt-2">
               <Text as="h1" variant="display" className="pt-10">{title}</Text>
@@ -74,7 +93,7 @@ export function NavStack({ title, action, initial, children }: NavStackProps) {
         <AnimatePresence initial={false}>
           {stack.map((screen, depth) => (
             <motion.div
-              key={depth}
+              key={screen.id}
               className="absolute inset-0"
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
@@ -82,10 +101,11 @@ export function NavStack({ title, action, initial, children }: NavStackProps) {
               transition={ANIMATION_CONFIG.navigation.push}
             >
               <Screen
+                covered={depth < stack.length - 1}
                 header={
                   <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pt-2 pb-3">
                     <IconButton icon={ChevronLeft} label="Back" size="fab" variant="outline" onClick={pop} className="justify-self-start" />
-                    <Text as="h1" variant="bodyStrong" truncate>{screen.title}</Text>
+                    <PushedTitle title={screen.title} />
                   </header>
                 }
               >

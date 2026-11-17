@@ -12,13 +12,15 @@ export interface TabsProps<T extends string> {
   onValueChange: (value: NoInfer<T>) => void;
   /** Stretch to the container, segments sharing the width equally (a phone's full-width control). */
   fill?: boolean;
+  /** Accessible name of the control (what it chooses: "Theme"). */
+  label?: string;
   className?: string;
 }
 
 /** Segmented control (macOS and iOS): inset track, the active segment lifts; height follows the platform control scale. */
-export function Tabs<T extends string>({ items, value, onValueChange, fill, className }: TabsProps<T>) {
+export function Tabs<T extends string>({ items, value, onValueChange, fill, label, className }: TabsProps<T>) {
   return (
-    <div role="tablist" className={cn('items-center gap-0.5 p-0.5 rounded-md bg-layer-2', fill ? 'flex w-full' : 'inline-flex', className)}>
+    <div role="tablist" aria-label={label} className={cn('items-center gap-0.5 p-0.5 rounded-md bg-layer-2', fill ? 'flex w-full' : 'inline-flex', className)}>
       {items.map((item) => {
         const active = item.value === value;
         return (

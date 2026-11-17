@@ -191,7 +191,7 @@ export const GeneralPanel: React.FC = () => {
     <SettingsPage title="General" description="Appearance, capture, storage, and app information.">
       {/* Appearance — theme + import processing */}
       <Section title="Appearance">
-        <CardRow title="Theme" actions={<ChoiceControl items={themeTabs} value={theme} onValueChange={setTheme} />} />
+        <CardRow title="Theme" actions={<ChoiceControl label="Theme" items={themeTabs} value={theme} onValueChange={setTheme} />} />
 
         {/* Model icons — opt-in: loads org avatars from huggingface.co; only where local models exist */}
         {platform.supportsLocalServers && (

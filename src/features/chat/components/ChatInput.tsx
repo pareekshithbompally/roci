@@ -365,6 +365,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       <Textarea
         variant="bare"
         ref={inputRef}
+        aria-label="Message"
         value={value}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
