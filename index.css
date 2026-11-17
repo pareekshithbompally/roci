@@ -13,6 +13,21 @@ body {
   overflow-wrap: break-word;
 }
 
+/* Touch (iOS): behave like an app, not a page — no tap flash, no long-press callout, no selecting the app's chrome.
+   Text the user works with stays selectable: fields and chat/message text (.markdown-content). */
+html.platform-ios {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-text-size-adjust: 100%;
+}
+html.platform-ios :is(input, textarea, [contenteditable], .markdown-content) {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* Smaller font size for code blocks */
 code, pre {
   font-size: 13px;

@@ -2,6 +2,7 @@
 // - The page never scrolls as a whole (screens scroll inside it), so the top bar stays put.
 // - The web view sits above the keyboard (resized with it, on the keyboard's own curve), so the composer rides on it.
 // - No form toolbar (˄ ˅ ✓) above the keyboard: a chat field has nothing to step between.
+// - The area behind the web view takes the page colour, so no black strip shows as the keyboard moves.
 
 import UIKit
 import WebKit
@@ -27,6 +28,8 @@ private final class KeyboardFollower: NSObject {
         let covered = hiding ? 0 : max(0, container.bounds.maxY - keyboard.minY)
         let duration = (info[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
         let curve = (info[UIResponder.keyboardAnimationCurveUserInfoKey] as? UInt) ?? 7
+        // The live page colour (follows light/dark), so nothing black shows below or around the keyboard.
+        container.backgroundColor = webView.underPageBackgroundColor
         UIView.animate(withDuration: duration, delay: 0, options: UIView.AnimationOptions(rawValue: curve << 16)) {
             webView.frame = CGRect(x: 0, y: 0, width: container.bounds.width, height: container.bounds.height - covered)
             webView.scrollView.contentOffset = .zero
