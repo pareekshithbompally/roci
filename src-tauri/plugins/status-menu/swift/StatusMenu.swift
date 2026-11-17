@@ -225,6 +225,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         image.size = NSSize(width: image.size.width * height / image.size.height, height: height)
         image.isTemplate = true
         item.button?.image = recording ? Self.withRecordingDot(image) : image
+        // Recording isn't told by colour alone (HIG): VoiceOver hears it too.
+        item.button?.setAccessibilityTitle(recording ? "Roci, recording" : "Roci")
     }
 
     /// The template drawn in the menu bar's own text colour (resolved at draw time, so light and dark bars both work),
@@ -246,6 +248,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             return true
         }
         image.isTemplate = false
+        image.cacheMode = .never // redrawn on each display, so a light/dark menu bar change mid-recording takes effect
         return image
     }
 }

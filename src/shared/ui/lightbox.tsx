@@ -31,7 +31,7 @@ export function Lightbox({ src, alt, open, onOpenChange, caption }: LightboxProp
         >
           <DialogPrimitive.Title className="sr-only">{alt}</DialogPrimitive.Title>
           <div className="flex max-h-full max-w-full flex-col items-center gap-4" onClick={(e) => e.stopPropagation()}>
-            <img src={src} alt={alt} className="min-h-0 max-w-full flex-1 rounded-lg object-contain shadow-overlay" />
+            <img src={src} alt={alt} className="min-h-0 max-w-full rounded-lg object-contain shadow-overlay" />
             {caption && <div className="w-full max-w-xl shrink-0">{caption}</div>}
           </div>
           <DialogPrimitive.Close asChild>

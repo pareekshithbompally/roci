@@ -12,7 +12,7 @@ import { TodoList } from '@features/todos';
 import { NotesView } from '@features/notes';
 import { ResultsAudioPlayer } from './ResultsAudioPlayer';
 import { openUrl } from '@services/tauri';
-import { formatDuration } from '@shared/utils/formatters';
+import { formatDuration, calendarDayOffset, formatDayLabel } from '@shared/utils/formatters';
 import { meetingPipeline } from '@features/recording';
 import { useMeetingPhase } from '@shared/stores/meetingProgressStore';
 import { MeetingStatus } from '@shared/components';
@@ -52,14 +52,11 @@ function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
+/** Today or Tomorrow, else "Nov 17". */
 function formatDate(iso: string): string {
-  const d = new Date(iso);
-  const today = new Date();
-  if (d.toDateString() === today.toDateString()) return 'Today';
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
-  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  const offset = calendarDayOffset(iso);
+  if (offset === 0 || offset === 1) return formatDayLabel(iso);
+  return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
 const CalendarMetaRow: React.FC<{ item: HistoryItem }> = ({ item }) => {

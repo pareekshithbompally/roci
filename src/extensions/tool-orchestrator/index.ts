@@ -3,12 +3,11 @@
 import { streamText, isStepCount } from 'ai';
 import type { TextStreamPart, ToolSet } from 'ai';
 import { createModel, reasoningCallSettings, toSDKMessages, getWebSearchTools, toExecutableTools } from '@services/ai';
-import { resolveChatModel, requiresApiKey } from '@shared/utils/modelResolver';
+import { getProviderType, resolveChatModel, requiresApiKey } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { isLocalProviderId } from '@shared/utils/provider.utils';
 import { followModelLoad, generationStats, isLlamaServer, promptProgress } from '@services/ai/llamaServer';
 import { followMlxLoad } from '@services/mlx.service';
-import { getProviderType } from '@shared/utils/modelResolver';
 import { toolRegistry, loadMcpTools, generateImageTool, GENERATE_IMAGE_TOOL } from '@extensions/tools';
 import { hasImageModel } from '@services/ai/image';
 import { AGENT_LOOP_CONFIG, DEFAULT_CHAT_TOOLS } from '@config/chatTools.config';
@@ -152,37 +151,38 @@ export async function orchestrate(
       ? await followMlxLoad(resolved.modelId, showProgress)
       : () => undefined;
 
-  const result = streamText({
-    model: createModel(resolved, { webSearch: !!webSearchTools, ...(reportsProgress && { llamaServer: { reasoningEffort } }) }),
-    ...reasoningCallSettings(resolved, reasoningEffort),
-    instructions: systemPrompt,
-    messages: toSDKMessages(messages),
-    abortSignal: signal,
-    includeRawChunks: reportsProgress,
-    ...(tools && {
-      tools,
-      toolChoice: 'auto' as const,
-      prepareStep: prepareFinalStep,
-      stopWhen: isStepCount(AGENT_LOOP_CONFIG.maxSteps),
-    }),
-  });
-
   const state: StreamState = { hasText: false, hasReasoning: false, sources: [] };
+  // From the subscription on, the listener is released however the request ends (including a throw while it's set up).
   try {
+    const result = streamText({
+      model: createModel(resolved, { webSearch: !!webSearchTools, ...(reportsProgress && { llamaServer: { reasoningEffort } }) }),
+      ...reasoningCallSettings(resolved, reasoningEffort),
+      instructions: systemPrompt,
+      messages: toSDKMessages(messages),
+      abortSignal: signal,
+      includeRawChunks: reportsProgress,
+      ...(tools && {
+        tools,
+        toolChoice: 'auto' as const,
+        prepareStep: prepareFinalStep,
+        stopWhen: isStepCount(AGENT_LOOP_CONFIG.maxSteps),
+      }),
+    });
+
     for await (const part of result.stream) {
       if (signal?.aborted) break;
       handlePart(part, state, callbacks, { webSearchActive: !!webSearchTools, toolSources });
     }
+
+    if (!state.hasText && !signal?.aborted) throw emptyResponseError(await result.finishReason);
+    if (state.sources.length > 0) onChunk('', { webCitations: state.sources });
+
+    return {
+      provider: resolved.provider,
+      model: resolved.modelId,
+      tokenUsage: extractTokenUsage(await result.usage),
+    };
   } finally {
     stopFollowingLoad();
   }
-
-  if (!state.hasText && !signal?.aborted) throw emptyResponseError(await result.finishReason);
-  if (state.sources.length > 0) onChunk('', { webCitations: state.sources });
-
-  return {
-    provider: resolved.provider,
-    model: resolved.modelId,
-    tokenUsage: extractTokenUsage(await result.usage),
-  };
 }

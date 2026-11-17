@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { groupByDay } from '@features/gallery/hooks/useGallery';
 import type { GalleryImage } from '@services/storage/images.service';
+import { calendarDayOffset, formatDayLabel } from '@shared/utils/formatters';
 
 const image = (id: string, createdAt: number | null): GalleryImage => ({
   appPath: `images/${id}.png`,
   url: `asset://${id}`,
+  thumbUrl: `asset://${id}.thumb`,
   details: createdAt === null ? null : { prompt: id, model: 'm', aspectRatio: '1:1', createdAt },
 });
 
@@ -16,8 +18,17 @@ describe('gallery days', () => {
     expect(days.map((d) => [d.label, d.images.length])).toEqual([
       ['Today', 2],
       ['Yesterday', 1],
-      [new Date(at(12, 8)).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }), 1],
+      [formatDayLabel(at(12, 8), now), 1],
       ['Earlier', 1],
     ]);
+  });
+});
+
+describe('calendar days', () => {
+  it('counts local calendar days, not 24-hour spans, across a daylight-saving change', () => {
+    // 2026-03-08 is a 23-hour day in US time zones; an hour after midnight on the 9th is still one day later.
+    expect(calendarDayOffset(new Date(2026, 2, 9, 0, 30), new Date(2026, 2, 8, 23, 30))).toBe(1);
+    expect(calendarDayOffset(new Date(2026, 2, 7, 12), new Date(2026, 2, 9, 12))).toBe(-2);
+    expect(formatDayLabel(new Date(2026, 10, 17, 23, 59), new Date(2026, 10, 18, 0, 1))).toBe('Yesterday');
   });
 });

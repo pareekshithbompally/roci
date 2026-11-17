@@ -13,10 +13,17 @@ export function rowClasses(selected?: boolean): string {
 
 export interface RowProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   selected?: boolean;
+  /** An icon centred on the row's first line, however many lines its text wraps to. */
+  leading?: React.ReactNode;
 }
 
-export function Row({ selected, className, type = 'button', ...props }: RowProps) {
-  return <button type={type} className={cn(rowClasses(selected), className)} {...props} />;
+export function Row({ selected, leading, className, type = 'button', children, ...props }: RowProps) {
+  return (
+    <button type={type} className={cn(rowClasses(selected), className)} {...props}>
+      {leading && <span className="flex h-[1lh] shrink-0 items-center self-start">{leading}</span>}
+      {children}
+    </button>
+  );
 }
 
 export function RowGroupLabel({ className, children }: { className?: string; children: React.ReactNode }) {

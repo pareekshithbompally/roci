@@ -14,11 +14,8 @@ const SuggestionsList: React.FC<SuggestionsListProps> = ({ suggestions, onSugges
       <Row
         key={i}
         onClick={() => onSuggestionClick(suggestion)}
+        leading={<Icon icon={ArrowRight} size="xs" tone="faint" />}
       >
-        {/* One line tall: the arrow centres on the first line, whatever the text size. */}
-        <span className="flex h-[1lh] shrink-0 items-center self-start">
-          <Icon icon={ArrowRight} size="xs" tone="faint" />
-        </span>
         <span className="line-clamp-2">{suggestion}</span>
       </Row>
     ))}

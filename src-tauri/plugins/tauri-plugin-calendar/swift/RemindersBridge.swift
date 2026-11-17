@@ -9,7 +9,8 @@ private let queue = DispatchQueue(label: "\(Bundle.main.bundleIdentifier ?? "app
 private let todoScheme = "roci://todo/"
 
 /// Request full access to reminders. `{"granted": bool, "error"?: string}`
-/// Asked on a fresh store, as Calendar does; the shared store is then reset so it reads with the new access.
+/// One long-lived store (Apple: each store holds a calendar-daemon connection); after a grant it is reset on its queue so
+/// it reads with the new access. The answer is the caller's truth: the status read can lag behind a grant.
 @_cdecl("reminders_request_access")
 public func remindersRequestAccess() -> UnsafeMutablePointer<CChar> {
     let semaphore = DispatchSemaphore(value: 0)
@@ -20,9 +21,9 @@ public func remindersRequestAccess() -> UnsafeMutablePointer<CChar> {
         errorMsg = error?.localizedDescription
         semaphore.signal()
     }
-    EKEventStore().requestFullAccessToReminders(completion: done)
+    store.requestFullAccessToReminders(completion: done)
     semaphore.wait()
-    if granted { store.reset() }
+    if granted { queue.sync { store.reset() } }
     var result: [String: Any] = ["granted": granted]
     if let errorMsg { result["error"] = errorMsg }
     return remindersJSON(result)

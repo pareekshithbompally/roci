@@ -1,4 +1,5 @@
-/** An image as a square tile in a grid (the gallery): rounded, cropped to fill, a press target that opens it. */
+/** An image as a pressable, rounded tile that opens it: `square` crops to fill (gallery grids), `natural` keeps its
+ *  shape (an image in a reply). */
 
 import { cn } from './utils';
 
@@ -7,9 +8,10 @@ export interface ThumbnailProps {
   /** What the image shows (VoiceOver, and the hover tag on a Mac). */
   alt: string;
   onOpen: () => void;
+  shape?: 'square' | 'natural';
 }
 
-export function Thumbnail({ src, alt, onOpen }: ThumbnailProps) {
+export function Thumbnail({ src, alt, onOpen, shape = 'square' }: ThumbnailProps) {
   return (
     <button
       type="button"
@@ -17,11 +19,18 @@ export function Thumbnail({ src, alt, onOpen }: ThumbnailProps) {
       title={alt}
       aria-label={alt}
       className={cn(
-        'relative aspect-square w-full overflow-hidden rounded-xl bg-layer-2 shadow-input outline-none',
+        'relative block w-full overflow-hidden rounded-xl bg-layer-2 shadow-input outline-none',
+        shape === 'square' && 'aspect-square',
         'transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-focus',
       )}
     >
-      <img src={src} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+      <img
+        src={src}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        className={shape === 'square' ? 'h-full w-full object-cover' : 'block h-auto w-full'}
+      />
     </button>
   );
 }

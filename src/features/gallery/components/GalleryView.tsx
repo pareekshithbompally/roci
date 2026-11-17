@@ -65,7 +65,7 @@ export const GalleryView: React.FC = () => {
                   {day.images.map((image) => (
                     <Thumbnail
                       key={image.appPath}
-                      src={image.url}
+                      src={image.thumbUrl}
                       alt={image.details?.prompt ?? GALLERY_CONFIG.title}
                       onOpen={() => setOpen(image)}
                     />

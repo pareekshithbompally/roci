@@ -57,16 +57,49 @@ fn context_tokens(dir: &std::path::Path) -> Option<u64> {
     config.get(key).or_else(|| config.get("text_config")?.get(key))?.as_u64()
 }
 
-/// Whether the model's chat template takes tool definitions: `chat_template.jinja`, or the template in
-/// `tokenizer_config.json` (the way llama-server reads a GGUF's template).
+/// Whether the model's chat template takes tool definitions: a Jinja tag (`{% … %}`, `{{ … }}`) uses `tools` — prose
+/// that merely mentions the word doesn't count. Read from `chat_template.jinja`, `chat_template.json` or
+/// `tokenizer_config.json`, wherever the model ships it.
 fn takes_tools(dir: &std::path::Path) -> bool {
-    let jinja = std::fs::read_to_string(dir.join("chat_template.jinja")).unwrap_or_default();
-    let config = std::fs::read_to_string(dir.join("tokenizer_config.json")).unwrap_or_default();
-    let inline = serde_json::from_str::<serde_json::Value>(&config)
-        .ok()
-        .and_then(|c| c.get("chat_template").map(|t| t.to_string()))
-        .unwrap_or_default();
-    jinja.contains("tools") || inline.contains("tools")
+    chat_templates(dir).iter().any(|template| jinja_uses(template, "tools"))
+}
+
+fn chat_templates(dir: &std::path::Path) -> Vec<String> {
+    let read = |name: &str| std::fs::read_to_string(dir.join(name)).ok();
+    let embedded = |name: &str| {
+        let config: serde_json::Value = serde_json::from_str(&read(name)?).ok()?;
+        match config.get("chat_template")? {
+            serde_json::Value::String(template) => Some(template.clone()),
+            other => Some(other.to_string()), // named templates: [{ "name", "template" }]
+        }
+    };
+    [read("chat_template.jinja"), embedded("chat_template.json"), embedded("tokenizer_config.json")].into_iter().flatten().collect()
+}
+
+/// Whether any Jinja tag in `template` names `variable` as a whole word.
+fn jinja_uses(template: &str, variable: &str) -> bool {
+    let word = |c: char| c.is_alphanumeric() || c == '_';
+    template.split("{%").skip(1).chain(template.split("{{").skip(1)).any(|tail| {
+        let tag = tail.split(['%', '}']).next().unwrap_or_default();
+        tag.match_indices(variable).any(|(at, _)| {
+            let before = tag[..at].chars().next_back().is_none_or(|c| !word(c));
+            let after = tag[at + variable.len()..].chars().next().is_none_or(|c| !word(c));
+            before && after
+        })
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::jinja_uses;
+
+    #[test]
+    fn tools_counts_only_inside_a_jinja_tag() {
+        assert!(jinja_uses("{%- if tools %}{{ tools | tojson }}{% endif %}", "tools"));
+        assert!(jinja_uses("{{- tools[0].name }}", "tools"));
+        assert!(!jinja_uses("This model does not support tools.", "tools"));
+        assert!(!jinja_uses("{% if toolset %}{{ my_tools_x }}{% endif %}", "tools"));
+    }
 }
 
 /// Starts a download; progress and the outcome arrive as `models://download` events.

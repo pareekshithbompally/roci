@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { imagesService } from '@services/storage';
 import { queryKeys } from '@shared/query/queryKeys';
 import { FileText } from 'lucide-react';
-import { Button, Icon, Lightbox, Surface, Text } from '@shared/ui';
+import { Icon, Lightbox, Surface, Text, Thumbnail } from '@shared/ui';
 import type { ChatPart, MediaSource } from '@shared/types';
 
 /** A part's `src`: a URL or inline data as is; a file in app data through Tauri's asset protocol, resolved once and cached. */
@@ -41,16 +41,9 @@ export const MediaPartRenderer: React.FC<MediaPartRendererProps> = ({ part }) =>
     case 'image':
       return (
         <>
-          <Button variant="ghost" size="inline" onClick={handleOpen} className="my-2 max-w-xs hover:opacity-90">
-            <Surface radius="lg" className="overflow-hidden">
-              <img
-                src={src}
-                alt={part.alt || 'AI generated image'}
-                className="block w-full h-auto"
-                loading="lazy"
-              />
-            </Surface>
-          </Button>
+          <div className="my-2 max-w-xs">
+            <Thumbnail src={src ?? ''} alt={part.alt || 'AI generated image'} onOpen={handleOpen} shape="natural" />
+          </div>
           {src && <Lightbox src={src} alt={part.alt || 'AI generated image'} open={lightboxOpen} onOpenChange={setLightboxOpen} />}
         </>
       );

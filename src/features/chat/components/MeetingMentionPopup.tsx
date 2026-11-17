@@ -14,6 +14,7 @@ import {
   Text,
 } from '@shared/ui';
 import { UI_CONFIG } from '@config/ui.config';
+import { calendarDayOffset, formatDayLabel } from '@shared/utils/formatters';
 
 interface MeetingMentionPopupProps {
   meetings: MeetingListItem[];
@@ -23,15 +24,11 @@ interface MeetingMentionPopupProps {
   onClose?: () => void;
 }
 
-// Format timestamp to relative time
+/** Today, Yesterday, "3 days ago" within the week, else the date. */
 function formatTime(timestamp: number) {
-  const now = Date.now();
-  const diff = now - timestamp;
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  if (days < 7) return `${days} days ago`;
+  const daysAgo = -calendarDayOffset(timestamp);
+  if (daysAgo <= 1) return formatDayLabel(timestamp);
+  if (daysAgo < 7) return `${daysAgo} days ago`;
   return new Date(timestamp).toLocaleDateString();
 }
 
