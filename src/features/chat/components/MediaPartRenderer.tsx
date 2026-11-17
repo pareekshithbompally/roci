@@ -1,11 +1,11 @@
-/** Renders image, audio, and video chat parts; images open a fullscreen lightbox on click. */
+/** Renders image, audio, and video chat parts; an image opens full size over the window (kit Lightbox) on click. */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { imagesService } from '@services/storage';
 import { queryKeys } from '@shared/query/queryKeys';
-import { X, FileText } from 'lucide-react';
-import { Button, IconButton, Icon, Surface, Text } from '@shared/ui';
+import { FileText } from 'lucide-react';
+import { Button, Icon, Lightbox, Surface, Text } from '@shared/ui';
 import type { ChatPart, MediaSource } from '@shared/types';
 
 /** A part's `src`: a URL or inline data as is; a file in app data through Tauri's asset protocol, resolved once and cached. */
@@ -25,34 +25,6 @@ function useMediaSrc(part: ChatPart): string | undefined {
   return fileUrl;
 }
 
-/** Fullscreen lightbox for viewing images at native resolution */
-const ImageLightbox: React.FC<{ src: string; alt: string; onClose: () => void }> = ({
-  src,
-  alt,
-  onClose,
-}) => {
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
-  return (
-    <Surface
-      variant="scrim"
-      className="fixed inset-0 z-modal flex items-center justify-center animate-fade-in"
-      onClick={onClose}
-    >
-      <IconButton icon={X} label="Close" variant="secondary" className="absolute top-4 right-4" onClick={onClose} />
-      <Surface radius="lg" className="overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <img src={src} alt={alt} className="block max-w-[90vw] max-h-[90vh] object-contain" />
-      </Surface>
-    </Surface>
-  );
-};
-
 interface MediaPartRendererProps {
   part: ChatPart;
 }
@@ -64,7 +36,6 @@ export const MediaPartRenderer: React.FC<MediaPartRendererProps> = ({ part }) =>
   // Every hook runs before this early return (rules of hooks); the rest is plain derivation.
   if (part.type === 'text' || part.type === 'reasoning' || part.type === 'tool_call') return null;
   const handleOpen = () => setLightboxOpen(true);
-  const handleClose = () => setLightboxOpen(false);
 
   switch (part.type) {
     case 'image':
@@ -80,13 +51,7 @@ export const MediaPartRenderer: React.FC<MediaPartRendererProps> = ({ part }) =>
               />
             </Surface>
           </Button>
-          {lightboxOpen && (
-            <ImageLightbox
-              src={src}
-              alt={part.alt || 'AI generated image'}
-              onClose={handleClose}
-            />
-          )}
+          {src && <Lightbox src={src} alt={part.alt || 'AI generated image'} open={lightboxOpen} onOpenChange={setLightboxOpen} />}
         </>
       );
     case 'audio':

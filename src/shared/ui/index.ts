@@ -58,6 +58,8 @@ export { ChoiceControl } from './choice-control';
 export type { ChoiceControlProps } from './choice-control';
 export { BottomSheet, SheetBody } from './bottom-sheet';
 export type { BottomSheetProps } from './bottom-sheet';
+export { Lightbox } from './lightbox';
+export type { LightboxProps } from './lightbox';
 export { Picker } from './picker';
 export type { PickerGroup, PickerOption, PickerProps } from './picker';
 export { SearchField } from './search-field';
