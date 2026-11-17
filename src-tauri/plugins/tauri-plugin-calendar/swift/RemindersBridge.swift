@@ -9,6 +9,7 @@ private let queue = DispatchQueue(label: "\(Bundle.main.bundleIdentifier ?? "app
 private let todoScheme = "roci://todo/"
 
 /// Request full access to reminders. `{"granted": bool, "error"?: string}`
+/// Asked on a fresh store, as Calendar does; the shared store is then reset so it reads with the new access.
 @_cdecl("reminders_request_access")
 public func remindersRequestAccess() -> UnsafeMutablePointer<CChar> {
     let semaphore = DispatchSemaphore(value: 0)
@@ -19,8 +20,9 @@ public func remindersRequestAccess() -> UnsafeMutablePointer<CChar> {
         errorMsg = error?.localizedDescription
         semaphore.signal()
     }
-    store.requestFullAccessToReminders(completion: done)
+    EKEventStore().requestFullAccessToReminders(completion: done)
     semaphore.wait()
+    if granted { store.reset() }
     var result: [String: Any] = ["granted": granted]
     if let errorMsg { result["error"] = errorMsg }
     return remindersJSON(result)

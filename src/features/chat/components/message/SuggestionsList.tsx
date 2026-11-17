@@ -1,5 +1,6 @@
 import React from 'react';
-import { Row, Text } from '@shared/ui';
+import { ArrowRight } from 'lucide-react';
+import { Icon, Row } from '@shared/ui';
 
 interface SuggestionsListProps {
   suggestions: string[];
@@ -14,7 +15,10 @@ const SuggestionsList: React.FC<SuggestionsListProps> = ({ suggestions, onSugges
         key={i}
         onClick={() => onSuggestionClick(suggestion)}
       >
-        <Text tone="faint" className="shrink-0 self-start">&#8594;</Text>
+        {/* One line tall: the arrow centres on the first line, whatever the text size. */}
+        <span className="flex h-[1lh] shrink-0 items-center self-start">
+          <Icon icon={ArrowRight} size="xs" tone="faint" />
+        </span>
         <span className="line-clamp-2">{suggestion}</span>
       </Row>
     ))}

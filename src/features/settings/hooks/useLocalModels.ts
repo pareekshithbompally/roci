@@ -33,6 +33,10 @@ function nameOf(id: string): string {
   return queryClient.getQueryData<LocalModel[]>(modelsKey)?.find((m) => m.id === id)?.name ?? id;
 }
 
+const cancelAction = (id: string) => ({
+  icon: 'x', label: 'Cancel', onClick: () => void cancelLocalModelDownload(id).catch(report('cancel')),
+});
+
 /** The activity tray row for a download (once per download). */
 function showActivity(id: string): void {
   if (activityStore.get(activityId(id))) return;
@@ -45,7 +49,18 @@ function showActivity(id: string): void {
     step: null,
     detail: null,
     error: null,
-    actions: [{ icon: 'x', label: 'Cancel', onClick: () => void cancelLocalModelDownload(id).catch(report('cancel')) }],
+    actions: [cancelAction(id)],
+  });
+}
+
+/** One label, Cancel and continuous progress for the whole download, whichever file is in flight. */
+function showDownloading(download: LocalModelDownload): void {
+  showActivity(download.id); // also after a webview reload mid-download
+  activityStore.update(activityId(download.id), {
+    label: `Downloading ${nameOf(download.id)}`,
+    percent: downloadPercent(download),
+    detail: `${formatFileSize(download.received)} of ${formatFileSize(download.total)}`,
+    actions: [cancelAction(download.id)],
   });
 }
 
@@ -112,14 +127,12 @@ function applyDownload(download: LocalModelDownload): void {
   const id = activityId(download.id);
   switch (download.state) {
     case 'downloading':
-      showActivity(download.id); // also after a webview reload mid-download
-      activityStore.update(id, {
-        percent: downloadPercent(download),
-        detail: `${formatFileSize(download.received)} of ${formatFileSize(download.total)}`,
-      });
+      showDownloading(download);
       return;
     case 'verifying':
-      activityStore.update(id, { label: `Checking ${nameOf(download.id)}`, percent: null, detail: null, actions: [] });
+      // A model of several files is checked file by file: it stays "Downloading" (with Cancel) until the last one.
+      if (download.received < download.total) return showDownloading(download);
+      activityStore.update(id, { label: `Checking ${nameOf(download.id)}`, percent: 100, detail: 'Verifying the download', actions: [] });
       return;
     case 'done':
       notifyAppEvent({ id, kind: 'modelDownloads', tone: 'success', inFront: 'toast', title: `${nameOf(download.id)} is ready`, body: 'Download finished.' });

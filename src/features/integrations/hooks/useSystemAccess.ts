@@ -37,7 +37,9 @@ export function useSystemAccess({ id, check, request, settingsPane }: AccessSour
 
   const requestAccess = useCallback(async () => {
     const granted = await request();
-    await queryClient.invalidateQueries({ queryKey: queryKeys.integrationAccess(id) });
+    // The system's answer is the truth (Apple's guidance); its status read can lag right after a grant.
+    if (granted) queryClient.setQueryData<CalendarAccessStatus>(queryKeys.integrationAccess(id), 'authorized');
+    else await queryClient.invalidateQueries({ queryKey: queryKeys.integrationAccess(id) });
     return granted;
   }, [id, request, queryClient]);
 

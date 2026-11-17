@@ -1,6 +1,7 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import React from 'react';
 import { cn } from './utils';
+import { TitlebarSpacer } from './page-scroll';
 import { Surface } from './surface';
 import { NO_INSETS } from './recipes';
 import { BottomSheet } from './bottom-sheet';
@@ -64,6 +65,8 @@ export function Drawer({ open, onClose, label, side = 'end', children }: DrawerP
         >
           <Surface variant="card" edge={placement.edge} className={cn('absolute flex flex-col overflow-hidden', placement.panel, placement.motion)}>
             <DialogPrimitive.Title className="sr-only">{label}</DialogPrimitive.Title>
+            {/* Mac: the panel's header starts below the titlebar drag strip (which sits above it), as every page does. */}
+            {side === 'end' && <TitlebarSpacer />}
             <div className={cn('flex min-h-0 flex-1 flex-col', NO_INSETS)}>{children}</div>
           </Surface>
         </DialogPrimitive.Content>
