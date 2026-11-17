@@ -62,19 +62,20 @@ export function CardRow({ title, description, leading, leadingAlign = 'title', s
       )}
       {...props}
     >
-      <div className={cn('flex min-w-0 flex-1 gap-2.5', leadingAlign === 'row' ? 'items-center' : 'items-start')}>
+      {/* Title first (iOS / macOS lists): it keeps its one line; the value side takes what is left and truncates. */}
+      <div className={cn('flex min-w-0 gap-2.5', trailing && !stacked ? 'max-w-[70%] shrink-0' : 'flex-1', leadingAlign === 'row' ? 'items-center' : 'items-start')}>
         {/* `title`: one title line tall (1lh of the title style), so the icon centres on the title, not the block. */}
         {leading && (leadingAlign === 'row'
           ? <div className="flex shrink-0 items-center">{leading}</div>
           : <Text as="div" variant="body" className="flex h-[1lh] shrink-0 items-center">{leading}</Text>)}
         <div className="min-w-0">
-          <Text as="p" variant="body" className="break-words">{title}</Text>
+          <Text as="p" variant="body" truncate>{title}</Text>
           {description && <Text as="p" variant="helper" tone="muted" truncate className="mt-0.5">{description}</Text>}
           {status && phone && <div className="mt-1 flex items-center gap-2">{status}</div>}
         </div>
       </div>
       {trailing && (
-        <div className={cn('flex min-w-0 items-center gap-3', !stacked && 'max-w-[50%] shrink-0')}>
+        <div className={cn('flex min-w-0 items-center gap-3', !stacked && 'flex-1 justify-end')}>
           {statusBeside && <div className="flex min-w-0 items-center gap-2">{status}</div>}
           {/* Controls shrink to the row (a long value truncates) instead of spilling past the card. */}
           {actions && <div className="flex min-w-0 items-center gap-2 [&>*]:min-w-0">{actions}</div>}
