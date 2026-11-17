@@ -1,7 +1,7 @@
 /**
  * Idle-view colour: a soft copper wash that flows down from the top of the screen (behind the phone's clear top bar)
  * and fades to the page by the middle, so the greeting sits on a calm, light ground. Solid shapes under a compositor
- * blur avoid WebKit gradient banding; the layer is still, so the blur is drawn once, not every frame.
+ * blur, with a faint dither over them, keep the gradient free of bands; the layer is still, so it is drawn once.
  */
 
 export const LandingGlow: React.FC = () => (
@@ -16,5 +16,7 @@ export const LandingGlow: React.FC = () => (
       {/* Copper core — top left, the warmest point, well above the greeting */}
       <div className="absolute left-[36%] top-[14%] h-[20rem] w-[24rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-glow-core" />
     </div>
+    {/* Dither: breaks the soft gradient's colour steps (banding) into a smooth blend. */}
+    <div className="absolute inset-0 bg-dither opacity-dither mix-blend-overlay" />
   </div>
 );

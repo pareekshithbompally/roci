@@ -82,7 +82,10 @@ export default {
         'tint-pressed': 'linear-gradient(var(--bg-pressed), var(--bg-pressed))',
         // Running-work label: a brighter band sweeps across faint text (Text `shimmer`).
         'text-shimmer': 'linear-gradient(90deg, var(--text-faint) 35%, var(--text-primary) 50%, var(--text-faint) 65%)',
+        // A faint grain laid over soft gradients so they blend without bands (tokens.css --texture-dither).
+        dither: 'var(--texture-dither)',
       },
+      opacity: { dither: 'var(--dither-opacity)' },
       backgroundSize: { shimmer: '200% 100%' },
       // Grouped-list shape (tokens.css): macOS values by default, iOS under html.platform-ios.
       borderRadius: { card: 'var(--radius-card)', sheet: 'var(--radius-sheet)', field: 'calc(var(--control-md) / 2)' },

@@ -163,6 +163,9 @@
   --bg-glow-core: color-mix(in srgb, var(--copper-500) 30%, transparent);
   --bg-glow-companion: color-mix(in srgb, var(--copper-400) 26%, transparent);
   --bg-glow-wash: color-mix(in srgb, var(--copper-400) 20%, transparent);
+  /* Dither over a soft gradient: a faint fractal grain breaks the 8-bit colour steps (banding) into a smooth blend. */
+  --texture-dither: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --dither-opacity: 0.05;
   /* Recording pill (DotScope canvas, read live): voice in copper, processing in sand, failure in danger red. */
   --scope-you: var(--copper-600);
   --scope-you-core: var(--copper-400);
