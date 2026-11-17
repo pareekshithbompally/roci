@@ -20,6 +20,8 @@ pub struct LocalModelStatus {
     downloading: bool,
     /// A downloaded chat model's context window, as its own config states (the chat's context ring); None otherwise.
     context_tokens: Option<u64>,
+    /// A downloaded chat model's chat template takes tool definitions (tool calling); None otherwise.
+    tools: Option<bool>,
 }
 
 /// Every curated model: downloaded, downloading, or neither.
@@ -40,6 +42,7 @@ pub fn local_models(app: AppHandle, state: State<'_, ModelsState>) -> Result<Vec
                 installed,
                 downloading: state.downloads.is_active(m.id),
                 context_tokens: (installed && m.kind == Kind::Chat).then(|| context_tokens(&dir)).flatten(),
+                tools: (installed && m.kind == Kind::Chat).then(|| takes_tools(&dir)),
             })
         })
         .collect()
@@ -52,6 +55,18 @@ fn context_tokens(dir: &std::path::Path) -> Option<u64> {
     let config: serde_json::Value = serde_json::from_str(&text).ok()?;
     let key = "max_position_embeddings";
     config.get(key).or_else(|| config.get("text_config")?.get(key))?.as_u64()
+}
+
+/// Whether the model's chat template takes tool definitions: `chat_template.jinja`, or the template in
+/// `tokenizer_config.json` (the way llama-server reads a GGUF's template).
+fn takes_tools(dir: &std::path::Path) -> bool {
+    let jinja = std::fs::read_to_string(dir.join("chat_template.jinja")).unwrap_or_default();
+    let config = std::fs::read_to_string(dir.join("tokenizer_config.json")).unwrap_or_default();
+    let inline = serde_json::from_str::<serde_json::Value>(&config)
+        .ok()
+        .and_then(|c| c.get("chat_template").map(|t| t.to_string()))
+        .unwrap_or_default();
+    jinja.contains("tools") || inline.contains("tools")
 }
 
 /// Starts a download; progress and the outcome arrive as `models://download` events.

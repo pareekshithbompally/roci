@@ -21,6 +21,8 @@ export interface LocalModel {
   downloading: boolean;
   /** A downloaded chat model's context window, from its own config (null otherwise). */
   contextTokens: number | null;
+  /** A downloaded chat model's chat template takes tools (tool calling); null otherwise. */
+  tools: boolean | null;
 }
 
 /** Payload of the download event (Rust `DownloadProgress`). */

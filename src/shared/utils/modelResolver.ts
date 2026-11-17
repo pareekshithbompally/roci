@@ -141,11 +141,19 @@ export function cachedLocalModels(): LocalModel[] {
   return queryClient.getQueryData<LocalModel[]>(queryKeys.localModels()) ?? [];
 }
 
-/** Chat models downloaded to this device as one provider entry (no key); each reports its context window as a server does. */
+/** On-device chat runs text in and out (the MLX bridge passes text); the model's own files state the rest. */
+const ON_DEVICE_TEXT = { input: ['text'], output: ['text'] };
+
+/** Chat models downloaded to this device as one provider entry (no key); each reports what it can do, as a server does:
+ *  tool calling from its chat template, the context window from its config. */
 function onDeviceChatProvider(localModels: LocalModel[]): ModelProvider | null {
   const models = localModels
     .filter((m) => m.kind === 'chat' && m.installed)
-    .map((m) => ({ id: m.id, name: m.name, ...(m.contextTokens ? { served: { contextTokens: m.contextTokens } } : {}) }));
+    .map((m) => ({
+      id: m.id,
+      name: m.name,
+      served: { modalities: ON_DEVICE_TEXT, tools: m.tools ?? false, ...(m.contextTokens ? { contextTokens: m.contextTokens } : {}) },
+    }));
   return models.length > 0 ? { provider: ON_DEVICE, active: true, settings: [], models } : null;
 }
 
