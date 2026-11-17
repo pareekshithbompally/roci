@@ -1,6 +1,6 @@
 /** Renders image, audio, and video chat parts; images open a fullscreen lightbox on click. */
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, FileText } from 'lucide-react';
 import { Button, IconButton, Icon, Surface, Text } from '@shared/ui';
 import type { ChatPart, MediaSource } from '@shared/types';
@@ -34,7 +34,7 @@ const ImageLightbox: React.FC<{ src: string; alt: string; onClose: () => void }>
   return (
     <Surface
       variant="scrim"
-      className="fixed inset-0 z-modal flex items-center justify-center animate-in fade-in duration-200"
+      className="fixed inset-0 z-modal flex items-center justify-center animate-fade-in"
       onClick={onClose}
     >
       <IconButton icon={X} label="Close" variant="secondary" className="absolute top-4 right-4" onClick={onClose} />
@@ -52,11 +52,12 @@ interface MediaPartRendererProps {
 export const MediaPartRenderer: React.FC<MediaPartRendererProps> = ({ part }) => {
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
+  // Every hook runs before this early return (rules of hooks); the rest is plain derivation.
   if (part.type === 'text' || part.type === 'reasoning' || part.type === 'tool_call') return null;
 
-  const src = useMemo(() => resolveMediaSrc(part.source, part.mimeType), [part]);
-  const handleOpen = useCallback(() => setLightboxOpen(true), []);
-  const handleClose = useCallback(() => setLightboxOpen(false), []);
+  const src = resolveMediaSrc(part.source, part.mimeType);
+  const handleOpen = () => setLightboxOpen(true);
+  const handleClose = () => setLightboxOpen(false);
 
   switch (part.type) {
     case 'image':
