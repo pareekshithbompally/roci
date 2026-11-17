@@ -1,14 +1,14 @@
 /** Todos view listing user-created todos and AI-generated action items; the tab bar's Add opens its create form. */
 
-import React, { useState, useCallback } from 'react';
-import { Plus, ListTodo, Loader2, Calendar } from 'lucide-react';
+import React, { useCallback } from 'react';
+import { ListTodo, Loader2 } from 'lucide-react';
 import { useSelectedHistoryId, useAppResult } from '@shared/stores/appStore';
 import { useMeetingTodos } from '@features/todos/hooks/useMeetingTodos';
 import { EmptyState } from '@shared/components';
 import { confirmDelete } from '@shared/stores/confirmStore';
-import { Button, DatePicker, Icon, Progress, Separator, Surface, Text, TimePicker, Textarea, cn } from '@shared/ui';
-import { buildISOFromDateInput } from '@shared/utils/todo.utils';
+import { Icon, Progress, Separator, Text, cn } from '@shared/ui';
 import TodoItem from './TodoItem';
+import { NewTodoForm } from './NewTodoForm';
 
 interface TodoListProps {
   /** The create form is open (the meeting's tab bar Add opens it). */
@@ -33,10 +33,6 @@ const TodoList: React.FC<TodoListProps> = ({ creating, onCreatingChange, classNa
     ...(aiTodos || [])
   ];
   
-  const [newItemText, setNewItemText] = useState('');
-  const [newItemDate, setNewItemDate] = useState('');
-  const [newItemTime, setNewItemTime] = useState('');
-  
   // Calculate stats from combined list
   const completedCount = allTodos.filter(todo => todo.completed).length;
   const totalCount = allTodos.length;
@@ -44,26 +40,6 @@ const TodoList: React.FC<TodoListProps> = ({ creating, onCreatingChange, classNa
 
   const meetingId = selectedHistoryId || '';
   const meetingTitle = result?.title || 'Meeting';
-
-  const handleSaveItem = async () => {
-    if (newItemText.trim() && selectedHistoryId) {
-      const dueDateString = newItemDate
-        ? buildISOFromDateInput(newItemDate, newItemTime || undefined)
-        : undefined;
-      await addTodo(newItemText.trim(), dueDateString);
-      setNewItemText('');
-      setNewItemDate('');
-      setNewItemTime('');
-      onCreatingChange(false);
-    }
-  };
-
-  const handleCancel = () => {
-    setNewItemText('');
-    setNewItemDate('');
-    setNewItemTime('');
-    onCreatingChange(false);
-  };
 
   const handleReminderChange = useCallback((todoId: string, reminderDateTime: string | null) => {
     updateTodo(todoId, {});
@@ -90,62 +66,13 @@ const TodoList: React.FC<TodoListProps> = ({ creating, onCreatingChange, classNa
         </div>
       )}
 
-      {/* New to-do input */}
-      {creating && (
-        <Surface variant="subtle" radius="xl" edge="all" className="p-4 space-y-3 animate-fade-in">
-          <Textarea
-            value={newItemText}
-            onChange={(e) => setNewItemText(e.target.value)}
-            placeholder="What do you need to do?"
-            spellCheck={true}
-            autoCorrect="on"
-            autoCapitalize="sentences"
-            className="h-16"
-            autoFocus
-          />
-
-          {/* Deadline picker */}
-          <div className="space-y-2">
-            <Text as="label" variant="label" tone="muted" className="flex items-center gap-1.5">
-              <Icon icon={Calendar} size="xs" />
-              Due date (optional)
-            </Text>
-            <div className="flex gap-2 items-center">
-              <DatePicker
-                value={newItemDate}
-                onChange={(val) => setNewItemDate(val)}
-                min={new Date().toISOString().split('T')[0]}
-                placeholder="Pick a date"
-                className="flex-1"
-              />
-              <TimePicker
-                value={newItemTime || '09:00'}
-                onChange={(val) => setNewItemTime(val)}
-                disabled={!newItemDate}
-                className="w-28"
-              />
-            </div>
-            {newItemDate && (
-              <Text as="div" variant="helper" tone="muted">
-                Due: {new Date(newItemDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                {newItemTime ? ` at ${newItemTime}` : ''}
-              </Text>
-            )}
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex gap-2 justify-end pt-1">
-            <Button variant="outline" size="sm" onClick={handleCancel}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="sm" onClick={handleSaveItem}
-              disabled={!newItemText.trim() || !selectedHistoryId}>
-              <Icon icon={Plus} size="xs" />
-              Create
-            </Button>
-          </div>
-        </Surface>
-      )}
+      {/* New to-do: the shared form (a sheet on iPhone), fixed to this meeting. */}
+      <NewTodoForm
+        open={creating}
+        onClose={() => onCreatingChange(false)}
+        meetingId={meetingId}
+        onSubmit={(_meeting, text, dueDate) => addTodo(text, dueDate)}
+      />
 
       {/* Content: empty state or item list */}
       {totalCount === 0 && !creating ? (

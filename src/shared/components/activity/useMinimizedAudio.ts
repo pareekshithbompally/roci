@@ -29,7 +29,9 @@ export function useMinimizedAudio(): MinimizedAudio | null {
   const stopSession = useAudioPlayerStore((s) => s.stopSession);
   const setPlaying = useAudioPlayerStore((s) => s.setPlaying);
   const updateCurrentTime = useAudioPlayerStore((s) => s.updateCurrentTime);
-  const minimized = !!session && session.meetingId !== useSelectedHistoryId() && isPlaying;
+  // Every hook runs on every render (rules of hooks): read the open meeting before deciding.
+  const openMeetingId = useSelectedHistoryId();
+  const minimized = !!session && session.meetingId !== openMeetingId && isPlaying;
 
   const failed = (error: unknown) => console.error('[MinimizedAudio] playback failed:', error);
 

@@ -1,4 +1,4 @@
-/** iPhone shell: a plain chatbot — top bar (sidebar · model · activity while any runs · New chat), the content; opening the sidebar slides the view aside to reveal it, Settings rises as a sheet. */
+/** iPhone shell: a plain chatbot — top bar (sidebar · model · New chat), the content; opening the sidebar slides the view aside to reveal it, Settings rises as a sheet. */
 
 import React from 'react';
 import { PanelLeft, SquarePen, X } from 'lucide-react';
@@ -7,7 +7,6 @@ import { useAppActions, useAppStore, useCurrentView } from '@shared/stores/appSt
 import { ModelPicker, startNewChat } from '@features/chat';
 import { SettingsHome, settingsScreen } from '@features/settings';
 import { BottomSheet, IconButton, NavStack, RevealLayout, Surface, TopBar } from '@shared/ui';
-import { ActivityButton } from '@shared/components';
 import { Sidebar } from './Sidebar';
 
 interface PhoneShellProps {
@@ -27,12 +26,7 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children }) => {
         <TopBar
           leading={<IconButton icon={PanelLeft} size="fab" variant="bar" label="Open sidebar" onClick={() => setLeftPanel(true)} />}
           title={<ModelPicker compact />}
-          trailing={(
-            <>
-              <ActivityButton />
-              <IconButton icon={SquarePen} size="fab" variant="bar" label="New chat" onClick={startNewChat} />
-            </>
-          )}
+          trailing={<IconButton icon={SquarePen} size="fab" variant="bar" label="New chat" onClick={startNewChat} />}
         />
         {/* Clear of the home indicator once, for every screen (idle, chat, meeting). */}
         <div className="relative flex min-h-0 flex-1 flex-col pb-safe-bottom">

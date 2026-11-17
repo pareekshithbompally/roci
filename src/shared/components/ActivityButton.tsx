@@ -1,6 +1,6 @@
-/** iPhone: a top-bar button while work runs (downloads, model loads, imports) or meeting audio plays; tapping it opens Activity
- *  full screen. A recording isn't here: its Record pill shows and stops it in place.
- *  Always mounted by the phone shell, so meeting audio keeps playing whether Activity is open or not. */
+/** iPhone: beside the sidebar's Settings, a spinner while work runs (downloads, model loads, imports) or meeting audio plays;
+ *  tapping it opens Activity full screen. A recording isn't here: its Record pill shows and stops it in place.
+ *  The sidebar stays mounted, so meeting audio keeps playing whether Activity is open or not. */
 
 import React, { useState } from 'react';
 import { AudioLines, Loader2 } from 'lucide-react';

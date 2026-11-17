@@ -117,3 +117,7 @@ export function buildISOFromDateInput(dateStr: string, timeStr?: string): string
   if (!d) return dateStr;
   return d.toISOString();
 }
+
+/** A meeting's date in to-do lists and pickers: "Nov 18, 2026". */
+export const formatMeetingDate = (ts: number): string =>
+  new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });

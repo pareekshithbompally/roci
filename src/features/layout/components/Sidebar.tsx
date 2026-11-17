@@ -15,7 +15,7 @@ import { APP_CONFIG } from '@config/app.config';
 import {
   endSidebarSearch, setSidebarSearchQuery, startSidebarSearch, useSidebarSearchActive, useSidebarSearchQuery,
 } from '@shared/stores/sidebarSearchStore';
-import { ActivityTray } from '@shared/components';
+import { ActivityTray, ActivityButton } from '@shared/components';
 import { shortcutLabel } from '@features/shortcuts';
 import { startNewChat, useChatStore } from '@features/chat';
 import type { UnifiedSidebarItem } from '@shared/types';
@@ -142,8 +142,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </header>
         <div className="shrink-0 px-2">{destinations}</div>
         <div ref={listContainerRef} className="flex-1 overflow-y-auto px-2 pb-2">{list}</div>
-        <footer className="shrink-0 px-4 pt-2 pb-4">
+        {/* Settings, and beside it a spinner while work runs (downloads, model loads, imports): tap for Activity. */}
+        <footer className="flex shrink-0 items-center gap-2 px-4 pt-2 pb-4">
           <IconButton icon={Settings} size="fab" variant="bar" onClick={handleSettingsClick} label="Settings" />
+          <ActivityButton />
         </footer>
       </div>
     );

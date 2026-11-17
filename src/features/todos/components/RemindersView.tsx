@@ -1,18 +1,13 @@
 /** To-dos: every meeting's action items, grouped by meeting, filterable, with create support; opened from the sidebar row. */
 
-import React, { useCallback, useState, useMemo } from 'react';
-import { ListTodo, AlertTriangle, Bell, CalendarDays, Inbox, Search, Plus, X, ChevronDown } from 'lucide-react';
-import { useHistoryData } from '@shared/contexts/HistoryContext';
+import React, { useCallback, useState } from 'react';
+import { AlertTriangle, Bell, CalendarDays, Inbox, Search, Plus, X } from 'lucide-react';
 import { useGlobalTodos } from '@features/todos/hooks/useGlobalTodos';
 import type { TodoFilter, GlobalTodo } from '@features/todos/hooks/useGlobalTodos';
-import {
-  Button, Checkbox, DatePicker, Icon, IconButton, Input, Popover, PopoverContent, PopoverTrigger,
-  Row, Surface, Tabs, Text, Textarea, TimePicker, cn,
-  TitlebarSpacer,
-} from '@shared/ui';
+import { Button, Checkbox, Icon, IconButton, Input, Surface, Tabs, Text, TitlebarSpacer, cn } from '@shared/ui';
 import { EmptyState } from '@shared/components';
-import type { HistoryItem } from '@shared/types';
-import { isOverdue, formatDueDate, formatReminderDate, isReminderOverdue, buildISOFromDateInput } from '@shared/utils/todo.utils';
+import { isOverdue, formatDueDate, formatReminderDate, isReminderOverdue, formatMeetingDate } from '@shared/utils/todo.utils';
+import { NewTodoForm } from './NewTodoForm';
 import ReminderPicker from './ReminderPicker';
 import { platform } from '@platform/index';
 import { useFormFactor } from '@platform/formFactor';
@@ -26,176 +21,6 @@ const FILTERS: { key: TodoFilter; label: string; countKey: 'total' | 'pending' |
   { key: 'pending', label: 'Pending', countKey: 'pending' },
   { key: 'completed', label: 'Completed', countKey: 'completed' },
 ];
-
-// ── Date formatting helpers ─────────────────────────────────────
-
-const formatDate = (ts: number) =>
-  new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-
-// ── Meeting selector ────────────────────────────────────────────
-
-interface MeetingSelectorProps {
-  items: HistoryItem[];
-  selectedId: string;
-  onSelect: (id: string) => void;
-}
-
-const MeetingSelector: React.FC<MeetingSelectorProps> = ({ items, selectedId, onSelect }) => {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-
-  const selected = items.find(h => h.id === selectedId);
-  const filtered = useMemo(() => {
-    if (!query.trim()) return items.slice(0, 50);
-    const lower = query.toLowerCase();
-    return items.filter(h => (h.title || '').toLowerCase().includes(lower)).slice(0, 50);
-  }, [items, query]);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="md" className="w-full">
-          <Text variant="helper" tone={selected ? 'primary' : 'faint'} truncate className="flex-1 text-left">
-            {selected ? (selected.title || 'Untitled Meeting') : 'Select a meeting…'}
-          </Text>
-          <Icon icon={ChevronDown} size="xs" tone="faint" className="shrink-0" />
-        </Button>
-      </PopoverTrigger>
-
-      <PopoverContent align="start" width="trigger" className="max-h-60 overflow-hidden">
-        {/* Search within selector */}
-        <Surface edge="bottom" className="p-2">
-          <Input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search meetings…"
-            autoFocus
-          />
-        </Surface>
-
-        <div className="overflow-y-auto max-h-48 custom-scrollbar p-1">
-          {filtered.length === 0 ? (
-            <Text as="div" variant="helper" tone="faint" className="px-3 py-4 text-center">No meetings found</Text>
-          ) : (
-            filtered.map(h => (
-              <Row
-                key={h.id}
-                selected={h.id === selectedId}
-                onClick={() => { onSelect(h.id); setOpen(false); setQuery(''); }}
-              >
-                <Text truncate className="flex-1">{h.title || 'Untitled Meeting'}</Text>
-                <Text variant="caption" tone="faint" className="shrink-0">{formatDate(h.timestamp)}</Text>
-              </Row>
-            ))
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-};
-
-// ── Create todo form ────────────────────────────────────────────
-
-interface CreateTodoFormProps {
-  onSubmit: (meetingId: string, text: string, dueDate?: string) => Promise<void>;
-  onCancel: () => void;
-}
-
-const CreateTodoForm: React.FC<CreateTodoFormProps> = ({ onSubmit, onCancel }) => {
-  const { items: historyItems } = useHistoryData();
-  const [text, setText] = useState('');
-  const [meetingId, setMeetingId] = useState('');
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-
-  const handleSubmit = async () => {
-    if (!text.trim() || !meetingId) return;
-
-    const dueDateStr = date ? buildISOFromDateInput(date, time || undefined) : undefined;
-
-    setIsSaving(true);
-    try {
-      await onSubmit(meetingId, text.trim(), dueDateStr);
-      setText('');
-      setMeetingId('');
-      setDate('');
-      setTime('');
-      onCancel();
-    } catch (error: unknown) {
-      console.error('[CreateTodoForm] Failed to create todo:', error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const canSubmit = text.trim().length > 0 && meetingId.length > 0 && !isSaving;
-
-  return (
-    <Surface variant="subtle" radius="xl" edge="all" className="p-4 space-y-3 animate-fade-in">
-      {/* Todo text */}
-      <Textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="What do you need to do?"
-        spellCheck
-        autoCorrect="on"
-        autoCapitalize="sentences"
-        className="h-16"
-        autoFocus
-      />
-
-      {/* Meeting selector */}
-      <div className="space-y-1.5">
-        <Text as="label" variant="label" tone="muted" className="flex items-center gap-1.5">
-          <Icon icon={ListTodo} size="xs" />
-          Link to meeting
-        </Text>
-        <MeetingSelector
-          items={historyItems}
-          selectedId={meetingId}
-          onSelect={setMeetingId}
-        />
-      </div>
-
-      {/* Deadline picker */}
-      <div className="space-y-1.5">
-        <Text as="label" variant="label" tone="muted" className="flex items-center gap-1.5">
-          <Icon icon={CalendarDays} size="xs" />
-          Due date (optional)
-        </Text>
-        <div className="flex gap-2 items-center">
-          <DatePicker
-            value={date}
-            onChange={setDate}
-            min={new Date().toISOString().split('T')[0]}
-            placeholder="Pick a date"
-            className="flex-1"
-          />
-          <TimePicker
-            value={time || '09:00'}
-            onChange={setTime}
-            disabled={!date}
-            className="w-28"
-          />
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-2 justify-end pt-1">
-        <Button variant="outline" size="sm" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button variant="primary" size="sm" onClick={handleSubmit}
-          disabled={!canSubmit}>
-          <Icon icon={Plus} size="xs" />
-          Create
-        </Button>
-      </div>
-    </Surface>
-  );
-};
 
 // ── Todo row ────────────────────────────────────────────────────
 
@@ -355,14 +180,14 @@ export const RemindersView: React.FC = () => {
       {/* Content */}
       <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar">
         {/* Create form */}
-        {isCreating && (
-          <div className={`${LAYOUT.listGutter} pt-4`}>
-            <CreateTodoForm
-              onSubmit={addTodo}
-              onCancel={() => setIsCreating(false)}
-            />
-          </div>
-        )}
+        {/* New to-do: a sheet on iPhone, a card here on Mac. */}
+        {phone
+          ? <NewTodoForm open={isCreating} onClose={() => setIsCreating(false)} onSubmit={addTodo} />
+          : isCreating && (
+            <div className={`${LAYOUT.listGutter} pt-4`}>
+              <NewTodoForm open onClose={() => setIsCreating(false)} onSubmit={addTodo} />
+            </div>
+          )}
 
         {isLoading ? (
           /* Loading skeleton */
@@ -398,7 +223,7 @@ export const RemindersView: React.FC = () => {
                     {group.meetingTitle}
                   </Text>
                   <Text variant="caption" tone="faint" className="shrink-0">
-                    {formatDate(group.timestamp)}
+                    {formatMeetingDate(group.timestamp)}
                   </Text>
                   <Text variant="caption" tone="faint" className="shrink-0 ml-auto">
                     {group.todos.filter(t => !t.completed).length}/{group.todos.length}
