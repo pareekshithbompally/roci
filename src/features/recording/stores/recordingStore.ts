@@ -156,12 +156,21 @@ export const recording = {
   },
 
   async pause(): Promise<void> {
-    await coreAudioService.pauseCapture();
+    try {
+      await coreAudioService.pauseCapture();
+    } catch (error: unknown) {
+      showToast(captureErrorMessage(error, 'Failed to pause recording'), 'error');
+    }
     await sync();
   },
 
+  /** iPhone: refused when the audio session can't be taken back (e.g. a call still holds it). */
   async resume(): Promise<void> {
-    await coreAudioService.resumeCapture();
+    try {
+      await coreAudioService.resumeCapture();
+    } catch (error: unknown) {
+      showToast(captureErrorMessage(error, 'Failed to resume recording'), 'error');
+    }
     await sync();
   },
 

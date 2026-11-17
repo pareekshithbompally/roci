@@ -44,6 +44,8 @@ export const CHAT_DRAFT_COPY = {
 export const DICTATION_COPY = {
   startFailed: 'Couldn’t start dictation',
   transcribeFailed: 'Couldn’t transcribe dictation',
+  /** The greyed mic's label while a recording holds iPhone's one audio session. */
+  offWhileRecording: 'Voice input is off while recording',
 } as const;
 
 /** What a reply's header says before its first word, in the order it's checked. */

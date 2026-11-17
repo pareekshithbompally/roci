@@ -91,6 +91,8 @@ impl From<tauri_plugin_store::StoreError> for CaptureError {
 struct Active {
     meeting_id: String,
     recorder: Recorder,
+    /// A call paused it (not the user), so the call's end may resume it; iPhone only.
+    paused_by_call: bool,
 }
 
 /// What the recorder is doing: the one source of truth for every view of the live recording.
@@ -213,7 +215,7 @@ fn start(app: &AppHandle, options: AudioCaptureOptions) -> Result<String, Captur
     tracing::info!(output = %output.display(), "audio capture starting");
     match open_session().and_then(|()| Recorder::start(options.source.sources(), output, app.clone())) {
         Ok(started) => {
-            *active = Some(Active { meeting_id: meeting_id.clone(), recorder: started });
+            *active = Some(Active { meeting_id: meeting_id.clone(), recorder: started, paused_by_call: false });
             Ok(meeting_id)
         }
         Err(error) => {
@@ -240,7 +242,7 @@ pub async fn stop_audio_capture(app: AppHandle) -> Result<Option<String>, Captur
 
 /// Stops capture and records the outcome on the meeting: `captured`, or `failed` at `record`.
 fn finish(app: &AppHandle, active: Active) -> Result<String, CaptureError> {
-    let Active { meeting_id, recorder } = active;
+    let Active { meeting_id, recorder, .. } = active;
     let (status, duration) = outcome(recorder.stop());
     close_session();
     tauri_plugin_store::set_meeting_status(app, &meeting_id, &status, duration)?;
@@ -283,39 +285,50 @@ fn close_session() {
 #[cfg(target_os = "macos")]
 fn close_session() {}
 
-/// iPhone and iPad: a call or Siri took the audio (`began`), or gave it back; the recording pauses and resumes with it.
+/// iPhone and iPad: a call or Siri took the audio (`began`), or gave it back; only a pause the call made is undone.
 #[cfg(target_os = "ios")]
 pub fn interrupted(app: &AppHandle, began: bool) {
     use tauri::Emitter;
-    {
-        // Held throughout, so nothing reads the recording as stopped meanwhile.
-        let active = recorder();
-        let Some(active) = active.as_ref() else { return };
-        if began {
-            active.recorder.pause();
-        } else if let Err(error) = open_session() {
-            tracing::warn!(%error, "could not take the audio session back after an interruption; staying paused");
-        } else {
-            active.recorder.resume();
+    let app = app.clone();
+    // Off the notification thread: a Stop holds the recorder lock through its mixdown.
+    tauri::async_runtime::spawn_blocking(move || {
+        {
+            let mut active = recorder();
+            let Some(active) = active.as_mut() else { return };
+            if began && !active.recorder.progress().paused {
+                active.recorder.pause();
+                active.paused_by_call = true;
+            } else if !began && active.paused_by_call {
+                active.paused_by_call = false;
+                match open_session() {
+                    Ok(()) => active.recorder.resume(),
+                    Err(error) => tracing::warn!(%error, "could not take the audio session back after a call; staying paused"),
+                }
+            }
         }
-    }
-    if let Err(error) = app.emit(CHANGED_EVENT, ()) {
-        tracing::warn!(%error, "recorder change event failed");
-    }
+        if let Err(error) = app.emit(CHANGED_EVENT, ()) {
+            tracing::warn!(%error, "recorder change event failed");
+        }
+    });
 }
 
 #[tauri::command]
 pub async fn pause_audio_capture() {
-    if let Some(active) = recorder().as_ref() {
+    if let Some(active) = recorder().as_mut() {
+        active.paused_by_call = false;
         active.recorder.pause();
     }
 }
 
 #[tauri::command]
-pub async fn resume_audio_capture() {
-    if let Some(active) = recorder().as_ref() {
+/// Resumes a paused recording; on iPhone it first takes the audio session back (a call may have ended without it).
+pub async fn resume_audio_capture() -> Result<(), CaptureError> {
+    if let Some(active) = recorder().as_mut() {
+        open_session()?;
+        active.paused_by_call = false;
         active.recorder.resume();
     }
+    Ok(())
 }
 
 /// At launch: mixes every meeting a quit or crash left `recording` (→ `captured`, or `failed`), and

@@ -19,7 +19,9 @@ import { LAYOUT } from '@config/layout.config';
 import { shortcutLabel } from '@features/shortcuts';
 import { registerChatComposer } from '@features/chat/stores';
 import { canSendDraft } from '@features/chat/utils';
-import { COMPOSER_MAX_HEIGHT_PX } from '@config/chat.config';
+import { COMPOSER_MAX_HEIGHT_PX, DICTATION_COPY } from '@config/chat.config';
+import { useRecordingMeetingId } from '@features/recording';
+import { platform } from '@platform/index';
 import type { MeetingListItem } from '@services/meetingReferenceService';
 import type { ChatPart } from '@shared/types';
 import type { SpeechState } from '@features/chat/hooks/useSpeechInput';
@@ -141,6 +143,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null);
   // Phone (iOS): one row — + (opens the Add sheet) · the field · mic or send; the top bar owns the model.
   const phone = useFormFactor() === 'phone';
+  const recordingMeetingId = useRecordingMeetingId();
   const [addOpen, setAddOpen] = useState(false);
   // Register this textarea as the composer ⌘L focuses
   useEffect(() => {
@@ -301,6 +304,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // The field and the send controls, arranged by the layout below (Mac: box + toolbar; phone: one row).
   const canDictate = showSpeechInput && !!onSpeechStart && !isLoading;
+  // iPhone: a recording holds the one audio session, so the mic is greyed until it stops.
+  const micHeld = platform.sharesAudioSession && recordingMeetingId !== null;
+  const micLabel = micHeld ? DICTATION_COPY.offWhileRecording : 'Voice input';
   // Phone: the mic takes the send button's place while there is nothing to send.
   const micInSendSlot = phone && canDictate && !canSendDraft(value, attachments);
 
@@ -329,12 +335,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const sendControls = (
     <div className="flex items-center gap-2">
       {canDictate && !phone && (
-        <IconButton icon={Mic} label="Voice input" size="toolbar" onClick={onSpeechStart} disabled={disabled} />
+        <IconButton icon={Mic} label={micLabel} size="toolbar" onClick={onSpeechStart} disabled={disabled || micHeld} />
       )}
       {isLoading ? (
         <IconButton icon={Square} label="Stop generation" variant="danger" filled size={controlSize} className="shrink-0" onClick={onStop} />
       ) : micInSendSlot ? (
-        <IconButton icon={Mic} label="Voice input" size={controlSize} onClick={onSpeechStart} disabled={disabled} />
+        <IconButton icon={Mic} label={micLabel} size={controlSize} onClick={onSpeechStart} disabled={disabled || micHeld} />
       ) : (
         <IconButton icon={ArrowUp} label="Send message" variant="primary" size={controlSize} onClick={onSend} disabled={!canSend} />
       )}

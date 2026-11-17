@@ -7,6 +7,7 @@ import { PermissionAction } from '@shared/components';
 import { useAppStore, usePermissionChecklistOpen } from '@shared/stores/appStore';
 import { permissionsService, type PermissionKind, type PermissionRow } from '@services/permissions.service';
 import { usePermissions } from '@features/recording/hooks/usePermissions';
+import { platform } from '@platform/index';
 
 const COPY: Record<PermissionKind, { title: string; detail: string }> = {
   microphone: {
@@ -54,7 +55,7 @@ export const PermissionChecklist: React.FC = () => {
             </DialogClose>
           </DialogHeader>
           <DialogDescription>
-            macOS needs these before Roci can record.
+            {platform.systemName} needs these before Roci can record.
           </DialogDescription>
 
           <Card className="mt-4">
