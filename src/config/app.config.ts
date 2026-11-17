@@ -8,6 +8,9 @@ export const APP_CONFIG = {
   /** Release notes for the latest version (the update row's Release notes action). */
   releasesUrl: 'https://github.com/pareekshithbompally/roci/releases/latest',
 
+  /** iOS: Roci's own page in Settings (`UIApplication.openSettingsURLString`), where a denied permission is turned back on. */
+  iosAppSettingsUrl: 'app-settings:',
+
   /** Mac apps Roci shows the icon of (bundle ids). */
   macApps: {
     finder: 'com.apple.finder',

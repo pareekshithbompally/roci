@@ -1,7 +1,7 @@
 /** Left sidebar: search, the To-dos row, the unified history/chat list, and settings. */
 
 import React, { useRef, useCallback, useEffect } from 'react';
-import { ChevronLeft, Search, SquarePen, PanelLeft, Settings } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ListTodo, Search, SquarePen, PanelLeft, Settings } from 'lucide-react';
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
 import { useSmallScreen } from '@shared/hooks/useMediaQuery';
 import { useSelectedHistoryId, useCurrentView, useAppActions } from '@shared/stores/appStore';
@@ -19,7 +19,11 @@ import { ActivityTray } from '@shared/components';
 import { shortcutLabel } from '@features/shortcuts';
 import { startNewChat, useChatStore } from '@features/chat';
 import type { UnifiedSidebarItem } from '@shared/types';
-import { TodosRow } from './TodosRow';
+import { DestinationRow } from './DestinationRow';
+import { TODOS_CONFIG } from '@config/todos.config';
+import { CALENDAR_CONFIG } from '@config/calendar.config';
+import { useSettings } from '@shared/contexts/SettingsContext';
+import { isIntegrationEnabled } from '@shared/utils/integrations';
 
 interface SidebarProps {
   shouldOffsetMacControls: boolean;
@@ -46,6 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const searchActive = useSidebarSearchActive();
   const query = useSidebarSearchQuery();
   const search = useSessionSearch(items, query);
+  const calendarOn = isIntegrationEnabled(useSettings().settings, 'calendar');
 
   // Scroll the selected item into view when selection changes (e.g. from spotlight)
   useEffect(() => {
@@ -91,6 +96,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return null;
   };
 
+  // The app's own places above Recents, the same on both platforms: To-dos always, Upcoming while the calendar is on.
+  const destinations = (
+    <>
+      <DestinationRow view="reminders" icon={ListTodo} label={TODOS_CONFIG.title} />
+      {calendarOn && <DestinationRow view="calendar" icon={CalendarDays} label={CALENDAR_CONFIG.title} />}
+    </>
+  );
+
   // One list: the recents, or while searching the matches (words highlighted).
   const list = (
     <>
@@ -127,7 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </>
           )}
         </header>
-        <div className="shrink-0 px-2"><TodosRow /></div>
+        <div className="shrink-0 px-2">{destinations}</div>
         <div ref={listContainerRef} className="flex-1 overflow-y-auto px-2 pb-2">{list}</div>
         <footer className="shrink-0 px-4 pt-2 pb-4">
           <IconButton icon={Settings} size="fab" variant="bar" onClick={handleSettingsClick} label="Settings" />
@@ -166,7 +179,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <Kbd>{shortcutLabel('search')}</Kbd>
               </Row>
             )}
-            <TodosRow />
+            {destinations}
           </>
         )}
       </div>

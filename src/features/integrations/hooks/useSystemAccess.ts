@@ -1,4 +1,4 @@
-/** macOS access for one integration, re-read after a request and whenever Roci regains focus, so a grant in System Settings shows. */
+/** System access for one integration, re-read after a request and whenever Roci regains focus, so a grant made in Settings shows. */
 
 import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -6,6 +6,9 @@ import { isTauriEnvironment } from '@services/tauri';
 import { queryKeys } from '@shared/query/queryKeys';
 import { eventKitAccess } from '@features/integrations/utils/eventKitAccess';
 import { openNative, type NativeTarget } from '@features/integrations/utils/openNative';
+import { openUrl } from '@services/tauri/opener.service';
+import { platform } from '@platform/index';
+import { APP_CONFIG } from '@config/app.config';
 import type { CalendarAccessStatus } from '@services/calendar/types';
 import type { IntegrationAccess } from '@features/integrations/types';
 import type { AccessId } from '@shared/query/queryKeys';
@@ -15,13 +18,13 @@ interface AccessSource {
   /** `unavailable`: the permission can't exist here (e.g. notifications in a dev build). */
   check: () => Promise<CalendarAccessStatus | 'unavailable'>;
   request: () => Promise<boolean>;
-  /** The System Settings privacy pane for this kind of data. */
+  /** The macOS System Settings privacy pane for this kind of data (iOS opens Roci's own Settings page instead). */
   settingsPane: NativeTarget;
 }
 
 export interface SystemAccess {
   access: IntegrationAccess;
-  /** Ask macOS; resolves whether access is now granted. */
+  /** Ask the system; resolves whether access is now granted. */
   requestAccess: () => Promise<boolean>;
   openSettings: () => void;
 }
@@ -41,7 +44,9 @@ export function useSystemAccess({ id, check, request, settingsPane }: AccessSour
     return granted;
   }, [id, request, queryClient]);
 
+  // Mac opens the privacy pane; iOS links only to the app's own Settings page, where its permissions live.
   const openSettings = useCallback(() => {
+    if (!platform.canOpenSettingsPanes) return void openUrl(APP_CONFIG.iosAppSettingsUrl);
     openNative(settingsPane).catch((error: unknown) =>
       console.error(`[useSystemAccess] Opening ${id} settings failed:`, error));
   }, [id, settingsPane]);

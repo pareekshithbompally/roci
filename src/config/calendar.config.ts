@@ -13,9 +13,14 @@ export const CALENDAR_CONFIG = {
   /** Rust → webview (src-tauri/src/meeting_reminders): Record or Join & record was chosen. */
   reminderRecordEvent: 'meeting-reminders://record',
 
-  /** Schedule-X week view day boundaries */
+  /** The place's one name: sidebar row and page title. */
+  title: 'Upcoming',
+
+  /** Schedule-X time grid: day boundaries, grid height and event width (%), the same for the week (Mac) and day (iPhone) views. */
   weekView: {
     dayStartHour: '00:00',
     dayEndHour: '24:00',
+    gridHeight: 900,
+    eventWidth: 95,
   },
 } as const;

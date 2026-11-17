@@ -5,7 +5,7 @@ import { platform, type PlatformCapability } from '@platform/index';
 
 /** `requires`: the capability the kind depends on; devices without it don't list the kind. */
 export const NOTIFICATION_KINDS: ReadonlyArray<{ kind: NotificationKind; label: string; requires?: PlatformCapability }> = [
-  { kind: 'meetingReminders', label: 'Meeting reminders', requires: 'hasCalendar' },
+  { kind: 'meetingReminders', label: 'Meeting reminders', requires: 'hasMeetingReminders' },
   { kind: 'detectedCalls', label: 'Detected calls', requires: 'hasCallDetection' },
   { kind: 'recordingReady', label: 'Recording ready' },
   { kind: 'hexImports', label: 'Hex meetings imported', requires: 'hasHex' },

@@ -43,7 +43,7 @@ export function useCalendarRuntime(): void {
 
   // Native calendar reading follows the integration; reminders follow their own setting
   useEffect(() => {
-    if (!platform.hasCalendar) return;
+    if (!platform.hasMeetingReminders) return;
     configureMeetingReminders(enabled, remindersOn, leadMinutes).catch((error: unknown) =>
       console.error('[useCalendarRuntime] Failed to configure meeting reminders:', error),
     );
@@ -51,7 +51,7 @@ export function useCalendarRuntime(): void {
 
   // Record / Join & record (Rust already opened the call link for Join)
   useEffect(() => {
-    if (!platform.hasCalendar) return;
+    if (!platform.hasMeetingReminders) return;
     const record = async (event: CalendarEvent) => {
       try {
         setPendingCalendarEvent(event);

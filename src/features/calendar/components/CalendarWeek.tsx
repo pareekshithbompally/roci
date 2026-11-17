@@ -5,7 +5,7 @@ import 'temporal-polyfill/global';
 
 import React, { useState, useEffect } from 'react';
 import { useCalendarApp, ScheduleXCalendar } from '@schedule-x/react';
-import { createViewWeek } from '@schedule-x/calendar';
+import { createViewDay, createViewWeek } from '@schedule-x/calendar';
 import { createCalendarControlsPlugin } from '@schedule-x/calendar-controls';
 import '@schedule-x/theme-default/dist/index.css';
 import { useThemeContext } from '@shared/contexts/ThemeContext';
@@ -21,7 +21,11 @@ export interface CalendarControls {
   getRange: () => { start: string; end: string } | null;
 }
 
+/** `week` (Mac, wide panes) or `day` (iPhone): the grid's span and the step of back / forward. */
+export type CalendarSpan = 'week' | 'day';
+
 interface CalendarWeekProps {
+  span: CalendarSpan;
   events: ScheduleXCalendarEvent[];
   onControlsReady?: (controls: CalendarControls) => void;
   onEventClick?: (event: ScheduleXCalendarEvent, domRect: DOMRect | null) => void;
@@ -29,6 +33,7 @@ interface CalendarWeekProps {
 }
 
 export const CalendarWeek: React.FC<CalendarWeekProps> = ({
+  span,
   events,
   onControlsReady,
   onEventClick,
@@ -38,7 +43,7 @@ export const CalendarWeek: React.FC<CalendarWeekProps> = ({
   const [controlsPlugin] = useState(() => createCalendarControlsPlugin());
 
   const calendar = useCalendarApp({
-    views: [createViewWeek()],
+    views: [span === 'day' ? createViewDay() : createViewWeek()],
     events,
     isDark,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -47,8 +52,8 @@ export const CalendarWeek: React.FC<CalendarWeekProps> = ({
       end: CALENDAR_CONFIG.weekView.dayEndHour,
     },
     weekOptions: {
-      gridHeight: 900,
-      eventWidth: 95,
+      gridHeight: CALENDAR_CONFIG.weekView.gridHeight,
+      eventWidth: CALENDAR_CONFIG.weekView.eventWidth,
       timeAxisFormatOptions: { hour: '2-digit', minute: '2-digit', hour12: false },
     },
     callbacks: {
@@ -83,12 +88,12 @@ export const CalendarWeek: React.FC<CalendarWeekProps> = ({
       )),
       goForward: () => {
         const current = controlsPlugin.getDate();
-        const next = Temporal.PlainDate.from(current).add({ weeks: 1 });
+        const next = Temporal.PlainDate.from(current).add(span === 'day' ? { days: 1 } : { weeks: 1 });
         controlsPlugin.setDate(next);
       },
       goBack: () => {
         const current = controlsPlugin.getDate();
-        const prev = Temporal.PlainDate.from(current).subtract({ weeks: 1 });
+        const prev = Temporal.PlainDate.from(current).subtract(span === 'day' ? { days: 1 } : { weeks: 1 });
         controlsPlugin.setDate(prev);
       },
       goToDate: (isoDate: string) => {
@@ -104,7 +109,7 @@ export const CalendarWeek: React.FC<CalendarWeekProps> = ({
         };
       },
     });
-  }, [controlsPlugin, onControlsReady]);
+  }, [controlsPlugin, onControlsReady, span]);
 
   return (
     <div className="flex-1 min-h-0 overflow-auto">

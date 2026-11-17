@@ -1,15 +1,17 @@
-/** Full-screen week view of upcoming events, with empty states for disabled, loading and no events. */
+/** Upcoming: the calendar's events, a week on a Mac and a day on iPhone, opened from the sidebar row; empty states for off, loading and none. */
 
 import React, { useCallback, useState, useRef } from 'react';
-import { ArrowLeft, CalendarDays, RefreshCw, ChevronLeft, ChevronRight, Settings } from 'lucide-react';
+import { CalendarDays, RefreshCw, ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 import { useAppActions } from '@shared/stores/appStore';
-import { CalendarWeek } from './CalendarWeek';
+import { CalendarWeek, type CalendarSpan } from './CalendarWeek';
 import type { CalendarControls } from './CalendarWeek';
 import { EventPopover } from './EventPopover';
-import { DatePicker, Button, Icon, IconButton, Surface, Text, TitlebarSpacer, cn } from '@shared/ui';
+import { DatePicker, Button, Icon, IconButton, Surface, Text, TitlebarSpacer } from '@shared/ui';
 import { EmptyState } from '@shared/components';
 import { useCalendarEvents } from '@features/calendar/hooks/useCalendarEvents';
-import { AppStatus } from '@shared/types';
+import { useFormFactor } from '@platform/formFactor';
+import { LAYOUT } from '@config/layout.config';
+import { CALENDAR_CONFIG } from '@config/calendar.config';
 import type { CalendarEvent as ScheduleXCalendarEvent } from '@schedule-x/calendar';
 
 // ─── Helpers ────────────────────────────────────────────────────────
@@ -54,7 +56,7 @@ const NOT_ENABLED = {
 };
 const LOADING = {
   message: 'Loading events…',
-  description: 'Fetching your upcoming meetings from macOS Calendar.',
+  description: 'Fetching your upcoming meetings from your calendar.',
 };
 const NO_EVENTS = {
   message: 'No upcoming events',
@@ -76,7 +78,7 @@ const CalendarEmptyState: React.FC<{
   );
 
   return (
-    <div className="flex-1 flex flex-col px-6">
+    <div className={`flex-1 flex flex-col ${LAYOUT.listGutter}`}>
       <EmptyState
         icon={loading ? RefreshCw : CalendarDays}
         loading={loading}
@@ -91,7 +93,9 @@ const CalendarEmptyState: React.FC<{
 // ─── Component ──────────────────────────────────────────────────────
 
 export const CalendarView: React.FC = () => {
-  const { setCurrentView, openSettings, setStatus, setSelectedHistoryId, setResult } = useAppActions();
+  const { openSettings } = useAppActions();
+  const phone = useFormFactor() === 'phone';
+  const span: CalendarSpan = phone ? 'day' : 'week';
   const { scheduleXEvents, isEmpty, isEnabled, isInitialFetchDone, refresh } = useCalendarEvents();
   const [isSyncing, setIsSyncing] = useState(false);
   const [rangeLabel, setRangeLabel] = useState('');
@@ -101,14 +105,7 @@ export const CalendarView: React.FC = () => {
   const [popoverEvent, setPopoverEvent] = useState<ScheduleXCalendarEvent | null>(null);
   const [popoverRect, setPopoverRect] = useState<DOMRect | null>(null);
 
-  const handleBack = useCallback(() => {
-    setCurrentView('home');
-    setSelectedHistoryId(null);
-    setResult(null);
-    setStatus(AppStatus.IDLE);
-  }, [setCurrentView, setSelectedHistoryId, setResult, setStatus]);
-
-  const handleGoToSettings = useCallback(() => openSettings(), [openSettings]);
+  const handleGoToSettings = useCallback(() => openSettings('integrations'), [openSettings]);
 
   const handleSync = useCallback(async () => {
     setIsSyncing(true);
@@ -148,50 +145,41 @@ export const CalendarView: React.FC = () => {
   }, []);
 
   const showCalendar = isEnabled && !isEmpty;
+  const unit = span === 'day' ? 'day' : 'week';
+
+  // Back / forward by the grid's span, with the range it shows.
+  const stepper = (
+    <div className="flex items-center gap-1.5">
+      <IconButton icon={ChevronLeft} label={`Previous ${unit}`} size="sm" variant="outline" onClick={() => controlsRef.current?.goBack()} />
+      <IconButton icon={ChevronRight} label={`Next ${unit}`} size="sm" variant="outline" onClick={() => controlsRef.current?.goForward()} />
+      {rangeLabel && <Text variant="label" tone="muted" className="whitespace-nowrap">{rangeLabel}</Text>}
+    </div>
+  );
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden animate-fade-in">
       <TitlebarSpacer />
-      {/* Header */}
-      <Surface as="header" edge="bottom" className="shrink-0 px-5 py-2.5 flex items-center">
-        <IconButton icon={ArrowLeft} label="Back to home" size="sm" className="mr-2.5" onClick={handleBack} />
-        <Icon icon={CalendarDays} size="sm" tone="muted" className="mr-1" />
-        <Text as="h1" variant="title">Schedule</Text>
-
-        <div className="flex-1" />
-
-        {showCalendar && (
-          <div className="flex items-center gap-1.5">
-            <IconButton icon={ChevronLeft} label="Previous week" size="sm" variant="outline" onClick={() => controlsRef.current?.goBack()} />
-            <IconButton icon={ChevronRight} label="Next week" size="sm" variant="outline" onClick={() => controlsRef.current?.goForward()} />
-
-            {rangeLabel && (
-              <Text variant="label" tone="muted" className="mx-1 tabular-nums whitespace-nowrap">
-                {rangeLabel}
-              </Text>
-            )}
-
-            <DatePicker
-              value={rangeToPickerDate(currentRange)}
-              onChange={handleDatePick}
-              placeholder="Go to date"
-            />
-
-            <Button variant="outline" size="sm" onClick={() => controlsRef.current?.goToToday()}>
-              Today
-            </Button>
-
-            <Button variant="outline" size="sm" onClick={handleSync} disabled={isSyncing}>
-              <Icon icon={RefreshCw} size="xs" className={cn(isSyncing && 'animate-spin')} />
-              {isSyncing ? 'Syncing...' : 'Sync'}
-            </Button>
-          </div>
-        )}
+      {/* Header: the title with Go to date, Today and Sync; back / forward and the range beside them on a Mac, under them on iPhone */}
+      <Surface as="header" edge="bottom" className={`shrink-0 ${LAYOUT.listGutter} py-2.5 space-y-2`}>
+        <div className="flex items-center gap-2">
+          <Text as="h1" variant="pageTitle" truncate className="flex-1">{CALENDAR_CONFIG.title}</Text>
+          {showCalendar && (
+            <>
+              {!phone && stepper}
+              <DatePicker value={rangeToPickerDate(currentRange)} onChange={handleDatePick} placeholder="Go to date" />
+              <Button variant="outline" size="sm" onClick={() => controlsRef.current?.goToToday()}>Today</Button>
+              <IconButton icon={RefreshCw} label={isSyncing ? 'Syncing…' : 'Sync'} size="sm" spin={isSyncing} onClick={handleSync} disabled={isSyncing} />
+            </>
+          )}
+        </div>
+        {showCalendar && phone && stepper}
       </Surface>
 
       {/* Content */}
       {showCalendar ? (
         <CalendarWeek
+          key={span}
+          span={span}
           events={scheduleXEvents}
           onControlsReady={handleControlsReady}
           onEventClick={handleEventClick}

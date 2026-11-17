@@ -1,8 +1,7 @@
 /** Idle landing page: main actions and the shared chat composer. */
 
 import React, { useMemo, useState, useCallback } from 'react';
-import { CalendarDays, ChevronRight } from 'lucide-react';
-import { useAppActions } from '@shared/stores/appStore';
+import { ChevronRight } from 'lucide-react';
 import { useRecordingBusy, useRecordingMeetingId, useStartRecording } from '@features/recording';
 import { isTauriEnvironment } from '@services/tauri';
 import { askInNewChat, canSendDraft, useChatStore } from '@features/chat';
@@ -20,7 +19,6 @@ import { Button, cn, Dot, Icon, Surface, Text, TitlebarSpacer } from '@shared/ui
 import { motion } from 'framer-motion';
 import { platform } from '@platform/index';
 import { useFormFactor } from '@platform/formFactor';
-import { isIntegrationEnabled } from '@shared/utils/integrations';
 
 interface IdleViewProps {}
 
@@ -37,7 +35,6 @@ const GREETING_POOL = [
 ];
 
 export const IdleView: React.FC<IdleViewProps> = () => {
-  const { setCurrentView } = useAppActions();
   const [greeting] = useState(() => GREETING_POOL[Math.floor(Math.random() * GREETING_POOL.length)]);
   const startRecording = useStartRecording();
   const recordingMeetingId = useRecordingMeetingId();
@@ -79,10 +76,6 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   const handleSetupProviders = useOpenAISetup();
   // Phone: the greeting fills the screen and the composer sits at the bottom, above the keyboard.
   const phone = useFormFactor() === 'phone';
-
-  const handleOpenCalendar = () => {
-    setCurrentView('calendar');
-  };
 
   const handleStartRecording = async () => {
     try {
@@ -176,12 +169,6 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                   <Button variant="outline" size="sm" onClick={handleStartRecording} disabled={!canRecord}>
                     <Dot tone="danger" />
                     Record
-                  </Button>
-                )}
-                {isIntegrationEnabled(settings, 'calendar') && (
-                  <Button variant="outline" size="sm" onClick={handleOpenCalendar}>
-                    <Icon icon={CalendarDays} size="xs" />
-                    Upcoming
                   </Button>
                 )}
               </motion.div>
