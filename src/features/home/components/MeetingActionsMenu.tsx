@@ -4,9 +4,9 @@ import React from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Button, Icon, showToast } from '@shared/ui';
 import { Menu, type MenuEntry } from '@shared/components';
-import { revealInFinder, saveTextFile } from '@services/tauri';
+import { saveTextFile } from '@services/tauri';
 import { platform } from '@platform/index';
-import { toastSavedFile } from '@shared/utils/savedFileToast';
+import { SHOW_IN_FINDER, showInFinder, toastSavedFile } from '@shared/utils/savedFileToast';
 import type { ProcessedResult } from '@shared/types';
 import { buildExport, EXPORT_KIND, type ExportFormat, type ExportPart, type ExportScope } from '@features/home/utils/meetingExport';
 
@@ -49,13 +49,6 @@ async function download(result: ProcessedResult, format: ExportFormat, scope: Ex
   }
 }
 
-function reveal(path: string): void {
-  revealInFinder(path).catch((error: unknown) => {
-    console.error('[MeetingActionsMenu] Reveal failed:', error);
-    showToast("Couldn't show the recording in Finder", 'error');
-  });
-}
-
 /** Re-transcribe (when it can), Copy, Download, and Show in Finder (when there is a recording and a file manager). */
 function menuItems({ result, part, recordingPath, onRetranscribe }: MeetingActionsMenuProps): MenuEntry[] {
   return [
@@ -67,7 +60,7 @@ function menuItems({ result, part, recordingPath, onRetranscribe }: MeetingActio
     { type: 'label', label: 'Download' },
     ...DOWNLOADS.map(({ label, format, scope }) => ({ type: 'item' as const, label, onSelect: () => void download(result, format, scope, part) })),
     ...(platform.hasFileManager && recordingPath
-      ? [{ type: 'separator' as const }, { type: 'item' as const, label: 'Show Recording in Finder', onSelect: () => reveal(recordingPath) }]
+      ? [{ type: 'separator' as const }, { type: 'item' as const, label: SHOW_IN_FINDER, onSelect: () => showInFinder(recordingPath) }]
       : []),
   ];
 }

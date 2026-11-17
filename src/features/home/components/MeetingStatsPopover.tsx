@@ -2,9 +2,9 @@
 
 import React from 'react';
 import { Info } from 'lucide-react';
-import { Button, IconButton, Popover, PopoverContent, PopoverTrigger, RowGroupLabel, Separator, Text, showToast } from '@shared/ui';
+import { Button, IconButton, Popover, PopoverContent, PopoverTrigger, RowGroupLabel, Separator, Text } from '@shared/ui';
 import { AppIcon } from '@shared/components';
-import { revealInFinder } from '@services/tauri';
+import { SHOW_IN_FINDER, showInFinder } from '@shared/utils/savedFileToast';
 import { platform } from '@platform/index';
 import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
 import { formatDuration, formatFileSize } from '@shared/utils/formatters';
@@ -38,13 +38,6 @@ function plural(count: number, word: string): string {
   return `${count.toLocaleString()} ${word}${count === 1 ? '' : 's'}`;
 }
 
-function reveal(path: string): void {
-  revealInFinder(path).catch((error: unknown) => {
-    console.error('[MeetingStatsPopover] Reveal failed:', error);
-    showToast("Couldn't show the recording in Finder", 'error');
-  });
-}
-
 const RecordingSection: React.FC<{ stats: MeetingStats }> = ({ stats }) => {
   const source = sourceLabel(stats.inputSource);
   const file = stats.recording;
@@ -59,7 +52,7 @@ const RecordingSection: React.FC<{ stats: MeetingStats }> = ({ stats }) => {
         <StatRow label="File">
           <Value>{formatFileSize(file.sizeBytes)}</Value>
           {platform.hasFileManager && (
-            <Button variant="ghost" size="iconSm" onClick={() => reveal(file.path)} aria-label="Show in Finder" title="Show in Finder">
+            <Button variant="ghost" size="iconSm" onClick={() => showInFinder(file.path)} aria-label={SHOW_IN_FINDER} title={SHOW_IN_FINDER}>
               <AppIcon app={APP_CONFIG.macApps.finder} size="sm" />
             </Button>
           )}
