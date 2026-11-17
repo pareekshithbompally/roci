@@ -1,11 +1,11 @@
-/** Phone (iOS): the composer's + sheet — attach, import a meeting, the chat's tools; nothing that can't work is shown. */
+/** Phone (iOS): the composer's + sheet — attach, import a meeting, the chat's thinking and tools; nothing that can't work is shown. */
 
 import React from 'react';
 import { FileText, Image as ImageIcon, Music } from 'lucide-react';
 import { IMPORT_MEETING_LABEL, useImportMeetingActions } from '@features/import';
+import { useAppActions } from '@shared/stores/appStore';
 import { BottomSheet, CardRow, Icon, Section } from '@shared/ui';
-import { ReasoningPicker } from './ReasoningPicker';
-import { ToolsPicker } from './tools/ToolsPicker';
+import { ChatToolRows } from './tools/ChatToolRows';
 
 /** What + attaches (`accept` filters the file picker): the Mac menu's items and this sheet's rows. */
 export const ATTACH_OPTIONS = [
@@ -23,6 +23,7 @@ interface ComposerAddSheetProps {
 
 export const ComposerAddSheet: React.FC<ComposerAddSheetProps> = ({ open, onOpenChange, onPickFiles }) => {
   const importActions = useImportMeetingActions();
+  const { openSettings } = useAppActions();
   const closeThen = (action: () => void) => () => {
     onOpenChange(false);
     action();
@@ -43,9 +44,7 @@ export const ComposerAddSheet: React.FC<ComposerAddSheetProps> = ({ open, onOpen
             <CardRow key={id} title={label} leading={<Icon icon={icon} size="sm" />} onPress={closeThen(run)} />
           ))}
         </Section>
-        <Section title="Chat">
-          <CardRow title="Tools" actions={<><ReasoningPicker /><ToolsPicker /></>} />
-        </Section>
+        <ChatToolRows onChooseImageModel={closeThen(() => openSettings('capabilities'))} />
       </div>
     </BottomSheet>
   );

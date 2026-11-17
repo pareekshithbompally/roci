@@ -23,15 +23,22 @@ import type { ReasoningEffort } from '@shared/types';
 
 const labelOf = (effort: ReasoningEffort) => REASONING_EFFORT_LEVELS.find((level) => level.value === effort)?.label ?? effort;
 
-export const ReasoningPicker: React.FC = () => {
+/** The current chat's thinking level and its setter; null when the chat model doesn't think. */
+export function useReasoningControl(): { effort: ReasoningEffort; setEffort: (effort: ReasoningEffort) => void } | null {
   const { settings, providers } = useSettings();
   useModelCatalog();
   const resolved = useMemo(() => resolveChatModel(settings, providers), [settings, providers]);
   const effort = useChatReasoningEffort();
-  const setReasoningEffort = useChatStore((s) => s.setReasoningEffort);
-
+  const setEffort = useChatStore((s) => s.setReasoningEffort);
   // Derived each render: useModelCatalog re-renders this when the models.dev cache arrives.
   if (!resolved || !capabilitiesOf(resolved.provider, resolved.model).reasoning) return null;
+  return { effort, setEffort };
+}
+
+export const ReasoningPicker: React.FC = () => {
+  const control = useReasoningControl();
+  if (!control) return null;
+  const { effort, setEffort: setReasoningEffort } = control;
   const off = effort === 'none';
 
   return (
