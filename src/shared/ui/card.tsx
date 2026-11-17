@@ -36,19 +36,22 @@ export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
   align?: 'center' | 'start';
   /** Drill-down row (iOS): the whole row is the button and a chevron ends it. */
   onOpen?: () => void;
+  /** Action row (iOS): the whole row is the button, no chevron (Choose photo, Import transcript). */
+  onPress?: () => void;
 }
 
-export function CardRow({ title, description, leading, leadingAlign = 'title', status, actions, stacked, align = 'center', onOpen, className, children, ...props }: CardRowProps) {
+export function CardRow({ title, description, leading, leadingAlign = 'title', status, actions, stacked, align = 'center', onOpen, onPress, className, children, ...props }: CardRowProps) {
+  const press = onOpen ?? onPress;
   const chevron = onOpen && <Icon icon={ChevronRight} size="sm" className="text-faint" />;
   const trailing = status || actions || chevron;
-  const openOnKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') onOpen?.();
+  const pressOnKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') press?.();
   };
   return (
     <div
-      {...(onOpen && { role: 'button', tabIndex: 0, onClick: onOpen, onKeyDown: openOnKey })}
+      {...(press && { role: 'button', tabIndex: 0, onClick: press, onKeyDown: pressOnKey })}
       className={cn(
-        onOpen && 'cursor-pointer active:bg-tint-pressed',
+        press && 'cursor-pointer active:bg-tint-pressed',
         'flex gap-4 py-3',
         stacked ? 'flex-col' : cn('justify-between', align === 'start' ? 'items-start' : 'items-center'),
         description ? 'min-h-15' : 'min-h-12',

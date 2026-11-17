@@ -9,6 +9,7 @@ import { ContextChips } from './ContextChips';
 import { ModelPicker } from './ModelPicker';
 import { ToolsPicker } from './tools/ToolsPicker';
 import { ReasoningPicker } from './ReasoningPicker';
+import { ATTACH_OPTIONS, ComposerAddSheet } from './ComposerAddSheet';
 import { ContextRing, Icon, IconButton, Input, Popover, PopoverAnchor, Surface, Text, Textarea, cn } from '@shared/ui';
 import type { ContextUsage } from '@shared/hooks/useContextUsage';
 import {
@@ -38,6 +39,7 @@ import { DotScope } from '@features/chat/components/dot-scope';
 import { LiveTranscript } from '@features/chat/components/voice/LiveTranscript';
 import type { LiveText } from '@services/ai/transcription';
 import { ImportMeetingMenu } from '@features/import';
+import { useFormFactor } from '@platform/formFactor';
 import { DOT_SCOPE_CONFIG } from '@config/dotScope.config';
 import {
   voiceTransition,
@@ -48,9 +50,8 @@ import {
 
 const ACCEPTED_FILE_TYPES = 'image/*,audio/*,video/*,.pdf,.txt,.md,.csv,.json,.doc,.docx';
 
-const FILE_ACCEPT_IMAGES = 'image/*';
-const FILE_ACCEPT_FILES = '.pdf,.txt,.md,.csv,.json,.doc,.docx';
-const FILE_ACCEPT_AUDIO = 'audio/*';
+/** Phone: one short placeholder (iOS); the rotating hints are a desktop affordance (⌘ shortcuts, @). */
+const PHONE_PLACEHOLDER = 'Ask anything';
 
 const PLACEHOLDER_HINTS = [
   'Ask anything...',
@@ -153,6 +154,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [capturableWindows, setCapturableWindows] = useState<CapturableWindow[]>([]);
   const [screenshotLoading, setScreenshotLoading] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null);
+  // Phone (iOS): one row — + (opens the Add sheet) · the field · mic or send; the top bar owns the model.
+  const phone = useFormFactor() === 'phone';
+  const [addOpen, setAddOpen] = useState(false);
   // Register this textarea as the composer ⌘L focuses
   useEffect(() => {
     registerChatComposer(inputRef.current);
@@ -282,6 +286,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // While mention popup is open, don't process sends from the textarea
     if (showMentionPopup) return;
+    // iOS: Return is a new line; the send button sends.
+    if (phone) return;
 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -348,6 +354,54 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Composer returns as one unit, titles and buttons as a second beat; tweens only, never springs.
   const formattedElapsed = `${String(Math.floor(speechElapsed / 60)).padStart(2, '0')}:${String(speechElapsed % 60).padStart(2, '0')}`;
+
+  // The field and the send controls, arranged by the layout below (Mac: box + toolbar; phone: one row).
+  const canDictate = showSpeechInput && !!onSpeechStart && !isLoading;
+  // Phone: the mic takes the send button's place while there is nothing to send.
+  const micInSendSlot = phone && canDictate && !canSendDraft(value, attachments);
+
+  const textField = (
+    <Text as="div" variant="reading" className={cn('relative', phone ? 'min-w-0 flex-1 self-center py-1.5' : 'px-3 pt-3 pb-1')}>
+      <Textarea
+        variant="bare"
+        ref={inputRef}
+        value={value}
+        onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
+        disabled={disabled || isLoading}
+        rows={1}
+        spellCheck={true}
+        autoCorrect="on"
+        autoCapitalize="sentences"
+        className={phone ? 'max-h-32' : 'min-h-9 max-h-48'}
+      />
+      {!value && (
+        <Text
+          key={phone ? 'phone' : hintIndex}
+          variant="reading"
+          tone="faint"
+          className={cn('absolute pointer-events-none', phone ? 'top-1.5 left-0' : 'top-3 left-3 animate-placeholder-fade-in')}
+        >
+          {phone ? PHONE_PLACEHOLDER : PLACEHOLDER_HINTS[hintIndex]}
+        </Text>
+      )}
+    </Text>
+  );
+
+  const sendControls = (
+    <div className="flex items-center gap-2">
+      {canDictate && !phone && (
+        <IconButton icon={Mic} label="Voice input" size="toolbar" onClick={onSpeechStart} disabled={disabled} />
+      )}
+      {isLoading ? (
+        <IconButton icon={Square} label="Stop generation" variant="danger" filled className="shrink-0" onClick={onStop} />
+      ) : micInSendSlot ? (
+        <IconButton icon={Mic} label="Voice input" onClick={onSpeechStart} disabled={disabled} />
+      ) : (
+        <IconButton icon={ArrowUp} label="Send message" variant="primary" onClick={onSend} disabled={!canSend} />
+      )}
+    </div>
+  );
 
   return (
     <div className={cn('relative px-4 py-2', LAYOUT.chatColumn)}>
@@ -488,34 +542,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           className="hidden"
         />
 
-        {/* Text input mounts only while idle; the pill owns this slot during capture. */}
-        <Text as="div" variant="reading" className="relative px-3 pt-3 pb-1">
-          <Textarea
-            variant="bare"
-            ref={inputRef}
-            value={value}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            disabled={disabled || isLoading}
-            rows={1}
-            spellCheck={true}
-            autoCorrect="on"
-            autoCapitalize="sentences"
-            className="min-h-9 max-h-48"
-          />
-          {/* Rotating placeholder overlay */}
-          {!value && (
-            <Text
-              key={hintIndex}
-              variant="reading"
-              tone="faint"
-              className="absolute top-3 left-3 pointer-events-none animate-placeholder-fade-in"
-            >
-              {PLACEHOLDER_HINTS[hintIndex]}
-            </Text>
-          )}
-        </Text>
-
+        {phone ? (
+          <div className="flex items-end gap-2 px-2 py-1.5">
+            <IconButton icon={Plus} label="Add" onClick={() => setAddOpen(true)} />
+            {textField}
+            {sendControls}
+          </div>
+        ) : (
+          <>
+        {textField}
         {/* Toolbar mounts only while idle, so it never competes with the pill's controls. */}
           <div className="flex items-center justify-between px-3 pb-2">
             {/* Left: Attach, model, tools, thinking, context gauge — toolbar-size controls, close together */}
@@ -527,18 +562,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     <IconButton icon={Plus} label="Add" size="toolbar" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent side="top" align="start" sideOffset={UI_CONFIG.picker.sideOffset}>
-                    <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_IMAGES)} disabled={disabled}>
-                      <Icon icon={ImageIcon} size="sm" />
-                      <span>Images</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_FILES)} disabled={disabled}>
-                      <Icon icon={FileText} size="sm" />
-                      <span>Files</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => openFilePicker(FILE_ACCEPT_AUDIO)} disabled={disabled}>
-                      <Icon icon={Music} size="sm" />
-                      <span>Audio</span>
-                    </DropdownMenuItem>
+                    {ATTACH_OPTIONS.map(({ label, icon, accept }) => (
+                      <DropdownMenuItem key={label} onSelect={() => openFilePicker(accept)} disabled={disabled}>
+                        <Icon icon={icon} size="sm" />
+                        <span>{label}</span>
+                      </DropdownMenuItem>
+                    ))}
                     <DropdownMenuSeparator />
                     <ImportMeetingMenu />
 
@@ -591,20 +620,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               <ContextRing usage={contextUsage ?? null} />
             </div>
 
-            {/* Right: Mic + send / AI stop */}
-            <div className="flex items-center gap-2">
-              {/* Mic voice input — only shown when idle and supported */}
-              {showSpeechInput && onSpeechStart && !isLoading && (
-                <IconButton icon={Mic} label="Voice input" size="toolbar" onClick={onSpeechStart} disabled={disabled} />
-              )}
-
-              {isLoading ? (
-                <IconButton icon={Square} label="Stop generation" variant="danger" filled className="shrink-0" onClick={onStop} />
-              ) : (
-                <IconButton icon={ArrowUp} label="Send message" variant="primary" onClick={onSend} disabled={!canSend} />
-              )}
-            </div>
+            {sendControls}
           </div>
+          </>
+        )}
             </motion.div>
       </Surface>
       </PopoverAnchor>
@@ -617,6 +636,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         onClose={focusInput}
       />
       </Popover>
+
+      {phone && (
+        <ComposerAddSheet open={addOpen} onOpenChange={setAddOpen} onPickFiles={onAttach && !disabled ? openFilePicker : undefined} />
+      )}
 
       {/* Image Quick Look Overlay — portaled to body to escape overflow-hidden ancestors */}
       {previewImage && createPortal(

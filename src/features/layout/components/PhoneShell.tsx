@@ -8,7 +8,7 @@ import { ModelPicker, startNewChat } from '@features/chat';
 import { SettingsHome, settingsScreen } from '@features/settings';
 import { useRecordingBusy, useRecordingMeetingId, useStartRecording } from '@features/recording';
 import { platform } from '@platform/index';
-import { Button, Dot, Drawer, IconButton, NavStack, Surface, TopBar } from '@shared/ui';
+import { BottomSheet, Button, Dot, Drawer, IconButton, NavStack, Surface, TopBar } from '@shared/ui';
 import { Sidebar } from './Sidebar';
 
 interface PhoneShellProps {
@@ -49,17 +49,15 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children, onSearchClick 
       <Drawer side="start" open={open} onClose={() => setLeftPanel(false)} label="Sidebar">
         <Sidebar shouldOffsetMacControls={false} onSearchClick={onSearchClick} />
       </Drawer>
-      <Drawer side="bottom" open={inSettings} onClose={leaveSettings} label="Settings">
-        {inSettings && (
-          <NavStack
-            title="Settings"
-            action={<IconButton icon={X} label="Close" size="fab" variant="outline" onClick={leaveSettings} />}
-            initial={settingsRequest ? settingsScreen(settingsRequest) : undefined}
-          >
-            <SettingsHome />
-          </NavStack>
-        )}
-      </Drawer>
+      <BottomSheet open={inSettings} onOpenChange={(open) => !open && leaveSettings()} title="Settings" size="full">
+        <NavStack
+          title="Settings"
+          action={<IconButton icon={X} label="Close" size="fab" variant="outline" onClick={leaveSettings} />}
+          initial={settingsRequest ? settingsScreen(settingsRequest) : undefined}
+        >
+          <SettingsHome />
+        </NavStack>
+      </BottomSheet>
     </Surface>
   );
 };

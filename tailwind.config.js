@@ -14,6 +14,13 @@ const slide = (offset) => ({
 });
 const FLOAT_SLIDE = slide('-4px');
 const SHEET_SLIDE = slide('-8px');
+/** iOS sheet rising from the bottom edge: a full slide on the iOS curve, not the short fade above. */
+const RISE = {
+  show: { from: { translate: '0 100%' }, to: { translate: '0 0' } },
+  hide: { from: { translate: '0 0' }, to: { translate: '0 100%' } },
+};
+const RISE_ENTER = '350ms cubic-bezier(0.32, 0.72, 0, 1)';
+const RISE_EXIT = '250ms ease-in';
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -91,6 +98,8 @@ export default {
         'content-hide': FLOAT_SLIDE.hide,
         'sheet-show': SHEET_SLIDE.show,
         'sheet-hide': SHEET_SLIDE.hide,
+        'rise-show': RISE.show,
+        'rise-hide': RISE.hide,
         'text-shimmer': {
           from: { backgroundPosition: '100% 0' },
           to: { backgroundPosition: '-100% 0' },
@@ -123,6 +132,8 @@ export default {
         'content-hide': `content-hide ${EXIT}`,
         'sheet-show': `sheet-show ${ENTER}`,
         'sheet-hide': `sheet-hide ${EXIT}`,
+        'rise-show': `rise-show ${RISE_ENTER}`,
+        'rise-hide': `rise-hide ${RISE_EXIT}`,
         'placeholder-fade-in': 'placeholder-fade-in 600ms ease-out',
         'text-shimmer': 'text-shimmer 2s linear infinite',
         'glow-drift-1': 'glow-drift-1 22s ease-in-out infinite',

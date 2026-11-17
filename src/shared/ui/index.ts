@@ -53,3 +53,5 @@ export type { TopBarProps } from './top-bar';
 export { NavStack, useNavStack } from './nav-stack';
 export type { NavScreen, NavStackProps } from './nav-stack';
 export { ChoiceControl } from './choice-control';
+export { BottomSheet } from './bottom-sheet';
+export type { BottomSheetProps } from './bottom-sheet';
