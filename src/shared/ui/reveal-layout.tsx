@@ -25,10 +25,14 @@ export function RevealLayout({ open, onClose, pane, paneLabel, children }: Revea
     if (open) dismissKeyboard(paneRef.current);
   }, [open]);
 
+  // Once per opening: the pane itself takes focus (VoiceOver starts there); a first button would show its focus ring
+  // on touch. Kept apart from the Escape listener so a re-render never pulls focus back from a field in the pane.
+  useEffect(() => {
+    if (open) paneRef.current?.focus({ preventScroll: true });
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
-    // The pane itself takes focus (VoiceOver starts there); a first button would show its focus ring on touch.
-    paneRef.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
