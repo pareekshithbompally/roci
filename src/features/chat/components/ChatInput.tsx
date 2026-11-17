@@ -352,7 +352,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   return (
     <div className={cn('relative px-4 py-2', LAYOUT.chatColumn)}>
-      <Popover open={showMentionPopup} onOpenChange={(open) => { if (!open) closeMentionPopup(); }}>
+      <Popover anchored open={showMentionPopup} onOpenChange={(open) => { if (!open) closeMentionPopup(); }}>
       <PopoverAnchor asChild>
       {/* Composer never unmounts (an exit flashes box chrome); the pill is an overlay that moves no layout. */}
       <Surface
