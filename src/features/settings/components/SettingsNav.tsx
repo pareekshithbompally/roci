@@ -1,18 +1,19 @@
 /** Settings nav in the left sidebar; edits save on edit, so switching panels needs no dirty-state guard. */
 
 import React from 'react';
-import { Bell, Blocks, ChartColumn, Cpu, Server, Settings2, Sparkles, type LucideIcon } from 'lucide-react';
+import { Bell, Blocks, ChartColumn, Cpu, Settings2, Sparkles } from 'lucide-react';
+import { SiModelcontextprotocol } from '@icons-pack/react-simple-icons';
 import { useAppStore, useAppActions } from '@shared/stores/appStore';
 import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore';
 import { platform } from '@platform/index';
 import { hasIntegrations } from './IntegrationsPanel';
-import { IconTile, Row } from '@shared/ui';
+import { IconTile, Row, type TileGlyph } from '@shared/ui';
 import { TILE_DOMAIN, type TileTint } from '@config/ui.config';
 
 export interface SettingsNavItem {
   id: SettingsPanelType;
   label: string;
-  icon: LucideIcon;
+  icon: TileGlyph;
   /** Tile hue, from the row's domain. */
   tint: TileTint;
   /** Heading of the group the row sits in on a phone's grouped Settings list. */
@@ -26,7 +27,7 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   { id: 'capabilities', label: 'Capabilities', icon: Sparkles, tint: TILE_DOMAIN.intelligence, group: 'AI' },
   { id: 'providers', label: 'Providers', icon: Cpu, tint: TILE_DOMAIN.intelligence, group: 'AI' },
   { id: 'integrations', label: 'Integrations', icon: Blocks, tint: TILE_DOMAIN.connections, group: 'Connections', available: hasIntegrations },
-  { id: 'mcp', label: 'MCP Servers', icon: Server, tint: TILE_DOMAIN.connections, group: 'Connections', available: platform.supportsChildProcessMcp },
+  { id: 'mcp', label: 'MCP Servers', icon: SiModelcontextprotocol, tint: TILE_DOMAIN.connections, group: 'Connections', available: platform.supportsChildProcessMcp },
   { id: 'notifications', label: 'Notifications', icon: Bell, tint: TILE_DOMAIN.alerts, group: 'Alerts & Activity', available: platform.hasNotifications },
   { id: 'usage', label: 'Usage', icon: ChartColumn, tint: TILE_DOMAIN.activity, group: 'Alerts & Activity' },
 ];
