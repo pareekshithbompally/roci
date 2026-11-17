@@ -1,8 +1,8 @@
-/** Search embeddings from the on-device embedding model (llama-server, through the AI SDK), once it's downloaded. */
+/** Search embeddings from the on-device embedding model (MLX, through the AI SDK), once it's downloaded. */
 
 import { embedMany } from 'ai';
 import { createLocalEmbeddingModel } from '@services/ai/provider';
-import { embeddingServer, getLocalModels, type LocalErrorPayload } from '@services/localModels.service';
+import { getLocalModels, type LocalErrorPayload } from '@services/localModels.service';
 import { EMBEDDING_BATCH_SIZE, EMBEDDING_MODEL_ID, EMBEDDING_PREFIX } from './constants';
 
 /** True when the model is downloaded, so indexing can add vectors. */
@@ -16,13 +16,12 @@ export function isEmbeddingMissing(error: unknown): boolean {
   return (error as Partial<LocalErrorPayload> | null)?.code === 'not-downloaded';
 }
 
-/** One request per batch keeps each call within the server's context. */
+/** Small batches bound the memory one call takes; a local model has nothing to retry. */
 async function embedAll(values: string[]): Promise<number[][]> {
-  const server = await embeddingServer(EMBEDDING_MODEL_ID);
-  const model = createLocalEmbeddingModel(server.url, server.apiKey, EMBEDDING_MODEL_ID);
+  const model = createLocalEmbeddingModel(EMBEDDING_MODEL_ID);
   const vectors: number[][] = [];
   for (let i = 0; i < values.length; i += EMBEDDING_BATCH_SIZE) {
-    const { embeddings } = await embedMany({ model, values: values.slice(i, i + EMBEDDING_BATCH_SIZE) });
+    const { embeddings } = await embedMany({ model, values: values.slice(i, i + EMBEDDING_BATCH_SIZE), maxRetries: 0 });
     vectors.push(...embeddings);
   }
   return vectors;

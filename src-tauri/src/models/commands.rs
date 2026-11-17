@@ -5,7 +5,6 @@ use tauri::{AppHandle, Manager, State};
 
 use super::catalog::{self, Kind, MODELS};
 use super::{blocking, store, LocalError, ModelsState};
-use crate::llama::LlamaState;
 use crate::image::ImageState;
 use crate::stt::SttState;
 use crate::tts::TtsState;
@@ -72,7 +71,7 @@ pub async fn local_model_remove(app: AppHandle, id: String) -> Result<(), LocalE
             Kind::Speech => app.state::<SttState>().engine.forget(model.id),
             Kind::Voice => app.state::<TtsState>().forget(),
             Kind::Image => app.state::<ImageState>().server.forget(model.id),
-            Kind::Embedding | Kind::Chat => app.state::<LlamaState>().server(model.kind).forget(model.id),
+            Kind::Embedding | Kind::Chat => crate::mlx::unload(model.kind),
         }
         store::remove(&app, model)
     })

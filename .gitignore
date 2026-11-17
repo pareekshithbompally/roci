@@ -46,3 +46,6 @@ docs/
 
 # Image-generation tool output (mockups)
 generated_images/
+src-tauri/frameworks
+src-tauri/RociMLX/.build
+src-tauri/RociMLX/.swiftpm

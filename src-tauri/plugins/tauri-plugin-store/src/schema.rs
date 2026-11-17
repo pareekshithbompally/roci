@@ -4,8 +4,8 @@ use rusqlite::Connection;
 pub const SCHEMA_VERSION: u32 = 4;
 
 /// Default embedding model and dimension.
-pub const DEFAULT_MODEL: &str = "ggml-org/embeddinggemma-300M-GGUF";
-pub const DEFAULT_DIM: u32 = 768;
+pub const DEFAULT_MODEL: &str = "mlx-community/Qwen3-Embedding-0.6B-8bit";
+pub const DEFAULT_DIM: u32 = 1024;
 
 /// Registers `sqlite_vec` once for all test modules; a second registration would panic.
 #[cfg(test)]
@@ -97,8 +97,8 @@ pub fn migrate(conn: &Connection) -> Result<(), String> {
     match_embedding_model(conn)
 }
 
-/// Vectors from another embedding model can't be searched with this one's: they're dropped (chunks and full-text
-/// stay) and every meeting and chat is marked for embedding again.
+/// Vectors from another embedding model can't be searched with this one's: the vector tables are rebuilt at this
+/// model's size (chunks and full-text stay) and every meeting and chat is marked for embedding again.
 fn match_embedding_model(conn: &Connection) -> Result<(), String> {
     let stored: Option<String> = conn
         .query_row("SELECT value FROM meta WHERE key = 'embedding_model'", [], |row| row.get(0))
@@ -109,19 +109,21 @@ fn match_embedding_model(conn: &Connection) -> Result<(), String> {
     let tx = conn.unchecked_transaction().map_err(|e| format!("begin embedding model change: {}", e))?;
     // No model recorded: no vectors were ever written to drop.
     if stored.is_some() {
-        tx.execute_batch(
-            "DELETE FROM vec_chunks;
-             DELETE FROM chat_vec_chunks;
+        tx.execute_batch(&format!(
+            "DROP TABLE IF EXISTS vec_chunks;
+             DROP TABLE IF EXISTS chat_vec_chunks;
+             CREATE VIRTUAL TABLE vec_chunks USING vec0(chunk_id INTEGER PRIMARY KEY, embedding float[{DEFAULT_DIM}]);
+             CREATE VIRTUAL TABLE chat_vec_chunks USING vec0(chunk_id INTEGER PRIMARY KEY, embedding float[{DEFAULT_DIM}]);
              UPDATE meeting_index_state SET embedding_hash = NULL;
-             UPDATE chat_index_state SET embedding_hash = NULL;",
-        )
+             UPDATE chat_index_state SET embedding_hash = NULL;"
+        ))
         .map_err(|e| format!("drop old embeddings: {}", e))?;
     }
     tx.execute(
-        "INSERT OR REPLACE INTO meta (key, value) VALUES ('embedding_model', ?1)",
-        [DEFAULT_MODEL],
+        "INSERT OR REPLACE INTO meta (key, value) VALUES ('embedding_model', ?1), ('embedding_dim', ?2)",
+        [DEFAULT_MODEL.to_string(), DEFAULT_DIM.to_string()],
     )
-    .map_err(|e| format!("set embedding_model: {}", e))?;
+    .map_err(|e| format!("set embedding model: {}", e))?;
     tx.commit().map_err(|e| format!("commit embedding model change: {}", e))?;
     log::info!("[store] Embedding model is now {} (old vectors dropped)", DEFAULT_MODEL);
     Ok(())

@@ -48,18 +48,6 @@ export const removeLocalModel = (id: string): Promise<void> => invoke('local_mod
 /** The local image server's base URL for a downloaded image model (started or switched as needed, once loaded). */
 export const imageServerUrl = (model: string): Promise<string> => invoke<string>('image_server_url', { model });
 
-/** Mirrors the Rust `LocalServer`: a llama-server's OpenAI API address and the key it requires. */
-export interface LocalServer {
-  url: string;
-  apiKey: string;
-}
-
-/** The embedding server for a downloaded embedding model (started as needed; resolves once loaded). */
-export const embeddingServer = (model: string): Promise<LocalServer> => invoke<LocalServer>('embedding_server', { model });
-
-/** The chat server for a downloaded chat model (started or switched as needed; resolves once loaded). */
-export const chatServer = (model: string): Promise<LocalServer> => invoke<LocalServer>('chat_server', { model });
-
 /** Whole percent of a running download. */
 export const downloadPercent = (download: Pick<LocalModelDownload, 'received' | 'total'>): number =>
   download.total > 0 ? Math.floor((download.received * 100) / download.total) : 0;

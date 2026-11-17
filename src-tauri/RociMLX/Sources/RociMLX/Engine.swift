@@ -1,0 +1,163 @@
+// One loaded model per role (chat, embedding), loaded from its downloaded folder on first use and kept until unloaded.
+
+import Foundation
+import MLX
+import MLXEmbedders
+import MLXHuggingFace
+import MLXLLM
+import MLXLMCommon
+import Tokenizers
+
+/// A chat turn as the webview sends it (AI SDK prompt, flattened).
+struct ChatMessage: Decodable, Sendable {
+    let role: String
+    let content: String
+    let toolCalls: [ToolCall]?
+    let toolCallId: String?
+    let toolName: String?
+}
+
+struct ChatRequest: Decodable, Sendable {
+    let streamId: UInt64
+    let modelDir: String
+    let messages: [ChatMessage]
+    /// OpenAI-style function specs.
+    let tools: [JSONValue]?
+    let maxTokens: Int?
+    let temperature: Float?
+    let topP: Float?
+    let topK: Int?
+}
+
+struct EmbedRequest: Decodable, Sendable {
+    let modelDir: String
+    let texts: [String]
+}
+
+struct EngineError: LocalizedError, CustomStringConvertible {
+    let description: String
+    var errorDescription: String? { description }
+}
+
+/// Running chat streams by id, so Stop can cancel one.
+final class Streams: @unchecked Sendable {
+    static let shared = Streams()
+    private let lock = NSLock()
+    private var cancels: [UInt64: @Sendable () -> Void] = [:]
+
+    func add(_ id: UInt64, cancel: @escaping @Sendable () -> Void) { lock.withLock { cancels[id] = cancel } }
+    func remove(_ id: UInt64) { _ = lock.withLock { cancels.removeValue(forKey: id) } }
+    func cancel(_ id: UInt64) { lock.withLock { cancels[id] }?() }
+}
+
+actor Engine {
+    static let shared = Engine()
+
+    private var chatModel: (dir: String, container: ModelContainer)?
+    private var embedder: (dir: String, container: EmbedderModelContainer)?
+
+    func unload(_ role: String) {
+        if role == "chat" { chatModel = nil } else { embedder = nil }
+        Memory.clearCache()
+    }
+
+    private func chatContainer(_ dir: String) async throws -> ModelContainer {
+        if let loaded = chatModel, loaded.dir == dir { return loaded.container }
+        chatModel = nil
+        Memory.clearCache()
+        let container = try await LLMModelFactory.shared.loadContainer(from: URL(filePath: dir), using: #huggingFaceTokenizerLoader())
+        chatModel = (dir, container)
+        return container
+    }
+
+    private func embedderContainer(_ dir: String) async throws -> EmbedderModelContainer {
+        if let loaded = embedder, loaded.dir == dir { return loaded.container }
+        embedder = nil
+        let container = try await EmbedderModelFactory.shared.loadContainer(from: URL(filePath: dir), using: #huggingFaceTokenizerLoader())
+        embedder = (dir, container)
+        return container
+    }
+
+    /// Streams `text`, `reasoning` and `tool-call` events, then returns usage; Stop ends it early.
+    func chat(_ request: ChatRequest, emit: @escaping @Sendable ([String: Any]) -> Void) async throws -> [String: any Sendable] {
+        let container = try await chatContainer(request.modelDir)
+        let parameters = GenerateParameters(
+            maxTokens: request.maxTokens,
+            temperature: request.temperature ?? 0.6,
+            topP: request.topP ?? 1.0,
+            topK: request.topK ?? 0)
+        let generation = Task<GenerateCompletionInfo?, Error> {
+            try await container.perform { (context: ModelContext) async throws -> GenerateCompletionInfo? in
+                let input = UserInput(chat: request.messages.map(Self.message), tools: request.tools?.map(Self.spec))
+                let prepared = try await context.processor.prepare(input: input)
+                var info: GenerateCompletionInfo?
+                for await event in try generate(input: prepared, parameters: parameters, context: context) {
+                    if Task.isCancelled { break }
+                    switch event {
+                    case .chunk(let text): emit(["type": "text", "text": text])
+                    case .toolCall(let call): emit(Self.toolCallEvent(call))
+                    case .info(let completion): info = completion
+                    default: break
+                    }
+                }
+                return info
+            }
+        }
+        Streams.shared.add(request.streamId) { generation.cancel() }
+        defer { Streams.shared.remove(request.streamId) }
+        let info = try await generation.value
+        return [
+            "promptTokens": info?.promptTokenCount ?? 0,
+            "completionTokens": info?.generationTokenCount ?? 0,
+            "cancelled": generation.isCancelled,
+        ]
+    }
+
+    /// Vectors for `texts`, unit length; batches pad on the left so last-token pooling reads each text's last token.
+    func embed(_ request: EmbedRequest) async throws -> [String: any Sendable] {
+        let container = try await embedderContainer(request.modelDir)
+        let vectors = await container.perform { context -> [[Float]] in
+            let inputs = request.texts.map { context.tokenizer.encode(text: $0, addSpecialTokens: true) }
+            let length = inputs.map(\.count).max() ?? 0
+            let pad = context.tokenizer.eosTokenId ?? 0
+            let ids = stacked(inputs.map { MLXArray(Array(repeating: pad, count: length - $0.count) + $0) })
+            let mask = stacked(inputs.map { MLXArray(Array(repeating: false, count: length - $0.count) + Array(repeating: true, count: $0.count)) })
+            let output = context.model(ids, positionIds: nil, tokenTypeIds: nil, attentionMask: mask)
+            let pooled = output.pooledOutput ?? context.pooling(output, normalize: true, applyLayerNorm: false)
+            pooled.eval()
+            return pooled.map { $0.asArray(Float.self) }
+        }
+        return ["vectors": vectors]
+    }
+
+    private static func message(_ m: ChatMessage) -> Chat.Message {
+        switch m.role {
+        case "system": .system(m.content)
+        case "assistant": .assistant(m.content, toolCalls: m.toolCalls)
+        case "tool": .tool(m.content, id: m.toolCallId, name: m.toolName)
+        default: .user(m.content)
+        }
+    }
+
+    private static func spec(_ value: JSONValue) -> ToolSpec {
+        guard case .object(let object) = value else { return [:] }
+        return object.mapValues(sendable)
+    }
+
+    private static func sendable(_ value: JSONValue) -> any Sendable {
+        switch value {
+        case .null: NSNull()
+        case .bool(let b): b
+        case .int(let i): i
+        case .double(let d): d
+        case .string(let s): s
+        case .array(let a): a.map(sendable)
+        case .object(let o): o.mapValues(sendable)
+        }
+    }
+
+    private static func toolCallEvent(_ call: ToolCall) -> [String: Any] {
+        let arguments = (try? JSONEncoder().encode(call.function.arguments)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
+        return ["type": "tool-call", "id": call.id ?? UUID().uuidString, "name": call.function.name, "arguments": arguments]
+    }
+}

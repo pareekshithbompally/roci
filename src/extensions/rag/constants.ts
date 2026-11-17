@@ -13,12 +13,12 @@ export const HASH_CONCURRENCY = 10;
 export const IO_CONCURRENCY = 5;
 
 // ── Embedding ──
-/** The on-device model (Rust catalog id) that embeds meetings and chats; its vectors are 768-d. */
-export const EMBEDDING_MODEL_ID = 'embeddinggemma-300m';
-/** EmbeddingGemma's retrieval prompts: a query and the documents it searches are embedded differently. */
+/** The on-device model (Rust catalog id) that embeds meetings and chats; its vectors are 1024-d. */
+export const EMBEDDING_MODEL_ID = 'qwen3-embedding-0.6b';
+/** Qwen3 Embedding's retrieval prompts: a query carries the task instruction, documents go in as they are. */
 export const EMBEDDING_PREFIX = {
-  query: 'task: search result | query: ',
-  document: 'title: none | text: ',
+  query: 'Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery:',
+  document: '',
 } as const;
 /** Texts per embedding request. */
 export const EMBEDDING_BATCH_SIZE = 8;

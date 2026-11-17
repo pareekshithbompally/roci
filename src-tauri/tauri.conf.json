@@ -78,14 +78,6 @@
       "icons/icon.icns",
       "icons/AppIcon.icon"
     ],
-    "resources": [
-      "icons/iconTemplate.png",
-      "icons/iconTemplate@2x.png",
-      "icons/iconRecordingTemplate.png",
-      "icons/iconRecordingTemplate@2x.png",
-      "icons/agents/claude-code.png",
-      "icons/agents/opencode.png"
-    ],
     "publisher": "Roci",
     "copyright": "Copyright \u00a9 2026 Pareekshith Bompally",
     "category": "Productivity",
@@ -95,7 +87,9 @@
       "minimumSystemVersion": "26.0",
       "signingIdentity": "Developer ID Application: Pareekshith Bompally (8TV3HMU3KY)",
       "entitlements": "entitlements.plist",
-      "frameworks": [],
+      "frameworks": [
+        "frameworks/RociMLX.framework"
+      ],
       "infoPlist": "Info.plist",
       "dmg": {
         "background": null,

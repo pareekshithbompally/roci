@@ -11,15 +11,16 @@ import { anthropic } from '@ai-sdk/anthropic';
 import { google } from '@ai-sdk/google';
 import { openai } from '@ai-sdk/openai';
 import { getPlatformFetch } from '@services/platform-fetch';
-import { chatServer } from '@services/localModels.service';
+import { mlxEmbed } from '@services/mlx.service';
+import { mlxLanguageModel } from '@services/ai/onDevice/mlxLanguageModel';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
-import type { LanguageModelV4 } from '@ai-sdk/provider';
+import type { EmbeddingModelV4 } from '@ai-sdk/provider';
 import { capabilitiesOf } from '@services/ai/capabilities';
 import { llamaServerRequestBody } from '@services/ai/llamaServer';
 import { getProviderType } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { ReasoningEffort } from '@shared/types';
-import type { EmbeddingModel, ImageModel, LanguageModel, LanguageModelCallOptions, streamText, ToolSet } from 'ai';
+import type { ImageModel, LanguageModel, LanguageModelCallOptions, streamText, ToolSet } from 'ai';
 
 /** Extract custom headers from provider config (for OpenRouter, etc.) */
 function buildCustomHeaders(providerConfig: ResolvedModel['providerConfig']): Record<string, string> {
@@ -46,7 +47,7 @@ export function createModel(
     case 'apple-intelligence':
       return appleIntelligenceModel();
     case 'on-device':
-      return onDeviceChatModel(resolved.modelId, options?.llamaServer?.reasoningEffort);
+      return mlxLanguageModel(resolved.modelId);
     case 'anthropic': {
       const customHeaders = buildCustomHeaders(resolved.providerConfig);
       const provider = createAnthropic({
@@ -105,32 +106,16 @@ export function createImageModel(resolved: ResolvedModel): ImageModel {
   }
 }
 
-/** A chat model on this device: each call asks Rust for its llama-server (started or woken as needed), then talks to it. */
-function onDeviceChatModel(modelId: string, effort?: ReasoningEffort): LanguageModelV4 {
-  const served = async () => {
-    const server = await chatServer(modelId);
-    return createOpenAICompatible({
-      name: LOCAL_MODELS_CONFIG.provider.id,
-      baseURL: `${server.url}/v1`,
-      apiKey: server.apiKey,
-      fetch: getPlatformFetch(),
-      includeUsage: true,
-      ...(effort && { transformRequestBody: llamaServerRequestBody(effort) }),
-    }).chatModel(modelId);
-  };
+/** The embedding model on this device (MLX), as an AI SDK embedding model. */
+export function createLocalEmbeddingModel(modelId: string): EmbeddingModelV4 {
   return {
     specificationVersion: 'v4',
     provider: LOCAL_MODELS_CONFIG.provider.id,
     modelId,
-    supportedUrls: {},
-    doGenerate: async (options) => (await served()).doGenerate(options),
-    doStream: async (options) => (await served()).doStream(options),
+    maxEmbeddingsPerCall: undefined,
+    supportsParallelCalls: false,
+    doEmbed: async ({ values }) => ({ embeddings: await mlxEmbed(modelId, values), warnings: [] }),
   };
-}
-
-/** The on-device embedding server (llama.cpp's `llama-server`, OpenAI embeddings API) at `baseUrl`. */
-export function createLocalEmbeddingModel(baseUrl: string, apiKey: string, modelId: string): EmbeddingModel {
-  return createOpenAICompatible({ name: 'llama-server', baseURL: `${baseUrl}/v1`, apiKey, fetch: getPlatformFetch() }).embeddingModel(modelId);
 }
 
 /** The on-device image server (stable-diffusion.cpp's `sd-server`, OpenAI image API) at `baseUrl`. */

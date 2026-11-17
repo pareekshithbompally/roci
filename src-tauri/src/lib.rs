@@ -42,7 +42,7 @@ mod tts;
 #[cfg(desktop)]
 mod image;
 #[cfg(desktop)]
-mod llama;
+mod mlx;
 #[cfg(desktop)]
 mod model_server;
 #[cfg(desktop)]

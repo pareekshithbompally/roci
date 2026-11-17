@@ -76,7 +76,9 @@ export const ACKNOWLEDGEMENTS: readonly AcknowledgementGroup[] = [
     title: 'AI and speech',
     items: [
       { name: 'Vercel AI SDK', url: 'https://github.com/vercel/ai', license: 'Apache-2.0', text: 'Apache-2.0', copyright: 'Copyright 2023 Vercel, Inc.' },
-      { name: 'llama.cpp', url: 'https://github.com/ggml-org/llama.cpp', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2023-2026 The ggml authors' },
+      { name: 'MLX Swift', url: 'https://github.com/ml-explore/mlx-swift', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2023 ml-explore' },
+      { name: 'MLX Swift LM', url: 'https://github.com/ml-explore/mlx-swift-lm', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2024 ml-explore' },
+      { name: 'swift-transformers', url: 'https://github.com/huggingface/swift-transformers', license: 'Apache-2.0', text: 'Apache-2.0' },
       { name: 'stable-diffusion.cpp', url: 'https://github.com/leejet/stable-diffusion.cpp', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2023 leejet' },
       { name: 'ONNX Runtime Web', url: 'https://github.com/microsoft/onnxruntime', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) Microsoft Corporation' },
       { name: 'Voice Activity Detection (vad-web)', url: 'https://github.com/ricky0123/vad', license: 'ISC', text: 'ISC' },
@@ -107,12 +109,8 @@ export const ACKNOWLEDGEMENTS: readonly AcknowledgementGroup[] = [
     title: 'Models (downloaded on request)',
     description: 'Roci downloads these from Hugging Face only when you choose to use them.',
     items: [
-      {
-        name: 'EmbeddingGemma 300M',
-        url: 'https://ai.google.dev/gemma/terms',
-        license: 'Gemma Terms of Use',
-        notice: 'Gemma is provided under and subject to the Gemma Terms of Use found at ai.google.dev/gemma/terms.',
-      },
+      { name: 'Gemma 4 E2B', url: 'https://huggingface.co/google/gemma-4-E2B-it', license: 'Apache-2.0', text: 'Apache-2.0' },
+      { name: 'Qwen3 Embedding 0.6B', url: 'https://huggingface.co/Qwen/Qwen3-Embedding-0.6B', license: 'Apache-2.0', text: 'Apache-2.0' },
       {
         name: 'Parakeet Unified EN 0.6B',
         url: 'https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/',

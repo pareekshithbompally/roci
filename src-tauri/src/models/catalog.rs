@@ -14,9 +14,9 @@ pub enum Kind {
     Voice,
     /// Text-to-image, run by stable-diffusion.cpp's `sd-server`; files are diffusion model, text encoder, VAE.
     Image,
-    /// Text embeddings for meeting search, run by llama.cpp's `llama-server`.
+    /// Text embeddings for meeting search, run by MLX (RociMLX); files are the model's folder.
     Embedding,
-    /// A chat model, run by llama.cpp's `llama-server`; files are the model, then an optional MTP draft that speeds it up.
+    /// A chat model, run by MLX (RociMLX); files are the model's folder.
     Chat,
 }
 
@@ -77,35 +77,40 @@ pub const MODELS: &[LocalModel] = &[
         kind: Kind::Chat,
         streams: false,
         voices: &[],
-        source: Source { repository: "ggml-org/gemma-4-E2B-it-GGUF", revision: "2a8538c2e2d4687953a86c422c7c623cfd022880" },
+        source: Source { repository: "mlx-community/gemma-4-e2b-it-4bit", revision: "238767527555cb75a05732a84dff5d6ba0dd6809" },
         files: &[
-            ModelFile {
-                name: "gemma-4-E2B-it-Q4_0.gguf",
-                bytes: 2_841_481_184,
-                sha256: "8e30dff3ac4c8434c49a7036fa15564bdbb6044e42bf04550bf1a096ad7e6a52",
-                source: None,
-            },
-            ModelFile {
-                name: "mtp-gemma-4-E2B-it-Q4_0.gguf",
-                bytes: 59_235_872,
-                sha256: "718d3a44057924d5840c65a0aeedf7929366adeeda92a2006955ccabaf645ef4",
-                source: None,
-            },
+            ModelFile { name: "chat_template.jinja", bytes: 17_336, sha256: "2f1b4d75d067bae3fe44e676721c7f077d243bc007156cb9c2f8b5836613d082", source: None },
+            ModelFile { name: "config.json", bytes: 6_395, sha256: "6397cb6eca41b911d1dcab74e17941351057bd759284052a2331918ff6f9246c", source: None },
+            ModelFile { name: "generation_config.json", bytes: 208, sha256: "d4226bbe3117d2d253ba4609720ba82c6c4ce4627a9a6ae05387c78983ac03de", source: None },
+            ModelFile { name: "model.safetensors", bytes: 3_550_670_554, sha256: "038e39a37a7667373d2c3991375446b10c96ae1d717a68674870343db376b76e", source: None },
+            ModelFile { name: "model.safetensors.index.json", bytes: 218_323, sha256: "edb157dbf495e23f37377af4a628a9ad13c4ee7937f93ccb36ec9e9a19940f16", source: None },
+            ModelFile { name: "processor_config.json", bytes: 1_316, sha256: "de3e580aebdc98272d4c4547daffe6525fcbae18a83a0e0bcf0d7444d4ee6f37", source: None },
+            ModelFile { name: "tokenizer.json", bytes: 32_169_626, sha256: "cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f", source: None },
+            ModelFile { name: "tokenizer_config.json", bytes: 2_740, sha256: "080d9e1aff284e2f6043889cd05367966f7c7b80e025fbc0b06745e218158656", source: None },
         ],
     },
     LocalModel {
-        id: "lfm3-omni-2b",
-        name: "LFM3 Omni 2B",
-        kind: Kind::Chat,
+        id: "qwen3-embedding-0.6b",
+        name: "Qwen3 Embedding 0.6B",
+        kind: Kind::Embedding,
         streams: false,
         voices: &[],
-        source: Source { repository: "ggml-org/LFM3-Omni-2B-GGUF", revision: "0b6888cd0b7ac8962cb8b125f0bf087c3178de5f" },
-        files: &[ModelFile {
-            name: "LFM3-Omni-2B-Q8_0.gguf",
-            bytes: 1_846_240_736,
-            sha256: "40d27b13e500963468f1fd1099863464a4a5e8f4682e934f9be8b54641b8c0c7",
-            source: None,
-        }],
+        source: Source { repository: "mlx-community/Qwen3-Embedding-0.6B-8bit", revision: "407ad2329cd30702720aafe83f74a1ba30fdfbca" },
+        files: &[
+            ModelFile { name: "added_tokens.json", bytes: 707, sha256: "c0284b582e14987fbd3d5a2cb2bd139084371ed9acbae488829a1c900833c680", source: None },
+            ModelFile { name: "chat_template.jinja", bytes: 4_116, sha256: "87a2728cb8dc9fe424d624542f6060ec05a1d285ebbec578bb078900e33396b5", source: None },
+            ModelFile { name: "config.json", bytes: 857, sha256: "65fb46306262bac47c6a89e5ad8a766c3d40d559057c1931e9c10976266a4fc7", source: None },
+            ModelFile { name: "config_sentence_transformers.json", bytes: 215, sha256: "10667c72ddb772627bf1780cb7f86af8e2ae0032b8c243c731172064105c6961", source: None },
+            ModelFile { name: "generation_config.json", bytes: 117, sha256: "28396d421a2108acce96383f6a7de78008f7f1b17f807958f3c14c51dbfb65fb", source: None },
+            ModelFile { name: "merges.txt", bytes: 1_671_853, sha256: "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5", source: None },
+            ModelFile { name: "model.safetensors", bytes: 633_152_041, sha256: "fe956e8d346b4f08215a3cfc48a874354f900c20a59e965b75df0d9d77c54b28", source: None },
+            ModelFile { name: "model.safetensors.index.json", bytes: 49_731, sha256: "d387721e7d2dd44152b7dc9fcea8d5647e2692e1c064949c000fabad3292d1d1", source: None },
+            ModelFile { name: "modules.json", bytes: 349, sha256: "84e40c8e006c9b1d6c122e02cba9b02458120b5fb0c87b746c41e0207cf642cf", source: None },
+            ModelFile { name: "special_tokens_map.json", bytes: 613, sha256: "76862e765266b85aa9459767e33cbaf13970f327a0e88d1c65846c2ddd3a1ecd", source: None },
+            ModelFile { name: "tokenizer.json", bytes: 11_423_705, sha256: "def76fb086971c7867b829c23a26261e38d9d74e02139253b38aeb9df8b4b50a", source: None },
+            ModelFile { name: "tokenizer_config.json", bytes: 5_404, sha256: "443bfa629eb16387a12edbf92a76f6a6f10b2af3b53d87ba1550adfcf45f7fa0", source: None },
+            ModelFile { name: "vocab.json", bytes: 2_776_833, sha256: "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910", source: None },
+        ],
     },
     LocalModel {
         id: "parakeet-unified-en",
@@ -271,20 +276,6 @@ pub const MODELS: &[LocalModel] = &[
                 source: Some(&FLUX_2_KLEIN_4B),
             },
         ],
-    },
-    LocalModel {
-        id: "embeddinggemma-300m",
-        name: "EmbeddingGemma 300M",
-        kind: Kind::Embedding,
-        streams: false,
-        voices: &[],
-        source: Source { repository: "ggml-org/embeddinggemma-300M-GGUF", revision: "0f741b5a6585bd53aeb15cd1372c56f2a0f65e12" },
-        files: &[ModelFile {
-            name: "embeddinggemma-300M-Q8_0.gguf",
-            bytes: 333_590_944,
-            sha256: "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63",
-            source: None,
-        }],
     },
 ];
 
