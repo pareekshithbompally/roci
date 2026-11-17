@@ -41,7 +41,7 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Roci uses your microphone for dictation. What you say goes to the speech engine you choose in Settings.</string>
+	<string>Roci uses your microphone to record your meetings and for dictation. Recordings stay on this device; speech goes to the engine you choose in Settings.</string>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>Roci records the other participants&apos; audio only while you record a meeting, and keeps it on this Mac.</string>
 	<key>NSScreenCaptureUsageDescription</key>
@@ -58,5 +58,9 @@
 	<string>alert</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
 </dict>
 </plist>

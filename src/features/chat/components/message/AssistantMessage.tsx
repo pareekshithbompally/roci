@@ -4,7 +4,6 @@ import { AnimatedProviderIcon } from '@features/chat/components/AnimatedProvider
 import { useStreamingText } from '@features/chat/stores/streamingStore';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { useModelLabel } from '@shared/hooks/useModelLabel';
-import { toolCallTitle } from '@features/chat/components/tool-call';
 import { Progress, Text } from '@shared/ui';
 import { useReadAloud } from '@shared/hooks/useReadAloud';
 import { useSpeechHighlight } from '@shared/hooks/useSpeechHighlight';
@@ -14,7 +13,7 @@ import { loadingStatusOf } from './loadingStatus';
 import AssistantActionBar from './AssistantActionBar';
 import ErrorMessageBox from './ErrorMessageBox';
 import type { AssistantMessageProps } from './types';
-import type { ChatPart, ToolCallPart, WebCitation, InlineCitationSpan } from '@shared/types';
+import type { ChatPart, WebCitation, InlineCitationSpan } from '@shared/types';
 
 /** "localhost:9931 · Gemma": the provider, then the model by its display name (its rename, if any); one name when they match. */
 function ProviderModelLabel({ provider, model }: { provider?: string; model?: string }) {
@@ -27,32 +26,6 @@ function ProviderModelLabel({ provider, model }: { provider?: string; model?: st
     </>
   );
 }
-
-/** Header label (active tool, then provider/model), isolated so only it re-renders on stream updates. */
-const StreamingHeaderLabel = memo(({
-  msgId, provider, model,
-}: {
-  msgId: string; provider?: string; model?: string;
-}) => {
-  const streaming = useStreamingText();
-
-  if (streaming.msgId === msgId) {
-    const toolParts = streaming.parts.filter(
-      (p): p is ToolCallPart => p.type === 'tool_call'
-    );
-    const hasText = streaming.parts.some(p => p.type === 'text');
-
-    // Still in tool phase (no text yet) — show current tool label
-    if (toolParts.length > 0 && !hasText) {
-      const active = toolParts.find(p => p.status === 'calling') || toolParts[toolParts.length - 1];
-      if (active) return <>{toolCallTitle(active)}</>;
-    }
-  }
-
-  return <ProviderModelLabel provider={provider} model={model} />;
-});
-
-StreamingHeaderLabel.displayName = 'StreamingHeaderLabel';
 
 /** Streaming content, isolated so only it re-renders on each chunk. */
 const StreamingContent = memo(({ msgId }: { msgId: string }) => {
@@ -139,11 +112,8 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
       <div className="flex items-center gap-2 mb-2">
         <AnimatedProviderIcon provider={provider || 'unknown'} modelId={model} size={18} isAnimating={isLoading || isStreaming} />
         <Text variant="label" tone="muted">
-          {isLoading
-            ? status.label
-            : isStreaming
-              ? <StreamingHeaderLabel msgId={id} provider={provider} model={model} />
-              : <ProviderModelLabel provider={provider} model={model} />}
+          {/* The model, always: a running tool shows in its own row below, not here too. */}
+          {isLoading ? status.label : <ProviderModelLabel provider={provider} model={model} />}
         </Text>
         {isLoading && status.percent !== null && <Progress key={status.label} percent={status.percent} detail={status.detail} size="compact" />}
       </div>

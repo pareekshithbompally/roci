@@ -15,7 +15,7 @@ export const RemindersIntegration: React.FC = () => {
   return (
     <IntegrationRow
       {...reminders}
-      icon={<IntegrationIcon app={COPY.app} />}
+      icon={<IntegrationIcon app={COPY.app} symbol={COPY.symbol} />}
       title={COPY.title}
       description={COPY.description}
       deniedHint={COPY.deniedHint}

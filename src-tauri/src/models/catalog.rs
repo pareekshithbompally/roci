@@ -111,7 +111,7 @@ pub const MODELS: &[LocalModel] = &[
     LocalModel {
         id: "parakeet-unified-en",
         maker: "nvidia",
-        name: "Parakeet (English)",
+        name: "Parakeet",
         kind: Kind::Speech,
         streams: true,
         voices: &[],
@@ -126,7 +126,7 @@ pub const MODELS: &[LocalModel] = &[
     LocalModel {
         id: "nemotron-3.5-asr",
         maker: "nvidia",
-        name: "Nemotron (multilingual)",
+        name: "Nemotron",
         kind: Kind::Speech,
         streams: true,
         voices: &[],

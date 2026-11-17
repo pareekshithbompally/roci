@@ -1,4 +1,5 @@
 import React from 'react';
+import type { LucideIcon } from 'lucide-react';
 import { ICON_TILE_PX, ICON_TILE_RADIUS } from '@shared/ui';
 import { AppIcon, GlyphTile } from '@shared/components';
 
@@ -9,11 +10,13 @@ interface IntegrationIconProps {
   src?: string;
   /** A bare glyph image (Apple Intelligence): shown on a white tile. */
   glyph?: string;
+  /** Line glyph when the app's icon can't be read (iPhone). */
+  symbol?: LucideIcon;
 }
 
 /** An integration's icon at icon-tile size, so app icons, images and glyphs weigh the same as the tiles in other panels. */
-export const IntegrationIcon: React.FC<IntegrationIconProps> = ({ app, src, glyph }) => {
-  if (app) return <AppIcon app={app} size="tile" fallback={src} />;
+export const IntegrationIcon: React.FC<IntegrationIconProps> = ({ app, src, glyph, symbol }) => {
+  if (app) return <AppIcon app={app} size="tile" fallback={src} symbol={symbol} />;
   if (glyph) return <GlyphTile src={glyph} size="row" />;
   return (
     <span className="shrink-0 overflow-hidden" style={{ width: ICON_TILE_PX, height: ICON_TILE_PX, borderRadius: ICON_TILE_RADIUS }}>

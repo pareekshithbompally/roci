@@ -1,6 +1,7 @@
 /** Copy and options each integration row shows; behaviour lives in features/integrations. */
 
 /** Apple Notes folder in the default account; created on first save. */
+import { CalendarDays, ListChecks, Search, StickyNote } from 'lucide-react';
 import { platform } from '@platform/index';
 
 const NOTES_FOLDER = 'Roci';
@@ -12,9 +13,10 @@ export const INTEGRATIONS_CONFIG = {
   calendar: {
     title: 'Calendar',
     description: 'Get notified before meetings and record them.',
-    deniedHint: 'Roci is off in System Settings › Privacy & Security › Calendars.',
-    /** Bundle id: the row shows the app's own icon from macOS. */
+    deniedHint: `Roci is off in ${platform.settingsAppName} › Privacy & Security › Calendars.`,
+    /** Bundle id: the row shows the app's own icon from macOS; `symbol` on iPhone. */
     app: 'com.apple.iCal',
+    symbol: CalendarDays,
   },
   appleIntelligence: {
     title: 'Apple Intelligence',
@@ -38,6 +40,7 @@ export const INTEGRATIONS_CONFIG = {
     description: `Save meetings to the “${NOTES_FOLDER}” folder.`,
     deniedHint: 'Roci is off in System Settings › Privacy & Security › Automation › Notes.',
     app: 'com.apple.Notes',
+    symbol: StickyNote,
     folder: NOTES_FOLDER,
     /** Line at the end of each note that ties it to its meeting. */
     tagPrefix: 'Roci meeting',
@@ -46,6 +49,7 @@ export const INTEGRATIONS_CONFIG = {
     title: 'Spotlight',
     description: 'Find meetings from Spotlight (⌘Space).',
     app: 'com.apple.Spotlight',
+    symbol: Search,
   },
   hex: {
     title: 'Hex',
@@ -59,8 +63,9 @@ export const INTEGRATIONS_CONFIG = {
   reminders: {
     title: 'Reminders',
     description: 'Action items in Reminders, kept in sync.',
-    deniedHint: 'Roci is off in System Settings › Privacy & Security › Reminders.',
+    deniedHint: `Roci is off in ${platform.settingsAppName} › Privacy & Security › Reminders.`,
     app: 'com.apple.reminders',
+    symbol: ListChecks,
     /** List created on first enable */
     defaultListTitle: 'Roci',
     /** Reminders fires several change notifications per edit; pull once they settle. */

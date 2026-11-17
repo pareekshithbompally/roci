@@ -7,7 +7,7 @@ import type { OnboardingIconSource } from '@config/onboarding.config';
 
 const Glyph: React.FC<{ source: OnboardingIconSource }> = ({ source }) => {
   const { isDark } = useThemeContext();
-  if ('app' in source) return <AppIcon app={source.app} size="xl" />;
+  if ('app' in source) return <AppIcon app={source.app} size="xl" symbol={source.symbol} />;
   if ('providers' in source) return <ProviderFan providers={source.providers} />;
   if ('glyph' in source) return <GlyphTile src={source.glyph} />;
   return <AppImage src={isDark ? source.image.dark : source.image.light} size="xl" />;

@@ -1,4 +1,4 @@
-/** Activity maths: order, each row's mark and detail line, and the iPhone capsule's one-line summary; read from the store's items as they are. */
+/** Activity maths: order, each row's mark and detail line, and the iPhone activity button's label; read from the store's items as they are. */
 
 import type { ActivityItem, ActivityStatus, ActivityType } from '@shared/stores/activityStore';
 
@@ -42,7 +42,7 @@ export function activityDetail(item: ActivityItem): string | null {
 /** Finished rows the user can clear. */
 export const isSettled = (item: ActivityItem) => item.status === 'complete' || item.status === 'error' || item.status === 'cancelled';
 
-/** The capsule's line: one task by name (with its percent, or a recording's clock), several by count. */
+/** The activity button's label: one task by name (with its percent, or a recording's clock), several by count. */
 export function activitySummary(items: readonly ActivityItem[]): string {
   if (items.length === 1) {
     const [item] = items;

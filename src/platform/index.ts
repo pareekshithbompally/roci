@@ -28,6 +28,8 @@ export const platform = {
   canRecord: apple,
   canCaptureSystemAudio: mac,
   canTakeScreenshots: mac,
+  /** Reads another app's icon by bundle id (NSWorkspace); iOS keeps apps' icons to themselves. */
+  canReadAppIcons: mac,
   /** One audio session for the whole app: the web view's dictation mic would take it from a recording. */
   sharesAudioSession: ios,
   /** Notices when a call app (Zoom, Teams, Meet …) starts using the microphone. */

@@ -18,7 +18,7 @@ export const CalendarIntegration: React.FC = () => {
   return (
     <IntegrationRow
       {...calendar}
-      icon={<IntegrationIcon app={COPY.app} />}
+      icon={<IntegrationIcon app={COPY.app} symbol={COPY.symbol} />}
       title={COPY.title}
       description={COPY.description}
       deniedHint={COPY.deniedHint}

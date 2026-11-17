@@ -9,4 +9,4 @@ export {
 } from './stores/recordingStore';
 export { meetingPipeline } from './pipeline/meetingPipeline';
 export { useRecordingRuntime, useStartRecording, usePermissions } from './hooks';
-export { PermissionChecklist, RecordingExitPrompt } from './components';
+export { PermissionChecklist, RecordingExitPrompt, RecordPill } from './components';

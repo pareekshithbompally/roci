@@ -1,6 +1,6 @@
 /** First-run flow copy and the icons it shows: welcome (no recording) or permissions (recording), then AI setup. */
 
-import { Lock, Mic, Sparkles } from 'lucide-react';
+import { Bell, CalendarDays, Lock, Mic, Sparkles, SquareTerminal, Volume2, type LucideIcon } from 'lucide-react';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { platform } from '@platform/index';
 
@@ -9,7 +9,7 @@ const SETTINGS_PANES = '/System/Library/ExtensionKit/Extensions';
 
 /** A row's icon: one macOS draws (an app's bundle id, or a settings pane's path), a bundled light/dark image, or a fan of provider logos. */
 export type OnboardingIconSource =
-  | { app: string }
+  | { app: string; symbol: LucideIcon }
   | { glyph: string }
   | { image: { light: string; dark: string } }
   | { providers: readonly string[] };
@@ -17,12 +17,12 @@ export type OnboardingIconSource =
 /** macOS has no current microphone icon to draw, so that one is bundled in the same style (SF Symbol mic.fill on the icon tile). */
 export const ONBOARDING_ICONS = {
   microphone: { image: { light: '/images/permission-microphone-light.png', dark: '/images/permission-microphone-dark.png' } },
-  'system-audio': { app: `${SETTINGS_PANES}/Sound.appex` },
-  notifications: { app: `${SETTINGS_PANES}/NotificationsSettings.appex` },
-  calendar: { app: 'com.apple.iCal' },
+  'system-audio': { app: `${SETTINGS_PANES}/Sound.appex`, symbol: Volume2 },
+  notifications: { app: `${SETTINGS_PANES}/NotificationsSettings.appex`, symbol: Bell },
+  calendar: { app: INTEGRATIONS_CONFIG.calendar.app, symbol: CalendarDays },
   // Apple Intelligence's own mark is a bare glyph: on a tile it weighs the same as the app icons beside it.
   appleIntelligence: { glyph: INTEGRATIONS_CONFIG.appleIntelligence.icon },
-  local: { app: 'com.apple.Terminal' },
+  local: { app: 'com.apple.Terminal', symbol: SquareTerminal },
   remote: { providers: ['gemini', 'openai', 'anthropic'] },
 } satisfies Record<string, OnboardingIconSource>;
 

@@ -1,11 +1,13 @@
-/** A Mac app's own icon (Finder, Calendar, …) from macOS, by bundle id; `fallback` when the app isn't installed. */
+/** A Mac app's own icon (Finder, Calendar, …) from macOS, by bundle id; else `fallback`, else `symbol` as a line glyph (iPhone). */
 
 import React from 'react';
+import type { LucideIcon } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from '@services/tauri';
 import { queryKeys } from '@shared/query/queryKeys';
-import { ICON_SIZE_PX, ICON_TILE_PX, type IconSize } from '@shared/ui';
+import { Icon, IconTile, ICON_SIZE_PX, ICON_TILE_PX, type IconSize } from '@shared/ui';
+import { platform } from '@platform/index';
 import { UI_CONFIG } from '@config/ui.config';
 
 
@@ -15,6 +17,8 @@ interface AppIconProps {
   size: AppIconSize;
   /** Image shown when the app isn't on this Mac (or outside the desktop app). */
   fallback?: string;
+  /** Line glyph when there is no image: always on iPhone, which can't read other apps' icons. */
+  symbol?: LucideIcon;
 }
 
 /** Icons never change while the app runs: fetched once per bundle id. */
@@ -22,7 +26,7 @@ export function useAppIcon(app: string | undefined): string | null {
   const { data } = useQuery({
     queryKey: queryKeys.appIcon(app ?? ''),
     queryFn: () => invoke<string | null>('app_icon', { app }),
-    enabled: isTauriEnvironment() && !!app,
+    enabled: isTauriEnvironment() && platform.canReadAppIcons && !!app,
     staleTime: Infinity,
   });
   return data ?? null;
@@ -48,6 +52,8 @@ export const AppImage: React.FC<{ src?: string | null; size: AppIconSize }> = ({
   return <img src={src} alt="" aria-hidden width={px} height={px} className="shrink-0" />;
 };
 
-export const AppIcon: React.FC<AppIconProps> = ({ app, size, fallback }) => (
-  <AppImage src={useAppIcon(app) ?? fallback} size={size} />
-);
+export const AppIcon: React.FC<AppIconProps> = ({ app, size, fallback, symbol }) => {
+  const src = useAppIcon(app) ?? fallback;
+  if (src || !symbol) return <AppImage src={src} size={size} />;
+  return size === 'tile' ? <IconTile icon={symbol} /> : <Icon icon={symbol} size={size} />;
+};

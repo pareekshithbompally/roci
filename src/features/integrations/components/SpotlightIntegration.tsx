@@ -11,7 +11,7 @@ const COPY = INTEGRATIONS_CONFIG.spotlight;
 export const SpotlightIntegration: React.FC = () => (
   <IntegrationRow
     {...useSpotlightControls()}
-    icon={<IntegrationIcon app={COPY.app} />}
+    icon={<IntegrationIcon app={COPY.app} symbol={COPY.symbol} />}
     title={COPY.title}
     description={COPY.description}
   />

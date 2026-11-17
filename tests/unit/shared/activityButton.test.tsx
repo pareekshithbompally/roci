@@ -1,22 +1,22 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { ActivityCapsule } from '@shared/components/ActivityCapsule';
+import { ActivityButton } from '@shared/components/ActivityButton';
 import { activityStore, type ActivityItem } from '@shared/stores/activityStore';
 
 const item = (over: Partial<ActivityItem>): ActivityItem => ({
   id: 'a', type: 'import', label: 'Importing call.m4a', status: 'active', percent: 40, step: null, detail: null, error: null, actions: [], ...over,
 });
 
-describe('iPhone activity capsule', () => {
+describe('iPhone activity button', () => {
   afterEach(() => act(() => activityStore.getSnapshot().forEach((i) => activityStore.remove(i.id))));
 
   it('is absent while nothing runs', () => {
-    render(<ActivityCapsule />);
+    render(<ActivityButton />);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('names one task with its percent, counts several, and opens the sheet with every row', () => {
-    render(<ActivityCapsule />);
+    render(<ActivityButton />);
     act(() => activityStore.add(item({})));
     expect(screen.getByRole('button', { name: /Importing call\.m4a · 40%/ })).toBeInTheDocument();
 
@@ -29,7 +29,7 @@ describe('iPhone activity capsule', () => {
 
   it('runs a row action from the sheet', () => {
     let cancelled = false;
-    render(<ActivityCapsule />);
+    render(<ActivityButton />);
     act(() => activityStore.add(item({ actions: [{ icon: 'x', label: 'Cancel import', onClick: () => { cancelled = true; } }] })));
     fireEvent.click(screen.getByRole('button', { name: /Importing/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Cancel import' }));

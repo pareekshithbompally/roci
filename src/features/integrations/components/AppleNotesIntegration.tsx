@@ -11,7 +11,7 @@ const COPY = INTEGRATIONS_CONFIG.appleNotes;
 export const AppleNotesIntegration: React.FC = () => (
   <IntegrationRow
     {...useAppleNotesControls()}
-    icon={<IntegrationIcon app={COPY.app} />}
+    icon={<IntegrationIcon app={COPY.app} symbol={COPY.symbol} />}
     title={COPY.title}
     description={COPY.description}
     deniedHint={COPY.deniedHint}

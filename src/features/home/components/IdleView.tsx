@@ -2,8 +2,7 @@
 
 import React, { useMemo, useState, useCallback } from 'react';
 import { ChevronRight } from 'lucide-react';
-import { useRecordingBusy, useRecordingMeetingId, useStartRecording } from '@features/recording';
-import { isTauriEnvironment } from '@services/tauri';
+import { RecordPill } from '@features/recording';
 import { askInNewChat, canSendDraft, useChatStore } from '@features/chat';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
@@ -15,7 +14,7 @@ import { useSpeechInputReady } from '@features/settings/hooks/useSpeechModels';
 import { useAIReadiness, useOpenAISetup } from '@features/settings';
 import { LAYOUT } from '@config/layout.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
-import { Button, cn, Dot, Icon, Surface, Text, TitlebarSpacer } from '@shared/ui';
+import { Button, cn, Icon, Surface, Text, TitlebarSpacer } from '@shared/ui';
 import { motion } from 'framer-motion';
 import { platform } from '@platform/index';
 import { useFormFactor } from '@platform/formFactor';
@@ -36,10 +35,6 @@ const GREETING_POOL = [
 
 export const IdleView: React.FC<IdleViewProps> = () => {
   const [greeting] = useState(() => GREETING_POOL[Math.floor(Math.random() * GREETING_POOL.length)]);
-  const startRecording = useStartRecording();
-  const recordingMeetingId = useRecordingMeetingId();
-  const recordingBusy = useRecordingBusy();
-  const canRecord = isTauriEnvironment() && !recordingMeetingId && !recordingBusy;
 
   const chatInput = useChatStore((s) => s.input);
   const isGenerating = useChatStore((s) => s.replyingSessionId !== null);
@@ -76,14 +71,6 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   const handleSetupProviders = useOpenAISetup();
   // Phone: the greeting fills the screen and the composer sits at the bottom, above the keyboard.
   const phone = useFormFactor() === 'phone';
-
-  const handleStartRecording = async () => {
-    try {
-      await startRecording();
-    } catch (error) {
-      console.error('[IdleView] Failed to start recording:', error);
-    }
-  };
 
   const handleSendMessage = () => {
     if (!canSendDraft(chatInput, pendingAttachments) || isGenerating) return;
@@ -165,12 +152,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                 aria-hidden={voice.isVoiceActive || undefined}
                 inert={voice.isVoiceActive || undefined}
               >
-                {platform.canRecord && (
-                  <Button variant="outline" size="sm" onClick={handleStartRecording} disabled={!canRecord}>
-                    <Dot tone="danger" />
-                    Record
-                  </Button>
-                )}
+                {platform.canRecord && <RecordPill />}
               </motion.div>
 
               {/* No AI yet (set up later): everything shows, chat waits for a provider. */}
