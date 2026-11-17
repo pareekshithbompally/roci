@@ -4,11 +4,10 @@ import React, { useState, useMemo } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
-import { ProvidersAvatar, ModelIcon } from '@shared/components';
+import { ProvidersAvatar, ModelIcon, ModelLabel } from '@shared/components';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { groupChoices, modelChoices, withIntegrationModels } from '@shared/utils/modelResolver';
 import { modelInfoOf } from '@services/ai/capabilities';
-import { ModalityIcons } from '@features/settings/components/ModalityIcons';
 import type { ModelInfo } from '@services/modalities';
 import { Button, CommandPopover, CommandGroup, CommandRow, Dot, Icon, Text, Tooltip, cn } from '@shared/ui';
 import { MODEL_PICKER_COPY } from '@config/chat.config';
@@ -106,14 +105,13 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
                 value={`${model.label} ${getProviderTitle(model.provider)}`}
                 onSelect={() => handleSelectModel(model.value)}
                 leading={<ModelIcon provider={model.provider} modelId={model.modelId} size={14} fallback="none" />}
-                label={model.label}
+                label={<ModelLabel name={model.label} info={info} />}
                 labelVariant={isSelected ? 'bodyStrong' : 'body'}
                 status={isLoaded(model.provider, model.modelId) && (
                   <Tooltip content={MODEL_PICKER_COPY.loaded}>
                     <span aria-label={MODEL_PICKER_COPY.loaded} className="inline-flex"><Dot tone="success" size="xs" /></span>
                   </Tooltip>
                 )}
-                meta={<ModalityIcons modelInfo={info} variant="compact" />}
                 check={isSelected ? <Icon icon={Check} size="sm" tone="accent" /> : null}
               />
             );

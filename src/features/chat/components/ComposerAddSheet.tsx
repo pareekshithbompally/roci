@@ -6,6 +6,7 @@ import { IMPORT_MEETING_LABEL, useImportMeetingActions } from '@features/import'
 import { useAppActions } from '@shared/stores/appStore';
 import { BottomSheet, CardRow, Icon, Section } from '@shared/ui';
 import { ChatToolRows } from './tools/ChatToolRows';
+import type { ContextUsage } from '@shared/hooks/useContextUsage';
 
 /** What + attaches (`accept` filters the file picker): the Mac menu's items and this sheet's rows. */
 export const ATTACH_OPTIONS = [
@@ -19,9 +20,11 @@ interface ComposerAddSheetProps {
   onOpenChange: (open: boolean) => void;
   /** Opens the file picker with this filter; absent when the chat can't take attachments right now. */
   onPickFiles?: (accept: string) => void;
+  /** The chat's context window (the Mac shows it in the composer toolbar); null until known. */
+  contextUsage?: ContextUsage | null;
 }
 
-export const ComposerAddSheet: React.FC<ComposerAddSheetProps> = ({ open, onOpenChange, onPickFiles }) => {
+export const ComposerAddSheet: React.FC<ComposerAddSheetProps> = ({ open, onOpenChange, onPickFiles, contextUsage }) => {
   const importActions = useImportMeetingActions();
   const { openSettings } = useAppActions();
   const closeThen = (action: () => void) => () => {
@@ -44,7 +47,7 @@ export const ComposerAddSheet: React.FC<ComposerAddSheetProps> = ({ open, onOpen
             <CardRow key={id} title={label} leading={<Icon icon={icon} size="sm" />} onPress={closeThen(run)} />
           ))}
         </Section>
-        <ChatToolRows onChooseImageModel={closeThen(() => openSettings('capabilities'))} />
+        <ChatToolRows onChooseImageModel={closeThen(() => openSettings('capabilities'))} contextUsage={contextUsage} />
       </div>
     </BottomSheet>
   );

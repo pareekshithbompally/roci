@@ -5,14 +5,13 @@ import { ExternalLink, Plus } from 'lucide-react';
 import { openUrl } from '@services/tauri';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
-import { ModelIcon, RenameModal } from '@shared/components';
+import { ModelIcon, ModelLabel, RenameModal } from '@shared/components';
 import { capabilitiesOf, modelInfoOf } from '@services/ai/capabilities';
 import { confirm } from '@shared/stores/confirmStore';
 import { getModelDisplayName } from '@shared/utils/provider.utils';
 import { CardRow, CommandGroup, CommandPopover, CommandRow, ICON_TILE_PX, Icon, Section } from '@shared/ui';
 import type { Model, ModelProvider } from '@shared/types/modelProviders';
 import type { ConnectionStatus, ProviderConnection } from '@features/settings/hooks/useProviderConnection';
-import { ModalityIcons } from './ModalityIcons';
 import { ModelRowMenu } from './ModelRowMenu';
 import type { ModelCapabilityFlag } from './ModelRowMenu';
 
@@ -84,8 +83,7 @@ const AddModelPicker: React.FC<AddModelPickerProps> = ({ provider, connection, a
           key={modelId}
           value={modelId}
           onSelect={() => add(modelId)}
-          label={modelId}
-          meta={<ModalityIcons modelInfo={catalogLoaded ? modelInfoOf(provider, { id: modelId }) : null} variant="compact" />}
+          label={<ModelLabel name={modelId} info={catalogLoaded ? modelInfoOf(provider, { id: modelId }) : null} />}
         />
       ))}
     </CommandPopover>
@@ -95,6 +93,7 @@ const AddModelPicker: React.FC<AddModelPickerProps> = ({ provider, connection, a
 export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connection }) => {
   const { updateProvider } = useSettings();
   const [renaming, setRenaming] = useState<Model | null>(null);
+  const catalogLoaded = useModelCatalog();
   const models = provider.models ?? [];
   const id = provider.provider;
 
@@ -138,7 +137,7 @@ export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connec
           <CardRow
             key={model.id}
             leading={<ModelIcon provider={id} modelId={model.id} size={ICON_TILE_PX} />}
-            title={<span className="block truncate">{getModelDisplayName(model)}</span>}
+            title={<ModelLabel name={getModelDisplayName(model)} info={catalogLoaded ? modelInfoOf(id, model) : null} />}
             actions={
               <ModelRowMenu
                 capabilities={capabilitiesOf(id, model)}

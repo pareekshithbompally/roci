@@ -19,3 +19,4 @@ export { RenameModal } from './RenameModal';
 export { ServerIcon } from './ServerIcon';
 export { Markdown } from './markdown/Markdown';
 export { Menu, type MenuEntry } from './Menu';
+export { ModelChips, ModelLabel } from './ModelChips';

@@ -7,4 +7,3 @@ export { CapabilitiesPanel } from './CapabilitiesPanel';
 export { IntegrationsPanel } from './IntegrationsPanel';
 export { McpServersPanel } from './mcp';
 export { ProvidersPanelErrorBoundary } from './ProvidersPanelErrorBoundary';
-export { ModalityIcons } from './ModalityIcons';

@@ -65,3 +65,5 @@ export { SearchField } from './search-field';
 export type { SearchFieldProps } from './search-field';
 export { RevealLayout } from './reveal-layout';
 export type { RevealLayoutProps } from './reveal-layout';
+export { Chip } from './chip';
+export type { ChipProps } from './chip';

@@ -4,7 +4,7 @@ import React, { useMemo } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useOnDeviceModel, type OnDeviceModel } from '@shared/hooks/useOnDeviceModel';
 import { EMBEDDING_MODEL_NAME, EMBEDDING_MODEL_SIZE } from '@extensions/rag';
-import { JOB_GLYPH, ModelDownloadButton, ModelReadyStatus } from '@shared/components';
+import { JOB_GLYPH, ModelDownloadButton, ModelLabel, ModelReadyStatus } from '@shared/components';
 import { formatFileSize } from '@shared/utils/formatters';
 import { modelChoices, withIntegrationModels, type ModelChoice } from '@shared/utils/modelResolver';
 import { speechSelectionKey, speechSelectionOf } from '@services/ai/transcription';
@@ -134,8 +134,8 @@ const OnDeviceModelRow: React.FC<{ icon: TileGlyph; name: string; use: string; s
 }) => (
   <CardRow
     leading={<IconTile icon={icon} />}
-    title={name}
-    description={`${use} · ${size}`}
+    title={<ModelLabel name={name} size={size} onDevice />}
+    description={use}
     status={<ModelReadyStatus model={control} />}
     actions={<ModelDownloadButton model={control} removable />}
   />

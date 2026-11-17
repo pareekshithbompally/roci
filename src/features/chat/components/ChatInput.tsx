@@ -532,7 +532,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       </Popover>
 
       {phone && (
-        <ComposerAddSheet open={addOpen} onOpenChange={setAddOpen} onPickFiles={onAttach && !disabled ? openFilePicker : undefined} />
+        <ComposerAddSheet open={addOpen} onOpenChange={setAddOpen} onPickFiles={onAttach && !disabled ? openFilePicker : undefined} contextUsage={contextUsage} />
       )}
 
       {/* Image Quick Look Overlay — portaled to body to escape overflow-hidden ancestors */}

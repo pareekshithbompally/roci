@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { Globe, ImageIcon, Library, Lightbulb, type LucideIcon } from 'lucide-react';
-import { CardRow, ChoiceControl, Icon, Section, Switch } from '@shared/ui';
+import { CardRow, ChoiceControl, ContextRing, Icon, Section, Switch, Text } from '@shared/ui';
+import type { ContextUsage } from '@shared/hooks/useContextUsage';
 import { ServerIcon } from '@shared/components';
 import { CHAT_REASONING_COPY, REASONING_EFFORT_LEVELS } from '@config/chat.config';
 import { useToolCatalog } from '@features/chat/hooks';
@@ -23,9 +24,11 @@ const GroupRow: React.FC<{ group: CatalogGroup; icon?: LucideIcon; onChange: (on
 interface ChatToolRowsProps {
   /** Opens Settings at Capabilities (an image model is chosen there). */
   onChooseImageModel: () => void;
+  /** How full the chat's context window is; the row shows once it is known. */
+  contextUsage?: ContextUsage | null;
 }
 
-export const ChatToolRows: React.FC<ChatToolRowsProps> = ({ onChooseImageModel }) => {
+export const ChatToolRows: React.FC<ChatToolRowsProps> = ({ onChooseImageModel, contextUsage }) => {
   const catalog = useToolCatalog();
   const reasoning = useReasoningControl();
   const { webSearch, imageGeneration, modelSupportsTools } = catalog;
@@ -33,6 +36,14 @@ export const ChatToolRows: React.FC<ChatToolRowsProps> = ({ onChooseImageModel }
 
   return (
     <Section title="Chat" footer={!modelSupportsTools && catalog.modelName ? `${catalog.modelName} can’t use tools. Pick a model with tool calling.` : undefined}>
+      {/* The ring opens the breakdown; the value says how full the window is. */}
+      {contextUsage && (
+        <CardRow
+          title="Context"
+          leading={<ContextRing usage={contextUsage} />}
+          actions={<Text tone="muted">{`${contextUsage.percent}% used`}</Text>}
+        />
+      )}
       {reasoning && (
         <CardRow
           title={CHAT_REASONING_COPY.control}
