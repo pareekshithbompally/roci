@@ -94,7 +94,6 @@ export const ProvidersPanel: React.FC = () => {
   return (
     <SettingsPage
       title="Model Providers"
-      description="Turn on a provider, add its API key, and test it to choose models."
       layout="fill"
     >
       <div className="flex min-h-0 w-full gap-6">

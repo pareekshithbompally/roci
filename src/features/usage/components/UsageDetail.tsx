@@ -198,7 +198,6 @@ export const UsageDetail: React.FC<{ subject: UsageSubject }> = ({ subject }) =>
   return (
     <SettingsPage
       title={root ? COPY.title : subjectTitle(subject)}
-      description={root ? COPY.description : COPY.detailDescription[subject.kind]}
       onBack={root || inStack ? undefined : back}
     >
       <UsageRangeControl />

@@ -94,7 +94,6 @@ const AddModelPicker: React.FC<AddModelPickerProps> = ({ provider, connection, a
 
 export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connection }) => {
   const { updateProvider } = useSettings();
-  const catalogLoaded = useModelCatalog();
   const [renaming, setRenaming] = useState<Model | null>(null);
   const models = provider.models ?? [];
   const id = provider.provider;
@@ -141,15 +140,12 @@ export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connec
             leading={<ModelIcon provider={id} modelId={model.id} size={ICON_TILE_PX} />}
             title={<span className="block truncate">{getModelDisplayName(model)}</span>}
             actions={
-              <>
-                <ModalityIcons modelInfo={catalogLoaded ? modelInfoOf(id, model) : null} variant="compact" />
-                <ModelRowMenu
-                  capabilities={capabilitiesOf(id, model)}
-                  onFlagChange={(flag, value) => handleFlag(model.id, flag, value)}
-                  onRename={() => setRenaming(model)}
-                  onRemove={() => void handleRemove(model)}
-                />
-              </>
+              <ModelRowMenu
+                capabilities={capabilitiesOf(id, model)}
+                onFlagChange={(flag, value) => handleFlag(model.id, flag, value)}
+                onRename={() => setRenaming(model)}
+                onRemove={() => void handleRemove(model)}
+              />
             }
           />
         ))}

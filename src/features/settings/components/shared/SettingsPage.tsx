@@ -6,21 +6,19 @@ import { useFormFactor } from '@platform/formFactor';
 
 interface SettingsPageHeaderProps {
   title: React.ReactNode;
-  description?: React.ReactNode;
   /** Controls at the right of the title (Add, time range…). */
   accessory?: React.ReactNode;
   /** A drilled-in page (Mac, iPad): a back button before the title returns to the page it came from. A phone's bar has its own. */
   onBack?: () => void;
 }
 
-/** Page title + description of a settings panel (macOS System Settings pane). */
-export const SettingsPageHeader: React.FC<SettingsPageHeaderProps> = ({ title, description, accessory, onBack }) => (
+/** Page title of a settings panel (macOS System Settings pane); what a group does reads in its footer, not under the title. */
+export const SettingsPageHeader: React.FC<SettingsPageHeaderProps> = ({ title, accessory, onBack }) => (
   <header className="flex items-start justify-between gap-4">
     <div className="flex min-w-0 items-start gap-2">
       {onBack && <IconButton icon={ChevronLeft} label="Back" size="sm" onClick={onBack} />}
       <div className="min-w-0">
         <Text as="h1" variant="pageTitle" className="flex items-center gap-2">{title}</Text>
-        {description && <Text as="p" tone="muted" className="mt-1">{description}</Text>}
       </div>
     </div>
     {accessory && <div className="flex items-center gap-1 shrink-0">{accessory}</div>}
@@ -36,15 +34,10 @@ interface SettingsPageProps extends SettingsPageHeaderProps {
 /** The page column every pane shares: centred, its header the same distance from the titlebar. */
 const COLUMN = `${LAYOUT.pageColumn} pt-6`;
 
-/** Phone: the screen's bar already shows the title; the description is a short intro, the screen scrolls. */
-const PhonePage: React.FC<SettingsPageProps> = ({ description, accessory, children }) => (
-  <div className="flex flex-col gap-section px-4 pb-6">
-    {(description || accessory) && (
-      <div className="flex items-start justify-between gap-4">
-        {description && <Text as="p" tone="muted">{description}</Text>}
-        {accessory && <div className="flex shrink-0 items-center gap-1">{accessory}</div>}
-      </div>
-    )}
+/** Phone: the screen's bar already shows the title; the screen scrolls. */
+const PhonePage: React.FC<SettingsPageProps> = ({ accessory, children }) => (
+  <div className="flex flex-col gap-section px-4 pt-2 pb-6">
+    {accessory && <div className="flex items-center justify-end gap-1">{accessory}</div>}
     {children}
   </div>
 );

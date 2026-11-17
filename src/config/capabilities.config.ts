@@ -1,7 +1,6 @@
 /** Settings › Capabilities copy; pickers list models from Providers and switched-on Integrations. */
 
 export const CAPABILITIES_CONFIG = {
-  description: 'What Roci can do, and the model behind each. Add sources in Providers or Integrations.',
   jobs: {
     chat: { title: 'Chat' },
     transcription: { title: 'Speech recognition' },

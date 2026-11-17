@@ -20,17 +20,10 @@ export const USAGE_CONFIG = {
   defaultMetric: 'cost' as UsageMetric,
   copy: {
     title: 'Usage',
-    description: 'Token usage and estimated costs across all AI operations.',
     empty: 'No usage yet. Start a chat or transcribe a recording to see it here.',
     emptyPeriod: 'No usage in this period.',
     loadFailed: 'Couldn’t load usage',
     allTitle: 'All usage',
-    detailDescription: {
-      all: 'Every request Roci made.',
-      provider: 'Requests to this provider.',
-      model: 'Requests to this model.',
-      feature: 'Requests made for this feature.',
-    },
     sections: {
       overview: 'Overview',
       highlights: 'Highlights',

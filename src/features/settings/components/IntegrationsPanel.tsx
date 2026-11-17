@@ -37,7 +37,7 @@ export const hasIntegrations = groups.length > 0;
 const titled = groups.length > 1;
 
 export const IntegrationsPanel: React.FC = () => (
-  <SettingsPage title="Integrations" description={`Connect Roci to apps on this ${platform.deviceName}.`}>
+  <SettingsPage title="Integrations">
     {groups.map((g) => (
       <Section key={g.key} title={titled ? g.title : undefined} layout={g.layout} footer={g.footer}>{g.content}</Section>
     ))}

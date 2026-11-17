@@ -89,7 +89,10 @@ export const McpServersPanel: React.FC = () => {
         />
       </Section>
 
-      <Section title="Servers">
+      <Section
+        title="Servers"
+        footer={<>Model Context Protocol servers give chat new tools. Find more at <Button variant="link" size="inline" onClick={openDirectory}>mcp.so</Button></>}
+      >
         {serverEntries.length === 0 ? (
           <Text as="p" variant="helper" tone="muted" className="py-3">No MCP servers yet. Add one to give chat new tools.</Text>
         ) : (
@@ -144,12 +147,6 @@ const openDirectory = () => void openUrl(MCP_CONFIG.directoryUrl);
 const PanelShell: React.FC<PanelShellProps> = ({ onAdd, onEditAll, actionsDisabled, children }) => (
   <SettingsPage
     title={<>MCP Servers <Badge variant="info">Experimental</Badge></>}
-    description={
-      <>
-        Connect Model Context Protocol servers to give chat new tools. Find more at{' '}
-        <Button variant="link" size="inline" onClick={openDirectory}>mcp.so</Button>
-      </>
-    }
     accessory={
       <>
         <IconButton icon={Braces} label="Edit all servers as JSON" size="sm" onClick={onEditAll} disabled={actionsDisabled} />

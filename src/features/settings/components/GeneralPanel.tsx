@@ -32,7 +32,7 @@ const FOOTER = {
   imports: 'Imported audio files are processed one at a time, or several at once.',
   afterRecording: 'Transcribe After Recording also writes the summary.',
   rebuild: 'Rebuild All wipes and re-indexes every meeting and chat.',
-  setup: 'Setup walks through permissions and AI again. Acknowledgements lists the open-source software in Roci.',
+  setup: 'Run Setup Again walks through permissions and AI setup.',
 } as const;
 
 const CAPTURE_HINT: Record<(typeof CAPTURE_SOURCES)[number], string> = {
@@ -197,7 +197,7 @@ export const GeneralPanel: React.FC = () => {
   const indexBusy = rebuildingPhase !== null || isRebuilding;
 
   return (
-    <SettingsPage title="General" description="Appearance, capture, storage, and app information.">
+    <SettingsPage title="General">
       {/* Appearance — theme + import processing */}
       <Section
         title="Appearance"
@@ -396,13 +396,9 @@ export const GeneralPanel: React.FC = () => {
               />
 
           <CardRow
-            title="Rebuild All"
-            actions={
-              <Button variant="outline" size="sm" onClick={() => void handleRebuildIndex()} disabled={indexBusy && !isRebuilding} loading={isRebuilding}>
-                {!isRebuilding && <Icon icon={RefreshCw} size="xs" />}
-                {isRebuilding ? 'Rebuilding…' : 'Rebuild All'}
-              </Button>
-            }
+            title={isRebuilding ? 'Rebuilding…' : 'Rebuild All'}
+            tone={indexBusy ? undefined : 'accent'}
+            onPress={indexBusy ? undefined : () => void handleRebuildIndex()}
           />
         </Section>
       )}
@@ -410,14 +406,8 @@ export const GeneralPanel: React.FC = () => {
       {/* App Info & Updates */}
       <Section footer={FOOTER.setup}>
         <CardRow title="Version" actions={<VersionStatus appVersion={appVersion} appUpdate={appUpdate} upToDate={upToDate} onCheck={handleCheckForUpdate} />} />
-        <CardRow
-          title="Setup"
-          actions={<Button variant="outline" size="sm" onClick={() => setSettings({ onboarding: { completed: false } })}>Run Again</Button>}
-        />
-        <CardRow
-          title="Acknowledgements"
-          actions={<Button variant="outline" size="sm" onClick={() => setAcknowledgementsOpen(true)}>View</Button>}
-        />
+        <CardRow title="Acknowledgements" onOpen={() => setAcknowledgementsOpen(true)} />
+        <CardRow title="Run Setup Again" tone="accent" onPress={() => setSettings({ onboarding: { completed: false } })} />
       </Section>
       <AcknowledgementsDialog open={acknowledgementsOpen} onOpenChange={setAcknowledgementsOpen} />
     </SettingsPage>

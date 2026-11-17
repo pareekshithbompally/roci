@@ -160,7 +160,7 @@ export const CapabilitiesPanel: React.FC = () => {
   };
 
   return (
-    <SettingsPage title="Capabilities" description={CAPABILITIES_CONFIG.description}>
+    <SettingsPage title="Capabilities">
       <Section title="Conversation" footer={FOOTERS.conversation}>
         <CapabilityRow icon={JOB_GLYPH.chat} job={JOBS.chat}>
           <ModelSelect value={settings.chatModel || undefined} choices={textChoices} onChange={(chatModel) => setSettings({ chatModel })} />
