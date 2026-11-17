@@ -1,8 +1,6 @@
 //! macOS system voices via AVFAudio; the delegate fires on the main thread, so speaking waits on a channel.
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{self, RecvTimeoutError, Sender};
-use std::time::Duration;
+use std::sync::mpsc::{self, Sender};
 
 use objc2::rc::Retained;
 use objc2::runtime::ProtocolObject;
@@ -13,14 +11,11 @@ use objc2_avf_audio::{
 };
 use objc2_foundation::{NSObject, NSObjectProtocol, NSString};
 
-use super::VoiceOption;
+use super::{Halt, VoiceOption};
 use crate::models::LocalError;
 
 /// The first voice listed: the one set in Spoken Content (no voice passed to AVFAudio).
 const SYSTEM_VOICE: &str = "system";
-
-/// How long the speaking thread waits for progress before checking `stop`.
-const POLL: Duration = Duration::from_millis(50);
 
 /// The system voice, then installed voices for `language`, best quality first, novelty voices left out.
 pub fn voices(language: &str) -> Vec<VoiceOption> {
@@ -56,11 +51,12 @@ fn quality_label(quality: AVSpeechSynthesisVoiceQuality) -> Option<&'static str>
     }
 }
 
-/// What the synthesizer reports about the queued utterances, in order.
+/// What the synthesizer reports about the queued utterances, in order, and the reply's stop.
 enum Progress {
     Started,
     Finished,
     Cancelled,
+    Stop,
 }
 
 define_class!(
@@ -101,10 +97,14 @@ impl SpeechProgress {
     }
 }
 
-/// Speaks `chunks` in `voice` (None = Spoken Content's), calling `on_chunk` as each begins; stops on `stop`.
-pub fn speak(chunks: &[String], voice: Option<&str>, stop: &AtomicBool, mut on_chunk: impl FnMut(&str)) -> Result<(), LocalError> {
+/// Speaks `chunks` in `voice` (None = Spoken Content's), calling `on_chunk` as each begins; ends on `halt`.
+pub fn speak(chunks: &[String], voice: Option<&str>, halt: &Halt, mut on_chunk: impl FnMut(&str)) -> Result<(), LocalError> {
     let voice = voice.filter(|id| *id != SYSTEM_VOICE);
     let (events, inbox) = mpsc::channel();
+    let stopped = events.clone();
+    halt.on_stop(move || {
+        let _ = stopped.send(Progress::Stop);
+    });
     let progress = SpeechProgress::new(events);
     let synthesizer = unsafe { AVSpeechSynthesizer::new() };
     unsafe { synthesizer.setDelegate(Some(ProtocolObject::from_ref(&*progress))) };
@@ -115,11 +115,7 @@ pub fn speak(chunks: &[String], voice: Option<&str>, stop: &AtomicBool, mut on_c
 
     let (mut started, mut finished) = (0, 0);
     while finished < chunks.len() {
-        if stop.load(Ordering::Relaxed) {
-            unsafe { synthesizer.stopSpeakingAtBoundary(AVSpeechBoundary::Immediate) };
-            return Ok(());
-        }
-        match inbox.recv_timeout(POLL) {
+        match inbox.recv() {
             Ok(Progress::Started) => {
                 if let Some(chunk) = chunks.get(started) {
                     on_chunk(chunk);
@@ -127,8 +123,11 @@ pub fn speak(chunks: &[String], voice: Option<&str>, stop: &AtomicBool, mut on_c
                 started += 1;
             }
             Ok(Progress::Finished) => finished += 1,
-            Ok(Progress::Cancelled) | Err(RecvTimeoutError::Disconnected) => return Ok(()),
-            Err(RecvTimeoutError::Timeout) => {}
+            Ok(Progress::Stop) => {
+                unsafe { synthesizer.stopSpeakingAtBoundary(AVSpeechBoundary::Immediate) };
+                return Ok(());
+            }
+            Ok(Progress::Cancelled) | Err(_) => return Ok(()),
         }
     }
     Ok(())

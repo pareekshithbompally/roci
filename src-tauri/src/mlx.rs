@@ -3,7 +3,6 @@
 
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::Duration;
 
 use serde_json::{json, Value};
 use tauri::ipc::Channel;
@@ -49,14 +48,6 @@ impl Role {
             Role::Chat => c"chat",
             Role::Embedding => c"embedding",
             Role::Voice => c"voice",
-        }
-    }
-
-    /// Chat and voice models take seconds to reload, so they stay through a pause; the search model reloads in well under one.
-    fn idle(self) -> Duration {
-        match self {
-            Role::Chat | Role::Voice => Duration::from_secs(5 * 60),
-            Role::Embedding => Duration::from_secs(60),
         }
     }
 }
@@ -163,12 +154,13 @@ pub fn touch(app: &AppHandle, kind: Kind) {
     }
 }
 
-/// Arms the role's idle deadline: unloads after `idle()` unless used again first.
+/// Arms the role's idle deadline (Settings' idle time): unloads then unless used again first; none when kept until quit.
 fn rearm_idle(app: &AppHandle, role: Role) {
     let generation = app.state::<MlxState>().uses(role).fetch_add(1, Ordering::SeqCst) + 1;
+    let Some(idle) = crate::models::idle_after() else { return };
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(role.idle()).await;
+        tokio::time::sleep(idle).await;
         if app.state::<MlxState>().uses(role).load(Ordering::SeqCst) == generation {
             let _ = blocking(move || {
                 // SAFETY: a static C string.

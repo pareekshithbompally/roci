@@ -81,6 +81,7 @@ const PERSISTED_SETTINGS: Record<keyof AppSettings, true> = {
   readAloudVoice: true,
   remindersIntegration: true,
   showModelAvatars: true,
+  modelIdleMinutes: true,
   spotlightIntegration: true,
   transcriptionModel: true,
   transcriptionProvider: true,

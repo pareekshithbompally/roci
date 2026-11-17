@@ -7,6 +7,20 @@ export const LOCAL_MODELS_CONFIG = {
   page: {
     builtIn: 'Built in',
     systemVoices: 'Read aloud can speak with the voices the system ships.',
+    memory: 'Memory',
+  },
+  /** How long an unused model stays loaded (minutes; 0 = until Roci quits). Longer: no wait to reload; shorter: memory back sooner. */
+  idle: {
+    title: 'Free unused models after',
+    footer: 'Models load when first used. Keeping them longer avoids the wait to load again; freeing them sooner returns memory.',
+    defaultMinutes: 5,
+    options: [
+      { minutes: 1, label: '1 minute' },
+      { minutes: 2, label: '2 minutes' },
+      { minutes: 5, label: '5 minutes' },
+      { minutes: 15, label: '15 minutes' },
+      { minutes: 0, label: 'Never' },
+    ],
   },
   /** What each kind of model is for, in Settings › Providers › On this device. */
   kindLabels: { chat: 'Chat', speech: 'Speech recognition', voice: 'Read aloud voice', embedding: 'Meeting search' },

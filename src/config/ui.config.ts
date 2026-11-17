@@ -67,6 +67,8 @@ export const UI_CONFIG = {
     durationMs: 5_000,
     /** Toasts with a button stay longer so there's time to use it */
     actionDurationMs: 8_000,
+    /** Touch screens: centred banners just under the status bar / Dynamic Island, inset from the screen edges. */
+    touch: { belowSafeAreaPx: 8, sidePx: 12 },
   },
 
   // Command popovers (composer pickers) and their hover flyouts

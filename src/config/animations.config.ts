@@ -14,11 +14,6 @@ export const ANIMATION_CONFIG = {
     push: { duration: 0.35, ease: [0.32, 0.72, 0, 1] as const },
   },
 
-  timer: {
-    /** Rotate the composer's placeholder hints (gentle, long interval). */
-    placeholderCycle: 30000,
-  },
-
   chat: {
     /** Shared-element id: the composer glides from the landing page to the bottom of the chat */
     composerLayoutId: 'chat-composer',

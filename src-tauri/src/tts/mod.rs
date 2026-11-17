@@ -21,25 +21,58 @@ pub struct VoiceOption {
     pub detail: Option<&'static str>,
 }
 
+/// Stops one reply's speech: a flag read between chunks, and a wake-up for whatever is waiting on that reply.
+#[derive(Default)]
+pub struct Halt {
+    stopped: AtomicBool,
+    wakers: Mutex<Vec<Box<dyn Fn() + Send>>>,
+}
+
+impl Halt {
+    pub fn is_stopped(&self) -> bool {
+        self.stopped.load(Ordering::Acquire)
+    }
+
+    fn stop(&self) {
+        let wakers = {
+            let mut wakers = lock(&self.wakers);
+            self.stopped.store(true, Ordering::Release);
+            std::mem::take(&mut *wakers)
+        };
+        wakers.iter().for_each(|wake| wake());
+    }
+
+    /// Runs `wake` once the reply is stopped (at once if it already is), so waiting code blocks instead of polling.
+    pub fn on_stop(&self, wake: impl Fn() + Send + 'static) {
+        let mut wakers = lock(&self.wakers);
+        if self.is_stopped() {
+            drop(wakers);
+            wake();
+        } else {
+            wakers.push(Box::new(wake));
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct TtsState {
-    /// Stop flag of the reply speaking now.
-    current: Mutex<Option<Arc<AtomicBool>>>,
+    /// The reply speaking now.
+    current: Mutex<Option<Arc<Halt>>>,
 }
 
 impl TtsState {
-    /// Stops whatever is speaking and returns the new reply's stop flag.
-    fn begin(&self) -> Arc<AtomicBool> {
-        let stop = Arc::new(AtomicBool::new(false));
-        if let Some(previous) = lock(&self.current).replace(Arc::clone(&stop)) {
-            previous.store(true, Ordering::Relaxed);
+    /// Stops whatever is speaking and returns the new reply's halt.
+    fn begin(&self) -> Arc<Halt> {
+        let halt = Arc::new(Halt::default());
+        if let Some(previous) = lock(&self.current).replace(Arc::clone(&halt)) {
+            previous.stop();
         }
-        stop
+        halt
     }
 
     fn stop(&self) {
         if let Some(current) = lock(&self.current).take() {
-            current.store(true, Ordering::Relaxed);
+            current.stop();
         }
     }
 
@@ -47,5 +80,24 @@ impl TtsState {
     pub fn forget(&self) {
         self.stop();
         crate::mlx::unload(crate::models::catalog::Kind::Voice);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::mpsc;
+
+    #[test]
+    fn a_halt_wakes_waiters_registered_before_and_after_the_stop() {
+        let halt = Halt::default();
+        let (woken, wakes) = mpsc::channel();
+        let early = woken.clone();
+        halt.on_stop(move || early.send("before").unwrap());
+        assert!(wakes.try_recv().is_err(), "nothing runs before the stop");
+        halt.stop();
+        halt.on_stop(move || woken.send("after").unwrap());
+        assert!(halt.is_stopped());
+        assert_eq!(wakes.try_iter().collect::<Vec<_>>(), ["before", "after"]);
     }
 }

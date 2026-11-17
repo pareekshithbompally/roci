@@ -204,6 +204,8 @@ export interface AppSettings {
   transcriptionModel: string;
   /** Show Hugging Face org icons on local model rows (fetches from huggingface.co). Off by default. */
   showModelAvatars?: boolean;
+  /** Minutes an unused on-device model stays loaded (0 = until Roci quits); unset = the default. */
+  modelIdleMinutes?: number;
   /** Hide the per-call tool blocks in chat answers (shown by default). */
   hideToolCalls?: boolean;
   /** Settings › General › Capture: show dictation as it's spoken, with a speech model that streams. */

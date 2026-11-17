@@ -1,33 +1,35 @@
 //! A downloaded voice model on MLX: each sentence chunk is synthesized while the previous one plays.
 
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
 use std::thread;
 
-use super::playback;
+use super::{playback, Halt};
 use crate::models::LocalError;
 
-/// Speaks `chunks` in `voice` (None = the model's default), calling `on_chunk` as each begins; stops on `stop`.
+/// Speaks `chunks` in `voice` (None = the model's default), calling `on_chunk` as each begins; ends on `halt`.
 pub fn speak(
     dir: &Path,
     chunks: Vec<String>,
     voice: Option<&str>,
-    stop: Arc<AtomicBool>,
+    halt: Arc<Halt>,
     mut on_chunk: impl FnMut(&str) + Send + 'static,
 ) -> Result<(), LocalError> {
     // One chunk buffered: the next is synthesized while the player plays this one.
     let (tx, rx) = mpsc::sync_channel::<(String, Vec<f32>, u32)>(1);
-    let player_stop = Arc::clone(&stop);
+    let player_halt = Arc::clone(&halt);
     let player = thread::spawn(move || -> Result<(), String> {
         for (chunk, pcm, rate) in rx {
             on_chunk(&chunk);
-            playback::play(&pcm, rate, &player_stop)?;
+            if player_halt.is_stopped() {
+                break;
+            }
+            playback::play(&pcm, rate, &player_halt)?;
         }
         Ok(())
     });
     for chunk in chunks {
-        if stop.load(Ordering::Relaxed) {
+        if halt.is_stopped() {
             break;
         }
         let (pcm, rate) = crate::mlx::speak(dir, &chunk, voice)?;

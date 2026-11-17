@@ -47,6 +47,9 @@ export const cancelLocalModelDownload = (id: string): Promise<void> => invoke('l
 
 export const removeLocalModel = (id: string): Promise<void> => invoke('local_model_remove', { id });
 
+/** How long unused models stay loaded, for every engine (0 = until quit). */
+export const setLocalModelIdle = (minutes: number): Promise<void> => invoke('local_models_set_idle', { minutes });
+
 /** Whole percent of a running download. */
 export const downloadPercent = (download: Pick<LocalModelDownload, 'received' | 'total'>): number =>
   download.total > 0 ? Math.floor((download.received * 100) / download.total) : 0;

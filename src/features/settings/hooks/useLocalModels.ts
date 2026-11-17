@@ -1,6 +1,9 @@
 /** Local models for every surface: list query, per-model download/delete controls, picker step, download events. */
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
+import { useSettings } from '@shared/contexts/SettingsContext';
+import { isTauriEnvironment } from '@services/tauri';
+import { platform } from '@platform/index';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
@@ -16,6 +19,7 @@ import {
   downloadLocalModel,
   downloadPercent,
   removeLocalModel,
+  setLocalModelIdle,
 } from '@services/localModels.service';
 import type { LocalModel, LocalModelDownload } from '@services/localModels.service';
 import { confirmModelDelete, type OnDeviceModel } from '@shared/utils/onDeviceModel';
@@ -126,4 +130,13 @@ function applyDownload(download: LocalModelDownload): void {
 
 export function useLocalModelDownloads(): void {
   useTauriEvent<LocalModelDownload>(LOCAL_MODELS_CONFIG.downloadEvent, applyDownload);
+}
+
+/** Keeps the engines' idle time in step with Settings (sent at launch and on every change). */
+export function useLocalModelIdle(): void {
+  const minutes = useSettings().settings.modelIdleMinutes ?? LOCAL_MODELS_CONFIG.idle.defaultMinutes;
+  useEffect(() => {
+    if (!platform.hasLocalModels || !isTauriEnvironment()) return;
+    setLocalModelIdle(minutes).catch(report('idle'));
+  }, [minutes]);
 }

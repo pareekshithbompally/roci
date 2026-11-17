@@ -1,27 +1,30 @@
-//! Speech output through cpal: one clip at a time; `play` blocks its thread until done or stopped.
+//! Speech output through cpal: one clip at a time; `play` blocks until the clip has played out, it's stopped, or the
+//! device fails — woken by the audio callback or the stop, never by a timer.
 
 use std::collections::VecDeque;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Duration;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use rubato::audioadapter_buffers::direct::InterleavedSlice;
 use rubato::{Fft, FixedSync, Resampler, WindowFunction};
+use super::Halt;
 use crate::sync::lock;
 
 const RESAMPLE_CHUNK: usize = 1024;
-const POLL: Duration = Duration::from_millis(20);
 
 /// Play `samples` (mono, `rate` Hz). Returns when played out or stopped.
-pub fn play(samples: &[f32], rate: u32, stop: &AtomicBool) -> Result<(), String> {
+pub fn play(samples: &[f32], rate: u32, halt: &Halt) -> Result<(), String> {
     let device = cpal::default_host().default_output_device().ok_or("No audio output device")?;
     let config = device.default_output_config().map_err(|e| e.to_string())?;
     let channels = usize::from(config.channels());
     let queue = Arc::new(Mutex::new(VecDeque::from(resample(samples, rate, config.sample_rate())?)));
 
+    // One wake-up ends the wait: played out, stopped, or the device failed.
+    let (done, finished) = mpsc::channel::<Result<(), String>>();
+    let (drained, failed, stopped) = (done.clone(), done.clone(), done);
     let feed = Arc::clone(&queue);
+    let mut played_out = false;
     let stream = device
         .build_output_stream(
             config.config(),
@@ -30,17 +33,23 @@ pub fn play(samples: &[f32], rate: u32, stop: &AtomicBool) -> Result<(), String>
                 for frame in out.chunks_mut(channels) {
                     frame.fill(queue.pop_front().unwrap_or(0.0));
                 }
+                if queue.is_empty() && !played_out {
+                    played_out = true;
+                    let _ = drained.send(Ok(()));
+                }
             },
-            |error| log::warn!("[engine] playback error: {error}"),
+            move |error| {
+                log::warn!("[engine] playback error: {error}");
+                let _ = failed.send(Err(error.to_string()));
+            },
             None,
         )
         .map_err(|e| e.to_string())?;
+    halt.on_stop(move || {
+        let _ = stopped.send(Ok(()));
+    });
     stream.play().map_err(|e| e.to_string())?;
-
-    while !stop.load(Ordering::Relaxed) && !lock(&queue).is_empty() {
-        thread::sleep(POLL);
-    }
-    Ok(())
+    finished.recv().unwrap_or(Ok(()))
 }
 
 /// Whole-clip resampling (rubato FFT, the audio module's settings).

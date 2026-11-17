@@ -3,7 +3,9 @@
 import React from 'react';
 import { AppleIntelligenceIntegration } from '@features/integrations';
 import { JOB_GLYPH, ModelDownloadButton, ModelLabel, ModelReadyStatus, ProvidersAvatar } from '@shared/components';
-import { Card, CardRow, IconTile, Section, Status, type TileGlyph } from '@shared/ui';
+import { Card, CardRow, IconTile, Picker, Section, Status, type TileGlyph } from '@shared/ui';
+import { useSettings } from '@shared/contexts/SettingsContext';
+import { LAYOUT } from '@config/layout.config';
 import { formatFileSize } from '@shared/utils/formatters';
 import { isIntegrationAvailable } from '@shared/utils/integrations';
 import type { OnDeviceModel } from '@shared/utils/onDeviceModel';
@@ -14,7 +16,7 @@ import { useLocalModelControls } from '@features/settings/hooks/useLocalModels';
 import { useLocalModels } from '@shared/hooks/useLocalModels';
 import { platform } from '@platform/index';
 
-const { provider: ON_DEVICE, kindLabels: KIND_LABELS, page: COPY } = LOCAL_MODELS_CONFIG;
+const { provider: ON_DEVICE, kindLabels: KIND_LABELS, page: COPY, idle: IDLE } = LOCAL_MODELS_CONFIG;
 
 /** Download groups in display order, each with its job's glyph. */
 const KINDS: ReadonlyArray<readonly [LocalModelKind, TileGlyph]> = [
@@ -50,6 +52,30 @@ const BuiltIn: React.FC = () => (
   </Section>
 );
 
+/** How long unused models stay loaded, for every engine on this device. */
+const Memory: React.FC = () => {
+  const { settings, setSettings } = useSettings();
+  const minutes = settings.modelIdleMinutes ?? IDLE.defaultMinutes;
+  return (
+    <Section title={COPY.memory} footer={IDLE.footer}>
+      <CardRow
+        title={IDLE.title}
+        actions={
+          <div className={LAYOUT.capabilityPicker}>
+            <Picker
+              label={IDLE.title}
+              value={String(minutes)}
+              onChange={(value) => setSettings({ modelIdleMinutes: Number(value) })}
+              placeholder=""
+              groups={[{ options: IDLE.options.map((o) => ({ value: String(o.minutes), label: o.label })) }]}
+            />
+          </div>
+        }
+      />
+    </Section>
+  );
+};
+
 /** Every model Roci can download to this device, one section per job. */
 const Downloads: React.FC = () => {
   const { data: models = [] } = useLocalModels();
@@ -76,5 +102,6 @@ export const OnDeviceDetail: React.FC = () => (
     </Card>
     <BuiltIn />
     {platform.hasLocalModels && <Downloads />}
+    {platform.hasLocalModels && <Memory />}
   </>
 );

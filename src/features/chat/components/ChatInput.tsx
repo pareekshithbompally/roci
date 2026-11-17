@@ -16,7 +16,6 @@ import type { ContextUsage } from '@shared/hooks/useContextUsage';
 import {
 } from '@shared/ui';
 import { LAYOUT } from '@config/layout.config';
-import { ANIMATION_CONFIG } from '@config/animations.config';
 import { shortcutLabel } from '@features/shortcuts';
 import { registerChatComposer } from '@features/chat/stores';
 import { canSendDraft } from '@features/chat/utils';
@@ -137,7 +136,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showMentionPopup, setShowMentionPopup] = useState(false);
-  const [hintIndex, setHintIndex] = useState(() => Math.floor(Math.random() * PLACEHOLDER_HINTS.length));
+  // One hint per composer (picked when it opens): it varies between chats without a timer waking the app.
+  const [hintIndex] = useState(() => Math.floor(Math.random() * PLACEHOLDER_HINTS.length));
   const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null);
   // Phone (iOS): one row — + (opens the Add sheet) · the field · mic or send; the top bar owns the model.
   const phone = useFormFactor() === 'phone';
@@ -147,15 +147,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     registerChatComposer(inputRef.current);
     return () => registerChatComposer(null);
   }, []);
-
-  // Cycle through placeholder hints (desktop; the phone shows one short placeholder)
-  useEffect(() => {
-    if (phone) return;
-    const interval = setInterval(() => {
-      setHintIndex(prev => (prev + 1) % PLACEHOLDER_HINTS.length);
-    }, ANIMATION_CONFIG.timer.placeholderCycle);
-    return () => clearInterval(interval);
-  }, [phone]);
 
   // Auto-resize textarea (wrapped in rAF to avoid interrupting OS spell checker session)
   useEffect(() => {

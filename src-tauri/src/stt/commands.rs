@@ -1,6 +1,5 @@
 //! Tauri commands for on-device speech-to-text: transcribe one WAV part, and live dictation.
 
-use std::time::Duration;
 
 use tauri::ipc::Request;
 use tauri::{AppHandle, Manager, State};
@@ -15,8 +14,6 @@ use crate::sync::lock;
 
 const MODEL_HEADER: &str = "x-stt-model";
 const LANGUAGE_HEADER: &str = "x-stt-language";
-/// A warm model is dropped after this long without a transcription.
-const IDLE_UNLOAD: Duration = Duration::from_secs(10 * 60);
 
 /// Transcribes one WAV raw body; headers `x-stt-model` (required) and `x-stt-language` (default `en`).
 #[tauri::command]
@@ -39,11 +36,12 @@ pub async fn stt_transcribe(app: AppHandle, request: Request<'_>) -> Result<Vec<
     Ok(segments)
 }
 
-/// Drops the warm model once nothing has run for `IDLE_UNLOAD`.
+/// Drops the warm model once nothing has run for Settings' idle time (never when kept until quit).
 fn schedule_idle_unload(app: AppHandle) {
     let generation = app.state::<SttState>().engine.touch();
+    let Some(idle) = crate::models::idle_after() else { return };
     tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(IDLE_UNLOAD).await;
+        tokio::time::sleep(idle).await;
         app.state::<SttState>().engine.unload_if_idle(generation);
     });
 }

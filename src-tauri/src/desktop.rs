@@ -92,6 +92,7 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       models::commands::local_model_download,
       models::commands::local_model_cancel,
       models::commands::local_model_remove,
+      models::local_models_set_idle,
       stt::commands::stt_transcribe,
       stt::commands::stt_live_start,
       stt::commands::stt_live_feed,

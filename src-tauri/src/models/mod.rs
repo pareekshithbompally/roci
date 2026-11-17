@@ -4,7 +4,28 @@ pub mod catalog;
 pub mod commands;
 pub mod store;
 
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Duration;
+
 use serde::Serialize;
+
+/// Minutes an unused model stays loaded before it's freed; 0 keeps it until Roci quits. The webview sets it from
+/// Settings (`modelIdleMinutes`); this default holds until then.
+static IDLE_MINUTES: AtomicU64 = AtomicU64::new(5);
+
+/// How long an unused model of any engine stays loaded; `None` keeps it until quit.
+pub fn idle_after() -> Option<Duration> {
+    match IDLE_MINUTES.load(Ordering::Relaxed) {
+        0 => None,
+        minutes => Some(Duration::from_secs(minutes * 60)),
+    }
+}
+
+/// Applies the Settings idle time to models used from now on.
+#[tauri::command]
+pub fn local_models_set_idle(minutes: u64) {
+    IDLE_MINUTES.store(minutes, Ordering::Relaxed);
+}
 
 /// The default speak/transcribe language; mirrors `TRANSCRIPTION_CONFIG.language` in the webview.
 #[cfg(desktop)]
