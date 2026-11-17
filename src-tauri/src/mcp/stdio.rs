@@ -11,7 +11,7 @@ use tokio::{
     time::{sleep, timeout},
 };
 
-use super::runtime::{client_info, McpState, Service, HEALTH_TIMEOUT};
+use super::runtime::{client_info, McpState, Service};
 use super::shell_path;
 use crate::sync::lock;
 
@@ -19,6 +19,8 @@ use crate::sync::lock;
 const STARTUP_SETTLE: Duration = Duration::from_millis(500);
 const VERIFY_ATTEMPTS: u32 = 3;
 const VERIFY_BACKOFF: Duration = Duration::from_secs(1);
+/// How long the startup check and a failed start's stderr read may take.
+const PROBE_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// Each launched server's process-group leader, by server name.
 #[derive(Default)]
@@ -79,7 +81,7 @@ pub async fn connect(
 async fn startup_error(name: &str, error: &str, stderr: Option<ChildStderr>) -> String {
     let mut buffer = String::new();
     if let Some(mut stream) = stderr {
-        let _ = timeout(HEALTH_TIMEOUT, stream.read_to_string(&mut buffer)).await;
+        let _ = timeout(PROBE_TIMEOUT, stream.read_to_string(&mut buffer)).await;
     }
     let detail = if buffer.trim().is_empty() { error } else { buffer.trim() };
     format!("Failed to start MCP server '{name}': {detail}")
@@ -104,11 +106,10 @@ pub async fn verify(app: &AppHandle, name: &str) -> Result<(), String> {
     let state = app.state::<McpState>();
     for attempt in 1..=VERIFY_ATTEMPTS {
         let probe = {
-            let servers = state.servers.lock().await;
-            let Some(service) = servers.get(name) else {
+            let Some(peer) = state.servers.lock().await.get(name).map(|c| c.peer.clone()) else {
                 return Err(format!("MCP server '{name}' quit immediately after starting"));
             };
-            timeout(HEALTH_TIMEOUT, service.list_all_tools()).await
+            timeout(PROBE_TIMEOUT, peer.list_all_tools()).await
         };
         if matches!(probe, Ok(Ok(_))) {
             return Ok(());
@@ -116,7 +117,7 @@ pub async fn verify(app: &AppHandle, name: &str) -> Result<(), String> {
         log::warn!("[mcp] {name} tools/list not ready (attempt {attempt}/{VERIFY_ATTEMPTS})");
         sleep(VERIFY_BACKOFF).await;
     }
-    // Proceed anyway: the health monitor takes over from here.
+    // Proceed anyway: if it quits later, its watch reconnects it.
     Ok(())
 }
 

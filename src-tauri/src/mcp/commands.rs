@@ -1,15 +1,17 @@
 //! Tauri commands for MCP, Roci-namespaced.
 
 use rmcp::model::{CallToolRequestParams, CallToolResult, ContentBlock, Icon, IconTheme};
+use rmcp::service::{Peer, ServiceError};
+use rmcp::RoleClient;
 use serde::Serialize;
 use serde_json::{Map, Value};
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 use tauri::{AppHandle, State};
 use tokio::{sync::oneshot, time::timeout};
 
 use super::{
     config,
-    runtime::{self, McpState, Service},
+    runtime::{self, reconnect, McpState},
 };
 
 /// One tool offered by a connected server.
@@ -98,8 +100,8 @@ pub async fn get_mcp_server_info(state: State<'_, McpState>) -> Result<Vec<McpSe
     let servers = state.servers.lock().await;
     Ok(servers
         .iter()
-        .map(|(name, service)| {
-            let info = service.peer_info().and_then(|p| p.server_info.clone());
+        .map(|(name, connection)| {
+            let info = connection.peer.peer_info().and_then(|p| p.server_info.clone());
             let icons = info.as_ref().and_then(|i| i.icons.clone()).unwrap_or_default();
             McpServerInfo {
                 name: name.clone(),
@@ -119,12 +121,12 @@ pub async fn get_mcp_server_info(state: State<'_, McpState>) -> Result<Vec<McpSe
 #[tauri::command]
 pub async fn get_mcp_tools(state: State<'_, McpState>) -> Result<Vec<McpTool>, String> {
     let limit = state.settings.lock().await.tool_call_timeout();
-    let servers: Vec<(String, Arc<Service>)> = state
+    let servers: Vec<(String, Peer<RoleClient>)> = state
         .servers
         .lock()
         .await
         .iter()
-        .map(|(name, service)| (name.clone(), service.clone()))
+        .map(|(name, connection)| (name.clone(), connection.peer.clone()))
         .collect();
 
     let mut tools = Vec::new();
@@ -168,6 +170,7 @@ fn drop_ambiguous(tools: Vec<McpTool>) -> Vec<McpTool> {
 /// Call one tool on the named server, bounded by the timeout and cancellable via `cancel_mcp_tool_call`.
 #[tauri::command]
 pub async fn call_mcp_tool(
+    app: AppHandle,
     state: State<'_, McpState>,
     server: String,
     tool: String,
@@ -180,7 +183,7 @@ pub async fn call_mcp_tool(
         .lock()
         .await
         .get(&server)
-        .cloned()
+        .map(|connection| connection.peer.clone())
         .ok_or_else(|| format!("MCP server '{server}' is not connected"))?;
 
     let (cancel_tx, cancel_rx) = oneshot::channel::<()>();
@@ -193,6 +196,14 @@ pub async fn call_mcp_tool(
     let limit = settings.tool_call_timeout();
     let result = tokio::select! {
         outcome = timeout(limit, service.call_tool(params)) => match outcome {
+            Ok(Err(e)) if matches!(e, ServiceError::TransportClosed | ServiceError::TransportSend(_)) => {
+                // A remote server can drop without the stream closing: the failed call is the event that reconnects it.
+                if let Some(entry) = state.active.lock().await.get(&server).cloned() {
+                    let (app, server) = (app.clone(), server.clone());
+                    tauri::async_runtime::spawn(async move { reconnect(&app, &server, &entry).await });
+                }
+                Err(e.to_string())
+            }
             Ok(call) => call.map_err(|e| e.to_string()),
             Err(_) => Err(format!("Tool call '{tool}' timed out after {} seconds", limit.as_secs())),
         },

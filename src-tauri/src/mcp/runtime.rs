@@ -1,21 +1,22 @@
-//! Server lifecycle — connect, monitor, reconnect, stop.
+//! Server lifecycle — connect, watch for the connection ending (an event, never a probe), reconnect, stop.
 
 use rmcp::{
     model::{ClientCapabilities, ClientConfig, Implementation},
-    service::RunningService,
+    service::{Peer, QuitReason, RunningService, RunningServiceCancellationToken},
     transport::{streamable_http_client::StreamableHttpClientTransportConfig, StreamableHttpClientTransport},
     RoleClient, ServiceExt,
 };
 use serde_json::Value;
 use std::{
     collections::{HashMap, HashSet},
-    sync::Arc,
+    future::Future,
+    pin::Pin,
     time::Duration,
 };
-use tauri::{async_runtime::JoinHandle, AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::{
     sync::{oneshot, Mutex},
-    time::{sleep, timeout},
+    time::sleep,
 };
 
 use super::{
@@ -25,21 +26,23 @@ use super::{
 
 pub type Service = RunningService<RoleClient, ClientConfig>;
 
-/// Health probe cadence; slow because every probe is a tools/list the server may log to stderr.
-const HEALTH_INTERVAL: Duration = Duration::from_secs(30);
-pub(super) const HEALTH_TIMEOUT: Duration = Duration::from_secs(2);
+/// One live server: its peer for requests (cloned per call), and the token that closes it.
+pub(super) struct Connection {
+    pub(super) peer: Peer<RoleClient>,
+    stop: RunningServiceCancellationToken,
+}
 
 /// All MCP runtime state, managed by Tauri.
 #[derive(Default)]
 pub struct McpState {
-    /// Live connections by name; `Arc` so a tool call clones its server instead of holding the map.
-    pub(super) servers: Mutex<HashMap<String, Arc<Service>>>,
+    /// Live connections by name; a request clones its peer instead of holding the map.
+    pub(super) servers: Mutex<HashMap<String, Connection>>,
     /// Servers the user enabled (config by name), whether or not connected.
     pub(super) active: Mutex<HashMap<String, Value>>,
     pub(super) settings: Mutex<McpSettings>,
     pub(super) cancellations: Mutex<HashMap<String, oneshot::Sender<()>>>,
+    /// Servers being connected or reconnected now, so each has one attempt at a time.
     starting: Mutex<HashSet<String>>,
-    monitors: Mutex<HashMap<String, JoinHandle<()>>>,
     /// Launched servers' process groups, for teardown (the Mac only).
     #[cfg(desktop)]
     pub(super) processes: super::stdio::Processes,
@@ -83,7 +86,7 @@ pub async fn start_active_servers(app: AppHandle) {
 
 // ── Start ──
 
-/// Connect one server and monitor it; idempotent, since two `initialize`s break streamable-http servers.
+/// Connect one server (watched from then on); idempotent, since two `initialize`s break streamable-http servers.
 pub async fn start_server(app: &AppHandle, name: &str, entry: Value) -> Result<(), String> {
     let state = app.state::<McpState>();
     if state.servers.lock().await.contains_key(name) {
@@ -97,15 +100,10 @@ pub async fn start_server(app: &AppHandle, name: &str, entry: Value) -> Result<(
     let result = connect_and_register(app, name, &entry).await;
     state.starting.lock().await.remove(name);
     if let Err(e) = result {
-        // A failed first start is saved as off, so neither restart nor a monitor may bring it back.
+        // A failed first start is saved as off, so nothing reconnects it.
         state.active.lock().await.remove(name);
         drop_connection(app, name).await;
         return Err(e);
-    }
-
-    let monitor = tauri::async_runtime::spawn(monitor(app.clone(), name.to_string(), entry));
-    if let Some(previous) = state.monitors.lock().await.insert(name.to_string(), monitor) {
-        previous.abort();
     }
     Ok(())
 }
@@ -123,7 +121,9 @@ async fn connect_and_register(app: &AppHandle, name: &str, entry: &Value) -> Res
         Transport::Stdio { .. } => return Err(format!("'{name}' is launched as a program, which runs only on the Mac")),
     };
     log::info!("[mcp] connected {name}: {:?}", service.peer_info().map(|p| p.server_info.clone()));
-    app.state::<McpState>().servers.lock().await.insert(name.to_string(), Arc::new(service));
+    let connection = Connection { peer: service.peer().clone(), stop: service.cancellation_token() };
+    app.state::<McpState>().servers.lock().await.insert(name.to_string(), connection);
+    tauri::async_runtime::spawn(watch(app.clone(), name.to_string(), entry.clone(), service));
 
     #[cfg(desktop)]
     if launched {
@@ -165,53 +165,48 @@ fn header_map(headers: &[(String, String)]) -> reqwest::header::HeaderMap {
         .collect()
 }
 
-// ── Monitor ──
+// ── Watch & reconnect ──
 
-/// Probe health; on failure reconnect with backoff, until the user deactivates the server.
-async fn monitor(app: AppHandle, name: String, entry: Value) {
-    let mut failures: u32 = 0;
-    loop {
-        sleep(HEALTH_INTERVAL).await;
-        if !is_still_active(&app, &name).await {
-            return;
-        }
-        if is_healthy(&app, &name).await {
-            failures = 0;
-            continue;
-        }
-        log::warn!("[mcp] {name} failed its health check; reconnecting");
-        drop_connection(&app, &name).await;
-        emit_update(&app, &name);
-        failures += 1;
-        failures = reconnect_with_backoff(&app, &name, &entry, failures).await;
+/// Waits for the connection to end (server quit, stream dropped) and reconnects; Roci closing it is `Cancelled`.
+async fn watch(app: AppHandle, name: String, entry: Value, service: Service) {
+    let reason = service.waiting().await;
+    if matches!(reason, Ok(QuitReason::Cancelled)) {
+        return;
     }
+    log::warn!("[mcp] {name} disconnected ({reason:?}); reconnecting");
+    reconnect(&app, &name, &entry).await;
+}
+
+/// Drops a lost connection and reconnects with backoff until back or turned off (boxed: its new watch may call it again).
+pub(super) fn reconnect<'a>(app: &'a AppHandle, name: &'a str, entry: &'a Value) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
+    Box::pin(async move {
+        let state = app.state::<McpState>();
+        if !state.starting.lock().await.insert(name.to_string()) {
+            return; // a connect or reconnect is already under way
+        }
+        drop_connection(app, name).await;
+        emit_update(app, name);
+        let mut failures: u32 = 0;
+        while is_still_active(app, name).await {
+            let delay = state.settings.lock().await.restart_delay(failures);
+            sleep(delay).await;
+            if !is_still_active(app, name).await {
+                break;
+            }
+            match connect_and_register(app, name, entry).await {
+                Ok(()) => break,
+                Err(e) => {
+                    failures += 1;
+                    log::error!("[mcp] {name} reconnect attempt {failures} failed: {e}");
+                }
+            }
+        }
+        state.starting.lock().await.remove(name);
+    })
 }
 
 async fn is_still_active(app: &AppHandle, name: &str) -> bool {
     app.state::<McpState>().active.lock().await.contains_key(name)
-}
-
-async fn is_healthy(app: &AppHandle, name: &str) -> bool {
-    let state = app.state::<McpState>();
-    let servers = state.servers.lock().await;
-    let Some(service) = servers.get(name) else { return false };
-    matches!(timeout(HEALTH_TIMEOUT, service.list_all_tools()).await, Ok(Ok(_)))
-}
-
-/// One backoff + reconnect attempt. Returns the failure count to carry on with.
-async fn reconnect_with_backoff(app: &AppHandle, name: &str, entry: &Value, failures: u32) -> u32 {
-    let delay = app.state::<McpState>().settings.lock().await.restart_delay(failures);
-    sleep(delay).await;
-    if !is_still_active(app, name).await {
-        return failures;
-    }
-    match connect_and_register(app, name, entry).await {
-        Ok(()) => 0,
-        Err(e) => {
-            log::error!("[mcp] {name} reconnect attempt {failures} failed: {e}");
-            failures
-        }
-    }
 }
 
 // ── Stop ──
@@ -219,22 +214,18 @@ async fn reconnect_with_backoff(app: &AppHandle, name: &str, entry: &Value, fail
 /// Remove a live connection, close it, and (launched servers) reap its process group.
 async fn drop_connection(app: &AppHandle, name: &str) {
     let state = app.state::<McpState>();
-    let service = state.servers.lock().await.remove(name);
-    // An in-flight call may still hold a clone; its drop guard then closes the transport.
-    if let Some(Ok(service)) = service.map(Arc::try_unwrap) {
-        let _ = service.cancel().await;
+    // Cancelling ends the service loop (its watch sees `Cancelled`) and closes the transport.
+    if let Some(connection) = state.servers.lock().await.remove(name) {
+        connection.stop.cancel();
     }
     #[cfg(desktop)]
     state.processes.reap(name);
 }
 
-/// User turned a server off: forget it, stop monitoring, disconnect.
+/// User turned a server off: forget it (a reconnect in progress then stops) and disconnect.
 pub async fn stop_server(app: &AppHandle, name: &str) {
     let state = app.state::<McpState>();
     state.active.lock().await.remove(name);
-    if let Some(monitor) = state.monitors.lock().await.remove(name) {
-        monitor.abort();
-    }
     drop_connection(app, name).await;
     emit_update(app, name);
 }
