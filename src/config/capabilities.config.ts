@@ -8,6 +8,7 @@ export const CAPABILITIES_CONFIG = {
     summaries: { title: 'Summaries', description: 'Overview, decisions and action items.' },
     meetingSearch: { title: 'Meeting search' },
     readAloud: { title: 'Read aloud (TTS)', description: 'How replies are spoken aloud.' },
+    images: { title: 'Image generation', description: 'Images chat makes when you ask for one.' },
     voice: { title: 'Voice', description: 'Play a sample to hear it.' },
   },
 } as const;

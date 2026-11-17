@@ -13,6 +13,8 @@ interface ModelSelectProps {
   value: string | undefined;
   choices: ModelChoice[];
   onChange: (value: string) => void;
+  /** A first row that turns the job off (its value is stored like a model's). */
+  off?: { value: string; label: string };
 }
 
 /** The step a row needs: Download / Allow, or progress while it runs. */
@@ -53,7 +55,7 @@ const Item: React.FC<{ choice: ModelChoice }> = ({ choice }) => (
   </SelectItem>
 );
 
-export const ModelSelect: React.FC<ModelSelectProps> = ({ value, choices, onChange }) => {
+export const ModelSelect: React.FC<ModelSelectProps> = ({ value, choices, onChange, off }) => {
   const { groups, needsSetup } = useMemo(() => groupChoices(choices), [choices]);
   const selected = choices.find((c) => c.value === value);
 
@@ -76,6 +78,7 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({ value, choices, onChan
     <Select value={value} onValueChange={choose}>
       <SelectTrigger>
         <SelectValue placeholder="Select model">
+          {off && value === off.value && <span className="truncate">{off.label}</span>}
           {selected && (
             <span className="flex items-center gap-2 truncate">
               <ModelIcon provider={selected.provider} modelId={selected.modelId} size={16} />
@@ -85,6 +88,12 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({ value, choices, onChan
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
+        {off && (
+          <>
+            <SelectItem value={off.value}>{off.label}</SelectItem>
+            <SelectSeparator />
+          </>
+        )}
         {groups.map(([provider, items]) => (
           <SelectGroup key={provider}>
             <SelectLabel>{getProviderTitle(provider)}</SelectLabel>

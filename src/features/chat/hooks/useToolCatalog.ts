@@ -9,7 +9,10 @@ import { capabilitiesOf } from '@services/ai/capabilities';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { CHAT_TOOLS_CONFIG, DEFAULT_CHAT_TOOLS } from '@config/chatTools.config';
+import { hasImageModel, imageModelOptions } from '@services/ai/image';
+import type { ChatToolPreferences } from '@shared/types';
 import {
+  useLocalModels,
   useMcpConfig,
   useMcpConnectedServers,
   useMcpReconfigure,
@@ -21,6 +24,22 @@ import { toggleServer, updateSettings } from '@features/settings/components/mcp'
 import { useChatStore } from '@features/chat/stores/chatStore';
 import { buildCatalog, countEnabled, setToolsEnabled } from './toolCatalog';
 import type { CatalogGroup } from './toolCatalog';
+
+/** The Image generation row: usable once an image model is chosen, then switched by the saved preference. */
+function useImageGenerationToggle(prefs: ChatToolPreferences) {
+  const { settings, providers, setSettings } = useSettings();
+  const available = hasImageModel(settings);
+  const { data: localModels = [] } = useLocalModels();
+  const modelLabel = useMemo(() => {
+    const cloud = imageModelOptions(providers).find((o) => o.provider === settings.imageProvider && o.model === settings.imageModel);
+    return cloud?.label ?? localModels.find((m) => m.id === settings.imageModel)?.name ?? '';
+  }, [providers, localModels, settings.imageProvider, settings.imageModel]);
+  const toggle = useCallback(
+    () => setSettings({ chatTools: { ...prefs, imageGeneration: !prefs.imageGeneration } }),
+    [prefs, setSettings],
+  );
+  return { available, enabled: available && prefs.imageGeneration, modelLabel, toggle };
+}
 
 export function useToolCatalog() {
   useMcpUpdateListener();
@@ -36,7 +55,7 @@ export function useToolCatalog() {
 
   useModelCatalog();
 
-  const prefs = settings.chatTools ?? DEFAULT_CHAT_TOOLS;
+  const prefs = useMemo(() => ({ ...DEFAULT_CHAT_TOOLS, ...settings.chatTools }), [settings.chatTools]);
   const resolved = useMemo(() => resolveChatModel(settings, providers), [settings, providers]);
   // Derived each render: useModelCatalog re-renders this hook when the models.dev cache arrives.
   const capabilities = resolved ? capabilitiesOf(resolved.provider, resolved.model) : null;
@@ -98,6 +117,7 @@ export function useToolCatalog() {
   );
 
   const webSearchAvailable = capabilities?.webSearch ?? false;
+  const imageGeneration = useImageGenerationToggle(prefs);
 
   return {
     modelSupportsTools: capabilities?.tools ?? false,
@@ -108,9 +128,10 @@ export function useToolCatalog() {
       providerLabel: resolved ? getProviderTitle(resolved.provider) : '',
       toggle: toggleWebSearch,
     },
+    imageGeneration,
     builtIn: catalog.builtIn,
     servers: catalog.servers,
-    enabledCount: countEnabled([catalog.builtIn, ...catalog.servers]),
+    enabledCount: countEnabled([catalog.builtIn, ...catalog.servers]) + (imageGeneration.enabled ? 1 : 0),
     askBeforeRunning: !(mcpConfig?.mcpSettings.allowAllTools ?? false),
     connectingServer: reconfigure.isPending ? reconfigure.variables?.affected[0] : undefined,
     setGroupEnabled,

@@ -6,6 +6,7 @@ use tauri::{AppHandle, Manager, State};
 use super::catalog::{self, Kind, MODELS};
 use super::{store, LocalError, ModelsState};
 use crate::stt::SttState;
+use crate::image::ImageState;
 use crate::tts::TtsState;
 
 #[derive(Serialize)]
@@ -68,6 +69,7 @@ pub fn local_model_remove(app: AppHandle, state: State<'_, ModelsState>, id: Str
     match model.kind {
         Kind::Speech => app.state::<SttState>().engine.forget(model.id),
         Kind::Voice => app.state::<TtsState>().forget(),
+        Kind::Image => app.state::<ImageState>().server.forget(model.id),
     }
     store::remove(&app, model)
 }

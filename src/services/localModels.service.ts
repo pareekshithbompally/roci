@@ -4,8 +4,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from '@services/tauri';
 import { platform } from '@platform/index';
 
-/** Mirrors the Rust `Kind`: speech-to-text, or a read-aloud voice. */
-export type LocalModelKind = 'speech' | 'voice';
+/** Mirrors the Rust `Kind`: speech-to-text, a read-aloud voice, or text-to-image. */
+export type LocalModelKind = 'speech' | 'voice' | 'image';
 
 /** Mirrors the Rust `LocalModelStatus`. */
 export interface LocalModel {
@@ -44,6 +44,9 @@ export const downloadLocalModel = (id: string): Promise<void> => invoke('local_m
 export const cancelLocalModelDownload = (id: string): Promise<void> => invoke('local_model_cancel', { id });
 
 export const removeLocalModel = (id: string): Promise<void> => invoke('local_model_remove', { id });
+
+/** The local image server's base URL for a downloaded image model (started or switched as needed, once loaded). */
+export const imageServerUrl = (model: string): Promise<string> => invoke<string>('image_server_url', { model });
 
 /** Whole percent of a running download. */
 export const downloadPercent = (download: Pick<LocalModelDownload, 'received' | 'total'>): number =>

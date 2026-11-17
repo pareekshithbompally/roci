@@ -40,6 +40,8 @@ mod sync;
 #[cfg(desktop)]
 mod tts;
 #[cfg(desktop)]
+mod image;
+#[cfg(desktop)]
 mod open_native;
 #[cfg(desktop)]
 mod downloads;

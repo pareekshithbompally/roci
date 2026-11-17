@@ -1,7 +1,7 @@
 /** Every model choice by job; sources are providers, enabled integrations and local models. Sets the defaults. */
 
 import React, { useMemo } from 'react';
-import { AudioLines, MessageSquare, NotebookText, ScanSearch, Volume2, type LucideIcon } from 'lucide-react';
+import { AudioLines, ImageIcon, MessageSquare, NotebookText, ScanSearch, Volume2, type LucideIcon } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useOnDeviceModel, type OnDeviceModel } from '@shared/hooks/useOnDeviceModel';
 import { EMBEDDING_MODEL_NAME, EMBEDDING_MODEL_SIZE } from '@extensions/rag';
@@ -10,6 +10,8 @@ import { formatFileSize } from '@shared/utils/formatters';
 import { modelChoices, withIntegrationModels, type ModelChoice } from '@shared/utils/modelResolver';
 import { speechSelectionKey, speechSelectionOf } from '@services/ai/transcription';
 import { CAPABILITIES_CONFIG } from '@config/capabilities.config';
+import { IMAGE_GENERATION_CONFIG } from '@config/imageGeneration.config';
+import { hasImageModel, imageModelOptions, imageSelectionKey } from '@services/ai/image';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import { READ_ALOUD_CONFIG } from '@config/readAloud.config';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
@@ -79,7 +81,54 @@ function readAloudEngineChoices(models: LocalModel[], controls: Controls): Model
   return [system, ...local];
 }
 
-const KIND_ICON: Record<LocalModel['kind'], LucideIcon> = { speech: AudioLines, voice: Volume2 };
+const IMAGES_OFF = IMAGE_GENERATION_CONFIG.off;
+
+/** Image models downloaded to this Mac, each with its download step until it's ready. */
+function onDeviceImageChoices(models: LocalModel[], controls: Controls): ModelChoice[] {
+  if (!platform.hasOnDeviceModels) return [];
+  const provider = IMAGE_GENERATION_CONFIG.onDevice.provider;
+  return models.filter((m) => m.kind === 'image').map((m) => ({
+    value: imageSelectionKey({ provider, model: m.id }),
+    provider,
+    modelId: m.id,
+    label: m.name,
+    ready: m.installed,
+    hint: formatFileSize(m.bytes),
+    setup: downloadSetup(controls[m.id]),
+  }));
+}
+
+/** Image generation: cloud image models (ready once their provider has a key), models on this Mac, plus Off. */
+const ImageGenerationRow: React.FC<{ localModels: LocalModel[]; controls: Controls }> = ({ localModels, controls }) => {
+  const { settings, setSettings, providers } = useSettings();
+  const choices = useMemo<ModelChoice[]>(() => [
+    ...imageModelOptions(providers).map((o) => ({
+      value: imageSelectionKey(o),
+      provider: o.provider,
+      modelId: o.model,
+      label: o.label,
+      ready: o.ready,
+      hint: o.hint,
+    })),
+    ...onDeviceImageChoices(localModels, controls),
+  ], [providers, localModels, controls]);
+  const value = hasImageModel(settings)
+    ? imageSelectionKey({ provider: settings.imageProvider ?? '', model: settings.imageModel ?? '' })
+    : IMAGES_OFF.value;
+
+  const choose = (key: string) => {
+    const choice = choices.find((c) => c.value === key);
+    setSettings({ imageProvider: choice?.provider, imageModel: choice?.modelId });
+  };
+
+  return (
+    <CapabilityRow icon={ImageIcon} job={JOBS.images}>
+      <ModelSelect value={value} choices={choices} onChange={choose} off={IMAGES_OFF} />
+    </CapabilityRow>
+  );
+};
+
+const KIND_ICON: Record<LocalModel['kind'], LucideIcon> = { speech: AudioLines, voice: Volume2, image: ImageIcon };
 
 /** A model on this Mac, whichever runtime owns it: its name, what it's for and its size, Ready, and Download / Delete. */
 const OnDeviceModelRow: React.FC<{ icon: LucideIcon; name: string; use: string; size: string; control: OnDeviceModel }> = ({
@@ -137,6 +186,10 @@ export const CapabilitiesPanel: React.FC = () => {
         )}
       </Section>
 
+      <Section title="Images">
+        <ImageGenerationRow localModels={localModels} controls={controls} />
+      </Section>
+
       <Section title="Meetings">
         <CapabilityRow icon={NotebookText} job={JOBS.summaries}>
           <ModelSelect
@@ -147,25 +200,27 @@ export const CapabilitiesPanel: React.FC = () => {
         </CapabilityRow>
       </Section>
 
-      <Section title="On this Mac">
-        <OnDeviceModelRow
-          icon={ScanSearch}
-          name={EMBEDDING_MODEL_NAME}
-          use={JOBS.meetingSearch.title}
-          size={EMBEDDING_MODEL_SIZE}
-          control={searchModel}
-        />
-        {localModels.map((m) => controls[m.id] && (
+      {platform.hasOnDeviceModels && (
+        <Section title="On this device">
           <OnDeviceModelRow
-            key={m.id}
-            icon={KIND_ICON[m.kind]}
-            name={m.name}
-            use={LOCAL_MODELS_CONFIG.kindLabels[m.kind]}
-            size={formatFileSize(m.bytes)}
-            control={controls[m.id]}
+            icon={ScanSearch}
+            name={EMBEDDING_MODEL_NAME}
+            use={JOBS.meetingSearch.title}
+            size={EMBEDDING_MODEL_SIZE}
+            control={searchModel}
           />
-        ))}
-      </Section>
+          {localModels.map((m) => controls[m.id] && (
+            <OnDeviceModelRow
+              key={m.id}
+              icon={KIND_ICON[m.kind]}
+              name={m.name}
+              use={LOCAL_MODELS_CONFIG.kindLabels[m.kind]}
+              size={formatFileSize(m.bytes)}
+              control={controls[m.id]}
+            />
+          ))}
+        </Section>
+      )}
     </SettingsPage>
   );
 };

@@ -4,6 +4,8 @@ export const StorageConfig = {
   /** Directory structure within Application Support. */
   directories: {
     recordings: 'recordings',
+    /** Images the chat's generate_image tool made. */
+    images: 'images',
     cache: 'cache',
     cacheAudio: 'cache/audio',
     cacheApi: 'cache/api',

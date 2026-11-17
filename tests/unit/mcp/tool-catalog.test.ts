@@ -16,7 +16,7 @@ const input = (over: Partial<CatalogInput> = {}): CatalogInput => ({
   },
   connected: ['fs'],
   mcpTools: [tool('fs', 'read_file'), tool('fs', 'write_file', true)],
-  prefs: { meetingTools: true, disabledMcpTools: ['fs/write_file'] },
+  prefs: { meetingTools: true, imageGeneration: true, disabledMcpTools: ['fs/write_file'] },
   ...over,
 });
 
@@ -33,7 +33,7 @@ describe('tool catalog', () => {
   it('counts only tools the model will get (built-ins + connected servers)', () => {
     const { builtIn, servers } = buildCatalog(input());
     expect(countEnabled([builtIn, ...servers])).toBe(3);
-    const off = buildCatalog(input({ prefs: { meetingTools: false, disabledMcpTools: [] } }));
+    const off = buildCatalog(input({ prefs: { meetingTools: false, imageGeneration: true, disabledMcpTools: [] } }));
     expect(countEnabled([off.builtIn, ...off.servers])).toBe(2);
   });
 

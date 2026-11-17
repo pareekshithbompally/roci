@@ -4,6 +4,7 @@ import type { ChatToolPreferences } from '@shared/types';
 
 export const DEFAULT_CHAT_TOOLS: ChatToolPreferences = {
   meetingTools: true,
+  imageGeneration: true,
   disabledMcpTools: [],
 };
 

@@ -16,7 +16,7 @@ import { llamaServerRequestBody } from '@services/ai/llamaServer';
 import { getProviderType } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { ReasoningEffort } from '@shared/types';
-import type { LanguageModel, LanguageModelCallOptions, streamText, ToolSet } from 'ai';
+import type { ImageModel, LanguageModel, LanguageModelCallOptions, streamText, ToolSet } from 'ai';
 
 /** Extract custom headers from provider config (for OpenRouter, etc.) */
 function buildCustomHeaders(providerConfig: ResolvedModel['providerConfig']): Record<string, string> {
@@ -85,6 +85,24 @@ export function createModel(
       return provider.chatModel(resolved.modelId);
     }
   }
+}
+
+/** AI SDK image model for a resolved image model; throws for providers without image models. */
+export function createImageModel(resolved: ResolvedModel): ImageModel {
+  const fetch = getPlatformFetch();
+  switch (getProviderType(resolved.provider)) {
+    case 'openai':
+      return createOpenAI({ apiKey: resolved.apiKey, fetch }).image(resolved.modelId);
+    case 'gemini':
+      return createGoogle({ apiKey: resolved.apiKey, fetch }).image(resolved.modelId);
+    default:
+      throw new Error(`${resolved.provider} has no image models.`);
+  }
+}
+
+/** The on-device image server (stable-diffusion.cpp's `sd-server`, OpenAI image API) at `baseUrl`. */
+export function createLocalImageModel(baseUrl: string, modelId: string): ImageModel {
+  return createOpenAICompatible({ name: 'sd-server', baseURL: `${baseUrl}/v1`, fetch: getPlatformFetch() }).imageModel(modelId);
 }
 
 /** Gemini and OpenAI only return a thinking model's thoughts when asked; Anthropic and local servers always do. */

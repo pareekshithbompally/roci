@@ -12,6 +12,8 @@ pub enum Kind {
     Speech,
     /// A read-aloud voice, run by Phonon (`ptts`).
     Voice,
+    /// Text-to-image, run by stable-diffusion.cpp (`diffusion-rs`); files are diffusion model, text encoder, VAE.
+    Image,
 }
 
 /// A Hugging Face repository at a pinned commit.
@@ -174,11 +176,72 @@ pub const MODELS: &[LocalModel] = &[
             Voice { name: "Hugh", file: "voices/YyKcxPG7iIgS3jsK.safetensors" },
         ],
     },
+    LocalModel {
+        id: "z-image-turbo",
+        name: "Z-Image Turbo",
+        kind: Kind::Image,
+        streams: false,
+        voices: &[],
+        source: Source { repository: "leejet/Z-Image-Turbo-GGUF", revision: "c61c0e422dc8b541b7548cf33a4ef8302b0f8085" },
+        files: &[
+            ModelFile {
+                name: "z_image_turbo-Q4_K.gguf",
+                bytes: 3_864_250_304,
+                sha256: "14b375ab4f226bc5378f68f37e899ef3c2242b8541e61e2bc1aff40976086fbd",
+                source: None,
+            },
+            ModelFile {
+                name: "Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
+                bytes: 2_497_281_120,
+                sha256: "3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597",
+                source: Some(&QWEN3_4B_INSTRUCT),
+            },
+            ModelFile {
+                name: "vae/diffusion_pytorch_model.safetensors",
+                bytes: 167_666_902,
+                sha256: "f5b59a26851551b67ae1fe58d32e76486e1e812def4696a4bea97f16604d40a3",
+                source: Some(&Z_IMAGE_TURBO),
+            },
+        ],
+    },
+    LocalModel {
+        id: "flux-2-klein-4b",
+        name: "FLUX.2 [klein] 4B",
+        kind: Kind::Image,
+        streams: false,
+        voices: &[],
+        source: Source { repository: "leejet/FLUX.2-klein-4B-GGUF", revision: "3b1f5a9dc3abb32238b053aeb3d823c30afdacbd" },
+        files: &[
+            ModelFile {
+                name: "flux-2-klein-4b-Q8_0.gguf",
+                bytes: 4_300_629_440,
+                sha256: "0bba6951258ec8f92d51114a8fa13e66828297bfff58a738f52729b3ef66fa28",
+                source: None,
+            },
+            ModelFile {
+                name: "Qwen3-4B-Q4_K_M.gguf",
+                bytes: 2_497_281_312,
+                sha256: "f6f851777709861056efcdad3af01da38b31223a3ba26e61a4f8bf3a2195813a",
+                source: Some(&QWEN3_4B),
+            },
+            ModelFile {
+                name: "vae/diffusion_pytorch_model.safetensors",
+                bytes: 168_120_878,
+                sha256: "ca70d2202afe6415bdbcb8793ba8cd99fd159cfe6192381504d6c4d3036e0f04",
+                source: Some(&FLUX_2_KLEIN_4B),
+            },
+        ],
+    },
 ];
 
 /// Every Phonon voice file is one speaker embedding of this size.
 const VOICE_BYTES: u64 = 256_136;
 const PHONON_VOICES: Source = Source { repository: "gradium/phonon-voices", revision: "0ee17205f254b5abc43b266c8a0f215565c352f7" };
+/// Image models' text encoders and VAEs, each from its Apache-2.0, ungated upstream repository.
+const QWEN3_4B_INSTRUCT: Source = Source { repository: "unsloth/Qwen3-4B-Instruct-2507-GGUF", revision: "a06e946bb6b655725eafa393f4a9745d460374c9" };
+const QWEN3_4B: Source = Source { repository: "unsloth/Qwen3-4B-GGUF", revision: "22c9fc8a8c7700b76a1789366280a6a5a1ad1120" };
+const Z_IMAGE_TURBO: Source = Source { repository: "Tongyi-MAI/Z-Image-Turbo", revision: "f332072aa78be7aecdf3ee76d5c247082da564a6" };
+const FLUX_2_KLEIN_4B: Source = Source { repository: "black-forest-labs/FLUX.2-klein-4B", revision: "e7b7dc27f91deacad38e78976d1f2b499d76a294" };
 
 const fn voice_file(name: &'static str, sha256: &'static str) -> ModelFile {
     ModelFile { name, bytes: VOICE_BYTES, sha256, source: Some(&PHONON_VOICES) }

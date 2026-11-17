@@ -7,7 +7,8 @@ import { resolveChatModel, requiresApiKey } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { isLocalProviderId } from '@shared/utils/provider.utils';
 import { followModelLoad, generationStats, isLlamaServer, promptProgress } from '@services/ai/llamaServer';
-import { toolRegistry, loadMcpTools } from '@extensions/tools';
+import { toolRegistry, loadMcpTools, generateImageTool, GENERATE_IMAGE_TOOL } from '@extensions/tools';
+import { hasImageModel } from '@services/ai/image';
 import { AGENT_LOOP_CONFIG, DEFAULT_CHAT_TOOLS } from '@config/chatTools.config';
 import { extractTokenUsage } from '@services/ai/types';
 import type { GenerationStats, TokenUsage } from '@services/ai/types';
@@ -47,10 +48,13 @@ interface ChatTools {
 async function buildTools(options: OrchestratorOptions, webSearchTools: ToolSet | undefined): Promise<ChatTools> {
   const none: ChatTools = { tools: webSearchTools, sources: new Map() };
   if (options.skipRetrieval) return none;
-  const prefs = options.settings.chatTools ?? DEFAULT_CHAT_TOOLS;
+  const { settings, providers } = options;
+  const prefs = { ...DEFAULT_CHAT_TOOLS, ...settings.chatTools };
+  const reservedNames = new Set([...toolRegistry.getToolNames(), GENERATE_IMAGE_TOOL]);
   const definitions = [
     ...(prefs.meetingTools ? toolRegistry.getTools() : []),
-    ...(await loadMcpTools(new Set(toolRegistry.getToolNames()), new Set(prefs.disabledMcpTools))),
+    ...(hasImageModel(settings) && prefs.imageGeneration ? [generateImageTool({ settings, providers })] : []),
+    ...(await loadMcpTools(reservedNames, new Set(prefs.disabledMcpTools))),
   ];
   if (definitions.length === 0) return none;
   const rociTools = toExecutableTools(definitions, { historyItems: options.historyItems, signal: options.signal, approval: 'chat' });

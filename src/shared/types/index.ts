@@ -172,6 +172,8 @@ export interface UnifiedSidebarItem {
 export interface ChatToolPreferences {
   /** Built-in meeting & chat tools, switched as one group. */
   meetingTools: boolean;
+  /** generate_image, offered while an image model is chosen in Settings › Capabilities. */
+  imageGeneration: boolean;
   /** MCP tools switched off, as `mcpToolKey(server, tool)` keys. */
   disabledMcpTools: string[];
 }
@@ -209,6 +211,10 @@ export interface AppSettings {
   chatModel: string;
   /** LLM model for the Analyze phase — produces the structured meeting summary (Overview tab). */
   analyzeModel?: string;
+  /** Image model provider for chat's generate_image tool (`openai`, `gemini`); unset = chat can't make images. */
+  imageProvider?: string;
+  /** Image model of that provider (see imageGeneration.config). */
+  imageModel?: string;
   apiKey?: string;
   defaultAudioSource?: AudioCaptureSource;
   /** Transcribe a recording as soon as it stops; off keeps it as "Not transcribed" until asked. */

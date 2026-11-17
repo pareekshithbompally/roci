@@ -5,6 +5,7 @@ import { cacheService } from './cache.service';
 
 export { pathsService } from './paths.service';
 export { recordingsService } from './recordings.service';
+export { imagesService } from './images.service';
 export { cacheService } from './cache.service';
 
 export type {

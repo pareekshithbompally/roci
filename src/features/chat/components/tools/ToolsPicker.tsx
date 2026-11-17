@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import {
   ChevronDown,
   Globe,
+  ImageIcon,
   Info,
   Library,
   Plus,
@@ -51,6 +52,11 @@ export const ToolsPicker: React.FC = () => {
     openSettings('mcp');
   };
 
+  const openCapabilities = () => {
+    handleOpenChange(false);
+    openSettings('capabilities');
+  };
+
   const { enabledCount, webSearch, modelSupportsTools } = catalog;
 
   // Only live servers; disconnected ones are managed from Settings, not here.
@@ -80,6 +86,9 @@ export const ToolsPicker: React.FC = () => {
     >
       <CommandGroup heading="Built-in">
         <WebSearchItem catalog={catalog} onHover={() => setFlyout(null)} />
+        {modelSupportsTools && (
+          <ImageGenerationItem catalog={catalog} onSetUp={openCapabilities} onHover={() => setFlyout(null)} />
+        )}
         {modelSupportsTools ? (
           <GroupItem
             group={catalog.builtIn}
@@ -166,6 +175,32 @@ const WebSearchItem: React.FC<{ catalog: ToolCatalog; onHover: () => void }> = (
           onCheckedChange={webSearch.toggle}
           disabled={!webSearch.available}
           aria-label="Web search"
+        />
+      }
+      chevron={false}
+    />
+  );
+};
+
+/** generate_image: switched here once an image model is chosen; until then the row opens Settings to choose one. */
+const ImageGenerationItem: React.FC<{ catalog: ToolCatalog; onSetUp: () => void; onHover: () => void }> = ({
+  catalog, onSetUp, onHover,
+}) => {
+  const { imageGeneration } = catalog;
+  return (
+    <CommandRow
+      value="image generation generate image picture draw"
+      onSelect={imageGeneration.available ? imageGeneration.toggle : onSetUp}
+      onPointerEnter={onHover}
+      leading={<RowIcon icon={ImageIcon} />}
+      label="Image generation"
+      description={imageGeneration.available ? `via ${imageGeneration.modelLabel}` : 'Choose an image model in Settings'}
+      check={
+        <Checkbox
+          checked={imageGeneration.enabled}
+          onCheckedChange={imageGeneration.toggle}
+          disabled={!imageGeneration.available}
+          aria-label="Image generation"
         />
       }
       chevron={false}
