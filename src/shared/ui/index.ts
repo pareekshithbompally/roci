@@ -15,6 +15,8 @@ export * from './tooltip';
 export { cn } from './utils';
 export { Icon, ICON_STROKE_WIDTH, ICON_SIZE_PX } from './icon';
 export type { IconProps, IconSize } from './icon';
+export { IconTile } from './icon-tile';
+export type { IconTileProps } from './icon-tile';
 export { Text, Code } from './text';
 export type { TextProps, TextVariant, TextTone } from './text';
 export { Row, rowClasses, actionRowClasses, RowAction, RowGroupLabel, RowTitle } from './row';

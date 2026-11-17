@@ -81,6 +81,17 @@
   --yellow-800: #cb9f34;
   --yellow-900: #ac8833;
 
+  /* Apple system colours (light / dark): only the settings icon tiles read these. */
+  --system-grey: #8e8e93;
+  --system-blue: #007aff;    --system-blue-dark: #0a84ff;
+  --system-indigo: #5856d6;  --system-indigo-dark: #5e5ce6;
+  --system-purple: #af52de;  --system-purple-dark: #bf5af2;
+  --system-pink: #ff2d55;    --system-pink-dark: #ff375f;
+  --system-red: #ff3b30;     --system-red-dark: #ff453a;
+  --system-orange: #ff9500;  --system-orange-dark: #ff9f0a;
+  --system-green: #34c759;   --system-green-dark: #30d158;
+  --system-teal: #30b0c7;    --system-teal-dark: #40c8e0;
+
 
   /* ─── Tier 2: roles (light) ──────────────────────────── */
   color-scheme: light;
@@ -137,6 +148,16 @@
   --info-bg: var(--teal-200);
   --info-border: var(--teal-300);
   --info-solid: var(--teal-600);
+  /* Icon tiles (System Settings style): a filled square behind a white glyph. */
+  --bg-tile-grey: var(--system-grey);
+  --bg-tile-blue: var(--system-blue);
+  --bg-tile-indigo: var(--system-indigo);
+  --bg-tile-purple: var(--system-purple);
+  --bg-tile-pink: var(--system-pink);
+  --bg-tile-red: var(--system-red);
+  --bg-tile-orange: var(--system-orange);
+  --bg-tile-green: var(--system-green);
+  --bg-tile-teal: var(--system-teal);
 
   --shadow-input: #0000001a 0 1px 1.5px 0, #00000024 0 0 0 0.5px;
   --shadow-raised: #0000000a 0 2px 4px 0, #00000014 0 1px 2px -1px, #0000001f 0 0 0 0.5px;
@@ -227,6 +248,14 @@ html.platform-ios {
   --info-fg: var(--teal-500);
   --info-bg: color-mix(in srgb, var(--teal-900) 18%, transparent);
   --info-border: var(--teal-900);
+  --bg-tile-blue: var(--system-blue-dark);
+  --bg-tile-indigo: var(--system-indigo-dark);
+  --bg-tile-purple: var(--system-purple-dark);
+  --bg-tile-pink: var(--system-pink-dark);
+  --bg-tile-red: var(--system-red-dark);
+  --bg-tile-orange: var(--system-orange-dark);
+  --bg-tile-green: var(--system-green-dark);
+  --bg-tile-teal: var(--system-teal-dark);
 
   --shadow-input: #00000000 0 1px 2px 0, #ffffff29 0 0 0 0.5px, #ffffff0f 0 -0.5px 0 0;
   --shadow-raised: #0000004d 0 2px 4px 0, #0000004d 0 1px 2px 0, #ffffff29 0 0 0 0.5px, #ffffff0f 0 -0.5px 0 0;

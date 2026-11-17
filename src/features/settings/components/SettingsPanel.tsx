@@ -13,7 +13,7 @@ import { UsagePanel } from './UsagePanel';
 import { IntegrationsPanel } from './IntegrationsPanel';
 import { NotificationsPanel } from './NotificationsPanel';
 import { McpServersPanel } from './mcp';
-import { CardRow, Icon, Section, Surface, useNavStack } from '@shared/ui';
+import { CardRow, IconTile, Section, Surface, useNavStack } from '@shared/ui';
 import type { NavScreen } from '@shared/ui';
 import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore';
 
@@ -52,8 +52,8 @@ export const SettingsHome: React.FC = () => {
     <div className="flex flex-col gap-6 p-4">
       {groups.map((group) => (
         <Section key={group} title={group}>
-          {items.filter((item) => item.group === group).map(({ id, label, icon }) => (
-            <CardRow key={id} title={label} leading={<Icon icon={icon} size="sm" />} onOpen={() => push(settingsScreen(id))} />
+          {items.filter((item) => item.group === group).map(({ id, label, icon, tint }) => (
+            <CardRow key={id} title={label} leading={<IconTile icon={icon} tint={tint} />} leadingAlign="row" onOpen={() => push(settingsScreen(id))} />
           ))}
         </Section>
       ))}
