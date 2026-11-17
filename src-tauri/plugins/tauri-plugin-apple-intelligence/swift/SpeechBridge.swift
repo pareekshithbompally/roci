@@ -2,7 +2,7 @@ import Foundation
 import AVFAudio
 import Speech
 
-// MARK: - Apple Speech (SpeechAnalyzer, macOS 26+) — JSON C-string bridge, freed with `apple_intelligence_free_string`
+// MARK: - Apple Speech (SpeechAnalyzer, macOS / iOS 26+) — JSON C-string bridge, freed with `apple_intelligence_free_string`
 
 /// The app's name from its Info.plist (Tauri embeds one in dev builds too).
 private let appName = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "This app"

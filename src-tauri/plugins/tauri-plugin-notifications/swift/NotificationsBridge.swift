@@ -56,7 +56,7 @@ public func notificationsStatus() -> UnsafeMutablePointer<CChar> {
     reply(["status": currentStatus()])
 }
 
-/// Raises the macOS prompt when undecided; blocks its (non-main) caller until the user answers.
+/// Raises the system prompt when undecided; blocks its (non-main) caller until the user answers.
 @_cdecl("notifications_request")
 public func notificationsRequest() -> UnsafeMutablePointer<CChar> {
     guard supported else { return reply(["status": "unsupported"]) }
@@ -89,7 +89,7 @@ public func notificationsSetCategories(_ json: UnsafePointer<CChar>) -> UnsafeMu
     return reply(["ok": true])
 }
 
-/// Shows a notification now, or hands it to macOS for `atMs` (epoch ms); reusing an id replaces the earlier one.
+/// Shows a notification now, or hands it to the system for `atMs` (epoch ms); reusing an id replaces the earlier one.
 @_cdecl("notifications_show")
 public func notificationsShow(_ json: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar> {
     guard supported else { return reply(["ok": false, "error": "unsupported"]) }
@@ -165,7 +165,7 @@ private struct ShowInput: Decodable {
     let atMs: Double?
 }
 
-/// macOS delivers at that absolute moment (the components carry the time zone), through sleep and clock changes;
+/// The system delivers at that absolute moment (the components carry the time zone), through sleep and clock changes;
 /// none, past, or under a second away (the trigger has whole seconds) shows now.
 private func trigger(atMs: Double?) -> UNNotificationTrigger? {
     guard let atMs else { return nil }

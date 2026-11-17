@@ -1,7 +1,6 @@
 //! Roci's menu bar menu (macOS): Swift owns an `NSStatusItem` with a native `NSMenu`; this crate is its safe Rust face.
 //! Rust sends the menu's state as JSON; the menu sends picked items back as action ids.
 
-#[cfg(target_os = "macos")]
 mod bridge {
     use std::ffi::{c_char, CStr, CString};
     use std::sync::OnceLock;
@@ -53,9 +52,7 @@ mod bridge {
 }
 
 /// Create the status item and its menu; `on_click` receives each picked action id. Call once, on the main thread.
-#[cfg(target_os = "macos")]
 pub use bridge::install;
 
 /// Replace what the menu shows with `json` (`menubar::MenuState`).
-#[cfg(target_os = "macos")]
 pub use bridge::update;

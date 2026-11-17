@@ -181,7 +181,6 @@ async fn connect_stdio(
     }
     cmd.args(args).envs(env.iter().cloned()).kill_on_drop(true);
     // Process-group leader so teardown reaches the grandchildren `npx`/`uvx` fork.
-    #[cfg(unix)]
     cmd.process_group(0);
 
     let (process, stderr) = TokioChildProcess::builder(cmd)
@@ -333,11 +332,8 @@ pub fn kill_all_children(app: &AppHandle) {
 }
 
 fn kill_group(pid: Option<u32>) {
-    #[cfg(unix)]
     if let Some(pid) = pid.and_then(|p| libc::pid_t::try_from(p).ok()) {
         // SAFETY: killpg only signals; pid is a group we created (pgid == pid).
         unsafe { libc::killpg(pid, libc::SIGTERM) };
     }
-    #[cfg(not(unix))]
-    let _ = pid;
 }

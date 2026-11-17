@@ -1,4 +1,4 @@
-//! Compiles the Swift status menu into a static library for Apple targets.
+//! Compiles the Swift status menu (AppKit, macOS only) into a static library.
 
 fn main() {
     apple_build::SwiftLibrary {

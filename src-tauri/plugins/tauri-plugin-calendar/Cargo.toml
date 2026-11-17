@@ -2,7 +2,7 @@
 name = "tauri-plugin-calendar"
 version = "0.1.0"
 edition = "2021"
-description = "Tauri plugin for macOS Calendar access via EventKit"
+description = "Tauri plugin for Apple Calendar and Reminders via EventKit (macOS, iOS)"
 links = "tauri-plugin-calendar"
 
 [build-dependencies]

@@ -2,7 +2,7 @@
 name = "tauri-plugin-notifications"
 version = "0.1.0"
 edition = "2021"
-description = "Tauri plugin for macOS notifications via UNUserNotificationCenter"
+description = "Tauri plugin for Apple notifications via UNUserNotificationCenter (macOS, iOS)"
 links = "tauri-plugin-notifications"
 
 [build-dependencies]

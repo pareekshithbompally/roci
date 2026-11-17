@@ -58,7 +58,7 @@ public func remindersEnsureList(_ title: UnsafePointer<CChar>) -> UnsafeMutableP
             return ["id": existing.calendarIdentifier]
         }
         guard let source = store.defaultCalendarForNewReminders()?.source else {
-            return ["error": "No reminders account on this Mac"]
+            return ["error": "No reminders account on this device"]
         }
         let list = EKCalendar(for: .reminder, eventStore: store)
         list.title = name

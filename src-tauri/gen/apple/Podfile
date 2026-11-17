@@ -5,11 +5,6 @@ platform :ios, '26.0'
   # Pods for Roci_iOS
 end
 
-target 'Roci_macOS' do
-platform :osx, '11.0'
-  # Pods for Roci_macOS
-end
-
 # Delete the deployment target for iOS and macOS, causing it to be inherited from the Podfile
 post_install do |installer|
  installer.pods_project.targets.each do |target|
