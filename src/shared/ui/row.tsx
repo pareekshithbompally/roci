@@ -6,7 +6,7 @@ import { platform } from '@platform/index';
 /** Canonical list/sidebar row (control-md: 32 px on macOS, 44 pt on iOS) (Row, rowClasses, RowAction, RowGroupLabel) so every list shares one shape. */
 export function rowClasses(selected?: boolean): string {
   return cn(
-    'flex w-full h-control-md items-center gap-2 rounded-md px-2.5 text-left text-body text-primary transition-colors cursor-pointer min-w-0',
+    'flex w-full min-h-control-md py-1 items-center gap-2 rounded-md px-2.5 text-left text-body text-primary transition-colors cursor-pointer min-w-0',
     selected ? 'bg-pressed' : 'hover:bg-hover',
   );
 }

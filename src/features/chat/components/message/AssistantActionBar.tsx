@@ -71,7 +71,7 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
         {hasTabs && (
           <div className="flex items-center gap-2">
             {hasSuggestions ? (
-              <Tabs items={tabItems} value={activeTab} onValueChange={setActiveTab} />
+              <Tabs items={tabItems} value={activeTab} onValueChange={setActiveTab} fill={false} />
             ) : (
               <div className="flex items-center gap-2">
                 {hasMeetingCitations && (
@@ -93,7 +93,8 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
 
         {/* Right: icons */}
         <div className="ml-auto flex items-center gap-2">
-          {(tokensPerSecond != null || tokenCount != null || inputTokenCount != null) && (
+          {/* Token usage reads on hover only, so it is offered where there is hover (not on touch). */}
+          {!platform.hasTouchScreen && (tokensPerSecond != null || tokenCount != null || inputTokenCount != null) && (
             <Tooltip
               content={[
                 tokensPerSecond != null && `${tokensPerSecond} tok/s`,

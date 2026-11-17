@@ -6,7 +6,7 @@ interface SuggestionsListProps {
   onSuggestionClick: (suggestion: string) => void;
 }
 
-/** Suggestion rows, each with an arrow prefix. */
+/** Suggestion rows, each with an arrow prefix; up to two lines, so a follow-up reads whole on a phone. */
 const SuggestionsList: React.FC<SuggestionsListProps> = ({ suggestions, onSuggestionClick }) => (
   <>
     {suggestions.map((suggestion, i) => (
@@ -15,7 +15,7 @@ const SuggestionsList: React.FC<SuggestionsListProps> = ({ suggestions, onSugges
         onClick={() => onSuggestionClick(suggestion)}
       >
         <Text tone="faint" className="shrink-0">&#8594;</Text>
-        <span className="line-clamp-1">{suggestion}</span>
+        <span className="line-clamp-2">{suggestion}</span>
       </Row>
     ))}
   </>
