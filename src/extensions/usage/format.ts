@@ -10,18 +10,9 @@ export function formatTokenCount(n: number): string {
   return `${(n / 1_000_000).toFixed(1)}M`;
 }
 
-/** Format USD cost: "$0.0000", "$0.0123", "$12.4500" */
+/** Format USD cost: "Free", "< $0.01", "$0.30", "$12.45" */
 export function formatCost(usd: number): string {
-  if (usd === 0) return '$0.0000';
-  return `$${usd.toFixed(4)}`;
-}
-
-/** Capitalize first letter of a string */
-export function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-/** Friendly category label: 'title-gen' → 'Title Gen' */
-export function formatCategory(category: string): string {
-  return category.split('-').map(capitalize).join(' ');
+  if (usd === 0) return 'Free';
+  if (usd < 0.01) return '< $0.01';
+  return `$${usd.toFixed(2)}`;
 }

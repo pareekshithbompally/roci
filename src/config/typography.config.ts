@@ -17,6 +17,8 @@ export const TYPOGRAPHY_CLASSES = {
   reading: 'text-reading font-normal',
   /** 15 / 600 — panel and section titles */
   title: 'text-title3 font-semibold',
+  /** 13 tabular — figures in a column (costs, counts) that must line up */
+  figure: 'text-body font-normal tabular-nums',
   /** 12 mono — code paths, durations, tool arguments */
   mono: 'text-callout font-mono',
   /** 26 / 600 — hero greeting (macOS large title) */

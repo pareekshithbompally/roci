@@ -20,6 +20,9 @@ const TINT: Record<TileTint, string> = {
 const { stroke, touch, ...mac } = UI_CONFIG.iconTile;
 const BOX = platform.hasTouchScreen ? touch : mac;
 
+/** A tile's edge in px on this device, so logos beside tiles (providers, models) match them. */
+export const ICON_TILE_PX = BOX.tile;
+
 /** A Lucide glyph or a Simple Icons brand mark: both draw in currentColor at a given size. */
 export type TileGlyph = React.ComponentType<{ size?: number | string; strokeWidth?: number | string; title?: string }>;
 

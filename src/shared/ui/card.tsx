@@ -65,7 +65,7 @@ export function CardRow({ title, description, leading, leadingAlign = 'title', s
           ? <div className="flex shrink-0 items-center">{leading}</div>
           : <Text as="div" variant="bodyStrong" className="flex h-[1lh] shrink-0 items-center">{leading}</Text>)}
         <div className="min-w-0">
-          <Text as="p" variant="bodyStrong">{title}</Text>
+          <Text as="p" variant="bodyStrong" className="break-words">{title}</Text>
           {description && <Text as="p" variant="helper" tone="muted" className="mt-0.5">{description}</Text>}
         </div>
       </div>

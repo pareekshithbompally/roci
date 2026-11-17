@@ -1,13 +1,19 @@
-/** Read-only token usage and estimated cost, grouped by provider with subtotals. */
+/** Read-only token usage and estimated cost: totals, then by provider, by model and by feature, as grouped Settings rows. */
 
 import React, { useMemo } from 'react';
-import { DollarSign, Zap, TrendingUp, Loader2, AlertTriangle } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
-import { Callout, ChoiceControl, Icon, Surface, Text } from '@shared/ui';
+import {
+  AlertTriangle, ArrowDownToLine, ArrowUpFromLine, AudioLines, CircleDollarSign, DatabaseZap, Heading, Lightbulb, Loader2,
+  MessageSquare, NotebookText, Send,
+} from 'lucide-react';
+import { Callout, CardRow, ChoiceControl, Icon, ICON_TILE_PX, IconTile, Section, Text, type TileGlyph } from '@shared/ui';
+import { ModelIcon, ProvidersAvatar } from '@shared/components';
+import { META_SEPARATOR, TILE_DOMAIN, type TileTint } from '@config/ui.config';
+import { getProviderTitle } from '@shared/utils/provider.utils';
 import { SettingsPage } from './shared';
 import { useUsageData } from '@features/settings/hooks/useUsageData';
 import type { TimeRange } from '@features/settings/hooks/useUsageData';
-import { formatTokenCount, formatCost, formatCategory } from '@extensions/usage/format';
+import { formatTokenCount, formatCost } from '@extensions/usage/format';
+import type { ProviderModelBreakdown, UsageCategory } from '@extensions/usage';
 
 const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
   { value: '7d', label: '7 days' },
@@ -15,47 +21,52 @@ const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
   { value: 'all', label: 'All time' },
 ];
 
-/** Provider / Model · Calls · Input · Output · Cost */
-const TABLE_ROW = 'grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-4';
+/** Each feature's row: its name, glyph and hue (hue from its modality, as in Capabilities). */
+const CATEGORY_MARK: Record<UsageCategory, { label: string; icon: TileGlyph; tint: TileTint }> = {
+  chat: { label: 'Chat', icon: MessageSquare, tint: TILE_DOMAIN.text },
+  suggestions: { label: 'Suggestions', icon: Lightbulb, tint: TILE_DOMAIN.text },
+  'title-gen': { label: 'Chat titles', icon: Heading, tint: TILE_DOMAIN.text },
+  summary: { label: 'Summaries', icon: NotebookText, tint: TILE_DOMAIN.meetings },
+  transcription: { label: 'Transcription', icon: AudioLines, tint: TILE_DOMAIN.speech },
+};
+
+type Totals = Pick<ProviderModelBreakdown, 'calls' | 'input_tokens' | 'output_tokens' | 'estimated_cost'>;
+
+/** "72 requests · 239.3k in · 42.0k out"; token counts only when the provider reports them. */
+function usageLine({ calls, input_tokens, output_tokens }: Totals, prefix?: string): string {
+  const parts = [prefix, `${calls} ${calls === 1 ? 'request' : 'requests'}`];
+  if (input_tokens > 0) parts.push(`${formatTokenCount(input_tokens)} in`);
+  if (output_tokens > 0) parts.push(`${formatTokenCount(output_tokens)} out`);
+  return parts.filter(Boolean).join(META_SEPARATOR);
+}
+
+/** Model rows summed per provider, most expensive (then busiest) first. */
+function totalsByProvider(rows: ProviderModelBreakdown[]): Array<Totals & { provider: string }> {
+  const byProvider = new Map<string, Totals & { provider: string }>();
+  for (const row of rows) {
+    const t = byProvider.get(row.provider) ?? { provider: row.provider, calls: 0, input_tokens: 0, output_tokens: 0, estimated_cost: 0 };
+    t.calls += row.calls;
+    t.input_tokens += row.input_tokens;
+    t.output_tokens += row.output_tokens;
+    t.estimated_cost += row.estimated_cost;
+    byProvider.set(row.provider, t);
+  }
+  return [...byProvider.values()].sort((a, b) => b.estimated_cost - a.estimated_cost || b.calls - a.calls);
+}
+
+/** Model id without its org prefix ("ggml-org/gemma…" → "gemma…"); the org shows as the row's avatar. */
+const modelName = (id: string) => id.slice(id.lastIndexOf('/') + 1);
+
+const Figure: React.FC<{ children: React.ReactNode }> = ({ children }) => <Text variant="figure" tone="muted">{children}</Text>;
+
+/** A total: tile, name, and its value on the right. */
+const MetricRow: React.FC<{ icon: TileGlyph; title: string; value: string }> = ({ icon, title, value }) => (
+  <CardRow leading={<IconTile icon={icon} tint={TILE_DOMAIN.activity} />} leadingAlign="row" title={title} status={<Figure>{value}</Figure>} />
+);
 
 export const UsagePanel: React.FC = () => {
   const { summary, isLoading, error, timeRange, setTimeRange } = useUsageData();
-
-  const topModel = summary?.by_provider_model?.[0];
-
-  // Group models by provider with per-provider subtotals
-  const providerGroups = useMemo(() => {
-    if (!summary) return [];
-    const grouped: Record<string, {
-      provider: string;
-      calls: number;
-      input_tokens: number;
-      output_tokens: number;
-      estimated_cost: number;
-      models: typeof summary.by_provider_model;
-    }> = {};
-
-    for (const row of summary.by_provider_model) {
-      if (!grouped[row.provider]) {
-        grouped[row.provider] = {
-          provider: row.provider,
-          calls: 0,
-          input_tokens: 0,
-          output_tokens: 0,
-          estimated_cost: 0,
-          models: [],
-        };
-      }
-      const g = grouped[row.provider];
-      g.calls += row.calls;
-      g.input_tokens += row.input_tokens;
-      g.output_tokens += row.output_tokens;
-      g.estimated_cost += row.estimated_cost;
-      g.models.push(row);
-    }
-
-    return Object.values(grouped).sort((a, b) => b.estimated_cost - a.estimated_cost);
-  }, [summary]);
+  const providers = useMemo(() => totalsByProvider(summary?.by_provider_model ?? []), [summary]);
 
   return (
     <SettingsPage
@@ -84,107 +95,63 @@ export const UsagePanel: React.FC = () => {
 
       {!isLoading && summary && summary.total_calls > 0 && (
         <>
-          {/* Summary Strip — 3 compact metrics inline */}
-          <div className="grid grid-cols-3 gap-3">
-            <SummaryCard icon={DollarSign} label="Estimated Cost" value={formatCost(summary.total_cost)} />
-            <SummaryCard
-              icon={Zap}
-              label="Tokens"
-              value={`${formatTokenCount(summary.total_input_tokens)} in / ${formatTokenCount(summary.total_output_tokens)} out`}
-            />
-            <SummaryCard
-              icon={TrendingUp}
-              label="Top Model"
-              value={topModel ? topModel.model : '—'}
-              sublabel={topModel ? `${topModel.calls} calls · ${formatCost(topModel.estimated_cost)}` : undefined}
-            />
-          </div>
+          <Section title="Overview">
+            <MetricRow icon={CircleDollarSign} title="Estimated cost" value={formatCost(summary.total_cost)} />
+            <MetricRow icon={Send} title="Requests" value={String(summary.total_calls)} />
+            <MetricRow icon={ArrowDownToLine} title="Input tokens" value={formatTokenCount(summary.total_input_tokens)} />
+            <MetricRow icon={ArrowUpFromLine} title="Output tokens" value={formatTokenCount(summary.total_output_tokens)} />
+            {summary.total_cache_read_tokens > 0 && (
+              <MetricRow icon={DatabaseZap} title="Cached input tokens" value={formatTokenCount(summary.total_cache_read_tokens)} />
+            )}
+          </Section>
 
-          {/* Unified table: grouped by provider, models nested */}
-          <Surface variant="card" radius="lg" className="overflow-hidden">
-            <Surface edge="bottom" className={`${TABLE_ROW} px-4 py-2`}>
-              <Text variant="label" tone="faint">Provider / Model</Text>
-              <Text variant="label" tone="faint" className="text-right w-12">Calls</Text>
-              <Text variant="label" tone="faint" className="text-right w-16">Input</Text>
-              <Text variant="label" tone="faint" className="text-right w-16">Output</Text>
-              <Text variant="label" tone="faint" className="text-right w-16">Cost</Text>
-            </Surface>
-
-            {providerGroups.map((group, gi) => (
-              <React.Fragment key={group.provider}>
-                {/* Provider subtotal row */}
-                <Surface variant="subtle" edge={gi > 0 ? 'top' : undefined} className={`${TABLE_ROW} px-4 py-2`}>
-                  <Text variant="bodyStrong" className="capitalize">{group.provider}</Text>
-                  <Text variant="mono" className="text-right w-12">{group.calls}</Text>
-                  <Text variant="mono" tone="muted" className="text-right w-16">{formatTokenCount(group.input_tokens)}</Text>
-                  <Text variant="mono" tone="muted" className="text-right w-16">{formatTokenCount(group.output_tokens)}</Text>
-                  <Text variant="mono" className="text-right w-16">{formatCost(group.estimated_cost)}</Text>
-                </Surface>
-
-                {/* Model rows — indented */}
-                {group.models.map((row) => (
-                  <Surface key={`${row.provider}-${row.model}`} edge="top" className={`${TABLE_ROW} pl-8 pr-4 py-1.5`}>
-                    <Text variant="mono" tone="muted" truncate>{row.model}</Text>
-                    <Text variant="mono" tone="faint" className="text-right w-12">{row.calls}</Text>
-                    <Text variant="mono" tone="faint" className="text-right w-16">{formatTokenCount(row.input_tokens)}</Text>
-                    <Text variant="mono" tone="faint" className="text-right w-16">{formatTokenCount(row.output_tokens)}</Text>
-                    <Text variant="mono" tone="muted" className="text-right w-16">{formatCost(row.estimated_cost)}</Text>
-                  </Surface>
-                ))}
-              </React.Fragment>
+          <Section title="By provider">
+            {providers.map((p) => (
+              <CardRow
+                key={p.provider}
+                leading={<ProvidersAvatar provider={p.provider} size={ICON_TILE_PX} />}
+                leadingAlign="row"
+                title={getProviderTitle(p.provider)}
+                description={usageLine(p)}
+                status={<Figure>{formatCost(p.estimated_cost)}</Figure>}
+              />
             ))}
+          </Section>
 
-            {/* Grand total */}
-            <Surface variant="subtle" edge="top" className={`${TABLE_ROW} px-4 py-2`}>
-              <Text variant="bodyStrong">Total</Text>
-              <Text variant="mono" className="font-medium text-right w-12">{summary.total_calls}</Text>
-              <Text variant="mono" className="font-medium text-right w-16">{formatTokenCount(summary.total_input_tokens)}</Text>
-              <Text variant="mono" className="font-medium text-right w-16">{formatTokenCount(summary.total_output_tokens)}</Text>
-              <Text variant="mono" className="font-medium text-right w-16">{formatCost(summary.total_cost)}</Text>
-            </Surface>
-          </Surface>
+          <Section title="By model">
+            {summary.by_provider_model.map((m) => (
+              <CardRow
+                key={`${m.provider}/${m.model}`}
+                leading={<ModelIcon provider={m.provider} modelId={m.model} size={ICON_TILE_PX} />}
+                leadingAlign="row"
+                title={modelName(m.model)}
+                description={usageLine(m, getProviderTitle(m.provider))}
+                status={<Figure>{formatCost(m.estimated_cost)}</Figure>}
+              />
+            ))}
+          </Section>
 
-          {/* Category breakdown — compact chips */}
           {summary.by_category.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              <Text variant="label" tone="faint">By category</Text>
-              {summary.by_category.map((cat) => (
-                <Surface key={cat.category} variant="inset" radius="md" className="inline-flex items-center gap-1.5 px-2.5 py-1">
-                  <Text variant="helper">{formatCategory(cat.category)}</Text>
-                  <Text variant="helper" tone="faint">{cat.calls}</Text>
-                  <Text variant="mono" tone="muted">{formatCost(cat.estimated_cost)}</Text>
-                </Surface>
-              ))}
-            </div>
-          )}
-
-          {/* Cache savings note */}
-          {summary.total_cache_read_tokens > 0 && (
-            <Text as="p" variant="helper" tone="faint">
-              {formatTokenCount(summary.total_cache_read_tokens)} cached input tokens saved on prompt caching discounts.
-            </Text>
+            <Section title="By feature">
+              {summary.by_category.map((c) => {
+                const mark = CATEGORY_MARK[c.category as UsageCategory];
+                return (
+                  <CardRow
+                    key={c.category}
+                    leading={<IconTile icon={mark.icon} tint={mark.tint} />}
+                    leadingAlign="row"
+                    title={mark.label}
+                    description={usageLine(c)}
+                    status={<Figure>{formatCost(c.estimated_cost)}</Figure>}
+                  />
+                );
+              })}
+            </Section>
           )}
         </>
       )}
     </SettingsPage>
   );
 };
-
-/** Small summary card component */
-const SummaryCard: React.FC<{
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  sublabel?: string;
-}> = ({ icon, label, value, sublabel }) => (
-  <Surface variant="card" radius="lg" className="px-3.5 py-3">
-    <Text as="div" variant="helper" tone="faint" className="flex items-center gap-1.5 mb-1.5">
-      <Icon icon={icon} size="xs" />
-      {label}
-    </Text>
-    <Text as="div" variant="title" truncate className="font-mono">{value}</Text>
-    {sublabel && <Text as="div" variant="helper" tone="muted" truncate className="mt-0.5">{sublabel}</Text>}
-  </Surface>
-);
 
 export default UsagePanel;
