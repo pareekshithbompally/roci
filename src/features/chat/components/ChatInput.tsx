@@ -361,7 +361,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const micInSendSlot = phone && canDictate && !canSendDraft(value, attachments);
 
   const textField = (
-    <Text as="div" variant="reading" className={phone ? 'min-w-0 flex-1 self-center py-1.5' : 'px-3 pt-3 pb-1'}>
+    <Text as="div" variant="reading" className={phone ? 'min-w-0 flex-1 py-1.5' : 'px-3 pt-3 pb-1'}>
       <Textarea
         variant="bare"
         ref={inputRef}
@@ -380,17 +380,19 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     </Text>
   );
 
+  // Phone: every item in the row is one control height, so +, the text line and send share a centre line (Messages).
+  const controlSize = phone ? 'sm' : 'md';
   const sendControls = (
     <div className="flex items-center gap-2">
       {canDictate && !phone && (
         <IconButton icon={Mic} label="Voice input" size="toolbar" onClick={onSpeechStart} disabled={disabled} />
       )}
       {isLoading ? (
-        <IconButton icon={Square} label="Stop generation" variant="danger" filled className="shrink-0" onClick={onStop} />
+        <IconButton icon={Square} label="Stop generation" variant="danger" filled size={controlSize} className="shrink-0" onClick={onStop} />
       ) : micInSendSlot ? (
-        <IconButton icon={Mic} label="Voice input" onClick={onSpeechStart} disabled={disabled} />
+        <IconButton icon={Mic} label="Voice input" size={controlSize} onClick={onSpeechStart} disabled={disabled} />
       ) : (
-        <IconButton icon={ArrowUp} label="Send message" variant="primary" onClick={onSend} disabled={!canSend} />
+        <IconButton icon={ArrowUp} label="Send message" variant="primary" size={controlSize} onClick={onSend} disabled={!canSend} />
       )}
     </div>
   );
@@ -535,8 +537,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         />
 
         {phone ? (
-          <div className="flex items-end gap-2 px-2 py-1.5">
-            <IconButton icon={Plus} label="Add" onClick={() => setAddOpen(true)} />
+          <div className="flex items-end gap-1 p-1">
+            <IconButton icon={Plus} label="Add" size={controlSize} onClick={() => setAddOpen(true)} />
             {textField}
             {sendControls}
           </div>

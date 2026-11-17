@@ -39,5 +39,6 @@ export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextArea
 
 /** Canonical multi-line text field (same recipe as Input). */
 export function Textarea({ variant = 'text', className, ref, ...props }: TextareaProps) {
-  return <textarea ref={ref} className={cn(TEXTAREA_VARIANT[variant], className)} {...props} />;
+  // `block`: an inline textarea sits on a text baseline and leaves a gap under it, so rows around it don't align.
+  return <textarea ref={ref} className={cn('block', TEXTAREA_VARIANT[variant], className)} {...props} />;
 }
