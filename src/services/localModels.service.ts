@@ -35,7 +35,7 @@ export interface LocalErrorPayload {
 }
 
 export async function getLocalModels(): Promise<LocalModel[]> {
-  if (!platform.hasOnDeviceModels || !isTauriEnvironment()) return [];
+  if (!platform.hasLocalModels || !isTauriEnvironment()) return [];
   return invoke<LocalModel[]>('local_models');
 }
 

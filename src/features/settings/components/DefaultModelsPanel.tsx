@@ -180,7 +180,7 @@ export const DefaultModelsPanel: React.FC = () => {
         <ImageGenerationRow localModels={localModels} controls={controls} />
       </Section>
 
-      <Section title="Meetings" footer={platform.hasOnDeviceModels ? `${FOOTERS.meetings} ${FOOTERS.meetingSearch}` : FOOTERS.meetings}>
+      <Section title="Meetings" footer={platform.hasLocalModels ? `${FOOTERS.meetings} ${FOOTERS.meetingSearch}` : FOOTERS.meetings}>
         <CapabilityRow icon={JOB_GLYPH.summaries} job={JOBS.summaries}>
           <ModelSelect
             value={settings.analyzeModel || settings.chatModel || undefined}

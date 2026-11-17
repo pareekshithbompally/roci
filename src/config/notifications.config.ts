@@ -9,7 +9,7 @@ export const NOTIFICATION_KINDS: ReadonlyArray<{ kind: NotificationKind; label: 
   { kind: 'detectedCalls', label: 'Detected calls', requires: 'hasCallDetection' },
   { kind: 'recordingReady', label: 'Recording ready' },
   { kind: 'hexImports', label: 'Hex meetings imported', requires: 'hasHex' },
-  { kind: 'modelDownloads', label: 'Model downloads', requires: 'hasOnDeviceModels' },
+  { kind: 'modelDownloads', label: 'Model downloads', requires: 'hasLocalModels' },
   { kind: 'chatReplies', label: 'Chat replies' },
   { kind: 'todoReminders', label: 'To-do reminders' },
 ];

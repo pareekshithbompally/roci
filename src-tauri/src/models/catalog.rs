@@ -20,6 +20,13 @@ pub enum Kind {
     Chat,
 }
 
+impl Kind {
+    /// Whether this device has the engine: the Mac runs every kind; iPhone and iPad run MLX's (chat, meeting search).
+    pub fn runs_here(self) -> bool {
+        cfg!(desktop) || matches!(self, Kind::Chat | Kind::Embedding)
+    }
+}
+
 /// A Hugging Face repository at a pinned commit.
 pub struct Source {
     repository: &'static str,
@@ -36,6 +43,7 @@ pub struct ModelFile {
 }
 
 /// A read-aloud voice of a voice model: its name, and its file in `files`.
+#[cfg_attr(mobile, expect(dead_code, reason = "read by the Mac's read-aloud engine"))]
 pub struct Voice {
     pub name: &'static str,
     pub file: &'static str,
@@ -50,6 +58,7 @@ pub struct LocalModel {
     source: Source,
     pub files: &'static [ModelFile],
     /// A voice model's voices, the first its default; empty for speech models.
+    #[cfg_attr(mobile, expect(dead_code, reason = "read by the Mac's read-aloud engine"))]
     pub voices: &'static [Voice],
 }
 
@@ -64,6 +73,7 @@ impl LocalModel {
     }
 
     /// The file an engine loads (speech models are a single GGUF).
+    #[cfg_attr(mobile, expect(dead_code, reason = "used by the Mac's speech and voice engines"))]
     pub fn main_file(&self) -> &'static ModelFile {
         &self.files[0]
     }
@@ -292,8 +302,9 @@ const fn voice_file(name: &'static str, sha256: &'static str) -> ModelFile {
     ModelFile { name, bytes: VOICE_BYTES, sha256, source: Some(&PHONON_VOICES) }
 }
 
+/// A model this device can run.
 pub fn find(id: &str) -> Result<&'static LocalModel, LocalError> {
-    MODELS.iter().find(|m| m.id == id).ok_or_else(|| LocalError::UnknownModel(id.to_string()))
+    MODELS.iter().find(|m| m.id == id && m.kind.runs_here()).ok_or_else(|| LocalError::UnknownModel(id.to_string()))
 }
 
 /// A model that must be of `kind` (a speech engine never loads a voice).

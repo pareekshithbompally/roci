@@ -3,7 +3,6 @@
 import Foundation
 import MLX
 import MLXEmbedders
-import MLXHuggingFace
 import MLXLLM
 import MLXLMCommon
 import Tokenizers
@@ -65,7 +64,7 @@ actor Engine {
         if let loaded = chatModel, loaded.dir == dir { return loaded.container }
         chatModel = nil
         Memory.clearCache()
-        let container = try await LLMModelFactory.shared.loadContainer(from: URL(filePath: dir), using: #huggingFaceTokenizerLoader())
+        let container = try await LLMModelFactory.shared.loadContainer(from: URL(filePath: dir), using: FolderTokenizerLoader())
         chatModel = (dir, container)
         return container
     }
@@ -73,7 +72,7 @@ actor Engine {
     private func embedderContainer(_ dir: String) async throws -> EmbedderModelContainer {
         if let loaded = embedder, loaded.dir == dir { return loaded.container }
         embedder = nil
-        let container = try await EmbedderModelFactory.shared.loadContainer(from: URL(filePath: dir), using: #huggingFaceTokenizerLoader())
+        let container = try await EmbedderModelFactory.shared.loadContainer(from: URL(filePath: dir), using: FolderTokenizerLoader())
         embedder = (dir, container)
         return container
     }

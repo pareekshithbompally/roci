@@ -31,17 +31,14 @@ mod permissions;
 mod hex;
 #[cfg(desktop)]
 mod ipc;
-#[cfg(desktop)]
 mod models;
 #[cfg(desktop)]
 mod stt;
-#[cfg(desktop)]
 mod sync;
 #[cfg(desktop)]
 mod tts;
 #[cfg(desktop)]
 mod image;
-#[cfg(desktop)]
 mod mlx;
 #[cfg(desktop)]
 mod model_server;

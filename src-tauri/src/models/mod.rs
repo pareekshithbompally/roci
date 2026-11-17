@@ -7,6 +7,7 @@ pub mod store;
 use serde::Serialize;
 
 /// The default speak/transcribe language; mirrors `TRANSCRIPTION_CONFIG.language` in the webview.
+#[cfg(desktop)]
 pub const LANGUAGE: &str = "en";
 
 /// Runs blocking work (a model, the disk) off the async runtime.

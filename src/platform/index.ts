@@ -36,7 +36,9 @@ export const platform = {
   supportsChildProcessMcp: mac,
   /** Serves Roci's tools to coding agents over a local socket. */
   hasCodingAgents: mac,
-  /** On-device speech and voice models (transcribe.cpp, Phonon). */
+  /** Downloads models and runs them on this device with MLX (chat, meeting search). */
+  hasLocalModels: apple,
+  /** The Mac's own speech, voice and image engines (transcribe.cpp, Phonon, sd-server). */
   hasOnDeviceModels: mac,
   hasAppleIntelligence: apple,
   hasNotifications: apple,

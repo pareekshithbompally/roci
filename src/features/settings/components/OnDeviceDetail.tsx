@@ -76,6 +76,6 @@ export const OnDeviceDetail: React.FC = () => (
       <CardRow leading={<ProvidersAvatar provider={ON_DEVICE.id} size={20} />} title={ON_DEVICE.title} />
     </Card>
     <BuiltIn />
-    {platform.hasOnDeviceModels && <Downloads />}
+    {platform.hasLocalModels && <Downloads />}
   </>
 );

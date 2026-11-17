@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		16D7BDBC8278E04D0BBAC3C1 /* RociMLX in Frameworks */ = {isa = PBXBuildFile; productRef = 614A6A9A83F36A9829E17129 /* RociMLX */; };
 		1EFEE7AF964BFA7F1F543DA6 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 586B2EE9A6170302C98C1BE9 /* QuartzCore.framework */; };
 		3FB4023EDD06879D2E0EAE1E /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CF00E02C9C00CA7B134C0BAA /* CoreGraphics.framework */; };
 		443CF6E4E6F55E535397895E /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 23ABD3F8CB4D15458D24F377 /* MetalKit.framework */; };
@@ -78,17 +79,20 @@
 		732DAFAD4FE4F90D1DDC7311 /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		7814286B0DAF134FDDB81D90 /* commands.rs */ = {isa = PBXFileReference; path = commands.rs; sourceTree = "<group>"; };
 		78701B8BCB209DA93DFE37C5 /* Roci_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Roci_iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7B72D376DC3446060BCAAD07 /* commands.rs */ = {isa = PBXFileReference; path = commands.rs; sourceTree = "<group>"; };
 		80AD68EAD28302FC5A40475B /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
 		81BCAFD9A4977A05F9A14D8D /* scheduler.rs */ = {isa = PBXFileReference; path = scheduler.rs; sourceTree = "<group>"; };
 		843074BECEA0AECB58BDD16D /* macos.rs */ = {isa = PBXFileReference; path = macos.rs; sourceTree = "<group>"; };
 		87307C942DD8E7D093DDD5F9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		88C818466DE1A6CD9D499B4D /* agents.rs */ = {isa = PBXFileReference; path = agents.rs; sourceTree = "<group>"; };
+		90EEBE2B888D0C8A1E3F2B56 /* model_server.rs */ = {isa = PBXFileReference; path = model_server.rs; sourceTree = "<group>"; };
 		97782C5A216557AACAAF8EFB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		98106AF16A79410DE34722B2 /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		9982B0053752BD84E2D7BA37 /* config.rs */ = {isa = PBXFileReference; path = config.rs; sourceTree = "<group>"; };
 		9AF9F844EF5D2D145EB30DFE /* live.rs */ = {isa = PBXFileReference; path = live.rs; sourceTree = "<group>"; };
 		9D4AAB0EE03036BBBE04C1AE /* commands.rs */ = {isa = PBXFileReference; path = commands.rs; sourceTree = "<group>"; };
 		9E572AA8F78F7086164FE19A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		9E8D183E8C386F4D0D5DD42D /* RociMLX */ = {isa = PBXFileReference; lastKnownFileType = folder; name = RociMLX; path = ../../RociMLX; sourceTree = SOURCE_ROOT; };
 		9F60979F37E4E1A5B8F19FAC /* app_icon.rs */ = {isa = PBXFileReference; path = app_icon.rs; sourceTree = "<group>"; };
 		A1E3CB077A831E8190898A49 /* wake_lock.rs */ = {isa = PBXFileReference; path = wake_lock.rs; sourceTree = "<group>"; };
 		A1F91D1E9DCA4E0EE0C2D384 /* recovery.rs */ = {isa = PBXFileReference; path = recovery.rs; sourceTree = "<group>"; };
@@ -97,6 +101,8 @@
 		B75368D24A8F5E42C051C988 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		C1AF1CBE83F08E5EEABF62AF /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		C25DA3899607C95B9F6BA91B /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
+		C33F1472FCE7022581BEFCA0 /* server.rs */ = {isa = PBXFileReference; path = server.rs; sourceTree = "<group>"; };
+		C6A3E3C4A235EFAF9BF057C4 /* mlx.rs */ = {isa = PBXFileReference; path = mlx.rs; sourceTree = "<group>"; };
 		C95AEB220F589CC35D23B90D /* tracks.rs */ = {isa = PBXFileReference; path = tracks.rs; sourceTree = "<group>"; };
 		C99AA4A35F988F686C0FADC1 /* microphone.rs */ = {isa = PBXFileReference; path = microphone.rs; sourceTree = "<group>"; };
 		CB0688D6E482168E5DE3AE5C /* host.rs */ = {isa = PBXFileReference; path = host.rs; sourceTree = "<group>"; };
@@ -109,6 +115,7 @@
 		E176B472A79156130A2B04A6 /* commands.rs */ = {isa = PBXFileReference; path = commands.rs; sourceTree = "<group>"; };
 		E25051BCF2445AE5424D9125 /* url_actions.rs */ = {isa = PBXFileReference; path = url_actions.rs; sourceTree = "<group>"; };
 		E3ABE41B5A9423E505D39BC1 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		E686A3AFF15CE47121366619 /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		E6E8DA28A0ACDE3A99240CA4 /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		E7E7DDE59ECC73CED930D38D /* macos.rs */ = {isa = PBXFileReference; path = macos.rs; sourceTree = "<group>"; };
 		F673F58BB14789697B951037 /* text.rs */ = {isa = PBXFileReference; path = text.rs; sourceTree = "<group>"; };
@@ -123,6 +130,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8617190EC975D0EE797AC645 /* libapp.a in Frameworks */,
+				16D7BDBC8278E04D0BBAC3C1 /* RociMLX in Frameworks */,
 				3FB4023EDD06879D2E0EAE1E /* CoreGraphics.framework in Frameworks */,
 				C88EB87B04786F28FDBDE102 /* Metal.framework in Frameworks */,
 				443CF6E4E6F55E535397895E /* MetalKit.framework in Frameworks */,
@@ -164,6 +172,7 @@
 				B75368D24A8F5E42C051C988 /* LaunchScreen.storyboard */,
 				A3CC5AE4573D254A12783D07 /* Externals */,
 				9F7B76F0213933F8B566D192 /* icons */,
+				55927C13B4B7CA3341D1D013 /* Packages */,
 				9495DC7B25C5FFF23A47C292 /* Roci_iOS */,
 				8EEC8DB146A788F71B7E4EDD /* Sources */,
 				C6C77187BF891F4AC3311A73 /* src */,
@@ -243,6 +252,24 @@
 				81BCAFD9A4977A05F9A14D8D /* scheduler.rs */,
 			);
 			path = meeting_reminders;
+			sourceTree = "<group>";
+		};
+		55927C13B4B7CA3341D1D013 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				9E8D183E8C386F4D0D5DD42D /* RociMLX */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		566A6D9DC750ACCC619BED07 /* image */ = {
+			isa = PBXGroup;
+			children = (
+				7B72D376DC3446060BCAAD07 /* commands.rs */,
+				E686A3AFF15CE47121366619 /* mod.rs */,
+				C33F1472FCE7022581BEFCA0 /* server.rs */,
+			);
+			path = image;
 			sourceTree = "<group>";
 		};
 		5EAB220E378053B89F142BA8 /* permissions */ = {
@@ -359,7 +386,9 @@
 				1E7338697C76C07A725F1F7F /* ipc.rs */,
 				80AD68EAD28302FC5A40475B /* lib.rs */,
 				4A389386D09EB05D888B8921 /* main.rs */,
+				C6A3E3C4A235EFAF9BF057C4 /* mlx.rs */,
 				66F0F9F5A98E0A23C906C844 /* mobile.rs */,
+				90EEBE2B888D0C8A1E3F2B56 /* model_server.rs */,
 				1C50A7EDD221B636EEBB08D6 /* open_native.rs */,
 				45A2303A79ACA6D4A0395661 /* screenshot.rs */,
 				6F0505DCADFB50CE9EC70DF0 /* shortcuts.rs */,
@@ -370,6 +399,7 @@
 				05E509D99B03271C67DC6621 /* audio */,
 				B8BDFA2A80556D11828460E9 /* call_detection */,
 				239831D6CBC478C496F6FB2C /* hex */,
+				566A6D9DC750ACCC619BED07 /* image */,
 				0E9F2CB7CFD6C521796ADDD9 /* mcp */,
 				797EC8D10E7BE562DA94FE6E /* mcp_server */,
 				53659E5A336A83FC15E52C69 /* meeting_reminders */,
@@ -403,18 +433,18 @@
 			path = models;
 			sourceTree = "<group>";
 		};
-		"TEMP_7B2F7E4D-1548-4510-84A4-1D24D8C6CE51" /* arm64 */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = arm64;
-			sourceTree = "<group>";
-		};
-		"TEMP_9E19607C-123B-4724-B463-A05D09A31353" /* x86_64 */ = {
+		"TEMP_3ACF686E-1A35-4255-9E48-83B134A8D336" /* x86_64 */ = {
 			isa = PBXGroup;
 			children = (
 			);
 			path = x86_64;
+			sourceTree = "<group>";
+		};
+		"TEMP_5E5E10C5-E53F-4E81-8B88-FD3D2B846CB3" /* arm64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = arm64;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -435,6 +465,7 @@
 			);
 			name = Roci_iOS;
 			packageProductDependencies = (
+				614A6A9A83F36A9829E17129 /* RociMLX */,
 			);
 			productName = Roci_iOS;
 			productReference = 78701B8BCB209DA93DFE37C5 /* Roci_iOS.app */;
@@ -463,6 +494,9 @@
 			);
 			mainGroup = 0671F47CBFC2CA9938B0DB11;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				1C72A03D84F579B3C47921E2 /* XCLocalSwiftPackageReference "../../RociMLX" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C8388D3DD80AB7A9B2CBC1FB /* Products */;
 			projectDirPath = "";
@@ -729,6 +763,20 @@
 			defaultConfigurationName = debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		1C72A03D84F579B3C47921E2 /* XCLocalSwiftPackageReference "../../RociMLX" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../RociMLX;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		614A6A9A83F36A9829E17129 /* RociMLX */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RociMLX;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 19EBFF16C7428D36491AF874 /* Project object */;
 }

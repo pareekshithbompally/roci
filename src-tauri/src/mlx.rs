@@ -14,7 +14,8 @@ use crate::models::{blocking, store, LocalError};
 
 type EventFn = extern "C" fn(*mut c_void, *const c_char);
 
-#[link(name = "RociMLX", kind = "framework")]
+// macOS links the framework here; the iOS app links the RociMLX package in Xcode.
+#[cfg_attr(target_os = "macos", link(name = "RociMLX", kind = "framework"))]
 unsafe extern "C" {
     fn roci_mlx_chat(request: *const c_char, on_event: EventFn, context: *mut c_void) -> *mut c_char;
     fn roci_mlx_cancel(stream_id: u64);
@@ -120,6 +121,7 @@ pub fn unload(kind: Kind) {
 }
 
 /// Frees every MLX model (app quit).
+#[cfg(desktop)]
 pub fn unload_all() {
     unload(Kind::Chat);
     unload(Kind::Embedding);
