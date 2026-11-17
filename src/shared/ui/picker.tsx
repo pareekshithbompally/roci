@@ -2,7 +2,7 @@ import React from 'react';
 import { ChevronsUpDown } from 'lucide-react';
 import { cn } from './utils';
 import { useFormFactor } from '@platform/formFactor';
-import { POPUP_BUTTON, POPUP_VALUE } from './recipes';
+import { POPUP_BUTTON, POPUP_CHEVRON, POPUP_VALUE } from './recipes';
 
 export interface PickerOption {
   value: string;
@@ -40,7 +40,7 @@ export function Picker({ label, value, groups, onChange, placeholder, leading, d
     <span className={cn(phone ? POPUP_VALUE : POPUP_BUTTON, 'relative inline-flex min-w-0 max-w-full items-center gap-2', !chosen && 'text-faint')}>
       {chosen && leading}
       <span className="min-w-0 truncate">{chosen?.label ?? placeholder}</span>
-      <ChevronsUpDown aria-hidden className="h-3.5 w-3.5 shrink-0 text-muted" />
+      <ChevronsUpDown aria-hidden className={phone ? POPUP_CHEVRON.phone : POPUP_CHEVRON.mac} />
       <select
         aria-label={label}
         value={value ?? ''}

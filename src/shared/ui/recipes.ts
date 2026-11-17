@@ -46,12 +46,16 @@ export const FIELD =
   'w-full bg-base text-primary text-body placeholder:text-faint shadow-input rounded-md px-3 outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 disabled:cursor-not-allowed';
 
 /** Pop-up buttons — Select, DatePicker and TimePicker triggers: a soft tint, no outline, the same height as a field (control-md). */
+/** macOS 26 pop-up button in a settings row: the value in plain text, then a round ⌃⌄ chip (System Settings). */
 export const POPUP_BUTTON =
-  'h-control-md bg-control text-primary text-body rounded-md px-2.5 outline-none transition-colors hover:bg-control-hover data-[state=open]:bg-control-hover focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 disabled:cursor-not-allowed';
+  'bg-transparent text-primary text-body outline-none focus-within:ring-2 focus-within:ring-focus rounded-md disabled:opacity-50 disabled:cursor-not-allowed';
+
+/** The ⌃⌄ after a pop-up value: a round chip on macOS, a bare glyph on iOS. */
+export const POPUP_CHEVRON = { mac: 'h-5 w-5 shrink-0 rounded-full bg-control p-1 text-muted', phone: 'h-3.5 w-3.5 shrink-0 text-muted' } as const;
 
 /** iOS pop-up menu button in a list row: the value in secondary text with ⌃⌄, no box (UIKit `.menu` button). */
 export const POPUP_VALUE =
-  'h-control-md bg-transparent text-muted text-body outline-none data-[state=open]:opacity-60 disabled:opacity-50';
+  'bg-transparent text-muted text-body outline-none active:opacity-60 disabled:opacity-50';
 
 /** Content of a panel that already clears the notch and home bar: it sees no safe-area insets. */
 export const NO_INSETS = '[--safe-top:0px] [--safe-bottom:0px]';

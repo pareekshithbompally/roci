@@ -66,10 +66,11 @@ export function CardRow({ title, description, leading, leadingAlign = 'title', s
       {/* `title`: one title line tall (1lh of the title style), so the icon centres on the title, not the block. */}
       {leading && (leadingAlign === 'row'
         ? <div className="flex shrink-0 items-center">{leading}</div>
-        : <Text as="div" variant="body" className="flex h-[1lh] shrink-0 items-center self-start mt-3">{leading}</Text>)}
+        : <Text as="div" variant="body" className="flex h-[1lh] shrink-0 items-center self-start mt-2">{leading}</Text>)}
       <div
         className={cn(
-          'flex min-w-0 flex-1 gap-4 py-3 border-muted group-[:not(:first-child)]/row:border-t',
+          // Row height comes from min-h (44 macOS, 52 iOS); 8pt padding lets any control fit inside it, so rows line up.
+          'flex min-w-0 flex-1 gap-4 py-2 border-muted group-[:not(:first-child)]/row:border-t',
           stacked ? 'flex-col' : cn('justify-between', align === 'start' ? 'items-start' : 'items-center'),
           description ? 'min-h-15' : 'min-h-row',
         )}

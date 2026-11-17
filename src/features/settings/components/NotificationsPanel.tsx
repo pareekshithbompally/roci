@@ -3,7 +3,7 @@
 import React from 'react';
 import { LAYOUT } from '@config/layout.config';
 import { MEETING_LEAD_OPTIONS, NOTIFICATION_KINDS } from '@config/notifications.config';
-import { CardRow, Section, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Switch } from '@shared/ui';
+import { CardRow, Picker, Section, Switch } from '@shared/ui';
 import { PermissionAction } from '@shared/components';
 import { useNotificationControls } from '@features/notifications';
 import type { NotificationControls } from '@features/notifications';
@@ -26,20 +26,14 @@ const PermissionRow: React.FC<{ controls: NotificationControls }> = ({ controls 
 
 const LeadTimeSelect: React.FC<{ controls: NotificationControls }> = ({ controls }) => (
   <div className={LAYOUT.settingsSelect}>
-    <Select
+    <Picker
+      label="Meeting reminder lead time"
       value={String(controls.preferences.meetingLeadMinutes)}
-      onValueChange={(value) => controls.setMeetingLeadMinutes(Number(value))}
+      onChange={(value) => controls.setMeetingLeadMinutes(Number(value))}
       disabled={!controls.preferences.meetingReminders}
-    >
-      <SelectTrigger aria-label="Meeting reminder lead time">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {MEETING_LEAD_OPTIONS.map((option) => (
-          <SelectItem key={option.value} value={String(option.value)}>{option.label}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+      placeholder=""
+      groups={[{ options: MEETING_LEAD_OPTIONS.map((o) => ({ value: String(o.value), label: o.label })) }]}
+    />
   </div>
 );
 

@@ -1,7 +1,6 @@
 // The kit's public API: import from '@shared/ui' only; internal recipes are deliberately not exported.
 export * from './dialog';
 export * from './alert-dialog';
-export * from './select';
 export * from './popover';
 export { Slider } from './slider';
 export type { SliderProps } from './slider';

@@ -1,7 +1,7 @@
 /** macOS Reminders: action items ↔ a reminders list. */
 
 import React from 'react';
-import { CardRow, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui';
+import { CardRow, Picker } from '@shared/ui';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { useRemindersControls } from '@features/integrations/hooks/useRemindersControls';
 import { IntegrationRow } from './IntegrationRow';
@@ -24,16 +24,13 @@ export const RemindersIntegration: React.FC = () => {
         title="List"
         actions={
           <div className="w-44">
-            <Select value={reminders.listId} onValueChange={reminders.setListId}>
-              <SelectTrigger>
-                <SelectValue placeholder={COPY.defaultListTitle} />
-              </SelectTrigger>
-              <SelectContent>
-                {reminders.lists.map((list) => (
-                  <SelectItem key={list.id} value={list.id}>{list.title}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Picker
+              label="Reminders list"
+              value={reminders.listId}
+              onChange={reminders.setListId}
+              placeholder={COPY.defaultListTitle}
+              groups={[{ options: reminders.lists.map((list) => ({ value: list.id, label: list.title })) }]}
+            />
           </div>
         }
       />

@@ -13,7 +13,8 @@ export type ButtonSize = 'inline' | 'toolbar' | 'sm' | 'md' | 'icon' | 'iconSm' 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary: 'bg-inverse text-inverse hover:opacity-90',
   secondary: 'bg-layer-2 text-primary hover:bg-layer-3',
-  outline: 'bg-base text-primary shadow-input hover:bg-layer-1',
+  /** The system push button (macOS 26 / iOS 26): a filled control-grey capsule, no outline. */
+  outline: 'bg-control text-primary hover:bg-control-hover',
   danger: 'bg-danger text-on-accent hover:opacity-90',
   success: 'bg-success text-on-accent hover:opacity-90',
   accent: 'bg-accent text-on-accent hover:opacity-90',
@@ -31,8 +32,8 @@ const SIZE_CLASSES: Record<ButtonSize, string> = {
   inline: cn('text-callout gap-1', platform.hasTouchScreen && "relative after:absolute after:-inset-2 after:content-['']"),
   /** Dense control in a toolbar row (composer): tight padding, at least square (control-sm) so an icon alone fits */
   toolbar: 'h-control-sm min-w-control-sm px-1.5 text-callout rounded-md',
-  sm: 'h-control-sm px-3 text-callout rounded-md',
-  md: 'h-control-md px-4 text-body rounded-md',
+  sm: 'h-control-sm px-3 text-callout rounded-full',
+  md: 'h-control-md px-4 text-body rounded-full',
   icon: 'h-control-md w-control-md rounded-full',
   iconSm: 'h-control-sm w-control-sm rounded-full',
   /** Inline row actions (tray rows, list rows) */

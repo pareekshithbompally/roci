@@ -10,7 +10,7 @@ import { isTauriEnvironment, revealInFinder } from '@services/tauri';
 import { searchIndexingService } from '@services/searchIndexing.service';
 import { useSystemInfo, systemInfoStore, DISK_USAGE_LABELS } from '@features/settings/stores/systemInfoStore';
 import { SettingsPage } from './shared';
-import { Button, CardRow, ChoiceControl, Icon, Section, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Status, Switch, Text } from '@shared/ui';
+import { Button, CardRow, ChoiceControl, Icon, Picker, Section, Status, Switch, Text } from '@shared/ui';
 
 import { useAppUpdate } from '@features/settings/hooks/useAppUpdate';
 import { AcknowledgementsDialog } from './AcknowledgementsDialog';
@@ -25,11 +25,17 @@ import { platform } from '@platform/index';
 
 /** Recording sources offered in General › Capture, and what each needs from macOS. */
 const CAPTURE_SOURCES = ['systemAndMicrophone', 'system', 'microphone'] as const;
+/** Imported audio processed one at a time, or up to eight at once (one menu, as Apple would write it). */
+const IMPORT_CONCURRENCY = [
+  { value: '1', label: 'One at a time' },
+  ...Array.from({ length: 7 }, (_, i) => ({ value: String(i + 2), label: `${i + 2} at once` })),
+];
+
 /** Section footers: what each group's rows do. */
 const FOOTER = {
   toolActivity: 'Tool Activity shows the tools used in each answer.',
   modelIcons: 'Model icons load from huggingface.co.',
-  imports: 'Imported audio files are processed one at a time, or several at once.',
+  imports: 'How many imported audio files Roci processes at the same time.',
   afterRecording: 'Transcribe After Recording also writes the summary.',
   rebuild: 'Rebuild All wipes and re-indexes every meeting and chat.',
   setup: 'Run Setup Again walks through permissions and AI setup.',
@@ -186,6 +192,7 @@ export const GeneralPanel: React.FC = () => {
   ] as const;
   const themeTabs = themeOptions.map(({ value, icon, label }) => ({
     value,
+    text: label,
     label: (
       <span className="flex items-center gap-1.5">
         <Icon icon={icon} size="xs" />
@@ -238,51 +245,15 @@ export const GeneralPanel: React.FC = () => {
         <CardRow
           title="Audio Processing"
           actions={
-            <>
-              <div className={LAYOUT.settingsSelect}>
-                <Select
-                  value={settings.jobProcessing?.mode || 'sequential'}
-                  onValueChange={(val) => setSettings({
-                    jobProcessing: {
-                      mode: val as 'sequential' | 'parallel',
-                      maxConcurrent: settings.jobProcessing?.maxConcurrent ?? 2,
-                    },
-                  })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sequential">Sequential</SelectItem>
-                    <SelectItem value="parallel">Parallel</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {settings.jobProcessing?.mode === 'parallel' && (
-                <div className="w-28">
-                  <Select
-                    value={String(settings.jobProcessing?.maxConcurrent ?? 2)}
-                    onValueChange={(val) => setSettings({
-                      jobProcessing: {
-                        mode: 'parallel',
-                        maxConcurrent: Number(val),
-                      },
-                    })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 7 }, (_, i) => i + 2).map(n => (
-                        <SelectItem key={n} value={String(n)}>
-                          {n} concurrent
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </>
+            <Picker
+              label="Audio processing"
+              value={settings.jobProcessing?.mode === 'parallel' ? String(settings.jobProcessing.maxConcurrent ?? 2) : '1'}
+              onChange={(n) => setSettings({
+                jobProcessing: n === '1' ? { mode: 'sequential', maxConcurrent: 2 } : { mode: 'parallel', maxConcurrent: Number(n) },
+              })}
+              placeholder=""
+              groups={[{ options: IMPORT_CONCURRENCY }]}
+            />
           }
         />
       </Section>
@@ -293,16 +264,13 @@ export const GeneralPanel: React.FC = () => {
             title="Input Source"
             actions={
               <div className={LAYOUT.settingsSelect}>
-                <Select value={captureSource} onValueChange={(source) => setSettings({ defaultAudioSource: source as AudioCaptureSource })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CAPTURE_SOURCES.map((source) => (
-                      <SelectItem key={source} value={source}>{AUDIO_CONFIG.captureSources[source].label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Picker
+                  label="Input source"
+                  value={captureSource}
+                  onChange={(source) => setSettings({ defaultAudioSource: source as AudioCaptureSource })}
+                  placeholder=""
+                  groups={[{ options: CAPTURE_SOURCES.map((source) => ({ value: source, label: AUDIO_CONFIG.captureSources[source].label })) }]}
+                />
               </div>
             }
           />

@@ -11,7 +11,7 @@ import { CAPABILITIES_CONFIG } from '@config/capabilities.config';
 import { LAYOUT } from '@config/layout.config';
 import { READ_ALOUD_CONFIG, type ReadAloudEngine } from '@config/readAloud.config';
 import { JOB_GLYPH } from '@shared/components';
-import { CardRow, IconButton, IconTile, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui';
+import { CardRow, IconButton, IconTile, Picker } from '@shared/ui';
 
 const { sampleText } = READ_ALOUD_CONFIG;
 const SAMPLE_ICON: Record<ReadAloudState, typeof Play> = { idle: Play, preparing: Loader2, speaking: Square };
@@ -51,16 +51,13 @@ export const ReadAloudVoiceRow: React.FC<ReadAloudVoiceRowProps> = ({ engine, re
             onClick={sample.toggle}
           />
           <div className={LAYOUT.capabilityPicker}>
-            <Select value={settings.readAloudVoice ?? defaultVoice} onValueChange={choose}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {voices.map((voice) => (
-                  <SelectItem key={voice.id} value={voice.id} description={voice.detail ?? undefined}>{voice.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Picker
+              label="Voice"
+              value={settings.readAloudVoice ?? defaultVoice}
+              onChange={choose}
+              placeholder=""
+              groups={[{ options: voices.map((voice) => ({ value: voice.id, label: voice.detail ? `${voice.name} · ${voice.detail}` : voice.name })) }]}
+            />
           </div>
         </div>
       }

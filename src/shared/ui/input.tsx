@@ -7,11 +7,22 @@ import { Icon } from './icon';
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   /** Leading glyph (search, link…) */
   icon?: LucideIcon;
+  /** Buttons inside the field's end (show, copy): laid out beside the text, so the text never runs under them. */
+  trailing?: React.ReactNode;
   ref?: React.Ref<HTMLInputElement>;
 }
 
 /** Canonical single-line text field. */
-export function Input({ icon, className, ref, ...props }: InputProps) {
+export function Input({ icon, trailing, className, ref, ...props }: InputProps) {
+  if (trailing) {
+    // The field look moves to the frame; the input fills what the buttons leave.
+    return (
+      <div className={cn(FIELD, 'flex h-control-md items-center gap-1 pr-1 focus-within:ring-2 focus-within:ring-focus', className)}>
+        <input ref={ref} className="h-full min-w-0 flex-1 bg-transparent outline-none placeholder:text-faint" {...props} />
+        <div className="flex shrink-0 items-center">{trailing}</div>
+      </div>
+    );
+  }
   const field = <input ref={ref} className={cn(FIELD, 'h-control-md', icon && 'pl-8', className)} {...props} />;
   if (!icon) return field;
   return (

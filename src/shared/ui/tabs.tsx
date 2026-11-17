@@ -4,6 +4,8 @@ import { cn } from './utils';
 export interface TabItem<T extends string> {
   value: T;
   label: React.ReactNode;
+  /** The label as plain text where only text can show (the system menu on a phone); defaults to `label` when it is text. */
+  text?: string;
 }
 
 export interface TabsProps<T extends string> {

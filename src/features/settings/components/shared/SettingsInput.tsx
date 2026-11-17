@@ -41,19 +41,7 @@ export const SettingsInput = forwardRef<HTMLInputElement, SettingsInputProps>(
           {label}
         </Text>
       )}
-      <div className="relative">
-        <Input
-          ref={ref}
-          icon={icon}
-          className={`${actions ? 'pr-16' : ''} ${className ?? ''}`}
-          {...props}
-        />
-        {actions && (
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-            {actions}
-          </div>
-        )}
-      </div>
+      <Input ref={ref} icon={icon} trailing={actions} className={className} {...props} />
       {error && (
         <Text as="p" variant="helper" tone="danger">
           {error}

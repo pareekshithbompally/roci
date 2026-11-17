@@ -9,6 +9,7 @@ import { Search } from 'lucide-react';
 import { Icon } from './icon';
 import { LIST_COMMAND, SEARCH_FIELD } from './recipes';
 import { PushedScreen, useOptionalNavStack } from './nav-stack';
+import { BottomSheet } from './bottom-sheet';
 import { useFormFactor } from '@platform/formFactor';
 
 /** Shell never taller than the space Radix measured; the list shrinks with it. */
@@ -53,22 +54,27 @@ export function CommandPopover({
 }: CommandPopoverProps) {
   const stack = useOptionalNavStack();
   const phone = useFormFactor() === 'phone';
-  if (phone && stack) {
+  if (phone) {
+    // iOS: a search field over an inset grouped list — a pushed screen inside a sheet's stack, else its own sheet.
+    const body = (
+      <Command className="min-h-0 gap-3 rounded-none px-4 pb-4 pt-2">
+        <div className={SEARCH_FIELD}>
+          <Icon icon={Search} size="sm" />
+          <CommandInput placeholder={searchPlaceholder} value={search} onValueChange={onSearchChange} className="border-b-0 px-0 py-0" />
+        </div>
+        <CommandList className={cn('min-h-0 max-h-none overflow-y-auto p-0', LIST_COMMAND)}>
+          <CommandEmpty>{emptyText}</CommandEmpty>
+          {children}
+        </CommandList>
+      </Command>
+    );
+    const sheetTitle = title ?? searchPlaceholder;
     return (
       <>
         {React.cloneElement(trigger, { onClick: () => onOpenChange(true) })}
-        <PushedScreen open={open} title={title ?? searchPlaceholder} onClose={() => onOpenChange(false)}>
-          <Command className="gap-3 rounded-none px-4 pb-4">
-            <div className={SEARCH_FIELD}>
-              <Icon icon={Search} size="sm" />
-              <CommandInput placeholder={searchPlaceholder} value={search} onValueChange={onSearchChange} className="border-b-0 px-0 py-0" />
-            </div>
-            <CommandList className={cn('max-h-none overflow-visible p-0', LIST_COMMAND)}>
-              <CommandEmpty>{emptyText}</CommandEmpty>
-              {children}
-            </CommandList>
-          </Command>
-        </PushedScreen>
+        {stack
+          ? <PushedScreen open={open} title={sheetTitle} onClose={() => onOpenChange(false)}>{body}</PushedScreen>
+          : <BottomSheet open={open} onOpenChange={onOpenChange} title={sheetTitle}>{body}</BottomSheet>}
       </>
     );
   }

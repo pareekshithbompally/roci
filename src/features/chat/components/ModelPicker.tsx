@@ -58,7 +58,8 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
     <CommandPopover
       open={open}
       onOpenChange={setOpen}
-      searchPlaceholder="Search models..."
+      title="Model"
+      searchPlaceholder="Search models…"
       emptyText="No models found"
       trigger={
         <Button
