@@ -57,7 +57,6 @@ export const ProviderDetail: React.FC<ProviderDetailProps> = ({ provider }) => {
           title={title}
           actions={
             <Switch
-              size="sm"
               checked={provider.active}
               onCheckedChange={(active) => updateProvider(id, { active })}
               aria-label={`Enable ${title}`}

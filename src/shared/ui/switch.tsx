@@ -6,8 +6,6 @@ export interface SwitchProps {
   checked?: boolean;
   onCheckedChange?: (checked: boolean) => void;
   disabled?: boolean;
-  /** Kept for callers; the system decides the size. */
-  size?: 'sm' | 'md';
   id?: string;
   className?: string;
   'aria-label'?: string;

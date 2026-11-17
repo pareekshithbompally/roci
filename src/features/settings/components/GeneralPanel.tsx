@@ -218,7 +218,6 @@ export const GeneralPanel: React.FC = () => {
             title="Model Icons"
             actions={
               <Switch
-                size="sm"
                 checked={!!settings.showModelAvatars}
                 onCheckedChange={(checked) => setSettings({ showModelAvatars: checked })}
                 aria-label="Show model icons"
@@ -231,7 +230,6 @@ export const GeneralPanel: React.FC = () => {
           title="Tool Activity"
           actions={
             <Switch
-              size="sm"
               checked={!settings.hideToolCalls}
               onCheckedChange={(checked) => setSettings({ hideToolCalls: !checked })}
               aria-label="Show tool activity"
@@ -286,7 +284,6 @@ export const GeneralPanel: React.FC = () => {
             title="Real-time Transcription"
             actions={
               <Switch
-                size="sm"
                 checked={!!settings.liveTranscription}
                 onCheckedChange={(checked) => setSettings({ liveTranscription: checked })}
                 aria-label="Real-time transcription"
@@ -297,7 +294,6 @@ export const GeneralPanel: React.FC = () => {
             title="Transcribe After Recording"
             actions={
               <Switch
-                size="sm"
                 checked={!!settings.autoTranscribe}
                 onCheckedChange={(checked) => setSettings({ autoTranscribe: checked })}
                 aria-label="Transcribe after recording"

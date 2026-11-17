@@ -83,7 +83,7 @@ export const McpServerCard: React.FC<McpServerCardProps> = ({
         <>
           <IconButton icon={Pencil} label="Edit server" size="sm" onClick={onEdit} disabled={disabled} />
           <IconButton icon={Trash2} label="Delete server" size="sm" variant="dangerGhost" onClick={onDelete} disabled={disabled} />
-          <Switch size="sm" checked={!!config.active} onCheckedChange={onToggle} disabled={disabled} aria-label={`Enable ${name}`} />
+          <Switch checked={!!config.active} onCheckedChange={onToggle} disabled={disabled} aria-label={`Enable ${name}`} />
         </>
       }
     />

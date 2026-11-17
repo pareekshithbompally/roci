@@ -30,7 +30,7 @@ const LeadTimeSelect: React.FC<{ controls: NotificationControls }> = ({ controls
       label="Meeting reminder lead time"
       value={String(controls.preferences.meetingLeadMinutes)}
       onChange={(value) => controls.setMeetingLeadMinutes(Number(value))}
-      disabled={!controls.preferences.meetingReminders}
+      disabled={!controls.preferences.meetingReminders || controls.access === 'needs-settings'}
       placeholder=""
       groups={[{ options: MEETING_LEAD_OPTIONS.map((o) => ({ value: String(o.value), label: o.label })) }]}
     />
@@ -55,8 +55,8 @@ export const NotificationsPanel: React.FC = () => {
               <>
                 {kind === 'meetingReminders' && <LeadTimeSelect controls={controls} />}
                 <Switch
-                  size="sm"
                   checked={controls.preferences[kind]}
+                  disabled={controls.access === 'needs-settings'}
                   onCheckedChange={(on) => controls.setEnabled(kind, on)}
                   aria-label={label}
                 />

@@ -62,7 +62,6 @@ const AgentRow: React.FC<AgentRowProps> = ({ agent, pending, setRegistered }) =>
       )}
       actions={
         <Switch
-          size="sm"
           checked={agent.registration !== 'none'}
           disabled={blocked || pending}
           onCheckedChange={setRegistered}

@@ -32,7 +32,6 @@ export const IntegrationRow: React.FC<IntegrationRowProps> = ({
         title={title}
         actions={
           <Switch
-            size="sm"
             checked={enabled}
             disabled={access === 'unknown' || access === 'unavailable'}
             onCheckedChange={setEnabled}

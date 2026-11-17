@@ -17,7 +17,7 @@ const GroupRow: React.FC<{ group: CatalogGroup; icon?: LucideIcon; onChange: (on
   <CardRow
     title={group.label}
     leading={icon ? leading(icon) : <ServerIcon name={group.label} icon={group.icon} />}
-    actions={<Switch size="sm" checked={group.enabledCount > 0} onCheckedChange={onChange} aria-label={group.label} />}
+    actions={<Switch checked={group.enabledCount > 0} onCheckedChange={onChange} aria-label={group.label} />}
   />
 );
 
@@ -57,14 +57,14 @@ export const ChatToolRows: React.FC<ChatToolRowsProps> = ({ onChooseImageModel, 
         title="Web search"
         description={webSearch.available ? `via ${webSearch.providerLabel}` : 'Not available for this model'}
         leading={leading(Globe)}
-        actions={<Switch size="sm" checked={webSearch.enabled} disabled={!webSearch.available} onCheckedChange={webSearch.toggle} aria-label="Web search" />}
+        actions={<Switch checked={webSearch.enabled} disabled={!webSearch.available} onCheckedChange={webSearch.toggle} aria-label="Web search" />}
       />
       {modelSupportsTools && (imageGeneration.available ? (
         <CardRow
           title="Image generation"
           description={`via ${imageGeneration.modelLabel}`}
           leading={leading(ImageIcon)}
-          actions={<Switch size="sm" checked={imageGeneration.enabled} onCheckedChange={imageGeneration.toggle} aria-label="Image generation" />}
+          actions={<Switch checked={imageGeneration.enabled} onCheckedChange={imageGeneration.toggle} aria-label="Image generation" />}
         />
       ) : (
         <CardRow title="Image generation" description="Choose an image model" leading={leading(ImageIcon)} onOpen={onChooseImageModel} />

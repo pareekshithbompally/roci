@@ -56,7 +56,6 @@ export const McpRuntimeCard: React.FC<McpRuntimeCardProps> = ({ settings, disabl
       title="Run tools without asking"
       actions={
         <Switch
-          size="sm"
           checked={settings.allowAllTools}
           onCheckedChange={(allowAllTools) => onChange({ allowAllTools })}
           disabled={disabled}
