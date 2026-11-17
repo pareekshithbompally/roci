@@ -4,8 +4,6 @@
     "resources": {
       "icons/iconTemplate.png": "icons/iconTemplate.png",
       "icons/iconTemplate@2x.png": "icons/iconTemplate@2x.png",
-      "icons/iconRecordingTemplate.png": "icons/iconRecordingTemplate.png",
-      "icons/iconRecordingTemplate@2x.png": "icons/iconRecordingTemplate@2x.png",
       "icons/agents/claude-code.png": "icons/agents/claude-code.png",
       "icons/agents/opencode.png": "icons/agents/opencode.png",
       "frameworks/mlx-swift_Cmlx.bundle": "mlx-swift_Cmlx.bundle",

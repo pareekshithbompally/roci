@@ -52,7 +52,7 @@ struct MenuState: Decodable {
     let visible: Bool
     let tooltip: String
     let icon: String
-    let iconTemplate: Bool
+    let recording: Bool
     let sections: [[MenuRow]]
 }
 
@@ -61,6 +61,9 @@ enum MenuMetrics {
     static let statusIconHeight: CGFloat = 18
     static let dotSize: CGFloat = 8
     static let iconSize: CGFloat = 16
+    /// The recording dot's size against the status icon's height, and the clear ring around it.
+    static let recordingDotRatio: CGFloat = 0.34
+    static let recordingDotGap: CGFloat = 1.5
     /// Space between a row's dot or icon and its label.
     static let imageGap: CGFloat = 6
 }
@@ -79,6 +82,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let menu = StatusMenu.makeMenu()
     private let callback: ActionCallback
     private var iconPath = ""
+    private var iconRecording = false
     /// Row images (dots by level, icons by path), made once.
     private var images: [String: NSImage] = [:]
 
@@ -104,7 +108,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         sync(menu, state.sections)
         item.isVisible = state.visible
         item.button?.toolTip = state.tooltip
-        setIcon(state.icon, template: state.iconTemplate)
+        setIcon(state.icon, recording: state.recording)
     }
 
     @objc private func pick(_ sender: NSMenuItem) {
@@ -210,14 +214,39 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         return image
     }
 
-    /// The status item image, 18 pt tall with its aspect kept; reloaded only when the file changes.
-    private func setIcon(_ path: String, template: Bool) {
-        guard path != iconPath, let image = NSImage(contentsOfFile: path), image.size.height > 0 else { return }
+    /// The status item image, 18 pt tall with its aspect kept: the template, or while recording the same mark with a red
+    /// dot at its lower right; rebuilt only when the file or the recording state changes.
+    private func setIcon(_ path: String, recording: Bool) {
+        guard path != iconPath || recording != iconRecording,
+              let image = NSImage(contentsOfFile: path), image.size.height > 0 else { return }
         iconPath = path
+        iconRecording = recording
         let height = MenuMetrics.statusIconHeight
         image.size = NSSize(width: image.size.width * height / image.size.height, height: height)
-        image.isTemplate = template
-        item.button?.image = image
+        image.isTemplate = true
+        item.button?.image = recording ? Self.withRecordingDot(image) : image
+    }
+
+    /// The template drawn in the menu bar's own text colour (resolved at draw time, so light and dark bars both work),
+    /// with a red dot cut clear of it at the lower right.
+    private static func withRecordingDot(_ template: NSImage) -> NSImage {
+        let size = template.size
+        let image = NSImage(size: size, flipped: false) { rect in
+            template.draw(in: rect)
+            NSColor.labelColor.setFill()
+            rect.fill(using: .sourceAtop)
+            let diameter = (size.height * MenuMetrics.recordingDotRatio).rounded()
+            let dot = NSRect(x: rect.maxX - diameter, y: rect.minY, width: diameter, height: diameter)
+            let context = NSGraphicsContext.current
+            context?.compositingOperation = .clear
+            NSBezierPath(ovalIn: dot.insetBy(dx: -MenuMetrics.recordingDotGap, dy: -MenuMetrics.recordingDotGap)).fill()
+            context?.compositingOperation = .sourceOver
+            NSColor.systemRed.setFill()
+            NSBezierPath(ovalIn: dot).fill()
+            return true
+        }
+        image.isTemplate = false
+        return image
     }
 }
 

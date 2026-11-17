@@ -49,7 +49,6 @@ const DEFAULT_TOOLTIP: &str = env!("APP_NAME");
 
 /// Bundled images (see `tauri.conf.json > bundle.resources`); the status menu draws the status item image 18 pt tall.
 const IDLE_ICON_RESOURCE: &str = "icons/iconTemplate@2x.png";
-const RECORDING_ICON_RESOURCE: &str = "icons/iconRecordingTemplate@2x.png";
 
 /// Agents Roci knows, by the MCP client name each announces (read from their own builds): their name and icon.
 const KNOWN_AGENTS: [(&str, &str, &str); 2] = [
@@ -168,7 +167,6 @@ impl Default for StateData {
 #[derive(Default)]
 struct Images {
     idle: String,
-    recording: String,
     /// Agents' icons by announced client name.
     agents: HashMap<String, String>,
 }
@@ -188,9 +186,10 @@ pub struct MenubarShared {
 struct MenuState<'a> {
     visible: bool,
     tooltip: &'a str,
+    /// The app's template image (macOS tints it to the menu bar).
     icon: &'a str,
-    /// The idle image is a template (macOS tints it); the recording image carries its own red.
-    icon_template: bool,
+    /// Recording: the icon gains a red dot, as macOS recorders show it.
+    recording: bool,
     sections: Vec<Vec<MenuRow>>,
 }
 
@@ -227,8 +226,8 @@ impl MenubarShared {
         let menu_state = MenuState {
             visible: icon_shown(state.hide_icon, recording),
             tooltip: &state.tooltip,
-            icon: if recording { &self.images.recording } else { &self.images.idle },
-            icon_template: !recording,
+            icon: &self.images.idle,
+            recording,
             sections: menu_sections(&snapshot),
         };
         serde_json::to_string(&menu_state).map_err(|e| format!("menu state: {e}"))
@@ -332,7 +331,6 @@ fn resource_path(app: &AppHandle, resource: &str) -> String {
 fn resolve_images(app: &AppHandle) -> Images {
     Images {
         idle: resource_path(app, IDLE_ICON_RESOURCE),
-        recording: resource_path(app, RECORDING_ICON_RESOURCE),
         agents: KNOWN_AGENTS
             .iter()
             .map(|(name, _, resource)| (name.to_string(), resource_path(app, resource)))
