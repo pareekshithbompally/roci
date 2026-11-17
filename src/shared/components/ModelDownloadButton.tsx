@@ -1,7 +1,7 @@
-/** On-device model row controls: a Ready status and one fixed-width Download / progress / Delete action. */
+/** On-device model row controls: a Ready status and one fixed-width action — Download, then ■ 26% (tap cancels), then Delete. */
 
 import React from 'react';
-import { Download, Trash2 } from 'lucide-react';
+import { Download, Square, Trash2 } from 'lucide-react';
 import { LAYOUT } from '@config/layout.config';
 import { Button, Icon, Status, cn } from '@shared/ui';
 import type { OnDeviceModel } from '@shared/utils/onDeviceModel';
@@ -26,11 +26,19 @@ export const ModelDownloadButton: React.FC<ModelDownloadButtonProps> = ({ model,
     );
   }
 
-  const busy = model.status === 'busy';
+  if (model.status === 'busy') {
+    // App Store style: the download's own button stops it.
+    return (
+      <Button variant="outline" size="sm" onClick={model.cancel} aria-label="Cancel download" className={cn(LAYOUT.modelAction, 'shrink-0 tabular-nums')}>
+        <Icon icon={Square} size="xs" className="fill-current" />
+        {model.percent != null ? `${model.percent}%` : 'Preparing…'}
+      </Button>
+    );
+  }
   return (
-    <Button variant="outline" size="sm" loading={busy} onClick={model.download} className={cn(LAYOUT.modelAction, 'shrink-0 tabular-nums')}>
-      {!busy && <Icon icon={Download} size="xs" />}
-      {busy ? (model.percent != null ? `${model.percent}%` : 'Preparing…') : 'Download'}
+    <Button variant="outline" size="sm" onClick={model.download} className={cn(LAYOUT.modelAction, 'shrink-0')}>
+      <Icon icon={Download} size="xs" />
+      Download
     </Button>
   );
 };

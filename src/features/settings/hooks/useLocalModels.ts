@@ -78,7 +78,13 @@ function useRemoveLocalModel() {
 function controlOf(model: LocalModel, activity: ActivityItem | undefined, remove: (id: string) => void): OnDeviceModel {
   const busy = model.downloading || !!activity;
   const status = model.installed ? 'ready' : busy ? 'busy' : 'idle';
-  return { status, percent: busy ? (activity?.percent ?? null) : null, download: () => startDownload(model.id), remove: () => remove(model.id) };
+  return {
+    status,
+    percent: busy ? (activity?.percent ?? null) : null,
+    download: () => startDownload(model.id),
+    cancel: () => void cancelLocalModelDownload(model.id).catch(report('cancel')),
+    remove: () => remove(model.id),
+  };
 }
 
 /** Every local model's control, by id. */

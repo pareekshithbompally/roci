@@ -9,6 +9,8 @@ export interface OnDeviceModel {
   /** 0–100 once the download reports progress; null before that and while verifying. */
   percent: number | null;
   download: () => void;
+  /** Stops the download in progress (its partial file is kept, so Download resumes). */
+  cancel: () => void;
   /** Asks first, then removes the model's files. */
   remove: () => void;
 }
