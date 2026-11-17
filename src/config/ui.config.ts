@@ -8,9 +8,6 @@ export const UI_CONFIG = {
       min: 200,
       max: 400,
     },
-    sidebarBreakpoint: 1024, // lg breakpoint in pixels
-    maxContentWidth: '95%', // Stretch close to edges but not sticking
-    maxContentWidthPx: '1800px', // Maximum pixel width cap
     /** Titlebar safe area; dragOffset + dragHeight === safeArea, leaving 4px for the native resize edge. */
     titlebar: {
       safeArea: 40,
@@ -125,10 +122,6 @@ export const UI_CONFIG = {
       medium: '2.5rem',
       large: '3rem',
     },
-    visualizer: {
-      containerHeight: '240px',
-      minHeight: '180px',
-    },
   },
 
 
@@ -142,14 +135,13 @@ export const UI_CONFIG = {
     maxVisibleRows: 5,
     rowHeight: 44, // approximate px per row for max-height calc
     autoRemoveDelay: 3000, // ms before completed items auto-dismiss
+    /** ms a finished batch (e.g. chat to-do proposals) stays visible before it clears. */
+    settleDelay: 2000,
   },
 
   // Content constraints
   content: {
-    maxLineLength: '80ch', // Optimal reading width
     snippetLength: 80,
-    contextBefore: 20,
-    contextAfter: 60,
   },
 
 

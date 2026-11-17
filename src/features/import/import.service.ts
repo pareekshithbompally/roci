@@ -1,6 +1,7 @@
 /** Non-React singleton for imports: dialog → read → create the meeting → hand it to the meeting pipeline. */
 
 import type { AppSettings } from '@shared/types';
+import { UI_CONFIG } from '@config/ui.config';
 import { dialogService } from '@services/tauri/dialog.service';
 import { fileSystemService } from '@services/tauri/fileSystem.service';
 import { store } from '@services/db';
@@ -13,7 +14,6 @@ import { parseSubtitleFile } from './parsers/subtitle-parser';
 import { JobQueue } from './job-queue';
 import type { ImportJob, JobStatus } from './types';
 
-const AUTO_REMOVE_DELAY = 3000;
 
 /** A file name without its extension, as the meeting's first title. */
 const titleOf = (fileName: string): string => fileName.replace(/\.[^.]+$/, '');
@@ -205,7 +205,7 @@ class ImportService {
         break;
       case 'complete':
         activityStore.update(jobId, { status: 'complete', detail: 'Done' });
-        setTimeout(() => activityStore.remove(jobId), AUTO_REMOVE_DELAY);
+        setTimeout(() => activityStore.remove(jobId), UI_CONFIG.activityTray.autoRemoveDelay);
         this.jobs.delete(jobId);
         break;
       case 'error':
@@ -214,7 +214,7 @@ class ImportService {
         break;
       case 'cancelled':
         activityStore.update(jobId, { status: 'cancelled', detail: 'Cancelled' });
-        setTimeout(() => activityStore.remove(jobId), AUTO_REMOVE_DELAY);
+        setTimeout(() => activityStore.remove(jobId), UI_CONFIG.activityTray.autoRemoveDelay);
         this.jobs.delete(jobId);
         break;
     }

@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from 'react';
 import { store } from '@services/db';
+import { UI_CONFIG } from '@config/ui.config';
 import { reminderService } from '@services/reminder.service';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
@@ -108,7 +109,7 @@ export const todoProposalStore = {
         proposals = [];
         emitChange();
       }
-    }, 2000);
+    }, UI_CONFIG.activityTray.settleDelay);
 
     return allOk;
   },
