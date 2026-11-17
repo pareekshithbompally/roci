@@ -3,10 +3,14 @@
 import React, { memo, useMemo, useDeferredValue } from 'react';
 import { defaultRehypePlugins, Streamdown } from 'streamdown';
 import { code } from '@streamdown/code';
+import { createMathPlugin } from '@streamdown/math';
+import 'katex/dist/katex.min.css';
 import remarkGfm from 'remark-gfm';
 import { rehypeCitationMarkers } from '@shared/utils/inlineCitationInjector';
+import { normalizeMath } from '@shared/utils/mathMarkup';
 import { InlineCitationMarker } from './InlineCitationMarker';
 import { MarkdownTable } from './MarkdownTable';
+import { MarkdownLink } from './MarkdownLink';
 import type { WebCitation } from '@shared/types';
 
 interface MarkdownProps {
@@ -21,11 +25,14 @@ interface MarkdownProps {
 
 // Stable module-level plugin refs so Streamdown does not remount CodeBlocks on every streaming render.
 const REMARK_PLUGINS = [remarkGfm];
-const STREAMDOWN_PLUGINS = { code };
+/** Code blocks, and math (KaTeX) in `$$…$$`; normalizeMath turns the other ways models write math into it. */
+const STREAMDOWN_PLUGINS = { code, math: createMathPlugin({ errorColor: 'var(--text-muted)' }) };
 const REHYPE_PLUGINS_DEFAULT = [defaultRehypePlugins.harden];
 const REHYPE_PLUGINS_CITATIONS = [defaultRehypePlugins.harden, rehypeCitationMarkers];
-/** Tables render through the kit (Streamdown's own table chrome isn't themeable here). */
-const BASE_COMPONENTS = { table: MarkdownTable };
+/** Tables render through the kit (Streamdown's own table chrome isn't themeable here); links open through the app's opener. */
+const BASE_COMPONENTS = { table: MarkdownTable, a: MarkdownLink };
+/** No Streamdown link dialog: a link opens in the browser, as in native apps. */
+const LINK_SAFETY = { enabled: false };
 
 const MarkdownInner: React.FC<MarkdownProps> = ({
   content,
@@ -35,7 +42,7 @@ const MarkdownInner: React.FC<MarkdownProps> = ({
 }) => {
   // While streaming, render the deferred value so token bursts coalesce into one re-parse.
   const deferredContent = useDeferredValue(content);
-  const effectiveContent = streaming ? deferredContent : content;
+  const effectiveContent = normalizeMath(streaming ? deferredContent : content);
 
   if (!content) return null;
 
@@ -71,6 +78,7 @@ const MarkdownInner: React.FC<MarkdownProps> = ({
         rehypePlugins={rehypePlugins}
         components={components}
         plugins={STREAMDOWN_PLUGINS}
+        linkSafety={LINK_SAFETY}
       >
         {effectiveContent}
       </Streamdown>
