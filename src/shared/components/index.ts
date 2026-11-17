@@ -14,6 +14,7 @@ export { OnDeviceModelActivity } from './OnDeviceModelActivity';
 export { ProvidersAvatar } from './ProvidersAvatar';
 export { ProviderFan } from './ProviderFan';
 export { GlyphTile } from './GlyphTile';
+export { JOB_GLYPH } from './jobGlyphs';
 export { RenameModal } from './RenameModal';
 export { ServerIcon } from './ServerIcon';
 export { Markdown } from './markdown/Markdown';

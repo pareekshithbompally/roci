@@ -1,3 +1,5 @@
+import type { UsageQuery } from '@extensions/usage';
+
 /** Integrations whose macOS access is checked (Settings › Integrations), again on returning to Roci. */
 export type AccessId = 'calendar' | 'reminders' | 'apple-notes' | 'notifications';
 
@@ -47,8 +49,10 @@ export const queryKeys = {
   modelCatalog: () => ['model-catalog'] as const,
   /** A remote image (model avatar, MCP server icon) as a cached `data:` source, by URL */
   cachedImage: (url: string) => ['cached-image', url] as const,
-  /** Token usage summary for a time range (Settings → Usage) */
-  usage: (range: string) => ['usage', range] as const,
+  /** Usage summed for one query: window, filters and buckets (Settings → Usage and its detail pages) */
+  usage: (query: UsageQuery) => ['usage', query] as const,
+  /** Every usage query (a logged request changes them all) */
+  usageAll: () => ['usage'] as const,
 
   // ── Unified store (single `roci.db`) ──
   /** Store health / meta */

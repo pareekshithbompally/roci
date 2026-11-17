@@ -41,6 +41,20 @@ export const UI_CONFIG = {
   glyphTile: { tile: 34, glyph: 24 },
   /** A settings icon tile (System Settings / iOS Settings): edge and corner in px, larger on touch screens. */
   iconTile: { tile: 20, radius: 5, touch: { tile: 29, radius: 7 } },
+  /** Bar chart (usage trends): plot height (taller on touch), bar cap and gap, data-end radius, axis gutters, label density, dimmed bars. */
+  chart: {
+    height: 180,
+    touch: { height: 200 },
+    barMax: 24,
+    barGap: 2,
+    barRadius: 4,
+    axisWidth: 44,
+    axisGap: 6,
+    xAxisHeight: 20,
+    xLabels: 5,
+    tickIntervals: 2,
+    dimOpacity: 0.45,
+  },
   /** A macOS app icon's visible body inside its canvas (824 of 1024): app icons scale up by its inverse to match a tile. */
   appIconBody: 824 / 1024,
   /** Provider logos fanned like cards: each tile slides out and tilts about its base, middle on top, every logo in view. */

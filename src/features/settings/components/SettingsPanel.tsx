@@ -9,7 +9,7 @@ import { ProvidersPanel } from './ProvidersPanel';
 import { ProvidersPanelErrorBoundary } from './ProvidersPanelErrorBoundary';
 import { GeneralPanel } from './GeneralPanel';
 import { CapabilitiesPanel } from './CapabilitiesPanel';
-import { UsagePanel } from './UsagePanel';
+import { UsagePanel } from '@features/usage';
 import { IntegrationsPanel } from './IntegrationsPanel';
 import { NotificationsPanel } from './NotificationsPanel';
 import { McpServersPanel } from './mcp';

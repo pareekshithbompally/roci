@@ -3,8 +3,10 @@
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from '@services/tauri';
 import type { TokenUsage } from '@services/ai/types';
+import { queryClient } from '@shared/query/queryClient';
+import { queryKeys } from '@shared/query/queryKeys';
 import { estimateCost } from './pricing';
-import type { UsageRecord, UsageCategory, UsageSummary } from './types';
+import type { UsageRecord, UsageCategory, UsageQuery, UsageSummary } from './types';
 
 /** Ensure the store plugin is initialized before any usage operation. */
 let initPromise: Promise<void> | null = null;
@@ -48,6 +50,8 @@ export async function logUsage(params: {
   try {
     await ensureInitialized();
     await invoke('plugin:store|insert_usage', { record });
+    // Open usage pages update to include this request; until one is logged their data stays current.
+    await queryClient.invalidateQueries({ queryKey: queryKeys.usageAll() });
   } catch (error) {
     console.error('[UsageClient] insert_usage failed:', error, '| record:', JSON.stringify({ category: record.category, provider: record.provider, model: record.model }));
   }
@@ -65,8 +69,8 @@ export function recordUsage(category: UsageCategory, source: UsageSource, usage:
     .catch((error: unknown) => console.error(`[Usage] ${category}:`, error));
 }
 
-/** Aggregated usage since `since` (epoch ms), or for all time when undefined. */
-export async function getUsageSummary(since?: number): Promise<UsageSummary> {
+/** Usage summed over a query's window and filters, with per-bucket totals when it asks for them. */
+export async function getUsageSummary(query: UsageQuery): Promise<UsageSummary> {
   if (!isTauriEnvironment()) {
     return {
       total_cost: 0,
@@ -74,15 +78,15 @@ export async function getUsageSummary(since?: number): Promise<UsageSummary> {
       total_output_tokens: 0,
       total_cache_read_tokens: 0,
       total_calls: 0,
+      first_timestamp: null,
       by_provider_model: [],
       by_category: [],
+      trend: [],
     };
   }
 
   await ensureInitialized();
-  return invoke<UsageSummary>('plugin:store|get_usage_summary', {
-    since: since ?? null,
-  });
+  return invoke<UsageSummary>('plugin:store|get_usage_summary', { query });
 }
 
 /** One AI call made for a meeting (Rust `MeetingUsageRow`), newest first. */

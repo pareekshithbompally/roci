@@ -1,6 +1,8 @@
 /** Maps role names to the CSS variables in src/styles/tokens.css: roles('bg', ['base']) → { base: 'var(--bg-base)' } */
 const roles = (prefix, names) => Object.fromEntries(names.map((n) => [n, `var(--${prefix}-${n})`]));
 const STATES = ['danger', 'warning', 'success', 'info'];
+/** Mineral tile hues (tokens `--bg-tile-*`): icon tiles and chart bars. */
+const TILE_HUES = ['graphite', 'plum', 'slate', 'clay', 'sage', 'teal', 'rose', 'ochre', 'copper'];
 const stateRoles = (part, suffix = '') =>
   Object.fromEntries(STATES.map((s) => [`${s}${suffix}`, `var(--${s}-${part})`]));
 
@@ -45,7 +47,7 @@ export default {
           'hover', 'pressed', 'control', 'control-hover', 'scrim', 'base-glass', 'deep-glass', 'raised-glass', 'glow-core', 'glow-companion', 'glow-wash']),
         ...stateRoles('bg', '-subtle'),
         ...stateRoles('solid'),
-        ...roles('bg', ['tile-graphite', 'tile-plum', 'tile-slate', 'tile-clay', 'tile-sage', 'tile-teal', 'tile-rose', 'tile-ochre', 'tile-copper']),
+        ...roles('bg', TILE_HUES.map((n) => `tile-${n}`)),
         separator: 'var(--border-muted)',
         ai: 'var(--ai-accent)',
       },

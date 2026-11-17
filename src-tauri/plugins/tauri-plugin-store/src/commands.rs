@@ -471,8 +471,42 @@ pub struct UsageSummary {
     pub total_output_tokens: i64,
     pub total_cache_read_tokens: i64,
     pub total_calls: i64,
+    /// Earliest record in the window (epoch ms); none when the window is empty.
+    pub first_timestamp: Option<i64>,
     pub by_provider_model: Vec<ProviderModelBreakdown>,
     pub by_category: Vec<CategoryBreakdown>,
+    /// Totals per local day or month, oldest first; only buckets with records, empty unless `bucket` was asked for.
+    pub trend: Vec<UsageBucket>,
+}
+
+/// Calendar bucket for a usage trend, in the machine's local time zone.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum UsageBucketSize {
+    Day,
+    Month,
+}
+
+/// Which usage rows to sum: a time window `[since, until)` and optional provider / model / category.
+#[derive(Debug, Default, Deserialize)]
+pub struct UsageQuery {
+    pub since: Option<i64>,
+    pub until: Option<i64>,
+    pub provider: Option<String>,
+    pub model: Option<String>,
+    pub category: Option<String>,
+    pub bucket: Option<UsageBucketSize>,
+}
+
+/// One trend bucket: `key` is the local date (`YYYY-MM-DD`) or month (`YYYY-MM`).
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UsageBucket {
+    pub key: String,
+    pub calls: i64,
+    pub input_tokens: i64,
+    pub output_tokens: i64,
+    pub cache_read_tokens: i64,
+    pub estimated_cost: f64,
 }
 
 // ── Helpers ──
@@ -2701,80 +2735,124 @@ pub async fn get_meeting_usage(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
+/// The window and filters every usage query shares; parameters ?1–?5 in `usage_params` order.
+const USAGE_WHERE: &str = "timestamp >= ?1 AND timestamp < ?2
+     AND (?3 IS NULL OR provider = ?3) AND (?4 IS NULL OR model = ?4) AND (?5 IS NULL OR category = ?5)";
+
+fn usage_params(q: &UsageQuery) -> (i64, i64, Option<&str>, Option<&str>, Option<&str>) {
+    (
+        q.since.unwrap_or(0),
+        q.until.unwrap_or(i64::MAX),
+        q.provider.as_deref(),
+        q.model.as_deref(),
+        q.category.as_deref(),
+    )
+}
+
+fn usage_trend(db: &Connection, q: &UsageQuery) -> Result<Vec<UsageBucket>, StoreError> {
+    let Some(bucket) = q.bucket else { return Ok(Vec::new()) };
+    let key = match bucket {
+        UsageBucketSize::Day => "date(timestamp / 1000, 'unixepoch', 'localtime')",
+        UsageBucketSize::Month => "strftime('%Y-%m', timestamp / 1000, 'unixepoch', 'localtime')",
+    };
+    let sql = format!(
+        "SELECT {key} AS bucket, COUNT(*), SUM(input_tokens), SUM(output_tokens),
+         SUM(COALESCE(cache_read_tokens, 0)), SUM(COALESCE(estimated_cost, 0))
+         FROM usage_log WHERE {USAGE_WHERE} GROUP BY bucket ORDER BY bucket"
+    );
+    let p = usage_params(q);
+    let mut stmt = db.prepare(&sql)?;
+    let rows = stmt
+        .query_map(rusqlite::params![p.0, p.1, p.2, p.3, p.4], |row| {
+            Ok(UsageBucket {
+                key: row.get(0)?,
+                calls: row.get(1)?,
+                input_tokens: row.get(2)?,
+                output_tokens: row.get(3)?,
+                cache_read_tokens: row.get(4)?,
+                estimated_cost: row.get(5)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows)
+}
+
+fn usage_summary_impl(db: &Connection, q: &UsageQuery) -> Result<UsageSummary, StoreError> {
+    let params = usage_params(q);
+    let (total_cost, total_input, total_output, total_cache_read, total_calls, first_timestamp): (f64, i64, i64, i64, i64, Option<i64>) = db
+        .query_row(
+            &format!(
+                "SELECT COALESCE(SUM(estimated_cost), 0), COALESCE(SUM(input_tokens), 0),
+                 COALESCE(SUM(output_tokens), 0), COALESCE(SUM(cache_read_tokens), 0), COUNT(*), MIN(timestamp)
+                 FROM usage_log WHERE {USAGE_WHERE}"
+            ),
+            rusqlite::params![params.0, params.1, params.2, params.3, params.4],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?)),
+        )?;
+
+    let mut stmt = db.prepare(&format!(
+        "SELECT provider, model, COUNT(*), SUM(input_tokens), SUM(output_tokens),
+         SUM(COALESCE(cache_read_tokens, 0)), SUM(COALESCE(cache_write_tokens, 0)), SUM(COALESCE(reasoning_tokens, 0)),
+         SUM(COALESCE(estimated_cost, 0))
+         FROM usage_log WHERE {USAGE_WHERE}
+         GROUP BY provider, model ORDER BY SUM(COALESCE(estimated_cost, 0)) DESC, COUNT(*) DESC"
+    ))?;
+    let by_provider_model = stmt
+        .query_map(rusqlite::params![params.0, params.1, params.2, params.3, params.4], |row| {
+            Ok(ProviderModelBreakdown {
+                provider: row.get(0)?,
+                model: row.get(1)?,
+                calls: row.get(2)?,
+                input_tokens: row.get(3)?,
+                output_tokens: row.get(4)?,
+                cache_read_tokens: row.get(5)?,
+                cache_write_tokens: row.get(6)?,
+                reasoning_tokens: row.get(7)?,
+                estimated_cost: row.get(8)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let mut stmt = db.prepare(&format!(
+        "SELECT category, COUNT(*), SUM(input_tokens), SUM(output_tokens), SUM(COALESCE(estimated_cost, 0))
+         FROM usage_log WHERE {USAGE_WHERE}
+         GROUP BY category ORDER BY SUM(COALESCE(estimated_cost, 0)) DESC, COUNT(*) DESC"
+    ))?;
+    let by_category = stmt
+        .query_map(rusqlite::params![params.0, params.1, params.2, params.3, params.4], |row| {
+            Ok(CategoryBreakdown {
+                category: row.get(0)?,
+                calls: row.get(1)?,
+                input_tokens: row.get(2)?,
+                output_tokens: row.get(3)?,
+                estimated_cost: row.get(4)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(UsageSummary {
+        total_cost,
+        total_input_tokens: total_input,
+        total_output_tokens: total_output,
+        total_cache_read_tokens: total_cache_read,
+        total_calls,
+        first_timestamp,
+        by_provider_model,
+        by_category,
+        trend: usage_trend(db, q)?,
+    })
+}
+
 #[tauri::command]
 pub async fn get_usage_summary(
     state: State<'_, StoreState>,
-    since: Option<i64>,
+    query: UsageQuery,
 ) -> Result<UsageSummary, StoreError> {
     let conn_arc = Arc::clone(&state.conn);
     tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        let since_ts = since.unwrap_or(0);
-
-        let (total_cost, total_input, total_output, total_cache_read, total_calls): (f64, i64, i64, i64, i64) = db
-            .query_row(
-                "SELECT COALESCE(SUM(estimated_cost), 0), COALESCE(SUM(input_tokens), 0),
-                 COALESCE(SUM(output_tokens), 0), COALESCE(SUM(cache_read_tokens), 0), COUNT(*)
-                 FROM usage_log WHERE timestamp >= ?1",
-                [since_ts],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
-            )?;
-
-        let mut stmt = db.prepare(
-            "SELECT provider, model, COUNT(*), SUM(input_tokens), SUM(output_tokens),
-             SUM(cache_read_tokens), SUM(cache_write_tokens), SUM(reasoning_tokens),
-             SUM(estimated_cost)
-             FROM usage_log WHERE timestamp >= ?1
-             GROUP BY provider, model ORDER BY SUM(estimated_cost) DESC",
-        )?;
-
-        let by_provider_model: Vec<ProviderModelBreakdown> = stmt
-            .query_map([since_ts], |row| {
-                Ok(ProviderModelBreakdown {
-                    provider: row.get(0)?,
-                    model: row.get(1)?,
-                    calls: row.get(2)?,
-                    input_tokens: row.get(3)?,
-                    output_tokens: row.get(4)?,
-                    cache_read_tokens: row.get(5)?,
-                    cache_write_tokens: row.get(6)?,
-                    reasoning_tokens: row.get(7)?,
-                    estimated_cost: row.get(8)?,
-                })
-            })?
-            .filter_map(|r| r.ok())
-            .collect();
-
-        let mut stmt2 = db.prepare(
-            "SELECT category, COUNT(*), SUM(input_tokens), SUM(output_tokens), SUM(estimated_cost)
-             FROM usage_log WHERE timestamp >= ?1
-             GROUP BY category ORDER BY SUM(estimated_cost) DESC",
-        )?;
-
-        let by_category: Vec<CategoryBreakdown> = stmt2
-            .query_map([since_ts], |row| {
-                Ok(CategoryBreakdown {
-                    category: row.get(0)?,
-                    calls: row.get(1)?,
-                    input_tokens: row.get(2)?,
-                    output_tokens: row.get(3)?,
-                    estimated_cost: row.get(4)?,
-                })
-            })?
-            .filter_map(|r| r.ok())
-            .collect();
-
-        Ok(UsageSummary {
-            total_cost,
-            total_input_tokens: total_input,
-            total_output_tokens: total_output,
-            total_cache_read_tokens: total_cache_read,
-            total_calls,
-            by_provider_model,
-            by_category,
-        })
+        usage_summary_impl(db, &query)
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
@@ -3450,6 +3528,53 @@ mod tests {
         }
         let rows = meeting_usage_impl(&conn, "m1").unwrap();
         assert_eq!(rows.iter().map(|r| r.category.as_str()).collect::<Vec<_>>(), vec!["summary", "transcription"]);
+    }
+
+    fn seed_usage(conn: &Connection, id: &str, ts: i64, provider: &str, model: &str, category: &str, input: i64, cost: f64) {
+        conn.execute(
+            "INSERT INTO usage_log (id, timestamp, category, provider, model, input_tokens, output_tokens, estimated_cost)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1, ?7)",
+            rusqlite::params![id, ts, category, provider, model, input, cost],
+        )
+        .unwrap();
+    }
+
+    const DAY_MS: i64 = 86_400_000;
+
+    #[test]
+    fn usage_summary_filters_windows_and_buckets_add_up() {
+        let conn = db();
+        let noon = 20_000 * DAY_MS + DAY_MS / 2; // midday UTC, far from any local midnight
+        seed_usage(&conn, "a", noon, "gemini", "flash", "chat", 100, 0.10);
+        seed_usage(&conn, "b", noon + 60_000, "gemini", "flash", "summary", 50, 0.05);
+        seed_usage(&conn, "c", noon + DAY_MS, "gemini", "pro", "chat", 10, 0.20);
+        seed_usage(&conn, "d", noon + 2 * DAY_MS, "openai", "gpt", "chat", 7, 0.30);
+
+        let all = usage_summary_impl(&conn, &UsageQuery { bucket: Some(UsageBucketSize::Day), ..Default::default() }).unwrap();
+        assert_eq!(all.total_calls, 4);
+        assert_eq!(all.first_timestamp, Some(noon));
+        assert_eq!(all.trend.len(), 3);
+        assert_eq!(all.trend.iter().map(|b| b.calls).sum::<i64>(), all.total_calls);
+        assert_eq!(all.trend.iter().map(|b| b.input_tokens).sum::<i64>(), all.total_input_tokens);
+        assert!((all.trend.iter().map(|b| b.estimated_cost).sum::<f64>() - all.total_cost).abs() < 1e-9);
+
+        let gemini = usage_summary_impl(&conn, &UsageQuery { provider: Some("gemini".into()), ..Default::default() }).unwrap();
+        assert_eq!(gemini.total_calls, 3);
+        assert_eq!(gemini.by_provider_model.iter().map(|r| r.model.as_str()).collect::<Vec<_>>(), vec!["pro", "flash"]);
+        assert!(gemini.trend.is_empty(), "no bucket asked, no trend");
+
+        let flash_chat = usage_summary_impl(&conn, &UsageQuery {
+            model: Some("flash".into()), category: Some("chat".into()), ..Default::default()
+        }).unwrap();
+        assert_eq!(flash_chat.total_calls, 1);
+        assert_eq!(flash_chat.total_input_tokens, 100);
+
+        // [since, until): the first day only; the record exactly at `until` is excluded.
+        let window = usage_summary_impl(&conn, &UsageQuery { since: Some(noon), until: Some(noon + DAY_MS), ..Default::default() }).unwrap();
+        assert_eq!(window.total_calls, 2);
+
+        let empty = usage_summary_impl(&conn, &UsageQuery { provider: Some("none".into()), bucket: Some(UsageBucketSize::Month), ..Default::default() }).unwrap();
+        assert_eq!((empty.total_calls, empty.first_timestamp, empty.trend.len()), (0, None, 0));
     }
 
     // ── meetings_delete cascade ───────────────────────────────────────

@@ -18,6 +18,11 @@ interface NavStackApi {
 
 const NavStackContext = createContext<NavStackApi | null>(null);
 
+/** The enclosing `NavStack`, or null outside one (Mac and iPad panels drill in place instead of pushing). */
+export function useOptionalNavStack(): NavStackApi | null {
+  return useContext(NavStackContext);
+}
+
 /** Push and pop screens of the enclosing `NavStack`. */
 export function useNavStack(): NavStackApi {
   const api = useContext(NavStackContext);

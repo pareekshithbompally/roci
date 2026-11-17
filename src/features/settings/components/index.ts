@@ -6,6 +6,5 @@ export { GeneralPanel } from './GeneralPanel';
 export { CapabilitiesPanel } from './CapabilitiesPanel';
 export { IntegrationsPanel } from './IntegrationsPanel';
 export { McpServersPanel } from './mcp';
-export { UsagePanel } from './UsagePanel';
 export { ProvidersPanelErrorBoundary } from './ProvidersPanelErrorBoundary';
 export { ModalityIcons } from './ModalityIcons';

@@ -1,6 +1,7 @@
 import React from 'react';
+import { ChevronLeft } from 'lucide-react';
 import { LAYOUT } from '@config/layout.config';
-import { PageScroll, Text, TitlebarSpacer } from '@shared/ui';
+import { IconButton, PageScroll, Text, TitlebarSpacer } from '@shared/ui';
 import { useFormFactor } from '@platform/formFactor';
 
 interface SettingsPageHeaderProps {
@@ -8,14 +9,19 @@ interface SettingsPageHeaderProps {
   description?: React.ReactNode;
   /** Controls at the right of the title (Add, time range…). */
   accessory?: React.ReactNode;
+  /** A drilled-in page (Mac, iPad): a back button before the title returns to the page it came from. A phone's bar has its own. */
+  onBack?: () => void;
 }
 
 /** Page title + description of a settings panel (macOS System Settings pane). */
-export const SettingsPageHeader: React.FC<SettingsPageHeaderProps> = ({ title, description, accessory }) => (
+export const SettingsPageHeader: React.FC<SettingsPageHeaderProps> = ({ title, description, accessory, onBack }) => (
   <header className="flex items-start justify-between gap-4">
-    <div className="min-w-0">
-      <Text as="h1" variant="pageTitle" className="flex items-center gap-2">{title}</Text>
-      {description && <Text as="p" tone="muted" className="mt-1">{description}</Text>}
+    <div className="flex min-w-0 items-start gap-2">
+      {onBack && <IconButton icon={ChevronLeft} label="Back" size="sm" onClick={onBack} />}
+      <div className="min-w-0">
+        <Text as="h1" variant="pageTitle" className="flex items-center gap-2">{title}</Text>
+        {description && <Text as="p" tone="muted" className="mt-1">{description}</Text>}
+      </div>
     </div>
     {accessory && <div className="flex items-center gap-1 shrink-0">{accessory}</div>}
   </header>

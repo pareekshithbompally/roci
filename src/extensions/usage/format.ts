@@ -10,9 +10,9 @@ export function formatTokenCount(n: number): string {
   return `${(n / 1_000_000).toFixed(1)}M`;
 }
 
-/** Format USD cost: "Free", "< $0.01", "$0.30", "$12.45" */
-export function formatCost(usd: number): string {
+/** Format USD cost: "Free", "< $0.01", "$0.30", "$12.45"; `precise` shows sub-cent averages to two significant digits ("$0.0042"). */
+export function formatCost(usd: number, precise = false): string {
   if (usd === 0) return 'Free';
-  if (usd < 0.01) return '< $0.01';
+  if (usd < 0.01) return precise ? `$${Number(usd.toPrecision(2))}` : '< $0.01';
   return `$${usd.toFixed(2)}`;
 }

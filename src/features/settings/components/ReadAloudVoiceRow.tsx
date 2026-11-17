@@ -11,7 +11,7 @@ import { CAPABILITIES_CONFIG } from '@config/capabilities.config';
 import { LAYOUT } from '@config/layout.config';
 import { TILE_DOMAIN } from '@config/ui.config';
 import { READ_ALOUD_CONFIG, type ReadAloudEngine } from '@config/readAloud.config';
-import { JOB_GLYPH } from './shared';
+import { JOB_GLYPH } from '@shared/components';
 import { CardRow, IconButton, IconTile, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui';
 
 const { sampleText } = READ_ALOUD_CONFIG;

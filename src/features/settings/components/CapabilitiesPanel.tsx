@@ -4,7 +4,7 @@ import React, { useMemo } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useOnDeviceModel, type OnDeviceModel } from '@shared/hooks/useOnDeviceModel';
 import { EMBEDDING_MODEL_NAME, EMBEDDING_MODEL_SIZE } from '@extensions/rag';
-import { ModelDownloadButton, ModelReadyStatus } from '@shared/components';
+import { JOB_GLYPH, ModelDownloadButton, ModelReadyStatus } from '@shared/components';
 import { formatFileSize } from '@shared/utils/formatters';
 import { modelChoices, withIntegrationModels, type ModelChoice } from '@shared/utils/modelResolver';
 import { speechSelectionKey, speechSelectionOf } from '@services/ai/transcription';
@@ -20,7 +20,7 @@ import { useAppleSpeechSetup } from '@features/integrations';
 import { CardRow, IconTile, Section, type TileGlyph } from '@shared/ui';
 import { TILE_DOMAIN, type TileTint } from '@config/ui.config';
 import type { LocalModel } from '@services/localModels.service';
-import { JOB_GLYPH, LIVE_TRANSCRIPTION_MARK, ModelSelect, SettingsPage } from './shared';
+import { LIVE_TRANSCRIPTION_MARK, ModelSelect, SettingsPage } from './shared';
 import { ReadAloudVoiceRow } from './ReadAloudVoiceRow';
 import { platform } from '@platform/index';
 

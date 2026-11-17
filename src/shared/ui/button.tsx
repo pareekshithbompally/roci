@@ -2,6 +2,7 @@ import React from 'react';
 import { Loader2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from './utils';
+import { platform } from '@platform/index';
 import { Icon, type IconSize } from './icon';
 
 /** Canonical button: colour lives in `variant`, shape in `size`; call sites never pass colour or padding classes. */
@@ -26,8 +27,8 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  /** No box — sits in a line of text */
-  inline: 'text-callout gap-1',
+  /** No box — sits in a line of text; on touch screens an invisible overlay widens the tap area without moving the text */
+  inline: cn('text-callout gap-1', platform.hasTouchScreen && "relative after:absolute after:-inset-2 after:content-['']"),
   /** Dense control in a toolbar row (composer): tight padding, at least square so an icon alone is 28×28 */
   toolbar: 'h-control-sm min-w-control-sm px-1.5 text-callout rounded-md',
   sm: 'h-control-sm px-3 text-callout rounded-md',
