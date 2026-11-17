@@ -3,6 +3,8 @@ import React from 'react';
 import { cn } from './utils';
 import { Surface } from './surface';
 import { NO_INSETS } from './recipes';
+import { BottomSheet } from './bottom-sheet';
+import { useFormFactor } from '@platform/formFactor';
 
 export interface DrawerProps {
   open: boolean;
@@ -35,8 +37,15 @@ const SIDE = {
   },
 } as const;
 
-/** A panel that slides in from one edge of its positioned parent over a scrim (Radix Dialog, not portalled); the scrim or Escape closes it. */
+/**
+ * A panel that slides in from one edge of its positioned parent over a scrim (Radix Dialog, not portalled); the scrim or
+ * Escape closes it. On a phone a side panel (`end`: sources, details) is a bottom sheet, as iOS presents detail.
+ */
 export function Drawer({ open, onClose, label, side = 'end', children }: DrawerProps) {
+  const phone = useFormFactor() === 'phone';
+  if (phone && side === 'end') {
+    return <BottomSheet open={open} onOpenChange={(next) => !next && onClose()} title={label}>{children}</BottomSheet>;
+  }
   const placement = SIDE[side];
   return (
     <DialogPrimitive.Root open={open} onOpenChange={(next) => !next && onClose()} modal={placement.modal}>
