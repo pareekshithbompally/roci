@@ -9,7 +9,7 @@ export { ModelAvatar } from './ModelAvatar';
 export { ModelDownloadButton, ModelReadyStatus } from './ModelDownloadButton';
 export { ModelIcon } from './ModelIcon';
 export { AppIcon, AppImage, useAppIcon } from './AppIcon';
-export { OnDeviceModelActivity } from './OnDeviceModelActivity';
+export { SearchIndexActivity } from './SearchIndexActivity';
 export { ProvidersAvatar } from './ProvidersAvatar';
 export { ProviderFan } from './ProviderFan';
 export { GlyphTile } from './GlyphTile';

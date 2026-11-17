@@ -20,6 +20,6 @@ export function resolveSpeechModel(providerId: string, modelId: string, provider
   const error = credentialsError(providerId, providers);
   if (error) throw new Error(error);
   const resolved = resolveProviderModel(providerId, modelId, providers);
-  if (!resolved) throw new Error('Choose a transcription model in Settings › Capabilities.');
+  if (!resolved) throw new Error('Choose a transcription model in Settings › Default Models.');
   return resolved;
 }

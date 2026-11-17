@@ -11,8 +11,8 @@ import { getProviderTitle } from '@shared/utils/provider.utils';
 import { CHAT_TOOLS_CONFIG, DEFAULT_CHAT_TOOLS } from '@config/chatTools.config';
 import { hasImageModel, imageModelOptions } from '@services/ai/image';
 import type { ChatToolPreferences } from '@shared/types';
+import { useLocalModels } from '@shared/hooks/useLocalModels';
 import {
-  useLocalModels,
   useMcpConfig,
   useMcpConnectedServers,
   useMcpReconfigure,

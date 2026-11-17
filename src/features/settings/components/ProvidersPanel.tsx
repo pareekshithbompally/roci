@@ -10,16 +10,26 @@ import { ProviderGroup, ProviderListItem, ProviderStatus } from './ProviderListI
 import type { ProviderRowState } from './ProviderListItem';
 import { LocalServersSection } from './LocalServersSection';
 import { ProviderDetail } from './ProviderDetail';
+import { OnDeviceDetail } from './OnDeviceDetail';
+import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import { SettingsPage } from './shared';
 import { platform } from '@platform/index';
 import { useFormFactor } from '@platform/formFactor';
 
 const STORAGE_KEY = 'roci_last_provider_selection';
+const ON_DEVICE_ID = LOCAL_MODELS_CONFIG.provider.id;
 
 function cloudRowState(provider: ModelProvider): ProviderRowState {
   if (!provider.active) return 'off';
   return providerSetting(provider, 'api-key') ? 'ready' : 'attention';
 }
+
+/** The models on this device on their own screen. */
+const OnDeviceScreen: React.FC = () => (
+  <div className="flex flex-col gap-6 p-4">
+    <OnDeviceDetail />
+  </div>
+);
 
 /** A provider's detail on its own screen; reads the provider by id so edits show at once. */
 const ProviderDetailScreen: React.FC<{ id: string }> = ({ id }) => {
@@ -31,13 +41,20 @@ const ProviderDetailScreen: React.FC<{ id: string }> = ({ id }) => {
   ) : null;
 };
 
-/** Phone: one row per provider (logo, name, state); a row pushes its detail. */
+/** Phone: On this device, then one row per provider (logo, name, state); a row pushes its detail. */
 const PhoneProviders: React.FC<{ providers: ModelProvider[] }> = ({ providers }) => {
   const { push } = useNavStack();
   const open = (id: string) => push({ title: getProviderTitle(id), content: <ProviderDetailScreen id={id} /> });
 
   return (
-    <div className="p-4">
+    <div className="flex flex-col gap-6 p-4">
+      <Card>
+        <CardRow
+          title={getProviderTitle(ON_DEVICE_ID)}
+          leading={<ProvidersAvatar provider={ON_DEVICE_ID} size={20} />}
+          onOpen={() => push({ title: getProviderTitle(ON_DEVICE_ID), content: <OnDeviceScreen /> })}
+        />
+      </Card>
       <Card>
         {providers.map((provider) => (
           <CardRow
@@ -98,6 +115,12 @@ export const ProvidersPanel: React.FC = () => {
     >
       <div className="flex min-h-0 w-full gap-6">
         <ScrollArea className="w-56 shrink-0 space-y-4">
+          <ProviderListItem
+            provider={ON_DEVICE_ID}
+            selected={effectiveSelectedProvider === ON_DEVICE_ID}
+            state="ready"
+            onSelect={() => setSelectedProviderName(ON_DEVICE_ID)}
+          />
           <ProviderGroup title="Cloud">
             {cloudProviders.map((provider) => (
               <ProviderListItem
@@ -115,7 +138,9 @@ export const ProvidersPanel: React.FC = () => {
         </ScrollArea>
 
         <ScrollArea className="flex-1 min-w-0 space-y-6">
-          {selectedProvider ? (
+          {effectiveSelectedProvider === ON_DEVICE_ID ? (
+            <OnDeviceDetail />
+          ) : selectedProvider ? (
             <ProviderDetail provider={selectedProvider} />
           ) : (
             <Text as="div" tone="faint" className="flex items-center justify-center py-12">

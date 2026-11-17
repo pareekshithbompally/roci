@@ -21,8 +21,8 @@ export interface ReadAloudVoice {
 function readAloudErrorMessage(error: unknown): string {
   if (!isCodedError<LocalErrorPayload>(error)) return errorMessage(error);
   switch (error.code) {
-    case 'not-downloaded': return "This voice isn't downloaded. Download it in Settings › Capabilities.";
-    case 'unknown-model': return 'Choose a voice in Settings › Capabilities › Read aloud.';
+    case 'not-downloaded': return "This voice isn't downloaded. Download it in Settings › Default Models.";
+    case 'unknown-model': return 'Choose a voice in Settings › Default Models › Read aloud.';
     default: return `Couldn't read this aloud (${error.detail ?? error.code}).`;
   }
 }

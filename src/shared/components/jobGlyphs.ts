@@ -1,4 +1,4 @@
-/** Each AI job's list glyph (Capabilities rows, Usage pages, on-device models): Lucide line icons. */
+/** Each AI job's list glyph (Default Models rows, Usage pages, on-device models): Lucide line icons. */
 
 import { Captions, Image, Megaphone, MessageCircle, Quote, Search, AudioLines } from 'lucide-react';
 

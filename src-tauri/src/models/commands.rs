@@ -4,9 +4,10 @@ use serde::Serialize;
 use tauri::{AppHandle, Manager, State};
 
 use super::catalog::{self, Kind, MODELS};
-use super::{store, LocalError, ModelsState};
-use crate::stt::SttState;
+use super::{blocking, store, LocalError, ModelsState};
+use crate::llama::LlamaState;
 use crate::image::ImageState;
+use crate::stt::SttState;
 use crate::tts::TtsState;
 
 #[derive(Serialize)]
@@ -61,15 +62,19 @@ pub fn local_model_cancel(state: State<'_, ModelsState>, id: String) -> Result<(
     Ok(())
 }
 
-/// Deletes a model's files, after its engine lets go of it.
+/// Deletes a model's files, after its engine lets go of it (off the main thread: a server may still be loading it).
 #[tauri::command]
-pub fn local_model_remove(app: AppHandle, state: State<'_, ModelsState>, id: String) -> Result<(), LocalError> {
+pub async fn local_model_remove(app: AppHandle, id: String) -> Result<(), LocalError> {
     let model = catalog::find(&id)?;
-    state.downloads.cancel(model.id);
-    match model.kind {
-        Kind::Speech => app.state::<SttState>().engine.forget(model.id),
-        Kind::Voice => app.state::<TtsState>().forget(),
-        Kind::Image => app.state::<ImageState>().server.forget(model.id),
-    }
-    store::remove(&app, model)
+    app.state::<ModelsState>().downloads.cancel(model.id);
+    blocking(move || {
+        match model.kind {
+            Kind::Speech => app.state::<SttState>().engine.forget(model.id),
+            Kind::Voice => app.state::<TtsState>().forget(),
+            Kind::Image => app.state::<ImageState>().server.forget(model.id),
+            Kind::Embedding | Kind::Chat => app.state::<LlamaState>().server(model.kind).forget(model.id),
+        }
+        store::remove(&app, model)
+    })
+    .await
 }

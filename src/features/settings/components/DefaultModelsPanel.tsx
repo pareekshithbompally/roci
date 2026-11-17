@@ -2,28 +2,28 @@
 
 import React, { useMemo } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useOnDeviceModel, type OnDeviceModel } from '@shared/hooks/useOnDeviceModel';
-import { EMBEDDING_MODEL_NAME, EMBEDDING_MODEL_SIZE } from '@extensions/rag';
-import { JOB_GLYPH, ModelDownloadButton, ModelLabel, ModelReadyStatus } from '@shared/components';
+import type { OnDeviceModel } from '@shared/utils/onDeviceModel';
+import { JOB_GLYPH, ModelDownloadButton } from '@shared/components';
 import { formatFileSize } from '@shared/utils/formatters';
-import { modelChoices, withIntegrationModels, type ModelChoice } from '@shared/utils/modelResolver';
+import { modelChoices, modelSources, type ModelChoice } from '@shared/utils/modelResolver';
 import { speechSelectionKey, speechSelectionOf } from '@services/ai/transcription';
-import { CAPABILITIES_CONFIG } from '@config/capabilities.config';
+import { DEFAULT_MODELS_CONFIG } from '@config/defaultModels.config';
 import { IMAGE_GENERATION_CONFIG } from '@config/imageGeneration.config';
 import { hasImageModel, imageModelOptions, imageSelectionKey } from '@services/ai/image';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import { READ_ALOUD_CONFIG } from '@config/readAloud.config';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { useSpeechModelOptions } from '@features/settings/hooks/useSpeechModels';
-import { downloadSetup, useLocalModelControls, useLocalModels } from '@features/settings/hooks/useLocalModels';
+import { downloadSetup, useLocalModelControls } from '@features/settings/hooks/useLocalModels';
+import { useLocalModels } from '@shared/hooks/useLocalModels';
 import { useAppleSpeechSetup } from '@features/integrations';
-import { CardRow, IconTile, Section, type TileGlyph } from '@shared/ui';
+import { CardRow, IconTile, Section, Text, type TileGlyph } from '@shared/ui';
 import type { LocalModel } from '@services/localModels.service';
 import { LIVE_TRANSCRIPTION_MARK, ModelSelect, SettingsPage } from './shared';
 import { ReadAloudVoiceRow } from './ReadAloudVoiceRow';
 import { platform } from '@platform/index';
 
-const { jobs: JOBS, footers: FOOTERS } = CAPABILITIES_CONFIG;
+const { jobs: JOBS, footers: FOOTERS } = DEFAULT_MODELS_CONFIG;
 
 /** A capability row: job tile (hue from its modality), title and its picker; the section footer says what it does. */
 const CapabilityRow: React.FC<{
@@ -77,7 +77,7 @@ function readAloudEngineChoices(models: LocalModel[], controls: Controls): Model
 
 const IMAGES_OFF = IMAGE_GENERATION_CONFIG.off;
 
-/** Image models downloaded to this Mac, each with its download step until it's ready. */
+/** Image models on this device, each with its download step until it's ready. */
 function onDeviceImageChoices(models: LocalModel[], controls: Controls): ModelChoice[] {
   if (!platform.hasOnDeviceModels) return [];
   const provider = IMAGE_GENERATION_CONFIG.onDevice.provider;
@@ -92,7 +92,7 @@ function onDeviceImageChoices(models: LocalModel[], controls: Controls): ModelCh
   }));
 }
 
-/** Image generation: cloud image models (ready once their provider has a key), models on this Mac, plus Off. */
+/** Image generation: cloud image models (ready once their provider has a key), models on this device, plus Off. */
 const ImageGenerationRow: React.FC<{ localModels: LocalModel[]; controls: Controls }> = ({ localModels, controls }) => {
   const { settings, setSettings, providers } = useSettings();
   const choices = useMemo<ModelChoice[]>(() => [
@@ -122,31 +122,23 @@ const ImageGenerationRow: React.FC<{ localModels: LocalModel[]; controls: Contro
   );
 };
 
-const KIND_GLYPH: Record<LocalModel['kind'], TileGlyph> = {
-  speech: JOB_GLYPH.transcription,
-  voice: JOB_GLYPH.readAloud,
-  image: JOB_GLYPH.images,
+/** Meeting search: the embedding model on this device, with its download step until it's ready. */
+const MeetingSearchRow: React.FC<{ localModels: LocalModel[]; controls: Controls }> = ({ localModels, controls }) => {
+  const model = localModels.find((m) => m.kind === 'embedding');
+  const control = model && controls[model.id];
+  if (!model || !control) return null;
+  return (
+    <CapabilityRow icon={JOB_GLYPH.meetingSearch} job={JOBS.meetingSearch}>
+      {control.status === 'ready' ? <Text tone="muted">{model.name}</Text> : <ModelDownloadButton model={control} />}
+    </CapabilityRow>
+  );
 };
 
-/** A model on this Mac, whichever runtime owns it: its name, what it's for and its size, Ready, and Download / Delete. */
-const OnDeviceModelRow: React.FC<{ icon: TileGlyph; name: string; use: string; size: string; control: OnDeviceModel }> = ({
-  icon, name, use, size, control,
-}) => (
-  <CardRow
-    leading={<IconTile icon={icon} />}
-    title={<ModelLabel name={name} size={size} onDevice />}
-    description={use}
-    status={<ModelReadyStatus model={control} />}
-    actions={<ModelDownloadButton model={control} removable />}
-  />
-);
-
-export const CapabilitiesPanel: React.FC = () => {
+export const DefaultModelsPanel: React.FC = () => {
   const { settings, setSettings, providers } = useSettings();
-  const searchModel = useOnDeviceModel('rag');
 
-  const textChoices = useMemo(() => modelChoices(withIntegrationModels(providers, settings)), [providers, settings]);
   const { data: localModels = [] } = useLocalModels();
+  const textChoices = useMemo(() => modelChoices(modelSources(providers, settings, localModels)), [providers, settings, localModels]);
   const controls = useLocalModelControls();
   const speechChoices = useSpeechChoices(controls);
   const engines = useMemo(() => readAloudEngineChoices(localModels, controls), [localModels, controls]);
@@ -159,7 +151,7 @@ export const CapabilitiesPanel: React.FC = () => {
   };
 
   return (
-    <SettingsPage title="Capabilities">
+    <SettingsPage title="Default Models">
       <Section title="Conversation" footer={FOOTERS.conversation}>
         <CapabilityRow icon={JOB_GLYPH.chat} job={JOBS.chat}>
           <ModelSelect value={settings.chatModel || undefined} choices={textChoices} onChange={(chatModel) => setSettings({ chatModel })} />
@@ -188,7 +180,7 @@ export const CapabilitiesPanel: React.FC = () => {
         <ImageGenerationRow localModels={localModels} controls={controls} />
       </Section>
 
-      <Section title="Meetings" footer={FOOTERS.meetings}>
+      <Section title="Meetings" footer={platform.hasOnDeviceModels ? `${FOOTERS.meetings} ${FOOTERS.meetingSearch}` : FOOTERS.meetings}>
         <CapabilityRow icon={JOB_GLYPH.summaries} job={JOBS.summaries}>
           <ModelSelect
             value={settings.analyzeModel || settings.chatModel || undefined}
@@ -196,29 +188,9 @@ export const CapabilitiesPanel: React.FC = () => {
             onChange={(analyzeModel) => setSettings({ analyzeModel })}
           />
         </CapabilityRow>
+        <MeetingSearchRow localModels={localModels} controls={controls} />
       </Section>
 
-      {platform.hasOnDeviceModels && (
-        <Section title="On this device">
-          <OnDeviceModelRow
-            icon={JOB_GLYPH.meetingSearch}
-            name={EMBEDDING_MODEL_NAME}
-            use={JOBS.meetingSearch.title}
-            size={EMBEDDING_MODEL_SIZE}
-            control={searchModel}
-          />
-          {localModels.map((m) => controls[m.id] && (
-            <OnDeviceModelRow
-              key={m.id}
-              icon={KIND_GLYPH[m.kind]}
-              name={m.name}
-              use={LOCAL_MODELS_CONFIG.kindLabels[m.kind]}
-              size={formatFileSize(m.bytes)}
-              control={controls[m.id]}
-            />
-          ))}
-        </Section>
-      )}
     </SettingsPage>
   );
 };

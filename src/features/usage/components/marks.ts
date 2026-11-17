@@ -11,7 +11,7 @@ import type { UsageCategory } from '@extensions/usage';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { modelName, type UsageSubject } from '@features/usage/model/subject';
 
-/** Each feature's name, glyph and hue (hue from its modality, as in Capabilities). */
+/** Each feature's name, glyph and hue (hue from its modality, as in Default Models). */
 export const CATEGORY_MARK: Record<UsageCategory, { label: string; icon: TileGlyph }> = {
   chat: { label: 'Chat', icon: JOB_GLYPH.chat },
   suggestions: { label: 'Suggestions', icon: Lightbulb },

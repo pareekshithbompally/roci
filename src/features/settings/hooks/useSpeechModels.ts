@@ -17,7 +17,7 @@ import {
 import type { LiveEngine, SpeechModelOption, SpeechSources } from '@services/ai/transcription';
 import { getLocalModels } from '@services/localModels.service';
 import type { LocalModel } from '@services/localModels.service';
-import { useLocalModels } from './useLocalModels';
+import { useLocalModels } from '@shared/hooks/useLocalModels';
 
 const speechModels = (models: LocalModel[]) => models.filter((m) => m.kind === 'speech');
 

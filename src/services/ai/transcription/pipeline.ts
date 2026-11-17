@@ -36,7 +36,7 @@ const { sampleRate, hexProvider, keylessProviders } = TRANSCRIPTION_CONFIG;
 async function modelOf(selection: SpeechSelection): Promise<string> {
   if (selection.model) return selection.model;
   if (selection.provider === hexProvider) return defaultHexModel();
-  throw new Error('Choose a transcription model in Settings › Capabilities.');
+  throw new Error('Choose a transcription model in Settings › Default Models.');
 }
 
 /** Part segments shifted to the recording's clock; a part without segments becomes one. */
@@ -155,7 +155,7 @@ export async function runTranscription(
 ): Promise<TranscriptResult> {
   const adapterId = adapterFor(selection, providers);
   if (!adapterId) {
-    throw new Error(`${getProviderTitle(selection.provider)} "${selection.model}" can't transcribe audio. Choose a speech model in Settings › Capabilities.`);
+    throw new Error(`${getProviderTitle(selection.provider)} "${selection.model}" can't transcribe audio. Choose a speech model in Settings › Default Models.`);
   }
   const model = await modelOf(selection);
   const resolved = keylessProviders.includes(selection.provider) ? null : resolveSpeechModel(selection.provider, model, providers);

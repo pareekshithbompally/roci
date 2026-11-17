@@ -1,7 +1,7 @@
 /** Thin AI orchestrator: transcribeAudio (STT) → analyzeTranscript (LLM); no provider-specific logic. */
 
 import { generateText } from 'ai';
-import { isIntegrationEnabled } from '@shared/utils/integrations';
+import { integrationSettingsPath, isIntegrationEnabled } from '@shared/utils/integrations';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { CHAT_TITLE_MAX_CHARS, REPLY_PREVIEW_CHARS } from '@config/chat.config';
@@ -55,12 +55,12 @@ export async function transcribeAudio(
 ): Promise<TranscriptResult> {
   const selection = speechSelectionOf(settings);
   if (!selection) {
-    throw new Error('Choose a transcription model in Settings › Capabilities.');
+    throw new Error('Choose a transcription model in Settings › Default Models.');
   }
   const integration = TRANSCRIPTION_CONFIG.integrationByProvider[selection.provider];
   if (integration && !isIntegrationEnabled(settings, integration)) {
     const name = getProviderTitle(selection.provider);
-    throw new Error(`${name} is off in Settings › Integrations. Turn it on, or choose another transcription model.`);
+    throw new Error(`${name} is off in ${integrationSettingsPath(integration)}. Turn it on, or choose another transcription model.`);
   }
   assertAudioSize(audioBlob);
   // An audio model chosen via models.dev resolves its adapter from the catalog.
@@ -81,7 +81,7 @@ function summaryModelOrThrow(settings: AppSettings, providers: ModelProvider[]):
   const resolved = resolveSummaryModel(settings, providers);
   if (!resolved) {
     const id = settings.analyzeModel || settings.chatModel;
-    throw new Error(`Summary model "${id}" isn't available. Choose one in Settings › Capabilities.`);
+    throw new Error(`Summary model "${id}" isn't available. Choose one in Settings › Default Models.`);
   }
   if (requiresApiKey(resolved) && !resolved.apiKey) {
     throw new Error(`API key not configured for ${resolved.provider}. Please add it in Settings → Providers.`);

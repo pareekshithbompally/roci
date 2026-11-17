@@ -118,7 +118,17 @@ async function loadChatsForIndexing(): Promise<ChatSession[]> {
   return sessions.filter((s): s is ChatSession => s !== null);
 }
 
+/** Indexes every meeting, then every chat: full-text always, vectors when asked (needs the embedding model). */
+async function indexAll(options: { includeEmbeddings: boolean; signal?: AbortSignal }): Promise<void> {
+  const { ragIndexer, chatIndexer } = await import('@extensions/rag');
+  const [meetings, chats] = await Promise.all([loadMeetingsForIndexing(), loadChatsForIndexing()]);
+  await ragIndexer.indexAll(meetings, options);
+  if (options.signal?.aborted) return;
+  await chatIndexer.indexAllSessions(chats, options);
+}
+
 export const searchIndexingService = {
   loadMeetingsForIndexing,
   loadChatsForIndexing,
+  indexAll,
 };

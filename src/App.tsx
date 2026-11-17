@@ -15,9 +15,9 @@ import { useMenubarSpeechModels, useMenubarReports, useLocalModelDownloads, fres
 import { RemindersView } from '@features/todos';
 import { CalendarView } from '@features/calendar';
 import { OnboardingView } from '@features/onboarding';
-import { ConfirmHost, OnDeviceModelActivity } from '@shared/components';
+import { ConfirmHost, SearchIndexActivity } from '@shared/components';
 import { Toaster } from '@shared/ui';
-import { useDownloadToasts } from '@shared/hooks';
+import { useDownloadToasts, useLocalModels } from '@shared/hooks';
 import { useAppShortcuts } from '@features/shortcuts';
 import { focusChatComposer, startNewChat, useChatIndex, useChatRuntime } from '@features/chat';
 import { useAppleNotesRuntime, useCalendarRuntime, useHexRuntime, useMcpHostRuntime, useRemindersRuntime, useSpotlightRuntime, useUrlActionsRuntime } from '@features/integrations';
@@ -34,6 +34,7 @@ import { windowService } from '@services/window.service';
 import { dismissSplash } from '@/src/app/splash';
 import { shortcutsService } from '@services/shortcuts.service';
 import { searchIndexingService } from '@services/searchIndexing.service';
+import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import { reminderService } from '@services/reminder.service';
 import { platform } from '@platform/index';
 import { useFormFactor } from '@platform/formFactor';
@@ -47,7 +48,7 @@ const App: React.FC = () => {
   const selectedHistoryId = useSelectedHistoryId();
   const { openSettings, leaveSettings, setInitialized } = useAppActions();
   
-  const { settings, setSettings, providers, isLoading: settingsLoading } = useSettings();
+  const { settings, setSettings, providers, setSelectedProviderName, isLoading: settingsLoading } = useSettings();
   const history = useHistory();
   const chatCount = useChatIndex().length;
   const startRecording = useStartRecording();
@@ -93,62 +94,28 @@ const App: React.FC = () => {
   useMenubarSpeechModels();
   useMenubarReports(appUpdate.status === 'available' ? appUpdate.updateInfo?.version ?? null : null);
 
-  // Index warm-up: FTS first so Cmd+K works at once, then embeddings only if the model is ready and consented.
-  const indexingRanRef = useRef(false);
+  // Search index: full-text at launch so Cmd+K works at once; vectors whenever the embedding model is installed
+  // (at launch, or as soon as its download finishes).
+  const { data: localModels } = useLocalModels();
+  const embeddingInstalled = localModels?.some((m) => m.kind === 'embedding' && m.installed) ?? false;
+  const hasSearchContent = history.items.length > 0 || chatCount > 0;
+  const textIndexRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
-    if (indexingRanRef.current) return;
-    if (history.items.length === 0 && chatCount === 0) return;
+    if (textIndexRef.current || !hasSearchContent) return;
+    textIndexRef.current = searchIndexingService.indexAll({ includeEmbeddings: false })
+      .then(() => console.log('[App] Full-text search index ready'))
+      .catch((error: unknown) => console.error('[App] Full-text indexing failed:', error));
+  }, [hasSearchContent]);
 
-    indexingRanRef.current = true;
+  useEffect(() => {
+    if (!embeddingInstalled || !hasSearchContent) return;
     const controller = new AbortController();
-    const warmUp = async () => {
-      try {
-        const { ragIndexer, chatIndexer, embeddingService, hasConsent } = await import('@extensions/rag');
-        const [meetingItems, chatSessions] = await Promise.all([
-          searchIndexingService.loadMeetingsForIndexing(),
-          searchIndexingService.loadChatsForIndexing(),
-        ]);
-
-        // Phase 1: FTS-only indexing (fast — no embedding computation)
-        await ragIndexer.indexAll(meetingItems, {
-          signal: controller.signal,
-          includeEmbeddings: false,
-        });
-
-        if (controller.signal.aborted) return;
-
-        await chatIndexer.indexAllSessions(chatSessions, {
-          signal: controller.signal,
-          includeEmbeddings: false,
-        });
-
-        console.log('[App] Phase 1 complete: FTS spotlight corpus populated');
-
-        // Phase 2: add embeddings if the model is available
-        if (controller.signal.aborted) return;
-        const shouldEmbed = embeddingService.isReady() || hasConsent();
-        if (!shouldEmbed) return;
-
-        await ragIndexer.indexAll(meetingItems, {
-          signal: controller.signal,
-          includeEmbeddings: true,
-        });
-
-        if (controller.signal.aborted) return;
-
-        await chatIndexer.indexAllSessions(chatSessions, {
-          signal: controller.signal,
-          includeEmbeddings: true,
-        });
-      } catch (error) {
-        console.log('[App] Background search index warm-up skipped or failed:', error);
-      }
-    };
-    warmUp();
-
+    void (textIndexRef.current ?? Promise.resolve())
+      .then(() => searchIndexingService.indexAll({ includeEmbeddings: true, signal: controller.signal }))
+      .catch((error: unknown) => console.error('[App] Embedding indexing failed:', error));
     return () => controller.abort();
-  }, [history.items.length, chatCount]);
+  }, [embeddingInstalled, hasSearchContent]);
 
   // Fade the startup splash once the first screen renders with real settings
   useEffect(() => {
@@ -218,7 +185,7 @@ const App: React.FC = () => {
     try {
       const selection = parseSpeechSelectionKey(key);
       if (!isSpeechSelectionReady(selection, providers, await freshSpeechSources())) {
-        toast.showToast("That speech model isn't ready. Check Settings › Capabilities.", 'warning');
+        toast.showToast("That speech model isn't ready. Check Settings › Default Models.", 'warning');
         return;
       }
       setSettings({ transcriptionProvider: selection.provider, transcriptionModel: selection.model });
@@ -241,7 +208,10 @@ const App: React.FC = () => {
       [TrayAction.STOP_RECORDING]: async () => { if (isRecording()) await recording.stop(); },
       [TrayAction.PAUSE_RECORDING]: async () => { if (isRecording()) await recording.pause(); },
       [TrayAction.RESUME_RECORDING]: async () => { if (isRecording()) await recording.resume(); },
-      [TrayAction.MANAGE_MODELS]: () => openSettingsWindow('capabilities'),
+      [TrayAction.MANAGE_MODELS]: () => {
+        setSelectedProviderName(LOCAL_MODELS_CONFIG.provider.id);
+        return openSettingsWindow('providers');
+      },
       [TrayAction.MANAGE_AGENTS]: () => openSettingsWindow('integrations'),
       [TrayAction.SETTINGS]: () => openSettingsWindow(),
       [TrayAction.NEW_CHAT]: async () => {
@@ -380,7 +350,7 @@ const App: React.FC = () => {
       {/* Search Overlay (Cmd+K) */}
 
       {/* On-device model download + indexing progress → ActivityTray */}
-      <OnDeviceModelActivity />
+      <SearchIndexActivity />
 
       {/* Opens when a recording start is refused for a missing macOS permission */}
       <PermissionChecklist />

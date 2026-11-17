@@ -1,4 +1,4 @@
-/** Image generation: the image models Settings › Capabilities offers, the shapes the tool accepts, and its limits. */
+/** Image generation: the image models Settings › Default Models offers, the shapes the tool accepts, and its limits. */
 
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 
@@ -62,6 +62,6 @@ export const IMAGE_GENERATION_CONFIG = {
     'image/webp': 'webp',
   } as Record<string, string>,
   defaultExtension: 'png',
-  /** The Capabilities picker's "Off" row. */
+  /** The Default Models picker's "Off" row. */
   off: { value: 'off', label: 'Off' },
 } as const;

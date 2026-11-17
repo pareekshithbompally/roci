@@ -7,6 +7,12 @@ import { isIntegrationEnabled } from '@shared/utils/integrations';
 import type { AppSettings } from '@shared/types';
 import { getModelDisplayName, getProviderTitle } from '@shared/utils/provider.utils';
 import type { LucideIcon } from 'lucide-react';
+import { queryClient } from '@shared/query/queryClient';
+import { queryKeys } from '@shared/query/queryKeys';
+import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
+import type { LocalModel } from '@services/localModels.service';
+
+const ON_DEVICE = LOCAL_MODELS_CONFIG.provider.id;
 
 export interface ResolvedModel {
   modelId: string;
@@ -69,6 +75,7 @@ export function resolveProviderModel(
 /** Adapter type: gemini | anthropic | openai | mistral | groq | openai-compat. */
 export function getProviderType(provider: string): ProviderType {
   if (provider === APPLE_INTELLIGENCE.provider) return 'apple-intelligence';
+  if (provider === ON_DEVICE) return 'on-device';
   if (provider === 'gemini') return 'gemini';
   if (provider === 'anthropic') return 'anthropic';
   if (provider === 'openai') return 'openai';
@@ -129,27 +136,40 @@ const APPLE_INTELLIGENCE_PROVIDER: ModelProvider = {
   models: [{ id: APPLE_INTELLIGENCE.model, name: APPLE_INTELLIGENCE.name }],
 };
 
-/** Every model source: user providers plus switched-on integration models (Apple Intelligence: no tools, small context). */
-export function withIntegrationModels(providers: ModelProvider[], settings: AppSettings): ModelProvider[] {
-  return isIntegrationEnabled(settings, 'appleIntelligence') ? [...providers, APPLE_INTELLIGENCE_PROVIDER] : providers;
+/** The local models as last loaded: settings load them first, every download and delete refreshes them. */
+export function cachedLocalModels(): LocalModel[] {
+  return queryClient.getQueryData<LocalModel[]>(queryKeys.localModels()) ?? [];
+}
+
+/** Chat models downloaded to this device as one provider entry (no key). */
+function onDeviceChatProvider(localModels: LocalModel[]): ModelProvider | null {
+  const models = localModels.filter((m) => m.kind === 'chat' && m.installed).map((m) => ({ id: m.id, name: m.name }));
+  return models.length > 0 ? { provider: ON_DEVICE, active: true, settings: [], models } : null;
+}
+
+/** Every model source: providers, Apple Intelligence while on, chat models on this device (pickers pass live `localModels`). */
+export function modelSources(providers: ModelProvider[], settings: AppSettings, localModels = cachedLocalModels()): ModelProvider[] {
+  const builtIn = [isIntegrationEnabled(settings, 'appleIntelligence') && APPLE_INTELLIGENCE_PROVIDER, onDeviceChatProvider(localModels)];
+  return [...providers, ...builtIn.filter((p): p is ModelProvider => !!p)];
 }
 
 /** The chat model, resolved against every model source. */
 export function resolveChatModel(settings: AppSettings, providers: ModelProvider[]): ResolvedModel | null {
-  return resolveModel(settings.chatModel, withIntegrationModels(providers, settings));
+  return resolveModel(settings.chatModel, modelSources(providers, settings));
 }
 
-/** The Summary model (Settings › Capabilities), falling back to the chat model, resolved against every model source. */
+/** The Summary model (Settings › Default Models), falling back to the chat model, resolved against every model source. */
 export function resolveSummaryModel(settings: AppSettings, providers: ModelProvider[]): ResolvedModel | null {
-  return resolveModel(settings.analyzeModel || settings.chatModel, withIntegrationModels(providers, settings));
+  return resolveModel(settings.analyzeModel || settings.chatModel, modelSources(providers, settings));
 }
 
 /** Whether calls need an API key (on-device models don't). */
 export function requiresApiKey(resolved: ResolvedModel): boolean {
-  return getProviderType(resolved.provider) !== 'apple-intelligence';
+  const type = getProviderType(resolved.provider);
+  return type !== 'apple-intelligence' && type !== 'on-device';
 }
 
-/** One entry in a model picker (Settings › Capabilities): any job, any source. */
+/** One entry in a model picker (Settings › Default Models): any job, any source. */
 export interface ModelChoice {
   /** What the setting stores (model id, or a speech selection key). */
   value: string;

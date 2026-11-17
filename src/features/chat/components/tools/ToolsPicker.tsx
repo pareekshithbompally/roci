@@ -52,9 +52,9 @@ export const ToolsPicker: React.FC = () => {
     openSettings('mcp');
   };
 
-  const openCapabilities = () => {
+  const openDefaultModels = () => {
     handleOpenChange(false);
-    openSettings('capabilities');
+    openSettings('defaultModels');
   };
 
   const { enabledCount, webSearch, modelSupportsTools } = catalog;
@@ -87,7 +87,7 @@ export const ToolsPicker: React.FC = () => {
       <CommandGroup heading="Built-in">
         <WebSearchItem catalog={catalog} onHover={() => setFlyout(null)} />
         {modelSupportsTools && (
-          <ImageGenerationItem catalog={catalog} onSetUp={openCapabilities} onHover={() => setFlyout(null)} />
+          <ImageGenerationItem catalog={catalog} onSetUp={openDefaultModels} onHover={() => setFlyout(null)} />
         )}
         {modelSupportsTools ? (
           <GroupItem

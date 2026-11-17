@@ -4,7 +4,7 @@ import React from 'react';
 import { Download, Trash2 } from 'lucide-react';
 import { LAYOUT } from '@config/layout.config';
 import { Button, Icon, Status, cn } from '@shared/ui';
-import type { OnDeviceModel } from '@shared/hooks/useOnDeviceModel';
+import type { OnDeviceModel } from '@shared/utils/onDeviceModel';
 
 export const ModelReadyStatus: React.FC<{ model: OnDeviceModel }> = ({ model }) =>
   model.status === 'ready' ? <Status tone="success">Ready</Status> : null;

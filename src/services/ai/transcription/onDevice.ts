@@ -11,8 +11,8 @@ import type { LiveEngine, LiveText } from './live';
 function onDeviceErrorMessage(error: unknown, model: string): string {
   if (!isCodedError<LocalErrorPayload>(error)) return errorMessage(error);
   switch (error.code) {
-    case 'not-downloaded': return `${model} isn't downloaded. Download it in Settings › Capabilities.`;
-    case 'unknown-model': return 'Choose a speech model in Settings › Capabilities.';
+    case 'not-downloaded': return `${model} isn't downloaded. Download it in Settings › Default Models.`;
+    case 'unknown-model': return 'Choose a speech model in Settings › Default Models.';
     default: return `Couldn't transcribe this audio on this Mac (${error.detail ?? error.code}).`;
   }
 }

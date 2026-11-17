@@ -1,6 +1,6 @@
-/** Settings › Capabilities copy; pickers list models from Providers and switched-on Integrations. */
+/** Settings › Default Models copy: which model does each job; pickers list models from Providers. */
 
-export const CAPABILITIES_CONFIG = {
+export const DEFAULT_MODELS_CONFIG = {
   jobs: {
     chat: { title: 'Chat' },
     transcription: { title: 'Speech recognition' },
@@ -17,5 +17,6 @@ export const CAPABILITIES_CONFIG = {
     readAloud: 'Read aloud speaks replies; play a sample to hear a voice.',
     images: 'Used when you ask chat for an image.',
     meetings: 'Writes each meeting’s overview, decisions and action items.',
+    meetingSearch: 'Meeting search finds meetings and chats by meaning, on this device.',
   },
 } as const;

@@ -2,11 +2,11 @@
 
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { getModelDisplayName } from '@shared/utils/provider.utils';
-import { withIntegrationModels } from '@shared/utils/modelResolver';
+import { modelSources } from '@shared/utils/modelResolver';
 
 export function useModelLabel(provider: string | undefined, modelId: string | undefined): string | undefined {
   const { providers, settings } = useSettings();
   if (!modelId) return undefined;
-  const model = withIntegrationModels(providers, settings).find((p) => p.provider === provider)?.models?.find((m) => m.id === modelId);
+  const model = modelSources(providers, settings).find((p) => p.provider === provider)?.models?.find((m) => m.id === modelId);
   return model ? getModelDisplayName(model) : modelId;
 }

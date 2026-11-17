@@ -119,11 +119,10 @@ export const GeneralPanel: React.FC = () => {
     setIsRebuilding(true);
 
     try {
-      const { vectorDB, ragIndexer, chatIndexer, preloadModel } = await import('@extensions/rag');
+      const { vectorDB, ragIndexer, chatIndexer, isEmbeddingAvailable } = await import('@extensions/rag');
 
       await vectorDB.rebuild();
-
-      try { await preloadModel(); } catch { /* consent denied or download failed */ }
+      const includeEmbeddings = await isEmbeddingAvailable();
 
       const [meetingItems, chatSessions] = await Promise.all([
         searchIndexingService.loadMeetingsForIndexing(),
@@ -134,9 +133,7 @@ export const GeneralPanel: React.FC = () => {
 
       setRebuildingPhase('meetings');
       try {
-        await ragIndexer.indexAll(meetingItems, {
-          includeEmbeddings: true,
-        });
+        await ragIndexer.indexAll(meetingItems, { includeEmbeddings });
       } catch (error: unknown) {
         console.error('[GeneralPanel] Meeting indexing failed:', error);
         showToast('Couldn’t re-index meetings; chats continue', 'error');
@@ -145,9 +142,7 @@ export const GeneralPanel: React.FC = () => {
 
       setRebuildingPhase('chats');
       try {
-        await chatIndexer.indexAllSessions(chatSessions, {
-          includeEmbeddings: true,
-        });
+        await chatIndexer.indexAllSessions(chatSessions, { includeEmbeddings });
       } catch (error: unknown) {
         console.error('[GeneralPanel] Chat indexing failed:', error);
         showToast('Couldn’t re-index chats', 'error');

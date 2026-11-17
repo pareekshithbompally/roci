@@ -2,6 +2,7 @@
 
 import type { AppSettings } from '@shared/types';
 import { platform, type PlatformCapability } from '@platform/index';
+import { INTEGRATION_SETTINGS_PATH } from '@config/integrations.config';
 
 export type IntegrationId = 'calendar' | 'reminders' | 'hex' | 'appleIntelligence' | 'appleNotes' | 'spotlight';
 
@@ -27,6 +28,11 @@ const REQUIRES: Record<IntegrationId, PlatformCapability> = {
 /** Whether this device has the integration at all. */
 export function isIntegrationAvailable(id: IntegrationId): boolean {
   return platform[REQUIRES[id]];
+}
+
+/** Where the user turns `id` on, for messages that send them there. */
+export function integrationSettingsPath(id: IntegrationId): string {
+  return id === 'appleIntelligence' ? INTEGRATION_SETTINGS_PATH.appleIntelligence : INTEGRATION_SETTINGS_PATH.default;
 }
 
 export function isIntegrationEnabled(settings: AppSettings, id: IntegrationId): boolean {

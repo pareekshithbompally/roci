@@ -21,7 +21,7 @@ export const LAYOUT = {
 
   /** Plain settings pop-ups (options, sources): they hug their value up to this width, right-aligned in the row */
   settingsSelect: 'max-w-48',
-  /** Settings › Capabilities pickers (model, voice): hug their value up to this width, right-aligned in the row */
+  /** Settings › Default Models pickers (model, voice): hug their value up to this width, right-aligned in the row */
   capabilityPicker: 'max-w-64',
   /** A row's model action (Download, 42%, Delete): one width, so actions and states align down a card. */
   modelAction: 'w-32',

@@ -20,13 +20,13 @@ const JOBS = {
   model: {
     subject: 'this request',
     tooLong: 'This conversation',
-    nextStep: 'Start a new chat, or choose another Chat model in Settings › Capabilities.',
+    nextStep: 'Start a new chat, or choose another Chat model in Settings › Default Models.',
     action: 'respond',
   },
   summary: {
     subject: 'this transcript',
     tooLong: 'This meeting',
-    nextStep: 'Choose another Summary model in Settings › Capabilities, then retry.',
+    nextStep: 'Choose another Summary model in Settings › Default Models, then retry.',
     action: 'summarize this meeting',
   },
 } as const;

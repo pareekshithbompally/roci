@@ -1,4 +1,4 @@
-/** Hex's transcription models in Capabilities while on, and every Hex meeting synced one-way into Roci. */
+/** Hex's transcription models in Default Models while on, and every Hex meeting synced one-way into Roci. */
 
 import React from 'react';
 import { RefreshCw } from 'lucide-react';

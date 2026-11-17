@@ -13,13 +13,14 @@ export const HASH_CONCURRENCY = 10;
 export const IO_CONCURRENCY = 5;
 
 // ── Embedding ──
-export const EMBEDDING_MODEL = 'onnx-community/embeddinggemma-300m-ONNX';
-export const EMBEDDING_DIM = 768;
-export const EMBEDDING_DTYPE = 'q8';
-/** How the embedding model is named and sized wherever it's offered for download or deletion. */
-export const EMBEDDING_MODEL_NAME = 'EmbeddingGemma 300M';
-export const EMBEDDING_MODEL_SIZE = '≈325 MB';
-/** Max texts to embed in a single batch call */
+/** The on-device model (Rust catalog id) that embeds meetings and chats; its vectors are 768-d. */
+export const EMBEDDING_MODEL_ID = 'embeddinggemma-300m';
+/** EmbeddingGemma's retrieval prompts: a query and the documents it searches are embedded differently. */
+export const EMBEDDING_PREFIX = {
+  query: 'task: search result | query: ',
+  document: 'title: none | text: ',
+} as const;
+/** Texts per embedding request. */
 export const EMBEDDING_BATCH_SIZE = 8;
 
 // ── Search Scoring ──

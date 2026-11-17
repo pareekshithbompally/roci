@@ -18,7 +18,7 @@ export const TRANSCRIPTION_CONFIG = {
   /** Real-time transcription copy for the General setting and the mark on speech models that support it. */
   liveCopy: {
     description: 'Words appear as you speak (some models).',
-    unavailable: "Your speech model doesn't support this. Pick one marked Real-time in Capabilities.",
+    unavailable: "Your speech model doesn't support this. Pick one marked Real-time in Default Models.",
     mark: 'Real-time',
   },
   /** Spoken language sent to engines that take one; a language setting is out of scope. */
@@ -84,7 +84,7 @@ export const TRANSCRIPTION_CONFIG = {
   appleSpeech: { provider: 'apple-intelligence', model: 'apple-speech', label: 'Apple Speech' },
   /** Roci's own engine (transcribe.cpp, src-tauri/src/stt): no key, its speech models are local models. */
   onDevice: { provider: LOCAL_MODELS_CONFIG.provider.id },
-  /** Speech providers that exist only while an integration is on (Settings › Integrations). */
+  /** Speech providers that exist only while an integration is on (Hex in Integrations, Apple Intelligence in Providers). */
   integrationByProvider: { hex: 'hex', 'apple-intelligence': 'appleIntelligence' } as Record<string, IntegrationId>,
   /** Speech providers that run without credentials. */
   keylessProviders: ['hex', 'apple-intelligence', 'on-device'] as readonly string[],

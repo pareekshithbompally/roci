@@ -8,7 +8,7 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { ProvidersPanel } from './ProvidersPanel';
 import { ProvidersPanelErrorBoundary } from './ProvidersPanelErrorBoundary';
 import { GeneralPanel } from './GeneralPanel';
-import { CapabilitiesPanel } from './CapabilitiesPanel';
+import { DefaultModelsPanel } from './DefaultModelsPanel';
 import { UsagePanel } from '@features/usage';
 import { IntegrationsPanel } from './IntegrationsPanel';
 import { NotificationsPanel } from './NotificationsPanel';
@@ -19,7 +19,7 @@ import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore
 
 const PANEL_COMPONENTS: Record<SettingsPanelType, React.FC> = {
   general: GeneralPanel,
-  capabilities: CapabilitiesPanel,
+  defaultModels: DefaultModelsPanel,
   providers: ProvidersPanel,
   integrations: IntegrationsPanel,
   notifications: NotificationsPanel,

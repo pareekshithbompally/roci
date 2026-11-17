@@ -3,7 +3,7 @@
 import { streamText, isStepCount } from 'ai';
 import type { TextStreamPart, ToolSet } from 'ai';
 import { createModel, reasoningCallSettings, toSDKMessages, getWebSearchTools, toExecutableTools } from '@services/ai';
-import { resolveChatModel, requiresApiKey } from '@shared/utils/modelResolver';
+import { getProviderType, resolveChatModel, requiresApiKey } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { isLocalProviderId } from '@shared/utils/provider.utils';
 import { followModelLoad, generationStats, isLlamaServer, promptProgress } from '@services/ai/llamaServer';
@@ -141,9 +141,11 @@ export async function orchestrate(
   const { tools, sources: toolSources } = await buildTools(options, webSearchTools);
   // A local llama-server reports loading the model and reading the prompt before it replies.
   const reportsProgress = isLocalProviderId(resolved.provider) && (await isLlamaServer(resolved.baseUrl));
+  // Roci's own models on this device run on llama-server too: same thinking budget.
+  const llamaServer = reportsProgress || getProviderType(resolved.provider) === 'on-device';
 
   const result = streamText({
-    model: createModel(resolved, { webSearch: !!webSearchTools, ...(reportsProgress && { llamaServer: { reasoningEffort } }) }),
+    model: createModel(resolved, { webSearch: !!webSearchTools, ...(llamaServer && { llamaServer: { reasoningEffort } }) }),
     ...reasoningCallSettings(resolved, reasoningEffort),
     instructions: systemPrompt,
     messages: toSDKMessages(messages),

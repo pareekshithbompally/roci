@@ -13,7 +13,7 @@ export interface InlineCitationSpan {
 }
 
 /** Provider type for routing */
-export type ProviderType = 'gemini' | 'anthropic' | 'openai' | 'mistral' | 'groq' | 'openai-compat' | 'apple-intelligence';
+export type ProviderType = 'gemini' | 'anthropic' | 'openai' | 'mistral' | 'groq' | 'openai-compat' | 'apple-intelligence' | 'on-device';
 
 /** Tool choice strategy for LLM tool calling */
 export type ToolChoice = 'auto' | 'none' | 'required';

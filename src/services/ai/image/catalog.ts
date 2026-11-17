@@ -1,4 +1,4 @@
-/** Image model catalog: what Settings › Capabilities offers, whether each can run now, and the model to call. */
+/** Image model catalog: what Settings › Default Models offers, whether each can run now, and the model to call. */
 
 import { IMAGE_GENERATION_CONFIG } from '@config/imageGeneration.config';
 import { credentialsError } from '@services/ai/transcription/cred';
@@ -26,7 +26,7 @@ export function imageModelOptions(providers: ModelProvider[]): ImageModelOption[
   });
 }
 
-/** What the Capabilities picker stores for an image model. */
+/** What the Default Models picker stores for an image model. */
 export function imageSelectionKey(selection: { provider: string; model: string }): string {
   return `${selection.provider}:${selection.model}`;
 }
@@ -39,10 +39,10 @@ export function hasImageModel(settings: AppSettings): boolean {
 /** The chosen image model with its key; throws the user-facing reason when it can't run. */
 export function resolveImageModel(settings: AppSettings, providers: ModelProvider[]): ResolvedModel {
   const { imageProvider, imageModel } = settings;
-  if (!imageProvider || !imageModel) throw new Error('Choose an image model in Settings › Capabilities.');
+  if (!imageProvider || !imageModel) throw new Error('Choose an image model in Settings › Default Models.');
   const error = credentialsError(imageProvider, providers);
   if (error) throw new Error(error);
   const resolved = resolveProviderModel(imageProvider, imageModel, providers);
-  if (!resolved) throw new Error('Choose an image model in Settings › Capabilities.');
+  if (!resolved) throw new Error('Choose an image model in Settings › Default Models.');
   return resolved;
 }

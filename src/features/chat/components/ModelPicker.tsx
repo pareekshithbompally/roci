@@ -6,7 +6,8 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { ProvidersAvatar, ModelIcon, ModelLabel } from '@shared/components';
 import { getProviderTitle } from '@shared/utils/provider.utils';
-import { groupChoices, modelChoices, withIntegrationModels } from '@shared/utils/modelResolver';
+import { groupChoices, modelChoices, modelSources } from '@shared/utils/modelResolver';
+import { useLocalModels } from '@shared/hooks/useLocalModels';
 import { modelInfoOf } from '@services/ai/capabilities';
 import type { ModelInfo } from '@services/modalities';
 import { Button, CommandPopover, CommandGroup, CommandRow, Dot, Icon, Text, Tooltip, cn } from '@shared/ui';
@@ -27,8 +28,9 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
   const isLoaded = (provider: string, modelId: string) =>
     servers?.find((server) => server.id === provider)?.models.find((model) => model.id === modelId)?.loaded ?? false;
 
-  // The same catalog and layout as Settings › Capabilities: usable models by provider, then "Needs setup".
-  const choices = useMemo(() => modelChoices(withIntegrationModels(providers, settings)), [providers, settings]);
+  // The same catalog and layout as Settings › Default Models: usable models by provider, then "Needs setup".
+  const { data: localModels } = useLocalModels();
+  const choices = useMemo(() => modelChoices(modelSources(providers, settings, localModels)), [providers, settings, localModels]);
   const { groups, needsSetup } = useMemo(() => groupChoices(choices), [choices]);
   const selected = choices.find((c) => c.value === settings.chatModel);
 

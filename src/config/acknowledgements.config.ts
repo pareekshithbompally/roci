@@ -76,7 +76,8 @@ export const ACKNOWLEDGEMENTS: readonly AcknowledgementGroup[] = [
     title: 'AI and speech',
     items: [
       { name: 'Vercel AI SDK', url: 'https://github.com/vercel/ai', license: 'Apache-2.0', text: 'Apache-2.0', copyright: 'Copyright 2023 Vercel, Inc.' },
-      { name: 'Transformers.js', url: 'https://github.com/huggingface/transformers.js', license: 'Apache-2.0', text: 'Apache-2.0' },
+      { name: 'llama.cpp', url: 'https://github.com/ggml-org/llama.cpp', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2023-2026 The ggml authors' },
+      { name: 'stable-diffusion.cpp', url: 'https://github.com/leejet/stable-diffusion.cpp', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2023 leejet' },
       { name: 'ONNX Runtime Web', url: 'https://github.com/microsoft/onnxruntime', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) Microsoft Corporation' },
       { name: 'Voice Activity Detection (vad-web)', url: 'https://github.com/ricky0123/vad', license: 'ISC', text: 'ISC' },
       { name: 'transcribe.cpp', url: 'https://github.com/handy-computer/transcribe.cpp', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2026 The transcribe.cpp authors' },

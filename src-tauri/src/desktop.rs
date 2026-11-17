@@ -1,7 +1,7 @@
 //! macOS: the full app (menu bar, shortcuts, audio capture, MCP, coding agents …).
 
 use crate::{
-  app_icon, audio, autostart, call_detection, downloads, hex, image, mcp, mcp_server, meeting_reminders, meeting_spotlight,
+  app_icon, audio, autostart, call_detection, downloads, hex, image, llama, mcp, mcp_server, meeting_reminders, meeting_spotlight,
   menubar, models, open_native, permissions, screenshot, shortcuts, stt, tts, url_actions, window,
 };
 use std::sync::Mutex;
@@ -38,6 +38,7 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
     .manage(stt::SttState::default())
     .manage(tts::TtsState::default())
     .manage(image::ImageState::default())
+    .manage(llama::LlamaState::default())
     .invoke_handler(tauri::generate_handler![
       // Shortcut commands
       shortcuts::register_shortcut,
@@ -101,6 +102,8 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       tts::commands::tts_speak,
       tts::commands::tts_stop,
       image::commands::image_server_url,
+      llama::embedding_server,
+      llama::chat_server,
       // MCP client (servers, tools, calls)
       mcp::commands::get_mcp_configs,
       mcp::commands::save_mcp_configs,
@@ -135,6 +138,11 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
 
   // Backend-owned menubar: tray icon, menu, visibility, quit path.
   menubar::setup(app.handle());
+
+  // Model servers a crashed earlier session left running.
+  app.state::<image::ImageState>().server.stop_orphan();
+  app.state::<llama::LlamaState>().embedding.stop_orphan();
+  app.state::<llama::LlamaState>().chat.stop_orphan();
 
   // MCP: connect the servers the user left enabled.
   tauri::async_runtime::spawn(mcp::start_active_servers(app.handle().clone()));
@@ -182,7 +190,9 @@ pub fn on_event(app_handle: &AppHandle, event: RunEvent) {
     RunEvent::Exit => {
       audio::commands::abandon_active();
       mcp::kill_all_children(app_handle);
-      image::commands::stop(app_handle);
+      app_handle.state::<image::ImageState>().server.stop();
+      app_handle.state::<llama::LlamaState>().embedding.stop();
+      app_handle.state::<llama::LlamaState>().chat.stop();
     }
     _ => {}
   }

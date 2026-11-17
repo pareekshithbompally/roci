@@ -215,10 +215,10 @@ describe('getAllActiveModels', () => {
 
 describe('models from integrations', () => {
   it('Apple Intelligence joins the model sources only while its integration is on', async () => {
-    const { withIntegrationModels, resolveSummaryModel, requiresApiKey } = await import('@shared/utils/modelResolver');
+    const { modelSources, resolveSummaryModel, requiresApiKey } = await import('@shared/utils/modelResolver');
     const off = { analyzeModel: 'apple-intelligence' } as never;
     const on = { analyzeModel: 'apple-intelligence', appleIntelligenceIntegration: { enabled: true } } as never;
-    expect(withIntegrationModels([], off)).toEqual([]);
+    expect(modelSources([], off)).toEqual([]);
     expect(resolveSummaryModel(off, [])).toBeNull();
     const resolved = resolveSummaryModel(on, []);
     expect(resolved?.provider).toBe('apple-intelligence');

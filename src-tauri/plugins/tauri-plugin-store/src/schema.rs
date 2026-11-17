@@ -4,7 +4,7 @@ use rusqlite::Connection;
 pub const SCHEMA_VERSION: u32 = 4;
 
 /// Default embedding model and dimension.
-pub const DEFAULT_MODEL: &str = "onnx-community/embeddinggemma-300m-ONNX";
+pub const DEFAULT_MODEL: &str = "ggml-org/embeddinggemma-300M-GGUF";
 pub const DEFAULT_DIM: u32 = 768;
 
 /// Registers `sqlite_vec` once for all test modules; a second registration would panic.
@@ -94,6 +94,36 @@ pub fn migrate(conn: &Connection) -> Result<(), String> {
         migrate_v4(conn)?;
     }
 
+    match_embedding_model(conn)
+}
+
+/// Vectors from another embedding model can't be searched with this one's: they're dropped (chunks and full-text
+/// stay) and every meeting and chat is marked for embedding again.
+fn match_embedding_model(conn: &Connection) -> Result<(), String> {
+    let stored: Option<String> = conn
+        .query_row("SELECT value FROM meta WHERE key = 'embedding_model'", [], |row| row.get(0))
+        .ok();
+    if stored.as_deref() == Some(DEFAULT_MODEL) {
+        return Ok(());
+    }
+    let tx = conn.unchecked_transaction().map_err(|e| format!("begin embedding model change: {}", e))?;
+    // No model recorded: no vectors were ever written to drop.
+    if stored.is_some() {
+        tx.execute_batch(
+            "DELETE FROM vec_chunks;
+             DELETE FROM chat_vec_chunks;
+             UPDATE meeting_index_state SET embedding_hash = NULL;
+             UPDATE chat_index_state SET embedding_hash = NULL;",
+        )
+        .map_err(|e| format!("drop old embeddings: {}", e))?;
+    }
+    tx.execute(
+        "INSERT OR REPLACE INTO meta (key, value) VALUES ('embedding_model', ?1)",
+        [DEFAULT_MODEL],
+    )
+    .map_err(|e| format!("set embedding_model: {}", e))?;
+    tx.commit().map_err(|e| format!("commit embedding model change: {}", e))?;
+    log::info!("[store] Embedding model is now {} (old vectors dropped)", DEFAULT_MODEL);
     Ok(())
 }
 
@@ -938,5 +968,31 @@ mod tests {
         assert_eq!(recordings("rec_2_b"), vec!["rec_2_b.wav".to_string()]);
         assert!(recordings("done").is_empty());
         assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn a_new_embedding_model_drops_old_vectors_once() {
+        let conn = open_test_db();
+        init_db(&conn);
+        let now = now_test_millis();
+        conn.execute("INSERT INTO meetings (id, title, created_at, updated_at) VALUES ('m1', 'M', ?1, ?1)", params![now])
+            .expect("insert meeting");
+        conn.execute("INSERT INTO meeting_index_state (meeting_id, content_hash, embedding_hash, indexed_at) VALUES ('m1', 'c', 'c', ?1)", params![now])
+            .expect("insert index state");
+        let vector = format!("[{}]", vec!["0.1"; DEFAULT_DIM as usize].join(","));
+        conn.execute("INSERT INTO vec_chunks (chunk_id, embedding) VALUES (1, ?1)", params![vector]).expect("insert vector");
+        conn.execute("UPDATE meta SET value = 'old-model' WHERE key = 'embedding_model'", []).expect("set old model");
+
+        migrate(&conn).expect("migrate");
+
+        let vectors: i64 = conn.query_row("SELECT COUNT(*) FROM vec_chunks", [], |r| r.get(0)).unwrap();
+        let stamp: Option<String> = conn.query_row("SELECT embedding_hash FROM meeting_index_state", [], |r| r.get(0)).unwrap();
+        let model: String = conn.query_row("SELECT value FROM meta WHERE key = 'embedding_model'", [], |r| r.get(0)).unwrap();
+        assert_eq!((vectors, stamp, model.as_str()), (0, None, DEFAULT_MODEL));
+
+        conn.execute("INSERT INTO vec_chunks (chunk_id, embedding) VALUES (2, ?1)", params![vector]).expect("insert vector");
+        migrate(&conn).expect("migrate again");
+        let kept: i64 = conn.query_row("SELECT COUNT(*) FROM vec_chunks", [], |r| r.get(0)).unwrap();
+        assert_eq!(kept, 1, "the same model keeps its vectors");
     }
 }

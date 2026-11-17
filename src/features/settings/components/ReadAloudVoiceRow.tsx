@@ -7,7 +7,7 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { queryKeys } from '@shared/query/queryKeys';
 import { readAloud } from '@services/readAloud.service';
 import { useReadAloud, type ReadAloudState } from '@shared/hooks/useReadAloud';
-import { CAPABILITIES_CONFIG } from '@config/capabilities.config';
+import { DEFAULT_MODELS_CONFIG } from '@config/defaultModels.config';
 import { LAYOUT } from '@config/layout.config';
 import { READ_ALOUD_CONFIG, type ReadAloudEngine } from '@config/readAloud.config';
 import { JOB_GLYPH } from '@shared/components';
@@ -38,7 +38,7 @@ export const ReadAloudVoiceRow: React.FC<ReadAloudVoiceRowProps> = ({ engine, re
   return (
     <CardRow
       leading={<IconTile icon={JOB_GLYPH.voice} />}
-      title={CAPABILITIES_CONFIG.jobs.voice.title}
+      title={DEFAULT_MODELS_CONFIG.jobs.voice.title}
       actions={
         <div className="flex items-center gap-2">
           <IconButton

@@ -24,7 +24,7 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   { id: 'general', label: 'General', icon: Settings, group: 'App' },
   { id: 'notifications', label: 'Notifications', icon: Bell, group: 'App', available: platform.hasNotifications },
   { id: 'integrations', label: 'Integrations', icon: Puzzle, group: 'App', available: hasIntegrations },
-  { id: 'capabilities', label: 'Capabilities', icon: Sparkles, group: 'AI' },
+  { id: 'defaultModels', label: 'Default Models', icon: Sparkles, group: 'AI' },
   { id: 'providers', label: 'Providers', icon: Box, group: 'AI' },
   { id: 'mcp', label: 'MCP Servers', icon: SiModelcontextprotocol, group: 'AI', available: platform.supportsChildProcessMcp },
   { id: 'usage', label: 'Usage', icon: ChartColumn, group: 'Activity' },

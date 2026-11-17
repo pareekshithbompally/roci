@@ -1,7 +1,6 @@
 /** Chat search, delegated to the Rust store plugin's hybrid search. */
 
-import { embeddingService } from './embeddings';
-import { NOT_CONSENTED } from './types';
+import { embedQuery, isEmbeddingMissing } from './embeddings';
 import { vectorDB } from './client';
 import type { ChatSearchHit } from './client';
 import type { SearchOptions } from './types';
@@ -27,9 +26,9 @@ async function searchChats(
   let embedding: number[] = [];
   if (mode !== 'fulltext') {
     try {
-      embedding = await embeddingService.embed(query);
+      embedding = await embedQuery(query);
     } catch (error) {
-      if ((error as { code?: string })?.code !== NOT_CONSENTED) {
+      if (!isEmbeddingMissing(error)) {
         console.error('[ChatSearcher] Embedding failed, falling back to fulltext:', error);
       }
       return searchChats(query, { ...options, mode: 'fulltext' });

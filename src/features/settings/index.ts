@@ -5,7 +5,7 @@ export {
   settingsScreen, 
   ProvidersPanel, 
   GeneralPanel,
-  CapabilitiesPanel,
+  DefaultModelsPanel,
 } from './components';
 
 // Hooks

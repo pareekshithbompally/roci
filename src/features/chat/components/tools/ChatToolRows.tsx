@@ -22,7 +22,7 @@ const GroupRow: React.FC<{ group: CatalogGroup; icon?: LucideIcon; onChange: (on
 );
 
 interface ChatToolRowsProps {
-  /** Opens Settings at Capabilities (an image model is chosen there). */
+  /** Opens Settings at Default Models (an image model is chosen there). */
   onChooseImageModel: () => void;
   /** How full the chat's context window is; the row shows once it is known. */
   contextUsage?: ContextUsage | null;

@@ -7,9 +7,10 @@ import type { AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { store } from '@services/db';
 import { predefinedProviders, MANAGED_SDK_PROVIDERS } from '@config/providers.config';
-import { withIntegrationModels } from '@shared/utils/modelResolver';
+import { modelSources } from '@shared/utils/modelResolver';
 import { defaultSpeechSelection } from '@services/ai/transcription';
 import { queryKeys } from '@shared/query/queryKeys';
+import { getLocalModels } from '@services/localModels.service';
 
 interface SettingsState {
   /** App settings */
@@ -56,11 +57,34 @@ export const defaultSettings: AppSettings = {
   notifications: DEFAULT_NOTIFICATION_SETTINGS,
 };
 
-const SETTINGS_KEYS: Array<keyof AppSettings> = [
-  'onboarding', 'transcriptionProvider', 'transcriptionModel', 'chatModel', 'analyzeModel',
-  'apiKey', 'defaultAudioSource', 'autoTranscribe',
-  'jobProcessing', 'calendarIntegration', 'notifications', 'readAloudEngine', 'readAloudVoice', 'remindersIntegration', 'hexIntegration', 'appleIntelligenceIntegration', 'appleNotesIntegration', 'showModelAvatars', 'hideToolCalls', 'liveTranscription',
-];
+/** Every setting is saved: the type makes a new setting missing here a compile error. */
+const PERSISTED_SETTINGS: Record<keyof AppSettings, true> = {
+  analyzeModel: true,
+  apiKey: true,
+  appleIntelligenceIntegration: true,
+  appleNotesIntegration: true,
+  autoTranscribe: true,
+  calendarIntegration: true,
+  chatModel: true,
+  chatTools: true,
+  defaultAudioSource: true,
+  hexIntegration: true,
+  hideToolCalls: true,
+  imageModel: true,
+  imageProvider: true,
+  jobProcessing: true,
+  liveTranscription: true,
+  notifications: true,
+  onboarding: true,
+  readAloudEngine: true,
+  readAloudVoice: true,
+  remindersIntegration: true,
+  showModelAvatars: true,
+  spotlightIntegration: true,
+  transcriptionModel: true,
+  transcriptionProvider: true,
+};
+const SETTINGS_KEYS = Object.keys(PERSISTED_SETTINGS) as Array<keyof AppSettings>;
 
 /** Trailing debounce so rapid edits (typing an API key, toggling a list) coalesce into one disk write. */
 const AUTOSAVE_DELAY_MS = 500;
@@ -149,6 +173,19 @@ const FALLBACK_SETTINGS: LoadedSettings = {
 /** Provider ids removed from the app; saved configs with them are deleted on load. */
 const RETIRED_PROVIDER_IDS = new Set(['azure', 'cohere', 'huggingface', 'xai', 'local:llamacpp']);
 
+/** Clears a chat or summary model that no source serves any more, so a working one is picked instead. */
+function dropUnservedModels(settings: AppSettings, sources: ModelProvider[]): void {
+  const served = (id: string) => sources.some((p) => p.models?.some((m) => m.id === id));
+  if (settings.chatModel && !served(settings.chatModel)) {
+    console.log('[SettingsContext] Clearing dangling chat model:', settings.chatModel);
+    settings.chatModel = '';
+  }
+  if (settings.analyzeModel && !served(settings.analyzeModel)) {
+    console.log('[SettingsContext] Clearing dangling analyze model:', settings.analyzeModel);
+    settings.analyzeModel = '';
+  }
+}
+
 export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) => {
   const queryClient = useQueryClient();
 
@@ -195,16 +232,14 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         console.log('[SettingsContext] Clearing dangling selected provider:', selectedProviderName);
         selectedProviderName = null;
       }
-      // A model may also come from an integration (Apple Intelligence).
-      const modelServed = (id: string) => withIntegrationModels(loadedProviders, loadedSettings).some((p) => p.models?.some((m) => m.id === id));
-      if (loadedSettings.chatModel && !modelServed(loadedSettings.chatModel)) {
-        console.log('[SettingsContext] Clearing dangling chat model:', loadedSettings.chatModel);
-        loadedSettings.chatModel = '';
-      }
-      if (loadedSettings.analyzeModel && !modelServed(loadedSettings.analyzeModel)) {
-        console.log('[SettingsContext] Clearing dangling analyze model:', loadedSettings.analyzeModel);
-        loadedSettings.analyzeModel = '';
-      }
+      // A model may also be built in (Apple Intelligence) or downloaded to this device: check only when every source is known.
+      const localModels = await queryClient
+        .fetchQuery({ queryKey: queryKeys.localModels(), queryFn: getLocalModels })
+        .catch((error: unknown) => {
+          console.error('[SettingsContext] Local models unavailable; keeping saved model choices:', error);
+          return null;
+        });
+      if (localModels) dropUnservedModels(loadedSettings, modelSources(loadedProviders, loadedSettings, localModels));
 
       if (!selectedProviderName && loadedProviders.length > 0) {
         const providerWithKey = loadedProviders.find(hasApiKey);

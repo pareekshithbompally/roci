@@ -1,8 +1,8 @@
-/** Every integration as one row in a grouped card (rows come from features/integrations); only those this device has. */
+/** Every integration this device has, one row each (Apple Intelligence is a model source: Providers › On this device). */
 
 import React from 'react';
 import { Section } from '@shared/ui';
-import { AppleIntelligenceIntegration, AppleNotesIntegration, CalendarIntegration, CodingAgentsIntegration, HexIntegration, RemindersIntegration, SpotlightIntegration, UrlActionsIntegration } from '@features/integrations';
+import { AppleNotesIntegration, CalendarIntegration, CodingAgentsIntegration, HexIntegration, RemindersIntegration, SpotlightIntegration, UrlActionsIntegration } from '@features/integrations';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { platform } from '@platform/index';
 import { isIntegrationAvailable, type IntegrationId } from '@shared/utils/integrations';
@@ -10,7 +10,6 @@ import { SettingsPage } from './shared';
 
 /** The system integrations in display order; a device shows the ones it has. */
 const SYSTEM_ROWS: ReadonlyArray<readonly [IntegrationId, React.FC]> = [
-  ['appleIntelligence', AppleIntelligenceIntegration],
   ['calendar', CalendarIntegration],
   ['reminders', RemindersIntegration],
   ['appleNotes', AppleNotesIntegration],

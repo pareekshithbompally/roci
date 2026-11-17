@@ -3,7 +3,7 @@
 import { useCallback, useMemo } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useAppActions } from '@shared/stores/appStore';
-import { withIntegrationModels } from '@shared/utils/modelResolver';
+import { modelSources } from '@shared/utils/modelResolver';
 import { useSpeechInputReady } from './useSpeechModels';
 
 export interface AIReadiness {
@@ -17,7 +17,7 @@ export function useAIReadiness(): AIReadiness {
   const { settings, providers } = useSettings();
   const speech = useSpeechInputReady();
   const text = useMemo(
-    () => withIntegrationModels(providers, settings).some((p) => p.active && p.models && p.models.length > 0),
+    () => modelSources(providers, settings).some((p) => p.active && p.models && p.models.length > 0),
     [providers, settings],
   );
   return useMemo(() => ({ text, speech }), [text, speech]);

@@ -12,8 +12,12 @@ pub enum Kind {
     Speech,
     /// A read-aloud voice, run by Phonon (`ptts`).
     Voice,
-    /// Text-to-image, run by stable-diffusion.cpp (`diffusion-rs`); files are diffusion model, text encoder, VAE.
+    /// Text-to-image, run by stable-diffusion.cpp's `sd-server`; files are diffusion model, text encoder, VAE.
     Image,
+    /// Text embeddings for meeting search, run by llama.cpp's `llama-server`.
+    Embedding,
+    /// A chat model, run by llama.cpp's `llama-server`; files are the model, then an optional MTP draft that speeds it up.
+    Chat,
 }
 
 /// A Hugging Face repository at a pinned commit.
@@ -67,6 +71,42 @@ impl LocalModel {
 
 /// Picker order within each kind: the live-capable speech models first.
 pub const MODELS: &[LocalModel] = &[
+    LocalModel {
+        id: "gemma-4-e2b",
+        name: "Gemma 4 E2B",
+        kind: Kind::Chat,
+        streams: false,
+        voices: &[],
+        source: Source { repository: "ggml-org/gemma-4-E2B-it-GGUF", revision: "2a8538c2e2d4687953a86c422c7c623cfd022880" },
+        files: &[
+            ModelFile {
+                name: "gemma-4-E2B-it-Q4_0.gguf",
+                bytes: 2_841_481_184,
+                sha256: "8e30dff3ac4c8434c49a7036fa15564bdbb6044e42bf04550bf1a096ad7e6a52",
+                source: None,
+            },
+            ModelFile {
+                name: "mtp-gemma-4-E2B-it-Q4_0.gguf",
+                bytes: 59_235_872,
+                sha256: "718d3a44057924d5840c65a0aeedf7929366adeeda92a2006955ccabaf645ef4",
+                source: None,
+            },
+        ],
+    },
+    LocalModel {
+        id: "lfm3-omni-2b",
+        name: "LFM3 Omni 2B",
+        kind: Kind::Chat,
+        streams: false,
+        voices: &[],
+        source: Source { repository: "ggml-org/LFM3-Omni-2B-GGUF", revision: "0b6888cd0b7ac8962cb8b125f0bf087c3178de5f" },
+        files: &[ModelFile {
+            name: "LFM3-Omni-2B-Q8_0.gguf",
+            bytes: 1_846_240_736,
+            sha256: "40d27b13e500963468f1fd1099863464a4a5e8f4682e934f9be8b54641b8c0c7",
+            source: None,
+        }],
+    },
     LocalModel {
         id: "parakeet-unified-en",
         name: "Parakeet (English)",
@@ -231,6 +271,20 @@ pub const MODELS: &[LocalModel] = &[
                 source: Some(&FLUX_2_KLEIN_4B),
             },
         ],
+    },
+    LocalModel {
+        id: "embeddinggemma-300m",
+        name: "EmbeddingGemma 300M",
+        kind: Kind::Embedding,
+        streams: false,
+        voices: &[],
+        source: Source { repository: "ggml-org/embeddinggemma-300M-GGUF", revision: "0f741b5a6585bd53aeb15cd1372c56f2a0f65e12" },
+        files: &[ModelFile {
+            name: "embeddinggemma-300M-Q8_0.gguf",
+            bytes: 333_590_944,
+            sha256: "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63",
+            source: None,
+        }],
     },
 ];
 

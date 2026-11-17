@@ -1,7 +1,6 @@
 /** Meeting search via the Rust store plugin's hybrid search (KNN + FTS5 + RRF), grouped by meeting. */
 
-import { embeddingService } from './embeddings';
-import { NOT_CONSENTED } from './types';
+import { embedQuery, isEmbeddingMissing } from './embeddings';
 import { vectorDB } from './client';
 import type { SearchHit } from './client';
 import type { SearchOptions } from './types';
@@ -28,9 +27,9 @@ async function searchMeetings(
   let embedding: number[] = [];
   if (mode !== 'fulltext') {
     try {
-      embedding = await embeddingService.embed(query);
+      embedding = await embedQuery(query);
     } catch (error) {
-      if ((error as { code?: string })?.code !== NOT_CONSENTED) {
+      if (!isEmbeddingMissing(error)) {
         console.error('[RAGSearcher] Embedding failed, falling back to fulltext:', error);
       }
       return searchMeetings(query, { ...options, mode: 'fulltext' });

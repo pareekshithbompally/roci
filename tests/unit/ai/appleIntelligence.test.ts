@@ -42,7 +42,7 @@ describe('appleIntelligenceModel (AI SDK v4)', () => {
   });
 
   it('turns an Apple refusal into a sentence with the next step; other errors pass through', () => {
-    expect((summaryError(new Error('x', { cause: { code: 'refused' } })) as Error).message).toMatch(/declined this transcript.*Settings › Capabilities/);
+    expect((summaryError(new Error('x', { cause: { code: 'refused' } })) as Error).message).toMatch(/declined this transcript.*Settings › Default Models/);
     const other = new Error('No API key');
     expect(summaryError(other)).toBe(other);
   });

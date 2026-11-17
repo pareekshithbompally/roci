@@ -172,7 +172,7 @@ export interface UnifiedSidebarItem {
 export interface ChatToolPreferences {
   /** Built-in meeting & chat tools, switched as one group. */
   meetingTools: boolean;
-  /** generate_image, offered while an image model is chosen in Settings › Capabilities. */
+  /** generate_image, offered while an image model is chosen in Settings › Default Models. */
   imageGeneration: boolean;
   /** MCP tools switched off, as `mcpToolKey(server, tool)` keys. */
   disabledMcpTools: string[];
@@ -231,7 +231,7 @@ export interface AppSettings {
   };
   /** Settings › Notifications: which kinds may notify, and the meeting lead time. */
   notifications?: NotificationSettings;
-  /** Settings › Capabilities › Read aloud: the engine replies are spoken with. */
+  /** Settings › Default Models › Read aloud: the engine replies are spoken with. */
   readAloudEngine?: ReadAloudEngine;
   /** The voice within `readAloudEngine` (its id from the engine's voice list); unset = the engine's default. */
   readAloudVoice?: string;

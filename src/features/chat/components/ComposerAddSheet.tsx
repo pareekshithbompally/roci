@@ -47,7 +47,7 @@ export const ComposerAddSheet: React.FC<ComposerAddSheetProps> = ({ open, onOpen
             <CardRow key={id} title={label} leading={<Icon icon={icon} size="sm" />} onPress={closeThen(run)} />
           ))}
         </Section>
-        <ChatToolRows onChooseImageModel={closeThen(() => openSettings('capabilities'))} contextUsage={contextUsage} />
+        <ChatToolRows onChooseImageModel={closeThen(() => openSettings('defaultModels'))} contextUsage={contextUsage} />
       </SheetBody>
     </BottomSheet>
   );

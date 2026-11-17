@@ -5,6 +5,9 @@ import { platform } from '@platform/index';
 
 const NOTES_FOLDER = 'Roci';
 
+/** Where an integration's switch lives; Apple Intelligence is a model source, so it sits with the providers. */
+export const INTEGRATION_SETTINGS_PATH = { default: 'Settings › Integrations', appleIntelligence: 'Settings › Providers › On this device' } as const;
+
 export const INTEGRATIONS_CONFIG = {
   calendar: {
     title: 'Calendar',

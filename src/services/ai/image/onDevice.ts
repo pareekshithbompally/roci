@@ -10,8 +10,8 @@ import type { ImageRequest, ImageTarget } from './generate';
 function onDeviceImageErrorMessage(error: unknown, model: string): string {
   if (!isCodedError<LocalErrorPayload>(error)) return errorMessage(error);
   switch (error.code) {
-    case 'not-downloaded': return `${model} isn't downloaded. Download it in Settings › Capabilities › Images.`;
-    case 'unknown-model': return 'Choose an image model in Settings › Capabilities.';
+    case 'not-downloaded': return `${model} isn't downloaded. Download it in Settings › Default Models.`;
+    case 'unknown-model': return 'Choose an image model in Settings › Default Models.';
     default: return `Couldn't start image generation on this Mac (${error.detail ?? error.code}).`;
   }
 }

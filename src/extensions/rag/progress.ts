@@ -1,18 +1,4 @@
-/** Event bridge so the non-React embedder and indexers report model and indexing progress to the UI. */
-
-/** Embedding model lifecycle events */
-export interface EmbeddingModelEvent {
-  kind: 'model';
-  status: 'downloading' | 'loading' | 'ready' | 'error';
-  /** Bytes loaded so far */
-  loaded?: number;
-  /** Total bytes expected */
-  total?: number;
-  /** 0-100 percentage */
-  percent?: number;
-  /** Error message if status === 'error' */
-  error?: string;
-}
+/** Event bridge so the non-React indexers report indexing progress to the UI. */
 
 /** Meeting/chat indexing progress events */
 export interface IndexingProgressEvent {
@@ -27,14 +13,14 @@ export interface IndexingProgressEvent {
   error?: string;
 }
 
-export type RAGProgressEvent = EmbeddingModelEvent | IndexingProgressEvent;
+export type RAGProgressEvent = IndexingProgressEvent;
 
 
 type ProgressListener = (event: RAGProgressEvent) => void;
 
 let listener: ProgressListener | null = null;
 
-/** Called by embeddings.ts and indexer.ts to emit progress events */
+/** Called by the indexers to emit progress events */
 export function emitProgress(event: RAGProgressEvent): void {
   listener?.(event);
 }

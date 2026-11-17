@@ -1,8 +1,7 @@
 /** Indexes chat sessions (FTS5 + sqlite-vec), tracking content_hash and embedding_hash separately. */
 
 import type { ChatSession } from '@shared/types';
-import { embeddingService, preloadModel } from './embeddings';
-import { NOT_CONSENTED } from './types';
+import { embedDocuments, isEmbeddingMissing } from './embeddings';
 import { vectorDB } from './client';
 import { chunkChatSession, computeChatHash } from './chat-chunker';
 import { emitProgress } from './progress';
@@ -113,16 +112,7 @@ async function indexAllSessions(
 
   if (staleItems.length > 0) {
     console.log(`[ChatIndexer] Step 1: ${staleItems.length} sessions need indexing`);
-    emitProgress({ kind: 'indexing', status: 'started', total: staleItems.length, currentTitle: 'Chat: loading embedding model…' });
-
-    // Warm the model first so session 1 doesn't block on download; never interactive, so no consent prompt.
-    if (includeEmbeddings) {
-      try {
-        await preloadModel({ interactive: false });
-      } catch {
-        console.warn('[ChatIndexer] Embedding model preload failed — will retry per-session');
-      }
-    }
+    emitProgress({ kind: 'indexing', status: 'started', total: staleItems.length, currentTitle: 'Chat: indexing…' });
 
     for (let i = 0; i < staleItems.length; i++) {
       if (signal?.aborted) break;
@@ -220,9 +210,9 @@ async function indexSessionInternal(
   let embeddings: number[][] | null = null;
   if (options?.includeEmbeddings !== false) {
     try {
-      embeddings = await embeddingService.embedBatch(chunkTexts);
+      embeddings = await embedDocuments(chunkTexts);
     } catch (error) {
-      if ((error as { code?: string })?.code !== NOT_CONSENTED) {
+      if (!isEmbeddingMissing(error)) {
         console.error(`[ChatIndexer] Embedding failed for session "${session.title}":`, error);
       }
     }

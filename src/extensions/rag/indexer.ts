@@ -1,15 +1,14 @@
 /** Indexes meetings into sqlite-vec via Rust: chunk, embed, upsert; content hashes skip unchanged meetings. */
 
 import type { HistoryItem } from '@shared/types';
-import { embeddingService, preloadModel } from './embeddings';
-import { NOT_CONSENTED } from './types';
+import { embedDocuments, isEmbeddingMissing } from './embeddings';
 import { vectorDB } from './client';
 import { chunkMeeting, computeContentHash } from './chunker';
 import { emitProgress } from './progress';
-import { EMBEDDING_MODEL, HASH_CONCURRENCY } from './constants';
+import { HASH_CONCURRENCY } from './constants';
 import { concurrencyMap } from '@shared/utils/async.utils';
 import type { ChunkData, MeetingMeta } from './client';
-import type { IndexingResult, RAGStatus } from './types';
+import type { IndexingResult } from './types';
 
 export interface IndexOptions {
   signal?: AbortSignal;
@@ -48,9 +47,9 @@ async function indexMeeting(
   let embeddings: number[][] | null = null;
   if (options?.includeEmbeddings !== false) {
     try {
-      embeddings = await embeddingService.embedBatch(chunkTexts);
+      embeddings = await embedDocuments(chunkTexts);
     } catch (error) {
-      if ((error as { code?: string })?.code !== NOT_CONSENTED) {
+      if (!isEmbeddingMissing(error)) {
         console.error(`[RAGIndexer] Failed to embed chunks for "${item.title}":`, error);
       }
     }
@@ -130,16 +129,7 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
   }
 
   if (staleItems.length > 0) {
-    emitProgress({ kind: 'indexing', status: 'started', total: staleItems.length, currentTitle: 'Loading embedding model…' });
-
-    // Warm the model first so meeting 1 doesn't block on download; never interactive, so no consent prompt.
-    if (includeEmbeddings) {
-      try {
-        await preloadModel({ interactive: false });
-      } catch {
-        console.warn('[RAGIndexer] Embedding model preload failed — will retry per-meeting');
-      }
-    }
+    emitProgress({ kind: 'indexing', status: 'started', total: staleItems.length, currentTitle: 'Indexing…' });
 
     for (let i = 0; i < staleItems.length; i++) {
       if (signal?.aborted) break;
@@ -255,20 +245,6 @@ async function needsReindex(items: HistoryItem[]): Promise<HistoryItem[]> {
   const staleIds = await vectorDB.getStaleMeetings(hashes);
   const staleSet = new Set(staleIds);
   return items.filter((item) => staleSet.has(item.id));
-}
-
-/** Current RAG status (index stats, model state). */
-export async function getRAGStatus(): Promise<RAGStatus> {
-  const stats = await vectorDB.getStats();
-  const meta = await vectorDB.getMeta();
-  return {
-    ready: stats.total_meetings > 0,
-    indexedMeetings: Number(stats.total_meetings),
-    totalChunks: Number(stats.total_chunks),
-    dbSizeBytes: Number(stats.db_size_bytes),
-    modelLoaded: embeddingService.isReady(),
-    embeddingModel: meta.embedding_model || EMBEDDING_MODEL,
-  };
 }
 
 export const ragIndexer = {

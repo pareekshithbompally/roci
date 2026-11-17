@@ -1,7 +1,7 @@
 /** Local models for every surface: list query, per-model download/delete controls, picker step, download events. */
 
 import { useMemo } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 import { activityStore, useActivityItems, type ActivityItem } from '@shared/stores/activityStore';
@@ -9,25 +9,21 @@ import { notifyAppEvent } from '@shared/utils/appEvents';
 import { failureLogger } from '@shared/utils/errors';
 import { formatFileSize } from '@shared/utils/formatters';
 import { useTauriEvent } from '@shared/hooks/useTauriEvent';
+import { useLocalModels } from '@shared/hooks/useLocalModels';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import {
   cancelLocalModelDownload,
   downloadLocalModel,
   downloadPercent,
-  getLocalModels,
   removeLocalModel,
 } from '@services/localModels.service';
 import type { LocalModel, LocalModelDownload } from '@services/localModels.service';
-import { confirmModelDelete, type OnDeviceModel } from '@shared/hooks/useOnDeviceModel';
+import { confirmModelDelete, type OnDeviceModel } from '@shared/utils/onDeviceModel';
 import type { ChoiceSetup } from '@shared/utils/modelResolver';
 
 const report = failureLogger('useLocalModels');
 const { activityId } = LOCAL_MODELS_CONFIG;
 const modelsKey = queryKeys.localModels();
-
-export function useLocalModels() {
-  return useQuery({ queryKey: modelsKey, queryFn: getLocalModels });
-}
 
 function nameOf(id: string): string {
   return queryClient.getQueryData<LocalModel[]>(modelsKey)?.find((m) => m.id === id)?.name ?? id;

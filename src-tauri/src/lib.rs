@@ -42,6 +42,10 @@ mod tts;
 #[cfg(desktop)]
 mod image;
 #[cfg(desktop)]
+mod llama;
+#[cfg(desktop)]
+mod model_server;
+#[cfg(desktop)]
 mod open_native;
 #[cfg(desktop)]
 mod downloads;

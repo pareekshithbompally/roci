@@ -1,4 +1,4 @@
-/** generate_image: the chat model writes the prompt; the image model chosen in Settings › Capabilities draws it. */
+/** generate_image: the chat model writes the prompt; the image model chosen in Settings › Default Models draws it. */
 
 import type { ToolDefinition, ToolResult } from '@extensions/tools/types';
 import { IMAGE_ASPECT_RATIOS, IMAGE_GENERATION_CONFIG } from '@config/imageGeneration.config';
