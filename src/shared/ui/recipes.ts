@@ -1,5 +1,7 @@
 /** Internal class recipes shared between kit components; not exported, features use components. */
 
+import { cn } from './utils';
+
 /** Floating panel: base surface, floating elevation (its 0.5px ring is the edge). */
 export const FLOATING_SURFACE =
   'z-popover bg-base rounded-lg shadow-floating outline-none data-[state=open]:animate-content-show data-[state=closed]:animate-content-hide';
@@ -21,6 +23,19 @@ export const SHEET_DESCRIPTION = 'text-body text-muted mt-1';
 export const MENU_LIST = `${FLOATING_SURFACE} min-w-36 p-1`;
 export const MENU_ITEM =
   'relative flex items-center gap-2 px-2 py-1.5 rounded text-body text-primary cursor-default select-none outline-none transition-colors data-[highlighted]:bg-hover aria-disabled:opacity-50';
+/** A searchable list shown as an iOS screen: results are an inset grouped card — list-height rows, separators inset
+ *  like a list's, no hover/selection fill on touch (a press shades the row), group headings above the card's rows. */
+export const LIST_COMMAND = cn(
+  'overflow-hidden rounded-card bg-grouped-card',
+  '[&_[cmdk-item]]:mx-4 [&_[cmdk-item]]:min-h-row [&_[cmdk-item]]:rounded-none [&_[cmdk-item]]:px-0 [&_[cmdk-item]]:py-3',
+  '[&_[cmdk-item]+[cmdk-item]]:border-t [&_[cmdk-item]+[cmdk-item]]:border-muted',
+  '[&_[cmdk-item][data-selected=true]]:bg-transparent [&_[cmdk-item]:active]:opacity-60',
+  '[&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:pt-3',
+);
+
+/** iOS search field: a rounded filled bar with a magnifier (UISearchBar). */
+export const SEARCH_FIELD = 'flex h-control-sm items-center gap-2 rounded-lg bg-control px-2.5 text-muted';
+
 export const MENU_LABEL = 'px-2 py-1.5 text-callout font-medium text-faint';
 export const MENU_SEPARATOR = 'h-px my-1 bg-separator';
 

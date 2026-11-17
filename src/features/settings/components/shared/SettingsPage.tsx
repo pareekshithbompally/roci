@@ -38,7 +38,7 @@ const COLUMN = `${LAYOUT.pageColumn} pt-6`;
 
 /** Phone: the screen's bar already shows the title; the description is a short intro, the screen scrolls. */
 const PhonePage: React.FC<SettingsPageProps> = ({ description, accessory, children }) => (
-  <div className="flex flex-col gap-6 px-4 pb-6">
+  <div className="flex flex-col gap-section px-4 pb-6">
     {(description || accessory) && (
       <div className="flex items-start justify-between gap-4">
         {description && <Text as="p" tone="muted">{description}</Text>}
@@ -56,7 +56,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = (props) =>
 const DesktopPage: React.FC<SettingsPageProps> = ({ layout = 'scroll', children, ...header }) =>
   layout === 'scroll' ? (
     <PageScroll className={`h-full ${LAYOUT.pageGutter} pb-6`}>
-      <div className={`${COLUMN} space-y-6`}>
+      <div className={`${COLUMN} space-y-section`}>
         <SettingsPageHeader {...header} />
         {children}
       </div>
@@ -64,7 +64,7 @@ const DesktopPage: React.FC<SettingsPageProps> = ({ layout = 'scroll', children,
   ) : (
     <div className={`flex h-full flex-col ${LAYOUT.pageGutter} pb-6`}>
       <TitlebarSpacer />
-      <div className={`${COLUMN} flex min-h-0 flex-1 flex-col gap-6`}>
+      <div className={`${COLUMN} flex min-h-0 flex-1 flex-col gap-section`}>
         <SettingsPageHeader {...header} />
         <div className="flex min-h-0 flex-1">{children}</div>
       </div>

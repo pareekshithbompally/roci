@@ -54,20 +54,26 @@ export function CardRow({ title, description, leading, leadingAlign = 'title', s
     <div
       {...(press && { role: 'button', tabIndex: 0, onClick: press, onKeyDown: activateOnKey(press) })}
       className={cn(
+        // UIKit cell: icon, then the content view; the separator belongs to the content, so it starts where the text starts.
+        'group/row flex gap-row-icon !border-t-0',
         press && 'cursor-pointer active:bg-tint-pressed',
-        'flex gap-4 py-3',
-        stacked ? 'flex-col' : cn('justify-between', align === 'start' ? 'items-start' : 'items-center'),
-        description ? 'min-h-15' : 'min-h-row',
         className,
       )}
       {...props}
     >
+      {/* `title`: one title line tall (1lh of the title style), so the icon centres on the title, not the block. */}
+      {leading && (leadingAlign === 'row'
+        ? <div className="flex shrink-0 items-center">{leading}</div>
+        : <Text as="div" variant="body" className="flex h-[1lh] shrink-0 items-center self-start mt-3">{leading}</Text>)}
+      <div
+        className={cn(
+          'flex min-w-0 flex-1 gap-4 py-3 border-muted group-[:not(:first-child)]/row:border-t',
+          stacked ? 'flex-col' : cn('justify-between', align === 'start' ? 'items-start' : 'items-center'),
+          description ? 'min-h-15' : 'min-h-row',
+        )}
+      >
       {/* Title first (iOS / macOS lists): it keeps its one line; the value side takes what is left and truncates. */}
-      <div className={cn('flex min-w-0 gap-2.5', trailing && !stacked ? 'max-w-[70%] shrink-0' : 'flex-1', leadingAlign === 'row' ? 'items-center' : 'items-start')}>
-        {/* `title`: one title line tall (1lh of the title style), so the icon centres on the title, not the block. */}
-        {leading && (leadingAlign === 'row'
-          ? <div className="flex shrink-0 items-center">{leading}</div>
-          : <Text as="div" variant="body" className="flex h-[1lh] shrink-0 items-center">{leading}</Text>)}
+      <div className={cn('flex min-w-0', trailing && !stacked ? 'max-w-[70%] shrink-0' : 'flex-1')}>
         <div className="min-w-0">
           <Text as="p" variant="body" truncate>{title}</Text>
           {description && <Text as="p" variant="helper" tone="muted" truncate className="mt-0.5">{description}</Text>}
@@ -83,6 +89,7 @@ export function CardRow({ title, description, leading, leadingAlign = 'title', s
         </div>
       )}
       {children}
+      </div>
     </div>
   );
 }

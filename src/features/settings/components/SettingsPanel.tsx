@@ -51,7 +51,7 @@ export const SettingsHome: React.FC = () => {
   const groups = [...new Set(items.map(({ group }) => group))];
 
   return (
-    <div className="flex flex-col gap-6 p-4">
+    <div className="flex flex-col gap-section p-4">
       {groups.map((group) => (
         <Section key={group} title={group}>
           {items.filter((item) => item.group === group).map(({ id, label, icon }) => (

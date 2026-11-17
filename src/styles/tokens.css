@@ -92,6 +92,9 @@
   --radius-card: 12px;
   --radius-sheet: 16px;
   --row-min-h: 48px;
+  /* List rhythm: icon-to-text gap in a row, space between groups (macOS System Settings). */
+  --row-icon-gap: 10px;
+  --section-gap: 24px;
   --bg-deep: var(--grey-100);
   --bg-layer-1: var(--grey-100);
   --bg-layer-2: var(--grey-200);
@@ -193,6 +196,8 @@ html.platform-ios {
   --radius-card: 26px;
   --radius-sheet: 38px;
   --row-min-h: 52px;
+  --row-icon-gap: 16px;
+  --section-gap: 32px;
 }
 
 html.platform-ios.dark {

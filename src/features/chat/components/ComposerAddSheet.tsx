@@ -31,7 +31,7 @@ export const ComposerAddSheet: React.FC<ComposerAddSheetProps> = ({ open, onOpen
 
   return (
     <BottomSheet open={open} onOpenChange={onOpenChange} title="Add">
-      <div className="flex flex-col gap-6 overflow-y-auto p-4">
+      <div className="flex flex-col gap-section overflow-y-auto p-4">
         {onPickFiles && (
           <Section title="Attach">
             {ATTACH_OPTIONS.map(({ label, icon, accept }) => (

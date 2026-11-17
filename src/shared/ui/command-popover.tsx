@@ -5,6 +5,9 @@ import { UI_CONFIG } from '@config/ui.config';
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from './popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandList } from './command';
 import { cn } from './utils';
+import { Search } from 'lucide-react';
+import { Icon } from './icon';
+import { LIST_COMMAND, SEARCH_FIELD } from './recipes';
 import { PushedScreen, useOptionalNavStack } from './nav-stack';
 import { useFormFactor } from '@platform/formFactor';
 
@@ -55,9 +58,12 @@ export function CommandPopover({
       <>
         {React.cloneElement(trigger, { onClick: () => onOpenChange(true) })}
         <PushedScreen open={open} title={title ?? searchPlaceholder} onClose={() => onOpenChange(false)}>
-          <Command className="rounded-none">
-            <CommandInput placeholder={searchPlaceholder} value={search} onValueChange={onSearchChange} className="px-4" />
-            <CommandList className="max-h-none overflow-visible">
+          <Command className="gap-3 rounded-none px-4 pb-4">
+            <div className={SEARCH_FIELD}>
+              <Icon icon={Search} size="sm" />
+              <CommandInput placeholder={searchPlaceholder} value={search} onValueChange={onSearchChange} className="border-b-0 px-0 py-0" />
+            </div>
+            <CommandList className={cn('max-h-none overflow-visible p-0', LIST_COMMAND)}>
               <CommandEmpty>{emptyText}</CommandEmpty>
               {children}
             </CommandList>
