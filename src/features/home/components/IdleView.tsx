@@ -104,7 +104,7 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   return (
     // Full-bleed so LandingGlow paints under the titlebar; the spacer keeps content below it.
     <div className="flex-1 w-full flex flex-col animate-fade-in relative">
-      <LandingGlow />
+      <LandingGlow paused={voice.isVoiceActive} />
       <TitlebarSpacer />
 
       {/* Settings load async; until then show a skeleton so an empty provider list is not read as zero-state. */}

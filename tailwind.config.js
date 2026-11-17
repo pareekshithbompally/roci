@@ -129,6 +129,20 @@ export default {
           from: { backgroundPosition: '100% 0' },
           to: { backgroundPosition: '-100% 0' },
         },
+        // Landing glow blobs; translate(-50%, -50%) makes `left/top` mark each blob's centre.
+        'glow-drift-1': {
+          '0%, 100%': { transform: 'translate(-50%, -50%) translate(0, 0) scale(1)' },
+          '33%': { transform: 'translate(-50%, -50%) translate(3rem, 2rem) scale(1.08)' },
+          '66%': { transform: 'translate(-50%, -50%) translate(-2rem, 3rem) scale(0.95)' },
+        },
+        'glow-drift-2': {
+          '0%, 100%': { transform: 'translate(-50%, -50%) translate(0, 0) scale(1)' },
+          '50%': { transform: 'translate(-50%, -50%) translate(-4rem, -2rem) scale(1.12)' },
+        },
+        'glow-drift-3': {
+          '0%, 100%': { transform: 'translate(-50%, -50%) translate(0, 0) scale(1)' },
+          '50%': { transform: 'translate(-50%, -50%) translate(5rem, -3rem) scale(0.92)' },
+        },
       },
       animation: {
         'overlay-show': `overlay-show ${ENTER}`,
@@ -148,6 +162,9 @@ export default {
         'drawer-end-show': `drawer-end-show ${DRAWER_ENTER}`,
         'drawer-end-hide': `drawer-end-hide ${DRAWER_EXIT}`,
         'text-shimmer': 'text-shimmer 2s linear infinite',
+        'glow-drift-1': 'glow-drift-1 22s ease-in-out infinite',
+        'glow-drift-2': 'glow-drift-2 28s ease-in-out infinite',
+        'glow-drift-3': 'glow-drift-3 36s ease-in-out infinite',
       },
     },
   },
