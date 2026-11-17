@@ -95,15 +95,10 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
         <div className="ml-auto flex items-center gap-2">
           {(tokensPerSecond != null || tokenCount != null || inputTokenCount != null) && (
             <Tooltip
-              content={
-                <>
-                  {tokensPerSecond != null && <span>{tokensPerSecond} tok/s</span>}
-                  {tokensPerSecond != null && (inputTokenCount != null || tokenCount != null) && <span> · </span>}
-                  {inputTokenCount != null && <span>{inputTokenCount} in</span>}
-                  {inputTokenCount != null && tokenCount != null && <span> / </span>}
-                  {tokenCount != null && <span>{tokenCount} out</span>}
-                </>
-              }
+              content={[
+                tokensPerSecond != null && `${tokensPerSecond} tok/s`,
+                [inputTokenCount != null && `${inputTokenCount} in`, tokenCount != null && `${tokenCount} out`].filter(Boolean).join(' / '),
+              ].filter(Boolean).join(' · ')}
             >
               <IconButton icon={Gauge} label="Token usage" size="sm" />
             </Tooltip>

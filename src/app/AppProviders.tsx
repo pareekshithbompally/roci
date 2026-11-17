@@ -9,7 +9,7 @@ import { SettingsProvider } from '@shared/contexts/SettingsContext';
 import { HistoryProvider } from '@shared/contexts/HistoryContext';
 import { ImportProvider } from '@features/import';
 import { queryClient } from '@shared/query/queryClient';
-import { Surface, Text, TooltipProvider } from '@shared/ui';
+import { Surface, Text } from '@shared/ui';
 
 /** Error boundary that shows render errors instead of a blank window. */
 interface ErrorBoundaryState {
@@ -65,17 +65,15 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
       <MotionConfig reducedMotion="user">
         <ThemeProvider>
           <ToastProvider>
-            <TooltipProvider>
-              <QueryClientProvider client={queryClient}>
-                <SettingsProvider>
-                  <HistoryProvider>
-                    <ImportProvider>
-                      {children}
-                    </ImportProvider>
-                  </HistoryProvider>
-                </SettingsProvider>
-              </QueryClientProvider>
-            </TooltipProvider>
+            <QueryClientProvider client={queryClient}>
+              <SettingsProvider>
+                <HistoryProvider>
+                  <ImportProvider>
+                    {children}
+                  </ImportProvider>
+                </HistoryProvider>
+              </SettingsProvider>
+            </QueryClientProvider>
           </ToastProvider>
         </ThemeProvider>
       </MotionConfig>
