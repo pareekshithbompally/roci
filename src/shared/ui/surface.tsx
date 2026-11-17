@@ -6,6 +6,8 @@ import { Text } from './text';
 const VARIANT = {
   /** Window background (vibrancy in dark) */
   page: 'bg-base-glass',
+  /** Behind grouped cards (Settings screens, sheets of rows): the system grouped background on iOS */
+  grouped: 'bg-grouped',
   /** Left sidebar */
   sidebar: 'bg-deep-glass',
   /** Side panels over the page (chat panel) */

@@ -3,17 +3,19 @@ import { ChevronsUpDown } from 'lucide-react';
 import type React from 'react';
 import type { ComponentProps } from 'react';
 import { cn } from './utils';
-import { POPUP_BUTTON, MENU_LIST, MENU_ITEM, MENU_LABEL, MENU_SEPARATOR } from './recipes';
+import { useFormFactor } from '@platform/formFactor';
+import { POPUP_BUTTON, POPUP_VALUE, MENU_LIST, MENU_ITEM, MENU_LABEL, MENU_SEPARATOR } from './recipes';
 
 export const Select = SelectPrimitive.Root;
 export const SelectGroup = SelectPrimitive.Group;
 export const SelectValue = SelectPrimitive.Value;
 
 export function SelectTrigger({ className, children, ...props }: ComponentProps<typeof SelectPrimitive.Trigger>) {
+  const phone = useFormFactor() === 'phone';
   return (
     <SelectPrimitive.Trigger
       className={cn(
-        POPUP_BUTTON,
+        phone ? POPUP_VALUE : POPUP_BUTTON,
         // Hugs its value like a macOS pop-up button, up to its container's width (then the value truncates).
         'w-auto max-w-full flex items-center gap-2 min-w-0 overflow-hidden data-[placeholder]:text-faint',
         // Radix renders Select.Value as the direct span child: let it shrink, not push the chevron out.

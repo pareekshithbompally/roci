@@ -27,7 +27,7 @@ export function BottomSheet({ open, onOpenChange, title, size = 'auto', children
         <DialogPrimitive.Content
           aria-describedby={undefined}
           className={cn(
-            'fixed inset-x-0 bottom-0 z-modal flex flex-col overflow-hidden rounded-t-2xl bg-base pb-safe-bottom shadow-overlay focus:outline-none',
+            'fixed inset-x-0 bottom-0 z-modal flex flex-col overflow-hidden rounded-t-sheet bg-grouped pb-safe-bottom shadow-overlay focus:outline-none',
             'data-[state=open]:animate-rise-show data-[state=closed]:animate-rise-hide',
             SIZE[size],
           )}

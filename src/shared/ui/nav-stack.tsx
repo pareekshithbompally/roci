@@ -44,7 +44,7 @@ interface StackEntry extends NavScreen {
 /** One screen: its header, then its own scrolling body. `covered`: a screen is pushed over it, so it is inert. */
 function Screen({ header, covered, children }: { header: React.ReactNode; covered: boolean; children: React.ReactNode }) {
   return (
-    <Surface variant="page" inert={covered || undefined} className="absolute inset-0 flex flex-col">
+    <Surface variant="grouped" inert={covered || undefined} className="absolute inset-0 flex flex-col">
       {header}
       <div className="min-h-0 flex-1 overflow-y-auto pb-safe-bottom">{children}</div>
     </Surface>
@@ -69,7 +69,7 @@ function PushedTitle({ title }: { title: string }) {
   useEffect(() => ref.current?.focus(), []);
   return (
     <div ref={ref} tabIndex={-1} className="min-w-0 outline-none">
-      <Text as="h1" variant="bodyStrong" truncate>{title}</Text>
+      <Text as="h1" variant="headline" truncate>{title}</Text>
     </div>
   );
 }

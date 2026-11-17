@@ -39,8 +39,6 @@ export const UI_CONFIG = {
   choiceIconSlot: { width: 64, height: 44 },
   /** A glyph on an app-icon-sized tile, so a bare glyph weighs the same as the app icons beside it. */
   glyphTile: { tile: 34, glyph: 24 },
-  /** A settings icon tile (System Settings / iOS Settings): edge and corner in px, larger on touch screens. */
-  iconTile: { tile: 20, radius: 5, touch: { tile: 29, radius: 7 } },
   /** Bar chart (usage trends): plot height (taller on touch), bar cap and gap, data-end radius, axis gutters, label density, dimmed bars. */
   chart: {
     height: 180,
@@ -175,24 +173,3 @@ export function isAboveBreakpoint(width: number, breakpoint: keyof typeof BREAKP
   return width >= BREAKPOINTS[breakpoint];
 }
 
-/** Mineral hues an icon tile can take (tokens `--bg-tile-*`): earthy, one weight, tuned to the copper brand. */
-export type TileTint = 'graphite' | 'plum' | 'slate' | 'clay' | 'sage' | 'teal' | 'rose' | 'ochre' | 'copper';
-
-/** Settings icon colour by domain: the hue says what area a row belongs to, the glyph says what it does; one hue, one meaning. */
-export const TILE_DOMAIN = {
-  /** The app itself: appearance, storage, updates. */
-  system: 'graphite',
-  /** AI models and where they come from. */
-  intelligence: 'plum',
-  /** Outside services Roci connects to. */
-  connections: 'slate',
-  /** Alerts and reminders. */
-  alerts: 'clay',
-  /** Spend and activity. */
-  activity: 'sage',
-  /** Modalities, wherever they appear (jobs, on-device models). */
-  text: 'teal',
-  speech: 'rose',
-  images: 'ochre',
-  meetings: 'copper',
-} as const satisfies Record<string, TileTint>;

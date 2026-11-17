@@ -3,7 +3,6 @@
 import React from 'react';
 import { SiModelcontextprotocol } from '@icons-pack/react-simple-icons';
 import { cn, ICON_SIZE_PX, ICON_TILE_PX, IconTile } from '@shared/ui';
-import { TILE_DOMAIN } from '@config/ui.config';
 import { useCachedImage } from '@shared/hooks/useCachedImage';
 
 interface ServerIconProps {
@@ -20,7 +19,7 @@ const PX = { xs: ICON_SIZE_PX.xs, sm: ICON_SIZE_PX.sm, md: ICON_SIZE_PX.md, tile
 /** No icon of its own: the MCP mark, on a connections tile in Settings, muted inline elsewhere. */
 const Fallback: React.FC<{ size: keyof typeof PX; className?: string }> = ({ size, className }) =>
   size === 'tile' ? (
-    <IconTile icon={SiModelcontextprotocol} tint={TILE_DOMAIN.connections} />
+    <IconTile icon={SiModelcontextprotocol} />
   ) : (
     <SiModelcontextprotocol size={PX[size]} title="" aria-hidden className={cn('shrink-0 text-muted', className)} />
   );

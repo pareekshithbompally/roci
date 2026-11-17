@@ -9,7 +9,7 @@ import { useFormFactor } from '@platform/formFactor';
 /** Grouped settings surface (macOS grouped section): muted label above a filled card; rows 48px (60px with description), inset hairlines. */
 
 const CARD_TONE = {
-  default: 'bg-layer-2',
+  default: 'bg-grouped-card',
   /** Copper-washed: a branded box on a neutral panel (onboarding). */
   brand: 'bg-accent-wash',
 } as const;
@@ -19,7 +19,7 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export function Card({ tone = 'default', className, ...props }: CardProps) {
-  return <div className={cn(CARD_TONE[tone], 'rounded-xl px-4 divide-y divide-muted', className)} {...props} />;
+  return <div className={cn(CARD_TONE[tone], 'rounded-card px-4 divide-y divide-muted', className)} {...props} />;
 }
 
 export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {
@@ -57,7 +57,7 @@ export function CardRow({ title, description, leading, leadingAlign = 'title', s
         press && 'cursor-pointer active:bg-tint-pressed',
         'flex gap-4 py-3',
         stacked ? 'flex-col' : cn('justify-between', align === 'start' ? 'items-start' : 'items-center'),
-        description ? 'min-h-15' : 'min-h-12',
+        description ? 'min-h-15' : 'min-h-row',
         className,
       )}
       {...props}
@@ -66,9 +66,9 @@ export function CardRow({ title, description, leading, leadingAlign = 'title', s
         {/* `title`: one title line tall (1lh of the title style), so the icon centres on the title, not the block. */}
         {leading && (leadingAlign === 'row'
           ? <div className="flex shrink-0 items-center">{leading}</div>
-          : <Text as="div" variant="bodyStrong" className="flex h-[1lh] shrink-0 items-center">{leading}</Text>)}
+          : <Text as="div" variant="body" className="flex h-[1lh] shrink-0 items-center">{leading}</Text>)}
         <div className="min-w-0">
-          <Text as="p" variant="bodyStrong" className="break-words">{title}</Text>
+          <Text as="p" variant="body" className="break-words">{title}</Text>
           {description && <Text as="p" variant="helper" tone="muted" truncate className="mt-0.5">{description}</Text>}
           {status && phone && <div className="mt-1 flex items-center gap-2">{status}</div>}
         </div>
@@ -76,7 +76,8 @@ export function CardRow({ title, description, leading, leadingAlign = 'title', s
       {trailing && (
         <div className={cn('flex min-w-0 items-center gap-3', !stacked && 'max-w-[50%] shrink-0')}>
           {statusBeside && <div className="flex min-w-0 items-center gap-2">{status}</div>}
-          {actions && <div className="flex items-center gap-2">{actions}</div>}
+          {/* Controls shrink to the row (a long value truncates) instead of spilling past the card. */}
+          {actions && <div className="flex min-w-0 items-center gap-2 [&>*]:min-w-0">{actions}</div>}
           {chevron}
         </div>
       )}
@@ -102,12 +103,12 @@ export function Section({ title, accessory, layout = 'card', footer, className, 
     <section className={cn('flex flex-col gap-2', className)} {...props}>
       {(title || accessory) && (
         <div className="flex items-center justify-between gap-2 min-h-4 mx-4">
-          {title && <Text as="h2" variant="label" tone="muted">{title}</Text>}
+          {title && <Text as="h2" variant="headline" tone="muted">{title}</Text>}
           {accessory}
         </div>
       )}
       {layout === 'card' ? <Card>{children}</Card> : <div className="flex flex-col gap-6">{children}</div>}
-      {footer && <Text as="p" variant="helper" tone="muted" className="mx-4">{footer}</Text>}
+      {footer && <Text as="p" variant="caption" tone="muted" className="mx-4">{footer}</Text>}
     </section>
   );
 }

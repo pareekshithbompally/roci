@@ -3,7 +3,6 @@
 import React from 'react';
 import { CardRow, ICON_TILE_PX, IconTile, Text, type TileGlyph } from '@shared/ui';
 import { ModelIcon, ProvidersAvatar } from '@shared/components';
-import { TILE_DOMAIN, type TileTint } from '@config/ui.config';
 import type { UsageMetric } from '@config/usage.config';
 import type { CategoryBreakdown, ProviderModelBreakdown } from '@extensions/usage';
 import { getProviderTitle } from '@shared/utils/provider.utils';
@@ -25,11 +24,11 @@ interface RowBase {
 }
 
 /** A total or highlight: tile, name, optional line, value. */
-export const MetricRow: React.FC<RowBase & { icon: TileGlyph; tint?: TileTint; title: string; description?: string; value: string }> = ({
-  icon, tint = TILE_DOMAIN.activity, title, description, value, onOpen, onPrefetch,
+export const MetricRow: React.FC<RowBase & { icon: TileGlyph; title: string; description?: string; value: string }> = ({
+  icon, title, description, value, onOpen, onPrefetch,
 }) => (
   <CardRow
-    leading={<IconTile icon={icon} tint={tint} />}
+    leading={<IconTile icon={icon} />}
     leadingAlign="row"
     title={title}
     description={description}
@@ -78,7 +77,6 @@ export const FeatureRow: React.FC<RowBase & { row: CategoryBreakdown; metric: Us
   return (
     <MetricRow
       icon={mark.icon}
-      tint={mark.tint}
       title={mark.label}
       description={usageLine(row)}
       value={formatMetric(metric, metricValue(metric, row))}

@@ -81,21 +81,17 @@
   --yellow-800: #cb9f34;
   --yellow-900: #ac8833;
 
-  /* Mineral: the settings tile hues, one OKLCH lightness and chroma so none outshouts another; meetings use brand copper. */
-  --mineral-graphite: #77706b;  --mineral-graphite-dark: #867f79;
-  --mineral-plum: #916093;      --mineral-plum-dark: #a571a7;
-  --mineral-slate: #407aa8;     --mineral-slate-dark: #4e8cbe;
-  --mineral-clay: #a55d5b;      --mineral-clay-dark: #bb6d6b;
-  --mineral-sage: #4f8351;      --mineral-sage-dark: #5e9660;
-  --mineral-teal: #01858a;      --mineral-teal-dark: #1c989e;
-  --mineral-rose: #a05c77;      --mineral-rose-dark: #b56c89;
-  --mineral-ochre: #8e702a;     --mineral-ochre-dark: #a28137;
-
-
   /* ─── Tier 2: roles (light) ──────────────────────────── */
   color-scheme: light;
 
   --bg-base: var(--grey-50);
+  /* Grouped lists (Settings, sheets): the page behind the cards and the cards; iOS swaps in its system grouped colours. */
+  --bg-grouped: var(--bg-base);
+  --bg-grouped-card: var(--bg-layer-2);
+  /* Card and sheet corners, list row height (macOS); iOS sets its own below. */
+  --radius-card: 12px;
+  --radius-sheet: 16px;
+  --row-min-h: 48px;
   --bg-deep: var(--grey-100);
   --bg-layer-1: var(--grey-100);
   --bg-layer-2: var(--grey-200);
@@ -147,16 +143,6 @@
   --info-bg: var(--teal-200);
   --info-border: var(--teal-300);
   --info-solid: var(--teal-600);
-  /* Icon tiles (System Settings style): a filled square behind a white glyph. */
-  --bg-tile-graphite: var(--mineral-graphite);
-  --bg-tile-plum: var(--mineral-plum);
-  --bg-tile-slate: var(--mineral-slate);
-  --bg-tile-clay: var(--mineral-clay);
-  --bg-tile-sage: var(--mineral-sage);
-  --bg-tile-teal: var(--mineral-teal);
-  --bg-tile-rose: var(--mineral-rose);
-  --bg-tile-ochre: var(--mineral-ochre);
-  --bg-tile-copper: var(--copper-600);
 
   --shadow-input: #0000001a 0 1px 1.5px 0, #00000024 0 0 0 0.5px;
   --shadow-raised: #0000000a 0 2px 4px 0, #00000014 0 1px 2px -1px, #0000001f 0 0 0 0.5px;
@@ -201,6 +187,17 @@ html.platform-ios {
   --control-md: 44px;
   --switch-sm-h: 31px;  --switch-sm-w: 51px;  --switch-sm-thumb: 27px;  --switch-sm-travel: 20px;
   --switch-md-h: 31px;  --switch-md-w: 51px;  --switch-md-thumb: 27px;  --switch-md-travel: 20px;
+  /* Inset grouped lists (UIKit): systemGroupedBackground page, secondarySystemGroupedBackground cards; iOS 26 corners. */
+  --bg-grouped: #f2f2f7;
+  --bg-grouped-card: #ffffff;
+  --radius-card: 26px;
+  --radius-sheet: 38px;
+  --row-min-h: 52px;
+}
+
+html.platform-ios.dark {
+  --bg-grouped: #000000;
+  --bg-grouped-card: #1c1c1e;
 }
 
 /* ─── Tier 2: roles (dark) ─────────────────────────────── */
@@ -247,15 +244,6 @@ html.platform-ios {
   --info-fg: var(--teal-500);
   --info-bg: color-mix(in srgb, var(--teal-900) 18%, transparent);
   --info-border: var(--teal-900);
-  --bg-tile-graphite: var(--mineral-graphite-dark);
-  --bg-tile-plum: var(--mineral-plum-dark);
-  --bg-tile-slate: var(--mineral-slate-dark);
-  --bg-tile-clay: var(--mineral-clay-dark);
-  --bg-tile-sage: var(--mineral-sage-dark);
-  --bg-tile-teal: var(--mineral-teal-dark);
-  --bg-tile-rose: var(--mineral-rose-dark);
-  --bg-tile-ochre: var(--mineral-ochre-dark);
-  --bg-tile-copper: var(--copper-500);
 
   --shadow-input: #00000000 0 1px 2px 0, #ffffff29 0 0 0 0.5px, #ffffff0f 0 -0.5px 0 0;
   --shadow-raised: #0000004d 0 2px 4px 0, #0000004d 0 1px 2px 0, #ffffff29 0 0 0 0.5px, #ffffff0f 0 -0.5px 0 0;

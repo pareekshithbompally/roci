@@ -1,18 +1,16 @@
-/** Each AI job's tile glyph (Capabilities rows, Usage pages, on-device models); Fill silhouettes only (see TileGlyph). */
+/** Each AI job's list glyph (Capabilities rows, Usage pages, on-device models): Lucide line icons. */
 
-import {
-  ChatCircleIcon, ClosedCaptioningIcon, MagnifyingGlassIcon, MegaphoneIcon, MountainsIcon, QuotesIcon, UserSoundIcon,
-} from '@phosphor-icons/react';
+import { Captions, Image, Megaphone, MessageCircle, Quote, Search, AudioLines } from 'lucide-react';
 
 export const JOB_GLYPH = {
-  chat: ChatCircleIcon,
+  chat: MessageCircle,
   /** Speech shown as text: the captions badge. */
-  transcription: ClosedCaptioningIcon,
+  transcription: Captions,
   /** Text spoken out loud. */
-  readAloud: MegaphoneIcon,
+  readAloud: Megaphone,
   /** Who speaks. */
-  voice: UserSoundIcon,
-  images: MountainsIcon,
-  summaries: QuotesIcon,
-  meetingSearch: MagnifyingGlassIcon,
+  voice: AudioLines,
+  images: Image,
+  summaries: Quote,
+  meetingSearch: Search,
 } as const;

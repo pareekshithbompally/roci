@@ -9,7 +9,6 @@ import { readAloud } from '@services/readAloud.service';
 import { useReadAloud, type ReadAloudState } from '@shared/hooks/useReadAloud';
 import { CAPABILITIES_CONFIG } from '@config/capabilities.config';
 import { LAYOUT } from '@config/layout.config';
-import { TILE_DOMAIN } from '@config/ui.config';
 import { READ_ALOUD_CONFIG, type ReadAloudEngine } from '@config/readAloud.config';
 import { JOB_GLYPH } from '@shared/components';
 import { CardRow, IconButton, IconTile, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui';
@@ -38,7 +37,7 @@ export const ReadAloudVoiceRow: React.FC<ReadAloudVoiceRowProps> = ({ engine, re
 
   return (
     <CardRow
-      leading={<IconTile icon={JOB_GLYPH.voice} tint={TILE_DOMAIN.speech} />}
+      leading={<IconTile icon={JOB_GLYPH.voice} />}
       leadingAlign="row"
       title={CAPABILITIES_CONFIG.jobs.voice.title}
       actions={

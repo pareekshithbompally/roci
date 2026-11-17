@@ -54,8 +54,8 @@ export const SettingsHome: React.FC = () => {
     <div className="flex flex-col gap-6 p-4">
       {groups.map((group) => (
         <Section key={group} title={group}>
-          {items.filter((item) => item.group === group).map(({ id, label, icon, tint }) => (
-            <CardRow key={id} title={label} leading={<IconTile icon={icon} tint={tint} />} leadingAlign="row" onOpen={() => push(settingsScreen(id))} />
+          {items.filter((item) => item.group === group).map(({ id, label, icon }) => (
+            <CardRow key={id} title={label} leading={<IconTile icon={icon} />} leadingAlign="row" onOpen={() => push(settingsScreen(id))} />
           ))}
         </Section>
       ))}

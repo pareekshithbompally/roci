@@ -1,8 +1,6 @@
 /** Maps role names to the CSS variables in src/styles/tokens.css: roles('bg', ['base']) → { base: 'var(--bg-base)' } */
 const roles = (prefix, names) => Object.fromEntries(names.map((n) => [n, `var(--${prefix}-${n})`]));
 const STATES = ['danger', 'warning', 'success', 'info'];
-/** Mineral tile hues (tokens `--bg-tile-*`): icon tiles and chart bars. */
-const TILE_HUES = ['graphite', 'plum', 'slate', 'clay', 'sage', 'teal', 'rose', 'ochre', 'copper'];
 const stateRoles = (part, suffix = '') =>
   Object.fromEntries(STATES.map((s) => [`${s}${suffix}`, `var(--${s}-${part})`]));
 
@@ -53,10 +51,10 @@ export default {
       // ─── Semantic roles (tokens.css). Alpha lives in the token: no `/NN` modifiers. ───
       backgroundColor: {
         ...roles('bg', ['base', 'deep', 'layer-1', 'layer-2', 'layer-3', 'layer-4', 'inverse', 'accent', 'accent-wash', 'knob',
-          'hover', 'pressed', 'control', 'control-hover', 'scrim', 'base-glass', 'deep-glass', 'raised-glass', 'glow-core', 'glow-companion', 'glow-wash']),
+          'hover', 'pressed', 'control', 'control-hover', 'scrim', 'base-glass', 'deep-glass', 'raised-glass', 'glow-core', 'glow-companion', 'glow-wash',
+          'grouped', 'grouped-card']),
         ...stateRoles('bg', '-subtle'),
         ...stateRoles('solid'),
-        ...roles('bg', TILE_HUES.map((n) => `tile-${n}`)),
         separator: 'var(--border-muted)',
         ai: 'var(--ai-accent)',
       },
@@ -83,6 +81,9 @@ export default {
         'text-shimmer': 'linear-gradient(90deg, var(--text-faint) 35%, var(--text-primary) 50%, var(--text-faint) 65%)',
       },
       backgroundSize: { shimmer: '200% 100%' },
+      // Grouped-list shape (tokens.css): macOS values by default, iOS under html.platform-ios.
+      borderRadius: { card: 'var(--radius-card)', sheet: 'var(--radius-sheet)' },
+      minHeight: { row: 'var(--row-min-h)' },
       // ─── macOS text styles (SF Pro). `reading` is the one exception: long-form chat/transcript ───
       fontSize: {
         // Sizes come from tokens.css: macOS by default, iOS under html.platform-ios.

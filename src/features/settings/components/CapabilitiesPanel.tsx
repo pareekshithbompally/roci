@@ -18,7 +18,6 @@ import { useSpeechModelOptions } from '@features/settings/hooks/useSpeechModels'
 import { downloadSetup, useLocalModelControls, useLocalModels } from '@features/settings/hooks/useLocalModels';
 import { useAppleSpeechSetup } from '@features/integrations';
 import { CardRow, IconTile, Section, type TileGlyph } from '@shared/ui';
-import { TILE_DOMAIN, type TileTint } from '@config/ui.config';
 import type { LocalModel } from '@services/localModels.service';
 import { LIVE_TRANSCRIPTION_MARK, ModelSelect, SettingsPage } from './shared';
 import { ReadAloudVoiceRow } from './ReadAloudVoiceRow';
@@ -29,11 +28,10 @@ const { jobs: JOBS, footers: FOOTERS } = CAPABILITIES_CONFIG;
 /** A capability row: job tile (hue from its modality), title and its picker; the section footer says what it does. */
 const CapabilityRow: React.FC<{
   icon: TileGlyph;
-  tint: TileTint;
   job: { title: string };
   children: React.ReactNode;
-}> = ({ icon, tint, job, children }) => (
-  <CardRow leading={<IconTile icon={icon} tint={tint} />} leadingAlign="row" title={job.title} actions={children} />
+}> = ({ icon, job, children }) => (
+  <CardRow leading={<IconTile icon={icon} />} leadingAlign="row" title={job.title} actions={children} />
 );
 
 type Controls = Record<string, OnDeviceModel>;
@@ -118,24 +116,24 @@ const ImageGenerationRow: React.FC<{ localModels: LocalModel[]; controls: Contro
   };
 
   return (
-    <CapabilityRow icon={JOB_GLYPH.images} tint={TILE_DOMAIN.images} job={JOBS.images}>
+    <CapabilityRow icon={JOB_GLYPH.images} job={JOBS.images}>
       <ModelSelect value={value} choices={choices} onChange={choose} off={IMAGES_OFF} />
     </CapabilityRow>
   );
 };
 
-const KIND_MARK: Record<LocalModel['kind'], { icon: TileGlyph; tint: TileTint }> = {
-  speech: { icon: JOB_GLYPH.transcription, tint: TILE_DOMAIN.speech },
-  voice: { icon: JOB_GLYPH.readAloud, tint: TILE_DOMAIN.speech },
-  image: { icon: JOB_GLYPH.images, tint: TILE_DOMAIN.images },
+const KIND_GLYPH: Record<LocalModel['kind'], TileGlyph> = {
+  speech: JOB_GLYPH.transcription,
+  voice: JOB_GLYPH.readAloud,
+  image: JOB_GLYPH.images,
 };
 
 /** A model on this Mac, whichever runtime owns it: its name, what it's for and its size, Ready, and Download / Delete. */
-const OnDeviceModelRow: React.FC<{ icon: TileGlyph; tint: TileTint; name: string; use: string; size: string; control: OnDeviceModel }> = ({
-  icon, tint, name, use, size, control,
+const OnDeviceModelRow: React.FC<{ icon: TileGlyph; name: string; use: string; size: string; control: OnDeviceModel }> = ({
+  icon, name, use, size, control,
 }) => (
   <CardRow
-    leading={<IconTile icon={icon} tint={tint} />}
+    leading={<IconTile icon={icon} />}
     leadingAlign="row"
     title={name}
     description={`${use} · ${size}`}
@@ -164,18 +162,18 @@ export const CapabilitiesPanel: React.FC = () => {
   return (
     <SettingsPage title="Capabilities" description={CAPABILITIES_CONFIG.description}>
       <Section title="Conversation" footer={FOOTERS.conversation}>
-        <CapabilityRow icon={JOB_GLYPH.chat} tint={TILE_DOMAIN.text} job={JOBS.chat}>
+        <CapabilityRow icon={JOB_GLYPH.chat} job={JOBS.chat}>
           <ModelSelect value={settings.chatModel || undefined} choices={textChoices} onChange={(chatModel) => setSettings({ chatModel })} />
         </CapabilityRow>
       </Section>
 
       <Section title="Speech" footer={platform.hasOnDeviceModels ? `${FOOTERS.speech} ${FOOTERS.readAloud}` : FOOTERS.speech}>
-        <CapabilityRow icon={JOB_GLYPH.transcription} tint={TILE_DOMAIN.speech} job={JOBS.transcription}>
+        <CapabilityRow icon={JOB_GLYPH.transcription} job={JOBS.transcription}>
           <ModelSelect value={speech ? speechSelectionKey(speech) : undefined} choices={speechChoices} onChange={setSpeech} />
         </CapabilityRow>
         {platform.hasOnDeviceModels && (
           <>
-            <CapabilityRow icon={JOB_GLYPH.readAloud} tint={TILE_DOMAIN.speech} job={JOBS.readAloud}>
+            <CapabilityRow icon={JOB_GLYPH.readAloud} job={JOBS.readAloud}>
               <ModelSelect
                 value={readAloudEngine}
                 choices={engines}
@@ -192,7 +190,7 @@ export const CapabilitiesPanel: React.FC = () => {
       </Section>
 
       <Section title="Meetings" footer={FOOTERS.meetings}>
-        <CapabilityRow icon={JOB_GLYPH.summaries} tint={TILE_DOMAIN.meetings} job={JOBS.summaries}>
+        <CapabilityRow icon={JOB_GLYPH.summaries} job={JOBS.summaries}>
           <ModelSelect
             value={settings.analyzeModel || settings.chatModel || undefined}
             choices={textChoices}
@@ -205,7 +203,6 @@ export const CapabilitiesPanel: React.FC = () => {
         <Section title="On this device">
           <OnDeviceModelRow
             icon={JOB_GLYPH.meetingSearch}
-            tint={TILE_DOMAIN.meetings}
             name={EMBEDDING_MODEL_NAME}
             use={JOBS.meetingSearch.title}
             size={EMBEDDING_MODEL_SIZE}
@@ -214,7 +211,7 @@ export const CapabilitiesPanel: React.FC = () => {
           {localModels.map((m) => controls[m.id] && (
             <OnDeviceModelRow
               key={m.id}
-              {...KIND_MARK[m.kind]}
+              icon={KIND_GLYPH[m.kind]}
               name={m.name}
               use={LOCAL_MODELS_CONFIG.kindLabels[m.kind]}
               size={formatFileSize(m.bytes)}

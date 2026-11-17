@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
-import { UI_CONFIG, type TileTint } from '@config/ui.config';
+import { UI_CONFIG } from '@config/ui.config';
 import { platform } from '@platform/index';
 
 /** One bar: `label` names it on the axis and for assistive tech, `value` sets its height. */
@@ -11,8 +11,6 @@ export interface BarDatum {
 
 export interface BarChartProps {
   data: readonly BarDatum[];
-  /** The series hue: the tile colour of what the chart is about. */
-  tint: TileTint;
   /** Ascending axis values from 0; the last is the top of the plot. */
   ticks: readonly number[];
   formatTick: (value: number) => string;
@@ -27,7 +25,8 @@ const C = UI_CONFIG.chart;
 const HEIGHT = platform.hasTouchScreen ? C.touch.height : C.height;
 
 /** Marks read their colours straight from the tokens, so light and dark are exact and need no generated classes. */
-const tintFill = (tint: TileTint) => `var(--bg-tile-${tint})`;
+/** One series colour, the accent (as Health and Screen Time draw a chart in one colour). */
+const FILL = 'var(--bg-accent)';
 const GRID = 'var(--border-muted)';
 const MARKER = 'var(--border-strong)';
 
@@ -62,7 +61,7 @@ function useWidth(): [React.RefObject<HTMLDivElement | null>, number] {
 }
 
 /** Single-series bar chart (Health style): hairline grid, ticks on the right, sparse dates below; hover (mouse) or tap (touch) picks a bar, arrow keys move it. */
-export function BarChart({ data, tint, ticks, formatTick, selected, onSelect, label }: BarChartProps) {
+export function BarChart({ data, ticks, formatTick, selected, onSelect, label }: BarChartProps) {
   const [ref, width] = useWidth();
   const plotW = Math.max(0, width - C.axisWidth);
   const plotH = HEIGHT - C.xAxisHeight;
@@ -127,7 +126,7 @@ export function BarChart({ data, tint, ticks, formatTick, selected, onSelect, la
             if (h <= 0) return null;
             const x = i * slot + (slot - barW) / 2;
             const dim = selected !== null && selected !== i;
-            return <path key={d.key} d={barPath(x, barW, plotH - h, plotH)} fill={tintFill(tint)} opacity={dim ? C.dimOpacity : 1} />;
+            return <path key={d.key} d={barPath(x, barW, plotH - h, plotH)} fill={FILL} opacity={dim ? C.dimOpacity : 1} />;
           })}
           {selected !== null && slot > 0 && (
             <line x1={(selected + 0.5) * slot} x2={(selected + 0.5) * slot} y1={0} y2={plotH} strokeWidth={1} stroke={MARKER} />

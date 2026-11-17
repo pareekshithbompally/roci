@@ -1,10 +1,10 @@
 /** The trend card: the metric pull-down, one headline (the period total, or the picked bar's day), and the bars. */
 
 import React, { useMemo, useState } from 'react';
-import { CaretDownIcon } from '@phosphor-icons/react';
+import { ChevronDown } from 'lucide-react';
 import {
   BarChart, Button, Card, DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem,
-  DropdownMenuTrigger, ICON_SIZE_PX, Text,
+  DropdownMenuTrigger, Icon, Text,
 } from '@shared/ui';
 import { UI_CONFIG } from '@config/ui.config';
 import { USAGE_CONFIG, type UsageMetric } from '@config/usage.config';
@@ -15,7 +15,6 @@ import { fillSeries, metricValue, summaryTotals } from '@features/usage/model/se
 import { bucketLabel, formatMetric, formatTick, spanLabel, usageLine } from '@features/usage/model/format';
 import type { UsageSubject } from '@features/usage/model/subject';
 import { useSetUsageMetric, useUsageMetric } from '@features/usage/stores/usageStore';
-import { subjectTint } from './marks';
 
 /** Shown in place of a figure that is still loading. */
 export const PENDING = '—';
@@ -31,7 +30,7 @@ const MetricMenu: React.FC = () => {
       <DropdownMenuTrigger asChild>
         <Button variant="link" size="inline">
           {METRIC_LABEL[metric]}
-          <CaretDownIcon size={ICON_SIZE_PX.xs} weight="bold" aria-hidden />
+          <Icon icon={ChevronDown} size="xs" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
@@ -96,7 +95,6 @@ export const UsageChartCard: React.FC<UsageChartCardProps> = ({ subject, summary
         </div>
         <BarChart
           data={data}
-          tint={subjectTint(subject)}
           ticks={ticks}
           formatTick={(t) => formatTick(metric, t, step)}
           selected={selected}

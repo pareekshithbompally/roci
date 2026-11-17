@@ -4,7 +4,6 @@ import React from 'react';
 import { Copy } from 'lucide-react';
 import { SiModelcontextprotocol } from '@icons-pack/react-simple-icons';
 import { Button, CardRow, Code, IconButton, IconTile, Status, Switch } from '@shared/ui';
-import { TILE_DOMAIN } from '@config/ui.config';
 import { useToast } from '@shared/contexts/ToastContext';
 import { copyRichText } from '@shared/utils/clipboard';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
@@ -19,7 +18,7 @@ export const CodingAgentsIntegration: React.FC = () => {
   return (
     <>
       <CardRow
-        leading={<IconTile icon={SiModelcontextprotocol} tint={TILE_DOMAIN.connections} />}
+        leading={<IconTile icon={SiModelcontextprotocol} />}
         leadingAlign="row"
         title={COPY.server.title}
         description={server?.error}
