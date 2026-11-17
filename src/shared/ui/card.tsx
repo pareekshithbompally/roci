@@ -4,6 +4,7 @@ import { cn } from './utils';
 import { Text } from './text';
 import { Icon } from './icon';
 import { activateOnKey } from '@shared/utils/activateOnKey';
+import { useFormFactor } from '@platform/formFactor';
 
 /** Grouped settings surface (macOS grouped section): muted label above a filled card; rows 48px (60px with description), inset hairlines. */
 
@@ -43,8 +44,11 @@ export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
 
 export function CardRow({ title, description, leading, leadingAlign = 'title', status, actions, stacked, align = 'center', onOpen, onPress, className, children, ...props }: CardRowProps) {
   const press = onOpen ?? onPress;
+  // Phone: the copy keeps the width — state reads under the description, the side holds only the control.
+  const phone = useFormFactor() === 'phone';
+  const statusBeside = status && !phone;
   const chevron = onOpen && <Icon icon={ChevronRight} size="sm" className="text-faint" />;
-  const trailing = status || actions || chevron;
+  const trailing = statusBeside || actions || chevron;
   return (
     <div
       {...(press && { role: 'button', tabIndex: 0, onClick: press, onKeyDown: activateOnKey(press) })}
@@ -57,7 +61,7 @@ export function CardRow({ title, description, leading, leadingAlign = 'title', s
       )}
       {...props}
     >
-      <div className={cn('flex min-w-0 gap-2.5', leadingAlign === 'row' ? 'items-center' : 'items-start')}>
+      <div className={cn('flex min-w-0 flex-1 gap-2.5', leadingAlign === 'row' ? 'items-center' : 'items-start')}>
         {/* `title`: one title line tall (1lh of the title style), so the icon centres on the title, not the block. */}
         {leading && (leadingAlign === 'row'
           ? <div className="flex shrink-0 items-center">{leading}</div>
@@ -65,11 +69,12 @@ export function CardRow({ title, description, leading, leadingAlign = 'title', s
         <div className="min-w-0">
           <Text as="p" variant="bodyStrong" className="break-words">{title}</Text>
           {description && <Text as="p" variant="helper" tone="muted" className="mt-0.5">{description}</Text>}
+          {status && phone && <div className="mt-1 flex items-center gap-2">{status}</div>}
         </div>
       </div>
       {trailing && (
-        <div className={cn('flex items-center gap-3', !stacked && 'shrink-0')}>
-          {status && <div className="flex items-center gap-2">{status}</div>}
+        <div className={cn('flex min-w-0 items-center gap-3', !stacked && 'max-w-[50%] shrink-0')}>
+          {statusBeside && <div className="flex min-w-0 items-center gap-2">{status}</div>}
           {actions && <div className="flex items-center gap-2">{actions}</div>}
           {chevron}
         </div>

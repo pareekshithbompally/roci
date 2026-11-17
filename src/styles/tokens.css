@@ -13,6 +13,8 @@
   /* ─── Device safe areas (iPhone notch, home indicator); 0 on macOS. ─── */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Height of what is visible above the iOS keyboard (PhoneShell keeps it current); the full screen otherwise. */
+  --visible-height: 100dvh;
   /* Slide-over sidebar on a phone: most of the screen, never wider than the desktop sidebar's max. */
   --drawer-start-width: min(85vw, 20rem);
 

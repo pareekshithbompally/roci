@@ -26,7 +26,7 @@ export function Callout({ variant = 'info', icon, action, children }: CalloutPro
   return (
     <div className={`flex items-start gap-2.5 px-4 py-3 rounded-md border text-callout ${v.box}`}>
       <div className="mt-0.5 shrink-0">{icon ?? <Icon icon={v.icon} size="sm" className={v.iconTone} />}</div>
-      <div className="flex-1">{children}</div>
+      <div className="min-w-0 flex-1">{children}</div>
       {action && <div className="shrink-0 self-center">{action}</div>}
     </div>
   );
