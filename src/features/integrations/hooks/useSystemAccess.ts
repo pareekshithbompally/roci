@@ -5,10 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { isTauriEnvironment } from '@services/tauri';
 import { queryKeys } from '@shared/query/queryKeys';
 import { eventKitAccess } from '@features/integrations/utils/eventKitAccess';
-import { openNative, type NativeTarget } from '@features/integrations/utils/openNative';
-import { openUrl } from '@services/tauri/opener.service';
-import { platform } from '@platform/index';
-import { APP_CONFIG } from '@config/app.config';
+import { openSettingsPane, type NativeTarget } from '@features/integrations/utils/openNative';
 import type { CalendarAccessStatus } from '@services/calendar/types';
 import type { IntegrationAccess } from '@features/integrations/types';
 import type { AccessId } from '@shared/query/queryKeys';
@@ -44,10 +41,8 @@ export function useSystemAccess({ id, check, request, settingsPane }: AccessSour
     return granted;
   }, [id, request, queryClient]);
 
-  // Mac opens the privacy pane; iOS links only to the app's own Settings page, where its permissions live.
   const openSettings = useCallback(() => {
-    if (!platform.canOpenSettingsPanes) return void openUrl(APP_CONFIG.iosAppSettingsUrl);
-    openNative(settingsPane).catch((error: unknown) =>
+    openSettingsPane(settingsPane).catch((error: unknown) =>
       console.error(`[useSystemAccess] Opening ${id} settings failed:`, error));
   }, [id, settingsPane]);
 

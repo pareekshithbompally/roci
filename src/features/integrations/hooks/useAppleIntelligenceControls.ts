@@ -7,7 +7,7 @@ import { queryKeys } from '@shared/query/queryKeys';
 import { isIntegrationEnabled } from '@shared/utils/integrations';
 import { appleIntelligence, type AppleAvailability } from '@services/ai/apple/appleIntelligence.service';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
-import { openNative } from '@features/integrations/utils/openNative';
+import { openSettingsPane } from '@features/integrations/utils/openNative';
 import type { IntegrationAccess, IntegrationControls } from '@features/integrations/types';
 
 const COPY = INTEGRATIONS_CONFIG.appleIntelligence;
@@ -37,7 +37,7 @@ export function useAppleIntelligenceControls(): IntegrationControls {
   const access = accessOf(status?.availability);
 
   const openSettings = useCallback(() => {
-    openNative('apple-intelligence-settings').catch(report('open settings'));
+    openSettingsPane('apple-intelligence-settings').catch(report('open settings'));
   }, []);
 
   const setEnabled = (on: boolean) => {
