@@ -143,7 +143,7 @@
   --shadow-floating: #0000000a 0 8px 16px 0, #00000014 0 4px 8px 0, #0000001f 0 0 0 0.5px;
   --shadow-overlay: #0000000a 0 16px 32px 0, #00000014 0 8px 16px 0, #0000001f 0 0 0 0.5px;
 
-  /* AI moments only — matches the app icon waveform (app-icon.svg #aiGradient) */
+  /* AI moments only */
   --ai-gradient: linear-gradient(to right, var(--copper-600), var(--copper-400));
   --ai-accent: var(--copper-600);
   --ai-border: color-mix(in srgb, var(--ai-accent) 50%, transparent);
