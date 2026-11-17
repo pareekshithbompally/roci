@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		16D7BDBC8278E04D0BBAC3C1 /* RociMLX in Frameworks */ = {isa = PBXBuildFile; productRef = 614A6A9A83F36A9829E17129 /* RociMLX */; };
 		1EFEE7AF964BFA7F1F543DA6 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 586B2EE9A6170302C98C1BE9 /* QuartzCore.framework */; };
+		2D41710AC0BEDC9CAD13E8DA /* RociMLX in Embed Frameworks */ = {isa = PBXBuildFile; productRef = 614A6A9A83F36A9829E17129 /* RociMLX */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		3FB4023EDD06879D2E0EAE1E /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CF00E02C9C00CA7B134C0BAA /* CoreGraphics.framework */; };
 		443CF6E4E6F55E535397895E /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 23ABD3F8CB4D15458D24F377 /* MetalKit.framework */; };
 		4464187B51B30CB2D5CFA03D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 9E572AA8F78F7086164FE19A /* PrivacyInfo.xcprivacy */; };
@@ -23,6 +24,20 @@
 		F396D3A77B454374A0A89BC5 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 445C84815E35DD391D4EE750 /* UIKit.framework */; };
 		FE2C6E4C04FD4350C2FD3676 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2395637022B5084022F6416B /* WebKit.framework */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		2ECA53CF24F68967D37C8416 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				2D41710AC0BEDC9CAD13E8DA /* RociMLX in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		004078DA0B0B4B7A6B6E4DFA /* menu.rs */ = {isa = PBXFileReference; path = menu.rs; sourceTree = "<group>"; };
@@ -58,6 +73,7 @@
 		45C9383EF13FB42B7939425F /* Roci_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Roci_iOS.entitlements; sourceTree = "<group>"; };
 		46F55C5DD547806A3E3F38F2 /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		47BA2BBA237E0E829A7E69CB /* sync.rs */ = {isa = PBXFileReference; path = sync.rs; sourceTree = "<group>"; };
+		47FED10955094143521B2D6D /* audio_session.rs */ = {isa = PBXFileReference; path = audio_session.rs; sourceTree = "<group>"; };
 		4A389386D09EB05D888B8921 /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
 		4A7965F334CD97F149D0D2BE /* playback.rs */ = {isa = PBXFileReference; path = playback.rs; sourceTree = "<group>"; };
 		4C1660718083C50D0F18FAE3 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIcon.icon; sourceTree = "<group>"; };
@@ -79,13 +95,11 @@
 		732DAFAD4FE4F90D1DDC7311 /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		7814286B0DAF134FDDB81D90 /* commands.rs */ = {isa = PBXFileReference; path = commands.rs; sourceTree = "<group>"; };
 		78701B8BCB209DA93DFE37C5 /* Roci_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Roci_iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		7B72D376DC3446060BCAAD07 /* commands.rs */ = {isa = PBXFileReference; path = commands.rs; sourceTree = "<group>"; };
+		78A5E412CE33EB3A148DE7BC /* ios.rs */ = {isa = PBXFileReference; path = ios.rs; sourceTree = "<group>"; };
 		80AD68EAD28302FC5A40475B /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
 		81BCAFD9A4977A05F9A14D8D /* scheduler.rs */ = {isa = PBXFileReference; path = scheduler.rs; sourceTree = "<group>"; };
-		843074BECEA0AECB58BDD16D /* macos.rs */ = {isa = PBXFileReference; path = macos.rs; sourceTree = "<group>"; };
 		87307C942DD8E7D093DDD5F9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		88C818466DE1A6CD9D499B4D /* agents.rs */ = {isa = PBXFileReference; path = agents.rs; sourceTree = "<group>"; };
-		90EEBE2B888D0C8A1E3F2B56 /* model_server.rs */ = {isa = PBXFileReference; path = model_server.rs; sourceTree = "<group>"; };
 		97782C5A216557AACAAF8EFB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		98106AF16A79410DE34722B2 /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		9982B0053752BD84E2D7BA37 /* config.rs */ = {isa = PBXFileReference; path = config.rs; sourceTree = "<group>"; };
@@ -94,6 +108,7 @@
 		9E572AA8F78F7086164FE19A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		9E8D183E8C386F4D0D5DD42D /* RociMLX */ = {isa = PBXFileReference; lastKnownFileType = folder; name = RociMLX; path = ../../RociMLX; sourceTree = SOURCE_ROOT; };
 		9F60979F37E4E1A5B8F19FAC /* app_icon.rs */ = {isa = PBXFileReference; path = app_icon.rs; sourceTree = "<group>"; };
+		A1821632BA1B1C6C9C09637B /* stdio.rs */ = {isa = PBXFileReference; path = stdio.rs; sourceTree = "<group>"; };
 		A1E3CB077A831E8190898A49 /* wake_lock.rs */ = {isa = PBXFileReference; path = wake_lock.rs; sourceTree = "<group>"; };
 		A1F91D1E9DCA4E0EE0C2D384 /* recovery.rs */ = {isa = PBXFileReference; path = recovery.rs; sourceTree = "<group>"; };
 		A97C708900ACC3E38E5F078E /* commands.rs */ = {isa = PBXFileReference; path = commands.rs; sourceTree = "<group>"; };
@@ -101,21 +116,21 @@
 		B75368D24A8F5E42C051C988 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		C1AF1CBE83F08E5EEABF62AF /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		C25DA3899607C95B9F6BA91B /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
-		C33F1472FCE7022581BEFCA0 /* server.rs */ = {isa = PBXFileReference; path = server.rs; sourceTree = "<group>"; };
 		C6A3E3C4A235EFAF9BF057C4 /* mlx.rs */ = {isa = PBXFileReference; path = mlx.rs; sourceTree = "<group>"; };
 		C95AEB220F589CC35D23B90D /* tracks.rs */ = {isa = PBXFileReference; path = tracks.rs; sourceTree = "<group>"; };
 		C99AA4A35F988F686C0FADC1 /* microphone.rs */ = {isa = PBXFileReference; path = microphone.rs; sourceTree = "<group>"; };
+		CADE100E76A3CAD5CF28C451 /* voice_model.rs */ = {isa = PBXFileReference; path = voice_model.rs; sourceTree = "<group>"; };
 		CB0688D6E482168E5DE3AE5C /* host.rs */ = {isa = PBXFileReference; path = host.rs; sourceTree = "<group>"; };
 		CF00E02C9C00CA7B134C0BAA /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
+		D2133660EEE2181448DCFB2C /* system.rs */ = {isa = PBXFileReference; path = system.rs; sourceTree = "<group>"; };
 		D5448730755A3D9EC0987772 /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		D83D8AC3F88DC8BDA1A34C06 /* guide.rs */ = {isa = PBXFileReference; path = guide.rs; sourceTree = "<group>"; };
+		DC3181572DFE52D12CF700A8 /* session.rs */ = {isa = PBXFileReference; path = session.rs; sourceTree = "<group>"; };
 		DCB33E064E0063C2C004647B /* autostart.rs */ = {isa = PBXFileReference; path = autostart.rs; sourceTree = "<group>"; };
 		DCDB66A61AF87E8F3F97C05E /* commands.rs */ = {isa = PBXFileReference; path = commands.rs; sourceTree = "<group>"; };
-		DF38A3A5AF501258DE248AE9 /* phonon.rs */ = {isa = PBXFileReference; path = phonon.rs; sourceTree = "<group>"; };
 		E176B472A79156130A2B04A6 /* commands.rs */ = {isa = PBXFileReference; path = commands.rs; sourceTree = "<group>"; };
 		E25051BCF2445AE5424D9125 /* url_actions.rs */ = {isa = PBXFileReference; path = url_actions.rs; sourceTree = "<group>"; };
 		E3ABE41B5A9423E505D39BC1 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
-		E686A3AFF15CE47121366619 /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		E6E8DA28A0ACDE3A99240CA4 /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		E7E7DDE59ECC73CED930D38D /* macos.rs */ = {isa = PBXFileReference; path = macos.rs; sourceTree = "<group>"; };
 		F673F58BB14789697B951037 /* text.rs */ = {isa = PBXFileReference; path = text.rs; sourceTree = "<group>"; };
@@ -157,6 +172,7 @@
 				148D2D7C463133AA1161501B /* recorder.rs */,
 				A1F91D1E9DCA4E0EE0C2D384 /* recovery.rs */,
 				5A8E71907446C6568A39BD88 /* resample.rs */,
+				DC3181572DFE52D12CF700A8 /* session.rs */,
 				20104C36426E8DCBFF8738BB /* system_audio.rs */,
 				C95AEB220F589CC35D23B90D /* tracks.rs */,
 				5F09E6A5140F7BA7FDBFA8DE /* transport.rs */,
@@ -189,6 +205,7 @@
 				121085E4CDAC6334F15EE58D /* mod.rs */,
 				3525708CC40FB6F035F50F27 /* runtime.rs */,
 				2516C9DD68D96E7030D0CCC6 /* shell_path.rs */,
+				A1821632BA1B1C6C9C09637B /* stdio.rs */,
 			);
 			path = mcp;
 			sourceTree = "<group>";
@@ -206,11 +223,11 @@
 			isa = PBXGroup;
 			children = (
 				7814286B0DAF134FDDB81D90 /* commands.rs */,
-				843074BECEA0AECB58BDD16D /* macos.rs */,
 				0D42927F6A3B2FF57A1FEA32 /* mod.rs */,
-				DF38A3A5AF501258DE248AE9 /* phonon.rs */,
 				4A7965F334CD97F149D0D2BE /* playback.rs */,
+				D2133660EEE2181448DCFB2C /* system.rs */,
 				F673F58BB14789697B951037 /* text.rs */,
+				CADE100E76A3CAD5CF28C451 /* voice_model.rs */,
 			);
 			path = tts;
 			sourceTree = "<group>";
@@ -262,21 +279,12 @@
 			name = Packages;
 			sourceTree = "<group>";
 		};
-		566A6D9DC750ACCC619BED07 /* image */ = {
-			isa = PBXGroup;
-			children = (
-				7B72D376DC3446060BCAAD07 /* commands.rs */,
-				E686A3AFF15CE47121366619 /* mod.rs */,
-				C33F1472FCE7022581BEFCA0 /* server.rs */,
-			);
-			path = image;
-			sourceTree = "<group>";
-		};
 		5EAB220E378053B89F142BA8 /* permissions */ = {
 			isa = PBXGroup;
 			children = (
 				34B14A3D76E2FD71416B520E /* commands.rs */,
 				D83D8AC3F88DC8BDA1A34C06 /* guide.rs */,
+				78A5E412CE33EB3A148DE7BC /* ios.rs */,
 				E7E7DDE59ECC73CED930D38D /* macos.rs */,
 				C1AF1CBE83F08E5EEABF62AF /* mod.rs */,
 				5DC5B92FC1C57C4D9A5E3931 /* state.rs */,
@@ -380,6 +388,7 @@
 			isa = PBXGroup;
 			children = (
 				9F60979F37E4E1A5B8F19FAC /* app_icon.rs */,
+				47FED10955094143521B2D6D /* audio_session.rs */,
 				DCB33E064E0063C2C004647B /* autostart.rs */,
 				5AF4434DAE5751ED4CFF696D /* desktop.rs */,
 				19E0F74D572078618388D11C /* downloads.rs */,
@@ -388,7 +397,6 @@
 				4A389386D09EB05D888B8921 /* main.rs */,
 				C6A3E3C4A235EFAF9BF057C4 /* mlx.rs */,
 				66F0F9F5A98E0A23C906C844 /* mobile.rs */,
-				90EEBE2B888D0C8A1E3F2B56 /* model_server.rs */,
 				1C50A7EDD221B636EEBB08D6 /* open_native.rs */,
 				45A2303A79ACA6D4A0395661 /* screenshot.rs */,
 				6F0505DCADFB50CE9EC70DF0 /* shortcuts.rs */,
@@ -399,7 +407,6 @@
 				05E509D99B03271C67DC6621 /* audio */,
 				B8BDFA2A80556D11828460E9 /* call_detection */,
 				239831D6CBC478C496F6FB2C /* hex */,
-				566A6D9DC750ACCC619BED07 /* image */,
 				0E9F2CB7CFD6C521796ADDD9 /* mcp */,
 				797EC8D10E7BE562DA94FE6E /* mcp_server */,
 				53659E5A336A83FC15E52C69 /* meeting_reminders */,
@@ -433,18 +440,18 @@
 			path = models;
 			sourceTree = "<group>";
 		};
-		"TEMP_3ACF686E-1A35-4255-9E48-83B134A8D336" /* x86_64 */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = x86_64;
-			sourceTree = "<group>";
-		};
-		"TEMP_5E5E10C5-E53F-4E81-8B88-FD3D2B846CB3" /* arm64 */ = {
+		"TEMP_06C26A30-94D7-4669-A36A-95AA5599BEC9" /* arm64 */ = {
 			isa = PBXGroup;
 			children = (
 			);
 			path = arm64;
+			sourceTree = "<group>";
+		};
+		"TEMP_CE04EFBF-31E4-4116-ACAA-970AD996EA15" /* x86_64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = x86_64;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -458,6 +465,7 @@
 				42228B2F3D5A3972CF25C3C1 /* Sources */,
 				B44BF2930AB51A3D8F09A75C /* Resources */,
 				F065C30D2E80DB59F8BE7797 /* Frameworks */,
+				2ECA53CF24F68967D37C8416 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -624,7 +632,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Roci_iOS/Roci_iOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = "8TV3HMU3KY";
+				DEVELOPMENT_TEAM = 8TV3HMU3KY;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -639,7 +647,7 @@
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = ai.roci.roci;
-				PRODUCT_NAME = "Roci";
+				PRODUCT_NAME = Roci;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;
@@ -656,7 +664,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Roci_iOS/Roci_iOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = "8TV3HMU3KY";
+				DEVELOPMENT_TEAM = 8TV3HMU3KY;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -671,7 +679,7 @@
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = ai.roci.roci;
-				PRODUCT_NAME = "Roci";
+				PRODUCT_NAME = Roci;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;
