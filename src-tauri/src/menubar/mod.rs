@@ -178,8 +178,6 @@ struct Images {
 pub struct MenubarShared {
     state: Arc<Mutex<StateData>>,
     images: Arc<Images>,
-    /// The app's version, shown in the menu's header.
-    version: String,
     /// Serializes pushes so the menu receives each state in order (Swift applies them on the main queue in turn).
     push: Arc<Mutex<()>>,
 }
@@ -209,7 +207,6 @@ impl MenubarShared {
         let next_meeting = crate::meeting_reminders::next_meeting();
         let state = self.lock();
         let snapshot = MenuSnapshot {
-            version: self.version.clone(),
             recording_active: state.recording_active,
             paused: state.paused,
             elapsed_secs: state.elapsed_secs,
@@ -352,7 +349,6 @@ fn install_menu(app: &AppHandle) -> Result<(), String> {
 pub fn setup(app: &AppHandle) {
     let shared = MenubarShared {
         images: Arc::new(resolve_images(app)),
-        version: app.package_info().version.to_string(),
         ..MenubarShared::default()
     };
     app.manage(shared.clone());

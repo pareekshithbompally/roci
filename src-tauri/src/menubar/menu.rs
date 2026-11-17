@@ -25,7 +25,6 @@ const OPEN_LABEL: &str = concat!("Open ", env!("APP_NAME"));
 const SETTINGS_LABEL: &str = "Settings…";
 const CHECK_UPDATES_LABEL: &str = "Check for Updates…";
 const QUIT_LABEL: &str = concat!("Quit ", env!("APP_NAME"));
-const APP_LABEL: &str = env!("APP_NAME");
 
 /// Longest meeting title a row shows before it ends in an ellipsis.
 const TITLE_MAX_CHARS: usize = 40;
@@ -70,8 +69,6 @@ pub(super) struct AgentEntry {
 /// Everything the menu is built from, copied out under the state lock (icon paths already resolved).
 #[derive(Clone, Default)]
 pub(super) struct MenuSnapshot {
-    /// The app's version (`tauri.conf.json`), shown in the header.
-    pub version: String,
     pub recording_active: bool,
     pub paused: bool,
     pub elapsed_secs: u64,
@@ -256,16 +253,9 @@ fn app_section(update_version: Option<&str>) -> Vec<MenuRow> {
     ]
 }
 
-/// The header: the app, its version, and whether it's recording.
-fn header_section(s: &MenuSnapshot) -> Vec<MenuRow> {
-    let dot = if s.recording_active { StatusLevel::Unavailable } else { StatusLevel::Available };
-    vec![MenuRow { dot: Some(dot), ..MenuRow::text(format!("{APP_LABEL} · v{}", s.version)) }]
-}
-
 /// The menu's sections, top to bottom; empty ones are left out.
 pub(super) fn menu_sections(s: &MenuSnapshot) -> Vec<Vec<MenuRow>> {
     [
-        header_section(s),
         recorder_section(s),
         activity_section(&s.activity),
         status_section(s),
@@ -318,7 +308,7 @@ mod tests {
 
     #[test]
     fn leaves_out_empty_sections_and_shortens_long_titles() {
-        assert_eq!(menu_sections(&MenuSnapshot::default()).len(), 5); // header, recorder, status, quick, app — no jobs
+        assert_eq!(menu_sections(&MenuSnapshot::default()).len(), 4); // recorder, status, quick, app — no jobs
         assert_eq!(truncated("abcdef", 4), "abc…");
     }
 
