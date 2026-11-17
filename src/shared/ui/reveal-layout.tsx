@@ -48,7 +48,8 @@ export function RevealLayout({ open, onClose, pane, paneLabel, children }: Revea
         // Only the slide animates (compositor-cheap); corners and shadow switch with it rather than repainting per frame.
         className={cn(
           'absolute inset-0 flex flex-col overflow-hidden transition-transform duration-ios ease-ios will-change-transform',
-          open && 'translate-x-[var(--drawer-start-width)] rounded-sheet shadow-overlay',
+          // clip-path, not only overflow + radius: WebKit leaves composited children (the blurred wash) unclipped by a radius.
+          open && 'translate-x-[var(--drawer-start-width)] rounded-sheet shadow-overlay [clip-path:inset(0_round_var(--radius-sheet))]',
         )}
       >
         {children}

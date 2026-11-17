@@ -117,7 +117,7 @@ export function NavStack({ title, action, initial, children }: NavStackProps) {
         {stack.map((screen) => (
           <div
             key={screen.id}
-            className={cn('absolute inset-0 will-change-transform', screen.leaving ? 'animate-push-out' : !screen.still && 'animate-push-in')}
+            className={cn('absolute inset-0', screen.leaving ? 'animate-push-out' : !screen.still && 'animate-push-in')}
             onAnimationEnd={(e) => { if (screen.leaving && e.target === e.currentTarget) drop(screen.id); }}
           >
             <Screen
