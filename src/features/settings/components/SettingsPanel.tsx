@@ -45,6 +45,8 @@ export function settingsScreen(id: SettingsPanelType): NavScreen {
 /** Phone: the root of the Settings sheet — sections grouped under headings; a row pushes its panel. */
 export const SettingsHome: React.FC = () => {
   const { push } = useNavStack();
+  // System panel data (paths, disk, index) loads while the user is still on this list, as on the desktop.
+  useEffect(() => systemInfoStore.preload(), []);
   const items = SETTINGS_NAV_ITEMS.filter(({ available }) => available !== false);
   const groups = [...new Set(items.map(({ group }) => group))];
 
