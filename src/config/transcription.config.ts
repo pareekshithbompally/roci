@@ -18,8 +18,8 @@ export const TRANSCRIPTION_CONFIG = {
   /** Real-time transcription copy for the General setting and the mark on speech models that support it. */
   liveCopy: {
     description: 'Words appear as you speak (some models).',
-    unavailable: { before: "Your speech model doesn't support this. Pick one marked", after: 'in Capabilities.' },
-    mark: 'Real-time transcription',
+    unavailable: "Your speech model doesn't support this. Pick one marked Real-time in Capabilities.",
+    mark: 'Real-time',
   },
   /** Spoken language sent to engines that take one; a language setting is out of scope. */
   language: 'en',

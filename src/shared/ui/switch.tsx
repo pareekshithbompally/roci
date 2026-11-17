@@ -1,42 +1,33 @@
-import * as SwitchPrimitive from '@radix-ui/react-switch';
-import type { ComponentProps } from 'react';
+import type React from 'react';
 import { cn } from './utils';
 
-/** Switch (macOS and iOS sizes): accent when on, knob lifted by the input elevation. */
-export interface SwitchProps extends ComponentProps<typeof SwitchPrimitive.Root> {
+/** The system switch: WebKit draws the platform's own control for `<input type="checkbox" switch>` (iOS UISwitch, macOS NSSwitch). */
+export interface SwitchProps {
+  checked?: boolean;
+  onCheckedChange?: (checked: boolean) => void;
+  disabled?: boolean;
+  /** Kept for callers; the system decides the size. */
   size?: 'sm' | 'md';
+  id?: string;
+  className?: string;
+  'aria-label'?: string;
 }
 
-/** Dimensions come from tokens.css (macOS sizes; the iOS 51×31 switch under html.platform-ios). */
-const SIZE = {
-  sm: {
-    root: 'h-[var(--switch-sm-h)] w-[var(--switch-sm-w)]',
-    thumb: 'h-[var(--switch-sm-thumb)] w-[var(--switch-sm-thumb)] data-[state=checked]:translate-x-[var(--switch-sm-travel)]',
-  },
-  md: {
-    root: 'h-[var(--switch-md-h)] w-[var(--switch-md-w)]',
-    thumb: 'h-[var(--switch-md-thumb)] w-[var(--switch-md-thumb)] data-[state=checked]:translate-x-[var(--switch-md-travel)]',
-  },
-};
+/** `switch` is a WebKit attribute React passes through as is. */
+const SYSTEM_SWITCH = { switch: '' } as React.InputHTMLAttributes<HTMLInputElement>;
 
-export function Switch({ className, size = 'md', ...props }: SwitchProps) {
+export function Switch({ checked, onCheckedChange, disabled, id, className, 'aria-label': ariaLabel }: SwitchProps) {
   return (
-    <SwitchPrimitive.Root
-      className={cn(
-        'peer inline-flex shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',
-        'bg-layer-4 data-[state=checked]:bg-accent',
-        'outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 disabled:cursor-not-allowed',
-        SIZE[size].root,
-        className,
-      )}
-      {...props}
-    >
-      <SwitchPrimitive.Thumb
-        className={cn(
-          'pointer-events-none block rounded-full bg-knob shadow-input transition-transform data-[state=unchecked]:translate-x-0',
-          SIZE[size].thumb,
-        )}
-      />
-    </SwitchPrimitive.Root>
+    <input
+      type="checkbox"
+      role="switch"
+      {...SYSTEM_SWITCH}
+      id={id}
+      aria-label={ariaLabel}
+      checked={!!checked}
+      disabled={disabled}
+      onChange={(e) => onCheckedChange?.(e.target.checked)}
+      className={cn('shrink-0 cursor-pointer [accent-color:var(--bg-accent)] disabled:cursor-not-allowed', className)}
+    />
   );
 }

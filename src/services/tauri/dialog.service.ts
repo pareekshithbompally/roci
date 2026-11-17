@@ -58,14 +58,20 @@ class DialogService {
     }
   }
 
-  async confirm(title: string, message: string): Promise<boolean> {
+  /** The system alert (NSAlert / UIAlertController) with the caller's button labels; `warning` for destructive asks. */
+  async confirm(title: string, message: string, options: { okLabel?: string; cancelLabel?: string; warning?: boolean } = {}): Promise<boolean> {
     if (!isTauriEnvironment()) {
       return confirm(`${title}\n\n${message}`);
     }
 
     try {
       const { ask } = await import('@tauri-apps/plugin-dialog');
-      return await ask(message, { title });
+      return await ask(message, {
+        title,
+        okLabel: options.okLabel,
+        cancelLabel: options.cancelLabel,
+        kind: options.warning ? 'warning' : 'info',
+      });
     } catch (error) {
       console.error('Failed to show confirm dialog:', error);
       return confirm(`${title}\n\n${message}`);

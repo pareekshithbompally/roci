@@ -15,7 +15,6 @@ import { Button, CardRow, ChoiceControl, Icon, Section, Select, SelectContent, S
 import { useAppUpdate } from '@features/settings/hooks/useAppUpdate';
 import { AcknowledgementsDialog } from './AcknowledgementsDialog';
 import { useLiveDictation } from '@features/settings/hooks/useSpeechModels';
-import { LIVE_TRANSCRIPTION_MARK } from './shared';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { APP_CONFIG } from '@config/app.config';
 import { AppIcon } from '@shared/components';
@@ -313,11 +312,7 @@ export const GeneralPanel: React.FC = () => {
       {platform.canRecord && (
         <Section
           title="Transcription"
-          footer={settings.liveTranscription && !liveDictation ? (
-            <>
-              {liveCopy.unavailable.before} <Icon icon={LIVE_TRANSCRIPTION_MARK.icon} size="xs" label={LIVE_TRANSCRIPTION_MARK.label} className="inline align-text-bottom" /> {liveCopy.unavailable.after}
-            </>
-          ) : `${liveCopy.description} ${FOOTER.afterRecording}`}
+          footer={settings.liveTranscription && !liveDictation ? liveCopy.unavailable : `${liveCopy.description} ${FOOTER.afterRecording}`}
         >
           <CardRow
             title="Real-time Transcription"

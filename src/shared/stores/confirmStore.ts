@@ -1,6 +1,7 @@
-/** One app-wide confirmation prompt: anything awaits `confirm(...)`, the single <ConfirmHost/> settles it. */
+/** One app-wide confirmation prompt: anything awaits `confirm(...)`; the system alert answers it in the app, <ConfirmHost/> in a browser. */
 
 import { create } from 'zustand';
+import { dialogService, isTauriEnvironment } from '@services/tauri';
 
 export interface ConfirmRequest {
   title: string;
@@ -21,8 +22,15 @@ interface ConfirmState {
 
 const useConfirmStore = create<ConfirmState>()(() => ({ request: null, resolve: null }));
 
-/** Ask the user. A newer request supersedes an open one, which resolves `false`. */
+/** Ask the user: the system alert in the app; the drawn prompt (ConfirmHost) in a browser. A newer request supersedes an open one, which resolves `false`. */
 export function confirm(request: ConfirmRequest): Promise<boolean> {
+  if (isTauriEnvironment()) {
+    return dialogService.confirm(request.title, request.description ?? '', {
+      okLabel: request.confirmLabel,
+      cancelLabel: request.cancelLabel,
+      warning: request.tone === 'danger',
+    });
+  }
   useConfirmStore.getState().resolve?.(false);
   return new Promise<boolean>((resolve) => {
     useConfirmStore.setState({ request, resolve });

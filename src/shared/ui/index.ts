@@ -60,3 +60,5 @@ export { ChoiceControl } from './choice-control';
 export type { ChoiceControlProps } from './choice-control';
 export { BottomSheet } from './bottom-sheet';
 export type { BottomSheetProps } from './bottom-sheet';
+export { Picker } from './picker';
+export type { PickerGroup, PickerOption, PickerProps } from './picker';
