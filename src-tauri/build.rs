@@ -4,6 +4,9 @@ fn main() {
         link_macos_swift_runtime();
         compile_permission_guide();
     }
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("ios") {
+        compile_ios_webview();
+    }
     emit_identity();
     println!("cargo:rerun-if-changed=icons");
 
@@ -25,6 +28,17 @@ fn emit_identity() {
 fn link_macos_swift_runtime() {
     println!("cargo:rustc-link-search=native=/usr/lib/swift");
     println!("cargo:rustc-link-arg=-Wl,-rpath,/usr/lib/swift");
+}
+
+/// The iOS web view's keyboard behaviour (native/RociWebView.swift): pinned page, resized above the keyboard, no form bar.
+fn compile_ios_webview() {
+    apple_build::SwiftLibrary {
+        name: "roci_webview",
+        module: "RociWebView",
+        sources: &["native/RociWebView.swift"],
+        frameworks: &["UIKit", "WebKit"],
+    }
+    .build();
 }
 
 /// Compiles the native permission guide (native/permission_guide.m) with ARC.

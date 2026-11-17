@@ -13,15 +13,6 @@ body {
   overflow-wrap: break-word;
 }
 
-/* iOS: the page never scrolls as a whole — the keyboard would push the shell off screen; screens scroll inside it. */
-html.platform-ios,
-html.platform-ios body {
-  position: fixed;
-  inset: 0;
-  overflow: hidden;
-  overscroll-behavior: none;
-}
-
 /* Smaller font size for code blocks */
 code, pre {
   font-size: 13px;

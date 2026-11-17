@@ -1,6 +1,6 @@
 /** iPhone shell: a plain chatbot — top bar (sidebar · model · New chat), the content; the sidebar slides over from the left, Settings rises as a sheet. */
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { PanelLeft, SquarePen, X } from 'lucide-react';
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
 import { useAppActions, useAppStore, useCurrentView } from '@shared/stores/appStore';
@@ -21,18 +21,8 @@ export const PhoneShell: React.FC<PhoneShellProps> = ({ children, onSearchClick 
   const { leaveSettings } = useAppActions();
   const settingsRequest = useAppStore((s) => s.settingsRequest);
 
-  // The shell follows the visible area, so the composer rides above the keyboard and the top bar stays put.
-  useEffect(() => {
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-    const follow = () => document.documentElement.style.setProperty('--visible-height', `${viewport.height}px`);
-    follow();
-    viewport.addEventListener('resize', follow);
-    return () => viewport.removeEventListener('resize', follow);
-  }, []);
-
   return (
-    <Surface as="main" variant="page" className="relative flex h-[var(--visible-height)] flex-col overflow-hidden">
+    <Surface as="main" variant="page" className="relative flex h-screen flex-col overflow-hidden">
       <TopBar
         leading={<IconButton icon={PanelLeft} label="Open sidebar" onClick={() => setLeftPanel(true)} />}
         title={<ModelPicker compact />}

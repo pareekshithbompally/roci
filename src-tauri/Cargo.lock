@@ -6,6 +6,7 @@ version = 4
 name = "Roci"
 version = "1.2.0"
 dependencies = [
+ "apple-build",
  "base64 0.22.1",
  "block2",
  "cc",
