@@ -49,7 +49,7 @@ export const platform = {
   /** Reads calendars and reminders through EventKit (iPhone, iPad and Mac alike). */
   hasCalendar: apple,
   /** Notifies before calendar meetings with a Record action (timed natively; iPhone comes with its scheduled notices). */
-  hasMeetingReminders: mac,
+  hasMeetingReminders: apple,
   hasSpotlight: mac,
   hasAppleNotes: mac,
   hasHex: mac,

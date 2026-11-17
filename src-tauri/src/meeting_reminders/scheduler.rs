@@ -2,7 +2,9 @@
 
 use std::collections::HashMap;
 
-use tauri_plugin_calendar::{call_link, key_matches, types::CalendarEvent, CallLink};
+#[cfg(desktop)]
+use tauri_plugin_calendar::key_matches;
+use tauri_plugin_calendar::{call_link, types::CalendarEvent, CallLink};
 
 /// How late a reminder may still show, for a meeting added (or a recording stopped) after it started.
 pub const LATE_GRACE_MS: i64 = 5 * 60 * 1_000;
@@ -90,6 +92,7 @@ pub fn meetings(events: &[CalendarEvent]) -> Vec<CalendarMeeting> {
 }
 
 /// The current meeting whose link names the call's service, from its reminder lead until it ends.
+#[cfg(desktop)]
 pub fn current_for_call<'a>(
     meetings: &'a [CalendarMeeting],
     keys: &[&str],

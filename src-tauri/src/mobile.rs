@@ -2,7 +2,7 @@
 
 use tauri::{App, AppHandle, Builder, Manager, RunEvent, WebviewWindowBuilder, Wry};
 
-use crate::{audio, mcp, mlx, models, permissions, stt, tts};
+use crate::{audio, mcp, meeting_reminders, mlx, models, permissions, stt, tts};
 
 unsafe extern "C" {
   /// native/RociWebView.swift: pinned page, resized above the keyboard, no form toolbar.
@@ -13,7 +13,7 @@ pub fn extend_window(window: WebviewWindowBuilder<'_, Wry, AppHandle>) -> Webvie
   window
 }
 
-/// Meeting recording (microphone), on-device models (MLX chat, meeting search and voices; transcribe.cpp speech) and remote MCP servers.
+/// Meeting recording (microphone) and calendar meeting reminders, on-device models (MLX chat, meeting search and voices; transcribe.cpp speech) and remote MCP servers.
 pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
   builder
     .manage(mcp::McpState::default())
@@ -28,6 +28,7 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       audio::commands::resume_audio_capture,
       audio::commands::recorder_state,
       audio::commands::recover_meetings,
+      meeting_reminders::configure_meeting_reminders,
       permissions::commands::get_permissions,
       permissions::commands::request_permission,
       permissions::commands::open_permission_settings,
@@ -63,6 +64,8 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
   // Recording: microphone answers reach the webview; calls and route changes reach the recorder.
   permissions::emit_answers(app.handle().clone());
   audio::session::watch(app.handle().clone());
+  // Meeting reminders: iOS delivers them (scheduled notices with Record), re-armed on calendar changes.
+  meeting_reminders::start(app.handle().clone());
   // On-device model loads show in the activity tray.
   mlx::report_loads(app.handle());
   // MCP: connect the remote servers the user left enabled.

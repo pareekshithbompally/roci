@@ -1,7 +1,5 @@
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, MutexGuard};
-#[cfg(target_os = "macos")]
-use std::sync::TryLockError;
+use std::sync::{Mutex, MutexGuard, TryLockError};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
@@ -133,7 +131,6 @@ fn recorder() -> MutexGuard<'static, Option<Active>> {
 pub const CHANGED_EVENT: &str = "recorder://changed";
 
 /// Whether a recording is running; never waits, and a start or stop in progress counts as recording.
-#[cfg(target_os = "macos")]
 pub fn is_recording() -> bool {
     match RECORDER.try_lock() {
         Ok(active) => active.is_some(),
@@ -267,9 +264,13 @@ pub async fn recorder_state() -> Result<RecorderState, CaptureError> {
 }
 
 /// iPhone and iPad: hold the audio session for recording while a recording runs; the Mac has none.
+/// iPhone: the session opens with the recording (start, resume), so meeting reminders hold off meanwhile, as the Mac's
+/// menu bar tells them.
 #[cfg(target_os = "ios")]
 fn open_session() -> eyre::Result<()> {
-    crate::audio_session::activate(crate::audio_session::Use::Record).map_err(|error| eyre::eyre!(error))
+    crate::audio_session::activate(crate::audio_session::Use::Record).map_err(|error| eyre::eyre!(error))?;
+    crate::meeting_reminders::recording_changed(true);
+    Ok(())
 }
 
 #[cfg(target_os = "macos")]
@@ -280,6 +281,7 @@ fn open_session() -> eyre::Result<()> {
 #[cfg(target_os = "ios")]
 fn close_session() {
     crate::audio_session::deactivate(crate::audio_session::Use::Record);
+    crate::meeting_reminders::recording_changed(false);
 }
 
 #[cfg(target_os = "macos")]

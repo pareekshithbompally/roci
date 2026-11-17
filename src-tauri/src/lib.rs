@@ -44,7 +44,6 @@ mod mcp;
 mod mcp_server;
 #[cfg(desktop)]
 mod url_actions;
-#[cfg(desktop)]
 mod meeting_reminders;
 #[cfg(desktop)]
 mod call_detection;

@@ -1,4 +1,5 @@
-//! Calendar meeting reminders: on each calendar, settings or recording change, macOS is handed the reminders to deliver.
+//! Calendar meeting reminders: on each calendar, settings or recording change, the system (macOS, iOS) is handed the
+//! reminders to deliver — scheduled notifications, so they arrive while Roci is idle or, on iPhone, suspended.
 
 mod scheduler;
 
@@ -14,9 +15,9 @@ use tauri_plugin_notifications::{self as notifications, Action, Category, Notice
 
 use crate::audio::commands::is_recording;
 pub(crate) use scheduler::wall_clock_ms;
-use scheduler::{
-    current_for_call, meetings, minutes_until, CalendarMeeting, ReminderScheduler, ReminderUpdate,
-};
+#[cfg(desktop)]
+use scheduler::current_for_call;
+use scheduler::{meetings, minutes_until, CalendarMeeting, ReminderScheduler, ReminderUpdate};
 
 /// Frontend: start recording this meeting (`CalendarEvent`).
 const RECORD_EVENT: &str = "meeting-reminders://record";
@@ -192,6 +193,7 @@ pub fn configure_meeting_reminders(calendar: bool, enabled: bool, lead_minutes: 
 }
 
 /// The soonest meeting that hasn't ended, as the menu bar shows it.
+#[cfg(desktop)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct NextMeeting {
     pub occurrence: String,
@@ -203,6 +205,7 @@ pub(crate) struct NextMeeting {
 }
 
 /// The next meeting from the calendar already read (no extra read); None when the calendar is off or the hour is clear.
+#[cfg(desktop)]
 pub(crate) fn next_meeting() -> Option<NextMeeting> {
     let now_ms = wall_clock_ms();
     let reminders = reminders();
@@ -216,6 +219,7 @@ pub(crate) fn next_meeting() -> Option<NextMeeting> {
 }
 
 /// Record (or Join & Record) a meeting chosen in the menu bar, through the same path as its reminder.
+#[cfg(desktop)]
 pub(crate) fn record_occurrence(occurrence: &str, join: bool) {
     let event = reminders().event_for(occurrence);
     match event {
@@ -290,17 +294,18 @@ fn handle_response(response: &Response) {
     let Some(occurrence) = response.id.strip_prefix(ID_PREFIX) else {
         return;
     };
-    let (meeting, event) = {
+    let event = {
         let mut reminders = reminders();
         reminders.scheduler.answered(occurrence);
-        (reminders.meeting_for(occurrence).cloned(), reminders.event_for(occurrence))
+        // Answered with a button: its call is not offered again (the Mac's call detection).
+        #[cfg(desktop)]
+        if let Some(meeting) = reminders.meeting_for(occurrence)
+            && matches!(response.action.as_str(), ACTION_RECORD | ACTION_JOIN_RECORD | ACTION_NOT_NOW)
+        {
+            crate::call_detection::snooze_calendar_call(calendar_snooze(meeting));
+        }
+        reminders.event_for(occurrence)
     };
-    // Answered with a button: its call is not offered again.
-    if let Some(meeting) = &meeting
-        && matches!(response.action.as_str(), ACTION_RECORD | ACTION_JOIN_RECORD | ACTION_NOT_NOW)
-    {
-        crate::call_detection::snooze_calendar_call(calendar_snooze(meeting));
-    }
     let Some(event) = event else { return };
     match response.action.as_str() {
         ACTION_RECORD => record(&event, false),
@@ -324,6 +329,7 @@ pub(crate) fn record(event: &CalendarEvent, join: bool) {
 }
 
 /// The in-progress calendar meeting a detected call's app belongs to; known while the calendar integration is on.
+#[cfg(desktop)]
 pub(crate) fn event_for_call(application: &str) -> Option<CalendarEvent> {
     let reminders = reminders();
     let meeting = current_for_call(&reminders.meetings, &[application], wall_clock_ms(), reminders.lead_ms)?;
@@ -331,6 +337,7 @@ pub(crate) fn event_for_call(application: &str) -> Option<CalendarEvent> {
 }
 
 /// An answered reminder's snooze: its service's calls until the meeting ends, else any call near the start.
+#[cfg(desktop)]
 pub(crate) fn calendar_snooze(meeting: &CalendarMeeting) -> (Vec<String>, i64) {
     match &meeting.link {
         Some(link) => (link.provider.detection_keys().iter().map(|key| key.to_string()).collect(), meeting.end_ms),
@@ -338,8 +345,11 @@ pub(crate) fn calendar_snooze(meeting: &CalendarMeeting) -> (Vec<String>, i64) {
     }
 }
 
+/// The call link in its app (Zoom, Teams, Meet …) or the browser, on Mac and iPhone alike.
 fn open_link(url: &str) {
-    if let Err(error) = std::process::Command::new("open").arg(url).spawn() {
+    use tauri_plugin_opener::OpenerExt;
+    let Some(app) = APP.get() else { return };
+    if let Err(error) = app.opener().open_url(url, None::<&str>) {
         log::warn!("[meeting-reminders] could not open call link: {error}");
     }
 }
