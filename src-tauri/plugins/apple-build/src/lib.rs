@@ -45,8 +45,11 @@ impl SwiftLibrary<'_> {
         let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is not set"));
         let library = out_dir().join(format!("lib{}.a", self.name));
         // `xcrun` so the selected Xcode toolchain wins over any Swift.org toolchain on PATH.
+        // Release matches the Rust side (`opt-level = "s"`): optimise for size.
+        let optimize = env::var("PROFILE").is_ok_and(|profile| profile == "release");
         let status = Command::new("xcrun")
             .args(["--sdk", target.sdk, "swiftc", "-emit-library", "-static"])
+            .args(optimize.then_some("-Osize"))
             .args(["-module-name", self.module, "-target", &target.triple, "-o"])
             .arg(&library)
             .args(self.sources.iter().map(|source| manifest_dir.join(source)))

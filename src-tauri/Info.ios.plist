@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Roci uses your microphone to record meetings and for dictation, and keeps recordings on this device.</string>
+    <string>Roci uses your microphone for dictation. What you say goes to the speech engine you choose in Settings.</string>
 
     <key>NSSpeechRecognitionUsageDescription</key>
     <string>Roci transcribes your recordings on this device with Apple's speech recognition when you choose it as your transcription model.</string>

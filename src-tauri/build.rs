@@ -21,14 +21,10 @@ fn emit_identity() {
     }
 }
 
-/// Swift runtime search paths and rpaths for the macOS app.
+/// The system Swift runtime (in the OS since macOS 12; the minimum is 26) for the macOS app.
 fn link_macos_swift_runtime() {
     println!("cargo:rustc-link-search=native=/usr/lib/swift");
-    println!("cargo:rustc-link-search=native=/Library/Developer/CommandLineTools/usr/lib/swift-5.5/macosx");
-    println!("cargo:rustc-link-search=native=/Library/Developer/CommandLineTools/usr/lib/swift/macosx");
     println!("cargo:rustc-link-arg=-Wl,-rpath,/usr/lib/swift");
-    println!("cargo:rustc-link-arg=-Wl,-rpath,/Library/Developer/CommandLineTools/usr/lib/swift-5.5/macosx");
-    println!("cargo:rustc-link-arg=-Wl,-rpath,/Library/Developer/CommandLineTools/usr/lib/swift/macosx");
 }
 
 /// Compiles the native permission guide (native/permission_guide.m) with ARC.

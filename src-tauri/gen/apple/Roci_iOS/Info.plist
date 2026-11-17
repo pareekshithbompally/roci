@@ -17,7 +17,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>1.2.0</string>
 	<key>CFBundleVersion</key>
-	<string>1.2.0</string>
+	<string>1</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
@@ -41,18 +41,14 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Roci uses your microphone to record meetings and for dictation, and keeps recordings on this device.</string>
+	<string>Roci uses your microphone for dictation. What you say goes to the speech engine you choose in Settings.</string>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>Roci records the other participants&apos; audio only while you record a meeting, and keeps it on this Mac.</string>
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>Roci uses Screen &amp; System Audio Recording only to hear the other participants of a meeting when System Audio Recording is unavailable. It never records your screen.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>Roci reads your calendar to notify you about upcoming meetings and help identify speakers during transcription.</string>
-	<key>NSCalendarsUsageDescription</key>
-	<string>Roci reads your calendar to notify you about upcoming meetings and help identify speakers during transcription.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
-	<string>Roci adds your meeting action items to Reminders and marks them done in Roci when you complete them there.</string>
-	<key>NSRemindersUsageDescription</key>
 	<string>Roci adds your meeting action items to Reminders and marks them done in Roci when you complete them there.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Roci transcribes your recordings on this device with Apple&apos;s speech recognition when you choose it as your transcription model.</string>
