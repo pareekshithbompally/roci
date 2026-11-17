@@ -4,7 +4,7 @@ import React from 'react';
 import { X, Globe, ExternalLink } from 'lucide-react';
 import { getFaviconUrl, describeCitation } from '@shared/utils/citationUtils';
 import type { WebCitation } from '@shared/types';
-import { CardRow, Drawer, IconButton, Icon, Section, Surface, Text } from '@shared/ui';
+import { CardRow, Drawer, IconButton, Icon, Section, SheetBody, Surface, Text } from '@shared/ui';
 import { openUrl } from '@services/tauri';
 
 interface WebCitationDrawerProps {
@@ -40,7 +40,7 @@ export const WebCitationDrawer: React.FC<WebCitationDrawerProps> = ({
       </Surface>
 
       {/* Citation list: one grouped card of sources (iOS / macOS list), each opening in the browser */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <SheetBody>
         <Section>
           {citations?.map((citation, i) => {
             const label = describeCitation(citation);
@@ -56,7 +56,7 @@ export const WebCitationDrawer: React.FC<WebCitationDrawerProps> = ({
             );
           })}
         </Section>
-      </div>
+      </SheetBody>
     </Drawer>
   );
 };

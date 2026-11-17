@@ -59,6 +59,8 @@ export const POPUP_VALUE =
 
 /** Content of a panel that already clears the notch and home bar: it sees no safe-area insets. */
 export const NO_INSETS = '[--safe-top:0px] [--safe-bottom:0px]';
+/** Inside a bottom sheet: the top inset is spent, the home-indicator inset is padded by each scroll area at its end. */
+export const NO_TOP_INSET = '[--safe-top:0px]';
 
 /** Text typed as-is (search queries, ids): the keyboard neither capitalises nor corrects it. */
 export const LITERAL_TEXT = { autoCapitalize: 'none', autoCorrect: 'off', spellCheck: false } as const;

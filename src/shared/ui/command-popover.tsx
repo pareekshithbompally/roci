@@ -57,7 +57,7 @@ export function CommandPopover({
   if (phone) {
     // iOS: a search field over an inset grouped list — a pushed screen inside a sheet's stack, else its own sheet.
     const body = (
-      <Command className="min-h-0 gap-3 rounded-none px-4 pb-4 pt-2">
+      <Command className="min-h-0 gap-3 rounded-none px-4 pb-sheet-end pt-2">
         <div className={SEARCH_FIELD}>
           <Icon icon={Search} size="sm" />
           <CommandInput placeholder={searchPlaceholder} value={search} onValueChange={onSearchChange} className="border-b-0 px-0 py-0" />

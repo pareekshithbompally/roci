@@ -105,7 +105,7 @@ export default {
         largeTitle: ['var(--fs-large-title)', 'var(--lh-large-title)'],
       },
       // 5.5 = a 14px icon + 8px gap (text indented under an icon); 15 = 60px described row
-      spacing: { 5.5: '1.375rem', 15: '3.75rem', 'safe-top': 'var(--safe-top)', 'safe-bottom': 'var(--safe-bottom)', 'control-xs': 'var(--control-xs)', 'control-sm': 'var(--control-sm)', 'control-md': 'var(--control-md)', 'row-icon': 'var(--row-icon-gap)', section: 'var(--section-gap)' },
+      spacing: { 5.5: '1.375rem', 15: '3.75rem', 'safe-top': 'var(--safe-top)', 'safe-bottom': 'var(--safe-bottom)', 'sheet-end': 'calc(var(--safe-bottom) + 1rem)', 'control-xs': 'var(--control-xs)', 'control-sm': 'var(--control-sm)', 'control-md': 'var(--control-md)', 'row-icon': 'var(--row-icon-gap)', section: 'var(--section-gap)' },
       keyframes: {
         'overlay-show': {
           from: { opacity: '0' },

@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { Check } from 'lucide-react';
 import {
   BottomSheet, CardRow, DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
-  DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, Icon, Section,
+  DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, Icon, Section, SheetBody,
 } from '@shared/ui';
 import { popupMenu, type MenuEntry } from '@services/tauri';
 import { useFormFactor } from '@platform/formFactor';
@@ -118,13 +118,13 @@ export function Menu({ label, trigger, items: source, align = 'end' }: MenuProps
       <>
         {withClick(trigger, () => prepare(() => setOpen(true)))}
         <BottomSheet open={open} onOpenChange={setOpen} title={label}>
-          <div className="flex flex-col gap-section overflow-y-auto p-4">
+          <SheetBody>
             {sheetGroups(items).map((group, i) => (
               <Section key={i} title={group.title}>
                 {group.rows.map((entry, j) => <SheetRow key={j} entry={entry} done={() => setOpen(false)} />)}
               </Section>
             ))}
-          </div>
+          </SheetBody>
         </BottomSheet>
       </>
     );

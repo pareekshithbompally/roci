@@ -4,7 +4,7 @@ import React from 'react';
 import { FileText, Image as ImageIcon, Music } from 'lucide-react';
 import { IMPORT_MEETING_LABEL, useImportMeetingActions } from '@features/import';
 import { useAppActions } from '@shared/stores/appStore';
-import { BottomSheet, CardRow, Icon, Section } from '@shared/ui';
+import { BottomSheet, CardRow, Icon, Section, SheetBody } from '@shared/ui';
 import { ChatToolRows } from './tools/ChatToolRows';
 import type { ContextUsage } from '@shared/hooks/useContextUsage';
 
@@ -34,7 +34,7 @@ export const ComposerAddSheet: React.FC<ComposerAddSheetProps> = ({ open, onOpen
 
   return (
     <BottomSheet open={open} onOpenChange={onOpenChange} title="Add">
-      <div className="flex flex-col gap-section overflow-y-auto p-4">
+      <SheetBody>
         {onPickFiles && (
           <Section title="Attach">
             {ATTACH_OPTIONS.map(({ label, icon, accept }) => (
@@ -48,7 +48,7 @@ export const ComposerAddSheet: React.FC<ComposerAddSheetProps> = ({ open, onOpen
           ))}
         </Section>
         <ChatToolRows onChooseImageModel={closeThen(() => openSettings('capabilities'))} contextUsage={contextUsage} />
-      </div>
+      </SheetBody>
     </BottomSheet>
   );
 };

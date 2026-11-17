@@ -1,7 +1,7 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import React, { useLayoutEffect, useRef } from 'react';
 import { cn, dismissKeyboard } from './utils';
-import { NO_INSETS, SCRIM } from './recipes';
+import { NO_TOP_INSET, SCRIM } from './recipes';
 
 /** `auto`: as tall as its content (action sheets). `full`: the whole screen below the status bar (Settings). */
 const SIZE = {
@@ -38,16 +38,22 @@ export function BottomSheet({ open, onOpenChange, title, size = 'auto', children
             contentRef.current?.focus({ preventScroll: true });
           }}
           className={cn(
-            'fixed inset-x-0 bottom-0 z-modal flex flex-col overflow-hidden rounded-t-sheet bg-grouped pb-safe-bottom shadow-overlay focus:outline-none',
+            'fixed inset-x-0 bottom-0 z-modal flex flex-col overflow-hidden rounded-t-sheet bg-grouped shadow-overlay focus:outline-none',
             'data-[state=open]:animate-rise-show data-[state=closed]:animate-rise-hide',
             SIZE[size],
           )}
         >
           <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
           <div aria-hidden className="mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-layer-4" />
-          <div className={cn('flex min-h-0 flex-1 flex-col', NO_INSETS)}>{children}</div>
+          <div className={cn('flex min-h-0 flex-1 flex-col', NO_TOP_INSET)}>{children}</div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
   );
+}
+
+/** A sheet's scrolling content: groups spaced like a settings list, scrolling to the screen edge with the
+ *  home-indicator space as padding at its end (iOS), so nothing stops short above a dead strip. */
+export function SheetBody({ children }: { children: React.ReactNode }) {
+  return <div className="flex min-h-0 flex-1 flex-col gap-section overflow-y-auto p-4 pb-sheet-end">{children}</div>;
 }
