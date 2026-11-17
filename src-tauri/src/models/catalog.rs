@@ -10,10 +10,8 @@ use super::LocalError;
 pub enum Kind {
     /// Speech-to-text, run by transcribe.cpp.
     Speech,
-    /// A read-aloud voice, run by Phonon (`ptts`).
+    /// A read-aloud voice, run by MLX (RociMLX); files are the model's folder.
     Voice,
-    /// Text-to-image, run by stable-diffusion.cpp's `sd-server`; files are diffusion model, text encoder, VAE.
-    Image,
     /// Text embeddings for meeting search, run by MLX (RociMLX); files are the model's folder.
     Embedding,
     /// A chat model, run by MLX (RociMLX); files are the model's folder.
@@ -42,13 +40,6 @@ pub struct ModelFile {
     source: Option<&'static Source>,
 }
 
-/// A read-aloud voice of a voice model: its name, and its file in `files`.
-#[cfg_attr(mobile, expect(dead_code, reason = "read by the Mac's read-aloud engine"))]
-pub struct Voice {
-    pub name: &'static str,
-    pub file: &'static str,
-}
-
 pub struct LocalModel {
     pub id: &'static str,
     pub name: &'static str,
@@ -57,9 +48,9 @@ pub struct LocalModel {
     pub streams: bool,
     source: Source,
     pub files: &'static [ModelFile],
-    /// A voice model's voices, the first its default; empty for speech models.
+    /// A voice model's speaker names, the first its default; empty when it has one voice.
     #[cfg_attr(mobile, expect(dead_code, reason = "read by the Mac's read-aloud engine"))]
-    pub voices: &'static [Voice],
+    pub voices: &'static [&'static str],
 }
 
 impl LocalModel {
@@ -179,128 +170,69 @@ pub const MODELS: &[LocalModel] = &[
         }],
     },
     LocalModel {
-        id: "phonon-31m",
-        name: "Phonon",
+        id: "soprano",
+        name: "Soprano",
         kind: Kind::Voice,
         streams: false,
-        source: Source { repository: "gradium/phonon-31m-en", revision: "92741c5b07d085ff840e26fea8ce43110b87852f" },
+        voices: &[],
+        source: Source { repository: "mlx-community/Soprano-80M-bf16", revision: "b7da048eff3dfd556409a44b78b9c61a9dd4ccfa" },
         files: &[
-            ModelFile {
-                name: "model.q8.gguf",
-                bytes: 64_512_352,
-                sha256: "a7d9aad2cd6dc66473f24a08bc6d2939030ef4d751ef82349361fbef3272dbae",
-                source: None,
-            },
-            ModelFile {
-                name: "config.json",
-                bytes: 4_634,
-                sha256: "b5d0f88353638370d94035b7d73d7d6577c0554d78f8d7ecfd40490aae39ae85",
-                source: None,
-            },
-            ModelFile {
-                name: "tokenizer.json",
-                bytes: 277_967,
-                sha256: "691a00068fa7b989f2f3e5ae5daa2d1a5bb319f2d5360deafcfb19a8bb6e7936",
-                source: None,
-            },
-            ModelFile {
-                name: "default-voice.safetensors",
-                bytes: VOICE_BYTES,
-                sha256: "dc537478eaadc1a5257fcda2e3501ab81e14c111a5d95a5838f350db2afd0f1a",
-                source: None,
-            },
-            voice_file("voices/4SZHfMpw-p46Ywgs.safetensors", "6b3da6e2d796a20c51af892c482bd6509fb88267a221aff83c870843dee2a123"),
-            voice_file("voices/bXwrkHhURL1VFJdG.safetensors", "a879938aa9a2df0a8220bdadef88137929f71e887bd91e7db205bd5fa11661d2"),
-            voice_file("voices/qIxlZ7Ei8KvWlyQH.safetensors", "6e04b84d3ae8751b22bca0a4f63936f9cb648f4f2182b2d0788071ea1c0b68a1"),
-            voice_file("voices/d9XCyhjo4JhkHF1d.safetensors", "eab20e4f159b48cfbc01b1885804e24f681f80e7a64f909182763a4e3361bee8"),
-            voice_file("voices/6PWnV0Nq4wu7RVBT.safetensors", "56494ee67d533ad227ff0dfd0b1c13ff5aa91f1ad6e596e66c2986ba3005e844"),
-            voice_file("voices/gfP44RlHwr2kEwk7.safetensors", "bcc207a73b7885e45b49ab633d3377a10158292e3a7cef9cd6764ad107f1cb9b"),
-            voice_file("voices/zUCxzrOrugTSis03.safetensors", "ff1d0735b8b45710462b1d1f846da040f970c6eb62c7c2f36dbfb8e5bde74f1e"),
-            voice_file("voices/YyKcxPG7iIgS3jsK.safetensors", "3169d74b47a54d1eb15e4c243f56393abe9fe90c7e1c308ecf96ee67618b152a"),
-        ],
-        // A clear, calm set for reading replies: American and British, female and male.
-        voices: &[
-            Voice { name: "Default", file: "default-voice.safetensors" },
-            Voice { name: "Harper", file: "voices/4SZHfMpw-p46Ywgs.safetensors" },
-            Voice { name: "Hadley", file: "voices/bXwrkHhURL1VFJdG.safetensors" },
-            Voice { name: "Preston", file: "voices/qIxlZ7Ei8KvWlyQH.safetensors" },
-            Voice { name: "Miles", file: "voices/d9XCyhjo4JhkHF1d.safetensors" },
-            Voice { name: "Maeve", file: "voices/6PWnV0Nq4wu7RVBT.safetensors" },
-            Voice { name: "Bryony", file: "voices/gfP44RlHwr2kEwk7.safetensors" },
-            Voice { name: "Edwin", file: "voices/zUCxzrOrugTSis03.safetensors" },
-            Voice { name: "Hugh", file: "voices/YyKcxPG7iIgS3jsK.safetensors" },
+            ModelFile { name: "config.json", bytes: 680, sha256: "dcef1db183ebe876461286b3e0b1859c1068a187b32d6274306794c2ee428a93", source: None },
+            ModelFile { name: "model.safetensors", bytes: 217_333_883, sha256: "95e42d42bc879213d49d940e0884024eb153fb6daccf2229864cca0fbbbb268a", source: None },
+            ModelFile { name: "model.safetensors.index.json", bytes: 20_898, sha256: "c89dd3632bb97cdc002cbcdeec00e93c569bcc56e88c52a35612039654595f43", source: None },
+            ModelFile { name: "special_tokens_map.json", bytes: 158, sha256: "d6987802b7ab3904b190fa17c8dc47757892cc67d02ac571074e67441bc6f70f", source: None },
+            ModelFile { name: "tokenizer.json", bytes: 1_792_331, sha256: "5952e532af20bc935a29293725394bdb32a6a286e811a22f930a594ece59102c", source: None },
+            ModelFile { name: "tokenizer_config.json", bytes: 1_494_887, sha256: "1bd29465c2834d676be5ceaf32272a604522ef85659a2cb09a8ae1ea7d40ba76", source: None },
         ],
     },
     LocalModel {
-        id: "z-image-turbo",
-        name: "Z-Image Turbo",
-        kind: Kind::Image,
+        id: "pocket-tts",
+        name: "Pocket TTS",
+        kind: Kind::Voice,
         streams: false,
-        voices: &[],
-        source: Source { repository: "leejet/Z-Image-Turbo-GGUF", revision: "c61c0e422dc8b541b7548cf33a4ef8302b0f8085" },
+        voices: &["Alba", "Marius", "Javert", "Jean", "Fantine", "Cosette", "Eponine", "Azelma"],
+        source: Source { repository: "mlx-community/pocket-tts", revision: "cbf71d5f6657bbc3f4bc02f85ee408261225bec7" },
         files: &[
-            ModelFile {
-                name: "z_image_turbo-Q4_K.gguf",
-                bytes: 3_864_250_304,
-                sha256: "14b375ab4f226bc5378f68f37e899ef3c2242b8541e61e2bc1aff40976086fbd",
-                source: None,
-            },
-            ModelFile {
-                name: "Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
-                bytes: 2_497_281_120,
-                sha256: "3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597",
-                source: Some(&QWEN3_4B_INSTRUCT),
-            },
-            ModelFile {
-                name: "vae/diffusion_pytorch_model.safetensors",
-                bytes: 167_666_902,
-                sha256: "f5b59a26851551b67ae1fe58d32e76486e1e812def4696a4bea97f16604d40a3",
-                source: Some(&Z_IMAGE_TURBO),
-            },
+            ModelFile { name: "config.json", bytes: 1_664, sha256: "403ff12260596fbfa348c7b07237c378b9ad8db9d8acd04d671470421954a68e", source: None },
+            ModelFile { name: "embeddings/alba.safetensors", bytes: 512_088, sha256: "ad234695323e4030336b6afc8a050c97e3110603e11ecd8226d9562488300a50", source: None },
+            ModelFile { name: "embeddings/azelma.safetensors", bytes: 659_544, sha256: "ef33fad34437cb187d2702f0a946d8ba7a01efdb8efbc8088c770d49c181ba73", source: None },
+            ModelFile { name: "embeddings/cosette.safetensors", bytes: 512_088, sha256: "ca8926c4f234afa9d722173967e7bebdc6269538ca5910d65f41c3c1317717d3", source: None },
+            ModelFile { name: "embeddings/eponine.safetensors", bytes: 573_528, sha256: "bb31940f62da665391de139da2e57d740757df26b73d7ec24152c78a3b8ac0c5", source: None },
+            ModelFile { name: "embeddings/fantine.safetensors", bytes: 540_760, sha256: "b6918a2ece002d2d9037ff53c4ea38730175e8798786658b0958443edf49d355", source: None },
+            ModelFile { name: "embeddings/javert.safetensors", bytes: 512_088, sha256: "2e857904ee76657e083b0e92664d21bd133e37df320af6eb04f752e679422d91", source: None },
+            ModelFile { name: "embeddings/jean.safetensors", bytes: 512_088, sha256: "329530f87ce503061acefca8669300963420ff97e43647a326aa46bd987b983c", source: None },
+            ModelFile { name: "embeddings/marius.safetensors", bytes: 512_088, sha256: "33f75e45fac0005630671f4b1bb632d51b6a083b18417de94855bbd7596a0630", source: None },
+            ModelFile { name: "model.safetensors", bytes: 235_739_497, sha256: "60ddd85019dddbe6c1d220e311ca5fc753972978a89f563c0bbe1ae943120072", source: None },
+            ModelFile { name: "special_tokens_map.json", bytes: 95, sha256: "0655d856e7dd462048486aac66d4247753e5cab12480baeb9f4e8f7fe03f7d4c", source: None },
+            ModelFile { name: "tokenizer.json", bytes: 244_993, sha256: "ef29c4871fd62c7beb928150edc095be1327f0924c0eab9e06b95918b39eff5f", source: None },
+            ModelFile { name: "tokenizer_config.json", bytes: 220, sha256: "ad6dc6a5790d0f94170998ab79921c97d28ea54602abcdb33cba3132d13ac233", source: None },
         ],
     },
     LocalModel {
-        id: "flux-2-klein-4b",
-        name: "FLUX.2 Klein",
-        kind: Kind::Image,
+        id: "qwen3-tts",
+        name: "Qwen3 TTS",
+        kind: Kind::Voice,
         streams: false,
-        voices: &[],
-        source: Source { repository: "leejet/FLUX.2-klein-4B-GGUF", revision: "3b1f5a9dc3abb32238b053aeb3d823c30afdacbd" },
+        voices: &["Ryan", "Aiden"],
+        source: Source { repository: "mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-8bit", revision: "049ef77fe8816b536193c0c25f9a214d17921282" },
         files: &[
-            ModelFile {
-                name: "flux-2-klein-4b-Q8_0.gguf",
-                bytes: 4_300_629_440,
-                sha256: "0bba6951258ec8f92d51114a8fa13e66828297bfff58a738f52729b3ef66fa28",
-                source: None,
-            },
-            ModelFile {
-                name: "Qwen3-4B-Q4_K_M.gguf",
-                bytes: 2_497_281_312,
-                sha256: "f6f851777709861056efcdad3af01da38b31223a3ba26e61a4f8bf3a2195813a",
-                source: Some(&QWEN3_4B),
-            },
-            ModelFile {
-                name: "vae/diffusion_pytorch_model.safetensors",
-                bytes: 168_120_878,
-                sha256: "ca70d2202afe6415bdbcb8793ba8cd99fd159cfe6192381504d6c4d3036e0f04",
-                source: Some(&FLUX_2_KLEIN_4B),
-            },
+            ModelFile { name: "config.json", bytes: 6_058, sha256: "2eea3665564268139c3beb8d497fd3c2e4524e9eed5452836cdf1de96ed3cdbd", source: None },
+            ModelFile { name: "generation_config.json", bytes: 245, sha256: "f1b90b4513f3b34c62851049e2492d7b4c5940daf1276f89c82b8ef04127f3aa", source: None },
+            ModelFile { name: "merges.txt", bytes: 1_671_839, sha256: "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3", source: None },
+            ModelFile { name: "model.safetensors", bytes: 1_286_743_170, sha256: "3bcb2c4a127e6243e81a30b7126c7865f686d3559de4f938e5d3b150c6a9560d", source: None },
+            ModelFile { name: "model.safetensors.index.json", bytes: 71_447, sha256: "0c92041960fa189cf35ae538c8d9ca07c468edddd0c9bb52274c5d4d287a860b", source: None },
+            ModelFile { name: "preprocessor_config.json", bytes: 127, sha256: "efdde1022ea9d76928bf7a9cd53139138f5ba2e466e837f08f6105ab1af1c119", source: None },
+            ModelFile { name: "speech_tokenizer/config.json", bytes: 2_336, sha256: "ee65bb901c876664ab8707c487157aa1a6ee57c65969b28fb5ec9dc211e68167", source: None },
+            ModelFile { name: "speech_tokenizer/configuration.json", bytes: 76, sha256: "6bc26d64eb5024b4d1dab5a52371958b429256d6c9d59787f1f5294a54e0cebd", source: None },
+            ModelFile { name: "speech_tokenizer/model.safetensors", bytes: 682_293_092, sha256: "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258", source: None },
+            ModelFile { name: "speech_tokenizer/preprocessor_config.json", bytes: 234, sha256: "fcb3805e597e786d4067706e602f6688524640f8d3396790e2e09b5942fcbdfb", source: None },
+            ModelFile { name: "tokenizer_config.json", bytes: 7_344, sha256: "dc3c31c3bdaedd5016382bb3cbe07323026775ad51f5a4fb564505992ae4a670", source: None },
+            ModelFile { name: "vocab.json", bytes: 2_776_833, sha256: "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910", source: None },
         ],
     },
 ];
 
-/// Every Phonon voice file is one speaker embedding of this size.
-const VOICE_BYTES: u64 = 256_136;
-const PHONON_VOICES: Source = Source { repository: "gradium/phonon-voices", revision: "0ee17205f254b5abc43b266c8a0f215565c352f7" };
-/// Image models' text encoders and VAEs, each from its Apache-2.0, ungated upstream repository.
-const QWEN3_4B_INSTRUCT: Source = Source { repository: "unsloth/Qwen3-4B-Instruct-2507-GGUF", revision: "a06e946bb6b655725eafa393f4a9745d460374c9" };
-const QWEN3_4B: Source = Source { repository: "unsloth/Qwen3-4B-GGUF", revision: "22c9fc8a8c7700b76a1789366280a6a5a1ad1120" };
-const Z_IMAGE_TURBO: Source = Source { repository: "Tongyi-MAI/Z-Image-Turbo", revision: "f332072aa78be7aecdf3ee76d5c247082da564a6" };
-const FLUX_2_KLEIN_4B: Source = Source { repository: "black-forest-labs/FLUX.2-klein-4B", revision: "e7b7dc27f91deacad38e78976d1f2b499d76a294" };
 
-const fn voice_file(name: &'static str, sha256: &'static str) -> ModelFile {
-    ModelFile { name, bytes: VOICE_BYTES, sha256, source: Some(&PHONON_VOICES) }
-}
 
 /// A model this device can run.
 pub fn find(id: &str) -> Result<&'static LocalModel, LocalError> {
@@ -317,13 +249,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn voices_name_files_of_their_model() {
-        let phonon = find("phonon-31m").unwrap();
-        assert!(phonon.voices.iter().all(|v| phonon.files.iter().any(|f| f.name == v.file)));
-        assert_eq!(
-            phonon.url(&phonon.files[4]),
-            "https://huggingface.co/gradium/phonon-voices/resolve/0ee17205f254b5abc43b266c8a0f215565c352f7/voices/4SZHfMpw-p46Ywgs.safetensors"
-        );
+    fn voice_models_list_their_speakers() {
+        assert_eq!(find("pocket-tts").unwrap().voices.first(), Some(&"Alba"));
+        assert!(find("soprano").unwrap().voices.is_empty());
+        assert!(find_kind("qwen3-tts", Kind::Speech).is_err());
     }
 
     #[test]
@@ -333,8 +262,6 @@ mod tests {
             model.url(model.main_file()),
             "https://huggingface.co/handy-computer/whisper-large-v3-turbo-gguf/resolve/d222c9f621c1128299248f2ded4d8a1820519780/whisper-large-v3-turbo-Q8_0.gguf"
         );
-        assert_eq!(find("phonon-31m").unwrap().bytes(), 65_051_089 + 8 * VOICE_BYTES);
-        assert!(find_kind("phonon-31m", Kind::Speech).is_err());
         assert!(find("nope").is_err());
     }
 }

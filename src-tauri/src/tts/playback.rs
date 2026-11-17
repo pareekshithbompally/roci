@@ -44,7 +44,7 @@ pub fn play(samples: &[f32], rate: u32, stop: &AtomicBool) -> Result<(), String>
 }
 
 /// Whole-clip resampling (rubato FFT, the audio module's settings).
-fn resample(samples: &[f32], from: u32, to: u32) -> Result<Vec<f32>, String> {
+pub(super) fn resample(samples: &[f32], from: u32, to: u32) -> Result<Vec<f32>, String> {
     if from == to || samples.is_empty() {
         return Ok(samples.to_vec());
     }

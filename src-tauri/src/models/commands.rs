@@ -6,7 +6,7 @@ use tauri::{AppHandle, Manager, State};
 use super::catalog::{self, Kind, MODELS};
 use super::{blocking, store, LocalError, ModelsState};
 #[cfg(desktop)]
-use crate::{image::ImageState, stt::SttState, tts::TtsState};
+use crate::{stt::SttState, tts::TtsState};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -72,8 +72,6 @@ pub async fn local_model_remove(app: AppHandle, id: String) -> Result<(), LocalE
             Kind::Speech => app.state::<SttState>().engine.forget(model.id),
             #[cfg(desktop)]
             Kind::Voice => app.state::<TtsState>().forget(),
-            #[cfg(desktop)]
-            Kind::Image => app.state::<ImageState>().server.forget(model.id),
             Kind::Embedding | Kind::Chat => crate::mlx::unload(model.kind),
             #[cfg(mobile)]
             _ => {}

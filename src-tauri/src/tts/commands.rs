@@ -3,7 +3,7 @@
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use super::{macos, text, TtsState, VoiceOption};
+use super::{macos, text, voice_model, TtsState, VoiceOption};
 use crate::models::catalog::{self, Kind};
 use crate::models::{blocking, store, LocalError, LANGUAGE};
 
@@ -18,14 +18,14 @@ struct Chunk {
     text: String,
 }
 
-/// The voices `engine` can speak in, its default first (Phonon's are listed before it's downloaded).
+/// The voices `engine` can speak in, its default first (a model's are listed before it's downloaded).
 #[tauri::command]
 pub fn tts_voices(engine: String) -> Result<Vec<VoiceOption>, LocalError> {
     if engine == MACOS_VOICE {
         return Ok(macos::voices(LANGUAGE));
     }
     let model = catalog::find_kind(&engine, Kind::Voice)?;
-    Ok(model.voices.iter().map(|v| VoiceOption { id: v.name.to_string(), name: v.name.to_string(), detail: None }).collect())
+    Ok(model.voices.iter().map(|&v| VoiceOption { id: v.to_lowercase(), name: v.to_string(), detail: None }).collect())
 }
 
 /// Speaks a reply's markdown with `engine` in `voice`, emitting `tts://chunk` as each chunk begins.
@@ -43,15 +43,18 @@ pub async fn tts_speak(app: AppHandle, id: u64, text: String, engine: String, vo
             log::warn!("[tts] chunk event failed: {e}");
         }
     };
-    blocking(move || {
+    let used = app.clone();
+    let spoken = blocking(move || {
         if engine == MACOS_VOICE {
             return macos::speak(&chunks, voice.as_deref(), &stop, on_chunk);
         }
         let model = catalog::find_kind(&engine, Kind::Voice)?;
         let dir = store::installed_dir(&app, model)?;
-        app.state::<TtsState>().phonon.speak(model, &dir, chunks, voice.as_deref(), stop, on_chunk)
+        voice_model::speak(&dir, chunks, voice.as_deref(), stop, on_chunk)
     })
-    .await
+    .await;
+    crate::mlx::touch(&used, Kind::Voice);
+    spoken
 }
 
 /// Stops the reply speaking now, if any.

@@ -22,7 +22,6 @@ const KINDS: ReadonlyArray<readonly [LocalModelKind, TileGlyph]> = [
   ['speech', JOB_GLYPH.transcription],
   ['voice', JOB_GLYPH.readAloud],
   ['embedding', JOB_GLYPH.meetingSearch],
-  ['image', JOB_GLYPH.images],
 ];
 
 /** A downloadable model: its name and size, Ready, and Download / Delete. */

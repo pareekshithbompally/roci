@@ -84,8 +84,6 @@ rmcp = { version = "3.10.0", features = [
 toml = "0.9"
 # On-device speech-to-text (ggml, Metal). Pinned with [patch.crates-io] below.
 transcribe-cpp = "=0.4.1"
-# Read aloud: Phonon TTS on CPU (Accelerate + KleidiAI for Q8 weights); `hf` = the tokenizer.
-ptts = { version = "=0.7.1", features = ["hf", "accelerate", "kai"] }
 # Read aloud: the macOS system voices (names, quality, novelty flag) for the voice picker.
 objc2-avf-audio = { version = "0.3.2", default-features = false, features = ["std", "AVSpeechSynthesis"] }
 # Call detection (which app holds the microphone) and app icons.
@@ -108,15 +106,6 @@ objc2-app-kit = { version = "0.3.2", default-features = false, features = [
 transcribe-cpp = { git = "https://github.com/anomalyco/transcribe.cpp", rev = "2778ae4bf5ca5f394d129a39467f4ad9552dc34f" }
 transcribe-cpp-sys = { git = "https://github.com/anomalyco/transcribe.cpp", rev = "2778ae4bf5ca5f394d129a39467f4ad9552dc34f" }
 
-# Phonon is hot numeric code: always fully optimized, even in dev and the size-optimized release.
-[profile.dev.package.ptts]
-opt-level = 3
-[profile.dev.package.xn]
-opt-level = 3
-[profile.release.package.ptts]
-opt-level = 3
-[profile.release.package.xn]
-opt-level = 3
 
 [profile.release]
 panic = "abort"

@@ -1,7 +1,7 @@
 //! On-device speech-to-text in-process on the curated models; the webview calls these commands.
 
 pub mod commands;
-mod engine;
+pub(crate) mod engine;
 mod live;
 
 use std::sync::Mutex;

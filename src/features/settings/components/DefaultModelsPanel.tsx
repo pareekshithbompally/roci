@@ -77,23 +77,8 @@ function readAloudEngineChoices(models: LocalModel[], controls: Controls): Model
 
 const IMAGES_OFF = IMAGE_GENERATION_CONFIG.off;
 
-/** Image models on this device, each with its download step until it's ready. */
-function onDeviceImageChoices(models: LocalModel[], controls: Controls): ModelChoice[] {
-  if (!platform.hasOnDeviceModels) return [];
-  const provider = IMAGE_GENERATION_CONFIG.onDevice.provider;
-  return models.filter((m) => m.kind === 'image').map((m) => ({
-    value: imageSelectionKey({ provider, model: m.id }),
-    provider,
-    modelId: m.id,
-    label: m.name,
-    ready: m.installed,
-    hint: formatFileSize(m.bytes),
-    setup: downloadSetup(controls[m.id]),
-  }));
-}
-
-/** Image generation: cloud image models (ready once their provider has a key), models on this device, plus Off. */
-const ImageGenerationRow: React.FC<{ localModels: LocalModel[]; controls: Controls }> = ({ localModels, controls }) => {
+/** Image generation: cloud image models (ready once their provider has a key), plus Off. */
+const ImageGenerationRow: React.FC = () => {
   const { settings, setSettings, providers } = useSettings();
   const choices = useMemo<ModelChoice[]>(() => [
     ...imageModelOptions(providers).map((o) => ({
@@ -104,8 +89,7 @@ const ImageGenerationRow: React.FC<{ localModels: LocalModel[]; controls: Contro
       ready: o.ready,
       hint: o.hint,
     })),
-    ...onDeviceImageChoices(localModels, controls),
-  ], [providers, localModels, controls]);
+  ], [providers]);
   const value = hasImageModel(settings)
     ? imageSelectionKey({ provider: settings.imageProvider ?? '', model: settings.imageModel ?? '' })
     : IMAGES_OFF.value;
@@ -177,7 +161,7 @@ export const DefaultModelsPanel: React.FC = () => {
       </Section>
 
       <Section title="Images" footer={FOOTERS.images}>
-        <ImageGenerationRow localModels={localModels} controls={controls} />
+        <ImageGenerationRow />
       </Section>
 
       <Section title="Meetings" footer={platform.hasLocalModels ? `${FOOTERS.meetings} ${FOOTERS.meetingSearch}` : FOOTERS.meetings}>

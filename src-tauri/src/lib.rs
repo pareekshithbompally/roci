@@ -37,11 +37,7 @@ mod stt;
 mod sync;
 #[cfg(desktop)]
 mod tts;
-#[cfg(desktop)]
-mod image;
 mod mlx;
-#[cfg(desktop)]
-mod model_server;
 #[cfg(desktop)]
 mod open_native;
 #[cfg(desktop)]

@@ -28,7 +28,14 @@ public func rociMLXEmbed(_ request: UnsafePointer<CChar>) -> UnsafeMutablePointe
     return reply { try await Engine.shared.embed(try decode(EmbedRequest.self, json)) }
 }
 
-/// Frees a role's model ("chat" or "embedding") and MLX's buffer cache.
+/// Speaks one sentence with a voice model; the result carries `sampleRate` and base64 float32 `samples`.
+@_cdecl("roci_mlx_speak")
+public func rociMLXSpeak(_ request: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar> {
+    let json = String(cString: request)
+    return reply { try await Engine.shared.speak(try decode(SpeakRequest.self, json)) }
+}
+
+/// Frees a role's model ("chat", "embedding" or "voice") and MLX's buffer cache.
 @_cdecl("roci_mlx_unload")
 public func rociMLXUnload(_ role: UnsafePointer<CChar>) {
     let role = String(cString: role)

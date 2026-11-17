@@ -1,7 +1,5 @@
 /** Image generation: the image models Settings › Default Models offers, the shapes the tool accepts, and its limits. */
 
-import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
-
 /** How a provider takes the image's shape: an aspect ratio, or a fixed pixel size. */
 export type ImageSizing = 'aspectRatio' | 'size';
 
@@ -39,19 +37,6 @@ export const IMAGE_GENERATION_CONFIG = {
     '9:16': '1024x1536',
     '3:4': '1024x1536',
   } satisfies Record<ImageAspectRatio, `${number}x${number}`>,
-  /** Image models downloaded to this Mac (stable-diffusion.cpp on Metal): their provider id and pixel size per shape. */
-  onDevice: {
-    provider: LOCAL_MODELS_CONFIG.provider.id,
-    /** The one model id stable-diffusion.cpp's server answers to on its OpenAI API. */
-    serverModelId: 'sd-cpp-local',
-    pixelsByAspect: {
-      '1:1': [1024, 1024],
-      '16:9': [1344, 768],
-      '9:16': [768, 1344],
-      '4:3': [1152, 896],
-      '3:4': [896, 1152],
-    } satisfies Record<ImageAspectRatio, readonly [number, number]>,
-  },
   defaultAspectRatio: '1:1' as ImageAspectRatio,
   /** Image models take 10–60 s; the tool's own limit replaces the default tool timeout. */
   timeoutMs: 120_000,

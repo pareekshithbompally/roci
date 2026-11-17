@@ -20,6 +20,8 @@ unsafe extern "C" {
     fn roci_mlx_chat(request: *const c_char, on_event: EventFn, context: *mut c_void) -> *mut c_char;
     fn roci_mlx_cancel(stream_id: u64);
     fn roci_mlx_embed(request: *const c_char) -> *mut c_char;
+    #[cfg(desktop)]
+    fn roci_mlx_speak(request: *const c_char) -> *mut c_char;
     fn roci_mlx_unload(role: *const c_char);
     fn roci_mlx_free_string(value: *mut c_char);
 }
@@ -29,6 +31,7 @@ unsafe extern "C" {
 enum Role {
     Chat,
     Embedding,
+    Voice,
 }
 
 impl Role {
@@ -36,6 +39,7 @@ impl Role {
         match kind {
             Kind::Chat => Some(Role::Chat),
             Kind::Embedding => Some(Role::Embedding),
+            Kind::Voice => Some(Role::Voice),
             _ => None,
         }
     }
@@ -44,13 +48,14 @@ impl Role {
         match self {
             Role::Chat => c"chat",
             Role::Embedding => c"embedding",
+            Role::Voice => c"voice",
         }
     }
 
-    /// A chat model takes seconds to reload, so it stays through a pause; the search model reloads in well under one.
+    /// Chat and voice models take seconds to reload, so they stay through a pause; the search model reloads in well under one.
     fn idle(self) -> Duration {
         match self {
-            Role::Chat => Duration::from_secs(5 * 60),
+            Role::Chat | Role::Voice => Duration::from_secs(5 * 60),
             Role::Embedding => Duration::from_secs(60),
         }
     }
@@ -61,6 +66,7 @@ impl Role {
 pub struct MlxState {
     chat: AtomicU64,
     embedding: AtomicU64,
+    voice: AtomicU64,
 }
 
 impl MlxState {
@@ -68,6 +74,7 @@ impl MlxState {
         match role {
             Role::Chat => &self.chat,
             Role::Embedding => &self.embedding,
+            Role::Voice => &self.voice,
         }
     }
 }
@@ -112,6 +119,21 @@ pub async fn mlx_embed(app: AppHandle, model: String, texts: Vec<String>) -> Res
     serde_json::from_value(vectors).map_err(|e| LocalError::Engine(e.to_string()))
 }
 
+/// One sentence spoken by the voice model in `dir`: mono samples and their rate (runs on the caller's thread).
+#[cfg(desktop)]
+pub fn speak(dir: &std::path::Path, text: &str, voice: Option<&str>) -> Result<(Vec<f32>, u32), LocalError> {
+    use base64::Engine as _;
+    let request = to_c(&json!({ "modelDir": dir, "text": text, "voice": voice }))?;
+    // SAFETY: `request` outlives the call; the returned string is ours to free.
+    let reply = take(unsafe { roci_mlx_speak(request.as_ptr()) })?;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(reply["samples"].as_str().unwrap_or_default())
+        .map_err(|e| LocalError::Engine(e.to_string()))?;
+    let samples = bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect();
+    let rate = reply["sampleRate"].as_u64().and_then(|r| u32::try_from(r).ok()).ok_or_else(|| LocalError::Engine("no sample rate".into()))?;
+    Ok((samples, rate))
+}
+
 /// Frees the model of `kind` now (its files are about to be deleted, or the app quits).
 pub fn unload(kind: Kind) {
     if let Some(role) = Role::of(kind) {
@@ -125,11 +147,20 @@ pub fn unload(kind: Kind) {
 pub fn unload_all() {
     unload(Kind::Chat);
     unload(Kind::Embedding);
+    unload(Kind::Voice);
 }
 
 fn model_dir(app: &AppHandle, id: &str, kind: Kind) -> Result<String, LocalError> {
     let model = catalog::find_kind(id, kind)?;
     Ok(store::installed_dir(app, model)?.to_string_lossy().into_owned())
+}
+
+/// Marks `kind`'s model as just used, so it stays loaded until it idles.
+#[cfg(desktop)]
+pub fn touch(app: &AppHandle, kind: Kind) {
+    if let Some(role) = Role::of(kind) {
+        rearm_idle(app, role);
+    }
 }
 
 /// Arms the role's idle deadline: unloads after `idle()` unless used again first.

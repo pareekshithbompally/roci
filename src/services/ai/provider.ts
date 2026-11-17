@@ -118,11 +118,6 @@ export function createLocalEmbeddingModel(modelId: string): EmbeddingModelV4 {
   };
 }
 
-/** The on-device image server (stable-diffusion.cpp's `sd-server`, OpenAI image API) at `baseUrl`. */
-export function createLocalImageModel(baseUrl: string, modelId: string): ImageModel {
-  return createOpenAICompatible({ name: 'sd-server', baseURL: `${baseUrl}/v1`, fetch: getPlatformFetch() }).imageModel(modelId);
-}
-
 /** Gemini and OpenAI only return a thinking model's thoughts when asked; Anthropic and local servers always do. */
 const SHOW_THINKING = {
   gemini: { google: { thinkingConfig: { includeThoughts: true } } },

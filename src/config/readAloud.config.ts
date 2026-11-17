@@ -3,8 +3,6 @@
 export const READ_ALOUD_CONFIG = {
   /** The system voices' engine. */
   macos: { id: 'macos', provider: 'apple', label: 'macOS voices', hint: 'Built in' },
-  /** The one downloadable voice model (Apache-2.0), offered on the Home card too. */
-  phonon: { modelId: 'phonon-31m', repoUrl: 'https://huggingface.co/gradium/phonon-31m-en' },
   /** Spoken until another engine is chosen: ready with no download. */
   defaultEngine: 'macos',
   /** What the voice picker's play button says. */
@@ -15,5 +13,5 @@ export const READ_ALOUD_CONFIG = {
   highlight: 'read-aloud',
 } as const;
 
-/** `macos`, or a downloaded voice model's id (`phonon-31m`). */
+/** `macos`, or a downloaded voice model's id (`pocket-tts`). */
 export type ReadAloudEngine = string;

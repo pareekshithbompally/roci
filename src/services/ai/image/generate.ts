@@ -9,7 +9,6 @@ import { imagesService } from '@services/storage';
 import type { AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { resolveImageModel } from './catalog';
-import { onDeviceImageTarget } from './onDevice';
 
 export interface ImageRequest {
   prompt: string;
@@ -27,7 +26,7 @@ export interface GeneratedImageFile {
 }
 
 /** The image model to call, the image's shape in the form it takes, and its id for the reply. */
-export interface ImageTarget {
+interface ImageTarget {
   model: ImageModel;
   shape: { size: `${number}x${number}` } | { aspectRatio: ImageAspectRatio };
   modelId: string;
@@ -35,8 +34,8 @@ export interface ImageTarget {
 
 const ENGINES: Record<string, { sizing: ImageSizing }> = IMAGE_GENERATION_CONFIG.engines;
 
-/** A cloud image model, with the shape in the form its provider takes. */
-async function cloudImageTarget(request: ImageRequest): Promise<ImageTarget> {
+/** The chosen image model, with the shape in the form its provider takes. */
+function imageTarget(request: ImageRequest): ImageTarget {
   const resolved = resolveImageModel(request.settings, request.providers);
   const shape = ENGINES[resolved.provider]?.sizing === 'size'
     ? { size: IMAGE_GENERATION_CONFIG.sizeByAspect[request.aspectRatio] }
@@ -44,14 +43,9 @@ async function cloudImageTarget(request: ImageRequest): Promise<ImageTarget> {
   return { model: createImageModel(resolved), shape, modelId: resolved.modelId };
 }
 
-/** Image targets by provider; any other provider is a cloud image model. */
-const TARGETS: Record<string, (request: ImageRequest) => Promise<ImageTarget>> = {
-  [IMAGE_GENERATION_CONFIG.onDevice.provider]: onDeviceImageTarget,
-};
-
 /** Generates one image with the chosen image model and writes it under app data; throws the user-facing reason. */
 export async function generateImageFile(request: ImageRequest): Promise<GeneratedImageFile> {
-  const target = await (TARGETS[request.settings.imageProvider ?? ''] ?? cloudImageTarget)(request);
+  const target = imageTarget(request);
   const { image } = await generateImage({
     model: target.model,
     prompt: request.prompt,

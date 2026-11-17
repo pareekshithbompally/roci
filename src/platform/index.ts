@@ -38,7 +38,7 @@ export const platform = {
   hasCodingAgents: mac,
   /** Downloads models and runs them on this device with MLX (chat, meeting search). */
   hasLocalModels: apple,
-  /** The Mac's own speech, voice and image engines (transcribe.cpp, Phonon, sd-server). */
+  /** The Mac's own speech and voice engines (transcribe.cpp, read aloud). */
   hasOnDeviceModels: mac,
   hasAppleIntelligence: apple,
   hasNotifications: apple,

@@ -1,9 +1,10 @@
-// One loaded model per role (chat, embedding), loaded from its downloaded folder on first use and kept until unloaded.
+// One loaded model per role (chat, embedding, voice), loaded from its downloaded folder on first use and kept until unloaded.
 
 import Foundation
 import MLX
 import MLXEmbedders
 import MLXLLM
+import MLXAudioTTS
 import MLXLMCommon
 import Tokenizers
 
@@ -54,10 +55,24 @@ actor Engine {
 
     private var chatModel: (dir: String, container: ModelContainer)?
     private var embedder: (dir: String, container: EmbedderModelContainer)?
+    private var speaker: Speaker?
 
     func unload(_ role: String) {
-        if role == "chat" { chatModel = nil } else { embedder = nil }
+        switch role {
+        case "chat": chatModel = nil
+        case "voice": speaker = nil
+        default: embedder = nil
+        }
         Memory.clearCache()
+    }
+
+    func speakerModel(_ dir: String) async throws -> Speaker {
+        if let loaded = speaker, loaded.dir == dir { return loaded }
+        speaker = nil
+        let model = try await TTS.loadModel(modelRepo: dir)
+        let loaded = Speaker(dir: dir, model: model)
+        speaker = loaded
+        return loaded
     }
 
     private func chatContainer(_ dir: String) async throws -> ModelContainer {

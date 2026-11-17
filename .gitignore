@@ -18,7 +18,6 @@ dist-ssr
 # Tauri
 src-tauri/**/target
 src-tauri/WixTools
-src-tauri/binaries
 
 # Editor directories and files
 .vscode/*

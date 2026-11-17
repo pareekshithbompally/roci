@@ -9,7 +9,7 @@ export const LOCAL_MODELS_CONFIG = {
     systemVoices: 'Read aloud can speak with the voices the system ships.',
   },
   /** What each kind of model is for, in Settings › Providers › On this device. */
-  kindLabels: { chat: 'Chat', speech: 'Speech recognition', voice: 'Read aloud voice', image: 'Image generation', embedding: 'Meeting search' },
+  kindLabels: { chat: 'Chat', speech: 'Speech recognition', voice: 'Read aloud voice', embedding: 'Meeting search' },
   /** Chat models' recommended sampling (their model cards), used unless a call sets its own. */
   chatSampling: { 'gemma-4-e2b': { temperature: 1.0, topP: 0.95, topK: 64 } },
   /** Rust → webview: one download's progress or outcome (`DownloadProgress`). */

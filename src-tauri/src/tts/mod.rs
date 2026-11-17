@@ -1,10 +1,10 @@
-//! Read aloud: markdown becomes sentence chunks spoken by macOS voices or Phonon, one reply at a time.
+//! Read aloud: markdown becomes sentence chunks spoken by macOS voices or a downloaded voice model, one reply at a time.
 
 pub mod commands;
 mod macos;
-mod phonon;
 mod playback;
 mod text;
+mod voice_model;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -23,7 +23,6 @@ pub struct VoiceOption {
 
 #[derive(Default)]
 pub struct TtsState {
-    phonon: phonon::Phonon,
     /// Stop flag of the reply speaking now.
     current: Mutex<Option<Arc<AtomicBool>>>,
 }
@@ -44,9 +43,9 @@ impl TtsState {
         }
     }
 
-    /// Lets go of the Phonon model about to be deleted.
+    /// Stops speaking and frees the voice model about to be deleted.
     pub fn forget(&self) {
         self.stop();
-        self.phonon.unload();
+        crate::mlx::unload(crate::models::catalog::Kind::Voice);
     }
 }
