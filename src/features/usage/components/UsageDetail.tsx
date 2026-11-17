@@ -4,7 +4,6 @@
 import React, { useCallback, useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Callout, Icon, Section, Tabs, Text, useOptionalNavStack } from '@shared/ui';
-import { useFormFactor } from '@platform/formFactor';
 import { USAGE_CONFIG, type UsageMetric, type UsageRange } from '@config/usage.config';
 import type { UsageSummary } from '@extensions/usage';
 import { errorMessage } from '@shared/utils/errors';
@@ -43,12 +42,11 @@ function useDrill(range: UsageRange): Drill {
   return { open, prefetch };
 }
 
-/** The range control: segmented, full width on a phone; it scopes everything below it. */
+/** The range control (segmented); it scopes everything below it. */
 export const UsageRangeControl: React.FC = () => {
   const range = useUsageRange();
   const setRange = useSetUsageRange();
-  const phone = useFormFactor() === 'phone';
-  return <Tabs items={USAGE_CONFIG.ranges} value={range} onValueChange={(r: UsageRange) => setRange(r)} fill={phone} />;
+  return <Tabs items={USAGE_CONFIG.ranges} value={range} onValueChange={(r: UsageRange) => setRange(r)} />;
 };
 
 /** A failed load, or a window with no usage; otherwise nothing (a loading page keeps its own frame). */

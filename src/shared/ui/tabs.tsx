@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from './utils';
+import { useFormFactor } from '@platform/formFactor';
 
 export interface TabItem<T extends string> {
   value: T;
@@ -20,9 +21,12 @@ export interface TabsProps<T extends string> {
 }
 
 /** Segmented control (macOS and iOS): inset track, the active segment lifts; height follows the platform control scale. */
-export function Tabs<T extends string>({ items, value, onValueChange, fill, label, className }: TabsProps<T>) {
+export function Tabs<T extends string>({ items, value, onValueChange, fill: fillProp, label, className }: TabsProps<T>) {
+  // iOS segmented controls span the width of their row; macOS ones hug their segments.
+  const phone = useFormFactor() === 'phone';
+  const fill = fillProp ?? phone;
   return (
-    <div role="tablist" aria-label={label} className={cn('items-center gap-0.5 p-0.5 rounded-md bg-layer-2', fill ? 'flex w-full' : 'inline-flex', className)}>
+    <div role="tablist" aria-label={label} className={cn('items-center gap-0.5 p-0.5 rounded-full bg-control', fill ? 'flex w-full' : 'inline-flex', className)}>
       {items.map((item) => {
         const active = item.value === value;
         return (
@@ -33,7 +37,7 @@ export function Tabs<T extends string>({ items, value, onValueChange, fill, labe
             aria-selected={active}
             onClick={() => onValueChange(item.value)}
             className={cn(
-              'h-control-xs px-3 rounded text-callout font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-focus',
+              'h-control-xs px-3 rounded-full text-callout font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-focus',
               fill && 'flex-1',
               active ? 'bg-base text-primary shadow-raised' : 'text-muted hover:text-primary',
             )}
