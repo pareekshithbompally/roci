@@ -5,7 +5,7 @@ import { ExternalLink, Plus } from 'lucide-react';
 import { openUrl } from '@services/tauri';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
-import { ModelIcon, ModelLabel, RenameModal } from '@shared/components';
+import { ModelIcon, ModelLabel, RenameModal, ModelChips } from '@shared/components';
 import { capabilitiesOf, modelInfoOf } from '@services/ai/capabilities';
 import { confirm } from '@shared/stores/confirmStore';
 import { getModelDisplayName } from '@shared/utils/provider.utils';
@@ -83,7 +83,8 @@ const AddModelPicker: React.FC<AddModelPickerProps> = ({ provider, connection, a
           key={modelId}
           value={modelId}
           onSelect={() => add(modelId)}
-          label={<ModelLabel name={modelId} info={catalogLoaded ? modelInfoOf(provider, { id: modelId }) : null} />}
+          label={modelId}
+          meta={<ModelChips info={catalogLoaded ? modelInfoOf(provider, { id: modelId }) : null} />}
         />
       ))}
     </CommandPopover>

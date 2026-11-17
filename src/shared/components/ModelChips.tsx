@@ -28,7 +28,7 @@ export const ModelChips: React.FC<ModelChipsProps> = ({ info, size, onDevice }) 
   const capabilities = info ? CAPABILITY_CHIPS.filter((c) => c.has(info)) : [];
   if (!size && capabilities.length === 0) return null;
   return (
-    <span className="inline-flex flex-wrap items-center gap-1">
+    <span className="inline-flex shrink-0 items-center gap-1">
       {size && <Chip label={size} icon={onDevice ? HardDrive : undefined} />}
       {capabilities.map((c) => <Chip key={c.key} icon={c.icon} title={c.title} />)}
     </span>

@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
-import { ProvidersAvatar, ModelIcon, ModelLabel } from '@shared/components';
+import { ProvidersAvatar, ModelIcon, ModelChips } from '@shared/components';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { groupChoices, modelChoices, modelSources } from '@shared/utils/modelResolver';
 import { useLocalModels } from '@shared/hooks/useLocalModels';
@@ -107,7 +107,9 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
                 value={`${model.label} ${getProviderTitle(model.provider)}`}
                 onSelect={() => handleSelectModel(model.value)}
                 leading={<ModelIcon provider={model.provider} modelId={model.modelId} size={14} fallback="none" />}
-                label={<ModelLabel name={model.label} info={info} />}
+                label={model.label}
+                // Capabilities sit in the row's meta column: one line, aligned down the list, never wrapping.
+                meta={<ModelChips info={info} />}
                 labelVariant={isSelected ? 'bodyStrong' : 'body'}
                 status={isLoaded(model.provider, model.modelId) && (
                   <Tooltip content={MODEL_PICKER_COPY.loaded}>
