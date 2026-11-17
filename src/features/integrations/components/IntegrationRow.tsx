@@ -4,6 +4,7 @@ import React from 'react';
 import { Card, CardRow, Status, Switch } from '@shared/ui';
 import { PermissionAction } from '@shared/components';
 import type { IntegrationControls } from '@features/integrations/types';
+import { platform } from '@platform/index';
 
 interface IntegrationRowProps extends IntegrationControls {
   icon: React.ReactNode;
@@ -44,8 +45,8 @@ export const IntegrationRow: React.FC<IntegrationRowProps> = ({
       )}
       {pending && request && openSettings && (
         <CardRow
-          title="macOS access"
-          description={pending === 'needs-settings' ? deniedHint : 'macOS asks once.'}
+          title={`${platform.systemName} access`}
+          description={pending === 'needs-settings' ? deniedHint : `${platform.systemName} asks once.`}
           actions={<PermissionAction state={pending} onRequest={request} onOpenSettings={openSettings} />}
         />
       )}

@@ -13,9 +13,9 @@ const hasSystemIntegrations = platform.hasAppleIntelligence || platform.hasCalen
 export const hasIntegrations = hasSystemIntegrations || platform.hasHex || platform.hasCodingAgents || platform.hasUrlActions;
 
 export const IntegrationsPanel: React.FC = () => (
-  <SettingsPage title="Integrations" description="Connect Roci to apps on this Mac.">
+  <SettingsPage title="Integrations" description={`Connect Roci to apps on this ${platform.deviceName}.`}>
     {hasSystemIntegrations && (
-      <Section title="macOS" layout="stack">
+      <Section title={platform.systemName} layout="stack">
         {platform.hasAppleIntelligence && <AppleIntelligenceIntegration />}
         {platform.hasCalendar && <CalendarIntegration />}
         {platform.hasCalendar && <RemindersIntegration />}

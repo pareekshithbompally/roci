@@ -1,20 +1,22 @@
 /** Notification kinds, copy and defaults, plus the native bridge's event names and buttons. */
 
 import type { NotificationKind, NotificationSettings } from '@shared/types';
+import { platform, type PlatformCapability } from '@platform/index';
 
-export const NOTIFICATION_KINDS: ReadonlyArray<{ kind: NotificationKind; label: string; description: string }> = [
-  { kind: 'meetingReminders', label: 'Meeting reminders', description: 'Before a calendar meeting, with Record.' },
-  { kind: 'detectedCalls', label: 'Detected calls', description: 'When a call app starts using the microphone.' },
+/** `requires`: the capability the kind depends on; devices without it don't list the kind. */
+export const NOTIFICATION_KINDS: ReadonlyArray<{ kind: NotificationKind; label: string; description: string; requires?: PlatformCapability }> = [
+  { kind: 'meetingReminders', label: 'Meeting reminders', description: 'Before a calendar meeting, with Record.', requires: 'hasCalendar' },
+  { kind: 'detectedCalls', label: 'Detected calls', description: 'When a call app starts using the microphone.', requires: 'hasCallDetection' },
   { kind: 'recordingReady', label: 'Recording ready', description: 'When a recording is summarized, or fails.' },
-  { kind: 'hexImports', label: 'Hex meetings imported', description: 'When new meetings arrive from Hex.' },
-  { kind: 'modelDownloads', label: 'Model downloads', description: 'When an on-device model finishes downloading.' },
+  { kind: 'hexImports', label: 'Hex meetings imported', description: 'When new meetings arrive from Hex.', requires: 'hasHex' },
+  { kind: 'modelDownloads', label: 'Model downloads', description: 'When an on-device model finishes downloading.', requires: 'hasOnDeviceModels' },
   { kind: 'chatReplies', label: 'Chat replies', description: 'When a reply finishes in the background.' },
   { kind: 'todoReminders', label: 'To-do reminders', description: 'At the time you set on a to-do.' },
 ];
 
-/** Settings › Notifications › Allow failing, shown as an error toast with macOS's reason after it. */
+/** Settings › Notifications › Allow failing, shown as an error toast with the system's reason after it. */
 export const NOTIFICATION_PERMISSION_COPY = {
-  requestFailed: 'macOS didn’t ask for notification access',
+  requestFailed: `${platform.systemName} didn’t ask for notification access`,
 } as const;
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {

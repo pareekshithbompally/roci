@@ -193,19 +193,21 @@ export const GeneralPanel: React.FC = () => {
       <Section title="Appearance">
         <CardRow title="Theme" actions={<ChoiceControl items={themeTabs} value={theme} onValueChange={setTheme} />} />
 
-        {/* Model icons — opt-in: loads org avatars from huggingface.co */}
-        <CardRow
-          title="Model Icons"
-          description="Org icons on local models, from huggingface.co."
-          actions={
-            <Switch
-              size="sm"
-              checked={!!settings.showModelAvatars}
-              onCheckedChange={(checked) => setSettings({ showModelAvatars: checked })}
-              aria-label="Show model icons"
-            />
-          }
-        />
+        {/* Model icons — opt-in: loads org avatars from huggingface.co; only where local models exist */}
+        {platform.supportsLocalServers && (
+          <CardRow
+            title="Model Icons"
+            description="Org icons on local models, from huggingface.co."
+            actions={
+              <Switch
+                size="sm"
+                checked={!!settings.showModelAvatars}
+                onCheckedChange={(checked) => setSettings({ showModelAvatars: checked })}
+                aria-label="Show model icons"
+              />
+            }
+          />
+        )}
 
         <CardRow
           title="Tool Activity"

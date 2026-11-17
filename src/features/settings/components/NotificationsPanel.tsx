@@ -1,4 +1,4 @@
-/** Settings › Notifications: the macOS permission and one switch per notification kind. */
+/** Settings › Notifications: the system permission and one switch per notification kind this device has. */
 
 import React from 'react';
 import { LAYOUT } from '@config/layout.config';
@@ -8,6 +8,9 @@ import { PermissionAction } from '@shared/components';
 import { useNotificationControls } from '@features/notifications';
 import type { NotificationControls } from '@features/notifications';
 import { SettingsPage } from './shared';
+import { platform } from '@platform/index';
+
+const KINDS = NOTIFICATION_KINDS.filter(({ requires }) => !requires || platform[requires]);
 
 const PermissionRow: React.FC<{ controls: NotificationControls }> = ({ controls }) => {
   const { access, request, openSettings } = controls;
@@ -46,12 +49,12 @@ export const NotificationsPanel: React.FC = () => {
 
   return (
     <SettingsPage title="Notifications" description="Choose what Roci tells you about.">
-      <Section title="macOS notifications">
+      <Section title={`${platform.systemName} notifications`}>
         <PermissionRow controls={controls} />
       </Section>
 
       <Section title="Notify me about">
-        {NOTIFICATION_KINDS.map(({ kind, label, description }) => (
+        {KINDS.map(({ kind, label, description }) => (
           <CardRow
             key={kind}
             title={label}

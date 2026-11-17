@@ -1,6 +1,8 @@
 /** Copy and options each integration row shows; behaviour lives in features/integrations. */
 
 /** Apple Notes folder in the default account; created on first save. */
+import { platform } from '@platform/index';
+
 const NOTES_FOLDER = 'Roci';
 
 export const INTEGRATIONS_CONFIG = {
@@ -14,18 +16,18 @@ export const INTEGRATIONS_CONFIG = {
   appleIntelligence: {
     title: 'Apple Intelligence',
     description: 'On-device AI. Nothing leaves this device.',
-    deniedHint: 'Apple Intelligence is off in System Settings › Apple Intelligence & Siri.',
+    deniedHint: `Apple Intelligence is off in ${platform.settingsAppName} › Apple Intelligence & Siri.`,
     icon: '/images/apple-intelligence-sm.png',
     /** The welcome screen's third option: every basic job on Apple's models in one click. */
     onboarding: {
-      description: 'Chat, summaries, speech and voice on this Mac. No keys, nothing leaves it',
+      description: `Chat, summaries, speech and voice on this ${platform.deviceName}. No keys, nothing leaves it`,
       needsSettings: 'Turn on Apple Intelligence in System Settings, then come back',
     },
     /** Why the model can't run, per availability reason. */
     unavailable: {
-      'device-not-eligible': 'This Mac doesn’t support Apple Intelligence.',
+      'device-not-eligible': `This ${platform.deviceName} doesn’t support Apple Intelligence.`,
       'model-not-ready': 'The Apple Intelligence model is still downloading. Try again soon.',
-      'unsupported-system': 'Requires macOS 26 or later.',
+      'unsupported-system': `Requires ${platform.systemName} 26 or later.`,
       unknown: 'Apple Intelligence is unavailable right now.',
     },
   },
