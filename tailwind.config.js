@@ -45,7 +45,7 @@ export default {
           'hover', 'pressed', 'control', 'control-hover', 'scrim', 'base-glass', 'deep-glass', 'raised-glass', 'glow-core', 'glow-companion', 'glow-wash']),
         ...stateRoles('bg', '-subtle'),
         ...stateRoles('solid'),
-        ...roles('bg', ['tile-grey', 'tile-blue', 'tile-indigo', 'tile-purple', 'tile-pink', 'tile-red', 'tile-orange', 'tile-green', 'tile-teal']),
+        ...roles('bg', ['tile-graphite', 'tile-plum', 'tile-slate', 'tile-clay', 'tile-sage', 'tile-teal', 'tile-rose', 'tile-ochre', 'tile-copper']),
         separator: 'var(--border-muted)',
         ai: 'var(--ai-accent)',
       },

@@ -159,24 +159,24 @@ export function isAboveBreakpoint(width: number, breakpoint: keyof typeof BREAKP
   return width >= BREAKPOINTS[breakpoint];
 }
 
-/** Apple system hues an icon tile can take (tokens `--bg-tile-*`). */
-export type TileTint = 'grey' | 'blue' | 'indigo' | 'purple' | 'pink' | 'red' | 'orange' | 'green' | 'teal';
+/** Mineral hues an icon tile can take (tokens `--bg-tile-*`): earthy, one weight, tuned to the copper brand. */
+export type TileTint = 'graphite' | 'plum' | 'slate' | 'clay' | 'sage' | 'teal' | 'rose' | 'ochre' | 'copper';
 
 /** Settings icon colour by domain: the hue says what area a row belongs to, the glyph says what it does; one hue, one meaning. */
 export const TILE_DOMAIN = {
   /** The app itself: appearance, storage, updates. */
-  system: 'grey',
+  system: 'graphite',
   /** AI models and where they come from. */
-  intelligence: 'purple',
+  intelligence: 'plum',
   /** Outside services Roci connects to. */
-  connections: 'blue',
+  connections: 'slate',
   /** Alerts and reminders. */
-  alerts: 'red',
+  alerts: 'clay',
   /** Spend and activity. */
-  activity: 'green',
+  activity: 'sage',
   /** Modalities, wherever they appear (jobs, on-device models). */
-  text: 'indigo',
-  speech: 'pink',
-  images: 'teal',
-  meetings: 'orange',
+  text: 'teal',
+  speech: 'rose',
+  images: 'ochre',
+  meetings: 'copper',
 } as const satisfies Record<string, TileTint>;

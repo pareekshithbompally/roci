@@ -4,17 +4,17 @@ import { ICON_SIZE_PX } from './icon';
 import { UI_CONFIG, type TileTint } from '@config/ui.config';
 import { platform } from '@platform/index';
 
-/** Settings icon (System Settings / iOS Settings style): a white glyph on a rounded square in an Apple system hue. */
+/** Settings icon (System Settings / iOS Settings style): a white glyph on a rounded square in a mineral hue. */
 const TINT: Record<TileTint, string> = {
-  grey: 'bg-tile-grey',
-  blue: 'bg-tile-blue',
-  indigo: 'bg-tile-indigo',
-  purple: 'bg-tile-purple',
-  pink: 'bg-tile-pink',
-  red: 'bg-tile-red',
-  orange: 'bg-tile-orange',
-  green: 'bg-tile-green',
+  graphite: 'bg-tile-graphite',
+  plum: 'bg-tile-plum',
+  slate: 'bg-tile-slate',
+  clay: 'bg-tile-clay',
+  sage: 'bg-tile-sage',
   teal: 'bg-tile-teal',
+  rose: 'bg-tile-rose',
+  ochre: 'bg-tile-ochre',
+  copper: 'bg-tile-copper',
 };
 
 const { stroke, touch, ...mac } = UI_CONFIG.iconTile;
