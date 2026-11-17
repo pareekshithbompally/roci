@@ -10,7 +10,8 @@ import { predefinedProviders, MANAGED_SDK_PROVIDERS } from '@config/providers.co
 import { modelSources } from '@shared/utils/modelResolver';
 import { defaultSpeechSelection } from '@services/ai/transcription';
 import { queryKeys } from '@shared/query/queryKeys';
-import { getLocalModels } from '@services/localModels.service';
+import { getLocalModels, type LocalModel } from '@services/localModels.service';
+import { READ_ALOUD_CONFIG } from '@config/readAloud.config';
 
 interface SettingsState {
   /** App settings */
@@ -173,6 +174,15 @@ const FALLBACK_SETTINGS: LoadedSettings = {
 /** Provider ids removed from the app; saved configs with them are deleted on load. */
 const RETIRED_PROVIDER_IDS = new Set(['azure', 'cohere', 'huggingface', 'xai', 'local:llamacpp']);
 
+/** A read-aloud engine that's no longer offered (a removed voice model) falls back to the system voices. */
+function dropRemovedVoiceEngine(settings: AppSettings, localModels: LocalModel[]): void {
+  const engine = settings.readAloudEngine;
+  if (!engine || engine === READ_ALOUD_CONFIG.macos.id || localModels.some((m) => m.kind === 'voice' && m.id === engine)) return;
+  console.log('[SettingsContext] Clearing removed read-aloud engine:', engine);
+  settings.readAloudEngine = undefined;
+  settings.readAloudVoice = undefined;
+}
+
 /** Clears a chat or summary model that no source serves any more, so a working one is picked instead. */
 function dropUnservedModels(settings: AppSettings, sources: ModelProvider[]): void {
   const served = (id: string) => sources.some((p) => p.models?.some((m) => m.id === id));
@@ -239,7 +249,10 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
           console.error('[SettingsContext] Local models unavailable; keeping saved model choices:', error);
           return null;
         });
-      if (localModels) dropUnservedModels(loadedSettings, modelSources(loadedProviders, loadedSettings, localModels));
+      if (localModels) {
+        dropUnservedModels(loadedSettings, modelSources(loadedProviders, loadedSettings, localModels));
+        dropRemovedVoiceEngine(loadedSettings, localModels);
+      }
 
       if (!selectedProviderName && loadedProviders.length > 0) {
         const providerWithKey = loadedProviders.find(hasApiKey);
