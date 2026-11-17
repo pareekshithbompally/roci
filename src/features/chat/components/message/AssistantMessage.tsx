@@ -16,13 +16,14 @@ import ErrorMessageBox from './ErrorMessageBox';
 import type { AssistantMessageProps } from './types';
 import type { ChatPart, ToolCallPart, WebCitation, InlineCitationSpan } from '@shared/types';
 
-/** "localhost:9931 · Gemma": the provider, then the model by its display name (its rename, if any). */
+/** "localhost:9931 · Gemma": the provider, then the model by its display name (its rename, if any); one name when they match. */
 function ProviderModelLabel({ provider, model }: { provider?: string; model?: string }) {
   const modelLabel = useModelLabel(provider, model);
+  const providerTitle = getProviderTitle(provider);
   return (
     <>
-      {getProviderTitle(provider)}
-      {modelLabel && <Text variant="helper" tone="faint"> · {modelLabel}</Text>}
+      {providerTitle}
+      {modelLabel && modelLabel !== providerTitle && <Text variant="helper" tone="faint"> · {modelLabel}</Text>}
     </>
   );
 }
