@@ -67,6 +67,7 @@ impl SourceSupervisor {
         })
     }
 
+    #[cfg(target_os = "macos")]
     pub(super) fn system(sink: PacketSink) -> Self {
         let source_sink = sink.clone();
         Self::spawn(sink, move || {

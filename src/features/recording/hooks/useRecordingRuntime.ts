@@ -1,6 +1,9 @@
 /** Mount once (App): wires the meeting pipeline to the app, resumes unfinished meetings, and mirrors both into the tray. */
 
 import { useEffect, useRef } from 'react';
+import { listen } from '@tauri-apps/api/event';
+import { isTauriEnvironment } from '@services/tauri';
+import { RECORDING_EVENTS } from '@config/audio.config';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { activityStore, type ActivityAction, type ActivityItem } from '@shared/stores/activityStore';
@@ -10,6 +13,7 @@ import { meetingPipeline } from '@features/recording/pipeline/meetingPipeline';
 import {
   recording,
   recordedSeconds,
+  formatClock,
   useJustStopped,
   useRecordingBusy,
   useRecordingMeetingId,
@@ -31,11 +35,6 @@ const ROW_DEFAULTS = { percent: null, step: null, detail: null, error: null, act
 function put(item: ActivityItem): void {
   if (activityStore.get(item.id)) activityStore.update(item.id, item);
   else activityStore.add(item);
-}
-
-function clock(seconds: number): string {
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  return `${pad(Math.floor(seconds / 60))}:${pad(seconds % 60)}`;
 }
 
 function recordingActions(paused: boolean, busy: boolean): ActivityAction[] {
@@ -70,9 +69,14 @@ function useRecordingRow(): void {
   const busy = useRecordingBusy();
   const visible = useDocumentVisible();
 
-  // The recorder outlives the page: after a reload, pick up a recording that is still running.
+  // The recorder outlives the page: after a reload, pick up a recording that is still running;
+  // and when it changes by itself (an iPhone call pauses or resumes it), read it again.
   useEffect(() => {
-    if (platform.canRecord) void recording.sync();
+    if (!platform.canRecord) return;
+    void recording.sync();
+    if (!isTauriEnvironment()) return;
+    const unlisten = listen(RECORDING_EVENTS.recorderChanged, () => void recording.sync());
+    return () => void unlisten.then((stop) => stop()).catch((error: unknown) => console.error('[useRecordingRuntime] Unlisten failed:', error));
   }, []);
 
   useEffect(() => {
@@ -83,7 +87,7 @@ function useRecordingRow(): void {
     const render = () => {
       const seconds = recordedSeconds(useRecordingStore.getState());
       const label = busy ? 'Stopping…' : paused ? 'Paused' : 'Recording';
-      put({ ...ROW_DEFAULTS, id: RECORDING_ROW, type: 'recording', status: 'active', label, detail: clock(seconds), actions: recordingActions(paused, busy) });
+      put({ ...ROW_DEFAULTS, id: RECORDING_ROW, type: 'recording', status: 'active', label, detail: formatClock(seconds), actions: recordingActions(paused, busy) });
     };
     render();
     // A visible clock: ticks only while running and on screen; hidden, paused or stopping shows a still frame.

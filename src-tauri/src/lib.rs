@@ -17,15 +17,15 @@ mod window;
 mod menubar;
 #[cfg(desktop)]
 mod autostart;
-#[cfg(desktop)]
 mod audio;
+#[cfg(target_os = "ios")]
+mod audio_session;
 #[cfg(desktop)]
 mod screenshot;
 #[cfg(desktop)]
 mod wake_lock;
 #[cfg(desktop)]
 mod app_icon;
-#[cfg(desktop)]
 mod permissions;
 #[cfg(desktop)]
 mod hex;

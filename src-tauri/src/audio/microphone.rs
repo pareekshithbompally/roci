@@ -1,6 +1,8 @@
 //! The microphone: resolving, opening, and following the input, and choosing its stream format.
 
+#[cfg(target_os = "macos")]
 use std::ffi::c_void;
+#[cfg(target_os = "macos")]
 use std::sync::Once;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, SyncSender};
@@ -14,7 +16,9 @@ use cpal::{
 };
 use eyre::{Result, WrapErr, eyre};
 
+#[cfg(target_os = "macos")]
 use super::lid;
+#[cfg(target_os = "macos")]
 use super::transport::{Transport, transport};
 
 static AUDIO_SERVICE_RESTART_GENERATION: AtomicU64 = AtomicU64::new(0);
@@ -33,11 +37,13 @@ pub fn input_route_generation() -> u64 {
     INPUT_ROUTE_GENERATION.load(Ordering::Acquire)
 }
 
-fn notify_input_route_changed() {
+/// Also called by iPhone's audio-session route changes (`audio::session`).
+pub fn notify_input_route_changed() {
     INPUT_ROUTE_GENERATION.fetch_add(1, Ordering::AcqRel);
 }
 
 /// Registers the listeners behind the generation counters; their callbacks only bump a counter.
+#[cfg(target_os = "macos")]
 pub fn watch_input_devices() {
     #[repr(C)]
     struct AudioObjectPropertyAddress {
@@ -136,6 +142,7 @@ pub enum Opened {
     Unchanged,
 }
 
+#[cfg(target_os = "macos")]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum InputTarget {
     /// The OS's default input.
@@ -144,11 +151,13 @@ enum InputTarget {
     StandIn(usize),
 }
 
+#[cfg(target_os = "macos")]
 const LID_CLOSED_ERROR: &str = "the built-in microphone is off while the lid is closed";
 const NO_MICROPHONE_ERROR: &str = "no microphone is available";
 
 impl AudioInput {
     fn open_device(device: Device, device_name: String) -> Result<Self> {
+        #[cfg(target_os = "macos")]
         watch_input_devices();
         let restart_generation = audio_service_restart_generation();
         let started = start_stream_with_fallback(&device, &device_name)?;
@@ -208,6 +217,7 @@ impl AudioInput {
 }
 
 /// The system default input, or a stand-in when it is missing or the built-in mic with the lid closed.
+#[cfg(target_os = "macos")]
 fn resolve_input(
     names: &[String],
     default: Option<&str>,
@@ -242,6 +252,7 @@ fn resolve_input(
 }
 
 /// Input devices with readable names; an unnamed device (a placeholder) cannot be opened, so it is skipped.
+#[cfg(target_os = "macos")]
 fn input_devices_of(host: &cpal::Host) -> Result<(Vec<Device>, Vec<String>)> {
     Ok(host
         .input_devices()
@@ -274,7 +285,18 @@ fn description_name<E: std::fmt::Display>(
     }
 }
 
+/// iPhone and iPad: the input the audio session routes to (built-in, headset, AirPods); the session picks it, not Roci.
+#[cfg(target_os = "ios")]
+pub fn open_meeting_input(keep: Option<&str>) -> Result<Opened> {
+    let (device, name) = default_input_of(&cpal::default_host()).ok_or_else(|| eyre!(NO_MICROPHONE_ERROR))?;
+    if keep == Some(name.as_str()) {
+        return Ok(Opened::Unchanged);
+    }
+    Ok(Opened::Input(Box::new(AudioInput::open_device(device, name)?)))
+}
+
 /// Opens the meeting microphone, or keeps the open one named `keep` when it resolves to that again.
+#[cfg(target_os = "macos")]
 pub fn open_meeting_input(keep: Option<&str>) -> Result<Opened> {
     let host = cpal::default_host();
     let (devices, names) = input_devices_of(&host)?;
@@ -552,7 +574,7 @@ fn start_stream(
     })
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "macos"))]
 mod tests {
     use super::*;
 

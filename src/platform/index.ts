@@ -24,8 +24,8 @@ export const platform = {
   hasGlobalShortcuts: mac,
   /** Self-updates from GitHub releases (iOS updates through the App Store). */
   hasUpdater: mac,
-  /** Records meetings through the native audio core. */
-  canRecord: mac,
+  /** Records meetings through the native audio core (iPhone and iPad: the microphone, asked at the first Record). */
+  canRecord: apple,
   canCaptureSystemAudio: mac,
   canTakeScreenshots: mac,
   /** Notices when a call app (Zoom, Teams, Meet …) starts using the microphone. */

@@ -179,7 +179,7 @@ export function isRecordingDurationValid(durationSeconds: number): boolean {
   return durationSeconds <= AUDIO_CONFIG.recording.maxDurationSeconds;
 }
 
-/** Recording pipeline events; names mirror the Rust constants (`audio/level.rs`, `window.rs`). */
+/** Recording pipeline events; names mirror the Rust constants (`audio/level.rs`, `audio/commands.rs`, `window.rs`). */
 export const RECORDING_EVENTS = {
   /** Level-meter frame; the frontend uses it as the capture heartbeat. */
   level: 'coreaudio-level',
@@ -187,4 +187,6 @@ export const RECORDING_EVENTS = {
   quitRequested: 'quit-requested',
   /** Window close while a recording is capturing. */
   closeRequested: 'close-requested',
+  /** The recorder changed by itself (an iPhone call paused or resumed it); mirrors `audio/commands.rs`. */
+  recorderChanged: 'recorder://changed',
 } as const;

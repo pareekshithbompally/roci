@@ -3,14 +3,19 @@
 mod capture;
 pub mod commands;
 mod level;
+#[cfg(target_os = "macos")]
 mod lid;
 mod microphone;
 mod mixdown;
 mod recorder;
 mod recovery;
 mod resample;
+#[cfg(target_os = "ios")]
+pub mod session;
+#[cfg(target_os = "macos")]
 mod system_audio;
 mod tracks;
+#[cfg(target_os = "macos")]
 mod transport;
 
 /// The rate of every track and of the mixed recording.

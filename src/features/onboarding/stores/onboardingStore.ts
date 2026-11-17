@@ -6,8 +6,8 @@ import { platform } from '@platform/index';
 /** `apple`, `providers` → `provider`, `local`: the AI choice's own steps; onboarding ends only when one finishes. */
 export type OnboardingStep = 'welcome' | 'permissions' | 'setup' | 'apple' | 'providers' | 'provider' | 'local';
 
-/** A device that records asks for recording access first; any other opens with the welcome (access is asked at first use). */
-export const FIRST_ONBOARDING_STEP: OnboardingStep = platform.canRecord ? 'permissions' : 'welcome';
+/** The Mac asks for recording access first (system audio needs System Settings); iPhone and iPad open with the welcome and ask at first use. */
+export const FIRST_ONBOARDING_STEP: OnboardingStep = platform.canCaptureSystemAudio ? 'permissions' : 'welcome';
 
 interface OnboardingState {
   step: OnboardingStep;

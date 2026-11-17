@@ -1,7 +1,9 @@
 /** Phone (iOS): the composer's + sheet — attach, import a meeting, the chat's thinking and tools; nothing that can't work is shown. */
 
 import React from 'react';
-import { FileText, Image as ImageIcon, Music } from 'lucide-react';
+import { FileText, Image as ImageIcon, Mic, Music } from 'lucide-react';
+import { useRecordingMeetingId, useStartRecording } from '@features/recording';
+import { platform } from '@platform/index';
 import { IMPORT_MEETING_LABEL, useImportMeetingActions } from '@features/import';
 import { useAppActions } from '@shared/stores/appStore';
 import { BottomSheet, CardRow, Icon, Section, SheetBody } from '@shared/ui';
@@ -26,6 +28,8 @@ interface ComposerAddSheetProps {
 
 export const ComposerAddSheet: React.FC<ComposerAddSheetProps> = ({ open, onOpenChange, onPickFiles, contextUsage }) => {
   const importActions = useImportMeetingActions();
+  const startRecording = useStartRecording();
+  const recordingNow = useRecordingMeetingId() !== null;
   const { openSettings } = useAppActions();
   const closeThen = (action: () => void) => () => {
     onOpenChange(false);
@@ -35,6 +39,15 @@ export const ComposerAddSheet: React.FC<ComposerAddSheetProps> = ({ open, onOpen
   return (
     <BottomSheet open={open} onOpenChange={onOpenChange} title="Add">
       <SheetBody>
+        {platform.canRecord && !recordingNow && (
+          <Section title="Meeting">
+            <CardRow
+              title="Record"
+              leading={<Icon icon={Mic} size="sm" />}
+              onPress={closeThen(() => startRecording().catch((error: unknown) => console.error('[ComposerAddSheet] Record failed:', error)))}
+            />
+          </Section>
+        )}
         {onPickFiles && (
           <Section title="Attach">
             {ATTACH_OPTIONS.map(({ label, icon, accept }) => (

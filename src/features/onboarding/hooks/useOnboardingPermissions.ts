@@ -25,7 +25,8 @@ function report(id: string, action: string) {
 }
 
 export function useOnboardingPermissions() {
-  const { data: recordingRows = [], isError, request } = usePermissions(platform.canRecord);
+  // Recording access is asked up front only on the Mac; iPhone and iPad ask for the microphone at the first Record.
+  const { data: recordingRows = [], isError, request } = usePermissions(platform.canCaptureSystemAudio);
   const notifications = useNotificationControls();
   const calendar = useCalendarControls();
 
@@ -38,7 +39,7 @@ export function useOnboardingPermissions() {
     openSettings: () => { permissionsService.openSettings(kind).catch(report(kind, 'open settings')); },
   });
   const all: Array<[boolean, Candidate]> = [
-    [platform.canRecord, recording('microphone')],
+    [platform.canCaptureSystemAudio, recording('microphone')],
     [platform.canCaptureSystemAudio, recording('system-audio')],
     [platform.hasNotifications, { id: 'notifications', access: notifications.access, request: notifications.request, openSettings: notifications.openSettings }],
     // Allowing calendar access also turns the calendar integration on (meeting names and reminders).

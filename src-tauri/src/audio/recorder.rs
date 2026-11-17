@@ -17,6 +17,7 @@ use super::recovery::mix;
 use super::tracks::{
     AudioPacket, CaptureStats, MeetingSource, STATS_FILE, join_audio_writer, set_owner_only, write_tracks,
 };
+#[cfg(target_os = "macos")]
 use crate::wake_lock::WakeLock;
 
 const PACKET_QUEUE_CAPACITY: usize = 128;
@@ -90,7 +91,8 @@ pub struct Recorder {
     microphone_drops: Arc<AtomicU64>,
     system_drops: Arc<AtomicU64>,
     pause: Arc<Pause>,
-    /// Held for the capture's lifetime so idle sleep can't cut a meeting off.
+    /// Held for the capture's lifetime so idle sleep can't cut a meeting off (iOS keeps recording in the background instead).
+    #[cfg(target_os = "macos")]
     _wake_lock: Option<WakeLock>,
 }
 
@@ -123,9 +125,16 @@ impl Recorder {
         let microphone_capture = sources.microphone.then(|| {
             SourceSupervisor::microphone(sink(MeetingSource::Microphone, &microphone_drops))
         });
+        #[cfg(target_os = "macos")]
         let system_capture = sources
             .system
             .then(|| SourceSupervisor::system(sink(MeetingSource::System, &system_drops)));
+        // iPhone and iPad have no system-audio capture; the commands only ask for the microphone there.
+        #[cfg(target_os = "ios")]
+        let system_capture: Option<SourceSupervisor> = {
+            debug_assert!(!sources.system, "system audio requested on iOS");
+            None
+        };
         Ok(Self {
             started: capture_clock,
             directory,
@@ -137,6 +146,7 @@ impl Recorder {
             microphone_drops,
             system_drops,
             pause,
+            #[cfg(target_os = "macos")]
             _wake_lock: WakeLock::acquire("Recording a meeting"),
         })
     }
@@ -164,7 +174,9 @@ impl Recorder {
         mix(&directory, &stats, &output)
     }
 
-    /// Finishes the tracks and leaves them for the next launch to mix down, for a quit mid-recording.
+    /// Finishes the tracks and leaves them for the next launch to mix down, for a quit mid-recording (iOS has no quit
+    /// to catch; a recording cut off there is mixed by `recover_meetings` at the next launch).
+    #[cfg(target_os = "macos")]
     pub fn abandon(self) {
         let directory = self.directory.clone();
         match self.finish() {

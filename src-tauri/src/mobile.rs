@@ -2,7 +2,7 @@
 
 use tauri::{App, AppHandle, Builder, Manager, RunEvent, WebviewWindowBuilder, Wry};
 
-use crate::{mcp, mlx, models, stt, tts};
+use crate::{audio, mcp, mlx, models, permissions, stt, tts};
 
 unsafe extern "C" {
   /// native/RociWebView.swift: pinned page, resized above the keyboard, no form toolbar.
@@ -13,7 +13,7 @@ pub fn extend_window(window: WebviewWindowBuilder<'_, Wry, AppHandle>) -> Webvie
   window
 }
 
-/// On-device models (MLX chat, meeting search and voices; transcribe.cpp speech) and remote MCP servers.
+/// Meeting recording (microphone), on-device models (MLX chat, meeting search and voices; transcribe.cpp speech) and remote MCP servers.
 pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
   builder
     .manage(mcp::McpState::default())
@@ -22,6 +22,15 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
     .manage(stt::SttState::default())
     .manage(tts::TtsState::default())
     .invoke_handler(tauri::generate_handler![
+      audio::commands::start_audio_capture,
+      audio::commands::stop_audio_capture,
+      audio::commands::pause_audio_capture,
+      audio::commands::resume_audio_capture,
+      audio::commands::recorder_state,
+      audio::commands::recover_meetings,
+      permissions::commands::get_permissions,
+      permissions::commands::request_permission,
+      permissions::commands::open_permission_settings,
       models::commands::local_models,
       models::commands::local_model_download,
       models::commands::local_model_cancel,
@@ -51,6 +60,9 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
 }
 
 pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
+  // Recording: microphone answers reach the webview; calls and route changes reach the recorder.
+  permissions::emit_answers(app.handle().clone());
+  audio::session::watch(app.handle().clone());
   // On-device model loads show in the activity tray.
   mlx::report_loads(app.handle());
   // MCP: connect the remote servers the user left enabled.

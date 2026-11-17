@@ -252,7 +252,7 @@ export const GeneralPanel: React.FC = () => {
         />
       </Section>
 
-      {platform.canRecord && (
+      {platform.canCaptureSystemAudio && (
         <Section title="Capture" footer={CAPTURE_HINT[captureSource]}>
           <CardRow
             title="Input Source"

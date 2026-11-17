@@ -21,7 +21,11 @@ pub enum PermissionKind {
 
 impl PermissionKind {
     /// What a recording needs, in the order the checklist shows them.
+    #[cfg(target_os = "macos")]
     pub const ALL: [Self; 2] = [Self::Microphone, Self::SystemAudio];
+    /// iPhone and iPad record the microphone only.
+    #[cfg(target_os = "ios")]
+    pub const ALL: [Self; 1] = [Self::Microphone];
 }
 
 /// One checklist row: a permission and how it stands now.

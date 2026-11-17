@@ -60,6 +60,12 @@ export function recordedSeconds(state: Mirror, now = Date.now()): number {
   return Math.max(0, Math.floor((state.recordedMs + sinceRead) / 1000));
 }
 
+/** "02:13", minutes past the hour included ("75:03"). */
+export function formatClock(seconds: number): string {
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${pad(Math.floor(seconds / 60))}:${pad(seconds % 60)}`;
+}
+
 function refreshMeetings(): void {
   queryClient.invalidateQueries({ queryKey: queryKeys.meetings() }).catch((error: unknown) =>
     console.error('[recordingStore] Failed to refresh meetings:', error),

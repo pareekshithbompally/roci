@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, MutexGuard, TryLockError};
+use std::sync::{Mutex, MutexGuard};
+#[cfg(target_os = "macos")]
+use std::sync::TryLockError;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
@@ -124,7 +126,12 @@ fn recorder() -> MutexGuard<'static, Option<Active>> {
     RECORDER.lock().unwrap_or_else(|error| error.into_inner())
 }
 
+/// Webview: the recorder changed by itself (an iPhone call paused or resumed it); the views read its state again.
+#[cfg(target_os = "ios")]
+pub const CHANGED_EVENT: &str = "recorder://changed";
+
 /// Whether a recording is running; never waits, and a start or stop in progress counts as recording.
+#[cfg(target_os = "macos")]
 pub fn is_recording() -> bool {
     match RECORDER.try_lock() {
         Ok(active) => active.is_some(),
@@ -134,11 +141,13 @@ pub fn is_recording() -> bool {
 }
 
 /// Whether a recording is capturing, for the quit and close prompts; a start or stop in progress counts.
+#[cfg(target_os = "macos")]
 pub fn capture_active() -> bool {
     is_recording()
 }
 
 /// Finishes a running recording's tracks on exit; the meeting stays `recording` until the next launch mixes it.
+#[cfg(target_os = "macos")]
 pub fn abandon_active() {
     if let Some(active) = recorder().take() {
         active.recorder.abandon();
@@ -163,6 +172,14 @@ pub async fn start_audio_capture(
     app: AppHandle,
     options: AudioCaptureOptions,
 ) -> Result<String, CaptureError> {
+    #[cfg(target_os = "ios")]
+    {
+        if options.source != AudioCaptureSource::Microphone {
+            return Err(eyre::eyre!("this device records the microphone only").into());
+        }
+        // The first Record shows iOS's microphone prompt here, at the point of use.
+        permissions::ios::ask_microphone_if_undecided().await;
+    }
     if let Some(kind) = permissions::missing(options.source.needs()) {
         return Err(CaptureError::Permission { kind });
     }
@@ -194,12 +211,13 @@ fn start(app: &AppHandle, options: AudioCaptureOptions) -> Result<String, Captur
     )?;
     let output = recordings_path(app)?.join(file_name);
     tracing::info!(output = %output.display(), "audio capture starting");
-    match Recorder::start(options.source.sources(), output, app.clone()) {
+    match open_session().and_then(|()| Recorder::start(options.source.sources(), output, app.clone())) {
         Ok(started) => {
             *active = Some(Active { meeting_id: meeting_id.clone(), recorder: started });
             Ok(meeting_id)
         }
         Err(error) => {
+            close_session();
             if let Err(cleanup) = tauri_plugin_store::delete_meeting(app, &meeting_id) {
                 tracing::error!(%cleanup, meeting_id, "could not remove a meeting whose capture never started");
             }
@@ -224,6 +242,7 @@ pub async fn stop_audio_capture(app: AppHandle) -> Result<Option<String>, Captur
 fn finish(app: &AppHandle, active: Active) -> Result<String, CaptureError> {
     let Active { meeting_id, recorder } = active;
     let (status, duration) = outcome(recorder.stop());
+    close_session();
     tauri_plugin_store::set_meeting_status(app, &meeting_id, &status, duration)?;
     tracing::info!(meeting_id, status = status.status, "audio capture stopped");
     Ok(meeting_id)
@@ -243,6 +262,46 @@ pub async fn recorder_state() -> Result<RecorderState, CaptureError> {
         .await
         .map_err(|error| eyre::eyre!("recorder state task failed: {error}"))?;
     Ok(state)
+}
+
+/// iPhone and iPad: hold the audio session for recording while a recording runs; the Mac has none.
+#[cfg(target_os = "ios")]
+fn open_session() -> eyre::Result<()> {
+    crate::audio_session::activate(crate::audio_session::Use::Record).map_err(|error| eyre::eyre!(error))
+}
+
+#[cfg(target_os = "macos")]
+fn open_session() -> eyre::Result<()> {
+    Ok(())
+}
+
+#[cfg(target_os = "ios")]
+fn close_session() {
+    crate::audio_session::deactivate(crate::audio_session::Use::Record);
+}
+
+#[cfg(target_os = "macos")]
+fn close_session() {}
+
+/// iPhone and iPad: a call or Siri took the audio (`began`), or gave it back; the recording pauses and resumes with it.
+#[cfg(target_os = "ios")]
+pub fn interrupted(app: &AppHandle, began: bool) {
+    use tauri::Emitter;
+    {
+        // Held throughout, so nothing reads the recording as stopped meanwhile.
+        let active = recorder();
+        let Some(active) = active.as_ref() else { return };
+        if began {
+            active.recorder.pause();
+        } else if let Err(error) = open_session() {
+            tracing::warn!(%error, "could not take the audio session back after an interruption; staying paused");
+        } else {
+            active.recorder.resume();
+        }
+    }
+    if let Err(error) = app.emit(CHANGED_EVENT, ()) {
+        tracing::warn!(%error, "recorder change event failed");
+    }
 }
 
 #[tauri::command]

@@ -48,7 +48,7 @@ sha2 = "0.10"
 # (system voices via AVSpeechSynthesis, MLX voices' samples as base64, played through cpal at the device's rate);
 # hound reads the WAVs transcription takes.
 transcribe-cpp = "=0.4.1"
-objc2-avf-audio = { version = "0.3.2", default-features = false, features = ["std", "AVSpeechSynthesis", "AVAudioSession"] }
+objc2-avf-audio = { version = "0.3.2", default-features = false, features = ["std", "AVSpeechSynthesis", "AVAudioSession", "AVAudioSessionTypes", "AVAudioApplication", "block2"] }
 cpal = "0.18.2"
 rubato = "5.0.1"
 base64 = "0.22"
@@ -57,6 +57,10 @@ rmcp = { version = "3.10.0", features = ["client", "transport-streamable-http-cl
 hound = "3.5.1"
 objc2 = "0.6.4"
 objc2-foundation = "0.3.2"
+# Meeting recording on every platform (the audio core; iPhone's audio session and microphone consent).
+block2 = "0.6.2"
+eyre = "0.6.12"
+tracing = { version = "0.1.44", features = ["log"] }
 
 # macOS only, until each piece is made shared (docs: platform/apple-platforms/code-organization.md, R2).
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -72,14 +76,11 @@ tauri-plugin-window-state = "2"
 tauri-plugin-updater = "2"
 # roci:// URL actions (Shortcuts, Raycast, Alfred, links in notes)
 tauri-plugin-deep-link = "2"
-block2 = "0.6.2"
-eyre = "0.6.12"
 libc = "0.2.189"
 objc2-core-audio = "0.3.2"
 objc2-core-audio-types = "0.3.2"
 objc2-core-foundation = "0.3.2"
 screencapturekit = { version = "=11.0.0", features = ["macos_15_0"] }
-tracing = { version = "0.1.44", features = ["log"] }
 # MCP client: launched (stdio) servers run only on the Mac.
 rmcp = { version = "3.10.0", features = ["transport-child-process"] }
 # Coding agents: read Codex's config.toml to show whether Roci is registered.

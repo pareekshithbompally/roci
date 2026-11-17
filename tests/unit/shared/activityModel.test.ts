@@ -37,6 +37,7 @@ describe('activity model', () => {
   it('summarises one task by name and several by count', () => {
     expect(activitySummary([item({ label: 'Importing', percent: 40 })])).toBe('Importing · 40%');
     expect(activitySummary([item({ label: 'Loading Gemma…' })])).toBe('Loading Gemma…');
+    expect(activitySummary([item({ type: 'recording', label: 'Recording', detail: '02:13' })])).toBe('Recording · 02:13');
     expect(activitySummary([item({}), item({ id: 'y' })])).toBe('2 tasks');
   });
 

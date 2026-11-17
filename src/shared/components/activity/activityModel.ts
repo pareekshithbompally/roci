@@ -42,11 +42,12 @@ export function activityDetail(item: ActivityItem): string | null {
 /** Finished rows the user can clear. */
 export const isSettled = (item: ActivityItem) => item.status === 'complete' || item.status === 'error' || item.status === 'cancelled';
 
-/** The capsule's line: one task by name (with its percent), several by count. */
+/** The capsule's line: one task by name (with its percent, or a recording's clock), several by count. */
 export function activitySummary(items: readonly ActivityItem[]): string {
   if (items.length === 1) {
     const [item] = items;
-    return item.percent === null ? item.label : `${item.label} · ${Math.round(item.percent)}%`;
+    if (item.percent !== null) return `${item.label} · ${Math.round(item.percent)}%`;
+    return item.type === 'recording' && item.detail ? `${item.label} · ${item.detail}` : item.label;
   }
   return `${items.length} tasks`;
 }
