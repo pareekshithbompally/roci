@@ -22,7 +22,7 @@ export const CodingAgentsIntegration: React.FC = () => {
         leading={<IconTile icon={SiModelcontextprotocol} tint={TILE_DOMAIN.connections} />}
         leadingAlign="row"
         title={COPY.server.title}
-        description={server?.error ?? COPY.server.description}
+        description={server?.error}
         status={<ServerStatus server={server} />}
       />
       {agents.map((agent) => (

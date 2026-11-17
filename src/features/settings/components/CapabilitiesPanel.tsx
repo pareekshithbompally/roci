@@ -24,22 +24,16 @@ import { LIVE_TRANSCRIPTION_MARK, ModelSelect, SettingsPage } from './shared';
 import { ReadAloudVoiceRow } from './ReadAloudVoiceRow';
 import { platform } from '@platform/index';
 
-const { jobs: JOBS } = CAPABILITIES_CONFIG;
+const { jobs: JOBS, footers: FOOTERS } = CAPABILITIES_CONFIG;
 
-/** A capability row: job tile (hue from its modality) + title, its description, and its picker. */
+/** A capability row: job tile (hue from its modality), title and its picker; the section footer says what it does. */
 const CapabilityRow: React.FC<{
   icon: TileGlyph;
   tint: TileTint;
-  job: { title: string; description: string };
+  job: { title: string };
   children: React.ReactNode;
 }> = ({ icon, tint, job, children }) => (
-  <CardRow
-    leading={<IconTile icon={icon} tint={tint} />}
-    leadingAlign="row"
-    title={job.title}
-    description={job.description}
-    actions={children}
-  />
+  <CardRow leading={<IconTile icon={icon} tint={tint} />} leadingAlign="row" title={job.title} actions={children} />
 );
 
 type Controls = Record<string, OnDeviceModel>;
@@ -169,13 +163,13 @@ export const CapabilitiesPanel: React.FC = () => {
 
   return (
     <SettingsPage title="Capabilities" description={CAPABILITIES_CONFIG.description}>
-      <Section title="Conversation">
+      <Section title="Conversation" footer={FOOTERS.conversation}>
         <CapabilityRow icon={JOB_GLYPH.chat} tint={TILE_DOMAIN.text} job={JOBS.chat}>
           <ModelSelect value={settings.chatModel || undefined} choices={textChoices} onChange={(chatModel) => setSettings({ chatModel })} />
         </CapabilityRow>
       </Section>
 
-      <Section title="Speech">
+      <Section title="Speech" footer={platform.hasOnDeviceModels ? `${FOOTERS.speech} ${FOOTERS.readAloud}` : FOOTERS.speech}>
         <CapabilityRow icon={JOB_GLYPH.transcription} tint={TILE_DOMAIN.speech} job={JOBS.transcription}>
           <ModelSelect value={speech ? speechSelectionKey(speech) : undefined} choices={speechChoices} onChange={setSpeech} />
         </CapabilityRow>
@@ -193,11 +187,11 @@ export const CapabilitiesPanel: React.FC = () => {
         )}
       </Section>
 
-      <Section title="Images">
+      <Section title="Images" footer={FOOTERS.images}>
         <ImageGenerationRow localModels={localModels} controls={controls} />
       </Section>
 
-      <Section title="Meetings">
+      <Section title="Meetings" footer={FOOTERS.meetings}>
         <CapabilityRow icon={JOB_GLYPH.summaries} tint={TILE_DOMAIN.meetings} job={JOBS.summaries}>
           <ModelSelect
             value={settings.analyzeModel || settings.chatModel || undefined}

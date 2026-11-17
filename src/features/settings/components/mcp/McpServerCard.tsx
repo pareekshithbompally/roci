@@ -71,7 +71,7 @@ export const McpServerCard: React.FC<McpServerCardProps> = ({
       leading={<ServerIcon name={name} icon={icon} size="tile" />}
       leadingAlign="row"
       title={name}
-      description={<span className="block truncate" title={serverLine(config)}>{serverLine(config)}</span>}
+      description={<span title={serverLine(config)}>{serverLine(config)}</span>}
       status={
         <>
           <Status tone={tone} pulse={pulse}>{label}</Status>

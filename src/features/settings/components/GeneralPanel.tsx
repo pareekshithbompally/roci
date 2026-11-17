@@ -10,7 +10,7 @@ import { isTauriEnvironment, revealInFinder } from '@services/tauri';
 import { searchIndexingService } from '@services/searchIndexing.service';
 import { useSystemInfo, systemInfoStore, DISK_USAGE_LABELS } from '@features/settings/stores/systemInfoStore';
 import { SettingsPage } from './shared';
-import { Button, Card, CardRow, ChoiceControl, Icon, Section, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Status, Switch, Text } from '@shared/ui';
+import { Button, CardRow, ChoiceControl, Icon, Section, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Status, Switch, Text } from '@shared/ui';
 
 import { useAppUpdate } from '@features/settings/hooks/useAppUpdate';
 import { AcknowledgementsDialog } from './AcknowledgementsDialog';
@@ -26,6 +26,16 @@ import { platform } from '@platform/index';
 
 /** Recording sources offered in General › Capture, and what each needs from macOS. */
 const CAPTURE_SOURCES = ['systemAndMicrophone', 'system', 'microphone'] as const;
+/** Section footers: what each group's rows do. */
+const FOOTER = {
+  toolActivity: 'Tool Activity shows the tools used in each answer.',
+  modelIcons: 'Model icons load from huggingface.co.',
+  imports: 'Imported audio files are processed one at a time, or several at once.',
+  afterRecording: 'Transcribe After Recording also writes the summary.',
+  rebuild: 'Rebuild All wipes and re-indexes every meeting and chat.',
+  setup: 'Setup walks through permissions and AI again. Acknowledgements lists the open-source software in Roci.',
+} as const;
+
 const CAPTURE_HINT: Record<(typeof CAPTURE_SOURCES)[number], string> = {
   systemAndMicrophone: 'Screen Recording and Microphone access required.',
   system: 'Screen Recording permission required.',
@@ -190,14 +200,16 @@ export const GeneralPanel: React.FC = () => {
   return (
     <SettingsPage title="General" description="Appearance, capture, storage, and app information.">
       {/* Appearance — theme + import processing */}
-      <Section title="Appearance">
+      <Section
+        title="Appearance"
+        footer={platform.supportsLocalServers ? `${FOOTER.toolActivity} ${FOOTER.modelIcons}` : FOOTER.toolActivity}
+      >
         <CardRow title="Theme" actions={<ChoiceControl label="Theme" items={themeTabs} value={theme} onValueChange={setTheme} />} />
 
         {/* Model icons — opt-in: loads org avatars from huggingface.co; only where local models exist */}
         {platform.supportsLocalServers && (
           <CardRow
             title="Model Icons"
-            description="Org icons on local models, from huggingface.co."
             actions={
               <Switch
                 size="sm"
@@ -211,7 +223,6 @@ export const GeneralPanel: React.FC = () => {
 
         <CardRow
           title="Tool Activity"
-          description="Show the tools used in each answer."
           actions={
             <Switch
               size="sm"
@@ -222,9 +233,11 @@ export const GeneralPanel: React.FC = () => {
           }
         />
 
+      </Section>
+
+      <Section title="Imports" footer={FOOTER.imports}>
         <CardRow
-          title="Import Processing"
-          description="How imported audio files are processed."
+          title="Audio Processing"
           actions={
             <>
               <div className={LAYOUT.settingsSelect}>
@@ -276,10 +289,9 @@ export const GeneralPanel: React.FC = () => {
       </Section>
 
       {platform.canRecord && (
-        <Section title="Capture">
+        <Section title="Capture" footer={CAPTURE_HINT[captureSource]}>
           <CardRow
             title="Input Source"
-            description={CAPTURE_HINT[captureSource]}
             actions={
               <div className={LAYOUT.settingsSelect}>
                 <Select value={captureSource} onValueChange={(source) => setSettings({ defaultAudioSource: source as AudioCaptureSource })}>
@@ -295,13 +307,20 @@ export const GeneralPanel: React.FC = () => {
               </div>
             }
           />
+        </Section>
+      )}
+
+      {platform.canRecord && (
+        <Section
+          title="Transcription"
+          footer={settings.liveTranscription && !liveDictation ? (
+            <>
+              {liveCopy.unavailable.before} <Icon icon={LIVE_TRANSCRIPTION_MARK.icon} size="xs" label={LIVE_TRANSCRIPTION_MARK.label} className="inline align-text-bottom" /> {liveCopy.unavailable.after}
+            </>
+          ) : `${liveCopy.description} ${FOOTER.afterRecording}`}
+        >
           <CardRow
             title="Real-time Transcription"
-            description={settings.liveTranscription && !liveDictation ? (
-              <>
-                {liveCopy.unavailable.before} <Icon icon={LIVE_TRANSCRIPTION_MARK.icon} size="xs" label={LIVE_TRANSCRIPTION_MARK.label} className="inline align-text-bottom" /> {liveCopy.unavailable.after}
-              </>
-            ) : liveCopy.description}
             actions={
               <Switch
                 size="sm"
@@ -313,7 +332,6 @@ export const GeneralPanel: React.FC = () => {
           />
           <CardRow
             title="Transcribe After Recording"
-            description="Transcribe and summarize when a recording stops."
             actions={
               <Switch
                 size="sm"
@@ -362,7 +380,7 @@ export const GeneralPanel: React.FC = () => {
       )}
 
       {isTauriEnvironment() && (
-        <Section title="Search Index">
+        <Section title="Search Index" footer={FOOTER.rebuild}>
           <IndexActionRow
                 label="Meetings"
                 indexed={indexStats?.meetings.indexed}
@@ -384,7 +402,6 @@ export const GeneralPanel: React.FC = () => {
 
           <CardRow
             title="Rebuild All"
-            description="Wipes and re-indexes all meetings and chats."
             actions={
               <Button variant="outline" size="sm" onClick={() => void handleRebuildIndex()} disabled={indexBusy && !isRebuilding} loading={isRebuilding}>
                 {!isRebuilding && <Icon icon={RefreshCw} size="xs" />}
@@ -396,19 +413,17 @@ export const GeneralPanel: React.FC = () => {
       )}
 
       {/* App Info & Updates */}
-      <Card>
+      <Section footer={FOOTER.setup}>
         <CardRow title="Version" actions={<VersionStatus appVersion={appVersion} appUpdate={appUpdate} upToDate={upToDate} onCheck={handleCheckForUpdate} />} />
         <CardRow
           title="Setup"
-          description="Go through permissions and AI setup again."
           actions={<Button variant="outline" size="sm" onClick={() => setSettings({ onboarding: { completed: false } })}>Run Again</Button>}
         />
         <CardRow
           title="Acknowledgements"
-          description="Open-source software used in Roci."
           actions={<Button variant="outline" size="sm" onClick={() => setAcknowledgementsOpen(true)}>View</Button>}
         />
-      </Card>
+      </Section>
       <AcknowledgementsDialog open={acknowledgementsOpen} onOpenChange={setAcknowledgementsOpen} />
     </SettingsPage>
   );

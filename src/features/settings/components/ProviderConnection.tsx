@@ -43,18 +43,11 @@ function testDescription(status: ConnectionStatus, title: string, needsUrl: bool
   return `Checks your key by listing ${title}'s models.`;
 }
 
-interface TestRowProps {
-  connection: Connection;
-  title: string;
-  needsUrl: boolean;
-}
-
-const TestRow: React.FC<TestRowProps> = ({ connection: { status, test }, title, needsUrl }) => {
+const TestRow: React.FC<{ connection: Connection }> = ({ connection: { status, test } }) => {
   const { label, tone, pulse } = statusView(status);
   return (
     <CardRow
       title="Test connection"
-      description={testDescription(status, title, needsUrl)}
       status={<Status tone={tone} pulse={pulse}>{label}</Status>}
       actions={
         <Button variant="outline" size="sm" onClick={test} disabled={status.state === 'incomplete' || status.state === 'checking'}>
@@ -70,7 +63,10 @@ export const ProviderConnection: React.FC<ProviderConnectionProps> = ({ provider
   const managed = isManagedSDK(provider.provider);
 
   return (
-    <Section title="Connection">
+    <Section
+      title="Connection"
+      footer={connection && testDescription(connection.status, getProviderTitle(provider.provider), !managed)}
+    >
       {provider.settings.map((setting, index) => {
         if (managed && setting.key === 'base-url') return null;
         const value = (setting.controller_props.value as string) || '';
@@ -90,7 +86,7 @@ export const ProviderConnection: React.FC<ProviderConnectionProps> = ({ provider
           </div>
         );
       })}
-      {connection && <TestRow connection={connection} title={getProviderTitle(provider.provider)} needsUrl={!managed} />}
+      {connection && <TestRow connection={connection} />}
     </Section>
   );
 };

@@ -32,7 +32,7 @@ export const MetricRow: React.FC<RowBase & { icon: TileGlyph; tint?: TileTint; t
     leading={<IconTile icon={icon} tint={tint} />}
     leadingAlign="row"
     title={title}
-    description={description && <span className="block truncate">{description}</span>}
+    description={description}
     status={<Figure>{value}</Figure>}
     onOpen={onOpen}
     onPointerEnter={onPrefetch}
@@ -48,7 +48,7 @@ export const ProviderRow: React.FC<RowBase & { provider: string; totals: UsageTo
     leading={<ProvidersAvatar provider={provider} size={ICON_TILE_PX} />}
     leadingAlign="row"
     title={getProviderTitle(provider)}
-    description={<span className="block truncate">{usageLine(totals)}</span>}
+    description={usageLine(totals)}
     status={<Figure>{formatMetric(metric, metricValue(metric, totals))}</Figure>}
     onOpen={onOpen}
     onPointerEnter={onPrefetch}
@@ -64,7 +64,7 @@ export const ModelRow: React.FC<RowBase & { row: ProviderModelBreakdown; metric:
     leading={<ModelIcon provider={row.provider} modelId={row.model} size={ICON_TILE_PX} />}
     leadingAlign="row"
     title={modelName(row.model)}
-    description={<span className="block truncate">{usageLine(row, withProvider ? getProviderTitle(row.provider) : undefined)}</span>}
+    description={usageLine(row, withProvider ? getProviderTitle(row.provider) : undefined)}
     status={<Figure>{formatMetric(metric, metricValue(metric, row))}</Figure>}
     onOpen={onOpen}
     onPointerEnter={onPrefetch}

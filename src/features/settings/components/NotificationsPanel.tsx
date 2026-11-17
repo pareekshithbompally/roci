@@ -17,7 +17,6 @@ const PermissionRow: React.FC<{ controls: NotificationControls }> = ({ controls 
   return (
     <CardRow
       title="Allow notifications"
-      description="Roci notifies you while it is in the background or hidden."
       actions={access !== 'unknown' && access !== 'unavailable' && (
         <PermissionAction state={access} onRequest={request} onOpenSettings={openSettings} />
       )}
@@ -49,16 +48,15 @@ export const NotificationsPanel: React.FC = () => {
 
   return (
     <SettingsPage title="Notifications" description="Choose what Roci tells you about.">
-      <Section title={`${platform.systemName} notifications`}>
+      <Section title={`${platform.systemName} notifications`} footer="Roci notifies you while it is in the background.">
         <PermissionRow controls={controls} />
       </Section>
 
       <Section title="Notify me about">
-        {KINDS.map(({ kind, label, description }) => (
+        {KINDS.map(({ kind, label }) => (
           <CardRow
             key={kind}
             title={label}
-            description={description}
             actions={
               <>
                 {kind === 'meetingReminders' && <LeadTimeSelect controls={controls} />}

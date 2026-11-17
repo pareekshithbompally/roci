@@ -47,7 +47,7 @@ export const INTEGRATIONS_CONFIG = {
   },
   hex: {
     title: 'Hex',
-    description: "Hex’s speech models and meetings in Roci.",
+    description: "Hex’s speech models and meetings in Roci. Deleting in Hex keeps Roci’s copy.",
     app: 'anomaly.hex',
     /** Shown until Hex is installed. */
     icon: '/images/hex-app-sm.png',

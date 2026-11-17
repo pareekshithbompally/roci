@@ -32,7 +32,7 @@ export const HexIntegration: React.FC = () => {
       <CardRow title="New meetings" status={<Status tone={events.tone}>{events.label}</Status>} />
       <CardRow
         title="Meetings"
-        description={hex.syncError ?? 'Imported from Hex. Deleting in Hex keeps Roci’s copy.'}
+        description={hex.syncError}
         actions={
           <Button variant="outline" size="sm" onClick={hex.syncNow} loading={hex.syncing}>
             {!hex.syncing && <Icon icon={RefreshCw} size="xs" />}

@@ -146,6 +146,7 @@ export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connec
     <>
       <Section
         title={`Models · ${models.length}`}
+        footer={models.length === 0 ? 'Add a model to use it in Roci’s model pickers.' : undefined}
         accessory={
           <span className="flex items-center gap-4">
             {browse}
@@ -153,7 +154,7 @@ export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connec
           </span>
         }
       >
-        {models.length === 0 && <CardRow title="No models yet" description="Add one to use it in Roci's model pickers." />}
+        {models.length === 0 && <CardRow title="No models yet" />}
         {models.map((model) => (
           <CardRow
             key={model.id}

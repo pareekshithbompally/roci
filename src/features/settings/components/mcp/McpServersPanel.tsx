@@ -17,7 +17,7 @@ import {
   useMcpUpdateListener,
 } from '@features/settings/hooks';
 import type { McpReconfigureVars } from '@features/settings/hooks';
-import { McpRuntimeCard } from './McpRuntimeCard';
+import { MCP_RUNTIME_FOOTER, McpRuntimeCard } from './McpRuntimeCard';
 import { McpServerCard } from './McpServerCard';
 import { AddEditMcpServerDialog } from './AddEditMcpServerDialog';
 import { EditMcpJsonDialog } from './EditMcpJsonDialog';
@@ -81,7 +81,7 @@ export const McpServersPanel: React.FC = () => {
 
   return (
     <PanelShell onAdd={() => setEditing({ name: null })} onEditAll={() => setJsonOpen(true)} actionsDisabled={busy}>
-      <Section title="Permissions & runtime">
+      <Section title="Permissions & runtime" footer={MCP_RUNTIME_FOOTER}>
         <McpRuntimeCard
           settings={config.mcpSettings}
           disabled={busy}

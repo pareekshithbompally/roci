@@ -55,6 +55,9 @@ const Item: React.FC<{ choice: ModelChoice }> = ({ choice }) => (
   </SelectItem>
 );
 
+/** The value while nothing is chosen (or nothing can be), as System Settings shows it. */
+const NONE = 'None';
+
 export const ModelSelect: React.FC<ModelSelectProps> = ({ value, choices, onChange, off }) => {
   const { groups, needsSetup } = useMemo(() => groupChoices(choices), [choices]);
   const selected = choices.find((c) => c.value === value);
@@ -70,14 +73,14 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({ value, choices, onChan
   };
 
   if (choices.length === 0) {
-    return <Text variant="helper" tone="faint">No models yet — add a provider</Text>;
+    return <Text tone="faint">{NONE}</Text>;
   }
 
   return (
     <div className={LAYOUT.capabilityPicker}>
     <Select value={value} onValueChange={choose}>
       <SelectTrigger>
-        <SelectValue placeholder="Select model">
+        <SelectValue placeholder={NONE}>
           {off && value === off.value && <span className="truncate">{off.label}</span>}
           {selected && (
             <span className="flex items-center gap-2 truncate">

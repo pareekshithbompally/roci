@@ -22,7 +22,6 @@ export const RemindersIntegration: React.FC = () => {
     >
       <CardRow
         title="List"
-        description="New action items go here."
         actions={
           <div className="w-44">
             <Select value={reminders.listId} onValueChange={reminders.setListId}>

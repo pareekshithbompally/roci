@@ -1,4 +1,4 @@
-/** MCP tool permissions and runtime limits (allow-all, saved permissions, timeout, output cap) as Section rows. */
+/** MCP tool permissions and runtime limits (allow-all, saved permissions, timeout, output cap) as Section rows; `MCP_RUNTIME_FOOTER` explains them. */
 
 import React, { useEffect, useState } from 'react';
 import { DEFAULT_MCP_SETTINGS, MCP_CONFIG } from '@config/mcp.config';
@@ -47,18 +47,20 @@ const NumberSetting: React.FC<NumberSettingProps> = ({ value, min, step, fallbac
   );
 };
 
+/** Footer for the section holding these rows. */
+export const MCP_RUNTIME_FOOTER = 'A tool call stops at the timeout. Longer output is cut; 0 keeps everything.';
+
 export const McpRuntimeCard: React.FC<McpRuntimeCardProps> = ({ settings, disabled, onChange }) => (
   <>
     <CardRow
-      title="Allow all MCP tool permissions"
-      description="Run MCP tools without asking first."
+      title="Run tools without asking"
       actions={
         <Switch
           size="sm"
           checked={settings.allowAllTools}
           onCheckedChange={(allowAllTools) => onChange({ allowAllTools })}
           disabled={disabled}
-          aria-label="Allow all MCP tool permissions"
+          aria-label="Run tools without asking"
         />
       }
     />
@@ -66,7 +68,6 @@ export const McpRuntimeCard: React.FC<McpRuntimeCardProps> = ({ settings, disabl
       <CardRow
         key={server}
         title={`Always allow ${server}`}
-        description="Every tool from this server runs without asking."
         actions={
           <Button
             variant="outline"
@@ -79,11 +80,10 @@ export const McpRuntimeCard: React.FC<McpRuntimeCardProps> = ({ settings, disabl
       />
     ))}
     <CardRow
-      title="Tool call timeout (seconds)"
-      description="The longest a tool call may run."
+      title="Tool timeout (seconds)"
       actions={
         <NumberSetting
-          label="Tool call timeout"
+          label="Tool timeout"
           value={settings.toolCallTimeoutSeconds}
           min={MCP_CONFIG.minToolCallTimeoutSeconds}
           fallback={DEFAULT_MCP_SETTINGS.toolCallTimeoutSeconds}
@@ -93,11 +93,10 @@ export const McpRuntimeCard: React.FC<McpRuntimeCardProps> = ({ settings, disabl
       }
     />
     <CardRow
-      title="Max tool output characters"
-      description="Longer results are cut. 0 keeps everything."
+      title="Max output characters"
       actions={
         <NumberSetting
-          label="Max tool output characters"
+          label="Max output characters"
           value={settings.maxToolOutputChars}
           min={0}
           step={MCP_CONFIG.toolOutputCharsStep}

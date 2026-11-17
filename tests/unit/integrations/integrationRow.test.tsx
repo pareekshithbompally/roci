@@ -32,9 +32,9 @@ describe('IntegrationRow', () => {
     expect(screen.queryByText('calendar settings')).not.toBeInTheDocument();
   });
 
-  it('connected: badge and its settings, no access row', () => {
+  it('connected: switch on and its settings, no access row', () => {
     renderRow(controls({ access: 'ready', enabled: true }));
-    expect(screen.getByText('Connected')).toBeInTheDocument();
+    expect(screen.getByRole('switch')).toBeChecked();
     expect(screen.getByText('calendar settings')).toBeInTheDocument();
     expect(screen.queryByText('macOS access')).not.toBeInTheDocument();
   });
@@ -50,7 +50,7 @@ describe('IntegrationRow', () => {
   it('on but denied: explains where, and opens System Settings', () => {
     const c = controls({ access: 'needs-settings', enabled: true });
     renderRow(c);
-    expect(screen.getByText('Denied hint')).toBeInTheDocument();
+    expect(screen.getByText('desc Denied hint')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Open Settings' }));
     expect(c.openSettings).toHaveBeenCalled();
   });
@@ -58,6 +58,12 @@ describe('IntegrationRow', () => {
   it('off: just the row, whatever the access', () => {
     renderRow(controls({ access: 'needs-settings', enabled: false }));
     expect(screen.queryByText('macOS access')).not.toBeInTheDocument();
-    expect(screen.queryByText('Connected')).not.toBeInTheDocument();
+    expect(screen.getByText('desc')).toBeInTheDocument();
+  });
+
+  it('unavailable: switch disabled, the reason in the footer', () => {
+    renderRow(controls({ access: 'unavailable', unavailableReason: 'Needs iOS 26.' }));
+    expect(screen.getByRole('switch')).toBeDisabled();
+    expect(screen.getByText('desc Needs iOS 26.')).toBeInTheDocument();
   });
 });

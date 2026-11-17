@@ -18,31 +18,28 @@ const SYSTEM_ROWS: ReadonlyArray<readonly [IntegrationId, React.FC]> = [
 ];
 const systemRows = SYSTEM_ROWS.filter(([id]) => isIntegrationAvailable(id));
 
+/** A panel group: title, stack (each integration is its own group) or one card, content. */
+interface Group { key: string; title: string; layout: 'stack' | 'card'; content: React.ReactNode; footer?: string }
+
+/** The panel's groups on this device, in display order. */
+const candidates: ReadonlyArray<Group | false> = [
+  systemRows.length > 0 && { key: 'system', title: platform.systemName, layout: 'stack', content: systemRows.map(([id, Row]) => <Row key={id} />) },
+  isIntegrationAvailable('hex') && { key: 'apps', title: 'Apps', layout: 'stack', content: <HexIntegration /> },
+  platform.hasCodingAgents && { key: 'agents', title: INTEGRATIONS_CONFIG.codingAgents.section, layout: 'card', content: <CodingAgentsIntegration />, footer: INTEGRATIONS_CONFIG.codingAgents.server.description },
+  platform.hasUrlActions && { key: 'urls', title: INTEGRATIONS_CONFIG.urlActions.section, layout: 'card', content: <UrlActionsIntegration /> },
+];
+const groups = candidates.filter((g): g is Group => g !== false);
+
 /** Whether this device has any integration, so the panel is worth showing. */
-export const hasIntegrations =
-  systemRows.length > 0 || isIntegrationAvailable('hex') || platform.hasCodingAgents || platform.hasUrlActions;
+export const hasIntegrations = groups.length > 0;
+
+// A lone group needs no heading.
+const titled = groups.length > 1;
 
 export const IntegrationsPanel: React.FC = () => (
   <SettingsPage title="Integrations" description={`Connect Roci to apps on this ${platform.deviceName}.`}>
-    {systemRows.length > 0 && (
-      <Section title={platform.systemName} layout="stack">
-        {systemRows.map(([id, Row]) => <Row key={id} />)}
-      </Section>
-    )}
-    {isIntegrationAvailable('hex') && (
-      <Section title="Apps" layout="stack">
-        <HexIntegration />
-      </Section>
-    )}
-    {platform.hasCodingAgents && (
-      <Section title={INTEGRATIONS_CONFIG.codingAgents.section}>
-        <CodingAgentsIntegration />
-      </Section>
-    )}
-    {platform.hasUrlActions && (
-      <Section title={INTEGRATIONS_CONFIG.urlActions.section}>
-        <UrlActionsIntegration />
-      </Section>
-    )}
+    {groups.map((g) => (
+      <Section key={g.key} title={titled ? g.title : undefined} layout={g.layout} footer={g.footer}>{g.content}</Section>
+    ))}
   </SettingsPage>
 );

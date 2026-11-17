@@ -41,7 +41,6 @@ export const ReadAloudVoiceRow: React.FC<ReadAloudVoiceRowProps> = ({ engine, re
       leading={<IconTile icon={JOB_GLYPH.voice} tint={TILE_DOMAIN.speech} />}
       leadingAlign="row"
       title={CAPABILITIES_CONFIG.jobs.voice.title}
-      description={CAPABILITIES_CONFIG.jobs.voice.description}
       actions={
         <div className="flex items-center gap-2">
           <IconButton

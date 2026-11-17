@@ -88,7 +88,7 @@ async function callWithCancellation(
   }
 }
 
-// ── Approval ("Allow all MCP tool permissions" + per-server grants) ──
+// ── Approval ("Run tools without asking" + per-server grants) ──
 
 /** One gate per turn: an "always allow" answer covers the rest of the turn too. */
 function createApprovalGate(settings: McpSettings): ApprovalGate {

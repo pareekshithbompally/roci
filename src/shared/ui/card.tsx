@@ -24,6 +24,7 @@ export function Card({ tone = 'default', className, ...props }: CardProps) {
 
 export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {
   title: React.ReactNode;
+  /** One line about this row's own data (an account, a size, a count), cut short; explanations go in the `Section` footer. */
   description?: React.ReactNode;
   /** Icon or avatar before the copy, centred on the title line; the description indents under the title. */
   leading?: React.ReactNode;
@@ -68,7 +69,7 @@ export function CardRow({ title, description, leading, leadingAlign = 'title', s
           : <Text as="div" variant="bodyStrong" className="flex h-[1lh] shrink-0 items-center">{leading}</Text>)}
         <div className="min-w-0">
           <Text as="p" variant="bodyStrong" className="break-words">{title}</Text>
-          {description && <Text as="p" variant="helper" tone="muted" className="mt-0.5">{description}</Text>}
+          {description && <Text as="p" variant="helper" tone="muted" truncate className="mt-0.5">{description}</Text>}
           {status && phone && <div className="mt-1 flex items-center gap-2">{status}</div>}
         </div>
       </div>
@@ -85,22 +86,28 @@ export function CardRow({ title, description, leading, leadingAlign = 'title', s
 }
 
 export interface SectionProps extends Omit<React.HTMLAttributes<HTMLElement>, 'title'> {
-  title: React.ReactNode;
+  /** Omitted for a group that needs no label (a lone group, an app's own card). */
+  title?: React.ReactNode;
   /** Control on the label line (Add, Advanced…); ends where row controls do. */
   accessory?: React.ReactNode;
   /** `card` (default): children are rows of one card. `stack`: children are their own cards, spaced apart. */
   layout?: 'card' | 'stack';
+  /** What the group's rows do, in a sentence or two under the card (System Settings footer); rows stay one line. */
+  footer?: React.ReactNode;
 }
 
-/** A titled card of rows (or a stack of cards): label line, then the content. */
-export function Section({ title, accessory, layout = 'card', className, children, ...props }: SectionProps) {
+/** A card of rows (or a stack of groups): optional label line, the content, optional footer. */
+export function Section({ title, accessory, layout = 'card', footer, className, children, ...props }: SectionProps) {
   return (
     <section className={cn('flex flex-col gap-2', className)} {...props}>
-      <div className="flex items-center justify-between gap-2 min-h-4 mx-4">
-        <Text as="h2" variant="label" tone="muted">{title}</Text>
-        {accessory}
-      </div>
-      {layout === 'card' ? <Card>{children}</Card> : <div className="flex flex-col gap-3">{children}</div>}
+      {(title || accessory) && (
+        <div className="flex items-center justify-between gap-2 min-h-4 mx-4">
+          {title && <Text as="h2" variant="label" tone="muted">{title}</Text>}
+          {accessory}
+        </div>
+      )}
+      {layout === 'card' ? <Card>{children}</Card> : <div className="flex flex-col gap-6">{children}</div>}
+      {footer && <Text as="p" variant="helper" tone="muted" className="mx-4">{footer}</Text>}
     </section>
   );
 }
