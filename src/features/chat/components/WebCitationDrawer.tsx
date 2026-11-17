@@ -4,12 +4,16 @@ import React from 'react';
 import { X, Globe, ExternalLink } from 'lucide-react';
 import { getFaviconUrl, describeCitation } from '@shared/utils/citationUtils';
 import type { WebCitation } from '@shared/types';
-import { Drawer, IconButton, Icon, Surface, Text } from '@shared/ui';
+import { CardRow, Drawer, IconButton, Icon, Section, Surface, Text } from '@shared/ui';
+import { openUrl } from '@services/tauri';
 
 interface WebCitationDrawerProps {
   citations: WebCitation[] | null;
   onClose: () => void;
 }
+
+/** A favicon that fails to load leaves its slot empty instead of a broken image. */
+const hideBrokenImage = (e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.classList.add('invisible'); };
 
 export const WebCitationDrawer: React.FC<WebCitationDrawerProps> = ({
   citations,
@@ -35,41 +39,23 @@ export const WebCitationDrawer: React.FC<WebCitationDrawerProps> = ({
         <IconButton icon={X} label="Close" size="sm" className="shrink-0" onClick={onClose} />
       </Surface>
 
-      {/* Citation list */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar py-1">
-        {citations?.map((citation, i) => {
-          const label = describeCitation(citation);
-          return (
-          <Surface
-            as="a"
-            key={`${i}-${citation.url}`}
-            href={citation.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            interactive
-            className="group flex items-center gap-2.5 px-4 py-2.5"
-          >
-            <img
-              src={getFaviconUrl(label.site)}
-              alt=""
-              className="w-4 h-4 shrink-0"
-              loading="lazy"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-            />
-            <div className="min-w-0 flex-1">
-              <Text as="p" variant="label" truncate className="group-hover:underline">
-                {label.name}
-              </Text>
-              {label.detail && (
-                <Text as="p" variant="caption" tone="faint" truncate className="mt-0.5">
-                  {label.detail}
-                </Text>
-              )}
-            </div>
-            <Icon icon={ExternalLink} size="xs" tone="faint" className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-          </Surface>
-          );
-        })}
+      {/* Citation list: one grouped card of sources (iOS / macOS list), each opening in the browser */}
+      <div className="flex-1 overflow-y-auto p-4">
+        <Section>
+          {citations?.map((citation, i) => {
+            const label = describeCitation(citation);
+            return (
+              <CardRow
+                key={`${i}-${citation.url}`}
+                leading={<img src={getFaviconUrl(label.site)} alt="" className="h-4 w-4 shrink-0" loading="lazy" onError={hideBrokenImage} />}
+                title={label.name}
+                description={label.detail ?? undefined}
+                onPress={() => void openUrl(citation.url)}
+                actions={<Icon icon={ExternalLink} size="xs" tone="faint" />}
+              />
+            );
+          })}
+        </Section>
       </div>
     </Drawer>
   );
