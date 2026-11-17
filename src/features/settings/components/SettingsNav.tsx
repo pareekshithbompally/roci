@@ -1,7 +1,7 @@
 /** Settings nav in the left sidebar; edits save on edit, so switching panels needs no dirty-state guard. */
 
 import React from 'react';
-import { Bell, Blocks, ChartColumn, Cpu, Settings2, Sparkles } from 'lucide-react';
+import { BellIcon, ChartBarIcon, CubeIcon, GearSixIcon, PuzzlePieceIcon, SparkleIcon } from '@phosphor-icons/react';
 import { SiModelcontextprotocol } from '@icons-pack/react-simple-icons';
 import { useAppStore, useAppActions } from '@shared/stores/appStore';
 import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore';
@@ -23,13 +23,13 @@ export interface SettingsNavItem {
 }
 
 export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
-  { id: 'general', label: 'General', icon: Settings2, tint: TILE_DOMAIN.system, group: 'App' },
-  { id: 'notifications', label: 'Notifications', icon: Bell, tint: TILE_DOMAIN.alerts, group: 'App', available: platform.hasNotifications },
-  { id: 'integrations', label: 'Integrations', icon: Blocks, tint: TILE_DOMAIN.connections, group: 'App', available: hasIntegrations },
-  { id: 'capabilities', label: 'Capabilities', icon: Sparkles, tint: TILE_DOMAIN.intelligence, group: 'AI' },
-  { id: 'providers', label: 'Providers', icon: Cpu, tint: TILE_DOMAIN.intelligence, group: 'AI' },
+  { id: 'general', label: 'General', icon: GearSixIcon, tint: TILE_DOMAIN.system, group: 'App' },
+  { id: 'notifications', label: 'Notifications', icon: BellIcon, tint: TILE_DOMAIN.alerts, group: 'App', available: platform.hasNotifications },
+  { id: 'integrations', label: 'Integrations', icon: PuzzlePieceIcon, tint: TILE_DOMAIN.connections, group: 'App', available: hasIntegrations },
+  { id: 'capabilities', label: 'Capabilities', icon: SparkleIcon, tint: TILE_DOMAIN.intelligence, group: 'AI' },
+  { id: 'providers', label: 'Providers', icon: CubeIcon, tint: TILE_DOMAIN.intelligence, group: 'AI' },
   { id: 'mcp', label: 'MCP Servers', icon: SiModelcontextprotocol, tint: TILE_DOMAIN.connections, group: 'AI', available: platform.supportsChildProcessMcp },
-  { id: 'usage', label: 'Usage', icon: ChartColumn, tint: TILE_DOMAIN.activity, group: 'Activity' },
+  { id: 'usage', label: 'Usage', icon: ChartBarIcon, tint: TILE_DOMAIN.activity, group: 'Activity' },
 ];
 
 export const SettingsNav: React.FC = () => {

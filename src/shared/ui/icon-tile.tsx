@@ -1,4 +1,5 @@
 import type React from 'react';
+import type { IconWeight } from '@phosphor-icons/react';
 import { cn } from './utils';
 import { ICON_SIZE_PX } from './icon';
 import { UI_CONFIG, type TileTint } from '@config/ui.config';
@@ -17,14 +18,17 @@ const TINT: Record<TileTint, string> = {
   copper: 'bg-tile-copper',
 };
 
-const { stroke, touch, ...mac } = UI_CONFIG.iconTile;
+const { touch, ...mac } = UI_CONFIG.iconTile;
 const BOX = platform.hasTouchScreen ? touch : mac;
 
 /** A tile's edge in px on this device, so logos beside tiles (providers, models) match them. */
 export const ICON_TILE_PX = BOX.tile;
+/** A tile's corner radius in px on this device, for images shown as tiles. */
+export const ICON_TILE_RADIUS = BOX.radius;
 
-/** A Lucide glyph or a Simple Icons brand mark: both draw in currentColor at a given size. */
-export type TileGlyph = React.ComponentType<{ size?: number | string; strokeWidth?: number | string; title?: string }>;
+/** A Phosphor glyph in its Fill weight (as iOS Settings uses `.fill`) or a Simple Icons brand mark, in currentColor.
+ *  Pick glyphs whose Fill is a silhouette; a box with fine cut-outs (image, notebook, cpu, text-h) blurs into the tile. Bold badges (CC) read fine. */
+export type TileGlyph = React.ComponentType<{ size?: number | string; weight?: IconWeight; title?: string }>;
 
 export interface IconTileProps {
   icon: TileGlyph;
@@ -38,7 +42,7 @@ export function IconTile({ icon: Glyph, tint }: IconTileProps) {
       className={cn('inline-flex shrink-0 items-center justify-center text-on-accent', TINT[tint])}
       style={{ width: BOX.tile, height: BOX.tile, borderRadius: BOX.radius }}
     >
-      <Glyph size={ICON_SIZE_PX.xs} strokeWidth={stroke} title="" />
+      <Glyph size={ICON_SIZE_PX.xs} weight="fill" title="" />
     </span>
   );
 }

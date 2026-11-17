@@ -1,8 +1,10 @@
 /** Coding agents rows: Roci's MCP server, one switch per agent's `roci` config entry, then a manual command. */
 
 import React from 'react';
-import { Copy, SquareTerminal } from 'lucide-react';
-import { Button, CardRow, Code, Icon, IconButton, Status, Switch } from '@shared/ui';
+import { Copy } from 'lucide-react';
+import { SiModelcontextprotocol } from '@icons-pack/react-simple-icons';
+import { Button, CardRow, Code, IconButton, IconTile, Status, Switch } from '@shared/ui';
+import { TILE_DOMAIN } from '@config/ui.config';
 import { useToast } from '@shared/contexts/ToastContext';
 import { copyRichText } from '@shared/utils/clipboard';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
@@ -17,7 +19,8 @@ export const CodingAgentsIntegration: React.FC = () => {
   return (
     <>
       <CardRow
-        leading={<Icon icon={SquareTerminal} size="sm" />}
+        leading={<IconTile icon={SiModelcontextprotocol} tint={TILE_DOMAIN.connections} />}
+        leadingAlign="row"
         title={COPY.server.title}
         description={server?.error ?? COPY.server.description}
         status={<ServerStatus server={server} />}
@@ -54,6 +57,7 @@ const AgentRow: React.FC<AgentRowProps> = ({ agent, pending, setRegistered }) =>
   return (
     <CardRow
       leading={<IntegrationIcon src={copy.icon} />}
+      leadingAlign="row"
       title={copy.title}
       description={describe(agent)}
       status={agent.registration === 'outdated' && (

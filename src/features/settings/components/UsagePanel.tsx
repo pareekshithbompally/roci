@@ -1,15 +1,15 @@
 /** Read-only token usage and estimated cost: totals, then by provider, by model and by feature, as grouped Settings rows. */
 
 import React, { useMemo } from 'react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import {
-  AlertTriangle, ArrowDownToLine, ArrowUpFromLine, AudioLines, CircleDollarSign, DatabaseZap, Heading, Lightbulb, Loader2,
-  MessageSquare, NotebookText, Send,
-} from 'lucide-react';
+  ArrowLineDownIcon, ArrowLineUpIcon, CurrencyCircleDollarIcon, DatabaseIcon, LightbulbIcon, PaperPlaneTiltIcon, PencilSimpleLineIcon,
+} from '@phosphor-icons/react';
 import { Callout, CardRow, ChoiceControl, Icon, ICON_TILE_PX, IconTile, Section, Text, type TileGlyph } from '@shared/ui';
 import { ModelIcon, ProvidersAvatar } from '@shared/components';
 import { META_SEPARATOR, TILE_DOMAIN, type TileTint } from '@config/ui.config';
 import { getProviderTitle } from '@shared/utils/provider.utils';
-import { SettingsPage } from './shared';
+import { JOB_GLYPH, SettingsPage } from './shared';
 import { useUsageData } from '@features/settings/hooks/useUsageData';
 import type { TimeRange } from '@features/settings/hooks/useUsageData';
 import { formatTokenCount, formatCost } from '@extensions/usage/format';
@@ -23,11 +23,11 @@ const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
 
 /** Each feature's row: its name, glyph and hue (hue from its modality, as in Capabilities). */
 const CATEGORY_MARK: Record<UsageCategory, { label: string; icon: TileGlyph; tint: TileTint }> = {
-  chat: { label: 'Chat', icon: MessageSquare, tint: TILE_DOMAIN.text },
-  suggestions: { label: 'Suggestions', icon: Lightbulb, tint: TILE_DOMAIN.text },
-  'title-gen': { label: 'Chat titles', icon: Heading, tint: TILE_DOMAIN.text },
-  summary: { label: 'Summaries', icon: NotebookText, tint: TILE_DOMAIN.meetings },
-  transcription: { label: 'Transcription', icon: AudioLines, tint: TILE_DOMAIN.speech },
+  chat: { label: 'Chat', icon: JOB_GLYPH.chat, tint: TILE_DOMAIN.text },
+  suggestions: { label: 'Suggestions', icon: LightbulbIcon, tint: TILE_DOMAIN.text },
+  'title-gen': { label: 'Chat titles', icon: PencilSimpleLineIcon, tint: TILE_DOMAIN.text },
+  summary: { label: 'Summaries', icon: JOB_GLYPH.summaries, tint: TILE_DOMAIN.meetings },
+  transcription: { label: 'Transcription', icon: JOB_GLYPH.transcription, tint: TILE_DOMAIN.speech },
 };
 
 type Totals = Pick<ProviderModelBreakdown, 'calls' | 'input_tokens' | 'output_tokens' | 'estimated_cost'>;
@@ -96,12 +96,12 @@ export const UsagePanel: React.FC = () => {
       {!isLoading && summary && summary.total_calls > 0 && (
         <>
           <Section title="Overview">
-            <MetricRow icon={CircleDollarSign} title="Estimated cost" value={formatCost(summary.total_cost)} />
-            <MetricRow icon={Send} title="Requests" value={String(summary.total_calls)} />
-            <MetricRow icon={ArrowDownToLine} title="Input tokens" value={formatTokenCount(summary.total_input_tokens)} />
-            <MetricRow icon={ArrowUpFromLine} title="Output tokens" value={formatTokenCount(summary.total_output_tokens)} />
+            <MetricRow icon={CurrencyCircleDollarIcon} title="Estimated cost" value={formatCost(summary.total_cost)} />
+            <MetricRow icon={PaperPlaneTiltIcon} title="Requests" value={String(summary.total_calls)} />
+            <MetricRow icon={ArrowLineDownIcon} title="Input tokens" value={formatTokenCount(summary.total_input_tokens)} />
+            <MetricRow icon={ArrowLineUpIcon} title="Output tokens" value={formatTokenCount(summary.total_output_tokens)} />
             {summary.total_cache_read_tokens > 0 && (
-              <MetricRow icon={DatabaseZap} title="Cached input tokens" value={formatTokenCount(summary.total_cache_read_tokens)} />
+              <MetricRow icon={DatabaseIcon} title="Cached input tokens" value={formatTokenCount(summary.total_cache_read_tokens)} />
             )}
           </Section>
 

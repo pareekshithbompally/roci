@@ -39,8 +39,10 @@ export const UI_CONFIG = {
   choiceIconSlot: { width: 64, height: 44 },
   /** A glyph on an app-icon-sized tile, so a bare glyph weighs the same as the app icons beside it. */
   glyphTile: { tile: 34, glyph: 24 },
-  /** A settings icon tile (System Settings / iOS Settings): edge and corner in px, larger on touch screens; white glyph stroke. */
-  iconTile: { tile: 20, radius: 5, touch: { tile: 29, radius: 7 }, stroke: 2 },
+  /** A settings icon tile (System Settings / iOS Settings): edge and corner in px, larger on touch screens. */
+  iconTile: { tile: 20, radius: 5, touch: { tile: 29, radius: 7 } },
+  /** A macOS app icon's visible body inside its canvas (824 of 1024): app icons scale up by its inverse to match a tile. */
+  appIconBody: 824 / 1024,
   /** Provider logos fanned like cards: each tile slides out and tilts about its base, middle on top, every logo in view. */
   providerFan: { width: 64, height: 44, tile: 26, logo: 16, shiftPx: 19, spreadDeg: 14 },
 

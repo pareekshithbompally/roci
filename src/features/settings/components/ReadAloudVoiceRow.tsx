@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Play, Speech, Square } from 'lucide-react';
+import { Loader2, Play, Square } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { queryKeys } from '@shared/query/queryKeys';
 import { readAloud } from '@services/readAloud.service';
@@ -11,6 +11,7 @@ import { CAPABILITIES_CONFIG } from '@config/capabilities.config';
 import { LAYOUT } from '@config/layout.config';
 import { TILE_DOMAIN } from '@config/ui.config';
 import { READ_ALOUD_CONFIG, type ReadAloudEngine } from '@config/readAloud.config';
+import { JOB_GLYPH } from './shared';
 import { CardRow, IconButton, IconTile, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui';
 
 const { sampleText } = READ_ALOUD_CONFIG;
@@ -37,7 +38,7 @@ export const ReadAloudVoiceRow: React.FC<ReadAloudVoiceRowProps> = ({ engine, re
 
   return (
     <CardRow
-      leading={<IconTile icon={Speech} tint={TILE_DOMAIN.speech} />}
+      leading={<IconTile icon={JOB_GLYPH.voice} tint={TILE_DOMAIN.speech} />}
       leadingAlign="row"
       title={CAPABILITIES_CONFIG.jobs.voice.title}
       description={CAPABILITIES_CONFIG.jobs.voice.description}

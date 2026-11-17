@@ -27,6 +27,7 @@ export const IntegrationRow: React.FC<IntegrationRowProps> = ({
     <Card>
       <CardRow
         leading={icon}
+        leadingAlign="row"
         title={title}
         description={description}
         status={connected && <Status tone="success">Connected</Status>}
