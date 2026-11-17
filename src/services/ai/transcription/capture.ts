@@ -1,6 +1,7 @@
 /** Dictation capture behind one interface: record-then-transcribe, or live engine text as it's spoken. */
 
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
+import { stripNonSpeech } from './format';
 import { failureLogger } from '@shared/utils/errors';
 import { tapPcm } from './pcmTap';
 import type { LiveEngine, LiveText } from './live';
@@ -36,7 +37,7 @@ export function recordedCapture(stream: MediaStream, transcribe: (audio: Blob) =
     finish: async () => {
       recorder.stop();
       await stopped;
-      return transcribe(new Blob(chunks, { type: recorder.mimeType }));
+      return stripNonSpeech(await transcribe(new Blob(chunks, { type: recorder.mimeType })));
     },
     cancel: () => {
       recorder.ondataavailable = null;
@@ -74,7 +75,7 @@ export async function liveCapture(
       tap.stop();
       await pending;
       if (failure) throw failure;
-      return engine.finish();
+      return stripNonSpeech(await engine.finish());
     },
     cancel: () => {
       tap.stop();

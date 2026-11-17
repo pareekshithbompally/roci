@@ -31,3 +31,11 @@ export function formatTranscript(r: TranscriptResult): {
   }
   return { formatted: r.text, segments: [] };
 }
+
+/** Non-speech markers some engines emit for sound they heard (`<noise>`, `[BLANK_AUDIO]`, `[MUSIC]`). */
+const NON_SPEECH_TAG = /<[^<>]*>|\[[A-Z_ ]+\]/g;
+
+/** Dictated text without the engine's non-speech markers; empty when nothing was said. */
+export function stripNonSpeech(text: string): string {
+  return text.replace(NON_SPEECH_TAG, ' ').replace(/\s+/g, ' ').trim();
+}
