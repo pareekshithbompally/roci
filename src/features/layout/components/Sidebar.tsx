@@ -1,4 +1,4 @@
-/** Left sidebar: search, actions, unified history/chat list, and settings button. */
+/** Left sidebar: search, the To-dos row, the unified history/chat list, and settings. */
 
 import React, { useRef, useCallback, useEffect } from 'react';
 import { ChevronLeft, Search, SquarePen, PanelLeft, Settings } from 'lucide-react';
@@ -19,6 +19,7 @@ import { ActivityTray } from '@shared/components';
 import { shortcutLabel } from '@features/shortcuts';
 import { startNewChat, useChatStore } from '@features/chat';
 import type { UnifiedSidebarItem } from '@shared/types';
+import { TodosRow } from './TodosRow';
 
 interface SidebarProps {
   shouldOffsetMacControls: boolean;
@@ -82,7 +83,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (isSmallScreen) setLeftPanel(false);
   }, [setCurrentView, setSelectedHistoryId, setResult, setStatus, selectSession, isSmallScreen, setLeftPanel, openMeeting]);
 
+  // A chat or meeting is highlighted only while it is what's on screen (not under To-dos or Upcoming).
   const getSelectedId = (): string | null => {
+    if (currentView !== 'home') return null;
     if (selectedHistoryId) return selectedHistoryId;
     if (currentChatId) return currentChatId;
     return null;
@@ -124,6 +127,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </>
           )}
         </header>
+        <div className="shrink-0 px-2"><TodosRow /></div>
         <div ref={listContainerRef} className="flex-1 overflow-y-auto px-2 pb-2">{list}</div>
         <ActivityTray />
         <footer className="shrink-0 px-4 pt-2 pb-4">
@@ -146,7 +150,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
       </div>
 
-      {/* Top row — Search in the app; the way back out in settings */}
+      {/* Top rows — Search and To-dos in the app; the way back out in settings */}
       <div className="shrink-0 px-2">
         {isSettingsView ? (
           <Row onClick={leaveSettings}>
@@ -155,13 +159,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <Kbd>{shortcutLabel('leaveSettings')}</Kbd>
           </Row>
         ) : (
-          searchActive ? searchField : (
-            <Row onClick={startSidebarSearch}>
-              <Icon icon={Search} size="xs" className="shrink-0" />
-              <span className="flex-1">Search</span>
-              <Kbd>{shortcutLabel('search')}</Kbd>
-            </Row>
-          )
+          <>
+            {searchActive ? searchField : (
+              <Row onClick={startSidebarSearch}>
+                <Icon icon={Search} size="xs" className="shrink-0" />
+                <span className="flex-1">Search</span>
+                <Kbd>{shortcutLabel('search')}</Kbd>
+              </Row>
+            )}
+            <TodosRow />
+          </>
         )}
       </div>
 

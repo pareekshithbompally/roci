@@ -3,6 +3,7 @@ import type { ActionItem, StructuredSummary } from '@shared/types';
 import { Sparkles } from 'lucide-react';
 import { EmptyState, Markdown } from '@shared/components';
 import { Surface, Text } from '@shared/ui';
+import { TODOS_CONFIG } from '@config/todos.config';
 
 interface SummaryViewProps {
   summary: string;
@@ -11,7 +12,7 @@ interface SummaryViewProps {
   title?: string;
 }
 
-/** Action items shown inline; the rest live in the To-Do tab. */
+/** Action items shown inline; the rest live in the To-dos tab. */
 const ACTION_PREVIEW_LIMIT = 5;
 
 const Overview: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -63,7 +64,7 @@ const ActionItemsSection: React.FC<{ items?: ActionItem[]; withOwner: boolean }>
       ))}
       {hidden > 0 && (
         <li className="pt-1">
-          <Text variant="helper" tone="muted">+{hidden} more items (view in To-Do tab)</Text>
+          <Text variant="helper" tone="muted">+{hidden} more items (view in {TODOS_CONFIG.title} tab)</Text>
         </li>
       )}
     </SummarySection>

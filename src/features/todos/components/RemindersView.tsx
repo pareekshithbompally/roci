@@ -1,8 +1,7 @@
-/** Full-screen view of todos across all meetings, grouped by meeting, filterable, with create support. */
+/** To-dos: every meeting's action items, grouped by meeting, filterable, with create support; opened from the sidebar row. */
 
 import React, { useCallback, useState, useMemo } from 'react';
-import { ArrowLeft, ListTodo, AlertTriangle, Bell, CalendarDays, Inbox, Search, Plus, X, ChevronDown } from 'lucide-react';
-import { useAppActions } from '@shared/stores/appStore';
+import { ListTodo, AlertTriangle, Bell, CalendarDays, Inbox, Search, Plus, X, ChevronDown } from 'lucide-react';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useGlobalTodos } from '@features/todos/hooks/useGlobalTodos';
 import type { TodoFilter, GlobalTodo } from '@features/todos/hooks/useGlobalTodos';
@@ -12,11 +11,13 @@ import {
   TitlebarSpacer,
 } from '@shared/ui';
 import { EmptyState } from '@shared/components';
-import { AppStatus } from '@shared/types';
 import type { HistoryItem } from '@shared/types';
 import { isOverdue, formatDueDate, formatReminderDate, isReminderOverdue, buildISOFromDateInput } from '@shared/utils/todo.utils';
 import ReminderPicker from './ReminderPicker';
 import { platform } from '@platform/index';
+import { useFormFactor } from '@platform/formFactor';
+import { LAYOUT } from '@config/layout.config';
+import { TODOS_CONFIG } from '@config/todos.config';
 
 // ── Filter chip config ──────────────────────────────────────────
 
@@ -213,7 +214,7 @@ const TodoRow: React.FC<TodoRowProps> = ({ todo, onToggle, onReminderSet }) => {
   }, [todo.meetingId, todo.id, todo.text, todo.meetingTitle, onReminderSet]);
 
   return (
-    <div className="w-full flex items-start gap-2.5 px-4 py-2 group">
+    <div className={`w-full flex items-start gap-2.5 ${LAYOUT.listGutter} py-2 group`}>
       <Checkbox
         checked={todo.completed}
         onCheckedChange={() => onToggle(todo.meetingId, todo.id)}
@@ -274,18 +275,11 @@ const TodoRow: React.FC<TodoRowProps> = ({ todo, onToggle, onReminderSet }) => {
 // ── Main component ──────────────────────────────────────────────
 
 export const RemindersView: React.FC = () => {
-  const { setCurrentView, setStatus, setSelectedHistoryId, setResult } = useAppActions();
+  const phone = useFormFactor() === 'phone';
   const { groups, filter, setFilter, searchQuery, setSearchQuery, toggleTodo, addTodo, setReminder, counts, isLoading } = useGlobalTodos();
   const [isCreating, setIsCreating] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
-
-  const handleBack = useCallback(() => {
-    setCurrentView('home');
-    setSelectedHistoryId(null);
-    setResult(null);
-    setStatus(AppStatus.IDLE);
-  }, [setCurrentView, setSelectedHistoryId, setResult, setStatus]);
 
   const handleToggle = useCallback(async (meetingId: string, todoId: string) => {
     await toggleTodo(meetingId, todoId);
@@ -319,61 +313,50 @@ export const RemindersView: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden animate-fade-in">
       <TitlebarSpacer />
-      {/* Header */}
-      <Surface as="header" edge="bottom" className="shrink-0 px-6 pt-2 pb-3">
-        {/* Search + Create row — inline with stats */}
-        <div className="flex items-center gap-3 mb-3">
-          <IconButton icon={ArrowLeft} label="Back to home" size="sm" onClick={handleBack} />
-          <div className="flex items-center gap-2">
-            <Icon icon={ListTodo} size="md" tone="muted" />
-            <Text as="h1" variant="pageTitle">
-              To-Dos & Reminders
-            </Text>
-          </div>
-
-          {/* Right side: stats, search, add */}
-          <div className="flex items-center gap-2 ml-auto">
-            {counts.total > 0 && !isSearchOpen && (
-              <Text variant="helper" tone="faint">
-                {counts.pending} pending · {counts.completed} done
-              </Text>
-            )}
-
-            {/* Expandable search */}
-            {isSearchOpen ? (
-              <div className="flex items-center gap-1 w-52">
-                <Input
-                  icon={Search}
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search…"
-                  onKeyDown={(e) => { if (e.key === 'Escape') handleSearchToggle(); }}
-                />
-                <IconButton icon={X} label="Close search" size="sm" onClick={handleSearchToggle} />
+      {/* Header: title and counts (or the search field), Search and Add; the filters under it */}
+      <Surface as="header" edge="bottom" className={`shrink-0 ${LAYOUT.listGutter} pt-2 pb-3 space-y-3`}>
+        <div className="flex items-center gap-2">
+          {isSearchOpen ? (
+            <>
+              <Input
+                icon={Search}
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search…"
+                onKeyDown={(e) => { if (e.key === 'Escape') handleSearchToggle(); }}
+              />
+              <IconButton icon={X} label="Close search" size="sm" onClick={handleSearchToggle} />
+            </>
+          ) : (
+            <>
+              <div className="min-w-0 flex-1">
+                <Text as="h1" variant="pageTitle" truncate>{TODOS_CONFIG.title}</Text>
+                {counts.total > 0 && (
+                  <Text as="p" variant="helper" tone="muted">{counts.pending} pending · {counts.completed} done</Text>
+                )}
               </div>
-            ) : (
               <IconButton icon={Search} label="Search to-dos" size="sm" onClick={handleSearchToggle} />
-            )}
-
-            <Button variant="primary" size="sm" className="shrink-0" onClick={() => setIsCreating(true)}
-              disabled={isCreating}>
+            </>
+          )}
+          {phone ? (
+            <IconButton icon={Plus} label={TODOS_CONFIG.add} size="sm" onClick={() => setIsCreating(true)} disabled={isCreating} />
+          ) : (
+            <Button variant="primary" size="sm" className="shrink-0" onClick={() => setIsCreating(true)} disabled={isCreating}>
               <Icon icon={Plus} size="xs" />
-              Add To-Do
+              {TODOS_CONFIG.add}
             </Button>
-          </div>
+          )}
         </div>
-
-        {/* Filter tabs */}
-        <Tabs items={filterTabs} value={filter} onValueChange={setFilter} />
+        <Tabs items={filterTabs} value={filter} onValueChange={setFilter} fill={phone} />
       </Surface>
 
       {/* Content */}
       <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar">
         {/* Create form */}
         {isCreating && (
-          <div className="px-5 pt-4">
+          <div className={`${LAYOUT.listGutter} pt-4`}>
             <CreateTodoForm
               onSubmit={addTodo}
               onCancel={() => setIsCreating(false)}
@@ -383,7 +366,7 @@ export const RemindersView: React.FC = () => {
 
         {isLoading ? (
           /* Loading skeleton */
-          <div className="p-6 space-y-4">
+          <div className={`${LAYOUT.listGutter} py-6 space-y-4`}>
             {[1, 2, 3].map(i => (
               <div key={i} className="space-y-2">
                 <Surface variant="inset" radius="md" className="h-4 w-40 animate-pulse" />
@@ -410,7 +393,7 @@ export const RemindersView: React.FC = () => {
             {groups.map((group) => (
               <div key={group.meetingId} className="mb-1">
                 {/* Meeting header */}
-                <Surface variant="page" edge="bottom" className="sticky top-0 z-10 px-5 py-1.5 flex items-center gap-2">
+                <Surface variant="page" edge="bottom" className={`sticky top-0 z-10 ${LAYOUT.listGutter} py-1.5 flex items-center gap-2`}>
                   <Text as="h2" variant="label" tone="muted" truncate>
                     {group.meetingTitle}
                   </Text>

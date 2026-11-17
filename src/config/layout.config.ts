@@ -34,6 +34,9 @@ export const LAYOUT = {
 
   /** Page gutter around the page column */
   pageGutter: 'px-6 md:px-8',
+
+  /** Gutter of a full-width list page (To-dos): header, group labels and rows share it, so they line up */
+  listGutter: 'px-5',
 } as const;
 
 /** Picker row trailing columns — fixed widths so every row's controls line up */

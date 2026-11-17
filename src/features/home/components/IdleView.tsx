@@ -1,7 +1,7 @@
 /** Idle landing page: main actions and the shared chat composer. */
 
 import React, { useMemo, useState, useCallback } from 'react';
-import { ListTodo, CalendarDays, ChevronRight } from 'lucide-react';
+import { CalendarDays, ChevronRight } from 'lucide-react';
 import { useAppActions } from '@shared/stores/appStore';
 import { useRecordingBusy, useRecordingMeetingId, useStartRecording } from '@features/recording';
 import { isTauriEnvironment } from '@services/tauri';
@@ -79,10 +79,6 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   const handleSetupProviders = useOpenAISetup();
   // Phone: the greeting fills the screen and the composer sits at the bottom, above the keyboard.
   const phone = useFormFactor() === 'phone';
-
-  const handleOpenReminders = () => {
-    setCurrentView('reminders');
-  };
 
   const handleOpenCalendar = () => {
     setCurrentView('calendar');
@@ -180,12 +176,6 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                   <Button variant="outline" size="sm" onClick={handleStartRecording} disabled={!canRecord}>
                     <Dot tone="danger" />
                     Record
-                  </Button>
-                )}
-                {historyItems.length > 0 && (
-                  <Button variant="outline" size="sm" onClick={handleOpenReminders}>
-                    <Icon icon={ListTodo} size="xs" />
-                    To-Dos
                   </Button>
                 )}
                 {isIntegrationEnabled(settings, 'calendar') && (

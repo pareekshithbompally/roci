@@ -36,16 +36,17 @@ import {
   cn,
 } from '@shared/ui';
 import type { TabItem } from '@shared/ui';
+import { TODOS_CONFIG } from '@config/todos.config';
 
 const TAB_ITEMS: readonly TabItem<ResultTab>[] = [
   { value: 'summary', label: 'Summary' },
   { value: 'transcript', label: 'Transcript' },
-  { value: 'todo', label: 'To-Do' },
+  { value: 'todo', label: TODOS_CONFIG.title },
   { value: 'notes', label: 'Notes' },
 ];
 
 /** Tabs that hold the user's own items: the tab bar's + adds one. */
-const ADD_LABELS: Partial<Record<ResultTab, string>> = { todo: 'Add to-do', notes: 'Add note' };
+const ADD_LABELS: Partial<Record<ResultTab, string>> = { todo: TODOS_CONFIG.add, notes: 'Add note' };
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
