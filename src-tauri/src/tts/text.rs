@@ -77,10 +77,15 @@ fn collapse_spaces(text: &str) -> String {
 
 /// Sentences packed into chunks of at most [`MAX_CHUNK_CHARS`]; a longer sentence stays whole.
 pub fn chunks(text: &str) -> Vec<String> {
+    chunks_of(text, MAX_CHUNK_CHARS)
+}
+
+/// Sentences packed into chunks of at most `max` characters; a longer sentence stays whole.
+pub fn chunks_of(text: &str, max: usize) -> Vec<String> {
     let mut chunks = Vec::new();
     let mut current = String::new();
     for sentence in sentences(text) {
-        if !current.is_empty() && current.len() + sentence.len() + 1 > MAX_CHUNK_CHARS {
+        if !current.is_empty() && current.len() + sentence.len() + 1 > max {
             chunks.push(std::mem::take(&mut current));
         }
         if !current.is_empty() {

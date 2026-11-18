@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { imagesService } from '@services/storage';
+import { assetsService } from '@services/storage';
 import { queryKeys } from '@shared/query/queryKeys';
 import { FileText } from 'lucide-react';
 import { Icon, Lightbox, Surface, Text, Thumbnail } from '@shared/ui';
@@ -15,7 +15,7 @@ function useMediaSrc(part: ChatPart): string | undefined {
   const file = source?.kind === 'file' ? source.path : null;
   const { data: fileUrl } = useQuery({
     queryKey: queryKeys.appFileUrl(file ?? ''),
-    queryFn: () => imagesService.fileUrl(file ?? ''),
+    queryFn: () => assetsService.fileUrl(file ?? ''),
     enabled: file !== null,
     staleTime: Infinity,
   });

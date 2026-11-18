@@ -64,10 +64,10 @@ pub async fn tts_speak(app: AppHandle, id: u64, text: String, engine: String, vo
     spoken
 }
 
-/// A reply's markdown as the plain speech every engine reads (cloud voices are called from the webview).
+/// A reply's markdown as the plain speech every engine reads, in chunks of at most `max_chars` (cloud voices, called from the webview).
 #[tauri::command]
-pub fn tts_speakable(text: String) -> String {
-    text::speakable(&text)
+pub fn tts_chunks(text: String, max_chars: usize) -> Vec<String> {
+    text::chunks_of(&text::speakable(&text), max_chars)
 }
 
 /// Stops the reply speaking now, if any.

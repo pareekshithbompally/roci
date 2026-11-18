@@ -1,4 +1,4 @@
-/** Generated media under app data, one folder per kind (`images/`, `speech/`): `{uuid}.{ext}` beside a `{uuid}.json` of its details. */
+/** Generated media under app data, one folder per kind (`images/` today): `{uuid}.{ext}` beside a `{uuid}.json` of its details. */
 
 import { exists, mkdir, readTextFile, rename, writeFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import { appDataDir, join } from '@tauri-apps/api/path';
@@ -6,7 +6,7 @@ import { convertFileSrc } from '@tauri-apps/api/core';
 import { StorageConfig } from '@config/storage.config';
 
 /** A kind of generated media, named by its folder. */
-export type AssetKind = 'images' | 'speech';
+export type AssetKind = 'images';
 
 /** Where a saved asset lives: inside app data (what chats keep), on this device now, and its folder and file stem. */
 export interface SavedAsset {

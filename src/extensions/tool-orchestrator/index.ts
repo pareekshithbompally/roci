@@ -142,6 +142,13 @@ function emptyResponseError(finishReason: string | undefined): Error {
   );
 }
 
+/** Model loads show in the reply header: llama-server's staged progress, MLX's start (followed before the request); returns the stop. */
+async function followLoad(resolved: ResolvedModel, llamaServer: boolean, showProgress: (progress: StreamProgress) => void): Promise<() => void> {
+  if (llamaServer) return followModelLoad(resolved.baseUrl, resolved.modelId, showProgress);
+  if (getProviderType(resolved.provider) === 'on-device') return followMlxLoad(resolved.modelId, showProgress);
+  return () => undefined;
+}
+
 /** Runs the agentic loop: the LLM decides which meeting, MCP and web search tools to call, and when to answer. */
 export async function orchestrate(
   options: OrchestratorOptions,
@@ -159,13 +166,7 @@ export async function orchestrate(
   // A local llama-server reports loading the model and reading the prompt before it replies.
   const reportsProgress = isLocalProviderId(resolved.provider) && (await isLlamaServer(resolved.baseUrl));
 
-  // Model loads show in the reply header: llama-server's staged progress, MLX's start (followed before the request).
-  const showProgress = (progress: StreamProgress) => onChunk('', { progress });
-  const stopFollowingLoad = reportsProgress
-    ? followModelLoad(resolved.baseUrl, resolved.modelId, showProgress)
-    : getProviderType(resolved.provider) === 'on-device'
-      ? await followMlxLoad(resolved.modelId, showProgress)
-      : () => undefined;
+  const stopFollowingLoad = await followLoad(resolved, reportsProgress, (progress) => onChunk('', { progress }));
 
   const state: StreamState = { hasText: false, hasReasoning: false, sources: [] };
   // From the subscription on, the listener is released however the request ends (including a throw while it's set up).
@@ -213,7 +214,7 @@ function contextOf(usage: Parameters<typeof extractTokenUsage>[0] | undefined): 
   return { prompt: inputTokens, cached: cacheReadTokens, reply: outputTokens };
 }
 
-/** llama-server reports tool support only while a model is loaded; after its first reply it is, so re-probe once to learn it. */
+/** llama-server reports tool support only while a model is loaded; after a reply it is, so re-probe until its support is known. */
 function learnTemplateCapabilities(resolved: ResolvedModel): void {
   if (resolved.model.served?.tools !== undefined) return;
   queryClient.invalidateQueries({ queryKey: queryKeys.localServersAll() }).catch((error: unknown) =>

@@ -85,6 +85,4 @@ export const imagesService = {
     }));
     return images.sort((a, b) => (b.details?.createdAt ?? 0) - (a.details?.createdAt ?? 0));
   },
-
-  fileUrl: assetsService.fileUrl,
 };

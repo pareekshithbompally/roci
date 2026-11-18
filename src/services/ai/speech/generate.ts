@@ -1,13 +1,11 @@
-/** Speech from a cloud voice model through the AI SDK, saved to the asset store (`speech/`) with what it said. */
+/** Speech from a cloud voice model through the AI SDK, as audio in memory (Read aloud plays it; nothing is kept). */
 
 import { experimental_generateSpeech as generateSpeech } from 'ai';
-import { READ_ALOUD_CONFIG } from '@config/readAloud.config';
 import { createSpeechModel } from '@services/ai/provider';
 import { resolveSpeechModel } from '@services/ai/transcription/cred';
-import { assetsService } from '@services/storage';
+import type { ModelRef } from '@services/ai/models';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { cloudVoices } from './catalog';
-import type { ModelRef } from '@services/ai/models';
 
 export interface SpeechRequest {
   text: string;
@@ -18,23 +16,11 @@ export interface SpeechRequest {
   signal?: AbortSignal;
 }
 
-/** What a saved speech file records about itself. */
-export interface SpeechDetails {
-  text: string;
-  model: string;
-  voice: string;
-  /** Epoch ms. */
-  createdAt: number;
-}
-
-/** Speaks `text` with the cloud model and saves it; returns a URL the webview plays. Throws the user-facing reason. */
-export async function speechFile(request: SpeechRequest): Promise<string> {
+/** `text` spoken by the cloud model; throws the user-facing reason. */
+export async function speechAudio(request: SpeechRequest): Promise<Blob> {
   const { provider, model } = request.engine;
   const resolved = resolveSpeechModel(provider, model, request.providers);
   const voice = request.voice ?? cloudVoices(provider)[0];
   const { audio } = await generateSpeech({ model: createSpeechModel(resolved), text: request.text, voice, abortSignal: request.signal });
-  const extension = READ_ALOUD_CONFIG.extensionByMediaType[audio.mediaType] ?? READ_ALOUD_CONFIG.defaultExtension;
-  const details: SpeechDetails = { text: request.text, model, voice, createdAt: Date.now() };
-  const saved = await assetsService.save('speech', audio.uint8Array, extension, details);
-  return assetsService.fileUrl(saved.appPath);
+  return new Blob([audio.uint8Array], { type: audio.mediaType });
 }

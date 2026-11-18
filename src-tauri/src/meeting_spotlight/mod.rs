@@ -179,7 +179,10 @@ fn perform(app: &AppHandle, work: Work) {
 
 fn reindex_all(app: &AppHandle) -> Result<(), String> {
     spotlight::remove_all()?;
-    spotlight::index(&action_items())?;
+    // The actions are a convenience: failing them never keeps the meetings out of Spotlight.
+    if let Err(error) = spotlight::index(&action_items()) {
+        log::error!("[meeting-spotlight] action items failed: {error}");
+    }
     let ids = meeting_ids(app).map_err(|e| e.to_string())?;
     for batch in ids.chunks(BATCH) {
         if let Err(error) = reindex(app, batch) {

@@ -73,10 +73,10 @@ export const LOCAL_SERVERS: readonly LocalServerEntry[] = [
 /** Logo for a server that isn't a known engine (a custom URL, or port 8080 serving MLX/LocalAI). */
 export const LOCAL_GENERIC_LOGO = GENERIC_LOGO;
 
-/** Hint under the Local list when nothing is running. */
 /** The Providers group of model servers the user runs (vs models built into this device). */
 export const LOCAL_SERVERS_GROUP = 'Your Servers';
 
+/** Hint under the Your Servers list when nothing is running. */
 export const LOCAL_EMPTY_HINT = 'Nothing running? Start Ollama or LM Studio, then rescan.';
 
 /** "Add URL" starts with the host filled in so Add is live; the user types the port. */

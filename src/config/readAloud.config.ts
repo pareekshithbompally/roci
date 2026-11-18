@@ -19,9 +19,8 @@ export const READ_ALOUD_CONFIG = {
     openai: { voices: ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer'] },
     gemini: { voices: ['Kore', 'Puck', 'Charon', 'Fenrir', 'Aoede', 'Leda', 'Orus', 'Zephyr'] },
   } as Record<string, { voices: readonly string[] }>,
-  /** File extension per spoken audio type the cloud returns, for the asset store. */
-  extensionByMediaType: { 'audio/mpeg': 'mp3', 'audio/wav': 'wav', 'audio/ogg': 'ogg', 'audio/aac': 'aac', 'audio/flac': 'flac' } as Record<string, string>,
-  defaultExtension: 'wav',
+  /** Longest text sent to a cloud voice in one request (characters, under OpenAI's 4096); a reply is read in sentence chunks of this size. */
+  cloudChunkChars: 2000,
 } as const;
 
 /** `macos`, or a downloaded voice model's id (`pocket-tts`). */

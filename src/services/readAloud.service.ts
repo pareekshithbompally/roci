@@ -8,7 +8,7 @@ import { isTauriEnvironment } from '@services/tauri';
 import { platform } from '@platform/index';
 import type { LocalErrorPayload } from '@services/localModels.service';
 import type { ModelProvider } from '@shared/types/modelProviders';
-import { cloudVoices, speechFile } from '@services/ai/speech';
+import { cloudVoices, speechAudio } from '@services/ai/speech';
 import { parseModelKey } from '@services/ai/models';
 import type { ModelRef } from '@services/ai/models';
 
@@ -40,40 +40,50 @@ export interface SpeakWith {
 
 let nextRequest = 0;
 
-/** The cloud speech playing now: its request (to cancel) and its audio (to pause). */
-let cloudPlaying: { controller: AbortController; audio: HTMLAudioElement | null } | null = null;
+/** The cloud read in progress, so a new read or Stop ends it wherever it is (fetching or playing). */
+let cloudRead: AbortController | null = null;
 
-/** Plays a speech file to its end; resolves early when stopped. */
-function playToEnd(audio: HTMLAudioElement): Promise<void> {
-  return new Promise((resolve, reject) => {
-    audio.onended = () => resolve();
-    audio.onpause = () => resolve();
-    audio.onerror = () => reject(new Error("Couldn't play this voice's audio."));
-    audio.play().catch(reject);
-  });
+/** Plays `audio` to its end; resolves early, paused, when `signal` aborts. */
+function playToEnd(audio: Blob, signal: AbortSignal): Promise<void> {
+  const url = URL.createObjectURL(audio);
+  const player = new Audio(url);
+  return new Promise<void>((resolve, reject) => {
+    const done = () => {
+      player.pause();
+      resolve();
+    };
+    signal.addEventListener('abort', done, { once: true });
+    player.onended = done;
+    player.onerror = () => reject(new Error("Couldn't play this voice's audio."));
+    player.play().catch(reject);
+  }).finally(() => URL.revokeObjectURL(url));
 }
 
-/** Speaks with a cloud voice model: the same plain speech as Rust's engines, as one file from the asset store. */
+/** Reads with a cloud voice model: Rust's plain-speech chunks, each fetched then played in turn; Stop ends it quietly. */
 async function speakCloud(text: string, engine: ModelRef, { voice, providers }: SpeakWith, onChunk: (spoken: string) => void): Promise<void> {
-  const speakable = await invoke<string>('tts_speakable', { text });
-  if (!speakable) return;
-  const playing = { controller: new AbortController(), audio: null as HTMLAudioElement | null };
-  cloudPlaying = playing;
+  const read = new AbortController();
+  cloudRead = read;
   try {
-    const url = await speechFile({ text: speakable, engine, voice, providers, signal: playing.controller.signal });
-    if (playing.controller.signal.aborted) return;
-    playing.audio = new Audio(url);
-    onChunk(speakable);
-    await playToEnd(playing.audio);
+    const chunks = await invoke<string[]>('tts_chunks', { text, maxChars: READ_ALOUD_CONFIG.cloudChunkChars });
+    for (const chunk of chunks) {
+      const audio = await speechAudio({ text: chunk, engine, voice, providers, signal: read.signal });
+      if (read.signal.aborted) return;
+      onChunk(chunk);
+      await playToEnd(audio, read.signal);
+      if (read.signal.aborted) return;
+    }
+  } catch (error: unknown) {
+    if (!read.signal.aborted) throw error;
   } finally {
-    if (cloudPlaying === playing) cloudPlaying = null;
+    if (cloudRead === read) cloudRead = null;
   }
 }
 
-function stopCloud(): void {
-  cloudPlaying?.controller.abort();
-  cloudPlaying?.audio?.pause();
-  cloudPlaying = null;
+/** Ends any read in progress, cloud or Rust: one read at a time. */
+async function stopAll(): Promise<void> {
+  cloudRead?.abort();
+  cloudRead = null;
+  await invoke<void>('tts_stop').catch(report('stop'));
 }
 
 export const readAloud = {
@@ -86,6 +96,7 @@ export const readAloud = {
   /** `onChunk` gets each chunk's text as its audio begins. */
   async speak(text: string, speaker: SpeakWith, onChunk: (spoken: string) => void): Promise<void> {
     const { engine, voice } = speaker;
+    await stopAll();
     const cloud = parseModelKey(engine);
     if (cloud) return speakCloud(text, cloud, speaker, onChunk);
     const id = ++nextRequest;
@@ -101,8 +112,5 @@ export const readAloud = {
     }
   },
 
-  stop: (): Promise<void> => {
-    stopCloud();
-    return invoke<void>('tts_stop').catch(report('stop'));
-  },
+  stop: stopAll,
 };
