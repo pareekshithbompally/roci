@@ -8,6 +8,8 @@ export const MEETING_LIVE_CONFIG = {
   sampleRate: 16_000,
   /** The speaker label of each source in the transcript. */
   speakers: { microphone: 'You', system: 'Others' },
+  /** A source with more audio than this waiting to be transcribed drops its oldest chunks to catch up (ms). */
+  maxBacklogMs: 120_000,
   /** A hard-cut chunk's re-heard start: up to this many words matching the end of the previous line, found within the first
    *  `slack` words (the model may hear the overlap a little differently), and at least `minWords` so a lone repeated word stays. */
   seam: { maxWords: 12, minWords: 2, slack: 3 },

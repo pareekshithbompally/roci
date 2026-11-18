@@ -15,6 +15,6 @@ export const useMeetingLiveStore = create<MeetingLiveState>(() => ({ meetingId: 
 export const meetingLiveActions = {
   start: (meetingId: string) => useMeetingLiveStore.setState({ meetingId, entries: [], pending: 0 }),
   set: (entries: LiveEntry[]) => useMeetingLiveStore.setState({ entries }),
-  working: (more: boolean) => useMeetingLiveStore.setState((s) => ({ pending: Math.max(0, s.pending + (more ? 1 : -1)) })),
+  pending: (pending: number) => useMeetingLiveStore.setState({ pending }),
   stop: () => useMeetingLiveStore.setState({ meetingId: null, entries: [], pending: 0 }),
 };

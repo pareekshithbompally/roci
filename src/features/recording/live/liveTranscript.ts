@@ -32,11 +32,17 @@ interface LiveChunk {
 interface Session {
   meetingId: string;
   entries: LiveEntry[];
+  /** A chunk failed or was shed: the in-call transcript is incomplete, so the recording is transcribed after Stop. */
   failed: boolean;
-  queue: Promise<void>;
+  /** Chunks not yet started, in arrival order. */
+  waiting: LiveChunk[];
+  /** The loop transcribing `waiting` one chunk at a time; null when idle. */
+  draining: Promise<void> | null;
   done: Promise<void>;
   unlisten: () => void;
 }
+
+type Reader = () => { settings: AppSettings; providers: ModelProvider[] };
 
 /** What the recording left: its entries, and whether every chunk was transcribed. */
 export interface LiveOutcome {
@@ -53,7 +59,7 @@ function wavOf(pcm: string): Blob {
   return new Blob([encodeWavInt16(samples, LIVE.sampleRate)], { type: 'audio/wav' });
 }
 
-async function transcribeChunk(current: Session, chunk: LiveChunk, read: () => { settings: AppSettings; providers: ModelProvider[] }): Promise<void> {
+async function transcribeChunk(current: Session, chunk: LiveChunk, read: Reader): Promise<void> {
   const { settings, providers } = read();
   const selection = speechSelectionOf(settings);
   if (!selection) {
@@ -109,6 +115,37 @@ function spliceChunk(entries: LiveEntry[], chunk: LiveChunk, lines: LiveEntry[])
   return text ? [{ ...first, text }, ...rest] : rest;
 }
 
+/** Falling behind (a model slower than the meeting): a source with more than the backlog limit waiting drops its oldest chunks,
+ *  so the live text catches up; the recording is then transcribed after Stop, so nothing is missing from the final transcript. */
+export function shedBacklog(waiting: LiveChunk[]): { kept: LiveChunk[]; shed: number } {
+  const kept = [...waiting];
+  const backlog = (source: MeetingSourceId) => kept.filter((c) => c.source === source).reduce((ms, c) => ms + c.endMs - c.startMs, 0);
+  let shed = 0;
+  for (const source of ['microphone', 'system'] as const) {
+    while (backlog(source) > LIVE.maxBacklogMs) {
+      kept.splice(kept.findIndex((c) => c.source === source), 1);
+      shed++;
+    }
+  }
+  return { kept, shed };
+}
+
+async function drain(current: Session, read: Reader): Promise<void> {
+  for (let chunk = current.waiting.shift(); chunk; chunk = current.waiting.shift()) {
+    meetingLiveActions.pending(current.waiting.length + 1);
+    await transcribeChunk(current, chunk, read);
+  }
+  meetingLiveActions.pending(0);
+  current.draining = null;
+}
+
+function enqueue(current: Session, chunk: LiveChunk, read: Reader): void {
+  const { kept, shed } = shedBacklog([...current.waiting, chunk]);
+  current.waiting = kept;
+  if (shed > 0) current.failed = true;
+  current.draining ??= drain(current, read);
+}
+
 /** Entries in time order, without the microphone's echo of what the speakers played. */
 export function dropEchoes(entries: LiveEntry[]): LiveEntry[] {
   const words = (text: string) => new Set(text.toLowerCase().match(/[\p{L}\p{N}']+/gu) ?? []);
@@ -129,18 +166,13 @@ export function liveTranscriptResult(entries: LiveEntry[]): TranscriptResult {
 
 export const liveTranscript = {
   /** Starts listening for a recording's chunks; any earlier session (an abandoned recording) is dropped. */
-  async start(meetingId: string, read: () => { settings: AppSettings; providers: ModelProvider[] }): Promise<void> {
+  async start(meetingId: string, read: Reader): Promise<void> {
     session?.unlisten();
     meetingLiveActions.start(meetingId);
     let finished: () => void = () => undefined;
-    const current: Session = { meetingId, entries: [], failed: false, queue: Promise.resolve(), done: new Promise((r) => { finished = r; }), unlisten: () => undefined };
+    const current: Session = { meetingId, entries: [], failed: false, waiting: [], draining: null, done: new Promise((r) => { finished = r; }), unlisten: () => undefined };
     session = current;
-    const offChunk = await listen<LiveChunk>(LIVE.chunkEvent, ({ payload }) => {
-      meetingLiveActions.working(true);
-      current.queue = current.queue
-        .then(() => transcribeChunk(current, payload, read))
-        .finally(() => { if (session === current) meetingLiveActions.working(false); });
-    });
+    const offChunk = await listen<LiveChunk>(LIVE.chunkEvent, ({ payload }) => enqueue(current, payload, read));
     const offDone = await listen(LIVE.doneEvent, () => finished());
     current.unlisten = () => { offChunk(); offDone(); };
   },
@@ -150,7 +182,7 @@ export const liveTranscript = {
     const current = session;
     if (!current || current.meetingId !== meetingId) return null;
     await current.done;
-    await current.queue;
+    while (current.draining) await current.draining;
     current.unlisten();
     session = null;
     meetingLiveActions.stop();

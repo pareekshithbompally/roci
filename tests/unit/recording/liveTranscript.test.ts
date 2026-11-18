@@ -13,7 +13,7 @@ vi.mock('@services/ai/transcription', () => ({
   speechSelectionOf: () => ({ provider: 'openai', model: 'whisper-1' }),
 }));
 
-import { chunkEntries, dropEchoes, liveTranscript, liveTranscriptResult, spliceSeam, type LiveEntry } from '@features/recording/live/liveTranscript';
+import { chunkEntries, dropEchoes, liveTranscript, liveTranscriptResult, shedBacklog, spliceSeam, type LiveEntry } from '@features/recording/live/liveTranscript';
 import { useMeetingLiveStore } from '@features/recording/live/meetingLiveStore';
 
 const read = () => ({ settings: {} as never, providers: [] });
@@ -79,6 +79,14 @@ describe('in-call transcript', () => {
     handlers.get('meeting-live://done')?.({ payload: null });
     const outcome = await liveTranscript.finish('m3');
     expect(outcome?.entries.map((e) => e.text)).toEqual(['we ship on Friday if QA', 'signs off']);
+  });
+
+  it('falling behind sheds a source\'s oldest waiting chunks beyond two minutes, and only that source\'s', () => {
+    const waiting = [...Array.from({ length: 14 }, (_, i) => chunk('microphone', i * 10_000, (i + 1) * 10_000)), chunk('system', 0, 10_000)];
+    const { kept, shed } = shedBacklog(waiting as never);
+    expect(shed).toBe(2);
+    expect(kept.filter((c) => c.source === 'microphone')[0].startMs).toBe(20_000);
+    expect(kept.filter((c) => c.source === 'system')).toHaveLength(1);
   });
 
   it('a chunk that fails marks the transcript incomplete, so the recording is transcribed instead', async () => {
