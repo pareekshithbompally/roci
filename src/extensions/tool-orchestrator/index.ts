@@ -11,7 +11,9 @@ import { followMlxLoad } from '@services/mlx.service';
 import { toolRegistry, loadMcpSettings, loadMcpTools, generateImageTool, GENERATE_IMAGE_TOOL } from '@extensions/tools';
 import type { McpSettings } from '@config/mcp.config';
 import { hasImageModel } from '@services/ai/image';
-import { DEFAULT_CHAT_TOOLS } from '@config/chatTools.config';
+import { chatToolPreferences } from '@config/chatTools.config';
+import { queryClient } from '@shared/query/queryClient';
+import { queryKeys } from '@shared/query/queryKeys';
 import { extractTokenUsage } from '@services/ai/types';
 import type { GenerationStats, StreamProgress, TokenUsage } from '@services/ai/types';
 import type { OrchestratorOptions, OrchestratorCallbacks } from './types';
@@ -56,7 +58,7 @@ async function buildTools(options: OrchestratorOptions, webSearchTools: ToolSet 
   const none: ChatTools = { tools: webSearchTools, sources: new Map(), toolset: { ...NO_TOOLS, webSearch } };
   if (options.skipRetrieval) return none;
   const { settings, providers } = options;
-  const prefs = { ...DEFAULT_CHAT_TOOLS, ...settings.chatTools };
+  const prefs = chatToolPreferences(settings);
   const reservedNames = new Set([...toolRegistry.getToolNames(), GENERATE_IMAGE_TOOL]);
   const meetingTools = prefs.meetingTools ? toolRegistry.getTools() : [];
   const imageTools = hasImageModel(settings) && prefs.imageGeneration ? [generateImageTool({ settings, providers, sessionId: options.sessionId })] : [];
@@ -140,11 +142,11 @@ export async function orchestrate(
   options: OrchestratorOptions,
   callbacks: OrchestratorCallbacks,
 ): Promise<{ provider?: string; model?: string; tokenUsage?: TokenUsage }> {
-  const { messages, prompt, settings, providers, signal, webSearchEnabled, reasoningEffort } = options;
+  const { messages, prompt, settings, providers, signal, reasoningEffort } = options;
   const { onChunk } = callbacks;
 
   const resolved = chatModelOrThrow(settings, providers);
-  const webSearchTools = webSearchEnabled ? getWebSearchTools(resolved) : undefined;
+  const webSearchTools = chatToolPreferences(settings).webSearch ? getWebSearchTools(resolved) : undefined;
   const mcpSettings = await loadMcpSettings();
   const { tools, sources: toolSources, toolset } = await buildTools(options, webSearchTools, mcpSettings);
   const systemPrompt = buildChatSystemPrompt({ ...prompt, tools: toolset });
@@ -194,5 +196,13 @@ export async function orchestrate(
     };
   } finally {
     stopFollowingLoad();
+    if (reportsProgress) learnTemplateCapabilities(resolved);
   }
+}
+
+/** llama-server reports tool support only while a model is loaded; after its first reply it is, so re-probe once to learn it. */
+function learnTemplateCapabilities(resolved: ResolvedModel): void {
+  if (resolved.model.served?.tools !== undefined) return;
+  queryClient.invalidateQueries({ queryKey: queryKeys.localServersAll() }).catch((error: unknown) =>
+    console.error('[orchestrate] Re-probing local servers failed:', error));
 }

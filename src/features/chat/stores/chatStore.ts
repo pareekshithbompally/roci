@@ -365,7 +365,6 @@ async function streamReply(reply: Reply, request: ReplyRequest, tally: StreamTal
       settings,
       providers,
       signal,
-      webSearchEnabled: useChatStore.getState().webSearchEnabled,
       skipRetrieval: !hasToolSupport,
       reasoningEffort: session.reasoningEffort ?? 'provider-default',
       sessionId: reply.sessionId,
@@ -489,7 +488,6 @@ export interface ChatStoreState {
   selectedMeetingRefs: MeetingListItem[];
   /** The meeting a not-yet-sent chat belongs to (meeting chat); the first message saves the chat linked to it. */
   draftMeetingId: string | null;
-  webSearchEnabled: boolean;
   /** The thinking level picked before a new chat exists; the chat keeps it once created. */
   draftReasoningEffort: ReasoningEffort;
   aiActivity: StreamMetadata | null;
@@ -507,7 +505,6 @@ export interface ChatStoreState {
   stopGeneration: () => void;
   copyMessage: (messageId: string, text: string) => void;
   setSelectedMeetingRefs: (meetings: MeetingListItem[]) => void;
-  toggleWebSearch: () => void;
   /** Sets the current chat's thinking level (saved with the chat), or the new chat's before it exists. */
   setReasoningEffort: (effort: ReasoningEffort) => void;
   addAttachment: (file: File) => Promise<void>;
@@ -543,7 +540,6 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
   copiedMessageId: null,
   selectedMeetingRefs: [],
   draftMeetingId: null,
-  webSearchEnabled: false,
   draftReasoningEffort: 'provider-default',
   aiActivity: null,
   pendingAttachments: [],
@@ -598,8 +594,6 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
   },
 
   setSelectedMeetingRefs: (selectedMeetingRefs) => set({ selectedMeetingRefs }),
-
-  toggleWebSearch: () => set((state) => ({ webSearchEnabled: !state.webSearchEnabled })),
 
   setReasoningEffort: (effort) => {
     const { currentSessionId } = get();

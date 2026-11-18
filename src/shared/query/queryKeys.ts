@@ -27,6 +27,8 @@ export const queryKeys = {
   appleIntelligenceStatus: () => ['apple-intelligence-status'] as const,
   /** Local OpenAI-compatible servers on this Mac (keyed by the saved local providers it also probes) */
   localServers: (savedTargets: readonly string[]) => ['local-servers', savedTargets] as const,
+  /** Every local-server probe (re-probed after a llama-server reply to learn its loaded model's tool support) */
+  localServersAll: () => ['local-servers'] as const,
   /** A provider's model list, fetched with this key and URL: its connection test (memory-only cache) */
   providerModels: (provider: string, baseUrl: string, apiKey: string) => ['provider-models', provider, baseUrl, apiKey] as const,
   /** MCP: `mcp_config.json` (servers + settings), owned by Rust */

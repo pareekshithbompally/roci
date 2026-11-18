@@ -178,6 +178,8 @@ export interface ChatToolPreferences {
   meetingTools: boolean;
   /** generate_image, offered while an image model is chosen in Settings › Default Models. */
   imageGeneration: boolean;
+  /** The provider's own web search, offered when the chat model's provider has one. */
+  webSearch: boolean;
   /** MCP tools switched off, as `mcpToolKey(server, tool)` keys. */
   disabledMcpTools: string[];
 }

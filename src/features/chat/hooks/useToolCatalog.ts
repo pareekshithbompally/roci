@@ -8,7 +8,7 @@ import { resolveChatModel } from '@shared/utils/modelResolver';
 import { capabilitiesOf } from '@services/ai/capabilities';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { getProviderTitle } from '@shared/utils/provider.utils';
-import { CHAT_TOOLS_CONFIG, DEFAULT_CHAT_TOOLS } from '@config/chatTools.config';
+import { CHAT_TOOLS_CONFIG, chatToolPreferences } from '@config/chatTools.config';
 import { hasImageModel, imageModelOptions } from '@services/ai/image';
 import type { ChatToolPreferences } from '@shared/types';
 import { useLocalModels } from '@shared/hooks/useLocalModels';
@@ -21,7 +21,6 @@ import {
   useMcpUpdateListener,
 } from '@features/settings/hooks';
 import { toggleServer, updateSettings } from '@features/settings/components/mcp';
-import { useChatStore } from '@features/chat/stores/chatStore';
 import { buildCatalog, countEnabled, setToolsEnabled } from './toolCatalog';
 import type { CatalogGroup } from './toolCatalog';
 
@@ -50,12 +49,10 @@ export function useToolCatalog() {
   const { data: mcpTools = [] } = useMcpTools();
   const { data: serverInfo } = useMcpServerInfo();
   const reconfigure = useMcpReconfigure();
-  const webSearchEnabled = useChatStore((s) => s.webSearchEnabled);
-  const toggleWebSearch = useChatStore((s) => s.toggleWebSearch);
 
   useModelCatalog();
 
-  const prefs = useMemo(() => ({ ...DEFAULT_CHAT_TOOLS, ...settings.chatTools }), [settings.chatTools]);
+  const prefs = useMemo(() => chatToolPreferences({ chatTools: settings.chatTools }), [settings.chatTools]);
   const resolved = useMemo(() => resolveChatModel(settings, providers), [settings, providers]);
   // Derived each render: useModelCatalog re-renders this hook when the models.dev cache arrives.
   const capabilities = resolved ? capabilitiesOf(resolved.provider, resolved.model) : null;
@@ -116,6 +113,11 @@ export function useToolCatalog() {
     [mcpConfig, reconfigure, showToast],
   );
 
+  const toggleWebSearch = useCallback(
+    () => setSettings({ chatTools: { ...prefs, webSearch: !prefs.webSearch } }),
+    [prefs, setSettings],
+  );
+
   const webSearchAvailable = capabilities?.webSearch ?? false;
   const imageGeneration = useImageGenerationToggle(prefs);
 
@@ -124,7 +126,7 @@ export function useToolCatalog() {
     modelName: resolved?.modelId ?? settings.chatModel,
     webSearch: {
       available: webSearchAvailable,
-      enabled: webSearchAvailable && webSearchEnabled,
+      enabled: webSearchAvailable && prefs.webSearch,
       providerLabel: resolved ? getProviderTitle(resolved.provider) : '',
       toggle: toggleWebSearch,
     },

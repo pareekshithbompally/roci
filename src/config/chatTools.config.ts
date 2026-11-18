@@ -1,12 +1,20 @@
 /** Composer Tools picker defaults for which tools chat may use. */
 
-import type { ChatToolPreferences } from '@shared/types';
+import type { AppSettings, ChatToolPreferences } from '@shared/types';
 
+/** Every tool on until the user turns it off; each switch is saved. */
 export const DEFAULT_CHAT_TOOLS: ChatToolPreferences = {
   meetingTools: true,
   imageGeneration: true,
+  webSearch: true,
   disabledMcpTools: [],
 };
+
+/** The saved tool choices over the defaults: what the Tools picker shows and what chat sends. */
+export const chatToolPreferences = (settings: Pick<AppSettings, 'chatTools'>): ChatToolPreferences => ({
+  ...DEFAULT_CHAT_TOOLS,
+  ...settings.chatTools,
+});
 
 export const CHAT_TOOLS_CONFIG = {
   /** Label of the built-in tool group in the picker. */
