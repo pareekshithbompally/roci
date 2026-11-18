@@ -3,24 +3,70 @@
 
 #import <AppKit/AppKit.h>
 
+// Switch-row metrics, in points, matched to AppKit's own menu rows (icon column, title inset, row heights).
+static const CGFloat kRowPadding = 14;
+static const CGFloat kIconGap = 6;
+static const CGFloat kSwitchGap = 24;
+static const CGFloat kOneLineHeight = 26;
+static const CGFloat kTwoLineHeight = 38;
+static const CGFloat kSwitchWidth = 32;
+static const CGFloat kSwitchHeight = 18;
+/// An off switch's track: the label colour, faint (light on a dark menu, dark on a light one), like AppKit's.
+static const CGFloat kSwitchOffAlpha = 0.15;
+
+/// A switch drawn in the system accent colour whatever window is key: AppKit's NSSwitch greys out in a menu whose submenu
+/// has focus, so a menu's switches would lose their colour as soon as one fans out. Sized like AppKit's small switch.
+@interface RociMenuSwitch : NSControl
+@property(nonatomic) BOOL on;
+@end
+
+@implementation RociMenuSwitch
+- (BOOL)isFlipped {
+  return NO;
+}
+- (void)drawRect:(NSRect)dirtyRect {
+  NSRect track = NSInsetRect(self.bounds, 0.5, 0.5);
+  CGFloat radius = NSHeight(track) / 2;
+  CGFloat alpha = self.enabled ? 1 : 0.4;
+  NSColor *trackColor = self.on ? NSColor.controlAccentColor : [NSColor.labelColor colorWithAlphaComponent:kSwitchOffAlpha];
+  [[trackColor colorWithAlphaComponent:trackColor.alphaComponent * alpha] setFill];
+  [[NSBezierPath bezierPathWithRoundedRect:track xRadius:radius yRadius:radius] fill];
+  CGFloat inset = 1.5;
+  CGFloat knob = NSHeight(track) - inset * 2;
+  CGFloat x = self.on ? NSMaxX(track) - inset - knob : NSMinX(track) + inset;
+  NSShadow *shadow = [NSShadow new];
+  shadow.shadowColor = [NSColor colorWithWhite:0 alpha:0.25];
+  shadow.shadowBlurRadius = 1;
+  shadow.shadowOffset = NSMakeSize(0, -0.5);
+  [NSGraphicsContext saveGraphicsState];
+  [shadow set];
+  [[NSColor.whiteColor colorWithAlphaComponent:alpha] setFill];
+  [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(x, NSMinY(track) + inset, knob, knob)] fill];
+  [NSGraphicsContext restoreGraphicsState];
+}
+- (void)mouseDown:(NSEvent *)event {
+  if (!self.enabled) return;
+  self.on = !self.on;
+  [self setNeedsDisplay:YES];
+  [self sendAction:self.action to:self.target];
+}
+@end
+
 @interface RociMenuTarget : NSObject
 @property(nonatomic, copy) NSString *chosen;
 @property(nonatomic, strong) NSMutableDictionary<NSString *, NSNumber *> *toggled;
 - (void)pick:(NSMenuItem *)item;
-- (void)flip:(NSSwitch *)control;
+- (void)flip:(RociMenuSwitch *)control;
 @end
 
 @implementation RociMenuTarget
 - (void)pick:(NSMenuItem *)item {
   self.chosen = item.representedObject;
 }
-- (void)flip:(NSSwitch *)control {
-  self.toggled[control.identifier] = @(control.state == NSControlStateValueOn);
+- (void)flip:(RociMenuSwitch *)control {
+  self.toggled[control.identifier] = @(control.on);
 }
 @end
-
-static const CGFloat kRowPadding = 14;
-static const CGFloat kGap = 8;
 
 /// An image from base64 PNG (`icon`) or an SF Symbol name (`symbol`), at the menu's icon size; nil when neither is given.
 /// `template` glyphs (monochrome app icons) are tinted by AppKit to match the menu's light or dark appearance.
@@ -50,44 +96,48 @@ static NSTextField *rociLabel(NSString *text, CGFloat size, NSColor *color) {
   return label;
 }
 
-/// A switch row: icon, title over a grey subtitle, a switch at the trailing edge; clicking the switch keeps the menu open.
+/// A switch row: icon, title over a grey subtitle, a switch pinned to the trailing edge; clicking the switch keeps the menu open.
+/// The row stretches to the menu's width (flexible width), so every switch lines up; its own width is the least it needs.
 static NSMenuItem *rociSwitchItem(NSDictionary *entry, RociMenuTarget *target, CGFloat iconSize) {
   BOOL enabled = [entry[@"enabled"] boolValue];
   NSString *subtitle = rociString(entry[@"subtitle"]);
   NSTextField *title = rociLabel(entry[@"title"], 0, enabled ? NSColor.labelColor : NSColor.tertiaryLabelColor);
   NSTextField *detail = subtitle ? rociLabel(subtitle, [NSFont smallSystemFontSize], NSColor.secondaryLabelColor) : nil;
+  [title sizeToFit];
+  [detail sizeToFit];
   NSImage *image = rociImage(entry, iconSize);
 
-  NSSwitch *control = [[NSSwitch alloc] initWithFrame:NSZeroRect];
-  control.controlSize = NSControlSizeMini;
-  [control sizeToFit];
-  control.state = [entry[@"on"] boolValue] ? NSControlStateValueOn : NSControlStateValueOff;
+  RociMenuSwitch *control = [[RociMenuSwitch alloc] initWithFrame:NSMakeRect(0, 0, kSwitchWidth, kSwitchHeight)];
+  control.on = [entry[@"on"] boolValue];
   control.enabled = enabled;
   control.identifier = entry[@"id"];
   control.target = target;
   control.action = @selector(flip:);
 
-  CGFloat textX = kRowPadding + (image ? iconSize + kGap : 0);
-  CGFloat textWidth = MAX(title.intrinsicContentSize.width, detail.intrinsicContentSize.width);
-  CGFloat height = detail ? 40 : 28;
-  CGFloat width = textX + textWidth + kGap * 3 + NSWidth(control.frame) + kRowPadding;
+  CGFloat textX = kRowPadding + (image ? iconSize + kIconGap : 0);
+  CGFloat textWidth = MAX(NSWidth(title.frame), NSWidth(detail.frame));
+  CGFloat height = detail ? kTwoLineHeight : kOneLineHeight;
+  CGFloat width = textX + textWidth + kSwitchGap + NSWidth(control.frame) + kRowPadding;
   NSView *row = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, width, height)];
+  row.autoresizingMask = NSViewWidthSizable;
 
   if (image) {
     NSImageView *view = [NSImageView imageViewWithImage:image];
     view.frame = NSMakeRect(kRowPadding, (height - iconSize) / 2, iconSize, iconSize);
+    view.contentTintColor = enabled ? NSColor.labelColor : NSColor.tertiaryLabelColor;
     [row addSubview:view];
   }
-  CGFloat titleHeight = title.intrinsicContentSize.height;
-  title.frame = NSMakeRect(textX, detail ? height / 2 : (height - titleHeight) / 2, textWidth, titleHeight);
-  [row addSubview:title];
+  CGFloat block = NSHeight(title.frame) + (detail ? NSHeight(detail.frame) : 0);
+  CGFloat bottom = (height - block) / 2;
   if (detail) {
-    CGFloat detailHeight = detail.intrinsicContentSize.height;
-    detail.frame = NSMakeRect(textX, height / 2 - detailHeight, textWidth, detailHeight);
+    detail.frame = NSMakeRect(textX, bottom, NSWidth(detail.frame), NSHeight(detail.frame));
     [row addSubview:detail];
   }
+  title.frame = NSMakeRect(textX, bottom + (detail ? NSHeight(detail.frame) : 0), NSWidth(title.frame), NSHeight(title.frame));
+  [row addSubview:title];
   control.frame = NSMakeRect(width - kRowPadding - NSWidth(control.frame), (height - NSHeight(control.frame)) / 2,
                              NSWidth(control.frame), NSHeight(control.frame));
+  control.autoresizingMask = NSViewMinXMargin;
   [row addSubview:control];
 
   NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:entry[@"title"] action:nil keyEquivalent:@""];

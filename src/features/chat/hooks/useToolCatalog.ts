@@ -32,7 +32,8 @@ function useImageGenerationToggle(prefs: ChatToolPreferences) {
   const { data: localModels = [] } = useLocalModels();
   const modelLabel = useMemo(() => {
     const cloud = imageModelOptions(providers).find((o) => o.provider === settings.imageProvider && o.model === settings.imageModel);
-    return cloud?.label ?? localModels.find((m) => m.id === settings.imageModel)?.name ?? '';
+    // The chosen model's name where a list has it, else its id, so the row never says just "via".
+    return cloud?.label ?? localModels.find((m) => m.id === settings.imageModel)?.name ?? settings.imageModel ?? '';
   }, [providers, localModels, settings.imageProvider, settings.imageModel]);
   const toggle = useCallback(
     () => setSettings({ chatTools: { ...prefs, imageGeneration: !prefs.imageGeneration } }),
