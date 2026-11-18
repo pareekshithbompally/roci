@@ -11,7 +11,7 @@ import { endSidebarSearch, startSidebarSearch, toggleSidebarSearch } from '@shar
 import { HomeView } from '@features/home';
 import { SettingsPanel } from '@features/settings';
 import { useAppUpdate, scheduleStartupCheck } from '@features/settings';
-import { useMenubarSpeechModels, useMenubarReports, useLocalModelDownloads, useLocalModelIdle, useLocalModelLoading, freshSpeechSources } from '@features/settings';
+import { useMenubarSpeechModels, useMenubarReports, useLocalModelDownloads, useLocalModelIdle, freshSpeechSources } from '@features/settings';
 import { RemindersView } from '@features/todos';
 import { GalleryView } from '@features/gallery';
 import { CalendarView } from '@features/calendar';
@@ -85,7 +85,6 @@ const App: React.FC = () => {
   useDownloadToasts();
   useLocalModelDownloads();
   useLocalModelIdle();
-  useLocalModelLoading();
   useRemindersRuntime();
   useHexRuntime();
   useMcpHostRuntime();

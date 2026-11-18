@@ -21,7 +21,7 @@ import {
   removeLocalModel,
   setLocalModelIdle,
 } from '@services/localModels.service';
-import type { LocalModel, LocalModelDownload, ModelLoad } from '@services/localModels.service';
+import type { LocalModel, LocalModelDownload } from '@services/localModels.service';
 import { confirmModelDelete, type OnDeviceModel } from '@shared/utils/onDeviceModel';
 import type { ChoiceSetup } from '@shared/utils/modelResolver';
 
@@ -149,31 +149,6 @@ function applyDownload(download: LocalModelDownload): void {
 
 export function useLocalModelDownloads(): void {
   useTauriEvent<LocalModelDownload>(LOCAL_MODELS_CONFIG.downloadEvent, applyDownload);
-}
-
-/** An activity row while a model loads (first use, or after it was freed for idling); gone once loaded or failed. */
-function applyModelLoad(load: ModelLoad): void {
-  const id = LOCAL_MODELS_CONFIG.loadingActivityId(load.role);
-  if (load.state !== 'loading') {
-    activityStore.remove(id);
-    return;
-  }
-  if (activityStore.get(id)) return;
-  activityStore.add({
-    id,
-    type: 'processing',
-    label: `Loading ${load.name}`,
-    status: 'active',
-    percent: null,
-    step: null,
-    detail: null,
-    error: null,
-    actions: [],
-  });
-}
-
-export function useLocalModelLoading(): void {
-  useTauriEvent<ModelLoad>(LOCAL_MODELS_CONFIG.loadEvent, applyModelLoad);
 }
 
 /** Keeps the engines' idle time in step with Settings (sent at launch and on every change). */

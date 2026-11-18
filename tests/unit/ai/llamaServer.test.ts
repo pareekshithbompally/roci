@@ -48,6 +48,14 @@ describe('followModelLoad', () => {
     await expectReports([loading('text_model', 0.5, ['text_model'])], [{ stage: 'loading-weights', percent: 50 }]);
   });
 
+  it('only moves forward: a lower or repeated percent is not reported, so the bar ramps without stepping back', async () => {
+    const stages = ['text_model'];
+    await expectReports(
+      [loading('text_model', 0.3, stages), loading('text_model', 0.2, stages), loading('text_model', 0.3, stages), loading('text_model', 0.6, stages)],
+      [{ stage: 'loading-weights', percent: 30 }, { stage: 'loading-weights', percent: 60 }],
+    );
+  });
+
   it('ignores other models and stops once the model is loaded', async () => {
     await expectReports(
       [

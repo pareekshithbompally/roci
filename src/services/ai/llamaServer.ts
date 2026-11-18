@@ -165,9 +165,10 @@ async function* sseEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<unkn
   }
 }
 
-/** Reports a model's load stage and percent until it's loaded, fails, or the returned stop function is called. */
+/** Reports a model's load stage and rising percent until it's loaded, fails, or the returned stop function is called. */
 export function followModelLoad(baseUrl: string, model: string, onProgress: (progress: StreamProgress) => void): () => void {
   const controller = new AbortController();
+  let reported = -1;
   const follow = async () => {
     const response = await getPlatformFetch()(`${rootOf(baseUrl)}/models/sse`, { signal: controller.signal });
     if (!response.ok || !response.body) return;
@@ -176,7 +177,10 @@ export function followModelLoad(baseUrl: string, model: string, onProgress: (pro
       const status = event.data?.status;
       if (status === 'loaded' || status === 'failed') break;
       const progress = loadProgress(event);
-      if (progress) onProgress(progress);
+      // Only forward: a lower or repeated value would step the bar back or re-render for nothing.
+      if (!progress || (progress.percent ?? 0) <= reported) continue;
+      reported = progress.percent ?? 0;
+      onProgress(progress);
     }
     controller.abort();
   };
