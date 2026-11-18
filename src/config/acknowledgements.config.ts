@@ -108,7 +108,6 @@ export const ACKNOWLEDGEMENTS: readonly AcknowledgementGroup[] = [
     title: 'Models (downloaded on request)',
     description: 'Roci downloads these from Hugging Face only when you choose to use them.',
     items: [
-      { name: 'Gemma 4 E2B', url: 'https://huggingface.co/google/gemma-4-E2B-it', license: 'Apache-2.0', text: 'Apache-2.0' },
       { name: 'Qwen3 Embedding 0.6B', url: 'https://huggingface.co/Qwen/Qwen3-Embedding-0.6B', license: 'Apache-2.0', text: 'Apache-2.0' },
       {
         name: 'Parakeet Unified EN 0.6B',

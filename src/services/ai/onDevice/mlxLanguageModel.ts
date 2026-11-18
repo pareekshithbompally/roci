@@ -61,8 +61,7 @@ function toTurns(message: Message): MlxMessage[] {
   }
 }
 
-function toRequest(modelId: string, options: LanguageModelV4CallOptions): MlxChatRequest {
-  const defaults = LOCAL_MODELS_CONFIG.chatSampling[modelId as keyof typeof LOCAL_MODELS_CONFIG.chatSampling];
+function toRequest(options: LanguageModelV4CallOptions): MlxChatRequest {
   const tools = options.tools?.flatMap((tool) =>
     tool.type === 'function' ? [{ type: 'function', function: { name: tool.name, description: tool.description, parameters: tool.inputSchema } }] : []);
   return {
@@ -70,9 +69,9 @@ function toRequest(modelId: string, options: LanguageModelV4CallOptions): MlxCha
     messages: options.prompt.flatMap(toTurns),
     ...(tools && tools.length > 0 && { tools }),
     maxTokens: options.maxOutputTokens,
-    temperature: options.temperature ?? defaults?.temperature,
-    topP: options.topP ?? defaults?.topP,
-    topK: options.topK ?? defaults?.topK,
+    temperature: options.temperature,
+    topP: options.topP,
+    topK: options.topK,
   };
 }
 
@@ -85,7 +84,7 @@ function usageOf(result: MlxChatResult): LanguageModelV4Usage {
 
 /** Streams a reply; Stop (the abort signal) or cancelling the stream ends generation on the device. */
 function stream(modelId: string, options: LanguageModelV4CallOptions): Promise<LanguageModelV4StreamResult> {
-  const request = toRequest(modelId, options);
+  const request = toRequest(options);
   let textOpen = false;
   let calledTools = false;
   const stop = () => void mlxCancel(request.streamId);

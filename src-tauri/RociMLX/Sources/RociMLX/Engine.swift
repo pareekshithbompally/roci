@@ -172,7 +172,7 @@ actor Engine {
         return .ciImage(decoded)
     }
 
-    /// The model ships a vision encoder (`vision_config` in its config.json, as Gemma 4 does).
+    /// The model ships a vision encoder (`vision_config` in its config.json).
     private static func hasVision(_ folder: URL) -> Bool {
         guard let data = try? Data(contentsOf: folder.appending(path: "config.json")),
               let config = try? JSONSerialization.jsonObject(with: data) as? [String: Any]

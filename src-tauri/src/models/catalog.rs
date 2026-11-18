@@ -66,25 +66,6 @@ impl LocalModel {
 /// Picker order within each kind: the live-capable speech models first.
 pub const MODELS: &[LocalModel] = &[
     LocalModel {
-        id: "gemma-4-e2b",
-        maker: "google",
-        name: "Gemma 4",
-        kind: Kind::Chat,
-        streams: false,
-        voices: &[],
-        source: Source { repository: "mlx-community/gemma-4-e2b-it-4bit", revision: "238767527555cb75a05732a84dff5d6ba0dd6809" },
-        files: &[
-            ModelFile { name: "chat_template.jinja", bytes: 17_336, sha256: "2f1b4d75d067bae3fe44e676721c7f077d243bc007156cb9c2f8b5836613d082", source: None },
-            ModelFile { name: "config.json", bytes: 6_395, sha256: "6397cb6eca41b911d1dcab74e17941351057bd759284052a2331918ff6f9246c", source: None },
-            ModelFile { name: "generation_config.json", bytes: 208, sha256: "d4226bbe3117d2d253ba4609720ba82c6c4ce4627a9a6ae05387c78983ac03de", source: None },
-            ModelFile { name: "model.safetensors", bytes: 3_550_670_554, sha256: "038e39a37a7667373d2c3991375446b10c96ae1d717a68674870343db376b76e", source: None },
-            ModelFile { name: "model.safetensors.index.json", bytes: 218_323, sha256: "edb157dbf495e23f37377af4a628a9ad13c4ee7937f93ccb36ec9e9a19940f16", source: None },
-            ModelFile { name: "processor_config.json", bytes: 1_316, sha256: "de3e580aebdc98272d4c4547daffe6525fcbae18a83a0e0bcf0d7444d4ee6f37", source: None },
-            ModelFile { name: "tokenizer.json", bytes: 32_169_626, sha256: "cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f", source: None },
-            ModelFile { name: "tokenizer_config.json", bytes: 2_740, sha256: "080d9e1aff284e2f6043889cd05367966f7c7b80e025fbc0b06745e218158656", source: None },
-        ],
-    },
-    LocalModel {
         id: "qwen3-embedding-0.6b",
         maker: "Qwen",
         name: "Qwen3 Embedding",

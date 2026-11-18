@@ -273,7 +273,7 @@ mod tests {
         unsafe { roci_mlx_unload(c"embedding".as_ptr()) };
     }
 
-    /// A vision chat model (Gemma 4) on the engine's vision path sees an attached image, with tools offered alongside.
+    /// A vision chat model on the engine's vision path sees an attached image, with tools offered alongside.
     #[test]
     #[ignore = "needs a downloaded MLX vision model"]
     fn chat_sees_an_image_with_tools_offered() {

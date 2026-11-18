@@ -52,7 +52,7 @@ pub fn local_models(app: AppHandle, state: State<'_, ModelsState>) -> Result<Vec
 }
 
 /// The context window a model's config.json states: `max_position_embeddings`, at the top (text models) or in
-/// `text_config` (multimodal ones such as Gemma 4).
+/// `text_config` (multimodal ones).
 fn context_tokens(dir: &std::path::Path) -> Option<u64> {
     let config = model_config(dir)?;
     let key = "max_position_embeddings";
