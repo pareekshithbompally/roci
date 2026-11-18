@@ -7,11 +7,11 @@ import { resolveSpeechModel } from '@services/ai/transcription/cred';
 import { assetsService } from '@services/storage';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { cloudVoices } from './catalog';
-import type { CloudVoiceModel } from './catalog';
+import type { ModelRef } from '@services/ai/models';
 
 export interface SpeechRequest {
   text: string;
-  engine: CloudVoiceModel;
+  engine: ModelRef;
   /** Undefined = the provider's default voice. */
   voice: string | undefined;
   providers: ModelProvider[];

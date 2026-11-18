@@ -3,7 +3,8 @@
 import { useEffect, useMemo } from 'react';
 import { isTauriEnvironment, menubarService, type MenubarSpeechModel } from '@services/tauri';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { speechSelectionKey, speechSelectionOf, type SpeechModelOption } from '@services/ai/transcription';
+import { speechSelectionOf, type SpeechModelOption } from '@services/ai/transcription';
+import { modelKey } from '@services/ai/models';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { useSpeechModelOptions } from './useSpeechModels';
 
@@ -20,7 +21,7 @@ export function useMenubarSpeechModels(): void {
     const firstHex = ready.find((o) => o.provider === hexProvider);
     const isSelected = (o: SpeechModelOption) =>
       selection?.provider === o.provider && (selection.model === o.model || (!selection.model && o === firstHex));
-    return ready.map((o) => ({ id: speechSelectionKey(o), name: o.label, selected: isSelected(o) }));
+    return ready.map((o) => ({ id: modelKey(o), name: o.label, selected: isSelected(o) }));
   }, [options, settings]);
 
   useEffect(() => {

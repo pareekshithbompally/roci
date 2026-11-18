@@ -8,8 +8,9 @@ import { isTauriEnvironment } from '@services/tauri';
 import { platform } from '@platform/index';
 import type { LocalErrorPayload } from '@services/localModels.service';
 import type { ModelProvider } from '@shared/types/modelProviders';
-import { cloudEngineOf, cloudVoices, speechFile } from '@services/ai/speech';
-import type { CloudVoiceModel } from '@services/ai/speech';
+import { cloudVoices, speechFile } from '@services/ai/speech';
+import { parseModelKey } from '@services/ai/models';
+import type { ModelRef } from '@services/ai/models';
 
 const report = failureLogger('readAloud');
 
@@ -53,7 +54,7 @@ function playToEnd(audio: HTMLAudioElement): Promise<void> {
 }
 
 /** Speaks with a cloud voice model: the same plain speech as Rust's engines, as one file from the asset store. */
-async function speakCloud(text: string, engine: CloudVoiceModel, { voice, providers }: SpeakWith, onChunk: (spoken: string) => void): Promise<void> {
+async function speakCloud(text: string, engine: ModelRef, { voice, providers }: SpeakWith, onChunk: (spoken: string) => void): Promise<void> {
   const speakable = await invoke<string>('tts_speakable', { text });
   if (!speakable) return;
   const playing = { controller: new AbortController(), audio: null as HTMLAudioElement | null };
@@ -77,7 +78,7 @@ function stopCloud(): void {
 
 export const readAloud = {
   voices: async (engine: ReadAloudEngine): Promise<ReadAloudVoice[]> => {
-    const cloud = cloudEngineOf(engine);
+    const cloud = parseModelKey(engine);
     if (cloud) return cloudVoices(cloud.provider).map((v) => ({ id: v, name: v, detail: null }));
     return platform.hasLocalModels && isTauriEnvironment() ? invoke<ReadAloudVoice[]>('tts_voices', { engine }) : [];
   },
@@ -85,7 +86,7 @@ export const readAloud = {
   /** `onChunk` gets each chunk's text as its audio begins. */
   async speak(text: string, speaker: SpeakWith, onChunk: (spoken: string) => void): Promise<void> {
     const { engine, voice } = speaker;
-    const cloud = cloudEngineOf(engine);
+    const cloud = parseModelKey(engine);
     if (cloud) return speakCloud(text, cloud, speaker, onChunk);
     const id = ++nextRequest;
     const unlisten = await listen<{ id: number; text: string }>(READ_ALOUD_CONFIG.chunkEvent, ({ payload }) => {

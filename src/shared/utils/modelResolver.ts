@@ -221,7 +221,8 @@ export const apiKeyHint = (provider: string): string => `Add ${getProviderTitle(
 
 /** Whether a model on an active provider can run now (a key where one is needed), with the next step when not. */
 export function readinessOf(provider: ModelProvider, model: Model): { ready: boolean; hint: string | null } {
-  const resolved = resolveModel(model.id, [provider]);
+  // The model need not be in the provider's list (a suggested model): the provider and its key decide.
+  const resolved = resolveProviderModel(provider.provider, model.id, [provider]);
   const ready = !!resolved && (!requiresApiKey(resolved) || !!resolved.apiKey);
   return { ready, hint: ready ? null : apiKeyHint(provider.provider) };
 }

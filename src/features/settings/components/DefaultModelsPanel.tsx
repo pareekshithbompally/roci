@@ -6,14 +6,14 @@ import type { OnDeviceModel } from '@shared/utils/onDeviceModel';
 import { JOB_GLYPH, ModelDownloadButton } from '@shared/components';
 import { formatFileSize } from '@shared/utils/formatters';
 import { modelSources, type ModelChoice } from '@shared/utils/modelResolver';
-import { jobChoices } from '@services/ai/models';
-import { cloudEngineKey, cloudVoiceOptions } from '@services/ai/speech';
+import { jobChoices, modelKey } from '@services/ai/models';
+import { cloudVoiceOptions } from '@services/ai/speech';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
-import { speechSelectionKey, speechSelectionOf } from '@services/ai/transcription';
+import { speechSelectionOf } from '@services/ai/transcription';
 import { DEFAULT_MODELS_CONFIG } from '@config/defaultModels.config';
 import { IMAGE_GENERATION_CONFIG } from '@config/imageGeneration.config';
-import { hasImageModel, imageModelOptions, imageSelectionKey } from '@services/ai/image';
+import { hasImageModel, imageModelOptions } from '@services/ai/image';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import { READ_ALOUD_CONFIG } from '@config/readAloud.config';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
@@ -51,7 +51,7 @@ function useSpeechChoices(controls: Controls): ModelChoice[] {
       return undefined;
     };
     return options.map((o) => ({
-      value: speechSelectionKey(o),
+      value: modelKey(o),
       provider: o.provider,
       modelId: o.model,
       label: o.label,
@@ -77,7 +77,7 @@ function readAloudEngineChoices(models: LocalModel[], controls: Controls, provid
     setup: downloadSetup(controls[m.id]),
   }));
   const cloud = cloudVoiceOptions(providers).map((o) => ({
-    value: cloudEngineKey(o),
+    value: modelKey(o),
     provider: o.provider,
     modelId: o.model,
     label: o.label,
@@ -94,7 +94,7 @@ const ImageGenerationRow: React.FC = () => {
   const { settings, setSettings, providers } = useSettings();
   const choices = useMemo<ModelChoice[]>(() => [
     ...imageModelOptions(providers).map((o) => ({
-      value: imageSelectionKey(o),
+      value: modelKey(o),
       provider: o.provider,
       modelId: o.model,
       label: o.label,
@@ -103,7 +103,7 @@ const ImageGenerationRow: React.FC = () => {
     })),
   ], [providers]);
   const value = hasImageModel(settings)
-    ? imageSelectionKey({ provider: settings.imageProvider ?? '', model: settings.imageModel ?? '' })
+    ? modelKey({ provider: settings.imageProvider ?? '', model: settings.imageModel ?? '' })
     : IMAGES_OFF.value;
 
   const choose = (key: string) => {
@@ -163,7 +163,7 @@ export const DefaultModelsPanel: React.FC = () => {
 
       <Section title="Speech" footer={platform.hasLocalModels ? `${FOOTERS.speech} ${FOOTERS.readAloud}` : FOOTERS.speech}>
         <CapabilityRow icon={JOB_GLYPH.transcription} job={JOBS.transcription}>
-          <ModelSelect value={speech ? speechSelectionKey(speech) : undefined} choices={speechChoices} onChange={setSpeech} />
+          <ModelSelect value={speech ? modelKey(speech) : undefined} choices={speechChoices} onChange={setSpeech} />
         </CapabilityRow>
         {platform.hasLocalModels && (
           <>

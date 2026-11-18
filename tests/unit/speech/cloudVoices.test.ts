@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('@services/modalities', () => ({ modalitiesService: { getModelInfo: () => null, getModelContextLimit: () => null } }));
 
-import { cloudEngineKey, cloudEngineOf, cloudVoiceOptions, cloudVoices } from '@services/ai/speech/catalog';
+import { cloudVoiceOptions, cloudVoices } from '@services/ai/speech/catalog';
+import { modelKey, parseModelKey } from '@services/ai/models';
 import type { ModelProvider } from '@shared/types/modelProviders';
 
 const provider = (id: string, models: string[], apiKey = 'k'): ModelProvider =>
@@ -10,9 +11,9 @@ const provider = (id: string, models: string[], apiKey = 'k'): ModelProvider =>
 
 describe('cloud voice engines', () => {
   it('a cloud engine key holds provider and model; the system and downloaded voices are not cloud engines', () => {
-    expect(cloudEngineOf(cloudEngineKey({ provider: 'gemini', model: 'gemini-3.8-flash-tts' }))).toEqual({ provider: 'gemini', model: 'gemini-3.8-flash-tts' });
-    expect(cloudEngineOf('macos')).toBeNull();
-    expect(cloudEngineOf('pocket-tts')).toBeNull();
+    expect(parseModelKey(modelKey({ provider: 'gemini', model: 'gemini-3.8-flash-tts' }))).toEqual({ provider: 'gemini', model: 'gemini-3.8-flash-tts' });
+    expect(parseModelKey('macos')).toBeNull();
+    expect(parseModelKey('pocket-tts')).toBeNull();
   });
 
   it('offers Gemini TTS added from its list, and the suggested voices, only on providers that speak', () => {

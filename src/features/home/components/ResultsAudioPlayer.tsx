@@ -5,6 +5,9 @@ import { useAudioQuery } from '@features/home/hooks/useAudioQuery';
 import { useAudioPlayerStore } from '@shared/stores/audioPlayerStore';
 import { Surface } from '@shared/ui';
 import { LAYOUT } from '@config/layout.config';
+import { ANIMATION_CONFIG } from '@config/animations.config';
+
+const VIEW = ANIMATION_CONFIG.view;
 
 interface ResultsAudioPlayerProps {
   recordingFileName: string;
@@ -63,10 +66,10 @@ export const ResultsAudioPlayer: React.FC<ResultsAudioPlayerProps> = ({
     <AnimatePresence mode="wait">
       <motion.div
         key="audio-player"
-        initial={{ opacity: 0, scale: 0.92, y: -16 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.92, y: -16 }}
-        transition={{ type: 'spring', stiffness: 450, damping: 32, mass: 0.9 }}
+        initial={VIEW.hidden}
+        animate={VIEW.shown}
+        exit={{ ...VIEW.hidden, transition: VIEW.exit }}
+        transition={VIEW.enter}
         className={`${LAYOUT.pageGutter} py-2`}
       >
         <div className={LAYOUT.pageColumn}>

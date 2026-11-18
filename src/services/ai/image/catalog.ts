@@ -25,11 +25,6 @@ export function imageModelOptions(providers: ModelProvider[]): ImageModelOption[
     .map((r) => ({ provider: r.provider, model: r.id, label: r.label, ready: r.ready, hint: r.hint }));
 }
 
-/** What the Default Models picker stores for an image model. */
-export function imageSelectionKey(selection: { provider: string; model: string }): string {
-  return `${selection.provider}:${selection.model}`;
-}
-
 /** Chat can make images: an image model is chosen. */
 export function hasImageModel(settings: AppSettings): boolean {
   return !!settings.imageProvider && !!settings.imageModel;

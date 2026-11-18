@@ -1,9 +1,7 @@
 /** Speech model catalog: what can be picked, whether it can run now, and which adapter and credentials run it. */
 
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
-import { jobRecords, transcribeAdapter } from '@services/ai/models';
-import { apiKeyHint } from '@shared/utils/modelResolver';
-import { credentialsError } from './cred';
+import { jobRecords, modelKey, transcribeAdapter } from '@services/ai/models';
 import { formatFileSize } from '@shared/utils/formatters';
 import { installedHexModels } from './hex';
 import { appleSpeechHint, isAppleSpeechReady } from './appleSpeech';
@@ -25,15 +23,16 @@ export interface SpeechModelOption extends SpeechSelection {
 
 const { hexProvider, keylessProviders, speechEndpointByProvider } = TRANSCRIPTION_CONFIG;
 
+/** A provider speech model as the spine describes it (fit, readiness), or undefined when it isn't one. */
+function speechRecord(selection: SpeechSelection, providers: ModelProvider[]) {
+  return jobRecords(providers, 'transcribe').find((r) => r.provider === selection.provider && r.id === selection.model);
+}
+
 /** Keyless engines run on their own endpoint; any other speech model runs the way the spine routes it. */
 export function adapterFor(selection: SpeechSelection, providers: ModelProvider[]): TranscriptionAdapterId | null {
   if (keylessProviders.includes(selection.provider)) return speechEndpointByProvider[selection.provider] ?? null;
-  const record = jobRecords(providers, 'transcribe').find((r) => r.provider === selection.provider && r.id === selection.model);
+  const record = speechRecord(selection, providers);
   return record ? transcribeAdapter(record) : null;
-}
-
-function keyHint(provider: string, providers: ModelProvider[]): string | null {
-  return credentialsError(provider, providers) === null ? null : apiKeyHint(provider);
 }
 
 /** The spine's speech-to-text models on the providers: the ones added that take audio, then the suggested ones. */
@@ -90,7 +89,7 @@ export function speechModelOptions(providers: ModelProvider[], sources: SpeechSo
 function uniqueBySelection(options: SpeechModelOption[]): SpeechModelOption[] {
   const byKey = new Map<string, SpeechModelOption>();
   for (const option of options) {
-    const key = speechSelectionKey(option);
+    const key = modelKey(option);
     if (!byKey.has(key)) byKey.set(key, option);
   }
   return [...byKey.values()];
@@ -110,12 +109,12 @@ export function isSpeechSelectionReady(
   if (selection.provider === TRANSCRIPTION_CONFIG.onDevice.provider) {
     return !!sources.onDevice?.models.some((m) => m.id === selection.model && m.installed);
   }
-  return keyHint(selection.provider, providers) === null;
+  return speechRecord(selection, providers)?.ready ?? false;
 }
 
-/** First-run choice: the first default whose provider has a key. */
+/** First-run choice: the first default the spine says can run. */
 export function defaultSpeechSelection(providers: ModelProvider[]): SpeechSelection | null {
-  return TRANSCRIPTION_CONFIG.defaultOrder.find((d) => keyHint(d.provider, providers) === null) ?? null;
+  return TRANSCRIPTION_CONFIG.defaultOrder.find((d) => speechRecord(d, providers)?.ready) ?? null;
 }
 
 /** The saved selection, or null when none was chosen. */
@@ -124,10 +123,5 @@ export function speechSelectionOf(settings: { transcriptionProvider?: string; tr
   return { provider: settings.transcriptionProvider, model: settings.transcriptionModel ?? '' };
 }
 
-/** Stable string for a selection (Select values); `provider` ids never contain `::`. */
-export const speechSelectionKey = (s: SpeechSelection): string => `${s.provider}::${s.model}`;
-
-export function parseSpeechSelectionKey(key: string): SpeechSelection {
-  const at = key.indexOf('::');
-  return { provider: key.slice(0, at), model: key.slice(at + 2) };
-}
+/** A speech selection's key is its model key (one format for every model setting). */
+export { modelKey as speechSelectionKey } from '@services/ai/models';

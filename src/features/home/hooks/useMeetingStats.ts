@@ -1,5 +1,6 @@
 /** One meeting's facts for the stats card and the summary credit: when, how long, words, speakers, models, file. */
 
+import { parseModelKey } from '@services/ai/models';
 import { useQuery } from '@tanstack/react-query';
 import { store } from '@services/db';
 import { recordingsService } from '@services/storage';
@@ -30,11 +31,10 @@ export interface MeetingStats {
   recording: { filename: string; path: string; sizeBytes: number } | null;
 }
 
-/** Transcripts store their speech model as `provider::model`. */
+/** Transcripts store their speech model as its model key; an older bare id has no provider. */
 function speechModelOf(stored: string | undefined): ModelCredit | null {
   if (!stored) return null;
-  const at = stored.indexOf('::');
-  return at < 0 ? { provider: '', model: stored } : { provider: stored.slice(0, at), model: stored.slice(at + 2) };
+  return parseModelKey(stored) ?? { provider: '', model: stored };
 }
 
 function summaryModelOf(usage: MeetingUsage[]): SummaryCredit | null {

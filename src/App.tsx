@@ -31,7 +31,8 @@ import {
   initializeStorage,
 } from '@services/storage';
 import { menubarService, TrayAction, SPEECH_MODEL_ACTION_PREFIX } from '@services/tauri';
-import { isSpeechSelectionReady, parseSpeechSelectionKey } from '@services/ai/transcription';
+import { isSpeechSelectionReady } from '@services/ai/transcription';
+import { parseModelKey } from '@services/ai/models';
 import { windowService } from '@services/window.service';
 import { dismissSplash } from '@/src/app/splash';
 import { shortcutsService } from '@services/shortcuts.service';
@@ -186,8 +187,8 @@ const App: React.FC = () => {
   /** Applies a tray Speech Model pick (`provider::model`), checked first because the tray menu may be stale. */
   const applySpeechModel = async (key: string) => {
     try {
-      const selection = parseSpeechSelectionKey(key);
-      if (!isSpeechSelectionReady(selection, providers, await freshSpeechSources())) {
+      const selection = parseModelKey(key);
+      if (!selection || !isSpeechSelectionReady(selection, providers, await freshSpeechSources())) {
         toast.showToast("That speech model isn't ready. Check Settings › Default Models.", 'warning');
         return;
       }

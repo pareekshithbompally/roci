@@ -1,30 +1,14 @@
-/** Cloud voice models for Read aloud: the spine's text→audio models on providers whose AI SDK speaks, keyed as the engine setting stores them. */
+/** Cloud voice models for Read aloud: the spine's text→audio models on providers whose AI SDK speaks; the engine setting stores their `modelKey`. */
 
 import { READ_ALOUD_CONFIG } from '@config/readAloud.config';
 import { jobRecords } from '@services/ai/models';
+import type { ModelRef } from '@services/ai/models';
 import type { ModelProvider } from '@shared/types/modelProviders';
 
-/** A cloud voice model the Read aloud engine can be: its provider and model. */
-export interface CloudVoiceModel {
-  provider: string;
-  model: string;
-}
-
-export interface CloudVoiceOption extends CloudVoiceModel {
+export interface CloudVoiceOption extends ModelRef {
   label: string;
   ready: boolean;
   hint: string | null;
-}
-
-/** Engine keys for cloud models hold both parts; the system's and downloaded voices' keys never contain the separator. */
-const SEPARATOR = '::';
-
-export const cloudEngineKey = ({ provider, model }: CloudVoiceModel): string => `${provider}${SEPARATOR}${model}`;
-
-/** The cloud voice model a Read aloud engine names, or null for the system's and downloaded voices. */
-export function cloudEngineOf(engine: string): CloudVoiceModel | null {
-  const at = engine.indexOf(SEPARATOR);
-  return at < 0 ? null : { provider: engine.slice(0, at), model: engine.slice(at + SEPARATOR.length) };
 }
 
 /** Every cloud voice model: the added ones that output audio, then the suggested ones, on providers that speak. */

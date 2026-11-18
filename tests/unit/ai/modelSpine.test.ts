@@ -99,6 +99,10 @@ describe('jobRecords — a job\'s models: the ones added, plus the suggested one
     expect(jobRecords(providers, 'image').map((r) => r.id)).toContain('gpt-image-1.5');
   });
 
+  it('a suggestion is ready once its provider has a key', () => {
+    expect(jobRecords([keyed('openai', [])], 'transcribe').find((r) => r.id === 'whisper-1')).toMatchObject({ ready: true, hint: null });
+  });
+
   it('an added model wins over its suggestion, and a suggestion keeps its label', () => {
     const providers = [{ ...keyed('openai', []), models: [{ id: 'whisper-1', displayName: 'My Whisper' }] }];
     const records = jobRecords(providers, 'transcribe');
