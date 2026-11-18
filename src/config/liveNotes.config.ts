@@ -15,7 +15,7 @@ export const LIVE_NOTES_CONFIG = {
     transcript: 'Live transcript',
     transcribing: 'Transcribing…',
     placeholder: 'Type shorthand, one thought per line. Each line is filled in from what was being said.',
-    aiEmpty: 'Type a line in Your notes and it is filled in here from what was said around it.',
+    aiEmpty: 'Your AI notes build here as the meeting goes: every line you jot, filled in from what was said.',
     noModel: 'Choose a Summary model in Settings › Default Models to fill in your notes.',
     enhancing: 'Enhancing your notes…',
     sections: 'Meeting sections',

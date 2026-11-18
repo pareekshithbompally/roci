@@ -23,6 +23,8 @@ mod audio_session;
 #[cfg(desktop)]
 mod choice_menu;
 #[cfg(desktop)]
+mod native_alert;
+#[cfg(desktop)]
 mod screenshot;
 #[cfg(desktop)]
 mod wake_lock;

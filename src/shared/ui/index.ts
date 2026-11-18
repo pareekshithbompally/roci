@@ -13,6 +13,7 @@ export * from './tabs';
 export * from './tooltip';
 export { cn } from './utils';
 export { Icon, ICON_STROKE_WIDTH, ICON_SIZE_PX } from './icon';
+export { RociMark } from './roci-mark';
 export type { IconProps, IconSize } from './icon';
 export { IconTile, ICON_TILE_PX, ICON_TILE_RADIUS } from './icon-tile';
 export { BarChart } from './bar-chart';

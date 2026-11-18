@@ -1,5 +1,7 @@
 /** Native file open/save dialogs with browser fallbacks. */
 
+import { invoke } from '@tauri-apps/api/core';
+import { platform } from '@platform/index';
 import { isTauriEnvironment } from './environment.service';
 import type { FileDialogOptions, SaveDialogOptions } from './types';
 
@@ -58,13 +60,22 @@ class DialogService {
     }
   }
 
-  /** The system alert (NSAlert / UIAlertController) with the caller's button labels; `warning` for destructive asks. */
+  /** The system alert with the caller's button labels; `warning` for destructive asks. The Mac draws its own (native/alert.m:
+   *  a sheet, the destructive button red); iOS the plugin's. */
   async confirm(title: string, message: string, options: { okLabel?: string; cancelLabel?: string; warning?: boolean } = {}): Promise<boolean> {
     if (!isTauriEnvironment()) {
       return confirm(`${title}\n\n${message}`);
     }
-
     try {
+      if (platform.hasNativeAlert) {
+        return await invoke<boolean>('native_alert', {
+          title,
+          message,
+          confirmLabel: options.okLabel ?? 'OK',
+          cancelLabel: options.cancelLabel ?? 'Cancel',
+          destructive: options.warning ?? false,
+        });
+      }
       const { ask } = await import('@tauri-apps/plugin-dialog');
       return await ask(message, {
         title,

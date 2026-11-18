@@ -1,8 +1,7 @@
-/** Meeting chat at one corner: a floating ✦ button while closed, the chat window while open (never both). */
+/** Meeting chat at one corner: a floating button with Roci's mark while closed, the chat window while open (never both). */
 
 import React from 'react';
-import { Sparkles } from 'lucide-react';
-import { IconButton } from '@shared/ui';
+import { IconButton, RociMark } from '@shared/ui';
 import { UI_CONFIG } from '@config/ui.config';
 import { shortcutLabel } from '@features/shortcuts';
 import { useAppActions, useMeetingChatOpen } from '@shared/stores/appStore';
@@ -25,7 +24,7 @@ export const MeetingChat: React.FC<MeetingChatProps> = ({ meetingId, meetingTitl
   if (open) return <MeetingChatPopout meetingId={meetingId} meetingTitle={meetingTitle} />;
   return (
     <IconButton
-      icon={Sparkles}
+      icon={RociMark}
       label={`Chat about this meeting (${shortcutLabel('focusChat')})`}
       variant="ai"
       size="fab"

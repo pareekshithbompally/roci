@@ -2,7 +2,7 @@
 
 use crate::{
   app_icon, audio, autostart, call_detection, choice_menu, downloads, hex, mcp, mcp_server, meeting_reminders, meeting_spotlight,
-  menubar, mlx, models, open_native, permissions, screenshot, shortcuts, stt, tts, url_actions, window,
+  menubar, mlx, models, native_alert, open_native, permissions, screenshot, shortcuts, stt, tts, url_actions, window,
 };
 use std::sync::Mutex;
 use tauri::{App, AppHandle, Builder, Emitter, Manager, RunEvent, WebviewWindowBuilder, Wry};
@@ -99,6 +99,7 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       stt::commands::stt_live_finish,
       stt::commands::stt_live_cancel,
       choice_menu::native_menu,
+      native_alert::native_alert,
       audio::live::meeting_echo_signals,
       tts::commands::tts_voices,
       tts::commands::tts_speak,

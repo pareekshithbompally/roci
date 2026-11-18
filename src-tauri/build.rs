@@ -5,6 +5,7 @@ fn main() {
         link_mlx();
         compile_permission_guide();
         compile_choice_menu();
+        compile_native_alert();
     }
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("ios") {
         compile_ios_webview();
@@ -60,6 +61,15 @@ fn compile_choice_menu() {
         .file("native/choice_menu.m")
         .flag("-fobjc-arc")
         .compile("roci_choice_menu");
+}
+
+/// Compiles the system alert (native/alert.m) with ARC.
+fn compile_native_alert() {
+    println!("cargo:rerun-if-changed=native/alert.m");
+    cc::Build::new()
+        .file("native/alert.m")
+        .flag("-fobjc-arc")
+        .compile("roci_alert");
 }
 
 /// Compiles the native permission guide (native/permission_guide.m) with ARC.

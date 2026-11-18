@@ -21,6 +21,8 @@ export const platform = {
   /** Traffic lights and a translucent window: the layout leaves room for them. */
   hasWindowChrome: mac,
   hasMenuBar: mac,
+  /** Its own system alert (native/alert.m): a sheet whose destructive button is red and takes no Return. */
+  hasNativeAlert: mac,
   hasGlobalShortcuts: mac,
   /** Self-updates from GitHub releases (iOS updates through the App Store). */
   hasUpdater: mac,

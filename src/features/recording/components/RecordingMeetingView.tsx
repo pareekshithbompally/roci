@@ -17,7 +17,7 @@ import { speechSelectionOf } from '@services/ai/transcription';
 import { formatClock, recording, recordedSeconds, useRecordingBusy, useRecordingMeetingId, useRecordingPaused, useRecordingStore } from '@features/recording/stores/recordingStore';
 import { useMeetingLiveStore } from '@features/recording/live/meetingLiveStore';
 import type { LiveEntry } from '@features/recording/live/liveTranscript';
-import { AiNotes, EnhancingStatus, NotesPane, PaneHeader, useLiveNotes, YourNotes } from '@features/recording/notes';
+import { AiNotes, EmptyLine, EnhancingStatus, NotesPane, PaneHeader, useLiveNotes, YourNotes } from '@features/recording/notes';
 
 const VIEW = ANIMATION_CONFIG.view;
 
@@ -93,7 +93,7 @@ const Transcript: React.FC<TranscriptProps> = ({ turns, empty, transcribing }) =
 
   return (
     <div ref={scrollRef} onScroll={onScroll} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 pb-4 space-y-4">
-      {turns.length === 0 && !transcribing && <Text as="p" variant="body" tone="muted">{empty}</Text>}
+      {turns.length === 0 && !transcribing && <EmptyLine>{empty}</EmptyLine>}
       {turns.map((turn) => <Turn key={`${turn[0].source}-${turn[0].startMs}`} turn={turn} />)}
       {transcribing && <Text as="p" variant="reading" shimmer>{NOTES.copy.transcribing}</Text>}
     </div>

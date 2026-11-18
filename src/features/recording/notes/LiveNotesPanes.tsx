@@ -2,8 +2,8 @@
  *  switch; a line still being filled in shimmers in copper until its bullet lands. */
 
 import React, { useMemo, useState } from 'react';
-import { Loader2, Sparkles } from 'lucide-react';
-import { AiArrived, AiPending, Icon, Tabs, Text, Textarea } from '@shared/ui';
+import { Loader2 } from 'lucide-react';
+import { AiArrived, AiPending, Icon, RociMark, Tabs, Text, Textarea } from '@shared/ui';
 import { LIVE_NOTES_CONFIG as NOTES, type NotesView } from '@config/liveNotes.config';
 import { aiRows } from './liveNotes';
 import { useLiveNotesStore } from './liveNotesStore';
@@ -14,6 +14,11 @@ export const PaneHeader: React.FC<{ children: React.ReactNode; trailing?: React.
     {children}
     {trailing}
   </div>
+);
+
+/** A pane's empty text, in the same style as the notes' placeholder so all three panes read alike. */
+export const EmptyLine: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <Text as="p" variant="reading" tone="faint">{children}</Text>
 );
 
 /** "Enhancing your notes…" with a copper spinner, while a refresh is in flight. */
@@ -52,7 +57,7 @@ export const AiNotes: React.FC<{ hasModel: boolean }> = ({ hasModel }) => {
   return (
     <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 pb-4">
       {empty ? (
-        <Text as="p" variant="body" tone="muted">{empty}</Text>
+        <EmptyLine>{empty}</EmptyLine>
       ) : (
         <ul className="space-y-2">
           {rows.map((row) => row.kind === 'pending' ? (
@@ -71,7 +76,7 @@ export const AiNotes: React.FC<{ hasModel: boolean }> = ({ hasModel }) => {
 
 const VIEW_TABS = [
   { value: 'notes' as const, label: NOTES.copy.yourNotes },
-  { value: 'ai' as const, label: <span className="inline-flex items-center gap-1"><Icon icon={Sparkles} size="xs" tone="ai" />{NOTES.copy.aiNotes}</span>, text: NOTES.copy.aiNotes },
+  { value: 'ai' as const, label: <span className="inline-flex items-center gap-1"><Icon icon={RociMark} size="xs" tone="ai" />{NOTES.copy.aiNotes}</span>, text: NOTES.copy.aiNotes },
 ];
 
 /** Mac and iPad: the notes pane, Your notes or AI notes behind a switch, the status beside it. */
