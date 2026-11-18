@@ -31,6 +31,9 @@ Allows all store plugin commands
 - `allow-chats-upsert`
 - `allow-chats-rename`
 - `allow-chats-delete`
+- `allow-dictations-list`
+- `allow-dictations-create`
+- `allow-dictations-delete`
 - `allow-notes-list`
 - `allow-notes-upsert`
 - `allow-notes-delete`
@@ -414,6 +417,84 @@ Enables the delete_chat_session command without any pre-configured scope.
 <td>
 
 Denies the delete_chat_session command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-dictations-create`
+
+</td>
+<td>
+
+Enables the dictations_create command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-dictations-create`
+
+</td>
+<td>
+
+Denies the dictations_create command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-dictations-delete`
+
+</td>
+<td>
+
+Enables the dictations_delete command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-dictations-delete`
+
+</td>
+<td>
+
+Denies the dictations_delete command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-dictations-list`
+
+</td>
+<td>
+
+Enables the dictations_list command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-dictations-list`
+
+</td>
+<td>
+
+Denies the dictations_list command without any pre-configured scope.
 
 </td>
 </tr>

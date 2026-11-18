@@ -1,8 +1,9 @@
 /** Left sidebar: search, the To-dos row, the unified history/chat list, and settings. */
 
 import React, { useRef, useCallback, useEffect } from 'react';
-import { CalendarDays, ChevronLeft, Images, ListTodo, Search, SquarePen, PanelLeft, Settings } from 'lucide-react';
+import { CalendarDays, ChevronLeft, Images, ListTodo, Mic, Search, SquarePen, PanelLeft, Settings } from 'lucide-react';
 import { GALLERY_CONFIG } from '@config/gallery.config';
+import { DICTATIONS_CONFIG } from '@config/dictations.config';
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
 import { useSmallScreen } from '@shared/hooks/useMediaQuery';
 import { useSelectedHistoryId, useCurrentView, useAppActions } from '@shared/stores/appStore';
@@ -97,6 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <DestinationRow view="reminders" icon={ListTodo} label={TODOS_CONFIG.title} />
       {calendarOn && <DestinationRow view="calendar" icon={CalendarDays} label={CALENDAR_CONFIG.title} />}
       <DestinationRow view="gallery" icon={Images} label={GALLERY_CONFIG.title} />
+      <DestinationRow view="dictations" icon={Mic} label={DICTATIONS_CONFIG.title} />
     </>
   );
 

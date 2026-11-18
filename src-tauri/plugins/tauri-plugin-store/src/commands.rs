@@ -426,6 +426,23 @@ pub struct ChatsUpsertInput {
     pub created_at: Option<i64>,
 }
 
+// ── Dictation Structs ──
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DictationRow {
+    pub id: String,
+    pub text: String,
+    pub created_at: i64,
+    pub duration_ms: Option<i64>,
+    pub model: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DictationsListResult {
+    pub items: Vec<DictationRow>,
+    pub total: i64,
+}
+
 // ── Usage Structs ──
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -2267,6 +2284,91 @@ pub async fn chats_delete(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
+// ── Dictation Commands ──
+
+#[tauri::command]
+pub async fn dictations_list(
+    state: State<'_, StoreState>,
+    limit: Option<u32>,
+    offset: Option<u32>,
+) -> Result<DictationsListResult, StoreError> {
+    let limit = limit.unwrap_or(200);
+    let offset = offset.unwrap_or(0);
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
+        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+        dictations_list_impl(db, limit, offset)
+    })
+    .await
+    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+}
+
+fn dictations_list_impl(db: &Connection, limit: u32, offset: u32) -> Result<DictationsListResult, StoreError> {
+    let total: i64 = db.query_row("SELECT COUNT(*) FROM dictations", [], |row| row.get(0))?;
+    let mut stmt = db.prepare(
+        "SELECT id, text, created_at, duration_ms, model FROM dictations
+         ORDER BY created_at DESC LIMIT ?1 OFFSET ?2",
+    )?;
+    let items = stmt
+        .query_map(rusqlite::params![limit, offset], |row| {
+            Ok(DictationRow {
+                id: row.get(0)?,
+                text: row.get(1)?,
+                created_at: row.get(2)?,
+                duration_ms: row.get(3)?,
+                model: row.get(4)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(DictationsListResult { items, total })
+}
+
+#[tauri::command]
+pub async fn dictations_create(state: State<'_, StoreState>, input: DictationRow) -> Result<(), StoreError> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
+        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+        dictations_create_impl(db, &input)
+    })
+    .await
+    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+}
+
+fn dictations_create_impl(db: &Connection, input: &DictationRow) -> Result<(), StoreError> {
+    let tx = db.unchecked_transaction()?;
+    tx.execute(
+        "INSERT INTO dictations (id, text, created_at, duration_ms, model) VALUES (?1, ?2, ?3, ?4, ?5)",
+        rusqlite::params![input.id, input.text, input.created_at, input.duration_ms, input.model],
+    )?;
+    write_audit_log(&tx, "dictation", &input.id, "create", None)?;
+    tx.commit()?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn dictations_delete(state: State<'_, StoreState>, id: String) -> Result<(), StoreError> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
+        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+        dictations_delete_impl(db, &id)
+    })
+    .await
+    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+}
+
+fn dictations_delete_impl(db: &Connection, id: &str) -> Result<(), StoreError> {
+    let tx = db.unchecked_transaction()?;
+    if tx.execute("DELETE FROM dictations WHERE id = ?1", [id])? == 0 {
+        return Err(StoreError::from("Dictation not found"));
+    }
+    write_audit_log(&tx, "dictation", id, "delete", None)?;
+    tx.commit()?;
+    Ok(())
+}
+
 // ── RAG Indexing Commands ──
 
 /// Upserts a meeting's `meeting_index_state` so the RAG indexer can track staleness.
@@ -3159,6 +3261,26 @@ mod tests {
 
     fn db() -> Connection {
         schema::open_migrated_test_db()
+    }
+
+    fn dictation(id: &str, created_at: i64) -> DictationRow {
+        DictationRow { id: id.into(), text: format!("said {id}"), created_at, duration_ms: Some(1_500), model: Some("parakeet".into()) }
+    }
+
+    #[test]
+    fn dictations_list_newest_first_and_delete_one() {
+        let conn = db();
+        dictations_create_impl(&conn, &dictation("a", 1)).expect("create a");
+        dictations_create_impl(&conn, &dictation("b", 2)).expect("create b");
+
+        let listed = dictations_list_impl(&conn, 10, 0).expect("list");
+        assert_eq!(listed.total, 2);
+        assert_eq!(listed.items.iter().map(|d| d.id.as_str()).collect::<Vec<_>>(), ["b", "a"]);
+        assert_eq!(listed.items[0].model.as_deref(), Some("parakeet"));
+
+        dictations_delete_impl(&conn, "b").expect("delete b");
+        assert_eq!(dictations_list_impl(&conn, 10, 0).expect("list").total, 1);
+        assert!(dictations_delete_impl(&conn, "b").is_err(), "deleting a missing dictation is an error");
     }
 
     fn seed_meeting(conn: &Connection, id: &str) {

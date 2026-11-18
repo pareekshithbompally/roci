@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { audioToRawText } from '@services/unifiedAIService';
+import { keepDictation } from '@services/dictations.service';
 import { EMPTY_LIVE_TEXT, liveCapture, recordedCapture } from '@services/ai/transcription';
 import type { DictationCapture, LiveText } from '@services/ai/transcription';
 import type { LiveDictation } from '@features/settings';
@@ -209,7 +210,9 @@ export function useSpeechInput(
     try {
       const text = await finishing;
       // A master-cancel during transcription wins over the late result.
-      return transcriptionCancelledRef.current ? '' : text;
+      if (transcriptionCancelledRef.current) return '';
+      void keepDictation(text, elapsed * 1000, settings.transcriptionModel);
+      return text;
     } catch (error: unknown) {
       fail('transcribe', DICTATION_COPY.transcribeFailed, error);
       return '';
@@ -218,7 +221,7 @@ export function useSpeechInput(
       cleanup();
       if (mountedRef.current) setState('idle');
     }
-  }, [state, cleanup, stopTimer]);
+  }, [state, cleanup, stopTimer, elapsed, settings.transcriptionModel]);
 
   const cancel = useCallback(() => {
     // Cancelling mid-transcription makes the awaiting stop() resolve to ''.

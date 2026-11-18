@@ -1,7 +1,7 @@
 use rusqlite::Connection;
 
 /// Current schema version for the new roci.db.
-pub const SCHEMA_VERSION: u32 = 5;
+pub const SCHEMA_VERSION: u32 = 6;
 
 /// Default embedding model and dimension.
 pub const DEFAULT_MODEL: &str = "mlx-community/Qwen3-Embedding-0.6B-8bit";
@@ -96,6 +96,9 @@ pub fn migrate(conn: &Connection) -> Result<(), String> {
     if (2..=4).contains(&current) {
         migrate_v5(conn)?;
     }
+    if (2..=5).contains(&current) {
+        migrate_v6(conn)?;
+    }
 
     match_embedding_model(conn)
 }
@@ -129,6 +132,27 @@ fn match_embedding_model(conn: &Connection) -> Result<(), String> {
     .map_err(|e| format!("set embedding model: {}", e))?;
     tx.commit().map_err(|e| format!("commit embedding model change: {}", e))?;
     log::info!("[store] Embedding model is now {} (old vectors dropped)", DEFAULT_MODEL);
+    Ok(())
+}
+
+/// Dictations made in the app, newest first: part of a new database, and added to an older one by `migrate_v6`.
+const DICTATIONS_DDL: &str = "
+    CREATE TABLE IF NOT EXISTS dictations (
+        id          TEXT PRIMARY KEY,
+        text        TEXT    NOT NULL,
+        created_at  INTEGER NOT NULL,
+        duration_ms INTEGER,
+        model       TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_dictations_created ON dictations(created_at DESC);";
+
+/// v5 → v6: dictations made in the app are kept.
+fn migrate_v6(conn: &Connection) -> Result<(), String> {
+    let tx = conn.unchecked_transaction().map_err(|e| format!("begin migration v6 transaction: {}", e))?;
+    tx.execute_batch(DICTATIONS_DDL).map_err(|e| format!("migrate v5→v6 dictations: {}", e))?;
+    set_schema_version(&tx, 6)?;
+    tx.commit().map_err(|e| format!("commit migration v6: {}", e))?;
+    log::info!("[store] Migrated schema v5→v6 (dictations)");
     Ok(())
 }
 
@@ -403,6 +427,7 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
         ",
     )
     .map_err(|e| format!("create baseline tables: {}", e))?;
+    conn.execute_batch(DICTATIONS_DDL).map_err(|e| format!("create dictations table: {}", e))?;
 
     // FTS5 virtual tables (must be separate from execute_batch with the rebuild step)
     conn.execute_batch(
@@ -570,6 +595,7 @@ mod tests {
             "reminders",
             "chats",
             "chat_messages",
+            "dictations",
             "settings",
             "providers",
             "categories",
@@ -822,6 +848,20 @@ mod tests {
 
     /// Marking a chat indexed writes only `chat_index_state`, never the `chats` row.
     #[test]
+    fn migrate_v6_adds_dictations_to_a_v5_database() {
+        let conn = open_test_db();
+        init_db(&conn);
+        conn.execute_batch("DROP TABLE dictations;").expect("drop to v5 shape");
+        set_schema_version(&conn, 5).expect("mark v5");
+
+        migrate(&conn).expect("migrate v5→v6");
+
+        assert_eq!(get_schema_version(&conn), 6);
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM dictations", [], |r| r.get(0)).expect("dictations exists");
+        assert_eq!(count, 0);
+    }
+
+    #[test]
     fn chat_index_state_write_does_not_touch_chat_row() {
         let conn = open_test_db();
         init_db(&conn);
@@ -960,7 +1000,7 @@ mod tests {
 
         migrate(&conn).expect("migrate v4→v5");
 
-        assert_eq!(get_schema_version(&conn), 5);
+        assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
         let meeting: String = conn.query_row("SELECT meeting_id FROM todos WHERE id = 't1'", [], |r| r.get(0)).unwrap();
         assert_eq!(meeting, "m1");
         let reminders: i64 = conn.query_row("SELECT COUNT(*) FROM reminders WHERE todo_id = 't1'", [], |r| r.get(0)).unwrap();

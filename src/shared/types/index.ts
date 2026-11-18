@@ -388,6 +388,18 @@ export interface MeetingDetail {
   todos: TodoEntry[];
 }
 
+/** One dictation made in the app (the composer mic), kept in roci.db `dictations`. */
+export interface Dictation {
+  id: string;
+  text: string;
+  /** Epoch ms. */
+  createdAt: number;
+  /** Time spoken, pauses left out. */
+  durationMs?: number;
+  /** The speech model that transcribed it (`AppSettings.transcriptionModel`). */
+  model?: string;
+}
+
 /** Chat index entry — stored in roci.db chats table */
 export interface ChatIndexEntry {
   id: string;

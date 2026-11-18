@@ -81,3 +81,15 @@ export function formatDayLabel(date: Date | string | number, now: Date = new Dat
   const sameYear = d.getFullYear() === now.getFullYear();
   return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) });
 }
+
+/** Newest-first items as consecutive day groups headed by `labelOf` (Today, Yesterday, then dates). */
+export function groupByLabel<T>(items: readonly T[], labelOf: (item: T) => string): Array<{ label: string; items: T[] }> {
+  const groups: Array<{ label: string; items: T[] }> = [];
+  for (const item of items) {
+    const label = labelOf(item);
+    const last = groups.at(-1);
+    if (last?.label === label) last.items.push(item);
+    else groups.push({ label, items: [item] });
+  }
+  return groups;
+}

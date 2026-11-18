@@ -55,6 +55,10 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::chats_upsert,
             commands::chats_rename,
             commands::chats_delete,
+            // Dictations
+            commands::dictations_list,
+            commands::dictations_create,
+            commands::dictations_delete,
             // Notes, Todos, Reminders (Phase 3)
             commands::notes_list,
             commands::notes_upsert,

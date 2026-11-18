@@ -31,6 +31,10 @@ const COMMANDS: &[&str] = &[
     "chats_upsert",
     "chats_rename",
     "chats_delete",
+    // Dictations
+    "dictations_list",
+    "dictations_create",
+    "dictations_delete",
     // Notes, Todos, Reminders
     "notes_list",
     "notes_upsert",
