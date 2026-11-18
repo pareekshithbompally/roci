@@ -1,17 +1,55 @@
-/** Searchable chat model picker with provider icons, modality badges, and tool support. */
+/** Chat model picker: the system menu on a Mac (logo headers, short capability text); a searchable list with icons and chips elsewhere. */
 
 import React, { useState, useMemo } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
-import { ProvidersAvatar, ModelIcon, ModelChips } from '@shared/components';
-import { getProviderTitle } from '@shared/utils/provider.utils';
-import { groupChoices, modelSources } from '@shared/utils/modelResolver';
+import { Menu, ModelChips, ModelIcon, ProvidersAvatar, type MenuEntry } from '@shared/components';
+import { getProviderLogo, getProviderTitle } from '@shared/utils/provider.utils';
+import { groupChoices, modelSources, type ModelChoice } from '@shared/utils/modelResolver';
 import { jobChoices } from '@services/ai/models';
 import { useLocalModels } from '@shared/hooks/useLocalModels';
 import { Button, CommandPopover, CommandGroup, CommandRow, Dot, Icon, Text, Tooltip, cn } from '@shared/ui';
 import { MODEL_PICKER_COPY } from '@config/chat.config';
+import { META_SEPARATOR } from '@config/ui.config';
+import { platform } from '@platform/index';
 import { useLocalServerProbe } from '@features/settings/hooks';
+
+/** What a menu row says after the name, kept short so the menu stays tight: what it takes in, what it can do, whether it's loaded. */
+export function rowText(choice: ModelChoice, loaded: boolean): string {
+  const { marks } = MODEL_PICKER_COPY;
+  const info = choice.info;
+  const facts = [
+    info?.modalities?.input.includes('image') && marks.vision,
+    info?.modalities?.input.includes('audio') && marks.audio,
+    info?.capabilities.toolCall && marks.tools,
+    info?.capabilities.reasoning && marks.thinking,
+    loaded && marks.loaded,
+  ].filter(Boolean);
+  return [choice.label, ...facts].join(META_SEPARATOR);
+}
+
+/** The Mac menu: each provider's logo header and its models (the chosen one checked), then the ones that need setup. */
+export function modelMenuEntries(
+  groups: Array<[string, ModelChoice[]]>,
+  needsSetup: ModelChoice[],
+  selected: string | undefined,
+  onSelect: (value: string) => void,
+  isLoaded: (provider: string, modelId: string) => boolean,
+): MenuEntry[] {
+  const providerEntries = groups.flatMap(([provider, models], i): MenuEntry[] => [
+    ...(i > 0 ? [{ type: 'separator' as const }] : []),
+    { type: 'label', label: getProviderTitle(provider), icon: getProviderLogo(provider) },
+    ...models.map((m): MenuEntry => ({ type: 'check', label: rowText(m, isLoaded(m.provider, m.modelId)), checked: m.value === selected, onSelect: () => onSelect(m.value) })),
+  ]);
+  if (needsSetup.length === 0) return providerEntries;
+  return [
+    ...providerEntries,
+    { type: 'separator' },
+    { type: 'label', label: MODEL_PICKER_COPY.needsSetup },
+    ...needsSetup.map((m): MenuEntry => ({ type: 'item', label: `${m.label} — ${m.hint}`, onSelect: () => undefined, disabled: true })),
+  ];
+}
 
 interface ModelPickerProps {
   /** Compact mode for inline display */
@@ -57,6 +95,34 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
   };
 
   const hasModels = groups.length > 0;
+  const trigger = (
+    <Button
+      variant="ghost"
+      size="toolbar"
+      disabled={!hasModels}
+      title={hasModels ? 'Select model' : 'No models available - configure providers first'}
+    >
+      {selected ? (
+        <>
+          <ModelIcon provider={selected.provider} modelId={selected.modelId} size={compact ? 14 : 16} />
+          <Text variant="label" tone="inherit" truncate className="max-w-32">
+            {selected.label}
+          </Text>
+        </>
+      ) : (
+        <Text variant="label" tone="faint">
+          {hasModels ? 'Select model' : 'No models'}
+        </Text>
+      )}
+      <Icon icon={ChevronDown} size="xs" className={cn('transition-transform', open && 'rotate-180')} />
+    </Button>
+  );
+
+  // Mac: the system menu (provider headers with logos, short capability text). iPhone and iPad: the searchable list.
+  if (platform.hasMenuBar) {
+    const entries = modelMenuEntries(groups, needsSetup, settings.chatModel, handleSelectModel, isLoaded);
+    return <Menu label="Model" trigger={trigger} items={entries} align="start" />;
+  }
 
   return (
     <CommandPopover
@@ -66,26 +132,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
       searchPlaceholder="Search models…"
       emptyText="No models found"
       trigger={
-        <Button
-          variant="ghost"
-          size="toolbar"
-          disabled={!hasModels}
-          title={hasModels ? 'Select model' : 'No models available - configure providers first'}
-        >
-          {selected ? (
-            <>
-              <ModelIcon provider={selected.provider} modelId={selected.modelId} size={compact ? 14 : 16} />
-              <Text variant="label" tone="inherit" truncate className="max-w-32">
-                {selected.label}
-              </Text>
-            </>
-          ) : (
-            <Text variant="label" tone="faint">
-              {hasModels ? 'Select model' : 'No models'}
-            </Text>
-          )}
-          <Icon icon={ChevronDown} size="xs" className={cn('transition-transform', open && 'rotate-180')} />
-        </Button>
+        trigger
       }
     >
       {groups.map(([provider, models]) => (
@@ -123,7 +170,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
         </CommandGroup>
       ))}
       {needsSetup.length > 0 && (
-        <CommandGroup heading="Needs setup">
+        <CommandGroup heading={MODEL_PICKER_COPY.needsSetup}>
           {needsSetup.map((model) => (
             <CommandRow
               key={`setup-${model.provider}-${model.value}`}
