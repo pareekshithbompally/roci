@@ -28,7 +28,7 @@ export function Code({ className, ...props }: React.HTMLAttributes<HTMLElement>)
 }
 
 export interface TextProps extends React.HTMLAttributes<HTMLElement> {
-  as?: 'span' | 'p' | 'div' | 'label' | 'h1' | 'h2' | 'h3' | 'h4';
+  as?: 'span' | 'p' | 'div' | 'label' | 'h1' | 'h2' | 'h3' | 'h4' | 'li';
   variant?: TextVariant;
   tone?: TextTone;
   truncate?: boolean;

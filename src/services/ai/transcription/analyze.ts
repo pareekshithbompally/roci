@@ -5,7 +5,7 @@ import { createModel } from '@services/ai/provider';
 import { extractTokenUsage } from '@services/ai/types';
 import { recordUsage } from '@extensions/usage';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
-import type { MeetingContext } from '@core/ai/prompts/transcription.prompt';
+import type { MeetingContext, UserNote } from '@core/ai/prompts/transcription.prompt';
 import type { AnalysisResult } from '@core/ai/schemas/transcription.schema';
 import { isContextWindowError, summaryError } from '@services/ai/apple/contextWindow';
 import { contextTokensFor, excerptTranscript, transcriptBudget } from './excerpt';
@@ -17,6 +17,8 @@ export async function analyzeTranscript(args: {
   categories: string[];
   resolved: ResolvedModel;
   meetingContext?: MeetingContext;
+  /** The user's notes from the meeting. */
+  userNotes?: UserNote[];
   /** The meeting this summary belongs to, for the usage row. */
   meetingId?: string;
   /** Cancels the request. */
@@ -25,6 +27,7 @@ export async function analyzeTranscript(args: {
   const config = buildTranscriptionRequest({
     categories: args.categories,
     meetingContext: args.meetingContext,
+    userNotes: args.userNotes,
     temporalContext: formatTemporalContext(),
   });
 

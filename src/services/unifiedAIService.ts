@@ -15,7 +15,8 @@ import { extractTokenUsage } from './ai/types';
 import type { TokenUsage } from './ai/types';
 import { recordUsage } from '@extensions/usage';
 import { modalitiesService } from '@services/modalities';
-import type { MeetingContext } from '@core/ai/prompts/transcription.prompt';
+import type { MeetingContext, UserNote } from '@core/ai/prompts/transcription.prompt';
+import { store } from '@services/db';
 import type { AnalysisResult } from '@core/ai/schemas/transcription.schema';
 import {
   runTranscription,
@@ -89,6 +90,14 @@ function summaryModelOrThrow(settings: AppSettings, providers: ModelProvider[]):
   return resolved;
 }
 
+/** The notes the user typed in a meeting, oldest first, for its summary. */
+async function meetingNotesOldestFirst(meetingId: string): Promise<UserNote[]> {
+  const notes = await store.notes.list(meetingId);
+  return notes
+    .map(({ text, createdAt }) => ({ text, createdAt }))
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+}
+
 export async function audioToRawText(
   audioBlob: Blob,
   settings: AppSettings,
@@ -108,7 +117,8 @@ class UnifiedAIService {
     options: SummaryOptions = {},
   ): Promise<ProcessedResult> {
     const resolved = summaryModelOrThrow(settings, providers);
-    const analysis = await analyzeTranscript({ transcript, categories, resolved, ...options });
+    const userNotes = options.meetingId ? await meetingNotesOldestFirst(options.meetingId) : undefined;
+    const analysis = await analyzeTranscript({ transcript, categories, resolved, userNotes, ...options });
     return this.toProcessedResult(analysis, transcript, segments);
   }
 

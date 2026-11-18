@@ -43,4 +43,15 @@ describe('buildTranscriptionRequest', () => {
     expect(withPeople.prompt).toContain('- Participants: Priya (p@example.com)');
     expect(withPeople.prompt).toContain('action-item owners');
   });
+
+  it('lists the user\'s own notes only when there are some', () => {
+    expect(buildTranscriptionRequest({ categories: [], temporalContext }).prompt).not.toContain("The user's notes");
+    const { prompt } = buildTranscriptionRequest({
+      categories: [],
+      temporalContext,
+      userNotes: [{ text: 'launch date?', createdAt: '2026-11-18T10:00:00Z' }, { text: 'ask Raj re: API', createdAt: '2026-11-18T10:05:00Z' }],
+    });
+    expect(prompt).toContain("## The user's notes (typed during the meeting)");
+    expect(prompt).toMatch(/- \(.+\) launch date\?\n- \(.+\) ask Raj re: API/);
+  });
 });

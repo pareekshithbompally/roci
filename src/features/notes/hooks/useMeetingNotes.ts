@@ -7,6 +7,12 @@ import { queryKeys } from '@shared/query/queryKeys';
 import type { NoteEntry } from '@shared/types';
 import type { Note } from '@features/notes/types';
 
+interface NoteDraft {
+  id: string;
+  text: string;
+  createdAt: string;
+}
+
 function mapEntryToNote(entry: NoteEntry, meetingId: string): Note {
   return {
     id: entry.id,
@@ -39,21 +45,18 @@ export function useMeetingNotes(meetingId: string | null) {
   const queryError = error ? (error instanceof Error ? error.message : 'Failed to load notes') : null;
 
   const addNoteMutate = useMutation({
-    mutationFn: async (text: string) => {
-      const now = new Date().toISOString();
-      const entry = { id: crypto.randomUUID(), meetingId: meetingId!, text, createdAt: now };
-      await store.notes.upsert(entry);
-      return entry;
+    mutationFn: async (draft: NoteDraft) => {
+      await store.notes.upsert({ ...draft, meetingId: meetingId! });
     },
-    onMutate: async (text) => {
+    onMutate: async (draft) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.storeNotes(meetingId!) });
       const previous = queryClient.getQueryData<Note[]>(queryKeys.storeNotes(meetingId!));
       const optimistic: Note = {
-        id: crypto.randomUUID(),
-        text,
-        timestamp: Date.now(),
+        id: draft.id,
+        text: draft.text,
+        timestamp: new Date(draft.createdAt).getTime(),
         meetingId: meetingId!,
-        createdAt: new Date().toISOString(),
+        createdAt: draft.createdAt,
         updatedAt: new Date().toISOString(),
         version: 1,
       };
@@ -62,7 +65,7 @@ export function useMeetingNotes(meetingId: string | null) {
       );
       return { previous };
     },
-    onError: (_err, _text, context) => {
+    onError: (_err, _draft, context) => {
       if (context?.previous !== undefined) {
         queryClient.setQueryData(queryKeys.storeNotes(meetingId!), context.previous);
       }
@@ -118,10 +121,11 @@ export function useMeetingNotes(meetingId: string | null) {
     },
   });
 
+  /** A new note; a caller that tracks the note itself passes its id and when it was written. */
   const addNote = useCallback(
-    async (text: string) => {
+    async (text: string, options: { id?: string; createdAt?: string } = {}) => {
       if (!meetingId) return;
-      await addNoteMutate.mutateAsync(text);
+      await addNoteMutate.mutateAsync({ id: options.id ?? crypto.randomUUID(), text, createdAt: options.createdAt ?? new Date().toISOString() });
     },
     [meetingId, addNoteMutate]
   );

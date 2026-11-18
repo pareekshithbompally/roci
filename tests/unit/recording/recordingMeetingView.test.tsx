@@ -11,6 +11,13 @@ const audio = vi.hoisted(() => ({
 }));
 const menubar = vi.hoisted(() => ({ setRecordingState: vi.fn(async () => undefined) }));
 const pipeline = vi.hoisted(() => ({ recorded: vi.fn(), prime: vi.fn(async () => undefined) }));
+const notesApi = vi.hoisted(() => ({
+  notes: [],
+  isLoading: false,
+  addNote: vi.fn(async () => undefined),
+  updateNote: vi.fn(async () => undefined),
+  deleteNote: vi.fn(async () => undefined),
+}));
 
 vi.mock('@services/coreAudio.service', () => ({
   coreAudioService: audio,
@@ -21,8 +28,9 @@ vi.mock('@services/tauri', () => ({ isTauriEnvironment: () => true, menubarServi
 vi.mock('@services/notifications', () => ({ removeNotices: vi.fn(async () => undefined) }));
 vi.mock('@features/recording/pipeline/meetingPipeline', () => ({ meetingPipeline: pipeline }));
 vi.mock('@shared/contexts/SettingsContext', () => ({
-  useSettings: () => ({ settings: { transcriptionProvider: 'openai', transcriptionModel: 'whisper-1' } }),
+  useSettings: () => ({ settings: { transcriptionProvider: 'openai', transcriptionModel: 'whisper-1' }, providers: [] }),
 }));
+vi.mock('@features/notes', () => ({ useMeetingNotes: () => notesApi }));
 vi.mock('@shared/contexts/HistoryContext', () => ({
   useHistoryData: () => ({ items: [{ id: 'm1', title: 'Test Meeting' }], isLoading: false }),
 }));
@@ -37,12 +45,15 @@ import { meetingLiveActions, useMeetingLiveStore } from '@features/recording/liv
 import { useAppStore } from '@shared/stores/appStore';
 // eslint-disable-next-line import/first
 import { AppStatus } from '@shared/types';
+// eslint-disable-next-line import/first
+import { useLiveNotesStore } from '@features/recording/notes/liveNotesStore';
 
 beforeEach(() => {
   vi.clearAllMocks();
   window.HTMLElement.prototype.scrollTo ??= vi.fn() as unknown as typeof window.HTMLElement.prototype.scrollTo;
   useRecordingStore.setState({ ...mirrorOf({ state: 'idle' }, 0), busy: false, justStopped: null });
   useMeetingLiveStore.setState({ meetingId: null, entries: [], pending: 0 });
+  useLiveNotesStore.setState({ meetingId: null, lines: [], bullets: [], updating: false });
   useAppStore.setState({ status: AppStatus.IDLE, selectedHistoryId: null, activeResultTab: 'summary' });
 });
 
@@ -87,5 +98,26 @@ describe('RecordingMeetingView', () => {
     expect(useAppStore.getState().activeResultTab).toBe('transcript');
     expect(pipeline.prime).toHaveBeenCalledWith('m1', expect.any(String));
     expect(pipeline.recorded).toHaveBeenCalledWith('m1');
+  });
+
+  it('saves the typed lines as the meeting\'s notes before it stops', async () => {
+    startRecording();
+    render(<RecordingMeetingView />);
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Your notes' }), { target: { value: 'launch date?\n\nask Raj' } });
+    fireEvent.click(screen.getByRole('button', { name: /stop/i }));
+    await waitFor(() => expect(useRecordingStore.getState().meetingId).toBeNull());
+    expect(notesApi.addNote).toHaveBeenCalledTimes(2);
+    expect(notesApi.addNote).toHaveBeenCalledWith('launch date?', expect.objectContaining({ id: expect.any(String) }));
+    expect(notesApi.addNote).toHaveBeenCalledWith('ask Raj', expect.objectContaining({ id: expect.any(String) }));
+  });
+
+  it('shows the notes panes and asks for a Summary model when none can be called', () => {
+    startRecording();
+    render(<RecordingMeetingView />);
+
+    expect(screen.getByText('Enhanced notes')).toBeInTheDocument();
+    expect(screen.getByText(/Choose a Summary model/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Expand transcript' })).toBeInTheDocument();
   });
 });
