@@ -152,8 +152,10 @@ export const UI_CONFIG = {
 /** Joins the facts in one line of meta, e.g. "214 tokens · 12.3s · 9.4 tok/s" or "56% · 3s left". */
 export const META_SEPARATOR = ' · ';
 
-/** A logo beside a native menu header: 16pt at 2x, in pixels. */
-export const MENU_ICON_PX = 32;
+/** An icon on a native menu row, in points. */
+export const MENU_ICON_PT = 16;
+/** Space between a button and the menu it opens below, in points. */
+export const MENU_GAP_PT = 4;
 
 export const BREAKPOINTS = {
   sm: 640,

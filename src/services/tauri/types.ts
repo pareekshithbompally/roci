@@ -53,6 +53,6 @@ export const SPEECH_MODEL_ACTION_PREFIX = 'speech_model:';
 export type MenuEntry =
   | { type: 'item'; label: string; onSelect: () => void; disabled?: boolean; /** Red on a phone's action sheet. */ destructive?: boolean }
   | { type: 'check'; label: string; checked: boolean; onSelect: () => void; disabled?: boolean }
-  | { type: 'label'; label: string; /** A logo beside it (an image URL), on a Mac's menu only. */ icon?: string }
+  | { type: 'label'; label: string }
   | { type: 'separator' }
   | { type: 'submenu'; label: string; items: MenuEntry[] };

@@ -4,14 +4,17 @@ import React, { useState, useMemo } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
-import { Menu, ModelChips, ModelIcon, ProvidersAvatar, type MenuEntry } from '@shared/components';
+import { ModelChips, ModelIcon, ProvidersAvatar } from '@shared/components';
+import { choiceMenu, type ChoiceEntry } from '@services/tauri';
+import { cachedImage } from '@services/imageCache';
+import { getAvatarUrl, modelAvatarOrg } from '@services/modelAvatars';
 import { getProviderLogo, getProviderTitle } from '@shared/utils/provider.utils';
 import { groupChoices, modelSources, type ModelChoice } from '@shared/utils/modelResolver';
 import { jobChoices } from '@services/ai/models';
 import { useLocalModels } from '@shared/hooks/useLocalModels';
 import { Button, CommandPopover, CommandGroup, CommandRow, Dot, Icon, Text, Tooltip, cn } from '@shared/ui';
 import { MODEL_PICKER_COPY } from '@config/chat.config';
-import { META_SEPARATOR } from '@config/ui.config';
+import { META_SEPARATOR, MENU_GAP_PT } from '@config/ui.config';
 import { platform } from '@platform/index';
 import { useLocalServerProbe } from '@features/settings/hooks';
 
@@ -29,26 +32,35 @@ export function rowText(choice: ModelChoice, loaded: boolean): string {
   return [choice.label, ...facts].join(META_SEPARATOR);
 }
 
-/** The Mac menu: each provider's logo header and its models (the chosen one checked), then the ones that need setup. */
-export function modelMenuEntries(
+/** A menu row's icon as ModelIcon draws it: the maker's avatar when shown and known, else the provider's logo. */
+async function iconUrlOf(choice: ModelChoice, showAvatars: boolean): Promise<string | null> {
+  const logo = getProviderLogo(choice.provider) ?? null;
+  const org = modelAvatarOrg(choice.provider, choice.modelId, showAvatars);
+  return org ? cachedImage(getAvatarUrl(org)).catch(() => logo) : logo;
+}
+
+/** The Mac menu: a header per provider, its models (icon, name, short facts; the chosen one checked), then the ones that need setup.
+ *  `values[i]` is what row i picks (null for headers, separators and setup rows). */
+export function modelMenu(
   groups: Array<[string, ModelChoice[]]>,
   needsSetup: ModelChoice[],
   selected: string | undefined,
-  onSelect: (value: string) => void,
   isLoaded: (provider: string, modelId: string) => boolean,
-): MenuEntry[] {
-  const providerEntries = groups.flatMap(([provider, models], i): MenuEntry[] => [
-    ...(i > 0 ? [{ type: 'separator' as const }] : []),
-    { type: 'label', label: getProviderTitle(provider), icon: getProviderLogo(provider) },
-    ...models.map((m): MenuEntry => ({ type: 'check', label: rowText(m, isLoaded(m.provider, m.modelId)), checked: m.value === selected, onSelect: () => onSelect(m.value) })),
+  iconOf: (choice: ModelChoice) => string | null,
+): { entries: ChoiceEntry[]; values: Array<string | null> } {
+  const rows: Array<[ChoiceEntry, string | null]> = groups.flatMap(([provider, models], i) => [
+    ...(i > 0 ? [[{ kind: 'separator' }, null] as [ChoiceEntry, null]] : []),
+    [{ kind: 'header', title: getProviderTitle(provider) }, null] as [ChoiceEntry, null],
+    ...models.map((m): [ChoiceEntry, string] => [
+      { kind: 'row', title: rowText(m, isLoaded(m.provider, m.modelId)), icon: iconOf(m), checked: m.value === selected, enabled: true },
+      m.value,
+    ]),
   ]);
-  if (needsSetup.length === 0) return providerEntries;
-  return [
-    ...providerEntries,
-    { type: 'separator' },
-    { type: 'label', label: MODEL_PICKER_COPY.needsSetup },
-    ...needsSetup.map((m): MenuEntry => ({ type: 'item', label: `${m.label} — ${m.hint}`, onSelect: () => undefined, disabled: true })),
-  ];
+  if (needsSetup.length > 0) {
+    rows.push([{ kind: 'separator' }, null], [{ kind: 'header', title: MODEL_PICKER_COPY.needsSetup }, null]);
+    needsSetup.forEach((m) => rows.push([{ kind: 'row', title: `${m.label} — ${m.hint}`, icon: iconOf(m), enabled: false }, null]));
+  }
+  return { entries: rows.map(([entry]) => entry), values: rows.map(([, value]) => value) };
 }
 
 interface ModelPickerProps {
@@ -95,12 +107,13 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
   };
 
   const hasModels = groups.length > 0;
-  const trigger = (
+  const trigger = (onClick?: React.MouseEventHandler<HTMLButtonElement>) => (
     <Button
       variant="ghost"
       size="toolbar"
       disabled={!hasModels}
       title={hasModels ? 'Select model' : 'No models available - configure providers first'}
+      onClick={onClick}
     >
       {selected ? (
         <>
@@ -118,10 +131,18 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
     </Button>
   );
 
-  // Mac: the system menu (provider headers with logos, short capability text). iPhone and iPad: the searchable list.
+  // Mac: the system menu (provider headers; each model with its icon, short facts and a checkmark). iPhone and iPad: the searchable list.
   if (platform.hasMenuBar) {
-    const entries = modelMenuEntries(groups, needsSetup, settings.chatModel, handleSelectModel, isLoaded);
-    return <Menu label="Model" trigger={trigger} items={entries} align="start" />;
+    const showMenu = async (at: DOMRect) => {
+      const all = [...groups.flatMap(([, models]) => models), ...needsSetup];
+      const urls = new Map(await Promise.all(all.map(async (c) => [c.value, await iconUrlOf(c, !!settings.showModelAvatars)] as const)));
+      const { entries, values } = modelMenu(groups, needsSetup, settings.chatModel, isLoaded, (c) => urls.get(c.value) ?? null);
+      const value = values[await choiceMenu(entries, at.left, at.bottom + MENU_GAP_PT)];
+      if (value) handleSelectModel(value);
+    };
+    return trigger((e) => {
+      showMenu(e.currentTarget.getBoundingClientRect()).catch((error: unknown) => console.error('[ModelPicker] menu failed:', error));
+    });
   }
 
   return (
@@ -131,9 +152,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
       title="Model"
       searchPlaceholder="Search models…"
       emptyText="No models found"
-      trigger={
-        trigger
-      }
+      trigger={trigger()}
     >
       {groups.map(([provider, models]) => (
         <CommandGroup

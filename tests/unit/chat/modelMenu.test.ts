@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { modelMenuEntries, rowText } from '@features/chat/components/ModelPicker';
+import { describe, it, expect } from 'vitest';
+import { modelMenu, rowText } from '@features/chat/components/ModelPicker';
 import type { ModelChoice } from '@shared/utils/modelResolver';
 
 const choice = (over: Partial<ModelChoice>): ModelChoice => ({
@@ -14,21 +14,18 @@ describe('Mac model menu', () => {
     expect(rowText(choice({}), false)).toBe('gpt-5');
   });
 
-  it('each provider gets a logo header, the chosen model is checked, and setup rows are disabled at the end', () => {
-    const pick = vi.fn();
-    const entries = modelMenuEntries(
+  it('a header per provider; every model row has its icon, the chosen one is checked, setup rows are disabled at the end', () => {
+    const { entries, values } = modelMenu(
       [['openai', [choice({ value: 'a', label: 'a' }), choice({ value: 'b', label: 'b' })]], ['gemini', [choice({ provider: 'gemini', value: 'c', label: 'c' })]]],
       [choice({ value: 'd', label: 'd', ready: false, hint: 'Add Groq API key' })],
       'b',
-      pick,
       () => false,
+      (c) => `icon:${c.value}`,
     );
-    expect(entries.map((e) => e.type)).toEqual(['label', 'check', 'check', 'separator', 'label', 'check', 'separator', 'label', 'item']);
-    expect(entries[0]).toMatchObject({ label: 'OpenAI' });
-    expect(entries.filter((e) => e.type === 'check' && e.checked).map((e) => e.type === 'check' && e.label)).toEqual(['b']);
-    expect(entries.at(-1)).toMatchObject({ label: 'd — Add Groq API key', disabled: true });
-    const first = entries[1];
-    if (first.type === 'check') first.onSelect();
-    expect(pick).toHaveBeenCalledWith('a');
+    expect(entries.map((e) => e.kind)).toEqual(['header', 'row', 'row', 'separator', 'header', 'row', 'separator', 'header', 'row']);
+    expect(entries[0]).toEqual({ kind: 'header', title: 'OpenAI' });
+    expect(entries[2]).toMatchObject({ kind: 'row', title: 'b', icon: 'icon:b', checked: true, enabled: true });
+    expect(entries.at(-1)).toMatchObject({ title: 'd — Add Groq API key', enabled: false });
+    expect(values).toEqual([null, 'a', 'b', null, null, 'c', null, null, null]);
   });
 });

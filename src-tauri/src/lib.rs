@@ -21,6 +21,8 @@ mod audio;
 #[cfg(target_os = "ios")]
 mod audio_session;
 #[cfg(desktop)]
+mod choice_menu;
+#[cfg(desktop)]
 mod screenshot;
 #[cfg(desktop)]
 mod wake_lock;

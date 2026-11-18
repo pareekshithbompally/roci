@@ -4,6 +4,7 @@ fn main() {
         link_macos_swift_runtime();
         link_mlx();
         compile_permission_guide();
+        compile_choice_menu();
     }
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("ios") {
         compile_ios_webview();
@@ -50,6 +51,15 @@ fn compile_ios_webview() {
         frameworks: &["UIKit", "WebKit"],
     }
     .build();
+}
+
+/// Compiles the native choice menu (native/choice_menu.m) with ARC: icon rows with a checkmark.
+fn compile_choice_menu() {
+    println!("cargo:rerun-if-changed=native/choice_menu.m");
+    cc::Build::new()
+        .file("native/choice_menu.m")
+        .flag("-fobjc-arc")
+        .compile("roci_choice_menu");
 }
 
 /// Compiles the native permission guide (native/permission_guide.m) with ARC.
