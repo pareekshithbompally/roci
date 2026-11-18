@@ -22,9 +22,8 @@ Your meetings, chats and keys are stored only on your device.
 
 - No account, no cloud storage, no sync between devices.
 - It does not join calls as a bot. It records on your device.
-- On iPhone and iPad, it records the microphone only; iOS does not let apps capture other apps' audio.
-- On-device models need Apple silicon. They do not run in the iOS Simulator.
-- Mac-only: menu bar, call detection, system audio, Spotlight, Apple Notes, local AI servers and MCP servers that run as programs.
+- On iPhone and iPad, it records your microphone only.
+- Some features are Mac-only: menu bar, call detection, call audio, Spotlight, Apple Notes, local AI servers and local MCP servers.
 
 ## Requirements
 
@@ -41,6 +40,10 @@ npm run tauri:dev      # run on Mac
 npm run tauri:build    # build the Mac app
 npm test               # run the tests
 ```
+
+## Contributing
+
+Roci is a personal project that I share as-is. I'm not able to take on issues or pull requests, but you're very welcome to fork it and make it your own.
 
 ## License
 
