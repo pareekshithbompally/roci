@@ -3,7 +3,7 @@
 import React, { useCallback, useRef, useMemo } from 'react';
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
 import { useSmallScreen } from '@shared/hooks/useMediaQuery';
-import { useAppStatus, useSelectedHistoryId, useAppResult } from '@shared/stores/appStore';
+import { useAppStatus, useSelectedHistoryId, useAppResult, useCurrentView } from '@shared/stores/appStore';
 import { useActivityItems } from '@shared/stores/activityStore';
 import { Sidebar } from './Sidebar';
 import { MeetingChat, startNewChat } from '@features/chat';
@@ -26,6 +26,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const isSmallScreen = useSmallScreen();
   const status = useAppStatus();
   const selectedHistoryId = useSelectedHistoryId();
+  const currentView = useCurrentView();
   const result = useAppResult();
   const activityItems = useActivityItems();
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
@@ -59,8 +60,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   const shouldOffsetMacControls = platform.hasWindowChrome && (isSmallScreen || !isLeftPanelOpen);
 
-  // Meeting chat works on a selected meeting's results; it shows as its button or its window.
-  const meetingChatAvailable = selectedHistoryId && status === AppStatus.RESULTS;
+  // Meeting chat (its button or its window) only on the meeting page: other destinations keep the meeting selected underneath.
+  const meetingChatAvailable = currentView === 'home' && selectedHistoryId && status === AppStatus.RESULTS;
 
   if (formFactor === 'phone') return <PhoneShell>{children}</PhoneShell>;
 
