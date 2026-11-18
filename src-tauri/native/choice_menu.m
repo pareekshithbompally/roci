@@ -31,6 +31,8 @@ static NSMenuItem *rociChoiceItem(NSDictionary *entry, NSInteger index, RociChoi
     NSImage *image = data ? [[NSImage alloc] initWithData:data] : nil;
     image.size = NSMakeSize(iconSize, iconSize);
     item.image = image;
+    // macOS 27 hides menu item images unless the item asks for them (NSMenuItem.h, preferredImageVisibility).
+    if (@available(macOS 27.0, *)) item.preferredImageVisibility = NSMenuItemImageVisibilityVisible;
   }
   return item;
 }
