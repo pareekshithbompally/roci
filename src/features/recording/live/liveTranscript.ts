@@ -24,6 +24,8 @@ interface LiveChunk {
   source: MeetingSourceId;
   startMs: number;
   endMs: number;
+  /** Leading audio the previous chunk already covered (a hard cut); its words are spliced away at the seam. */
+  overlapMs: number;
   pcm: string;
 }
 
@@ -61,7 +63,7 @@ async function transcribeChunk(current: Session, chunk: LiveChunk, read: () => {
   try {
     const result = await runTranscription(wavOf(chunk.pcm), selection, providers);
     if (session !== current) return;
-    current.entries.push(...chunkEntries(chunk, result));
+    current.entries.push(...spliceChunk(current.entries, chunk, chunkEntries(chunk, result)));
     meetingLiveActions.set(dropEchoes(current.entries));
   } catch (error: unknown) {
     console.error('[liveTranscript] chunk failed:', error);
@@ -70,7 +72,7 @@ async function transcribeChunk(current: Session, chunk: LiveChunk, read: () => {
 }
 
 /** A chunk's lines on the recording's timeline: the model's own segment times when it gives them, else one line spanning the chunk. */
-export function chunkEntries(chunk: Omit<LiveChunk, 'pcm'>, result: TranscriptResult): LiveEntry[] {
+export function chunkEntries(chunk: Pick<LiveChunk, 'source' | 'startMs' | 'endMs'>, result: TranscriptResult): LiveEntry[] {
   const { source, startMs, endMs } = chunk;
   const segments = result.segments.filter((s) => s.text.trim());
   if (segments.length > 0) {
@@ -78,6 +80,33 @@ export function chunkEntries(chunk: Omit<LiveChunk, 'pcm'>, result: TranscriptRe
   }
   const text = result.text.trim();
   return text ? [{ source, startMs, endMs, text, timed: false }] : [];
+}
+
+const wordsOf = (text: string) => text.split(/\s+/).filter(Boolean);
+const norm = (word: string) => word.toLowerCase().replace(/[^\p{L}\p{N}']/gu, '');
+
+/** The words of `next` that repeat the end of `previous` (re-heard overlap), dropped: the longest run of up to SEAM_MAX_WORDS
+ *  words ending `previous` found within the first SEAM_SLACK words of `next`. */
+export function spliceSeam(previous: string, next: string): string {
+  const before = wordsOf(previous).map(norm);
+  const after = wordsOf(next);
+  const afterNorm = after.map(norm);
+  for (let run = Math.min(LIVE.seam.maxWords, before.length, after.length); run >= LIVE.seam.minWords; run--) {
+    const tail = before.slice(-run).join(' ');
+    for (let at = 0; at <= LIVE.seam.slack && at + run <= after.length; at++) {
+      if (afterNorm.slice(at, at + run).join(' ') === tail) return after.slice(at + run).join(' ');
+    }
+  }
+  return next;
+}
+
+/** A chunk's lines after its overlap: the first line loses the words the previous line of its source already has. */
+function spliceChunk(entries: LiveEntry[], chunk: LiveChunk, lines: LiveEntry[]): LiveEntry[] {
+  const previous = chunk.overlapMs > 0 ? entries.filter((e) => e.source === chunk.source).at(-1) : undefined;
+  if (!previous || lines.length === 0) return lines;
+  const [first, ...rest] = lines;
+  const text = spliceSeam(previous.text, first.text);
+  return text ? [{ ...first, text }, ...rest] : rest;
 }
 
 /** Entries in time order, without the microphone's echo of what the speakers played. */

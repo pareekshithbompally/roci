@@ -8,6 +8,9 @@ export const MEETING_LIVE_CONFIG = {
   sampleRate: 16_000,
   /** The speaker label of each source in the transcript. */
   speakers: { microphone: 'You', system: 'Others' },
+  /** A hard-cut chunk's re-heard start: up to this many words matching the end of the previous line, found within the first
+   *  `slack` words (the model may hear the overlap a little differently), and at least `minWords` so a lone repeated word stays. */
+  seam: { maxWords: 12, minWords: 2, slack: 3 },
   /** A microphone entry overlapping a system entry and sharing at least this share of its words is the speakers' echo. */
   echoWordShare: 0.6,
   copy: {

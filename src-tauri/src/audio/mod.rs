@@ -4,6 +4,7 @@ mod capture;
 pub mod commands;
 mod level;
 mod live;
+mod pause;
 #[cfg(target_os = "macos")]
 mod lid;
 mod microphone;

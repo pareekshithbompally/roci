@@ -13,11 +13,11 @@ vi.mock('@services/ai/transcription', () => ({
   speechSelectionOf: () => ({ provider: 'openai', model: 'whisper-1' }),
 }));
 
-import { chunkEntries, dropEchoes, liveTranscript, liveTranscriptResult, type LiveEntry } from '@features/recording/live/liveTranscript';
+import { chunkEntries, dropEchoes, liveTranscript, liveTranscriptResult, spliceSeam, type LiveEntry } from '@features/recording/live/liveTranscript';
 import { useMeetingLiveStore } from '@features/recording/live/meetingLiveStore';
 
 const read = () => ({ settings: {} as never, providers: [] });
-const chunk = (source: string, startMs: number, endMs: number) => ({ source, startMs, endMs, pcm: btoa('\0\0\0\0') });
+const chunk = (source: string, startMs: number, endMs: number, overlapMs = 0) => ({ source, startMs, endMs, overlapMs, pcm: btoa('\0\0\0\0') });
 const entry = (source: LiveEntry['source'], startMs: number, endMs: number, text: string, timed = false): LiveEntry => ({ source, startMs, endMs, text, timed });
 
 beforeEach(() => {
@@ -62,6 +62,23 @@ describe('in-call transcript', () => {
     const outcome = await liveTranscript.finish('m1');
     expect(outcome).toEqual({ complete: true, entries: [entry('microphone', 0, 6_000, 'First.'), entry('system', 6_000, 12_000, 'Second.')] });
     expect(useMeetingLiveStore.getState().meetingId).toBeNull();
+  });
+
+  it('splices a hard cut\'s re-heard start at the seam, tolerating a slightly different hearing', () => {
+    expect(spliceSeam('we will ship the beta on Friday if QA', 'on Friday, if QA signs off by Thursday.')).toBe('signs off by Thursday.');
+    expect(spliceSeam('and then the', 'uh then the budget review')).toBe('budget review');
+    expect(spliceSeam('nothing in common', 'fresh start here')).toBe('fresh start here');
+  });
+
+  it('a chunk with overlap loses only the words its source already has', async () => {
+    runTranscription.mockResolvedValueOnce({ text: 'we ship on Friday if QA', segments: [] })
+      .mockResolvedValueOnce({ text: 'Friday if QA signs off', segments: [] });
+    await liveTranscript.start('m3', read);
+    handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 10_000) });
+    handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 8_000, 14_000, 2_000) });
+    handlers.get('meeting-live://done')?.({ payload: null });
+    const outcome = await liveTranscript.finish('m3');
+    expect(outcome?.entries.map((e) => e.text)).toEqual(['we ship on Friday if QA', 'signs off']);
   });
 
   it('a chunk that fails marks the transcript incomplete, so the recording is transcribed instead', async () => {
