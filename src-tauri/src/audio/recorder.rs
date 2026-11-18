@@ -13,6 +13,7 @@ use tauri::AppHandle;
 
 use super::capture::{PacketSink, SourceSupervisor};
 use super::level::LevelMeter;
+use super::live::LiveChunker;
 use super::recovery::mix;
 use super::tracks::{
     AudioPacket, CaptureStats, MeetingSource, STATS_FILE, join_audio_writer, set_owner_only, write_tracks,
@@ -106,10 +107,13 @@ impl Recorder {
         let pause = Arc::new(Pause::default());
         let writer_dir = directory.clone();
         let writer_pause = pause.clone();
-        let mut meter = LevelMeter::new(app);
+        let mut meter = LevelMeter::new(app.clone());
+        // The in-call transcript hears what is written: each packet also feeds its live chunks.
+        let mut live = LiveChunker::new(app);
         let writer = thread::spawn(move || {
             write_tracks(&writer_dir, receiver, &writer_pause, |packet| {
-                meter.offer(packet)
+                meter.offer(packet);
+                live.offer(packet);
             })
         });
         let microphone_drops = Arc::new(AtomicU64::new(0));

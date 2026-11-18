@@ -11,9 +11,14 @@ vi.mock('@services/coreAudio.service', () => ({
 }));
 vi.mock('@services/tauri', () => ({ isTauriEnvironment: () => true, menubarService: menubar }));
 vi.mock('@services/notifications', () => ({ removeNotices: vi.fn(async () => undefined) }));
-vi.mock('@features/recording/pipeline/meetingPipeline', () => ({ meetingPipeline: { recorded: vi.fn() } }));
+vi.mock('@features/recording/pipeline/meetingPipeline', () => ({ meetingPipeline: { recorded: vi.fn(), prime: vi.fn() } }));
 
 import { mirrorOf, recordedSeconds, recording, useRecordingStore } from '@features/recording/stores/recordingStore';
+import { meetingPipeline } from '@features/recording/pipeline/meetingPipeline';
+import { useAppStore } from '@shared/stores/appStore';
+import { AppStatus } from '@shared/types';
+
+const prime = meetingPipeline.prime as unknown as ReturnType<typeof vi.fn>;
 
 const RUNNING: RecorderState = { state: 'recording', meetingId: 'm1', recordedMs: 61_500, paused: false };
 const IDLE: RecorderState = { state: 'idle' };
@@ -59,5 +64,14 @@ describe('recording', () => {
     await expect(recording.stop()).resolves.toBe('m1');
     expect(audio.stopCapture).toHaveBeenCalledOnce();
     expect(useRecordingStore.getState()).toMatchObject({ meetingId: null, busy: false, justStopped: 'm1' });
+  });
+
+  it('stop primes the meeting view so it never renders empty', async () => {
+    audio.stopCapture.mockResolvedValue('m1');
+    audio.recorderState.mockResolvedValue(IDLE);
+    useAppStore.setState({ result: { title: 'Standup', transcript: '', summary: '', categories: [] } });
+    await recording.stop();
+    expect(prime).toHaveBeenCalledWith('m1', 'Standup');
+    expect(useAppStore.getState()).toMatchObject({ status: AppStatus.RESULTS, activeResultTab: 'transcript' });
   });
 });

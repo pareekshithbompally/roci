@@ -39,6 +39,7 @@ export { Progress } from './progress';
 export type { ProgressProps } from './progress';
 export { Surface, Separator, Dot, Status } from './surface';
 export { ScrollArea } from './scroll-area';
+export { edgeFade } from './fade';
 export { PageScroll, TitlebarSpacer, TitlebarDragRegion } from './page-scroll';
 export type { PageScrollProps } from './page-scroll';
 export type { SurfaceProps, SurfaceVariant, DotTone } from './surface';

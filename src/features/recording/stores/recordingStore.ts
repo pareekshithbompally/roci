@@ -14,6 +14,7 @@ import { NOTIFICATIONS_CONFIG } from '@config/notifications.config';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 import { useAppStore } from '@shared/stores/appStore';
+import { AppStatus } from '@shared/types';
 import { showToast } from '@shared/ui';
 import { meetingPipeline } from '@features/recording/pipeline/meetingPipeline';
 
@@ -116,12 +117,17 @@ export const recording = {
     const calendar = consumePendingCalendarMeta();
     useRecordingStore.setState({ busy: true });
     try {
+      const title = titleFor(calendar, Date.now());
       const meetingId = await coreAudioService.startCapture({
         source,
-        title: titleFor(calendar, Date.now()),
+        title,
         calendarEventId: calendar?.calendarEventId,
         calendarMeta: calendar ? calendarMetaOf(calendar) : undefined,
       });
+      useAppStore.getState().setSelectedHistoryId(meetingId);
+      useAppStore.getState().setActiveResultTab('transcript');
+      useAppStore.getState().setStatus(AppStatus.RESULTS);
+      void meetingPipeline.prime(meetingId, title);
       refreshMeetings();
       return meetingId;
     } catch (error: unknown) {
@@ -141,6 +147,10 @@ export const recording = {
       const meetingId = await coreAudioService.stopCapture();
       if (meetingId) {
         useRecordingStore.setState({ justStopped: meetingId });
+        useAppStore.getState().setSelectedHistoryId(meetingId);
+        useAppStore.getState().setActiveResultTab('transcript');
+        useAppStore.getState().setStatus(AppStatus.RESULTS);
+        void meetingPipeline.prime(meetingId, useAppStore.getState().result?.title ?? 'Recording');
         meetingPipeline.recorded(meetingId);
       }
       return meetingId;

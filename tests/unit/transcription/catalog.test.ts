@@ -8,7 +8,8 @@ vi.mock('@services/modalities', () => ({
     getModelContextLimit: () => null,
   },
 }));
-import { adapterFor, isSpeechSelectionReady, speechModelOptions, speechSelectionKey } from '@services/ai/transcription/catalog';
+import { adapterFor, isSpeechSelectionReady, speechModelOptions } from '@services/ai/transcription/catalog';
+import { modelKey } from '@services/ai/models';
 import type { ModelProvider } from '@shared/types/modelProviders';
 
 function provider(id: string, models: ModelProvider['models'], apiKey = 'key'): ModelProvider {
@@ -65,7 +66,7 @@ describe('adapterFor', () => {
 
 describe('speechModelOptions', () => {
   const options = speechModelOptions(providers, {});
-  const keys = options.map(speechSelectionKey);
+  const keys = options.map(modelKey);
 
   it('does not list a chat model just because it hears audio; ticking Audio input adds it', () => {
     expect(keys).not.toContain('gemini::gemini-2.5-pro');

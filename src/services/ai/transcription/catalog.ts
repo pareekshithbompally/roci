@@ -129,6 +129,3 @@ export function speechSelectionOf(settings: { transcriptionProvider?: string; tr
   if (!settings.transcriptionProvider) return null;
   return { provider: settings.transcriptionProvider, model: settings.transcriptionModel ?? '' };
 }
-
-/** A speech selection's key is its model key (one format for every model setting). */
-export { modelKey as speechSelectionKey } from '@services/ai/models';

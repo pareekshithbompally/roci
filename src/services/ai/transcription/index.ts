@@ -5,7 +5,6 @@ export {
   isSpeechSelectionReady,
   defaultSpeechSelection,
   speechSelectionOf,
-  speechSelectionKey,
 } from './catalog';
 export type { SpeechModelOption, SpeechSources } from './catalog';
 export { getHexStatus, installedHexModels } from './hex';

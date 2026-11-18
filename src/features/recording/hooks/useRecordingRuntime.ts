@@ -24,6 +24,7 @@ import { checkStillRecording, listenForStillRecordingAnswers, nextStillRecording
 import { useDocumentVisible } from '@shared/hooks';
 import { useAIReadiness } from '@features/settings';
 import { platform } from '@platform/index';
+import { useMeetingLive } from '@features/recording/live/useMeetingLive';
 
 const RECORDING_ROW = 'recording';
 const SAVED_ROW = 'recording:saved';
@@ -184,4 +185,5 @@ export function useRecordingRuntime(): void {
   useRecordingRow();
   useSavedRow(items);
   useMeetingRows(items);
+  useMeetingLive();
 }

@@ -89,3 +89,24 @@ describe('meetingPipeline.run', () => {
     expect(ai.transcribeAudio).not.toHaveBeenCalled();
   });
 });
+
+describe('meetingPipeline.prime', () => {
+  it('shows a placeholder at once, then the saved detail', async () => {
+    const { useAppStore } = await import('@shared/stores/appStore');
+    useAppStore.getState().setSelectedHistoryId('m1');
+    const seen: (string | null)[] = [];
+    const unsub = useAppStore.subscribe((s) => seen.push(s.result?.title ?? null));
+    await meetingPipeline.prime('m1', 'Live title');
+    unsub();
+    expect(seen[0]).toBe('Live title');
+    expect(useAppStore.getState().result).toMatchObject({ title: 'Recording', transcript: '' });
+  });
+
+  it('leaves another meeting alone', async () => {
+    const { useAppStore } = await import('@shared/stores/appStore');
+    useAppStore.getState().setSelectedHistoryId('other');
+    useAppStore.getState().setResult({ title: 'Other', transcript: '', summary: '', categories: [] });
+    await meetingPipeline.prime('m1', 'Live title');
+    expect(useAppStore.getState().result?.title).toBe('Live title');
+  });
+});

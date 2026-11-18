@@ -5,7 +5,8 @@ import { store } from '@services/db';
 import { recordingsService } from '@services/storage';
 import { isTauriEnvironment } from '@services/tauri';
 import { unifiedAIService, transcribeAudio } from '@services/unifiedAIService';
-import { formatTranscript, speechSelectionKey, speechSelectionOf } from '@services/ai/transcription';
+import { formatTranscript, speechSelectionOf } from '@services/ai/transcription';
+import { modelKey } from '@services/ai/models';
 import { transcriptionService, meetingSummaryOf } from '@services/transcription.service';
 import { IMPORT_CONFIG } from '@config/audio.config';
 import { queryClient } from '@shared/query/queryClient';
@@ -19,6 +20,7 @@ import type { AppSettings, MeetingDetail, MeetingIndexEntry, StoredTranscriptSeg
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { MeetingPipelineStage, MeetingStatus } from '@shared/types/meetingPhase';
 import type { MeetingContext } from '@core/ai/prompts/transcription.prompt';
+import { liveTranscript, liveTranscriptResult, type LiveEntry } from '@features/recording/live';
 
 /** What the steps need from the app, read when a run starts. */
 export interface PipelineContext {
@@ -71,6 +73,19 @@ async function refreshOpenMeeting(id: string): Promise<void> {
   if (detail && useAppStore.getState().selectedHistoryId === id) setResult(buildMeetingResult(detail));
 }
 
+/** Shows a meeting at once (placeholder, then disk): an opened recording must never face an empty results view. */
+async function prime(id: string, title: string): Promise<void> {
+  useAppStore.getState().setResult({ title, transcript: '', summary: '', categories: [] });
+  try {
+    const detail = await store.meetings.get(id);
+    if (detail && useAppStore.getState().selectedHistoryId === id) {
+      useAppStore.getState().setResult(buildMeetingResult(detail));
+    }
+  } catch (error: unknown) {
+    console.error('[meetingPipeline] Prime failed:', id, error);
+  }
+}
+
 async function loadRecording(fileName: string | undefined): Promise<Blob> {
   if (!fileName) throw new Error('This meeting has no recording to transcribe.');
   const loaded = await recordingsService.getRecordingData(fileName);
@@ -97,11 +112,19 @@ async function transcribe(meeting: MeetingDetail, context: PipelineContext, sign
   const result = await transcribeAudio(audio, context.settings, context.providers, { signal, onProgress }, id);
   const { formatted, segments } = formatTranscript(result);
   const selection = speechSelectionOf(context.settings);
-  const model = selection ? speechSelectionKey(selection) : undefined;
+  const model = selection ? modelKey(selection) : undefined;
   await transcriptionService.saveTranscript({ meetingId: id, text: formatted, segments, model });
   meetingProgress.clear(id);
   await refreshOpenMeeting(id);
   return { text: formatted, segments };
+}
+
+/** Saves the in-call transcript as the meeting's transcript (meeting → `transcribed`), labelled by who said each line. */
+async function saveLiveTranscript(id: string, entries: LiveEntry[]): Promise<void> {
+  const { formatted, segments } = formatTranscript(liveTranscriptResult(entries));
+  const selection = readContext ? speechSelectionOf(readContext().settings) : null;
+  await transcriptionService.saveTranscript({ meetingId: id, text: formatted, segments, model: selection ? modelKey(selection) : undefined });
+  await refreshOpenMeeting(id);
 }
 
 function storedTranscript(meeting: MeetingDetail): Transcript {
@@ -198,9 +221,20 @@ export const meetingPipeline = {
     else void meetingPipeline.run(id);
   },
 
-  /** A recording just stopped: transcribe it now when the user asked for that. */
+  /** Shows a meeting at once (placeholder, then disk); opening a recording uses this, never bare selection. */
+  prime(id: string, title: string): Promise<void> {
+    return prime(id, title);
+  },
+
+  /** A recording just stopped: its in-call transcript becomes the transcript when every chunk made it, else the recording
+   *  is transcribed now (the in-call transcript was cut short) or when the user asked for that; then the summary follows. */
   recorded(id: string): void {
-    if (readContext?.().settings.autoTranscribe) void meetingPipeline.run(id);
+    void liveTranscript.finish(id)
+      .then(async (live) => {
+        if (live?.complete && live.entries.length > 0) await saveLiveTranscript(id, live.entries);
+        if (live || readContext?.().settings.autoTranscribe) await meetingPipeline.run(id);
+      })
+      .catch((error: unknown) => console.error('[meetingPipeline] After recording:', id, error));
   },
 
   /** At launch: the recorder finishes recordings a quit or crash cut off; meetings left mid-pipeline resume. */
