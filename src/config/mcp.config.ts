@@ -56,8 +56,6 @@ export const mcpToolKey = (server: string, tool: string) => `${server}/${tool}`;
 export const MCP_CONFIG = {
   /** Rust → webview: a server connected, disconnected, or reconnected. */
   updateEvent: 'mcp-update',
-  /** Directory of public MCP servers, linked from the panel header. */
-  directoryUrl: 'https://mcp.so/',
   /** `requires`: the device capability a transport needs (launched programs run only on the Mac). */
   transports: [
     { value: 'stdio', label: 'STDIO', requires: 'canLaunchMcpServers' },

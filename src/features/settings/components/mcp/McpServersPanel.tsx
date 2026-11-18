@@ -2,12 +2,10 @@
 
 import React, { useState } from 'react';
 import { Braces, Plus } from 'lucide-react';
-import { openUrl } from '@services/tauri';
-import { MCP_CONFIG } from '@config/mcp.config';
 import type { McpConfig, McpSettings } from '@config/mcp.config';
 import { useToast } from '@shared/contexts/ToastContext';
 import { confirm } from '@shared/stores/confirmStore';
-import { Badge, Button, Callout, Icon, IconButton, Section, Text } from '@shared/ui';
+import { Button, Callout, Icon, IconButton, Section, Text } from '@shared/ui';
 import { SettingsPage } from '@features/settings/components/shared';
 import {
   useMcpConfig,
@@ -92,7 +90,7 @@ export const McpServersPanel: React.FC = () => {
 
       <Section
         title="Servers"
-        footer={<>Model Context Protocol servers give chat new tools. Find more at <Button variant="link" size="inline" onClick={openDirectory}>mcp.so</Button></>}
+        footer="Model Context Protocol servers give chat new tools."
       >
         {serverEntries.length === 0 ? (
           <Text as="p" variant="helper" tone="muted" className="py-3">No MCP servers yet. Add one to give chat new tools.</Text>
@@ -146,11 +144,9 @@ interface PanelShellProps {
   children?: React.ReactNode;
 }
 
-const openDirectory = () => void openUrl(MCP_CONFIG.directoryUrl);
-
 const PanelShell: React.FC<PanelShellProps> = ({ onAdd, onEditAll, actionsDisabled, children }) => (
   <SettingsPage
-    title={<>MCP Servers <Badge variant="info">Experimental</Badge></>}
+    title="MCP Servers"
     accessory={
       <>
         <IconButton icon={Braces} label="Edit all servers as JSON" size="sm" onClick={onEditAll} disabled={actionsDisabled} />
