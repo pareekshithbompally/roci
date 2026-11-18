@@ -1,23 +1,31 @@
-// AI at work and AI output landing: the copper moments of a line the model is writing (live enhanced notes).
+// One line of AI-written notes, in three states that keep the same place so a line turns into its result where it stands:
+// written (plain, continuous with the rest), waiting (the user's own words, faint) and writing (the only copper moment: a tinted
+// row a brighter band sweeps across, Roci's mark pulsing). A written line lands with a copper wash that fades out.
 import React from 'react';
-import { Sparkles } from 'lucide-react';
 import { cn } from './utils';
 import { Icon } from './icon';
+import { RociMark } from './roci-mark';
 import { Text } from './text';
 
-/** A line the model is still writing: the words it starts from, faint, in a copper-tinted row a brighter band sweeps across;
- *  still under Reduce Motion. */
-export function AiPending({ children, className }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div role="status" className={cn('relative flex items-start gap-2 overflow-hidden rounded-lg border border-ai bg-ai-wash px-3 py-2', className)}>
-      <span aria-hidden className="pointer-events-none absolute inset-0 bg-ai-sweep bg-shimmer animate-ai-sweep motion-reduce:hidden" />
-      <Icon icon={Sparkles} size="xs" tone="ai" className="relative mt-1 shrink-0 animate-pulse motion-reduce:animate-none" />
-      <Text variant="reading" shimmer className="relative min-w-0">{children}</Text>
-    </div>
-  );
-}
+export type AiLineState = 'written' | 'waiting' | 'writing';
 
-/** A line the model just wrote: the copper wash fades out of it. Key it by its text so a rewrite lands again. */
-export function AiArrived({ as: Tag = 'div', children, className }: { as?: 'div' | 'li'; children: React.ReactNode; className?: string }) {
-  return <Tag className={cn('rounded-md animate-ai-arrive motion-reduce:animate-none', className)}>{children}</Tag>;
+const ROW: Record<AiLineState, string> = {
+  written: 'border-transparent animate-ai-arrive motion-reduce:animate-none',
+  waiting: 'border-transparent',
+  writing: 'relative overflow-hidden border-ai bg-ai-wash',
+};
+
+/** Key a written line by its text so a rewrite lands again. */
+export function AiLine({ state, children }: { state: AiLineState; children: React.ReactNode }) {
+  const writing = state === 'writing';
+  return (
+    <li role={writing ? 'status' : undefined} className={cn('flex items-start gap-2 rounded-lg border px-3 py-1.5', ROW[state])}>
+      {writing && <span aria-hidden className="pointer-events-none absolute inset-0 bg-ai-sweep bg-shimmer animate-ai-sweep motion-reduce:hidden" />}
+      {/* The marker column is one reading line tall, so the mark and the dot both sit on the first line's centre. */}
+      <Text aria-hidden variant="reading" tone={state === 'waiting' ? 'faint' : 'ai'} className="relative flex h-[1lh] w-4 shrink-0 items-center justify-center">
+        {writing ? <Icon icon={RociMark} size="xs" className="animate-pulse motion-reduce:animate-none" /> : '•'}
+      </Text>
+      <Text variant="reading" tone={state === 'waiting' ? 'faint' : 'primary'} shimmer={writing} className="relative min-w-0">{children}</Text>
+    </li>
+  );
 }

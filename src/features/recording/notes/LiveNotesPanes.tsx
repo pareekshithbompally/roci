@@ -1,16 +1,17 @@
 /** The record screen's notes: the user's shorthand and the AI notes the Summary model fills in, one view at a time behind a
- *  switch; a line still being filled in shimmers in copper until its bullet lands. */
+ *  switch; one continuous list where only the lines a running refresh is writing shimmer. */
 
 import React, { useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { AiArrived, AiPending, Icon, RociMark, Tabs, Text, Textarea } from '@shared/ui';
+import { AiLine, Icon, RociMark, Tabs, Text, Textarea } from '@shared/ui';
 import { LIVE_NOTES_CONFIG as NOTES, type NotesView } from '@config/liveNotes.config';
 import { aiRows } from './liveNotes';
 import { useLiveNotesStore } from './liveNotesStore';
 
 /** A pane's heading row: the title or a switch, then trailing status. */
+// box-content: the row is one segmented control tall plus its padding, so a title and a switch sit on the same line
 export const PaneHeader: React.FC<{ children: React.ReactNode; trailing?: React.ReactNode }> = ({ children, trailing }) => (
-  <div className="flex shrink-0 items-center justify-between gap-3 px-4 pt-3 pb-2">
+  <div className="box-content flex h-control-sm shrink-0 items-center justify-between gap-3 px-4 pt-3 pb-2">
     {children}
     {trailing}
   </div>
@@ -52,6 +53,7 @@ export const YourNotes: React.FC<{ onType: (text: string) => void }> = ({ onType
 export const AiNotes: React.FC<{ hasModel: boolean }> = ({ hasModel }) => {
   const lines = useLiveNotesStore((s) => s.lines);
   const bullets = useLiveNotesStore((s) => s.bullets);
+  const updating = useLiveNotesStore((s) => s.updating);
   const rows = useMemo(() => aiRows(lines, bullets), [lines, bullets]);
   const empty = !hasModel ? NOTES.copy.noModel : rows.length === 0 ? NOTES.copy.aiEmpty : null;
   return (
@@ -59,15 +61,12 @@ export const AiNotes: React.FC<{ hasModel: boolean }> = ({ hasModel }) => {
       {empty ? (
         <EmptyLine>{empty}</EmptyLine>
       ) : (
-        <ul className="space-y-2">
-          {rows.map((row) => row.kind === 'pending' ? (
-            <li key={`pending-${row.line.id}`}><AiPending>{row.line.text.trim()}</AiPending></li>
-          ) : (
-            <AiArrived as="li" key={`${row.bullet.id}:${row.bullet.text}`} className="flex gap-2 px-3 py-1">
-              <Text variant="reading" tone="ai" aria-hidden>•</Text>
-              <Text variant="reading">{row.bullet.text}</Text>
-            </AiArrived>
-          ))}
+        // rows carry their own inset; pulling them out by it lines their marks up with the pane's text
+        <ul className="-mx-3 space-y-1">
+          {rows.map((row) => row.kind === 'pending'
+            // only the lines the running refresh is writing shimmer; the rest wait in the user's words
+            ? <AiLine key={`pending-${row.line.id}`} state={updating ? 'writing' : 'waiting'}>{row.line.text.trim()}</AiLine>
+            : <AiLine key={`${row.bullet.id}:${row.bullet.text}`} state="written">{row.bullet.text}</AiLine>)}
         </ul>
       )}
     </div>

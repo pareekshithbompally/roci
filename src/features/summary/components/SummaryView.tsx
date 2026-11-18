@@ -2,7 +2,7 @@ import React from 'react';
 import type { ActionItem, StructuredSummary } from '@shared/types';
 import { Sparkles } from 'lucide-react';
 import { EmptyState, Markdown } from '@shared/components';
-import { AiPending, Icon, Surface, Text } from '@shared/ui';
+import { AiLine, Icon, RociMark, Surface, Text } from '@shared/ui';
 import { TODOS_CONFIG } from '@config/todos.config';
 import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
 
@@ -56,15 +56,15 @@ export const EnhancedNotesSection: React.FC<{ items?: string[]; pending?: boolea
   return (
     <section>
       <div className="mb-3 flex items-center gap-2">
-        <Icon icon={Sparkles} size="sm" tone="ai" />
+        <Icon icon={RociMark} size="sm" tone="ai" />
         <Text as="h3" variant="title">{NOTES.copy.enhancedTitle}</Text>
         {pending && <Text variant="caption" shimmer>{NOTES.copy.finishing}</Text>}
       </div>
-      <ul className="space-y-2">
-        {items.map((item, idx) => pending
-          ? <li key={idx}><AiPending>{item}</AiPending></li>
-          : <Bullet key={idx} ai>{item}</Bullet>)}
-      </ul>
+      {pending ? (
+        <ul className="space-y-1">{items.map((item, idx) => <AiLine key={idx} state="writing">{item}</AiLine>)}</ul>
+      ) : (
+        <ul className="space-y-2">{items.map((item, idx) => <Bullet key={idx} ai>{item}</Bullet>)}</ul>
+      )}
     </section>
   );
 };

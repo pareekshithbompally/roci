@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
 import {
-  aiRows, mergeBullets, reconcileLines, refreshReason, signatureOf, transcriptText, unsentEntries, entryKey,
+  aiRows, changesFromReply, liveNotesRequest, mergeBullets, reconcileLines, refreshReason, signatureOf, transcriptText, unsentEntries, entryKey,
   type Bullet, type NoteLine,
 } from '@features/recording/notes/liveNotes';
 import type { LiveEntry } from '@features/recording/live/liveTranscript';
@@ -79,7 +79,7 @@ describe('transcript bookkeeping', () => {
       [entry('microphone', 65_000, 66_000, 'second', true), entry('system', 5_000, 6_000, 'first', false)],
       (ms) => `t${ms}`,
     );
-    expect(text).toBe('Others: first\n(t65000) You: second');
+    expect(text).toBe('Others: first\n[t65000] You: second');
   });
 
   it('notes signature ignores empty lines', () => {
@@ -90,29 +90,51 @@ describe('transcript bookkeeping', () => {
 describe('mergeBullets', () => {
   const lines: NoteLine[] = [{ id: 'n1', text: 'launch?' }, { id: 'n2', text: 'api' }, { id: 'n3', text: 'qa' }];
 
-  it('replaces a known bullet where it stands', () => {
+  it('replaces a note\'s line where it stands', () => {
     const current: Bullet[] = [{ id: 'b1', noteId: 'n1', text: 'old' }, { id: 'b2', noteId: 'n2', text: 'api' }];
-    expect(mergeBullets(current, [{ id: 'b1', text: 'Launch: 14 Dec' }], lines)).toEqual([
+    expect(mergeBullets(current, [{ noteId: 'n1', text: 'Launch: 14 Dec' }], lines)).toEqual([
       { id: 'b1', noteId: 'n1', text: 'Launch: 14 Dec' },
       { id: 'b2', noteId: 'n2', text: 'api' },
     ]);
   });
 
-  it('adds a new bullet in note order with the next free id', () => {
+  it('adds a note\'s first line in note order with the next free id', () => {
     const current: Bullet[] = [{ id: 'b1', noteId: 'n1', text: 'a' }, { id: 'b3', noteId: 'n3', text: 'c' }];
     const merged = mergeBullets(current, [{ noteId: 'n2', text: 'b' }], lines);
     expect(merged.map((b) => [b.id, b.noteId])).toEqual([['b1', 'n1'], ['b4', 'n2'], ['b3', 'n3']]);
   });
 
-  it('appends a bullet that expands no note, and treats an unknown id as new', () => {
-    const current: Bullet[] = [{ id: 'b1', noteId: 'n1', text: 'a' }];
-    const merged = mergeBullets(current, [{ id: 'b9', text: 'Decision: ship' }], lines);
-    expect(merged.at(-1)).toEqual({ id: 'b2', noteId: undefined, text: 'Decision: ship' });
+  it('changes a known extra by id and adds an unknown one at the end', () => {
+    const current: Bullet[] = [{ id: 'b1', noteId: 'n1', text: 'a' }, { id: 'b2', text: 'Decision: ship' }];
+    const merged = mergeBullets(current, [{ id: 'b2', text: 'Decision: ship Friday' }, { id: 'b9', text: 'Task: QA plan' }], lines);
+    expect(merged.slice(1)).toEqual([{ id: 'b2', text: 'Decision: ship Friday' }, { id: 'b3', noteId: undefined, text: 'Task: QA plan' }]);
   });
 
-  it('drops bullets of deleted note lines and ignores empty text', () => {
+  it('drops lines of deleted notes and ignores empty text', () => {
     const current: Bullet[] = [{ id: 'b1', noteId: 'gone', text: 'a' }, { id: 'b2', text: 'free' }];
     expect(mergeBullets(current, [{ id: 'b2', text: '  ' }], lines)).toEqual([{ id: 'b2', text: 'free' }]);
+  });
+});
+
+describe('liveNotesRequest and changesFromReply', () => {
+  const lines: NoteLine[] = [
+    { id: 'uuid-a', text: ' launch? ', atMs: 40_000 },
+    { id: 'uuid-b', text: '' },
+    { id: 'uuid-c', text: 'ask Raj' },
+  ];
+  const bullets: Bullet[] = [{ id: 'b1', noteId: 'uuid-a', text: 'Launch: 14 Dec' }, { id: 'b2', text: 'Decision: ship' }];
+
+  it('sends the notes under short ids the model can copy, with how they stand', () => {
+    const { input } = liveNotesRequest(lines, bullets, 'You: hi', (ms) => `t${ms}`);
+    expect(input.notes).toEqual([{ id: 'n1', text: 'launch?', at: 't40000' }, { id: 'n2', text: 'ask Raj', at: undefined }]);
+    expect(input.filled).toEqual([{ noteId: 'n1', text: 'Launch: 14 Dec' }]);
+    expect(input.extras).toEqual([{ id: 'b2', text: 'Decision: ship' }]);
+  });
+
+  it('maps the reply back to real note ids and drops a note it does not know', () => {
+    const { realId } = liveNotesRequest(lines, bullets, '', String);
+    expect(changesFromReply({ filled: [{ noteId: 'n2', text: 'Ask Raj about rate limits.' }, { noteId: 'n9', text: 'x' }], extras: [{ text: 'Task: QA' }] }, realId))
+      .toEqual([{ noteId: 'uuid-c', text: 'Ask Raj about rate limits.' }, { id: undefined, text: 'Task: QA' }]);
   });
 });
 

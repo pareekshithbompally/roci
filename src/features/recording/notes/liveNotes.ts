@@ -3,6 +3,7 @@
 import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
 import { MEETING_LIVE_CONFIG as LIVE } from '@config/meetingLive.config';
 import type { LiveNotesChange } from '@core/ai/schemas/liveNotes.schema';
+import type { LiveNotesInput } from '@core/ai/prompts/liveNotes.prompt';
 import type { LiveEntry } from '@features/recording/live/liveTranscript';
 
 /** One line of the user's notes; its id is the saved note's id. */
@@ -83,7 +84,7 @@ export function refreshReason(args: { unsent: LiveEntry[]; notesChanged: boolean
 export function transcriptText(entries: LiveEntry[], clock: (ms: number) => string): string {
   return [...entries]
     .sort((a, b) => a.startMs - b.startMs)
-    .map((e) => `${e.timed ? `(${clock(e.startMs)}) ` : ''}${LIVE.speakers[e.source]}: ${e.text}`)
+    .map((e) => `${e.timed ? `[${clock(e.startMs)}] ` : ''}${LIVE.speakers[e.source]}: ${e.text}`)
     .join('\n');
 }
 
@@ -93,8 +94,8 @@ function nextIdFrom(bullets: Bullet[]): () => string {
   return () => `${NOTES.bulletIdPrefix}${++n}`;
 }
 
-/** The model's changes applied in place: a known id is replaced where it stands, anything else is added (in note order when it
- *  expands a note, else at the end). Bullets of deleted note lines go. */
+/** The model's changes applied in place: a note's line (by note) or a known extra (by id) is replaced where it stands, anything
+ *  else is added (in note order for a note, else at the end). Lines of deleted notes go. */
 export function mergeBullets(current: Bullet[], changes: LiveNotesChange[], lines: NoteLine[]): Bullet[] {
   const liveNotes = new Set(writtenLines(lines).map((l) => l.id));
   const nextId = nextIdFrom(current);
@@ -103,7 +104,7 @@ export function mergeBullets(current: Bullet[], changes: LiveNotesChange[], line
     const text = change.text.trim();
     if (!text) continue;
     const noteId = change.noteId && liveNotes.has(change.noteId) ? change.noteId : undefined;
-    const at = change.id ? merged.findIndex((b) => b.id === change.id) : -1;
+    const at = noteId ? merged.findIndex((b) => b.noteId === noteId) : change.id ? merged.findIndex((b) => !b.noteId && b.id === change.id) : -1;
     if (at >= 0) merged[at] = { ...merged[at], text, noteId: noteId ?? merged[at].noteId };
     else merged.splice(insertionIndex(merged, noteId, lines), 0, { id: nextId(), noteId, text });
   }
@@ -133,4 +134,30 @@ export function aiRows(lines: NoteLine[], bullets: Bullet[]): AiRow[] {
   });
   const free = bullets.filter((b) => !b.noteId).map((bullet): AiRow => ({ kind: 'bullet', bullet }));
   return [...rows, ...free];
+}
+
+/** One refresh's request: the notes under short ids ("n1", in order) the model can copy exactly, and the way back to real ids. */
+export function liveNotesRequest(lines: NoteLine[], bullets: Bullet[], transcript: string, clock: (ms: number) => string): {
+  input: LiveNotesInput;
+  realId: Map<string, string>;
+} {
+  const written = writtenLines(lines);
+  const shortId = new Map(written.map((line, i) => [line.id, `n${i + 1}`]));
+  const input: LiveNotesInput = {
+    notes: written.map((l) => ({ id: shortId.get(l.id) ?? l.id, text: l.text.trim(), at: l.atMs === undefined ? undefined : clock(l.atMs) })),
+    filled: bullets.flatMap((b) => (b.noteId && shortId.has(b.noteId) ? [{ noteId: shortId.get(b.noteId) ?? b.noteId, text: b.text }] : [])),
+    extras: bullets.filter((b) => !b.noteId).map((b) => ({ id: b.id, text: b.text })),
+    transcript,
+  };
+  return { input, realId: new Map([...shortId].map(([real, short]) => [short, real])) };
+}
+
+/** The model's reply as changes on real ids; a filled note naming no known note is dropped. */
+export function changesFromReply(reply: { filled?: LiveNotesChange[]; extras?: LiveNotesChange[] }, realId: Map<string, string>): LiveNotesChange[] {
+  const filled = (reply.filled ?? []).flatMap((c) => {
+    const noteId = c.noteId && realId.get(c.noteId);
+    return noteId ? [{ noteId, text: c.text }] : [];
+  });
+  const extras = (reply.extras ?? []).map((c) => ({ id: c.id, text: c.text }));
+  return [...filled, ...extras];
 }

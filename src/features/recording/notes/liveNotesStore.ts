@@ -8,7 +8,7 @@ import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { LiveEntry } from '@features/recording/live/liveTranscript';
 import { formatClock } from '@features/recording/stores/recordingStore';
 import {
-  entryKey, mergeBullets, reconcileLines, refreshReason, signatureOf, transcriptText, unsentEntries, writtenLines,
+  changesFromReply, entryKey, liveNotesRequest, mergeBullets, reconcileLines, refreshReason, signatureOf, transcriptText, unsentEntries,
   type Bullet, type NoteLine, type TypedAt,
 } from './liveNotes';
 
@@ -80,13 +80,10 @@ export const liveNotes = {
     const signature = signatureOf(lines);
     set({ updating: true });
     try {
-      const changes = await refreshLiveNotes({
-        resolved, meetingId, signal: controller.signal,
-        notes: writtenLines(lines).map((l) => ({ id: l.id, text: l.text.trim(), at: l.atMs === undefined ? undefined : clock(l.atMs) })),
-        bullets,
-        transcript: transcriptText(payload, clock),
-      });
+      const { input, realId } = liveNotesRequest(lines, bullets, transcriptText(payload, clock), clock);
+      const reply = await refreshLiveNotes({ input, resolved, meetingId, signal: controller.signal });
       if (current.controller !== controller) return;
+      const changes = changesFromReply(reply, realId);
       payload.forEach((e) => current.sent.add(entryKey(e)));
       current.signature = signature;
       set({ bullets: mergeBullets(get().bullets, changes, get().lines) });
