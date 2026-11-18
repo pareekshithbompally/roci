@@ -1,4 +1,4 @@
-//! Keeps the Core Spotlight index in step with meeting writes while Spotlight is on; needs an app bundle.
+//! Keeps the Core Spotlight index in step with meeting writes, plus Roci's actions, while Spotlight is on; needs an app bundle.
 
 mod item;
 
@@ -12,7 +12,7 @@ use tauri::AppHandle;
 use tauri_plugin_core_spotlight as spotlight;
 use tauri_plugin_store::{MeetingChange, meeting_detail, meeting_ids};
 
-use item::item_for;
+use item::{action_items, item_for};
 
 use crate::url_actions;
 
@@ -97,7 +97,7 @@ pub fn start(app: AppHandle) {
     }
     let opener = app.clone();
     // Runs on the far side of an `extern "C"` call: only enqueue.
-    spotlight::on_open(move |id| url_actions::open_meeting(&opener, id));
+    spotlight::on_open(move |id| url_actions::open_spotlight_item(&opener, id));
 
     let (sender, receiver) = mpsc::channel();
     let spawned = thread::Builder::new()
@@ -179,6 +179,7 @@ fn perform(app: &AppHandle, work: Work) {
 
 fn reindex_all(app: &AppHandle) -> Result<(), String> {
     spotlight::remove_all()?;
+    spotlight::index(&action_items())?;
     let ids = meeting_ids(app).map_err(|e| e.to_string())?;
     for batch in ids.chunks(BATCH) {
         if let Err(error) = reindex(app, batch) {

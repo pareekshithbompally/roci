@@ -24,6 +24,47 @@ enum UrlAction {
     Meeting(String),
 }
 
+/// An action Spotlight lists: its URL host (the Spotlight id is its URL), its title and the words that find it.
+pub(crate) struct SpotlightAction {
+    pub host: &'static str,
+    pub title: &'static str,
+    pub description: &'static str,
+    pub keywords: &'static [&'static str],
+}
+
+/// The fixed actions Spotlight lists; opening one runs the same URL a deep link would.
+pub(crate) const SPOTLIGHT_ACTIONS: &[SpotlightAction] = &[
+    SpotlightAction {
+        host: "record",
+        title: "Start Recording",
+        description: "Record a meeting in Roci",
+        keywords: &["record", "meeting", "transcribe"],
+    },
+    SpotlightAction {
+        host: "stop",
+        title: "Stop Recording",
+        description: "Stop the meeting Roci is recording",
+        keywords: &["stop", "recording"],
+    },
+    SpotlightAction {
+        host: "show",
+        title: "Open Roci",
+        description: "Show the Roci window",
+        keywords: &["roci", "chat"],
+    },
+    SpotlightAction {
+        host: "settings",
+        title: "Roci Settings",
+        description: "Open Roci's settings",
+        keywords: &["settings", "preferences"],
+    },
+];
+
+/// The URL an action opens, also its Spotlight id (`roci://record`).
+pub(crate) fn action_url(host: &str) -> String {
+    format!("{SCHEME}://{host}")
+}
+
 /// Actions that arrived before the webview could take them.
 #[derive(Default)]
 pub struct UrlActionsState {
@@ -65,9 +106,22 @@ fn receive(app: &AppHandle, url: &Url) {
     submit(app, action);
 }
 
-/// Open meeting `id` in the webview (a Spotlight result), once it is ready.
+/// Open meeting `id` in the webview (a Spotlight result or a recent meeting in the menu bar), once it is ready.
 pub(crate) fn open_meeting(app: &AppHandle, id: String) {
     submit(app, UrlAction::Meeting(id));
+}
+
+/// A Spotlight result opened: an action's URL runs that action; any other id is a meeting.
+pub(crate) fn open_spotlight_item(app: &AppHandle, id: String) {
+    match spotlight_url(&id) {
+        Some(url) => receive(app, &url),
+        None => open_meeting(app, id),
+    }
+}
+
+/// A Spotlight id that is a `roci://` action URL; meeting ids aren't URLs.
+fn spotlight_url(id: &str) -> Option<Url> {
+    Url::parse(id).ok().filter(|url| url.scheme() == SCHEME)
 }
 
 /// Run `action` now, or queue it until `url_actions_ready`.
@@ -185,6 +239,24 @@ mod tests {
         );
         assert_eq!(action("roci://meeting/"), None);
         assert_eq!(action("roci://meeting/a/b"), None);
+    }
+
+    #[test]
+    fn every_spotlight_action_opens_a_real_action() {
+        for spotlight in SPOTLIGHT_ACTIONS {
+            let url = action_url(spotlight.host);
+            assert!(
+                matches!(action(&url), Some(UrlAction::Menu(_))),
+                "{url} is not an action"
+            );
+        }
+    }
+
+    #[test]
+    fn spotlight_ids_are_action_urls_or_meetings() {
+        assert!(spotlight_url("roci://record").is_some());
+        assert!(spotlight_url("rec_123").is_none());
+        assert!(spotlight_url("https://record").is_none());
     }
 
     #[test]
