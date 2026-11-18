@@ -98,7 +98,7 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       stt::commands::stt_live_feed,
       stt::commands::stt_live_finish,
       stt::commands::stt_live_cancel,
-      choice_menu::choice_menu,
+      choice_menu::native_menu,
       tts::commands::tts_voices,
       tts::commands::tts_speak,
       tts::commands::tts_stop,

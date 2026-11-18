@@ -21,7 +21,8 @@ import {
   useMcpUpdateListener,
 } from '@features/settings/hooks';
 import { toggleServer, updateSettings } from '@features/settings/components/mcp';
-import { buildCatalog, countEnabled, setToolsEnabled } from './toolCatalog';
+import { buildCatalog, countEnabled, setToolsEnabled, withSwitches } from './toolCatalog';
+import type { ToolSwitches } from './toolCatalog';
 import type { CatalogGroup } from './toolCatalog';
 
 /** The Image generation row: usable once an image model is chosen, then switched by the saved preference. */
@@ -83,6 +84,11 @@ export function useToolCatalog() {
     [prefs, setSettings],
   );
 
+  const setSwitches = useCallback(
+    (changes: ToolSwitches) => setSettings({ chatTools: withSwitches(prefs, changes) }),
+    [prefs, setSettings],
+  );
+
   const setToolEnabled = useCallback(
     (key: string, enabled: boolean) => {
       setSettings({ chatTools: { ...prefs, disabledMcpTools: setToolsEnabled(prefs.disabledMcpTools, [key], enabled) } });
@@ -137,6 +143,7 @@ export function useToolCatalog() {
     askBeforeRunning: !(mcpConfig?.mcpSettings.allowAllTools ?? false),
     connectingServer: reconfigure.isPending ? reconfigure.variables?.affected[0] : undefined,
     setGroupEnabled,
+    setSwitches,
     setToolEnabled,
     connectServer,
     setAskBeforeRunning,

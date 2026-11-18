@@ -1,4 +1,4 @@
-/** Composer Tools picker: its own searchable popover (not a menu entry) with per-group side flyouts. */
+/** Composer Tools picker: the system menu on a Mac (switch rows, server fan-outs); a searchable popover with flyouts elsewhere. */
 
 import React, { useState } from 'react';
 import {
@@ -35,6 +35,10 @@ import type { ToolCatalog } from '@features/chat/hooks';
 import type { CatalogGroup } from '@features/chat/hooks/toolCatalog';
 import { ServerIcon } from '@shared/components';
 import { platform } from '@platform/index';
+import { nativeMenu } from '@services/tauri';
+import { cachedImage } from '@services/imageCache';
+import { MENU_GAP_PT } from '@config/ui.config';
+import { TOOLS_MENU_IDS, toolSwitches, toolsMenu } from './toolsMenu';
 
 export const ToolsPicker: React.FC = () => {
   const catalog = useToolCatalog();
@@ -64,25 +68,44 @@ export const ToolsPicker: React.FC = () => {
     (g) => g.status === 'connected' || g.status === 'connecting',
   );
 
+  const trigger = (onClick?: React.MouseEventHandler<HTMLButtonElement>) => (
+    <Button
+      variant="ghost"
+      size="toolbar"
+      title="Tools"
+      aria-label={`Tools, ${modelSupportsTools ? enabledCount : 0} on`}
+      onClick={onClick}
+    >
+      <Icon icon={SlidersHorizontal} size="xs" />
+      Tools
+      {webSearch.enabled && <Icon icon={Globe} size="xs" tone="accent" label="Web search on" />}
+      <Icon icon={ChevronDown} size="xs" className={cn('transition-transform', open && 'rotate-180')} />
+    </Button>
+  );
+
+  // Mac: the system menu — switch rows stay open while several are flipped, MCP servers fan out; changes land in one write.
+  if (platform.hasMenuBar) {
+    const showMenu = async (at: DOMRect) => {
+      const icons = new Map(await Promise.all(catalog.servers.map(async (g) =>
+        [g.key, g.icon ? await cachedImage(g.icon).catch(() => null) : null] as const)));
+      const { chosen, toggled } = await nativeMenu(toolsMenu(catalog, platform.hasMcp, icons), at.left, at.bottom + MENU_GAP_PT);
+      if (Object.keys(toggled).length > 0) catalog.setSwitches(toolSwitches(toggled));
+      if (TOOLS_MENU_IDS.ask in toggled) catalog.setAskBeforeRunning(toggled[TOOLS_MENU_IDS.ask]);
+      if (chosen === TOOLS_MENU_IDS.chooseImageModel) openDefaultModels();
+      if (chosen === TOOLS_MENU_IDS.manageMcp) openMcpSettings();
+    };
+    return trigger((e) => {
+      showMenu(e.currentTarget.getBoundingClientRect()).catch((error: unknown) => console.error('[ToolsPicker] menu failed:', error));
+    });
+  }
+
   return (
     <CommandPopover
       open={open}
       onOpenChange={handleOpenChange}
       searchPlaceholder="Search tools..."
       emptyText="No tools found"
-      trigger={
-        <Button
-          variant="ghost"
-          size="toolbar"
-          title="Tools"
-          aria-label={`Tools, ${modelSupportsTools ? enabledCount : 0} on`}
-        >
-          <Icon icon={SlidersHorizontal} size="xs" />
-          Tools
-          {webSearch.enabled && <Icon icon={Globe} size="xs" tone="accent" label="Web search on" />}
-          <Icon icon={ChevronDown} size="xs" className={cn('transition-transform', open && 'rotate-180')} />
-        </Button>
-      }
+      trigger={trigger()}
     >
       <CommandGroup heading="Built-in">
         <WebSearchItem catalog={catalog} onHover={() => setFlyout(null)} />

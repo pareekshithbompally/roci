@@ -97,6 +97,28 @@ export function countEnabled(groups: CatalogGroup[]): number {
 }
 
 /** Next `disabledMcpTools` after switching `keys` on or off. */
+/** Several switches changed together (a native menu reports them as it closes); unset fields stay as they are. */
+export interface ToolSwitches {
+  webSearch?: boolean;
+  imageGeneration?: boolean;
+  meetingTools?: boolean;
+  /** MCP tool key → on. */
+  mcpTools?: Record<string, boolean>;
+}
+
+/** The saved preferences with `changes` applied: one write, so no switch overwrites another. */
+export function withSwitches(prefs: ChatToolPreferences, changes: ToolSwitches): ChatToolPreferences {
+  const disabledMcpTools = Object.entries(changes.mcpTools ?? {})
+    .reduce((disabled, [key, on]) => setToolsEnabled(disabled, [key], on), prefs.disabledMcpTools);
+  return {
+    ...prefs,
+    webSearch: changes.webSearch ?? prefs.webSearch,
+    imageGeneration: changes.imageGeneration ?? prefs.imageGeneration,
+    meetingTools: changes.meetingTools ?? prefs.meetingTools,
+    disabledMcpTools,
+  };
+}
+
 export function setToolsEnabled(disabled: string[], keys: string[], enabled: boolean): string[] {
   const next = new Set(disabled);
   for (const key of keys) {

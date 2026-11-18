@@ -26,3 +26,26 @@ export const AGENT_LOOP_CONFIG = {
    *  The default for Settings › MCP › Max tool calls per turn (`McpSettings.maxToolCalls`), which is what chat enforces. */
   maxToolCalls: 10,
 } as const;
+
+/** The Mac Tools menu's words: kept short so every row stays one tight title over a grey line. */
+export const TOOLS_MENU_COPY = {
+  builtInHeader: 'Built-in',
+  mcpHeader: 'MCP servers',
+  webSearch: 'Web search',
+  imageGeneration: 'Image generation',
+  via: (name: string) => `via ${name}`,
+  notForModel: 'Not available for this model',
+  chooseImageModel: 'Choose an image model…',
+  cantUseTools: (model: string) => `${model} can’t use tools`,
+  pickToolModel: 'Pick a model with tool calling',
+  toolCount: (n: number) => `${n} ${n === 1 ? 'tool' : 'tools'}`,
+  onOf: (on: number, total: number) => `${on} of ${total} on`,
+  writes: 'Writes',
+  connecting: 'Connecting…',
+  noTools: 'No tools',
+  addServer: 'Add MCP server…',
+  addServerHint: 'Files, browsers, APIs',
+  noConnected: 'No connected servers',
+  manage: 'Manage MCP servers…',
+  ask: 'Ask before running MCP tools',
+} as const;

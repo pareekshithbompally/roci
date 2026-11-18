@@ -5,7 +5,7 @@ import { Check, ChevronDown } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { ModelChips, ModelIcon, ProvidersAvatar } from '@shared/components';
-import { choiceMenu, type ChoiceEntry } from '@services/tauri';
+import { nativeMenu, type NativeMenuEntry } from '@services/tauri';
 import { cachedImage } from '@services/imageCache';
 import { getAvatarUrl, modelAvatarOrg } from '@services/modelAvatars';
 import { getProviderLogo, getProviderTitle } from '@shared/utils/provider.utils';
@@ -38,28 +38,28 @@ async function iconUrlOf(choice: ModelChoice, showAvatars: boolean): Promise<str
   return org ? cachedImage(getAvatarUrl(org)).catch(() => logo) : logo;
 }
 
-/** The Mac menu: a header per provider, its models (name, facts as subtext; the chosen one checked), then the ones that need setup.
- *  `values[i]` is what row i picks (null for headers, separators and setup rows). */
+/** The Mac menu: a header per provider, its models (icon, name, facts as subtext; the chosen one checked), then the ones that need setup. */
 export function modelMenu(
   groups: Array<[string, ModelChoice[]]>,
   needsSetup: ModelChoice[],
   selected: string | undefined,
   isLoaded: (provider: string, modelId: string) => boolean,
   iconOf: (choice: ModelChoice) => string | null,
-): { entries: ChoiceEntry[]; values: Array<string | null> } {
-  const rows: Array<[ChoiceEntry, string | null]> = groups.flatMap(([provider, models], i) => [
-    ...(i > 0 ? [[{ kind: 'separator' }, null] as [ChoiceEntry, null]] : []),
-    [{ kind: 'header', title: getProviderTitle(provider) }, null] as [ChoiceEntry, null],
-    ...models.map((m): [ChoiceEntry, string] => [
-      { kind: 'row', title: m.label, subtitle: rowFacts(m, isLoaded(m.provider, m.modelId)), icon: iconOf(m), checked: m.value === selected, enabled: true },
-      m.value,
-    ]),
+): NativeMenuEntry[] {
+  const entries: NativeMenuEntry[] = groups.flatMap(([provider, models], i): NativeMenuEntry[] => [
+    ...(i > 0 ? [{ kind: 'separator' as const }] : []),
+    { kind: 'header', title: getProviderTitle(provider) },
+    ...models.map((m): NativeMenuEntry => ({
+      kind: 'row', id: m.value, title: m.label, subtitle: rowFacts(m, isLoaded(m.provider, m.modelId)), icon: iconOf(m), checked: m.value === selected, enabled: true,
+    })),
   ]);
-  if (needsSetup.length > 0) {
-    rows.push([{ kind: 'separator' }, null], [{ kind: 'header', title: MODEL_PICKER_COPY.needsSetup }, null]);
-    needsSetup.forEach((m) => rows.push([{ kind: 'row', title: m.label, subtitle: m.hint ?? undefined, icon: iconOf(m), enabled: false }, null]));
-  }
-  return { entries: rows.map(([entry]) => entry), values: rows.map(([, value]) => value) };
+  if (needsSetup.length === 0) return entries;
+  return [
+    ...entries,
+    { kind: 'separator' },
+    { kind: 'header', title: MODEL_PICKER_COPY.needsSetup },
+    ...needsSetup.map((m): NativeMenuEntry => ({ kind: 'row', id: m.value, title: m.label, subtitle: m.hint ?? undefined, icon: iconOf(m), enabled: false })),
+  ];
 }
 
 interface ModelPickerProps {
@@ -135,9 +135,9 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
     const showMenu = async (at: DOMRect) => {
       const all = [...groups.flatMap(([, models]) => models), ...needsSetup];
       const urls = new Map(await Promise.all(all.map(async (c) => [c.value, await iconUrlOf(c, !!settings.showModelAvatars)] as const)));
-      const { entries, values } = modelMenu(groups, needsSetup, settings.chatModel, isLoaded, (c) => urls.get(c.value) ?? null);
-      const value = values[await choiceMenu(entries, at.left, at.bottom + MENU_GAP_PT)];
-      if (value) handleSelectModel(value);
+      const entries = modelMenu(groups, needsSetup, settings.chatModel, isLoaded, (c) => urls.get(c.value) ?? null);
+      const { chosen } = await nativeMenu(entries, at.left, at.bottom + MENU_GAP_PT);
+      if (chosen) handleSelectModel(chosen);
     };
     return trigger((e) => {
       showMenu(e.currentTarget.getBoundingClientRect()).catch((error: unknown) => console.error('[ModelPicker] menu failed:', error));

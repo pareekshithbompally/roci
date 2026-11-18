@@ -15,7 +15,7 @@ describe('Mac model menu', () => {
   });
 
   it('a header per provider; every model row has its icon, the chosen one is checked, setup rows are disabled at the end', () => {
-    const { entries, values } = modelMenu(
+    const entries = modelMenu(
       [['openai', [choice({ value: 'a', label: 'a' }), choice({ value: 'b', label: 'b' })]], ['gemini', [choice({ provider: 'gemini', value: 'c', label: 'c' })]]],
       [choice({ value: 'd', label: 'd', ready: false, hint: 'Add Groq API key' })],
       'b',
@@ -24,8 +24,7 @@ describe('Mac model menu', () => {
     );
     expect(entries.map((e) => e.kind)).toEqual(['header', 'row', 'row', 'separator', 'header', 'row', 'separator', 'header', 'row']);
     expect(entries[0]).toEqual({ kind: 'header', title: 'OpenAI' });
-    expect(entries[2]).toMatchObject({ kind: 'row', title: 'b', subtitle: '', icon: 'icon:b', checked: true, enabled: true });
-    expect(entries.at(-1)).toMatchObject({ title: 'd', subtitle: 'Add Groq API key', enabled: false });
-    expect(values).toEqual([null, 'a', 'b', null, null, 'c', null, null, null]);
+    expect(entries[2]).toMatchObject({ kind: 'row', id: 'b', title: 'b', subtitle: '', icon: 'icon:b', checked: true, enabled: true });
+    expect(entries.at(-1)).toMatchObject({ kind: 'row', title: 'd', subtitle: 'Add Groq API key', enabled: false });
   });
 });

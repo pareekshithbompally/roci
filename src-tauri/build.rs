@@ -53,7 +53,7 @@ fn compile_ios_webview() {
     .build();
 }
 
-/// Compiles the native choice menu (native/choice_menu.m) with ARC: icon rows with a checkmark.
+/// Compiles the native menu (native/choice_menu.m) with ARC: icon rows, switch rows and submenus.
 fn compile_choice_menu() {
     println!("cargo:rerun-if-changed=native/choice_menu.m");
     cc::Build::new()
