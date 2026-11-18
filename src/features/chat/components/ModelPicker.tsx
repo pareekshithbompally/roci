@@ -6,10 +6,9 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { ProvidersAvatar, ModelIcon, ModelChips } from '@shared/components';
 import { getProviderTitle } from '@shared/utils/provider.utils';
-import { groupChoices, modelChoices, modelSources } from '@shared/utils/modelResolver';
+import { groupChoices, modelSources } from '@shared/utils/modelResolver';
+import { jobChoices } from '@services/ai/models';
 import { useLocalModels } from '@shared/hooks/useLocalModels';
-import { modelInfoOf } from '@services/ai/capabilities';
-import type { ModelInfo } from '@services/modalities';
 import { Button, CommandPopover, CommandGroup, CommandRow, Dot, Icon, Text, Tooltip, cn } from '@shared/ui';
 import { MODEL_PICKER_COPY } from '@config/chat.config';
 import { useLocalServerProbe } from '@features/settings/hooks';
@@ -28,9 +27,13 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
   const isLoaded = (provider: string, modelId: string) =>
     servers?.find((server) => server.id === provider)?.models.find((model) => model.id === modelId)?.loaded ?? false;
 
-  // The same catalog and layout as Settings › Default Models: usable models by provider, then "Needs setup".
+  // Chat models only (text in, text out), with the same layout as Settings › Default Models: usable by provider, then "Needs setup".
   const { data: localModels } = useLocalModels();
-  const choices = useMemo(() => modelChoices(modelSources(providers, settings, localModels)), [providers, settings, localModels]);
+  const choices = useMemo(
+    () => jobChoices(modelSources(providers, settings, localModels), 'chat'),
+    // catalogLoaded: what models.dev says decides which models chat.
+    [providers, settings, localModels, catalogLoaded],
+  );
   const { groups, needsSetup } = useMemo(() => groupChoices(choices), [choices]);
   const selected = choices.find((c) => c.value === settings.chatModel);
 
@@ -97,9 +100,6 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
         >
           {models.map((model) => {
             const isSelected = settings.chatModel === model.value;
-            const info: ModelInfo | null = catalogLoaded
-              ? modelInfoOf(model.provider, { id: model.modelId, served: model.served })
-              : null;
 
             return (
               <CommandRow
@@ -109,7 +109,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
                 leading={<ModelIcon provider={model.provider} modelId={model.modelId} size={14} fallback="none" />}
                 label={model.label}
                 // Capabilities sit in the row's meta column: one line, aligned down the list, never wrapping.
-                meta={<ModelChips info={info} />}
+                meta={<ModelChips info={model.info} />}
                 labelVariant={isSelected ? 'bodyStrong' : 'body'}
                 status={isLoaded(model.provider, model.modelId) && (
                   <Tooltip content={MODEL_PICKER_COPY.loaded}>

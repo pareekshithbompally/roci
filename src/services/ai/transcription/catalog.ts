@@ -1,16 +1,15 @@
 /** Speech model catalog: what can be picked, whether it can run now, and which adapter and credentials run it. */
 
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
-import { capabilitiesOf } from '@services/ai/capabilities';
-import { apiKeyHint, resolveProviderModel } from '@shared/utils/modelResolver';
-import { isLocalProviderId } from '@shared/utils/provider.utils';
+import { jobRecords, transcribeAdapter } from '@services/ai/models';
+import { apiKeyHint } from '@shared/utils/modelResolver';
 import { credentialsError } from './cred';
 import { formatFileSize } from '@shared/utils/formatters';
 import { installedHexModels } from './hex';
 import { appleSpeechHint, isAppleSpeechReady } from './appleSpeech';
 import type { AppleSpeechStatus } from '@services/ai/apple/appleIntelligence.service';
 import type { TranscriptionAdapterId } from '@config/transcription.config';
-import type { Model, ModelProvider } from '@shared/types/modelProviders';
+import type { ModelProvider } from '@shared/types/modelProviders';
 import type { HexStatus } from './hex';
 import type { LocalModel } from '@services/localModels.service';
 import type { SpeechSelection } from './types';
@@ -24,57 +23,23 @@ export interface SpeechModelOption extends SpeechSelection {
   hint: string | null;
 }
 
-const { hexProvider, keylessProviders, localSpeechModelPattern, providerModels, speechEndpointByProvider } = TRANSCRIPTION_CONFIG;
+const { hexProvider, keylessProviders, speechEndpointByProvider } = TRANSCRIPTION_CONFIG;
 
-/** The adapter a speech model runs on by config: keyless engines, local speech models, curated cloud models. */
-function speechModelAdapter({ provider, model }: SpeechSelection): TranscriptionAdapterId | null {
-  if (keylessProviders.includes(provider)) return speechEndpointByProvider[provider] ?? null;
-  if (isLocalProviderId(provider)) return localSpeechModelPattern.test(model) ? 'openai-compatible' : null;
-  if (!providerModels[provider]?.some((m) => m.id === model)) return null;
-  return speechEndpointByProvider[provider] ?? 'multimodal';
-}
-
-function acceptsAudio({ provider, model }: SpeechSelection, providers: ModelProvider[]): boolean {
-  const resolved = resolveProviderModel(provider, model, providers);
-  return !!resolved && capabilitiesOf(provider, resolved.model).audioInput;
-}
-
-/** Speech endpoint for speech models, else the multimodal prompt for audio-input models, else null. */
+/** Keyless engines run on their own endpoint; any other speech model runs the way the spine routes it. */
 export function adapterFor(selection: SpeechSelection, providers: ModelProvider[]): TranscriptionAdapterId | null {
-  return speechModelAdapter(selection) ?? (acceptsAudio(selection, providers) ? 'multimodal' : null);
+  if (keylessProviders.includes(selection.provider)) return speechEndpointByProvider[selection.provider] ?? null;
+  const record = jobRecords(providers, 'transcribe').find((r) => r.provider === selection.provider && r.id === selection.model);
+  return record ? transcribeAdapter(record) : null;
 }
 
 function keyHint(provider: string, providers: ModelProvider[]): string | null {
   return credentialsError(provider, providers) === null ? null : apiKeyHint(provider);
 }
 
-function cloudOptions(providers: ModelProvider[]): SpeechModelOption[] {
-  return Object.entries(providerModels).flatMap(([provider, models]) => {
-    const hint = keyHint(provider, providers);
-    return models.map((m) => ({ provider, model: m.id, label: m.label, ready: hint === null, hint, live: false }));
-  });
+/** The spine's speech-to-text models on the providers: the ones added that take audio, then the suggested ones. */
+function providerOptions(providers: ModelProvider[]): SpeechModelOption[] {
+  return jobRecords(providers, 'transcribe').map((r) => ({ provider: r.provider, model: r.id, label: r.label, ready: r.ready, hint: r.hint, live: false }));
 }
-
-/** Models on active providers that pass `include`; ready once the provider has a key (local servers get a default). */
-function providerOptions(
-  providers: ModelProvider[],
-  include: (provider: ModelProvider, model: Model) => boolean,
-): SpeechModelOption[] {
-  return providers
-    .filter((p) => p.active)
-    .flatMap((p) => {
-      const hint = keyHint(p.provider, providers);
-      return (p.models ?? [])
-        .filter((m) => include(p, m))
-        .map((m) => ({ provider: p.provider, model: m.id, label: m.name || m.id, ready: hint === null, hint, live: false }));
-    });
-}
-
-const isLocalSpeechModel = (p: ModelProvider, m: Model) =>
-  isLocalProviderId(p.provider) && localSpeechModelPattern.test(m.id);
-
-/** Audio models join the picker only when the user ticks "Audio input" — the curated list stays short. */
-const isTickedAudioModel = (_provider: ModelProvider, m: Model) => m.audioInput === true;
 
 function hexOptions(status: HexStatus | undefined): SpeechModelOption[] {
   const installed = installedHexModels(status).filter((m) => !TRANSCRIPTION_CONFIG.hiddenHexModels.includes(m.id));
@@ -116,9 +81,7 @@ export function speechModelOptions(providers: ModelProvider[], sources: SpeechSo
     ...(sources.appleSpeech ? appleSpeechOptions(sources.appleSpeech.status) : []),
     ...(sources.onDevice ? onDeviceOptions(sources.onDevice.models) : []),
     ...(sources.hex ? hexOptions(sources.hex.status) : []),
-    ...cloudOptions(providers),
-    ...providerOptions(providers, isLocalSpeechModel),
-    ...providerOptions(providers, isTickedAudioModel),
+    ...providerOptions(providers),
   ];
   return uniqueBySelection(options);
 }

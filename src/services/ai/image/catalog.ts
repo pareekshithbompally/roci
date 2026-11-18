@@ -2,7 +2,8 @@
 
 import { IMAGE_GENERATION_CONFIG } from '@config/imageGeneration.config';
 import { credentialsError } from '@services/ai/transcription/cred';
-import { apiKeyHint, resolveProviderModel } from '@shared/utils/modelResolver';
+import { resolveProviderModel } from '@shared/utils/modelResolver';
+import { jobRecords } from '@services/ai/models';
 import type { AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
@@ -17,12 +18,11 @@ export interface ImageModelOption {
   hint: string | null;
 }
 
-/** Every curated image model, ready once its provider is on with a key. */
+/** The spine's image models on providers Roci can make images with: the ones added that output images, then the suggested ones. */
 export function imageModelOptions(providers: ModelProvider[]): ImageModelOption[] {
-  return Object.entries(IMAGE_GENERATION_CONFIG.engines).flatMap(([provider, engine]) => {
-    const hint = credentialsError(provider, providers) === null ? null : apiKeyHint(provider);
-    return engine.models.map((m) => ({ provider, model: m.id, label: m.label, ready: hint === null, hint }));
-  });
+  return jobRecords(providers, 'image')
+    .filter((r) => r.provider in IMAGE_GENERATION_CONFIG.engines)
+    .map((r) => ({ provider: r.provider, model: r.id, label: r.label, ready: r.ready, hint: r.hint }));
 }
 
 /** What the Default Models picker stores for an image model. */

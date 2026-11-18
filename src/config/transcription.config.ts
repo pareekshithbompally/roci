@@ -5,11 +5,6 @@ import type { IntegrationId } from '@shared/utils/integrations';
 
 export type TranscriptionAdapterId = 'openai-compatible' | 'deepgram' | 'elevenlabs' | 'multimodal' | 'hex' | 'apple-speech' | 'on-device';
 
-export interface SpeechModel {
-  id: string;
-  label: string;
-}
-
 export const TRANSCRIPTION_CONFIG = {
   /** Every part is sent as 16-bit PCM WAV at this rate, mono. */
   sampleRate: 16_000,
@@ -47,27 +42,6 @@ export const TRANSCRIPTION_CONFIG = {
     'apple-intelligence': 'apple-speech',
     'on-device': 'on-device',
   } as Record<string, TranscriptionAdapterId>,
-
-  /** Curated speech models per cloud provider, in picker order. */
-  providerModels: {
-    openai: [
-      { id: 'gpt-4o-transcribe', label: 'GPT-4o Transcribe' },
-      { id: 'gpt-4o-mini-transcribe', label: 'GPT-4o mini Transcribe' },
-      { id: 'gpt-4o-transcribe-diarize', label: 'GPT-4o Transcribe (diarized)' },
-      { id: 'whisper-1', label: 'Whisper' },
-    ],
-    groq: [
-      { id: 'whisper-large-v3-turbo', label: 'Whisper Large v3 Turbo' },
-      { id: 'whisper-large-v3', label: 'Whisper Large v3' },
-    ],
-    deepgram: [{ id: 'nova-3', label: 'Nova-3 (diarized)' }],
-    elevenlabs: [{ id: 'scribe_v1', label: 'Scribe v1' }],
-    // Stable Flash-Lite: audio input at the text rate (ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite).
-    gemini: [{ id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite' }],
-  } as Record<string, readonly SpeechModel[]>,
-
-  /** Which models a local OpenAI-compatible server serves for speech-to-text, by id. */
-  localSpeechModelPattern: /whisper|parakeet|canary|moonshine|voxtral|scribe/i,
 
   /** Auto-selected on first run: the first one whose provider has a key. */
   defaultOrder: [

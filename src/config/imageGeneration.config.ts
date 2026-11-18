@@ -3,31 +3,19 @@
 /** How a provider takes the image's shape: an aspect ratio, or a fixed pixel size. */
 export type ImageSizing = 'aspectRatio' | 'size';
 
+/** A provider Roci makes images with, and how it takes the image's shape; its models come from the model spine. */
 export interface ImageEngine {
   sizing: ImageSizing;
-  models: ReadonlyArray<{ id: string; label: string }>;
 }
 
 export const IMAGE_ASPECT_RATIOS = ['1:1', '16:9', '9:16', '4:3', '3:4'] as const;
 export type ImageAspectRatio = (typeof IMAGE_ASPECT_RATIOS)[number];
 
 export const IMAGE_GENERATION_CONFIG = {
-  /** Image models by provider id; adding a model is one entry. */
+  /** Providers whose image API the AI SDK drives (`createImageModel`); suggested models live in the model spine. */
   engines: {
-    openai: {
-      sizing: 'size',
-      models: [
-        { id: 'gpt-image-1.5', label: 'GPT Image 1.5' },
-        { id: 'gpt-image-1-mini', label: 'GPT Image 1 mini' },
-      ],
-    },
-    gemini: {
-      sizing: 'aspectRatio',
-      models: [
-        { id: 'gemini-2.5-flash-image', label: 'Gemini 2.5 Flash Image' },
-        { id: 'gemini-3-pro-image-preview', label: 'Gemini 3 Pro Image' },
-      ],
-    },
+    openai: { sizing: 'size' },
+    gemini: { sizing: 'aspectRatio' },
   } satisfies Record<string, ImageEngine>,
   /** Pixel sizes for providers that take a size: the closest size they support to each shape. */
   sizeByAspect: {

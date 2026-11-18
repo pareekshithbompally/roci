@@ -1,12 +1,12 @@
-/** The one answer to what a model can do: user override → what its server reports → models.dev (cached) → provider default. */
+/** What a model can do, read from the model spine (`describeModel`): the one answer every caller shares. */
 
-import { MANAGED_SDK_PROVIDERS, WEB_SEARCH_PROVIDERS } from '@config/providers.config';
-import { modalitiesService } from '@services/modalities';
+import { WEB_SEARCH_PROVIDERS } from '@config/providers.config';
+import { describeModel, infoOf } from '@services/ai/models';
 import type { ModelInfo } from '@services/modalities';
 import type { Model } from '@shared/types/modelProviders';
 
 export interface ModelCapabilities {
-  /** Function/tool calling (meeting tools, MCP). */
+  /** Function/tool calling (meeting tools, MCP); only when a source says so or the user turns it on. */
   tools: boolean;
   /** Provider-native web search tool. */
   webSearch: boolean;
@@ -14,29 +14,22 @@ export interface ModelCapabilities {
   audioInput: boolean;
   /** Context window in tokens; null when unknown. */
   contextTokens: number | null;
-  /** Takes a thinking level: its server's chat template thinks (llama-server), or models.dev lists it as a reasoning model. */
+  /** Takes a thinking level. */
   reasoning: boolean;
 }
 
-/** The model a capability is asked about: its id, the user's overrides, and what its server reports. */
-type CapabilityModel = Pick<Model, 'id' | 'toolsEnabled' | 'audioInput' | 'served'>;
+type CapabilityModel = Pick<Model, 'id' | 'toolsEnabled' | 'audioInput' | 'served' | 'listed'>;
 
-/** A model's modalities and capabilities: what its own server reports (local), else models.dev; null when neither knows. */
-export function modelInfoOf(provider: string, model: Pick<Model, 'id' | 'served'>): ModelInfo | null {
-  const served = model.served;
-  if (served?.modalities) {
-    return { modalities: served.modalities, capabilities: { toolCall: served.tools, reasoning: served.thinking } };
-  }
-  return modalitiesService.getModelInfo(provider, model.id);
-}
+/** A model's modalities and abilities for its chips; null when no source describes it (its provider's default isn't shown). */
+export const modelInfoOf = (provider: string, model: CapabilityModel): ModelInfo | null => infoOf(describeModel(provider, model));
 
 export function capabilitiesOf(provider: string, model: CapabilityModel): ModelCapabilities {
-  const info = modelInfoOf(provider, model);
+  const described = describeModel(provider, model);
   return {
-    tools: model.toolsEnabled ?? info?.capabilities.toolCall ?? MANAGED_SDK_PROVIDERS.has(provider),
+    tools: described.tools,
     webSearch: WEB_SEARCH_PROVIDERS.has(provider),
-    audioInput: model.audioInput ?? info?.modalities?.input.includes('audio') ?? false,
-    contextTokens: model.served?.contextTokens ?? modalitiesService.getModelContextLimit(provider, model.id),
-    reasoning: info?.capabilities.reasoning ?? false,
+    audioInput: described.input.includes('audio'),
+    contextTokens: described.contextTokens,
+    reasoning: described.reasoning,
   };
 }

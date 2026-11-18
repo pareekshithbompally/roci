@@ -5,7 +5,9 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import type { OnDeviceModel } from '@shared/utils/onDeviceModel';
 import { JOB_GLYPH, ModelDownloadButton } from '@shared/components';
 import { formatFileSize } from '@shared/utils/formatters';
-import { modelChoices, modelSources, type ModelChoice } from '@shared/utils/modelResolver';
+import { modelSources, type ModelChoice } from '@shared/utils/modelResolver';
+import { jobChoices } from '@services/ai/models';
+import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { speechSelectionKey, speechSelectionOf } from '@services/ai/transcription';
 import { DEFAULT_MODELS_CONFIG } from '@config/defaultModels.config';
 import { IMAGE_GENERATION_CONFIG } from '@config/imageGeneration.config';
@@ -122,7 +124,11 @@ export const DefaultModelsPanel: React.FC = () => {
   const { settings, setSettings, providers } = useSettings();
 
   const { data: localModels = [] } = useLocalModels();
-  const textChoices = useMemo(() => modelChoices(modelSources(providers, settings, localModels)), [providers, settings, localModels]);
+  const catalogLoaded = useModelCatalog();
+  const textChoices = useMemo(
+    () => jobChoices(modelSources(providers, settings, localModels), 'chat'),
+    [providers, settings, localModels, catalogLoaded],
+  );
   const controls = useLocalModelControls();
   const speechChoices = useSpeechChoices(controls);
   const engines = useMemo(() => readAloudEngineChoices(localModels, controls), [localModels, controls]);

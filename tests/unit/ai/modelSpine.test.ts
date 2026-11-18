@@ -4,7 +4,7 @@ const getModelInfo = vi.hoisted(() => vi.fn());
 const getModelContextLimit = vi.hoisted(() => vi.fn());
 vi.mock('@services/modalities', () => ({ modalitiesService: { getModelInfo, getModelContextLimit } }));
 
-import { describeModel, fitsJob, modelRecords, modelsFor, modelSourceOf, transcribeAdapter } from '@services/ai/models';
+import { describeModel, fitsJob, jobRecords, modelRecords, modelsFor, modelSourceOf, transcribeAdapter } from '@services/ai/models';
 import type { ModelRecord } from '@services/ai/models';
 import type { ModelProvider } from '@shared/types/modelProviders';
 
@@ -27,10 +27,21 @@ beforeEach(() => {
 });
 
 describe('describeModel — first fact wins', () => {
-  it('an unknown model has no modalities and no tools, even on a managed provider', () => {
+  it('an unknown model on a language-model provider is assumed to chat, never with tools', () => {
     expect(describeModel('gemini', { id: 'mystery-1' })).toEqual({
-      input: [], output: [], tools: false, reasoning: false, contextTokens: null, known: false,
+      input: ['text'], output: ['text'], tools: false, reasoning: false, contextTokens: null, known: false,
     });
+  });
+
+  it('an unknown model on a speech provider is assumed to transcribe', () => {
+    expect(describeModel('deepgram', { id: 'whatever' })).toMatchObject({ input: ['audio'], output: ['text'], known: false });
+  });
+
+  it('the user\'s Audio input tick adds or removes audio from what the sources say', () => {
+    getModelInfo.mockReturnValue({ modalities: { input: ['text'], output: ['text'] }, capabilities: {} });
+    expect(describeModel('openrouter', { id: 'm', audioInput: true }).input).toEqual(['text', 'audio']);
+    getModelInfo.mockReturnValue({ modalities: { input: ['text', 'audio'], output: ['text'] }, capabilities: {} });
+    expect(describeModel('openrouter', { id: 'm', audioInput: false }).input).toEqual(['text']);
   });
 
   it('models.dev describes a model, dropping modalities Roci does not use', () => {
@@ -77,6 +88,32 @@ describe('describeModel — first fact wins', () => {
   });
 });
 
+describe('jobRecords — a job\'s models: the ones added, plus the suggested ones for that job', () => {
+  it('suggests a provider\'s speech models once it has a key, without adding them to chat', () => {
+    const providers = [keyed('openai', ['gpt-5'])];
+    getModelInfo.mockImplementation((_p: string, id: string) => (id === 'gpt-5'
+      ? { modalities: { input: ['text'], output: ['text'] }, capabilities: { toolCall: true } }
+      : null));
+    expect(jobRecords(providers, 'chat').map((r) => r.id)).toEqual(['gpt-5']);
+    expect(jobRecords(providers, 'transcribe').map((r) => r.id)).toContain('gpt-4o-transcribe');
+    expect(jobRecords(providers, 'image').map((r) => r.id)).toContain('gpt-image-1.5');
+  });
+
+  it('an added model wins over its suggestion, and a suggestion keeps its label', () => {
+    const providers = [{ ...keyed('openai', []), models: [{ id: 'whisper-1', displayName: 'My Whisper' }] }];
+    const records = jobRecords(providers, 'transcribe');
+    expect(records.filter((r) => r.id === 'whisper-1').map((r) => r.label)).toEqual(['My Whisper']);
+    expect(records.find((r) => r.id === 'gpt-4o-transcribe')?.label).toBe('GPT-4o Transcribe');
+  });
+
+  it('Gemini\'s transcribe model added from its list lands under speech, not chat', () => {
+    const providers = [keyed('gemini', ['gemini-3.5-transcribe', 'gemini-3.8-flash-tts'])];
+    expect(jobRecords(providers, 'chat').map((r) => r.id)).not.toContain('gemini-3.5-transcribe');
+    expect(jobRecords(providers, 'transcribe').map((r) => r.id)).toContain('gemini-3.5-transcribe');
+    expect(jobRecords(providers, 'speak').map((r) => r.id)).toEqual(['gemini-3.8-flash-tts']);
+  });
+});
+
 describe('jobs', () => {
   it('a model fits every job its modalities cover', () => {
     const multimodal = record({ input: ['text', 'audio'], output: ['text'] });
@@ -107,7 +144,7 @@ describe('jobs', () => {
 
   it('Deepgram Nova is speech, but Amazon Nova chat models are not matched by name', () => {
     expect(describeModel('deepgram', { id: 'nova-3' })).toMatchObject({ input: ['audio'], output: ['text'] });
-    expect(describeModel('openrouter', { id: 'amazon/nova-2-lite' }).known).toBe(false);
+    expect(describeModel('openrouter', { id: 'amazon/nova-2-lite' })).toMatchObject({ output: ['text'], known: false });
   });
 
   it('a transcribe variant of a chat family is speech-only', () => {

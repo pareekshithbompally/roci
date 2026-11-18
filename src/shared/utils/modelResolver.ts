@@ -1,6 +1,6 @@
 /** Resolves a model id to its provider and configuration for routing API calls. */
 
-import type { ModelProvider, Model, ServedModelInfo } from '@shared/types/modelProviders';
+import type { ModelProvider, Model } from '@shared/types/modelProviders';
 import type { ProviderType } from '@services/ai/types';
 import { MANAGED_SDK_PROVIDERS, MANAGED_DEFAULT_URLS, APPLE_INTELLIGENCE } from '@config/providers.config';
 import { isIntegrationEnabled } from '@shared/utils/integrations';
@@ -11,6 +11,7 @@ import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import type { LocalModel } from '@services/localModels.service';
+import type { ModelInfo } from '@services/modalities';
 
 const ON_DEVICE = LOCAL_MODELS_CONFIG.provider.id;
 
@@ -192,8 +193,8 @@ export interface ModelChoice {
   ready: boolean;
   /** Next step when not ready ("Add OpenAI API key"). */
   hint: string | null;
-  /** What its own server reports about it (llama-server), for its picker row's modalities. */
-  served?: ServedModelInfo;
+  /** Its modalities and abilities for its picker row's chips; null when nothing describes it. */
+  info?: ModelInfo | null;
   /** A step that makes it usable, run from its picker row (download, allow). */
   setup?: ChoiceSetup;
   /** Capabilities shown as small marks on its picker row (e.g. real-time transcription). */
@@ -223,20 +224,6 @@ export function readinessOf(provider: ModelProvider, model: Model): { ready: boo
   const resolved = resolveModel(model.id, [provider]);
   const ready = !!resolved && (!requiresApiKey(resolved) || !!resolved.apiKey);
   return { ready, hint: ready ? null : apiKeyHint(provider.provider) };
-}
-
-/** Every model the given sources offer, with whether it can run (a key where one is needed). */
-export function modelChoices(sources: ModelProvider[]): ModelChoice[] {
-  return sources
-    .filter((p) => p.active)
-    .flatMap((p) => (p.models ?? []).map((m) => ({
-      value: m.id,
-      provider: p.provider,
-      modelId: m.id,
-      label: getModelDisplayName(m),
-      served: m.served,
-      ...readinessOf(p, m),
-    })));
 }
 
 /** Picker layout every model picker shares: usable models by provider, then one "Needs setup" list. */

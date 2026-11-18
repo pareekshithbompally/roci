@@ -80,6 +80,14 @@ describe('orchestrate — web search', () => {
   });
 });
 
+describe('orchestrate — chat models only', () => {
+  it('refuses a model that does not chat, before calling it', async () => {
+    resolved.current = { provider: 'openai', modelId: 'whisper-1', baseUrl: '', model: { id: 'whisper-1' } };
+    await expect(run({})).rejects.toThrow(/doesn't chat/);
+    expect(streamText).not.toHaveBeenCalled();
+  });
+});
+
 describe('orchestrate — context use', () => {
   it('measures the window from the last step, while billing keeps the sum of every step', async () => {
     const result = await run({});

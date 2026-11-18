@@ -5,7 +5,8 @@ import type { TextStreamPart, ToolSet } from 'ai';
 import { createModel, reasoningCallSettings, toSDKMessages, getWebSearchTools, toExecutableTools } from '@services/ai';
 import { getProviderType, resolveChatModel, requiresApiKey } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
-import { isLocalProviderId } from '@shared/utils/provider.utils';
+import { getModelDisplayName, isLocalProviderId } from '@shared/utils/provider.utils';
+import { describeModel, fitsJob } from '@services/ai/models';
 import { followModelLoad, generationStats, isLlamaServer, promptProgress } from '@services/ai/llamaServer';
 import { followMlxLoad } from '@services/mlx.service';
 import { toolRegistry, loadMcpSettings, loadMcpTools, generateImageTool, GENERATE_IMAGE_TOOL } from '@extensions/tools';
@@ -41,6 +42,9 @@ function chatModelOrThrow(settings: OrchestratorOptions['settings'], providers: 
   }
   if (requiresApiKey(resolved) && !resolved.apiKey) {
     throw new Error(`API key not configured for ${resolved.provider}. Please add it in Settings → Providers.`);
+  }
+  if (!fitsJob(describeModel(resolved.provider, resolved.model), 'chat')) {
+    throw new Error(`${getModelDisplayName(resolved.model)} doesn't chat (it doesn't take and give text). Pick a chat model.`);
   }
   return resolved;
 }

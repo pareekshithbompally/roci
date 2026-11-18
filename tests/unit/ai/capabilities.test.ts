@@ -12,8 +12,8 @@ describe('capabilitiesOf', () => {
     getModelContextLimit.mockReset().mockReturnValue(null);
   });
 
-  it('falls back to provider defaults when models.dev has no entry', () => {
-    expect(capabilitiesOf('openai', { id: 'x' })).toEqual({ tools: true, webSearch: true, audioInput: false, contextTokens: null, reasoning: false });
+  it('never guesses tools when nothing describes the model', () => {
+    expect(capabilitiesOf('openai', { id: 'x' })).toEqual({ tools: false, webSearch: true, audioInput: false, contextTokens: null, reasoning: false });
     // A local model its server reports nothing about (not llama-server) gets no thinking control.
     expect(capabilitiesOf('local:127.0.0.1:9000', { id: 'x' })).toEqual({ tools: false, webSearch: false, audioInput: false, contextTokens: null, reasoning: false });
   });

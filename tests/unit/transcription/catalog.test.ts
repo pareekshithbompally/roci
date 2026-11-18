@@ -37,8 +37,8 @@ describe('adapterFor', () => {
     expect(adapterFor({ provider: 'openai', model: 'gpt-4o-transcribe' }, providers)).toBe('openai-compatible');
   });
 
-  it('runs curated models of providers without a speech endpoint on the multimodal adapter', () => {
-    expect(adapterFor({ provider: 'gemini', model: 'gemini-3.5-flash-lite' }, [])).toBe('multimodal');
+  it('runs suggested models of providers without a speech endpoint on the multimodal adapter', () => {
+    expect(adapterFor({ provider: 'gemini', model: 'gemini-3.5-flash-lite' }, [provider('gemini', [])])).toBe('multimodal');
   });
 
   it('runs local speech models on the OpenAI-compatible endpoint', () => {
@@ -67,8 +67,8 @@ describe('speechModelOptions', () => {
   const options = speechModelOptions(providers, {});
   const keys = options.map(speechSelectionKey);
 
-  it('does not list a model just because models.dev says it hears audio', () => {
-    expect(keys).not.toContain('gemini::gemini-2.5-pro');
+  it('lists an added model that takes audio, since it can transcribe (routing by modality)', () => {
+    expect(keys).toContain('gemini::gemini-2.5-pro');
   });
 
   it('offers models the user ticked "Audio input" for, cloud and local', () => {
@@ -78,9 +78,9 @@ describe('speechModelOptions', () => {
     expect(keys).not.toContain('local:127.0.0.1:8000::chat-llm');
   });
 
-  it('lists each selection once, with the curated label winning', () => {
+  it('lists each selection once; a model the user added keeps its own name over the suggestion', () => {
     expect(new Set(keys).size).toBe(keys.length);
-    expect(options.find((o) => o.model === 'gemini-3.5-flash-lite')?.label).toBe('Gemini 3.5 Flash-Lite');
+    expect(options.find((o) => o.model === 'gemini-3.5-flash-lite')?.label).toBe('Listed name');
   });
 
   it('marks audio-input models ready when their provider has a key', () => {
@@ -116,7 +116,7 @@ describe('on this Mac', () => {
 describe('picker order', () => {
   it('lists what runs on this Mac before key-gated cloud models', () => {
     const onDevice = { models: [{ id: 'parakeet-unified-en', name: 'Parakeet', maker: 'nvidia', kind: 'speech' as const, streams: true, bytes: 1, installed: false, downloading: false, contextTokens: null, tools: null, vision: null }] };
-    const providers = Object.keys(speechModelOptions([], { onDevice }).reduce((seen, o) => ({ ...seen, [o.provider]: true }), {} as Record<string, true>));
+    const providers = Object.keys(speechModelOptions([provider('openai', [])], { onDevice }).reduce((seen, o) => ({ ...seen, [o.provider]: true }), {} as Record<string, true>));
     expect(providers[0]).toBe('on-device');
     expect(providers.indexOf('on-device')).toBeLessThan(providers.indexOf('openai'));
   });
