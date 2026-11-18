@@ -1,66 +1,19 @@
-/** Chat model picker: the system menu on a Mac (logo headers, short capability text); a searchable list with icons and chips elsewhere. */
+/** Chat model picker: the shared native model menu on a Mac; a searchable list with icons and chips on iPhone and iPad. */
 
 import React, { useState, useMemo } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
-import { ModelChips, ModelIcon, ProvidersAvatar } from '@shared/components';
-import { nativeMenu, type NativeMenuEntry } from '@services/tauri';
-import { cachedImage } from '@services/imageCache';
-import { getAvatarUrl, modelAvatarOrg } from '@services/modelAvatars';
-import { getProviderLogo, getProviderTitle } from '@shared/utils/provider.utils';
+import { ModelChips, ModelIcon, ProvidersAvatar, openModelMenu } from '@shared/components';
+import { getProviderTitle } from '@shared/utils/provider.utils';
 import { groupChoices, modelSources, type ModelChoice } from '@shared/utils/modelResolver';
 import { jobChoices } from '@services/ai/models';
 import { useLocalModels } from '@shared/hooks/useLocalModels';
 import { Button, CommandPopover, CommandGroup, CommandRow, Dot, Icon, Text, Tooltip, cn } from '@shared/ui';
 import { MODEL_PICKER_COPY } from '@config/chat.config';
-import { META_SEPARATOR, MENU_GAP_PT } from '@config/ui.config';
+import { MODEL_MENU_COPY } from '@config/modelMenu.config';
 import { platform } from '@platform/index';
 import { useLocalServerProbe } from '@features/settings/hooks';
-
-/** A menu row's grey second line: what it takes in, what it can do, whether it's loaded; empty when none apply. */
-export function rowFacts(choice: ModelChoice, loaded: boolean): string {
-  const { marks } = MODEL_PICKER_COPY;
-  const info = choice.info;
-  return [
-    info?.modalities?.input.includes('image') && marks.vision,
-    info?.modalities?.input.includes('audio') && marks.audio,
-    info?.capabilities.toolCall && marks.tools,
-    info?.capabilities.reasoning && marks.thinking,
-    loaded && marks.loaded,
-  ].filter(Boolean).join(META_SEPARATOR);
-}
-
-/** A menu row's icon as ModelIcon draws it: the maker's avatar when shown and known, else the provider's logo. */
-async function iconUrlOf(choice: ModelChoice, showAvatars: boolean): Promise<string | null> {
-  const logo = getProviderLogo(choice.provider) ?? null;
-  const org = modelAvatarOrg(choice.provider, choice.modelId, showAvatars);
-  return org ? cachedImage(getAvatarUrl(org)).catch(() => logo) : logo;
-}
-
-/** The Mac menu: a header per provider, its models (icon, name, facts as subtext; the chosen one checked), then the ones that need setup. */
-export function modelMenu(
-  groups: Array<[string, ModelChoice[]]>,
-  needsSetup: ModelChoice[],
-  selected: string | undefined,
-  isLoaded: (provider: string, modelId: string) => boolean,
-  iconOf: (choice: ModelChoice) => string | null,
-): NativeMenuEntry[] {
-  const entries: NativeMenuEntry[] = groups.flatMap(([provider, models], i): NativeMenuEntry[] => [
-    ...(i > 0 ? [{ kind: 'separator' as const }] : []),
-    { kind: 'header', title: getProviderTitle(provider) },
-    ...models.map((m): NativeMenuEntry => ({
-      kind: 'row', id: m.value, title: m.label, subtitle: rowFacts(m, isLoaded(m.provider, m.modelId)), icon: iconOf(m), checked: m.value === selected, enabled: true,
-    })),
-  ]);
-  if (needsSetup.length === 0) return entries;
-  return [
-    ...entries,
-    { kind: 'separator' },
-    { kind: 'header', title: MODEL_PICKER_COPY.needsSetup },
-    ...needsSetup.map((m): NativeMenuEntry => ({ kind: 'row', id: m.value, title: m.label, subtitle: m.hint ?? undefined, icon: iconOf(m), enabled: false })),
-  ];
-}
 
 interface ModelPickerProps {
   /** Compact mode for inline display */
@@ -130,17 +83,14 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
     </Button>
   );
 
-  // Mac: the system menu (provider headers; each model with its icon, short facts and a checkmark). iPhone and iPad: the searchable list.
+  // Mac: the shared native model menu (icons, grey facts line, checkmark). iPhone and iPad: the searchable list.
   if (platform.hasMenuBar) {
-    const showMenu = async (at: DOMRect) => {
-      const all = [...groups.flatMap(([, models]) => models), ...needsSetup];
-      const urls = new Map(await Promise.all(all.map(async (c) => [c.value, await iconUrlOf(c, !!settings.showModelAvatars)] as const)));
-      const entries = modelMenu(groups, needsSetup, settings.chatModel, isLoaded, (c) => urls.get(c.value) ?? null);
-      const { chosen } = await nativeMenu(entries, at.left, at.bottom + MENU_GAP_PT);
-      if (chosen) handleSelectModel(chosen);
-    };
+    const all = [...groups.flatMap(([, models]) => models), ...needsSetup];
     return trigger((e) => {
-      showMenu(e.currentTarget.getBoundingClientRect()).catch((error: unknown) => console.error('[ModelPicker] menu failed:', error));
+      const options = { selected: settings.chatModel, isLoaded: (c: ModelChoice) => isLoaded(c.provider, c.modelId), showAvatars: !!settings.showModelAvatars };
+      openModelMenu(all, options, e.currentTarget.getBoundingClientRect())
+        .then((chosen) => chosen && handleSelectModel(chosen))
+        .catch((error: unknown) => console.error('[ModelPicker] menu failed:', error));
     });
   }
 
@@ -188,7 +138,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
         </CommandGroup>
       ))}
       {needsSetup.length > 0 && (
-        <CommandGroup heading={MODEL_PICKER_COPY.needsSetup}>
+        <CommandGroup heading={MODEL_MENU_COPY.needsSetup}>
           {needsSetup.map((model) => (
             <CommandRow
               key={`setup-${model.provider}-${model.value}`}

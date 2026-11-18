@@ -1,11 +1,14 @@
-/** The one Settings model picker (the system pop-up menu): usable models by provider, then "Needs setup" models that run their step. */
+/** The one Settings model picker: the shared model menu (native on a Mac, the system's text menu elsewhere); a model that needs setup runs its step. */
 
 import React, { useMemo } from 'react';
-import { ModelIcon } from '@shared/components';
+import { ModelIcon, modelRowText, openModelMenu } from '@shared/components';
+import { useSettings } from '@shared/contexts/SettingsContext';
 import { LAYOUT } from '@config/layout.config';
+import { MODEL_MENU_COPY } from '@config/modelMenu.config';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { Picker, Text, type PickerGroup, type PickerOption } from '@shared/ui';
-import { groupChoices, type ChoiceSetup, type ModelChoice } from '@shared/utils/modelResolver';
+import { groupChoices, type ModelChoice } from '@shared/utils/modelResolver';
+import { platform } from '@platform/index';
 
 interface ModelSelectProps {
   value: string | undefined;
@@ -15,40 +18,21 @@ interface ModelSelectProps {
   off?: { value: string; label: string };
 }
 
-/** A step still needed, as a macOS menu says it: the action and the model ("Download Whisper Small (270 MB)"), or its status. */
-function setupLabel(name: string, setup: ChoiceSetup, hint: string | null): string {
-  if (setup.busy) return `${name} — ${setup.percent !== null ? `Downloading ${setup.percent}%` : 'Downloading…'}`;
-  if (setup.kind === 'allow') return `Allow ${name}…`;
-  return hint ? `Download ${name} (${hint})` : `Download ${name}`;
-}
-
-/** A menu row: the name with its marks in parentheses; a step it needs as an action; why it can't run after a dash. */
-export function rowLabel(choice: ModelChoice): string {
-  if (!choice.ready && choice.setup) return setupLabel(choice.label, choice.setup, choice.hint);
-  const marks = (choice.marks ?? []).map((m) => m.label);
-  const name = marks.length > 0 ? `${choice.label} (${marks.join(', ')})` : choice.label;
-  return !choice.ready && choice.hint ? `${name} — ${choice.hint}` : name;
-}
-
 function option(choice: ModelChoice): PickerOption {
-  return {
-    value: choice.value,
-    label: rowLabel(choice),
-    title: choice.label,
-    disabled: !choice.ready && !choice.setup,
-  };
+  return { value: choice.value, label: modelRowText(choice), title: choice.label, disabled: !choice.ready && !choice.setup };
 }
 
 /** The value while nothing is chosen (or nothing can be), as System Settings shows it. */
 const NONE = 'None';
 
 export const ModelSelect: React.FC<ModelSelectProps> = ({ value, choices, onChange, off }) => {
+  const { settings } = useSettings();
   const groups = useMemo<PickerGroup[]>(() => {
     const { groups: byProvider, needsSetup } = groupChoices(choices);
     return [
       ...(off ? [{ options: [{ value: off.value, label: off.label }] }] : []),
       ...byProvider.map(([provider, items]) => ({ label: getProviderTitle(provider), options: items.map(option) })),
-      ...(needsSetup.length ? [{ label: 'Needs setup', options: needsSetup.map(option) }] : []),
+      ...(needsSetup.length ? [{ label: MODEL_MENU_COPY.needsSetup, options: needsSetup.map(option) }] : []),
     ];
   }, [choices, off]);
   const selected = choices.find((c) => c.value === value);
@@ -63,6 +47,13 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({ value, choices, onChan
     onChange(next);
   };
 
+  // Mac: the native model menu (icons, grey facts line); elsewhere the system's own text menu.
+  const openNative = (anchor: DOMRect) => {
+    openModelMenu(choices, { selected: value, off, showAvatars: !!settings.showModelAvatars }, anchor)
+      .then((chosen) => chosen && choose(chosen))
+      .catch((error: unknown) => console.error('[ModelSelect] menu failed:', error));
+  };
+
   if (choices.length === 0) {
     return <Text tone="faint">{NONE}</Text>;
   }
@@ -74,6 +65,7 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({ value, choices, onChan
         value={value}
         groups={groups}
         onChange={choose}
+        onOpen={platform.hasMenuBar ? openNative : undefined}
         placeholder={NONE}
         leading={selected && <ModelIcon provider={selected.provider} modelId={selected.modelId} size={16} />}
       />

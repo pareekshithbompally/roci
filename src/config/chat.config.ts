@@ -98,7 +98,4 @@ export const REASONING_EFFORT_LEVELS: ReadonlyArray<{ value: ReasoningEffort; la
 export const MODEL_PICKER_COPY = {
   /** On a local model's dot: it's in memory now, so it answers at once; picking another loads that one instead. */
   loaded: 'Loaded now',
-  needsSetup: 'Needs setup',
-  /** A Mac menu row's short facts after the model name. */
-  marks: { vision: 'Vision', audio: 'Audio', tools: 'Tools', thinking: 'Thinking', loaded: 'Loaded' },
 } as const;

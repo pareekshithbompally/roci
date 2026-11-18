@@ -30,20 +30,36 @@ export interface PickerProps {
   /** Beside the chosen value (a model's logo). */
   leading?: React.ReactNode;
   disabled?: boolean;
+  /** Opens a richer menu below the button instead of the text-only one (a Mac's native menu with icons and subtitles). */
+  onOpen?: (anchor: DOMRect) => void;
 }
 
 /**
  * The system pop-up menu: a real `<select>` under the visible value, so a tap opens the platform's own menu (iOS UIMenu,
  * macOS pop-up). The visible part hugs the chosen value — a plain value on a phone, a pop-up button on a Mac.
  */
-export function Picker({ label, value, groups, onChange, placeholder, leading, disabled }: PickerProps) {
+export function Picker({ label, value, groups, onChange, placeholder, leading, disabled, onOpen }: PickerProps) {
   const phone = useFormFactor() === 'phone';
   const chosen = groups.flatMap((g) => g.options).find((o) => o.value === value);
-  return (
-    <span className={cn(phone ? POPUP_VALUE : POPUP_BUTTON, 'relative inline-flex min-w-0 max-w-full items-center gap-2', !chosen && 'text-faint')}>
+  const face = (
+    <>
       {chosen && leading}
       <span className="min-w-0 truncate">{chosen ? (chosen.title ?? chosen.label) : placeholder}</span>
       <ChevronsUpDown aria-hidden className={phone ? POPUP_CHEVRON.phone : POPUP_CHEVRON.mac} />
+    </>
+  );
+  const look = cn(phone ? POPUP_VALUE : POPUP_BUTTON, 'relative inline-flex min-w-0 max-w-full items-center gap-2', !chosen && 'text-faint');
+  if (onOpen) {
+    return (
+      <button type="button" aria-label={label} disabled={disabled} className={cn(look, 'cursor-pointer disabled:cursor-not-allowed')}
+        onClick={(e) => onOpen(e.currentTarget.getBoundingClientRect())}>
+        {face}
+      </button>
+    );
+  }
+  return (
+    <span className={look}>
+      {face}
       <select
         aria-label={label}
         value={value ?? ''}
