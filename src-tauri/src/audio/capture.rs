@@ -113,6 +113,9 @@ fn supervise(
     let mut interrupted = false;
     let mut last_open_error = None::<String>;
     while !stop.load(Ordering::Relaxed) {
+        if interrupted {
+            tracing::info!(?source, "reopening meeting capture source");
+        }
         match open() {
             Ok(mut live) => {
                 tracing::info!(

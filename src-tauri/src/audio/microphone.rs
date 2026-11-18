@@ -349,6 +349,17 @@ fn report_stream_error(sender: &SyncSender<String>, error: cpal::Error) {
         tracing::warn!(%error, "microphone stream glitched; continuing");
         return;
     }
+    // iPhone and iPad: a route change (including the one Record's own session setup causes) leaves the stream running;
+    // audio::session follows the route, and the stall timeout reopens a stream that really stopped.
+    if cfg!(target_os = "ios")
+        && matches!(
+            error.kind(),
+            cpal::ErrorKind::DeviceChanged | cpal::ErrorKind::StreamInvalidated
+        )
+    {
+        tracing::info!(%error, "microphone route changed; continuing");
+        return;
+    }
     tracing::error!(%error, "microphone stream failed");
     let _ = sender.try_send(error.to_string());
 }
