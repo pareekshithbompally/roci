@@ -54,4 +54,13 @@ describe('buildTranscriptionRequest', () => {
     expect(prompt).toContain("## The user's notes (typed during the meeting)");
     expect(prompt).toMatch(/- \(.+\) launch date\?\n- \(.+\) ask Raj re: API/);
   });
+
+  it('asks for each note filled in only when the user typed notes', () => {
+    const plain = buildTranscriptionRequest({ categories: [], temporalContext });
+    const summaryOf = (schema: unknown) => (schema as { properties: { summary: { properties: object; required: string[] } } }).properties.summary;
+    expect(summaryOf(plain.outputSchema.schema).properties).not.toHaveProperty('enhancedNotes');
+    const withNotes = buildTranscriptionRequest({ categories: [], temporalContext, userNotes: [{ text: 'launch?', createdAt: '2026-11-18T10:00:00Z' }] });
+    expect(summaryOf(withNotes.outputSchema.schema).required).toContain('enhancedNotes');
+    expect(withNotes.prompt).toContain('`enhancedNotes`');
+  });
 });

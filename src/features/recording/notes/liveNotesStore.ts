@@ -1,6 +1,7 @@
 /** The record screen's notes: the typed lines and the enhanced bullets (UI state), and the refresh that keeps the bullets up
  *  to date — one request at a time, a newer one cancelling the stale one. */
 
+import { useMemo } from 'react';
 import { create } from 'zustand';
 import { refreshLiveNotes } from '@services/ai/liveNotes';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
@@ -99,3 +100,10 @@ export const liveNotes = {
     }
   },
 };
+
+/** The live AI notes of a meeting just recorded, shown on its Overview until the summary's own land; empty for any other. */
+export function useInterimAiNotes(meetingId: string | null): string[] {
+  const owner = useLiveNotesStore((s) => s.meetingId);
+  const bullets = useLiveNotesStore((s) => s.bullets);
+  return useMemo(() => (meetingId && owner === meetingId ? bullets.map((b) => b.text) : []), [meetingId, owner, bullets]);
+}

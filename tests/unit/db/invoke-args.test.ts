@@ -51,13 +51,14 @@ describe('store invoke arg shapes match Rust command signatures', () => {
       meetingId: 'm1',
       title: 'Standup',
       categories: [],
-      summary: { overview: 'ov', keyDiscussionPoints: [], decisionsMade: [], actionItems: [{ text: 'ship' }], nextSteps: [] },
+      summary: { overview: 'ov', keyDiscussionPoints: [], decisionsMade: [], actionItems: [{ text: 'ship' }], nextSteps: [], enhancedNotes: ['Launch: 14 Dec'] },
     });
     await meetings.setStatus('m1', { status: 'failed', failedStep: 'summarize', error: 'quota' });
     expect(callsFor('meetings_create')[0]).toMatchObject({ input: { id: 'm1', status: 'captured', recording_filename: 'm1.wav' } });
     expect(callsFor('meetings_upsert')[0]).toMatchObject({ input: { id: 'm1', title: 'Renamed', input_source: null, categories: null } });
     expect(callsFor('transcripts_save')[0]).toMatchObject({ input: { meeting_id: 'm1', text: 'hello' } });
     expect(callsFor('summaries_save')[0]).toMatchObject({ input: { meeting_id: 'm1', action_items: [{ text: 'ship', owner: null, due_date: null }] } });
+    expect(JSON.parse((callsFor('summaries_save')[0] as { input: { data: string } }).input.data).enhancedNotes).toEqual(['Launch: 14 Dec']);
     expect(callsFor('meetings_set_status')[0]).toEqual({ id: 'm1', status: { status: 'failed', failed_step: 'summarize', error: 'quota' } });
   });
 

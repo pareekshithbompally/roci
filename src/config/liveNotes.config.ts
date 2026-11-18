@@ -19,6 +19,9 @@ export const LIVE_NOTES_CONFIG = {
     noModel: 'Choose a Summary model in Settings › Default Models to fill in your notes.',
     enhancing: 'Enhancing your notes…',
     sections: 'Meeting sections',
+    /** The meeting's Overview: the notes filled in, and the wait for the final pass after Stop. */
+    enhancedTitle: 'Your notes, enhanced',
+    finishing: 'Finishing your notes…',
   },
 } as const;
 

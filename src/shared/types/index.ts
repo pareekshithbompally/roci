@@ -26,6 +26,8 @@ export interface StructuredSummary {
   decisionsMade?: string[];
   actionItems?: ActionItem[];
   nextSteps?: string[];
+  /** The user's own notes from the meeting, each filled in from the transcript; only for meetings with typed notes. */
+  enhancedNotes?: string[];
   /** @deprecated Use overview instead */
   tldr?: string;
   /** @deprecated Use keyDiscussionPoints/decisionsMade/nextSteps instead */
@@ -312,6 +314,8 @@ export interface MeetingSummary {
   decisionsMade: string[];
   actionItems: { text: string; owner?: string; dueDate?: string }[];
   nextSteps: string[];
+  /** The user's own notes from the meeting, each filled in from the transcript; only for meetings with typed notes. */
+  enhancedNotes?: string[];
 }
 
 /** Segment with timing metadata — persisted alongside transcript text */

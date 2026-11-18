@@ -2,3 +2,4 @@
 
 export { useLiveNotes } from './useLiveNotes';
 export { AiNotes, EnhancingStatus, NotesPane, PaneHeader, YourNotes } from './LiveNotesPanes';
+export { useInterimAiNotes } from './liveNotesStore';

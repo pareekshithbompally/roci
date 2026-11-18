@@ -5,7 +5,8 @@ import type { MeetingSummary } from '@shared/types';
 
 const list = (description: string) => ({ type: 'array' as const, items: { type: 'string' as const }, description });
 
-const SUMMARY_SCHEMA = {
+/** The summary schema; with the user's notes it also asks for each note filled in. */
+const summarySchema = (withNotes: boolean) => ({
   type: 'object' as const,
   description: 'The meeting summary, section by section.',
   properties: {
@@ -30,20 +31,26 @@ const SUMMARY_SCHEMA = {
       },
     },
     nextSteps: list('What happens after this meeting that is not already an action item. Empty if none.'),
+    ...(withNotes && {
+      enhancedNotes: list("The user's notes, one item per note in their order: the note's point, then what was said about it (names, numbers, dates)."),
+    }),
   },
-  required: ['overview', 'keyDiscussionPoints', 'decisionsMade', 'actionItems', 'nextSteps'] as const,
+  required: [
+    'overview', 'keyDiscussionPoints', 'decisionsMade', 'actionItems', 'nextSteps', ...(withNotes ? ['enhancedNotes' as const] : []),
+  ],
   additionalProperties: false,
-};
+});
 
-/** The analysis schema; with the user's categories, `categories` may only hold those names. */
-export function transcriptionSchema(categories: string[]) {
+/** The analysis schema; with the user's categories, `categories` may only hold those names; with their notes, the summary
+ *  fills each one in. */
+export function transcriptionSchema(categories: string[], withNotes = false) {
   const category =
     categories.length > 0 ? { type: 'string' as const, enum: categories } : { type: 'string' as const };
   return {
     type: 'object' as const,
     properties: {
       title: { type: 'string' as const, description: 'A title of at most 6 words naming the main topic.' },
-      summary: SUMMARY_SCHEMA,
+      summary: summarySchema(withNotes),
       categories: {
         type: 'array' as const,
         items: category,

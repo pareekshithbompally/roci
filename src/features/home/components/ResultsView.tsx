@@ -7,7 +7,7 @@ import { Pencil, Plus, Clock, Users, ExternalLink } from 'lucide-react';
 import { useAppResult, useActiveResultTab, useSelectedHistoryId, useAppActions } from '@shared/stores/appStore';
 import type { ResultTab } from '@shared/stores/appStore';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
-import { SummaryView } from '@features/summary';
+import { EnhancedNotesSection, SummaryView } from '@features/summary';
 import { ParsedTranscript } from '@features/transcription';
 import { LAYOUT } from '@config/layout.config';
 import { TodoList } from '@features/todos';
@@ -15,7 +15,7 @@ import { NotesView } from '@features/notes';
 import { ResultsAudioPlayer } from './ResultsAudioPlayer';
 import { openUrl } from '@services/tauri';
 import { formatDuration, calendarDayOffset, formatDayLabel } from '@shared/utils/formatters';
-import { meetingPipeline } from '@features/recording';
+import { meetingPipeline, useInterimAiNotes } from '@features/recording';
 import { useMeetingPhase } from '@shared/stores/meetingProgressStore';
 import { MeetingStatus } from '@shared/components';
 import { MeetingPhaseNotice } from './MeetingPhaseNotice';
@@ -144,6 +144,7 @@ export const ResultsView: React.FC = () => {
   const recordingFileName = currentHistoryItem?.recordingFileName;
   const phase = useMeetingPhase(currentHistoryItem);
   const { data: stats, isPending: statsPending } = useMeetingStats(currentHistoryItem?.id);
+  const interimNotes = useInterimAiNotes(currentHistoryItem?.id ?? null);
   const handleTranscribe = () => {
     if (currentHistoryItem) meetingPipeline.toggle(currentHistoryItem.id);
   };
@@ -280,12 +281,16 @@ export const ResultsView: React.FC = () => {
                 {stats ? <ModelCreditLine transcribedBy={stats.transcribedBy} summarizedBy={stats.summarizedBy} /> : <Text variant="helper">{'\u00A0'}</Text>}
               </div>
             )}
-            <SummaryView
-              summary={result.summary}
-              structuredSummary={result.structuredSummary}
-              timestamp={result.timestamp}
-              title={result.title}
-            />
+            {!result.summary && !result.structuredSummary && interimNotes.length > 0 ? (
+              <EnhancedNotesSection items={interimNotes} pending />
+            ) : (
+              <SummaryView
+                summary={result.summary}
+                structuredSummary={result.structuredSummary}
+                timestamp={result.timestamp}
+                title={result.title}
+              />
+            )}
           </>
         )}
         {activeResultTab === 'transcript' && (

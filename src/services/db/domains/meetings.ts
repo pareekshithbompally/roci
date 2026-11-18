@@ -54,6 +54,7 @@ function toDetail(result: RustMeetingDetail): MeetingDetail {
       decisionsMade: summaryData.decisionsMade ?? [],
       actionItems: summaryData.actionItems ?? [],
       nextSteps: summaryData.nextSteps ?? [],
+      enhancedNotes: summaryData.enhancedNotes,
     };
   }
 
@@ -177,6 +178,7 @@ export const meetings = {
           decisionsMade: summary.decisionsMade,
           actionItems: summary.actionItems,
           nextSteps: summary.nextSteps,
+          enhancedNotes: summary.enhancedNotes,
         }),
         categories: input.categories,
         action_items: summary.actionItems.map((a) => ({ text: a.text, owner: a.owner ?? null, due_date: a.dueDate ?? null })),

@@ -15,6 +15,7 @@ export function formatMeetingSummary(summary?: MeetingSummary): string {
   if (!summary) return '';
 
   const parts: string[] = [];
+  if (summary.enhancedNotes?.length) parts.push(`Your Notes, Enhanced:\n${summary.enhancedNotes.map((note) => `- ${note}`).join('\n')}`);
   if (summary.overview) parts.push(summary.overview);
   if (summary.keyDiscussionPoints.length > 0) {
     parts.push(`Key Discussion Points:\n${summary.keyDiscussionPoints.map(point => `- ${point}`).join('\n')}`);
@@ -83,6 +84,7 @@ function toHistoryItem(detail: MeetingDetail): HistoryItem {
         completed: false,
       })),
       nextSteps: detail.summary.nextSteps,
+      enhancedNotes: detail.summary.enhancedNotes,
     } : undefined,
     userNotes: mapNotes(detail),
     userActionItems: mapActionItems(detail),

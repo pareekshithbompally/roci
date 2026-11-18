@@ -22,6 +22,7 @@ export function meetingSummaryOf(result: ProcessedResult): MeetingSummary {
       dueDate: a.dueDate ? normalizeDueDate(a.dueDate) : undefined,
     })),
     nextSteps: structured?.nextSteps || [],
+    enhancedNotes: structured?.enhancedNotes,
   };
 }
 

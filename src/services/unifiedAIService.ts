@@ -198,12 +198,14 @@ class UnifiedAIService {
           completed: false,
         })),
         nextSteps: summary.nextSteps,
+        enhancedNotes: summary.enhancedNotes,
       },
     };
   }
 
   private buildSummaryString(summary: MeetingSummary): string {
     const parts: string[] = [];
+    if (summary.enhancedNotes?.length) parts.push(`## Your Notes, Enhanced\n${summary.enhancedNotes.map((n) => `- ${n}`).join('\n')}`);
     parts.push(`## Meeting Overview\n${summary.overview}`);
     if (summary.keyDiscussionPoints.length > 0) {
       parts.push(`## Key Discussion Points\n${summary.keyDiscussionPoints.map(p => `- ${p}`).join('\n')}`);

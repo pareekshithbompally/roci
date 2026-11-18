@@ -2,8 +2,9 @@ import React from 'react';
 import type { ActionItem, StructuredSummary } from '@shared/types';
 import { Sparkles } from 'lucide-react';
 import { EmptyState, Markdown } from '@shared/components';
-import { Surface, Text } from '@shared/ui';
+import { AiPending, Icon, Surface, Text } from '@shared/ui';
 import { TODOS_CONFIG } from '@config/todos.config';
+import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
 
 interface SummaryViewProps {
   summary: string;
@@ -29,9 +30,9 @@ const SummarySection: React.FC<{ title: string; children: React.ReactNode }> = (
   </section>
 );
 
-const Bullet: React.FC<{ children: React.ReactNode; meta?: string }> = ({ children, meta }) => (
+const Bullet: React.FC<{ children: React.ReactNode; meta?: string; ai?: boolean }> = ({ children, meta, ai }) => (
   <li className="flex items-start gap-3">
-    <Text variant="reading" tone="faint" className="shrink-0">•</Text>
+    <Text variant="reading" tone={ai ? 'ai' : 'faint'} className="shrink-0">•</Text>
     <div className="flex-1 min-w-0">
       <Text as="p" variant="reading" className="leading-relaxed">{children}</Text>
       {meta && <Text as="p" variant="helper" tone="muted" className="mt-0.5">{meta}</Text>}
@@ -45,6 +46,26 @@ const BulletSection: React.FC<{ title: string; items?: string[] }> = ({ title, i
     <SummarySection title={title}>
       {items.map((item, idx) => <Bullet key={idx}>{item}</Bullet>)}
     </SummarySection>
+  );
+};
+
+/** The user's notes filled in, first on the Overview; `pending` while the final pass after Stop still runs (the live ones,
+ *  shimmering). */
+export const EnhancedNotesSection: React.FC<{ items?: string[]; pending?: boolean }> = ({ items, pending }) => {
+  if (!items || items.length === 0) return null;
+  return (
+    <section>
+      <div className="mb-3 flex items-center gap-2">
+        <Icon icon={Sparkles} size="sm" tone="ai" />
+        <Text as="h3" variant="title">{NOTES.copy.enhancedTitle}</Text>
+        {pending && <Text variant="caption" shimmer>{NOTES.copy.finishing}</Text>}
+      </div>
+      <ul className="space-y-2">
+        {items.map((item, idx) => pending
+          ? <li key={idx}><AiPending>{item}</AiPending></li>
+          : <Bullet key={idx} ai>{item}</Bullet>)}
+      </ul>
+    </section>
   );
 };
 
@@ -89,6 +110,7 @@ const SummaryView: React.FC<SummaryViewProps> = ({ summary, structuredSummary })
   if (hasNewFields) {
     return (
       <div className="max-w-4xl space-y-6">
+        <EnhancedNotesSection items={structuredSummary.enhancedNotes} />
         {structuredSummary.overview && <Overview>{structuredSummary.overview}</Overview>}
         <BulletSection title="Key Discussion Points" items={structuredSummary.keyDiscussionPoints} />
         <BulletSection title="Decisions Made" items={structuredSummary.decisionsMade} />

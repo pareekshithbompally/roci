@@ -27,7 +27,8 @@ export function confirm(request: ConfirmRequest): Promise<boolean> {
   if (isTauriEnvironment()) {
     return dialogService.confirm(request.title, request.description ?? '', {
       okLabel: request.confirmLabel,
-      cancelLabel: request.cancelLabel,
+      // the system alert's own default is "No"; a Mac alert says Cancel
+      cancelLabel: request.cancelLabel ?? 'Cancel',
       warning: request.tone === 'danger',
     });
   }

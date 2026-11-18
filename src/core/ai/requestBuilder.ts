@@ -17,7 +17,7 @@ export interface TranscriptionRequestOptions {
 
 /** Analysis prompt and schema, built as one pair from the same categories. */
 export function buildTranscriptionRequest({ categories, meetingContext, userNotes, temporalContext }: TranscriptionRequestOptions): TranscriptionRequestConfig {
-  const schema = transcriptionSchema(categories);
+  const schema = transcriptionSchema(categories, (userNotes?.length ?? 0) > 0);
   const prompt = buildTranscriptionPrompt({ categories, meetingContext, userNotes, temporalContext, schema });
   return { prompt, outputSchema: { name: 'transcription', schema } };
 }
