@@ -15,7 +15,7 @@ export type ProviderSetting = {
   controller_props: ControllerProps
 }
 
-/** What a model's own server reports about it (llama-server `/models`); hosted models get this from models.dev instead. */
+/** What a source reports about a model: its own server (llama-server `/models`) or its provider's model list. */
 export type ServedModelInfo = {
   /** Kinds of input and output it takes and gives (text, image, audio, video). */
   modalities?: { input: string[]; output: string[] }
@@ -43,6 +43,8 @@ export type Model = {
   audioInput?: boolean
   /** Read from its server on detection; never edited by the user. */
   served?: ServedModelInfo
+  /** What its provider's model list says about it (Gemini, OpenRouter), saved on Test or Add; never edited by the user. */
+  listed?: ServedModelInfo
 }
 
 export type ProviderCustomHeader = {

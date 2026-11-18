@@ -31,7 +31,7 @@ function statusView(status: ConnectionStatus): StatusView {
     case 'checking':
       return { label: 'Checking…', tone: 'info', pulse: true };
     case 'connected':
-      return { label: `Connected · ${status.modelIds.length} ${status.modelIds.length === 1 ? 'model' : 'models'}`, tone: 'success' };
+      return { label: `Connected · ${status.models.length} ${status.models.length === 1 ? 'model' : 'models'}`, tone: 'success' };
     case 'failed':
       return { label: 'Failed', tone: 'danger' };
   }

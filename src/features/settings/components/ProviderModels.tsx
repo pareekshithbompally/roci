@@ -12,6 +12,8 @@ import { getModelDisplayName } from '@shared/utils/provider.utils';
 import { CardRow, CommandGroup, CommandPopover, CommandRow, ICON_TILE_PX, Icon, Section } from '@shared/ui';
 import type { Model, ModelProvider } from '@shared/types/modelProviders';
 import type { ConnectionStatus, ProviderConnection } from '@features/settings/hooks/useProviderConnection';
+import { hasInfo } from '@services/providers/listing';
+import type { ListedModel } from '@services/providers/listing';
 import { ModelRowMenu } from './ModelRowMenu';
 import type { ModelCapabilityFlag } from './ModelRowMenu';
 
@@ -25,7 +27,7 @@ interface AddModelPickerProps {
   provider: string;
   connection: ProviderConnection;
   added: ReadonlySet<string>;
-  onAdd: (modelId: string) => void;
+  onAdd: (model: ListedModel) => void;
 }
 
 /** What the list says while it has no rows to show. */
@@ -44,9 +46,9 @@ const AddModelPicker: React.FC<AddModelPickerProps> = ({ provider, connection, a
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState('');
   const { status } = connection;
-  const available = status.state === 'connected' ? status.modelIds : [];
+  const available = status.state === 'connected' ? status.models : [];
   const typed = search.trim();
-  const unlisted = typed !== '' && !added.has(typed) && !available.includes(typed);
+  const unlisted = typed !== '' && !added.has(typed) && !available.some((m) => m.id === typed);
 
   const changeOpen = (next: boolean) => {
     setPickerOpen(next);
@@ -54,8 +56,8 @@ const AddModelPicker: React.FC<AddModelPickerProps> = ({ provider, connection, a
     if (next && (status.state === 'untested' || status.state === 'failed')) connection.test();
   };
 
-  const add = (modelId: string) => {
-    onAdd(modelId);
+  const add = (model: ListedModel) => {
+    onAdd(model);
     changeOpen(false);
   };
 
@@ -75,16 +77,16 @@ const AddModelPicker: React.FC<AddModelPickerProps> = ({ provider, connection, a
     >
       {unlisted && (
         <CommandGroup heading="Not in the provider's list">
-          <CommandRow value={typed} onSelect={() => add(typed)} leading={<Icon icon={Plus} size="sm" tone="faint" />} label={`Add “${typed}”`} />
+          <CommandRow value={typed} onSelect={() => add({ id: typed, info: {} })} leading={<Icon icon={Plus} size="sm" tone="faint" />} label={`Add “${typed}”`} />
         </CommandGroup>
       )}
-      {available.filter((modelId) => !added.has(modelId)).map((modelId) => (
+      {available.filter((model) => !added.has(model.id)).map((model) => (
         <CommandRow
-          key={modelId}
-          value={modelId}
-          onSelect={() => add(modelId)}
-          label={modelId}
-          meta={<ModelChips info={catalogLoaded ? modelInfoOf(provider, { id: modelId }) : null} />}
+          key={model.id}
+          value={model.id}
+          onSelect={() => add(model)}
+          label={model.id}
+          meta={<ModelChips info={catalogLoaded ? modelInfoOf(provider, { id: model.id }) : null} />}
         />
       ))}
     </CommandPopover>
@@ -103,9 +105,9 @@ export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connec
 
   const setModels = (next: Model[]) => updateProvider(id, { models: next });
 
-  const handleAdd = (modelId: string) => {
+  const handleAdd = ({ id: modelId, info }: ListedModel) => {
     if (models.some((m) => m.id === modelId)) return;
-    setModels([...models, { id: modelId, name: modelId }]);
+    setModels([...models, { id: modelId, name: modelId, ...(hasInfo(info) ? { listed: info } : {}) }]);
   };
 
   const handleRemove = async (model: Model) => {

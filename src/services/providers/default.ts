@@ -1,7 +1,9 @@
 import type { ProvidersService } from './types'
 import type { ModelProvider, ProviderSetting } from '@shared/types/modelProviders'
-import { predefinedProviders, MANAGED_MODELS, MANAGED_DEFAULT_URLS } from '@config/providers.config'
+import { predefinedProviders, MANAGED_MODELS, MANAGED_DEFAULT_URLS, GEMINI_LIST_PAGE_SIZE } from '@config/providers.config'
 import { getPlatformFetch } from '@services/platform-fetch'
+import { geminiListing, openAIListing } from './listing'
+import type { ListedModel } from './listing'
 
 /** Default base URLs for providers that have a known API endpoint */
 const PROVIDER_BASE_URLS: Record<string, string> = {
@@ -35,10 +37,10 @@ export class DefaultProvidersService implements ProvidersService {
     return headers
   }
 
-  async fetchModelsFromProvider(provider: ModelProvider): Promise<string[]> {
+  async fetchModelsFromProvider(provider: ModelProvider): Promise<ListedModel[]> {
     // Return hardcoded models for providers without a /models endpoint (none currently)
     if (MANAGED_MODELS[provider.provider]) {
-      return MANAGED_MODELS[provider.provider]
+      return MANAGED_MODELS[provider.provider].map((id) => ({ id, info: {} }))
     }
 
     if (!provider.api_key) {
@@ -48,15 +50,12 @@ export class DefaultProvidersService implements ProvidersService {
     // Gemini: uses a different endpoint structure (API key in query param, different response shape)
     if (provider.provider === 'gemini') {
       const resp = await getPlatformFetch()(
-        `https://generativelanguage.googleapis.com/v1beta/models?key=${provider.api_key}`
+        `https://generativelanguage.googleapis.com/v1beta/models?pageSize=${GEMINI_LIST_PAGE_SIZE}&key=${provider.api_key}`
       )
       if (!resp.ok) {
         throw new Error(`Failed to fetch Gemini models: ${resp.status} ${resp.statusText}`)
       }
-      const data = await resp.json()
-      return (data.models as Array<{ name: string }> || [])
-        .map((m) => m.name.replace(/^models\//, ''))
-        .filter(Boolean)
+      return geminiListing(await resp.json())
     }
 
     // All other providers: GET {baseUrl}/models with unified headers
@@ -96,32 +95,7 @@ export class DefaultProvidersService implements ProvidersService {
         }
       }
 
-      const data = await response.json()
-
-      // Handle 3 common response formats
-      if (data.data && Array.isArray(data.data)) {
-        // OpenAI / Anthropic format: { data: [{ id: "model-id" }, ...] }
-        return data.data
-          .map((model: { id: string }) => model.id)
-          .filter(Boolean)
-      } else if (Array.isArray(data)) {
-        // Direct array format
-        return data
-          .filter(Boolean)
-          .map((model) =>
-            typeof model === 'object' && 'id' in model ? model.id : model
-          )
-      } else if (data.models && Array.isArray(data.models)) {
-        // { models: [...] } format
-        return data.models
-          .map((model: string | { id: string }) =>
-            typeof model === 'string' ? model : model.id
-          )
-          .filter(Boolean)
-      }
-
-      console.warn('Unexpected response format from provider API:', data)
-      return []
+      return openAIListing(await response.json())
     } catch (error) {
       console.error('Error fetching models from provider:', error)
 

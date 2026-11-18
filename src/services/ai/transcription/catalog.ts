@@ -2,8 +2,8 @@
 
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { capabilitiesOf } from '@services/ai/capabilities';
-import { resolveProviderModel } from '@shared/utils/modelResolver';
-import { getProviderTitle, isLocalProviderId } from '@shared/utils/provider.utils';
+import { apiKeyHint, resolveProviderModel } from '@shared/utils/modelResolver';
+import { isLocalProviderId } from '@shared/utils/provider.utils';
 import { credentialsError } from './cred';
 import { formatFileSize } from '@shared/utils/formatters';
 import { installedHexModels } from './hex';
@@ -45,7 +45,7 @@ export function adapterFor(selection: SpeechSelection, providers: ModelProvider[
 }
 
 function keyHint(provider: string, providers: ModelProvider[]): string | null {
-  return credentialsError(provider, providers) === null ? null : `Add ${getProviderTitle(provider)} API key`;
+  return credentialsError(provider, providers) === null ? null : apiKeyHint(provider);
 }
 
 function cloudOptions(providers: ModelProvider[]): SpeechModelOption[] {

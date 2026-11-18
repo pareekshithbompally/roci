@@ -24,6 +24,9 @@ interface SettingsState {
   isLoading: boolean;
 }
 
+/** A provider change: fields to set, or a function of the provider as saved now. */
+type ProviderUpdate = Partial<ModelProvider> | ((current: ModelProvider) => Partial<ModelProvider>);
+
 interface SettingsContextValue extends SettingsState {
   /** Get selected provider */
   selectedProvider: ModelProvider | undefined;
@@ -33,8 +36,8 @@ interface SettingsContextValue extends SettingsState {
   setProviders: (providers: ModelProvider[]) => void;
   /** Add a provider */
   addProvider: (provider: ModelProvider) => void;
-  /** Update a provider */
-  updateProvider: (providerName: string, updates: Partial<ModelProvider>) => void;
+  /** Updates as given, or computed from the provider as saved now (for async results that must not overwrite newer edits). */
+  updateProvider: (providerName: string, updates: ProviderUpdate) => void;
   /** Delete a provider */
   deleteProvider: (providerName: string) => void;
   /** Update provider setting */
@@ -434,11 +437,11 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     }));
   }, [updateCache]);
 
-  const updateProvider = useCallback((providerName: string, updates: Partial<ModelProvider>) => {
+  const updateProvider = useCallback((providerName: string, updates: ProviderUpdate) => {
     updateCache(prev => ({
       ...prev,
       providers: prev.providers.map(p =>
-        p.provider === providerName ? { ...p, ...updates } : p
+        p.provider === providerName ? { ...p, ...(typeof updates === 'function' ? updates(p) : updates) } : p
       ),
     }));
   }, [updateCache]);

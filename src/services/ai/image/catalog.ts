@@ -2,8 +2,7 @@
 
 import { IMAGE_GENERATION_CONFIG } from '@config/imageGeneration.config';
 import { credentialsError } from '@services/ai/transcription/cred';
-import { resolveProviderModel } from '@shared/utils/modelResolver';
-import { getProviderTitle } from '@shared/utils/provider.utils';
+import { apiKeyHint, resolveProviderModel } from '@shared/utils/modelResolver';
 import type { AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
@@ -21,7 +20,7 @@ export interface ImageModelOption {
 /** Every curated image model, ready once its provider is on with a key. */
 export function imageModelOptions(providers: ModelProvider[]): ImageModelOption[] {
   return Object.entries(IMAGE_GENERATION_CONFIG.engines).flatMap(([provider, engine]) => {
-    const hint = credentialsError(provider, providers) === null ? null : `Add ${getProviderTitle(provider)} API key`;
+    const hint = credentialsError(provider, providers) === null ? null : apiKeyHint(provider);
     return engine.models.map((m) => ({ provider, model: m.id, label: m.label, ready: hint === null, hint }));
   });
 }

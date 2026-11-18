@@ -215,23 +215,28 @@ export interface ChoiceSetup {
   run: () => void;
 }
 
+/** The next step for a provider that has no API key yet. */
+export const apiKeyHint = (provider: string): string => `Add ${getProviderTitle(provider)} API key`;
+
+/** Whether a model on an active provider can run now (a key where one is needed), with the next step when not. */
+export function readinessOf(provider: ModelProvider, model: Model): { ready: boolean; hint: string | null } {
+  const resolved = resolveModel(model.id, [provider]);
+  const ready = !!resolved && (!requiresApiKey(resolved) || !!resolved.apiKey);
+  return { ready, hint: ready ? null : apiKeyHint(provider.provider) };
+}
+
 /** Every model the given sources offer, with whether it can run (a key where one is needed). */
 export function modelChoices(sources: ModelProvider[]): ModelChoice[] {
   return sources
     .filter((p) => p.active)
-    .flatMap((p) => (p.models ?? []).map((m) => {
-      const resolved = resolveModel(m.id, [p]);
-      const ready = !!resolved && (!requiresApiKey(resolved) || !!resolved.apiKey);
-      return {
-        value: m.id,
-        provider: p.provider,
-        modelId: m.id,
-        label: getModelDisplayName(m),
-        served: m.served,
-        ready,
-        hint: ready ? null : `Add ${getProviderTitle(p.provider)} API key`,
-      };
-    }));
+    .flatMap((p) => (p.models ?? []).map((m) => ({
+      value: m.id,
+      provider: p.provider,
+      modelId: m.id,
+      label: getModelDisplayName(m),
+      served: m.served,
+      ...readinessOf(p, m),
+    })));
 }
 
 /** Picker layout every model picker shares: usable models by provider, then one "Needs setup" list. */
