@@ -19,6 +19,7 @@ export { BarChart } from './bar-chart';
 export type { BarChartProps, BarDatum } from './bar-chart';
 export type { IconTileProps, TileGlyph } from './icon-tile';
 export { Text, Code } from './text';
+export { AiPending, AiArrived } from './ai-work';
 export type { TextProps, TextVariant, TextTone } from './text';
 export { Row, rowClasses, actionRowClasses, RowAction, RowGroupLabel, RowTitle } from './row';
 export type { RowProps } from './row';

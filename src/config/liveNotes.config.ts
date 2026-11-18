@@ -5,28 +5,27 @@ export const LIVE_NOTES_CONFIG = {
   transcriptStepMs: 45_000,
   /** Refresh (and save the typed lines) this long after typing stops (ms). */
   typingIdleMs: 2_000,
-  /** Turns the collapsed transcript strip shows. */
-  collapsedTurns: 2,
+  /** The transcript keeps following the newest line while the reader is within this distance of its end (px). */
+  followSlackPx: 48,
   /** Ids the client gives bullets: "b1", "b2"… short so the model copies them exactly. */
   bulletIdPrefix: 'b',
   copy: {
     yourNotes: 'Your notes',
-    enhanced: 'Enhanced notes',
+    aiNotes: 'AI notes',
     transcript: 'Live transcript',
+    transcribing: 'Transcribing…',
     placeholder: 'Type shorthand, one thought per line. Each line is filled in from what was being said.',
-    enhancedEmpty: 'Your lines are filled in here from what was said around them.',
+    aiEmpty: 'Type a line in Your notes and it is filled in here from what was said around it.',
     noModel: 'Choose a Summary model in Settings › Default Models to fill in your notes.',
-    updating: 'Updating…',
-    expand: 'Expand transcript',
-    collapse: 'Collapse transcript',
+    enhancing: 'Enhancing your notes…',
+    sections: 'Meeting sections',
   },
 } as const;
 
-/** The record screen's sections (a phone shows one at a time). */
-export const LIVE_NOTES_TABS = [
-  { value: 'notes', label: 'Notes' },
-  { value: 'enhanced', label: 'Enhanced' },
-  { value: 'transcript', label: 'Transcript' },
-] as const;
+/** The notes pane's switch: one view at a time. */
+export const NOTES_VIEWS = ['notes', 'ai'] as const;
+export type NotesView = (typeof NOTES_VIEWS)[number];
 
-export type LiveNotesTab = (typeof LIVE_NOTES_TABS)[number]['value'];
+/** A phone's sections, one at a time. */
+export const PHONE_SECTIONS = ['transcript', ...NOTES_VIEWS] as const;
+export type PhoneSection = (typeof PHONE_SECTIONS)[number];

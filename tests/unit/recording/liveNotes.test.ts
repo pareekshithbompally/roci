@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
 import {
-  mergeBullets, reconcileLines, refreshReason, signatureOf, transcriptText, unsentEntries, entryKey,
+  aiRows, mergeBullets, reconcileLines, refreshReason, signatureOf, transcriptText, unsentEntries, entryKey,
   type Bullet, type NoteLine,
 } from '@features/recording/notes/liveNotes';
 import type { LiveEntry } from '@features/recording/live/liveTranscript';
@@ -113,5 +113,14 @@ describe('mergeBullets', () => {
   it('drops bullets of deleted note lines and ignores empty text', () => {
     const current: Bullet[] = [{ id: 'b1', noteId: 'gone', text: 'a' }, { id: 'b2', text: 'free' }];
     expect(mergeBullets(current, [{ id: 'b2', text: '  ' }], lines)).toEqual([{ id: 'b2', text: 'free' }]);
+  });
+});
+
+describe('aiRows', () => {
+  it('shows each typed line as its bullets once written, or as itself while it waits, free bullets last', () => {
+    const lines: NoteLine[] = [{ id: 'n1', text: 'launch?' }, { id: 'n2', text: '' }, { id: 'n3', text: 'api' }];
+    const bullets: Bullet[] = [{ id: 'b2', text: 'Decision: ship' }, { id: 'b1', noteId: 'n1', text: 'Launch: 14 Dec' }];
+    expect(aiRows(lines, bullets).map((r) => (r.kind === 'bullet' ? r.bullet.id : `pending:${r.line.id}`)))
+      .toEqual(['b1', 'pending:n3', 'b2']);
   });
 });

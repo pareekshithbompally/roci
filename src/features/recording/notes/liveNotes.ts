@@ -118,3 +118,19 @@ function insertionIndex(bullets: Bullet[], noteId: string | undefined, lines: No
   const later = bullets.findIndex((b) => b.noteId !== undefined && (order.get(b.noteId) ?? 0) > own);
   return later >= 0 ? later : bullets.length;
 }
+
+/** One row of the AI notes: a written bullet, or a typed line the model has not filled in yet. */
+export type AiRow = { kind: 'bullet'; bullet: Bullet } | { kind: 'pending'; line: NoteLine };
+
+/** The AI notes in the order of the typed lines: each line's bullets, or the line itself while it waits; bullets that expand no
+ *  line come last. */
+export function aiRows(lines: NoteLine[], bullets: Bullet[]): AiRow[] {
+  const byNote = new Map<string, Bullet[]>();
+  bullets.forEach((b) => b.noteId && byNote.set(b.noteId, [...(byNote.get(b.noteId) ?? []), b]));
+  const rows = writtenLines(lines).flatMap((line): AiRow[] => {
+    const own = byNote.get(line.id);
+    return own ? own.map((bullet) => ({ kind: 'bullet', bullet })) : [{ kind: 'pending', line }];
+  });
+  const free = bullets.filter((b) => !b.noteId).map((bullet): AiRow => ({ kind: 'bullet', bullet }));
+  return [...rows, ...free];
+}

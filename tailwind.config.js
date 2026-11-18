@@ -60,6 +60,7 @@ export default {
         ...stateRoles('solid'),
         separator: 'var(--border-muted)',
         ai: 'var(--ai-accent)',
+        'ai-wash': 'var(--ai-wash)',
       },
       textColor: {
         ...roles('text', ['primary', 'muted', 'faint', 'accent', 'inverse', 'on-accent']),
@@ -71,6 +72,7 @@ export default {
         ...roles('border', ['muted', 'base', 'strong', 'focus']),
         ...stateRoles('border'),
         accent: 'var(--bg-accent)',
+        ai: 'var(--ai-border)',
       },
       divideColor: roles('border', ['muted', 'base', 'strong']),
       ringColor: { focus: 'var(--border-focus)' },
@@ -82,6 +84,8 @@ export default {
         'tint-pressed': 'linear-gradient(var(--bg-pressed), var(--bg-pressed))',
         // Running-work label: a brighter band sweeps across faint text (Text `shimmer`).
         'text-shimmer': 'linear-gradient(90deg, var(--text-faint) 35%, var(--text-primary) 50%, var(--text-faint) 65%)',
+        // AI at work: a copper band sweeping across a row (kit AiPending).
+        'ai-sweep': 'var(--ai-sweep)',
       },
       backgroundSize: { shimmer: '200% 100%' },
       // Grouped-list shape (tokens.css): macOS values by default, iOS under html.platform-ios.
@@ -129,6 +133,8 @@ export default {
           from: { backgroundPosition: '100% 0' },
           to: { backgroundPosition: '-100% 0' },
         },
+        // AI output landing: the copper wash fades out of a new or changed line.
+        'ai-arrive': { from: { backgroundColor: 'var(--ai-wash)' }, to: { backgroundColor: 'transparent' } },
         // Landing glow blobs; translate(-50%, -50%) makes `left/top` mark each blob's centre.
         'glow-drift-1': {
           '0%, 100%': { transform: 'translate(-50%, -50%) translate(0, 0) scale(1)' },
@@ -162,6 +168,8 @@ export default {
         'drawer-end-show': `drawer-end-show ${DRAWER_ENTER}`,
         'drawer-end-hide': `drawer-end-hide ${DRAWER_EXIT}`,
         'text-shimmer': 'text-shimmer 2s linear infinite',
+        'ai-sweep': 'text-shimmer 1.6s linear infinite',
+        'ai-arrive': 'ai-arrive 1.8s ease-out',
         'glow-drift-1': 'glow-drift-1 22s ease-in-out infinite',
         'glow-drift-2': 'glow-drift-2 28s ease-in-out infinite',
         'glow-drift-3': 'glow-drift-3 36s ease-in-out infinite',

@@ -161,6 +161,9 @@
   --ai-accent: var(--copper-600);
   --ai-border: color-mix(in srgb, var(--ai-accent) 50%, transparent);
   --ai-glow: 0 10px 15px -3px color-mix(in srgb, var(--ai-accent) 25%, transparent);
+  /* AI at work: a copper-tinted row with a brighter copper band sweeping across it */
+  --ai-wash: color-mix(in srgb, var(--ai-accent) 9%, transparent);
+  --ai-sweep: linear-gradient(100deg, transparent 25%, color-mix(in srgb, var(--ai-accent) 24%, transparent) 50%, transparent 75%);
   /* Landing glow (LandingGlow): copper core, amber companion, copper wash */
   --bg-glow-core: color-mix(in srgb, var(--copper-500) 30%, transparent);
   --bg-glow-companion: color-mix(in srgb, var(--copper-400) 26%, transparent);

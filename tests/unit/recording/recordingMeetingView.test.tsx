@@ -112,12 +112,21 @@ describe('RecordingMeetingView', () => {
     expect(notesApi.addNote).toHaveBeenCalledWith('ask Raj', expect.objectContaining({ id: expect.any(String) }));
   });
 
-  it('shows the notes panes and asks for a Summary model when none can be called', () => {
+  it('puts the transcript beside the notes, and AI notes ask for a Summary model when none can be called', () => {
     startRecording();
     render(<RecordingMeetingView />);
 
-    expect(screen.getByText('Enhanced notes')).toBeInTheDocument();
+    expect(screen.getByText('Live transcript')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Your notes' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: /AI notes/ }));
+    expect(screen.queryByRole('textbox', { name: 'Your notes' })).not.toBeInTheDocument();
     expect(screen.getByText(/Choose a Summary model/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Expand transcript' })).toBeInTheDocument();
+  });
+
+  it('shows a shimmering line while a chunk is being transcribed', () => {
+    startRecording();
+    useMeetingLiveStore.setState({ pending: 1 });
+    render(<RecordingMeetingView />);
+    expect(screen.getByText('Transcribing…')).toBeInTheDocument();
   });
 });
