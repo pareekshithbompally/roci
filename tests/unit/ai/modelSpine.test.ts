@@ -88,33 +88,26 @@ describe('describeModel — first fact wins', () => {
   });
 });
 
-describe('jobRecords — a job\'s models: the ones added, plus the suggested ones for that job', () => {
-  it('suggests a provider\'s speech models once it has a key, without adding them to chat', () => {
-    const providers = [keyed('openai', ['gpt-5'])];
-    getModelInfo.mockImplementation((_p: string, id: string) => (id === 'gpt-5'
-      ? { modalities: { input: ['text'], output: ['text'] }, capabilities: { toolCall: true } }
-      : null));
-    expect(jobRecords(providers, 'chat').map((r) => r.id)).toEqual(['gpt-5']);
-    expect(jobRecords(providers, 'transcribe').map((r) => r.id)).toContain('gpt-4o-transcribe');
-    expect(jobRecords(providers, 'image').map((r) => r.id)).toContain('gpt-image-1.5');
+describe('jobRecords — a job\'s models are only the ones the user added', () => {
+  it('lists nothing the user did not add, whatever the provider offers', () => {
+    expect(jobRecords([keyed('openai', [])], 'transcribe')).toEqual([]);
+    expect(jobRecords([keyed('gemini', [])], 'speak')).toEqual([]);
   });
 
-  it('a suggestion is ready once its provider has a key', () => {
-    expect(jobRecords([keyed('openai', [])], 'transcribe').find((r) => r.id === 'whisper-1')).toMatchObject({ ready: true, hint: null });
+  it('every added model is named the same way: the user\'s rename, else its id', () => {
+    const providers = [{ ...keyed('openai', []), models: [{ id: 'whisper-1', displayName: 'My Whisper' }, { id: 'gpt-4o-transcribe' }] }];
+    expect(jobRecords(providers, 'transcribe').map((r) => r.label)).toEqual(['My Whisper', 'gpt-4o-transcribe']);
   });
 
-  it('an added model wins over its suggestion, and a suggestion keeps its label', () => {
-    const providers = [{ ...keyed('openai', []), models: [{ id: 'whisper-1', displayName: 'My Whisper' }] }];
-    const records = jobRecords(providers, 'transcribe');
-    expect(records.filter((r) => r.id === 'whisper-1').map((r) => r.label)).toEqual(['My Whisper']);
-    expect(records.find((r) => r.id === 'gpt-4o-transcribe')?.label).toBe('GPT-4o Transcribe');
-  });
-
-  it('Gemini\'s transcribe model added from its list lands under speech, not chat', () => {
+  it('Gemini\'s transcribe and TTS models added from its list land under their jobs, not chat', () => {
     const providers = [keyed('gemini', ['gemini-3.5-transcribe', 'gemini-3.8-flash-tts'])];
-    expect(jobRecords(providers, 'chat').map((r) => r.id)).not.toContain('gemini-3.5-transcribe');
-    expect(jobRecords(providers, 'transcribe').map((r) => r.id)).toContain('gemini-3.5-transcribe');
+    expect(jobRecords(providers, 'chat').map((r) => r.id)).toEqual([]);
+    expect(jobRecords(providers, 'transcribe').map((r) => r.id)).toEqual(['gemini-3.5-transcribe']);
     expect(jobRecords(providers, 'speak').map((r) => r.id)).toEqual(['gemini-3.8-flash-tts']);
+  });
+
+  it('an added model is ready once its provider has a key', () => {
+    expect(jobRecords([keyed('openai', ['whisper-1'])], 'transcribe')[0]).toMatchObject({ ready: true, hint: null });
   });
 });
 

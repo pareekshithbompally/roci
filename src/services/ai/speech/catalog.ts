@@ -11,7 +11,7 @@ export interface CloudVoiceOption extends ModelRef {
   hint: string | null;
 }
 
-/** Every cloud voice model: the added ones that output audio, then the suggested ones, on providers that speak. */
+/** The voice models the user added (text in, audio out), on providers whose AI SDK speaks. */
 export function cloudVoiceOptions(providers: ModelProvider[]): CloudVoiceOption[] {
   return jobRecords(providers, 'speak')
     .filter((r) => r.provider in READ_ALOUD_CONFIG.cloud)

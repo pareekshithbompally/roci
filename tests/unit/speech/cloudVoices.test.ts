@@ -16,17 +16,13 @@ describe('cloud voice engines', () => {
     expect(parseModelKey('pocket-tts')).toBeNull();
   });
 
-  it('offers Gemini TTS added from its list, and the suggested voices, only on providers that speak', () => {
+  it('offers only the voice models the user added, on providers that speak', () => {
     const options = cloudVoiceOptions([provider('gemini', ['gemini-3.8-flash-lite-tts']), provider('openai', []), provider('openrouter', ['some-tts'])]);
-    expect(options.map((o) => `${o.provider}/${o.model}`)).toEqual([
-      'gemini/gemini-3.8-flash-lite-tts',
-      'gemini/gemini-3.8-flash-tts',
-      'openai/gpt-4o-mini-tts',
-    ]);
+    expect(options.map((o) => `${o.provider}/${o.model}`)).toEqual(['gemini/gemini-3.8-flash-lite-tts']);
   });
 
   it('is ready once its provider has a key', () => {
-    expect(cloudVoiceOptions([provider('openai', [], '')])[0]).toMatchObject({ ready: false, hint: 'Add OpenAI API key' });
+    expect(cloudVoiceOptions([provider('openai', ['gpt-4o-mini-tts'], '')])[0]).toMatchObject({ ready: false, hint: 'Add OpenAI API key' });
   });
 
   it('lists a provider\'s voices, default first', () => {

@@ -37,8 +37,8 @@ describe('adapterFor', () => {
     expect(adapterFor({ provider: 'openai', model: 'gpt-4o-transcribe' }, providers)).toBe('openai-compatible');
   });
 
-  it('runs suggested models of providers without a speech endpoint on the multimodal adapter', () => {
-    expect(adapterFor({ provider: 'gemini', model: 'gemini-3.5-flash-lite' }, [provider('gemini', [])])).toBe('multimodal');
+  it('runs an audio model of a provider without a speech endpoint on the multimodal adapter', () => {
+    expect(adapterFor({ provider: 'gemini', model: 'gemini-3.5-flash-lite' }, providers)).toBe('multimodal');
   });
 
   it('runs local speech models on the OpenAI-compatible endpoint', () => {
@@ -116,7 +116,7 @@ describe('on this Mac', () => {
 describe('picker order', () => {
   it('lists what runs on this Mac before key-gated cloud models', () => {
     const onDevice = { models: [{ id: 'parakeet-unified-en', name: 'Parakeet', maker: 'nvidia', kind: 'speech' as const, streams: true, bytes: 1, installed: false, downloading: false, contextTokens: null, tools: null, vision: null }] };
-    const providers = Object.keys(speechModelOptions([provider('openai', [])], { onDevice }).reduce((seen, o) => ({ ...seen, [o.provider]: true }), {} as Record<string, true>));
+    const providers = Object.keys(speechModelOptions([provider('openai', [{ id: 'whisper-1' }])], { onDevice }).reduce((seen, o) => ({ ...seen, [o.provider]: true }), {} as Record<string, true>));
     expect(providers[0]).toBe('on-device');
     expect(providers.indexOf('on-device')).toBeLessThan(providers.indexOf('openai'));
   });

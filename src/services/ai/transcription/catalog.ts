@@ -2,7 +2,6 @@
 
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { isSpeechOnly, jobRecords, modelKey, transcribeAdapter } from '@services/ai/models';
-import { MODEL_SPINE_CONFIG } from '@config/modelSpine.config';
 import { formatFileSize } from '@shared/utils/formatters';
 import { installedHexModels } from './hex';
 import { appleSpeechHint, isAppleSpeechReady } from './appleSpeech';
@@ -29,11 +28,10 @@ function speechRecord(selection: SpeechSelection, providers: ModelProvider[]) {
   return speechRecords(providers).find((r) => r.provider === selection.provider && r.id === selection.model);
 }
 
-/** Speech lists real speech models and the suggested ones; a chat model that hears joins only when its Audio input is ticked. */
+/** Speech lists the speech models the user added; a chat model that hears joins only when its Audio input is ticked. */
 function speechRecords(providers: ModelProvider[]) {
   const ticked = new Set(providers.flatMap((p) => (p.models ?? []).filter((m) => m.audioInput).map((m) => modelKey({ provider: p.provider, model: m.id }))));
-  const suggested = (r: { provider: string; id: string }) => MODEL_SPINE_CONFIG.suggested.transcribe?.[r.provider]?.some((s) => s.id === r.id) ?? false;
-  return jobRecords(providers, 'transcribe').filter((r) => isSpeechOnly(r) || suggested(r) || ticked.has(modelKey({ provider: r.provider, model: r.id })));
+  return jobRecords(providers, 'transcribe').filter((r) => isSpeechOnly(r) || ticked.has(modelKey({ provider: r.provider, model: r.id })));
 }
 
 /** Keyless engines run on their own endpoint; any other speech model runs the way the spine routes it. */
@@ -43,7 +41,7 @@ export function adapterFor(selection: SpeechSelection, providers: ModelProvider[
   return record ? transcribeAdapter(record) : null;
 }
 
-/** The spine's speech-to-text models on the providers: the ones added that take audio, then the suggested ones. */
+/** The speech-to-text models the user added, as the spine describes them. */
 function providerOptions(providers: ModelProvider[]): SpeechModelOption[] {
   return speechRecords(providers).map((r) => ({ provider: r.provider, model: r.id, label: r.label, ready: r.ready, hint: r.hint, live: false }));
 }

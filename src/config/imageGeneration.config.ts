@@ -12,7 +12,7 @@ export const IMAGE_ASPECT_RATIOS = ['1:1', '16:9', '9:16', '4:3', '3:4'] as cons
 export type ImageAspectRatio = (typeof IMAGE_ASPECT_RATIOS)[number];
 
 export const IMAGE_GENERATION_CONFIG = {
-  /** Providers whose image API the AI SDK drives (`createImageModel`); suggested models live in the model spine. */
+  /** Providers whose image API the AI SDK drives (`createImageModel`); its models are the ones the user added. */
   engines: {
     openai: { sizing: 'size' },
     gemini: { sizing: 'aspectRatio' },

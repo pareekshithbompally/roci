@@ -18,7 +18,7 @@ export interface ImageModelOption {
   hint: string | null;
 }
 
-/** The spine's image models on providers Roci can make images with: the ones added that output images, then the suggested ones. */
+/** The image models the user added, on providers Roci can make images with. */
 export function imageModelOptions(providers: ModelProvider[]): ImageModelOption[] {
   return jobRecords(providers, 'image')
     .filter((r) => r.provider in IMAGE_GENERATION_CONFIG.engines)
