@@ -7,6 +7,8 @@ import { JOB_GLYPH, ModelDownloadButton } from '@shared/components';
 import { formatFileSize } from '@shared/utils/formatters';
 import { modelSources, type ModelChoice } from '@shared/utils/modelResolver';
 import { jobChoices } from '@services/ai/models';
+import { cloudEngineKey, cloudVoiceOptions } from '@services/ai/speech';
+import type { ModelProvider } from '@shared/types/modelProviders';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { speechSelectionKey, speechSelectionOf } from '@services/ai/transcription';
 import { DEFAULT_MODELS_CONFIG } from '@config/defaultModels.config';
@@ -61,8 +63,8 @@ function useSpeechChoices(controls: Controls): ModelChoice[] {
   }, [options, appleSetup, controls]);
 }
 
-/** Read aloud engines: the system voices (built in), then each local voice model with its download. */
-function readAloudEngineChoices(models: LocalModel[], controls: Controls): ModelChoice[] {
+/** Read aloud engines: the system voices (built in), each local voice model with its download, then cloud voice models. */
+function readAloudEngineChoices(models: LocalModel[], controls: Controls, providers: ModelProvider[]): ModelChoice[] {
   const { system: voices } = READ_ALOUD_CONFIG;
   const system: ModelChoice = { value: voices.id, provider: voices.provider, modelId: voices.id, label: voices.label, ready: true, hint: voices.hint };
   const local = models.filter((m) => m.kind === 'voice').map((m) => ({
@@ -74,7 +76,15 @@ function readAloudEngineChoices(models: LocalModel[], controls: Controls): Model
     hint: formatFileSize(m.bytes),
     setup: downloadSetup(controls[m.id]),
   }));
-  return [system, ...local];
+  const cloud = cloudVoiceOptions(providers).map((o) => ({
+    value: cloudEngineKey(o),
+    provider: o.provider,
+    modelId: o.model,
+    label: o.label,
+    ready: o.ready,
+    hint: o.hint,
+  }));
+  return [system, ...local, ...cloud];
 }
 
 const IMAGES_OFF = IMAGE_GENERATION_CONFIG.off;
@@ -131,7 +141,10 @@ export const DefaultModelsPanel: React.FC = () => {
   );
   const controls = useLocalModelControls();
   const speechChoices = useSpeechChoices(controls);
-  const engines = useMemo(() => readAloudEngineChoices(localModels, controls), [localModels, controls]);
+  const engines = useMemo(
+    () => readAloudEngineChoices(localModels, controls, providers),
+    [localModels, controls, providers, catalogLoaded],
+  );
   const speech = speechSelectionOf(settings);
   const readAloudEngine = settings.readAloudEngine ?? READ_ALOUD_CONFIG.defaultEngine;
 

@@ -6,6 +6,8 @@ export const StorageConfig = {
     recordings: 'recordings',
     /** Images the chat's generate_image tool made. */
     images: 'images',
+    /** Speech a cloud voice model made (Read aloud). */
+    speech: 'speech',
     cache: 'cache',
     cacheAudio: 'cache/audio',
     cacheApi: 'cache/api',

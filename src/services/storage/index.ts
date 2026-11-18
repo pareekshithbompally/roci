@@ -6,6 +6,8 @@ import { cacheService } from './cache.service';
 export { pathsService } from './paths.service';
 export { recordingsService } from './recordings.service';
 export { imagesService } from './images.service';
+export { assetsService } from './assets.service';
+export type { AssetKind, SavedAsset } from './assets.service';
 export { cacheService } from './cache.service';
 
 export type {

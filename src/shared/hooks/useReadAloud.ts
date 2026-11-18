@@ -25,7 +25,7 @@ const idle = () => useSpeakingStore.setState({ id: null, spoken: null });
 export function useReadAloud(id: string, text: string): ReadAloud {
   const spoken = useSpeakingStore((s) => (s.id === id ? s.spoken : null));
   const state = useSpeakingStore((s): ReadAloudState => (s.id !== id ? 'idle' : s.spoken === null ? 'preparing' : 'speaking'));
-  const { settings } = useSettings();
+  const { settings, providers } = useSettings();
   const { showToast } = useToast();
 
   const toggle = () => {
@@ -37,7 +37,7 @@ export function useReadAloud(id: string, text: string): ReadAloud {
     useSpeakingStore.setState({ id, spoken: null });
     const engine = settings.readAloudEngine ?? READ_ALOUD_CONFIG.defaultEngine;
     readAloud
-      .speak(text, engine, settings.readAloudVoice, (chunk) => {
+      .speak(text, { engine, voice: settings.readAloudVoice, providers }, (chunk) => {
         if (useSpeakingStore.getState().id === id) useSpeakingStore.setState({ spoken: chunk });
       })
       .catch((error: unknown) => {

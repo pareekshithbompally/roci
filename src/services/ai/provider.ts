@@ -20,7 +20,7 @@ import { llamaServerRequestBody } from '@services/ai/llamaServer';
 import { getProviderType } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { ReasoningEffort } from '@shared/types';
-import type { ImageModel, LanguageModel, LanguageModelCallOptions, streamText, ToolSet } from 'ai';
+import type { ImageModel, LanguageModel, LanguageModelCallOptions, SpeechModel, streamText, ToolSet } from 'ai';
 
 /** Extract custom headers from provider config (for OpenRouter, etc.) */
 function buildCustomHeaders(providerConfig: ResolvedModel['providerConfig']): Record<string, string> {
@@ -103,6 +103,19 @@ export function createImageModel(resolved: ResolvedModel): ImageModel {
       return createGoogle({ apiKey: resolved.apiKey, fetch }).image(resolved.modelId);
     default:
       throw new Error(`${resolved.provider} has no image models.`);
+  }
+}
+
+/** A cloud voice model (text in, audio out) for Read aloud; only providers whose AI SDK speaks. */
+export function createSpeechModel(resolved: ResolvedModel): SpeechModel {
+  const fetch = getPlatformFetch();
+  switch (getProviderType(resolved.provider)) {
+    case 'openai':
+      return createOpenAI({ apiKey: resolved.apiKey, fetch }).speech(resolved.modelId);
+    case 'gemini':
+      return createGoogle({ apiKey: resolved.apiKey, fetch }).speech(resolved.modelId);
+    default:
+      throw new Error(`${resolved.provider} has no voice models.`);
   }
 }
 

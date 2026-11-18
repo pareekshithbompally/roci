@@ -48,6 +48,7 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       tts::commands::tts_voices,
       tts::commands::tts_speak,
       tts::commands::tts_stop,
+      tts::commands::tts_speakable,
       mcp::commands::get_mcp_configs,
       mcp::commands::save_mcp_configs,
       mcp::commands::activate_mcp_server,

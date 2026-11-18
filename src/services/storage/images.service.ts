@@ -1,25 +1,13 @@
-/** Generated images on disk (`images/{uuid}.{ext}` under app data, each with a `{uuid}.json` of its details); chats keep
- *  only the image's path inside app data; the gallery reads the folder. */
+/** Generated images in the asset store (`images/`), with a thumbnail each; chats keep only the image's app path, the gallery reads the folder. */
 
-import { exists, mkdir, readDir, readTextFile, rename, writeFile, writeTextFile } from '@tauri-apps/plugin-fs';
-import { appDataDir, join } from '@tauri-apps/api/path';
-import { convertFileSrc } from '@tauri-apps/api/core';
+import { readDir, writeFile } from '@tauri-apps/plugin-fs';
+import { join } from '@tauri-apps/api/path';
 import { StorageConfig } from '@config/storage.config';
+import { assetDir, assetsService } from './assets.service';
 import { IMAGE_GENERATION_CONFIG } from '@config/imageGeneration.config';
 import { GALLERY_CONFIG } from '@config/gallery.config';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
-
-let imagesDirPromise: Promise<string> | null = null;
-
-async function imagesDir(): Promise<string> {
-  imagesDirPromise ??= (async () => {
-    const dir = await join(await appDataDir(), StorageConfig.directories.images);
-    if (!(await exists(dir))) await mkdir(dir, { recursive: true });
-    return dir;
-  })();
-  return imagesDirPromise;
-}
 
 function extensionOf(mediaType: string): string {
   return IMAGE_GENERATION_CONFIG.extensionByMediaType[mediaType] ?? IMAGE_GENERATION_CONFIG.defaultExtension;
@@ -64,44 +52,25 @@ async function thumbnailOf(data: Uint8Array, mediaType: string): Promise<Uint8Ar
   return new Uint8Array(await (await canvas.convertToBlob({ type: 'image/jpeg', quality })).arrayBuffer());
 }
 
-/** Writes beside the image without a half-written file ever being read: a temporary name, then renamed into place. */
-async function writeTextAtomically(path: string, text: string): Promise<void> {
-  await writeTextFile(`${path}.tmp`, text);
-  await rename(`${path}.tmp`, path);
-}
-
 const IMAGE_EXTENSIONS = new Set(Object.values(IMAGE_GENERATION_CONFIG.extensionByMediaType).concat(IMAGE_GENERATION_CONFIG.defaultExtension));
 
-/** An image's details, or null when it has none (made before they were kept) or they don't read as details. */
-async function readDetails(dir: string, stem: string): Promise<ImageDetails | null> {
-  try {
-    const details = JSON.parse(await readTextFile(await join(dir, `${stem}.json`))) as Partial<ImageDetails>;
-    return typeof details.createdAt === 'number' && typeof details.prompt === 'string' ? (details as ImageDetails) : null;
-  } catch {
-    return null;
-  }
-}
+const isImageDetails = (details: Partial<ImageDetails>) => typeof details.createdAt === 'number' && typeof details.prompt === 'string';
 
 export const imagesService = {
   /** Writes a generated image and its details; throws when it can't. The gallery refreshes. */
   async saveImage(data: Uint8Array, mediaType: string, details: ImageDetails): Promise<SavedImage> {
-    const dir = await imagesDir();
-    const stem = crypto.randomUUID();
-    const name = `${stem}.${extensionOf(mediaType)}`;
-    const path = await join(dir, name);
-    await writeFile(path, data);
+    const { appPath, path, dir, stem } = await assetsService.save('images', data, extensionOf(mediaType), details);
     // The thumbnail is a convenience: an image without one shows at full size.
     await thumbnailOf(data, mediaType)
       .then(async (thumb) => writeFile(await join(dir, `${stem}${THUMB_SUFFIX}`), thumb))
       .catch((error: unknown) => console.warn('[imagesService] thumbnail failed:', error));
-    await writeTextAtomically(await join(dir, `${stem}.json`), JSON.stringify(details));
     void queryClient.invalidateQueries({ queryKey: queryKeys.gallery() });
-    return { appPath: `${StorageConfig.directories.images}/${name}`, path };
+    return { appPath, path };
   },
 
   /** Every generated image, newest first (older ones without details last). */
   async listImages(): Promise<GalleryImage[]> {
-    const dir = await imagesDir();
+    const dir = await assetDir('images');
     const entries = await readDir(dir);
     const names = new Set(entries.map((entry) => entry.name));
     const files = entries.filter((entry) =>
@@ -109,16 +78,13 @@ export const imagesService = {
     const images = await Promise.all(files.map(async ({ name }) => {
       const stem = name.replace(/\.[^.]+$/, '');
       const appPath = `${StorageConfig.directories.images}/${name}`;
-      const url = await imagesService.fileUrl(appPath);
+      const url = await assetsService.fileUrl(appPath);
       const thumbName = `${stem}${THUMB_SUFFIX}`;
-      const thumbUrl = names.has(thumbName) ? await imagesService.fileUrl(`${StorageConfig.directories.images}/${thumbName}`) : url;
-      return { appPath, url, thumbUrl, details: await readDetails(dir, stem) };
+      const thumbUrl = names.has(thumbName) ? await assetsService.fileUrl(`${StorageConfig.directories.images}/${thumbName}`) : url;
+      return { appPath, url, thumbUrl, details: await assetsService.readDetails<ImageDetails>(dir, stem, isImageDetails) };
     }));
     return images.sort((a, b) => (b.details?.createdAt ?? 0) - (a.details?.createdAt ?? 0));
   },
 
-  /** A URL the webview loads for a file in app data, through Tauri's asset protocol (scoped to images in tauri.conf.json). */
-  async fileUrl(appPath: string): Promise<string> {
-    return convertFileSrc(await join(await appDataDir(), appPath));
-  },
+  fileUrl: assetsService.fileUrl,
 };

@@ -14,6 +14,14 @@ export const READ_ALOUD_CONFIG = {
   chunkEvent: 'tts://chunk',
   /** The CSS highlight the spoken chunk is drawn with (`::highlight(read-aloud)` in index.css). */
   highlight: 'read-aloud',
+  /** Cloud voice models: the providers whose AI SDK speaks (`createSpeechModel`), each with its voices, default first. */
+  cloud: {
+    openai: { voices: ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer'] },
+    gemini: { voices: ['Kore', 'Puck', 'Charon', 'Fenrir', 'Aoede', 'Leda', 'Orus', 'Zephyr'] },
+  } as Record<string, { voices: readonly string[] }>,
+  /** File extension per spoken audio type the cloud returns, for the asset store. */
+  extensionByMediaType: { 'audio/mpeg': 'mp3', 'audio/wav': 'wav', 'audio/ogg': 'ogg', 'audio/aac': 'aac', 'audio/flac': 'flac' } as Record<string, string>,
+  defaultExtension: 'wav',
 } as const;
 
 /** `macos`, or a downloaded voice model's id (`pocket-tts`). */

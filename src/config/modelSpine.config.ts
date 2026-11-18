@@ -69,6 +69,10 @@ export const MODEL_SPINE_CONFIG = {
       // Stable Flash-Lite: audio input at the text rate (ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite).
       gemini: [{ id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite' }],
     },
+    speak: {
+      openai: [{ id: 'gpt-4o-mini-tts', label: 'GPT-4o mini TTS' }],
+      gemini: [{ id: 'gemini-3.8-flash-tts', label: 'Gemini 3.8 Flash TTS' }],
+    },
     image: {
       openai: [
         { id: 'gpt-image-1.5', label: 'GPT Image 1.5' },

@@ -64,6 +64,12 @@ pub async fn tts_speak(app: AppHandle, id: u64, text: String, engine: String, vo
     spoken
 }
 
+/// A reply's markdown as the plain speech every engine reads (cloud voices are called from the webview).
+#[tauri::command]
+pub fn tts_speakable(text: String) -> String {
+    text::speakable(&text)
+}
+
 /// Stops the reply speaking now, if any.
 #[tauri::command]
 pub fn tts_stop(state: State<'_, TtsState>) {
