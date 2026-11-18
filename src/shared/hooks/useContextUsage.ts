@@ -1,7 +1,7 @@
-/** Context-window use: total is server-declared, used is the last assistant message's input tokens; null hides it. */
+/** Context-window use after the chat's last reply: its last model call's prompt plus reply, against the model's window; null hides it. */
 
 import { useMemo } from 'react';
-import type { ChatMessage } from '@shared/types';
+import type { ChatMessage, ContextTokens } from '@shared/types';
 
 /** Percent thresholds where the ring changes color. */
 export const CONTEXT_WARNING_PERCENT = 80;
@@ -9,26 +9,16 @@ export const CONTEXT_CRITICAL_PERCENT = 95;
 
 export type ContextLevel = 'ok' | 'warning' | 'critical';
 
-export interface ContextUsage {
-  /** Context window size in tokens (server-declared). */
+export interface ContextUsage extends ContextTokens {
+  /** The model's context window, in tokens. */
   total: number;
-  /** Current occupancy: last turn's input + output tokens. */
+  /** Tokens the window holds: the last call's prompt plus its reply. */
   used: number;
-  /** Rounded 0–100 percent of the window occupied. */
+  /** Tokens still free. */
+  left: number;
+  /** 0–100 of the window used. */
   percent: number;
   level: ContextLevel;
-  /** Last turn's input (prompt) tokens. */
-  currentInput: number;
-  /** Last turn's output tokens. */
-  currentOutput: number;
-  /** Last turn's input tokens served from cache (subset of currentInput). */
-  currentCache: number;
-  /** Sum of input tokens across assistant turns. */
-  cumulativeInput: number;
-  /** Sum of output tokens across assistant turns. */
-  cumulativeOutput: number;
-  /** Last measured tokens/second, when available. */
-  speed: number | null;
 }
 
 export function contextLevelFor(percent: number): ContextLevel {
@@ -37,53 +27,26 @@ export function contextLevelFor(percent: number): ContextLevel {
   return 'ok';
 }
 
-function hasUsage(m: ChatMessage): boolean {
-  return m.inputTokenCount != null || m.tokenCount != null;
-}
-
-/** Context usage from session messages; `contextTotal` is null when the model limit is unknown. */
-export function deriveContextUsage(
-  messages: ChatMessage[],
-  contextTotal: number | null
-): ContextUsage | null {
+/** The chat's context use after its last measured reply; null when the window or the use is unknown. */
+export function deriveContextUsage(messages: ChatMessage[], contextTotal: number | null): ContextUsage | null {
   if (contextTotal == null || contextTotal <= 0) return null;
-
-  const assistant = messages.filter((m) => m.role === 'model' && hasUsage(m));
-  if (assistant.length === 0) return null;
-
-  const last = assistant[assistant.length - 1];
-  const currentInput = last.inputTokenCount ?? 0;
-  const currentOutput = last.tokenCount ?? 0;
-  const currentCache = Math.min(last.cacheReadTokens ?? 0, currentInput);
-
-  let cumulativeInput = 0;
-  let cumulativeOutput = 0;
-  for (const m of assistant) {
-    cumulativeInput += m.inputTokenCount ?? 0;
-    cumulativeOutput += m.tokenCount ?? 0;
-  }
-
-  const used = currentInput + currentOutput;
-  const percent = Math.round((used / contextTotal) * 100);
-
+  const context = messages.filter((m) => m.role === 'model' && m.context).at(-1)?.context;
+  if (!context) return null;
+  const used = context.prompt + context.reply;
+  const percent = Math.min(100, Math.round((used / contextTotal) * 100));
   return {
     total: contextTotal,
     used,
+    left: Math.max(0, contextTotal - used),
     percent,
     level: contextLevelFor(percent),
-    currentInput,
-    currentOutput,
-    currentCache,
-    cumulativeInput,
-    cumulativeOutput,
-    speed: last.tokensPerSecond ?? null,
+    prompt: context.prompt,
+    cached: Math.min(context.cached, context.prompt),
+    reply: context.reply,
   };
 }
 
 /** Memoized `deriveContextUsage` for render. */
-export function useContextUsage(
-  messages: ChatMessage[],
-  contextTotal: number | null
-): ContextUsage | null {
+export function useContextUsage(messages: ChatMessage[], contextTotal: number | null): ContextUsage | null {
   return useMemo(() => deriveContextUsage(messages, contextTotal), [messages, contextTotal]);
 }

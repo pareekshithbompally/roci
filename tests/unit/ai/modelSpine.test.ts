@@ -131,7 +131,7 @@ describe('modelRecords', () => {
 
   it('names where a model runs', () => {
     expect(modelSourceOf('openai')).toBe('cloud');
-    expect(modelSourceOf('on-device')).toBe('this-mac');
+    expect(modelSourceOf('on-device')).toBe('on-device');
     expect(modelSourceOf('local:ollama')).toBe('your-server');
     expect(modelSourceOf('apple-intelligence')).toBe('integration');
     expect(modelSourceOf('hex')).toBe('integration');

@@ -33,64 +33,38 @@ describe('contextLevelFor', () => {
 });
 
 describe('deriveContextUsage', () => {
+  const ctx = (prompt: number, reply: number, cached = 0) => ({ context: { prompt, reply, cached } });
+
   it('returns null when the context total is unknown', () => {
-    const messages = [msg({ inputTokenCount: 100, tokenCount: 50 })];
+    const messages = [msg(ctx(100, 50))];
     expect(deriveContextUsage(messages, null)).toBeNull();
     expect(deriveContextUsage(messages, 0)).toBeNull();
   });
 
-  it('returns null when no message has usage yet', () => {
+  it('returns null until a reply has measured its context', () => {
     expect(deriveContextUsage([msg()], 1000)).toBeNull();
+    // Billing totals alone (summed over tool steps) never stand in for the window.
+    expect(deriveContextUsage([msg({ inputTokenCount: 900, tokenCount: 50 })], 1000)).toBeNull();
     expect(deriveContextUsage([], 1000)).toBeNull();
   });
 
-  it('measures the last assistant turn against the total', () => {
-    const messages = [
-      msg({ id: 'a', inputTokenCount: 200, tokenCount: 100 }),
-      msg({ id: 'b', inputTokenCount: 800, tokenCount: 200 }),
-    ];
-    const usage = deriveContextUsage(messages, 2000);
-    expect(usage).toMatchObject({
-      total: 2000,
-      used: 1000,
-      percent: 50,
-      level: 'ok',
-      currentInput: 800,
-      currentOutput: 200,
+  it('is what the window holds after the last reply: its last call\'s prompt plus the reply, with the room left', () => {
+    const messages = [msg({ id: 'a', ...ctx(200, 100) }), msg({ id: 'b', ...ctx(800, 200, 300) })];
+    expect(deriveContextUsage(messages, 2000)).toEqual({
+      total: 2000, used: 1000, left: 1000, percent: 50, level: 'ok', prompt: 800, cached: 300, reply: 200,
     });
   });
 
-  it('sums usage across turns for the cumulative figures', () => {
-    const messages = [
-      msg({ id: 'a', inputTokenCount: 200, tokenCount: 100 }),
-      msg({ id: 'b', inputTokenCount: 800, tokenCount: 200 }),
-    ];
-    const usage = deriveContextUsage(messages, 4000);
-    expect(usage).toMatchObject({ cumulativeInput: 1000, cumulativeOutput: 300 });
+  it('never reads over 100% or below no room', () => {
+    expect(deriveContextUsage([msg(ctx(1900, 300))], 2000)).toMatchObject({ percent: 100, left: 0, level: 'critical' });
   });
 
-  it('clamps cached tokens to the current input', () => {
-    const usage = deriveContextUsage(
-      [msg({ inputTokenCount: 500, tokenCount: 50, cacheReadTokens: 900 })],
-      2000
-    );
-    expect(usage?.currentCache).toBe(500);
-  });
-
-  it('carries the last measured speed', () => {
-    const usage = deriveContextUsage(
-      [msg({ inputTokenCount: 500, tokenCount: 50, tokensPerSecond: 42 })],
-      2000
-    );
-    expect(usage?.speed).toBe(42);
+  it('clamps cached tokens to the prompt', () => {
+    expect(deriveContextUsage([msg(ctx(500, 50, 900))], 2000)?.cached).toBe(500);
   });
 
   it('ignores user messages when measuring', () => {
-    const messages = [
-      { ...msg({ id: 'u' }), role: 'user' as const, inputTokenCount: 99999 },
-      msg({ id: 'a', inputTokenCount: 100, tokenCount: 100 }),
-    ];
-    const usage = deriveContextUsage(messages, 1000);
-    expect(usage).toMatchObject({ used: 200, percent: 20 });
+    const messages = [{ ...msg({ id: 'u', ...ctx(99_999, 0) }), role: 'user' as const }, msg({ id: 'a', ...ctx(100, 100) })];
+    expect(deriveContextUsage(messages, 1000)).toMatchObject({ used: 200, percent: 20 });
   });
 });

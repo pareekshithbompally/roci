@@ -137,7 +137,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </header>
         <div className="shrink-0 px-2">{destinations}</div>
-        <div ref={listContainerRef} className="flex-1 overflow-y-auto px-2 pb-2">{list}</div>
+        <div ref={listContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2">{list}</div>
         {/* Bottom right, under Search and New chat: Activity while work runs (downloads, model loads), then Settings. */}
         <footer className="flex shrink-0 items-center justify-end gap-2 px-4 pt-2 pb-4">
           <ActivityButton />
@@ -183,7 +183,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Scrollable list — settings sections when in settings view */}
-      <div ref={listContainerRef} className="flex-1 overflow-y-auto px-2 pb-1 scrollbar-overlay scroll-fade">
+      <div ref={listContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-1 scrollbar-overlay scroll-fade">
         {isSettingsView ? (
           <>
             <RowGroupLabel>Settings</RowGroupLabel>

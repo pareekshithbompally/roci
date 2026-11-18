@@ -3,11 +3,12 @@
 /** Apple Notes folder in the default account; created on first save. */
 import { CalendarDays, ListChecks, Search, StickyNote } from 'lucide-react';
 import { platform } from '@platform/index';
+import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 
 const NOTES_FOLDER = 'Roci';
 
 /** Where an integration's switch lives; Apple Intelligence is a model source, so it sits with the providers. */
-export const INTEGRATION_SETTINGS_PATH = { default: 'Settings › Integrations', appleIntelligence: 'Settings › Providers › On this device' } as const;
+export const INTEGRATION_SETTINGS_PATH = { default: 'Settings › Integrations', appleIntelligence: `Settings › Providers › ${LOCAL_MODELS_CONFIG.provider.title}` } as const;
 
 export const INTEGRATIONS_CONFIG = {
   calendar: {

@@ -1,9 +1,9 @@
-/** Providers sidebar "Local" group: detected and saved servers on this Mac, with Rescan and Add URL. */
+/** Providers sidebar "Your Servers" group: model servers the user runs (Ollama, LM Studio, llama-server), with Rescan and Add URL. */
 
 import React, { useState } from 'react';
 import { Plus, RefreshCw } from 'lucide-react';
 import { useToast } from '@shared/contexts/ToastContext';
-import { LOCAL_EMPTY_HINT, LOCAL_URL_DRAFT } from '@config/localServers.config';
+import { LOCAL_EMPTY_HINT, LOCAL_SERVERS_GROUP, LOCAL_URL_DRAFT } from '@config/localServers.config';
 import { useLocalServers } from '@features/settings/hooks/useLocalServers';
 import { ProviderGroup, ProviderListItem } from './ProviderListItem';
 import type { ProviderRowState } from './ProviderListItem';
@@ -69,7 +69,7 @@ export const LocalServersSection: React.FC<LocalServersSectionProps> = ({ select
   );
 
   return (
-    <ProviderGroup title="Local" accessory={actions}>
+    <ProviderGroup title={LOCAL_SERVERS_GROUP} accessory={actions}>
       {rows.map((row) => (
         <ProviderListItem
           key={row.id}

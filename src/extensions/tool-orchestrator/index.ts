@@ -16,6 +16,7 @@ import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 import { extractTokenUsage } from '@services/ai/types';
 import type { GenerationStats, StreamProgress, TokenUsage } from '@services/ai/types';
+import type { ContextTokens } from '@shared/types';
 import type { OrchestratorOptions, OrchestratorCallbacks } from './types';
 import { toolActivityOf } from './toolActivity';
 import type { ToolSources } from './toolActivity';
@@ -141,7 +142,7 @@ function emptyResponseError(finishReason: string | undefined): Error {
 export async function orchestrate(
   options: OrchestratorOptions,
   callbacks: OrchestratorCallbacks,
-): Promise<{ provider?: string; model?: string; tokenUsage?: TokenUsage }> {
+): Promise<{ provider?: string; model?: string; tokenUsage?: TokenUsage; context?: ContextTokens }> {
   const { messages, prompt, settings, providers, signal, reasoningEffort } = options;
   const { onChunk } = callbacks;
 
@@ -193,11 +194,19 @@ export async function orchestrate(
       provider: resolved.provider,
       model: resolved.modelId,
       tokenUsage: extractTokenUsage(await result.usage),
+      context: contextOf((await result.steps).at(-1)?.usage),
     };
   } finally {
     stopFollowingLoad();
     if (reportsProgress) learnTemplateCapabilities(resolved);
   }
+}
+
+/** The window after the reply is its last call's prompt and reply; `usage` sums every tool step, so it can't say this. */
+function contextOf(usage: Parameters<typeof extractTokenUsage>[0] | undefined): ContextTokens | undefined {
+  if (!usage?.inputTokens) return undefined;
+  const { inputTokens = 0, outputTokens = 0, cacheReadTokens = 0 } = extractTokenUsage(usage);
+  return { prompt: inputTokens, cached: cacheReadTokens, reply: outputTokens };
 }
 
 /** llama-server reports tool support only while a model is loaded; after its first reply it is, so re-probe once to learn it. */

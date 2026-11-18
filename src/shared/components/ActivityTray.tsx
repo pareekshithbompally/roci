@@ -39,7 +39,7 @@ export const ActivityTray: React.FC = () => {
             {!collapsed && (
               <>
                 <Separator />
-                <div className="overflow-y-auto" style={{ maxHeight: maxVisibleRows * rowHeight }}>
+                <div className="overflow-y-auto overflow-x-hidden" style={{ maxHeight: maxVisibleRows * rowHeight }}>
                   <ActivityList activity={activity} audio={audio} />
                 </div>
               </>

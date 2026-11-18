@@ -52,8 +52,9 @@ export const CalendarWeek: React.FC<CalendarWeekProps> = ({
       end: CALENDAR_CONFIG.weekView.dayEndHour,
     },
     weekOptions: {
-      gridHeight: CALENDAR_CONFIG.weekView.gridHeight,
+      gridHeight: CALENDAR_CONFIG.weekView.hourHeight * CALENDAR_CONFIG.weekView.hours,
       eventWidth: CALENDAR_CONFIG.weekView.eventWidth,
+      eventOverlap: CALENDAR_CONFIG.weekView.eventOverlap,
       timeAxisFormatOptions: { hour: '2-digit', minute: '2-digit', hour12: false },
     },
     callbacks: {

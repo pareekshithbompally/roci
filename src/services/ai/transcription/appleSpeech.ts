@@ -1,6 +1,7 @@
 /** Apple Speech (SpeechAnalyzer, macOS 26+) via the apple-intelligence plugin: status, error copy, adapter. */
 
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
+import { INTEGRATION_SETTINGS_PATH } from '@config/integrations.config';
 import { appleIntelligence, isAppleError, type AppleSpeechStatus } from '@services/ai/apple/appleIntelligence.service';
 import { transcribeNatively } from './native';
 import type { TranscribePart } from './types';
@@ -61,8 +62,8 @@ export async function prepareAppleSpeech(): Promise<boolean> {
 function appleSpeechErrorMessage(error: unknown): string {
   if (!isAppleError(error)) return errorMessage(error);
   switch (error.code) {
-    case 'not-authorized': return 'Speech Recognition is off for Roci. Allow it in Settings › Providers › On this device.';
-    case 'model-not-ready': return 'The Apple speech model isn\'t downloaded. Download it in Settings › Providers › On this device.';
+    case 'not-authorized': return `Speech Recognition is off for Roci. Allow it in ${INTEGRATION_SETTINGS_PATH.appleIntelligence}.`;
+    case 'model-not-ready': return `The Apple speech model isn't downloaded. Download it in ${INTEGRATION_SETTINGS_PATH.appleIntelligence}.`;
     case 'unsupported-language': return 'Apple speech doesn\'t support this language.';
     case 'unavailable': return error.detail ?? 'Apple speech isn\'t available on this Mac.';
     default: return `Apple speech couldn't transcribe this audio (${error.detail ?? error.code}).`;

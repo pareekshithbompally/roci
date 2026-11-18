@@ -19,7 +19,9 @@ export const TYPOGRAPHY_CLASSES = {
   title: 'text-title3 font-semibold',
   /** 13 tabular — figures in a column (costs, counts) that must line up */
   figure: 'text-body font-normal tabular-nums',
-  /** 12 mono — code paths, durations, tool arguments */
+  /** 12 tabular — inline numbers (percent, times, token counts): the UI font with even-width digits */
+  figureSmall: 'text-callout font-normal tabular-nums',
+  /** 12 mono — code: paths, tool names and arguments, error text */
   mono: 'text-callout font-mono',
   /** 26 / 600 — hero greeting (macOS large title) */
   display: 'text-largeTitle font-semibold',

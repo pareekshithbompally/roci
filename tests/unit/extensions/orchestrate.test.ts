@@ -46,7 +46,12 @@ function replyOnce() {
   streamText.mockReturnValue({
     stream: (async function* () { yield { type: 'text-delta', text: 'Hi' }; })(),
     finishReason: Promise.resolve('stop'),
-    usage: Promise.resolve({}),
+    // Two steps (a tool call, then the answer): `usage` sums them, the last step is what the window holds.
+    usage: Promise.resolve({ inputTokens: 1_900, outputTokens: 120 }),
+    steps: Promise.resolve([
+      { usage: { inputTokens: 900, outputTokens: 20 } },
+      { usage: { inputTokens: 1_000, outputTokens: 100, inputTokenDetails: { cacheReadTokens: 900 } } },
+    ]),
   });
 }
 
@@ -72,6 +77,14 @@ describe('orchestrate — web search', () => {
     replyOnce();
     await run({ chatTools: { meetingTools: true, imageGeneration: true, webSearch: false, disabledMcpTools: [] } });
     expect(getWebSearchTools).not.toHaveBeenCalled();
+  });
+});
+
+describe('orchestrate — context use', () => {
+  it('measures the window from the last step, while billing keeps the sum of every step', async () => {
+    const result = await run({});
+    expect(result.context).toEqual({ prompt: 1_000, cached: 900, reply: 100 });
+    expect(result.tokenUsage).toMatchObject({ inputTokens: 1_900, outputTokens: 120 });
   });
 });
 

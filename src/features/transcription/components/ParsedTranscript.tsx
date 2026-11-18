@@ -28,7 +28,7 @@ const Block: React.FC<BlockProps> = ({ block, showHeader, highlight, ref }) => {
       {showHeader && (
         <div className="flex items-baseline gap-2 mb-0.5">
           {block.speaker && <Text variant="headline">{block.speaker}</Text>}
-          {block.time && <Text variant="mono" tone="faint">{block.time}</Text>}
+          {block.time && <Text variant="figureSmall" tone="faint">{block.time}</Text>}
         </div>
       )}
       <Text as="p" variant="reading">

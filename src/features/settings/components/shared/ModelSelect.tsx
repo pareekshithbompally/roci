@@ -15,19 +15,26 @@ interface ModelSelectProps {
   off?: { value: string; label: string };
 }
 
-/** The step a model still needs, as menu text (a native menu shows text only). */
-function setupText(setup: ChoiceSetup): string {
-  if (setup.busy) return setup.percent !== null ? `${setup.percent}%` : 'Downloading…';
-  return setup.kind === 'allow' ? 'Allow' : 'Download';
+/** A step still needed, as a macOS menu says it: the action and the model ("Download Whisper Small (270 MB)"), or its status. */
+function setupLabel(name: string, setup: ChoiceSetup, hint: string | null): string {
+  if (setup.busy) return `${name} — ${setup.percent !== null ? `Downloading ${setup.percent}%` : 'Downloading…'}`;
+  if (setup.kind === 'allow') return `Allow ${name}…`;
+  return hint ? `Download ${name} (${hint})` : `Download ${name}`;
 }
 
-/** One menu entry: the name, then its size or note, its marks and the step it needs, after a middle dot. */
+/** A menu row: the name with its marks in parentheses; a step it needs as an action; why it can't run after a dash. */
+export function rowLabel(choice: ModelChoice): string {
+  if (!choice.ready && choice.setup) return setupLabel(choice.label, choice.setup, choice.hint);
+  const marks = (choice.marks ?? []).map((m) => m.label);
+  const name = marks.length > 0 ? `${choice.label} (${marks.join(', ')})` : choice.label;
+  return !choice.ready && choice.hint ? `${name} — ${choice.hint}` : name;
+}
+
 function option(choice: ModelChoice): PickerOption {
-  const setup = !choice.ready && choice.setup;
-  const notes = [choice.hint, ...(choice.marks ?? []).map((m) => m.label), setup ? setupText(setup) : null].filter(Boolean);
   return {
     value: choice.value,
-    label: [choice.label, ...notes].join(' · '),
+    label: rowLabel(choice),
+    title: choice.label,
     disabled: !choice.ready && !choice.setup,
   };
 }

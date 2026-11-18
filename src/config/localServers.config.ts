@@ -74,6 +74,9 @@ export const LOCAL_SERVERS: readonly LocalServerEntry[] = [
 export const LOCAL_GENERIC_LOGO = GENERIC_LOGO;
 
 /** Hint under the Local list when nothing is running. */
+/** The Providers group of model servers the user runs (vs models built into this device). */
+export const LOCAL_SERVERS_GROUP = 'Your Servers';
+
 export const LOCAL_EMPTY_HINT = 'Nothing running? Start Ollama or LM Studio, then rescan.';
 
 /** "Add URL" starts with the host filled in so Add is live; the user types the port. */

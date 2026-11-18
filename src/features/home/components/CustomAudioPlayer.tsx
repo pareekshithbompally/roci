@@ -241,7 +241,7 @@ const CustomAudioPlayer: React.FC<CustomAudioPlayerProps> = ({ src, duration, me
           className="min-w-16"
           aria-label={showRemaining ? 'Show elapsed time' : 'Show remaining time'}
         >
-          <Text variant="mono" tone="inherit" className="tabular-nums">{displayTime}</Text>
+          <Text variant="figureSmall" tone="inherit">{displayTime}</Text>
         </Button>
 
         <div className="flex-1" />
@@ -277,13 +277,13 @@ const CustomAudioPlayer: React.FC<CustomAudioPlayerProps> = ({ src, duration, me
           align="start"
           trigger={(
             <Button variant="ghost" size="sm" aria-label={`Playback speed ${playbackRate}x`}>
-              <Text variant="mono" tone="inherit">{playbackRate}x</Text>
+              <Text variant="figureSmall" tone="inherit">{playbackRate}x</Text>
             </Button>
           )}
           items={SPEED_OPTIONS.map((speed) => ({ type: 'check' as const, label: `${speed}×`, checked: playbackRate === speed, onSelect: () => setPlaybackRate(speed) }))}
         />
 
-        <Text variant="mono" tone="muted" className="tabular-nums min-w-16 text-right">
+        <Text variant="figureSmall" tone="muted" className="min-w-16 text-right">
           {formatTime(effectiveDuration)}
         </Text>
       </div>

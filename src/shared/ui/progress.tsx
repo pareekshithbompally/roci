@@ -61,7 +61,7 @@ function CompactProgress({ percent, detail, className, children }: { percent: nu
       transition={reduceMotion ? { duration: 0 } : appear}
     >
       {children}
-      {facts && <Text variant="mono" tone="faint" className="tabular-nums">{facts}</Text>}
+      {facts && <Text variant="figureSmall" tone="faint">{facts}</Text>}
     </motion.span>
   );
 }

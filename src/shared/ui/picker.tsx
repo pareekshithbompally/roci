@@ -6,7 +6,10 @@ import { POPUP_BUTTON, POPUP_CHEVRON, POPUP_VALUE } from './recipes';
 
 export interface PickerOption {
   value: string;
+  /** The menu row. */
   label: string;
+  /** The button's text once chosen, when shorter than the row (the row may say "Download …" or a status). */
+  title?: string;
   disabled?: boolean;
 }
 
@@ -39,7 +42,7 @@ export function Picker({ label, value, groups, onChange, placeholder, leading, d
   return (
     <span className={cn(phone ? POPUP_VALUE : POPUP_BUTTON, 'relative inline-flex min-w-0 max-w-full items-center gap-2', !chosen && 'text-faint')}>
       {chosen && leading}
-      <span className="min-w-0 truncate">{chosen?.label ?? placeholder}</span>
+      <span className="min-w-0 truncate">{chosen ? (chosen.title ?? chosen.label) : placeholder}</span>
       <ChevronsUpDown aria-hidden className={phone ? POPUP_CHEVRON.phone : POPUP_CHEVRON.mac} />
       <select
         aria-label={label}

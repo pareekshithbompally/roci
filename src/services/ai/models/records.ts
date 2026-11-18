@@ -10,8 +10,8 @@ import type { ModelProvider } from '@shared/types/modelProviders';
 import { describeModel } from './facts';
 import type { ModelDescription } from './facts';
 
-/** Where a model runs: a cloud API, this Mac, a server the user runs, or an integration (Apple, Hex). */
-export type ModelSource = 'cloud' | 'this-mac' | 'your-server' | 'integration';
+/** Where a model runs: a cloud API, this device, a server the user runs, or an integration (Apple, Hex). */
+export type ModelSource = 'cloud' | 'on-device' | 'your-server' | 'integration';
 
 export interface ModelRecord extends ModelDescription {
   provider: string;
@@ -24,7 +24,7 @@ export interface ModelRecord extends ModelDescription {
 }
 
 export function modelSourceOf(provider: string): ModelSource {
-  if (provider === LOCAL_MODELS_CONFIG.provider.id) return 'this-mac';
+  if (provider === LOCAL_MODELS_CONFIG.provider.id) return 'on-device';
   if (isLocalProviderId(provider)) return 'your-server';
   if (provider in TRANSCRIPTION_CONFIG.integrationByProvider) return 'integration';
   return 'cloud';

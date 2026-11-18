@@ -63,7 +63,7 @@ const BreakdownRow: React.FC<{ label: string; value: string; sub?: string }> = (
       <Text variant="caption" tone="muted">
         {label}
       </Text>
-      <Text variant="mono" tone="muted" className="tabular-nums">
+      <Text variant="figureSmall" tone="muted">
         {value}
       </Text>
     </div>
@@ -75,41 +75,29 @@ const BreakdownRow: React.FC<{ label: string; value: string; sub?: string }> = (
   </div>
 );
 
-const Breakdown: React.FC<{ usage: ContextUsage }> = ({ usage }) => {
-  const cachedSub =
-    usage.currentCache > 0
-      ? `${(usage.currentInput - usage.currentCache).toLocaleString()} fresh + ${usage.currentCache.toLocaleString()} cached`
-      : undefined;
-  return (
-    <div className="flex flex-col gap-1.5 px-1 py-1">
-      <div className="flex items-baseline justify-between">
-        <Text variant="label" tone="primary">
-          Context
-        </Text>
-        <Text variant="mono" tone="muted" className="tabular-nums">
-          {usage.used.toLocaleString()} / {usage.total.toLocaleString()}
-        </Text>
-      </div>
-      <Progress percent={usage.percent} tone={LEVEL_PROGRESS_TONE[usage.level]} />
-      <div className="mt-1 flex flex-col gap-2">
-        <BreakdownRow label="Prompt" value={formatTokens(usage.currentInput)} sub={cachedSub} />
-        <BreakdownRow label="Generated" value={formatTokens(usage.currentOutput)} />
-        {(usage.cumulativeInput > 0 || usage.cumulativeOutput > 0) && (
-          <>
-            <BreakdownRow label="Prompt (all turns)" value={formatTokens(usage.cumulativeInput)} />
-            <BreakdownRow
-              label="Generated (all turns)"
-              value={formatTokens(usage.cumulativeOutput)}
-            />
-          </>
-        )}
-        {usage.speed != null && (
-          <BreakdownRow label="Speed" value={`${usage.speed.toFixed(0)} tok/s`} />
-        )}
-      </div>
+/** What fills the window after the last reply, and the room left. */
+const Breakdown: React.FC<{ usage: ContextUsage }> = ({ usage }) => (
+  <div className="flex flex-col gap-1.5 px-1 py-1">
+    <div className="flex items-baseline justify-between">
+      <Text variant="label" tone="primary">
+        Context
+      </Text>
+      <Text variant="figureSmall" tone="muted">
+        {usage.used.toLocaleString()} / {usage.total.toLocaleString()}
+      </Text>
     </div>
-  );
-};
+    <Progress percent={usage.percent} tone={LEVEL_PROGRESS_TONE[usage.level]} />
+    <div className="mt-1 flex flex-col gap-2">
+      <BreakdownRow
+        label="Conversation so far"
+        value={formatTokens(usage.prompt)}
+        sub={usage.cached > 0 ? `${usage.cached.toLocaleString()} from cache` : undefined}
+      />
+      <BreakdownRow label="Last reply" value={formatTokens(usage.reply)} />
+      <BreakdownRow label="Room left" value={formatTokens(usage.left)} />
+    </div>
+  </div>
+);
 
 export interface ContextRingProps {
   /** Null hides the ring (unknown limit or no usage yet). */

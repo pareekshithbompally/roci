@@ -53,10 +53,11 @@ export const GalleryView: React.FC = () => {
         {count > 0 && <Text as="p" variant="helper" tone="muted">{count} {count === 1 ? 'image' : 'images'}</Text>}
       </Surface>
 
-      <div className={`flex-1 overflow-y-auto custom-scrollbar ${LAYOUT.listGutter} py-4`}>
-        {!isLoading && count === 0 ? (
-          <EmptyState icon={Images} message={GALLERY_CONFIG.empty} />
-        ) : (
+      {/* Empty fills the page's column (EmptyState centres there), not the scroll area. */}
+      {!isLoading && count === 0 ? (
+        <EmptyState icon={Images} message={GALLERY_CONFIG.empty} />
+      ) : (
+        <div className={`flex-1 overflow-y-auto custom-scrollbar ${LAYOUT.listGutter} py-4`}>
           <div className="space-y-6">
             {days.map((day) => (
               <section key={day.label} className="space-y-2">
@@ -74,8 +75,8 @@ export const GalleryView: React.FC = () => {
               </section>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {open && (
         <Lightbox

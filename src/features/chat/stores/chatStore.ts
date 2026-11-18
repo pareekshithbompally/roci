@@ -454,6 +454,7 @@ async function generateReply(reply: Reply, request: ReplyRequest): Promise<void>
       cacheReadTokens: usage?.cacheReadTokens,
       cacheWriteTokens: usage?.cacheWriteTokens,
       tokensPerSecond: tokensPerSecond(usage?.outputTokens, tally.firstTextAt),
+      context: result.context,
       ...(tally.meetingCitations.length > 0 && { meetingCitations: tally.meetingCitations }),
       ...(tally.webCitations.length > 0 && { webCitations: tally.webCitations }),
       ...(tally.inlineCitations.length > 0 && { inlineCitations: tally.inlineCitations }),

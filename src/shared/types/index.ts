@@ -116,6 +116,14 @@ export type ToolCallPart = Extract<ChatPart, { type: 'tool_call' }>;
 /** An image in a chat message: an attachment, or one a tool made (saved under app data). */
 export type ImagePart = Extract<ChatPart, { type: 'image' }>;
 
+/** One model call's share of the context window, in tokens. */
+export interface ContextTokens {
+  prompt: number;
+  /** Part of the prompt served from the provider's cache. */
+  cached: number;
+  reply: number;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'model';
@@ -140,6 +148,8 @@ export interface ChatMessage {
   cacheWriteTokens?: number;
   /** Tokens per second during streaming */
   tokensPerSecond?: number;
+  /** What the context window holds after this reply: its last model call's prompt (the cached part) and reply, in tokens. */
+  context?: ContextTokens;
   /** Meeting citations gathered from tool calls */
   meetingCitations?: MeetingCitation[];
   /** Web search citations attached to this response */
