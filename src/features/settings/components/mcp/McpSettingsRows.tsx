@@ -31,7 +31,7 @@ function limitOptions(key: LimitKey, current: number) {
 }
 
 export const MCP_PERMISSIONS_FOOTER =
-  'When off, each tool asks before it runs. Choose Always allow when asked to trust a whole server; it shows on that server’s row.';
+  'When off, each tool asks before it runs. To trust one server, choose Always Allow in its ⋯ menu.';
 
 export const MCP_LIMITS_FOOTER =
   'A tool call stops at the timeout. After the max tool calls, chat stops using tools and answers. Longer tool output is cut.';

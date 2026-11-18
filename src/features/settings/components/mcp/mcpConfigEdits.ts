@@ -27,6 +27,11 @@ export function upsertServers(config: McpConfig, editingName: string | null, ent
   return { next: { mcpServers, mcpSettings }, affected };
 }
 
+/** The trusted servers with `name` added (always allow) or removed (ask first). */
+export function withTrust(trusted: string[], name: string, allowed: boolean): string[] {
+  return allowed ? [...new Set([...trusted, name])] : trusted.filter((s) => s !== name);
+}
+
 /** A saved "always allow" follows its server through a rename. */
 function renameTrust(trusted: string[], from: string, to: string): string[] {
   return trusted.map((name) => (name === from ? to : name));
@@ -43,7 +48,7 @@ export function toggleServer(config: McpConfig, name: string, active: boolean): 
 /** Also drops the server's saved permission, so a later server with the same name doesn't inherit trust. */
 export function deleteServer(config: McpConfig, name: string): McpReconfigureVars {
   const { [name]: _removed, ...mcpServers } = config.mcpServers;
-  const trustedServers = config.mcpSettings.trustedServers.filter((s) => s !== name);
+  const trustedServers = withTrust(config.mcpSettings.trustedServers, name, false);
   return { next: { mcpServers, mcpSettings: { ...config.mcpSettings, trustedServers } }, affected: [name] };
 }
 

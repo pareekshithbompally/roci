@@ -1,13 +1,14 @@
-/** One MCP server row: its icon, one line of masked transport details, live status (Retry when offline), Always allowed (Revoke), edit/delete, enable switch. */
+/** One MCP server row (Apple's list pattern): icon, name, a quiet line of transport details and state; trailing, only a ⋯ menu
+ *  (Edit, Retry, Always Allow, Delete) and the on/off switch. */
 
 import React from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { MoreHorizontal } from 'lucide-react';
 import { MCP_CONFIG } from '@config/mcp.config';
 import type { McpServerConfig } from '@config/mcp.config';
 import { META_SEPARATOR } from '@config/ui.config';
-import { Badge, Button, CardRow, IconButton, Status, Switch } from '@shared/ui';
-import type { DotTone } from '@shared/ui';
-import { ServerIcon } from '@shared/components';
+import { CardRow, IconButton, Switch } from '@shared/ui';
+import { Menu, ServerIcon } from '@shared/components';
+import type { MenuEntry } from '@shared/components';
 import { maskUrl, serverStatus, type McpServerStatus } from './mcpServerForm';
 
 interface McpServerCardProps {
@@ -20,21 +21,23 @@ interface McpServerCardProps {
   pending: boolean;
   /** Some MCP change is in flight; actions wait for it. */
   disabled: boolean;
-  /** Its tools run without asking ("Always allow" in chat), while "Run tools without asking" is off. */
+  /** Its tools run without asking: "Always Allow" for this server. */
   alwaysAllowed: boolean;
-  onRevokeAlwaysAllow: () => void;
+  /** "Run tools without asking" is on, so every server is allowed and the per-server choice is moot. */
+  allowAll: boolean;
+  onAlwaysAllowChange: (allowed: boolean) => void;
   onToggle: (active: boolean) => void;
   onRetry: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }
 
-const STATUS: Record<McpServerStatus, { label: string; tone: DotTone; pulse?: boolean }> = {
-  connected: { label: 'Connected', tone: 'success' },
-  connecting: { label: 'Connecting…', tone: 'info', pulse: true },
-  stopping: { label: 'Stopping…', tone: 'muted', pulse: true },
-  offline: { label: 'Not connected', tone: 'danger' },
-  off: { label: 'Off', tone: 'muted' },
+const STATUS_LABEL: Record<McpServerStatus, string> = {
+  connected: 'Connected',
+  connecting: 'Connecting…',
+  stopping: 'Stopping…',
+  offline: 'Not connected',
+  off: 'Off',
 };
 
 const transportLabel = (config: McpServerConfig) =>
@@ -46,54 +49,43 @@ const countOf = (record: Record<string, string> | undefined, noun: string) => {
   return n === 0 ? undefined : `${n} ${noun}${n === 1 ? '' : 's'}`;
 };
 
-/** One line: the command a STDIO server runs, or a remote server's transport and masked URL. */
-function serverLine(config: McpServerConfig): string {
+/** The command a STDIO server runs, or a remote server's transport and masked URL. */
+function serverLine(config: McpServerConfig): string[] {
   const isStdio = (config.type ?? 'stdio') === 'stdio';
   const parts = isStdio
     ? [[config.command, ...(config.args ?? [])].join(' '), countOf(config.env, 'env var')]
     : [`${transportLabel(config)} ${maskUrl(config.url ?? '')}`, countOf(config.headers, 'header')];
-  return parts.filter(Boolean).join(META_SEPARATOR);
+  return parts.filter((part): part is string => !!part);
 }
 
-export const McpServerCard: React.FC<McpServerCardProps> = ({
-  name,
-  config,
-  connected,
-  icon,
-  pending,
-  disabled,
-  alwaysAllowed,
-  onRevokeAlwaysAllow,
-  onToggle,
-  onRetry,
-  onEdit,
-  onDelete,
-}) => {
+function menuItems(props: McpServerCardProps, status: McpServerStatus): MenuEntry[] {
+  const { alwaysAllowed, allowAll, disabled, onAlwaysAllowChange, onRetry, onEdit, onDelete } = props;
+  return [
+    { type: 'item', label: 'Edit…', onSelect: onEdit, disabled },
+    ...(status === 'offline' ? [{ type: 'item' as const, label: 'Retry', onSelect: onRetry, disabled }] : []),
+    { type: 'separator' },
+    { type: 'check', label: 'Always Allow', checked: allowAll || alwaysAllowed, onSelect: () => onAlwaysAllowChange(!alwaysAllowed), disabled: disabled || allowAll },
+    { type: 'separator' },
+    { type: 'item', label: 'Delete Server…', onSelect: onDelete, disabled, destructive: true },
+  ];
+}
+
+export const McpServerCard: React.FC<McpServerCardProps> = (props) => {
+  const { name, config, connected, icon, pending, disabled, alwaysAllowed, allowAll, onToggle } = props;
   const status = serverStatus(!!config.active, connected, pending);
-  const { label, tone, pulse } = STATUS[status];
+  const line = [...serverLine(config), STATUS_LABEL[status], ...(alwaysAllowed && !allowAll ? ['Always allowed'] : [])].join(META_SEPARATOR);
   return (
     <CardRow
       leading={<ServerIcon name={name} icon={icon} size="tile" />}
       title={name}
-      description={<span title={serverLine(config)}>{serverLine(config)}</span>}
-      status={
-        <>
-          <Status tone={tone} pulse={pulse}>{label}</Status>
-          {status === 'offline' && (
-            <Button variant="link" size="inline" onClick={onRetry} disabled={disabled}>Retry</Button>
-          )}
-          {alwaysAllowed && (
-            <>
-              <Badge variant="info">Always allowed</Badge>
-              <Button variant="link" size="inline" onClick={onRevokeAlwaysAllow} disabled={disabled}>Revoke</Button>
-            </>
-          )}
-        </>
-      }
+      description={<span title={line}>{line}</span>}
       actions={
         <>
-          <IconButton icon={Pencil} label="Edit server" size="sm" onClick={onEdit} disabled={disabled} />
-          <IconButton icon={Trash2} label="Delete server" size="sm" variant="dangerGhost" onClick={onDelete} disabled={disabled} />
+          <Menu
+            label={`${name} options`}
+            trigger={<IconButton icon={MoreHorizontal} label={`${name} options`} size="sm" />}
+            items={menuItems(props, status)}
+          />
           <Switch checked={!!config.active} onCheckedChange={onToggle} disabled={disabled} aria-label={`Enable ${name}`} />
         </>
       }

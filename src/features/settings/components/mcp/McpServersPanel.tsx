@@ -21,7 +21,7 @@ import { MCP_LIMITS_FOOTER, MCP_PERMISSIONS_FOOTER, McpLimitsCard, McpPermission
 import { McpServerCard } from './McpServerCard';
 import { AddEditMcpServerDialog } from './AddEditMcpServerDialog';
 import { EditMcpJsonDialog } from './EditMcpJsonDialog';
-import { applyJson, deleteServer, toggleServer, updateSettings, upsertServers } from './mcpConfigEdits';
+import { applyJson, deleteServer, toggleServer, updateSettings, upsertServers, withTrust } from './mcpConfigEdits';
 import type { McpServerEntry } from './mcpServerForm';
 import { errorMessage } from '@shared/utils/errors';
 
@@ -110,8 +110,9 @@ export const McpServersPanel: React.FC = () => {
               onRetry={() => handleToggle(name, true)}
               onEdit={() => setEditing({ name })}
               onDelete={() => void handleDelete(name)}
-              alwaysAllowed={!config.mcpSettings.allowAllTools && config.mcpSettings.trustedServers.includes(name)}
-              onRevokeAlwaysAllow={() => changeSettings({ trustedServers: config.mcpSettings.trustedServers.filter((s) => s !== name) })}
+              alwaysAllowed={config.mcpSettings.trustedServers.includes(name)}
+              allowAll={config.mcpSettings.allowAllTools}
+              onAlwaysAllowChange={(allowed) => changeSettings({ trustedServers: withTrust(config.mcpSettings.trustedServers, name, allowed) })}
             />
           ))
         )}
