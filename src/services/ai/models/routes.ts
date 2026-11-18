@@ -9,7 +9,7 @@ import type { ModelRecord } from './records';
 type Routed = Pick<ModelRecord, 'provider' | 'input' | 'output'>;
 
 /** Audio in, text out, nothing else: a dedicated speech-to-text model. */
-const isSpeechOnly = (r: Routed): boolean => r.input.length === 1 && r.output.length === 1 && fitsJob(r, 'transcribe');
+export const isSpeechOnly = (r: Routed): boolean => r.input.length === 1 && r.output.length === 1 && fitsJob(r, 'transcribe');
 
 function speechEndpointOf(provider: string): TranscriptionAdapterId | undefined {
   if (isLocalProviderId(provider)) return 'openai-compatible';

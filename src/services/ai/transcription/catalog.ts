@@ -1,7 +1,8 @@
 /** Speech model catalog: what can be picked, whether it can run now, and which adapter and credentials run it. */
 
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
-import { jobRecords, modelKey, transcribeAdapter } from '@services/ai/models';
+import { isSpeechOnly, jobRecords, modelKey, transcribeAdapter } from '@services/ai/models';
+import { MODEL_SPINE_CONFIG } from '@config/modelSpine.config';
 import { formatFileSize } from '@shared/utils/formatters';
 import { installedHexModels } from './hex';
 import { appleSpeechHint, isAppleSpeechReady } from './appleSpeech';
@@ -25,7 +26,14 @@ const { hexProvider, keylessProviders, speechEndpointByProvider } = TRANSCRIPTIO
 
 /** A provider speech model as the spine describes it (fit, readiness), or undefined when it isn't one. */
 function speechRecord(selection: SpeechSelection, providers: ModelProvider[]) {
-  return jobRecords(providers, 'transcribe').find((r) => r.provider === selection.provider && r.id === selection.model);
+  return speechRecords(providers).find((r) => r.provider === selection.provider && r.id === selection.model);
+}
+
+/** Speech lists real speech models and the suggested ones; a chat model that hears joins only when its Audio input is ticked. */
+function speechRecords(providers: ModelProvider[]) {
+  const ticked = new Set(providers.flatMap((p) => (p.models ?? []).filter((m) => m.audioInput).map((m) => modelKey({ provider: p.provider, model: m.id }))));
+  const suggested = (r: { provider: string; id: string }) => MODEL_SPINE_CONFIG.suggested.transcribe?.[r.provider]?.some((s) => s.id === r.id) ?? false;
+  return jobRecords(providers, 'transcribe').filter((r) => isSpeechOnly(r) || suggested(r) || ticked.has(modelKey({ provider: r.provider, model: r.id })));
 }
 
 /** Keyless engines run on their own endpoint; any other speech model runs the way the spine routes it. */
@@ -37,7 +45,7 @@ export function adapterFor(selection: SpeechSelection, providers: ModelProvider[
 
 /** The spine's speech-to-text models on the providers: the ones added that take audio, then the suggested ones. */
 function providerOptions(providers: ModelProvider[]): SpeechModelOption[] {
-  return jobRecords(providers, 'transcribe').map((r) => ({ provider: r.provider, model: r.id, label: r.label, ready: r.ready, hint: r.hint, live: false }));
+  return speechRecords(providers).map((r) => ({ provider: r.provider, model: r.id, label: r.label, ready: r.ready, hint: r.hint, live: false }));
 }
 
 function hexOptions(status: HexStatus | undefined): SpeechModelOption[] {

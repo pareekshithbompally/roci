@@ -67,8 +67,8 @@ describe('speechModelOptions', () => {
   const options = speechModelOptions(providers, {});
   const keys = options.map(speechSelectionKey);
 
-  it('lists an added model that takes audio, since it can transcribe (routing by modality)', () => {
-    expect(keys).toContain('gemini::gemini-2.5-pro');
+  it('does not list a chat model just because it hears audio; ticking Audio input adds it', () => {
+    expect(keys).not.toContain('gemini::gemini-2.5-pro');
   });
 
   it('offers models the user ticked "Audio input" for, cloud and local', () => {
