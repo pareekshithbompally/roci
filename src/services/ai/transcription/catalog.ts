@@ -118,9 +118,10 @@ export function isSpeechSelectionReady(
   return speechRecord(selection, providers)?.ready ?? false;
 }
 
-/** First-run choice: the first default the spine says can run. */
+/** First-run choice: the first speech model the user added that can run. */
 export function defaultSpeechSelection(providers: ModelProvider[]): SpeechSelection | null {
-  return TRANSCRIPTION_CONFIG.defaultOrder.find((d) => speechRecord(d, providers)?.ready) ?? null;
+  const first = speechRecords(providers).find((r) => r.ready);
+  return first ? { provider: first.provider, model: first.id } : null;
 }
 
 /** The saved selection, or null when none was chosen. */

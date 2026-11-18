@@ -43,15 +43,6 @@ export const TRANSCRIPTION_CONFIG = {
     'on-device': 'on-device',
   } as Record<string, TranscriptionAdapterId>,
 
-  /** Auto-selected on first run: the first one whose provider has a key. */
-  defaultOrder: [
-    { provider: 'openai', model: 'gpt-4o-transcribe' },
-    { provider: 'groq', model: 'whisper-large-v3-turbo' },
-    { provider: 'deepgram', model: 'nova-3' },
-    { provider: 'elevenlabs', model: 'scribe_v1' },
-    { provider: 'gemini', model: 'gemini-3.5-flash-lite' },
-  ],
-
   /** Provider id of the running Hex app (no key; its models come from Hex). */
   hexProvider: 'hex',
   /** Apple speech (Integrations › Apple Intelligence): on this Mac, no key, one model. */
