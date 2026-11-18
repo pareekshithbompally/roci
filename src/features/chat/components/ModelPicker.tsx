@@ -18,18 +18,17 @@ import { META_SEPARATOR, MENU_GAP_PT } from '@config/ui.config';
 import { platform } from '@platform/index';
 import { useLocalServerProbe } from '@features/settings/hooks';
 
-/** What a menu row says after the name, kept short so the menu stays tight: what it takes in, what it can do, whether it's loaded. */
-export function rowText(choice: ModelChoice, loaded: boolean): string {
+/** A menu row's grey second line: what it takes in, what it can do, whether it's loaded; empty when none apply. */
+export function rowFacts(choice: ModelChoice, loaded: boolean): string {
   const { marks } = MODEL_PICKER_COPY;
   const info = choice.info;
-  const facts = [
+  return [
     info?.modalities?.input.includes('image') && marks.vision,
     info?.modalities?.input.includes('audio') && marks.audio,
     info?.capabilities.toolCall && marks.tools,
     info?.capabilities.reasoning && marks.thinking,
     loaded && marks.loaded,
-  ].filter(Boolean);
-  return [choice.label, ...facts].join(META_SEPARATOR);
+  ].filter(Boolean).join(META_SEPARATOR);
 }
 
 /** A menu row's icon as ModelIcon draws it: the maker's avatar when shown and known, else the provider's logo. */
@@ -39,7 +38,7 @@ async function iconUrlOf(choice: ModelChoice, showAvatars: boolean): Promise<str
   return org ? cachedImage(getAvatarUrl(org)).catch(() => logo) : logo;
 }
 
-/** The Mac menu: a header per provider, its models (icon, name, short facts; the chosen one checked), then the ones that need setup.
+/** The Mac menu: a header per provider, its models (name, facts as subtext; the chosen one checked), then the ones that need setup.
  *  `values[i]` is what row i picks (null for headers, separators and setup rows). */
 export function modelMenu(
   groups: Array<[string, ModelChoice[]]>,
@@ -52,13 +51,13 @@ export function modelMenu(
     ...(i > 0 ? [[{ kind: 'separator' }, null] as [ChoiceEntry, null]] : []),
     [{ kind: 'header', title: getProviderTitle(provider) }, null] as [ChoiceEntry, null],
     ...models.map((m): [ChoiceEntry, string] => [
-      { kind: 'row', title: rowText(m, isLoaded(m.provider, m.modelId)), icon: iconOf(m), checked: m.value === selected, enabled: true },
+      { kind: 'row', title: m.label, subtitle: rowFacts(m, isLoaded(m.provider, m.modelId)), icon: iconOf(m), checked: m.value === selected, enabled: true },
       m.value,
     ]),
   ]);
   if (needsSetup.length > 0) {
     rows.push([{ kind: 'separator' }, null], [{ kind: 'header', title: MODEL_PICKER_COPY.needsSetup }, null]);
-    needsSetup.forEach((m) => rows.push([{ kind: 'row', title: `${m.label} — ${m.hint}`, icon: iconOf(m), enabled: false }, null]));
+    needsSetup.forEach((m) => rows.push([{ kind: 'row', title: m.label, subtitle: m.hint ?? undefined, icon: iconOf(m), enabled: false }, null]));
   }
   return { entries: rows.map(([entry]) => entry), values: rows.map(([, value]) => value) };
 }

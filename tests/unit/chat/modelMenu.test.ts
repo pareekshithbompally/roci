@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { modelMenu, rowText } from '@features/chat/components/ModelPicker';
+import { modelMenu, rowFacts } from '@features/chat/components/ModelPicker';
 import type { ModelChoice } from '@shared/utils/modelResolver';
 
 const choice = (over: Partial<ModelChoice>): ModelChoice => ({
@@ -7,11 +7,11 @@ const choice = (over: Partial<ModelChoice>): ModelChoice => ({
 });
 
 describe('Mac model menu', () => {
-  it('a row is the name and only short facts: what it takes in, what it can do, whether it is loaded', () => {
+  it('a row\'s subtext is only short facts: what it takes in, what it can do, whether it is loaded', () => {
     const info = { modalities: { input: ['text', 'image'], output: ['text'] }, capabilities: { toolCall: true, reasoning: true } };
-    expect(rowText(choice({ info }), false)).toBe('gpt-5 · Vision · Tools · Thinking');
-    expect(rowText(choice({}), true)).toBe('gpt-5 · Loaded');
-    expect(rowText(choice({}), false)).toBe('gpt-5');
+    expect(rowFacts(choice({ info }), false)).toBe('Vision · Tools · Thinking');
+    expect(rowFacts(choice({}), true)).toBe('Loaded');
+    expect(rowFacts(choice({}), false)).toBe('');
   });
 
   it('a header per provider; every model row has its icon, the chosen one is checked, setup rows are disabled at the end', () => {
@@ -24,8 +24,8 @@ describe('Mac model menu', () => {
     );
     expect(entries.map((e) => e.kind)).toEqual(['header', 'row', 'row', 'separator', 'header', 'row', 'separator', 'header', 'row']);
     expect(entries[0]).toEqual({ kind: 'header', title: 'OpenAI' });
-    expect(entries[2]).toMatchObject({ kind: 'row', title: 'b', icon: 'icon:b', checked: true, enabled: true });
-    expect(entries.at(-1)).toMatchObject({ title: 'd — Add Groq API key', enabled: false });
+    expect(entries[2]).toMatchObject({ kind: 'row', title: 'b', subtitle: '', icon: 'icon:b', checked: true, enabled: true });
+    expect(entries.at(-1)).toMatchObject({ title: 'd', subtitle: 'Add Groq API key', enabled: false });
     expect(values).toEqual([null, 'a', 'b', null, null, 'c', null, null, null]);
   });
 });

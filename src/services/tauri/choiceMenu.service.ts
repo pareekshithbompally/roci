@@ -7,7 +7,7 @@ import { MENU_ICON_PT } from '@config/ui.config';
 export type ChoiceEntry =
   | { kind: 'header'; title: string }
   | { kind: 'separator' }
-  | { kind: 'row'; title: string; icon?: string | null; checked?: boolean; enabled: boolean };
+  | { kind: 'row'; title: string; /** Grey second line under the title. */ subtitle?: string; icon?: string | null; checked?: boolean; enabled: boolean };
 
 /** Rendered at 2x so the 16pt icon stays sharp on Retina. */
 const ICON_PX = MENU_ICON_PT * 2;

@@ -1,4 +1,4 @@
-// A choice menu at a point in the key window: section headers, rows with an icon and a checkmark, the chosen row's index returned.
+// A choice menu at a point in the key window: section headers, two-line rows (title, grey subtitle) with an icon and a checkmark.
 
 #import <AppKit/AppKit.h>
 
@@ -13,7 +13,7 @@
 }
 @end
 
-/// One row from its JSON entry: `header`, `separator`, or a row (`title`, optional base64 `icon`, `checked`, `enabled`).
+/// One row from its JSON entry: `header`, `separator`, or a row (`title`, optional `subtitle` and base64 `icon`, `checked`, `enabled`).
 static NSMenuItem *rociChoiceItem(NSDictionary *entry, NSInteger index, RociChoiceTarget *target, CGFloat iconSize) {
   NSString *kind = entry[@"kind"];
   if ([kind isEqualToString:@"separator"]) return [NSMenuItem separatorItem];
@@ -23,6 +23,8 @@ static NSMenuItem *rociChoiceItem(NSDictionary *entry, NSInteger index, RociChoi
   item.target = target;
   item.enabled = [entry[@"enabled"] boolValue];
   item.state = [entry[@"checked"] boolValue] ? NSControlStateValueOn : NSControlStateValueOff;
+  NSString *subtitle = entry[@"subtitle"];
+  if ([subtitle isKindOfClass:[NSString class]] && subtitle.length > 0) item.subtitle = subtitle;
   NSString *icon = entry[@"icon"];
   if ([icon isKindOfClass:[NSString class]]) {
     NSData *data = [[NSData alloc] initWithBase64EncodedString:icon options:0];
