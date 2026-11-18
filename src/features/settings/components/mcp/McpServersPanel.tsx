@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Braces, Plus } from 'lucide-react';
 import { openUrl } from '@services/tauri';
 import { MCP_CONFIG } from '@config/mcp.config';
-import type { McpConfig } from '@config/mcp.config';
+import type { McpConfig, McpSettings } from '@config/mcp.config';
 import { useToast } from '@shared/contexts/ToastContext';
 import { confirm } from '@shared/stores/confirmStore';
 import { Badge, Button, Callout, Icon, IconButton, Section, Text } from '@shared/ui';
@@ -17,7 +17,7 @@ import {
   useMcpUpdateListener,
 } from '@features/settings/hooks';
 import type { McpReconfigureVars } from '@features/settings/hooks';
-import { MCP_RUNTIME_FOOTER, McpRuntimeCard } from './McpRuntimeCard';
+import { MCP_LIMITS_FOOTER, MCP_PERMISSIONS_FOOTER, McpLimitsCard, McpPermissionsCard } from './McpSettingsRows';
 import { McpServerCard } from './McpServerCard';
 import { AddEditMcpServerDialog } from './AddEditMcpServerDialog';
 import { EditMcpJsonDialog } from './EditMcpJsonDialog';
@@ -77,16 +77,17 @@ export const McpServersPanel: React.FC = () => {
   if (isLoading || !config) return <PanelShell onAdd={() => undefined} onEditAll={() => undefined} actionsDisabled />;
 
   const serverEntries = Object.entries(config.mcpServers);
+  const changeSettings = (partial: Partial<McpSettings>) => applyAndToast((c) => updateSettings(c, partial));
   const editingConfig = editing?.name ? config.mcpServers[editing.name] : undefined;
 
   return (
     <PanelShell onAdd={() => setEditing({ name: null })} onEditAll={() => setJsonOpen(true)} actionsDisabled={busy}>
-      <Section title="Permissions & runtime" footer={MCP_RUNTIME_FOOTER}>
-        <McpRuntimeCard
-          settings={config.mcpSettings}
-          disabled={busy}
-          onChange={(partial) => applyAndToast((c) => updateSettings(c, partial))}
-        />
+      <Section title="Permissions" footer={MCP_PERMISSIONS_FOOTER}>
+        <McpPermissionsCard settings={config.mcpSettings} disabled={busy} onChange={changeSettings} />
+      </Section>
+
+      <Section title="Limits" footer={MCP_LIMITS_FOOTER}>
+        <McpLimitsCard settings={config.mcpSettings} disabled={busy} onChange={changeSettings} />
       </Section>
 
       <Section
@@ -109,6 +110,8 @@ export const McpServersPanel: React.FC = () => {
               onRetry={() => handleToggle(name, true)}
               onEdit={() => setEditing({ name })}
               onDelete={() => void handleDelete(name)}
+              alwaysAllowed={!config.mcpSettings.allowAllTools && config.mcpSettings.trustedServers.includes(name)}
+              onRevokeAlwaysAllow={() => changeSettings({ trustedServers: config.mcpSettings.trustedServers.filter((s) => s !== name) })}
             />
           ))
         )}

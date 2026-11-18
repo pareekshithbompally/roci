@@ -14,6 +14,7 @@ export const CHAT_TOOLS_CONFIG = {
 } as const;
 
 export const AGENT_LOOP_CONFIG = {
-  /** Model calls per chat reply; the last one must answer in text. Most replies need 1–3 tool calls. */
-  maxSteps: 10,
+  /** Tool calls per chat turn before chat must answer in text; most turns need 1–3.
+   *  The default for Settings › MCP › Max tool calls per turn (`McpSettings.maxToolCalls`), which is what chat enforces. */
+  maxToolCalls: 10,
 } as const;

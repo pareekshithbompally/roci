@@ -1,11 +1,11 @@
-/** One MCP server row: its icon, one line of masked transport details, live status (Retry when offline), edit/delete, enable switch. */
+/** One MCP server row: its icon, one line of masked transport details, live status (Retry when offline), Always allowed (Revoke), edit/delete, enable switch. */
 
 import React from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { MCP_CONFIG } from '@config/mcp.config';
 import type { McpServerConfig } from '@config/mcp.config';
 import { META_SEPARATOR } from '@config/ui.config';
-import { Button, CardRow, IconButton, Status, Switch } from '@shared/ui';
+import { Badge, Button, CardRow, IconButton, Status, Switch } from '@shared/ui';
 import type { DotTone } from '@shared/ui';
 import { ServerIcon } from '@shared/components';
 import { maskUrl, serverStatus, type McpServerStatus } from './mcpServerForm';
@@ -20,6 +20,9 @@ interface McpServerCardProps {
   pending: boolean;
   /** Some MCP change is in flight; actions wait for it. */
   disabled: boolean;
+  /** Its tools run without asking ("Always allow" in chat), while "Run tools without asking" is off. */
+  alwaysAllowed: boolean;
+  onRevokeAlwaysAllow: () => void;
   onToggle: (active: boolean) => void;
   onRetry: () => void;
   onEdit: () => void;
@@ -59,6 +62,8 @@ export const McpServerCard: React.FC<McpServerCardProps> = ({
   icon,
   pending,
   disabled,
+  alwaysAllowed,
+  onRevokeAlwaysAllow,
   onToggle,
   onRetry,
   onEdit,
@@ -76,6 +81,12 @@ export const McpServerCard: React.FC<McpServerCardProps> = ({
           <Status tone={tone} pulse={pulse}>{label}</Status>
           {status === 'offline' && (
             <Button variant="link" size="inline" onClick={onRetry} disabled={disabled}>Retry</Button>
+          )}
+          {alwaysAllowed && (
+            <>
+              <Badge variant="info">Always allowed</Badge>
+              <Button variant="link" size="inline" onClick={onRevokeAlwaysAllow} disabled={disabled}>Revoke</Button>
+            </>
           )}
         </>
       }

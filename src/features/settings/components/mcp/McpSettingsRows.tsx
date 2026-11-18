@@ -1,11 +1,11 @@
-/** MCP tool permissions and runtime limits (allow-all, saved permissions, timeout, output cap) as Section rows; `MCP_RUNTIME_FOOTER` explains them. */
+/** MCP settings rows: Permissions (run without asking) and Limits (timeout, tool calls per turn, output cap). Per-server trust lives on each server's row. */
 
 import React, { useEffect, useState } from 'react';
 import { DEFAULT_MCP_SETTINGS, MCP_CONFIG } from '@config/mcp.config';
 import type { McpSettings } from '@config/mcp.config';
-import { Button, CardRow, Input, Switch } from '@shared/ui';
+import { CardRow, Input, Switch } from '@shared/ui';
 
-interface McpRuntimeCardProps {
+interface McpSettingsRowsProps {
   settings: McpSettings;
   disabled: boolean;
   onChange: (partial: Partial<McpSettings>) => void;
@@ -21,14 +21,14 @@ interface NumberSettingProps {
   onCommit: (value: number) => void;
 }
 
-/** Number field that commits on blur (empty → default, invalid → reverted). */
+/** Whole-number field that commits on blur (empty → default, invalid or fractional → reverted). */
 const NumberSetting: React.FC<NumberSettingProps> = ({ value, min, step, fallback, disabled, label, onCommit }) => {
   const [draft, setDraft] = useState(String(value));
   useEffect(() => setDraft(String(value)), [value]);
 
   const commit = () => {
     const next = draft.trim() === '' ? fallback : Number(draft);
-    if (Number.isFinite(next) && next >= min && next !== value) onCommit(next);
+    if (Number.isInteger(next) && next >= min && next !== value) onCommit(next);
     else setDraft(String(value));
   };
 
@@ -47,37 +47,28 @@ const NumberSetting: React.FC<NumberSettingProps> = ({ value, min, step, fallbac
   );
 };
 
-/** Footer for the section holding these rows. */
-export const MCP_RUNTIME_FOOTER = 'A tool call stops at the timeout. Longer output is cut; 0 keeps everything.';
+export const MCP_PERMISSIONS_FOOTER =
+  'When off, each tool asks before it runs. Choose Always allow when asked to trust a whole server; it shows on that server’s row.';
 
-export const McpRuntimeCard: React.FC<McpRuntimeCardProps> = ({ settings, disabled, onChange }) => (
-  <>
-    <CardRow
-      title="Run tools without asking"
-      actions={
-        <Switch
-          checked={settings.allowAllTools}
-          onCheckedChange={(allowAllTools) => onChange({ allowAllTools })}
-          disabled={disabled}
-          aria-label="Run tools without asking"
-        />
-      }
-    />
-    {settings.trustedServers.map((server) => (
-      <CardRow
-        key={server}
-        title={`Always allow ${server}`}
-        actions={
-          <Button
-            variant="outline"
-            disabled={disabled}
-            onClick={() => onChange({ trustedServers: settings.trustedServers.filter((s) => s !== server) })}
-          >
-            Revoke
-          </Button>
-        }
+export const MCP_LIMITS_FOOTER =
+  'A tool call stops at the timeout. After the max tool calls, chat stops using tools and answers. Longer output is cut; 0 keeps everything.';
+
+export const McpPermissionsCard: React.FC<McpSettingsRowsProps> = ({ settings, disabled, onChange }) => (
+  <CardRow
+    title="Run tools without asking"
+    actions={
+      <Switch
+        checked={settings.allowAllTools}
+        onCheckedChange={(allowAllTools) => onChange({ allowAllTools })}
+        disabled={disabled}
+        aria-label="Run tools without asking"
       />
-    ))}
+    }
+  />
+);
+
+export const McpLimitsCard: React.FC<McpSettingsRowsProps> = ({ settings, disabled, onChange }) => (
+  <>
     <CardRow
       title="Tool timeout (seconds)"
       actions={
@@ -88,6 +79,19 @@ export const McpRuntimeCard: React.FC<McpRuntimeCardProps> = ({ settings, disabl
           fallback={DEFAULT_MCP_SETTINGS.toolCallTimeoutSeconds}
           disabled={disabled}
           onCommit={(toolCallTimeoutSeconds) => onChange({ toolCallTimeoutSeconds })}
+        />
+      }
+    />
+    <CardRow
+      title="Max tool calls per turn"
+      actions={
+        <NumberSetting
+          label="Max tool calls per turn"
+          value={settings.maxToolCalls}
+          min={MCP_CONFIG.minToolCalls}
+          fallback={DEFAULT_MCP_SETTINGS.maxToolCalls}
+          disabled={disabled}
+          onCommit={(maxToolCalls) => onChange({ maxToolCalls })}
         />
       }
     />

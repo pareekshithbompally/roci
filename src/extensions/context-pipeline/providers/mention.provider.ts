@@ -32,7 +32,7 @@ export class MentionProvider implements ContextProvider {
     }
 
     return {
-      text: `You have access to the following meeting information for context:\n\n${text}\n\nUse this information to provide accurate, specific answers when relevant.`,
+      text,
       provider: this.name,
       confidence: 1.0,
       durationMs: 0,

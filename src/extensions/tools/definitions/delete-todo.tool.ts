@@ -9,8 +9,8 @@ import { store } from '@services/db';
 export const deleteTodoTool = defineTool({
   name: 'delete_todo',
   description:
-    'Delete one to-do for good, with its reminder. To finish a to-do, use update_todo with done=true instead. ' +
-    'Get todo_id from list_todos first. In chat the user confirms on a card before it is deleted.',
+    'Propose deleting one to-do for good, with its reminder. To finish a to-do, use update_todo with done=true ' +
+    'instead. Get todo_id from list_todos or get_meeting first. In chat the user confirms on a card before it is deleted.',
   input: z.object({ todo_id: idFrom('list_todos or get_meeting') }),
   writes: true,
 

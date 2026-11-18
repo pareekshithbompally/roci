@@ -26,7 +26,6 @@ export async function analyzeTranscript(args: {
     categories: args.categories,
     meetingContext: args.meetingContext,
     temporalContext: formatTemporalContext(),
-    supportsStructuredOutput: true,
   });
 
   const model = createModel(args.resolved);
@@ -34,7 +33,7 @@ export async function analyzeTranscript(args: {
     model,
     instructions: config.prompt,
     prompt: `Transcript:\n${excerptTranscript(args.transcript, budget)}`,
-    output: Output.object({ schema: jsonSchema(config.outputSchema!.schema) }),
+    output: Output.object({ schema: jsonSchema(config.outputSchema.schema) }),
     abortSignal: args.signal,
   });
 

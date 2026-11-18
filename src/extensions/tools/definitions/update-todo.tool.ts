@@ -9,9 +9,9 @@ import { store } from '@services/db';
 export const updateTodoTool = defineTool({
   name: 'update_todo',
   description:
-    'Change one existing to-do: done=true marks it done, done=false opens it again; text, due_date, reminder_at and ' +
-    'owner replace those. Give only what changes. Get todo_id from list_todos (or get_meeting) first. In chat the ' +
-    'user confirms the change on a card before it is saved.',
+    'Propose a change to one existing to-do: done=true marks it done, done=false reopens it; text, due_date, ' +
+    'reminder_at and owner replace those. Give only what changes. Get todo_id from list_todos or get_meeting first. ' +
+    'In chat the user confirms the change on a card before it is saved.',
   input: z.object({
     todo_id: idFrom('list_todos or get_meeting'),
     done: z.boolean().optional().describe('true: mark done. false: mark not done.'),

@@ -8,8 +8,8 @@ import { errorMessage } from '@shared/utils/errors';
 export const listChatsTool = defineTool({
   name: 'list_chats',
   description:
-    "List the user's earlier chats with you, most recent first, with each chat's ID. Use it when the user asks what " +
-    'they talked about recently; to find a chat by topic, use search_chats.',
+    "List the user's earlier chats with you, most recent first, each with its ID. Use it to browse recent chats; " +
+    'to find a chat by topic, use search_chats.',
   input: z.object({ limit: limit(10, 50) }),
 
   async execute({ limit: count }) {

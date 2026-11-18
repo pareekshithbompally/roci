@@ -29,6 +29,9 @@ export const CHAT_TITLE_MAX_CHARS = 30;
 /** The title and follow-up suggestion helpers see this much of the reply. */
 export const REPLY_PREVIEW_CHARS = 500;
 
+/** Follow-up suggestions shown under a reply. */
+export const SUGGESTION_COUNT = 3;
+
 /** The composer's textarea grows with its text up to this height, px, then scrolls. */
 export const COMPOSER_MAX_HEIGHT_PX = 200;
 

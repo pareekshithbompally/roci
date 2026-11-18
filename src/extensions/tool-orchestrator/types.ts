@@ -4,14 +4,15 @@ import type { ChatMessage, AppSettings, ImagePart, ReasoningEffort } from '@shar
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { GenerationStats, StreamMetadata } from '@services/ai/types';
 import type { MeetingCitation } from '@extensions/tools/types';
+import type { ChatPromptOptions } from '@core/ai';
 
 // ── Orchestrator Options ──
 
 /** Input options for the orchestration loop */
 export interface OrchestratorOptions {
   messages: ChatMessage[];
-  /** Required — built by buildChatRequest(), no fallback needed */
-  systemPrompt: string;
+  /** What the system prompt needs besides the tools; the orchestrator adds the tools it actually sends. */
+  prompt: Omit<ChatPromptOptions, 'tools'>;
   settings: AppSettings;
   providers: ModelProvider[];
   signal?: AbortSignal;

@@ -9,7 +9,7 @@ import type { ModelProvider } from '@shared/types/modelProviders';
 import type { ProcessedResult, AppSettings, MeetingSummary, StoredTranscriptSegment } from '@shared/types';
 import { resolveChatModel, resolveSummaryModel, requiresApiKey, type ResolvedModel } from '@shared/utils/modelResolver';
 import { MAX_AUDIO_SIZE_BYTES, MAX_AUDIO_SIZE_MB, MIN_AUDIO_SIZE_BYTES, WAV_HEADER_SIZE_BYTES } from '@shared/utils/audio.utils';
-import { formatTemporalContext } from '@core/ai';
+import { CHAT_TITLE_PROMPT } from '@core/ai';
 import { createModel } from './ai';
 import { extractTokenUsage } from './ai/types';
 import type { TokenUsage } from './ai/types';
@@ -124,10 +124,9 @@ class UnifiedAIService {
 
     try {
       const model = createModel(resolved);
-      const temporalContext = formatTemporalContext();
       const result = await generateText({
         model,
-        instructions: `You are a title generator. ${temporalContext} Your ONLY job is to output a short 3-6 word topic title summarizing what the conversation is about. Output NOTHING else — no explanation, no apology, no commentary. Just the title words. Never start with "I".`,
+        instructions: CHAT_TITLE_PROMPT,
         messages: [{
           role: 'user',
           content: `User: ${userMessage}\nAssistant: ${assistantResponse.slice(0, REPLY_PREVIEW_CHARS)}`,

@@ -1,10 +1,9 @@
-/** When the agent loop must stop calling tools and answer: on its last step, or once the model repeats a tool call. */
+/** When the agent loop must stop calling tools and answer: once the turn's tool calls reach the limit, or the model repeats one. */
 
 import type { ModelMessage, PrepareStepResult, ToolSet } from 'ai';
 import { FINAL_ANSWER_PROMPT } from '@core/ai/prompts';
-import { AGENT_LOOP_CONFIG } from '@config/chatTools.config';
 
-export type FinalStepReason = 'step-limit' | 'repeated-call';
+export type FinalStepReason = 'call-limit' | 'repeated-call';
 
 /** The part of a finished step the guard reads. */
 interface StepCalls {
@@ -27,28 +26,23 @@ function hasRepeatedCall(steps: readonly StepCalls[]): boolean {
   return new Set(keys).size < keys.length;
 }
 
-/** Why the next step must answer without tools, given the steps already run; null while tools stay on. */
-export function finalStepReason(
-  steps: readonly StepCalls[],
-  maxSteps: number = AGENT_LOOP_CONFIG.maxSteps,
-): FinalStepReason | null {
-  if (steps.length >= maxSteps - 1) return 'step-limit';
+/** Why the next step must answer without tools, given the steps already run; null while tools stay on.
+ *  Calls a model makes at once in one step all run, so a turn can pass the limit by that step's extra calls. */
+export function finalStepReason(steps: readonly StepCalls[], maxToolCalls: number): FinalStepReason | null {
+  const calls = steps.reduce((count, step) => count + step.toolCalls.length, 0);
+  if (calls >= maxToolCalls) return 'call-limit';
   return hasRepeatedCall(steps) ? 'repeated-call' : null;
 }
 
 /**
- * `prepareStep` for the agent loop: on the final step, tools are off and the model is told to answer.
+ * `prepareStep` for a turn of at most `maxToolCalls`: on the final step, tools are off and the model is told to answer.
  * The note is appended as a user message so the cached prompt prefix is kept.
  */
-export function prepareFinalStep({
-  steps,
-  messages,
-}: {
-  steps: readonly StepCalls[];
-  messages: ModelMessage[];
-}): PrepareStepResult<ToolSet> | undefined {
-  const reason = finalStepReason(steps);
-  if (!reason) return undefined;
-  console.info('[Orchestrator] Final step, tools off:', reason);
-  return { toolChoice: 'none', messages: [...messages, { role: 'user', content: FINAL_ANSWER_PROMPT }] };
+export function finalStepGuard(maxToolCalls: number) {
+  return ({ steps, messages }: { steps: readonly StepCalls[]; messages: ModelMessage[] }): PrepareStepResult<ToolSet> | undefined => {
+    const reason = finalStepReason(steps, maxToolCalls);
+    if (!reason) return undefined;
+    console.info('[Orchestrator] Final step, tools off:', reason);
+    return { toolChoice: 'none', messages: [...messages, { role: 'user', content: FINAL_ANSWER_PROMPT }] };
+  };
 }

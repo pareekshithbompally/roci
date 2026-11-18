@@ -7,21 +7,35 @@ import { platform } from '@platform/index';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 import { useToolApprovalStore } from '@shared/stores/toolApprovalStore';
-import { MCP_CONFIG, mcpToolKey } from '@config/mcp.config';
+import { DEFAULT_MCP_SETTINGS, MCP_CONFIG, mcpToolKey } from '@config/mcp.config';
 import type { McpSettings } from '@config/mcp.config';
 import type { JSONSchema, ToolDefinition, ToolResult } from './types';
+
+/** Settings › MCP, read once per chat turn: the saved values, or the defaults where MCP isn't available.
+ *  `maxToolCalls` is a whole number of at least one, however the file was edited. */
+export async function loadMcpSettings(): Promise<McpSettings> {
+  if (!platform.hasMcp || !isTauriEnvironment()) return DEFAULT_MCP_SETTINGS;
+  try {
+    const { mcpSettings } = await mcpService.getConfig();
+    return { ...mcpSettings, maxToolCalls: Math.max(MCP_CONFIG.minToolCalls, Math.floor(mcpSettings.maxToolCalls)) };
+  } catch (error: unknown) {
+    console.error('[McpTools] Failed to read MCP settings:', error);
+    return DEFAULT_MCP_SETTINGS;
+  }
+}
 
 type ApprovalGate = (tool: McpTool, args: Record<string, unknown>, signal?: AbortSignal) => Promise<boolean>;
 
 /** Connected MCP tools minus those switched off; built-in `reservedNames` win any name clash. */
 export async function loadMcpTools(
   reservedNames: ReadonlySet<string>,
+  settings: McpSettings,
   disabledKeys: ReadonlySet<string> = new Set(),
 ): Promise<ToolDefinition[]> {
   if (!platform.hasMcp || !isTauriEnvironment()) return [];
   try {
-    const [tools, config] = await Promise.all([mcpService.getTools(), mcpService.getConfig()]);
-    const gate = createApprovalGate(config.mcpSettings);
+    const tools = await mcpService.getTools();
+    const gate = createApprovalGate(settings);
     return tools
       .filter((tool) => !disabledKeys.has(mcpToolKey(tool.server, tool.name)))
       .filter((tool) => {

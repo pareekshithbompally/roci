@@ -8,15 +8,18 @@ import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { isLocalProviderId } from '@shared/utils/provider.utils';
 import { followModelLoad, generationStats, isLlamaServer, promptProgress } from '@services/ai/llamaServer';
 import { followMlxLoad } from '@services/mlx.service';
-import { toolRegistry, loadMcpTools, generateImageTool, GENERATE_IMAGE_TOOL } from '@extensions/tools';
+import { toolRegistry, loadMcpSettings, loadMcpTools, generateImageTool, GENERATE_IMAGE_TOOL } from '@extensions/tools';
+import type { McpSettings } from '@config/mcp.config';
 import { hasImageModel } from '@services/ai/image';
-import { AGENT_LOOP_CONFIG, DEFAULT_CHAT_TOOLS } from '@config/chatTools.config';
+import { DEFAULT_CHAT_TOOLS } from '@config/chatTools.config';
 import { extractTokenUsage } from '@services/ai/types';
 import type { GenerationStats, StreamProgress, TokenUsage } from '@services/ai/types';
 import type { OrchestratorOptions, OrchestratorCallbacks } from './types';
 import { toolActivityOf } from './toolActivity';
 import type { ToolSources } from './toolActivity';
-import { prepareFinalStep } from './stepGuard';
+import { finalStepGuard } from './stepGuard';
+import { buildChatSystemPrompt, NO_TOOLS } from '@core/ai';
+import type { ChatToolset } from '@core/ai';
 
 /** Separates a model's thinking blocks (OpenAI streams each reasoning summary as its own block). */
 const REASONING_BLOCK_BREAK = '\n\n';
@@ -44,23 +47,26 @@ interface ChatTools {
   tools: ToolSet | undefined;
   /** Which MCP server each MCP tool came from, for its row in chat. */
   sources: ToolSources;
+  /** The tool groups sent, so the system prompt guides exactly these. */
+  toolset: ChatToolset;
 }
 
-async function buildTools(options: OrchestratorOptions, webSearchTools: ToolSet | undefined): Promise<ChatTools> {
-  const none: ChatTools = { tools: webSearchTools, sources: new Map() };
+async function buildTools(options: OrchestratorOptions, webSearchTools: ToolSet | undefined, mcpSettings: McpSettings): Promise<ChatTools> {
+  const webSearch = !!webSearchTools;
+  const none: ChatTools = { tools: webSearchTools, sources: new Map(), toolset: { ...NO_TOOLS, webSearch } };
   if (options.skipRetrieval) return none;
   const { settings, providers } = options;
   const prefs = { ...DEFAULT_CHAT_TOOLS, ...settings.chatTools };
   const reservedNames = new Set([...toolRegistry.getToolNames(), GENERATE_IMAGE_TOOL]);
-  const definitions = [
-    ...(prefs.meetingTools ? toolRegistry.getTools() : []),
-    ...(hasImageModel(settings) && prefs.imageGeneration ? [generateImageTool({ settings, providers, sessionId: options.sessionId })] : []),
-    ...(await loadMcpTools(reservedNames, new Set(prefs.disabledMcpTools))),
-  ];
+  const meetingTools = prefs.meetingTools ? toolRegistry.getTools() : [];
+  const imageTools = hasImageModel(settings) && prefs.imageGeneration ? [generateImageTool({ settings, providers, sessionId: options.sessionId })] : [];
+  const mcpTools = await loadMcpTools(reservedNames, mcpSettings, new Set(prefs.disabledMcpTools));
+  const definitions = [...meetingTools, ...imageTools, ...mcpTools];
   if (definitions.length === 0) return none;
   const rociTools = toExecutableTools(definitions, { signal: options.signal, approval: 'chat' });
   const sources = new Map(definitions.flatMap((d) => (d.source ? [[d.name, d.source] as const] : [])));
-  return { tools: { ...rociTools, ...webSearchTools }, sources };
+  const toolset = { meetings: meetingTools.length > 0, webSearch, image: imageTools.length > 0, mcp: mcpTools.length > 0 };
+  return { tools: { ...rociTools, ...webSearchTools }, sources, toolset };
 }
 
 interface StreamState {
@@ -134,12 +140,15 @@ export async function orchestrate(
   options: OrchestratorOptions,
   callbacks: OrchestratorCallbacks,
 ): Promise<{ provider?: string; model?: string; tokenUsage?: TokenUsage }> {
-  const { messages, systemPrompt, settings, providers, signal, webSearchEnabled, reasoningEffort } = options;
+  const { messages, prompt, settings, providers, signal, webSearchEnabled, reasoningEffort } = options;
   const { onChunk } = callbacks;
 
   const resolved = chatModelOrThrow(settings, providers);
   const webSearchTools = webSearchEnabled ? getWebSearchTools(resolved) : undefined;
-  const { tools, sources: toolSources } = await buildTools(options, webSearchTools);
+  const mcpSettings = await loadMcpSettings();
+  const { tools, sources: toolSources, toolset } = await buildTools(options, webSearchTools, mcpSettings);
+  const systemPrompt = buildChatSystemPrompt({ ...prompt, tools: toolset });
+  const { maxToolCalls } = mcpSettings;
   // A local llama-server reports loading the model and reading the prompt before it replies.
   const reportsProgress = isLocalProviderId(resolved.provider) && (await isLlamaServer(resolved.baseUrl));
 
@@ -164,8 +173,9 @@ export async function orchestrate(
       ...(tools && {
         tools,
         toolChoice: 'auto' as const,
-        prepareStep: prepareFinalStep,
-        stopWhen: isStepCount(AGENT_LOOP_CONFIG.maxSteps),
+        prepareStep: finalStepGuard(maxToolCalls),
+        // Every step before the answer calls at least one tool, so the guard has turned tools off by this count.
+        stopWhen: isStepCount(maxToolCalls + 1),
       }),
     });
 

@@ -24,7 +24,7 @@ toolRegistry.register(searchChatsTool);
 toolRegistry.register(getChatTool);
 toolRegistry.register(listChatsTool);
 
-export { loadMcpTools } from './mcp-tools';
+export { loadMcpSettings, loadMcpTools } from './mcp-tools';
 /** Built per chat from its settings, so not in the registry (and not published to coding agents). */
 export { generateImageTool, GENERATE_IMAGE_TOOL } from './definitions/generate-image.tool';
 

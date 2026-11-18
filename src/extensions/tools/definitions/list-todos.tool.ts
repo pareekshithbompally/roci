@@ -25,11 +25,11 @@ function grouped(todos: GlobalTodoEntry[]): string[] {
 export const listTodosTool = defineTool({
   name: 'list_todos',
   description:
-    "List the user's to-dos with each one's id, due date, owner and reminder: open ones by default. Give meeting_id " +
-    'for one meeting\'s to-dos only. Call this before update_todo or delete_todo to get the id of the to-do to change.',
+    "List the user's to-dos, open ones by default, each with its id, due date, owner and reminder. Give meeting_id " +
+    "for one meeting's to-dos only. Call it before update_todo or delete_todo to get the to-do's id.",
   input: z.object({
     status: z.enum(['open', 'done', 'all']).default('open').describe('open (not done yet), done, or all.'),
-    meeting_id: idFrom('list_meetings or search_meetings').optional().describe('Only this meeting\'s to-dos.'),
+    meeting_id: idFrom('list_meetings or search_meetings', "Only this meeting's to-dos.").optional(),
   }),
 
   async execute({ status, meeting_id }) {

@@ -60,8 +60,9 @@ export const localDateTime = z
     'Use a local date and time like 2026-04-15T09:00 (YYYY-MM-DDTHH:MM), without a time zone.',
   );
 
-/** An id the model copies from another tool's result. */
-export const idFrom = (source: string) => z.string().trim().min(1).describe(`Copied exactly from ${source}.`);
+/** An id the model copies from another tool's result; `what` says which one, when the field name doesn't. */
+export const idFrom = (source: string, what?: string) =>
+  z.string().trim().min(1).describe([what, `Copy it exactly from ${source}.`].filter(Boolean).join(' '));
 
 /** Free text the model writes. */
 export const text = (description: string) => z.string().trim().min(1).describe(description);

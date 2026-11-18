@@ -13,15 +13,18 @@ vi.mock('@services/mcp.service', () => ({ mcpService: service }));
 vi.mock('@services/tauri', () => ({ isTauriEnvironment: () => true }));
 vi.mock('@shared/query/queryClient', () => ({ queryClient: { invalidateQueries: vi.fn() } }));
 
-import { loadMcpTools } from '@extensions/tools/mcp-tools';
+import { loadMcpSettings, loadMcpTools } from '@extensions/tools/mcp-tools';
 import { useToolApprovalStore } from '@shared/stores/toolApprovalStore';
 import type { ToolContext } from '@extensions/tools/types';
 
 const TOOL = { name: 'read_file', description: 'Read a file', inputSchema: { type: 'object', properties: { path: { type: 'string' } } }, server: 'fs', destructive: false };
 const ctx: ToolContext = { approval: 'chat' };
 
-function setup(settings: Partial<McpSettings> = {}) {
-  const config = { mcpServers: {}, mcpSettings: { ...DEFAULT_MCP_SETTINGS, ...settings } };
+let settings: McpSettings = DEFAULT_MCP_SETTINGS;
+
+function setup(overrides: Partial<McpSettings> = {}) {
+  settings = { ...DEFAULT_MCP_SETTINGS, ...overrides };
+  const config = { mcpServers: {}, mcpSettings: settings };
   service.getTools.mockResolvedValue([TOOL, { ...TOOL, name: 'search_meetings' }]);
   service.getConfig.mockResolvedValue(config);
   service.saveConfig.mockResolvedValue(undefined);
@@ -42,7 +45,7 @@ describe('loadMcpTools', () => {
 
   it('maps tools to definitions and drops ones shadowing built-ins', async () => {
     setup();
-    const defs = await loadMcpTools(new Set(['search_meetings']));
+    const defs = await loadMcpTools(new Set(['search_meetings']), settings);
     expect(defs.map((d) => d.name)).toEqual(['read_file']);
     expect(defs[0]).toMatchObject({ description: 'Read a file', timeoutMs: null, maxResultChars: null });
     expect(defs[0].parameters.type).toBe('object');
@@ -50,15 +53,15 @@ describe('loadMcpTools', () => {
 
   it('drops tools the user switched off and tags the rest with their server', async () => {
     setup();
-    const defs = await loadMcpTools(new Set(['search_meetings']), new Set(['fs/read_file']));
+    const defs = await loadMcpTools(new Set(['search_meetings']), settings, new Set(['fs/read_file']));
     expect(defs).toEqual([]);
-    const [def] = await loadMcpTools(new Set());
+    const [def] = await loadMcpTools(new Set(), settings);
     expect(def.source).toBe('fs');
   });
 
   it('runs without asking when all tools are allowed', async () => {
     setup({ allowAllTools: true });
-    const [def] = await loadMcpTools(new Set());
+    const [def] = await loadMcpTools(new Set(), settings);
     const result = await def.execute({ path: '/a' }, ctx);
     expect(result).toMatchObject({ content: 'contents', isError: false });
     expect(service.callTool).toHaveBeenCalledWith(expect.objectContaining({ server: 'fs', tool: 'read_file', arguments: { path: '/a' } }));
@@ -66,7 +69,7 @@ describe('loadMcpTools', () => {
 
   it('asks, and a denial never reaches the server', async () => {
     setup();
-    const [def] = await loadMcpTools(new Set());
+    const [def] = await loadMcpTools(new Set(), settings);
     const running = def.execute({}, ctx);
     await answerNextPrompt('deny');
     expect((await running).isError).toBe(true);
@@ -75,7 +78,7 @@ describe('loadMcpTools', () => {
 
   it('"always allow" persists the server and skips later prompts this turn', async () => {
     setup();
-    const [def] = await loadMcpTools(new Set());
+    const [def] = await loadMcpTools(new Set(), settings);
     const first = def.execute({}, ctx);
     await answerNextPrompt('allow-always');
     await first;
@@ -89,7 +92,7 @@ describe('loadMcpTools', () => {
 
   it('Stop while a prompt is open denies it', async () => {
     setup();
-    const [def] = await loadMcpTools(new Set());
+    const [def] = await loadMcpTools(new Set(), settings);
     const controller = new AbortController();
     const running = def.execute({}, { ...ctx, signal: controller.signal });
     await vi.waitFor(() => expect(useToolApprovalStore.getState().pending).toHaveLength(1));
@@ -102,7 +105,25 @@ describe('loadMcpTools', () => {
     service.getTools.mockRejectedValue('boom');
     service.getConfig.mockResolvedValue({ mcpServers: {}, mcpSettings: DEFAULT_MCP_SETTINGS });
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    expect(await loadMcpTools(new Set())).toEqual([]);
+    expect(await loadMcpTools(new Set(), settings)).toEqual([]);
+    spy.mockRestore();
+  });
+});
+
+describe('loadMcpSettings', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('reads the saved settings, with max tool calls as a whole number of at least one', async () => {
+    service.getConfig.mockResolvedValue({ mcpServers: {}, mcpSettings: { ...DEFAULT_MCP_SETTINGS, maxToolCalls: 2.5 } });
+    expect((await loadMcpSettings()).maxToolCalls).toBe(2);
+    service.getConfig.mockResolvedValue({ mcpServers: {}, mcpSettings: { ...DEFAULT_MCP_SETTINGS, maxToolCalls: 0 } });
+    expect((await loadMcpSettings()).maxToolCalls).toBe(1);
+  });
+
+  it('falls back to the defaults when the config cannot be read', async () => {
+    service.getConfig.mockRejectedValue('boom');
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(await loadMcpSettings()).toEqual(DEFAULT_MCP_SETTINGS);
     spy.mockRestore();
   });
 });

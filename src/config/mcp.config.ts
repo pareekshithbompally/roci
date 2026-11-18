@@ -1,6 +1,7 @@
 /** MCP defaults, events and limits for the settings panel and tool bridge; Rust owns `mcp_config.json`. */
 
 import type { PlatformCapability } from '@platform/index';
+import { AGENT_LOOP_CONFIG } from '@config/chatTools.config';
 
 export type McpTransport = 'stdio' | 'http' | 'sse';
 
@@ -22,6 +23,8 @@ export interface McpSettings {
   toolCallTimeoutSeconds: number;
   /** Per-result character cap applied in Rust; `0` disables it. */
   maxToolOutputChars: number;
+  /** Tool calls per chat turn; once reached, chat answers without tools. Counts every chat tool, not only MCP. */
+  maxToolCalls: number;
   baseRestartDelayMs: number;
   maxRestartDelayMs: number;
   backoffMultiplier: number;
@@ -39,6 +42,7 @@ export interface McpConfig {
 export const DEFAULT_MCP_SETTINGS: McpSettings = {
   toolCallTimeoutSeconds: 30,
   maxToolOutputChars: 40_000,
+  maxToolCalls: AGENT_LOOP_CONFIG.maxToolCalls,
   baseRestartDelayMs: 1_000,
   maxRestartDelayMs: 30_000,
   backoffMultiplier: 2,
@@ -62,6 +66,7 @@ export const MCP_CONFIG = {
   ] as const satisfies ReadonlyArray<{ value: McpTransport; label: string; requires?: PlatformCapability }>,
   /** Bounds for the runtime settings inputs. */
   minToolCallTimeoutSeconds: 1,
+  minToolCalls: 1,
   toolOutputCharsStep: 1_000,
   /** Characters of tool arguments shown in the approval prompt. */
   approvalArgsPreviewChars: 400,

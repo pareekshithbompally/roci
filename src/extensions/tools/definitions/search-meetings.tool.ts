@@ -13,9 +13,9 @@ import { errorMessage } from '@shared/utils/errors';
 export const searchMeetingsTool = defineTool({
   name: 'search_meetings',
   description:
-    "Search the user's meetings (transcripts, summaries and notes) by meaning and keywords. Returns the best-matching " +
-    'meetings with a snippet and each meeting\'s ID. Use it when the user asks about a topic, person, decision or ' +
-    'discussion; then read a meeting with get_meeting.',
+    "Search the user's meetings (transcripts, summaries and notes) by meaning and keywords. Returns the best " +
+    "matches, each with a snippet and the meeting's ID. Use it for questions about a topic, person or decision; " +
+    'then read a meeting with get_meeting. To find meetings by date, use list_meetings.',
   input: z.object({
     query: text('What to look for: topics, names, keywords.'),
     limit: limit(5, 20),

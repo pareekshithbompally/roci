@@ -10,8 +10,8 @@ import { errorMessage } from '@shared/utils/errors';
 export const searchChatsTool = defineTool({
   name: 'search_chats',
   description:
-    "Search the user's earlier chats with you by meaning and keywords. Returns matching excerpts with each chat's ID. " +
-    'Use it when the user refers to something discussed in a previous chat; then read it with get_chat.',
+    "Search the user's earlier chats with you by meaning and keywords. Returns matching excerpts, each with the " +
+    "chat's ID. Use it when the user refers to an earlier chat; then read it with get_chat.",
   input: z.object({
     query: text('What to look for: topics, keywords, phrases.'),
     limit: limit(5, 20),

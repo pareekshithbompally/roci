@@ -27,7 +27,7 @@ import { orchestrate } from '@extensions/tool-orchestrator';
 import { streamingStore } from './streamingStore';
 import type { ToolCallPatch } from './streamingStore';
 import type { ToolActivity } from '@extensions/tool-orchestrator/types';
-import { buildChatRequest, formatTemporalContext } from '@core/ai';
+import { formatTemporalContext } from '@core/ai';
 import { generateSuggestions } from '@services/ai/suggestions';
 import { logUsage } from '@extensions/usage';
 import { fileToBase64 } from '@shared/utils/file.utils';
@@ -352,18 +352,16 @@ async function streamReply(reply: Reply, request: ReplyRequest, tally: StreamTal
   };
 
   const hasToolSupport = capabilitiesOf(resolved.provider, resolved.model).tools;
-  const config = buildChatRequest({
-    contextBlock: context.text || undefined,
-    hasToolAccess: hasToolSupport,
-    meetingCount: historyItems.length,
-    temporalContext: formatTemporalContext(),
-  });
   const webUrls = new Set<string>();
 
   return orchestrate(
     {
       messages: session.messages,
-      systemPrompt: config.systemPrompt,
+      prompt: {
+        attachedMeetings: context.text || undefined,
+        meetingCount: historyItems.length,
+        temporalContext: formatTemporalContext(),
+      },
       settings,
       providers,
       signal,

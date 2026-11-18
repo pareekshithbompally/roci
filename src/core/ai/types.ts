@@ -6,14 +6,8 @@ export interface OutputSchema {
   schema: Record<string, unknown>;
 }
 
-/** Chat request config built once by buildChatRequest(); the model replies in plain markdown. */
-export interface ChatRequestConfig {
-  /** The system prompt */
-  systemPrompt: string;
-}
-
 /** Transcription request config: the prompt describes the JSON fields, the schema enforces them. */
 export interface TranscriptionRequestConfig {
   prompt: string;
-  outputSchema: OutputSchema | undefined;
+  outputSchema: OutputSchema;
 }

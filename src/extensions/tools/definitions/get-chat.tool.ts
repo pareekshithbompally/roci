@@ -9,7 +9,7 @@ import { errorMessage } from '@shared/utils/errors';
 export const getChatTool = defineTool({
   name: 'get_chat',
   description:
-    'Read one of the user\'s earlier chats by its ID: the conversation, with its latest messages. ' +
+    "Read one of the user's earlier chats by its ID: the whole conversation, or its latest messages when it is long. " +
     'Get the ID from search_chats or list_chats first.',
   input: z.object({ chat_id: idFrom('search_chats or list_chats') }),
 

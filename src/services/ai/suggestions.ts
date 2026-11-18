@@ -4,22 +4,9 @@ import { generateText, Output, jsonSchema } from 'ai';
 import { createModel } from './provider';
 import { extractTokenUsage } from './types';
 import { recordUsage } from '@extensions/usage';
-import { formatTemporalContext } from '@core/ai';
+import { SUGGESTIONS_PROMPT, SUGGESTIONS_SCHEMA } from '@core/ai';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
-import { REPLY_PREVIEW_CHARS } from '@config/chat.config';
-
-const SUGGESTIONS_SCHEMA = {
-  type: 'object' as const,
-  properties: {
-    suggestions: {
-      type: 'array',
-      items: { type: 'string' },
-      description: 'Exactly 3 concise follow-up questions the user might ask, written in the user\'s voice.',
-    },
-  },
-  required: ['suggestions'],
-  additionalProperties: false,
-};
+import { REPLY_PREVIEW_CHARS, SUGGESTION_COUNT } from '@config/chat.config';
 
 export async function generateSuggestions(options: {
   resolved: ResolvedModel;
@@ -30,11 +17,10 @@ export async function generateSuggestions(options: {
   sessionId?: string;
 }): Promise<string[]> {
   const { resolved, userMessage, responsePreview, signal, sessionId } = options;
-  const temporalContext = formatTemporalContext();
 
   const result = await generateText({
     model: createModel(resolved),
-    instructions: `You generate follow-up suggestions for a chat conversation. ${temporalContext} Given the user message and assistant response preview, output exactly 3 short follow-up suggestions (under 12 words each) the user might type next. Write them in the user\'s voice (e.g. "Show me the details" not "Would you like to see the details?").`,
+    instructions: SUGGESTIONS_PROMPT,
     messages: [
       {
         role: 'user',
@@ -51,7 +37,7 @@ export async function generateSuggestions(options: {
 
   const suggestions = output.suggestions
     .filter((s: unknown): s is string => typeof s === 'string')
-    .slice(0, 3);
+    .slice(0, SUGGESTION_COUNT);
 
   return suggestions;
 }
