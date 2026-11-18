@@ -13,12 +13,12 @@ vi.mock('@services/ai/transcription', () => ({
   speechSelectionOf: () => ({ provider: 'openai', model: 'whisper-1' }),
 }));
 
-import { dropEchoes, liveTranscript, liveTranscriptResult, type LiveEntry } from '@features/recording/live/liveTranscript';
+import { chunkEntries, dropEchoes, liveTranscript, liveTranscriptResult, type LiveEntry } from '@features/recording/live/liveTranscript';
 import { useMeetingLiveStore } from '@features/recording/live/meetingLiveStore';
 
 const read = () => ({ settings: {} as never, providers: [] });
 const chunk = (source: string, startMs: number, endMs: number) => ({ source, startMs, endMs, pcm: btoa('\0\0\0\0') });
-const entry = (source: LiveEntry['source'], startMs: number, endMs: number, text: string): LiveEntry => ({ source, startMs, endMs, text });
+const entry = (source: LiveEntry['source'], startMs: number, endMs: number, text: string, timed = false): LiveEntry => ({ source, startMs, endMs, text, timed });
 
 beforeEach(() => {
   handlers.clear();
@@ -35,6 +35,16 @@ describe('in-call transcript', () => {
     expect(dropEchoes(entries).map((e) => e.text)).toEqual(['Can everyone hear me now', 'Yes, loud and clear']);
   });
 
+  it('uses the model\'s own times on the recording\'s timeline when it gives them, else one plain line for the chunk', () => {
+    const timed = chunkEntries({ source: 'system', startMs: 60_000, endMs: 66_000 }, {
+      text: 'Hi there. How are you?',
+      segments: [{ text: 'Hi there.', startSecond: 0.4, endSecond: 1.2 }, { text: 'How are you?', startSecond: 2, endSecond: 3.1 }],
+    });
+    expect(timed).toEqual([entry('system', 60_400, 61_200, 'Hi there.', true), entry('system', 62_000, 63_100, 'How are you?', true)]);
+    expect(chunkEntries({ source: 'microphone', startMs: 0, endMs: 6_000 }, { text: ' Yes. ', segments: [] })).toEqual([entry('microphone', 0, 6_000, 'Yes.')]);
+    expect(chunkEntries({ source: 'microphone', startMs: 0, endMs: 6_000 }, { text: '', segments: [] })).toEqual([]);
+  });
+
   it('becomes a transcript labelled by who said each line', () => {
     const result = liveTranscriptResult([entry('microphone', 0, 2_000, 'Hi'), entry('system', 2_000, 3_500, 'Hello')]);
     expect(result.segments).toEqual([
@@ -44,7 +54,7 @@ describe('in-call transcript', () => {
   });
 
   it('transcribes chunks in order as they come, and on Stop waits for the last ones', async () => {
-    runTranscription.mockResolvedValueOnce({ text: 'First.' }).mockResolvedValueOnce({ text: 'Second.' });
+    runTranscription.mockResolvedValueOnce({ text: 'First.', segments: [] }).mockResolvedValueOnce({ text: 'Second.', segments: [] });
     await liveTranscript.start('m1', read);
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 6_000) });
     handlers.get('meeting-live://chunk')?.({ payload: chunk('system', 6_000, 12_000) });

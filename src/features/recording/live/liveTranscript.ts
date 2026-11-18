@@ -16,6 +16,8 @@ export interface LiveEntry {
   startMs: number;
   endMs: number;
   text: string;
+  /** The model gave this line's own times; otherwise it spans its chunk and shows no time of its own. */
+  timed: boolean;
 }
 
 interface LiveChunk {
@@ -57,14 +59,25 @@ async function transcribeChunk(current: Session, chunk: LiveChunk, read: () => {
     return;
   }
   try {
-    const { text } = await runTranscription(wavOf(chunk.pcm), selection, providers);
-    if (session !== current || !text.trim()) return;
-    current.entries.push({ source: chunk.source, startMs: chunk.startMs, endMs: chunk.endMs, text: text.trim() });
+    const result = await runTranscription(wavOf(chunk.pcm), selection, providers);
+    if (session !== current) return;
+    current.entries.push(...chunkEntries(chunk, result));
     meetingLiveActions.set(dropEchoes(current.entries));
   } catch (error: unknown) {
     console.error('[liveTranscript] chunk failed:', error);
     current.failed = true;
   }
+}
+
+/** A chunk's lines on the recording's timeline: the model's own segment times when it gives them, else one line spanning the chunk. */
+export function chunkEntries(chunk: Omit<LiveChunk, 'pcm'>, result: TranscriptResult): LiveEntry[] {
+  const { source, startMs, endMs } = chunk;
+  const segments = result.segments.filter((s) => s.text.trim());
+  if (segments.length > 0) {
+    return segments.map((s) => ({ source, startMs: startMs + s.startSecond * 1_000, endMs: startMs + s.endSecond * 1_000, text: s.text.trim(), timed: true }));
+  }
+  const text = result.text.trim();
+  return text ? [{ source, startMs, endMs, text, timed: false }] : [];
 }
 
 /** Entries in time order, without the microphone's echo of what the speakers played. */

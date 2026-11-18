@@ -46,7 +46,7 @@ const Turn: React.FC<{ turn: LiveEntry[] }> = ({ turn }) => (
   <div className="space-y-1">
     <div className="flex items-baseline gap-2">
       <Text variant="label" tone={turn[0].source === 'microphone' ? 'accent' : 'muted'}>{LIVE.speakers[turn[0].source]}</Text>
-      <Text variant="figureSmall" tone="faint">{formatClock(Math.floor(turn[0].startMs / 1_000))}</Text>
+      {turn[0].timed && <Text variant="figureSmall" tone="faint">{formatClock(Math.floor(turn[0].startMs / 1_000))}</Text>}
     </div>
     <Text as="p" variant="reading">{turn.map((e) => e.text).join(' ')}</Text>
   </div>

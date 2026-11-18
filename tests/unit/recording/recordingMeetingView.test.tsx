@@ -65,9 +65,9 @@ describe('RecordingMeetingView', () => {
     expect(screen.getByText(/labelled by who said them/)).toBeInTheDocument();
 
     meetingLiveActions.set([
-      { source: 'microphone', startMs: 0, endMs: 2_000, text: 'Shall we start?' },
-      { source: 'microphone', startMs: 2_000, endMs: 4_000, text: 'Agenda first.' },
-      { source: 'system', startMs: 5_000, endMs: 7_000, text: 'Sounds good.' },
+      { source: 'microphone', startMs: 0, endMs: 2_000, text: 'Shall we start?', timed: true },
+      { source: 'microphone', startMs: 2_000, endMs: 4_000, text: 'Agenda first.', timed: true },
+      { source: 'system', startMs: 5_000, endMs: 7_000, text: 'Sounds good.', timed: false },
     ]);
     expect(await screen.findByText('Shall we start? Agenda first.')).toBeInTheDocument();
     expect(screen.getByText('You')).toBeInTheDocument();
