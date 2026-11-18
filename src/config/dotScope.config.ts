@@ -89,7 +89,7 @@ export const DOT_SCOPE_CONFIG = {
     /** Delay after the transcription response lands before the box expands back, s. */
     handoff: 0.2,
     /** Live dictation line below the controls, fixed height and shown from the first frame so nothing moves. */
-    liveText: { heightPx: 40, placeholder: 'Listening…' },
+    liveText: { heightPx: 36, placeholder: 'Listening…' },
   },
 
   /**

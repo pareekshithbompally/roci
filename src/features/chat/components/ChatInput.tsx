@@ -380,8 +380,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 zoom={scopeZoom}
                 margins={{ x: composer.marginX, y: composer.marginY }}
               />
+              {/* Live words sit right under the pill; the controls go below them, so neither squeezes the other on a phone. */}
+              {liveText && <LiveTranscript text={liveText} />}
               {/* Fixed height keeps the pill pinned while its controls swap. */}
-              <div className="mt-1 flex h-16 items-start justify-center">
+              <div className="mt-3 flex h-16 items-start justify-center">
                 <AnimatePresence initial={false} mode="wait">
                 {(isRecording || isPaused) ? (
                   <motion.div
@@ -423,7 +425,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 ) : null}
                 </AnimatePresence>
               </div>
-              {liveText && <LiveTranscript text={liveText} />}
             </motion.div>
           )}
         </AnimatePresence>
