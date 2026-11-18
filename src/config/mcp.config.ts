@@ -64,10 +64,23 @@ export const MCP_CONFIG = {
     { value: 'http', label: 'HTTP' },
     { value: 'sse', label: 'SSE' },
   ] as const satisfies ReadonlyArray<{ value: McpTransport; label: string; requires?: PlatformCapability }>,
-  /** Bounds for the runtime settings inputs. */
-  minToolCallTimeoutSeconds: 1,
+  /** Fewest tool calls a turn may allow, however `mcp_config.json` was edited. */
   minToolCalls: 1,
-  toolOutputCharsStep: 1_000,
+  /** Choices in Settings › MCP › Limits; a saved value that isn't one shows as its own choice. */
+  limitChoices: {
+    toolCallTimeoutSeconds: {
+      values: [10, 30, 60, 120, 300],
+      label: (s: number) => (s < 60 ? `${s} seconds` : s === 60 ? '1 minute' : `${s / 60} minutes`),
+    },
+    maxToolCalls: {
+      values: [3, 5, 10, 20, 50],
+      label: (n: number) => `${n} call${n === 1 ? '' : 's'}`,
+    },
+    maxToolOutputChars: {
+      values: [2_000, 4_000, 10_000, 40_000, 0],
+      label: (n: number) => (n === 0 ? 'No limit' : `${n.toLocaleString()} characters`),
+    },
+  },
   /** Characters of tool arguments shown in the approval prompt. */
   approvalArgsPreviewChars: 400,
   /** Query-string params masked when a server URL is displayed. */
