@@ -1,7 +1,7 @@
 /** Appearance, capture input, storage, search index and version; data comes from systemInfoStore. */
 
 import React, { useState, useCallback } from 'react';
-import { Sun, Moon, Monitor, Copy, Check, FolderOpen, RefreshCw, Loader2 } from 'lucide-react';
+import { Sun, Moon, Monitor, Copy, Check, FolderOpen, RefreshCw } from 'lucide-react';
 import { useThemeContext } from '@shared/contexts/ThemeContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
@@ -69,7 +69,6 @@ export const GeneralPanel: React.FC = () => {
 
   const captureSource = (settings.defaultAudioSource || 'systemAndMicrophone') as (typeof CAPTURE_SOURCES)[number];
   const { copied: storagePathCopied, markCopied: markStoragePathCopied } = useCopiedFlag();
-  const [upToDate, setUpToDate] = useState(false);
   const [rebuildingPhase, setRebuildingPhase] = useState<'meetings' | 'chats' | null>(null);
   const [isRebuilding, setIsRebuilding] = useState(false);
 
@@ -175,10 +174,6 @@ export const GeneralPanel: React.FC = () => {
     } catch (error) {
       console.error('[GeneralPanel] Failed to copy storage path:', error);
     }
-  };
-
-  const handleCheckForUpdate = async () => {
-    setUpToDate(!(await appUpdate.checkForUpdate()));
   };
 
   const themeOptions = [
@@ -366,7 +361,7 @@ export const GeneralPanel: React.FC = () => {
 
       {/* App Info & Updates */}
       <Section footer={FOOTER.setup}>
-        <CardRow title="Version" actions={<VersionStatus appVersion={appVersion} appUpdate={appUpdate} upToDate={upToDate} onCheck={handleCheckForUpdate} />} />
+        <CardRow title="Version" actions={<VersionStatus appVersion={appVersion} checking={appUpdate.status === 'checking'} onCheck={() => void appUpdate.checkNow()} />} />
         <CardRow title="Acknowledgements" onOpen={() => setAcknowledgementsOpen(true)} />
         <CardRow title="Run Setup Again" tone="accent" onPress={() => setSettings({ onboarding: { completed: false } })} />
       </Section>
@@ -410,33 +405,12 @@ const IndexStatus: React.FC<{ indexed: number; total?: number }> = ({ indexed, t
   return indexed >= total ? <Status tone="success">Synced</Status> : <Status tone="warning">Stale</Status>;
 };
 
-/** Version number plus the update-check state. */
-const VersionStatus: React.FC<{
-  appVersion: string;
-  appUpdate: ReturnType<typeof useAppUpdate>;
-  /** The last check found nothing newer. */
-  upToDate: boolean;
-  onCheck: () => void;
-}> = ({ appVersion, appUpdate, upToDate, onCheck }) => (
+/** The version number and Check for Updates; the result is a toast. */
+const VersionStatus: React.FC<{ appVersion: string; checking: boolean; onCheck: () => void }> = ({ appVersion, checking, onCheck }) => (
   <>
     <Text variant="figure" tone="muted">{appVersion || '…'}</Text>
-    {appUpdate.status === 'checking' && (
-      <Text variant="helper" tone="muted" className="flex items-center gap-1.5">
-        <Icon icon={Loader2} size="xs" className="animate-spin" />
-        Checking…
-      </Text>
-    )}
-    {appUpdate.status === 'idle' && !appUpdate.updateInfo && upToDate && (
-      <Text variant="helper" tone="muted">Up to date</Text>
-    )}
-    {platform.hasUpdater && appUpdate.status === 'idle' && !appUpdate.updateInfo && (
-      <Button variant="outline" size="sm" onClick={onCheck}>Check for Updates</Button>
-    )}
-    {appUpdate.status === 'available' && appUpdate.updateInfo && (
-      <Text variant="helper" tone="success">v{appUpdate.updateInfo.version} available</Text>
-    )}
-    {appUpdate.status === 'error' && (
-      <Text variant="helper" tone="danger">{appUpdate.error ?? 'Check failed'}</Text>
+    {platform.hasUpdater && (
+      <Button variant="outline" size="sm" onClick={onCheck} loading={checking}>Check for Updates</Button>
     )}
   </>
 );

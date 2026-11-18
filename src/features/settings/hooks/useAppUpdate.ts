@@ -7,11 +7,20 @@ import { activityStore, type ActivityItem } from '@shared/stores/activityStore';
 import { APP_CONFIG } from '@config/app.config';
 import { platform } from '@platform/index';
 import { formatFileSize } from '@shared/utils/formatters';
+import { showToast } from '@shared/ui';
+import type { ToastTone } from '@shared/ui';
 
 type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error';
 
-/** What a completed check found; the tray's toast reads it. */
-export type UpdateCheckResult = 'available' | 'current' | 'failed';
+/** What a completed check found. */
+type UpdateCheckResult = 'available' | 'current' | 'failed';
+
+/** The toast a Check for Updates ends with, by outcome. */
+const CHECK_TOAST: Record<UpdateCheckResult, { message: string; tone: ToastTone }> = {
+  available: { message: 'An update is available', tone: 'info' },
+  current: { message: 'Roci is up to date', tone: 'success' },
+  failed: { message: 'Could not check for updates', tone: 'error' },
+};
 
 interface UpdateInfo {
   version: string;
@@ -30,8 +39,8 @@ interface UseAppUpdateReturn {
   error: string | null;
   /** Returns true if an update is available, false if already up-to-date. */
   checkForUpdate: (options?: UpdateCheckOptions) => Promise<boolean>;
-  /** Check now and report the outcome (tray's Check for Updates…). */
-  checkNow: (options?: UpdateCheckOptions) => Promise<UpdateCheckResult>;
+  /** Check now and say the outcome in a toast (tray and Settings › General Check for Updates). */
+  checkNow: () => Promise<void>;
   downloadAndInstall: () => Promise<void>;
   dismiss: () => void;
 }
@@ -203,7 +212,12 @@ export function useAppUpdate(): UseAppUpdateReturn {
     });
   }, [status, updateInfo, downloadAndInstall, dismiss]);
 
-  return { status, updateInfo, error, checkForUpdate, checkNow: runCheck, downloadAndInstall, dismiss };
+  const checkNow = useCallback(async () => {
+    const { message, tone } = CHECK_TOAST[await runCheck()];
+    showToast(message, tone);
+  }, [runCheck]);
+
+  return { status, updateInfo, error, checkForUpdate, checkNow, downloadAndInstall, dismiss };
 }
 
 /** Schedule a background update check after app startup settles. */
