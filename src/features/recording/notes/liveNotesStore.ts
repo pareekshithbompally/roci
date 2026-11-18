@@ -30,10 +30,12 @@ interface Session {
   taken: Set<string>;
   /** The notes as the last applied refresh saw them. */
   signature: string;
+  /** The end of the newest transcript any update was handed (ms on the recording clock); the cadence counts from here. */
+  coveredUntilMs: number;
   controller: AbortController | null;
 }
 
-const freshSession = (): Session => ({ sent: new Set(), taken: new Set(), signature: '', controller: null });
+const freshSession = (): Session => ({ sent: new Set(), taken: new Set(), signature: '', coveredUntilMs: 0, controller: null });
 let session = freshSession();
 
 const get = useLiveNotesStore.getState;
@@ -68,7 +70,7 @@ export const liveNotes = {
   due(entries: LiveEntry[], typingPaused: boolean): boolean {
     const notesChanged = signatureOf(get().lines) !== session.signature;
     const untaken = entries.filter((e) => !session.taken.has(entryKey(e)));
-    return refreshReason({ unsent: untaken, notesChanged, typingPaused }) !== null;
+    return refreshReason({ unsent: untaken, coveredUntilMs: session.coveredUntilMs, notesChanged, typingPaused }) !== null;
   },
 
   /** Sends the notes, bullets and every transcript entry not yet applied; applies the changed bullets unless a newer refresh started. */
@@ -81,6 +83,7 @@ export const liveNotes = {
     current.controller = controller;
     const payload = unsentEntries(entries, current.sent);
     payload.forEach((e) => current.taken.add(entryKey(e)));
+    current.coveredUntilMs = Math.max(current.coveredUntilMs, ...payload.map((e) => e.endMs));
     const signature = signatureOf(lines);
     set({ updating: true });
     try {

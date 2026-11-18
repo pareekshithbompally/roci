@@ -72,12 +72,11 @@ export const entryKey = (entry: LiveEntry): string => `${entry.source}-${entry.s
 /** Entries not yet sent to a refresh. */
 export const unsentEntries = (entries: LiveEntry[], sent: ReadonlySet<string>): LiveEntry[] => entries.filter((e) => !sent.has(entryKey(e)));
 
-/** How much speech the entries cover (ms). */
-export const spokenMs = (entries: LiveEntry[]): number => entries.reduce((sum, e) => sum + Math.max(0, e.endMs - e.startMs), 0);
-
-/** Why a refresh should run now, or null to skip: enough new transcript, or a typing pause after the notes or transcript changed. */
-export function refreshReason(args: { unsent: LiveEntry[]; notesChanged: boolean; typingPaused: boolean }): 'transcript' | 'typing' | null {
-  if (spokenMs(args.unsent) >= NOTES.transcriptStepMs) return 'transcript';
+/** Why an update should run now, or null to skip: the meeting has moved on a step since the transcript the last update covered
+ *  (time, pauses included), or a typing pause after the notes or transcript changed. */
+export function refreshReason(args: { unsent: LiveEntry[]; coveredUntilMs: number; notesChanged: boolean; typingPaused: boolean }): 'transcript' | 'typing' | null {
+  const newestMs = Math.max(args.coveredUntilMs, ...args.unsent.map((e) => e.endMs));
+  if (newestMs - args.coveredUntilMs >= NOTES.transcriptStepMs) return 'transcript';
   if (args.typingPaused && (args.notesChanged || args.unsent.length > 0)) return 'typing';
   return null;
 }

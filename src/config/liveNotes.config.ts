@@ -1,7 +1,7 @@
 /** Live enhanced notes on the record screen: when the notes are refreshed, and the screen's words. */
 
 export const LIVE_NOTES_CONFIG = {
-  /** Update the AI notes each time this much new speech has arrived since the last update (ms). */
+  /** Update the AI notes each time the meeting moves on this far past the transcript the last update covered (ms). */
   transcriptStepMs: 20_000,
   /** Refresh (and save the typed lines) this long after typing stops (ms). */
   typingIdleMs: 2_000,

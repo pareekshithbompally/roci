@@ -46,24 +46,27 @@ describe('reconcileLines', () => {
 });
 
 describe('refreshReason', () => {
-  const long = [entry('system', 0, NOTES.transcriptStepMs)];
-  const short = [entry('system', 0, 1_000)];
+  const step = NOTES.transcriptStepMs;
+  const reason = (unsent: LiveEntry[], coveredUntilMs: number, notesChanged: boolean, typingPaused: boolean) =>
+    refreshReason({ unsent, coveredUntilMs, notesChanged, typingPaused });
 
-  it('refreshes once enough new transcript has arrived, typing or not', () => {
-    expect(refreshReason({ unsent: long, notesChanged: false, typingPaused: false })).toBe('transcript');
+  it('updates every step of meeting time, pauses included, typing or not', () => {
+    // two short lines with a long pause between: little speech, but the meeting has moved on a step
+    expect(reason([entry('system', 1_000, 3_000), entry('system', step - 2_000, step)], 0, false, false)).toBe('transcript');
+    expect(reason([entry('system', step + 1_000, 2 * step)], step, false, false)).toBe('transcript');
   });
 
-  it('waits for more transcript without a typing pause', () => {
-    expect(refreshReason({ unsent: short, notesChanged: true, typingPaused: false })).toBeNull();
+  it('waits until the meeting has moved on a step past what the last update covered', () => {
+    expect(reason([entry('system', step, step + 5_000)], step, true, false)).toBeNull();
   });
 
-  it('refreshes on a typing pause when the notes or transcript changed', () => {
-    expect(refreshReason({ unsent: [], notesChanged: true, typingPaused: true })).toBe('typing');
-    expect(refreshReason({ unsent: short, notesChanged: false, typingPaused: true })).toBe('typing');
+  it('updates on a typing pause when the notes or transcript changed', () => {
+    expect(reason([], 0, true, true)).toBe('typing');
+    expect(reason([entry('system', 0, 1_000)], 0, false, true)).toBe('typing');
   });
 
   it('skips a typing pause when nothing changed', () => {
-    expect(refreshReason({ unsent: [], notesChanged: false, typingPaused: true })).toBeNull();
+    expect(reason([], 0, false, true)).toBeNull();
   });
 });
 
