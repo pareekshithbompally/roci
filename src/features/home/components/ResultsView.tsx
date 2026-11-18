@@ -1,6 +1,8 @@
 /** Processed meeting results with tabs for summary, transcript, todos, and notes. */
 
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { ANIMATION_CONFIG } from '@config/animations.config';
 import { Pencil, Plus, Clock, Users, ExternalLink } from 'lucide-react';
 import { useAppResult, useActiveResultTab, useSelectedHistoryId, useAppActions } from '@shared/stores/appStore';
 import type { ResultTab } from '@shared/stores/appStore';
@@ -37,6 +39,8 @@ import {
 } from '@shared/ui';
 import type { TabItem } from '@shared/ui';
 import { TODOS_CONFIG } from '@config/todos.config';
+
+const VIEW = ANIMATION_CONFIG.view;
 
 const TAB_ITEMS: readonly TabItem<ResultTab>[] = [
   { value: 'summary', label: 'Summary' },
@@ -99,18 +103,19 @@ const CalendarMetaRow: React.FC<{ item: HistoryItem }> = ({ item }) => {
   );
 };
 
-/** Category · date · length, under the title. */
+/** Category · date · length, under the title; holds its line while the stats load so the banner and tabs below never shift. */
 const MeetingMetaLine: React.FC<{ categories: string[]; meetingId: string }> = ({ categories, meetingId }) => {
-  const { data: stats } = useMeetingStats(meetingId);
+  const { data: stats, isPending } = useMeetingStats(meetingId);
   const facts = [
     stats && new Date(stats.recordedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }),
     stats?.durationSeconds != null && formatDuration(stats.durationSeconds),
   ].filter(Boolean);
-  if (categories.length === 0 && facts.length === 0) return null;
+  if (!isPending && categories.length === 0 && facts.length === 0) return null;
   return (
     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
       {categories.map((c) => <Badge key={c} dot={false}>{c}</Badge>)}
-      {facts.length > 0 && <Text variant="helper" tone="muted">{facts.join(' · ')}</Text>}
+      {/* A non-breaking space keeps the line's height until the facts arrive. */}
+      <Text variant="helper" tone="muted">{facts.length > 0 ? facts.join(' · ') : '\u00A0'}</Text>
     </div>
   );
 };
@@ -138,7 +143,7 @@ export const ResultsView: React.FC = () => {
     : null;
   const recordingFileName = currentHistoryItem?.recordingFileName;
   const phase = useMeetingPhase(currentHistoryItem);
-  const { data: stats } = useMeetingStats(currentHistoryItem?.id);
+  const { data: stats, isPending: statsPending } = useMeetingStats(currentHistoryItem?.id);
   const handleTranscribe = () => {
     if (currentHistoryItem) meetingPipeline.toggle(currentHistoryItem.id);
   };
@@ -178,7 +183,12 @@ export const ResultsView: React.FC = () => {
   const exportPart = activeResultTab === 'transcript' ? 'transcript' : 'summary';
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <motion.div
+      className="h-full flex flex-col overflow-hidden"
+      initial={VIEW.hidden}
+      animate={VIEW.shown}
+      transition={VIEW.enter}
+    >
       <TitlebarSpacer />
       {/* Meeting title — same page column as Settings */}
       <div className={`${LAYOUT.pageGutter} pt-3 pb-3`}>
@@ -264,9 +274,10 @@ export const ResultsView: React.FC = () => {
       <div className={`${LAYOUT.pageColumn} min-h-full flex flex-col`}>
         {activeResultTab === 'summary' && (
           <>
-            {stats && (result.summary || result.structuredSummary) && (
+            {(result.summary || result.structuredSummary) && (statsPending || stats?.transcribedBy || stats?.summarizedBy) && (
               <div className="mb-4">
-                <ModelCreditLine transcribedBy={stats.transcribedBy} summarizedBy={stats.summarizedBy} />
+                {/* Holds its line while the stats load, so the summary below never shifts. */}
+                {stats ? <ModelCreditLine transcribedBy={stats.transcribedBy} summarizedBy={stats.summarizedBy} /> : <Text variant="helper">{'\u00A0'}</Text>}
               </div>
             )}
             <SummaryView
@@ -288,7 +299,7 @@ export const ResultsView: React.FC = () => {
         )}
       </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
