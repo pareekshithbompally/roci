@@ -16,12 +16,14 @@ export interface NoteLine {
   typedAt?: number;
 }
 
-/** One enhanced note, updated in place by its id. */
+/** One line of the AI notes, updated in place: a typed note filled in (`noteId`), or a point of the meeting. */
 export interface Bullet {
   id: string;
-  /** The note line it expands. */
+  /** The note line it fills in. */
   noteId?: string;
   text: string;
+  /** Its place on the recording clock (ms): when its note was typed, or when the talk it came from arrived. */
+  atMs?: number;
 }
 
 /** When a line is typed: the recording clock and the wall clock. */
@@ -94,9 +96,15 @@ function nextIdFrom(bullets: Bullet[]): () => string {
   return () => `${NOTES.bulletIdPrefix}${++n}`;
 }
 
-/** The model's changes applied in place: a note's line (by note) or a known extra (by id) is replaced where it stands, anything
- *  else is added (in note order for a note, else at the end). Lines of deleted notes go. */
-export function mergeBullets(current: Bullet[], changes: LiveNotesChange[], lines: NoteLine[]): Bullet[] {
+/** A new line's place on the recording clock: a note's line where the note was typed, a meeting point when its talk arrived. */
+function newBullet(id: string, noteId: string | undefined, text: string, lines: NoteLine[], atMs: number): Bullet {
+  const typed = noteId ? lines.find((l) => l.id === noteId)?.atMs : undefined;
+  return { id, noteId, text, atMs: typed ?? atMs };
+}
+
+/** The model's changes applied in place: a note's line (by note) or a known point (by id) is replaced where it stands; anything
+ *  else is added at `atMs` (a note's line at the note's time). Lines of deleted notes go. */
+export function mergeBullets(current: Bullet[], changes: LiveNotesChange[], lines: NoteLine[], atMs: number): Bullet[] {
   const liveNotes = new Set(writtenLines(lines).map((l) => l.id));
   const nextId = nextIdFrom(current);
   const merged = current.filter((b) => !b.noteId || liveNotes.has(b.noteId));
@@ -105,35 +113,24 @@ export function mergeBullets(current: Bullet[], changes: LiveNotesChange[], line
     if (!text) continue;
     const noteId = change.noteId && liveNotes.has(change.noteId) ? change.noteId : undefined;
     const at = noteId ? merged.findIndex((b) => b.noteId === noteId) : change.id ? merged.findIndex((b) => !b.noteId && b.id === change.id) : -1;
-    if (at >= 0) merged[at] = { ...merged[at], text, noteId: noteId ?? merged[at].noteId };
-    else merged.splice(insertionIndex(merged, noteId, lines), 0, { id: nextId(), noteId, text });
+    if (at >= 0) merged[at] = { ...merged[at], text };
+    else merged.push(newBullet(nextId(), noteId, text, lines, atMs));
   }
   return merged;
 }
 
-/** Where a new bullet goes: before the first bullet of a later note, so bullets follow the order of the notes. */
-function insertionIndex(bullets: Bullet[], noteId: string | undefined, lines: NoteLine[]): number {
-  if (!noteId) return bullets.length;
-  const order = new Map(writtenLines(lines).map((l, i) => [l.id, i]));
-  const own = order.get(noteId) ?? 0;
-  const later = bullets.findIndex((b) => b.noteId !== undefined && (order.get(b.noteId) ?? 0) > own);
-  return later >= 0 ? later : bullets.length;
-}
-
-/** One row of the AI notes: a written bullet, or a typed line the model has not filled in yet. */
+/** One row of the AI notes: a written line, or a typed note the model has not filled in yet. */
 export type AiRow = { kind: 'bullet'; bullet: Bullet } | { kind: 'pending'; line: NoteLine };
 
-/** The AI notes in the order of the typed lines: each line's bullets, or the line itself while it waits; bullets that expand no
- *  line come last. */
+const rowTime = (row: AiRow): number => (row.kind === 'bullet' ? row.bullet.atMs : row.line.atMs) ?? 0;
+
+/** The AI notes in time order: the meeting's points as their talk arrived, each typed note's line where it was typed (the note
+ *  itself while it waits). */
 export function aiRows(lines: NoteLine[], bullets: Bullet[]): AiRow[] {
-  const byNote = new Map<string, Bullet[]>();
-  bullets.forEach((b) => b.noteId && byNote.set(b.noteId, [...(byNote.get(b.noteId) ?? []), b]));
-  const rows = writtenLines(lines).flatMap((line): AiRow[] => {
-    const own = byNote.get(line.id);
-    return own ? own.map((bullet) => ({ kind: 'bullet', bullet })) : [{ kind: 'pending', line }];
-  });
-  const free = bullets.filter((b) => !b.noteId).map((bullet): AiRow => ({ kind: 'bullet', bullet }));
-  return [...rows, ...free];
+  const filled = new Set(bullets.flatMap((b) => (b.noteId ? [b.noteId] : [])));
+  const waiting = writtenLines(lines).filter((l) => !filled.has(l.id)).map((line): AiRow => ({ kind: 'pending', line }));
+  const written = bullets.map((bullet): AiRow => ({ kind: 'bullet', bullet }));
+  return [...written, ...waiting].sort((a, b) => rowTime(a) - rowTime(b));
 }
 
 /** One refresh's request: the notes under short ids ("n1", in order) the model can copy exactly, and the way back to real ids. */
@@ -146,18 +143,18 @@ export function liveNotesRequest(lines: NoteLine[], bullets: Bullet[], transcrip
   const input: LiveNotesInput = {
     notes: written.map((l) => ({ id: shortId.get(l.id) ?? l.id, text: l.text.trim(), at: l.atMs === undefined ? undefined : clock(l.atMs) })),
     filled: bullets.flatMap((b) => (b.noteId && shortId.has(b.noteId) ? [{ noteId: shortId.get(b.noteId) ?? b.noteId, text: b.text }] : [])),
-    extras: bullets.filter((b) => !b.noteId).map((b) => ({ id: b.id, text: b.text })),
+    points: bullets.filter((b) => !b.noteId).map((b) => ({ id: b.id, text: b.text })),
     transcript,
   };
   return { input, realId: new Map([...shortId].map(([real, short]) => [short, real])) };
 }
 
 /** The model's reply as changes on real ids; a filled note naming no known note is dropped. */
-export function changesFromReply(reply: { filled?: LiveNotesChange[]; extras?: LiveNotesChange[] }, realId: Map<string, string>): LiveNotesChange[] {
+export function changesFromReply(reply: { filled?: LiveNotesChange[]; points?: LiveNotesChange[] }, realId: Map<string, string>): LiveNotesChange[] {
   const filled = (reply.filled ?? []).flatMap((c) => {
     const noteId = c.noteId && realId.get(c.noteId);
     return noteId ? [{ noteId, text: c.text }] : [];
   });
-  const extras = (reply.extras ?? []).map((c) => ({ id: c.id, text: c.text }));
-  return [...filled, ...extras];
+  const points = (reply.points ?? []).map((c) => ({ id: c.id, text: c.text }));
+  return [...filled, ...points];
 }

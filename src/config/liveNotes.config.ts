@@ -1,8 +1,8 @@
 /** Live enhanced notes on the record screen: when the notes are refreshed, and the screen's words. */
 
 export const LIVE_NOTES_CONFIG = {
-  /** Refresh once this much transcript has arrived since the last refresh (ms). */
-  transcriptStepMs: 45_000,
+  /** Update the AI notes each time this much new speech has arrived since the last update (ms). */
+  transcriptStepMs: 20_000,
   /** Refresh (and save the typed lines) this long after typing stops (ms). */
   typingIdleMs: 2_000,
   /** The transcript keeps following the newest line while the reader is within this distance of its end (px). */
@@ -15,7 +15,7 @@ export const LIVE_NOTES_CONFIG = {
     transcript: 'Live transcript',
     transcribing: 'Transcribing…',
     placeholder: 'Type shorthand, one thought per line. Each line is filled in from what was being said.',
-    aiEmpty: 'Your AI notes build here as the meeting goes: every line you jot, filled in from what was said.',
+    aiEmpty: 'AI notes build here as the meeting goes. Lines you jot in Your notes are filled in and given more detail.',
     noModel: 'Choose a Summary model in Settings › Default Models to fill in your notes.',
     enhancing: 'Enhancing your notes…',
     sections: 'Meeting sections',

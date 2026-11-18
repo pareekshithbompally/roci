@@ -88,31 +88,32 @@ describe('transcript bookkeeping', () => {
 });
 
 describe('mergeBullets', () => {
-  const lines: NoteLine[] = [{ id: 'n1', text: 'launch?' }, { id: 'n2', text: 'api' }, { id: 'n3', text: 'qa' }];
+  const lines: NoteLine[] = [{ id: 'n1', text: 'launch?', atMs: 40_000 }, { id: 'n2', text: 'api', atMs: 70_000 }];
 
-  it('replaces a note\'s line where it stands', () => {
-    const current: Bullet[] = [{ id: 'b1', noteId: 'n1', text: 'old' }, { id: 'b2', noteId: 'n2', text: 'api' }];
-    expect(mergeBullets(current, [{ noteId: 'n1', text: 'Launch: 14 Dec' }], lines)).toEqual([
-      { id: 'b1', noteId: 'n1', text: 'Launch: 14 Dec' },
-      { id: 'b2', noteId: 'n2', text: 'api' },
+  it('writes the meeting\'s points with no notes typed at all', () => {
+    const merged = mergeBullets([], [{ text: 'Q3 budget: 1.2M approved.' }, { text: 'Hiring paused until Jan.' }], [], 5_000);
+    expect(merged).toEqual([
+      { id: 'b1', noteId: undefined, text: 'Q3 budget: 1.2M approved.', atMs: 5_000 },
+      { id: 'b2', noteId: undefined, text: 'Hiring paused until Jan.', atMs: 5_000 },
     ]);
   });
 
-  it('adds a note\'s first line in note order with the next free id', () => {
-    const current: Bullet[] = [{ id: 'b1', noteId: 'n1', text: 'a' }, { id: 'b3', noteId: 'n3', text: 'c' }];
-    const merged = mergeBullets(current, [{ noteId: 'n2', text: 'b' }], lines);
-    expect(merged.map((b) => [b.id, b.noteId])).toEqual([['b1', 'n1'], ['b4', 'n2'], ['b3', 'n3']]);
+  it('updates a point by id and a note\'s line by note, where they stand', () => {
+    const current: Bullet[] = [{ id: 'b1', text: 'Budget', atMs: 0 }, { id: 'b2', noteId: 'n1', text: 'old', atMs: 40_000 }];
+    expect(mergeBullets(current, [{ id: 'b1', text: 'Budget: 1.2M' }, { noteId: 'n1', text: 'Launch: 14 Dec' }], lines, 90_000)).toEqual([
+      { id: 'b1', text: 'Budget: 1.2M', atMs: 0 },
+      { id: 'b2', noteId: 'n1', text: 'Launch: 14 Dec', atMs: 40_000 },
+    ]);
   });
 
-  it('changes a known extra by id and adds an unknown one at the end', () => {
-    const current: Bullet[] = [{ id: 'b1', noteId: 'n1', text: 'a' }, { id: 'b2', text: 'Decision: ship' }];
-    const merged = mergeBullets(current, [{ id: 'b2', text: 'Decision: ship Friday' }, { id: 'b9', text: 'Task: QA plan' }], lines);
-    expect(merged.slice(1)).toEqual([{ id: 'b2', text: 'Decision: ship Friday' }, { id: 'b3', noteId: undefined, text: 'Task: QA plan' }]);
+  it('places a note\'s first line at the time the note was typed, a new point at its talk', () => {
+    const merged = mergeBullets([], [{ noteId: 'n2', text: 'API: rate limits' }, { id: 'b9', text: 'QA window tight' }], lines, 60_000);
+    expect(merged.map((b) => [b.id, b.noteId, b.atMs])).toEqual([['b1', 'n2', 70_000], ['b2', undefined, 60_000]]);
   });
 
   it('drops lines of deleted notes and ignores empty text', () => {
     const current: Bullet[] = [{ id: 'b1', noteId: 'gone', text: 'a' }, { id: 'b2', text: 'free' }];
-    expect(mergeBullets(current, [{ id: 'b2', text: '  ' }], lines)).toEqual([{ id: 'b2', text: 'free' }]);
+    expect(mergeBullets(current, [{ id: 'b2', text: '  ' }], lines, 0)).toEqual([{ id: 'b2', text: 'free' }]);
   });
 });
 
@@ -128,21 +129,36 @@ describe('liveNotesRequest and changesFromReply', () => {
     const { input } = liveNotesRequest(lines, bullets, 'You: hi', (ms) => `t${ms}`);
     expect(input.notes).toEqual([{ id: 'n1', text: 'launch?', at: 't40000' }, { id: 'n2', text: 'ask Raj', at: undefined }]);
     expect(input.filled).toEqual([{ noteId: 'n1', text: 'Launch: 14 Dec' }]);
-    expect(input.extras).toEqual([{ id: 'b2', text: 'Decision: ship' }]);
+    expect(input.points).toEqual([{ id: 'b2', text: 'Decision: ship' }]);
   });
 
   it('maps the reply back to real note ids and drops a note it does not know', () => {
     const { realId } = liveNotesRequest(lines, bullets, '', String);
-    expect(changesFromReply({ filled: [{ noteId: 'n2', text: 'Ask Raj about rate limits.' }, { noteId: 'n9', text: 'x' }], extras: [{ text: 'Task: QA' }] }, realId))
+    expect(changesFromReply({ filled: [{ noteId: 'n2', text: 'Ask Raj about rate limits.' }, { noteId: 'n9', text: 'x' }], points: [{ text: 'Task: QA' }] }, realId))
       .toEqual([{ noteId: 'uuid-c', text: 'Ask Raj about rate limits.' }, { id: undefined, text: 'Task: QA' }]);
   });
 });
 
 describe('aiRows', () => {
-  it('shows each typed line as its bullets once written, or as itself while it waits, free bullets last', () => {
-    const lines: NoteLine[] = [{ id: 'n1', text: 'launch?' }, { id: 'n2', text: '' }, { id: 'n3', text: 'api' }];
-    const bullets: Bullet[] = [{ id: 'b2', text: 'Decision: ship' }, { id: 'b1', noteId: 'n1', text: 'Launch: 14 Dec' }];
-    expect(aiRows(lines, bullets).map((r) => (r.kind === 'bullet' ? r.bullet.id : `pending:${r.line.id}`)))
-      .toEqual(['b1', 'pending:n3', 'b2']);
+  it('reads in time order: points as their talk arrived, each note where it was typed (itself while it waits)', () => {
+    const lines: NoteLine[] = [{ id: 'n1', text: 'launch?', atMs: 30_000 }, { id: 'n2', text: '' }, { id: 'n3', text: 'api', atMs: 80_000 }];
+    const bullets: Bullet[] = [
+      { id: 'b3', text: 'QA window is tight.', atMs: 60_000 },
+      { id: 'b1', text: 'Budget approved.', atMs: 0 },
+      { id: 'b2', noteId: 'n1', text: 'Launch: 14 Dec', atMs: 30_000 },
+    ];
+    expect(aiRows(lines, bullets).map((r) => (r.kind === 'bullet' ? r.bullet.id : `waiting:${r.line.id}`)))
+      .toEqual(['b1', 'b2', 'b3', 'waiting:n3']);
+  });
+});
+
+describe('liveNotesSchema', () => {
+  it('asks for the meeting\'s points even with no notes, and fills only the notes it lists', async () => {
+    const { liveNotesSchema } = await import('@core/ai/schemas/liveNotes.schema');
+    expect(liveNotesSchema([]).required).toEqual(['points']);
+    expect(liveNotesSchema([]).properties).not.toHaveProperty('filled');
+    const withNotes = liveNotesSchema(['n1', 'n2']);
+    expect(withNotes.required).toEqual(['points', 'filled']);
+    expect(withNotes.properties.filled && withNotes.properties.filled.items.properties.noteId.enum).toEqual(['n1', 'n2']);
   });
 });

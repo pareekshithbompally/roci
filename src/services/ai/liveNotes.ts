@@ -1,4 +1,4 @@
-/** One live-notes refresh with the Summary model: the notes, how they stand and the new transcript in; the changed lines out. */
+/** One live-notes update with the Summary model: the user's notes, the points so far and the new transcript in; the changes out. */
 
 import { generateText, Output, jsonSchema } from 'ai';
 import { createModel } from './provider';
@@ -10,7 +10,7 @@ import type { ResolvedModel } from '@shared/utils/modelResolver';
 
 export interface LiveNotesReply {
   filled?: LiveNotesChange[];
-  extras?: LiveNotesChange[];
+  points?: LiveNotesChange[];
 }
 
 const isChange = (value: unknown): value is LiveNotesChange =>
@@ -33,6 +33,6 @@ export async function refreshLiveNotes(args: {
     abortSignal: args.signal,
   });
   recordUsage('summary', args.resolved, extractTokenUsage(result.usage), args.meetingId);
-  const output = result.output as { filled?: unknown; extras?: unknown } | null;
-  return { filled: changes(output?.filled), extras: changes(output?.extras) };
+  const output = result.output as { filled?: unknown; points?: unknown } | null;
+  return { filled: changes(output?.filled), points: changes(output?.points) };
 }

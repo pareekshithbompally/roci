@@ -40,6 +40,10 @@ const get = useLiveNotesStore.getState;
 const set = useLiveNotesStore.setState;
 const clock = (ms: number) => formatClock(Math.floor(ms / 1_000));
 
+/** Where new points sit on the clock: where the talk they came from began (the newest entry's end when only notes changed). */
+const talkStartMs = (payload: LiveEntry[], entries: LiveEntry[]): number =>
+  payload.length > 0 ? Math.min(...payload.map((e) => e.startMs)) : Math.max(0, ...entries.map((e) => e.endMs));
+
 export const liveNotes = {
   /** A new recording's notes; the same meeting again keeps what is there. */
   start(meetingId: string): void {
@@ -86,7 +90,7 @@ export const liveNotes = {
       const changes = changesFromReply(reply, realId);
       payload.forEach((e) => current.sent.add(entryKey(e)));
       current.signature = signature;
-      set({ bullets: mergeBullets(get().bullets, changes, get().lines) });
+      set({ bullets: mergeBullets(get().bullets, changes, get().lines, talkStartMs(payload, entries)) });
     } catch (error: unknown) {
       if (!controller.signal.aborted) console.error('[liveNotes] Refresh failed:', error);
     } finally {
