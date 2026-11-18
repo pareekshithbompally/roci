@@ -3,12 +3,14 @@
 //! webview to transcribe with the chosen speech model. Fed from the track writer, so it hears exactly what is recorded.
 
 use std::collections::VecDeque;
+use std::sync::Mutex;
 
 use base64::Engine;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 
 use super::SAMPLE_RATE;
+use super::echo::{EchoEnvelope, Signal};
 use super::pause::{FRAME_SAMPLES, PauseSegmenter};
 use super::resample::StreamingResampler;
 use super::tracks::{AudioPacket, MeetingSource};
@@ -30,6 +32,17 @@ const MIN_TAIL: usize = RATE * 3 / 10;
 const SILENT_DB: f32 = -60.0;
 /// A source arriving this much later than its audio so far accounts for is a dropout, counted as silence.
 const GAP_TOLERANCE_MS: u64 = 500;
+
+/// The current recording's sound of both sources on one timeline, for the webview's echo check; kept until the next recording.
+static ENVELOPE: Mutex<Option<EchoEnvelope>> = Mutex::new(None);
+
+/// What the sound says about each microphone span (`[start_ms, end_ms]`, capture clock): bleed of the system audio, local speech,
+/// or undecided (null) when there is too little sound or remote audio to tell.
+#[tauri::command]
+pub fn meeting_echo_signals(spans: Vec<(u64, u64)>) -> Vec<Option<Signal>> {
+    let envelope = ENVELOPE.lock().unwrap_or_else(|e| e.into_inner());
+    spans.iter().map(|&(start, end)| envelope.as_ref().and_then(|e| e.assess(start, end))).collect()
+}
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -171,6 +184,7 @@ pub(super) struct LiveChunker {
 
 impl LiveChunker {
     pub(super) fn new(app: AppHandle) -> Self {
+        *ENVELOPE.lock().unwrap_or_else(|e| e.into_inner()) = Some(EchoEnvelope::default());
         Self { app, microphone: None, system: None }
     }
 
@@ -200,6 +214,9 @@ impl LiveChunker {
         let gap = source.gap_before(packet.arrival_us / 1_000);
         let mut chunks = if gap > 0 { source.feed(&vec![0.0; gap]) } else { Vec::new() };
         let resampled = source.resampler.push(&packet.samples);
+        if let Some(envelope) = ENVELOPE.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
+            envelope.push(packet.source, source.ms(source.fed), &resampled, SAMPLE_RATE);
+        }
         chunks.extend(source.feed(&resampled));
         let events = source.events(packet.source, chunks);
         self.send(events);

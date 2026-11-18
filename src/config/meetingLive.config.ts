@@ -13,8 +13,10 @@ export const MEETING_LIVE_CONFIG = {
   /** A hard-cut chunk's re-heard start: up to this many words matching the end of the previous line, found within the first
    *  `slack` words (the model may hear the overlap a little differently), and at least `minWords` so a lone repeated word stays. */
   seam: { maxWords: 12, minWords: 2, slack: 3 },
-  /** A microphone entry overlapping a system entry and sharing at least this share of its words is the speakers' echo. */
-  echoWordShare: 0.6,
+  /** Echo of the other side through the speakers: microphone entries closer than `utteranceGapMs` are judged together; when the
+   *  sound can't tell, an utterance is echo if `similarity` of its words (fuzzily) appear in the other side's speech within
+   *  `windowMs`; a line of at least `sentenceWords` words the sound shows is local survives its echoing neighbours. */
+  echo: { windowMs: 1_500, utteranceGapMs: 700, sentenceWords: 3, similarity: 0.6 },
   copy: {
     listening: 'Listening…',
     paused: 'Paused',

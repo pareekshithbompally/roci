@@ -3,8 +3,9 @@
 mod capture;
 pub mod commands;
 mod level;
-mod live;
+pub(crate) mod live;
 mod pause;
+mod echo;
 #[cfg(target_os = "macos")]
 mod lid;
 mod microphone;

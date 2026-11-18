@@ -1,6 +1,7 @@
 /** The in-call transcript: the recording's own chunks (mic and system audio, from Rust) transcribed in order with the chosen
  *  speech model; on Stop it becomes the meeting's transcript when every chunk was transcribed. */
 
+import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { MEETING_LIVE_CONFIG as LIVE, type MeetingSourceId } from '@config/meetingLive.config';
 import { runTranscription, speechSelectionOf } from '@services/ai/transcription';
@@ -70,7 +71,7 @@ async function transcribeChunk(current: Session, chunk: LiveChunk, read: Reader)
     const result = await runTranscription(wavOf(chunk.pcm), selection, providers);
     if (session !== current) return;
     current.entries.push(...spliceChunk(current.entries, chunk, chunkEntries(chunk, result)));
-    meetingLiveActions.set(dropEchoes(current.entries));
+    meetingLiveActions.set(await withoutEcho(current.entries));
   } catch (error: unknown) {
     console.error('[liveTranscript] chunk failed:', error);
     current.failed = true;
@@ -146,16 +147,90 @@ function enqueue(current: Session, chunk: LiveChunk, read: Reader): void {
   current.draining ??= drain(current, read);
 }
 
-/** Entries in time order, without the microphone's echo of what the speakers played. */
-export function dropEchoes(entries: LiveEntry[]): LiveEntry[] {
-  const words = (text: string) => new Set(text.toLowerCase().match(/[\p{L}\p{N}']+/gu) ?? []);
+/** What the recording's sound says about a microphone span: bleed of the system audio, local speech, or undecided. */
+type EchoSignal = 'bleed' | 'local' | null;
+type SignalOf = (startMs: number, endMs: number) => EchoSignal;
+
+const tokens = (text: string) => text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+
+function editDistance(left: string[], right: string[]): number {
+  let previous = Array.from({ length: right.length + 1 }, (_, i) => i);
+  for (let row = 0; row < left.length; row++) {
+    const current = [row + 1];
+    for (let column = 0; column < right.length; column++) {
+      current.push(Math.min(previous[column] + Number(left[row] !== right[column]), previous[column + 1] + 1, current[column] + 1));
+    }
+    previous = current;
+  }
+  return previous[right.length];
+}
+
+/** Two words are one when equal, or (three letters or more) nearly so. */
+function tokensMatch(left: string, right: string): boolean {
+  if (left === right) return true;
+  if (left.length < 3 || right.length < 3) return false;
+  return 1 - editDistance([...left], [...right]) / Math.max(left.length, right.length) >= LIVE.echo.similarity;
+}
+
+/** The share of `spoken` that the other side's speech around it contains. */
+function echoScore(spoken: string[], startMs: number, endMs: number, system: LiveEntry[]): number {
+  const from = startMs - LIVE.echo.windowMs;
+  const to = endMs + LIVE.echo.windowMs;
+  const remote = system.filter((e) => e.startMs < to && from < e.endMs).flatMap((e) => tokens(e.text));
+  if (remote.length === 0 || spoken.length === 0) return 0;
+  return spoken.filter((t) => remote.some((r) => tokensMatch(t, r))).length / spoken.length;
+}
+
+/** Microphone entries split into utterances: entries closer than the utterance gap belong together. */
+function utterancesOf(entries: LiveEntry[]): LiveEntry[][] {
+  return entries
+    .filter((e) => e.source === 'microphone')
+    .sort((a, b) => a.startMs - b.startMs)
+    .reduce<LiveEntry[][]>((all, entry) => {
+      const last = all.at(-1);
+      if (last && entry.startMs - (last.at(-1)?.endMs ?? 0) <= LIVE.echo.utteranceGapMs) last.push(entry);
+      else all.push([entry]);
+      return all;
+    }, []);
+}
+
+/** The microphone entries that echo the other side: the sound decides (bleed drops, local keeps); undecided, the words do. */
+function echoedEntries(entries: LiveEntry[], signal: SignalOf): Set<LiveEntry> {
   const system = entries.filter((e) => e.source === 'system');
-  const isEcho = (mic: LiveEntry) => {
-    const said = words(mic.text);
-    return said.size > 0 && system.some((s) => s.startMs < mic.endMs && mic.startMs < s.endMs
-      && [...said].filter((w) => words(s.text).has(w)).length / said.size >= LIVE.echoWordShare);
+  const isEcho = (spoken: string[], startMs: number, endMs: number, judgeWords: boolean) => {
+    const verdict = signal(startMs, endMs);
+    if (verdict) return verdict === 'bleed';
+    return judgeWords && echoScore(spoken, startMs, endMs, system) >= LIVE.echo.similarity;
   };
-  return entries.filter((e) => e.source !== 'microphone' || !isEcho(e)).sort((a, b) => a.startMs - b.startMs);
+  const echoed = new Set<LiveEntry>();
+  for (const utterance of utterancesOf(entries)) {
+    const end = Math.max(...utterance.map((e) => e.endMs));
+    if (isEcho(utterance.flatMap((e) => tokens(e.text)), utterance[0].startMs, end, true)) {
+      // Bleed can run into the user's own sentence; a sentence the sound shows is local survives its echoing neighbours.
+      utterance.filter((e) => tokens(e.text).length < LIVE.echo.sentenceWords || signal(e.startMs, e.endMs) !== 'local').forEach((e) => echoed.add(e));
+    } else if (utterance.length > 1) {
+      utterance.filter((e) => { const spoken = tokens(e.text); return isEcho(spoken, e.startMs, e.endMs, spoken.length >= LIVE.echo.sentenceWords); }).forEach((e) => echoed.add(e));
+    }
+  }
+  return echoed;
+}
+
+/** Entries in time order without the microphone's echo of what the speakers played. */
+export function suppressEcho(entries: LiveEntry[], signal: SignalOf): LiveEntry[] {
+  const echoed = echoedEntries(entries, signal);
+  return entries.filter((e) => !echoed.has(e)).sort((a, b) => a.startMs - b.startMs);
+}
+
+/** The same, with the recording's sound asked once for every span it needs; words alone when the sound can't be read. */
+export async function withoutEcho(entries: LiveEntry[]): Promise<LiveEntry[]> {
+  const spans = [...utterancesOf(entries).map((u) => [u[0].startMs, Math.max(...u.map((e) => e.endMs))]), ...entries.filter((e) => e.source === 'microphone').map((e) => [e.startMs, e.endMs])]
+    .map(([start, end]) => [Math.round(start), Math.round(end)] as [number, number]);
+  const verdicts = await invoke<EchoSignal[]>('meeting_echo_signals', { spans }).catch((error: unknown) => {
+    console.error('[liveTranscript] echo signals unavailable:', error);
+    return [] as EchoSignal[];
+  });
+  const byspan = new Map(spans.map(([start, end], i) => [`${start}-${end}`, verdicts[i] ?? null]));
+  return suppressEcho(entries, (start, end) => byspan.get(`${Math.round(start)}-${Math.round(end)}`) ?? null);
 }
 
 /** The entries as a transcript: one segment per entry, labelled by who said it. */
@@ -186,6 +261,6 @@ export const liveTranscript = {
     current.unlisten();
     session = null;
     meetingLiveActions.stop();
-    return { entries: dropEchoes(current.entries), complete: !current.failed };
+    return { entries: await withoutEcho(current.entries), complete: !current.failed };
   },
 };

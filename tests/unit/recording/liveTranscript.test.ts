@@ -8,12 +8,13 @@ vi.mock('@tauri-apps/api/event', () => ({
   },
 }));
 const runTranscription = vi.hoisted(() => vi.fn());
+vi.mock('@tauri-apps/api/core', () => ({ invoke: async () => [] }));
 vi.mock('@services/ai/transcription', () => ({
   runTranscription,
   speechSelectionOf: () => ({ provider: 'openai', model: 'whisper-1' }),
 }));
 
-import { chunkEntries, dropEchoes, liveTranscript, liveTranscriptResult, shedBacklog, spliceSeam, type LiveEntry } from '@features/recording/live/liveTranscript';
+import { chunkEntries, liveTranscript, liveTranscriptResult, shedBacklog, spliceSeam, suppressEcho, type LiveEntry } from '@features/recording/live/liveTranscript';
 import { useMeetingLiveStore } from '@features/recording/live/meetingLiveStore';
 
 const read = () => ({ settings: {} as never, providers: [] });
@@ -26,13 +27,21 @@ beforeEach(() => {
 });
 
 describe('in-call transcript', () => {
-  it('drops the microphone\'s echo of what the speakers played, and keeps time order', () => {
-    const entries = [
-      entry('system', 1_000, 4_000, 'Can everyone hear me now'),
-      entry('microphone', 1_200, 4_200, 'can everyone hear me'),
-      entry('microphone', 5_000, 6_000, 'Yes, loud and clear'),
-    ];
-    expect(dropEchoes(entries).map((e) => e.text)).toEqual(['Can everyone hear me now', 'Yes, loud and clear']);
+  it('the sound decides first: bleed is dropped, local speech is kept even when its words repeat the other side', () => {
+    const entries = [entry('system', 1_000, 4_000, 'Can everyone hear me now'), entry('microphone', 1_200, 4_200, 'can everyone hear me')];
+    expect(suppressEcho(entries, () => 'bleed').map((e) => e.source)).toEqual(['system']);
+    expect(suppressEcho(entries, () => 'local')).toHaveLength(2);
+  });
+
+  it('when the sound cannot tell, the words decide (fuzzily, within the echo window)', () => {
+    const entries = [entry('system', 1_000, 4_000, 'Can everyone hear me now'), entry('microphone', 1_200, 4_200, 'can everyone here me'), entry('microphone', 9_000, 10_000, 'Yes, loud and clear')];
+    expect(suppressEcho(entries, () => null).map((e) => e.text)).toEqual(['Can everyone hear me now', 'Yes, loud and clear']);
+  });
+
+  it('a sentence the sound shows is local survives the echo next to it in one utterance', () => {
+    const entries = [entry('microphone', 1_000, 2_000, 'hear me now'), entry('microphone', 2_300, 5_000, 'I can hear you fine thanks')];
+    const signal = (start: number) => (start === 2_300 ? 'local' : 'bleed');
+    expect(suppressEcho(entries, signal).map((e) => e.text)).toEqual(['I can hear you fine thanks']);
   });
 
   it('uses the model\'s own times on the recording\'s timeline when it gives them, else one plain line for the chunk', () => {

@@ -45,6 +45,7 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       stt::commands::stt_live_feed,
       stt::commands::stt_live_finish,
       stt::commands::stt_live_cancel,
+      audio::live::meeting_echo_signals,
       tts::commands::tts_voices,
       tts::commands::tts_speak,
       tts::commands::tts_stop,
