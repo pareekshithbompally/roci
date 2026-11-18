@@ -9,12 +9,12 @@ export const ANIMATION_CONFIG = {
     },
   },
 
-  /** A view or a block of one mounting or leaving (framer-motion seconds): a short fade only — no slide, scale or spring. */
+  /** A view mounting or leaving (framer-motion seconds): the kit's `animate-fade-in` timing (150ms out-ease in, 120ms in-ease out); nothing inside a view animates in. */
   view: {
     hidden: { opacity: 0 },
     shown: { opacity: 1 },
-    enter: { duration: 0.18, ease: [0, 0, 0.2, 1] as const },
-    exit: { duration: 0.12, ease: [0.4, 0, 1, 1] as const },
+    enter: { duration: 0.15, ease: 'easeOut' as const },
+    exit: { duration: 0.12, ease: 'easeIn' as const },
   },
 
   /** The Mac activity tray opening and closing at the sidebar's foot (framer-motion seconds). */

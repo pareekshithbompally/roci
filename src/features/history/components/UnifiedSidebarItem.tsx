@@ -1,6 +1,6 @@
 /** One sidebar row: meetings show their phase via MeetingStatus (or a speaker while playing); chats are text. */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import { MoreHorizontal, Volume2 } from 'lucide-react';
 import { actionRowClasses, RowAction, RowTitle, Icon } from '@shared/ui';
 import { HighlightedText, MeetingStatus, Menu } from '@shared/components';
@@ -42,19 +42,6 @@ export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = React.memo(
     audioSession.meetingId === item.historyItem?.id &&
     audioIsPlaying;
 
-  // Animate title when it changes (e.g. AI-generated title replaces placeholder)
-  const prevTitleRef = useRef(item.title);
-  const [isTitleAnimating, setIsTitleAnimating] = useState(false);
-
-  useEffect(() => {
-    if (prevTitleRef.current !== item.title && item.type === 'chat') {
-      setIsTitleAnimating(true);
-      prevTitleRef.current = item.title;
-      const timer = setTimeout(() => setIsTitleAnimating(false), 500);
-      return () => clearTimeout(timer);
-    }
-  }, [item.title, item.type]);
-
   return (
     <div
       data-sidebar-id={`${item.type}-${item.id}`}
@@ -67,7 +54,7 @@ export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = React.memo(
           : <MeetingStatus phase={phase} display="icon" />
       )}
 
-      <RowTitle title={item.title} className={isTitleAnimating ? 'animate-title-morph' : undefined}>
+      <RowTitle title={item.title}>
         <HighlightedText text={item.title} highlight={searchQuery} />
       </RowTitle>
 
