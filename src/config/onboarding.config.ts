@@ -78,18 +78,20 @@ export const ONBOARDING_CONFIG = {
     /** One short line under each option: what it needs. */
     appleDetail: `On this ${platform.deviceName}, no key`,
     local: {
-      title: 'Local server',
-      description: 'Ollama, LM Studio and others',
-      heading: 'Connect a local server',
-      /** The servers already running, each with Use. */
+      title: 'Your server',
+      description: 'Ollama, LM Studio, llama-server and others',
+      heading: 'Connect your server',
+      /** The servers already running on a device that runs them, each with Use. */
       found: `Found on this ${platform.deviceName}`,
       scanning: 'Looking for servers…',
       none: `No server found on this ${platform.deviceName}.`,
-      /** One by address, for a server elsewhere or not found. */
+      /** One by address: on this device over http, on another computer (over Tailscale) over https. */
       address: 'Server address',
-      addressHint: 'The address of an OpenAI-compatible server, such as Ollama or LM Studio.',
-      addressInvalid: 'Enter an address like http://localhost:11434.',
-      placeholder: 'http://localhost:11434',
+      addressHint: 'The address of an OpenAI-compatible server, here or on another computer over Tailscale.',
+      addressInvalid: platform.runsLocalServers
+        ? 'Enter an address like http://localhost:11434.'
+        : 'Enter an address like https://my-mac.tailnet.ts.net.',
+      placeholder: platform.runsLocalServers ? 'http://localhost:11434' : 'https://my-mac.tailnet.ts.net',
     },
     remote: {
       title: 'Online provider',

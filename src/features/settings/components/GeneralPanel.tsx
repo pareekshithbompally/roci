@@ -199,23 +199,21 @@ export const GeneralPanel: React.FC = () => {
       {/* Appearance — theme + import processing */}
       <Section
         title="Appearance"
-        footer={platform.supportsLocalServers ? `${FOOTER.toolActivity} ${FOOTER.modelIcons}` : FOOTER.toolActivity}
+        footer={`${FOOTER.toolActivity} ${FOOTER.modelIcons}`}
       >
         <CardRow title="Theme" actions={<ChoiceControl label="Theme" items={themeTabs} value={theme} onValueChange={setTheme} />} />
 
-        {/* Model icons — opt-in: loads org avatars from huggingface.co; only where local models exist */}
-        {platform.supportsLocalServers && (
-          <CardRow
-            title="Model Icons"
-            actions={
-              <Switch
-                checked={!!settings.showModelAvatars}
-                onCheckedChange={(checked) => setSettings({ showModelAvatars: checked })}
-                aria-label="Show model icons"
-              />
-            }
-          />
-        )}
+        {/* Model icons — opt-in: loads org avatars from huggingface.co for servers' models, on every platform */}
+        <CardRow
+          title="Model Icons"
+          actions={
+            <Switch
+              checked={!!settings.showModelAvatars}
+              onCheckedChange={(checked) => setSettings({ showModelAvatars: checked })}
+              aria-label="Show model icons"
+            />
+          }
+        />
 
         <CardRow
           title="Tool Activity"

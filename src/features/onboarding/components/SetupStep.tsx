@@ -44,14 +44,12 @@ export const SetupStep: React.FC = () => {
     <WelcomeStep title={COPY.heading} secondary={{ label: ONBOARDING_CONFIG.actions.later, onClick: finish }}>
       <Section footer={COPY.footer}>
         {platform.hasAppleIntelligence && <AppleRow />}
-        {platform.supportsLocalServers && (
-          <CardRow
-            leading={<OnboardingIcon source={ONBOARDING_ICONS.local} />}
-            title={COPY.local.title}
-            description={COPY.local.description}
-            onOpen={() => setStep('local')}
-          />
-        )}
+        <CardRow
+          leading={<OnboardingIcon source={ONBOARDING_ICONS.local} />}
+          title={COPY.local.title}
+          description={COPY.local.description}
+          onOpen={() => setStep('local')}
+        />
         <CardRow
           leading={<OnboardingIcon source={ONBOARDING_ICONS.remote} />}
           title={COPY.remote.title}

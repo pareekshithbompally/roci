@@ -1,4 +1,5 @@
 import type { ReasoningEffort } from '@shared/types';
+import { platform } from '@platform/index';
 
 /** User-run OpenAI-compatible servers, detected on their standard ports; Roci never starts or installs them. */
 
@@ -76,8 +77,16 @@ export const LOCAL_GENERIC_LOGO = GENERIC_LOGO;
 /** The Providers group of model servers the user runs (vs models built into this device). */
 export const LOCAL_SERVERS_GROUP = 'Your Servers';
 
-/** Hint under the Your Servers list when nothing is running. */
-export const LOCAL_EMPTY_HINT = 'Nothing running? Start Ollama or LM Studio, then rescan.';
+/** Hint under the Your Servers list when there are none: start one here, or add one elsewhere by its address. */
+export const LOCAL_EMPTY_HINT = platform.runsLocalServers
+  ? 'Nothing running? Start Ollama or LM Studio, then rescan, or add a server by its address.'
+  : 'Add a server you run, such as one on your Mac over Tailscale, by its address.';
 
-/** "Add URL" starts with the host filled in so Add is live; the user types the port. */
-export const LOCAL_URL_DRAFT = 'http://localhost:';
+/** "Add server" starts with the scheme filled in (and this device's host where servers run here). */
+export const LOCAL_URL_DRAFT = platform.runsLocalServers ? 'http://localhost:' : 'https://';
+
+/** This device's own addresses: the only ones Roci reaches over plain http (capabilities allow http to them alone). */
+export const LOCAL_LOOPBACK_HOSTS: readonly string[] = ['localhost', '127.0.0.1', '[::1]'];
+
+/** A plain-http address for a server on another computer, which Roci only reaches over https. */
+export const LOCAL_NEEDS_HTTPS = 'A server on another computer needs an https:// address, such as the one tailscale serve gives it.';

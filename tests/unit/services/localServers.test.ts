@@ -7,6 +7,7 @@ import {
   mergeServed,
   localRows,
   customServerId,
+  needsHttps,
   normalizeLocalUrl,
 } from '@services/providers/localServers';
 import { LOCAL_SERVER_DEFAULT_API_KEY } from '@config/localServers.config';
@@ -82,7 +83,7 @@ describe('detectLocalServers', () => {
       'http://127.0.0.1:11434/v1/models': models('llama3.2'),
       'http://127.0.0.1:11434/api/version': { version: '0.9' },
     });
-    const servers = await detectLocalServers([]);
+    const servers = await detectLocalServers([], true);
     const ollama = servers.find((s) => s.id === 'local:ollama');
     expect(ollama).toMatchObject({ running: true, models: [{ id: 'llama3.2' }] });
     expect(servers.filter((s) => s.running)).toHaveLength(1);
@@ -90,7 +91,7 @@ describe('detectLocalServers', () => {
 
   it('treats a known port whose fingerprint misses as a custom server', async () => {
     serve({ 'http://127.0.0.1:11434/v1/models': models('mlx-model') });
-    const servers = await detectLocalServers([]);
+    const servers = await detectLocalServers([], true);
     const running = servers.filter((s) => s.running);
     expect(running).toEqual([
       { id: 'local:127.0.0.1:11434', baseUrl: 'http://127.0.0.1:11434/v1', running: true, models: [{ id: 'mlx-model' }] },
@@ -99,13 +100,13 @@ describe('detectLocalServers', () => {
 
   it('does not probe ports with no known engine', async () => {
     serve({ 'http://127.0.0.1:9000/v1/models': models('custom') });
-    const servers = await detectLocalServers([]);
+    const servers = await detectLocalServers([], true);
     expect(servers.filter((s) => s.running)).toEqual([]);
   });
 
   it('shows a server on llama.cpp\'s port that is not llama.cpp (MLX, LocalAI) as a generic local server', async () => {
     serve({ 'http://127.0.0.1:8080/v1/models': models('mlx-model') });
-    const servers = await detectLocalServers([]);
+    const servers = await detectLocalServers([], true);
     expect(servers.filter((s) => s.running)).toEqual([
       { id: 'local:127.0.0.1:8080', baseUrl: 'http://127.0.0.1:8080/v1', running: true, models: [{ id: 'mlx-model' }] },
     ]);
@@ -114,9 +115,21 @@ describe('detectLocalServers', () => {
   it('probes a saved provider at its own URL and skips the known port it covers', async () => {
     serve({ 'http://127.0.0.1:9000/v1/models': models('custom') });
     const saved = toLocalProvider({ id: 'local:ollama', baseUrl: 'http://127.0.0.1:9000/v1', running: true, models: [] });
-    const servers = await detectLocalServers([saved]);
+    const servers = await detectLocalServers([saved], true);
     expect(servers.filter((s) => s.id === 'local:ollama')).toEqual([
       { id: 'local:ollama', baseUrl: 'http://127.0.0.1:9000/v1', running: true, models: [{ id: 'custom' }] },
+    ]);
+  });
+
+  it('on a device that runs no servers, probes only the saved ones', async () => {
+    serve({
+      'http://127.0.0.1:11434/v1/models': models('llama3.2'),
+      'https://mac-mini.tailnet.ts.net/v1/models': models('qwen'),
+    });
+    const saved = toLocalProvider({ id: 'local:mac-mini.tailnet.ts.net', baseUrl: 'https://mac-mini.tailnet.ts.net/v1', running: true, models: [] });
+    const servers = await detectLocalServers([saved], false);
+    expect(servers).toEqual([
+      { id: 'local:mac-mini.tailnet.ts.net', baseUrl: 'https://mac-mini.tailnet.ts.net/v1', running: true, models: [{ id: 'qwen' }] },
     ]);
   });
 });
@@ -181,8 +194,22 @@ describe('normalizeLocalUrl', () => {
     expect(normalizeLocalUrl('dkjcnwkcjnwnvc')).toBeNull();
     expect(normalizeLocalUrl('http://server')).toBeNull();
     expect(normalizeLocalUrl('localhost:11434')).toBe('http://localhost:11434/v1');
-    expect(normalizeLocalUrl('192.168.1.20:8080')).toBe('http://192.168.1.20:8080/v1');
+    expect(normalizeLocalUrl('192.168.1.20:8080')).toBe('https://192.168.1.20:8080/v1');
     expect(normalizeLocalUrl('https://llm.example.com')).toBe('https://llm.example.com/v1');
+  });
+});
+
+describe('server addresses', () => {
+  it('reaches this device over http and any other computer over https when no scheme is typed', () => {
+    expect(normalizeLocalUrl('127.0.0.1:8080')).toBe('http://127.0.0.1:8080/v1');
+    expect(normalizeLocalUrl('mac-mini.tailnet.ts.net')).toBe('https://mac-mini.tailnet.ts.net/v1');
+  });
+
+  it('asks for https only for another computer typed with plain http', () => {
+    expect(needsHttps('http://localhost:11434/v1')).toBe(false);
+    expect(needsHttps('http://127.0.0.1:8080/v1')).toBe(false);
+    expect(needsHttps('http://mac-mini.tailnet.ts.net:8080/v1')).toBe(true);
+    expect(needsHttps('https://mac-mini.tailnet.ts.net/v1')).toBe(false);
   });
 });
 

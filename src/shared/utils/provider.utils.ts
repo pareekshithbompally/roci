@@ -2,7 +2,7 @@ import { LOCAL_PROVIDER_PREFIX, LOCAL_SERVERS, LOCAL_GENERIC_LOGO } from '@confi
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config'
 import type { Model, ModelProvider } from '@shared/types/modelProviders'
 
-/** Local servers (`local:ollama`, `local:127.0.0.1:9000`) run on this Mac. */
+/** Servers the user runs (`local:ollama`, `local:mac-mini.tailnet.ts.net`), on this Mac or another computer. */
 export function isLocalProviderId(provider: string): boolean {
   return provider.startsWith(LOCAL_PROVIDER_PREFIX)
 }

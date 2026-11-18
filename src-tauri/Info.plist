@@ -24,6 +24,8 @@
     <key>NSUserNotificationAlertStyle</key>
     <string>alert</string>
 
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Roci connects to model servers you run on your network, such as Ollama or llama-server on another computer.</string>
     <!-- The Icon Composer icon (light, dark, clear, tinted) in Assets.car: scripts/build-app-icon.sh -->
     <key>CFBundleIconName</key>
     <string>AppIcon</string>

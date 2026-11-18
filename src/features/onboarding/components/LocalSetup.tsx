@@ -1,4 +1,4 @@
-/** First-run Local option: a server found on this Mac, or one by address; picking one finishes setup. */
+/** First-run server option: one found on this device (where servers run), or one by address; picking one finishes setup. */
 
 import React, { useState } from 'react';
 import { Button, Callout, CardRow, ICON_SIZE_PX, Input, Section, WelcomeStep } from '@shared/ui';
@@ -11,6 +11,7 @@ import { ONBOARDING_CONFIG } from '@config/onboarding.config';
 import { useFinishOnboarding } from '@features/onboarding/hooks/useFinishOnboarding';
 import { useSetOnboardingStep } from '@features/onboarding/stores/onboardingStore';
 import { normalizeLocalUrl } from '@services/providers/localServers';
+import { platform } from '@platform/index';
 import type { LocalRow } from '@services/providers/localServers';
 
 const COPY = ONBOARDING_CONFIG.setup.local;
@@ -52,18 +53,20 @@ export const LocalSetup: React.FC = () => {
 
   return (
     <WelcomeStep title={COPY.heading} secondary={{ label: ACTIONS.back, onClick: () => setStep('setup') }}>
-      {/* Servers already running here, each one tap away. */}
-      <Section title={COPY.found} footer={running.length === 0 ? (isScanning ? COPY.scanning : COPY.none) : undefined}>
-        {running.map((row) => (
-          <CardRow
-            key={row.id}
-            leading={<ProvidersAvatar provider={row.id} size={ICON_SIZE_PX.lg} />}
-            title={getProviderTitle(row.id)}
-            description={row.baseUrl}
-            actions={<Button variant="outline" size="sm" onClick={() => use(row)}>{ACTIONS.use}</Button>}
-          />
-        ))}
-      </Section>
+      {/* Servers already running here, each one tap away (only a device that runs servers looks). */}
+      {platform.runsLocalServers && (
+        <Section title={COPY.found} footer={running.length === 0 ? (isScanning ? COPY.scanning : COPY.none) : undefined}>
+          {running.map((row) => (
+            <CardRow
+              key={row.id}
+              leading={<ProvidersAvatar provider={row.id} size={ICON_SIZE_PX.lg} />}
+              title={getProviderTitle(row.id)}
+              description={row.baseUrl}
+              actions={<Button variant="outline" size="sm" onClick={() => use(row)}>{ACTIONS.use}</Button>}
+            />
+          ))}
+        </Section>
+      )}
 
       {/* Or one by its address. */}
       <Section title={COPY.address} footer={invalid ? COPY.addressInvalid : COPY.addressHint}>

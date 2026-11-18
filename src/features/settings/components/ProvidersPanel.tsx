@@ -7,12 +7,11 @@ import { ProvidersAvatar } from '@shared/components';
 import { Card, CardRow, ScrollArea, Text, useNavStack } from '@shared/ui';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { ProviderGroup, ProviderListItem, ProviderStatus, cloudRowState } from './ProviderListItem';
-import { LocalServersSection } from './LocalServersSection';
+import { LocalServersSection, PhoneServersSection } from './LocalServersSection';
 import { ProviderDetail } from './ProviderDetail';
 import { OnDeviceDetail } from './OnDeviceDetail';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import { SettingsPage } from './shared';
-import { platform } from '@platform/index';
 import { useFormFactor } from '@platform/formFactor';
 
 const STORAGE_KEY = 'roci_last_provider_selection';
@@ -35,7 +34,7 @@ const ProviderDetailScreen: React.FC<{ id: string }> = ({ id }) => {
   ) : null;
 };
 
-/** Phone: On this device, then one row per provider (logo, name, state); a row pushes its detail. */
+/** Phone: On this device, one row per provider (logo, name, state), then Your Servers; a row pushes its detail. */
 const PhoneProviders: React.FC<{ providers: ModelProvider[] }> = ({ providers }) => {
   const { push } = useNavStack();
   const open = (id: string) => push({ title: getProviderTitle(id), content: <ProviderDetailScreen id={id} /> });
@@ -60,6 +59,7 @@ const PhoneProviders: React.FC<{ providers: ModelProvider[] }> = ({ providers })
           />
         ))}
       </Card>
+      <PhoneServersSection onOpen={open} />
     </div>
   );
 };
@@ -126,9 +126,7 @@ export const ProvidersPanel: React.FC = () => {
               />
             ))}
           </ProviderGroup>
-          {platform.supportsLocalServers && (
-            <LocalServersSection selectedProvider={effectiveSelectedProvider} onSelect={setSelectedProviderName} />
-          )}
+          <LocalServersSection selectedProvider={effectiveSelectedProvider} onSelect={setSelectedProviderName} />
         </ScrollArea>
 
         <ScrollArea className="flex-1 min-w-0 space-y-6">

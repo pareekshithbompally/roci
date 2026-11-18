@@ -7,6 +7,7 @@ import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { queryKeys } from '@shared/query/queryKeys';
+import { platform } from '@platform/index';
 import {
   detectLocalServers,
   localRows,
@@ -21,7 +22,7 @@ export function useLocalServerProbe() {
 
   const query = useQuery({
     queryKey: queryKeys.localServers(savedTargetKeys(saved)),
-    queryFn: () => detectLocalServers(saved),
+    queryFn: () => detectLocalServers(saved, platform.runsLocalServers),
     refetchOnWindowFocus: true,
   });
 

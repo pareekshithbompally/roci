@@ -6,6 +6,7 @@ import {
   LOCAL_SERVER_DEFAULT_API_KEY,
   LOCAL_SERVER_HOST,
   LOCAL_SERVER_API_PATH,
+  LOCAL_LOOPBACK_HOSTS,
   LOCAL_PROBE_TIMEOUT_MS,
   LOCAL_SERVERS,
 } from '@config/localServers.config';
@@ -64,14 +65,26 @@ function isServerHost(hostname: string): boolean {
   return hostname === 'localhost' || hostname.includes('.') || hostname.includes(':') || hostname.startsWith('[');
 }
 
-/** A typed server address as a base URL (`localhost:9000` → `http://localhost:9000/v1`); null if not a server address. */
+function isLoopback(hostname: string): boolean {
+  return LOCAL_LOOPBACK_HOSTS.includes(hostname);
+}
+
+/** A plain-http address of another computer: Roci reaches servers elsewhere only over https. */
+export function needsHttps(baseUrl: string): boolean {
+  const url = new URL(baseUrl);
+  return url.protocol === 'http:' && !isLoopback(url.hostname);
+}
+
+/** A typed server address as a base URL (`localhost:9000` → `http://localhost:9000/v1`, `my-mac.ts.net` →
+ *  `https://my-mac.ts.net/v1`: no scheme means http for this device, https for any other); null if not an address. */
 export function normalizeLocalUrl(input: string): string | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
-  const withScheme = /^https?:\/\//.test(trimmed) ? trimmed : `http://${trimmed}`;
+  const typedScheme = /^https?:\/\//.test(trimmed);
   try {
-    const url = new URL(withScheme);
+    const url = new URL(typedScheme ? trimmed : `http://${trimmed}`);
     if (!isServerHost(url.hostname)) return null;
+    if (!typedScheme && !isLoopback(url.hostname)) url.protocol = 'https:';
     const path = url.pathname.replace(/\/+$/, '') || LOCAL_SERVER_API_PATH;
     return `${url.origin}${path}`;
   } catch {
@@ -137,11 +150,12 @@ async function probeTarget(target: ProbeTarget): Promise<LocalServer> {
   return { id, baseUrl: target.baseUrl, running: true, models };
 }
 
-/** Saved local providers are probed at their own URL; known engines not yet saved at their default port. */
-function probeTargets(saved: ModelProvider[]): ProbeTarget[] {
+/** Saved servers are probed at their own URL; `scanThisDevice` adds known engines not yet saved, at their default port. */
+function probeTargets(saved: ModelProvider[], scanThisDevice: boolean): ProbeTarget[] {
   const savedTargets = saved.map((p) => ({ id: p.provider, baseUrl: getBaseUrl(p), entry: null }));
   const savedIds = new Set(saved.map((p) => p.provider));
   const savedOrigins = new Set(savedTargets.map((t) => originOf(t.baseUrl)));
+  if (!scanThisDevice) return savedTargets;
   const knownTargets = LOCAL_SERVERS
     .filter((entry) => !savedIds.has(entry.id) && !savedOrigins.has(originOf(knownBaseUrl(entry))))
     .map((entry) => ({ id: entry.id, baseUrl: knownBaseUrl(entry), entry }));
@@ -153,9 +167,9 @@ export function savedTargetKeys(saved: ModelProvider[]): string[] {
   return saved.map((p) => `${p.provider} ${getBaseUrl(p)}`);
 }
 
-/** Probe every known port and every saved local provider in parallel. */
-export async function detectLocalServers(saved: ModelProvider[]): Promise<LocalServer[]> {
-  return Promise.all(probeTargets(saved).map(probeTarget));
+/** Probe every saved server and, on a device that runs servers itself, every known port, in parallel. */
+export async function detectLocalServers(saved: ModelProvider[], scanThisDevice: boolean): Promise<LocalServer[]> {
+  return Promise.all(probeTargets(saved, scanThisDevice).map(probeTarget));
 }
 
 // ── Providers ───────────────────────────────────────────────────

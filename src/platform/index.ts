@@ -36,8 +36,9 @@ export const platform = {
   sharesAudioSession: ios,
   /** Notices when a call app (Zoom, Teams, Meet …) starts using the microphone. */
   hasCallDetection: mac,
-  /** Inference servers on this machine (Ollama, LM Studio …). */
-  supportsLocalServers: mac,
+  /** Runs inference servers itself (Ollama, LM Studio …), so their usual ports on this device are scanned; servers
+   *  elsewhere (another Mac over Tailscale) are added by address on every platform. */
+  runsLocalServers: mac,
   /** MCP servers: remote ones (Streamable HTTP) everywhere. */
   hasMcp: apple,
   /** MCP servers Roci launches as programs (stdio): iOS doesn't let apps start other programs. */

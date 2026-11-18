@@ -5,6 +5,7 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import {
   customServerId,
   localRows,
+  needsHttps,
   normalizeLocalUrl,
   probeModels,
   savedLocalProviders,
@@ -12,6 +13,7 @@ import {
   toLocalProvider,
 } from '@services/providers/localServers';
 import { useLocalServerProbe } from './useLocalServerProbe';
+import { LOCAL_NEEDS_HTTPS } from '@config/localServers.config';
 import type { LocalRow, LocalServer } from '@services/providers/localServers';
 
 export type AddLocalUrlResult = { ok: true; id: string } | { ok: false; error: string };
@@ -40,10 +42,11 @@ export function useLocalServers() {
     }
   }, [refetch, providers, updateProvider]);
 
-  /** Probe a user-typed address; save it when an OpenAI-compatible server answers. */
+  /** Probe a user-typed address (this device's over http, any other over https); save it when a server answers. */
   const addUrl = useCallback(async (input: string): Promise<AddLocalUrlResult> => {
     const baseUrl = normalizeLocalUrl(input);
     if (!baseUrl) return { ok: false, error: `"${input}" isn't a valid address.` };
+    if (needsHttps(baseUrl)) return { ok: false, error: LOCAL_NEEDS_HTTPS };
 
     const id = customServerId(baseUrl);
     if (saved.some((p) => p.provider === id)) {
