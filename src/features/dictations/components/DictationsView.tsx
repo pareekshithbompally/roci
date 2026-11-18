@@ -1,10 +1,10 @@
 /** Dictations: every dictation made in the app, grouped by day. Mac: the list beside the selected dictation; phone: the
- *  list, then one dictation with Back. Each opens to its time, day · length · model, and the words; Copy, and Delete in ⋯. */
+ *  list, then one dictation with Back. Each opens to its time, day · length · model (with its logo), and the words; Copy and Delete. */
 
 import React, { useMemo, useState } from 'react';
-import { ChevronLeft, Copy, Mic, MoreHorizontal } from 'lucide-react';
-import { Button, Icon, IconButton, Row, RowGroupLabel, Surface, Text, TitlebarSpacer } from '@shared/ui';
-import { EmptyState, Menu } from '@shared/components';
+import { ChevronLeft, Copy, Mic, Trash2 } from 'lucide-react';
+import { Button, Icon, ICON_SIZE_PX, IconButton, Row, RowGroupLabel, Surface, Text, TitlebarSpacer } from '@shared/ui';
+import { EmptyState, ModelIcon } from '@shared/components';
 import { useFormFactor } from '@platform/formFactor';
 import { useToast } from '@shared/contexts/ToastContext';
 import { confirmDelete } from '@shared/stores/confirmStore';
@@ -46,36 +46,43 @@ const DictationList: React.FC<DictationListProps> = ({ days, selectedId, onSelec
   </>
 );
 
+/** The speech model a dictation names, as the pickers show it. */
+interface SpeechModel {
+  provider: string;
+  label: string;
+}
+
 interface DictationDetailProps {
   dictation: Dictation;
-  modelLabel: string | undefined;
+  speechModel: SpeechModel | undefined;
   onCopy: () => void;
   onDelete: () => void;
 }
 
 /** Voice Memos' shape: the time as the title, day · length · model under it, then the words at reading size. */
-const DictationDetail: React.FC<DictationDetailProps> = ({ dictation, modelLabel, onCopy, onDelete }) => {
+const DictationDetail: React.FC<DictationDetailProps> = ({ dictation, speechModel, onCopy, onDelete }) => {
   const facts = [
     formatDayLabel(dictation.createdAt),
     dictation.durationMs !== undefined && formatDuration(dictation.durationMs / 1000),
-    modelLabel,
   ].filter(Boolean).join(' · ');
   return (
     <article>
       <Surface as="header" edge="bottom" className={`flex items-start gap-2 ${LAYOUT.listGutter} py-4`}>
         <div className="min-w-0 flex-1">
           <Text as="h2" variant="title">{timeOf(dictation.createdAt)}</Text>
-          <Text as="p" variant="helper" tone="muted">{facts}</Text>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <Text variant="helper" tone="muted">{facts}</Text>
+            {speechModel && (
+              <>
+                <Text variant="helper" tone="muted">·</Text>
+                <ModelIcon provider={speechModel.provider} modelId={dictation.model} size={ICON_SIZE_PX.xs} />
+                <Text variant="helper" tone="muted" truncate>{speechModel.label}</Text>
+              </>
+            )}
+          </div>
         </div>
-        <Button variant="outline" size="sm" onClick={onCopy}>
-          <Icon icon={Copy} size="xs" />
-          Copy
-        </Button>
-        <Menu
-          label="Dictation options"
-          trigger={<IconButton icon={MoreHorizontal} label="Dictation options" size="sm" />}
-          items={[{ type: 'item', label: 'Delete Dictation…', onSelect: onDelete, destructive: true }]}
-        />
+        <IconButton icon={Copy} label="Copy" size="sm" onClick={onCopy} />
+        <IconButton icon={Trash2} label="Delete dictation" size="sm" variant="dangerGhost" onClick={onDelete} />
       </Surface>
       <Text as="p" variant="reading" className={`select-text whitespace-pre-wrap ${LAYOUT.listGutter} py-4`}>{dictation.text}</Text>
     </article>
@@ -87,7 +94,7 @@ export const DictationsView: React.FC = () => {
   const phone = useFormFactor() === 'phone';
   const { showToast } = useToast();
   const speechModels = useSpeechModelOptions();
-  const modelLabels = useMemo(() => new Map(speechModels.map((o) => [o.model, o.label])), [speechModels]);
+  const modelsById = useMemo(() => new Map(speechModels.map((o) => [o.model, { provider: o.provider, label: o.label }])), [speechModels]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // A Mac always shows one dictation (the newest until another is picked); a phone shows the list until one is tapped.
@@ -108,7 +115,7 @@ export const DictationsView: React.FC = () => {
   const detail = selected && (
     <DictationDetail
       dictation={selected}
-      modelLabel={selected.model && (modelLabels.get(selected.model) ?? selected.model)}
+      speechModel={selected.model ? modelsById.get(selected.model) : undefined}
       onCopy={() => copy(selected)}
       onDelete={() => void deleteDictation(selected)}
     />
