@@ -34,6 +34,8 @@ export const DEFAULT_SEARCH_LIMIT = 5;
 // ── Indexing ──
 /** How long to debounce before showing indexing toast (ms) */
 export const INDEXING_TOAST_DEBOUNCE_MS = 1000;
+/** A finished meeting's notes or to-dos re-index this long after the last edit (ms), so typing indexes once. */
+export const MEETING_EDIT_SETTLE_MS = 2000;
 
 // ── Chat Indexing ──
 

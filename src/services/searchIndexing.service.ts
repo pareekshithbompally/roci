@@ -9,7 +9,7 @@ import type {
 import { meetingService } from '@services/meeting.service';
 import { store } from '@services/db';
 import { concurrencyMap } from '@shared/utils/async.utils';
-import { IO_CONCURRENCY } from '@extensions/rag/constants';
+import { IO_CONCURRENCY, MEETING_EDIT_SETTLE_MS } from '@extensions/rag/constants';
 
 export function formatMeetingSummary(summary?: MeetingSummary): string {
   if (!summary) return '';
@@ -129,8 +129,32 @@ async function indexAll(options: { includeEmbeddings: boolean; signal?: AbortSig
   await chatIndexer.indexAllSessions(chats, options);
 }
 
+/** A finished (`ready`) meeting in full — transcript, summary, notes and to-dos — with vectors once the embedding
+ *  model is downloaded; a meeting still recording or processing waits for its own finish. */
+async function indexMeeting(meetingId: string): Promise<void> {
+  const detail = await meetingService.getMeetingDetail(meetingId);
+  if (detail?.index.status.status !== 'ready') return;
+  const { ragIndexer, isEmbeddingAvailable } = await import('@extensions/rag');
+  await ragIndexer.indexMeeting(toHistoryItem(detail), { includeEmbeddings: await isEmbeddingAvailable() });
+}
+
+/** One timer per meeting, re-armed by each edit. */
+const settling = new Map<string, ReturnType<typeof setTimeout>>();
+
+/** A meeting's notes or to-dos changed: index it once the edits settle. */
+function meetingEdited(meetingId: string): void {
+  clearTimeout(settling.get(meetingId));
+  settling.set(meetingId, setTimeout(() => {
+    settling.delete(meetingId);
+    indexMeeting(meetingId).catch((error: unknown) =>
+      console.error('[SearchIndexing] Re-indexing an edited meeting failed:', meetingId, error));
+  }, MEETING_EDIT_SETTLE_MS));
+}
+
 export const searchIndexingService = {
   loadMeetingsForIndexing,
   loadChatsForIndexing,
   indexAll,
+  indexMeeting,
+  meetingEdited,
 };

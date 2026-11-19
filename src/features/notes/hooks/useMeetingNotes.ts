@@ -101,7 +101,7 @@ export function useMeetingNotes(meetingId: string | null) {
 
   const deleteNoteMutate = useMutation({
     mutationFn: async (noteId: string) => {
-      await store.notes.delete(noteId);
+      await store.notes.delete(noteId, meetingId!);
     },
     onMutate: async (noteId) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.storeNotes(meetingId!) });

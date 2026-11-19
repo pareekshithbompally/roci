@@ -143,7 +143,6 @@ async function summarize(meeting: MeetingDetail, transcript: Transcript, context
   await transcriptionService.saveSummary({
     meetingId: id,
     title,
-    transcript: transcript.text,
     summary: meetingSummaryOf(result),
     categories: result.categories ?? [],
   });

@@ -17,7 +17,7 @@ export interface IndexOptions {
   force?: boolean;
 }
 
-/** Chunk → embed → upsert; content_hash is stamped only after the chunks are confirmed in the DB. */
+/** Chunk → embed → upsert; content_hash is stamped only after the chunks are confirmed in the DB, embedded once vectors are in. */
 async function indexMeeting(
   item: HistoryItem,
   options?: Pick<IndexOptions, 'includeEmbeddings'>,
@@ -73,6 +73,7 @@ async function indexMeeting(
 
   // Stamp content_hash AFTER chunks are confirmed — prevents hash poisoning on partial failure
   await vectorDB.markMeetingContentIndexed(item.id, contentHash);
+  if (embeddings && embeddings.length > 0) await vectorDB.markMeetingEmbedded(item.id);
 
   return {
     status: 'indexed',
@@ -149,10 +150,6 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
         const result = await indexMeeting(item, { includeEmbeddings });
         if (result.status === 'indexed') {
           indexed++;
-          // Mark embedding completion if embeddings were included and succeeded
-          if (includeEmbeddings && result.embeddingCount > 0) {
-            await vectorDB.markMeetingEmbedded(item.id);
-          }
         } else if (result.status === 'failed') {
           console.warn(`[RAGIndexer] Indexing failed for "${item.title}": ${result.reason ?? 'unknown'}`);
         }
@@ -204,10 +201,7 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
         try {
           // Re-index with embeddings — re-does FTS (idempotent) but adds embeddings
           const result = await indexMeeting(item, { includeEmbeddings: true });
-          if (result.status === 'indexed' && result.embeddingCount > 0) {
-            await vectorDB.markMeetingEmbedded(item.id);
-            embedded++;
-          }
+          if (result.status === 'indexed' && result.embeddingCount > 0) embedded++;
         } catch (error) {
           console.error(`[RAGIndexer] Embedding upgrade failed for "${item.title}":`, error);
         }

@@ -2,6 +2,7 @@
 
 import { call, rustNoteToEntry, type RustNoteRow } from '@services/db/internal';
 import type { NoteEntry } from '@shared/types';
+import { meetingEdited } from './meetingEdits';
 
 export const notes = {
   /** List notes for a meeting. */
@@ -20,10 +21,12 @@ export const notes = {
         created_at: note.createdAt ? new Date(note.createdAt).getTime() : null,
       },
     });
+    meetingEdited(note.meetingId);
   },
 
-  /** Delete a note. */
-  async delete(id: string): Promise<void> {
+  /** Delete one of a meeting's notes. */
+  async delete(id: string, meetingId: string): Promise<void> {
     await call<void>('notes_delete', { id });
+    meetingEdited(meetingId);
   },
 };

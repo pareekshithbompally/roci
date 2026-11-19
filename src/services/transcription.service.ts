@@ -3,7 +3,7 @@
 import type { MeetingSummary, ProcessedResult, StoredTranscriptSegment } from '@shared/types';
 import { store } from '@services/db';
 import { normalizeDueDate } from '@shared/utils/todo.utils';
-import { formatMeetingSummary } from './searchIndexing.service';
+import { searchIndexingService } from './searchIndexing.service';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 import { remindersSync } from '@services/reminders';
@@ -35,23 +35,8 @@ function refreshMeetings(): void {
 interface SummarySave {
   meetingId: string;
   title: string;
-  transcript: string;
   summary: MeetingSummary;
   categories: string[];
-}
-
-function indexForSearch(saved: SummarySave): void {
-  const item = {
-    id: saved.meetingId,
-    title: saved.title,
-    transcript: saved.transcript,
-    summary: formatMeetingSummary(saved.summary),
-    categories: saved.categories,
-    timestamp: Date.now(),
-  };
-  import('@extensions/rag/indexer')
-    .then(({ ragIndexer }) => ragIndexer.indexMeeting(item, { includeEmbeddings: false }))
-    .catch((error: unknown) => console.error('[TranscriptionService] Meeting indexing failed (non-fatal):', saved.meetingId, error));
 }
 
 export const transcriptionService = {
@@ -73,12 +58,13 @@ export const transcriptionService = {
     refreshMeetings();
   },
 
-  /** Saves the summary (meeting → `ready`), then mirrors it to search and the switched-on integrations. */
+  /** Saves the summary (meeting → `ready`, done), then indexes it in full for search and mirrors it to the switched-on integrations. */
   async saveSummary(input: SummarySave): Promise<void> {
     await store.meetings.saveSummary(input);
     refreshMeetings();
     void remindersSync.addedForMeeting(input.meetingId);
     void appleNotesSync.meetingSaved(input.meetingId);
-    indexForSearch(input);
+    searchIndexingService.indexMeeting(input.meetingId).catch((error: unknown) =>
+      console.error('[TranscriptionService] Meeting indexing failed (non-fatal):', input.meetingId, error));
   },
 };

@@ -44,7 +44,7 @@ describe('hexSync.catchUp', () => {
       ],
     });
     expect(saveSummary).toHaveBeenCalledTimes(1);
-    expect(saveSummary.mock.calls[0][0]).toMatchObject({ meetingId: 'hex-new', title: 'Hex title', transcript: 'You: We are\nThem: Are we?' });
+    expect(saveSummary.mock.calls[0][0]).toMatchObject({ meetingId: 'hex-new', title: 'Hex title' });
     expect(saveSummary.mock.calls[0][0].summary.overview).toBe('Hex summary');
   });
 

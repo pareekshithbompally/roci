@@ -27,7 +27,7 @@ async function exists(hexId: string): Promise<boolean> {
 }
 
 /** Creates the meeting with its transcript (`transcribed`); null when there's nothing to import. */
-async function importOne(detail: HexMeetingDetail): Promise<{ meetingId: string; transcript: string } | null> {
+async function importOne(detail: HexMeetingDetail): Promise<{ meetingId: string } | null> {
   if (!importable(detail.meeting) || detail.entries.length === 0) return null;
   const meetingId = rociMeetingId(detail.meeting.id);
   const segments = detail.entries.map(segmentOf);
@@ -40,7 +40,7 @@ async function importOne(detail: HexMeetingDetail): Promise<{ meetingId: string;
   });
   const transcript = segments.map((s) => `${s.speaker}: ${s.text}`).join('\n');
   await transcriptionService.saveTranscript({ meetingId, text: transcript, segments });
-  return { meetingId, transcript };
+  return { meetingId };
 }
 
 let catchingUp: Promise<number> | null = null;
