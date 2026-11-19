@@ -44,13 +44,19 @@ interface Reply {
   usage: Parameters<typeof extractTokenUsage>[0];
 }
 
+/** The instructions with the reply's shape asked for in words: some models, and servers that drop the schema, follow only
+ *  what the instructions say. */
+const withReplyShape = (instructions: string, shape: object): string =>
+  `${instructions}\n\nReply with only a JSON object, no other text, matching this JSON schema:\n${JSON.stringify(shape)}`;
+
 async function ask<S extends z.ZodObject>(call: StructuredCall<S>, prompt: string): Promise<Reply> {
+  const shape = jsonSchemaOf(call.schema);
   try {
     const result = await generateText({
       model: createModel(call.model),
-      instructions: call.instructions,
+      instructions: withReplyShape(call.instructions, shape),
       prompt,
-      output: Output.object({ schema: jsonSchema(jsonSchemaOf(call.schema)) }),
+      output: Output.object({ schema: jsonSchema(shape) }),
       abortSignal: call.signal,
     });
     return { output: result.output, usage: result.usage };

@@ -32,6 +32,15 @@ const call = (extra: Partial<Parameters<typeof generateStructured>[0]> = {}) =>
 beforeEach(() => vi.clearAllMocks());
 
 describe('generateStructured', () => {
+  it('asks for the reply\'s JSON shape in the instructions too, for models that ignore the schema', async () => {
+    const mock = replying('{"title":"T","points":["a"]}');
+    model.current = mock;
+    await call();
+    const system = JSON.stringify(mock.doGenerateCalls[0].prompt[0]);
+    expect(system).toContain('Reply with only a JSON object, no other text, matching this JSON schema');
+    expect(system).toContain('points');
+  });
+
   it('reads a clean reply and records its usage under the meeting', async () => {
     model.current = replying('{"title":"Launch","points":["a","b"]}');
     expect(await call()).toEqual({ title: 'Launch', points: ['a', 'b'] });

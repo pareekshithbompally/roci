@@ -112,6 +112,16 @@ describe('in-call transcript', () => {
     await vi.waitFor(() => expect(useMeetingLiveStore.getState()).toMatchObject({ failed: true, reason: 'rate limited' }));
   });
 
+  it('a window reloaded mid-recording joins the recorder\'s count: its first chunk is no gap', async () => {
+    runTranscription.mockResolvedValue({ text: 'Joined.', segments: [] });
+    await liveTranscript.start('m-joined', read);
+    handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 30_000, 36_000, 0, 5) });
+    handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 36_000, 42_000, 0, 6) });
+    await vi.waitFor(() => expect(useMeetingLiveStore.getState().entries).toHaveLength(2));
+    expect(useMeetingLiveStore.getState().failed).toBe(false);
+    liveTranscript.finish('m-joined');
+  });
+
   it('a chunk number skipped (never received) marks the draft as having a gap', async () => {
     runTranscription.mockResolvedValue({ text: 'Hi.', segments: [] });
     await liveTranscript.start('m4', read);

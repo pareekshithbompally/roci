@@ -93,6 +93,12 @@ describe('transcript bookkeeping', () => {
 });
 
 describe('mergeBullets', () => {
+  it('a new point the notes already have, word for word, is not added again', () => {
+    const current: Bullet[] = [{ id: 'b1', text: 'The GPU queue is failing.', atMs: 0 }];
+    const merged = mergeBullets(current, [{ text: 'the GPU queue is failing' }, { text: 'Embedding never runs.' }], [], 10_000);
+    expect(merged.map((b) => b.text)).toEqual(['The GPU queue is failing.', 'Embedding never runs.']);
+  });
+
   const lines: NoteLine[] = [{ id: 'n1', text: 'launch?', atMs: 40_000 }, { id: 'n2', text: 'api', atMs: 70_000 }];
 
   it('writes the meeting\'s points with no notes typed at all', () => {

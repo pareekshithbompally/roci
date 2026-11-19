@@ -19,6 +19,8 @@ export default defineConfig({
   worker: {
     format: 'es',
   },
+  // Bundled at start: met first during a recording (live transcription's VAD), dev would bundle it then and reload the window.
+  optimizeDeps: { include: ['@ricky0123/vad-web'] },
   plugins: [
     react(),
     viteStaticCopy({

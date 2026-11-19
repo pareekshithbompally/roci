@@ -27,8 +27,9 @@ export interface LiveEntry {
 interface Session {
   meetingId: string;
   entries: LiveEntry[];
-  /** The next chunk number expected from each source. */
-  expected: Record<MeetingSourceId, number>;
+  /** The next chunk number expected from each source; none until its first chunk (a window reloaded mid-recording joins
+   *  a recorder that kept counting). */
+  expected: Partial<Record<MeetingSourceId, number>>;
   /** Echo checks of the draft, one after another, so an older verdict never overwrites a newer one. */
   echo: Promise<void>;
   /** Stops the chunk being transcribed when the session ends. */
@@ -66,7 +67,8 @@ function showDraft(current: Session): void {
 
 /** Each source's chunks arrive numbered 0, 1, 2…; a number skipped is a chunk this window never got. */
 function checkSequence(current: Session, chunk: LiveChunk): void {
-  if (chunk.seq !== current.expected[chunk.source]) markFailed(current);
+  const expected = current.expected[chunk.source];
+  if (expected !== undefined && chunk.seq !== expected) markFailed(current);
   current.expected[chunk.source] = chunk.seq + 1;
 }
 
@@ -281,7 +283,7 @@ export const liveTranscript = {
     session?.streams?.cancel();
     meetingLiveActions.start(meetingId);
     const current: Session = {
-      meetingId, entries: [], expected: { microphone: 0, system: 0 }, echo: Promise.resolve(), controller: new AbortController(),
+      meetingId, entries: [], expected: {}, echo: Promise.resolve(), controller: new AbortController(),
       waiting: [], draining: null, streams: null, unlisten: () => undefined,
     };
     if (streaming) current.streams = liveStreams(() => openStream(read), streamSink(current));

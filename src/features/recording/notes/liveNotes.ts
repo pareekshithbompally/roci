@@ -101,6 +101,12 @@ function newBullet(id: string, noteId: string | undefined, text: string, lines: 
   return { id, noteId, text, atMs: typed ?? atMs };
 }
 
+/** Point texts compared as a reader would: case, spacing and closing punctuation aside. */
+const sameText = (a: string, b: string): boolean => {
+  const plain = (text: string) => text.toLowerCase().replace(/\s+/g, ' ').replace(/[.!?…]+$/, '').trim();
+  return plain(a) === plain(b);
+};
+
 /** The model's changes applied in place: a note's line (by note) or a known point (by id) is replaced where it stands; anything
  *  else is added at `atMs` (a note's line at the note's time). Lines of deleted notes go. */
 export function mergeBullets(current: Bullet[], changes: LiveNotesChange[], lines: NoteLine[], atMs: number): Bullet[] {
@@ -113,7 +119,7 @@ export function mergeBullets(current: Bullet[], changes: LiveNotesChange[], line
     const noteId = change.noteId && liveNotes.has(change.noteId) ? change.noteId : undefined;
     const at = noteId ? merged.findIndex((b) => b.noteId === noteId) : change.id ? merged.findIndex((b) => !b.noteId && b.id === change.id) : -1;
     if (at >= 0) merged[at] = { ...merged[at], text };
-    else merged.push(newBullet(nextId(), noteId, text, lines, atMs));
+    else if (noteId || !merged.some((b) => !b.noteId && sameText(b.text, text))) merged.push(newBullet(nextId(), noteId, text, lines, atMs));
   }
   return merged;
 }
