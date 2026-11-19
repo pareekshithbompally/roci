@@ -27,7 +27,7 @@ pub fn tts_voices(engine: String) -> Result<Vec<VoiceOption>, LocalError> {
         return Ok(system::voices(LANGUAGE));
     }
     let model = catalog::find_kind(&engine, Kind::Voice)?;
-    Ok(model.voices.iter().map(|&v| VoiceOption { id: v.to_lowercase(), name: v.to_string(), detail: None }).collect())
+    Ok(model.voices.iter().map(|v| VoiceOption { id: v.id.to_string(), name: v.name.to_string(), detail: None }).collect())
 }
 
 /// Speaks a reply's markdown with `engine` in `voice`, emitting `tts://chunk` as each chunk begins.

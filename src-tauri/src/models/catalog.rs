@@ -43,8 +43,14 @@ pub struct LocalModel {
     pub streams: bool,
     source: Source,
     pub files: &'static [ModelFile],
-    /// A voice model's speaker names, the first its default; empty when it has one voice.
-    pub voices: &'static [&'static str],
+    /// A voice model's speakers, the first its default; empty when it has one voice.
+    pub voices: &'static [Voice],
+}
+
+/// A voice model's speaker: the name the model knows it by, and the name Roci shows.
+pub struct Voice {
+    pub id: &'static str,
+    pub name: &'static str,
 }
 
 impl LocalModel {
@@ -223,6 +229,28 @@ pub const MODELS: &[LocalModel] = &[
         }],
     },
     LocalModel {
+        id: "kokoro",
+        maker: "hexgrad",
+        name: "Kokoro",
+        kind: Kind::Voice,
+        streams: false,
+        voices: &[
+            Voice { id: "af_heart", name: "Heart" },
+            Voice { id: "af_bella", name: "Bella" },
+            Voice { id: "am_michael", name: "Michael" },
+            Voice { id: "am_fenrir", name: "Fenrir" },
+        ],
+        source: Source { repository: "mlx-community/Kokoro-82M-bf16", revision: "a71e4d38b236d968966a2002c4c895dbd12b1c3c" },
+        files: &[
+            ModelFile { name: "config.json", bytes: 2_351, sha256: "5abb01e2403b072bf03d04fde160443e209d7a0dad49a423be15196b9b43c17f", source: None },
+            ModelFile { name: "kokoro-v1_0.safetensors", bytes: 327_115_152, sha256: "4e9ecdf03b8b6cf906070390237feda473dc13327cb8d56a43deaa374c02acd8", source: None },
+            ModelFile { name: "voices/af_bella.safetensors", bytes: 522_320, sha256: "112d310468cbb3cf23404d3d0b50ad3adf017b87bf38bf9edd15f4ad572df6a3", source: None },
+            ModelFile { name: "voices/af_heart.safetensors", bytes: 522_320, sha256: "2c1c733b0e6576c810e268d3e440c21dea4e0f0131a3ba4cfc98d7fe6136d094", source: None },
+            ModelFile { name: "voices/am_fenrir.safetensors", bytes: 522_320, sha256: "9abed964b906c4cae6f404d9849e76260689aea862bc6ca85fc3f5207ba96538", source: None },
+            ModelFile { name: "voices/am_michael.safetensors", bytes: 522_320, sha256: "3940147ded35deba0bb52e8132f89b719298e0520258c34584358aa5a24da2ea", source: None },
+        ],
+    },
+    LocalModel {
         id: "soprano",
         maker: "ekwek",
         name: "Soprano",
@@ -245,7 +273,16 @@ pub const MODELS: &[LocalModel] = &[
         name: "Pocket TTS",
         kind: Kind::Voice,
         streams: false,
-        voices: &["Alba", "Marius", "Javert", "Jean", "Fantine", "Cosette", "Eponine", "Azelma"],
+        voices: &[
+            Voice { id: "alba", name: "Alba" },
+            Voice { id: "marius", name: "Marius" },
+            Voice { id: "javert", name: "Javert" },
+            Voice { id: "jean", name: "Jean" },
+            Voice { id: "fantine", name: "Fantine" },
+            Voice { id: "cosette", name: "Cosette" },
+            Voice { id: "eponine", name: "Eponine" },
+            Voice { id: "azelma", name: "Azelma" },
+        ],
         source: Source { repository: "mlx-community/pocket-tts", revision: "cbf71d5f6657bbc3f4bc02f85ee408261225bec7" },
         files: &[
             ModelFile { name: "config.json", bytes: 1_664, sha256: "403ff12260596fbfa348c7b07237c378b9ad8db9d8acd04d671470421954a68e", source: None },
@@ -269,7 +306,7 @@ pub const MODELS: &[LocalModel] = &[
         name: "Qwen3 TTS",
         kind: Kind::Voice,
         streams: false,
-        voices: &["Ryan", "Aiden"],
+        voices: &[Voice { id: "ryan", name: "Ryan" }, Voice { id: "aiden", name: "Aiden" }],
         source: Source { repository: "mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-8bit", revision: "049ef77fe8816b536193c0c25f9a214d17921282" },
         files: &[
             ModelFile { name: "config.json", bytes: 6_058, sha256: "2eea3665564268139c3beb8d497fd3c2e4524e9eed5452836cdf1de96ed3cdbd", source: None },
@@ -306,7 +343,7 @@ mod tests {
 
     #[test]
     fn voice_models_list_their_speakers() {
-        assert_eq!(find("pocket-tts").unwrap().voices.first(), Some(&"Alba"));
+        assert_eq!(find("pocket-tts").unwrap().voices.first().map(|v| v.id), Some("alba"));
         assert!(find("soprano").unwrap().voices.is_empty());
         assert!(find_kind("qwen3-tts", Kind::Speech).is_err());
     }
