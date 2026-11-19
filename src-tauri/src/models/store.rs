@@ -171,9 +171,22 @@ async fn verify_and_place(file: &ModelFile, part: &Path, target: &Path) -> Resul
     Ok(())
 }
 
+/// How much of a file a `.part` already holds: all of it (the app stopped before checking it), so nothing is fetched and the
+/// checksum decides; a resumable start; or 0 when it's longer than the file can be, so it downloads again from the start.
+fn resume_from(have: u64, bytes: u64) -> Option<u64> {
+    match have {
+        _ if have == bytes => None,
+        _ if have > bytes => Some(0),
+        _ => Some(have),
+    }
+}
+
 /// Streams one file into `part`, resuming what's there. False when cancelled.
 async fn fetch(url: &str, file: &ModelFile, part: &Path, before: u64, cancel: &AtomicBool, reporter: &mut Reporter<'_>) -> Result<bool, LocalError> {
-    let have = fs::metadata(part).map(|m| m.len()).unwrap_or(0);
+    let Some(have) = resume_from(fs::metadata(part).map(|m| m.len()).unwrap_or(0), file.bytes) else {
+        reporter.progress(before + file.bytes);
+        return Ok(true);
+    };
     let mut request = reqwest::Client::new().get(url);
     if have > 0 {
         request = request.header(reqwest::header::RANGE, format!("bytes={have}-"));
@@ -219,6 +232,14 @@ fn sha256_hex(path: &Path) -> Result<String, LocalError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_whole_part_is_checked_not_fetched_and_an_oversized_one_starts_over() {
+        assert_eq!(resume_from(0, 100), Some(0));
+        assert_eq!(resume_from(40, 100), Some(40));
+        assert_eq!(resume_from(100, 100), None);
+        assert_eq!(resume_from(120, 100), Some(0));
+    }
 
     #[test]
     fn sha256_of_known_bytes() {
