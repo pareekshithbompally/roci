@@ -163,6 +163,12 @@
   /* AI at work: a copper-tinted row with a brighter copper band sweeping across it */
   --ai-wash: color-mix(in srgb, var(--ai-accent) 9%, transparent);
   --ai-sweep: linear-gradient(100deg, transparent 25%, color-mix(in srgb, var(--ai-accent) 24%, transparent) 50%, transparent 75%);
+  /* The app icon's ship (src-tauri/icons/AppIcon.icon): its lit port wing and shaded starboard wing */
+  --brand-ship-light: #e8925a;
+  --brand-ship-shade: #a9461f;
+  /* FadeScroll (kit): how far an edge fades, and how fast the fade eases in and out */
+  --scroll-fade-size: 24px;
+  --scroll-fade-timing: 150ms ease-out;
   /* Calendar events, as Calendar.app tints them: a light wash of the calendar's colour (`--event-tint`, set per event) and
      text in a deep shade of it (the colour mixed into the primary text), the title deeper than the time under it */
   --event-fill-mix: 20%;

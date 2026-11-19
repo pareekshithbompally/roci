@@ -89,21 +89,19 @@ code, pre {
 }
 /* No ::-webkit-scrollbar-thumb rule, so macOS draws its own auto-fading overlay thumb. */
 
-/* ─── Scroll fade — bottom gradient mask only (top is fully opaque) ─── */
-.scroll-fade {
-  mask-image: linear-gradient(
-    to bottom,
-    black 0%,
-    black calc(100% - 20px),
-    transparent 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    black 0%,
-    black calc(100% - 20px),
-    transparent 100%
-  );
+/* ─── FadeScroll (kit): an edge fades only while content runs past it, easing in and out (registered properties animate) ─── */
+@property --fade-top { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --fade-bottom { syntax: '<length>'; inherits: false; initial-value: 0px; }
+
+.fade-scroll {
+  --fade-top: 0px;
+  --fade-bottom: 0px;
+  mask-image: linear-gradient(to bottom, transparent, black var(--fade-top), black calc(100% - var(--fade-bottom)), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black var(--fade-top), black calc(100% - var(--fade-bottom)), transparent);
+  transition: --fade-top var(--scroll-fade-timing), --fade-bottom var(--scroll-fade-timing);
 }
+.fade-scroll[data-fade-top] { --fade-top: var(--scroll-fade-size); }
+.fade-scroll[data-fade-bottom] { --fade-bottom: var(--scroll-fade-size); }
 
 /* Utility to hide scrollbar but keep functionality */
 .no-scrollbar::-webkit-scrollbar {

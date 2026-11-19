@@ -1,4 +1,5 @@
-/** Left sidebar: search, the To-dos row, the unified history/chat list, and settings. */
+/** Left sidebar: the app's mark and name and Search fixed at the top, the destinations and history scrolling under them
+ *  (edges fade only while there is more), Settings fixed at the foot. */
 
 import React, { useRef, useCallback, useEffect } from 'react';
 import { CalendarDays, ChevronLeft, Images, ListTodo, Mic, Search, SquarePen, PanelLeft, Settings } from 'lucide-react';
@@ -11,7 +12,7 @@ import { UnifiedList } from '@features/history';
 import { SettingsNav } from '@features/settings/components/SettingsNav';
 import { useOpenMeeting, useSessionSearch, useUnifiedSidebar } from '@features/history/hooks';
 import { LAYOUT } from '@config/layout.config';
-import { Button, IconButton, Icon, Row, RowGroupLabel, Kbd, SearchField, Text } from '@shared/ui';
+import { AppMark, Button, FadeScroll, IconButton, Icon, Row, RowGroupLabel, Kbd, SearchField, Text } from '@shared/ui';
 import { APP_CONFIG } from '@config/app.config';
 import {
   endSidebarSearch, setSidebarSearchQuery, startSidebarSearch, useSidebarSearchActive, useSidebarSearchQuery,
@@ -139,7 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </header>
         <div className="shrink-0 px-2">{destinations}</div>
-        <div ref={listContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2">{list}</div>
+        <FadeScroll ref={listContainerRef} className="flex-1 px-2 pb-2">{list}</FadeScroll>
         {/* Bottom right, under Search and New chat: Activity while work runs (downloads, model loads), then Settings. */}
         <footer className="flex shrink-0 items-center justify-end gap-2 px-4 pt-2 pb-4">
           <ActivityButton />
@@ -162,7 +163,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
       </div>
 
-      {/* Top rows — Search and To-dos in the app; the way back out in settings */}
+      {/* The app: its mark (the icon's two-tone ship) and name */}
+      <div className="shrink-0 flex items-center gap-2 px-4 pb-2">
+        <AppMark size="md" />
+        <Text variant="headline">{APP_CONFIG.name}</Text>
+      </div>
+
+      {/* Fixed above the scroll: Search in the app, the way back out in settings */}
       <div className="shrink-0 px-2">
         {isSettingsView ? (
           <Row onClick={leaveSettings}>
@@ -170,22 +177,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span className="flex-1">Back to app</span>
             <Kbd>{shortcutLabel('leaveSettings')}</Kbd>
           </Row>
-        ) : (
-          <>
-            {searchActive ? searchField : (
-              <Row onClick={startSidebarSearch}>
-                <Icon icon={Search} size="xs" className="shrink-0" />
-                <span className="flex-1">Search</span>
-                <Kbd>{shortcutLabel('search')}</Kbd>
-              </Row>
-            )}
-            {destinations}
-          </>
+        ) : searchActive ? searchField : (
+          <Row onClick={startSidebarSearch}>
+            <Icon icon={Search} size="xs" className="shrink-0" />
+            <span className="flex-1">Search</span>
+            <Kbd>{shortcutLabel('search')}</Kbd>
+          </Row>
         )}
       </div>
 
-      {/* Scrollable list — settings sections when in settings view */}
-      <div ref={listContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-1 scrollbar-overlay scroll-fade">
+      {/* Everything between Search and Settings scrolls; an edge fades only while there is more beyond it */}
+      <FadeScroll ref={listContainerRef} className="flex-1 px-2 pb-1">
         {isSettingsView ? (
           <>
             <RowGroupLabel>Settings</RowGroupLabel>
@@ -193,10 +195,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </>
         ) : (
           <>
+            {destinations}
             {list}
           </>
         )}
-      </div>
+      </FadeScroll>
 
       {/* Activity tray — transient, only visible when operations are in progress */}
       <ActivityTray />
