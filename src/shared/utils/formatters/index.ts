@@ -52,22 +52,22 @@ function hourOption(): Intl.DateTimeFormatOptions {
   return hour24 === undefined ? {} : { hourCycle: hour24 ? 'h23' : 'h12' };
 }
 
-/** Relative time, e.g. "2 hours ago". */
-export function formatRelativeTime(date: Date | string | number): string {
-  const d = new Date(date);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffSecs = Math.floor(diffMs / 1000);
-  const diffMins = Math.floor(diffSecs / 60);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
+/** Largest first: the first unit that fits names the gap. */
+const RELATIVE_UNITS = [
+  { seconds: 86_400, long: 'day', short: 'd' },
+  { seconds: 3_600, long: 'hour', short: 'h' },
+  { seconds: 60, long: 'minute', short: 'm' },
+] as const;
+const RELATIVE_LIMIT_SECONDS = 7 * 86_400;
 
+/** Relative time: "2 hours ago", or with `short` (list rows) "2h ago"; a week or older is the date. */
+export function formatRelativeTime(date: Date | string | number, { short = false }: { short?: boolean } = {}): string {
+  const diffSecs = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
   if (diffSecs < 60) return 'just now';
-  if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
-  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-  if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-  
-  return formatDate(date);
+  if (diffSecs >= RELATIVE_LIMIT_SECONDS) return formatDate(date);
+  const unit = RELATIVE_UNITS.find((u) => diffSecs >= u.seconds) ?? RELATIVE_UNITS[2];
+  const count = Math.floor(diffSecs / unit.seconds);
+  return short ? `${count}${unit.short} ago` : `${count} ${unit.long}${count > 1 ? 's' : ''} ago`;
 }
 
 const SIZE_UNITS = ['kilobyte', 'megabyte', 'gigabyte', 'terabyte'] as const;

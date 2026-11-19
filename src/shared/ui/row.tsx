@@ -4,22 +4,29 @@ import { Text } from './text';
 import { platform } from '@platform/index';
 
 /** Canonical list/sidebar row (control-md: 32 px on macOS, 44 pt on iOS) (Row, rowClasses, RowAction, RowGroupLabel) so every list shares one shape. */
-export function rowClasses(selected?: boolean): string {
+/** `md`: one-line rows (sidebar, menus); `lg`: a title over a detail line with room around it (Mail / Notes lists). */
+export type RowSize = 'md' | 'lg';
+
+const ROW_PADDING: Record<RowSize, string> = { md: 'py-1', lg: 'py-2' };
+
+export function rowClasses(selected?: boolean, size: RowSize = 'md'): string {
   return cn(
-    'flex w-full min-h-control-md py-1 items-center gap-2 rounded-md px-2.5 text-left text-body text-primary transition-colors cursor-pointer min-w-0',
+    'flex w-full min-h-control-md items-center gap-2 rounded-md px-2.5 text-left text-body text-primary transition-colors cursor-pointer min-w-0',
+    ROW_PADDING[size],
     selected ? 'bg-pressed' : 'hover:bg-hover',
   );
 }
 
 export interface RowProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   selected?: boolean;
+  size?: RowSize;
   /** An icon on the text's first line, however many lines the text wraps to. */
   leading?: React.ReactNode;
 }
 
-export function Row({ selected, leading, className, type = 'button', children, ...props }: RowProps) {
+export function Row({ selected, size, leading, className, type = 'button', children, ...props }: RowProps) {
   return (
-    <button type={type} className={cn(rowClasses(selected), className)} {...props}>
+    <button type={type} className={cn(rowClasses(selected, size), className)} {...props}>
       {leading ? (
         // Icon and text are one group the row centres; inside it the icon's box is one text line tall (1lh), so it
         // sits on the first line wherever the row places the text.
