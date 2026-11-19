@@ -12,8 +12,11 @@ export const TRANSCRIPTION_CONFIG = {
   liveChunkMs: 100,
   /** Real-time transcription copy for the General setting and the mark on speech models that support it. */
   liveCopy: {
-    description: 'Words appear as you speak (some models).',
-    unavailable: "Your speech model doesn't support this. Pick one marked Real-time in Default Models.",
+    description: 'Words appear while you talk, in meetings and dictation.',
+    /** What the chosen speech model does live: streams everywhere, streams dictation only, or chunks (near-live). */
+    streams: 'Your speech model streams: words appear as you speak.',
+    dictationOnly: 'Your speech model streams dictation; in meetings, words come about 8 seconds behind.',
+    chunks: 'Your speech model works near-live: words come about 8 seconds behind.',
     mark: 'Real-time',
   },
   /** Spoken language sent to engines that take one; a language setting is out of scope. */
@@ -42,6 +45,15 @@ export const TRANSCRIPTION_CONFIG = {
     'apple-intelligence': 'apple-speech',
     'on-device': 'on-device',
   } as Record<string, TranscriptionAdapterId>,
+
+  /** Cloud speech models that stream (words as they are said), by adapter; any other model goes live in chunks. */
+  streamingModels: {
+    'openai-compatible': /^gpt-4o(-mini)?-transcribe|realtime/i,
+    deepgram: /^(nova|flux)/i,
+    elevenlabs: /realtime/i,
+  } as Partial<Record<TranscriptionAdapterId, RegExp>>,
+  /** Streaming audio: 16-bit little-endian PCM at the live sample rate. */
+  streamingFormat: { type: 'audio/pcm', rate: 16_000 },
 
   /** Provider id of the running Hex app (no key; its models come from Hex). */
   hexProvider: 'hex',

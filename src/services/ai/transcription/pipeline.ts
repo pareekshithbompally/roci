@@ -11,6 +11,7 @@ import { defaultHexModel } from './hex';
 import { getSpeechSegments } from './vad';
 import type { TokenUsage } from '@services/ai/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
+import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type {
   PartRequest,
   SpeechRange,
@@ -33,10 +34,12 @@ export interface TranscribeOptions {
 
 const { sampleRate, hexProvider, keylessProviders } = TRANSCRIPTION_CONFIG;
 
-async function modelOf(selection: SpeechSelection): Promise<string> {
-  if (selection.model) return selection.model;
-  if (selection.provider === hexProvider) return defaultHexModel();
-  throw new Error('Choose a transcription model in Settings › Default Models.');
+/** The model to run (Hex's first downloaded one when none is chosen) and its credentials (none for engines on this Mac). */
+export async function speechModelFor(selection: SpeechSelection, providers: ModelProvider[]): Promise<{ model: string; resolved: ResolvedModel | null }> {
+  const model = selection.model || (selection.provider === hexProvider ? await defaultHexModel() : '');
+  if (!model) throw new Error('Choose a transcription model in Settings › Default Models.');
+  const resolved = keylessProviders.includes(selection.provider) ? null : resolveSpeechModel(selection.provider, model, providers);
+  return { model, resolved };
 }
 
 /** Part segments shifted to the recording's clock; a part without segments becomes one. */
@@ -157,8 +160,7 @@ export async function runTranscription(
   if (!adapterId) {
     throw new Error(`${getProviderTitle(selection.provider)} "${selection.model}" can't transcribe audio. Choose a speech model in Settings › Default Models.`);
   }
-  const model = await modelOf(selection);
-  const resolved = keylessProviders.includes(selection.provider) ? null : resolveSpeechModel(selection.provider, model, providers);
+  const { model, resolved } = await speechModelFor(selection, providers);
 
   const samples = await toMonoSamples(audio, sampleRate);
   const chunks = await speechChunks(samples, TRANSCRIPTION_CONFIG.partSeconds[adapterId] * sampleRate, vad);

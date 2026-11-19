@@ -3,6 +3,7 @@
 
 import { create } from 'zustand';
 import type { LiveEntry } from './liveTranscript';
+import type { MeetingSource } from '@shared/types/native';
 
 interface MeetingLiveState {
   meetingId: string | null;
@@ -15,18 +16,21 @@ interface MeetingLiveState {
   failed: boolean;
   /** Why, when there is something to fix (a speech model to choose, a key to add); empty when it simply fell behind. */
   reason: string;
+  /** A streaming model's words still being revised, per source; shown faint until they settle into a line. */
+  partial: Partial<Record<MeetingSource, string>>;
 }
 
-export const useMeetingLiveStore = create<MeetingLiveState>(() => ({ meetingId: null, entries: [], pending: 0, live: false, failed: false, reason: '' }));
+export const useMeetingLiveStore = create<MeetingLiveState>(() => ({ meetingId: null, entries: [], pending: 0, live: false, failed: false, reason: '', partial: {} }));
 
 export const meetingLiveActions = {
-  start: (meetingId: string) => useMeetingLiveStore.setState({ meetingId, entries: [], pending: 0, live: true, failed: false, reason: '' }),
+  start: (meetingId: string) => useMeetingLiveStore.setState({ meetingId, entries: [], pending: 0, live: true, failed: false, reason: '', partial: {} }),
   set: (entries: LiveEntry[]) => useMeetingLiveStore.setState({ entries }),
   pending: (pending: number) => useMeetingLiveStore.setState({ pending }),
   /** The first reason given stays: it is the one to fix. */
   fail: (reason?: string) => useMeetingLiveStore.setState((s) => ({ failed: true, reason: s.reason || reason || '' })),
   /** The recording ended: its entries stay as the draft transcript. */
-  end: () => useMeetingLiveStore.setState({ pending: 0, live: false }),
+  partial: (source: MeetingSource, text: string) => useMeetingLiveStore.setState((s) => ({ partial: { ...s.partial, [source]: text } })),
+  end: () => useMeetingLiveStore.setState({ pending: 0, live: false, partial: {} }),
 };
 
 const NO_ENTRIES: LiveEntry[] = [];

@@ -14,7 +14,7 @@ import { Button, CardRow, ChoiceControl, Icon, Picker, Section, Status, Switch, 
 
 import { useAppUpdate } from '@features/settings/hooks/useAppUpdate';
 import { AcknowledgementsDialog } from './AcknowledgementsDialog';
-import { useLiveDictation } from '@features/settings/hooks/useSpeechModels';
+import { useLiveModeLine } from '@features/settings/hooks/useSpeechModels';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { APP_CONFIG } from '@config/app.config';
 import { AppIcon } from '@shared/components';
@@ -51,8 +51,7 @@ const CAPTURE_HINT: Record<(typeof CAPTURE_SOURCES)[number], string> = {
 export const GeneralPanel: React.FC = () => {
   const { theme, setTheme } = useThemeContext();
   const { settings, setSettings } = useSettings();
-  const liveDictation = useLiveDictation();
-  const { liveCopy } = TRANSCRIPTION_CONFIG;
+  const liveLine = useLiveModeLine();
   const { showToast } = useToast();
 
   const appUpdate = useAppUpdate();
@@ -267,7 +266,7 @@ export const GeneralPanel: React.FC = () => {
       {platform.canRecord && (
         <Section
           title="Transcription"
-          footer={settings.liveTranscription && !liveDictation ? liveCopy.unavailable : `${liveCopy.description} ${FOOTER.afterRecording}`}
+          footer={[TRANSCRIPTION_CONFIG.liveCopy.description, liveLine, FOOTER.afterRecording].filter(Boolean).join(' ')}
         >
           <CardRow
             title="Real-time Transcription"

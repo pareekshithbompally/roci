@@ -16,10 +16,12 @@ export {
   prepareAppleSpeech,
 } from './appleSpeech';
 export type { AppleSpeechStep } from './appleSpeech';
-export { liveEngineFor, EMPTY_LIVE_TEXT } from './live';
+export { liveModeOf, openLiveStream } from './live';
+export type { LiveMode } from './live';
+export { EMPTY_LIVE_TEXT } from './streaming';
 export { recordedCapture, liveCapture } from './capture';
 export type { DictationCapture } from './capture';
-export type { LiveEngine, LiveText } from './live';
+export type { LiveStream, LiveText } from './streaming';
 export type { HexModel, HexStatus } from './hex';
 export type { TranscriptResult, TranscriptSegment, TranscriptionProgress, SpeechSelection, SpeechRange } from './types';
 export { getSpeechSegments } from './vad';

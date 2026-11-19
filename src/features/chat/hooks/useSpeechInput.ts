@@ -117,7 +117,7 @@ export function useSpeechInput(
 
   const beginCapture = useCallback((micStream: MediaStream): Promise<DictationCapture> => {
     if (live) {
-      return liveCapture(micStream, live.engine, live.model, (text) => {
+      return liveCapture(micStream, live.open, (text) => {
         if (mountedRef.current) setLiveText(text);
       });
     }

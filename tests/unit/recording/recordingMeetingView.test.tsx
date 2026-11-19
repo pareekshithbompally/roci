@@ -59,7 +59,7 @@ beforeEach(() => {
 
 function startRecording() {
   useRecordingStore.setState({
-    ...mirrorOf({ state: 'recording', meetingId: 'm1', recordedMs: 65_000, paused: false }, Date.now()),
+    ...mirrorOf({ state: 'recording', meetingId: 'm1', recordedMs: 65_000, paused: false, liveStreaming: false }, Date.now()),
     busy: false,
     justStopped: null,
   });

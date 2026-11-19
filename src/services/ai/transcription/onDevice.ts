@@ -6,7 +6,7 @@ import { errorMessage, isCodedError } from '@shared/utils/errors';
 import type { LocalErrorPayload } from '@services/localModels.service';
 import { transcribeNatively } from './native';
 import type { TranscribePart } from './types';
-import type { LiveEngine, LiveText } from './live';
+import type { LiveText, StreamingEngine } from './streaming';
 import { platform } from '@platform/index';
 
 function onDeviceErrorMessage(error: unknown, model: string): string {
@@ -27,10 +27,17 @@ export const onDeviceTranscribePart: TranscribePart = ({ wav, model }) =>
 
 const display = (text: LiveText) => `${text.committed}${text.tentative}`.trim();
 
-/** Live dictation on this Mac (models that stream: Parakeet, Nemotron). Audio goes as raw f32. */
-export const onDeviceLive: LiveEngine = {
-  start: (model, language) => invoke('stt_live_start', { model, language }),
-  feed: (pcm) => invoke<LiveText>('stt_live_feed', new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength)),
-  finish: () => invoke<LiveText>('stt_live_finish').then(display),
-  cancel: () => invoke('stt_live_cancel'),
+/** Streaming on this Mac (models that stream: Parakeet, Nemotron — the catalog knows which). The engine holds its one loaded
+ *  model for the whole stream, so one stream runs at a time. Audio goes as raw f32. */
+export const onDeviceStreaming: StreamingEngine = {
+  concurrent: 1,
+  streams: () => true,
+  async open({ model, language }) {
+    await invoke('stt_live_start', { model, language });
+    return {
+      feed: (pcm) => invoke<LiveText>('stt_live_feed', new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength)),
+      finish: () => invoke<LiveText>('stt_live_finish').then(display),
+      cancel: () => invoke('stt_live_cancel'),
+    };
+  },
 };

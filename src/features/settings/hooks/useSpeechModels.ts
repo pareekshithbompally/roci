@@ -10,12 +10,15 @@ import {
   getAppleSpeechStatus,
   getHexStatus,
   isSpeechSelectionReady,
-  liveEngineFor,
+  liveModeOf,
+  openLiveStream,
   speechModelOptions,
   speechSelectionOf,
 } from '@services/ai/transcription';
-import type { LiveEngine, SpeechModelOption, SpeechSources } from '@services/ai/transcription';
+import type { LiveStream, SpeechModelOption, SpeechSources } from '@services/ai/transcription';
 import { getLocalModels } from '@services/localModels.service';
+import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
+import { MEETING_LIVE_CONFIG } from '@config/meetingLive.config';
 import type { LocalModel } from '@services/localModels.service';
 import { useLocalModels } from '@shared/hooks/useLocalModels';
 
@@ -40,24 +43,36 @@ export function useSpeechModelOptions(): SpeechModelOption[] {
   );
 }
 
-/** The live engine and model a dictation streams to. */
+/** A dictation that streams: how to open its stream. */
 export interface LiveDictation {
-  engine: LiveEngine;
-  model: string;
+  open: () => Promise<LiveStream>;
 }
 
-/** Live dictation when Real-time transcription is on and the model streams; null → transcribe the clip at end. */
+/** Streaming dictation when Real-time transcription is on and the model streams; null → transcribe the clip at end. */
 export function useLiveDictation(): LiveDictation | null {
-  const { settings } = useSettings();
+  const { settings, providers } = useSettings();
   const options = useSpeechModelOptions();
   const { liveTranscription, transcriptionProvider, transcriptionModel } = settings;
   return useMemo(() => {
     const selection = speechSelectionOf({ transcriptionProvider, transcriptionModel });
     if (!liveTranscription || !selection) return null;
     const option = options.find((o) => o.provider === selection.provider && o.model === selection.model);
-    const engine = liveEngineFor(selection.provider);
-    return option?.live && option.ready && engine ? { engine, model: selection.model } : null;
-  }, [liveTranscription, transcriptionProvider, transcriptionModel, options]);
+    if (!option?.ready || liveModeOf(option, providers, 1) !== 'streams') return null;
+    return { open: () => openLiveStream(selection, providers) };
+  }, [liveTranscription, transcriptionProvider, transcriptionModel, options, providers]);
+}
+
+/** What the chosen speech model does live, for the Real-time Transcription footer: streams (dictation and meetings),
+ *  streams dictation only (an engine with one stream at a time), or near-live chunks; nothing when none is chosen. */
+export function useLiveModeLine(): string | null {
+  const { settings, providers } = useSettings();
+  const options = useSpeechModelOptions();
+  const selection = speechSelectionOf(settings);
+  if (!selection) return null;
+  const option = options.find((o) => o.provider === selection.provider && o.model === selection.model);
+  const { liveCopy } = TRANSCRIPTION_CONFIG;
+  if (liveModeOf(option, providers, MEETING_LIVE_CONFIG.sources) === 'streams') return liveCopy.streams;
+  return liveModeOf(option, providers, 1) === 'streams' ? liveCopy.dictationOnly : liveCopy.chunks;
 }
 
 /** Whether the selected speech model can run now (composer mic). */

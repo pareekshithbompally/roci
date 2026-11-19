@@ -99,7 +99,7 @@ pub struct Recorder {
 
 impl Recorder {
     /// Starts capturing `sources` into tracks beside `output`, which `stop` writes.
-    pub fn start(sources: Sources, output: PathBuf, app: AppHandle) -> Result<Self> {
+    pub fn start(sources: Sources, output: PathBuf, app: AppHandle, live_streaming: bool) -> Result<Self> {
         let directory = output.with_extension("");
         fs::create_dir_all(&directory)?;
         set_owner_only(&directory, true)?;
@@ -109,7 +109,7 @@ impl Recorder {
         let writer_pause = pause.clone();
         let mut meter = LevelMeter::new(app.clone());
         // The in-call transcript hears what is written: each packet also feeds its live chunks.
-        let mut live = LiveChunker::new(app);
+        let mut live = LiveChunker::new(app, live_streaming);
         let writer = thread::spawn(move || {
             write_tracks(&writer_dir, receiver, &writer_pause, |packet| {
                 meter.offer(packet);

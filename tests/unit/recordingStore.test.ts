@@ -20,7 +20,7 @@ import { AppStatus } from '@shared/types';
 
 const recorded = meetingPipeline.recorded as unknown as ReturnType<typeof vi.fn>;
 
-const RUNNING: RecorderState = { state: 'recording', meetingId: 'm1', recordedMs: 61_500, paused: false };
+const RUNNING: RecorderState = { state: 'recording', meetingId: 'm1', recordedMs: 61_500, paused: false, liveStreaming: false };
 const IDLE: RecorderState = { state: 'idle' };
 
 beforeEach(() => {
@@ -47,7 +47,7 @@ describe('recording', () => {
   it('sync picks up a recording that outlived the page', async () => {
     audio.recorderState.mockResolvedValue(RUNNING);
     await recording.sync();
-    expect(useRecordingStore.getState()).toMatchObject({ meetingId: 'm1', recordedMs: 61_500, paused: false });
+    expect(useRecordingStore.getState()).toMatchObject({ meetingId: 'm1', recordedMs: 61_500, paused: false, liveStreaming: false });
     expect(menubar.setRecordingState).toHaveBeenCalledWith(true, false);
   });
 

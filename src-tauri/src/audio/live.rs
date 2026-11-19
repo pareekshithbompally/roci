@@ -1,6 +1,7 @@
-//! The in-call transcript's audio: each source of the recording (microphone, system audio) at 16 kHz, cut into short chunks
-//! that end at pauses when possible — a hard cut overlaps the next chunk, whose start the webview splices at the seam — for the
-//! webview to transcribe with the chosen speech model. Fed from the track writer, so it hears exactly what is recorded.
+//! The in-call transcript's audio: each source of the recording (microphone, system audio) at 16 kHz, for the webview to
+//! transcribe with the chosen speech model — cut into chunks that end at pauses when possible (a hard cut overlaps the next
+//! chunk, whose start the webview splices at the seam), or into short frames when the model streams. Fed from the track
+//! writer, so it hears exactly what is recorded.
 
 use std::collections::VecDeque;
 use std::sync::Mutex;
@@ -30,6 +31,8 @@ const CHUNK_OVERLAP: usize = RATE * 2;
 const MIN_TAIL: usize = RATE * 3 / 10;
 /// A chunk with no 20 ms frame this loud is silence and is not sent.
 const SILENT_DB: f32 = -60.0;
+/// A frame for a speech model that streams: short, so words come back as they are said.
+const STREAM_FRAME: usize = RATE / 4;
 /// A source arriving this much later than its audio so far accounts for is a dropout, counted as silence.
 const GAP_TOLERANCE_MS: u64 = 500;
 
@@ -149,10 +152,71 @@ impl Chunker {
     }
 }
 
-/// One source on the recording's timeline: its resampler, its chunker, and where its audio began.
+/// Back-to-back short frames for a speech model that streams; silence is sent too, since a stream keeps time by its audio.
+#[derive(Default)]
+struct Framer {
+    buffer: Vec<f32>,
+    start: usize,
+}
+
+impl Framer {
+    fn push(&mut self, samples: &[f32]) -> Vec<Chunk> {
+        self.buffer.extend_from_slice(samples);
+        let mut frames = Vec::new();
+        while self.buffer.len() >= STREAM_FRAME {
+            frames.push(Chunk { start: self.start, overlap: 0, samples: self.buffer.drain(..STREAM_FRAME).collect() });
+            self.start += STREAM_FRAME;
+        }
+        frames
+    }
+
+    fn finish(self) -> Option<Chunk> {
+        (!self.buffer.is_empty()).then(|| Chunk { start: self.start, overlap: 0, samples: self.buffer })
+    }
+}
+
+/// How a source is cut for the webview: at pauses into chunks (transcribed one at a time), or into frames for a model that
+/// streams.
+enum Cutter {
+    Pauses(Chunker),
+    Frames(Framer),
+}
+
+impl Default for Cutter {
+    fn default() -> Self {
+        Cutter::Pauses(Chunker::default())
+    }
+}
+
+impl Cutter {
+    fn new(streaming: bool) -> Self {
+        if streaming { Cutter::Frames(Framer::default()) } else { Cutter::default() }
+    }
+
+    fn push(&mut self, samples: &[f32]) -> Vec<Chunk> {
+        match self {
+            Cutter::Pauses(chunker) => chunker.push(samples),
+            Cutter::Frames(framer) => framer.push(samples),
+        }
+    }
+
+    fn finish(self) -> Option<Chunk> {
+        match self {
+            Cutter::Pauses(chunker) => chunker.finish(),
+            Cutter::Frames(framer) => framer.finish(),
+        }
+    }
+
+    /// Chunks of silence are skipped; frames never are.
+    fn sends(&self, chunk: &Chunk) -> bool {
+        matches!(self, Cutter::Frames(_)) || !chunk.is_silent()
+    }
+}
+
+/// One source on the recording's timeline: its resampler, its cutter, and where its audio began.
 struct Source {
     resampler: StreamingResampler,
-    chunker: Chunker,
+    cutter: Cutter,
     /// When this source's first packet arrived, in ms of the capture clock (pauses removed).
     origin_ms: u64,
     /// 16 kHz samples fed so far, dropouts counted as silence.
@@ -174,12 +238,12 @@ impl Source {
 
     fn feed(&mut self, samples: &[f32]) -> Vec<Chunk> {
         self.fed += samples.len();
-        self.chunker.push(samples)
+        self.cutter.push(samples)
     }
 
-    /// The chunks worth sending (silence never is), as events numbered in order.
+    /// The pieces worth sending (a silent chunk never is; every frame is), as events numbered in order.
     fn events(&mut self, source: MeetingSource, chunks: Vec<Chunk>) -> Vec<LiveChunk> {
-        let chunks: Vec<Chunk> = chunks.into_iter().filter(|c| !c.is_silent()).collect();
+        let chunks: Vec<Chunk> = chunks.into_iter().filter(|c| self.cutter.sends(c)).collect();
         chunks.iter().map(|c| self.event(source, c)).collect()
     }
 
@@ -201,14 +265,16 @@ impl Source {
 /// Cuts every written packet into chunks; sends what is left and the end when the recording stops (on drop).
 pub(super) struct LiveChunker {
     app: AppHandle,
+    /// The chosen speech model streams: frames instead of chunks.
+    streaming: bool,
     microphone: Option<Source>,
     system: Option<Source>,
 }
 
 impl LiveChunker {
-    pub(super) fn new(app: AppHandle) -> Self {
+    pub(super) fn new(app: AppHandle, streaming: bool) -> Self {
         *ENVELOPE.lock().unwrap_or_else(|e| e.into_inner()) = Some(EchoEnvelope::default());
-        Self { app, microphone: None, system: None }
+        Self { app, streaming, microphone: None, system: None }
     }
 
     fn send(&self, events: Vec<LiveChunk>) {
@@ -226,7 +292,7 @@ impl LiveChunker {
         };
         if slot.is_none() {
             match StreamingResampler::new(packet.sample_rate) {
-                Ok(resampler) => *slot = Some(Source { resampler, chunker: Chunker::default(), origin_ms: packet.arrival_us / 1_000, fed: 0, sent: 0 }),
+                Ok(resampler) => *slot = Some(Source { resampler, cutter: Cutter::new(self.streaming), origin_ms: packet.arrival_us / 1_000, fed: 0, sent: 0 }),
                 Err(error) => {
                     log::warn!("[meeting-live] no resampler for {} Hz: {error}", packet.sample_rate);
                     return;
@@ -251,7 +317,7 @@ impl Drop for LiveChunker {
         let mut done = LiveDone { microphone: 0, system: 0 };
         for (kind, source) in [(MeetingSource::Microphone, self.microphone.take()), (MeetingSource::System, self.system.take())] {
             let Some(mut source) = source else { continue };
-            let tail = std::mem::take(&mut source.chunker).finish();
+            let tail = std::mem::take(&mut source.cutter).finish();
             let events = source.events(kind, tail.into_iter().collect());
             self.send(events);
             match kind {
@@ -267,6 +333,17 @@ impl Drop for LiveChunker {
 
 #[cfg(test)]
 mod tests {
+    /// A streaming model gets every moment, back to back in short frames, silence included; the rest arrives at the end.
+    #[test]
+    fn frames_are_short_back_to_back_and_include_silence() {
+        let mut cutter = Cutter::new(true);
+        let frames = cutter.push(&vec![0.0; STREAM_FRAME * 2 + 100]);
+        assert_eq!(frames.len(), 2);
+        assert_eq!((frames[0].start, frames[1].start), (0, STREAM_FRAME));
+        assert!(frames.iter().all(|f| cutter.sends(f)), "silent frames are still sent");
+        assert_eq!(cutter.finish().map(|f| f.samples.len()), Some(100));
+    }
+
     /// The webview listens by these names (`src/config`); renaming an event on either side fails here, never silently at runtime.
     #[test]
     fn event_names_match_the_webview() {
@@ -321,7 +398,7 @@ mod tests {
 
     #[test]
     fn a_dropout_counts_as_silence_so_the_timeline_holds() {
-        let source = Source { resampler: StreamingResampler::new(SAMPLE_RATE).unwrap(), chunker: Chunker::default(), origin_ms: 1_000, fed: RATE, sent: 0 };
+        let source = Source { resampler: StreamingResampler::new(SAMPLE_RATE).unwrap(), cutter: Cutter::default(), origin_ms: 1_000, fed: RATE, sent: 0 };
         assert_eq!(source.gap_before(2_000), 0, "on time");
         assert_eq!(source.gap_before(2_400), 0, "within the tolerance");
         assert_eq!(source.gap_before(4_000), 2 * RATE, "two seconds missing");

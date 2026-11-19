@@ -40,7 +40,7 @@ beforeEach(() => {
   refresh.mockReset();
   window.HTMLElement.prototype.scrollTo ??= vi.fn() as unknown as typeof window.HTMLElement.prototype.scrollTo;
   useLiveNotesStore.setState({ meetingId: null, lines: [], bullets: [], updating: false });
-  useRecordingStore.setState({ ...mirrorOf({ state: 'recording', meetingId: 'm1', recordedMs: 0, paused: false }, Date.now()), busy: false, justStopped: null });
+  useRecordingStore.setState({ ...mirrorOf({ state: 'recording', meetingId: 'm1', recordedMs: 0, paused: false, liveStreaming: false }, Date.now()), busy: false, justStopped: null });
   meetingLiveActions.start('m1');
 });
 

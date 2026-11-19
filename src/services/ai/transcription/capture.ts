@@ -1,10 +1,9 @@
 /** Dictation capture behind one interface: record-then-transcribe, or live engine text as it's spoken. */
 
-import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { stripNonSpeech } from './format';
 import { failureLogger } from '@shared/utils/errors';
 import { tapPcm } from './pcmTap';
-import type { LiveEngine, LiveText } from './live';
+import type { LiveStream, LiveText } from './streaming';
 
 const report = failureLogger('DictationCapture');
 
@@ -46,23 +45,23 @@ export function recordedCapture(stream: MediaStream, transcribe: (audio: Blob) =
   };
 }
 
-/** Records at once while the engine warms up; audio spoken meanwhile is queued and fed in order when it's ready. */
+/** Records at once while the stream opens; audio spoken meanwhile is queued and fed in order when it's ready. */
 export async function liveCapture(
   stream: MediaStream,
-  engine: LiveEngine,
-  model: string,
+  open: () => Promise<LiveStream>,
   onText: (text: LiveText) => void,
 ): Promise<DictationCapture> {
   let paused = false;
   let failure: unknown = null;
-  // Start, then every feed, run one at a time and in order.
-  let pending: Promise<void> = engine.start(model, TRANSCRIPTION_CONFIG.language).catch((error: unknown) => {
+  let live: LiveStream | null = null;
+  // Opening, then every feed, run one at a time and in order.
+  let pending: Promise<void> = open().then((opened) => { live = opened; }).catch((error: unknown) => {
     failure = error;
     report('start')(error);
   });
   const tap = await tapPcm(stream, (pcm) => {
     if (paused || failure) return;
-    pending = pending.then(() => engine.feed(pcm)).then(onText, report('feed'));
+    pending = pending.then(() => live?.feed(pcm)).then((text) => text && onText(text), report('feed'));
   });
   return {
     pause: () => {
@@ -74,12 +73,12 @@ export async function liveCapture(
     finish: async () => {
       tap.stop();
       await pending;
-      if (failure) throw failure;
-      return stripNonSpeech(await engine.finish());
+      if (failure || !live) throw failure ?? new Error('Live transcription did not start.');
+      return stripNonSpeech(await (live as LiveStream).finish());
     },
     cancel: () => {
       tap.stop();
-      pending.then(() => (failure ? undefined : engine.cancel())).catch(report('cancel'));
+      pending.then(() => (live as LiveStream | null)?.cancel()).catch(report('cancel'));
     },
   };
 }

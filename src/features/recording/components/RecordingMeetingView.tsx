@@ -55,6 +55,9 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
   const segments = useDraftSegments(meetingId);
   const failed = useMeetingLiveStore((s) => s.failed);
   const reason = useMeetingLiveStore((s) => s.reason);
+  const partial = useMeetingLiveStore((s) => s.partial);
+  // a streaming model's words still being revised wait under the last line, faint, until they settle
+  const drafting = Object.values(partial).filter(Boolean).join(' ');
   const bullets = useLiveNotesStore((s) => s.bullets);
   const updating = useLiveNotesStore((s) => s.updating);
   const { settings } = useSettings();
@@ -68,7 +71,7 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
     label: NOTES.copy.liveTranscript,
     segments,
     empty: failed ? unavailable : speechSelectionOf(settings) ? LIVE.copy.empty : LIVE.copy.noModel,
-    footer: failed ? unavailable : paused ? undefined : LIVE.copy.listening,
+    footer: failed ? unavailable : paused ? undefined : drafting || LIVE.copy.listening,
     follow: true,
   };
 

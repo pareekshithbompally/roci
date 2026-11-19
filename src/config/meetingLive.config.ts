@@ -8,6 +8,8 @@ export const MEETING_LIVE_CONFIG = {
   doneEvent: 'meeting-live://done',
   /** Chunks are 16 kHz mono 16-bit PCM. */
   sampleRate: 16_000,
+  /** Streams a meeting runs at once when its speech model streams: one per source (you and the call). */
+  sources: 2,
   /** The speaker label of each source in the transcript. */
   speakers: { microphone: 'You', system: 'Others' } satisfies Record<MeetingSource, string>,
   /** After Stop, how long to wait for the recorder's last chunks before giving up on them; the full recording is then

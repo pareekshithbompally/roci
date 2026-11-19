@@ -60,6 +60,9 @@ pub struct AudioCaptureOptions {
     pub calendar_event_id: Option<String>,
     /// The calendar event as JSON, stored with the meeting.
     pub calendar_meta: Option<String>,
+    /// The chosen speech model streams: the in-call audio goes to the webview as frames, not chunks.
+    #[serde(default)]
+    pub live_streaming: bool,
 }
 
 /// Why a capture command failed, for the frontend to branch on `code`.
@@ -91,6 +94,8 @@ struct Active {
     recorder: Recorder,
     /// A call paused it (not the user), so the call's end may resume it; iPhone only.
     paused_by_call: bool,
+    /// Its in-call audio goes out as frames for a streaming speech model.
+    live_streaming: bool,
 }
 
 /// What the recorder is doing: the one source of truth for every view of the live recording.
@@ -103,6 +108,8 @@ pub enum RecorderState {
         /// Time captured so far, pauses excluded.
         recorded_ms: u64,
         paused: bool,
+        /// The in-call audio goes out as frames (the speech model chosen at Record streams), not chunks.
+        live_streaming: bool,
     },
 }
 
@@ -116,6 +123,7 @@ impl RecorderState {
             meeting_id: active.meeting_id.clone(),
             recorded_ms: u64::try_from(progress.recorded.as_millis()).unwrap_or(u64::MAX),
             paused: progress.paused,
+            live_streaming: active.live_streaming,
         }
     }
 }
@@ -210,9 +218,9 @@ fn start(app: &AppHandle, options: AudioCaptureOptions) -> Result<String, Captur
     )?;
     let output = recordings_path(app)?.join(file_name);
     tracing::info!(output = %output.display(), "audio capture starting");
-    match open_session().and_then(|()| Recorder::start(options.source.sources(), output, app.clone())) {
+    match open_session().and_then(|()| Recorder::start(options.source.sources(), output, app.clone(), options.live_streaming)) {
         Ok(started) => {
-            *active = Some(Active { meeting_id: meeting_id.clone(), recorder: started, paused_by_call: false });
+            *active = Some(Active { meeting_id: meeting_id.clone(), recorder: started, paused_by_call: false, live_streaming: options.live_streaming });
             Ok(meeting_id)
         }
         Err(error) => {

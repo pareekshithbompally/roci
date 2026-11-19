@@ -27,19 +27,22 @@ interface RecordingState {
   /** When the recorder was last read; the clock runs on from here unless paused. */
   readAt: number;
   paused: boolean;
+  /** The in-call audio comes as frames for a streaming speech model (chosen at Record; the recorder reports it). */
+  liveStreaming: boolean;
   /** True while Start or Stop is in flight. */
   busy: boolean;
   /** The recording that just stopped, offered in the tray with Transcribe until dismissed. */
   justStopped: string | null;
 }
 
-type Mirror = Pick<RecordingState, 'meetingId' | 'recordedMs' | 'readAt' | 'paused'>;
+type Mirror = Pick<RecordingState, 'meetingId' | 'recordedMs' | 'readAt' | 'paused' | 'liveStreaming'>;
 
 export const useRecordingStore = create<RecordingState>(() => ({
   meetingId: null,
   recordedMs: 0,
   readAt: 0,
   paused: false,
+  liveStreaming: false,
   busy: false,
   justStopped: null,
 }));
@@ -51,8 +54,8 @@ export const useJustStopped = () => useRecordingStore((s) => s.justStopped);
 
 /** The store's copy of the recorder's state, read at `now`. */
 export function mirrorOf(recorder: RecorderState, now: number): Mirror {
-  if (recorder.state === 'idle') return { meetingId: null, recordedMs: 0, readAt: now, paused: false };
-  return { meetingId: recorder.meetingId, recordedMs: recorder.recordedMs, readAt: now, paused: recorder.paused };
+  if (recorder.state === 'idle') return { meetingId: null, recordedMs: 0, readAt: now, paused: false, liveStreaming: false };
+  return { meetingId: recorder.meetingId, recordedMs: recorder.recordedMs, readAt: now, paused: recorder.paused, liveStreaming: recorder.liveStreaming };
 }
 
 /** Seconds recorded so far, not counting pauses. */
@@ -109,7 +112,8 @@ export const recording = {
   sync,
 
   /** Creates the meeting and starts capture; rejects (after telling the user) when it can't. */
-  async start(source: AudioCaptureSource): Promise<string> {
+  /** `liveStreaming`: the chosen speech model streams, so the recorder sends its in-call audio as frames. */
+  async start(source: AudioCaptureSource, liveStreaming = false): Promise<string> {
     if (!isTauriEnvironment()) throw new Error('Native recording is available in the desktop app only.');
     if (useRecordingStore.getState().meetingId || useRecordingStore.getState().busy) {
       throw new Error('A recording is already running.');
@@ -124,6 +128,7 @@ export const recording = {
         title,
         calendarEventId: calendar?.calendarEventId,
         calendarMeta: calendar ? calendarMetaOf(calendar) : undefined,
+        liveStreaming,
       });
       useAppStore.getState().setSelectedHistoryId(meetingId);
       useAppStore.getState().setActiveResultTab('transcript');

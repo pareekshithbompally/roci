@@ -1,10 +1,11 @@
-/** The in-call transcript: the recording's own chunks (mic and system audio, from Rust) transcribed in order with the chosen
- *  speech model; on Stop it becomes the meeting's transcript when every chunk was transcribed. */
+/** The in-call transcript: the recording's own audio (mic and system, from Rust) transcribed with the chosen speech model —
+ *  streamed when the model streams (frames), otherwise chunk by chunk in order. It is the draft the screen shows; after Stop the
+ *  whole recording is transcribed for the meeting's transcript. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { MEETING_LIVE_CONFIG as LIVE, type MeetingSourceId } from '@config/meetingLive.config';
-import type { TranscriptResult } from '@services/ai/transcription';
+import { openLiveStream, speechSelectionOf, type TranscriptResult } from '@services/ai/transcription';
 import { transcribeAudio } from '@services/unifiedAIService';
 import { errorMessage } from '@shared/utils/errors';
 import { encodeWavInt16 } from '@shared/utils/wav.utils';
@@ -12,6 +13,7 @@ import type { LiveChunk, LiveDone } from '@shared/types/native';
 import type { AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { meetingLiveActions } from './meetingLiveStore';
+import { liveStreams, type LiveStreams } from './liveStreams';
 
 /** One transcribed chunk of one source, on the recording's timeline. */
 export interface LiveEntry {
@@ -36,6 +38,8 @@ interface Session {
   waiting: LiveChunk[];
   /** The loop transcribing `waiting` one chunk at a time; null when idle. */
   draining: Promise<void> | null;
+  /** A streaming model's streams, one per source; null when the model goes live in chunks. */
+  streams: LiveStreams | null;
   done: Promise<void>;
   unlisten: () => void;
 }
@@ -44,12 +48,14 @@ type Reader = () => { settings: AppSettings; providers: ModelProvider[] };
 
 let session: Session | null = null;
 
-function wavOf(pcm: string): Blob {
+/** A chunk's or frame's audio (base64 16-bit PCM) as samples. */
+function samplesOf(pcm: string): Float32Array {
   const bytes = Uint8Array.from(atob(pcm), (c) => c.charCodeAt(0));
   const ints = new Int16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2);
-  const samples = Float32Array.from(ints, (s) => s / 32_768);
-  return new Blob([encodeWavInt16(samples, LIVE.sampleRate)], { type: 'audio/wav' });
+  return Float32Array.from(ints, (s) => s / 32_768);
 }
+
+const wavOf = (pcm: string): Blob => new Blob([encodeWavInt16(samplesOf(pcm), LIVE.sampleRate)], { type: 'audio/wav' });
 
 /** A chunk was lost: the in-call transcript has a gap, which the screen says (with why, when there is a reason to fix) and the
  *  pipeline repairs after Stop. */
@@ -153,6 +159,7 @@ async function drain(current: Session, read: Reader): Promise<void> {
 
 function enqueue(current: Session, chunk: LiveChunk, read: Reader): void {
   checkSequence(current, chunk);
+  if (current.streams) return current.streams.feed(chunk, samplesOf(chunk.pcm));
   const { kept, shed } = shedBacklog([...current.waiting, chunk]);
   current.waiting = kept;
   if (shed > 0) current.failed = true;
@@ -251,6 +258,28 @@ export function liveTranscriptResult(entries: LiveEntry[]): TranscriptResult {
   return { text: segments.map((s) => s.text).join(' '), segments };
 }
 
+/** A stream for the chosen speech model (it streams: the recorder was told so at Record). */
+function openStream(read: Reader) {
+  const { settings, providers } = read();
+  const selection = speechSelectionOf(settings);
+  if (!selection) return Promise.reject(new Error('Choose a transcription model in Settings › Default Models.'));
+  return openLiveStream(selection, providers);
+}
+
+/** A stream's lines join the session's draft (echo removed) the same way chunk results do. */
+function streamSink(current: Session) {
+  return {
+    line(entry: LiveEntry) {
+      current.entries.push(entry);
+      void withoutEcho(current.entries).then((entries) => session === current && meetingLiveActions.set(entries));
+    },
+    partial(source: MeetingSourceId, text: string) {
+      if (session === current) meetingLiveActions.partial(source, text);
+    },
+    fail: (reason: string) => markFailed(current, reason),
+  };
+}
+
 /** The recorder's end-of-chunks, or — if it never comes — the deadline after Stop, past which the in-call transcript counts as
  *  incomplete (the recording is transcribed instead). One timer, cleared when the end arrives. */
 async function untilDoneOrTimeout(current: Session): Promise<void> {
@@ -266,16 +295,19 @@ async function untilDoneOrTimeout(current: Session): Promise<void> {
 }
 
 export const liveTranscript = {
-  /** Starts listening for a recording's chunks; any earlier session (an abandoned recording) is dropped. */
-  async start(meetingId: string, read: Reader): Promise<void> {
+  /** Starts listening for a recording's audio — frames for a model that streams (`streaming`, as the recorder reports it),
+   *  chunks otherwise; any earlier session (an abandoned recording) is dropped. */
+  async start(meetingId: string, read: Reader, streaming = false): Promise<void> {
     session?.unlisten();
     session?.controller.abort();
+    session?.streams?.cancel();
     meetingLiveActions.start(meetingId);
     let finished: () => void = () => undefined;
     const current: Session = {
       meetingId, entries: [], failed: false, expected: { microphone: 0, system: 0 }, controller: new AbortController(),
-      waiting: [], draining: null, done: new Promise((r) => { finished = r; }), unlisten: () => undefined,
+      waiting: [], draining: null, streams: null, done: new Promise((r) => { finished = r; }), unlisten: () => undefined,
     };
+    if (streaming) current.streams = liveStreams(() => openStream(read), streamSink(current));
     session = current;
     const offChunk = await listen<LiveChunk>(LIVE.chunkEvent, ({ payload }) => enqueue(current, payload, read));
     const offDone = await listen<LiveDone | null>(LIVE.doneEvent, ({ payload }) => {
@@ -296,6 +328,7 @@ export const liveTranscript = {
     if (!current || current.meetingId !== meetingId) return;
     await untilDoneOrTimeout(current);
     while (current.draining) await current.draining;
+    await current.streams?.finish();
     current.unlisten();
     session = null;
     meetingLiveActions.end();

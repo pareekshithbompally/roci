@@ -9,6 +9,8 @@ export interface AudioCaptureOptions {
   title: string
   calendarEventId?: string
   calendarMeta?: Record<string, unknown>
+  /** The chosen speech model streams: the in-call audio comes as frames, not chunks. */
+  liveStreaming?: boolean
 }
 
 /** Why a capture command failed (Rust `CaptureError`). */
@@ -19,7 +21,7 @@ export type CaptureError =
 /** What the recorder is doing (Rust `RecorderState`): the one source of truth for the live recording. */
 export type RecorderState =
   | { state: 'idle' }
-  | { state: 'recording'; meetingId: string; recordedMs: number; paused: boolean }
+  | { state: 'recording'; meetingId: string; recordedMs: number; paused: boolean; liveStreaming: boolean }
 
 const isCaptureError =(error: unknown): error is CaptureError => isCodedError<CaptureError>(error)
 
@@ -43,6 +45,7 @@ class CoreAudioService {
         title: options.title,
         calendarEventId: options.calendarEventId ?? null,
         calendarMeta: options.calendarMeta ? JSON.stringify(options.calendarMeta) : null,
+        liveStreaming: options.liveStreaming ?? false,
       },
     })
   }

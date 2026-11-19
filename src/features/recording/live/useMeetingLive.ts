@@ -1,8 +1,9 @@
-/** Starts the in-call transcript when a meeting starts recording with Real-time transcription on; mounted once for the app. */
+/** Starts the in-call transcript when a meeting starts recording with Real-time transcription on, streamed or in chunks as the
+ *  recorder was started; mounted once for the app. */
 
 import { useEffect, useRef } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useRecordingMeetingId } from '@features/recording/stores/recordingStore';
+import { useRecordingMeetingId, useRecordingStore } from '@features/recording/stores/recordingStore';
 import { liveTranscript } from './liveTranscript';
 
 export function useMeetingLive(): void {
@@ -12,10 +13,12 @@ export function useMeetingLive(): void {
   context.current = { settings, providers };
 
   const live = !!settings.liveTranscription;
+  // the mode the recorder was started in (it reports it), so frames are never read as chunks
+  const streaming = useRecordingStore((s) => s.liveStreaming);
 
   useEffect(() => {
     if (!meetingId || !live) return;
-    liveTranscript.start(meetingId, () => context.current).catch((error: unknown) =>
+    liveTranscript.start(meetingId, () => context.current, streaming).catch((error: unknown) =>
       console.error('[useMeetingLive] could not start the in-call transcript:', error));
-  }, [meetingId, live]);
+  }, [meetingId, live, streaming]);
 }
