@@ -6,6 +6,7 @@ import { useSmallScreen } from '@shared/hooks/useMediaQuery';
 import { useAppStatus, useSelectedHistoryId, useAppResult, useCurrentView } from '@shared/stores/appStore';
 import { useActivityItems } from '@shared/stores/activityStore';
 import { Sidebar } from './Sidebar';
+import { SearchPalette } from '@features/history';
 import { MeetingChat, startNewChat } from '@features/chat';
 import { PanelLeft, SquarePen } from 'lucide-react';
 import { platform } from '@platform/index';
@@ -69,6 +70,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     <Surface as="main" variant="page" className="relative h-screen overflow-hidden">
       <TitlebarDragRegion />
 
+      {/* ⌘K: Spotlight-style search beside the column sidebar (the phone searches in its sidebar sheet). */}
+      <SearchPalette />
       {/* Narrow window: the sidebar slides over the content (the same drawer as on a phone). */}
       <Drawer side="start" open={isSmallScreen && isLeftPanelOpen} onClose={() => setLeftPanel(false)} label="Sidebar">
         <Sidebar shouldOffsetMacControls={shouldOffsetMacControls} />

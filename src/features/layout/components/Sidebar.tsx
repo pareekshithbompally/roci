@@ -15,8 +15,8 @@ import { LAYOUT } from '@config/layout.config';
 import { AppMark, Button, FadeScroll, IconButton, Icon, Row, RowGroupLabel, Kbd, SearchField, Text } from '@shared/ui';
 import { APP_CONFIG } from '@config/app.config';
 import {
-  endSidebarSearch, setSidebarSearchQuery, startSidebarSearch, useSidebarSearchActive, useSidebarSearchQuery,
-} from '@shared/stores/sidebarSearchStore';
+  endSearch, setSearchQuery, startSearch, useSearchActive, useSearchQuery,
+} from '@shared/stores/searchStore';
 import { ActivityTray, ActivityButton } from '@shared/components';
 import { shortcutLabel } from '@features/shortcuts';
 import { openChat, startNewChat, useChatStore } from '@features/chat';
@@ -48,9 +48,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const currentChatId = useChatStore((s) => s.currentSessionId);
   const listContainerRef = useRef<HTMLDivElement>(null);
   const openMeeting = useOpenMeeting();
-  const searchActive = useSidebarSearchActive();
-  const query = useSidebarSearchQuery();
-  const search = useSessionSearch(items, query);
+  const searchActive = useSearchActive();
+  const query = useSearchQuery();
+  // The sheet (iPhone) searches in place; a column sidebar's search is the ⌘K panel (SearchPalette), so it never searches here.
+  const sheet = variant === 'sheet';
+  const search = useSessionSearch(items, sheet ? query : '');
+  const results = search.matches?.map((match) => match.item) ?? null;
   const calendarOn = isIntegrationEnabled(useSettings().settings, 'calendar');
 
   // Scroll the selected item into view when selection changes (e.g. from spotlight)
@@ -81,7 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     } else if (item.type === 'chat') {
       openChat(item.id);
     }
-    endSidebarSearch();
+    endSearch();
     if (isSmallScreen) setLeftPanel(false);
   }, [isSmallScreen, setLeftPanel, openMeeting]);
 
@@ -103,18 +106,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </>
   );
 
-  // One list: the recents, or while searching the matches (words highlighted).
+  // One list: the recents, or (iPhone, while searching) the matches with their words highlighted.
   const list = (
     <>
-      <RowGroupLabel>{search.matches ? 'Results' : 'Recents'}</RowGroupLabel>
-      <UnifiedList items={search.matches ?? items} selectedId={getSelectedId()} onSelect={handleSelectItem} searchQuery={search.matches ? query : ''} />
+      <RowGroupLabel>{results ? 'Results' : 'Recents'}</RowGroupLabel>
+      <UnifiedList items={results ?? items} selectedId={getSelectedId()} onSelect={handleSelectItem} searchQuery={results ? query : ''} />
     </>
   );
   const searchField = (
     <SearchField
       value={query}
-      onChange={setSidebarSearchQuery}
-      onCancel={endSidebarSearch}
+      onChange={setSearchQuery}
+      onCancel={endSearch}
       placeholder="Search"
       autoFocus
       busy={search.searching}
@@ -122,19 +125,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
     />
   );
 
-  if (variant === 'sheet') {
+  if (sheet) {
     return (
       <div className="flex h-full w-full flex-col overflow-hidden">
         <header className="flex min-h-14 shrink-0 items-center gap-2 px-4 pt-2 pb-3">
           {searchActive ? (
             <>
               {searchField}
-              <Button variant="link" size="inline" onClick={endSidebarSearch}>Cancel</Button>
+              <Button variant="link" size="inline" onClick={endSearch}>Cancel</Button>
             </>
           ) : (
             <>
               <Text as="h1" variant="title" className="flex-1">{APP_CONFIG.name}</Text>
-              <IconButton icon={Search} size="fab" variant="bar" onClick={startSidebarSearch} label="Search" />
+              <IconButton icon={Search} size="fab" variant="bar" onClick={startSearch} label="Search" />
               <IconButton icon={SquarePen} size="fab" variant="bar" onClick={handleHomeClick} label="New chat" />
             </>
           )}
@@ -163,22 +166,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
       </div>
 
-      {/* The app: its mark (the icon's two-tone ship) and name */}
-      <div className="shrink-0 flex items-center gap-2 px-4 pb-2">
-        <AppMark size="md" />
-        <Text variant="headline">{APP_CONFIG.name}</Text>
-      </div>
-
-      {/* Fixed above the scroll: Search in the app, the way back out in settings */}
+      {/* Fixed above the scroll: the app (its mark and name; a new chat, like the pen), then Search, or the way back out in settings */}
       <div className="shrink-0 px-2">
+        <Row onClick={handleHomeClick} aria-label={`${APP_CONFIG.name}: new chat`}>
+          <AppMark size="lg" />
+          <Text variant="title">{APP_CONFIG.name}</Text>
+        </Row>
         {isSettingsView ? (
           <Row onClick={leaveSettings}>
             <Icon icon={ChevronLeft} size="xs" className="shrink-0" />
             <span className="flex-1">Back to app</span>
             <Kbd>{shortcutLabel('leaveSettings')}</Kbd>
           </Row>
-        ) : searchActive ? searchField : (
-          <Row onClick={startSidebarSearch}>
+        ) : (
+          <Row onClick={startSearch}>
             <Icon icon={Search} size="xs" className="shrink-0" />
             <span className="flex-1">Search</span>
             <Kbd>{shortcutLabel('search')}</Kbd>

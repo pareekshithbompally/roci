@@ -3,7 +3,7 @@ import { fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { CalendarDays, ListTodo } from 'lucide-react';
 import { DestinationRow } from '@features/layout/components/DestinationRow';
 import { useAppStore } from '@shared/stores/appStore';
-import { startSidebarSearch, useSidebarSearchActive } from '@shared/stores/sidebarSearchStore';
+import { startSearch, useSearchActive } from '@shared/stores/searchStore';
 import { TODOS_CONFIG } from '@config/todos.config';
 import { CALENDAR_CONFIG } from '@config/calendar.config';
 
@@ -19,11 +19,11 @@ describe('sidebar destination rows (To-dos, Upcoming)', () => {
   beforeEach(() => useAppStore.getState().setCurrentView('home'));
 
   it('opens its place and ends a sidebar search', () => {
-    startSidebarSearch();
+    startSearch();
     render(rows());
     fireEvent.click(row(TODOS_CONFIG.title));
     expect(useAppStore.getState().currentView).toBe('reminders');
-    expect(renderHook(() => useSidebarSearchActive()).result.current).toBe(false);
+    expect(renderHook(() => useSearchActive()).result.current).toBe(false);
     fireEvent.click(row(CALENDAR_CONFIG.title));
     expect(useAppStore.getState().currentView).toBe('calendar');
   });

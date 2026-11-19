@@ -34,7 +34,7 @@ describe('useSessionSearch', () => {
 
   it('shows title matches at once, while the index is still searching', () => {
     const { result } = renderHook(() => useSessionSearch(ITEMS, 'sync'));
-    expect(result.current.matches?.map((i) => i.id)).toEqual(['m1']);
+    expect(result.current.matches?.map((m) => m.item.id)).toEqual(['m1']);
     expect(result.current.searching).toBe(true);
   });
 
@@ -42,8 +42,15 @@ describe('useSessionSearch', () => {
     spotlightSearch.mockResolvedValueOnce([{ source_type: 'chat', source_id: 'c1', title: 'Pricing brainstorm', excerpt: 'sync later', timestamp: 1, match_type: 'content' }]);
     const { result } = renderHook(() => useSessionSearch(ITEMS, 'sync'));
     await settle();
-    expect(result.current.matches?.map((i) => i.id)).toEqual(['c1', 'm1']);
+    expect(result.current.matches?.map((m) => m.item.id)).toEqual(['c1', 'm1']);
     expect(result.current.searching).toBe(false);
+  });
+
+  it('keeps the index excerpt for a content match, none for a title match', async () => {
+    spotlightSearch.mockResolvedValueOnce([{ source_type: 'chat', source_id: 'c1', title: 'Pricing brainstorm', excerpt: 'we <<MARK>>sync<</MARK>> later', timestamp: 1, match_type: 'content' }]);
+    const { result } = renderHook(() => useSessionSearch(ITEMS, 'sync'));
+    await settle();
+    expect(result.current.matches?.map((m) => m.excerpt)).toEqual(['we <<MARK>>sync<</MARK>> later', '']);
   });
 
   it('drops a response for an older query', async () => {
@@ -54,6 +61,6 @@ describe('useSessionSearch', () => {
     rerender({ q: 'pricing' });
     await settle();
     await act(async () => resolveOld([]));
-    expect(result.current.matches?.map((i) => i.id)).toEqual(['c1']);
+    expect(result.current.matches?.map((m) => m.item.id)).toEqual(['c1']);
   });
 });

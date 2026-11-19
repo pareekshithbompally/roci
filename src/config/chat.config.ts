@@ -17,6 +17,9 @@ export const SPOTLIGHT_MIN_QUERY_LENGTH = 2;
 /** Max results per source type returned by spotlight_search. */
 export const SPOTLIGHT_RESULTS_PER_SOURCE = 6;
 
+/** ⌘K panel: recent meetings and chats it offers before anything is typed. */
+export const SPOTLIGHT_RECENT_LIMIT = 6;
+
 /** A tool row keeps this much of a tool's output for its expanded view. */
 export const TOOL_RESULT_PREVIEW_CHARS = 500;
 

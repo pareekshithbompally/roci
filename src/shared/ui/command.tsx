@@ -2,9 +2,11 @@ import { Command as CommandPrimitive } from 'cmdk';
 import { LITERAL_TEXT } from './recipes';
 import { ChevronRight } from 'lucide-react';
 import { PICKER } from '@config/layout.config';
+import { Title as DialogPrimitiveTitle } from '@radix-ui/react-dialog';
 import type { ComponentProps, ReactNode } from 'react';
+import { Dialog, DialogPortal, DialogOverlay, DialogContent } from './dialog';
 import { cn } from './utils';
-import { MENU_ITEM, MENU_SEPARATOR } from './recipes';
+import { MENU_ITEM, MENU_SEPARATOR, SHEET_SURFACE } from './recipes';
 import { Icon } from './icon';
 import { Text, type TextTone, type TextVariant } from './text';
 
@@ -109,4 +111,28 @@ export function CommandRow({
 
 export function CommandSeparator({ className, ...props }: ComponentProps<typeof CommandPrimitive.Separator>) {
   return <CommandPrimitive.Separator className={cn(MENU_SEPARATOR, className)} {...props} />;
+}
+
+interface CommandDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Its name for VoiceOver. */
+  label: string;
+  children: ReactNode;
+}
+
+/** A Spotlight-style palette: a field with results under it, centred near the top of the window over a dimmed view; the
+ *  caller filters (cmdk's own filter is off), Escape and a click outside close it. */
+export function CommandDialog({ open, onOpenChange, label, children }: CommandDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogPortal>
+        <DialogOverlay />
+        <DialogContent bare aria-describedby={undefined} className={cn(SHEET_SURFACE, 'left-1/2 top-[18vh] w-full max-w-xl -translate-x-1/2 overflow-hidden')}>
+          <DialogPrimitiveTitle className="sr-only">{label}</DialogPrimitiveTitle>
+          <Command shouldFilter={false}>{children}</Command>
+        </DialogContent>
+      </DialogPortal>
+    </Dialog>
+  );
 }

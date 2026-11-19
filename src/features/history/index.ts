@@ -1,5 +1,5 @@
 // Components
-export { UnifiedSidebarItem, UnifiedList } from './components';
+export { UnifiedSidebarItem, UnifiedList, SearchPalette } from './components';
 
 // Hooks
 export { useHistory, useDeleteSession, useUnifiedSidebar, useOpenMeeting } from './hooks';

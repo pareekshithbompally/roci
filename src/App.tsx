@@ -7,7 +7,7 @@ import { useHistory } from '@shared/contexts/HistoryContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { PermissionChecklist, RecordingExitPrompt, recording, useRecordingStore, useRecordingRuntime, useStartRecording } from '@features/recording';
 import { MainLayout } from '@features/layout';
-import { endSidebarSearch, startSidebarSearch, toggleSidebarSearch } from '@shared/stores/sidebarSearchStore';
+import { endSearch, startSearch, toggleSearch } from '@shared/stores/searchStore';
 import { HomeView } from '@features/home';
 import { SettingsPanel } from '@features/settings';
 import { useAppUpdate, scheduleStartupCheck } from '@features/settings';
@@ -62,17 +62,17 @@ const App: React.FC = () => {
 
   // In-window shortcuts (APP_SHORTCUTS); leaving for another surface ends a sidebar search.
   useAppShortcuts({
-    search: toggleSidebarSearch,
+    search: toggleSearch,
     focusChat: () => {
-      endSidebarSearch();
+      endSearch();
       focusChatComposer();
     },
     newChat: () => {
-      endSidebarSearch();
+      endSearch();
       startNewChat();
     },
     openSettings: () => {
-      endSidebarSearch();
+      endSearch();
       openSettings();
     },
     leaveSettings,
@@ -224,7 +224,7 @@ const App: React.FC = () => {
       },
       [TrayAction.SEARCH]: async () => {
         await windowService.show();
-        startSidebarSearch();
+        startSearch();
       },
       [TrayAction.CHECK_UPDATES]: async () => {
         await windowService.show();

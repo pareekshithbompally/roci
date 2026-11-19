@@ -6,7 +6,7 @@ import { Icon, Row } from '@shared/ui';
 import { useAppActions, useCurrentView, type ViewType } from '@shared/stores/appStore';
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
 import { useSmallScreen } from '@shared/hooks/useMediaQuery';
-import { endSidebarSearch } from '@shared/stores/sidebarSearchStore';
+import { endSearch } from '@shared/stores/searchStore';
 
 interface DestinationRowProps {
   view: Exclude<ViewType, 'home' | 'settings'>;
@@ -22,7 +22,7 @@ export const DestinationRow: React.FC<DestinationRowProps> = ({ view, icon, labe
 
   const open = () => {
     setCurrentView(view);
-    endSidebarSearch();
+    endSearch();
     if (smallScreen) setLeftPanel(false);
   };
 
