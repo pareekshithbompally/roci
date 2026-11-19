@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
 const ITEMS = [
   { id: 'm1', type: 'meeting', title: 'Weekly Sync', timestamp: 2, historyItem: { id: 'm1' } },
   { id: 'c1', type: 'chat', title: 'Pricing brainstorm', timestamp: 1 },
+  // More than a screenful, so the recents list must scroll rather than stop short.
+  ...Array.from({ length: 10 }, (_, i) => ({ id: `n${i}`, type: 'chat', title: `Note ${i}`, timestamp: 0 })),
 ] as unknown as UnifiedSidebarItem[];
 
 vi.mock('@features/history/hooks/useUnifiedSidebar', () => ({ useUnifiedSidebar: () => ({ items: ITEMS }) }));
@@ -134,5 +136,11 @@ describe('SearchPalette', () => {
     const rows = [...screen.getByRole('group', { name: 'Settings' }).querySelectorAll('[cmdk-item]')].map((r) => r.textContent);
     expect(rows[0]).toContain('Providers');
     expect(rows[1]).toContain('Switch to Light Appearance');
+  });
+
+  it('lists every recent meeting and chat before anything is typed, so the frame is full and scrolls', () => {
+    openPalette();
+    const recent = screen.getByRole('group', { name: 'Recent' }).querySelectorAll('[cmdk-item]');
+    expect(recent.length).toBe(ITEMS.length);
   });
 });

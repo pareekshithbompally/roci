@@ -14,7 +14,7 @@ import type { SettingsPanel } from '@shared/stores/appStore';
 import { findSettings, useQuickSettings, type QuickSetting } from '@features/settings';
 import { matchesEntry } from '@shared/utils/textMatch';
 import { formatRelativeTime } from '@shared/utils/formatters';
-import { SPOTLIGHT_RECENT_LIMIT, SPOTLIGHT_SETTINGS_ROWS } from '@config/chat.config';
+import { SPOTLIGHT_SETTINGS_ROWS } from '@config/chat.config';
 import { useUnifiedSidebar } from '@features/history/hooks/useUnifiedSidebar';
 import { useOpenSession } from '@features/history/hooks/useOpenSession';
 import { useSessionSearch, type SessionMatch } from '@features/history/hooks/useSessionSearch';
@@ -49,7 +49,8 @@ const SessionRow: React.FC<{ match: SessionMatch; onOpen: (item: UnifiedSidebarI
 
 /** Meetings and chats in groups: recents before anything is typed, then the matches by kind. */
 function sessionGroups(matches: SessionMatch[] | null, items: UnifiedSidebarItem[]): Array<{ heading: string; matches: SessionMatch[] }> {
-  if (!matches) return [{ heading: 'Recent', matches: items.slice(0, SPOTLIGHT_RECENT_LIMIT).map((item) => ({ item, excerpt: '' })) }];
+  // Before anything is typed: every meeting and chat, newest first, filling the frame and scrolling inside it.
+  if (!matches) return [{ heading: 'Recent', matches: items.map((item) => ({ item, excerpt: '' })) }];
   return KINDS.map(({ type, heading }) => ({ heading, matches: matches.filter((m) => m.item.type === type) })).filter((g) => g.matches.length > 0);
 }
 
