@@ -2,10 +2,8 @@
 
 import { CALENDAR_CONFIG } from '@config/calendar.config';
 import { formatClockTime, formatDate, formatDateTime } from '@shared/utils/formatters';
-import { addDays } from '@shared/utils/localDate';
+import { addDays, isSameDay } from '@shared/utils/localDate';
 import type { CalendarEvent } from '@services/calendar';
-
-const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
 
 export function formatEventWhen(event: CalendarEvent): string {
   const start = new Date(event.start_date);
@@ -13,8 +11,8 @@ export function formatEventWhen(event: CalendarEvent): string {
   if (event.is_all_day) {
     // An all-day event ends at the midnight after its last day.
     const last = addDays(end, -1);
-    return sameDay(start, last) ? `${formatDate(start)}  ${CALENDAR_CONFIG.allDayLabel}` : `${formatDate(start)} – ${formatDate(last)}`;
+    return isSameDay(start, last) ? `${formatDate(start)}  ${CALENDAR_CONFIG.allDayLabel}` : `${formatDate(start)} – ${formatDate(last)}`;
   }
-  if (sameDay(start, end)) return `${formatDate(start)}  ${formatClockTime(start)} – ${formatClockTime(end)}`;
+  if (isSameDay(start, end)) return `${formatDate(start)}  ${formatClockTime(start)} – ${formatClockTime(end)}`;
   return `${formatDateTime(start)} – ${formatDateTime(end)}`;
 }

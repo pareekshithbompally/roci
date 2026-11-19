@@ -8,7 +8,7 @@ import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore
 import { platform } from '@platform/index';
 import { hasIntegrations } from './IntegrationsPanel';
 import { IconTile, Row, type TileGlyph } from '@shared/ui';
-import { matchesAllWords } from '@shared/utils/textMatch';
+import { matchesEntry } from '@shared/utils/textMatch';
 
 export interface SettingsNavItem {
   id: SettingsPanelType;
@@ -35,7 +35,7 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
 
 /** The Settings sections on this device that match a search, by name or by what they hold. */
 export const findSettings = (query: string): SettingsNavItem[] =>
-  SETTINGS_NAV_ITEMS.filter((item) => item.available !== false && matchesAllWords([item.label, ...item.keywords].join(' '), query));
+  SETTINGS_NAV_ITEMS.filter((item) => item.available !== false && matchesEntry(item, query));
 
 export const SettingsNav: React.FC = () => {
   const activePanel = useAppStore((s) => s.activeSettingsPanel);

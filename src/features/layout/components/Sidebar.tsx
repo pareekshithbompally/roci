@@ -10,7 +10,7 @@ import { useSmallScreen } from '@shared/hooks/useMediaQuery';
 import { useSelectedHistoryId, useCurrentView, useAppActions } from '@shared/stores/appStore';
 import { UnifiedList } from '@features/history';
 import { SettingsNav } from '@features/settings/components/SettingsNav';
-import { useOpenMeeting, useSessionSearch, useUnifiedSidebar } from '@features/history/hooks';
+import { useOpenSession, useSessionSearch, useUnifiedSidebar } from '@features/history/hooks';
 import { LAYOUT } from '@config/layout.config';
 import { AppMark, Button, FadeScroll, IconButton, Icon, Row, RowGroupLabel, Kbd, SearchField, Text } from '@shared/ui';
 import { APP_CONFIG } from '@config/app.config';
@@ -19,7 +19,7 @@ import {
 } from '@shared/stores/searchStore';
 import { ActivityTray, ActivityButton } from '@shared/components';
 import { shortcutLabel } from '@features/shortcuts';
-import { openChat, startNewChat, useChatStore } from '@features/chat';
+import { startNewChat, useChatStore } from '@features/chat';
 import type { UnifiedSidebarItem } from '@shared/types';
 import { DestinationRow } from './DestinationRow';
 import { TODOS_CONFIG } from '@config/todos.config';
@@ -47,7 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { openSettings, leaveSettings } = useAppActions();
   const currentChatId = useChatStore((s) => s.currentSessionId);
   const listContainerRef = useRef<HTMLDivElement>(null);
-  const openMeeting = useOpenMeeting();
+  const openSession = useOpenSession();
   const searchActive = useSearchActive();
   const query = useSearchQuery();
   // The sheet (iPhone) searches in place; a column sidebar's search is the ⌘K panel (SearchPalette), so it never searches here.
@@ -79,14 +79,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const handleSelectItem = useCallback(async (item: UnifiedSidebarItem) => {
-    if (item.type === 'meeting' && item.historyItem) {
-      await openMeeting(item.historyItem);
-    } else if (item.type === 'chat') {
-      openChat(item.id);
-    }
+    await openSession(item);
     endSearch();
     if (isSmallScreen) setLeftPanel(false);
-  }, [isSmallScreen, setLeftPanel, openMeeting]);
+  }, [isSmallScreen, setLeftPanel, openSession]);
 
   // A chat or meeting is highlighted only while it is what's on screen (not under To-dos or Upcoming).
   const getSelectedId = (): string | null => {

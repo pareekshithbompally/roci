@@ -11,13 +11,12 @@ import { CommandDialog, CommandGroup, CommandInput, CommandList, CommandRow, Com
 import { endSearch, setSearchQuery, useSearchActive, useSearchQuery } from '@shared/stores/searchStore';
 import { useAppActions } from '@shared/stores/appStore';
 import type { SettingsPanel } from '@shared/stores/appStore';
-import { openChat } from '@features/chat';
 import { findSettings, useQuickSettings, type QuickSetting } from '@features/settings';
-import { matchesAllWords } from '@shared/utils/textMatch';
+import { matchesEntry } from '@shared/utils/textMatch';
 import { formatRelativeTime } from '@shared/utils/formatters';
 import { SPOTLIGHT_RECENT_LIMIT } from '@config/chat.config';
 import { useUnifiedSidebar } from '@features/history/hooks/useUnifiedSidebar';
-import { useOpenMeeting } from '@features/history/hooks/useOpenMeeting';
+import { useOpenSession } from '@features/history/hooks/useOpenSession';
 import { useSessionSearch, type SessionMatch } from '@features/history/hooks/useSessionSearch';
 import type { UnifiedSidebarItem } from '@shared/types';
 
@@ -65,7 +64,7 @@ interface SettingsEntry {
 
 /** The Settings group, always last: the quick settings before anything is typed; then the ones matching, and the matching sections. */
 function settingsEntries(query: string, searching: boolean, quick: QuickSetting[], openSection: (panel: SettingsPanel) => void): SettingsEntry[] {
-  const quickRows = (searching ? quick.filter((q) => matchesAllWords([q.label, ...q.keywords].join(' '), query)) : quick)
+  const quickRows = (searching ? quick.filter((q) => matchesEntry(q, query)) : quick)
     .map(({ id, label, icon, run }) => ({ key: `quick:${id}`, label, icon, run }));
   const sections = (searching ? findSettings(query) : [])
     .map(({ id, label, icon }) => ({ key: `section:${id}`, label, icon, meta: 'Settings', run: () => openSection(id) }));
@@ -82,7 +81,7 @@ export const SearchPalette: React.FC = () => {
   const query = useSearchQuery();
   const { items } = useUnifiedSidebar();
   const search = useSessionSearch(items, query);
-  const openMeeting = useOpenMeeting();
+  const openSession = useOpenSession();
   const { openSettings } = useAppActions();
   const quick = useQuickSettings();
 
@@ -90,10 +89,9 @@ export const SearchPalette: React.FC = () => {
   const groups = sessionGroups(search.matches, items);
   const settings = settingsEntries(query, searching, quick, (panel) => openSettings(panel));
 
-  const openSession = (item: UnifiedSidebarItem) => {
+  const openItem = (item: UnifiedSidebarItem) => {
     endSearch();
-    if (item.type === 'chat') return openChat(item.id);
-    if (item.historyItem) openMeeting(item.historyItem).catch((error: unknown) => console.error('[SearchPalette] Opening the meeting failed:', error));
+    openSession(item).catch((error: unknown) => console.error('[SearchPalette] Opening the result failed:', error));
   };
   const runSetting = (entry: SettingsEntry) => {
     endSearch();
@@ -110,7 +108,7 @@ export const SearchPalette: React.FC = () => {
           <React.Fragment key={group.heading}>
             {i > 0 && <CommandSeparator />}
             <CommandGroup heading={group.heading}>
-              {group.matches.map((match) => <SessionRow key={`${match.item.type}:${match.item.id}`} match={match} onOpen={openSession} />)}
+              {group.matches.map((match) => <SessionRow key={`${match.item.type}:${match.item.id}`} match={match} onOpen={openItem} />)}
             </CommandGroup>
           </React.Fragment>
         ))}

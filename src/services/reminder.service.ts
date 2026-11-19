@@ -1,5 +1,6 @@
 /** To-do reminders as native timed notifications, persisted in roci.db so launch re-arms the ones still ahead. */
 
+import { MS_PER_MINUTE } from '@shared/utils/localDate';
 import { NOTIFICATIONS_CONFIG } from '@config/notifications.config';
 import { TODOS_CONFIG } from '@config/todos.config';
 import { askNotificationsOnFirstUse, onNotificationResponse, removeNotices, scheduleNotice, type Notice } from '@services/notifications';
@@ -112,7 +113,7 @@ class ReminderService {
 
     if (action === TODO.actions.snooze) {
       const existing = await this.getReminder(todoId);
-      const snoozeUntil = new Date(Date.now() + TODO.snoozeMinutes * 60_000).toISOString();
+      const snoozeUntil = new Date(Date.now() + TODO.snoozeMinutes * MS_PER_MINUTE).toISOString();
       if (existing) await this.schedule({ ...existing, reminderDateTime: snoozeUntil });
       return;
     }

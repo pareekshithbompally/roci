@@ -1,4 +1,5 @@
 import { systemFormat } from '@shared/stores/systemFormatStore';
+import { daysBetween } from '@shared/utils/localDate';
 
 export { setSystemFormat } from '@shared/stores/systemFormatStore';
 
@@ -99,9 +100,7 @@ export function truncate(text: string, maxLength: number): string {
 
 /** Whole calendar days from `now` to `date` (0 today, -1 yesterday, 1 tomorrow), by local date, so DST days count as one. */
 export function calendarDayOffset(date: Date | string | number, now: Date = new Date()): number {
-  const d = new Date(date);
-  const day = (x: Date) => Date.UTC(x.getFullYear(), x.getMonth(), x.getDate());
-  return Math.round((day(d) - day(now)) / 86_400_000);
+  return daysBetween(now, new Date(date));
 }
 
 /** A day as lists head it: Today, Yesterday, Tomorrow, else "Mon, Nov 17" (the year only when it isn't this year's). */

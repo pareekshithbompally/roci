@@ -1,7 +1,7 @@
 /** Time-grid layout: the days on screen, and where each event sits in its day (minutes from local midnight, overlap lanes). */
 
 import { CALENDAR_CONFIG } from '@config/calendar.config';
-import { addDays, startOfDay } from '@shared/utils/localDate';
+import { DAYS_PER_WEEK, MINUTES_PER_HOUR, addDays, daysBetween, startOfDay } from '@shared/utils/localDate';
 import type { CalendarEvent } from '@services/calendar';
 
 /** `week` (Mac) or `day` (iPhone): the grid's span and the step of back / forward. */
@@ -17,10 +17,7 @@ export interface GridBlock {
   lanes: number;
 }
 
-const MINUTES_PER_HOUR = 60;
 const MINUTES_PER_DAY = 24 * MINUTES_PER_HOUR;
-const DAYS_PER_WEEK = 7;
-const MS_PER_DAY = 86_400_000;
 
 /** Wall-clock minutes since local midnight. */
 export function minutesIntoDay(date: Date): number {
@@ -42,10 +39,6 @@ export function visibleRange(anchor: Date, span: CalendarSpan, firstWeekday: num
   const days = Array.from({ length: count }, (_, i) => addDays(start, i));
   return { days, start, end: addDays(start, count) };
 }
-
-/** Whole days from `a` to `b` by local date (DST-proof). */
-const daysBetween = (a: Date, b: Date) =>
-  Math.round((Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) - Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / MS_PER_DAY);
 
 /** Calendar's week number under the device's rules: weeks from `firstWeekday`; week 1 is the first with at least
  *  `minDaysInFirstWeek` days of the new year (ISO: Monday, 4; US: Sunday, 1). */

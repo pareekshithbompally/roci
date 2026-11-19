@@ -1,10 +1,10 @@
 /** Whether a calendar event offers Record / Join & Record now: from the reminder lead time before it starts until it ends. */
 
+import { MS_PER_MINUTE } from '@shared/utils/localDate';
 import type { CalendarEvent } from '@services/calendar';
 
 export type RecordAction = 'join' | 'record';
 
-const MS_PER_MINUTE = 60_000;
 
 /** `join` with a call link, `record` without; null when recording, already recorded, too early or over. */
 export function recordAction(

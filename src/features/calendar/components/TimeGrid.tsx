@@ -5,6 +5,7 @@ import React, { useLayoutEffect, useMemo, useRef } from 'react';
 import { Surface, Text } from '@shared/ui';
 import { CALENDAR_CONFIG } from '@config/calendar.config';
 import { useMinuteClock } from '@shared/hooks/useMinuteClock';
+import { MINUTES_PER_HOUR, isSameDay } from '@shared/utils/localDate';
 import { formatClockTime, formatHour, formatWeekday } from '@shared/utils/formatters';
 import { isOnDay, layoutDay, minutesIntoDay, minutesToPx as toPx, weekNumber } from '@features/calendar/utils/timeGrid';
 import { occurrenceKey } from '@services/calendar';
@@ -14,8 +15,6 @@ import type { CalendarEvent } from '@services/calendar';
 
 const { hourHeight, scrollLeadHours, nowLabelClearancePx } = CALENDAR_CONFIG.grid;
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
-const MINUTES_PER_HOUR = 60;
-const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
 
 type OnEventClick = (event: CalendarEvent, rect: DOMRect) => void;
 
@@ -97,7 +96,7 @@ const NowPill: React.FC<{ now: Date }> = ({ now }) => (
 /** The now line: dim across the week, solid across today, as Calendar.app draws it. */
 const NowLine: React.FC<{ days: Date[]; now: Date }> = ({ days, now }) => {
   const share = 100 / days.length;
-  const today = days.findIndex((d) => sameDay(d, now));
+  const today = days.findIndex((d) => isSameDay(d, now));
   const top = toPx(minutesIntoDay(now));
   return (
     <>
@@ -119,7 +118,7 @@ const DayColumn: React.FC<{ day: Date; events: CalendarEvent[]; onEventClick: On
 export const TimeGrid: React.FC<TimeGridProps> = ({ days, events, allDay, onEventClick }) => {
   const now = useMinuteClock();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const showsToday = days.some((d) => sameDay(d, now));
+  const showsToday = days.some((d) => isSameDay(d, now));
   const firstWeekday = useSystemFormatStore((s) => s.firstWeekday);
   const minDays = useSystemFormatStore((s) => s.minDaysInFirstWeek);
 
@@ -133,7 +132,7 @@ export const TimeGrid: React.FC<TimeGridProps> = ({ days, events, allDay, onEven
     <div className="flex-1 min-h-0 flex flex-col">
       <div className="shrink-0 flex">
         <Gutter><Text variant="caption" tone="muted" className="py-2">W{weekNumber(days[0], firstWeekday, minDays)}</Text></Gutter>
-        {days.map((day) => <DayHeader key={day.toDateString()} day={day} today={sameDay(day, now)} />)}
+        {days.map((day) => <DayHeader key={day.toDateString()} day={day} today={isSameDay(day, now)} />)}
       </div>
       {allDay.length > 0 ? <AllDayStrip days={days} events={allDay} onEventClick={onEventClick} /> : <Surface edge="bottom" />}
       <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto">

@@ -3,8 +3,8 @@
 
 import { useEffect, useState } from 'react';
 import { useDocumentVisible } from './useDocumentVisible';
+import { MS_PER_MINUTE } from '@shared/utils/localDate';
 
-const MS_PER_MINUTE = 60_000;
 
 export function useMinuteClock(): Date {
   const visible = useDocumentVisible();
