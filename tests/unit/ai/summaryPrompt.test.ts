@@ -1,20 +1,25 @@
 import { describe, it, expect } from 'vitest';
 import { buildTranscriptionRequest } from '@core/ai';
 import { fieldGuide } from '@core/ai/prompts/transcription.prompt';
-import { transcriptionSchema } from '@core/ai/schemas/transcription.schema';
+import { analysisSchema } from '@core/ai/schemas/transcription.schema';
+import { jsonSchemaOf } from '@core/ai/schemas/reply';
+
+type Json = { properties: Record<string, Json & { items?: Json; required?: string[] }>; required?: string[]; type?: string; enum?: string[] };
+/** The JSON schema a model is given for the analysis. */
+const given = (categories: string[], withNotes = false) => jsonSchemaOf(analysisSchema(categories, withNotes)) as unknown as Json;
 
 const temporalContext = 'Current date: 2026-11-18 (Wednesday).';
 
-describe('transcriptionSchema', () => {
+describe('analysisSchema', () => {
   it('limits categories to the user\'s list when there is one', () => {
-    expect(transcriptionSchema(['Sales', 'Hiring']).properties.categories.items).toEqual({ type: 'string', enum: ['Sales', 'Hiring'] });
-    expect(transcriptionSchema([]).properties.categories.items).toEqual({ type: 'string' });
+    expect(given(['Sales', 'Hiring']).properties.categories.items).toEqual({ type: 'string', enum: ['Sales', 'Hiring'] });
+    expect(given([]).properties.categories.items).toMatchObject({ type: 'string' });
   });
 });
 
 describe('fieldGuide', () => {
   it('lists nested object fields and the fields of array items', () => {
-    const guide = fieldGuide(transcriptionSchema([]).properties).join('\n');
+    const guide = fieldGuide(given([]).properties).join('\n');
     expect(guide).toContain('- `summary`:');
     expect(guide).toContain('  - `overview`:');
     expect(guide).toContain('    - `dueDate`: When it is due, YYYY-MM-DD');
@@ -24,8 +29,8 @@ describe('fieldGuide', () => {
 
 describe('buildTranscriptionRequest', () => {
   it('pairs the prompt with the schema it describes', () => {
-    const { prompt, outputSchema } = buildTranscriptionRequest({ categories: ['Sales'], temporalContext });
-    expect(outputSchema.schema).toEqual(transcriptionSchema(['Sales']));
+    const { prompt, schema } = buildTranscriptionRequest({ categories: ['Sales'], temporalContext });
+    expect(jsonSchemaOf(schema)).toEqual(given(['Sales']));
     expect(prompt).toContain('Categories to choose from: Sales.');
     expect(prompt).toContain('`actionItems`');
     expect(prompt).toContain(temporalContext);
@@ -58,9 +63,9 @@ describe('buildTranscriptionRequest', () => {
   it('asks for each note filled in only when the user typed notes', () => {
     const plain = buildTranscriptionRequest({ categories: [], temporalContext });
     const summaryOf = (schema: unknown) => (schema as { properties: { summary: { properties: object; required: string[] } } }).properties.summary;
-    expect(summaryOf(plain.outputSchema.schema).properties).not.toHaveProperty('enhancedNotes');
+    expect(summaryOf(jsonSchemaOf(plain.schema)).properties).not.toHaveProperty('enhancedNotes');
     const withNotes = buildTranscriptionRequest({ categories: [], temporalContext, userNotes: [{ text: 'launch?', createdAt: '2026-11-18T10:00:00Z' }] });
-    expect(summaryOf(withNotes.outputSchema.schema).required).toContain('enhancedNotes');
+    expect(summaryOf(jsonSchemaOf(withNotes.schema)).required).toContain('enhancedNotes');
     expect(withNotes.prompt).toContain('`enhancedNotes`');
   });
 });

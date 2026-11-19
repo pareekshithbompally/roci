@@ -159,11 +159,14 @@ describe('aiRows', () => {
 describe('liveNotesSchema', () => {
   it('asks for the meeting\'s points even with no notes, and fills only the notes it lists', async () => {
     const { liveNotesSchema } = await import('@core/ai/schemas/liveNotes.schema');
-    expect(liveNotesSchema([]).required).toEqual(['points']);
-    expect(liveNotesSchema([]).properties).not.toHaveProperty('filled');
-    const withNotes = liveNotesSchema(['n1', 'n2']);
+    const { jsonSchemaOf } = await import('@core/ai/schemas/reply');
+    type Json = { required: string[]; properties: Record<string, { items: { properties: Record<string, { enum?: string[] }> } }> };
+    const given = (ids: string[]) => jsonSchemaOf(liveNotesSchema(ids)) as unknown as Json;
+    expect(given([]).required).toEqual(['points']);
+    expect(given([]).properties).not.toHaveProperty('filled');
+    const withNotes = given(['n1', 'n2']);
     expect(withNotes.required).toEqual(['points', 'filled']);
-    expect(withNotes.properties.filled && withNotes.properties.filled.items.properties.noteId.enum).toEqual(['n1', 'n2']);
+    expect(withNotes.properties.filled.items.properties.noteId.enum).toEqual(['n1', 'n2']);
   });
 });
 

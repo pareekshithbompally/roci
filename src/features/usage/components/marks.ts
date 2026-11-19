@@ -17,6 +17,7 @@ export const CATEGORY_MARK: Record<UsageCategory, { label: string; icon: TileGly
   suggestions: { label: 'Suggestions', icon: Lightbulb },
   'title-gen': { label: 'Chat titles', icon: PencilLine },
   summary: { label: 'Summaries', icon: JOB_GLYPH.summaries },
+  liveNotes: { label: 'Live notes', icon: JOB_GLYPH.summaries },
   transcription: { label: 'Transcription', icon: JOB_GLYPH.transcription },
 };
 

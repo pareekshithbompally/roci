@@ -59,9 +59,12 @@ function aiEmptyCopy({ hasModel, live }: AiNotesProps): string {
 
 export const AiNotes: React.FC<AiNotesProps> = (props) => {
   const lines = useLiveNotesStore((s) => s.lines);
+  const problem = useLiveNotesStore((s) => (props.live ? s.problem : null));
   const rows = useMemo(() => aiRows(lines, props.bullets), [lines, props.bullets]);
   return (
     <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 pb-4">
+      {/* a failed update says why, above the lines it couldn't add to; the next update that works clears it */}
+      {problem && <Text as="p" variant="helper" tone="warning" className="pb-2">{problem}</Text>}
       {rows.length === 0 ? (
         <EmptyLine>{aiEmptyCopy(props)}</EmptyLine>
       ) : (

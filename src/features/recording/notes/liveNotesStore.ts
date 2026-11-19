@@ -4,6 +4,7 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
 import { refreshLiveNotes } from '@services/ai/liveNotes';
+import { errorMessage } from '@shared/utils/errors';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { LiveEntry } from '@features/recording/live/liveTranscript';
 import { formatClock } from '@features/recording/stores/recordingStore';
@@ -18,9 +19,11 @@ interface LiveNotesState {
   bullets: Bullet[];
   /** A refresh is in flight. */
   updating: boolean;
+  /** Why the last refresh failed, in words to show; cleared by the next one that works. */
+  problem: string | null;
 }
 
-export const useLiveNotesStore = create<LiveNotesState>(() => ({ meetingId: null, lines: [], bullets: [], updating: false }));
+export const useLiveNotesStore = create<LiveNotesState>(() => ({ meetingId: null, lines: [], bullets: [], updating: false, problem: null }));
 
 /** What the refreshes have covered (not shown, so kept out of the store). */
 interface Session {
@@ -52,7 +55,7 @@ export const liveNotes = {
     if (get().meetingId === meetingId) return;
     session.controller?.abort();
     session = freshSession();
-    set({ meetingId, lines: [], bullets: [], updating: false });
+    set({ meetingId, lines: [], bullets: [], updating: false, problem: null });
   },
 
   /** The meeting's saved lines, taken only when nothing is held yet (opening a meeting, or a reload mid-recording). */
@@ -91,9 +94,11 @@ export const liveNotes = {
       const changes = changesFromReply(reply, realId);
       payload.forEach((e) => current.sent.add(entryKey(e)));
       current.signature = signature;
-      set({ bullets: mergeBullets(get().bullets, changes, get().lines, talkStartMs(payload, entries)) });
+      set({ bullets: mergeBullets(get().bullets, changes, get().lines, talkStartMs(payload, entries)), problem: null });
     } catch (error: unknown) {
-      if (!controller.signal.aborted) console.error('[liveNotes] Refresh failed:', error);
+      if (controller.signal.aborted) return;
+      console.error('[liveNotes] Refresh failed:', error);
+      set({ problem: errorMessage(error) });
     } finally {
       if (current.controller === controller) {
         current.controller = null;

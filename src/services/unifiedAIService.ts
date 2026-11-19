@@ -7,7 +7,7 @@ import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { CHAT_TITLE_MAX_CHARS, REPLY_PREVIEW_CHARS } from '@config/chat.config';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { ProcessedResult, AppSettings, StoredTranscriptSegment } from '@shared/types';
-import { resolveChatModel, resolveSummaryModel, requiresApiKey, type ResolvedModel } from '@shared/utils/modelResolver';
+import { resolveChatModel, requiresApiKey } from '@shared/utils/modelResolver';
 import { MAX_AUDIO_SIZE_BYTES, MAX_AUDIO_SIZE_MB, MIN_AUDIO_SIZE_BYTES, WAV_HEADER_SIZE_BYTES } from '@shared/utils/audio.utils';
 import { CHAT_TITLE_PROMPT, summaryMarkdown } from '@core/ai';
 import { createModel } from './ai';
@@ -15,6 +15,7 @@ import { extractTokenUsage } from './ai/types';
 import type { TokenUsage } from './ai/types';
 import { recordUsage } from '@extensions/usage';
 import { modalitiesService } from '@services/modalities';
+import { requireSummaryModel } from '@services/ai/jobModel';
 import type { MeetingContext, UserNote } from '@core/ai/prompts/transcription.prompt';
 import { store } from '@services/db';
 import type { AnalysisResult } from '@core/ai/schemas/transcription.schema';
@@ -77,19 +78,6 @@ export async function transcribeAudio(
   return result;
 }
 
-/** The Summary model, ready to call — or why it can't run. */
-function summaryModelOrThrow(settings: AppSettings, providers: ModelProvider[]): ResolvedModel {
-  const resolved = resolveSummaryModel(settings, providers);
-  if (!resolved) {
-    const id = settings.analyzeModel || settings.chatModel;
-    throw new Error(`Summary model "${id}" isn't available. Choose one in Settings › Default Models.`);
-  }
-  if (requiresApiKey(resolved) && !resolved.apiKey) {
-    throw new Error(`API key not configured for ${resolved.provider}. Please add it in Settings → Providers.`);
-  }
-  return resolved;
-}
-
 /** The notes the user typed in a meeting, oldest first, for its summary. */
 async function meetingNotesOldestFirst(meetingId: string): Promise<UserNote[]> {
   const notes = await store.notes.list(meetingId);
@@ -116,7 +104,7 @@ class UnifiedAIService {
     providers: ModelProvider[],
     options: SummaryOptions = {},
   ): Promise<ProcessedResult> {
-    const resolved = summaryModelOrThrow(settings, providers);
+    const resolved = requireSummaryModel(settings, providers);
     const userNotes = options.meetingId ? await meetingNotesOldestFirst(options.meetingId) : undefined;
     const analysis = await analyzeTranscript({ transcript, categories, resolved, userNotes, ...options });
     return this.toProcessedResult(analysis, transcript, segments);

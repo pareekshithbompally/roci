@@ -1,16 +1,14 @@
+/** A finished transcript → title, summary, action items and categories, through the one structured call; a transcript too
+ *  long for the model is excerpted to fit (and, if it still doesn't, once more to a shorter share). */
+
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
-import { generateText, Output, jsonSchema } from 'ai';
-import { buildTranscriptionRequest, formatTemporalContext, parseAnalysis, type AnalysisResult } from '@core/ai';
-import { createModel } from '@services/ai/provider';
-import { extractTokenUsage } from '@services/ai/types';
-import { recordUsage } from '@extensions/usage';
-import type { ResolvedModel } from '@shared/utils/modelResolver';
+import { buildTranscriptionRequest, formatTemporalContext, hasSummary, type AnalysisResult } from '@core/ai';
 import type { MeetingContext, UserNote } from '@core/ai/prompts/transcription.prompt';
-import { isContextWindowError, summaryError } from '@services/ai/apple/contextWindow';
+import type { ResolvedModel } from '@shared/utils/modelResolver';
+import { generateStructured } from '@services/ai/structured';
+import { AiError } from '@services/ai/errors';
 import { contextTokensFor, excerptTranscript, transcriptBudget } from './excerpt';
 
-
-/** Title, summary, action items and categories from a transcript (the Summary model); logs its usage. */
 export async function analyzeTranscript(args: {
   transcript: string;
   categories: string[];
@@ -23,31 +21,26 @@ export async function analyzeTranscript(args: {
   /** Cancels the request. */
   signal?: AbortSignal;
 }): Promise<AnalysisResult> {
-  const config = buildTranscriptionRequest({
+  const { prompt: instructions, schema } = buildTranscriptionRequest({
     categories: args.categories,
     meetingContext: args.meetingContext,
     userNotes: args.userNotes,
     temporalContext: formatTemporalContext(),
   });
+  const budget = transcriptBudget(await contextTokensFor(args.resolved), instructions);
+  const promptAt = (limit: number | null) => `Transcript:\n${excerptTranscript(args.transcript, limit)}`;
+  const shorterBudget = budget === null ? null : Math.floor(budget * TRANSCRIPTION_CONFIG.summaryBudget.retryShare);
 
-  const model = createModel(args.resolved);
-  const run = (budget: number | null) => generateText({
-    model,
-    instructions: config.prompt,
-    prompt: `Transcript:\n${excerptTranscript(args.transcript, budget)}`,
-    output: Output.object({ schema: jsonSchema(config.outputSchema.schema) }),
-    abortSignal: args.signal,
+  const analysis = await generateStructured({
+    job: 'summary',
+    model: args.resolved,
+    instructions,
+    prompt: promptAt(budget),
+    schema,
+    usage: { category: 'summary', sessionId: args.meetingId },
+    signal: args.signal,
+    shorter: () => (shorterBudget === null ? null : promptAt(shorterBudget)),
   });
-
-  // Known-window models get an excerpt when needed; if it still doesn't fit, one shorter try.
-  const budget = transcriptBudget(await contextTokensFor(args.resolved), config.prompt);
-  const result = await run(budget)
-    .catch((error: unknown) => {
-      if (budget === null || !isContextWindowError(error)) throw error;
-      return run(Math.floor(budget * TRANSCRIPTION_CONFIG.summaryBudget.retryShare));
-    })
-    .catch((error: unknown) => { throw summaryError(error); });
-
-  recordUsage('summary', args.resolved, extractTokenUsage(result.usage), args.meetingId);
-  return parseAnalysis(result.output);
+  if (!hasSummary(analysis.summary)) throw new AiError('badReply', "The Summary model's reply had no summary in it. Try again.");
+  return analysis;
 }

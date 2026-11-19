@@ -4,7 +4,8 @@
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { requiresApiKey, resolveSummaryModel, type ResolvedModel } from '@shared/utils/modelResolver';
+import type { ResolvedModel } from '@shared/utils/modelResolver';
+import { summaryModel } from '@services/ai/jobModel';
 import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
 import { useMeetingNotes } from '@features/notes';
 import { useMeetingLiveStore } from '@features/recording/live/meetingLiveStore';
@@ -14,13 +15,10 @@ import { liveNotes, useLiveNotesStore } from './liveNotesStore';
 
 const report = (step: string) => (error: unknown) => console.error(`[useLiveNotes] ${step} failed:`, error);
 
-/** The Summary model, when it can be called. */
+/** The Summary model, when it can be called (the same check the summary makes). */
 function useSummaryModel(): ResolvedModel | null {
   const { settings, providers } = useSettings();
-  return useMemo(() => {
-    const resolved = resolveSummaryModel(settings, providers);
-    return resolved && !(requiresApiKey(resolved) && !resolved.apiKey) ? resolved : null;
-  }, [settings, providers]);
+  return useMemo(() => summaryModel(settings, providers).model ?? null, [settings, providers]);
 }
 
 /** Saves the typed lines as the meeting's notes: new lines added under their own ids, edited ones updated, emptied ones deleted. */
