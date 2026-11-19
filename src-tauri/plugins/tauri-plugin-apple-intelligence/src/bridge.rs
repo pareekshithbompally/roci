@@ -26,6 +26,10 @@ extern "C" {
     fn apple_speech_request_access() -> *mut c_char;
     fn apple_speech_prepare(language: *const c_char) -> *mut c_char;
     fn apple_speech_transcribe(path: *const c_char, language: *const c_char) -> *mut c_char;
+    fn apple_speech_live_start(id: u32, language: *const c_char) -> *mut c_char;
+    fn apple_speech_live_feed(id: u32, bytes: *const c_void, count: isize) -> *mut c_char;
+    fn apple_speech_live_finish(id: u32) -> *mut c_char;
+    fn apple_speech_live_cancel(id: u32);
     fn apple_intelligence_free_string(ptr: *mut c_char);
 }
 
@@ -93,4 +97,25 @@ pub fn speech_prepare<T: DeserializeOwned>(language: &str) -> Result<T, String> 
 pub fn speech_transcribe<T: DeserializeOwned>(path: &str, language: &str) -> Result<T, String> {
     let (path, language) = (c_string(path)?, c_string(language)?);
     parse_and_free(unsafe { apple_speech_transcribe(path.as_ptr(), language.as_ptr()) })
+}
+
+/// Starts live speech stream `id` (any stream already `id` is abandoned).
+pub fn speech_live_start<T: DeserializeOwned>(id: u32, language: &str) -> Result<T, String> {
+    let language = c_string(language)?;
+    parse_and_free(unsafe { apple_speech_live_start(id, language.as_ptr()) })
+}
+
+/// Feeds stream `id` 16 kHz mono f32 as little-endian bytes; the text so far.
+pub fn speech_live_feed<T: DeserializeOwned>(id: u32, pcm: &[u8]) -> Result<T, String> {
+    let count = isize::try_from(pcm.len()).map_err(|e| e.to_string())?;
+    parse_and_free(unsafe { apple_speech_live_feed(id, pcm.as_ptr().cast(), count) })
+}
+
+/// Ends stream `id`; blocks until its audio is transcribed.
+pub fn speech_live_finish<T: DeserializeOwned>(id: u32) -> Result<T, String> {
+    parse_and_free(unsafe { apple_speech_live_finish(id) })
+}
+
+pub fn speech_live_cancel(id: u32) {
+    unsafe { apple_speech_live_cancel(id) }
 }

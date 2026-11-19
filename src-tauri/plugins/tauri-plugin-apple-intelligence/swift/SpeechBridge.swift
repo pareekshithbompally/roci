@@ -64,9 +64,6 @@ public func appleSpeechPrepare(_ language: UnsafePointer<CChar>) -> UnsafeMutabl
 public func appleSpeechTranscribe(_ path: UnsafePointer<CChar>, _ language: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar> {
     let file = String(cString: path)
     let code = String(cString: language)
-    guard SFSpeechRecognizer.authorizationStatus() == .authorized else {
-        return speechFailure("not-authorized", "Speech Recognition is off for \(appName).")
-    }
     let result = speechBlocking { try await transcribe(file: file, language: code) }
     switch result {
     case .success(let segments): return speechJSON(["segments": segments])
@@ -74,24 +71,199 @@ public func appleSpeechTranscribe(_ path: UnsafePointer<CChar>, _ language: Unsa
     }
 }
 
+/// Starts live stream `id` (several run at once, e.g. you and the call): words as they are said. `{}` or `{"error"}`
+@_cdecl("apple_speech_live_start")
+public func appleSpeechLiveStart(_ id: UInt32, _ language: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar> {
+    let code = String(cString: language)
+    switch speechBlocking({ try await LiveSpeech.start(language: code) }) {
+    case .success(let live):
+        LiveSpeeches.shared.replace(id, with: live)
+        return speechJSON([:])
+    case .failure(let error): return speechFailure(error)
+    }
+}
+
+/// Feeds stream `id` 16 kHz mono f32 (`count` bytes). `{"committed", "tentative"}` so far, or `{"error"}`
+@_cdecl("apple_speech_live_feed")
+public func appleSpeechLiveFeed(_ id: UInt32, _ bytes: UnsafeRawPointer?, _ count: Int) -> UnsafeMutablePointer<CChar> {
+    guard let live = LiveSpeeches.shared.get(id) else { return speechFailure("failed", "No live Apple speech stream \(id).") }
+    do {
+        try live.feed(UnsafeRawBufferPointer(start: bytes, count: count))
+        return speechJSON(live.text())
+    } catch {
+        return speechFailure(error)
+    }
+}
+
+/// Ends stream `id` once its audio is transcribed. `{"text"}` (everything it heard) or `{"error"}`
+@_cdecl("apple_speech_live_finish")
+public func appleSpeechLiveFinish(_ id: UInt32) -> UnsafeMutablePointer<CChar> {
+    guard let live = LiveSpeeches.shared.remove(id) else { return speechFailure("failed", "No live Apple speech stream \(id).") }
+    switch speechBlocking({ try await live.finish() }) {
+    case .success(let text): return speechJSON(["text": text])
+    case .failure(let error): return speechFailure(error)
+    }
+}
+
+/// Abandons stream `id`, if it's running.
+@_cdecl("apple_speech_live_cancel")
+public func appleSpeechLiveCancel(_ id: UInt32) {
+    LiveSpeeches.shared.remove(id)?.cancel()
+}
+
+// MARK: - Live streams
+
+/// One live stream: its own analyzer, fed 16 kHz mono f32, its results gathered as they arrive.
+private final class LiveSpeech: @unchecked Sendable {
+    private static let fed = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false)!
+    private let lock = NSLock()
+    private let analyzer: SpeechAnalyzer
+    private let input: AsyncStream<AnalyzerInput>.Continuation
+    /// To the analyzer's format; nil when it takes the fed audio as is.
+    private let converter: AVAudioConverter?
+    private var results: Task<Void, Error>?
+    private var settled: [String] = []
+    private var revising = ""
+
+    private init(analyzer: SpeechAnalyzer, input: AsyncStream<AnalyzerInput>.Continuation, format: AVAudioFormat) {
+        self.analyzer = analyzer
+        self.input = input
+        converter = format == Self.fed ? nil : AVAudioConverter(from: Self.fed, to: format)
+    }
+
+    static func start(language: String) async throws -> LiveSpeech {
+        let transcriber = try await readyTranscriber(language, reporting: [.volatileResults])
+        guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber]) else {
+            throw SpeechFailure(kind: "failed", message: "Apple speech has no audio format for \(language).")
+        }
+        let (sequence, input) = AsyncStream.makeStream(of: AnalyzerInput.self)
+        let live = LiveSpeech(analyzer: SpeechAnalyzer(modules: [transcriber]), input: input, format: format)
+        live.results = Task { for try await result in transcriber.results { live.take(result) } }
+        try await live.analyzer.start(inputSequence: sequence)
+        return live
+    }
+
+    func feed(_ bytes: UnsafeRawBufferPointer) throws {
+        guard bytes.count % MemoryLayout<Float>.size == 0 else {
+            throw SpeechFailure(kind: "failed", message: "Audio isn't whole f32 samples.")
+        }
+        guard let base = bytes.baseAddress, !bytes.isEmpty else { return }
+        let frames = AVAudioFrameCount(bytes.count / MemoryLayout<Float>.size)
+        guard let pcm = AVAudioPCMBuffer(pcmFormat: Self.fed, frameCapacity: frames) else {
+            throw SpeechFailure(kind: "failed", message: "Couldn't hold \(frames) audio frames.")
+        }
+        pcm.frameLength = frames
+        memcpy(pcm.floatChannelData![0], base, bytes.count)
+        input.yield(AnalyzerInput(buffer: try converted(pcm)))
+    }
+
+    /// `{"committed", "tentative"}`: the settled words, then the ones still being revised.
+    func text() -> [String: Any] {
+        lock.withLock {
+            let committed = settled.joined(separator: " ")
+            let tentative = committed.isEmpty || revising.isEmpty ? revising : " " + revising
+            return ["committed": committed, "tentative": tentative]
+        }
+    }
+
+    /// No more audio: waits for the last results, then everything heard.
+    func finish() async throws -> String {
+        input.finish()
+        try await analyzer.finalizeAndFinishThroughEndOfInput()
+        try await results?.value
+        return lock.withLock { (settled + [revising]).filter { !$0.isEmpty }.joined(separator: " ") }
+    }
+
+    func cancel() {
+        input.finish()
+        results?.cancel()
+        Task { await analyzer.cancelAndFinishNow() }
+    }
+
+    private func take(_ result: SpeechTranscriber.Result) {
+        let text = String(result.text.characters).trimmingCharacters(in: .whitespacesAndNewlines)
+        lock.withLock {
+            guard result.isFinal else {
+                revising = text
+                return
+            }
+            if !text.isEmpty { settled.append(text) }
+            revising = ""
+        }
+    }
+
+    private func converted(_ pcm: AVAudioPCMBuffer) throws -> AVAudioPCMBuffer {
+        guard let converter else { return pcm }
+        let ratio = converter.outputFormat.sampleRate / converter.inputFormat.sampleRate
+        let capacity = AVAudioFrameCount((Double(pcm.frameLength) * ratio).rounded(.up))
+        guard let out = AVAudioPCMBuffer(pcmFormat: converter.outputFormat, frameCapacity: capacity) else {
+            throw SpeechFailure(kind: "failed", message: "Couldn't hold \(capacity) converted audio frames.")
+        }
+        var supplied = false
+        var failure: NSError?
+        converter.convert(to: out, error: &failure) { _, status in
+            status.pointee = supplied ? .noDataNow : .haveData
+            defer { supplied = true }
+            return supplied ? nil : pcm
+        }
+        if let failure { throw failure }
+        return out
+    }
+}
+
+/// The running live streams, by the webview's id.
+private final class LiveSpeeches: @unchecked Sendable {
+    static let shared = LiveSpeeches()
+    private let lock = NSLock()
+    private var running: [UInt32: LiveSpeech] = [:]
+
+    /// Starts tracking `live` as `id`, abandoning any stream already there.
+    func replace(_ id: UInt32, with live: LiveSpeech) {
+        lock.withLock { running.updateValue(live, forKey: id) }?.cancel()
+    }
+
+    func get(_ id: UInt32) -> LiveSpeech? { lock.withLock { running[id] } }
+
+    func remove(_ id: UInt32) -> LiveSpeech? { lock.withLock { running.removeValue(forKey: id) } }
+}
+
 // MARK: - Transcription
 
-private func transcriber(for language: String) async throws -> SpeechTranscriber {
+/// `reporting: [.volatileResults]` also reports the words still being revised (live streams).
+private func transcriber(
+    for language: String,
+    reporting: Set<SpeechTranscriber.ReportingOption> = []
+) async throws -> SpeechTranscriber {
     guard let locale = await SpeechTranscriber.supportedLocale(equivalentTo: Locale(identifier: language)) else {
         throw SpeechFailure(kind: "unsupported-language", message: "Apple speech doesn't support \(language).")
     }
-    return SpeechTranscriber(locale: locale, transcriptionOptions: [], reportingOptions: [], attributeOptions: [.audioTimeRange])
+    return SpeechTranscriber(locale: locale, transcriptionOptions: [], reportingOptions: reporting, attributeOptions: [.audioTimeRange])
 }
 
-private func installedTranscriber(_ language: String) async -> SpeechTranscriber? {
-    guard let transcriber = try? await transcriber(for: language) else { return nil }
+private func installedTranscriber(
+    _ language: String,
+    reporting: Set<SpeechTranscriber.ReportingOption> = []
+) async -> SpeechTranscriber? {
+    guard let transcriber = try? await transcriber(for: language, reporting: reporting) else { return nil }
     return await AssetInventory.status(forModules: [transcriber]) == .installed ? transcriber : nil
 }
 
-private func transcribe(file: String, language: String) async throws -> [[String: Any]] {
-    guard let transcriber = await installedTranscriber(language) else {
+/// A transcriber that can run now: Speech Recognition allowed and the language's model downloaded.
+private func readyTranscriber(
+    _ language: String,
+    reporting: Set<SpeechTranscriber.ReportingOption> = []
+) async throws -> SpeechTranscriber {
+    guard SFSpeechRecognizer.authorizationStatus() == .authorized else {
+        throw SpeechFailure(kind: "not-authorized", message: "Speech Recognition is off for \(appName).")
+    }
+    guard let transcriber = await installedTranscriber(language, reporting: reporting) else {
         throw SpeechFailure(kind: "model-not-ready", message: "The Apple speech model for \(language) isn't downloaded.")
     }
+    return transcriber
+}
+
+private func transcribe(file: String, language: String) async throws -> [[String: Any]] {
+    let transcriber = try await readyTranscriber(language)
     let audio = try AVAudioFile(forReading: URL(fileURLWithPath: file))
     let analyzer = SpeechAnalyzer(modules: [transcriber])
     async let segments: [[String: Any]] = transcriber.results.reduce(into: []) { list, result in

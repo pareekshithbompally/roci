@@ -1,10 +1,11 @@
-/** Apple Speech (SpeechAnalyzer, macOS 26+) via the apple-intelligence plugin: status, error copy, adapter. */
+/** Apple Speech (SpeechAnalyzer, macOS 26+) via the apple-intelligence plugin: status, error copy, adapter, live engine. */
 
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { INTEGRATION_SETTINGS_PATH } from '@config/integrations.config';
 import { appleIntelligence, isAppleError, type AppleSpeechStatus } from '@services/ai/apple/appleIntelligence.service';
 import { transcribeNatively } from './native';
 import type { TranscribePart } from './types';
+import type { StreamingEngine } from './streaming';
 import { errorMessage } from '@shared/utils/errors';
 
 /** Ready to transcribe: available, allowed, and the language model downloaded. */
@@ -70,9 +71,27 @@ function appleSpeechErrorMessage(error: unknown): string {
   }
 }
 
+function speechFailure(error: unknown): never {
+  throw new Error(appleSpeechErrorMessage(error), { cause: error });
+}
+
 /** One WAV part → text with timestamps (Rust writes a temporary file for SpeechAnalyzer). */
 export const appleSpeechTranscribePart: TranscribePart = ({ wav }) =>
   transcribeNatively('plugin:apple-intelligence|speech_transcribe', wav, { 'x-language': TRANSCRIPTION_CONFIG.language })
-    .catch((error: unknown) => {
-      throw new Error(appleSpeechErrorMessage(error), { cause: error });
-    });
+    .catch(speechFailure);
+
+/** Streaming with Apple Speech: each stream is its own analyzer under its own id, so a meeting runs two (you and the call). */
+export const appleSpeechStreaming: StreamingEngine = {
+  concurrent: 2,
+  streams: () => true,
+  async open({ language }) {
+    // Random, not a counter: a webview reload would restart a counter while native streams live on.
+    const [id] = crypto.getRandomValues(new Uint32Array(1));
+    await appleIntelligence.speechLiveStart(id, language).catch(speechFailure);
+    return {
+      feed: (pcm) => appleIntelligence.speechLiveFeed(id, pcm).catch(speechFailure),
+      finish: () => appleIntelligence.speechLiveFinish(id).catch(speechFailure),
+      cancel: () => appleIntelligence.speechLiveCancel(id),
+    };
+  },
+};

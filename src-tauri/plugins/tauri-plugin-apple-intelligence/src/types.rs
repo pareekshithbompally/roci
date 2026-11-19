@@ -86,8 +86,9 @@ pub enum StreamEvent {
     Finish,
 }
 
+/// `{"text"}`: a generation, or a live speech stream's final transcript.
 #[derive(Deserialize)]
-pub struct Generated {
+pub struct Text {
     pub text: String,
 }
 
@@ -116,6 +117,13 @@ pub struct SpeechSegment {
 #[derive(Deserialize)]
 pub struct Transcription {
     pub segments: Vec<SpeechSegment>,
+}
+
+/// A live speech stream's text so far: the settled words, then the ones still being revised.
+#[derive(Serialize, Deserialize)]
+pub struct LiveText {
+    pub committed: String,
+    pub tentative: String,
 }
 
 #[derive(Deserialize)]

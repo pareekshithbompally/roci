@@ -80,7 +80,8 @@ function onDeviceOptions(models: LocalModel[]): SpeechModelOption[] {
 
 function appleSpeechOptions(status: AppleSpeechStatus | undefined): SpeechModelOption[] {
   const { provider, model, label } = TRANSCRIPTION_CONFIG.appleSpeech;
-  return [{ provider, model, label, ready: isAppleSpeechReady(status), hint: appleSpeechHint(status), live: false }];
+  const live = canStream('apple-speech', model);
+  return [{ provider, model, label, ready: isAppleSpeechReady(status), hint: appleSpeechHint(status), live }];
 }
 
 /** Every speech model in picker order, on-device first; the first entry per selection wins. */

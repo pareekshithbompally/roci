@@ -11,13 +11,15 @@ use tauri::State;
 
 use crate::bridge;
 use crate::types::{
-    AppleError, Availability, Empty, Generated, Granted, ModelStatus, Reply, SpeechSegment, SpeechStatus, StreamEvent,
+    AppleError, Availability, Empty, Granted, LiveText, ModelStatus, Reply, SpeechSegment, SpeechStatus, StreamEvent, Text,
     Transcription,
 };
 
 /// Longest one generation may take (a full summary measured ~20 s on Apple silicon).
 const GENERATE_TIMEOUT: Duration = Duration::from_secs(120);
 const LANGUAGE_HEADER: &str = "x-language";
+/// Which live speech stream a raw-body feed is for.
+const STREAM_HEADER: &str = "x-stream";
 const DEFAULT_LANGUAGE: &str = "en";
 
 async fn off_main<T: Send + 'static>(work: impl FnOnce() -> Result<T, AppleError> + Send + 'static) -> Result<T, AppleError> {
@@ -50,7 +52,7 @@ pub fn availability() -> ModelStatus {
 pub async fn generate(id: u32, instructions: String, prompt: String, schema: Option<String>) -> Result<String, AppleError> {
     off_main(move || {
         let timeout = GENERATE_TIMEOUT.as_millis() as u64;
-        take::<Generated>(bridge::generate(id, &instructions, &prompt, schema.as_deref().unwrap_or(""), timeout)).map(|g| g.text)
+        take::<Text>(bridge::generate(id, &instructions, &prompt, schema.as_deref().unwrap_or(""), timeout)).map(|g| g.text)
     })
     .await
 }
@@ -122,16 +124,8 @@ pub async fn speech_prepare(language: String) -> Result<(), AppleError> {
 /// Transcribes a raw-body WAV part (header `x-language`) via a temp file, since SpeechAnalyzer reads files.
 #[command]
 pub async fn speech_transcribe(request: Request<'_>) -> Result<Vec<SpeechSegment>, AppleError> {
-    let InvokeBody::Raw(wav) = request.body() else {
-        return Err(AppleError::Failed("expected a raw WAV body".into()));
-    };
-    let language = request
-        .headers()
-        .get(LANGUAGE_HEADER)
-        .and_then(|value| value.to_str().ok())
-        .unwrap_or(DEFAULT_LANGUAGE)
-        .to_string();
-    let wav = wav.clone();
+    let wav = raw_body(&request, "a raw WAV body")?;
+    let language = header(&request, LANGUAGE_HEADER).unwrap_or(DEFAULT_LANGUAGE).to_string();
     off_main(move || {
         let stamp = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or_default();
         let path = std::env::temp_dir().join(format!("roci-apple-speech-{}-{stamp}.wav", std::process::id()));
@@ -141,4 +135,44 @@ pub async fn speech_transcribe(request: Request<'_>) -> Result<Vec<SpeechSegment
         result.map(|t| t.segments)
     })
     .await
+}
+
+/// Starts live speech stream `id` (the webview's): its own analyzer, so several run at once.
+#[command]
+pub async fn speech_live_start(id: u32, language: String) -> Result<(), AppleError> {
+    off_main(move || take::<Empty>(bridge::speech_live_start(id, &language)).map(|_| ())).await
+}
+
+/// Feeds a live stream (header `x-stream`) 16 kHz mono f32, the raw little-endian body; answers with the text so far.
+#[command]
+pub async fn speech_live_feed(request: Request<'_>) -> Result<LiveText, AppleError> {
+    let pcm = raw_body(&request, "raw f32 samples")?;
+    let id = header(&request, STREAM_HEADER)
+        .and_then(|value| value.parse::<u32>().ok())
+        .ok_or_else(|| AppleError::Failed("expected an x-stream id".into()))?;
+    off_main(move || take::<LiveText>(bridge::speech_live_feed(id, &pcm))).await
+}
+
+/// Ends live stream `id` once its audio is transcribed; answers with everything it heard.
+#[command]
+pub async fn speech_live_finish(id: u32) -> Result<String, AppleError> {
+    off_main(move || take::<Text>(bridge::speech_live_finish(id)).map(|t| t.text)).await
+}
+
+/// Abandons live stream `id`, if it's running.
+#[command]
+pub fn speech_live_cancel(id: u32) {
+    bridge::speech_live_cancel(id);
+}
+
+/// A raw invoke body (`what` names it in the error), copied to move off the main thread.
+fn raw_body(request: &Request<'_>, what: &str) -> Result<Vec<u8>, AppleError> {
+    match request.body() {
+        InvokeBody::Raw(bytes) => Ok(bytes.clone()),
+        _ => Err(AppleError::Failed(format!("expected {what}"))),
+    }
+}
+
+fn header<'a>(request: &'a Request<'_>, name: &str) -> Option<&'a str> {
+    request.headers().get(name).and_then(|value| value.to_str().ok())
 }

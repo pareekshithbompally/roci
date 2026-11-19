@@ -331,6 +331,54 @@
           "markdownDescription": "Denies the generate_cancel command without any pre-configured scope."
         },
         {
+          "description": "Enables the speech_live_cancel command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-speech-live-cancel",
+          "markdownDescription": "Enables the speech_live_cancel command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the speech_live_cancel command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-speech-live-cancel",
+          "markdownDescription": "Denies the speech_live_cancel command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the speech_live_feed command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-speech-live-feed",
+          "markdownDescription": "Enables the speech_live_feed command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the speech_live_feed command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-speech-live-feed",
+          "markdownDescription": "Denies the speech_live_feed command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the speech_live_finish command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-speech-live-finish",
+          "markdownDescription": "Enables the speech_live_finish command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the speech_live_finish command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-speech-live-finish",
+          "markdownDescription": "Denies the speech_live_finish command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the speech_live_start command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-speech-live-start",
+          "markdownDescription": "Enables the speech_live_start command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the speech_live_start command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-speech-live-start",
+          "markdownDescription": "Denies the speech_live_start command without any pre-configured scope."
+        },
+        {
           "description": "Enables the speech_prepare command without any pre-configured scope.",
           "type": "string",
           "const": "allow-speech-prepare",
@@ -403,10 +451,10 @@
           "markdownDescription": "Denies the stream_cancel command without any pre-configured scope."
         },
         {
-          "description": "Allows all Apple Intelligence commands (on-device language model + speech)\n#### This default permission set includes:\n\n- `allow-availability`\n- `allow-generate`\n- `allow-generate-cancel`\n- `allow-stream`\n- `allow-stream-cancel`\n- `allow-speech-status`\n- `allow-speech-request-access`\n- `allow-speech-prepare`\n- `allow-speech-transcribe`",
+          "description": "Allows all Apple Intelligence commands (on-device language model + speech)\n#### This default permission set includes:\n\n- `allow-availability`\n- `allow-generate`\n- `allow-generate-cancel`\n- `allow-stream`\n- `allow-stream-cancel`\n- `allow-speech-status`\n- `allow-speech-request-access`\n- `allow-speech-prepare`\n- `allow-speech-transcribe`\n- `allow-speech-live-start`\n- `allow-speech-live-feed`\n- `allow-speech-live-finish`\n- `allow-speech-live-cancel`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Allows all Apple Intelligence commands (on-device language model + speech)\n#### This default permission set includes:\n\n- `allow-availability`\n- `allow-generate`\n- `allow-generate-cancel`\n- `allow-stream`\n- `allow-stream-cancel`\n- `allow-speech-status`\n- `allow-speech-request-access`\n- `allow-speech-prepare`\n- `allow-speech-transcribe`"
+          "markdownDescription": "Allows all Apple Intelligence commands (on-device language model + speech)\n#### This default permission set includes:\n\n- `allow-availability`\n- `allow-generate`\n- `allow-generate-cancel`\n- `allow-stream`\n- `allow-stream-cancel`\n- `allow-speech-status`\n- `allow-speech-request-access`\n- `allow-speech-prepare`\n- `allow-speech-transcribe`\n- `allow-speech-live-start`\n- `allow-speech-live-feed`\n- `allow-speech-live-finish`\n- `allow-speech-live-cancel`"
         }
       ]
     }

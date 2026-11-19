@@ -4,6 +4,7 @@ import { Channel, invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from '@services/tauri';
 import { platform } from '@platform/index';
 import { failureLogger, isCodedError } from '@shared/utils/errors';
+import type { LiveText } from '@services/ai/transcription/streaming';
 
 const PLUGIN = 'plugin:apple-intelligence|';
 
@@ -112,4 +113,15 @@ export const appleIntelligence = {
   speechStatus: (language: string) => invoke<AppleSpeechStatus>(`${PLUGIN}speech_status`, { language }),
   speechRequestAccess: () => invoke<boolean>(`${PLUGIN}speech_request_access`),
   speechPrepare: (language: string) => invoke<void>(`${PLUGIN}speech_prepare`, { language }),
+
+  /** Live speech stream `id` (the caller's): several run at once, each its own analyzer. */
+  speechLiveStart: (id: number, language: string) => invoke<void>(`${PLUGIN}speech_live_start`, { id, language }),
+  /** Feeds 16 kHz mono f32 (the raw invoke body, so the id goes as a header); the text so far. */
+  speechLiveFeed: (id: number, pcm: Float32Array) =>
+    invoke<LiveText>(`${PLUGIN}speech_live_feed`, new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength), {
+      headers: { 'x-stream': String(id) },
+    }),
+  /** Ends the stream once its audio is transcribed; everything it heard. */
+  speechLiveFinish: (id: number) => invoke<string>(`${PLUGIN}speech_live_finish`, { id }),
+  speechLiveCancel: (id: number) => invoke<void>(`${PLUGIN}speech_live_cancel`, { id }),
 };

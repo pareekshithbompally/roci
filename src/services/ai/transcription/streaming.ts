@@ -4,6 +4,7 @@
 import { TRANSCRIPTION_CONFIG, type TranscriptionAdapterId } from '@config/transcription.config';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { onDeviceStreaming } from './onDevice';
+import { appleSpeechStreaming } from './appleSpeech';
 import { sdkStreaming } from './sdkStream';
 
 /** The text so far: settled words, then the latest words, still being revised. */
@@ -37,6 +38,7 @@ const cloud = (adapter: 'openai-compatible' | 'deepgram' | 'elevenlabs'): Stream
 
 export const STREAMING: Partial<Record<TranscriptionAdapterId, StreamingEngine>> = {
   'on-device': onDeviceStreaming,
+  'apple-speech': appleSpeechStreaming,
   'openai-compatible': cloud('openai-compatible'),
   deepgram: cloud('deepgram'),
   elevenlabs: cloud('elevenlabs'),

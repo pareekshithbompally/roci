@@ -10,4 +10,8 @@ permissions = [
   "allow-speech-request-access",
   "allow-speech-prepare",
   "allow-speech-transcribe",
+  "allow-speech-live-start",
+  "allow-speech-live-feed",
+  "allow-speech-live-finish",
+  "allow-speech-live-cancel",
 ]

@@ -13,6 +13,10 @@ Allows all Apple Intelligence commands (on-device language model + speech)
 - `allow-speech-request-access`
 - `allow-speech-prepare`
 - `allow-speech-transcribe`
+- `allow-speech-live-start`
+- `allow-speech-live-feed`
+- `allow-speech-live-finish`
+- `allow-speech-live-cancel`
 
 ## Permission Table
 
@@ -97,6 +101,110 @@ Enables the generate_cancel command without any pre-configured scope.
 <td>
 
 Denies the generate_cancel command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`apple-intelligence:allow-speech-live-cancel`
+
+</td>
+<td>
+
+Enables the speech_live_cancel command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`apple-intelligence:deny-speech-live-cancel`
+
+</td>
+<td>
+
+Denies the speech_live_cancel command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`apple-intelligence:allow-speech-live-feed`
+
+</td>
+<td>
+
+Enables the speech_live_feed command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`apple-intelligence:deny-speech-live-feed`
+
+</td>
+<td>
+
+Denies the speech_live_feed command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`apple-intelligence:allow-speech-live-finish`
+
+</td>
+<td>
+
+Enables the speech_live_finish command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`apple-intelligence:deny-speech-live-finish`
+
+</td>
+<td>
+
+Denies the speech_live_finish command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`apple-intelligence:allow-speech-live-start`
+
+</td>
+<td>
+
+Enables the speech_live_start command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`apple-intelligence:deny-speech-live-start`
+
+</td>
+<td>
+
+Denies the speech_live_start command without any pre-configured scope.
 
 </td>
 </tr>

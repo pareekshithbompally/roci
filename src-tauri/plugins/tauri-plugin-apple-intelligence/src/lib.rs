@@ -21,6 +21,10 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::speech_request_access,
             commands::speech_prepare,
             commands::speech_transcribe,
+            commands::speech_live_start,
+            commands::speech_live_feed,
+            commands::speech_live_finish,
+            commands::speech_live_cancel,
         ])
         .setup(|app, _| {
             app.manage(commands::Streams::default());
