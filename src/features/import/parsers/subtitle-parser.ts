@@ -16,37 +16,27 @@ const CUE_SETTINGS = /\s+(position|align|line|size|vertical|region|snap):[^\s]+/
 export function parseSubtitleFile(content: string, format: 'srt' | 'vtt'): string {
   const lines = content.replace(/\r\n/g, '\n').split('\n');
   const textLines: string[] = [];
-  let inStyleBlock = false;
-  let inNoteBlock = false;
+  // A VTT STYLE or NOTE block: skipped up to the blank line that ends it.
+  let inSkippedBlock = false;
 
   for (const rawLine of lines) {
     const line = rawLine.trim();
 
-    // Skip empty lines (they separate cues)
+    // An empty line separates cues and ends a skipped block
     if (!line) {
-      inNoteBlock = false;
+      inSkippedBlock = false;
       continue;
     }
+    if (inSkippedBlock) continue;
 
     // VTT: skip header
     if (format === 'vtt' && /^WEBVTT/i.test(line)) continue;
 
-    // VTT: skip STYLE blocks
-    if (/^STYLE$/i.test(line)) {
-      inStyleBlock = true;
+    // VTT: skip STYLE and NOTE blocks
+    if (/^(STYLE|NOTE)(\s|$)/.test(line)) {
+      inSkippedBlock = true;
       continue;
     }
-    if (inStyleBlock) {
-      if (line === '') inStyleBlock = false;
-      continue;
-    }
-
-    // VTT: skip NOTE blocks
-    if (/^NOTE/i.test(line)) {
-      inNoteBlock = true;
-      continue;
-    }
-    if (inNoteBlock) continue;
 
     // Skip timestamp lines
     if (TIMESTAMP_LINE.test(line)) continue;
@@ -55,7 +45,7 @@ export function parseSubtitleFile(content: string, format: 'srt' | 'vtt'): strin
     if (CUE_ID.test(line)) continue;
 
     // Clean text: strip HTML tags and cue settings
-    let clean = line
+    const clean = line
       .replace(HTML_TAGS, '')
       .replace(CUE_SETTINGS, '')
       .trim();
