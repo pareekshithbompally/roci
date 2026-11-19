@@ -48,9 +48,10 @@ export const TRANSCRIPTION_CONFIG = {
     'on-device': 'on-device',
   } as Record<string, TranscriptionAdapterId>,
 
-  /** Cloud speech models that stream (words as they are said), by adapter; any other model goes live in chunks. */
+  /** Cloud speech models that stream (words as they are said), by adapter — the ones the AI SDK opens a stream for (OpenAI's
+   *  gpt-4o transcribe models are upload-only there); any other model goes live in chunks. */
   streamingModels: {
-    'openai-compatible': /^gpt-4o(-mini)?-transcribe|realtime/i,
+    'openai-compatible': /^(gpt-transcribe|gpt-live-transcribe|gpt-realtime-whisper)/i,
     deepgram: /^(nova|flux)/i,
     elevenlabs: /realtime/i,
   } as Partial<Record<TranscriptionAdapterId, RegExp>>,

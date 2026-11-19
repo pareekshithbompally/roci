@@ -19,7 +19,11 @@ describe('liveModeOf — the one answer to "streams or chunks"', () => {
   });
 
   it('cloud models stream by name, per adapter', () => {
-    expect(canStream('openai-compatible', 'gpt-4o-transcribe')).toBe(true);
+    expect(canStream('openai-compatible', 'gpt-live-transcribe')).toBe(true);
+    expect(canStream('openai-compatible', 'gpt-realtime-whisper')).toBe(true);
+    // the AI SDK only uploads these: as a stream they fail and the live transcript goes unavailable
+    expect(canStream('openai-compatible', 'gpt-4o-mini-transcribe')).toBe(false);
+    expect(canStream('openai-compatible', 'gpt-4o-transcribe')).toBe(false);
     expect(canStream('openai-compatible', 'whisper-1')).toBe(false);
     expect(canStream('deepgram', 'nova-3')).toBe(true);
     expect(canStream('hex', 'parakeet')).toBe(false);
