@@ -2,6 +2,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { MENU_ICON_PT } from '@config/ui.config';
+import { tokenRgb } from '@shared/utils/cssToken';
 
 /** An icon: an image URL (a logo, a cached avatar, a rendered glyph) or an SF Symbol name; `template` glyphs and symbols take the menu's light or dark tint. */
 interface MenuIcon {
@@ -62,9 +63,10 @@ async function withPngIcons(entries: NativeMenuEntry[]): Promise<NativeMenuEntry
   }));
 }
 
-/** Shows the menu with its top-left at `x, y` (window points); resolves what was picked and switched once it closes. */
+/** Shows the menu with its top-left at `x, y` (window points); resolves what was picked and switched once it closes. Switches turn on in the app accent, like the kit `Switch`. */
 export async function nativeMenu(entries: NativeMenuEntry[], x: number, y: number): Promise<NativeMenuResult> {
   const rows = await withPngIcons(entries);
-  const result = await invoke<string>('native_menu', { entries: JSON.stringify(rows), x, y, iconSize: MENU_ICON_PT });
+  const accent = tokenRgb(document.documentElement, '--bg-accent');
+  const result = await invoke<string>('native_menu', { entries: JSON.stringify(rows), x, y, iconSize: MENU_ICON_PT, accent });
   return JSON.parse(result) as NativeMenuResult;
 }

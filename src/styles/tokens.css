@@ -32,8 +32,6 @@
   --control-md: 32px;
   /* A screen's main button (first-run Continue). */
   --control-lg: 36px;
-  --switch-sm-h: 14px;  --switch-sm-w: 24px;  --switch-sm-thumb: 10px;  --switch-sm-travel: 10px;
-  --switch-md-h: 20px;  --switch-md-w: 36px;  --switch-md-thumb: 16px;  --switch-md-travel: 16px;
 
   /* ─── Tier 1: primitives ─────────────────────────────── */
   --grey-50: #ffffff;
@@ -196,8 +194,6 @@ html.platform-ios {
   --control-sm: 36px;
   --control-md: 44px;
   --control-lg: 50px;
-  --switch-sm-h: 31px;  --switch-sm-w: 51px;  --switch-sm-thumb: 27px;  --switch-sm-travel: 20px;
-  --switch-md-h: 31px;  --switch-md-w: 51px;  --switch-md-thumb: 27px;  --switch-md-travel: 20px;
   /* Inset grouped lists (UIKit): systemGroupedBackground page, secondarySystemGroupedBackground cards; iOS 26 corners. */
   --bg-grouped: #f2f2f7;
   --bg-grouped-card: #ffffff;

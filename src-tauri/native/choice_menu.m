@@ -1,23 +1,35 @@
 // A native menu at a point in the key window: section headers, two-line rows (icon, title, grey subtitle) that pick and close,
-// switch rows that toggle and keep the menu open, and fan-out submenus. Returns what was picked and switched as JSON.
+// switch rows that toggle and keep the menu open (highlighted under the pointer like any row), and fan-out submenus. Returns what was picked and switched as JSON.
 
 #import <AppKit/AppKit.h>
 
-// Switch-row metrics, in points, matched to AppKit's own menu rows (icon column, title inset, row heights).
+// Switch-row metrics, in points, matched to AppKit's own menu rows (icon column, title inset, row heights) and to the
+// macOS 27 switch the Settings rows show (WebKit's system switch): a 41×18 track with a 24×15 capsule knob.
 static const CGFloat kRowPadding = 14;
 static const CGFloat kIconGap = 6;
 static const CGFloat kSwitchGap = 24;
 static const CGFloat kOneLineHeight = 26;
 static const CGFloat kTwoLineHeight = 38;
-static const CGFloat kSwitchWidth = 32;
+static const CGFloat kSwitchWidth = 41;
 static const CGFloat kSwitchHeight = 18;
+static const CGFloat kKnobWidth = 24;
+static const CGFloat kKnobInset = 1.5;
 /// An off switch's track: the label colour, faint (light on a dark menu, dark on a light one), like AppKit's.
 static const CGFloat kSwitchOffAlpha = 0.15;
+/// On a highlighted row the track is the selected-text colour (white), faint when off and stronger when on.
+static const CGFloat kSwitchSelectedOffAlpha = 0.25;
+static const CGFloat kSwitchSelectedOnAlpha = 0.5;
+/// The row highlight, matched to AppKit's own: inset from the menu's sides, rounded.
+static const CGFloat kHighlightInset = 5;
+static const CGFloat kHighlightRadius = 5;
 
-/// A switch drawn in the system accent colour whatever window is key: AppKit's NSSwitch greys out in a menu whose submenu
-/// has focus, so a menu's switches would lose their colour as soon as one fans out. Sized like AppKit's small switch.
-@interface RociMenuSwitch : NSControl
+/// The system switch's look, drawn: AppKit's NSSwitch draws grey in a menu (a menu is never the key window). On in the
+/// app accent, like the kit Switch in Settings. Drawing only: its row takes the clicks.
+@interface RociMenuSwitch : NSView
 @property(nonatomic) BOOL on;
+@property(nonatomic, strong) NSColor *accent;
+@property(nonatomic) BOOL enabled;
+@property(nonatomic) NSBackgroundStyle backgroundStyle;
 @end
 
 @implementation RociMenuSwitch
@@ -28,12 +40,14 @@ static const CGFloat kSwitchOffAlpha = 0.15;
   NSRect track = NSInsetRect(self.bounds, 0.5, 0.5);
   CGFloat radius = NSHeight(track) / 2;
   CGFloat alpha = self.enabled ? 1 : 0.4;
-  NSColor *trackColor = self.on ? NSColor.controlAccentColor : [NSColor.labelColor colorWithAlphaComponent:kSwitchOffAlpha];
+  NSColor *trackColor = self.backgroundStyle == NSBackgroundStyleEmphasized
+    ? [NSColor.selectedMenuItemTextColor colorWithAlphaComponent:self.on ? kSwitchSelectedOnAlpha : kSwitchSelectedOffAlpha]
+    : (self.on ? self.accent : [NSColor.labelColor colorWithAlphaComponent:kSwitchOffAlpha]);
   [[trackColor colorWithAlphaComponent:trackColor.alphaComponent * alpha] setFill];
   [[NSBezierPath bezierPathWithRoundedRect:track xRadius:radius yRadius:radius] fill];
-  CGFloat inset = 1.5;
-  CGFloat knob = NSHeight(track) - inset * 2;
-  CGFloat x = self.on ? NSMaxX(track) - inset - knob : NSMinX(track) + inset;
+  NSRect knob = NSMakeRect(self.on ? NSMaxX(track) - kKnobInset - kKnobWidth : NSMinX(track) + kKnobInset,
+                           NSMinY(track) + kKnobInset, kKnobWidth, NSHeight(track) - kKnobInset * 2);
+  CGFloat knobRadius = NSHeight(knob) / 2;
   NSShadow *shadow = [NSShadow new];
   shadow.shadowColor = [NSColor colorWithWhite:0 alpha:0.25];
   shadow.shadowBlurRadius = 1;
@@ -41,30 +55,76 @@ static const CGFloat kSwitchOffAlpha = 0.15;
   [NSGraphicsContext saveGraphicsState];
   [shadow set];
   [[NSColor.whiteColor colorWithAlphaComponent:alpha] setFill];
-  [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(x, NSMinY(track) + inset, knob, knob)] fill];
+  [[NSBezierPath bezierPathWithRoundedRect:knob xRadius:knobRadius yRadius:knobRadius] fill];
   [NSGraphicsContext restoreGraphicsState];
+}
+- (void)setBackgroundStyle:(NSBackgroundStyle)style {
+  _backgroundStyle = style;
+  self.needsDisplay = YES;
+}
+@end
+
+/// A switch row. AppKit leaves a custom-view item to highlight itself, so the row shows the system selection material
+/// while the pointer is over it and gives its labels, icon and switch the emphasized background style, as a selected
+/// table row does. A click anywhere on it flips the switch; the menu stays open.
+@interface RociMenuRow : NSControl
+@property(nonatomic, strong) RociMenuSwitch *toggle;
+@property(nonatomic, strong) NSVisualEffectView *highlight;
+@end
+
+@implementation RociMenuRow
+- (instancetype)initWithFrame:(NSRect)frame {
+  self = [super initWithFrame:frame];
+  _highlight = [[NSVisualEffectView alloc] initWithFrame:NSInsetRect(self.bounds, kHighlightInset, 0)];
+  _highlight.material = NSVisualEffectMaterialSelection;
+  _highlight.state = NSVisualEffectStateActive;
+  _highlight.emphasized = YES;
+  _highlight.wantsLayer = YES;
+  _highlight.layer.cornerRadius = kHighlightRadius;
+  _highlight.autoresizingMask = NSViewWidthSizable;
+  _highlight.hidden = YES;
+  [self addSubview:_highlight];
+  NSTrackingAreaOptions options = NSTrackingMouseEnteredAndExited | NSTrackingActiveAlways | NSTrackingInVisibleRect;
+  [self addTrackingArea:[[NSTrackingArea alloc] initWithRect:NSZeroRect options:options owner:self userInfo:nil]];
+  return self;
+}
+- (void)setHighlighted:(BOOL)highlighted {
+  self.highlight.hidden = !highlighted;
+  NSBackgroundStyle style = highlighted ? NSBackgroundStyleEmphasized : NSBackgroundStyleNormal;
+  for (NSView *view in self.subviews) {
+    if ([view isKindOfClass:[NSControl class]]) ((NSControl *)view).cell.backgroundStyle = style;
+  }
+  self.toggle.backgroundStyle = style;
+}
+- (void)mouseEntered:(NSEvent *)event {
+  if (self.enabled) self.highlighted = YES;
+}
+- (void)mouseExited:(NSEvent *)event {
+  self.highlighted = NO;
 }
 - (void)mouseDown:(NSEvent *)event {
   if (!self.enabled) return;
-  self.on = !self.on;
-  [self setNeedsDisplay:YES];
+  self.toggle.on = !self.toggle.on;
+  self.toggle.needsDisplay = YES;
   [self sendAction:self.action to:self.target];
 }
 @end
 
+/// One open menu's shared state: what its rows report back, and the accent its switches turn on in.
 @interface RociMenuTarget : NSObject
+@property(nonatomic, strong) NSColor *accent;
 @property(nonatomic, copy) NSString *chosen;
 @property(nonatomic, strong) NSMutableDictionary<NSString *, NSNumber *> *toggled;
 - (void)pick:(NSMenuItem *)item;
-- (void)flip:(RociMenuSwitch *)control;
+- (void)flip:(RociMenuRow *)row;
 @end
 
 @implementation RociMenuTarget
 - (void)pick:(NSMenuItem *)item {
   self.chosen = item.representedObject;
 }
-- (void)flip:(RociMenuSwitch *)control {
-  self.toggled[control.identifier] = @(control.on);
+- (void)flip:(RociMenuRow *)row {
+  self.toggled[row.identifier] = @(row.toggle.on);
 }
 @end
 
@@ -96,7 +156,7 @@ static NSTextField *rociLabel(NSString *text, CGFloat size, NSColor *color) {
   return label;
 }
 
-/// A switch row: icon, title over a grey subtitle, a switch pinned to the trailing edge; clicking the switch keeps the menu open.
+/// A switch row: icon, title over a grey subtitle, a switch pinned to the trailing edge; clicking the row keeps the menu open.
 /// The row stretches to the menu's width (flexible width), so every switch lines up; its own width is the least it needs.
 static NSMenuItem *rociSwitchItem(NSDictionary *entry, RociMenuTarget *target, CGFloat iconSize) {
   BOOL enabled = [entry[@"enabled"] boolValue];
@@ -110,21 +170,24 @@ static NSMenuItem *rociSwitchItem(NSDictionary *entry, RociMenuTarget *target, C
   RociMenuSwitch *control = [[RociMenuSwitch alloc] initWithFrame:NSMakeRect(0, 0, kSwitchWidth, kSwitchHeight)];
   control.on = [entry[@"on"] boolValue];
   control.enabled = enabled;
-  control.identifier = entry[@"id"];
-  control.target = target;
-  control.action = @selector(flip:);
+  control.accent = target.accent;
 
   CGFloat textX = kRowPadding + (image ? iconSize + kIconGap : 0);
   CGFloat textWidth = MAX(NSWidth(title.frame), NSWidth(detail.frame));
   CGFloat height = detail ? kTwoLineHeight : kOneLineHeight;
   CGFloat width = textX + textWidth + kSwitchGap + NSWidth(control.frame) + kRowPadding;
-  NSView *row = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, width, height)];
+  RociMenuRow *row = [[RociMenuRow alloc] initWithFrame:NSMakeRect(0, 0, width, height)];
   row.autoresizingMask = NSViewWidthSizable;
+  row.enabled = enabled;
+  row.identifier = entry[@"id"];
+  row.target = target;
+  row.action = @selector(flip:);
+  row.toggle = control;
 
   if (image) {
     NSImageView *view = [NSImageView imageViewWithImage:image];
     view.frame = NSMakeRect(kRowPadding, (height - iconSize) / 2, iconSize, iconSize);
-    view.contentTintColor = enabled ? NSColor.labelColor : NSColor.tertiaryLabelColor;
+    if (!enabled) view.contentTintColor = NSColor.tertiaryLabelColor;
     [row addSubview:view];
   }
   CGFloat block = NSHeight(title.frame) + (detail ? NSHeight(detail.frame) : 0);
@@ -181,14 +244,15 @@ static NSMenu *rociMenu(NSArray *entries, RociMenuTarget *target, CGFloat iconSi
   return menu;
 }
 
-/// Shows the menu with its top-left at (x, y) in the key window's content (top-left origin, points); blocks until it closes.
-/// Returns `{"chosen": id | null, "toggled": {id: bool}}` as a C string freed with `roci_menu_free_string`. Main thread only.
-char *roci_menu(const char *json, double x, double y, double iconSize) {
+/// Shows the menu with its top-left at (x, y) in the key window's content (top-left origin, points), switches on in the app
+/// accent (sRGB 0–1); blocks until it closes. Returns `{"chosen": id | null, "toggled": {id: bool}}` as a C string freed with `roci_menu_free_string`. Main thread only.
+char *roci_menu(const char *json, double x, double y, double iconSize, double red, double green, double blue) {
   NSData *data = [NSData dataWithBytes:json length:strlen(json)];
   NSArray *entries = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
   NSView *view = NSApp.keyWindow.contentView;
   RociMenuTarget *target = [RociMenuTarget new];
   target.toggled = [NSMutableDictionary dictionary];
+  target.accent = [NSColor colorWithSRGBRed:red green:green blue:blue alpha:1];
   if ([entries isKindOfClass:[NSArray class]] && view) {
     NSMenu *menu = rociMenu(entries, target, iconSize);
     CGFloat top = view.isFlipped ? y : view.bounds.size.height - y;
