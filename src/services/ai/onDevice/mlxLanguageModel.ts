@@ -82,6 +82,11 @@ function stream(modelId: string, options: LanguageModelV4CallOptions): Promise<L
   return Promise.resolve({
     stream: new ReadableStream<LanguageModelV4StreamPart>({
       start(controller) {
+        // Stopped before it began (a superseded update): nothing runs, nothing waits for the GPU.
+        if (options.abortSignal?.aborted) {
+          controller.error(options.abortSignal.reason ?? new DOMException('Aborted', 'AbortError'));
+          return;
+        }
         controller.enqueue({ type: 'stream-start', warnings: [] });
         options.abortSignal?.addEventListener('abort', stop, { once: true });
         mlxChat(modelId, request, (event) => {

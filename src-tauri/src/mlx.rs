@@ -1,9 +1,10 @@
 //! On-device chat and meeting-search embeddings on MLX (RociMLX.framework, Swift over C). A role's model loads on first
 //! use and is freed after it idles (one deadline per role, re-armed by every use), on delete and on quit.
 
+use std::collections::HashSet;
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::OnceLock;
+use std::sync::{LazyLock, Mutex, OnceLock};
 
 use serde_json::{json, Value};
 use tauri::ipc::Channel;
@@ -12,6 +13,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use crate::models::catalog::{self, Kind};
 use crate::models::gpu::{self, Priority};
 use crate::models::{blocking, store, LocalError};
+use crate::sync::lock;
 
 type EventFn = extern "C" fn(*mut c_void, *const c_char);
 
@@ -107,21 +109,35 @@ impl MlxState {
 pub async fn mlx_chat(app: AppHandle, model: String, mut request: Value, on_event: Channel<Value>) -> Result<Value, LocalError> {
     let dir = model_dir(&app, &model, Kind::Chat)?;
     request["modelDir"] = json!(dir);
+    let stream_id = request["streamId"].as_u64();
     let result = blocking(move || {
         let request = to_c(&request)?;
         let context = &on_event as *const Channel<Value> as *mut c_void;
-        // SAFETY: `roci_mlx_chat` blocks until the reply ends and only calls `forward` with `context` meanwhile, while
-        // `on_event` is alive on this frame; the returned string is ours to free.
-        take(gpu::run(Priority::Interactive, || unsafe { roci_mlx_chat(request.as_ptr(), forward, context) }))
+        let reply = gpu::run(Priority::Interactive, || {
+            if stream_id.is_some_and(|id| lock(&CANCELLED).remove(&id)) {
+                return Ok(json!({ "promptTokens": 0, "completionTokens": 0, "cancelled": true }));
+            }
+            // SAFETY: `roci_mlx_chat` blocks until the reply ends and only calls `forward` with `context` meanwhile, while
+            // `on_event` is alive on this frame; the returned string is ours to free.
+            take(unsafe { roci_mlx_chat(request.as_ptr(), forward, context) })
+        });
+        if let Some(id) = stream_id {
+            lock(&CANCELLED).remove(&id);
+        }
+        reply
     })
     .await;
     rearm_idle(&app, Role::Chat);
     result
 }
 
-/// Stops a chat stream started by `mlx_chat`.
+/// Streams stopped before Swift knew them (still waiting for their GPU turn): answered as cancelled without running.
+static CANCELLED: LazyLock<Mutex<HashSet<u64>>> = LazyLock::new(Mutex::default);
+
+/// Stops a chat stream started by `mlx_chat`, running or still waiting for its turn.
 #[tauri::command]
 pub fn mlx_cancel(stream_id: u64) {
+    lock(&CANCELLED).insert(stream_id);
     // SAFETY: a plain value; unknown ids are ignored on the Swift side.
     unsafe { roci_mlx_cancel(stream_id) }
 }

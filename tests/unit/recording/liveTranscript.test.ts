@@ -60,6 +60,16 @@ describe('in-call transcript', () => {
     ]);
   });
 
+  it('starting the same recording again (live transcription off and on) keeps its draft', async () => {
+    runTranscription.mockResolvedValueOnce({ text: 'First.', segments: [] });
+    await liveTranscript.start('m-again', read);
+    handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 6_000) });
+    await vi.waitFor(() => expect(useMeetingLiveStore.getState().entries).toHaveLength(1));
+    await liveTranscript.start('m-again', read);
+    expect(useMeetingLiveStore.getState().entries).toEqual([entry('microphone', 0, 6_000, 'First.')]);
+    liveTranscript.finish('m-again');
+  });
+
   it('transcribes chunks in order as they come; Stop keeps the draft on screen', async () => {
     runTranscription.mockResolvedValueOnce({ text: 'First.', segments: [] }).mockResolvedValueOnce({ text: 'Second.', segments: [] });
     await liveTranscript.start('m1', read);

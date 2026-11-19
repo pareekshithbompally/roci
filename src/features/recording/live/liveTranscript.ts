@@ -272,8 +272,10 @@ function streamSink(current: Session) {
 
 export const liveTranscript = {
   /** Starts listening for a recording's audio — frames for a model that streams (`streaming`, as the recorder reports it),
-   *  chunks otherwise; any earlier session (an abandoned recording) is dropped. */
+   *  chunks otherwise; any earlier session (an abandoned recording) is dropped. The same recording again (Real-time
+   *  transcription turned off and on) keeps the session it has, and its draft. */
   async start(meetingId: string, read: Reader, streaming = false): Promise<void> {
+    if (session?.meetingId === meetingId) return;
     session?.unlisten();
     session?.controller.abort();
     session?.streams?.cancel();

@@ -38,6 +38,16 @@ describe('ragIndexer.appendTranscript', () => {
   });
 });
 
+describe('one indexing rule', () => {
+  it('never re-indexes a meeting from its saved content while it records or waits for its transcript', async () => {
+    const { isIndexable } = await import('@extensions/rag/indexer');
+    const meeting = (status?: string) => ({ id: 'm', title: 't', timestamp: 0, ...(status && { status: { status } }) }) as never;
+    expect(['recording', 'captured', 'transcribing'].map((s) => isIndexable(meeting(s)))).toEqual([false, false, false]);
+    expect(['transcribed', 'summarizing', 'ready', 'failed'].map((s) => isIndexable(meeting(s)))).toEqual([true, true, true, true]);
+    expect(isIndexable(meeting())).toBe(true);
+  });
+});
+
 describe('ragSearcher.searchWithin', () => {
   it('embeds every query in one call and searches each within the meeting', async () => {
     embed.embedQueries.mockResolvedValue([[1], [2]]);

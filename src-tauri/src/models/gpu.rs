@@ -25,19 +25,25 @@ struct State {
     busy: bool,
     /// A turn that stepped aside for more urgent work: only work more urgent than it may run until it resumes.
     parked: Option<Priority>,
-    /// Turns waiting, per priority.
-    waiting: [usize; 3],
+    /// Per priority, tickets handed out and tickets served: work of one priority runs first come, first served.
+    issued: [u64; 3],
+    served: [u64; 3],
 }
 
 impl State {
-    fn may_run(&self, priority: Priority) -> bool {
-        !self.busy
-            && self.waiting[..priority as usize].iter().all(|&n| n == 0)
-            && self.parked.is_none_or(|parked| priority < parked)
+    fn waiting(&self, priority: usize) -> bool {
+        self.issued[priority] > self.served[priority]
     }
 
     fn more_urgent_waiting(&self, priority: Priority) -> bool {
-        self.waiting[..priority as usize].iter().any(|&n| n > 0)
+        (0..priority as usize).any(|p| self.waiting(p))
+    }
+
+    fn may_run(&self, priority: Priority, ticket: u64) -> bool {
+        !self.busy
+            && ticket == self.served[priority as usize]
+            && !self.more_urgent_waiting(priority)
+            && self.parked.is_none_or(|parked| priority < parked)
     }
 }
 
@@ -50,13 +56,14 @@ struct Queue {
 static QUEUE: LazyLock<Queue> = LazyLock::new(Queue::default);
 
 impl Queue {
-    /// Waits until `priority` may run, then takes the turn.
+    /// Waits until `priority` may run and it's this caller's turn among its priority, then takes the turn.
     fn take<'a>(&'a self, mut state: MutexGuard<'a, State>, priority: Priority) -> MutexGuard<'a, State> {
-        state.waiting[priority as usize] += 1;
-        while !state.may_run(priority) {
+        let ticket = state.issued[priority as usize];
+        state.issued[priority as usize] += 1;
+        while !state.may_run(priority, ticket) {
             state = self.handed_over.wait(state).unwrap_or_else(|poisoned| poisoned.into_inner());
         }
-        state.waiting[priority as usize] -= 1;
+        state.served[priority as usize] += 1;
         state.busy = true;
         state
     }
@@ -179,6 +186,35 @@ mod tests {
             handle.join().unwrap();
         }
         assert_eq!(*lock(&order), ["reply starts", "speech", "reply ends", "embedding"]);
+    }
+
+    #[test]
+    fn work_of_one_priority_runs_in_the_order_it_asked() {
+        let _serial = lock(&SERIAL);
+        let order = Arc::new(Mutex::new(Vec::new()));
+        let (started, hold) = mpsc::channel::<()>();
+        let (release, held) = mpsc::channel::<()>();
+        let first = thread::spawn(move || {
+            run(Priority::Realtime, || {
+                started.send(()).unwrap();
+                held.recv().unwrap();
+            })
+        });
+        hold.recv().unwrap();
+        let waiters: Vec<_> = (1..=3)
+            .map(|n| {
+                let order = Arc::clone(&order);
+                let handle = thread::spawn(move || run(Priority::Realtime, || lock(&order).push(n)));
+                settle();
+                handle
+            })
+            .collect();
+        release.send(()).unwrap();
+        first.join().unwrap();
+        for handle in waiters {
+            handle.join().unwrap();
+        }
+        assert_eq!(*lock(&order), [1, 2, 3]);
     }
 
     #[test]

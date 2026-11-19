@@ -30,19 +30,28 @@ const transcriptRow = ({ text, model, language, segments }: TranscriptInput): Ne
   segments: segments?.length ? JSON.stringify(segments) : null,
 });
 
+/** Re-indexes the meeting for search after a save; a failure is logged, the save stands. */
+function indexInBackground(meetingId: string): void {
+  searchIndexingService.indexMeeting(meetingId).catch((error: unknown) =>
+    console.error('[TranscriptionService] Meeting indexing failed (non-fatal):', meetingId, error));
+}
+
 export const transcriptionService = {
   /** Saves the transcript (meeting → `transcribed`; the store announces it). Throws when the store write fails. */
   async saveTranscript({ meetingId, ...transcript }: TranscriptInput & { meetingId: string }): Promise<void> {
     await store.meetings.saveTranscript(meetingId, transcriptRow(transcript));
+    indexInBackground(meetingId);
   },
 
   /** A meeting that arrives with its transcript (an import): one write, so it is never without it, and it starts `transcribed`.
    *  False when a meeting with this id already exists; it is left as it is. */
-  importMeeting(
+  async importMeeting(
     meeting: { id: string; title: string; inputSource: string; createdAt?: number },
     transcript: TranscriptInput,
   ): Promise<boolean> {
-    return store.meetings.create({ ...meeting, status: 'transcribed', transcript: transcriptRow(transcript) });
+    const created = await store.meetings.create({ ...meeting, status: 'transcribed', transcript: transcriptRow(transcript) });
+    if (created) indexInBackground(meeting.id);
+    return created;
   },
 
   async saveSummary(input: SummarySave): Promise<void> {
@@ -53,7 +62,6 @@ export const transcriptionService = {
     void remindersSync.removed(saved.replaced_todo_ids);
     void remindersSync.added(saved.new_todo_ids);
     void appleNotesSync.meetingSaved(input.meetingId);
-    searchIndexingService.indexMeeting(input.meetingId).catch((error: unknown) =>
-      console.error('[TranscriptionService] Meeting indexing failed (non-fatal):', input.meetingId, error));
+    indexInBackground(input.meetingId);
   },
 };

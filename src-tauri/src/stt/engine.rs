@@ -95,18 +95,20 @@ impl Engine {
         work(guard.as_mut().ok_or(LocalError::NotDownloaded)?)
     }
 
-    /// Transcribes 16 kHz mono samples with the model at `path`.
+    /// Transcribes 16 kHz mono samples with the model at `path`, holding the engine and the GPU one window at a time, so a
+    /// meeting's live chunks get in between the windows of a long file (always engine, then GPU: dictation holds both that way).
     pub fn transcribe(&self, id: &'static str, path: &Path, pcm: &[f32], language: &str) -> Result<Vec<TimedText>, LocalError> {
-        self.with_loaded(id, path, |loaded| {
-            let options = loaded.run_options(language);
-            let mut out = Vec::new();
-            for window in windows(pcm, loaded.max_samples) {
-                let span = (seconds(window.start), seconds(window.end));
-                let transcript = gpu::run(Priority::Realtime, || loaded.session.run(&pcm[window], &options)).map_err(engine_error)?;
-                out.extend(timed(transcript, span));
-            }
-            Ok(out)
-        })
+        let max_samples = self.with_loaded(id, path, |loaded| Ok(loaded.max_samples))?;
+        let mut out = Vec::new();
+        for window in windows(pcm, max_samples) {
+            let span = (seconds(window.start), seconds(window.end));
+            let transcript = self.with_loaded(id, path, |loaded| {
+                let options = loaded.run_options(language);
+                gpu::run(Priority::Realtime, || loaded.session.run(&pcm[window], &options)).map_err(engine_error)
+            })?;
+            out.extend(timed(transcript, span));
+        }
+        Ok(out)
     }
 }
 

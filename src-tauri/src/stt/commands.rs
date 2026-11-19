@@ -62,12 +62,9 @@ pub async fn stt_live_start(app: AppHandle, model: String, language: String) -> 
 #[tauri::command]
 pub async fn stt_live_feed(app: AppHandle, request: Request<'_>) -> Result<LiveText, LocalError> {
     let pcm = f32_samples(raw_body(&request).ok_or_else(|| LocalError::BadInput("expected raw f32 samples".into()))?)?;
-    blocking(move || {
-        let state = app.state::<SttState>();
-        let live = lock(&state.live);
-        live.as_ref().ok_or_else(|| LocalError::BadInput("no live dictation".into()))?.feed(pcm)
-    })
-    .await
+    // A handle of its own, so waiting for the engine never holds the lock that cancel and finish take.
+    let session = lock(&app.state::<SttState>().live).clone().ok_or_else(|| LocalError::BadInput("no live dictation".into()))?;
+    blocking(move || session.feed(pcm)).await
 }
 
 /// Ends live dictation; answers with the final text.

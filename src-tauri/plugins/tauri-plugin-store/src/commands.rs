@@ -3708,6 +3708,29 @@ mod tests {
         assert_eq!(found, 1);
     }
 
+    #[test]
+    fn a_search_limited_to_one_meeting_finds_its_chunks_however_close_other_meetings_are() {
+        let conn = db();
+        create_recording(&conn, "this");
+        create_recording(&conn, "other");
+        let dim = crate::schema::DEFAULT_DIM as usize;
+        let query: Vec<f32> = (0..dim).map(|i| if i == 0 { 1.0 } else { 0.0 }).collect();
+        let near = |text: &str| ChunkData { embedding: Some(query.clone()), ..stretch(text) };
+        let mine = ChunkData { embedding: Some((0..dim).map(|i| if i == 1 { 1.0 } else { 0.0 }).collect()), ..stretch("budget talk") };
+        append_chunks_impl(&conn, "this", &[mine]).unwrap();
+        append_chunks_impl(&conn, "other", &(0..40).map(|_| near("other meeting")).collect::<Vec<_>>()).unwrap();
+        let params = crate::search::SearchParams {
+            embedding: query.clone(),
+            query_text: String::new(),
+            limit: 3,
+            mode: Some("vector".into()),
+            meeting_ids: Some(vec!["this".into()]),
+        };
+        let hits = crate::search::hybrid_search(&conn, &params).unwrap();
+        assert_eq!(hits.first().map(|h| h.chunk_text.as_str()), Some("budget talk"));
+        assert!(hits.iter().all(|h| h.meeting_id == "this"));
+    }
+
     fn import(conn: &Connection, id: &str, text: &str) -> bool {
         meetings_create_impl(
             conn,

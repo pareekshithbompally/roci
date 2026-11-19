@@ -58,6 +58,10 @@ const clock = (ms: number) => formatClock(Math.floor(ms / 1_000));
 const talkStartMs = (payload: LiveEntry[], entries: LiveEntry[]): number =>
   payload.length > 0 ? Math.min(...payload.map((e) => e.startMs)) : Math.max(0, ...entries.map((e) => e.endMs));
 
+/** An update overtaken since it began: stopped, superseded by a newer one, or its recording replaced by another meeting's. */
+const stale = (current: Session, controller: AbortController): boolean =>
+  controller.signal.aborted || current.controller !== controller || session !== current;
+
 /** Earlier talk for the changed notes and the new transcript, from the meeting's own index in one search; nothing before any
  *  stretch is indexed. */
 async function recallFor(current: Session, meetingId: string, lines: NoteLine[], transcript: string): Promise<Recall> {
@@ -85,6 +89,12 @@ export const liveNotes = {
     session.controller?.abort();
     session = freshSession();
     set({ meetingId, lines: [], bullets: [], updating: false, problem: null });
+  },
+
+  /** The recording ended: an update in flight is dropped (the summary writes the notes from here), so nothing of it lands
+   *  after the meeting's final index. */
+  stop(): void {
+    session.controller?.abort();
   },
 
   /** The meeting's saved lines, taken only when nothing is held yet (opening a meeting, or a reload mid-recording). */
@@ -119,10 +129,10 @@ export const liveNotes = {
     set({ updating: true });
     try {
       const recall = await recallFor(current, meetingId, lines, transcript);
-      if (current.controller !== controller) return;
+      if (stale(current, controller)) return;
       const { input, realId } = liveNotesRequest(lines, bullets, transcript, recall, clock);
       const reply = await refreshLiveNotes({ input, resolved, meetingId, signal: controller.signal });
-      if (current.controller !== controller) return;
+      if (stale(current, controller)) return;
       const changes = changesFromReply(reply, realId);
       payload.forEach((e) => current.sent.add(entryKey(e)));
       current.signature = signature;

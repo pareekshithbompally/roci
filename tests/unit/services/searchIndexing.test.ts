@@ -52,11 +52,17 @@ describe('indexMeeting (a finished meeting)', () => {
     expect(indexMeeting.mock.calls[0][1]).toEqual({ includeEmbeddings: false });
   });
 
-  it('leaves a meeting that is still recording or processing for its own finish', async () => {
-    for (const status of ['recording', 'transcribed', 'summarizing', 'failed']) {
+  it('hands the meeting to the indexer, whose one rule (isIndexable) decides, at any status', async () => {
+    for (const status of ['recording', 'transcribed', 'failed']) {
       getMeetingDetail.mockResolvedValue(meeting(status));
       await searchIndexingService.indexMeeting('m1');
     }
+    expect(indexMeeting.mock.calls.map(([item]) => item.status.status)).toEqual(['recording', 'transcribed', 'failed']);
+  });
+
+  it('does nothing for a meeting that no longer exists', async () => {
+    getMeetingDetail.mockResolvedValue(null);
+    await searchIndexingService.indexMeeting('gone');
     expect(indexMeeting).not.toHaveBeenCalled();
   });
 });

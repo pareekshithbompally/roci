@@ -17,6 +17,14 @@ export interface IndexOptions {
   force?: boolean;
 }
 
+/** Statuses before a meeting's transcript is saved: its index then holds only the stretches appended while it recorded,
+ *  which indexing from saved content would wipe. */
+const WAITING_FOR_TRANSCRIPT = new Set(['recording', 'captured', 'transcribing']);
+
+/** Whether a meeting is indexed from its saved content: once its transcript is in, or it ended without one. The one rule for
+ *  every path (app start, Settings, the chat's search tool, a single meeting). */
+export const isIndexable = (item: HistoryItem): boolean => !item.status || !WAITING_FOR_TRANSCRIPT.has(item.status.status);
+
 /** The chunks' vectors in one batch, or null without the embedding model (full-text search still finds them). */
 async function embedChunks(chunks: Chunk[], label: string): Promise<number[][] | null> {
   try {
@@ -53,6 +61,7 @@ async function indexMeeting(
   item: HistoryItem,
   options?: Pick<IndexOptions, 'includeEmbeddings'>,
 ): Promise<IndexingResult> {
+  if (!isIndexable(item)) return { status: 'skipped', reason: 'waiting_for_transcript', chunkCount: 0, embeddingCount: 0 };
   const contentHash = await computeContentHash(item);
   const chunks = chunkMeeting(item);
 
@@ -95,7 +104,8 @@ async function indexMeeting(
 }
 
 /** Content and embedding staleness are tracked separately, so FTS-only runs never block embedding. */
-async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptions): Promise<number> {
+async function indexAll(all: HistoryItem[], options?: AbortSignal | IndexOptions): Promise<number> {
+  const items = all.filter(isIndexable);
   if (items.length === 0) return 0;
 
   const signal = options instanceof AbortSignal ? options : options?.signal;
@@ -236,7 +246,8 @@ async function indexAll(items: HistoryItem[], options?: AbortSignal | IndexOptio
 }
 
 /** Items that are new or stale. */
-async function needsReindex(items: HistoryItem[]): Promise<HistoryItem[]> {
+async function needsReindex(all: HistoryItem[]): Promise<HistoryItem[]> {
+  const items = all.filter(isIndexable);
   if (items.length === 0) return [];
 
   const hashes = await concurrencyMap(

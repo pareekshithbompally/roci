@@ -64,58 +64,15 @@ pub fn hybrid_search(
 
     let mut chunk_scores: HashMap<i64, f64> = HashMap::new();
 
-    // sqlite-vec can't take a compound WHERE, so over-fetch and post-filter by meeting_id when scoped.
     if mode == "hybrid" || mode == "vector" {
         let embedding_bytes = floats_to_bytes(&params.embedding);
-        let vec_fetch = if scoped { fetch_limit * 3 } else { fetch_limit };
-        let mut stmt = conn
-            .prepare(
-                "SELECT chunk_id, distance
-                 FROM vec_chunks
-                 WHERE embedding MATCH ?1
-                 ORDER BY distance
-                 LIMIT ?2",
-            )
-            .map_err(|e| format!("vec search prepare: {}", e))?;
-
-        let rows = stmt
-            .query_map(
-                rusqlite::params![embedding_bytes, vec_fetch as i64],
-                |row| {
-            let chunk_id: i64 = row.get(0)?;
-                let distance: f64 = row.get(1)?;
-                Ok((chunk_id, distance))
-            
-                },
-            )
-            .map_err(|e| format!("vec search query: {}", e))?;
-
-        if scoped {
-            // Post-filter: look up meeting_id for each chunk, keep only allowed
-            let mut rank = 0usize;
-            for row in rows {
-                if let Ok((chunk_id, _distance)) = row {
-                    let mid: Result<String, _> = conn.query_row(
-                        "SELECT meeting_id FROM chunks WHERE id = ?1",
-                        [chunk_id],
-                        |r| r.get(0),
-                    );
-                    if let Ok(mid) = mid {
-                        if allowed_meeting_ids.contains(mid.as_str()) {
-                            *chunk_scores.entry(chunk_id).or_default() +=
-                                1.0 / (RRF_K + rank as f64 + 1.0);
-                            rank += 1;
-                        }
-                    }
-                }
-            }
+        let nearest = if scoped {
+            nearest_within(conn, &embedding_bytes, &allowed_meeting_ids, fetch_limit)?
         } else {
-            for (rank, row) in rows.enumerate() {
-                if let Ok((chunk_id, _distance)) = row {
-                    *chunk_scores.entry(chunk_id).or_default() +=
-                        1.0 / (RRF_K + rank as f64 + 1.0);
-                }
-            }
+            nearest_anywhere(conn, &embedding_bytes, fetch_limit)?
+        };
+        for (rank, chunk_id) in nearest.into_iter().enumerate() {
+            *chunk_scores.entry(chunk_id).or_default() += 1.0 / (RRF_K + rank as f64 + 1.0);
         }
     }
 
@@ -465,4 +422,32 @@ fn sanitize_fts_query(query: &str) -> String {
         .map(|w| format!("\"{}\"", w))
         .collect::<Vec<_>>()
         .join(" AND ")
+}
+
+/// The chunks nearest `embedding` across every meeting (sqlite-vec's KNN index).
+fn nearest_anywhere(conn: &Connection, embedding: &[u8], limit: usize) -> Result<Vec<i64>, String> {
+    let mut stmt = conn
+        .prepare("SELECT chunk_id FROM vec_chunks WHERE embedding MATCH ?1 ORDER BY distance LIMIT ?2")
+        .map_err(|e| format!("vec search prepare: {}", e))?;
+    let rows = stmt
+        .query_map(rusqlite::params![embedding, limit as i64], |row| row.get(0))
+        .map_err(|e| format!("vec search query: {}", e))?;
+    Ok(rows.filter_map(Result::ok).collect())
+}
+
+/// The chunks nearest `embedding` within the given meetings: exact distance over just their chunks (the KNN index can't be
+/// limited to some meetings, and a few meetings' chunks are cheap to rank directly).
+fn nearest_within(conn: &Connection, embedding: &[u8], meeting_ids: &std::collections::HashSet<&str>, limit: usize) -> Result<Vec<i64>, String> {
+    let ids = serde_json::to_string(&meeting_ids.iter().collect::<Vec<_>>()).map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT c.id FROM chunks c JOIN vec_chunks v ON v.chunk_id = c.id
+             WHERE c.meeting_id IN (SELECT value FROM json_each(?2))
+             ORDER BY vec_distance_l2(v.embedding, ?1) LIMIT ?3",
+        )
+        .map_err(|e| format!("scoped vec search prepare: {}", e))?;
+    let rows = stmt
+        .query_map(rusqlite::params![embedding, ids, limit as i64], |row| row.get(0))
+        .map_err(|e| format!("scoped vec search query: {}", e))?;
+    Ok(rows.filter_map(Result::ok).collect())
 }

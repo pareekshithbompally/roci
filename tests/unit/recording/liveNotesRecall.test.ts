@@ -18,6 +18,20 @@ beforeEach(() => {
   rag.searchWithin.mockImplementation(async (_id: string, queries: string[]) => queries.map(() => [{ chunkText: '[00:00] Others: the budget is ten thousand' }]));
 });
 
+describe('an update in flight when the recording ends', () => {
+  it('is dropped: nothing applies and its stretch is not indexed after the meeting\'s final index', async () => {
+    let answer: (reply: unknown) => void = () => undefined;
+    refresh.mockImplementation(() => new Promise((resolve) => { answer = resolve; }));
+    liveNotes.start('m-stop');
+    const running = liveNotes.refresh([entry(0, 'we ship friday')], model);
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalled());
+    liveNotes.stop();
+    answer({ filled: [], points: [{ text: 'Ship Friday' }] });
+    await running;
+    expect(rag.appendTranscript).not.toHaveBeenCalled();
+  });
+});
+
 describe('live notes recall earlier talk from the meeting index', () => {
   it('indexes each applied stretch after its update, and a later note brings it back as earlier talk', async () => {
     liveNotes.start('m-recall');

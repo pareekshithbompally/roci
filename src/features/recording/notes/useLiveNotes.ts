@@ -71,6 +71,9 @@ export function useLiveNotes(meetingId: string, live: boolean) {
     latest.current = { save, model: refreshModel };
   }, [save, refreshModel]);
 
+  // the recording ending drops an update still in flight
+  useEffect(() => (live ? () => liveNotes.stop() : undefined), [live]);
+
   // enough new transcript refreshes the bullets
   useEffect(() => {
     if (refreshModel && liveNotes.due(entries, false)) void liveNotes.refresh(entries, refreshModel);

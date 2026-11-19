@@ -36,7 +36,8 @@ enum Request {
 
 type Reply = Result<LiveText, LocalError>;
 
-/// A running dictation's handle; dropping it abandons the stream.
+/// A running dictation's handle; dropping every copy abandons the stream.
+#[derive(Clone)]
 pub struct LiveSession {
     requests: Sender<(Request, Sender<Reply>)>,
 }

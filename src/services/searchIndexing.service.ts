@@ -101,11 +101,11 @@ async function indexAll(options: { includeEmbeddings: boolean; signal?: AbortSig
   await chatIndexer.indexAllSessions(chats, options);
 }
 
-/** A finished (`ready`) meeting in full — transcript, summary, notes and to-dos — with vectors once the embedding
- *  model is downloaded; a meeting still recording or processing waits for its own finish. */
+/** A meeting in full — transcript, summary, notes and to-dos — with vectors once the embedding model is downloaded; one
+ *  still waiting for its transcript is left as it is (the indexer's one rule, `isIndexable`). */
 async function indexMeeting(meetingId: string): Promise<void> {
   const detail = await meetingService.getMeetingDetail(meetingId);
-  if (detail?.index.status.status !== 'ready') return;
+  if (!detail) return;
   const { ragIndexer, isEmbeddingAvailable } = await import('@extensions/rag');
   await ragIndexer.indexMeeting(toHistoryItem(detail), { includeEmbeddings: await isEmbeddingAvailable() });
 }
