@@ -25,7 +25,7 @@ import { orchestrate } from '@extensions/tool-orchestrator';
 import { streamingStore } from './streamingStore';
 import type { ToolCallPatch } from './streamingStore';
 import type { ToolActivity } from '@extensions/tool-orchestrator/types';
-import { formatTemporalContext } from '@core/ai';
+import { formatTemporalContext, type ChatToolset } from '@core/ai';
 import { generateSuggestions } from '@services/ai/suggestions';
 import { generateChatTitle } from '@services/ai/chatTitle';
 import { logUsage } from '@extensions/usage';
@@ -416,15 +416,16 @@ function tokensPerSecond(tokens: number | undefined, firstTextAt: number): numbe
   return tokens && seconds > 0.05 ? Math.round(tokens / seconds) : undefined;
 }
 
-/** Title and follow-up suggestions once a reply has finished, with the chat's own model (best-effort; each records its usage). */
-function afterReply(reply: Reply, request: ReplyRequest, text: string): void {
+/** Title and follow-up suggestions once a reply has finished, with the chat's own model (best-effort; each records its usage);
+ *  suggestions stay within what the reply's tools can do. */
+function afterReply(reply: Reply, request: ReplyRequest, text: string, tools: ChatToolset): void {
   const { session, question, resolved, isNewSession } = request;
   if (isNewSession) {
     generateChatTitle({ resolved, question: question.text || session.title, reply: text, sessionId: reply.sessionId })
       .then((title) => useChatStore.getState().renameSession(reply.sessionId, title))
       .catch((error: unknown) => console.error('[ChatStore] Naming the chat failed:', error));
   }
-  generateSuggestions({ resolved, userMessage: question.text, responsePreview: text, sessionId: reply.sessionId })
+  generateSuggestions({ resolved, userMessage: question.text, responsePreview: text, tools, sessionId: reply.sessionId })
     .then((suggestions) => {
       if (suggestions.length === 0) return;
       saveSession(patchMessage(reply.sessionId, reply.messageId, (m) => ({ ...m, suggestions })));
@@ -459,7 +460,7 @@ async function generateReply(reply: Reply, request: ReplyRequest): Promise<void>
     })));
     endReply(reply);
     notifyReply(reply.sessionId, streamed.text);
-    afterReply(reply, request, streamed.text);
+    afterReply(reply, request, streamed.text, result.toolset);
   } catch (error: unknown) {
     if (!isLive(reply)) return; // Stopped: the abort surfaced as an error, and Stop already settled it.
     console.error('[ChatStore] Error sending message:', error);

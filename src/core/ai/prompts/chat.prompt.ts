@@ -53,14 +53,19 @@ function identity(meetingCount: number): string {
   return `You are Roci, the user's personal assistant, built into Roci, a private meeting notes app on their Mac, iPhone and iPad. You help with anything they ask. ${meetings}`;
 }
 
-function capabilities(modalities: ChatModalities, tools: ChatToolset): string {
-  const produce = [...new Set([...wordsFor(modalities.output), ...(tools.image ? ['images'] : [])])];
-  const toolNames = [
+/** The tools a request carries, as the prompts name them (the chat prompt and follow-up suggestions say the same). */
+export function toolNamesOf(tools: ChatToolset): string[] {
+  return [
     tools.meetings && "the user's meetings, to-dos and past chats",
     tools.webSearch && 'web search',
     tools.image && 'image generation',
     tools.apps.length > 0 && `connected apps: ${listOf(tools.apps)}`,
   ].filter((name): name is string => !!name);
+}
+
+function capabilities(modalities: ChatModalities, tools: ChatToolset): string {
+  const produce = [...new Set([...wordsFor(modalities.output), ...(tools.image ? ['images'] : [])])];
+  const toolNames = toolNamesOf(tools);
   const toolLine = toolNames.length > 0 ? `- Your tools: ${toolNames.join('; ')}.` : "- You have no tools here, so you can't look anything up.";
   return `## What you can do\n\n- You can read: ${listOf(wordsFor(modalities.input))}.\n- You can produce: ${listOf(produce)}.\n${toolLine}`;
 }

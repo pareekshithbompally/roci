@@ -151,7 +151,7 @@ async function followLoad(resolved: ResolvedModel, llamaServer: boolean, showPro
 export async function orchestrate(
   options: OrchestratorOptions,
   callbacks: OrchestratorCallbacks,
-): Promise<{ provider?: string; model?: string; tokenUsage?: TokenUsage; context?: ContextTokens; exchange: ModelMessage[] }> {
+): Promise<{ provider?: string; model?: string; tokenUsage?: TokenUsage; context?: ContextTokens; exchange: ModelMessage[]; toolset: ChatToolset }> {
   const { messages, model, prompt, settings, signal, reasoningEffort } = options;
   const { onChunk } = callbacks;
 
@@ -200,6 +200,7 @@ export async function orchestrate(
       tokenUsage: extractTokenUsage(await result.usage),
       context: contextOf((await result.steps).at(-1)?.usage),
       exchange: await result.responseMessages,
+      toolset,
     };
   } finally {
     stopFollowingLoad();
