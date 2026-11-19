@@ -87,15 +87,22 @@ function speechModelOf(context: PipelineContext): string | undefined {
   return selection ? modelKey(selection) : undefined;
 }
 
-/** Transcribes the recording and saves the transcript, its lines labelled by who spoke when the in-call draft is still here
- *  (it heard the user's microphone and the call separately; the recording is one mix). */
+/** Who spoke when, for labelling a new transcript: the in-call draft (it heard the user's microphone and the call separately;
+ *  the recording is one mix), else the meeting's own labelled transcript (a re-transcribe, or after a restart). Read before
+ *  transcribing, so a recording started meanwhile can't take the draft away. */
+function speakerReference(id: string, meeting: MeetingDetail): StoredTranscriptSegment[] {
+  const draft = liveTranscriptResult(draftEntriesOf(id)).segments;
+  return draft.length > 0 ? draft : meeting.transcript?.segments ?? [];
+}
+
+/** Transcribes the recording and saves the transcript, its lines labelled by who spoke. */
 const transcribeRecording = (id: string, context: PipelineContext): StepWork => async (signal) => {
   const meeting = await meetingOrThrow(id);
+  const reference = speakerReference(id, meeting);
   const audio = await loadRecording(meeting.index.recordingFileName);
   const onProgress = (part: { current: number; total: number }) => meetingProgress.set(id, part);
   const result = await transcribeAudio(audio, context.settings, context.providers, { signal, onProgress, meetingId: id });
-  const draft = liveTranscriptResult(draftEntriesOf(id)).segments;
-  const { formatted, segments } = formatTranscript(labelSpeakers(result, draft));
+  const { formatted, segments } = formatTranscript(labelSpeakers(result, reference));
   await transcriptionService.saveTranscript({ meetingId: id, text: formatted, segments, model: speechModelOf(context) });
 };
 

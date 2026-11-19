@@ -169,9 +169,17 @@ export function modelSources(providers: ModelProvider[], settings: AppSettings, 
 
 /** The model a chat runs on, resolved against every model source: the one it is locked to (`chatModelOf`), else the
  *  chat model setting (a chat not yet answered). */
-export function resolveChatModel(settings: AppSettings, providers: ModelProvider[], locked?: ModelRef): ResolvedModel | null {
-  const sources = modelSources(providers, settings);
-  return locked ? resolveProviderModel(locked.provider, locked.model, sources) : resolveModel(settings.chatModel, sources);
+export function resolveChatModel(
+  settings: AppSettings,
+  providers: ModelProvider[],
+  locked?: ModelRef,
+  localModels = cachedLocalModels(),
+): ResolvedModel | null {
+  const sources = modelSources(providers, settings, localModels);
+  if (!locked) return resolveModel(settings.chatModel, sources);
+  // The locked model as its provider still lists it: a model removed since is gone, so the chat says so.
+  const listed = sources.find((p) => p.provider === locked.provider)?.models?.some((m) => m.id === locked.model);
+  return listed ? resolveProviderModel(locked.provider, locked.model, sources) : null;
 }
 
 /** The Summary model (Settings › Default Models), falling back to the chat model, resolved against every model source. */

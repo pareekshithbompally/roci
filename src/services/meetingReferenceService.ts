@@ -4,7 +4,7 @@ import { matchesAllWords } from '@shared/utils/textMatch';
 import type { HistoryItem, Note, ActionItem, NoteEntry, TodoEntry, MeetingSummary } from '@shared/types';
 import { store } from '@services/db';
 import { concurrencyMap } from '@shared/utils/async.utils';
-import { truncateForLLM } from '@shared/utils/text.utils';
+import { excerptTranscript } from '@services/ai/transcription/excerpt';
 import { IO_CONCURRENCY } from '@extensions/rag/constants';
 import { MAX_TRANSCRIPT_FOR_LLM } from '@extensions/tools/constants';
 
@@ -259,7 +259,7 @@ class MeetingReferenceService {
       }
 
       if (ref.transcript) {
-        parts.push(`### Transcript\n${truncateForLLM(ref.transcript, MAX_TRANSCRIPT_FOR_LLM)}`);
+        parts.push(`### Transcript\n${excerptTranscript(ref.transcript, MAX_TRANSCRIPT_FOR_LLM)}`);
       }
 
       return parts.join('\n\n');

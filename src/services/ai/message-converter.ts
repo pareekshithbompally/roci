@@ -54,6 +54,9 @@ function userMessage(msg: ChatMessage): ModelMessage {
   return { role: 'user', content };
 }
 
+/** A reply the model gave: not an error, nor one of Roci's own notices (those carry no model). */
+const isModelReply = (msg: ChatMessage): boolean => !msg.isError && !!msg.provider;
+
 /** A reply as its model made it (thinking, tool calls and results, the provider's own data); a reply that never finished is its text. */
 function replyMessages(msg: ChatMessage): ModelMessage[] {
   return msg.exchange ?? [{ role: 'assistant', content: msg.text }];
@@ -68,10 +71,10 @@ function toolNamesIn(messages: ModelMessage[]): string[] {
 
 /** The chat for its model, exactly as that model made it (a chat keeps one model): questions with their attachments and
  *  attached meetings, each reply whole. Calls to tools this call doesn't have (turned off since) are pruned, as providers
- *  refuse a history naming tools they weren't given. Loading/streaming messages are left out. */
+ *  refuse a history naming tools they weren't given. Loading/streaming messages, errors and Roci's notices are left out. */
 export function toSDKMessages(messages: ChatMessage[], tools: readonly string[]): ModelMessage[] {
   const conversation = messages
-    .filter((m) => m.state !== 'loading' && m.state !== 'streaming')
+    .filter((m) => m.state !== 'loading' && m.state !== 'streaming' && (m.role === 'user' || isModelReply(m)))
     .flatMap((msg) => (msg.role === 'user' ? [userMessage(msg)] : replyMessages(msg)));
   const gone = toolNamesIn(conversation).filter((name) => !tools.includes(name));
   return gone.length > 0 ? pruneMessages({ messages: conversation, toolCalls: [{ type: 'all', tools: gone }] }) : conversation;

@@ -50,18 +50,26 @@ export interface CatchUp {
   failed: number;
 }
 
-/** One backlog meeting: imported keeping Hex's notes when it has them, else left for the pipeline. */
+/** Keeps Hex's notes as the meeting's summary; true when it has notes and they were saved. */
+async function keepNotes(meetingId: string, detail: HexMeetingDetail): Promise<boolean> {
+  if (!detail.notes?.summary) return false;
+  try {
+    await transcriptionService.saveSummary({ meetingId, title: detail.notes.title || detail.meeting.title, summary: notesSummaryOf(detail.notes), categories: [] });
+    return true;
+  } catch (error: unknown) {
+    console.error('[hexSync] Keeping Hex notes failed; the meeting is summarized instead:', meetingId, error);
+    return false;
+  }
+}
+
+/** One backlog meeting: imported with its transcript, then given Hex's notes, or left for the pipeline to summarize. */
 async function catchUpOne(hexId: string, result: CatchUp): Promise<void> {
   if (await exists(hexId)) return;
   const detail = await hexMeetings.show(hexId);
   if (!(await importOne(detail))) return;
   result.imported += 1;
   const meetingId = rociMeetingId(hexId);
-  if (!detail.notes?.summary) {
-    result.toSummarize.push(meetingId);
-    return;
-  }
-  await transcriptionService.saveSummary({ meetingId, title: detail.notes.title || detail.meeting.title, summary: notesSummaryOf(detail.notes), categories: [] });
+  if (!(await keepNotes(meetingId, detail))) result.toSummarize.push(meetingId);
 }
 
 let catchingUp: Promise<CatchUp> | null = null;

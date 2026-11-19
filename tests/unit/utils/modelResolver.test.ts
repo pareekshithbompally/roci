@@ -148,6 +148,16 @@ describe('resolveChatModel', () => {
     expect(resolved!.provider).toBe('openai');
   });
 
+  it('a chat keeps its own model on its own provider; a model its provider no longer lists is gone', () => {
+    const providers = [
+      makeProvider('openai', true, [makeModel('shared-model')]),
+      makeProvider('anthropic', true, [makeModel('shared-model'), makeModel('claude')]),
+    ];
+    const settings = { chatModel: 'shared-model' } as any;
+    expect(resolveChatModel(settings, providers as any, { provider: 'anthropic', model: 'shared-model' }, [])?.provider).toBe('anthropic');
+    expect(resolveChatModel(settings, providers as any, { provider: 'anthropic', model: 'deleted-model' }, [])).toBeNull();
+  });
+
   it('keyed providers still require a key', () => {
     const providers = [makeProvider('openai', true, [makeModel('gpt-4o')])];
     const resolved = resolveChatModel({ chatModel: 'gpt-4o' } as any, providers as any);

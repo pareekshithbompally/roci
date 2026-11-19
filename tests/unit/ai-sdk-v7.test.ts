@@ -87,6 +87,18 @@ describe('conversation history', () => {
     expect((sent.content as Array<{ text: string }>)[1].text).toContain('Weekly sync: ship Friday');
   });
 
+  it('never sends an error or one of Roci\'s notices back as the model\'s words', () => {
+    const failed: ChatMessage = { ...reply, id: 'e', exchange: undefined, text: 'Rate limit', isError: true };
+    const notice: ChatMessage = { id: 'n', role: 'model', text: 'Please select a model', timestamp: 3, state: 'complete' };
+    expect(toSDKMessages([question, failed, notice], TOOLS)).toEqual([asked]);
+  });
+
+  it('a failed first reply does not lock the chat; the first real answer does', () => {
+    const failed: ChatMessage = { ...reply, id: 'e', provider: 'openai', model: 'gpt-x', isError: true };
+    expect(chatModelOf({ id: 's', title: 't', lastMessageAt: 0, messages: [question, failed] })).toBeUndefined();
+    expect(chatModelOf({ id: 's', title: 't', lastMessageAt: 0, messages: [question, failed, reply] })).toEqual({ provider: 'anthropic', model: 'claude' });
+  });
+
   it('leaves out a reply still being written', () => {
     expect(toSDKMessages([question, { ...reply, state: 'streaming' }], TOOLS)).toEqual([asked]);
   });

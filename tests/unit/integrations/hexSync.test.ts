@@ -55,6 +55,12 @@ describe('hexSync.catchUp', () => {
     expect(saveSummary).not.toHaveBeenCalled();
   });
 
+  it('a meeting whose Hex notes fail to save is summarized instead, not counted as failed', async () => {
+    hex.list.mockResolvedValue([meeting('n')]);
+    saveSummary.mockRejectedValueOnce(new Error('disk full'));
+    await expect(hexSync.catchUp()).resolves.toEqual({ imported: 1, toSummarize: ['hex-n'], failed: 0 });
+  });
+
   it('one meeting that fails is counted, and the rest still import', async () => {
     hex.list.mockResolvedValue([meeting('broken'), meeting('fine')]);
     hex.show.mockImplementation(async (id: string) => {

@@ -7,7 +7,7 @@ import { meetingNotFound, todoLine } from '@extensions/tools/data';
 import { MAX_TRANSCRIPT_FOR_LLM } from '@extensions/tools/constants';
 import { store } from '@services/db';
 import { summaryText } from '@services/meetingReferenceService';
-import { truncateForLLM } from '@shared/utils/text.utils';
+import { excerptTranscript } from '@services/ai/transcription/excerpt';
 import type { MeetingDetail } from '@shared/types';
 
 const PARTS = ['summary', 'notes', 'todos', 'transcript'] as const;
@@ -17,7 +17,7 @@ const SECTIONS: Record<Part, (detail: MeetingDetail) => string | null> = {
   summary: (d) => (d.summary ? `### Summary\n${summaryText(d.summary)}` : null),
   notes: (d) => (d.notes.length > 0 ? `### Notes\n${d.notes.map((n) => `- ${n.text}`).join('\n')}` : null),
   todos: (d) => (d.todos.length > 0 ? `### To-dos\n${d.todos.map(todoLine).join('\n')}` : null),
-  transcript: (d) => (d.transcript?.text ? `### Transcript\n${truncateForLLM(d.transcript.text, MAX_TRANSCRIPT_FOR_LLM)}` : null),
+  transcript: (d) => (d.transcript?.text ? `### Transcript\n${excerptTranscript(d.transcript.text, MAX_TRANSCRIPT_FOR_LLM)}` : null),
 };
 
 export const getMeetingTool = defineTool({

@@ -82,6 +82,25 @@ describe('meetingPipeline.run', () => {
     meetingLiveActions.start('other');
   });
 
+  it('keeps the labels when another recording takes the draft while this one transcribes', async () => {
+    meetingLiveActions.start('m1');
+    meetingLiveActions.set([{ source: 'microphone', startMs: 0, endMs: 3_000, text: 'we ship', timed: true }]);
+    ai.transcribeAudio.mockImplementation(async () => {
+      meetingLiveActions.start('next-recording');
+      return { text: 'We ship.', segments: [{ text: 'We ship.', startSecond: 0.2, endSecond: 2.8 }] };
+    });
+    await meetingPipeline.run('m1');
+    expect(saves.saveTranscript).toHaveBeenCalledWith(expect.objectContaining({ text: '[00:00] You: We ship.' }));
+  });
+
+  it('re-transcribing without a draft keeps the speakers of the meeting\'s own transcript', async () => {
+    meetingLiveActions.start('other');
+    db.get.mockImplementation(async () => ({ ...meeting(), transcript: { text: 'old', createdAt: '', segments: [{ text: 'old', startSecond: 0, endSecond: 3, speaker: 'Others' }] } }));
+    ai.transcribeAudio.mockResolvedValue({ text: 'Friday works.', segments: [{ text: 'Friday works.', startSecond: 0.5, endSecond: 2.5 }] });
+    await meetingPipeline.run('m1');
+    expect(saves.saveTranscript).toHaveBeenCalledWith(expect.objectContaining({ text: '[00:00] Others: Friday works.' }));
+  });
+
   it('records a speech-to-text failure at transcribe, with nothing saved', async () => {
     ai.transcribeAudio.mockRejectedValue(new Error('No API key'));
     await meetingPipeline.run('m1');
