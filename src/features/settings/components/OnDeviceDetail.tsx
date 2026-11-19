@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { AppleIntelligenceIntegration } from '@features/integrations';
-import { JOB_GLYPH, ModelDownloadButton, ModelLabel, ProvidersAvatar } from '@shared/components';
+import { JOB_GLYPH, ModelDownloadButton, ModelSize, ProvidersAvatar } from '@shared/components';
 import { Card, CardRow, IconTile, Picker, Section, Status, type TileGlyph } from '@shared/ui';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { LAYOUT } from '@config/layout.config';
@@ -26,12 +26,17 @@ const KINDS: ReadonlyArray<readonly [LocalModelKind, TileGlyph]> = [
   ['embedding', JOB_GLYPH.meetingSearch],
 ];
 
-/** A downloadable model: its name and size, and Download / progress / Delete (Delete means it's on this device); one height. */
+/** A downloadable model: its name, then its size and Download / progress / Delete in fixed columns; one height. */
 const DownloadRow: React.FC<{ icon: TileGlyph; model: LocalModel; control: OnDeviceModel }> = ({ icon, model, control }) => (
   <CardRow
     leading={<IconTile icon={icon} />}
-    title={<ModelLabel name={model.name} size={formatFileSize(model.bytes)} onDevice />}
-    actions={<ModelDownloadButton model={control} removable />}
+    title={model.name}
+    actions={
+      <>
+        <ModelSize size={formatFileSize(model.bytes)} />
+        <ModelDownloadButton model={control} removable />
+      </>
+    }
   />
 );
 

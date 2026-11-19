@@ -3,8 +3,13 @@
 import React from 'react';
 import { Download, Square, Trash2 } from 'lucide-react';
 import { LAYOUT } from '@config/layout.config';
-import { Button, Icon, Status, cn } from '@shared/ui';
+import { Button, Icon, Status, Text, cn } from '@shared/ui';
 import type { OnDeviceModel } from '@shared/utils/onDeviceModel';
+
+/** A model's download size in its own column before the action; it stays put through Download, progress and Delete. */
+export const ModelSize: React.FC<{ size: string }> = ({ size }) => (
+  <Text variant="figure" tone="muted" className={cn(LAYOUT.modelSize, 'shrink-0')}>{size}</Text>
+);
 
 export const ModelReadyStatus: React.FC<{ model: OnDeviceModel }> = ({ model }) =>
   model.status === 'ready' ? <Status tone="success">Ready</Status> : null;

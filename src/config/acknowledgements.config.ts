@@ -107,6 +107,15 @@ export const ACKNOWLEDGEMENTS: readonly AcknowledgementGroup[] = [
     title: 'Models (downloaded on request)',
     description: 'Roci downloads these from Hugging Face only when you choose to use them.',
     items: [
+      { name: 'SmolLM3 3B', url: 'https://huggingface.co/HuggingFaceTB/SmolLM3-3B', license: 'Apache-2.0', text: 'Apache-2.0' },
+      { name: 'Granite 4.0 H Micro', url: 'https://huggingface.co/ibm-granite/granite-4.0-h-micro', license: 'Apache-2.0', text: 'Apache-2.0' },
+      {
+        name: 'Ternary Bonsai 2 4B',
+        url: 'https://huggingface.co/prism-ml/Ternary-Bonsai-2-4B-mlx-2bit',
+        license: 'Apache-2.0',
+        text: 'Apache-2.0',
+        notice: 'Created using Bonsai by Prism ML. Built from Qwen3.5-4B, Copyright 2026 Alibaba Cloud, Apache-2.0.',
+      },
       { name: 'Qwen3 Embedding 0.6B', url: 'https://huggingface.co/Qwen/Qwen3-Embedding-0.6B', license: 'Apache-2.0', text: 'Apache-2.0' },
       {
         name: 'Parakeet Unified EN 0.6B',

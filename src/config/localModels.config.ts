@@ -24,6 +24,11 @@ export const LOCAL_MODELS_CONFIG = {
   },
   /** What each kind of model is for, in Settings › Providers › On this device. */
   kindLabels: { chat: 'Chat', speech: 'Speech recognition', voice: 'Read aloud voice', embedding: 'Meeting search' },
+  /** Chat models' recommended sampling with thinking off (their model cards), used unless a call sets its own. */
+  chatSampling: {
+    'smollm3-3b': { temperature: 0.6, topP: 0.95 },
+    'ternary-bonsai-2-4b': { temperature: 0.7, topP: 0.8, topK: 20 },
+  } as Partial<Record<string, { temperature: number; topP: number; topK?: number }>>,
   /** Rust → webview: one download's progress or outcome (`DownloadProgress`). */
   downloadEvent: 'models://download',
   /** Activity tray row id of a model's download. */

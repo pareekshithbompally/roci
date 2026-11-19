@@ -25,6 +25,8 @@ export const LAYOUT = {
   capabilityPicker: 'max-w-64',
   /** A row's model action (Download, 42%, Delete): one width, so actions and states align down a card. */
   modelAction: 'w-32',
+  /** A row's model size, just before its action: one width, right-aligned, so sizes line up down a card. */
+  modelSize: 'w-20 text-right',
 
   /** Meeting title: longer titles end in an ellipsis (full title on hover) so the actions after it stay put */
   meetingTitle: 'max-w-2xl',

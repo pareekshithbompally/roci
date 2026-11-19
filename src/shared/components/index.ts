@@ -7,7 +7,7 @@ export { HighlightedText, MarkedExcerpt } from './HighlightedText';
 export { MeetingStatus } from './MeetingStatus';
 export { PermissionAction } from './PermissionAction';
 export { ModelAvatar } from './ModelAvatar';
-export { ModelDownloadButton, ModelReadyStatus } from './ModelDownloadButton';
+export { ModelDownloadButton, ModelReadyStatus, ModelSize } from './ModelDownloadButton';
 export { ModelIcon } from './ModelIcon';
 export { AppIcon, AppImage, useAppIcon } from './AppIcon';
 export { SearchIndexActivity } from './SearchIndexActivity';

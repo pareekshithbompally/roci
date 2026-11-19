@@ -103,7 +103,7 @@ actor Engine {
         return container
     }
 
-    /// Streams `text`, `reasoning` and `tool-call` events, then returns usage; Stop ends it early.
+    /// Streams `text` and `tool-call` events, then returns usage; Stop ends it early.
     func chat(_ request: ChatRequest, emit: @escaping @Sendable ([String: Any]) -> Void) async throws -> [String: any Sendable] {
         let container = try await chatContainer(request.modelDir)
         let parameters = GenerateParameters(
@@ -113,7 +113,10 @@ actor Engine {
             topK: request.topK ?? 0)
         let generation = Task<GenerateCompletionInfo?, Error> {
             try await container.perform { (context: ModelContext) async throws -> GenerateCompletionInfo? in
-                let input = UserInput(chat: try request.messages.map(Self.message), tools: request.tools?.map(Self.spec))
+                // Thinking off: templates that think by default (SmolLM3, Bonsai 2) answer directly and quickly.
+                let input = UserInput(
+                    chat: try request.messages.map(Self.message), tools: request.tools?.map(Self.spec),
+                    additionalContext: ["enable_thinking": false])
                 let prepared = try await context.processor.prepare(input: input)
                 var info: GenerateCompletionInfo?
                 for await event in try generate(input: prepared, parameters: parameters, context: context) {
