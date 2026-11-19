@@ -1,5 +1,6 @@
 /** Meetings for chat @ mentions, with their summary, notes and todos from roci.db. */
 
+import { matchesAllWords } from '@shared/utils/textMatch';
 import type { HistoryItem, Note, ActionItem, NoteEntry, TodoEntry, MeetingSummary } from '@shared/types';
 import { store } from '@services/db';
 import { concurrencyMap } from '@shared/utils/async.utils';
@@ -61,9 +62,8 @@ class MeetingReferenceService {
       return this.getRecentMeetings(historyItems, 10);
     }
 
-    const lowerQuery = query.toLowerCase();
     return historyItems
-      .filter(item => item.title.toLowerCase().includes(lowerQuery))
+      .filter(item => matchesAllWords(item.title, query))
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, 10)
       .map(item => ({

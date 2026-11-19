@@ -10,13 +10,13 @@ import { UnifiedList } from '@features/history';
 import { SettingsNav } from '@features/settings/components/SettingsNav';
 import { useOpenSession, useSessionSearch, useUnifiedSidebar } from '@features/history/hooks';
 import { LAYOUT } from '@config/layout.config';
-import { AppMark, Button, FadeScroll, IconButton, Icon, Row, RowGroupLabel, Kbd, SearchField, Text } from '@shared/ui';
+import { AppMark, Button, FadeScroll, IconButton, Icon, Row, RowGroupLabel, Keycaps, SearchField, Text } from '@shared/ui';
 import { APP_CONFIG } from '@config/app.config';
 import {
   endSearch, setSearchQuery, startSearch, useSearchActive, useSearchQuery,
 } from '@shared/stores/searchStore';
 import { ActivityTray, ActivityButton } from '@shared/components';
-import { shortcutLabel } from '@features/shortcuts';
+import { shortcutKeys } from '@features/shortcuts';
 import { startNewChat, useChatStore } from '@features/chat';
 import type { UnifiedSidebarItem } from '@shared/types';
 import { DestinationRow } from './DestinationRow';
@@ -159,13 +159,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <Row onClick={leaveSettings}>
             <Icon icon={ChevronLeft} size="xs" className="shrink-0" />
             <span className="flex-1">Back to app</span>
-            <Kbd>{shortcutLabel('leaveSettings')}</Kbd>
+            <Keycaps keys={shortcutKeys('leaveSettings')} />
           </Row>
         ) : (
           <Row onClick={startSearch}>
             <Icon icon={Search} size="xs" className="shrink-0" />
             <span className="flex-1">Search</span>
-            <Kbd>{shortcutLabel('search')}</Kbd>
+            <Keycaps keys={shortcutKeys('search')} />
           </Row>
         )}
       </div>

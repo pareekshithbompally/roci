@@ -38,7 +38,7 @@ export { Card, CardRow, Section } from './card';
 export type { CardProps, CardRowProps, SectionProps } from './card';
 export { Checkbox } from './checkbox';
 export type { CheckboxProps, CheckboxState } from './checkbox';
-export { Kbd } from './kbd';
+export { Kbd, Keycaps } from './kbd';
 export { Progress } from './progress';
 export type { ProgressProps } from './progress';
 export { Surface, Separator, Dot, Status } from './surface';

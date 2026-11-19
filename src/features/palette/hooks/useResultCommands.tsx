@@ -11,9 +11,9 @@ import { useOpenSession } from '@features/history/hooks/useOpenSession';
 import { useSessionSearch, type SessionMatch } from '@features/history/hooks/useSessionSearch';
 import { PALETTE_CONFIG } from '@config/palette.config';
 import { META_SEPARATOR } from '@config/ui.config';
-import { SESSION_ICON } from './useRootCommands';
+import { SESSION_ICON } from '@features/palette/sessionIcons';
 import type { HistoryItem } from '@shared/types';
-import type { PaletteCommand, PaletteGroup } from '@features/palette/paletteTypes';
+import type { PaletteCommand, PaletteGroup, ResultKind } from '@features/palette/paletteTypes';
 
 /** The index wraps matched words in <<MARK>>…<</MARK>>. */
 const MARK_SPLIT = /<<MARK>>|<<\/MARK>>/;
@@ -31,9 +31,19 @@ const KINDS = [
   { type: 'chat', title: PALETTE_CONFIG.groups.chats },
 ] as const;
 
-export function useResultCommands(query: string): { kinds: PaletteGroup[]; searching: boolean } {
+interface ResultCommands {
+  kinds: PaletteGroup[];
+  searching: boolean;
+  /** The search index couldn't be read: title matches only. */
+  unavailable: boolean;
+  /** Kinds the index may hold more of than it returned. */
+  capped: ResultKind[];
+}
+
+/** `limit`: how many of each kind the index returns (Show All asks for many). */
+export function useResultCommands(query: string, limit?: number): ResultCommands {
   const { items } = useUnifiedSidebar();
-  const search = useSessionSearch(items, query);
+  const search = useSessionSearch(items, query, limit);
   const openSession = useOpenSession();
 
   const toCommand = ({ item, excerpt }: SessionMatch): PaletteCommand => ({
@@ -44,10 +54,10 @@ export function useResultCommands(query: string): { kinds: PaletteGroup[]; searc
     highlight: query.trim(),
     detail: <>{formatDate(item.timestamp)}{excerpt && <>{META_SEPARATOR}<Excerpt raw={excerpt} /></>}</>,
     badge: item.historyItem ? <MeetingBadge meeting={item.historyItem} /> : undefined,
-    perform: () => { openSession(item).catch((error: unknown) => console.error('[CommandPalette] Opening failed:', error)); },
+    perform: () => void openSession(item),
   });
 
   const matches = search.matches ?? [];
-  const kinds = KINDS.map(({ type, title }) => ({ title, items: matches.filter((m) => m.item.type === type).map(toCommand) }));
-  return { kinds, searching: search.searching };
+  const kinds = KINDS.map(({ type, title }) => ({ title, kind: type, items: matches.filter((m) => m.item.type === type).map(toCommand) }));
+  return { kinds, searching: search.searching, unavailable: search.error !== null, capped: search.capped };
 }

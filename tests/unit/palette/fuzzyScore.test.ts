@@ -47,9 +47,6 @@ describe('scoreCommand', () => {
     expect(scoreCommand(command({ title: 'To-dos', weight: 0.7 }), 'to')).toBeLessThan(scoreCommand(command({ title: 'Toggle theme' }), 'to'));
   });
 
-  it('a fixed rank (search index hits) bypasses scoring', () => {
-    expect(scoreCommand(command({ title: 'Nothing alike', rank: 950 }), 'zzz')).toBe(950);
-  });
 
   it('no match is filtered out', () => {
     expect(scoreCommand(command({ title: 'Settings' }), 'zzz')).toBe(NO_MATCH);
@@ -59,5 +56,12 @@ describe('scoreCommand', () => {
     const providers = command({ title: 'Providers', keywords: 'api key', hideWhenEmpty: true });
     expect(scoreCommand(providers, 'api')).toBeGreaterThan(0);
     expect(scoreCommand(providers, 'pvs')).toBe(NO_MATCH);
+  });
+
+  it('keywords match as words or real substrings, never as letters scattered across all of them', () => {
+    const settings = command({ title: 'Settings', keywords: 'preferences capture audio source microphone storage disk usage api key openai' });
+    for (const query of ['standup', 'roadmap', 'pricing', 'acme', 'offsite']) expect(scoreCommand(settings, query)).toBe(NO_MATCH);
+    expect(scoreCommand(settings, 'micro')).toBeGreaterThan(0);
+    expect(scoreCommand(settings, 'api key')).toBeGreaterThan(0);
   });
 });

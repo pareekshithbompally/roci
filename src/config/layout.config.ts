@@ -39,6 +39,12 @@ export const LAYOUT = {
   listGutter: 'px-5',
 } as const;
 
+/** The ⌘K command palette: where it sits and how wide, and its list's one fixed height (it never resizes as you type). */
+export const COMMAND_PALETTE = {
+  frame: 'left-1/2 top-[18vh] w-full max-w-2xl -translate-x-1/2',
+  listHeight: 'h-96',
+} as const;
+
 /** Picker row trailing columns — fixed widths so every row's controls line up */
 export const PICKER = {
   /** Short facts (a count, a status word, small marks): sized to them and right-aligned against the fixed columns after */

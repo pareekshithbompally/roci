@@ -2,7 +2,7 @@
 
 import { PALETTE_CONFIG } from '@config/palette.config';
 import { scoreCommand } from './fuzzyScore';
-import type { PaletteCommand, PaletteGroup, PaletteLevel } from './paletteTypes';
+import type { PaletteCommand, PaletteGroup, PaletteLevel, ResultKind } from './paletteTypes';
 
 /** Rows that match `term`, best first (ties keep their order), bucketed by group in the order the groups first appear. */
 export function groupCommands(source: PaletteCommand[], term: string): PaletteGroup[] {
@@ -16,14 +16,22 @@ export function groupCommands(source: PaletteCommand[], term: string): PaletteGr
   return [...byGroup].map(([title, items]) => ({ title, items }));
 }
 
-/** Each kind of search result: its first few, then "Show all N" drilling into every one; empty kinds left out. */
-export function resultGroups(kinds: PaletteGroup[]): PaletteGroup[] {
+/** Each kind of search result: its first few, then "Show All N" opening the whole kind — just "Show All" when the index
+ *  may hold more than it returned (`capped`), never a number that is too low. Empty kinds are left out. */
+export function resultGroups(kinds: PaletteGroup[], capped: ResultKind[]): PaletteGroup[] {
   const shown = PALETTE_CONFIG.resultsPerKind;
-  return kinds.filter((kind) => kind.items.length > 0).map(({ title, items }) => ({
+  return kinds.filter((group) => group.items.length > 0).map(({ title, items, kind }) => ({
     title,
-    items: items.length <= shown ? items : [
+    kind,
+    items: items.length <= shown && !(kind && capped.includes(kind)) ? items : [
       ...items.slice(0, shown),
-      { id: `all:${title}`, title: `Show all ${items.length}`, group: title, levelTitle: title, children: () => items },
+      {
+        id: `all:${title}`,
+        title: kind && capped.includes(kind) ? 'Show All' : `Show All ${items.length}`,
+        group: title,
+        levelTitle: title,
+        opensKind: kind,
+      },
     ],
   }));
 }
@@ -40,7 +48,8 @@ interface GroupsInput {
 /** Inside a level: its rows. At the root: everything before typing; results then the matching commands while typing. */
 export function buildGroups({ term, level, root, results }: GroupsInput): PaletteGroup[] {
   const typed = term.trim();
-  if (level) return groupCommands(level.commands, typed).map((group) => ({ ...group, title: '' }));
+  // A Show All level's rows are already the search's own results for what is typed: listed as they are, not re-scored.
+  if (level) return groupCommands(level.commands, level.kind ? '' : typed).map((group) => ({ ...group, title: '' }));
   if (!typed) return groupCommands(root, '');
   // Typed: the recents give way to the results, which lead.
   const commands = root.filter((command) => command.group !== PALETTE_CONFIG.groups.recent);

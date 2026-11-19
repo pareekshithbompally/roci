@@ -24,6 +24,8 @@ export interface SessionSearch {
   searching: boolean;
   /** The index couldn't be read; title matches still show. */
   error: string | null;
+  /** Kinds the index may have cut short at the limit (more matches than shown). */
+  capped: Array<UnifiedSidebarItem['type']>;
 }
 
 const keyOf = (type: string, id: string) => `${type}:${id}`;
@@ -33,24 +35,37 @@ const titleMatches = (items: UnifiedSidebarItem[], query: string) => items.filte
 
 const titleMatch = (item: UnifiedSidebarItem): SessionMatch => ({ item, excerpt: '' });
 
+/** An index hit for an item the list hasn't loaded (beyond the most recent): enough to show and open it. */
+function itemFromHit(hit: SpotlightHit): UnifiedSidebarItem {
+  const base = { id: hit.source_id, type: hit.source_type, title: hit.title, timestamp: hit.timestamp };
+  return hit.source_type === 'meeting' ? { ...base, historyItem: { ...base, categories: [], transcript: '', summary: '' } } : base;
+}
+
 /** The index's hits that the title match didn't already list: matches inside transcripts and messages, with where they matched. */
 function contentOnly(items: UnifiedSidebarItem[], hits: SpotlightHit[], titles: UnifiedSidebarItem[]): SessionMatch[] {
   const byKey = new Map(items.map((item) => [keyOf(item.type, item.id), item]));
   const listed = new Set(titles.map((item) => keyOf(item.type, item.id)));
   return hits.flatMap((hit) => {
     const key = keyOf(hit.source_type, hit.source_id);
-    const item = byKey.get(key);
-    return item && !listed.has(key) ? [{ item, excerpt: hit.excerpt }] : [];
+    return listed.has(key) ? [] : [{ item: byKey.get(key) ?? itemFromHit(hit), excerpt: hit.excerpt }];
   });
 }
 
-export function useSessionSearch(items: UnifiedSidebarItem[], query: string): SessionSearch {
+/** Kinds whose title or content hits reached the limit: the index may hold more. */
+function cappedKinds(hits: SpotlightHit[], limit: number): Array<UnifiedSidebarItem['type']> {
+  const counts = new Map<string, number>();
+  for (const hit of hits) counts.set(`${hit.source_type}:${hit.match_type}`, (counts.get(`${hit.source_type}:${hit.match_type}`) ?? 0) + 1);
+  return (['meeting', 'chat'] as const).filter((type) => (counts.get(`${type}:title`) ?? 0) >= limit || (counts.get(`${type}:content`) ?? 0) >= limit);
+}
+
+/** `limit`: matches the index returns per kind (more for a full list, "Show all"). */
+export function useSessionSearch(items: UnifiedSidebarItem[], query: string, limit: number = SPOTLIGHT_RESULTS_PER_SOURCE): SessionSearch {
   const trimmed = query.trim();
   const typed = trimmed.length > 0;
   // Titles match from the first letter; the index is asked from the minimum length.
   const asksIndex = trimmed.length >= SPOTLIGHT_MIN_QUERY_LENGTH;
   const titles = useMemo(() => (typed ? titleMatches(items, trimmed) : []), [typed, items, trimmed]);
-  const [indexed, setIndexed] = useState<{ query: string; matches: SessionMatch[] } | null>(null);
+  const [indexed, setIndexed] = useState<{ query: string; matches: SessionMatch[]; capped: Array<UnifiedSidebarItem['type']> } | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Responses for older queries are dropped.
   const generation = useRef(0);
@@ -59,11 +74,11 @@ export function useSessionSearch(items: UnifiedSidebarItem[], query: string): Se
     const gen = ++generation.current;
     if (!asksIndex) return;
     const timer = setTimeout(() => {
-      vectorDB.spotlightSearch({ query: trimmed, limit: SPOTLIGHT_RESULTS_PER_SOURCE })
+      vectorDB.spotlightSearch({ query: trimmed, limit })
         .then((hits) => {
           if (gen !== generation.current) return;
           setError(null);
-          setIndexed({ query: trimmed, matches: contentOnly(items, hits, titles) });
+          setIndexed({ query: trimmed, matches: contentOnly(items, hits, titles), capped: cappedKinds(hits, limit) });
         })
         .catch((err: unknown) => {
           console.error('[useSessionSearch] Index search failed:', err);
@@ -71,11 +86,14 @@ export function useSessionSearch(items: UnifiedSidebarItem[], query: string): Se
         });
     }, SPOTLIGHT_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [asksIndex, trimmed, items, titles]);
+  }, [asksIndex, trimmed, items, titles, limit]);
 
-  if (!typed) return { matches: null, searching: false, error: null };
+  if (!typed) return { matches: null, searching: false, error: null, capped: [] };
   const answered = indexed?.query === trimmed;
-  // Title matches stay where they are; content matches are only ever added below them, so no row moves.
-  const matches = [...titles.map(titleMatch), ...(answered ? indexed.matches : [])];
-  return { matches, searching: asksIndex && !answered && !error, error };
+  // Title matches stay where they are; content matches sit below them. While the next letter is searched the last
+  // answer stays on screen (without any row the titles now list), so rows never blink out and back.
+  const listed = new Set(titles.map((item) => keyOf(item.type, item.id)));
+  const content = asksIndex ? (indexed?.matches ?? []).filter(({ item }) => answered || !listed.has(keyOf(item.type, item.id))) : [];
+  const matches = [...titles.map(titleMatch), ...content];
+  return { matches, searching: asksIndex && !answered && !error, error, capped: answered ? indexed.capped : [] };
 }

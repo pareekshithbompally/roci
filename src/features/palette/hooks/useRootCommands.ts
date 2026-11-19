@@ -1,27 +1,24 @@
 /** Everything the palette offers before (and beside) a search: recents, actions, places and settings — commands as data,
  *  each from the one place that owns it (sidebar items, shortcut registry, destinations, the Settings list). */
 
-import { AudioWaveform, Circle, MessageSquare, Moon, Settings, Square, SquarePen, Sun } from 'lucide-react';
+import { Circle, Moon, Settings, Square, SquarePen, Sun } from 'lucide-react';
 import { useAppActions } from '@shared/stores/appStore';
 import { useThemeContext } from '@shared/contexts/ThemeContext';
 import { startNewChat } from '@features/chat';
 import { useRecordingMeetingId, useToggleRecording } from '@features/recording';
-import { SETTINGS_NAV_ITEMS } from '@features/settings';
-import { acceleratorKeys } from '@features/shortcuts';
+import { SETTINGS_SECTIONS } from '@features/settings';
+import { acceleratorKeys, shortcutKeys } from '@features/shortcuts';
 import { useUnifiedSidebar } from '@features/history/hooks/useUnifiedSidebar';
 import { useOpenSession } from '@features/history/hooks/useOpenSession';
 import { useDestinations } from '@features/layout/hooks/useDestinations';
-import { APP_SHORTCUTS, GLOBAL_SHORTCUTS } from '@config/shortcuts.config';
+import { GLOBAL_SHORTCUTS } from '@config/shortcuts.config';
 import { PALETTE_CONFIG } from '@config/palette.config';
 import type { UnifiedSidebarItem } from '@shared/types';
 import type { PaletteCommand } from '@features/palette/paletteTypes';
+import { SESSION_ICON } from '@features/palette/sessionIcons';
 
 const { groups: GROUP } = PALETTE_CONFIG;
 
-/** A meeting's or chat's glyph, shared by recents and search results. */
-export const SESSION_ICON = { meeting: AudioWaveform, chat: MessageSquare } as const;
-
-const keysOf = (accelerator: string) => acceleratorKeys(accelerator);
 
 export function useRootCommands(): PaletteCommand[] {
   const { items } = useUnifiedSidebar();
@@ -32,11 +29,8 @@ export function useRootCommands(): PaletteCommand[] {
   const toggleRecording = useToggleRecording();
   const recording = useRecordingMeetingId() !== null;
 
-  const open = (item: UnifiedSidebarItem) => () => {
-    openSession(item).catch((error: unknown) => console.error('[CommandPalette] Opening failed:', error));
-  };
-  const sections = SETTINGS_NAV_ITEMS.filter((section) => section.available !== false);
-  const sectionCommands = sections.map(({ id, label, icon, keywords }): PaletteCommand => ({
+  const open = (item: UnifiedSidebarItem) => () => void openSession(item);
+  const sectionCommands = SETTINGS_SECTIONS.map(({ id, label, icon, keywords }): PaletteCommand => ({
     id: `settings:${id}`, title: label, group: GROUP.settings, icon, keywords: keywords.join(' '), perform: () => openSettings(id),
   }));
 
@@ -44,14 +38,14 @@ export function useRootCommands(): PaletteCommand[] {
     ...items.slice(0, PALETTE_CONFIG.recentCount).map((item): PaletteCommand => ({
       id: `recent:${item.type}:${item.id}`, title: item.title, group: GROUP.recent, icon: SESSION_ICON[item.type], perform: open(item),
     })),
-    { id: 'new-chat', title: 'New Chat', group: GROUP.actions, icon: SquarePen, keywords: 'new conversation ask', keys: keysOf(APP_SHORTCUTS.newChat.accelerator), perform: startNewChat },
+    { id: 'new-chat', title: 'New Chat', group: GROUP.actions, icon: SquarePen, keywords: 'new conversation ask', keys: shortcutKeys('newChat'), perform: startNewChat },
     {
       id: 'recording',
       title: recording ? 'Stop Recording' : 'Start Recording',
       group: GROUP.actions,
       icon: recording ? Square : Circle,
       keywords: 'record meeting capture',
-      keys: keysOf(GLOBAL_SHORTCUTS['toggle-recording'].accelerator),
+      keys: acceleratorKeys(GLOBAL_SHORTCUTS['toggle-recording'].accelerator),
       perform: () => { toggleRecording().catch((error: unknown) => console.error('[CommandPalette] Recording toggle failed:', error)); },
     },
     ...destinations.map(({ view, icon, label }): PaletteCommand => ({
@@ -66,8 +60,8 @@ export function useRootCommands(): PaletteCommand[] {
       title: 'Settings',
       group: GROUP.settings,
       icon: Settings,
-      keywords: ['preferences', ...sections.flatMap((s) => [s.label, ...s.keywords])].join(' '),
-      keys: keysOf(APP_SHORTCUTS.openSettings.accelerator),
+      keywords: ['preferences', ...SETTINGS_SECTIONS.flatMap((s) => [s.label, ...s.keywords])].join(' '),
+      keys: shortcutKeys('openSettings'),
       children: () => sectionCommands,
     },
     // Each section also findable from the root by name or contents, once something is typed.

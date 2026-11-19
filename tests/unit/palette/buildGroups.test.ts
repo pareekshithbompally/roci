@@ -42,18 +42,23 @@ describe('buildGroups', () => {
 describe('resultGroups', () => {
   const meeting = (i: number) => cmd(`m${i}`, 'Meetings', `Meeting ${i}`);
 
-  it('shows five of a kind, then Show all N that drills into every one', () => {
-    const [group] = resultGroups([{ title: 'Meetings', items: Array.from({ length: 7 }, (_, i) => meeting(i)) }]);
-    expect(group.items.map((c) => c.title)).toEqual(['Meeting 0', 'Meeting 1', 'Meeting 2', 'Meeting 3', 'Meeting 4', 'Show all 7']);
-    expect(group.items[5].children?.().length).toBe(7);
+  it('shows five of a kind, then Show All N that opens the whole kind', () => {
+    const [group] = resultGroups([{ title: 'Meetings', kind: 'meeting', items: Array.from({ length: 7 }, (_, i) => meeting(i)) }], []);
+    expect(group.items.map((c) => c.title)).toEqual(['Meeting 0', 'Meeting 1', 'Meeting 2', 'Meeting 3', 'Meeting 4', 'Show All 7']);
+    expect(group.items[5].opensKind).toBe('meeting');
+  });
+
+  it('a kind the index may have cut short says Show All, never a number that is too low', () => {
+    const [group] = resultGroups([{ title: 'Meetings', kind: 'meeting', items: Array.from({ length: 7 }, (_, i) => meeting(i)) }], ['meeting']);
+    expect(group.items.at(-1)?.title).toBe('Show All');
   });
 
   it('five or fewer: no Show all row', () => {
-    const [group] = resultGroups([{ title: 'Meetings', items: [meeting(0), meeting(1)] }]);
+    const [group] = resultGroups([{ title: 'Meetings', kind: 'meeting', items: [meeting(0), meeting(1)] }], []);
     expect(group.items.map((c) => c.title)).toEqual(['Meeting 0', 'Meeting 1']);
   });
 
   it('a kind with no matches is left out', () => {
-    expect(resultGroups([{ title: 'Chats', items: [] }])).toEqual([]);
+    expect(resultGroups([{ title: 'Chats', kind: 'chat', items: [] }], [])).toEqual([]);
   });
 });

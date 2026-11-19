@@ -63,6 +63,34 @@ describe('useSessionSearch', () => {
     expect(result.current.matches?.map((m) => m.excerpt)).toEqual(['', 'we <<MARK>>sync<</MARK>> later']);
   });
 
+  it('keeps the content matches on screen while the next letter is searched (no flicker)', async () => {
+    spotlightSearch.mockResolvedValue([{ source_type: 'chat', source_id: 'c1', title: 'Pricing brainstorm', excerpt: 'we sync later', timestamp: 1, match_type: 'content' }]);
+    const { result, rerender } = renderHook(({ q }) => useSessionSearch(ITEMS, q), { initialProps: { q: 'syn' } });
+    await settle();
+    expect(result.current.matches?.map((m) => m.item.id)).toEqual(['m1', 'c1']);
+    rerender({ q: 'sync' });
+    expect(result.current.matches?.map((m) => m.item.id)).toEqual(['m1', 'c1']);
+  });
+
+  it('keeps a content match for an item not loaded in the list (beyond the most recent ones)', async () => {
+    spotlightSearch.mockResolvedValueOnce([{ source_type: 'meeting', source_id: 'old', title: 'Old offsite', excerpt: 'the <<MARK>>sync<</MARK>>', timestamp: 5, match_type: 'content' }]);
+    const { result } = renderHook(() => useSessionSearch(ITEMS, 'sync'));
+    await settle();
+    const old = result.current.matches?.find((m) => m.item.id === 'old');
+    expect(old?.item).toMatchObject({ type: 'meeting', title: 'Old offsite', historyItem: { id: 'old' } });
+  });
+
+  it('asks the index for as many as it is told, and says which kinds it may have cut short', async () => {
+    spotlightSearch.mockResolvedValueOnce([
+      { source_type: 'chat', source_id: 'c1', title: 'Pricing brainstorm', excerpt: 'a', timestamp: 1, match_type: 'content' },
+      { source_type: 'chat', source_id: 'c2', title: 'Other', excerpt: 'b', timestamp: 1, match_type: 'content' },
+    ]);
+    const { result } = renderHook(() => useSessionSearch(ITEMS, 'zz', 2));
+    await settle();
+    expect(spotlightSearch).toHaveBeenCalledWith({ query: 'zz', limit: 2 });
+    expect(result.current.capped).toEqual(['chat']);
+  });
+
   it('drops a response for an older query', async () => {
     let resolveOld!: (hits: never[]) => void;
     spotlightSearch.mockImplementationOnce(() => new Promise<never[]>((resolve) => { resolveOld = resolve; }));

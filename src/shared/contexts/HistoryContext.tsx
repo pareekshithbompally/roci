@@ -8,6 +8,7 @@ import { store } from '@services/db';
 import { meetingService } from '@services/meeting.service';
 import { queryKeys } from '@shared/query/queryKeys';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
+import { matchesAllWords } from '@shared/utils/textMatch';
 
 /** Categories the Summary model files meetings under (one list, from config). */
 const categories: string[] = [...TRANSCRIPTION_CONFIG.categories];
@@ -121,12 +122,9 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
   const filteredItems = useMemo(() => {
     if (!searchQuery && !selectedCategory) return items;
 
-    const q = searchQuery.toLowerCase();
     return items.filter(h => {
       if (selectedCategory && !h.categories.includes(selectedCategory)) return false;
-      if (!q) return true;
-      return h.title.toLowerCase().includes(q)
-        || h.categories.some(c => c.toLowerCase().includes(q));
+      return !searchQuery.trim() || matchesAllWords([h.title, ...h.categories].join(' '), searchQuery);
     }) as FilteredHistoryItem[];
   }, [items, searchQuery, selectedCategory]);
 

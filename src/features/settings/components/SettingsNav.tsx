@@ -33,15 +33,17 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
 ];
 
 
+/** The sections this device has: what the sidebar, the phone's Settings list and the ⌘K palette all show. */
+export const SETTINGS_SECTIONS = SETTINGS_NAV_ITEMS.filter(({ available }) => available !== false);
+
 export const SettingsNav: React.FC = () => {
   const activePanel = useAppStore((s) => s.activeSettingsPanel);
   const { setActiveSettingsPanel } = useAppActions();
 
-  const visibleItems = SETTINGS_NAV_ITEMS.filter(({ available }) => available !== false);
 
   return (
     <nav aria-label="Settings sections" className="flex flex-col">
-      {visibleItems.map(({ id, label, icon }) => (
+      {SETTINGS_SECTIONS.map(({ id, label, icon }) => (
         <Row
           key={id}
           selected={activePanel === id}

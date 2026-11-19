@@ -2,6 +2,7 @@
  *  an inline card on Mac. Text, the meeting (when not already fixed) and an optional due date; time once a date is set. */
 
 import React, { useMemo, useState } from 'react';
+import { matchesAllWords } from '@shared/utils/textMatch';
 import { CalendarDays, ChevronDown, ListTodo, Plus } from 'lucide-react';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import {
@@ -29,8 +30,7 @@ const MeetingSelector: React.FC<MeetingSelectorProps> = ({ items, selectedId, on
   const selected = items.find(h => h.id === selectedId);
   const filtered = useMemo(() => {
     if (!query.trim()) return items.slice(0, 50);
-    const lower = query.toLowerCase();
-    return items.filter(h => (h.title || '').toLowerCase().includes(lower)).slice(0, 50);
+    return items.filter(h => matchesAllWords(h.title || '', query)).slice(0, 50);
   }, [items, query]);
 
   return (

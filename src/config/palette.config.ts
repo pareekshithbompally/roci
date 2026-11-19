@@ -12,8 +12,10 @@ export const PALETTE_CONFIG = {
   },
   /** Recent meetings and chats shown before anything is typed. */
   recentCount: 5,
-  /** Search results of one kind shown before "Show all N". */
+  /** Search results of one kind shown before "Show All N". */
   resultsPerKind: 5,
+  /** How many of one kind the index is asked for inside Show All. */
+  allResultsLimit: 200,
   /** Go to rows sink below real matches once something is typed. */
   navigateWeight: 0.7,
 } as const;

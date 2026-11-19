@@ -1,5 +1,5 @@
 export { SettingsPanel, SettingsHome, settingsScreen } from './SettingsPanel';
-export { SettingsNav, SETTINGS_NAV_ITEMS } from './SettingsNav';
+export { SettingsNav, SETTINGS_NAV_ITEMS, SETTINGS_SECTIONS } from './SettingsNav';
 export type { SettingsNavItem } from './SettingsNav';
 export { ProvidersPanel } from './ProvidersPanel';
 export { ProviderConnection } from './ProviderConnection';

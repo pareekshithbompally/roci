@@ -78,10 +78,9 @@ export function acceleratorKeys(accelerator: string): string[] {
   return [...glyphs, SHORTCUT_KEY_LABELS[key] ?? key.toUpperCase()];
 }
 
-/** macOS label: `CommandOrControl+Shift+K` → `⇧⌘K`. */
-export const formatAccelerator = (accelerator: string): string => acceleratorKeys(accelerator).join('');
 
-/** Label for an app shortcut, from the registry (`⌘K`). */
-export function shortcutLabel(id: AppShortcutId): string {
-  return formatAccelerator(APP_SHORTCUTS[id].accelerator);
-}
+/** An app shortcut's keys, one per keycap, from the registry (`['⌘', 'K']`). */
+export const shortcutKeys = (id: AppShortcutId): string[] => acceleratorKeys(APP_SHORTCUTS[id].accelerator);
+
+/** An app shortcut as one label, for text (`⌘K`): its keys, joined. */
+export const shortcutLabel = (id: AppShortcutId): string => shortcutKeys(id).join('');

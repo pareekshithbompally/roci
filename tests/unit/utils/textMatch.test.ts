@@ -21,3 +21,10 @@ describe('matchesAllWords', () => {
   });
 
 });
+
+describe('queryWords', () => {
+  it('the words typed, lower-cased, blanks dropped', async () => {
+    const { queryWords } = await import('@shared/utils/textMatch');
+    expect(queryWords('  Review   BUDGET ')).toEqual(['review', 'budget']);
+  });
+});

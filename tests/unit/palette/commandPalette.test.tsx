@@ -28,11 +28,11 @@ vi.mock('@features/recording', () => ({ useToggleRecording: () => mocks.toggleRe
 vi.mock('@shared/contexts/ThemeContext', () => ({ useThemeContext: () => ({ isDark: true, setTheme: mocks.setTheme }) }));
 vi.mock('@shared/contexts/SettingsContext', () => ({ useSettings: () => ({ settings: {} }) }));
 vi.mock('@shared/stores/meetingProgressStore', () => ({ useMeetingPhase: () => ({ kind: 'ready' }) }));
+// The sections this device has (the Settings list filters out the ones it lacks).
 vi.mock('@features/settings', () => ({
-  SETTINGS_NAV_ITEMS: [
+  SETTINGS_SECTIONS: [
     { id: 'general', label: 'General', icon: () => null, group: 'App', keywords: ['microphone'] },
     { id: 'providers', label: 'Providers', icon: () => null, group: 'AI', keywords: ['api key'] },
-    { id: 'mcp', label: 'MCP Servers', icon: () => null, group: 'AI', available: false, keywords: [] },
   ],
 }));
 vi.mock('@shared/stores/appStore', async (importOriginal) => ({
@@ -86,11 +86,27 @@ describe('CommandPalette', () => {
     expect(groupTitles()).not.toContain('Recent');
   });
 
-  it('a kind with more than five matches shows five, then Show all N that drills into all of them', () => {
+  it('a kind with more than five matches shows five, then Show All N', () => {
     openPalette();
     type('note');
     expect(rows('Chats')).toHaveLength(6);
-    expect(rows('Chats').at(-1)).toContain('Show all 6');
+    expect(rows('Chats').at(-1)).toContain('Show All 6');
+  });
+
+  it('Show All keeps the search and lists the whole kind, breadcrumbed', () => {
+    openPalette();
+    type('note');
+    fireEvent.click(screen.getByText('Show All 6'));
+    expect(field().value).toBe('note');
+    expect(screen.getByText('Chats', { selector: '[data-palette-breadcrumb] *' })).toBeTruthy();
+    expect(document.querySelectorAll('[cmdk-item]')).toHaveLength(6);
+  });
+
+  it('says when the search index cannot be read, instead of claiming no results', async () => {
+    mocks.spotlightSearch.mockRejectedValueOnce(new Error('index gone'));
+    openPalette();
+    type('zzzz');
+    expect(await screen.findByText(/Search is unavailable/)).toBeTruthy();
   });
 
   it('running a command closes the palette, then acts', () => {
@@ -100,11 +116,10 @@ describe('CommandPalette', () => {
     expect(screen.queryByPlaceholderText(PLACEHOLDER)).toBeNull();
   });
 
-  it('Settings drills into its sections (only the ones this device has); a section opens there', () => {
+  it('Settings drills into its sections; a section opens there', () => {
     openPalette();
     fireEvent.click(screen.getByText('Settings', { selector: '[cmdk-item] *' }));
     expect(screen.getByText('Providers')).toBeTruthy();
-    expect(screen.queryByText('MCP Servers')).toBeNull();
     fireEvent.click(screen.getByText('Providers'));
     expect(mocks.openSettings).toHaveBeenCalledWith('providers');
   });

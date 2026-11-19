@@ -24,4 +24,4 @@ export type { IndexStats, DiskUsageEntry } from './stores';
 
 // Re-export context for provider usage
 export { SettingsProvider, useSettings as useSettingsContext } from '@shared/contexts/SettingsContext';
-export { SETTINGS_NAV_ITEMS } from './components/SettingsNav';
+export { SETTINGS_SECTIONS } from './components/SettingsNav';

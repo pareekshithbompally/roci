@@ -24,4 +24,14 @@ describe('useOpenSession', () => {
     await act(async () => { await result.current({ id: 'c1', type: 'chat' } as unknown as UnifiedSidebarItem); });
     expect(mocks.openChat).toHaveBeenCalledWith('c1');
   });
+
+  it('a failed open is logged, never an unhandled rejection', async () => {
+    mocks.openMeeting.mockRejectedValueOnce(new Error('gone'));
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { result } = renderHook(() => useOpenSession());
+    const meeting = { id: 'm2', type: 'meeting', historyItem: { id: 'm2' } } as unknown as UnifiedSidebarItem;
+    await act(async () => { await result.current(meeting); });
+    expect(error).toHaveBeenCalledWith('[useOpenSession] Opening failed:', expect.any(Error));
+    error.mockRestore();
+  });
 });

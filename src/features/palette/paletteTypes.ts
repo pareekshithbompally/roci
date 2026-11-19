@@ -3,6 +3,10 @@
 
 import type { ReactNode } from 'react';
 import type { TileGlyph } from '@shared/ui';
+import type { UnifiedSidebarItem } from '@shared/types';
+
+/** A kind of search result: meetings or chats. */
+export type ResultKind = UnifiedSidebarItem['type'];
 
 export interface PaletteCommand {
   id: string;
@@ -22,26 +26,30 @@ export interface PaletteCommand {
   keys?: string[];
   /** Multiplies the fuzzy score: below 1 sinks a row once something is typed. */
   weight?: number;
-  /** A fixed score that bypasses the scorer (search index hits keep the index's order). */
-  rank?: number;
   /** A flat shortcut to a drill-down's row (a Settings section at the root): hidden until something is typed. */
   hideWhenEmpty?: boolean;
   /** The query words to embolden in the title. */
   highlight?: string;
   /** Drills in: the sub-list this row opens. */
   children?: () => PaletteCommand[];
-  /** The breadcrumb once drilled in, when not the row's own title ("Show all 7" opens "Chats"). */
+  /** The breadcrumb once drilled in, when not the row's own title ("Show All 7" opens "Chats"). */
   levelTitle?: string;
+  /** "Show All": opens every result of this kind, still searching what you typed. */
+  opensKind?: ResultKind;
   perform?: () => void;
 }
 
 export interface PaletteGroup {
   title: string;
   items: PaletteCommand[];
+  /** Search results of this kind. */
+  kind?: ResultKind;
 }
 
 /** A drill-down level: its name (the breadcrumb) and its rows. */
 export interface PaletteLevel {
   title: string;
   commands: PaletteCommand[];
+  /** A Show All level: its rows are the live results of this kind, for the text still in the field. */
+  kind?: ResultKind;
 }

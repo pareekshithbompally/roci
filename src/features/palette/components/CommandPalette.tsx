@@ -1,20 +1,22 @@
 /** ⌘K, after frappe/helpdesk's command palette: one ranked list of commands (recents, actions, places, settings) and, once
- *  you type, meetings and chats leading it. Rows act or drill in (Settings ›, Show all ›); Escape peels one layer — the
+ *  you type, meetings and chats leading it. Rows act or drill in (Settings ›, Show All ›); Escape peels one layer — the
  *  text, then the level, then the palette — and the footer says which. Mounted beside a column sidebar (Mac, iPad). */
 
 import React, { useEffect, useState } from 'react';
-import { ChevronRight } from 'lucide-react';
-import {
-  CommandDialog, CommandGroup, CommandInput, CommandList, CommandRow, Icon, IconTile, KeyHint, Separator, Text,
-} from '@shared/ui';
+import { CommandDialog, CommandEmpty, CommandFooter, CommandGroup, CommandInput, CommandList, CommandRow, IconTile, KeyHint, Text } from '@shared/ui';
 import { HighlightedText } from '@shared/components';
 import { endSearch, setSearchQuery, useSearchActive, useSearchQuery } from '@shared/stores/searchStore';
+import { SHORTCUT_KEY_LABELS } from '@config/shortcuts.config';
+import { PALETTE_CONFIG } from '@config/palette.config';
 import { buildGroups, resultGroups } from '@features/palette/buildGroups';
 import { useRootCommands } from '@features/palette/hooks/useRootCommands';
 import { useResultCommands } from '@features/palette/hooks/useResultCommands';
-import type { PaletteCommand, PaletteLevel } from '@features/palette/paletteTypes';
+import type { PaletteCommand, PaletteGroup, PaletteLevel } from '@features/palette/paletteTypes';
 
-const Row: React.FC<{ command: PaletteCommand; onRun: (command: PaletteCommand) => void }> = ({ command, onRun }) => (
+/** The Mac's key glyphs for the footer: Return is ↩, Escape as the shortcut registry writes it. */
+const KEY = { up: '↑', down: '↓', return: '↩', delete: '⌫', escape: SHORTCUT_KEY_LABELS.escape } as const;
+
+const PaletteRow: React.FC<{ command: PaletteCommand; onRun: (command: PaletteCommand) => void }> = ({ command, onRun }) => (
   <CommandRow
     value={command.id}
     onSelect={() => onRun(command)}
@@ -23,7 +25,7 @@ const Row: React.FC<{ command: PaletteCommand; onRun: (command: PaletteCommand) 
     description={command.detail}
     meta={command.badge ?? command.subtitle}
     keys={command.keys}
-    chevron={command.children ? true : undefined}
+    chevron={command.children || command.opensKind ? true : undefined}
   />
 );
 
@@ -33,24 +35,34 @@ function escapeLabel(query: string, depth: number): string {
   return depth > 0 ? 'Back' : 'Close';
 }
 
+/** Rows that are results or commands — not the "Show All" rows that only open more. */
+const resultCount = (groups: PaletteGroup[]) => groups.reduce((sum, group) => sum + group.items.filter((c) => !c.opensKind).length, 0);
+
 export const CommandPalette: React.FC = () => {
   const open = useSearchActive();
   const query = useSearchQuery();
   const [stack, setStack] = useState<PaletteLevel[]>([]);
   const level = stack.at(-1) ?? null;
   const root = useRootCommands();
-  const results = useResultCommands(level ? '' : query);
+  // A Settings level filters its own rows; the root and a Show All level search.
+  const results = useResultCommands(level && !level.kind ? '' : query, level?.kind ? PALETTE_CONFIG.allResultsLimit : undefined);
 
-  // Every open starts at the root.
+  // Back to the root as it closes, so a reopen never shows the last level for a frame.
   useEffect(() => {
-    if (open) setStack([]);
+    if (!open) setStack([]);
   }, [open]);
 
-  const groups = buildGroups({ term: query, level, root, results: resultGroups(results.kinds) });
-  const count = groups.reduce((sum, group) => sum + group.items.length, 0);
+  const live = level?.kind ? { ...level, commands: results.kinds.find((group) => group.kind === level.kind)?.items ?? [] } : level;
+  const groups = buildGroups({ term: query, level: live, root, results: resultGroups(results.kinds, results.capped) });
+  const count = resultCount(groups);
 
   const back = () => setStack((levels) => levels.slice(0, -1));
   const run = (command: PaletteCommand) => {
+    if (command.opensKind) {
+      // Show All keeps what you typed and goes on searching it.
+      setStack((levels) => [...levels, { title: command.levelTitle ?? command.title, commands: [], kind: command.opensKind }]);
+      return;
+    }
     if (command.children) {
       setStack((levels) => [...levels, { title: command.levelTitle ?? command.title, commands: command.children!() }]);
       setSearchQuery('');
@@ -76,39 +88,35 @@ export const CommandPalette: React.FC = () => {
     <CommandDialog open={open} onOpenChange={(next) => !next && endSearch()} onEscapeKeyDown={onEscape} onKeyDown={onKeyDown} label="Command palette">
       <CommandInput
         look="palette"
+        breadcrumb={level?.title}
         placeholder={level ? 'Search…' : 'Search meetings and chats, or type a command…'}
-        breadcrumb={level && (
-          <span className="flex shrink-0 items-center gap-1">
-            <Text variant="label">{level.title}</Text>
-            <Icon icon={ChevronRight} size="xs" tone="faint" />
-          </span>
-        )}
         value={query}
         onValueChange={setSearchQuery}
         autoFocus
       />
       <CommandList palette>
-        {count === 0 && (
-          <Text as="p" variant="helper" tone="faint" className="px-3 py-6 text-center">
-            {results.searching ? 'Searching…' : `No results for “${query.trim()}”`}
-          </Text>
+        {results.unavailable && query.trim() && (
+          <Text as="p" variant="helper" tone="faint" className="px-2 py-1.5">Search is unavailable: titles only</Text>
         )}
+        <CommandEmpty>{results.searching ? 'Searching…' : `No results for “${query.trim()}”`}</CommandEmpty>
         {groups.map((group, i) => (
           <CommandGroup key={`${i}:${group.title}`} heading={group.title || undefined}>
-            {group.items.map((command) => <Row key={command.id} command={command} onRun={run} />)}
+            {group.items.map((command) => <PaletteRow key={command.id} command={command} onRun={run} />)}
           </CommandGroup>
         ))}
       </CommandList>
-      <Separator />
-      <div className="flex items-center gap-4 px-4 py-2.5">
-        <KeyHint keys={['↑', '↓']} label="Navigate" />
-        <KeyHint keys={['↵']} label="Select" />
-        {level && <KeyHint keys={['⌫']} label="Back" />}
-        <span className="ml-auto flex items-center gap-4">
-          {query.trim() && <Text variant="helper" tone="faint">{count} results</Text>}
-          <KeyHint keys={['esc']} label={escapeLabel(query, stack.length)} />
-        </span>
-      </div>
+      <CommandFooter
+        trailing={(
+          <>
+            {query.trim() && <Text variant="helper" tone="faint">{count} {count === 1 ? 'result' : 'results'}</Text>}
+            <KeyHint keys={[KEY.escape]} label={escapeLabel(query, stack.length)} />
+          </>
+        )}
+      >
+        <KeyHint keys={[KEY.up, KEY.down]} label="Navigate" />
+        <KeyHint keys={[KEY.return]} label="Select" />
+        {level && <KeyHint keys={[KEY.delete]} label="Back" />}
+      </CommandFooter>
     </CommandDialog>
   );
 };

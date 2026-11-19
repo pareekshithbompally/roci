@@ -2,4 +2,4 @@
 
 export { useAppShortcuts } from './hooks/useAppShortcuts';
 export type { AppShortcutHandlers } from './hooks/useAppShortcuts';
-export { acceleratorKeys, findAppShortcut, formatAccelerator, shortcutLabel } from './accelerator';
+export { acceleratorKeys, findAppShortcut, shortcutKeys, shortcutLabel } from './accelerator';

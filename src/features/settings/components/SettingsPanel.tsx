@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { systemInfoStore } from '@features/settings/stores/systemInfoStore';
 import { useAppStore } from '@shared/stores/appStore';
-import { SETTINGS_NAV_ITEMS } from './SettingsNav';
+import { SETTINGS_NAV_ITEMS, SETTINGS_SECTIONS } from './SettingsNav';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { ProvidersPanel } from './ProvidersPanel';
 import { ProvidersPanelErrorBoundary } from './ProvidersPanelErrorBoundary';
@@ -47,7 +47,7 @@ export const SettingsHome: React.FC = () => {
   const { push } = useNavStack();
   // System panel data (paths, disk, index) loads while the user is still on this list, as on the desktop.
   useEffect(() => systemInfoStore.preload(), []);
-  const items = SETTINGS_NAV_ITEMS.filter(({ available }) => available !== false);
+  const items = SETTINGS_SECTIONS;
   const groups = [...new Set(items.map(({ group }) => group))];
 
   return (

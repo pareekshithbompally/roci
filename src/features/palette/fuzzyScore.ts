@@ -51,13 +51,19 @@ function scatteredScore(haystack: string, needle: string): number {
   return SCATTERED_SCORE + longestStreak * STREAK_BONUS - Math.min(gaps, MAX_GAP_PENALTY);
 }
 
-/** Best of title, keywords and subtitle (each at its penalty), times the weight; a fixed rank wins outright. */
+/** Keywords match only as real substrings: scattered letters across a long keyword list would match almost anything. */
+function keywordScore(keywords: string | undefined, term: string): number {
+  if (!keywords) return NO_MATCH;
+  const score = fuzzyScore(keywords, term);
+  return score >= SUBSTRING_FLOOR ? score - KEYWORD_PENALTY : NO_MATCH;
+}
+
+/** Best of title, keywords and subtitle (each at its penalty), times the weight. */
 export function scoreCommand(command: PaletteCommand, term: string): number {
-  if (command.rank !== undefined) return command.rank;
   if (!term) return 0;
   const base = Math.max(
     fuzzyScore(command.title, term),
-    command.keywords ? fuzzyScore(command.keywords, term) - KEYWORD_PENALTY : NO_MATCH,
+    keywordScore(command.keywords, term),
     command.subtitle ? fuzzyScore(command.subtitle, term) - SUBTITLE_PENALTY : NO_MATCH,
   );
   if (base < 0) return NO_MATCH;

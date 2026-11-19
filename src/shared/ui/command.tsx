@@ -1,15 +1,13 @@
 import { Command as CommandPrimitive } from 'cmdk';
-import { LITERAL_TEXT } from './recipes';
 import { ChevronRight, Search } from 'lucide-react';
-import { PICKER } from '@config/layout.config';
-import { Title as DialogPrimitiveTitle } from '@radix-ui/react-dialog';
+import { COMMAND_PALETTE, PICKER } from '@config/layout.config';
 import type { ComponentProps, KeyboardEventHandler, ReactNode } from 'react';
-import { Dialog, DialogPortal, DialogOverlay, DialogContent } from './dialog';
+import { Dialog, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from './dialog';
 import { cn } from './utils';
-import { MENU_ITEM, MENU_SEPARATOR, SHEET_SURFACE } from './recipes';
+import { LITERAL_TEXT, MENU_ITEM, MENU_SEPARATOR, SHEET_SURFACE } from './recipes';
 import { Icon } from './icon';
 import { Text, type TextTone, type TextVariant } from './text';
-import { Kbd } from './kbd';
+import { Keycaps } from './kbd';
 
 export function Command({ className, ...props }: ComponentProps<typeof CommandPrimitive>) {
   return <CommandPrimitive className={cn('flex flex-col overflow-hidden rounded-lg text-primary', className)} {...props} />;
@@ -18,8 +16,8 @@ export function Command({ className, ...props }: ComponentProps<typeof CommandPr
 interface CommandInputProps extends ComponentProps<typeof CommandPrimitive.Input> {
   /** `palette`: the ⌘K field — a magnifier, then (inside a drill-down) where you are, then the text. */
   look?: 'field' | 'palette';
-  /** Palette only: where you are, before the text (the level you drilled into). */
-  breadcrumb?: ReactNode;
+  /** Palette only: the level you drilled into, shown before the text (Settings ›). */
+  breadcrumb?: string;
 }
 
 export function CommandInput({ look = 'field', breadcrumb, className, ...props }: CommandInputProps) {
@@ -38,29 +36,26 @@ export function CommandInput({ look = 'field', breadcrumb, className, ...props }
   return (
     <div className="flex items-center gap-2.5 px-4 border-b border-muted">
       <Icon icon={Search} size="sm" tone="faint" />
-      {breadcrumb}
+      {breadcrumb && (
+        <span data-palette-breadcrumb className="flex shrink-0 items-center gap-1">
+          <Text variant="label">{breadcrumb}</Text>
+          <Icon icon={ChevronRight} size="xs" tone="faint" />
+        </span>
+      )}
       {input}
     </div>
   );
 }
 
-/** cmdk wraps List children in a sizer div; `fill` makes it a full-height column so a lone status child can center. */
-const LIST_FILL = 'h-72 [&>[cmdk-list-sizer]]:flex [&>[cmdk-list-sizer]]:min-h-full [&>[cmdk-list-sizer]]:flex-col';
-
-/** The ⌘K palette's results: one fixed height in every state (before typing, typing, inside a level), so it never resizes. */
-const LIST_PALETTE = 'h-96';
-
 interface CommandListProps extends ComponentProps<typeof CommandPrimitive.List> {
-  /** Fixed-height frame whose sizer fills it (palettes that never resize). */
-  fill?: boolean;
   /** The ⌘K palette's fixed frame: the same height whatever it lists; its rows scroll inside. */
   palette?: boolean;
 }
 
-export function CommandList({ fill, palette, className, ...props }: CommandListProps) {
+export function CommandList({ palette, className, ...props }: CommandListProps) {
   return (
     <CommandPrimitive.List
-      className={cn('overflow-y-auto custom-scrollbar p-1', palette ? LIST_PALETTE : 'max-h-72', fill && LIST_FILL, className)}
+      className={cn('overflow-y-auto custom-scrollbar p-1', palette ? COMMAND_PALETTE.listHeight : 'max-h-72', className)}
       {...props}
     />
   );
@@ -138,16 +133,23 @@ export function CommandSeparator({ className, ...props }: ComponentProps<typeof 
   return <CommandPrimitive.Separator className={cn(MENU_SEPARATOR, className)} {...props} />;
 }
 
-/** One keycap per key. */
-function Keycaps({ keys }: { keys: readonly string[] }) {
-  return <>{keys.map((key) => <Kbd key={key}>{key}</Kbd>)}</>;
+
+
+/** The palette's footer: the key hints, and on the right whatever the caller adds (a count, what Escape does). */
+export function CommandFooter({ children, trailing }: { children: ReactNode; trailing?: ReactNode }) {
+  return (
+    <div className="flex items-center gap-4 border-t border-muted px-4 py-2.5">
+      {children}
+      <span className="ml-auto flex items-center gap-4">{trailing}</span>
+    </div>
+  );
 }
 
 /** A footer hint: the keys, then what they do (↑ ↓ Navigate). */
 export function KeyHint({ keys, label }: { keys: readonly string[]; label: string }) {
   return (
     <Text variant="helper" tone="faint" className="flex items-center gap-1.5">
-      <span className="flex items-center gap-1"><Keycaps keys={keys} /></span>
+      <Keycaps keys={keys} />
       {label}
     </Text>
   );
@@ -176,9 +178,11 @@ export function CommandDialog({ open, onOpenChange, onEscapeKeyDown, onKeyDown, 
           bare
           aria-describedby={undefined}
           onEscapeKeyDown={onEscapeKeyDown}
-          className={cn(SHEET_SURFACE, 'left-1/2 top-[18vh] w-full max-w-2xl -translate-x-1/2 overflow-hidden')}
+          // A command moves focus where it goes (the composer, a view): closing must not pull it back.
+          onCloseAutoFocus={(event) => event.preventDefault()}
+          className={cn(SHEET_SURFACE, COMMAND_PALETTE.frame, 'overflow-hidden')}
         >
-          <DialogPrimitiveTitle className="sr-only">{label}</DialogPrimitiveTitle>
+          <DialogTitle className="sr-only">{label}</DialogTitle>
           <Command shouldFilter={false} onKeyDown={onKeyDown}>{children}</Command>
         </DialogContent>
       </DialogPortal>
