@@ -9,11 +9,13 @@ export interface SystemFormat {
   hour24?: boolean;
   /** 1 = Sunday … 7 = Saturday. */
   firstWeekday: number;
+  /** Days of the new year week 1 must hold (4 ISO, 1 US): the device's week numbering. */
+  minDaysInFirstWeek: number;
 }
 
-export const useSystemFormatStore = create<SystemFormat>()(() => ({ firstWeekday: 1 }));
+export const useSystemFormatStore = create<SystemFormat>()(() => ({ firstWeekday: 1, minDaysInFirstWeek: 1 }));
 
 export const setSystemFormat = (format: SystemFormat) => useSystemFormatStore.setState(format, true);
 export const systemFormat = () => useSystemFormatStore.getState();
 /** For the app root: re-render everything when the user changes their formats. */
-export const useSystemLocale = () => useSystemFormatStore((s) => `${s.locale}|${s.hour24}|${s.firstWeekday}`);
+export const useSystemLocale = () => useSystemFormatStore((s) => `${s.locale}|${s.hour24}|${s.firstWeekday}|${s.minDaysInFirstWeek}`);

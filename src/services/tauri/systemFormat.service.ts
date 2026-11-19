@@ -11,9 +11,15 @@ interface NativeFormat {
   locale: string;
   hour24: boolean;
   first_weekday: number;
+  min_days_in_first_week: number;
 }
 
-const toFormat = (native: NativeFormat): SystemFormat => ({ locale: native.locale, hour24: native.hour24, firstWeekday: native.first_weekday });
+const toFormat = (native: NativeFormat): SystemFormat => ({
+  locale: native.locale,
+  hour24: native.hour24,
+  firstWeekday: native.first_weekday,
+  minDaysInFirstWeek: native.min_days_in_first_week,
+});
 
 /** Reads the formats (before the first render), then follows the system's change notification. Browser builds keep the defaults. */
 export async function loadSystemFormat(): Promise<void> {

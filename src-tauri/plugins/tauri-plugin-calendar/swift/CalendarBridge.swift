@@ -49,17 +49,6 @@ public func calendarCheckAccess() -> UnsafeMutablePointer<CChar> {
     return jsonToPtr(["status": status])
 }
 
-/// Events starting within the next `minutesAhead` minutes.
-@_cdecl("calendar_get_upcoming_events")
-public func calendarGetUpcomingEvents(_ minutesAhead: Int32) -> UnsafeMutablePointer<CChar> {
-    let store = EKEventStore()
-    let now = Date()
-    guard let end = Calendar.current.date(byAdding: .minute, value: Int(minutesAhead), to: now) else {
-        return jsonToPtr(["events": [Any](), "error": "Invalid time range"])
-    }
-    return fetchEventsJSON(store: store, start: now, end: end)
-}
-
 /// Events in an ISO 8601 date range.
 @_cdecl("calendar_get_events_in_range")
 public func calendarGetEventsInRange(

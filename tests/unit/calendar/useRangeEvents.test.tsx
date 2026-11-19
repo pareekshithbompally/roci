@@ -44,6 +44,12 @@ describe('useRangeEvents', () => {
     expect(result.current.allDay.map((e) => e.event_id)).toEqual(['allday']);
   });
 
+  it('a failed read is an error, not an empty week', async () => {
+    getEventsInRange.mockRejectedValue(new Error('EventKit denied'));
+    const { result } = renderHook(() => useRangeEvents(week1, true), { wrapper });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+  });
+
   it('disabled → no fetch', async () => {
     renderHook(() => useRangeEvents(week1, false), { wrapper });
     await new Promise((r) => setTimeout(r, 20));

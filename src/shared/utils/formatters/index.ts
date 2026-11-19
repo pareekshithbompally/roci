@@ -4,8 +4,11 @@ export { setSystemFormat } from '@shared/stores/systemFormatStore';
 
 /** `date` in the device's locale, and on its clock when a time is shown (the web view's own defaults ignore the Mac's settings). */
 function format(date: Date | string | number, options: Intl.DateTimeFormatOptions): string {
+  const value = new Date(date);
+  // An unreadable date shows as nothing rather than throwing out of a render.
+  if (Number.isNaN(value.getTime())) return '';
   const showsTime = 'hour' in options || 'timeStyle' in options;
-  return new Intl.DateTimeFormat(systemFormat().locale, { ...options, ...(showsTime ? hourOption() : {}) }).format(new Date(date));
+  return new Intl.DateTimeFormat(systemFormat().locale, { ...options, ...(showsTime ? hourOption() : {}) }).format(value);
 }
 
 /** The app's one date style: "19 Nov 2026" / "Nov 19, 2026", as the device writes it. */

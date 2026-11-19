@@ -15,13 +15,6 @@ pub fn check_access() -> Result<AccessStatus, String> {
     bridge::check_access()
 }
 
-/// Events starting within the next `minutes_ahead` minutes, excluding declined ones.
-#[command]
-pub fn get_upcoming_events(minutes_ahead: Option<u32>) -> Result<Vec<CalendarEvent>, String> {
-    let ahead = minutes_ahead.unwrap_or(15);
-    crate::with_links(bridge::get_upcoming_events(ahead)?)
-}
-
 /// Fetch calendar events in an ISO 8601 date range.
 #[command]
 pub fn get_events_in_range(start: String, end: String) -> Result<Vec<CalendarEvent>, String> {

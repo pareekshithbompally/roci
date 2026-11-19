@@ -1,5 +1,6 @@
 /** Time windows for usage, in local calendar days (DST-safe: days step by date, never by 24 h). */
 
+import { addDays, localDayKey, startOfDay } from '@shared/utils/localDate';
 import { USAGE_CONFIG, type UsageRange } from '@config/usage.config';
 import type { UsageBucketSize } from '@extensions/usage';
 
@@ -12,11 +13,6 @@ export interface UsageWindow {
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-export const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-export const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
-
-/** Local date key, as SQLite's `date(…, 'localtime')` writes it: `YYYY-MM-DD`. */
-export const dayKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 /** Local month key, as SQLite's `strftime('%Y-%m', …, 'localtime')` writes it: `YYYY-MM`. */
 export const monthKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
 
@@ -47,7 +43,7 @@ export function bucketKeys(window: UsageWindow, firstTimestamp: number | null, n
   const today = startOfDay(now);
   if (window.bucket === 'day') {
     const keys: string[] = [];
-    for (let d = new Date(window.since ?? today.getTime()); d <= today; d = addDays(d, 1)) keys.push(dayKey(d));
+    for (let d = new Date(window.since ?? today.getTime()); d <= today; d = addDays(d, 1)) keys.push(localDayKey(d));
     return keys;
   }
   const first = firstTimestamp === null ? today : new Date(firstTimestamp);

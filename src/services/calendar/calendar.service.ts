@@ -37,14 +37,10 @@ class CalendarService {
 
   // ─── Event reading ─────────────────────────────────────────────
 
+  /** Events in an ISO range; rejects when EventKit can't be read, so the caller shows the failure instead of an empty week. */
   async getEventsInRange(start: string, end: string): Promise<CalendarEvent[]> {
     if (!isTauriEnvironment()) return [];
-    try {
-      return await invoke<CalendarEvent[]>('plugin:calendar|get_events_in_range', { start, end });
-    } catch (error: unknown) {
-      console.error('[CalendarService] getEventsInRange failed:', error);
-      return [];
-    }
+    return invoke<CalendarEvent[]>('plugin:calendar|get_events_in_range', { start, end });
   }
 
   /** `calendar://changed` (EventKit change, new day, clock change, wake) runs `handler`; returns the unsubscribe. */

@@ -21,6 +21,8 @@ pub struct SystemFormat {
     hour24: bool,
     /// 1 = Sunday … 7 = Saturday.
     first_weekday: usize,
+    /// Days of the new year week 1 must hold (4 under ISO rules, 1 in the US): the week numbers Calendar shows.
+    min_days_in_first_week: usize,
 }
 
 fn read() -> SystemFormat {
@@ -33,7 +35,8 @@ fn read() -> SystemFormat {
     // The locale's skeleton for "hour" says which clock it uses: H/k is 24-hour, h/K 12-hour.
     let hour_pattern = NSDateFormatter::dateFormatFromTemplate_options_locale(&NSString::from_str("j"), 0, Some(&current));
     let hour24 = hour_pattern.is_some_and(|p| p.to_string().contains(['H', 'k']));
-    SystemFormat { locale, hour24, first_weekday: NSCalendar::currentCalendar().firstWeekday() }
+    let calendar = NSCalendar::currentCalendar();
+    SystemFormat { locale, hour24, first_weekday: calendar.firstWeekday(), min_days_in_first_week: calendar.minimumDaysInFirstWeek() }
 }
 
 /// The current formats.
@@ -58,6 +61,6 @@ pub fn watch(app: AppHandle) {
             &block,
         )
     };
-    // Observed for the app's lifetime.
+    // The token is how an observer is removed; this one stays for the app's lifetime, so it is never needed.
     std::mem::forget(observer);
 }

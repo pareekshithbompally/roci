@@ -1,7 +1,6 @@
 const COMMANDS: &[&str] = &[
     "request_access",
     "check_access",
-    "get_upcoming_events",
     "get_events_in_range",
     "reminders_request_access",
     "reminders_check_access",

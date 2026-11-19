@@ -234,10 +234,10 @@ describe('formatHour', () => {
 
 describe('formatting follows the Mac (system format), not the web view default', () => {
   const at = new Date(2026, 10, 19, 21, 28);
-  afterEach(() => setSystemFormat({ firstWeekday: 1 }));
+  afterEach(() => setSystemFormat({ firstWeekday: 1, minDaysInFirstWeek: 1 }));
 
   it('24-hour India: 21:28, 19 Nov 2026', () => {
-    setSystemFormat({ locale: 'en-IN', hour24: true, firstWeekday: 2 });
+    setSystemFormat({ locale: 'en-IN', hour24: true, firstWeekday: 2, minDaysInFirstWeek: 4 });
     expect(formatClockTime(at)).toBe('21:28');
     expect(formatDate(at)).toBe('19 Nov 2026');
     expect(formatShortDate(at)).toBe('19 Nov');
@@ -249,14 +249,19 @@ describe('formatting follows the Mac (system format), not the web view default',
   });
 
   it('12-hour US: 9:28 PM, Nov 19, 2026', () => {
-    setSystemFormat({ locale: 'en-US', hour24: false, firstWeekday: 1 });
+    setSystemFormat({ locale: 'en-US', hour24: false, firstWeekday: 1, minDaysInFirstWeek: 1 });
     expect(formatClockTime(at)).toBe('9:28 PM');
     expect(formatDate(at)).toBe('Nov 19, 2026');
     expect(formatHour(21)).toBe('9 PM');
   });
 
+  it('an invalid date formats as empty text instead of throwing', () => {
+    expect(formatDate('not a date')).toBe('');
+    expect(formatClockTime(Number.NaN)).toBe('');
+  });
+
   it('a 24-hour clock wins over the region default', () => {
-    setSystemFormat({ locale: 'en-US', hour24: true, firstWeekday: 1 });
+    setSystemFormat({ locale: 'en-US', hour24: true, firstWeekday: 1, minDaysInFirstWeek: 1 });
     expect(formatClockTime(at)).toBe('21:28');
     expect(formatDateTime(at)).toContain('21:28');
   });

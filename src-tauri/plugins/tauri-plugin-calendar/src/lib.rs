@@ -81,7 +81,6 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         .invoke_handler(tauri::generate_handler![
             commands::request_access,
             commands::check_access,
-            commands::get_upcoming_events,
             commands::get_events_in_range,
             commands::reminders_request_access,
             commands::reminders_check_access,

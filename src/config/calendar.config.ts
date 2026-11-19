@@ -13,6 +13,9 @@ export const CALENDAR_CONFIG = {
   /** The popover's record actions; the same words as the reminders and the menu bar. */
   recordLabels: { join: 'Join & Record', record: 'Record' },
 
+  /** All-day events: the grid's row label and the popover's time line. */
+  allDayLabel: 'all-day',
+
   /** The place's one name: sidebar row and page title. */
   title: 'Upcoming',
 

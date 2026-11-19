@@ -6,7 +6,6 @@ Allows all EventKit commands (calendar events + reminders)
 
 - `allow-request-access`
 - `allow-check-access`
-- `allow-get-upcoming-events`
 - `allow-get-events-in-range`
 - `allow-reminders-request-access`
 - `allow-reminders-check-access`
@@ -72,32 +71,6 @@ Enables the get_events_in_range command without any pre-configured scope.
 <td>
 
 Denies the get_events_in_range command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`calendar:allow-get-upcoming-events`
-
-</td>
-<td>
-
-Enables the get_upcoming_events command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`calendar:deny-get-upcoming-events`
-
-</td>
-<td>
-
-Denies the get_upcoming_events command without any pre-configured scope.
 
 </td>
 </tr>

@@ -20,10 +20,11 @@ function split(events: CalendarEvent[]): RangeEvents {
   return { events: kept.filter((e) => !e.is_all_day), allDay: kept.filter((e) => e.is_all_day) };
 }
 
-export function useRangeEvents(range: { start: Date; end: Date }, enabled: boolean): RangeEvents & { isPending: boolean } {
+/** The read failed (`isError`); `retry` reads again. */
+export function useRangeEvents(range: { start: Date; end: Date }, enabled: boolean): RangeEvents & { isError: boolean; retry: () => void } {
   const start = range.start.toISOString();
   const end = range.end.toISOString();
-  const { data, isPending } = useQuery({
+  const { data, isError, refetch } = useQuery({
     queryKey: queryKeys.calendarEvents(start, end),
     queryFn: () => calendarService.getEventsInRange(start, end),
     select: split,
@@ -31,5 +32,5 @@ export function useRangeEvents(range: { start: Date; end: Date }, enabled: boole
     // The week before stays on screen until the next one is read: no blank flash between weeks.
     placeholderData: keepPreviousData,
   });
-  return { ...(data ?? NONE), isPending };
+  return { ...(data ?? NONE), isError, retry: () => void refetch() };
 }

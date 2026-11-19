@@ -6,14 +6,15 @@ import { Surface, Text } from '@shared/ui';
 import { CALENDAR_CONFIG } from '@config/calendar.config';
 import { useMinuteClock } from '@shared/hooks/useMinuteClock';
 import { formatClockTime, formatHour, formatWeekday } from '@shared/utils/formatters';
-import { isOnDay, layoutDay, minutesIntoDay, weekNumber } from '@features/calendar/utils/timeGrid';
+import { isOnDay, layoutDay, minutesIntoDay, minutesToPx as toPx, weekNumber } from '@features/calendar/utils/timeGrid';
+import { occurrenceKey } from '@services/calendar';
+import { useSystemFormatStore } from '@shared/stores/systemFormatStore';
 import { EventBlock } from './EventBlock';
 import type { CalendarEvent } from '@services/calendar';
 
 const { hourHeight, scrollLeadHours, nowLabelClearancePx } = CALENDAR_CONFIG.grid;
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 const MINUTES_PER_HOUR = 60;
-const toPx = (minutes: number) => (minutes / MINUTES_PER_HOUR) * hourHeight;
 const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
 
 type OnEventClick = (event: CalendarEvent, rect: DOMRect) => void;
@@ -62,7 +63,7 @@ const AllDayPill: React.FC<{ event: CalendarEvent; onClick: OnEventClick }> = ({
 /** All-day events as pills under each day they cover; shown only when the range has any. */
 const AllDayStrip: React.FC<{ days: Date[]; events: CalendarEvent[]; onEventClick: OnEventClick }> = ({ days, events, onEventClick }) => (
   <Surface edge="bottom" className="shrink-0 flex">
-    <Gutter><Text variant="caption" tone="muted" className="py-1">all-day</Text></Gutter>
+    <Gutter><Text variant="caption" tone="muted" className="py-1">{CALENDAR_CONFIG.allDayLabel}</Text></Gutter>
     {days.map((day) => (
       <Surface key={day.toDateString()} edge="left" className="flex-1 min-w-0 space-y-0.5 p-0.5">
         {events.filter((event) => isOnDay(event, day)).map((event) => <AllDayPill key={event.event_id} event={event} onClick={onEventClick} />)}
@@ -110,7 +111,7 @@ const DayColumn: React.FC<{ day: Date; events: CalendarEvent[]; onEventClick: On
   const blocks = useMemo(() => layoutDay(events, day), [events, day]);
   return (
     <Surface edge="left" className="relative flex-1 min-w-0">
-      {blocks.map((block) => <EventBlock key={`${block.event.event_id}@${block.event.start_ms}`} block={block} onClick={onEventClick} />)}
+      {blocks.map((block) => <EventBlock key={occurrenceKey(block.event.event_id, block.event.start_date)} block={block} onClick={onEventClick} />)}
     </Surface>
   );
 };
@@ -119,6 +120,8 @@ export const TimeGrid: React.FC<TimeGridProps> = ({ days, events, allDay, onEven
   const now = useMinuteClock();
   const scrollRef = useRef<HTMLDivElement>(null);
   const showsToday = days.some((d) => sameDay(d, now));
+  const firstWeekday = useSystemFormatStore((s) => s.firstWeekday);
+  const minDays = useSystemFormatStore((s) => s.minDaysInFirstWeek);
 
   // Once, on open: the current hour (less a lead) at the top.
   useLayoutEffect(() => {
@@ -129,7 +132,7 @@ export const TimeGrid: React.FC<TimeGridProps> = ({ days, events, allDay, onEven
   return (
     <div className="flex-1 min-h-0 flex flex-col">
       <div className="shrink-0 flex">
-        <Gutter><Text variant="caption" tone="muted" className="py-2">W{weekNumber(days[0])}</Text></Gutter>
+        <Gutter><Text variant="caption" tone="muted" className="py-2">W{weekNumber(days[0], firstWeekday, minDays)}</Text></Gutter>
         {days.map((day) => <DayHeader key={day.toDateString()} day={day} today={sameDay(day, now)} />)}
       </div>
       {allDay.length > 0 ? <AllDayStrip days={days} events={allDay} onEventClick={onEventClick} /> : <Surface edge="bottom" />}

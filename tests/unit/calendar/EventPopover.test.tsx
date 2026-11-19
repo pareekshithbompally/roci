@@ -76,6 +76,12 @@ describe('EventPopover', () => {
     expect(mocks.recordCalendarEvent).toHaveBeenCalledWith(ev, true);
   });
 
+  it('keeps plain Join beside Join & Record while recordable', () => {
+    show(event());
+    expect(screen.getByRole('button', { name: 'Join' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Join & Record' })).toBeTruthy();
+  });
+
   it('shows Record without a call link', () => {
     show(event(null));
     expect(screen.getByRole('button', { name: 'Record' })).toBeTruthy();

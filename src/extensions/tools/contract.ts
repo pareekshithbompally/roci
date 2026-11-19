@@ -1,6 +1,7 @@
 /** Built-in tools from one zod schema each: the model sees its JSON Schema, and every call (chat or an MCP agent) is
  *  checked against it before running, so a malformed call returns an error the model can read and correct. */
 
+import { localDayKey } from '@shared/utils/localDate';
 import { z } from 'zod';
 import { Temporal } from 'temporal-polyfill';
 import type { JSONSchema, ToolContext, ToolDefinition, ToolResult, ToolResultMeta } from './types';
@@ -99,7 +100,7 @@ export function toolDate(ms: number): string {
 
 /** `2026-11-18`, the day `ms` falls on here. */
 export function localDay(ms: number): string {
-  return Temporal.Instant.fromEpochMilliseconds(ms).toZonedDateTimeISO(Temporal.Now.timeZoneId()).toPlainDate().toString();
+  return localDayKey(new Date(ms));
 }
 
 /** `2026-11-18T09:00`, the time `ms` reads here: the same form the tools take. */

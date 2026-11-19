@@ -1,6 +1,7 @@
 /** Time-grid layout: the days on screen, and where each event sits in its day (minutes from local midnight, overlap lanes). */
 
 import { CALENDAR_CONFIG } from '@config/calendar.config';
+import { addDays, startOfDay } from '@shared/utils/localDate';
 import type { CalendarEvent } from '@services/calendar';
 
 /** `week` (Mac) or `day` (iPhone): the grid's span and the step of back / forward. */
@@ -16,35 +17,44 @@ export interface GridBlock {
   lanes: number;
 }
 
-const MINUTES_PER_DAY = 24 * 60;
+const MINUTES_PER_HOUR = 60;
+const MINUTES_PER_DAY = 24 * MINUTES_PER_HOUR;
 const DAYS_PER_WEEK = 7;
-
-/** Local midnight `n` days after `date`'s (wall-clock, so daylight-saving days stay whole). */
-function addDays(date: Date, n: number): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + n);
-}
+const MS_PER_DAY = 86_400_000;
 
 /** Wall-clock minutes since local midnight. */
 export function minutesIntoDay(date: Date): number {
-  return date.getHours() * 60 + date.getMinutes();
+  return date.getHours() * MINUTES_PER_HOUR + date.getMinutes();
 }
 
-/** The local days on screen around `anchor` (its week from the device's first weekday, 1 = Sunday … 7 = Saturday, or the one day) and the range to read. */
+/** Grid pixels for `minutes` (from midnight, or a duration): the one scale the hours, blocks and now line share. */
+export const minutesToPx = (minutes: number) => (minutes / MINUTES_PER_HOUR) * CALENDAR_CONFIG.grid.hourHeight;
+
+/** Local midnight of the first day of `date`'s week (1 = Sunday … 7 = Saturday, the device's first weekday). */
+export function startOfWeek(date: Date, firstWeekday: number): Date {
+  return addDays(date, -((date.getDay() - (firstWeekday - 1) + DAYS_PER_WEEK) % DAYS_PER_WEEK));
+}
+
+/** The local days on screen around `anchor` (its week, or the one day) and the range to read. */
 export function visibleRange(anchor: Date, span: CalendarSpan, firstWeekday: number): { days: Date[]; start: Date; end: Date } {
-  const offset = (anchor.getDay() - (firstWeekday - 1) + DAYS_PER_WEEK) % DAYS_PER_WEEK;
-  const start = span === 'week' ? addDays(anchor, -offset) : addDays(anchor, 0);
+  const start = span === 'week' ? startOfWeek(anchor, firstWeekday) : startOfDay(anchor);
   const count = span === 'week' ? DAYS_PER_WEEK : 1;
   const days = Array.from({ length: count }, (_, i) => addDays(start, i));
   return { days, start, end: addDays(start, count) };
 }
 
-const MS_PER_DAY = 86_400_000;
+/** Whole days from `a` to `b` by local date (DST-proof). */
+const daysBetween = (a: Date, b: Date) =>
+  Math.round((Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) - Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / MS_PER_DAY);
 
-/** The ISO week number (Calendar's "W47"): weeks from Monday, week 1 holding the year's first Thursday. */
-export function weekNumber(date: Date): number {
-  const thursday = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate() + 3 - ((date.getDay() + 6) % DAYS_PER_WEEK)));
-  const yearStart = Date.UTC(thursday.getUTCFullYear(), 0, 1);
-  return Math.floor((thursday.getTime() - yearStart) / MS_PER_DAY / DAYS_PER_WEEK) + 1;
+/** Calendar's week number under the device's rules: weeks from `firstWeekday`; week 1 is the first with at least
+ *  `minDaysInFirstWeek` days of the new year (ISO: Monday, 4; US: Sunday, 1). */
+export function weekNumber(date: Date, firstWeekday: number, minDaysInFirstWeek: number): number {
+  const start = startOfWeek(date, firstWeekday);
+  // A week belongs to the year that holds at least `minDaysInFirstWeek` of its days.
+  const year = addDays(start, DAYS_PER_WEEK - minDaysInFirstWeek).getFullYear();
+  const firstWeek = startOfWeek(new Date(year, 0, minDaysInFirstWeek), firstWeekday);
+  return daysBetween(firstWeek, start) / DAYS_PER_WEEK + 1;
 }
 
 interface Span {

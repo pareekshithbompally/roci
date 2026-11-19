@@ -6,8 +6,8 @@ import { ArrowUpRight, Circle, Users, Video } from 'lucide-react';
 import { Button, Icon, IconButton, Popover, PopoverAnchor, PopoverContent, Surface, Text, showToast } from '@shared/ui';
 import { CALENDAR_CONFIG } from '@config/calendar.config';
 import { openUrl } from '@services/tauri';
-import { formatClockTime, formatDate } from '@shared/utils/formatters';
 import { useEventActions } from '@features/calendar/hooks/useEventActions';
+import { formatEventWhen } from '@features/calendar/utils/eventWhen';
 import type { CalendarEvent } from '@services/calendar';
 
 interface EventPopoverProps {
@@ -35,11 +35,6 @@ function cleanDescription(desc: string, meetingUrl: string | null): string {
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
-
-/** One of the popover's stacked cards. */
-const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
-  <Surface variant="inset" radius="xl" className={`px-3 py-2.5 ${className ?? ''}`}>{children}</Surface>
-);
 
 export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, onClose }) => {
   // The grid hands over where the event was drawn; the kit popover anchors to it, flips at edges, and closes itself (Esc, click away).
@@ -72,22 +67,22 @@ export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, o
         <Surface tint={event.calendar_color} className="flex gap-2">
           <Surface variant="eventBar" radius="full" className="w-1 shrink-0" />
           <div className="flex-1 min-w-0 space-y-2">
-            <Card className="flex items-start gap-1">
+            <Surface variant="inset" radius="xl" className="px-3 py-2.5 flex items-start gap-1">
               <Text as="h3" variant="title" className="flex-1 min-w-0">{event.title}</Text>
               {meeting && <IconButton icon={ArrowUpRight} label="Open meeting" size="sm" className="shrink-0" onClick={handleOpen} />}
-            </Card>
-            <Card>
-              <Text as="p" variant="body">{formatDate(event.start_date)}  {formatClockTime(event.start_date)} – {formatClockTime(event.end_date)}</Text>
+            </Surface>
+            <Surface variant="inset" radius="xl" className="px-3 py-2.5">
+              <Text as="p" variant="body" className="whitespace-pre-wrap">{formatEventWhen(event)}</Text>
               {event.location && <Text as="p" variant="helper" tone="muted" truncate className="mt-1">{event.location}</Text>}
-            </Card>
+            </Surface>
           </div>
         </Surface>
 
         {(event.meeting_url || action) && (
-          <Card className="flex items-center gap-2">
+          <Surface variant="inset" radius="xl" className="px-3 py-2.5 flex items-center gap-2">
             <Icon icon={Video} size="sm" tone="muted" className="shrink-0" />
             <Text truncate className="flex-1 min-w-0">{event.meeting_provider ?? 'No call link'}</Text>
-            {event.meeting_url && !action && (
+            {event.meeting_url && (
               <Button variant="outline" size="sm" onClick={() => handleJoin(event.meeting_url!)}>Join</Button>
             )}
             {action && (
@@ -96,30 +91,30 @@ export const EventPopover: React.FC<EventPopoverProps> = ({ event, anchorRect, o
                 {CALENDAR_CONFIG.recordLabels[action]}
               </Button>
             )}
-          </Card>
+          </Surface>
         )}
 
         {people.length > 0 && (
-          <Card className="flex gap-2">
+          <Surface variant="inset" radius="xl" className="px-3 py-2.5 flex gap-2">
             <Icon icon={Users} size="sm" tone="muted" className="shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0 space-y-0.5">
               {people.slice(0, INVITEES_SHOWN).map((name, i) => <Text as="p" key={i} truncate>{name}</Text>)}
               {people.length > INVITEES_SHOWN && <Text as="p" variant="helper" tone="muted">+{people.length - INVITEES_SHOWN} more</Text>}
             </div>
-          </Card>
+          </Surface>
         )}
 
         <Surface tint={event.calendar_color}>
-          <Card className="flex items-center gap-2">
+          <Surface variant="inset" radius="xl" className="px-3 py-2.5 flex items-center gap-2">
             <Surface variant="eventBar" radius="full" className="w-2.5 h-2.5 shrink-0" />
             <Text truncate>{event.calendar_name}</Text>
-          </Card>
+          </Surface>
         </Surface>
 
         {notes && (
-          <Card>
+          <Surface variant="inset" radius="xl" className="px-3 py-2.5">
             <Text as="p" variant="helper" tone="muted" className="line-clamp-4 break-words whitespace-pre-line">{notes}</Text>
-          </Card>
+          </Surface>
         )}
       </PopoverContent>
     </Popover>

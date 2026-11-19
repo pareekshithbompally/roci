@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, bucketKeys, dayCount, dayKey, keyToDate, monthKey, previousWindow, startOfDay, windowFor } from '@features/usage/model/period';
+import { bucketKeys, dayCount, keyToDate, monthKey, previousWindow, windowFor } from '@features/usage/model/period';
+import { addDays, localDayKey as dayKey, startOfDay } from '@shared/utils/localDate';
 
 const now = new Date(2026, 10, 17, 15, 30); // 17 Nov 2026, 15:30 local
 

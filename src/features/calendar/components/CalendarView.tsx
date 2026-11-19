@@ -1,7 +1,7 @@
 /** Upcoming: the calendar's events on a time grid, a week on a Mac and a day on iPhone, any week back or forward; live on calendar changes. */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, Lock, Settings } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, CircleAlert, Lock, RotateCw, Settings } from 'lucide-react';
 import { useAppActions } from '@shared/stores/appStore';
 import { useSystemFormatStore } from '@shared/stores/systemFormatStore';
 import { DatePicker, Button, Icon, IconButton, Surface, Text, TitlebarSpacer } from '@shared/ui';
@@ -11,19 +11,22 @@ import { useFormFactor } from '@platform/formFactor';
 import { LAYOUT } from '@config/layout.config';
 import { CALENDAR_CONFIG } from '@config/calendar.config';
 import { formatMonth } from '@shared/utils/formatters';
+import { localDayKey } from '@shared/utils/localDate';
 import { useRangeEvents } from '@features/calendar/hooks/useRangeEvents';
 import { visibleRange, type CalendarSpan } from '@features/calendar/utils/timeGrid';
 import { TimeGrid } from './TimeGrid';
 import { EventPopover } from './EventPopover';
 import type { CalendarEvent } from '@services/calendar';
 
-/** YYYY-MM-DD in local time (the date picker's value). */
-const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
 const OFF = {
   icon: CalendarDays,
   message: 'Calendar integration is not enabled',
   description: 'Enable calendar integration in Settings to see your upcoming events.',
+};
+const READ_FAILED = {
+  icon: CircleAlert,
+  message: "Couldn't read your calendar",
+  description: 'macOS did not return your events. Try again, or check Calendar access in System Settings.',
 };
 const NO_ACCESS = {
   icon: Lock,
@@ -41,19 +44,19 @@ export const CalendarView: React.FC = () => {
   const firstWeekday = useSystemFormatStore((s) => s.firstWeekday);
   const range = useMemo(() => visibleRange(anchor, span, firstWeekday), [anchor, span, firstWeekday]);
   const blocked = calendar.access === 'needs-request' || calendar.access === 'needs-settings';
-  const { events, allDay } = useRangeEvents(range, calendar.enabled && !blocked);
+  const { events, allDay, isError, retry } = useRangeEvents(range, calendar.enabled && !blocked);
 
   const step = useCallback((direction: 1 | -1) => {
     setAnchor((a) => new Date(a.getFullYear(), a.getMonth(), a.getDate() + direction * range.days.length));
   }, [range.days.length]);
   const handleEventClick = useCallback((event: CalendarEvent, rect: DOMRect) => setSelected({ event, rect }), []);
 
-  const empty = !calendar.enabled ? OFF : blocked ? NO_ACCESS : null;
+  const empty = !calendar.enabled ? OFF : blocked ? NO_ACCESS : isError ? READ_FAILED : null;
   const unit = span === 'day' ? 'day' : 'week';
   // As Calendar: the month (it opens the system date picker), then back · Today · forward. One date on screen, one format.
   const controls = (
     <div className="flex items-center gap-1.5">
-      <DatePicker value={isoDay(anchor)} onChange={(v) => v && setAnchor(new Date(`${v}T00:00`))} placeholder="Go to date">
+      <DatePicker value={localDayKey(anchor)} onChange={(v) => v && setAnchor(new Date(`${v}T00:00`))} placeholder="Go to date">
         {formatMonth(anchor)}
       </DatePicker>
       <IconButton icon={ChevronLeft} label={`Previous ${unit}`} size="sm" variant="outline" onClick={() => step(-1)} />
@@ -80,7 +83,12 @@ export const CalendarView: React.FC = () => {
             icon={empty.icon}
             message={empty.message}
             description={empty.description}
-            action={(
+            action={empty === READ_FAILED ? (
+              <Button variant="primary" size="sm" onClick={retry}>
+                <Icon icon={RotateCw} size="xs" />
+                Try Again
+              </Button>
+            ) : (
               <Button variant="primary" size="sm" onClick={blocked ? calendar.openSettings : () => openSettings('integrations')}>
                 <Icon icon={Settings} size="xs" />
                 Open Settings

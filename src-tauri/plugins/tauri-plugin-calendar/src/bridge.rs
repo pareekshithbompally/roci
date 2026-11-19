@@ -10,7 +10,6 @@ use crate::types::{
 extern "C" {
     fn calendar_request_access() -> *mut c_char;
     fn calendar_check_access() -> *mut c_char;
-    fn calendar_get_upcoming_events(minutes_ahead: i32) -> *mut c_char;
     fn calendar_get_events_in_range(start_iso: *const c_char, end_iso: *const c_char) -> *mut c_char;
     fn calendar_observe_changes(callback: extern "C" fn());
     fn calendar_get_events_between_ms(start_ms: f64, end_ms: f64) -> *mut c_char;
@@ -59,12 +58,6 @@ pub fn request_access() -> Result<AccessResult, String> {
 /// Check current authorization status.
 pub fn check_access() -> Result<AccessStatus, String> {
     let ptr = unsafe { calendar_check_access() };
-    parse_and_free(ptr)
-}
-
-/// Fetch events starting within the next N minutes.
-pub fn get_upcoming_events(minutes_ahead: u32) -> Result<EventsResponse, String> {
-    let ptr = unsafe { calendar_get_upcoming_events(minutes_ahead as i32) };
     parse_and_free(ptr)
 }
 

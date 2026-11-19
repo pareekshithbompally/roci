@@ -6,17 +6,16 @@ import { Icon, Surface, Text } from '@shared/ui';
 import { CALENDAR_CONFIG } from '@config/calendar.config';
 import { formatClockTime } from '@shared/utils/formatters';
 import { useMeetingForOccurrence } from '@features/calendar/hooks/useMeetingForOccurrence';
-import type { GridBlock } from '@features/calendar/utils/timeGrid';
+import { minutesToPx, type GridBlock } from '@features/calendar/utils/timeGrid';
 import type { CalendarEvent } from '@services/calendar';
 
-const { hourHeight, laneGapPx } = CALENDAR_CONFIG.grid;
-const MINUTES_PER_HOUR = 60;
+const { laneGapPx } = CALENDAR_CONFIG.grid;
 
 /** Position from minutes and lanes: computed geometry, not design values. */
 function geometry({ top, height, lane, lanes }: GridBlock): React.CSSProperties {
   return {
-    top: (top / MINUTES_PER_HOUR) * hourHeight + laneGapPx,
-    height: (height / MINUTES_PER_HOUR) * hourHeight - laneGapPx * 2,
+    top: minutesToPx(top) + laneGapPx,
+    height: minutesToPx(height) - laneGapPx * 2,
     left: `calc(${(lane / lanes) * 100}% + ${laneGapPx}px)`,
     width: `calc(${100 / lanes}% - ${laneGapPx * 2}px)`,
   };

@@ -103,9 +103,15 @@ describe('isOnDay', () => {
 });
 
 describe('weekNumber', () => {
-  it('ISO week, as Calendar labels it (W47)', () => {
-    expect(weekNumber(day('2026-11-19'))).toBe(47);
-    expect(weekNumber(day('2027-01-01'))).toBe(53);
-    expect(weekNumber(day('2026-01-01'))).toBe(1);
+  it('ISO rules (Monday first, 4 days in week 1), as Calendar labels it (W47)', () => {
+    expect(weekNumber(day('2026-11-19'), 2, 4)).toBe(47);
+    expect(weekNumber(day('2027-01-01'), 2, 4)).toBe(53);
+    expect(weekNumber(day('2026-01-01'), 2, 4)).toBe(1);
+  });
+
+  it('US rules (Sunday first, the week holding 1 January is week 1)', () => {
+    expect(weekNumber(day('2026-11-15'), 1, 1)).toBe(47);
+    expect(weekNumber(day('2026-01-01'), 1, 1)).toBe(1);
+    expect(weekNumber(day('2026-12-31'), 1, 1)).toBe(1);
   });
 });
