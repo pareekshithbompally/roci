@@ -111,26 +111,3 @@ describe('meetingPipeline.run', () => {
     expect(ai.transcribeAudio).not.toHaveBeenCalled();
   });
 });
-
-describe('meetingPipeline.prime', () => {
-  it('shows the listed title at once, then the saved detail', async () => {
-    const { useAppStore } = await import('@shared/stores/appStore');
-    const { queryClient } = await import('@shared/query/queryClient');
-    const { queryKeys } = await import('@shared/query/queryKeys');
-    queryClient.setQueryData(queryKeys.meetings(), [{ id: 'm1', title: 'Weekly sync' }]);
-    useAppStore.getState().setSelectedHistoryId('m1');
-    const seen: (string | null)[] = [];
-    const unsub = useAppStore.subscribe((s) => seen.push(s.result?.title ?? null));
-    await meetingPipeline.prime('m1');
-    unsub();
-    expect(seen[0]).toBe('Weekly sync');
-    expect(useAppStore.getState().result).toMatchObject({ title: 'Recording', transcript: '' });
-  });
-
-  it('never shows another meeting\'s saved detail', async () => {
-    const { useAppStore } = await import('@shared/stores/appStore');
-    useAppStore.getState().setSelectedHistoryId('other');
-    await meetingPipeline.prime('m1');
-    expect(useAppStore.getState().result?.title).not.toBe('Recording');
-  });
-});

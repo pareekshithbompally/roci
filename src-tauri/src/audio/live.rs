@@ -45,23 +45,31 @@ pub fn meeting_echo_signals(spans: Vec<(u64, u64)>) -> Vec<Option<Signal>> {
 }
 
 #[derive(Clone, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../src/shared/types/native/"))]
 #[serde(rename_all = "camelCase")]
 struct LiveChunk {
     source: MeetingSource,
+    #[cfg_attr(test, ts(type = "number"))]
     start_ms: u64,
+    #[cfg_attr(test, ts(type = "number"))]
     end_ms: u64,
     /// Leading audio the previous chunk already covered, which the webview splices at the seam.
+    #[cfg_attr(test, ts(type = "number"))]
     overlap_ms: u64,
     /// 16 kHz mono 16-bit little-endian PCM, base64.
     pcm: String,
     /// This source's chunks sent before this one (0, 1, 2…): a number the webview skips is a chunk it never got.
+    #[cfg_attr(test, ts(type = "number"))]
     seq: u64,
 }
 
 /// The end of a recording's chunks: how many each source sent, so a chunk lost at the very end is noticed too.
 #[derive(Clone, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../src/shared/types/native/"))]
 struct LiveDone {
+    #[cfg_attr(test, ts(type = "number"))]
     microphone: u64,
+    #[cfg_attr(test, ts(type = "number"))]
     system: u64,
 }
 
@@ -259,6 +267,19 @@ impl Drop for LiveChunker {
 
 #[cfg(test)]
 mod tests {
+    /// The webview listens by these names (`src/config`); renaming an event on either side fails here, never silently at runtime.
+    #[test]
+    fn event_names_match_the_webview() {
+        let audio_config = include_str!("../../../src/config/audio.config.ts");
+        let live_config = include_str!("../../../src/config/meetingLive.config.ts");
+        for name in [super::CHUNK_EVENT, super::DONE_EVENT] {
+            assert!(live_config.contains(&format!("'{name}'")), "meetingLive.config.ts is missing the event {name}");
+        }
+        for name in [tauri_plugin_store::MEETING_CHANGED_EVENT] {
+            assert!(audio_config.contains(&format!("'{name}'")), "audio.config.ts is missing the event {name}");
+        }
+    }
+
     use super::super::pause::tests::noise;
     use super::*;
 

@@ -59,6 +59,7 @@ fn missing_samples(track: &TrackManifest, packet: &AudioPacket) -> u64 {
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../src/shared/types/native/"))]
 #[serde(rename_all = "snake_case")]
 pub enum MeetingSource {
     System,

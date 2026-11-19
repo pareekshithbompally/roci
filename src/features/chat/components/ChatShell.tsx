@@ -146,7 +146,6 @@ export const ChatShell: React.FC<ChatShellProps> = ({
     const item = historyItems.find((h) => h.id === activeCitation.meetingId);
     if (item) {
       app.setCurrentView('home');
-      app.setResult(item);
       app.setSelectedHistoryId(activeCitation.meetingId);
       app.setStatus(AppStatus.RESULTS);
       app.setActiveResultTab('transcript');

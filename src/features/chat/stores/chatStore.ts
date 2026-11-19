@@ -113,7 +113,6 @@ export function expandMeetingChat(): void {
   app.setMeetingChatOpen(false);
   app.setCurrentView('home');
   app.setSelectedHistoryId(null);
-  app.setResult(null);
   app.setStatus(currentSessionId ? AppStatus.CHAT : AppStatus.IDLE);
 }
 
@@ -139,7 +138,6 @@ export function startNewChat(): void {
   const app = useAppStore.getState();
   app.setCurrentView('home');
   app.setSelectedHistoryId(null);
-  app.setResult(null);
   app.setStatus(AppStatus.IDLE);
   useChatStore.getState().setCurrentSessionId(null);
 }
@@ -150,7 +148,6 @@ export function openChat(sessionId: string): void {
   const app = useAppStore.getState();
   app.setCurrentView('home');
   app.setSelectedHistoryId(null);
-  app.setResult(null);
   app.setStatus(AppStatus.CHAT);
 }
 

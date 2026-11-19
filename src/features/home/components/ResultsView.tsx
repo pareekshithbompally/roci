@@ -5,7 +5,8 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { Pencil, Plus, Clock, Users, ExternalLink } from 'lucide-react';
-import { useAppResult, useActiveResultTab, useSelectedHistoryId, useAppActions } from '@shared/stores/appStore';
+import { useActiveResultTab, useSelectedHistoryId, useAppActions } from '@shared/stores/appStore';
+import { useMeetingResult } from '@shared/hooks/useMeetingResult';
 import type { ResultTab } from '@shared/stores/appStore';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { LAYOUT } from '@config/layout.config';
@@ -151,10 +152,10 @@ const TranscriptTab: React.FC<{ meetingId: string; result: ProcessedResult; phas
 };
 
 export const ResultsView: React.FC = () => {
-  const result = useAppResult();
   const activeResultTab = useActiveResultTab();
   const selectedHistoryId = useSelectedHistoryId();
-  const { setActiveResultTab, setResult } = useAppActions();
+  const result = useMeetingResult(selectedHistoryId);
+  const { setActiveResultTab } = useAppActions();
   const { items: historyItems, renameItem } = useHistoryData();
 
   const currentHistoryItem = selectedHistoryId
@@ -180,17 +181,17 @@ export const ResultsView: React.FC = () => {
   }, [result]);
 
   if (!result) return null;
+  // the list's title is the one renames update at once (optimistically); the meeting's own follows from disk
+  const shownTitle = currentHistoryItem?.title || result.title;
 
   const handleTitleSave = async () => {
     const title = editedTitle.trim();
-    if (title && title !== result.title && currentHistoryItem && await renameItem(currentHistoryItem.id, title)) {
-      setResult({ ...result, title });
-    }
+    if (title && title !== shownTitle && currentHistoryItem) await renameItem(currentHistoryItem.id, title);
     setIsEditingTitle(false);
   };
 
   const handleTitleCancel = () => {
-    setEditedTitle(result.title);
+    setEditedTitle(shownTitle);
     setIsEditingTitle(false);
   };
 
@@ -229,7 +230,7 @@ export const ResultsView: React.FC = () => {
         ) : (
           <>
             <div className="flex items-center gap-2">
-              <MeetingTitle title={result.title} onEdit={() => setIsEditingTitle(true)}>
+              <MeetingTitle title={shownTitle} onEdit={() => setIsEditingTitle(true)}>
                 {currentHistoryItem && <MeetingStatsPopover meetingId={currentHistoryItem.id} />}
               </MeetingTitle>
               {isMeetingBusy(phase) && <MeetingStatus phase={phase} display="badge" />}

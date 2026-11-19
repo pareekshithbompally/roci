@@ -10,7 +10,7 @@ const audio = vi.hoisted(() => ({
   resumeCapture: vi.fn(async () => undefined),
 }));
 const menubar = vi.hoisted(() => ({ setRecordingState: vi.fn(async () => undefined) }));
-const pipeline = vi.hoisted(() => ({ recorded: vi.fn(), prime: vi.fn(async () => undefined) }));
+const pipeline = vi.hoisted(() => ({ recorded: vi.fn() }));
 const notesApi = vi.hoisted(() => ({
   notes: [],
   isLoading: false,
@@ -98,7 +98,6 @@ describe('RecordingMeetingView', () => {
     expect(useRecordingStore.getState().justStopped).toBe('m1');
     expect(useAppStore.getState().status).toBe(AppStatus.RESULTS);
     expect(useAppStore.getState().activeResultTab).toBe('transcript');
-    expect(pipeline.prime).toHaveBeenCalledWith('m1');
     expect(pipeline.recorded).toHaveBeenCalledWith('m1');
   });
 

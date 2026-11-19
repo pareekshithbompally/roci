@@ -5,19 +5,16 @@ import { useAppActions } from '@shared/stores/appStore';
 import { useChatStore } from '@features/chat';
 import { AppStatus } from '@shared/types';
 import type { HistoryItem } from '@shared/types';
-import { useMeetingDetailLoader } from '@shared/hooks/useMeetingDetailLoader';
 
 export function useOpenMeeting(): (meeting: HistoryItem) => Promise<void> {
   const { setCurrentView, setSelectedHistoryId, setStatus } = useAppActions();
   const setCurrentSessionId = useChatStore((s) => s.setCurrentSessionId);
-  const loadMeetingDetail = useMeetingDetailLoader();
 
+  // the view reads the meeting itself (useMeetingResult); opening it is only choosing it
   return useCallback(async (meeting: HistoryItem) => {
     setCurrentView('home');
     setSelectedHistoryId(meeting.id);
     setCurrentSessionId(null);
-    // Generation-guarded lazy load (newest selection wins).
-    await loadMeetingDetail(meeting);
     setStatus(AppStatus.RESULTS);
-  }, [setCurrentView, setSelectedHistoryId, setStatus, setCurrentSessionId, loadMeetingDetail]);
+  }, [setCurrentView, setSelectedHistoryId, setStatus, setCurrentSessionId]);
 }

@@ -8,6 +8,7 @@ import type { TranscriptResult } from '@services/ai/transcription';
 import { transcribeAudio } from '@services/unifiedAIService';
 import { errorMessage } from '@shared/utils/errors';
 import { encodeWavInt16 } from '@shared/utils/wav.utils';
+import type { LiveChunk, LiveDone } from '@shared/types/native';
 import type { AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { meetingLiveActions } from './meetingLiveStore';
@@ -21,20 +22,6 @@ export interface LiveEntry {
   /** The model gave this line's own times; otherwise it spans its chunk and shows no time of its own. */
   timed: boolean;
 }
-
-interface LiveChunk {
-  source: MeetingSourceId;
-  startMs: number;
-  endMs: number;
-  /** Leading audio the previous chunk already covered (a hard cut); its words are spliced away at the seam. */
-  overlapMs: number;
-  pcm: string;
-  /** This source's chunks sent before this one; a number skipped is a chunk never received. */
-  seq: number;
-}
-
-/** The end of a recording's chunks: how many each source sent. */
-type LiveDone = Record<MeetingSourceId, number>;
 
 interface Session {
   meetingId: string;

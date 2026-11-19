@@ -17,6 +17,7 @@ const MAX_STEP_ATTEMPTS: i64 = 2;
 static RUNNING: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/", rename = "MeetingStep"))]
 #[serde(rename_all = "lowercase")]
 pub enum Step {
     Transcribe,
@@ -49,6 +50,7 @@ impl Step {
 
 /// How a step ended. `Done`: its save already moved the meeting on (`transcribed` / `ready`).
 #[derive(Debug, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/", rename = "MeetingStepEnd"))]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum StepEnd {
     Done,

@@ -15,6 +15,8 @@ export const queryKeys = {
   calendarEventsAll: () => ['calendar-events'] as const,
   /** One meeting's stats (length, words, models); under `meetings` so every meeting write refreshes it */
   meetingStats: (meetingId: string) => ['meetings', 'stats', meetingId] as const,
+  /** One meeting as the meeting view shows it; under `meetings` so every meeting write refreshes it */
+  meetingDetail: (meetingId: string) => ['meetings', 'detail', meetingId] as const,
   recordingAudio: (fileName: string) => ['recording-audio', fileName] as const,
   /** A Mac app's icon from macOS, by bundle id (Finder, Calendar, …) */
   appIcon: (bundleId: string) => ['app-icon', bundleId] as const,

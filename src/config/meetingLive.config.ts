@@ -1,5 +1,7 @@
 /** The in-call transcript: who each recorded source is, and how its echo is recognised. */
 
+import type { MeetingSource } from '@shared/types/native';
+
 export const MEETING_LIVE_CONFIG = {
   /** Rust → webview (src-tauri/src/audio/live.rs): one chunk of a source, and the end of the recording's chunks. */
   chunkEvent: 'meeting-live://chunk',
@@ -7,7 +9,7 @@ export const MEETING_LIVE_CONFIG = {
   /** Chunks are 16 kHz mono 16-bit PCM. */
   sampleRate: 16_000,
   /** The speaker label of each source in the transcript. */
-  speakers: { microphone: 'You', system: 'Others' },
+  speakers: { microphone: 'You', system: 'Others' } satisfies Record<MeetingSource, string>,
   /** After Stop, how long to wait for the recorder's last chunks before giving up on them; the full recording is then
    *  transcribed instead (ms). */
   doneTimeoutMs: 15_000,
@@ -33,4 +35,5 @@ export const MEETING_LIVE_CONFIG = {
   },
 } as const;
 
-export type MeetingSourceId = keyof typeof MEETING_LIVE_CONFIG.speakers;
+/** A recorded source, as Rust names it. */
+export type MeetingSourceId = MeetingSource;

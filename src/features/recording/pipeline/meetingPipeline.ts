@@ -11,14 +11,11 @@ import { formatTranscript, speechSelectionOf } from '@services/ai/transcription'
 import { modelKey } from '@services/ai/models';
 import { transcriptionService, meetingSummaryOf } from '@services/transcription.service';
 import { IMPORT_CONFIG } from '@config/audio.config';
-import { queryClient } from '@shared/query/queryClient';
-import { queryKeys } from '@shared/query/queryKeys';
 import { useAppStore } from '@shared/stores/appStore';
 import { meetingProgress } from '@shared/stores/meetingProgressStore';
-import { buildMeetingResult } from '@shared/hooks/useMeetingDetailLoader';
 import { notifyAppEvent } from '@shared/utils/appEvents';
 import { errorMessage } from '@shared/utils/errors';
-import type { AppSettings, HistoryItem, MeetingDetail, MeetingIndexEntry, StoredTranscriptSegment } from '@shared/types';
+import type { AppSettings, MeetingDetail, MeetingIndexEntry, StoredTranscriptSegment } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { MeetingStatus, MeetingStep } from '@shared/types/meetingPhase';
 import type { MeetingContext } from '@core/ai/prompts/transcription.prompt';
@@ -57,23 +54,6 @@ function nextStep(status: MeetingStatus): MeetingStep | null {
       return status.failedStep === 'record' ? null : status.failedStep ?? 'transcribe';
     default:
       return null;
-  }
-}
-
-/** Shows a meeting at once (its listed title, then everything from disk): an opened recording never faces an empty view. */
-async function prime(id: string): Promise<void> {
-  const listed = queryClient.getQueryData<HistoryItem[]>(queryKeys.meetings())?.find((item) => item.id === id);
-  useAppStore.getState().setResult({ title: listed?.title ?? '', transcript: '', summary: '', categories: [] });
-  await showSaved(id);
-}
-
-/** The open meeting's view, read again from disk (after any change the store announces). */
-async function showSaved(id: string): Promise<void> {
-  try {
-    const detail = await store.meetings.get(id);
-    if (detail && useAppStore.getState().selectedHistoryId === id) useAppStore.getState().setResult(buildMeetingResult(detail));
-  } catch (error: unknown) {
-    console.error('[meetingPipeline] Reading the meeting failed:', id, error);
   }
 }
 
@@ -236,16 +216,6 @@ export const meetingPipeline = {
   toggle(id: string): void {
     if (running.has(id)) meetingPipeline.cancel(id);
     else void meetingPipeline.run(id);
-  },
-
-  /** Shows a meeting at once (its listed title, then disk); opening a recording uses this, never bare selection. */
-  prime(id: string): Promise<void> {
-    return prime(id);
-  },
-
-  /** The open meeting's view, read again (the store announced a change to it). */
-  showSaved(id: string): Promise<void> {
-    return showSaved(id);
   },
 
   /** A recording just stopped. With an in-call transcript the meeting reads as transcribing at once while its last chunks

@@ -128,7 +128,6 @@ export const recording = {
       useAppStore.getState().setSelectedHistoryId(meetingId);
       useAppStore.getState().setActiveResultTab('transcript');
       useAppStore.getState().setStatus(AppStatus.RESULTS);
-      void meetingPipeline.prime(meetingId);
       refreshMeetings();
       return meetingId;
     } catch (error: unknown) {
@@ -151,8 +150,7 @@ export const recording = {
         useAppStore.getState().setSelectedHistoryId(meetingId);
         useAppStore.getState().setActiveResultTab('transcript');
         useAppStore.getState().setStatus(AppStatus.RESULTS);
-        void meetingPipeline.prime(meetingId);
-        meetingPipeline.recorded(meetingId);
+          meetingPipeline.recorded(meetingId);
       }
       return meetingId;
     } catch (error: unknown) {

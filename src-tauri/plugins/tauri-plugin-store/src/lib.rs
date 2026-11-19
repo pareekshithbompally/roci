@@ -26,6 +26,7 @@ use tauri::{
 pub const MEETING_CHANGED_EVENT: &str = "meeting://changed";
 
 #[derive(Clone, serde::Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
 struct MeetingChanged {
     id: String,
     deleted: bool,

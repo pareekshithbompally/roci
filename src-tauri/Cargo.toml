@@ -118,3 +118,6 @@ strip = true
 # macro crates on Rust 1.93 / macOS 27 ("can't find crate for `zerofrom_derive`"). The app binary is still stripped.
 [profile.release.build-override]
 strip = false
+
+[dev-dependencies]
+ts-rs = "11"

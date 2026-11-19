@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AppStatus, type ProcessedResult } from '@shared/types';
+import { AppStatus } from '@shared/types';
 
 export type ViewType = 'home' | 'settings' | 'reminders' | 'calendar' | 'gallery' | 'dictations';
 export type SettingsPanel = 'general' | 'defaultModels' | 'providers' | 'integrations' | 'notifications' | 'mcp' | 'usage';
@@ -13,7 +13,6 @@ interface AppStoreState {
   /** Where "Back to app" (and Esc) returns from settings. */
   viewBeforeSettings: Exclude<ViewType, 'settings'>;
   status: AppStatus;
-  result: ProcessedResult | null;
   selectedHistoryId: string | null;
   activeResultTab: ResultTab;
   activeSettingsPanel: SettingsPanel;
@@ -33,7 +32,6 @@ interface AppStoreState {
   /** Return from settings to the view it was opened from; no-op elsewhere. */
   leaveSettings: () => void;
   setStatus: (s: AppStatus) => void;
-  setResult: (r: ProcessedResult | null) => void;
   setSelectedHistoryId: (id: string | null) => void;
   setActiveResultTab: (t: ResultTab) => void;
   setActiveSettingsPanel: (p: SettingsPanel) => void;
@@ -50,7 +48,6 @@ export const useAppStore = create<AppStoreState>((set) => ({
   currentView: 'home',
   viewBeforeSettings: 'home',
   status: AppStatus.IDLE,
-  result: null,
   selectedHistoryId: null,
   activeResultTab: 'summary',
   activeSettingsPanel: 'general',
@@ -80,7 +77,6 @@ export const useAppStore = create<AppStoreState>((set) => ({
       ...(s !== AppStatus.RESULTS && { meetingChatOpen: false }),
     }),
 
-  setResult: (r) => set({ result: r }),
 
   setSelectedHistoryId: (id) =>
     set({
@@ -107,7 +103,6 @@ export const useAppStore = create<AppStoreState>((set) => ({
   resetToIdle: () =>
     set({
       status: AppStatus.IDLE,
-      result: null,
       selectedHistoryId: null,
       meetingChatOpen: false,
     }),
@@ -122,7 +117,6 @@ export const useActiveSettingsPanel = () => useAppStore((s) => s.activeSettingsP
 export const useMeetingChatOpen = () => useAppStore((s) => s.meetingChatOpen);
 export const usePermissionChecklistOpen = () => useAppStore((s) => s.permissionChecklistOpen);
 export const useRecordingExitPrompt = () => useAppStore((s) => s.recordingExitPrompt);
-export const useAppResult = () => useAppStore((s) => s.result);
 export const useAppError = () => useAppStore((s) => s.error);
 
 // Actions — stable references, never trigger re-render
@@ -131,7 +125,6 @@ export const useAppActions = () => {
   const leaveSettings = useAppStore((s) => s.leaveSettings);
   const openSettings = useAppStore((s) => s.openSettings);
   const setStatus = useAppStore((s) => s.setStatus);
-  const setResult = useAppStore((s) => s.setResult);
   const setSelectedHistoryId = useAppStore((s) => s.setSelectedHistoryId);
   const setActiveResultTab = useAppStore((s) => s.setActiveResultTab);
   const setActiveSettingsPanel = useAppStore((s) => s.setActiveSettingsPanel);
@@ -146,7 +139,6 @@ export const useAppActions = () => {
     openSettings,
     leaveSettings,
     setStatus,
-    setResult,
     setSelectedHistoryId,
     setActiveResultTab,
     setActiveSettingsPanel,
