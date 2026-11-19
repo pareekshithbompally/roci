@@ -8,6 +8,7 @@ import { cachedImage } from '@services/imageCache';
 import { getAvatarUrl, modelAvatarOrg } from '@services/modelAvatars';
 import { getProviderLogo, getProviderTitle } from '@shared/utils/provider.utils';
 import { groupChoices, type ChoiceSetup, type ModelChoice } from '@shared/utils/modelResolver';
+import { featuresOf } from '@services/ai/models';
 
 export interface ModelMenuOptions {
   /** The chosen value (checked). */
@@ -28,13 +29,10 @@ function setupText(setup: ChoiceSetup, size: string | null): string {
 export function modelSubtitle(choice: ModelChoice, loaded = false): string {
   if (!choice.ready && choice.setup) return setupText(choice.setup, choice.hint);
   if (!choice.ready) return choice.hint ?? '';
-  const { info } = choice;
   const { facts } = COPY;
+  const features = choice.profile ? featuresOf(choice.profile).map(({ feature }) => facts[feature]) : [];
   return [
-    info?.modalities?.input.includes('image') && facts.vision,
-    info?.modalities?.input.includes('audio') && facts.audio,
-    info?.capabilities.toolCall && facts.tools,
-    info?.capabilities.reasoning && facts.thinking,
+    ...features,
     ...(choice.marks ?? []).map((m) => m.label),
     loaded && facts.loaded,
   ].filter(Boolean).join(META_SEPARATOR);

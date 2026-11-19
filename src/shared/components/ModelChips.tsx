@@ -1,36 +1,38 @@
-/** A model's facts as chips (size, then what it can take and do), and its name with them: one look for every model list. */
+/** A model's facts as chips (what it can take and do), and its name with them: one look for every model list. */
 
 import React from 'react';
-import { AudioLines, Brain, Eye, HardDrive, Video, Wrench, type LucideIcon } from 'lucide-react';
+import { AudioLines, Brain, Eye, Video, Wrench, type LucideIcon } from 'lucide-react';
 import { Chip } from '@shared/ui';
 import { useFormFactor } from '@platform/formFactor';
-import type { ModelInfo } from '@services/modalities';
+import { featuresOf } from '@services/ai/models';
+import type { ModelFeature, ModelProfile } from '@services/ai/models';
 
-/** The capabilities a chip can show, in display order (text in and out is a given, so not shown). */
-const CAPABILITY_CHIPS: ReadonlyArray<{ key: string; icon: LucideIcon; title: string; has: (info: ModelInfo) => boolean }> = [
-  { key: 'vision', icon: Eye, title: 'Vision', has: (info) => !!info.modalities?.input?.includes('image') },
-  { key: 'audio', icon: AudioLines, title: 'Audio input', has: (info) => !!info.modalities?.input?.includes('audio') },
-  { key: 'video', icon: Video, title: 'Video input', has: (info) => !!info.modalities?.input?.includes('video') },
-  { key: 'tools', icon: Wrench, title: 'Tool calling', has: (info) => !!info.capabilities?.toolCall },
-  { key: 'reasoning', icon: Brain, title: 'Reasoning', has: (info) => !!info.capabilities?.reasoning },
-];
+/** Each feature's chip (text in and out is a given, so not shown). */
+const FEATURE_CHIPS: Readonly<Record<ModelFeature, { icon: LucideIcon; title: string }>> = {
+  vision: { icon: Eye, title: 'Vision' },
+  audio: { icon: AudioLines, title: 'Audio input' },
+  video: { icon: Video, title: 'Video input' },
+  tools: { icon: Wrench, title: 'Tool calling' },
+  thinking: { icon: Brain, title: 'Thinking' },
+};
+
+/** A guessed feature says so on hover. */
+const GUESSED_SUFFIX = ' (estimated)';
 
 export interface ModelChipsProps {
-  /** Catalog info (modalities, capabilities); null while unknown. */
-  info?: ModelInfo | null;
-  /** Download or file size ("18.85 GB"). */
-  size?: string;
-  /** The model runs on this device (the size chip shows a drive). */
-  onDevice?: boolean;
+  /** What the model takes and can do; null while unknown. */
+  profile?: ModelProfile | null;
 }
 
-export const ModelChips: React.FC<ModelChipsProps> = ({ info, size, onDevice }) => {
-  const capabilities = info ? CAPABILITY_CHIPS.filter((c) => c.has(info)) : [];
-  if (!size && capabilities.length === 0) return null;
+export const ModelChips: React.FC<ModelChipsProps> = ({ profile }) => {
+  const features = profile ? featuresOf(profile) : [];
+  if (features.length === 0) return null;
   return (
     <span className="inline-flex shrink-0 items-center gap-1">
-      {size && <Chip label={size} icon={onDevice ? HardDrive : undefined} />}
-      {capabilities.map((c) => <Chip key={c.key} icon={c.icon} title={c.title} />)}
+      {features.map(({ feature, guessed }) => {
+        const { icon, title } = FEATURE_CHIPS[feature];
+        return <Chip key={feature} icon={icon} title={guessed ? `${title}${GUESSED_SUFFIX}` : title} estimated={guessed} />;
+      })}
     </span>
   );
 };

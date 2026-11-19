@@ -5,7 +5,8 @@ import { toolRegistry } from '@extensions/tools';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { useChatModel } from './useChatModel';
-import { capabilitiesOf } from '@services/ai/capabilities';
+import { profileOf } from '@services/ai/models';
+import { WEB_SEARCH_PROVIDERS } from '@config/providers.config';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { CHAT_TOOLS_CONFIG, chatToolPreferences } from '@config/chatTools.config';
@@ -57,7 +58,7 @@ export function useToolCatalog() {
   const prefs = useMemo(() => chatToolPreferences({ chatTools: settings.chatTools }), [settings.chatTools]);
   const resolved = useChatModel();
   // Derived each render: useModelCatalog re-renders this hook when the models.dev cache arrives.
-  const capabilities = resolved ? capabilitiesOf(resolved.provider, resolved.model) : null;
+  const profile = resolved ? profileOf(resolved.provider, resolved.model) : null;
 
   const catalog = useMemo(
     () =>
@@ -125,11 +126,11 @@ export function useToolCatalog() {
     [prefs, setSettings],
   );
 
-  const webSearchAvailable = capabilities?.webSearch ?? false;
+  const webSearchAvailable = !!resolved && WEB_SEARCH_PROVIDERS.has(resolved.provider);
   const imageGeneration = useImageGenerationToggle(prefs);
 
   return {
-    modelSupportsTools: capabilities?.tools ?? false,
+    modelSupportsTools: profile?.tools ?? false,
     modelName: resolved?.modelId ?? settings.chatModel,
     webSearch: {
       available: webSearchAvailable,

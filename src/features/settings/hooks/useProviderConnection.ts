@@ -7,8 +7,8 @@
 import { useQuery } from '@tanstack/react-query';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { providersService } from '@services/providers';
-import { withListedInfo } from '@services/providers/listing';
-import type { ListedModel } from '@services/providers/listing';
+import { withReports } from '@services/ai/models';
+import type { ListedModel } from '@services/ai/models';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { queryKeys } from '@shared/query/queryKeys';
 import { errorMessage } from '@shared/utils/errors';
@@ -57,7 +57,7 @@ export function useProviderConnection(provider: ModelProvider): ProviderConnecti
       if (!complete) return;
       void query.refetch().then(({ data }) => {
         // Merged into the models as saved when it lands, so a model added during the test is kept and described.
-        if (data) updateProvider(provider.provider, (current) => ({ models: withListedInfo(current.models ?? [], data) }));
+        if (data) updateProvider(provider.provider, (current) => ({ models: withReports(current.models ?? [], data) }));
       });
     },
   };

@@ -4,10 +4,10 @@ import { useCallback, useMemo } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import {
   customServerId,
+  listServerModels,
   localRows,
   needsHttps,
   normalizeLocalUrl,
-  probeModels,
   savedLocalProviders,
   syncModels,
   toLocalProvider,
@@ -54,7 +54,7 @@ export function useLocalServers() {
       return { ok: true, id };
     }
 
-    const models = await probeModels(baseUrl);
+    const models = await listServerModels(id, baseUrl);
     if (!models) return { ok: false, error: `No OpenAI-compatible server answered at ${baseUrl}.` };
 
     enable({ id, baseUrl, running: true, models });

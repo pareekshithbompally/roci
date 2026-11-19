@@ -3,7 +3,7 @@
 export const MODEL_MENU_COPY = {
   needsSetup: 'Needs setup',
   /** What a model takes in and can do. */
-  facts: { vision: 'Vision', audio: 'Audio', tools: 'Tools', thinking: 'Thinking', loaded: 'Loaded' },
+  facts: { vision: 'Vision', audio: 'Audio', video: 'Video', tools: 'Tools', thinking: 'Thinking', loaded: 'Loaded' },
   /** The step a model needs, or where it stands. */
   setup: {
     download: 'Download',

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('@services/modalities', () => ({ modalitiesService: { getModelInfo: () => null, getModelContextLimit: () => null } }));
+vi.mock('@services/modalities', () => ({ modalitiesService: { catalogReport: () => null } }));
 
 import { cloudVoiceOptions, cloudVoices } from '@services/ai/speech/catalog';
 import { modelKey, parseModelKey } from '@services/ai/models';

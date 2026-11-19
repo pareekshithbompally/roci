@@ -11,10 +11,10 @@ import { platform } from '@platform/index';
 import {
   detectLocalServers,
   localRows,
-  refreshServedInfo,
   savedLocalProviders,
   savedTargetKeys,
 } from '@services/providers/localServers';
+import { withReports } from '@services/ai/models';
 
 export function useLocalServerProbe() {
   const { providers, updateProvider } = useSettings();
@@ -31,8 +31,8 @@ export function useLocalServerProbe() {
     for (const row of localRows(query.data ?? [], providers)) {
       if (!row.saved || !row.running) continue;
       const current = row.saved.models ?? [];
-      const refreshed = refreshServedInfo(current, row.models);
-      if (JSON.stringify(refreshed) !== JSON.stringify(current)) updateProvider(row.id, { models: refreshed });
+      const refreshed = withReports(current, row.models);
+      if (refreshed !== current) updateProvider(row.id, { models: refreshed });
     }
   }, [query.data, providers, updateProvider]);
 

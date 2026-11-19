@@ -125,7 +125,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
                 leading={<ModelIcon provider={model.provider} modelId={model.modelId} size={14} fallback="none" />}
                 label={model.label}
                 // Capabilities sit in the row's meta column: one line, aligned down the list, never wrapping.
-                meta={<ModelChips info={model.info} />}
+                meta={<ModelChips profile={model.profile} />}
                 labelVariant={isSelected ? 'bodyStrong' : 'body'}
                 status={isLoaded(model.provider, model.modelId) && (
                   <Tooltip content={MODEL_PICKER_COPY.loaded}>

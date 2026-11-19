@@ -1,10 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const getModelInfo = vi.hoisted(() => vi.fn());
-const getModelContextLimit = vi.hoisted(() => vi.fn());
-vi.mock('@services/modalities', () => ({ modalitiesService: { getModelInfo, getModelContextLimit } }));
+const catalogReport = vi.hoisted(() => vi.fn());
+vi.mock('@services/modalities', () => ({ modalitiesService: { catalogReport } }));
 
-import { describeModel, fitsJob, jobRecords, modelRecords, modelsFor, modelSourceOf, transcribeAdapter } from '@services/ai/models';
+import { featuresOf, fitsJob, jobRecords, modelRecords, modelsFor, modelSourceOf, profileOf, transcribeAdapter } from '@services/ai/models';
 import type { ModelRecord } from '@services/ai/models';
 import type { ModelProvider } from '@shared/types/modelProviders';
 
@@ -16,75 +15,70 @@ const keyed = (provider: string, ids: string[], apiKey = 'k'): ModelProvider => 
   models: ids.map((id) => ({ id })),
 });
 
+const allDefault = { input: 'default', output: 'default', tools: 'default', reasoning: 'default', contextTokens: 'default' } as const;
+
 const record = (over: Partial<ModelRecord>): ModelRecord => ({
   provider: 'openai', id: 'm', label: 'm', source: 'cloud', input: [], output: [],
-  tools: false, reasoning: false, contextTokens: null, known: false, ready: true, hint: null, ...over,
+  tools: false, reasoning: false, contextTokens: null, known: false, sourceOf: allDefault, ready: true, hint: null, ...over,
 });
+
+const catalog = (report: object, exact = true) => catalogReport.mockReturnValue({ report, exact });
 
 beforeEach(() => {
-  getModelInfo.mockReset().mockReturnValue(null);
-  getModelContextLimit.mockReset().mockReturnValue(null);
+  catalogReport.mockReset().mockReturnValue(null);
 });
 
-describe('describeModel — first fact wins', () => {
+describe('profileOf — first source to state a fact wins', () => {
   it('an unknown model on a language-model provider is assumed to chat, never with tools', () => {
-    expect(describeModel('gemini', { id: 'mystery-1' })).toEqual({
-      input: ['text'], output: ['text'], tools: false, reasoning: false, contextTokens: null, known: false,
+    expect(profileOf('gemini', { id: 'mystery-1' })).toEqual({
+      input: ['text'], output: ['text'], tools: false, reasoning: false, contextTokens: null, known: false, sourceOf: allDefault,
     });
   });
 
   it('an unknown model on a speech provider is assumed to transcribe', () => {
-    expect(describeModel('deepgram', { id: 'whatever' })).toMatchObject({ input: ['audio'], output: ['text'], known: false });
+    expect(profileOf('deepgram', { id: 'whatever' })).toMatchObject({ input: ['audio'], output: ['text'], known: false });
   });
 
-  it('the user\'s Audio input tick adds or removes audio from what the sources say', () => {
-    getModelInfo.mockReturnValue({ modalities: { input: ['text'], output: ['text'] }, capabilities: {} });
-    expect(describeModel('openrouter', { id: 'm', audioInput: true }).input).toEqual(['text', 'audio']);
-    getModelInfo.mockReturnValue({ modalities: { input: ['text', 'audio'], output: ['text'] }, capabilities: {} });
-    expect(describeModel('openrouter', { id: 'm', audioInput: false }).input).toEqual(['text']);
-  });
-
-  it('models.dev describes a model, dropping modalities Roci does not use', () => {
-    getModelInfo.mockReturnValue({ modalities: { input: ['text', 'image', 'pdf'], output: ['text'] }, capabilities: { toolCall: true, reasoning: true } });
-    getModelContextLimit.mockReturnValue(200_000);
-    expect(describeModel('anthropic', { id: 'claude' })).toEqual({
+  it('models.dev describes a model it lists', () => {
+    catalog({ input: ['text', 'image'], output: ['text'], tools: true, reasoning: true, contextTokens: 200_000 });
+    expect(profileOf('anthropic', { id: 'claude' })).toEqual({
       input: ['text', 'image'], output: ['text'], tools: true, reasoning: true, contextTokens: 200_000, known: true,
+      sourceOf: { input: 'catalog', output: 'catalog', tools: 'catalog', reasoning: 'catalog', contextTokens: 'catalog' },
     });
   });
 
-  it('what its own server reports beats models.dev', () => {
-    getModelInfo.mockReturnValue({ modalities: { input: ['text'], output: ['text'] }, capabilities: { toolCall: false } });
-    const served = { modalities: { input: ['text', 'audio'], output: ['text'] }, tools: true, thinking: true, contextTokens: 32_768 };
-    expect(describeModel('local:127.0.0.1:9931', { id: 'lfm', served })).toEqual({
-      input: ['text', 'audio'], output: ['text'], tools: true, reasoning: true, contextTokens: 32_768, known: true,
+  it('a catalog match by a similar name is marked a guess', () => {
+    catalog({ input: ['text', 'image'], output: ['text'], tools: true }, false);
+    const profile = profileOf('local:ollama', { id: 'gemma4:31b-cloud' });
+    expect(profile.sourceOf.input).toBe('similar-name');
+    expect(featuresOf(profile)).toEqual([{ feature: 'vision', guessed: true }, { feature: 'tools', guessed: true }]);
+  });
+
+  it('what the provider\'s list reports beats models.dev, fact by fact', () => {
+    catalog({ input: ['text'], output: ['text'], tools: false, contextTokens: 8_000 });
+    expect(profileOf('local:127.0.0.1:9931', { id: 'lfm', reported: { input: ['text', 'audio'], tools: true, reasoning: true } })).toMatchObject({
+      input: ['text', 'audio'], output: ['text'], tools: true, reasoning: true, contextTokens: 8_000,
+      sourceOf: { input: 'provider', output: 'catalog', tools: 'provider', contextTokens: 'catalog' },
     });
   });
 
-  it('the provider listing ranks below its own server and above models.dev', () => {
-    getModelInfo.mockReturnValue({ modalities: { input: ['text'], output: ['text'] }, capabilities: { toolCall: true } });
-    const listed = { modalities: { input: ['text'], output: ['audio'] }, tools: false, contextTokens: 32_000 };
-    expect(describeModel('openrouter', { id: 'google/gemini-tts', listed })).toMatchObject({
-      input: ['text'], output: ['audio'], tools: false, contextTokens: 32_000,
-    });
-    const served = { modalities: { input: ['text'], output: ['text'] } };
-    expect(describeModel('local:x', { id: 'm', listed, served })).toMatchObject({ output: ['text'], tools: false });
-  });
-
-  it('the user turning tools off beats every other fact', () => {
-    getModelInfo.mockReturnValue({ modalities: { input: ['text'], output: ['text'] }, capabilities: { toolCall: true } });
-    expect(describeModel('openai', { id: 'gpt', toolsEnabled: false }).tools).toBe(false);
+  it('the user\'s corrections beat every source', () => {
+    catalog({ input: ['text', 'audio'], output: ['text'], tools: true });
+    const profile = profileOf('openai', { id: 'gpt', reported: { reasoning: true }, overrides: { tools: false, input: ['text'] } });
+    expect(profile).toMatchObject({ input: ['text'], tools: false, reasoning: true, sourceOf: { input: 'user', tools: 'user', reasoning: 'provider' } });
+    expect(featuresOf(profile)).toEqual([{ feature: 'thinking', guessed: false }]);
   });
 
   it('name rules describe a model nothing else knows, without granting tools', () => {
-    expect(describeModel('gemini', { id: 'gemini-3.5-transcribe' })).toMatchObject({ input: ['audio'], output: ['text'], tools: false, known: true });
-    expect(describeModel('gemini', { id: 'gemini-3.8-flash-tts' })).toMatchObject({ input: ['text'], output: ['audio'], known: true });
-    expect(describeModel('openai', { id: 'text-embedding-3-small' })).toMatchObject({ output: ['vector'] });
+    expect(profileOf('gemini', { id: 'gemini-3.5-transcribe' })).toMatchObject({ input: ['audio'], output: ['text'], tools: false, known: true });
+    expect(profileOf('gemini', { id: 'gemini-3.8-flash-tts' })).toMatchObject({ input: ['text'], output: ['audio'], known: true });
+    expect(profileOf('openai', { id: 'text-embedding-3-small' })).toMatchObject({ output: ['vector'] });
   });
 
-  it('a modality pair is taken whole from one source, never mixed', () => {
-    getModelInfo.mockReturnValue({ modalities: { input: ['text', 'audio'], output: ['text', 'audio'] }, capabilities: {} });
-    // "tts" in the id would say text→audio; models.dev ranks above name rules.
-    expect(describeModel('openai', { id: 'gpt-4o-mini-tts-chat' })).toMatchObject({ input: ['text', 'audio'], output: ['text', 'audio'] });
+  it('models.dev ranks above name rules', () => {
+    catalog({ input: ['text', 'audio'], output: ['text', 'audio'] });
+    // "tts" in the id would say text→audio.
+    expect(profileOf('openai', { id: 'gpt-4o-mini-tts-chat' })).toMatchObject({ input: ['text', 'audio'], output: ['text', 'audio'] });
   });
 });
 
@@ -140,12 +134,12 @@ describe('jobs', () => {
   });
 
   it('Deepgram Nova is speech, but Amazon Nova chat models are not matched by name', () => {
-    expect(describeModel('deepgram', { id: 'nova-3' })).toMatchObject({ input: ['audio'], output: ['text'] });
-    expect(describeModel('openrouter', { id: 'amazon/nova-2-lite' })).toMatchObject({ output: ['text'], known: false });
+    expect(profileOf('deepgram', { id: 'nova-3' })).toMatchObject({ input: ['audio'], output: ['text'] });
+    expect(profileOf('openrouter', { id: 'amazon/nova-2-lite' })).toMatchObject({ output: ['text'], known: false });
   });
 
   it('a transcribe variant of a chat family is speech-only', () => {
-    expect(describeModel('mistral', { id: 'voxtral-mini-transcribe' })).toMatchObject({ input: ['audio'], output: ['text'] });
+    expect(profileOf('mistral', { id: 'voxtral-mini-transcribe' })).toMatchObject({ input: ['audio'], output: ['text'] });
   });
 });
 

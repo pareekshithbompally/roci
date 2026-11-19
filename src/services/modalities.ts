@@ -1,11 +1,8 @@
-/** Model modalities, capabilities and pricing from models.dev, cached on disk. */
+/** Model facts (modalities, tools, thinking, context) and pricing from models.dev, cached on disk. */
 
 import { cacheService } from './storage/cache.service';
-
-export interface ModelModalities {
-  input: string[];
-  output: string[];
-}
+import { toModalities } from '@services/ai/models/report';
+import type { ModelReport } from '@shared/types/modelProviders';
 
 export interface ModelPricing {
   /** USD per 1M input tokens */
@@ -18,26 +15,14 @@ export interface ModelPricing {
   cacheWritePer1M?: number;
 }
 
-/** Token limits reported by models.dev */
-export interface ModelContextLimit {
-  /** Maximum context window in tokens */
+interface ModelsDevModalities {
+  input: string[];
+  output: string[];
+}
+
+interface ModelsDevLimit {
   context?: number;
-  /** Maximum output tokens */
   output?: number;
-}
-
-/** Boolean capabilities reported by models.dev */
-export interface ModelCapabilities {
-  toolCall?: boolean;
-  reasoning?: boolean;
-  structuredOutput?: boolean;
-  attachment?: boolean;
-}
-
-/** Combined modality + capability info for a model. Reusable across all UI surfaces. */
-export interface ModelInfo {
-  modalities: ModelModalities | null;
-  capabilities: ModelCapabilities;
 }
 
 interface ModelsDevCost {
@@ -49,13 +34,13 @@ interface ModelsDevCost {
 
 interface ModelsDevModel {
   id: string;
-  modalities?: ModelModalities;
+  modalities?: ModelsDevModalities;
   tool_call?: boolean;
   reasoning?: boolean;
   structured_output?: boolean;
   attachment?: boolean;
   cost?: ModelsDevCost;
-  limit?: ModelContextLimit;
+  limit?: ModelsDevLimit;
   [key: string]: unknown;
 }
 
@@ -78,9 +63,55 @@ const PROVIDER_NAME_MAP: Record<string, string> = {
   mistral: 'mistral',
   groq: 'groq',
   gemini: 'google',
+  'local:ollama': 'ollama-cloud',
+  'local:lmstudio': 'lmstudio',
 };
 
 let cachedData: ModelsDevResponse | null = null;
+
+/** Catalog sections searched first when a model is matched by a similar name: the labs that make the models, then hosts. */
+const ORIGIN_PROVIDERS = ['google', 'openai', 'anthropic', 'mistral', 'meta', 'alibaba', 'deepseek', 'nvidia', 'ollama-cloud', 'lmstudio'];
+
+/** Packaging a served model's name carries that its catalog name doesn't: quant, file format, chat tuning, tag. */
+const PACKAGING_SUFFIX = /[-_:](?:gguf|mlx|q\d\w*|iq\d\w*|bf16|fp16|f16|fp8|nvfp4|\d+bit|it|instruct|chat|latest|cloud)$/;
+
+/** A model name without host, org, tag and packaging, letters and digits only: `hf.co/org/Gemma-4-31B-it-GGUF:Q4_K_M` and `gemma4:31b-cloud` → `gemma431b`. */
+export function nameKey(id: string): string {
+  let name = id.toLowerCase().split('/').pop() ?? '';
+  let stripped = name.replace(PACKAGING_SUFFIX, '');
+  while (stripped !== name) {
+    name = stripped;
+    stripped = name.replace(PACKAGING_SUFFIX, '');
+  }
+  return name.replace(/[^a-z0-9]/g, '');
+}
+
+let nameIndex: { data: ModelsDevResponse; byKey: Map<string, ModelsDevModel> } | null = null;
+
+/** Every catalog model by its name key, origin labs first so their entry wins; built once per catalog load. */
+function modelsByNameKey(data: ModelsDevResponse): Map<string, ModelsDevModel> {
+  if (nameIndex?.data === data) return nameIndex.byKey;
+  const order = [...ORIGIN_PROVIDERS, ...Object.keys(data).filter((id) => !ORIGIN_PROVIDERS.includes(id))];
+  const byKey = new Map<string, ModelsDevModel>();
+  for (const providerId of order) {
+    for (const [modelId, model] of Object.entries(data[providerId]?.models ?? {})) {
+      const key = nameKey(modelId);
+      if (key && !byKey.has(key)) byKey.set(key, model);
+    }
+  }
+  nameIndex = { data, byKey };
+  return byKey;
+}
+
+/** What a catalog entry states, in the shape every source reports. */
+function reportOf(model: ModelsDevModel): ModelReport {
+  return {
+    ...(model.modalities && { input: toModalities(model.modalities.input), output: toModalities(model.modalities.output) }),
+    ...(model.tool_call !== undefined && { tools: model.tool_call }),
+    ...(model.reasoning !== undefined && { reasoning: model.reasoning }),
+    ...(model.limit?.context ? { contextTokens: model.limit.context } : {}),
+  };
+}
 
 class ModalitiesService {
   async fetchAndCache(): Promise<void> {
@@ -126,20 +157,12 @@ class ModalitiesService {
     return null;
   }
 
-  /** Modalities and capabilities for a model; null when models.dev doesn't list it. */
-  getModelInfo(providerName: string, modelId: string): ModelInfo | null {
-    const model = this.findModel(providerName, modelId);
-    if (!model) return null;
-
-    return {
-      modalities: model.modalities ?? null,
-      capabilities: {
-        toolCall: model.tool_call,
-        reasoning: model.reasoning,
-        structuredOutput: model.structured_output,
-        attachment: model.attachment,
-      },
-    };
+  /** What the catalog says about a model: its own entry (`exact`), else one with a similar name; null when neither. */
+  catalogReport(providerName: string, modelId: string): { report: ModelReport; exact: boolean } | null {
+    const exact = this.findModel(providerName, modelId);
+    if (exact) return { report: reportOf(exact), exact: true };
+    const similar = cachedData && modelsByNameKey(cachedData).get(nameKey(modelId));
+    return similar ? { report: reportOf(similar), exact: false } : null;
   }
 
   /** Pricing from models.dev cost data; null when the model or its cost is missing. */
@@ -152,11 +175,6 @@ class ModalitiesService {
       cacheReadPer1M: model.cost.cache_read,
       cacheWritePer1M: model.cost.cache_write,
     };
-  }
-
-  /** Context window in tokens; null when unknown, which hides the gauge. */
-  getModelContextLimit(providerName: string, modelId: string): number | null {
-    return this.findModel(providerName, modelId)?.limit?.context ?? null;
   }
 
   async ensureLoaded(): Promise<void> {

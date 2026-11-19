@@ -8,13 +8,13 @@ import { readinessOf } from '@shared/utils/modelResolver';
 import type { ModelChoice } from '@shared/utils/modelResolver';
 import { getModelDisplayName, isLocalProviderId } from '@shared/utils/provider.utils';
 import type { Model, ModelProvider } from '@shared/types/modelProviders';
-import { describeModel, infoOf } from './facts';
-import type { ModelDescription } from './facts';
+import { profileOf, shownProfile } from './profile';
+import type { ModelProfile } from './profile';
 
 /** Where a model runs: a cloud API, this device, a server the user runs, or an integration (Apple, Hex). */
 export type ModelSource = 'cloud' | 'on-device' | 'your-server' | 'integration';
 
-export interface ModelRecord extends ModelDescription {
+export interface ModelRecord extends ModelProfile {
   provider: string;
   id: string;
   label: string;
@@ -37,7 +37,7 @@ function recordOf(provider: ModelProvider, model: Model): ModelRecord {
     id: model.id,
     label: getModelDisplayName(model),
     source: modelSourceOf(provider.provider),
-    ...describeModel(provider.provider, model),
+    ...profileOf(provider.provider, model),
     ...readinessOf(provider, model),
   };
 }
@@ -61,7 +61,7 @@ export function jobChoices(sources: ModelProvider[], job: ModelJob, valueOf: (r:
     label: r.label,
     ready: r.ready,
     hint: r.hint,
-    info: infoOf(r),
+    profile: shownProfile(r),
   }));
 }
 

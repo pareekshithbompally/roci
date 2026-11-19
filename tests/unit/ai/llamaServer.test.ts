@@ -127,7 +127,7 @@ describe('fetchTemplateCapabilities', () => {
       chat_template: '<think></think>',
       chat_template_caps: { supports_tools: true },
     }), { status: 200 }));
-    expect(await fetchTemplateCapabilities('http://127.0.0.1:9931/v1', 'org/m:Q8')).toEqual({ tools: true, thinking: true });
+    expect(await fetchTemplateCapabilities('http://127.0.0.1:9931/v1', 'org/m:Q8')).toEqual({ tools: true, reasoning: true });
     expect(fetchMock).toHaveBeenLastCalledWith('http://127.0.0.1:9931/props?model=org%2Fm%3AQ8&autoload=false');
   });
 

@@ -3,14 +3,18 @@ import { describe, it, expect, vi } from 'vitest';
 // models.dev says this one hears audio; the user never ticked it.
 vi.mock('@services/modalities', () => ({
   modalitiesService: {
-    getModelInfo: (_p: string, id: string) =>
-      id === 'gemini-2.5-pro' ? { modalities: { input: ['text', 'audio'], output: ['text'] }, capabilities: {} } : null,
-    getModelContextLimit: () => null,
+    catalogReport: (_p: string, id: string) =>
+      id === 'gemini-2.5-pro' ? { report: { input: ['text', 'audio'], output: ['text'] }, exact: true } : null,
   },
 }));
+
+// The user's Audio input tick (the model's ⋯ menu) sets its inputs.
+const ticked = { overrides: { input: ['text', 'audio'] as Modality[] } };
+const unticked = { overrides: { input: ['text'] as Modality[] } };
 import { adapterFor, isSpeechSelectionReady, speechModelOptions } from '@services/ai/transcription/catalog';
 import { modelKey } from '@services/ai/models';
 import type { ModelProvider } from '@shared/types/modelProviders';
+import type { Modality } from '@config/modelSpine.config';
 
 function provider(id: string, models: ModelProvider['models'], apiKey = 'key'): ModelProvider {
   return { provider: id, active: true, api_key: apiKey, settings: [], models } as ModelProvider;
@@ -19,17 +23,17 @@ function provider(id: string, models: ModelProvider['models'], apiKey = 'key'): 
 const providers: ModelProvider[] = [
   provider('openai', [
     { id: 'gpt-4o-transcribe' },
-    { id: 'gpt-audio', name: 'GPT Audio', audioInput: true },
-    { id: 'gpt-text', audioInput: false },
+    { id: 'gpt-audio', name: 'GPT Audio', ...ticked },
+    { id: 'gpt-text', ...unticked },
   ]),
   provider('gemini', [
-    { id: 'gemini-3.5-flash-lite', name: 'Listed name', audioInput: true },
+    { id: 'gemini-3.5-flash-lite', name: 'Listed name', ...ticked },
     { id: 'gemini-2.5-pro' },
   ]),
   provider('local:127.0.0.1:8000', [
     { id: 'Systran/faster-whisper-small' },
-    { id: 'voice-llm', audioInput: true },
-    { id: 'chat-llm', audioInput: false },
+    { id: 'voice-llm', ...ticked },
+    { id: 'chat-llm', ...unticked },
   ]),
 ];
 
@@ -85,7 +89,7 @@ describe('speechModelOptions', () => {
   });
 
   it('marks audio-input models ready when their provider has a key', () => {
-    const noKey = speechModelOptions([provider('openai', [{ id: 'gpt-audio', audioInput: true }], '')], {});
+    const noKey = speechModelOptions([provider('openai', [{ id: 'gpt-audio', ...ticked }], '')], {});
     expect(noKey.find((o) => o.model === 'gpt-audio')).toMatchObject({ ready: false, hint: 'Add OpenAI API key' });
     expect(options.find((o) => o.model === 'gpt-audio')).toMatchObject({ ready: true, hint: null });
   });

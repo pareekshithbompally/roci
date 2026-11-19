@@ -1,16 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
-import type { ModelCapabilities } from '@services/ai/capabilities';
 
-const capabilities = vi.fn<() => ModelCapabilities>();
-vi.mock('@services/ai/capabilities', () => ({ capabilitiesOf: () => capabilities() }));
+const profile = vi.fn<() => { reasoning: boolean }>();
+vi.mock('@services/ai/models', () => ({ profileOf: () => profile() }));
 
 const { reasoningCallSettings } = await import('@services/ai/provider');
 const { llamaServerRequestBody } = await import('@services/ai/llamaServer');
 
 const model = (provider: string) => ({ provider, modelId: 'm', model: { id: 'm' } }) as ResolvedModel;
 const thinks = (reasoning: boolean) =>
-  capabilities.mockReturnValue({ tools: true, webSearch: false, audioInput: false, contextTokens: null, reasoning });
+  profile.mockReturnValue({ reasoning });
 
 describe('reasoningCallSettings', () => {
   beforeEach(() => thinks(true));

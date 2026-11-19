@@ -17,7 +17,7 @@ import { mlxEmbed } from '@services/mlx.service';
 import { mlxLanguageModel } from '@services/ai/onDevice/mlxLanguageModel';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import type { EmbeddingModelV4 } from '@ai-sdk/provider';
-import { capabilitiesOf } from '@services/ai/capabilities';
+import { profileOf } from '@services/ai/models';
 import { llamaServerRequestBody } from '@services/ai/llamaServer';
 import { getProviderType } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
@@ -163,7 +163,7 @@ export function reasoningCallSettings(
   resolved: ResolvedModel,
   effort: ReasoningEffort,
 ): Pick<LanguageModelCallOptions, 'reasoning'> & Pick<Parameters<typeof streamText>[0], 'providerOptions'> {
-  const thinks = effort !== 'none' && capabilitiesOf(resolved.provider, resolved.model).reasoning;
+  const thinks = effort !== 'none' && profileOf(resolved.provider, resolved.model).reasoning;
   const type = getProviderType(resolved.provider);
   const showThinking = thinks && (type === 'gemini' || type === 'openai') ? SHOW_THINKING[type] : undefined;
   return { reasoning: effort, ...(showThinking && { providerOptions: showThinking }) };

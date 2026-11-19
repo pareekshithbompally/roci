@@ -1,41 +1,47 @@
-/** ⋯ menu on a selected-model row: Rename, capability toggles (apply at once) and Remove (asks first). */
+/** ⋯ menu on a selected-model row: Rename, corrections to what the model can do (apply at once) and Remove (asks first). */
 
 import React from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { IconButton } from '@shared/ui';
 import { Menu } from '@shared/components';
 import { MENU_SYMBOLS } from '@config/ui.config';
-import type { ModelCapabilities } from '@services/ai/capabilities';
-import type { Model } from '@shared/types/modelProviders';
+import type { Modality } from '@config/modelSpine.config';
+import type { ModelProfile } from '@services/ai/models';
+import type { ModelReport } from '@shared/types/modelProviders';
 
-/** Per-model boolean overrides the menu can write. */
-export type ModelCapabilityFlag = keyof Pick<Model, 'toolsEnabled' | 'audioInput'>;
+/** The input list with one modality turned on or off. */
+const toggled = (input: Modality[], modality: Modality): Modality[] =>
+  input.includes(modality) ? input.filter((m) => m !== modality) : [...input, modality];
 
-const FLAG_ITEMS: ReadonlyArray<{ flag: ModelCapabilityFlag; capability: 'tools' | 'audioInput'; label: string }> = [
-  { flag: 'toolsEnabled', capability: 'tools', label: 'Tool calling' },
-  { flag: 'audioInput', capability: 'audioInput', label: 'Audio input' },
+/** Each correction: its label, whether the profile has it now, and the override that flips it. */
+const CORRECTIONS: ReadonlyArray<{ label: string; on: (p: ModelProfile) => boolean; flip: (p: ModelProfile) => ModelReport }> = [
+  { label: 'Vision', on: (p) => p.input.includes('image'), flip: (p) => ({ input: toggled(p.input, 'image') }) },
+  { label: 'Audio input', on: (p) => p.input.includes('audio'), flip: (p) => ({ input: toggled(p.input, 'audio') }) },
+  { label: 'Tool calling', on: (p) => p.tools, flip: (p) => ({ tools: !p.tools }) },
+  { label: 'Thinking', on: (p) => p.reasoning, flip: (p) => ({ reasoning: !p.reasoning }) },
 ];
 
 interface ModelRowMenuProps {
-  /** Effective capabilities (override → models.dev → provider default). */
-  capabilities: ModelCapabilities;
-  onFlagChange: (flag: ModelCapabilityFlag, value: boolean) => void;
+  /** What the model can do now, from every source. */
+  profile: ModelProfile;
+  /** Saves a correction over what the sources say. */
+  onOverride: (override: ModelReport) => void;
   onRename: () => void;
   onRemove: () => void;
 }
 
-export const ModelRowMenu: React.FC<ModelRowMenuProps> = ({ capabilities, onFlagChange, onRename, onRemove }) => (
+export const ModelRowMenu: React.FC<ModelRowMenuProps> = ({ profile, onOverride, onRename, onRemove }) => (
   <Menu
     label="Model options"
     trigger={<IconButton icon={MoreHorizontal} label="Model options" size="sm" />}
     items={[
       { type: 'item', label: 'Rename…', symbol: MENU_SYMBOLS.rename, onSelect: onRename },
       { type: 'separator' },
-      ...FLAG_ITEMS.map(({ flag, capability, label }) => ({
+      ...CORRECTIONS.map(({ label, on, flip }) => ({
         type: 'check' as const,
         label,
-        checked: capabilities[capability],
-        onSelect: () => onFlagChange(flag, !capabilities[capability]),
+        checked: on(profile),
+        onSelect: () => onOverride(flip(profile)),
       })),
       { type: 'separator' },
       { type: 'item', label: 'Remove Model…', symbol: MENU_SYMBOLS.delete, onSelect: onRemove, destructive: true },

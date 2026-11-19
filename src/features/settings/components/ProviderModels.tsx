@@ -6,16 +6,14 @@ import { openUrl } from '@services/tauri';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { ModelIcon, ModelLabel, RenameModal, ModelChips } from '@shared/components';
-import { capabilitiesOf, modelInfoOf } from '@services/ai/capabilities';
+import { isEmptyReport, profileOf, shownProfile } from '@services/ai/models';
+import type { ListedModel } from '@services/ai/models';
 import { confirm } from '@shared/stores/confirmStore';
 import { getModelDisplayName } from '@shared/utils/provider.utils';
 import { CardRow, CommandGroup, CommandPopover, CommandRow, ICON_TILE_PX, Icon, Section } from '@shared/ui';
-import type { Model, ModelProvider } from '@shared/types/modelProviders';
+import type { Model, ModelProvider, ModelReport } from '@shared/types/modelProviders';
 import type { ConnectionStatus, ProviderConnection } from '@features/settings/hooks/useProviderConnection';
-import { hasInfo } from '@services/providers/listing';
-import type { ListedModel } from '@services/providers/listing';
 import { ModelRowMenu } from './ModelRowMenu';
-import type { ModelCapabilityFlag } from './ModelRowMenu';
 
 interface ProviderModelsProps {
   provider: ModelProvider;
@@ -77,7 +75,7 @@ const AddModelPicker: React.FC<AddModelPickerProps> = ({ provider, connection, a
     >
       {unlisted && (
         <CommandGroup heading="Not in the provider's list">
-          <CommandRow value={typed} onSelect={() => add({ id: typed, info: {} })} leading={<Icon icon={Plus} size="sm" tone="faint" />} label={`Add “${typed}”`} />
+          <CommandRow value={typed} onSelect={() => add({ id: typed, report: {} })} leading={<Icon icon={Plus} size="sm" tone="faint" />} label={`Add “${typed}”`} />
         </CommandGroup>
       )}
       {available.filter((model) => !added.has(model.id)).map((model) => (
@@ -86,7 +84,7 @@ const AddModelPicker: React.FC<AddModelPickerProps> = ({ provider, connection, a
           value={model.id}
           onSelect={() => add(model)}
           label={model.id}
-          meta={<ModelChips info={catalogLoaded ? modelInfoOf(provider, { id: model.id }) : null} />}
+          meta={<ModelChips profile={catalogLoaded ? shownProfile(profileOf(provider, { id: model.id, reported: model.report })) : null} />}
         />
       ))}
     </CommandPopover>
@@ -105,9 +103,9 @@ export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connec
 
   const setModels = (next: Model[]) => updateProvider(id, { models: next });
 
-  const handleAdd = ({ id: modelId, info }: ListedModel) => {
+  const handleAdd = ({ id: modelId, report }: ListedModel) => {
     if (models.some((m) => m.id === modelId)) return;
-    setModels([...models, { id: modelId, name: modelId, ...(hasInfo(info) ? { listed: info } : {}) }]);
+    setModels([...models, { id: modelId, name: modelId, ...(!isEmptyReport(report) && { reported: report }) }]);
   };
 
   const handleRemove = async (model: Model) => {
@@ -124,9 +122,9 @@ export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connec
   const handleRename = (modelId: string, name: string) =>
     setModels(models.map((m) => (m.id === modelId ? { ...m, displayName: name || undefined } : m)));
 
-  /** One per-model capability override (Tool calling, Audio input). */
-  const handleFlag = (modelId: string, flag: ModelCapabilityFlag, value: boolean) =>
-    setModels(models.map((m) => (m.id === modelId ? { ...m, [flag]: value } : m)));
+  /** One correction from the model's ⋯ menu, kept with its earlier ones. */
+  const handleOverride = (modelId: string, override: ModelReport) =>
+    setModels(models.map((m) => (m.id === modelId ? { ...m, overrides: { ...m.overrides, ...override } } : m)));
 
   const exploreUrl = provider.explore_models_url;
 
@@ -140,11 +138,11 @@ export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connec
           <CardRow
             key={model.id}
             leading={<ModelIcon provider={id} modelId={model.id} size={ICON_TILE_PX} />}
-            title={<ModelLabel name={getModelDisplayName(model)} info={catalogLoaded ? modelInfoOf(id, model) : null} />}
+            title={<ModelLabel name={getModelDisplayName(model)} profile={catalogLoaded ? shownProfile(profileOf(id, model)) : null} />}
             actions={
               <ModelRowMenu
-                capabilities={capabilitiesOf(id, model)}
-                onFlagChange={(flag, value) => handleFlag(model.id, flag, value)}
+                profile={profileOf(id, model)}
+                onOverride={(override) => handleOverride(model.id, override)}
                 onRename={() => setRenaming(model)}
                 onRemove={() => void handleRemove(model)}
               />

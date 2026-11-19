@@ -4,7 +4,7 @@ import React from 'react';
 import { Lightbulb, LightbulbOff } from 'lucide-react';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { useChatModel } from '@features/chat/hooks/useChatModel';
-import { capabilitiesOf } from '@services/ai/capabilities';
+import { profileOf } from '@services/ai/models';
 import { CHAT_REASONING_COPY, REASONING_EFFORT_LEVELS } from '@config/chat.config';
 import { Button, Icon } from '@shared/ui';
 import { Menu } from '@shared/components';
@@ -20,7 +20,7 @@ export function useReasoningControl(): { effort: ReasoningEffort; setEffort: (ef
   const effort = useChatReasoningEffort();
   const setEffort = useChatStore((s) => s.setReasoningEffort);
   // Derived each render: useModelCatalog re-renders this when the models.dev cache arrives.
-  if (!resolved || !capabilitiesOf(resolved.provider, resolved.model).reasoning) return null;
+  if (!resolved || !profileOf(resolved.provider, resolved.model).reasoning) return null;
   return { effort, setEffort };
 }
 

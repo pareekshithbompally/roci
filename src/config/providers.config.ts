@@ -9,9 +9,6 @@ export const MANAGED_SDK_PROVIDERS = new Set(['openai', 'anthropic', 'gemini', '
 /** Providers whose AI SDK exposes a native web search tool (see `getWebSearchTools`). */
 export const WEB_SEARCH_PROVIDERS = new Set(['openai', 'anthropic', 'gemini', 'groq']);
 
-/** Gemini's model list returns 50 per page unless asked; this asks for its maximum, so the whole list arrives at once. */
-export const GEMINI_LIST_PAGE_SIZE = 1000;
-
 /** Default base URLs for model listing (not chat — adapters have their own defaults) */
 export const MANAGED_DEFAULT_URLS: Record<string, string> = {
   openai: 'https://api.openai.com/v1',

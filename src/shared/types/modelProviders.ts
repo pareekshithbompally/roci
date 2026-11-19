@@ -1,3 +1,5 @@
+import type { Modality } from '@config/modelSpine.config'
+
 export type ControllerProps = {
   value?: string | boolean | number
   placeholder?: string
@@ -15,16 +17,18 @@ export type ProviderSetting = {
   controller_props: ControllerProps
 }
 
-/** What a source reports about a model: its own server (llama-server `/models`) or its provider's model list. */
-export type ServedModelInfo = {
-  /** Kinds of input and output it takes and gives (text, image, audio, video). */
-  modalities?: { input: string[]; output: string[] }
-  /** The context window the server runs it with, in tokens. */
-  contextTokens?: number
-  /** Its chat template takes tool definitions (llama-server). Unset until the model has been loaded once. */
+/** What one source says about a model; a fact the source doesn't state stays unset. */
+export type ModelReport = {
+  /** What it takes in (text, image, audio, video). */
+  input?: Modality[]
+  /** What it gives back (text, audio, image, vector). */
+  output?: Modality[]
+  /** Takes tool definitions. */
   tools?: boolean
-  /** Its chat template thinks (llama-server). Unset until the model has been loaded once. */
-  thinking?: boolean
+  /** Thinks before answering, so it takes a thinking level. */
+  reasoning?: boolean
+  /** Its context window in tokens. */
+  contextTokens?: number
 }
 
 export type Model = {
@@ -35,16 +39,11 @@ export type Model = {
   version?: number | string
   description?: string
   format?: string
-  capabilities?: string[]
   settings?: Record<string, ProviderSetting>
-  /** Per-model toggle for LLM tool calling. Defaults false for local, true for remote. */
-  toolsEnabled?: boolean
-  /** Per-model override: accepts audio input (transcribes via prompt). Unset → models.dev. */
-  audioInput?: boolean
-  /** Read from its server on detection; never edited by the user. */
-  served?: ServedModelInfo
-  /** What its provider's model list says about it (Gemini, OpenRouter), saved on Test or Add; never edited by the user. */
-  listed?: ServedModelInfo
+  /** What its provider's model list reports (a cloud list or a server's), refreshed on Test, Add and each server probe. */
+  reported?: ModelReport
+  /** The user's corrections from the model's ⋯ menu; each stated fact wins over every source. */
+  overrides?: ModelReport
 }
 
 export type ProviderCustomHeader = {

@@ -51,13 +51,13 @@ describe('useProviderConnection', () => {
   });
 
   it('never checks on its own; Test lists the models and connects', async () => {
-    service.fetchModelsFromProvider.mockResolvedValue([{ id: 'gpt-a', info: {} }, { id: 'gpt-b', info: {} }]);
+    service.fetchModelsFromProvider.mockResolvedValue([{ id: 'gpt-a', report: {} }, { id: 'gpt-b', report: {} }]);
     const { result } = renderConnection(provider('openai', { 'api-key': 'sk-1' }));
     expect(result.current.status).toEqual({ state: 'untested' });
     expect(service.fetchModelsFromProvider).not.toHaveBeenCalled();
 
     act(() => result.current.test());
-    await waitFor(() => expect(result.current.status).toEqual({ state: 'connected', models: [{ id: 'gpt-a', info: {} }, { id: 'gpt-b', info: {} }] }));
+    await waitFor(() => expect(result.current.status).toEqual({ state: 'connected', models: [{ id: 'gpt-a', report: {} }, { id: 'gpt-b', report: {} }] }));
     expect(service.fetchModelsFromProvider).toHaveBeenCalledWith(
       expect.objectContaining({ provider: 'openai', api_key: 'sk-1', base_url: 'https://api.openai.com/v1' }),
     );
@@ -72,7 +72,7 @@ describe('useProviderConnection', () => {
   });
 
   it('editing the key makes it untested again', async () => {
-    service.fetchModelsFromProvider.mockResolvedValue([{ id: 'gpt-a', info: {} }]);
+    service.fetchModelsFromProvider.mockResolvedValue([{ id: 'gpt-a', report: {} }]);
     const { result, rerender } = renderConnection(provider('openai', { 'api-key': 'sk-1' }));
     act(() => result.current.test());
     await waitFor(() => expect(result.current.status.state).toBe('connected'));
@@ -81,7 +81,7 @@ describe('useProviderConnection', () => {
   });
 
   it('Test saves what the list says onto the models as saved when it lands', async () => {
-    service.fetchModelsFromProvider.mockResolvedValue([{ id: 'tts', info: { modalities: { input: ['text'], output: ['audio'] } } }]);
+    service.fetchModelsFromProvider.mockResolvedValue([{ id: 'tts', report: { input: ['text'], output: ['audio'] } }]);
     const { result } = renderConnection(provider('openrouter', { 'api-key': 'k', 'base-url': 'u' }, [{ id: 'tts' }]));
     act(() => result.current.test());
     await waitFor(() => expect(updateProvider).toHaveBeenCalledOnce());
@@ -89,13 +89,13 @@ describe('useProviderConnection', () => {
     const [id, update] = updateProvider.mock.calls[0];
     expect(id).toBe('openrouter');
     expect(update({ models: [{ id: 'tts' }, { id: 'typed-meanwhile' }] })).toEqual({
-      models: [{ id: 'tts', listed: { modalities: { input: ['text'], output: ['audio'] } } }, { id: 'typed-meanwhile' }],
+      models: [{ id: 'tts', reported: { input: ['text'], output: ['audio'] } }, { id: 'typed-meanwhile' }],
     });
 
     // A list that adds nothing leaves the saved models as they are.
     const saved = [{ id: 'gpt' }];
     updateProvider.mockClear();
-    service.fetchModelsFromProvider.mockResolvedValue([{ id: 'other', info: {} }]);
+    service.fetchModelsFromProvider.mockResolvedValue([{ id: 'other', report: {} }]);
     const second = renderConnection(provider('openai', { 'api-key': 'k' }, saved));
     act(() => second.result.current.test());
     await waitFor(() => expect(updateProvider).toHaveBeenCalledOnce());

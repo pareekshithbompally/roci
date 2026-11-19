@@ -1,7 +1,9 @@
 /** Model spine: the one answer to what a model is, which jobs it fits, and how it runs. */
 
-export { describeModel, infoOf } from './facts';
-export type { ModelDescription } from './facts';
+export { featuresOf, isGuess, profileOf, shownProfile } from './profile';
+export type { Fact, FactSource, ModelFeature, ModelProfile } from './profile';
+export { isEmptyReport, mergeReports, toModalities, withReports } from './report';
+export type { ListedModel } from './report';
 export { fitsJob, jobChoices, jobRecords, modelRecords, modelsFor, modelSourceOf } from './records';
 export type { ModelRecord, ModelSource } from './records';
 export { isSpeechOnly, transcribeAdapter } from './routes';

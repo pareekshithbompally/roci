@@ -6,9 +6,10 @@ import type { ModelMessage, TextStreamPart, ToolSet } from 'ai';
 import { createModel, reasoningCallSettings, toSDKMessages, getWebSearchTools, toExecutableTools } from '@services/ai';
 import { getProviderType } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
-import { getModelDisplayName, isLocalProviderId } from '@shared/utils/provider.utils';
-import { describeModel, fitsJob } from '@services/ai/models';
-import { followModelLoad, generationStats, isLlamaServer, promptProgress } from '@services/ai/llamaServer';
+import { getModelDisplayName } from '@shared/utils/provider.utils';
+import { fitsJob, profileOf } from '@services/ai/models';
+import { followModelLoad, generationStats, promptProgress } from '@services/ai/llamaServer';
+import { listStyleOf } from '@services/providers/listers';
 import { followMlxLoad } from '@services/mlx.service';
 import { toolRegistry, loadMcpSettings, loadMcpTools, generateImageTool, GENERATE_IMAGE_TOOL } from '@extensions/tools';
 import type { McpSettings } from '@config/mcp.config';
@@ -39,7 +40,7 @@ export function stripWebCitations(text: string, webSearchActive: boolean): strin
 function chatModelOrThrow(resolved: ResolvedModel): ResolvedModel {
   const keyProblem = missingKey(resolved);
   if (keyProblem) throw keyProblem;
-  if (!fitsJob(describeModel(resolved.provider, resolved.model), 'chat')) {
+  if (!fitsJob(profileOf(resolved.provider, resolved.model), 'chat')) {
     throw new Error(`${getModelDisplayName(resolved.model)} doesn't chat (it doesn't take and give text). Pick a chat model.`);
   }
   return resolved;
@@ -158,11 +159,11 @@ export async function orchestrate(
   const webSearchTools = chatToolPreferences(settings).webSearch ? getWebSearchTools(resolved) : undefined;
   const mcpSettings = await loadMcpSettings();
   const { tools, sources: toolSources, toolset } = await buildTools(options, webSearchTools, mcpSettings);
-  const { input, output } = describeModel(resolved.provider, resolved.model);
+  const { input, output } = profileOf(resolved.provider, resolved.model);
   const systemPrompt = buildChatSystemPrompt({ ...prompt, tools: toolset, modalities: { input, output } });
   const { maxToolCalls } = mcpSettings;
   // A local llama-server reports loading the model and reading the prompt before it replies.
-  const reportsProgress = isLocalProviderId(resolved.provider) && (await isLlamaServer(resolved.baseUrl));
+  const reportsProgress = (await listStyleOf(resolved.provider, { baseUrl: resolved.baseUrl })) === 'llama-server';
 
   const stopFollowingLoad = await followLoad(resolved, reportsProgress, (progress) => onChunk('', { progress }));
 
@@ -215,7 +216,7 @@ function contextOf(usage: Parameters<typeof extractTokenUsage>[0] | undefined): 
 
 /** llama-server reports tool support only while a model is loaded; after a reply it is, so re-probe until its support is known. */
 function learnTemplateCapabilities(resolved: ResolvedModel): void {
-  if (resolved.model.served?.tools !== undefined) return;
+  if (resolved.model.reported?.tools !== undefined) return;
   queryClient.invalidateQueries({ queryKey: queryKeys.localServersAll() }).catch((error: unknown) =>
     console.error('[orchestrate] Re-probing local servers failed:', error));
 }

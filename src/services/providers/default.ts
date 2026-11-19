@@ -1,14 +1,34 @@
 import type { ProvidersService } from './types'
 import type { ModelProvider, ProviderSetting } from '@shared/types/modelProviders'
-import { predefinedProviders, MANAGED_MODELS, MANAGED_DEFAULT_URLS, GEMINI_LIST_PAGE_SIZE } from '@config/providers.config'
+import { predefinedProviders, MANAGED_MODELS, MANAGED_DEFAULT_URLS } from '@config/providers.config'
 import { getPlatformFetch } from '@services/platform-fetch'
-import { geminiListing, openAIListing } from './listing'
-import type { ListedModel } from './listing'
+import type { ListedModel } from '@services/ai/models/report'
+import { listModels, ListRequestError } from './listers'
 
-/** Default base URLs for providers that have a known API endpoint */
+/** Model-list base URLs for providers that have a known API endpoint. */
 const PROVIDER_BASE_URLS: Record<string, string> = {
   openai: 'https://api.openai.com/v1',
   anthropic: 'https://api.anthropic.com/v1',
+  gemini: 'https://generativelanguage.googleapis.com/v1beta',
+}
+
+/** What a refusal means, by status. */
+const REFUSALS: Record<number, (provider: string) => string> = {
+  401: (provider) => `Authentication failed: API key is required or invalid for ${provider}`,
+  403: (provider) => `Access forbidden: Check your API key permissions for ${provider}`,
+  404: (provider) => `Models endpoint not found for ${provider}. Check the base URL configuration.`,
+}
+
+/** A listing failure in words the Test row shows: a refusal by status, an unreachable server, or anything else. */
+function listingError(provider: string, baseUrl: string, error: unknown): Error {
+  if (error instanceof ListRequestError) {
+    const refusal = REFUSALS[error.status]
+    return new Error(refusal ? refusal(provider) : `Failed to fetch models from ${provider}: ${error.message}`)
+  }
+  if (error instanceof Error && error.message.includes('fetch')) {
+    return new Error(`Cannot connect to ${provider} at ${baseUrl}. Please check that the service is running and accessible.`)
+  }
+  return new Error(`Unexpected error while fetching models from ${provider}: ${error instanceof Error ? error.message : 'Unknown error'}`)
 }
 
 export class DefaultProvidersService implements ProvidersService {
@@ -40,90 +60,23 @@ export class DefaultProvidersService implements ProvidersService {
   async fetchModelsFromProvider(provider: ModelProvider): Promise<ListedModel[]> {
     // Return hardcoded models for providers without a /models endpoint (none currently)
     if (MANAGED_MODELS[provider.provider]) {
-      return MANAGED_MODELS[provider.provider].map((id) => ({ id, info: {} }))
+      return MANAGED_MODELS[provider.provider].map((id) => ({ id, report: {} }))
     }
 
     if (!provider.api_key) {
       throw new Error(`API key required for ${provider.provider} model listing`)
     }
 
-    // Gemini: uses a different endpoint structure (API key in query param, different response shape)
-    if (provider.provider === 'gemini') {
-      const resp = await getPlatformFetch()(
-        `https://generativelanguage.googleapis.com/v1beta/models?pageSize=${GEMINI_LIST_PAGE_SIZE}&key=${provider.api_key}`
-      )
-      if (!resp.ok) {
-        throw new Error(`Failed to fetch Gemini models: ${resp.status} ${resp.statusText}`)
-      }
-      return geminiListing(await resp.json())
-    }
-
-    // All other providers: GET {baseUrl}/models with unified headers
-    const baseUrl = (
-      provider.base_url ||
-      PROVIDER_BASE_URLS[provider.provider] ||
-      MANAGED_DEFAULT_URLS[provider.provider]
-    )?.replace(/\/$/, '')
-
+    const baseUrl = provider.base_url || PROVIDER_BASE_URLS[provider.provider] || MANAGED_DEFAULT_URLS[provider.provider]
     if (!baseUrl) {
       throw new Error(`${provider.provider} requires a base URL to be configured`)
     }
 
     try {
-      const response = await getPlatformFetch()(`${baseUrl}/models`, {
-        method: 'GET',
-        headers: this.buildHeaders(provider),
-      })
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error(
-            `Authentication failed: API key is required or invalid for ${provider.provider}`
-          )
-        } else if (response.status === 403) {
-          throw new Error(
-            `Access forbidden: Check your API key permissions for ${provider.provider}`
-          )
-        } else if (response.status === 404) {
-          throw new Error(
-            `Models endpoint not found for ${provider.provider}. Check the base URL configuration.`
-          )
-        } else {
-          throw new Error(
-            `Failed to fetch models from ${provider.provider}: ${response.status} ${response.statusText}`
-          )
-        }
-      }
-
-      return openAIListing(await response.json())
-    } catch (error) {
-      console.error('Error fetching models from provider:', error)
-
-      const structuredErrorPrefixes = [
-        'Authentication failed',
-        'Access forbidden',
-        'Models endpoint not found',
-        'Failed to fetch models from',
-      ]
-
-      if (
-        error instanceof Error &&
-        structuredErrorPrefixes.some((prefix) =>
-          error.message.startsWith(prefix)
-        )
-      ) {
-        throw error
-      }
-
-      if (error instanceof Error && error.message.includes('fetch')) {
-        throw new Error(
-          `Cannot connect to ${provider.provider} at ${baseUrl}. Please check that the service is running and accessible.`
-        )
-      }
-
-      throw new Error(
-        `Unexpected error while fetching models from ${provider.provider}: ${error instanceof Error ? error.message : 'Unknown error'}`
-      )
+      return await listModels(provider.provider, { baseUrl, apiKey: provider.api_key, headers: this.buildHeaders(provider) })
+    } catch (error: unknown) {
+      console.error('[DefaultProvidersService] Fetching models failed:', error)
+      throw listingError(provider.provider, baseUrl, error)
     }
   }
 

@@ -11,8 +11,7 @@ import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import type { LocalModel } from '@services/localModels.service';
-import type { ModelInfo } from '@services/modalities';
-import type { ModelRef } from '@services/ai/models';
+import type { ModelProfile, ModelRef } from '@services/ai/models';
 
 const ON_DEVICE = LOCAL_MODELS_CONFIG.provider.id;
 
@@ -149,11 +148,12 @@ export function cachedLocalModels(): LocalModel[] {
 function onDeviceChatProvider(localModels: LocalModel[]): ModelProvider | null {
   const models = localModels
     .filter((m) => m.kind === 'chat' && m.installed)
-    .map((m) => ({
+    .map((m): Model => ({
       id: m.id,
       name: m.name,
-      served: {
-        modalities: { input: m.vision ? ['text', 'image'] : ['text'], output: ['text'] },
+      reported: {
+        input: m.vision ? ['text', 'image'] : ['text'],
+        output: ['text'],
         tools: m.tools ?? false,
         ...(m.contextTokens ? { contextTokens: m.contextTokens } : {}),
       },
@@ -204,8 +204,8 @@ export interface ModelChoice {
   ready: boolean;
   /** Next step when not ready ("Add OpenAI API key"). */
   hint: string | null;
-  /** Its modalities and abilities for its picker row's chips; null when nothing describes it. */
-  info?: ModelInfo | null;
+  /** What it takes, gives and can do, for its picker row's chips; null when only its provider's default describes it. */
+  profile?: ModelProfile | null;
   /** A step that makes it usable, run from its picker row (download, allow). */
   setup?: ChoiceSetup;
   /** Capabilities shown as small marks on its picker row (e.g. real-time transcription). */

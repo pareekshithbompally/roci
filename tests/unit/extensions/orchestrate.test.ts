@@ -19,9 +19,9 @@ vi.mock('@shared/utils/modelResolver', () => ({
   getProviderType: () => 'openai-compat',
 }));
 
-const isLlamaServer = vi.hoisted(() => vi.fn());
+const listStyleOf = vi.hoisted(() => vi.fn());
+vi.mock('@services/providers/listers', () => ({ listStyleOf }));
 vi.mock('@services/ai/llamaServer', () => ({
-  isLlamaServer,
   followModelLoad: () => () => undefined,
   generationStats: () => null,
   promptProgress: () => null,
@@ -63,7 +63,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   invalidateQueries.mockResolvedValue(undefined);
   getWebSearchTools.mockReturnValue({ webSearch: {} });
-  isLlamaServer.mockResolvedValue(false);
+  listStyleOf.mockResolvedValue('openai');
   resolved.current = { provider: 'openai', modelId: 'gpt', baseUrl: '', model: { id: 'gpt' } };
   replyOnce();
 });
@@ -99,18 +99,18 @@ describe('orchestrate — context use', () => {
 
 describe('orchestrate — llama-server tool support', () => {
   it('re-probes local servers after a reply whose model has unknown tool support', async () => {
-    isLlamaServer.mockResolvedValue(true);
+    listStyleOf.mockResolvedValue('llama-server');
     resolved.current = { provider: 'local:llama', modelId: 'qwen', baseUrl: 'http://127.0.0.1:8080/v1', model: { id: 'qwen' } };
     await run({});
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['local-servers'] });
   });
 
   it('does not re-probe once tool support is known, nor for other servers', async () => {
-    isLlamaServer.mockResolvedValue(true);
-    resolved.current = { provider: 'local:llama', modelId: 'qwen', baseUrl: 'u', model: { id: 'qwen', served: { tools: true } } };
+    listStyleOf.mockResolvedValue('llama-server');
+    resolved.current = { provider: 'local:llama', modelId: 'qwen', baseUrl: 'u', model: { id: 'qwen', reported: { tools: true } } };
     await run({});
     replyOnce();
-    isLlamaServer.mockResolvedValue(false);
+    listStyleOf.mockResolvedValue('ollama');
     resolved.current = { provider: 'local:ollama', modelId: 'm', baseUrl: 'u', model: { id: 'm' } };
     await run({});
     expect(invalidateQueries).not.toHaveBeenCalled();

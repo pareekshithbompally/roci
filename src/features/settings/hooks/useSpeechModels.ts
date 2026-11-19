@@ -38,7 +38,7 @@ export function useSpeechModelOptions(): SpeechModelOption[] {
   const catalogLoaded = useModelCatalog();
   return useMemo(
     () => speechModelOptions(providers, sources),
-    // catalogLoaded: capabilitiesOf() reads the catalog it loads.
+    // catalogLoaded: profileOf() reads the catalog it loads.
     [providers, sources, catalogLoaded],
   );
 }

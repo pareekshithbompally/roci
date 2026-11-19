@@ -6,9 +6,10 @@ const recordUsage = vi.hoisted(() => vi.fn());
 const status = vi.hoisted(() => vi.fn());
 const modalities = vi.hoisted(() => ({
   ensureLoaded: vi.fn(),
-  getModelContextLimit: vi.fn(),
-  getModelInfo: vi.fn(),
+  catalogReport: vi.fn(),
 }));
+
+const catalogWindow = (contextTokens: number) => modalities.catalogReport.mockReturnValue({ report: { contextTokens }, exact: true });
 
 vi.mock('ai', async (importOriginal) => ({ ...(await importOriginal<typeof import('ai')>()), generateText }));
 vi.mock('@services/ai/provider', () => ({ createModel: () => ({}) }));
@@ -36,8 +37,7 @@ const analysis = { title: 'T', summary: { overview: 'o', keyDiscussionPoints: []
 beforeEach(() => {
   vi.clearAllMocks();
   modalities.ensureLoaded.mockResolvedValue(undefined);
-  modalities.getModelInfo.mockReturnValue(null);
-  modalities.getModelContextLimit.mockReturnValue(null);
+  modalities.catalogReport.mockReturnValue(null);
 });
 
 describe('contextTokensFor', () => {
@@ -48,10 +48,10 @@ describe('contextTokensFor', () => {
   });
 
   it('uses the model catalog window for any other model, after loading the catalog', async () => {
-    modalities.getModelContextLimit.mockReturnValue(128_000);
+    catalogWindow(128_000);
     await expect(contextTokensFor(resolvedFor('openai'))).resolves.toBe(128_000);
     expect(modalities.ensureLoaded).toHaveBeenCalled();
-    expect(modalities.getModelContextLimit).toHaveBeenCalledWith('openai', 'm1');
+    expect(modalities.catalogReport).toHaveBeenCalledWith('openai', 'm1');
   });
 
   it('returns null when the window is unknown', async () => {
@@ -61,7 +61,7 @@ describe('contextTokensFor', () => {
 
 describe('analyzeTranscript', () => {
   it('trims a transcript longer than a known window', async () => {
-    modalities.getModelContextLimit.mockReturnValue(2_000);
+    catalogWindow(2_000);
     generateText.mockResolvedValue({ output: analysis, usage: { inputTokens: 1, outputTokens: 1 } });
     const transcript = 'line\n'.repeat(5_000);
     await analyzeTranscript({ transcript, categories: [], resolved: resolvedFor('openai') });

@@ -242,9 +242,7 @@ describe('models from integrations', () => {
       installed: true, downloading: false, contextTokens: 131_072, tools: true, vision: true,
     };
     const [onDevice] = modelSources([], {} as never, [gemma]);
-    expect(onDevice.models[0].served?.contextTokens).toBe(131_072);
-    const { capabilitiesOf } = await import('@services/ai/capabilities');
-    expect(capabilitiesOf(onDevice.provider, onDevice.models[0]).tools).toBe(true);
-    expect(onDevice.models[0].served?.modalities?.input).toContain('image');
+    const { profileOf } = await import('@services/ai/models');
+    expect(profileOf(onDevice.provider, onDevice.models[0])).toMatchObject({ contextTokens: 131_072, tools: true, input: ['text', 'image'] });
   });
 });

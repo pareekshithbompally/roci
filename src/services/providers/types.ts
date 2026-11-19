@@ -1,5 +1,5 @@
 import type { ModelProvider, ProviderSetting } from '@shared/types/modelProviders'
-import type { ListedModel } from './listing'
+import type { ListedModel } from '@services/ai/models/report'
 
 export interface ProvidersService {
   getProviders(): Promise<ModelProvider[]>

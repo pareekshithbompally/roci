@@ -20,7 +20,6 @@ import type { MeetingListItem } from '@services/meetingReferenceService';
 import { chatService } from '@services/chat.service';
 import { resolveChatModel } from '@shared/utils/modelResolver';
 import type { StreamMetadata } from '@services/ai/types';
-import { capabilitiesOf } from '@services/ai/capabilities';
 import { contextPipeline } from '@extensions/context-pipeline';
 import { orchestrate } from '@extensions/tool-orchestrator';
 import { streamingStore } from './streamingStore';
@@ -40,6 +39,7 @@ import { queryKeys } from '@shared/query/queryKeys';
 import { CHAT_MAX_ATTACHMENTS, TOOL_RESULT_PREVIEW_CHARS } from '@config/chat.config';
 import { UI_CONFIG } from '@config/ui.config';
 import { canSendDraft, chatModelOf, draftTitle } from '@features/chat/utils';
+import { profileOf } from '@services/ai/models';
 import type { ModelRef } from '@services/ai/models';
 import { errorMessage } from '@shared/utils/errors';
 
@@ -357,7 +357,7 @@ async function streamReply(reply: Reply, request: ReplyRequest, tally: StreamTal
     patchMessage(reply.sessionId, reply.messageId, (m) => ({ ...m, state: 'streaming' }));
   };
 
-  const hasToolSupport = capabilitiesOf(resolved.provider, resolved.model).tools;
+  const hasToolSupport = profileOf(resolved.provider, resolved.model).tools;
   const webUrls = new Set<string>();
 
   return orchestrate(

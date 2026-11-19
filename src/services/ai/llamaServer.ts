@@ -1,16 +1,15 @@
 /** llama-server: what it reports about its models, their load and prompt-read progress; recognised once by `build_info` on `GET /props`. */
 
 import { getPlatformFetch } from '@services/platform-fetch';
+import { rootOf } from '@services/providers/listers/http';
 import { failureLogger } from '@shared/utils/errors';
 import { LLAMA_THINKING_BUDGET_TOKENS, LLAMA_THINKING_TEMPLATE, MODEL_LOAD_PART_SHARE, PROMPT_ETA_MIN_ELAPSED_MS } from '@config/localServers.config';
 import type { ReasoningEffort } from '@shared/types';
-import type { ServedModelInfo } from '@shared/types/modelProviders';
+import type { ModelReport } from '@shared/types/modelProviders';
 import type { GenerationStats, StreamProgress } from './types';
 
 const report = failureLogger('llamaServer');
 
-/** The server root: the OpenAI-compatible base URL without its `/v1`. */
-const rootOf = (baseUrl: string) => baseUrl.replace(/\/v1\/?$/, '').replace(/\/$/, '');
 
 const recognised = new Map<string, Promise<boolean>>();
 
@@ -27,26 +26,6 @@ export function isLlamaServer(baseUrl: string): Promise<boolean> {
     void known.then((isServer) => isServer || recognised.delete(root));
   }
   return known;
-}
-
-/** One model as llama-server's `/models` describes it (router mode); every field optional. */
-interface LlamaModelEntry {
-  architecture?: { input_modalities?: string[]; output_modalities?: string[] };
-  context_length?: number;
-  status?: { value?: string; preset?: string };
-}
-
-/** The `ctx-size = N` line of a model's preset: the context it actually runs with. */
-const presetContext = (preset: string | undefined) => Number(preset?.match(/^ctx-size\s*=\s*(\d+)\s*$/m)?.[1]) || undefined;
-
-/** What llama-server's model list says about one model: its modalities and its running context (preset, else its maximum). */
-export function servedModelInfo(entry: unknown): ServedModelInfo {
-  const model = entry as LlamaModelEntry;
-  const input = model.architecture?.input_modalities;
-  return {
-    ...(input && { modalities: { input, output: model.architecture?.output_modalities ?? [] } }),
-    contextTokens: presetContext(model.status?.preset) ?? model.context_length,
-  };
 }
 
 /** Whether a chat template thinks, by llama-server's own web UI rule (`LLAMA_THINKING_TEMPLATE`). */
@@ -68,19 +47,16 @@ interface LlamaModelProps {
  * What a loaded model's chat template can do (tools, thinking), from `GET /props?model=…&autoload=false`.
  * `autoload=false` means this never loads a model; a model that isn't loaded answers 400 and gives null.
  */
-export async function fetchTemplateCapabilities(baseUrl: string, model: string): Promise<Pick<ServedModelInfo, 'tools' | 'thinking'> | null> {
+export async function fetchTemplateCapabilities(baseUrl: string, model: string): Promise<Pick<ModelReport, 'tools' | 'reasoning'> | null> {
   const query = new URLSearchParams({ model, autoload: 'false' });
   const response = await getPlatformFetch()(`${rootOf(baseUrl)}/props?${query}`);
   if (!response.ok) return null;
   const props = (await response.json()) as LlamaModelProps;
   return {
     tools: props.chat_template_caps?.supports_tools === true,
-    thinking: templateThinks(props.chat_template ?? ''),
+    reasoning: templateThinks(props.chat_template ?? ''),
   };
 }
-
-/** Whether llama-server has this model loaded now (router mode); others are loaded on first use, unloading the current one. */
-export const isModelLoaded = (entry: unknown) => (entry as LlamaModelEntry).status?.value === 'loaded';
 
 /**
  * llama-server's own request fields: its progress (`return_progress`, `timings_per_token`) and the chat's

@@ -6,7 +6,7 @@ vi.mock('@services/chat.service', () => ({
   chatService: { persistSession: (...args: unknown[]) => persist(...args), renameSession: vi.fn(), deleteSession: vi.fn() },
 }));
 vi.mock('@shared/utils/modelResolver', () => ({ resolveChatModel: () => ({ provider: 'openai', modelId: 'm', model: {} }) }));
-vi.mock('@services/ai/capabilities', () => ({ capabilitiesOf: () => ({ tools: false }) }));
+vi.mock('@services/ai/models', async (importOriginal) => ({ ...(await importOriginal<typeof import('@services/ai/models')>()), profileOf: () => ({ tools: false }) }));
 vi.mock('@extensions/context-pipeline', () => ({ contextPipeline: { resolve: async () => ({ text: '' }) } }));
 vi.mock('@services/ai/suggestions', () => ({ generateSuggestions: async () => [] }));
 vi.mock('@extensions/usage', () => ({ logUsage: async () => undefined }));
