@@ -48,3 +48,4 @@ generated_images/
 src-tauri/frameworks
 src-tauri/RociMLX/.build
 src-tauri/RociMLX/.swiftpm
+src/features/home/preview/fixtures/

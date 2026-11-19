@@ -60,7 +60,8 @@ function nextStep(status: MeetingStatus): MeetingStep | null {
 async function loadRecording(fileName: string | undefined): Promise<Blob> {
   if (!fileName) throw new Error('This meeting has no recording to transcribe.');
   const loaded = await recordingsService.getRecordingData(fileName);
-  if (!loaded.success || !loaded.data) throw new Error(loaded.error ?? 'Could not load the recording.');
+  // the reason is logged by the recordings service; the meeting shows what to do
+  if (!loaded.success || !loaded.data) throw new Error("Couldn't read this meeting's recording file. Try again.");
   const extension = fileName.split('.').pop()?.toLowerCase() ?? 'wav';
   return new Blob([loaded.data], { type: IMPORT_CONFIG.audio.mimeTypes[extension] ?? 'audio/wav' });
 }
