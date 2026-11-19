@@ -97,7 +97,8 @@
   /* List rhythm: icon-to-text gap in a row, space between groups (macOS System Settings). */
   --row-icon-gap: 10px;
   --section-gap: 24px;
-  --bg-deep: var(--grey-100);
+  /* The sidebar: a step below the page, still lighter than the layer-2 chips on it (⌘K, shimmer) */
+  --bg-deep: color-mix(in srgb, var(--grey-100), var(--grey-200));
   --bg-layer-1: var(--grey-100);
   --bg-layer-2: var(--grey-200);
   --bg-layer-3: var(--grey-300);
