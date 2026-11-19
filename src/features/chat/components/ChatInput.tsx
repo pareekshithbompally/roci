@@ -9,7 +9,8 @@ import { ContextChips } from './ContextChips';
 import { ModelPicker } from './ModelPicker';
 import { ToolsPicker } from './tools/ToolsPicker';
 import { ReasoningPicker } from './ReasoningPicker';
-import { ATTACH_OPTIONS, ComposerAddSheet } from './ComposerAddSheet';
+import { ComposerAddSheet } from './ComposerAddSheet';
+import { useAttachOptions } from '@features/chat/hooks/useAttachOptions';
 import { ComposerAddMenu } from './ComposerAddMenu';
 import { ContextRing, Icon, IconButton, Input, Popover, PopoverAnchor, Surface, Text, Textarea, cn } from '@shared/ui';
 import type { ContextUsage } from '@shared/hooks/useContextUsage';
@@ -37,8 +38,6 @@ import {
   VOICE_HANDOFF_S,
 } from './voice/voiceTransition';
 
-/** Everything + offers, plus video (drop and paste). */
-const ACCEPTED_FILE_TYPES = [...ATTACH_OPTIONS.map(({ accept }) => accept), 'video/*'].join(',');
 
 /** Phone: one short placeholder (iOS); the rotating hints are a desktop affordance (⌘ shortcuts, @). */
 const PHONE_PLACEHOLDER = 'Ask anything';
@@ -137,6 +136,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 }) => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Only what the chat's model takes is offered.
+  const attach = useAttachOptions();
   const [showMentionPopup, setShowMentionPopup] = useState(false);
   // One hint per composer (picked when it opens): it varies between chats without a timer waking the app.
   const [hintIndex] = useState(() => Math.floor(Math.random() * PLACEHOLDER_HINTS.length));
@@ -484,7 +485,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           ref={fileInputRef}
           type="file"
           multiple
-          accept={ACCEPTED_FILE_TYPES}
+          accept={attach.accept}
           onChange={handleFileChange}
           className="hidden"
         />
@@ -502,7 +503,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             {/* Left: Attach, model, tools, thinking, context gauge — toolbar-size controls, close together */}
             <div className="flex items-center gap-0.5">
               {/* Attach — files and screenshots only; tools have their own picker */}
-              {onAttach && <ComposerAddMenu onPickFiles={openFilePicker} disabled={disabled} onScreenshot={onScreenshot} />}
+              {onAttach && <ComposerAddMenu attachOptions={attach.options} onPickFiles={openFilePicker} disabled={disabled} onScreenshot={attach.images ? onScreenshot : undefined} />}
 
               <ModelPicker compact />
               <ToolsPicker />
@@ -530,7 +531,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       </Popover>
 
       {phone && (
-        <ComposerAddSheet open={addOpen} onOpenChange={setAddOpen} onPickFiles={onAttach && !disabled ? openFilePicker : undefined} contextUsage={contextUsage} />
+        <ComposerAddSheet open={addOpen} onOpenChange={setAddOpen} attachOptions={attach.options} onPickFiles={onAttach && !disabled ? openFilePicker : undefined} contextUsage={contextUsage} />
       )}
 
       {/* Image Quick Look Overlay — portaled to body to escape overflow-hidden ancestors */}

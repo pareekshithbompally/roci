@@ -8,13 +8,12 @@ vi.mock('@services/modalities', () => ({
   },
 }));
 
-// The user's Audio input tick (the model's ⋯ menu) sets its inputs.
-const ticked = { overrides: { input: ['text', 'audio'] as Modality[] } };
-const unticked = { overrides: { input: ['text'] as Modality[] } };
+// The user's Audio input tick (the model's ⋯ menu).
+const ticked = { overrides: { audio: true } };
+const unticked = { overrides: { audio: false } };
 import { adapterFor, isSpeechSelectionReady, speechModelOptions } from '@services/ai/transcription/catalog';
 import { modelKey } from '@services/ai/models';
 import type { ModelProvider } from '@shared/types/modelProviders';
-import type { Modality } from '@config/modelSpine.config';
 
 function provider(id: string, models: ModelProvider['models'], apiKey = 'key'): ModelProvider {
   return { provider: id, active: true, api_key: apiKey, settings: [], models } as ModelProvider;

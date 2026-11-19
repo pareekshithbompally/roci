@@ -29,9 +29,10 @@ function speechRecord(selection: SpeechSelection, providers: ModelProvider[]) {
   return speechRecords(providers).find((r) => r.provider === selection.provider && r.id === selection.model);
 }
 
-/** Speech lists the speech models the user added; a chat model that hears joins only when the user set its inputs (its ⋯ menu). */
+/** Speech lists the speech models the user added; a chat model that hears joins only when its Audio input is ticked (its ⋯ menu). */
 function speechRecords(providers: ModelProvider[]) {
-  return jobRecords(providers, 'transcribe').filter((r) => isSpeechOnly(r) || r.sourceOf.input === 'user');
+  const ticked = new Set(providers.flatMap((p) => (p.models ?? []).filter((m) => m.overrides?.audio).map((m) => modelKey({ provider: p.provider, model: m.id }))));
+  return jobRecords(providers, 'transcribe').filter((r) => isSpeechOnly(r) || ticked.has(modelKey({ provider: r.provider, model: r.id })));
 }
 
 /** Keyless engines run on their own endpoint; any other speech model runs the way the spine routes it. */

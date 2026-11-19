@@ -1,6 +1,7 @@
 /** Model listing for every provider, cloud or local: pick the lister for the provider's list format, then read the list. */
 
 import { MODEL_LISTS_CONFIG } from '@config/modelLists.config';
+import { LOCAL_PROBE_TIMEOUT_MS } from '@config/localServers.config';
 import type { ModelListStyle } from '@config/modelLists.config';
 import type { ListedModel } from '@services/ai/models/report';
 import { isLocalProviderId } from '@shared/utils/provider.utils';
@@ -29,18 +30,12 @@ async function detect(connection: ListConnection): Promise<ModelListStyle> {
   return detectable[answers.indexOf(true)] ?? 'openai';
 }
 
-async function rememberDetected(connection: ListConnection): Promise<ModelListStyle> {
-  const style = await detect(connection);
-  detectedByUrl.set(connection.baseUrl, style);
-  return style;
-}
-
-/** The provider's list format: named in config, else (a local server) detected once per address, else OpenAI-style. */
+/** The provider's list format: named in config, else (a local server) as its last successful list found it, else checked now. */
 export async function listStyleOf(provider: string, connection: ListConnection): Promise<ModelListStyle> {
   const named = MODEL_LISTS_CONFIG.styleByProvider[provider];
   if (named) return named;
   if (!isLocalProviderId(provider)) return 'openai';
-  return detectedByUrl.get(connection.baseUrl) ?? rememberDetected(connection);
+  return detectedByUrl.get(connection.baseUrl) ?? detect({ ...connection, signal: AbortSignal.timeout(LOCAL_PROBE_TIMEOUT_MS) });
 }
 
 /** A local server Roci doesn't know by name: its OpenAI-style list must answer first (a stopped server costs one request),
@@ -49,8 +44,10 @@ async function listUnnamedServer(connection: ListConnection): Promise<ListedMode
   const known = detectedByUrl.get(connection.baseUrl);
   if (!known) {
     const openAIList = await openAIStyleLister.list(connection);
-    const style = await rememberDetected(connection);
-    return style === 'openai' ? openAIList : LISTERS[style].list(connection);
+    // The server answered, so its format checks get their own window and the result is kept.
+    const style = await detect({ ...connection, signal: AbortSignal.timeout(LOCAL_PROBE_TIMEOUT_MS) });
+    detectedByUrl.set(connection.baseUrl, style);
+    return style === 'openai' ? openAIList : LISTERS[style].list({ ...connection, signal: AbortSignal.timeout(LOCAL_PROBE_TIMEOUT_MS) });
   }
   try {
     return await LISTERS[known].list(connection);

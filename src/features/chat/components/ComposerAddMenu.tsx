@@ -6,9 +6,11 @@ import { IconButton } from '@shared/ui';
 import { Menu, type MenuEntry } from '@shared/components';
 import { IMPORT_MEETING_LABEL, useImportMeetingActions } from '@features/import';
 import { canTakeScreenshots, listCapturableWindows, takeScreenshot } from '@services/tauri';
-import { ATTACH_OPTIONS } from './ComposerAddSheet';
+import type { AttachOption } from '@features/chat/hooks/useAttachOptions';
 
 interface ComposerAddMenuProps {
+  /** What the chat's model can be sent. */
+  attachOptions: AttachOption[];
   /** Opens the file picker with this filter. */
   onPickFiles: (accept: string) => void;
   disabled?: boolean;
@@ -34,12 +36,12 @@ async function screenshotEntries(onScreenshot: (base64: string, name: string) =>
   ];
 }
 
-export const ComposerAddMenu: React.FC<ComposerAddMenuProps> = ({ onPickFiles, disabled, onScreenshot }) => {
+export const ComposerAddMenu: React.FC<ComposerAddMenuProps> = ({ attachOptions, onPickFiles, disabled, onScreenshot }) => {
   const importActions = useImportMeetingActions();
   const canScreenshot = !!onScreenshot && canTakeScreenshots();
 
   const items = async (): Promise<MenuEntry[]> => [
-    ...ATTACH_OPTIONS.map(({ label, accept }) => ({ type: 'item' as const, label, disabled, onSelect: () => onPickFiles(accept) })),
+    ...attachOptions.map(({ label, accept }) => ({ type: 'item' as const, label, disabled, onSelect: () => onPickFiles(accept) })),
     { type: 'separator' },
     { type: 'submenu', label: IMPORT_MEETING_LABEL, items: importActions.map(({ label, run }) => ({ type: 'item' as const, label, onSelect: run })) },
     ...(canScreenshot && onScreenshot

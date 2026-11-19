@@ -4,7 +4,7 @@
 import { MODEL_SPINE_CONFIG } from '@config/modelSpine.config';
 import type { Modality } from '@config/modelSpine.config';
 import { modalitiesService } from '@services/modalities';
-import type { Model, ModelReport } from '@shared/types/modelProviders';
+import type { Model, ModelOverrides, ModelReport } from '@shared/types/modelProviders';
 
 /** One fact a profile settles. */
 export type Fact = keyof ModelReport;
@@ -39,9 +39,13 @@ interface Layer {
   report: ModelReport;
 }
 
+/** The model's own catalog entry; one matched only by a similar name gives its inputs and outputs (chips, job fit),
+ *  never the tools, thinking or context window a request is shaped by. */
 function catalogLayer(provider: string, model: ProfiledModel): Layer | null {
   const match = modalitiesService.catalogReport(provider, model.id);
-  return match ? { source: match.exact ? 'catalog' : 'similar-name', report: match.report } : null;
+  if (!match) return null;
+  if (match.exact) return { source: 'catalog', report: match.report };
+  return { source: 'similar-name', report: { input: match.report.input, output: match.report.output } };
 }
 
 function nameRuleLayer(model: ProfiledModel): Layer | null {
@@ -55,9 +59,28 @@ function defaultLayer(provider: string): Layer {
   return { source: 'default', report: { input: [...input], output: [...output], tools: false, reasoning: false } };
 }
 
+/** The inputs a correction turns on or off. */
+const INPUT_OVERRIDES: ReadonlyArray<{ key: 'vision' | 'audio'; modality: Modality }> = [
+  { key: 'vision', modality: 'image' },
+  { key: 'audio', modality: 'audio' },
+];
+
+/** The sources' inputs with the user's input corrections applied; unchanged when there are none. */
+function correctedInput(input: Modality[], overrides: ModelOverrides): Modality[] {
+  return INPUT_OVERRIDES.reduce((list, { key, modality }) => {
+    const on = overrides[key];
+    if (on === undefined) return list;
+    const rest = list.filter((m) => m !== modality);
+    return on ? [...rest, modality] : rest;
+  }, input);
+}
+
+const hasInputOverride = (overrides: ModelOverrides) => INPUT_OVERRIDES.some(({ key }) => overrides[key] !== undefined);
+
 function layersOf(provider: string, model: ProfiledModel): Layer[] {
+  const { tools, reasoning } = model.overrides ?? {};
   const layers = [
-    model.overrides && { source: 'user' as const, report: model.overrides },
+    { source: 'user' as const, report: { tools, reasoning } },
     model.reported && { source: 'provider' as const, report: model.reported },
     catalogLayer(provider, model),
     nameRuleLayer(model),
@@ -74,7 +97,11 @@ function settle<K extends Fact>(layers: Layer[], fact: K): { value: ModelReport[
 
 export function profileOf(provider: string, model: ProfiledModel): ModelProfile {
   const layers = layersOf(provider, model);
-  const input = settle(layers, 'input');
+  const overrides = model.overrides ?? {};
+  const sourced = settle(layers, 'input');
+  const input = hasInputOverride(overrides)
+    ? { value: correctedInput(sourced.value ?? [], overrides), source: 'user' as const }
+    : sourced;
   const output = settle(layers, 'output');
   const tools = settle(layers, 'tools');
   const reasoning = settle(layers, 'reasoning');

@@ -1,7 +1,7 @@
 /** Phone (iOS): the composer's + sheet — attach, import a meeting, the chat's thinking and tools; nothing that can't work is shown. */
 
 import React from 'react';
-import { FileText, Image as ImageIcon, Mic, Music } from 'lucide-react';
+import { Mic } from 'lucide-react';
 import { useRecordingMeetingId, useStartRecording } from '@features/recording';
 import { platform } from '@platform/index';
 import { IMPORT_MEETING_LABEL, useImportMeetingActions } from '@features/import';
@@ -9,24 +9,21 @@ import { useAppActions } from '@shared/stores/appStore';
 import { BottomSheet, CardRow, Icon, Section, SheetBody } from '@shared/ui';
 import { ChatToolRows } from './tools/ChatToolRows';
 import type { ContextUsage } from '@shared/hooks/useContextUsage';
+import type { AttachOption } from '@features/chat/hooks/useAttachOptions';
 
-/** What + attaches (`accept` filters the file picker): the Mac menu's items and this sheet's rows. */
-export const ATTACH_OPTIONS = [
-  { label: 'Images', icon: ImageIcon, accept: 'image/*' },
-  { label: 'Files', icon: FileText, accept: '.pdf,.txt,.md,.csv,.json,.doc,.docx' },
-  { label: 'Audio', icon: Music, accept: 'audio/*' },
-] as const;
 
 interface ComposerAddSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** What the chat's model can be sent. */
+  attachOptions: AttachOption[];
   /** Opens the file picker with this filter; absent when the chat can't take attachments right now. */
   onPickFiles?: (accept: string) => void;
   /** The chat's context window (the Mac shows it in the composer toolbar); null until known. */
   contextUsage?: ContextUsage | null;
 }
 
-export const ComposerAddSheet: React.FC<ComposerAddSheetProps> = ({ open, onOpenChange, onPickFiles, contextUsage }) => {
+export const ComposerAddSheet: React.FC<ComposerAddSheetProps> = ({ open, onOpenChange, attachOptions, onPickFiles, contextUsage }) => {
   const importActions = useImportMeetingActions();
   const startRecording = useStartRecording();
   const recordingNow = useRecordingMeetingId() !== null;
@@ -50,7 +47,7 @@ export const ComposerAddSheet: React.FC<ComposerAddSheetProps> = ({ open, onOpen
         )}
         {onPickFiles && (
           <Section title="Attach">
-            {ATTACH_OPTIONS.map(({ label, icon, accept }) => (
+            {attachOptions.map(({ label, icon, accept }) => (
               <CardRow key={label} title={label} leading={<Icon icon={icon} size="sm" />} onPress={closeThen(() => onPickFiles(accept))} />
             ))}
           </Section>

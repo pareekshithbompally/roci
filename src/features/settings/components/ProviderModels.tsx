@@ -11,7 +11,7 @@ import type { ListedModel } from '@services/ai/models';
 import { confirm } from '@shared/stores/confirmStore';
 import { getModelDisplayName } from '@shared/utils/provider.utils';
 import { CardRow, CommandGroup, CommandPopover, CommandRow, ICON_TILE_PX, Icon, Section } from '@shared/ui';
-import type { Model, ModelProvider, ModelReport } from '@shared/types/modelProviders';
+import type { Model, ModelOverrides, ModelProvider } from '@shared/types/modelProviders';
 import type { ConnectionStatus, ProviderConnection } from '@features/settings/hooks/useProviderConnection';
 import { ModelRowMenu } from './ModelRowMenu';
 
@@ -40,7 +40,8 @@ function emptyText(status: ConnectionStatus): string {
  * lacks, or any name when the list can't load, can be added as typed.
  */
 const AddModelPicker: React.FC<AddModelPickerProps> = ({ provider, connection, added, onAdd }) => {
-  const catalogLoaded = useModelCatalog();
+  // Re-renders when the catalog arrives, so its facts join what the provider reported.
+  useModelCatalog();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState('');
   const { status } = connection;
@@ -84,7 +85,7 @@ const AddModelPicker: React.FC<AddModelPickerProps> = ({ provider, connection, a
           value={model.id}
           onSelect={() => add(model)}
           label={model.id}
-          meta={<ModelChips profile={catalogLoaded ? shownProfile(profileOf(provider, { id: model.id, reported: model.report })) : null} />}
+          meta={<ModelChips profile={shownProfile(profileOf(provider, { id: model.id, reported: model.report }))} />}
         />
       ))}
     </CommandPopover>
@@ -94,7 +95,8 @@ const AddModelPicker: React.FC<AddModelPickerProps> = ({ provider, connection, a
 export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connection }) => {
   const { updateProvider } = useSettings();
   const [renaming, setRenaming] = useState<Model | null>(null);
-  const catalogLoaded = useModelCatalog();
+  // Re-renders when the catalog arrives, so its facts join what the provider reported.
+  useModelCatalog();
   const models = provider.models ?? [];
   const id = provider.provider;
 
@@ -123,7 +125,7 @@ export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connec
     setModels(models.map((m) => (m.id === modelId ? { ...m, displayName: name || undefined } : m)));
 
   /** One correction from the model's ⋯ menu, kept with its earlier ones. */
-  const handleOverride = (modelId: string, override: ModelReport) =>
+  const handleOverride = (modelId: string, override: ModelOverrides) =>
     setModels(models.map((m) => (m.id === modelId ? { ...m, overrides: { ...m.overrides, ...override } } : m)));
 
   const exploreUrl = provider.explore_models_url;
@@ -138,7 +140,7 @@ export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connec
           <CardRow
             key={model.id}
             leading={<ModelIcon provider={id} modelId={model.id} size={ICON_TILE_PX} />}
-            title={<ModelLabel name={getModelDisplayName(model)} profile={catalogLoaded ? shownProfile(profileOf(id, model)) : null} />}
+            title={<ModelLabel name={getModelDisplayName(model)} profile={shownProfile(profileOf(id, model))} />}
             actions={
               <ModelRowMenu
                 profile={profileOf(id, model)}

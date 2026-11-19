@@ -8,3 +8,5 @@ export { useToolCatalog } from './useToolCatalog';
 export type { ToolCatalog } from './useToolCatalog';
 export { useContextLimit } from './useContextLimit';
 export { useChatModel } from './useChatModel';
+export { useAttachOptions } from './useAttachOptions';
+export type { AttachOption, AttachOptions } from './useAttachOptions';

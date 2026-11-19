@@ -47,11 +47,11 @@ describe('profileOf — first source to state a fact wins', () => {
     });
   });
 
-  it('a catalog match by a similar name is marked a guess', () => {
-    catalog({ input: ['text', 'image'], output: ['text'], tools: true }, false);
-    const profile = profileOf('local:ollama', { id: 'gemma4:31b-cloud' });
-    expect(profile.sourceOf.input).toBe('similar-name');
-    expect(featuresOf(profile)).toEqual([{ feature: 'vision', guessed: true }, { feature: 'tools', guessed: true }]);
+  it('a catalog match by a similar name gives only inputs and outputs, marked a guess; never tools or a context window', () => {
+    catalog({ input: ['text', 'image'], output: ['text'], tools: true, contextTokens: 128_000 }, false);
+    const profile = profileOf('local:127.0.0.1:8000', { id: 'gemma4:31b' });
+    expect(profile).toMatchObject({ input: ['text', 'image'], tools: false, contextTokens: null });
+    expect(featuresOf(profile)).toEqual([{ feature: 'vision', guessed: true }]);
   });
 
   it('what the provider\'s list reports beats models.dev, fact by fact', () => {
@@ -64,7 +64,7 @@ describe('profileOf — first source to state a fact wins', () => {
 
   it('the user\'s corrections beat every source', () => {
     catalog({ input: ['text', 'audio'], output: ['text'], tools: true });
-    const profile = profileOf('openai', { id: 'gpt', reported: { reasoning: true }, overrides: { tools: false, input: ['text'] } });
+    const profile = profileOf('openai', { id: 'gpt', reported: { reasoning: true }, overrides: { tools: false, audio: false } });
     expect(profile).toMatchObject({ input: ['text'], tools: false, reasoning: true, sourceOf: { input: 'user', tools: 'user', reasoning: 'provider' } });
     expect(featuresOf(profile)).toEqual([{ feature: 'thinking', guessed: false }]);
   });

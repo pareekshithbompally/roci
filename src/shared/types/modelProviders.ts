@@ -31,6 +31,14 @@ export type ModelReport = {
   contextTokens?: number
 }
 
+/** The user's corrections from a model's ⋯ menu; each set one wins over every source, the rest come from the sources. */
+export type ModelOverrides = {
+  vision?: boolean
+  audio?: boolean
+  tools?: boolean
+  reasoning?: boolean
+}
+
 export type Model = {
   id: string
   model?: string
@@ -42,8 +50,7 @@ export type Model = {
   settings?: Record<string, ProviderSetting>
   /** What its provider's model list reports (a cloud list or a server's), refreshed on Test, Add and each server probe. */
   reported?: ModelReport
-  /** The user's corrections from the model's ⋯ menu; each stated fact wins over every source. */
-  overrides?: ModelReport
+  overrides?: ModelOverrides
 }
 
 export type ProviderCustomHeader = {
