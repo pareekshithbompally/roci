@@ -50,15 +50,14 @@ export function extractDataBlob(msg: ChatMessage): Record<string, unknown> | und
   const data: Record<string, unknown> = {};
   if (msg.parts !== undefined) data.parts = msg.parts;
   if (msg.meetingRefs !== undefined) data.meetingRefs = msg.meetingRefs;
+  if (msg.meetingContext !== undefined) data.meetingContext = msg.meetingContext;
   if (msg.suggestions !== undefined) data.suggestions = msg.suggestions;
   if (msg.meetingCitations !== undefined) data.meetingCitations = msg.meetingCitations;
   if (msg.webCitations !== undefined) data.webCitations = msg.webCitations;
   if (msg.inlineCitations !== undefined) data.inlineCitations = msg.inlineCitations;
-  if (msg.tokenCount !== undefined) data.tokenCount = msg.tokenCount;
-  if (msg.inputTokenCount !== undefined) data.inputTokenCount = msg.inputTokenCount;
-  if (msg.cacheReadTokens !== undefined) data.cacheReadTokens = msg.cacheReadTokens;
-  if (msg.cacheWriteTokens !== undefined) data.cacheWriteTokens = msg.cacheWriteTokens;
   if (msg.tokensPerSecond !== undefined) data.tokensPerSecond = msg.tokensPerSecond;
+  if (msg.context !== undefined) data.context = msg.context;
+  if (msg.exchange !== undefined) data.exchange = msg.exchange;
   if (msg.state !== undefined) data.state = msg.state;
   if (msg.isError !== undefined) data.isError = msg.isError;
   return Object.keys(data).length > 0 ? data : undefined;

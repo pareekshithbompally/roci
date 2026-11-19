@@ -1,3 +1,4 @@
+import type { ModelMessage } from 'ai';
 import type { AudioCaptureSource } from '@config/audio.config';
 import type { MeetingCitation } from '@extensions/tools/types';
 import type { WebCitation, InlineCitationSpan } from '@services/ai/types';
@@ -134,24 +135,20 @@ export interface ChatMessage {
   parts?: ChatPart[];
   /** Meeting references attached as context for this message */
   meetingRefs?: Array<{ id: string; title: string }>;
+  /** A question's attached meetings as the model read them when they were attached; sent with the question on every later turn. */
+  meetingContext?: string;
   timestamp: number;
   suggestions?: string[];
   provider?: string;
   model?: string;
   state?: 'loading' | 'streaming' | 'complete';
   isError?: boolean;
-  /** Approximate output token count for this message */
-  tokenCount?: number;
-  /** Input (prompt) token count for this message */
-  inputTokenCount?: number;
-  /** Cached input tokens served from KV/prompt cache (subset of inputTokenCount) */
-  cacheReadTokens?: number;
-  /** Tokens written to cache for future reuse */
-  cacheWriteTokens?: number;
   /** Tokens per second during streaming */
   tokensPerSecond?: number;
   /** What the context window holds after this reply: its last model call's prompt (the cached part) and reply, in tokens. */
   context?: ContextTokens;
+  /** The reply as its model produced it (every step's assistant and tool messages, with the provider's own data); later turns send it back to that provider. */
+  exchange?: ModelMessage[];
   /** Meeting citations gathered from tool calls */
   meetingCitations?: MeetingCitation[];
   /** Web search citations attached to this response */

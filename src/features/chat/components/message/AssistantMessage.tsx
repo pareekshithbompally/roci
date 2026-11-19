@@ -91,7 +91,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   id, text, parts, timestamp,
   suggestions, onSuggestionClick, isLastMessage,
   provider, model, state, loadingStatus,
-  tokenCount, inputTokenCount, tokensPerSecond,
+  context, tokensPerSecond,
   meetingCitations,
   isCopied, actions, citationHandlers,
   webCitations, inlineCitations, isError,
@@ -146,8 +146,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
               timestamp={timestamp}
               isLastMessage={isLastMessage}
               isCopied={isCopied}
-              tokenCount={tokenCount}
-              inputTokenCount={inputTokenCount}
+              context={context}
               tokensPerSecond={tokensPerSecond}
               actions={actions}
               meetingCitations={meetingCitations}

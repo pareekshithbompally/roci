@@ -20,8 +20,6 @@ export interface ChatPromptOptions {
   meetingCount: number;
   /** From formatTemporalContext(). */
   temporalContext: string;
-  /** Meetings the user attached to this message, formatted for the model. */
-  attachedMeetings?: string;
 }
 
 const IDENTITY = `You are Roci, the assistant in Roci, a private meeting notes app on the user's Mac, iPhone or iPad. Call yourself Roci.`;
@@ -70,12 +68,12 @@ function toolSections(tools: ChatToolset): string[] {
   );
 }
 
-function attachedSection(attachedMeetings: string | undefined): string | null {
-  if (!attachedMeetings) return null;
-  return `## Meetings the user attached\n\nAnswer from these first, and name the meeting each fact comes from.\n\n${attachedMeetings}`;
+/** Meetings attached to a question, as the question carries them on every turn after. */
+export function attachedMeetingsText(meetings: string): string {
+  return `## Meetings the user attached\n\nAnswer from these first, and name the meeting each fact comes from.\n\n${meetings}`;
 }
 
-export function buildChatSystemPrompt({ tools, meetingCount, temporalContext, attachedMeetings }: ChatPromptOptions): string {
+export function buildChatSystemPrompt({ tools, meetingCount, temporalContext }: ChatPromptOptions): string {
   return [
     IDENTITY,
     meetingsRole(meetingCount),
@@ -83,7 +81,6 @@ export function buildChatSystemPrompt({ tools, meetingCount, temporalContext, at
     SOURCES,
     ...toolSections(tools),
     temporalContext,
-    attachedSection(attachedMeetings),
   ]
     .filter(Boolean)
     .join('\n\n');

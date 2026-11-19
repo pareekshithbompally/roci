@@ -7,7 +7,7 @@ import { cn } from '@shared/ui';
 export const ChatMessage: React.FC<ChatMessageProps> = memo(({
   id, role, text, parts, meetingRefs, timestamp, suggestions, onSuggestionClick,
   isLastMessage = false, provider, model,
-  state = 'complete', loadingStatus, tokenCount, inputTokenCount, tokensPerSecond,
+  state = 'complete', loadingStatus, context, tokensPerSecond,
   meetingCitations,
   isCopied, actions, citationHandlers,
   webCitations, inlineCitations, isError,
@@ -24,7 +24,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({
           suggestions={suggestions} onSuggestionClick={onSuggestionClick}
           isLastMessage={isLastMessage} provider={provider} model={model}
           state={state} loadingStatus={loadingStatus}
-          tokenCount={tokenCount} inputTokenCount={inputTokenCount} tokensPerSecond={tokensPerSecond}
+          context={context} tokensPerSecond={tokensPerSecond}
           meetingCitations={meetingCitations}
           isCopied={isCopied} actions={actions} citationHandlers={citationHandlers}
           webCitations={webCitations} inlineCitations={inlineCitations}
@@ -45,8 +45,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({
     prev.isCopied === next.isCopied &&
     prev.isLastMessage === next.isLastMessage &&
     prev.suggestions === next.suggestions &&
-    prev.tokenCount === next.tokenCount &&
-    prev.inputTokenCount === next.inputTokenCount &&
+    prev.context === next.context &&
     prev.tokensPerSecond === next.tokensPerSecond &&
     prev.meetingCitations === next.meetingCitations &&
     prev.actions === next.actions &&

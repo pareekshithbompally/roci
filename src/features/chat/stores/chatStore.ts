@@ -324,6 +324,15 @@ interface StreamTally {
   firstTextAt: number;
 }
 
+/** The conversation with the question carrying its attached meetings, recorded on it (saved when the reply settles) so
+ *  every later turn sends them with it. */
+function withMeetingContext(reply: Reply, messages: ChatMessage[], meetingContext: string): ChatMessage[] {
+  const question = messages.at(-1);
+  if (!question) return messages;
+  patchMessage(reply.sessionId, question.id, (m) => ({ ...m, meetingContext }));
+  return [...messages.slice(0, -1), { ...question, meetingContext }];
+}
+
 /** Streams the reply into `streamingStore`; every callback is a no-op once the reply is stopped. */
 async function streamReply(reply: Reply, request: ReplyRequest, tally: StreamTally) {
   const { session, question, resolved, settings, providers } = request;
@@ -331,15 +340,12 @@ async function streamReply(reply: Reply, request: ReplyRequest, tally: StreamTal
   const signal = reply.controller.signal;
 
   const context = await contextPipeline.resolve({
-    userMessage: question.text,
-    conversationMessages: session.messages,
     historyItems,
-    settings,
-    providers,
-    manualMeetingRefs: question.meetings,
+    meetingIds: question.meetings.map((m) => m.id),
     signal,
   });
   if (!isLive(reply)) return null;
+  const messages = context.text ? withMeetingContext(reply, session.messages, context.text) : session.messages;
 
   streamingStore.start(reply.messageId);
   let streaming = false;
@@ -356,9 +362,8 @@ async function streamReply(reply: Reply, request: ReplyRequest, tally: StreamTal
 
   return orchestrate(
     {
-      messages: session.messages,
+      messages,
       prompt: {
-        attachedMeetings: context.text || undefined,
         meetingCount: historyItems.length,
         temporalContext: formatTemporalContext(),
       },
@@ -449,12 +454,9 @@ async function generateReply(reply: Reply, request: ReplyRequest): Promise<void>
       text: streamed.text,
       parts: parts.length > 0 ? parts : undefined,
       state: 'complete',
-      tokenCount: usage?.outputTokens,
-      inputTokenCount: usage?.inputTokens,
-      cacheReadTokens: usage?.cacheReadTokens,
-      cacheWriteTokens: usage?.cacheWriteTokens,
       tokensPerSecond: tokensPerSecond(usage?.outputTokens, tally.firstTextAt),
       context: result.context,
+      exchange: result.exchange,
       ...(tally.meetingCitations.length > 0 && { meetingCitations: tally.meetingCitations }),
       ...(tally.webCitations.length > 0 && { webCitations: tally.webCitations }),
       ...(tally.inlineCitations.length > 0 && { inlineCitations: tally.inlineCitations }),

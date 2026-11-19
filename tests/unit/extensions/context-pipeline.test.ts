@@ -25,12 +25,8 @@ const makeProvider = (
 
 const makeInput = (overrides?: Partial<ContextInput>): ContextInput =>
   ({
-    userMessage: 'test',
-    conversationMessages: [],
     historyItems: [],
-    settings: {} as any,
-    providers: [],
-    manualMeetingRefs: [],
+    meetingIds: [],
     ...overrides,
   }) as ContextInput;
 
@@ -203,7 +199,7 @@ describe('ContextPipeline', () => {
       const provider = makeProvider('check', 1, 0.5, 'text');
       pipeline.register(provider);
 
-      const input = makeInput({ userMessage: 'specific query' });
+      const input = makeInput({ meetingIds: ['m-1'] });
       await pipeline.resolve(input);
 
       expect(provider.shouldRun).toHaveBeenCalledWith(input);

@@ -1,14 +1,9 @@
-import type { HistoryItem, ChatMessage, AppSettings } from '@shared/types';
-import type { ModelProvider } from '@shared/types/modelProviders';
-import type { MeetingListItem } from '@services/meetingReferenceService';
+import type { HistoryItem } from '@shared/types';
 
 export interface ContextInput {
-  userMessage: string;
-  conversationMessages: ChatMessage[];
   historyItems: HistoryItem[];
-  settings: AppSettings;
-  providers: ModelProvider[];
-  manualMeetingRefs: MeetingListItem[];
+  /** The meetings attached to the question being asked. */
+  meetingIds: string[];
   signal?: AbortSignal;
 }
 

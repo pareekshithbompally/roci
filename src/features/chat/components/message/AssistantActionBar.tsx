@@ -5,7 +5,7 @@ import type { ReadAloud, ReadAloudState } from '@shared/hooks/useReadAloud';
 import SuggestionsList from './SuggestionsList';
 import SourcesList from './SourcesList';
 import type { ActionProps, CitationHandlers } from './types';
-import type { MeetingCitation, WebCitation } from '@shared/types';
+import type { ContextTokens, MeetingCitation, WebCitation } from '@shared/types';
 import { Tooltip, Tabs, Button, IconButton, Separator, Dot, Text } from '@shared/ui';
 import { platform } from '@platform/index';
 
@@ -18,8 +18,8 @@ interface AssistantActionBarProps {
   timestamp?: number;
   isLastMessage: boolean;
   isCopied?: boolean;
-  tokenCount?: number;
-  inputTokenCount?: number;
+  /** The reply's share of the context window: its last call's prompt and reply. */
+  context?: ContextTokens;
   tokensPerSecond?: number;
   actions: ActionProps;
   meetingCitations?: MeetingCitation[];
@@ -33,7 +33,7 @@ interface AssistantActionBarProps {
 
 const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
   id, text, timestamp, isLastMessage, isCopied,
-  tokenCount, inputTokenCount, tokensPerSecond,
+  context, tokensPerSecond,
   actions, meetingCitations,
   suggestions, onSuggestionClick,
   citationHandlers, webCitations, readAloud,
@@ -95,11 +95,11 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
         {/* Right: icons */}
         <div className="ml-auto flex items-center gap-2">
           {/* Token usage reads on hover only, so it is offered where there is hover (not on touch). */}
-          {!platform.hasTouchScreen && (tokensPerSecond != null || tokenCount != null || inputTokenCount != null) && (
+          {!platform.hasTouchScreen && (tokensPerSecond != null || context) && (
             <Tooltip
               content={[
                 tokensPerSecond != null && `${tokensPerSecond} tok/s`,
-                [inputTokenCount != null && `${inputTokenCount} in`, tokenCount != null && `${tokenCount} out`].filter(Boolean).join(' / '),
+                context && `${context.prompt} in / ${context.reply} out`,
               ].filter(Boolean).join(' · ')}
             >
               <IconButton icon={Gauge} label="Token usage" size="sm" />

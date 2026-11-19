@@ -28,6 +28,20 @@ describe('appleIntelligenceModel (AI SDK v4)', () => {
     expect(result.finishReason.unified).toBe('stop');
   });
 
+  it('reads earlier tool results as the assistant\'s own turn, in order', async () => {
+    generate.mockResolvedValue('ok');
+    await appleIntelligenceModel().doGenerate({
+      prompt: [
+        { role: 'user', content: [{ type: 'text', text: 'What did we decide?' }] },
+        { role: 'assistant', content: [{ type: 'tool-call', toolCallId: 't1', toolName: 'searchMeetings', input: {} }] },
+        { role: 'tool', content: [{ type: 'tool-result', toolCallId: 't1', toolName: 'searchMeetings', output: { type: 'text', value: 'Ship Friday' } }] },
+        { role: 'assistant', content: [{ type: 'text', text: 'We ship Friday.' }] },
+        { role: 'user', content: [{ type: 'text', text: 'Who owns it?' }] },
+      ],
+    });
+    expect(generate).toHaveBeenCalledWith('', 'What did we decide?\n\nsearchMeetings returned:\nShip Friday\n\nWe ship Friday.\n\nWho owns it?', undefined);
+  });
+
   it('plain text when no schema is asked for', async () => {
     generate.mockResolvedValue('ok');
     await appleIntelligenceModel().doGenerate({ prompt: [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }] });

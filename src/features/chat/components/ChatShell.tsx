@@ -265,8 +265,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
                   model={message.model}
                   state={message.state}
                   loadingStatus={message.state === 'loading' ? replyStatus : undefined}
-                  tokenCount={message.tokenCount}
-                  inputTokenCount={message.inputTokenCount}
+                  context={message.context}
                   tokensPerSecond={message.tokensPerSecond}
                   meetingCitations={message.meetingCitations}
                   isCopied={copiedMessageId === message.id}

@@ -1,4 +1,4 @@
-export { buildChatSystemPrompt, FINAL_ANSWER_PROMPT, NO_TOOLS } from './chat.prompt';
+export { attachedMeetingsText, buildChatSystemPrompt, FINAL_ANSWER_PROMPT, NO_TOOLS } from './chat.prompt';
 export type { ChatPromptOptions, ChatToolset } from './chat.prompt';
 
 export { buildTranscriptionPrompt, VERBATIM_TRANSCRIBE_PROMPT } from './transcription.prompt';

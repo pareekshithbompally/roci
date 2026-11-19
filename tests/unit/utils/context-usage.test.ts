@@ -43,8 +43,6 @@ describe('deriveContextUsage', () => {
 
   it('returns null until a reply has measured its context', () => {
     expect(deriveContextUsage([msg()], 1000)).toBeNull();
-    // Billing totals alone (summed over tool steps) never stand in for the window.
-    expect(deriveContextUsage([msg({ inputTokenCount: 900, tokenCount: 50 })], 1000)).toBeNull();
     expect(deriveContextUsage([], 1000)).toBeNull();
   });
 

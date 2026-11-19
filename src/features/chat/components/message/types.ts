@@ -1,5 +1,5 @@
 import type { LoadingStatus } from './loadingStatus';
-import type { ChatPart, MeetingCitation, WebCitation, InlineCitationSpan } from '@shared/types';
+import type { ChatPart, ContextTokens, MeetingCitation, WebCitation, InlineCitationSpan } from '@shared/types';
 
 /** Shared action callbacks — stable via useMemo in parent */
 export interface ActionProps {
@@ -30,8 +30,8 @@ export interface ChatMessageProps {
   /** What the header shows before the first word (label, and a percent when known) */
   loadingStatus?: LoadingStatus;
   isError?: boolean;
-  tokenCount?: number;
-  inputTokenCount?: number;
+  /** The reply's share of the context window (what the gauge reads). */
+  context?: ContextTokens;
   tokensPerSecond?: number;
   meetingCitations?: MeetingCitation[];
   isCopied?: boolean;
@@ -67,8 +67,8 @@ export interface AssistantMessageProps {
   /** What the header shows before the first word (label, and a percent when known) */
   loadingStatus?: LoadingStatus;
   isError?: boolean;
-  tokenCount?: number;
-  inputTokenCount?: number;
+  /** The reply's share of the context window (what the gauge reads). */
+  context?: ContextTokens;
   tokensPerSecond?: number;
   meetingCitations?: MeetingCitation[];
   isCopied?: boolean;

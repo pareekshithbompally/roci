@@ -12,16 +12,12 @@ import type {
 } from '@ai-sdk/provider';
 import { convertToBase64, getTopLevelMediaType } from '@ai-sdk/provider-utils';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
+import { textOf, toolResultText } from '@services/ai/promptText';
 import { mlxCancel, mlxChat, type MlxChatRequest, type MlxChatResult, type MlxMessage } from '@services/mlx.service';
 
 const TEXT_ID = '0';
 
 type Message = LanguageModelV4Prompt[number];
-
-function textOf(message: Message): string {
-  if (message.role === 'system') return message.content;
-  return message.content.flatMap((part) => (part.type === 'text' ? [part.text] : [])).join('\n\n');
-}
 
 /** A user turn's attached images as base64 (inline data only: an on-device model can't fetch a URL or a reference). */
 function imagesOf(message: Message): string[] {
@@ -33,12 +29,6 @@ function imagesOf(message: Message): string[] {
     if (data.type === 'url' && data.url.protocol === 'data:') return [data.url.href.slice(data.url.href.indexOf(',') + 1)];
     return [];
   });
-}
-
-/** A tool result's payload as the model reads it. */
-function resultText(output: unknown): string {
-  const value = (output as { value?: unknown } | null)?.value ?? output;
-  return typeof value === 'string' ? value : JSON.stringify(value);
 }
 
 /** One AI SDK message as MLX turns (a tool message carries one turn per result). */
@@ -57,7 +47,7 @@ function toTurns(message: Message): MlxMessage[] {
     }
     case 'tool':
       return message.content.flatMap((part) =>
-        part.type === 'tool-result' ? [{ role: 'tool' as const, content: resultText(part.output), toolCallId: part.toolCallId, toolName: part.toolName }] : []);
+        part.type === 'tool-result' ? [{ role: 'tool' as const, content: toolResultText(part.output), toolCallId: part.toolCallId, toolName: part.toolName }] : []);
   }
 }
 

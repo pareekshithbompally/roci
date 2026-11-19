@@ -52,6 +52,7 @@ function replyOnce() {
       { usage: { inputTokens: 900, outputTokens: 20 } },
       { usage: { inputTokens: 1_000, outputTokens: 100, inputTokenDetails: { cacheReadTokens: 900 } } },
     ]),
+    responseMessages: Promise.resolve([{ role: 'assistant', content: 'Hi' }]),
   });
 }
 
@@ -93,6 +94,7 @@ describe('orchestrate — context use', () => {
     const result = await run({});
     expect(result.context).toEqual({ prompt: 1_000, cached: 900, reply: 100 });
     expect(result.tokenUsage).toMatchObject({ inputTokens: 1_900, outputTokens: 120 });
+    expect(result.exchange).toEqual([{ role: 'assistant', content: 'Hi' }]);
   });
 });
 

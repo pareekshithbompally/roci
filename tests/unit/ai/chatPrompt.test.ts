@@ -3,7 +3,7 @@ import { buildChatSystemPrompt, NO_TOOLS } from '@core/ai/prompts';
 import type { ChatToolset } from '@core/ai/prompts';
 
 const base = { meetingCount: 2, temporalContext: 'Current date: 2026-11-18 (Wednesday).' };
-const prompt = (tools: Partial<ChatToolset> = {}, extra: { attachedMeetings?: string; meetingCount?: number } = {}) =>
+const prompt = (tools: Partial<ChatToolset> = {}, extra: { meetingCount?: number } = {}) =>
   buildChatSystemPrompt({ ...base, ...extra, tools: { ...NO_TOOLS, ...tools } });
 
 describe('buildChatSystemPrompt', () => {
@@ -30,8 +30,7 @@ describe('buildChatSystemPrompt', () => {
     expect(text).toContain('## Meetings, to-dos and past chats');
   });
 
-  it('adds attached meetings only when there are some', () => {
+  it('leaves attached meetings to the questions that carry them', () => {
     expect(prompt()).not.toContain('## Meetings the user attached');
-    expect(prompt({}, { attachedMeetings: 'Weekly sync: ship Friday' })).toContain('## Meetings the user attached\n\nAnswer from these first');
   });
 });

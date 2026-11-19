@@ -1,7 +1,7 @@
 /** Agentic tool loop: one streamText call where the LLM picks tools; called only by chatStore.sendMessage(). */
 
 import { streamText, isStepCount } from 'ai';
-import type { TextStreamPart, ToolSet } from 'ai';
+import type { ModelMessage, TextStreamPart, ToolSet } from 'ai';
 import { createModel, reasoningCallSettings, toSDKMessages, getWebSearchTools, toExecutableTools } from '@services/ai';
 import { getProviderType, resolveChatModel, requiresApiKey } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
@@ -153,7 +153,7 @@ async function followLoad(resolved: ResolvedModel, llamaServer: boolean, showPro
 export async function orchestrate(
   options: OrchestratorOptions,
   callbacks: OrchestratorCallbacks,
-): Promise<{ provider?: string; model?: string; tokenUsage?: TokenUsage; context?: ContextTokens }> {
+): Promise<{ provider?: string; model?: string; tokenUsage?: TokenUsage; context?: ContextTokens; exchange: ModelMessage[] }> {
   const { messages, prompt, settings, providers, signal, reasoningEffort } = options;
   const { onChunk } = callbacks;
 
@@ -175,7 +175,7 @@ export async function orchestrate(
       model: createModel(resolved, { webSearch: !!webSearchTools, ...(reportsProgress && { llamaServer: { reasoningEffort } }) }),
       ...reasoningCallSettings(resolved, reasoningEffort),
       instructions: systemPrompt,
-      messages: toSDKMessages(messages),
+      messages: toSDKMessages(messages, { tools: !!tools }),
       abortSignal: signal,
       includeRawChunks: reportsProgress,
       ...(tools && {
@@ -200,6 +200,7 @@ export async function orchestrate(
       model: resolved.modelId,
       tokenUsage: extractTokenUsage(await result.usage),
       context: contextOf((await result.steps).at(-1)?.usage),
+      exchange: await result.responseMessages,
     };
   } finally {
     stopFollowingLoad();
