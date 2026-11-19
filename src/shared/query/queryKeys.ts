@@ -10,6 +10,9 @@ export const queryKeys = {
   /** Dictations made in the app (Dictations). */
   dictations: () => ['dictations'] as const,
   meetings: () => ['meetings'] as const,
+  /** Calendar events (EventKit) in one range on screen, by ISO start/end; all of them reread on `calendar://changed` */
+  calendarEvents: (start: string, end: string) => ['calendar-events', start, end] as const,
+  calendarEventsAll: () => ['calendar-events'] as const,
   /** One meeting's stats (length, words, models); under `meetings` so every meeting write refreshes it */
   meetingStats: (meetingId: string) => ['meetings', 'stats', meetingId] as const,
   recordingAudio: (fileName: string) => ['recording-audio', fileName] as const,

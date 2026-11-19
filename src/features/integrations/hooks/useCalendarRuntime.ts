@@ -15,6 +15,8 @@ import {
 } from '@services/calendar';
 import type { CalendarEvent } from '@services/calendar';
 import { DEFAULT_NOTIFICATION_SETTINGS } from '@config/notifications.config';
+import { queryClient } from '@shared/query/queryClient';
+import { queryKeys } from '@shared/query/queryKeys';
 
 export function useCalendarRuntime(): void {
   const { settings } = useSettings();
@@ -39,6 +41,14 @@ export function useCalendarRuntime(): void {
     if (!enabled) return;
     calendarService.startWatching();
     return () => calendarService.stopWatching();
+  }, [enabled]);
+
+  // Every week on screen or cached rereads when the calendar changes (native event, no polling)
+  useEffect(() => {
+    if (!enabled) return;
+    return calendarService.onCalendarChanged(() => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.calendarEventsAll() });
+    });
   }, [enabled]);
 
   // Native calendar reading follows the integration; reminders follow their own setting

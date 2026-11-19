@@ -78,6 +78,20 @@ class CalendarService {
     }
   }
 
+  /** `calendar://changed` (EventKit change, new day, clock change, wake) runs `handler`; returns the unsubscribe. */
+  onCalendarChanged(handler: () => void): () => void {
+    if (!isTauriEnvironment()) return () => undefined;
+    let unlisten: UnlistenFn | undefined;
+    let disposed = false;
+    listen(CALENDAR_CONFIG.changedEvent, handler)
+      .then((fn) => (disposed ? fn() : (unlisten = fn)))
+      .catch((error: unknown) => console.error('[CalendarService] Listening for calendar changes failed:', error));
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }
+
   // ─── Event cache (for UI consumption) ────────────────────────────
 
   getCachedEvents(): EnrichedCalendarEvent[] {
