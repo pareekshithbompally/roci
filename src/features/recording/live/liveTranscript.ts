@@ -4,8 +4,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { MEETING_LIVE_CONFIG as LIVE, type MeetingSourceId } from '@config/meetingLive.config';
-import { runTranscription, speechSelectionOf } from '@services/ai/transcription';
 import type { TranscriptResult } from '@services/ai/transcription';
+import { transcribeAudio } from '@services/unifiedAIService';
+import { errorMessage } from '@shared/utils/errors';
 import { encodeWavInt16 } from '@shared/utils/wav.utils';
 import type { AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
@@ -28,13 +29,22 @@ interface LiveChunk {
   /** Leading audio the previous chunk already covered (a hard cut); its words are spliced away at the seam. */
   overlapMs: number;
   pcm: string;
+  /** This source's chunks sent before this one; a number skipped is a chunk never received. */
+  seq: number;
 }
+
+/** The end of a recording's chunks: how many each source sent. */
+type LiveDone = Record<MeetingSourceId, number>;
 
 interface Session {
   meetingId: string;
   entries: LiveEntry[];
-  /** A chunk failed or was shed: the in-call transcript is incomplete, so the recording is transcribed after Stop. */
+  /** A chunk failed, was shed or never arrived: the in-call transcript is incomplete, so the recording is transcribed after Stop. */
   failed: boolean;
+  /** The next chunk number expected from each source. */
+  expected: Record<MeetingSourceId, number>;
+  /** Stops the chunk being transcribed when the session is dropped. */
+  controller: AbortController;
   /** Chunks not yet started, in arrival order. */
   waiting: LiveChunk[];
   /** The loop transcribing `waiting` one chunk at a time; null when idle. */
@@ -60,27 +70,41 @@ function wavOf(pcm: string): Blob {
   return new Blob([encodeWavInt16(samples, LIVE.sampleRate)], { type: 'audio/wav' });
 }
 
-/** A chunk was lost: the in-call transcript has a gap, which the screen says and the pipeline repairs after Stop. */
-function markFailed(current: Session): void {
+/** A chunk was lost: the in-call transcript has a gap, which the screen says (with why, when there is a reason to fix) and the
+ *  pipeline repairs after Stop. */
+function markFailed(current: Session, reason?: string): void {
   current.failed = true;
-  if (session === current) meetingLiveActions.fail();
+  if (session === current) meetingLiveActions.fail(reason);
 }
 
+/** Each source's chunks arrive numbered 0, 1, 2…; a number skipped is a chunk this window never got. */
+function checkSequence(current: Session, chunk: LiveChunk): void {
+  if (chunk.seq !== current.expected[chunk.source]) markFailed(current);
+  current.expected[chunk.source] = chunk.seq + 1;
+}
+
+/** The end: a source that sent more than arrived lost its last chunks. */
+function checkTotals(current: Session, sent: LiveDone | null): void {
+  const lost = (['microphone', 'system'] as const).some((source) => (sent?.[source] ?? 0) !== current.expected[source]);
+  if (lost) markFailed(current);
+}
+
+/** Through the one transcription entry (usage, model checks, cancel); a silent chunk is simply no lines. */
 async function transcribeChunk(current: Session, chunk: LiveChunk, read: Reader): Promise<void> {
   const { settings, providers } = read();
-  const selection = speechSelectionOf(settings);
-  if (!selection) {
-    markFailed(current);
-    return;
-  }
   try {
-    const result = await runTranscription(wavOf(chunk.pcm), selection, providers);
+    const result = await transcribeAudio(wavOf(chunk.pcm), settings, providers, {
+      signal: current.controller.signal,
+      meetingId: current.meetingId,
+      silence: 'empty',
+    });
     if (session !== current) return;
     current.entries.push(...spliceChunk(current.entries, chunk, chunkEntries(chunk, result)));
     meetingLiveActions.set(await withoutEcho(current.entries));
   } catch (error: unknown) {
+    if (current.controller.signal.aborted) return;
     console.error('[liveTranscript] chunk failed:', error);
-    markFailed(current);
+    markFailed(current, errorMessage(error));
   }
 }
 
@@ -147,6 +171,7 @@ async function drain(current: Session, read: Reader): Promise<void> {
 }
 
 function enqueue(current: Session, chunk: LiveChunk, read: Reader): void {
+  checkSequence(current, chunk);
   const { kept, shed } = shedBacklog([...current.waiting, chunk]);
   current.waiting = kept;
   if (shed > 0) current.failed = true;
@@ -245,16 +270,37 @@ export function liveTranscriptResult(entries: LiveEntry[]): TranscriptResult {
   return { text: segments.map((s) => s.text).join(' '), segments };
 }
 
+/** The recorder's end-of-chunks, or — if it never comes — the deadline after Stop, past which the in-call transcript counts as
+ *  incomplete (the recording is transcribed instead). One timer, cleared when the end arrives. */
+async function untilDoneOrTimeout(current: Session): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<void>((resolve) => {
+    timer = setTimeout(() => {
+      markFailed(current);
+      resolve();
+    }, LIVE.doneTimeoutMs);
+  });
+  await Promise.race([current.done, timedOut]);
+  clearTimeout(timer);
+}
+
 export const liveTranscript = {
   /** Starts listening for a recording's chunks; any earlier session (an abandoned recording) is dropped. */
   async start(meetingId: string, read: Reader): Promise<void> {
     session?.unlisten();
+    session?.controller.abort();
     meetingLiveActions.start(meetingId);
     let finished: () => void = () => undefined;
-    const current: Session = { meetingId, entries: [], failed: false, waiting: [], draining: null, done: new Promise((r) => { finished = r; }), unlisten: () => undefined };
+    const current: Session = {
+      meetingId, entries: [], failed: false, expected: { microphone: 0, system: 0 }, controller: new AbortController(),
+      waiting: [], draining: null, done: new Promise((r) => { finished = r; }), unlisten: () => undefined,
+    };
     session = current;
     const offChunk = await listen<LiveChunk>(LIVE.chunkEvent, ({ payload }) => enqueue(current, payload, read));
-    const offDone = await listen(LIVE.doneEvent, () => finished());
+    const offDone = await listen<LiveDone | null>(LIVE.doneEvent, ({ payload }) => {
+      checkTotals(current, payload);
+      finished();
+    });
     current.unlisten = () => { offChunk(); offDone(); };
   },
 
@@ -267,7 +313,7 @@ export const liveTranscript = {
   async finish(meetingId: string): Promise<LiveOutcome | null> {
     const current = session;
     if (!current || current.meetingId !== meetingId) return null;
-    await current.done;
+    await untilDoneOrTimeout(current);
     while (current.draining) await current.draining;
     current.unlisten();
     session = null;

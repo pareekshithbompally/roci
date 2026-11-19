@@ -13,15 +13,18 @@ interface MeetingLiveState {
   live: boolean;
   /** A chunk couldn't be transcribed: the in-call transcript has a gap, the full one is made after Stop. */
   failed: boolean;
+  /** Why, when there is something to fix (a speech model to choose, a key to add); empty when it simply fell behind. */
+  reason: string;
 }
 
-export const useMeetingLiveStore = create<MeetingLiveState>(() => ({ meetingId: null, entries: [], pending: 0, live: false, failed: false }));
+export const useMeetingLiveStore = create<MeetingLiveState>(() => ({ meetingId: null, entries: [], pending: 0, live: false, failed: false, reason: '' }));
 
 export const meetingLiveActions = {
-  start: (meetingId: string) => useMeetingLiveStore.setState({ meetingId, entries: [], pending: 0, live: true, failed: false }),
+  start: (meetingId: string) => useMeetingLiveStore.setState({ meetingId, entries: [], pending: 0, live: true, failed: false, reason: '' }),
   set: (entries: LiveEntry[]) => useMeetingLiveStore.setState({ entries }),
   pending: (pending: number) => useMeetingLiveStore.setState({ pending }),
-  fail: () => useMeetingLiveStore.setState({ failed: true }),
+  /** The first reason given stays: it is the one to fix. */
+  fail: (reason?: string) => useMeetingLiveStore.setState((s) => ({ failed: true, reason: s.reason || reason || '' })),
   /** The recording ended: its entries stay as the draft transcript. */
   end: () => useMeetingLiveStore.setState({ pending: 0, live: false }),
 };

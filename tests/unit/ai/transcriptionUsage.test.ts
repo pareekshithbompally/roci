@@ -33,7 +33,7 @@ describe('transcribeAudio usage', () => {
   it('logs a transcription row against the speech model when the engine reports tokens', async () => {
     const usage = { inputTokens: 900, outputTokens: 50 };
     runTranscription.mockResolvedValue({ text: 'hello', segments: [], usage });
-    await transcribeAudio(audioBlob(), settings, [], {}, 'mtg-1');
+    await transcribeAudio(audioBlob(), settings, [], { meetingId: 'mtg-1' });
     expect(recordUsage).toHaveBeenCalledWith('transcription', { provider: 'hex', modelId: 'parakeet_unified_en' }, usage, 'mtg-1');
   });
 

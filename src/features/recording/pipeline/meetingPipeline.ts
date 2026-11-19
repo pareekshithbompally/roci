@@ -111,7 +111,7 @@ const transcribeRecording = (id: string, context: PipelineContext): StepWork => 
   const meeting = await meetingOrThrow(id);
   const audio = await loadRecording(meeting.index.recordingFileName);
   const onProgress = (part: { current: number; total: number }) => meetingProgress.set(id, part);
-  const result = await transcribeAudio(audio, context.settings, context.providers, { signal, onProgress }, id);
+  const result = await transcribeAudio(audio, context.settings, context.providers, { signal, onProgress, meetingId: id });
   const { formatted, segments } = formatTranscript(result);
   await transcriptionService.saveTranscript({ meetingId: id, text: formatted, segments, model: speechModelOf(context) });
 };

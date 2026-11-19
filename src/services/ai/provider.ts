@@ -7,6 +7,8 @@ import { createGoogle } from '@ai-sdk/google';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createMistral } from '@ai-sdk/mistral';
 import { createGroq, groq } from '@ai-sdk/groq';
+import { createDeepgram } from '@ai-sdk/deepgram';
+import { createElevenLabs } from '@ai-sdk/elevenlabs';
 import { anthropic } from '@ai-sdk/anthropic';
 import { google } from '@ai-sdk/google';
 import { openai } from '@ai-sdk/openai';
@@ -20,7 +22,7 @@ import { llamaServerRequestBody } from '@services/ai/llamaServer';
 import { getProviderType } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { ReasoningEffort } from '@shared/types';
-import type { ImageModel, LanguageModel, LanguageModelCallOptions, SpeechModel, streamText, ToolSet } from 'ai';
+import type { ImageModel, LanguageModel, LanguageModelCallOptions, SpeechModel, streamText, ToolSet, TranscriptionModel } from 'ai';
 
 /** Extract custom headers from provider config (for OpenRouter, etc.) */
 function buildCustomHeaders(providerConfig: ResolvedModel['providerConfig']): Record<string, string> {
@@ -116,6 +118,22 @@ export function createSpeechModel(resolved: ResolvedModel): SpeechModel {
       return createGoogle({ apiKey: resolved.apiKey, fetch }).speech(resolved.modelId);
     default:
       throw new Error(`${resolved.provider} has no voice models.`);
+  }
+}
+
+/** The speech-to-text API families an AI SDK transcription model can be built for. */
+export type TranscriptionFamily = 'openai-compatible' | 'deepgram' | 'elevenlabs';
+
+/** A cloud speech-to-text model (audio in, text out), built here like every other model. */
+export function createTranscriptionModel(family: TranscriptionFamily, resolved: ResolvedModel): TranscriptionModel {
+  const fetch = getPlatformFetch();
+  switch (family) {
+    case 'openai-compatible':
+      return createOpenAI({ apiKey: resolved.apiKey, baseURL: resolved.baseUrl || undefined, fetch }).transcription(resolved.modelId);
+    case 'deepgram':
+      return createDeepgram({ apiKey: resolved.apiKey, fetch }).transcription(resolved.modelId);
+    case 'elevenlabs':
+      return createElevenLabs({ apiKey: resolved.apiKey, fetch }).transcription(resolved.modelId);
   }
 }
 

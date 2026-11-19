@@ -54,6 +54,7 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
   const busy = useRecordingBusy();
   const segments = useDraftSegments(meetingId);
   const failed = useMeetingLiveStore((s) => s.failed);
+  const reason = useMeetingLiveStore((s) => s.reason);
   const bullets = useLiveNotesStore((s) => s.bullets);
   const updating = useLiveNotesStore((s) => s.updating);
   const { settings } = useSettings();
@@ -62,11 +63,12 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
   const { type, flush, hasModel } = useLiveNotes(meetingId, true);
 
   const title = items.find((item) => item.id === meetingId)?.title ?? 'Recording';
+  const unavailable = [LIVE.copy.unavailable, reason].filter(Boolean).join(' ');
   const transcript: WorkspaceTranscript = {
     label: NOTES.copy.liveTranscript,
     segments,
-    empty: failed ? LIVE.copy.unavailable : speechSelectionOf(settings) ? LIVE.copy.empty : LIVE.copy.noModel,
-    footer: failed ? LIVE.copy.unavailable : paused ? undefined : LIVE.copy.listening,
+    empty: failed ? unavailable : speechSelectionOf(settings) ? LIVE.copy.empty : LIVE.copy.noModel,
+    footer: failed ? unavailable : paused ? undefined : LIVE.copy.listening,
     follow: true,
   };
 

@@ -8,6 +8,9 @@ export const MEETING_LIVE_CONFIG = {
   sampleRate: 16_000,
   /** The speaker label of each source in the transcript. */
   speakers: { microphone: 'You', system: 'Others' },
+  /** After Stop, how long to wait for the recorder's last chunks before giving up on them; the full recording is then
+   *  transcribed instead (ms). */
+  doneTimeoutMs: 15_000,
   /** A source with more audio than this waiting to be transcribed drops its oldest chunks to catch up (ms). */
   maxBacklogMs: 120_000,
   /** A hard-cut chunk's re-heard start: up to this many words matching the end of the previous line, found within the first

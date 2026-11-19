@@ -16,6 +16,7 @@ import type { TokenUsage } from './ai/types';
 import { recordUsage } from '@extensions/usage';
 import { modalitiesService } from '@services/modalities';
 import { requireSummaryModel } from '@services/ai/jobModel';
+import { AiError } from '@services/ai/errors';
 import type { MeetingContext, UserNote } from '@core/ai/prompts/transcription.prompt';
 import { store } from '@services/db';
 import type { AnalysisResult } from '@core/ai/schemas/transcription.schema';
@@ -36,10 +37,12 @@ export interface SummaryOptions {
   signal?: AbortSignal;
 }
 
-const assertAudioSize = (blob: Blob): void => {
+/** A whole recording must hold real audio; a live chunk may be short (the tail at Stop) — only the size limit applies. */
+const assertAudioSize = (blob: Blob, whole: boolean): void => {
   if (blob.size > MAX_AUDIO_SIZE_BYTES) {
     throw new Error(`Recording is too large (${(blob.size / (1024 * 1024)).toFixed(2)}MB). Limit is ${MAX_AUDIO_SIZE_MB}MB.`);
   }
+  if (!whole) return;
   if (blob.size <= WAV_HEADER_SIZE_BYTES) {
     throw new Error('Recording contains no audio data — the file is empty. This usually means audio capture failed silently. Please check your audio permissions in System Settings → Privacy & Security → Screen & System Audio Recording and try again.');
   }
@@ -48,31 +51,39 @@ const assertAudioSize = (blob: Blob): void => {
   }
 };
 
+/** How a transcription is run: its cancel signal and progress, the meeting its usage row belongs to, and what silence means —
+ *  an error for a whole recording (nothing to summarize), nothing at all for a live chunk (a pause in the meeting). */
+export interface TranscribeAudioOptions extends TranscribeOptions {
+  meetingId?: string;
+  silence?: 'error' | 'empty';
+}
+
+/** The one way audio becomes text, for whole recordings and live chunks alike: checks the speech model is chosen and on,
+ *  transcribes, and records usage. */
 export async function transcribeAudio(
   audioBlob: Blob,
   settings: AppSettings,
   providers: ModelProvider[],
-  options: TranscribeOptions = {},
-  meetingId?: string,
+  { meetingId, silence = 'error', ...options }: TranscribeAudioOptions = {},
 ): Promise<TranscriptResult> {
   const selection = speechSelectionOf(settings);
   if (!selection) {
-    throw new Error('Choose a transcription model in Settings › Default Models.');
+    throw new AiError('setup', 'Choose a transcription model in Settings › Default Models.');
   }
   const integration = TRANSCRIPTION_CONFIG.integrationByProvider[selection.provider];
   if (integration && !isIntegrationEnabled(settings, integration)) {
     const name = getProviderTitle(selection.provider);
-    throw new Error(`${name} is off in ${integrationSettingsPath(integration)}. Turn it on, or choose another transcription model.`);
+    throw new AiError('setup', `${name} is off in ${integrationSettingsPath(integration)}. Turn it on, or choose another transcription model.`);
   }
-  assertAudioSize(audioBlob);
+  assertAudioSize(audioBlob, silence === 'error');
   // An audio model chosen via models.dev resolves its adapter from the catalog.
   await modalitiesService.ensureLoaded();
   const result = await runTranscription(audioBlob, selection, providers, options);
   if (result.usage) {
     recordUsage('transcription', { provider: selection.provider, modelId: selection.model }, result.usage, meetingId);
   }
-  // No speech is an error so the analyzer can't invent a meeting from silence; dictation treats it as empty.
-  if (!result.text.trim()) {
+  // No speech in a whole recording is an error, so the analyzer can't invent a meeting from silence.
+  if (silence === 'error' && !result.text.trim()) {
     throw new Error('No speech detected in this recording — transcription skipped.');
   }
   return result;

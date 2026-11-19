@@ -9,16 +9,15 @@ vi.mock('@tauri-apps/api/event', () => ({
 }));
 const runTranscription = vi.hoisted(() => vi.fn());
 vi.mock('@tauri-apps/api/core', () => ({ invoke: async () => [] }));
-vi.mock('@services/ai/transcription', () => ({
-  runTranscription,
-  speechSelectionOf: () => ({ provider: 'openai', model: 'whisper-1' }),
-}));
+// live chunks go through the one transcription entry
+vi.mock('@services/unifiedAIService', () => ({ transcribeAudio: runTranscription }));
 
 import { chunkEntries, liveTranscript, liveTranscriptResult, shedBacklog, spliceSeam, suppressEcho, type LiveEntry } from '@features/recording/live/liveTranscript';
 import { useMeetingLiveStore } from '@features/recording/live/meetingLiveStore';
 
 const read = () => ({ settings: {} as never, providers: [] });
-const chunk = (source: string, startMs: number, endMs: number, overlapMs = 0) => ({ source, startMs, endMs, overlapMs, pcm: btoa('\0\0\0\0') });
+const chunk = (source: string, startMs: number, endMs: number, overlapMs = 0, seq = 0) => ({ source, startMs, endMs, overlapMs, pcm: btoa('\0\0\0\0'), seq });
+const sent = (microphone: number, system = 0) => ({ payload: { microphone, system } });
 const entry = (source: LiveEntry['source'], startMs: number, endMs: number, text: string, timed = false): LiveEntry => ({ source, startMs, endMs, text, timed });
 
 beforeEach(() => {
@@ -67,7 +66,7 @@ describe('in-call transcript', () => {
     await liveTranscript.start('m1', read);
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 6_000) });
     handlers.get('meeting-live://chunk')?.({ payload: chunk('system', 6_000, 12_000) });
-    handlers.get('meeting-live://done')?.({ payload: null });
+    handlers.get('meeting-live://done')?.(sent(1, 1));
     const outcome = await liveTranscript.finish('m1');
     expect(outcome).toEqual({ complete: true, entries: [entry('microphone', 0, 6_000, 'First.'), entry('system', 6_000, 12_000, 'Second.')] });
     // the entries stay as the meeting's draft transcript until the next recording
@@ -85,8 +84,8 @@ describe('in-call transcript', () => {
       .mockResolvedValueOnce({ text: 'Friday if QA signs off', segments: [] });
     await liveTranscript.start('m3', read);
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 10_000) });
-    handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 8_000, 14_000, 2_000) });
-    handlers.get('meeting-live://done')?.({ payload: null });
+    handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 8_000, 14_000, 2_000, 1) });
+    handlers.get('meeting-live://done')?.(sent(2));
     const outcome = await liveTranscript.finish('m3');
     expect(outcome?.entries.map((e) => e.text)).toEqual(['we ship on Friday if QA', 'signs off']);
   });
@@ -103,8 +102,40 @@ describe('in-call transcript', () => {
     runTranscription.mockRejectedValueOnce(new Error('rate limited'));
     await liveTranscript.start('m2', read);
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 6_000) });
-    handlers.get('meeting-live://done')?.({ payload: null });
+    handlers.get('meeting-live://done')?.(sent(1));
     expect(await liveTranscript.finish('m2')).toMatchObject({ complete: false });
+    expect(useMeetingLiveStore.getState()).toMatchObject({ failed: true, reason: 'rate limited' });
+  });
+
+  it('a chunk number skipped (never received) marks the transcript incomplete', async () => {
+    runTranscription.mockResolvedValue({ text: 'Hi.', segments: [] });
+    await liveTranscript.start('m4', read);
+    handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 6_000, 0, 0) });
+    handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 12_000, 18_000, 0, 2) });
+    handlers.get('meeting-live://done')?.(sent(3));
+    expect(await liveTranscript.finish('m4')).toMatchObject({ complete: false });
+  });
+
+  it('a last chunk lost before the end marks the transcript incomplete', async () => {
+    runTranscription.mockResolvedValue({ text: 'Hi.', segments: [] });
+    await liveTranscript.start('m5', read);
+    handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 6_000) });
+    handlers.get('meeting-live://done')?.(sent(2));
+    expect(await liveTranscript.finish('m5')).toMatchObject({ complete: false });
+  });
+
+  it('an end that never comes stops the wait at the deadline, and the recording is transcribed instead', async () => {
+    vi.useFakeTimers();
+    try {
+      runTranscription.mockResolvedValue({ text: 'Hi.', segments: [] });
+      await liveTranscript.start('m6', read);
+      handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 6_000) });
+      const finishing = liveTranscript.finish('m6');
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(await finishing).toMatchObject({ complete: false });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('a recording without a session has nothing to give', async () => {

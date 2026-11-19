@@ -1,12 +1,8 @@
 /** One adapter per speech API family, each taking one 16 kHz mono WAV part and returning its text and segments. */
 
 import { experimental_transcribe as transcribe, generateText } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
-import { createDeepgram } from '@ai-sdk/deepgram';
-import { createElevenLabs } from '@ai-sdk/elevenlabs';
-import { createModel } from '@services/ai/provider';
+import { createModel, createTranscriptionModel } from '@services/ai/provider';
 import { extractTokenUsage } from '@services/ai/types';
-import { getPlatformFetch } from '@services/platform-fetch';
 import { VERBATIM_TRANSCRIBE_PROMPT } from '@core/ai/prompts/transcription.prompt';
 import { hexTranscribePart } from './hex';
 import { appleSpeechTranscribePart } from './appleSpeech';
@@ -59,11 +55,9 @@ const viaMultimodalPrompt: TranscribePart = async (request): Promise<TranscriptR
 };
 
 export const ADAPTERS: Record<TranscriptionAdapterId, TranscribePart> = {
-  'openai-compatible': viaSDK((r) =>
-    createOpenAI({ apiKey: r.apiKey, baseURL: r.baseUrl || undefined, fetch: getPlatformFetch() }).transcription(r.modelId),
-  ),
-  deepgram: viaSDK((r) => createDeepgram({ apiKey: r.apiKey, fetch: getPlatformFetch() }).transcription(r.modelId)),
-  elevenlabs: viaSDK((r) => createElevenLabs({ apiKey: r.apiKey, fetch: getPlatformFetch() }).transcription(r.modelId)),
+  'openai-compatible': viaSDK((r) => createTranscriptionModel('openai-compatible', r)),
+  deepgram: viaSDK((r) => createTranscriptionModel('deepgram', r)),
+  elevenlabs: viaSDK((r) => createTranscriptionModel('elevenlabs', r)),
   multimodal: viaMultimodalPrompt,
   hex: hexTranscribePart,
   'apple-speech': appleSpeechTranscribePart,

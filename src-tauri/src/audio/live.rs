@@ -54,6 +54,15 @@ struct LiveChunk {
     overlap_ms: u64,
     /// 16 kHz mono 16-bit little-endian PCM, base64.
     pcm: String,
+    /// This source's chunks sent before this one (0, 1, 2…): a number the webview skips is a chunk it never got.
+    seq: u64,
+}
+
+/// The end of a recording's chunks: how many each source sent, so a chunk lost at the very end is noticed too.
+#[derive(Clone, Serialize)]
+struct LiveDone {
+    microphone: u64,
+    system: u64,
 }
 
 #[derive(Debug)]
@@ -140,6 +149,8 @@ struct Source {
     origin_ms: u64,
     /// 16 kHz samples fed so far, dropouts counted as silence.
     fed: usize,
+    /// Chunks sent so far.
+    sent: u64,
 }
 
 impl Source {
@@ -158,12 +169,15 @@ impl Source {
         self.chunker.push(samples)
     }
 
-    /// The chunks worth sending (silence never is), as events.
-    fn events(&self, source: MeetingSource, chunks: Vec<Chunk>) -> Vec<LiveChunk> {
-        chunks.iter().filter(|c| !c.is_silent()).map(|c| self.event(source, c)).collect()
+    /// The chunks worth sending (silence never is), as events numbered in order.
+    fn events(&mut self, source: MeetingSource, chunks: Vec<Chunk>) -> Vec<LiveChunk> {
+        let chunks: Vec<Chunk> = chunks.into_iter().filter(|c| !c.is_silent()).collect();
+        chunks.iter().map(|c| self.event(source, c)).collect()
     }
 
-    fn event(&self, source: MeetingSource, chunk: &Chunk) -> LiveChunk {
+    fn event(&mut self, source: MeetingSource, chunk: &Chunk) -> LiveChunk {
+        let seq = self.sent;
+        self.sent += 1;
         let bytes: Vec<u8> = chunk.samples.iter().flat_map(|s| ((s.clamp(-1.0, 1.0) * i16::MAX as f32) as i16).to_le_bytes()).collect();
         LiveChunk {
             source,
@@ -171,6 +185,7 @@ impl Source {
             end_ms: self.ms(chunk.start + chunk.samples.len()),
             overlap_ms: (chunk.overlap * 1_000 / RATE) as u64,
             pcm: base64::engine::general_purpose::STANDARD.encode(bytes),
+            seq,
         }
     }
 }
@@ -203,7 +218,7 @@ impl LiveChunker {
         };
         if slot.is_none() {
             match StreamingResampler::new(packet.sample_rate) {
-                Ok(resampler) => *slot = Some(Source { resampler, chunker: Chunker::default(), origin_ms: packet.arrival_us / 1_000, fed: 0 }),
+                Ok(resampler) => *slot = Some(Source { resampler, chunker: Chunker::default(), origin_ms: packet.arrival_us / 1_000, fed: 0, sent: 0 }),
                 Err(error) => {
                     log::warn!("[meeting-live] no resampler for {} Hz: {error}", packet.sample_rate);
                     return;
@@ -225,13 +240,18 @@ impl LiveChunker {
 
 impl Drop for LiveChunker {
     fn drop(&mut self) {
+        let mut done = LiveDone { microphone: 0, system: 0 };
         for (kind, source) in [(MeetingSource::Microphone, self.microphone.take()), (MeetingSource::System, self.system.take())] {
             let Some(mut source) = source else { continue };
             let tail = std::mem::take(&mut source.chunker).finish();
             let events = source.events(kind, tail.into_iter().collect());
             self.send(events);
+            match kind {
+                MeetingSource::Microphone => done.microphone = source.sent,
+                MeetingSource::System => done.system = source.sent,
+            }
         }
-        if let Err(error) = self.app.emit(DONE_EVENT, ()) {
+        if let Err(error) = self.app.emit(DONE_EVENT, done) {
             log::warn!("[meeting-live] done event failed: {error}");
         }
     }
@@ -280,7 +300,7 @@ mod tests {
 
     #[test]
     fn a_dropout_counts_as_silence_so_the_timeline_holds() {
-        let source = Source { resampler: StreamingResampler::new(SAMPLE_RATE).unwrap(), chunker: Chunker::default(), origin_ms: 1_000, fed: RATE };
+        let source = Source { resampler: StreamingResampler::new(SAMPLE_RATE).unwrap(), chunker: Chunker::default(), origin_ms: 1_000, fed: RATE, sent: 0 };
         assert_eq!(source.gap_before(2_000), 0, "on time");
         assert_eq!(source.gap_before(2_400), 0, "within the tolerance");
         assert_eq!(source.gap_before(4_000), 2 * RATE, "two seconds missing");
