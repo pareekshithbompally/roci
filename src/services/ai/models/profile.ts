@@ -77,13 +77,17 @@ function correctedInput(input: Modality[], overrides: ModelOverrides): Modality[
 
 const hasInputOverride = (overrides: ModelOverrides) => INPUT_OVERRIDES.some(({ key }) => overrides[key] !== undefined);
 
+/** Its own catalog entry outranks a name rule; a name rule (about this very model) outranks another host's entry for a model
+ *  with a similar name — `gpt-4o-mini-transcribe` is audio in, whatever a gateway's lookalike says. */
 function layersOf(provider: string, model: ProfiledModel): Layer[] {
   const { tools, reasoning } = model.overrides ?? {};
+  const catalog = catalogLayer(provider, model);
   const layers = [
     { source: 'user' as const, report: { tools, reasoning } },
     model.reported && { source: 'provider' as const, report: model.reported },
-    catalogLayer(provider, model),
+    catalog?.source === 'catalog' && catalog,
     nameRuleLayer(model),
+    catalog?.source === 'similar-name' && catalog,
     defaultLayer(provider),
   ];
   return layers.filter((layer): layer is Layer => !!layer);

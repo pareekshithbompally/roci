@@ -54,6 +54,11 @@ describe('profileOf — first source to state a fact wins', () => {
     expect(featuresOf(profile)).toEqual([{ feature: 'vision', guessed: true }]);
   });
 
+  it('a name rule about the model itself beats a similar name from another host: gpt-4o-mini-transcribe hears, so it is speech', () => {
+    catalog({ input: ['text', 'audio'], output: ['text'] }, false);
+    expect(profileOf('openai', { id: 'gpt-4o-mini-transcribe' })).toMatchObject({ input: ['audio'], output: ['text'], sourceOf: { input: 'name-rule' } });
+  });
+
   it('what the provider\'s list reports beats models.dev, fact by fact', () => {
     catalog({ input: ['text'], output: ['text'], tools: false, contextTokens: 8_000 });
     expect(profileOf('local:127.0.0.1:9931', { id: 'lfm', reported: { input: ['text', 'audio'], tools: true, reasoning: true } })).toMatchObject({
