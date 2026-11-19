@@ -15,7 +15,6 @@ vi.mock('@services/ai', () => ({
 
 const resolved = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 vi.mock('@shared/utils/modelResolver', () => ({
-  resolveChatModel: () => resolved.current,
   requiresApiKey: () => false,
   getProviderType: () => 'openai-compat',
 }));
@@ -58,7 +57,7 @@ function replyOnce() {
 
 const callbacks = { onChunk: vi.fn(), onReasoning: vi.fn(), onToolActivity: vi.fn() };
 const run = (settings: Partial<AppSettings>) =>
-  orchestrate({ messages: [], prompt: { meetingCount: 0, temporalContext: '' }, settings: settings as AppSettings, providers: [], reasoningEffort: 'provider-default' }, callbacks);
+  orchestrate({ messages: [], model: resolved.current as never, prompt: { meetingCount: 0, temporalContext: '' }, settings: settings as AppSettings, providers: [], reasoningEffort: 'provider-default' }, callbacks);
 
 beforeEach(() => {
   vi.clearAllMocks();

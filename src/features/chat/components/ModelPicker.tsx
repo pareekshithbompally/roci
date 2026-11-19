@@ -14,6 +14,8 @@ import { MODEL_PICKER_COPY } from '@config/chat.config';
 import { MODEL_MENU_COPY } from '@config/modelMenu.config';
 import { platform } from '@platform/index';
 import { useLocalServerProbe } from '@features/settings/hooks';
+import { useChatModel } from '@features/chat/hooks/useChatModel';
+import { startNewChat, useChatModelLock } from '@features/chat/stores';
 
 interface ModelPickerProps {
   /** Compact mode for inline display */
@@ -37,25 +39,17 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
     [providers, settings, localModels, catalogLoaded],
   );
   const { groups, needsSetup } = useMemo(() => groupChoices(choices), [choices]);
-  const selected = choices.find((c) => c.value === settings.chatModel);
+  // The open chat's model (a chat keeps its first reply's), else the chat model setting.
+  const chatModel = useChatModel();
+  const locked = useChatModelLock();
+  const selected = choices.find((c) => c.provider === chatModel?.provider && c.modelId === chatModel.modelId);
 
+  // Picking sets the chat model; in a chat that has answered, the new model gets a new chat.
   const handleSelectModel = (modelId: string) => {
     setSettings({ chatModel: modelId });
     saveSettings({ chatModel: modelId });
     setOpen(false);
-
-    // Persist last-used model for auto-restore on next launch
-    const model = choices.find((c) => c.value === modelId);
-    if (model) {
-      try {
-        localStorage.setItem('roci_last_used_model', JSON.stringify({
-          provider: model.provider,
-          modelId: model.modelId,
-        }));
-      } catch {
-        // localStorage not available — ignore
-      }
-    }
+    if (locked && modelId !== selected?.value) startNewChat();
   };
 
   const hasModels = groups.length > 0;
@@ -64,7 +58,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
       variant="ghost"
       size="toolbar"
       disabled={!hasModels}
-      title={hasModels ? 'Select model' : 'No models available - configure providers first'}
+      title={!hasModels ? MODEL_PICKER_COPY.noModels : locked ? MODEL_PICKER_COPY.locked : MODEL_PICKER_COPY.select}
       onClick={onClick}
     >
       {selected ? (
@@ -87,7 +81,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
   if (platform.hasMenuBar) {
     const all = [...groups.flatMap(([, models]) => models), ...needsSetup];
     return trigger((e) => {
-      const options = { selected: settings.chatModel, isLoaded: (c: ModelChoice) => isLoaded(c.provider, c.modelId), showAvatars: !!settings.showModelAvatars };
+      const options = { selected: selected?.value ?? '', isLoaded: (c: ModelChoice) => isLoaded(c.provider, c.modelId), showAvatars: !!settings.showModelAvatars };
       openModelMenu(all, options, e.currentTarget.getBoundingClientRect())
         .then((chosen) => chosen && handleSelectModel(chosen))
         .catch((error: unknown) => console.error('[ModelPicker] menu failed:', error));
@@ -114,7 +108,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
           }
         >
           {models.map((model) => {
-            const isSelected = settings.chatModel === model.value;
+            const isSelected = model.provider === selected?.provider && model.modelId === selected.modelId;
 
             return (
               <CommandRow

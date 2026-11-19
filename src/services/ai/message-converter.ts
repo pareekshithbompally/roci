@@ -3,7 +3,6 @@
 import { pruneMessages } from 'ai';
 import type { ModelMessage, FilePart, TextPart } from 'ai';
 import { attachedMeetingsText } from '@core/ai';
-import { toolResultTurn } from '@services/ai/promptText';
 import type { ChatMessage, ChatPart } from '@shared/types';
 
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -55,41 +54,25 @@ function userMessage(msg: ChatMessage): ModelMessage {
   return { role: 'user', content };
 }
 
-/** An earlier reply as every model can read it back: its text, Roci's tool calls and their results (in the tool messages).
- *  What only the model that made it can read is left out: tools the provider ran itself (their calls and results), thinking,
- *  and files; what they found is in the reply's text and citations. */
-function readableByAnyModel(exchange: ModelMessage[]): ModelMessage[] {
-  const kept = exchange.map((message) =>
-    message.role === 'assistant' && typeof message.content !== 'string'
-      ? { ...message, content: message.content.filter((part) => part.type === 'text' || (part.type === 'tool-call' && !part.providerExecuted)) }
-      : message);
-  return pruneMessages({ messages: kept });
+/** A reply as its model made it (thinking, tool calls and results, the provider's own data); a reply that never finished is its text. */
+function replyMessages(msg: ChatMessage): ModelMessage[] {
+  return msg.exchange ?? [{ role: 'assistant', content: msg.text }];
 }
 
-/** A reply for a call without tools: one assistant turn with each tool's result, then the answer, as text. */
-function replyAsText(exchange: ModelMessage[]): ModelMessage {
-  const text = exchange.flatMap((message) => {
-    if (typeof message.content === 'string') return [message.content];
-    return message.content.flatMap((part) => {
-      if (part.type === 'text') return [part.text];
-      if (part.type === 'tool-result') return [toolResultTurn(part.toolName, part.output)];
-      return [];
-    });
-  });
-  return { role: 'assistant', content: text.join('\n\n') };
+/** Every tool the conversation called. */
+function toolNamesIn(messages: ModelMessage[]): string[] {
+  const names = messages.flatMap((m) =>
+    typeof m.content === 'string' ? [] : m.content.flatMap((part) => (part.type === 'tool-call' ? [part.toolName] : [])));
+  return [...new Set(names)];
 }
 
-/** A reply as its model made it: tool calls, their results, the answer; a reply that never finished is its text. */
-function replyMessages(msg: ChatMessage, tools: boolean): ModelMessage[] {
-  if (!msg.exchange) return [{ role: 'assistant', content: msg.text }];
-  const exchange = readableByAnyModel(msg.exchange);
-  return tools ? exchange : [replyAsText(exchange)];
-}
-
-/** The conversation for any model: the same messages for every provider, remote or on this device. A call with tools gets
- *  earlier tool calls and results natively, one without gets them as text. Loading/streaming messages are left out. */
-export function toSDKMessages(messages: ChatMessage[], { tools }: { tools: boolean }): ModelMessage[] {
-  return messages
+/** The chat for its model, exactly as that model made it (a chat keeps one model): questions with their attachments and
+ *  attached meetings, each reply whole. Calls to tools this call doesn't have (turned off since) are pruned, as providers
+ *  refuse a history naming tools they weren't given. Loading/streaming messages are left out. */
+export function toSDKMessages(messages: ChatMessage[], tools: readonly string[]): ModelMessage[] {
+  const conversation = messages
     .filter((m) => m.state !== 'loading' && m.state !== 'streaming')
-    .flatMap((msg) => (msg.role === 'user' ? [userMessage(msg)] : replyMessages(msg, tools)));
+    .flatMap((msg) => (msg.role === 'user' ? [userMessage(msg)] : replyMessages(msg)));
+  const gone = toolNamesIn(conversation).filter((name) => !tools.includes(name));
+  return gone.length > 0 ? pruneMessages({ messages: conversation, toolCalls: [{ type: 'all', tools: gone }] }) : conversation;
 }

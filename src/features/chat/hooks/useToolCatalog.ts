@@ -4,7 +4,7 @@ import { useCallback, useMemo } from 'react';
 import { toolRegistry } from '@extensions/tools';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
-import { resolveChatModel } from '@shared/utils/modelResolver';
+import { useChatModel } from './useChatModel';
 import { capabilitiesOf } from '@services/ai/capabilities';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { getProviderTitle } from '@shared/utils/provider.utils';
@@ -44,7 +44,7 @@ function useImageGenerationToggle(prefs: ChatToolPreferences) {
 
 export function useToolCatalog() {
   useMcpUpdateListener();
-  const { settings, providers, setSettings } = useSettings();
+  const { settings, setSettings } = useSettings();
   const { showToast } = useToast();
   const { data: mcpConfig } = useMcpConfig();
   const { data: connected = [] } = useMcpConnectedServers();
@@ -55,7 +55,7 @@ export function useToolCatalog() {
   useModelCatalog();
 
   const prefs = useMemo(() => chatToolPreferences({ chatTools: settings.chatTools }), [settings.chatTools]);
-  const resolved = useMemo(() => resolveChatModel(settings, providers), [settings, providers]);
+  const resolved = useChatModel();
   // Derived each render: useModelCatalog re-renders this hook when the models.dev cache arrives.
   const capabilities = resolved ? capabilitiesOf(resolved.provider, resolved.model) : null;
 

@@ -2,6 +2,7 @@
 
 import type { ChatMessage, AppSettings, ImagePart, ReasoningEffort } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
+import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { GenerationStats, StreamMetadata } from '@services/ai/types';
 import type { MeetingCitation } from '@extensions/tools/types';
 import type { ChatPromptOptions } from '@core/ai';
@@ -11,6 +12,8 @@ import type { ChatPromptOptions } from '@core/ai';
 /** Input options for the orchestration loop */
 export interface OrchestratorOptions {
   messages: ChatMessage[];
+  /** The chat's model (a chat keeps the model of its first reply). */
+  model: ResolvedModel;
   /** What the system prompt needs besides the tools; the orchestrator adds the tools it actually sends. */
   prompt: Omit<ChatPromptOptions, 'tools'>;
   settings: AppSettings;

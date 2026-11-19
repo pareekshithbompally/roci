@@ -1,4 +1,4 @@
-/** How a model that reads plain text (Roci's on-device adapters, and any call without tools) reads AI SDK prompt content. */
+/** How Roci's on-device adapters (Apple Intelligence, MLX) read AI SDK prompt content. */
 
 import type { LanguageModelV4Prompt } from '@ai-sdk/provider';
 
@@ -12,9 +12,4 @@ export function textOf(message: LanguageModelV4Prompt[number]): string {
 export function toolResultText(output: unknown): string {
   const value = (output as { value?: unknown } | null)?.value ?? output;
   return typeof value === 'string' ? value : JSON.stringify(value);
-}
-
-/** A tool result as a reader of plain text sees it: which tool, then what it returned. */
-export function toolResultTurn(toolName: string, output: unknown): string {
-  return `${toolName} returned:\n${toolResultText(output)}`;
 }

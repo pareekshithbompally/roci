@@ -2,9 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { toSDKMessages } from '@services/ai/message-converter';
 import { extractTokenUsage } from '@services/ai/types';
 import type { ModelMessage } from 'ai';
+import { chatModelOf } from '@features/chat/utils';
 import type { ChatMessage } from '@shared/types';
 
-const TARGET = { tools: true };
+const TOOLS = ['webSearch', 'searchMeetings'];
 
 const msg = (parts: ChatMessage['parts']): ChatMessage => ({
   id: 'm1',
@@ -18,7 +19,7 @@ const msg = (parts: ChatMessage['parts']): ChatMessage => ({
 describe('AI SDK v7 message shapes', () => {
   it('maps image data parts to canonical file parts (ImagePart is deprecated)', () => {
     const bytes = btoa('fake-png-bytes');
-    const [m] = toSDKMessages([msg([{ type: 'image', mimeType: 'image/png', source: { kind: 'data', base64: bytes } }])], TARGET);
+    const [m] = toSDKMessages([msg([{ type: 'image', mimeType: 'image/png', source: { kind: 'data', base64: bytes } }])], TOOLS);
     expect(m.role).toBe('user');
     const content = (m as { content: Array<{ type: string }> }).content;
     expect(content[0].type).toBe('file');
@@ -28,7 +29,7 @@ describe('AI SDK v7 message shapes', () => {
   it('maps image URL parts to file parts with URL data', () => {
     const [m] = toSDKMessages([
       msg([{ type: 'image', mimeType: 'image/png', source: { kind: 'url', url: 'https://example.com/a.png' } }]),
-    ], TARGET);
+    ], TOOLS);
     const content = (m as { content: Array<{ type: string; data?: unknown }> }).content;
     expect(content[0].type).toBe('file');
     expect(content[0].data).toBeInstanceOf(URL);
@@ -36,7 +37,7 @@ describe('AI SDK v7 message shapes', () => {
 
   it('maps audio data parts to file parts', () => {
     const bytes = btoa('fake-audio');
-    const [m] = toSDKMessages([msg([{ type: 'audio', mimeType: 'audio/wav', source: { kind: 'data', base64: bytes } }])], TARGET);
+    const [m] = toSDKMessages([msg([{ type: 'audio', mimeType: 'audio/wav', source: { kind: 'data', base64: bytes } }])], TOOLS);
     const content = (m as { content: Array<{ type: string }> }).content;
     expect(content[0].type).toBe('file');
   });
@@ -49,44 +50,51 @@ describe('conversation history', () => {
     { role: 'assistant', content: [
       { type: 'reasoning', text: 'Search first.', providerOptions: { anthropic: { signature: 'sig' } } },
       { type: 'tool-call', toolCallId: 'w1', toolName: 'webSearch', input: {}, providerExecuted: true },
-      { type: 'tool-result', toolCallId: 'w1', toolName: 'webSearch', output: { type: 'json', value: [{ url: 'https://example.com', encryptedContent: 'x' }] } },
+      { type: 'tool-result', toolCallId: 'w1', toolName: 'webSearch', output: { type: 'json', value: [{ url: 'https://example.com' }] } },
       { type: 'tool-call', toolCallId: 't1', toolName: 'searchMeetings', input: { query: 'decide' } },
     ] },
     { role: 'tool', content: [{ type: 'tool-result', toolCallId: 't1', toolName: 'searchMeetings', output: { type: 'text', value: 'Ship Friday' } }] },
     { role: 'assistant', content: [{ type: 'text', text: 'We ship Friday.' }] },
   ];
-  const reply: ChatMessage = { id: 'r', role: 'model', text: 'We ship Friday.', timestamp: 2, state: 'complete', provider: 'anthropic', exchange };
+  const reply: ChatMessage = { id: 'r', role: 'model', text: 'We ship Friday.', timestamp: 2, state: 'complete', provider: 'anthropic', model: 'claude', exchange };
 
-  it('sends every model the reply as any model reads it: Roci\'s tool calls, their results, then the answer — no provider-run search or thinking', () => {
-    expect(toSDKMessages([question, reply], TARGET)).toEqual([
-      asked,
-      { role: 'assistant', content: [{ type: 'tool-call', toolCallId: 't1', toolName: 'searchMeetings', input: { query: 'decide' } }] },
-      exchange[1],
-      exchange[2],
-    ]);
+  it('sends each reply back exactly as its model made it: thinking, its own search, tool calls and results, the answer', () => {
+    expect(toSDKMessages([question, reply], TOOLS)).toEqual([asked, ...exchange]);
   });
 
-  it('gives a call without tools the tool results as text, inside the reply', () => {
-    expect(toSDKMessages([question, reply], { tools: false })).toEqual([
-      asked,
-      { role: 'assistant', content: 'searchMeetings returned:\nShip Friday\n\nWe ship Friday.' },
-    ]);
+  it('prunes calls to a tool this call does not have (turned off since), keeping the rest', () => {
+    const sent = toSDKMessages([question, reply], ['searchMeetings']);
+    const parts = (sent[1].content as Array<{ type: string; toolName?: string }>);
+    expect(parts.some((p) => p.toolName === 'webSearch')).toBe(false);
+    expect(parts.some((p) => p.toolName === 'searchMeetings')).toBe(true);
+  });
+
+  it('prunes every tool call for a call without tools', () => {
+    const sent = toSDKMessages([question, reply], []);
+    expect(sent.some((m) => m.role === 'tool')).toBe(false);
+    expect(sent.at(-1)).toEqual(exchange[2]);
   });
 
   it('sends a reply that never finished as its text', () => {
     const stopped: ChatMessage = { ...reply, exchange: undefined, text: 'We ship' };
-    expect(toSDKMessages([question, stopped], TARGET).at(-1)).toEqual({ role: 'assistant', content: 'We ship' });
+    expect(toSDKMessages([question, stopped], TOOLS).at(-1)).toEqual({ role: 'assistant', content: 'We ship' });
   });
 
   it('keeps a question\'s attached meetings with it on every turn', () => {
     const withMeeting: ChatMessage = { ...question, meetingContext: 'Weekly sync: ship Friday' };
-    const [sent] = toSDKMessages([withMeeting, reply], TARGET);
+    const [sent] = toSDKMessages([withMeeting, reply], TOOLS);
     expect((sent.content as Array<{ text: string }>)[1].text).toContain('## Meetings the user attached\n\nAnswer from these first');
     expect((sent.content as Array<{ text: string }>)[1].text).toContain('Weekly sync: ship Friday');
   });
 
   it('leaves out a reply still being written', () => {
-    expect(toSDKMessages([question, { ...reply, state: 'streaming' }], TARGET)).toEqual([asked]);
+    expect(toSDKMessages([question, { ...reply, state: 'streaming' }], TOOLS)).toEqual([asked]);
+  });
+
+  it('locks a chat to its first reply\'s provider and model; none before it answers', () => {
+    const session = { id: 's', title: 't', lastMessageAt: 0, messages: [question, reply, { ...reply, id: 'r2', provider: 'gemini', model: 'g' }] };
+    expect(chatModelOf(session)).toEqual({ provider: 'anthropic', model: 'claude' });
+    expect(chatModelOf({ ...session, messages: [question] })).toBeUndefined();
   });
 });
 

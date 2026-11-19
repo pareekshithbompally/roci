@@ -39,7 +39,8 @@ import { notifyAppEvent } from '@shared/utils/appEvents';
 import { queryKeys } from '@shared/query/queryKeys';
 import { CHAT_MAX_ATTACHMENTS, TOOL_RESULT_PREVIEW_CHARS } from '@config/chat.config';
 import { UI_CONFIG } from '@config/ui.config';
-import { canSendDraft, draftTitle } from '@features/chat/utils';
+import { canSendDraft, chatModelOf, draftTitle } from '@features/chat/utils';
+import type { ModelRef } from '@services/ai/models';
 import { errorMessage } from '@shared/utils/errors';
 
 /** "Reply ready" while Roci is in the background (Settings › Notifications › Chat replies). */
@@ -302,6 +303,8 @@ function targetSessionFor({ text, attachments }: Question): ChatSession | undefi
 // ── Generating a reply ──
 
 const NO_MODEL_REPLY = 'Please select a model from the picker in the toolbar before sending a message.';
+const lockedModelGoneReply = ({ model }: ModelRef) =>
+  `This chat runs on ${model}, which isn't available now. Start a new chat to use another model.`;
 
 /** Everything a reply needs besides its Reply handle. */
 interface ReplyRequest {
@@ -360,6 +363,7 @@ async function streamReply(reply: Reply, request: ReplyRequest, tally: StreamTal
   return orchestrate(
     {
       messages,
+      model: resolved,
       prompt: {
         meetingCount: historyItems.length,
         temporalContext: formatTemporalContext(),
@@ -674,10 +678,13 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
     if (!isLive(reply)) return;
 
     const { settings, providers } = injectedRefs;
-    const resolved = settings ? resolveChatModel(settings, providers || []) : null;
+    // A chat keeps the model of its first reply; a new chat takes the chat model setting.
+    const locked = chatModelOf(session);
+    const resolved = settings ? resolveChatModel(settings, providers || [], locked) : null;
     const answer: ChatMessage = { id: reply.messageId, role: 'model', text: '', timestamp: Date.now() };
     if (!settings || !resolved) {
-      const hinted: ChatSession = { ...session, messages: [...session.messages, { ...answer, text: NO_MODEL_REPLY, state: 'complete' }] };
+      const text = locked ? lockedModelGoneReply(locked) : NO_MODEL_REPLY;
+      const hinted: ChatSession = { ...session, messages: [...session.messages, { ...answer, text, state: 'complete' }] };
       putSession(hinted);
       saveSession(hinted);
       endReply(reply);
@@ -727,6 +734,10 @@ export const useChatReasoningEffort = () =>
     const session = s.currentSessionId ? s.loadedSessions.get(s.currentSessionId) : undefined;
     return session ? session.reasoningEffort ?? 'provider-default' : s.draftReasoningEffort;
   });
+
+/** The provider and model the open chat is locked to; null for a new chat (it takes the chat model setting). */
+export const useChatModelLock = (): ModelRef | null =>
+  useChatStore(useShallow((s) => chatModelOf(s.currentSessionId ? s.loadedSessions.get(s.currentSessionId) : undefined) ?? null));
 
 /** The open chat, or null before one is chosen or while it loads. */
 export const useCurrentSession = (): ChatSession | null =>

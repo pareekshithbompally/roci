@@ -16,5 +16,6 @@ export {
   injectChatRefs,
   useChatCurrentSessionId,
   useChatReasoningEffort,
+  useChatModelLock,
   useCurrentSession,
 } from './chatStore';

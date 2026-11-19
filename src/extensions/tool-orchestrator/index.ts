@@ -3,7 +3,7 @@
 import { streamText, isStepCount } from 'ai';
 import type { ModelMessage, TextStreamPart, ToolSet } from 'ai';
 import { createModel, reasoningCallSettings, toSDKMessages, getWebSearchTools, toExecutableTools } from '@services/ai';
-import { getProviderType, resolveChatModel, requiresApiKey } from '@shared/utils/modelResolver';
+import { getProviderType, requiresApiKey } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { getModelDisplayName, isLocalProviderId } from '@shared/utils/provider.utils';
 import { describeModel, fitsJob } from '@services/ai/models';
@@ -34,12 +34,8 @@ export function stripWebCitations(text: string, webSearchActive: boolean): strin
   return text.replace(/<\/?cite[^>]*>/g, '').replace(/\[(\d+)\](?!\()/g, '');
 }
 
-/** The chat model, ready to call — or why it can't run. */
-function chatModelOrThrow(settings: OrchestratorOptions['settings'], providers: OrchestratorOptions['providers']): ResolvedModel {
-  const resolved = resolveChatModel(settings, providers);
-  if (!resolved) {
-    throw new Error(`Model "${settings.chatModel}" not found. Please configure a model in Settings → Providers.`);
-  }
+/** The chat's model, ready to call — or why it can't run. */
+function chatModelOrThrow(resolved: ResolvedModel): ResolvedModel {
   if (requiresApiKey(resolved) && !resolved.apiKey) {
     throw new Error(`API key not configured for ${resolved.provider}. Please add it in Settings → Providers.`);
   }
@@ -154,10 +150,10 @@ export async function orchestrate(
   options: OrchestratorOptions,
   callbacks: OrchestratorCallbacks,
 ): Promise<{ provider?: string; model?: string; tokenUsage?: TokenUsage; context?: ContextTokens; exchange: ModelMessage[] }> {
-  const { messages, prompt, settings, providers, signal, reasoningEffort } = options;
+  const { messages, model, prompt, settings, signal, reasoningEffort } = options;
   const { onChunk } = callbacks;
 
-  const resolved = chatModelOrThrow(settings, providers);
+  const resolved = chatModelOrThrow(model);
   const webSearchTools = chatToolPreferences(settings).webSearch ? getWebSearchTools(resolved) : undefined;
   const mcpSettings = await loadMcpSettings();
   const { tools, sources: toolSources, toolset } = await buildTools(options, webSearchTools, mcpSettings);
@@ -175,7 +171,7 @@ export async function orchestrate(
       model: createModel(resolved, { webSearch: !!webSearchTools, ...(reportsProgress && { llamaServer: { reasoningEffort } }) }),
       ...reasoningCallSettings(resolved, reasoningEffort),
       instructions: systemPrompt,
-      messages: toSDKMessages(messages, { tools: !!tools }),
+      messages: toSDKMessages(messages, Object.keys(tools ?? {})),
       abortSignal: signal,
       includeRawChunks: reportsProgress,
       ...(tools && {

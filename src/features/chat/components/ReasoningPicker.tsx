@@ -1,10 +1,9 @@
 /** Composer thinking control: the current chat's level (Default, Off, Low…Max), shown when the chat model thinks. */
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Lightbulb, LightbulbOff } from 'lucide-react';
-import { useSettings } from '@shared/contexts/SettingsContext';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
-import { resolveChatModel } from '@shared/utils/modelResolver';
+import { useChatModel } from '@features/chat/hooks/useChatModel';
 import { capabilitiesOf } from '@services/ai/capabilities';
 import { CHAT_REASONING_COPY, REASONING_EFFORT_LEVELS } from '@config/chat.config';
 import { Button, Icon } from '@shared/ui';
@@ -16,9 +15,8 @@ const labelOf = (effort: ReasoningEffort) => REASONING_EFFORT_LEVELS.find((level
 
 /** The current chat's thinking level and its setter; null when the chat model doesn't think. */
 export function useReasoningControl(): { effort: ReasoningEffort; setEffort: (effort: ReasoningEffort) => void } | null {
-  const { settings, providers } = useSettings();
   useModelCatalog();
-  const resolved = useMemo(() => resolveChatModel(settings, providers), [settings, providers]);
+  const resolved = useChatModel();
   const effort = useChatReasoningEffort();
   const setEffort = useChatStore((s) => s.setReasoningEffort);
   // Derived each render: useModelCatalog re-renders this when the models.dev cache arrives.

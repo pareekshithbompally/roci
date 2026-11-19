@@ -12,6 +12,7 @@ import { queryKeys } from '@shared/query/queryKeys';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import type { LocalModel } from '@services/localModels.service';
 import type { ModelInfo } from '@services/modalities';
+import type { ModelRef } from '@services/ai/models';
 
 const ON_DEVICE = LOCAL_MODELS_CONFIG.provider.id;
 
@@ -166,9 +167,11 @@ export function modelSources(providers: ModelProvider[], settings: AppSettings, 
   return [...providers, ...builtIn.filter((p): p is ModelProvider => !!p)];
 }
 
-/** The chat model, resolved against every model source. */
-export function resolveChatModel(settings: AppSettings, providers: ModelProvider[]): ResolvedModel | null {
-  return resolveModel(settings.chatModel, modelSources(providers, settings));
+/** The model a chat runs on, resolved against every model source: the one it is locked to (`chatModelOf`), else the
+ *  chat model setting (a chat not yet answered). */
+export function resolveChatModel(settings: AppSettings, providers: ModelProvider[], locked?: ModelRef): ResolvedModel | null {
+  const sources = modelSources(providers, settings);
+  return locked ? resolveProviderModel(locked.provider, locked.model, sources) : resolveModel(settings.chatModel, sources);
 }
 
 /** The Summary model (Settings › Default Models), falling back to the chat model, resolved against every model source. */

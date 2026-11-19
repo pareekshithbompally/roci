@@ -9,7 +9,7 @@ import type {
   LanguageModelV4StreamResult,
   LanguageModelV4Usage,
 } from '@ai-sdk/provider';
-import { textOf, toolResultTurn } from '@services/ai/promptText';
+import { textOf } from '@services/ai/promptText';
 import { APPLE_INTELLIGENCE } from '@config/providers.config';
 import { appleIntelligence } from './appleIntelligence.service';
 import type { AppleChatRequest } from './appleIntelligence.service';
@@ -23,34 +23,11 @@ const NO_USAGE: LanguageModelV4Usage = {
 
 const TEXT_ID = '0';
 
-type AppleTurn = AppleChatRequest['turns'][number];
-
-/** One prompt message as Apple's session reads it; it has no tool role, so tool results are the assistant's own words. */
-function turnOf(message: LanguageModelV4Prompt[number]): AppleTurn | null {
-  switch (message.role) {
-    case 'user':
-    case 'assistant':
-      return { role: message.role, text: textOf(message) };
-    case 'tool': {
-      const results = message.content.flatMap((part) => (part.type === 'tool-result' ? [toolResultTurn(part.toolName, part.output)] : []));
-      return { role: 'assistant', text: results.join('\n\n') };
-    }
-    default:
-      return null;
-  }
-}
-
-/** Adjacent turns of one role read as one (a tool call, its results, then the answer are one assistant turn). */
-function joinTurns(turns: AppleTurn[], turn: AppleTurn): AppleTurn[] {
-  const last = turns.at(-1);
-  if (last?.role !== turn.role) return [...turns, turn];
-  return [...turns.slice(0, -1), { role: turn.role, text: `${last.text}\n\n${turn.text}` }];
-}
-
-/** The prompt as Apple's session takes it: instructions (system) + the conversation's turns, tool results included. */
+/** The prompt as Apple's session takes it: instructions (system) + the conversation's text turns. */
 function toChat(prompt: LanguageModelV4Prompt): AppleChatRequest {
   const instructions = prompt.filter((m) => m.role === 'system').map(textOf).join('\n\n');
-  const turns = prompt.flatMap((m) => turnOf(m) ?? []).filter((turn) => turn.text.length > 0).reduce(joinTurns, []);
+  const turns = prompt.flatMap((m) => (m.role === 'user' || m.role === 'assistant' ? [{ role: m.role, text: textOf(m) }] : []))
+    .filter((turn) => turn.text.length > 0);
   return { instructions, turns };
 }
 

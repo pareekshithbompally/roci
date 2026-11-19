@@ -267,36 +267,11 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       }
 
       if (!loadedSettings.chatModel) {
-        let autoSelectedModel: string | null = null;
-
-        try {
-          const lastUsed = localStorage.getItem('roci_last_used_model');
-          if (lastUsed) {
-            const { provider: lastProvider, modelId: lastModelId } = JSON.parse(lastUsed);
-            const providerMatch = loadedProviders.find(
-              p => p.provider === lastProvider && p.active && hasApiKey(p)
-            );
-            if (providerMatch?.models?.some(m => m.id === lastModelId)) {
-              autoSelectedModel = lastModelId;
-              console.log('[SettingsContext] Restored last-used model:', lastModelId);
-            }
-          }
-        } catch {
-          // localStorage parse error — skip
-        }
-
-        if (!autoSelectedModel) {
-          for (const provider of loadedProviders) {
-            if (provider.active && hasApiKey(provider) && provider.models?.length) {
-              autoSelectedModel = provider.models[0].id;
-              console.log('[SettingsContext] Auto-selected first available model:', autoSelectedModel);
-              break;
-            }
-          }
-        }
-
+        // No chat model yet: the first model of the first usable provider.
+        const autoSelectedModel = loadedProviders.find((p) => p.active && hasApiKey(p) && p.models?.length)?.models?.[0]?.id;
         if (autoSelectedModel) {
           loadedSettings.chatModel = autoSelectedModel;
+          console.log('[SettingsContext] Auto-selected first available model:', autoSelectedModel);
         }
       }
 
