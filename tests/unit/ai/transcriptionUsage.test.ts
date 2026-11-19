@@ -9,6 +9,12 @@ vi.mock('@services/ai/transcription', async (importOriginal) => ({
   runTranscription,
 }));
 vi.mock('@extensions/usage', () => ({ recordUsage }));
+// The model catalogue loads from models.dev when not cached: no network in unit tests.
+vi.mock('@services/modalities', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@services/modalities')>();
+  real.modalitiesService.ensureLoaded = async () => undefined;
+  return real;
+});
 
 import { transcribeAudio } from '@services/unifiedAIService';
 
