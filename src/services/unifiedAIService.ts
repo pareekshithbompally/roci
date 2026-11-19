@@ -4,9 +4,8 @@ import { integrationSettingsPath, isIntegrationEnabled } from '@shared/utils/int
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import type { ModelProvider } from '@shared/types/modelProviders';
-import type { ProcessedResult, AppSettings, StoredTranscriptSegment } from '@shared/types';
+import type { AppSettings } from '@shared/types';
 import { MAX_AUDIO_SIZE_BYTES, MAX_AUDIO_SIZE_MB, MIN_AUDIO_SIZE_BYTES, WAV_HEADER_SIZE_BYTES } from '@shared/utils/audio.utils';
-import { summaryMarkdown } from '@core/ai';
 import { recordUsage } from '@extensions/usage';
 import { modalitiesService } from '@services/modalities';
 import { requireSummaryModel } from '@services/ai/jobModel';
@@ -18,6 +17,7 @@ import {
   runTranscription,
   speechSelectionOf,
   analyzeTranscript,
+  type SpeechSelection,
   type TranscribeOptions,
   type TranscriptResult,
 } from './ai/transcription';
@@ -45,6 +45,18 @@ const assertAudioSize = (blob: Blob, whole: boolean): void => {
   }
 };
 
+/** The chosen speech model, when it can run: chosen, and its integration on — for recordings, live chunks and streams alike. */
+export function readySpeechSelection(settings: AppSettings): SpeechSelection {
+  const selection = speechSelectionOf(settings);
+  if (!selection) throw new AiError('setup', 'Choose a transcription model in Settings › Default Models.');
+  const integration = TRANSCRIPTION_CONFIG.integrationByProvider[selection.provider];
+  if (integration && !isIntegrationEnabled(settings, integration)) {
+    const name = getProviderTitle(selection.provider);
+    throw new AiError('setup', `${name} is off in ${integrationSettingsPath(integration)}. Turn it on, or choose another transcription model.`);
+  }
+  return selection;
+}
+
 /** How a transcription is run: its cancel signal and progress, the meeting its usage row belongs to, and what silence means —
  *  an error for a whole recording (nothing to summarize), nothing at all for a live chunk (a pause in the meeting). */
 export interface TranscribeAudioOptions extends TranscribeOptions {
@@ -60,15 +72,7 @@ export async function transcribeAudio(
   providers: ModelProvider[],
   { meetingId, silence = 'error', ...options }: TranscribeAudioOptions = {},
 ): Promise<TranscriptResult> {
-  const selection = speechSelectionOf(settings);
-  if (!selection) {
-    throw new AiError('setup', 'Choose a transcription model in Settings › Default Models.');
-  }
-  const integration = TRANSCRIPTION_CONFIG.integrationByProvider[selection.provider];
-  if (integration && !isIntegrationEnabled(settings, integration)) {
-    const name = getProviderTitle(selection.provider);
-    throw new AiError('setup', `${name} is off in ${integrationSettingsPath(integration)}. Turn it on, or choose another transcription model.`);
-  }
+  const selection = readySpeechSelection(settings);
   assertAudioSize(audioBlob, silence === 'error');
   // An audio model chosen via models.dev resolves its adapter from the catalog.
   await modalitiesService.ensureLoaded();
@@ -100,48 +104,19 @@ export async function audioToRawText(
 }
 
 class UnifiedAIService {
-  /** A finished transcript → title, summary, action items, categories (the Summary model). */
+  /** A finished transcript → title, summary (with action items) and categories, from the Summary model. */
   async processTranscript(
     transcript: string,
-    segments: StoredTranscriptSegment[] | undefined,
     categories: string[],
     settings: AppSettings,
     providers: ModelProvider[],
     options: SummaryOptions = {},
-  ): Promise<ProcessedResult> {
+  ): Promise<AnalysisResult> {
     const resolved = requireSummaryModel(settings, providers);
     const userNotes = options.meetingId ? await meetingNotesOldestFirst(options.meetingId) : undefined;
-    const analysis = await analyzeTranscript({ transcript, categories, resolved, userNotes, ...options });
-    return this.toProcessedResult(analysis, transcript, segments);
+    return analyzeTranscript({ transcript, categories, resolved, userNotes, ...options });
   }
 
-
-  private toProcessedResult(analysis: AnalysisResult, transcript: string, segments?: StoredTranscriptSegment[]): ProcessedResult {
-    const summary = analysis.summary;
-    const summaryString = summaryMarkdown(summary);
-
-    return {
-      title: analysis.title,
-      summary: summaryString,
-      categories: analysis.categories,
-      transcript,
-      segments: segments && segments.length > 0 ? segments : undefined,
-      structuredSummary: {
-        overview: summary.overview,
-        keyDiscussionPoints: summary.keyDiscussionPoints,
-        decisionsMade: summary.decisionsMade,
-        actionItems: summary.actionItems.map((item) => ({
-          id: crypto.randomUUID(),
-          text: item.text,
-          owner: item.owner,
-          dueDate: item.dueDate,
-          completed: false,
-        })),
-        nextSteps: summary.nextSteps,
-        enhancedNotes: summary.enhancedNotes,
-      },
-    };
-  }
 }
 
 export const unifiedAIService = new UnifiedAIService();

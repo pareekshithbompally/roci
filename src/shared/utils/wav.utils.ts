@@ -93,8 +93,22 @@ export function encodeWavInt16(samples: Float32Array, sampleRate: number): Uint8
   view.setUint16(34, 16, true);
   write(36, 'data');
   view.setUint32(40, dataBytes, true);
-  samples.forEach((s, i) => view.setInt16(WAV_HEADER_BYTES + i * 2, Math.max(-1, Math.min(1, s)) * INT16_SCALE, true));
+  const wav = new Uint8Array(view.buffer);
+  wav.set(samplesToPcm16(samples), WAV_HEADER_BYTES);
+  return wav;
+}
+
+/** Mono samples → raw 16-bit little-endian PCM (no header): streamed audio, a WAV's data. */
+export function samplesToPcm16(samples: Float32Array): Uint8Array {
+  const view = new DataView(new ArrayBuffer(samples.length * 2));
+  samples.forEach((s, i) => view.setInt16(i * 2, Math.max(-1, Math.min(1, s)) * INT16_SCALE, true));
   return new Uint8Array(view.buffer);
+}
+
+/** Raw 16-bit little-endian PCM (no header) → mono samples. */
+export function pcm16ToSamples(bytes: Uint8Array): Float32Array {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return Float32Array.from({ length: Math.floor(bytes.byteLength / 2) }, (_, i) => view.getInt16(i * 2, true) / INT16_SCALE);
 }
 
 /** Consecutive parts of at most `maxSamples` (views, no copy). */

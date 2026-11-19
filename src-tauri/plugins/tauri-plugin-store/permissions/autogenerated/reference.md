@@ -15,7 +15,6 @@ Allows all store plugin commands
 - `allow-meetings-upsert`
 - `allow-meetings-delete`
 - `allow-meetings-create`
-- `allow-meetings-set-status`
 - `allow-meetings-begin-step`
 - `allow-meetings-end-step`
 - `allow-meetings-rename`

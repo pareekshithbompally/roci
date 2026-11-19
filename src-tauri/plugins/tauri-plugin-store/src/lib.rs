@@ -61,7 +61,6 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::meetings_upsert,
             commands::meetings_delete,
             commands::meetings_create,
-            commands::meetings_set_status,
             meeting_steps::meetings_begin_step,
             meeting_steps::meetings_end_step,
             meeting_steps::meetings_rename,

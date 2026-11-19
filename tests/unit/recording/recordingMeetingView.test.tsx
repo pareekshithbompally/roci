@@ -52,7 +52,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   window.HTMLElement.prototype.scrollTo ??= vi.fn() as unknown as typeof window.HTMLElement.prototype.scrollTo;
   useRecordingStore.setState({ ...mirrorOf({ state: 'idle' }, 0), busy: false, justStopped: null });
-  useMeetingLiveStore.setState({ meetingId: null, entries: [], pending: 0 });
+  useMeetingLiveStore.setState({ meetingId: null, entries: [] });
   useLiveNotesStore.setState({ meetingId: null, lines: [], bullets: [], updating: false });
   useAppStore.setState({ status: AppStatus.IDLE, selectedHistoryId: null, activeResultTab: 'summary' });
 });
@@ -126,7 +126,7 @@ describe('RecordingMeetingView', () => {
 
   it('keeps one status while chunks are transcribed, and says so when the live transcript stops', () => {
     startRecording();
-    useMeetingLiveStore.setState({ pending: 1 });
+    
     const { rerender } = render(<RecordingMeetingView />);
     expect(screen.getByText('01:05 · Recording')).toBeInTheDocument();
     meetingLiveActions.fail();

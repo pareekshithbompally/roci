@@ -4,14 +4,8 @@
 import { experimental_streamTranscribe as streamTranscribe } from 'ai';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { createTranscriptionModel, type TranscriptionFamily } from '@services/ai/provider';
+import { samplesToPcm16 } from '@shared/utils/wav.utils';
 import type { LiveStream, LiveText, StreamingEngine } from './streaming';
-
-/** Float samples as 16-bit little-endian PCM bytes. */
-function pcm16(samples: Float32Array): Uint8Array {
-  const view = new DataView(new ArrayBuffer(samples.length * 2));
-  samples.forEach((s, i) => view.setInt16(i * 2, Math.max(-1, Math.min(1, s)) * 0x7fff, true));
-  return new Uint8Array(view.buffer);
-}
 
 const joined = (a: string, b: string) => [a, b].filter((t) => t.trim()).join(' ').trim();
 
@@ -36,7 +30,7 @@ function openStream(family: TranscriptionFamily, model: Parameters<typeof create
   return {
     async feed(pcm) {
       failed();
-      push?.enqueue(pcm16(pcm));
+      push?.enqueue(samplesToPcm16(pcm));
       return { ...text };
     },
     async finish() {

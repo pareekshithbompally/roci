@@ -14,10 +14,7 @@ vi.mock('@services/unifiedAIService', () => ({
   transcribeAudio: ai.transcribeAudio,
   unifiedAIService: { processTranscript: ai.processTranscript },
 }));
-vi.mock('@services/transcription.service', () => ({
-  transcriptionService: saves,
-  meetingSummaryOf: () => ({ overview: 'ov', keyDiscussionPoints: [], decisionsMade: [], actionItems: [], nextSteps: [] }),
-}));
+vi.mock('@services/transcription.service', () => ({ transcriptionService: saves }));
 vi.mock('@shared/utils/appEvents', () => ({ notifyAppEvent: vi.fn() }));
 
 import { meetingPipeline } from '@features/recording/pipeline/meetingPipeline';
@@ -57,7 +54,7 @@ beforeEach(() => {
   saves.saveTranscript.mockImplementation(async ({ text }: { text: string }) => { transcript = text; status = { status: 'transcribed' }; });
   saves.saveSummary.mockImplementation(async () => { status = { status: 'ready' }; });
   ai.transcribeAudio.mockResolvedValue({ text: 'hello', segments: [] });
-  ai.processTranscript.mockResolvedValue({ title: 'Standup', summary: 'ov', categories: ['Work'], transcript: 'hello' });
+  ai.processTranscript.mockResolvedValue({ title: 'Standup', summary: { overview: 'ov', keyDiscussionPoints: [], decisionsMade: [], actionItems: [], nextSteps: [] }, categories: ['Work'] });
   meetingPipeline.configure(() => ({ settings: { transcriptionProvider: 'openai', transcriptionModel: 'whisper-1' } as never, providers: [], categories: [] }));
 });
 

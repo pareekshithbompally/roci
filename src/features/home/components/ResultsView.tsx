@@ -175,10 +175,6 @@ export const ResultsView: React.FC = () => {
 
   useEffect(() => setAddingTodo(false), [selectedHistoryId]);
 
-  // Sync the editable title when a new result loads.
-  useEffect(() => {
-    if (result) setEditedTitle(result.title);
-  }, [result]);
 
   if (!result) return null;
   // the list's title is the one renames update at once (optimistically); the meeting's own follows from disk
@@ -230,7 +226,7 @@ export const ResultsView: React.FC = () => {
         ) : (
           <>
             <div className="flex items-center gap-2">
-              <MeetingTitle title={shownTitle} onEdit={() => setIsEditingTitle(true)}>
+              <MeetingTitle title={shownTitle} onEdit={() => { setEditedTitle(shownTitle); setIsEditingTitle(true); }}>
                 {currentHistoryItem && <MeetingStatsPopover meetingId={currentHistoryItem.id} />}
               </MeetingTitle>
               {isMeetingBusy(phase) && <MeetingStatus phase={phase} display="badge" />}

@@ -420,8 +420,9 @@ function tokensPerSecond(tokens: number | undefined, firstTextAt: number): numbe
 function afterReply(reply: Reply, request: ReplyRequest, text: string): void {
   const { session, question, resolved, isNewSession } = request;
   if (isNewSession) {
-    void generateChatTitle({ resolved, question: question.text || session.title, reply: text, sessionId: reply.sessionId })
-      .then((title) => useChatStore.getState().renameSession(reply.sessionId, title));
+    generateChatTitle({ resolved, question: question.text || session.title, reply: text, sessionId: reply.sessionId })
+      .then((title) => useChatStore.getState().renameSession(reply.sessionId, title))
+      .catch((error: unknown) => console.error('[ChatStore] Naming the chat failed:', error));
   }
   generateSuggestions({ resolved, userMessage: question.text, responsePreview: text, sessionId: reply.sessionId })
     .then((suggestions) => {

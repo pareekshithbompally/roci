@@ -12,7 +12,6 @@ const COMMANDS: &[&str] = &[
     "meetings_upsert",
     "meetings_delete",
     "meetings_create",
-    "meetings_set_status",
     "meetings_begin_step",
     "meetings_end_step",
     "meetings_rename",

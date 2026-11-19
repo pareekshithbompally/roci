@@ -1,21 +1,19 @@
 /** The in-call transcript: who each recorded source is, and how its echo is recognised. */
 
 import type { MeetingSource } from '@shared/types/native';
+import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 
 export const MEETING_LIVE_CONFIG = {
-  /** Rust → webview (src-tauri/src/audio/live.rs): one chunk of a source, and the end of the recording's chunks. */
+  /** Rust → webview (src-tauri/src/audio/live.rs): one chunk (or frame) of a source. */
   chunkEvent: 'meeting-live://chunk',
-  doneEvent: 'meeting-live://done',
-  /** Chunks are 16 kHz mono 16-bit PCM. */
-  sampleRate: 16_000,
+  /** Chunks are mono 16-bit PCM at the transcription sample rate. */
+  sampleRate: TRANSCRIPTION_CONFIG.sampleRate,
   /** Streams a meeting runs at once when its speech model streams: one per source (you and the call). */
   sources: 2,
   /** The speaker label of each source in the transcript. */
   speakers: { microphone: 'You', system: 'Others' } satisfies Record<MeetingSource, string>,
-  /** After Stop, how long to wait for the recorder's last chunks before giving up on them; the full recording is then
-   *  transcribed instead (ms). */
-  doneTimeoutMs: 15_000,
-  /** A source with more audio than this waiting to be transcribed drops its oldest chunks to catch up (ms). */
+  /** A source with more audio than this waiting to be transcribed drops its oldest chunks to catch up; the draft then says it
+   *  has a gap (ms). */
   maxBacklogMs: 120_000,
   /** A hard-cut chunk's re-heard start: up to this many words matching the end of the previous line, found within the first
    *  `slack` words (the model may hear the overlap a little differently), and at least `minWords` so a lone repeated word stays. */
@@ -28,7 +26,7 @@ export const MEETING_LIVE_CONFIG = {
     recording: 'Recording',
     listening: 'Listening…',
     paused: 'Paused',
-    /** Under the draft transcript after Stop, while the final one is made. */
+    /** Under the draft transcript after Stop, while the final one is made from the whole recording. */
     finalizing: 'Building the final transcript…',
     none: 'No transcript yet.',
     unavailable: 'Live transcript unavailable. The full transcript is made when you stop.',

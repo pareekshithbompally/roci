@@ -2,13 +2,13 @@
 //! start is counted (a step a quit or crash keeps cutting off stops being retried at launch), and a step ends done,
 //! cancelled (back to waiting) or failed (with its reason). Renaming makes the title the user's.
 
-use crate::changes::{notify, MeetingChange};
-use crate::commands::{meetings_set_status_impl, MeetingStatus, StoreState};
+use crate::commands::{meetings_set_status_impl, write_meeting, MeetingStatus, StoreState};
+use crate::pipeline::with_db;
 use crate::error::StoreError;
 use rusqlite::Connection;
 use serde::Deserialize;
-use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Manager, Runtime, State};
+use std::sync::Mutex;
+use tauri::{AppHandle, Runtime, State};
 
 /// Automatic restarts of one step at launch; after this many the meeting waits for Retry.
 const MAX_STEP_ATTEMPTS: i64 = 2;
@@ -37,6 +37,15 @@ impl Step {
         match self {
             Step::Transcribe => "captured",
             Step::Summarize => "transcribed",
+        }
+    }
+
+    /// The step a meeting in `status` is running, if any.
+    fn running_in(status: &str) -> Option<Self> {
+        match status {
+            "transcribing" => Some(Step::Transcribe),
+            "summarizing" => Some(Step::Summarize),
+            _ => None,
         }
     }
 
@@ -75,6 +84,8 @@ fn begin_impl(db: &Connection, id: &str, step: Step) -> Result<bool, StoreError>
 
 fn end_impl(db: &Connection, id: &str, step: Step, end: &StepEnd) -> Result<(), StoreError> {
     running()?.retain(|m| m != id);
+    // a step that ended (any way) was not cut off: only starts a quit interrupted count toward the launch limit
+    db.execute("UPDATE meetings SET step_attempts = 0 WHERE id = ?1", [id])?;
     match end {
         StepEnd::Done => Ok(()),
         StepEnd::Cancelled => meetings_set_status_impl(db, id, &MeetingStatus::at(step.waiting())),
@@ -104,56 +115,38 @@ pub(crate) fn interrupted_impl(db: &Connection) -> Result<Vec<String>, StoreErro
         stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?.collect::<Result<_, _>>()?;
     let mut resumable = Vec::new();
     for (id, status, attempts) in cut_off {
+        let Some(step) = Step::running_in(&status) else { continue };
         if attempts < MAX_STEP_ATTEMPTS {
             resumable.push(id);
             continue;
         }
-        let step = if status == "transcribing" { "transcribe" } else { "summarize" };
-        meetings_set_status_impl(db, &id, &MeetingStatus::failed(step, "It stopped before finishing twice. Try again."))?;
+        meetings_set_status_impl(db, &id, &MeetingStatus::failed(step.name(), "It stopped before finishing twice. Try again."))?;
     }
     Ok(resumable)
-}
-
-/// The store's connection, off the main thread; announces the meeting's change after the write.
-async fn with_meeting<T: Send + 'static>(
-    conn: Arc<Mutex<Option<Connection>>>,
-    id: String,
-    write: impl FnOnce(&Connection, &str) -> Result<T, StoreError> + Send + 'static,
-) -> Result<T, StoreError> {
-    let target = id.clone();
-    let result = tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        write(db, &target)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))??;
-    notify(MeetingChange::Saved(id));
-    Ok(result)
 }
 
 /// Starts `step`; false when this meeting already runs a step (the caller leaves it alone).
 #[tauri::command]
 pub async fn meetings_begin_step(state: State<'_, StoreState>, id: String, step: Step) -> Result<bool, StoreError> {
-    with_meeting(Arc::clone(&state.conn), id, move |db, id| begin_impl(db, id, step)).await
+    let target = id.clone();
+    write_meeting(&state, id, move |db| begin_impl(db, &target, step)).await
 }
 
 #[tauri::command]
 pub async fn meetings_end_step(state: State<'_, StoreState>, id: String, step: Step, end: StepEnd) -> Result<(), StoreError> {
-    with_meeting(Arc::clone(&state.conn), id, move |db, id| end_impl(db, id, step, &end)).await
+    let target = id.clone();
+    write_meeting(&state, id, move |db| end_impl(db, &target, step, &end)).await
 }
 
 #[tauri::command]
 pub async fn meetings_rename(state: State<'_, StoreState>, id: String, title: String) -> Result<(), StoreError> {
-    with_meeting(Arc::clone(&state.conn), id, move |db, id| rename_impl(db, id, &title)).await
+    let target = id.clone();
+    write_meeting(&state, id, move |db| rename_impl(db, &target, &title)).await
 }
 
 /// For the recorder's launch recovery (blocking; never on the main thread).
 pub fn interrupted_meetings<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<String>, StoreError> {
-    let state = app.state::<StoreState>();
-    let guard = state.conn.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-    let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-    interrupted_impl(db)
+    with_db(app, interrupted_impl)
 }
 
 #[cfg(test)]
@@ -202,6 +195,16 @@ mod tests {
     }
 
     #[test]
+    fn a_step_that_ended_never_counts_toward_the_launch_limit() {
+        let db = open_migrated_test_db();
+        meeting(&db, "m-ended", "captured", None);
+        begin_impl(&db, "m-ended", Step::Transcribe).expect("start");
+        end_impl(&db, "m-ended", Step::Transcribe, &StepEnd::Failed { error: "offline".into() }).expect("fail");
+        begin_impl(&db, "m-ended", Step::Transcribe).expect("retry");
+        assert_eq!(interrupted_impl(&db).expect("launch"), vec!["m-ended".to_string()], "one cut-off start: resumed");
+    }
+
+    #[test]
     fn launch_resumes_a_cut_off_step_twice_then_waits_for_retry() {
         let db = open_migrated_test_db();
         meeting(&db, "m-cut", "captured", None);
@@ -226,7 +229,6 @@ mod tests {
         assert_eq!(field(&db, "m-cal", "title"), "Recording");
         assert_eq!(field(&db, "m-user", "title"), "My name");
         assert_eq!(field(&db, "m-new", "title"), "AI title");
-        assert_eq!(field(&db, "m-new", "step_attempts"), "0");
     }
 
     #[test]

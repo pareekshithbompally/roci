@@ -12,8 +12,6 @@ import { consumePendingCalendarMeta, type CalendarRecordingMeta } from '@service
 import { isTauriEnvironment, menubarService } from '@services/tauri';
 import { removeNotices } from '@services/notifications';
 import { NOTIFICATIONS_CONFIG } from '@config/notifications.config';
-import { queryClient } from '@shared/query/queryClient';
-import { queryKeys } from '@shared/query/queryKeys';
 import { useAppStore } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
 import { showToast } from '@shared/ui';
@@ -69,12 +67,6 @@ export function recordedSeconds(state: Mirror, now = Date.now()): number {
 export function formatClock(seconds: number): string {
   const pad = (n: number) => n.toString().padStart(2, '0');
   return `${pad(Math.floor(seconds / 60))}:${pad(seconds % 60)}`;
-}
-
-function refreshMeetings(): void {
-  queryClient.invalidateQueries({ queryKey: queryKeys.meetings() }).catch((error: unknown) =>
-    console.error('[recordingStore] Failed to refresh meetings:', error),
-  );
 }
 
 /** Reads the recorder into the store and the menu bar; a failed read is logged and leaves both as they were. */
@@ -133,7 +125,6 @@ export const recording = {
       useAppStore.getState().setSelectedHistoryId(meetingId);
       useAppStore.getState().setActiveResultTab('transcript');
       useAppStore.getState().setStatus(AppStatus.RESULTS);
-      refreshMeetings();
       return meetingId;
     } catch (error: unknown) {
       reportStartFailure(error);
@@ -165,7 +156,6 @@ export const recording = {
       if (recordingId) void removeNotices([`${NOTIFICATIONS_CONFIG.recording.idPrefix}${recordingId}`]);
       await sync();
       useRecordingStore.setState({ busy: false });
-      refreshMeetings();
     }
   },
 

@@ -1120,7 +1120,6 @@ fn transcripts_save_impl(db: &Connection, input: &TranscriptSaveInput) -> Result
             rusqlite::params![input.meeting_id, input.text, input.language, input.model, input.segments, now],
         )?;
         meetings_set_status_impl(&tx, &input.meeting_id, &MeetingStatus::at("transcribed"))?;
-        tx.execute("UPDATE meetings SET step_attempts = 0 WHERE id = ?1", [&input.meeting_id])?;
         write_audit_log(&tx, "meeting", &input.meeting_id, "update", None)?;
         tx.commit()?;
         Ok(())
@@ -1167,7 +1166,6 @@ fn summaries_save_impl(db: &Connection, input: &SummarySaveInput) -> Result<Vec<
             )?;
         }
         meetings_set_status_impl(&tx, &input.meeting_id, &MeetingStatus::at("ready"))?;
-        tx.execute("UPDATE meetings SET step_attempts = 0 WHERE id = ?1", [&input.meeting_id])?;
         write_audit_log(&tx, "meeting", &input.meeting_id, "update", None)?;
         tx.commit()?;
         log::info!(
@@ -1197,7 +1195,7 @@ pub(crate) fn summaries_save_for_test(db: &Connection, meeting_id: &str, title: 
 }
 
 /// Runs `write` on the open database off the async runtime, then announces the meeting change.
-async fn write_meeting<T, F>(state: &StoreState, meeting_id: String, write: F) -> Result<T, StoreError>
+pub(crate) async fn write_meeting<T, F>(state: &StoreState, meeting_id: String, write: F) -> Result<T, StoreError>
 where
     T: Send + 'static,
     F: FnOnce(&Connection) -> Result<T, StoreError> + Send + 'static,
@@ -1217,16 +1215,6 @@ where
 #[tauri::command]
 pub async fn meetings_create(state: State<'_, StoreState>, input: MeetingCreateInput) -> Result<(), StoreError> {
     write_meeting(&state, input.id.clone(), move |db| meetings_create_impl(db, &input)).await
-}
-
-#[tauri::command]
-pub async fn meetings_set_status(
-    state: State<'_, StoreState>,
-    id: String,
-    status: MeetingStatus,
-) -> Result<(), StoreError> {
-    let target = id.clone();
-    write_meeting(&state, id, move |db| meetings_set_status_impl(db, &target, &status)).await
 }
 
 #[tauri::command]
@@ -1769,13 +1757,19 @@ pub async fn todos_set_completed(
     completed: bool,
 ) -> Result<(), StoreError> {
     let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
+    let meeting_id = tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        todos_set_completed_impl(db, &id, completed)
+        todos_set_completed_impl(db, &id, completed)?;
+        todo_meeting_id(db, &id)
     })
     .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))??;
+    // a ticked to-do changes its meeting like any other write
+    if let Some(meeting_id) = meeting_id {
+        notify(MeetingChange::Saved(meeting_id));
+    }
+    Ok(())
 }
 
 fn todos_delete_impl(db: &Connection, id: &str) -> Result<(), StoreError> {

@@ -5,9 +5,11 @@ import type { IntegrationId } from '@shared/utils/integrations';
 
 export type TranscriptionAdapterId = 'openai-compatible' | 'deepgram' | 'elevenlabs' | 'multimodal' | 'hex' | 'apple-speech' | 'on-device';
 
+/** Every part, chunk and stream is 16-bit PCM at this rate, mono. */
+const SAMPLE_RATE = 16_000;
+
 export const TRANSCRIPTION_CONFIG = {
-  /** Every part is sent as 16-bit PCM WAV at this rate, mono. */
-  sampleRate: 16_000,
+  sampleRate: SAMPLE_RATE,
   /** Live dictation: the mic is sent to the engine in slices this long, ms. */
   liveChunkMs: 100,
   /** Real-time transcription copy for the General setting and the mark on speech models that support it. */
@@ -53,7 +55,7 @@ export const TRANSCRIPTION_CONFIG = {
     elevenlabs: /realtime/i,
   } as Partial<Record<TranscriptionAdapterId, RegExp>>,
   /** Streaming audio: 16-bit little-endian PCM at the live sample rate. */
-  streamingFormat: { type: 'audio/pcm', rate: 16_000 },
+  streamingFormat: { type: 'audio/pcm', rate: SAMPLE_RATE },
 
   /** Provider id of the running Hex app (no key; its models come from Hex). */
   hexProvider: 'hex',

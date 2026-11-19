@@ -9,7 +9,7 @@ import { isTauriEnvironment } from '@services/tauri';
 import { unifiedAIService, transcribeAudio } from '@services/unifiedAIService';
 import { formatTranscript, speechSelectionOf } from '@services/ai/transcription';
 import { modelKey } from '@services/ai/models';
-import { transcriptionService, meetingSummaryOf } from '@services/transcription.service';
+import { transcriptionService } from '@services/transcription.service';
 import { IMPORT_CONFIG } from '@config/audio.config';
 import { useAppStore } from '@shared/stores/appStore';
 import { meetingProgress } from '@shared/stores/meetingProgressStore';
@@ -97,11 +97,10 @@ const transcribeRecording = (id: string, context: PipelineContext): StepWork => 
   await transcriptionService.saveTranscript({ meetingId: id, text: formatted, segments, model: speechModelOf(context) });
 };
 
-/** Just after Stop: the in-call transcript's last chunks finish (it stays on screen as the draft), then the whole recording is
- *  transcribed — as Hex does, the final transcript always comes from the full recording, with every word in its context. */
-const transcribeAfterRecording = (id: string, context: PipelineContext): StepWork => async (signal) => {
-  await liveTranscript.finish(id);
-  signal.throwIfAborted();
+/** Just after Stop: the in-call transcript ends (it stays on screen as the draft) and the whole recording is transcribed — as
+ *  Hex does, the final transcript always comes from the full recording, with every word in its context. */
+const transcribeAfterRecording = (id: string, context: PipelineContext): StepWork => (signal) => {
+  liveTranscript.finish(id);
   return transcribeRecording(id, context)(signal);
 };
 
@@ -114,11 +113,11 @@ function storedTranscript(meeting: MeetingDetail): Transcript {
 const summarizeTranscript = (id: string, context: PipelineContext): StepWork => async (signal) => {
   const meeting = await meetingOrThrow(id);
   const transcript = storedTranscript(meeting);
-  const result = await unifiedAIService.processTranscript(
-    transcript.text, transcript.segments, context.categories, context.settings, context.providers,
+  const analysis = await unifiedAIService.processTranscript(
+    transcript.text, context.categories, context.settings, context.providers,
     { meetingContext: meetingContextOf(meeting.index), meetingId: id, signal },
   );
-  await transcriptionService.saveSummary({ meetingId: id, title: result.title, summary: meetingSummaryOf(result), categories: result.categories ?? [] });
+  await transcriptionService.saveSummary({ meetingId: id, ...analysis });
 };
 
 const FAILED_TITLE: Record<MeetingStep, string> = { transcribe: "Couldn't transcribe", summarize: "Couldn't summarize" };

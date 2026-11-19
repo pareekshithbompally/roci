@@ -4,7 +4,6 @@
 export type { ActionItemInput } from './ActionItemInput';
 export type { CategoryRow } from './CategoryRow';
 export type { LiveChunk } from './LiveChunk';
-export type { LiveDone } from './LiveDone';
 export type { MeetingChanged } from './MeetingChanged';
 export type { MeetingCreateInput } from './MeetingCreateInput';
 export type { MeetingDetailRow } from './MeetingDetailRow';

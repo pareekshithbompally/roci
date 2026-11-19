@@ -10,7 +10,7 @@ use rusqlite::Connection;
 use tauri::{AppHandle, Manager, Runtime};
 
 /// Blocking; never on the main thread. Fails when the database is not open yet.
-fn with_db<R: Runtime, T>(
+pub(crate) fn with_db<R: Runtime, T>(
     app: &AppHandle<R>,
     run: impl FnOnce(&Connection) -> Result<T, StoreError>,
 ) -> Result<T, StoreError> {

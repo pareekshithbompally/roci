@@ -23,7 +23,7 @@ const notes = new Map<string, Array<{ id: string; text: string; created_at: numb
 const todos: Array<{ id: string; meeting_id: string | null; text: string; owner: string | null; due_date: string | null; completed: boolean; source: string; created_at: number }> = [];
 const running = new Set<string>();
 const heard: string[] = [];
-let recorder: { meetingId: string; startedAt: number; timers: ReturnType<typeof setTimeout>[]; sent: number } | null = null;
+let recorder: { meetingId: string; startedAt: number; timers: ReturnType<typeof setTimeout>[] } | null = null;
 let lines: Line[] = [];
 let scenario: Scenario = 'happy';
 
@@ -109,7 +109,7 @@ function startRecording(args: { title?: string }) {
     if (scenario === 'dropchunk' && seq === 1) return;
     void emit('meeting-live://chunk', { source: 'microphone', startMs, endMs: startMs + 5_000, overlapMs: 0, pcm: line.pcm, seq });
   }, gap * (seq + 1)));
-  recorder = { meetingId: id, startedAt: now(), timers, sent: 0 };
+  recorder = { meetingId: id, startedAt: now(), timers };
   return id;
 }
 
@@ -117,11 +117,9 @@ function stopRecording() {
   if (!recorder) return null;
   const { meetingId, timers } = recorder;
   timers.forEach(clearTimeout);
-  const sent = heard.length;
   setStatus(meetings.get(meetingId)!, 'captured');
   changed(meetingId);
   recorder = null;
-  setTimeout(() => void emit('meeting-live://done', { microphone: sent, system: 0 }), 300);
   return meetingId;
 }
 
@@ -207,7 +205,7 @@ const HANDLERS: Record<string, (args: never) => unknown> = {
   'plugin:store|get_meeting_usage': () => [],
   'start_audio_capture': (args: { title?: string }) => startRecording(args),
   'stop_audio_capture': () => stopRecording(),
-  'recorder_state': () => (recorder ? { state: 'recording', meetingId: recorder.meetingId, recordedMs: now() - recorder.startedAt, paused: false } : { state: 'idle' }),
+  'recorder_state': () => (recorder ? { state: 'recording', meetingId: recorder.meetingId, recordedMs: now() - recorder.startedAt, paused: false, liveStreaming: false } : { state: 'idle' }),
   'recover_meetings': () => [],
   'meeting_echo_signals': ({ spans }: { spans: unknown[] }) => spans.map(() => null),
   'hex_status': () => ({ running: true, models: [{ id: 'parakeet_unified_en', name: 'Parakeet', installed: true }] }),

@@ -6,34 +6,18 @@ import { meetingService } from '@services/meeting.service';
 import { summaryMarkdown } from '@core/ai';
 import { queryKeys } from '@shared/query/queryKeys';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
+import { structuredSummaryOf } from '@shared/utils/structuredSummary';
 import type { MeetingDetail, ProcessedResult } from '@shared/types';
-
 
 /** A stored meeting as the view's result (summary as Markdown and as fields). */
 export function buildMeetingResult(detail: MeetingDetail): ProcessedResult {
-  const structuredSummary = detail.summary
-    ? {
-        overview: detail.summary.overview,
-        keyDiscussionPoints: detail.summary.keyDiscussionPoints,
-        decisionsMade: detail.summary.decisionsMade,
-        actionItems: detail.summary.actionItems.map((a) => ({
-          id: crypto.randomUUID(),
-          text: a.text,
-          owner: a.owner,
-          dueDate: a.dueDate,
-          completed: false,
-        })),
-        nextSteps: detail.summary.nextSteps,
-        enhancedNotes: detail.summary.enhancedNotes,
-      }
-    : undefined;
 
   return {
     title: detail.index.title,
     transcript: detail.transcript?.text || '',
     summary: summaryMarkdown(detail.summary),
     categories: detail.index.categories,
-    structuredSummary,
+    structuredSummary: detail.summary ? structuredSummaryOf(detail.summary) : undefined,
     segments: detail.transcript?.segments,
   };
 }

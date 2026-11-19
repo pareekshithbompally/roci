@@ -16,9 +16,8 @@ use super::pause::{FRAME_SAMPLES, PauseSegmenter};
 use super::resample::StreamingResampler;
 use super::tracks::{AudioPacket, MeetingSource};
 
-/// Rust → webview: one chunk of a source, or the end of the recording's chunks.
+/// Rust → webview: one chunk (or frame) of a source.
 const CHUNK_EVENT: &str = "meeting-live://chunk";
-const DONE_EVENT: &str = "meeting-live://done";
 
 const RATE: usize = SAMPLE_RATE as usize;
 /// Pause cuts closer than this to the chunk start are ignored.
@@ -64,16 +63,6 @@ struct LiveChunk {
     /// This source's chunks sent before this one (0, 1, 2…): a number the webview skips is a chunk it never got.
     #[cfg_attr(test, ts(type = "number"))]
     seq: u64,
-}
-
-/// The end of a recording's chunks: how many each source sent, so a chunk lost at the very end is noticed too.
-#[derive(Clone, Serialize)]
-#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../src/shared/types/native/"))]
-struct LiveDone {
-    #[cfg_attr(test, ts(type = "number"))]
-    microphone: u64,
-    #[cfg_attr(test, ts(type = "number"))]
-    system: u64,
 }
 
 #[derive(Debug)]
@@ -262,7 +251,7 @@ impl Source {
     }
 }
 
-/// Cuts every written packet into chunks; sends what is left and the end when the recording stops (on drop).
+/// Cuts every written packet into chunks; sends what is left when the recording stops (on drop).
 pub(super) struct LiveChunker {
     app: AppHandle,
     /// The chosen speech model streams: frames instead of chunks.
@@ -314,19 +303,11 @@ impl LiveChunker {
 
 impl Drop for LiveChunker {
     fn drop(&mut self) {
-        let mut done = LiveDone { microphone: 0, system: 0 };
         for (kind, source) in [(MeetingSource::Microphone, self.microphone.take()), (MeetingSource::System, self.system.take())] {
             let Some(mut source) = source else { continue };
             let tail = std::mem::take(&mut source.cutter).finish();
             let events = source.events(kind, tail.into_iter().collect());
             self.send(events);
-            match kind {
-                MeetingSource::Microphone => done.microphone = source.sent,
-                MeetingSource::System => done.system = source.sent,
-            }
-        }
-        if let Err(error) = self.app.emit(DONE_EVENT, done) {
-            log::warn!("[meeting-live] done event failed: {error}");
         }
     }
 }
@@ -349,7 +330,7 @@ mod tests {
     fn event_names_match_the_webview() {
         let audio_config = include_str!("../../../src/config/audio.config.ts");
         let live_config = include_str!("../../../src/config/meetingLive.config.ts");
-        for name in [super::CHUNK_EVENT, super::DONE_EVENT] {
+        for name in [super::CHUNK_EVENT] {
             assert!(live_config.contains(&format!("'{name}'")), "meetingLive.config.ts is missing the event {name}");
         }
         for name in [tauri_plugin_store::MEETING_CHANGED_EVENT] {

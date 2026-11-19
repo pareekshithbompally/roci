@@ -17,7 +17,6 @@ import { useMeetingLiveStore } from '@features/recording/live/meetingLiveStore';
 
 const read = () => ({ settings: {} as never, providers: [] });
 const chunk = (source: string, startMs: number, endMs: number, overlapMs = 0, seq = 0) => ({ source, startMs, endMs, overlapMs, pcm: btoa('\0\0\0\0'), seq });
-const sent = (microphone: number, system = 0) => ({ payload: { microphone, system } });
 const entry = (source: LiveEntry['source'], startMs: number, endMs: number, text: string, timed = false): LiveEntry => ({ source, startMs, endMs, text, timed });
 
 beforeEach(() => {
@@ -61,16 +60,16 @@ describe('in-call transcript', () => {
     ]);
   });
 
-  it('transcribes chunks in order as they come, and on Stop waits for the last ones', async () => {
+  it('transcribes chunks in order as they come; Stop keeps the draft on screen', async () => {
     runTranscription.mockResolvedValueOnce({ text: 'First.', segments: [] }).mockResolvedValueOnce({ text: 'Second.', segments: [] });
     await liveTranscript.start('m1', read);
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 6_000) });
-    handlers.get('meeting-live://chunk')?.({ payload: chunk('system', 6_000, 12_000) });
-    handlers.get('meeting-live://done')?.(sent(1, 1));
-    await liveTranscript.finish('m1');
-    expect(useMeetingLiveStore.getState()).toMatchObject({ failed: false, entries: [entry('microphone', 0, 6_000, 'First.'), entry('system', 6_000, 12_000, 'Second.')] });
-    // the entries stay as the meeting's draft transcript until the next recording
-    expect(useMeetingLiveStore.getState()).toMatchObject({ meetingId: 'm1', live: false, pending: 0 });
+    handlers.get('meeting-live://chunk')?.({ payload: chunk('system', 6_000, 12_000, 0, 0) });
+    await vi.waitFor(() => expect(useMeetingLiveStore.getState().entries).toHaveLength(2));
+    liveTranscript.finish('m1');
+    expect(useMeetingLiveStore.getState()).toMatchObject({
+      meetingId: 'm1', live: false, failed: false, entries: [entry('microphone', 0, 6_000, 'First.'), entry('system', 6_000, 12_000, 'Second.')],
+    });
   });
 
   it('splices a hard cut\'s re-heard start at the seam, tolerating a slightly different hearing', () => {
@@ -85,9 +84,7 @@ describe('in-call transcript', () => {
     await liveTranscript.start('m3', read);
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 10_000) });
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 8_000, 14_000, 2_000, 1) });
-    handlers.get('meeting-live://done')?.(sent(2));
-    await liveTranscript.finish('m3');
-    expect(useMeetingLiveStore.getState().entries.map((e) => e.text)).toEqual(['we ship on Friday if QA', 'signs off']);
+    await vi.waitFor(() => expect(useMeetingLiveStore.getState().entries.map((e) => e.text)).toEqual(['we ship on Friday if QA', 'signs off']));
   });
 
   it('falling behind sheds a source\'s oldest waiting chunks beyond two minutes, and only that source\'s', () => {
@@ -98,51 +95,43 @@ describe('in-call transcript', () => {
     expect(kept.filter((c) => c.source === 'system')).toHaveLength(1);
   });
 
-  it('a chunk that fails marks the live transcript incomplete, and says why', async () => {
+  it('a chunk that fails marks the draft as having a gap, and says why', async () => {
     runTranscription.mockRejectedValueOnce(new Error('rate limited'));
     await liveTranscript.start('m2', read);
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 6_000) });
-    handlers.get('meeting-live://done')?.(sent(1));
-    await liveTranscript.finish('m2');
-    expect(useMeetingLiveStore.getState().failed).toBe(true);
-    expect(useMeetingLiveStore.getState()).toMatchObject({ failed: true, reason: 'rate limited' });
+    await vi.waitFor(() => expect(useMeetingLiveStore.getState()).toMatchObject({ failed: true, reason: 'rate limited' }));
   });
 
-  it('a chunk number skipped (never received) marks the transcript incomplete', async () => {
+  it('a chunk number skipped (never received) marks the draft as having a gap', async () => {
     runTranscription.mockResolvedValue({ text: 'Hi.', segments: [] });
     await liveTranscript.start('m4', read);
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 6_000, 0, 0) });
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 12_000, 18_000, 0, 2) });
-    handlers.get('meeting-live://done')?.(sent(3));
-    await liveTranscript.finish('m4');
     expect(useMeetingLiveStore.getState().failed).toBe(true);
   });
 
-  it('a last chunk lost before the end marks the transcript incomplete', async () => {
-    runTranscription.mockResolvedValue({ text: 'Hi.', segments: [] });
-    await liveTranscript.start('m5', read);
-    handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 6_000) });
-    handlers.get('meeting-live://done')?.(sent(2));
-    await liveTranscript.finish('m5');
-    expect(useMeetingLiveStore.getState().failed).toBe(true);
+  it('Stop ends the session at once: the chunk in flight is cancelled and queued ones dropped, never waited for', async () => {
+    let cancelled = false;
+    runTranscription.mockImplementation((_wav: Blob, _s: unknown, _p: unknown, { signal }: { signal: AbortSignal }) =>
+      new Promise((_, reject) => signal.addEventListener('abort', () => { cancelled = true; reject(new Error('aborted')); })));
+    await liveTranscript.start('m6', read);
+    handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 6_000, 0, 0) });
+    handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 6_000, 12_000, 0, 1) });
+    liveTranscript.finish('m6');
+    expect(liveTranscript.active('m6')).toBe(false);
+    await vi.waitFor(() => expect(cancelled).toBe(true));
+    expect(runTranscription).toHaveBeenCalledTimes(1);
   });
 
-  it('an end that never comes stops the wait at the deadline, and the recording is transcribed instead', async () => {
-    vi.useFakeTimers();
-    try {
-      runTranscription.mockResolvedValue({ text: 'Hi.', segments: [] });
-      await liveTranscript.start('m6', read);
-      handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 6_000) });
-      const finishing = liveTranscript.finish('m6');
-      await vi.advanceTimersByTimeAsync(15_000);
-      await finishing;
-      expect(useMeetingLiveStore.getState().failed).toBe(true);
-    } finally {
-      vi.useRealTimers();
-    }
+  it('stopping a meeting never touches the next recording\'s session', async () => {
+    await liveTranscript.start('m7', read);
+    await liveTranscript.start('m8', read);
+    liveTranscript.finish('m7');
+    expect(liveTranscript.active('m8')).toBe(true);
+    expect(useMeetingLiveStore.getState()).toMatchObject({ meetingId: 'm8', live: true });
   });
 
   it('a recording without a session has nothing to give', async () => {
-    await expect(liveTranscript.finish('unknown')).resolves.toBeUndefined();
+    expect(() => liveTranscript.finish('unknown')).not.toThrow();
   });
 });

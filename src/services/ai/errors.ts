@@ -1,5 +1,5 @@
 /** Every AI failure as one kind and one plain sentence saying what happened and what to do — whatever the provider (cloud
- *  SDK, Apple Intelligence, MLX). The kind lets callers decide (retry shorter, stay quiet on cancel); the sentence is shown. */
+ *  SDK, Apple Intelligence, MLX). The sentence is what the user sees; the kind names the failure for logs and tests. */
 
 import { APICallError, NoObjectGeneratedError } from 'ai';
 import { appleFailureError, isContextWindowError } from '@services/ai/apple/contextWindow';
@@ -59,7 +59,8 @@ export function toAiError(error: unknown, job: AiJob, provider: string): AiError
   }
   // after the SDK's own errors: an Apple payload is any coded error, so it is recognised last
   if (isAppleError(error) || isAppleError((error as { cause?: unknown } | null)?.cause)) {
-    return new AiError(isContextWindowError(error) ? 'contextWindow' : 'device', errorMessage(appleFailureError(error, 'summary')), { cause: error });
+    const appleJob = job === 'summary' ? 'summary' : 'model';
+    return new AiError(isContextWindowError(error) ? 'contextWindow' : 'device', errorMessage(appleFailureError(error, appleJob)), { cause: error });
   }
   if (error instanceof TypeError) {
     return new AiError('network', `Couldn't reach ${getProviderTitle(provider)}. Check your connection, then try again.`, { cause: error });

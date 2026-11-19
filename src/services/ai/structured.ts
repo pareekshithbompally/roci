@@ -1,6 +1,7 @@
 /** One structured AI call — the way every job that wants fields back asks a model: the schema it is given and its reply
- *  read against come from one zod definition; usage is recorded here; failures become `AiError`s; a prompt that didn't fit
- *  gets one shorter try; and a reply wrapped in prose or code fences still has its JSON read. */
+ *  read against come from one zod definition; the usage of every reply received is recorded here (a call that failed reports
+ *  none); failures become `AiError`s; a prompt that didn't fit gets one shorter try; and a reply wrapped in prose or code fences
+ *  still has its JSON read. */
 
 import { generateText, jsonSchema, NoObjectGeneratedError, Output } from 'ai';
 import type { z } from 'zod';
