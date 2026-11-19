@@ -1,5 +1,5 @@
 /** Cloud streaming speech-to-text through the AI SDK (`streamTranscribe`): the same transcription models the recordings use,
- *  fed audio as it is spoken; settled text accumulates, the latest partial is shown until it settles. */
+ *  fed audio as it is spoken; settled text (deltas, or finals) accumulates, the latest partial is shown until it settles. */
 
 import { experimental_streamTranscribe as streamTranscribe } from 'ai';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
@@ -18,10 +18,16 @@ function openStream(family: TranscriptionFamily, model: Parameters<typeof create
   const { streamingFormat, sampleRate } = TRANSCRIPTION_CONFIG;
   const resample = streamResampler(sampleRate, streamingFormat.rate);
   const result = streamTranscribe({ model: createTranscriptionModel(family, model), audio, inputAudioFormat: streamingFormat, abortSignal: stop.signal });
+  // speech whose words came as deltas (added to, never revised: settled as they come); its final text repeats them
+  const streamed = new Set<string | undefined>();
   const reading = (async () => {
     for await (const part of result.fullStream) {
+      if (part.type === 'transcript-delta') {
+        streamed.add(part.id);
+        text.committed += part.delta;
+      }
       if (part.type === 'transcript-partial') text.tentative = part.text;
-      if (part.type === 'transcript-final') Object.assign(text, { committed: joined(text.committed, part.text), tentative: '' });
+      if (part.type === 'transcript-final' && !streamed.has(part.id)) Object.assign(text, { committed: joined(text.committed, part.text), tentative: '' });
     }
   })().catch((error: unknown) => {
     failure = error;
