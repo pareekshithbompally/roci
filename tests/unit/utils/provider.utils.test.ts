@@ -42,7 +42,7 @@ describe('isLocalProviderId', () => {
 describe('a server the user named', () => {
   afterEach(() => queryClient.removeQueries({ queryKey: queryKeys.storeSettings() }));
 
-  it('takes its app's name, logo and Mac app everywhere', () => {
+  it("takes its app's name, logo and Mac app everywhere", () => {
     const id = 'local:localhost:9931';
     queryClient.setQueryData(queryKeys.storeSettings(), {
       providers: [{ provider: id, active: true, settings: [], models: [], server_app: 'llama' }],
