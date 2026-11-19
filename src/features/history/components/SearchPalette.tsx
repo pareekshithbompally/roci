@@ -1,17 +1,19 @@
-/** ⌘K: the Spotlight-style panel beside a column sidebar (Mac, iPad). Recents until something is typed, then the Settings
- *  sections, meetings and chats matching it (titles at once, words inside transcripts and messages from the search index,
- *  each with where it matched); ↑↓ and Return open one, Escape closes. Meetings and chats come from the same search as the
- *  iPhone sidebar's field (useSessionSearch); Settings from the Settings list itself (findSettings). */
+/** ⌘K: the Spotlight-style panel beside a column sidebar (Mac, iPad), one layout in every state — meetings and chats
+ *  (recents until something is typed, then the matches by kind, each with where it matched), and Settings always at the
+ *  bottom (quick settings such as the appearance, then the matching sections). ↑↓ and Return open one, Escape closes.
+ *  Meetings and chats come from the same search as the iPhone sidebar's field (useSessionSearch); Settings from the
+ *  Settings list itself (useQuickSettings, findSettings). */
 
 import React from 'react';
 import { AudioWaveform, MessageSquare } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandList, CommandRow, CommandSeparator, Icon, IconTile, Text } from '@shared/ui';
+import { CommandDialog, CommandGroup, CommandInput, CommandList, CommandRow, CommandSeparator, Icon, IconTile, Text, type TileGlyph } from '@shared/ui';
 import { endSearch, setSearchQuery, useSearchActive, useSearchQuery } from '@shared/stores/searchStore';
 import { useAppActions } from '@shared/stores/appStore';
 import type { SettingsPanel } from '@shared/stores/appStore';
 import { openChat } from '@features/chat';
-import { findSettings } from '@features/settings';
+import { findSettings, useQuickSettings, type QuickSetting } from '@features/settings';
+import { matchesAllWords } from '@shared/utils/textMatch';
 import { formatRelativeTime } from '@shared/utils/formatters';
 import { SPOTLIGHT_RECENT_LIMIT } from '@config/chat.config';
 import { useUnifiedSidebar } from '@features/history/hooks/useUnifiedSidebar';
@@ -52,11 +54,28 @@ function sessionGroups(matches: SessionMatch[] | null, items: UnifiedSidebarItem
   return KINDS.map(({ type, heading }) => ({ heading, matches: matches.filter((m) => m.item.type === type) })).filter((g) => g.matches.length > 0);
 }
 
-/** The line shown when nothing is listed. */
-function emptyLine(searchingQuery: boolean, searching: boolean, query: string): string {
-  if (!searchingQuery) return 'No meetings or chats yet';
-  return searching ? 'Searching…' : `No results for “${query.trim()}”`;
+/** A Settings row: a quick setting (runs) or a section (opens), one shape for both. */
+interface SettingsEntry {
+  key: string;
+  label: string;
+  icon: TileGlyph;
+  meta?: string;
+  run: () => void;
 }
+
+/** The Settings group, always last: the quick settings before anything is typed; then the ones matching, and the matching sections. */
+function settingsEntries(query: string, searching: boolean, quick: QuickSetting[], openSection: (panel: SettingsPanel) => void): SettingsEntry[] {
+  const quickRows = (searching ? quick.filter((q) => matchesAllWords([q.label, ...q.keywords].join(' '), query)) : quick)
+    .map(({ id, label, icon, run }) => ({ key: `quick:${id}`, label, icon, run }));
+  const sections = (searching ? findSettings(query) : [])
+    .map(({ id, label, icon }) => ({ key: `section:${id}`, label, icon, meta: 'Settings', run: () => openSection(id) }));
+  return [...quickRows, ...sections];
+}
+
+/** Searching with no meeting or chat matching: one quiet line where they would be, so the panel keeps its shape. */
+const NoSessions: React.FC<{ searching: boolean }> = ({ searching }) => (
+  <Text as="p" variant="helper" tone="faint" className="px-2 py-1.5">{searching ? 'Searching…' : 'No meetings or chats match'}</Text>
+);
 
 export const SearchPalette: React.FC = () => {
   const open = useSearchActive();
@@ -65,40 +84,46 @@ export const SearchPalette: React.FC = () => {
   const search = useSessionSearch(items, query);
   const openMeeting = useOpenMeeting();
   const { openSettings } = useAppActions();
+  const quick = useQuickSettings();
 
-  const settings = search.matches ? findSettings(query) : [];
+  const searching = search.matches !== null;
   const groups = sessionGroups(search.matches, items);
+  const settings = settingsEntries(query, searching, quick, (panel) => openSettings(panel));
 
   const openSession = (item: UnifiedSidebarItem) => {
     endSearch();
     if (item.type === 'chat') return openChat(item.id);
     if (item.historyItem) openMeeting(item.historyItem).catch((error: unknown) => console.error('[SearchPalette] Opening the meeting failed:', error));
   };
-  const openSection = (panel: SettingsPanel) => {
+  const runSetting = (entry: SettingsEntry) => {
     endSearch();
-    openSettings(panel);
+    entry.run();
   };
 
+  // One layout in every state: meetings and chats (recents, or the matches), then Settings at the bottom.
   return (
     <CommandDialog open={open} onOpenChange={(next) => !next && endSearch()} label="Search">
       <CommandInput look="spotlight" placeholder="Search meetings, chats and settings" value={query} onValueChange={setSearchQuery} autoFocus />
       <CommandList fit>
-        <CommandEmpty>{emptyLine(search.matches !== null, search.searching, query)}</CommandEmpty>
-        {settings.length > 0 && (
-          <CommandGroup heading="Settings">
-            {settings.map(({ id, label, icon }) => (
-              <CommandRow key={id} value={`settings:${id}`} onSelect={() => openSection(id)} leading={<IconTile icon={icon} />} label={label} meta="Settings" />
-            ))}
-          </CommandGroup>
-        )}
+        {groups.length === 0 && searching && <NoSessions searching={search.searching} />}
         {groups.map((group, i) => (
           <React.Fragment key={group.heading}>
-            {(i > 0 || settings.length > 0) && <CommandSeparator />}
+            {i > 0 && <CommandSeparator />}
             <CommandGroup heading={group.heading}>
               {group.matches.map((match) => <SessionRow key={`${match.item.type}:${match.item.id}`} match={match} onOpen={openSession} />)}
             </CommandGroup>
           </React.Fragment>
         ))}
+        {settings.length > 0 && (
+          <>
+            <CommandSeparator />
+            <CommandGroup heading="Settings">
+              {settings.map((entry) => (
+                <CommandRow key={entry.key} value={entry.key} onSelect={() => runSetting(entry)} leading={<IconTile icon={entry.icon} />} label={entry.label} meta={entry.meta} />
+              ))}
+            </CommandGroup>
+          </>
+        )}
       </CommandList>
     </CommandDialog>
   );

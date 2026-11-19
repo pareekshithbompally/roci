@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   openMeeting: vi.fn(async () => undefined),
   openChat: vi.fn(),
   spotlightSearch: vi.fn(async () => [] as unknown[]),
+  setTheme: vi.fn(),
 }));
 
 const ITEMS = [
@@ -19,13 +20,16 @@ vi.mock('@features/history/hooks/useUnifiedSidebar', () => ({ useUnifiedSidebar:
 vi.mock('@features/history/hooks/useOpenMeeting', () => ({ useOpenMeeting: () => mocks.openMeeting }));
 vi.mock('@features/chat', () => ({ openChat: mocks.openChat }));
 vi.mock('@extensions/rag/client', () => ({ vectorDB: { spotlightSearch: mocks.spotlightSearch } }));
+vi.mock('@shared/contexts/ThemeContext', () => ({ useThemeContext: () => ({ theme: 'dark', isDark: true, setTheme: mocks.setTheme }) }));
 vi.mock('@features/settings', async () => {
   const { matchesAllWords } = await import('@shared/utils/textMatch');
+  const { useQuickSettings } = await import('@features/settings/hooks/useQuickSettings');
   const items = [
     { id: 'providers', label: 'Providers', icon: () => null, group: 'AI', keywords: ['api key', 'openai'] },
     { id: 'mcp', label: 'MCP Servers', icon: () => null, group: 'AI', available: false, keywords: [] },
   ];
   return {
+    useQuickSettings,
     findSettings: (query: string) =>
       items.filter((item) => item.available !== false && matchesAllWords([item.label, ...item.keywords].join(' '), query)),
   };
@@ -92,5 +96,24 @@ describe('SearchPalette', () => {
     expect(screen.getByText('Providers')).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText('Search meetings, chats and settings'), { target: { value: 'mcp' } });
     expect(screen.queryByText('MCP Servers')).toBeNull();
+  });
+
+  it('keeps the Settings group at the bottom before anything is typed: appearance and Settings', () => {
+    openPalette();
+    expect(screen.getByText('Switch to Light Appearance')).toBeTruthy();
+    expect(screen.getByText('Open Settings')).toBeTruthy();
+  });
+
+  it('switches the appearance from the palette', async () => {
+    openPalette();
+    await act(async () => { fireEvent.click(screen.getByText('Switch to Light Appearance')); });
+    expect(mocks.setTheme).toHaveBeenCalledWith('light');
+  });
+
+  it('keeps the same layout when nothing matches: the line, and Settings still at the bottom', async () => {
+    openPalette();
+    fireEvent.change(screen.getByPlaceholderText('Search meetings, chats and settings'), { target: { value: 'appearance' } });
+    expect(await screen.findByText('No meetings or chats match')).toBeTruthy();
+    expect(screen.getByText('Switch to Light Appearance')).toBeTruthy();
   });
 });
