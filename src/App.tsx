@@ -5,7 +5,7 @@ import { AppStatus } from '@shared/types';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHistory } from '@shared/contexts/HistoryContext';
 import { useToast } from '@shared/contexts/ToastContext';
-import { PermissionChecklist, RecordingExitPrompt, recording, useRecordingStore, useRecordingRuntime, useStartRecording } from '@features/recording';
+import { PermissionChecklist, RecordingExitPrompt, recording, useRecordingStore, useRecordingRuntime, useStartRecording, useToggleRecording } from '@features/recording';
 import { MainLayout } from '@features/layout';
 import { endSearch, startSearch, toggleSearch } from '@shared/stores/searchStore';
 import { HomeView } from '@features/home';
@@ -57,6 +57,10 @@ const App: React.FC = () => {
   const startRecording = useStartRecording();
   const startRecordingRef = useRef(startRecording);
   startRecordingRef.current = startRecording;
+  // ⌥⇧R and ⌘K share one toggle; the ref keeps the long-lived shortcut handler on the latest one.
+  const toggleRecording = useToggleRecording();
+  const toggleRecordingRef = useRef(toggleRecording);
+  toggleRecordingRef.current = toggleRecording;
   const toast = useToast();
   const appUpdate = useAppUpdate();
 
@@ -266,12 +270,7 @@ const App: React.FC = () => {
       await shortcutsService.initialize();
 
       // Read live recording state: this handler outlives the render it was made in.
-      shortcutsService.on('toggle-recording', async () => {
-        const { meetingId, busy } = useRecordingStore.getState();
-        if (busy) return;
-        if (meetingId) await recording.stop();
-        else await startRecordingRef.current();
-      });
+      shortcutsService.on('toggle-recording', () => toggleRecordingRef.current());
 
       shortcutsService.on('show-window', async () => {
         await windowService.show();

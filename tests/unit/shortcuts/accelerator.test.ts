@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { APP_SHORTCUTS, GLOBAL_SHORTCUTS } from '@config/shortcuts.config';
 import { parseAccelerator } from '@features/shortcuts/accelerator';
-import { findAppShortcut, shortcutLabel } from '@features/shortcuts';
+import { acceleratorKeys, findAppShortcut, shortcutLabel } from '@features/shortcuts';
 
 const keydown = (key: string, init: KeyboardEventInit = {}) =>
   new KeyboardEvent('keydown', { key, metaKey: true, cancelable: true, ...init });
@@ -36,5 +36,17 @@ describe('shortcuts', () => {
     expect(esc(document.body)).toBe('leaveSettings');
     expect(esc(document.createElement('input'))).toBeNull();
     expect(shortcutLabel('leaveSettings')).toBe('esc');
+  });
+});
+
+describe('acceleratorKeys', () => {
+  it('one key per cap, modifiers in macOS order, named keys by their label', () => {
+    expect(acceleratorKeys('CommandOrControl+Comma')).toEqual(['⌘', ',']);
+    expect(acceleratorKeys('Option+Shift+R')).toEqual(['⌥', '⇧', 'R']);
+    expect(acceleratorKeys('Escape')).toEqual(['esc']);
+  });
+
+  it('the joined label is the same keys', () => {
+    expect(shortcutLabel('openSettings')).toBe(acceleratorKeys('CommandOrControl+Comma').join(''));
   });
 });

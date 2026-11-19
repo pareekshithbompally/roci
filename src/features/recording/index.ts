@@ -8,7 +8,7 @@ export {
   useRecordingBusy,
 } from './stores/recordingStore';
 export { meetingPipeline } from './pipeline/meetingPipeline';
-export { useRecordingRuntime, useStartRecording, usePermissions } from './hooks';
+export { useRecordingRuntime, useStartRecording, useToggleRecording, usePermissions } from './hooks';
 export { PermissionChecklist, RecordingExitPrompt, RecordPill, RecordingMeetingView } from './components';
 export { meetingLiveActions, useMeetingLiveStore } from './live';
 export { useInterimAiNotes } from './notes';

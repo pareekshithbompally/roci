@@ -71,12 +71,15 @@ const FLAG_GLYPH = Object.fromEntries(
   Object.values(SHORTCUT_MODIFIERS).map(({ flag, glyph }) => [flag, glyph]),
 ) as Record<ShortcutModifierFlag, string>;
 
-/** macOS label: `CommandOrControl+Shift+K` → `⇧⌘K`. */
-export function formatAccelerator(accelerator: string): string {
+/** The keys to press, one per keycap, modifiers in macOS order: `CommandOrControl+Shift+K` → `['⇧', '⌘', 'K']`. */
+export function acceleratorKeys(accelerator: string): string[] {
   const { flags, key } = parseAccelerator(accelerator);
   const glyphs = FLAG_ORDER.filter((flag) => flags.has(flag)).map((flag) => FLAG_GLYPH[flag]);
-  return `${glyphs.join('')}${SHORTCUT_KEY_LABELS[key] ?? key.toUpperCase()}`;
+  return [...glyphs, SHORTCUT_KEY_LABELS[key] ?? key.toUpperCase()];
 }
+
+/** macOS label: `CommandOrControl+Shift+K` → `⇧⌘K`. */
+export const formatAccelerator = (accelerator: string): string => acceleratorKeys(accelerator).join('');
 
 /** Label for an app shortcut, from the registry (`⌘K`). */
 export function shortcutLabel(id: AppShortcutId): string {
