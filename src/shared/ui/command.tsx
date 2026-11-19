@@ -176,7 +176,7 @@ export function CommandDialog({ open, onOpenChange, onEscapeKeyDown, onKeyDown, 
           bare
           aria-describedby={undefined}
           onEscapeKeyDown={onEscapeKeyDown}
-          className={cn(SHEET_SURFACE, 'left-1/2 top-[10vh] w-full max-w-2xl -translate-x-1/2 overflow-hidden')}
+          className={cn(SHEET_SURFACE, 'left-1/2 top-[18vh] w-full max-w-2xl -translate-x-1/2 overflow-hidden')}
         >
           <DialogPrimitiveTitle className="sr-only">{label}</DialogPrimitiveTitle>
           <Command shouldFilter={false} onKeyDown={onKeyDown}>{children}</Command>
