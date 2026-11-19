@@ -1,12 +1,7 @@
-/** Notes feature: meeting-linked notes with add, edit, and delete. */
+/** Notes feature: a meeting's notes on disk (the meeting's notes pane reads and writes them). */
 
-// Hooks
-export { useNotes, useMeetingNotes } from './hooks';
+export { useMeetingNotes } from './hooks';
 
-// Components
-export { NotesView, NoteItem, NoteEditor } from './components';
-
-// Types
 export type {
   Note,
   NoteInput,

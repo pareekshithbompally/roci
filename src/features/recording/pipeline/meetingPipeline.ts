@@ -174,7 +174,8 @@ async function settle(id: string, error: unknown, cancelled: boolean): Promise<v
     id: `recording-ready:${id}`,
     kind: 'recordingReady',
     tone: 'error',
-    inFront: 'toast',
+    // the open meeting already says it under its title
+    inFront: useAppStore.getState().selectedHistoryId === id ? 'quiet' : 'toast',
     title: atSummary ? "Couldn't summarize" : "Couldn't transcribe",
     body: message,
   });
@@ -226,14 +227,25 @@ export const meetingPipeline = {
   },
 
   /** A recording just stopped: its in-call transcript becomes the transcript when every chunk made it, else the recording
-   *  is transcribed now (the in-call transcript was cut short) or when the user asked for that; then the summary follows. */
+   *  is transcribed now (the in-call transcript was cut short) or when the user asked for that; then the summary follows. While
+   *  the last chunks finish the meeting reads as transcribing and counts as running, so nothing starts a second run beside it. */
   recorded(id: string): void {
-    void liveTranscript.finish(id)
-      .then(async (live) => {
-        if (live?.complete && live.entries.length > 0) await saveLiveTranscript(id, live.entries);
-        if (live || readContext?.().settings.autoTranscribe) await meetingPipeline.run(id);
+    const live = liveTranscript.active(id);
+    const controller = new AbortController();
+    if (live) running.set(id, controller);
+    void (live ? setStatus(id, { status: 'transcribing' }) : Promise.resolve())
+      .then(() => liveTranscript.finish(id))
+      .then(async (outcome) => {
+        running.delete(id);
+        if (controller.signal.aborted) return setStatus(id, { status: 'captured' });
+        if (outcome?.complete && outcome.entries.length > 0) await saveLiveTranscript(id, outcome.entries);
+        if (outcome || readContext?.().settings.autoTranscribe) await meetingPipeline.run(id);
       })
-      .catch((error: unknown) => console.error('[meetingPipeline] After recording:', id, error));
+      .catch((error: unknown) => {
+        running.delete(id);
+        console.error('[meetingPipeline] After recording:', id, error);
+        return settle(id, error, false);
+      });
   },
 
   /** At launch: the recorder finishes recordings a quit or crash cut off; meetings left mid-pipeline resume. */

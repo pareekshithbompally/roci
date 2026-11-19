@@ -1,12 +1,11 @@
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { generateText, Output, jsonSchema } from 'ai';
-import { buildTranscriptionRequest, formatTemporalContext } from '@core/ai';
+import { buildTranscriptionRequest, formatTemporalContext, parseAnalysis, type AnalysisResult } from '@core/ai';
 import { createModel } from '@services/ai/provider';
 import { extractTokenUsage } from '@services/ai/types';
 import { recordUsage } from '@extensions/usage';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { MeetingContext, UserNote } from '@core/ai/prompts/transcription.prompt';
-import type { AnalysisResult } from '@core/ai/schemas/transcription.schema';
 import { isContextWindowError, summaryError } from '@services/ai/apple/contextWindow';
 import { contextTokensFor, excerptTranscript, transcriptBudget } from './excerpt';
 
@@ -50,5 +49,5 @@ export async function analyzeTranscript(args: {
     .catch((error: unknown) => { throw summaryError(error); });
 
   recordUsage('summary', args.resolved, extractTokenUsage(result.usage), args.meetingId);
-  return result.output as AnalysisResult;
+  return parseAnalysis(result.output);
 }

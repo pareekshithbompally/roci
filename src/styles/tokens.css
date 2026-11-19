@@ -163,6 +163,9 @@
   /* AI at work: a copper-tinted row with a brighter copper band sweeping across it */
   --ai-wash: color-mix(in srgb, var(--ai-accent) 9%, transparent);
   --ai-sweep: linear-gradient(100deg, transparent 25%, color-mix(in srgb, var(--ai-accent) 24%, transparent) 50%, transparent 75%);
+  /* AI-written result (a meeting's overview): a copper wash fading across the card, and its soft copper hairline */
+  --ai-card: linear-gradient(110deg, color-mix(in srgb, var(--ai-accent) 16%, transparent), color-mix(in srgb, var(--ai-accent) 3%, transparent) 70%);
+  --ai-edge: color-mix(in srgb, var(--ai-accent) 28%, transparent);
   /* The app icon's ship (src-tauri/icons/AppIcon.icon): its lit port wing and shaded starboard wing */
   --brand-ship-light: #e8925a;
   --brand-ship-shade: #a9461f;

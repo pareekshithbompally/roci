@@ -1,141 +1,142 @@
+/** A meeting's summary: the overview as a copper hero card, then cards for what was decided
+ *  (highlighted), who does what, the key points and what follows. Empty sections are left out. The user's notes live beside
+ *  the transcript, never repeated here. */
+
 import React from 'react';
+import { ArrowRight, CircleCheck, ListTodo, MessagesSquare, Sparkles, type LucideIcon } from 'lucide-react';
 import type { ActionItem, StructuredSummary } from '@shared/types';
-import { Sparkles } from 'lucide-react';
 import { EmptyState, Markdown } from '@shared/components';
-import { AiLine, Icon, RociMark, Surface, Text } from '@shared/ui';
+import { Chip, Icon, RociMark, Surface, Text, cn } from '@shared/ui';
 import { TODOS_CONFIG } from '@config/todos.config';
-import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
+import { SUMMARY_CONFIG as SUMMARY } from '@config/summary.config';
+import { formatShortDate } from '@shared/utils/formatters';
 
 interface SummaryViewProps {
   summary: string;
   structuredSummary?: StructuredSummary;
-  timestamp?: number;
-  title?: string;
 }
 
-/** Action items shown inline; the rest live in the To-dos tab. */
-const ACTION_PREVIEW_LIMIT = 5;
+type SectionKey = 'decisions' | 'actions' | 'keyPoints' | 'nextSteps';
 
-const Overview: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <Surface variant="subtle" radius="lg" className="p-5 space-y-2">
-    <Text as="h3" variant="label" tone="muted">Overview</Text>
-    <Text as="div" variant="reading" className="leading-relaxed">{children}</Text>
+interface SectionMeta {
+  title: string;
+  icon: LucideIcon;
+}
+
+const SECTIONS: Record<SectionKey, SectionMeta> = {
+  decisions: { title: SUMMARY.copy.decisions, icon: CircleCheck },
+  actions: { title: SUMMARY.copy.actions, icon: ListTodo },
+  keyPoints: { title: SUMMARY.copy.keyPoints, icon: MessagesSquare },
+  nextSteps: { title: SUMMARY.copy.nextSteps, icon: ArrowRight },
+};
+
+const sectionId = (key: SectionKey) => `summary-${key}`;
+
+/** The overview's heading: Roci's mark (written by the AI) and the title. */
+const OverviewHeading: React.FC = () => (
+  <div className="flex items-center gap-2">
+    <Icon icon={RociMark} size="sm" tone="ai" />
+    <Text as="h3" variant="title">{SUMMARY.copy.overview}</Text>
+  </div>
+);
+
+const OverviewCard: React.FC<{ overview: string }> = ({ overview }) => (
+  <Surface as="section" variant="ai" radius="lg" className="px-4 py-3.5 space-y-2.5">
+    <OverviewHeading />
+    <Text as="p" variant="lead">{overview}</Text>
   </Surface>
 );
 
-const SummarySection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <section>
-    <Text as="h3" variant="title" className="mb-3">{title}</Text>
-    <ul className="space-y-2">{children}</ul>
-  </section>
+/** One section's card: icon, title and count, then its lines; `highlight` gives it the copper bar. */
+const SectionCard: React.FC<{ section: SectionKey; count: number; highlight?: boolean; children: React.ReactNode }> = ({ section, count, highlight, children }) => (
+  <Surface as="section" id={sectionId(section)} variant="subtle" radius="lg" className="flex gap-3 overflow-hidden px-4 py-3">
+    {highlight && <Surface variant="aiBar" radius="full" className="w-1 shrink-0 self-stretch" />}
+    <div className="flex-1 min-w-0 space-y-2">
+      <div className="flex items-center gap-2">
+        <Icon icon={SECTIONS[section].icon} size="sm" tone="muted" />
+        <Text as="h3" variant="headline">{SECTIONS[section].title}</Text>
+        <Text variant="figureSmall" tone="muted">{count}</Text>
+      </div>
+      <ul className="space-y-1.5">{children}</ul>
+    </div>
+  </Surface>
 );
 
-const Bullet: React.FC<{ children: React.ReactNode; meta?: string; ai?: boolean }> = ({ children, meta, ai }) => (
-  <li className="flex items-start gap-3">
-    <Text variant="reading" tone={ai ? 'ai' : 'faint'} className="shrink-0">•</Text>
-    <div className="flex-1 min-w-0">
-      <Text as="p" variant="reading" className="leading-relaxed">{children}</Text>
-      {meta && <Text as="p" variant="helper" tone="muted" className="mt-0.5">{meta}</Text>}
-    </div>
+/** One AI-written line, marked in copper. */
+const Bullet: React.FC<{ children: React.ReactNode; mark?: LucideIcon }> = ({ children, mark }) => (
+  <li className="flex items-baseline gap-3">
+    {mark ? <Icon icon={mark} size="xs" tone="ai" className="shrink-0 translate-y-0.5" /> : <Text variant="reading" tone="ai" className="shrink-0">•</Text>}
+    <Text as="p" variant="reading" className="flex-1 min-w-0">{children}</Text>
   </li>
 );
 
-const BulletSection: React.FC<{ title: string; items?: string[] }> = ({ title, items }) => {
+const ListCard: React.FC<{ section: SectionKey; items?: string[]; highlight?: boolean; mark?: LucideIcon }> = ({ section, items, highlight, mark }) => {
   if (!items || items.length === 0) return null;
   return (
-    <SummarySection title={title}>
-      {items.map((item, idx) => <Bullet key={idx}>{item}</Bullet>)}
-    </SummarySection>
+    <SectionCard section={section} count={items.length} highlight={highlight}>
+      {items.map((item, idx) => <Bullet key={idx} mark={mark}>{item}</Bullet>)}
+    </SectionCard>
   );
 };
 
-/** The user's notes filled in, first on the Overview; `pending` while the final pass after Stop still runs (the live ones,
- *  shimmering). */
-export const EnhancedNotesSection: React.FC<{ items?: string[]; pending?: boolean }> = ({ items, pending }) => {
+/** A due date as the Mac shows short dates ("21 Nov"); a YYYY-MM-DD day is read as local midnight, never UTC. */
+const dueLabel = (dueDate: string): string => formatShortDate(`${dueDate}T00:00`) || dueDate;
+
+/** An action item: the task, then who and when as chips. */
+const ActionLine: React.FC<{ item: ActionItem }> = ({ item }) => (
+  <li className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+    <Text variant="reading" tone="ai" className="shrink-0">○</Text>
+    <Text as="p" variant="reading" className="flex-1 min-w-0">{item.text}</Text>
+    {(item.owner || item.dueDate) && (
+      <span className="flex shrink-0 gap-1.5">
+        {item.owner && <Chip label={item.owner} />}
+        {item.dueDate && <Chip label={dueLabel(item.dueDate)} />}
+      </span>
+    )}
+  </li>
+);
+
+const ActionsCard: React.FC<{ items?: ActionItem[] }> = ({ items }) => {
   if (!items || items.length === 0) return null;
+  const hidden = items.length - SUMMARY.actionPreview;
   return (
-    <section>
-      <div className="mb-3 flex items-center gap-2">
-        <Icon icon={RociMark} size="sm" tone="ai" />
-        <Text as="h3" variant="title">{NOTES.copy.enhancedTitle}</Text>
-        {pending && <Text variant="caption" shimmer>{NOTES.copy.finishing}</Text>}
+    <SectionCard section="actions" count={items.length}>
+      {items.slice(0, SUMMARY.actionPreview).map((item) => <ActionLine key={item.id} item={item} />)}
+      {hidden > 0 && <li><Text variant="helper" tone="muted">{SUMMARY.copy.more(hidden, TODOS_CONFIG.title)}</Text></li>}
+    </SectionCard>
+  );
+};
+
+const Structured: React.FC<{ summary: StructuredSummary }> = ({ summary }) => {
+  // decisions and action items side by side when both are there; either alone takes the full width
+  const pair = (summary.decisionsMade?.length ?? 0) > 0 && (summary.actionItems?.length ?? 0) > 0;
+  return (
+    <>
+      {summary.overview && <OverviewCard overview={summary.overview} />}
+      <div className={cn('grid gap-3 empty:hidden', pair && 'md:grid-cols-2')}>
+        <ListCard section="decisions" items={summary.decisionsMade} highlight mark={CircleCheck} />
+        <ActionsCard items={summary.actionItems} />
       </div>
-      {pending ? (
-        <ul className="space-y-1">{items.map((item, idx) => <AiLine key={idx} state="writing">{item}</AiLine>)}</ul>
-      ) : (
-        <ul className="space-y-2">{items.map((item, idx) => <Bullet key={idx} ai>{item}</Bullet>)}</ul>
-      )}
-    </section>
+      <ListCard section="keyPoints" items={summary.keyDiscussionPoints} />
+      <ListCard section="nextSteps" items={summary.nextSteps} />
+    </>
   );
 };
 
-function actionMeta(item: ActionItem, withOwner: boolean): string {
-  return [withOwner && item.owner && `Owner: ${item.owner}`, item.dueDate && `Due: ${item.dueDate}`]
-    .filter(Boolean)
-    .join(' · ');
-}
-
-const ActionItemsSection: React.FC<{ items?: ActionItem[]; withOwner: boolean }> = ({ items, withOwner }) => {
-  if (!items || items.length === 0) return null;
-  const hidden = items.length - ACTION_PREVIEW_LIMIT;
+export const SummaryView: React.FC<SummaryViewProps> = ({ summary, structuredSummary }) => {
+  if (!summary && !structuredSummary) return <EmptyState icon={Sparkles} message={SUMMARY.copy.none} />;
   return (
-    <SummarySection title={`Action Items (${items.length})`}>
-      {items.slice(0, ACTION_PREVIEW_LIMIT).map((item) => (
-        <Bullet key={item.id} meta={actionMeta(item, withOwner)}>{item.text}</Bullet>
-      ))}
-      {hidden > 0 && (
-        <li className="pt-1">
-          <Text variant="helper" tone="muted">+{hidden} more items (view in {TODOS_CONFIG.title} tab)</Text>
-        </li>
-      )}
-    </SummarySection>
-  );
-};
-
-/** Renders structured summary fields directly; falls back to raw markdown for tldr/notes data. */
-const SummaryView: React.FC<SummaryViewProps> = ({ summary, structuredSummary }) => {
-  // No summary data at all
-  if (!summary && !structuredSummary) {
-    return <EmptyState icon={Sparkles} message="No summary available" />;
-  }
-
-  // No structured summary — render raw markdown
-  if (!structuredSummary) {
-    return <Markdown content={summary} />;
-  }
-
-  // New structured fields available
-  const hasNewFields = structuredSummary.overview || structuredSummary.keyDiscussionPoints;
-
-  if (hasNewFields) {
-    return (
-      <div className="max-w-4xl space-y-6">
-        <EnhancedNotesSection items={structuredSummary.enhancedNotes} />
-        {structuredSummary.overview && <Overview>{structuredSummary.overview}</Overview>}
-        <BulletSection title="Key Discussion Points" items={structuredSummary.keyDiscussionPoints} />
-        <BulletSection title="Decisions Made" items={structuredSummary.decisionsMade} />
-        <ActionItemsSection items={structuredSummary.actionItems} withOwner />
-        <BulletSection title="Next Steps" items={structuredSummary.nextSteps} />
-      </div>
-    );
-  }
-
-  // Legacy fallback: tldr/notes fields
-  if (!structuredSummary.tldr && !structuredSummary.notes) {
-    return <Markdown content={summary} />;
-  }
-
-  return (
-    <div className="max-w-4xl space-y-6">
-      {structuredSummary.tldr && structuredSummary.tldr !== '<None Found>' && (
-        <Overview><Markdown content={structuredSummary.tldr} /></Overview>
-      )}
-      {structuredSummary.notes && structuredSummary.notes !== '<None Found>' && (
-        <Markdown content={structuredSummary.notes} />
-      )}
-      <ActionItemsSection items={structuredSummary.actionItems} withOwner={false} />
+    <div className="space-y-3">
+      {structuredSummary ? <Structured summary={structuredSummary} /> : <Markdown content={summary} />}
     </div>
   );
 };
 
-export default SummaryView;
+/** In place of the summary while it is being written: the hero card it will fill, its text shimmering. */
+export const SummaryWriting: React.FC<{ label: string }> = ({ label }) => (
+  <Surface role="status" variant="ai" radius="lg" className="px-4 py-3.5 space-y-2.5">
+    <OverviewHeading />
+    <Text as="p" variant="lead" shimmer>{SUMMARY.copy.writingPlaceholder}</Text>
+    <Text as="p" variant="helper" tone="muted">{label}</Text>
+  </Surface>
+);

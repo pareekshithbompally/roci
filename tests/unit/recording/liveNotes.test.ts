@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
 import {
+  enhancedBullets,
   aiRows, changesFromReply, liveNotesRequest, mergeBullets, reconcileLines, refreshReason, signatureOf, transcriptText, unsentEntries, entryKey,
   type Bullet, type NoteLine,
 } from '@features/recording/notes/liveNotes';
@@ -163,5 +164,13 @@ describe('liveNotesSchema', () => {
     const withNotes = liveNotesSchema(['n1', 'n2']);
     expect(withNotes.required).toEqual(['points', 'filled']);
     expect(withNotes.properties.filled && withNotes.properties.filled.items.properties.noteId.enum).toEqual(['n1', 'n2']);
+  });
+});
+
+describe('enhancedBullets', () => {
+  it("fills each written note with the summary's line in order, skipping blank lines and missing items", () => {
+    const lines = [{ id: 'n1', text: 'pricing', atMs: 1_000 }, { id: 'n2', text: '  ' }, { id: 'n3', text: 'launch' }];
+    expect(enhancedBullets(lines, ['Pricing: three tiers'])).toEqual([{ id: 'b1', noteId: 'n1', text: 'Pricing: three tiers', atMs: 1_000 }]);
+    expect(enhancedBullets(lines, ['A', 'B']).map((b) => [b.noteId, b.text])).toEqual([['n1', 'A'], ['n3', 'B']]);
   });
 });

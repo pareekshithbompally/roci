@@ -1,8 +1,7 @@
-/** Line under a meeting title saying what phase it is in, with that phase's one action (Transcribe / Retry). */
+/** The notice under a meeting title when it needs you (Transcribe, Summarize, Retry); a meeting at work shows only its badge. */
 
 import React from 'react';
-import { Loader2 } from 'lucide-react';
-import { Button, Callout, Icon, Text } from '@shared/ui';
+import { Button, Callout, Text } from '@shared/ui';
 import { meetingPhaseAction, meetingPhaseActionReady, meetingPhaseDetail, meetingPhaseLabel } from '@config/meetingPhase.config';
 import { useAIReadiness, useOpenAISetup } from '@features/settings';
 import { isMeetingBusy, type MeetingPhase } from '@shared/types/meetingPhase';
@@ -28,9 +27,9 @@ export const MeetingPhaseNotice: React.FC<MeetingPhaseNoticeProps> = ({ phase, o
   const aiReady = useAIReadiness();
   const openAISetup = useOpenAISetup();
   const detail = meetingPhaseDetail(phase);
-  if (!detail) return null;
+  if (!detail || isMeetingBusy(phase)) return null;
 
-  const action = phase.kind === 'ready' ? null : meetingPhaseAction(phase);
+  const action = meetingPhaseAction(phase);
   // Without the AI this action needs, the button goes where it gets set up instead of failing.
   const button = meetingPhaseActionReady(phase, aiReady)
     ? <Button variant="secondary" size="sm" onClick={onAction}>{action}</Button>
@@ -38,7 +37,6 @@ export const MeetingPhaseNotice: React.FC<MeetingPhaseNoticeProps> = ({ phase, o
   return (
     <Callout
       variant={VARIANT[phase.kind]}
-      icon={isMeetingBusy(phase) ? <Icon icon={Loader2} size="sm" tone="ai" className="animate-spin" /> : undefined}
       action={action && onAction ? button : undefined}
     >
       <Text as="p" variant="bodyStrong" tone="inherit">{meetingPhaseLabel(phase)}</Text>

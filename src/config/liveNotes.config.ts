@@ -12,16 +12,15 @@ export const LIVE_NOTES_CONFIG = {
   copy: {
     yourNotes: 'Your notes',
     aiNotes: 'AI notes',
-    transcript: 'Live transcript',
-    transcribing: 'Transcribing…',
+    liveTranscript: 'Live transcript',
+    transcript: 'Transcript',
+    /** The in-call transcript after Stop, until the final one replaces it. */
+    draftTranscript: 'Transcript · draft',
     placeholder: 'Type shorthand, one thought per line. Each line is filled in from what was being said.',
     aiEmpty: 'AI notes build here as the meeting goes. Lines you jot in Your notes are filled in and given more detail.',
+    aiEmptyAfter: 'Lines you jot in Your notes are filled in from the transcript when the summary is written.',
     noModel: 'Choose a Summary model in Settings › Default Models to fill in your notes.',
-    enhancing: 'Enhancing your notes…',
     sections: 'Meeting sections',
-    /** The meeting's Overview: the notes filled in, and the wait for the final pass after Stop. */
-    enhancedTitle: 'Your notes, enhanced',
-    finishing: 'Finishing your notes…',
   },
 } as const;
 

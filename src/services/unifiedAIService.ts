@@ -6,10 +6,10 @@ import { getProviderTitle } from '@shared/utils/provider.utils';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { CHAT_TITLE_MAX_CHARS, REPLY_PREVIEW_CHARS } from '@config/chat.config';
 import type { ModelProvider } from '@shared/types/modelProviders';
-import type { ProcessedResult, AppSettings, MeetingSummary, StoredTranscriptSegment } from '@shared/types';
+import type { ProcessedResult, AppSettings, StoredTranscriptSegment } from '@shared/types';
 import { resolveChatModel, resolveSummaryModel, requiresApiKey, type ResolvedModel } from '@shared/utils/modelResolver';
 import { MAX_AUDIO_SIZE_BYTES, MAX_AUDIO_SIZE_MB, MIN_AUDIO_SIZE_BYTES, WAV_HEADER_SIZE_BYTES } from '@shared/utils/audio.utils';
-import { CHAT_TITLE_PROMPT } from '@core/ai';
+import { CHAT_TITLE_PROMPT, summaryMarkdown } from '@core/ai';
 import { createModel } from './ai';
 import { extractTokenUsage } from './ai/types';
 import type { TokenUsage } from './ai/types';
@@ -178,7 +178,7 @@ class UnifiedAIService {
 
   private toProcessedResult(analysis: AnalysisResult, transcript: string, segments?: StoredTranscriptSegment[]): ProcessedResult {
     const summary = analysis.summary;
-    const summaryString = this.buildSummaryString(summary);
+    const summaryString = summaryMarkdown(summary);
 
     return {
       title: analysis.title,
@@ -201,30 +201,6 @@ class UnifiedAIService {
         enhancedNotes: summary.enhancedNotes,
       },
     };
-  }
-
-  private buildSummaryString(summary: MeetingSummary): string {
-    const parts: string[] = [];
-    if (summary.enhancedNotes?.length) parts.push(`## Your Notes, Enhanced\n${summary.enhancedNotes.map((n) => `- ${n}`).join('\n')}`);
-    parts.push(`## Meeting Overview\n${summary.overview}`);
-    if (summary.keyDiscussionPoints.length > 0) {
-      parts.push(`## Key Discussion Points\n${summary.keyDiscussionPoints.map(p => `- ${p}`).join('\n')}`);
-    }
-    if (summary.decisionsMade.length > 0) {
-      parts.push(`## Decisions Made\n${summary.decisionsMade.map(d => `- ${d}`).join('\n')}`);
-    }
-    if (summary.actionItems.length > 0) {
-      parts.push(`## Action Items\n${summary.actionItems.map(a => {
-        let line = `- ${a.text}`;
-        if (a.owner) line += ` - Owner: ${a.owner}`;
-        if (a.dueDate) line += ` - Due: ${a.dueDate}`;
-        return line;
-      }).join('\n')}`);
-    }
-    if (summary.nextSteps.length > 0) {
-      parts.push(`## Next Steps\n${summary.nextSteps.map(s => `- ${s}`).join('\n')}`);
-    }
-    return parts.join('\n\n');
   }
 }
 

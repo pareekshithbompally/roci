@@ -70,7 +70,8 @@ describe('in-call transcript', () => {
     handlers.get('meeting-live://done')?.({ payload: null });
     const outcome = await liveTranscript.finish('m1');
     expect(outcome).toEqual({ complete: true, entries: [entry('microphone', 0, 6_000, 'First.'), entry('system', 6_000, 12_000, 'Second.')] });
-    expect(useMeetingLiveStore.getState().meetingId).toBeNull();
+    // the entries stay as the meeting's draft transcript until the next recording
+    expect(useMeetingLiveStore.getState()).toMatchObject({ meetingId: 'm1', live: false, pending: 0 });
   });
 
   it('splices a hard cut\'s re-heard start at the seam, tolerating a slightly different hearing', () => {

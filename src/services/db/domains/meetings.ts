@@ -1,6 +1,7 @@
 /** Meetings domain — list/get/create/update/delete meetings, move their pipeline status, save transcript and summary. */
 
 import { parseStoreError } from '@services/db/errors';
+import { parseMeetingSummary } from '@core/ai';
 import {
   call,
   rustNoteToEntry,
@@ -47,15 +48,7 @@ function toDetail(result: RustMeetingDetail): MeetingDetail {
   }
 
   if (result.summary) {
-    const summaryData = JSON.parse(result.summary.data);
-    detail.summary = {
-      overview: result.summary.overview,
-      keyDiscussionPoints: summaryData.keyDiscussionPoints ?? [],
-      decisionsMade: summaryData.decisionsMade ?? [],
-      actionItems: summaryData.actionItems ?? [],
-      nextSteps: summaryData.nextSteps ?? [],
-      enhancedNotes: summaryData.enhancedNotes,
-    };
+    detail.summary = parseMeetingSummary({ ...JSON.parse(result.summary.data), overview: result.summary.overview });
   }
 
   if (recording) {

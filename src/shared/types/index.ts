@@ -229,7 +229,7 @@ export interface AppSettings {
   /** Settings › General › Capture: show dictation as it's spoken, with a speech model that streams. */
   liveTranscription?: boolean;
   chatModel: string;
-  /** LLM model for the Analyze phase — produces the structured meeting summary (Overview tab). */
+  /** LLM model for the Analyze phase — produces the structured meeting summary (Summary tab). */
   analyzeModel?: string;
   /** Image model provider for chat's generate_image tool (`openai`, `gemini`); unset = chat can't make images. */
   imageProvider?: string;

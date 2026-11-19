@@ -1,23 +1,9 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useAppActions } from '@shared/stores/appStore';
 import { meetingService } from '@services/meeting.service';
+import { summaryMarkdown } from '@core/ai';
 import type { HistoryItem, MeetingDetail, ProcessedResult } from '@shared/types';
 
-function buildSummaryMarkdown(summary: MeetingDetail['summary']): string {
-  if (!summary) return '';
-  const lines: string[] = [];
-  if (summary.enhancedNotes?.length) lines.push(`## Your Notes, Enhanced\n${summary.enhancedNotes.map((n) => `- ${n}`).join('\n')}`);
-  lines.push(`## Meeting Overview\n${summary.overview}`);
-  lines.push(`## Key Discussion Points\n${summary.keyDiscussionPoints.map((p) => `- ${p}`).join('\n')}`);
-  lines.push(`## Decisions Made\n${summary.decisionsMade.map((d) => `- ${d}`).join('\n')}`);
-  lines.push(
-    `## Action Items\n${summary.actionItems
-      .map((a) => `- ${a.text}${a.owner ? ` - Owner: ${a.owner}` : ''}${a.dueDate ? ` - Due: ${a.dueDate}` : ''}`)
-      .join('\n')}`,
-  );
-  lines.push(`## Next Steps\n${summary.nextSteps.map((s) => `- ${s}`).join('\n')}`);
-  return lines.join('\n\n');
-}
 
 export function buildMeetingResult(detail: MeetingDetail): ProcessedResult {
   const structuredSummary = detail.summary
@@ -40,7 +26,7 @@ export function buildMeetingResult(detail: MeetingDetail): ProcessedResult {
   return {
     title: detail.index.title,
     transcript: detail.transcript?.text || '',
-    summary: buildSummaryMarkdown(detail.summary),
+    summary: summaryMarkdown(detail.summary),
     categories: detail.index.categories,
     structuredSummary,
     segments: detail.transcript?.segments,

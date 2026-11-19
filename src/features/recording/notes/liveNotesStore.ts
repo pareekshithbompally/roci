@@ -8,7 +8,7 @@ import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { LiveEntry } from '@features/recording/live/liveTranscript';
 import { formatClock } from '@features/recording/stores/recordingStore';
 import {
-  changesFromReply, entryKey, liveNotesRequest, mergeBullets, reconcileLines, refreshReason, signatureOf, transcriptText, unsentEntries,
+  changesFromReply, enhancedBullets, entryKey, liveNotesRequest, mergeBullets, reconcileLines, refreshReason, signatureOf, transcriptText, unsentEntries,
   type Bullet, type NoteLine, type TypedAt,
 } from './liveNotes';
 
@@ -55,11 +55,9 @@ export const liveNotes = {
     set({ meetingId, lines: [], bullets: [], updating: false });
   },
 
-  /** Lines saved before this screen opened (a reload mid-recording), taken only when nothing is typed yet; says whether it took them. */
-  seed(lines: NoteLine[]): boolean {
-    if (get().lines.length > 0) return false;
-    set({ lines });
-    return true;
+  /** The meeting's saved lines, taken only when nothing is held yet (opening a meeting, or a reload mid-recording). */
+  seed(lines: NoteLine[]): void {
+    if (get().lines.length === 0) set({ lines });
   },
 
   type(text: string, now: TypedAt): void {
@@ -105,9 +103,15 @@ export const liveNotes = {
   },
 };
 
-/** The live AI notes of a meeting just recorded, shown on its Overview until the summary's own land; empty for any other. */
-export function useInterimAiNotes(meetingId: string | null): string[] {
+const NO_BULLETS: Bullet[] = [];
+
+/** A meeting's AI lines: the summary's enhanced notes once written, before that the live ones of the meeting just recorded. */
+export function useAiBullets(meetingId: string, enhanced: string[] | undefined): Bullet[] {
   const owner = useLiveNotesStore((s) => s.meetingId);
+  const lines = useLiveNotesStore((s) => s.lines);
   const bullets = useLiveNotesStore((s) => s.bullets);
-  return useMemo(() => (meetingId && owner === meetingId ? bullets.map((b) => b.text) : []), [meetingId, owner, bullets]);
+  return useMemo(() => {
+    if (owner !== meetingId) return NO_BULLETS;
+    return enhanced && enhanced.length > 0 ? enhancedBullets(lines, enhanced) : bullets;
+  }, [meetingId, owner, lines, bullets, enhanced]);
 }

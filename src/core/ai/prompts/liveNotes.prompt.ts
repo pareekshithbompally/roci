@@ -17,7 +17,7 @@ export const LIVE_NOTES_PROMPT = `You write live notes for a meeting while it ha
 ## Points
 
 - Add a point for each topic, decision, number, date or task in the new transcript. Merge talk about one thing into one point; never one point per sentence.
-- When the new transcript adds to or corrects a point you already wrote, return that point with its id and the updated text.
+- When the new transcript adds to or corrects a point you already wrote, return that point with its id and the updated text. Never write a point you already have again as a new one.
 - Return only new and changed points. If the new transcript is small talk or filler, return none.
 
 ## The user's notes

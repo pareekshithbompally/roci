@@ -3,41 +3,13 @@ import type {
   ChatSession,
   HistoryItem,
   MeetingDetail,
-  MeetingSummary,
   Note,
 } from '@shared/types';
 import { meetingService } from '@services/meeting.service';
+import { summaryMarkdown } from '@core/ai';
 import { store } from '@services/db';
 import { concurrencyMap } from '@shared/utils/async.utils';
 import { IO_CONCURRENCY, MEETING_EDIT_SETTLE_MS } from '@extensions/rag/constants';
-
-export function formatMeetingSummary(summary?: MeetingSummary): string {
-  if (!summary) return '';
-
-  const parts: string[] = [];
-  if (summary.enhancedNotes?.length) parts.push(`Your Notes, Enhanced:\n${summary.enhancedNotes.map((note) => `- ${note}`).join('\n')}`);
-  if (summary.overview) parts.push(summary.overview);
-  if (summary.keyDiscussionPoints.length > 0) {
-    parts.push(`Key Discussion Points:\n${summary.keyDiscussionPoints.map(point => `- ${point}`).join('\n')}`);
-  }
-  if (summary.decisionsMade.length > 0) {
-    parts.push(`Decisions Made:\n${summary.decisionsMade.map(decision => `- ${decision}`).join('\n')}`);
-  }
-  if (summary.actionItems.length > 0) {
-    parts.push(
-      `Action Items:\n${summary.actionItems.map((item) => {
-        const owner = item.owner ? ` (${item.owner})` : '';
-        const dueDate = item.dueDate ? ` — due ${item.dueDate}` : '';
-        return `- ${item.text}${owner}${dueDate}`;
-      }).join('\n')}`,
-    );
-  }
-  if (summary.nextSteps.length > 0) {
-    parts.push(`Next Steps:\n${summary.nextSteps.map(step => `- ${step}`).join('\n')}`);
-  }
-
-  return parts.join('\n\n');
-}
 
 function mapNotes(detail: MeetingDetail): Note[] {
   return detail.notes.map((note) => ({
@@ -71,7 +43,7 @@ function toHistoryItem(detail: MeetingDetail): HistoryItem {
     inputSource,
     status: detail.index.status,
     transcript: detail.transcript?.text ?? '',
-    summary: formatMeetingSummary(detail.summary),
+    summary: summaryMarkdown(detail.summary),
     structuredSummary: detail.summary ? {
       overview: detail.summary.overview,
       keyDiscussionPoints: detail.summary.keyDiscussionPoints,

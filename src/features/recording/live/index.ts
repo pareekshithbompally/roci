@@ -2,5 +2,6 @@
 
 export { chunkEntries, liveTranscript, liveTranscriptResult, shedBacklog, spliceSeam, suppressEcho, withoutEcho } from './liveTranscript';
 export type { LiveEntry, LiveOutcome } from './liveTranscript';
-export { meetingLiveActions, useMeetingLiveStore } from './meetingLiveStore';
+export { meetingLiveActions, useDraftEntries, useMeetingLiveStore } from './meetingLiveStore';
+export { useDraftSegments } from './useDraftSegments';
 export { useMeetingLive } from './useMeetingLive';

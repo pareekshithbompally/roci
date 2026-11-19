@@ -9,6 +9,7 @@ export {
 } from './stores/recordingStore';
 export { meetingPipeline } from './pipeline/meetingPipeline';
 export { useRecordingRuntime, useStartRecording, useToggleRecording, usePermissions } from './hooks';
-export { PermissionChecklist, RecordingExitPrompt, RecordPill, RecordingMeetingView } from './components';
-export { meetingLiveActions, useMeetingLiveStore } from './live';
-export { useInterimAiNotes } from './notes';
+export { MeetingWorkspace, PermissionChecklist, RecordingExitPrompt, RecordPill, RecordingMeetingView } from './components';
+export type { WorkspaceTranscript } from './components';
+export { useAiBullets, useLiveNotes } from './notes';
+export { useDraftSegments, useMeetingLiveStore } from './live';

@@ -15,6 +15,8 @@ export const TYPOGRAPHY_CLASSES = {
   headline: 'text-body font-semibold',
   /** 14 — long-form reading: chat messages, transcript, summary */
   reading: 'text-reading font-normal',
+  /** 15 — a summary's opening paragraph, read before anything else on the page */
+  lead: 'text-title3 font-normal',
   /** 15 / 600 — panel and section titles */
   title: 'text-title3 font-semibold',
   /** 13 tabular — figures in a column (costs, counts) that must line up */

@@ -60,11 +60,17 @@ function wavOf(pcm: string): Blob {
   return new Blob([encodeWavInt16(samples, LIVE.sampleRate)], { type: 'audio/wav' });
 }
 
+/** A chunk was lost: the in-call transcript has a gap, which the screen says and the pipeline repairs after Stop. */
+function markFailed(current: Session): void {
+  current.failed = true;
+  if (session === current) meetingLiveActions.fail();
+}
+
 async function transcribeChunk(current: Session, chunk: LiveChunk, read: Reader): Promise<void> {
   const { settings, providers } = read();
   const selection = speechSelectionOf(settings);
   if (!selection) {
-    current.failed = true;
+    markFailed(current);
     return;
   }
   try {
@@ -74,7 +80,7 @@ async function transcribeChunk(current: Session, chunk: LiveChunk, read: Reader)
     meetingLiveActions.set(await withoutEcho(current.entries));
   } catch (error: unknown) {
     console.error('[liveTranscript] chunk failed:', error);
-    current.failed = true;
+    markFailed(current);
   }
 }
 
@@ -252,6 +258,11 @@ export const liveTranscript = {
     current.unlisten = () => { offChunk(); offDone(); };
   },
 
+  /** Whether a recording's in-call transcript is running (its chunks still arriving or being transcribed). */
+  active(meetingId: string): boolean {
+    return session?.meetingId === meetingId;
+  },
+
   /** After Stop: waits for the last chunks, then gives the recording's entries (null when it had no session). */
   async finish(meetingId: string): Promise<LiveOutcome | null> {
     const current = session;
@@ -260,7 +271,7 @@ export const liveTranscript = {
     while (current.draining) await current.draining;
     current.unlisten();
     session = null;
-    meetingLiveActions.stop();
+    meetingLiveActions.end();
     return { entries: await withoutEcho(current.entries), complete: !current.failed };
   },
 };

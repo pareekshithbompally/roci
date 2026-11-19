@@ -1,6 +1,7 @@
-/** Output of meeting analysis (the Overview tab). Each field's description is the one place its content is defined:
+/** Output of meeting analysis (the Summary tab). Each field's description is the one place its content is defined:
  *  the model reads it through the schema, and the summary prompt lists it for models that ignore schemas. */
 
+import { z } from 'zod';
 import type { MeetingSummary } from '@shared/types';
 
 const list = (description: string) => ({ type: 'array' as const, items: { type: 'string' as const }, description });
@@ -12,10 +13,10 @@ const summarySchema = (withNotes: boolean) => ({
   properties: {
     overview: {
       type: 'string' as const,
-      description: '2–3 sentences: what the meeting was about and how it ended.',
+      description: '2–3 sentences of plain prose: what the meeting was about, what came of it, and how it ended. No list, no heading.',
     },
-    keyDiscussionPoints: list('The main topics discussed, one per item, each with the key details or numbers.'),
-    decisionsMade: list('Decisions that were agreed, one per item, with the reason when one was given. Empty if none.'),
+    keyDiscussionPoints: list('Key points: the main topics, at most 6, one short sentence each with its specifics (names, numbers). Not decisions, tasks or next steps: those have their own fields.'),
+    decisionsMade: list('Decisions that were agreed, one short sentence each, with the reason when one was given. Empty if none.'),
     actionItems: {
       type: 'array' as const,
       description: 'Tasks someone agreed to do. Empty if none.',
@@ -30,9 +31,9 @@ const summarySchema = (withNotes: boolean) => ({
         additionalProperties: false,
       },
     },
-    nextSteps: list('What happens after this meeting that is not already an action item. Empty if none.'),
+    nextSteps: list('What happens after this meeting that no one took on as an action item, one short sentence each. Empty if none.'),
     ...(withNotes && {
-      enhancedNotes: list("The user's notes, one item per note in their order: the note's point, then what was said about it (names, numbers, dates)."),
+      enhancedNotes: list("The user's notes filled in: exactly one item per note, in the notes' order. Each item is the note's point, then what was said about it (names, numbers, dates); if nothing was said, the note written out clearly."),
     }),
   },
   required: [
@@ -66,4 +67,48 @@ export interface AnalysisResult {
   title: string;
   summary: MeetingSummary;
   categories: string[];
+}
+
+/** A list of words; anything else (missing, null, wrong shape) reads as empty, and blank items are dropped. */
+const words = z.array(z.unknown()).catch([]).transform((items) =>
+  items.filter((item): item is string => typeof item === 'string' && item.trim() !== ''));
+
+const optionalWord = z.string().optional().catch(undefined);
+
+const actionItems = z.array(z.unknown()).catch([]).transform((items) => items.flatMap((item) => {
+  const parsed = z.object({ text: z.string().min(1), owner: optionalWord, dueDate: optionalWord }).safeParse(item);
+  return parsed.success ? [parsed.data] : [];
+}));
+
+const summaryFields = z.object({
+  overview: z.unknown(),
+  keyDiscussionPoints: z.unknown(),
+  decisionsMade: z.unknown(),
+  actionItems: z.unknown(),
+  nextSteps: z.unknown(),
+  enhancedNotes: z.unknown(),
+}).partial().catch({});
+
+/** Any summary (a model's reply or a stored one) as a whole `MeetingSummary`: every list present, so no reader can crash on a
+ *  field a model left out. */
+export function parseMeetingSummary(raw: unknown): MeetingSummary {
+  const fields = summaryFields.parse(raw ?? {});
+  const notes = fields.enhancedNotes === undefined ? undefined : words.parse(fields.enhancedNotes);
+  return {
+    overview: z.string().catch('').parse(fields.overview).trim(),
+    keyDiscussionPoints: words.parse(fields.keyDiscussionPoints),
+    decisionsMade: words.parse(fields.decisionsMade),
+    actionItems: actionItems.parse(fields.actionItems),
+    nextSteps: words.parse(fields.nextSteps),
+    ...(notes && { enhancedNotes: notes }),
+  };
+}
+
+/** A model's analysis reply as a whole `AnalysisResult`; a reply with no summary at all is an error the user can retry. */
+export function parseAnalysis(raw: unknown): AnalysisResult {
+  const reply = z.object({ title: z.string().catch(''), summary: z.unknown(), categories: words }).catch({ title: '', summary: undefined, categories: [] }).parse(raw);
+  const summary = parseMeetingSummary(reply.summary);
+  const empty = !summary.overview && summary.keyDiscussionPoints.length === 0 && summary.actionItems.length === 0;
+  if (empty) throw new Error("The model's reply had no summary in it.");
+  return { title: reply.title.trim(), summary, categories: reply.categories };
 }

@@ -72,7 +72,7 @@ describe('RecordingMeetingView', () => {
     render(<RecordingMeetingView />);
 
     expect(screen.getByText('Test Meeting')).toBeInTheDocument();
-    expect(screen.getByText('01:05 · Listening…')).toBeInTheDocument();
+    expect(screen.getByText('01:05 · Recording')).toBeInTheDocument();
     expect(screen.getByText(/labelled by who said them/)).toBeInTheDocument();
 
     meetingLiveActions.set([
@@ -80,10 +80,12 @@ describe('RecordingMeetingView', () => {
       { source: 'microphone', startMs: 2_000, endMs: 4_000, text: 'Agenda first.', timed: true },
       { source: 'system', startMs: 5_000, endMs: 7_000, text: 'Sounds good.', timed: false },
     ]);
-    expect(await screen.findByText('Shall we start? Agenda first.')).toBeInTheDocument();
-    expect(screen.getByText('You')).toBeInTheDocument();
+    expect(await screen.findByText('Shall we start?')).toBeInTheDocument();
+    expect(screen.getByText('Agenda first.')).toBeInTheDocument();
+    expect(screen.getAllByText('You').length).toBeGreaterThan(0);
     expect(screen.getByText('Others')).toBeInTheDocument();
     expect(screen.getByText('Sounds good.')).toBeInTheDocument();
+    expect(screen.getByText('Listening…')).toBeInTheDocument();
   });
 
   it('stop hands off to the results view on the transcript tab', async () => {
@@ -123,10 +125,13 @@ describe('RecordingMeetingView', () => {
     expect(screen.getByText(/Choose a Summary model/)).toBeInTheDocument();
   });
 
-  it('shows a shimmering line while a chunk is being transcribed', () => {
+  it('keeps one status while chunks are transcribed, and says so when the live transcript stops', () => {
     startRecording();
     useMeetingLiveStore.setState({ pending: 1 });
-    render(<RecordingMeetingView />);
-    expect(screen.getByText('Transcribing…')).toBeInTheDocument();
+    const { rerender } = render(<RecordingMeetingView />);
+    expect(screen.getByText('01:05 · Recording')).toBeInTheDocument();
+    meetingLiveActions.fail();
+    rerender(<RecordingMeetingView />);
+    expect(screen.getByText(/Live transcript unavailable/)).toBeInTheDocument();
   });
 });

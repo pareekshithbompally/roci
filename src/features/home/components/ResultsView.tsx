@@ -1,4 +1,5 @@
-/** Processed meeting results with tabs for summary, transcript, todos, and notes. */
+/** A meeting after Stop: Summary, Transcript (the record screen's view kept — the transcript beside the notes) and To-dos. One
+ *  status at a time: a badge while it works, a notice when it needs you. */
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
@@ -7,23 +8,24 @@ import { Pencil, Plus, Clock, Users, ExternalLink } from 'lucide-react';
 import { useAppResult, useActiveResultTab, useSelectedHistoryId, useAppActions } from '@shared/stores/appStore';
 import type { ResultTab } from '@shared/stores/appStore';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
-import { EnhancedNotesSection, SummaryView } from '@features/summary';
-import { ParsedTranscript } from '@features/transcription';
 import { LAYOUT } from '@config/layout.config';
 import { TodoList } from '@features/todos';
-import { NotesView } from '@features/notes';
 import { ResultsAudioPlayer } from './ResultsAudioPlayer';
 import { openUrl } from '@services/tauri';
 import { formatDuration, calendarDayOffset, formatDayLabel, formatClockTime, formatShortDate, formatDateTime } from '@shared/utils/formatters';
-import { meetingPipeline, useInterimAiNotes } from '@features/recording';
+import { MeetingWorkspace, meetingPipeline, useAiBullets, useDraftSegments, useLiveNotes, type WorkspaceTranscript } from '@features/recording';
 import { useMeetingPhase } from '@shared/stores/meetingProgressStore';
 import { MeetingStatus } from '@shared/components';
 import { MeetingPhaseNotice } from './MeetingPhaseNotice';
 import { MeetingActionsMenu } from './MeetingActionsMenu';
 import { MeetingStatsPopover } from './MeetingStatsPopover';
-import { ModelCreditLine } from './ModelCreditLine';
+import { SummaryTab } from './SummaryTab';
 import { useMeetingStats } from '@features/home/hooks/useMeetingStats';
-import type { HistoryItem } from '@shared/types';
+import type { HistoryItem, ProcessedResult } from '@shared/types';
+import { isMeetingBusy, type MeetingPhase } from '@shared/types/meetingPhase';
+import { meetingPhaseDetail } from '@config/meetingPhase.config';
+import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
+import { MEETING_LIVE_CONFIG as LIVE } from '@config/meetingLive.config';
 import {
   Badge,
   Button,
@@ -46,11 +48,7 @@ const TAB_ITEMS: readonly TabItem<ResultTab>[] = [
   { value: 'summary', label: 'Summary' },
   { value: 'transcript', label: 'Transcript' },
   { value: 'todo', label: TODOS_CONFIG.title },
-  { value: 'notes', label: 'Notes' },
 ];
-
-/** Tabs that hold the user's own items: the tab bar's + adds one. */
-const ADD_LABELS: Partial<Record<ResultTab, string>> = { todo: TODOS_CONFIG.add, notes: 'Add note' };
 
 /** Today or Tomorrow, else "Nov 17". */
 function formatDate(iso: string): string {
@@ -127,6 +125,31 @@ const MeetingTitle: React.FC<{ title: string; onEdit: () => void; children?: Rea
   </div>
 );
 
+/** The Transcript tab: the saved transcript (or the in-call one until it is saved) beside the meeting's notes, whose AI lines
+ *  are the summary's enhanced notes. Keyed by meeting, so each meeting's notes load fresh. */
+const TranscriptTab: React.FC<{ meetingId: string; result: ProcessedResult; phase: MeetingPhase }> = ({ meetingId, result, phase }) => {
+  const { type, hasModel } = useLiveNotes(meetingId, false);
+  const draft = useDraftSegments(meetingId);
+  const enhanced = result.structuredSummary?.enhancedNotes;
+  const bullets = useAiBullets(meetingId, enhanced);
+  const saved = !!result.transcript;
+  const busy = isMeetingBusy(phase);
+  const transcript: WorkspaceTranscript = {
+    label: saved || draft.length === 0 ? NOTES.copy.transcript : NOTES.copy.draftTranscript,
+    segments: saved ? result.segments ?? [] : draft,
+    text: saved ? result.transcript : undefined,
+    empty: busy ? LIVE.copy.finalizing : meetingPhaseDetail(phase) ?? LIVE.copy.none,
+    footer: !saved && busy ? LIVE.copy.finalizing : undefined,
+    follow: false,
+  };
+  return (
+    <MeetingWorkspace
+      transcript={transcript}
+      notes={{ onType: type, hasModel, bullets, writing: busy, live: false, initialView: (enhanced?.length ?? 0) > 0 || bullets.length > 0 ? 'ai' : 'notes' }}
+    />
+  );
+};
+
 export const ResultsView: React.FC = () => {
   const result = useAppResult();
   const activeResultTab = useActiveResultTab();
@@ -139,23 +162,17 @@ export const ResultsView: React.FC = () => {
     : null;
   const recordingFileName = currentHistoryItem?.recordingFileName;
   const phase = useMeetingPhase(currentHistoryItem);
-  const { data: stats, isPending: statsPending } = useMeetingStats(currentHistoryItem?.id);
-  const interimNotes = useInterimAiNotes(currentHistoryItem?.id ?? null);
+  const { data: stats } = useMeetingStats(currentHistoryItem?.id);
   const handleTranscribe = () => {
     if (currentHistoryItem) meetingPipeline.toggle(currentHistoryItem.id);
   };
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
-  /** The tab whose new-item form is open (To-Do or Notes); one at a time, closed when the meeting changes. */
-  const [draftingTab, setDraftingTab] = useState<ResultTab | null>(null);
-  const addLabel = ADD_LABELS[activeResultTab];
-  const draftProps = (tab: ResultTab) => ({
-    creating: draftingTab === tab,
-    onCreatingChange: (creating: boolean) => setDraftingTab(creating ? tab : null),
-  });
+  /** The To-dos tab's new-item form is open; closed when the meeting changes. */
+  const [addingTodo, setAddingTodo] = useState(false);
 
-  useEffect(() => setDraftingTab(null), [selectedHistoryId]);
+  useEffect(() => setAddingTodo(false), [selectedHistoryId]);
 
   // Sync the editable title when a new result loads.
   useEffect(() => {
@@ -215,7 +232,7 @@ export const ResultsView: React.FC = () => {
               <MeetingTitle title={result.title} onEdit={() => setIsEditingTitle(true)}>
                 {currentHistoryItem && <MeetingStatsPopover meetingId={currentHistoryItem.id} />}
               </MeetingTitle>
-              <MeetingStatus phase={phase} display="badge" />
+              {isMeetingBusy(phase) && <MeetingStatus phase={phase} display="badge" />}
               <div className="ml-auto shrink-0">
                 <MeetingActionsMenu
                   result={result}
@@ -244,14 +261,14 @@ export const ResultsView: React.FC = () => {
       <Surface edge="bottom" className={LAYOUT.pageGutter}>
       <div className={`${LAYOUT.pageColumn} flex items-center gap-2 h-11`}>
         <Tabs items={TAB_ITEMS} value={activeResultTab} onValueChange={setActiveResultTab} />
-        {addLabel && (
+        {activeResultTab === 'todo' && (
           <IconButton
             icon={Plus}
-            label={addLabel}
+            label={TODOS_CONFIG.add}
             size="sm"
             className="ml-auto"
-            disabled={draftingTab === activeResultTab}
-            onClick={() => setDraftingTab(activeResultTab)}
+            disabled={addingTodo}
+            onClick={() => setAddingTodo(true)}
           />
         )}
       </div>
@@ -266,40 +283,23 @@ export const ResultsView: React.FC = () => {
         />
       )}
 
-      {/* Tab Content */}
-      <div className={cn('flex-1 overflow-y-auto custom-scrollbar pt-4', LAYOUT.pageGutter, LAYOUT.meetingChatClearance)}>
-      <div className={`${LAYOUT.pageColumn} min-h-full flex flex-col`}>
-        {activeResultTab === 'summary' && (
-          <>
-            {(result.summary || result.structuredSummary) && (statsPending || stats?.transcribedBy || stats?.summarizedBy) && (
-              <div className="mb-4">
-                {/* Holds its line while the stats load, so the summary below never shifts. */}
-                {stats ? <ModelCreditLine transcribedBy={stats.transcribedBy} summarizedBy={stats.summarizedBy} /> : <Text variant="helper">{'\u00A0'}</Text>}
-              </div>
-            )}
-            {!result.summary && !result.structuredSummary && interimNotes.length > 0 ? (
-              <EnhancedNotesSection items={interimNotes} pending />
-            ) : (
-              <SummaryView
-                summary={result.summary}
-                structuredSummary={result.structuredSummary}
-                timestamp={result.timestamp}
-                title={result.title}
-              />
-            )}
-          </>
-        )}
-        {activeResultTab === 'transcript' && (
-          <ParsedTranscript text={result.transcript} segments={result.segments} />
-        )}
-        {activeResultTab === 'todo' && (
-          <TodoList {...draftProps('todo')} />
-        )}
-        {activeResultTab === 'notes' && (
-          <NotesView {...draftProps('notes')} />
-        )}
-      </div>
-      </div>
+      {/* Tab content: the Transcript tab's panes scroll inside themselves; the other tabs scroll as a page. */}
+      {activeResultTab === 'transcript' && currentHistoryItem ? (
+        // the record screen's frame exactly: the panes run to the window's bottom edge, open there
+        <div className={`${LAYOUT.pageGutter} flex-1 overflow-hidden pt-4`}>
+          <div className={`${LAYOUT.pageColumn} h-full flex flex-col min-h-0`}>
+            <TranscriptTab key={currentHistoryItem.id} meetingId={currentHistoryItem.id} result={result} phase={phase} />
+          </div>
+        </div>
+      ) : activeResultTab === 'summary' ? (
+        <SummaryTab result={result} phase={phase} meetingId={currentHistoryItem?.id} />
+      ) : (
+        <div className={cn('flex-1 overflow-y-auto custom-scrollbar pt-4', LAYOUT.pageGutter, LAYOUT.meetingChatClearance)}>
+          <div className={`${LAYOUT.pageColumn} min-h-full flex flex-col`}>
+            <TodoList creating={addingTodo} onCreatingChange={setAddingTodo} />
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };

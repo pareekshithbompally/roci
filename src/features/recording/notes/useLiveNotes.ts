@@ -1,5 +1,6 @@
-/** The record screen's notes, wired: typing records each line's time, a typing pause saves the lines to the meeting's Notes and
- *  may refresh the bullets, and enough new transcript refreshes them too. No timer runs except the one armed by typing (I10). */
+/** A meeting's notes pane, wired: typing records each line's time and a typing pause saves the lines to the meeting's notes. While
+ *  the meeting records (`live`) a pause or enough new transcript also refreshes the AI lines; afterwards the summary writes them.
+ *  No timer runs except the one armed by typing (I10). */
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
@@ -33,7 +34,9 @@ function useSaveLines(meetingId: string) {
     if (isLoading || seeded.current) return;
     seeded.current = true;
     const lines: NoteLine[] = [...notes].sort((a, b) => a.timestamp - b.timestamp).map((n) => ({ id: n.id, text: n.text }));
-    if (liveNotes.seed(lines)) lines.forEach((l) => saved.current.set(l.id, l.text));
+    // what is on disk is what is saved, whether its lines are taken now or the screen already holds them (the meeting just recorded)
+    lines.forEach((l) => saved.current.set(l.id, l.text));
+    liveNotes.seed(lines);
   }, [isLoading, notes]);
 
   return useCallback(async (): Promise<void> => {
@@ -53,23 +56,24 @@ function useSaveLines(meetingId: string) {
   }, [addNote, updateNote, deleteNote]);
 }
 
-export function useLiveNotes(meetingId: string) {
+export function useLiveNotes(meetingId: string, live: boolean) {
+  // first, so a meeting's saved lines are seeded into its own notes, never into the previous meeting's
+  useEffect(() => liveNotes.start(meetingId), [meetingId]);
   const model = useSummaryModel();
+  const refreshModel = live ? model : null;
   const entries = useMeetingLiveStore((s) => s.entries);
   const save = useSaveLines(meetingId);
-  const latest = useRef({ save, model });
   const typingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  const latest = useRef({ save, model: refreshModel });
   useEffect(() => {
-    latest.current = { save, model };
-  }, [save, model]);
-
-  useEffect(() => liveNotes.start(meetingId), [meetingId]);
+    latest.current = { save, model: refreshModel };
+  }, [save, refreshModel]);
 
   // enough new transcript refreshes the bullets
   useEffect(() => {
-    if (model && liveNotes.due(entries, false)) void liveNotes.refresh(entries, model);
-  }, [entries, model]);
+    if (refreshModel && liveNotes.due(entries, false)) void liveNotes.refresh(entries, refreshModel);
+  }, [entries, refreshModel]);
 
   const flush = useCallback((): Promise<void> => {
     clearTimeout(typingTimer.current);

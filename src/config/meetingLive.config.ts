@@ -18,9 +18,13 @@ export const MEETING_LIVE_CONFIG = {
    *  `windowMs`; a line of at least `sentenceWords` words the sound shows is local survives its echoing neighbours. */
   echo: { windowMs: 1_500, utteranceGapMs: 700, sentenceWords: 3, similarity: 0.6 },
   copy: {
+    recording: 'Recording',
     listening: 'Listening…',
     paused: 'Paused',
-    transcribing: 'Transcribing as you speak',
+    /** Under the draft transcript after Stop, while the final one is made. */
+    finalizing: 'Building the final transcript…',
+    none: 'No transcript yet.',
+    unavailable: 'Live transcript unavailable. The full transcript is made when you stop.',
     empty: 'Words appear here as they are said, labelled by who said them.',
     noModel: 'Choose a speech model in Settings › Default Models to see words as they are said.',
   },

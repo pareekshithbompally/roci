@@ -1,1 +1,1 @@
-export { default as SummaryView, EnhancedNotesSection } from '@features/summary/components/SummaryView';
+export { SummaryView, SummaryWriting } from '@features/summary/components/SummaryView';

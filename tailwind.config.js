@@ -78,6 +78,7 @@ export default {
         ...stateRoles('border'),
         accent: 'var(--bg-accent)',
         ai: 'var(--ai-border)',
+        'ai-soft': 'var(--ai-edge)',
       },
       divideColor: roles('border', ['muted', 'base', 'strong']),
       ringColor: { focus: 'var(--border-focus)' },
@@ -91,6 +92,8 @@ export default {
         'text-shimmer': 'linear-gradient(90deg, var(--text-faint) 35%, var(--text-primary) 50%, var(--text-faint) 65%)',
         // AI at work: a copper band sweeping across a row (kit AiPending).
         'ai-sweep': 'var(--ai-sweep)',
+        // AI-written result card (Surface `ai`).
+        'ai-card': 'var(--ai-card)',
       },
       backgroundSize: { shimmer: '200% 100%' },
       // Grouped-list shape (tokens.css): macOS values by default, iOS under html.platform-ios.

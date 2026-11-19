@@ -3,7 +3,7 @@ import { AppStatus, type ProcessedResult } from '@shared/types';
 
 export type ViewType = 'home' | 'settings' | 'reminders' | 'calendar' | 'gallery' | 'dictations';
 export type SettingsPanel = 'general' | 'defaultModels' | 'providers' | 'integrations' | 'notifications' | 'mcp' | 'usage';
-export type ResultTab = 'transcript' | 'summary' | 'todo' | 'notes';
+export type ResultTab = 'transcript' | 'summary' | 'todo';
 
 /** What the user asked for while a recording was capturing. */
 export type ExitPromptKind = 'quit' | 'close';

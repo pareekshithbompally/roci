@@ -118,6 +118,15 @@ export function mergeBullets(current: Bullet[], changes: LiveNotesChange[], line
   return merged;
 }
 
+/** The summary's enhanced notes as AI lines: one per written note, in order, filling that note in (the summary returns them in
+ *  the notes' order). */
+export function enhancedBullets(lines: NoteLine[], enhanced: string[]): Bullet[] {
+  return writtenLines(lines).flatMap((line, i) => {
+    const text = enhanced[i]?.trim();
+    return text ? [{ id: `${NOTES.bulletIdPrefix}${i + 1}`, noteId: line.id, text, atMs: line.atMs }] : [];
+  });
+}
+
 /** One row of the AI notes: a written line, or a typed note the model has not filled in yet. */
 export type AiRow = { kind: 'bullet'; bullet: Bullet } | { kind: 'pending'; line: NoteLine };
 
