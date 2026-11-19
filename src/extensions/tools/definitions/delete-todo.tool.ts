@@ -1,7 +1,7 @@
 /** delete_todo: remove one to-do (and its reminder) by id; confirmed in chat first. */
 
 import { z } from 'zod';
-import { defineTool, idFrom } from '@extensions/tools/contract';
+import { CONFIRMED_ON_A_CARD, defineTool, idFrom } from '@extensions/tools/contract';
 import { todoNotFound } from '@extensions/tools/data';
 import { submitTodoChange } from '@extensions/tools/todoChanges';
 import { store } from '@services/db';
@@ -10,7 +10,7 @@ export const deleteTodoTool = defineTool({
   name: 'delete_todo',
   description:
     'Propose deleting one to-do for good, with its reminder. To finish a to-do, use update_todo with done=true ' +
-    'instead. Get todo_id from list_todos or get_meeting first. In chat the user confirms on a card before it is deleted.',
+    `instead. Get todo_id from list_todos or get_meeting first. ${CONFIRMED_ON_A_CARD}`,
   input: z.object({ todo_id: idFrom('list_todos or get_meeting') }),
   writes: true,
 

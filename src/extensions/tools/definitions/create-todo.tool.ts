@@ -1,15 +1,16 @@
 /** create_todo: a new to-do, of its own or from a meeting; the user confirms it in chat before it is saved. */
 
 import { z } from 'zod';
-import { day, defineTool, idFrom, localDateTime, text } from '@extensions/tools/contract';
+import { CONFIRMED_ON_A_CARD, day, defineTool, idFrom, localDateTime, text } from '@extensions/tools/contract';
 import { findMeeting, meetingNotFound } from '@extensions/tools/data';
 import { changeDetails, pastReminder, submitTodoChange, type TodoChange } from '@extensions/tools/todoChanges';
 
 export const createTodoTool = defineTool({
   name: 'create_todo',
   description:
-    'Propose one new to-do for the user; call it once per to-do. Give meeting_id only when the to-do comes from a ' +
-    'specific meeting. In chat the user confirms it on a card before it is saved, so say you proposed it.',
+    'Propose one new to-do for the user, with a reminder when they want one: use it when they ask to add a task, or to ' +
+    'remember or be reminded of something. Call it once per to-do. Give meeting_id only when the to-do comes from a ' +
+    `specific meeting. ${CONFIRMED_ON_A_CARD}`,
   input: z.object({
     text: text('What to do, as a short task: "Send the Q3 report to Priya".'),
     due_date: day.optional().describe('When it is due, YYYY-MM-DD.'),

@@ -29,7 +29,7 @@ export const listTodosTool = defineTool({
     "for one meeting's to-dos only. Call it before update_todo or delete_todo to get the to-do's id.",
   input: z.object({
     status: z.enum(['open', 'done', 'all']).default('open').describe('open (not done yet), done, or all.'),
-    meeting_id: idFrom('list_meetings or search_meetings', "Only this meeting's to-dos.").optional(),
+    meeting_id: idFrom('search_meetings or list_meetings', "Only this meeting's to-dos.").optional(),
   }),
 
   async execute({ status, meeting_id }) {

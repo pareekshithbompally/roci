@@ -64,14 +64,13 @@ describe('buildChatSystemPrompt', () => {
     const text = prompt({ webSearch: true });
     expect(text).toContain('## Using tools well');
     expect(text).toContain('Start with one call.');
-    expect(text).not.toContain('To-do changes are proposals');
     expect(text).not.toContain('Generate an image only when asked');
   });
 
-  it('meeting tools bring the meetings step and the to-do rule', () => {
+  it('meeting tools bring the meetings step; how to-do changes are confirmed is said by the to-do tools themselves', () => {
     const text = prompt({ meetings: true });
     expect(text).toContain('search or list to find it, open it, then answer');
-    expect(text).toContain('To-do changes are proposals');
+    expect(text).not.toContain('on a card');
   });
 
   it('always ends with the date, and leaves attached meetings to the questions that carry them', () => {

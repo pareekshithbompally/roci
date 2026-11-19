@@ -66,6 +66,11 @@ export const idFrom = (source: string, what?: string) =>
   z.string().trim().min(1).describe([what, `Copy it exactly from ${source}.`].filter(Boolean).join(' '));
 
 /** Free text the model writes. */
+/** How a to-do change happens in Roci's chat, said the same way by every to-do tool (the same descriptions go to MCP agents,
+ *  whose changes save at once, so it names chat). */
+export const CONFIRMED_ON_A_CARD =
+  "In Roci's chat the user confirms it on a card before it is saved: there, say you proposed it, never that it is done.";
+
 export const text = (description: string) => z.string().trim().min(1).describe(description);
 
 /** A page size with its bounds and default. */

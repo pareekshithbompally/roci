@@ -8,7 +8,8 @@ export const listMeetingsTool = defineTool({
   name: 'list_meetings',
   description:
     "List the user's recorded meetings, newest first, with each meeting's date and ID. Use it to browse meetings or " +
-    'to find meetings on a date or in a date range (from_date / to_date). To find meetings by topic, use search_meetings.',
+    'to find meetings on a date or in a date range (from_date / to_date), then read one with get_meeting. To find ' +
+    'meetings by topic, use search_meetings.',
   input: z.object({
     limit: limit(10, 50),
     from_date: day.optional().describe('Only meetings on or after this day, YYYY-MM-DD.'),

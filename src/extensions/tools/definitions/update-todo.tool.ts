@@ -1,7 +1,7 @@
 /** update_todo: mark a to-do done or open, or change its text, due date, reminder or owner; confirmed in chat first. */
 
 import { z } from 'zod';
-import { day, defineTool, fail, idFrom, localDateTime, localDateTimeOf, text } from '@extensions/tools/contract';
+import { CONFIRMED_ON_A_CARD, day, defineTool, fail, idFrom, localDateTime, localDateTimeOf, text } from '@extensions/tools/contract';
 import { todoNotFound } from '@extensions/tools/data';
 import { changeDetails, pastReminder, submitTodoChange, type TodoChange } from '@extensions/tools/todoChanges';
 import { store } from '@services/db';
@@ -11,7 +11,7 @@ export const updateTodoTool = defineTool({
   description:
     'Propose a change to one existing to-do: done=true marks it done, done=false reopens it; text, due_date, ' +
     'reminder_at and owner replace those. Give only what changes. Get todo_id from list_todos or get_meeting first. ' +
-    'In chat the user confirms the change on a card before it is saved.',
+    CONFIRMED_ON_A_CARD,
   input: z.object({
     todo_id: idFrom('list_todos or get_meeting'),
     done: z.boolean().optional().describe('true: mark done. false: mark not done.'),

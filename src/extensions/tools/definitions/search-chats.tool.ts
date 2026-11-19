@@ -11,7 +11,7 @@ export const searchChatsTool = defineTool({
   name: 'search_chats',
   description:
     "Search the user's earlier chats with you by meaning and keywords. Returns matching excerpts, each with the " +
-    "chat's ID. Use it when the user refers to an earlier chat; then read it with get_chat.",
+    "chat's ID. Use it when the user refers to an earlier chat; read it with get_chat only when the excerpts do not answer.",
   input: z.object({
     query: text('What to look for: topics, keywords, phrases.'),
     limit: limit(5, 20),
