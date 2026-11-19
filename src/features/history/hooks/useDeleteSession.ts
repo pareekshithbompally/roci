@@ -1,8 +1,9 @@
-/** The one delete path for sidebar sessions (meetings and chats): confirm, delete, report. */
+/** The one delete path for sidebar sessions (meetings and chats): confirm, leave it if open, delete, report. */
 
 import { useCallback } from 'react';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
-import { useChatStore } from '@features/chat';
+import { useAppStore } from '@shared/stores/appStore';
+import { useChatStore, startNewChat } from '@features/chat';
 import { useToast } from '@shared/contexts/ToastContext';
 import { confirmDelete } from '@shared/stores/confirmStore';
 import type { UnifiedSidebarItem } from '@shared/types';
@@ -33,6 +34,8 @@ export function useDeleteSession(): (session: SessionRef) => Promise<void> {
     async ({ type, id }: SessionRef) => {
       const noun = NOUN[type];
       if (!(await confirmDelete(noun))) return;
+      // Leave before the optimistic removal, so the open meeting never renders without its list entry.
+      if (type === 'meeting' && useAppStore.getState().selectedHistoryId === id) startNewChat();
 
       const deleted = type === 'meeting' ? await deleteItem(id) : await deleteChat(id);
       if (!deleted) showToast(`Couldn't delete ${noun}`, 'error');
