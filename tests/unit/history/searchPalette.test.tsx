@@ -19,11 +19,24 @@ vi.mock('@features/history/hooks/useUnifiedSidebar', () => ({ useUnifiedSidebar:
 vi.mock('@features/history/hooks/useOpenMeeting', () => ({ useOpenMeeting: () => mocks.openMeeting }));
 vi.mock('@features/chat', () => ({ openChat: mocks.openChat }));
 vi.mock('@extensions/rag/client', () => ({ vectorDB: { spotlightSearch: mocks.spotlightSearch } }));
+vi.mock('@features/settings', async () => {
+  const { matchesAllWords } = await import('@shared/utils/textMatch');
+  const items = [
+    { id: 'providers', label: 'Providers', icon: () => null, group: 'AI', keywords: ['api key', 'openai'] },
+    { id: 'mcp', label: 'MCP Servers', icon: () => null, group: 'AI', available: false, keywords: [] },
+  ];
+  return {
+    findSettings: (query: string) =>
+      items.filter((item) => item.available !== false && matchesAllWords([item.label, ...item.keywords].join(' '), query)),
+  };
+});
 
 // eslint-disable-next-line import/first
 import { SearchPalette } from '@features/history/components/SearchPalette';
 // eslint-disable-next-line import/first
 import { startSearch, endSearch } from '@shared/stores/searchStore';
+// eslint-disable-next-line import/first
+import { useAppStore } from '@shared/stores/appStore';
 
 // jsdom has no layout: cmdk scrolls the highlighted row into view.
 Element.prototype.scrollIntoView = vi.fn();
@@ -47,7 +60,7 @@ describe('SearchPalette', () => {
 
   it('shows the matches for what is typed', () => {
     openPalette();
-    fireEvent.change(screen.getByPlaceholderText('Search meetings and chats'), { target: { value: 'pricing' } });
+    fireEvent.change(screen.getByPlaceholderText('Search meetings, chats and settings'), { target: { value: 'pricing' } });
     expect(screen.getByText('Pricing brainstorm')).toBeTruthy();
     expect(screen.queryByText('Weekly Sync')).toBeNull();
   });
@@ -56,12 +69,28 @@ describe('SearchPalette', () => {
     openPalette();
     await act(async () => { fireEvent.click(screen.getByText('Weekly Sync')); });
     expect(mocks.openMeeting).toHaveBeenCalledWith(ITEMS[0].historyItem);
-    expect(screen.queryByPlaceholderText('Search meetings and chats')).toBeNull();
+    expect(screen.queryByPlaceholderText('Search meetings, chats and settings')).toBeNull();
   });
 
   it('opening a chat result opens the chat', async () => {
     openPalette();
     await act(async () => { fireEvent.click(screen.getByText('Pricing brainstorm')); });
     expect(mocks.openChat).toHaveBeenCalledWith('c1');
+  });
+
+  it('finds a Settings section by its name and opens it', async () => {
+    openPalette();
+    fireEvent.change(screen.getByPlaceholderText('Search meetings, chats and settings'), { target: { value: 'provid' } });
+    await act(async () => { fireEvent.click(screen.getByText('Providers')); });
+    expect(useAppStore.getState().currentView).toBe('settings');
+    expect(useAppStore.getState().activeSettingsPanel).toBe('providers');
+  });
+
+  it('finds a Settings section by what it holds (keywords), never one this device lacks', () => {
+    openPalette();
+    fireEvent.change(screen.getByPlaceholderText('Search meetings, chats and settings'), { target: { value: 'api key' } });
+    expect(screen.getByText('Providers')).toBeTruthy();
+    fireEvent.change(screen.getByPlaceholderText('Search meetings, chats and settings'), { target: { value: 'mcp' } });
+    expect(screen.queryByText('MCP Servers')).toBeNull();
   });
 });

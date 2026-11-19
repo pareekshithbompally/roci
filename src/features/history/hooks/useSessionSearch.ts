@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { vectorDB } from '@extensions/rag/client';
 import type { SpotlightHit } from '@extensions/rag/client';
 import { SPOTLIGHT_DEBOUNCE_MS, SPOTLIGHT_MIN_QUERY_LENGTH, SPOTLIGHT_RESULTS_PER_SOURCE } from '@config/chat.config';
+import { matchesAllWords } from '@shared/utils/textMatch';
 import type { UnifiedSidebarItem } from '@shared/types';
 
 export interface SessionMatch {
@@ -28,10 +29,7 @@ export interface SessionSearch {
 const keyOf = (type: string, id: string) => `${type}:${id}`;
 
 /** In-memory title match: instant, and covers items the index hasn't seen yet. */
-function titleMatches(items: UnifiedSidebarItem[], query: string): UnifiedSidebarItem[] {
-  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
-  return items.filter((item) => tokens.every((token) => item.title.toLowerCase().includes(token)));
-}
+const titleMatches = (items: UnifiedSidebarItem[], query: string) => items.filter((item) => matchesAllWords(item.title, query));
 
 const titleMatch = (item: UnifiedSidebarItem): SessionMatch => ({ item, excerpt: '' });
 

@@ -1,6 +1,6 @@
 import { Command as CommandPrimitive } from 'cmdk';
 import { LITERAL_TEXT } from './recipes';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Search } from 'lucide-react';
 import { PICKER } from '@config/layout.config';
 import { Title as DialogPrimitiveTitle } from '@radix-ui/react-dialog';
 import type { ComponentProps, ReactNode } from 'react';
@@ -14,31 +14,49 @@ export function Command({ className, ...props }: ComponentProps<typeof CommandPr
   return <CommandPrimitive className={cn('flex flex-col overflow-hidden rounded-lg text-primary', className)} {...props} />;
 }
 
-export function CommandInput({ className, ...props }: ComponentProps<typeof CommandPrimitive.Input>) {
-  return (
+interface CommandInputProps extends ComponentProps<typeof CommandPrimitive.Input> {
+  /** `spotlight`: the ⌘K panel's field — a magnifier and large type, as macOS Spotlight's. */
+  look?: 'field' | 'spotlight';
+}
+
+export function CommandInput({ look = 'field', className, ...props }: CommandInputProps) {
+  const input = (
     <CommandPrimitive.Input
       {...LITERAL_TEXT}
       className={cn(
-        'flex w-full px-3 py-3 bg-transparent border-b border-muted text-body text-primary placeholder:text-faint outline-none',
+        'flex w-full bg-transparent text-primary placeholder:text-faint outline-none',
+        look === 'spotlight' ? 'py-3.5 text-title3' : 'px-3 py-3 border-b border-muted text-body',
         className,
       )}
       {...props}
     />
+  );
+  if (look === 'field') return input;
+  return (
+    <div className="flex items-center gap-2.5 px-4 border-b border-muted">
+      <Icon icon={Search} size="md" tone="muted" />
+      {input}
+    </div>
   );
 }
 
 /** cmdk wraps List children in a sizer div; `fill` makes it a full-height column so a lone status child can center. */
 const LIST_FILL = 'h-72 [&>[cmdk-list-sizer]]:flex [&>[cmdk-list-sizer]]:min-h-full [&>[cmdk-list-sizer]]:flex-col';
 
+/** Spotlight's results: as tall as they are, up to most of the window. */
+const LIST_FIT = 'max-h-[60vh]';
+
 interface CommandListProps extends ComponentProps<typeof CommandPrimitive.List> {
   /** Fixed-height frame whose sizer fills it (palettes that never resize). */
   fill?: boolean;
+  /** Grows with its rows up to most of the window (the ⌘K panel), instead of the picker's short cap. */
+  fit?: boolean;
 }
 
-export function CommandList({ fill, className, ...props }: CommandListProps) {
+export function CommandList({ fill, fit, className, ...props }: CommandListProps) {
   return (
     <CommandPrimitive.List
-      className={cn('max-h-72 overflow-y-auto custom-scrollbar p-1', fill && LIST_FILL, className)}
+      className={cn('overflow-y-auto custom-scrollbar p-1', fit ? LIST_FIT : 'max-h-72', fill && LIST_FILL, className)}
       {...props}
     />
   );
