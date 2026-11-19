@@ -43,20 +43,20 @@ export function CommandInput({ look = 'field', className, ...props }: CommandInp
 /** cmdk wraps List children in a sizer div; `fill` makes it a full-height column so a lone status child can center. */
 const LIST_FILL = 'h-72 [&>[cmdk-list-sizer]]:flex [&>[cmdk-list-sizer]]:min-h-full [&>[cmdk-list-sizer]]:flex-col';
 
-/** Spotlight's results: as tall as they are, up to most of the window. */
-const LIST_FIT = 'max-h-[60vh]';
+/** The ⌘K panel's results: one fixed height in every state (recents, typing, no match), so the panel never resizes. */
+const LIST_SPOTLIGHT = 'h-80';
 
 interface CommandListProps extends ComponentProps<typeof CommandPrimitive.List> {
   /** Fixed-height frame whose sizer fills it (palettes that never resize). */
   fill?: boolean;
-  /** Grows with its rows up to most of the window (the ⌘K panel), instead of the picker's short cap. */
-  fit?: boolean;
+  /** The ⌘K panel's fixed frame: the same height whatever it lists; its rows scroll inside. */
+  spotlight?: boolean;
 }
 
-export function CommandList({ fill, fit, className, ...props }: CommandListProps) {
+export function CommandList({ fill, spotlight, className, ...props }: CommandListProps) {
   return (
     <CommandPrimitive.List
-      className={cn('overflow-y-auto custom-scrollbar p-1', fit ? LIST_FIT : 'max-h-72', fill && LIST_FILL, className)}
+      className={cn('overflow-y-auto custom-scrollbar p-1', spotlight ? LIST_SPOTLIGHT : 'max-h-72', fill && LIST_FILL, className)}
       {...props}
     />
   );

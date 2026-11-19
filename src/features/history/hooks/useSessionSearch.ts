@@ -1,7 +1,7 @@
 /**
- * Searches meetings and chats — the one search behind the Mac's ⌘K panel and the iPhone sidebar's search field: an
- * instant title match, then the search index (which also finds words inside transcripts and messages). Returns the
- * matches in rank order, each with the index's excerpt, or null while there is no query.
+ * Searches meetings and chats — the one search behind the Mac's ⌘K panel and the iPhone sidebar's search field: titles
+ * match at once from the first letter; the search index then adds the matches inside transcripts and messages below them
+ * (with where they matched), never reordering what is already shown. Null while there is no query.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -33,21 +33,23 @@ const titleMatches = (items: UnifiedSidebarItem[], query: string) => items.filte
 
 const titleMatch = (item: UnifiedSidebarItem): SessionMatch => ({ item, excerpt: '' });
 
-/** Index hits first (they match inside content), then title matches the index missed; each item once. */
-function rank(items: UnifiedSidebarItem[], hits: SpotlightHit[], titles: UnifiedSidebarItem[]): SessionMatch[] {
+/** The index's hits that the title match didn't already list: matches inside transcripts and messages, with where they matched. */
+function contentOnly(items: UnifiedSidebarItem[], hits: SpotlightHit[], titles: UnifiedSidebarItem[]): SessionMatch[] {
   const byKey = new Map(items.map((item) => [keyOf(item.type, item.id), item]));
-  const fromIndex = hits.flatMap((hit) => {
-    const item = byKey.get(keyOf(hit.source_type, hit.source_id));
-    return item ? [{ item, excerpt: hit.excerpt }] : [];
+  const listed = new Set(titles.map((item) => keyOf(item.type, item.id)));
+  return hits.flatMap((hit) => {
+    const key = keyOf(hit.source_type, hit.source_id);
+    const item = byKey.get(key);
+    return item && !listed.has(key) ? [{ item, excerpt: hit.excerpt }] : [];
   });
-  const seen = new Set(fromIndex.map(({ item }) => keyOf(item.type, item.id)));
-  return [...fromIndex, ...titles.filter((item) => !seen.has(keyOf(item.type, item.id))).map(titleMatch)];
 }
 
 export function useSessionSearch(items: UnifiedSidebarItem[], query: string): SessionSearch {
   const trimmed = query.trim();
-  const active = trimmed.length >= SPOTLIGHT_MIN_QUERY_LENGTH;
-  const titles = useMemo(() => (active ? titleMatches(items, trimmed) : []), [active, items, trimmed]);
+  const typed = trimmed.length > 0;
+  // Titles match from the first letter; the index is asked from the minimum length.
+  const asksIndex = trimmed.length >= SPOTLIGHT_MIN_QUERY_LENGTH;
+  const titles = useMemo(() => (typed ? titleMatches(items, trimmed) : []), [typed, items, trimmed]);
   const [indexed, setIndexed] = useState<{ query: string; matches: SessionMatch[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Responses for older queries are dropped.
@@ -55,13 +57,13 @@ export function useSessionSearch(items: UnifiedSidebarItem[], query: string): Se
 
   useEffect(() => {
     const gen = ++generation.current;
-    if (!active) return;
+    if (!asksIndex) return;
     const timer = setTimeout(() => {
       vectorDB.spotlightSearch({ query: trimmed, limit: SPOTLIGHT_RESULTS_PER_SOURCE })
         .then((hits) => {
           if (gen !== generation.current) return;
           setError(null);
-          setIndexed({ query: trimmed, matches: rank(items, hits, titles) });
+          setIndexed({ query: trimmed, matches: contentOnly(items, hits, titles) });
         })
         .catch((err: unknown) => {
           console.error('[useSessionSearch] Index search failed:', err);
@@ -69,9 +71,11 @@ export function useSessionSearch(items: UnifiedSidebarItem[], query: string): Se
         });
     }, SPOTLIGHT_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [active, trimmed, items, titles]);
+  }, [asksIndex, trimmed, items, titles]);
 
-  if (!active) return { matches: null, searching: false, error: null };
-  const current = indexed?.query === trimmed ? indexed.matches : null;
-  return { matches: current ?? titles.map(titleMatch), searching: current === null && !error, error };
+  if (!typed) return { matches: null, searching: false, error: null };
+  const answered = indexed?.query === trimmed;
+  // Title matches stay where they are; content matches are only ever added below them, so no row moves.
+  const matches = [...titles.map(titleMatch), ...(answered ? indexed.matches : [])];
+  return { matches, searching: asksIndex && !answered && !error, error };
 }

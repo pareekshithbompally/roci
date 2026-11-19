@@ -20,6 +20,9 @@ export const SPOTLIGHT_RESULTS_PER_SOURCE = 6;
 /** ⌘K panel: recent meetings and chats it offers before anything is typed. */
 export const SPOTLIGHT_RECENT_LIMIT = 6;
 
+/** ⌘K panel: Settings rows pinned under the results, always this many (matches first, then quick settings). */
+export const SPOTLIGHT_SETTINGS_ROWS = 2;
+
 /** A tool row keeps this much of a tool's output for its expanded view. */
 export const TOOL_RESULT_PREVIEW_CHARS = 500;
 

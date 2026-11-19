@@ -1,20 +1,20 @@
-/** ⌘K: the Spotlight-style panel beside a column sidebar (Mac, iPad), one layout in every state — meetings and chats
- *  (recents until something is typed, then the matches by kind, each with where it matched), and Settings always at the
- *  bottom (quick settings such as the appearance, then the matching sections). ↑↓ and Return open one, Escape closes.
- *  Meetings and chats come from the same search as the iPhone sidebar's field (useSessionSearch); Settings from the
- *  Settings list itself (useQuickSettings, findSettings). */
+/** ⌘K: the Spotlight-style panel beside a column sidebar (Mac, iPad), one fixed frame in every state — meetings and chats
+ *  scroll inside it (recents until something is typed; then title matches at once, content matches added below them,
+ *  never reordered), and two Settings rows are pinned under it (what matches, else the quick settings). ↑↓ and Return
+ *  open one, Escape closes. Meetings and chats come from the same search as the iPhone sidebar's field (useSessionSearch);
+ *  Settings from the Settings list itself (useQuickSettings, findSettings). */
 
 import React from 'react';
 import { AudioWaveform, MessageSquare } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { CommandDialog, CommandGroup, CommandInput, CommandList, CommandRow, CommandSeparator, Icon, IconTile, Text, type TileGlyph } from '@shared/ui';
+import { CommandDialog, CommandGroup, CommandInput, CommandList, CommandRow, CommandSeparator, Icon, IconTile, Separator, Text, type TileGlyph } from '@shared/ui';
 import { endSearch, setSearchQuery, useSearchActive, useSearchQuery } from '@shared/stores/searchStore';
 import { useAppActions } from '@shared/stores/appStore';
 import type { SettingsPanel } from '@shared/stores/appStore';
 import { findSettings, useQuickSettings, type QuickSetting } from '@features/settings';
 import { matchesEntry } from '@shared/utils/textMatch';
 import { formatRelativeTime } from '@shared/utils/formatters';
-import { SPOTLIGHT_RECENT_LIMIT } from '@config/chat.config';
+import { SPOTLIGHT_RECENT_LIMIT, SPOTLIGHT_SETTINGS_ROWS } from '@config/chat.config';
 import { useUnifiedSidebar } from '@features/history/hooks/useUnifiedSidebar';
 import { useOpenSession } from '@features/history/hooks/useOpenSession';
 import { useSessionSearch, type SessionMatch } from '@features/history/hooks/useSessionSearch';
@@ -62,18 +62,22 @@ interface SettingsEntry {
   run: () => void;
 }
 
-/** The Settings group, always last: the quick settings before anything is typed; then the ones matching, and the matching sections. */
-function settingsEntries(query: string, searching: boolean, quick: QuickSetting[], openSection: (panel: SettingsPanel) => void): SettingsEntry[] {
-  const quickRows = (searching ? quick.filter((q) => matchesEntry(q, query)) : quick)
-    .map(({ id, label, icon, run }) => ({ key: `quick:${id}`, label, icon, run }));
-  const sections = (searching ? findSettings(query) : [])
-    .map(({ id, label, icon }) => ({ key: `section:${id}`, label, icon, meta: 'Settings', run: () => openSection(id) }));
-  return [...quickRows, ...sections];
+/** The pinned Settings rows, always SPOTLIGHT_SETTINGS_ROWS of them: what matches the search first (quick settings, then
+ *  sections), the quick settings filling the rest — so the footer never changes size. */
+function settingsEntries(query: string, quick: QuickSetting[], openSection: (panel: SettingsPanel) => void): SettingsEntry[] {
+  const quickRow = ({ id, label, icon, run }: QuickSetting): SettingsEntry => ({ key: `quick:${id}`, label, icon, run });
+  const typed = query.trim().length > 0;
+  const matching: SettingsEntry[] = typed ? [
+    ...quick.filter((q) => matchesEntry(q, query)).map(quickRow),
+    ...findSettings(query).map(({ id, label, icon }) => ({ key: `section:${id}`, label, icon, meta: 'Settings', run: () => openSection(id) })),
+  ] : [];
+  const fill = quick.map(quickRow).filter((row) => !matching.some((m) => m.key === row.key));
+  return [...matching, ...fill].slice(0, SPOTLIGHT_SETTINGS_ROWS);
 }
 
-/** Searching with no meeting or chat matching: one quiet line where they would be, so the panel keeps its shape. */
-const NoSessions: React.FC<{ searching: boolean }> = ({ searching }) => (
-  <Text as="p" variant="helper" tone="faint" className="px-2 py-1.5">{searching ? 'Searching…' : 'No meetings or chats match'}</Text>
+/** The search finished with no meeting or chat matching: one quiet line where they would be. */
+const NoSessions: React.FC = () => (
+  <Text as="p" variant="helper" tone="faint" className="px-2 py-1.5">No meetings or chats match</Text>
 );
 
 export const SearchPalette: React.FC = () => {
@@ -85,9 +89,9 @@ export const SearchPalette: React.FC = () => {
   const { openSettings } = useAppActions();
   const quick = useQuickSettings();
 
-  const searching = search.matches !== null;
   const groups = sessionGroups(search.matches, items);
-  const settings = settingsEntries(query, searching, quick, (panel) => openSettings(panel));
+  const settings = settingsEntries(query, quick, (panel) => openSettings(panel));
+  const nothingFound = search.matches !== null && groups.length === 0 && !search.searching;
 
   const openItem = (item: UnifiedSidebarItem) => {
     endSearch();
@@ -98,12 +102,12 @@ export const SearchPalette: React.FC = () => {
     entry.run();
   };
 
-  // One layout in every state: meetings and chats (recents, or the matches), then Settings at the bottom.
+  // One fixed frame in every state: meetings and chats scroll inside it (recents, or the matches); Settings is pinned under it.
   return (
     <CommandDialog open={open} onOpenChange={(next) => !next && endSearch()} label="Search">
       <CommandInput look="spotlight" placeholder="Search meetings, chats and settings" value={query} onValueChange={setSearchQuery} autoFocus />
-      <CommandList fit>
-        {groups.length === 0 && searching && <NoSessions searching={search.searching} />}
+      <CommandList spotlight>
+        {nothingFound && <NoSessions />}
         {groups.map((group, i) => (
           <React.Fragment key={group.heading}>
             {i > 0 && <CommandSeparator />}
@@ -112,17 +116,13 @@ export const SearchPalette: React.FC = () => {
             </CommandGroup>
           </React.Fragment>
         ))}
-        {settings.length > 0 && (
-          <>
-            <CommandSeparator />
-            <CommandGroup heading="Settings">
-              {settings.map((entry) => (
-                <CommandRow key={entry.key} value={entry.key} onSelect={() => runSetting(entry)} leading={<IconTile icon={entry.icon} />} label={entry.label} meta={entry.meta} />
-              ))}
-            </CommandGroup>
-          </>
-        )}
       </CommandList>
+      <Separator />
+      <CommandGroup heading="Settings" className="p-1">
+        {settings.map((entry) => (
+          <CommandRow key={entry.key} value={entry.key} onSelect={() => runSetting(entry)} leading={<IconTile icon={entry.icon} />} label={entry.label} meta={entry.meta} />
+        ))}
+      </CommandGroup>
     </CommandDialog>
   );
 };

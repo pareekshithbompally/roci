@@ -116,4 +116,23 @@ describe('SearchPalette', () => {
     expect(await screen.findByText('No meetings or chats match')).toBeTruthy();
     expect(screen.getByText('Switch to Light Appearance')).toBeTruthy();
   });
+
+  it('the pinned Settings footer holds exactly two rows in every state', async () => {
+    openPalette();
+    const footerRows = () => screen.getByRole('group', { name: 'Settings' }).querySelectorAll('[cmdk-item]').length;
+    expect(footerRows()).toBe(2);
+    const field = screen.getByPlaceholderText('Search meetings, chats and settings');
+    fireEvent.change(field, { target: { value: 'provid' } });
+    expect(footerRows()).toBe(2);
+    fireEvent.change(field, { target: { value: 'zzzz' } });
+    expect(footerRows()).toBe(2);
+  });
+
+  it('a matching section takes the first footer row; the rest fills from the quick settings', () => {
+    openPalette();
+    fireEvent.change(screen.getByPlaceholderText('Search meetings, chats and settings'), { target: { value: 'provid' } });
+    const rows = [...screen.getByRole('group', { name: 'Settings' }).querySelectorAll('[cmdk-item]')].map((r) => r.textContent);
+    expect(rows[0]).toContain('Providers');
+    expect(rows[1]).toContain('Switch to Light Appearance');
+  });
 });

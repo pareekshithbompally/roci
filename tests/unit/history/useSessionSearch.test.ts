@@ -38,19 +38,29 @@ describe('useSessionSearch', () => {
     expect(result.current.searching).toBe(true);
   });
 
-  it('ranks index hits first, then title matches it missed', async () => {
-    spotlightSearch.mockResolvedValueOnce([{ source_type: 'chat', source_id: 'c1', title: 'Pricing brainstorm', excerpt: 'sync later', timestamp: 1, match_type: 'content' }]);
+  it('keeps title matches where they are and adds content matches below them (rows never move)', async () => {
+    spotlightSearch.mockResolvedValueOnce([
+      { source_type: 'chat', source_id: 'c1', title: 'Pricing brainstorm', excerpt: 'sync later', timestamp: 1, match_type: 'content' },
+      { source_type: 'meeting', source_id: 'm1', title: 'Weekly Sync', excerpt: 'Weekly <<MARK>>Sync<</MARK>>', timestamp: 2, match_type: 'title' },
+    ]);
     const { result } = renderHook(() => useSessionSearch(ITEMS, 'sync'));
+    expect(result.current.matches?.map((m) => m.item.id)).toEqual(['m1']);
     await settle();
-    expect(result.current.matches?.map((m) => m.item.id)).toEqual(['c1', 'm1']);
+    expect(result.current.matches?.map((m) => m.item.id)).toEqual(['m1', 'c1']);
     expect(result.current.searching).toBe(false);
+  });
+
+  it('matches titles from the first letter, searching the index only from the second', () => {
+    const { result } = renderHook(() => useSessionSearch(ITEMS, 'p'));
+    expect(result.current.matches?.map((m) => m.item.id)).toEqual(['c1']);
+    expect(spotlightSearch).not.toHaveBeenCalled();
   });
 
   it('keeps the index excerpt for a content match, none for a title match', async () => {
     spotlightSearch.mockResolvedValueOnce([{ source_type: 'chat', source_id: 'c1', title: 'Pricing brainstorm', excerpt: 'we <<MARK>>sync<</MARK>> later', timestamp: 1, match_type: 'content' }]);
     const { result } = renderHook(() => useSessionSearch(ITEMS, 'sync'));
     await settle();
-    expect(result.current.matches?.map((m) => m.excerpt)).toEqual(['we <<MARK>>sync<</MARK>> later', '']);
+    expect(result.current.matches?.map((m) => m.excerpt)).toEqual(['', 'we <<MARK>>sync<</MARK>> later']);
   });
 
   it('drops a response for an older query', async () => {
