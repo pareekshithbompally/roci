@@ -18,7 +18,6 @@ import type {
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { MeetingListItem } from '@services/meetingReferenceService';
 import { chatService } from '@services/chat.service';
-import { unifiedAIService } from '@services/unifiedAIService';
 import { resolveChatModel } from '@shared/utils/modelResolver';
 import type { StreamMetadata } from '@services/ai/types';
 import { capabilitiesOf } from '@services/ai/capabilities';
@@ -29,6 +28,7 @@ import type { ToolCallPatch } from './streamingStore';
 import type { ToolActivity } from '@extensions/tool-orchestrator/types';
 import { formatTemporalContext } from '@core/ai';
 import { generateSuggestions } from '@services/ai/suggestions';
+import { generateChatTitle } from '@services/ai/chatTitle';
 import { logUsage } from '@extensions/usage';
 import { fileToBase64 } from '@shared/utils/file.utils';
 import { queryClient } from '@shared/query/queryClient';
@@ -416,18 +416,12 @@ function tokensPerSecond(tokens: number | undefined, firstTextAt: number): numbe
   return tokens && seconds > 0.05 ? Math.round(tokens / seconds) : undefined;
 }
 
-/** Title and follow-up suggestions once a reply has finished (best-effort, saved through the same path). */
-function afterReply(reply: Reply, request: ReplyRequest, text: string, usage: { provider: string; model: string }): void {
-  const { session, question, resolved, settings, providers, isNewSession } = request;
+/** Title and follow-up suggestions once a reply has finished, with the chat's own model (best-effort; each records its usage). */
+function afterReply(reply: Reply, request: ReplyRequest, text: string): void {
+  const { session, question, resolved, isNewSession } = request;
   if (isNewSession) {
-    unifiedAIService
-      .generateTitle(question.text || session.title, text, settings, providers)
-      .then(({ title, usage: titleUsage }) => {
-        void useChatStore.getState().renameSession(reply.sessionId, title);
-        logUsage({ category: 'title-gen', sessionId: reply.sessionId, ...usage, usage: titleUsage })
-          .catch((e: unknown) => console.error('[UsageLog] title-gen:', e));
-      })
-      .catch((error: unknown) => console.error('[ChatStore] Title generation failed:', error));
+    void generateChatTitle({ resolved, question: question.text || session.title, reply: text, sessionId: reply.sessionId })
+      .then((title) => useChatStore.getState().renameSession(reply.sessionId, title));
   }
   generateSuggestions({ resolved, userMessage: question.text, responsePreview: text, sessionId: reply.sessionId })
     .then((suggestions) => {
@@ -464,7 +458,7 @@ async function generateReply(reply: Reply, request: ReplyRequest): Promise<void>
     })));
     endReply(reply);
     notifyReply(reply.sessionId, streamed.text);
-    afterReply(reply, request, streamed.text, { provider: result.provider, model: result.model });
+    afterReply(reply, request, streamed.text);
   } catch (error: unknown) {
     if (!isLive(reply)) return; // Stopped: the abort surfaced as an error, and Stop already settled it.
     console.error('[ChatStore] Error sending message:', error);

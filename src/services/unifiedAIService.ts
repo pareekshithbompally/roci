@@ -1,18 +1,12 @@
 /** Thin AI orchestrator: transcribeAudio (STT) → analyzeTranscript (LLM); no provider-specific logic. */
 
-import { generateText } from 'ai';
 import { integrationSettingsPath, isIntegrationEnabled } from '@shared/utils/integrations';
 import { getProviderTitle } from '@shared/utils/provider.utils';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
-import { CHAT_TITLE_MAX_CHARS, REPLY_PREVIEW_CHARS } from '@config/chat.config';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { ProcessedResult, AppSettings, StoredTranscriptSegment } from '@shared/types';
-import { resolveChatModel, requiresApiKey } from '@shared/utils/modelResolver';
 import { MAX_AUDIO_SIZE_BYTES, MAX_AUDIO_SIZE_MB, MIN_AUDIO_SIZE_BYTES, WAV_HEADER_SIZE_BYTES } from '@shared/utils/audio.utils';
-import { CHAT_TITLE_PROMPT, summaryMarkdown } from '@core/ai';
-import { createModel } from './ai';
-import { extractTokenUsage } from './ai/types';
-import type { TokenUsage } from './ai/types';
+import { summaryMarkdown } from '@core/ai';
 import { recordUsage } from '@extensions/usage';
 import { modalitiesService } from '@services/modalities';
 import { requireSummaryModel } from '@services/ai/jobModel';
@@ -121,59 +115,6 @@ class UnifiedAIService {
     return this.toProcessedResult(analysis, transcript, segments);
   }
 
-  async generateTitle(
-    userMessage: string,
-    assistantResponse: string,
-    settings: AppSettings,
-    providers: ModelProvider[],
-  ): Promise<{ title: string; usage?: TokenUsage }> {
-    const fallback = userMessage.slice(0, CHAT_TITLE_MAX_CHARS);
-    const resolved = resolveChatModel(settings, providers);
-    if (!resolved || (requiresApiKey(resolved) && !resolved.apiKey)) return { title: fallback };
-
-    try {
-      const model = createModel(resolved);
-      const result = await generateText({
-        model,
-        instructions: CHAT_TITLE_PROMPT,
-        messages: [{
-          role: 'user',
-          content: `User: ${userMessage}\nAssistant: ${assistantResponse.slice(0, REPLY_PREVIEW_CHARS)}`,
-        }],
-      });
-
-      const usage = extractTokenUsage(result.usage);
-
-      let title = result.text
-        .split('\n')[0]
-        .trim()
-        .replace(/^[#*\-–—•>]+\s*/g, '')
-        .replace(/\*\*(.*?)\*\*/g, '$1')
-        .replace(/__(.*?)__/g, '$1')
-        .replace(/`(.*?)`/g, '$1')
-        .replace(/^["']|["']$/g, '')
-        .replace(/^[A-Za-z]+:\s+/g, '')
-        .replace(/[.!?…]+$/, '')
-        .trim();
-
-      if (title.length > 60) {
-        title = title.slice(0, 60).replace(/\s+\S*$/, '').trim();
-      }
-
-      const wordCount = title.split(/\s+/).length;
-      const isRefusal = /^(I\s+(don't|cannot|can't|do not|am not)|sorry|unfortunately|as an? ai)/i.test(title);
-      const isUsable =
-        title.length >= 2 &&
-        wordCount <= 10 &&
-        !isRefusal &&
-        /[a-zA-Z\u00C0-\u024F\u4e00-\u9fff]/.test(title);
-
-      return { title: isUsable ? title : fallback, usage };
-    } catch (error) {
-      console.error('[UnifiedAIService] Title generation failed:', error);
-      return { title: fallback };
-    }
-  }
 
   private toProcessedResult(analysis: AnalysisResult, transcript: string, segments?: StoredTranscriptSegment[]): ProcessedResult {
     const summary = analysis.summary;
