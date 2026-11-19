@@ -1,5 +1,5 @@
 // Components
-export { HistoryItem, HistoryList, UnifiedSidebarItem, UnifiedList } from './components';
+export { UnifiedSidebarItem, UnifiedList } from './components';
 
 // Hooks
 export { useHistory, useDeleteSession, useUnifiedSidebar, useOpenMeeting } from './hooks';
