@@ -5,7 +5,7 @@ import React from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { MCP_CONFIG } from '@config/mcp.config';
 import type { McpServerConfig } from '@config/mcp.config';
-import { META_SEPARATOR } from '@config/ui.config';
+import { MENU_SYMBOLS, META_SEPARATOR } from '@config/ui.config';
 import { CardRow, IconButton, Switch } from '@shared/ui';
 import { Menu, ServerIcon } from '@shared/components';
 import type { MenuEntry } from '@shared/components';
@@ -61,12 +61,12 @@ function serverLine(config: McpServerConfig): string[] {
 function menuItems(props: McpServerCardProps, status: McpServerStatus): MenuEntry[] {
   const { alwaysAllowed, allowAll, disabled, onAlwaysAllowChange, onRetry, onEdit, onDelete } = props;
   return [
-    { type: 'item', label: 'Edit…', onSelect: onEdit, disabled },
-    ...(status === 'offline' ? [{ type: 'item' as const, label: 'Retry', onSelect: onRetry, disabled }] : []),
+    { type: 'item', label: 'Edit…', symbol: MENU_SYMBOLS.edit, onSelect: onEdit, disabled },
+    ...(status === 'offline' ? [{ type: 'item' as const, label: 'Retry', symbol: MENU_SYMBOLS.retry, onSelect: onRetry, disabled }] : []),
     { type: 'separator' },
     { type: 'check', label: 'Always Allow', checked: allowAll || alwaysAllowed, onSelect: () => onAlwaysAllowChange(!alwaysAllowed), disabled: disabled || allowAll },
     { type: 'separator' },
-    { type: 'item', label: 'Delete Server…', onSelect: onDelete, disabled, destructive: true },
+    { type: 'item', label: 'Delete Server…', symbol: MENU_SYMBOLS.delete, onSelect: onDelete, disabled, destructive: true },
   ];
 }
 

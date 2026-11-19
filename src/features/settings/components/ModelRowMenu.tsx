@@ -4,6 +4,7 @@ import React from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { IconButton } from '@shared/ui';
 import { Menu } from '@shared/components';
+import { MENU_SYMBOLS } from '@config/ui.config';
 import type { ModelCapabilities } from '@services/ai/capabilities';
 import type { Model } from '@shared/types/modelProviders';
 
@@ -28,7 +29,7 @@ export const ModelRowMenu: React.FC<ModelRowMenuProps> = ({ capabilities, onFlag
     label="Model options"
     trigger={<IconButton icon={MoreHorizontal} label="Model options" size="sm" />}
     items={[
-      { type: 'item', label: 'Rename…', onSelect: onRename },
+      { type: 'item', label: 'Rename…', symbol: MENU_SYMBOLS.rename, onSelect: onRename },
       { type: 'separator' },
       ...FLAG_ITEMS.map(({ flag, capability, label }) => ({
         type: 'check' as const,
@@ -37,7 +38,7 @@ export const ModelRowMenu: React.FC<ModelRowMenuProps> = ({ capabilities, onFlag
         onSelect: () => onFlagChange(flag, !capabilities[capability]),
       })),
       { type: 'separator' },
-      { type: 'item', label: 'Remove Model…', onSelect: onRemove, destructive: true },
+      { type: 'item', label: 'Remove Model…', symbol: MENU_SYMBOLS.delete, onSelect: onRemove, destructive: true },
     ]}
   />
 );

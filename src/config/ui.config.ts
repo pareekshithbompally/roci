@@ -156,6 +156,16 @@ export const META_SEPARATOR = ' · ';
 export const MENU_ICON_PT = 16;
 /** Space between a button and the menu it opens below, in points. */
 export const MENU_GAP_PT = 4;
+/** SF Symbols for the actions menus share, drawn beside the label on a Mac. */
+export const MENU_SYMBOLS = {
+  rename: 'pencil',
+  edit: 'pencil',
+  delete: 'trash',
+  retry: 'arrow.clockwise',
+  cancel: 'xmark',
+  transcribe: 'waveform',
+  summarize: 'sparkles',
+} as const;
 
 export const BREAKPOINTS = {
   sm: 640,

@@ -2,6 +2,7 @@
 
 import { AlertCircle, AudioWaveform, Loader2, Mic, type LucideIcon } from 'lucide-react';
 import type { MeetingPhase, MeetingPipelineStage } from '@shared/types/meetingPhase';
+import { MENU_SYMBOLS } from '@config/ui.config';
 
 type Kind = MeetingPhase['kind'];
 type BadgeTone = 'default' | 'warning' | 'error' | 'info';
@@ -50,8 +51,19 @@ export function meetingPhaseLabel(phase: MeetingPhase): string {
   }
 }
 
+/** The SF Symbol beside each phase action on a Mac menu. */
+export const MEETING_PHASE_ACTION_SYMBOL = {
+  Cancel: MENU_SYMBOLS.cancel,
+  Transcribe: MENU_SYMBOLS.transcribe,
+  Summarize: MENU_SYMBOLS.summarize,
+  Retry: MENU_SYMBOLS.retry,
+  'Re-transcribe': MENU_SYMBOLS.transcribe,
+} as const;
+
+export type MeetingPhaseAction = keyof typeof MEETING_PHASE_ACTION_SYMBOL;
+
 /** The action a meeting offers in its phase (Cancel while it runs); null when there is none. */
-export function meetingPhaseAction(phase: MeetingPhase): string | null {
+export function meetingPhaseAction(phase: MeetingPhase): MeetingPhaseAction | null {
   switch (phase.kind) {
     case 'transcribing':
     case 'summarizing':

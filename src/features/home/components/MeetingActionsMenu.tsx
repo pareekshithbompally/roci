@@ -6,6 +6,7 @@ import { Button, Icon, showToast } from '@shared/ui';
 import { Menu, type MenuEntry } from '@shared/components';
 import { saveTextFile } from '@services/tauri';
 import { platform } from '@platform/index';
+import { MEETING_PHASE_ACTION_SYMBOL } from '@config/meetingPhase.config';
 import { SHOW_IN_FINDER, showInFinder, toastSavedFile } from '@shared/utils/savedFileToast';
 import type { ProcessedResult } from '@shared/types';
 import { buildExport, EXPORT_KIND, type ExportFormat, type ExportPart, type ExportScope } from '@features/home/utils/meetingExport';
@@ -52,7 +53,7 @@ async function download(result: ProcessedResult, format: ExportFormat, scope: Ex
 /** Re-transcribe (when it can), Copy, Download, and Show in Finder (when there is a recording and a file manager). */
 function menuItems({ result, part, recordingPath, onRetranscribe }: MeetingActionsMenuProps): MenuEntry[] {
   return [
-    ...(onRetranscribe ? [{ type: 'item' as const, label: 'Re-transcribe', onSelect: onRetranscribe }, { type: 'separator' as const }] : []),
+    ...(onRetranscribe ? [{ type: 'item' as const, label: 'Re-transcribe', symbol: MEETING_PHASE_ACTION_SYMBOL['Re-transcribe'], onSelect: onRetranscribe }, { type: 'separator' as const }] : []),
     { type: 'label', label: 'Copy' },
     { type: 'item', label: 'Summary', onSelect: () => void copy(result.summary, 'Summary') },
     { type: 'item', label: 'Transcript', onSelect: () => void copy(result.transcript, 'Transcript') },

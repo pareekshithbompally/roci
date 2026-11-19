@@ -4,7 +4,8 @@ import React from 'react';
 import { MoreHorizontal, Volume2 } from 'lucide-react';
 import { actionRowClasses, RowAction, RowTitle, Icon } from '@shared/ui';
 import { HighlightedText, MeetingStatus, Menu } from '@shared/components';
-import { meetingPhaseAction } from '@config/meetingPhase.config';
+import { MEETING_PHASE_ACTION_SYMBOL, meetingPhaseAction } from '@config/meetingPhase.config';
+import { MENU_SYMBOLS } from '@config/ui.config';
 import type { MeetingPhase } from '@shared/types/meetingPhase';
 import { useAudioPlayerStore } from '@shared/stores/audioPlayerStore';
 import type { UnifiedSidebarItem as UnifiedSidebarItemType } from '@shared/types';
@@ -68,10 +69,10 @@ export const UnifiedSidebarItem: React.FC<UnifiedSidebarItemProps> = React.memo(
         )}
         items={[
           ...(hasRecording && onTranscribeClick && transcribeAction
-            ? [{ type: 'item' as const, label: transcribeAction, onSelect: onTranscribeClick }, { type: 'separator' as const }]
+            ? [{ type: 'item' as const, label: transcribeAction, symbol: MEETING_PHASE_ACTION_SYMBOL[transcribeAction], onSelect: onTranscribeClick }, { type: 'separator' as const }]
             : []),
-          { type: 'item', label: 'Rename', onSelect: onStartRename },
-          { type: 'item', label: 'Delete', onSelect: onDeleteClick, destructive: true },
+          { type: 'item', label: 'Rename', symbol: MENU_SYMBOLS.rename, onSelect: onStartRename },
+          { type: 'item', label: 'Delete', symbol: MENU_SYMBOLS.delete, onSelect: onDeleteClick, destructive: true },
         ]}
       />
     </div>

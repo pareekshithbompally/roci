@@ -51,8 +51,8 @@ export const SPEECH_MODEL_ACTION_PREFIX = 'speech_model:';
 
 /** One entry of a menu shown by the system (or as an action sheet on a phone). */
 export type MenuEntry =
-  | { type: 'item'; label: string; onSelect: () => void; disabled?: boolean; /** Red on a phone's action sheet. */ destructive?: boolean }
+  | { type: 'item'; label: string; onSelect: () => void; disabled?: boolean; /** Red on a phone's action sheet. */ destructive?: boolean; /** SF Symbol beside the label on a Mac. */ symbol?: string }
   | { type: 'check'; label: string; checked: boolean; onSelect: () => void; disabled?: boolean }
   | { type: 'label'; label: string }
   | { type: 'separator' }
-  | { type: 'submenu'; label: string; items: MenuEntry[] };
+  | { type: 'submenu'; label: string; items: MenuEntry[]; /** SF Symbol beside the label on a Mac. */ symbol?: string };

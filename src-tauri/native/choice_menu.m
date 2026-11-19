@@ -69,7 +69,7 @@ static const CGFloat kSwitchOffAlpha = 0.15;
 @end
 
 /// An image from base64 PNG (`icon`) or an SF Symbol name (`symbol`), at the menu's icon size; nil when neither is given.
-/// `template` glyphs (monochrome app icons) are tinted by AppKit to match the menu's light or dark appearance.
+/// SF Symbols and `template` glyphs (monochrome app icons) are tinted by AppKit to match the menu's light or dark appearance.
 static NSImage *rociImage(NSDictionary *entry, CGFloat size) {
   NSImage *image = nil;
   NSString *icon = entry[@"icon"];
@@ -81,7 +81,7 @@ static NSImage *rociImage(NSDictionary *entry, CGFloat size) {
     image = [NSImage imageWithSystemSymbolName:symbol accessibilityDescription:nil];
   }
   image.size = NSMakeSize(size, size);
-  image.template = [entry[@"template"] boolValue];
+  image.template = image.template || [entry[@"template"] boolValue];
   return image;
 }
 

@@ -3,9 +3,10 @@
 import { invoke } from '@tauri-apps/api/core';
 import { MENU_ICON_PT } from '@config/ui.config';
 
-/** An icon: an image URL (a logo, a cached avatar, a rendered glyph); `template` glyphs take the menu's light or dark tint. */
+/** An icon: an image URL (a logo, a cached avatar, a rendered glyph) or an SF Symbol name; `template` glyphs and symbols take the menu's light or dark tint. */
 interface MenuIcon {
   icon?: string | null;
+  symbol?: string;
   template?: boolean;
 }
 
