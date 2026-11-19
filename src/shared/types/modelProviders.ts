@@ -68,4 +68,6 @@ export type ModelProvider = {
   models: Model[]
   persist?: boolean
   custom_header?: ProviderCustomHeader[] | null
+  /** A server's app (`SERVER_APPS` id) the user named it as; its name and logo everywhere. */
+  server_app?: string
 }

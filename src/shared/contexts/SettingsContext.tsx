@@ -163,7 +163,7 @@ async function loadSettingsFromStore(): Promise<{ settings: AppSettings; selecte
 
 
 /** Loaded snapshot owned by the settings query. Mutations update it optimistically. */
-interface LoadedSettings {
+export interface LoadedSettings {
   settings: AppSettings;
   providers: ModelProvider[];
   selectedProviderName: string | null;

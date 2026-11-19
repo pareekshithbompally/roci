@@ -175,6 +175,7 @@ export function rustProviderToModelProvider(row: RustProviderRow): ModelProvider
     explore_models_url: data.explore_models_url,
     persist: data.persist,
     custom_header: data.custom_header ?? null,
+    server_app: data.server_app,
   };
 }
 
@@ -192,6 +193,7 @@ export function modelProviderToRust(provider: ModelProvider): {
   if (provider.explore_models_url) data.explore_models_url = provider.explore_models_url;
   if (provider.persist !== undefined) data.persist = provider.persist;
   if (provider.custom_header) data.custom_header = provider.custom_header;
+  if (provider.server_app) data.server_app = provider.server_app;
 
   return {
     provider: provider.provider,

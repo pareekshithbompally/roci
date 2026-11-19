@@ -13,7 +13,8 @@ import {
   toLocalProvider,
 } from '@services/providers/localServers';
 import { useLocalServerProbe } from './useLocalServerProbe';
-import { LOCAL_NEEDS_HTTPS } from '@config/localServers.config';
+import { LOCAL_NEEDS_HTTPS, SERVER_APP_BY_LIST_STYLE } from '@config/localServers.config';
+import { listStyleOf } from '@services/providers/listers';
 import type { LocalRow, LocalServer } from '@services/providers/localServers';
 
 export type AddLocalUrlResult = { ok: true; id: string } | { ok: false; error: string };
@@ -28,8 +29,8 @@ export function useLocalServers() {
   const rows: LocalRow[] = useMemo(() => localRows(query.data ?? [], providers), [query.data, providers]);
 
   /** Save a detected server as an active provider and select it. */
-  const enable = useCallback((server: LocalServer) => {
-    addProvider(toLocalProvider(server));
+  const enable = useCallback((server: LocalServer, serverApp?: string) => {
+    addProvider(toLocalProvider(server, serverApp));
     setSelectedProviderName(server.id);
   }, [addProvider, setSelectedProviderName]);
 
@@ -57,7 +58,9 @@ export function useLocalServers() {
     const models = await listServerModels(id, baseUrl);
     if (!models) return { ok: false, error: `No OpenAI-compatible server answered at ${baseUrl}.` };
 
-    enable({ id, baseUrl, running: true, models });
+    // The list just read settled its format, so this asks the server nothing more.
+    const serverApp = SERVER_APP_BY_LIST_STYLE[await listStyleOf(id, { baseUrl })];
+    enable({ id, baseUrl, running: true, models }, serverApp);
     return { ok: true, id };
   }, [saved, enable, setSelectedProviderName]);
 

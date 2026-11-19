@@ -1,5 +1,6 @@
 import type { ReasoningEffort } from '@shared/types';
 import { platform } from '@platform/index';
+import type { ModelListStyle } from '@config/modelLists.config';
 
 /** User-run OpenAI-compatible servers, detected on their standard ports; Roci never starts or installs them. */
 
@@ -47,31 +48,61 @@ export const LLAMA_THINKING_TEMPLATE = {
 /** A port that doesn't answer within this window counts as "not running". */
 export const LOCAL_PROBE_TIMEOUT_MS = 600;
 
-export interface LocalServerEntry {
+/** An app that serves models (Ollama, LM Studio, llama.cpp …): what a server is called and shows everywhere. */
+export interface ServerApp {
   id: string;
   label: string;
-  port: number;
-  /** GET path only this engine serves; null when the port alone identifies it, or its own list format already proves it. */
-  fingerprint: string | null;
   logo: string;
-  /** Bundle id of the engine's Mac app: when it's installed, macOS draws its icon (else `logo`). */
-  app?: string;
+  /** Bundle id of its Mac app: when it's installed, macOS draws its icon (else `logo`). */
+  bundleId?: string;
 }
 
 const GENERIC_LOGO = '/images/model-provider/local-server.png';
+const LLAMA_CPP_LOGO = '/images/model-provider/llama-cpp.png';
+
+/** Every server app a user can name their server as, in picker order. */
+export const SERVER_APPS: readonly ServerApp[] = [
+  { id: 'llama', label: 'Llama', logo: LLAMA_CPP_LOGO, bundleId: 'app.llama.Llama' },
+  { id: 'llamacpp', label: 'llama.cpp', logo: LLAMA_CPP_LOGO },
+  { id: 'ollama', label: 'Ollama', logo: '/images/model-provider/ollama.png' },
+  { id: 'lmstudio', label: 'LM Studio', logo: '/images/model-provider/lm-studio.png', bundleId: 'ai.elementlabs.lmstudio' },
+  { id: 'vllm', label: 'vLLM', logo: '/images/model-provider/vllm.svg' },
+  { id: 'jan', label: 'Jan', logo: '/images/model-provider/jan.png', bundleId: 'jan.ai.app' },
+  { id: 'koboldcpp', label: 'KoboldCpp', logo: GENERIC_LOGO },
+  { id: 'sglang', label: 'SGLang', logo: '/images/model-provider/sglang.png' },
+];
+
+/** The server app a list format proves, so an added server starts named (the user can change it). */
+export const SERVER_APP_BY_LIST_STYLE: Partial<Record<ModelListStyle, string>> = {
+  ollama: 'ollama',
+  lmstudio: 'lmstudio',
+  'llama-server': 'llamacpp',
+};
+
+/** Settings › a server's detail: which app it is. */
+export const SERVER_APP_PICKER = { title: 'Server app', other: 'Other' } as const;
+
+/** A known server app on its default port, scanned on this device. */
+export interface LocalServerEntry {
+  id: string;
+  serverApp: string;
+  port: number;
+  /** GET path only this engine serves; null when the port alone identifies it, or its own list format already proves it. */
+  fingerprint: string | null;
+}
 
 // Default ports from each engine's docs: Ollama 11434, LM Studio 1234, vLLM 8000, Jan 1337, llama.cpp's llama-server
 // 8080 (also LocalAI and MLX; anything else answering there shows as a generic local server), KoboldCpp 5001.
 export const LOCAL_SERVERS: readonly LocalServerEntry[] = [
-  { id: 'local:ollama', label: 'Ollama', port: 11434, fingerprint: null, logo: '/images/model-provider/ollama.png' },
-  { id: 'local:lmstudio', label: 'LM Studio', port: 1234, fingerprint: null, logo: GENERIC_LOGO, app: 'ai.elementlabs.lmstudio' },
-  { id: 'local:vllm', label: 'vLLM', port: 8000, fingerprint: '/version', logo: GENERIC_LOGO },
-  { id: 'local:jan', label: 'Jan', port: 1337, fingerprint: null, logo: '/images/model-provider/jan.png', app: 'jan.ai.app' },
-  { id: 'local:llamacpp', label: 'llama.cpp', port: 8080, fingerprint: '/props', logo: GENERIC_LOGO },
-  { id: 'local:koboldcpp', label: 'KoboldCpp', port: 5001, fingerprint: '/api/extra/version', logo: GENERIC_LOGO },
+  { id: 'local:ollama', serverApp: 'ollama', port: 11434, fingerprint: null },
+  { id: 'local:lmstudio', serverApp: 'lmstudio', port: 1234, fingerprint: null },
+  { id: 'local:vllm', serverApp: 'vllm', port: 8000, fingerprint: '/version' },
+  { id: 'local:jan', serverApp: 'jan', port: 1337, fingerprint: null },
+  { id: 'local:llamacpp', serverApp: 'llamacpp', port: 8080, fingerprint: '/props' },
+  { id: 'local:koboldcpp', serverApp: 'koboldcpp', port: 5001, fingerprint: '/api/extra/version' },
 ];
 
-/** Logo for a server that isn't a known engine (a custom URL, or port 8080 serving MLX/LocalAI). */
+/** Logo for a server whose app isn't named (a custom URL, or port 8080 serving MLX/LocalAI). */
 export const LOCAL_GENERIC_LOGO = GENERIC_LOGO;
 
 /** The Providers group of model servers the user runs (vs models built into this device). */

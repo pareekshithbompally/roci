@@ -47,6 +47,11 @@ function knownBaseUrl(entry: LocalServerEntry): string {
   return `http://${LOCAL_SERVER_HOST}:${entry.port}${LOCAL_SERVER_API_PATH}`;
 }
 
+/** Where a server is (`http://localhost:9931/v1` → `localhost:9931`), shown under its name. */
+export function serverHost(baseUrl: string): string {
+  return new URL(baseUrl).host;
+}
+
 /** Origin of a base URL (`http://127.0.0.1:11434/v1` → `http://127.0.0.1:11434`). */
 function originOf(baseUrl: string): string {
   return new URL(baseUrl).origin;
@@ -164,9 +169,10 @@ function localProviderSettings(baseUrl: string): ProviderSetting[] {
   ];
 }
 
-/** The provider saved when the user switches a detected server on. */
-export function toLocalProvider(server: LocalServer): ModelProvider {
+/** The provider saved when the user switches a detected server on, named as `serverApp` when its format proved one. */
+export function toLocalProvider(server: LocalServer, serverApp?: string): ModelProvider {
   return {
+    ...(serverApp && { server_app: serverApp }),
     active: true,
     provider: server.id,
     api_key: LOCAL_SERVER_DEFAULT_API_KEY,

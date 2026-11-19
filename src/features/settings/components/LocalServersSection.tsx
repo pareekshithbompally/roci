@@ -7,10 +7,11 @@ import { useToast } from '@shared/contexts/ToastContext';
 import { LOCAL_EMPTY_HINT, LOCAL_SERVERS_GROUP, LOCAL_URL_DRAFT } from '@config/localServers.config';
 import { useLocalServers } from '@features/settings/hooks/useLocalServers';
 import { ProvidersAvatar } from '@shared/components';
-import { getProviderTitle } from '@shared/utils/provider.utils';
+import { getProviderTitle, serverAppOf } from '@shared/utils/provider.utils';
 import { platform } from '@platform/index';
 import { ProviderGroup, ProviderListItem } from './ProviderListItem';
 import type { ProviderRowState } from './ProviderListItem';
+import { serverHost } from '@services/providers/localServers';
 import type { LocalRow } from '@services/providers/localServers';
 import { Button, CardRow, IconButton, Input, Section, Status, Text, useNavStack } from '@shared/ui';
 import type { DotTone } from '@shared/ui';
@@ -22,9 +23,14 @@ function rowState(row: LocalRow): ProviderRowState {
   return row.running ? 'ready' : 'attention';
 }
 
-function rowDetail(row: LocalRow): string {
+function modelCount(row: LocalRow): string {
   if (!row.running) return 'Not running';
   return row.models.length === 1 ? '1 model' : `${row.models.length} models`;
+}
+
+/** Where the server is, then its models; a server named by its address already shows where it is. */
+function rowDetail(row: LocalRow): string {
+  return serverAppOf(row.id) ? `${serverHost(row.baseUrl)} · ${modelCount(row)}` : modelCount(row);
 }
 
 const ROW_TONE: Record<ProviderRowState, DotTone> = { ready: 'success', attention: 'warning', off: 'muted' };

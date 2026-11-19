@@ -1,6 +1,8 @@
-import { describe, it, expect } from 'vitest';
-import { getProviderTitle, getProviderLogo, isLocalProviderId } from '@shared/utils/provider.utils';
+import { afterEach, describe, it, expect } from 'vitest';
+import { getProviderApp, getProviderTitle, getProviderLogo, isLocalProviderId } from '@shared/utils/provider.utils';
 import { LOCAL_GENERIC_LOGO } from '@config/localServers.config';
+import { queryClient } from '@shared/query/queryClient';
+import { queryKeys } from '@shared/query/queryKeys';
 
 describe('getProviderTitle', () => {
   it('returns known cloud titles', () => {
@@ -34,5 +36,19 @@ describe('isLocalProviderId', () => {
   it('matches only local: ids', () => {
     expect(isLocalProviderId('local:ollama')).toBe(true);
     expect(isLocalProviderId('openai')).toBe(false);
+  });
+});
+
+describe('a server the user named', () => {
+  afterEach(() => queryClient.removeQueries({ queryKey: queryKeys.storeSettings() }));
+
+  it('takes its app's name, logo and Mac app everywhere', () => {
+    const id = 'local:localhost:9931';
+    queryClient.setQueryData(queryKeys.storeSettings(), {
+      providers: [{ provider: id, active: true, settings: [], models: [], server_app: 'llama' }],
+    });
+    expect(getProviderTitle(id)).toBe('Llama');
+    expect(getProviderLogo(id)).toBe('/images/model-provider/llama-cpp.png');
+    expect(getProviderApp(id)).toBe('app.llama.Llama');
   });
 });

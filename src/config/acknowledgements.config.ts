@@ -69,6 +69,7 @@ export const ACKNOWLEDGEMENTS: readonly AcknowledgementGroup[] = [
       { name: 'wavesurfer.js', url: 'https://github.com/katspaugh/wavesurfer.js', license: 'BSD-3-Clause', text: 'BSD-3-Clause', copyright: 'Copyright (c) 2012-2023, katspaugh and contributors' },
       { name: 'React Simple Icons', url: 'https://github.com/icons-pack/react-simple-icons', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2019 Jorge Luis Calleja A.' },
       { name: 'Simple Icons', url: 'https://github.com/simple-icons/simple-icons', license: 'CC0-1.0' },
+      { name: 'LobeHub Icons', url: 'https://github.com/lobehub/lobe-icons', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2023 LobeHub' },
     ],
   },
   {
