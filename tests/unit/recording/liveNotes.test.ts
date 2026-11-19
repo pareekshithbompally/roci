@@ -131,14 +131,14 @@ describe('liveNotesRequest and changesFromReply', () => {
   const bullets: Bullet[] = [{ id: 'b1', noteId: 'uuid-a', text: 'Launch: 14 Dec' }, { id: 'b2', text: 'Decision: ship' }];
 
   it('sends the notes under short ids the model can copy, with how they stand', () => {
-    const { input } = liveNotesRequest(lines, bullets, 'You: hi', NO_RECALL, (ms) => `t${ms}`);
+    const { input } = liveNotesRequest(lines, bullets, 'You: hi', { recall: NO_RECALL, participants: [] }, (ms) => `t${ms}`);
     expect(input.notes).toEqual([{ id: 'n1', text: 'launch?', at: 't40000' }, { id: 'n2', text: 'ask Raj', at: undefined }]);
     expect(input.filled).toEqual([{ noteId: 'n1', text: 'Launch: 14 Dec' }]);
     expect(input.points).toEqual([{ id: 'b2', text: 'Decision: ship' }]);
   });
 
   it('maps the reply back to real note ids and drops a note it does not know', () => {
-    const { realId } = liveNotesRequest(lines, bullets, '', NO_RECALL, String);
+    const { realId } = liveNotesRequest(lines, bullets, '', { recall: NO_RECALL, participants: [] }, String);
     expect(changesFromReply({ filled: [{ noteId: 'n2', text: 'Ask Raj about rate limits.' }, { noteId: 'n9', text: 'x' }], points: [{ text: 'Task: QA' }] }, realId))
       .toEqual([{ noteId: 'uuid-c', text: 'Ask Raj about rate limits.' }, { id: undefined, text: 'Task: QA' }]);
   });
@@ -167,9 +167,10 @@ describe('recall', () => {
 
   it('sends the newest points and older ones whose talk was recalled, with the earlier talk', () => {
     const points: Bullet[] = Array.from({ length: NOTES.recall.recentPoints + 2 }, (_, i) => ({ id: `b${i + 1}`, text: `p${i + 1}`, atMs: i * 100_000 }));
-    const { input } = liveNotesRequest([], points, 'You: back to the budget', { passages: ['earlier talk'], spans: [{ startMs: 90_000, endMs: 110_000 }] }, String);
+    const { input } = liveNotesRequest([], points, 'You: back to the budget', { recall: { passages: ['earlier talk'], spans: [{ startMs: 90_000, endMs: 110_000 }] }, participants: ['Priya'] }, String);
     expect(input.points.map((p) => p.id)).toEqual(['b2', ...points.slice(-NOTES.recall.recentPoints).map((p) => p.id)]);
     expect(input.earlier).toEqual(['earlier talk']);
+    expect(input.participants).toEqual(['Priya']);
   });
 });
 

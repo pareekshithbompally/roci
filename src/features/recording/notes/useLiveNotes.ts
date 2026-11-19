@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
+import { useHistoryData } from '@shared/contexts/HistoryContext';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { summaryModel } from '@services/ai/jobModel';
 import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
@@ -22,6 +23,13 @@ function useSummaryModel(): { model: ResolvedModel | null; problem: string | nul
     const check = summaryModel(settings, providers);
     return { model: check.model ?? null, problem: check.problem?.message ?? null };
   }, [settings, providers]);
+}
+
+/** The meeting's participants from its calendar event, by name, for naming who speaks. */
+function useParticipants(meetingId: string): string[] {
+  const { items } = useHistoryData();
+  const participants = items.find((item) => item.id === meetingId)?.participants;
+  return useMemo(() => (participants ?? []).flatMap(({ name }) => (name ? [name] : [])), [participants]);
 }
 
 /** Saves the typed lines as the meeting's notes: new lines added under their own ids, edited ones updated, emptied ones deleted. */
@@ -66,9 +74,10 @@ export function useLiveNotes(meetingId: string, live: boolean) {
   const save = useSaveLines(meetingId);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const latest = useRef({ save, model: refreshModel });
+  const participants = useParticipants(meetingId);
+  const latest = useRef({ save, model: refreshModel, participants });
   useEffect(() => {
-    latest.current = { save, model: refreshModel };
+    latest.current = { save, model: refreshModel, participants };
   }, [save, refreshModel]);
 
   // the recording ending drops an update still in flight
@@ -76,7 +85,7 @@ export function useLiveNotes(meetingId: string, live: boolean) {
 
   // enough new transcript refreshes the bullets
   useEffect(() => {
-    if (refreshModel && liveNotes.due(entries, false)) void liveNotes.refresh(entries, refreshModel);
+    if (refreshModel && liveNotes.due(entries, false)) void liveNotes.refresh(entries, refreshModel, latest.current.participants);
   }, [entries, refreshModel]);
 
   const flush = useCallback((): Promise<void> => {
@@ -88,10 +97,10 @@ export function useLiveNotes(meetingId: string, live: boolean) {
   useEffect(() => () => void flush().catch(report('save')), [flush, meetingId]);
 
   const onTypingPause = useCallback(() => {
-    const { save: saveLines, model: current } = latest.current;
+    const { save: saveLines, model: current, participants: names } = latest.current;
     saveLines().catch(report('save'));
     const now = useMeetingLiveStore.getState().entries;
-    if (current && liveNotes.due(now, true)) void liveNotes.refresh(now, current);
+    if (current && liveNotes.due(now, true)) void liveNotes.refresh(now, current, names);
   }, []);
 
   const type = useCallback((text: string) => {

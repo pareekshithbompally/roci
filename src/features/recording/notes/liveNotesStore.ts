@@ -114,7 +114,7 @@ export const liveNotes = {
   },
 
   /** Sends the notes, bullets and every transcript entry not yet applied; applies the changed bullets unless a newer refresh started. */
-  async refresh(entries: LiveEntry[], resolved: ResolvedModel): Promise<void> {
+  async refresh(entries: LiveEntry[], resolved: ResolvedModel, participants: string[] = []): Promise<void> {
     const { meetingId, lines, bullets } = get();
     if (!meetingId) return;
     session.controller?.abort();
@@ -130,7 +130,7 @@ export const liveNotes = {
     try {
       const recall = await recallFor(current, meetingId, lines, transcript);
       if (stale(current, controller)) return;
-      const { input, realId } = liveNotesRequest(lines, bullets, transcript, recall, clock);
+      const { input, realId } = liveNotesRequest(lines, bullets, transcript, { recall, participants }, clock);
       const reply = await refreshLiveNotes({ input, resolved, meetingId, signal: controller.signal });
       if (stale(current, controller)) return;
       const changes = changesFromReply(reply, realId);

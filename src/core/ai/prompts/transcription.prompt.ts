@@ -1,7 +1,7 @@
 /** Meeting analysis prompt (the Summary tab) and the verbatim transcription prompt for audio-input models.
  *  What each output field holds is defined once, in the schema's descriptions; this prompt lists them from there. */
 
-import { SPEAKERS, TRANSCRIPT_GUIDE, speakerNaming } from './transcript.prompt';
+import { SPEAKERS, SPEAKER_NAMING, TRANSCRIPT_GUIDE } from './transcript.prompt';
 
 export interface MeetingContext {
   title: string;
@@ -66,11 +66,6 @@ function participantName({ name, email }: MeetingContext['participants'][number]
   return name && email ? `${name} (${email})` : name || email || '';
 }
 
-/** The calendar's attendees by name, the candidates for naming speakers. */
-function attendeeNames(context: MeetingContext | undefined): string[] {
-  return (context?.participants ?? []).flatMap(({ name }) => (name ? [name] : []));
-}
-
 function meetingDetails(context: MeetingContext | undefined): string | null {
   if (!context) return null;
   const participants = context.participants.map(participantName).filter(Boolean);
@@ -94,7 +89,7 @@ export function buildTranscriptionPrompt({ categories, meetingContext, userNotes
     ROLE,
     RULES,
     TRANSCRIPT_GUIDE,
-    speakerNaming(attendeeNames(meetingContext)),
+    SPEAKER_NAMING,
     `## Output\n\nReply with JSON holding these fields:\n\n${fieldGuide(schema.properties).join('\n')}`,
     categoryLine(categories),
     meetingDetails(meetingContext),

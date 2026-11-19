@@ -36,17 +36,17 @@ describe('buildTranscriptionRequest', () => {
     expect(prompt).toContain(temporalContext);
   });
 
-  it('adds calendar details, and names attendees as naming candidates only when there are some', () => {
+  it('adds calendar details, with the participants listed once', () => {
     const titleOnly = buildTranscriptionRequest({ categories: [], temporalContext, meetingContext: { title: 'Sync', participants: [] } });
     expect(titleOnly.prompt).toContain('- Title: Sync');
-    expect(titleOnly.prompt).not.toContain('The calendar lists');
+    expect(titleOnly.prompt).not.toContain('- Participants:');
     const withPeople = buildTranscriptionRequest({
       categories: [],
       temporalContext,
       meetingContext: { title: 'Sync', participants: [{ name: 'Priya', email: 'p@example.com' }] },
     });
     expect(withPeople.prompt).toContain('- Participants: Priya (p@example.com)');
-    expect(withPeople.prompt).toContain('The calendar lists Priya:');
+    expect(withPeople.prompt.match(/p@example\.com/g)).toHaveLength(1);
   });
 
   it('lists the user\'s own notes only when there are some', () => {

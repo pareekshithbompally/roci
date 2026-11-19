@@ -11,4 +11,4 @@ export { formatTemporalContext } from '@core/ai/temporal';
 
 export { LIVE_NOTES_PROMPT, buildLiveNotesInput } from './liveNotes.prompt';
 export type { LiveNotesInput } from './liveNotes.prompt';
-export { SPEAKERS, TRANSCRIPT_GUIDE, speakerNaming } from './transcript.prompt';
+export { SPEAKERS, SPEAKER_NAMING, TRANSCRIPT_GUIDE } from './transcript.prompt';

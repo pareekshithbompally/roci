@@ -181,7 +181,13 @@ function pointsToSend(bullets: Bullet[], spans: Span[]): Bullet[] {
 
 /** One refresh's request: the notes under short ids ("n1", in order) the model can copy exactly, what was recalled, and the
  *  way back to real ids. */
-export function liveNotesRequest(lines: NoteLine[], bullets: Bullet[], transcript: string, recall: Recall, clock: (ms: number) => string): {
+export function liveNotesRequest(
+  lines: NoteLine[],
+  bullets: Bullet[],
+  transcript: string,
+  { recall, participants }: { recall: Recall; participants: string[] },
+  clock: (ms: number) => string,
+): {
   input: LiveNotesInput;
   realId: Map<string, string>;
 } {
@@ -192,6 +198,7 @@ export function liveNotesRequest(lines: NoteLine[], bullets: Bullet[], transcrip
     filled: bullets.flatMap((b) => (b.noteId && shortId.has(b.noteId) ? [{ noteId: shortId.get(b.noteId) ?? b.noteId, text: b.text }] : [])),
     points: pointsToSend(bullets, recall.spans).map((b) => ({ id: b.id, text: b.text })),
     earlier: recall.passages,
+    participants,
     transcript,
   };
   return { input, realId: new Map([...shortId].map(([real, short]) => [short, real])) };
