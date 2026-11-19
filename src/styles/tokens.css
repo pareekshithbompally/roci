@@ -162,9 +162,12 @@
   /* AI at work: a copper-tinted row with a brighter copper band sweeping across it */
   --ai-wash: color-mix(in srgb, var(--ai-accent) 9%, transparent);
   --ai-sweep: linear-gradient(100deg, transparent 25%, color-mix(in srgb, var(--ai-accent) 24%, transparent) 50%, transparent 75%);
-  /* Calendar events: how much of their calendar's colour (`--event-tint`, set per event) fills the block and tints its text */
-  --event-fill-mix: 22%;
-  --event-text-mix: 80%;
+  /* Calendar events, as Calendar.app tints them: a light wash of the calendar's colour (`--event-tint`, set per event) and
+     text in a deep shade of it (the colour mixed into the primary text), the title deeper than the time under it */
+  --event-fill-mix: 20%;
+  /* ≥ 4.5:1 on the wash for every Apple calendar colour: title ≥ 6.1, time ≥ 4.7 (light) */
+  --event-text-mix: 35%;
+  --event-meta-mix: 45%;
   /* Landing glow (LandingGlow): copper core, amber companion, copper wash */
   --bg-glow-core: color-mix(in srgb, var(--copper-500) 30%, transparent);
   --bg-glow-companion: color-mix(in srgb, var(--copper-400) 26%, transparent);
@@ -222,7 +225,9 @@ html.platform-ios.dark {
   color-scheme: dark;
 
   --event-fill-mix: 30%;
-  --event-text-mix: 55%;
+  /* title ≥ 6.3, time ≥ 5.1 (dark) */
+  --event-text-mix: 35%;
+  --event-meta-mix: 55%;
 
   --bg-base: var(--grey-1100);
   --bg-deep: var(--grey-1200);

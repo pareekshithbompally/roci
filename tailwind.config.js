@@ -70,6 +70,7 @@ export default {
         ...stateRoles('fg'),
         ai: 'var(--ai-accent)',
         event: 'color-mix(in srgb, var(--event-tint, var(--bg-accent)) var(--event-text-mix), var(--text-primary))',
+        'event-meta': 'color-mix(in srgb, var(--event-tint, var(--bg-accent)) var(--event-meta-mix), var(--text-primary))',
       },
       borderColor: {
         DEFAULT: 'var(--border-muted)',

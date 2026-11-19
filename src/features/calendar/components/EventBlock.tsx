@@ -48,7 +48,7 @@ export const EventBlock: React.FC<EventBlockProps> = ({ block, onClick }) => {
           <Text variant="headline" tone="event" truncate className="flex-1">{event.title}</Text>
           {recorded && <Icon icon={Link2} size="xs" className="shrink-0" />}
         </div>
-        <Text as="p" variant="helper" tone="event" truncate className="flex items-center gap-1">
+        <Text as="p" variant="helper" tone="eventMeta" truncate className="flex items-center gap-1">
           <Icon icon={Clock} size="xs" />
           {formatClockTime(event.start_date)} – {formatClockTime(event.end_date)}
         </Text>
