@@ -4,6 +4,7 @@ export { calendarService } from './calendar.service';
 export { configureMeetingReminders, onMeetingRecord } from './meeting-reminders';
 export { setPendingCalendarEvent, consumePendingCalendarMeta, hasPendingCalendarEvent } from './recording-bridge';
 export type { CalendarRecordingMeta } from './recording-bridge';
+export { occurrenceKey, findMeetingForOccurrence } from './occurrence';
 export type {
   CalendarEvent,
   CalendarAttendee,
