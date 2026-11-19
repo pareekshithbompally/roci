@@ -55,8 +55,9 @@ export const TRANSCRIPTION_CONFIG = {
     deepgram: /^(nova|flux)/i,
     elevenlabs: /realtime/i,
   } as Partial<Record<TranscriptionAdapterId, RegExp>>,
-  /** Streaming audio: 16-bit little-endian PCM at the live sample rate. */
-  streamingFormat: { type: 'audio/pcm', rate: SAMPLE_RATE },
+  /** Cloud streaming audio: 16-bit little-endian PCM at 24 kHz, the one rate every cloud stream takes (OpenAI only 24 kHz;
+   *  ElevenLabs 8–48 kHz; Deepgram any). */
+  streamingFormat: { type: 'audio/pcm', rate: 24_000 },
 
   /** Provider id of the running Hex app (no key; its models come from Hex). */
   hexProvider: 'hex',

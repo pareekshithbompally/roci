@@ -105,6 +105,28 @@ export function samplesToPcm16(samples: Float32Array): Uint8Array {
   return new Uint8Array(view.buffer);
 }
 
+/** A running resampler for audio that arrives in pieces: each piece is converted to `to` Hz by linear interpolation, carrying
+ *  the position and the last sample across pieces so the joins are seamless. */
+export function streamResampler(from: number, to: number): (samples: Float32Array) => Float32Array {
+  if (from === to) return (samples) => samples;
+  const step = from / to;
+  let previous = 0;
+  // whole counts, so each output sample's place is exact however the audio is split: output k sits at input sample k × step
+  let emitted = 0;
+  let consumed = 0;
+  return (samples) => {
+    const at = (i: number) => (i < 0 ? previous : samples[i]);
+    const out: number[] = [];
+    for (let local = emitted * step - consumed; local < samples.length - 1; local = ++emitted * step - consumed) {
+      const base = Math.floor(local);
+      out.push(at(base) + (at(base + 1) - at(base)) * (local - base));
+    }
+    consumed += samples.length;
+    if (samples.length > 0) previous = samples[samples.length - 1];
+    return Float32Array.from(out);
+  };
+}
+
 /** Raw 16-bit little-endian PCM (no header) → mono samples. */
 export function pcm16ToSamples(bytes: Uint8Array): Float32Array {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);

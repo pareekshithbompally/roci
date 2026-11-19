@@ -4,7 +4,7 @@
 import { experimental_streamTranscribe as streamTranscribe } from 'ai';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { createTranscriptionModel, type TranscriptionFamily } from '@services/ai/provider';
-import { samplesToPcm16 } from '@shared/utils/wav.utils';
+import { samplesToPcm16, streamResampler } from '@shared/utils/wav.utils';
 import type { LiveStream, LiveText, StreamingEngine } from './streaming';
 
 const joined = (a: string, b: string) => [a, b].filter((t) => t.trim()).join(' ').trim();
@@ -15,7 +15,9 @@ function openStream(family: TranscriptionFamily, model: Parameters<typeof create
   const stop = new AbortController();
   const text: LiveText = { committed: '', tentative: '' };
   let failure: unknown = null;
-  const result = streamTranscribe({ model: createTranscriptionModel(family, model), audio, inputAudioFormat: TRANSCRIPTION_CONFIG.streamingFormat, abortSignal: stop.signal });
+  const { streamingFormat, sampleRate } = TRANSCRIPTION_CONFIG;
+  const resample = streamResampler(sampleRate, streamingFormat.rate);
+  const result = streamTranscribe({ model: createTranscriptionModel(family, model), audio, inputAudioFormat: streamingFormat, abortSignal: stop.signal });
   const reading = (async () => {
     for await (const part of result.fullStream) {
       if (part.type === 'transcript-partial') text.tentative = part.text;
@@ -30,7 +32,7 @@ function openStream(family: TranscriptionFamily, model: Parameters<typeof create
   return {
     async feed(pcm) {
       failed();
-      push?.enqueue(samplesToPcm16(pcm));
+      push?.enqueue(samplesToPcm16(resample(pcm)));
       return { ...text };
     },
     async finish() {
