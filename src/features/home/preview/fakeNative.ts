@@ -87,12 +87,14 @@ function saveSummary({ input }: { input: { meeting_id: string; title: string; ov
   const m = meetings.get(input.meeting_id)!;
   summaries.set(m.id, { overview: input.overview, data: input.data, created_at: now(), updated_at: now() });
   if (input.title && ['default', 'ai'].includes(m.title_source)) Object.assign(m, { title: input.title, title_source: 'ai' });
-  for (let i = todos.length - 1; i >= 0; i--) if (todos[i].meeting_id === m.id && todos[i].source === 'ai' && !todos[i].completed) todos.splice(i, 1);
+  const removed: string[] = [];
+  for (let i = todos.length - 1; i >= 0; i--) if (todos[i].meeting_id === m.id && todos[i].source === 'ai' && !todos[i].completed) removed.push(...todos.splice(i, 1).map((t) => t.id));
   input.action_items.forEach((a) => todos.push({ id: crypto.randomUUID(), meeting_id: m.id, text: a.text, owner: a.owner, due_date: a.due_date, completed: false, source: 'ai', created_at: now() }));
   m.categories = input.categories;
   m.step_attempts = 0;
   setStatus(m, 'ready');
   changed(m.id);
+  return removed;
 }
 
 /** The recorder: one live chunk of real speech every `gap` ms, numbered; `dropchunk` loses the second in transit. */

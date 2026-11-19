@@ -35,7 +35,7 @@ async function generate(options: LanguageModelV4CallOptions): Promise<LanguageMo
   const { instructions, turns } = toChat(options.prompt);
   const schema = options.responseFormat?.type === 'json' ? options.responseFormat.schema : undefined;
   const text = turns.map((turn) => turn.text).join('\n\n');
-  const output = await appleIntelligence.generate(instructions, text, schema).catch((error: unknown) => {
+  const output = await appleIntelligence.generate(instructions, text, schema, options.abortSignal).catch((error: unknown) => {
     throw appleFailureError(error, 'model');
   });
   return {

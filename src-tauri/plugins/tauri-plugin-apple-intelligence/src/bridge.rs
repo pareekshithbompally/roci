@@ -9,11 +9,13 @@ extern "C" {
     fn apple_intelligence_availability() -> i32;
     fn apple_intelligence_context_size() -> isize;
     fn apple_intelligence_generate(
+        id: u32,
         instructions: *const c_char,
         prompt: *const c_char,
         schema_json: *const c_char,
         timeout_ms: u64,
     ) -> *mut c_char;
+    fn apple_intelligence_generate_cancel(id: u32);
     fn apple_intelligence_stream(
         request_json: *const c_char,
         context: *mut c_void,
@@ -51,9 +53,15 @@ pub fn context_size() -> usize {
     usize::try_from(unsafe { apple_intelligence_context_size() }).unwrap_or(0)
 }
 
-pub fn generate<T: DeserializeOwned>(instructions: &str, prompt: &str, schema_json: &str, timeout_ms: u64) -> Result<T, String> {
+/// Generation `id`; blocks until done, timed out, or cancelled by `generate_cancel(id)`.
+pub fn generate<T: DeserializeOwned>(id: u32, instructions: &str, prompt: &str, schema_json: &str, timeout_ms: u64) -> Result<T, String> {
     let (instructions, prompt, schema) = (c_string(instructions)?, c_string(prompt)?, c_string(schema_json)?);
-    parse_and_free(unsafe { apple_intelligence_generate(instructions.as_ptr(), prompt.as_ptr(), schema.as_ptr(), timeout_ms) })
+    parse_and_free(unsafe { apple_intelligence_generate(id, instructions.as_ptr(), prompt.as_ptr(), schema.as_ptr(), timeout_ms) })
+}
+
+/// Stops generation `id`, even one that hasn't started yet.
+pub fn generate_cancel(id: u32) {
+    unsafe { apple_intelligence_generate_cancel(id) }
 }
 
 /// Streams a chat reply; `on_delta` gets each text piece and returns false to stop. Blocks until done.

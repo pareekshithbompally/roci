@@ -56,6 +56,11 @@ export const remindersService = {
     return invoke(`${PLUGIN}reminders_upsert`, { items });
   },
 
+  /** Deletes the reminders of `todoIds` from the list; ones already gone are skipped. */
+  remove(listId: string, todoIds: string[]): Promise<void> {
+    return invoke(`${PLUGIN}reminders_remove`, { listId, todoIds });
+  },
+
   states(listId: string): Promise<ReminderState[]> {
     return invoke<ReminderState[]>(`${PLUGIN}reminders_states`, { listId });
   },

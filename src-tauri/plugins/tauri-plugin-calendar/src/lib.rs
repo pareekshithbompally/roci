@@ -88,6 +88,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::reminders_ensure_list,
             commands::reminders_upsert,
             commands::reminders_states,
+            commands::reminders_remove,
         ])
         .setup(|app, _api| {
             let handle = app.clone();

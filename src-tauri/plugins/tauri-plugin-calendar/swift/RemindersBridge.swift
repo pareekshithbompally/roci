@@ -104,6 +104,30 @@ public func remindersUpsert(_ input: UnsafePointer<CChar>) -> UnsafeMutablePoint
     })
 }
 
+/// Deletes the reminders of to-dos Roci removed (`{"list_id", "todo_ids"}`), found by their tag like upsert finds them;
+/// ones already gone are skipped. `{}` or `{"error"}`
+@_cdecl("reminders_remove")
+public func remindersRemove(_ input: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar> {
+    guard let data = String(cString: input).data(using: .utf8),
+          let request = try? JSONDecoder().decode(ReminderRemoval.self, from: data) else {
+        return remindersJSON(["error": "Invalid reminder removal"])
+    }
+    return remindersJSON(queue.sync { () -> [String: Any] in
+        guard let list = store.calendar(withIdentifier: request.list_id) else {
+            return ["error": "Reminders list not found"]
+        }
+        let byTodo = tagged(in: list)
+        do {
+            for reminder in request.todo_ids.compactMap({ byTodo[$0] }) {
+                try store.remove(reminder, commit: true)
+            }
+            return [:]
+        } catch {
+            return ["error": error.localizedDescription]
+        }
+    })
+}
+
 /// Completion of every Roci-tagged reminder in a list. `{"items": [{"todo_id", "completed"}]}` or `{"error"}`
 @_cdecl("reminders_states")
 public func remindersStates(_ listId: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar> {
@@ -133,6 +157,11 @@ private struct ReminderInput: Decodable {
     let due_date: String?
     let completed: Bool
     let create: Bool
+}
+
+private struct ReminderRemoval: Decodable {
+    let list_id: String
+    let todo_ids: [String]
 }
 
 /// Roci-tagged reminders in `list`, keyed by to-do id. Runs on `queue`.

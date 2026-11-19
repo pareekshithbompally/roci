@@ -51,7 +51,8 @@ export const transcriptionService = {
 
   /** Saves the summary (meeting → `ready`, done), then indexes it in full for search and mirrors it to the switched-on integrations. */
   async saveSummary(input: SummarySave): Promise<void> {
-    await store.meetings.saveSummary(input);
+    const replacedTodoIds = await store.meetings.saveSummary(input);
+    void remindersSync.removed(replacedTodoIds);
     void remindersSync.addedForMeeting(input.meetingId);
     void appleNotesSync.meetingSaved(input.meetingId);
     searchIndexingService.indexMeeting(input.meetingId).catch((error: unknown) =>

@@ -48,7 +48,9 @@ const report = failureLogger('appleIntelligence');
 
 const UNSUPPORTED: AppleModelStatus = { availability: 'unsupported-system', contextTokens: 0 };
 
-export const isAppleError = (error: unknown): error is AppleErrorPayload => isCodedError<AppleErrorPayload>(error);
+/** A DOMException (an abort's reason) has a numeric `code` too; only the native payload's is a string. */
+export const isAppleError = (error: unknown): error is AppleErrorPayload =>
+  isCodedError<AppleErrorPayload>(error) && typeof error.code === 'string';
 
 export const appleIntelligence = {
   async status(): Promise<AppleModelStatus> {
@@ -57,9 +59,24 @@ export const appleIntelligence = {
     return { availability: raw.availability, contextTokens: raw.context_tokens };
   },
 
-  /** One generation; `schema` (JSON Schema) makes it guided JSON output. */
-  generate(instructions: string, prompt: string, schema?: object): Promise<string> {
-    return invoke<string>(`${PLUGIN}generate`, { instructions, prompt, schema: schema ? JSON.stringify(schema) : null });
+  /**
+   * One generation; `schema` (JSON Schema) makes it guided JSON output. Aborting `signal` stops it natively and
+   * rejects with its reason at once; an already-aborted signal never starts it.
+   */
+  generate(instructions: string, prompt: string, schema?: object, signal?: AbortSignal): Promise<string> {
+    if (signal?.aborted) return Promise.reject(signal.reason);
+    // Random, not a counter: native remembers early cancels by id, and a webview reload would restart a counter.
+    const [id] = crypto.getRandomValues(new Uint32Array(1));
+    return new Promise<string>((resolve, reject) => {
+      const cancel = () => {
+        invoke(`${PLUGIN}generate_cancel`, { id }).catch(report('stop generation'));
+        reject(signal?.reason);
+      };
+      signal?.addEventListener('abort', cancel, { once: true });
+      invoke<string>(`${PLUGIN}generate`, { id, instructions, prompt, schema: schema ? JSON.stringify(schema) : null })
+        .then(resolve, reject)
+        .finally(() => signal?.removeEventListener('abort', cancel));
+    });
   },
 
   /**

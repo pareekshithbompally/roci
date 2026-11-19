@@ -6,6 +6,7 @@ Allows all Apple Intelligence commands (on-device language model + speech)
 
 - `allow-availability`
 - `allow-generate`
+- `allow-generate-cancel`
 - `allow-stream`
 - `allow-stream-cancel`
 - `allow-speech-status`
@@ -70,6 +71,32 @@ Enables the generate command without any pre-configured scope.
 <td>
 
 Denies the generate command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`apple-intelligence:allow-generate-cancel`
+
+</td>
+<td>
+
+Enables the generate_cancel command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`apple-intelligence:deny-generate-cancel`
+
+</td>
+<td>
+
+Denies the generate_cancel command without any pre-configured scope.
 
 </td>
 </tr>

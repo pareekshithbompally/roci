@@ -83,6 +83,12 @@ export const remindersSync = {
     await withList('update', async (listId) => send(listId, await store.todos.get([todoId]), false));
   },
 
+  /** To-dos deleted in Roci (a new summary replaced them) → their reminders deleted. */
+  async removed(todoIds: string[]): Promise<void> {
+    if (todoIds.length === 0) return;
+    await withList('remove', (listId) => remindersService.remove(listId, todoIds));
+  },
+
   /** Every open to-do → reminders in `listId`. Called once, when the user turns the integration on. */
   async sendOpen(listId: string): Promise<void> {
     try {

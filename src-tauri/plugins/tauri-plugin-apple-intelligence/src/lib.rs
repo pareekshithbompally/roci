@@ -14,6 +14,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         .invoke_handler(tauri::generate_handler![
             commands::availability,
             commands::generate,
+            commands::generate_cancel,
             commands::stream,
             commands::stream_cancel,
             commands::speech_status,

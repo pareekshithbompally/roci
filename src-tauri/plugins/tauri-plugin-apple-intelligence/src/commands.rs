@@ -44,14 +44,21 @@ pub fn availability() -> ModelStatus {
     ModelStatus { availability, context_tokens }
 }
 
-/// One generation. `schema` (JSON Schema) → guided JSON output; none → plain text.
+/// One generation, `id` chosen by the webview. `schema` (JSON Schema) → guided JSON output; none → plain text.
+/// `generate_cancel` stops it.
 #[command]
-pub async fn generate(instructions: String, prompt: String, schema: Option<String>) -> Result<String, AppleError> {
+pub async fn generate(id: u32, instructions: String, prompt: String, schema: Option<String>) -> Result<String, AppleError> {
     off_main(move || {
         let timeout = GENERATE_TIMEOUT.as_millis() as u64;
-        take::<Generated>(bridge::generate(&instructions, &prompt, schema.as_deref().unwrap_or(""), timeout)).map(|g| g.text)
+        take::<Generated>(bridge::generate(id, &instructions, &prompt, schema.as_deref().unwrap_or(""), timeout)).map(|g| g.text)
     })
     .await
+}
+
+/// Stops generation `id` on the device; its `generate` call returns at once.
+#[command]
+pub fn generate_cancel(id: u32) {
+    bridge::generate_cancel(id);
 }
 
 /// Each streaming reply's stop flag, by its channel id.

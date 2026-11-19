@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const service = vi.hoisted(() => ({
   checkAccess: vi.fn(),
   upsert: vi.fn(),
+  remove: vi.fn(),
   states: vi.fn(),
 }));
 const db = vi.hoisted(() => ({
@@ -60,6 +61,32 @@ describe('remindersSync', () => {
   it('changed: updates the existing reminder only (never re-creates)', async () => {
     await remindersSync.changed('b');
     expect(service.upsert).toHaveBeenCalledWith([expect.objectContaining({ todo_id: 'b', completed: true, create: false })]);
+  });
+
+  it('removed: deletes those to-dos\' reminders from the synced list', async () => {
+    await remindersSync.removed(['a', 'b']);
+    expect(service.remove).toHaveBeenCalledWith('L1', ['a', 'b']);
+  });
+
+  it('removed: nothing to remove → no native call', async () => {
+    await remindersSync.removed([]);
+    expect(service.checkAccess).not.toHaveBeenCalled();
+    expect(service.remove).not.toHaveBeenCalled();
+  });
+
+  it('removed: does nothing when off or when macOS access is gone, and never throws', async () => {
+    remindersSync.configure({ enabled: false, listId: 'L1' });
+    await remindersSync.removed(['a']);
+    remindersSync.configure({ enabled: true, listId: 'L1' });
+    service.checkAccess.mockResolvedValue('denied');
+    await remindersSync.removed(['a']);
+    expect(service.remove).not.toHaveBeenCalled();
+    service.checkAccess.mockResolvedValue('authorized');
+    service.remove.mockRejectedValue(new Error('EventKit down'));
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await expect(remindersSync.removed(['a'])).resolves.toBeUndefined();
+    expect(log).toHaveBeenCalledWith('[remindersSync] remove failed:', expect.any(Error));
+    log.mockRestore();
   });
 
   it('does nothing when off or when macOS access is gone', async () => {

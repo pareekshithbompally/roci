@@ -10,4 +10,5 @@ permissions = [
   "allow-reminders-ensure-list",
   "allow-reminders-upsert",
   "allow-reminders-states",
+  "allow-reminders-remove",
 ]

@@ -1086,7 +1086,12 @@ fn transcripts_save_impl(db: &Connection, input: &TranscriptSaveInput) -> Result
         Ok(())
 }
 
-fn summaries_save_impl(db: &Connection, input: &SummarySaveInput) -> Result<(), StoreError> {
+/// Untouched AI to-dos a new summary replaces: not ticked, not edited, no scheduled reminder.
+const REPLACED_AI_TODOS: &str = "meeting_id = ?1 AND source = 'ai' AND completed = 0
+               AND id NOT IN (SELECT todo_id FROM reminders WHERE status = 'scheduled')";
+
+/// Saves the summary and its action items; returns the ids of the old AI to-dos it replaced.
+fn summaries_save_impl(db: &Connection, input: &SummarySaveInput) -> Result<Vec<String>, StoreError> {
         let now = now_millis();
         let tx = db.unchecked_transaction()?;
         tx.execute(
@@ -1105,12 +1110,11 @@ fn summaries_save_impl(db: &Connection, input: &SummarySaveInput) -> Result<(), 
             rusqlite::params![input.meeting_id, input.title],
         )?;
         // a new summary's action items replace the last one's, except those the user ticked, edited or set a reminder on
-        tx.execute(
-            "DELETE FROM todos
-             WHERE meeting_id = ?1 AND source = 'ai' AND completed = 0
-               AND id NOT IN (SELECT todo_id FROM reminders WHERE status = 'scheduled')",
-            [&input.meeting_id],
-        )?;
+        let removed = tx
+            .prepare(&format!("SELECT id FROM todos WHERE {REPLACED_AI_TODOS}"))?
+            .query_map([&input.meeting_id], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        tx.execute(&format!("DELETE FROM todos WHERE {REPLACED_AI_TODOS}"), [&input.meeting_id])?;
         if !input.categories.is_empty() {
             let cat_ids = upsert_categories(&tx, &input.categories, now)?;
             sync_meeting_categories(&tx, &input.meeting_id, &cat_ids)?;
@@ -1127,16 +1131,17 @@ fn summaries_save_impl(db: &Connection, input: &SummarySaveInput) -> Result<(), 
         write_audit_log(&tx, "meeting", &input.meeting_id, "update", None)?;
         tx.commit()?;
         log::info!(
-            "[store] Saved summary for meeting {}: action_items={}",
+            "[store] Saved summary for meeting {}: action_items={} replaced={}",
             input.meeting_id,
             input.action_items.len(),
+            removed.len(),
         );
-        Ok(())
+        Ok(removed)
 }
 
 /// A summary with two action items, for tests of what saving one does to the meeting.
 #[cfg(test)]
-pub(crate) fn summaries_save_for_test(db: &Connection, meeting_id: &str, title: &str) -> Result<(), StoreError> {
+pub(crate) fn summaries_save_for_test(db: &Connection, meeting_id: &str, title: &str) -> Result<Vec<String>, StoreError> {
     let item = |text: &str| ActionItemInput { text: text.into(), owner: None, due_date: None };
     summaries_save_impl(
         db,
@@ -1152,12 +1157,13 @@ pub(crate) fn summaries_save_for_test(db: &Connection, meeting_id: &str, title: 
 }
 
 /// Runs `write` on the open database off the async runtime, then announces the meeting change.
-async fn write_meeting<F>(state: &StoreState, meeting_id: String, write: F) -> Result<(), StoreError>
+async fn write_meeting<T, F>(state: &StoreState, meeting_id: String, write: F) -> Result<T, StoreError>
 where
-    F: FnOnce(&Connection) -> Result<(), StoreError> + Send + 'static,
+    T: Send + 'static,
+    F: FnOnce(&Connection) -> Result<T, StoreError> + Send + 'static,
 {
     let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
+    let written = tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
         write(db)
@@ -1165,7 +1171,7 @@ where
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))??;
     notify(MeetingChange::Saved(meeting_id));
-    Ok(())
+    Ok(written)
 }
 
 #[tauri::command]
@@ -1188,8 +1194,9 @@ pub async fn transcripts_save(state: State<'_, StoreState>, input: TranscriptSav
     write_meeting(&state, input.meeting_id.clone(), move |db| transcripts_save_impl(db, &input)).await
 }
 
+/// Returns the ids of the AI to-dos the new summary replaced, so the webview can remove their mirrors.
 #[tauri::command]
-pub async fn summaries_save(state: State<'_, StoreState>, input: SummarySaveInput) -> Result<(), StoreError> {
+pub async fn summaries_save(state: State<'_, StoreState>, input: SummarySaveInput) -> Result<Vec<String>, StoreError> {
     write_meeting(&state, input.meeting_id.clone(), move |db| summaries_save_impl(db, &input)).await
 }
 

@@ -165,10 +165,13 @@ export const meetings = {
     });
   },
 
-  /** Save the summary with its title, categories and action items; the meeting becomes `ready`. */
-  async saveSummary(input: { meetingId: string; title: string; summary: MeetingSummary; categories: string[] }): Promise<void> {
+  /**
+   * Save the summary with its title, categories and action items; the meeting becomes `ready`.
+   * Resolves the ids of the untouched AI to-dos the new action items replaced.
+   */
+  async saveSummary(input: { meetingId: string; title: string; summary: MeetingSummary; categories: string[] }): Promise<string[]> {
     const { summary } = input;
-    await call<void>('summaries_save', {
+    return call<string[]>('summaries_save', {
       input: {
         meeting_id: input.meetingId,
         title: input.title,

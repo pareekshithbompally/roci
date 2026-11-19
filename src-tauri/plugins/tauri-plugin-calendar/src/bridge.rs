@@ -21,6 +21,7 @@ extern "C" {
     fn reminders_ensure_list(title: *const c_char) -> *mut c_char;
     fn reminders_upsert(input: *const c_char) -> *mut c_char;
     fn reminders_states(list_id: *const c_char) -> *mut c_char;
+    fn reminders_remove(input: *const c_char) -> *mut c_char;
     fn reminders_observe_changes(callback: extern "C" fn());
 }
 
@@ -99,6 +100,14 @@ pub fn upsert_reminder(input: &ReminderInput) -> Result<(), String> {
     let json = serde_json::to_string(input).map_err(|e| format!("Invalid reminder: {e}"))?;
     let json = CString::new(json).map_err(|e| format!("Invalid reminder: {e}"))?;
     let reply: BridgeReply<ReminderState> = parse_and_free(unsafe { reminders_upsert(json.as_ptr()) })?;
+    reply_result(reply.error)
+}
+
+/// Delete the reminders tagged with `todo_ids` in `list_id`; ones already gone are skipped.
+pub fn remove_reminders(list_id: &str, todo_ids: &[String]) -> Result<(), String> {
+    let json = serde_json::json!({ "list_id": list_id, "todo_ids": todo_ids }).to_string();
+    let json = CString::new(json).map_err(|e| format!("Invalid reminder removal: {e}"))?;
+    let reply: BridgeReply<ReminderState> = parse_and_free(unsafe { reminders_remove(json.as_ptr()) })?;
     reply_result(reply.error)
 }
 

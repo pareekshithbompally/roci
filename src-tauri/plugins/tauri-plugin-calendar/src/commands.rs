@@ -61,6 +61,12 @@ pub async fn reminders_upsert(items: Vec<ReminderInput>) -> Result<(), String> {
     off_main(move || items.iter().try_for_each(bridge::upsert_reminder)).await
 }
 
+/// Delete the reminders of removed to-dos from a list.
+#[command]
+pub async fn reminders_remove(list_id: String, todo_ids: Vec<String>) -> Result<(), String> {
+    off_main(move || bridge::remove_reminders(&list_id, &todo_ids)).await
+}
+
 /// Completion of every Roci-tagged reminder in a list.
 #[command]
 pub async fn reminders_states(list_id: String) -> Result<Vec<ReminderState>, String> {

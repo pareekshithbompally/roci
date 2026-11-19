@@ -13,6 +13,7 @@ Allows all EventKit commands (calendar events + reminders)
 - `allow-reminders-ensure-list`
 - `allow-reminders-upsert`
 - `allow-reminders-states`
+- `allow-reminders-remove`
 
 ## Permission Table
 
@@ -149,6 +150,32 @@ Enables the reminders_lists command without any pre-configured scope.
 <td>
 
 Denies the reminders_lists command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`calendar:allow-reminders-remove`
+
+</td>
+<td>
+
+Enables the reminders_remove command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`calendar:deny-reminders-remove`
+
+</td>
+<td>
+
+Denies the reminders_remove command without any pre-configured scope.
 
 </td>
 </tr>

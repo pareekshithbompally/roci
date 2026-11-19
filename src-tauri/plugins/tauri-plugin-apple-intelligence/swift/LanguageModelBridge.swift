@@ -27,21 +27,31 @@ public func appleIntelligenceContextSize() -> Int {
     SystemLanguageModel.default.contextSize
 }
 
-/// Generation guided by a JSON Schema (empty → plain text); returns `{"text"}` or `{"error": {"kind", "message"}}`.
+/// Generation `id`, guided by a JSON Schema (empty → plain text); `apple_intelligence_generate_cancel(id)` stops it.
+/// Returns `{"text"}` or `{"error": {"kind", "message"}}`.
 @_cdecl("apple_intelligence_generate")
 public func appleIntelligenceGenerate(
+    _ id: UInt32,
     _ instructions: UnsafePointer<CChar>,
     _ prompt: UnsafePointer<CChar>,
     _ schemaJson: UnsafePointer<CChar>,
     _ timeoutMs: UInt64
 ) -> UnsafeMutablePointer<CChar> {
     let input = (String(cString: instructions), String(cString: prompt), String(cString: schemaJson))
-    let result = blocking(timeoutMs: timeoutMs) { try await generate(instructions: input.0, prompt: input.1, schemaJson: input.2) }
+    let result = blocking(timeoutMs: timeoutMs, generation: id) {
+        try await generate(instructions: input.0, prompt: input.1, schemaJson: input.2)
+    }
     switch result {
     case .success(let text): return bridgeJSON(["text": text])
     case .failure(let error as BridgeError): return failure(error.kind, error.message)
     case .failure(let error): return failure("failed", error.localizedDescription)
     }
+}
+
+/// Cancels generation `id`: its task stops and its call returns a `cancelled` failure at once.
+@_cdecl("apple_intelligence_generate_cancel")
+public func appleIntelligenceGenerateCancel(_ id: UInt32) {
+    Generations.shared.cancel(id)
 }
 
 /// Receives one streamed text piece; returns false to stop the stream.
@@ -213,18 +223,61 @@ private final class DeltaSink: @unchecked Sendable {
 private final class BlockingResult<Value: Sendable>: @unchecked Sendable {
     private let lock = NSLock()
     private var value: Result<Value, Error>?
-    func store(_ value: Result<Value, Error>) { lock.withLock { self.value = value } }
+    /// The first outcome wins: a cancel that already answered isn't overwritten by the task's late result.
+    func store(_ value: Result<Value, Error>) { lock.withLock { if self.value == nil { self.value = value } } }
     func take() -> Result<Value, Error> { lock.withLock { value! } }
 }
 
-/// Runs `operation` off the caller's thread; gives up after `timeoutMs`.
-private func blocking<Value: Sendable>(timeoutMs: UInt64, _ operation: @escaping @Sendable () async throws -> Value) -> Result<Value, Error> {
+/// Each running generation's stop, by the webview's id. Calls run concurrently, so a cancel can arrive before its
+/// generation starts: it is remembered, and that generation stops as soon as it begins.
+private final class Generations: @unchecked Sendable {
+    static let shared = Generations()
+    private let lock = NSLock()
+    private var running: [UInt32: @Sendable () -> Void] = [:]
+    private var cancelled: Set<UInt32> = []
+
+    /// Registers `stop` for `id`; false when `id` was cancelled already.
+    func begin(_ id: UInt32, stop: @escaping @Sendable () -> Void) -> Bool {
+        lock.withLock {
+            guard cancelled.remove(id) == nil else { return false }
+            running[id] = stop
+            return true
+        }
+    }
+
+    func end(_ id: UInt32) { lock.withLock { _ = running.removeValue(forKey: id) } }
+
+    func cancel(_ id: UInt32) {
+        let stop = lock.withLock { () -> (@Sendable () -> Void)? in
+            guard let stop = running.removeValue(forKey: id) else {
+                cancelled.insert(id)
+                return nil
+            }
+            return stop
+        }
+        stop?()
+    }
+}
+
+/// Runs `operation` off the caller's thread; gives up after `timeoutMs`, or at once when `generation` is cancelled.
+private func blocking<Value: Sendable>(
+    timeoutMs: UInt64,
+    generation: UInt32? = nil,
+    _ operation: @escaping @Sendable () async throws -> Value
+) -> Result<Value, Error> {
     let semaphore = DispatchSemaphore(value: 0)
     let result = BlockingResult<Value>()
     let task = Task.detached(priority: .utility) {
         do { result.store(.success(try await operation())) } catch { result.store(.failure(error)) }
         semaphore.signal()
     }
+    let stop: @Sendable () -> Void = {
+        result.store(.failure(BridgeError(kind: "cancelled", message: "Apple Intelligence generation was cancelled.")))
+        task.cancel()
+        semaphore.signal()
+    }
+    if let generation, !Generations.shared.begin(generation, stop: stop) { stop() }
+    defer { if let generation { Generations.shared.end(generation) } }
     guard semaphore.wait(timeout: .now() + .milliseconds(Int(timeoutMs))) == .success else {
         task.cancel()
         return .failure(BridgeError(kind: "timeout", message: "Apple Intelligence timed out."))

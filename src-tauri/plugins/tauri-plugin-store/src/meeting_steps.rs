@@ -233,7 +233,8 @@ mod tests {
     fn a_new_summary_replaces_untouched_ai_todos_only() {
         let db = open_migrated_test_db();
         meeting(&db, "m-todos", "transcribed", None);
-        crate::commands::summaries_save_for_test(&db, "m-todos", "T").expect("first");
+        let first = crate::commands::summaries_save_for_test(&db, "m-todos", "T").expect("first");
+        assert!(first.is_empty(), "nothing to replace on the first summary");
         let ai: Vec<String> = db
             .prepare("SELECT id FROM todos WHERE meeting_id = 'm-todos' ORDER BY text")
             .expect("prepare")
@@ -242,7 +243,8 @@ mod tests {
             .collect::<Result<_, _>>()
             .expect("ids");
         db.execute("UPDATE todos SET completed = 1 WHERE id = ?1", [&ai[0]]).expect("tick one");
-        crate::commands::summaries_save_for_test(&db, "m-todos", "T").expect("second");
+        let removed = crate::commands::summaries_save_for_test(&db, "m-todos", "T").expect("second");
+        assert_eq!(removed, vec![ai[1].clone()], "returns the replaced to-do's id, not the ticked one's");
         let count: i64 =
             db.query_row("SELECT COUNT(*) FROM todos WHERE meeting_id = 'm-todos'", [], |r| r.get(0)).expect("count");
         assert_eq!(count, 3, "the ticked one stays beside the new summary's two");

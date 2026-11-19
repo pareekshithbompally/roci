@@ -355,6 +355,18 @@
           "markdownDescription": "Denies the reminders_lists command without any pre-configured scope."
         },
         {
+          "description": "Enables the reminders_remove command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-reminders-remove",
+          "markdownDescription": "Enables the reminders_remove command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the reminders_remove command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-reminders-remove",
+          "markdownDescription": "Denies the reminders_remove command without any pre-configured scope."
+        },
+        {
           "description": "Enables the reminders_request_access command without any pre-configured scope.",
           "type": "string",
           "const": "allow-reminders-request-access",
@@ -403,10 +415,10 @@
           "markdownDescription": "Denies the request_access command without any pre-configured scope."
         },
         {
-          "description": "Allows all EventKit commands (calendar events + reminders)\n#### This default permission set includes:\n\n- `allow-request-access`\n- `allow-check-access`\n- `allow-get-events-in-range`\n- `allow-reminders-request-access`\n- `allow-reminders-check-access`\n- `allow-reminders-lists`\n- `allow-reminders-ensure-list`\n- `allow-reminders-upsert`\n- `allow-reminders-states`",
+          "description": "Allows all EventKit commands (calendar events + reminders)\n#### This default permission set includes:\n\n- `allow-request-access`\n- `allow-check-access`\n- `allow-get-events-in-range`\n- `allow-reminders-request-access`\n- `allow-reminders-check-access`\n- `allow-reminders-lists`\n- `allow-reminders-ensure-list`\n- `allow-reminders-upsert`\n- `allow-reminders-states`\n- `allow-reminders-remove`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Allows all EventKit commands (calendar events + reminders)\n#### This default permission set includes:\n\n- `allow-request-access`\n- `allow-check-access`\n- `allow-get-events-in-range`\n- `allow-reminders-request-access`\n- `allow-reminders-check-access`\n- `allow-reminders-lists`\n- `allow-reminders-ensure-list`\n- `allow-reminders-upsert`\n- `allow-reminders-states`"
+          "markdownDescription": "Allows all EventKit commands (calendar events + reminders)\n#### This default permission set includes:\n\n- `allow-request-access`\n- `allow-check-access`\n- `allow-get-events-in-range`\n- `allow-reminders-request-access`\n- `allow-reminders-check-access`\n- `allow-reminders-lists`\n- `allow-reminders-ensure-list`\n- `allow-reminders-upsert`\n- `allow-reminders-states`\n- `allow-reminders-remove`"
         }
       ]
     }

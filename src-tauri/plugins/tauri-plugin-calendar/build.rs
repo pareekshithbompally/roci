@@ -8,6 +8,7 @@ const COMMANDS: &[&str] = &[
     "reminders_ensure_list",
     "reminders_upsert",
     "reminders_states",
+    "reminders_remove",
 ];
 
 fn main() {
