@@ -16,6 +16,9 @@ Allows all store plugin commands
 - `allow-meetings-delete`
 - `allow-meetings-create`
 - `allow-meetings-set-status`
+- `allow-meetings-begin-step`
+- `allow-meetings-end-step`
+- `allow-meetings-rename`
 - `allow-transcripts-save`
 - `allow-summaries-save`
 - `allow-recordings-upsert`
@@ -892,6 +895,32 @@ Denies the mark_meeting_embedded command without any pre-configured scope.
 <tr>
 <td>
 
+`store:allow-meetings-begin-step`
+
+</td>
+<td>
+
+Enables the meetings_begin_step command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-meetings-begin-step`
+
+</td>
+<td>
+
+Denies the meetings_begin_step command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `store:allow-meetings-create`
 
 </td>
@@ -944,6 +973,32 @@ Denies the meetings_delete command without any pre-configured scope.
 <tr>
 <td>
 
+`store:allow-meetings-end-step`
+
+</td>
+<td>
+
+Enables the meetings_end_step command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-meetings-end-step`
+
+</td>
+<td>
+
+Denies the meetings_end_step command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `store:allow-meetings-get`
 
 </td>
@@ -989,6 +1044,32 @@ Enables the meetings_list command without any pre-configured scope.
 <td>
 
 Denies the meetings_list command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-meetings-rename`
+
+</td>
+<td>
+
+Enables the meetings_rename command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-meetings-rename`
+
+</td>
+<td>
+
+Denies the meetings_rename command without any pre-configured scope.
 
 </td>
 </tr>

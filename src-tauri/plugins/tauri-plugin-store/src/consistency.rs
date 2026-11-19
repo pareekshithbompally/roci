@@ -48,7 +48,7 @@ mod tests {
             .collect()
     }
 
-    /// Command names from `lib.rs`: every `commands::<name>` inside `generate_handler!`.
+    /// Command names from `lib.rs`: every `<module>::<name>` inside `generate_handler!`.
     fn handler_commands() -> BTreeSet<String> {
         let start = LIB_RS
             .find("generate_handler!")
@@ -65,7 +65,7 @@ mod tests {
             .flat_map(|line| line.split(','))
             .filter_map(|tok| {
                 let tok = tok.trim().trim_end_matches(',').trim();
-                tok.strip_prefix("commands::").map(|s| s.trim().to_string())
+                tok.rsplit_once("::").map(|(_, name)| name.trim().to_string())
             })
             .filter(|s| !s.is_empty())
             .collect()

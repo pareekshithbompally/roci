@@ -10,6 +10,7 @@ import { activityStore, type ActivityAction, type ActivityItem } from '@shared/s
 import { useMeetingParts } from '@shared/stores/meetingProgressStore';
 import type { HistoryItem } from '@shared/types';
 import { meetingPipeline } from '@features/recording/pipeline/meetingPipeline';
+import { followMeetingChanges } from '@features/recording/pipeline/meetingChanges';
 import {
   recording,
   recordedSeconds,
@@ -54,6 +55,13 @@ function usePipelineContext(): void {
   context.current = { settings, providers, categories };
 
   useEffect(() => meetingPipeline.configure(() => context.current), []);
+
+  // every meeting write the store commits reaches the screens through this one event
+  useEffect(() => {
+    if (!isTauriEnvironment()) return;
+    const unlisten = followMeetingChanges();
+    return () => void unlisten.then((stop) => stop()).catch((error: unknown) => console.error('[useRecordingRuntime] Unlisten failed:', error));
+  }, []);
 
   const resumed = useRef(false);
   useEffect(() => {

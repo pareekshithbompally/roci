@@ -1,4 +1,6 @@
-/** The one meeting pipeline: reads a meeting's status, runs the next step, saves, and advances it. */
+/** The one meeting pipeline: each step (transcribe, summarize) runs under the store's guard — begun there (refused when the
+ *  meeting already runs one), its result saved, and ended done, cancelled or failed. The store owns the status and announces
+ *  every change (`meeting://changed`), so nothing here writes a status or refreshes a screen. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { store } from '@services/db';
@@ -16,9 +18,9 @@ import { meetingProgress } from '@shared/stores/meetingProgressStore';
 import { buildMeetingResult } from '@shared/hooks/useMeetingDetailLoader';
 import { notifyAppEvent } from '@shared/utils/appEvents';
 import { errorMessage } from '@shared/utils/errors';
-import type { AppSettings, MeetingDetail, MeetingIndexEntry, StoredTranscriptSegment } from '@shared/types';
+import type { AppSettings, HistoryItem, MeetingDetail, MeetingIndexEntry, StoredTranscriptSegment } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
-import type { MeetingPipelineStage, MeetingStatus } from '@shared/types/meetingPhase';
+import type { MeetingStatus, MeetingStep } from '@shared/types/meetingPhase';
 import type { MeetingContext } from '@core/ai/prompts/transcription.prompt';
 import { liveTranscript, liveTranscriptResult, type LiveEntry } from '@features/recording/live';
 
@@ -35,10 +37,14 @@ interface Transcript {
 }
 
 let readContext: (() => PipelineContext) | null = null;
+/** The steps this window runs, by meeting, so Cancel can stop them; the store's guard is what keeps runs from racing. */
 const running = new Map<string, AbortController>();
 
+/** A step's work: produce its result and save it (the save moves the meeting on). */
+type StepWork = (signal: AbortSignal) => Promise<void>;
+
 /** The step a meeting's status continues from; null when there is nothing to run. */
-function nextStep(status: MeetingStatus): Exclude<MeetingPipelineStage, 'record'> | null {
+function nextStep(status: MeetingStatus): MeetingStep | null {
   switch (status.status) {
     case 'captured':
     case 'transcribing':
@@ -54,35 +60,20 @@ function nextStep(status: MeetingStatus): Exclude<MeetingPipelineStage, 'record'
   }
 }
 
-function refresh(): void {
-  queryClient.invalidateQueries({ queryKey: queryKeys.meetings() }).catch((error: unknown) =>
-    console.error('[meetingPipeline] Failed to refresh meetings:', error),
-  );
+/** Shows a meeting at once (its listed title, then everything from disk): an opened recording never faces an empty view. */
+async function prime(id: string): Promise<void> {
+  const listed = queryClient.getQueryData<HistoryItem[]>(queryKeys.meetings())?.find((item) => item.id === id);
+  useAppStore.getState().setResult({ title: listed?.title ?? '', transcript: '', summary: '', categories: [] });
+  await showSaved(id);
 }
 
-async function setStatus(id: string, status: MeetingStatus): Promise<void> {
-  await store.meetings.setStatus(id, status);
-  refresh();
-}
-
-/** Shows the latest saved state when the meeting is the one on screen. */
-async function refreshOpenMeeting(id: string): Promise<void> {
-  const { selectedHistoryId, setResult } = useAppStore.getState();
-  if (selectedHistoryId !== id) return;
-  const detail = await store.meetings.get(id);
-  if (detail && useAppStore.getState().selectedHistoryId === id) setResult(buildMeetingResult(detail));
-}
-
-/** Shows a meeting at once (placeholder, then disk): an opened recording must never face an empty results view. */
-async function prime(id: string, title: string): Promise<void> {
-  useAppStore.getState().setResult({ title, transcript: '', summary: '', categories: [] });
+/** The open meeting's view, read again from disk (after any change the store announces). */
+async function showSaved(id: string): Promise<void> {
   try {
     const detail = await store.meetings.get(id);
-    if (detail && useAppStore.getState().selectedHistoryId === id) {
-      useAppStore.getState().setResult(buildMeetingResult(detail));
-    }
+    if (detail && useAppStore.getState().selectedHistoryId === id) useAppStore.getState().setResult(buildMeetingResult(detail));
   } catch (error: unknown) {
-    console.error('[meetingPipeline] Prime failed:', id, error);
+    console.error('[meetingPipeline] Reading the meeting failed:', id, error);
   }
 }
 
@@ -104,96 +95,126 @@ function meetingContextOf(index: MeetingIndexEntry): MeetingContext | undefined 
   };
 }
 
-async function transcribe(meeting: MeetingDetail, context: PipelineContext, signal: AbortSignal): Promise<Transcript> {
-  const id = meeting.index.id;
-  await setStatus(id, { status: 'transcribing' });
+async function meetingOrThrow(id: string): Promise<MeetingDetail> {
+  const meeting = await store.meetings.get(id);
+  if (!meeting) throw new Error('This meeting no longer exists.');
+  return meeting;
+}
+
+function speechModelOf(context: PipelineContext): string | undefined {
+  const selection = speechSelectionOf(context.settings);
+  return selection ? modelKey(selection) : undefined;
+}
+
+/** Transcribes the recording and saves the transcript. */
+const transcribeRecording = (id: string, context: PipelineContext): StepWork => async (signal) => {
+  const meeting = await meetingOrThrow(id);
   const audio = await loadRecording(meeting.index.recordingFileName);
   const onProgress = (part: { current: number; total: number }) => meetingProgress.set(id, part);
   const result = await transcribeAudio(audio, context.settings, context.providers, { signal, onProgress }, id);
   const { formatted, segments } = formatTranscript(result);
-  const selection = speechSelectionOf(context.settings);
-  const model = selection ? modelKey(selection) : undefined;
-  await transcriptionService.saveTranscript({ meetingId: id, text: formatted, segments, model });
-  meetingProgress.clear(id);
-  await refreshOpenMeeting(id);
-  return { text: formatted, segments };
+  await transcriptionService.saveTranscript({ meetingId: id, text: formatted, segments, model: speechModelOf(context) });
+};
+
+/** Saves the in-call transcript as the meeting's transcript, labelled by who said each line. */
+async function saveLiveTranscript(id: string, entries: LiveEntry[], context: PipelineContext): Promise<void> {
+  const { formatted, segments } = formatTranscript(liveTranscriptResult(entries));
+  await transcriptionService.saveTranscript({ meetingId: id, text: formatted, segments, model: speechModelOf(context) });
 }
 
-/** Saves the in-call transcript as the meeting's transcript (meeting → `transcribed`), labelled by who said each line. */
-async function saveLiveTranscript(id: string, entries: LiveEntry[]): Promise<void> {
-  const { formatted, segments } = formatTranscript(liveTranscriptResult(entries));
-  const selection = readContext ? speechSelectionOf(readContext().settings) : null;
-  await transcriptionService.saveTranscript({ meetingId: id, text: formatted, segments, model: selection ? modelKey(selection) : undefined });
-  await refreshOpenMeeting(id);
-}
+/** Just after Stop: waits for the last in-call chunks; when every chunk made it, that is the transcript, otherwise the
+ *  recording is transcribed (the in-call one has a gap). */
+const transcribeAfterRecording = (id: string, context: PipelineContext): StepWork => async (signal) => {
+  const live = await liveTranscript.finish(id);
+  signal.throwIfAborted();
+  if (live?.complete && live.entries.length > 0) return saveLiveTranscript(id, live.entries, context);
+  return transcribeRecording(id, context)(signal);
+};
 
 function storedTranscript(meeting: MeetingDetail): Transcript {
   if (!meeting.transcript?.text) throw new Error('This meeting has no transcript to summarize.');
   return { text: meeting.transcript.text, segments: meeting.transcript.segments };
 }
 
-async function summarize(meeting: MeetingDetail, transcript: Transcript, context: PipelineContext, signal: AbortSignal): Promise<string> {
-  const id = meeting.index.id;
-  await setStatus(id, { status: 'summarizing' });
+/** Writes the summary and saves it with its title (the store keeps a calendar or user title), categories and action items. */
+const summarizeTranscript = (id: string, context: PipelineContext): StepWork => async (signal) => {
+  const meeting = await meetingOrThrow(id);
+  const transcript = storedTranscript(meeting);
   const result = await unifiedAIService.processTranscript(
     transcript.text, transcript.segments, context.categories, context.settings, context.providers,
     { meetingContext: meetingContextOf(meeting.index), meetingId: id, signal },
   );
-  const title = result.title || meeting.index.title;
-  await transcriptionService.saveSummary({
-    meetingId: id,
-    title,
-    summary: meetingSummaryOf(result),
-    categories: result.categories ?? [],
-  });
-  await refreshOpenMeeting(id);
-  return title;
-}
+  await transcriptionService.saveSummary({ meetingId: id, title: result.title, summary: meetingSummaryOf(result), categories: result.categories ?? [] });
+};
 
-async function process(id: string, context: PipelineContext, signal: AbortSignal): Promise<void> {
-  const meeting = await store.meetings.get(id);
-  const step = meeting ? nextStep(meeting.index.status) : null;
-  if (!meeting || !step) return;
-  const transcript = step === 'transcribe' ? await transcribe(meeting, context, signal) : storedTranscript(meeting);
-  const title = await summarize(meeting, transcript, context, signal);
-  notifyAppEvent({ id: `recording-ready:${id}`, kind: 'recordingReady', tone: 'success', inFront: 'quiet', title, body: 'Transcript and summary are ready.' });
-}
+const FAILED_TITLE: Record<MeetingStep, string> = { transcribe: "Couldn't transcribe", summarize: "Couldn't summarize" };
 
-/** After a failure or cancel: keep what was saved and record where it stopped. */
-async function settle(id: string, error: unknown, cancelled: boolean): Promise<void> {
-  const meeting = await store.meetings.get(id);
-  if (!meeting) return;
-  const atSummary = meeting.index.status.status === 'summarizing' || meeting.index.status.status === 'transcribed';
-  if (cancelled) {
-    await setStatus(id, { status: atSummary ? 'transcribed' : 'captured' });
-    return;
-  }
-  const message = errorMessage(error) || 'Something went wrong';
-  await setStatus(id, { status: 'failed', failedStep: atSummary ? 'summarize' : 'transcribe', error: message });
+function announceFailure(id: string, step: MeetingStep, message: string): void {
   notifyAppEvent({
     id: `recording-ready:${id}`,
     kind: 'recordingReady',
     tone: 'error',
     // the open meeting already says it under its title
     inFront: useAppStore.getState().selectedHistoryId === id ? 'quiet' : 'toast',
-    title: atSummary ? "Couldn't summarize" : "Couldn't transcribe",
+    title: FAILED_TITLE[step],
     body: message,
   });
 }
 
-async function runOne(id: string, context: PipelineContext): Promise<void> {
+async function announceReady(id: string): Promise<void> {
+  const meeting = await store.meetings.get(id);
+  const title = meeting?.index.title ?? 'Meeting';
+  notifyAppEvent({ id: `recording-ready:${id}`, kind: 'recordingReady', tone: 'success', inFront: 'quiet', title, body: 'Transcript and summary are ready.' });
+}
+
+/** Records how a step ended; a store that can't be written is logged (the meeting resumes at the next launch). */
+async function endStep(id: string, step: MeetingStep, end: Parameters<typeof store.meetings.endStep>[2]): Promise<void> {
+  await store.meetings.endStep(id, step, end).catch((error: unknown) => console.error('[meetingPipeline] Ending the step failed:', id, step, error));
+}
+
+/** Runs one step under the store's guard; true when it finished. Refused (another run has it) → false, nothing touched. */
+async function runStep(id: string, step: MeetingStep, work: StepWork): Promise<boolean> {
+  if (!(await store.meetings.beginStep(id, step))) return false;
   const controller = new AbortController();
   running.set(id, controller);
   try {
-    await process(id, context, controller.signal);
+    await work(controller.signal);
+    await endStep(id, step, { kind: 'done' });
+    return true;
   } catch (error: unknown) {
-    console.error('[meetingPipeline] Run failed:', id, error);
-    await settle(id, error, controller.signal.aborted);
+    if (controller.signal.aborted) {
+      await endStep(id, step, { kind: 'cancelled' });
+      return false;
+    }
+    const message = errorMessage(error) || 'Something went wrong';
+    console.error('[meetingPipeline] Step failed:', id, step, error);
+    await endStep(id, step, { kind: 'failed', error: message });
+    announceFailure(id, step, message);
+    return false;
   } finally {
-    meetingProgress.clear(id);
     running.delete(id);
+    meetingProgress.clear(id);
   }
 }
+
+/** Runs a meeting from `first` to ready: transcribe (with `transcription`'s work), then summarize. */
+async function runFrom(id: string, first: MeetingStep, context: PipelineContext, transcription: StepWork): Promise<void> {
+  if (first === 'transcribe' && !(await runStep(id, 'transcribe', transcription))) return;
+  if (await runStep(id, 'summarize', summarizeTranscript(id, context))) await announceReady(id);
+}
+
+async function runMeeting(id: string, context: PipelineContext): Promise<void> {
+  const meeting = await store.meetings.get(id);
+  const step = meeting ? nextStep(meeting.index.status) : null;
+  if (step) await runFrom(id, step, context, transcribeRecording(id, context));
+}
+
+function contextOrThrow(): PipelineContext {
+  if (!readContext) throw new Error('The meeting pipeline is not ready yet.');
+  return readContext();
+}
+
+const report = (what: string, id: string) => (error: unknown) => console.error(`[meetingPipeline] ${what}:`, id, error);
 
 export const meetingPipeline = {
   /** Called by the runtime with a reader for the current settings, providers and categories. */
@@ -201,58 +222,50 @@ export const meetingPipeline = {
     readContext = read;
   },
 
-  /** Runs a meeting from its current status to `ready`; a meeting already running is left alone. */
+  /** Runs a meeting from its status to ready (Transcribe, Summarize, Retry, Re-transcribe). */
   run(id: string): Promise<void> {
-    if (running.has(id)) return Promise.resolve();
-    if (!readContext) return Promise.reject(new Error('The meeting pipeline is not ready yet.'));
-    return runOne(id, readContext()).catch((error: unknown) =>
-      console.error('[meetingPipeline] Could not record the outcome:', id, error),
-    );
+    return Promise.resolve().then(() => runMeeting(id, contextOrThrow())).catch(report('Run failed', id));
   },
 
-  /** Stops a running meeting; it keeps what was saved and goes back to waiting. */
+  /** Stops a meeting's running step; what was saved stays, and the meeting waits for that step again. */
   cancel(id: string): void {
     running.get(id)?.abort();
   },
 
-  /** The meeting's one action: cancel it while it runs, otherwise run it (Transcribe, Summarize, Retry). */
+  /** The meeting's one action: cancel it while it runs, otherwise run it. */
   toggle(id: string): void {
     if (running.has(id)) meetingPipeline.cancel(id);
     else void meetingPipeline.run(id);
   },
 
-  /** Shows a meeting at once (placeholder, then disk); opening a recording uses this, never bare selection. */
-  prime(id: string, title: string): Promise<void> {
-    return prime(id, title);
+  /** Shows a meeting at once (its listed title, then disk); opening a recording uses this, never bare selection. */
+  prime(id: string): Promise<void> {
+    return prime(id);
   },
 
-  /** A recording just stopped: its in-call transcript becomes the transcript when every chunk made it, else the recording
-   *  is transcribed now (the in-call transcript was cut short) or when the user asked for that; then the summary follows. While
-   *  the last chunks finish the meeting reads as transcribing and counts as running, so nothing starts a second run beside it. */
+  /** The open meeting's view, read again (the store announced a change to it). */
+  showSaved(id: string): Promise<void> {
+    return showSaved(id);
+  },
+
+  /** A recording just stopped. With an in-call transcript the meeting reads as transcribing at once while its last chunks
+   *  finish; without one it is transcribed now only when the user asked for that. Then the summary follows. */
   recorded(id: string): void {
     const live = liveTranscript.active(id);
-    const controller = new AbortController();
-    if (live) running.set(id, controller);
-    void (live ? setStatus(id, { status: 'transcribing' }) : Promise.resolve())
-      .then(() => liveTranscript.finish(id))
-      .then(async (outcome) => {
-        running.delete(id);
-        if (controller.signal.aborted) return setStatus(id, { status: 'captured' });
-        if (outcome?.complete && outcome.entries.length > 0) await saveLiveTranscript(id, outcome.entries);
-        if (outcome || readContext?.().settings.autoTranscribe) await meetingPipeline.run(id);
+    if (!live && !readContext?.().settings.autoTranscribe) return;
+    void Promise.resolve()
+      .then(() => {
+        const context = contextOrThrow();
+        return runFrom(id, 'transcribe', context, live ? transcribeAfterRecording(id, context) : transcribeRecording(id, context));
       })
-      .catch((error: unknown) => {
-        running.delete(id);
-        console.error('[meetingPipeline] After recording:', id, error);
-        return settle(id, error, false);
-      });
+      .catch(report('After recording', id));
   },
 
-  /** At launch: the recorder finishes recordings a quit or crash cut off; meetings left mid-pipeline resume. */
+  /** At launch: the recorder finishes recordings a quit or crash cut off; meetings a quit left mid-step run that step again
+   *  (the store stops offering one that was cut off twice). */
   async resume(): Promise<void> {
     if (!isTauriEnvironment()) return;
     const resumable = await invoke<string[]>('recover_meetings');
-    refresh();
     for (const id of resumable) void meetingPipeline.run(id);
   },
 };

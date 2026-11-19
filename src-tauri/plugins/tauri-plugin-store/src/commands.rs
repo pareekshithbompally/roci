@@ -530,7 +530,7 @@ pub struct UsageBucket {
 
 // ── Helpers ──
 
-fn now_millis() -> i64 {
+pub(crate) fn now_millis() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -1031,8 +1031,8 @@ pub(crate) fn meetings_create_impl(db: &Connection, input: &MeetingCreateInput) 
         let created_at = input.created_at.unwrap_or_else(now_millis);
         let tx = db.unchecked_transaction()?;
         tx.execute(
-            "INSERT INTO meetings (id, title, status, input_source, calendar_event_id, calendar_meta, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)",
+            "INSERT INTO meetings (id, title, title_source, status, input_source, calendar_event_id, calendar_meta, created_at, updated_at)
+             VALUES (?1, ?2, CASE WHEN ?5 IS NULL THEN 'default' ELSE 'calendar' END, ?3, ?4, ?5, ?6, ?7, ?7)",
             rusqlite::params![
                 input.id,
                 input.title,
@@ -1080,6 +1080,7 @@ fn transcripts_save_impl(db: &Connection, input: &TranscriptSaveInput) -> Result
             rusqlite::params![input.meeting_id, input.text, input.language, input.model, input.segments, now],
         )?;
         meetings_set_status_impl(&tx, &input.meeting_id, &MeetingStatus::at("transcribed"))?;
+        tx.execute("UPDATE meetings SET step_attempts = 0 WHERE id = ?1", [&input.meeting_id])?;
         write_audit_log(&tx, "meeting", &input.meeting_id, "update", None)?;
         tx.commit()?;
         Ok(())
@@ -1097,9 +1098,18 @@ fn summaries_save_impl(db: &Connection, input: &SummarySaveInput) -> Result<(), 
                 updated_at = ?4",
             rusqlite::params![input.meeting_id, input.overview, input.data, now],
         )?;
+        // the summary names the meeting only when nobody else did: never over a calendar title or the user's own
         tx.execute(
-            "UPDATE meetings SET title = ?2 WHERE id = ?1 AND ?2 <> ''",
+            "UPDATE meetings SET title = ?2, title_source = 'ai'
+             WHERE id = ?1 AND ?2 <> '' AND title_source IN ('default', 'ai')",
             rusqlite::params![input.meeting_id, input.title],
+        )?;
+        // a new summary's action items replace the last one's, except those the user ticked, edited or set a reminder on
+        tx.execute(
+            "DELETE FROM todos
+             WHERE meeting_id = ?1 AND source = 'ai' AND completed = 0
+               AND id NOT IN (SELECT todo_id FROM reminders WHERE status = 'scheduled')",
+            [&input.meeting_id],
         )?;
         if !input.categories.is_empty() {
             let cat_ids = upsert_categories(&tx, &input.categories, now)?;
@@ -1113,6 +1123,7 @@ fn summaries_save_impl(db: &Connection, input: &SummarySaveInput) -> Result<(), 
             )?;
         }
         meetings_set_status_impl(&tx, &input.meeting_id, &MeetingStatus::at("ready"))?;
+        tx.execute("UPDATE meetings SET step_attempts = 0 WHERE id = ?1", [&input.meeting_id])?;
         write_audit_log(&tx, "meeting", &input.meeting_id, "update", None)?;
         tx.commit()?;
         log::info!(
@@ -1121,6 +1132,23 @@ fn summaries_save_impl(db: &Connection, input: &SummarySaveInput) -> Result<(), 
             input.action_items.len(),
         );
         Ok(())
+}
+
+/// A summary with two action items, for tests of what saving one does to the meeting.
+#[cfg(test)]
+pub(crate) fn summaries_save_for_test(db: &Connection, meeting_id: &str, title: &str) -> Result<(), StoreError> {
+    let item = |text: &str| ActionItemInput { text: text.into(), owner: None, due_date: None };
+    summaries_save_impl(
+        db,
+        &SummarySaveInput {
+            meeting_id: meeting_id.into(),
+            title: title.into(),
+            overview: "Overview".into(),
+            data: "{}".into(),
+            categories: Vec::new(),
+            action_items: vec![item("Send the brief"), item("Book the room")],
+        },
+    )
 }
 
 /// Runs `write` on the open database off the async runtime, then announces the meeting change.
@@ -1630,7 +1658,12 @@ fn todos_upsert_impl(db: &Connection, input: &TodoUpsertInput) -> Result<(), Sto
                 owner = excluded.owner,
                 due_date = excluded.due_date,
                 completed = excluded.completed,
-                source = excluded.source",
+                -- an AI action item the user rewrites becomes theirs, so a later summary never replaces it
+                source = CASE
+                    WHEN todos.text IS NOT excluded.text OR todos.owner IS NOT excluded.owner
+                      OR todos.due_date IS NOT excluded.due_date THEN 'user'
+                    ELSE todos.source
+                END",
             rusqlite::params![
                 input.id,
                 input.meeting_id,
@@ -3632,7 +3665,7 @@ mod tests {
         summaries_save_impl(&conn, &summary("m1")).unwrap();
         let detail = meetings_get_impl(&conn, "m1").unwrap();
         assert_eq!(detail.status, MeetingStatus::at("ready"));
-        assert_eq!(detail.title, "Recorded call");
+        assert_eq!(detail.title, "Recording", "a calendar meeting keeps its title; the summary's never replaces it");
         assert_eq!(detail.categories, vec!["sales".to_string()]);
         assert_eq!(detail.todos.len(), 2);
         assert!(detail.todos.iter().all(|t| t.source == "ai"));

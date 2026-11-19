@@ -71,7 +71,7 @@ describe('recording', () => {
     audio.recorderState.mockResolvedValue(IDLE);
     useAppStore.setState({ result: { title: 'Standup', transcript: '', summary: '', categories: [] } });
     await recording.stop();
-    expect(prime).toHaveBeenCalledWith('m1', 'Standup');
+    expect(prime).toHaveBeenCalledWith('m1');
     expect(useAppStore.getState()).toMatchObject({ status: AppStatus.RESULTS, activeResultTab: 'transcript' });
   });
 });

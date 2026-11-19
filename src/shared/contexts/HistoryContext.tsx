@@ -155,7 +155,7 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
 
   const renameMutation = useMutation<void, Error, { itemId: string; newTitle: string }, { previous?: HistoryItem[] }>({
     mutationFn: async ({ itemId, newTitle }) => {
-      await store.meetings.upsert({ id: itemId, title: newTitle });
+      await store.meetings.rename(itemId, newTitle);
     },
     onMutate: async ({ itemId, newTitle }) => {
       const context = await snapshotItems();

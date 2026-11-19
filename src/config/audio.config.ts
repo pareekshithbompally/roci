@@ -189,4 +189,7 @@ export const RECORDING_EVENTS = {
   closeRequested: 'close-requested',
   /** The recorder changed by itself (an iPhone call paused or resumed it); mirrors `audio/commands.rs`. */
   recorderChanged: 'recorder://changed',
+  /** A meeting was saved or deleted (any write: status, transcript, summary, notes, to-dos); mirrors the store plugin's
+   *  `MEETING_CHANGED_EVENT`. */
+  meetingChanged: 'meeting://changed',
 } as const;

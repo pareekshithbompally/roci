@@ -11,7 +11,7 @@ import {
   type RustMeetingStatus,
 } from '@services/db/internal';
 import type { MeetingIndexEntry, TranscriptData, RecordingMeta, MeetingDetail, MeetingSummary } from '@shared/types';
-import type { MeetingStatus } from '@shared/types/meetingPhase';
+import type { MeetingStatus, MeetingStep, MeetingStepEnd } from '@shared/types/meetingPhase';
 
 interface RustMeetingDetail extends RustMeetingStatus {
   id: string;
@@ -131,12 +131,19 @@ export const meetings = {
     });
   },
 
-  /** Move a meeting to `status` (clears any earlier failure unless `status` is `failed`). */
-  async setStatus(id: string, status: MeetingStatus): Promise<void> {
-    await call<void>('meetings_set_status', {
-      id,
-      status: { status: status.status, failed_step: status.failedStep ?? null, error: status.error ?? null },
-    });
+  /** Starts a pipeline step (the meeting shows it running); false when this meeting already runs one, which is left alone. */
+  async beginStep(id: string, step: MeetingStep): Promise<boolean> {
+    return call<boolean>('meetings_begin_step', { id, step });
+  },
+
+  /** Ends a step: `done` (its save moved the meeting on), `cancelled` (back to waiting for it) or `failed` with the reason. */
+  async endStep(id: string, step: MeetingStep, end: MeetingStepEnd): Promise<void> {
+    await call<void>('meetings_end_step', { id, step, end });
+  },
+
+  /** The user's own title: a summary never replaces it. */
+  async rename(id: string, title: string): Promise<void> {
+    await call<void>('meetings_rename', { id, title });
   },
 
   /** Save the transcript; the meeting becomes `transcribed`. */

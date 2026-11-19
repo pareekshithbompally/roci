@@ -4,8 +4,6 @@ import type { MeetingSummary, ProcessedResult, StoredTranscriptSegment } from '@
 import { store } from '@services/db';
 import { normalizeDueDate } from '@shared/utils/todo.utils';
 import { searchIndexingService } from './searchIndexing.service';
-import { queryClient } from '@shared/query/queryClient';
-import { queryKeys } from '@shared/query/queryKeys';
 import { remindersSync } from '@services/reminders';
 import { appleNotesSync } from '@services/appleNotes';
 
@@ -26,12 +24,6 @@ export function meetingSummaryOf(result: ProcessedResult): MeetingSummary {
   };
 }
 
-function refreshMeetings(): void {
-  queryClient.invalidateQueries({ queryKey: queryKeys.meetings() }).catch((error: unknown) =>
-    console.error('[TranscriptionService] Failed to invalidate meetings query:', error),
-  );
-}
-
 interface SummarySave {
   meetingId: string;
   title: string;
@@ -40,7 +32,7 @@ interface SummarySave {
 }
 
 export const transcriptionService = {
-  /** Saves the transcript (meeting → `transcribed`). Throws when the store write fails. */
+  /** Saves the transcript (meeting → `transcribed`; the store announces it). Throws when the store write fails. */
   async saveTranscript(input: {
     meetingId: string;
     text: string;
@@ -55,13 +47,11 @@ export const transcriptionService = {
       language: input.language,
       segments: input.segments?.length ? JSON.stringify(input.segments) : undefined,
     });
-    refreshMeetings();
   },
 
   /** Saves the summary (meeting → `ready`, done), then indexes it in full for search and mirrors it to the switched-on integrations. */
   async saveSummary(input: SummarySave): Promise<void> {
     await store.meetings.saveSummary(input);
-    refreshMeetings();
     void remindersSync.addedForMeeting(input.meetingId);
     void appleNotesSync.meetingSaved(input.meetingId);
     searchIndexingService.indexMeeting(input.meetingId).catch((error: unknown) =>

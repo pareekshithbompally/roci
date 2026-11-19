@@ -3,6 +3,12 @@
 /** The step a failed meeting stopped at; Retry reruns only that step. */
 export type MeetingPipelineStage = 'record' | 'transcribe' | 'summarize';
 
+/** A step the pipeline runs (recording is the recorder's). */
+export type MeetingStep = Exclude<MeetingPipelineStage, 'record'>;
+
+/** How a step ended, as the store records it. */
+export type MeetingStepEnd = { kind: 'done' } | { kind: 'cancelled' } | { kind: 'failed'; error: string };
+
 export type MeetingStatusName =
   | 'recording'
   | 'captured'

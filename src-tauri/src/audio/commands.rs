@@ -348,9 +348,7 @@ pub async fn recover_meetings(app: AppHandle) -> Result<Vec<String>, CaptureErro
             let (status, duration) = outcome(recover_meeting(&recordings, &id));
             tauri_plugin_store::set_meeting_status(&app, &id, &status, duration)?;
         }
-        let mut resumable = tauri_plugin_store::meetings_with_status(&app, "transcribing")?;
-        resumable.extend(tauri_plugin_store::meetings_with_status(&app, "summarizing")?);
-        Ok(resumable)
+        Ok(tauri_plugin_store::interrupted_meetings(&app)?)
     })
     .await
     .map_err(|error| eyre::eyre!("recording recovery task failed: {error}"))?

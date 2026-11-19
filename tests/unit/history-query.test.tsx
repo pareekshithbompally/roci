@@ -19,10 +19,9 @@ vi.mock('@services/db', () => ({
   store: {
     meetings: {
       list: vi.fn(async () => ({ items: [...db] })),
-      upsert: vi.fn(async (item: { id: string; title: string }) => {
-        const i = db.findIndex((e) => e.id === item.id);
-        if (i >= 0) db[i] = { ...db[i], title: item.title };
-        else db.push(entry(item.id, item.title));
+      rename: vi.fn(async (id: string, title: string) => {
+        const i = db.findIndex((e) => e.id === id);
+        if (i >= 0) db[i] = { ...db[i], title };
       }),
     },
   },
@@ -42,7 +41,7 @@ import { store } from '@services/db';
 import { HistoryProvider, useHistoryData } from '@shared/contexts/HistoryContext';
 
 const meetingsList = store.meetings.list as unknown as ReturnType<typeof vi.fn>;
-const meetingsUpsert = store.meetings.upsert as unknown as ReturnType<typeof vi.fn>;
+const meetingsRename = store.meetings.rename as unknown as ReturnType<typeof vi.fn>;
 
 function Probe() {
   const { items, isLoading, renameItem, deleteItem } = useHistoryData();
@@ -95,18 +94,18 @@ describe('history query', () => {
 
     fireEvent.click(screen.getByTestId('rename'));
 
-    await waitFor(() => expect(meetingsUpsert).toHaveBeenCalledWith({ id: 'm1', title: 'Renamed' }));
+    await waitFor(() => expect(meetingsRename).toHaveBeenCalledWith('m1', 'Renamed'));
     await waitFor(() => expect(screen.getByTestId('first').textContent).toBe('Renamed'));
   });
 
   it('rolls back the optimistic rename when the write fails', async () => {
-    meetingsUpsert.mockRejectedValueOnce(new Error('disk full'));
+    meetingsRename.mockRejectedValueOnce(new Error('disk full'));
     renderProvider();
     await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('ready'));
 
     fireEvent.click(screen.getByTestId('rename'));
 
-    await waitFor(() => expect(meetingsUpsert).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(meetingsRename).toHaveBeenCalledTimes(1));
     // Rollback + refetch restore the original list.
     await waitFor(() => expect(screen.getByTestId('first').textContent).toBe('First'));
     expect(screen.getByTestId('count').textContent).toBe('2');

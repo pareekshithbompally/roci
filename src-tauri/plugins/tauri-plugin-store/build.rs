@@ -13,6 +13,9 @@ const COMMANDS: &[&str] = &[
     "meetings_delete",
     "meetings_create",
     "meetings_set_status",
+    "meetings_begin_step",
+    "meetings_end_step",
+    "meetings_rename",
     "transcripts_save",
     "summaries_save",
     // Recordings

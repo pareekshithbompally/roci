@@ -98,7 +98,7 @@ describe('RecordingMeetingView', () => {
     expect(useRecordingStore.getState().justStopped).toBe('m1');
     expect(useAppStore.getState().status).toBe(AppStatus.RESULTS);
     expect(useAppStore.getState().activeResultTab).toBe('transcript');
-    expect(pipeline.prime).toHaveBeenCalledWith('m1', expect.any(String));
+    expect(pipeline.prime).toHaveBeenCalledWith('m1');
     expect(pipeline.recorded).toHaveBeenCalledWith('m1');
   });
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { MeetingStatus } from '@shared/types/meetingPhase';
+import type { MeetingStatus, MeetingStep, MeetingStepEnd } from '@shared/types/meetingPhase';
 
-const db = vi.hoisted(() => ({ get: vi.fn(), setStatus: vi.fn() }));
+const db = vi.hoisted(() => ({ get: vi.fn(), beginStep: vi.fn(), endStep: vi.fn() }));
 const saves = vi.hoisted(() => ({ saveTranscript: vi.fn(), saveSummary: vi.fn() }));
 const ai = vi.hoisted(() => ({ transcribeAudio: vi.fn(), processTranscript: vi.fn() }));
 
@@ -22,9 +22,13 @@ vi.mock('@shared/utils/appEvents', () => ({ notifyAppEvent: vi.fn() }));
 
 import { meetingPipeline } from '@features/recording/pipeline/meetingPipeline';
 
-/** A stored meeting whose status follows the pipeline's writes. */
+/** A stored meeting whose status follows the store's step rules (as `meeting_steps.rs` keeps them). */
 let status: MeetingStatus;
 let transcript: string | null;
+let runningStep = false;
+
+const WORKING: Record<MeetingStep, MeetingStatus['status']> = { transcribe: 'transcribing', summarize: 'summarizing' };
+const WAITING: Record<MeetingStep, MeetingStatus['status']> = { transcribe: 'captured', summarize: 'transcribed' };
 
 const meeting = () => ({
   index: { id: 'm1', title: 'Recording', categories: [], status, recordingFileName: 'm1.wav', createdAt: '', updatedAt: '' },
@@ -38,7 +42,18 @@ beforeEach(() => {
   status = { status: 'captured' };
   transcript = null;
   db.get.mockImplementation(async () => meeting());
-  db.setStatus.mockImplementation(async (_id: string, next: MeetingStatus) => { status = next; });
+  runningStep = false;
+  db.beginStep.mockImplementation(async (_id: string, step: MeetingStep) => {
+    if (runningStep) return false;
+    runningStep = true;
+    status = { status: WORKING[step] };
+    return true;
+  });
+  db.endStep.mockImplementation(async (_id: string, step: MeetingStep, end: MeetingStepEnd) => {
+    runningStep = false;
+    if (end.kind === 'cancelled') status = { status: WAITING[step] };
+    if (end.kind === 'failed') status = { status: 'failed', failedStep: step, error: end.error };
+  });
   saves.saveTranscript.mockImplementation(async ({ text }: { text: string }) => { transcript = text; status = { status: 'transcribed' }; });
   saves.saveSummary.mockImplementation(async () => { status = { status: 'ready' }; });
   ai.transcribeAudio.mockResolvedValue({ text: 'hello', segments: [] });
@@ -83,6 +98,13 @@ describe('meetingPipeline.run', () => {
     expect(saves.saveSummary).not.toHaveBeenCalled();
   });
 
+  it('runs a meeting once when asked twice at the same time', async () => {
+    await Promise.all([meetingPipeline.run('m1'), meetingPipeline.run('m1')]);
+    expect(ai.transcribeAudio).toHaveBeenCalledTimes(1);
+    expect(saves.saveSummary).toHaveBeenCalledTimes(1);
+    expect(status).toEqual({ status: 'ready' });
+  });
+
   it('does nothing for a recording that failed to record', async () => {
     status = { status: 'failed', failedStep: 'record', error: 'no audio' };
     await meetingPipeline.run('m1');
@@ -91,22 +113,24 @@ describe('meetingPipeline.run', () => {
 });
 
 describe('meetingPipeline.prime', () => {
-  it('shows a placeholder at once, then the saved detail', async () => {
+  it('shows the listed title at once, then the saved detail', async () => {
     const { useAppStore } = await import('@shared/stores/appStore');
+    const { queryClient } = await import('@shared/query/queryClient');
+    const { queryKeys } = await import('@shared/query/queryKeys');
+    queryClient.setQueryData(queryKeys.meetings(), [{ id: 'm1', title: 'Weekly sync' }]);
     useAppStore.getState().setSelectedHistoryId('m1');
     const seen: (string | null)[] = [];
     const unsub = useAppStore.subscribe((s) => seen.push(s.result?.title ?? null));
-    await meetingPipeline.prime('m1', 'Live title');
+    await meetingPipeline.prime('m1');
     unsub();
-    expect(seen[0]).toBe('Live title');
+    expect(seen[0]).toBe('Weekly sync');
     expect(useAppStore.getState().result).toMatchObject({ title: 'Recording', transcript: '' });
   });
 
-  it('leaves another meeting alone', async () => {
+  it('never shows another meeting\'s saved detail', async () => {
     const { useAppStore } = await import('@shared/stores/appStore');
     useAppStore.getState().setSelectedHistoryId('other');
-    useAppStore.getState().setResult({ title: 'Other', transcript: '', summary: '', categories: [] });
-    await meetingPipeline.prime('m1', 'Live title');
-    expect(useAppStore.getState().result?.title).toBe('Live title');
+    await meetingPipeline.prime('m1');
+    expect(useAppStore.getState().result?.title).not.toBe('Recording');
   });
 });

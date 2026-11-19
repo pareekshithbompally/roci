@@ -3,6 +3,7 @@ mod commands;
 #[cfg(test)]
 mod consistency;
 mod error;
+mod meeting_steps;
 mod pipeline;
 mod schema;
 mod search;
@@ -10,6 +11,7 @@ mod session_search;
 
 pub use changes::{meeting_detail, meeting_ids, on_meeting_change, MeetingChange};
 pub use commands::{MeetingCreateInput, MeetingDetail, MeetingStatus, NoteRow, SummaryRow, TodoRow, TranscriptRow};
+pub use meeting_steps::interrupted_meetings;
 pub use pipeline::{create_meeting, delete_meeting, meetings_with_status, set_meeting_status};
 pub use error::StoreError;
 
@@ -18,6 +20,28 @@ use tauri::{
     plugin::{Builder, TauriPlugin},
     Manager, Runtime,
 };
+
+/// Rust → webview: a meeting was saved or deleted. The one event the meeting screens follow; the payload names the meeting,
+/// the screens read it again.
+pub const MEETING_CHANGED_EVENT: &str = "meeting://changed";
+
+#[derive(Clone, serde::Serialize)]
+struct MeetingChanged {
+    id: String,
+    deleted: bool,
+}
+
+fn announce_meeting_changes<R: Runtime>(app: tauri::AppHandle<R>) {
+    on_meeting_change(move |change| {
+        let payload = match change {
+            MeetingChange::Saved(id) => MeetingChanged { id: id.clone(), deleted: false },
+            MeetingChange::Deleted(id) => MeetingChanged { id: id.clone(), deleted: true },
+        };
+        if let Err(error) = tauri::Emitter::emit(&app, MEETING_CHANGED_EVENT, payload) {
+            log::warn!("[store] meeting change not announced: {}", error);
+        }
+    });
+}
 
 /// Initialize the store Tauri plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
@@ -37,6 +61,9 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::meetings_delete,
             commands::meetings_create,
             commands::meetings_set_status,
+            meeting_steps::meetings_begin_step,
+            meeting_steps::meetings_end_step,
+            meeting_steps::meetings_rename,
             commands::transcripts_save,
             commands::summaries_save,
             // Recordings (Phase 5)
@@ -107,6 +134,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         ])
         .setup(|app, _api| {
             app.manage(StoreState::default());
+            announce_meeting_changes(app.clone());
             Ok(())
         })
         .build()

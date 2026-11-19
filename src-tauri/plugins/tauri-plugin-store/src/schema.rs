@@ -1,7 +1,7 @@
 use rusqlite::Connection;
 
 /// Current schema version for the new roci.db.
-pub const SCHEMA_VERSION: u32 = 6;
+pub const SCHEMA_VERSION: u32 = 7;
 
 /// Default embedding model and dimension.
 pub const DEFAULT_MODEL: &str = "mlx-community/Qwen3-Embedding-0.6B-8bit";
@@ -99,6 +99,9 @@ pub fn migrate(conn: &Connection) -> Result<(), String> {
     if (2..=5).contains(&current) {
         migrate_v6(conn)?;
     }
+    if (2..=6).contains(&current) {
+        migrate_v7(conn)?;
+    }
 
     match_embedding_model(conn)
 }
@@ -145,6 +148,42 @@ const DICTATIONS_DDL: &str = "
         model       TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_dictations_created ON dictations(created_at DESC);";
+
+fn has_column(conn: &Connection, table: &str, column: &str) -> Result<bool, String> {
+    conn.query_row(
+        &format!("SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = ?1"),
+        [column],
+        |row| row.get::<_, i64>(0),
+    )
+    .map(|count| count > 0)
+    .map_err(|e| format!("read {table} columns: {e}"))
+}
+
+/// v6 → v7: a meeting knows where its title came from (only a default or AI title may be replaced by a summary's), and how
+/// many times its current step was started (a step a quit or crash keeps cutting off stops being retried at launch).
+/// Calendar meetings keep their calendar title; titles of summarized meetings came from the AI.
+fn migrate_v7(conn: &Connection) -> Result<(), String> {
+    let tx = conn.unchecked_transaction().map_err(|e| format!("begin migration v7 transaction: {}", e))?;
+    let fail = |e: rusqlite::Error| format!("migrate v6→v7 meeting title source: {}", e);
+    // a database migrated up from v2 got today's meetings table at v4's rebuild; add only what is missing
+    if !has_column(&tx, "meetings", "title_source")? {
+        tx.execute_batch(
+            "ALTER TABLE meetings ADD COLUMN title_source TEXT NOT NULL DEFAULT 'default' CHECK(title_source IN ('default','calendar','user','ai'));
+             UPDATE meetings SET title_source = 'ai' WHERE status = 'ready';",
+        )
+        .map_err(fail)?;
+        if has_column(&tx, "meetings", "calendar_event_id")? {
+            tx.execute_batch("UPDATE meetings SET title_source = 'calendar' WHERE calendar_event_id IS NOT NULL;").map_err(fail)?;
+        }
+    }
+    if !has_column(&tx, "meetings", "step_attempts")? {
+        tx.execute_batch("ALTER TABLE meetings ADD COLUMN step_attempts INTEGER NOT NULL DEFAULT 0;").map_err(fail)?;
+    }
+    set_schema_version(&tx, 7)?;
+    tx.commit().map_err(|e| format!("commit migration v7: {}", e))?;
+    log::info!("[store] Migrated schema v6→v7 (meeting title source, step attempts)");
+    Ok(())
+}
 
 /// v5 → v6: dictations made in the app are kept.
 fn migrate_v6(conn: &Connection) -> Result<(), String> {
@@ -268,6 +307,8 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
                                       'summarizing','ready','failed')),
             failed_step           TEXT CHECK(failed_step IN ('record','transcribe','summarize')),
             error                 TEXT,
+            title_source          TEXT    NOT NULL DEFAULT 'default' CHECK(title_source IN ('default','calendar','user','ai')),
+            step_attempts         INTEGER NOT NULL DEFAULT 0,
             calendar_event_id     TEXT,
             calendar_meta         TEXT,
             created_at            INTEGER NOT NULL,
@@ -856,9 +897,35 @@ mod tests {
 
         migrate(&conn).expect("migrate v5→v6");
 
-        assert_eq!(get_schema_version(&conn), 6);
+        assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
         let count: i64 = conn.query_row("SELECT COUNT(*) FROM dictations", [], |r| r.get(0)).expect("dictations exists");
         assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn migrate_v7_records_where_titles_came_from() {
+        let conn = open_test_db();
+        init_db(&conn);
+        conn.execute_batch(
+            "ALTER TABLE meetings DROP COLUMN title_source;
+             ALTER TABLE meetings DROP COLUMN step_attempts;
+             INSERT INTO meetings (id, title, status, calendar_event_id, created_at, updated_at) VALUES
+               ('cal', 'Standup', 'ready', 'ev1', 1, 1),
+               ('done', 'Launch plan', 'ready', NULL, 1, 1),
+               ('new', 'Recording 19/11', 'captured', NULL, 1, 1);",
+        )
+        .expect("v6 shape");
+        set_schema_version(&conn, 6).expect("mark v6");
+
+        migrate(&conn).expect("migrate v6→v7");
+
+        let source = |id: &str| -> String {
+            conn.query_row("SELECT title_source FROM meetings WHERE id = ?1", [id], |r| r.get(0)).expect("row")
+        };
+        assert_eq!(get_schema_version(&conn), 7);
+        assert_eq!(source("cal"), "calendar");
+        assert_eq!(source("done"), "ai");
+        assert_eq!(source("new"), "default");
     }
 
     #[test]
