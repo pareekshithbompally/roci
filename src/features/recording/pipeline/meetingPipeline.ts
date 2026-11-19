@@ -19,7 +19,7 @@ import type { AppSettings, MeetingDetail, MeetingIndexEntry, StoredTranscriptSeg
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { MeetingStatus, MeetingStep } from '@shared/types/meetingPhase';
 import type { MeetingContext } from '@core/ai/prompts/transcription.prompt';
-import { liveTranscript, liveTranscriptResult, type LiveEntry } from '@features/recording/live';
+import { liveTranscript } from '@features/recording/live';
 
 /** What the steps need from the app, read when a run starts. */
 export interface PipelineContext {
@@ -97,18 +97,11 @@ const transcribeRecording = (id: string, context: PipelineContext): StepWork => 
   await transcriptionService.saveTranscript({ meetingId: id, text: formatted, segments, model: speechModelOf(context) });
 };
 
-/** Saves the in-call transcript as the meeting's transcript, labelled by who said each line. */
-async function saveLiveTranscript(id: string, entries: LiveEntry[], context: PipelineContext): Promise<void> {
-  const { formatted, segments } = formatTranscript(liveTranscriptResult(entries));
-  await transcriptionService.saveTranscript({ meetingId: id, text: formatted, segments, model: speechModelOf(context) });
-}
-
-/** Just after Stop: waits for the last in-call chunks; when every chunk made it, that is the transcript, otherwise the
- *  recording is transcribed (the in-call one has a gap). */
+/** Just after Stop: the in-call transcript's last chunks finish (it stays on screen as the draft), then the whole recording is
+ *  transcribed — as Hex does, the final transcript always comes from the full recording, with every word in its context. */
 const transcribeAfterRecording = (id: string, context: PipelineContext): StepWork => async (signal) => {
-  const live = await liveTranscript.finish(id);
+  await liveTranscript.finish(id);
   signal.throwIfAborted();
-  if (live?.complete && live.entries.length > 0) return saveLiveTranscript(id, live.entries, context);
   return transcribeRecording(id, context)(signal);
 };
 
@@ -219,8 +212,9 @@ export const meetingPipeline = {
     else void meetingPipeline.run(id);
   },
 
-  /** A recording just stopped. With an in-call transcript the meeting reads as transcribing at once while its last chunks
-   *  finish; without one it is transcribed now only when the user asked for that. Then the summary follows. */
+  /** A recording just stopped. With an in-call transcript the meeting reads as transcribing at once (its draft stays on
+   *  screen) and the whole recording is transcribed; without one it is transcribed only when the user asked for that. Then the
+   *  summary follows. */
   recorded(id: string): void {
     const live = liveTranscript.active(id);
     if (!live && !readContext?.().settings.autoTranscribe) return;

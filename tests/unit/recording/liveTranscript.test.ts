@@ -67,8 +67,8 @@ describe('in-call transcript', () => {
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 6_000) });
     handlers.get('meeting-live://chunk')?.({ payload: chunk('system', 6_000, 12_000) });
     handlers.get('meeting-live://done')?.(sent(1, 1));
-    const outcome = await liveTranscript.finish('m1');
-    expect(outcome).toEqual({ complete: true, entries: [entry('microphone', 0, 6_000, 'First.'), entry('system', 6_000, 12_000, 'Second.')] });
+    await liveTranscript.finish('m1');
+    expect(useMeetingLiveStore.getState()).toMatchObject({ failed: false, entries: [entry('microphone', 0, 6_000, 'First.'), entry('system', 6_000, 12_000, 'Second.')] });
     // the entries stay as the meeting's draft transcript until the next recording
     expect(useMeetingLiveStore.getState()).toMatchObject({ meetingId: 'm1', live: false, pending: 0 });
   });
@@ -86,8 +86,8 @@ describe('in-call transcript', () => {
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 10_000) });
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 8_000, 14_000, 2_000, 1) });
     handlers.get('meeting-live://done')?.(sent(2));
-    const outcome = await liveTranscript.finish('m3');
-    expect(outcome?.entries.map((e) => e.text)).toEqual(['we ship on Friday if QA', 'signs off']);
+    await liveTranscript.finish('m3');
+    expect(useMeetingLiveStore.getState().entries.map((e) => e.text)).toEqual(['we ship on Friday if QA', 'signs off']);
   });
 
   it('falling behind sheds a source\'s oldest waiting chunks beyond two minutes, and only that source\'s', () => {
@@ -98,12 +98,13 @@ describe('in-call transcript', () => {
     expect(kept.filter((c) => c.source === 'system')).toHaveLength(1);
   });
 
-  it('a chunk that fails marks the transcript incomplete, so the recording is transcribed instead', async () => {
+  it('a chunk that fails marks the live transcript incomplete, and says why', async () => {
     runTranscription.mockRejectedValueOnce(new Error('rate limited'));
     await liveTranscript.start('m2', read);
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 6_000) });
     handlers.get('meeting-live://done')?.(sent(1));
-    expect(await liveTranscript.finish('m2')).toMatchObject({ complete: false });
+    await liveTranscript.finish('m2');
+    expect(useMeetingLiveStore.getState().failed).toBe(true);
     expect(useMeetingLiveStore.getState()).toMatchObject({ failed: true, reason: 'rate limited' });
   });
 
@@ -113,7 +114,8 @@ describe('in-call transcript', () => {
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 6_000, 0, 0) });
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 12_000, 18_000, 0, 2) });
     handlers.get('meeting-live://done')?.(sent(3));
-    expect(await liveTranscript.finish('m4')).toMatchObject({ complete: false });
+    await liveTranscript.finish('m4');
+    expect(useMeetingLiveStore.getState().failed).toBe(true);
   });
 
   it('a last chunk lost before the end marks the transcript incomplete', async () => {
@@ -121,7 +123,8 @@ describe('in-call transcript', () => {
     await liveTranscript.start('m5', read);
     handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 6_000) });
     handlers.get('meeting-live://done')?.(sent(2));
-    expect(await liveTranscript.finish('m5')).toMatchObject({ complete: false });
+    await liveTranscript.finish('m5');
+    expect(useMeetingLiveStore.getState().failed).toBe(true);
   });
 
   it('an end that never comes stops the wait at the deadline, and the recording is transcribed instead', async () => {
@@ -132,13 +135,14 @@ describe('in-call transcript', () => {
       handlers.get('meeting-live://chunk')?.({ payload: chunk('microphone', 0, 6_000) });
       const finishing = liveTranscript.finish('m6');
       await vi.advanceTimersByTimeAsync(15_000);
-      expect(await finishing).toMatchObject({ complete: false });
+      await finishing;
+      expect(useMeetingLiveStore.getState().failed).toBe(true);
     } finally {
       vi.useRealTimers();
     }
   });
 
   it('a recording without a session has nothing to give', async () => {
-    expect(await liveTranscript.finish('unknown')).toBeNull();
+    await expect(liveTranscript.finish('unknown')).resolves.toBeUndefined();
   });
 });

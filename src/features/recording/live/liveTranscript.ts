@@ -42,12 +42,6 @@ interface Session {
 
 type Reader = () => { settings: AppSettings; providers: ModelProvider[] };
 
-/** What the recording left: its entries, and whether every chunk was transcribed. */
-export interface LiveOutcome {
-  entries: LiveEntry[];
-  complete: boolean;
-}
-
 let session: Session | null = null;
 
 function wavOf(pcm: string): Blob {
@@ -296,15 +290,14 @@ export const liveTranscript = {
     return session?.meetingId === meetingId;
   },
 
-  /** After Stop: waits for the last chunks, then gives the recording's entries (null when it had no session). */
-  async finish(meetingId: string): Promise<LiveOutcome | null> {
+  /** After Stop: waits for the last chunks to land in the draft (the store keeps it on screen); nothing when it had no session. */
+  async finish(meetingId: string): Promise<void> {
     const current = session;
-    if (!current || current.meetingId !== meetingId) return null;
+    if (!current || current.meetingId !== meetingId) return;
     await untilDoneOrTimeout(current);
     while (current.draining) await current.draining;
     current.unlisten();
     session = null;
     meetingLiveActions.end();
-    return { entries: await withoutEcho(current.entries), complete: !current.failed };
   },
 };
