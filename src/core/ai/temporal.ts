@@ -1,20 +1,11 @@
-/** Current date, time and timezone (from Intl) formatted for LLM system prompts. */
+/** Current date, time and timezone, all local, formatted for LLM system prompts. */
+
+const pad = (n: number) => n.toString().padStart(2, '0');
 
 /** Call once per LLM request and thread it through, so one request never sees two different times. */
-export function formatTemporalContext(): string {
-  const now = new Date();
-
-  const isoDate = now.toISOString().split('T')[0];
+export function formatTemporalContext(now = new Date()): string {
+  const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const weekday = now.toLocaleDateString('en-US', { weekday: 'long' });
-  const hours = now.getHours().toString().padStart(2, '0');
-  const minutes = now.getMinutes().toString().padStart(2, '0');
-
-  let timezone: string;
-  try {
-    timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  } catch {
-    timezone = 'Unknown';
-  }
-
-  return `Current date: ${isoDate} (${weekday}). Time: ${hours}:${minutes} local. Timezone: ${timezone}.`;
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return `Current date: ${date} (${weekday}). Time: ${pad(now.getHours())}:${pad(now.getMinutes())} local. Timezone: ${timezone}.`;
 }

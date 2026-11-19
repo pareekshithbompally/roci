@@ -68,7 +68,8 @@ async function buildTools(options: OrchestratorOptions, webSearchTools: ToolSet 
   if (definitions.length === 0) return none;
   const rociTools = toExecutableTools(definitions, { signal: options.signal, approval: 'chat' });
   const sources = new Map(definitions.flatMap((d) => (d.source ? [[d.name, d.source] as const] : [])));
-  const toolset = { meetings: meetingTools.length > 0, webSearch, image: imageTools.length > 0, mcp: mcpTools.length > 0 };
+  const apps = [...new Set(mcpTools.flatMap((t) => (t.source ? [t.source] : [])))];
+  const toolset = { meetings: meetingTools.length > 0, webSearch, image: imageTools.length > 0, apps };
   return { tools: { ...rociTools, ...webSearchTools }, sources, toolset };
 }
 
@@ -157,7 +158,8 @@ export async function orchestrate(
   const webSearchTools = chatToolPreferences(settings).webSearch ? getWebSearchTools(resolved) : undefined;
   const mcpSettings = await loadMcpSettings();
   const { tools, sources: toolSources, toolset } = await buildTools(options, webSearchTools, mcpSettings);
-  const systemPrompt = buildChatSystemPrompt({ ...prompt, tools: toolset });
+  const { input, output } = describeModel(resolved.provider, resolved.model);
+  const systemPrompt = buildChatSystemPrompt({ ...prompt, tools: toolset, modalities: { input, output } });
   const { maxToolCalls } = mcpSettings;
   // A local llama-server reports loading the model and reading the prompt before it replies.
   const reportsProgress = isLocalProviderId(resolved.provider) && (await isLlamaServer(resolved.baseUrl));

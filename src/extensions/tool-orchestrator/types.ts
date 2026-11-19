@@ -14,8 +14,8 @@ export interface OrchestratorOptions {
   messages: ChatMessage[];
   /** The chat's model (a chat keeps the model of its first reply). */
   model: ResolvedModel;
-  /** What the system prompt needs besides the tools; the orchestrator adds the tools it actually sends. */
-  prompt: Omit<ChatPromptOptions, 'tools'>;
+  /** What the system prompt needs from the chat; the orchestrator adds the tools it sends and the model's modalities. */
+  prompt: Omit<ChatPromptOptions, 'tools' | 'modalities'>;
   settings: AppSettings;
   providers: ModelProvider[];
   signal?: AbortSignal;
