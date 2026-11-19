@@ -1,5 +1,6 @@
-/** Text with each word of a search emphasised wherever it appears, in any order — the words search matched it by
- *  (matchesAllWords). `mark` tints them (the iPhone sidebar's results); `strong` sets them stronger (the ⌘K palette). */
+/** Matched words, emphasised one way everywhere: `HighlightedText` finds each word of a search in a title (the words search
+ *  matched it by, matchesAllWords); `MarkedExcerpt` shows the words the search index marked in a passage. `mark` tints them
+ *  (the iPhone sidebar's results); `strong` sets them stronger (the ⌘K palette). */
 
 import React from 'react';
 import { queryWords } from '@shared/utils/textMatch';
@@ -30,3 +31,13 @@ export const HighlightedText: React.FC<HighlightedTextProps> = ({ text, highligh
     </span>
   );
 };
+
+/** The search index wraps the words it matched in <<MARK>>…<</MARK>>. */
+const MARK_SPLIT = /<<MARK>>|<<\/MARK>>/;
+
+/** A passage from the search index with its matched words emphasised as titles are (`strong`). */
+export const MarkedExcerpt: React.FC<{ raw: string }> = ({ raw }) => (
+  <>
+    {raw.split(MARK_SPLIT).map((part, i) => (i % 2 === 1 ? <span key={i} data-match className={EMPHASIS.strong}>{part}</span> : part))}
+  </>
+);

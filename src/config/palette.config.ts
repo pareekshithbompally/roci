@@ -5,7 +5,7 @@ export const PALETTE_CONFIG = {
   groups: {
     recent: 'Recent',
     actions: 'Actions',
-    navigate: 'Go to',
+    navigate: 'Go To',
     settings: 'Settings',
     meetings: 'Meetings',
     chats: 'Chats',

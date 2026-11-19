@@ -6,7 +6,7 @@ mod error;
 mod pipeline;
 mod schema;
 mod search;
-mod spotlight;
+mod session_search;
 
 pub use changes::{meeting_detail, meeting_ids, on_meeting_change, MeetingChange};
 pub use commands::{MeetingCreateInput, MeetingDetail, MeetingStatus, NoteRow, SummaryRow, TodoRow, TranscriptRow};
@@ -99,7 +99,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::mark_chat_embedded,
             commands::chats_search,
             // Spotlight
-            commands::spotlight_search,
+            commands::search_sessions,
             // Usage
             commands::insert_usage,
             commands::get_usage_summary,

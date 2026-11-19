@@ -8,14 +8,14 @@ export const SIDEBAR_PAGE_SIZE = 25;
 /** Most chats kept loaded in memory; the first-loaded one (never the one being opened) makes room. */
 export const MAX_LOADED_SESSIONS = 10;
 
-/** Spotlight search debounce (ms), short because the search runs in the local Rust backend. */
-export const SPOTLIGHT_DEBOUNCE_MS = 150;
+/** In-app meeting and chat search (⌘K palette, iPhone sidebar): debounce (ms), short because it runs in the local Rust backend. */
+export const SESSION_SEARCH_DEBOUNCE_MS = 150;
 
 /** Minimum query length for content search; 1-char queries scan the whole dictionary. */
-export const SPOTLIGHT_MIN_QUERY_LENGTH = 2;
+export const SESSION_SEARCH_MIN_QUERY_LENGTH = 2;
 
-/** Max results per source type returned by spotlight_search. */
-export const SPOTLIGHT_RESULTS_PER_SOURCE = 6;
+/** Max results per source type returned by search_sessions (a full list, Show All, asks for more). */
+export const SESSION_SEARCH_LIMIT = 6;
 
 /** A tool row keeps this much of a tool's output for its expanded view. */
 export const TOOL_RESULT_PREVIEW_CHARS = 500;

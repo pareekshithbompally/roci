@@ -1,11 +1,12 @@
-//! Cmd+K search over meetings and chats: title LIKE, then FTS5 snippets; no embeddings.
+//! The in-app search over meetings and chats (⌘K palette, iPhone sidebar): title LIKE, then FTS5 snippets; no embeddings.
+//! Not macOS Spotlight, which Roci feeds separately (url_actions, the Spotlight integration).
 
 use rusqlite::{params_from_iter, types::Value, Connection};
 use serde::{Deserialize, Serialize};
 
-/// A single spotlight search result.
+/// One in-app search result (a meeting or chat, by title or by content).
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SpotlightHit {
+pub struct SessionSearchHit {
     /// "meeting" or "chat"
     pub source_type: String,
     /// Meeting ID or chat session ID
@@ -21,7 +22,7 @@ pub struct SpotlightHit {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SpotlightParams {
+pub struct SessionSearchParams {
     pub query: String,
     /// Max results per source (meetings, chats). Total results ≤ limit × 2.
     pub limit: usize,
@@ -35,12 +36,12 @@ pub const MARK_CLOSE: &str = "<</MARK>>";
 const SNIPPET_TOKENS: i32 = 32;
 
 /// Title LIKE matches then FTS5 content matches, deduplicated per source.
-pub fn spotlight_search(
+pub fn search_sessions(
     conn: &Connection,
-    params: &SpotlightParams,
-) -> Result<Vec<SpotlightHit>, String> {
+    params: &SessionSearchParams,
+) -> Result<Vec<SessionSearchHit>, String> {
     let limit = if params.limit == 0 { 6 } else { params.limit };
-    let mut hits: Vec<SpotlightHit> = Vec::new();
+    let mut hits: Vec<SessionSearchHit> = Vec::new();
 
     // ── Tier 0: Title LIKE matches ──────────────────────────────────────────
     let title_tokens = extract_search_terms(&params.query);
@@ -58,7 +59,7 @@ pub fn spotlight_search(
 
         let mut stmt = conn
             .prepare(&meeting_title_sql)
-            .map_err(|e| format!("spotlight meetings title prepare: {}", e))?;
+            .map_err(|e| format!("session search meetings title prepare: {}", e))?;
 
         let mut query_params: Vec<Value> = title_tokens
             .iter()
@@ -74,10 +75,10 @@ pub fn spotlight_search(
                     row.get::<_, i64>(2)?,
                 ))
             })
-            .map_err(|e| format!("spotlight meetings title query: {}", e))?;
+            .map_err(|e| format!("session search meetings title query: {}", e))?;
 
         for row in rows.filter_map(|r| r.ok()) {
-            hits.push(SpotlightHit {
+            hits.push(SessionSearchHit {
                 source_type: "meeting".to_string(),
                 source_id: row.0,
                 title: row.1,
@@ -99,7 +100,7 @@ pub fn spotlight_search(
 
         let mut stmt = conn
             .prepare(&chat_title_sql)
-            .map_err(|e| format!("spotlight chat sessions title prepare: {}", e))?;
+            .map_err(|e| format!("session search chat sessions title prepare: {}", e))?;
 
         let mut query_params: Vec<Value> = title_tokens
             .iter()
@@ -115,10 +116,10 @@ pub fn spotlight_search(
                     row.get::<_, i64>(2)?,
                 ))
             })
-            .map_err(|e| format!("spotlight chat sessions title query: {}", e))?;
+            .map_err(|e| format!("session search chat sessions title query: {}", e))?;
 
         for row in rows.filter_map(|r| r.ok()) {
-            hits.push(SpotlightHit {
+            hits.push(SessionSearchHit {
                 source_type: "chat".to_string(),
                 source_id: row.0,
                 title: row.1,
@@ -130,7 +131,7 @@ pub fn spotlight_search(
     }
 
     // ── Tier 1: FTS5 content matches with snippet() ─────────────────────────
-    let fts_query = build_spotlight_fts_query(&params.query);
+    let fts_query = build_session_fts_query(&params.query);
     if !fts_query.is_empty() {
         // Meeting content
         {
@@ -148,7 +149,7 @@ pub fn spotlight_search(
                      ORDER BY rank
                      LIMIT ?5",
                 )
-                .map_err(|e| format!("spotlight meeting content prepare: {}", e))?;
+                .map_err(|e| format!("session search meeting content prepare: {}", e))?;
 
             let rows = stmt
                 .query_map(
@@ -162,10 +163,10 @@ pub fn spotlight_search(
                         ))
                     },
                 )
-                .map_err(|e| format!("spotlight meeting content query: {}", e))?;
+                .map_err(|e| format!("session search meeting content query: {}", e))?;
 
             for row in rows.filter_map(|r| r.ok()) {
-                hits.push(SpotlightHit {
+                hits.push(SessionSearchHit {
                     source_type: "meeting".to_string(),
                     source_id: row.0,
                     title: row.1,
@@ -192,7 +193,7 @@ pub fn spotlight_search(
                      ORDER BY rank
                      LIMIT ?5",
                 )
-                .map_err(|e| format!("spotlight chat content prepare: {}", e))?;
+                .map_err(|e| format!("session search chat content prepare: {}", e))?;
 
             let rows = stmt
                 .query_map(
@@ -206,10 +207,10 @@ pub fn spotlight_search(
                         ))
                     },
                 )
-                .map_err(|e| format!("spotlight chat content query: {}", e))?;
+                .map_err(|e| format!("session search chat content query: {}", e))?;
 
             for row in rows.filter_map(|r| r.ok()) {
-                hits.push(SpotlightHit {
+                hits.push(SessionSearchHit {
                     source_type: "chat".to_string(),
                     source_id: row.0,
                     title: row.1,
@@ -222,12 +223,12 @@ pub fn spotlight_search(
     }
 
     // ── Dedup by (source_type, source_id) ───────────────────────────────────
-    let deduped = dedup_spotlight_hits(hits);
+    let deduped = dedup_session_hits(hits);
     Ok(deduped)
 }
 
 /// Search-as-you-type FTS5 query: "billing int" → `"billing" "int"*`; empty input → empty.
-fn build_spotlight_fts_query(query: &str) -> String {
+fn build_session_fts_query(query: &str) -> String {
     let words = extract_search_terms(query);
     if words.is_empty() {
         return String::new();
@@ -265,10 +266,10 @@ fn build_title_like_where(column: &str, token_count: usize) -> String {
 }
 
 /// Dedups by source, keeping the first hit's position but taking a later duplicate's excerpt.
-fn dedup_spotlight_hits(hits: Vec<SpotlightHit>) -> Vec<SpotlightHit> {
+fn dedup_session_hits(hits: Vec<SessionSearchHit>) -> Vec<SessionSearchHit> {
     let mut seen: std::collections::HashMap<(String, String), usize> =
         std::collections::HashMap::new();
-    let mut result: Vec<SpotlightHit> = Vec::new();
+    let mut result: Vec<SessionSearchHit> = Vec::new();
 
     for hit in hits {
         let key = (hit.source_type.clone(), hit.source_id.clone());
@@ -294,12 +295,12 @@ fn dedup_spotlight_hits(hits: Vec<SpotlightHit>) -> Vec<SpotlightHit> {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_spotlight_fts_query, build_title_like_where, dedup_spotlight_hits,
-        extract_search_terms, SpotlightHit,
+        build_session_fts_query, build_title_like_where, dedup_session_hits,
+        extract_search_terms, SessionSearchHit,
     };
 
-    fn hit(source_id: &str, excerpt: &str, match_type: &str) -> SpotlightHit {
-        SpotlightHit {
+    fn hit(source_id: &str, excerpt: &str, match_type: &str) -> SessionSearchHit {
+        SessionSearchHit {
             source_type: "meeting".to_string(),
             source_id: source_id.to_string(),
             title: "Quarterly Planning".to_string(),
@@ -311,7 +312,7 @@ mod tests {
 
     #[test]
     fn dedup_merges_content_excerpt_into_existing_title_hit() {
-        let deduped = dedup_spotlight_hits(vec![
+        let deduped = dedup_session_hits(vec![
             hit("meeting-1", "", "title"),
             hit(
                 "meeting-1",
@@ -330,7 +331,7 @@ mod tests {
 
     #[test]
     fn dedup_keeps_existing_excerpt_when_duplicate_lacks_one() {
-        let deduped = dedup_spotlight_hits(vec![
+        let deduped = dedup_session_hits(vec![
             hit(
                 "meeting-1",
                 "...discussed <<MARK>>roadmap<</MARK>> milestones...",
@@ -350,7 +351,7 @@ mod tests {
     #[test]
     fn builds_prefix_fts_query_for_search_as_you_type() {
         assert_eq!(
-            build_spotlight_fts_query("billing int"),
+            build_session_fts_query("billing int"),
             "\"billing\" \"int\"*"
         );
     }

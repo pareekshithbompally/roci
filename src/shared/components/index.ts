@@ -3,7 +3,7 @@ export { ActivityTray } from './ActivityTray';
 export { ActivityButton } from './ActivityButton';
 export { ConfirmHost } from './ConfirmHost';
 export { EmptyState } from './EmptyState';
-export { HighlightedText } from './HighlightedText';
+export { HighlightedText, MarkedExcerpt } from './HighlightedText';
 export { MeetingStatus } from './MeetingStatus';
 export { PermissionAction } from './PermissionAction';
 export { ModelAvatar } from './ModelAvatar';

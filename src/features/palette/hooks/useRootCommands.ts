@@ -15,7 +15,7 @@ import { GLOBAL_SHORTCUTS } from '@config/shortcuts.config';
 import { PALETTE_CONFIG } from '@config/palette.config';
 import type { UnifiedSidebarItem } from '@shared/types';
 import type { PaletteCommand } from '@features/palette/paletteTypes';
-import { SESSION_ICON } from '@features/palette/sessionIcons';
+import { sessionCommand } from '@features/palette/sessionCommand';
 
 const { groups: GROUP } = PALETTE_CONFIG;
 
@@ -29,15 +29,13 @@ export function useRootCommands(): PaletteCommand[] {
   const toggleRecording = useToggleRecording();
   const recording = useRecordingMeetingId() !== null;
 
-  const open = (item: UnifiedSidebarItem) => () => void openSession(item);
+  const open = (item: UnifiedSidebarItem) => void openSession(item);
   const sectionCommands = SETTINGS_SECTIONS.map(({ id, label, icon, keywords }): PaletteCommand => ({
     id: `settings:${id}`, title: label, group: GROUP.settings, icon, keywords: keywords.join(' '), perform: () => openSettings(id),
   }));
 
   return [
-    ...items.slice(0, PALETTE_CONFIG.recentCount).map((item): PaletteCommand => ({
-      id: `recent:${item.type}:${item.id}`, title: item.title, group: GROUP.recent, icon: SESSION_ICON[item.type], perform: open(item),
-    })),
+    ...items.slice(0, PALETTE_CONFIG.recentCount).map((item) => sessionCommand(item, { group: GROUP.recent, open })),
     { id: 'new-chat', title: 'New Chat', group: GROUP.actions, icon: SquarePen, keywords: 'new conversation ask', keys: shortcutKeys('newChat'), perform: startNewChat },
     {
       id: 'recording',

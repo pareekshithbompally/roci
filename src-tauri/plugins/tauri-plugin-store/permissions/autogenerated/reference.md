@@ -69,7 +69,7 @@ Allows all store plugin commands
 - `allow-get-chats-needing-embeddings`
 - `allow-mark-chat-embedded`
 - `allow-chats-search`
-- `allow-spotlight-search`
+- `allow-search-sessions`
 - `allow-insert-usage`
 - `allow-get-usage-summary`
 - `allow-get-meeting-usage`
@@ -1516,6 +1516,32 @@ Denies the reminders_upsert command without any pre-configured scope.
 <tr>
 <td>
 
+`store:allow-search-sessions`
+
+</td>
+<td>
+
+Enables the search_sessions command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-search-sessions`
+
+</td>
+<td>
+
+Denies the search_sessions command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `store:allow-settings-get-all`
 
 </td>
@@ -1561,32 +1587,6 @@ Enables the settings_set command without any pre-configured scope.
 <td>
 
 Denies the settings_set command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-spotlight-search`
-
-</td>
-<td>
-
-Enables the spotlight_search command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-spotlight-search`
-
-</td>
-<td>
-
-Denies the spotlight_search command without any pre-configured scope.
 
 </td>
 </tr>

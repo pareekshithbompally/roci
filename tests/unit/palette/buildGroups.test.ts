@@ -10,14 +10,14 @@ const titles = (groups: { title: string; items: PaletteCommand[] }[]) => groups.
 const ROOT = [
   cmd('r1', 'Recent', 'Weekly Sync'),
   cmd('new', 'Actions', 'New Chat'),
-  cmd('todos', 'Go to', 'To-dos', { weight: 0.7 }),
+  cmd('todos', 'Go To', 'To-dos', { weight: 0.7 }),
   cmd('theme', 'Settings', 'Toggle theme', { keywords: 'dark light appearance' }),
 ];
 
 describe('buildGroups', () => {
   it('before typing: every root group in order, recents first', () => {
     expect(titles(buildGroups({ term: '', level: null, root: ROOT, results: [] }))).toEqual([
-      ['Recent', ['Weekly Sync']], ['Actions', ['New Chat']], ['Go to', ['To-dos']], ['Settings', ['Toggle theme']],
+      ['Recent', ['Weekly Sync']], ['Actions', ['New Chat']], ['Go To', ['To-dos']], ['Settings', ['Toggle theme']],
     ]);
   });
 

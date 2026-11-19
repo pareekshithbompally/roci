@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   setTheme: vi.fn(),
   setCurrentView: vi.fn(),
   openSettings: vi.fn(),
-  spotlightSearch: vi.fn(async () => [] as unknown[]),
+  searchSessions: vi.fn(async () => [] as unknown[]),
 }));
 
 const ITEMS = [
@@ -22,12 +22,13 @@ const ITEMS = [
 
 vi.mock('@features/history/hooks/useUnifiedSidebar', () => ({ useUnifiedSidebar: () => ({ items: ITEMS }) }));
 vi.mock('@features/history/hooks/useOpenSession', () => ({ useOpenSession: () => mocks.openSession }));
-vi.mock('@extensions/rag/client', () => ({ vectorDB: { spotlightSearch: mocks.spotlightSearch } }));
+vi.mock('@extensions/rag/client', () => ({ vectorDB: { searchSessions: mocks.searchSessions } }));
 vi.mock('@features/chat', () => ({ startNewChat: mocks.startNewChat }));
 vi.mock('@features/recording', () => ({ useToggleRecording: () => mocks.toggleRecording, useRecordingMeetingId: () => null }));
 vi.mock('@shared/contexts/ThemeContext', () => ({ useThemeContext: () => ({ isDark: true, setTheme: mocks.setTheme }) }));
 vi.mock('@shared/contexts/SettingsContext', () => ({ useSettings: () => ({ settings: {} }) }));
-vi.mock('@shared/stores/meetingProgressStore', () => ({ useMeetingPhase: () => ({ kind: 'ready' }) }));
+// A meeting waiting to be transcribed: a state that shows a status pill (Ready shows none, by the app's rule).
+vi.mock('@shared/stores/meetingProgressStore', () => ({ useMeetingPhase: () => ({ kind: 'pending' }) }));
 // The sections this device has (the Settings list filters out the ones it lacks).
 vi.mock('@features/settings', () => ({
   SETTINGS_SECTIONS: [
@@ -66,10 +67,17 @@ beforeEach(() => {
 });
 
 describe('CommandPalette', () => {
-  it('before typing: Recent first (five), then Actions, Go to and Settings', () => {
+  it('before typing: Recent first (five), then Actions, Go To and Settings', () => {
     openPalette();
-    expect(groupTitles()).toEqual(['Recent', 'Actions', 'Go to', 'Settings']);
+    expect(groupTitles()).toEqual(['Recent', 'Actions', 'Go To', 'Settings']);
     expect(rows('Recent')).toHaveLength(5);
+  });
+
+  it('a recent meeting shows its date and status, the same row as a search result', () => {
+    openPalette();
+    expect(rows('Recent')[0]).toContain('Weekly Sync');
+    expect(rows('Recent')[0]).toContain('Not transcribed');
+    expect(rows('Recent')[0]).toMatch(/2026/);
   });
 
   it('shows each command with its shortcut keys and a chevron where it drills in', () => {
@@ -103,7 +111,7 @@ describe('CommandPalette', () => {
   });
 
   it('says when the search index cannot be read, instead of claiming no results', async () => {
-    mocks.spotlightSearch.mockRejectedValueOnce(new Error('index gone'));
+    mocks.searchSessions.mockRejectedValueOnce(new Error('index gone'));
     openPalette();
     type('zzzz');
     expect(await screen.findByText(/Search is unavailable/)).toBeTruthy();

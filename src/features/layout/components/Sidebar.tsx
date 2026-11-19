@@ -50,7 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const search = useSessionSearch(items, sheet ? query : '');
   const results = search.matches?.map((match) => match.item) ?? null;
 
-  // Scroll the selected item into view when selection changes (e.g. from spotlight)
+  // Scroll the selected item into view when selection changes (e.g. from the ⌘K palette)
   useEffect(() => {
     if (!selectedHistoryId || !listContainerRef.current) return;
     const chatId = currentChatId;
@@ -158,7 +158,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {isSettingsView ? (
           <Row onClick={leaveSettings}>
             <Icon icon={ChevronLeft} size="xs" className="shrink-0" />
-            <span className="flex-1">Back to app</span>
+            <span className="flex-1">Back to App</span>
             <Keycaps keys={shortcutKeys('leaveSettings')} />
           </Row>
         ) : (

@@ -73,13 +73,13 @@ export interface ChatSearchHit {
   last_message_at: number;
 }
 
-export interface SpotlightParams {
+export interface SessionSearchParams {
   query: string;
   /** Max results per source type. Total results ≤ limit × 2. */
   limit: number;
 }
 
-export interface SpotlightHit {
+export interface SessionSearchHit {
   source_type: 'meeting' | 'chat';
   source_id: string;
   title: string;
@@ -227,8 +227,8 @@ export const vectorDB = {
     return invoke('plugin:store|chats_search', { params });
   },
 
-  async spotlightSearch(params: SpotlightParams): Promise<SpotlightHit[]> {
+  async searchSessions(params: SessionSearchParams): Promise<SessionSearchHit[]> {
     await ensureInitialized();
-    return invoke('plugin:store|spotlight_search', { params });
+    return invoke('plugin:store|search_sessions', { params });
   },
 };

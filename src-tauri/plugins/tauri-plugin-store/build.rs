@@ -75,7 +75,7 @@ const COMMANDS: &[&str] = &[
     "mark_chat_embedded",
     "chats_search",
     // Spotlight
-    "spotlight_search",
+    "search_sessions",
     // Usage
     "insert_usage",
     "get_usage_summary",

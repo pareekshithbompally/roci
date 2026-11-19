@@ -3239,15 +3239,15 @@ pub async fn chats_search(
 }
 
 #[tauri::command]
-pub async fn spotlight_search(
+pub async fn search_sessions(
     state: State<'_, StoreState>,
-    params: crate::spotlight::SpotlightParams,
-) -> Result<Vec<crate::spotlight::SpotlightHit>, StoreError> {
+    params: crate::session_search::SessionSearchParams,
+) -> Result<Vec<crate::session_search::SessionSearchHit>, StoreError> {
     let conn_arc = Arc::clone(&state.conn);
     tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        crate::spotlight::spotlight_search(db, &params).map_err(StoreError::from)
+        crate::session_search::search_sessions(db, &params).map_err(StoreError::from)
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?

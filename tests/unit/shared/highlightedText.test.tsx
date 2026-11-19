@@ -23,3 +23,14 @@ describe('HighlightedText', () => {
     expect(emphasised(container)).toEqual([]);
   });
 });
+
+describe('MarkedExcerpt', () => {
+  it('emphasises the words the search index marked, exactly as HighlightedText strong does', async () => {
+    const { MarkedExcerpt } = await import('@shared/components/HighlightedText');
+    const { container } = render(<MarkedExcerpt raw="we agreed the <<MARK>>pricing<</MARK>> for Q1" />);
+    const match = container.querySelector('[data-match]');
+    expect(match?.textContent).toBe('pricing');
+    const { container: title } = render(<HighlightedText text="Pricing" highlight="pricing" emphasis="strong" />);
+    expect(match?.className).toBe(title.querySelector('[data-match]')?.className);
+  });
+});
