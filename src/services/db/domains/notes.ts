@@ -1,13 +1,14 @@
 /** Notes domain — list/upsert/delete meeting notes. */
 
-import { call, rustNoteToEntry, type RustNoteRow } from '@services/db/internal';
+import { call, rustNoteToEntry } from '@services/db/internal';
+import type { NoteRow } from '@shared/types/native';
 import type { NoteEntry } from '@shared/types';
 import { meetingEdited } from './meetingEdits';
 
 export const notes = {
   /** List notes for a meeting. */
   async list(meetingId: string): Promise<NoteEntry[]> {
-    const rows = await call<RustNoteRow[]>('notes_list', { meetingId });
+    const rows = await call<NoteRow[]>('notes_list', { meetingId });
     return rows.map(rustNoteToEntry);
   },
 

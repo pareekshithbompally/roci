@@ -1,6 +1,7 @@
 /** Reminders domain — schedule, update status, list due, prune stale entries. */
 
-import { call, rustReminderDueToEntry, type RustReminderDueItem } from '@services/db/internal';
+import { call, rustReminderDueToEntry } from '@services/db/internal';
+import type { ReminderDueItem } from '@shared/types/native';
 import type { ReminderEntry } from '@shared/types';
 
 export const reminders = {
@@ -16,7 +17,7 @@ export const reminders = {
 
   /** Get all scheduled reminders (joined with todo/meeting info). */
   async due(): Promise<ReminderEntry[]> {
-    const rows = await call<RustReminderDueItem[]>('reminders_due');
+    const rows = await call<ReminderDueItem[]>('reminders_due');
     return rows.map(rustReminderDueToEntry);
   },
 

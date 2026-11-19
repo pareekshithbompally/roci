@@ -23,6 +23,7 @@ impl Default for StoreState {
 // ── Meeting Domain Structs ──
 
 #[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
 pub struct MeetingRow {
     pub id: String,
     pub title: String,
@@ -31,7 +32,9 @@ pub struct MeetingRow {
     pub status: MeetingStatus,
     pub calendar_event_id: Option<String>,
     pub calendar_meta: Option<String>,
+    #[cfg_attr(test, ts(type = "number"))]
     pub created_at: i64,
+    #[cfg_attr(test, ts(type = "number"))]
     pub updated_at: i64,
     pub categories: Vec<String>,
     pub recording_filename: Option<String>,
@@ -39,6 +42,7 @@ pub struct MeetingRow {
 
 /// Where a meeting is in its pipeline; `failed_step` and `error` are set only when `status` is `failed`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/", rename = "MeetingStatusRow"))]
 pub struct MeetingStatus {
     pub status: String,
     pub failed_step: Option<String>,
@@ -57,6 +61,7 @@ impl MeetingStatus {
 
 /// A new meeting, created before its pipeline starts (at Record, or by an import).
 #[derive(Debug, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
 pub struct MeetingCreateInput {
     pub id: String,
     pub title: String,
@@ -65,17 +70,21 @@ pub struct MeetingCreateInput {
     pub recording_filename: Option<String>,
     pub calendar_event_id: Option<String>,
     pub calendar_meta: Option<String>,
+    #[cfg_attr(test, ts(type = "number | null"))]
     pub created_at: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
 pub struct MeetingListResult {
     pub items: Vec<MeetingRow>,
+    #[cfg_attr(test, ts(type = "number"))]
     pub total: i64,
 }
 
 /// A meeting update; only the fields given change.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
 pub struct MeetingUpsertInput {
     pub id: String,
     pub title: Option<String>,
@@ -83,10 +92,12 @@ pub struct MeetingUpsertInput {
     pub calendar_event_id: Option<String>,
     pub calendar_meta: Option<String>,
     pub categories: Option<Vec<String>>,
+    #[cfg_attr(test, ts(type = "number | null"))]
     pub created_at: Option<i64>,
 }
 
 #[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/", rename = "MeetingDetailRow"))]
 pub struct MeetingDetail {
     pub id: String,
     pub title: String,
@@ -95,7 +106,9 @@ pub struct MeetingDetail {
     pub status: MeetingStatus,
     pub calendar_event_id: Option<String>,
     pub calendar_meta: Option<String>,
+    #[cfg_attr(test, ts(type = "number"))]
     pub created_at: i64,
+    #[cfg_attr(test, ts(type = "number"))]
     pub updated_at: i64,
     pub categories: Vec<String>,
     pub transcript: Option<TranscriptRow>,
@@ -106,40 +119,51 @@ pub struct MeetingDetail {
 }
 
 #[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
 pub struct TranscriptRow {
     pub text: String,
     pub language: Option<String>,
     pub model: Option<String>,
     pub segments: Option<String>,
+    #[cfg_attr(test, ts(type = "number"))]
     pub created_at: i64,
 }
 
 #[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
 pub struct SummaryRow {
     pub overview: String,
     pub data: String,
+    #[cfg_attr(test, ts(type = "number"))]
     pub created_at: i64,
+    #[cfg_attr(test, ts(type = "number"))]
     pub updated_at: i64,
 }
 
 #[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
 pub struct RecordingRow {
     pub id: String,
     pub filename: String,
     pub duration_seconds: Option<f64>,
     pub input_source: Option<String>,
+    #[cfg_attr(test, ts(type = "number"))]
     pub created_at: i64,
 }
 
 #[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
 pub struct NoteRow {
     pub id: String,
     pub text: String,
+    #[cfg_attr(test, ts(type = "number"))]
     pub created_at: i64,
+    #[cfg_attr(test, ts(type = "number"))]
     pub updated_at: i64,
 }
 
 #[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
 pub struct TodoRow {
     pub id: String,
     pub text: String,
@@ -147,10 +171,12 @@ pub struct TodoRow {
     pub due_date: Option<String>,
     pub completed: bool,
     pub source: String,
+    #[cfg_attr(test, ts(type = "number"))]
     pub created_at: i64,
 }
 
 #[derive(Debug, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
 pub struct ActionItemInput {
     pub text: String,
     pub owner: Option<String>,
@@ -159,6 +185,7 @@ pub struct ActionItemInput {
 
 /// A finished transcript; saving it moves the meeting to `transcribed`.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
 pub struct TranscriptSaveInput {
     pub meeting_id: String,
     pub text: String,
@@ -169,6 +196,7 @@ pub struct TranscriptSaveInput {
 
 /// A finished summary with its title, categories and action items; saving it moves the meeting to `ready`.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
 pub struct SummarySaveInput {
     pub meeting_id: String,
     pub title: String,
@@ -179,6 +207,7 @@ pub struct SummarySaveInput {
 }
 
 #[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
 pub struct MeetingsDeleteResult {
     pub recording_filenames: Vec<String>,
 }
@@ -186,9 +215,11 @@ pub struct MeetingsDeleteResult {
 // ── Category Structs ──
 
 #[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
 pub struct CategoryRow {
     pub id: String,
     pub name: String,
+    #[cfg_attr(test, ts(type = "number"))]
     pub created_at: i64,
 }
 
@@ -218,6 +249,7 @@ pub struct TodoUpsertInput {
 }
 
 #[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
 pub struct TodoWithReminder {
     pub id: String,
     pub meeting_id: Option<String>,
@@ -227,33 +259,41 @@ pub struct TodoWithReminder {
     pub due_date: Option<String>,
     pub completed: bool,
     pub source: String,
+    #[cfg_attr(test, ts(type = "number"))]
     pub created_at: i64,
     pub reminder: Option<ReminderRow>,
 }
 
 #[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
 pub struct TodosListResult {
     pub items: Vec<TodoWithReminder>,
+    #[cfg_attr(test, ts(type = "number"))]
     pub total: i64,
 }
 
 // ── Reminders Domain Structs ──
 
 #[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
 pub struct ReminderRow {
     pub notification_id: i32,
+    #[cfg_attr(test, ts(type = "number"))]
     pub fire_at: i64,
     pub status: String,
+    #[cfg_attr(test, ts(type = "number"))]
     pub created_at: i64,
 }
 
 #[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
 pub struct ReminderDueItem {
     pub todo_id: String,
     /// The to-do's meeting and its title; none for a to-do of its own.
     pub meeting_id: Option<String>,
     pub todo_text: String,
     pub meeting_title: Option<String>,
+    #[cfg_attr(test, ts(type = "number"))]
     pub fire_at: i64,
     pub notification_id: i32,
 }

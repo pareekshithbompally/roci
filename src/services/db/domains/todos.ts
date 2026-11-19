@@ -4,27 +4,26 @@ import {
   call,
   rustTodoToGlobalEntry,
   type GlobalTodoEntry,
-  type RustTodoListResult,
-  type RustTodoRow,
 } from '@services/db/internal';
+import type { TodosListResult, TodoWithReminder } from '@shared/types/native';
 import { meetingEdited } from './meetingEdits';
 
 export const todos = {
   /** List todos for a specific meeting. */
   async listForMeeting(meetingId: string): Promise<GlobalTodoEntry[]> {
-    const rows = await call<RustTodoRow[]>('todos_list_for_meeting', { meetingId });
+    const rows = await call<TodoWithReminder[]>('todos_list_for_meeting', { meetingId });
     return rows.map(rustTodoToGlobalEntry);
   },
 
   /** The to-dos with these ids, with their meeting; unknown ids are left out. */
   async get(ids: string[]): Promise<GlobalTodoEntry[]> {
-    const rows = await call<RustTodoRow[]>('todos_get', { ids });
+    const rows = await call<TodoWithReminder[]>('todos_get', { ids });
     return rows.map(rustTodoToGlobalEntry);
   },
 
   /** List todos globally, optionally filtered by completion status. */
   async listGlobal(completed?: boolean, limit = 200, offset = 0): Promise<{ items: GlobalTodoEntry[]; total: number }> {
-    const result = await call<RustTodoListResult>('todos_list_global', {
+    const result = await call<TodosListResult>('todos_list_global', {
       completed: completed === undefined ? null : completed,
       limit,
       offset,

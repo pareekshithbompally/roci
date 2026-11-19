@@ -6,12 +6,19 @@ import type {
   ChatMessage,
   NoteEntry,
   TodoEntry,
-  ActionItem,
   ReminderEntry,
   MeetingIndexEntry,
 } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { MeetingStatus } from '@shared/types/meetingPhase';
+import type {
+  MeetingRow,
+  MeetingStatusRow,
+  NoteRow,
+  ReminderDueItem,
+  TodoRow,
+  TodoWithReminder,
+} from '@shared/types/native';
 
 const PLUGIN = 'plugin:store|';
 
@@ -88,52 +95,10 @@ export function rowToMessage(row: {
 
 // ── Rust row type helpers ──
 
-export interface RustNoteRow {
-  id: string;
-  text: string;
-  created_at: number;
-  updated_at: number;
-}
-
-export interface RustTodoRow {
-  id: string;
-  /** Null for a to-do of its own (not from a meeting); its title is null then too. */
-  meeting_id: string | null;
-  meeting_title: string | null;
-  text: string;
-  owner: string | null;
-  due_date: string | null;
-  completed: boolean;
-  source: string;
-  created_at: number;
-  reminder: RustReminderRow | null;
-}
-
-export interface RustTodoListResult {
-  items: RustTodoRow[];
-  total: number;
-}
-
 /** A to-do with the meeting it came from; both null for a to-do of its own. */
 export interface GlobalTodoEntry extends TodoEntry {
   meetingId: string | null;
   meetingTitle: string | null;
-}
-
-export interface RustReminderRow {
-  notification_id: number;
-  fire_at: number;
-  status: string;
-  created_at: number;
-}
-
-export interface RustReminderDueItem {
-  todo_id: string;
-  meeting_id: string | null;
-  todo_text: string;
-  meeting_title: string | null;
-  fire_at: number;
-  notification_id: number;
 }
 
 export interface RustSettingsEntry {
@@ -150,15 +115,9 @@ export interface RustProviderRow {
   updated_at: number;
 }
 
-export interface RustCategoryRow {
-  id: string;
-  name: string;
-  created_at: number;
-}
-
 // ── Conversion helpers ──
 
-export function rustNoteToEntry(row: RustNoteRow): NoteEntry {
+export function rustNoteToEntry(row: NoteRow): NoteEntry {
   return {
     id: row.id,
     text: row.text,
@@ -167,7 +126,8 @@ export function rustNoteToEntry(row: RustNoteRow): NoteEntry {
   };
 }
 
-export function rustTodoToEntry(row: RustTodoRow): TodoEntry {
+/** A meeting's to-do rows carry no reminder; the to-do domain's rows do. */
+export function rustTodoToEntry(row: TodoRow & Partial<Pick<TodoWithReminder, 'reminder'>>): TodoEntry {
   const entry: TodoEntry = {
     id: row.id,
     text: row.text,
@@ -186,28 +146,11 @@ export function rustTodoToEntry(row: RustTodoRow): TodoEntry {
   return entry;
 }
 
-export function rustTodoToActionItem(row: RustTodoRow): ActionItem {
-  const item: ActionItem = {
-    id: row.id,
-    text: row.text,
-    completed: row.completed,
-  };
-  if (row.owner) item.owner = row.owner;
-  if (row.due_date) item.dueDate = row.due_date;
-  if (row.reminder) {
-    item.reminder = {
-      dateTime: new Date(row.reminder.fire_at).toISOString(),
-      notificationId: row.reminder.notification_id,
-    };
-  }
-  return item;
-}
-
-export function rustTodoToGlobalEntry(row: RustTodoRow): GlobalTodoEntry {
+export function rustTodoToGlobalEntry(row: TodoWithReminder): GlobalTodoEntry {
   return { ...rustTodoToEntry(row), meetingId: row.meeting_id, meetingTitle: row.meeting_title };
 }
 
-export function rustReminderDueToEntry(row: RustReminderDueItem): ReminderEntry {
+export function rustReminderDueToEntry(row: ReminderDueItem): ReminderEntry {
   return {
     todoId: row.todo_id,
     meetingId: row.meeting_id,
@@ -259,33 +202,15 @@ export function modelProviderToRust(provider: ModelProvider): {
   };
 }
 
-/** The status columns every meeting row carries. */
-export interface RustMeetingStatus {
-  status: MeetingStatus['status'];
-  failed_step: MeetingStatus['failedStep'] | null;
-  error: string | null;
-}
-
-export function toMeetingStatus(row: RustMeetingStatus): MeetingStatus {
-  const status: MeetingStatus = { status: row.status };
-  if (row.failed_step) status.failedStep = row.failed_step;
+/** The status columns every meeting row carries; Rust stores them as plain strings it alone writes. */
+export function toMeetingStatus(row: MeetingStatusRow): MeetingStatus {
+  const status: MeetingStatus = { status: row.status as MeetingStatus['status'] };
+  if (row.failed_step) status.failedStep = row.failed_step as NonNullable<MeetingStatus['failedStep']>;
   if (row.error) status.error = row.error;
   return status;
 }
 
-export interface RustMeetingRow extends RustMeetingStatus {
-  id: string;
-  title: string;
-  input_source: string | null;
-  calendar_event_id: string | null;
-  calendar_meta: string | null;
-  created_at: number;
-  updated_at: number;
-  categories: string[];
-  recording_filename: string | null;
-}
-
-export function toMeetingIndexEntry(row: RustMeetingRow): MeetingIndexEntry {
+export function toMeetingIndexEntry(row: MeetingRow): MeetingIndexEntry {
   const entry: MeetingIndexEntry = {
     id: row.id,
     title: row.title,

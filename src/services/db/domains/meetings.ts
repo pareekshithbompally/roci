@@ -7,29 +7,20 @@ import {
   rustNoteToEntry,
   rustTodoToEntry,
   toMeetingIndexEntry,
-  type RustMeetingRow,
-  type RustMeetingStatus,
 } from '@services/db/internal';
 import type { MeetingIndexEntry, TranscriptData, RecordingMeta, MeetingDetail, MeetingSummary } from '@shared/types';
 import type { MeetingStatus, MeetingStep, MeetingStepEnd } from '@shared/types/meetingPhase';
+import type {
+  MeetingCreateInput,
+  MeetingDetailRow,
+  MeetingListResult,
+  MeetingUpsertInput,
+  MeetingsDeleteResult,
+  SummarySaveInput,
+  TranscriptSaveInput,
+} from '@shared/types/native';
 
-interface RustMeetingDetail extends RustMeetingStatus {
-  id: string;
-  title: string;
-  input_source: string | null;
-  calendar_event_id: string | null;
-  calendar_meta: string | null;
-  created_at: number;
-  updated_at: number;
-  categories: string[];
-  transcript: { text: string; language: string | null; model: string | null; segments: string | null; created_at: number } | null;
-  summary: { overview: string; data: string; created_at: number; updated_at: number } | null;
-  recordings: Array<{ id: string; filename: string; duration_seconds: number | null; input_source: string | null; created_at: number }>;
-  notes: Array<{ id: string; text: string; created_at: number; updated_at: number }>;
-  todos: Array<{ id: string; text: string; owner: string | null; due_date: string | null; completed: boolean; source: string; created_at: number }>;
-}
-
-function toDetail(result: RustMeetingDetail): MeetingDetail {
+function toDetail(result: MeetingDetailRow): MeetingDetail {
   const recording = result.recordings[0];
   const index = toMeetingIndexEntry({ ...result, recording_filename: recording?.filename ?? null });
   const detail: MeetingDetail = {
@@ -68,14 +59,14 @@ const toCalendarMeta = (meta?: Record<string, unknown>): string | null => (meta 
 export const meetings = {
   /** List meetings, paginated. */
   async list(limit = 50, offset = 0): Promise<{ items: MeetingIndexEntry[]; total: number }> {
-    const result = await call<{ items: RustMeetingRow[]; total: number }>('meetings_list', { limit, offset });
+    const result = await call<MeetingListResult>('meetings_list', { limit, offset });
     return { items: result.items.map(toMeetingIndexEntry), total: result.total };
   },
 
   /** Full meeting detail with transcript, summary, notes, todos, recording; null when missing. */
   async get(id: string): Promise<MeetingDetail | null> {
     try {
-      return toDetail(await call<RustMeetingDetail>('meetings_get', { id }));
+      return toDetail(await call<MeetingDetailRow>('meetings_get', { id }));
     } catch (error: unknown) {
       const storeErr = parseStoreError(error);
       if (storeErr.code === 'not_found') return null;
@@ -104,7 +95,7 @@ export const meetings = {
         calendar_event_id: input.calendarEventId ?? null,
         calendar_meta: toCalendarMeta(input.calendarMeta),
         created_at: input.createdAt ?? null,
-      },
+      } satisfies MeetingCreateInput,
     });
   },
 
@@ -127,7 +118,7 @@ export const meetings = {
         calendar_meta: toCalendarMeta(input.calendarMeta),
         categories: input.categories ?? null,
         created_at: input.createdAt ?? null,
-      },
+      } satisfies MeetingUpsertInput,
     });
   },
 
@@ -161,7 +152,7 @@ export const meetings = {
         language: input.language ?? null,
         model: input.model ?? null,
         segments: input.segments ?? null,
-      },
+      } satisfies TranscriptSaveInput,
     });
   },
 
@@ -185,13 +176,13 @@ export const meetings = {
         }),
         categories: input.categories,
         action_items: summary.actionItems.map((a) => ({ text: a.text, owner: a.owner ?? null, due_date: a.dueDate ?? null })),
-      },
+      } satisfies SummarySaveInput,
     });
   },
 
   /** Delete a meeting and all its cascading children. Returns recording filenames for cleanup. */
   async delete(id: string): Promise<{ recordingFilenames: string[] }> {
-    const result = await call<{ recording_filenames: string[] }>('meetings_delete', { id });
+    const result = await call<MeetingsDeleteResult>('meetings_delete', { id });
     return { recordingFilenames: result.recording_filenames };
   },
 };
