@@ -2,6 +2,7 @@
 
 pub mod catalog;
 pub mod commands;
+pub mod gpu;
 pub mod store;
 
 use std::sync::atomic::{AtomicU64, Ordering};

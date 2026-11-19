@@ -9,6 +9,7 @@ use std::sync::{Mutex, Once};
 use serde::Serialize;
 use transcribe_cpp::{DeviceType, Model, RunOptions, Session, SessionOptions};
 
+use crate::models::gpu::{self, Priority};
 use crate::models::LocalError;
 use crate::sync::lock;
 
@@ -101,7 +102,7 @@ impl Engine {
             let mut out = Vec::new();
             for window in windows(pcm, loaded.max_samples) {
                 let span = (seconds(window.start), seconds(window.end));
-                let transcript = loaded.session.run(&pcm[window], &options).map_err(engine_error)?;
+                let transcript = gpu::run(Priority::Realtime, || loaded.session.run(&pcm[window], &options)).map_err(engine_error)?;
                 out.extend(timed(transcript, span));
             }
             Ok(out)

@@ -10,6 +10,7 @@ use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::models::catalog::{self, Kind};
+use crate::models::gpu::{self, Priority};
 use crate::models::{blocking, store, LocalError};
 
 type EventFn = extern "C" fn(*mut c_void, *const c_char);
@@ -111,7 +112,7 @@ pub async fn mlx_chat(app: AppHandle, model: String, mut request: Value, on_even
         let context = &on_event as *const Channel<Value> as *mut c_void;
         // SAFETY: `roci_mlx_chat` blocks until the reply ends and only calls `forward` with `context` meanwhile, while
         // `on_event` is alive on this frame; the returned string is ours to free.
-        take(unsafe { roci_mlx_chat(request.as_ptr(), forward, context) })
+        take(gpu::run(Priority::Interactive, || unsafe { roci_mlx_chat(request.as_ptr(), forward, context) }))
     })
     .await;
     rearm_idle(&app, Role::Chat);
@@ -132,7 +133,7 @@ pub async fn mlx_embed(app: AppHandle, model: String, texts: Vec<String>) -> Res
     let result = blocking(move || {
         let request = to_c(&json!({ "modelDir": dir, "texts": texts }))?;
         // SAFETY: `request` outlives the call; the returned string is ours to free.
-        take(unsafe { roci_mlx_embed(request.as_ptr()) })
+        take(gpu::run(Priority::Background, || unsafe { roci_mlx_embed(request.as_ptr()) }))
     })
     .await;
     rearm_idle(&app, Role::Embedding);
@@ -145,7 +146,7 @@ pub fn speak(dir: &std::path::Path, text: &str, voice: Option<&str>) -> Result<(
     use base64::Engine as _;
     let request = to_c(&json!({ "modelDir": dir, "text": text, "voice": voice }))?;
     // SAFETY: `request` outlives the call; the returned string is ours to free.
-    let reply = take(unsafe { roci_mlx_speak(request.as_ptr()) })?;
+    let reply = take(gpu::run(Priority::Interactive, || unsafe { roci_mlx_speak(request.as_ptr()) }))?;
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(reply["samples"].as_str().unwrap_or_default())
         .map_err(|e| LocalError::Engine(e.to_string()))?;
@@ -200,8 +201,10 @@ fn rearm_idle(app: &AppHandle, role: Role) {
     });
 }
 
-/// Sends one Swift event to the webview channel passed as `context`.
+/// Sends one Swift event to the webview channel passed as `context`; between pieces of the reply, speech-to-text that is
+/// waiting runs first.
 extern "C" fn forward(context: *mut c_void, event: *const c_char) {
+    gpu::step_aside(Priority::Interactive);
     // SAFETY: `context` is the `Channel` `mlx_chat` passed, alive for the whole call; `event` is a valid C string for
     // the duration of this callback.
     let (channel, event) = unsafe { (&*(context as *const Channel<Value>), CStr::from_ptr(event)) };

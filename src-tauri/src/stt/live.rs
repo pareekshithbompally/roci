@@ -10,6 +10,7 @@ use transcribe_cpp::{Stream, StreamOptions};
 
 use super::engine::{engine_error, Loaded};
 use super::SttState;
+use crate::models::gpu::{self, Priority};
 use crate::models::LocalError;
 
 /// The text so far: what's settled, then what's still being revised.
@@ -87,10 +88,10 @@ fn serve(loaded: &mut Loaded, language: &str, ready: &Sender<Result<(), LocalErr
     let _ = ready.send(Ok(()));
     for (request, reply) in inbox {
         let finishing = matches!(request, Request::Finish);
-        let update = match request {
+        let update = gpu::run(Priority::Realtime, || match request {
             Request::Feed(pcm) => stream.feed(&pcm),
             Request::Finish => stream.finalize(),
-        };
+        });
         let _ = reply.send(update.map(|_| LiveText::of(&stream)).map_err(engine_error));
         if finishing {
             return Ok(());
