@@ -121,7 +121,7 @@ describe('RecordingMeetingView', () => {
     expect(screen.getByRole('textbox', { name: 'Your notes' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: /AI notes/ }));
     expect(screen.queryByRole('textbox', { name: 'Your notes' })).not.toBeInTheDocument();
-    expect(screen.getByText(/Choose a Summary model/)).toBeInTheDocument();
+    expect(screen.getByText(/No Summary model is chosen/)).toBeInTheDocument();
   });
 
   it('keeps one status while chunks are transcribed, and says so when the live transcript stops', () => {

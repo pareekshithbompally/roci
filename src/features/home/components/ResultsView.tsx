@@ -128,8 +128,8 @@ const MeetingTitle: React.FC<{ title: string; onEdit: () => void; children?: Rea
 
 /** The Transcript tab: the saved transcript (or the in-call one until it is saved) beside the meeting's notes, whose AI lines
  *  are the summary's enhanced notes. Keyed by meeting, so each meeting's notes load fresh. */
-const TranscriptTab: React.FC<{ meetingId: string; result: ProcessedResult; phase: MeetingPhase }> = ({ meetingId, result, phase }) => {
-  const { type, hasModel } = useLiveNotes(meetingId, false);
+const TranscriptTab: React.FC<{ meetingId: string; result: ProcessedResult; phase: MeetingPhase; loading: boolean }> = ({ meetingId, result, phase, loading }) => {
+  const { type, modelProblem } = useLiveNotes(meetingId, false);
   const draft = useDraftSegments(meetingId);
   const enhanced = result.structuredSummary?.enhancedNotes;
   const bullets = useAiBullets(meetingId, enhanced);
@@ -139,14 +139,14 @@ const TranscriptTab: React.FC<{ meetingId: string; result: ProcessedResult; phas
     label: saved || draft.length === 0 ? NOTES.copy.transcript : NOTES.copy.draftTranscript,
     segments: saved ? result.segments ?? [] : draft,
     text: saved ? result.transcript : undefined,
-    empty: busy ? LIVE.copy.finalizing : meetingPhaseDetail(phase) ?? LIVE.copy.none,
+    empty: loading ? '' : busy ? LIVE.copy.finalizing : meetingPhaseDetail(phase) ?? LIVE.copy.none,
     footer: !saved && busy ? LIVE.copy.finalizing : undefined,
     follow: false,
   };
   return (
     <MeetingWorkspace
       transcript={transcript}
-      notes={{ onType: type, hasModel, bullets, writing: busy, live: false, initialView: (enhanced?.length ?? 0) > 0 || bullets.length > 0 ? 'ai' : 'notes' }}
+      notes={{ onType: type, modelProblem, bullets, writing: busy, live: false, initialView: (enhanced?.length ?? 0) > 0 || bullets.length > 0 ? 'ai' : 'notes' }}
     />
   );
 };
@@ -154,7 +154,7 @@ const TranscriptTab: React.FC<{ meetingId: string; result: ProcessedResult; phas
 export const ResultsView: React.FC = () => {
   const activeResultTab = useActiveResultTab();
   const selectedHistoryId = useSelectedHistoryId();
-  const result = useMeetingResult(selectedHistoryId);
+  const { result, loading } = useMeetingResult(selectedHistoryId);
   const { setActiveResultTab } = useAppActions();
   const { items: historyItems, renameItem } = useHistoryData();
 
@@ -285,11 +285,11 @@ export const ResultsView: React.FC = () => {
         // the record screen's frame exactly: the panes run to the window's bottom edge, open there
         <div className={`${LAYOUT.pageGutter} flex-1 overflow-hidden pt-4`}>
           <div className={`${LAYOUT.pageColumn} h-full flex flex-col min-h-0`}>
-            <TranscriptTab key={currentHistoryItem.id} meetingId={currentHistoryItem.id} result={result} phase={phase} />
+            <TranscriptTab key={currentHistoryItem.id} meetingId={currentHistoryItem.id} result={result} phase={phase} loading={loading} />
           </div>
         </div>
       ) : activeResultTab === 'summary' ? (
-        <SummaryTab result={result} phase={phase} meetingId={currentHistoryItem?.id} />
+        <SummaryTab result={result} phase={phase} meetingId={currentHistoryItem?.id} loading={loading} />
       ) : (
         <div className={cn('flex-1 overflow-y-auto custom-scrollbar pt-4', LAYOUT.pageGutter, LAYOUT.meetingChatClearance)}>
           <div className={`${LAYOUT.pageColumn} min-h-full flex flex-col`}>

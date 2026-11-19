@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { canStream } from '@services/ai/transcription/streaming';
 import { liveModeOf } from '@services/ai/transcription/live';
-import { liveStreams } from '@features/recording/live/liveStreams';
+import { liveStreams } from '@services/ai/transcription/liveStreams';
 import type { LiveStream, SpeechModelOption } from '@services/ai/transcription';
 
 const option = (provider: string, model: string, live: boolean): SpeechModelOption => ({ provider, model, label: model, ready: true, hint: null, live });

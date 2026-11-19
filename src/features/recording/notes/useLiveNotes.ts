@@ -15,10 +15,13 @@ import { liveNotes, useLiveNotesStore } from './liveNotesStore';
 
 const report = (step: string) => (error: unknown) => console.error(`[useLiveNotes] ${step} failed:`, error);
 
-/** The Summary model, when it can be called (the same check the summary makes). */
-function useSummaryModel(): ResolvedModel | null {
+/** The Summary model when it can be called, or the setup problem in the way (the same check the summary makes). */
+function useSummaryModel(): { model: ResolvedModel | null; problem: string | null } {
   const { settings, providers } = useSettings();
-  return useMemo(() => summaryModel(settings, providers).model ?? null, [settings, providers]);
+  return useMemo(() => {
+    const check = summaryModel(settings, providers);
+    return { model: check.model ?? null, problem: check.problem?.message ?? null };
+  }, [settings, providers]);
 }
 
 /** Saves the typed lines as the meeting's notes: new lines added under their own ids, edited ones updated, emptied ones deleted. */
@@ -57,7 +60,7 @@ function useSaveLines(meetingId: string) {
 export function useLiveNotes(meetingId: string, live: boolean) {
   // first, so a meeting's saved lines are seeded into its own notes, never into the previous meeting's
   useEffect(() => liveNotes.start(meetingId), [meetingId]);
-  const model = useSummaryModel();
+  const { model, problem: modelProblem } = useSummaryModel();
   const refreshModel = live ? model : null;
   const entries = useMeetingLiveStore((s) => s.entries);
   const save = useSaveLines(meetingId);
@@ -94,5 +97,5 @@ export function useLiveNotes(meetingId: string, live: boolean) {
     typingTimer.current = setTimeout(onTypingPause, NOTES.typingIdleMs);
   }, [onTypingPause]);
 
-  return { type, flush, hasModel: model !== null };
+  return { type, flush, modelProblem };
 }

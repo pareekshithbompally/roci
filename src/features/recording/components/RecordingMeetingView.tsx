@@ -63,7 +63,7 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
   const { settings } = useSettings();
   const { items } = useHistoryData();
   const clock = useClock();
-  const { type, flush, hasModel } = useLiveNotes(meetingId, true);
+  const { type, flush, modelProblem } = useLiveNotes(meetingId, true);
 
   const title = items.find((item) => item.id === meetingId)?.title ?? 'Recording';
   const unavailable = [LIVE.copy.unavailable, reason].filter(Boolean).join(' ');
@@ -94,7 +94,7 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
         <div className={`${LAYOUT.pageColumn} h-full flex flex-col min-h-0`}>
           <MeetingWorkspace
             transcript={transcript}
-            notes={{ onType: type, hasModel, bullets, writing: updating, live: true, initialView: 'notes' }}
+            notes={{ onType: type, modelProblem, bullets, writing: updating, live: true, initialView: 'notes' }}
           />
         </div>
       </div>

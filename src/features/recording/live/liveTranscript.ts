@@ -5,7 +5,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { MEETING_LIVE_CONFIG as LIVE, type MeetingSourceId } from '@config/meetingLive.config';
-import { openLiveStream, type TranscriptResult } from '@services/ai/transcription';
+import { liveStreams, openLiveStream, type LiveStreams, type StreamLine, type TranscriptResult } from '@services/ai/transcription';
 import { readySpeechSelection, transcribeAudio } from '@services/unifiedAIService';
 import { errorMessage } from '@shared/utils/errors';
 import { encodeWavInt16, pcm16ToSamples } from '@shared/utils/wav.utils';
@@ -13,7 +13,6 @@ import type { LiveChunk } from '@shared/types/native';
 import type { AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { meetingLiveActions } from './meetingLiveStore';
-import { liveStreams, type LiveStreams } from './liveStreams';
 
 /** One transcribed chunk of one source, on the recording's timeline. */
 export interface LiveEntry {
@@ -39,7 +38,7 @@ interface Session {
   /** The loop transcribing `waiting` one chunk at a time; null when idle. */
   draining: Promise<void> | null;
   /** A streaming model's streams, one per source; null when the model goes live in chunks. */
-  streams: LiveStreams | null;
+  streams: LiveStreams<MeetingSourceId> | null;
   unlisten: () => void;
 }
 
@@ -260,8 +259,8 @@ async function openStream(read: Reader) {
 /** A stream's lines join the session's draft (echo removed) the same way chunk results do. */
 function streamSink(current: Session) {
   return {
-    line(entry: LiveEntry) {
-      current.entries.push(entry);
+    line(line: StreamLine<MeetingSourceId>) {
+      current.entries.push({ ...line, timed: false });
       showDraft(current);
     },
     partial(source: MeetingSourceId, text: string) {

@@ -24,23 +24,23 @@ describe('useMeetingResult', () => {
     detail.get.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
     const { wrapper } = setup();
     const { result } = renderHook(() => useMeetingResult('m1'), { wrapper });
-    expect(result.current).toMatchObject({ title: 'Weekly sync', transcript: '' });
+    expect(result.current).toMatchObject({ loading: true, result: { title: 'Weekly sync', transcript: '' } });
     finish(stored('Weekly sync', 'hello'));
-    await waitFor(() => expect(result.current?.transcript).toBe('hello'));
+    await waitFor(() => expect(result.current).toMatchObject({ loading: false, result: { transcript: 'hello' } }));
   });
 
   it('reads the meeting again when the store announces a change (under the meetings key)', async () => {
     detail.get.mockResolvedValueOnce(stored('Weekly sync', 'draft')).mockResolvedValueOnce(stored('Weekly sync', 'final'));
     const { client, wrapper } = setup();
     const { result } = renderHook(() => useMeetingResult('m1'), { wrapper });
-    await waitFor(() => expect(result.current?.transcript).toBe('draft'));
+    await waitFor(() => expect(result.current.result?.transcript).toBe('draft'));
     await client.invalidateQueries({ queryKey: queryKeys.meetings() });
-    await waitFor(() => expect(result.current?.transcript).toBe('final'));
+    await waitFor(() => expect(result.current.result?.transcript).toBe('final'));
   });
 
   it('is nothing when no meeting is open', () => {
     const { wrapper } = setup();
     const { result } = renderHook(() => useMeetingResult(null), { wrapper });
-    expect(result.current).toBeNull();
+    expect(result.current.result).toBeNull();
   });
 });

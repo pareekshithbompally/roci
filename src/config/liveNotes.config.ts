@@ -19,7 +19,6 @@ export const LIVE_NOTES_CONFIG = {
     placeholder: 'Type shorthand, one thought per line. Each line is filled in from what was being said.',
     aiEmpty: 'AI notes build here as the meeting goes. Lines you jot in Your notes are filled in and given more detail.',
     aiEmptyAfter: 'Lines you jot in Your notes are filled in from the transcript when the summary is written.',
-    noModel: 'Choose a Summary model in Settings › Default Models to fill in your notes.',
     sections: 'Meeting sections',
   },
 } as const;

@@ -4,7 +4,7 @@ export { useLocalServers } from './useLocalServers';
 export { useLocalServerProbe } from './useLocalServerProbe';
 export { useProviderConnection } from './useProviderConnection';
 export type { ConnectionStatus, ProviderConnection } from './useProviderConnection';
-export { useSpeechModelOptions, useSpeechInputReady, useLiveDictation, freshSpeechSources } from './useSpeechModels';
+export { useSpeechModelOptions, useSelectedSpeechOption, useSpeechInputReady, useLiveDictation, freshSpeechSources } from './useSpeechModels';
 export type { LiveDictation } from './useSpeechModels';
 export { useAIReadiness, useOpenAISetup } from './useAIReadiness';
 export type { AIReadiness } from './useAIReadiness';

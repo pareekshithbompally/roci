@@ -1,9 +1,10 @@
 /** Agentic tool loop: one streamText call where the LLM picks tools; called only by chatStore.sendMessage(). */
 
+import { missingKey } from '@services/ai/jobModel';
 import { streamText, isStepCount } from 'ai';
 import type { ModelMessage, TextStreamPart, ToolSet } from 'ai';
 import { createModel, reasoningCallSettings, toSDKMessages, getWebSearchTools, toExecutableTools } from '@services/ai';
-import { getProviderType, requiresApiKey } from '@shared/utils/modelResolver';
+import { getProviderType } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { getModelDisplayName, isLocalProviderId } from '@shared/utils/provider.utils';
 import { describeModel, fitsJob } from '@services/ai/models';
@@ -36,9 +37,8 @@ export function stripWebCitations(text: string, webSearchActive: boolean): strin
 
 /** The chat's model, ready to call — or why it can't run. */
 function chatModelOrThrow(resolved: ResolvedModel): ResolvedModel {
-  if (requiresApiKey(resolved) && !resolved.apiKey) {
-    throw new Error(`API key not configured for ${resolved.provider}. Please add it in Settings → Providers.`);
-  }
+  const keyProblem = missingKey(resolved);
+  if (keyProblem) throw keyProblem;
   if (!fitsJob(describeModel(resolved.provider, resolved.model), 'chat')) {
     throw new Error(`${getModelDisplayName(resolved.model)} doesn't chat (it doesn't take and give text). Pick a chat model.`);
   }

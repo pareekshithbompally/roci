@@ -32,14 +32,13 @@ const todo = (id: string, completed = false, meetingTitle: string | null = 'Stan
 beforeEach(() => {
   vi.clearAllMocks();
   service.checkAccess.mockResolvedValue('authorized');
-  db.listForMeeting.mockResolvedValue([todo('a'), todo('b', true)]);
   db.get.mockImplementation(async (ids: string[]) => [todo('a'), todo('b', true), todo('own', false, null)].filter((t) => ids.includes(t.id)));
   remindersSync.configure({ enabled: true, listId: 'L1' });
 });
 
 describe('remindersSync', () => {
-  it('addedForMeeting: creates reminders for the meeting action items, tagged and dated', async () => {
-    await remindersSync.addedForMeeting('m1');
+  it('added: creates reminders for a summary\'s new action items, tagged and dated', async () => {
+    await remindersSync.added(['a', 'b']);
     const items = service.upsert.mock.calls[0][0];
     expect(items).toHaveLength(2);
     expect(items[0]).toEqual({

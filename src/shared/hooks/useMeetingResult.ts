@@ -22,10 +22,11 @@ export function buildMeetingResult(detail: MeetingDetail): ProcessedResult {
   };
 }
 
-/** The meeting `id` for the view; null when none is open. */
-export function useMeetingResult(id: string | null): ProcessedResult | null {
+/** The open meeting for the view: null when none is open; `loading` while only its listed title is known (the view shows the
+ *  title and holds its tabs blank rather than claiming there is no summary or transcript). */
+export function useMeetingResult(id: string | null): { result: ProcessedResult | null; loading: boolean } {
   const listed = useHistoryData().items.find((item) => item.id === id);
-  const { data } = useQuery({
+  const { data, isPlaceholderData } = useQuery({
     queryKey: queryKeys.meetingDetail(id ?? ''),
     queryFn: async () => {
       const detail = await meetingService.getMeetingDetail(id ?? '');
@@ -34,5 +35,5 @@ export function useMeetingResult(id: string | null): ProcessedResult | null {
     enabled: id !== null,
     placeholderData: listed ? { title: listed.title, transcript: '', summary: '', categories: listed.categories } : undefined,
   });
-  return id === null ? null : data ?? null;
+  return { result: id === null ? null : data ?? null, loading: isPlaceholderData };
 }

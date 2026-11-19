@@ -26,3 +26,4 @@ export type { TodosListResult } from './TodosListResult';
 export type { TodoWithReminder } from './TodoWithReminder';
 export type { TranscriptRow } from './TranscriptRow';
 export type { TranscriptSaveInput } from './TranscriptSaveInput';
+export type { SummarySaved } from './SummarySaved';

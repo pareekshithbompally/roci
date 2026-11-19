@@ -10,7 +10,8 @@ import { useLiveNotesStore } from './liveNotesStore';
 /** What the notes pane shows besides the user's lines. */
 export interface NotesPaneProps {
   onType: (text: string) => void;
-  hasModel: boolean;
+  /** Why the AI lines can't be written (no Summary model, a missing key), in words to show; null when they can. */
+  modelProblem: string | null;
   /** The AI lines: live ones while recording, the summary's once written. */
   bullets: Bullet[];
   /** AI lines are being written now (a live refresh, or the summary): the notes still waiting shimmer. */
@@ -50,10 +51,10 @@ export const YourNotes: React.FC<{ onType: (text: string) => void; autoFocus: bo
   );
 };
 
-type AiNotesProps = Pick<NotesPaneProps, 'hasModel' | 'bullets' | 'writing' | 'live'>;
+type AiNotesProps = Pick<NotesPaneProps, 'modelProblem' | 'bullets' | 'writing' | 'live'>;
 
-function aiEmptyCopy({ hasModel, live }: AiNotesProps): string {
-  if (!hasModel) return NOTES.copy.noModel;
+function aiEmptyCopy({ modelProblem, live }: AiNotesProps): string {
+  if (modelProblem) return modelProblem;
   return live ? NOTES.copy.aiEmpty : NOTES.copy.aiEmptyAfter;
 }
 

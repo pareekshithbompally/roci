@@ -48,28 +48,34 @@ export interface LiveDictation {
   open: () => Promise<LiveStream>;
 }
 
+/** The chosen speech model's option (what it is, whether it can run, whether it streams); undefined when none is chosen. */
+export function useSelectedSpeechOption(): SpeechModelOption | undefined {
+  const { settings } = useSettings();
+  const options = useSpeechModelOptions();
+  const { transcriptionProvider, transcriptionModel } = settings;
+  return useMemo(() => {
+    const selection = speechSelectionOf({ transcriptionProvider, transcriptionModel });
+    return selection ? options.find((o) => o.provider === selection.provider && o.model === selection.model) : undefined;
+  }, [transcriptionProvider, transcriptionModel, options]);
+}
+
 /** Streaming dictation when Real-time transcription is on and the model streams; null → transcribe the clip at end. */
 export function useLiveDictation(): LiveDictation | null {
   const { settings, providers } = useSettings();
-  const options = useSpeechModelOptions();
-  const { liveTranscription, transcriptionProvider, transcriptionModel } = settings;
+  const option = useSelectedSpeechOption();
+  const live = !!settings.liveTranscription;
   return useMemo(() => {
-    const selection = speechSelectionOf({ transcriptionProvider, transcriptionModel });
-    if (!liveTranscription || !selection) return null;
-    const option = options.find((o) => o.provider === selection.provider && o.model === selection.model);
-    if (!option?.ready || liveModeOf(option, providers, 1) !== 'streams') return null;
-    return { open: () => openLiveStream(selection, providers) };
-  }, [liveTranscription, transcriptionProvider, transcriptionModel, options, providers]);
+    if (!live || !option?.ready || liveModeOf(option, providers, 1) !== 'streams') return null;
+    return { open: () => openLiveStream(option, providers) };
+  }, [live, option, providers]);
 }
 
 /** What the chosen speech model does live, for the Real-time Transcription footer: streams (dictation and meetings),
  *  streams dictation only (an engine with one stream at a time), or near-live chunks; nothing when none is chosen. */
 export function useLiveModeLine(): string | null {
-  const { settings, providers } = useSettings();
-  const options = useSpeechModelOptions();
-  const selection = speechSelectionOf(settings);
-  if (!selection) return null;
-  const option = options.find((o) => o.provider === selection.provider && o.model === selection.model);
+  const { providers } = useSettings();
+  const option = useSelectedSpeechOption();
+  if (!option) return null;
   const { liveCopy } = TRANSCRIPTION_CONFIG;
   if (liveModeOf(option, providers, MEETING_LIVE_CONFIG.sources) === 'streams') return liveCopy.streams;
   return liveModeOf(option, providers, 1) === 'streams' ? liveCopy.dictationOnly : liveCopy.chunks;

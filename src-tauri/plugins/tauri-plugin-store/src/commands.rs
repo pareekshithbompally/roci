@@ -1129,8 +1129,17 @@ fn transcripts_save_impl(db: &Connection, input: &TranscriptSaveInput) -> Result
 const REPLACED_AI_TODOS: &str = "meeting_id = ?1 AND source = 'ai' AND completed = 0
                AND id NOT IN (SELECT todo_id FROM reminders WHERE status = 'scheduled')";
 
-/// Saves the summary and its action items; returns the ids of the old AI to-dos it replaced.
-fn summaries_save_impl(db: &Connection, input: &SummarySaveInput) -> Result<Vec<String>, StoreError> {
+/// What saving a summary did to the meeting's to-dos, so the webview mirrors exactly that (Reminders): the old AI to-dos it
+/// replaced, and the new ones it added.
+#[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
+pub struct SummarySaved {
+    pub replaced_todo_ids: Vec<String>,
+    pub new_todo_ids: Vec<String>,
+}
+
+/// Saves the summary and its action items.
+fn summaries_save_impl(db: &Connection, input: &SummarySaveInput) -> Result<SummarySaved, StoreError> {
         let now = now_millis();
         let tx = db.unchecked_transaction()?;
         tx.execute(
@@ -1158,12 +1167,15 @@ fn summaries_save_impl(db: &Connection, input: &SummarySaveInput) -> Result<Vec<
             let cat_ids = upsert_categories(&tx, &input.categories, now)?;
             sync_meeting_categories(&tx, &input.meeting_id, &cat_ids)?;
         }
+        let mut added = Vec::with_capacity(input.action_items.len());
         for item in &input.action_items {
+            let id = generate_id();
             tx.execute(
                 "INSERT INTO todos (id, meeting_id, text, owner, due_date, completed, source, created_at)
                  VALUES (?1, ?2, ?3, ?4, ?5, 0, 'ai', ?6)",
-                rusqlite::params![generate_id(), input.meeting_id, item.text, item.owner, item.due_date, now],
+                rusqlite::params![id, input.meeting_id, item.text, item.owner, item.due_date, now],
             )?;
+            added.push(id);
         }
         meetings_set_status_impl(&tx, &input.meeting_id, &MeetingStatus::at("ready"))?;
         write_audit_log(&tx, "meeting", &input.meeting_id, "update", None)?;
@@ -1174,12 +1186,12 @@ fn summaries_save_impl(db: &Connection, input: &SummarySaveInput) -> Result<Vec<
             input.action_items.len(),
             removed.len(),
         );
-        Ok(removed)
+        Ok(SummarySaved { replaced_todo_ids: removed, new_todo_ids: added })
 }
 
 /// A summary with two action items, for tests of what saving one does to the meeting.
 #[cfg(test)]
-pub(crate) fn summaries_save_for_test(db: &Connection, meeting_id: &str, title: &str) -> Result<Vec<String>, StoreError> {
+pub(crate) fn summaries_save_for_test(db: &Connection, meeting_id: &str, title: &str) -> Result<SummarySaved, StoreError> {
     let item = |text: &str| ActionItemInput { text: text.into(), owner: None, due_date: None };
     summaries_save_impl(
         db,
@@ -1222,9 +1234,9 @@ pub async fn transcripts_save(state: State<'_, StoreState>, input: TranscriptSav
     write_meeting(&state, input.meeting_id.clone(), move |db| transcripts_save_impl(db, &input)).await
 }
 
-/// Returns the ids of the AI to-dos the new summary replaced, so the webview can remove their mirrors.
+/// Returns which AI to-dos the new summary replaced and which it added, so the webview mirrors exactly that.
 #[tauri::command]
-pub async fn summaries_save(state: State<'_, StoreState>, input: SummarySaveInput) -> Result<Vec<String>, StoreError> {
+pub async fn summaries_save(state: State<'_, StoreState>, input: SummarySaveInput) -> Result<SummarySaved, StoreError> {
     write_meeting(&state, input.meeting_id.clone(), move |db| summaries_save_impl(db, &input)).await
 }
 

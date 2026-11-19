@@ -73,10 +73,6 @@ export const remindersSync = {
     await withList('add', async (listId) => send(listId, await store.todos.get(todoIds), true));
   },
 
-  /** A meeting's action items, just written by its summary → new reminders. */
-  async addedForMeeting(meetingId: string): Promise<void> {
-    await withList('add', async (listId) => send(listId, await store.todos.listForMeeting(meetingId), true));
-  },
 
   /** An edited or completed to-do → its existing reminder. */
   async changed(todoId: string): Promise<void> {

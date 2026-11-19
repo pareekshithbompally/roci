@@ -36,9 +36,10 @@ export const transcriptionService = {
   async saveSummary(input: SummarySave): Promise<void> {
     // due dates as the to-dos store them (YYYY-MM-DD), whatever form the model wrote them in
     const actionItems = input.summary.actionItems.map((a) => ({ ...a, dueDate: a.dueDate ? normalizeDueDate(a.dueDate) : undefined }));
-    const replacedTodoIds = await store.meetings.saveSummary({ ...input, summary: { ...input.summary, actionItems } });
-    void remindersSync.removed(replacedTodoIds);
-    void remindersSync.addedForMeeting(input.meetingId);
+    const saved = await store.meetings.saveSummary({ ...input, summary: { ...input.summary, actionItems } });
+    // Reminders mirror exactly what changed: the replaced AI to-dos go, only the new ones are added
+    void remindersSync.removed(saved.replaced_todo_ids);
+    void remindersSync.added(saved.new_todo_ids);
     void appleNotesSync.meetingSaved(input.meetingId);
     searchIndexingService.indexMeeting(input.meetingId).catch((error: unknown) =>
       console.error('[TranscriptionService] Meeting indexing failed (non-fatal):', input.meetingId, error));
