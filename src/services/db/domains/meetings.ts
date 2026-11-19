@@ -16,6 +16,7 @@ import type {
   MeetingListResult,
   MeetingUpsertInput,
   MeetingsDeleteResult,
+  NewTranscript,
   SummarySaveInput,
   TranscriptSaveInput,
   SummarySaved,
@@ -75,7 +76,8 @@ export const meetings = {
     }
   },
 
-  /** A new meeting at the start of its pipeline (imports; recordings are created by the recorder). */
+  /** A new meeting at the start of its pipeline (imports; recordings are created by the recorder), with its transcript when it
+   *  arrives with one (one write; the meeting starts `transcribed`). False, changing nothing, when the id already exists. */
   async create(input: {
     id: string;
     title: string;
@@ -85,8 +87,9 @@ export const meetings = {
     calendarEventId?: string;
     calendarMeta?: Record<string, unknown>;
     createdAt?: number;
-  }): Promise<void> {
-    await call<void>('meetings_create', {
+    transcript?: NewTranscript;
+  }): Promise<boolean> {
+    return call<boolean>('meetings_create', {
       input: {
         id: input.id,
         title: input.title,
@@ -96,6 +99,7 @@ export const meetings = {
         calendar_event_id: input.calendarEventId ?? null,
         calendar_meta: toCalendarMeta(input.calendarMeta),
         created_at: input.createdAt ?? null,
+        transcript: input.transcript ?? null,
       } satisfies MeetingCreateInput,
     });
   },
@@ -139,22 +143,8 @@ export const meetings = {
   },
 
   /** Save the transcript; the meeting becomes `transcribed`. */
-  async saveTranscript(input: {
-    meetingId: string;
-    text: string;
-    language?: string;
-    model?: string;
-    segments?: string;
-  }): Promise<void> {
-    await call<void>('transcripts_save', {
-      input: {
-        meeting_id: input.meetingId,
-        text: input.text,
-        language: input.language ?? null,
-        model: input.model ?? null,
-        segments: input.segments ?? null,
-      } satisfies TranscriptSaveInput,
-    });
+  async saveTranscript(meetingId: string, transcript: NewTranscript): Promise<void> {
+    await call<void>('transcripts_save', { input: { meeting_id: meetingId, ...transcript } satisfies TranscriptSaveInput });
   },
 
   /**

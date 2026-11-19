@@ -214,6 +214,7 @@ fn start(app: &AppHandle, options: AudioCaptureOptions) -> Result<String, Captur
             calendar_event_id: options.calendar_event_id,
             calendar_meta: options.calendar_meta,
             created_at: None,
+            transcript: None,
         },
     )?;
     let output = recordings_path(app)?.join(file_name);

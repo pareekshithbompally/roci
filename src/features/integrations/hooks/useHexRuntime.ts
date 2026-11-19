@@ -25,13 +25,20 @@ function notifyImported(count: number): void {
   });
 }
 
-/** One catch-up, reported to the row. Shared by the runtime and "Sync now". */
+/** Meetings a catch-up couldn't import, as the row's message; Sync now (or the next sync) tries them again. */
+const failedMessage = (failed: number): string | null =>
+  failed === 0 ? null : `${failed} ${failed === 1 ? 'meeting' : 'meetings'} couldn't be imported. Sync now to try again.`;
+
+/** One catch-up, reported to the row; meetings that came without Hex's notes go to the pipeline to be summarized. Shared by
+ *  the runtime and "Sync now". */
 export async function runHexCatchUp(): Promise<void> {
   const { syncStarted, syncFinished } = useHexSyncStore.getState();
   syncStarted();
   try {
-    notifyImported(await hexSync.catchUp());
-    syncFinished(null);
+    const { imported, toSummarize, failed } = await hexSync.catchUp();
+    notifyImported(imported);
+    for (const meetingId of toSummarize) void meetingPipeline.run(meetingId);
+    syncFinished(failedMessage(failed));
   } catch (error: unknown) {
     console.error('[useHexRuntime] Catch-up failed:', error);
     syncFinished(hexErrorMessage(error, 'Hex'));

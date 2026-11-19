@@ -72,6 +72,18 @@ pub struct MeetingCreateInput {
     pub calendar_meta: Option<String>,
     #[cfg_attr(test, ts(type = "number | null"))]
     pub created_at: Option<i64>,
+    /// The transcript it arrives with (an import): saved in the same write, and the meeting starts `transcribed`.
+    pub transcript: Option<NewTranscript>,
+}
+
+/// A transcript that comes with a new meeting.
+#[derive(Debug, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
+pub struct NewTranscript {
+    pub text: String,
+    pub language: Option<String>,
+    pub model: Option<String>,
+    pub segments: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -188,10 +200,9 @@ pub struct ActionItemInput {
 #[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
 pub struct TranscriptSaveInput {
     pub meeting_id: String,
-    pub text: String,
-    pub language: Option<String>,
-    pub model: Option<String>,
-    pub segments: Option<String>,
+    #[serde(flatten)]
+    #[cfg_attr(test, ts(flatten))]
+    pub transcript: NewTranscript,
 }
 
 /// A finished summary with its title, categories and action items; saving it moves the meeting to `ready`.
@@ -1067,12 +1078,15 @@ pub async fn meetings_delete(
     Ok(result)
 }
 
-pub(crate) fn meetings_create_impl(db: &Connection, input: &MeetingCreateInput) -> Result<(), StoreError> {
+/// Creates the meeting (and its recording row, and its transcript when it comes with one) in one write. False, changing
+/// nothing, when a meeting with this id already exists: an import that raced another is a no-op, not an error.
+pub(crate) fn meetings_create_impl(db: &Connection, input: &MeetingCreateInput) -> Result<bool, StoreError> {
         let created_at = input.created_at.unwrap_or_else(now_millis);
         let tx = db.unchecked_transaction()?;
-        tx.execute(
+        let inserted = tx.execute(
             "INSERT INTO meetings (id, title, title_source, status, input_source, calendar_event_id, calendar_meta, created_at, updated_at)
-             VALUES (?1, ?2, CASE WHEN ?5 IS NULL THEN 'default' ELSE 'calendar' END, ?3, ?4, ?5, ?6, ?7, ?7)",
+             VALUES (?1, ?2, CASE WHEN ?5 IS NULL THEN 'default' ELSE 'calendar' END, ?3, ?4, ?5, ?6, ?7, ?7)
+             ON CONFLICT(id) DO NOTHING",
             rusqlite::params![
                 input.id,
                 input.title,
@@ -1082,7 +1096,10 @@ pub(crate) fn meetings_create_impl(db: &Connection, input: &MeetingCreateInput) 
                 input.calendar_meta,
                 created_at,
             ],
-        )?;
+        )? > 0;
+        if !inserted {
+            return Ok(false);
+        }
         if let Some(filename) = &input.recording_filename {
             tx.execute(
                 "INSERT INTO recordings (id, meeting_id, filename, input_source, created_at)
@@ -1090,9 +1107,12 @@ pub(crate) fn meetings_create_impl(db: &Connection, input: &MeetingCreateInput) 
                 rusqlite::params![generate_id(), input.id, filename, input.input_source, created_at],
             )?;
         }
+        if let Some(transcript) = &input.transcript {
+            write_transcript(&tx, &input.id, transcript)?;
+        }
         write_audit_log(&tx, "meeting", &input.id, "create", None)?;
         tx.commit()?;
-        Ok(())
+        Ok(true)
 }
 
 pub(crate) fn meetings_set_status_impl(db: &Connection, id: &str, status: &MeetingStatus) -> Result<(), StoreError> {
@@ -1106,9 +1126,8 @@ pub(crate) fn meetings_set_status_impl(db: &Connection, id: &str, status: &Meeti
         Ok(())
 }
 
-fn transcripts_save_impl(db: &Connection, input: &TranscriptSaveInput) -> Result<(), StoreError> {
-        let now = now_millis();
-        let tx = db.unchecked_transaction()?;
+/// Writes a meeting's transcript (replacing any earlier one) and moves the meeting to `transcribed`.
+fn write_transcript(tx: &Connection, meeting_id: &str, transcript: &NewTranscript) -> Result<(), StoreError> {
         tx.execute(
             "INSERT INTO transcripts (meeting_id, text, language, model, segments, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)
@@ -1117,9 +1136,14 @@ fn transcripts_save_impl(db: &Connection, input: &TranscriptSaveInput) -> Result
                 language = excluded.language,
                 model = excluded.model,
                 segments = excluded.segments",
-            rusqlite::params![input.meeting_id, input.text, input.language, input.model, input.segments, now],
+            rusqlite::params![meeting_id, transcript.text, transcript.language, transcript.model, transcript.segments, now_millis()],
         )?;
-        meetings_set_status_impl(&tx, &input.meeting_id, &MeetingStatus::at("transcribed"))?;
+        meetings_set_status_impl(tx, meeting_id, &MeetingStatus::at("transcribed"))
+}
+
+fn transcripts_save_impl(db: &Connection, input: &TranscriptSaveInput) -> Result<(), StoreError> {
+        let tx = db.unchecked_transaction()?;
+        write_transcript(&tx, &input.meeting_id, &input.transcript)?;
         write_audit_log(&tx, "meeting", &input.meeting_id, "update", None)?;
         tx.commit()?;
         Ok(())
@@ -1225,7 +1249,7 @@ where
 }
 
 #[tauri::command]
-pub async fn meetings_create(state: State<'_, StoreState>, input: MeetingCreateInput) -> Result<(), StoreError> {
+pub async fn meetings_create(state: State<'_, StoreState>, input: MeetingCreateInput) -> Result<bool, StoreError> {
     write_meeting(&state, input.id.clone(), move |db| meetings_create_impl(db, &input)).await
 }
 
@@ -3635,18 +3659,64 @@ mod tests {
                 calendar_event_id: Some("evt-123".into()),
                 calendar_meta: Some(r#"{"scheduledTitle":"Standup"}"#.into()),
                 created_at: Some(1234),
+                transcript: None,
             },
         )
         .expect("create meeting");
     }
 
+    fn import(conn: &Connection, id: &str, text: &str) -> bool {
+        meetings_create_impl(
+            conn,
+            &MeetingCreateInput {
+                id: id.into(),
+                title: "From Hex".into(),
+                status: "transcribed".into(),
+                input_source: Some("hex".into()),
+                recording_filename: None,
+                calendar_event_id: None,
+                calendar_meta: None,
+                created_at: Some(1234),
+                transcript: Some(NewTranscript { text: text.into(), language: None, model: None, segments: Some("[]".into()) }),
+            },
+        )
+        .expect("import meeting")
+    }
+
+    #[test]
+    fn an_imported_meeting_arrives_with_its_transcript_in_one_write() {
+        let conn = db();
+        assert!(import(&conn, "hex-1", "We ship Friday"));
+        let (status, text): (String, String) = conn
+            .query_row(
+                "SELECT m.status, t.text FROM meetings m JOIN transcripts t ON t.meeting_id = m.id WHERE m.id = 'hex-1'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("meeting with transcript");
+        assert_eq!((status.as_str(), text.as_str()), ("transcribed", "We ship Friday"));
+    }
+
+    #[test]
+    fn creating_a_meeting_that_exists_changes_nothing() {
+        let conn = db();
+        assert!(import(&conn, "hex-1", "first"));
+        assert!(!import(&conn, "hex-1", "second"));
+        let text: String = conn
+            .query_row("SELECT text FROM transcripts WHERE meeting_id = 'hex-1'", [], |row| row.get(0))
+            .expect("transcript");
+        assert_eq!(text, "first");
+    }
+
     fn transcript(meeting_id: &str) -> TranscriptSaveInput {
         TranscriptSaveInput {
             meeting_id: meeting_id.into(),
-            text: "hello world".into(),
-            language: Some("en".into()),
-            model: Some("whisper-1".into()),
-            segments: None,
+            transcript: NewTranscript {
+                text: "hello world".into(),
+                language: Some("en".into()),
+                model: Some("whisper-1".into()),
+                segments: None,
+            },
         }
     }
 

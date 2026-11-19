@@ -145,13 +145,10 @@ class ImportService {
     if (signal.aborted) throw new Error('Import cancelled');
 
     const format = job.filePath.endsWith('.vtt') ? 'vtt' : 'srt';
-    await store.meetings.create({
-      id: job.meetingId,
-      title: titleOf(job.fileName),
-      status: 'transcribed',
-      inputSource: 'transcript-import',
-    });
-    await transcriptionService.saveTranscript({ meetingId: job.meetingId, text: parseSubtitleFile(text, format) });
+    await transcriptionService.importMeeting(
+      { id: job.meetingId, title: titleOf(job.fileName), inputSource: 'transcript-import' },
+      { text: parseSubtitleFile(text, format) },
+    );
     this.handOff(job.meetingId);
   }
 

@@ -167,6 +167,7 @@ mod tests {
                 calendar_event_id: calendar.map(Into::into),
                 calendar_meta: None,
                 created_at: None,
+                transcript: None,
             },
         )
         .expect("create");

@@ -6,6 +6,7 @@ export type { CategoryRow } from './CategoryRow';
 export type { LiveChunk } from './LiveChunk';
 export type { MeetingChanged } from './MeetingChanged';
 export type { MeetingCreateInput } from './MeetingCreateInput';
+export type { NewTranscript } from './NewTranscript';
 export type { MeetingDetailRow } from './MeetingDetailRow';
 export type { MeetingListResult } from './MeetingListResult';
 export type { MeetingRow } from './MeetingRow';

@@ -46,7 +46,7 @@ describe('store invoke arg shapes match Rust command signatures', () => {
     const { meetings } = await import('@services/db/domains/meetings');
     await meetings.create({ id: 'm1', title: 'Standup', status: 'captured', recordingFilename: 'm1.wav' });
     await meetings.upsert({ id: 'm1', title: 'Renamed' });
-    await meetings.saveTranscript({ meetingId: 'm1', text: 'hello' });
+    await meetings.saveTranscript('m1', { text: 'hello', language: null, model: null, segments: null });
     await meetings.saveSummary({
       meetingId: 'm1',
       title: 'Standup',
