@@ -25,6 +25,8 @@ export interface CalendarEvent {
   notes?: string;
   url?: string;
   calendar_name: string;
+  /** The calendar's own colour (`#rrggbb`), as Calendar.app tints its events. */
+  calendar_color?: string;
   is_all_day: boolean;
   /** Wall-clock milliseconds (native scheduler). */
   start_ms: number;
@@ -40,12 +42,6 @@ export interface CalendarEvent {
 
 /** Calendar authorization status. */
 export type CalendarAccessStatus = 'authorized' | 'denied' | 'not_determined' | 'restricted';
-
-/** Calendar event enriched with derived fields for the frontend. */
-export interface EnrichedCalendarEvent extends CalendarEvent {
-  /** Non-declined attendee count */
-  active_participant_count: number;
-}
 
 /** Calendar integration settings stored in AppSettings. */
 export interface CalendarIntegrationSettings {

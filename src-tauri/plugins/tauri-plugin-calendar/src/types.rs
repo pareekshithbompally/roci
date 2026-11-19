@@ -19,6 +19,9 @@ pub struct CalendarEvent {
     pub notes: Option<String>,
     pub url: Option<String>,
     pub calendar_name: String,
+    /// The calendar's own colour as `#rrggbb` (Calendar.app tints its events with it).
+    #[serde(default)]
+    pub calendar_color: Option<String>,
     pub is_all_day: bool,
     #[serde(default)]
     pub is_cancelled: bool,

@@ -133,7 +133,8 @@ private func fetchEventsJSON(store: EKEventStore, start: Date, end: Date) -> Uns
 
     let mapped: [[String: Any]] = events.map { event in
         var dict: [String: Any] = [
-            "event_id": event.eventIdentifier ?? UUID().uuidString,
+            // Stable across reads (a meeting recorded from it links back): never a random stand-in.
+            "event_id": event.eventIdentifier ?? event.calendarItemIdentifier,
             "title": event.title ?? "Untitled",
             "start_date": formatter.string(from: event.startDate),
             "end_date": formatter.string(from: event.endDate),
@@ -144,6 +145,7 @@ private func fetchEventsJSON(store: EKEventStore, start: Date, end: Date) -> Uns
             "is_free": event.availability == .free,
             "calendar_name": event.calendar?.title ?? "Unknown",
         ]
+        if let color = event.calendar.flatMap({ hexColor($0.cgColor) }) { dict["calendar_color"] = color }
 
         if let loc = event.location, !loc.isEmpty { dict["location"] = loc }
         if let notes = event.notes, !notes.isEmpty { dict["notes"] = notes }
@@ -190,6 +192,15 @@ private func fetchEventsJSON(store: EKEventStore, start: Date, end: Date) -> Uns
     }
 
     return jsonToPtr(["events": mapped])
+}
+
+/// `#rrggbb` from a calendar's colour (sRGB), or nil when it can't be converted.
+private func hexColor(_ color: CGColor?) -> String? {
+    guard let color, let srgb = CGColorSpace(name: CGColorSpace.sRGB),
+          let rgb = color.converted(to: srgb, intent: .defaultIntent, options: nil),
+          let c = rgb.components, c.count >= 3 else { return nil }
+    let byte = { (v: CGFloat) in Int((min(max(v, 0), 1) * 255).rounded()) }
+    return String(format: "#%02x%02x%02x", byte(c[0]), byte(c[1]), byte(c[2]))
 }
 
 private func jsonToPtr(_ dict: [String: Any]) -> UnsafeMutablePointer<CChar> {
