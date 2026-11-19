@@ -157,8 +157,11 @@ static NSMenuItem *rociItem(NSDictionary *entry, RociMenuTarget *target, CGFloat
   NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:entry[@"title"] action:nil keyEquivalent:@""];
   item.subtitle = rociString(entry[@"subtitle"]);
   item.image = rociImage(entry, iconSize);
-  // macOS 27 hides menu item images unless the item asks for them (NSMenuItem.h, preferredImageVisibility).
+  // macOS 27 hides menu item images unless the item asks for them (NSMenuItem.h, preferredImageVisibility). Only an app
+  // built with the macOS 27 SDK opts into that: one built with an older SDK (the release runner's Xcode 26) keeps them.
+#if defined(MAC_OS_VERSION_27_0) && __MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_VERSION_27_0
   if (@available(macOS 27.0, *)) item.preferredImageVisibility = NSMenuItemImageVisibilityVisible;
+#endif
   if ([kind isEqualToString:@"submenu"]) {
     item.submenu = rociMenu(entry[@"items"], target, iconSize);
     return item;
