@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatClockTime } from '@shared/utils/formatters';
 import { Copy, Check, Gauge, Loader2, Square, Volume2 } from 'lucide-react';
 import type { ReadAloud, ReadAloudState } from '@shared/hooks/useReadAloud';
 import SuggestionsList from './SuggestionsList';
@@ -118,7 +119,7 @@ const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
           )}
           {timestamp && (
             <Text variant="caption" tone="faint">
-              {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {formatClockTime(timestamp)}
             </Text>
           )}
         </div>

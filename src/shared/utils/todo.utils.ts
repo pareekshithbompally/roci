@@ -1,6 +1,7 @@
 /** All todo date logic; date-only strings parse as LOCAL midnight (not UTC) so today never shows overdue. */
 
 import type { TodoReminder } from '@shared/types';
+import { formatDate, formatShortDateTime } from '@shared/utils/formatters';
 
 // ── Date parsing (single entry point) ───────────────────────────
 
@@ -75,27 +76,18 @@ export function isReminderOverdue(reminder?: TodoReminder): boolean {
 
 // ── Formatting ──────────────────────────────────────────────────
 
-/** Due date for display: "Mar 28, 2026". */
+/** Due date for display: "28 Mar 2026" in the device's format. */
 export function formatDueDate(dueDate: string): string {
   const d = parseDateLoose(dueDate);
   if (!d) return dueDate;
-  return d.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  return formatDate(d);
 }
 
-/** Reminder datetime for display: "Mar 28 at 9:00 AM". */
+/** Reminder datetime for display: "28 Mar, 09:00" in the device's format. */
 export function formatReminderDate(dateTime: string): string {
   const d = parseDateLoose(dateTime);
   if (!d) return dateTime;
-  return d.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+  return formatShortDateTime(d);
 }
 
 // ── Notification ID ─────────────────────────────────────────────
@@ -119,5 +111,4 @@ export function buildISOFromDateInput(dateStr: string, timeStr?: string): string
 }
 
 /** A meeting's date in to-do lists and pickers: "Nov 18, 2026". */
-export const formatMeetingDate = (ts: number): string =>
-  new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+export const formatMeetingDate = (ts: number): string => formatDate(ts);

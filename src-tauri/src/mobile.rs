@@ -22,6 +22,8 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
     .manage(stt::SttState::default())
     .manage(tts::TtsState::default())
     .invoke_handler(tauri::generate_handler![
+      // The device's date/time formats (the web view's Intl ignores them)
+      crate::system_format::system_format,
       audio::commands::start_audio_capture,
       audio::commands::stop_audio_capture,
       audio::commands::pause_audio_capture,
@@ -68,6 +70,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
   audio::session::watch(app.handle().clone());
   // Meeting reminders: iOS delivers them (scheduled notices with Record), re-armed on calendar changes.
   meeting_reminders::start(app.handle().clone());
+  crate::system_format::watch(app.handle().clone());
   // On-device model loads show in the activity tray.
   mlx::report_loads(app.handle());
   // MCP: connect the remote servers the user left enabled.

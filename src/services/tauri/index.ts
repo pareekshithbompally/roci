@@ -10,3 +10,4 @@ export type { MenubarState, MenubarSpeechModel, MenubarActivity, MenubarRecentMe
 export { nativeMenu } from './nativeMenu.service';
 export type { NativeMenuEntry, NativeMenuResult } from './nativeMenu.service';
 export { forwardConsoleToLog } from './log.service';
+export { loadSystemFormat } from './systemFormat.service';

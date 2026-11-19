@@ -1,6 +1,7 @@
 /** One-way meeting → Apple Notes sync, updating the same note on resave; logs and never throws. */
 
 import { store } from '@services/db';
+import { formatDateTime } from '@shared/utils/formatters';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import { appleNotesService } from './appleNotes.service';
 import type { MeetingDetail } from '@shared/types';
@@ -25,7 +26,7 @@ export const noteTag = (meetingId: string): string => `${COPY.tagPrefix} ${meeti
 /** The note body: title, date, summary sections, transcript, then the tag line. */
 export function noteHtml(meetingId: string, meeting: MeetingDetail): string {
   const { index, summary, transcript } = meeting;
-  const date = new Date(index.createdAt).toLocaleString();
+  const date = formatDateTime(index.createdAt);
   const lines = transcript?.segments?.length
     ? transcript.segments.map((s) => (s.speaker ? `<b>${escape(s.speaker)}:</b> ${escape(s.text)}` : escape(s.text)))
     : (transcript?.text ?? '').split('\n').filter(Boolean).map(escape);

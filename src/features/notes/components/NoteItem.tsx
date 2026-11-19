@@ -1,6 +1,7 @@
 /** A single note with edit and delete actions. */
 
 import React, { useState } from 'react';
+import { formatDateTime } from '@shared/utils/formatters';
 import { Trash2, Edit2, Check, X } from 'lucide-react';
 import type { Note } from '@features/notes/types/notes.types';
 import { IconButton, Text, Textarea } from '@shared/ui';
@@ -11,17 +12,6 @@ interface NoteItemProps {
   onDelete: (noteId: string) => void;
   onUpdate?: (noteId: string, text: string) => void;
 }
-
-const formatDateTime = (timestamp: number) => {
-  const date = new Date(timestamp);
-  return date.toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
 
 const NoteItem: React.FC<NoteItemProps> = ({ note, onDelete, onUpdate }) => {
   const [isEditing, setIsEditing] = useState(false);

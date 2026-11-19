@@ -14,7 +14,7 @@ import {
   Text,
 } from '@shared/ui';
 import { UI_CONFIG } from '@config/ui.config';
-import { calendarDayOffset, formatDayLabel } from '@shared/utils/formatters';
+import { calendarDayOffset, formatDayLabel, formatDate } from '@shared/utils/formatters';
 
 interface MeetingMentionPopupProps {
   meetings: MeetingListItem[];
@@ -29,7 +29,7 @@ function formatTime(timestamp: number) {
   const daysAgo = -calendarDayOffset(timestamp);
   if (daysAgo <= 1) return formatDayLabel(timestamp);
   if (daysAgo < 7) return `${daysAgo} days ago`;
-  return new Date(timestamp).toLocaleDateString();
+  return formatDate(timestamp);
 }
 
 export const MeetingMentionPopup: React.FC<MeetingMentionPopupProps> = ({

@@ -1,21 +1,51 @@
-export function formatDate(date: Date | string | number): string {
-  const d = new Date(date);
-  return d.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+import { systemFormat } from '@shared/stores/systemFormatStore';
+
+export { setSystemFormat } from '@shared/stores/systemFormatStore';
+
+/** `date` in the device's locale, and on its clock when a time is shown (the web view's own defaults ignore the Mac's settings). */
+function format(date: Date | string | number, options: Intl.DateTimeFormatOptions): string {
+  const showsTime = 'hour' in options || 'timeStyle' in options;
+  return new Intl.DateTimeFormat(systemFormat().locale, { ...options, ...(showsTime ? hourOption() : {}) }).format(new Date(date));
 }
 
-export function formatDateTime(date: Date | string | number): string {
-  const d = new Date(date);
-  return d.toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+/** The app's one date style: "19 Nov 2026" / "Nov 19, 2026", as the device writes it. */
+export const formatDate = (date: Date | string | number) => format(date, { dateStyle: 'medium' });
+
+/** Date and time: "19 Nov 2026, 21:28". */
+export const formatDateTime = (date: Date | string | number) => format(date, { dateStyle: 'medium', timeStyle: 'short' });
+
+/** Day and month: "19 Nov". */
+export const formatShortDate = (date: Date | string | number) => format(date, { day: 'numeric', month: 'short' });
+
+/** Day, month and time: "19 Nov, 21:28". */
+export const formatShortDateTime = (date: Date | string | number) => format(date, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+
+/** Weekday, day and month: "Thu, 19 Nov". */
+export const formatWeekdayDate = (date: Date | string | number) => format(date, { weekday: 'short', day: 'numeric', month: 'short' });
+
+/** Month name alone: "Nov". */
+export const formatMonthShort = (date: Date | string | number) => format(date, { month: 'short' });
+
+/** Weekday name: "Thu". */
+export const formatWeekday = (date: Date | string | number) => format(date, { weekday: 'short' });
+
+/** A month as a calendar titles it: "November 2026". */
+export const formatMonth = (date: Date | string | number) => format(date, { month: 'long', year: 'numeric' });
+
+/** A time of day on the device's clock: "21:28" or "9:28 PM". */
+export const formatClockTime = (date: Date | string | number) => format(date, { timeStyle: 'short' });
+
+/** An hour as Calendar's time axis names it: "09:00" on a 24-hour clock, "9 AM" on a 12-hour one. */
+export function formatHour(hour: number): string {
+  const at = new Date(2000, 0, 1, hour);
+  const { hourCycle } = new Intl.DateTimeFormat(systemFormat().locale, { hour: 'numeric', ...hourOption() }).resolvedOptions();
+  return hourCycle === 'h23' || hourCycle === 'h24' ? format(at, { hour: '2-digit', minute: '2-digit' }) : format(at, { hour: 'numeric' });
+}
+
+/** The device's clock as an Intl option, when it is known. */
+function hourOption(): Intl.DateTimeFormatOptions {
+  const { hour24 } = systemFormat();
+  return hour24 === undefined ? {} : { hourCycle: hour24 ? 'h23' : 'h12' };
 }
 
 /** Relative time, e.g. "2 hours ago". */
@@ -79,7 +109,7 @@ export function formatDayLabel(date: Date | string | number, now: Date = new Dat
   if (offset === 1) return 'Tomorrow';
   const d = new Date(date);
   const sameYear = d.getFullYear() === now.getFullYear();
-  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) });
+  return format(d, { weekday: 'short', month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) });
 }
 
 /** Newest-first items as consecutive day groups headed by `labelOf` (Today, Yesterday, then dates). */

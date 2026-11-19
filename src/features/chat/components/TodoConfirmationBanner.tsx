@@ -1,6 +1,7 @@
 /** Pending todo proposals above the chat input, with batch confirm/cancel and per-item removal. */
 
 import React, { useCallback, useState } from 'react';
+import { formatWeekdayDate, formatShortDateTime } from '@shared/utils/formatters';
 import {
   CheckCircle2,
   X,
@@ -207,7 +208,7 @@ const ProposalRow: React.FC<ProposalRowProps> = ({
           {/* Due date chip */}
           <EditableChip
             icon={Calendar}
-            value={p.dueDate ? formatDate(p.dueDate) : null}
+            value={p.dueDate ? formatWeekdayDate(new Date(p.dueDate + 'T00:00:00')) : null}
             placeholder="Due date"
             isEditing={editing?.field === 'dueDate'}
             isDisabled={isDisabled}
@@ -223,7 +224,7 @@ const ProposalRow: React.FC<ProposalRowProps> = ({
           {/* Reminder chip */}
           <EditableChip
             icon={Clock}
-            value={p.reminderDateTime ? formatDateTime(p.reminderDateTime) : null}
+            value={p.reminderDateTime ? formatShortDateTime(p.reminderDateTime) : null}
             placeholder="Reminder"
             isEditing={editing?.field === 'reminderDateTime'}
             isDisabled={isDisabled}
@@ -332,25 +333,5 @@ const EditableChip: React.FC<EditableChipProps> = ({
 
 // ── Formatters ──
 
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', {
-      weekday: 'short', month: 'short', day: 'numeric',
-    });
-  } catch {
-    return iso;
-  }
-}
-
-function formatDateTime(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString('en-US', {
-      weekday: 'short', month: 'short', day: 'numeric',
-      hour: 'numeric', minute: '2-digit',
-    });
-  } catch {
-    return iso;
-  }
-}
 
 export default TodoConfirmationBanner;

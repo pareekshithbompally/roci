@@ -1,6 +1,7 @@
 /** Slide-in meeting summary and transcript for a clicked citation; over the chat, not a window-level dialog. */
 
 import React, { useState, useEffect } from 'react';
+import { formatDate } from '@shared/utils/formatters';
 import { X, ExternalLink, FileText, Mic, ArrowLeft, AudioWaveform, Loader2 } from 'lucide-react';
 import { ParsedTranscript } from '@features/transcription';
 import { Button, Drawer, Row, Tabs, IconButton, Icon, Surface, Text } from '@shared/ui';
@@ -63,12 +64,7 @@ export const MeetingCitationDrawer: React.FC<MeetingCitationDrawerProps> = ({
             </Text>
             {mode === 'detail' && activeCitation && (
               <Text as="p" variant="caption" tone="faint" className="mt-0.5">
-                {new Date(activeCitation.meetingTimestamp).toLocaleDateString('en-US', {
-                  weekday: 'short',
-                  month: 'long',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
+                {formatDate(activeCitation.meetingTimestamp)}
               </Text>
             )}
             {mode === 'list' && citations && (
@@ -102,7 +98,7 @@ export const MeetingCitationDrawer: React.FC<MeetingCitationDrawerProps> = ({
                 <div className="flex flex-col items-start min-w-0 flex-1">
                   <Text variant="bodyStrong" truncate className="w-full">{c.meetingTitle}</Text>
                   <Text variant="caption" tone="faint" className="shrink-0 mt-0.5">
-                    {new Date(c.meetingTimestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {formatDate(c.meetingTimestamp)}
                   </Text>
                 </div>
               </Row>

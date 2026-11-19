@@ -9,18 +9,17 @@ import { useFormFactor } from '@platform/formFactor';
 import { useToast } from '@shared/contexts/ToastContext';
 import { confirmDelete } from '@shared/stores/confirmStore';
 import { copyRichText } from '@shared/utils/clipboard';
-import { formatDayLabel, formatDuration } from '@shared/utils/formatters';
+import { formatDayLabel, formatDuration, formatClockTime } from '@shared/utils/formatters';
 import { useSpeechModelOptions } from '@features/settings/hooks';
 import { LAYOUT } from '@config/layout.config';
 import { DICTATIONS_CONFIG } from '@config/dictations.config';
 import type { Dictation } from '@shared/types';
 import { useDictations } from '@features/dictations/hooks/useDictations';
 
-const timeOf = (createdAt: number) => new Date(createdAt).toLocaleTimeString(undefined, { timeStyle: 'short' });
 
 /** "14:32 · 0:21": when it was said and for how long. */
 const metaOf = (dictation: Dictation) =>
-  [timeOf(dictation.createdAt), dictation.durationMs !== undefined && formatDuration(dictation.durationMs / 1000)].filter(Boolean).join(' · ');
+  [formatClockTime(dictation.createdAt), dictation.durationMs !== undefined && formatDuration(dictation.durationMs / 1000)].filter(Boolean).join(' · ');
 
 interface DictationListProps {
   days: ReturnType<typeof useDictations>['days'];
@@ -69,7 +68,7 @@ const DictationDetail: React.FC<DictationDetailProps> = ({ dictation, speechMode
     <article>
       <Surface as="header" edge="bottom" className={`flex items-start gap-2 ${LAYOUT.listGutter} py-4`}>
         <div className="min-w-0 flex-1">
-          <Text as="h2" variant="title">{timeOf(dictation.createdAt)}</Text>
+          <Text as="h2" variant="title">{formatClockTime(dictation.createdAt)}</Text>
           <div className="flex min-w-0 items-center gap-1.5">
             <Text variant="helper" tone="muted">{facts}</Text>
             {speechModel && (

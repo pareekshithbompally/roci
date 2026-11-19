@@ -4,6 +4,7 @@
  */
 
 import { create } from 'zustand';
+import { formatDateTime } from '@shared/utils/formatters';
 import type { AudioCaptureSource } from '@config/audio.config';
 import { coreAudioService, isPermissionRefusal, captureErrorMessage } from '@services/coreAudio.service';
 import type { RecorderState } from '@services/coreAudio.service';
@@ -87,7 +88,7 @@ async function sync(): Promise<void> {
 }
 
 function titleFor(calendar: CalendarRecordingMeta | null, startedAt: number): string {
-  return calendar?.scheduledTitle || `Recording ${new Date(startedAt).toLocaleString()}`;
+  return calendar?.scheduledTitle || `Recording ${formatDateTime(startedAt)}`;
 }
 
 function calendarMetaOf(calendar: CalendarRecordingMeta): Record<string, unknown> {

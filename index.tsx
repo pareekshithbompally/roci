@@ -4,7 +4,8 @@ import ReactDOM from 'react-dom/client';
 import App from './src/app/App';
 import { platform } from './src/platform/index';
 import { raiseSplash } from './src/app/splash';
-import { forwardConsoleToLog } from './src/services/tauri';
+import { forwardConsoleToLog, loadSystemFormat } from './src/services/tauri';
+import { useSystemLocale } from './src/shared/stores/systemFormatStore';
 import './index.css';
 import './src/styles/markdown.css';
 import './src/styles/glass.css';
@@ -23,11 +24,17 @@ if (!rootElement) {
 
 console.log('[index.tsx] Root element found, creating React root');
 
+/** Remounts the app when the user changes language, region or clock, so every date redraws in the new format (stores keep their state). */
+const Root: React.FC = () => <App key={useSystemLocale()} />;
+
 const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
+// The device's formats first, so the first frame already shows its dates.
+void loadSystemFormat().finally(() =>
+  root.render(
+    <React.StrictMode>
+      <Root />
+    </React.StrictMode>
+  )
 );
 
 console.log('[index.tsx] React root.render called');

@@ -2,6 +2,7 @@
  *  prompt, model and time, and the chat it came from. */
 
 import React, { useState } from 'react';
+import { formatDateTime } from '@shared/utils/formatters';
 import { Images, MessageSquare } from 'lucide-react';
 import { Button, Icon, Lightbox, Surface, Text, Thumbnail, TitlebarSpacer } from '@shared/ui';
 import { EmptyState } from '@shared/components';
@@ -11,7 +12,6 @@ import { LAYOUT } from '@config/layout.config';
 import { GALLERY_CONFIG } from '@config/gallery.config';
 import { useGallery } from '@features/gallery/hooks/useGallery';
 
-const timeOf = (createdAt: number) => new Date(createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
 /** Under the full-size image: what was asked for, how it was made, and the way back to its chat. */
 const ImageCaption: React.FC<{ image: GalleryImage; onOpenChat: (sessionId: string) => void }> = ({ image, onOpenChat }) => {
@@ -23,7 +23,7 @@ const ImageCaption: React.FC<{ image: GalleryImage; onOpenChat: (sessionId: stri
       <Text as="p" variant="body" className="line-clamp-3">{details.prompt}</Text>
       <div className="flex items-center gap-3">
         <Text variant="helper" tone="muted" truncate className="flex-1">
-          {details.model} · {details.aspectRatio} · {timeOf(details.createdAt)}
+          {details.model} · {details.aspectRatio} · {formatDateTime(details.createdAt)}
         </Text>
         {sessionId && (
           <Button variant="outline" size="sm" onClick={() => onOpenChat(sessionId)}>

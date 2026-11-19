@@ -2,7 +2,7 @@
 
 use crate::{
   app_icon, audio, autostart, call_detection, choice_menu, downloads, hex, mcp, mcp_server, meeting_reminders, meeting_spotlight,
-  menubar, mlx, models, native_alert, open_native, permissions, screenshot, shortcuts, stt, tts, url_actions, window,
+  menubar, mlx, models, native_alert, open_native, permissions, screenshot, shortcuts, stt, system_format, tts, url_actions, window,
 };
 use std::sync::Mutex;
 use tauri::{App, AppHandle, Builder, Emitter, Manager, RunEvent, WebviewWindowBuilder, Wry};
@@ -80,6 +80,8 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       // Meeting reminders (on/off)
       meeting_reminders::configure_meeting_reminders,
       meeting_reminders::record_calendar_event,
+      // The Mac's date/time formats (the web view's Intl ignores them)
+      system_format::system_format,
       // Meetings in Spotlight (on/off)
       meeting_spotlight::configure_meeting_spotlight,
       // Hex integration (transcription models + one-way meeting sync)
@@ -160,6 +162,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
   // Calendar meeting reminders: idle until the frontend enables them.
   permissions::emit_answers(app.handle().clone());
   meeting_reminders::start(app.handle().clone());
+  system_format::watch(app.handle().clone());
 
   // Detected calls: offer to record when a call app takes the microphone.
   call_detection::start(app.handle().clone());

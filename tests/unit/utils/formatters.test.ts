@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   formatDate,
+  formatMonth,
+  formatClockTime,
+  formatHour,
+  formatShortDate,
+  formatShortDateTime,
+  formatWeekday,
+  formatWeekdayDate,
+  formatMonthShort,
+  setSystemFormat,
   formatDateTime,
   formatRelativeTime,
   formatFileSize,
@@ -190,5 +199,65 @@ describe('truncate', () => {
 
   it('handles empty string', () => {
     expect(truncate('', 10)).toBe('');
+  });
+});
+
+describe('formatMonth', () => {
+  it('names the month and year as a calendar titles it', () => {
+    const d = new Date(2026, 10, 19);
+    expect(formatMonth(d)).toBe(d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }));
+  });
+});
+
+describe('formatClockTime', () => {
+  it('follows the system 12/24-hour setting', () => {
+    const d = new Date(2026, 10, 19, 14, 5);
+    expect(formatClockTime(d)).toBe(d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }));
+  });
+
+  it('accepts an ISO string', () => {
+    const d = new Date(2026, 10, 19, 9, 30);
+    expect(formatClockTime(d.toISOString())).toBe(formatClockTime(d));
+  });
+});
+
+describe('formatHour', () => {
+  it('names a grid hour as Calendar does: "21:00" on a 24-hour clock, "9 PM" on a 12-hour one', () => {
+    const h23 = ['h23', 'h24'].includes(new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hourCycle ?? '');
+    const at = new Date(2000, 0, 1, 21);
+    const expected = h23
+      ? at.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+      : at.toLocaleTimeString(undefined, { hour: 'numeric' });
+    expect(formatHour(21)).toBe(expected);
+  });
+});
+
+describe('formatting follows the Mac (system format), not the web view default', () => {
+  const at = new Date(2026, 10, 19, 21, 28);
+  afterEach(() => setSystemFormat({ firstWeekday: 1 }));
+
+  it('24-hour India: 21:28, 19 Nov 2026', () => {
+    setSystemFormat({ locale: 'en-IN', hour24: true, firstWeekday: 2 });
+    expect(formatClockTime(at)).toBe('21:28');
+    expect(formatDate(at)).toBe('19 Nov 2026');
+    expect(formatShortDate(at)).toBe('19 Nov');
+    expect(formatWeekday(at)).toBe('Thu');
+    expect(formatHour(9)).toBe('09:00');
+    expect(formatShortDateTime(at)).toBe('19 Nov, 21:28');
+    expect(formatWeekdayDate(at)).toBe('Thu, 19 Nov');
+    expect(formatMonthShort(at)).toBe('Nov');
+  });
+
+  it('12-hour US: 9:28 PM, Nov 19, 2026', () => {
+    setSystemFormat({ locale: 'en-US', hour24: false, firstWeekday: 1 });
+    expect(formatClockTime(at)).toBe('9:28 PM');
+    expect(formatDate(at)).toBe('Nov 19, 2026');
+    expect(formatHour(21)).toBe('9 PM');
+  });
+
+  it('a 24-hour clock wins over the region default', () => {
+    setSystemFormat({ locale: 'en-US', hour24: true, firstWeekday: 1 });
+    expect(formatClockTime(at)).toBe('21:28');
+    expect(formatDateTime(at)).toContain('21:28');
   });
 });

@@ -5,7 +5,8 @@ import { Bell, BellRing, Clock } from 'lucide-react';
 import { Button, DatePicker, Icon, Popover, PopoverContent, PopoverTrigger, Row, Separator, Surface, Text, TimePicker } from '@shared/ui';
 import { reminderService } from '@services/reminder.service';
 import type { ScheduleReminderParams } from '@services/reminder.service';
-import { parseDateLoose, localDateFromParts } from '@shared/utils/todo.utils';
+import { parseDateLoose, localDateFromParts, formatReminderDate } from '@shared/utils/todo.utils';
+import { formatShortDateTime } from '@shared/utils/formatters';
 
 interface ReminderPickerProps {
   todoId: string;
@@ -50,7 +51,7 @@ function buildQuickOptions(dueDate?: string): QuickOption[] {
     const parsed = parseDateLoose(dueDate);
     if (parsed && parsed.getTime() > Date.now()) {
       options.push({
-        label: `On due date (${parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}) at 9:00 AM`,
+        label: `On due date (${formatShortDateTime(new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 9))})`,
         getDate: () => {
           const d = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 9, 0, 0, 0);
           return d;
@@ -157,7 +158,7 @@ const ReminderPicker: React.FC<ReminderPickerProps> = ({
           size="iconXs"
           aria-label={hasReminder ? 'Edit reminder' : 'Set reminder'}
           title={hasReminder
-            ? `Reminder: ${new Date(reminderDateTime!).toLocaleString()}`
+            ? `Reminder: ${formatReminderDate(reminderDateTime!)}`
             : 'Set reminder'
           }
         >
@@ -183,12 +184,7 @@ const ReminderPicker: React.FC<ReminderPickerProps> = ({
             <Surface variant="inset" radius="lg" className="flex items-center gap-2 px-2.5 py-2 mb-2">
               <Icon icon={Clock} size="xs" tone="warning" className="shrink-0" />
               <Text variant="helper">
-                {new Date(reminderDateTime!).toLocaleString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  hour: 'numeric',
-                  minute: '2-digit',
-                })}
+                {formatReminderDate(reminderDateTime!)}
               </Text>
             </Surface>
           )}

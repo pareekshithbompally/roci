@@ -1,6 +1,7 @@
 /** How usage figures read: metric values, changes, bucket and span dates, axis ticks, one-line row details. */
 
 import type { UsageMetric } from '@config/usage.config';
+import { formatShortDate, formatWeekdayDate, formatMonthShort, formatMonth } from '@shared/utils/formatters';
 import { META_SEPARATOR } from '@config/ui.config';
 import { formatCost, formatTokenCount } from '@extensions/usage/format';
 import type { UsageBucketSize } from '@extensions/usage';
@@ -11,10 +12,6 @@ const COUNT = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
 const AVERAGE_COUNT = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
 const PERCENT = new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 0, signDisplay: 'exceptZero' });
 
-const DAY_SHORT = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' });
-const DAY_LONG = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
-const MONTH_SHORT = new Intl.DateTimeFormat(undefined, { month: 'short' });
-const MONTH_LONG = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' });
 
 /** A total in its metric's unit: "$0.30", "127", "253.9k". */
 export function formatMetric(metric: UsageMetric, value: number): string {
@@ -38,8 +35,8 @@ export function formatChange(change: Exclude<UsageChange, null>): string {
 /** A bucket's date: short for axis labels ("18 Oct", "Oct"), long for rows and the headline ("Mon 10 Nov", "October 2026"). */
 export function bucketLabel(key: string, bucket: UsageBucketSize, style: 'short' | 'long'): string {
   const date = keyToDate(key);
-  if (bucket === 'day') return (style === 'short' ? DAY_SHORT : DAY_LONG).format(date);
-  return (style === 'short' ? MONTH_SHORT : MONTH_LONG).format(date);
+  if (bucket === 'day') return style === 'short' ? formatShortDate(date) : formatWeekdayDate(date);
+  return style === 'short' ? formatMonthShort(date) : formatMonth(date);
 }
 
 /** The span a series covers: "18 Oct – 17 Nov", or one label when it is a single bucket. */

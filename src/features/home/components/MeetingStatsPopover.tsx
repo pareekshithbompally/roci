@@ -7,7 +7,7 @@ import { AppIcon } from '@shared/components';
 import { SHOW_IN_FINDER, showInFinder } from '@shared/utils/savedFileToast';
 import { platform } from '@platform/index';
 import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
-import { formatDuration, formatFileSize } from '@shared/utils/formatters';
+import { formatDuration, formatFileSize, formatDateTime } from '@shared/utils/formatters';
 import { formatCost, formatTokenCount } from '@extensions/usage/format';
 import { useMeetingStats, type MeetingStats } from '@features/home/hooks/useMeetingStats';
 import { APP_CONFIG } from '@config/app.config';
@@ -44,7 +44,7 @@ const RecordingSection: React.FC<{ stats: MeetingStats }> = ({ stats }) => {
   return (
     <Section title="Recording">
       <StatRow label="Recorded">
-        <Value>{new Date(stats.recordedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</Value>
+        <Value>{formatDateTime(stats.recordedAt)}</Value>
       </StatRow>
       {stats.durationSeconds !== null && <StatRow label="Length"><Value>{formatDuration(stats.durationSeconds)}</Value></StatRow>}
       {source && <StatRow label="Source"><Value>{source}</Value></StatRow>}

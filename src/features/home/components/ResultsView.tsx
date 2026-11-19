@@ -14,7 +14,7 @@ import { TodoList } from '@features/todos';
 import { NotesView } from '@features/notes';
 import { ResultsAudioPlayer } from './ResultsAudioPlayer';
 import { openUrl } from '@services/tauri';
-import { formatDuration, calendarDayOffset, formatDayLabel } from '@shared/utils/formatters';
+import { formatDuration, calendarDayOffset, formatDayLabel, formatClockTime, formatShortDate, formatDateTime } from '@shared/utils/formatters';
 import { meetingPipeline, useInterimAiNotes } from '@features/recording';
 import { useMeetingPhase } from '@shared/stores/meetingProgressStore';
 import { MeetingStatus } from '@shared/components';
@@ -52,15 +52,11 @@ const TAB_ITEMS: readonly TabItem<ResultTab>[] = [
 /** Tabs that hold the user's own items: the tab bar's + adds one. */
 const ADD_LABELS: Partial<Record<ResultTab, string>> = { todo: TODOS_CONFIG.add, notes: 'Add note' };
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-}
-
 /** Today or Tomorrow, else "Nov 17". */
 function formatDate(iso: string): string {
   const offset = calendarDayOffset(iso);
   if (offset === 0 || offset === 1) return formatDayLabel(iso);
-  return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
+  return formatShortDate(iso);
 }
 
 const CalendarMetaRow: React.FC<{ item: HistoryItem }> = ({ item }) => {
@@ -78,8 +74,8 @@ const CalendarMetaRow: React.FC<{ item: HistoryItem }> = ({ item }) => {
           <Icon icon={Clock} size="xs" />
           {formatDate(item.scheduledStart)}
           {' · '}
-          {formatTime(item.scheduledStart)}
-          {item.scheduledEnd && `–${formatTime(item.scheduledEnd)}`}
+          {formatClockTime(item.scheduledStart)}
+          {item.scheduledEnd && `–${formatClockTime(item.scheduledEnd)}`}
         </Text>
       )}
       {hasParticipants && (
@@ -107,7 +103,7 @@ const CalendarMetaRow: React.FC<{ item: HistoryItem }> = ({ item }) => {
 const MeetingMetaLine: React.FC<{ categories: string[]; meetingId: string }> = ({ categories, meetingId }) => {
   const { data: stats, isPending } = useMeetingStats(meetingId);
   const facts = [
-    stats && new Date(stats.recordedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }),
+    stats && formatDateTime(stats.recordedAt),
     stats?.durationSeconds != null && formatDuration(stats.durationSeconds),
   ].filter(Boolean);
   if (!isPending && categories.length === 0 && facts.length === 0) return null;

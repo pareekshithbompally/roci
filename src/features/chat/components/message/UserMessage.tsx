@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatClockTime } from '@shared/utils/formatters';
 import { Copy, Check, FileAudio } from 'lucide-react';
 import { MediaPartRenderer } from '@features/chat/components/MediaPartRenderer';
 import { Surface, Text, Icon, IconButton } from '@shared/ui';
@@ -49,7 +50,7 @@ const UserMessage: React.FC<UserMessageProps> = ({ id, text, parts, meetingRefs,
       {/* Timestamp */}
       {timestamp && (
         <Text as="div" variant="helper" tone="faint" className="mt-1">
-          {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {formatClockTime(timestamp)}
         </Text>
       )}
     </div>

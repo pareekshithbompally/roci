@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatShortDate } from '@shared/utils/formatters';
 import { AudioWaveform } from 'lucide-react';
 import { getFaviconUrl, describeCitation } from '@shared/utils/citationUtils';
 import { Row, rowClasses, Text, Icon, Button } from '@shared/ui';
@@ -39,7 +40,7 @@ const SourcesList: React.FC<SourcesListProps> = ({
           <Icon icon={AudioWaveform} size="sm" tone="faint" className="shrink-0" />
           <Text variant="bodyStrong" truncate>{citation.meetingTitle}</Text>
           <Text variant="caption" tone="faint" className="ml-auto shrink-0">
-            {new Date(citation.meetingTimestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            {formatShortDate(citation.meetingTimestamp)}
           </Text>
         </Row>
       ))}
