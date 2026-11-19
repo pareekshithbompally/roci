@@ -143,21 +143,24 @@ export function cachedLocalModels(): LocalModel[] {
 }
 
 
-/** Chat models downloaded to this device as one provider entry (no key); each reports what it can do, as a server does:
- *  tool calling from its chat template, images when it ships a vision encoder, the context window from its config. */
+/** A downloaded chat model as a provider's model; it reports what it can do, as a server does: tool calling from its
+ *  chat template, images when it ships a vision encoder, the context window from its config. */
+export function onDeviceChatModel(m: LocalModel): Model {
+  return {
+    id: m.id,
+    name: m.name,
+    reported: {
+      input: m.vision ? ['text', 'image'] : ['text'],
+      output: ['text'],
+      tools: m.tools ?? false,
+      ...(m.contextTokens ? { contextTokens: m.contextTokens } : {}),
+    },
+  };
+}
+
+/** Chat models downloaded to this device as one provider entry (no key). */
 function onDeviceChatProvider(localModels: LocalModel[]): ModelProvider | null {
-  const models = localModels
-    .filter((m) => m.kind === 'chat' && m.installed)
-    .map((m): Model => ({
-      id: m.id,
-      name: m.name,
-      reported: {
-        input: m.vision ? ['text', 'image'] : ['text'],
-        output: ['text'],
-        tools: m.tools ?? false,
-        ...(m.contextTokens ? { contextTokens: m.contextTokens } : {}),
-      },
-    }));
+  const models = localModels.filter((m) => m.kind === 'chat' && m.installed).map(onDeviceChatModel);
   return models.length > 0 ? { provider: ON_DEVICE, active: true, settings: [], models } : null;
 }
 

@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { AppleIntelligenceIntegration } from '@features/integrations';
-import { JOB_GLYPH, ModelDownloadButton, ModelSize, ProvidersAvatar } from '@shared/components';
-import { Card, CardRow, IconTile, Picker, Section, Status, type TileGlyph } from '@shared/ui';
+import { JOB_GLYPH, ModelDownloadButton, ModelIcon, ModelLabel, ModelSize, ProvidersAvatar } from '@shared/components';
+import { Card, CardRow, ICON_TILE_PX, IconTile, Picker, Section, Status } from '@shared/ui';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { LAYOUT } from '@config/layout.config';
 import { formatFileSize } from '@shared/utils/formatters';
@@ -14,23 +14,24 @@ import { READ_ALOUD_CONFIG } from '@config/readAloud.config';
 import type { LocalModel, LocalModelKind } from '@services/localModels.service';
 import { useLocalModelControls } from '@features/settings/hooks/useLocalModels';
 import { useLocalModels } from '@shared/hooks/useLocalModels';
+import { onDeviceChatModel } from '@shared/utils/modelResolver';
+import { profileOf, shownProfile } from '@services/ai/models';
 import { platform } from '@platform/index';
 
 const { provider: ON_DEVICE, kindLabels: KIND_LABELS, page: COPY, idle: IDLE } = LOCAL_MODELS_CONFIG;
 
-/** Download groups in display order, each with its job's glyph. */
-const KINDS: ReadonlyArray<readonly [LocalModelKind, TileGlyph]> = [
-  ['chat', JOB_GLYPH.chat],
-  ['speech', JOB_GLYPH.transcription],
-  ['voice', JOB_GLYPH.readAloud],
-  ['embedding', JOB_GLYPH.meetingSearch],
-];
+/** Download groups in display order. */
+const KINDS: readonly LocalModelKind[] = ['chat', 'speech', 'voice', 'embedding'];
 
-/** A downloadable model: its name, then its size and Download / progress / Delete in fixed columns; one height. */
-const DownloadRow: React.FC<{ icon: TileGlyph; model: LocalModel; control: OnDeviceModel }> = ({ icon, model, control }) => (
+/** A downloaded chat model's profile (what it can take and do); nothing for other kinds, or before its files are here. */
+const profileOfRow = (model: LocalModel) =>
+  model.kind === 'chat' && model.installed ? shownProfile(profileOf(ON_DEVICE.id, onDeviceChatModel(model))) : null;
+
+/** A downloadable model: its maker's icon, name and chips, then its size and Download / progress / Delete in fixed columns. */
+const DownloadRow: React.FC<{ model: LocalModel; control: OnDeviceModel }> = ({ model, control }) => (
   <CardRow
-    leading={<IconTile icon={icon} />}
-    title={model.name}
+    leading={<ModelIcon provider={ON_DEVICE.id} modelId={model.id} size={ICON_TILE_PX} />}
+    title={<ModelLabel name={model.name} profile={profileOfRow(model)} />}
     actions={
       <>
         <ModelSize size={formatFileSize(model.bytes)} />
@@ -86,12 +87,12 @@ const Downloads: React.FC = () => {
   const controls = useLocalModelControls();
   return (
     <>
-      {KINDS.map(([kind, icon]) => {
+      {KINDS.map((kind) => {
         const ofKind = models.filter((m) => m.kind === kind && controls[m.id]);
         if (ofKind.length === 0) return null;
         return (
           <Section key={kind} title={KIND_LABELS[kind]}>
-            {ofKind.map((m) => <DownloadRow key={m.id} icon={icon} model={m} control={controls[m.id]} />)}
+            {ofKind.map((m) => <DownloadRow key={m.id} model={m} control={controls[m.id]} />)}
           </Section>
         );
       })}
