@@ -33,6 +33,12 @@ export const meetingLiveActions = {
 
 const NO_ENTRIES: LiveEntry[] = [];
 
+/** The draft entries of `meetingId`, outside React; empty for any other meeting. */
+export function draftEntriesOf(meetingId: string): LiveEntry[] {
+  const { meetingId: owner, entries } = useMeetingLiveStore.getState();
+  return owner === meetingId ? entries : NO_ENTRIES;
+}
+
 /** The draft entries of a meeting just recorded (or recording); empty for any other meeting. */
 export function useDraftEntries(meetingId: string | null): LiveEntry[] {
   const owner = useMeetingLiveStore((s) => s.meetingId);

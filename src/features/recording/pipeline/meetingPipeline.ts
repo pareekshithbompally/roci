@@ -7,7 +7,7 @@ import { store } from '@services/db';
 import { recordingsService } from '@services/storage';
 import { isTauriEnvironment } from '@services/tauri';
 import { unifiedAIService, transcribeAudio } from '@services/unifiedAIService';
-import { formatTranscript, speechSelectionOf } from '@services/ai/transcription';
+import { formatTranscript, labelSpeakers, speechSelectionOf } from '@services/ai/transcription';
 import { modelKey } from '@services/ai/models';
 import { transcriptionService } from '@services/transcription.service';
 import { IMPORT_CONFIG } from '@config/audio.config';
@@ -19,7 +19,7 @@ import type { AppSettings, MeetingDetail, MeetingIndexEntry, StoredTranscriptSeg
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { MeetingStatus, MeetingStep } from '@shared/types/meetingPhase';
 import type { MeetingContext } from '@core/ai/prompts/transcription.prompt';
-import { liveTranscript } from '@features/recording/live';
+import { draftEntriesOf, liveTranscript, liveTranscriptResult } from '@features/recording/live';
 
 /** What the steps need from the app, read when a run starts. */
 export interface PipelineContext {
@@ -87,13 +87,15 @@ function speechModelOf(context: PipelineContext): string | undefined {
   return selection ? modelKey(selection) : undefined;
 }
 
-/** Transcribes the recording and saves the transcript. */
+/** Transcribes the recording and saves the transcript, its lines labelled by who spoke when the in-call draft is still here
+ *  (it heard the user's microphone and the call separately; the recording is one mix). */
 const transcribeRecording = (id: string, context: PipelineContext): StepWork => async (signal) => {
   const meeting = await meetingOrThrow(id);
   const audio = await loadRecording(meeting.index.recordingFileName);
   const onProgress = (part: { current: number; total: number }) => meetingProgress.set(id, part);
   const result = await transcribeAudio(audio, context.settings, context.providers, { signal, onProgress, meetingId: id });
-  const { formatted, segments } = formatTranscript(result);
+  const draft = liveTranscriptResult(draftEntriesOf(id)).segments;
+  const { formatted, segments } = formatTranscript(labelSpeakers(result, draft));
   await transcriptionService.saveTranscript({ meetingId: id, text: formatted, segments, model: speechModelOf(context) });
 };
 

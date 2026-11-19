@@ -18,6 +18,7 @@ vi.mock('@services/transcription.service', () => ({ transcriptionService: saves 
 vi.mock('@shared/utils/appEvents', () => ({ notifyAppEvent: vi.fn() }));
 
 import { meetingPipeline } from '@features/recording/pipeline/meetingPipeline';
+import { meetingLiveActions } from '@features/recording/live';
 
 /** A stored meeting whose status follows the store's step rules (as `meeting_steps.rs` keeps them). */
 let status: MeetingStatus;
@@ -64,6 +65,21 @@ describe('meetingPipeline.run', () => {
     expect(saves.saveTranscript).toHaveBeenCalledWith(expect.objectContaining({ meetingId: 'm1', text: 'hello', model: 'openai::whisper-1' }));
     expect(saves.saveSummary).toHaveBeenCalledWith(expect.objectContaining({ meetingId: 'm1', title: 'Standup', categories: ['Work'] }));
     expect(status).toEqual({ status: 'ready' });
+  });
+
+  it('labels the final transcript by who spoke, from the in-call draft that heard each side separately', async () => {
+    meetingLiveActions.start('m1');
+    meetingLiveActions.set([
+      { source: 'microphone', startMs: 0, endMs: 3_000, text: 'we ship', timed: true },
+      { source: 'system', startMs: 3_000, endMs: 6_000, text: 'friday works', timed: true },
+    ]);
+    ai.transcribeAudio.mockResolvedValue({
+      text: 'We ship Friday? Friday works.',
+      segments: [{ text: 'We ship Friday?', startSecond: 0.2, endSecond: 2.8 }, { text: 'Friday works.', startSecond: 3.1, endSecond: 5.6 }],
+    });
+    await meetingPipeline.run('m1');
+    expect(saves.saveTranscript).toHaveBeenCalledWith(expect.objectContaining({ text: '[00:00] You: We ship Friday?\n[00:03] Others: Friday works.' }));
+    meetingLiveActions.start('other');
   });
 
   it('records a speech-to-text failure at transcribe, with nothing saved', async () => {

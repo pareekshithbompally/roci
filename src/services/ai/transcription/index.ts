@@ -26,4 +26,5 @@ export type { HexModel, HexStatus } from './hex';
 export type { TranscriptResult, TranscriptSegment, TranscriptionProgress, SpeechSelection, SpeechRange } from './types';
 export { getSpeechSegments } from './vad';
 export { formatTranscript } from './format';
+export { labelSpeakers } from './speakers';
 export { analyzeTranscript } from './analyze';
