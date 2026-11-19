@@ -37,10 +37,10 @@ describe('hexSync.catchUp', () => {
     expect(db.create).toHaveBeenCalledWith({ id: 'hex-new', title: 'Hex title', status: 'transcribed', inputSource: 'hex', createdAt: 1_000 });
     expect(saveTranscript).toHaveBeenCalledWith({
       meetingId: 'hex-new',
-      text: 'You: We are\nThem: Are we?',
+      text: '[00:02] You: We are\n[00:04] Others: Are we?',
       segments: [
         { text: 'We are', startSecond: 2.4, endSecond: 3.44, speaker: 'You' },
-        { text: 'Are we?', startSecond: 4, endSecond: 5, speaker: 'Them' },
+        { text: 'Are we?', startSecond: 4, endSecond: 5, speaker: 'Others' },
       ],
     });
     expect(saveSummary).toHaveBeenCalledTimes(1);

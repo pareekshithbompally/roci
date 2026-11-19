@@ -4,9 +4,10 @@ import { store } from '@services/db';
 import { transcriptionService } from '@services/transcription.service';
 import { hexMeetings, type HexEntry, type HexMeeting, type HexMeetingDetail } from './hex.meetings';
 import type { MeetingSummary, StoredTranscriptSegment } from '@shared/types';
+import { MEETING_LIVE_CONFIG } from '@config/meetingLive.config';
+import { formatTranscript } from '@services/ai/transcription';
 
 const ID_PREFIX = 'hex-';
-const SPEAKER = { microphone: 'You', system: 'Them' } as const;
 
 export const rociMeetingId = (hexId: string): string => `${ID_PREFIX}${hexId}`;
 
@@ -14,7 +15,7 @@ export const rociMeetingId = (hexId: string): string => `${ID_PREFIX}${hexId}`;
 const importable = (meeting: HexMeeting): boolean => !meeting.in_progress;
 
 function segmentOf(entry: HexEntry): StoredTranscriptSegment {
-  return { text: entry.text, startSecond: entry.start_ms / 1000, endSecond: entry.end_ms / 1000, speaker: SPEAKER[entry.source] };
+  return { text: entry.text, startSecond: entry.start_ms / 1000, endSecond: entry.end_ms / 1000, speaker: MEETING_LIVE_CONFIG.speakers[entry.source] };
 }
 
 /** The meeting's own notes as a summary (catch-up keeps them instead of re-summarizing). */
@@ -30,7 +31,7 @@ async function exists(hexId: string): Promise<boolean> {
 async function importOne(detail: HexMeetingDetail): Promise<{ meetingId: string } | null> {
   if (!importable(detail.meeting) || detail.entries.length === 0) return null;
   const meetingId = rociMeetingId(detail.meeting.id);
-  const segments = detail.entries.map(segmentOf);
+  const { formatted, segments } = formatTranscript({ text: '', segments: detail.entries.map(segmentOf) });
   await store.meetings.create({
     id: meetingId,
     title: detail.notes?.title || detail.meeting.title,
@@ -38,8 +39,7 @@ async function importOne(detail: HexMeetingDetail): Promise<{ meetingId: string 
     inputSource: 'hex',
     createdAt: detail.meeting.timestamp_ms,
   });
-  const transcript = segments.map((s) => `${s.speaker}: ${s.text}`).join('\n');
-  await transcriptionService.saveTranscript({ meetingId, text: transcript, segments });
+  await transcriptionService.saveTranscript({ meetingId, text: formatted, segments });
   return { meetingId };
 }
 
