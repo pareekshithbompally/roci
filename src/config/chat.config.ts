@@ -98,8 +98,8 @@ export const REASONING_EFFORT_LEVELS: ReadonlyArray<{ value: ReasoningEffort; la
 export const MODEL_PICKER_COPY = {
   /** On a local model's dot: it's in memory now, so it answers at once; picking another loads that one instead. */
   loaded: 'Loaded now',
-  /** On the picker of a chat that has answered: a chat keeps its model. */
-  locked: 'This chat keeps its model. Picking another starts a new chat.',
+  /** On hover over the picker of a chat that has answered: a chat keeps its model. */
+  locked: 'This chat keeps its model. Start a new chat to use another.',
   select: 'Select model',
   noModels: 'No models available - configure providers first',
 } as const;

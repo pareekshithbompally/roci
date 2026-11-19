@@ -15,7 +15,7 @@ import { MODEL_MENU_COPY } from '@config/modelMenu.config';
 import { platform } from '@platform/index';
 import { useLocalServerProbe } from '@features/settings/hooks';
 import { useChatModel } from '@features/chat/hooks/useChatModel';
-import { startNewChat, useChatModelLock } from '@features/chat/stores';
+import { useChatModelLock } from '@features/chat/stores';
 
 interface ModelPickerProps {
   /** Compact mode for inline display */
@@ -44,12 +44,10 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
   const locked = useChatModelLock();
   const selected = choices.find((c) => c.provider === chatModel?.provider && c.modelId === chatModel.modelId);
 
-  // Picking sets the chat model; in a chat that has answered, the new model gets a new chat.
   const handleSelectModel = (modelId: string) => {
     setSettings({ chatModel: modelId });
     saveSettings({ chatModel: modelId });
     setOpen(false);
-    if (locked && modelId !== selected?.value) startNewChat();
   };
 
   const hasModels = groups.length > 0;
@@ -57,8 +55,8 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
     <Button
       variant="ghost"
       size="toolbar"
-      disabled={!hasModels}
-      title={!hasModels ? MODEL_PICKER_COPY.noModels : locked ? MODEL_PICKER_COPY.locked : MODEL_PICKER_COPY.select}
+      disabled={!hasModels || !!locked}
+      title={locked ? undefined : hasModels ? MODEL_PICKER_COPY.select : MODEL_PICKER_COPY.noModels}
       onClick={onClick}
     >
       {selected ? (
@@ -70,12 +68,21 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
         </>
       ) : (
         <Text variant="label" tone="faint">
-          {hasModels ? 'Select model' : 'No models'}
+          {hasModels ? MODEL_PICKER_COPY.select : 'No models'}
         </Text>
       )}
-      <Icon icon={ChevronDown} size="xs" className={cn('transition-transform', open && 'rotate-180')} />
+      {!locked && <Icon icon={ChevronDown} size="xs" className={cn('transition-transform', open && 'rotate-180')} />}
     </Button>
   );
+
+  // A chat that has answered keeps its model: the picker shows it, fixed; hovering says why (a disabled button gets no hover).
+  if (locked) {
+    return (
+      <Tooltip content={MODEL_PICKER_COPY.locked}>
+        <span className="inline-flex">{trigger()}</span>
+      </Tooltip>
+    );
+  }
 
   // Mac: the shared native model menu (icons, grey facts line, checkmark). iPhone and iPad: the searchable list.
   if (platform.hasMenuBar) {
