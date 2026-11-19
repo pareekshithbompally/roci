@@ -57,6 +57,7 @@ Allows all store plugin commands
 - `allow-providers-delete`
 - `allow-upsert-meeting-index`
 - `allow-upsert-chunks`
+- `allow-append-chunks`
 - `allow-meetings-search`
 - `allow-get-stale-meetings`
 - `allow-get-meetings-needing-embeddings`
@@ -84,6 +85,32 @@ Allows all store plugin commands
 <th>Description</th>
 </tr>
 
+
+<tr>
+<td>
+
+`store:allow-append-chunks`
+
+</td>
+<td>
+
+Enables the append_chunks command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-append-chunks`
+
+</td>
+<td>
+
+Denies the append_chunks command without any pre-configured scope.
+
+</td>
+</tr>
 
 <tr>
 <td>

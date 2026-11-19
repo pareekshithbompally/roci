@@ -2535,36 +2535,54 @@ pub async fn upsert_chunks(
         tx.execute("DELETE FROM chunks WHERE meeting_id = ?1", [&meeting_id])?;
 
         for chunk in &chunks {
-            tx.execute(
-                "INSERT INTO chunks (meeting_id, chunk_index, chunk_text, chunk_type, start_pos, end_pos)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                rusqlite::params![
-                    meeting_id,
-                    chunk.chunk_index,
-                    chunk.chunk_text,
-                    chunk.chunk_type,
-                    chunk.start_pos,
-                    chunk.end_pos,
-                ],
-            )?;
-
-            let chunk_row_id = tx.last_insert_rowid();
-
-            if let Some(embedding) = &chunk.embedding {
-                let embedding_bytes: Vec<u8> = embedding
-                    .iter()
-                    .flat_map(|f| f.to_le_bytes())
-                    .collect();
-                tx.execute(
-                    "INSERT INTO vec_chunks (chunk_id, embedding) VALUES (?1, ?2)",
-                    rusqlite::params![chunk_row_id, embedding_bytes],
-                )?;
-            }
+            insert_chunk(&tx, &meeting_id, chunk.chunk_index, chunk)?;
         }
 
         tx.commit()?;
         log::info!("[store] Upserted {} chunks for meeting {}", chunks.len(), meeting_id);
         Ok(())
+    })
+    .await
+    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+}
+
+/// One chunk (its full-text entry follows by trigger) and its vector, when it has one.
+fn insert_chunk(tx: &Connection, meeting_id: &str, chunk_index: i32, chunk: &ChunkData) -> Result<(), StoreError> {
+    tx.execute(
+        "INSERT INTO chunks (meeting_id, chunk_index, chunk_text, chunk_type, start_pos, end_pos)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        rusqlite::params![meeting_id, chunk_index, chunk.chunk_text, chunk.chunk_type, chunk.start_pos, chunk.end_pos],
+    )?;
+    if let Some(embedding) = &chunk.embedding {
+        let bytes: Vec<u8> = embedding.iter().flat_map(|f| f.to_le_bytes()).collect();
+        tx.execute("INSERT INTO vec_chunks (chunk_id, embedding) VALUES (?1, ?2)", rusqlite::params![tx.last_insert_rowid(), bytes])?;
+    }
+    Ok(())
+}
+
+/// Adds chunks after the meeting's last one, keeping what is there (a meeting indexed while it records, stretch by stretch);
+/// their own `chunk_index` is ignored. A later `upsert_chunks` (the final transcript) replaces them all.
+pub(crate) fn append_chunks_impl(db: &Connection, meeting_id: &str, chunks: &[ChunkData]) -> Result<(), StoreError> {
+    let tx = db.unchecked_transaction()?;
+    let next: i32 = tx.query_row(
+        "SELECT COALESCE(MAX(chunk_index) + 1, 0) FROM chunks WHERE meeting_id = ?1",
+        [meeting_id],
+        |row| row.get(0),
+    )?;
+    for (offset, chunk) in (0..).zip(chunks) {
+        insert_chunk(&tx, meeting_id, next + offset, chunk)?;
+    }
+    tx.commit()?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn append_chunks(state: State<'_, StoreState>, meeting_id: String, chunks: Vec<ChunkData>) -> Result<(), StoreError> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
+        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+        append_chunks_impl(db, &meeting_id, &chunks)
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
@@ -3663,6 +3681,31 @@ mod tests {
             },
         )
         .expect("create meeting");
+    }
+
+    fn stretch(text: &str) -> ChunkData {
+        ChunkData { chunk_index: 99, chunk_text: text.into(), chunk_type: "transcript".into(), embedding: None, start_pos: None, end_pos: None }
+    }
+
+    fn chunk_texts(conn: &Connection, meeting_id: &str) -> Vec<(i32, String)> {
+        let mut stmt = conn.prepare("SELECT chunk_index, chunk_text FROM chunks WHERE meeting_id = ?1 ORDER BY chunk_index").unwrap();
+        stmt.query_map([meeting_id], |row| Ok((row.get(0)?, row.get(1)?))).unwrap().map(Result::unwrap).collect()
+    }
+
+    #[test]
+    fn appending_keeps_earlier_chunks_numbers_after_them_and_is_searchable_at_once() {
+        let conn = db();
+        create_recording(&conn, "m1");
+        append_chunks_impl(&conn, "m1", &[stretch("budget for the launch")]).unwrap();
+        append_chunks_impl(&conn, "m1", &[stretch("ship on friday"), stretch("hire two engineers")]).unwrap();
+        assert_eq!(
+            chunk_texts(&conn, "m1"),
+            vec![(0, "budget for the launch".into()), (1, "ship on friday".into()), (2, "hire two engineers".into())]
+        );
+        let found: i64 = conn
+            .query_row("SELECT count(*) FROM chunks_fts WHERE chunks_fts MATCH 'budget'", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(found, 1);
     }
 
     fn import(conn: &Connection, id: &str, text: &str) -> bool {

@@ -27,9 +27,14 @@ async function embedAll(values: string[]): Promise<number[][]> {
   return vectors;
 }
 
+/** Search queries' vectors, in order, in one call. */
+export function embedQueries(texts: string[]): Promise<number[][]> {
+  return embedAll(texts.map((text) => EMBEDDING_PREFIX.query + text));
+}
+
 /** A search query's vector. */
 export async function embedQuery(text: string): Promise<number[]> {
-  const [vector] = await embedAll([EMBEDDING_PREFIX.query + text]);
+  const [vector] = await embedQueries([text]);
   return vector;
 }
 

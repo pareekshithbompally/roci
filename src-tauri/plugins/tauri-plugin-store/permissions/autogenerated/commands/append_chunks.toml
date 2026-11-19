@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-append-chunks"
+description = "Enables the append_chunks command without any pre-configured scope."
+commands.allow = ["append_chunks"]
+
+[[permission]]
+identifier = "deny-append-chunks"
+description = "Denies the append_chunks command without any pre-configured scope."
+commands.deny = ["append_chunks"]

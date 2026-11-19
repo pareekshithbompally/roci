@@ -3,7 +3,7 @@
 import type { HistoryItem } from '@shared/types';
 import { embedDocuments, isEmbeddingMissing } from './embeddings';
 import { vectorDB } from './client';
-import { chunkMeeting, computeContentHash } from './chunker';
+import { chunkMeeting, chunkTranscript, computeContentHash, type Chunk } from './chunker';
 import { emitProgress } from './progress';
 import { HASH_CONCURRENCY } from './constants';
 import { concurrencyMap } from '@shared/utils/async.utils';
@@ -15,6 +15,37 @@ export interface IndexOptions {
   includeEmbeddings?: boolean;
   /** Skip staleness check and re-index everything (for manual re-index) */
   force?: boolean;
+}
+
+/** The chunks' vectors in one batch, or null without the embedding model (full-text search still finds them). */
+async function embedChunks(chunks: Chunk[], label: string): Promise<number[][] | null> {
+  try {
+    return await embedDocuments(chunks.map((c) => c.text));
+  } catch (error) {
+    if (!isEmbeddingMissing(error)) console.error(`[RAGIndexer] Failed to embed chunks for "${label}":`, error);
+    return null;
+  }
+}
+
+/** Chunks as the store keeps them, with their vectors when there are any. */
+function chunkRows(chunks: Chunk[], embeddings: number[][] | null): ChunkData[] {
+  return chunks.map((chunk, i) => ({
+    chunk_index: chunk.index,
+    chunk_text: chunk.text,
+    chunk_type: chunk.type,
+    embedding: embeddings?.[i],
+    start_pos: chunk.startPos ?? null,
+    end_pos: chunk.endPos ?? null,
+  }));
+}
+
+/** A stretch of a meeting's transcript while it records: chunked and embedded as the whole meeting is, added after what is
+ *  indexed (the final transcript's indexing replaces it all). Resolves the chunk texts it added. */
+async function appendTranscript(meetingId: string, stretch: string): Promise<string[]> {
+  const chunks = chunkTranscript(stretch);
+  if (chunks.length === 0) return [];
+  await vectorDB.appendChunks(meetingId, chunkRows(chunks, await embedChunks(chunks, meetingId)));
+  return chunks.map((c) => c.text);
 }
 
 /** Chunk → embed → upsert; content_hash is stamped only after the chunks are confirmed in the DB, embedded once vectors are in. */
@@ -42,27 +73,8 @@ async function indexMeeting(
     return { status: 'skipped', reason: 'no_chunks', chunkCount: 0, embeddingCount: 0 };
   }
 
-  // Embed all chunks in a single batch call
-  const chunkTexts = chunks.map(c => c.text);
-  let embeddings: number[][] | null = null;
-  if (options?.includeEmbeddings !== false) {
-    try {
-      embeddings = await embedDocuments(chunkTexts);
-    } catch (error) {
-      if (!isEmbeddingMissing(error)) {
-        console.error(`[RAGIndexer] Failed to embed chunks for "${item.title}":`, error);
-      }
-    }
-  }
-
-  const chunkDataList: ChunkData[] = chunks.map((chunk, i) => ({
-    chunk_index: chunk.index,
-    chunk_text: chunk.text,
-    chunk_type: chunk.type,
-    embedding: embeddings?.[i],
-    start_pos: chunk.startPos ?? null,
-    end_pos: chunk.endPos ?? null,
-  }));
+  const embeddings = options?.includeEmbeddings !== false ? await embedChunks(chunks, item.title) : null;
+  const chunkDataList = chunkRows(chunks, embeddings);
 
   if (chunkDataList.length === 0) {
     return { status: 'skipped', reason: 'no_chunk_data', chunkCount: 0, embeddingCount: 0 };
@@ -243,6 +255,7 @@ async function needsReindex(items: HistoryItem[]): Promise<HistoryItem[]> {
 
 export const ragIndexer = {
   indexMeeting,
+  appendTranscript,
   indexAll,
   needsReindex,
 };

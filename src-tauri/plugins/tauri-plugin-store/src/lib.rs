@@ -110,6 +110,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             // RAG indexing
             commands::upsert_meeting_index,
             commands::upsert_chunks,
+            commands::append_chunks,
             commands::meetings_search,
             commands::get_stale_meetings,
             commands::get_meetings_needing_embeddings,

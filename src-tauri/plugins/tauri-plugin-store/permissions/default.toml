@@ -54,6 +54,7 @@ permissions = [
   "allow-providers-delete",
   "allow-upsert-meeting-index",
   "allow-upsert-chunks",
+  "allow-append-chunks",
   "allow-meetings-search",
   "allow-get-stale-meetings",
   "allow-get-meetings-needing-embeddings",

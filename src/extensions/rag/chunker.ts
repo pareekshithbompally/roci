@@ -16,6 +16,17 @@ const SENTENCE_END = /(?<=[.!?])\s+/g;
 // Clause boundary fallback: comma or semicolon followed by whitespace
 const CLAUSE_END = /(?<=[,;])\s+/g;
 
+/** A transcript (or a stretch of one) as overlapping sentence chunks, numbered from 0. */
+export function chunkTranscript(transcript: string): Chunk[] {
+  return splitBySentenceBoundary(transcript.trim()).map((tc, index) => ({
+    text: tc.text,
+    index,
+    type: 'transcript',
+    startPos: tc.startPos,
+    endPos: tc.endPos,
+  }));
+}
+
 /** Chunks of at most `maxChars` split at sentences; neighbours share `overlapChars` of context. */
 function splitBySentenceBoundary(
   text: string,
@@ -146,19 +157,7 @@ export function chunkMeeting(item: HistoryItem): Chunk[] {
     });
   }
 
-  // Split transcript into overlapping chunks
-  if (item.transcript && item.transcript.trim().length > 0) {
-    const transcriptChunks = splitBySentenceBoundary(item.transcript.trim());
-    for (const tc of transcriptChunks) {
-      chunks.push({
-        text: tc.text,
-        index: chunks.length,
-        type: 'transcript',
-        startPos: tc.startPos,
-        endPos: tc.endPos,
-      });
-    }
-  }
+  for (const tc of chunkTranscript(item.transcript ?? '')) chunks.push({ ...tc, index: chunks.length });
 
   // Notes and action items as a single chunk
   const noteTexts = (item.userNotes || []).map(n => n.text).filter(Boolean);

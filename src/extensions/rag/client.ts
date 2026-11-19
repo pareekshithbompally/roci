@@ -131,6 +131,12 @@ export const vectorDB = {
     await invoke('plugin:store|upsert_chunks', { meetingId, chunks });
   },
 
+  /** Adds chunks after the meeting's last one, keeping what is there (a meeting indexed while it records). */
+  async appendChunks(meetingId: string, chunks: ChunkData[]): Promise<void> {
+    await ensureInitialized();
+    await invoke('plugin:store|append_chunks', { meetingId, chunks });
+  },
+
   async search(params: SearchParams): Promise<SearchHit[]> {
     await ensureInitialized();
     return invoke('plugin:store|meetings_search', { params });

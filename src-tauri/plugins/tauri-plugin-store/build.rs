@@ -61,6 +61,7 @@ const COMMANDS: &[&str] = &[
     // RAG indexing (meeting)
     "upsert_meeting_index",
     "upsert_chunks",
+    "append_chunks",
     "meetings_search",
     "get_stale_meetings",
     "get_meetings_needing_embeddings",
