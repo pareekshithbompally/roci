@@ -8,7 +8,6 @@ import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore
 import { platform } from '@platform/index';
 import { hasIntegrations } from './IntegrationsPanel';
 import { IconTile, Row, type TileGlyph } from '@shared/ui';
-import { matchesEntry } from '@shared/utils/textMatch';
 
 export interface SettingsNavItem {
   id: SettingsPanelType;
@@ -19,7 +18,7 @@ export interface SettingsNavItem {
   group: string;
   /** False hides the section on devices without the feature; omitted means always shown. */
   available?: boolean;
-  /** What the section holds, so ⌘K finds it by those words too. */
+  /** What the section holds, so the ⌘K palette finds it by those words too. */
   keywords: string[];
 }
 
@@ -33,9 +32,6 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   { id: 'usage', label: 'Usage', icon: ChartColumn, group: 'Activity', keywords: ['cost', 'tokens', 'spend'] },
 ];
 
-/** The Settings sections on this device that match a search, by name or by what they hold. */
-export const findSettings = (query: string): SettingsNavItem[] =>
-  SETTINGS_NAV_ITEMS.filter((item) => item.available !== false && matchesEntry(item, query));
 
 export const SettingsNav: React.FC = () => {
   const activePanel = useAppStore((s) => s.activeSettingsPanel);

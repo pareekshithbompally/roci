@@ -1,0 +1,76 @@
+/** Everything the palette offers before (and beside) a search: recents, actions, places and settings — commands as data,
+ *  each from the one place that owns it (sidebar items, shortcut registry, destinations, the Settings list). */
+
+import { AudioWaveform, Circle, MessageSquare, Moon, Settings, Square, SquarePen, Sun } from 'lucide-react';
+import { useAppActions } from '@shared/stores/appStore';
+import { useThemeContext } from '@shared/contexts/ThemeContext';
+import { startNewChat } from '@features/chat';
+import { useRecordingMeetingId, useToggleRecording } from '@features/recording';
+import { SETTINGS_NAV_ITEMS } from '@features/settings';
+import { acceleratorKeys } from '@features/shortcuts';
+import { useUnifiedSidebar } from '@features/history/hooks/useUnifiedSidebar';
+import { useOpenSession } from '@features/history/hooks/useOpenSession';
+import { useDestinations } from '@features/layout/hooks/useDestinations';
+import { APP_SHORTCUTS, GLOBAL_SHORTCUTS } from '@config/shortcuts.config';
+import { PALETTE_CONFIG } from '@config/palette.config';
+import type { UnifiedSidebarItem } from '@shared/types';
+import type { PaletteCommand } from '@features/palette/paletteTypes';
+
+const { groups: GROUP } = PALETTE_CONFIG;
+
+/** A meeting's or chat's glyph, shared by recents and search results. */
+export const SESSION_ICON = { meeting: AudioWaveform, chat: MessageSquare } as const;
+
+const keysOf = (accelerator: string) => acceleratorKeys(accelerator);
+
+export function useRootCommands(): PaletteCommand[] {
+  const { items } = useUnifiedSidebar();
+  const openSession = useOpenSession();
+  const destinations = useDestinations();
+  const { setCurrentView, openSettings } = useAppActions();
+  const { isDark, setTheme } = useThemeContext();
+  const toggleRecording = useToggleRecording();
+  const recording = useRecordingMeetingId() !== null;
+
+  const open = (item: UnifiedSidebarItem) => () => {
+    openSession(item).catch((error: unknown) => console.error('[CommandPalette] Opening failed:', error));
+  };
+  const sections = SETTINGS_NAV_ITEMS.filter((section) => section.available !== false);
+  const sectionCommands = sections.map(({ id, label, icon, keywords }): PaletteCommand => ({
+    id: `settings:${id}`, title: label, group: GROUP.settings, icon, keywords: keywords.join(' '), perform: () => openSettings(id),
+  }));
+
+  return [
+    ...items.slice(0, PALETTE_CONFIG.recentCount).map((item): PaletteCommand => ({
+      id: `recent:${item.type}:${item.id}`, title: item.title, group: GROUP.recent, icon: SESSION_ICON[item.type], perform: open(item),
+    })),
+    { id: 'new-chat', title: 'New Chat', group: GROUP.actions, icon: SquarePen, keywords: 'new conversation ask', keys: keysOf(APP_SHORTCUTS.newChat.accelerator), perform: startNewChat },
+    {
+      id: 'recording',
+      title: recording ? 'Stop Recording' : 'Start Recording',
+      group: GROUP.actions,
+      icon: recording ? Square : Circle,
+      keywords: 'record meeting capture',
+      keys: keysOf(GLOBAL_SHORTCUTS['toggle-recording'].accelerator),
+      perform: () => { toggleRecording().catch((error: unknown) => console.error('[CommandPalette] Recording toggle failed:', error)); },
+    },
+    ...destinations.map(({ view, icon, label }): PaletteCommand => ({
+      id: `go:${view}`, title: label, group: GROUP.navigate, icon, weight: PALETTE_CONFIG.navigateWeight, perform: () => setCurrentView(view),
+    })),
+    {
+      id: 'theme', title: 'Toggle Theme', group: GROUP.settings, icon: isDark ? Sun : Moon, keywords: 'dark light appearance',
+      perform: () => setTheme(isDark ? 'light' : 'dark'),
+    },
+    {
+      id: 'settings',
+      title: 'Settings',
+      group: GROUP.settings,
+      icon: Settings,
+      keywords: ['preferences', ...sections.flatMap((s) => [s.label, ...s.keywords])].join(' '),
+      keys: keysOf(APP_SHORTCUTS.openSettings.accelerator),
+      children: () => sectionCommands,
+    },
+    // Each section also findable from the root by name or contents, once something is typed.
+    ...sectionCommands.map((command) => ({ ...command, subtitle: 'Settings', hideWhenEmpty: true })),
+  ];
+}

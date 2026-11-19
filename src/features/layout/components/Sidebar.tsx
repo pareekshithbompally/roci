@@ -2,9 +2,7 @@
  *  (edges fade only while there is more), Settings fixed at the foot. */
 
 import React, { useRef, useCallback, useEffect } from 'react';
-import { CalendarDays, ChevronLeft, Images, ListTodo, Mic, Search, SquarePen, PanelLeft, Settings } from 'lucide-react';
-import { GALLERY_CONFIG } from '@config/gallery.config';
-import { DICTATIONS_CONFIG } from '@config/dictations.config';
+import { ChevronLeft, Search, SquarePen, PanelLeft, Settings } from 'lucide-react';
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
 import { useSmallScreen } from '@shared/hooks/useMediaQuery';
 import { useSelectedHistoryId, useCurrentView, useAppActions } from '@shared/stores/appStore';
@@ -22,10 +20,7 @@ import { shortcutLabel } from '@features/shortcuts';
 import { startNewChat, useChatStore } from '@features/chat';
 import type { UnifiedSidebarItem } from '@shared/types';
 import { DestinationRow } from './DestinationRow';
-import { TODOS_CONFIG } from '@config/todos.config';
-import { CALENDAR_CONFIG } from '@config/calendar.config';
-import { useSettings } from '@shared/contexts/SettingsContext';
-import { isIntegrationEnabled } from '@shared/utils/integrations';
+import { useDestinations } from '@features/layout/hooks/useDestinations';
 
 interface SidebarProps {
   shouldOffsetMacControls: boolean;
@@ -50,11 +45,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const openSession = useOpenSession();
   const searchActive = useSearchActive();
   const query = useSearchQuery();
-  // The sheet (iPhone) searches in place; a column sidebar's search is the ⌘K panel (SearchPalette), so it never searches here.
+  // The sheet (iPhone) searches in place; a column sidebar's search is the ⌘K command palette (CommandPalette), so it never searches here.
   const sheet = variant === 'sheet';
   const search = useSessionSearch(items, sheet ? query : '');
   const results = search.matches?.map((match) => match.item) ?? null;
-  const calendarOn = isIntegrationEnabled(useSettings().settings, 'calendar');
 
   // Scroll the selected item into view when selection changes (e.g. from spotlight)
   useEffect(() => {
@@ -93,14 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   // The app's own places above Recents, the same on both platforms: To-dos always, Upcoming while the calendar is on.
-  const destinations = (
-    <>
-      <DestinationRow view="reminders" icon={ListTodo} label={TODOS_CONFIG.title} />
-      {calendarOn && <DestinationRow view="calendar" icon={CalendarDays} label={CALENDAR_CONFIG.title} />}
-      <DestinationRow view="gallery" icon={Images} label={GALLERY_CONFIG.title} />
-      <DestinationRow view="dictations" icon={Mic} label={DICTATIONS_CONFIG.title} />
-    </>
-  );
+  const destinations = useDestinations().map(({ view, icon, label }) => <DestinationRow key={view} view={view} icon={icon} label={label} />);
 
   // One list: the recents, or (iPhone, while searching) the matches with their words highlighted.
   const list = (

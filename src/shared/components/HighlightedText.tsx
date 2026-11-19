@@ -3,10 +3,17 @@ import React from 'react';
 interface HighlightedTextProps {
   text: string;
   highlight: string;
+  /** `mark`: a tinted highlight (sidebar search); `strong`: the matched words stronger, as a command palette shows them. */
+  emphasis?: 'mark' | 'strong';
 }
 
+const EMPHASIS = {
+  mark: 'bg-warning-subtle text-primary font-semibold px-0.5 rounded',
+  strong: 'text-primary font-semibold',
+} as const;
+
 /** Highlights case-insensitive matches of `highlight`, escaping regex characters. */
-export const HighlightedText: React.FC<HighlightedTextProps> = ({ text, highlight }) => {
+export const HighlightedText: React.FC<HighlightedTextProps> = ({ text, highlight, emphasis = 'mark' }) => {
   // No highlight - return plain text
   if (!highlight || !highlight.trim()) {
     return <>{text}</>;
@@ -22,10 +29,7 @@ export const HighlightedText: React.FC<HighlightedTextProps> = ({ text, highligh
     <span>
       {parts.map((part, i) =>
         part.toLowerCase() === highlight.toLowerCase() ? (
-          <span
-            key={i}
-            className="bg-warning-subtle text-primary font-semibold px-0.5 rounded"
-          >
+          <span key={i} className={EMPHASIS[emphasis]}>
             {part}
           </span>
         ) : (

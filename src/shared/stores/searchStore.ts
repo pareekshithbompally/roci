@@ -1,5 +1,6 @@
-/** Searching meetings and chats: on or off, and the query. ⌘K, the menu bar and the Search row start it; picking a result or
- *  Escape ends it. Shown as the Spotlight-style panel beside a column sidebar (Mac, iPad), in the sheet sidebar on iPhone. */
+/** Searching (and running commands): open or closed, and the query. ⌘K, the menu bar and the Search row open it; running a
+ *  command or Escape at the root closes it. Shown as the command palette beside a column sidebar (Mac, iPad), in the sheet
+ *  sidebar on iPhone. */
 
 import { create } from 'zustand';
 

@@ -17,9 +17,6 @@ export const SPOTLIGHT_MIN_QUERY_LENGTH = 2;
 /** Max results per source type returned by spotlight_search. */
 export const SPOTLIGHT_RESULTS_PER_SOURCE = 6;
 
-/** ⌘K panel: Settings rows pinned under the results, always this many (matches first, then quick settings). */
-export const SPOTLIGHT_SETTINGS_ROWS = 2;
-
 /** A tool row keeps this much of a tool's output for its expanded view. */
 export const TOOL_RESULT_PREVIEW_CHARS = 500;
 

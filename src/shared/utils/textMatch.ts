@@ -5,6 +5,3 @@ export function matchesAllWords(text: string, query: string): boolean {
   return words.length > 0 && words.every((word) => haystack.includes(word));
 }
 
-/** A listed entry (a Settings section, a quick setting) matches by its label or by the words it is found by. */
-export const matchesEntry = (entry: { label: string; keywords: readonly string[] }, query: string) =>
-  matchesAllWords([entry.label, ...entry.keywords].join(' '), query);

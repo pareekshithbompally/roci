@@ -1,7 +1,7 @@
 /** Search's one matching rule: every word typed appears, in any order, ignoring case. */
 
 import { describe, it, expect } from 'vitest';
-import { matchesAllWords, matchesEntry } from '@shared/utils/textMatch';
+import { matchesAllWords } from '@shared/utils/textMatch';
 
 describe('matchesAllWords', () => {
   it('every word, any order, any case', () => {
@@ -20,10 +20,4 @@ describe('matchesAllWords', () => {
     expect(matchesAllWords('Anything', '   ')).toBe(false);
   });
 
-  it('an entry matches by its label or by its search words', () => {
-    const entry = { label: 'Providers', keywords: ['api key', 'openai'] };
-    expect(matchesEntry(entry, 'provid')).toBe(true);
-    expect(matchesEntry(entry, 'API KEY')).toBe(true);
-    expect(matchesEntry(entry, 'calendar')).toBe(false);
-  });
 });
