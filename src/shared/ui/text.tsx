@@ -6,7 +6,7 @@ import { TYPOGRAPHY_CLASSES } from '@config/typography.config';
 /** `inherit` keeps the surrounding size (inline links inside headings / table cells). */
 export type TextVariant = keyof typeof TYPOGRAPHY_CLASSES | 'inherit';
 
-export type TextTone = 'primary' | 'muted' | 'faint' | 'accent' | 'danger' | 'warning' | 'success' | 'info' | 'ai' | 'inverse' | 'inherit';
+export type TextTone = 'primary' | 'muted' | 'faint' | 'accent' | 'danger' | 'warning' | 'success' | 'info' | 'ai' | 'inverse' | 'onAccent' | 'event' | 'inherit';
 
 export const TONE_CLASSES: Record<TextTone, string> = {
   primary: 'text-primary',
@@ -19,6 +19,10 @@ export const TONE_CLASSES: Record<TextTone, string> = {
   info: 'text-info',
   ai: 'text-ai',
   inverse: 'text-inverse',
+  /** On a solid accent or state fill (the calendar's now pill) */
+  onAccent: 'text-on-accent',
+  /** A calendar event's title, in its calendar's colour (set by an enclosing `Surface tint`) */
+  event: 'text-event',
   inherit: '',
 };
 

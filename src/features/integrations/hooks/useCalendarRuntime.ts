@@ -37,13 +37,6 @@ export function useCalendarRuntime(): void {
   const remindersOn = enabled && notifications.meetingReminders;
   const leadMinutes = notifications.meetingLeadMinutes;
 
-  // Calendar UI cache
-  useEffect(() => {
-    if (!enabled) return;
-    calendarService.startWatching();
-    return () => calendarService.stopWatching();
-  }, [enabled]);
-
   // Every week on screen or cached rereads when the calendar changes (native event, no polling)
   useEffect(() => {
     if (!enabled) return;

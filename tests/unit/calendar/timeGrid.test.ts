@@ -3,7 +3,7 @@
 process.env.TZ = 'Europe/Berlin';
 
 import { describe, it, expect } from 'vitest';
-import { visibleRange, layoutDay } from '@features/calendar/utils/timeGrid';
+import { visibleRange, layoutDay, isOnDay, weekNumber } from '@features/calendar/utils/timeGrid';
 import type { CalendarEvent } from '@services/calendar';
 
 /** An event from local wall-clock times (Berlin), e.g. ev('A', '2026-11-19T10:00', '2026-11-19T10:30'). */
@@ -23,15 +23,23 @@ const place = (blocks: ReturnType<typeof layoutDay>) =>
 
 describe('visibleRange', () => {
   it('week range starts Monday and spans 7 local days', () => {
-    const { days, start, end } = visibleRange(new Date('2026-11-19T15:00'), 'week');
+    const { days, start, end } = visibleRange(new Date('2026-11-19T15:00'), 'week', 2);
     expect(days).toHaveLength(7);
     expect(start).toEqual(day('2026-11-16'));
     expect(days[6]).toEqual(day('2026-11-22'));
     expect(end).toEqual(day('2026-11-23'));
   });
 
+  it('a Sunday-first week starts on Sunday', () => {
+    expect(visibleRange(new Date('2026-11-19T15:00'), 'week', 1).start).toEqual(day('2026-11-15'));
+  });
+
+  it('a Sunday anchor in a Monday-first week belongs to the week before', () => {
+    expect(visibleRange(new Date('2026-11-22T10:00'), 'week', 2).start).toEqual(day('2026-11-16'));
+  });
+
   it('day range spans one day', () => {
-    const { days, start, end } = visibleRange(new Date('2026-11-19T15:00'), 'day');
+    const { days, start, end } = visibleRange(new Date('2026-11-19T15:00'), 'day', 2);
     expect(days).toEqual([day('2026-11-19')]);
     expect(start).toEqual(day('2026-11-19'));
     expect(end).toEqual(day('2026-11-20'));
@@ -83,5 +91,21 @@ describe('layoutDay', () => {
   it('places events by wall-clock time on a DST-change day', () => {
     expect(place(layoutDay([ev('A', '2026-03-29T10:00', '2026-03-29T11:00')], day('2026-03-29'))).A)
       .toMatchObject({ top: 600, height: 60 });
+  });
+});
+
+describe('isOnDay', () => {
+  it('an all-day event covers each day it spans, not the day its end falls on', () => {
+    const holiday = ev('H', '2026-11-24T00:00', '2026-11-26T00:00');
+    expect([isOnDay(holiday, day('2026-11-23')), isOnDay(holiday, day('2026-11-24')), isOnDay(holiday, day('2026-11-25')), isOnDay(holiday, day('2026-11-26'))])
+      .toEqual([false, true, true, false]);
+  });
+});
+
+describe('weekNumber', () => {
+  it('ISO week, as Calendar labels it (W47)', () => {
+    expect(weekNumber(day('2026-11-19'))).toBe(47);
+    expect(weekNumber(day('2027-01-01'))).toBe(53);
+    expect(weekNumber(day('2026-01-01'))).toBe(1);
   });
 });

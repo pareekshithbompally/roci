@@ -38,9 +38,10 @@ describe('useRangeEvents', () => {
     await waitFor(() => expect(getEventsInRange).toHaveBeenCalledWith(week1.start.toISOString(), week1.end.toISOString()));
   });
 
-  it('drops all-day and cancelled events', async () => {
+  it('splits all-day events from timed ones and drops cancelled', async () => {
     const { result } = renderHook(() => useRangeEvents(week1, true), { wrapper });
     await waitFor(() => expect(result.current.events.map((e) => e.event_id)).toEqual(['a']));
+    expect(result.current.allDay.map((e) => e.event_id)).toEqual(['allday']);
   });
 
   it('disabled → no fetch', async () => {

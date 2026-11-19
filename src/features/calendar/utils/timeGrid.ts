@@ -29,13 +29,22 @@ export function minutesIntoDay(date: Date): number {
   return date.getHours() * 60 + date.getMinutes();
 }
 
-/** The local days on screen around `anchor` (a week from Monday, or the one day) and the range to read. */
-export function visibleRange(anchor: Date, span: CalendarSpan): { days: Date[]; start: Date; end: Date } {
-  const mondayOffset = (anchor.getDay() + 6) % DAYS_PER_WEEK;
-  const start = span === 'week' ? addDays(anchor, -mondayOffset) : addDays(anchor, 0);
+/** The local days on screen around `anchor` (its week from the device's first weekday, 1 = Sunday … 7 = Saturday, or the one day) and the range to read. */
+export function visibleRange(anchor: Date, span: CalendarSpan, firstWeekday: number): { days: Date[]; start: Date; end: Date } {
+  const offset = (anchor.getDay() - (firstWeekday - 1) + DAYS_PER_WEEK) % DAYS_PER_WEEK;
+  const start = span === 'week' ? addDays(anchor, -offset) : addDays(anchor, 0);
   const count = span === 'week' ? DAYS_PER_WEEK : 1;
   const days = Array.from({ length: count }, (_, i) => addDays(start, i));
   return { days, start, end: addDays(start, count) };
+}
+
+const MS_PER_DAY = 86_400_000;
+
+/** The ISO week number (Calendar's "W47"): weeks from Monday, week 1 holding the year's first Thursday. */
+export function weekNumber(date: Date): number {
+  const thursday = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate() + 3 - ((date.getDay() + 6) % DAYS_PER_WEEK)));
+  const yearStart = Date.UTC(thursday.getUTCFullYear(), 0, 1);
+  return Math.floor((thursday.getTime() - yearStart) / MS_PER_DAY / DAYS_PER_WEEK) + 1;
 }
 
 interface Span {
@@ -44,11 +53,16 @@ interface Span {
   end: number;
 }
 
+/** Whether any of `event` falls on `day` (its end is exclusive, so an all-day event ends before its end date). */
+export function isOnDay(event: CalendarEvent, day: Date): boolean {
+  return new Date(event.start_date) < addDays(day, 1) && new Date(event.end_date) > day;
+}
+
 /** The part of `event` inside `day`, in minutes; null when it isn't on that day. */
 function clip(event: CalendarEvent, day: Date, nextDay: Date): Span | null {
+  if (!isOnDay(event, day)) return null;
   const start = new Date(event.start_date);
   const end = new Date(event.end_date);
-  if (start >= nextDay || end <= day) return null;
   return {
     event,
     start: start <= day ? 0 : minutesIntoDay(start),

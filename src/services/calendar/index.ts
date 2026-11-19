@@ -9,7 +9,6 @@ export type {
   CalendarEvent,
   CalendarAttendee,
   CalendarAccessStatus,
-  EnrichedCalendarEvent,
   CalendarIntegrationSettings,
 } from './types';
 export { CALENDAR_DEFAULTS } from './types';

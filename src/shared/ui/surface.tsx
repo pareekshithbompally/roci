@@ -26,6 +26,14 @@ const VARIANT = {
   field: 'bg-base shadow-input',
   /** Modal backdrop (small-screen sidebar) */
   scrim: 'bg-scrim',
+  /** A calendar event block (Upcoming), filled with its calendar's colour (`tint`) as Calendar.app does */
+  event: 'bg-event',
+  /** An event block's leading bar, in its calendar's colour (`tint`) */
+  eventBar: 'bg-event-bar',
+  /** The system red mark: the calendar's now line and its time pill */
+  nowMark: 'bg-danger',
+  /** The now line where it runs on past today, dimmed as in Calendar.app */
+  nowTrail: 'bg-danger opacity-30',
   /** No fill — edges/radius only */
   plain: '',
 } as const;
@@ -57,6 +65,8 @@ export interface SurfaceProps extends React.HTMLAttributes<HTMLElement> {
   interactive?: boolean;
   /** Selected state (list items, chosen cards) */
   selected?: boolean;
+  /** A runtime colour (`#rrggbb`, e.g. a calendar's) the `event` / `eventBar` variants and `Text tone="event"` inside take; the accent when absent. */
+  tint?: string;
   ref?: React.Ref<HTMLElement>;
 }
 
@@ -67,7 +77,9 @@ export function Surface({
   edge,
   interactive,
   selected,
+  tint,
   className,
+  style,
   ref,
   ...props
 }: SurfaceProps) {
@@ -83,6 +95,7 @@ export function Surface({
         selected ? 'bg-tint-pressed' : interactive && 'hover:bg-tint-hover',
         className,
       )}
+      style={tint ? { ...style, ['--event-tint' as string]: tint } : style}
       {...props}
     />
   );

@@ -1,7 +1,8 @@
 /** Date and time choosers: the system's own controls (WebKit draws Apple's compact date and time pickers on iOS and macOS). */
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { cn } from './utils';
+import { Button } from './button';
 
 interface DatePickerProps {
   /** Selected date as YYYY-MM-DD string */
@@ -14,6 +15,8 @@ interface DatePickerProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  /** Shown instead of the field (e.g. the range on screen): a button that opens the system date picker, so one date format shows. */
+  children?: React.ReactNode;
 }
 
 interface TimePickerProps {
@@ -27,17 +30,32 @@ interface TimePickerProps {
 /** The system control keeps its own look; we only clear the web defaults around it and use the body text style. */
 const NATIVE = 'bg-transparent text-body text-primary outline-none disabled:opacity-50';
 
-export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, min, placeholder = 'Date', className, disabled }) => (
-  <input
-    type="date"
-    aria-label={placeholder}
-    value={value}
-    min={min}
-    disabled={disabled}
-    onChange={(e) => onChange(e.target.value)}
-    className={cn(NATIVE, className)}
-  />
-);
+export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, min, placeholder = 'Date', className, disabled, children }) => {
+  const ref = useRef<HTMLInputElement>(null);
+  const field = (
+    <input
+      ref={ref}
+      type="date"
+      aria-label={placeholder}
+      value={value}
+      min={min}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+      className={children ? 'sr-only' : cn(NATIVE, className)}
+      tabIndex={children ? -1 : undefined}
+    />
+  );
+  if (!children) return field;
+  // The hidden field stays under its label, so the system picker opens there.
+  return (
+    <span className={cn('relative inline-flex', className)}>
+      <Button variant="ghost" size="sm" disabled={disabled} aria-label={placeholder} onClick={() => ref.current?.showPicker()}>
+        {children}
+      </Button>
+      {field}
+    </span>
+  );
+};
 
 /** Half-hour steps, as before; the system wheel still shows every minute but snaps the value. */
 const HALF_HOUR_SECONDS = 1800;

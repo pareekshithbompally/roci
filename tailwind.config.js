@@ -61,11 +61,15 @@ export default {
         separator: 'var(--border-muted)',
         ai: 'var(--ai-accent)',
         'ai-wash': 'var(--ai-wash)',
+        // A calendar event in its calendar's colour (`--event-tint` on the event; the accent when unknown).
+        event: 'color-mix(in srgb, var(--event-tint, var(--bg-accent)) var(--event-fill-mix), transparent)',
+        'event-bar': 'var(--event-tint, var(--bg-accent))',
       },
       textColor: {
         ...roles('text', ['primary', 'muted', 'faint', 'accent', 'inverse', 'on-accent']),
         ...stateRoles('fg'),
         ai: 'var(--ai-accent)',
+        event: 'color-mix(in srgb, var(--event-tint, var(--bg-accent)) var(--event-text-mix), var(--text-primary))',
       },
       borderColor: {
         DEFAULT: 'var(--border-muted)',

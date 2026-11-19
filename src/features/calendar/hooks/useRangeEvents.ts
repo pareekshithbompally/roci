@@ -1,25 +1,35 @@
-/** The calendar's timed events in the range on screen; every cached range rereads on `calendar://changed` (useCalendarRuntime). */
+/** The calendar's events in the range on screen (timed and all-day); every cached range rereads on `calendar://changed` (useCalendarRuntime). */
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { calendarService } from '@services/calendar';
 import { queryKeys } from '@shared/query/queryKeys';
 import type { CalendarEvent } from '@services/calendar';
 
-const NO_EVENTS: CalendarEvent[] = [];
+interface RangeEvents {
+  /** Timed events, for the grid. */
+  events: CalendarEvent[];
+  /** All-day events, for the strip above it. */
+  allDay: CalendarEvent[];
+}
 
-/** All-day and cancelled events have no place on the time grid. */
-const timed = (events: CalendarEvent[]) => events.filter((e) => !e.is_all_day && !e.is_cancelled);
+const NONE: RangeEvents = { events: [], allDay: [] };
 
-export function useRangeEvents(range: { start: Date; end: Date }, enabled: boolean): { events: CalendarEvent[]; isPending: boolean } {
+/** Cancelled events are dropped; all-day ones go to their own strip. */
+function split(events: CalendarEvent[]): RangeEvents {
+  const kept = events.filter((e) => !e.is_cancelled);
+  return { events: kept.filter((e) => !e.is_all_day), allDay: kept.filter((e) => e.is_all_day) };
+}
+
+export function useRangeEvents(range: { start: Date; end: Date }, enabled: boolean): RangeEvents & { isPending: boolean } {
   const start = range.start.toISOString();
   const end = range.end.toISOString();
   const { data, isPending } = useQuery({
     queryKey: queryKeys.calendarEvents(start, end),
     queryFn: () => calendarService.getEventsInRange(start, end),
-    select: timed,
+    select: split,
     enabled,
     // The week before stays on screen until the next one is read: no blank flash between weeks.
     placeholderData: keepPreviousData,
   });
-  return { events: data ?? NO_EVENTS, isPending };
+  return { ...(data ?? NONE), isPending };
 }

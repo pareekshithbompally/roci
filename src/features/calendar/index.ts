@@ -1,4 +1,3 @@
-/** Calendar feature: week view of upcoming calendar events via Schedule-X. */
+/** Calendar feature: Upcoming, the calendar's events on a kit time grid, linked to the meetings Roci recorded. */
 
-export { CalendarView, CalendarWeek } from './components';
-export { useCalendarEvents } from './hooks';
+export { CalendarView } from './components';

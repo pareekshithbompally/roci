@@ -61,7 +61,6 @@ export const ACKNOWLEDGEMENTS: readonly AcknowledgementGroup[] = [
       { name: 'Motion (Framer Motion)', url: 'https://github.com/motiondivision/motion', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2018 Framer B.V.' },
       { name: 'cmdk', url: 'https://github.com/pacocoursey/cmdk', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2022 Paco Coursey' },
       { name: 'Sonner', url: 'https://github.com/emilkowalski/sonner', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2023 Emil Kowalski' },
-      { name: 'Schedule-X', url: 'https://github.com/schedule-x/schedule-x', license: 'MIT', text: 'MIT', copyright: 'Copyright 2023 Tom Österlund' },
       { name: 'React Resizable Panels', url: 'https://github.com/bvaughn/react-resizable-panels', license: 'MIT', text: 'MIT' },
       { name: 'use-stick-to-bottom', url: 'https://github.com/stackblitz/use-stick-to-bottom', license: 'MIT', text: 'MIT', copyright: 'Copyright (c) 2024 - present StackBlitz' },
       { name: 'Streamdown', url: 'https://github.com/vercel/streamdown', license: 'Apache-2.0', text: 'Apache-2.0', copyright: 'Copyright 2023 Vercel, Inc.' },
