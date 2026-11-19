@@ -20,6 +20,7 @@ import { MeetingStatus } from '@shared/components';
 import { MeetingPhaseNotice } from './MeetingPhaseNotice';
 import { MeetingActionsMenu } from './MeetingActionsMenu';
 import { MeetingStatsPopover } from './MeetingStatsPopover';
+import { MeetingSourceIcon } from './MeetingSourceIcon';
 import { SummaryTab } from './SummaryTab';
 import { useMeetingStats } from '@features/home/hooks/useMeetingStats';
 import type { HistoryItem, ProcessedResult } from '@shared/types';
@@ -226,6 +227,7 @@ export const ResultsView: React.FC = () => {
         ) : (
           <>
             <div className="flex items-center gap-2">
+              <MeetingSourceIcon inputSource={currentHistoryItem?.inputSource} />
               <MeetingTitle title={shownTitle} onEdit={() => { setEditedTitle(shownTitle); setIsEditingTitle(true); }}>
                 {currentHistoryItem && <MeetingStatsPopover meetingId={currentHistoryItem.id} />}
               </MeetingTitle>
