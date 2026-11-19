@@ -53,6 +53,8 @@ export const platform = {
   hasCalendar: apple,
   /** Notifies before calendar meetings with a Record action (timed natively; iPhone comes with its scheduled notices). */
   hasMeetingReminders: apple,
+  /** Record / Join & Record from the calendar (the Mac; iPhone later). */
+  canRecordFromCalendar: mac,
   hasSpotlight: mac,
   hasAppleNotes: mac,
   hasHex: mac,

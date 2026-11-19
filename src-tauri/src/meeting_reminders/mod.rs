@@ -328,6 +328,13 @@ pub(crate) fn record(event: &CalendarEvent, join: bool) {
     emit(RECORD_EVENT, event);
 }
 
+/// Record (or Join & Record) an event picked in the app's calendar, through the same path as a reminder.
+#[cfg(desktop)]
+#[tauri::command]
+pub fn record_calendar_event(event: CalendarEvent, join: bool) {
+    record(&event, join);
+}
+
 /// The in-progress calendar meeting a detected call's app belongs to; known while the calendar integration is on.
 #[cfg(desktop)]
 pub(crate) fn event_for_call(application: &str) -> Option<CalendarEvent> {

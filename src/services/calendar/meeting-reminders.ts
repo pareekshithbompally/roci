@@ -12,6 +12,12 @@ export async function configureMeetingReminders(calendar: boolean, enabled: bool
   await invoke('configure_meeting_reminders', { calendar, enabled, leadMinutes });
 }
 
+/** Record (or Join & Record: the call link opens first) `event` from the app's calendar, the same way as from a reminder. */
+export async function recordCalendarEvent(event: CalendarEvent, join: boolean): Promise<void> {
+  if (!isTauriEnvironment()) return;
+  await invoke('record_calendar_event', { event, join });
+}
+
 /** Record or Join & record was chosen on a reminder: start recording `event`. Returns the unsubscribe. */
 export function onMeetingRecord(handler: (event: CalendarEvent) => void): () => void {
   if (!isTauriEnvironment()) return () => undefined;

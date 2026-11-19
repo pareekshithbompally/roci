@@ -79,6 +79,7 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       permissions::commands::open_permission_settings,
       // Meeting reminders (on/off)
       meeting_reminders::configure_meeting_reminders,
+      meeting_reminders::record_calendar_event,
       // Meetings in Spotlight (on/off)
       meeting_spotlight::configure_meeting_spotlight,
       // Hex integration (transcription models + one-way meeting sync)

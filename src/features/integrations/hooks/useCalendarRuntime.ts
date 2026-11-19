@@ -16,6 +16,7 @@ import {
 import type { CalendarEvent } from '@services/calendar';
 import { DEFAULT_NOTIFICATION_SETTINGS } from '@config/notifications.config';
 import { queryClient } from '@shared/query/queryClient';
+import { useAppStore } from '@shared/stores/appStore';
 import { queryKeys } from '@shared/query/queryKeys';
 
 export function useCalendarRuntime(): void {
@@ -59,12 +60,14 @@ export function useCalendarRuntime(): void {
     );
   }, [enabled, remindersOn, leadMinutes]);
 
-  // Record / Join & record (Rust already opened the call link for Join)
+  // Record / Join & record from a reminder, the menu bar or the calendar (Rust already opened the call link for Join)
   useEffect(() => {
     if (!platform.hasMeetingReminders) return;
     const record = async (event: CalendarEvent) => {
       try {
         setPendingCalendarEvent(event);
+        // Shown wherever it was started from: the recording view, not the page that was open.
+        useAppStore.getState().setCurrentView('home');
         await startRecordingRef.current();
       } catch (error: unknown) {
         console.error('[useCalendarRuntime] Failed to start recording:', error);

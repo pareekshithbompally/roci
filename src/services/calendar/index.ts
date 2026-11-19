@@ -1,7 +1,7 @@
 /** Public API for macOS Calendar via EventKit. */
 
 export { calendarService } from './calendar.service';
-export { configureMeetingReminders, onMeetingRecord } from './meeting-reminders';
+export { configureMeetingReminders, onMeetingRecord, recordCalendarEvent } from './meeting-reminders';
 export { setPendingCalendarEvent, consumePendingCalendarMeta, hasPendingCalendarEvent } from './recording-bridge';
 export type { CalendarRecordingMeta } from './recording-bridge';
 export { occurrenceKey, findMeetingForOccurrence } from './occurrence';
