@@ -8,9 +8,12 @@ import { errorMessage } from '@shared/utils/errors';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { LiveEntry } from '@features/recording/live/liveTranscript';
 import { formatClock } from '@features/recording/stores/recordingStore';
+import { ragIndexer, ragSearcher } from '@extensions/rag';
+import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
 import {
-  changesFromReply, enhancedBullets, entryKey, liveNotesRequest, mergeBullets, reconcileLines, refreshReason, signatureOf, transcriptText, unsentEntries,
-  type Bullet, type NoteLine, type TypedAt,
+  changedNotes, changesFromReply, enhancedBullets, entryKey, liveNotesRequest, mergeBullets, notesSeen, NO_RECALL, recallOf, reconcileLines,
+  refreshReason, signatureOf, transcriptText, unsentEntries,
+  type Bullet, type NoteLine, type Recall, type Span, type TypedAt,
 } from './liveNotes';
 
 interface LiveNotesState {
@@ -35,10 +38,16 @@ interface Session {
   signature: string;
   /** The end of the newest transcript any update was handed (ms on the recording clock); the cadence counts from here. */
   coveredUntilMs: number;
+  /** Each note's text as the last applied update saw it. */
+  seen: Map<string, string>;
+  /** This recording's indexed stretches (chunk text → when it was said), for recalling earlier talk. */
+  spans: Map<string, Span>;
   controller: AbortController | null;
 }
 
-const freshSession = (): Session => ({ sent: new Set(), taken: new Set(), signature: '', coveredUntilMs: 0, controller: null });
+const freshSession = (): Session => ({
+  sent: new Set(), taken: new Set(), signature: '', coveredUntilMs: 0, seen: new Map(), spans: new Map(), controller: null,
+});
 let session = freshSession();
 
 const get = useLiveNotesStore.getState;
@@ -48,6 +57,26 @@ const clock = (ms: number) => formatClock(Math.floor(ms / 1_000));
 /** Where new points sit on the clock: where the talk they came from began (the newest entry's end when only notes changed). */
 const talkStartMs = (payload: LiveEntry[], entries: LiveEntry[]): number =>
   payload.length > 0 ? Math.min(...payload.map((e) => e.startMs)) : Math.max(0, ...entries.map((e) => e.endMs));
+
+/** Earlier talk for the changed notes and the new transcript, from the meeting's own index in one search; nothing before any
+ *  stretch is indexed. */
+async function recallFor(current: Session, meetingId: string, lines: NoteLine[], transcript: string): Promise<Recall> {
+  const notes = changedNotes(lines, current.seen);
+  const queries = transcript ? [...notes, transcript] : notes;
+  if (queries.length === 0 || current.spans.size === 0) return NO_RECALL;
+  const hits = await ragSearcher.searchWithin(meetingId, queries, NOTES.recall.passagesPerQuery);
+  const texts = hits.map((found) => found.map((hit) => hit.chunkText));
+  return recallOf(texts.slice(0, notes.length), texts.flat(), current.spans);
+}
+
+/** Indexes the stretch an applied update covered — after it, never before one — so later updates can recall it. */
+function remember(current: Session, meetingId: string, transcript: string, span: Span): void {
+  if (!transcript) return;
+  ragIndexer
+    .appendTranscript(meetingId, transcript)
+    .then((texts) => texts.forEach((text) => current.spans.set(text, span)))
+    .catch((error: unknown) => console.error('[liveNotes] Indexing the stretch failed:', error));
+}
 
 export const liveNotes = {
   /** A new recording's notes; the same meeting again keeps what is there. */
@@ -86,14 +115,19 @@ export const liveNotes = {
     payload.forEach((e) => current.taken.add(entryKey(e)));
     current.coveredUntilMs = Math.max(current.coveredUntilMs, ...payload.map((e) => e.endMs));
     const signature = signatureOf(lines);
+    const transcript = transcriptText(payload, clock);
     set({ updating: true });
     try {
-      const { input, realId } = liveNotesRequest(lines, bullets, transcriptText(payload, clock), clock);
+      const recall = await recallFor(current, meetingId, lines, transcript);
+      if (current.controller !== controller) return;
+      const { input, realId } = liveNotesRequest(lines, bullets, transcript, recall, clock);
       const reply = await refreshLiveNotes({ input, resolved, meetingId, signal: controller.signal });
       if (current.controller !== controller) return;
       const changes = changesFromReply(reply, realId);
       payload.forEach((e) => current.sent.add(entryKey(e)));
       current.signature = signature;
+      current.seen = notesSeen(lines);
+      remember(current, meetingId, transcript, { startMs: talkStartMs(payload, entries), endMs: current.coveredUntilMs });
       set({ bullets: mergeBullets(get().bullets, changes, get().lines, talkStartMs(payload, entries)), problem: null });
     } catch (error: unknown) {
       if (controller.signal.aborted) return;

@@ -9,6 +9,15 @@ export const LIVE_NOTES_CONFIG = {
   followSlackPx: 48,
   /** Ids the client gives bullets: "b1", "b2"… short so the model copies them exactly. */
   bulletIdPrefix: 'b',
+  /** What an update recalls of the meeting so far from its search index (indexed stretch by stretch while it records). */
+  recall: {
+    /** Earlier passages per query (each new or changed note, and the new transcript), most related first. */
+    passagesPerQuery: 3,
+    /** Characters of earlier passages one update may carry. */
+    earlierChars: 6_000,
+    /** The newest points always sent; older ones only when their talk was recalled. */
+    recentPoints: 5,
+  },
   copy: {
     yourNotes: 'Your notes',
     aiNotes: 'AI notes',

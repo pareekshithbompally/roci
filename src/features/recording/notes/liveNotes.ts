@@ -141,8 +141,47 @@ export function aiRows(lines: NoteLine[], bullets: Bullet[]): AiRow[] {
   return [...written, ...waiting].sort((a, b) => rowTime(a) - rowTime(b));
 }
 
-/** One refresh's request: the notes under short ids ("n1", in order) the model can copy exactly, and the way back to real ids. */
-export function liveNotesRequest(lines: NoteLine[], bullets: Bullet[], transcript: string, clock: (ms: number) => string): {
+/** A stretch of the meeting on the recording clock. */
+export interface Span {
+  startMs: number;
+  endMs: number;
+}
+
+/** What an update recalled of the meeting so far: earlier talk for the changed notes, and when every recalled stretch was said. */
+export interface Recall {
+  passages: string[];
+  spans: Span[];
+}
+
+export const NO_RECALL: Recall = { passages: [], spans: [] };
+
+/** The notes the model hasn't seen as they are now (new or edited since the last applied update): they ask for earlier talk. */
+export function changedNotes(lines: NoteLine[], seen: ReadonlyMap<string, string>): string[] {
+  return writtenLines(lines).flatMap((l) => (seen.get(l.id) === l.text.trim() ? [] : [l.text.trim()]));
+}
+
+/** The notes as an applied update saw them, by id. */
+export const notesSeen = (lines: NoteLine[]): Map<string, string> => new Map(writtenLines(lines).map((l) => [l.id, l.text.trim()]));
+
+/** A search's hits as a recall: the notes' passages once each, most related first, within the budget; the time of every hit
+ *  that is one of this recording's stretches (`spans`, by text). */
+export function recallOf(noteHits: string[][], allHits: string[], spans: ReadonlyMap<string, Span>): Recall {
+  let room = NOTES.recall.earlierChars;
+  const passages = [...new Set(noteHits.flat())].filter((text) => spans.has(text) && (room -= text.length) >= 0);
+  return { passages, spans: allHits.flatMap((text) => spans.get(text) ?? []) };
+}
+
+/** The points an update sends: the newest few, and older ones whose talk was recalled (a topic coming back). */
+function pointsToSend(bullets: Bullet[], spans: Span[]): Bullet[] {
+  const points = bullets.filter((b) => !b.noteId);
+  const recent = new Set(points.slice(-NOTES.recall.recentPoints));
+  const recalled = ({ atMs }: Bullet) => atMs !== undefined && spans.some((s) => atMs >= s.startMs && atMs <= s.endMs);
+  return points.filter((b) => recent.has(b) || recalled(b));
+}
+
+/** One refresh's request: the notes under short ids ("n1", in order) the model can copy exactly, what was recalled, and the
+ *  way back to real ids. */
+export function liveNotesRequest(lines: NoteLine[], bullets: Bullet[], transcript: string, recall: Recall, clock: (ms: number) => string): {
   input: LiveNotesInput;
   realId: Map<string, string>;
 } {
@@ -151,7 +190,8 @@ export function liveNotesRequest(lines: NoteLine[], bullets: Bullet[], transcrip
   const input: LiveNotesInput = {
     notes: written.map((l) => ({ id: shortId.get(l.id) ?? l.id, text: l.text.trim(), at: l.atMs === undefined ? undefined : clock(l.atMs) })),
     filled: bullets.flatMap((b) => (b.noteId && shortId.has(b.noteId) ? [{ noteId: shortId.get(b.noteId) ?? b.noteId, text: b.text }] : [])),
-    points: bullets.filter((b) => !b.noteId).map((b) => ({ id: b.id, text: b.text })),
+    points: pointsToSend(bullets, recall.spans).map((b) => ({ id: b.id, text: b.text })),
+    earlier: recall.passages,
     transcript,
   };
   return { input, realId: new Map([...shortId].map(([real, short]) => [short, real])) };

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
 import {
   enhancedBullets,
-  aiRows, changesFromReply, liveNotesRequest, mergeBullets, reconcileLines, refreshReason, signatureOf, transcriptText, unsentEntries, entryKey,
+  aiRows, changedNotes, changesFromReply, liveNotesRequest, mergeBullets, notesSeen, NO_RECALL, recallOf, reconcileLines, refreshReason, signatureOf,
+  transcriptText, unsentEntries, entryKey,
   type Bullet, type NoteLine,
 } from '@features/recording/notes/liveNotes';
 import type { LiveEntry } from '@features/recording/live/liveTranscript';
@@ -130,16 +131,45 @@ describe('liveNotesRequest and changesFromReply', () => {
   const bullets: Bullet[] = [{ id: 'b1', noteId: 'uuid-a', text: 'Launch: 14 Dec' }, { id: 'b2', text: 'Decision: ship' }];
 
   it('sends the notes under short ids the model can copy, with how they stand', () => {
-    const { input } = liveNotesRequest(lines, bullets, 'You: hi', (ms) => `t${ms}`);
+    const { input } = liveNotesRequest(lines, bullets, 'You: hi', NO_RECALL, (ms) => `t${ms}`);
     expect(input.notes).toEqual([{ id: 'n1', text: 'launch?', at: 't40000' }, { id: 'n2', text: 'ask Raj', at: undefined }]);
     expect(input.filled).toEqual([{ noteId: 'n1', text: 'Launch: 14 Dec' }]);
     expect(input.points).toEqual([{ id: 'b2', text: 'Decision: ship' }]);
   });
 
   it('maps the reply back to real note ids and drops a note it does not know', () => {
-    const { realId } = liveNotesRequest(lines, bullets, '', String);
+    const { realId } = liveNotesRequest(lines, bullets, '', NO_RECALL, String);
     expect(changesFromReply({ filled: [{ noteId: 'n2', text: 'Ask Raj about rate limits.' }, { noteId: 'n9', text: 'x' }], points: [{ text: 'Task: QA' }] }, realId))
       .toEqual([{ noteId: 'uuid-c', text: 'Ask Raj about rate limits.' }, { id: undefined, text: 'Task: QA' }]);
+  });
+});
+
+describe('recall', () => {
+  const spans = new Map([
+    ['[02:10] Others: the budget is ten thousand', { startMs: 120_000, endMs: 140_000 }],
+    ['[05:00] You: we hire two engineers', { startMs: 290_000, endMs: 310_000 }],
+  ]);
+
+  it('only new or edited notes ask for earlier talk', () => {
+    const lines: NoteLine[] = [{ id: 'a', text: 'budget?' }, { id: 'b', text: 'hiring' }];
+    expect(changedNotes(lines, notesSeen([{ id: 'a', text: 'budget?' }, { id: 'b', text: 'hire' }]))).toEqual(['hiring']);
+  });
+
+  it('keeps the notes\' passages once each, only this recording\'s, and the time of every hit', () => {
+    const recall = recallOf(
+      [['[02:10] Others: the budget is ten thousand', 'unknown text'], ['[02:10] Others: the budget is ten thousand']],
+      ['[02:10] Others: the budget is ten thousand', '[05:00] You: we hire two engineers'],
+      spans,
+    );
+    expect(recall.passages).toEqual(['[02:10] Others: the budget is ten thousand']);
+    expect(recall.spans).toEqual([{ startMs: 120_000, endMs: 140_000 }, { startMs: 290_000, endMs: 310_000 }]);
+  });
+
+  it('sends the newest points and older ones whose talk was recalled, with the earlier talk', () => {
+    const points: Bullet[] = Array.from({ length: NOTES.recall.recentPoints + 2 }, (_, i) => ({ id: `b${i + 1}`, text: `p${i + 1}`, atMs: i * 100_000 }));
+    const { input } = liveNotesRequest([], points, 'You: back to the budget', { passages: ['earlier talk'], spans: [{ startMs: 90_000, endMs: 110_000 }] }, String);
+    expect(input.points.map((p) => p.id)).toEqual(['b2', ...points.slice(-NOTES.recall.recentPoints).map((p) => p.id)]);
+    expect(input.earlier).toEqual(['earlier talk']);
   });
 });
 
