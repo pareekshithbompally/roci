@@ -1,4 +1,5 @@
-// The system alert with the app icon, a title, one line, Cancel and the action; a destructive one is red, takes no Return, Escape cancels.
+// The system alert as a sheet on the key window: the app icon, a title and one line, Cancel and the action. A destructive
+// action's button is red (hasDestructiveAction) and takes no Return, so a stray Return never deletes; Escape cancels.
 
 #import <AppKit/AppKit.h>
 #include <stdbool.h>
@@ -18,6 +19,13 @@ void roci_alert(const char *title, const char *message, const char *confirmLabel
     confirm.hasDestructiveAction = YES;
     confirm.keyEquivalent = @"";
   }
-  // App-modal, not a sheet: macOS 26 draws a sheet alert without the app icon.
-  done(context, [alert runModal] == NSAlertFirstButtonReturn);
+  void (^answer)(NSModalResponse) = ^(NSModalResponse response) {
+    done(context, response == NSAlertFirstButtonReturn);
+  };
+  NSWindow *window = NSApp.keyWindow ?: NSApp.mainWindow;
+  if (window) {
+    [alert beginSheetModalForWindow:window completionHandler:answer];
+  } else {
+    answer([alert runModal]);
+  }
 }

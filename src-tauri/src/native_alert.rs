@@ -1,4 +1,5 @@
-//! The system alert (native/alert.m): app icon, a red destructive button that takes no Return; resolves whether it was confirmed.
+//! The system alert (native/alert.m): a sheet with the app icon whose destructive button is red and takes no Return —
+//! what the dialog plugin's alert can't set. Resolves whether the action was confirmed.
 
 use std::ffi::{c_void, CString};
 use std::os::raw::c_char;
@@ -47,7 +48,7 @@ pub async fn native_alert(
     let (sender, receiver) = oneshot::channel::<bool>();
     // A raw pointer isn't Send; its address crosses to the main thread and is reclaimed in `alert_done`.
     let context = Box::into_raw(Box::new(sender)) as usize;
-    // AppKit alerts run on the main thread and answer through `alert_done`.
+    // AppKit alerts run on the main thread; the sheet answers later through `alert_done`.
     app.run_on_main_thread(move || {
         let [title, message, confirm, cancel] = &texts;
         // SAFETY: the strings are NUL-terminated and outlive the call (AppKit copies them); `context` is consumed once.
