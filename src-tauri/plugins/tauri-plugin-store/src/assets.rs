@@ -1,6 +1,6 @@
 //! Every kept file is one `assets` row with at most one parent; deleting the row queues the file, `drain_files` removes it.
 
-use crate::commands::{now_millis, on_db, StoreState};
+use crate::commands::{now_millis, on_db, ItemCursor, StoreState};
 use crate::error::StoreError;
 use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
@@ -157,13 +157,16 @@ pub(crate) fn sync_chat_assets(tx: &Connection, chat_id: &str, paths: &[String])
     Ok(())
 }
 
-pub(crate) fn list(db: &Connection, kind: &str) -> Result<Vec<AssetRow>, StoreError> {
+/// One page of `kind`'s files, newest first, after `before` (the last row of the page before it).
+pub(crate) fn page(db: &Connection, kind: &str, before: Option<&ItemCursor>, limit: u32) -> Result<Vec<AssetRow>, StoreError> {
+    let (at, id) = before.map_or((i64::MAX, String::new()), |c| (c.at, c.id.clone()));
     let rows = db
         .prepare(
             "SELECT id, kind, path, preview_path, meeting_id, chat_id, duration_seconds, meta, created_at
-             FROM assets WHERE kind = ?1 ORDER BY created_at DESC",
+             FROM assets WHERE kind = ?1 AND (created_at < ?2 OR (created_at = ?2 AND id < ?3))
+             ORDER BY created_at DESC, id DESC LIMIT ?4",
         )?
-        .query_map([kind], |row| {
+        .query_map(rusqlite::params![kind, at, id, limit], |row| {
             Ok(AssetRow {
                 id: row.get(0)?,
                 kind: row.get(1)?,
@@ -340,9 +343,16 @@ pub async fn assets_create(state: State<'_, StoreState>, asset: NewAsset) -> Res
     .await
 }
 
+/// The Gallery a page at a time.
 #[tauri::command]
-pub async fn assets_list(state: State<'_, StoreState>, kind: String) -> Result<Vec<AssetRow>, StoreError> {
-    on_db(&state, move |db| list(db, &kind)).await
+pub async fn assets_page(state: State<'_, StoreState>, kind: String, before: Option<ItemCursor>, limit: u32) -> Result<Vec<AssetRow>, StoreError> {
+    on_db(&state, move |db| page(db, &kind, before.as_ref(), limit)).await
+}
+
+/// How many files of `kind` are kept (the Gallery's "N images").
+#[tauri::command]
+pub async fn assets_count(state: State<'_, StoreState>, kind: String) -> Result<i64, StoreError> {
+    on_db(&state, move |db| Ok(db.query_row("SELECT COUNT(*) FROM assets WHERE kind = ?1", [kind], |row| row.get(0))?)).await
 }
 
 /// Whether a file is still kept (its row exists); a chat shows "removed" where it isn't.

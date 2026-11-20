@@ -8,17 +8,11 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { chatService } from '@services/chat.service';
 import { retentionService } from '@services/storage/retention.service';
 import { queryKeys } from '@shared/query/queryKeys';
-import { MAX_LOADED_SESSIONS } from '@config/chat.config';
 
-/** Adds a loaded chat to the bounded map; when full, the first-loaded chat that isn't replying makes room. */
-function withLoaded(prev: Map<string, ChatSession>, session: ChatSession, replyingId: string | null): Map<string, ChatSession> {
-  if (prev.has(session.id)) return prev;
-  const next = new Map(prev);
-  if (next.size >= MAX_LOADED_SESSIONS) {
-    const evict = [...next.keys()].find((id) => id !== replyingId);
-    if (evict) next.delete(evict);
-  }
-  return next.set(session.id, session);
+/** Memory holds the open chat and the one replying; any other chat is read from disk again when it's opened. */
+function onlyOpenAndReplying(prev: Map<string, ChatSession>, openId: string | null, replyingId: string | null): Map<string, ChatSession> {
+  const kept = [...prev].filter(([id]) => id === openId || id === replyingId);
+  return kept.length === prev.size ? prev : new Map(kept);
 }
 
 export function useChatRuntime(): void {
@@ -35,6 +29,10 @@ export function useChatRuntime(): void {
   // The open chat: read from disk when it isn't in memory. The store is its only cache (gcTime 0),
   // so a chat that left memory is read fresh from disk, never from a stale query copy.
   const currentSessionId = useChatStore((s) => s.currentSessionId);
+  useEffect(() => {
+    const { replyingSessionId, setLoadedSessions } = useChatStore.getState();
+    setLoadedSessions((prev) => onlyOpenAndReplying(prev, currentSessionId, replyingSessionId));
+  }, [currentSessionId]);
   const isLoaded = useChatStore((s) => !!s.currentSessionId && s.loadedSessions.has(s.currentSessionId));
   const sessionQuery = useQuery({
     queryKey: queryKeys.chat(currentSessionId ?? 'none'),
@@ -46,8 +44,7 @@ export function useChatRuntime(): void {
   useEffect(() => {
     const loaded = sessionQuery.data;
     if (!loaded) return;
-    const { replyingSessionId, setLoadedSessions } = useChatStore.getState();
-    setLoadedSessions((prev) => withLoaded(prev, loaded, replyingSessionId));
+    useChatStore.getState().setLoadedSessions((prev) => (prev.has(loaded.id) ? prev : new Map(prev).set(loaded.id, loaded)));
   }, [sessionQuery.data]);
 
   // Loading follows the query; selectSession sets it at once.

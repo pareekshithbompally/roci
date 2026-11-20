@@ -1,7 +1,7 @@
 /** Renders only the active settings panel; edits save on edit, so there is no save footer. */
 
 import React, { useEffect } from 'react';
-import { systemInfoStore } from '@features/settings/stores/systemInfoStore';
+import { preloadSystemInfo } from '@features/settings/hooks/useSystemInfo';
 import { useAppStore } from '@shared/stores/appStore';
 import { SETTINGS_GROUPS, SETTINGS_NAV_ITEMS } from './SettingsNav';
 import { useSettings } from '@shared/contexts/SettingsContext';
@@ -48,7 +48,7 @@ export function settingsScreen(id: SettingsPanelType): NavScreen {
 export const SettingsHome: React.FC = () => {
   const { push } = useNavStack();
   // System panel data (paths, disk, index) loads while the user is still on this list, as on the desktop.
-  useEffect(() => systemInfoStore.preload(), []);
+  useEffect(preloadSystemInfo, []);
   return (
     <div className="flex flex-col gap-section p-4">
       {SETTINGS_GROUPS.map(({ group, items }) => (
@@ -67,7 +67,7 @@ export const SettingsPanel: React.FC = () => {
   const { isLoading } = useSettings();
 
   // System panel data (paths, disk, index) loads while the user is still on another panel.
-  useEffect(() => systemInfoStore.preload(), []);
+  useEffect(preloadSystemInfo, []);
 
   if (isLoading) {
     return (

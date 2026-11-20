@@ -17,7 +17,8 @@ Allows all store plugin commands
 - `allow-transcripts-save`
 - `allow-summaries-save`
 - `allow-assets-create`
-- `allow-assets-list`
+- `allow-assets-page`
+- `allow-assets-count`
 - `allow-assets-exists`
 - `allow-notices-owed`
 - `allow-notices-cleared`
@@ -74,6 +75,32 @@ Allows all store plugin commands
 <tr>
 <td>
 
+`store:allow-assets-count`
+
+</td>
+<td>
+
+Enables the assets_count command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-assets-count`
+
+</td>
+<td>
+
+Denies the assets_count command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `store:allow-assets-create`
 
 </td>
@@ -126,12 +153,12 @@ Denies the assets_exists command without any pre-configured scope.
 <tr>
 <td>
 
-`store:allow-assets-list`
+`store:allow-assets-page`
 
 </td>
 <td>
 
-Enables the assets_list command without any pre-configured scope.
+Enables the assets_page command without any pre-configured scope.
 
 </td>
 </tr>
@@ -139,12 +166,12 @@ Enables the assets_list command without any pre-configured scope.
 <tr>
 <td>
 
-`store:deny-assets-list`
+`store:deny-assets-page`
 
 </td>
 <td>
 
-Denies the assets_list command without any pre-configured scope.
+Denies the assets_page command without any pre-configured scope.
 
 </td>
 </tr>

@@ -4,7 +4,7 @@ import { IMAGE_GENERATION_CONFIG } from '@config/imageGeneration.config';
 import { GALLERY_CONFIG } from '@config/gallery.config';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
-import { store } from '@services/db';
+import { store, type ItemCursor } from '@services/db';
 import type { AssetRow } from '@shared/types/native';
 import { assetsService, type SavedAsset } from './assets.service';
 
@@ -21,6 +21,7 @@ export interface ImageMeta {
 
 /** One gallery entry: the image (app path, full-size and thumbnail URLs), when it was made, its chat, and its meta. */
 export interface GalleryImage {
+  id: string;
   appPath: string;
   url: string;
   /** The small copy the grid shows; the full image when it has none. */
@@ -57,7 +58,7 @@ function metaOf(row: AssetRow): ImageMeta | null {
 async function toGalleryImage(row: AssetRow): Promise<GalleryImage> {
   const url = await assetsService.fileUrl(row.path);
   const thumbUrl = row.preview_path ? await assetsService.fileUrl(row.preview_path) : url;
-  return { appPath: row.path, url, thumbUrl, createdAt: row.created_at, chatId: row.chat_id, meta: metaOf(row) };
+  return { id: row.id, appPath: row.path, url, thumbUrl, createdAt: row.created_at, chatId: row.chat_id, meta: metaOf(row) };
 }
 
 export const imagesService = {
@@ -75,8 +76,8 @@ export const imagesService = {
     return saved;
   },
 
-  /** Every generated image, newest first. */
-  async listImages(): Promise<GalleryImage[]> {
-    return Promise.all((await store.assets.list('image')).map(toGalleryImage));
+  /** One page of generated images, newest first, after `before`. */
+  async imagesPage(before: ItemCursor | null, limit: number): Promise<GalleryImage[]> {
+    return Promise.all((await store.assets.page('image', before, limit)).map(toGalleryImage));
   },
 };

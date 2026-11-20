@@ -7,9 +7,6 @@ export const SIDEBAR_PAGE_SIZE = 25;
 /** Placeholder rows shown while the sidebar's next page loads. */
 export const SIDEBAR_SHIMMER_ROWS = 3;
 
-/** Most chats kept loaded in memory; the first-loaded one (never the one being opened) makes room. */
-export const MAX_LOADED_SESSIONS = 10;
-
 /** In-app meeting and chat search (⌘K palette, iPhone sidebar): debounce (ms), short because it runs in the local Rust backend. */
 export const SESSION_SEARCH_DEBOUNCE_MS = 150;
 

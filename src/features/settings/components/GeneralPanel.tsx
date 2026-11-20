@@ -1,10 +1,10 @@
-/** Appearance, imports, capture, transcription and version; the version comes from systemInfoStore. */
+/** Appearance, imports, capture, transcription and version; the version comes from useSystemInfo. */
 
 import React, { useState } from 'react';
 import { Sun, Moon, Monitor } from 'lucide-react';
 import { useThemeContext } from '@shared/contexts/ThemeContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useSystemInfo } from '@features/settings/stores/systemInfoStore';
+import { useSystemInfo } from '@features/settings/hooks/useSystemInfo';
 import { SettingsPage } from './shared';
 import { Button, CardRow, ChoiceControl, Icon, Picker, Section, Switch, Text } from '@shared/ui';
 

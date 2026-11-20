@@ -1,6 +1,6 @@
 /** Streaming message store; text and thinking deltas batch per animation frame so only the streaming message re-renders. */
 
-import { useSyncExternalStore } from 'react';
+import { create } from 'zustand';
 import type { ChatPart, ToolCallPart } from '@shared/types';
 import type { GenerationStats } from '@services/ai/types';
 
@@ -14,22 +14,17 @@ export interface StreamingSnapshot {
 /** The streamed kinds of text: the answer, and the model's thinking. */
 type StreamedKind = 'text' | 'reasoning';
 
-type Listener = () => void;
-
-const listeners = new Set<Listener>();
 const EMPTY: StreamingSnapshot = { parts: [], msgId: null, generation: null };
-let snapshot: StreamingSnapshot = EMPTY;
+
+/** The streaming message; replaced whole on each change. */
+const useStreamingStore = create<StreamingSnapshot>(() => EMPTY);
+const current = (): StreamingSnapshot => useStreamingStore.getState();
+const publish = (next: StreamingSnapshot): void => useStreamingStore.setState(next, true);
 
 // RAF batching state: deltas of one kind, and the latest generation stats
 let pending: { kind: StreamedKind; text: string } | null = null;
 let pendingGeneration: GenerationStats | null = null;
 let rafId: number | null = null;
-
-function emitChange() {
-  for (const listener of listeners) {
-    listener();
-  }
-}
 
 /** Get the concatenated text from all text parts */
 function getTextFromParts(parts: ChatPart[]): string {
@@ -60,16 +55,17 @@ function upsertToolPart(parts: ChatPart[], toolCallId: string, patch: ToolCallPa
   return next;
 }
 
-/** Apply buffered deltas and stats to the snapshot and notify listeners. */
+/** Apply buffered deltas and stats to the snapshot. */
 function flushTextBuffer() {
   if (rafId !== null) cancelAnimationFrame(rafId);
   rafId = null;
   if (!pending && !pendingGeneration) return;
+  const snapshot = current();
   const parts = pending ? appendText(snapshot.parts, pending.kind, pending.text) : snapshot.parts;
-  snapshot = { ...snapshot, parts, generation: pendingGeneration ?? snapshot.generation };
+  const generation = pendingGeneration ?? snapshot.generation;
   pending = null;
   pendingGeneration = null;
-  emitChange();
+  publish({ ...snapshot, parts, generation });
 }
 
 /** Buffer a delta of `kind` for the next frame; a change of kind flushes what's buffered first, keeping order. */
@@ -104,57 +100,38 @@ export const streamingStore = {
   /** Merge `patch` into the tool row for `toolCallId`, adding the row where the stream is when it's new. Flushes pending text first. */
   upsertToolCall(toolCallId: string, patch: ToolCallPatch) {
     flushTextBuffer();
-    snapshot = { ...snapshot, parts: upsertToolPart(snapshot.parts, toolCallId, patch) };
-    emitChange();
+    publish({ ...current(), parts: upsertToolPart(current().parts, toolCallId, patch) });
   },
 
   /** Add a finished part (an image a tool made) where the stream is now. Flushes pending text first. */
   addPart(part: ChatPart) {
     flushTextBuffer();
-    snapshot = { ...snapshot, parts: [...snapshot.parts, part] };
-    emitChange();
+    publish({ ...current(), parts: [...current().parts, part] });
   },
 
   /** Start tracking a new streaming message. Cancels any prior pending flush. */
   start(msgId: string) {
     cancelPendingFlush();
-    snapshot = { ...EMPTY, msgId };
-    emitChange();
+    publish({ ...EMPTY, msgId });
   },
 
   /** Finish streaming — flushes buffer, returns full text and parts, then resets. */
   finish(): { text: string; parts: ChatPart[] } {
     flushTextBuffer();
-    const text = getTextFromParts(snapshot.parts);
-    const parts = snapshot.parts;
-    snapshot = EMPTY;
-    emitChange();
-    return { text, parts };
+    const { parts } = current();
+    publish(EMPTY);
+    return { text: getTextFromParts(parts), parts };
   },
 
   /** Reset without returning content (abort / error). */
   reset() {
     cancelPendingFlush();
-    snapshot = EMPTY;
-    emitChange();
+    publish(EMPTY);
   },
 
-  /** Get current snapshot (for non-React reads). */
-  getSnapshot(): StreamingSnapshot {
-    return snapshot;
-  },
-
-  subscribe(listener: Listener): () => void {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
-  },
+  /** The streaming message now (for non-React reads). */
+  getSnapshot: current,
 };
 
-/** Subscribe to streaming content; re-renders at most once per display frame. */
-export function useStreamingText(): StreamingSnapshot {
-  return useSyncExternalStore(
-    streamingStore.subscribe,
-    streamingStore.getSnapshot,
-    streamingStore.getSnapshot,
-  );
-}
+/** The streaming message; re-renders at most once per display frame. */
+export const useStreamingText = (): StreamingSnapshot => useStreamingStore((s) => s);

@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-assets-page"
+description = "Enables the assets_page command without any pre-configured scope."
+commands.allow = ["assets_page"]
+
+[[permission]]
+identifier = "deny-assets-page"
+description = "Denies the assets_page command without any pre-configured scope."
+commands.deny = ["assets_page"]

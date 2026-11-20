@@ -4,6 +4,7 @@ import type { GalleryImage } from '@services/storage/images.service';
 import { calendarDayOffset, formatDayLabel } from '@shared/utils/formatters';
 
 const image = (id: string, createdAt: number): GalleryImage => ({
+  id,
   appPath: `images/${id}.png`,
   url: `asset://${id}`,
   thumbUrl: `asset://${id}.thumb`,

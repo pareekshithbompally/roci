@@ -7,7 +7,7 @@ import { AppIcon } from '@shared/components';
 import { APP_CONFIG } from '@config/app.config';
 import { useCopiedFlag } from '@shared/hooks';
 import { revealInFinder } from '@services/tauri';
-import { useSystemInfo } from '@features/settings/stores/systemInfoStore';
+import { useSystemInfo } from '@features/settings/hooks/useSystemInfo';
 import { PENDING } from './shared';
 
 export const StorageLocationSection: React.FC = () => {

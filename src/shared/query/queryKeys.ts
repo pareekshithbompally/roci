@@ -5,10 +5,14 @@ export type AccessId = 'calendar' | 'reminders' | 'apple-notes' | 'notifications
 
 export const queryKeys = {
   notes: (meetingId: string) => ['notes', meetingId] as const,
-  /** Generated images (Gallery). */
+  /** Generated images (Gallery): its pages and its count. */
   gallery: () => ['gallery'] as const,
+  galleryPages: () => ['gallery', 'pages'] as const,
+  galleryCount: () => ['gallery', 'count'] as const,
   /** Dictations made in the app (Dictations). */
   dictations: () => ['dictations'] as const,
+  /** Settings: the storage folder and app version, read once. */
+  systemInfo: () => ['system-info'] as const,
   /** Settings › Storage: counts and sizes, measured from disk. */
   storageUsage: () => ['storage-usage'] as const,
   /** Settings › Storage › Search Index: indexed against total meetings and chats. */

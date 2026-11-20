@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-assets-count"
+description = "Enables the assets_count command without any pre-configured scope."
+commands.allow = ["assets_count"]
+
+[[permission]]
+identifier = "deny-assets-count"
+description = "Denies the assets_count command without any pre-configured scope."
+commands.deny = ["assets_count"]

@@ -1,6 +1,6 @@
 /** Queue of proposed todos awaiting the user's edit and confirm in TodoConfirmationBanner. */
 
-import { useSyncExternalStore } from 'react';
+import { create } from 'zustand';
 import { store } from '@services/db';
 import { UI_CONFIG } from '@config/ui.config';
 import { reminderService } from '@services/reminder.service';
@@ -33,80 +33,57 @@ export interface TodoProposal {
   error?: string;
 }
 
-type Listener = () => void;
-
-const listeners = new Set<Listener>();
-let proposals: TodoProposal[] = [];
-
-function emitChange() {
-  for (const listener of listeners) {
-    listener();
-  }
-}
+/** The queue; replaced on each change. */
+const useProposalStore = create<{ proposals: TodoProposal[] }>(() => ({ proposals: [] }));
+const proposals = (): TodoProposal[] => useProposalStore.getState().proposals;
+const setProposals = (next: TodoProposal[]): void => useProposalStore.setState({ proposals: next });
+/** Every proposal through `change`. */
+const mapProposals = (change: (p: TodoProposal) => TodoProposal): void => setProposals(proposals().map(change));
 
 export const todoProposalStore = {
   /** Add a proposal to the queue (called by orchestrator — once per mutation). */
   propose(p: TodoProposal) {
-    proposals = [...proposals, { ...p, status: 'pending' }];
-    emitChange();
+    setProposals([...proposals(), { ...p, status: 'pending' }]);
   },
 
   /** Update a single field on a specific proposal (called by banner inline editing). */
   updateField<K extends keyof TodoProposal>(id: string, field: K, value: TodoProposal[K]) {
-    proposals = proposals.map(p =>
-      p.id === id && p.status === 'pending' ? { ...p, [field]: value } : p
-    );
-    emitChange();
+    mapProposals((p) => (p.id === id && p.status === 'pending' ? { ...p, [field]: value } : p));
   },
 
   /** Remove a single proposal from the queue without writing. */
   remove(id: string) {
-    proposals = proposals.filter(p => p.id !== id);
-    emitChange();
+    setProposals(proposals().filter((p) => p.id !== id));
   },
 
   /** Commit all pending proposals — writes to DB, schedules reminders, emits refresh event. */
   async commitAll(): Promise<boolean> {
-    const pending = proposals.filter(p => p.status === 'pending');
+    const pending = proposals().filter((p) => p.status === 'pending');
     if (pending.length === 0) return false;
 
     // Mark all as committing
-    proposals = proposals.map(p =>
-      p.status === 'pending' ? { ...p, status: 'committing' as const } : p
-    );
-    emitChange();
+    mapProposals((p) => (p.status === 'pending' ? { ...p, status: 'committing' as const } : p));
 
     let allOk = true;
 
     for (const p of pending) {
       try {
         await commitSingle(p);
-        proposals = proposals.map(x =>
-          x.id === p.id ? { ...x, status: 'committed' as const } : x
-        );
+        mapProposals((x) => (x.id === p.id ? { ...x, status: 'committed' as const } : x));
       } catch (error: unknown) {
         console.error('[TodoProposalStore] Commit failed for:', p.text, error);
-        proposals = proposals.map(x =>
-          x.id === p.id ? {
-            ...x,
-            status: 'error' as const,
-            error: error instanceof Error ? error.message : 'Failed to save',
-          } : x
-        );
+        const message = error instanceof Error ? error.message : 'Failed to save';
+        mapProposals((x) => (x.id === p.id ? { ...x, status: 'error' as const, error: message } : x));
         allOk = false;
       }
     }
 
-    emitChange();
     invalidateTodos();
 
     // Auto-clear after short delay so committed state is visible
     setTimeout(() => {
-      const allDone = proposals.every(p => p.status === 'committed' || p.status === 'error');
-      if (allDone) {
-        proposals = [];
-        emitChange();
-      }
+      const allDone = proposals().every((p) => p.status === 'committed' || p.status === 'error');
+      if (allDone) setProposals([]);
     }, UI_CONFIG.activityTray.settleDelay);
 
     return allOk;
@@ -114,18 +91,7 @@ export const todoProposalStore = {
 
   /** Cancel all pending proposals without writing. */
   cancelAll() {
-    proposals = [];
-    emitChange();
-  },
-
-  /** Get current proposals (for non-React reads). */
-  getSnapshot(): TodoProposal[] {
-    return proposals;
-  },
-
-  subscribe(listener: Listener): () => void {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
+    setProposals([]);
   },
 };
 
@@ -140,7 +106,7 @@ function invalidateTodos(): void {
   void queryClient.invalidateQueries({ queryKey: queryKeys.storeTodosAll() });
 }
 
-async function create(p: TodoProposal): Promise<void> {
+async function createTodo(p: TodoProposal): Promise<void> {
   const todoId = crypto.randomUUID();
   await store.todos.upsert({
     id: todoId,
@@ -192,16 +158,10 @@ async function remind(todoId: string, p: TodoProposal, at: string): Promise<void
 }
 
 async function commitSingle(p: TodoProposal): Promise<void> {
-  if (p.action === 'create') return create(p);
+  if (p.action === 'create') return createTodo(p);
   if (!p.todoId) throw new Error('No to-do to change');
   return p.action === 'delete' ? remove(p.todoId) : update(p, p.todoId);
 }
 
-/** Hook to subscribe to proposals state. */
-export function useTodoProposals(): TodoProposal[] {
-  return useSyncExternalStore(
-    todoProposalStore.subscribe,
-    todoProposalStore.getSnapshot,
-    todoProposalStore.getSnapshot,
-  );
-}
+/** The proposals queue; re-renders when it changes. */
+export const useTodoProposals = (): TodoProposal[] => useProposalStore((s) => s.proposals);

@@ -5,12 +5,13 @@ import React, { useState } from 'react';
 import { formatDateTime } from '@shared/utils/formatters';
 import { Images, MessageSquare } from 'lucide-react';
 import { Button, Icon, Lightbox, Surface, Text, Thumbnail, TitlebarSpacer } from '@shared/ui';
-import { EmptyState } from '@shared/components';
+import { EmptyState, LoadingPane } from '@shared/components';
 import { openChat } from '@features/chat';
 import type { GalleryImage } from '@services/storage/images.service';
 import { LAYOUT } from '@config/layout.config';
 import { GALLERY_CONFIG } from '@config/gallery.config';
 import { useGallery } from '@features/gallery/hooks/useGallery';
+import { useSentinel } from '@shared/hooks/useSentinel';
 
 
 /** Under the full-size image: what was asked for, how it was made, and the way back to its chat. */
@@ -34,7 +35,9 @@ const ImageCaption: React.FC<{ image: GalleryImage; onOpenChat: (chatId: string)
 };
 
 export const GalleryView: React.FC = () => {
-  const { days, count, isLoading } = useGallery();
+  const { days, count, isLoading, hasMore, loadingMore, loadMore } = useGallery();
+  const canLoadMore = hasMore && !loadingMore;
+  const sentinelRef = useSentinel({ onIntersect: loadMore, enabled: canLoadMore });
   const [open, setOpen] = useState<GalleryImage | null>(null);
 
   const goToChat = (sessionId: string) => {
@@ -50,8 +53,10 @@ export const GalleryView: React.FC = () => {
         {count > 0 && <Text as="p" variant="helper" tone="muted">{count} {count === 1 ? 'image' : 'images'}</Text>}
       </Surface>
 
-      {/* Empty fills the page's column (EmptyState centres there), not the scroll area. */}
-      {!isLoading && count === 0 ? (
+      {/* Loading and empty fill the page's column (centred there), not the scroll area. */}
+      {isLoading ? (
+        <LoadingPane />
+      ) : count === 0 ? (
         <EmptyState icon={Images} message={GALLERY_CONFIG.empty} />
       ) : (
         <div className={`flex-1 overflow-y-auto custom-scrollbar ${LAYOUT.listGutter} py-4`}>
@@ -72,6 +77,7 @@ export const GalleryView: React.FC = () => {
               </section>
             ))}
           </div>
+          {canLoadMore && <div ref={sentinelRef} className="h-1" aria-hidden="true" />}
         </div>
       )}
 

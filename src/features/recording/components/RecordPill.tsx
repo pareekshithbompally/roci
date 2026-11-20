@@ -3,7 +3,7 @@
 import React from 'react';
 import { Square } from 'lucide-react';
 import { Button, Dot, Icon } from '@shared/ui';
-import { useActivityItems } from '@shared/stores/activityStore';
+import { useActivityStore } from '@shared/stores/activityStore';
 import { isTauriEnvironment } from '@services/tauri';
 import { recording, useRecordingBusy, useRecordingMeetingId } from '@features/recording/stores/recordingStore';
 import { useStartRecording } from '@features/recording/hooks';
@@ -15,7 +15,7 @@ export const RecordPill: React.FC = () => {
   const meetingId = useRecordingMeetingId();
   const busy = useRecordingBusy();
   // The recording's activity row carries the clock (a visible clock, ticking only while shown); no second timer.
-  const clock = useActivityItems().find((item) => item.type === 'recording')?.detail;
+  const clock = useActivityStore((s) => s.items.find((item) => item.type === 'recording')?.detail);
 
   if (!meetingId) {
     return (

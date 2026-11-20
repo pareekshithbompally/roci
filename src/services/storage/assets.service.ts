@@ -8,6 +8,10 @@ import { store } from '@services/db';
 
 export type AssetKind = keyof typeof StorageConfig.assetKinds;
 
+let appData: Promise<string> | undefined;
+/** The app data folder, asked of the system once. */
+const appDataPath = (): Promise<string> => (appData ??= appDataDir());
+
 /** File bytes and the extension they are saved with (`png`, `thumb.jpg`). */
 export interface AssetFile {
   data: Uint8Array;
@@ -35,7 +39,7 @@ function kindDir(kind: AssetKind): Promise<string> {
   const known = dirs.get(kind);
   if (known) return known;
   const created = (async () => {
-    const dir = await join(await appDataDir(), StorageConfig.assetKinds[kind].dir);
+    const dir = await join(await appDataPath(), StorageConfig.assetKinds[kind].dir);
     if (!(await exists(dir))) await mkdir(dir, { recursive: true });
     return dir;
   })();
@@ -85,6 +89,6 @@ export const assetsService = {
 
   /** A URL the webview loads for a file in app data, through Tauri's asset protocol (scoped per kind in tauri.conf.json). */
   async fileUrl(appPath: string): Promise<string> {
-    return convertFileSrc(await join(await appDataDir(), appPath));
+    return convertFileSrc(`${await appDataPath()}/${appPath}`);
   },
 };

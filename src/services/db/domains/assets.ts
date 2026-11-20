@@ -2,6 +2,7 @@
 
 import { call } from '@services/db/internal';
 import type { AssetRow, NewAsset, OwedNotice } from '@shared/types/native';
+import type { ItemCursor } from './items';
 
 export const assets = {
   /** Registers a file just written; unclaimed until a chat save references it. Returns the asset id. */
@@ -9,9 +10,14 @@ export const assets = {
     return call<string>('assets_create', { asset });
   },
 
-  /** Every asset of one kind, newest first. */
-  async list(kind: string): Promise<AssetRow[]> {
-    return call<AssetRow[]>('assets_list', { kind });
+  /** One page of `kind`'s files, newest first, after `before` (the last row of the page before it). */
+  async page(kind: string, before: ItemCursor | null, limit: number): Promise<AssetRow[]> {
+    return call<AssetRow[]>('assets_page', { kind, before, limit });
+  },
+
+  /** How many files of `kind` are kept. */
+  async count(kind: string): Promise<number> {
+    return call<number>('assets_count', { kind });
   },
 
   /** Whether the file at this app-data path is still kept. */

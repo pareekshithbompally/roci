@@ -32,88 +32,29 @@ pub(crate) fn open_migrated_test_db() -> Connection {
     conn
 }
 
-/// Run all migrations up to SCHEMA_VERSION inside a single transaction.
+/// Creates the schema in a new database. A database made by another schema version is refused, not upgraded:
+/// pre-release, there is nothing to carry forward.
 pub fn migrate(conn: &Connection) -> Result<(), String> {
-    let current = get_schema_version(conn);
-
-    if current == 0 {
-        let result = (|| -> Result<(), String> {
-            let tx = conn
-                .unchecked_transaction()
-                .map_err(|e| format!("begin migration transaction: {}", e))?;
-            create_baseline(&tx)?;
-            set_schema_version(&tx, SCHEMA_VERSION)?;
-            tx.commit()
-                .map_err(|e| format!("commit migration v1: {}", e))?;
-            Ok(())
-        })();
-
-        match result {
-            Ok(()) => {
-                log::info!(
-                    "[store] Created baseline schema v{} (model={}, dim={})",
-                    SCHEMA_VERSION,
-                    DEFAULT_MODEL,
-                    DEFAULT_DIM,
-                );
-            },
-            Err(e) => {
-                log::error!("[store] Migration failed: {}", e);
-                return Err(e);
-            }
+    match get_schema_version(conn) {
+        0 => create_new(conn)?,
+        SCHEMA_VERSION => {}
+        other => {
+            let e = format!("roci.db is schema v{other}, this build is v{SCHEMA_VERSION}: remove it to start fresh");
+            log::error!("[store] {e}");
+            return Err(e);
         }
     }
-
-    // v2 → v3: the built-in knowledge graph is gone; drop its tables and extraction state.
-    if current == 2 {
-        let result = (|| -> Result<(), String> {
-            let tx = conn
-                .unchecked_transaction()
-                .map_err(|e| format!("begin migration v3 transaction: {}", e))?;
-            tx.execute_batch(
-                "DROP TABLE IF EXISTS kg_edges;
-                 DROP TABLE IF EXISTS kg_nodes;
-                 ALTER TABLE meeting_index_state DROP COLUMN extraction_hash;",
-            )
-            .map_err(|e| format!("migrate v2→v3 drop graph: {}", e))?;
-            set_schema_version(&tx, 3)?;
-            tx.commit()
-                .map_err(|e| format!("commit migration v3: {}", e))?;
-            Ok(())
-        })();
-
-        match result {
-            Ok(()) => log::info!("[store] Migrated schema v2→v3 (knowledge graph removed)"),
-            Err(e) => {
-                log::error!("[store] Migration v2→v3 failed: {}", e);
-                return Err(e);
-            }
-        }
-    }
-
-    if current == 2 || current == 3 {
-        migrate_v4(conn)?;
-    }
-    if (2..=4).contains(&current) {
-        migrate_v5(conn)?;
-    }
-    if (2..=5).contains(&current) {
-        migrate_v6(conn)?;
-    }
-    if (2..=6).contains(&current) {
-        migrate_v7(conn)?;
-    }
-    if (2..=7).contains(&current) {
-        migrate_v8(conn)?;
-    }
-    if (2..=8).contains(&current) {
-        migrate_v9(conn)?;
-    }
-    if (2..=9).contains(&current) {
-        migrate_v10(conn)?;
-    }
-
     match_embedding_model(conn)
+}
+
+/// Every table, in one transaction, at the current version.
+fn create_new(conn: &Connection) -> Result<(), String> {
+    let tx = conn.unchecked_transaction().map_err(|e| format!("begin schema: {}", e))?;
+    create_baseline(&tx)?;
+    set_schema_version(&tx, SCHEMA_VERSION)?;
+    tx.commit().map_err(|e| format!("commit schema: {}", e))?;
+    log::info!("[store] Created schema v{} (model={}, dim={})", SCHEMA_VERSION, DEFAULT_MODEL, DEFAULT_DIM);
+    Ok(())
 }
 
 /// Vectors from another embedding model can't be searched with this one's: the vector tables are rebuilt at this
@@ -148,7 +89,7 @@ fn match_embedding_model(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
-/// Dictations made in the app, newest first: part of a new database, and added to an older one by `migrate_v6`.
+/// Dictations made in the app, newest first.
 const DICTATIONS_DDL: &str = "
     CREATE TABLE IF NOT EXISTS dictations (
         id          TEXT PRIMARY KEY,
@@ -158,174 +99,6 @@ const DICTATIONS_DDL: &str = "
         model       TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_dictations_created ON dictations(created_at DESC);";
-
-fn has_table(conn: &Connection, table: &str) -> Result<bool, String> {
-    conn.query_row("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?1", [table], |row| row.get::<_, i64>(0))
-        .map(|count| count > 0)
-        .map_err(|e| format!("look up table {table}: {e}"))
-}
-
-fn has_column(conn: &Connection, table: &str, column: &str) -> Result<bool, String> {
-    conn.query_row(
-        &format!("SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = ?1"),
-        [column],
-        |row| row.get::<_, i64>(0),
-    )
-    .map(|count| count > 0)
-    .map_err(|e| format!("read {table} columns: {e}"))
-}
-
-/// v9 → v10: a meeting remembers when its recording was removed (Keep or Delete All), to say so.
-fn migrate_v10(conn: &Connection) -> Result<(), String> {
-    let tx = conn.unchecked_transaction().map_err(|e| format!("begin migration v10 transaction: {}", e))?;
-    let fail = |e: rusqlite::Error| format!("migrate v9→v10 audio removed: {}", e);
-    if !has_column(&tx, "meetings", "audio_removed_at")? {
-        tx.execute_batch("ALTER TABLE meetings ADD COLUMN audio_removed_at INTEGER;").map_err(fail)?;
-    }
-    tx.execute_batch(assets::RECORDING_REMOVED_TRIGGER).map_err(fail)?;
-    set_schema_version(&tx, 10)?;
-    tx.commit().map_err(|e| format!("commit migration v10: {}", e))?;
-    log::info!("[store] Migrated schema v9→v10 (audio removed)");
-    Ok(())
-}
-
-/// v8 → v9: a deleted reminder owes its notice by to-do id (what macOS knows it by), not by the stored number.
-fn migrate_v9(conn: &Connection) -> Result<(), String> {
-    let tx = conn.unchecked_transaction().map_err(|e| format!("begin migration v9 transaction: {}", e))?;
-    let fail = |e: rusqlite::Error| format!("migrate v8→v9 reminder notices: {}", e);
-    tx.execute_batch("DROP TRIGGER IF EXISTS reminders_ad; DELETE FROM purge_queue WHERE kind = 'notice';").map_err(fail)?;
-    tx.execute_batch(assets::DDL).map_err(fail)?;
-    set_schema_version(&tx, 9)?;
-    tx.commit().map_err(|e| format!("commit migration v9: {}", e))?;
-    log::info!("[store] Migrated schema v8→v9 (reminder notices by to-do)");
-    Ok(())
-}
-
-/// v7 → v8: every file is an asset row with one parent; recordings become assets, and deletes queue their files.
-fn migrate_v8(conn: &Connection) -> Result<(), String> {
-    let tx = conn.unchecked_transaction().map_err(|e| format!("begin migration v8 transaction: {}", e))?;
-    let fail = |e: rusqlite::Error| format!("migrate v7→v8 assets: {}", e);
-    tx.execute_batch(assets::DDL).map_err(fail)?;
-    if has_table(&tx, "recordings")? {
-        tx.execute_batch(
-            "INSERT OR IGNORE INTO assets (id, kind, path, meeting_id, duration_seconds, created_at)
-                 SELECT id, 'recording', 'recordings/' || filename, meeting_id, duration_seconds, created_at FROM recordings;
-             DROP TABLE recordings;",
-        )
-        .map_err(fail)?;
-    }
-    set_schema_version(&tx, 8)?;
-    tx.commit().map_err(|e| format!("commit migration v8: {}", e))?;
-    log::info!("[store] Migrated schema v7→v8 (assets)");
-    Ok(())
-}
-
-/// v6 → v7: a meeting knows where its title came from (only a default or AI title may be replaced by a summary's), and how
-/// many times its current step was started (a step a quit or crash keeps cutting off stops being retried at launch).
-/// Calendar meetings keep their calendar title; titles of summarized meetings came from the AI.
-fn migrate_v7(conn: &Connection) -> Result<(), String> {
-    let tx = conn.unchecked_transaction().map_err(|e| format!("begin migration v7 transaction: {}", e))?;
-    let fail = |e: rusqlite::Error| format!("migrate v6→v7 meeting title source: {}", e);
-    // a database migrated up from v2 got today's meetings table at v4's rebuild; add only what is missing
-    if !has_column(&tx, "meetings", "title_source")? {
-        tx.execute_batch(
-            "ALTER TABLE meetings ADD COLUMN title_source TEXT NOT NULL DEFAULT 'default' CHECK(title_source IN ('default','calendar','user','ai'));
-             UPDATE meetings SET title_source = 'ai' WHERE status = 'ready';",
-        )
-        .map_err(fail)?;
-        if has_column(&tx, "meetings", "calendar_event_id")? {
-            tx.execute_batch("UPDATE meetings SET title_source = 'calendar' WHERE calendar_event_id IS NOT NULL;").map_err(fail)?;
-        }
-    }
-    if !has_column(&tx, "meetings", "step_attempts")? {
-        tx.execute_batch("ALTER TABLE meetings ADD COLUMN step_attempts INTEGER NOT NULL DEFAULT 0;").map_err(fail)?;
-    }
-    set_schema_version(&tx, 7)?;
-    tx.commit().map_err(|e| format!("commit migration v7: {}", e))?;
-    log::info!("[store] Migrated schema v6→v7 (meeting title source, step attempts)");
-    Ok(())
-}
-
-/// v5 → v6: dictations made in the app are kept.
-fn migrate_v6(conn: &Connection) -> Result<(), String> {
-    let tx = conn.unchecked_transaction().map_err(|e| format!("begin migration v6 transaction: {}", e))?;
-    tx.execute_batch(DICTATIONS_DDL).map_err(|e| format!("migrate v5→v6 dictations: {}", e))?;
-    set_schema_version(&tx, 6)?;
-    tx.commit().map_err(|e| format!("commit migration v6: {}", e))?;
-    log::info!("[store] Migrated schema v5→v6 (dictations)");
-    Ok(())
-}
-
-/// v4 → v5: a to-do may stand on its own (no meeting), so `todos.meeting_id` becomes optional. SQLite can't relax a
-/// column in place: the table is rebuilt with its rows and indexes (SQLite's documented rebuild), with foreign keys
-/// off meanwhile so dropping the old table can't cascade to reminders, and checked before commit.
-fn migrate_v5(conn: &Connection) -> Result<(), String> {
-    conn.execute_batch("PRAGMA foreign_keys=OFF;").map_err(|e| format!("migration v5 foreign keys off: {}", e))?;
-    let result = (|| -> Result<(), String> {
-        let tx = conn
-            .unchecked_transaction()
-            .map_err(|e| format!("begin migration v5 transaction: {}", e))?;
-        tx.execute_batch(
-            "CREATE TABLE todos_v5 (
-                 id         TEXT PRIMARY KEY,
-                 meeting_id TEXT    REFERENCES meetings(id) ON DELETE CASCADE,
-                 text       TEXT    NOT NULL,
-                 owner      TEXT,
-                 due_date   TEXT,
-                 completed  INTEGER NOT NULL DEFAULT 0,
-                 source     TEXT    NOT NULL CHECK(source IN ('ai','user')),
-                 created_at INTEGER NOT NULL
-             );
-             INSERT INTO todos_v5 (id, meeting_id, text, owner, due_date, completed, source, created_at)
-                 SELECT id, NULLIF(meeting_id, '_general'), text, owner, due_date, completed, source, created_at FROM todos;
-             DROP TABLE todos;
-             ALTER TABLE todos_v5 RENAME TO todos;
-             CREATE INDEX idx_todos_meeting ON todos(meeting_id);
-             CREATE INDEX idx_todos_open ON todos(completed, due_date);",
-        )
-        .map_err(|e| format!("migrate v4→v5 rebuild todos: {}", e))?;
-        let broken: i64 = tx
-            .query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |row| row.get(0))
-            .map_err(|e| format!("migrate v4→v5 check: {}", e))?;
-        if broken > 0 {
-            return Err(format!("migrate v4→v5: {broken} rows would point at nothing"));
-        }
-        set_schema_version(&tx, 5)?;
-        tx.commit().map_err(|e| format!("commit migration v5: {}", e))
-    })();
-    conn.execute_batch("PRAGMA foreign_keys=ON;").map_err(|e| format!("migration v5 foreign keys on: {}", e))?;
-    match &result {
-        Ok(()) => log::info!("[store] Migrated schema v4→v5 (to-dos may stand without a meeting)"),
-        Err(e) => log::error!("[store] Migration v4→v5 failed: {}", e),
-    }
-    result
-}
-
-/// v3 → v4: a meeting's pipeline status replaces the pending-transcription flag, and pending
-/// recordings saved without their file get it linked (their id is the file's stem).
-fn migrate_v4(conn: &Connection) -> Result<(), String> {
-    let tx = conn
-        .unchecked_transaction()
-        .map_err(|e| format!("begin migration v4 transaction: {}", e))?;
-    tx.execute_batch(
-        "ALTER TABLE meetings ADD COLUMN status TEXT NOT NULL DEFAULT 'ready' CHECK(status IN (
-             'recording','captured','transcribing','transcribed','summarizing','ready','failed'));
-         ALTER TABLE meetings ADD COLUMN failed_step TEXT CHECK(failed_step IN ('record','transcribe','summarize'));
-         ALTER TABLE meetings ADD COLUMN error TEXT;
-         UPDATE meetings SET status = 'captured' WHERE pending_transcription = 1;
-         INSERT INTO recordings (id, meeting_id, filename, created_at)
-             SELECT lower(hex(randomblob(16))), m.id, m.id || '.wav', m.created_at
-             FROM meetings m
-             WHERE m.status = 'captured' AND substr(m.id, 1, 4) = 'rec_'
-               AND NOT EXISTS (SELECT 1 FROM recordings r WHERE r.meeting_id = m.id);
-         ALTER TABLE meetings DROP COLUMN pending_transcription;",
-    )
-    .map_err(|e| format!("migrate v3→v4 meeting status: {}", e))?;
-    set_schema_version(&tx, SCHEMA_VERSION)?;
-    tx.commit().map_err(|e| format!("commit migration v4: {}", e))?;
-    log::info!("[store] Migrated schema v3→v4 (meeting status)");
-    Ok(())
-}
 
 fn get_schema_version(conn: &Connection) -> u32 {
     conn.query_row(
@@ -950,46 +723,6 @@ mod tests {
 
     /// Marking a chat indexed writes only `chat_index_state`, never the `chats` row.
     #[test]
-    fn migrate_v6_adds_dictations_to_a_v5_database() {
-        let conn = open_test_db();
-        init_db(&conn);
-        conn.execute_batch("DROP TABLE dictations;").expect("drop to v5 shape");
-        set_schema_version(&conn, 5).expect("mark v5");
-
-        migrate(&conn).expect("migrate v5→v6");
-
-        assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
-        let count: i64 = conn.query_row("SELECT COUNT(*) FROM dictations", [], |r| r.get(0)).expect("dictations exists");
-        assert_eq!(count, 0);
-    }
-
-    #[test]
-    fn migrate_v7_records_where_titles_came_from() {
-        let conn = open_test_db();
-        init_db(&conn);
-        conn.execute_batch(
-            "ALTER TABLE meetings DROP COLUMN title_source;
-             ALTER TABLE meetings DROP COLUMN step_attempts;
-             INSERT INTO meetings (id, title, status, calendar_event_id, created_at, updated_at) VALUES
-               ('cal', 'Standup', 'ready', 'ev1', 1, 1),
-               ('done', 'Launch plan', 'ready', NULL, 1, 1),
-               ('new', 'Recording 19/11', 'captured', NULL, 1, 1);",
-        )
-        .expect("v6 shape");
-        set_schema_version(&conn, 6).expect("mark v6");
-
-        migrate(&conn).expect("migrate v6→v7");
-
-        let source = |id: &str| -> String {
-            conn.query_row("SELECT title_source FROM meetings WHERE id = ?1", [id], |r| r.get(0)).expect("row")
-        };
-        assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
-        assert_eq!(source("cal"), "calendar");
-        assert_eq!(source("done"), "ai");
-        assert_eq!(source("new"), "default");
-    }
-
-    #[test]
     fn chat_index_state_write_does_not_touch_chat_row() {
         let conn = open_test_db();
         init_db(&conn);
@@ -1101,141 +834,6 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as i64
-    }
-
-    #[test]
-    fn migrate_v4_to_v5_lets_a_todo_stand_alone_and_keeps_rows() {
-        let conn = open_test_db();
-        init_db(&conn);
-        // The v4 shape: every to-do had to belong to a meeting.
-        conn.execute_batch(
-            "PRAGMA foreign_keys=OFF;
-             DROP TABLE todos;
-             CREATE TABLE todos (
-                 id TEXT PRIMARY KEY,
-                 meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
-                 text TEXT NOT NULL, owner TEXT, due_date TEXT,
-                 completed INTEGER NOT NULL DEFAULT 0,
-                 source TEXT NOT NULL CHECK(source IN ('ai','user')),
-                 created_at INTEGER NOT NULL);
-             PRAGMA foreign_keys=ON;
-             INSERT INTO meetings (id, title, created_at, updated_at) VALUES ('m1', 'Standup', 1, 1);
-             INSERT INTO todos (id, meeting_id, text, source, created_at) VALUES ('t1', 'm1', 'Ship it', 'user', 1);
-             INSERT INTO reminders (todo_id, notification_id, fire_at, status, created_at) VALUES ('t1', 7, 9, 'scheduled', 1);",
-        )
-        .expect("v4 shape");
-        set_schema_version(&conn, 4).expect("set v4");
-
-        migrate(&conn).expect("migrate v4→v5");
-
-        assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
-        let meeting: String = conn.query_row("SELECT meeting_id FROM todos WHERE id = 't1'", [], |r| r.get(0)).unwrap();
-        assert_eq!(meeting, "m1");
-        let reminders: i64 = conn.query_row("SELECT COUNT(*) FROM reminders WHERE todo_id = 't1'", [], |r| r.get(0)).unwrap();
-        assert_eq!(reminders, 1, "reminders survive the rebuild");
-        conn.execute("INSERT INTO todos (id, meeting_id, text, source, created_at) VALUES ('t2', NULL, 'Book flight', 'user', 2)", [])
-            .expect("a to-do without a meeting");
-        let enforced: i64 = conn.query_row("PRAGMA foreign_keys", [], |r| r.get(0)).unwrap();
-        assert_eq!(enforced, 1, "foreign keys are back on");
-        let err = conn.execute("INSERT INTO todos (id, meeting_id, text, source, created_at) VALUES ('t3', 'nope', 'x', 'user', 3)", []);
-        assert!(err.is_err(), "a named meeting must still exist");
-    }
-
-    #[test]
-    fn migrate_v2_to_v3_drops_graph() {
-        let conn = open_test_db();
-        conn.execute_batch(
-            "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-             INSERT INTO meta VALUES ('schema_version', '2');
-             CREATE TABLE meetings (id TEXT PRIMARY KEY, title TEXT NOT NULL,
-                 pending_transcription INTEGER NOT NULL DEFAULT 0,
-                 created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
-             INSERT INTO meetings VALUES ('m1', 't', 0, 0, 0);
-             CREATE TABLE recordings (id TEXT PRIMARY KEY, meeting_id TEXT, filename TEXT NOT NULL,
-                 duration_seconds REAL, input_source TEXT, created_at INTEGER NOT NULL);
-             CREATE TABLE reminders (todo_id TEXT PRIMARY KEY, notification_id INTEGER NOT NULL,
-                 fire_at INTEGER NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL);
-             CREATE TABLE chats (id TEXT PRIMARY KEY);
-             CREATE TABLE meeting_index_state (meeting_id TEXT PRIMARY KEY, content_hash TEXT,
-                 embedding_hash TEXT, extraction_hash TEXT, indexed_at INTEGER);
-             INSERT INTO meeting_index_state VALUES ('m1', 'c', 'e', 'x', 0);
-             CREATE TABLE todos (id TEXT PRIMARY KEY, meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
-                 text TEXT NOT NULL, owner TEXT, due_date TEXT, completed INTEGER NOT NULL DEFAULT 0,
-                 source TEXT NOT NULL, created_at INTEGER NOT NULL);
-             CREATE TABLE kg_nodes (id TEXT PRIMARY KEY);
-             CREATE TABLE kg_edges (id TEXT PRIMARY KEY);",
-        )
-        .expect("seed v2 db");
-
-        migrate(&conn).expect("migrate v2→v3");
-
-        let has = |t: &str| -> i64 {
-            conn.query_row("SELECT COUNT(*) FROM sqlite_master WHERE name = ?1", [t], |r| r.get(0))
-                .expect("sqlite_master")
-        };
-        assert_eq!(has("kg_nodes"), 0);
-        assert_eq!(has("kg_edges"), 0);
-
-        let cols: Vec<String> = conn
-            .prepare("SELECT name FROM pragma_table_info('meeting_index_state')")
-            .expect("prepare")
-            .query_map([], |r| r.get(0))
-            .expect("query")
-            .map(|c| c.expect("col"))
-            .collect();
-        assert!(!cols.contains(&"extraction_hash".to_string()));
-
-        let hash: String = conn
-            .query_row("SELECT content_hash FROM meeting_index_state WHERE meeting_id = 'm1'", [], |r| r.get(0))
-            .expect("index state kept");
-        assert_eq!(hash, "c");
-        assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
-    }
-
-    #[test]
-    fn migrate_v3_to_v4_turns_pending_into_captured_with_its_recording() {
-        let conn = open_test_db();
-        conn.execute_batch(
-            "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-             INSERT INTO meta VALUES ('schema_version', '3');
-             CREATE TABLE meetings (id TEXT PRIMARY KEY, title TEXT NOT NULL,
-                 pending_transcription INTEGER NOT NULL DEFAULT 0,
-                 created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
-             CREATE TABLE recordings (id TEXT PRIMARY KEY, meeting_id TEXT, filename TEXT NOT NULL,
-                 duration_seconds REAL, input_source TEXT, created_at INTEGER NOT NULL);
-             CREATE TABLE reminders (todo_id TEXT PRIMARY KEY, notification_id INTEGER NOT NULL,
-                 fire_at INTEGER NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL);
-             CREATE TABLE chats (id TEXT PRIMARY KEY);
-             INSERT INTO meetings VALUES ('rec_1_a', 'unlinked', 1, 0, 0);
-             INSERT INTO meetings VALUES ('rec_2_b', 'linked', 1, 0, 0);
-             INSERT INTO recordings VALUES ('r2', 'rec_2_b', 'rec_2_b.wav', NULL, NULL, 0);
-             INSERT INTO meetings VALUES ('done', 'transcribed', 0, 0, 0);
-             CREATE TABLE todos (id TEXT PRIMARY KEY, meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
-                 text TEXT NOT NULL, owner TEXT, due_date TEXT, completed INTEGER NOT NULL DEFAULT 0,
-                 source TEXT NOT NULL, created_at INTEGER NOT NULL);",
-        )
-        .expect("seed v3 db");
-
-        migrate(&conn).expect("migrate v3→v4");
-
-        let status = |id: &str| -> String {
-            conn.query_row("SELECT status FROM meetings WHERE id = ?1", [id], |r| r.get(0)).expect("status")
-        };
-        let recordings = |id: &str| -> Vec<String> {
-            conn.prepare("SELECT path FROM assets WHERE meeting_id = ?1")
-                .expect("prepare")
-                .query_map([id], |r| r.get(0))
-                .expect("query")
-                .map(|f| f.expect("filename"))
-                .collect()
-        };
-        assert_eq!(status("rec_1_a"), "captured");
-        assert_eq!(status("rec_2_b"), "captured");
-        assert_eq!(status("done"), "ready");
-        assert_eq!(recordings("rec_1_a"), vec!["recordings/rec_1_a.wav".to_string()]);
-        assert_eq!(recordings("rec_2_b"), vec!["recordings/rec_2_b.wav".to_string()]);
-        assert!(recordings("done").is_empty());
-        assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
     }
 
     #[test]

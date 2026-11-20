@@ -18,8 +18,7 @@ export { useSettings, useAppUpdate, useUpdateRuntime, useMenubarSpeechModels, us
 export type { LiveDictation, AIReadiness } from './hooks';
 export { useAIReadiness, useOpenAISetup } from './hooks';
 
-// Stores
-export { systemInfoStore, useSystemInfo } from './stores';
+export { preloadSystemInfo, useSystemInfo } from './hooks/useSystemInfo';
 
 // Re-export context for provider usage
 export { SettingsProvider, useSettings as useSettingsContext } from '@shared/contexts/SettingsContext';

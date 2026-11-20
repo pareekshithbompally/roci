@@ -1,6 +1,6 @@
 /** Dumb list of ongoing background operations; callers add, update and remove items. */
 
-import { useSyncExternalStore } from 'react';
+import { create } from 'zustand';
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -32,57 +32,34 @@ export interface ActivityItem {
   actions: ActivityAction[];
 }
 
-type Listener = () => void;
+// ── Store ───────────────────────────────────────────────────────
 
-// ── Internal state ──────────────────────────────────────────────
+/** The rows; replaced on each change. */
+export const useActivityStore = create<{ items: ActivityItem[] }>(() => ({ items: [] }));
+const items = (): ActivityItem[] => useActivityStore.getState().items;
+const setItems = (next: ActivityItem[]): void => useActivityStore.setState({ items: next });
 
-const listeners = new Set<Listener>();
-let items: ActivityItem[] = [];
-
-function emitChange() {
-  for (const listener of listeners) listener();
-}
-
-// ── Store API ───────────────────────────────────────────────────
-
+/** Writers and reads outside React. */
 export const activityStore = {
   add(item: ActivityItem) {
-    items = [...items, item];
-    emitChange();
+    setItems([...items(), item]);
   },
 
   update(id: string, patch: Partial<ActivityItem>) {
-    const idx = items.findIndex((i) => i.id === id);
-    if (idx === -1) return;
-    items = items.map((i) => (i.id === id ? { ...i, ...patch } : i));
-    emitChange();
+    if (!items().some((i) => i.id === id)) return;
+    setItems(items().map((i) => (i.id === id ? { ...i, ...patch } : i)));
   },
 
   remove(id: string) {
-    const before = items.length;
-    items = items.filter((i) => i.id !== id);
-    if (items.length !== before) emitChange();
+    if (items().some((i) => i.id === id)) setItems(items().filter((i) => i.id !== id));
   },
 
   get(id: string): ActivityItem | undefined {
-    return items.find((i) => i.id === id);
+    return items().find((i) => i.id === id);
   },
 
-  getSnapshot(): ActivityItem[] {
-    return items;
-  },
-
-  subscribe(listener: Listener): () => void {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
-  },
+  getSnapshot: items,
 };
 
-/** All activity items; re-renders only when the items array reference changes. */
-export function useActivityItems(): ActivityItem[] {
-  return useSyncExternalStore(
-    activityStore.subscribe,
-    activityStore.getSnapshot,
-    activityStore.getSnapshot,
-  );
-}
+/** All activity rows; re-renders when they change. */
+export const useActivityItems = (): ActivityItem[] => useActivityStore((s) => s.items);

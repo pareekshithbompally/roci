@@ -16,7 +16,8 @@ const COMMANDS: &[&str] = &[
     // Recordings
     // Categories
     "assets_create",
-    "assets_list",
+    "assets_page",
+    "assets_count",
     "assets_exists",
     "notices_owed",
     "notices_cleared",

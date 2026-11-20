@@ -1,7 +1,7 @@
 /** App settings and model providers, merged with predefined providers and auto-persisted after each edit. */
 
 import { DEFAULT_NOTIFICATION_SETTINGS } from '@config/notifications.config';
-import React, { createContext, useContext, useCallback, ReactNode, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useCallback, ReactNode, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
@@ -32,20 +32,14 @@ interface SettingsContextValue extends SettingsState {
   selectedProvider: ModelProvider | undefined;
   /** Set app settings */
   setSettings: (settings: Partial<AppSettings>) => void;
-  /** Set model providers */
-  setProviders: (providers: ModelProvider[]) => void;
   /** Add a provider */
   addProvider: (provider: ModelProvider) => void;
   /** Updates as given, or computed from the provider as saved now (for async results that must not overwrite newer edits). */
   updateProvider: (providerName: string, updates: ProviderUpdate) => void;
-  /** Delete a provider */
-  deleteProvider: (providerName: string) => void;
   /** Update provider setting */
   updateProviderSetting: (providerName: string, settingIndex: number, value: string | boolean | number) => void;
   /** Set selected provider */
   setSelectedProviderName: (name: string | null) => void;
-  /** Load settings from storage */
-  loadSettings: () => Promise<void>;
   /** Save settings to storage */
   saveSettings: (overrides?: Partial<AppSettings>) => Promise<void>;
 }
@@ -94,6 +88,12 @@ const PERSISTED_SETTINGS: Record<keyof AppSettings, true> = {
   transcriptionProvider: true,
 };
 const SETTINGS_KEYS = Object.keys(PERSISTED_SETTINGS) as Array<keyof AppSettings>;
+
+/** What disk holds, as saved (JSON per setting, per provider): a save writes only what differs from it. */
+const onDisk = {
+  settings: new Map<string, string | undefined>(),
+  providers: new Map<string, string>(),
+};
 
 /** Trailing debounce so rapid edits (typing an API key, toggling a list) coalesce into one disk write. */
 const AUTOSAVE_DELAY_MS = 500;
@@ -145,6 +145,7 @@ function hasApiKey(provider: ModelProvider): boolean {
 
 async function loadSettingsFromStore(): Promise<{ settings: AppSettings; selectedProviderName: string | null }> {
   const raw = await store.settings.getAll();
+  onDisk.settings = new Map(Object.entries(raw));
   const loaded: Partial<AppSettings> = {};
 
   for (const key of SETTINGS_KEYS) {
@@ -216,10 +217,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     queryFn: loadAllSettings,
   });
 
-  const selectedProvider = loaded.providers.find(
-    p => p.provider === loaded.selectedProviderName
-  );
-
   /** The settings query function: loads the full snapshot on mount and on invalidation. */
   async function loadAllSettings(): Promise<LoadedSettings> {
     console.log('[SettingsContext] Loading settings...');
@@ -232,6 +229,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       let selectedProviderName: string | null = savedProviderName;
 
       const savedProviders = await store.providers.list();
+      onDisk.providers = new Map(savedProviders.map((p) => [p.provider, JSON.stringify(p)]));
 
       // Retired providers must never reappear: drop them from disk and from this load.
       const liveProviders = savedProviders.filter((p) => !RETIRED_PROVIDER_IDS.has(p.provider));
@@ -320,22 +318,20 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       : snapshot.settings;
 
     try {
-      // Save individual settings as key-value pairs; an unset one is saved as `null`, so clearing it sticks.
-      for (const key of SETTINGS_KEYS) {
-        await store.settings.set(key, JSON.stringify(effectiveSettings[key] ?? null));
+      // An unset setting is saved as `null`, so clearing it sticks.
+      const values: Array<[string, string]> = SETTINGS_KEYS.map((key) => [key, JSON.stringify(effectiveSettings[key] ?? null)]);
+      if (snapshot.selectedProviderName !== null) values.push(['selectedProviderName', JSON.stringify(snapshot.selectedProviderName)]);
+      for (const [key, value] of values) {
+        if (onDisk.settings.get(key) === value) continue;
+        await store.settings.set(key, value);
+        onDisk.settings.set(key, value);
       }
-
-      // Save selectedProviderName
-      if (snapshot.selectedProviderName !== null) {
-        await store.settings.set('selectedProviderName', JSON.stringify(snapshot.selectedProviderName));
-      }
-
-      // Save providers
       for (const provider of snapshot.providers) {
+        const value = JSON.stringify(provider);
+        if (onDisk.providers.get(provider.provider) === value) continue;
         await store.providers.upsert(provider);
+        onDisk.providers.set(provider.provider, value);
       }
-
-      console.log('[SettingsContext] Settings saved successfully');
     } catch (error) {
       console.error('[SettingsContext] Error saving settings:', error);
       throw error;
@@ -394,8 +390,9 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     }
   }, [persistSnapshot, queryClient, readSnapshot]);
 
-  /** Optimistic, synchronous cache update, then a debounced disk write. */
+  /** Optimistic, synchronous cache update (a reload in flight is cancelled so it can't overwrite it), then a debounced disk write. */
   const updateCache = useCallback((updater: (prev: LoadedSettings) => LoadedSettings) => {
+    void queryClient.cancelQueries({ queryKey: queryKeys.storeSettings() });
     queryClient.setQueryData<LoadedSettings>(queryKeys.storeSettings(), (old) =>
       updater(old ?? FALLBACK_SETTINGS)
     );
@@ -407,10 +404,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       ...prev,
       settings: { ...prev.settings, ...updates },
     }));
-  }, [updateCache]);
-
-  const setProviders = useCallback((providers: ModelProvider[]) => {
-    updateCache(prev => ({ ...prev, providers }));
   }, [updateCache]);
 
   const addProvider = useCallback((provider: ModelProvider) => {
@@ -426,14 +419,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       providers: prev.providers.map(p =>
         p.provider === providerName ? { ...p, ...(typeof updates === 'function' ? updates(p) : updates) } : p
       ),
-    }));
-  }, [updateCache]);
-
-  const deleteProvider = useCallback((providerName: string) => {
-    updateCache(prev => ({
-      ...prev,
-      providers: prev.providers.filter(p => p.provider !== providerName),
-      selectedProviderName: prev.selectedProviderName === providerName ? null : prev.selectedProviderName,
     }));
   }, [updateCache]);
 
@@ -475,27 +460,20 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     updateCache(prev => ({ ...prev, selectedProviderName: name }));
   }, [updateCache]);
 
-  // Explicit reload — the query also fetches on mount, so no load effect.
-  const loadSettings = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: queryKeys.storeSettings() });
-  }, [queryClient]);
-
-  const value: SettingsContextValue = {
+  // One value per settings change, so its users re-render only when settings do.
+  const value = useMemo<SettingsContextValue>(() => ({
     settings: loaded.settings,
     providers: loaded.providers,
     selectedProviderName: loaded.selectedProviderName,
     isLoading,
-    selectedProvider,
+    selectedProvider: loaded.providers.find((p) => p.provider === loaded.selectedProviderName),
     setSettings,
-    setProviders,
     addProvider,
     updateProvider,
-    deleteProvider,
     updateProviderSetting,
     setSelectedProviderName,
-    loadSettings,
     saveSettings,
-  };
+  }), [loaded, isLoading, setSettings, addProvider, updateProvider, updateProviderSetting, setSelectedProviderName, saveSettings]);
 
   return (
     <SettingsContext.Provider value={value}>

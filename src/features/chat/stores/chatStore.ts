@@ -492,7 +492,7 @@ export interface ChatStoreState {
   startMeetingChat: (meeting: MeetingListItem) => void;
   /** Writes a session to disk and its row to the chat list; never rejects. */
   persistSession: (session: ChatSession) => Promise<void>;
-  /** Replaces the loaded sessions (useChatRuntime hydration). */
+  /** Changes the chats in memory (useChatRuntime: the open chat loaded, others let go). */
   setLoadedSessions: (updater: (prev: Map<string, ChatSession>) => Map<string, ChatSession>) => void;
 }
 
