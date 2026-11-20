@@ -3,33 +3,33 @@ use tauri::command;
 use crate::bridge;
 use crate::types::{AccessResult, AccessStatus, CalendarEvent, ReminderInput, ReminderState, RemindersList};
 
-/// Requests calendar access; macOS prompts only while undecided.
-#[command]
-pub fn request_access() -> Result<AccessResult, String> {
-    bridge::request_access()
-}
-
-/// Check current calendar authorization status without prompting.
-#[command]
-pub fn check_access() -> Result<AccessStatus, String> {
-    bridge::check_access()
-}
-
-/// Fetch calendar events in an ISO 8601 date range.
-#[command]
-pub fn get_events_in_range(start: String, end: String) -> Result<Vec<CalendarEvent>, String> {
-    crate::events_in_range(&start, &end)
-}
-
-// ─── Reminders ──────────────────────────────────────────────────────────────
-
-// EventKit calls block on a semaphore, so they run off the main thread.
+// EventKit calls block (a semaphore, a synchronous fetch), so every command runs off the main thread.
 
 async fn off_main<T: Send + 'static>(work: impl FnOnce() -> Result<T, String> + Send + 'static) -> Result<T, String> {
     tauri::async_runtime::spawn_blocking(work)
         .await
-        .map_err(|e| format!("Reminders task failed: {e}"))?
+        .map_err(|e| format!("EventKit task failed: {e}"))?
 }
+
+/// Requests calendar access; macOS prompts only while undecided.
+#[command]
+pub async fn request_access() -> Result<AccessResult, String> {
+    off_main(bridge::request_access).await
+}
+
+/// Check current calendar authorization status without prompting.
+#[command]
+pub async fn check_access() -> Result<AccessStatus, String> {
+    off_main(bridge::check_access).await
+}
+
+/// Fetch calendar events in an ISO 8601 date range.
+#[command]
+pub async fn get_events_in_range(start: String, end: String) -> Result<Vec<CalendarEvent>, String> {
+    off_main(move || crate::events_in_range(&start, &end)).await
+}
+
+// ─── Reminders ──────────────────────────────────────────────────────────────
 
 /// Request reminders access (the macOS prompt shows only while undecided).
 #[command]
@@ -39,8 +39,8 @@ pub async fn reminders_request_access() -> Result<AccessResult, String> {
 
 /// Current reminders authorization, without prompting.
 #[command]
-pub fn reminders_check_access() -> Result<AccessStatus, String> {
-    bridge::check_reminders_access()
+pub async fn reminders_check_access() -> Result<AccessStatus, String> {
+    off_main(bridge::check_reminders_access).await
 }
 
 /// Every reminders list.

@@ -37,8 +37,8 @@ export function useSystemAccess({ id, check, request, settingsPane }: AccessSour
 
   const requestAccess = useCallback(async () => {
     const granted = await request();
-    // The system's answer is the truth (Apple's guidance); its status read can lag right after a grant, so a refetch
-    // already started (focus returns when the prompt closes) is cancelled before the answer is written.
+    // The system's answer is the truth (the bridge keeps a grant for the run); a check started before it answered
+    // (focus returns when the prompt closes) is cancelled before the answer is written.
     const key = queryKeys.integrationAccess(id);
     if (granted) {
       await queryClient.cancelQueries({ queryKey: key });

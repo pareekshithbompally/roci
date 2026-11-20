@@ -1,6 +1,6 @@
 /** Upcoming: the calendar's events on a time grid, a week on a Mac and a day on iPhone, any week back or forward; live on calendar changes. */
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, CircleAlert, Lock, RotateCw, Settings } from 'lucide-react';
 import { useAppActions } from '@shared/stores/appStore';
 import { useSystemFormatStore } from '@shared/stores/systemFormatStore';
@@ -11,12 +11,12 @@ import { useFormFactor } from '@platform/formFactor';
 import { LAYOUT } from '@config/layout.config';
 import { CALENDAR_CONFIG } from '@config/calendar.config';
 import { formatMonth } from '@shared/utils/formatters';
-import { localDayKey } from '@shared/utils/localDate';
+import { addDays, localDayKey } from '@shared/utils/localDate';
 import { useRangeEvents } from '@features/calendar/hooks/useRangeEvents';
 import { visibleRange, type CalendarSpan } from '@features/calendar/utils/timeGrid';
 import { TimeGrid } from './TimeGrid';
 import { EventPopover } from './EventPopover';
-import type { CalendarEvent } from '@services/calendar';
+import { calendarService, type CalendarEvent } from '@services/calendar';
 
 const OFF = {
   icon: CalendarDays,
@@ -38,7 +38,11 @@ export const CalendarView: React.FC = () => {
   const { openSettings } = useAppActions();
   const calendar = useCalendarControls();
   const span: CalendarSpan = useFormFactor() === 'phone' ? 'day' : 'week';
-  const [anchor, setAnchor] = useState(() => new Date());
+  // The day on screen: `null` follows today (a new day or wake moves it, via `calendar://changed`); a picked day stays.
+  const [today, setToday] = useState(() => localDayKey(new Date()));
+  const [picked, setPicked] = useState<Date | null>(null);
+  useEffect(() => calendarService.onCalendarChanged(() => setToday(localDayKey(new Date()))), []);
+  const anchor = useMemo(() => picked ?? new Date(`${today}T00:00`), [picked, today]);
   const [selected, setSelected] = useState<{ event: CalendarEvent; rect: DOMRect } | null>(null);
 
   const firstWeekday = useSystemFormatStore((s) => s.firstWeekday);
@@ -47,8 +51,8 @@ export const CalendarView: React.FC = () => {
   const { events, allDay, isError, retry } = useRangeEvents(range, calendar.enabled && !blocked);
 
   const step = useCallback((direction: 1 | -1) => {
-    setAnchor((a) => new Date(a.getFullYear(), a.getMonth(), a.getDate() + direction * range.days.length));
-  }, [range.days.length]);
+    setPicked(addDays(anchor, direction * range.days.length));
+  }, [anchor, range.days.length]);
   const handleEventClick = useCallback((event: CalendarEvent, rect: DOMRect) => setSelected({ event, rect }), []);
 
   const empty = !calendar.enabled ? OFF : blocked ? NO_ACCESS : isError ? READ_FAILED : null;
@@ -56,11 +60,11 @@ export const CalendarView: React.FC = () => {
   // As Calendar: the month (it opens the system date picker), then back · Today · forward. One date on screen, one format.
   const controls = (
     <div className="flex items-center gap-1.5">
-      <DatePicker value={localDayKey(anchor)} onChange={(v) => v && setAnchor(new Date(`${v}T00:00`))} placeholder="Go to date">
+      <DatePicker value={localDayKey(anchor)} onChange={(v) => v && setPicked(new Date(`${v}T00:00`))} placeholder="Go to date">
         {formatMonth(anchor)}
       </DatePicker>
       <IconButton icon={ChevronLeft} label={`Previous ${unit}`} size="sm" variant="outline" onClick={() => step(-1)} />
-      <Button variant="outline" size="sm" onClick={() => setAnchor(new Date())}>Today</Button>
+      <Button variant="outline" size="sm" onClick={() => setPicked(null)}>Today</Button>
       <IconButton icon={ChevronRight} label={`Next ${unit}`} size="sm" variant="outline" onClick={() => step(1)} />
     </div>
   );

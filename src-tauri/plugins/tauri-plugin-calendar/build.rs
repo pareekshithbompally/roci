@@ -15,7 +15,7 @@ fn main() {
     apple_build::SwiftLibrary {
         name: "calendar_bridge",
         module: "CalendarBridge",
-        sources: &["swift/CalendarBridge.swift", "swift/RemindersBridge.swift"],
+        sources: &["swift/EventStore.swift", "swift/CalendarBridge.swift", "swift/RemindersBridge.swift"],
         frameworks: &["EventKit", "Foundation"],
     }
     .build();
