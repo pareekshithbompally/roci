@@ -1,31 +1,15 @@
-/** Estimated cost from token usage and models.dev pricing; 0 when pricing is unknown. */
+/** Estimated cost from token usage: free on this Mac or your own server, models.dev's price for a cloud model. */
 
 import { modalitiesService } from '@services/modalities';
-import type { ModelPricing } from '@services/modalities';
+import { modelSourceOf } from '@services/ai/models';
 import type { TokenUsage } from '@services/ai/types';
 
-export type { ModelPricing };
-
-/** Pricing from the models.dev cache, loading it in the background if needed; undefined when unknown. */
-export function findPricing(provider: string, model: string): ModelPricing | undefined {
-  if (!modalitiesService.isLoaded()) {
-    // Trigger background load so subsequent calls have data
-    modalitiesService.ensureLoaded();
-    return undefined;
-  }
-  return modalitiesService.getPricing(provider, model) ?? undefined;
-}
-
-/** Estimated USD cost; 0 when no pricing is found. */
-export function estimateCost(
-  provider: string,
-  model: string,
-  usage?: TokenUsage,
-): number {
-  if (!usage) return 0;
-
-  const pricing = findPricing(provider, model);
-  if (!pricing) return 0;
+/** Estimated USD cost from the loaded models.dev list; undefined when a cloud model's price or tokens are unknown
+ *  (unknown is not free). */
+export function estimateCost(provider: string, model: string, usage?: TokenUsage): number | undefined {
+  if (modelSourceOf(provider) !== 'cloud') return 0;
+  const pricing = modalitiesService.getPricing(provider, model);
+  if (!pricing || !usage) return undefined;
 
   const inputTokens = usage.inputTokens ?? 0;
   const outputTokens = usage.outputTokens ?? 0;
@@ -37,12 +21,10 @@ export function estimateCost(
   const cacheReadRate = pricing.cacheReadPer1M ?? pricing.inputPer1M;
   const cacheWriteRate = pricing.cacheWritePer1M ?? pricing.inputPer1M;
 
-  const cost =
-    (standardInputTokens * pricing.inputPer1M +
-      cacheReadTokens * cacheReadRate +
-      cacheWriteTokens * cacheWriteRate +
-      outputTokens * pricing.outputPer1M) /
-    1_000_000;
-
-  return cost;
+  return (
+    standardInputTokens * pricing.inputPer1M +
+    cacheReadTokens * cacheReadRate +
+    cacheWriteTokens * cacheWriteRate +
+    outputTokens * pricing.outputPer1M
+  ) / 1_000_000;
 }

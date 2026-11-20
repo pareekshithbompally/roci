@@ -5,6 +5,7 @@ import { isTauriEnvironment } from '@services/tauri';
 import type { TokenUsage } from '@services/ai/types';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
+import { modalitiesService } from '@services/modalities';
 import { estimateCost } from './pricing';
 import type { UsageRecord, UsageCategory, UsageQuery, UsageSummary } from './types';
 
@@ -20,17 +21,17 @@ function ensureInitialized(): Promise<void> {
   return initPromise;
 }
 
-/** Logs a usage record, mapping TokenUsage to the flat UsageRecord Rust expects. */
+/** Logs a usage record, mapping TokenUsage to the flat UsageRecord Rust expects; priced against the loaded models.dev list. */
 export async function logUsage(params: {
   category: UsageCategory;
   sessionId?: string;
   provider?: string;
   model?: string;
   usage?: TokenUsage;
-  estimatedCost?: number;
 }): Promise<void> {
   if (!isTauriEnvironment()) return;
   if (!params.provider || !params.model) return;
+  await modalitiesService.ensureLoaded();
 
   const record: UsageRecord = {
     id: crypto.randomUUID(),
@@ -44,7 +45,7 @@ export async function logUsage(params: {
     cache_read_tokens: params.usage?.cacheReadTokens ?? 0,
     cache_write_tokens: params.usage?.cacheWriteTokens ?? 0,
     reasoning_tokens: params.usage?.reasoningTokens ?? 0,
-    estimated_cost: params.estimatedCost ?? estimateCost(params.provider, params.model, params.usage),
+    estimated_cost: estimateCost(params.provider, params.model, params.usage),
   };
 
   try {
@@ -78,6 +79,7 @@ export async function getUsageSummary(query: UsageQuery): Promise<UsageSummary> 
       total_output_tokens: 0,
       total_cache_read_tokens: 0,
       total_calls: 0,
+      unpriced_calls: 0,
       first_timestamp: null,
       by_provider_model: [],
       by_category: [],

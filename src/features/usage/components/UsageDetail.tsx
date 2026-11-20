@@ -112,7 +112,12 @@ const Highlights: React.FC<PageData & { previous: UsageView['previous'] }> = ({ 
 /** Every total the page's window recorded; plain rows (the chart's metric menu is how to see one over time). */
 const Totals: React.FC<PageData> = ({ summary }) => (
   <Section title={COPY.sections.totals}>
-    <MetricRow icon={METRIC_GLYPH.cost} title="Estimated cost" value={formatMetric('cost', summary.total_cost)} />
+    <MetricRow
+      icon={METRIC_GLYPH.cost}
+      title="Estimated cost"
+      description={summary.unpriced_calls > 0 ? COPY.unpriced(summary.unpriced_calls) : undefined}
+      value={formatMetric('cost', summary.total_cost)}
+    />
     <MetricRow icon={METRIC_GLYPH.requests} title="Requests" value={formatMetric('requests', summary.total_calls)} />
     <MetricRow icon={USAGE_GLYPH.input} title="Input tokens" value={formatMetric('tokens', summary.total_input_tokens)} />
     <MetricRow icon={USAGE_GLYPH.output} title="Output tokens" value={formatMetric('tokens', summary.total_output_tokens)} />

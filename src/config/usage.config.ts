@@ -24,6 +24,8 @@ export const USAGE_CONFIG = {
     emptyPeriod: 'No usage in this period.',
     loadFailed: 'Couldn’t load usage',
     allTitle: 'All usage',
+    /** Beside the estimated cost when some calls ran on cloud models with no known price (left out of the total). */
+    unpriced: (calls: number) => `${calls} ${calls === 1 ? 'call has' : 'calls have'} no price`,
     sections: {
       overview: 'Overview',
       highlights: 'Highlights',

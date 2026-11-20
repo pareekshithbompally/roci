@@ -14,6 +14,7 @@ export interface UsageRecord {
   cache_read_tokens?: number;
   cache_write_tokens?: number;
   reasoning_tokens?: number;
+  /** USD; absent when a cloud model's price is unknown (stored as NULL, never as free). */
   estimated_cost?: number;
 }
 
@@ -67,6 +68,8 @@ export interface UsageSummary {
   total_output_tokens: number;
   total_cache_read_tokens: number;
   total_calls: number;
+  /** Calls whose cost is unknown (a cloud model models.dev has no price for); left out of `total_cost`. */
+  unpriced_calls: number;
   /** Earliest record in the window (epoch ms); null when the window is empty. */
   first_timestamp: number | null;
   by_provider_model: ProviderModelBreakdown[];

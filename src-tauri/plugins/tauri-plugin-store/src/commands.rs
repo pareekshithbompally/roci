@@ -542,6 +542,8 @@ pub struct UsageSummary {
     pub total_output_tokens: i64,
     pub total_cache_read_tokens: i64,
     pub total_calls: i64,
+    /// Calls whose cost is unknown (NULL: a cloud model with no known price); left out of `total_cost`.
+    pub unpriced_calls: i64,
     /// Earliest record in the window (epoch ms); none when the window is empty.
     pub first_timestamp: Option<i64>,
     pub by_provider_model: Vec<ProviderModelBreakdown>,
@@ -2783,7 +2785,7 @@ pub async fn insert_usage(
                 record.cache_read_tokens.unwrap_or(0),
                 record.cache_write_tokens.unwrap_or(0),
                 record.reasoning_tokens.unwrap_or(0),
-                record.estimated_cost.unwrap_or(0.0),
+                record.estimated_cost,
             ],
         )?;
         Ok(())
@@ -2884,15 +2886,16 @@ fn usage_trend(db: &Connection, q: &UsageQuery) -> Result<Vec<UsageBucket>, Stor
 
 fn usage_summary_impl(db: &Connection, q: &UsageQuery) -> Result<UsageSummary, StoreError> {
     let params = usage_params(q);
-    let (total_cost, total_input, total_output, total_cache_read, total_calls, first_timestamp): (f64, i64, i64, i64, i64, Option<i64>) = db
+    let (total_cost, total_input, total_output, total_cache_read, total_calls, unpriced_calls, first_timestamp): (f64, i64, i64, i64, i64, i64, Option<i64>) = db
         .query_row(
             &format!(
                 "SELECT COALESCE(SUM(estimated_cost), 0), COALESCE(SUM(input_tokens), 0),
-                 COALESCE(SUM(output_tokens), 0), COALESCE(SUM(cache_read_tokens), 0), COUNT(*), MIN(timestamp)
+                 COALESCE(SUM(output_tokens), 0), COALESCE(SUM(cache_read_tokens), 0), COUNT(*),
+                 COALESCE(SUM(estimated_cost IS NULL), 0), MIN(timestamp)
                  FROM usage_log WHERE {USAGE_WHERE}"
             ),
             rusqlite::params![params.0, params.1, params.2, params.3, params.4],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?)),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?)),
         )?;
 
     let mut stmt = db.prepare(&format!(
@@ -2941,6 +2944,7 @@ fn usage_summary_impl(db: &Connection, q: &UsageQuery) -> Result<UsageSummary, S
         total_output_tokens: total_output,
         total_cache_read_tokens: total_cache_read,
         total_calls,
+        unpriced_calls,
         first_timestamp,
         by_provider_model,
         by_category,
@@ -3759,6 +3763,23 @@ mod tests {
     }
 
     const DAY_MS: i64 = 86_400_000;
+
+    #[test]
+    fn usage_summary_counts_unknown_prices_apart_from_free() {
+        let conn = db();
+        seed_usage(&conn, "priced", 1, "gemini", "flash", "chat", 100, 0.10);
+        seed_usage(&conn, "free", 2, "on-device", "gemma", "chat", 100, 0.0);
+        conn.execute(
+            "INSERT INTO usage_log (id, timestamp, category, provider, model, input_tokens, output_tokens, estimated_cost)
+             VALUES ('unknown', 3, 'chat', 'openrouter', 'new-model', 100, 1, NULL)",
+            [],
+        )
+        .unwrap();
+        let all = usage_summary_impl(&conn, &UsageQuery::default()).unwrap();
+        assert_eq!(all.total_calls, 3);
+        assert_eq!(all.unpriced_calls, 1, "only the NULL cost is unknown; 0 is free");
+        assert!((all.total_cost - 0.10).abs() < 1e-9);
+    }
 
     #[test]
     fn usage_summary_filters_windows_and_buckets_add_up() {
