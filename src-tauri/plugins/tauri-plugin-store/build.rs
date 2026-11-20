@@ -86,6 +86,7 @@ const COMMANDS: &[&str] = &[
     "insert_usage",
     "get_usage_summary",
     "get_meeting_usage",
+    "price_unpriced_usage",
 ];
 
 fn main() {

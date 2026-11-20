@@ -10,6 +10,7 @@ import { useSpeechHighlight } from '@shared/hooks/useSpeechHighlight';
 import { injectCitationTokens } from '@shared/utils/inlineCitationInjector';
 import PartsList from './PartsList';
 import { loadingStatusOf } from './loadingStatus';
+import { useReplyCost } from '@features/chat/hooks/useChatCost';
 import AssistantActionBar from './AssistantActionBar';
 import ErrorMessageBox from './ErrorMessageBox';
 import type { AssistantMessageProps } from './types';
@@ -91,11 +92,12 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
   id, text, parts, timestamp,
   suggestions, onSuggestionClick, isLastMessage,
   provider, model, state, loadingStatus,
-  context, tokensPerSecond,
+  context, tokensPerSecond, usage,
   meetingCitations,
   isCopied, actions, citationHandlers,
   webCitations, inlineCitations, isError,
 }) => {
+  const cost = useReplyCost({ provider, model, usage });
   const isLoading = state === 'loading';
   const status = loadingStatus ?? loadingStatusOf(null);
   const isStreaming = state === 'streaming';
@@ -148,6 +150,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({
               isCopied={isCopied}
               context={context}
               tokensPerSecond={tokensPerSecond}
+              cost={cost}
               actions={actions}
               meetingCitations={meetingCitations}
               suggestions={suggestions}

@@ -45,4 +45,8 @@ export const MODEL_SPINE_CONFIG = {
   providerModalities: { deepgram: AUDIO_TO_TEXT, elevenlabs: AUDIO_TO_TEXT } as Record<string, { input: readonly Modality[]; output: readonly Modality[] }>,
   assumedModalities: { input: ['text'], output: ['text'] } as { input: readonly Modality[]; output: readonly Modality[] },
 
+  /** A model a server you run passes on to its maker's cloud (Ollama's `gemma4:31b-cloud`): paid, and listed in the
+   *  catalog under its name without this ending. */
+  cloudModelSuffix: /[-:]cloud$/,
+
 } as const;

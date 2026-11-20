@@ -49,10 +49,11 @@ export function changeGlyph(ratio: number): TileGlyph {
   return Minus;
 }
 
-/** A page's title: the provider's or model's name, the feature's label, or "All usage". */
+/** A page's title: the provider's or model's name, the feature's label, "Model Prices", or "All usage". */
 export function subjectTitle(subject: UsageSubject): string {
   if (subject.kind === 'provider') return getProviderTitle(subject.provider);
   if (subject.kind === 'model') return modelName(subject.model);
   if (subject.kind === 'feature') return categoryMark(subject.category).label;
+  if (subject.kind === 'prices') return USAGE_CONFIG.copy.prices.title;
   return USAGE_CONFIG.copy.allTitle;
 }

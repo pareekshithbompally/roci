@@ -451,6 +451,7 @@ async function generateReply(reply: Reply, request: ReplyRequest): Promise<void>
       state: 'complete',
       tokensPerSecond: tokensPerSecond(usage?.outputTokens, tally.firstTextAt),
       context: result.context,
+      usage: result.tokenUsage,
       exchange: result.exchange,
       ...(tally.meetingCitations.length > 0 && { meetingCitations: tally.meetingCitations }),
       ...(tally.webCitations.length > 0 && { webCitations: tally.webCitations }),

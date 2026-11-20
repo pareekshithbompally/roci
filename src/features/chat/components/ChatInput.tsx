@@ -13,6 +13,7 @@ import { ComposerAddSheet } from './ComposerAddSheet';
 import { useAttachOptions } from '@features/chat/hooks/useAttachOptions';
 import { ComposerAddMenu } from './ComposerAddMenu';
 import { ContextRing, Icon, IconButton, Input, Popover, PopoverAnchor, Surface, Text, Textarea, cn } from '@shared/ui';
+import type { ContextRingCost } from '@shared/ui';
 import type { ContextUsage } from '@shared/hooks/useContextUsage';
 import {
 } from '@shared/ui';
@@ -57,6 +58,8 @@ interface ChatInputProps {
   isLoading?: boolean;
   /** Derived context-window usage for the gauge; ring hides when null/undefined. */
   contextUsage?: ContextUsage | null;
+  /** The chat's cost so far, shown in the context ring's breakdown. */
+  chatCost?: ContextRingCost | null;
   disabled?: boolean;
   /** Available meetings for @ mention */
   availableMeetings?: MeetingListItem[];
@@ -116,6 +119,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onStop,
   isLoading = false,
   contextUsage,
+  chatCost,
   disabled = false,
   availableMeetings = [],
   selectedMeetings = [],
@@ -510,7 +514,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               <ReasoningPicker />
 
               {/* Context-window gauge (hides when the limit is unknown or no usage yet) */}
-              <ContextRing usage={contextUsage ?? null} />
+              <ContextRing usage={contextUsage ?? null} cost={chatCost ?? undefined} />
             </div>
 
             {sendControls}

@@ -6,13 +6,11 @@ import { StorageConfig } from '@config/storage.config';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 import { toModalities } from '@services/ai/models/report';
-import type { ModelReport } from '@shared/types/modelProviders';
+import type { ModelPrice, ModelReport } from '@shared/types/modelProviders';
+import { MODEL_SPINE_CONFIG } from '@config/modelSpine.config';
 
-export interface ModelPricing {
-  /** USD per 1M input tokens */
-  inputPer1M: number;
-  /** USD per 1M output tokens */
-  outputPer1M: number;
+/** A price per 1M tokens, with the cache rates when the catalog states them (cached input costs the input rate otherwise). */
+export interface ModelPricing extends ModelPrice {
   /** USD per 1M cached input tokens (read from cache) */
   cacheReadPer1M?: number;
   /** USD per 1M cache write tokens */
@@ -181,8 +179,8 @@ class ModalitiesService {
     const provider = cachedData[modelsDevProviderId];
     if (!provider?.models) return null;
 
-    // Try exact match first
-    const exactMatch = provider.models[modelId];
+    // Try exact match first; a server's cloud model is listed under its name without the cloud ending.
+    const exactMatch = provider.models[modelId] ?? provider.models[modelId.replace(MODEL_SPINE_CONFIG.cloudModelSuffix, '')];
     if (exactMatch) return exactMatch;
 
     // Try stripping provider prefix (e.g., "openai/gpt-5" → "gpt-5")

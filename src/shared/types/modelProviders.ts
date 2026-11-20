@@ -39,6 +39,12 @@ export type ModelOverrides = {
   reasoning?: boolean
 }
 
+/** A model's price in USD per million tokens. */
+export type ModelPrice = {
+  inputPer1M: number
+  outputPer1M: number
+}
+
 export type Model = {
   id: string
   model?: string
@@ -51,6 +57,8 @@ export type Model = {
   /** What its provider's model list reports (a cloud list or a server's), refreshed on Test, Add and each server probe. */
   reported?: ModelReport
   overrides?: ModelOverrides
+  /** The price the user set (Settings › Usage › Model Prices); wins over the catalog's. */
+  price?: ModelPrice
 }
 
 export type ProviderCustomHeader = {

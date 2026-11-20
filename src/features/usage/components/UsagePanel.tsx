@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { useOptionalNavStack } from '@shared/ui';
 import { useResetUsagePath, useUsagePath } from '@features/usage/stores/usageStore';
 import { ALL_USAGE } from '@features/usage/model/subject';
-import { UsageDetail } from './UsageDetail';
+import { UsagePage } from './UsageDetail';
 
 export const UsagePanel: React.FC = () => {
   const inStack = useOptionalNavStack() !== null;
@@ -14,5 +14,5 @@ export const UsagePanel: React.FC = () => {
   useEffect(() => reset, [reset]);
 
   const subject = (inStack ? undefined : path[path.length - 1]) ?? ALL_USAGE;
-  return <UsageDetail key={JSON.stringify(subject)} subject={subject} />;
+  return <UsagePage key={JSON.stringify(subject)} subject={subject} />;
 };

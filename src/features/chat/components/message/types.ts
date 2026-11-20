@@ -1,5 +1,6 @@
 import type { LoadingStatus } from './loadingStatus';
 import type { ChatPart, ContextTokens, MeetingCitation, WebCitation, InlineCitationSpan } from '@shared/types';
+import type { TokenUsage } from '@services/ai/types';
 
 /** Shared action callbacks — stable via useMemo in parent */
 export interface ActionProps {
@@ -33,6 +34,8 @@ export interface ChatMessageProps {
   /** The reply's share of the context window (what the gauge reads). */
   context?: ContextTokens;
   tokensPerSecond?: number;
+  /** The reply's tokens, every call summed: what its cost is worked out from. */
+  usage?: TokenUsage;
   meetingCitations?: MeetingCitation[];
   isCopied?: boolean;
   actions: ActionProps;
@@ -70,6 +73,7 @@ export interface AssistantMessageProps {
   /** The reply's share of the context window (what the gauge reads). */
   context?: ContextTokens;
   tokensPerSecond?: number;
+  usage?: TokenUsage;
   meetingCitations?: MeetingCitation[];
   isCopied?: boolean;
   actions: ActionProps;

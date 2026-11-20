@@ -7,7 +7,7 @@ import { cn } from '@shared/ui';
 export const ChatMessage: React.FC<ChatMessageProps> = memo(({
   id, role, text, parts, meetingRefs, timestamp, suggestions, onSuggestionClick,
   isLastMessage = false, provider, model,
-  state = 'complete', loadingStatus, context, tokensPerSecond,
+  state = 'complete', loadingStatus, context, tokensPerSecond, usage,
   meetingCitations,
   isCopied, actions, citationHandlers,
   webCitations, inlineCitations, isError,
@@ -24,7 +24,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({
           suggestions={suggestions} onSuggestionClick={onSuggestionClick}
           isLastMessage={isLastMessage} provider={provider} model={model}
           state={state} loadingStatus={loadingStatus}
-          context={context} tokensPerSecond={tokensPerSecond}
+          context={context} tokensPerSecond={tokensPerSecond} usage={usage}
           meetingCitations={meetingCitations}
           isCopied={isCopied} actions={actions} citationHandlers={citationHandlers}
           webCitations={webCitations} inlineCitations={inlineCitations}
@@ -47,6 +47,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({
     prev.suggestions === next.suggestions &&
     prev.context === next.context &&
     prev.tokensPerSecond === next.tokensPerSecond &&
+    prev.usage === next.usage &&
     prev.meetingCitations === next.meetingCitations &&
     prev.actions === next.actions &&
     prev.citationHandlers === next.citationHandlers &&

@@ -1,7 +1,7 @@
 import type { ModelMessage } from 'ai';
 import type { AudioCaptureSource } from '@config/audio.config';
 import type { MeetingCitation } from '@extensions/tools/types';
-import type { WebCitation, InlineCitationSpan } from '@services/ai/types';
+import type { WebCitation, InlineCitationSpan, TokenUsage } from '@services/ai/types';
 import type { ReadAloudEngine } from '@config/readAloud.config';
 import type { StorageConfig } from '@config/storage.config';
 import type { MeetingStatus } from './meetingPhase';
@@ -150,6 +150,8 @@ export interface ChatMessage {
   tokensPerSecond?: number;
   /** What the context window holds after this reply: its last model call's prompt (the cached part) and reply, in tokens. */
   context?: ContextTokens;
+  /** Every model call of the reply summed, tool steps included: what it cost, by the one price rule. */
+  usage?: TokenUsage;
   /** The reply as its model produced it (every step's assistant and tool messages, with the provider's own data); later turns send it back to that provider. */
   exchange?: ModelMessage[];
   /** Meeting citations gathered from tool calls */

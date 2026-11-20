@@ -1,4 +1,4 @@
-/** Context-window gauge for the composer: an arc of used/total with a breakdown popover; nothing when usage is null. */
+/** Context-window gauge for the composer: an arc of used/total with a breakdown popover (and the chat's cost so far); nothing when usage is null. */
 
 import React from 'react';
 import type { ContextUsage, ContextLevel } from '@shared/hooks/useContextUsage';
@@ -75,8 +75,14 @@ const BreakdownRow: React.FC<{ label: string; value: string; sub?: string }> = (
   </div>
 );
 
-/** What fills the window after the last reply, and the room left. */
-const Breakdown: React.FC<{ usage: ContextUsage }> = ({ usage }) => (
+/** The chat's cost so far, already formatted, with a note (e.g. replies that have no price). */
+export interface ContextRingCost {
+  total: string;
+  note?: string;
+}
+
+/** What fills the window after the last reply, the room left, and what the chat has cost. */
+const Breakdown: React.FC<{ usage: ContextUsage; cost?: ContextRingCost }> = ({ usage, cost }) => (
   <div className="flex flex-col gap-1.5 px-1 py-1">
     <div className="flex items-baseline justify-between">
       <Text variant="label" tone="primary">
@@ -95,6 +101,7 @@ const Breakdown: React.FC<{ usage: ContextUsage }> = ({ usage }) => (
       />
       <BreakdownRow label="Last reply" value={formatTokens(usage.reply)} />
       <BreakdownRow label="Room left" value={formatTokens(usage.left)} />
+      {cost && <BreakdownRow label="Cost so far" value={cost.total} sub={cost.note} />}
     </div>
   </div>
 );
@@ -102,10 +109,12 @@ const Breakdown: React.FC<{ usage: ContextUsage }> = ({ usage }) => (
 export interface ContextRingProps {
   /** Null hides the ring (unknown limit or no usage yet). */
   usage: ContextUsage | null;
+  /** The chat's cost so far; its row is left out when absent. */
+  cost?: ContextRingCost;
   className?: string;
 }
 
-export function ContextRing({ usage, className }: ContextRingProps) {
+export function ContextRing({ usage, cost, className }: ContextRingProps) {
   if (!usage) return null;
   return (
     <Popover>
@@ -124,7 +133,7 @@ export function ContextRing({ usage, className }: ContextRingProps) {
         </button>
       </PopoverTrigger>
       <PopoverContent width="md" side="top" align="end" sideOffset={8}>
-        <Breakdown usage={usage} />
+        <Breakdown usage={usage} cost={cost} />
       </PopoverContent>
     </Popover>
   );

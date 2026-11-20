@@ -1,4 +1,4 @@
-/** What a usage page shows: everything, one provider, one model, or one feature (a usage category). */
+/** What a usage page shows: everything, one provider, one model, one feature (a usage category), or the Model Prices page. */
 
 import type { UsageQuery } from '@extensions/usage';
 
@@ -6,10 +6,14 @@ export type UsageSubject =
   | { kind: 'all' }
   | { kind: 'provider'; provider: string }
   | { kind: 'model'; provider: string; model: string }
-  | { kind: 'feature'; category: string };
+  | { kind: 'feature'; category: string }
+  | { kind: 'prices' };
 
 /** The whole of usage: the root page. */
 export const ALL_USAGE: UsageSubject = { kind: 'all' };
+
+/** Model Prices: opened from the root page's estimated cost. */
+export const MODEL_PRICES: UsageSubject = { kind: 'prices' };
 
 /** The one kind of page a page opens: the root opens providers and features, a provider its models; models and features are leaves.
  *  A strict tree, so drilling always goes down and ends. */

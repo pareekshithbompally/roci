@@ -17,7 +17,7 @@ import { WebCitationDrawer } from './WebCitationDrawer';
 import { meetingReferenceService } from '@services/meetingReferenceService';
 import { meetingService } from '@services/meeting.service';
 import { useVoiceCapture } from '@features/chat';
-import { useContextLimit } from '@features/chat/hooks';
+import { useChatCost, useContextLimit } from '@features/chat/hooks';
 import { useFollowBottom } from '@features/chat/hooks/useFollowBottom';
 import { useContextUsage } from '@shared/hooks/useContextUsage';
 import { useSpeechInputReady } from '@features/settings/hooks/useSpeechModels';
@@ -211,6 +211,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
   // Context gauge; hidden when the model limit or usage is unknown.
   const contextLimit = useContextLimit();
   const contextUsage = useContextUsage(currentMessages, contextLimit);
+  const chatCost = useChatCost(currentMessages);
 
   const isLoadingSession = isSessionLoading && !currentSession;
   const emptyState = (
@@ -266,6 +267,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
                   loadingStatus={message.state === 'loading' ? replyStatus : undefined}
                   context={message.context}
                   tokensPerSecond={message.tokensPerSecond}
+                  usage={message.usage}
                   meetingCitations={message.meetingCitations}
                   isCopied={copiedMessageId === message.id}
                   actions={sharedActions}
@@ -298,6 +300,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
           onStop={stopGeneration}
           isLoading={isGenerating}
           contextUsage={contextUsage}
+          chatCost={chatCost}
           availableMeetings={availableMeetings}
           selectedMeetings={selectedMeetingRefs}
           onMeetingSelect={setSelectedMeetingRefs}

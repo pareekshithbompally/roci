@@ -76,4 +76,5 @@ permissions = [
   "allow-insert-usage",
   "allow-get-usage-summary",
   "allow-get-meeting-usage",
+  "allow-price-unpriced-usage",
 ]

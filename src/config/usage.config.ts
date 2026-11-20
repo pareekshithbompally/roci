@@ -26,6 +26,18 @@ export const USAGE_CONFIG = {
     allTitle: 'All usage',
     /** Beside the estimated cost when some calls ran on cloud models with no known price (left out of the total). */
     unpriced: (calls: number) => `${calls} ${calls === 1 ? 'call has' : 'calls have'} no price`,
+    /** Settings › Usage › Model Prices: prices for paid models models.dev doesn't price. */
+    prices: {
+      title: 'Model Prices',
+      open: 'Set prices for models with none',
+      unpriced: 'No price',
+      unpricedFooter: 'Paid models with no known price. Their calls count toward usage, not cost, until you set one.',
+      own: 'Your prices',
+      ownFooter: 'Per million tokens. A price you set wins over models.dev’s, and also prices that model’s earlier calls.',
+      none: 'Every paid model you use has a price.',
+      input: 'Input $',
+      output: 'Output $',
+    },
     sections: {
       overview: 'Overview',
       highlights: 'Highlights',

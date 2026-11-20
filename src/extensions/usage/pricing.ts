@@ -1,30 +1,39 @@
-/** Estimated cost from token usage: free on this Mac or your own server, models.dev's price for a cloud model. */
+/** The one price rule: free when a model runs on this Mac or a server you run, else the price you set, else models.dev's;
+ *  unknown otherwise (never free). Every cost Roci shows or saves comes from here. */
 
 import { modalitiesService } from '@services/modalities';
+import type { ModelPricing } from '@services/modalities';
 import { modelSourceOf } from '@services/ai/models';
+import { MODEL_SPINE_CONFIG } from '@config/modelSpine.config';
 import type { TokenUsage } from '@services/ai/types';
+import type { ModelProvider } from '@shared/types/modelProviders';
 
-/** Estimated USD cost from the loaded models.dev list; undefined when a cloud model's price or tokens are unknown
- *  (unknown is not free). */
-export function estimateCost(provider: string, model: string, usage?: TokenUsage): number | undefined {
-  if (modelSourceOf(provider) !== 'cloud') return 0;
-  const pricing = modalitiesService.getPricing(provider, model);
-  if (!pricing || !usage) return undefined;
+const FREE: ModelPricing = { inputPer1M: 0, outputPer1M: 0 };
 
-  const inputTokens = usage.inputTokens ?? 0;
-  const outputTokens = usage.outputTokens ?? 0;
-  const cacheReadTokens = usage.cacheReadTokens ?? 0;
-  const cacheWriteTokens = usage.cacheWriteTokens ?? 0;
+/** On this Mac or a server you run, and not passed on to its maker's cloud (Ollama's `-cloud` models are). */
+export const runsLocally = (provider: string, modelId: string): boolean =>
+  modelSourceOf(provider) !== 'cloud' && !MODEL_SPINE_CONFIG.cloudModelSuffix.test(modelId);
 
-  // Cache tokens are a subset of input; they're charged at the cache rate, the rest at the standard rate.
-  const standardInputTokens = Math.max(0, inputTokens - cacheReadTokens - cacheWriteTokens);
-  const cacheReadRate = pricing.cacheReadPer1M ?? pricing.inputPer1M;
-  const cacheWriteRate = pricing.cacheWritePer1M ?? pricing.inputPer1M;
+/** The price the user set for a model, from its saved provider. */
+const userPrice = (providers: ModelProvider[], provider: string, modelId: string) =>
+  providers.find((p) => p.provider === provider)?.models?.find((m) => m.id === modelId)?.price;
 
+/** A model's price per 1M tokens, from the loaded models.dev list and the user's prices; null when unknown. */
+export function priceOf(providers: ModelProvider[], provider: string, modelId: string): ModelPricing | null {
+  if (runsLocally(provider, modelId)) return FREE;
+  return userPrice(providers, provider, modelId) ?? modalitiesService.getPricing(provider, modelId);
+}
+
+/** USD for `usage` at `price`; undefined when either is unknown. Cached input is a subset of input, at the cache rate. */
+export function costOf(price: ModelPricing | null, usage?: TokenUsage): number | undefined {
+  if (!price || !usage) return undefined;
+  const cacheRead = usage.cacheReadTokens ?? 0;
+  const cacheWrite = usage.cacheWriteTokens ?? 0;
+  const standardInput = Math.max(0, (usage.inputTokens ?? 0) - cacheRead - cacheWrite);
   return (
-    standardInputTokens * pricing.inputPer1M +
-    cacheReadTokens * cacheReadRate +
-    cacheWriteTokens * cacheWriteRate +
-    outputTokens * pricing.outputPer1M
+    standardInput * price.inputPer1M +
+    cacheRead * (price.cacheReadPer1M ?? price.inputPer1M) +
+    cacheWrite * (price.cacheWritePer1M ?? price.inputPer1M) +
+    (usage.outputTokens ?? 0) * price.outputPer1M
   ) / 1_000_000;
 }

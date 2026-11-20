@@ -11,7 +11,7 @@ import { SettingsPage } from '@features/settings/components/shared/SettingsPage'
 import { bucketKeys, dayCount, type UsageWindow } from '@features/usage/model/period';
 import { changeFrom, fillSeries, metricValue, peakBucket, perRequest, summaryTotals, totalsByProvider } from '@features/usage/model/series';
 import { bucketLabel, formatAverage, formatChange, formatMetric, usageLine } from '@features/usage/model/format';
-import { childKinds, type UsageChildKind, type UsageSubject } from '@features/usage/model/subject';
+import { childKinds, MODEL_PRICES, type UsageChildKind, type UsageSubject } from '@features/usage/model/subject';
 import { usePrefetchUsagePage, useUsagePage, type UsageView } from '@features/usage/hooks/useUsageQueries';
 import {
   useOpenUsageInPanel, useSetUsageRange, useUsageBack, useUsageMetric, useUsageRange,
@@ -19,6 +19,7 @@ import {
 import { METRIC_GLYPH, USAGE_GLYPH, changeGlyph, subjectTitle } from './marks';
 import { FeatureRow, MetricRow, ModelRow, ProviderRow } from './UsageRows';
 import { PENDING, UsageChartCard } from './UsageChartCard';
+import { ModelPricesPage } from './ModelPricesPage';
 
 const COPY = USAGE_CONFIG.copy;
 
@@ -35,8 +36,8 @@ function useDrill(range: UsageRange): Drill {
   const prefetchPage = usePrefetchUsagePage();
   const prefetch = useCallback((subject: UsageSubject) => prefetchPage(subject, range), [prefetchPage, range]);
   const open = useCallback((subject: UsageSubject) => {
-    prefetch(subject);
-    if (nav) nav.push({ title: subjectTitle(subject), content: <UsageDetail subject={subject} /> });
+    if (subject.kind !== 'prices') prefetch(subject);
+    if (nav) nav.push({ title: subjectTitle(subject), content: <UsagePage subject={subject} /> });
     else openInPanel(subject);
   }, [nav, openInPanel, prefetch]);
   return { open, prefetch };
@@ -109,14 +110,16 @@ const Highlights: React.FC<PageData & { previous: UsageView['previous'] }> = ({ 
   );
 };
 
-/** Every total the page's window recorded; plain rows (the chart's metric menu is how to see one over time). */
-const Totals: React.FC<PageData> = ({ summary }) => (
+/** Every total the page's window recorded; plain rows (the chart's metric menu is how to see one over time). On the root page,
+ *  the estimated cost opens Model Prices. */
+const Totals: React.FC<PageData & { drill: Drill }> = ({ subject, summary, drill }) => (
   <Section title={COPY.sections.totals}>
     <MetricRow
       icon={METRIC_GLYPH.cost}
       title="Estimated cost"
-      description={summary.unpriced_calls > 0 ? COPY.unpriced(summary.unpriced_calls) : undefined}
+      description={summary.unpriced_calls > 0 ? COPY.unpriced(summary.unpriced_calls) : subject.kind === 'all' ? COPY.prices.open : undefined}
       value={formatMetric('cost', summary.total_cost)}
+      onOpen={subject.kind === 'all' ? () => drill.open(MODEL_PRICES) : undefined}
     />
     <MetricRow icon={METRIC_GLYPH.requests} title="Requests" value={formatMetric('requests', summary.total_calls)} />
     <MetricRow icon={USAGE_GLYPH.input} title="Input tokens" value={formatMetric('tokens', summary.total_input_tokens)} />
@@ -181,6 +184,10 @@ const History: React.FC<PageData> = ({ summary, period, metric }) => (
   </Section>
 );
 
+/** Any usage page: Model Prices, or a page of usage. */
+export const UsagePage: React.FC<{ subject: UsageSubject }> = ({ subject }) =>
+  subject.kind === 'prices' ? <ModelPricesPage /> : <UsageDetail subject={subject} />;
+
 /** A usage page. The root (`subject` all) is Settings › Usage itself: its own title, no back button. */
 export const UsageDetail: React.FC<{ subject: UsageSubject }> = ({ subject }) => {
   const root = subject.kind === 'all';
@@ -209,7 +216,7 @@ export const UsageDetail: React.FC<{ subject: UsageSubject }> = ({ subject }) =>
       {summary && !empty && (
         <>
           <Highlights {...page} summary={summary} previous={previous} />
-          <Totals {...page} summary={summary} />
+          <Totals {...page} summary={summary} drill={drill} />
           <Breakdowns {...page} summary={summary} drill={drill} />
           <History {...page} summary={summary} />
         </>

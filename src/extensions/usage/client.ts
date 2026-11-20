@@ -3,10 +3,12 @@
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriEnvironment } from '@services/tauri';
 import type { TokenUsage } from '@services/ai/types';
+import type { ModelPrice } from '@shared/types/modelProviders';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 import { modalitiesService } from '@services/modalities';
-import { estimateCost } from './pricing';
+import { costOf, priceOf } from './pricing';
+import { store } from '@services/db';
 import type { UsageRecord, UsageCategory, UsageQuery, UsageSummary } from './types';
 
 /** Ensure the store plugin is initialized before any usage operation. */
@@ -21,7 +23,7 @@ function ensureInitialized(): Promise<void> {
   return initPromise;
 }
 
-/** Logs a usage record, mapping TokenUsage to the flat UsageRecord Rust expects; priced against the loaded models.dev list. */
+/** Logs a usage record, mapping TokenUsage to the flat UsageRecord Rust expects; priced by the one price rule. */
 export async function logUsage(params: {
   category: UsageCategory;
   sessionId?: string;
@@ -32,6 +34,7 @@ export async function logUsage(params: {
   if (!isTauriEnvironment()) return;
   if (!params.provider || !params.model) return;
   await modalitiesService.ensureLoaded();
+  const price = priceOf(await store.providers.list(), params.provider, params.model);
 
   const record: UsageRecord = {
     id: crypto.randomUUID(),
@@ -45,7 +48,7 @@ export async function logUsage(params: {
     cache_read_tokens: params.usage?.cacheReadTokens ?? 0,
     cache_write_tokens: params.usage?.cacheWriteTokens ?? 0,
     reasoning_tokens: params.usage?.reasoningTokens ?? 0,
-    estimated_cost: estimateCost(params.provider, params.model, params.usage),
+    estimated_cost: costOf(price, params.usage),
   };
 
   try {
@@ -56,6 +59,16 @@ export async function logUsage(params: {
   } catch (error) {
     console.error('[UsageClient] insert_usage failed:', error, '| record:', JSON.stringify({ category: record.category, provider: record.provider, model: record.model }));
   }
+}
+
+/** Prices a model's earlier calls saved without a price, at the price the user just set; open usage pages update. */
+export async function priceUnpricedUsage(provider: string, model: string, price: ModelPrice): Promise<void> {
+  if (!isTauriEnvironment()) return;
+  await ensureInitialized();
+  await invoke('plugin:store|price_unpriced_usage', {
+    provider, model, inputPerMillion: price.inputPer1M, outputPerMillion: price.outputPer1M,
+  });
+  await queryClient.invalidateQueries({ queryKey: queryKeys.usageAll() });
 }
 
 /** Which model a call ran on: a resolved chat/summary model or a speech selection. */

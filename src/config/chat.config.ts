@@ -66,6 +66,12 @@ export const CHAT_CATALOG_COPY = {
   unavailable: 'Couldn’t get the model list from models.dev. Check your connection, then send again.',
 } as const;
 
+/** What chat replies cost (the reply's gauge, the context ring), by the same price rule as Settings › Usage. */
+export const CHAT_COST_COPY = {
+  noPrice: 'no price',
+  unpriced: (replies: number) => `${replies} ${replies === 1 ? 'reply has' : 'replies have'} no price`,
+} as const;
+
 /** The detail beside the reply header's status, from what a local server reports. */
 export const CHAT_LOADING_DETAIL = {
   secondsLeft: (seconds: number) => `${seconds}s left`,

@@ -79,6 +79,7 @@ Allows all store plugin commands
 - `allow-insert-usage`
 - `allow-get-usage-summary`
 - `allow-get-meeting-usage`
+- `allow-price-unpriced-usage`
 
 ## Permission Table
 
@@ -1385,6 +1386,32 @@ Enables the notices_owed command without any pre-configured scope.
 <td>
 
 Denies the notices_owed command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-price-unpriced-usage`
+
+</td>
+<td>
+
+Enables the price_unpriced_usage command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-price-unpriced-usage`
+
+</td>
+<td>
+
+Denies the price_unpriced_usage command without any pre-configured scope.
 
 </td>
 </tr>

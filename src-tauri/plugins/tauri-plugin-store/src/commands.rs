@@ -2842,6 +2842,39 @@ pub async fn get_meeting_usage(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
+/// Prices a model's calls saved without a price (NULL) from their tokens, at the price the user just set; returns how many.
+fn price_unpriced_usage_impl(
+    db: &Connection,
+    provider: &str,
+    model: &str,
+    input_per_million: f64,
+    output_per_million: f64,
+) -> Result<usize, StoreError> {
+    Ok(db.execute(
+        "UPDATE usage_log SET estimated_cost = (input_tokens * ?3 + output_tokens * ?4) / 1000000.0
+         WHERE provider = ?1 AND model = ?2 AND estimated_cost IS NULL",
+        rusqlite::params![provider, model, input_per_million, output_per_million],
+    )?)
+}
+
+#[tauri::command]
+pub async fn price_unpriced_usage(
+    state: State<'_, StoreState>,
+    provider: String,
+    model: String,
+    input_per_million: f64,
+    output_per_million: f64,
+) -> Result<usize, StoreError> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
+        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+        price_unpriced_usage_impl(db, &provider, &model, input_per_million, output_per_million)
+    })
+    .await
+    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+}
+
 /// The window and filters every usage query shares; parameters ?1–?5 in `usage_params` order.
 const USAGE_WHERE: &str = "timestamp >= ?1 AND timestamp < ?2
      AND (?3 IS NULL OR provider = ?3) AND (?4 IS NULL OR model = ?4) AND (?5 IS NULL OR category = ?5)";
@@ -3763,6 +3796,30 @@ mod tests {
     }
 
     const DAY_MS: i64 = 86_400_000;
+
+    #[test]
+    fn a_new_price_fills_in_only_that_models_unpriced_calls() {
+        let conn = db();
+        let unpriced = |id: &str, model: &str| {
+            conn.execute(
+                "INSERT INTO usage_log (id, timestamp, category, provider, model, input_tokens, output_tokens, estimated_cost)
+                 VALUES (?1, 1, 'chat', 'openrouter', ?2, 1000000, 500000, NULL)",
+                rusqlite::params![id, model],
+            )
+            .unwrap();
+        };
+        unpriced("a", "new-model");
+        unpriced("b", "other-model");
+        seed_usage(&conn, "c", 2, "openrouter", "new-model", "chat", 100, 0.5);
+
+        assert_eq!(price_unpriced_usage_impl(&conn, "openrouter", "new-model", 2.0, 8.0).unwrap(), 1);
+        let cost = |id: &str| -> Option<f64> {
+            conn.query_row("SELECT estimated_cost FROM usage_log WHERE id = ?1", [id], |r| r.get(0)).unwrap()
+        };
+        assert_eq!(cost("a"), Some(6.0), "1M in at $2 + 0.5M out at $8");
+        assert_eq!(cost("b"), None, "another model stays unknown");
+        assert_eq!(cost("c"), Some(0.5), "an already priced call keeps its price");
+    }
 
     #[test]
     fn usage_summary_counts_unknown_prices_apart_from_free() {
