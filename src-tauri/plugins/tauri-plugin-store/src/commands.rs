@@ -3419,15 +3419,10 @@ pub(crate) mod tests {
         transcripts_save_impl(&conn, &transcript("m1")).unwrap();
         summaries_save_impl(&conn, &summary("m1")).unwrap();
 
-        // Add a note, a chunk + index_state, and a chat linked to the meeting.
+        // Add a note, a chunk, and a chat linked to the meeting.
         seed_note(&conn, "n1", "m1");
         conn.execute(
             "INSERT INTO chunks (meeting_id, chunk_index, chunk_text) VALUES ('m1', 0, 'chunk text')",
-            [],
-        )
-        .unwrap();
-        conn.execute(
-            "INSERT INTO meeting_index_state (meeting_id, content_hash, indexed_at) VALUES ('m1', 'h', 1)",
             [],
         )
         .unwrap();
@@ -3455,7 +3450,6 @@ pub(crate) mod tests {
             ("todos", "meeting_id"),
             ("assets", "meeting_id"),
             ("chunks", "meeting_id"),
-            ("meeting_index_state", "meeting_id"),
             ("meeting_categories", "meeting_id"),
         ] {
             let n: i64 = conn

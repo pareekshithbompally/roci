@@ -2,7 +2,7 @@ use crate::assets;
 use rusqlite::Connection;
 
 /// Current schema version for the new roci.db.
-pub const SCHEMA_VERSION: u32 = 10;
+pub const SCHEMA_VERSION: u32 = 11;
 
 /// Default embedding model and dimension.
 pub const DEFAULT_MODEL: &str = "mlx-community/Qwen3-Embedding-0.6B-8bit";
@@ -32,11 +32,12 @@ pub(crate) fn open_migrated_test_db() -> Connection {
     conn
 }
 
-/// Creates the schema in a new database. A database made by another schema version is refused, not upgraded:
-/// pre-release, there is nothing to carry forward.
+/// Creates the schema in a new database, or brings the v10 database to v11 with its data. Any other version is
+/// refused, not upgraded: pre-release, there is nothing else to carry forward.
 pub fn migrate(conn: &Connection) -> Result<(), String> {
     match get_schema_version(conn) {
         0 => create_new(conn)?,
+        10 => upgrade_v11(conn)?,
         SCHEMA_VERSION => {}
         other => {
             let e = format!("roci.db is schema v{other}, this build is v{SCHEMA_VERSION}: remove it to start fresh");
@@ -45,6 +46,22 @@ pub fn migrate(conn: &Connection) -> Result<(), String> {
         }
     }
     match_embedding_model(conn)
+}
+
+/// v10 → v11: the index-state tables nothing reads any more go (Rust indexes on save), and a chat's usage is found by
+/// its session without reading the whole log.
+fn upgrade_v11(conn: &Connection) -> Result<(), String> {
+    let tx = conn.unchecked_transaction().map_err(|e| format!("begin v11: {}", e))?;
+    tx.execute_batch(
+        "DROP TABLE IF EXISTS meeting_index_state;
+         DROP TABLE IF EXISTS chat_index_state;
+         CREATE INDEX IF NOT EXISTS idx_usage_session ON usage_log(session_id);",
+    )
+    .map_err(|e| format!("v11: {}", e))?;
+    set_schema_version(&tx, 11)?;
+    tx.commit().map_err(|e| format!("commit v11: {}", e))?;
+    log::info!("[store] Schema v10→v11 (index state dropped, usage by session indexed)");
+    Ok(())
 }
 
 /// Every table, in one transaction, at the current version.
@@ -73,9 +90,7 @@ fn match_embedding_model(conn: &Connection) -> Result<(), String> {
             "DROP TABLE IF EXISTS vec_chunks;
              DROP TABLE IF EXISTS chat_vec_chunks;
              CREATE VIRTUAL TABLE vec_chunks USING vec0(chunk_id INTEGER PRIMARY KEY, embedding float[{DEFAULT_DIM}]);
-             CREATE VIRTUAL TABLE chat_vec_chunks USING vec0(chunk_id INTEGER PRIMARY KEY, embedding float[{DEFAULT_DIM}]);
-             UPDATE meeting_index_state SET embedding_hash = NULL;
-             UPDATE chat_index_state SET embedding_hash = NULL;"
+             CREATE VIRTUAL TABLE chat_vec_chunks USING vec0(chunk_id INTEGER PRIMARY KEY, embedding float[{DEFAULT_DIM}]);"
         ))
         .map_err(|e| format!("drop old embeddings: {}", e))?;
     }
@@ -255,20 +270,6 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
         CREATE INDEX idx_meeting_categories_category ON meeting_categories(category_id);
 
         -- ── 2.4 Derived — search, vectors, usage ─────────────────────────
-        CREATE TABLE meeting_index_state (
-            meeting_id      TEXT PRIMARY KEY REFERENCES meetings(id) ON DELETE CASCADE,
-            content_hash    TEXT,
-            embedding_hash  TEXT,
-            indexed_at      INTEGER
-        );
-
-        CREATE TABLE chat_index_state (
-            chat_id        TEXT PRIMARY KEY REFERENCES chats(id) ON DELETE CASCADE,
-            content_hash   TEXT,
-            embedding_hash TEXT,
-            indexed_at     INTEGER
-        );
-
         CREATE TABLE chunks (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             meeting_id  TEXT    NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
@@ -375,6 +376,7 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
         );
         CREATE INDEX IF NOT EXISTS idx_usage_timestamp ON usage_log(timestamp);
         CREATE INDEX IF NOT EXISTS idx_usage_provider_model ON usage_log(provider, model);
+        CREATE INDEX IF NOT EXISTS idx_usage_session ON usage_log(session_id);
         ",
     )
     .map_err(|e| format!("create usage_log: {}", e))?;
@@ -471,8 +473,6 @@ mod tests {
             "providers",
             "categories",
             "meeting_categories",
-            "meeting_index_state",
-            "chat_index_state",
             "chunks",
             "chat_chunks",
             "chunks_fts",
@@ -586,13 +586,6 @@ mod tests {
         )
         .expect("insert chat");
 
-        // Insert index_state
-        conn.execute(
-            "INSERT INTO meeting_index_state (meeting_id, content_hash, indexed_at) VALUES (?1, ?2, ?3)",
-            params!["m1", "hash123", now],
-        )
-        .expect("insert meeting_index_state");
-
         // Delete meeting — should cascade
         conn.execute("DELETE FROM meetings WHERE id = ?1", params!["m1"])
             .expect("delete meeting");
@@ -636,11 +629,6 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM meeting_categories WHERE meeting_id = ?1", params!["m1"], |r| r.get(0))
             .unwrap();
         assert_eq!(mc_count, 0, "meeting_categories should cascade-delete");
-
-        let index_count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM meeting_index_state WHERE meeting_id = ?1", params!["m1"], |r| r.get(0))
-            .unwrap();
-        assert_eq!(index_count, 0, "meeting_index_state should cascade-delete");
 
         // Chat should survive but meeting_id set to NULL
         let chat_meeting_id: Option<String> = conn
@@ -719,39 +707,6 @@ mod tests {
             params!["a3", "reminder", "t1", "upsert", "app", now],
         );
         assert!(err.is_err(), "audit_log.operation should reject 'upsert'");
-    }
-
-    /// Marking a chat indexed writes only `chat_index_state`, never the `chats` row.
-    #[test]
-    fn chat_index_state_write_does_not_touch_chat_row() {
-        let conn = open_test_db();
-        init_db(&conn);
-        let now = now_test_millis();
-
-        conn.execute(
-            "INSERT INTO chats (id, title, created_at, last_message_at) VALUES (?1, ?2, ?3, ?4)",
-            params!["c1", "Original Title", now, now],
-        )
-        .expect("insert chat");
-
-        // Mirror exactly what mark_chat_indexed does — only chat_index_state.
-        conn.execute(
-            "INSERT INTO chat_index_state (chat_id, content_hash, indexed_at)
-             VALUES (?1, COALESCE(?2, ''), ?3)
-             ON CONFLICT(chat_id) DO UPDATE SET content_hash = ?2, indexed_at = ?3",
-            params!["c1", "hash-abc", now + 1000],
-        )
-        .expect("upsert chat_index_state");
-
-        let title: String = conn
-            .query_row("SELECT title FROM chats WHERE id = ?1", params!["c1"], |r| r.get(0))
-            .unwrap();
-        assert_eq!(title, "Original Title", "canonical chat title must be untouched by indexing");
-
-        let hash: String = conn
-            .query_row("SELECT content_hash FROM chat_index_state WHERE chat_id = ?1", params!["c1"], |r| r.get(0))
-            .unwrap();
-        assert_eq!(hash, "hash-abc", "chat_index_state should hold the content hash");
     }
 
     #[test]
@@ -843,8 +798,6 @@ mod tests {
         let now = now_test_millis();
         conn.execute("INSERT INTO meetings (id, title, created_at, updated_at) VALUES ('m1', 'M', ?1, ?1)", params![now])
             .expect("insert meeting");
-        conn.execute("INSERT INTO meeting_index_state (meeting_id, content_hash, embedding_hash, indexed_at) VALUES ('m1', 'c', 'c', ?1)", params![now])
-            .expect("insert index state");
         let vector = format!("[{}]", vec!["0.1"; DEFAULT_DIM as usize].join(","));
         conn.execute("INSERT INTO vec_chunks (chunk_id, embedding) VALUES (1, ?1)", params![vector]).expect("insert vector");
         conn.execute("UPDATE meta SET value = 'old-model' WHERE key = 'embedding_model'", []).expect("set old model");
@@ -852,9 +805,8 @@ mod tests {
         migrate(&conn).expect("migrate");
 
         let vectors: i64 = conn.query_row("SELECT COUNT(*) FROM vec_chunks", [], |r| r.get(0)).unwrap();
-        let stamp: Option<String> = conn.query_row("SELECT embedding_hash FROM meeting_index_state", [], |r| r.get(0)).unwrap();
         let model: String = conn.query_row("SELECT value FROM meta WHERE key = 'embedding_model'", [], |r| r.get(0)).unwrap();
-        assert_eq!((vectors, stamp, model.as_str()), (0, None, DEFAULT_MODEL));
+        assert_eq!((vectors, model.as_str()), (0, DEFAULT_MODEL));
 
         conn.execute("INSERT INTO vec_chunks (chunk_id, embedding) VALUES (2, ?1)", params![vector]).expect("insert vector");
         migrate(&conn).expect("migrate again");
