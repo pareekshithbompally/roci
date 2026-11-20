@@ -72,6 +72,14 @@ These are hard constraints. They **override** convenience, speed, and your defau
 - **Shape:** OS event → state → effect. A native bridge that receives an event pushes it on (callback / Tauri event); it never bumps a counter for someone else to poll. The frontend listens to Rust events — no `setInterval`/`refetchInterval` over native state.
 - **Only visible clocks tick**, and only while visible (e.g. the recording timer while recording). The frozen audio capture loops (I5) are exempt.
 
+### I11 — Storage: every byte has one owner.
+- Every file Roci keeps is one `assets` row in roci.db with at most one parent (`meeting_id` or `chat_id`). Files are written only through `assetsService.save()`; nothing else writes into `recordings/`, `images/` or `speech/`. The frozen audio core writes `recordings/{id}.wav` and the store registers its row at meeting create.
+- Deleting the row is the only way to delete a file: triggers queue it in `purge_queue` in the same transaction, `assets::drain_files` removes it after commit and again at launch. Parents go through `delete_meeting_rows` / `delete_chat_rows`, never a hand-rolled delete.
+- Chat content is the truth for chat files: `chats_upsert` claims the paths its parts show and drops the rest. Unclaimed rows and untracked files are swept after a day.
+- A tail cut keeps its parent and says so: a removed recording stamps `meetings.audio_removed_at`; a part whose asset is gone renders `RemovedNotice`.
+- New file kind = one `StorageConfig.assetKinds` entry + its folder in `assets.rs` `MANAGED_DIRS` + the `tauri.conf.json` asset scope. No new table, service or delete path.
+- Expiry happens only in `storage_purge` (Settings › Storage › Keep). Sizes are measured from disk (`storage_usage`), never stored.
+
 ---
 
 ## How to Work
@@ -105,7 +113,8 @@ src/
 services/
   ai/             Vercel AI SDK layer (provider.ts createModel, message-converter, tools-bridge)
                   transcription/  engine registry (ENGINES) + analyze.ts + cred/format helpers
-  repositories/   Per-meeting file storage (BaseRepository readJson/writeJson)
+  storage/        assetsService (the one file write), retention.service, images, recordings, cache, paths
+  db/             store client: one domain per Rust command group (meetings, chats, assets, storage …)
   transcription.service.ts  unifiedAIService.ts  platform-fetch.ts  reminder.service.ts
 extensions/
   rag/            sqlite-vec embeddings + hybrid search
@@ -114,10 +123,10 @@ src-tauri/
   src/audio/      capture: supervisors, process tap, mic, tracks, mixdown   src/permissions/  consent checks
   src/            lib.rs window.rs shortcuts.rs screenshot.rs wake_lock.rs
   capabilities/   desktop.json + mobile.json (permission allowlists)   Info.plist (NS*UsageDescription)
-  plugins/        tauri-plugin-{store,calendar}
+  plugins/        tauri-plugin-{store,calendar}; store: schema, assets (rows ⇄ files), retention, usage
 ```
 
-**Data layout** (`~/Library/Application Support/ai.roci.roci/`): `meetings/{id}/{transcript,summary,todos,notes,recording-meta}.json` + `meetings/index.json`; `chats/{sessionId}.json` + `chats/index.json`; `recordings/*.wav`; `vectordb.sqlite`; `settings.json` (API keys AES-256-GCM).
+**Data layout** (`~/Library/Application Support/ai.roci.roci/`): one database, `roci.db` (meetings, chats, todos, reminders, dictations, settings, providers with API keys AES-256-GCM, search index + vectors, `assets` + `purge_queue`). Kept files, each an `assets` row: `recordings/*.wav`, `images/` (+ `.thumb.jpg`), `speech/`. Also `cache/` (expiring) and `models/` (downloaded models).
 
 **Transcription pipeline** — two clearly separated stages with their own model settings:
 - `transcriptionModel` (STT engine ID: `whisper-1`, `groq-whisper`, `deepgram`, `elevenlabs`, `gemini`) → fills the **Transcript** tab with verbatim STT output.
