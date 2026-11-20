@@ -1,5 +1,6 @@
 /** Cloud streaming speech-to-text through the AI SDK (`streamTranscribe`): the same transcription models the recordings use,
- *  fed audio as it is spoken; settled text (deltas, or finals) accumulates, the latest partial is shown until it settles. */
+ *  fed audio as it is spoken. Words still being spoken show as they come (a partial, or a stretch's deltas so far); each
+ *  stretch settles once, whole, with its final text. */
 
 import { experimental_streamTranscribe as streamTranscribe } from 'ai';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
@@ -18,16 +19,19 @@ function openStream(family: TranscriptionFamily, model: Parameters<typeof create
   const { streamingFormat, sampleRate } = TRANSCRIPTION_CONFIG;
   const resample = streamResampler(sampleRate, streamingFormat.rate);
   const result = streamTranscribe({ model: createTranscriptionModel(family, model), audio, inputAudioFormat: streamingFormat, abortSignal: stop.signal });
-  // speech whose words came as deltas (added to, never revised: settled as they come); its final text repeats them
-  const streamed = new Set<string | undefined>();
+  // A stretch's words as deltas (OpenAI): added to as they come, shown until the stretch's final text settles it.
+  let deltas = { id: undefined as string | undefined, text: '' };
   const reading = (async () => {
     for await (const part of result.fullStream) {
       if (part.type === 'transcript-delta') {
-        streamed.add(part.id);
-        text.committed += part.delta;
+        deltas = { id: part.id, text: (part.id === deltas.id ? deltas.text : '') + part.delta };
+        text.tentative = deltas.text.trim();
       }
       if (part.type === 'transcript-partial') text.tentative = part.text;
-      if (part.type === 'transcript-final' && !streamed.has(part.id)) Object.assign(text, { committed: joined(text.committed, part.text), tentative: '' });
+      if (part.type === 'transcript-final') {
+        Object.assign(text, { committed: joined(text.committed, part.text), tentative: '' });
+        deltas = { id: undefined, text: '' };
+      }
     }
   })().catch((error: unknown) => {
     failure = error;

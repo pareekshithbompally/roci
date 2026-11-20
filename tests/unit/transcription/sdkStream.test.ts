@@ -15,6 +15,7 @@ vi.mock('ai', () => ({
 vi.mock('@services/ai/provider', () => ({ createTranscriptionModel: () => ({}) }));
 
 import { sdkStreaming } from '@services/ai/transcription/sdkStream';
+import { liveStreams, type StreamLine } from '@services/ai/transcription/liveStreams';
 
 const open = (list: object[]) => {
   parts.list = list;
@@ -23,7 +24,7 @@ const open = (list: object[]) => {
 const run = async (list: object[]) => (await open(list)).finish();
 
 describe('cloud stream reader', () => {
-  it('words that come as deltas (OpenAI) are settled as they come, and their final text is not added again', async () => {
+  it('words that come as deltas (OpenAI) show while spoken, and the stretch settles once with its final text', async () => {
     let release = () => {};
     parts.hold = new Promise((resolve) => { release = resolve; });
     const stream = await open([
@@ -33,8 +34,8 @@ describe('cloud stream reader', () => {
       { type: 'transcript-final', id: 'i1', text: 'Ship the beta Friday.' },
     ]);
     await new Promise((resolve) => setTimeout(resolve, 0));
-    // mid-speech: the words are already there
-    expect((await stream.feed(new Float32Array(160))).committed).toBe('Ship the beta Friday.');
+    // mid-speech: the words are already showing, not yet settled
+    expect(await stream.feed(new Float32Array(160))).toEqual({ committed: '', tentative: 'Ship the beta Friday.' });
     release();
     expect(await stream.finish()).toBe('Ship the beta Friday.');
   });
@@ -46,5 +47,24 @@ describe('cloud stream reader', () => {
       { type: 'transcript-final', text: 'Budget is 20k.' },
     ]);
     expect(text).toBe('Ship the beta. Budget is 20k.');
+  });
+
+  it('a dictation of deltas becomes its final text once: no repeat, no words split, no space before a comma', async () => {
+    parts.list = [
+      { type: 'transcript-delta', id: 'i1', delta: ' Who are you?' },
+      { type: 'transcript-delta', id: 'i1', delta: ' Help me under' },
+      { type: 'transcript-delta', id: 'i1', delta: 'stand, please.' },
+      { type: 'transcript-final', id: 'i1', text: 'Who are you? Help me understand, please.' },
+    ];
+    const lines: StreamLine<'mic'>[] = [];
+    const engine = sdkStreaming('openai-compatible', () => true);
+    const session = liveStreams<'mic'>(() => engine.open({ model: 'm', resolved: {} as never, language: 'en' }), {
+      line: (line) => lines.push(line),
+      partial: () => undefined,
+      fail: (reason) => { throw new Error(reason); },
+    });
+    session.feed({ source: 'mic', startMs: 0, endMs: 100 }, new Float32Array(160));
+    await session.finish();
+    expect(lines.map((l) => l.text)).toEqual(['Who are you? Help me understand, please.']);
   });
 });
