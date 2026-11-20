@@ -19,7 +19,7 @@ interface PartsListProps {
   generation?: GenerationStats | null;
 }
 
-/** A message's parts in order; the model's work shows as rows, folded into one once the answer follows it. */
+/** A message's parts in order; each run of the model's work shows under one folded header. */
 const PartsList: React.FC<PartsListProps> = ({ parts, messageId, streaming, processText, webCitations, generation }) => {
   const { settings } = useSettings();
   const liveIndex = streaming ? parts.length - 1 : null;
@@ -28,7 +28,7 @@ const PartsList: React.FC<PartsListProps> = ({ parts, messageId, streaming, proc
     if (segment.kind === 'activity') {
       const items = settings.hideToolCalls ? segment.items.filter(({ part }) => part.type !== 'tool_call') : segment.items;
       if (items.length === 0) return null;
-      return <ActivityRun key={`run-${items[0].index}`} items={items} settled={segment.settled} liveIndex={liveIndex} generation={generation} />;
+      return <ActivityRun key={`run-${items[0].index}`} items={items} liveIndex={liveIndex} generation={generation} />;
     }
     const { part, index } = segment.item;
     if (part.type === 'text') {

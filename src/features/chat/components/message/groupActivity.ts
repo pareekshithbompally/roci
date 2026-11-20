@@ -9,12 +9,9 @@ export interface IndexedPart<P extends ChatPart> {
   index: number;
 }
 
-/**
- * A message's parts in order. Work done back to back is one run; a run is
- * `settled` once answer text follows it, which is when it folds into one row.
- */
+/** A message's parts in order; work done back to back is one run. */
 export type PartSegment =
-  | { kind: 'activity'; items: IndexedPart<ActivityPart>[]; settled: boolean }
+  | { kind: 'activity'; items: IndexedPart<ActivityPart>[] }
   | { kind: 'part'; item: IndexedPart<Exclude<ChatPart, ActivityPart>> };
 
 const isActivity = (part: ChatPart): part is ActivityPart => part.type === 'reasoning' || part.type === 'tool_call';
@@ -24,12 +21,11 @@ export function groupActivity(parts: ChatPart[]): PartSegment[] {
   parts.forEach((part, index) => {
     const last = segments[segments.length - 1];
     if (!isActivity(part)) {
-      if (last?.kind === 'activity') last.settled = true;
       segments.push({ kind: 'part', item: { part, index } });
     } else if (last?.kind === 'activity') {
       last.items.push({ part, index });
     } else {
-      segments.push({ kind: 'activity', items: [{ part, index }], settled: false });
+      segments.push({ kind: 'activity', items: [{ part, index }] });
     }
   });
   return segments;

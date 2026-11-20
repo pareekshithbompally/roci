@@ -6,21 +6,19 @@ const call = (id: string): ChatPart => ({ type: 'tool_call', toolCallId: id, too
 const thought = (t: string): ChatPart => ({ type: 'reasoning', text: t });
 const text = (t: string): ChatPart => ({ type: 'text', text: t });
 
-/** Each segment as a short string: a run lists its parts and whether it has settled. */
+/** Each segment as a short string: a run lists its parts. */
 const shape = (parts: ChatPart[]) =>
   groupActivity(parts).map((segment) =>
-    segment.kind === 'activity'
-      ? `${segment.items.map(({ part }) => (part.type === 'reasoning' ? 'R' : 'T')).join('')}${segment.settled ? ' settled' : ''}`
-      : 'text',
+    segment.kind === 'activity' ? segment.items.map(({ part }) => (part.type === 'reasoning' ? 'R' : 'T')).join('') : 'text',
   );
 
 describe('groupActivity', () => {
-  it('keeps thinking and tool calls as one run of rows while the model is still working', () => {
-    expect(shape([thought('a'), call('1'), call('2')])).toEqual(['RTT']);
+  it('keeps every step of a multi-step reply (thinking, tool, thinking, tool) in one run', () => {
+    expect(shape([thought('a'), call('1'), thought('b'), call('2'), thought('c')])).toEqual(['RTRTR']);
   });
 
-  it('settles a run once answer text follows it, and starts a new run after', () => {
-    expect(shape([thought('a'), call('1'), text('so'), call('2')])).toEqual(['RT settled', 'text', 'T']);
+  it('ends a run at answer text and starts a new one after', () => {
+    expect(shape([thought('a'), call('1'), text('so'), call('2')])).toEqual(['RT', 'text', 'T']);
   });
 
   it('remembers where each part sits in the message', () => {

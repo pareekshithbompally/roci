@@ -1,18 +1,16 @@
 import React, { useState } from 'react';
 import { Layers } from 'lucide-react';
 import { Badge, Disclosure, Icon, Text } from '@shared/ui';
-import { CHAT_ACTIVITY_COPY } from '@config/chat.config';
+import { CHAT_ACTIVITY_COPY, CHAT_REASONING_COPY } from '@config/chat.config';
 import { META_SEPARATOR } from '@config/ui.config';
 import type { ToolCallPart } from '@shared/types';
-import { ToolCallBlock, formatExecutionMs } from '@features/chat/components/tool-call';
+import { ToolCallBlock, formatExecutionMs, toolCallTitle } from '@features/chat/components/tool-call';
 import type { GenerationStats } from '@services/ai/types';
 import { ReasoningBlock } from './ReasoningBlock';
 import type { ActivityPart, IndexedPart } from './groupActivity';
 
 interface ActivityRunProps {
   items: IndexedPart<ActivityPart>[];
-  /** The answer has started after this run, so its rows fold (two or more into one combined row). */
-  settled: boolean;
   /** The message's newest part while it streams (null once complete): thinking there is still under way. */
   liveIndex: number | null;
   /** Tokens and speed while the model thinks, when a local server reports them. */
@@ -29,6 +27,16 @@ function runTitle(items: IndexedPart<ActivityPart>[]): string {
   return [thought && CHAT_ACTIVITY_COPY.thought, tools > 0 && CHAT_ACTIVITY_COPY.tools(tools)].filter(Boolean).join(META_SEPARATOR);
 }
 
+/** The step under way in this run (the message's newest part), if the model is still on it. */
+const liveStep = (items: IndexedPart<ActivityPart>[], liveIndex: number | null) =>
+  items.find((item) => item.index === liveIndex)?.part;
+
+/** While working, the step under way ("Thinking…", or the tool's own title); once done, what the run did. */
+function headerTitle(items: IndexedPart<ActivityPart>[], live: ActivityPart | undefined): string {
+  if (!live) return runTitle(items);
+  return live.type === 'reasoning' ? CHAT_REASONING_COPY.thinking : toolCallTitle(live);
+}
+
 /** Trailing meta: how many calls failed, else the tools' total time. */
 function RunMeta({ items }: { items: IndexedPart<ActivityPart>[] }) {
   const tools = toolParts(items);
@@ -43,7 +51,7 @@ function RunMeta({ items }: { items: IndexedPart<ActivityPart>[] }) {
  * Each thinking block and tool call as its own folded row.
  * At the top of a reply they sit flush with its text (`inline`); nested in a folded run they're indented rows.
  */
-function ActivityRows({ items, liveIndex, generation, nested }: Omit<ActivityRunProps, 'settled'> & { nested: boolean }) {
+function ActivityRows({ items, liveIndex, generation, nested }: ActivityRunProps & { nested: boolean }) {
   const variant = nested ? 'row' : 'inline';
   return (
     <>
@@ -58,26 +66,29 @@ function ActivityRows({ items, liveIndex, generation, nested }: Omit<ActivityRun
   );
 }
 
-/** The folded run's one line: "Thought · Used 3 tools", then failures or the tools' total time. */
-function RunSummary({ items }: { items: IndexedPart<ActivityPart>[] }) {
+/** The folded run's one line: the live step (shimmering) while the model works, then "Thought · Used 3 tools" and
+ *  failures or the tools' total time. */
+function RunSummary({ items, liveIndex }: Pick<ActivityRunProps, 'items' | 'liveIndex'>) {
+  const live = liveStep(items, liveIndex);
   return (
     <>
       <Icon icon={Layers} size="xs" tone="faint" className="shrink-0" />
-      <Text tone="muted" truncate className="min-w-0 mr-auto">{runTitle(items)}</Text>
+      <Text tone="muted" shimmer={!!live} truncate className="min-w-0 mr-auto">{headerTitle(items, live)}</Text>
       <RunMeta items={items} />
     </>
   );
 }
 
 /**
- * One run of the model's work: separate folded rows while it works; the moment the answer starts, two or more
- * fold into one line. One tree for the run's whole life, so rows keep their state and the fold animates.
+ * One run of the model's work under one header: a lone step is its own folded row; from the second step on, the run
+ * is one folded line naming the step under way, open on a click. One tree for the run's whole life, so rows keep
+ * their state and the fold animates.
  */
 export const ActivityRun: React.FC<ActivityRunProps> = (props) => {
-  const folds = props.settled && props.items.length > 1;
+  const folds = props.items.length > 1;
   const [reopened, setReopened] = useState(false);
   return (
-    <Disclosure variant="inline" open={!folds || reopened} onOpenChange={setReopened} summary={folds ? <RunSummary items={props.items} /> : undefined}>
+    <Disclosure variant="inline" open={!folds || reopened} onOpenChange={setReopened} summary={folds ? <RunSummary items={props.items} liveIndex={props.liveIndex} /> : undefined}>
       <ActivityRows {...props} nested={folds} />
     </Disclosure>
   );

@@ -17,14 +17,22 @@ const call = (id: string, index: number, status: 'calling' | 'complete' = 'compl
 });
 
 describe('ActivityRun', () => {
-  it('shows each thinking block and tool call as its own row while the model works', () => {
-    render(<ActivityRun items={[thought, call('a', 1), call('b', 2, 'calling')]} settled={false} liveIndex={2} />);
-    expect(screen.getAllByRole('button')).toHaveLength(3);
-    expect(screen.queryByText(CHAT_ACTIVITY_COPY.tools(2), { exact: false })).not.toBeInTheDocument();
+  it('is one folded header while the model works, naming the step under way', () => {
+    render(<ActivityRun items={[thought, call('a', 1), call('b', 2, 'calling')]} liveIndex={2} />);
+    const [header] = screen.getAllByRole('button');
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(header).toHaveAttribute('aria-expanded', 'false');
+    expect(header.querySelector('.animate-text-shimmer')).not.toBeNull();
   });
 
-  it('folds the run into one combined row once the answer follows it', () => {
-    render(<ActivityRun items={[thought, call('a', 1), call('b', 2)]} settled liveIndex={null} />);
+  it('names thinking in the header while the model thinks between steps', () => {
+    const later = { part: { type: 'reasoning', text: 'Now the next one.' }, index: 2 } as IndexedPart<ActivityPart>;
+    render(<ActivityRun items={[thought, call('a', 1), later]} liveIndex={2} />);
+    expect(screen.getByRole('button', { name: new RegExp(CHAT_REASONING_COPY.thinking) })).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('sums up the run once the answer follows it', () => {
+    render(<ActivityRun items={[thought, call('a', 1), call('b', 2)]} liveIndex={null} />);
     const row = screen.getByRole('button', { name: new RegExp(`${CHAT_ACTIVITY_COPY.thought} · ${CHAT_ACTIVITY_COPY.tools(2)}`) });
     expect(row).toHaveTextContent('1.0s');
     expect(row).toHaveAttribute('aria-expanded', 'false');
@@ -32,17 +40,17 @@ describe('ActivityRun', () => {
     expect(screen.getAllByRole('button')).toHaveLength(4);
   });
 
-  it('folds the same run in place the moment the answer starts, keeping its rows', () => {
+  it('keeps a header opened while working open once the answer starts', () => {
     const items = [thought, call('a', 1), call('b', 2)];
-    const { rerender } = rtlRender(wrap(<ActivityRun items={items} settled={false} liveIndex={2} />));
-    expect(screen.getAllByRole('button')).toHaveLength(3);
-    rerender(wrap(<ActivityRun items={items} settled liveIndex={3} />));
+    const { rerender } = rtlRender(wrap(<ActivityRun items={items} liveIndex={2} />));
+    fireEvent.click(screen.getAllByRole('button')[0]);
+    rerender(wrap(<ActivityRun items={items} liveIndex={3} />));
     const run = screen.getByRole('button', { name: new RegExp(CHAT_ACTIVITY_COPY.tools(2)) });
-    expect(run).toHaveAttribute('aria-expanded', 'false');
+    expect(run).toHaveAttribute('aria-expanded', 'true');
   });
 
   it('folds a lone row in place once the answer follows, with no combined row around it', () => {
-    render(<ActivityRun items={[thought]} settled liveIndex={null} />);
+    render(<ActivityRun items={[thought]} liveIndex={null} />);
     const row = screen.getByRole('button', { name: new RegExp(CHAT_REASONING_COPY.done) });
     expect(row).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getAllByRole('button')).toHaveLength(1);
@@ -53,7 +61,7 @@ describe('ActivityRun', () => {
     render(
       <ActivityRun
         items={[thought]}
-        settled={false}
+       
         liveIndex={0}
         generation={{ tokens: 214, elapsedMs: 12300, tokensPerSecond: 9.43 }}
       />,
@@ -66,12 +74,13 @@ describe('ActivityRun', () => {
   });
 
   it('opens one running row in place, leaving the others folded, and keeps it open when it finishes', () => {
-    const { rerender } = rtlRender(wrap(<ActivityRun items={[call('a', 0), call('b', 1, 'calling')]} settled={false} liveIndex={1} />));
-    const [first, running] = screen.getAllByRole('button');
+    const { rerender } = rtlRender(wrap(<ActivityRun items={[call('a', 0), call('b', 1, 'calling')]} liveIndex={1} />));
+    fireEvent.click(screen.getAllByRole('button')[0]);
+    const [, first, running] = screen.getAllByRole('button');
     fireEvent.click(running);
     expect(running).toHaveAttribute('aria-expanded', 'true');
     expect(first).toHaveAttribute('aria-expanded', 'false');
-    rerender(wrap(<ActivityRun items={[call('a', 0), call('b', 1)]} settled={false} liveIndex={1} />));
+    rerender(wrap(<ActivityRun items={[call('a', 0), call('b', 1)]} liveIndex={1} />));
     expect(running).toHaveAttribute('aria-expanded', 'true');
   });
 });
