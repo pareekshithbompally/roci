@@ -400,14 +400,6 @@ pub struct ChatSessionMeta {
     pub content_hash: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ChatChunkData {
-    pub chunk_index: i32,
-    pub chunk_text: String,
-    pub chunk_type: String,
-    pub embedding: Option<Vec<f32>>,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatSearchHit {
     pub chat_id: String,
@@ -2411,25 +2403,7 @@ pub async fn upsert_chunks(
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
 
         let tx = db.unchecked_transaction()?;
-
-        let old_chunk_ids: Vec<i64> = {
-            let mut stmt = tx.prepare("SELECT id FROM chunks WHERE meeting_id = ?1")?;
-            let rows: Vec<i64> = stmt.query_map([&meeting_id], |row| row.get(0))?
-                .filter_map(|r| r.ok())
-                .collect();
-            rows
-        };
-
-        for chunk_id in &old_chunk_ids {
-            tx.execute("DELETE FROM vec_chunks WHERE chunk_id = ?1", [chunk_id])?;
-        }
-
-        tx.execute("DELETE FROM chunks WHERE meeting_id = ?1", [&meeting_id])?;
-
-        for chunk in &chunks {
-            insert_chunk(&tx, &meeting_id, chunk.chunk_index, chunk)?;
-        }
-
+        save_chunks(&tx, &MEETING_CHUNKS, &meeting_id, &chunks)?;
         tx.commit()?;
         log::info!("[store] Upserted {} chunks for meeting {}", chunks.len(), meeting_id);
         Ok(())
@@ -2453,7 +2427,7 @@ fn insert_chunk(tx: &Connection, meeting_id: &str, chunk_index: i32, chunk: &Chu
 }
 
 /// Adds chunks after the meeting's last one, keeping what is there (a meeting indexed while it records, stretch by stretch);
-/// their own `chunk_index` is ignored. A later `upsert_chunks` (the final transcript) replaces them all.
+/// their own `chunk_index` is ignored. A later `upsert_chunks` (the final transcript) keeps the ones whose text it shares.
 pub(crate) fn append_chunks_impl(db: &Connection, meeting_id: &str, chunks: &[ChunkData]) -> Result<(), StoreError> {
     let tx = db.unchecked_transaction()?;
     let next: i32 = tx.query_row(
@@ -3041,67 +3015,103 @@ pub async fn mark_chat_indexed(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-/// A chat's search turns after a save: an unchanged turn keeps its row and vector (replaced only when a new vector is sent), a changed
-/// or new turn is written, and turns past the end are removed — so a new reply writes and embeds one turn, not the whole chat.
-fn save_chat_chunks(tx: &Connection, chat_id: &str, chunks: &[ChatChunkData]) -> Result<(), StoreError> {
+/// Where one owner's search pieces live: meetings' and chats' have the same shape (a chat turn has no transcript positions).
+pub(crate) struct ChunkStore {
+    chunks: &'static str,
+    vectors: &'static str,
+    owner: &'static str,
+    positions: bool,
+}
+
+pub(crate) const MEETING_CHUNKS: ChunkStore = ChunkStore { chunks: "chunks", vectors: "vec_chunks", owner: "meeting_id", positions: true };
+pub(crate) const CHAT_CHUNKS: ChunkStore = ChunkStore { chunks: "chat_chunks", vectors: "chat_vec_chunks", owner: "chat_id", positions: false };
+
+/// Whose search pieces a command reads: a meeting's or a chat's.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ChunkOwner {
+    Meeting,
+    Chat,
+}
+
+impl ChunkOwner {
+    fn store(&self) -> &'static ChunkStore {
+        match self {
+            ChunkOwner::Meeting => &MEETING_CHUNKS,
+            ChunkOwner::Chat => &CHAT_CHUNKS,
+        }
+    }
+}
+
+/// An owner's search pieces after a save: a piece whose text is unchanged keeps its row and vector (replaced only when a new
+/// vector is sent), a changed or new piece is written, and pieces past the end are removed — so an edit writes and embeds
+/// only what changed. The full-text index follows by trigger.
+fn save_chunks(tx: &Connection, store: &ChunkStore, owner_id: &str, chunks: &[ChunkData]) -> Result<(), StoreError> {
+    let (table, vectors, owner) = (store.chunks, store.vectors, store.owner);
     for chunk in chunks {
         let stored: Option<(i64, String)> = tx
             .query_row(
-                "SELECT id, chunk_text FROM chat_chunks WHERE chat_id = ?1 AND chunk_index = ?2",
-                rusqlite::params![chat_id, chunk.chunk_index],
+                &format!("SELECT id, chunk_text FROM {table} WHERE {owner} = ?1 AND chunk_index = ?2"),
+                rusqlite::params![owner_id, chunk.chunk_index],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .optional()?;
         let chunk_id = match stored {
             Some((id, text)) if text == chunk.chunk_text => id,
             Some((id, _)) => {
-                tx.execute("UPDATE chat_chunks SET chunk_text = ?2, chunk_type = ?3 WHERE id = ?1", rusqlite::params![id, chunk.chunk_text, chunk.chunk_type])?;
-                tx.execute("DELETE FROM chat_vec_chunks WHERE chunk_id = ?1", [id])?;
+                tx.execute(&format!("UPDATE {table} SET chunk_text = ?2, chunk_type = ?3 WHERE id = ?1"), rusqlite::params![id, chunk.chunk_text, chunk.chunk_type])?;
+                tx.execute(&format!("DELETE FROM {vectors} WHERE chunk_id = ?1"), [id])?;
                 id
             }
             None => {
                 tx.execute(
-                    "INSERT INTO chat_chunks (chat_id, chunk_index, chunk_text, chunk_type) VALUES (?1, ?2, ?3, ?4)",
-                    rusqlite::params![chat_id, chunk.chunk_index, chunk.chunk_text, chunk.chunk_type],
+                    &format!("INSERT INTO {table} ({owner}, chunk_index, chunk_text, chunk_type) VALUES (?1, ?2, ?3, ?4)"),
+                    rusqlite::params![owner_id, chunk.chunk_index, chunk.chunk_text, chunk.chunk_type],
                 )?;
                 tx.last_insert_rowid()
             }
         };
+        if store.positions {
+            tx.execute(
+                &format!("UPDATE {table} SET start_pos = ?2, end_pos = ?3 WHERE id = ?1 AND (start_pos IS NOT ?2 OR end_pos IS NOT ?3)"),
+                rusqlite::params![chunk_id, chunk.start_pos, chunk.end_pos],
+            )?;
+        }
         if let Some(embedding) = &chunk.embedding {
             let bytes: Vec<u8> = embedding.iter().flat_map(|f| f.to_le_bytes()).collect();
-            tx.execute("DELETE FROM chat_vec_chunks WHERE chunk_id = ?1", [chunk_id])?;
-            tx.execute("INSERT INTO chat_vec_chunks (chunk_id, embedding) VALUES (?1, ?2)", rusqlite::params![chunk_id, bytes])?;
+            tx.execute(&format!("DELETE FROM {vectors} WHERE chunk_id = ?1"), [chunk_id])?;
+            tx.execute(&format!("INSERT INTO {vectors} (chunk_id, embedding) VALUES (?1, ?2)"), rusqlite::params![chunk_id, bytes])?;
         }
     }
     let gone: Vec<i64> = tx
-        .prepare("SELECT id FROM chat_chunks WHERE chat_id = ?1 AND chunk_index >= ?2")?
-        .query_map(rusqlite::params![chat_id, chunks.len() as i64], |row| row.get(0))?
+        .prepare(&format!("SELECT id FROM {table} WHERE {owner} = ?1 AND chunk_index >= ?2"))?
+        .query_map(rusqlite::params![owner_id, chunks.len() as i64], |row| row.get(0))?
         .collect::<Result<_, _>>()?;
     for id in gone {
-        tx.execute("DELETE FROM chat_vec_chunks WHERE chunk_id = ?1", [id])?;
-        tx.execute("DELETE FROM chat_chunks WHERE id = ?1", [id])?;
+        tx.execute(&format!("DELETE FROM {vectors} WHERE chunk_id = ?1"), [id])?;
+        tx.execute(&format!("DELETE FROM {table} WHERE id = ?1"), [id])?;
     }
     Ok(())
 }
 
-/// The texts of a chat's search turns that already have a vector, so a save embeds only the turns that don't.
-fn chat_embedded_turns_impl(db: &Connection, chat_id: &str) -> Result<Vec<String>, StoreError> {
+/// The texts of an owner's search pieces that already have a vector, so a save embeds only the pieces that don't.
+fn embedded_chunk_texts_impl(db: &Connection, store: &ChunkStore, owner_id: &str) -> Result<Vec<String>, StoreError> {
+    let (table, vectors, owner) = (store.chunks, store.vectors, store.owner);
     Ok(db
-        .prepare(
-            "SELECT c.chunk_text FROM chat_chunks c
-             WHERE c.chat_id = ?1 AND EXISTS (SELECT 1 FROM chat_vec_chunks v WHERE v.chunk_id = c.id)",
-        )?
-        .query_map([chat_id], |row| row.get(0))?
+        .prepare(&format!(
+            "SELECT c.chunk_text FROM {table} c WHERE c.{owner} = ?1 AND EXISTS (SELECT 1 FROM {vectors} v WHERE v.chunk_id = c.id)"
+        ))?
+        .query_map([owner_id], |row| row.get(0))?
         .collect::<Result<_, _>>()?)
 }
 
 #[tauri::command]
-pub async fn chat_embedded_turns(state: State<'_, StoreState>, session_id: String) -> Result<Vec<String>, StoreError> {
+pub async fn embedded_chunk_texts(state: State<'_, StoreState>, owner: ChunkOwner, id: String) -> Result<Vec<String>, StoreError> {
     let conn_arc = Arc::clone(&state.conn);
     tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        chat_embedded_turns_impl(db, &session_id)
+        embedded_chunk_texts_impl(db, owner.store(), &id)
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
@@ -3111,7 +3121,7 @@ pub async fn chat_embedded_turns(state: State<'_, StoreState>, session_id: Strin
 pub async fn upsert_chat_chunks(
     state: State<'_, StoreState>,
     session_id: String,
-    chunks: Vec<ChatChunkData>,
+    chunks: Vec<ChunkData>,
 ) -> Result<(), StoreError> {
     let conn_arc = Arc::clone(&state.conn);
     tauri::async_runtime::spawn_blocking(move || {
@@ -3119,7 +3129,7 @@ pub async fn upsert_chat_chunks(
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
 
         let tx = db.unchecked_transaction()?;
-        save_chat_chunks(&tx, &session_id, &chunks)?;
+        save_chunks(&tx, &CHAT_CHUNKS, &session_id, &chunks)?;
         tx.commit()?;
         log::info!("[store] Upserted {} chat chunks for session {}", chunks.len(), session_id);
         Ok(())
@@ -4092,20 +4102,41 @@ mod tests {
         assert_eq!(got.messages.iter().map(|m| (m.id.as_str(), m.seq)).collect::<Vec<_>>(), vec![("a", 0), ("c", 1)]);
     }
 
-    fn turn(index: i32, text: &str, embedded: bool) -> ChatChunkData {
-        ChatChunkData { chunk_index: index, chunk_text: text.into(), chunk_type: "turn".into(), embedding: embedded.then(|| vec![0.5; crate::schema::DEFAULT_DIM as usize]) }
+    fn turn(index: i32, text: &str, embedded: bool) -> ChunkData {
+        ChunkData { chunk_index: index, chunk_text: text.into(), chunk_type: "turn".into(), embedding: embedded.then(|| vec![0.5; crate::schema::DEFAULT_DIM as usize]), start_pos: None, end_pos: None }
+    }
+
+    #[test]
+    fn a_meetings_pieces_keep_their_vectors_and_follow_their_positions() {
+        let conn = db();
+        seed_meeting(&conn, "m1");
+        let piece = |index: i32, text: &str, embedded: bool, start: i32| ChunkData {
+            start_pos: Some(start), end_pos: Some(start + 10), ..turn(index, text, embedded)
+        };
+        let save = |pieces: &[ChunkData]| {
+            let tx = conn.unchecked_transaction().unwrap();
+            save_chunks(&tx, &MEETING_CHUNKS, "m1", pieces).unwrap();
+            tx.commit().unwrap();
+        };
+        save(&[piece(0, "title", true, 0), piece(1, "transcript", true, 0)]);
+        save(&[piece(0, "title", false, 0), piece(1, "transcript", false, 5), piece(2, "notes", true, 0)]);
+        let mut embedded = embedded_chunk_texts_impl(&conn, &MEETING_CHUNKS, "m1").unwrap();
+        embedded.sort();
+        assert_eq!(embedded, vec!["notes", "title", "transcript"], "a note edit embeds the notes piece only");
+        let start: i32 = conn.query_row("SELECT start_pos FROM chunks WHERE meeting_id = 'm1' AND chunk_index = 1", [], |r| r.get(0)).unwrap();
+        assert_eq!(start, 5, "an unchanged piece still takes its new position");
     }
 
     #[test]
     fn a_chats_search_turns_keep_their_vectors_unless_they_change() {
         let conn = db();
         chats_upsert_impl(&conn, &chat(vec![msg("a", "hi")])).unwrap();
-        let save = |turns: &[ChatChunkData]| {
+        let save = |turns: &[ChunkData]| {
             let tx = conn.unchecked_transaction().unwrap();
-            save_chat_chunks(&tx, "c1", turns).unwrap();
+            save_chunks(&tx, &CHAT_CHUNKS, "c1", turns).unwrap();
             tx.commit().unwrap();
         };
-        let embedded = || { let mut t = chat_embedded_turns_impl(&conn, "c1").unwrap(); t.sort(); t };
+        let embedded = || { let mut t = embedded_chunk_texts_impl(&conn, &CHAT_CHUNKS, "c1").unwrap(); t.sort(); t };
 
         save(&[turn(0, "one", true), turn(1, "two", true)]);
         save(&[turn(0, "one", false), turn(1, "two", false), turn(2, "three", true)]);

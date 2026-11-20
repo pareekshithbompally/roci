@@ -1,7 +1,7 @@
 /** Indexes chat sessions (FTS5 + sqlite-vec), tracking content_hash and embedding_hash separately. */
 
 import type { ChatSession } from '@shared/types';
-import { embedDocuments, isEmbeddingMissing } from './embeddings';
+import { newVectors } from './embeddings';
 import { vectorDB } from './client';
 import { chunkChatSession, computeChatHash } from './chat-chunker';
 import { emitProgress } from './progress';
@@ -171,13 +171,6 @@ async function indexAllSessions(
   return indexed;
 }
 
-/** The turns to embed: those without a vector yet (a turn whose text is unchanged keeps the one it has); none when embeddings are off. */
-async function turnsToEmbed(sessionId: string, texts: string[], options?: ChatIndexOptions): Promise<Set<string>> {
-  if (options?.includeEmbeddings === false) return new Set();
-  const embedded = new Set(await vectorDB.getEmbeddedChatTurns(sessionId));
-  return new Set(texts.filter((text) => !embedded.has(text)));
-}
-
 /** Chunk → embed the new turns → upsert; content_hash is stamped only after the chunks are confirmed in the DB. */
 async function indexSessionInternal(
   session: ChatSession,
@@ -200,17 +193,7 @@ async function indexSessionInternal(
     return { status: 'skipped', reason: 'no_chunks', chunkCount: 0, embeddingCount: 0 };
   }
 
-  const newTexts = [...await turnsToEmbed(session.id, chunks.map((c) => c.text), options)];
-  const vectors = new Map<string, number[]>();
-  if (newTexts.length > 0) {
-    try {
-      (await embedDocuments(newTexts)).forEach((vector, i) => vectors.set(newTexts[i], vector));
-    } catch (error) {
-      if (!isEmbeddingMissing(error)) {
-        console.error(`[ChatIndexer] Embedding failed for session "${session.title}":`, error);
-      }
-    }
-  }
+  const { vectors, complete } = await newVectors('chat', session.id, chunks.map((c) => c.text), options?.includeEmbeddings !== false);
 
   const chunkDataList: ChatChunkData[] = chunks.map((chunk) => ({
     chunk_index: chunk.index,
@@ -224,7 +207,7 @@ async function indexSessionInternal(
   // Stamp content_hash AFTER chunks are confirmed — prevents hash poisoning on partial failure
   await vectorDB.markChatContentIndexed(session.id, contentHash);
   // Every turn has its vector (none new was needed, or all were made): the chat is embedded.
-  if (options?.includeEmbeddings !== false && vectors.size === newTexts.length) {
+  if (complete) {
     await vectorDB.markChatEmbedded(session.id);
   }
 

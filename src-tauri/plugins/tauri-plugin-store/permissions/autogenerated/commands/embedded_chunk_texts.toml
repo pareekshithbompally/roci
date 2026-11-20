@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-embedded-chunk-texts"
+description = "Enables the embedded_chunk_texts command without any pre-configured scope."
+commands.allow = ["embedded_chunk_texts"]
+
+[[permission]]
+identifier = "deny-embedded-chunk-texts"
+description = "Denies the embedded_chunk_texts command without any pre-configured scope."
+commands.deny = ["embedded_chunk_texts"]

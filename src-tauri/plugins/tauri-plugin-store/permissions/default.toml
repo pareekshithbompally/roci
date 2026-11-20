@@ -67,7 +67,7 @@ permissions = [
   "allow-mark-chat-content-indexed",
   "allow-mark-chat-indexed",
   "allow-upsert-chat-chunks",
-  "allow-chat-embedded-turns",
+  "allow-embedded-chunk-texts",
   "allow-chat-is-stale",
   "allow-chats-get-stale",
   "allow-get-chats-needing-embeddings",

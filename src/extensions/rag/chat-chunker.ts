@@ -1,7 +1,9 @@
-/** Splits a chat session into indexable turns: one user message plus the assistant's reply. */
+/** Splits a chat session into indexable turns: one user message plus the assistant's reply; a long reply is split at
+ *  sentences like a transcript, each piece with its question, so all of it is searchable. */
 
 import type { ChatSession, ChatMessage } from '@shared/types';
-import { MIN_TURN_LENGTH, MAX_ASSISTANT_CHUNK_CHARS } from './constants';
+import { MIN_TURN_LENGTH } from './constants';
+import { splitAtSentences } from './chunker';
 
 export interface ChatChunk {
   text: string;
@@ -25,17 +27,11 @@ export function chunkChatSession(session: ChatSession): ChatChunk[] {
 
     const userText = msg.text?.trim() ?? '';
     const nextMsg: ChatMessage | undefined = messages[i + 1];
-    const assistantText =
-      nextMsg?.role === 'model'
-        ? (nextMsg.text ?? '').slice(0, MAX_ASSISTANT_CHUNK_CHARS).trim()
-        : '';
+    const reply = nextMsg?.role === 'model' ? splitAtSentences(nextMsg.text ?? '') : [];
 
-    const turnText = assistantText
-      ? `User: ${userText}\nAssistant: ${assistantText}`
-      : `User: ${userText}`;
-
-    if (turnText.length >= MIN_TURN_LENGTH) {
-      chunks.push({ text: turnText, index: chunks.length, type: 'turn' });
+    for (const piece of reply.length > 0 ? reply : ['']) {
+      const turnText = piece ? `User: ${userText}\nAssistant: ${piece}` : `User: ${userText}`;
+      if (turnText.length >= MIN_TURN_LENGTH) chunks.push({ text: turnText, index: chunks.length, type: 'turn' });
     }
 
     i += nextMsg?.role === 'model' ? 2 : 1;

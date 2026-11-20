@@ -75,7 +75,7 @@ const COMMANDS: &[&str] = &[
     "mark_chat_content_indexed",
     "mark_chat_indexed",
     "upsert_chat_chunks",
-    "chat_embedded_turns",
+    "embedded_chunk_texts",
     "chat_is_stale",
     "chats_get_stale",
     "get_chats_needing_embeddings",

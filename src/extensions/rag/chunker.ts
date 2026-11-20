@@ -27,6 +27,9 @@ export function chunkTranscript(transcript: string): Chunk[] {
   }));
 }
 
+/** Long text as sentence pieces (what a transcript is split into), for any text that's indexed in pieces. */
+export const splitAtSentences = (text: string): string[] => splitBySentenceBoundary(text.trim()).map((piece) => piece.text);
+
 /** Chunks of at most `maxChars` split at sentences; neighbours share `overlapChars` of context. */
 function splitBySentenceBoundary(
   text: string,

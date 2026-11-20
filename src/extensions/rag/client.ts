@@ -188,10 +188,10 @@ export const vectorDB = {
     await invoke('plugin:store|upsert_chat_chunks', { sessionId, chunks });
   },
 
-  /** The texts of a chat's search turns that already have a vector. */
-  async getEmbeddedChatTurns(sessionId: string): Promise<string[]> {
+  /** The texts of a meeting's or chat's search pieces that already have a vector. */
+  async getEmbeddedChunkTexts(owner: 'meeting' | 'chat', id: string): Promise<string[]> {
     await ensureInitialized();
-    return invoke('plugin:store|chat_embedded_turns', { sessionId });
+    return invoke('plugin:store|embedded_chunk_texts', { owner, id });
   },
 
   async isChatSessionStale(sessionId: string, contentHash: string): Promise<boolean> {

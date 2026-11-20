@@ -42,8 +42,5 @@ export const MEETING_EDIT_SETTLE_MS = 2000;
 /** Chat turns shorter than this ("ok", "thanks") are not indexed. */
 export const MIN_TURN_LENGTH = 30;
 
-/** Cap on assistant text per turn chunk, to keep chunks a manageable size to embed. */
-export const MAX_ASSISTANT_CHUNK_CHARS = 1000;
-
 /** Default number of chat search results to return */
 export const DEFAULT_CHAT_SEARCH_LIMIT = 5;

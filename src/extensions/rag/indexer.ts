@@ -1,7 +1,7 @@
 /** Indexes meetings into sqlite-vec via Rust: chunk, embed, upsert; content hashes skip unchanged meetings. */
 
 import type { HistoryItem } from '@shared/types';
-import { embedDocuments, isEmbeddingMissing } from './embeddings';
+import { embedDocuments, isEmbeddingMissing, newVectors } from './embeddings';
 import { vectorDB } from './client';
 import { chunkMeeting, chunkTranscript, computeContentHash, type Chunk } from './chunker';
 import { emitProgress } from './progress';
@@ -36,23 +36,24 @@ async function embedChunks(chunks: Chunk[], label: string): Promise<number[][] |
 }
 
 /** Chunks as the store keeps them, with their vectors when there are any. */
-function chunkRows(chunks: Chunk[], embeddings: number[][] | null): ChunkData[] {
+function chunkRows(chunks: Chunk[], vectorOf: (chunk: Chunk, i: number) => number[] | undefined): ChunkData[] {
   return chunks.map((chunk, i) => ({
     chunk_index: chunk.index,
     chunk_text: chunk.text,
     chunk_type: chunk.type,
-    embedding: embeddings?.[i],
+    embedding: vectorOf(chunk, i),
     start_pos: chunk.startPos ?? null,
     end_pos: chunk.endPos ?? null,
   }));
 }
 
 /** A stretch of a meeting's transcript while it records: chunked and embedded as the whole meeting is, added after what is
- *  indexed (the final transcript's indexing replaces it all). Resolves the chunk texts it added. */
+ *  indexed (the final transcript's indexing keeps the pieces whose text it shares). Resolves the chunk texts it added. */
 async function appendTranscript(meetingId: string, stretch: string): Promise<string[]> {
   const chunks = chunkTranscript(stretch);
   if (chunks.length === 0) return [];
-  await vectorDB.appendChunks(meetingId, chunkRows(chunks, await embedChunks(chunks, meetingId)));
+  const vectors = await embedChunks(chunks, meetingId);
+  await vectorDB.appendChunks(meetingId, chunkRows(chunks, (_, i) => vectors?.[i]));
   return chunks.map((c) => c.text);
 }
 
@@ -82,8 +83,8 @@ async function indexMeeting(
     return { status: 'skipped', reason: 'no_chunks', chunkCount: 0, embeddingCount: 0 };
   }
 
-  const embeddings = options?.includeEmbeddings !== false ? await embedChunks(chunks, item.title) : null;
-  const chunkDataList = chunkRows(chunks, embeddings);
+  const { vectors, complete } = await newVectors('meeting', item.id, chunks.map((c) => c.text), options?.includeEmbeddings !== false);
+  const chunkDataList = chunkRows(chunks, (chunk) => vectors.get(chunk.text));
 
   if (chunkDataList.length === 0) {
     return { status: 'skipped', reason: 'no_chunk_data', chunkCount: 0, embeddingCount: 0 };
@@ -94,12 +95,12 @@ async function indexMeeting(
 
   // Stamp content_hash AFTER chunks are confirmed — prevents hash poisoning on partial failure
   await vectorDB.markMeetingContentIndexed(item.id, contentHash);
-  if (embeddings && embeddings.length > 0) await vectorDB.markMeetingEmbedded(item.id);
+  if (complete) await vectorDB.markMeetingEmbedded(item.id);
 
   return {
     status: 'indexed',
     chunkCount: chunkDataList.length,
-    embeddingCount: embeddings?.length ?? 0,
+    embeddingCount: vectors.size,
   };
 }
 

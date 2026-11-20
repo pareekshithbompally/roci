@@ -70,7 +70,7 @@ Allows all store plugin commands
 - `allow-mark-chat-content-indexed`
 - `allow-mark-chat-indexed`
 - `allow-upsert-chat-chunks`
-- `allow-chat-embedded-turns`
+- `allow-embedded-chunk-texts`
 - `allow-chat-is-stale`
 - `allow-chats-get-stale`
 - `allow-get-chats-needing-embeddings`
@@ -295,32 +295,6 @@ Enables the categories_rename command without any pre-configured scope.
 <td>
 
 Denies the categories_rename command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-chat-embedded-turns`
-
-</td>
-<td>
-
-Enables the chat_embedded_turns command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-chat-embedded-turns`
-
-</td>
-<td>
-
-Denies the chat_embedded_turns command without any pre-configured scope.
 
 </td>
 </tr>
@@ -607,6 +581,32 @@ Enables the dictations_list command without any pre-configured scope.
 <td>
 
 Denies the dictations_list command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-embedded-chunk-texts`
+
+</td>
+<td>
+
+Enables the embedded_chunk_texts command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-embedded-chunk-texts`
+
+</td>
+<td>
+
+Denies the embedded_chunk_texts command without any pre-configured scope.
 
 </td>
 </tr>
