@@ -32,6 +32,8 @@ export const USAGE_CONFIG = {
     liveNotes: 'Live notes',
     transcription: 'Transcription',
   } as const satisfies Record<UsageCategory, string>,
+  /** Use cases recorded under names from before titles and follow-ups became one call: counted as that call. */
+  useCaseAliases: { suggestions: 'chat-extras', 'title-gen': 'chat-extras' } as const satisfies Record<string, UsageCategory>,
   copy: {
     title: 'Usage',
     empty: 'No usage yet. Start a chat or transcribe a recording to see it here.',
@@ -41,12 +43,22 @@ export const USAGE_CONFIG = {
     noPrice: 'no price',
     /** Under the cost when some calls ran on cloud models with no known price (left out of the total). */
     unpriced: (calls: number) => `${calls} ${calls === 1 ? 'call has' : 'calls have'} no price — set it in Prices`,
-    /** The donut a measure has nothing in (models that run free have no cost). */
-    nothing: (measure: string) => `No ${measure.toLowerCase()} in this period.`,
     other: 'Other',
+    /** A slice whose calls all ran free (on this device or a server you run). */
+    free: 'Free',
     splits: { model: 'By model', provider: 'By provider', useCase: 'By use case' },
-    trend: (measure: string) => `${measure} over time`,
-    table: { label: 'Usage by day', date: 'Date', requests: 'Requests', input: 'Input tokens', output: 'Output tokens', cost: 'Cost' },
+    /** The legend line for entries that cost nothing: "3 free models · 31 requests". */
+    freeNote: (count: number, split: 'model' | 'provider' | 'useCase', calls: number) =>
+      `${count} free ${({ model: ['model', 'models'], provider: ['provider', 'providers'], useCase: ['use case', 'use cases'] } as const)[split][count === 1 ? 0 : 1]}`
+      + ` · ${calls} ${calls === 1 ? 'request' : 'requests'}`,
+    kpis: { cost: 'Cost', requests: 'Requests', tokens: 'Tokens', perRequest: 'Cost per request', average: 'Average' },
+    trend: 'Over time',
+    columns: {
+      date: 'Date', model: 'Model', tool: 'Tool', requests: 'Requests', calls: 'Calls', failed: 'Failed', time: 'Avg time',
+      lastUsed: 'Last used', input: 'Input', cached: 'Cached', output: 'Output', cost: 'Cost', perRequest: 'Per request',
+    },
+    tables: { models: 'Models', tools: 'Tools the AI used', days: 'By day' },
+    noTools: 'No tool calls in this period.',
     prices: {
       label: 'Model prices',
       model: 'Model',

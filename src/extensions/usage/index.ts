@@ -2,5 +2,5 @@ export { logUsage, recordUsage, getUsageSummary, getMeetingUsage, priceUnpricedU
 export { costOf, priceOf, runsLocally } from './pricing';
 export type { MeetingUsage } from './client';
 export type {
-  UsageRecord, UsageCategory, UsageSummary, UsageQuery, UsageBucket, UsageBucketSize, ProviderModelBreakdown, CategoryBreakdown,
+  UsageRecord, UsageCategory, UsageSummary, UsageQuery, UsageBucket, UsageBucketSize, ProviderModelBreakdown, CategoryBreakdown, ToolBreakdown,
 } from './types';

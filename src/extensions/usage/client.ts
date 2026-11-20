@@ -96,6 +96,7 @@ export async function getUsageSummary(query: UsageQuery): Promise<UsageSummary> 
       first_timestamp: null,
       by_provider_model: [],
       by_category: [],
+      by_tool: [],
       trend: [],
     };
   }

@@ -21,6 +21,8 @@ export { IconTile, ICON_TILE_PX, ICON_TILE_RADIUS } from './icon-tile';
 export { Chart } from './chart';
 export type { ChartOption, ChartProps } from './chart';
 export { DataTable } from './data-table';
+export { DonutChart } from './donut-chart';
+export type { DonutChartProps, DonutSlice } from './donut-chart';
 export { StatCard } from './stat-card';
 export type { StatCardProps } from './stat-card';
 export type { DataColumn, DataTableProps } from './data-table';

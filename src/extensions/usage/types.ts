@@ -28,6 +28,8 @@ export interface ProviderModelBreakdown {
   cache_write_tokens: number;
   reasoning_tokens: number;
   estimated_cost: number;
+  /** Calls with no known price, left out of `estimated_cost`. */
+  unpriced_calls: number;
 }
 
 export interface CategoryBreakdown {
@@ -36,6 +38,19 @@ export interface CategoryBreakdown {
   input_tokens: number;
   output_tokens: number;
   estimated_cost: number;
+  /** Calls with no known price, left out of `estimated_cost`. */
+  unpriced_calls: number;
+}
+
+/** One tool's calls in a window (Rust `ToolBreakdown`). */
+export interface ToolBreakdown {
+  tool: string;
+  calls: number;
+  failed: number;
+  /** Null when no call recorded its time. */
+  avg_ms: number | null;
+  /** Epoch ms of the last call. */
+  last_used: number;
 }
 
 /** One trend bucket (Rust `UsageBucket`): `key` is the local date `YYYY-MM-DD` or month `YYYY-MM`. */
@@ -70,6 +85,8 @@ export interface UsageSummary {
   first_timestamp: number | null;
   by_provider_model: ProviderModelBreakdown[];
   by_category: CategoryBreakdown[];
+  /** The AI's tool calls in chats, most used first. */
+  by_tool: ToolBreakdown[];
   /** Totals per bucket that has records, oldest first; empty unless the query asked for buckets. */
   trend: UsageBucket[];
 }

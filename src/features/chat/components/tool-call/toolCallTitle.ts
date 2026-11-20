@@ -69,8 +69,9 @@ const DETAILS: Record<string, (part: ToolCallPart) => string | undefined> = {
   update_todo: (part) => quoted(part.arguments.text),
 };
 
-function formatToolName(toolName: string): string {
-  return toolName.replace(/_/g, ' ');
+/** A tool's name to read: an MCP server tool without its `server:` prefix, words for underscores ("search meetings"). */
+export function formatToolName(toolName: string): string {
+  return toolName.replace(/^server:/, '').replace(/_/g, ' ');
 }
 
 function builtInTitle(part: ToolCallPart): string {

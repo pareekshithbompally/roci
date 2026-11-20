@@ -12,6 +12,8 @@ export type { ChatShellProps } from './components';
 // Hooks
 export { useChatRuntime } from './hooks';
 export { canSendDraft } from './utils';
+export { formatToolName } from './components/tool-call/toolCallTitle';
+export { toolCallIcon } from './components/tool-call/toolCallIcons';
 export { useSpeechInput } from './hooks/useSpeechInput';
 export type { SpeechState, UseSpeechInputResult } from './hooks/useSpeechInput';
 export { useVoiceCapture } from './hooks/useVoiceCapture';

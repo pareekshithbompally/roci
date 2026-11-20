@@ -35,13 +35,17 @@ export const UI_CONFIG = {
   glyphTile: { tile: 34, glyph: 24 },
   /** Bar chart (usage trends): plot height (taller on touch), bar cap and gap, data-end radius, axis gutters, label density, dimmed bars. */
   chart: {
-    /** Plot heights in px: the trend, and each split donut. */
-    trendHeight: 200,
-    donutHeight: 220,
+    /** The trend: two plots (cost over requests) on one timeline — each plot's height and the gap between them (px). */
+    trendPlot: 96,
+    trendGap: 32,
+    /** Room under the lower plot for its date labels (px). */
+    trendAxis: 24,
+    /** A donut's ring (px). */
+    donutHeight: 180,
     /** Slices a donut shows before the rest fold into "Other" (palette slots, never cycled). */
     maxSlices: 6,
-    /** Space under a donut for its legend (one line per slice). */
-    donutLegendHeight: 120,
+    /** A legend row's model, provider or use-case icon (px). */
+    legendIcon: 16,
     /** Marks: widest bar, its rounded top, the gap between slices (px). */
     barMaxWidth: 24,
     barRadius: 4,

@@ -10,8 +10,6 @@ use std::collections::HashMap;
 use tauri::State;
 
 const DAY_MS: i64 = 24 * 60 * 60 * 1000;
-/// The audit trail is a debugging aid, not history the user keeps.
-const AUDIT_LOG_KEEP_DAYS: i64 = 90;
 /// A meeting not being recorded, transcribed or summarized right now.
 const IDLE: &str = "status NOT IN ('recording','transcribing','summarizing')";
 
@@ -117,7 +115,6 @@ pub(crate) fn purge(db: &Connection, keep_days: &HashMap<String, u32>, now: i64)
             _ => result.assets += removed,
         }
     }
-    tx.execute("DELETE FROM audit_log WHERE created_at < ?1", [now - AUDIT_LOG_KEEP_DAYS * DAY_MS])?;
     tx.commit()?;
     for (class, days) in keep_days {
         let due = next_due(db, class, i64::from(*days) * DAY_MS, now)?;

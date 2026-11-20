@@ -1,24 +1,47 @@
-/** Usage › Activity, top down: the range; KPIs (cost, requests, tokens, cost per request) with their change; the trend; where
- *  it went (by model, provider and use case); and every day as a table. One page, nothing to drill into. */
+/** Usage › Activity, top down, one page with nothing to drill into:
+ *  0 the range · 1 how much (KPIs) · 2 when (cost over requests, one timeline) · 3 where it went (by model, provider, use case)
+ *  · 4 what exactly (models, tools the AI used, each day). */
 
 import React, { useMemo, useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
-import { Callout, Chart, DataTable, Icon, Section, StatCard, Tabs, Text, type ChartOption, type DataColumn } from '@shared/ui';
-import { LoadingPane } from '@shared/components';
+import { AlertTriangle, Lightbulb, NotebookPen, Sparkles, type LucideIcon } from 'lucide-react';
+import {
+  Callout, Chart, DataTable, DonutChart, Icon, Section, StatCard, Tabs, Text,
+  type ChartOption, type DataColumn, type DonutSlice,
+} from '@shared/ui';
+import { JOB_GLYPH, LoadingPane, ModelIcon } from '@shared/components';
 import { UI_CONFIG } from '@config/ui.config';
 import { USAGE_CONFIG, type UsageMeasure } from '@config/usage.config';
-import type { UsageBucket, UsageSummary } from '@extensions/usage';
+import type { ProviderModelBreakdown, ToolBreakdown, UsageBucket, UsageSummary } from '@extensions/usage';
 import { errorMessage } from '@shared/utils/errors';
+import { formatRelativeTime } from '@shared/utils/formatters';
+import { getProviderTitle } from '@shared/utils/provider.utils';
+import { formatToolName, toolCallIcon } from '@features/chat';
 import { bucketKeys, type UsageWindow } from '@features/usage/model/period';
-import { fillSeries, measureOf, splitSlices, type UsageSplit } from '@features/usage/model/series';
-import { bucketLabel, formatMeasure, formatTokens } from '@features/usage/model/format';
+import { fillSeries, measureOf, modelName, splitView, type SplitEntry, type SplitMark, type UsageSplit } from '@features/usage/model/series';
+import { bucketLabel, formatMeasure, formatMs, formatTick, formatTokens } from '@features/usage/model/format';
 import { useUsageWindow } from '@features/usage/hooks/useUsageQueries';
 import { useSetUsageRange, useUsageRange } from '@features/usage/stores/usageStore';
 
 const COPY = USAGE_CONFIG.copy;
+const COL = COPY.columns;
 const C = UI_CONFIG.chart;
 const PERCENT = new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 0, signDisplay: 'exceptZero' });
+const SHARE = new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 0 });
 const MEASURE_LABEL = Object.fromEntries(USAGE_CONFIG.measures.map((m) => [m.value, m.label])) as Record<UsageMeasure, string>;
+
+/** Each use case's glyph (as in Default Models); one the app doesn't name gets a generic one. */
+const USE_CASE_GLYPH: Record<string, LucideIcon> = {
+  chat: JOB_GLYPH.chat,
+  'chat-extras': Lightbulb,
+  summary: JOB_GLYPH.summaries,
+  liveNotes: NotebookPen,
+  transcription: JOB_GLYPH.transcription,
+};
+
+/** A cost as it reads: dollars, or "No price" when calls had none and nothing else priced it. */
+const costText = (cost: number, unpriced: number): string => (cost === 0 && unpriced > 0 ? COPY.prices.sources.unknown : formatMeasure('cost', cost));
+
+// ── 1 · How much ──
 
 /** "+18% vs previous 30 days"; "New" when there was nothing before; none for all time or while the window before loads. */
 function changeLine(current: number, previous: number | undefined, rangeLabel: string): string | undefined {
@@ -27,97 +50,174 @@ function changeLine(current: number, previous: number | undefined, rangeLabel: s
   return `${PERCENT.format((current - previous) / previous)} vs previous ${rangeLabel}`;
 }
 
-/** The four headline figures. */
-const Kpis: React.FC<{ summary: UsageSummary; previous: UsageSummary | undefined | null; rangeLabel: string }> = ({ summary, previous, rangeLabel }) => {
-  const before = previous ?? undefined;
-  const tokens = summary.total_input_tokens + summary.total_output_tokens;
+const Kpis: React.FC<{ summary: UsageSummary; previous: UsageSummary | undefined; rangeLabel: string }> = ({ summary, previous, rangeLabel }) => {
+  const K = COPY.kpis;
+  const input = summary.total_input_tokens;
+  const cached = input > 0 ? `${SHARE.format(summary.total_cache_read_tokens / input)} cached` : null;
+  const tokensDetail = [`${formatTokens(input)} in`, `${formatTokens(summary.total_output_tokens)} out`, cached].filter(Boolean).join(' · ');
   const perRequest = summary.total_calls > 0 ? summary.total_cost / summary.total_calls : 0;
-  const costDetail = summary.unpriced_calls > 0 ? COPY.unpriced(summary.unpriced_calls) : changeLine(summary.total_cost, before?.total_cost, rangeLabel);
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <StatCard label="Cost" value={formatMeasure('cost', summary.total_cost)} detail={costDetail} />
-      <StatCard label="Requests" value={formatMeasure('requests', summary.total_calls)} detail={changeLine(summary.total_calls, before?.total_calls, rangeLabel)} />
-      <StatCard label="Tokens" value={formatTokens(tokens)} detail={`${formatTokens(summary.total_input_tokens)} in · ${formatTokens(summary.total_output_tokens)} out`} />
-      <StatCard label="Cost per request" value={formatMeasure('cost', perRequest)} detail="Average" />
+      <StatCard
+        label={K.cost}
+        value={formatMeasure('cost', summary.total_cost)}
+        detail={summary.unpriced_calls > 0 ? COPY.unpriced(summary.unpriced_calls) : changeLine(summary.total_cost, previous?.total_cost, rangeLabel)}
+      />
+      <StatCard label={K.requests} value={formatMeasure('requests', summary.total_calls)} detail={changeLine(summary.total_calls, previous?.total_calls, rangeLabel)} />
+      <StatCard label={K.tokens} value={formatTokens(input + summary.total_output_tokens)} detail={tokensDetail} />
+      <StatCard label={K.perRequest} value={formatMeasure('cost', perRequest)} detail={K.average} />
     </div>
   );
 };
 
-/** Cost or requests: the switch on a chart's label line. */
-const MeasureSwitch: React.FC<{ value: UsageMeasure; onChange: (m: UsageMeasure) => void }> = ({ value, onChange }) => (
-  <Tabs items={USAGE_CONFIG.measures} value={value} onValueChange={onChange} label="Measure" />
-);
+// ── 2 · When ──
 
-/** Every day (or month) of the window as a bar, empty ones included so time reads evenly. */
+const TREND_MEASURES: readonly UsageMeasure[] = ['cost', 'requests'];
+
+/** Cost above requests, one plot each on one timeline: each keeps its own true scale, one tooltip reads both for the day. */
 const Trend: React.FC<{ series: UsageBucket[]; period: UsageWindow }> = ({ series, period }) => {
-  const [measure, setMeasure] = useState<UsageMeasure>('cost');
-  const option = useMemo<ChartOption>(() => ({
-    grid: { left: C.inset, right: C.inset, top: C.inset * 2, bottom: C.inset, containLabel: true },
-    tooltip: { trigger: 'axis', valueFormatter: (v) => formatMeasure(measure, Number(v)) },
-    xAxis: { type: 'category', data: series.map((b) => bucketLabel(b.key, period.bucket, 'short')) },
-    yAxis: { type: 'value', axisLabel: { formatter: (v: number) => formatMeasure(measure, v) } },
-    series: [{ type: 'bar', name: MEASURE_LABEL[measure], data: series.map((b) => measureOf(measure, b)) }],
-  }), [series, period.bucket, measure]);
+  const option = useMemo<ChartOption>(() => {
+    const dates = series.map((b) => bucketLabel(b.key, period.bucket, 'short'));
+    const last = TREND_MEASURES.length - 1;
+    return {
+      grid: TREND_MEASURES.map((_, i) => ({ left: C.inset, right: C.inset, top: C.inset + i * (C.trendPlot + C.trendGap), height: C.trendPlot, containLabel: true })),
+      axisPointer: { link: [{ xAxisIndex: 'all' }] },
+      tooltip: {
+        trigger: 'axis',
+        formatter: (params) => {
+          const i = (Array.isArray(params) ? params[0] : params).dataIndex;
+          const lines = TREND_MEASURES.map((m) => `${MEASURE_LABEL[m]} <b>${formatMeasure(m, measureOf(m, series[i]))}</b>`);
+          return [bucketLabel(series[i].key, period.bucket, 'long'), ...lines].join('<br/>');
+        },
+      },
+      xAxis: TREND_MEASURES.map((_, i) => ({ type: 'category' as const, gridIndex: i, data: dates, axisLabel: { show: i === last } })),
+      yAxis: TREND_MEASURES.map((m, i) => ({
+        type: 'value' as const, gridIndex: i, name: MEASURE_LABEL[m], splitNumber: 2, axisLabel: { formatter: (v: number) => formatTick(m, v) },
+      })),
+      series: TREND_MEASURES.map((m, i) => ({
+        type: 'bar' as const, name: MEASURE_LABEL[m], xAxisIndex: i, yAxisIndex: i, data: series.map((b) => measureOf(m, b)),
+      })),
+    };
+  }, [series, period.bucket]);
   return (
-    <Section title={COPY.trend(MEASURE_LABEL[measure])} accessory={<MeasureSwitch value={measure} onChange={setMeasure} />}>
+    <Section title={COPY.trend}>
       <div className="py-2">
-        <Chart option={option} height={C.trendHeight} label={COPY.trend(MEASURE_LABEL[measure])} />
+        <Chart option={option} height={C.inset + 2 * C.trendPlot + C.trendGap + C.trendAxis} label={COPY.trend} />
       </div>
     </Section>
   );
 };
 
-/** One split as a donut, its legend naming each slice with its value. */
+// ── 3 · Where it went ──
+
+/** A slice's icon: the model's, the provider's, or the use case's. */
+function markIcon(mark: SplitMark | null): React.ReactNode {
+  if (!mark) return null;
+  if (mark.kind === 'useCase') return <Icon icon={USE_CASE_GLYPH[mark.category] ?? Sparkles} size="sm" />;
+  return <ModelIcon provider={mark.provider} modelId={mark.kind === 'model' ? mark.model : undefined} size={C.legendIcon} />;
+}
+
+const toSlice = (measure: UsageMeasure) => (e: SplitEntry): DonutSlice => ({
+  key: e.key,
+  label: e.name,
+  leading: markIcon(e.mark),
+  value: measureOf(measure, e),
+  valueText: measure === 'cost' ? costText(e.estimated_cost, e.unpriced) : formatMeasure('requests', e.calls),
+});
+
 const SplitDonut: React.FC<{ summary: UsageSummary; split: UsageSplit }> = ({ summary, split }) => {
   const [measure, setMeasure] = useState<UsageMeasure>('cost');
-  const slices = useMemo(() => splitSlices(summary, split), [summary, split]);
-  const total = slices.reduce((sum, s) => sum + measureOf(measure, s), 0);
-  const option = useMemo<ChartOption>(() => {
-    const valueOf = new Map(slices.map((s) => [s.name, formatMeasure(measure, measureOf(measure, s))]));
+  const { slices, note } = useMemo(() => {
+    const view = splitView(summary, split, measure);
     return {
-      tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)', valueFormatter: (v) => formatMeasure(measure, Number(v)) },
-      legend: { orient: 'vertical', bottom: 0, left: 'center', formatter: (name: string) => `${name}  ${valueOf.get(name) ?? ''}` },
-      series: [{
-        type: 'pie',
-        name: COPY.splits[split],
-        radius: ['58%', '88%'],
-        bottom: C.donutLegendHeight,
-        label: { show: false },
-        data: slices.map((s) => ({ name: s.name, value: measureOf(measure, s) })),
-      }],
+      slices: view.slices.map(toSlice(measure)),
+      note: view.free ? { key: 'free', label: COPY.freeNote(view.free.count, split, view.free.calls), value: 0, valueText: COPY.free } : undefined,
     };
-  }, [slices, measure, split]);
+  }, [summary, split, measure]);
   return (
-    <Section title={COPY.splits[split]} accessory={<MeasureSwitch value={measure} onChange={setMeasure} />}>
+    <Section title={COPY.splits[split]} accessory={<Tabs items={USAGE_CONFIG.measures} value={measure} onValueChange={setMeasure} label="Measure" />}>
       <div className="py-3">
-        {total > 0
-          ? <Chart option={option} height={C.donutHeight + C.donutLegendHeight} label={`${MEASURE_LABEL[measure]} ${COPY.splits[split].toLowerCase()}`} />
-          : <Text as="p" tone="muted" className="py-12 text-center">{COPY.nothing(MEASURE_LABEL[measure])}</Text>}
+        <DonutChart slices={slices} note={note} label={`${MEASURE_LABEL[measure]} ${COPY.splits[split].toLowerCase()}`} />
       </div>
     </Section>
   );
 };
 
-/** Each day (or month) with usage, newest first, every figure in its own column. */
-const ByDay: React.FC<{ series: UsageBucket[]; period: UsageWindow }> = ({ series, period }) => {
-  const T = COPY.table;
-  const columns: ReadonlyArray<DataColumn<UsageBucket>> = [
-    { key: 'date', header: T.date, cell: (b) => <Text>{bucketLabel(b.key, period.bucket, 'long')}</Text> },
-    { key: 'requests', header: T.requests, align: 'end', cell: (b) => <Text variant="figure">{formatMeasure('requests', b.calls)}</Text> },
-    { key: 'input', header: T.input, align: 'end', cell: (b) => <Text variant="figure">{formatTokens(b.input_tokens)}</Text> },
-    { key: 'output', header: T.output, align: 'end', cell: (b) => <Text variant="figure">{formatTokens(b.output_tokens)}</Text> },
-    { key: 'cost', header: T.cost, align: 'end', cell: (b) => <Text variant="figure">{formatMeasure('cost', b.estimated_cost)}</Text> },
-  ];
-  const rows = [...series].filter((b) => b.calls > 0).reverse();
+// ── 4 · What exactly ──
+
+const figure = (text: string) => <Text variant="figure">{text}</Text>;
+
+const MODEL_COLUMNS: ReadonlyArray<DataColumn<ProviderModelBreakdown>> = [
+  {
+    key: 'model',
+    header: COL.model,
+    cell: (m) => (
+      <div className="flex min-w-0 items-center gap-2">
+        <ModelIcon provider={m.provider} modelId={m.model} size={C.legendIcon} />
+        <div className="flex min-w-0 flex-col">
+          <Text truncate>{modelName(m.model)}</Text>
+          <Text variant="caption" tone="muted" truncate>{getProviderTitle(m.provider)}</Text>
+        </div>
+      </div>
+    ),
+  },
+  { key: 'requests', header: COL.requests, align: 'end', cell: (m) => figure(formatMeasure('requests', m.calls)) },
+  { key: 'input', header: COL.input, align: 'end', cell: (m) => figure(formatTokens(m.input_tokens)) },
+  { key: 'cached', header: COL.cached, align: 'end', cell: (m) => figure(formatTokens(m.cache_read_tokens)) },
+  { key: 'output', header: COL.output, align: 'end', cell: (m) => figure(formatTokens(m.output_tokens)) },
+  { key: 'cost', header: COL.cost, align: 'end', cell: (m) => figure(costText(m.estimated_cost, m.unpriced_calls)) },
+  { key: 'per', header: COL.perRequest, align: 'end', cell: (m) => figure(costText(m.calls > 0 ? m.estimated_cost / m.calls : 0, m.unpriced_calls)) },
+];
+
+const TOOL_COLUMNS: ReadonlyArray<DataColumn<ToolBreakdown>> = [
+  {
+    key: 'tool',
+    header: COL.tool,
+    cell: (t) => (
+      <div className="flex min-w-0 items-center gap-2">
+        <Icon icon={toolCallIcon(t.tool)} size="sm" />
+        <Text truncate>{formatToolName(t.tool)}</Text>
+      </div>
+    ),
+  },
+  { key: 'calls', header: COL.calls, align: 'end', cell: (t) => figure(formatMeasure('requests', t.calls)) },
+  { key: 'failed', header: COL.failed, align: 'end', cell: (t) => figure(formatMeasure('requests', t.failed)) },
+  { key: 'time', header: COL.time, align: 'end', cell: (t) => figure(t.avg_ms === null ? '—' : formatMs(t.avg_ms)) },
+  { key: 'last', header: COL.lastUsed, align: 'end', cell: (t) => <Text tone="muted">{formatRelativeTime(t.last_used)}</Text> },
+];
+
+const dayColumns = (period: UsageWindow): ReadonlyArray<DataColumn<UsageBucket>> => [
+  { key: 'date', header: COL.date, cell: (b) => <Text>{bucketLabel(b.key, period.bucket, 'long')}</Text> },
+  { key: 'requests', header: COL.requests, align: 'end', cell: (b) => figure(formatMeasure('requests', b.calls)) },
+  { key: 'input', header: COL.input, align: 'end', cell: (b) => figure(formatTokens(b.input_tokens)) },
+  { key: 'cached', header: COL.cached, align: 'end', cell: (b) => figure(formatTokens(b.cache_read_tokens)) },
+  { key: 'output', header: COL.output, align: 'end', cell: (b) => figure(formatTokens(b.output_tokens)) },
+  { key: 'cost', header: COL.cost, align: 'end', cell: (b) => figure(formatMeasure('cost', b.estimated_cost)) },
+];
+
+const Tables: React.FC<{ summary: UsageSummary; series: UsageBucket[]; period: UsageWindow }> = ({ summary, series, period }) => {
+  const T = COPY.tables;
+  const days = useMemo(() => series.filter((b) => b.calls > 0).reverse(), [series]);
   return (
-    <Section title={T.label} layout="stack">
-      <DataTable columns={columns} rows={rows} rowKey={(b) => b.key} label={T.label} />
-    </Section>
+    <>
+      <Section title={T.models} layout="stack">
+        <DataTable columns={MODEL_COLUMNS} rows={summary.by_provider_model} rowKey={(m) => `${m.provider}/${m.model}`} label={T.models} />
+      </Section>
+      <Section title={T.tools} layout="stack">
+        {summary.by_tool.length > 0
+          ? <DataTable columns={TOOL_COLUMNS} rows={summary.by_tool} rowKey={(t) => t.tool} label={T.tools} />
+          : <Text as="p" tone="muted" className="mx-4">{COPY.noTools}</Text>}
+      </Section>
+      <Section title={T.days} layout="stack">
+        <DataTable columns={dayColumns(period)} rows={days} rowKey={(b) => b.key} label={T.days} />
+      </Section>
+    </>
   );
 };
 
-/** The page once its window has usage. */
-const Story: React.FC<{ summary: UsageSummary; previous: UsageSummary | undefined | null; period: UsageWindow; rangeLabel: string }> = ({ summary, previous, period, rangeLabel }) => {
+// ── The page ──
+
+const Story: React.FC<{ summary: UsageSummary; previous: UsageSummary | undefined; period: UsageWindow; rangeLabel: string }> = ({ summary, previous, period, rangeLabel }) => {
   const series = useMemo(() => fillSeries(bucketKeys(period, summary.first_timestamp, new Date()), summary.trend), [period, summary]);
   return (
     <>
@@ -128,7 +228,7 @@ const Story: React.FC<{ summary: UsageSummary; previous: UsageSummary | undefine
         <SplitDonut summary={summary} split="provider" />
         <SplitDonut summary={summary} split="useCase" />
       </div>
-      <ByDay series={series} period={period} />
+      <Tables summary={summary} series={series} period={period} />
     </>
   );
 };
@@ -150,7 +250,7 @@ export const ActivityTab: React.FC = () => {
       );
     }
     if (!summary || summary.total_calls === 0) return <Text as="p" tone="muted" className="py-12 text-center">{range === 'all' ? COPY.empty : COPY.emptyPeriod}</Text>;
-    return <Story summary={summary} previous={previous} period={period} rangeLabel={rangeLabel} />;
+    return <Story summary={summary} previous={previous ?? undefined} period={period} rangeLabel={rangeLabel} />;
   };
 
   return (

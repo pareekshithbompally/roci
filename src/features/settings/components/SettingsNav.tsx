@@ -1,7 +1,7 @@
 /** Settings nav in the left sidebar; edits save on edit, so switching panels needs no dirty-state guard. */
 
 import React from 'react';
-import { Bell, Box, ChartColumn, HardDrive, Puzzle, Settings, Sparkles } from 'lucide-react';
+import { Bell, Box, ChartPie, HardDrive, Puzzle, Settings, Sparkles } from 'lucide-react';
 import { SiModelcontextprotocol } from '@icons-pack/react-simple-icons';
 import { useAppStore, useAppActions } from '@shared/stores/appStore';
 import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore';
@@ -30,7 +30,7 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   { id: 'defaultModels', label: 'Default Models', icon: Sparkles, group: 'AI', keywords: ['chat model', 'transcription', 'speech', 'summary', 'images'] },
   { id: 'mcp', label: 'MCP Servers', icon: SiModelcontextprotocol, group: 'AI', available: platform.hasMcp, keywords: ['tools', 'servers'] },
   { id: 'storage', label: 'Storage', icon: HardDrive, group: 'Data', keywords: ['disk usage', 'space', 'keep', 'retention', 'delete', 'cache', 'search index', 'finder', 'models.dev', 'catalog'] },
-  { id: 'usage', label: 'Usage', icon: ChartColumn, group: 'Data', keywords: ['cost', 'tokens', 'spend'] },
+  { id: 'usage', label: 'Usage', icon: ChartPie, group: 'Data', keywords: ['cost', 'tokens', 'spend', 'prices', 'requests'] },
 ];
 
 

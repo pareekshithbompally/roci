@@ -25,42 +25,83 @@ export function fillSeries(keys: string[], trend: UsageBucket[]): UsageBucket[] 
 /** Model id without its org prefix ("ggml-org/gemma…" → "gemma…"). */
 export const modelName = (id: string) => id.slice(id.lastIndexOf('/') + 1);
 
-/** A recorded use case's name; one the app doesn't name shows as it was recorded. */
+/** A recorded use case as the app names it now (older names count as the call they became). */
+const useCaseOf = (category: string): string => USAGE_CONFIG.useCaseAliases[category as keyof typeof USAGE_CONFIG.useCaseAliases] ?? category;
+
+/** A use case's name; one the app doesn't name shows as it was recorded. */
 export const useCaseName = (category: string): string => USAGE_CONFIG.useCases[category as UsageCategory] ?? category;
 
 export type UsageSplit = 'model' | 'provider' | 'useCase';
 
-/** One named entry of a split, with its totals. */
+/** What a slice stands for, so it can show its icon. */
+export type SplitMark =
+  | { kind: 'model'; provider: string; model: string }
+  | { kind: 'provider'; provider: string }
+  | { kind: 'useCase'; category: string };
+
+/** One slice of a split, with its totals. */
 export interface SplitEntry extends UsageTotals {
+  key: string;
   name: string;
+  /** Calls with no known price, left out of its cost. */
+  unpriced: number;
+  /** None for "Other". */
+  mark: SplitMark | null;
 }
 
-/** Totals summed per name. */
-function sumByName(rows: Array<UsageTotals & { name: string }>): SplitEntry[] {
-  const byName = new Map<string, SplitEntry>();
-  for (const row of rows) {
-    const entry = byName.get(row.name) ?? { name: row.name, calls: 0, estimated_cost: 0 };
+type Row = UsageTotals & { unpriced_calls: number };
+
+/** The window's rows as slices of a split, summed per slice. */
+function entriesOf(summary: UsageSummary, split: UsageSplit): SplitEntry[] {
+  const byKey = new Map<string, SplitEntry>();
+  const add = (key: string, name: string, mark: SplitMark, row: Row) => {
+    const entry = byKey.get(key) ?? { key, name, mark, calls: 0, estimated_cost: 0, unpriced: 0 };
     entry.calls += row.calls;
     entry.estimated_cost += row.estimated_cost;
-    byName.set(row.name, entry);
+    entry.unpriced += row.unpriced_calls;
+    byKey.set(key, entry);
+  };
+  if (split === 'useCase') {
+    for (const c of summary.by_category) {
+      const category = useCaseOf(c.category);
+      add(category, useCaseName(category), { kind: 'useCase', category }, c);
+    }
+  } else {
+    for (const m of summary.by_provider_model) {
+      if (split === 'model') add(`${m.provider}/${m.model}`, modelName(m.model), { kind: 'model', provider: m.provider, model: m.model }, m);
+      else add(m.provider, getProviderTitle(m.provider), { kind: 'provider', provider: m.provider }, m);
+    }
   }
-  return [...byName.values()];
+  return [...byKey.values()];
 }
 
-/** The window's totals split by model, provider or use case. */
-function entriesOf(summary: UsageSummary, split: UsageSplit): SplitEntry[] {
-  if (split === 'useCase') return sumByName(summary.by_category.map((c) => ({ ...c, name: useCaseName(c.category) })));
-  const name = split === 'model' ? (m: { model: string }) => modelName(m.model) : (m: { provider: string }) => getProviderTitle(m.provider);
-  return sumByName(summary.by_provider_model.map((m) => ({ calls: m.calls, estimated_cost: m.estimated_cost, name: name(m) })));
+/** Entries past `max` folded into one "Other". */
+function fold(ranked: SplitEntry[], max: number): SplitEntry[] {
+  if (ranked.length <= max) return ranked;
+  const other: SplitEntry = { key: 'other', name: USAGE_CONFIG.copy.other, mark: null, calls: 0, estimated_cost: 0, unpriced: 0 };
+  for (const e of ranked.slice(max - 1)) {
+    other.calls += e.calls;
+    other.estimated_cost += e.estimated_cost;
+    other.unpriced += e.unpriced;
+  }
+  return [...ranked.slice(0, max - 1), other];
 }
 
-/** A split's slices: the largest by cost (then requests) in that fixed order whichever measure shows, so each keeps its colour
- *  when the measure changes; past the palette's slots the rest fold into one "Other". */
-export function splitSlices(summary: UsageSummary, split: UsageSplit): SplitEntry[] {
+/** A split as the donut shows it for a measure. */
+export interface SplitView {
+  slices: SplitEntry[];
+  /** Cost only: the entries that cost nothing (ran free), left out of the ring. */
+  free: { count: number; calls: number } | null;
+}
+
+/** A split's slices, largest by cost (then requests) in that fixed order whichever measure shows, so each keeps its colour;
+ *  past the palette's slots the rest fold into "Other". By cost, entries that ran free leave the ring for one note line. */
+export function splitView(summary: UsageSummary, split: UsageSplit, measure: UsageMeasure): SplitView {
   const ranked = entriesOf(summary, split).sort((a, b) => b.estimated_cost - a.estimated_cost || b.calls - a.calls);
   const max = UI_CONFIG.chart.maxSlices;
-  if (ranked.length <= max) return ranked;
-  const rest = ranked.slice(max - 1);
-  const other = { name: USAGE_CONFIG.copy.other, ...rest.reduce((t, e) => ({ calls: t.calls + e.calls, estimated_cost: t.estimated_cost + e.estimated_cost }), { calls: 0, estimated_cost: 0 }) };
-  return [...ranked.slice(0, max - 1), other];
+  if (measure === 'requests') return { slices: fold(ranked, max), free: null };
+  const costed = ranked.filter((e) => e.estimated_cost > 0 || e.unpriced > 0);
+  const free = ranked.filter((e) => !costed.includes(e));
+  if (free.length === 0) return { slices: fold(costed, max), free: null };
+  return { slices: fold(costed, max - 1), free: { count: free.length, calls: free.reduce((n, e) => n + e.calls, 0) } };
 }

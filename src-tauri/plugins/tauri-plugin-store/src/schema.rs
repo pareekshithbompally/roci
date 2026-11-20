@@ -2,7 +2,7 @@ use crate::assets;
 use rusqlite::Connection;
 
 /// Current schema version for the new roci.db.
-pub const SCHEMA_VERSION: u32 = 12;
+pub const SCHEMA_VERSION: u32 = 13;
 
 /// Default embedding model and dimension.
 pub const DEFAULT_MODEL: &str = "mlx-community/Qwen3-Embedding-0.6B-8bit";
@@ -32,16 +32,12 @@ pub(crate) fn open_migrated_test_db() -> Connection {
     conn
 }
 
-/// Creates the schema in a new database, or brings a v10 or v11 database to v12 with its data. Any other version is
-/// refused, not upgraded: pre-release, there is nothing else to carry forward.
+/// Creates the schema in a new database, or brings a v10–v12 database to the current version with its data. Any other
+/// version is refused, not upgraded: pre-release, there is nothing else to carry forward.
 pub fn migrate(conn: &Connection) -> Result<(), String> {
     match get_schema_version(conn) {
         0 => create_new(conn)?,
-        10 => {
-            upgrade_v11(conn)?;
-            upgrade_v12(conn)?;
-        }
-        11 => upgrade_v12(conn)?,
+        version @ 10..=12 => upgrade_from(conn, version)?,
         SCHEMA_VERSION => {}
         other => {
             let e = format!("roci.db is schema v{other}, this build is v{SCHEMA_VERSION}: remove it to start fresh");
@@ -91,6 +87,29 @@ fn upgrade_v12(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
+/// Each step from `version` up, in order.
+fn upgrade_from(conn: &Connection, version: u32) -> Result<(), String> {
+    if version <= 10 {
+        upgrade_v11(conn)?;
+    }
+    if version <= 11 {
+        upgrade_v12(conn)?;
+    }
+    upgrade_v13(conn)
+}
+
+/// v12 → v13: tool calls get their own table, filled from the chats saved so far; the audit log nothing read goes.
+fn upgrade_v13(conn: &Connection) -> Result<(), String> {
+    let tx = conn.unchecked_transaction().map_err(|e| format!("begin v13: {}", e))?;
+    tx.execute_batch(TOOL_CALLS_DDL).map_err(|e| format!("v13 tool calls: {}", e))?;
+    tx.execute(FILL_TOOL_CALLS, [Option::<String>::None]).map_err(|e| format!("v13 fill tool calls: {}", e))?;
+    tx.execute_batch("DROP TABLE IF EXISTS audit_log;").map_err(|e| format!("v13 drop audit log: {}", e))?;
+    set_schema_version(&tx, 13)?;
+    tx.commit().map_err(|e| format!("commit v13: {}", e))?;
+    log::info!("[store] Schema v12→v13 (tool calls; audit log dropped)");
+    Ok(())
+}
+
 /// Every table, in one transaction, at the current version.
 fn create_new(conn: &Connection) -> Result<(), String> {
     let tx = conn.unchecked_transaction().map_err(|e| format!("begin schema: {}", e))?;
@@ -130,6 +149,29 @@ fn match_embedding_model(conn: &Connection) -> Result<(), String> {
     log::info!("[store] Embedding model is now {} (old vectors dropped)", DEFAULT_MODEL);
     Ok(())
 }
+
+/// Each tool call the AI made in a chat, as its saved message shows it: read by usage over a time window.
+const TOOL_CALLS_DDL: &str = "
+    CREATE TABLE IF NOT EXISTS tool_calls (
+        id          INTEGER PRIMARY KEY,
+        chat_id     TEXT    NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+        tool        TEXT    NOT NULL,
+        ok          INTEGER NOT NULL,
+        duration_ms INTEGER,
+        created_at  INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_tool_calls_created ON tool_calls(created_at);
+    CREATE INDEX IF NOT EXISTS idx_tool_calls_chat ON tool_calls(chat_id);";
+
+/// The tool-call rows of one chat's saved messages (`?1`), or of every chat (`?1` NULL). A message whose data isn't JSON
+/// adds none rather than failing the save.
+pub(crate) const FILL_TOOL_CALLS: &str = "
+    INSERT INTO tool_calls (chat_id, tool, ok, duration_ms, created_at)
+    SELECT m.chat_id, json_extract(p.value, '$.toolName'), json_extract(p.value, '$.status') IS 'complete',
+           json_extract(p.value, '$.result.executionMs'), m.created_at
+    FROM chat_messages m, json_each(CASE WHEN json_valid(m.data) THEN m.data END, '$.parts') p
+    WHERE (?1 IS NULL OR m.chat_id = ?1)
+      AND json_extract(p.value, '$.type') = 'tool_call' AND json_extract(p.value, '$.toolName') IS NOT NULL";
 
 /// Dictations made in the app, newest first.
 const DICTATIONS_DDL: &str = "
@@ -324,6 +366,7 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(assets::DDL).map_err(|e| format!("create assets: {}", e))?;
     conn.execute_batch(assets::RECORDING_REMOVED_TRIGGER).map_err(|e| format!("create assets: {}", e))?;
     conn.execute_batch(DICTATIONS_DDL).map_err(|e| format!("create dictations table: {}", e))?;
+    conn.execute_batch(TOOL_CALLS_DDL).map_err(|e| format!("create tool calls table: {}", e))?;
 
     // FTS5 virtual tables (must be separate from execute_batch with the rebuild step)
     conn.execute_batch(
@@ -426,24 +469,6 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
     ))
     .map_err(|e| format!("create chat_vec_chunks: {}", e))?;
 
-    // Audit trail (§2.5)
-    conn.execute_batch(
-        "
-        CREATE TABLE IF NOT EXISTS audit_log (
-            id          TEXT PRIMARY KEY,
-            entity_type TEXT    NOT NULL,
-            entity_id   TEXT    NOT NULL,
-            operation   TEXT    NOT NULL CHECK(operation IN ('create','update','delete')),
-            actor       TEXT    NOT NULL DEFAULT 'app' CHECK(actor IN ('app','mcp','system')),
-            data        TEXT,
-            created_at  INTEGER NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_log(entity_type, entity_id, created_at);
-        CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at DESC);
-        ",
-    )
-    .map_err(|e| format!("create audit_log: {}", e))?;
-
     // Insert metadata
     conn.execute_batch(&format!(
         "
@@ -506,7 +531,7 @@ mod tests {
             "vec_chunks",
             "chat_vec_chunks",
             "usage_log",
-            "audit_log",
+            "tool_calls",
         ];
 
         let mut stmt = conn
@@ -712,27 +737,6 @@ mod tests {
             params!["msg1", "c1", 0, "bot", "hi", now],
         );
         assert!(err.is_err(), "chat_messages.role should reject 'bot'");
-
-        // audit_log.operation CHECK
-        let err = conn.execute(
-            "INSERT INTO audit_log (id, entity_type, entity_id, operation, actor, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params!["a1", "meeting", "m1", "remove", "app", now],
-        );
-        assert!(err.is_err(), "audit_log.operation should reject 'remove'");
-
-        // audit_log.actor CHECK
-        let err = conn.execute(
-            "INSERT INTO audit_log (id, entity_type, entity_id, operation, actor, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params!["a2", "meeting", "m1", "create", "user", now],
-        );
-        assert!(err.is_err(), "audit_log.actor should reject 'user'");
-
-        // 'upsert' is not a valid operation; commands must map to create/update/delete.
-        let err = conn.execute(
-            "INSERT INTO audit_log (id, entity_type, entity_id, operation, actor, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params!["a3", "reminder", "t1", "upsert", "app", now],
-        );
-        assert!(err.is_err(), "audit_log.operation should reject 'upsert'");
     }
 
     #[test]

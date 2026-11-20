@@ -472,6 +472,8 @@ pub struct ProviderModelBreakdown {
     pub cache_write_tokens: i64,
     pub reasoning_tokens: i64,
     pub estimated_cost: f64,
+    /// Calls with no known price (cloud models models.dev doesn't price): left out of `estimated_cost`, never counted as free.
+    pub unpriced_calls: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -481,6 +483,19 @@ pub struct CategoryBreakdown {
     pub input_tokens: i64,
     pub output_tokens: i64,
     pub estimated_cost: f64,
+    /// Calls with no known price, left out of `estimated_cost`.
+    pub unpriced_calls: i64,
+}
+
+/// One tool's calls in a window: how many, how many failed, how long they took on average, and the last one.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ToolBreakdown {
+    pub tool: String,
+    pub calls: i64,
+    pub failed: i64,
+    /// None when no call recorded its time.
+    pub avg_ms: Option<f64>,
+    pub last_used: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -496,6 +511,8 @@ pub struct UsageSummary {
     pub first_timestamp: Option<i64>,
     pub by_provider_model: Vec<ProviderModelBreakdown>,
     pub by_category: Vec<CategoryBreakdown>,
+    /// The AI's tool calls in chats, most used first.
+    pub by_tool: Vec<ToolBreakdown>,
     /// Totals per local day or month, oldest first; only buckets with records, empty unless `bucket` was asked for.
     pub trend: Vec<UsageBucket>,
 }
@@ -538,21 +555,6 @@ pub(crate) fn now_millis() -> i64 {
 
 pub(crate) fn generate_id() -> String {
     uuid::Uuid::new_v4().to_string()
-}
-
-fn write_audit_log(
-    conn: &Connection,
-    entity_type: &str,
-    entity_id: &str,
-    operation: &str,
-    data: Option<&str>,
-) -> Result<(), StoreError> {
-    conn.execute(
-        "INSERT INTO audit_log (id, entity_type, entity_id, operation, actor, data, created_at)
-         VALUES (?1, ?2, ?3, ?4, 'app', ?5, ?6)",
-        rusqlite::params![generate_id(), entity_type, entity_id, operation, data, now_millis()],
-    )?;
-    Ok(())
 }
 
 fn upsert_categories(
@@ -864,11 +866,6 @@ fn meetings_upsert_impl(db: &Connection, input: &MeetingUpsertInput) -> Result<(
         let now = now_millis();
 
         let tx = db.unchecked_transaction()?;
-        let is_new: bool = tx.query_row(
-            "SELECT COUNT(*) FROM meetings WHERE id = ?1",
-            [&input.id],
-            |row| row.get::<_, i64>(0),
-        ).map(|c| c == 0)?;
 
         let created_at = input.created_at.unwrap_or(now);
         tx.execute(
@@ -899,8 +896,6 @@ fn meetings_upsert_impl(db: &Connection, input: &MeetingUpsertInput) -> Result<(
             }
         }
 
-        let op = if is_new { "create" } else { "update" };
-        write_audit_log(&tx, "meeting", &input.id, op, None)?;
 
         tx.commit()?;
         Ok(())
@@ -959,7 +954,6 @@ pub(crate) fn delete_meeting_rows(tx: &Connection, id: &str) -> Result<(), Store
     tx.execute("DELETE FROM chunks WHERE meeting_id = ?1", [id])?;
     // CASCADE removes the meeting's transcripts, summaries, notes, todos, reminders, assets and index state.
     tx.execute("DELETE FROM meetings WHERE id = ?1", [id])?;
-    write_audit_log(tx, "meeting", id, "delete", None)?;
     log::info!("[store] Deleted meeting {} ({} chunks)", id, chunk_ids.len());
     Ok(())
 }
@@ -1012,7 +1006,6 @@ pub(crate) fn meetings_create_impl(db: &Connection, input: &MeetingCreateInput) 
         if let Some(transcript) = &input.transcript {
             write_transcript(&tx, &input.id, transcript)?;
         }
-        write_audit_log(&tx, "meeting", &input.id, "create", None)?;
         tx.commit()?;
         Ok(true)
 }
@@ -1046,7 +1039,6 @@ fn write_transcript(tx: &Connection, meeting_id: &str, transcript: &NewTranscrip
 fn transcripts_save_impl(db: &Connection, input: &TranscriptSaveInput) -> Result<(), StoreError> {
         let tx = db.unchecked_transaction()?;
         write_transcript(&tx, &input.meeting_id, &input.transcript)?;
-        write_audit_log(&tx, "meeting", &input.meeting_id, "update", None)?;
         tx.commit()?;
         Ok(())
 }
@@ -1104,7 +1096,6 @@ fn summaries_save_impl(db: &Connection, input: &SummarySaveInput) -> Result<Summ
             added.push(id);
         }
         meetings_set_status_impl(&tx, &input.meeting_id, &MeetingStatus::at("ready"))?;
-        write_audit_log(&tx, "meeting", &input.meeting_id, "update", None)?;
         tx.commit()?;
         log::info!(
             "[store] Saved summary for meeting {}: action_items={} replaced={}",
@@ -1205,7 +1196,6 @@ pub async fn categories_rename(
         if affected == 0 {
             return Err(StoreError::from("Category not found"));
         }
-        write_audit_log(db, "category", &id, "update", Some(&format!("name={}", name)))?;
         Ok(())
     })
     .await
@@ -1227,7 +1217,6 @@ pub async fn categories_create(
             "INSERT INTO categories (id, name, created_at) VALUES (?1, ?2, ?3)",
             rusqlite::params![id, name, now],
         )?;
-        write_audit_log(db, "category", &id, "create", Some(&format!("name={}", name)))?;
         Ok(CategoryRow { id, name, created_at: now })
     })
     .await
@@ -1248,7 +1237,6 @@ pub async fn categories_delete(
         if affected == 0 {
             return Err(StoreError::from("Category not found"));
         }
-        write_audit_log(&tx, "category", &id, "delete", None)?;
         tx.commit()?;
         Ok(())
     })
@@ -1301,11 +1289,6 @@ pub async fn notes_upsert(
         let created_at = input.created_at.unwrap_or(now);
 
         let tx = db.unchecked_transaction()?;
-        let is_new: bool = tx.query_row(
-            "SELECT COUNT(*) FROM notes WHERE id = ?1",
-            [&input.id],
-            |row| row.get::<_, i64>(0),
-        ).map(|c| c == 0)?;
 
         tx.execute(
             "INSERT INTO notes (id, meeting_id, text, created_at, updated_at)
@@ -1314,8 +1297,6 @@ pub async fn notes_upsert(
             rusqlite::params![input.id, input.meeting_id, input.text, created_at, now],
         )?;
 
-        let op = if is_new { "create" } else { "update" };
-        write_audit_log(&tx, "note", &input.id, op, None)?;
 
         tx.commit()?;
         Ok::<_, StoreError>(())
@@ -1342,7 +1323,6 @@ pub async fn notes_delete(
         if affected == 0 {
             return Err(StoreError::from("Note not found"));
         }
-        write_audit_log(&tx, "note", &id, "delete", None)?;
         tx.commit()?;
         Ok::<_, StoreError>(meeting_id)
     })
@@ -1468,11 +1448,6 @@ fn todos_upsert_impl(db: &Connection, input: &TodoUpsertInput) -> Result<(), Sto
         let created_at = input.created_at.unwrap_or(now);
 
         let tx = db.unchecked_transaction()?;
-        let is_new: bool = tx.query_row(
-            "SELECT COUNT(*) FROM todos WHERE id = ?1",
-            [&input.id],
-            |row| row.get::<_, i64>(0),
-        ).map(|c| c == 0)?;
 
         tx.execute(
             "INSERT INTO todos (id, meeting_id, text, owner, due_date, completed, source, created_at)
@@ -1500,8 +1475,6 @@ fn todos_upsert_impl(db: &Connection, input: &TodoUpsertInput) -> Result<(), Sto
             ],
         )?;
 
-        let op = if is_new { "create" } else { "update" };
-        write_audit_log(&tx, "todo", &input.id, op, None)?;
 
         tx.commit()?;
         Ok(())
@@ -1535,7 +1508,6 @@ fn todos_set_completed_impl(db: &Connection, id: &str, completed: bool) -> Resul
         if affected == 0 {
             return Err(StoreError::from("Todo not found"));
         }
-        write_audit_log(db, "todo", id, "update", Some(&format!("completed={}", completed)))?;
         Ok(())
 }
 
@@ -1567,7 +1539,6 @@ fn todos_delete_impl(db: &Connection, id: &str) -> Result<(), StoreError> {
         if affected == 0 {
             return Err(StoreError::from("Todo not found"));
         }
-        write_audit_log(&tx, "todo", id, "delete", None)?;
         tx.commit()?;
         Ok(())
 }
@@ -1604,11 +1575,6 @@ fn reminders_upsert_impl(
         let now = now_millis();
 
         let tx = db.unchecked_transaction()?;
-        let is_new: bool = tx.query_row(
-            "SELECT COUNT(*) FROM reminders WHERE todo_id = ?1",
-            [&todo_id],
-            |row| row.get::<_, i64>(0),
-        ).map(|c| c == 0)?;
         tx.execute(
             "INSERT INTO reminders (todo_id, notification_id, fire_at, status, created_at)
              VALUES (?1, ?2, ?3, 'scheduled', ?4)
@@ -1618,8 +1584,6 @@ fn reminders_upsert_impl(
                 status = 'scheduled'",
             rusqlite::params![todo_id, notification_id, fire_at, now],
         )?;
-        let op = if is_new { "create" } else { "update" };
-        write_audit_log(&tx, "reminder", todo_id, op, None)?;
         tx.commit()?;
         Ok(())
 }
@@ -1649,7 +1613,6 @@ fn reminders_set_status_impl(db: &Connection, todo_id: &str, status: &str) -> Re
         if affected == 0 {
             return Err(StoreError::from("Reminder not found"));
         }
-        write_audit_log(db, "reminder", todo_id, "update", Some(&format!("status={}", status)))?;
         Ok(())
 }
 
@@ -1771,18 +1734,11 @@ pub async fn settings_set(
         let now = now_millis();
 
         let tx = db.unchecked_transaction()?;
-        let is_new: bool = tx.query_row(
-            "SELECT COUNT(*) FROM settings WHERE key = ?1",
-            [&input.key],
-            |row| row.get::<_, i64>(0),
-        ).map(|c| c == 0)?;
         tx.execute(
             "INSERT INTO settings (key, value, updated_at) VALUES (?1, ?2, ?3)
              ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
             rusqlite::params![input.key, input.value, now],
         )?;
-        let op = if is_new { "create" } else { "update" };
-        write_audit_log(&tx, "setting", &input.key, op, Some(&format!("value={}", input.value)))?;
         tx.commit()?;
         Ok(())
     })
@@ -1847,11 +1803,6 @@ pub async fn providers_upsert(
         let data = crate::keychain::with_key_in_settings(input.data, "");
 
         let tx = db.unchecked_transaction()?;
-        let is_new: bool = tx.query_row(
-            "SELECT COUNT(*) FROM providers WHERE provider = ?1",
-            [&input.provider],
-            |row| row.get::<_, i64>(0),
-        ).map(|c| c == 0)?;
 
         tx.execute(
             "INSERT INTO providers (provider, active, base_url, data, updated_at)
@@ -1870,8 +1821,6 @@ pub async fn providers_upsert(
             ],
         )?;
 
-        let op = if is_new { "create" } else { "update" };
-        write_audit_log(&tx, "provider", &input.provider, op, None)?;
 
         tx.commit()?;
         Ok(())
@@ -1899,7 +1848,6 @@ pub async fn providers_set_active(
         if affected == 0 {
             return Err(StoreError::from("Provider not found"));
         }
-        write_audit_log(db, "provider", &provider, "update", Some(&format!("active={}", active)))?;
         Ok(())
     })
     .await
@@ -1921,7 +1869,6 @@ pub async fn providers_delete(
             return Err(StoreError::from("Provider not found"));
         }
         crate::keychain::remove(&provider)?;
-        write_audit_log(db, "provider", &provider, "delete", None)?;
         Ok(())
     })
     .await
@@ -2221,11 +2168,6 @@ fn chats_upsert_impl(db: &Connection, input: &ChatsUpsertInput) -> Result<(), St
 
         let tx = db.unchecked_transaction()?;
 
-        let is_new: bool = tx.query_row(
-            "SELECT COUNT(*) FROM chats WHERE id = ?1",
-            [&input.id],
-            |row| row.get::<_, i64>(0),
-        ).map(|c| c == 0)?;
 
         let created_at = input.created_at.unwrap_or(now);
 
@@ -2240,10 +2182,11 @@ fn chats_upsert_impl(db: &Connection, input: &ChatsUpsertInput) -> Result<(), St
         )?;
 
         save_chat_messages(&tx, input)?;
+        // The chat's tool calls, as its messages now show them.
+        tx.execute("DELETE FROM tool_calls WHERE chat_id = ?1", [&input.id])?;
+        tx.execute(crate::schema::FILL_TOOL_CALLS, [&input.id])?;
 
-        let op = if is_new { "create" } else { "update" };
         assets::sync_chat_assets(&tx, &input.id, &input.asset_paths)?;
-        write_audit_log(&tx, "chat", &input.id, op, None)?;
 
         tx.commit()?;
         Ok(())
@@ -2296,7 +2239,6 @@ pub async fn chats_rename(
         if affected == 0 {
             return Err(StoreError::from("Chat session not found"));
         }
-        write_audit_log(db, "chat", &id, "update", Some(&format!("title={}", title)))?;
         Ok(())
     })
     .await
@@ -2323,7 +2265,6 @@ pub(crate) fn delete_chat_rows(tx: &Connection, id: &str) -> Result<(), StoreErr
     tx.execute("DELETE FROM chat_chunks WHERE chat_id = ?1", [id])?;
     // CASCADE removes the chat's messages, assets and index state.
     tx.execute("DELETE FROM chats WHERE id = ?1", [id])?;
-    write_audit_log(tx, "chat", id, "delete", None)?;
     Ok(())
 }
 
@@ -2402,7 +2343,6 @@ fn dictations_create_impl(db: &Connection, input: &DictationRow) -> Result<(), S
         "INSERT INTO dictations (id, text, created_at, duration_ms, model) VALUES (?1, ?2, ?3, ?4, ?5)",
         rusqlite::params![input.id, input.text, input.created_at, input.duration_ms, input.model],
     )?;
-    write_audit_log(&tx, "dictation", &input.id, "create", None)?;
     tx.commit()?;
     Ok(())
 }
@@ -2424,7 +2364,6 @@ fn dictations_delete_impl(db: &Connection, id: &str) -> Result<(), StoreError> {
     if tx.execute("DELETE FROM dictations WHERE id = ?1", [id])? == 0 {
         return Err(StoreError::from("Dictation not found"));
     }
-    write_audit_log(&tx, "dictation", id, "delete", None)?;
     tx.commit()?;
     Ok(())
 }
@@ -2632,6 +2571,21 @@ fn usage_trend(db: &Connection, q: &UsageQuery) -> Result<Vec<UsageBucket>, Stor
     Ok(rows)
 }
 
+/// The window's tool calls per tool, most used first (on the tool calls' time index).
+fn usage_tools(db: &Connection, q: &UsageQuery) -> Result<Vec<ToolBreakdown>, StoreError> {
+    let p = usage_params(q);
+    let rows = db
+        .prepare(
+            "SELECT tool, COUNT(*), SUM(ok = 0), AVG(duration_ms), MAX(created_at) FROM tool_calls
+             WHERE created_at >= ?1 AND created_at < ?2 GROUP BY tool ORDER BY COUNT(*) DESC, tool",
+        )?
+        .query_map(rusqlite::params![p.0, p.1], |row| {
+            Ok(ToolBreakdown { tool: row.get(0)?, calls: row.get(1)?, failed: row.get(2)?, avg_ms: row.get(3)?, last_used: row.get(4)? })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows)
+}
+
 fn usage_summary_impl(db: &Connection, q: &UsageQuery) -> Result<UsageSummary, StoreError> {
     let params = usage_params(q);
     let (total_cost, total_input, total_output, total_cache_read, total_calls, unpriced_calls, first_timestamp): (f64, i64, i64, i64, i64, i64, Option<i64>) = db
@@ -2649,7 +2603,7 @@ fn usage_summary_impl(db: &Connection, q: &UsageQuery) -> Result<UsageSummary, S
     let mut stmt = db.prepare(&format!(
         "SELECT provider, model, COUNT(*), SUM(input_tokens), SUM(output_tokens),
          SUM(COALESCE(cache_read_tokens, 0)), SUM(COALESCE(cache_write_tokens, 0)), SUM(COALESCE(reasoning_tokens, 0)),
-         SUM(COALESCE(estimated_cost, 0))
+         SUM(COALESCE(estimated_cost, 0)), SUM(estimated_cost IS NULL)
          FROM usage_log WHERE {USAGE_WHERE}
          GROUP BY provider, model ORDER BY SUM(COALESCE(estimated_cost, 0)) DESC, COUNT(*) DESC"
     ))?;
@@ -2665,12 +2619,13 @@ fn usage_summary_impl(db: &Connection, q: &UsageQuery) -> Result<UsageSummary, S
                 cache_write_tokens: row.get(6)?,
                 reasoning_tokens: row.get(7)?,
                 estimated_cost: row.get(8)?,
+                unpriced_calls: row.get(9)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
 
     let mut stmt = db.prepare(&format!(
-        "SELECT category, COUNT(*), SUM(input_tokens), SUM(output_tokens), SUM(COALESCE(estimated_cost, 0))
+        "SELECT category, COUNT(*), SUM(input_tokens), SUM(output_tokens), SUM(COALESCE(estimated_cost, 0)), SUM(estimated_cost IS NULL)
          FROM usage_log WHERE {USAGE_WHERE}
          GROUP BY category ORDER BY SUM(COALESCE(estimated_cost, 0)) DESC, COUNT(*) DESC"
     ))?;
@@ -2682,6 +2637,7 @@ fn usage_summary_impl(db: &Connection, q: &UsageQuery) -> Result<UsageSummary, S
                 input_tokens: row.get(2)?,
                 output_tokens: row.get(3)?,
                 estimated_cost: row.get(4)?,
+                unpriced_calls: row.get(5)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -2696,6 +2652,7 @@ fn usage_summary_impl(db: &Connection, q: &UsageQuery) -> Result<UsageSummary, S
         first_timestamp,
         by_provider_model,
         by_category,
+        by_tool: usage_tools(db, q)?,
         trend: usage_trend(db, q)?,
     })
 }
@@ -2921,31 +2878,16 @@ pub(crate) mod tests {
         assert_eq!(todo_meeting_id(&conn, "missing").unwrap(), None);
     }
 
-    fn audit_ops(conn: &Connection, entity_type: &str, entity_id: &str) -> Vec<String> {
-        let mut stmt = conn
-            .prepare(
-                // rowid is insertion order; created_at can tie within a millisecond and `id` is random.
-                "SELECT operation FROM audit_log
-                 WHERE entity_type = ?1 AND entity_id = ?2
-                 ORDER BY rowid",
-            )
-            .unwrap();
-        stmt.query_map(rusqlite::params![entity_type, entity_id], |r| r.get::<_, String>(0))
-            .unwrap()
-            .filter_map(|r| r.ok())
-            .collect()
-    }
-
     fn count(conn: &Connection, sql: &str, id: &str) -> i64 {
         conn.query_row(sql, [id], |r| r.get(0)).unwrap()
     }
 
     // ── Reminders regression (historical bug #1) ──────────────────────
 
-    // A reminder save must write a create/update audit op; "upsert" fails the CHECK and rolls back.
+    // A reminder saves and saves again (create, then update).
 
     #[test]
-    fn reminders_upsert_writes_valid_audit_op_and_persists() {
+    fn reminders_upsert_persists_and_updates() {
         let conn = db();
         seed_meeting(&conn, "m1");
         seed_todo(&conn, "t1", "m1");
@@ -2957,7 +2899,6 @@ pub(crate) mod tests {
             .query_row("SELECT status FROM reminders WHERE todo_id = 't1'", [], |r| r.get(0))
             .expect("reminder row exists");
         assert_eq!(status, "scheduled");
-        assert_eq!(audit_ops(&conn, "reminder", "t1"), vec!["create"]);
 
         // Second call for the same todo → update path, no duplicate row.
         reminders_upsert_impl(&conn, "t1", 99, 2_000).expect("second upsert ok");
@@ -2977,15 +2918,10 @@ pub(crate) mod tests {
         assert_eq!(notif, 99, "updated notification_id");
         assert_eq!(fire_at, 2_000, "updated fire_at");
 
-        assert_eq!(
-            audit_ops(&conn, "reminder", "t1"),
-            vec!["create", "update"],
-            "second audit op must be a valid 'update'"
-        );
     }
 
     #[test]
-    fn reminders_set_status_updates_and_audits() {
+    fn reminders_set_status_updates() {
         let conn = db();
         seed_meeting(&conn, "m1");
         seed_todo(&conn, "t1", "m1");
@@ -3022,12 +2958,11 @@ pub(crate) mod tests {
     // ── Todos ─────────────────────────────────────────────────────────
 
     #[test]
-    fn todos_upsert_create_then_update_audits_correctly() {
+    fn todos_upsert_create_then_update() {
         let conn = db();
         seed_meeting(&conn, "m1");
 
         seed_todo(&conn, "t1", "m1");
-        assert_eq!(audit_ops(&conn, "todo", "t1"), vec!["create"]);
 
         // Update path.
         todos_upsert_impl(
@@ -3044,7 +2979,6 @@ pub(crate) mod tests {
             },
         )
         .unwrap();
-        assert_eq!(audit_ops(&conn, "todo", "t1"), vec!["create", "update"]);
 
         let text: String = conn
             .query_row("SELECT text FROM todos WHERE id = 't1'", [], |r| r.get(0))
