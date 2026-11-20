@@ -48,8 +48,6 @@ export function mlxChat(model: string, request: MlxChatRequest, onEvent: (event:
 
 export const mlxCancel = (streamId: number): Promise<void> => invoke('mlx_cancel', { streamId });
 
-/** Unit-length vectors for `texts`, in order. */
-export const mlxEmbed = (model: string, texts: string[]): Promise<number[][]> => invoke<number[][]>('mlx_embed', { model, texts });
 
 /** Follows an on-device chat model's load (MLX reports its start and end): "Loading weights" until loaded or failed.
  *  Subscribed before the request, so the start can't be missed; resolves the unsubscribe. */

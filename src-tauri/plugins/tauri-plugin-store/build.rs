@@ -1,11 +1,7 @@
 const COMMANDS: &[&str] = &[
     // Init / maintenance
     "initialize",
-    "get_meta",
     "get_stats",
-    "rebuild",
-    "rebuild_fts",
-    "get_indexed_ids",
     // Meeting domain
     "meetings_get",
     "meetings_existing",
@@ -64,24 +60,7 @@ const COMMANDS: &[&str] = &[
     "providers_set_active",
     "providers_delete",
     // RAG indexing (meeting)
-    "upsert_meeting_index",
-    "upsert_chunks",
-    "append_chunks",
-    "meetings_search",
-    "get_stale_meetings",
-    "get_meetings_needing_embeddings",
-    "mark_meeting_embedded",
-    "mark_meeting_content_indexed",
     // RAG indexing (chat)
-    "mark_chat_content_indexed",
-    "mark_chat_indexed",
-    "upsert_chat_chunks",
-    "embedded_chunk_texts",
-    "chat_is_stale",
-    "chats_get_stale",
-    "get_chats_needing_embeddings",
-    "mark_chat_embedded",
-    "chats_search",
     // Spotlight
     "search_sessions",
     // Usage

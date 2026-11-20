@@ -3,8 +3,7 @@
 import { z } from 'zod';
 import type { MeetingCitation } from '@extensions/tools/types';
 import { defineTool, fail, limit, ok, text, toolDate } from '@extensions/tools/contract';
-import { ragSearcher } from '@extensions/rag/searcher';
-import { vectorDB } from '@extensions/rag/client';
+import { searchMeetings } from '@extensions/rag/searchIndex';
 import { SCORE_HIGH, SCORE_MEDIUM } from '@extensions/rag/constants';
 import { errorMessage } from '@shared/utils/errors';
 
@@ -23,9 +22,7 @@ export const searchMeetingsTool = defineTool({
   async execute({ query, limit: count }, context) {
     let results;
     try {
-      // Meetings are indexed as they're saved; the search reads that index as it is.
-      await vectorDB.initialize();
-      results = await ragSearcher.search(query, { limit: count, mode: 'hybrid' });
+      results = await searchMeetings(query, count);
     } catch (error) {
       console.error('[SearchMeetingsTool] Search failed:', error);
       return fail(`Search failed: ${errorMessage(error)}`);

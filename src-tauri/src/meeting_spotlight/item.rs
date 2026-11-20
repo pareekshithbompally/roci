@@ -92,6 +92,7 @@ mod tests {
             created_at: 1_700_000_000_000,
             updated_at: 1_700_000_000_000,
             categories: Vec::new(),
+            audio_removed_at: None,
             transcript: Some(TranscriptRow {
                 text: "secret spoken words".into(),
                 language: None,

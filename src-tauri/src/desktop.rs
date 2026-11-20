@@ -1,7 +1,7 @@
 //! macOS: the full app (menu bar, shortcuts, audio capture, MCP, coding agents …).
 
 use crate::{
-  app_icon, audio, autostart, call_detection, choice_menu, downloads, hex, mcp, mcp_server, meeting_reminders, meeting_spotlight,
+  app_icon, audio, autostart, call_detection, choice_menu, downloads, hex, mcp, mcp_server, meeting_reminders, meeting_spotlight, search_index,
   menubar, mlx, models, native_alert, open_native, permissions, screenshot, shortcuts, stt, system_format, tts, updates, url_actions, window,
 };
 use std::sync::Mutex;
@@ -109,7 +109,11 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       tts::commands::tts_chunks,
       mlx::mlx_chat,
       mlx::mlx_cancel,
-      mlx::mlx_embed,
+      search_index::search_meetings,
+      search_index::search_meeting_within,
+      search_index::search_chats,
+      search_index::index_stretch,
+      search_index::rebuild_search_index,
       // MCP client (servers, tools, calls)
       mcp::commands::get_mcp_configs,
       mcp::commands::save_mcp_configs,
@@ -175,6 +179,8 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
 
   // Meetings in Spotlight: follows meeting writes; idle until the frontend turns it on.
   meeting_spotlight::start(app.handle().clone());
+  // Search: meetings and chats are indexed in Rust as they're saved.
+  search_index::start(app.handle().clone());
 
   // Login-item / autostart launches pass --minimized: start hidden.
   if std::env::args().any(|arg| arg == "--minimized")

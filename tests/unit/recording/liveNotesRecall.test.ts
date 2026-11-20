@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const refresh = vi.hoisted(() => vi.fn());
 const rag = vi.hoisted(() => ({ appendTranscript: vi.fn(), searchWithin: vi.fn() }));
 vi.mock('@services/ai/liveNotes', () => ({ refreshLiveNotes: refresh }));
-vi.mock('@extensions/rag', () => ({ ragIndexer: { appendTranscript: rag.appendTranscript }, ragSearcher: { searchWithin: rag.searchWithin } }));
+vi.mock('@extensions/rag', () => ({ indexStretch: rag.appendTranscript, searchMeetingWithin: rag.searchWithin }));
 
 import { liveNotes } from '@features/recording/notes/liveNotesStore';
 import type { LiveEntry } from '@features/recording/live/liveTranscript';

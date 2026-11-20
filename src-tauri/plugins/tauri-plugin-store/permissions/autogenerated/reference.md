@@ -5,11 +5,7 @@ Allows all store plugin commands
 #### This default permission set includes the following:
 
 - `allow-initialize`
-- `allow-get-meta`
 - `allow-get-stats`
-- `allow-rebuild`
-- `allow-rebuild-fts`
-- `allow-get-indexed-ids`
 - `allow-meetings-get`
 - `allow-meetings-existing`
 - `allow-meetings-upsert`
@@ -60,23 +56,6 @@ Allows all store plugin commands
 - `allow-providers-upsert`
 - `allow-providers-set-active`
 - `allow-providers-delete`
-- `allow-upsert-meeting-index`
-- `allow-upsert-chunks`
-- `allow-append-chunks`
-- `allow-meetings-search`
-- `allow-get-stale-meetings`
-- `allow-get-meetings-needing-embeddings`
-- `allow-mark-meeting-embedded`
-- `allow-mark-meeting-content-indexed`
-- `allow-mark-chat-content-indexed`
-- `allow-mark-chat-indexed`
-- `allow-upsert-chat-chunks`
-- `allow-embedded-chunk-texts`
-- `allow-chat-is-stale`
-- `allow-chats-get-stale`
-- `allow-get-chats-needing-embeddings`
-- `allow-mark-chat-embedded`
-- `allow-chats-search`
 - `allow-search-sessions`
 - `allow-insert-usage`
 - `allow-get-usage-summary`
@@ -91,32 +70,6 @@ Allows all store plugin commands
 <th>Description</th>
 </tr>
 
-
-<tr>
-<td>
-
-`store:allow-append-chunks`
-
-</td>
-<td>
-
-Enables the append_chunks command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-append-chunks`
-
-</td>
-<td>
-
-Denies the append_chunks command without any pre-configured scope.
-
-</td>
-</tr>
 
 <tr>
 <td>
@@ -303,32 +256,6 @@ Denies the categories_rename command without any pre-configured scope.
 <tr>
 <td>
 
-`store:allow-chat-is-stale`
-
-</td>
-<td>
-
-Enables the chat_is_stale command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-chat-is-stale`
-
-</td>
-<td>
-
-Denies the chat_is_stale command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
 `store:allow-chats-delete`
 
 </td>
@@ -381,32 +308,6 @@ Denies the chats_get command without any pre-configured scope.
 <tr>
 <td>
 
-`store:allow-chats-get-stale`
-
-</td>
-<td>
-
-Enables the chats_get_stale command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-chats-get-stale`
-
-</td>
-<td>
-
-Denies the chats_get_stale command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
 `store:allow-chats-rename`
 
 </td>
@@ -426,32 +327,6 @@ Enables the chats_rename command without any pre-configured scope.
 <td>
 
 Denies the chats_rename command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-chats-search`
-
-</td>
-<td>
-
-Enables the chats_search command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-chats-search`
-
-</td>
-<td>
-
-Denies the chats_search command without any pre-configured scope.
 
 </td>
 </tr>
@@ -563,84 +438,6 @@ Denies the dictations_list command without any pre-configured scope.
 <tr>
 <td>
 
-`store:allow-embedded-chunk-texts`
-
-</td>
-<td>
-
-Enables the embedded_chunk_texts command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-embedded-chunk-texts`
-
-</td>
-<td>
-
-Denies the embedded_chunk_texts command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-get-chats-needing-embeddings`
-
-</td>
-<td>
-
-Enables the get_chats_needing_embeddings command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-get-chats-needing-embeddings`
-
-</td>
-<td>
-
-Denies the get_chats_needing_embeddings command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-get-indexed-ids`
-
-</td>
-<td>
-
-Enables the get_indexed_ids command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-get-indexed-ids`
-
-</td>
-<td>
-
-Denies the get_indexed_ids command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
 `store:allow-get-meeting-usage`
 
 </td>
@@ -660,84 +457,6 @@ Enables the get_meeting_usage command without any pre-configured scope.
 <td>
 
 Denies the get_meeting_usage command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-get-meetings-needing-embeddings`
-
-</td>
-<td>
-
-Enables the get_meetings_needing_embeddings command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-get-meetings-needing-embeddings`
-
-</td>
-<td>
-
-Denies the get_meetings_needing_embeddings command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-get-meta`
-
-</td>
-<td>
-
-Enables the get_meta command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-get-meta`
-
-</td>
-<td>
-
-Denies the get_meta command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-get-stale-meetings`
-
-</td>
-<td>
-
-Enables the get_stale_meetings command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-get-stale-meetings`
-
-</td>
-<td>
-
-Denies the get_stale_meetings command without any pre-configured scope.
 
 </td>
 </tr>
@@ -927,136 +646,6 @@ Denies the items_page command without any pre-configured scope.
 <tr>
 <td>
 
-`store:allow-mark-chat-content-indexed`
-
-</td>
-<td>
-
-Enables the mark_chat_content_indexed command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-mark-chat-content-indexed`
-
-</td>
-<td>
-
-Denies the mark_chat_content_indexed command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-mark-chat-embedded`
-
-</td>
-<td>
-
-Enables the mark_chat_embedded command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-mark-chat-embedded`
-
-</td>
-<td>
-
-Denies the mark_chat_embedded command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-mark-chat-indexed`
-
-</td>
-<td>
-
-Enables the mark_chat_indexed command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-mark-chat-indexed`
-
-</td>
-<td>
-
-Denies the mark_chat_indexed command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-mark-meeting-content-indexed`
-
-</td>
-<td>
-
-Enables the mark_meeting_content_indexed command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-mark-meeting-content-indexed`
-
-</td>
-<td>
-
-Denies the mark_meeting_content_indexed command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-mark-meeting-embedded`
-
-</td>
-<td>
-
-Enables the mark_meeting_embedded command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-mark-meeting-embedded`
-
-</td>
-<td>
-
-Denies the mark_meeting_embedded command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
 `store:allow-meetings-begin-step`
 
 </td>
@@ -1232,32 +821,6 @@ Enables the meetings_rename command without any pre-configured scope.
 <td>
 
 Denies the meetings_rename command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-meetings-search`
-
-</td>
-<td>
-
-Enables the meetings_search command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-meetings-search`
-
-</td>
-<td>
-
-Denies the meetings_search command without any pre-configured scope.
 
 </td>
 </tr>
@@ -1570,58 +1133,6 @@ Enables the providers_upsert command without any pre-configured scope.
 <td>
 
 Denies the providers_upsert command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-rebuild`
-
-</td>
-<td>
-
-Enables the rebuild command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-rebuild`
-
-</td>
-<td>
-
-Denies the rebuild command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-rebuild-fts`
-
-</td>
-<td>
-
-Enables the rebuild_fts command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-rebuild-fts`
-
-</td>
-<td>
-
-Denies the rebuild_fts command without any pre-configured scope.
 
 </td>
 </tr>
@@ -2064,84 +1575,6 @@ Enables the transcripts_save command without any pre-configured scope.
 <td>
 
 Denies the transcripts_save command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-upsert-chat-chunks`
-
-</td>
-<td>
-
-Enables the upsert_chat_chunks command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-upsert-chat-chunks`
-
-</td>
-<td>
-
-Denies the upsert_chat_chunks command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-upsert-chunks`
-
-</td>
-<td>
-
-Enables the upsert_chunks command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-upsert-chunks`
-
-</td>
-<td>
-
-Denies the upsert_chunks command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-upsert-meeting-index`
-
-</td>
-<td>
-
-Enables the upsert_meeting_index command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-upsert-meeting-index`
-
-</td>
-<td>
-
-Denies the upsert_meeting_index command without any pre-configured scope.
 
 </td>
 </tr>

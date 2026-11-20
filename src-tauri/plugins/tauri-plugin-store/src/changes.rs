@@ -34,6 +34,28 @@ pub(crate) fn notify(change: MeetingChange) {
     }
 }
 
+type ChatHandler = Arc<dyn Fn(&str) + Send + Sync>;
+
+static CHAT_HANDLERS: Mutex<Vec<ChatHandler>> = Mutex::new(Vec::new());
+
+/// Register a handler called after every committed chat save (its id), on the writer's thread.
+pub fn on_chat_saved(handler: impl Fn(&str) + Send + Sync + 'static) {
+    if let Ok(mut handlers) = CHAT_HANDLERS.lock() {
+        handlers.push(Arc::new(handler));
+    }
+}
+
+/// Call after commit and lock release.
+pub(crate) fn notify_chat_saved(id: &str) {
+    let handlers: Vec<ChatHandler> = match CHAT_HANDLERS.lock() {
+        Ok(handlers) => handlers.clone(),
+        Err(_) => return,
+    };
+    for handler in handlers {
+        handler(id);
+    }
+}
+
 /// Blocking; never on the main thread. Empty until the database is open.
 pub fn meeting_ids<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<String>, StoreError> {
     let state = app.state::<StoreState>();

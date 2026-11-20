@@ -8,7 +8,7 @@ import { errorMessage } from '@shared/utils/errors';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { LiveEntry } from '@features/recording/live/liveTranscript';
 import { formatClock } from '@features/recording/stores/recordingStore';
-import { ragIndexer, ragSearcher } from '@extensions/rag';
+import { indexStretch, searchMeetingWithin } from '@extensions/rag';
 import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
 import {
   changedNotes, changesFromReply, enhancedBullets, entryKey, liveNotesRequest, mergeBullets, notesSeen, NO_RECALL, recallOf, reconcileLines,
@@ -68,7 +68,7 @@ async function recallFor(current: Session, meetingId: string, lines: NoteLine[],
   const notes = changedNotes(lines, current.seen);
   const queries = transcript ? [...notes, transcript] : notes;
   if (queries.length === 0 || current.spans.size === 0) return NO_RECALL;
-  const hits = await ragSearcher.searchWithin(meetingId, queries, NOTES.recall.passagesPerQuery);
+  const hits = await searchMeetingWithin(meetingId, queries, NOTES.recall.passagesPerQuery);
   const texts = hits.map((found) => found.map((hit) => hit.chunkText));
   return recallOf(texts.slice(0, notes.length), texts.flat(), current.spans);
 }
@@ -76,8 +76,7 @@ async function recallFor(current: Session, meetingId: string, lines: NoteLine[],
 /** Indexes the stretch an applied update covered — after it, never before one — so later updates can recall it. */
 function remember(current: Session, meetingId: string, transcript: string, span: Span): void {
   if (!transcript) return;
-  ragIndexer
-    .appendTranscript(meetingId, transcript)
+  indexStretch(meetingId, transcript)
     .then((texts) => texts.forEach((text) => current.spans.set(text, span)))
     .catch((error: unknown) => console.error('[liveNotes] Indexing the stretch failed:', error));
 }

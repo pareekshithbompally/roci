@@ -2,7 +2,7 @@
 
 use tauri::{App, AppHandle, Builder, Manager, RunEvent, WebviewWindowBuilder, Wry};
 
-use crate::{audio, mcp, meeting_reminders, mlx, models, permissions, stt, tts};
+use crate::{audio, mcp, meeting_reminders, mlx, models, permissions, search_index, stt, tts};
 
 unsafe extern "C" {
   /// native/RociWebView.swift: pinned page, resized above the keyboard, no form toolbar.
@@ -41,7 +41,11 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       models::local_models_set_idle,
       mlx::mlx_chat,
       mlx::mlx_cancel,
-      mlx::mlx_embed,
+      search_index::search_meetings,
+      search_index::search_meeting_within,
+      search_index::search_chats,
+      search_index::index_stretch,
+      search_index::rebuild_search_index,
       stt::commands::stt_transcribe,
       stt::commands::stt_live_start,
       stt::commands::stt_live_feed,
@@ -73,6 +77,8 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
   crate::system_format::watch(app.handle().clone());
   // On-device model loads show in the activity tray.
   mlx::report_loads(app.handle());
+  // Search: meetings and chats are indexed in Rust as they're saved.
+  search_index::start(app.handle().clone());
   // MCP: connect the remote servers the user left enabled.
   tauri::async_runtime::spawn(mcp::start_active_servers(app.handle().clone()));
   if let Some(window) = app.get_webview_window("main") {

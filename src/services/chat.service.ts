@@ -2,7 +2,6 @@
 
 import type { ChatSession } from '@shared/types';
 import { store } from '@services/db';
-import { chatIndexer } from '@extensions/rag/chat-indexer';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 
@@ -16,12 +15,9 @@ class ChatService {
     }
   }
 
-  /** Writes a session; the vector index follows in the background. Throws when the write fails. */
+  /** Writes a session (search indexes it from the store's own save event). Throws when the write fails. */
   async persistSession(session: ChatSession): Promise<void> {
     await store.chats.upsert(session);
-    chatIndexer.indexSession(session).catch((error: unknown) =>
-      console.error('[ChatService] Chat indexing failed (non-fatal):', session.id, error)
-    );
   }
 
   /** Deletes a session with everything it owns (messages, files, search index) in one store write; throws when it fails. */

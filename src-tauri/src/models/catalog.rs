@@ -332,6 +332,11 @@ pub fn find(id: &str) -> Result<&'static LocalModel, LocalError> {
     MODELS.iter().find(|m| m.id == id).ok_or_else(|| LocalError::UnknownModel(id.to_string()))
 }
 
+/// The embedding model search uses: the catalog's one embedding model.
+pub fn search_embedder() -> Result<&'static LocalModel, LocalError> {
+    MODELS.iter().find(|m| m.kind == Kind::Embedding).ok_or_else(|| LocalError::UnknownModel("embedding".into()))
+}
+
 /// A model that must be of `kind` (a speech engine never loads a voice).
 pub fn find_kind(id: &str, kind: Kind) -> Result<&'static LocalModel, LocalError> {
     find(id).and_then(|m| if m.kind == kind { Ok(m) } else { Err(LocalError::UnknownModel(id.to_string())) })

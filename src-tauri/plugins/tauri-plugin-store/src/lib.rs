@@ -5,6 +5,7 @@ mod commands;
 #[cfg(test)]
 mod consistency;
 mod error;
+pub mod index;
 mod meeting_steps;
 mod pipeline;
 mod retention;
@@ -13,7 +14,9 @@ mod search;
 mod session_search;
 mod usage;
 
-pub use changes::{meeting_detail, meeting_ids, on_meeting_change, MeetingChange};
+pub use changes::{meeting_detail, meeting_ids, on_chat_saved, on_meeting_change, MeetingChange};
+pub use commands::ChatSearchHit;
+pub use search::SearchHit;
 pub use commands::{MeetingCreateInput, MeetingDetail, MeetingStatus, NoteRow, SummaryRow, TodoRow, TranscriptRow};
 pub use meeting_steps::interrupted_meetings;
 pub use pipeline::{create_meeting, delete_meeting, meetings_with_status, set_meeting_status};
@@ -54,11 +57,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         .invoke_handler(tauri::generate_handler![
             // Init / maintenance
             commands::initialize,
-            commands::get_meta,
             commands::get_stats,
-            commands::rebuild,
-            commands::rebuild_fts,
-            commands::get_indexed_ids,
             // Meeting domain (Phase 1)
             commands::meetings_get,
             commands::meetings_existing,
@@ -117,24 +116,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::providers_set_active,
             commands::providers_delete,
             // RAG indexing
-            commands::upsert_meeting_index,
-            commands::upsert_chunks,
-            commands::append_chunks,
-            commands::meetings_search,
-            commands::get_stale_meetings,
-            commands::get_meetings_needing_embeddings,
-            commands::mark_meeting_embedded,
-            commands::mark_meeting_content_indexed,
-            commands::mark_chat_content_indexed,
             // Chat indexing
-            commands::mark_chat_indexed,
-            commands::upsert_chat_chunks,
-            commands::embedded_chunk_texts,
-            commands::chat_is_stale,
-            commands::chats_get_stale,
-            commands::get_chats_needing_embeddings,
-            commands::mark_chat_embedded,
-            commands::chats_search,
             // Spotlight
             commands::search_sessions,
             // Usage

@@ -6,7 +6,6 @@ import {
   type GlobalTodoEntry,
 } from '@services/db/internal';
 import type { TodosListResult, TodoWithReminder } from '@shared/types/native';
-import { meetingEdited } from './meetingEdits';
 
 export const todos = {
   /** List todos for a specific meeting. */
@@ -57,20 +56,15 @@ export const todos = {
         created_at: todo.createdAt ? new Date(todo.createdAt).getTime() : null,
       },
     });
-    meetingEdited(todo.meetingId);
   },
 
   /** Set completion status. */
   async setCompleted(id: string, completed: boolean): Promise<void> {
-    const [todo] = await todos.get([id]);
     await call<void>('todos_set_completed', { id, completed });
-    meetingEdited(todo?.meetingId);
   },
 
-  /** Delete a todo (cascades to reminders); its meeting is read first, while the to-do still exists. */
+  /** Delete a todo (cascades to reminders). */
   async delete(id: string): Promise<void> {
-    const [todo] = await todos.get([id]);
     await call<void>('todos_delete', { id });
-    meetingEdited(todo?.meetingId);
   },
 };

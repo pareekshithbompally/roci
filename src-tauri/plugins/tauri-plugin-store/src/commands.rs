@@ -2,7 +2,6 @@ use crate::{asset_adoption, assets};
 use crate::changes::{notify, MeetingChange};
 use crate::error::StoreError;
 use crate::schema;
-use crate::search::{hybrid_search, SearchHit, SearchParams};
 use rusqlite::{ffi::sqlite3_auto_extension, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -341,15 +340,6 @@ pub struct ProviderUpsertInput {
 // ── RAG Indexing Structs (carried over, fixed to match schema) ──
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct MeetingIndexMeta {
-    pub id: String,
-    pub title: String,
-    pub created_at: i64,
-    pub categories: Option<String>,
-    pub content_hash: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct ChunkData {
     pub chunk_index: i32,
     pub chunk_text: String,
@@ -357,12 +347,6 @@ pub struct ChunkData {
     pub embedding: Option<Vec<f32>>,
     pub start_pos: Option<i32>,
     pub end_pos: Option<i32>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct MeetingHash {
-    pub id: String,
-    pub content_hash: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -377,23 +361,7 @@ pub struct DbStats {
     pub fts_chat_chunks: i64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct DbMeta {
-    pub schema_version: String,
-    pub embedding_model: String,
-    pub embedding_dim: String,
-}
-
 // ── Chat Indexing Structs ──
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ChatSessionMeta {
-    pub id: String,
-    pub title: String,
-    pub last_message_at: i64,
-    pub message_count: i32,
-    pub content_hash: Option<String>,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatSearchHit {
@@ -2182,7 +2150,7 @@ pub async fn chats_get(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-fn chats_get_impl(db: &Connection, id: &str) -> Result<ChatSessionResult, StoreError> {
+pub(crate) fn chats_get_impl(db: &Connection, id: &str) -> Result<ChatSessionResult, StoreError> {
         let chat: (String, String, Option<String>, i64) = db
             .query_row(
                 "SELECT id, title, meeting_id, last_message_at FROM chats WHERE id = ?1",
@@ -2234,10 +2202,11 @@ pub async fn chats_upsert(
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
         chats_upsert_impl(db, &input)?;
         assets::drain_files(db);
-        Ok(())
+        Ok(input.id)
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+    .map(|id| crate::changes::notify_chat_saved(&id))
 }
 
 fn chats_upsert_impl(db: &Connection, input: &ChatsUpsertInput) -> Result<(), StoreError> {
@@ -2455,53 +2424,6 @@ fn dictations_delete_impl(db: &Connection, id: &str) -> Result<(), StoreError> {
 
 // ── RAG Indexing Commands ──
 
-/// Upserts a meeting's `meeting_index_state` so the RAG indexer can track staleness.
-#[tauri::command]
-pub async fn upsert_meeting_index(
-    state: State<'_, StoreState>,
-    meeting: MeetingIndexMeta,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        let now = now_millis();
-        db.execute(
-            "INSERT INTO meeting_index_state (meeting_id, content_hash, indexed_at)
-             VALUES (?1, COALESCE(?2, ''), ?3)
-             ON CONFLICT(meeting_id) DO UPDATE SET
-                content_hash = CASE WHEN ?2 IS NOT NULL THEN ?2 ELSE meeting_index_state.content_hash END,
-                indexed_at = ?3",
-            rusqlite::params![meeting.id, meeting.content_hash, now],
-        )?;
-        Ok(())
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-/// Insert chunks + vectors for a meeting. Replaces all existing chunks for that meeting.
-#[tauri::command]
-pub async fn upsert_chunks(
-    state: State<'_, StoreState>,
-    meeting_id: String,
-    chunks: Vec<ChunkData>,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        let tx = db.unchecked_transaction()?;
-        save_chunks(&tx, &MEETING_CHUNKS, &meeting_id, &chunks)?;
-        tx.commit()?;
-        log::info!("[store] Upserted {} chunks for meeting {}", chunks.len(), meeting_id);
-        Ok(())
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
 /// One chunk (its full-text entry follows by trigger) and its vector, when it has one.
 fn insert_chunk(tx: &Connection, meeting_id: &str, chunk_index: i32, chunk: &ChunkData) -> Result<(), StoreError> {
     tx.execute(
@@ -2530,180 +2452,6 @@ pub(crate) fn append_chunks_impl(db: &Connection, meeting_id: &str, chunks: &[Ch
     }
     tx.commit()?;
     Ok(())
-}
-
-#[tauri::command]
-pub async fn append_chunks(state: State<'_, StoreState>, meeting_id: String, chunks: Vec<ChunkData>) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        append_chunks_impl(db, &meeting_id, &chunks)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-/// Hybrid search: vector KNN + FTS5, merged via Reciprocal Rank Fusion.
-#[tauri::command]
-pub async fn meetings_search(
-    state: State<'_, StoreState>,
-    params: SearchParams,
-) -> Result<Vec<SearchHit>, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        hybrid_search(db, &params).map_err(StoreError::from)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-/// Compare content hashes to find meetings that need re-indexing.
-#[tauri::command]
-pub async fn get_stale_meetings(
-    state: State<'_, StoreState>,
-    meetings: Vec<MeetingHash>,
-) -> Result<Vec<String>, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        db.execute_batch(
-            "CREATE TEMP TABLE IF NOT EXISTS _check_hashes (id TEXT PRIMARY KEY, content_hash TEXT);"
-        )?;
-        db.execute("DELETE FROM _check_hashes", [])?;
-
-        {
-            let mut stmt = db.prepare(
-                "INSERT INTO _check_hashes (id, content_hash) VALUES (?1, ?2)"
-            )?;
-            for m in &meetings {
-                stmt.execute(rusqlite::params![m.id, m.content_hash])?;
-            }
-        }
-
-        let mut stmt = db.prepare(
-            "SELECT ch.id FROM _check_hashes ch
-             LEFT JOIN meeting_index_state mis ON mis.meeting_id = ch.id
-             WHERE mis.meeting_id IS NULL OR mis.content_hash != ch.content_hash"
-        )?;
-
-        let stale: Vec<String> = stmt
-            .query_map([], |row| row.get(0))?
-            .filter_map(|r| r.ok())
-            .collect();
-
-        Ok(stale)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-/// Return meeting IDs that need embeddings.
-#[tauri::command]
-pub async fn get_meetings_needing_embeddings(
-    state: State<'_, StoreState>,
-    meeting_ids: Vec<String>,
-) -> Result<Vec<String>, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        db.execute_batch(
-            "CREATE TEMP TABLE IF NOT EXISTS _check_ids (id TEXT PRIMARY KEY);"
-        )?;
-        db.execute("DELETE FROM _check_ids", [])?;
-
-        {
-            let mut stmt = db.prepare("INSERT INTO _check_ids (id) VALUES (?1)")?;
-            for id in &meeting_ids {
-                stmt.execute([id])?;
-            }
-        }
-
-        let mut stmt = db.prepare(
-            "SELECT ci.id FROM _check_ids ci
-             INNER JOIN meeting_index_state mis ON mis.meeting_id = ci.id
-             WHERE mis.embedding_hash IS NULL OR mis.embedding_hash != mis.content_hash"
-        )?;
-
-        let ids: Vec<String> = stmt
-            .query_map([], |row| row.get(0))?
-            .filter_map(|r| r.ok())
-            .collect();
-
-        Ok(ids)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-/// Mark a meeting's embeddings as up-to-date.
-#[tauri::command]
-pub async fn mark_meeting_embedded(
-    state: State<'_, StoreState>,
-    meeting_id: String,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        db.execute(
-            "UPDATE meeting_index_state SET embedding_hash = content_hash WHERE meeting_id = ?1",
-            [&meeting_id],
-        )?;
-        Ok(())
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-/// Stamp a meeting's content_hash after chunks have been upserted.
-#[tauri::command]
-pub async fn mark_meeting_content_indexed(
-    state: State<'_, StoreState>,
-    meeting_id: String,
-    content_hash: String,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        db.execute(
-            "INSERT INTO meeting_index_state (meeting_id, content_hash, indexed_at)
-             VALUES (?1, ?2, ?3)
-             ON CONFLICT(meeting_id) DO UPDATE SET
-                content_hash = ?2, indexed_at = ?3",
-            rusqlite::params![meeting_id, content_hash, now_millis()],
-        )?;
-        Ok(())
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-/// Return all meeting IDs that have entries in meetings table.
-#[tauri::command]
-pub async fn get_indexed_ids(
-    state: State<'_, StoreState>,
-) -> Result<Vec<String>, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        let mut stmt = db.prepare("SELECT id FROM meetings")?;
-        let ids = stmt
-            .query_map([], |row| row.get(0))?
-            .filter_map(|r| r.ok())
-            .collect();
-        Ok(ids)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
 #[tauri::command]
@@ -2745,84 +2493,6 @@ pub async fn get_stats(
             fts_chunks,
             fts_chat_chunks,
         })
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn get_meta(
-    state: State<'_, StoreState>,
-) -> Result<DbMeta, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        let get = |key: &str| -> String {
-            db.query_row(
-                "SELECT value FROM meta WHERE key = ?1",
-                [key],
-                |row| row.get(0),
-            )
-            .unwrap_or_default()
-        };
-
-        Ok(DbMeta {
-            schema_version: get("schema_version"),
-            embedding_model: get("embedding_model"),
-            embedding_dim: get("embedding_dim"),
-        })
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn rebuild(
-    state: State<'_, StoreState>,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        db.execute_batch(
-            "DELETE FROM vec_chunks;
-             DELETE FROM chunks;
-             DELETE FROM meeting_index_state;
-             INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild');
-             DELETE FROM chat_vec_chunks;
-             DELETE FROM chat_chunks;
-             DELETE FROM chat_index_state;
-             INSERT INTO chat_chunks_fts(chat_chunks_fts) VALUES('rebuild');",
-        )?;
-
-        log::info!("[store] Database rebuilt (derived data cleared)");
-        Ok(())
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn rebuild_fts(
-    state: State<'_, StoreState>,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        db.execute_batch(
-            "INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild');
-             INSERT INTO chat_chunks_fts(chat_chunks_fts) VALUES('rebuild');
-             UPDATE meeting_index_state SET content_hash = NULL;
-             UPDATE chat_index_state SET content_hash = NULL;",
-        )?;
-
-        log::info!("[store] FTS5 indexes rebuilt, content hashes cleared for re-indexing");
-        Ok(())
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
@@ -3075,36 +2745,6 @@ pub async fn get_usage_summary(
 
 // ── Chat Indexing Commands ──
 
-#[tauri::command]
-/// Records a chat's RAG staleness in `chat_index_state`; never touches `chats`, which `chats_upsert` owns.
-fn mark_chat_indexed_impl(db: &Connection, session: &ChatSessionMeta) -> Result<(), StoreError> {
-        let now = now_millis();
-        db.execute(
-            "INSERT INTO chat_index_state (chat_id, content_hash, indexed_at)
-             VALUES (?1, COALESCE(?2, ''), ?3)
-             ON CONFLICT(chat_id) DO UPDATE SET
-                content_hash = CASE WHEN ?2 IS NOT NULL THEN ?2 ELSE chat_index_state.content_hash END,
-                indexed_at = ?3",
-            rusqlite::params![session.id, session.content_hash, now],
-        )?;
-        Ok(())
-}
-
-#[tauri::command]
-pub async fn mark_chat_indexed(
-    state: State<'_, StoreState>,
-    session: ChatSessionMeta,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        mark_chat_indexed_impl(db, &session)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
 /// Where one owner's search pieces live: meetings' and chats' have the same shape (a chat turn has no transcript positions).
 pub(crate) struct ChunkStore {
     chunks: &'static str,
@@ -3117,26 +2757,16 @@ pub(crate) const MEETING_CHUNKS: ChunkStore = ChunkStore { chunks: "chunks", vec
 pub(crate) const CHAT_CHUNKS: ChunkStore = ChunkStore { chunks: "chat_chunks", vectors: "chat_vec_chunks", owner: "chat_id", positions: false };
 
 /// Whose search pieces a command reads: a meeting's or a chat's.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ChunkOwner {
     Meeting,
     Chat,
 }
-
-impl ChunkOwner {
-    fn store(&self) -> &'static ChunkStore {
-        match self {
-            ChunkOwner::Meeting => &MEETING_CHUNKS,
-            ChunkOwner::Chat => &CHAT_CHUNKS,
-        }
-    }
-}
-
 /// An owner's search pieces after a save: a piece whose text is unchanged keeps its row and vector (replaced only when a new
 /// vector is sent), a changed or new piece is written, and pieces past the end are removed — so an edit writes and embeds
 /// only what changed. The full-text index follows by trigger.
-fn save_chunks(tx: &Connection, store: &ChunkStore, owner_id: &str, chunks: &[ChunkData]) -> Result<(), StoreError> {
+pub(crate) fn save_chunks(tx: &Connection, store: &ChunkStore, owner_id: &str, chunks: &[ChunkData]) -> Result<(), StoreError> {
     let (table, vectors, owner) = (store.chunks, store.vectors, store.owner);
     for chunk in chunks {
         let stored: Option<(i64, String)> = tx
@@ -3185,7 +2815,7 @@ fn save_chunks(tx: &Connection, store: &ChunkStore, owner_id: &str, chunks: &[Ch
 }
 
 /// The texts of an owner's search pieces that already have a vector, so a save embeds only the pieces that don't.
-fn embedded_chunk_texts_impl(db: &Connection, store: &ChunkStore, owner_id: &str) -> Result<Vec<String>, StoreError> {
+pub(crate) fn embedded_chunk_texts_impl(db: &Connection, store: &ChunkStore, owner_id: &str) -> Result<Vec<String>, StoreError> {
     let (table, vectors, owner) = (store.chunks, store.vectors, store.owner);
     Ok(db
         .prepare(&format!(
@@ -3193,202 +2823,6 @@ fn embedded_chunk_texts_impl(db: &Connection, store: &ChunkStore, owner_id: &str
         ))?
         .query_map([owner_id], |row| row.get(0))?
         .collect::<Result<_, _>>()?)
-}
-
-#[tauri::command]
-pub async fn embedded_chunk_texts(state: State<'_, StoreState>, owner: ChunkOwner, id: String) -> Result<Vec<String>, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        embedded_chunk_texts_impl(db, owner.store(), &id)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn upsert_chat_chunks(
-    state: State<'_, StoreState>,
-    session_id: String,
-    chunks: Vec<ChunkData>,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        let tx = db.unchecked_transaction()?;
-        save_chunks(&tx, &CHAT_CHUNKS, &session_id, &chunks)?;
-        tx.commit()?;
-        log::info!("[store] Upserted {} chat chunks for session {}", chunks.len(), session_id);
-        Ok(())
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn chat_is_stale(
-    state: State<'_, StoreState>,
-    session_id: String,
-    content_hash: String,
-) -> Result<bool, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        let existing: Option<String> = db
-            .query_row(
-                "SELECT content_hash FROM chat_index_state WHERE chat_id = ?1",
-                [&session_id],
-                |row| row.get(0),
-            )
-            .optional()?;
-        Ok(match existing {
-            None => true,
-            Some(stored) => stored != content_hash,
-        })
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn chats_get_stale(
-    state: State<'_, StoreState>,
-    sessions: Vec<MeetingHash>,
-) -> Result<Vec<String>, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        db.execute_batch(
-            "CREATE TEMP TABLE IF NOT EXISTS _check_hashes (id TEXT PRIMARY KEY, content_hash TEXT);"
-        )?;
-        db.execute("DELETE FROM _check_hashes", [])?;
-
-        {
-            let mut stmt = db.prepare(
-                "INSERT INTO _check_hashes (id, content_hash) VALUES (?1, ?2)"
-            )?;
-            for s in &sessions {
-                stmt.execute(rusqlite::params![s.id, s.content_hash])?;
-            }
-        }
-
-        let mut stmt = db.prepare(
-            "SELECT ch.id FROM _check_hashes ch
-             LEFT JOIN chat_index_state cis ON cis.chat_id = ch.id
-             WHERE cis.chat_id IS NULL OR cis.content_hash != ch.content_hash"
-        )?;
-
-        let stale: Vec<String> = stmt
-            .query_map([], |row| row.get(0))?
-            .filter_map(|r| r.ok())
-            .collect();
-
-        Ok(stale)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn get_chats_needing_embeddings(
-    state: State<'_, StoreState>,
-    session_ids: Vec<String>,
-) -> Result<Vec<String>, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        db.execute_batch(
-            "CREATE TEMP TABLE IF NOT EXISTS _check_ids (id TEXT PRIMARY KEY);"
-        )?;
-        db.execute("DELETE FROM _check_ids", [])?;
-
-        {
-            let mut stmt = db.prepare("INSERT INTO _check_ids (id) VALUES (?1)")?;
-            for id in &session_ids {
-                stmt.execute([id])?;
-            }
-        }
-
-        let mut stmt = db.prepare(
-            "SELECT ci.id FROM _check_ids ci
-             INNER JOIN chat_index_state cis ON cis.chat_id = ci.id
-             WHERE cis.embedding_hash IS NULL OR cis.embedding_hash != cis.content_hash"
-        )?;
-
-        let ids: Vec<String> = stmt
-            .query_map([], |row| row.get(0))?
-            .filter_map(|r| r.ok())
-            .collect();
-
-        Ok(ids)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn mark_chat_embedded(
-    state: State<'_, StoreState>,
-    session_id: String,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        db.execute(
-            "UPDATE chat_index_state SET embedding_hash = content_hash WHERE chat_id = ?1",
-            [&session_id],
-        )?;
-        Ok(())
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn mark_chat_content_indexed(
-    state: State<'_, StoreState>,
-    session_id: String,
-    content_hash: String,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        db.execute(
-            "INSERT INTO chat_index_state (chat_id, content_hash, indexed_at)
-             VALUES (?1, ?2, ?3)
-             ON CONFLICT(chat_id) DO UPDATE SET
-                content_hash = ?2, indexed_at = ?3",
-            rusqlite::params![session_id, content_hash, now_millis()],
-        )?;
-        Ok(())
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn chats_search(
-    state: State<'_, StoreState>,
-    params: crate::search::ChatSearchParams,
-) -> Result<Vec<ChatSearchHit>, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        crate::search::chat_hybrid_search(db, &params).map_err(StoreError::from)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
 #[tauri::command]
@@ -3408,11 +2842,11 @@ pub async fn search_sessions(
 
 // ── Command-logic tests: `_impl` cores on an in-memory DB, since `State` blocks command-layer tests ──
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::schema;
 
-    fn db() -> Connection {
+    pub(crate) fn db() -> Connection {
         schema::open_migrated_test_db()
     }
 
@@ -3436,7 +2870,7 @@ mod tests {
         assert!(dictations_delete_impl(&conn, "b").is_err(), "deleting a missing dictation is an error");
     }
 
-    fn seed_meeting(conn: &Connection, id: &str) {
+    pub(crate) fn seed_meeting(conn: &Connection, id: &str) {
         meetings_upsert_impl(
             conn,
             &MeetingUpsertInput {
@@ -4291,45 +3725,4 @@ mod tests {
         assert_eq!(count, 2);
     }
 
-    // ── mark_chat_indexed isolation (dual-write guard) ────────────────
-
-    #[test]
-    fn mark_chat_indexed_does_not_touch_chat_title() {
-        let conn = db();
-        chats_upsert_impl(
-            &conn,
-            &ChatsUpsertInput {
-                id: "c1".into(),
-                title: "Original".into(),
-                meeting_id: None,
-                asset_paths: vec![],
-                last_message_at: 5,
-                messages: vec![],
-                created_at: None,
-            },
-        )
-        .unwrap();
-
-        mark_chat_indexed_impl(
-            &conn,
-            &ChatSessionMeta {
-                id: "c1".into(),
-                title: "SHOULD NOT BE WRITTEN".into(),
-                last_message_at: 5,
-                message_count: 0,
-                content_hash: Some("hash-123".into()),
-            },
-        )
-        .expect("mark ok");
-
-        let title: String = conn
-            .query_row("SELECT title FROM chats WHERE id = 'c1'", [], |r| r.get(0))
-            .unwrap();
-        assert_eq!(title, "Original", "title must be untouched");
-
-        let hash: String = conn
-            .query_row("SELECT content_hash FROM chat_index_state WHERE chat_id = 'c1'", [], |r| r.get(0))
-            .unwrap();
-        assert_eq!(hash, "hash-123", "index state holds the content hash");
-    }
 }

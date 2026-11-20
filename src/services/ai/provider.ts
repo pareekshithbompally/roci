@@ -13,10 +13,7 @@ import { anthropic } from '@ai-sdk/anthropic';
 import { google } from '@ai-sdk/google';
 import { openai } from '@ai-sdk/openai';
 import { getPlatformFetch } from '@services/platform-fetch';
-import { mlxEmbed } from '@services/mlx.service';
 import { mlxLanguageModel } from '@services/ai/onDevice/mlxLanguageModel';
-import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
-import type { EmbeddingModelV4 } from '@ai-sdk/provider';
 import { profileOf } from '@services/ai/models';
 import { llamaServerRequestBody } from '@services/ai/llamaServer';
 import { getProviderType } from '@shared/utils/modelResolver';
@@ -148,18 +145,6 @@ export function createTranscriptionModel(family: TranscriptionFamily, resolved: 
     case 'elevenlabs':
       return createElevenLabs({ apiKey: resolved.apiKey, fetch }).transcription(resolved.modelId);
   }
-}
-
-/** The embedding model on this device (MLX), as an AI SDK embedding model. */
-export function createLocalEmbeddingModel(modelId: string): EmbeddingModelV4 {
-  return {
-    specificationVersion: 'v4',
-    provider: LOCAL_MODELS_CONFIG.provider.id,
-    modelId,
-    maxEmbeddingsPerCall: undefined,
-    supportsParallelCalls: false,
-    doEmbed: async ({ values }) => ({ embeddings: await mlxEmbed(modelId, values), warnings: [] }),
-  };
 }
 
 /** Gemini and OpenAI only return a thinking model's thoughts when asked; Anthropic and local servers always do. */

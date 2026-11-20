@@ -2,8 +2,7 @@
 
 import { z } from 'zod';
 import { defineTool, fail, limit, ok, text, toolDate } from '@extensions/tools/contract';
-import { chatSearcher } from '@extensions/rag/chat-searcher';
-import { vectorDB } from '@extensions/rag/client';
+import { searchChats } from '@extensions/rag/searchIndex';
 import { SCORE_HIGH, SCORE_MEDIUM } from '@extensions/rag/constants';
 import { errorMessage } from '@shared/utils/errors';
 
@@ -20,8 +19,7 @@ export const searchChatsTool = defineTool({
   async execute({ query, limit: count }) {
     let results;
     try {
-      await vectorDB.initialize();
-      results = await chatSearcher.search(query, { limit: count, mode: 'hybrid' });
+      results = await searchChats(query, count);
     } catch (error) {
       return fail(`Chat search failed: ${errorMessage(error)}`);
     }

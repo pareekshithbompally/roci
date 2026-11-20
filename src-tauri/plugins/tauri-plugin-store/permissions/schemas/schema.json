@@ -295,18 +295,6 @@
       "type": "string",
       "oneOf": [
         {
-          "description": "Enables the append_chunks command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-append-chunks",
-          "markdownDescription": "Enables the append_chunks command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the append_chunks command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-append-chunks",
-          "markdownDescription": "Denies the append_chunks command without any pre-configured scope."
-        },
-        {
           "description": "Enables the assets_create command without any pre-configured scope.",
           "type": "string",
           "const": "allow-assets-create",
@@ -391,18 +379,6 @@
           "markdownDescription": "Denies the categories_rename command without any pre-configured scope."
         },
         {
-          "description": "Enables the chat_is_stale command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-chat-is-stale",
-          "markdownDescription": "Enables the chat_is_stale command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the chat_is_stale command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-chat-is-stale",
-          "markdownDescription": "Denies the chat_is_stale command without any pre-configured scope."
-        },
-        {
           "description": "Enables the chats_delete command without any pre-configured scope.",
           "type": "string",
           "const": "allow-chats-delete",
@@ -427,18 +403,6 @@
           "markdownDescription": "Denies the chats_get command without any pre-configured scope."
         },
         {
-          "description": "Enables the chats_get_stale command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-chats-get-stale",
-          "markdownDescription": "Enables the chats_get_stale command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the chats_get_stale command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-chats-get-stale",
-          "markdownDescription": "Denies the chats_get_stale command without any pre-configured scope."
-        },
-        {
           "description": "Enables the chats_rename command without any pre-configured scope.",
           "type": "string",
           "const": "allow-chats-rename",
@@ -449,18 +413,6 @@
           "type": "string",
           "const": "deny-chats-rename",
           "markdownDescription": "Denies the chats_rename command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the chats_search command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-chats-search",
-          "markdownDescription": "Enables the chats_search command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the chats_search command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-chats-search",
-          "markdownDescription": "Denies the chats_search command without any pre-configured scope."
         },
         {
           "description": "Enables the chats_upsert command without any pre-configured scope.",
@@ -511,42 +463,6 @@
           "markdownDescription": "Denies the dictations_list command without any pre-configured scope."
         },
         {
-          "description": "Enables the embedded_chunk_texts command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-embedded-chunk-texts",
-          "markdownDescription": "Enables the embedded_chunk_texts command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the embedded_chunk_texts command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-embedded-chunk-texts",
-          "markdownDescription": "Denies the embedded_chunk_texts command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the get_chats_needing_embeddings command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-get-chats-needing-embeddings",
-          "markdownDescription": "Enables the get_chats_needing_embeddings command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the get_chats_needing_embeddings command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-get-chats-needing-embeddings",
-          "markdownDescription": "Denies the get_chats_needing_embeddings command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the get_indexed_ids command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-get-indexed-ids",
-          "markdownDescription": "Enables the get_indexed_ids command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the get_indexed_ids command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-get-indexed-ids",
-          "markdownDescription": "Denies the get_indexed_ids command without any pre-configured scope."
-        },
-        {
           "description": "Enables the get_meeting_usage command without any pre-configured scope.",
           "type": "string",
           "const": "allow-get-meeting-usage",
@@ -557,42 +473,6 @@
           "type": "string",
           "const": "deny-get-meeting-usage",
           "markdownDescription": "Denies the get_meeting_usage command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the get_meetings_needing_embeddings command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-get-meetings-needing-embeddings",
-          "markdownDescription": "Enables the get_meetings_needing_embeddings command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the get_meetings_needing_embeddings command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-get-meetings-needing-embeddings",
-          "markdownDescription": "Denies the get_meetings_needing_embeddings command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the get_meta command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-get-meta",
-          "markdownDescription": "Enables the get_meta command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the get_meta command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-get-meta",
-          "markdownDescription": "Denies the get_meta command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the get_stale_meetings command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-get-stale-meetings",
-          "markdownDescription": "Enables the get_stale_meetings command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the get_stale_meetings command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-get-stale-meetings",
-          "markdownDescription": "Denies the get_stale_meetings command without any pre-configured scope."
         },
         {
           "description": "Enables the get_stats command without any pre-configured scope.",
@@ -679,66 +559,6 @@
           "markdownDescription": "Denies the items_page command without any pre-configured scope."
         },
         {
-          "description": "Enables the mark_chat_content_indexed command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-mark-chat-content-indexed",
-          "markdownDescription": "Enables the mark_chat_content_indexed command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the mark_chat_content_indexed command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-mark-chat-content-indexed",
-          "markdownDescription": "Denies the mark_chat_content_indexed command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the mark_chat_embedded command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-mark-chat-embedded",
-          "markdownDescription": "Enables the mark_chat_embedded command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the mark_chat_embedded command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-mark-chat-embedded",
-          "markdownDescription": "Denies the mark_chat_embedded command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the mark_chat_indexed command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-mark-chat-indexed",
-          "markdownDescription": "Enables the mark_chat_indexed command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the mark_chat_indexed command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-mark-chat-indexed",
-          "markdownDescription": "Denies the mark_chat_indexed command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the mark_meeting_content_indexed command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-mark-meeting-content-indexed",
-          "markdownDescription": "Enables the mark_meeting_content_indexed command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the mark_meeting_content_indexed command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-mark-meeting-content-indexed",
-          "markdownDescription": "Denies the mark_meeting_content_indexed command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the mark_meeting_embedded command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-mark-meeting-embedded",
-          "markdownDescription": "Enables the mark_meeting_embedded command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the mark_meeting_embedded command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-mark-meeting-embedded",
-          "markdownDescription": "Denies the mark_meeting_embedded command without any pre-configured scope."
-        },
-        {
           "description": "Enables the meetings_begin_step command without any pre-configured scope.",
           "type": "string",
           "const": "allow-meetings-begin-step",
@@ -821,18 +641,6 @@
           "type": "string",
           "const": "deny-meetings-rename",
           "markdownDescription": "Denies the meetings_rename command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the meetings_search command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-meetings-search",
-          "markdownDescription": "Enables the meetings_search command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the meetings_search command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-meetings-search",
-          "markdownDescription": "Denies the meetings_search command without any pre-configured scope."
         },
         {
           "description": "Enables the meetings_set_status command without any pre-configured scope.",
@@ -977,30 +785,6 @@
           "type": "string",
           "const": "deny-providers-upsert",
           "markdownDescription": "Denies the providers_upsert command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the rebuild command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-rebuild",
-          "markdownDescription": "Enables the rebuild command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the rebuild command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-rebuild",
-          "markdownDescription": "Denies the rebuild command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the rebuild_fts command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-rebuild-fts",
-          "markdownDescription": "Enables the rebuild_fts command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the rebuild_fts command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-rebuild-fts",
-          "markdownDescription": "Denies the rebuild_fts command without any pre-configured scope."
         },
         {
           "description": "Enables the reminders_due command without any pre-configured scope.",
@@ -1207,46 +991,10 @@
           "markdownDescription": "Denies the transcripts_save command without any pre-configured scope."
         },
         {
-          "description": "Enables the upsert_chat_chunks command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-upsert-chat-chunks",
-          "markdownDescription": "Enables the upsert_chat_chunks command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the upsert_chat_chunks command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-upsert-chat-chunks",
-          "markdownDescription": "Denies the upsert_chat_chunks command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the upsert_chunks command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-upsert-chunks",
-          "markdownDescription": "Enables the upsert_chunks command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the upsert_chunks command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-upsert-chunks",
-          "markdownDescription": "Denies the upsert_chunks command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the upsert_meeting_index command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-upsert-meeting-index",
-          "markdownDescription": "Enables the upsert_meeting_index command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the upsert_meeting_index command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-upsert-meeting-index",
-          "markdownDescription": "Denies the upsert_meeting_index command without any pre-configured scope."
-        },
-        {
-          "description": "Allows all store plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-get-meta`\n- `allow-get-stats`\n- `allow-rebuild`\n- `allow-rebuild-fts`\n- `allow-get-indexed-ids`\n- `allow-meetings-get`\n- `allow-meetings-existing`\n- `allow-meetings-upsert`\n- `allow-meetings-delete`\n- `allow-meetings-create`\n- `allow-meetings-begin-step`\n- `allow-meetings-end-step`\n- `allow-meetings-rename`\n- `allow-transcripts-save`\n- `allow-summaries-save`\n- `allow-assets-create`\n- `allow-assets-list`\n- `allow-assets-exists`\n- `allow-notices-owed`\n- `allow-notices-cleared`\n- `allow-storage-purge`\n- `allow-storage-usage`\n- `allow-categories-list`\n- `allow-categories-rename`\n- `allow-categories-create`\n- `allow-categories-delete`\n- `allow-items-page`\n- `allow-items-by-id`\n- `allow-items-count`\n- `allow-chats-get`\n- `allow-chats-upsert`\n- `allow-chats-rename`\n- `allow-chats-delete`\n- `allow-dictations-list`\n- `allow-dictations-create`\n- `allow-dictations-delete`\n- `allow-notes-list`\n- `allow-notes-upsert`\n- `allow-notes-delete`\n- `allow-todos-list-for-meeting`\n- `allow-todos-list-global`\n- `allow-todos-get`\n- `allow-todos-upsert`\n- `allow-todos-set-completed`\n- `allow-todos-delete`\n- `allow-reminders-upsert`\n- `allow-reminders-set-status`\n- `allow-reminders-due`\n- `allow-reminders-prune`\n- `allow-settings-get-all`\n- `allow-settings-set`\n- `allow-providers-list`\n- `allow-providers-upsert`\n- `allow-providers-set-active`\n- `allow-providers-delete`\n- `allow-upsert-meeting-index`\n- `allow-upsert-chunks`\n- `allow-append-chunks`\n- `allow-meetings-search`\n- `allow-get-stale-meetings`\n- `allow-get-meetings-needing-embeddings`\n- `allow-mark-meeting-embedded`\n- `allow-mark-meeting-content-indexed`\n- `allow-mark-chat-content-indexed`\n- `allow-mark-chat-indexed`\n- `allow-upsert-chat-chunks`\n- `allow-embedded-chunk-texts`\n- `allow-chat-is-stale`\n- `allow-chats-get-stale`\n- `allow-get-chats-needing-embeddings`\n- `allow-mark-chat-embedded`\n- `allow-chats-search`\n- `allow-search-sessions`\n- `allow-insert-usage`\n- `allow-get-usage-summary`\n- `allow-get-meeting-usage`\n- `allow-price-unpriced-usage`",
+          "description": "Allows all store plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-get-stats`\n- `allow-meetings-get`\n- `allow-meetings-existing`\n- `allow-meetings-upsert`\n- `allow-meetings-delete`\n- `allow-meetings-create`\n- `allow-meetings-begin-step`\n- `allow-meetings-end-step`\n- `allow-meetings-rename`\n- `allow-transcripts-save`\n- `allow-summaries-save`\n- `allow-assets-create`\n- `allow-assets-list`\n- `allow-assets-exists`\n- `allow-notices-owed`\n- `allow-notices-cleared`\n- `allow-storage-purge`\n- `allow-storage-usage`\n- `allow-categories-list`\n- `allow-categories-rename`\n- `allow-categories-create`\n- `allow-categories-delete`\n- `allow-items-page`\n- `allow-items-by-id`\n- `allow-items-count`\n- `allow-chats-get`\n- `allow-chats-upsert`\n- `allow-chats-rename`\n- `allow-chats-delete`\n- `allow-dictations-list`\n- `allow-dictations-create`\n- `allow-dictations-delete`\n- `allow-notes-list`\n- `allow-notes-upsert`\n- `allow-notes-delete`\n- `allow-todos-list-for-meeting`\n- `allow-todos-list-global`\n- `allow-todos-get`\n- `allow-todos-upsert`\n- `allow-todos-set-completed`\n- `allow-todos-delete`\n- `allow-reminders-upsert`\n- `allow-reminders-set-status`\n- `allow-reminders-due`\n- `allow-reminders-prune`\n- `allow-settings-get-all`\n- `allow-settings-set`\n- `allow-providers-list`\n- `allow-providers-upsert`\n- `allow-providers-set-active`\n- `allow-providers-delete`\n- `allow-search-sessions`\n- `allow-insert-usage`\n- `allow-get-usage-summary`\n- `allow-get-meeting-usage`\n- `allow-price-unpriced-usage`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Allows all store plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-get-meta`\n- `allow-get-stats`\n- `allow-rebuild`\n- `allow-rebuild-fts`\n- `allow-get-indexed-ids`\n- `allow-meetings-get`\n- `allow-meetings-existing`\n- `allow-meetings-upsert`\n- `allow-meetings-delete`\n- `allow-meetings-create`\n- `allow-meetings-begin-step`\n- `allow-meetings-end-step`\n- `allow-meetings-rename`\n- `allow-transcripts-save`\n- `allow-summaries-save`\n- `allow-assets-create`\n- `allow-assets-list`\n- `allow-assets-exists`\n- `allow-notices-owed`\n- `allow-notices-cleared`\n- `allow-storage-purge`\n- `allow-storage-usage`\n- `allow-categories-list`\n- `allow-categories-rename`\n- `allow-categories-create`\n- `allow-categories-delete`\n- `allow-items-page`\n- `allow-items-by-id`\n- `allow-items-count`\n- `allow-chats-get`\n- `allow-chats-upsert`\n- `allow-chats-rename`\n- `allow-chats-delete`\n- `allow-dictations-list`\n- `allow-dictations-create`\n- `allow-dictations-delete`\n- `allow-notes-list`\n- `allow-notes-upsert`\n- `allow-notes-delete`\n- `allow-todos-list-for-meeting`\n- `allow-todos-list-global`\n- `allow-todos-get`\n- `allow-todos-upsert`\n- `allow-todos-set-completed`\n- `allow-todos-delete`\n- `allow-reminders-upsert`\n- `allow-reminders-set-status`\n- `allow-reminders-due`\n- `allow-reminders-prune`\n- `allow-settings-get-all`\n- `allow-settings-set`\n- `allow-providers-list`\n- `allow-providers-upsert`\n- `allow-providers-set-active`\n- `allow-providers-delete`\n- `allow-upsert-meeting-index`\n- `allow-upsert-chunks`\n- `allow-append-chunks`\n- `allow-meetings-search`\n- `allow-get-stale-meetings`\n- `allow-get-meetings-needing-embeddings`\n- `allow-mark-meeting-embedded`\n- `allow-mark-meeting-content-indexed`\n- `allow-mark-chat-content-indexed`\n- `allow-mark-chat-indexed`\n- `allow-upsert-chat-chunks`\n- `allow-embedded-chunk-texts`\n- `allow-chat-is-stale`\n- `allow-chats-get-stale`\n- `allow-get-chats-needing-embeddings`\n- `allow-mark-chat-embedded`\n- `allow-chats-search`\n- `allow-search-sessions`\n- `allow-insert-usage`\n- `allow-get-usage-summary`\n- `allow-get-meeting-usage`\n- `allow-price-unpriced-usage`"
+          "markdownDescription": "Allows all store plugin commands\n#### This default permission set includes:\n\n- `allow-initialize`\n- `allow-get-stats`\n- `allow-meetings-get`\n- `allow-meetings-existing`\n- `allow-meetings-upsert`\n- `allow-meetings-delete`\n- `allow-meetings-create`\n- `allow-meetings-begin-step`\n- `allow-meetings-end-step`\n- `allow-meetings-rename`\n- `allow-transcripts-save`\n- `allow-summaries-save`\n- `allow-assets-create`\n- `allow-assets-list`\n- `allow-assets-exists`\n- `allow-notices-owed`\n- `allow-notices-cleared`\n- `allow-storage-purge`\n- `allow-storage-usage`\n- `allow-categories-list`\n- `allow-categories-rename`\n- `allow-categories-create`\n- `allow-categories-delete`\n- `allow-items-page`\n- `allow-items-by-id`\n- `allow-items-count`\n- `allow-chats-get`\n- `allow-chats-upsert`\n- `allow-chats-rename`\n- `allow-chats-delete`\n- `allow-dictations-list`\n- `allow-dictations-create`\n- `allow-dictations-delete`\n- `allow-notes-list`\n- `allow-notes-upsert`\n- `allow-notes-delete`\n- `allow-todos-list-for-meeting`\n- `allow-todos-list-global`\n- `allow-todos-get`\n- `allow-todos-upsert`\n- `allow-todos-set-completed`\n- `allow-todos-delete`\n- `allow-reminders-upsert`\n- `allow-reminders-set-status`\n- `allow-reminders-due`\n- `allow-reminders-prune`\n- `allow-settings-get-all`\n- `allow-settings-set`\n- `allow-providers-list`\n- `allow-providers-upsert`\n- `allow-providers-set-active`\n- `allow-providers-delete`\n- `allow-search-sessions`\n- `allow-insert-usage`\n- `allow-get-usage-summary`\n- `allow-get-meeting-usage`\n- `allow-price-unpriced-usage`"
         }
       ]
     }

@@ -52,6 +52,7 @@ mod updates;
 #[cfg(desktop)]
 mod url_actions;
 mod meeting_reminders;
+mod search_index;
 #[cfg(desktop)]
 mod call_detection;
 #[cfg(desktop)]

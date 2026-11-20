@@ -18,7 +18,7 @@ import { CalendarView } from '@features/calendar';
 import { OnboardingView } from '@features/onboarding';
 import { ConfirmHost, SearchIndexActivity } from '@shared/components';
 import { Toaster } from '@shared/ui';
-import { useDownloadToasts, useLocalModels } from '@shared/hooks';
+import { useDownloadToasts } from '@shared/hooks';
 import { useAppShortcuts } from '@features/shortcuts';
 import { focusChatComposer, startNewChat, useChatRuntime } from '@features/chat';
 import { useAppleNotesRuntime, useCalendarRuntime, useHexRuntime, useMcpHostRuntime, useRemindersRuntime, useSpotlightRuntime, useUrlActionsRuntime } from '@features/integrations';
@@ -35,7 +35,6 @@ import { parseModelKey } from '@services/ai/models';
 import { windowService } from '@services/window.service';
 import { dismissSplash } from '@/src/app/splash';
 import { shortcutsService } from '@services/shortcuts.service';
-import { searchIndexingService } from '@services/searchIndexing.service';
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import { reminderService } from '@services/reminder.service';
 import { platform } from '@platform/index';
@@ -101,24 +100,6 @@ const App: React.FC = () => {
   useMenubarReports();
   // App updates: Rust checks and installs; the tray row follows its state
   useUpdateRuntime();
-
-  // Search: meetings and chats are indexed as they're saved, so nothing is indexed at launch. Vectors need the embedding model:
-  // when its download finishes in this session, only the meetings and chats still without them are embedded.
-  const { data: localModels } = useLocalModels();
-  const modelsKnown = localModels !== undefined;
-  const embeddingInstalled = localModels?.some((m) => m.kind === 'embedding' && m.installed) ?? false;
-  const embeddingInstalledBefore = useRef<boolean | null>(null);
-
-  useEffect(() => {
-    if (!modelsKnown) return;
-    const before = embeddingInstalledBefore.current;
-    embeddingInstalledBefore.current = embeddingInstalled;
-    if (before !== false || !embeddingInstalled) return;
-    const controller = new AbortController();
-    searchIndexingService.embedPending(controller.signal)
-      .catch((error: unknown) => console.error('[App] Embedding the index failed:', error));
-    return () => controller.abort();
-  }, [modelsKnown, embeddingInstalled]);
 
   // Fade the startup splash once the first screen renders with real settings
   useEffect(() => {

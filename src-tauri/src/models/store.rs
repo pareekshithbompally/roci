@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::AsyncWriteExt;
 
-use super::catalog::{LocalModel, ModelFile};
+use super::catalog::{self, LocalModel, ModelFile};
 use super::LocalError;
 use crate::sync::lock;
 
@@ -132,7 +132,13 @@ pub async fn download(app: &AppHandle, model: &'static LocalModel, cancel: &Atom
         Err(error) => Err(error),
     };
     match outcome {
-        Ok(state) => reporter.emit(state, model.bytes(), None),
+        Ok(state) => {
+            reporter.emit(state, model.bytes(), None);
+            // Search's model is in: the meetings and chats without vectors get them now.
+            if matches!(state, DownloadState::Done) && model.kind == catalog::Kind::Embedding {
+                crate::search_index::embedder_ready();
+            }
+        }
         Err(error) => {
             log::error!("[models] download of {} failed: {error}", model.id);
             reporter.emit(DownloadState::Failed, 0, Some(error.to_string()));

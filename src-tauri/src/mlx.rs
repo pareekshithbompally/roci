@@ -142,17 +142,14 @@ pub fn mlx_cancel(stream_id: u64) {
     unsafe { roci_mlx_cancel(stream_id) }
 }
 
-/// Unit-length vectors for `texts` from a downloaded embedding `model`, in order.
-#[tauri::command]
-pub async fn mlx_embed(app: AppHandle, model: String, texts: Vec<String>) -> Result<Vec<Vec<f32>>, LocalError> {
-    let dir = model_dir(&app, &model, Kind::Embedding)?;
-    let result = blocking(move || {
-        let request = to_c(&json!({ "modelDir": dir, "texts": texts }))?;
-        // SAFETY: `request` outlives the call; the returned string is ours to free.
-        take(gpu::run(Priority::Background, || unsafe { roci_mlx_embed(request.as_ptr()) }))
-    })
-    .await;
-    rearm_idle(&app, Role::Embedding);
+/// Unit-length vectors for `texts` from search's embedding model, in order; blocking (the GPU's background queue), so never on
+/// the main thread. `NotDownloaded` until the model is.
+pub fn embed(app: &AppHandle, texts: &[String]) -> Result<Vec<Vec<f32>>, LocalError> {
+    let dir = store::installed_dir(app, catalog::search_embedder()?)?.to_string_lossy().into_owned();
+    let request = to_c(&json!({ "modelDir": dir, "texts": texts }))?;
+    // SAFETY: `request` outlives the call; the returned string is ours to free.
+    let result = take(gpu::run(Priority::Background, || unsafe { roci_mlx_embed(request.as_ptr()) }));
+    rearm_idle(app, Role::Embedding);
     let vectors = result?.get_mut("vectors").map(Value::take).unwrap_or_default();
     serde_json::from_value(vectors).map_err(|e| LocalError::Engine(e.to_string()))
 }
