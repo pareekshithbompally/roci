@@ -3,7 +3,8 @@
 import { call } from './internal';
 import type { StoreMeta } from './types';
 import { meetings } from './domains/meetings';
-import { recordings } from './domains/recordings';
+import { assets } from './domains/assets';
+import { storage } from './domains/storage';
 import { notes } from './domains/notes';
 import { todos } from './domains/todos';
 import { reminders } from './domains/reminders';
@@ -30,7 +31,8 @@ export const store = {
   },
 
   meetings,
-  recordings,
+  assets,
+  storage,
   notes,
   todos,
   reminders,

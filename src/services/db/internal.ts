@@ -218,6 +218,7 @@ export function toMeetingIndexEntry(row: MeetingRow): MeetingIndexEntry {
     title: row.title,
     categories: row.categories,
     recordingFileName: row.recording_filename ?? undefined,
+    audioRemovedAt: row.audio_removed_at ?? undefined,
     inputSource: (row.input_source ?? undefined) as MeetingIndexEntry['inputSource'],
     status: toMeetingStatus(row),
     createdAt: new Date(row.created_at).toISOString(),

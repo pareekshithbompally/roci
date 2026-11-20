@@ -6,7 +6,6 @@ export const GALLERY_CONFIG = {
   empty: 'Images you create in chat appear here.',
   openChat: 'Open chat',
   /** Images made before their details were kept. */
-  earlier: 'Earlier',
   /** Thumbnails written beside each image: longest side in px, JPEG quality. */
   thumbnail: { maxPx: 512, quality: 0.82 },
   /** Thumbnails per row: phone, then wider windows. */

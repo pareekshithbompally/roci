@@ -1,29 +1,41 @@
-/** Generated media under app data, one folder per kind (`images/` today): `{uuid}.{ext}` beside a `{uuid}.json` of its details. */
+/** The one way Roci writes a kept file: into its kind's folder, then registered as an asset row so it has an owner. */
 
-import { exists, mkdir, readTextFile, rename, writeFile, writeTextFile } from '@tauri-apps/plugin-fs';
+import { exists, mkdir, remove, writeFile } from '@tauri-apps/plugin-fs';
 import { appDataDir, join } from '@tauri-apps/api/path';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { StorageConfig } from '@config/storage.config';
+import { store } from '@services/db';
 
-/** A kind of generated media, named by its folder. */
-export type AssetKind = 'images';
+export type AssetKind = keyof typeof StorageConfig.assetKinds;
 
-/** Where a saved asset lives: inside app data (what chats keep), on this device now, and its folder and file stem. */
+/** File bytes and the extension they are saved with (`png`, `thumb.jpg`). */
+export interface AssetFile {
+  data: Uint8Array;
+  extension: string;
+}
+
+export interface SaveAssetOptions {
+  /** A smaller copy shown in grids (an image's thumbnail); goes with the asset. */
+  preview?: AssetFile;
+  /** What the kind records about the file (an image: prompt, model, aspect ratio). */
+  meta?: object;
+  durationSeconds?: number;
+}
+
+/** Where a saved asset lives: inside app data (what chats keep) and on this device now. */
 export interface SavedAsset {
   appPath: string;
   path: string;
-  dir: string;
-  stem: string;
 }
 
 const dirs = new Map<AssetKind, Promise<string>>();
 
 /** The kind's folder, created on first use. */
-export function assetDir(kind: AssetKind): Promise<string> {
+function kindDir(kind: AssetKind): Promise<string> {
   const known = dirs.get(kind);
   if (known) return known;
   const created = (async () => {
-    const dir = await join(await appDataDir(), StorageConfig.directories[kind]);
+    const dir = await join(await appDataDir(), StorageConfig.assetKinds[kind].dir);
     if (!(await exists(dir))) await mkdir(dir, { recursive: true });
     return dir;
   })();
@@ -31,32 +43,44 @@ export function assetDir(kind: AssetKind): Promise<string> {
   return created;
 }
 
-/** Writes beside an asset without a half-written file ever being read: a temporary name, then renamed into place. */
-async function writeTextAtomically(path: string, text: string): Promise<void> {
-  await writeTextFile(`${path}.tmp`, text);
-  await rename(`${path}.tmp`, path);
+/** Removes files a failed save wrote; what can't be removed is left for the store's sweep. */
+async function discard(paths: string[]): Promise<void> {
+  await Promise.all(paths.map((path) =>
+    remove(path).catch((error: unknown) => console.warn('[assetsService] Left for the sweep:', path, error))));
 }
 
 export const assetsService = {
-  /** Writes one asset and its details; throws when it can't. */
-  async save<D extends object>(kind: AssetKind, data: Uint8Array, extension: string, details: D): Promise<SavedAsset> {
-    const dir = await assetDir(kind);
+  /** Writes the file (and its preview) and registers it; on any failure removes what it wrote and throws. */
+  async save(kind: AssetKind, file: AssetFile, options: SaveAssetOptions = {}): Promise<SavedAsset> {
+    const dir = await kindDir(kind);
+    const folder = StorageConfig.assetKinds[kind].dir;
     const stem = crypto.randomUUID();
-    const name = `${stem}.${extension}`;
+    const name = `${stem}.${file.extension}`;
     const path = await join(dir, name);
-    await writeFile(path, data);
-    await writeTextAtomically(await join(dir, `${stem}.json`), JSON.stringify(details));
-    return { appPath: `${StorageConfig.directories[kind]}/${name}`, path, dir, stem };
-  },
-
-  /** An asset's details, or null when it has none or they fail `isDetails`. */
-  async readDetails<D>(dir: string, stem: string, isDetails: (value: Partial<D>) => boolean): Promise<D | null> {
+    const written: string[] = [];
     try {
-      const details = JSON.parse(await readTextFile(await join(dir, `${stem}.json`))) as Partial<D>;
-      return isDetails(details) ? (details as D) : null;
-    } catch {
-      return null;
+      await writeFile(path, file.data);
+      written.push(path);
+      let previewPath: string | null = null;
+      if (options.preview) {
+        const previewName = `${stem}.${options.preview.extension}`;
+        const previewFile = await join(dir, previewName);
+        await writeFile(previewFile, options.preview.data);
+        written.push(previewFile);
+        previewPath = `${folder}/${previewName}`;
+      }
+      await store.assets.create({
+        kind,
+        path: `${folder}/${name}`,
+        preview_path: previewPath,
+        duration_seconds: options.durationSeconds ?? null,
+        meta: options.meta ? JSON.stringify(options.meta) : null,
+      });
+    } catch (error: unknown) {
+      await discard(written);
+      throw error;
     }
+    return { appPath: `${folder}/${name}`, path };
   },
 
   /** A URL the webview loads for a file in app data, through Tauri's asset protocol (scoped per kind in tauri.conf.json). */

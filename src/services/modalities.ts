@@ -114,12 +114,13 @@ function reportOf(model: ModelsDevModel): ModelReport {
 }
 
 class ModalitiesService {
-  async fetchAndCache(): Promise<void> {
+  /** Fetches the catalog and keeps it in memory and on disk; false when it couldn't be fetched (the old one stays). */
+  async fetchAndCache(): Promise<boolean> {
     try {
       const response = await fetch(API_URL);
       if (!response.ok) {
         console.error('[ModalitiesService] API request failed:', response.status);
-        return;
+        return false;
       }
       const data = (await response.json()) as ModelsDevResponse;
       cachedData = data;
@@ -129,8 +130,10 @@ class ModalitiesService {
         console.warn('[ModalitiesService] Disk cache write failed, using in-memory cache only');
       }
       console.log('[ModalitiesService] Fetched and cached modality data');
+      return true;
     } catch (error: unknown) {
       console.error('[ModalitiesService] Failed to fetch modality data:', error);
+      return false;
     }
   }
 

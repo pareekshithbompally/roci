@@ -188,11 +188,6 @@ export const vectorDB = {
     await invoke('plugin:store|upsert_chat_chunks', { sessionId, chunks });
   },
 
-  async deleteChatSession(sessionId: string): Promise<void> {
-    await ensureInitialized();
-    await invoke('plugin:store|delete_chat_session', { sessionId });
-  },
-
   async isChatSessionStale(sessionId: string, contentHash: string): Promise<boolean> {
     await ensureInitialized();
     return invoke('plugin:store|chat_is_stale', { sessionId, contentHash });

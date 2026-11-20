@@ -80,6 +80,11 @@ export function formatFileSize(bytes: number): string {
   return format.format(bytes / 1000 ** exponent);
 }
 
+/** A count with its noun: "1 meeting", "12 meetings". */
+export function formatCount(count: number, noun: string): string {
+  return `${new Intl.NumberFormat().format(count)} ${noun}${count === 1 ? '' : 's'}`;
+}
+
 export function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);

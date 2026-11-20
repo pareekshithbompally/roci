@@ -63,7 +63,7 @@ async function buildTools(options: OrchestratorOptions, webSearchTools: ToolSet 
   const prefs = chatToolPreferences(settings);
   const reservedNames = new Set([...toolRegistry.getToolNames(), GENERATE_IMAGE_TOOL]);
   const meetingTools = prefs.meetingTools ? toolRegistry.getTools() : [];
-  const imageTools = hasImageModel(settings) && prefs.imageGeneration ? [generateImageTool({ settings, providers, sessionId: options.sessionId })] : [];
+  const imageTools = hasImageModel(settings) && prefs.imageGeneration ? [generateImageTool({ settings, providers })] : [];
   const mcpTools = await loadMcpTools(reservedNames, mcpSettings, new Set(prefs.disabledMcpTools));
   const definitions = [...meetingTools, ...imageTools, ...mcpTools];
   if (definitions.length === 0) return none;

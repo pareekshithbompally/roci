@@ -2,8 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { HistoryItem } from '@shared/types';
-import type { MeetingStatus } from '@shared/types/meetingPhase';
+import type { HistoryItem, MeetingIndexEntry } from '@shared/types';
 import { store } from '@services/db';
 import { meetingService } from '@services/meeting.service';
 import { queryKeys } from '@shared/query/queryKeys';
@@ -54,26 +53,13 @@ const HistoryUIContext = createContext<HistoryUIContextValue | null>(null);
 // ── Helpers ──
 
 /** Convert MeetingIndexEntry → HistoryItem (lightweight — no transcript/summary) */
-function indexEntryToHistoryItem(entry: {
-  id: string;
-  title: string;
-  categories: string[];
-  recordingFileName?: string;
-  inputSource?: string;
-  status: MeetingStatus;
-  createdAt: string;
-  calendarEventId?: string;
-  scheduledTitle?: string;
-  participants?: Array<{ name?: string; email?: string; status?: string }>;
-  scheduledStart?: string;
-  scheduledEnd?: string;
-  meetingUrl?: string;
-}): HistoryItem {
+function indexEntryToHistoryItem(entry: MeetingIndexEntry): HistoryItem {
   return {
     id: entry.id,
     title: entry.title,
     categories: entry.categories,
     recordingFileName: entry.recordingFileName,
+    audioRemovedAt: entry.audioRemovedAt,
     inputSource: entry.inputSource as HistoryItem['inputSource'],
     timestamp: new Date(entry.createdAt).getTime(),
     transcript: '',

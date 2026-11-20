@@ -3,6 +3,8 @@
 import type { ChatSession, ChatIndexEntry } from '@shared/types';
 import { store } from '@services/db';
 import { chatIndexer } from '@extensions/rag/chat-indexer';
+import { queryClient } from '@shared/query/queryClient';
+import { queryKeys } from '@shared/query/queryKeys';
 
 class ChatService {
   /** List sessions from the store (lightweight — no messages) */
@@ -28,12 +30,10 @@ class ChatService {
     );
   }
 
-  /** Deletes a session; its vector index entries go in the background. Throws when the delete fails. */
+  /** Deletes a session with everything it owns (messages, files, search index) in one store write; throws when it fails. */
   async deleteSession(sessionId: string): Promise<void> {
     await store.chats.delete(sessionId);
-    chatIndexer.removeSession(sessionId).catch((error: unknown) =>
-      console.warn('[ChatService] Chat index cleanup failed (non-fatal):', sessionId, error)
-    );
+    void queryClient.invalidateQueries({ queryKey: queryKeys.gallery() });
   }
 
   /** Renames a session. Throws when the write fails. */

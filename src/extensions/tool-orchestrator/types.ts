@@ -23,8 +23,6 @@ export interface OrchestratorOptions {
   skipRetrieval?: boolean;
   /** The chat's thinking level. */
   reasoningEffort: ReasoningEffort;
-  /** The chat this reply belongs to (images it makes remember it). */
-  sessionId?: string;
 }
 
 // ── Callbacks ──

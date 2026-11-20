@@ -2,7 +2,7 @@
 
 import type { MeetingDetail, MeetingIndexEntry } from '@shared/types';
 import { store } from '@services/db';
-import { remove, exists } from '@tauri-apps/plugin-fs';
+import { reminderService } from '@services/reminder.service';
 
 class MeetingService {
   /** List all meetings from the store (lightweight) */
@@ -16,28 +16,11 @@ class MeetingService {
     return store.meetings.get(id);
   }
 
-  /** Delete a meeting — deletes DB rows (cascading) + recording .wav files from disk */
-  async deleteMeeting(id: string): Promise<boolean> {
-    try {
-      const { recordingFilenames } = await store.meetings.delete(id);
-
-      // Clean up recording .wav files from disk
-      for (const filename of recordingFilenames) {
-        try {
-          const { appDataDir, join } = await import('@tauri-apps/api/path');
-          const base = await appDataDir();
-          const wavPath = await join(base, 'recordings', filename);
-          if (await exists(wavPath)) await remove(wavPath);
-        } catch {
-          // File may already be gone — non-fatal
-        }
-      }
-
-      return true;
-    } catch (error) {
-      console.error('[MeetingService] Failed to delete meeting:', id, error);
-      return false;
-    }
+  /** Deletes a meeting with all it owns in one store write, then removes its owed notices; throws when the delete fails. */
+  async deleteMeeting(id: string): Promise<void> {
+    await store.meetings.delete(id);
+    await reminderService.cancelOwed().catch((error: unknown) =>
+      console.warn('[MeetingService] Owed notices left for launch:', error));
   }
 }
 

@@ -1,16 +1,16 @@
-/** Paths for recordings and caches; meetings, chats and settings live in roci.db. */
+/** The app-data root and the cache folders; data lives in roci.db, kept files go through assetsService. */
 
 import { appDataDir, join, sep } from '@tauri-apps/api/path';
-import { exists, mkdir, readDir } from '@tauri-apps/plugin-fs';
+import { exists, mkdir } from '@tauri-apps/plugin-fs';
 import { StorageConfig } from '@config/storage.config';
-import type { DirectoryInfo, StorageResult } from './types';
+import type { StorageResult } from './types';
 
 class PathsService {
   private initialized = false;
   private basePath: string | null = null;
   private directoryPaths: Map<string, string> = new Map();
 
-  /** Creates the recordings and cache directories only. */
+  /** Creates the cache directories. */
   async initialize(): Promise<StorageResult<string>> {
     if (this.initialized && this.basePath) {
       console.log('[PathsService] Already initialized at:', this.basePath);
@@ -43,7 +43,6 @@ class PathsService {
     }
 
     const directories = [
-      StorageConfig.directories.recordings,
       StorageConfig.directories.cache,
       StorageConfig.directories.cacheAudio,
       StorageConfig.directories.cacheApi,
@@ -89,18 +88,6 @@ class PathsService {
     return this.basePath;
   }
 
-  async getRecordingsPath(): Promise<string> {
-    const base = await this.getBasePath();
-    const fullPath = await join(base, StorageConfig.directories.recordings);
-    return this.ensureTrailingSeparator(fullPath);
-  }
-
-  async getCachePath(): Promise<string> {
-    const base = await this.getBasePath();
-    const fullPath = await join(base, StorageConfig.directories.cache);
-    return this.ensureTrailingSeparator(fullPath);
-  }
-
   async getAudioCachePath(): Promise<string> {
     const base = await this.getBasePath();
     const fullPath = await join(base, StorageConfig.directories.cacheAudio);
@@ -111,58 +98,6 @@ class PathsService {
     const base = await this.getBasePath();
     const fullPath = await join(base, StorageConfig.directories.cacheApi);
     return this.ensureTrailingSeparator(fullPath);
-  }
-
-  async getFullPath(subdirectory: 'recordings' | 'cache' | 'cacheAudio' | 'cacheApi' | 'cache/audio' | 'cache/api', filename: string): Promise<string> {
-    const base = await this.getBasePath();
-    const subdir = subdirectory;
-    return await join(base, subdir, filename);
-  }
-
-  /** Size and file count of a directory. */
-  async getDirectoryInfo(path: string): Promise<DirectoryInfo> {
-    try {
-      const dirExists = await exists(path);
-      if (!dirExists) {
-        return { path, exists: false, size: 0, fileCount: 0 };
-      }
-
-      const entries = await readDir(path);
-      let totalSize = 0;
-      let fileCount = 0;
-
-      for (const entry of entries) {
-        if (!entry.isDirectory) {
-          fileCount++;
-        }
-      }
-
-      return { path, exists: true, size: totalSize, fileCount };
-    } catch (error) {
-      console.error('[PathsService] Failed to get directory info:', error);
-      return { path, exists: false, size: 0, fileCount: 0 };
-    }
-  }
-
-  async listFiles(directoryKey: 'recordings' | 'cache' | 'cacheAudio' | 'cacheApi' | 'cache/audio' | 'cache/api'): Promise<string[]> {
-    try {
-      const base = await this.getBasePath();
-      const subdir = directoryKey;
-      const fullPath = await join(base, subdir);
-
-      const dirExists = await exists(fullPath);
-      if (!dirExists) {
-        return [];
-      }
-
-      const entries = await readDir(fullPath);
-      return entries
-        .filter(entry => !entry.isDirectory)
-        .map(entry => entry.name);
-    } catch (error) {
-      console.error('[PathsService] Failed to list files:', error);
-      return [];
-    }
   }
 
   /** Resets service state for tests. */

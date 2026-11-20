@@ -9,6 +9,10 @@ export const queryKeys = {
   gallery: () => ['gallery'] as const,
   /** Dictations made in the app (Dictations). */
   dictations: () => ['dictations'] as const,
+  /** Settings › Storage: counts and sizes, measured from disk. */
+  storageUsage: () => ['storage-usage'] as const,
+  /** Settings › Storage › Search Index: indexed against total meetings and chats. */
+  indexStats: () => ['index-stats'] as const,
   meetings: () => ['meetings'] as const,
   /** Calendar events (EventKit) in one range on screen, by ISO start/end; all of them reread on `calendar://changed` */
   calendarEvents: (start: string, end: string) => ['calendar-events', start, end] as const,
@@ -17,6 +21,8 @@ export const queryKeys = {
   meetingStats: (meetingId: string) => ['meetings', 'stats', meetingId] as const,
   /** One meeting as the meeting view shows it; under `meetings` so every meeting write refreshes it */
   meetingDetail: (meetingId: string) => ['meetings', 'detail', meetingId] as const,
+  /** Which of these meetings still exist (a chat's meeting chips); under `meetings` so every meeting write refreshes it */
+  meetingsExisting: (ids: string[]) => ['meetings', 'existing', ...ids] as const,
   recordingAudio: (fileName: string) => ['recording-audio', fileName] as const,
   /** A Mac app's icon from macOS, by bundle id (Finder, Calendar, …) */
   appIcon: (bundleId: string) => ['app-icon', bundleId] as const,
@@ -62,6 +68,8 @@ export const queryKeys = {
   usage: (query: UsageQuery) => ['usage', query] as const,
   /** The URL the webview loads for a file in app data (chat images) */
   appFileUrl: (appPath: string) => ['app-file-url', appPath] as const,
+  /** Every kept file's URL, read again after Keep or Delete All removes files. */
+  appFileUrls: () => ['app-file-url'] as const,
   /** Every usage query (a logged request changes them all) */
   usageAll: () => ['usage'] as const,
 

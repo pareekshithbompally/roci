@@ -66,16 +66,13 @@ describe('store invoke arg shapes match Rust command signatures', () => {
     expect(callsFor('meetings_rename')[0]).toEqual({ id: 'm1', title: 'Mine' });
   });
 
-  it('recordings/notes/todos/chats upserts wrap payloads in `input`', async () => {
-    const { recordings } = await import('@services/db/domains/recordings');
+  it('notes/todos/chats upserts wrap payloads in `input`', async () => {
     const { notes } = await import('@services/db/domains/notes');
     const { todos } = await import('@services/db/domains/todos');
     const { chats } = await import('@services/db/domains/chats');
-    await recordings.upsert({ id: 'r1', filename: 'a.wav' });
     await notes.upsert({ id: 'n1', meetingId: 'm1', text: 'note' });
     await todos.upsert({ id: 't1', meetingId: 'm1', text: 'todo' });
     await chats.upsert({ id: 'c1', title: 'Chat', lastMessageAt: 0, messages: [] });
-    expect(callsFor('recordings_upsert')[0]).toMatchObject({ input: { id: 'r1' } });
     expect(callsFor('notes_upsert')[0]).toMatchObject({ input: { id: 'n1', meeting_id: 'm1' } });
     expect(callsFor('todos_upsert')[0]).toMatchObject({ input: { id: 't1', meeting_id: 'm1' } });
     expect(callsFor('chats_upsert')[0]).toMatchObject({ input: { id: 'c1' } });

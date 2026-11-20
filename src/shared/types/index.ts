@@ -3,6 +3,7 @@ import type { AudioCaptureSource } from '@config/audio.config';
 import type { MeetingCitation } from '@extensions/tools/types';
 import type { WebCitation, InlineCitationSpan } from '@services/ai/types';
 import type { ReadAloudEngine } from '@config/readAloud.config';
+import type { StorageConfig } from '@config/storage.config';
 import type { MeetingStatus } from './meetingPhase';
 export type { MeetingCitation, WebCitation, InlineCitationSpan };
 
@@ -53,6 +54,8 @@ export interface HistoryItem extends ProcessedResult {
   title: string;
   recordingId?: string;
   recordingFileName?: string;
+  /** Epoch ms Keep or Delete All removed its recording. */
+  audioRemovedAt?: number;
   transcriptionId?: string;
   summaryId?: string;
   inputSource?: string;
@@ -208,6 +211,12 @@ export type NotificationSettings = Record<NotificationKind, boolean> & {
   meetingLeadMinutes: number;
 };
 
+/** What Settings › Storage keeps for a set time: whole meetings, chats and dictations, or one kind of file on its own. */
+export type RetentionClass = 'meetings' | 'chats' | 'dictations' | keyof typeof StorageConfig.assetKinds;
+
+/** Days each class is kept; a class not named is kept forever. */
+export type StorageRetention = Partial<Record<RetentionClass, number>>;
+
 export interface AppSettings {
   /** First-run flow (permissions, then AI setup) finished or skipped; Settings › General can run it again. */
   onboarding?: {
@@ -248,6 +257,8 @@ export interface AppSettings {
   };
   /** Settings › Notifications: which kinds may notify, and the meeting lead time. */
   notifications?: NotificationSettings;
+  /** Settings › Storage: how long each class of data is kept. */
+  storageRetention?: StorageRetention;
   /** Settings › Default Models › Read aloud: the engine replies are spoken with. */
   readAloudEngine?: ReadAloudEngine;
   /** The voice within `readAloudEngine` (its id from the engine's voice list); unset = the engine's default. */
@@ -286,6 +297,8 @@ export interface MeetingIndexEntry {
   title: string;
   categories: string[];
   recordingFileName?: string;
+  /** Epoch ms Keep or Delete All removed its recording; the meeting says "Audio removed". */
+  audioRemovedAt?: number;
   inputSource?: string;
   createdAt: string;
   updatedAt: string;

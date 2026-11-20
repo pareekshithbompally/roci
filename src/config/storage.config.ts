@@ -1,79 +1,65 @@
-/** Storage layout, file naming and cache policies for binary files; data lives in roci.db. */
+/** Storage layout: the asset kinds (each file one row in roci.db), Keep policies, removed copy, and the cache. */
 
 export const StorageConfig = {
   /** Directory structure within Application Support. */
   directories: {
-    recordings: 'recordings',
-    /** Images the chat's generate_image tool made. */
-    images: 'images',
     cache: 'cache',
     cacheAudio: 'cache/audio',
     cacheApi: 'cache/api',
   },
 
-  fileNames: {
-    recordingPrefix: 'rec',
-    cacheTempPrefix: 'temp',
+  /** Every kept file kind by its folder; `assets.rs` MANAGED_DIRS and the tauri.conf.json asset scope list the same. */
+  assetKinds: {
+    recording: { dir: 'recordings' },
+    image: { dir: 'images' },
+    speech: { dir: 'speech' },
   },
 
-  formats: {
-    recording: {
-      defaultExtension: '.wav',
-      allowedExtensions: ['.wav', '.webm', '.mp3', '.m4a'],
-    },
+  /** Settings › Storage › Keep: how long each class of data stays. A class absent from the setting is kept forever. */
+  retention: {
+    /** The Keep menu's periods, in days. */
+    keepDays: [30, 90, 120],
+    /** The longest a deadline timer can wait (setTimeout's limit); a later deadline re-arms when it fires. */
+    maxTimerMs: 2 ** 31 - 1,
+    /** Settings › Storage rows, in order: what each class is called, counts as, and what Delete All removes. */
+    classes: [
+      { id: 'meetings', label: 'Meetings', noun: 'meeting', deletes: 'every meeting with its transcript, summary, notes, to-dos and audio' },
+      { id: 'recording', label: 'Recordings', noun: 'recording', deletes: 'the audio of every meeting; the meetings and their transcripts stay' },
+      { id: 'chats', label: 'Chats', noun: 'chat', deletes: 'every chat with its images and speech' },
+      { id: 'image', label: 'Images', noun: 'image', deletes: 'every image made in chat; the chats stay' },
+      { id: 'dictations', label: 'Dictations', noun: 'dictation', deletes: 'every dictation' },
+    ],
+    /** The Keep menu's last group: an action, not a period. */
+    deleteAll: 'Delete All…',
+    forever: 'Forever',
+    footer: 'Older items are removed automatically. Meetings still recording or transcribing are never removed.',
+  },
+
+  /** What stands where a removed item was (Keep or Delete All took it); its parent stays. */
+  removed: {
+    image: 'Image removed',
+    audio: 'Audio removed',
+    video: 'Video removed',
+    document: 'File removed',
+    meeting: 'Meeting removed',
+  },
+
+  fileNames: {
+    cacheTempPrefix: 'temp',
   },
 
   cache: {
     audio: {
       ttlHours: 24,
       maxSizeMB: -1,
-      cleanupOnStart: true,
     },
     api: {
       ttlDays: 7,
       maxSizeMB: 100,
-      cleanupOnStart: true,
     },
     cleanupThresholdPercent: 90,
   },
-
-  /** Retry policy for file operations. */
-  retry: {
-    maxAttempts: 3,
-    initialDelayMs: 100,
-    backoffMultiplier: 2,
-  },
-
-  metadataVersion: 1,
-
-  /** Maximum entries to keep in history. */
-  maxHistoryEntries: 1000,
-
-  defaultSettings: {
-    theme: 'system',
-    autoSave: true,
-    recordingQuality: 'high',
-    aiModel: '',
-    chatModel: '',
-    autoTranscribe: true,
-    defaultAudioSource: 'systemAndMicrophone',
-  },
 } as const;
-
-export function generateRecordingFilename(extension?: string): string {
-  const timestamp = Date.now();
-  const uuid = crypto.randomUUID().split('-')[0];
-  const ext = extension || StorageConfig.formats.recording.defaultExtension;
-  return `${StorageConfig.fileNames.recordingPrefix}_${timestamp}_${uuid}${ext}`;
-}
-
-export function getRecordingIdFromFilename(filename: string): string {
-  const lastDotIndex = filename.lastIndexOf('.');
-  if (lastDotIndex <= 0) {
-    return filename;
-  }
-  return filename.slice(0, lastDotIndex);
-}
 
 export function generateCacheFilename(key: string, extension: string = '.cache'): string {
   const hash = key.split('').reduce((a, b) => {

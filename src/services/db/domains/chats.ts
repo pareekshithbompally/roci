@@ -1,8 +1,14 @@
 /** Chats domain — list/get/upsert/rename/delete chat sessions. */
 
 import { call, extractDataBlob, rowToMessage } from '@services/db/internal';
-import type { ChatSession, ChatIndexEntry } from '@shared/types';
+import type { ChatMessage, ChatSession, ChatIndexEntry } from '@shared/types';
 import type { PaginatedResult } from '@services/db/types';
+import { appFileOf } from '@shared/utils/chatParts';
+
+/** Every app-data file the messages show (images, speech…): the chat owns exactly these. */
+function assetPathsOf(messages: ChatMessage[]): string[] {
+  return messages.flatMap((msg) => (msg.parts ?? []).map(appFileOf).filter((path): path is string => path !== null));
+}
 
 export const chats = {
   /** List chat sessions, ordered by last_message_at DESC. */
@@ -59,7 +65,8 @@ export const chats = {
         title: session.title,
         meeting_id: session.meetingId ?? null,
         last_message_at: session.lastMessageAt,
-        messages: session.messages.map((msg, i) => {
+        asset_paths: assetPathsOf(session.messages),
+        messages: session.messages.map((msg) => {
           const data = extractDataBlob(msg);
           return {
             id: msg.id,

@@ -86,6 +86,7 @@ const PERSISTED_SETTINGS: Record<keyof AppSettings, true> = {
   showModelAvatars: true,
   modelIdleMinutes: true,
   spotlightIntegration: true,
+  storageRetention: true,
   transcriptionModel: true,
   transcriptionProvider: true,
 };

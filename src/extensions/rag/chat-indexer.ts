@@ -238,18 +238,7 @@ async function indexSessionInternal(
   };
 }
 
-/** Removes a deleted session and all its chunks/vectors from the index. */
-async function removeSession(sessionId: string): Promise<void> {
-  try {
-    await vectorDB.deleteChatSession(sessionId);
-    console.log(`[ChatIndexer] Removed session ${sessionId}`);
-  } catch (error) {
-    console.warn(`[ChatIndexer] Cleanup failed for session ${sessionId}:`, error);
-  }
-}
-
 export const chatIndexer = {
   indexSession,
   indexAllSessions,
-  removeSession,
 };

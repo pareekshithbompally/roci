@@ -50,6 +50,15 @@ class ReminderService {
       );
     });
     await this.reconcile();
+    await this.cancelOwed();
+  }
+
+  /** Removes the notices of reminders deleted with their meeting (the store owes them); at launch and after a delete. */
+  async cancelOwed(): Promise<void> {
+    const owed = await store.assets.noticesOwed();
+    if (owed.length === 0) return;
+    if (platform.hasNotifications) await removeNotices(owed.map((notice) => noticeId(notice.todo_id)));
+    await store.assets.noticesCleared(owed.map((notice) => notice.id));
   }
 
   async schedule(params: ScheduleReminderParams): Promise<boolean> {

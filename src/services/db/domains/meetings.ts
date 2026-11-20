@@ -15,7 +15,6 @@ import type {
   MeetingDetailRow,
   MeetingListResult,
   MeetingUpsertInput,
-  MeetingsDeleteResult,
   NewTranscript,
   SummarySaveInput,
   TranscriptSaveInput,
@@ -49,7 +48,7 @@ function toDetail(result: MeetingDetailRow): MeetingDetail {
       filename: recording.filename,
       createdAt: new Date(recording.created_at).toISOString(),
       ...(recording.duration_seconds != null && recording.duration_seconds > 0 ? { duration: recording.duration_seconds } : {}),
-      ...(recording.input_source ? { inputSource: recording.input_source } : {}),
+      ...(result.input_source ? { inputSource: result.input_source } : {}),
     } as RecordingMeta;
   }
 
@@ -171,10 +170,14 @@ export const meetings = {
     });
   },
 
-  /** Delete a meeting and all its cascading children. Returns recording filenames for cleanup. */
-  async delete(id: string): Promise<{ recordingFilenames: string[] }> {
-    const result = await call<MeetingsDeleteResult>('meetings_delete', { id });
-    return { recordingFilenames: result.recording_filenames };
+  /** The ids among `ids` that are meetings still kept. */
+  async existing(ids: string[]): Promise<string[]> {
+    return call<string[]>('meetings_existing', { ids });
+  },
+
+  /** Deletes a meeting and everything it owns (rows, files, scheduled notices) in one transaction. */
+  async delete(id: string): Promise<void> {
+    await call<void>('meetings_delete', { id });
   },
 };
 

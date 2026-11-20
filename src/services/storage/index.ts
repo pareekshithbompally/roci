@@ -1,4 +1,4 @@
-/** Binary file storage (cache, recordings, paths); data lives in roci.db via @services/db. */
+/** Files on disk: kept assets (one row each in roci.db), recordings read back, the cache and app-data paths. */
 
 import { pathsService } from './paths.service';
 import { cacheService } from './cache.service';
@@ -10,18 +10,9 @@ export { assetsService } from './assets.service';
 export type { AssetKind, SavedAsset } from './assets.service';
 export { cacheService } from './cache.service';
 
-export type {
-  BaseMetadata,
-  RecordingMetadata,
-  AppSettings,
-  CacheEntry,
-  CacheStats,
-  StorageResult,
-  DirectoryInfo,
-  FileOperationOptions,
-} from './types';
+export type { CacheEntry, CacheStats, StorageResult } from './types';
 
-/** Creates the recordings and cache directories. */
+/** Creates the cache directories and clears expired cache entries. */
 export async function initializeStorage(): Promise<void> {
   console.log('[Storage] ========== Initializing storage system ==========');
 
