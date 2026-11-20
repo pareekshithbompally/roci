@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { toSDKMessages } from '@services/ai/message-converter';
+import { formatSentAt } from '@core/ai';
 import { extractTokenUsage } from '@services/ai/types';
 import type { ModelMessage } from 'ai';
 import { chatModelOf } from '@features/chat/utils';
@@ -22,7 +23,7 @@ describe('AI SDK v7 message shapes', () => {
     const [m] = toSDKMessages([msg([{ type: 'image', mimeType: 'image/png', source: { kind: 'data', base64: bytes } }])], TOOLS);
     expect(m.role).toBe('user');
     const content = (m as { content: Array<{ type: string }> }).content;
-    expect(content[0].type).toBe('file');
+    expect(content[1].type).toBe('file');
     expect(content.some((p) => p.type === 'image')).toBe(false);
   });
 
@@ -31,21 +32,21 @@ describe('AI SDK v7 message shapes', () => {
       msg([{ type: 'image', mimeType: 'image/png', source: { kind: 'url', url: 'https://example.com/a.png' } }]),
     ], TOOLS);
     const content = (m as { content: Array<{ type: string; data?: unknown }> }).content;
-    expect(content[0].type).toBe('file');
-    expect(content[0].data).toBeInstanceOf(URL);
+    expect(content[1].type).toBe('file');
+    expect(content[1].data).toBeInstanceOf(URL);
   });
 
   it('maps audio data parts to file parts', () => {
     const bytes = btoa('fake-audio');
     const [m] = toSDKMessages([msg([{ type: 'audio', mimeType: 'audio/wav', source: { kind: 'data', base64: bytes } }])], TOOLS);
     const content = (m as { content: Array<{ type: string }> }).content;
-    expect(content[0].type).toBe('file');
+    expect(content[1].type).toBe('file');
   });
 });
 
 describe('conversation history', () => {
   const question: ChatMessage = { id: 'q', role: 'user', text: 'What did we decide?', timestamp: 1, state: 'complete' };
-  const asked = { role: 'user', content: [{ type: 'text', text: 'What did we decide?' }] };
+  const asked = { role: 'user', content: [{ type: 'text', text: formatSentAt(1) }, { type: 'text', text: 'What did we decide?' }] };
   const exchange: ModelMessage[] = [
     { role: 'assistant', content: [
       { type: 'reasoning', text: 'Search first.', providerOptions: { anthropic: { signature: 'sig' } } },
@@ -83,8 +84,16 @@ describe('conversation history', () => {
   it('keeps a question\'s attached meetings with it on every turn', () => {
     const withMeeting: ChatMessage = { ...question, meetingContext: 'Weekly sync: ship Friday' };
     const [sent] = toSDKMessages([withMeeting, reply], TOOLS);
-    expect((sent.content as Array<{ text: string }>)[1].text).toContain('## Meetings the user attached\n\nAnswer from these first');
-    expect((sent.content as Array<{ text: string }>)[1].text).toContain('Weekly sync: ship Friday');
+    expect((sent.content as Array<{ text: string }>)[2].text).toContain('## Meetings the user attached\n\nAnswer from these first');
+    expect((sent.content as Array<{ text: string }>)[2].text).toContain('Weekly sync: ship Friday');
+  });
+
+  it('leads each question with when it was sent, the same on every later turn (so the cached start never changes)', () => {
+    const later: ChatMessage = { ...question, id: 'q2', timestamp: 2 };
+    const first = toSDKMessages([question, reply], TOOLS);
+    const second = toSDKMessages([question, reply, later], TOOLS);
+    expect(second.slice(0, first.length)).toEqual(first);
+    expect((second.at(-1)!.content as Array<{ text: string }>)[0].text).toBe(formatSentAt(2));
   });
 
   it('never sends an error or one of Roci\'s notices back as the model\'s words', () => {

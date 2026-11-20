@@ -2,7 +2,7 @@
 
 import { pruneMessages } from 'ai';
 import type { ModelMessage, FilePart, TextPart } from 'ai';
-import { attachedMeetingsText } from '@core/ai';
+import { attachedMeetingsText, formatSentAt } from '@core/ai';
 import type { ChatMessage, ChatPart } from '@shared/types';
 
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -43,10 +43,11 @@ function chatPartToSDKPart(part: ChatPart): TextPart | FilePart | null {
   }
 }
 
-/** A question: its text, its attachments as file parts, then the meetings attached to it. */
+/** A question: when it was sent, its text, its attachments as file parts, then the meetings attached to it. */
 function userMessage(msg: ChatMessage): ModelMessage {
   const attachments = (msg.parts ?? []).filter((part) => part.type !== 'text' && part.type !== 'tool_call').flatMap((part) => chatPartToSDKPart(part) ?? []);
   const content: Array<TextPart | FilePart> = [
+    { type: 'text', text: formatSentAt(msg.timestamp) },
     ...(msg.text ? [{ type: 'text' as const, text: msg.text }] : []),
     ...attachments,
     ...(msg.meetingContext ? [{ type: 'text' as const, text: attachedMeetingsText(msg.meetingContext) }] : []),

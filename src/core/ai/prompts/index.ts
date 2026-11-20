@@ -7,7 +7,7 @@ export type { MeetingContext, TranscriptionPromptOptions, UserNote } from './tra
 export { CHAT_TITLE_PROMPT } from './chatTitle.prompt';
 export { suggestionsPrompt } from './suggestions.prompt';
 
-export { formatTemporalContext } from '@core/ai/temporal';
+export { formatChatTimeContext, formatSentAt, formatTemporalContext } from '@core/ai/temporal';
 
 export { LIVE_NOTES_PROMPT, buildLiveNotesInput } from './liveNotes.prompt';
 export type { LiveNotesInput } from './liveNotes.prompt';

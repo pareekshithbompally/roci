@@ -25,7 +25,7 @@ import { orchestrate } from '@extensions/tool-orchestrator';
 import { streamingStore } from './streamingStore';
 import type { ToolCallPatch } from './streamingStore';
 import type { ToolActivity } from '@extensions/tool-orchestrator/types';
-import { formatTemporalContext, type ChatToolset } from '@core/ai';
+import { formatChatTimeContext, type ChatToolset } from '@core/ai';
 import { generateSuggestions } from '@services/ai/suggestions';
 import { generateChatTitle } from '@services/ai/chatTitle';
 import { logUsage } from '@extensions/usage';
@@ -366,7 +366,7 @@ async function streamReply(reply: Reply, request: ReplyRequest, tally: StreamTal
       model: resolved,
       prompt: {
         meetingCount: historyItems.length,
-        temporalContext: formatTemporalContext(),
+        timeContext: formatChatTimeContext(),
       },
       settings,
       providers,

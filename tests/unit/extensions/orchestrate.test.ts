@@ -7,7 +7,7 @@ vi.mock('ai', async (importOriginal) => ({ ...(await importOriginal<typeof impor
 const getWebSearchTools = vi.hoisted(() => vi.fn());
 vi.mock('@services/ai', () => ({
   createModel: () => ({}),
-  reasoningCallSettings: () => ({}),
+  chatCallSettings: () => ({}),
   toSDKMessages: () => [],
   getWebSearchTools,
   toExecutableTools: () => ({}),
@@ -66,7 +66,7 @@ function replyOnce() {
 
 const callbacks = { onChunk: vi.fn(), onReasoning: vi.fn(), onToolActivity: vi.fn() };
 const run = (settings: Partial<AppSettings>) =>
-  orchestrate({ messages: [], model: resolved.current as never, prompt: { meetingCount: 0, temporalContext: '' }, settings: settings as AppSettings, providers: [], reasoningEffort: 'provider-default' }, callbacks);
+  orchestrate({ messages: [], model: resolved.current as never, prompt: { meetingCount: 0, timeContext: '' }, settings: settings as AppSettings, providers: [], reasoningEffort: 'provider-default' }, callbacks);
 
 beforeEach(() => {
   vi.clearAllMocks();

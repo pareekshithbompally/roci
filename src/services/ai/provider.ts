@@ -22,6 +22,7 @@ import { llamaServerRequestBody } from '@services/ai/llamaServer';
 import { getProviderType } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { ReasoningEffort } from '@shared/types';
+import type { ProviderType } from '@services/ai/types';
 import type { ImageModel, LanguageModel, LanguageModelCallOptions, SpeechModel, streamText, ToolSet, TranscriptionModel } from 'ai';
 
 /** Extract custom headers from provider config (for OpenRouter, etc.) */
@@ -155,18 +156,27 @@ const SHOW_THINKING = {
   openai: { openai: { reasoningSummary: 'auto' } },
 } as const;
 
+/** Anthropic caches only when asked (OpenAI and Gemini cache by themselves): one marker caches the whole conversation,
+ *  so the next turn and each tool step reuse it. */
+const CACHE_CONVERSATION = { anthropic: { cacheControl: { type: 'ephemeral' } } } as const;
+
+/** What a chat call asks of its provider beyond the SDK's own settings: Anthropic's caching, or a thinking model's thoughts. */
+function chatProviderOptions(type: ProviderType, thinks: boolean) {
+  if (type === 'anthropic') return CACHE_CONVERSATION;
+  return thinks && (type === 'gemini' || type === 'openai') ? SHOW_THINKING[type] : undefined;
+}
+
 /**
- * The chat's thinking level as AI SDK call settings: the SDK's own `reasoning` (each provider maps it to its
- * effort or budget), and for a thinking model, asking its provider to return the thoughts.
+ * A chat call's settings: the thinking level as the SDK's own `reasoning` (each provider maps it to its effort or budget),
+ * plus what its provider must be asked for (see `chatProviderOptions`).
  */
-export function reasoningCallSettings(
+export function chatCallSettings(
   resolved: ResolvedModel,
   effort: ReasoningEffort,
 ): Pick<LanguageModelCallOptions, 'reasoning'> & Pick<Parameters<typeof streamText>[0], 'providerOptions'> {
   const thinks = effort !== 'none' && profileOf(resolved.provider, resolved.model).reasoning;
-  const type = getProviderType(resolved.provider);
-  const showThinking = thinks && (type === 'gemini' || type === 'openai') ? SHOW_THINKING[type] : undefined;
-  return { reasoning: effort, ...(showThinking && { providerOptions: showThinking }) };
+  const providerOptions = chatProviderOptions(getProviderType(resolved.provider), thinks);
+  return { reasoning: effort, ...(providerOptions && { providerOptions }) };
 }
 
 /** The provider's native web search tools; undefined when it has none. */

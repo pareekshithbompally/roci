@@ -29,8 +29,8 @@ export interface ChatPromptOptions {
   tools: ChatToolset;
   modalities: ChatModalities;
   meetingCount: number;
-  /** From formatTemporalContext(). */
-  temporalContext: string;
+  /** From formatChatTimeContext(): the same every turn (each message carries when it was sent). */
+  timeContext: string;
 }
 
 /** Each modality as the prompt names it; embeddings aren't something a chat reads or writes. */
@@ -132,7 +132,7 @@ export function attachedMeetingsText(meetings: string): string {
   return `## Meetings the user attached\n\nAnswer from these first, and name the meeting each fact comes from.\n\n${meetings}`;
 }
 
-export function buildChatSystemPrompt({ tools, modalities, meetingCount, temporalContext }: ChatPromptOptions): string {
+export function buildChatSystemPrompt({ tools, modalities, meetingCount, timeContext }: ChatPromptOptions): string {
   return [
     identity(meetingCount),
     capabilities(modalities, tools),
@@ -141,7 +141,7 @@ export function buildChatSystemPrompt({ tools, modalities, meetingCount, tempora
     ANSWER_STYLE,
     rules(tools),
     tools.meetings && TRANSCRIPT_GUIDE,
-    temporalContext,
+    timeContext,
   ]
     .filter(Boolean)
     .join('\n\n');

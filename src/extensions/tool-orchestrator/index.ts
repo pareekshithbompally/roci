@@ -3,7 +3,7 @@
 import { missingKey } from '@services/ai/jobModel';
 import { streamText, isStepCount } from 'ai';
 import type { ModelMessage, TextStreamPart, ToolSet } from 'ai';
-import { createModel, reasoningCallSettings, toSDKMessages, getWebSearchTools, toExecutableTools } from '@services/ai';
+import { createModel, chatCallSettings, toSDKMessages, getWebSearchTools, toExecutableTools } from '@services/ai';
 import { getProviderType } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { getModelDisplayName } from '@shared/utils/provider.utils';
@@ -189,7 +189,7 @@ export async function orchestrate(
   try {
     const result = streamText({
       model: createModel(resolved, { webSearch: !!webSearchTools, ...(reportsProgress && { llamaServer: { reasoningEffort } }) }),
-      ...reasoningCallSettings(resolved, reasoningEffort),
+      ...chatCallSettings(resolved, reasoningEffort),
       instructions: systemPrompt,
       messages: toSDKMessages(messages, Object.keys(tools ?? {})),
       abortSignal: signal,

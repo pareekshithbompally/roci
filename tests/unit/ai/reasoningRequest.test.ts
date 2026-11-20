@@ -4,30 +4,37 @@ import type { ResolvedModel } from '@shared/utils/modelResolver';
 const profile = vi.fn<() => { reasoning: boolean }>();
 vi.mock('@services/ai/models', () => ({ profileOf: () => profile() }));
 
-const { reasoningCallSettings } = await import('@services/ai/provider');
+const { chatCallSettings } = await import('@services/ai/provider');
 const { llamaServerRequestBody } = await import('@services/ai/llamaServer');
 
 const model = (provider: string) => ({ provider, modelId: 'm', model: { id: 'm' } }) as ResolvedModel;
 const thinks = (reasoning: boolean) =>
   profile.mockReturnValue({ reasoning });
 
-describe('reasoningCallSettings', () => {
+describe('chatCallSettings', () => {
   beforeEach(() => thinks(true));
 
   it('passes the level as the SDK reasoning setting for every provider', () => {
-    expect(reasoningCallSettings(model('anthropic'), 'high')).toEqual({ reasoning: 'high' });
-    expect(reasoningCallSettings(model('local:127.0.0.1:9931'), 'none')).toEqual({ reasoning: 'none' });
+    expect(chatCallSettings(model('anthropic'), 'high').reasoning).toBe('high');
+    expect(chatCallSettings(model('local:127.0.0.1:9931'), 'none')).toEqual({ reasoning: 'none' });
+  });
+
+  it('asks only Anthropic to cache the conversation (the others cache by themselves)', () => {
+    const cache = { anthropic: { cacheControl: { type: 'ephemeral' } } };
+    expect(chatCallSettings(model('anthropic'), 'high').providerOptions).toEqual(cache);
+    expect(chatCallSettings(model('anthropic'), 'none').providerOptions).toEqual(cache);
+    expect(chatCallSettings(model('gemini'), 'low').providerOptions).not.toHaveProperty('anthropic');
   });
 
   it('asks Gemini and OpenAI to return a thinking model\'s thoughts', () => {
-    expect(reasoningCallSettings(model('gemini'), 'low').providerOptions).toEqual({ google: { thinkingConfig: { includeThoughts: true } } });
-    expect(reasoningCallSettings(model('openai'), 'provider-default').providerOptions).toEqual({ openai: { reasoningSummary: 'auto' } });
+    expect(chatCallSettings(model('gemini'), 'low').providerOptions).toEqual({ google: { thinkingConfig: { includeThoughts: true } } });
+    expect(chatCallSettings(model('openai'), 'provider-default').providerOptions).toEqual({ openai: { reasoningSummary: 'auto' } });
   });
 
   it('asks for no thoughts when thinking is off or the model does not think', () => {
-    expect(reasoningCallSettings(model('gemini'), 'none').providerOptions).toBeUndefined();
+    expect(chatCallSettings(model('gemini'), 'none').providerOptions).toBeUndefined();
     thinks(false);
-    expect(reasoningCallSettings(model('openai'), 'high').providerOptions).toBeUndefined();
+    expect(chatCallSettings(model('openai'), 'high').providerOptions).toBeUndefined();
   });
 });
 

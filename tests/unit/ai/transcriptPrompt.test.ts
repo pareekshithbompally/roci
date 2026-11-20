@@ -38,7 +38,7 @@ describe('transcript guide', () => {
     expect(summary()).toContain(SPEAKER_NAMING);
     expect(LIVE_NOTES_PROMPT).toContain(SPEAKER_NAMING);
     const chat = (meetings: boolean) => buildChatSystemPrompt({
-      tools: { ...NO_TOOLS, meetings }, modalities: { input: ['text'], output: ['text'] }, meetingCount: 1, temporalContext: '',
+      tools: { ...NO_TOOLS, meetings }, modalities: { input: ['text'], output: ['text'] }, meetingCount: 1, timeContext: '',
     });
     expect(chat(true)).toContain(TRANSCRIPT_GUIDE);
     expect(chat(false)).not.toContain(TRANSCRIPT_GUIDE);

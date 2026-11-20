@@ -1,4 +1,4 @@
-export { createModel, getWebSearchTools, reasoningCallSettings } from './provider';
+export { createModel, getWebSearchTools, chatCallSettings } from './provider';
 export { toExecutableTools, runTool } from './tools-bridge';
 export { toSDKMessages } from './message-converter';
 export { generateSuggestions } from './suggestions';

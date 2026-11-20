@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { buildChatSystemPrompt, formatTemporalContext, NO_TOOLS } from '@core/ai/prompts';
+import { buildChatSystemPrompt, formatChatTimeContext, formatSentAt, formatTemporalContext, NO_TOOLS } from '@core/ai/prompts';
 import type { ChatModalities, ChatToolset } from '@core/ai/prompts';
 
 const TEXT: ChatModalities = { input: ['text'], output: ['text'] };
 const ALL: ChatToolset = { meetings: true, webSearch: true, image: true, apps: ['Linear', 'Notion'] };
-const base = { meetingCount: 42, temporalContext: 'Current date: 2026-11-20 (Friday).' };
+const base = { meetingCount: 42, timeContext: formatChatTimeContext() };
 const prompt = (tools: Partial<ChatToolset> = {}, extra: { meetingCount?: number; modalities?: ChatModalities } = {}) =>
   buildChatSystemPrompt({ ...base, modalities: TEXT, ...extra, tools: { ...NO_TOOLS, ...tools } });
 
@@ -73,9 +73,9 @@ describe('buildChatSystemPrompt', () => {
     expect(text).not.toContain('on a card');
   });
 
-  it('always ends with the date, and leaves attached meetings to the questions that carry them', () => {
+  it('always ends with the timezone, and leaves attached meetings to the questions that carry them', () => {
     const text = prompt(ALL);
-    expect(text.endsWith(base.temporalContext)).toBe(true);
+    expect(text.endsWith(base.timeContext)).toBe(true);
     expect(text).not.toContain('## Meetings the user attached');
   });
 });
@@ -84,5 +84,15 @@ describe('formatTemporalContext', () => {
   it('uses the local date, not UTC (just after midnight is still today)', () => {
     const text = formatTemporalContext(new Date(2026, 10, 20, 0, 21));
     expect(text).toContain('Current date: 2026-11-20 (Friday). Time: 00:21 local.');
+  });
+});
+
+describe('chat time', () => {
+  it('keeps the clock out of the system prompt, so it is the same every turn', () => {
+    expect(formatChatTimeContext()).not.toMatch(/\d{2}:\d{2}|\d{4}-\d{2}-\d{2}/);
+  });
+
+  it('stamps each message with its own local send time', () => {
+    expect(formatSentAt(new Date(2026, 10, 20, 22, 40).getTime())).toBe('[Sent Friday 2026-11-20 22:40]');
   });
 });
