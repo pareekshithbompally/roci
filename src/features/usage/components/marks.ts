@@ -1,7 +1,7 @@
 /** Usage marks: each feature's, metric's and highlight's glyph, and every subject's title, defined once. */
 
 import {
-  ArrowDownToLine, ArrowUpToLine, CircleDollarSign, Coins, Crown, Database, Lightbulb, Minus, PencilLine, Send, Sparkles, Sun,
+  ArrowDownToLine, ArrowUpToLine, CircleDollarSign, Coins, Crown, Database, Lightbulb, Minus, Send, Sparkles, Sun,
   TrendingDown, TrendingUp,
 } from 'lucide-react';
 import type { TileGlyph } from '@shared/ui';
@@ -14,8 +14,7 @@ import { modelName, type UsageSubject } from '@features/usage/model/subject';
 /** Each feature's name, glyph and hue (hue from its modality, as in Default Models). */
 export const CATEGORY_MARK: Record<UsageCategory, { label: string; icon: TileGlyph }> = {
   chat: { label: 'Chat', icon: JOB_GLYPH.chat },
-  suggestions: { label: 'Suggestions', icon: Lightbulb },
-  'title-gen': { label: 'Chat titles', icon: PencilLine },
+  'chat-extras': { label: 'Titles & follow-ups', icon: Lightbulb },
   summary: { label: 'Summaries', icon: JOB_GLYPH.summaries },
   liveNotes: { label: 'Live notes', icon: JOB_GLYPH.summaries },
   transcription: { label: 'Transcription', icon: JOB_GLYPH.transcription },

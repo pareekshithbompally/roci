@@ -22,6 +22,8 @@ export interface MlxChatRequest {
   messages: MlxMessage[];
   /** OpenAI-style function specs. */
   tools?: unknown[];
+  /** A JSON schema (as text) the reply is decoded to: only tokens that keep it valid are generated. */
+  schema?: string;
   maxTokens?: number;
   temperature?: number;
   topP?: number;

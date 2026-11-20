@@ -7,7 +7,7 @@ vi.mock('@services/chat.service', () => ({
 }));
 vi.mock('@shared/utils/modelResolver', () => ({ resolveChatModel: () => ({ provider: 'openai', modelId: 'm', model: {} }) }));
 vi.mock('@extensions/context-pipeline', () => ({ contextPipeline: { resolve: async () => ({ text: '' }) } }));
-vi.mock('@services/ai/suggestions', () => ({ generateSuggestions: async () => [] }));
+vi.mock('@services/ai/chatExtras', () => ({ generateChatExtras: async () => ({ suggestions: [] }) }));
 vi.mock('@extensions/usage', () => ({ logUsage: async () => undefined }));
 vi.mock('@shared/query/items', () => ({
   itemCountsQuery: { queryKey: ['meetings', 'items', 'counts'], queryFn: async () => ({ meetings: 0, chats: 0 }) },

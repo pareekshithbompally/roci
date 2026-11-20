@@ -55,10 +55,13 @@ function toRequest(modelId: string, options: LanguageModelV4CallOptions): MlxCha
   const defaults = LOCAL_MODELS_CONFIG.chatSampling[modelId];
   const tools = options.tools?.flatMap((tool) =>
     tool.type === 'function' ? [{ type: 'function', function: { name: tool.name, description: tool.description, parameters: tool.inputSchema } }] : []);
+  // The AI SDK's structured output: MLX decodes to the schema (the grammar allows only tokens that keep it valid).
+  const schema = options.responseFormat?.type === 'json' ? options.responseFormat.schema : undefined;
   return {
     streamId: Math.floor(Math.random() * Number.MAX_SAFE_INTEGER),
     messages: options.prompt.flatMap(toTurns),
     ...(tools && tools.length > 0 && { tools }),
+    ...(schema && { schema: JSON.stringify(schema) }),
     maxTokens: options.maxOutputTokens,
     temperature: options.temperature ?? defaults?.temperature,
     topP: options.topP ?? defaults?.topP,

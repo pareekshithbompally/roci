@@ -21,21 +21,23 @@ import { useSpeechModelOptions } from '@features/settings/hooks/useSpeechModels'
 import { downloadSetup, useLocalModelControls } from '@features/settings/hooks/useLocalModels';
 import { useLocalModels } from '@shared/hooks/useLocalModels';
 import { useAppleSpeechSetup } from '@features/integrations';
-import { CardRow, IconTile, Section, Text, type TileGlyph } from '@shared/ui';
+import { CardRow, IconTile, Section, Switch, Text, type TileGlyph } from '@shared/ui';
 import type { LocalModel } from '@services/localModels.service';
 import { LIVE_TRANSCRIPTION_MARK, ModelSelect, SettingsPage } from './shared';
 import { ReadAloudVoiceRow } from './ReadAloudVoiceRow';
 import { platform } from '@platform/index';
 
-const { jobs: JOBS, footers: FOOTERS } = DEFAULT_MODELS_CONFIG;
+const { jobs: JOBS, footers: FOOTERS, chatExtras: EXTRAS } = DEFAULT_MODELS_CONFIG;
 
-/** A capability row: job tile (hue from its modality), title and its picker; the section footer says what it does. */
+/** A capability row: job tile (hue from its modality), title and its picker; the section footer says what it does. Off
+ *  (`disabled`) while every job it serves is switched off. */
 const CapabilityRow: React.FC<{
   icon: TileGlyph;
   job: { title: string };
+  disabled?: boolean;
   children: React.ReactNode;
-}> = ({ icon, job, children }) => (
-  <CardRow leading={<IconTile icon={icon} />} title={job.title} actions={children} />
+}> = ({ icon, job, disabled, children }) => (
+  <CardRow leading={<IconTile icon={icon} />} title={job.title} actions={children} disabled={disabled} />
 );
 
 type Controls = Record<string, OnDeviceModel>;
@@ -118,6 +120,35 @@ const ImageGenerationRow: React.FC = () => {
   );
 };
 
+/** Titles & follow-ups: a switch for each, then the one model that does both in one call ("Same as chat" = the chat's
+ *  own); the picker is off while both are. */
+const ChatExtrasSection: React.FC<{ choices: ModelChoice[] }> = ({ choices }) => {
+  const { settings, setSettings } = useSettings();
+  const titles = settings.chatTitles !== false;
+  const followUps = settings.followUps !== false;
+  const { sameAsChat } = EXTRAS;
+  return (
+    <Section title={EXTRAS.section} footer={FOOTERS.chatExtras}>
+      <CardRow
+        title={EXTRAS.titles}
+        actions={<Switch checked={titles} onCheckedChange={(chatTitles) => setSettings({ chatTitles })} aria-label={EXTRAS.titles} />}
+      />
+      <CardRow
+        title={EXTRAS.followUps}
+        actions={<Switch checked={followUps} onCheckedChange={(on) => setSettings({ followUps: on })} aria-label={EXTRAS.followUps} />}
+      />
+      <CapabilityRow icon={JOB_GLYPH.chat} job={JOBS.chatExtras} disabled={!titles && !followUps}>
+        <ModelSelect
+          value={settings.chatExtrasModel || sameAsChat.value}
+          choices={choices}
+          off={sameAsChat}
+          onChange={(key) => setSettings({ chatExtrasModel: key === sameAsChat.value ? undefined : key })}
+        />
+      </CapabilityRow>
+    </Section>
+  );
+};
+
 /** Meeting search: the embedding model on this device, with its download step until it's ready. */
 const MeetingSearchRow: React.FC<{ localModels: LocalModel[]; controls: Controls }> = ({ localModels, controls }) => {
   const model = localModels.find((m) => m.kind === 'embedding');
@@ -160,6 +191,8 @@ export const DefaultModelsPanel: React.FC = () => {
           <ModelSelect value={settings.chatModel || undefined} choices={textChoices} onChange={(chatModel) => setSettings({ chatModel })} />
         </CapabilityRow>
       </Section>
+
+      <ChatExtrasSection choices={textChoices} />
 
       <Section title="Speech" footer={platform.hasLocalModels ? `${FOOTERS.speech} ${FOOTERS.readAloud}` : FOOTERS.speech}>
         <CapabilityRow icon={JOB_GLYPH.transcription} job={JOBS.transcription}>

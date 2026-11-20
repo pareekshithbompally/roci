@@ -23,7 +23,11 @@ import { getProviderType } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { ReasoningEffort } from '@shared/types';
 import type { ProviderType } from '@services/ai/types';
+import { wrapLanguageModel } from 'ai';
 import type { ImageModel, LanguageModel, LanguageModelCallOptions, SpeechModel, streamText, ToolSet, TranscriptionModel } from 'ai';
+import type { LanguageModelV4 } from '@ai-sdk/provider';
+import { serverAppOf } from '@shared/utils/provider.utils';
+import { schemaInPromptMiddleware } from '@services/ai/schemaInPrompt';
 
 /** Extract custom headers from provider config (for OpenRouter, etc.) */
 function buildCustomHeaders(providerConfig: ResolvedModel['providerConfig']): Record<string, string> {
@@ -36,14 +40,20 @@ function buildCustomHeaders(providerConfig: ResolvedModel['providerConfig']): Re
   return headers;
 }
 
+type ModelOptions = { webSearch?: boolean; llamaServer?: { reasoningEffort: ReasoningEffort } };
+
 /**
  * AI SDK model for a resolved model; `webSearch` picks OpenAI's Responses API, and `llamaServer` (the chat's
- * thinking level) adds llama-server's own progress and thinking-budget fields.
+ * thinking level) adds llama-server's own progress and thinking-budget fields. A provider that ignores a JSON schema
+ * (`ServerApp.ignoresSchema`) gets it in the instructions as well.
  */
-export function createModel(
-  resolved: ResolvedModel,
-  options?: { webSearch?: boolean; llamaServer?: { reasoningEffort: ReasoningEffort } },
-): LanguageModel {
+export function createModel(resolved: ResolvedModel, options?: ModelOptions): LanguageModel {
+  const model = providerModel(resolved, options);
+  return serverAppOf(resolved.provider)?.ignoresSchema ? wrapLanguageModel({ model, middleware: schemaInPromptMiddleware }) : model;
+}
+
+/** The provider's own AI SDK model. */
+function providerModel(resolved: ResolvedModel, options?: ModelOptions): LanguageModelV4 {
   const fetch = getPlatformFetch();
 
   switch (getProviderType(resolved.provider)) {
@@ -88,6 +98,8 @@ export function createModel(
         fetch,
         // Streamed replies report their tokens only when asked: the context gauge and usage need them.
         includeUsage: true,
+        // Local servers (Ollama, LM Studio, llama-server, vLLM, Jan) and OpenRouter take a JSON schema and decode to it.
+        supportsStructuredOutputs: true,
         ...(Object.keys(customHeaders).length > 0 && { headers: customHeaders }),
         ...(options?.llamaServer && { transformRequestBody: llamaServerRequestBody(options.llamaServer.reasoningEffort) }),
       });

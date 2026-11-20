@@ -16,7 +16,7 @@ import type {
 import type { ModelProvider } from '@shared/types/modelProviders';
 import type { MeetingListItem } from '@services/meetingReferenceService';
 import { chatService } from '@services/chat.service';
-import { resolveChatModel } from '@shared/utils/modelResolver';
+import { resolveChatExtrasModel, resolveChatModel } from '@shared/utils/modelResolver';
 import type { StreamMetadata } from '@services/ai/types';
 import { contextPipeline } from '@extensions/context-pipeline';
 import { orchestrate } from '@extensions/tool-orchestrator';
@@ -24,8 +24,7 @@ import { streamingStore } from './streamingStore';
 import type { ToolCallPatch } from './streamingStore';
 import type { ToolActivity } from '@extensions/tool-orchestrator/types';
 import { formatChatTimeContext, type ChatToolset } from '@core/ai';
-import { generateSuggestions } from '@services/ai/suggestions';
-import { generateChatTitle } from '@services/ai/chatTitle';
+import { generateChatExtras } from '@services/ai/chatExtras';
 import { logUsage } from '@extensions/usage';
 import { fileToBase64 } from '@shared/utils/file.utils';
 import { queryClient } from '@shared/query/queryClient';
@@ -387,21 +386,25 @@ function tokensPerSecond(tokens: number | undefined, firstTextAt: number): numbe
   return tokens && seconds > 0.05 ? Math.round(tokens / seconds) : undefined;
 }
 
-/** Title and follow-up suggestions once a reply has finished, with the chat's own model (best-effort; each records its usage);
- *  suggestions stay within what the reply's tools can do. */
+/** Once a reply has finished: one call names a new chat and/or suggests follow-ups, as Settings › Default Models › Titles &
+ *  follow-ups say (its model, else the chat's own); best-effort, and none at all when both are off. */
 function afterReply(reply: Reply, request: ReplyRequest, text: string, tools: ChatToolset): void {
-  const { session, question, resolved, isNewSession } = request;
-  if (isNewSession) {
-    generateChatTitle({ resolved, question: question.text || session.title, reply: text, sessionId: reply.sessionId })
-      .then((title) => useChatStore.getState().renameSession(reply.sessionId, title))
-      .catch((error: unknown) => console.error('[ChatStore] Naming the chat failed:', error));
-  }
-  generateSuggestions({ resolved, userMessage: question.text, responsePreview: text, tools, sessionId: reply.sessionId })
-    .then((suggestions) => {
-      if (suggestions.length === 0) return;
-      saveSession(patchMessage(reply.sessionId, reply.messageId, (m) => ({ ...m, suggestions })));
+  const { session, question, settings, providers, isNewSession } = request;
+  const want = { title: isNewSession && settings.chatTitles !== false, suggestions: settings.followUps !== false };
+  if (!want.title && !want.suggestions) return;
+  generateChatExtras({
+    resolved: resolveChatExtrasModel(settings, providers) ?? request.resolved,
+    want,
+    question: question.text || session.title,
+    reply: text,
+    tools,
+    sessionId: reply.sessionId,
+  })
+    .then(({ title, suggestions }) => {
+      if (title) useChatStore.getState().renameSession(reply.sessionId, title);
+      if (suggestions.length > 0) saveSession(patchMessage(reply.sessionId, reply.messageId, (m) => ({ ...m, suggestions })));
     })
-    .catch((error: unknown) => console.error('[ChatStore] Suggestions failed:', error));
+    .catch((error: unknown) => console.error('[ChatStore] Titles & follow-ups failed:', error));
 }
 
 /** Runs one reply to its end: complete, failed, or (via Stop) settled elsewhere. Every outcome is saved once. */

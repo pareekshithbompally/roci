@@ -4,8 +4,8 @@ export type { ChatModalities, ChatPromptOptions, ChatToolset } from './chat.prom
 export { buildTranscriptionPrompt, VERBATIM_TRANSCRIBE_PROMPT } from './transcription.prompt';
 export type { MeetingContext, TranscriptionPromptOptions, UserNote } from './transcription.prompt';
 
-export { CHAT_TITLE_PROMPT } from './chatTitle.prompt';
-export { suggestionsPrompt } from './suggestions.prompt';
+export { chatExtrasPrompt } from './chatExtras.prompt';
+export type { ChatExtrasWant } from './chatExtras.prompt';
 
 export { formatChatTimeContext, formatSentAt, formatTemporalContext } from '@core/ai/temporal';
 

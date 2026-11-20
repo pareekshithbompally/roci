@@ -18,6 +18,7 @@ let package = Package(
             .product(name: "MLXVLM", package: "mlx-swift-lm"),
             .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
             .product(name: "MLXEmbedders", package: "mlx-swift-lm"),
+            .product(name: "MLXGuidedGeneration", package: "mlx-swift-lm"),
             .product(name: "Tokenizers", package: "swift-transformers"),
             .product(name: "MLXAudioTTS", package: "mlx-audio-swift"),
             .product(name: "MLXAudioCore", package: "mlx-audio-swift"),

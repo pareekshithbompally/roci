@@ -26,10 +26,18 @@ struct ChatRequest: Decodable, Sendable {
     let messages: [ChatMessage]
     /// OpenAI-style function specs.
     let tools: [JSONValue]?
+    /// A JSON schema (as text) to decode the reply to (`Guided.swift`).
+    let schema: String?
     let maxTokens: Int?
     let temperature: Float?
     let topP: Float?
     let topK: Int?
+}
+
+/// Tokens in and out of one reply.
+struct ReplyUsage: Sendable {
+    let prompt: Int
+    let completion: Int
 }
 
 struct EmbedRequest: Decodable, Sendable {
@@ -57,12 +65,16 @@ actor Engine {
     static let shared = Engine()
 
     private var chatModel: (dir: String, container: ModelContainer)?
+    /// The loaded chat model's schema-decoding pieces, built on its first schema request.
+    private var grammar: (dir: String, kit: GrammarKit)?
     private var embedder: (dir: String, container: EmbedderModelContainer)?
     private var speaker: Speaker?
 
     func unload(_ role: String) {
         switch role {
-        case "chat": chatModel = nil
+        case "chat":
+            chatModel = nil
+            grammar = nil
         case "voice": speaker = nil
         default: embedder = nil
         }
@@ -84,6 +96,7 @@ actor Engine {
     private func chatContainer(_ dir: String) async throws -> ModelContainer {
         if let loaded = chatModel, loaded.dir == dir { return loaded.container }
         chatModel = nil
+        grammar = nil
         Memory.clearCache()
         // A model whose config declares a vision part loads on the engine's vision path (text, images, tools); else text.
         let folder = URL(filePath: dir)
@@ -96,6 +109,13 @@ actor Engine {
         return container
     }
 
+    private func grammarKit(_ dir: String, _ container: ModelContainer) async throws -> GrammarKit {
+        if let built = grammar, built.dir == dir { return built.kit }
+        let kit = try await container.perform { (context: ModelContext) in try GrammarKit(context.tokenizer) }
+        grammar = (dir, kit)
+        return kit
+    }
+
     private func embedderContainer(_ dir: String) async throws -> EmbedderModelContainer {
         if let loaded = embedder, loaded.dir == dir { return loaded.container }
         embedder = nil
@@ -106,42 +126,61 @@ actor Engine {
         return container
     }
 
-    /// Streams `text` and `tool-call` events, then returns usage; Stop ends it early.
+    /// Streams `text` and `tool-call` events, then returns usage; Stop ends it early. With a `schema` the reply is decoded to it.
     func chat(_ request: ChatRequest, emit: @escaping @Sendable ([String: Any]) -> Void) async throws -> [String: any Sendable] {
         let container = try await chatContainer(request.modelDir)
+        let kit = request.schema == nil ? nil : try await grammarKit(request.modelDir, container)
+        let generation = Task<ReplyUsage, Error> {
+            try await container.perform { (context: ModelContext) async throws -> ReplyUsage in
+                let prepared = try await context.processor.prepare(input: try Self.input(request))
+                guard let schema = request.schema, let kit else {
+                    return try await Self.stream(prepared, request: request, context: context, emit: emit)
+                }
+                let produced = try kit.generate(schema: schema, input: prepared, context: context, maxTokens: request.maxTokens) { text in
+                    emit(["type": "text", "text": text])
+                    return !Task.isCancelled
+                }
+                return ReplyUsage(prompt: prepared.text.tokens.size, completion: produced)
+            }
+        }
+        Streams.shared.add(request.streamId) { generation.cancel() }
+        defer { Streams.shared.remove(request.streamId) }
+        let usage = try await generation.value
+        return [
+            "promptTokens": usage.prompt,
+            "completionTokens": usage.completion,
+            "cancelled": generation.isCancelled,
+        ]
+    }
+
+    /// The chat as the model's template reads it. Thinking off: templates that think by default (SmolLM3, Bonsai 2) answer
+    /// directly and quickly.
+    private static func input(_ request: ChatRequest) throws -> UserInput {
+        UserInput(
+            chat: try request.messages.map(Self.message), tools: request.tools?.map(Self.spec),
+            additionalContext: ["enable_thinking": false])
+    }
+
+    /// A free reply: text and tool calls as they're generated.
+    private static func stream(
+        _ prepared: LMInput, request: ChatRequest, context: ModelContext, emit: @Sendable ([String: Any]) -> Void
+    ) async throws -> ReplyUsage {
         let parameters = GenerateParameters(
             maxTokens: request.maxTokens,
             temperature: request.temperature ?? 0.6,
             topP: request.topP ?? 1.0,
             topK: request.topK ?? 0)
-        let generation = Task<GenerateCompletionInfo?, Error> {
-            try await container.perform { (context: ModelContext) async throws -> GenerateCompletionInfo? in
-                // Thinking off: templates that think by default (SmolLM3, Bonsai 2) answer directly and quickly.
-                let input = UserInput(
-                    chat: try request.messages.map(Self.message), tools: request.tools?.map(Self.spec),
-                    additionalContext: ["enable_thinking": false])
-                let prepared = try await context.processor.prepare(input: input)
-                var info: GenerateCompletionInfo?
-                for await event in try generate(input: prepared, parameters: parameters, context: context) {
-                    if Task.isCancelled { break }
-                    switch event {
-                    case .chunk(let text): emit(["type": "text", "text": text])
-                    case .toolCall(let call): emit(Self.toolCallEvent(call))
-                    case .info(let completion): info = completion
-                    default: break
-                    }
-                }
-                return info
+        var info: GenerateCompletionInfo?
+        for await event in try generate(input: prepared, parameters: parameters, context: context) {
+            if Task.isCancelled { break }
+            switch event {
+            case .chunk(let text): emit(["type": "text", "text": text])
+            case .toolCall(let call): emit(Self.toolCallEvent(call))
+            case .info(let completion): info = completion
+            default: break
             }
         }
-        Streams.shared.add(request.streamId) { generation.cancel() }
-        defer { Streams.shared.remove(request.streamId) }
-        let info = try await generation.value
-        return [
-            "promptTokens": info?.promptTokenCount ?? 0,
-            "completionTokens": info?.generationTokenCount ?? 0,
-            "cancelled": generation.isCancelled,
-        ]
+        return ReplyUsage(prompt: info?.promptTokenCount ?? 0, completion: info?.generationTokenCount ?? 0)
     }
 
     /// Vectors for `texts`, unit length; batches pad on the left so last-token pooling reads each text's last token.

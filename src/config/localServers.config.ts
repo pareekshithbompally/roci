@@ -55,6 +55,9 @@ export interface ServerApp {
   logo: string;
   /** Bundle id of its Mac app: when it's installed, macOS draws its icon (else `logo`). */
   bundleId?: string;
+  /** Takes a JSON schema but some of its models don't hold replies to it: the schema also goes into the instructions
+   *  (`schemaInPromptMiddleware`). */
+  ignoresSchema?: boolean;
 }
 
 const GENERIC_LOGO = '/images/model-provider/local-server.png';
@@ -64,7 +67,8 @@ const LLAMA_CPP_LOGO = '/images/model-provider/llama-cpp.png';
 export const SERVER_APPS: readonly ServerApp[] = [
   { id: 'llama', label: 'Llama', logo: LLAMA_CPP_LOGO, bundleId: 'app.llama.Llama' },
   { id: 'llamacpp', label: 'llama.cpp', logo: LLAMA_CPP_LOGO },
-  { id: 'ollama', label: 'Ollama', logo: '/images/model-provider/ollama.png' },
+  // Its cloud and MLX-engine models ignore a schema; its docs advise putting the schema in the prompt too.
+  { id: 'ollama', label: 'Ollama', logo: '/images/model-provider/ollama.png', ignoresSchema: true },
   { id: 'lmstudio', label: 'LM Studio', logo: '/images/model-provider/lm-studio.png', bundleId: 'ai.elementlabs.lmstudio' },
   { id: 'vllm', label: 'vLLM', logo: '/images/model-provider/vllm.svg' },
   { id: 'jan', label: 'Jan', logo: '/images/model-provider/jan.png', bundleId: 'jan.ai.app' },
