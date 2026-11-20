@@ -167,7 +167,7 @@ export const GeneralPanel: React.FC = () => {
 
       {/* App Info & Updates */}
       <Section footer={FOOTER.setup}>
-        <CardRow title="Version" actions={<VersionStatus appVersion={appVersion} checking={appUpdate.status === 'checking'} onCheck={() => void appUpdate.checkNow()} />} />
+        <CardRow title="Version" actions={<VersionStatus appVersion={appVersion} checking={appUpdate.checking} onCheck={() => void appUpdate.checkNow()} />} />
         <CardRow title="Acknowledgements" onOpen={() => setAcknowledgementsOpen(true)} />
         <CardRow title="Run Setup Again" tone="accent" onPress={() => setSettings({ onboarding: { completed: false } })} />
       </Section>

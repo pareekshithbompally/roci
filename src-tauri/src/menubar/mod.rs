@@ -271,7 +271,7 @@ fn icon_shown(hide_icon: bool, recording_active: bool) -> bool {
 // ── Actions out ──
 
 /// Actions the webview carries out (it owns recording, chat, search, settings, updates and models).
-const WEBVIEW_ACTIONS: [&str; 12] = [
+const WEBVIEW_ACTIONS: [&str; 11] = [
     item::START_RECORDING,
     item::STOP_RECORDING,
     item::PAUSE_RECORDING,
@@ -282,7 +282,6 @@ const WEBVIEW_ACTIONS: [&str; 12] = [
     item::SEARCH,
     item::SETTINGS,
     item::CHECK_UPDATES,
-    item::INSTALL_UPDATE,
     item::QUIT,
 ];
 
@@ -293,7 +292,7 @@ fn emit_action(app: &AppHandle, action: &str) {
 }
 
 /// Dispatch a menu action; `roci://record`, `stop`, `show` and `settings` come through here too.
-/// The window, next-meeting and recent-meeting actions are handled here; the rest go to the webview.
+/// The window, update, next-meeting and recent-meeting actions are handled here; the rest go to the webview.
 pub(crate) fn dispatch(app: &AppHandle, action: &str) {
     if action == item::MENU_OPENED {
         if let Some(shared) = app.try_state::<MenubarShared>() {
@@ -301,6 +300,8 @@ pub(crate) fn dispatch(app: &AppHandle, action: &str) {
         }
     } else if action == item::SHOW {
         crate::window::show_main(app);
+    } else if action == item::INSTALL_UPDATE {
+        crate::updates::request_install(app);
     } else if let Some(occurrence) = action.strip_prefix(item::NEXT_MEETING_JOIN_PREFIX) {
         crate::meeting_reminders::record_occurrence(occurrence, true);
     } else if let Some(occurrence) = action.strip_prefix(item::NEXT_MEETING_RECORD_PREFIX) {
@@ -442,10 +443,11 @@ pub async fn menubar_set_activity(app: AppHandle, items: Vec<ActivityArg>) -> Re
     report(&app, |state| std::mem::replace(&mut state.activity, activity.clone()) != activity)
 }
 
-/// The update waiting to install, if any: its row reads "Update to vX…" instead of "Check for Updates…".
-#[tauri::command]
-pub async fn menubar_set_update(app: AppHandle, version: Option<String>) -> Result<(), String> {
-    report(&app, |state| std::mem::replace(&mut state.update_version, version.clone()) != version)
+/// The update waiting to install, if any (set by `updates`): its row reads "Update to vX…" instead of "Check for Updates…".
+pub(crate) fn set_update(app: &AppHandle, version: Option<String>) {
+    if let Err(e) = report(app, |state| std::mem::replace(&mut state.update_version, version.clone()) != version) {
+        log::warn!("[Menubar] update row not set: {e}");
+    }
 }
 
 /// The most recent meetings, newest first.

@@ -48,6 +48,8 @@ mod system_format;
 #[cfg(desktop)]
 mod mcp_server;
 #[cfg(desktop)]
+mod updates;
+#[cfg(desktop)]
 mod url_actions;
 mod meeting_reminders;
 #[cfg(desktop)]

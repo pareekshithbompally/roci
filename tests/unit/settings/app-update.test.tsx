@@ -1,74 +1,91 @@
-/** The startup update check stays silent when the endpoint 404s or in dev; a manual check surfaces failures. */
+/** Rust owns update checks; the webview turns its state into one tray row and says how Check for Updates went. */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import type { UpdateState } from '@services/tauri';
+
+const { service, showToast, pushed } = vi.hoisted(() => {
+  const pushed: { handler: (state: UpdateState) => void } = { handler: () => undefined };
+  return {
+    pushed,
+    showToast: vi.fn(),
+    service: {
+      check: vi.fn<() => Promise<UpdateState>>(),
+      current: vi.fn<() => Promise<UpdateState>>(),
+      install: vi.fn(async () => {}),
+      onState: vi.fn((handler: (state: UpdateState) => void) => {
+        pushed.handler = handler;
+        return () => undefined;
+      }),
+    },
+  };
+});
+const pushState = (state: UpdateState) => pushed.handler(state);
 
 vi.mock('@services/tauri', () => ({
   isTauriEnvironment: () => true,
+  openUrl: vi.fn(),
+  updatesService: service,
+  IDLE_UPDATE: { status: 'idle' },
 }));
-
-const checkMock = vi.fn();
-vi.mock('@tauri-apps/plugin-updater', () => ({
-  check: (...args: unknown[]) => checkMock(...args),
-}));
-vi.mock('@tauri-apps/plugin-process', () => ({
-  relaunch: vi.fn(async () => {}),
-}));
+vi.mock('@platform/index', () => ({ platform: { hasUpdater: true } }));
+vi.mock('@shared/ui', () => ({ showToast }));
 
 // eslint-disable-next-line import/first
-import { useAppUpdate, scheduleStartupCheck } from '@features/settings/hooks/useAppUpdate';
+import { useAppUpdate, useUpdateRuntime } from '@features/settings/hooks/useAppUpdate';
+// eslint-disable-next-line import/first
+import { activityStore } from '@shared/stores/activityStore';
+// eslint-disable-next-line import/first
+import { useUpdateStore } from '@features/settings/stores/updateStore';
 
-const ENDPOINT_ERROR = new Error(
-  'update endpoint did not respond with a successful status code',
-);
+const row = () => activityStore.get('app-update');
 
 beforeEach(() => {
-  checkMock.mockReset();
+  vi.clearAllMocks();
+  activityStore.remove('app-update');
+  useUpdateStore.setState({ state: { status: 'idle' }, checking: false, deferred: null });
+  service.current.mockResolvedValue({ status: 'idle' });
 });
 
-afterEach(() => {
-  vi.useRealTimers();
+describe('useUpdateRuntime', () => {
+  it('shows the state Rust holds at mount, then follows its events', async () => {
+    service.current.mockResolvedValue({ status: 'available', version: '1.8.0', notes: null });
+    renderHook(() => useUpdateRuntime());
+    await act(async () => {});
+    expect(row()).toMatchObject({ label: 'Roci v1.8.0 available', status: 'waiting' });
+
+    act(() => pushState({ status: 'downloading', version: '1.8.0', downloaded: 50, total: 100 }));
+    expect(row()).toMatchObject({ status: 'active', percent: 50 });
+
+    act(() => pushState({ status: 'idle' }));
+    expect(row()).toBeUndefined();
+  });
+
+  it('Later hides the row for that version only', async () => {
+    renderHook(() => useUpdateRuntime());
+    await act(async () => {});
+    act(() => pushState({ status: 'available', version: '1.8.0', notes: null }));
+    act(() => row()?.actions.find((a) => a.label === 'Later')?.onClick());
+    expect(row()).toBeUndefined();
+
+    act(() => pushState({ status: 'available', version: '1.9.0', notes: null }));
+    expect(row()).toMatchObject({ label: 'Roci v1.9.0 available' });
+  });
 });
 
-describe('useAppUpdate endpoint failure', () => {
-  it('silent (background) check treats an unreachable endpoint as up-to-date, not an error', async () => {
-    checkMock.mockRejectedValueOnce(ENDPOINT_ERROR);
+describe('useAppUpdate checkNow', () => {
+  it('says up to date when Rust finds nothing', async () => {
+    service.check.mockResolvedValue({ status: 'idle' });
     const { result } = renderHook(() => useAppUpdate());
-
-    let hasUpdate: boolean | undefined;
-    await act(async () => {
-      hasUpdate = await result.current.checkForUpdate({ silent: true });
-    });
-
-    expect(checkMock).toHaveBeenCalledTimes(1);
-    expect(hasUpdate).toBe(false);
-    expect(result.current.status).toBe('idle');
-    expect(result.current.error).toBeNull();
-    expect(result.current.updateInfo).toBeNull();
+    await act(() => result.current.checkNow());
+    expect(showToast).toHaveBeenCalledWith('Roci is up to date', 'success');
+    expect(result.current.checking).toBe(false);
   });
 
-  it('manual check still surfaces endpoint errors', async () => {
-    checkMock.mockRejectedValueOnce(ENDPOINT_ERROR);
+  it('says when the check failed', async () => {
+    service.check.mockRejectedValue('offline');
     const { result } = renderHook(() => useAppUpdate());
-
-    let hasUpdate: boolean | undefined;
-    await act(async () => {
-      hasUpdate = await result.current.checkForUpdate();
-    });
-
-    expect(hasUpdate).toBe(false);
-    expect(result.current.status).toBe('error');
-    expect(result.current.error).toContain('successful status code');
-  });
-
-  it('startup check is skipped in dev builds so it never hits the endpoint', () => {
-    vi.useFakeTimers();
-    const checkFn = vi.fn(async () => {});
-
-    const cleanup = scheduleStartupCheck(checkFn);
-    vi.advanceTimersByTime(60_000);
-
-    expect(checkFn).not.toHaveBeenCalled();
-    expect(cleanup).toBeUndefined();
+    await act(() => result.current.checkNow());
+    expect(showToast).toHaveBeenCalledWith('Could not check for updates', 'error');
   });
 });

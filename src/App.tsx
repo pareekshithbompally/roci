@@ -10,7 +10,7 @@ import { MainLayout } from '@features/layout';
 import { endSearch, startSearch, toggleSearch } from '@shared/stores/searchStore';
 import { HomeView } from '@features/home';
 import { SettingsPanel } from '@features/settings';
-import { useAppUpdate, scheduleStartupCheck } from '@features/settings';
+import { useAppUpdate, useUpdateRuntime } from '@features/settings';
 import { useMenubarSpeechModels, useMenubarReports, useStorageRetention, useLocalModelDownloads, useLocalModelIdle, freshSpeechSources } from '@features/settings';
 import { RemindersView } from '@features/todos';
 import { GalleryView } from '@features/gallery';
@@ -101,7 +101,9 @@ const App: React.FC = () => {
 
   // Tray › Speech Model submenu: downloaded Hex models and the current pick
   useMenubarSpeechModels();
-  useMenubarReports(appUpdate.status === 'available' ? appUpdate.updateInfo?.version ?? null : null);
+  useMenubarReports();
+  // App updates: Rust checks and installs; the tray row follows its state
+  useUpdateRuntime();
 
   // Search index: full-text at launch so Cmd+K works at once; vectors whenever the embedding model is installed
   // (at launch, or as soon as its download finishes).
@@ -171,11 +173,6 @@ const App: React.FC = () => {
     return () => { cancelled = true; };
   }, []);
 
-  // Check for app updates after startup settles
-  useEffect(() => {
-    return scheduleStartupCheck(async () => { await appUpdate.checkForUpdate({ silent: true }); });
-  }, [appUpdate.checkForUpdate]);
-
   const initializeTauriServices = async () => {
     try {
       await initializeStorage();
@@ -204,7 +201,7 @@ const App: React.FC = () => {
     }
   };
 
-  /** What each menu bar action does here (Rust handles the window, next-meeting and recent-meeting rows itself). */
+  /** What each menu bar action does here (Rust handles the window, update, next-meeting and recent-meeting rows itself). */
   const menubarActions = (): Record<TrayAction, () => Promise<void>> => {
     const isRecording = () => useRecordingStore.getState().meetingId !== null;
     const openSettingsWindow = async (panel?: SettingsPanelId) => {
@@ -235,7 +232,6 @@ const App: React.FC = () => {
         await windowService.show();
         await appUpdate.checkNow();
       },
-      [TrayAction.INSTALL_UPDATE]: () => appUpdate.downloadAndInstall(),
       [TrayAction.QUIT]: async () => {
         if (!isRecording()) {
           await menubarService.quit();

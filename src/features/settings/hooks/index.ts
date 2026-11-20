@@ -1,5 +1,5 @@
 export { useSettings } from './useSettings';
-export { useAppUpdate, scheduleStartupCheck } from './useAppUpdate';
+export { useAppUpdate, useUpdateRuntime } from './useAppUpdate';
 export { useLocalServers } from './useLocalServers';
 export { useLocalServerProbe } from './useLocalServerProbe';
 export { useProviderConnection } from './useProviderConnection';

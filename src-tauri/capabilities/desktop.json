@@ -47,7 +47,6 @@
     "apple-intelligence:default",
     "apple-notes:default",
     "window-state:default",
-    "updater:default",
     {
       "identifier": "http:default",
       "allow": [

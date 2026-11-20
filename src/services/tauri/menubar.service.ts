@@ -1,4 +1,4 @@
-/** Frontend sync for the Rust-owned tray: menu actions in; what only the webview knows out (recording, models, jobs, update, recent meetings). */
+/** Frontend sync for the Rust-owned tray: menu actions in; what only the webview knows out (recording, models, jobs, recent meetings). */
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
@@ -90,11 +90,6 @@ class MenubarService {
   /** The background jobs running now, one menu row each. */
   async setActivity(items: MenubarActivity[]): Promise<void> {
     await this.report('menubar_set_activity', { items }, 'activity');
-  }
-
-  /** The update waiting to install (its version), or null: the row reads "Update to vX…" or "Check for Updates…". */
-  async setUpdate(version: string | null): Promise<void> {
-    await this.report('menubar_set_update', { version }, 'update');
   }
 
   /** The most recent meetings, newest first, for the Recent Meetings submenu. */

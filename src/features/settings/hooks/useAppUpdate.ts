@@ -1,231 +1,123 @@
-/** App update lifecycle (check → offer → download → install → relaunch) as one ActivityTray row, from "available" to "installing". */
+/** App updates in the webview: Rust checks and installs (updates.rs); here its state becomes one tray row, and Check for
+ *  Updates ends with a toast. */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { openUrl } from '@services/tauri';
-import { isTauriEnvironment } from '@services/tauri';
+import { useCallback, useEffect } from 'react';
+import { isTauriEnvironment, openUrl, updatesService, type UpdateState } from '@services/tauri';
 import { activityStore, type ActivityItem } from '@shared/stores/activityStore';
+import { useUpdateChecking, useUpdateDeferred, useUpdateState, useUpdateStore } from '@features/settings/stores/updateStore';
 import { APP_CONFIG } from '@config/app.config';
 import { platform } from '@platform/index';
 import { formatFileSize } from '@shared/utils/formatters';
 import { showToast } from '@shared/ui';
-import type { ToastTone } from '@shared/ui';
 
-type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error';
+const ACTIVITY_ID = 'app-update';
 
-/** What a completed check found. */
-type UpdateCheckResult = 'available' | 'current' | 'failed';
+type UpdateRow = Pick<ActivityItem, 'label' | 'status'> & Partial<ActivityItem>;
 
-/** The toast a Check for Updates ends with, by outcome. */
-const CHECK_TOAST: Record<UpdateCheckResult, { message: string; tone: ToastTone }> = {
+const openReleaseNotes = () => void openUrl(APP_CONFIG.releasesUrl);
+
+/** Install; a refusal (e.g. while recording) or failure says why. */
+function install(): void {
+  updatesService.install().catch((error: unknown) => {
+    console.error('[useAppUpdate] Install failed:', error);
+    showToast(typeof error === 'string' ? error : 'Could not install the update', 'error');
+  });
+}
+
+const later = (version: string) => () => useUpdateStore.setState({ deferred: version });
+
+function downloadDetail(downloaded: number, total: number | null): string {
+  return total ? `${formatFileSize(downloaded)} / ${formatFileSize(total)}` : formatFileSize(downloaded);
+}
+
+/** The tray row for `state`, or null when there's nothing to show. */
+function rowFor(state: UpdateState, deferred: string | null): UpdateRow | null {
+  switch (state.status) {
+    case 'available':
+      return state.version === deferred ? null : {
+        label: `Roci v${state.version} available`,
+        status: 'waiting',
+        actions: [
+          { icon: 'external-link', label: 'Release notes', onClick: openReleaseNotes },
+          { icon: 'download', label: 'Update now', onClick: install },
+          { icon: 'x', label: 'Later', onClick: later(state.version) },
+        ],
+      };
+    case 'downloading':
+      return {
+        label: `Updating to v${state.version}`,
+        status: 'active',
+        percent: state.total ? Math.round((state.downloaded / state.total) * 100) : null,
+        detail: downloadDetail(state.downloaded, state.total),
+        actions: [],
+      };
+    case 'installing':
+      return { label: `Updating to v${state.version}`, status: 'complete', percent: 100, detail: 'Installing…', actions: [] };
+    case 'failed':
+      return {
+        label: `Roci v${state.version} didn't install`,
+        status: 'error',
+        error: state.error,
+        detail: null,
+        percent: null,
+        actions: [
+          { icon: 'download', label: 'Try again', onClick: install },
+          { icon: 'x', label: 'Later', onClick: later(state.version) },
+        ],
+      };
+    case 'idle':
+      return null;
+  }
+}
+
+function showRow(row: UpdateRow | null): void {
+  if (!row) return activityStore.remove(ACTIVITY_ID);
+  if (activityStore.get(ACTIVITY_ID)) return activityStore.update(ACTIVITY_ID, row);
+  activityStore.add({ id: ACTIVITY_ID, type: 'download', percent: null, step: null, detail: null, error: null, actions: [], ...row });
+}
+
+/** Mount once (App): mirrors Rust's update state into the store and the tray row. */
+export function useUpdateRuntime(): void {
+  const state = useUpdateState();
+  const deferred = useUpdateDeferred();
+
+  useEffect(() => {
+    if (!platform.hasUpdater || !isTauriEnvironment()) return;
+    const apply = (next: UpdateState) => useUpdateStore.setState({ state: next });
+    const stop = updatesService.onState(apply);
+    // A check that finished before this listener existed.
+    updatesService.current().then(apply).catch((error: unknown) =>
+      console.error('[useUpdateRuntime] Reading update state failed:', error));
+    return stop;
+  }, []);
+
+  useEffect(() => showRow(rowFor(state, deferred)), [state, deferred]);
+}
+
+const CHECK_TOAST = {
   available: { message: 'An update is available', tone: 'info' },
   current: { message: 'Roci is up to date', tone: 'success' },
   failed: { message: 'Could not check for updates', tone: 'error' },
-};
+} as const;
 
-interface UpdateInfo {
-  version: string;
-  body: string | null;
-  date: string | null;
-}
-
-export interface UpdateCheckOptions {
-  /** Treat an unreachable endpoint as "no update" (it 404s until the first release with updater artifacts). */
-  silent?: boolean;
-}
-
-interface UseAppUpdateReturn {
-  status: UpdateStatus;
-  updateInfo: UpdateInfo | null;
-  error: string | null;
-  /** Returns true if an update is available, false if already up-to-date. */
-  checkForUpdate: (options?: UpdateCheckOptions) => Promise<boolean>;
-  /** Check now and say the outcome in a toast (tray and Settings › General Check for Updates). */
-  checkNow: () => Promise<void>;
-  downloadAndInstall: () => Promise<void>;
-  dismiss: () => void;
-}
-
-const ACTIVITY_ID = 'app-update';
-const STARTUP_CHECK_DELAY_MS = 10_000;
-
-/** The update's tray row: patched in place as it moves from offered to downloading to installing. */
-function putUpdateRow(fields: Pick<ActivityItem, 'label' | 'status'> & Partial<ActivityItem>): void {
-  if (activityStore.get(ACTIVITY_ID)) {
-    activityStore.update(ACTIVITY_ID, fields);
-    return;
-  }
-  activityStore.add({ id: ACTIVITY_ID, type: 'download', percent: null, step: null, detail: null, error: null, actions: [], ...fields });
-}
-
-function openReleaseNotes(): void {
-  void openUrl(APP_CONFIG.releasesUrl);
-}
-
-/** Imported dynamically so non-Tauri environments don't crash on import. */
-async function getUpdaterPlugins() {
-  const [{ check }, { relaunch }] = await Promise.all([
-    import('@tauri-apps/plugin-updater'),
-    import('@tauri-apps/plugin-process'),
-  ]);
-  return { check, relaunch };
-}
-
-export function useAppUpdate(): UseAppUpdateReturn {
-  const [status, setStatus] = useState<UpdateStatus>('idle');
-  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const updateRef = useRef<Awaited<ReturnType<typeof import('@tauri-apps/plugin-updater')['check']>>>(null);
-
-  const runCheck = useCallback(async (options?: UpdateCheckOptions): Promise<UpdateCheckResult> => {
-    if (!isTauriEnvironment()) return 'failed';
-
-    setStatus('checking');
-    setError(null);
-
-    try {
-      const { check } = await getUpdaterPlugins();
-      const update = await check();
-
-      if (update?.available) {
-        updateRef.current = update;
-        setUpdateInfo({
-          version: update.version,
-          body: update.body ?? null,
-          date: update.date ?? null,
-        });
-        setStatus('available');
-        return 'available';
-      } else {
-        setStatus('idle');
-        setUpdateInfo(null);
-        return 'current';
-      }
-    } catch (err: unknown) {
-      if (options?.silent) {
-        console.debug('[useAppUpdate] Background check failed, treating as up-to-date:', err);
-        setStatus('idle');
-        setUpdateInfo(null);
-        return 'current';
-      }
-      console.error('[useAppUpdate] Check failed:', err);
-      setError(err instanceof Error ? err.message : 'Failed to check for updates');
-      setStatus('error');
-      return 'failed';
-    }
-  }, []);
-
-  const checkForUpdate = useCallback(
-    async (options?: UpdateCheckOptions): Promise<boolean> =>
-      (await runCheck(options)) === 'available',
-    [runCheck],
-  );
-
-  const downloadAndInstall = useCallback(async () => {
-    const update = updateRef.current;
-    if (!update) return;
-
-    setStatus('downloading');
-
-    // The offered row becomes the download's progress row.
-    putUpdateRow({
-      label: `Updating to v${update.version}`,
-      status: 'active',
-      percent: 0,
-      detail: 'Starting download…',
-      actions: [],
-    });
-
-    try {
-      let totalBytes = 0;
-      let downloadedBytes = 0;
-
-      await update.downloadAndInstall((event) => {
-        if (event.event === 'Started') {
-          totalBytes = event.data.contentLength ?? 0;
-          activityStore.update(ACTIVITY_ID, {
-            detail: totalBytes ? formatFileSize(totalBytes) : 'Downloading…',
-          });
-        } else if (event.event === 'Progress') {
-          downloadedBytes += event.data.chunkLength;
-          const percent = totalBytes ? Math.round((downloadedBytes / totalBytes) * 100) : null;
-          activityStore.update(ACTIVITY_ID, {
-            percent,
-            detail: totalBytes
-              ? `${formatFileSize(downloadedBytes)} / ${formatFileSize(totalBytes)}`
-              : formatFileSize(downloadedBytes),
-          });
-        } else if (event.event === 'Finished') {
-          activityStore.update(ACTIVITY_ID, {
-            status: 'complete',
-            percent: 100,
-            detail: 'Installing…',
-          });
-        }
-      });
-
-      setStatus('ready');
-
-      // Brief pause so user sees "Installing…" then relaunch
-      setTimeout(async () => {
-        activityStore.remove(ACTIVITY_ID);
-        try {
-          const { relaunch } = await getUpdaterPlugins();
-          await relaunch();
-        } catch (err: unknown) {
-          console.error('[useAppUpdate] Relaunch failed:', err);
-        }
-      }, 1_500);
-
-    } catch (err: unknown) {
-      console.error('[useAppUpdate] Download failed:', err);
-      setError(err instanceof Error ? err.message : 'Download failed');
-      setStatus('error');
-      activityStore.update(ACTIVITY_ID, {
-        status: 'error',
-        error: err instanceof Error ? err.message : 'Download failed',
-        detail: null,
-        percent: null,
-      });
-      // Clean up activity row after a delay
-      setTimeout(() => activityStore.remove(ACTIVITY_ID), 5_000);
-    }
-  }, []);
-
-  const dismiss = useCallback(() => {
-    activityStore.remove(ACTIVITY_ID);
-    setStatus('idle');
-    setUpdateInfo(null);
-    updateRef.current = null;
-  }, []);
-
-  // An update found by a check is offered in the tray: Release notes, Update now, Later.
-  useEffect(() => {
-    if (status !== 'available' || !updateInfo) return;
-    putUpdateRow({
-      label: `Roci v${updateInfo.version} available`,
-      status: 'waiting',
-      actions: [
-        { icon: 'external-link', label: 'Release notes', onClick: openReleaseNotes },
-        { icon: 'download', label: 'Update now', onClick: () => void downloadAndInstall() },
-        { icon: 'x', label: 'Later', onClick: dismiss },
-      ],
-    });
-  }, [status, updateInfo, downloadAndInstall, dismiss]);
+/** Check for Updates (Settings › General, menu bar): runs now and says the outcome. */
+export function useAppUpdate(): { checking: boolean; checkNow: () => Promise<void> } {
+  const checking = useUpdateChecking();
 
   const checkNow = useCallback(async () => {
-    const { message, tone } = CHECK_TOAST[await runCheck()];
-    showToast(message, tone);
-  }, [runCheck]);
+    useUpdateStore.setState({ checking: true, deferred: null });
+    try {
+      const state = await updatesService.check();
+      // Anything but idle is an update on its way (offered, downloading or waiting to retry).
+      const { message, tone } = CHECK_TOAST[state.status === 'idle' ? 'current' : 'available'];
+      showToast(message, tone);
+    } catch (error: unknown) {
+      console.error('[useAppUpdate] Check failed:', error);
+      showToast(CHECK_TOAST.failed.message, CHECK_TOAST.failed.tone);
+    } finally {
+      useUpdateStore.setState({ checking: false });
+    }
+  }, []);
 
-  return { status, updateInfo, error, checkForUpdate, checkNow, downloadAndInstall, dismiss };
+  return { checking, checkNow };
 }
-
-/** Schedule a background update check after app startup settles. */
-export function scheduleStartupCheck(checkFn: () => Promise<void>) {
-  if (!platform.hasUpdater || !isTauriEnvironment()) return;
-  // Dev builds can never be served by the updater, so skip instead of logging an error every launch.
-  if (import.meta.env.DEV) return;
-  const timer = setTimeout(checkFn, STARTUP_CHECK_DELAY_MS);
-  return () => clearTimeout(timer);
-}
-

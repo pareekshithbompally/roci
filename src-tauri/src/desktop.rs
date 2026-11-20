@@ -2,7 +2,7 @@
 
 use crate::{
   app_icon, audio, autostart, call_detection, choice_menu, downloads, hex, mcp, mcp_server, meeting_reminders, meeting_spotlight,
-  menubar, mlx, models, native_alert, open_native, permissions, screenshot, shortcuts, stt, system_format, tts, url_actions, window,
+  menubar, mlx, models, native_alert, open_native, permissions, screenshot, shortcuts, stt, system_format, tts, updates, url_actions, window,
 };
 use std::sync::Mutex;
 use tauri::{App, AppHandle, Builder, Emitter, Manager, RunEvent, WebviewWindowBuilder, Wry};
@@ -59,7 +59,6 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       menubar::menubar_set_recording_state,
       menubar::menubar_set_speech_models,
       menubar::menubar_set_activity,
-      menubar::menubar_set_update,
       menubar::menubar_set_recent_meetings,
       menubar::menubar_set_tooltip,
       menubar::menubar_set_visible,
@@ -132,6 +131,10 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       // Screenshot commands
       screenshot::list_capturable_windows,
       screenshot::take_screenshot,
+      // App updates (Rust checks daily and installs)
+      updates::update_check,
+      updates::update_state,
+      updates::update_install,
       // Utility commands
       app_icon::app_icon,
       open_native::open_native,
@@ -166,6 +169,9 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
 
   // Detected calls: offer to record when a call app takes the microphone.
   call_detection::start(app.handle().clone());
+
+  // App updates: checked after launch and daily; the menu bar, tray row and one notification per version say so.
+  updates::start(app.handle().clone());
 
   // Meetings in Spotlight: follows meeting writes; idle until the frontend turns it on.
   meeting_spotlight::start(app.handle().clone());

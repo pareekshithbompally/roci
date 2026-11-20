@@ -41,7 +41,6 @@ export enum TrayAction {
   SEARCH = 'search',
   SETTINGS = 'settings',
   CHECK_UPDATES = 'check_updates',
-  INSTALL_UPDATE = 'install_update',
   QUIT = 'quit',
 }
 

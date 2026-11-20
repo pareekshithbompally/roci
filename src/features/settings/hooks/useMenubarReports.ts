@@ -1,4 +1,4 @@
-/** Reports what only the webview knows to the Rust-owned menu bar: background jobs, the waiting update, recent meetings. */
+/** Reports what only the webview knows to the Rust-owned menu bar: background jobs and recent meetings. */
 
 import { useEffect, useMemo } from 'react';
 import { isTauriEnvironment, menubarService, type MenubarActivity, type MenubarRecentMeeting } from '@services/tauri';
@@ -9,8 +9,7 @@ import { APP_CONFIG } from '@config/app.config';
 /** Percent as the menu shows it: a whole number 0–100, or null while unknown. */
 const wholePercent = (percent: number | null) => (percent === null ? null : Math.min(100, Math.max(0, Math.round(percent))));
 
-/** `updateVersion`: the update waiting to install (its row reads "Update to vX…"), or null. */
-export function useMenubarReports(updateVersion: string | null): void {
+export function useMenubarReports(): void {
   const activityItems = useActivityItems();
   const { items: meetings } = useHistoryData();
 
@@ -37,8 +36,4 @@ export function useMenubarReports(updateVersion: string | null): void {
   useEffect(() => {
     if (isTauriEnvironment()) void menubarService.setRecentMeetings(recent);
   }, [recent]);
-
-  useEffect(() => {
-    if (isTauriEnvironment()) void menubarService.setUpdate(updateVersion);
-  }, [updateVersion]);
 }
