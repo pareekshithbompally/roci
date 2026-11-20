@@ -1,7 +1,7 @@
 /** The one delete path for sidebar sessions (meetings and chats): confirm, leave it if open, delete, report. */
 
 import { useCallback } from 'react';
-import { useHistoryData } from '@shared/contexts/HistoryContext';
+import { useMeetingMutations } from '@shared/hooks/useMeetings';
 import { useAppStore } from '@shared/stores/appStore';
 import { useChatStore, startNewChat } from '@features/chat';
 import { useToast } from '@shared/contexts/ToastContext';
@@ -13,7 +13,7 @@ const NOUN = { meeting: 'meeting', chat: 'chat' } as const;
 type SessionRef = Pick<UnifiedSidebarItem, 'type' | 'id'>;
 
 export function useDeleteSession(): (session: SessionRef) => Promise<void> {
-  const { deleteItem } = useHistoryData();
+  const { deleteMeeting: deleteItem } = useMeetingMutations();
   const deleteSession = useChatStore((s) => s.deleteSession);
   const { showToast } = useToast();
 

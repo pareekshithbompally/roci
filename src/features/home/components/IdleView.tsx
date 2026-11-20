@@ -1,13 +1,11 @@
 /** Idle landing page: main actions and the shared chat composer. */
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { RecordPill } from '@features/recording';
 import { askInNewChat, canSendDraft, useChatStore } from '@features/chat';
-import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { ChatInput } from '@features/chat';
-import { meetingReferenceService } from '@services/meetingReferenceService';
 import { LandingGlow } from './LandingGlow';
 import { useVoiceCapture } from '@features/chat';
 import { useSpeechInputReady } from '@features/settings/hooks/useSpeechModels';
@@ -41,7 +39,6 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   const pendingAttachments = useChatStore((s) => s.pendingAttachments);
   const selectedMeetingRefs = useChatStore((s) => s.selectedMeetingRefs);
 
-  const { items: historyItems } = useHistoryData();
   const { settings, providers, isLoading: settingsLoading } = useSettings();
 
   const setInput = useChatStore((s) => s.setInput);
@@ -50,11 +47,6 @@ export const IdleView: React.FC<IdleViewProps> = () => {
   const removeAttachment = useChatStore((s) => s.removeAttachment);
   const addScreenshotAttachment = useChatStore((s) => s.addScreenshotAttachment);
 
-  // Get available meetings for @ mention
-  const availableMeetings = useMemo(() =>
-    meetingReferenceService.getRecentMeetings(historyItems, 20),
-    [historyItems]
-  );
 
   const showSpeechInput = useSpeechInputReady();
 
@@ -124,7 +116,6 @@ export const IdleView: React.FC<IdleViewProps> = () => {
                   onSend={handleSendMessage}
                   isLoading={isGenerating}
                   disabled={!hasConfiguredProviders}
-                  availableMeetings={availableMeetings}
                   selectedMeetings={selectedMeetingRefs}
                   onMeetingSelect={setSelectedMeetingRefs}
                   attachments={pendingAttachments}

@@ -69,9 +69,12 @@ const PERSISTED_SETTINGS: Record<keyof AppSettings, true> = {
   appleNotesIntegration: true,
   autoTranscribe: true,
   calendarIntegration: true,
+  chatExtrasModel: true,
   chatModel: true,
+  chatTitles: true,
   chatTools: true,
   defaultAudioSource: true,
+  followUps: true,
   hexIntegration: true,
   hideToolCalls: true,
   imageModel: true,
@@ -188,7 +191,7 @@ function dropRemovedVoiceEngine(settings: AppSettings, localModels: LocalModel[]
   settings.readAloudVoice = undefined;
 }
 
-/** Clears a chat or summary model that no source serves any more, so a working one is picked instead. */
+/** Clears a chat, summary or titles & follow-ups model that no source serves any more, so a working one is picked instead. */
 function dropUnservedModels(settings: AppSettings, sources: ModelProvider[]): void {
   const served = (id: string) => sources.some((p) => p.models?.some((m) => m.id === id));
   if (settings.chatModel && !served(settings.chatModel)) {
@@ -198,6 +201,10 @@ function dropUnservedModels(settings: AppSettings, sources: ModelProvider[]): vo
   if (settings.analyzeModel && !served(settings.analyzeModel)) {
     console.log('[SettingsContext] Clearing dangling analyze model:', settings.analyzeModel);
     settings.analyzeModel = '';
+  }
+  if (settings.chatExtrasModel && !served(settings.chatExtrasModel)) {
+    console.log('[SettingsContext] Clearing dangling titles & follow-ups model:', settings.chatExtrasModel);
+    settings.chatExtrasModel = undefined;
   }
 }
 

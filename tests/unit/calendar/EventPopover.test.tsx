@@ -20,15 +20,11 @@ vi.mock('@services/calendar', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@services/calendar')>()),
   recordCalendarEvent: mocks.recordCalendarEvent,
 }));
-vi.mock('@shared/contexts/HistoryContext', async () => {
-  const { queryKeys } = await import('@shared/query/queryKeys');
-  return { meetingsQuery: { queryKey: queryKeys.meetings(), queryFn: async () => [] } };
-});
+const stored = vi.hoisted(() => ({ meetings: [] as unknown[] }));
+vi.mock('@shared/hooks/useMeetings', () => ({ useMeetingsFound: () => stored.meetings }));
 
 // eslint-disable-next-line import/first
 import { EventPopover } from '@features/calendar/components/EventPopover';
-// eslint-disable-next-line import/first
-import { queryKeys } from '@shared/query/queryKeys';
 
 const START = '2026-11-19T10:00:00.000Z';
 const END = '2026-11-19T11:00:00.000Z';
@@ -44,7 +40,7 @@ const recorded: HistoryItem = {
 
 function show(ev: CalendarEvent, meetings: HistoryItem[] = []) {
   const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
-  client.setQueryData(queryKeys.meetings(), meetings);
+  stored.meetings = meetings;
   render(
     <QueryClientProvider client={client}>
       <EventPopover event={ev} anchorRect={new DOMRect(0, 0, 10, 10)} onClose={() => undefined} />

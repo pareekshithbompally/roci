@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from 'react';
 import { isTauriEnvironment, menubarService, type MenubarActivity, type MenubarRecentMeeting } from '@services/tauri';
 import { useActivityItems } from '@shared/stores/activityStore';
-import { useHistoryData } from '@shared/contexts/HistoryContext';
+import { useMeetingsFound } from '@shared/hooks/useMeetings';
 import { APP_CONFIG } from '@config/app.config';
 
 /** Percent as the menu shows it: a whole number 0–100, or null while unknown. */
@@ -11,7 +11,7 @@ const wholePercent = (percent: number | null) => (percent === null ? null : Math
 
 export function useMenubarReports(): void {
   const activityItems = useActivityItems();
-  const { items: meetings } = useHistoryData();
+  const meetings = useMeetingsFound({}, APP_CONFIG.tray.recentMeetings);
 
   // Running jobs only; recording has its own row, and a waiting update has its own row.
   const activity = useMemo<MenubarActivity[]>(
@@ -22,10 +22,7 @@ export function useMenubarReports(): void {
   );
 
   const recent = useMemo<MenubarRecentMeeting[]>(
-    () => [...meetings]
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, APP_CONFIG.tray.recentMeetings)
-      .map(({ id, title }) => ({ id, title })),
+    () => meetings.map(({ id, title }) => ({ id, title })),
     [meetings],
   );
 

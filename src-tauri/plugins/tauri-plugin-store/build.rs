@@ -7,7 +7,6 @@ const COMMANDS: &[&str] = &[
     "rebuild_fts",
     "get_indexed_ids",
     // Meeting domain
-    "meetings_list",
     "meetings_get",
     "meetings_existing",
     "meetings_upsert",
@@ -32,8 +31,9 @@ const COMMANDS: &[&str] = &[
     "categories_create",
     "categories_delete",
     // Chat domain
-    "chats_list",
-    "sidebar_page",
+    "items_page",
+    "items_by_id",
+    "items_count",
     "chats_get",
     "chats_upsert",
     "chats_rename",

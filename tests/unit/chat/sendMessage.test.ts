@@ -8,9 +8,6 @@ vi.mock('@services/chat.service', () => ({
 
 import { useChatStore, askInNewChat, injectChatRefs } from '@features/chat/stores/chatStore';
 import { CHAT_DRAFT_COPY } from '@config/chat.config';
-import { queryClient } from '@shared/query/queryClient';
-import { queryKeys } from '@shared/query/queryKeys';
-import type { ChatIndexEntry } from '@shared/types';
 
 const pdf: ChatPart = { type: 'document', mimeType: 'application/pdf', source: { kind: 'data', base64: '' }, fileName: 'plan.pdf' };
 const current = () => {
@@ -22,12 +19,11 @@ describe('sending a message', () => {
   beforeEach(() => {
     persist.mockClear();
     // No model picked: the reply is the hint, so these tests stop before any AI call.
-    injectChatRefs({ settings: null, providers: [], historyItems: [] });
+    injectChatRefs({ settings: null, providers: [] });
     useChatStore.setState({
       currentSessionId: null, loadedSessions: new Map(), input: '', pendingAttachments: [],
       selectedMeetingRefs: [], replyingSessionId: null, draftMeetingId: null,
     });
-    queryClient.setQueryData(queryKeys.chats(), []);
   });
 
   it('sends the home composer’s typed question in a new chat and clears the composer', async () => {
@@ -38,7 +34,7 @@ describe('sending a message', () => {
     const [question] = current()!.messages;
     expect(question).toMatchObject({ role: 'user', text: 'summarise yesterday' });
     expect(useChatStore.getState().input).toBe('');
-    expect(queryClient.getQueryData<ChatIndexEntry[]>(queryKeys.chats())?.[0].title).toBe('summarise yesterday');
+    expect(persist).toHaveBeenCalledWith(expect.objectContaining({ title: 'summarise yesterday' }));
   });
 
   it('sends an attachment with no text, titled after the file', async () => {

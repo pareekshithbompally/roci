@@ -1,8 +1,9 @@
 /** All meetings' todos in one query; mutations invalidate both global and per-meeting todo keys. */
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useHistoryData } from '@shared/contexts/HistoryContext';
+import { fetchMeetingBrief } from '@shared/query/items';
+import type { HistoryItem } from '@shared/types';
 import { store, type GlobalTodoEntry } from '@services/db';
 import { reminderService } from '@services/reminder.service';
 import { queryKeys } from '@shared/query/queryKeys';
@@ -56,26 +57,10 @@ const matchesSearch = (target: string, tokens: string[]): boolean => {
 };
 
 export function useGlobalTodos(): UseGlobalTodosReturn {
-  const { items: historyItems } = useHistoryData();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<TodoFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const historyLen = historyItems.length;
-
-  // Build meeting timestamp map from history context for grouping
-  const meetingTimestampMap = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const hi of historyItems) {
-      map.set(hi.id, hi.timestamp ?? 0);
-    }
-    return map;
-  }, [historyItems]);
-
-  // Refetch when the meeting list changes
-  useEffect(() => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.storeGlobalTodos() });
-  }, [historyLen, queryClient]);
 
   const {
     data: allTodos = [],
@@ -169,6 +154,7 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
         createdAt: new Date().toISOString(),
         meetingId,
         meetingTitle,
+        meetingCreatedAt: queryClient.getQueryData<HistoryItem | null>(queryKeys.meetingBrief(meetingId))?.timestamp ?? null,
       };
       queryClient.setQueryData<GlobalTodoEntry[]>(queryKeys.storeGlobalTodos(), (old) =>
         [optimistic, ...(old || [])]
@@ -248,11 +234,10 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
 
   const addTodo = useCallback(
     async (meetingId: string, text: string, dueDate?: string) => {
-      const hi = historyItems.find((h) => h.id === meetingId);
-      const meetingTitle = hi?.title || 'Untitled Meeting';
+      const meetingTitle = (await fetchMeetingBrief(meetingId))?.title || 'Untitled Meeting';
       await addTodoMutate.mutateAsync({ meetingId, text, dueDate, meetingTitle });
     },
-    [historyItems, addTodoMutate]
+    [addTodoMutate]
   );
 
   const setReminder = useCallback(
@@ -314,7 +299,7 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
       let group = map.get(todo.meetingId);
       if (!group) {
         // To-dos of their own lead the list; meetings follow, newest first.
-        const ts = todo.meetingId ? meetingTimestampMap.get(todo.meetingId) ?? 0 : Number.MAX_SAFE_INTEGER;
+        const ts = todo.meetingId ? todo.meetingCreatedAt ?? 0 : Number.MAX_SAFE_INTEGER;
         group = {
           meetingId: todo.meetingId,
           meetingTitle: todo.meetingTitle,
@@ -335,7 +320,7 @@ export function useGlobalTodos(): UseGlobalTodosReturn {
           return 0;
         }),
       }));
-  }, [filtered, meetingTimestampMap]);
+  }, [filtered]);
 
   return {
     todos: filtered,

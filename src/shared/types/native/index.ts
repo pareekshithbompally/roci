@@ -14,7 +14,6 @@ export type { MeetingChanged } from './MeetingChanged';
 export type { MeetingCreateInput } from './MeetingCreateInput';
 export type { NewTranscript } from './NewTranscript';
 export type { MeetingDetailRow } from './MeetingDetailRow';
-export type { MeetingListResult } from './MeetingListResult';
 export type { MeetingRow } from './MeetingRow';
 export type { MeetingSource } from './MeetingSource';
 export type { MeetingStatusRow } from './MeetingStatusRow';

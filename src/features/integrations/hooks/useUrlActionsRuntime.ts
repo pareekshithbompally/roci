@@ -8,9 +8,8 @@ import { platform } from '@platform/index';
 import type { UrlAction } from '@services/urlActions.service';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
-import { meetingsQuery } from '@shared/contexts/HistoryContext';
+import { fetchMeetingBrief } from '@shared/query/items';
 import { useOpenMeeting } from '@features/history/hooks';
-import { queryClient } from '@shared/query/queryClient';
 import { askInNewChat } from '@features/chat';
 import { INTEGRATIONS_CONFIG } from '@config/integrations.config';
 import type { HistoryItem } from '@shared/types';
@@ -49,7 +48,7 @@ export function useUrlActionsRuntime(): void {
   const latest: UrlActionHandlers = {
     show: () => windowService.show(),
     ask: askInNewChat,
-    findMeeting: async (id) => (await queryClient.fetchQuery(meetingsQuery)).find((m) => m.id === id),
+    findMeeting: async (id) => (await fetchMeetingBrief(id)) ?? undefined,
     openMeeting,
     notFound: () => showToast(INTEGRATIONS_CONFIG.urlActions.meetingNotFound, 'error'),
   };

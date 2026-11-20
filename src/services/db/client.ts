@@ -13,7 +13,7 @@ import { providers } from './domains/providers';
 import { categories } from './domains/categories';
 import { chats } from './domains/chats';
 import { dictations } from './domains/dictations';
-import { sidebar } from './domains/sidebar';
+import { items } from './domains/items';
 
 export const store = {
   /** Initialize the database — must be called once before any other operation. */
@@ -32,7 +32,7 @@ export const store = {
   },
 
   meetings,
-  sidebar,
+  items,
   assets,
   storage,
   notes,

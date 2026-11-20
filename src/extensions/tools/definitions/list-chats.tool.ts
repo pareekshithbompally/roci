@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { defineTool, fail, limit, ok, toolDate } from '@extensions/tools/contract';
-import { chatService } from '@services/chat.service';
+import { store } from '@services/db';
 import { errorMessage } from '@shared/utils/errors';
 
 export const listChatsTool = defineTool({
@@ -15,7 +15,7 @@ export const listChatsTool = defineTool({
   async execute({ limit: count }) {
     let chats;
     try {
-      chats = (await chatService.listSessions()).slice(0, count);
+      chats = (await store.items.page(null, count, { kind: 'chat' })).flatMap((item) => (item.kind === 'chat' ? [item.chat] : []));
     } catch (error: unknown) {
       return fail(`Failed to list chats: ${errorMessage(error)}`);
     }

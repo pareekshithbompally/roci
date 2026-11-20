@@ -1,18 +1,12 @@
 /** Chat session CRUD via the unified store (roci.db). */
 
-import type { ChatSession, ChatIndexEntry } from '@shared/types';
+import type { ChatSession } from '@shared/types';
 import { store } from '@services/db';
 import { chatIndexer } from '@extensions/rag/chat-indexer';
 import { queryClient } from '@shared/query/queryClient';
 import { queryKeys } from '@shared/query/queryKeys';
 
 class ChatService {
-  /** List sessions from the store (lightweight — no messages) */
-  async listSessions(): Promise<ChatIndexEntry[]> {
-    const result = await store.chats.list(500, 0);
-    return result.items;
-  }
-
   /** Load a full session with messages */
   async loadSession(sessionId: string): Promise<ChatSession | null> {
     try {

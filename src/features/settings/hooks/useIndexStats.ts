@@ -13,10 +13,10 @@ export interface IndexStats {
 
 async function loadIndexStats(): Promise<IndexStats> {
   const { vectorDB } = await import('@extensions/rag');
-  const [stats, meetings, chats] = await Promise.all([vectorDB.getStats(), store.meetings.list(1), store.chats.list(1)]);
+  const [stats, counts] = await Promise.all([vectorDB.getStats(), store.items.count()]);
   return {
-    meetings: { indexed: stats.total_meetings, onDisk: meetings.total },
-    chats: { indexed: stats.chat_sessions, onDisk: chats.total },
+    meetings: { indexed: stats.total_meetings, onDisk: counts.meetings },
+    chats: { indexed: stats.chat_sessions, onDisk: counts.chats },
     chunks: { total: stats.total_chunks, transcript: stats.transcript_chunks },
   };
 }

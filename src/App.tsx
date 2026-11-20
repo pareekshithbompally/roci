@@ -3,7 +3,6 @@ import { useAppStore, useCurrentView, useAppStatus, useSelectedHistoryId, useApp
 import type { SettingsPanel as SettingsPanelId } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useHistory } from '@shared/contexts/HistoryContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { PermissionChecklist, RecordingExitPrompt, recording, useRecordingStore, useRecordingRuntime, useStartRecording, useToggleRecording } from '@features/recording';
 import { MainLayout } from '@features/layout';
@@ -52,7 +51,6 @@ const App: React.FC = () => {
   const { openSettings, leaveSettings, setInitialized } = useAppActions();
   
   const { settings, setSettings, providers, setSelectedProviderName, isLoading: settingsLoading } = useSettings();
-  const history = useHistory();
   const startRecording = useStartRecording();
   const startRecordingRef = useRef(startRecording);
   startRecordingRef.current = startRecording;
@@ -156,7 +154,6 @@ const App: React.FC = () => {
         if (isTauriEnvironment()) {
           await initializeTauriServices();
         }
-        await loadAppData();
         if (!cancelled) setInitialized(true);
       } catch (e) {
         console.error('[App] Initialization error:', e);
@@ -274,15 +271,6 @@ const App: React.FC = () => {
       console.log('Keyboard shortcuts initialized');
     } catch (error) {
       console.error('Failed to initialize shortcuts:', error);
-    }
-  };
-
-  const loadAppData = async () => {
-    try {
-      // Settings and chat sessions load in their own contexts; only history loads here.
-      await history.loadHistory();
-    } catch (e) {
-      console.error('[App] Failed to load data:', e);
     }
   };
 

@@ -8,7 +8,7 @@ import { Pencil, Plus, Clock, Users, ExternalLink, VolumeX } from 'lucide-react'
 import { useActiveResultTab, useSelectedHistoryId, useAppActions } from '@shared/stores/appStore';
 import { useMeetingResult } from '@shared/hooks/useMeetingResult';
 import type { ResultTab } from '@shared/stores/appStore';
-import { useHistoryData } from '@shared/contexts/HistoryContext';
+import { useMeetingBrief, useMeetingMutations } from '@shared/hooks/useMeetings';
 import { LAYOUT } from '@config/layout.config';
 import { TodoList } from '@features/todos';
 import { ResultsAudioPlayer } from './ResultsAudioPlayer';
@@ -158,11 +158,8 @@ export const ResultsView: React.FC = () => {
   const selectedHistoryId = useSelectedHistoryId();
   const { result, loading } = useMeetingResult(selectedHistoryId);
   const { setActiveResultTab } = useAppActions();
-  const { items: historyItems, renameItem } = useHistoryData();
-
-  const currentHistoryItem = selectedHistoryId
-    ? historyItems.find(item => item.id === selectedHistoryId)
-    : null;
+  const { renameMeeting } = useMeetingMutations();
+  const currentHistoryItem = useMeetingBrief(selectedHistoryId);
   const recordingFileName = currentHistoryItem?.recordingFileName;
   const audioRemoved = !recordingFileName && currentHistoryItem?.audioRemovedAt !== undefined;
   const phase = useMeetingPhase(currentHistoryItem);
@@ -186,7 +183,7 @@ export const ResultsView: React.FC = () => {
 
   const handleTitleSave = async () => {
     const title = editedTitle.trim();
-    if (title && title !== shownTitle && currentHistoryItem) await renameItem(currentHistoryItem.id, title);
+    if (title && title !== shownTitle && currentHistoryItem) await renameMeeting(currentHistoryItem.id, title);
     setIsEditingTitle(false);
   };
 

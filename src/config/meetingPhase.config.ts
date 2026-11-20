@@ -15,6 +15,9 @@ export interface MeetingPhaseStyle {
   badge: BadgeTone;
 }
 
+/** Meetings transcribing or summarizing at once that get an activity row (a handful at most in practice). */
+export const BUSY_MEETINGS_SHOWN = 20;
+
 export const MEETING_PHASE_STYLE: Record<Kind, MeetingPhaseStyle> = {
   recording: { icon: Mic, iconTone: 'danger', spin: false, badge: 'error' },
   pending: { icon: Mic, iconTone: 'warning', spin: false, badge: 'warning' },

@@ -6,7 +6,6 @@ import { MotionConfig } from 'framer-motion';
 import { ThemeProvider } from '@shared/contexts/ThemeContext';
 import { ToastProvider } from '@shared/contexts/ToastContext';
 import { SettingsProvider } from '@shared/contexts/SettingsContext';
-import { HistoryProvider } from '@shared/contexts/HistoryContext';
 import { ImportProvider } from '@features/import';
 import { queryClient } from '@shared/query/queryClient';
 import { Surface, Text } from '@shared/ui';
@@ -67,11 +66,9 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
           <ToastProvider>
             <QueryClientProvider client={queryClient}>
               <SettingsProvider>
-                <HistoryProvider>
-                  <ImportProvider>
-                    {children}
-                  </ImportProvider>
-                </HistoryProvider>
+                <ImportProvider>
+                  {children}
+                </ImportProvider>
               </SettingsProvider>
             </QueryClientProvider>
           </ToastProvider>

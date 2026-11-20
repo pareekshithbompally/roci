@@ -41,10 +41,13 @@ export interface CardRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
   onPress?: () => void;
   /** An action row's title colour: `accent` for an action (Test Connection, Add Model), `danger` for a destructive one. */
   tone?: 'accent' | 'danger';
+  /** The setting this row depends on is off: the row dims, and every control in it is off (one native fieldset), so a
+   *  dependent can't be changed while its parent is off. */
+  disabled?: boolean;
 }
 
-export function CardRow({ title, description, leading, status, actions, stacked, align = 'center', onOpen, onPress, tone, className, children, ...props }: CardRowProps) {
-  const press = onOpen ?? onPress;
+export function CardRow({ title, description, leading, status, actions, stacked, align = 'center', onOpen, onPress, tone, disabled, className, children, ...props }: CardRowProps) {
+  const press = disabled ? undefined : onOpen ?? onPress;
   // Phone: the copy keeps the width — state reads under the description, the side holds only the control.
   const phone = useFormFactor() === 'phone';
   const statusBeside = status && !phone;
@@ -57,8 +60,10 @@ export function CardRow({ title, description, leading, status, actions, stacked,
         // UIKit cell: icon, then the content view; the separator belongs to the content, so it starts where the text starts.
         'group/row flex gap-row-icon !border-t-0',
         press && 'cursor-pointer active:bg-tint-pressed',
+        disabled && 'opacity-50',
         className,
       )}
+      aria-disabled={disabled || undefined}
       {...props}
     >
       {/* Pinned rows: a box one title line tall (1lh), so the icon centres on the title line, not on the block. */}
@@ -85,7 +90,9 @@ export function CardRow({ title, description, leading, status, actions, stacked,
         <div className={cn('flex min-w-0 items-center gap-3', !stacked && 'flex-1 justify-end')}>
           {statusBeside && <div className="flex min-w-0 items-center gap-2">{status}</div>}
           {/* Controls shrink to the row (a long value truncates) instead of spilling past the card. */}
-          {actions && <div className="flex min-w-0 items-center gap-2 [&>*]:min-w-0">{actions}</div>}
+          {actions && (
+            <fieldset disabled={disabled} className="flex min-w-0 items-center gap-2 [&>*]:min-w-0">{actions}</fieldset>
+          )}
           {chevron}
         </div>
       )}

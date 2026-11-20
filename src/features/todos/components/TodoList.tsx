@@ -3,7 +3,7 @@
 import React, { useCallback } from 'react';
 import { ListTodo, Loader2 } from 'lucide-react';
 import { useSelectedHistoryId } from '@shared/stores/appStore';
-import { useHistoryData } from '@shared/contexts/HistoryContext';
+import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import { useMeetingTodos } from '@features/todos/hooks/useMeetingTodos';
 import { EmptyState } from '@shared/components';
 import { confirmDelete } from '@shared/stores/confirmStore';
@@ -20,7 +20,7 @@ interface TodoListProps {
 
 const TodoList: React.FC<TodoListProps> = ({ creating, onCreatingChange, className = '' }) => {
   const selectedHistoryId = useSelectedHistoryId();
-  const { items } = useHistoryData();
+  const meeting = useMeetingBrief(selectedHistoryId);
   const { userTodos, aiTodos, isLoading, addTodo, updateTodo, deleteTodo, toggleTodo } = useMeetingTodos(selectedHistoryId);
 
   const handleDeleteTodo = async (todoId: string) => {
@@ -40,7 +40,7 @@ const TodoList: React.FC<TodoListProps> = ({ creating, onCreatingChange, classNa
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   const meetingId = selectedHistoryId || '';
-  const meetingTitle = items.find((item) => item.id === selectedHistoryId)?.title || 'Meeting';
+  const meetingTitle = meeting?.title || 'Meeting';
 
   const handleReminderChange = useCallback((todoId: string, reminderDateTime: string | null) => {
     updateTodo(todoId, {});

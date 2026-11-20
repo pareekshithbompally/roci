@@ -11,6 +11,8 @@ export const MIN_NOTES_LENGTH = 20;
 export const HASH_CONCURRENCY = 10;
 /** Max concurrent file I/O operations (prevents descriptor exhaustion) */
 export const IO_CONCURRENCY = 5;
+/** Ids read per store page when every meeting or chat is indexed (a full rebuild, the embedding catch-up). */
+export const INDEX_PAGE_SIZE = 200;
 
 // ── Embedding ──
 /** The on-device model (Rust catalog id) that embeds meetings and chats; its vectors are 1024-d. */

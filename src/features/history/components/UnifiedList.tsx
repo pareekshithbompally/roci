@@ -1,5 +1,5 @@
 import React from 'react';
-import { useHistory } from '@shared/contexts/HistoryContext';
+import { useMeetingMutations } from '@shared/hooks/useMeetings';
 import { useChatStore } from '@features/chat';
 import { meetingPipeline } from '@features/recording';
 import { useMeetingParts } from '@shared/stores/meetingProgressStore';
@@ -39,7 +39,7 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
   searchQuery,
   paging,
 }) => {
-  const history = useHistory();
+  const { renameMeeting } = useMeetingMutations();
   const renameSession = useChatStore((s) => s.renameSession);
   const parts = useMeetingParts();
   const deleteSession = useDeleteSession();
@@ -68,7 +68,7 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
     if (!renameItem) return;
 
     if (renameItem.type === 'meeting') {
-      await history.renameItem(renameItem.id, newTitle);
+      await renameMeeting(renameItem.id, newTitle);
     } else if (renameItem.type === 'chat') {
       await renameSession(renameItem.id, newTitle);
     }

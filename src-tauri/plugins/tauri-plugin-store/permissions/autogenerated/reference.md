@@ -10,7 +10,6 @@ Allows all store plugin commands
 - `allow-rebuild`
 - `allow-rebuild-fts`
 - `allow-get-indexed-ids`
-- `allow-meetings-list`
 - `allow-meetings-get`
 - `allow-meetings-existing`
 - `allow-meetings-upsert`
@@ -32,8 +31,9 @@ Allows all store plugin commands
 - `allow-categories-rename`
 - `allow-categories-create`
 - `allow-categories-delete`
-- `allow-chats-list`
-- `allow-sidebar-page`
+- `allow-items-page`
+- `allow-items-by-id`
+- `allow-items-count`
 - `allow-chats-get`
 - `allow-chats-upsert`
 - `allow-chats-rename`
@@ -400,32 +400,6 @@ Enables the chats_get_stale command without any pre-configured scope.
 <td>
 
 Denies the chats_get_stale command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-chats-list`
-
-</td>
-<td>
-
-Enables the chats_list command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-chats-list`
-
-</td>
-<td>
-
-Denies the chats_list command without any pre-configured scope.
 
 </td>
 </tr>
@@ -875,6 +849,84 @@ Denies the insert_usage command without any pre-configured scope.
 <tr>
 <td>
 
+`store:allow-items-by-id`
+
+</td>
+<td>
+
+Enables the items_by_id command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-items-by-id`
+
+</td>
+<td>
+
+Denies the items_by_id command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-items-count`
+
+</td>
+<td>
+
+Enables the items_count command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-items-count`
+
+</td>
+<td>
+
+Denies the items_count command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-items-page`
+
+</td>
+<td>
+
+Enables the items_page command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-items-page`
+
+</td>
+<td>
+
+Denies the items_page command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `store:allow-mark-chat-content-indexed`
 
 </td>
@@ -1154,32 +1206,6 @@ Enables the meetings_get command without any pre-configured scope.
 <td>
 
 Denies the meetings_get command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-meetings-list`
-
-</td>
-<td>
-
-Enables the meetings_list command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-meetings-list`
-
-</td>
-<td>
-
-Denies the meetings_list command without any pre-configured scope.
 
 </td>
 </tr>
@@ -1778,32 +1804,6 @@ Enables the settings_set command without any pre-configured scope.
 <td>
 
 Denies the settings_set command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-sidebar-page`
-
-</td>
-<td>
-
-Enables the sidebar_page command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-sidebar-page`
-
-</td>
-<td>
-
-Denies the sidebar_page command without any pre-configured scope.
 
 </td>
 </tr>

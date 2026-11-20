@@ -4,7 +4,7 @@ import React, { useCallback, useRef, useMemo } from 'react';
 import { useLeftPanel } from '@shared/hooks/useLeftPanel';
 import { useSmallScreen } from '@shared/hooks/useMediaQuery';
 import { useAppStatus, useSelectedHistoryId, useCurrentView } from '@shared/stores/appStore';
-import { useHistoryData } from '@shared/contexts/HistoryContext';
+import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import { useActivityItems } from '@shared/stores/activityStore';
 import { Sidebar } from './Sidebar';
 import { CommandPalette } from '@features/palette';
@@ -29,7 +29,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const status = useAppStatus();
   const selectedHistoryId = useSelectedHistoryId();
   const currentView = useCurrentView();
-  const selectedMeeting = useHistoryData().items.find((item) => item.id === selectedHistoryId);
+  const selectedMeeting = useMeetingBrief(selectedHistoryId);
   const activityItems = useActivityItems();
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
 

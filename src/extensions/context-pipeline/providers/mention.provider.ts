@@ -12,17 +12,11 @@ export class MentionProvider implements ContextProvider {
   }
 
   async resolve(input: ContextInput): Promise<ContextOutput> {
-    const referencedItems = input.historyItems.filter(item => input.meetingIds.includes(item.id));
-
-    if (referencedItems.length === 0) {
+    // Skip the full transcript so large strings aren't held in memory during context assembly.
+    const references = await meetingReferenceService.loadSelectiveContext(input.meetingIds, ['summary', 'notes', 'actionItems']);
+    if (references.length === 0) {
       return { text: '', provider: this.name, confidence: 0, durationMs: 0 };
     }
-
-    // Skip the full transcript so large strings aren't held in memory during context assembly.
-    const references = await meetingReferenceService.loadSelectiveContext(
-      referencedItems,
-      ['summary', 'notes', 'actionItems'],
-    );
     const text = meetingReferenceService.formatForLLM(references);
 
     if (!text) {
@@ -34,7 +28,7 @@ export class MentionProvider implements ContextProvider {
       provider: this.name,
       confidence: 1.0,
       durationMs: 0,
-      meta: { mentionedMeetingIds: referencedItems.map(item => item.id) },
+      meta: { mentionedMeetingIds: references.map((ref) => ref.id) },
     };
   }
 }

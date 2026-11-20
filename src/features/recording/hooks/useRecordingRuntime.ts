@@ -1,11 +1,13 @@
 /** Mount once (App): wires the meeting pipeline to the app, resumes unfinished meetings, and mirrors both into the tray. */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { isTauriEnvironment } from '@services/tauri';
 import { RECORDING_EVENTS } from '@config/audio.config';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useHistoryData } from '@shared/contexts/HistoryContext';
+import { useMeetingBrief, useMeetingBriefs, useMeetingsFound } from '@shared/hooks/useMeetings';
+import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
+import { BUSY_MEETINGS_SHOWN } from '@config/meetingPhase.config';
 import { activityStore, type ActivityAction, type ActivityItem } from '@shared/stores/activityStore';
 import { useMeetingParts } from '@shared/stores/meetingProgressStore';
 import type { HistoryItem } from '@shared/types';
@@ -50,7 +52,7 @@ function recordingActions(paused: boolean, busy: boolean): ActivityAction[] {
 /** Reads the current settings, providers and categories into the pipeline; resumes once the store is open. */
 function usePipelineContext(): void {
   const { settings, providers, isLoading } = useSettings();
-  const { categories } = useHistoryData();
+  const categories = [...TRANSCRIPTION_CONFIG.categories];
   const context = useRef({ settings, providers, categories });
   context.current = { settings, providers, categories };
 
@@ -124,12 +126,12 @@ function useRecordingRow(): void {
 }
 
 /** The recording that just stopped, with Transcribe (once a speech engine is set up), until it is transcribed or dismissed. */
-function useSavedRow(items: HistoryItem[]): void {
+function useSavedRow(): void {
   const justStopped = useJustStopped();
+  const meeting = useMeetingBrief(justStopped);
   const canTranscribe = useAIReadiness().speech;
 
   useEffect(() => {
-    const meeting = justStopped ? items.find((item) => item.id === justStopped) : undefined;
     const status = meeting?.status;
     if (!meeting || !status || (status.status !== 'captured' && status.failedStep !== 'record')) {
       activityStore.remove(SAVED_ROW);
@@ -149,7 +151,7 @@ function useSavedRow(items: HistoryItem[]): void {
       },
     };
     put({ ...ROW_DEFAULTS, id: SAVED_ROW, type: 'recording', status: 'active', label: 'Saved · Not transcribed', detail: meeting.title, actions: canTranscribe ? [transcribe, dismiss] : [dismiss] });
-  }, [justStopped, items, canTranscribe]);
+  }, [meeting, canTranscribe]);
 }
 
 function meetingRow(meeting: HistoryItem, part: ActivityItem['step']): ActivityItem {
@@ -165,18 +167,24 @@ function meetingRow(meeting: HistoryItem, part: ActivityItem['step']): ActivityI
   return { ...ROW_DEFAULTS, id, type: 'processing', status: 'active', label, step: part, detail: meeting.title, actions: [cancel] };
 }
 
-/** One row per meeting transcribing or summarizing, and per one that failed while this session ran it. */
-function useMeetingRows(items: HistoryItem[]): void {
+const BUSY = ['transcribing', 'summarizing'];
+
+/** One row per meeting transcribing or summarizing (read from the store by status), and per one that failed while this
+ *  session ran it (read by id). */
+function useMeetingRows(): void {
   const parts = useMeetingParts();
-  const ranThisSession = useRef(new Set<string>());
+  const busy = useMeetingsFound({ statuses: BUSY }, BUSY_MEETINGS_SHOWN);
+  const [ran, setRan] = useState<string[]>([]);
+  useEffect(() => {
+    const started = busy.map((m) => m.id).filter((id) => !ran.includes(id));
+    if (started.length > 0) setRan((prev) => [...prev, ...started]);
+  }, [busy, ran]);
+  const ranMeetings = useMeetingBriefs(ran);
 
   useEffect(() => {
     const shown = new Set<string>();
-    for (const meeting of items) {
-      const name = meeting.status?.status;
-      const busy = name === 'transcribing' || name === 'summarizing';
-      if (busy) ranThisSession.current.add(meeting.id);
-      if (!busy && !(name === 'failed' && ranThisSession.current.has(meeting.id))) continue;
+    const failed = ranMeetings.filter((m) => m.status?.status === 'failed');
+    for (const meeting of [...busy, ...failed]) {
       const row = meetingRow(meeting, parts[meeting.id] ?? null);
       shown.add(row.id);
       put(row);
@@ -184,14 +192,13 @@ function useMeetingRows(items: HistoryItem[]): void {
     for (const item of activityStore.getSnapshot()) {
       if (item.id.startsWith(MEETING_ROW_PREFIX) && !shown.has(item.id)) activityStore.remove(item.id);
     }
-  }, [items, parts]);
+  }, [busy, ranMeetings, parts]);
 }
 
 export function useRecordingRuntime(): void {
-  const { items } = useHistoryData();
   usePipelineContext();
   useRecordingRow();
-  useSavedRow(items);
-  useMeetingRows(items);
+  useSavedRow();
+  useMeetingRows();
   useMeetingLive();
 }

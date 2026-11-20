@@ -1,7 +1,4 @@
-import type { HistoryItem } from '@shared/types';
-
 export interface ContextInput {
-  historyItems: HistoryItem[];
   /** The meetings attached to the question being asked. */
   meetingIds: string[];
   signal?: AbortSignal;

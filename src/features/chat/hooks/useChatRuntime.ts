@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query';
 import type { ChatSession } from '@shared/types';
 import { useChatStore, injectChatRefs } from '@features/chat/stores';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { chatService } from '@services/chat.service';
 import { retentionService } from '@services/storage/retention.service';
 import { queryKeys } from '@shared/query/queryKeys';
@@ -24,12 +23,11 @@ function withLoaded(prev: Map<string, ChatSession>, session: ChatSession, replyi
 
 export function useChatRuntime(): void {
   const { settings, providers } = useSettings();
-  const { items: historyItems } = useHistoryData();
 
   // sendMessage reads these outside React.
   useEffect(() => {
-    injectChatRefs({ settings, providers: providers || [], historyItems });
-  }, [settings, providers, historyItems]);
+    injectChatRefs({ settings, providers: providers || [] });
+  }, [settings, providers]);
 
   // Chats Keep or Delete All removed leave memory, so an open one is never saved back.
   useEffect(() => retentionService.onChatsRemoved((ids) => useChatStore.getState().forgetSessions(ids)), []);

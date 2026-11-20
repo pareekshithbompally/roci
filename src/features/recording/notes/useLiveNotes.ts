@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useHistoryData } from '@shared/contexts/HistoryContext';
+import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { summaryModel } from '@services/ai/jobModel';
 import { LIVE_NOTES_CONFIG as NOTES } from '@config/liveNotes.config';
@@ -27,8 +27,7 @@ function useSummaryModel(): { model: ResolvedModel | null; problem: string | nul
 
 /** The meeting's participants from its calendar event, by name, for naming who speaks. */
 function useParticipants(meetingId: string): string[] {
-  const { items } = useHistoryData();
-  const participants = items.find((item) => item.id === meetingId)?.participants;
+  const participants = useMeetingBrief(meetingId)?.participants;
   return useMemo(() => (participants ?? []).flatMap(({ name }) => (name ? [name] : [])), [participants]);
 }
 

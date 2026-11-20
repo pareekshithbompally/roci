@@ -4,7 +4,7 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Pause, Play, Square } from 'lucide-react';
-import { useHistoryData } from '@shared/contexts/HistoryContext';
+import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { Button, Dot, Icon, Text, TitlebarSpacer } from '@shared/ui';
 import { LAYOUT } from '@config/layout.config';
@@ -61,11 +61,11 @@ const RecordingScreen: React.FC<{ meetingId: string }> = ({ meetingId }) => {
   const bullets = useLiveNotesStore((s) => s.bullets);
   const updating = useLiveNotesStore((s) => s.updating);
   const { settings } = useSettings();
-  const { items } = useHistoryData();
+  const meeting = useMeetingBrief(meetingId);
   const clock = useClock();
   const { type, flush, modelProblem } = useLiveNotes(meetingId, true);
 
-  const title = items.find((item) => item.id === meetingId)?.title ?? 'Recording';
+  const title = meeting?.title ?? 'Recording';
   const unavailable = [LIVE.copy.unavailable, reason].filter(Boolean).join(' ');
   const transcript: WorkspaceTranscript = {
     label: NOTES.copy.liveTranscript,

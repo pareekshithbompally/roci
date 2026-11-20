@@ -90,14 +90,6 @@ pub struct NewTranscript {
     pub segments: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
-pub struct MeetingListResult {
-    pub items: Vec<MeetingRow>,
-    #[cfg_attr(test, ts(type = "number"))]
-    pub total: i64,
-}
-
 /// A meeting update; only the fields given change.
 #[derive(Debug, Deserialize)]
 #[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
@@ -264,6 +256,9 @@ pub struct TodoWithReminder {
     pub id: String,
     pub meeting_id: Option<String>,
     pub meeting_title: Option<String>,
+    /// When its meeting was made (epoch ms), so to-do lists group by meeting without reading the meetings.
+    #[cfg_attr(test, ts(type = "number | null"))]
+    pub meeting_created_at: Option<i64>,
     pub text: String,
     pub owner: Option<String>,
     pub due_date: Option<String>,
@@ -418,12 +413,6 @@ pub struct ChatIndexRow {
     pub title: String,
     pub last_message_at: i64,
     pub message_count: i32,
-}
-
-#[derive(Debug, Serialize)]
-pub struct ChatsListResult {
-    pub items: Vec<ChatIndexRow>,
-    pub total: i64,
 }
 
 #[derive(Debug, Serialize)]
@@ -760,27 +749,6 @@ pub async fn initialize<R: Runtime>(
 }
 
 // ── Meeting Domain Commands ──
-
-#[tauri::command]
-pub async fn meetings_list(
-    state: State<'_, StoreState>,
-    limit: Option<u32>,
-    offset: Option<u32>,
-) -> Result<MeetingListResult, StoreError> {
-    let limit = limit.unwrap_or(50);
-    let offset = offset.unwrap_or(0);
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        let total: i64 = db.query_row("SELECT COUNT(*) FROM meetings", [], |row| row.get(0))?;
-        let items = meeting_rows(db, "ORDER BY m.created_at DESC LIMIT ?1 OFFSET ?2", rusqlite::params![limit, offset])?;
-        Ok(MeetingListResult { items, total })
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
 
 /// The status columns starting at `first` (status, failed_step, error).
 fn status_at(row: &rusqlite::Row<'_>, first: usize) -> rusqlite::Result<MeetingStatus> {
@@ -1426,7 +1394,7 @@ pub async fn notes_delete(
 
 /// A to-do row with its meeting's title (none for a to-do of its own) and its scheduled reminder.
 const TODO_SELECT: &str = "SELECT t.id, t.meeting_id, m.title, t.text, t.owner, t.due_date, t.completed, t.source, t.created_at,
-        r.notification_id, r.fire_at, r.status, r.created_at
+        r.notification_id, r.fire_at, r.status, r.created_at, m.created_at
  FROM todos t
  LEFT JOIN meetings m ON m.id = t.meeting_id
  LEFT JOIN reminders r ON r.todo_id = t.id AND r.status = 'scheduled'";
@@ -1444,6 +1412,7 @@ fn todo_row(row: &rusqlite::Row) -> rusqlite::Result<TodoWithReminder> {
         id: row.get(0)?,
         meeting_id: row.get(1)?,
         meeting_title: row.get(2)?,
+        meeting_created_at: row.get(13)?,
         text: row.get(3)?,
         owner: row.get(4)?,
         due_date: row.get(5)?,
@@ -2031,91 +2000,172 @@ fn chat_rows(db: &Connection, tail: &str, params: impl rusqlite::Params) -> Resu
         .collect::<Result<_, _>>()?)
 }
 
-// ── Sidebar ──
+// ── Items: meetings and chats, read the same way ──
 
-/// Where a sidebar page ends: its last item's time and id (newest first; equal times ordered by id).
+/// Where a page ends: its last item's time and id (newest first; equal times ordered by id).
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SidebarCursor {
+pub struct ItemCursor {
     pub at: i64,
     pub id: String,
 }
 
-/// One sidebar row: a meeting (by when it was made) or a chat that has messages (by its last message).
+/// One kind of item: a meeting (by when it was made) or a chat that has messages (by its last message).
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ItemKind {
+    Meeting,
+    Chat,
+}
+
+/// One item as every list shows it: name, time and status only (no transcript, summary or messages).
 #[derive(Debug, Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
-pub enum SidebarItem {
+pub enum Item {
     Meeting(MeetingRow),
     Chat(ChatIndexRow),
 }
 
-impl SidebarItem {
+impl Item {
     fn key(&self) -> (i64, &str) {
         match self {
-            SidebarItem::Meeting(m) => (m.created_at, m.id.as_str()),
-            SidebarItem::Chat(c) => (c.last_message_at, c.id.as_str()),
+            Item::Meeting(m) => (m.created_at, m.id.as_str()),
+            Item::Chat(c) => (c.last_message_at, c.id.as_str()),
         }
     }
 }
 
-/// The next `limit` sidebar items after `before` (from the newest when none): meetings and chats merged by time, names and
-/// status only, so the sidebar loads a page at a time and has no cap.
-fn sidebar_page_impl(db: &Connection, before: Option<&SidebarCursor>, limit: u32) -> Result<Vec<SidebarItem>, StoreError> {
-    let (at, id) = before.map_or((None, ""), |c| (Some(c.at), c.id.as_str()));
-    let meetings = meeting_rows(
-        db,
-        "WHERE ?1 IS NULL OR m.created_at < ?1 OR (m.created_at = ?1 AND m.id < ?2)
-         ORDER BY m.created_at DESC, m.id DESC LIMIT ?3",
-        rusqlite::params![at, id, limit],
-    )?;
-    let chats = chat_rows(
-        db,
-        "WHERE EXISTS (SELECT 1 FROM chat_messages WHERE chat_id = c.id)
-           AND (?1 IS NULL OR c.last_message_at < ?1 OR (c.last_message_at = ?1 AND c.id < ?2))
-         ORDER BY c.last_message_at DESC, c.id DESC LIMIT ?3",
-        rusqlite::params![at, id, limit],
-    )?;
-    let mut items: Vec<SidebarItem> = meetings.into_iter().map(SidebarItem::Meeting).chain(chats.into_iter().map(SidebarItem::Chat)).collect();
+/// Which items a read covers: both kinds, or one, inside an optional time window and with every word in the title.
+#[derive(Debug, Default, Deserialize)]
+pub struct ItemFilter {
+    pub kind: Option<ItemKind>,
+    /// Epoch ms, inclusive.
+    pub since: Option<i64>,
+    /// Epoch ms, exclusive.
+    pub until: Option<i64>,
+    /// Words the title must all contain (any case).
+    pub words: Option<Vec<String>>,
+    /// Meetings in one of these statuses (meetings only).
+    pub statuses: Option<Vec<String>>,
+    /// Meetings recorded from this calendar event (meetings only).
+    pub calendar_event: Option<String>,
+}
+
+impl ItemFilter {
+    fn wants(&self, kind: ItemKind) -> bool {
+        let meetings_only = self.statuses.is_some() || self.calendar_event.is_some();
+        self.kind.is_none_or(|k| k == kind) && !(meetings_only && kind == ItemKind::Chat)
+    }
+
+    /// `AND`-joined conditions over one table's time and title columns, numbered after the cursor (?1, ?2) and limit (?3).
+    fn conditions(&self, time: &str, title: &str) -> (String, Vec<rusqlite::types::Value>) {
+        use rusqlite::types::Value;
+        let mut sql = String::new();
+        let mut values = Vec::new();
+        let mut add = |clause: String, value: Value| {
+            values.push(value);
+            sql.push_str(&format!(" AND {}", clause.replace('#', &format!("?{}", values.len() + 3))));
+        };
+        if let Some(since) = self.since {
+            add(format!("{time} >= #"), Value::Integer(since));
+        }
+        if let Some(until) = self.until {
+            add(format!("{time} < #"), Value::Integer(until));
+        }
+        for word in self.words.iter().flatten().map(|w| w.trim()).filter(|w| !w.is_empty()) {
+            add(format!("{title} LIKE '%' || # || '%' ESCAPE '!'"), Value::Text(escape_like(word)));
+        }
+        if let Some(statuses) = &self.statuses {
+            add("m.status IN (SELECT value FROM json_each(#))".into(), Value::Text(serde_json::to_string(statuses).unwrap_or_default()));
+        }
+        if let Some(event) = &self.calendar_event {
+            add("m.calendar_event_id = #".into(), Value::Text(event.clone()));
+        }
+        (sql, values)
+    }
+}
+
+/// A word as a LIKE pattern matches it literally: its `%`, `_` and the escape mark `!` are escaped with `!`.
+fn escape_like(word: &str) -> String {
+    word.replace('!', "!!").replace('%', "!%").replace('_', "!_")
+}
+
+/// The next `limit` items after `before` (from the newest when none) that `filter` covers, meetings and chats merged by time:
+/// the sidebar, a screen's recent meetings, a picker's matches and the AI's list tools all read this one way.
+fn items_page_impl(db: &Connection, before: Option<&ItemCursor>, limit: u32, filter: &ItemFilter) -> Result<Vec<Item>, StoreError> {
+    use rusqlite::types::Value;
+    let (at, id) = before.map_or((Value::Null, Value::Text(String::new())), |c| (Value::Integer(c.at), Value::Text(c.id.clone())));
+    let base = [at, id, Value::Integer(limit as i64)];
+    let mut items = Vec::new();
+    if filter.wants(ItemKind::Meeting) {
+        let (extra, values) = filter.conditions("m.created_at", "m.title");
+        let tail = format!(
+            "WHERE (?1 IS NULL OR m.created_at < ?1 OR (m.created_at = ?1 AND m.id < ?2)){extra}
+             ORDER BY m.created_at DESC, m.id DESC LIMIT ?3"
+        );
+        let params: Vec<Value> = base.iter().cloned().chain(values).collect();
+        items.extend(meeting_rows(db, &tail, rusqlite::params_from_iter(params))?.into_iter().map(Item::Meeting));
+    }
+    if filter.wants(ItemKind::Chat) {
+        let (extra, values) = filter.conditions("c.last_message_at", "c.title");
+        let tail = format!(
+            "WHERE EXISTS (SELECT 1 FROM chat_messages WHERE chat_id = c.id)
+               AND (?1 IS NULL OR c.last_message_at < ?1 OR (c.last_message_at = ?1 AND c.id < ?2)){extra}
+             ORDER BY c.last_message_at DESC, c.id DESC LIMIT ?3"
+        );
+        let params: Vec<Value> = base.iter().cloned().chain(values).collect();
+        items.extend(chat_rows(db, &tail, rusqlite::params_from_iter(params))?.into_iter().map(Item::Chat));
+    }
     items.sort_by(|a, b| b.key().cmp(&a.key()));
     items.truncate(limit as usize);
     Ok(items)
 }
 
 #[tauri::command]
-pub async fn sidebar_page(state: State<'_, StoreState>, before: Option<SidebarCursor>, limit: u32) -> Result<Vec<SidebarItem>, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        sidebar_page_impl(db, before.as_ref(), limit)
+pub async fn items_page(
+    state: State<'_, StoreState>,
+    before: Option<ItemCursor>,
+    limit: u32,
+    filter: Option<ItemFilter>,
+) -> Result<Vec<Item>, StoreError> {
+    on_db(&state, move |db| items_page_impl(db, before.as_ref(), limit, &filter.unwrap_or_default())).await
+}
+
+/// These items by id (one kind), in no particular order; an id that no longer exists is left out.
+fn items_by_id_impl(db: &Connection, kind: ItemKind, ids: &[String]) -> Result<Vec<Item>, StoreError> {
+    let ids_json = serde_json::to_string(ids).map_err(|e| StoreError::from(e.to_string()))?;
+    Ok(match kind {
+        ItemKind::Meeting => meeting_rows(db, "WHERE m.id IN (SELECT value FROM json_each(?1))", [ids_json])?.into_iter().map(Item::Meeting).collect(),
+        ItemKind::Chat => chat_rows(db, "WHERE c.id IN (SELECT value FROM json_each(?1))", [ids_json])?.into_iter().map(Item::Chat).collect(),
     })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+}
+
+#[tauri::command]
+pub async fn items_by_id(state: State<'_, StoreState>, kind: ItemKind, ids: Vec<String>) -> Result<Vec<Item>, StoreError> {
+    on_db(&state, move |db| items_by_id_impl(db, kind, &ids)).await
+}
+
+/// How many meetings and chats (with messages) there are.
+#[derive(Debug, Serialize)]
+pub struct ItemCounts {
+    pub meetings: i64,
+    pub chats: i64,
+}
+
+fn items_count_impl(db: &Connection) -> Result<ItemCounts, StoreError> {
+    Ok(db.query_row(
+        "SELECT (SELECT COUNT(*) FROM meetings),
+                (SELECT COUNT(*) FROM chats c WHERE EXISTS (SELECT 1 FROM chat_messages WHERE chat_id = c.id))",
+        [],
+        |row| Ok(ItemCounts { meetings: row.get(0)?, chats: row.get(1)? }),
+    )?)
+}
+
+#[tauri::command]
+pub async fn items_count(state: State<'_, StoreState>) -> Result<ItemCounts, StoreError> {
+    on_db(&state, items_count_impl).await
 }
 
 // ── Chat Domain Commands ──
-
-#[tauri::command]
-pub async fn chats_list(
-    state: State<'_, StoreState>,
-    limit: Option<u32>,
-    offset: Option<u32>,
-) -> Result<ChatsListResult, StoreError> {
-    let limit = limit.unwrap_or(50);
-    let offset = offset.unwrap_or(0);
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        let total: i64 = db.query_row("SELECT COUNT(*) FROM chats", [], |row| row.get(0))?;
-
-        let items = chat_rows(db, "ORDER BY c.last_message_at DESC LIMIT ?1 OFFSET ?2", rusqlite::params![limit, offset])?;
-
-        Ok(ChatsListResult { items, total })
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
 
 #[tauri::command]
 pub async fn chats_get(
@@ -4128,7 +4178,7 @@ mod tests {
     }
 
     #[test]
-    fn the_sidebar_pages_through_meetings_and_chats_by_time_with_nothing_missing() {
+    fn items_page_through_meetings_and_chats_by_time_with_nothing_missing() {
         let conn = db();
         for (i, id) in ["m1", "m2", "m3"].iter().enumerate() {
             seed_meeting(&conn, id);
@@ -4141,15 +4191,43 @@ mod tests {
             chats_upsert_impl(&conn, &input).unwrap();
         }
         let mut seen = Vec::new();
-        let mut before: Option<SidebarCursor> = None;
+        let mut before: Option<ItemCursor> = None;
         loop {
-            let page = sidebar_page_impl(&conn, before.as_ref(), 2).unwrap();
+            let page = items_page_impl(&conn, before.as_ref(), 2, &ItemFilter::default()).unwrap();
             if page.is_empty() { break; }
             let (at, id) = page.last().unwrap().key();
-            before = Some(SidebarCursor { at, id: id.to_string() });
+            before = Some(ItemCursor { at, id: id.to_string() });
             seen.extend(page.iter().map(|item| item.key().1.to_string()));
         }
         assert_eq!(seen, vec!["m3", "c2", "m2", "c1", "m1"], "newest first, every item once; a chat with no messages isn't listed");
+    }
+
+    #[test]
+    fn items_are_found_by_kind_time_title_and_id_and_counted() {
+        let conn = db();
+        for (id, title, at) in [("m1", "Budget review", 10), ("m2", "Launch plan 100%", 20)] {
+            seed_meeting(&conn, id);
+            conn.execute("UPDATE meetings SET title = ?2, created_at = ?3 WHERE id = ?1", rusqlite::params![id, title, at]).unwrap();
+        }
+        let mut input = chat(vec![msg("q", "hi")]);
+        input.title = "budget questions".into();
+        input.last_message_at = 15;
+        chats_upsert_impl(&conn, &input).unwrap();
+        let ids = |filter: ItemFilter| -> Vec<String> {
+            items_page_impl(&conn, None, 10, &filter).unwrap().iter().map(|i| i.key().1.to_string()).collect()
+        };
+        assert_eq!(ids(ItemFilter { kind: Some(ItemKind::Meeting), ..Default::default() }), vec!["m2", "m1"]);
+        assert_eq!(ids(ItemFilter { words: Some(vec!["BUDGET".into()]), ..Default::default() }), vec!["c1", "m1"], "any case, both kinds");
+        assert_eq!(ids(ItemFilter { words: Some(vec!["100%".into()]), ..Default::default() }), vec!["m2"], "% is matched as itself");
+        assert_eq!(ids(ItemFilter { words: Some(vec!["1%0".into()]), ..Default::default() }), Vec::<String>::new());
+        assert_eq!(ids(ItemFilter { since: Some(12), until: Some(20), ..Default::default() }), vec!["c1"], "since is in, until is out");
+        let found = items_by_id_impl(&conn, ItemKind::Meeting, &["m2".into(), "gone".into()]).unwrap();
+        assert_eq!(found.iter().map(|i| i.key().1).collect::<Vec<_>>(), vec!["m2"]);
+        conn.execute("UPDATE meetings SET status = 'transcribing', calendar_event_id = 'ev' WHERE id = 'm1'", []).unwrap();
+        assert_eq!(ids(ItemFilter { statuses: Some(vec!["transcribing".into()]), ..Default::default() }), vec!["m1"], "meetings only");
+        assert_eq!(ids(ItemFilter { calendar_event: Some("ev".into()), ..Default::default() }), vec!["m1"]);
+        let counts = items_count_impl(&conn).unwrap();
+        assert_eq!((counts.meetings, counts.chats), (2, 1));
     }
 
     #[test]

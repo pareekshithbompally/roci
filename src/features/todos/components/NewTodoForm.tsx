@@ -1,15 +1,13 @@
 /** The one New to-do form, for the To-dos page and a meeting's tab: a bottom sheet on iPhone (Cancel · New to-do · Add),
  *  an inline card on Mac. Text, the meeting (when not already fixed) and an optional due date; time once a date is set. */
 
-import React, { useMemo, useState } from 'react';
-import { matchesAllWords } from '@shared/utils/textMatch';
+import React, { useState } from 'react';
 import { CalendarDays, ChevronDown, ListTodo, Plus } from 'lucide-react';
-import { useHistoryData } from '@shared/contexts/HistoryContext';
+import { useMeetingBrief, useMeetingsFound } from '@shared/hooks/useMeetings';
 import {
   BottomSheet, Button, DatePicker, Icon, Input, Popover, PopoverContent, PopoverTrigger, Row, Surface, Text, Textarea,
   TimePicker,
 } from '@shared/ui';
-import type { HistoryItem } from '@shared/types';
 import { buildISOFromDateInput, formatMeetingDate } from '@shared/utils/todo.utils';
 import { useFormFactor } from '@platform/formFactor';
 import { TODOS_CONFIG } from '@config/todos.config';
@@ -18,20 +16,18 @@ import { TODOS_CONFIG } from '@config/todos.config';
 
 
 interface MeetingSelectorProps {
-  items: HistoryItem[];
   selectedId: string;
   onSelect: (id: string) => void;
 }
 
-const MeetingSelector: React.FC<MeetingSelectorProps> = ({ items, selectedId, onSelect }) => {
+/** Picks a meeting: while open it reads the store, the newest first, then those whose title has every word typed. */
+const MeetingSelector: React.FC<MeetingSelectorProps> = ({ selectedId, onSelect }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
 
-  const selected = items.find(h => h.id === selectedId);
-  const filtered = useMemo(() => {
-    if (!query.trim()) return items.slice(0, 50);
-    return items.filter(h => matchesAllWords(h.title || '', query)).slice(0, 50);
-  }, [items, query]);
+  const selected = useMeetingBrief(selectedId || null);
+  const words = query.trim().split(/\s+/).filter(Boolean);
+  const filtered = useMeetingsFound(words.length > 0 ? { words } : {}, TODOS_CONFIG.meetingPicker, open);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -88,7 +84,6 @@ interface NewTodoFormProps {
 
 export const NewTodoForm: React.FC<NewTodoFormProps> = ({ open, onClose, onSubmit, meetingId: fixedMeetingId }) => {
   const phone = useFormFactor() === 'phone';
-  const { items: historyItems } = useHistoryData();
   const [text, setText] = useState('');
   const [pickedMeetingId, setPickedMeetingId] = useState('');
   const [date, setDate] = useState('');
@@ -136,7 +131,7 @@ export const NewTodoForm: React.FC<NewTodoFormProps> = ({ open, onClose, onSubmi
             <Icon icon={ListTodo} size="xs" />
             Meeting
           </Text>
-          <MeetingSelector items={historyItems} selectedId={pickedMeetingId} onSelect={setPickedMeetingId} />
+          <MeetingSelector selectedId={pickedMeetingId} onSelect={setPickedMeetingId} />
         </div>
       )}
       <div className="flex min-h-10 items-center gap-2">

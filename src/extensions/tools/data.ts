@@ -1,18 +1,13 @@
 /** What the tools read: the database as it is now (never a copy the chat was handed), and the shapes they show it in. */
 
-import { queryClient } from '@shared/query/queryClient';
-import { meetingsQuery } from '@shared/contexts/HistoryContext';
+import { fetchMeetingBrief } from '@shared/query/items';
 import type { HistoryItem, TodoEntry } from '@shared/types';
 import { fail, localDateTimeOf } from './contract';
 import type { ToolResult } from './types';
 
-/** Every meeting, read again from roci.db (the app's meeting list refreshes with it). */
-export function currentMeetings(): Promise<HistoryItem[]> {
-  return queryClient.fetchQuery({ ...meetingsQuery, staleTime: 0 });
-}
-
+/** One meeting's row, read from roci.db; undefined when no meeting has that id. */
 export async function findMeeting(id: string): Promise<HistoryItem | undefined> {
-  return (await currentMeetings()).find((meeting) => meeting.id === id);
+  return (await fetchMeetingBrief(id)) ?? undefined;
 }
 
 export function meetingNotFound(id: string): ToolResult {

@@ -3,14 +3,13 @@
 
 import { useMemo } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { sidebarQuery } from '@shared/query/sidebar';
-import { indexEntryToHistoryItem } from '@shared/contexts/HistoryContext';
-import type { SidebarEntry } from '@services/db';
+import { sidebarQuery, toHistoryItem } from '@shared/query/items';
+import type { ItemEntry } from '@services/db';
 import type { UnifiedSidebarItem } from '@shared/types';
 
-const toItem = (entry: SidebarEntry): UnifiedSidebarItem => {
+const toItem = (entry: ItemEntry): UnifiedSidebarItem => {
   if (entry.kind === 'chat') return { id: entry.chat.id, type: 'chat', title: entry.chat.title, timestamp: entry.chat.lastMessageAt };
-  const historyItem = indexEntryToHistoryItem(entry.meeting);
+  const historyItem = toHistoryItem(entry.meeting);
   return { id: historyItem.id, type: 'meeting', title: historyItem.title, timestamp: historyItem.timestamp, historyItem };
 };
 

@@ -8,12 +8,11 @@ import {
   rustTodoToEntry,
   toMeetingIndexEntry,
 } from '@services/db/internal';
-import type { MeetingIndexEntry, TranscriptData, RecordingMeta, MeetingDetail, MeetingSummary } from '@shared/types';
+import type { TranscriptData, RecordingMeta, MeetingDetail, MeetingSummary } from '@shared/types';
 import type { MeetingStatus, MeetingStep, MeetingStepEnd } from '@shared/types/meetingPhase';
 import type {
   MeetingCreateInput,
   MeetingDetailRow,
-  MeetingListResult,
   MeetingUpsertInput,
   NewTranscript,
   SummarySaveInput,
@@ -59,11 +58,6 @@ const toCalendarMeta = (meta?: Record<string, unknown>): string | null => (meta 
 
 export const meetings = {
   /** List meetings, paginated. */
-  async list(limit = 50, offset = 0): Promise<{ items: MeetingIndexEntry[]; total: number }> {
-    const result = await call<MeetingListResult>('meetings_list', { limit, offset });
-    return { items: result.items.map(toMeetingIndexEntry), total: result.total };
-  },
-
   /** Full meeting detail with transcript, summary, notes, todos, recording; null when missing. */
   async get(id: string): Promise<MeetingDetail | null> {
     try {

@@ -9,6 +9,11 @@ vi.mock('@shared/utils/modelResolver', () => ({ resolveChatModel: () => ({ provi
 vi.mock('@extensions/context-pipeline', () => ({ contextPipeline: { resolve: async () => ({ text: '' }) } }));
 vi.mock('@services/ai/suggestions', () => ({ generateSuggestions: async () => [] }));
 vi.mock('@extensions/usage', () => ({ logUsage: async () => undefined }));
+vi.mock('@shared/query/items', () => ({
+  itemCountsQuery: { queryKey: ['meetings', 'items', 'counts'], queryFn: async () => ({ meetings: 0, chats: 0 }) },
+  itemEdits: { rename: async () => undefined, remove: async () => undefined },
+  refreshItems: () => undefined,
+}));
 vi.mock('@services/unifiedAIService', () => ({ unifiedAIService: { generateTitle: async () => ({ title: 'Titled' }) } }));
 const notify = vi.fn();
 vi.mock('@shared/utils/appEvents', () => ({ notifyAppEvent: (...args: unknown[]) => notify(...args) }));
@@ -43,7 +48,7 @@ describe('stopping a reply', () => {
     streams.length = 0;
     persist.mockClear();
     notify.mockClear();
-    injectChatRefs({ settings, providers: [], historyItems: [] });
+    injectChatRefs({ settings, providers: [] });
     useChatStore.setState({ loadedSessions: new Map(), replyingSessionId: null, currentSessionId: null, input: '' });
   });
 

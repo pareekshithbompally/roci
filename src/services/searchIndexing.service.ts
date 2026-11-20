@@ -7,9 +7,9 @@ import type {
 } from '@shared/types';
 import { meetingService } from '@services/meeting.service';
 import { summaryMarkdown } from '@core/ai';
-import { store } from '@services/db';
+import { store, type ItemCursor, type ItemKind } from '@services/db';
 import { concurrencyMap } from '@shared/utils/async.utils';
-import { IO_CONCURRENCY, MEETING_EDIT_SETTLE_MS } from '@extensions/rag/constants';
+import { INDEX_PAGE_SIZE, IO_CONCURRENCY, MEETING_EDIT_SETTLE_MS } from '@extensions/rag/constants';
 
 function mapNotes(detail: MeetingDetail): Note[] {
   return detail.notes.map((note) => ({
@@ -63,11 +63,26 @@ function toHistoryItem(detail: MeetingDetail): HistoryItem {
   };
 }
 
+/** Every id of one kind, read from the store a page at a time (only for a full rebuild or the embedding catch-up). */
+async function everyId(kind: ItemKind): Promise<string[]> {
+  const ids: string[] = [];
+  let before: ItemCursor | null = null;
+  for (;;) {
+    const page = await store.items.page(before, INDEX_PAGE_SIZE, { kind });
+    for (const item of page) {
+      const at = item.kind === 'meeting' ? new Date(item.meeting.createdAt).getTime() : item.chat.lastMessageAt;
+      const id = item.kind === 'meeting' ? item.meeting.id : item.chat.id;
+      ids.push(id);
+      before = { at, id };
+    }
+    if (page.length < INDEX_PAGE_SIZE) return ids;
+  }
+}
+
 async function loadMeetingsForIndexing(): Promise<HistoryItem[]> {
-  const entries = await meetingService.listMeetings();
   const details = await concurrencyMap(
-    entries,
-    (entry) => meetingService.getMeetingDetail(entry.id),
+    await everyId('meeting'),
+    (id) => meetingService.getMeetingDetail(id),
     { limit: IO_CONCURRENCY },
   );
 
@@ -77,12 +92,11 @@ async function loadMeetingsForIndexing(): Promise<HistoryItem[]> {
 }
 
 async function loadChatsForIndexing(): Promise<ChatSession[]> {
-  const result = await store.chats.list(500, 0);
   const sessions = await concurrencyMap(
-    result.items,
-    async (entry) => {
+    await everyId('chat'),
+    async (id) => {
       try {
-        return await store.chats.get(entry.id);
+        return await store.chats.get(id);
       } catch {
         return null;
       }
@@ -105,10 +119,7 @@ async function indexAll(options: { includeEmbeddings: boolean; force?: boolean; 
  *  those that need it are loaded and embedded (everything else is indexed as it's saved). */
 async function embedPending(signal?: AbortSignal): Promise<void> {
   const { ragIndexer, chatIndexer, vectorDB } = await import('@extensions/rag');
-  const [meetingIds, chatIds] = await Promise.all([
-    meetingService.listMeetings().then((entries) => entries.map((e) => e.id)),
-    store.chats.list(500, 0).then((result) => result.items.map((e) => e.id)),
-  ]);
+  const [meetingIds, chatIds] = await Promise.all([everyId('meeting'), everyId('chat')]);
   const [meetingsDue, chatsDue] = await Promise.all([
     vectorDB.getMeetingsNeedingEmbeddings(meetingIds),
     vectorDB.getChatsNeedingEmbeddings(chatIds),

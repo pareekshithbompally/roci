@@ -63,8 +63,6 @@ interface ChatInputProps {
   /** The chat's cost so far, shown in the context ring's breakdown. */
   chatCost?: ContextRingCost | null;
   disabled?: boolean;
-  /** Available meetings for @ mention */
-  availableMeetings?: MeetingListItem[];
   /** Currently selected meeting references */
   selectedMeetings?: MeetingListItem[];
   /** Callback when meeting selection changes */
@@ -123,7 +121,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   contextUsage,
   chatCost,
   disabled = false,
-  availableMeetings = [],
   selectedMeetings = [],
   onMeetingSelect,
   attachments = [],
@@ -185,14 +182,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   // Handle meeting selection
-  const handleMeetingSelect = (meetingId: string) => {
-    const meeting = availableMeetings.find(m => m.id === meetingId);
-    if (!meeting || !onMeetingSelect) return;
+  const handleMeetingSelect = (meeting: MeetingListItem) => {
+    if (!onMeetingSelect) return;
 
-    const isAlreadySelected = selectedMeetings.some(m => m.id === meetingId);
+    const isAlreadySelected = selectedMeetings.some(m => m.id === meeting.id);
 
     if (isAlreadySelected) {
-      onMeetingSelect(selectedMeetings.filter(m => m.id !== meetingId));
+      onMeetingSelect(selectedMeetings.filter(m => m.id !== meeting.id));
     } else {
       onMeetingSelect([...selectedMeetings, meeting]);
     }
@@ -531,7 +527,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
       {/* Meeting Mention Popup (renders as PopoverContent) */}
       <MeetingMentionPopup
-        meetings={availableMeetings}
         selectedIds={selectedMeetings.map(m => m.id)}
         onSelect={handleMeetingSelect}
         onClose={focusInput}

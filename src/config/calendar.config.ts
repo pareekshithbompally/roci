@@ -1,6 +1,10 @@
 /** Calendar integration: native events, record labels and the Upcoming grid. */
 
 export const CALENDAR_CONFIG = {
+  /** A meeting recorded from an occurrence is made within this long of its start (either side), in ms. */
+  occurrenceWindowMs: 24 * 60 * 60 * 1000,
+  /** Meetings looked at for one occurrence (re-recordings of it); the newest matching one is its meeting. */
+  meetingsPerOccurrence: 10,
   /** Whether calendar integration is enabled by default */
   defaultEnabled: false,
 

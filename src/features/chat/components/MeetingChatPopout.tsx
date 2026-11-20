@@ -1,10 +1,9 @@
 /** The meeting chat: a floating mini window over the meeting, the same chat as the full view, one click to expand. */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { ChevronDown, Maximize2, SquarePen } from 'lucide-react';
 import { IconButton, Surface, Text } from '@shared/ui';
-import { useHistoryData } from '@shared/contexts/HistoryContext';
-import { meetingReferenceService } from '@services/meetingReferenceService';
+import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import { UI_CONFIG } from '@config/ui.config';
 import { closeMeetingChat, expandMeetingChat, useChatCurrentSessionId, useChatStore } from '@features/chat/stores/chatStore';
 import { ChatShell } from './ChatShell';
@@ -16,28 +15,24 @@ interface MeetingChatPopoutProps {
 
 /** A fresh chat about this meeting each time the window opens (or the meeting changes); New chat starts another. */
 function useMeetingDraft(meetingId: string): () => void {
-  const { items } = useHistoryData();
-  const itemsRef = useRef(items);
-  itemsRef.current = items;
+  const meeting = useMeetingBrief(meetingId);
+  const meetingRef = useRef(meeting);
+  meetingRef.current = meeting;
+  const startedFor = useRef<string | null>(null);
 
-  const start = useRef(() => {
-    const meeting = meetingReferenceService
-      .getRecentMeetings(itemsRef.current, itemsRef.current.length)
-      .find((m) => m.id === meetingId);
-    if (meeting) useChatStore.getState().startMeetingChat(meeting);
-  });
+  const start = useCallback(() => {
+    const m = meetingRef.current;
+    if (m) useChatStore.getState().startMeetingChat({ id: m.id, title: m.title, timestamp: m.timestamp });
+  }, []);
 
+  // Once per meeting, as soon as its row is read.
   useEffect(() => {
-    start.current = () => {
-      const meeting = meetingReferenceService
-        .getRecentMeetings(itemsRef.current, itemsRef.current.length)
-        .find((m) => m.id === meetingId);
-      if (meeting) useChatStore.getState().startMeetingChat(meeting);
-    };
-    start.current();
-  }, [meetingId]);
+    if (!meeting || startedFor.current === meetingId) return;
+    startedFor.current = meetingId;
+    start();
+  }, [meeting, meetingId, start]);
 
-  return () => start.current();
+  return start;
 }
 
 const { meetingChat, titlebar } = UI_CONFIG.layout;

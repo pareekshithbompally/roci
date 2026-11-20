@@ -7,9 +7,7 @@ import type {
   ChatSession,
   ChatMessage,
   ChatPart,
-  ChatIndexEntry,
   AppSettings,
-  HistoryItem,
   MeetingCitation,
   WebCitation,
   InlineCitationSpan,
@@ -35,8 +33,7 @@ import { useAppStore } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
 import { NOTIFICATIONS_CONFIG } from '@config/notifications.config';
 import { notifyAppEvent } from '@shared/utils/appEvents';
-import { queryKeys } from '@shared/query/queryKeys';
-import { sidebarEdits } from '@shared/query/sidebar';
+import { itemCountsQuery, itemEdits, refreshItems } from '@shared/query/items';
 import { CHAT_MAX_ATTACHMENTS, TOOL_RESULT_PREVIEW_CHARS } from '@config/chat.config';
 import { UI_CONFIG } from '@config/ui.config';
 import { canSendDraft, chatModelOf, draftTitle } from '@features/chat/utils';
@@ -48,14 +45,6 @@ function notifyReply(sessionId: string, text: string): void {
   const max = NOTIFICATIONS_CONFIG.chat.bodyMaxChars;
   const body = text.length > max ? `${text.slice(0, max - 1)}…` : text;
   notifyAppEvent({ id: `chat:${sessionId}`, kind: 'chatReplies', tone: 'success', inFront: 'quiet', title: 'Reply ready', body });
-}
-
-/** Query re-reads the chat list and the sidebar from disk (after every chat write). */
-function invalidateChats(): void {
-  for (const queryKey of [queryKeys.chats(), queryKeys.sidebar()]) {
-    queryClient.invalidateQueries({ queryKey }).catch((error: unknown) =>
-      console.error('[ChatStore] Failed to refresh after a chat write:', queryKey, error));
-  }
 }
 
 /** What one tool event changes on its row in the streaming message. */
@@ -164,11 +153,10 @@ export function registerChatComposer(textarea: HTMLTextAreaElement | null): void
 /** The pending "Copied" reset; a newer copy replaces it. */
 let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
-/** Injected by useChatRuntime from Settings and History. */
+/** Injected by useChatRuntime from Settings. */
 const injectedRefs = {
   settings: null as AppSettings | null,
   providers: null as ModelProvider[] | null,
-  historyItems: null as HistoryItem[] | null,
 };
 
 // ── The reply in flight ──
@@ -198,33 +186,18 @@ function endReply(reply: Reply): void {
   useChatStore.setState({ replyingSessionId: null, aiActivity: null });
 }
 
-// ── Chat list: Query owns it (disk state); every write edits it at once, then disk, then a re-read ──
+// ── Chat writes: the store first, then every list reads it again (renames and deletes already show, via itemEdits) ──
 
-const entryOf = (session: ChatSession): ChatIndexEntry => ({
-  id: session.id,
-  title: session.title,
-  lastMessageAt: session.lastMessageAt,
-  messageCount: session.messages.length,
-});
-
-/** The list with `entry` replacing its old row, or added at the top. */
-const withEntry = (index: ChatIndexEntry[], entry: ChatIndexEntry): ChatIndexEntry[] =>
-  index.some((e) => e.id === entry.id) ? index.map((e) => (e.id === entry.id ? entry : e)) : [entry, ...index];
-
-/** Optimistic chat write: the list changes now, `write` goes to disk; a failure restores the list. Never rejects. */
-async function writeChat(edit: (index: ChatIndexEntry[]) => ChatIndexEntry[], write: () => Promise<void>, what: string): Promise<boolean> {
-  await queryClient.cancelQueries({ queryKey: queryKeys.chats() });
-  const previous = queryClient.getQueryData<ChatIndexEntry[]>(queryKeys.chats());
-  queryClient.setQueryData<ChatIndexEntry[]>(queryKeys.chats(), edit(previous ?? []));
+/** One chat write; never rejects. */
+async function writeChat(write: () => Promise<void>, what: string): Promise<boolean> {
   try {
     await write();
     return true;
   } catch (error: unknown) {
-    queryClient.setQueryData(queryKeys.chats(), previous);
     console.error(`[ChatStore] Failed to ${what}:`, error);
     return false;
   } finally {
-    invalidateChats();
+    refreshItems();
   }
 }
 
@@ -339,11 +312,9 @@ function withMeetingContext(reply: Reply, messages: ChatMessage[], meetingContex
 /** Streams the reply into `streamingStore`; every callback is a no-op once the reply is stopped. */
 async function streamReply(reply: Reply, request: ReplyRequest, tally: StreamTally) {
   const { session, question, resolved, settings, providers } = request;
-  const historyItems = injectedRefs.historyItems || [];
   const signal = reply.controller.signal;
 
   const context = await contextPipeline.resolve({
-    historyItems,
     meetingIds: question.meetings.map((m) => m.id),
     signal,
   });
@@ -367,7 +338,7 @@ async function streamReply(reply: Reply, request: ReplyRequest, tally: StreamTal
       messages,
       model: resolved,
       prompt: {
-        meetingCount: historyItems.length,
+        meetingCount: (await queryClient.fetchQuery(itemCountsQuery)).meetings,
         timeContext: formatChatTimeContext(),
       },
       settings,
@@ -574,8 +545,8 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
       loadedSessions.delete(sessionId);
       return { loadedSessions, currentSessionId: state.currentSessionId === sessionId ? null : state.currentSessionId };
     });
-    await sidebarEdits.remove(sessionId);
-    const deleted = await writeChat((index) => index.filter((e) => e.id !== sessionId), () => chatService.deleteSession(sessionId), 'delete chat');
+    await itemEdits.remove(sessionId);
+    const deleted = await writeChat(() => chatService.deleteSession(sessionId), 'delete chat');
     if (!deleted) throw new Error(`Chat ${sessionId} was not deleted`);
   },
 
@@ -589,12 +560,8 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
     // Memory first, so a save landing during the rename writes the new title too.
     const existing = sessionOf(sessionId);
     if (existing) putSession({ ...existing, title: newTitle });
-    await sidebarEdits.rename(sessionId, newTitle);
-    await writeChat(
-      (index) => index.map((e) => (e.id === sessionId ? { ...e, title: newTitle } : e)),
-      () => chatService.renameSession(sessionId, newTitle),
-      'rename chat'
-    );
+    await itemEdits.rename(sessionId, newTitle);
+    await writeChat(() => chatService.renameSession(sessionId, newTitle), 'rename chat');
   },
 
   copyMessage: (messageId, text) => {
@@ -624,7 +591,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
   // ── Persist ──
 
   persistSession: async (session) => {
-    await writeChat((index) => withEntry(index, entryOf(session)), () => chatService.persistSession(session), 'save chat');
+    await writeChat(() => chatService.persistSession(session), 'save chat');
   },
 
   // ── Attachments ──
@@ -729,7 +696,6 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
 export function injectChatRefs(refs: {
   settings: AppSettings | null;
   providers: ModelProvider[] | null;
-  historyItems: HistoryItem[] | null;
 }) {
   Object.assign(injectedRefs, refs);
 }

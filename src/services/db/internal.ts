@@ -101,6 +101,8 @@ export function rowToMessage(row: {
 export interface GlobalTodoEntry extends TodoEntry {
   meetingId: string | null;
   meetingTitle: string | null;
+  /** When its meeting was made (epoch ms); null for a to-do of its own. */
+  meetingCreatedAt: number | null;
 }
 
 export interface RustSettingsEntry {
@@ -149,7 +151,7 @@ export function rustTodoToEntry(row: TodoRow & Partial<Pick<TodoWithReminder, 'r
 }
 
 export function rustTodoToGlobalEntry(row: TodoWithReminder): GlobalTodoEntry {
-  return { ...rustTodoToEntry(row), meetingId: row.meeting_id, meetingTitle: row.meeting_title };
+  return { ...rustTodoToEntry(row), meetingId: row.meeting_id, meetingTitle: row.meeting_title, meetingCreatedAt: row.meeting_created_at };
 }
 
 export function rustReminderDueToEntry(row: ReminderDueItem): ReminderEntry {

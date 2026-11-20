@@ -6,8 +6,5 @@ export type { ToastType } from './ToastContext';
 export { ThemeProvider, useThemeContext } from './ThemeContext';
 export type { Theme } from './ThemeContext';
 
-// History Context
-export { HistoryProvider, useHistory } from './HistoryContext';
-
 // Settings Context
 export { SettingsProvider, useSettings } from './SettingsContext';

@@ -1,8 +1,15 @@
 /** list_meetings: meetings newest first, optionally within a date range, read from roci.db. */
 
 import { z } from 'zod';
-import { day, defineTool, limit, localDay, ok, toolDate } from '@extensions/tools/contract';
-import { currentMeetings } from '@extensions/tools/data';
+import { day, defineTool, limit, ok, toolDate } from '@extensions/tools/contract';
+import { fetchMeetings } from '@shared/query/items';
+
+/** Local midnight of a YYYY-MM-DD day, `days` later (epoch ms); none without a day. */
+function startOfDay(day: string | undefined, days = 0): number | undefined {
+  if (!day) return undefined;
+  const [y, m, d] = day.split('-').map(Number);
+  return new Date(y, m - 1, d + days).getTime();
+}
 
 export const listMeetingsTool = defineTool({
   name: 'list_meetings',
@@ -17,15 +24,14 @@ export const listMeetingsTool = defineTool({
   }),
 
   async execute({ limit: count, from_date, to_date }) {
-    const inRange = (await currentMeetings()).filter((meeting) => {
-      const on = localDay(meeting.timestamp);
-      return (!from_date || on >= from_date) && (!to_date || on <= to_date);
-    });
+    // One more than asked, so the reply can say there are more.
+    const found = await fetchMeetings({ since: startOfDay(from_date), until: startOfDay(to_date, 1) }, count + 1);
     const range = from_date || to_date ? ` from ${from_date ?? 'the first'} to ${to_date ?? 'today'}` : '';
-    if (inRange.length === 0) return ok(`No meetings${range}.`, { resultCount: 0 });
+    if (found.length === 0) return ok(`No meetings${range}.`, { resultCount: 0 });
 
-    const shown = inRange.sort((a, b) => b.timestamp - a.timestamp).slice(0, count);
+    const shown = found.slice(0, count);
+    const more = found.length > count ? ' — there are more; narrow the dates or raise the limit' : '';
     const lines = shown.map((m, i) => `${i + 1}. "${m.title}" — ${toolDate(m.timestamp)} — ID: ${m.id}`);
-    return ok([`Meetings${range} (showing ${shown.length} of ${inRange.length}):`, '', ...lines].join('\n'), { resultCount: shown.length });
+    return ok([`Meetings${range} (newest ${shown.length}${more}):`, '', ...lines].join('\n'), { resultCount: shown.length });
   },
 });

@@ -10,7 +10,7 @@ export {
 export type { ChatShellProps } from './components';
 
 // Hooks
-export { useChatRuntime, useChatIndex } from './hooks';
+export { useChatRuntime } from './hooks';
 export { canSendDraft } from './utils';
 export { useSpeechInput } from './hooks/useSpeechInput';
 export type { SpeechState, UseSpeechInputResult } from './hooks/useSpeechInput';

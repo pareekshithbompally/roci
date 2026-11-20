@@ -60,7 +60,6 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::rebuild_fts,
             commands::get_indexed_ids,
             // Meeting domain (Phase 1)
-            commands::meetings_list,
             commands::meetings_get,
             commands::meetings_existing,
             commands::meetings_upsert,
@@ -85,8 +84,9 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::categories_create,
             commands::categories_delete,
             // Chat domain (Phase 2)
-            commands::chats_list,
-            commands::sidebar_page,
+            commands::items_page,
+            commands::items_by_id,
+            commands::items_count,
             commands::chats_get,
             commands::chats_upsert,
             commands::chats_rename,

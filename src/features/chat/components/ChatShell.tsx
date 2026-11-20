@@ -4,7 +4,8 @@ import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import { ArrowDown } from 'lucide-react';
 import { useChatStore, useCurrentSession } from '@features/chat/stores';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useHistoryData } from '@shared/contexts/HistoryContext';
+import { useMeetingBrief } from '@shared/hooks/useMeetings';
+import { useMeetingResult } from '@shared/hooks/useMeetingResult';
 import { useAppActions } from '@shared/stores/appStore';
 import { AppStatus } from '@shared/types';
 import { ChatMessage, loadingStatusOf } from './message';
@@ -14,15 +15,12 @@ import type { ActionProps, CitationHandlers } from './message';
 import { ChatInput } from './ChatInput';
 import { MeetingCitationDrawer } from './MeetingCitationDrawer';
 import { WebCitationDrawer } from './WebCitationDrawer';
-import { meetingReferenceService } from '@services/meetingReferenceService';
-import { meetingService } from '@services/meeting.service';
 import { useVoiceCapture } from '@features/chat';
 import { useChatCost, useContextLimit } from '@features/chat/hooks';
 import { useFollowBottom } from '@features/chat/hooks/useFollowBottom';
 import { useContextUsage } from '@shared/hooks/useContextUsage';
 import { useSpeechInputReady } from '@features/settings/hooks/useSpeechModels';
 import { LAYOUT } from '@config/layout.config';
-import { MENTION_RECENT_MEETINGS } from '@config/chat.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { MeetingCitation, WebCitation } from '@shared/types';
@@ -57,8 +55,6 @@ export const ChatShell: React.FC<ChatShellProps> = ({
   underTitlebar = false,
 }) => {
   const { settings, providers } = useSettings();
-  const history = useHistoryData();
-  const { items: historyItems } = history;
   const app = useAppActions();
 
   const currentSession = useCurrentSession();
@@ -84,38 +80,20 @@ export const ChatShell: React.FC<ChatShellProps> = ({
   const [activeCitation, setActiveCitation] = useState<MeetingCitation | null>(null);
   const [activeMeetingCitations, setActiveMeetingCitations] = useState<MeetingCitation[] | null>(null);
   const [activeWebCitations, setActiveWebCitations] = useState<WebCitation[] | null>(null);
-  const [isHydrating, setIsHydrating] = useState(false);
 
+  // A cited meeting is read when its citation is opened: its row, then its transcript and summary.
+  const citedId = activeCitation?.meetingId ?? null;
+  const citedBrief = useMeetingBrief(citedId);
+  const { result: citedResult, loading: citedLoading } = useMeetingResult(citedId);
   const activeMeeting = useMemo(
-    () => historyItems.find((h) => h.id === activeCitation?.meetingId) ?? null,
-    [historyItems, activeCitation?.meetingId]
+    () => (citedBrief && citedResult ? { ...citedBrief, transcript: citedResult.transcript, summary: citedResult.summary } : citedBrief),
+    [citedBrief, citedResult],
   );
 
-  const handleCitationClick = useCallback(
-    async (citation: MeetingCitation) => {
-      setActiveWebCitations(null);
-      setActiveCitation(citation);
-
-      const existing = historyItems.find((h) => h.id === citation.meetingId);
-      if (existing && !existing.transcript) {
-        setIsHydrating(true);
-        try {
-          const detail = await meetingService.getMeetingDetail(citation.meetingId);
-          if (detail) {
-            await history.updateItem(citation.meetingId, {
-              transcript: detail.transcript?.text || '',
-              summary: detail.summary?.overview || '',
-            });
-          }
-        } catch (err) {
-          console.error('[ChatShell] Failed to hydrate meeting citation:', err);
-        } finally {
-          setIsHydrating(false);
-        }
-      }
-    },
-    [historyItems, history]
-  );
+  const handleCitationClick = useCallback((citation: MeetingCitation) => {
+    setActiveWebCitations(null);
+    setActiveCitation(citation);
+  }, []);
 
   const handleShowAllMeetingCitations = useCallback((citations: MeetingCitation[]) => {
     setActiveCitation(null);
@@ -144,8 +122,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
 
   const handleOpenInMain = useCallback(() => {
     if (!activeCitation) return;
-    const item = historyItems.find((h) => h.id === activeCitation.meetingId);
-    if (item) {
+    if (citedBrief) {
       app.setCurrentView('home');
       app.setSelectedHistoryId(activeCitation.meetingId);
       app.setStatus(AppStatus.RESULTS);
@@ -153,14 +130,9 @@ export const ChatShell: React.FC<ChatShellProps> = ({
     }
     setActiveCitation(null);
     setActiveMeetingCitations(null);
-  }, [activeCitation, historyItems, app]);
+  }, [activeCitation, citedBrief, app]);
 
   // ── Computed values ──
-
-  const availableMeetings = useMemo(
-    () => meetingReferenceService.getRecentMeetings(historyItems, MENTION_RECENT_MEETINGS),
-    [historyItems]
-  );
 
   const showSpeechInput = useSpeechInputReady();
 
@@ -302,7 +274,6 @@ export const ChatShell: React.FC<ChatShellProps> = ({
           isLoading={isGenerating}
           contextUsage={contextUsage}
           chatCost={chatCost}
-          availableMeetings={availableMeetings}
           selectedMeetings={selectedMeetingRefs}
           onMeetingSelect={setSelectedMeetingRefs}
           attachments={pendingAttachments}
@@ -327,7 +298,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
         citations={activeMeetingCitations}
         activeCitation={activeCitation}
         meeting={activeMeeting}
-        isLoading={isHydrating}
+        isLoading={citedLoading}
         onClose={handleDrawerClose}
         onCitationClick={handleCitationClick}
         onBack={handleDrawerBack}

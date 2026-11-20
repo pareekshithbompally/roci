@@ -1,6 +1,7 @@
-/** "@" meeting picker content with search and multi-select; the parent ChatInput supplies the Popover. */
+/** "@" meeting picker content with search and multi-select; the parent ChatInput supplies the Popover. It reads the store
+ *  while open: the newest meetings, then those whose title has every word typed. */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { FileAudio, Check } from 'lucide-react';
 import type { MeetingListItem } from '@services/meetingReferenceService';
 import {
@@ -15,11 +16,12 @@ import {
 } from '@shared/ui';
 import { UI_CONFIG } from '@config/ui.config';
 import { calendarDayOffset, formatDayLabel, formatDate } from '@shared/utils/formatters';
+import { useMeetingsFound } from '@shared/hooks/useMeetings';
+import { MENTION_RECENT_MEETINGS } from '@config/chat.config';
 
 interface MeetingMentionPopupProps {
-  meetings: MeetingListItem[];
   selectedIds: string[];
-  onSelect: (id: string) => void;
+  onSelect: (meeting: MeetingListItem) => void;
   /** Called when the popover closes — parent uses this to restore focus */
   onClose?: () => void;
 }
@@ -33,11 +35,13 @@ function formatTime(timestamp: number) {
 }
 
 export const MeetingMentionPopup: React.FC<MeetingMentionPopupProps> = ({
-  meetings,
   selectedIds,
   onSelect,
   onClose,
 }) => {
+  const [query, setQuery] = useState('');
+  const words = query.trim().split(/\s+/).filter(Boolean);
+  const meetings = useMeetingsFound(words.length > 0 ? { words } : {}, MENTION_RECENT_MEETINGS);
   return (
     <PopoverContent
       side="top"
@@ -51,8 +55,8 @@ export const MeetingMentionPopup: React.FC<MeetingMentionPopupProps> = ({
         onClose?.();
       }}
     >
-      <Command className="flex-1 min-h-0">
-        <CommandInput placeholder="Search meetings..." />
+      <Command className="flex-1 min-h-0" shouldFilter={false}>
+        <CommandInput placeholder="Search meetings..." value={query} onValueChange={setQuery} />
         <CommandList className="flex-1 min-h-0 max-h-80">
           <CommandEmpty>
             <div className="flex flex-col items-center gap-2 py-4">
@@ -64,7 +68,7 @@ export const MeetingMentionPopup: React.FC<MeetingMentionPopupProps> = ({
             <CommandItem
               key={meeting.id}
               value={meeting.title}
-              onSelect={() => onSelect(meeting.id)}
+              onSelect={() => onSelect({ id: meeting.id, title: meeting.title, timestamp: meeting.timestamp })}
             >
               <Icon icon={FileAudio} size="sm" tone="faint" className="shrink-0" />
               <div className="flex-1 min-w-0">

@@ -1,7 +1,7 @@
-/** Meetings for chat @ mentions, with their summary, notes and todos from roci.db. */
+/** The meetings attached to a chat question (@ mentions, a meeting's own chat): read by id from roci.db with only the fields
+ *  asked for, and written out for the model. */
 
-import { matchesAllWords } from '@shared/utils/textMatch';
-import type { HistoryItem, Note, ActionItem, NoteEntry, TodoEntry, MeetingSummary } from '@shared/types';
+import type { Note, ActionItem, NoteEntry, TodoEntry, MeetingSummary } from '@shared/types';
 import { store } from '@services/db';
 import { concurrencyMap } from '@shared/utils/async.utils';
 import { excerptTranscript } from '@services/ai/transcription/excerpt';
@@ -45,193 +45,28 @@ export function summaryText(summary: MeetingSummary): string {
 }
 
 class MeetingReferenceService {
-  getRecentMeetings(historyItems: HistoryItem[], limit: number = 4): MeetingListItem[] {
-    return historyItems
-      .slice()
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, limit)
-      .map(item => ({
-        id: item.id,
-        title: item.title,
-        timestamp: item.timestamp,
-      }));
-  }
-
-  searchMeetings(historyItems: HistoryItem[], query: string): MeetingListItem[] {
-    if (!query.trim()) {
-      return this.getRecentMeetings(historyItems, 10);
-    }
-
-    return historyItems
-      .filter(item => matchesAllWords(item.title, query))
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, 10)
-      .map(item => ({
-        id: item.id,
-        title: item.title,
-        timestamp: item.timestamp,
-      }));
-  }
-
-  /** Full context for a meeting: in-memory data on the history item first, else a store read. */
-  async loadMeetingContext(historyItem: HistoryItem): Promise<MeetingReference> {
-    const reference: MeetingReference = {
-      id: historyItem.id,
-      title: historyItem.title,
-      timestamp: historyItem.timestamp,
-      categories: historyItem.categories,
-    };
-
-    try {
-      const detail = await store.meetings.get(historyItem.id);
-
-      // Summary: prefer in-memory, fall back to store
-      if (historyItem.summary) {
-        reference.summary = historyItem.summary;
-      } else if (detail?.summary) {
-        const s = detail.summary;
-        const parts: string[] = [];
-        if (s.overview) parts.push(s.overview);
-        if (s.keyDiscussionPoints?.length) {
-          parts.push('Key Discussion Points:\n' + s.keyDiscussionPoints.map(p => `- ${p}`).join('\n'));
-        }
-        if (s.decisionsMade?.length) {
-          parts.push('Decisions Made:\n' + s.decisionsMade.map(d => `- ${d}`).join('\n'));
-        }
-        if (s.actionItems?.length) {
-          parts.push('Action Items:\n' + s.actionItems.map(a => {
-            const owner = a.owner ? ` (${a.owner})` : '';
-            const due = a.dueDate ? ` — due ${a.dueDate}` : '';
-            return `- ${a.text}${owner}${due}`;
-          }).join('\n'));
-        }
-        if (s.nextSteps?.length) {
-          parts.push('Next Steps:\n' + s.nextSteps.map(s => `- ${s}`).join('\n'));
-        }
-        reference.summary = parts.join('\n\n');
-      }
-
-      // Transcript: prefer in-memory, fall back to store
-      if (historyItem.transcript) {
-        reference.transcript = historyItem.transcript;
-      } else if (detail?.transcript?.text) {
-        reference.transcript = detail.transcript.text;
-      }
-
-      if (detail?.notes && detail.notes.length > 0) {
-        reference.notes = detail.notes.map((n: NoteEntry) => ({
-          id: n.id,
-          text: n.text,
-          timestamp: new Date(n.createdAt).getTime(),
-        }));
-      }
-
-      if (detail?.todos && detail.todos.length > 0) {
-        reference.todos = detail.todos.map((t: TodoEntry) => ({
-          id: t.id,
-          text: t.text,
-          dueDate: t.dueDate,
-          completed: t.completed,
-        }));
-      }
-    } catch (error) {
-      console.error('[MeetingReferenceService] Error loading context:', error);
-    }
-
-    // Use inline notes/todos from history item if available
-    if (!reference.notes && historyItem.userNotes) {
-      reference.notes = historyItem.userNotes;
-    }
-    if (!reference.todos && historyItem.userActionItems) {
-      reference.todos = historyItem.userActionItems;
-    }
-
-    return reference;
-  }
-
-  async loadMeetingsContext(historyItems: HistoryItem[]): Promise<MeetingReference[]> {
-    return concurrencyMap(
-      historyItems,
-      (item) => this.loadMeetingContext(item),
-      { limit: IO_CONCURRENCY },
-    );
-  }
-
-  /** Meetings with only the requested fields, to keep agentic context small. */
-  async loadSelectiveContext(
-    historyItems: HistoryItem[],
-    fields: MeetingField[]
-  ): Promise<MeetingReference[]> {
-    const fieldSet = new Set(fields);
-    const references: MeetingReference[] = [];
-
-    for (const item of historyItems) {
+  /** The meetings by id with only the requested fields, to keep the chat's context small; one that's gone is left out. */
+  async loadSelectiveContext(meetingIds: string[], fields: MeetingField[]): Promise<MeetingReference[]> {
+    const want = new Set(fields);
+    const details = await concurrencyMap(meetingIds, (id) => store.meetings.get(id), { limit: IO_CONCURRENCY });
+    return details.flatMap((detail) => {
+      if (!detail) return [];
       const ref: MeetingReference = {
-        id: item.id,
-        title: item.title,
-        timestamp: item.timestamp,
-        categories: item.categories,
+        id: detail.index.id,
+        title: detail.index.title,
+        timestamp: new Date(detail.index.createdAt).getTime(),
+        categories: detail.index.categories,
       };
-
-      // Load full detail once if we need any store field
-      let detail = null;
-      try {
-        if (fieldSet.has('summary') || fieldSet.has('transcript') || fieldSet.has('notes') || fieldSet.has('actionItems')) {
-          detail = await store.meetings.get(item.id);
-        }
-      } catch (error) {
-        console.error('[MeetingReferenceService] Error loading detail:', error);
+      if (want.has('summary') && detail.summary) ref.summary = summaryText(detail.summary);
+      if (want.has('transcript') && detail.transcript?.text) ref.transcript = detail.transcript.text;
+      if (want.has('notes') && detail.notes.length > 0) {
+        ref.notes = detail.notes.map((n: NoteEntry) => ({ id: n.id, text: n.text, timestamp: new Date(n.createdAt).getTime() }));
       }
-
-      if (fieldSet.has('summary')) {
-        if (item.summary) {
-          ref.summary = item.summary;
-        } else if (detail?.summary) {
-          ref.summary = summaryText(detail.summary);
-        }
+      if (want.has('actionItems') && detail.todos.length > 0) {
+        ref.todos = detail.todos.map((t: TodoEntry) => ({ id: t.id, text: t.text, dueDate: t.dueDate, completed: t.completed }));
       }
-
-      if (fieldSet.has('transcript')) {
-        if (item.transcript) {
-          ref.transcript = item.transcript;
-        } else if (detail?.transcript?.text) {
-          ref.transcript = detail.transcript.text;
-        }
-      }
-
-      if (fieldSet.has('notes')) {
-        if (detail?.notes && detail.notes.length > 0) {
-          ref.notes = detail.notes.map((n: NoteEntry) => ({
-            id: n.id,
-            text: n.text,
-            timestamp: new Date(n.createdAt).getTime(),
-          }));
-        }
-      }
-
-      if (fieldSet.has('actionItems')) {
-        if (detail?.todos && detail.todos.length > 0) {
-          ref.todos = detail.todos.map((t: TodoEntry) => ({
-            id: t.id,
-            text: t.text,
-            dueDate: t.dueDate,
-            completed: t.completed,
-          }));
-        }
-      }
-
-      // Fallback to inline data
-      if (fieldSet.has('notes') && !ref.notes && item.userNotes) {
-        ref.notes = item.userNotes;
-      }
-      if (fieldSet.has('actionItems') && !ref.todos && item.userActionItems) {
-        ref.todos = item.userActionItems;
-      }
-
-      references.push(ref);
-    }
-
-    return references;
+      return [ref];
+    });
   }
 
   formatForLLM(references: MeetingReference[]): string {

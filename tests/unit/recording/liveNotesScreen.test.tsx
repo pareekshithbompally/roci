@@ -18,7 +18,7 @@ vi.mock('@services/coreAudio.service', () => ({
 vi.mock('@services/tauri', () => ({ isTauriEnvironment: () => false, menubarService: { setRecordingState: vi.fn() } }));
 vi.mock('@features/recording/pipeline/meetingPipeline', () => ({ meetingPipeline: { recorded: vi.fn(), prime: vi.fn() } }));
 vi.mock('@shared/contexts/SettingsContext', () => ({ useSettings: () => ({ settings: {}, providers: [] }) }));
-vi.mock('@shared/contexts/HistoryContext', () => ({ useHistoryData: () => ({ items: [{ id: 'm1', title: 'Sync' }] }) }));
+vi.mock('@shared/hooks/useMeetings', () => ({ useMeetingBrief: () => ({ id: 'm1', title: 'Sync' }) }));
 vi.mock('@features/notes', () => ({
   useMeetingNotes: () => ({ notes: [], isLoading: false, addNote: vi.fn(async () => undefined), updateNote: vi.fn(), deleteNote: vi.fn() }),
 }));

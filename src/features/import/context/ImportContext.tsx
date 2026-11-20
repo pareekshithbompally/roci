@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useRef, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useHistoryData } from '@shared/contexts/HistoryContext';
+import { refreshItems } from '@shared/query/items';
 import { ImportService } from '@features/import/import.service';
 
 interface ImportContextValue {
@@ -16,7 +16,6 @@ const ImportContext = createContext<ImportContextValue | null>(null);
 
 export const ImportProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { settings } = useSettings();
-  const { loadHistory } = useHistoryData();
 
   const serviceRef = useRef<ImportService | null>(null);
 
@@ -26,14 +25,14 @@ export const ImportProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const concurrency = jp?.mode === 'parallel' ? jp.maxConcurrent : 1;
     serviceRef.current = new ImportService({
       concurrency,
-      onMeetingSaved: loadHistory,
+      onMeetingSaved: refreshItems,
     });
   }
 
   // Keep onMeetingSaved callback fresh
   useEffect(() => {
-    serviceRef.current?.setOnMeetingSaved(loadHistory);
-  }, [loadHistory]);
+    serviceRef.current?.setOnMeetingSaved(refreshItems);
+  }, []);
 
   // Update concurrency when settings change
   useEffect(() => {

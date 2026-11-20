@@ -31,9 +31,7 @@ vi.mock('@shared/contexts/SettingsContext', () => ({
   useSettings: () => ({ settings: { transcriptionProvider: 'openai', transcriptionModel: 'whisper-1' }, providers: [] }),
 }));
 vi.mock('@features/notes', () => ({ useMeetingNotes: () => notesApi }));
-vi.mock('@shared/contexts/HistoryContext', () => ({
-  useHistoryData: () => ({ items: [{ id: 'm1', title: 'Test Meeting' }], isLoading: false }),
-}));
+vi.mock('@shared/hooks/useMeetings', () => ({ useMeetingBrief: () => ({ id: 'm1', title: 'Test Meeting' }) }));
 
 // eslint-disable-next-line import/first
 import { RecordingMeetingView } from '@features/recording/components/RecordingMeetingView';
