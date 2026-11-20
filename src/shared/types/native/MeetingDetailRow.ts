@@ -5,4 +5,4 @@ import type { SummaryRow } from "./SummaryRow";
 import type { TodoRow } from "./TodoRow";
 import type { TranscriptRow } from "./TranscriptRow";
 
-export type MeetingDetailRow = { id: string, title: string, input_source: string | null, calendar_event_id: string | null, calendar_meta: string | null, created_at: number, updated_at: number, categories: Array<string>, transcript: TranscriptRow | null, summary: SummaryRow | null, recordings: Array<RecordingRow>, notes: Array<NoteRow>, todos: Array<TodoRow>, status: string, failed_step: string | null, error: string | null, };
+export type MeetingDetailRow = { id: string, title: string, input_source: string | null, calendar_event_id: string | null, calendar_meta: string | null, created_at: number, updated_at: number, categories: Array<string>, audio_removed_at: number | null, transcript: TranscriptRow | null, summary: SummaryRow | null, recordings: Array<RecordingRow>, notes: Array<NoteRow>, todos: Array<TodoRow>, status: string, failed_step: string | null, error: string | null, };

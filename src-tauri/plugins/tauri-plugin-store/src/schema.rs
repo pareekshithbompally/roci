@@ -1,7 +1,8 @@
+use crate::assets;
 use rusqlite::Connection;
 
 /// Current schema version for the new roci.db.
-pub const SCHEMA_VERSION: u32 = 7;
+pub const SCHEMA_VERSION: u32 = 10;
 
 /// Default embedding model and dimension.
 pub const DEFAULT_MODEL: &str = "mlx-community/Qwen3-Embedding-0.6B-8bit";
@@ -102,6 +103,15 @@ pub fn migrate(conn: &Connection) -> Result<(), String> {
     if (2..=6).contains(&current) {
         migrate_v7(conn)?;
     }
+    if (2..=7).contains(&current) {
+        migrate_v8(conn)?;
+    }
+    if (2..=8).contains(&current) {
+        migrate_v9(conn)?;
+    }
+    if (2..=9).contains(&current) {
+        migrate_v10(conn)?;
+    }
 
     match_embedding_model(conn)
 }
@@ -149,6 +159,12 @@ const DICTATIONS_DDL: &str = "
     );
     CREATE INDEX IF NOT EXISTS idx_dictations_created ON dictations(created_at DESC);";
 
+fn has_table(conn: &Connection, table: &str) -> Result<bool, String> {
+    conn.query_row("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?1", [table], |row| row.get::<_, i64>(0))
+        .map(|count| count > 0)
+        .map_err(|e| format!("look up table {table}: {e}"))
+}
+
 fn has_column(conn: &Connection, table: &str, column: &str) -> Result<bool, String> {
     conn.query_row(
         &format!("SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = ?1"),
@@ -157,6 +173,51 @@ fn has_column(conn: &Connection, table: &str, column: &str) -> Result<bool, Stri
     )
     .map(|count| count > 0)
     .map_err(|e| format!("read {table} columns: {e}"))
+}
+
+/// v9 → v10: a meeting remembers when its recording was removed (Keep or Delete All), to say so.
+fn migrate_v10(conn: &Connection) -> Result<(), String> {
+    let tx = conn.unchecked_transaction().map_err(|e| format!("begin migration v10 transaction: {}", e))?;
+    let fail = |e: rusqlite::Error| format!("migrate v9→v10 audio removed: {}", e);
+    if !has_column(&tx, "meetings", "audio_removed_at")? {
+        tx.execute_batch("ALTER TABLE meetings ADD COLUMN audio_removed_at INTEGER;").map_err(fail)?;
+    }
+    tx.execute_batch(assets::RECORDING_REMOVED_TRIGGER).map_err(fail)?;
+    set_schema_version(&tx, 10)?;
+    tx.commit().map_err(|e| format!("commit migration v10: {}", e))?;
+    log::info!("[store] Migrated schema v9→v10 (audio removed)");
+    Ok(())
+}
+
+/// v8 → v9: a deleted reminder owes its notice by to-do id (what macOS knows it by), not by the stored number.
+fn migrate_v9(conn: &Connection) -> Result<(), String> {
+    let tx = conn.unchecked_transaction().map_err(|e| format!("begin migration v9 transaction: {}", e))?;
+    let fail = |e: rusqlite::Error| format!("migrate v8→v9 reminder notices: {}", e);
+    tx.execute_batch("DROP TRIGGER IF EXISTS reminders_ad; DELETE FROM purge_queue WHERE kind = 'notice';").map_err(fail)?;
+    tx.execute_batch(assets::DDL).map_err(fail)?;
+    set_schema_version(&tx, 9)?;
+    tx.commit().map_err(|e| format!("commit migration v9: {}", e))?;
+    log::info!("[store] Migrated schema v8→v9 (reminder notices by to-do)");
+    Ok(())
+}
+
+/// v7 → v8: every file is an asset row with one parent; recordings become assets, and deletes queue their files.
+fn migrate_v8(conn: &Connection) -> Result<(), String> {
+    let tx = conn.unchecked_transaction().map_err(|e| format!("begin migration v8 transaction: {}", e))?;
+    let fail = |e: rusqlite::Error| format!("migrate v7→v8 assets: {}", e);
+    tx.execute_batch(assets::DDL).map_err(fail)?;
+    if has_table(&tx, "recordings")? {
+        tx.execute_batch(
+            "INSERT OR IGNORE INTO assets (id, kind, path, meeting_id, duration_seconds, created_at)
+                 SELECT id, 'recording', 'recordings/' || filename, meeting_id, duration_seconds, created_at FROM recordings;
+             DROP TABLE recordings;",
+        )
+        .map_err(fail)?;
+    }
+    set_schema_version(&tx, 8)?;
+    tx.commit().map_err(|e| format!("commit migration v8: {}", e))?;
+    log::info!("[store] Migrated schema v7→v8 (assets)");
+    Ok(())
 }
 
 /// v6 → v7: a meeting knows where its title came from (only a default or AI title may be replaced by a summary's), and how
@@ -309,6 +370,7 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
             error                 TEXT,
             title_source          TEXT    NOT NULL DEFAULT 'default' CHECK(title_source IN ('default','calendar','user','ai')),
             step_attempts         INTEGER NOT NULL DEFAULT 0,
+            audio_removed_at      INTEGER,
             calendar_event_id     TEXT,
             calendar_meta         TEXT,
             created_at            INTEGER NOT NULL,
@@ -333,16 +395,6 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
             created_at INTEGER NOT NULL,
             updated_at INTEGER NOT NULL
         );
-
-        CREATE TABLE recordings (
-            id               TEXT PRIMARY KEY,
-            meeting_id       TEXT REFERENCES meetings(id) ON DELETE CASCADE,
-            filename         TEXT    NOT NULL,
-            duration_seconds REAL,
-            input_source     TEXT,
-            created_at       INTEGER NOT NULL
-        );
-        CREATE INDEX idx_recordings_meeting ON recordings(meeting_id);
 
         CREATE TABLE notes (
             id         TEXT PRIMARY KEY,
@@ -468,6 +520,9 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
         ",
     )
     .map_err(|e| format!("create baseline tables: {}", e))?;
+
+    conn.execute_batch(assets::DDL).map_err(|e| format!("create assets: {}", e))?;
+    conn.execute_batch(assets::RECORDING_REMOVED_TRIGGER).map_err(|e| format!("create assets: {}", e))?;
     conn.execute_batch(DICTATIONS_DDL).map_err(|e| format!("create dictations table: {}", e))?;
 
     // FTS5 virtual tables (must be separate from execute_batch with the rebuild step)
@@ -593,6 +648,7 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
         "
         INSERT OR REPLACE INTO meta (key, value) VALUES ('embedding_model', '{}');
         INSERT OR REPLACE INTO meta (key, value) VALUES ('embedding_dim', '{}');
+        INSERT OR REPLACE INTO meta (key, value) VALUES ('created_at', CAST(CAST(unixepoch('subsec') * 1000 AS INTEGER) AS TEXT));
         ",
         DEFAULT_MODEL, DEFAULT_DIM,
     ))
@@ -630,7 +686,8 @@ mod tests {
             "meetings",
             "transcripts",
             "summaries",
-            "recordings",
+            "assets",
+            "purge_queue",
             "notes",
             "todos",
             "reminders",
@@ -732,8 +789,8 @@ mod tests {
         )
         .expect("insert chunk");
         conn.execute(
-            "INSERT INTO recordings (id, meeting_id, filename, created_at) VALUES (?1, ?2, ?3, ?4)",
-            params!["r1", "m1", "test.wav", now],
+            "INSERT INTO assets (id, kind, path, meeting_id, created_at) VALUES (?1, 'recording', ?2, ?3, ?4)",
+            params!["r1", "recordings/test.wav", "m1", now],
         )
         .expect("insert recording");
 
@@ -793,10 +850,14 @@ mod tests {
             .unwrap();
         assert_eq!(chunks_count, 0, "chunks should cascade-delete");
 
-        let recordings_count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM recordings WHERE meeting_id = ?1", params!["m1"], |r| r.get(0))
+        let assets_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM assets WHERE meeting_id = ?1", params!["m1"], |r| r.get(0))
             .unwrap();
-        assert_eq!(recordings_count, 0, "recordings should cascade-delete");
+        assert_eq!(assets_count, 0, "assets should cascade-delete");
+        let queued: String = conn
+            .query_row("SELECT ref FROM purge_queue WHERE kind = 'file'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(queued, "recordings/test.wav", "a deleted asset queues its file");
 
         let mc_count: i64 = conn
             .query_row("SELECT COUNT(*) FROM meeting_categories WHERE meeting_id = ?1", params!["m1"], |r| r.get(0))
@@ -922,7 +983,7 @@ mod tests {
         let source = |id: &str| -> String {
             conn.query_row("SELECT title_source FROM meetings WHERE id = ?1", [id], |r| r.get(0)).expect("row")
         };
-        assert_eq!(get_schema_version(&conn), 7);
+        assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
         assert_eq!(source("cal"), "calendar");
         assert_eq!(source("done"), "ai");
         assert_eq!(source("new"), "default");
@@ -1092,6 +1153,9 @@ mod tests {
              INSERT INTO meetings VALUES ('m1', 't', 0, 0, 0);
              CREATE TABLE recordings (id TEXT PRIMARY KEY, meeting_id TEXT, filename TEXT NOT NULL,
                  duration_seconds REAL, input_source TEXT, created_at INTEGER NOT NULL);
+             CREATE TABLE reminders (todo_id TEXT PRIMARY KEY, notification_id INTEGER NOT NULL,
+                 fire_at INTEGER NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL);
+             CREATE TABLE chats (id TEXT PRIMARY KEY);
              CREATE TABLE meeting_index_state (meeting_id TEXT PRIMARY KEY, content_hash TEXT,
                  embedding_hash TEXT, extraction_hash TEXT, indexed_at INTEGER);
              INSERT INTO meeting_index_state VALUES ('m1', 'c', 'e', 'x', 0);
@@ -1139,6 +1203,9 @@ mod tests {
                  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
              CREATE TABLE recordings (id TEXT PRIMARY KEY, meeting_id TEXT, filename TEXT NOT NULL,
                  duration_seconds REAL, input_source TEXT, created_at INTEGER NOT NULL);
+             CREATE TABLE reminders (todo_id TEXT PRIMARY KEY, notification_id INTEGER NOT NULL,
+                 fire_at INTEGER NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL);
+             CREATE TABLE chats (id TEXT PRIMARY KEY);
              INSERT INTO meetings VALUES ('rec_1_a', 'unlinked', 1, 0, 0);
              INSERT INTO meetings VALUES ('rec_2_b', 'linked', 1, 0, 0);
              INSERT INTO recordings VALUES ('r2', 'rec_2_b', 'rec_2_b.wav', NULL, NULL, 0);
@@ -1155,7 +1222,7 @@ mod tests {
             conn.query_row("SELECT status FROM meetings WHERE id = ?1", [id], |r| r.get(0)).expect("status")
         };
         let recordings = |id: &str| -> Vec<String> {
-            conn.prepare("SELECT filename FROM recordings WHERE meeting_id = ?1")
+            conn.prepare("SELECT path FROM assets WHERE meeting_id = ?1")
                 .expect("prepare")
                 .query_map([id], |r| r.get(0))
                 .expect("query")
@@ -1165,8 +1232,8 @@ mod tests {
         assert_eq!(status("rec_1_a"), "captured");
         assert_eq!(status("rec_2_b"), "captured");
         assert_eq!(status("done"), "ready");
-        assert_eq!(recordings("rec_1_a"), vec!["rec_1_a.wav".to_string()]);
-        assert_eq!(recordings("rec_2_b"), vec!["rec_2_b.wav".to_string()]);
+        assert_eq!(recordings("rec_1_a"), vec!["recordings/rec_1_a.wav".to_string()]);
+        assert_eq!(recordings("rec_2_b"), vec!["recordings/rec_2_b.wav".to_string()]);
         assert!(recordings("done").is_empty());
         assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
     }

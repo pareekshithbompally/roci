@@ -1,3 +1,4 @@
+use crate::{asset_adoption, assets};
 use crate::changes::{notify, MeetingChange};
 use crate::error::StoreError;
 use crate::schema;
@@ -38,6 +39,9 @@ pub struct MeetingRow {
     pub updated_at: i64,
     pub categories: Vec<String>,
     pub recording_filename: Option<String>,
+    /// When Keep or Delete All removed its recording; the meeting says "Audio removed".
+    #[cfg_attr(test, ts(type = "number | null"))]
+    pub audio_removed_at: Option<i64>,
 }
 
 /// Where a meeting is in its pipeline; `failed_step` and `error` are set only when `status` is `failed`.
@@ -123,6 +127,8 @@ pub struct MeetingDetail {
     #[cfg_attr(test, ts(type = "number"))]
     pub updated_at: i64,
     pub categories: Vec<String>,
+    #[cfg_attr(test, ts(type = "number | null"))]
+    pub audio_removed_at: Option<i64>,
     pub transcript: Option<TranscriptRow>,
     pub summary: Option<SummaryRow>,
     pub recordings: Vec<RecordingRow>,
@@ -158,7 +164,6 @@ pub struct RecordingRow {
     pub id: String,
     pub filename: String,
     pub duration_seconds: Option<f64>,
-    pub input_source: Option<String>,
     #[cfg_attr(test, ts(type = "number"))]
     pub created_at: i64,
 }
@@ -215,12 +220,6 @@ pub struct SummarySaveInput {
     pub data: String,
     pub categories: Vec<String>,
     pub action_items: Vec<ActionItemInput>,
-}
-
-#[derive(Debug, Serialize)]
-#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "../../../../src/shared/types/native/"))]
-pub struct MeetingsDeleteResult {
-    pub recording_filenames: Vec<String>,
 }
 
 // ── Category Structs ──
@@ -475,6 +474,8 @@ pub struct ChatsUpsertInput {
     pub last_message_at: i64,
     pub messages: Vec<ChatMessageInput>,
     pub created_at: Option<i64>,
+    /// Every app-data file the messages reference: the chat owns exactly these.
+    pub asset_paths: Vec<String>,
 }
 
 // ── Dictation Structs ──
@@ -588,7 +589,7 @@ pub(crate) fn now_millis() -> i64 {
         .as_millis() as i64
 }
 
-fn generate_id() -> String {
+pub(crate) fn generate_id() -> String {
     uuid::Uuid::new_v4().to_string()
 }
 
@@ -692,6 +693,22 @@ fn get_meeting_categories_for_ids(
     Ok(map)
 }
 
+/// Runs `work` on the open database off the async runtime, holding the lock only for `work`.
+pub(crate) async fn on_db<T, F>(state: &StoreState, work: F) -> Result<T, StoreError>
+where
+    T: Send + 'static,
+    F: FnOnce(&Connection) -> Result<T, StoreError> + Send + 'static,
+{
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
+        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+        work(db)
+    })
+    .await
+    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+}
+
 // ── DB Init ──
 
 #[tauri::command]
@@ -729,6 +746,16 @@ pub async fn initialize<R: Runtime>(
             .map_err(|e| StoreError::from(format!("Failed to set pragmas: {}", e)))?;
 
         schema::migrate(&db)?;
+        // An image adoption that failed leaves real images without rows: no sweep this launch, or it would take them.
+        match asset_adoption::adopt_images(&db, &app_data) {
+            Ok(()) => {
+                if let Err(error) = assets::sweep(&db, &app_data, now_millis()) {
+                    log::error!("[store] Sweep at open failed: {}", error.message);
+                }
+            }
+            Err(error) => log::error!("[store] Image adoption failed, sweep skipped: {}", error.message),
+        }
+        assets::set_app_data(app_data);
 
         log::info!("[store] Database initialized successfully");
         *guard = Some(db);
@@ -761,17 +788,21 @@ pub async fn meetings_list(
 
         let mut stmt = db.prepare(
             "SELECT m.id, m.title, m.input_source, m.status, m.failed_step, m.error,
-                    m.calendar_event_id, m.calendar_meta, m.created_at, m.updated_at
+                    m.calendar_event_id, m.calendar_meta, m.created_at, m.updated_at,
+                    (SELECT a.path FROM assets a WHERE a.meeting_id = m.id AND a.kind = 'recording'
+                     ORDER BY a.created_at LIMIT 1),
+                    m.audio_removed_at
              FROM meetings m
              ORDER BY m.created_at DESC
              LIMIT ?1 OFFSET ?2",
         )?;
 
-        let meeting_rows: Vec<(String, String, Option<String>, MeetingStatus, Option<String>, Option<String>, i64, i64)> = stmt
+        type ListRow = (String, String, Option<String>, MeetingStatus, Option<String>, Option<String>, i64, i64, Option<String>, Option<i64>);
+        let meeting_rows: Vec<ListRow> = stmt
             .query_map(rusqlite::params![limit, offset], |row| {
                 Ok((
                     row.get(0)?, row.get(1)?, row.get(2)?, status_at(row, 3)?,
-                    row.get(6)?, row.get(7)?, row.get(8)?, row.get(9)?,
+                    row.get(6)?, row.get(7)?, row.get(8)?, row.get(9)?, row.get(10)?, row.get(11)?,
                 ))
             })?
             .filter_map(|r| r.ok())
@@ -780,22 +811,11 @@ pub async fn meetings_list(
         let meeting_ids: Vec<String> = meeting_rows.iter().map(|r| r.0.clone()).collect();
         let category_map = get_meeting_categories_for_ids(db, &meeting_ids)?;
 
-        // Get first recording filename per meeting
-        let mut rec_filenames: std::collections::HashMap<String, Option<String>> = std::collections::HashMap::new();
-        for mid in &meeting_ids {
-            let filename: Option<String> = db.query_row(
-                "SELECT filename FROM recordings WHERE meeting_id = ?1 LIMIT 1",
-                [mid],
-                |row| row.get(0),
-            ).optional().ok().flatten();
-            rec_filenames.insert(mid.clone(), filename);
-        }
-
         let items: Vec<MeetingRow> = meeting_rows
             .into_iter()
-            .map(|(id, title, input_source, status, ceid, cmeta, cat, uat)| {
+            .map(|(id, title, input_source, status, ceid, cmeta, cat, uat, recording, audio_removed_at)| {
                 let categories = category_map.get(&id).cloned().unwrap_or_default();
-                let rec_fn = rec_filenames.get(&id).and_then(|v| v.clone());
+                let rec_fn = recording.as_deref().map(assets::recording_filename);
                 MeetingRow {
                     id,
                     title,
@@ -807,6 +827,7 @@ pub async fn meetings_list(
                     updated_at: uat,
                     categories,
                     recording_filename: rec_fn,
+                    audio_removed_at,
                 }
             })
             .collect();
@@ -827,15 +848,16 @@ fn status_at(row: &rusqlite::Row<'_>, first: usize) -> rusqlite::Result<MeetingS
 }
 
 pub(crate) fn meetings_get_impl(db: &Connection, id: &str) -> Result<MeetingDetail, StoreError> {
-        let meeting: (String, String, Option<String>, MeetingStatus, Option<String>, Option<String>, i64, i64) = db
+        type DetailRow = (String, String, Option<String>, MeetingStatus, Option<String>, Option<String>, i64, i64, Option<i64>);
+        let meeting: DetailRow = db
             .query_row(
                 "SELECT id, title, input_source, status, failed_step, error,
-                        calendar_event_id, calendar_meta, created_at, updated_at
+                        calendar_event_id, calendar_meta, created_at, updated_at, audio_removed_at
                  FROM meetings WHERE id = ?1",
                 [&id],
                 |row| Ok((
                     row.get(0)?, row.get(1)?, row.get(2)?, status_at(row, 3)?,
-                    row.get(6)?, row.get(7)?, row.get(8)?, row.get(9)?,
+                    row.get(6)?, row.get(7)?, row.get(8)?, row.get(9)?, row.get(10)?,
                 )),
             )
             .map_err(|_| StoreError::from("Meeting not found"))?;
@@ -866,16 +888,16 @@ pub(crate) fn meetings_get_impl(db: &Connection, id: &str) -> Result<MeetingDeta
         ).optional().ok().flatten();
 
         let mut rec_stmt = db.prepare(
-            "SELECT id, filename, duration_seconds, input_source, created_at FROM recordings WHERE meeting_id = ?1",
+            "SELECT id, path, duration_seconds, created_at FROM assets
+             WHERE meeting_id = ?1 AND kind = 'recording' ORDER BY created_at",
         )?;
         let recordings: Vec<RecordingRow> = rec_stmt
             .query_map([&id], |row| {
                 Ok(RecordingRow {
                     id: row.get(0)?,
-                    filename: row.get(1)?,
+                    filename: assets::recording_filename(&row.get::<_, String>(1)?),
                     duration_seconds: row.get(2)?,
-                    input_source: row.get(3)?,
-                    created_at: row.get(4)?,
+                    created_at: row.get(3)?,
                 })
             })?
             .filter_map(|r| r.ok())
@@ -924,12 +946,27 @@ pub(crate) fn meetings_get_impl(db: &Connection, id: &str) -> Result<MeetingDeta
             created_at: meeting.6,
             updated_at: meeting.7,
             categories,
+            audio_removed_at: meeting.8,
             transcript,
             summary,
             recordings,
             notes,
             todos,
         })
+}
+
+/// Which of `ids` are meetings still kept; a chat's meeting chip says "removed" for the rest.
+#[tauri::command]
+pub async fn meetings_existing(state: State<'_, StoreState>, ids: Vec<String>) -> Result<Vec<String>, StoreError> {
+    on_db(&state, move |db| {
+        let ids_json = serde_json::to_string(&ids).map_err(|e| StoreError::from(e.to_string()))?;
+        let kept = db
+            .prepare("SELECT id FROM meetings WHERE id IN (SELECT value FROM json_each(?1))")?
+            .query_map([ids_json], |row| row.get(0))?
+            .collect::<Result<_, _>>()?;
+        Ok(kept)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -1024,58 +1061,51 @@ fn todo_meeting_id(db: &Connection, id: &str) -> Result<Option<String>, StoreErr
         .flatten())
 }
 
-pub(crate) fn meetings_delete_impl(db: &Connection, id: &str) -> Result<MeetingsDeleteResult, StoreError> {
-        // Collect recording filenames BEFORE cascade deletes them
-        let mut stmt = db.prepare("SELECT filename FROM recordings WHERE meeting_id = ?1")?;
-        let filenames: Vec<String> = stmt
-            .query_map([&id], |row| row.get(0))?
-            .filter_map(|r| r.ok())
-            .collect();
+/// Deletes a meeting and everything it owns in one transaction; its files are queued, removed by `assets::drain_files`.
+pub(crate) fn meetings_delete_impl(db: &Connection, id: &str) -> Result<(), StoreError> {
+    let tx = db.unchecked_transaction()?;
+    delete_meeting_rows(&tx, id)?;
+    tx.commit()?;
+    Ok(())
+}
 
-        let tx = db.unchecked_transaction()?;
-
-        // Delete vec_chunks manually (virtual table, no FK cascade)
-        let chunk_ids: Vec<i64> = {
-            let mut stmt = tx.prepare("SELECT id FROM chunks WHERE meeting_id = ?1")?;
-            let rows: Vec<i64> = stmt.query_map([&id], |row| row.get(0))?
-                .filter_map(|r| r.ok())
-                .collect();
-            rows
-        };
-        for cid in &chunk_ids {
-            tx.execute("DELETE FROM vec_chunks WHERE chunk_id = ?1", [cid])?;
-        }
-
-        // Delete chunks (FTS5 triggers handle cleanup)
-        tx.execute("DELETE FROM chunks WHERE meeting_id = ?1", [&id])?;
-
-        // CASCADE removes the meeting's transcripts, summaries, notes, todos, reminders, index state and KG edges.
-        tx.execute("DELETE FROM meetings WHERE id = ?1", [&id])?;
-
-        write_audit_log(&tx, "meeting", &id, "delete", None)?;
-
-        tx.commit()?;
-
-        log::info!("[store] Deleted meeting {} ({} recordings, {} chunks)", id, filenames.len(), chunk_ids.len());
-        Ok(MeetingsDeleteResult { recording_filenames: filenames })
+/// A meeting and everything it owns, inside the caller's transaction; its files are queued for `assets::drain_files`.
+pub(crate) fn delete_meeting_rows(tx: &Connection, id: &str) -> Result<(), StoreError> {
+    // vec_chunks is a virtual table with no FK cascade.
+    let chunk_ids: Vec<i64> = tx
+        .prepare("SELECT id FROM chunks WHERE meeting_id = ?1")?
+        .query_map([id], |row| row.get(0))?
+        .collect::<Result<_, _>>()?;
+    for cid in &chunk_ids {
+        tx.execute("DELETE FROM vec_chunks WHERE chunk_id = ?1", [cid])?;
+    }
+    // FTS5 triggers follow the chunks.
+    tx.execute("DELETE FROM chunks WHERE meeting_id = ?1", [id])?;
+    // CASCADE removes the meeting's transcripts, summaries, notes, todos, reminders, assets and index state.
+    tx.execute("DELETE FROM meetings WHERE id = ?1", [id])?;
+    write_audit_log(tx, "meeting", id, "delete", None)?;
+    log::info!("[store] Deleted meeting {} ({} chunks)", id, chunk_ids.len());
+    Ok(())
 }
 
 #[tauri::command]
 pub async fn meetings_delete(
     state: State<'_, StoreState>,
     id: String,
-) -> Result<MeetingsDeleteResult, StoreError> {
+) -> Result<(), StoreError> {
     let deleted_id = id.clone();
     let conn_arc = Arc::clone(&state.conn);
-    let result = tauri::async_runtime::spawn_blocking(move || {
+    tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        meetings_delete_impl(db, &id)
+        meetings_delete_impl(db, &id)?;
+        assets::drain_files(db);
+        Ok::<(), StoreError>(())
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))??;
     notify(MeetingChange::Deleted(deleted_id));
-    Ok(result)
+    Ok(())
 }
 
 /// Creates the meeting (and its recording row, and its transcript when it comes with one) in one write. False, changing
@@ -1101,11 +1131,7 @@ pub(crate) fn meetings_create_impl(db: &Connection, input: &MeetingCreateInput) 
             return Ok(false);
         }
         if let Some(filename) = &input.recording_filename {
-            tx.execute(
-                "INSERT INTO recordings (id, meeting_id, filename, input_source, created_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
-                rusqlite::params![generate_id(), input.id, filename, input.input_source, created_at],
-            )?;
+            assets::insert_recording(&tx, &generate_id(), &input.id, filename, created_at)?;
         }
         if let Some(transcript) = &input.transcript {
             write_transcript(&tx, &input.id, transcript)?;
@@ -1236,14 +1262,7 @@ where
     T: Send + 'static,
     F: FnOnce(&Connection) -> Result<T, StoreError> + Send + 'static,
 {
-    let conn_arc = Arc::clone(&state.conn);
-    let written = tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        write(db)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))??;
+    let written = on_db(state, write).await?;
     notify(MeetingChange::Saved(meeting_id));
     Ok(written)
 }
@@ -1262,149 +1281,6 @@ pub async fn transcripts_save(state: State<'_, StoreState>, input: TranscriptSav
 #[tauri::command]
 pub async fn summaries_save(state: State<'_, StoreState>, input: SummarySaveInput) -> Result<SummarySaved, StoreError> {
     write_meeting(&state, input.meeting_id.clone(), move |db| summaries_save_impl(db, &input)).await
-}
-
-// ── Recording Commands ──
-
-#[derive(Debug, Deserialize)]
-pub struct RecordingUpsertInput {
-    pub id: String,
-    pub meeting_id: Option<String>,
-    pub filename: String,
-    pub duration_seconds: Option<f64>,
-    pub input_source: Option<String>,
-    pub created_at: Option<i64>,
-}
-
-#[tauri::command]
-pub async fn recordings_upsert(
-    state: State<'_, StoreState>,
-    input: RecordingUpsertInput,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        let now = now_millis();
-        let created_at = input.created_at.unwrap_or(now);
-
-        db.execute(
-            "INSERT INTO recordings (id, meeting_id, filename, duration_seconds, input_source, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-             ON CONFLICT(id) DO UPDATE SET
-                 meeting_id = COALESCE(excluded.meeting_id, recordings.meeting_id),
-                 filename = excluded.filename,
-                 duration_seconds = excluded.duration_seconds,
-                 input_source = excluded.input_source",
-            rusqlite::params![
-                input.id,
-                input.meeting_id,
-                input.filename,
-                input.duration_seconds,
-                input.input_source,
-                created_at,
-            ],
-        )?;
-
-        log::info!("[store] Upserted recording {}", input.filename);
-        Ok(())
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn recordings_list_for_meeting(
-    state: State<'_, StoreState>,
-    meeting_id: String,
-) -> Result<Vec<RecordingRow>, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        let mut stmt = db.prepare(
-            "SELECT id, filename, duration_seconds, input_source, created_at FROM recordings WHERE meeting_id = ?1",
-        )?;
-        let rows: Vec<RecordingRow> = stmt
-            .query_map([&meeting_id], |row| {
-                Ok(RecordingRow {
-                    id: row.get(0)?,
-                    filename: row.get(1)?,
-                    duration_seconds: row.get(2)?,
-                    input_source: row.get(3)?,
-                    created_at: row.get(4)?,
-                })
-            })?
-            .filter_map(|r| r.ok())
-            .collect();
-
-        Ok(rows)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn recordings_list_orphan(
-    state: State<'_, StoreState>,
-) -> Result<Vec<RecordingRow>, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        let mut stmt = db.prepare(
-            "SELECT id, filename, duration_seconds, input_source, created_at FROM recordings WHERE meeting_id IS NULL",
-        )?;
-        let rows: Vec<RecordingRow> = stmt
-            .query_map([], |row| {
-                Ok(RecordingRow {
-                    id: row.get(0)?,
-                    filename: row.get(1)?,
-                    duration_seconds: row.get(2)?,
-                    input_source: row.get(3)?,
-                    created_at: row.get(4)?,
-                })
-            })?
-            .filter_map(|r| r.ok())
-            .collect();
-
-        Ok(rows)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
-pub async fn recordings_delete(
-    state: State<'_, StoreState>,
-    filename: String,
-) -> Result<Option<String>, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        // Find the recording ID before deleting (for audit)
-        let recording_id: Option<String> = db.query_row(
-            "SELECT id FROM recordings WHERE filename = ?1",
-            [&filename],
-            |row| row.get(0),
-        ).optional().ok().flatten();
-
-        if let Some(ref rid) = recording_id {
-            let tx = db.unchecked_transaction()?;
-            tx.execute("DELETE FROM recordings WHERE id = ?1", [rid])?;
-            write_audit_log(&tx, "recording", rid, "delete", None)?;
-            tx.commit()?;
-            log::info!("[store] Deleted recording {} ({})", filename, rid);
-        }
-
-        Ok(recording_id)
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
 // ── Category Commands ──
@@ -2272,7 +2148,9 @@ pub async fn chats_upsert(
     tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-        chats_upsert_impl(db, &input)
+        chats_upsert_impl(db, &input)?;
+        assets::drain_files(db);
+        Ok(())
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
@@ -2293,7 +2171,7 @@ fn chats_upsert_impl(db: &Connection, input: &ChatsUpsertInput) -> Result<(), St
 
         tx.execute(
             "INSERT INTO chats (id, title, meeting_id, created_at, last_message_at)
-             VALUES (?1, ?2, ?3, ?4, ?5)
+             VALUES (?1, ?2, (SELECT id FROM meetings WHERE id = ?3), ?4, ?5)
              ON CONFLICT(id) DO UPDATE SET
                 title = excluded.title,
                 meeting_id = excluded.meeting_id,
@@ -2326,6 +2204,7 @@ fn chats_upsert_impl(db: &Connection, input: &ChatsUpsertInput) -> Result<(), St
         } // drop insert_stmt before commit
 
         let op = if is_new { "create" } else { "update" };
+        assets::sync_chat_assets(&tx, &input.id, &input.asset_paths)?;
         write_audit_log(&tx, "chat", &input.id, op, None)?;
 
         tx.commit()?;
@@ -2357,6 +2236,30 @@ pub async fn chats_rename(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
+pub(crate) fn chats_delete_impl(db: &Connection, id: &str) -> Result<(), StoreError> {
+    let tx = db.unchecked_transaction()?;
+    delete_chat_rows(&tx, id)?;
+    tx.commit()?;
+    Ok(())
+}
+
+/// A chat and everything it owns, inside the caller's transaction; its files are queued for `assets::drain_files`.
+pub(crate) fn delete_chat_rows(tx: &Connection, id: &str) -> Result<(), StoreError> {
+    // chat_vec_chunks is a virtual table with no FK cascade.
+    let chunk_ids: Vec<i64> = tx
+        .prepare("SELECT id FROM chat_chunks WHERE chat_id = ?1")?
+        .query_map([id], |row| row.get(0))?
+        .collect::<Result<_, _>>()?;
+    for cid in &chunk_ids {
+        tx.execute("DELETE FROM chat_vec_chunks WHERE chunk_id = ?1", [cid])?;
+    }
+    tx.execute("DELETE FROM chat_chunks WHERE chat_id = ?1", [id])?;
+    // CASCADE removes the chat's messages, assets and index state.
+    tx.execute("DELETE FROM chats WHERE id = ?1", [id])?;
+    write_audit_log(tx, "chat", id, "delete", None)?;
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn chats_delete(
     state: State<'_, StoreState>,
@@ -2366,28 +2269,8 @@ pub async fn chats_delete(
     tauri::async_runtime::spawn_blocking(move || {
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        let tx = db.unchecked_transaction()?;
-
-        // Delete vec_chunks manually (virtual table, no FK cascade)
-        let chunk_ids: Vec<i64> = {
-            let mut stmt = tx.prepare("SELECT id FROM chat_chunks WHERE chat_id = ?1")?;
-            let rows: Vec<i64> = stmt.query_map([&id], |row| row.get(0))?
-                .filter_map(|r| r.ok())
-                .collect();
-            rows
-        };
-        for cid in &chunk_ids {
-            tx.execute("DELETE FROM chat_vec_chunks WHERE chunk_id = ?1", [cid])?;
-        }
-        tx.execute("DELETE FROM chat_chunks WHERE chat_id = ?1", [&id])?;
-
-        // Delete chat — CASCADE handles: chat_messages, chat_index_state
-        tx.execute("DELETE FROM chats WHERE id = ?1", [&id])?;
-
-        write_audit_log(&tx, "chat", &id, "delete", None)?;
-
-        tx.commit()?;
+        chats_delete_impl(db, &id)?;
+        assets::drain_files(db);
         Ok(())
     })
     .await
@@ -3169,41 +3052,6 @@ pub async fn upsert_chat_chunks(
 }
 
 #[tauri::command]
-pub async fn delete_chat_session(
-    state: State<'_, StoreState>,
-    session_id: String,
-) -> Result<(), StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        let tx = db.unchecked_transaction()?;
-
-        let chunk_ids: Vec<i64> = {
-            let mut stmt = tx.prepare("SELECT id FROM chat_chunks WHERE chat_id = ?1")?;
-            let rows: Vec<i64> = stmt.query_map([&session_id], |row| row.get(0))?
-                .filter_map(|r| r.ok())
-                .collect();
-            rows
-        };
-
-        for chunk_id in &chunk_ids {
-            tx.execute("DELETE FROM chat_vec_chunks WHERE chunk_id = ?1", [chunk_id])?;
-        }
-
-        tx.execute("DELETE FROM chat_chunks WHERE chat_id = ?1", [&session_id])?;
-        tx.execute("DELETE FROM chats WHERE id = ?1", [&session_id])?;
-
-        tx.commit()?;
-        log::info!("[store] Deleted chat session {} and {} chunks", session_id, chunk_ids.len());
-        Ok(())
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
-}
-
-#[tauri::command]
 pub async fn chat_is_stale(
     state: State<'_, StoreState>,
     session_id: String,
@@ -3975,6 +3823,7 @@ mod tests {
                 id: "c1".into(),
                 title: "Linked chat".into(),
                 meeting_id: Some("m1".into()),
+                asset_paths: vec![],
                 last_message_at: 10,
                 messages: vec![],
                 created_at: None,
@@ -3982,15 +3831,15 @@ mod tests {
         )
         .unwrap();
 
-        let result = meetings_delete_impl(&conn, "m1").expect("delete ok");
-        assert_eq!(result.recording_filenames, vec!["m1.wav".to_string()]);
+        meetings_delete_impl(&conn, "m1").expect("delete ok");
+        assert_eq!(count(&conn, "SELECT COUNT(*) FROM purge_queue WHERE ref = ?1", "recordings/m1.wav"), 1);
 
         for (table, col) in [
             ("transcripts", "meeting_id"),
             ("summaries", "meeting_id"),
             ("notes", "meeting_id"),
             ("todos", "meeting_id"),
-            ("recordings", "meeting_id"),
+            ("assets", "meeting_id"),
             ("chunks", "meeting_id"),
             ("meeting_index_state", "meeting_id"),
             ("meeting_categories", "meeting_id"),
@@ -4026,12 +3875,30 @@ mod tests {
     // ── Chats round-trip ──────────────────────────────────────────────
 
     #[test]
+    fn a_chat_whose_meeting_was_deleted_still_saves() {
+        let conn = db();
+        let input = ChatsUpsertInput {
+            id: "c1".into(),
+            title: "Chat".into(),
+            meeting_id: Some("deleted-meeting".into()),
+            asset_paths: vec![],
+            last_message_at: 1,
+            messages: vec![],
+            created_at: None,
+        };
+        chats_upsert_impl(&conn, &input).expect("saves without its meeting");
+        let meeting: Option<String> = conn.query_row("SELECT meeting_id FROM chats WHERE id = 'c1'", [], |r| r.get(0)).unwrap();
+        assert_eq!(meeting, None);
+    }
+
+    #[test]
     fn chats_upsert_get_roundtrip_preserves_order_and_data() {
         let conn = db();
         let input = ChatsUpsertInput {
             id: "c1".into(),
             title: "My chat".into(),
             meeting_id: None,
+            asset_paths: vec![],
             last_message_at: 999,
             messages: vec![
                 ChatMessageInput {
@@ -4084,6 +3951,7 @@ mod tests {
                 id: "c1".into(),
                 title: "Original".into(),
                 meeting_id: None,
+                asset_paths: vec![],
                 last_message_at: 5,
                 messages: vec![],
                 created_at: None,

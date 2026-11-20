@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-notices-cleared"
+description = "Enables the notices_cleared command without any pre-configured scope."
+commands.allow = ["notices_cleared"]
+
+[[permission]]
+identifier = "deny-notices-cleared"
+description = "Denies the notices_cleared command without any pre-configured scope."
+commands.deny = ["notices_cleared"]

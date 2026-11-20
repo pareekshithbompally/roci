@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-assets-exists"
+description = "Enables the assets_exists command without any pre-configured scope."
+commands.allow = ["assets_exists"]
+
+[[permission]]
+identifier = "deny-assets-exists"
+description = "Denies the assets_exists command without any pre-configured scope."
+commands.deny = ["assets_exists"]

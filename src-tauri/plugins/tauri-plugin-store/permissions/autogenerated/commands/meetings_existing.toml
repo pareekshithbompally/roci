@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-meetings-existing"
+description = "Enables the meetings_existing command without any pre-configured scope."
+commands.allow = ["meetings_existing"]
+
+[[permission]]
+identifier = "deny-meetings-existing"
+description = "Denies the meetings_existing command without any pre-configured scope."
+commands.deny = ["meetings_existing"]

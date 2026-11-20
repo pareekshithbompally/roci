@@ -1,3 +1,5 @@
+mod asset_adoption;
+mod assets;
 mod changes;
 mod commands;
 #[cfg(test)]
@@ -5,9 +7,11 @@ mod consistency;
 mod error;
 mod meeting_steps;
 mod pipeline;
+mod retention;
 mod schema;
 mod search;
 mod session_search;
+mod usage;
 
 pub use changes::{meeting_detail, meeting_ids, on_meeting_change, MeetingChange};
 pub use commands::{MeetingCreateInput, MeetingDetail, MeetingStatus, NoteRow, SummaryRow, TodoRow, TranscriptRow};
@@ -58,6 +62,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             // Meeting domain (Phase 1)
             commands::meetings_list,
             commands::meetings_get,
+            commands::meetings_existing,
             commands::meetings_upsert,
             commands::meetings_delete,
             commands::meetings_create,
@@ -66,11 +71,14 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             meeting_steps::meetings_rename,
             commands::transcripts_save,
             commands::summaries_save,
-            // Recordings (Phase 5)
-            commands::recordings_upsert,
-            commands::recordings_list_for_meeting,
-            commands::recordings_list_orphan,
-            commands::recordings_delete,
+            // Assets
+            assets::assets_create,
+            assets::assets_list,
+            assets::assets_exists,
+            assets::notices_owed,
+            assets::notices_cleared,
+            retention::storage_purge,
+            usage::storage_usage,
             // Categories (Phase 1)
             commands::categories_list,
             commands::categories_rename,
@@ -120,7 +128,6 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             // Chat indexing
             commands::mark_chat_indexed,
             commands::upsert_chat_chunks,
-            commands::delete_chat_session,
             commands::chat_is_stale,
             commands::chats_get_stale,
             commands::get_chats_needing_embeddings,

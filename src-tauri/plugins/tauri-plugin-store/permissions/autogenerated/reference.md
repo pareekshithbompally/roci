@@ -12,6 +12,7 @@ Allows all store plugin commands
 - `allow-get-indexed-ids`
 - `allow-meetings-list`
 - `allow-meetings-get`
+- `allow-meetings-existing`
 - `allow-meetings-upsert`
 - `allow-meetings-delete`
 - `allow-meetings-create`
@@ -20,10 +21,13 @@ Allows all store plugin commands
 - `allow-meetings-rename`
 - `allow-transcripts-save`
 - `allow-summaries-save`
-- `allow-recordings-upsert`
-- `allow-recordings-list-for-meeting`
-- `allow-recordings-list-orphan`
-- `allow-recordings-delete`
+- `allow-assets-create`
+- `allow-assets-list`
+- `allow-assets-exists`
+- `allow-notices-owed`
+- `allow-notices-cleared`
+- `allow-storage-purge`
+- `allow-storage-usage`
 - `allow-categories-list`
 - `allow-categories-rename`
 - `allow-categories-create`
@@ -66,7 +70,6 @@ Allows all store plugin commands
 - `allow-mark-chat-content-indexed`
 - `allow-mark-chat-indexed`
 - `allow-upsert-chat-chunks`
-- `allow-delete-chat-session`
 - `allow-chat-is-stale`
 - `allow-chats-get-stale`
 - `allow-get-chats-needing-embeddings`
@@ -108,6 +111,84 @@ Enables the append_chunks command without any pre-configured scope.
 <td>
 
 Denies the append_chunks command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-assets-create`
+
+</td>
+<td>
+
+Enables the assets_create command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-assets-create`
+
+</td>
+<td>
+
+Denies the assets_create command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-assets-exists`
+
+</td>
+<td>
+
+Enables the assets_exists command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-assets-exists`
+
+</td>
+<td>
+
+Denies the assets_exists command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-assets-list`
+
+</td>
+<td>
+
+Enables the assets_list command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-assets-list`
+
+</td>
+<td>
+
+Denies the assets_list command without any pre-configured scope.
 
 </td>
 </tr>
@@ -420,32 +501,6 @@ Enables the chats_upsert command without any pre-configured scope.
 <td>
 
 Denies the chats_upsert command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-delete-chat-session`
-
-</td>
-<td>
-
-Enables the delete_chat_session command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-delete-chat-session`
-
-</td>
-<td>
-
-Denies the delete_chat_session command without any pre-configured scope.
 
 </td>
 </tr>
@@ -1025,6 +1080,32 @@ Denies the meetings_end_step command without any pre-configured scope.
 <tr>
 <td>
 
+`store:allow-meetings-existing`
+
+</td>
+<td>
+
+Enables the meetings_existing command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-meetings-existing`
+
+</td>
+<td>
+
+Denies the meetings_existing command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `store:allow-meetings-get`
 
 </td>
@@ -1259,6 +1340,58 @@ Denies the notes_upsert command without any pre-configured scope.
 <tr>
 <td>
 
+`store:allow-notices-cleared`
+
+</td>
+<td>
+
+Enables the notices_cleared command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-notices-cleared`
+
+</td>
+<td>
+
+Denies the notices_cleared command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-notices-owed`
+
+</td>
+<td>
+
+Enables the notices_owed command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-notices-owed`
+
+</td>
+<td>
+
+Denies the notices_owed command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `store:allow-providers-delete`
 
 </td>
@@ -1408,110 +1541,6 @@ Enables the rebuild_fts command without any pre-configured scope.
 <td>
 
 Denies the rebuild_fts command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-recordings-delete`
-
-</td>
-<td>
-
-Enables the recordings_delete command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-recordings-delete`
-
-</td>
-<td>
-
-Denies the recordings_delete command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-recordings-list-for-meeting`
-
-</td>
-<td>
-
-Enables the recordings_list_for_meeting command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-recordings-list-for-meeting`
-
-</td>
-<td>
-
-Denies the recordings_list_for_meeting command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-recordings-list-orphan`
-
-</td>
-<td>
-
-Enables the recordings_list_orphan command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-recordings-list-orphan`
-
-</td>
-<td>
-
-Denies the recordings_list_orphan command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-recordings-upsert`
-
-</td>
-<td>
-
-Enables the recordings_upsert command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-recordings-upsert`
-
-</td>
-<td>
-
-Denies the recordings_upsert command without any pre-configured scope.
 
 </td>
 </tr>
@@ -1694,6 +1723,58 @@ Enables the settings_set command without any pre-configured scope.
 <td>
 
 Denies the settings_set command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-storage-purge`
+
+</td>
+<td>
+
+Enables the storage_purge command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-storage-purge`
+
+</td>
+<td>
+
+Denies the storage_purge command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-storage-usage`
+
+</td>
+<td>
+
+Enables the storage_usage command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-storage-usage`
+
+</td>
+<td>
+
+Denies the storage_usage command without any pre-configured scope.
 
 </td>
 </tr>

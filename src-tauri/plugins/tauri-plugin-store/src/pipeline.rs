@@ -40,7 +40,7 @@ pub fn set_meeting_status<R: Runtime>(
         meetings_set_status_impl(db, id, status)?;
         if let Some(duration) = duration_secs {
             db.execute(
-                "UPDATE recordings SET duration_seconds = ?2 WHERE meeting_id = ?1",
+                "UPDATE assets SET duration_seconds = ?2 WHERE meeting_id = ?1 AND kind = 'recording'",
                 rusqlite::params![id, duration],
             )?;
         }
@@ -51,7 +51,11 @@ pub fn set_meeting_status<R: Runtime>(
 }
 
 pub fn delete_meeting<R: Runtime>(app: &AppHandle<R>, id: &str) -> Result<(), StoreError> {
-    with_db(app, |db| meetings_delete_impl(db, id).map(|_| ()))?;
+    with_db(app, |db| {
+        meetings_delete_impl(db, id)?;
+        crate::assets::drain_files(db);
+        Ok(())
+    })?;
     notify(MeetingChange::Deleted(id.to_string()));
     Ok(())
 }

@@ -2,6 +2,12 @@
  *  hand. The one definition of each payload on both sides of the bridge. */
 
 export type { ActionItemInput } from './ActionItemInput';
+export type { AssetRow } from './AssetRow';
+export type { NewAsset } from './NewAsset';
+export type { OwedNotice } from './OwedNotice';
+export type { PurgeResult } from './PurgeResult';
+export type { KindUsage } from './KindUsage';
+export type { StorageUsage } from './StorageUsage';
 export type { CategoryRow } from './CategoryRow';
 export type { LiveChunk } from './LiveChunk';
 export type { MeetingChanged } from './MeetingChanged';
@@ -10,7 +16,6 @@ export type { NewTranscript } from './NewTranscript';
 export type { MeetingDetailRow } from './MeetingDetailRow';
 export type { MeetingListResult } from './MeetingListResult';
 export type { MeetingRow } from './MeetingRow';
-export type { MeetingsDeleteResult } from './MeetingsDeleteResult';
 export type { MeetingSource } from './MeetingSource';
 export type { MeetingStatusRow } from './MeetingStatusRow';
 export type { MeetingStep } from './MeetingStep';
