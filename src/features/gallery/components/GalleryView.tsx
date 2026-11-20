@@ -14,19 +14,16 @@ import { useGallery } from '@features/gallery/hooks/useGallery';
 
 
 /** Under the full-size image: what was asked for, how it was made, and the way back to its chat. */
-const ImageCaption: React.FC<{ image: GalleryImage; onOpenChat: (sessionId: string) => void }> = ({ image, onOpenChat }) => {
-  const { details } = image;
-  if (!details) return null;
-  const sessionId = details.sessionId;
+const ImageCaption: React.FC<{ image: GalleryImage; onOpenChat: (chatId: string) => void }> = ({ image, onOpenChat }) => {
+  const { meta, chatId } = image;
+  const facts = [meta?.model, meta?.aspectRatio, formatDateTime(image.createdAt)].filter(Boolean).join(' · ');
   return (
     <Surface variant="card" radius="xl" edge="all" className="space-y-2 p-4">
-      <Text as="p" variant="body" className="line-clamp-3">{details.prompt}</Text>
+      {meta && <Text as="p" variant="body" className="line-clamp-3">{meta.prompt}</Text>}
       <div className="flex items-center gap-3">
-        <Text variant="helper" tone="muted" truncate className="flex-1">
-          {details.model} · {details.aspectRatio} · {formatDateTime(details.createdAt)}
-        </Text>
-        {sessionId && (
-          <Button variant="outline" size="sm" onClick={() => onOpenChat(sessionId)}>
+        <Text variant="helper" tone="muted" truncate className="flex-1">{facts}</Text>
+        {chatId && (
+          <Button variant="outline" size="sm" onClick={() => onOpenChat(chatId)}>
             <Icon icon={MessageSquare} size="xs" />
             {GALLERY_CONFIG.openChat}
           </Button>
@@ -67,7 +64,7 @@ export const GalleryView: React.FC = () => {
                     <Thumbnail
                       key={image.appPath}
                       src={image.thumbUrl}
-                      alt={image.details?.prompt ?? GALLERY_CONFIG.title}
+                      alt={image.meta?.prompt ?? GALLERY_CONFIG.title}
                       onOpen={() => setOpen(image)}
                     />
                   ))}
@@ -81,7 +78,7 @@ export const GalleryView: React.FC = () => {
       {open && (
         <Lightbox
           src={open.url}
-          alt={open.details?.prompt ?? GALLERY_CONFIG.title}
+          alt={open.meta?.prompt ?? GALLERY_CONFIG.title}
           open
           onOpenChange={(next) => !next && setOpen(null)}
           caption={<ImageCaption image={open} onOpenChat={goToChat} />}

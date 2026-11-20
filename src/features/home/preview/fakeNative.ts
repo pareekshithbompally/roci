@@ -57,7 +57,7 @@ function detail(id: string) {
     ...row(m),
     transcript: t ? { ...t, language: null } : null,
     summary: summaries.get(id) ?? null,
-    recordings: m.recording_filename ? [{ id: `r-${id}`, filename: m.recording_filename, duration_seconds: 20, input_source: 'systemAndMicrophone', created_at: m.created_at }] : [],
+    recordings: m.recording_filename ? [{ id: `r-${id}`, filename: m.recording_filename, duration_seconds: 20, created_at: m.created_at }] : [],
     notes: notes.get(id) ?? [],
     todos: todos.filter((t) => t.meeting_id === id),
   };

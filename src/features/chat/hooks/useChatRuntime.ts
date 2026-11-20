@@ -7,6 +7,7 @@ import { useChatStore, injectChatRefs } from '@features/chat/stores';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
 import { chatService } from '@services/chat.service';
+import { retentionService } from '@services/storage/retention.service';
 import { queryKeys } from '@shared/query/queryKeys';
 import { MAX_LOADED_SESSIONS } from '@config/chat.config';
 
@@ -29,6 +30,9 @@ export function useChatRuntime(): void {
   useEffect(() => {
     injectChatRefs({ settings, providers: providers || [], historyItems });
   }, [settings, providers, historyItems]);
+
+  // Chats Keep or Delete All removed leave memory, so an open one is never saved back.
+  useEffect(() => retentionService.onChatsRemoved((ids) => useChatStore.getState().forgetSessions(ids)), []);
 
   // The open chat: read from disk when it isn't in memory. The store is its only cache (gcTime 0),
   // so a chat that left memory is read fresh from disk, never from a stale query copy.

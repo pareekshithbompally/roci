@@ -211,15 +211,17 @@ const withEntry = (index: ChatIndexEntry[], entry: ChatIndexEntry): ChatIndexEnt
   index.some((e) => e.id === entry.id) ? index.map((e) => (e.id === entry.id ? entry : e)) : [entry, ...index];
 
 /** Optimistic chat write: the list changes now, `write` goes to disk; a failure restores the list. Never rejects. */
-async function writeChat(edit: (index: ChatIndexEntry[]) => ChatIndexEntry[], write: () => Promise<void>, what: string): Promise<void> {
+async function writeChat(edit: (index: ChatIndexEntry[]) => ChatIndexEntry[], write: () => Promise<void>, what: string): Promise<boolean> {
   await queryClient.cancelQueries({ queryKey: queryKeys.chats() });
   const previous = queryClient.getQueryData<ChatIndexEntry[]>(queryKeys.chats());
   queryClient.setQueryData<ChatIndexEntry[]>(queryKeys.chats(), edit(previous ?? []));
   try {
     await write();
+    return true;
   } catch (error: unknown) {
     queryClient.setQueryData(queryKeys.chats(), previous);
     console.error(`[ChatStore] Failed to ${what}:`, error);
+    return false;
   } finally {
     invalidateChats();
   }
@@ -373,7 +375,6 @@ async function streamReply(reply: Reply, request: ReplyRequest, tally: StreamTal
       signal,
       skipRetrieval: !hasToolSupport,
       reasoningEffort: session.reasoningEffort ?? 'provider-default',
-      sessionId: reply.sessionId,
     },
     {
       onChunk: (chunk, metadata) => {
@@ -499,7 +500,10 @@ export interface ChatStoreState {
   /** Sends the composer's draft (or only `textOverride`, e.g. a suggestion) in the current chat, or a new one. */
   sendMessage: (textOverride?: string) => Promise<void>;
   selectSession: (sessionId: string) => void;
+  /** Deletes a chat; throws when the store refused, after the list is rolled back. */
   deleteSession: (sessionId: string) => Promise<void>;
+  /** Drops chats the store already removed (Keep, Delete All) from memory, leaving an open one, so no save brings them back. */
+  forgetSessions: (sessionIds: string[]) => void;
   renameSession: (sessionId: string, newTitle: string) => Promise<void>;
   /** Stops the reply in flight, wherever it is, keeping what it has written so far. */
   stopGeneration: () => void;
@@ -570,7 +574,14 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
       loadedSessions.delete(sessionId);
       return { loadedSessions, currentSessionId: state.currentSessionId === sessionId ? null : state.currentSessionId };
     });
-    await writeChat((index) => index.filter((e) => e.id !== sessionId), () => chatService.deleteSession(sessionId), 'delete chat');
+    const deleted = await writeChat((index) => index.filter((e) => e.id !== sessionId), () => chatService.deleteSession(sessionId), 'delete chat');
+    if (!deleted) throw new Error(`Chat ${sessionId} was not deleted`);
+  },
+
+  forgetSessions: (sessionIds) => {
+    const gone = new Set(sessionIds);
+    if (gone.has(get().currentSessionId ?? '')) startNewChat();
+    set((state) => ({ loadedSessions: new Map([...state.loadedSessions].filter(([id]) => !gone.has(id))) }));
   },
 
   renameSession: async (sessionId, newTitle) => {
@@ -610,8 +621,9 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
 
   // ── Persist ──
 
-  persistSession: (session) =>
-    writeChat((index) => withEntry(index, entryOf(session)), () => chatService.persistSession(session), 'save chat'),
+  persistSession: async (session) => {
+    await writeChat((index) => withEntry(index, entryOf(session)), () => chatService.persistSession(session), 'save chat');
+  },
 
   // ── Attachments ──
 

@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ANIMATION_CONFIG } from '@config/animations.config';
-import { Pencil, Plus, Clock, Users, ExternalLink } from 'lucide-react';
+import { Pencil, Plus, Clock, Users, ExternalLink, VolumeX } from 'lucide-react';
 import { useActiveResultTab, useSelectedHistoryId, useAppActions } from '@shared/stores/appStore';
 import { useMeetingResult } from '@shared/hooks/useMeetingResult';
 import type { ResultTab } from '@shared/stores/appStore';
@@ -16,7 +16,8 @@ import { openUrl } from '@services/tauri';
 import { formatDuration, calendarDayOffset, formatDayLabel, formatClockTime, formatShortDate, formatDateTime } from '@shared/utils/formatters';
 import { MeetingWorkspace, meetingPipeline, useAiBullets, useDraftSegments, useLiveNotes, type WorkspaceTranscript } from '@features/recording';
 import { useMeetingPhase } from '@shared/stores/meetingProgressStore';
-import { MeetingStatus } from '@shared/components';
+import { MeetingStatus, RemovedNotice } from '@shared/components';
+import { StorageConfig } from '@config/storage.config';
 import { MeetingPhaseNotice } from './MeetingPhaseNotice';
 import { MeetingActionsMenu } from './MeetingActionsMenu';
 import { MeetingStatsPopover } from './MeetingStatsPopover';
@@ -163,6 +164,7 @@ export const ResultsView: React.FC = () => {
     ? historyItems.find(item => item.id === selectedHistoryId)
     : null;
   const recordingFileName = currentHistoryItem?.recordingFileName;
+  const audioRemoved = !recordingFileName && currentHistoryItem?.audioRemovedAt !== undefined;
   const phase = useMeetingPhase(currentHistoryItem);
   const { data: stats } = useMeetingStats(currentHistoryItem?.id);
   const handleTranscribe = () => {
@@ -280,6 +282,13 @@ export const ResultsView: React.FC = () => {
           meetingId={currentHistoryItem?.id || ''}
           title={currentHistoryItem?.title || ''}
         />
+      )}
+      {audioRemoved && (
+        <div className={`${LAYOUT.pageGutter} py-2`}>
+          <div className={LAYOUT.pageColumn}>
+            <RemovedNotice icon={VolumeX} label={StorageConfig.removed.audio} />
+          </div>
+        </div>
       )}
 
       {/* Tab content: the Transcript tab's panes scroll inside themselves; the other tabs scroll as a page. */}
