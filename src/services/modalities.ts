@@ -1,6 +1,10 @@
 /** Model facts (modalities, tools, thinking, context) and pricing from models.dev, cached on disk. */
 
-import { cacheService } from './storage/cache.service';
+import { exists, readTextFile, rename, writeTextFile } from '@tauri-apps/plugin-fs';
+import { appDataDir, join } from '@tauri-apps/api/path';
+import { StorageConfig } from '@config/storage.config';
+import { queryClient } from '@shared/query/queryClient';
+import { queryKeys } from '@shared/query/queryKeys';
 import { toModalities } from '@services/ai/models/report';
 import type { ModelReport } from '@shared/types/modelProviders';
 
@@ -53,8 +57,6 @@ interface ModelsDevProvider {
 type ModelsDevResponse = Record<string, ModelsDevProvider>;
 
 const API_URL = 'https://models.dev/api.json';
-const CACHE_KEY = 'modalities';
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 const PROVIDER_NAME_MAP: Record<string, string> = {
   openai: 'openai',
@@ -113,8 +115,42 @@ function reportOf(model: ModelsDevModel): ModelReport {
   };
 }
 
+/** The catalog as kept on disk, with when it was fetched. */
+interface SavedCatalog {
+  fetchedAt: number;
+  data: ModelsDevResponse;
+}
+
+let loading: Promise<void> | null = null;
+
+const catalogPath = async () => join(await appDataDir(), StorageConfig.modelCatalog.file);
+
+/** A catalog worth keeping: an object with at least one provider; anything else never replaces the one we have. */
+const isCatalog = (value: unknown): value is ModelsDevResponse =>
+  typeof value === 'object' && value !== null && !Array.isArray(value) && Object.keys(value).length > 0;
+
+/** The catalog on disk, or null when there is none or it can't be read. */
+async function readSaved(): Promise<SavedCatalog | null> {
+  try {
+    const path = await catalogPath();
+    if (!(await exists(path))) return null;
+    const saved = JSON.parse(await readTextFile(path)) as Partial<SavedCatalog>;
+    return typeof saved.fetchedAt === 'number' && isCatalog(saved.data) ? (saved as SavedCatalog) : null;
+  } catch (error: unknown) {
+    console.warn('[ModalitiesService] Saved catalog unreadable, fetching again:', error);
+    return null;
+  }
+}
+
+/** Writes to a temporary name, then renames over the old file, so a half-written catalog is never read. */
+async function writeSaved(data: ModelsDevResponse): Promise<void> {
+  const path = await catalogPath();
+  await writeTextFile(`${path}.tmp`, JSON.stringify({ fetchedAt: Date.now(), data } satisfies SavedCatalog));
+  await rename(`${path}.tmp`, path);
+}
+
 class ModalitiesService {
-  /** Fetches the catalog and keeps it in memory and on disk; false when it couldn't be fetched (the old one stays). */
+  /** Fetches the catalog and keeps it in memory and on disk; false when it couldn't be fetched (the one we have stays). */
   async fetchAndCache(): Promise<boolean> {
     try {
       const response = await fetch(API_URL);
@@ -122,17 +158,17 @@ class ModalitiesService {
         console.error('[ModalitiesService] API request failed:', response.status);
         return false;
       }
-      const data = (await response.json()) as ModelsDevResponse;
-      cachedData = data;
-      try {
-        await cacheService.set(CACHE_KEY, data, CACHE_TTL_MS, 'api');
-      } catch {
-        console.warn('[ModalitiesService] Disk cache write failed, using in-memory cache only');
+      const data: unknown = await response.json();
+      if (!isCatalog(data)) {
+        console.error('[ModalitiesService] models.dev sent no catalog; keeping the one we have');
+        return false;
       }
-      console.log('[ModalitiesService] Fetched and cached modality data');
+      cachedData = data;
+      await writeSaved(data).catch((error: unknown) => console.warn('[ModalitiesService] Catalog not saved to disk:', error));
+      console.log('[ModalitiesService] Fetched the models.dev catalog');
       return true;
     } catch (error: unknown) {
-      console.error('[ModalitiesService] Failed to fetch modality data:', error);
+      console.error('[ModalitiesService] Failed to fetch the models.dev catalog:', error);
       return false;
     }
   }
@@ -180,21 +216,26 @@ class ModalitiesService {
     };
   }
 
+  /** Loads the saved catalog once (fetching when there is none); an old one is used while a fresh one loads behind it. */
   async ensureLoaded(): Promise<void> {
     if (cachedData) return;
+    loading ??= this.load().finally(() => {
+      loading = null;
+    });
+    await loading;
+  }
 
-    // Try loading from disk cache
-    try {
-      const result = await cacheService.get<ModelsDevResponse>(CACHE_KEY, 'api');
-      if (result.success && result.data) {
-        cachedData = result.data;
-        return;
-      }
-    } catch {
-      // Disk cache unavailable, proceed to fetch
+  private async load(): Promise<void> {
+    const saved = await readSaved();
+    if (!saved) {
+      await this.fetchAndCache();
+      return;
     }
-
-    await this.fetchAndCache();
+    cachedData = saved.data;
+    if (Date.now() - saved.fetchedAt < StorageConfig.modelCatalog.refreshAfterMs) return;
+    void this.fetchAndCache().then((fetched) => {
+      if (fetched) void queryClient.invalidateQueries({ queryKey: queryKeys.modelCatalog() });
+    });
   }
 
   isLoaded(): boolean {

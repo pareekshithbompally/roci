@@ -44,6 +44,13 @@ export const StorageConfig = {
     meeting: 'Meeting removed',
   },
 
+  /** The models.dev catalog: kept in app data until a newer one is fetched, never in the clearable cache. */
+  modelCatalog: {
+    file: 'models-dev.json',
+    /** Older than this, the app fetches a fresh one in the background and keeps using the one it has. */
+    refreshAfterMs: 24 * 60 * 60 * 1000,
+  },
+
   fileNames: {
     cacheTempPrefix: 'temp',
   },
