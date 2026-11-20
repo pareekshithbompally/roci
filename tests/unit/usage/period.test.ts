@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bucketKeys, dayCount, keyToDate, monthKey, previousWindow, windowFor } from '@features/usage/model/period';
+import { bucketKeys, keyToDate, monthKey, previousWindow, windowFor } from '@features/usage/model/period';
 import { addDays, localDayKey as dayKey, startOfDay } from '@shared/utils/localDate';
 
 const now = new Date(2026, 10, 17, 15, 30); // 17 Nov 2026, 15:30 local
@@ -43,12 +43,5 @@ describe('usage periods', () => {
     expect(w.bucket).toBe('month');
     expect(bucketKeys(w, new Date(2026, 7, 20).getTime(), now)).toEqual(['2026-08', '2026-09', '2026-10', '2026-11']);
     expect(bucketKeys(w, null, now)).toEqual(['2026-11']);
-  });
-
-  it('counts calendar days inclusively', () => {
-    expect(dayCount('7d', null, now)).toBe(7);
-    expect(dayCount('all', new Date(2026, 10, 17, 1).getTime(), now)).toBe(1);
-    expect(dayCount('all', new Date(2026, 9, 18, 23).getTime(), now)).toBe(31);
-    expect(dayCount('all', null, now)).toBe(1);
   });
 });

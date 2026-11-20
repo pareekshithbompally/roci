@@ -1,9 +1,17 @@
-/** Usage (Settings › Usage): time ranges, chart metrics and copy; the one source for every usage screen. */
+/** Usage (Settings › Usage): its two tabs, time ranges, the measures charts switch between, use-case names and copy. */
+
+import type { UsageCategory } from '@extensions/usage';
 
 export type UsageRange = '7d' | '30d' | 'all';
-export type UsageMetric = 'cost' | 'requests' | 'tokens';
+export type UsageTab = 'activity' | 'prices';
+/** What a chart measures: money, or how many requests. */
+export type UsageMeasure = 'cost' | 'requests';
 
 export const USAGE_CONFIG = {
+  tabs: [
+    { value: 'activity', label: 'Activity' },
+    { value: 'prices', label: 'Prices' },
+  ] as const satisfies ReadonlyArray<{ value: UsageTab; label: string }>,
   ranges: [
     { value: '7d', label: '7 days' },
     { value: '30d', label: '30 days' },
@@ -12,42 +20,43 @@ export const USAGE_CONFIG = {
   /** Days in each fixed range, counted back from today inclusive (local calendar days). */
   rangeDays: { '7d': 7, '30d': 30 } as const satisfies Record<Exclude<UsageRange, 'all'>, number>,
   defaultRange: '30d' as UsageRange,
-  metrics: [
+  measures: [
     { value: 'cost', label: 'Cost' },
     { value: 'requests', label: 'Requests' },
-    { value: 'tokens', label: 'Tokens' },
-  ] as const satisfies ReadonlyArray<{ value: UsageMetric; label: string }>,
-  defaultMetric: 'cost' as UsageMetric,
+  ] as const satisfies ReadonlyArray<{ value: UsageMeasure; label: string }>,
+  /** What each recorded use case is called; one the app doesn't name shows under its own name. */
+  useCases: {
+    chat: 'Chat',
+    'chat-extras': 'Titles & follow-ups',
+    summary: 'Summaries',
+    liveNotes: 'Live notes',
+    transcription: 'Transcription',
+  } as const satisfies Record<UsageCategory, string>,
   copy: {
     title: 'Usage',
     empty: 'No usage yet. Start a chat or transcribe a recording to see it here.',
     emptyPeriod: 'No usage in this period.',
     loadFailed: 'Couldn’t load usage',
-    allTitle: 'All usage',
     /** A cost that can't be worked out: a paid model with no known price (never shown as free). */
     noPrice: 'no price',
-    /** Beside the estimated cost when some calls ran on cloud models with no known price (left out of the total). */
-    unpriced: (calls: number) => `${calls} ${calls === 1 ? 'call has' : 'calls have'} no price`,
-    /** Settings › Usage › Model Prices: prices for paid models models.dev doesn't price. */
+    /** Under the cost when some calls ran on cloud models with no known price (left out of the total). */
+    unpriced: (calls: number) => `${calls} ${calls === 1 ? 'call has' : 'calls have'} no price — set it in Prices`,
+    /** The donut a measure has nothing in (models that run free have no cost). */
+    nothing: (measure: string) => `No ${measure.toLowerCase()} in this period.`,
+    other: 'Other',
+    splits: { model: 'By model', provider: 'By provider', useCase: 'By use case' },
+    trend: (measure: string) => `${measure} over time`,
+    table: { label: 'Usage by day', date: 'Date', requests: 'Requests', input: 'Input tokens', output: 'Output tokens', cost: 'Cost' },
     prices: {
-      title: 'Model Prices',
-      open: 'Set prices for models with none',
-      unpriced: 'No price',
-      unpricedFooter: 'Paid models with no known price. Their calls count toward usage, not cost, until you set one.',
-      own: 'Your prices',
-      ownFooter: 'Per million tokens. A price you set wins over models.dev’s, and also prices that model’s earlier calls.',
-      none: 'Every paid model you use has a price.',
-      input: 'Input $',
-      output: 'Output $',
-    },
-    sections: {
-      overview: 'Overview',
-      highlights: 'Highlights',
-      totals: 'Totals',
-      byProvider: 'By provider',
-      byModel: 'By model',
-      byFeature: 'By feature',
-      history: 'History',
+      label: 'Model prices',
+      model: 'Model',
+      provider: 'Provider',
+      source: 'Price from',
+      input: 'Input $ / 1M',
+      output: 'Output $ / 1M',
+      footer: 'Prices per million tokens. Type a price to use yours instead of models.dev’s; it also prices that model’s earlier calls. Clear both to go back.',
+      none: 'No paid models yet. Models you use and add show here.',
+      sources: { own: 'You', catalog: 'models.dev', free: 'Free on this device', unknown: 'No price' },
     },
   },
 } as const;

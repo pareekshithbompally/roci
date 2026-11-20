@@ -133,6 +133,16 @@
   --border-strong: rgb(0 0 0 / 0.2);
   --border-focus: var(--copper-500);
 
+  /* Chart series, in fixed order (validated for colour-blind separation on the card surface; dark has its own steps). */
+  --viz-1: #2a78d6;
+  --viz-2: #eb6834;
+  --viz-3: #1baf7a;
+  --viz-4: #eda100;
+  --viz-5: #e87ba4;
+  --viz-6: #008300;
+  --viz-7: #6250d6;
+  --viz-8: #e34948;
+
   --danger-fg: var(--red-800);
   --danger-bg: var(--red-100);
   --danger-border: var(--red-300);
@@ -266,6 +276,15 @@ html.platform-ios.dark {
   --border-muted: rgb(255 255 255 / 0.08);
   --border-base: rgb(255 255 255 / 0.1);
   --border-strong: rgb(255 255 255 / 0.2);
+
+  --viz-1: #3987e5;
+  --viz-2: #d95926;
+  --viz-3: #199e70;
+  --viz-4: #c98500;
+  --viz-5: #d55181;
+  --viz-6: #0ca30c;
+  --viz-7: #9085e9;
+  --viz-8: #e66767;
 
   --danger-fg: var(--red-500);
   --danger-bg: color-mix(in srgb, var(--red-900) 18%, transparent);

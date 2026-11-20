@@ -30,14 +30,6 @@ export function windowFor(range: UsageRange, now: Date): UsageWindow {
   return { since: addDays(startOfDay(now), -(days - 1)).getTime(), until, bucket: 'day' };
 }
 
-/** The same number of days just before a fixed range, for "compared with"; none for all time. */
-export function previousWindow(range: UsageRange, now: Date): UsageWindow | null {
-  if (range === 'all') return null;
-  const days = USAGE_CONFIG.rangeDays[range];
-  const since = addDays(startOfDay(now), -(2 * days - 1)).getTime();
-  return { since, until: addDays(startOfDay(now), -(days - 1)).getTime(), bucket: 'day' };
-}
-
 /** Every bucket key in the window, oldest first: each day of a fixed range, each month from the first record to now. */
 export function bucketKeys(window: UsageWindow, firstTimestamp: number | null, now: Date): string[] {
   const today = startOfDay(now);
@@ -54,11 +46,9 @@ export function bucketKeys(window: UsageWindow, firstTimestamp: number | null, n
   return keys;
 }
 
-/** Calendar days the window spans up to today: the range's days, or from the first record's day for all time. */
-export function dayCount(range: UsageRange, firstTimestamp: number | null, now: Date): number {
-  if (range !== 'all') return USAGE_CONFIG.rangeDays[range];
-  if (firstTimestamp === null) return 1;
-  let days = 1;
-  for (let d = startOfDay(new Date(firstTimestamp)); d < startOfDay(now); d = addDays(d, 1)) days++;
-  return days;
+/** The same number of days just before a fixed range, for each KPI's change; none for all time. */
+export function previousWindow(range: UsageRange, now: Date): UsageWindow | null {
+  if (range === 'all') return null;
+  const days = USAGE_CONFIG.rangeDays[range];
+  return { since: addDays(startOfDay(now), -(2 * days - 1)).getTime(), until: addDays(startOfDay(now), -(days - 1)).getTime(), bucket: 'day' };
 }

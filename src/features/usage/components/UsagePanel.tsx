@@ -1,18 +1,22 @@
-/** Settings › Usage: the root page, or (Mac, iPad) the page drilled into; a phone pushes pages onto its NavStack instead. */
+/** Settings › Usage: two tabs in the page header — Activity (what was used and what it cost) and Prices (what each model costs). */
 
-import React, { useEffect } from 'react';
-import { useOptionalNavStack } from '@shared/ui';
-import { useResetUsagePath, useUsagePath } from '@features/usage/stores/usageStore';
-import { ALL_USAGE } from '@features/usage/model/subject';
-import { UsagePage } from './UsageDetail';
+import React from 'react';
+import { Tabs } from '@shared/ui';
+import { USAGE_CONFIG } from '@config/usage.config';
+import { SettingsPage } from '@features/settings/components/shared/SettingsPage';
+import { useSetUsageTab, useUsageTab } from '@features/usage/stores/usageStore';
+import { ActivityTab } from './ActivityTab';
+import { PricesTab } from './PricesTab';
 
 export const UsagePanel: React.FC = () => {
-  const inStack = useOptionalNavStack() !== null;
-  const path = useUsagePath();
-  const reset = useResetUsagePath();
-  // Leaving the panel closes any drilled-in page, so Usage always reopens at its overview.
-  useEffect(() => reset, [reset]);
-
-  const subject = (inStack ? undefined : path[path.length - 1]) ?? ALL_USAGE;
-  return <UsagePage key={JSON.stringify(subject)} subject={subject} />;
+  const tab = useUsageTab();
+  const setTab = useSetUsageTab();
+  return (
+    <SettingsPage
+      title={USAGE_CONFIG.copy.title}
+      accessory={<Tabs items={USAGE_CONFIG.tabs} value={tab} onValueChange={setTab} label="Usage view" />}
+    >
+      {tab === 'activity' ? <ActivityTab /> : <PricesTab />}
+    </SettingsPage>
+  );
 };

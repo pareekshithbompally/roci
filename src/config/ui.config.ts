@@ -35,17 +35,19 @@ export const UI_CONFIG = {
   glyphTile: { tile: 34, glyph: 24 },
   /** Bar chart (usage trends): plot height (taller on touch), bar cap and gap, data-end radius, axis gutters, label density, dimmed bars. */
   chart: {
-    height: 180,
-    touch: { height: 200 },
-    barMax: 24,
-    barGap: 2,
+    /** Plot heights in px: the trend, and each split donut. */
+    trendHeight: 200,
+    donutHeight: 220,
+    /** Slices a donut shows before the rest fold into "Other" (palette slots, never cycled). */
+    maxSlices: 6,
+    /** Space under a donut for its legend (one line per slice). */
+    donutLegendHeight: 120,
+    /** Marks: widest bar, its rounded top, the gap between slices (px). */
+    barMaxWidth: 24,
     barRadius: 4,
-    axisWidth: 44,
-    axisGap: 6,
-    xAxisHeight: 20,
-    xLabels: 5,
-    tickIntervals: 2,
-    dimOpacity: 0.45,
+    sliceGap: 2,
+    /** Plot inset inside its card (px). */
+    inset: 8,
   },
   /** A macOS app icon's visible body inside its canvas (824 of 1024): app icons scale up by its inverse to match a tile. */
   appIconBody: 824 / 1024,

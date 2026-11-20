@@ -51,14 +51,10 @@ export interface UsageBucket {
 /** Calendar bucket for a trend, in local time. */
 export type UsageBucketSize = 'day' | 'month';
 
-/** Which usage to sum (Rust `UsageQuery`): window `[since, until)` in epoch ms, optional filters, optional trend buckets. */
+/** Which usage to sum (Rust `UsageQuery`): window `[since, until)` in epoch ms, optional trend buckets. */
 export interface UsageQuery {
   since?: number;
   until?: number;
-  provider?: string;
-  model?: string;
-  /** A recorded category (free text in the store; the app writes `UsageCategory` values). */
-  category?: string;
   bucket?: UsageBucketSize;
 }
 

@@ -1,37 +1,23 @@
-/** Usage view state: one range and metric for every usage screen, and the in-panel drill path (Mac, iPad). */
+/** Usage view state: the open tab and the time range every Activity chart shares. */
 
 import { create } from 'zustand';
-import { USAGE_CONFIG, type UsageMetric, type UsageRange } from '@config/usage.config';
-import type { UsageSubject } from '@features/usage/model/subject';
+import { USAGE_CONFIG, type UsageRange, type UsageTab } from '@config/usage.config';
 
 interface UsageState {
+  tab: UsageTab;
   range: UsageRange;
-  metric: UsageMetric;
-  /** Pages drilled into inside the Settings panel, deepest last; a phone pushes screens instead. */
-  path: UsageSubject[];
+  setTab: (tab: UsageTab) => void;
   setRange: (range: UsageRange) => void;
-  setMetric: (metric: UsageMetric) => void;
-  open: (subject: UsageSubject) => void;
-  back: () => void;
-  reset: () => void;
 }
 
 export const useUsageStore = create<UsageState>((set) => ({
+  tab: 'activity',
   range: USAGE_CONFIG.defaultRange,
-  metric: USAGE_CONFIG.defaultMetric,
-  path: [],
+  setTab: (tab) => set({ tab }),
   setRange: (range) => set({ range }),
-  setMetric: (metric) => set({ metric }),
-  open: (subject) => set((s) => ({ path: [...s.path, subject] })),
-  back: () => set((s) => ({ path: s.path.slice(0, -1) })),
-  reset: () => set({ path: [] }),
 }));
 
+export const useUsageTab = () => useUsageStore((s) => s.tab);
+export const useSetUsageTab = () => useUsageStore((s) => s.setTab);
 export const useUsageRange = () => useUsageStore((s) => s.range);
-export const useUsageMetric = () => useUsageStore((s) => s.metric);
-export const useUsagePath = () => useUsageStore((s) => s.path);
 export const useSetUsageRange = () => useUsageStore((s) => s.setRange);
-export const useSetUsageMetric = () => useUsageStore((s) => s.setMetric);
-export const useOpenUsageInPanel = () => useUsageStore((s) => s.open);
-export const useUsageBack = () => useUsageStore((s) => s.back);
-export const useResetUsagePath = () => useUsageStore((s) => s.reset);

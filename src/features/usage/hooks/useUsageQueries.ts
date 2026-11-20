@@ -1,63 +1,44 @@
-/** Usage from the store plugin: a page's window with its trend, and the same-length window before it.
- *  Query options are shared with prefetching, so a page opened from a hovered or tapped row already has its data. */
+/** Usage from the store plugin: a range's window by day (or month), the window before it, and every model ever used. */
 
-import { keepPreviousData, queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useRef } from 'react';
+import { useMemo } from 'react';
+import { keepPreviousData, queryOptions, useQuery } from '@tanstack/react-query';
+import { localDayKey } from '@shared/utils/localDate';
 import { queryKeys } from '@shared/query/queryKeys';
 import { getUsageSummary, type UsageQuery, type UsageSummary } from '@extensions/usage';
 import type { UsageRange } from '@config/usage.config';
 import { previousWindow, windowFor, type UsageWindow } from '@features/usage/model/period';
-import { subjectFilter, type UsageSubject } from '@features/usage/model/subject';
 
 /** Usage changes only when a request is logged, which invalidates every usage query; until then a result stays current. */
 const summaryOptions = (query: UsageQuery) =>
   queryOptions({ queryKey: queryKeys.usage(query), queryFn: () => getUsageSummary(query), staleTime: Infinity });
 
-/** The two queries a page reads: its window bucketed, and the window before it (none for all time). */
-function pageQueries(subject: UsageSubject, range: UsageRange, now: Date) {
-  const filter = subjectFilter(subject);
-  const period = windowFor(range, now);
-  const previous = previousWindow(range, now);
-  return {
-    period,
-    current: summaryOptions({ since: period.since, until: period.until, bucket: period.bucket, ...filter }),
-    previous: previous ? summaryOptions({ since: previous.since, until: previous.until, ...filter }) : null,
-  };
-}
-
-/** What a page shows: a window with its own usage, never one window's dates with another's numbers. */
 export interface UsageView {
   period: UsageWindow;
-  /** Absent only during the page's very first load (the page keeps its frame meanwhile). */
   summary: UsageSummary | undefined;
-  /** Null for all time; else the window before, `summary` absent until it arrives. */
-  previous: null | { summary: UsageSummary | undefined };
+  /** The window before, for each KPI's change; null for all time. */
+  previous: UsageSummary | undefined | null;
+  isLoading: boolean;
   error: unknown;
 }
 
-/** A page's data. While a new range loads, the last settled window and its data stay together on screen. */
-export function useUsagePage(subject: UsageSubject, range: UsageRange): UsageView {
-  const q = pageQueries(subject, range, new Date());
-  const current = useQuery({ ...q.current, placeholderData: keepPreviousData });
-  const previous = useQuery({ ...(q.previous ?? summaryOptions({})), enabled: q.previous !== null });
-  const fresh: UsageView = {
-    period: q.period,
-    summary: current.isPlaceholderData ? undefined : current.data,
-    previous: q.previous ? { summary: previous.data } : null,
+/** A range's usage; while a new range loads, the last one stays on screen. */
+export function useUsageWindow(range: UsageRange): UsageView {
+  // The windows change only with the range or the day, so charts built from them aren't rebuilt on every render.
+  const today = localDayKey(new Date());
+  const { period, before } = useMemo(() => {
+    const now = new Date();
+    return { period: windowFor(range, now), before: previousWindow(range, now) };
+  }, [range, today]);
+  const current = useQuery({ ...summaryOptions({ since: period.since, until: period.until, bucket: period.bucket }), placeholderData: keepPreviousData });
+  const previous = useQuery({ ...summaryOptions({ since: before?.since, until: before?.until }), enabled: before !== null });
+  return {
+    period,
+    summary: current.data,
+    previous: before ? previous.data : null,
+    isLoading: current.isLoading,
     error: current.error,
   };
-  const settled = useRef<UsageView | null>(null);
-  if (fresh.summary) settled.current = fresh;
-  return current.isPlaceholderData && settled.current ? settled.current : fresh;
 }
 
-/** Starts loading a page's data before it opens (row hover or focus, or the tap that pushes it). */
-export function usePrefetchUsagePage(): (subject: UsageSubject, range: UsageRange) => void {
-  const queryClient = useQueryClient();
-  return useCallback((subject, range) => {
-    const q = pageQueries(subject, range, new Date());
-    const failed = (error: unknown) => console.error('[usage] prefetch failed:', error);
-    queryClient.prefetchQuery(q.current).catch(failed);
-    if (q.previous) queryClient.prefetchQuery(q.previous).catch(failed);
-  }, [queryClient]);
-}
+/** Every model and provider ever used (the Prices tab lists them). */
+export const useUsedModels = () => useQuery(summaryOptions({})).data?.by_provider_model ?? [];

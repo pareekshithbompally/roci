@@ -513,9 +513,6 @@ pub enum UsageBucketSize {
 pub struct UsageQuery {
     pub since: Option<i64>,
     pub until: Option<i64>,
-    pub provider: Option<String>,
-    pub model: Option<String>,
-    pub category: Option<String>,
     pub bucket: Option<UsageBucketSize>,
 }
 
@@ -2600,18 +2597,11 @@ pub async fn price_unpriced_usage(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-/// The window and filters every usage query shares; parameters ?1–?5 in `usage_params` order.
-const USAGE_WHERE: &str = "timestamp >= ?1 AND timestamp < ?2
-     AND (?3 IS NULL OR provider = ?3) AND (?4 IS NULL OR model = ?4) AND (?5 IS NULL OR category = ?5)";
+/// The window every usage query reads (`[since, until)`, on the timestamp index); parameters ?1–?2 in `usage_params` order.
+const USAGE_WHERE: &str = "timestamp >= ?1 AND timestamp < ?2";
 
-fn usage_params(q: &UsageQuery) -> (i64, i64, Option<&str>, Option<&str>, Option<&str>) {
-    (
-        q.since.unwrap_or(0),
-        q.until.unwrap_or(i64::MAX),
-        q.provider.as_deref(),
-        q.model.as_deref(),
-        q.category.as_deref(),
-    )
+fn usage_params(q: &UsageQuery) -> (i64, i64) {
+    (q.since.unwrap_or(0), q.until.unwrap_or(i64::MAX))
 }
 
 fn usage_trend(db: &Connection, q: &UsageQuery) -> Result<Vec<UsageBucket>, StoreError> {
@@ -2628,7 +2618,7 @@ fn usage_trend(db: &Connection, q: &UsageQuery) -> Result<Vec<UsageBucket>, Stor
     let p = usage_params(q);
     let mut stmt = db.prepare(&sql)?;
     let rows = stmt
-        .query_map(rusqlite::params![p.0, p.1, p.2, p.3, p.4], |row| {
+        .query_map(rusqlite::params![p.0, p.1], |row| {
             Ok(UsageBucket {
                 key: row.get(0)?,
                 calls: row.get(1)?,
@@ -2652,7 +2642,7 @@ fn usage_summary_impl(db: &Connection, q: &UsageQuery) -> Result<UsageSummary, S
                  COALESCE(SUM(estimated_cost IS NULL), 0), MIN(timestamp)
                  FROM usage_log WHERE {USAGE_WHERE}"
             ),
-            rusqlite::params![params.0, params.1, params.2, params.3, params.4],
+            rusqlite::params![params.0, params.1],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?)),
         )?;
 
@@ -2664,7 +2654,7 @@ fn usage_summary_impl(db: &Connection, q: &UsageQuery) -> Result<UsageSummary, S
          GROUP BY provider, model ORDER BY SUM(COALESCE(estimated_cost, 0)) DESC, COUNT(*) DESC"
     ))?;
     let by_provider_model = stmt
-        .query_map(rusqlite::params![params.0, params.1, params.2, params.3, params.4], |row| {
+        .query_map(rusqlite::params![params.0, params.1], |row| {
             Ok(ProviderModelBreakdown {
                 provider: row.get(0)?,
                 model: row.get(1)?,
@@ -2685,7 +2675,7 @@ fn usage_summary_impl(db: &Connection, q: &UsageQuery) -> Result<UsageSummary, S
          GROUP BY category ORDER BY SUM(COALESCE(estimated_cost, 0)) DESC, COUNT(*) DESC"
     ))?;
     let by_category = stmt
-        .query_map(rusqlite::params![params.0, params.1, params.2, params.3, params.4], |row| {
+        .query_map(rusqlite::params![params.0, params.1], |row| {
             Ok(CategoryBreakdown {
                 category: row.get(0)?,
                 calls: row.get(1)?,
@@ -3404,22 +3394,11 @@ pub(crate) mod tests {
         assert_eq!(all.trend.iter().map(|b| b.input_tokens).sum::<i64>(), all.total_input_tokens);
         assert!((all.trend.iter().map(|b| b.estimated_cost).sum::<f64>() - all.total_cost).abs() < 1e-9);
 
-        let gemini = usage_summary_impl(&conn, &UsageQuery { provider: Some("gemini".into()), ..Default::default() }).unwrap();
-        assert_eq!(gemini.total_calls, 3);
-        assert_eq!(gemini.by_provider_model.iter().map(|r| r.model.as_str()).collect::<Vec<_>>(), vec!["pro", "flash"]);
-        assert!(gemini.trend.is_empty(), "no bucket asked, no trend");
-
-        let flash_chat = usage_summary_impl(&conn, &UsageQuery {
-            model: Some("flash".into()), category: Some("chat".into()), ..Default::default()
-        }).unwrap();
-        assert_eq!(flash_chat.total_calls, 1);
-        assert_eq!(flash_chat.total_input_tokens, 100);
-
         // [since, until): the first day only; the record exactly at `until` is excluded.
         let window = usage_summary_impl(&conn, &UsageQuery { since: Some(noon), until: Some(noon + DAY_MS), ..Default::default() }).unwrap();
         assert_eq!(window.total_calls, 2);
 
-        let empty = usage_summary_impl(&conn, &UsageQuery { provider: Some("none".into()), bucket: Some(UsageBucketSize::Month), ..Default::default() }).unwrap();
+        let empty = usage_summary_impl(&conn, &UsageQuery { since: Some(i64::MAX - 1), bucket: Some(UsageBucketSize::Month), ..Default::default() }).unwrap();
         assert_eq!((empty.total_calls, empty.first_timestamp, empty.trend.len()), (0, None, 0));
     }
 
