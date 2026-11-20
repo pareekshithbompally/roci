@@ -15,9 +15,10 @@ export const TRANSCRIPTION_CONFIG = {
   /** Real-time transcription copy for the General setting and the mark on speech models that support it. */
   liveCopy: {
     description: 'Words appear while you talk, in meetings and dictation.',
-    /** What the chosen speech model does live: streams everywhere, streams dictation only, or chunks (near-live). */
+    /** What the chosen speech model does live: streams everywhere, dictation only, tried at each start, or near-live chunks. */
     streams: 'Your speech model streams: words appear as you speak.',
     dictationOnly: 'Your speech model streams dictation; in meetings, words come about 8 seconds behind.',
+    tried: 'Words appear as you speak when your speech model streams; otherwise about 8 seconds behind.',
     chunks: 'Your speech model works near-live: words come about 8 seconds behind.',
     mark: 'Real-time',
   },
@@ -48,13 +49,6 @@ export const TRANSCRIPTION_CONFIG = {
     'on-device': 'on-device',
   } as Record<string, TranscriptionAdapterId>,
 
-  /** Cloud speech models that stream (words as they are said), by adapter — the ones the AI SDK opens a stream for (OpenAI's
-   *  gpt-4o transcribe models are upload-only there); any other model goes live in chunks. */
-  streamingModels: {
-    'openai-compatible': /^(gpt-transcribe|gpt-live-transcribe|gpt-realtime-whisper)/i,
-    deepgram: /^(nova|flux)/i,
-    elevenlabs: /realtime/i,
-  } as Partial<Record<TranscriptionAdapterId, RegExp>>,
   /** Cloud streaming audio: 16-bit little-endian PCM at 24 kHz, the one rate every cloud stream takes (OpenAI only 24 kHz;
    *  ElevenLabs 8–48 kHz; Deepgram any). */
   streamingFormat: { type: 'audio/pcm', rate: 24_000 },

@@ -10,7 +10,9 @@ import type { LiveStream, LiveText, StreamingEngine } from './streaming';
 
 const joined = (a: string, b: string) => [a, b].filter((t) => t.trim()).join(' ').trim();
 
-function openStream(family: TranscriptionFamily, model: Parameters<typeof createTranscriptionModel>[1]): LiveStream {
+/** Opens a stream and waits for the provider to take it: the SDK settles `warnings` when the stream starts, and rejects it when
+ *  the model can't stream (OpenAI and ElevenLabs refuse such a model before connecting). */
+async function openStream(family: TranscriptionFamily, model: Parameters<typeof createTranscriptionModel>[1]): Promise<LiveStream> {
   let push: ReadableStreamDefaultController<Uint8Array> | null = null;
   const audio = new ReadableStream<Uint8Array>({ start: (controller) => { push = controller; } });
   const stop = new AbortController();
@@ -39,6 +41,10 @@ function openStream(family: TranscriptionFamily, model: Parameters<typeof create
   const failed = () => {
     if (failure) throw failure;
   };
+  await result.warnings.catch((error: unknown) => {
+    stop.abort();
+    throw error;
+  });
   return {
     async feed(pcm) {
       failed();
@@ -58,11 +64,10 @@ function openStream(family: TranscriptionFamily, model: Parameters<typeof create
   };
 }
 
-/** A cloud engine that streams the models `streams` names; each stream is its own connection, so any number run at once. */
-export function sdkStreaming(family: TranscriptionFamily, streams: (model: string) => boolean): StreamingEngine {
+/** A cloud engine: each stream is its own connection, so any number run at once. */
+export function sdkStreaming(family: TranscriptionFamily): StreamingEngine {
   return {
     concurrent: Number.POSITIVE_INFINITY,
-    streams,
     async open({ model, resolved }) {
       if (!resolved) throw new Error('This speech model needs credentials.');
       return openStream(family, { ...resolved, modelId: model });

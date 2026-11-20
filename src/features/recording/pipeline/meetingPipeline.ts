@@ -106,11 +106,14 @@ const transcribeRecording = (id: string, context: PipelineContext): StepWork => 
   await transcriptionService.saveTranscript({ meetingId: id, text: formatted, segments, model: speechModelOf(context) });
 };
 
-/** Just after Stop: the in-call transcript ends (it stays on screen as the draft) and the whole recording is transcribed — as
- *  Hex does, the final transcript always comes from the full recording, with every word in its context. */
-const transcribeAfterRecording = (id: string, context: PipelineContext): StepWork => (signal) => {
-  liveTranscript.finish(id);
-  return transcribeRecording(id, context)(signal);
+/** Just after Stop: the in-call transcript finishes its last chunks and, when nothing was lost, is the meeting's transcript —
+ *  each line labelled by the side that said it. A draft with a gap, or no words, is replaced by the whole recording's. */
+const transcribeAfterRecording = (id: string, context: PipelineContext): StepWork => async (signal) => {
+  const draft = await liveTranscript.finish(id, signal);
+  signal.throwIfAborted();
+  if (!draft?.complete || draft.entries.length === 0) return transcribeRecording(id, context)(signal);
+  const { formatted, segments } = formatTranscript(liveTranscriptResult(draft.entries));
+  await transcriptionService.saveTranscript({ meetingId: id, text: formatted, segments, model: speechModelOf(context) });
 };
 
 function storedTranscript(meeting: MeetingDetail): Transcript {
@@ -220,9 +223,9 @@ export const meetingPipeline = {
     else void meetingPipeline.run(id);
   },
 
-  /** A recording just stopped. With an in-call transcript the meeting reads as transcribing at once (its draft stays on
-   *  screen) and the whole recording is transcribed; without one it is transcribed only when the user asked for that. Then the
-   *  summary follows. */
+  /** A recording just stopped. With an in-call transcript the meeting reads as transcribing at once while its last chunks
+   *  finish (the draft stays on screen); without one it is transcribed only when the user asked for that. Then the summary
+   *  follows. */
   recorded(id: string): void {
     const live = liveTranscript.active(id);
     if (!live && !readContext?.().settings.autoTranscribe) return;

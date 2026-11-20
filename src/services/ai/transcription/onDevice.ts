@@ -31,7 +31,6 @@ const display = (text: LiveText) => `${text.committed}${text.tentative}`.trim();
  *  model for the whole stream, so one stream runs at a time. Audio goes as raw f32. */
 export const onDeviceStreaming: StreamingEngine = {
   concurrent: 1,
-  streams: () => true,
   async open({ model, language }) {
     await invoke('stt_live_start', { model, language });
     return {

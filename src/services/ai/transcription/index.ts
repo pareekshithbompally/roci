@@ -16,10 +16,9 @@ export {
   prepareAppleSpeech,
 } from './appleSpeech';
 export type { AppleSpeechStep } from './appleSpeech';
-export { liveModeOf, openLiveStream } from './live';
+export { openLiveStream, runsLive, tryLiveStreams } from './live';
 export { liveStreams } from './liveStreams';
 export type { LiveStreams, StreamLine } from './liveStreams';
-export type { LiveMode } from './live';
 export { EMPTY_LIVE_TEXT } from './streaming';
 export { recordedCapture, liveCapture } from './capture';
 export type { DictationCapture } from './capture';

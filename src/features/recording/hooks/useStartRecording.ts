@@ -1,18 +1,22 @@
-/** Starts a recording with the source chosen in Settings › General › Capture (iPhone and iPad record the microphone), telling
- *  the recorder whether the chosen speech model streams both sides of the meeting live. */
+/** Starts a recording with the source chosen in Settings › General › Capture (iPhone and iPad record the microphone). With
+ *  Real-time transcription on it first tries real-time for each side, so the recorder knows to send frames or chunks. */
 
 import { useCallback } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { useSelectedSpeechOption } from '@features/settings';
-import { liveModeOf } from '@services/ai/transcription';
 import { recording } from '@features/recording/stores/recordingStore';
+import { liveTranscript } from '@features/recording/live';
 import { MEETING_LIVE_CONFIG as LIVE } from '@config/meetingLive.config';
 import { platform } from '@platform/index';
 
 export function useStartRecording(): () => Promise<string> {
   const { settings, providers } = useSettings();
-  const option = useSelectedSpeechOption();
   const source = platform.canCaptureSystemAudio ? settings.defaultAudioSource ?? 'systemAndMicrophone' : 'microphone';
-  const streaming = !!settings.liveTranscription && liveModeOf(option, providers, LIVE.sources) === 'streams';
-  return useCallback(() => recording.start(source, streaming), [source, streaming]);
+  const live = !!settings.liveTranscription;
+  return useCallback(async () => {
+    const streaming = live && (await liveTranscript.prepare(() => ({ settings, providers }), LIVE.sides[source]));
+    return recording.start(source, streaming).catch((error: unknown) => {
+      liveTranscript.release();
+      throw error;
+    });
+  }, [live, settings, providers, source]);
 }

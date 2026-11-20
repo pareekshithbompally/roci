@@ -4,7 +4,7 @@ const invoke = vi.hoisted(() => vi.fn());
 vi.mock('@tauri-apps/api/core', () => ({ invoke, Channel: class {} }));
 
 import { STREAMING } from '@services/ai/transcription/streaming';
-import { liveModeOf } from '@services/ai/transcription/live';
+import { runsLive } from '@services/ai/transcription/live';
 import { speechModelOptions } from '@services/ai/transcription/catalog';
 
 const PLUGIN = 'plugin:apple-intelligence|';
@@ -63,6 +63,6 @@ describe('Apple Speech streaming engine', () => {
     const status = { available: true, authorization: 'authorized' as const, installed: true };
     const option = speechModelOptions([], { appleSpeech: { status } }).find((o) => o.provider === 'apple-intelligence');
     expect(option?.live).toBe(true);
-    expect(liveModeOf(option, [], 2)).toBe('streams');
+    expect(option && runsLive(option, [], 2)).toBe(true);
   });
 });

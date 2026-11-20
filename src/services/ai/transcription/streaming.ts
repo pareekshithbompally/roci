@@ -1,7 +1,7 @@
-/** The speech engines that stream — words as they are said — keyed by adapter: the one place that knows which models stream and
- *  how many streams an engine runs at once. Every other model goes live in chunks (see live.ts). */
+/** The speech engines that stream — words as they are said — keyed by adapter, with how many streams each runs at once. Whether
+ *  a model streams is found by opening its stream: a model that can't refuses it (see live.ts). */
 
-import { TRANSCRIPTION_CONFIG, type TranscriptionAdapterId } from '@config/transcription.config';
+import type { TranscriptionAdapterId } from '@config/transcription.config';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { onDeviceStreaming } from './onDevice';
 import { appleSpeechStreaming } from './appleSpeech';
@@ -27,24 +27,14 @@ export interface LiveStream {
 export interface StreamingEngine {
   /** Streams it runs at once: a meeting needs two (you and the call), dictation one. */
   concurrent: number;
-  /** Whether this model of the engine streams. */
-  streams(model: string): boolean;
+  /** Opens a stream; rejects when the model can't stream. */
   open(request: { model: string; resolved: ResolvedModel | null; language: string }): Promise<LiveStream>;
 }
-
-const { streamingModels } = TRANSCRIPTION_CONFIG;
-const cloud = (adapter: 'openai-compatible' | 'deepgram' | 'elevenlabs'): StreamingEngine =>
-  sdkStreaming(adapter, (model) => streamingModels[adapter]?.test(model) ?? false);
 
 export const STREAMING: Partial<Record<TranscriptionAdapterId, StreamingEngine>> = {
   'on-device': onDeviceStreaming,
   'apple-speech': appleSpeechStreaming,
-  'openai-compatible': cloud('openai-compatible'),
-  deepgram: cloud('deepgram'),
-  elevenlabs: cloud('elevenlabs'),
+  'openai-compatible': sdkStreaming('openai-compatible'),
+  deepgram: sdkStreaming('deepgram'),
+  elevenlabs: sdkStreaming('elevenlabs'),
 };
-
-/** Whether a model streams through its adapter (cloud models by name; the catalog knows which local models stream). */
-export function canStream(adapter: TranscriptionAdapterId | null, model: string): boolean {
-  return !!adapter && (STREAMING[adapter]?.streams(model) ?? false);
-}

@@ -1,33 +1,46 @@
-import { describe, expect, it, vi } from 'vitest';
-import { canStream } from '@services/ai/transcription/streaming';
-import { liveModeOf } from '@services/ai/transcription/live';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import type { LiveStream } from '@services/ai/transcription';
+
+/** A stand-in on-device engine that runs two streams; the model takes or refuses each one. */
+const engine = vi.hoisted(() => ({ refuseAt: -1, opened: 0, cancelled: 0 }));
+vi.mock('@services/ai/transcription/streaming', () => ({
+  STREAMING: {
+    'on-device': {
+      concurrent: 2,
+      open: async () => {
+        if (engine.opened++ === engine.refuseAt) throw new Error("this model can't transcribe live");
+        return { feed: vi.fn(), finish: vi.fn(), cancel: async () => { engine.cancelled++; } };
+      },
+    },
+  },
+}));
+
+import { runsLive, tryLiveStreams } from '@services/ai/transcription/live';
 import { liveStreams } from '@services/ai/transcription/liveStreams';
-import type { LiveStream, SpeechModelOption } from '@services/ai/transcription';
 
-const option = (provider: string, model: string, live: boolean): SpeechModelOption => ({ provider, model, label: model, ready: true, hint: null, live });
+const local = { provider: 'on-device', model: 'parakeet-tdt' };
 
-describe('liveModeOf — the one answer to "streams or chunks"', () => {
-  it('a model that does not stream goes live in chunks', () => {
-    expect(liveModeOf(option('hex', 'parakeet', false), [], 1)).toBe('chunks');
-    expect(liveModeOf(undefined, [], 1)).toBe('chunks');
+beforeEach(() => Object.assign(engine, { refuseAt: -1, opened: 0, cancelled: 0 }));
+
+describe('try real-time, else chunks', () => {
+  it('worth trying only when the engine runs a stream per side', () => {
+    expect(runsLive(local, [], 2)).toBe(true);
+    expect(runsLive(local, [], 3)).toBe(false);
+    // no streaming engine (Hex) goes live in chunks
+    expect(runsLive({ provider: 'hex', model: 'parakeet' }, [], 1)).toBe(false);
   });
 
-  it('the on-device engine streams dictation but chunks a meeting (one stream at a time)', () => {
-    const local = option('on-device', 'parakeet-tdt', true);
-    expect(liveModeOf(local, [], 1)).toBe('streams');
-    expect(liveModeOf(local, [], 2)).toBe('chunks');
+  it('every side taken → the streams; one refused → none kept, the opened ones closed', async () => {
+    expect(await tryLiveStreams(local, [], 2)).toHaveLength(2);
+    engine.opened = 0;
+    engine.refuseAt = 1;
+    expect(await tryLiveStreams(local, [], 2)).toBeNull();
+    expect(engine.cancelled).toBe(1);
   });
 
-  it('cloud models stream by name, per adapter', () => {
-    expect(canStream('openai-compatible', 'gpt-live-transcribe')).toBe(true);
-    expect(canStream('openai-compatible', 'gpt-realtime-whisper')).toBe(true);
-    // the AI SDK only uploads these: as a stream they fail and the live transcript goes unavailable
-    expect(canStream('openai-compatible', 'gpt-4o-mini-transcribe')).toBe(false);
-    expect(canStream('openai-compatible', 'gpt-4o-transcribe')).toBe(false);
-    expect(canStream('openai-compatible', 'whisper-1')).toBe(false);
-    expect(canStream('deepgram', 'nova-3')).toBe(true);
-    expect(canStream('hex', 'parakeet')).toBe(false);
-    expect(canStream(null, 'anything')).toBe(false);
+  it('an engine that runs too few streams is not tried at all', async () => {
+    expect(await tryLiveStreams(local, [], 3)).toBeNull();
+    expect(engine.opened).toBe(0);
   });
 });
 

@@ -83,7 +83,6 @@ export const appleSpeechTranscribePart: TranscribePart = ({ wav }) =>
 /** Streaming with Apple Speech: each stream is its own analyzer under its own id, so a meeting runs two (you and the call). */
 export const appleSpeechStreaming: StreamingEngine = {
   concurrent: 2,
-  streams: () => true,
   async open({ language }) {
     // Random, not a counter: a webview reload would restart a counter while native streams live on.
     const [id] = crypto.getRandomValues(new Uint32Array(1));

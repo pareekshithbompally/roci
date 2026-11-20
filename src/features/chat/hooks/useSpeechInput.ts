@@ -116,12 +116,11 @@ export function useSpeechInput(
   }, [stopTimer]);
 
   const beginCapture = useCallback((micStream: MediaStream): Promise<DictationCapture> => {
-    if (live) {
-      return liveCapture(micStream, live.open, (text) => {
-        if (mountedRef.current) setLiveText(text);
-      });
-    }
-    return Promise.resolve(recordedCapture(micStream, (audio) => audioToRawText(audio, settings, providers)));
+    const transcribe = (audio: Blob) => audioToRawText(audio, settings, providers);
+    if (!live) return Promise.resolve(recordedCapture(micStream, transcribe));
+    return liveCapture(micStream, live.open, (text) => {
+      if (mountedRef.current) setLiveText(text);
+    }, transcribe);
   }, [live, settings, providers]);
 
   const start = useCallback(async () => {

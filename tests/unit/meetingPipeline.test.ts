@@ -16,6 +16,11 @@ vi.mock('@services/unifiedAIService', () => ({
 }));
 vi.mock('@services/transcription.service', () => ({ transcriptionService: saves }));
 vi.mock('@shared/utils/appEvents', () => ({ notifyAppEvent: vi.fn() }));
+const live = vi.hoisted(() => ({ active: vi.fn(() => false), finish: vi.fn() }));
+vi.mock('@features/recording/live', async (original) => ({
+  ...(await original<typeof import('@features/recording/live')>()),
+  liveTranscript: live,
+}));
 
 import { meetingPipeline } from '@features/recording/pipeline/meetingPipeline';
 import { meetingLiveActions } from '@features/recording/live';
@@ -135,6 +140,29 @@ describe('meetingPipeline.run', () => {
     expect(ai.transcribeAudio).toHaveBeenCalledTimes(1);
     expect(saves.saveSummary).toHaveBeenCalledTimes(1);
     expect(status).toEqual({ status: 'ready' });
+  });
+
+  it('after Stop, a whole in-call transcript is the meeting\'s transcript: nothing is transcribed again', async () => {
+    live.active.mockReturnValue(true);
+    live.finish.mockResolvedValue({ complete: true, entries: [
+      { source: 'microphone', startMs: 0, endMs: 3_000, text: 'We ship Friday?', timed: true },
+      { source: 'system', startMs: 3_000, endMs: 6_000, text: 'Friday works.', timed: true },
+    ] });
+    meetingPipeline.recorded('m1');
+    await vi.waitFor(() => expect(status).toEqual({ status: 'ready' }));
+    expect(ai.transcribeAudio).not.toHaveBeenCalled();
+    expect(saves.saveTranscript).toHaveBeenCalledWith(expect.objectContaining({ text: '[00:00] You: We ship Friday?\n[00:03] Others: Friday works.' }));
+    live.active.mockReturnValue(false);
+  });
+
+  it('after Stop, a draft with a gap is replaced by transcribing the whole recording', async () => {
+    live.active.mockReturnValue(true);
+    live.finish.mockResolvedValue({ complete: false, entries: [{ source: 'microphone', startMs: 0, endMs: 3_000, text: 'We ship', timed: true }] });
+    meetingPipeline.recorded('m1');
+    await vi.waitFor(() => expect(status).toEqual({ status: 'ready' }));
+    expect(ai.transcribeAudio).toHaveBeenCalledTimes(1);
+    expect(saves.saveTranscript).toHaveBeenCalledWith(expect.objectContaining({ text: 'hello' }));
+    live.active.mockReturnValue(false);
   });
 
   it('does nothing for a recording that failed to record', async () => {

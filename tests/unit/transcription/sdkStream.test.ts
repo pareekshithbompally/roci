@@ -1,8 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 
-const parts = vi.hoisted(() => ({ list: [] as object[], hold: Promise.resolve() }));
+const parts = vi.hoisted(() => ({ list: [] as object[], hold: Promise.resolve(), refused: null as Error | null }));
 vi.mock('ai', () => ({
   experimental_streamTranscribe: () => ({
+    // the SDK settles warnings when the stream starts, and rejects them when the model can't stream
+    warnings: parts.refused ? Promise.reject(parts.refused) : Promise.resolve([]),
     fullStream: (async function* () {
       for (const part of parts.list) {
         // a 'hold' part: the speech goes on, nothing more arrives until released
@@ -19,11 +21,17 @@ import { liveStreams, type StreamLine } from '@services/ai/transcription/liveStr
 
 const open = (list: object[]) => {
   parts.list = list;
-  return sdkStreaming('openai-compatible', () => true).open({ model: 'm', resolved: {} as never, language: 'en' });
+  return sdkStreaming('openai-compatible').open({ model: 'm', resolved: {} as never, language: 'en' });
 };
 const run = async (list: object[]) => (await open(list)).finish();
 
 describe('cloud stream reader', () => {
+  it('a model that cannot stream refuses at open, so the caller goes live in chunks', async () => {
+    parts.refused = new Error('streaming transcription with whisper-1');
+    await expect(open([])).rejects.toThrow('streaming transcription with whisper-1');
+    parts.refused = null;
+  });
+
   it('words that come as deltas (OpenAI) show while spoken, and the stretch settles once with its final text', async () => {
     let release = () => {};
     parts.hold = new Promise((resolve) => { release = resolve; });
@@ -57,7 +65,7 @@ describe('cloud stream reader', () => {
       { type: 'transcript-final', id: 'i1', text: 'Who are you? Help me understand, please.' },
     ];
     const lines: StreamLine<'mic'>[] = [];
-    const engine = sdkStreaming('openai-compatible', () => true);
+    const engine = sdkStreaming('openai-compatible');
     const session = liveStreams<'mic'>(() => engine.open({ model: 'm', resolved: {} as never, language: 'en' }), {
       line: (line) => lines.push(line),
       partial: () => undefined,

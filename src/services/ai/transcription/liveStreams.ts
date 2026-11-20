@@ -46,12 +46,12 @@ export interface LiveStreams<S extends string> {
   cancel(): void;
 }
 
-export function liveStreams<S extends string>(open: () => Promise<LiveStream>, sink: StreamSink<S>): LiveStreams<S> {
+export function liveStreams<S extends string>(open: (source: S) => Promise<LiveStream>, sink: StreamSink<S>): LiveStreams<S> {
   const sources: Partial<Record<S, SourceStream>> = {};
   const failed = (error: unknown) => sink.fail(errorMessage(error));
 
   const streamOf = (source: S): SourceStream => (sources[source] ??= {
-    opening: open().catch((error: unknown) => {
+    opening: open(source).catch((error: unknown) => {
       failed(error);
       return null;
     }),

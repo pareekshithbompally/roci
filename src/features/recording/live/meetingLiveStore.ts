@@ -3,6 +3,8 @@
  *  transcript is saved or the next recording starts. */
 
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { MEETING_LIVE_CONFIG as LIVE } from '@config/meetingLive.config';
 import type { LiveEntry } from './liveTranscript';
 import type { MeetingSource } from '@shared/types/native';
 
@@ -19,10 +21,17 @@ interface MeetingLiveState {
   partial: Partial<Record<MeetingSource, string>>;
 }
 
-export const useMeetingLiveStore = create<MeetingLiveState>(() => ({ meetingId: null, entries: [], live: false, failed: false, reason: '', partial: {} }));
+/** The meeting and its lines are kept for the window's session, so a reload mid-recording shows the draft it had. */
+export const useMeetingLiveStore = create<MeetingLiveState>()(persist(
+  () => ({ meetingId: null, entries: [], live: false, failed: false, reason: '', partial: {} }),
+  { name: LIVE.storageKey, storage: createJSONStorage(() => sessionStorage), partialize: ({ meetingId, entries }) => ({ meetingId, entries }) },
+));
 
 export const meetingLiveActions = {
-  start: (meetingId: string) => useMeetingLiveStore.setState({ meetingId, entries: [], live: true, failed: false, reason: '', partial: {} }),
+  /** A new recording starts empty; the same one again (the window reloaded mid-recording) keeps the lines it had. */
+  start: (meetingId: string) => useMeetingLiveStore.setState((s) => ({
+    meetingId, entries: s.meetingId === meetingId ? s.entries : [], live: true, failed: false, reason: '', partial: {},
+  })),
   set: (entries: LiveEntry[]) => useMeetingLiveStore.setState({ entries }),
   /** The first reason given stays: it is the one to fix. */
   fail: (reason?: string) => useMeetingLiveStore.setState((s) => ({ failed: true, reason: s.reason || reason || '' })),

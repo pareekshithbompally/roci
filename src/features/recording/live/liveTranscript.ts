@@ -1,18 +1,18 @@
 /** The in-call transcript: the recording's own audio (mic and system, from Rust) transcribed with the chosen speech model —
- *  streamed when the model streams (frames), otherwise chunk by chunk in order. It is only the draft the screen shows while
- *  recording: Stop ends it at once, and the meeting's transcript comes from the whole recording. */
+ *  streamed when the model streams (frames), otherwise chunk by chunk in order. At Stop its last chunks are finished and,
+ *  when nothing was lost, it is the meeting's transcript; a draft with a gap is replaced by the whole recording's. */
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { MEETING_LIVE_CONFIG as LIVE, type MeetingSourceId } from '@config/meetingLive.config';
-import { liveStreams, openLiveStream, type LiveStreams, type StreamLine, type TranscriptResult } from '@services/ai/transcription';
+import { liveStreams, openLiveStream, tryLiveStreams, type LiveStream, type LiveStreams, type StreamLine, type TranscriptResult } from '@services/ai/transcription';
 import { readySpeechSelection, transcribeAudio } from '@services/unifiedAIService';
 import { errorMessage } from '@shared/utils/errors';
 import { encodeWavInt16, pcm16ToSamples } from '@shared/utils/wav.utils';
 import type { LiveChunk } from '@shared/types/native';
 import type { AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
-import { meetingLiveActions } from './meetingLiveStore';
+import { draftEntriesOf, meetingLiveActions } from './meetingLiveStore';
 
 /** One transcribed chunk of one source, on the recording's timeline. */
 export interface LiveEntry {
@@ -40,12 +40,29 @@ interface Session {
   draining: Promise<void> | null;
   /** A streaming model's streams, one per source; null when the model goes live in chunks. */
   streams: LiveStreams<MeetingSourceId> | null;
+  /** The streams opened at Record, each taken by its side's first frame; a window reloaded mid-recording opens its own. */
+  opened: Partial<Record<MeetingSourceId, LiveStream>>;
   unlisten: () => void;
+  /** Nothing lost: every chunk since the recording began arrived and was transcribed, so the draft can stand as the transcript. */
+  complete: boolean;
+}
+
+/** What the in-call transcript hands over at Stop: its lines, echo removed, and whether nothing was lost. */
+interface LiveDraft {
+  entries: LiveEntry[];
+  complete: boolean;
 }
 
 type Reader = () => { settings: AppSettings; providers: ModelProvider[] };
 
 let session: Session | null = null;
+/** Streams opened at Record for the recording about to start; its session takes them. */
+let prepared: Partial<Record<MeetingSourceId, LiveStream>> = {};
+
+/** Abandons streams opened but never used (a side that sent no audio, or a Record that failed). */
+function cancelStreams(streams: Partial<Record<MeetingSourceId, LiveStream>>): void {
+  Object.values(streams).forEach((stream) => void stream?.cancel().catch((error: unknown) => console.error('[liveTranscript] cancel failed:', error)));
+}
 
 /** A chunk's or frame's audio (base64 16-bit PCM) as samples. */
 const samplesOf = (pcm: string): Float32Array => pcm16ToSamples(Uint8Array.from(atob(pcm), (c) => c.charCodeAt(0)));
@@ -54,7 +71,24 @@ const wavOf = (pcm: string): Blob => new Blob([encodeWavInt16(samplesOf(pcm), LI
 
 /** A chunk was lost: the draft has a gap, which the screen says (with why, when there is something to fix). */
 function markFailed(current: Session, reason?: string): void {
+  current.complete = false;
   if (session === current) meetingLiveActions.fail(reason);
+}
+
+/** Stops a session's work (the chunk in flight, the queue, the streams); what it heard is no longer whole. */
+function abandon(current: Session): void {
+  current.complete = false;
+  current.unlisten();
+  current.controller.abort();
+  current.waiting = [];
+  current.streams?.cancel();
+  cancelStreams(current.opened);
+}
+
+/** Waits for the session's last words: the queued chunks transcribed, or the streams' final text settled. */
+async function settle(current: Session): Promise<void> {
+  if (current.streams) return current.streams.finish();
+  while (current.draining) await current.draining;
 }
 
 /** The draft, echo removed, shown — in order. */
@@ -65,9 +99,11 @@ function showDraft(current: Session): void {
     .catch((error: unknown) => console.error('[liveTranscript] echo check failed:', error));
 }
 
-/** Each source's chunks arrive numbered 0, 1, 2…; a number skipped is a chunk this window never got. */
+/** Each source's chunks arrive numbered 0, 1, 2…; a number skipped is a chunk this window never got. A window reloaded
+ *  mid-recording joins the count without a gap on screen, but its draft misses the start, so it is not whole. */
 function checkSequence(current: Session, chunk: LiveChunk): void {
   const expected = current.expected[chunk.source];
+  if (expected === undefined && chunk.seq !== 0) current.complete = false;
   if (expected !== undefined && chunk.seq !== expected) markFailed(current);
   current.expected[chunk.source] = chunk.seq + 1;
 }
@@ -252,8 +288,11 @@ export function liveTranscriptResult(entries: LiveEntry[]): TranscriptResult {
   return { text: segments.map((s) => s.text).join(' '), segments };
 }
 
-/** A stream for the chosen speech model (it streams: the recorder was told so at Record), checked like any transcription. */
-async function openStream(read: Reader) {
+/** A side's stream: the one opened at Record, else a new one for the chosen speech model, checked like any transcription. */
+async function openStream(current: Session, read: Reader, side: MeetingSourceId): Promise<LiveStream> {
+  const ready = current.opened[side];
+  delete current.opened[side];
+  if (ready) return ready;
   const { settings, providers } = read();
   return openLiveStream(readySpeechSelection(settings), providers);
 }
@@ -273,20 +312,43 @@ function streamSink(current: Session) {
 }
 
 export const liveTranscript = {
+  /** Before Record: tries real-time for each side the recording will capture. True when every side's stream was taken (the
+   *  recorder then sends frames); false and nothing kept when the model or its engine can't (the recorder sends chunks). */
+  async prepare(read: Reader, sides: readonly MeetingSourceId[]): Promise<boolean> {
+    cancelStreams(prepared);
+    prepared = {};
+    const { settings, providers } = read();
+    const streams = await Promise.resolve()
+      .then(() => tryLiveStreams(readySpeechSelection(settings), providers, sides.length))
+      .catch((error: unknown) => {
+        console.info('[liveTranscript] real-time unavailable, going live in chunks:', error);
+        return null;
+      });
+    if (!streams) return false;
+    prepared = Object.fromEntries(sides.map((side, i) => [side, streams[i]]));
+    return true;
+  },
+
+  /** Record failed: the streams opened for it are closed. */
+  release(): void {
+    cancelStreams(prepared);
+    prepared = {};
+  },
+
   /** Starts listening for a recording's audio — frames for a model that streams (`streaming`, as the recorder reports it),
    *  chunks otherwise; any earlier session (an abandoned recording) is dropped. The same recording again (Real-time
    *  transcription turned off and on) keeps the session it has, and its draft. */
   async start(meetingId: string, read: Reader, streaming = false): Promise<void> {
     if (session?.meetingId === meetingId) return;
-    session?.unlisten();
-    session?.controller.abort();
-    session?.streams?.cancel();
+    if (session) abandon(session);
     meetingLiveActions.start(meetingId);
+    // after a reload mid-recording the kept lines carry on; the chunks missed meanwhile leave the draft not whole
     const current: Session = {
-      meetingId, entries: [], expected: {}, echo: Promise.resolve(), controller: new AbortController(),
-      waiting: [], draining: null, streams: null, unlisten: () => undefined,
+      meetingId, entries: [...draftEntriesOf(meetingId)], expected: {}, echo: Promise.resolve(), controller: new AbortController(),
+      waiting: [], draining: null, streams: null, opened: prepared, unlisten: () => undefined, complete: true,
     };
-    if (streaming) current.streams = liveStreams(() => openStream(read), streamSink(current));
+    prepared = {};
+    if (streaming) current.streams = liveStreams((side) => openStream(current, read, side), streamSink(current));
     session = current;
     current.unlisten = await listen<LiveChunk>(LIVE.chunkEvent, ({ payload }) => enqueue(current, payload, read));
   },
@@ -296,16 +358,23 @@ export const liveTranscript = {
     return session?.meetingId === meetingId;
   },
 
-  /** After Stop: the draft is done — the chunk or streams in flight are stopped, queued chunks dropped (the whole recording is
-   *  transcribed for the transcript); the draft stays on screen. Only this meeting's session is touched, never a newer one. */
-  finish(meetingId: string): void {
+  /** After Stop (Rust has sent the last chunks before Stop returns): the queued chunks are transcribed or the streams
+   *  finished, then the draft is handed over, echo removed, and stays on screen. `signal` stops the wait, leaving the draft
+   *  not whole. Only this meeting's session is touched, never a newer one; null when it has none. */
+  async finish(meetingId: string, signal?: AbortSignal): Promise<LiveDraft | null> {
     const current = session;
-    if (!current || current.meetingId !== meetingId) return;
+    if (!current || current.meetingId !== meetingId) return null;
+    const stop = () => abandon(current);
+    signal?.addEventListener('abort', stop, { once: true });
+    await settle(current).finally(() => signal?.removeEventListener('abort', stop));
     current.unlisten();
-    current.controller.abort();
-    current.waiting = [];
-    current.streams?.cancel();
-    session = null;
-    meetingLiveActions.end();
+    cancelStreams(current.opened);
+    const entries = await withoutEcho(current.entries);
+    if (session === current) {
+      session = null;
+      meetingLiveActions.set(entries);
+      meetingLiveActions.end();
+    }
+    return { entries, complete: current.complete };
   },
 };

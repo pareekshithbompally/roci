@@ -1,15 +1,18 @@
 /** The in-call transcript: who each recorded source is, and how its echo is recognised. */
 
 import type { MeetingSource } from '@shared/types/native';
+import type { AudioCaptureSource } from '@config/audio.config';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 
 export const MEETING_LIVE_CONFIG = {
   /** Rust → webview (src-tauri/src/audio/live.rs): one chunk (or frame) of a source. */
   chunkEvent: 'meeting-live://chunk',
+  /** Where the draft is kept for the window's session (sessionStorage), so a reload mid-recording keeps it. */
+  storageKey: 'roci-meeting-live',
   /** Chunks are mono 16-bit PCM at the transcription sample rate. */
   sampleRate: TRANSCRIPTION_CONFIG.sampleRate,
-  /** Streams a meeting runs at once when its speech model streams: one per source (you and the call). */
-  sources: 2,
+  /** The sides a capture source records; a meeting that streams runs one stream per side. */
+  sides: { microphone: ['microphone'], system: ['system'], systemAndMicrophone: ['microphone', 'system'] } satisfies Record<AudioCaptureSource, MeetingSource[]>,
   /** The speaker label of each source in the transcript. */
   speakers: { microphone: 'You', system: 'Others' } satisfies Record<MeetingSource, string>,
   /** A source with more audio than this waiting to be transcribed drops its oldest chunks to catch up; the draft then says it

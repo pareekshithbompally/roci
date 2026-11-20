@@ -1,24 +1,33 @@
-/** Live transcription, one spine: the chosen speech model either streams (words as they are said) or goes live in chunks
- *  (about eight seconds behind). `liveModeOf` is the one answer to "which"; dictation, meetings and Settings all ask it. */
+/** Live transcription, one rule: try real-time, and go live in chunks (about eight seconds behind) when it can't. A model's
+ *  engine says how many streams it runs at once (dictation needs 1; a meeting one per side); the model says, by taking or
+ *  refusing the stream, whether it streams. */
 
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
-import { adapterFor, type SpeechModelOption } from './catalog';
+import { adapterFor } from './catalog';
 import { speechModelFor } from './pipeline';
 import { STREAMING, type LiveStream } from './streaming';
 import type { SpeechSelection } from './types';
 
-export type LiveMode = 'streams' | 'chunks';
-
-/** How `option` goes live with `streams` streams at once (dictation 1; a meeting 2 — you and the call). A model streams only
- *  when it can (`option.live`) and its engine runs that many streams; anything else goes live in chunks. */
-export function liveModeOf(option: SpeechModelOption | undefined, providers: ModelProvider[], streams: number): LiveMode {
-  if (!option?.live) return 'chunks';
-  const engine = STREAMING[adapterFor(option, providers) ?? 'multimodal'];
-  return engine && engine.concurrent >= streams ? 'streams' : 'chunks';
+/** Whether the selection's engine runs `count` streams at once — worth trying real-time. */
+export function runsLive(selection: SpeechSelection, providers: ModelProvider[], count: number): boolean {
+  const engine = STREAMING[adapterFor(selection, providers) ?? 'multimodal'];
+  return !!engine && engine.concurrent >= count;
 }
 
-/** Opens a stream for a model `liveModeOf` said streams. */
+/** Opens `count` streams, or none: null when the engine can't run that many or the model refuses (the reason is logged), so
+ *  the caller goes live in chunks. */
+export async function tryLiveStreams(selection: SpeechSelection, providers: ModelProvider[], count: number): Promise<LiveStream[] | null> {
+  if (!runsLive(selection, providers, count)) return null;
+  const opened = await Promise.allSettled(Array.from({ length: count }, () => openLiveStream(selection, providers)));
+  const streams = opened.flatMap((o) => (o.status === 'fulfilled' ? [o.value] : []));
+  if (streams.length === count) return streams;
+  console.info('[live] real-time refused, going live in chunks:', opened.find((o) => o.status === 'rejected')?.reason);
+  await Promise.allSettled(streams.map((s) => s.cancel()));
+  return null;
+}
+
+/** Opens one stream; rejects when the model can't stream. */
 export async function openLiveStream(selection: SpeechSelection, providers: ModelProvider[]): Promise<LiveStream> {
   const engine = STREAMING[adapterFor(selection, providers) ?? 'multimodal'];
   if (!engine) throw new Error(`${selection.model} doesn't stream.`);

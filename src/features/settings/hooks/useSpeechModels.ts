@@ -10,8 +10,8 @@ import {
   getAppleSpeechStatus,
   getHexStatus,
   isSpeechSelectionReady,
-  liveModeOf,
   openLiveStream,
+  runsLive,
   speechModelOptions,
   speechSelectionOf,
 } from '@services/ai/transcription';
@@ -59,26 +59,28 @@ export function useSelectedSpeechOption(): SpeechModelOption | undefined {
   }, [transcriptionProvider, transcriptionModel, options]);
 }
 
-/** Streaming dictation when Real-time transcription is on and the model streams; null → transcribe the clip at end. */
+/** Real-time dictation is tried when it is on and the model's engine streams (the clip is kept, so a refusal loses nothing);
+ *  null → transcribe the clip at the end. */
 export function useLiveDictation(): LiveDictation | null {
   const { settings, providers } = useSettings();
   const option = useSelectedSpeechOption();
   const live = !!settings.liveTranscription;
   return useMemo(() => {
-    if (!live || !option?.ready || liveModeOf(option, providers, 1) !== 'streams') return null;
+    if (!live || !option?.ready || !runsLive(option, providers, 1)) return null;
     return { open: () => openLiveStream(option, providers) };
   }, [live, option, providers]);
 }
 
-/** What the chosen speech model does live, for the Real-time Transcription footer: streams (dictation and meetings),
- *  streams dictation only (an engine with one stream at a time), or near-live chunks; nothing when none is chosen. */
+/** What the chosen speech model does live, for the Real-time Transcription footer: a model known to stream streams in meetings
+ *  when its engine runs a stream per side, else dictation only; a cloud model is tried; no streaming engine means chunks. */
 export function useLiveModeLine(): string | null {
   const { providers } = useSettings();
   const option = useSelectedSpeechOption();
   if (!option) return null;
   const { liveCopy } = TRANSCRIPTION_CONFIG;
-  if (liveModeOf(option, providers, MEETING_LIVE_CONFIG.sources) === 'streams') return liveCopy.streams;
-  return liveModeOf(option, providers, 1) === 'streams' ? liveCopy.dictationOnly : liveCopy.chunks;
+  if (!runsLive(option, providers, 1)) return liveCopy.chunks;
+  if (!option.live) return liveCopy.tried;
+  return runsLive(option, providers, MEETING_LIVE_CONFIG.sides.systemAndMicrophone.length) ? liveCopy.streams : liveCopy.dictationOnly;
 }
 
 /** Whether the selected speech model can run now (composer mic). */

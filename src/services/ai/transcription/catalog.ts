@@ -4,7 +4,6 @@ import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { isSpeechOnly, jobRecords, modelKey, transcribeAdapter } from '@services/ai/models';
 import { formatFileSize } from '@shared/utils/formatters';
 import { installedHexModels } from './hex';
-import { canStream } from './streaming';
 import { appleSpeechHint, isAppleSpeechReady } from './appleSpeech';
 import type { AppleSpeechStatus } from '@services/ai/apple/appleIntelligence.service';
 import type { TranscriptionAdapterId } from '@config/transcription.config';
@@ -16,7 +15,7 @@ import type { SpeechSelection } from './types';
 export interface SpeechModelOption extends SpeechSelection {
   label: string;
   ready: boolean;
-  /** Streams: words as they are said (an engine that streams, on a model that does); otherwise it goes live in chunks. */
+  /** Known to stream (a local engine's own catalog says so); a cloud model is found out by trying its stream. */
   live: boolean;
   /** Short next step when not ready ("Add OpenAI API key", "Open Hex"). */
   hint: string | null;
@@ -45,7 +44,7 @@ export function adapterFor(selection: SpeechSelection, providers: ModelProvider[
 /** The speech-to-text models the user added, as the spine describes them. */
 function providerOptions(providers: ModelProvider[]): SpeechModelOption[] {
   return speechRecords(providers).map((r) => ({
-    provider: r.provider, model: r.id, label: r.label, ready: r.ready, hint: r.hint, live: canStream(transcribeAdapter(r), r.id),
+    provider: r.provider, model: r.id, label: r.label, ready: r.ready, hint: r.hint, live: false,
   }));
 }
 
@@ -80,8 +79,7 @@ function onDeviceOptions(models: LocalModel[]): SpeechModelOption[] {
 
 function appleSpeechOptions(status: AppleSpeechStatus | undefined): SpeechModelOption[] {
   const { provider, model, label } = TRANSCRIPTION_CONFIG.appleSpeech;
-  const live = canStream('apple-speech', model);
-  return [{ provider, model, label, ready: isAppleSpeechReady(status), hint: appleSpeechHint(status), live }];
+  return [{ provider, model, label, ready: isAppleSpeechReady(status), hint: appleSpeechHint(status), live: true }];
 }
 
 /** Every speech model in picker order, on-device first; the first entry per selection wins. */

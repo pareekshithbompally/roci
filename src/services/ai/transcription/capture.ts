@@ -44,13 +44,16 @@ export function recordedCapture(stream: MediaStream, transcribe: (audio: Blob) =
   };
 }
 
-/** Records at once while the stream opens; streams the mic through the one stream loop (liveStreams), reporting the settled
- *  words and the ones still being revised as they come. */
+/** Streams the mic through the one stream loop (liveStreams), reporting the settled words and the ones still being revised as
+ *  they come, and records the clip beside it: a stream the model refuses or that breaks gives way to the clip, transcribed
+ *  whole, so nothing said is lost. */
 export async function liveCapture(
   stream: MediaStream,
   open: () => Promise<LiveStream>,
   onText: (text: LiveText) => void,
+  transcribe: (audio: Blob) => Promise<string>,
 ): Promise<DictationCapture> {
+  const clip = recordedCapture(stream, transcribe);
   let paused = false;
   let failure: string | null = null;
   const text: LiveText = { committed: '', tentative: '' };
@@ -70,19 +73,26 @@ export async function liveCapture(
   return {
     pause: () => {
       paused = true;
+      clip.pause();
     },
     resume: () => {
       paused = false;
+      clip.resume();
     },
     finish: async () => {
       tap.stop();
       await mic.finish();
-      if (failure) throw new Error(failure);
+      if (failure) {
+        console.info('[capture] live dictation fell back to the recorded clip:', failure);
+        return clip.finish();
+      }
+      clip.cancel();
       return stripNonSpeech(text.committed);
     },
     cancel: () => {
       tap.stop();
       mic.cancel();
+      clip.cancel();
     },
   };
 }
