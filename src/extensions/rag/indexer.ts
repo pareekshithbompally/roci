@@ -245,28 +245,8 @@ async function indexAll(all: HistoryItem[], options?: AbortSignal | IndexOptions
   return indexed;
 }
 
-/** Items that are new or stale. */
-async function needsReindex(all: HistoryItem[]): Promise<HistoryItem[]> {
-  const items = all.filter(isIndexable);
-  if (items.length === 0) return [];
-
-  const hashes = await concurrencyMap(
-    items,
-    async (item) => ({
-      id: item.id,
-      content_hash: await computeContentHash(item),
-    }),
-    { limit: HASH_CONCURRENCY },
-  );
-
-  const staleIds = await vectorDB.getStaleMeetings(hashes);
-  const staleSet = new Set(staleIds);
-  return items.filter((item) => staleSet.has(item.id));
-}
-
 export const ragIndexer = {
   indexMeeting,
   appendTranscript,
   indexAll,
-  needsReindex,
 };

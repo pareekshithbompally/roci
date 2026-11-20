@@ -271,9 +271,22 @@ impl SweepWindow {
     }
 }
 
+/// Every file an asset owns (its path and preview), read once so the sweep checks files in memory, not one query each.
+fn owned_paths(db: &Connection) -> Result<std::collections::HashSet<String>, StoreError> {
+    let mut owned = std::collections::HashSet::new();
+    let mut stmt = db.prepare("SELECT path, preview_path FROM assets")?;
+    let rows = stmt.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?)))?;
+    for row in rows {
+        let (path, preview) = row?;
+        owned.insert(path);
+        owned.extend(preview);
+    }
+    Ok(owned)
+}
+
 /// Strays in the window: files no asset owns, and track folders of deleted meetings (recovery reads only live ones).
 fn strays(db: &Connection, root: &Path, window: &SweepWindow) -> Result<Vec<PathBuf>, StoreError> {
-    let mut owned = db.prepare("SELECT 1 FROM assets WHERE path = ?1 OR preview_path = ?1")?;
+    let owned = owned_paths(db)?;
     let mut meeting = db.prepare("SELECT 1 FROM meetings WHERE id = ?1")?;
     let mut found = Vec::new();
     for dir in MANAGED_DIRS {
@@ -287,7 +300,7 @@ fn strays(db: &Connection, root: &Path, window: &SweepWindow) -> Result<Vec<Path
             let stray = if path.is_dir() {
                 *dir == RECORDINGS_DIR && !meeting.exists([&name])?
             } else {
-                !owned.exists([format!("{dir}/{name}")])?
+                !owned.contains(&format!("{dir}/{name}"))
             };
             if stray {
                 found.push(path);

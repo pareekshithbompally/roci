@@ -26,11 +26,6 @@ function notesSummaryOf(notes: NonNullable<HexMeetingDetail['notes']>): MeetingS
   return { overview: notes.summary, keyDiscussionPoints: [], decisionsMade: [], actionItems: [], nextSteps: [] };
 }
 
-/** A cheap skip before asking Hex for a meeting's detail; whether it is really new is the store's answer (importOne). */
-async function exists(hexId: string): Promise<boolean> {
-  return (await store.meetings.get(rociMeetingId(hexId))) !== null;
-}
-
 /** Imports a finished meeting with its transcript in one write; false when there's nothing to import or Roci already has it
  *  (another import got there first). */
 function importOne(detail: HexMeetingDetail): Promise<boolean> {
@@ -64,7 +59,6 @@ async function keepNotes(meetingId: string, detail: HexMeetingDetail): Promise<b
 
 /** One backlog meeting: imported with its transcript, then given Hex's notes, or left for the pipeline to summarize. */
 async function catchUpOne(hexId: string, result: CatchUp): Promise<void> {
-  if (await exists(hexId)) return;
   const detail = await hexMeetings.show(hexId);
   if (!(await importOne(detail))) return;
   result.imported += 1;
@@ -74,10 +68,22 @@ async function catchUpOne(hexId: string, result: CatchUp): Promise<void> {
 
 let catchingUp: Promise<CatchUp> | null = null;
 
+/** Roci already keeps this Hex meeting (a light check: no transcript or notes are loaded). */
+async function isKept(hexId: string): Promise<boolean> {
+  return (await store.meetings.existing([rociMeetingId(hexId)])).length > 0;
+}
+
+/** Finished Hex meetings Roci doesn't have, in one store check (whether each is really new is still `importOne`'s answer). */
+async function missingMeetings(): Promise<HexMeeting[]> {
+  const finished = (await hexMeetings.list()).filter(importable);
+  const kept = new Set(await store.meetings.existing(finished.map((m) => rociMeetingId(m.id))));
+  return finished.filter((m) => !kept.has(rociMeetingId(m.id)));
+}
+
 /** Every finished meeting Roci doesn't have; one that fails is logged and counted, and the rest still import. */
 async function runCatchUp(): Promise<CatchUp> {
   const result: CatchUp = { imported: 0, toSummarize: [], failed: 0 };
-  for (const meeting of (await hexMeetings.list()).filter(importable)) {
+  for (const meeting of await missingMeetings()) {
     await catchUpOne(meeting.id, result).catch((error: unknown) => {
       console.error('[hexSync] Import failed:', meeting.id, error);
       result.failed += 1;
@@ -95,7 +101,7 @@ export const hexSync = {
 
   /** A meeting that just finished: imported for the pipeline to summarize. Resolves its id when it is new to Roci. */
   async finished(hexId: string): Promise<string | null> {
-    if (await exists(hexId)) return null;
+    if (await isKept(hexId)) return null;
     return (await importOne(await hexMeetings.show(hexId))) ? rociMeetingId(hexId) : null;
   },
 };

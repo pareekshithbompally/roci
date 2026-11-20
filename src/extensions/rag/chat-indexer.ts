@@ -33,14 +33,7 @@ async function indexSession(
       return { status: 'skipped', reason: 'up_to_date', chunkCount: 0, embeddingCount: 0 };
     }
 
-    const result = await indexSessionInternal(session, contentHash, options);
-
-    // Mark embedding completion for single-session indexing
-    if (result.status === 'indexed' && result.embeddingCount > 0) {
-      await vectorDB.markChatEmbedded(session.id);
-    }
-
-    return result;
+    return await indexSessionInternal(session, contentHash, options);
   } catch (error) {
     console.error(`[ChatIndexer] Failed to index session "${session.title}":`, error);
     return {
@@ -131,9 +124,6 @@ async function indexAllSessions(
         const result = await indexSessionInternal(session, contentHash, { includeEmbeddings });
         if (result.status === 'indexed') {
           indexed++;
-          if (includeEmbeddings && result.embeddingCount > 0) {
-            await vectorDB.markChatEmbedded(session.id);
-          }
         } else {
           console.warn(`[ChatIndexer] Session "${session.title}" not indexed: ${result.status} (${result.reason ?? 'no reason'})`);
         }
@@ -166,10 +156,7 @@ async function indexAllSessions(
         try {
           const contentHash = hashMap.get(session.id)!;
           const result = await indexSessionInternal(session, contentHash, { includeEmbeddings: true });
-          if (result.status === 'indexed' && result.embeddingCount > 0) {
-            await vectorDB.markChatEmbedded(session.id);
-            embedded++;
-          }
+          if (result.status === 'indexed' && result.embeddingCount > 0) embedded++;
         } catch (error) {
           console.error(`[ChatIndexer] Embedding upgrade failed for "${session.title}":`, error);
         }
@@ -236,6 +223,10 @@ async function indexSessionInternal(
 
   // Stamp content_hash AFTER chunks are confirmed — prevents hash poisoning on partial failure
   await vectorDB.markChatContentIndexed(session.id, contentHash);
+  // Every turn has its vector (none new was needed, or all were made): the chat is embedded.
+  if (options?.includeEmbeddings !== false && vectors.size === newTexts.length) {
+    await vectorDB.markChatEmbedded(session.id);
+  }
 
   console.log(`[ChatIndexer] Indexed session "${session.title}" (${chunks.length} turns)`);
   return {

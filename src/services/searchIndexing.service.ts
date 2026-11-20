@@ -92,13 +92,32 @@ async function loadChatsForIndexing(): Promise<ChatSession[]> {
   return sessions.filter((s): s is ChatSession => s !== null);
 }
 
-/** Indexes every meeting, then every chat: full-text always, vectors when asked (needs the embedding model). */
-async function indexAll(options: { includeEmbeddings: boolean; signal?: AbortSignal }): Promise<void> {
+/** Rebuilds the whole index (Settings › Search Index): every meeting, then every chat; `force` redoes up-to-date ones too. */
+async function indexAll(options: { includeEmbeddings: boolean; force?: boolean; signal?: AbortSignal }): Promise<void> {
   const { ragIndexer, chatIndexer } = await import('@extensions/rag');
   const [meetings, chats] = await Promise.all([loadMeetingsForIndexing(), loadChatsForIndexing()]);
   await ragIndexer.indexAll(meetings, options);
   if (options.signal?.aborted) return;
   await chatIndexer.indexAllSessions(chats, options);
+}
+
+/** Meetings and chats without vectors, once the embedding model is installed: their ids are checked against the index, and only
+ *  those that need it are loaded and embedded (everything else is indexed as it's saved). */
+async function embedPending(signal?: AbortSignal): Promise<void> {
+  const { ragIndexer, chatIndexer, vectorDB } = await import('@extensions/rag');
+  const [meetingIds, chatIds] = await Promise.all([
+    meetingService.listMeetings().then((entries) => entries.map((e) => e.id)),
+    store.chats.list(500, 0).then((result) => result.items.map((e) => e.id)),
+  ]);
+  const [meetingsDue, chatsDue] = await Promise.all([
+    vectorDB.getMeetingsNeedingEmbeddings(meetingIds),
+    vectorDB.getChatsNeedingEmbeddings(chatIds),
+  ]);
+  const meetings = await concurrencyMap(meetingsDue, (id) => meetingService.getMeetingDetail(id), { limit: IO_CONCURRENCY, signal });
+  await ragIndexer.indexAll(meetings.filter((d): d is MeetingDetail => d !== null).map(toHistoryItem), { includeEmbeddings: true, signal });
+  if (signal?.aborted) return;
+  const chats = await concurrencyMap(chatsDue, (id) => store.chats.get(id), { limit: IO_CONCURRENCY, signal });
+  await chatIndexer.indexAllSessions(chats.filter((s): s is ChatSession => s !== null), { includeEmbeddings: true, signal });
 }
 
 /** A meeting in full — transcript, summary, notes and to-dos — with vectors once the embedding model is downloaded; one
@@ -127,6 +146,7 @@ export const searchIndexingService = {
   loadMeetingsForIndexing,
   loadChatsForIndexing,
   indexAll,
+  embedPending,
   indexMeeting,
   meetingEdited,
 };

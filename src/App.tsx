@@ -21,7 +21,7 @@ import { ConfirmHost, SearchIndexActivity } from '@shared/components';
 import { Toaster } from '@shared/ui';
 import { useDownloadToasts, useLocalModels } from '@shared/hooks';
 import { useAppShortcuts } from '@features/shortcuts';
-import { focusChatComposer, startNewChat, useChatIndex, useChatRuntime } from '@features/chat';
+import { focusChatComposer, startNewChat, useChatRuntime } from '@features/chat';
 import { useAppleNotesRuntime, useCalendarRuntime, useHexRuntime, useMcpHostRuntime, useRemindersRuntime, useSpotlightRuntime, useUrlActionsRuntime } from '@features/integrations';
 import { useNotificationsRuntime } from '@features/notifications';
 
@@ -53,7 +53,6 @@ const App: React.FC = () => {
   
   const { settings, setSettings, providers, setSelectedProviderName, isLoading: settingsLoading } = useSettings();
   const history = useHistory();
-  const chatCount = useChatIndex().length;
   const startRecording = useStartRecording();
   const startRecordingRef = useRef(startRecording);
   startRecordingRef.current = startRecording;
@@ -105,28 +104,23 @@ const App: React.FC = () => {
   // App updates: Rust checks and installs; the tray row follows its state
   useUpdateRuntime();
 
-  // Search index: full-text at launch so Cmd+K works at once; vectors whenever the embedding model is installed
-  // (at launch, or as soon as its download finishes).
+  // Search: meetings and chats are indexed as they're saved, so nothing is indexed at launch. Vectors need the embedding model:
+  // when its download finishes in this session, only the meetings and chats still without them are embedded.
   const { data: localModels } = useLocalModels();
+  const modelsKnown = localModels !== undefined;
   const embeddingInstalled = localModels?.some((m) => m.kind === 'embedding' && m.installed) ?? false;
-  const hasSearchContent = history.items.length > 0 || chatCount > 0;
-  const textIndexRef = useRef<Promise<void> | null>(null);
+  const embeddingInstalledBefore = useRef<boolean | null>(null);
 
   useEffect(() => {
-    if (textIndexRef.current || !hasSearchContent) return;
-    textIndexRef.current = searchIndexingService.indexAll({ includeEmbeddings: false })
-      .then(() => console.log('[App] Full-text search index ready'))
-      .catch((error: unknown) => console.error('[App] Full-text indexing failed:', error));
-  }, [hasSearchContent]);
-
-  useEffect(() => {
-    if (!embeddingInstalled || !hasSearchContent) return;
+    if (!modelsKnown) return;
+    const before = embeddingInstalledBefore.current;
+    embeddingInstalledBefore.current = embeddingInstalled;
+    if (before !== false || !embeddingInstalled) return;
     const controller = new AbortController();
-    void (textIndexRef.current ?? Promise.resolve())
-      .then(() => searchIndexingService.indexAll({ includeEmbeddings: true, signal: controller.signal }))
-      .catch((error: unknown) => console.error('[App] Embedding indexing failed:', error));
+    searchIndexingService.embedPending(controller.signal)
+      .catch((error: unknown) => console.error('[App] Embedding the index failed:', error));
     return () => controller.abort();
-  }, [embeddingInstalled, hasSearchContent]);
+  }, [modelsKnown, embeddingInstalled]);
 
   // Fade the startup splash once the first screen renders with real settings
   useEffect(() => {

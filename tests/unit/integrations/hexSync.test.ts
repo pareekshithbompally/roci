@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const hex = vi.hoisted(() => ({ list: vi.fn(), show: vi.fn() }));
-const db = vi.hoisted(() => ({ get: vi.fn() }));
+const db = vi.hoisted(() => ({ existing: vi.fn() }));
 const importMeeting = vi.hoisted(() => vi.fn());
 const saveSummary = vi.hoisted(() => vi.fn());
 
 vi.mock('@services/hex/hex.meetings', () => ({ hexMeetings: hex }));
-vi.mock('@services/db', () => ({ store: { meetings: { get: db.get } } }));
+vi.mock('@services/db', () => ({ store: { meetings: { existing: db.existing } } }));
 vi.mock('@services/transcription.service', () => ({ transcriptionService: { importMeeting, saveSummary } }));
 
 import { hexSync } from '@services/hex/hex.sync';
@@ -24,7 +24,7 @@ const detail = (id: string, notes: HexMeetingDetail['notes'] = { title: 'Hex tit
 
 beforeEach(() => {
   vi.clearAllMocks();
-  db.get.mockResolvedValue(null);
+  db.existing.mockResolvedValue([]);
   importMeeting.mockResolvedValue(true);
   hex.show.mockImplementation(async (id: string) => detail(id));
 });
@@ -95,10 +95,21 @@ describe('hexSync.finished', () => {
   });
 
   it('is nothing when Roci already has the meeting, or another import got there first', async () => {
-    db.get.mockResolvedValue({});
+    db.existing.mockResolvedValue(['hex-m1']);
     await expect(hexSync.finished('m1')).resolves.toBeNull();
-    db.get.mockResolvedValue(null);
+    db.existing.mockResolvedValue([]);
     importMeeting.mockResolvedValue(false);
     await expect(hexSync.finished('m1')).resolves.toBeNull();
+  });
+});
+
+describe('hexSync.catchUp, already kept', () => {
+  it('asks the store once which meetings it has, and imports only the others', async () => {
+    hex.list.mockResolvedValue([meeting('m1'), meeting('m2')]);
+    db.existing.mockResolvedValue(['hex-m1']);
+    await expect(hexSync.catchUp()).resolves.toEqual({ imported: 1, toSummarize: [], failed: 0 });
+    expect(db.existing).toHaveBeenCalledTimes(1);
+    expect(hex.show).toHaveBeenCalledWith('m2');
+    expect(hex.show).not.toHaveBeenCalledWith('m1');
   });
 });
