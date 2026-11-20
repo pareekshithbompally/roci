@@ -78,9 +78,9 @@ describe('RecordingMeetingView', () => {
       { source: 'microphone', startMs: 2_000, endMs: 4_000, text: 'Agenda first.', timed: true },
       { source: 'system', startMs: 5_000, endMs: 7_000, text: 'Sounds good.', timed: false },
     ]);
-    expect(await screen.findByText('Shall we start?')).toBeInTheDocument();
-    expect(screen.getByText('Agenda first.')).toBeInTheDocument();
-    expect(screen.getAllByText('You').length).toBeGreaterThan(0);
+    // one speaker's close lines read as one turn
+    expect(await screen.findByText('Shall we start? Agenda first.')).toBeInTheDocument();
+    expect(screen.getByText('You')).toBeInTheDocument();
     expect(screen.getByText('Others')).toBeInTheDocument();
     expect(screen.getByText('Sounds good.')).toBeInTheDocument();
     expect(screen.getByText('Listening…')).toBeInTheDocument();

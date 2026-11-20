@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useMemo } from 'react';
 import { FileText } from 'lucide-react';
 import { Surface, Text } from '@shared/ui';
+import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { EmptyState, HighlightedText } from '@shared/components';
 import { toTranscriptBlocks, type TranscriptBlock } from '@features/transcription/utils/transcriptBlocks';
 import type { StoredTranscriptSegment } from '@shared/types';
@@ -14,23 +15,21 @@ interface ParsedTranscriptProps {
 
 interface BlockProps {
   block: TranscriptBlock;
-  /** Speaker line only when the speaker changes or the block carries a time. */
+  /** Speaker line only when the speaker changes. */
   showHeader: boolean;
   highlight: string;
   ref?: React.Ref<HTMLElement>;
 }
 
-/** One paragraph: optional "Speaker  00:12" line, then reading text. */
+/** One turn: a long silence before it, the speaker when it changes, then reading text. */
 const Block: React.FC<BlockProps> = ({ block, showHeader, highlight, ref }) => {
   const isMatch = highlight !== '' && block.text.toLowerCase().includes(highlight.toLowerCase());
   return (
     <Surface ref={ref} variant={isMatch ? 'subtle' : 'plain'} radius="md" className="-mx-3 px-3 py-1.5">
-      {showHeader && (
-        <div className="flex items-baseline gap-2 mb-0.5">
-          {block.speaker && <Text variant="headline">{block.speaker}</Text>}
-          {block.time && <Text variant="figureSmall" tone="faint">{block.time}</Text>}
-        </div>
+      {block.silenceBefore && (
+        <Text as="p" variant="figureSmall" tone="faint">{`${block.silenceBefore} ${TRANSCRIPTION_CONFIG.turns.silence}`}</Text>
       )}
+      {showHeader && <Text variant="headline">{block.speaker}</Text>}
       <Text as="p" variant="reading">
         <HighlightedText text={block.text} highlight={isMatch ? highlight : ''} />
       </Text>
@@ -70,7 +69,7 @@ const ParsedTranscript: React.FC<ParsedTranscriptProps> = ({ text, segments, hig
           key={i}
           ref={(el) => { refs.current[i] = el; }}
           block={block}
-          showHeader={!!block.time || (!!block.speaker && block.speaker !== blocks[i - 1]?.speaker)}
+          showHeader={!!block.speaker && block.speaker !== blocks[i - 1]?.speaker}
           highlight={highlight}
         />
       ))}

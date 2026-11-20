@@ -26,6 +26,9 @@ export const TRANSCRIPTION_CONFIG = {
   language: 'en',
   /** Plain-text transcripts reflow into paragraphs of about this many characters (ends on a sentence). */
   paragraphChars: 480,
+  /** A transcript reads as speaker turns: a speaker's lines this close (s) are one turn, and a silence this long (s) before a
+   *  turn is marked instead of timing every line. */
+  turns: { joinGapSeconds: 3, markSilenceSeconds: 30, silence: 'of silence' },
 
   /** Longest part per adapter in seconds (32 kB/s): OpenAI-compatible caps uploads at 25 MB, Hex at 64 MiB. */
   partSeconds: {
