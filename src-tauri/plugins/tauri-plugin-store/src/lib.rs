@@ -6,6 +6,7 @@ mod commands;
 mod consistency;
 mod error;
 pub mod index;
+mod keychain;
 mod meeting_steps;
 mod pipeline;
 mod retention;

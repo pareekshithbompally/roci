@@ -113,7 +113,7 @@ export interface RustSettingsEntry {
 export interface RustProviderRow {
   provider: string;
   active: boolean;
-  api_key_encrypted: string | null;
+  api_key: string | null;
   base_url: string | null;
   data: string | null;
   updated_at: number;
@@ -172,7 +172,7 @@ export function rustProviderToModelProvider(row: RustProviderRow): ModelProvider
   return {
     provider: row.provider,
     active: row.active,
-    api_key: row.api_key_encrypted ?? undefined,
+    api_key: row.api_key ?? undefined,
     base_url: row.base_url ?? undefined,
     settings: data.settings ?? [],
     models: data.models ?? [],
@@ -186,7 +186,7 @@ export function rustProviderToModelProvider(row: RustProviderRow): ModelProvider
 export function modelProviderToRust(provider: ModelProvider): {
   provider: string;
   active: boolean;
-  api_key_encrypted: string | null;
+  api_key: string | null;
   base_url: string | null;
   data: string | null;
 } {
@@ -202,7 +202,7 @@ export function modelProviderToRust(provider: ModelProvider): {
   return {
     provider: provider.provider,
     active: provider.active,
-    api_key_encrypted: provider.api_key ?? null,
+    api_key: provider.api_key ?? null,
     base_url: provider.base_url ?? null,
     data: JSON.stringify(data),
   };

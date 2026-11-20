@@ -2,7 +2,7 @@ use crate::assets;
 use rusqlite::Connection;
 
 /// Current schema version for the new roci.db.
-pub const SCHEMA_VERSION: u32 = 11;
+pub const SCHEMA_VERSION: u32 = 12;
 
 /// Default embedding model and dimension.
 pub const DEFAULT_MODEL: &str = "mlx-community/Qwen3-Embedding-0.6B-8bit";
@@ -32,12 +32,16 @@ pub(crate) fn open_migrated_test_db() -> Connection {
     conn
 }
 
-/// Creates the schema in a new database, or brings the v10 database to v11 with its data. Any other version is
+/// Creates the schema in a new database, or brings a v10 or v11 database to v12 with its data. Any other version is
 /// refused, not upgraded: pre-release, there is nothing else to carry forward.
 pub fn migrate(conn: &Connection) -> Result<(), String> {
     match get_schema_version(conn) {
         0 => create_new(conn)?,
-        10 => upgrade_v11(conn)?,
+        10 => {
+            upgrade_v11(conn)?;
+            upgrade_v12(conn)?;
+        }
+        11 => upgrade_v12(conn)?,
         SCHEMA_VERSION => {}
         other => {
             let e = format!("roci.db is schema v{other}, this build is v{SCHEMA_VERSION}: remove it to start fresh");
@@ -61,6 +65,29 @@ fn upgrade_v11(conn: &Connection) -> Result<(), String> {
     set_schema_version(&tx, 11)?;
     tx.commit().map_err(|e| format!("commit v11: {}", e))?;
     log::info!("[store] Schema v10→v11 (index state dropped, usage by session indexed)");
+    Ok(())
+}
+
+/// v11 → v12: API keys move to the Keychain. Each saved key (its column, or its settings field) is put in the Keychain
+/// first; only then are the settings fields blanked and the column dropped, in one transaction.
+fn upgrade_v12(conn: &Connection) -> Result<(), String> {
+    let rows: Vec<(String, Option<String>, Option<String>)> = conn
+        .prepare("SELECT provider, api_key_encrypted, data FROM providers")
+        .and_then(|mut stmt| stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?.collect())
+        .map_err(|e| format!("v12 read providers: {}", e))?;
+    let tx = conn.unchecked_transaction().map_err(|e| format!("begin v12: {}", e))?;
+    for (provider, column, data) in rows {
+        let key = column.filter(|k| !k.trim().is_empty()).or_else(|| crate::keychain::key_in_settings(data.as_deref()));
+        if let Some(key) = key {
+            crate::keychain::save(&provider, key.trim()).map_err(|e| e.to_string())?;
+        }
+        tx.execute("UPDATE providers SET data = ?2 WHERE provider = ?1", rusqlite::params![provider, crate::keychain::with_key_in_settings(data, "")])
+            .map_err(|e| format!("v12 blank {provider}: {}", e))?;
+    }
+    tx.execute_batch("ALTER TABLE providers DROP COLUMN api_key_encrypted;").map_err(|e| format!("v12: {}", e))?;
+    set_schema_version(&tx, 12)?;
+    tx.commit().map_err(|e| format!("commit v12: {}", e))?;
+    log::info!("[store] Schema v11→v12 (API keys in the Keychain)");
     Ok(())
 }
 
@@ -250,7 +277,6 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
         CREATE TABLE providers (
             provider          TEXT PRIMARY KEY,
             active            INTEGER NOT NULL DEFAULT 0,
-            api_key_encrypted TEXT,
             base_url          TEXT,
             data              TEXT,
             updated_at        INTEGER NOT NULL

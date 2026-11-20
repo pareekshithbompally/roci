@@ -318,21 +318,23 @@ pub struct SettingsSetInput {
 
 // ── Providers Structs ──
 
+/// A provider as the webview gets it: its API key read from the Keychain.
 #[derive(Debug, Serialize)]
 pub struct ProviderRow {
     pub provider: String,
     pub active: bool,
-    pub api_key_encrypted: Option<String>,
+    pub api_key: Option<String>,
     pub base_url: Option<String>,
     pub data: Option<String>,
     pub updated_at: i64,
 }
 
+/// A provider to save: its API key goes to the Keychain, the rest to roci.db.
 #[derive(Debug, Deserialize)]
 pub struct ProviderUpsertInput {
     pub provider: String,
     pub active: Option<bool>,
-    pub api_key_encrypted: Option<String>,
+    pub api_key: Option<String>,
     pub base_url: Option<String>,
     pub data: Option<String>,
 }
@@ -1803,25 +1805,31 @@ pub async fn providers_list(
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
 
         let mut stmt = db.prepare(
-            "SELECT provider, active, api_key_encrypted, base_url, data, updated_at FROM providers ORDER BY provider",
+            "SELECT provider, active, base_url, data, updated_at FROM providers ORDER BY provider",
         )?;
-        let providers: Vec<ProviderRow> = stmt
+        let rows: Vec<ProviderRow> = stmt
             .query_map([], |row| {
                 Ok(ProviderRow {
                     provider: row.get(0)?,
                     active: row.get::<_, i32>(1)? != 0,
-                    api_key_encrypted: row.get(2)?,
-                    base_url: row.get(3)?,
-                    data: row.get(4)?,
-                    updated_at: row.get(5)?,
+                    api_key: None,
+                    base_url: row.get(2)?,
+                    data: row.get(3)?,
+                    updated_at: row.get(4)?,
                 })
             })?
-            .filter_map(|r| r.ok())
-            .collect();
-        Ok(providers)
+            .collect::<Result<_, _>>()?;
+        rows.into_iter().map(with_saved_key).collect()
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+}
+
+/// The row with its saved key, in `api_key` and in its settings' API-key field.
+fn with_saved_key(row: ProviderRow) -> Result<ProviderRow, StoreError> {
+    let key = crate::keychain::read(&row.provider)?.unwrap_or_default();
+    let data = crate::keychain::with_key_in_settings(row.data, &key);
+    Ok(ProviderRow { api_key: (!key.is_empty()).then_some(key), data, ..row })
 }
 
 #[tauri::command]
@@ -1835,6 +1843,12 @@ pub async fn providers_upsert(
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
         let now = now_millis();
 
+        let key = input.api_key.as_deref().map(str::trim).filter(|k| !k.is_empty()).map(str::to_string)
+            .or_else(|| crate::keychain::key_in_settings(input.data.as_deref()))
+            .unwrap_or_default();
+        crate::keychain::save(&input.provider, &key)?;
+        let data = crate::keychain::with_key_in_settings(input.data, "");
+
         let tx = db.unchecked_transaction()?;
         let is_new: bool = tx.query_row(
             "SELECT COUNT(*) FROM providers WHERE provider = ?1",
@@ -1843,20 +1857,18 @@ pub async fn providers_upsert(
         ).map(|c| c == 0)?;
 
         tx.execute(
-            "INSERT INTO providers (provider, active, api_key_encrypted, base_url, data, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            "INSERT INTO providers (provider, active, base_url, data, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)
              ON CONFLICT(provider) DO UPDATE SET
                 active = excluded.active,
-                api_key_encrypted = excluded.api_key_encrypted,
                 base_url = excluded.base_url,
                 data = excluded.data,
                 updated_at = excluded.updated_at",
             rusqlite::params![
                 input.provider,
                 input.active.unwrap_or(false) as i32,
-                input.api_key_encrypted,
                 input.base_url,
-                input.data,
+                data,
                 now,
             ],
         )?;
@@ -1911,6 +1923,7 @@ pub async fn providers_delete(
         if affected == 0 {
             return Err(StoreError::from("Provider not found"));
         }
+        crate::keychain::remove(&provider)?;
         write_audit_log(db, "provider", &provider, "delete", None)?;
         Ok(())
     })
