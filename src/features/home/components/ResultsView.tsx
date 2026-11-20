@@ -16,7 +16,7 @@ import { openUrl } from '@services/tauri';
 import { formatDuration, calendarDayOffset, formatDayLabel, formatClockTime, formatShortDate, formatDateTime } from '@shared/utils/formatters';
 import { MeetingWorkspace, meetingPipeline, useAiBullets, useDraftSegments, useLiveNotes, type WorkspaceTranscript } from '@features/recording';
 import { useMeetingPhase } from '@shared/stores/meetingProgressStore';
-import { MeetingStatus, RemovedNotice } from '@shared/components';
+import { LoadingPane, MeetingStatus, RemovedNotice } from '@shared/components';
 import { StorageConfig } from '@config/storage.config';
 import { MeetingPhaseNotice } from './MeetingPhaseNotice';
 import { MeetingActionsMenu } from './MeetingActionsMenu';
@@ -130,7 +130,7 @@ const MeetingTitle: React.FC<{ title: string; onEdit: () => void; children?: Rea
 
 /** The Transcript tab: the saved transcript (or the in-call one until it is saved) beside the meeting's notes, whose AI lines
  *  are the summary's enhanced notes. Keyed by meeting, so each meeting's notes load fresh. */
-const TranscriptTab: React.FC<{ meetingId: string; result: ProcessedResult; phase: MeetingPhase; loading: boolean }> = ({ meetingId, result, phase, loading }) => {
+const TranscriptTab: React.FC<{ meetingId: string; result: ProcessedResult; phase: MeetingPhase }> = ({ meetingId, result, phase }) => {
   const { type, modelProblem } = useLiveNotes(meetingId, false);
   const draft = useDraftSegments(meetingId);
   const enhanced = result.structuredSummary?.enhancedNotes;
@@ -141,7 +141,7 @@ const TranscriptTab: React.FC<{ meetingId: string; result: ProcessedResult; phas
     label: saved || draft.length === 0 ? NOTES.copy.transcript : NOTES.copy.draftTranscript,
     segments: saved ? result.segments ?? [] : draft,
     text: saved ? result.transcript : undefined,
-    empty: loading ? '' : busy ? LIVE.copy.finalizing : meetingPhaseDetail(phase) ?? LIVE.copy.none,
+    empty: busy ? LIVE.copy.finalizing : meetingPhaseDetail(phase) ?? LIVE.copy.none,
     footer: !saved && busy ? LIVE.copy.finalizing : undefined,
     follow: false,
   };
@@ -179,6 +179,7 @@ export const ResultsView: React.FC = () => {
   useEffect(() => setAddingTodo(false), [selectedHistoryId]);
 
 
+  if (loading) return <LoadingPane />;
   if (!result) return null;
   // the list's title is the one renames update at once (optimistically); the meeting's own follows from disk
   const shownTitle = currentHistoryItem?.title || result.title;
@@ -296,11 +297,11 @@ export const ResultsView: React.FC = () => {
         // the record screen's frame exactly: the panes run to the window's bottom edge, open there
         <div className={`${LAYOUT.pageGutter} flex-1 overflow-hidden pt-4`}>
           <div className={`${LAYOUT.pageColumn} h-full flex flex-col min-h-0`}>
-            <TranscriptTab key={currentHistoryItem.id} meetingId={currentHistoryItem.id} result={result} phase={phase} loading={loading} />
+            <TranscriptTab key={currentHistoryItem.id} meetingId={currentHistoryItem.id} result={result} phase={phase} />
           </div>
         </div>
       ) : activeResultTab === 'summary' ? (
-        <SummaryTab result={result} phase={phase} meetingId={currentHistoryItem?.id} loading={loading} />
+        <SummaryTab result={result} phase={phase} meetingId={currentHistoryItem?.id} />
       ) : (
         <div className={cn('flex-1 overflow-y-auto custom-scrollbar pt-4', LAYOUT.pageGutter, LAYOUT.meetingChatClearance)}>
           <div className={`${LAYOUT.pageColumn} min-h-full flex flex-col`}>

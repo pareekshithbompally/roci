@@ -1,53 +1,40 @@
-/** Meetings and chat sessions merged into one timestamp-sorted sidebar list. */
+/** The sidebar's rows, a page at a time from the store: meetings and chats by time (names and status only). More load as it
+ *  scrolls; a change refreshes the loaded pages in place, so the list never jumps back to the top. */
 
 import { useMemo } from 'react';
-import { useHistoryData } from '@shared/contexts/HistoryContext';
-import { useChatIndex } from '@features/chat';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { sidebarQuery } from '@shared/query/sidebar';
+import { indexEntryToHistoryItem } from '@shared/contexts/HistoryContext';
+import type { SidebarEntry } from '@services/db';
 import type { UnifiedSidebarItem } from '@shared/types';
 
-interface UseUnifiedSidebarReturn {
-  /** Combined and sorted list of meetings and chats */
+const toItem = (entry: SidebarEntry): UnifiedSidebarItem => {
+  if (entry.kind === 'chat') return { id: entry.chat.id, type: 'chat', title: entry.chat.title, timestamp: entry.chat.lastMessageAt };
+  const historyItem = indexEntryToHistoryItem(entry.meeting);
+  return { id: historyItem.id, type: 'meeting', title: historyItem.title, timestamp: historyItem.timestamp, historyItem };
+};
+
+export interface UnifiedSidebar {
   items: UnifiedSidebarItem[];
-  /** Whether any items are loading */
+  /** The first page is loading. */
   isLoading: boolean;
+  /** Older rows are left to load. */
+  hasMore: boolean;
+  loadingMore: boolean;
+  loadMore: () => void;
 }
 
-export const useUnifiedSidebar = (): UseUnifiedSidebarReturn => {
-  const history = useHistoryData();
-  const sessionIndex = useChatIndex();
-
-  const unifiedItems = useMemo(() => {
-    const items: UnifiedSidebarItem[] = [];
-
-    // Add history items (meetings/recordings) — uses filteredItems to respect category filters
-    history.filteredItems.forEach(item => {
-      items.push({
-        id: item.id,
-        type: 'meeting',
-        title: item.title,
-        timestamp: item.timestamp,
-        historyItem: item,
-      });
-    });
-
-    // Add chat sessions from index — skip entries with no messages
-    sessionIndex.forEach(entry => {
-      if (entry.messageCount === 0) return;
-      items.push({
-        id: entry.id,
-        type: 'chat',
-        title: entry.title,
-        timestamp: entry.lastMessageAt,
-      });
-    });
-
-    // Sort by timestamp descending (newest first)
-    return items.sort((a, b) => b.timestamp - a.timestamp);
-  }, [history.filteredItems, sessionIndex]);
-
+export const useUnifiedSidebar = (): UnifiedSidebar => {
+  const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } = useInfiniteQuery(sidebarQuery);
+  const items = useMemo(() => (data?.pages ?? []).flat().map(toItem), [data]);
   return {
-    items: unifiedItems,
-    isLoading: history.isLoading,
+    items,
+    isLoading,
+    hasMore: hasNextPage,
+    loadingMore: isFetchingNextPage,
+    loadMore: () => {
+      fetchNextPage().catch((error: unknown) => console.error('[Sidebar] Loading older items failed:', error));
+    },
   };
 };
 

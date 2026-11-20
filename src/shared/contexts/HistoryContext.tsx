@@ -6,6 +6,7 @@ import type { HistoryItem, MeetingIndexEntry } from '@shared/types';
 import { store } from '@services/db';
 import { meetingService } from '@services/meeting.service';
 import { queryKeys } from '@shared/query/queryKeys';
+import { sidebarEdits } from '@shared/query/sidebar';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
 import { matchesAllWords } from '@shared/utils/textMatch';
 
@@ -53,7 +54,7 @@ const HistoryUIContext = createContext<HistoryUIContextValue | null>(null);
 // ── Helpers ──
 
 /** Convert MeetingIndexEntry → HistoryItem (lightweight — no transcript/summary) */
-function indexEntryToHistoryItem(entry: MeetingIndexEntry): HistoryItem {
+export function indexEntryToHistoryItem(entry: MeetingIndexEntry): HistoryItem {
   return {
     id: entry.id,
     title: entry.title,
@@ -148,6 +149,7 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
       queryClient.setQueryData<HistoryItem[]>(queryKeys.meetings(), (old) =>
         (old || []).map(item => (item.id === itemId ? { ...item, title: newTitle } : item))
       );
+      await sidebarEdits.rename(itemId, newTitle);
       return context;
     },
     ...mutateOptions,
@@ -181,6 +183,7 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
       queryClient.setQueryData<HistoryItem[]>(queryKeys.meetings(), (old) =>
         (old || []).map(item => (item.id === itemId ? { ...item, ...updates } : item))
       );
+      if (updates.title) await sidebarEdits.rename(itemId, updates.title);
       return context;
     },
     ...mutateOptions,
@@ -205,6 +208,7 @@ export const HistoryProvider: React.FC<HistoryProviderProps> = ({ children }) =>
       queryClient.setQueryData<HistoryItem[]>(queryKeys.meetings(), (old) =>
         (old || []).filter(item => item.id !== itemId)
       );
+      await sidebarEdits.remove(itemId);
       return context;
     },
     ...mutateOptions,

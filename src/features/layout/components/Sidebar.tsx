@@ -37,7 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isSmallScreen = useSmallScreen();
   const currentView = useCurrentView();
   const isSettingsView = currentView === 'settings';
-  const { items } = useUnifiedSidebar();
+  const { items, isLoading, hasMore, loadingMore, loadMore } = useUnifiedSidebar();
   const selectedHistoryId = useSelectedHistoryId();
   const { openSettings, leaveSettings } = useAppActions();
   const currentChatId = useChatStore((s) => s.currentSessionId);
@@ -93,7 +93,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const list = (
     <>
       <RowGroupLabel>{results ? 'Results' : 'Recents'}</RowGroupLabel>
-      <UnifiedList items={results ?? items} selectedId={getSelectedId()} onSelect={handleSelectItem} searchQuery={results ? query : ''} />
+      <UnifiedList
+        items={results ?? items}
+        selectedId={getSelectedId()}
+        onSelect={handleSelectItem}
+        searchQuery={results ? query : ''}
+        paging={results ? undefined : { loading: isLoading, hasMore, loadingMore, loadMore }}
+      />
     </>
   );
   const searchField = (

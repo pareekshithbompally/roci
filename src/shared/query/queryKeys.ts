@@ -14,6 +14,8 @@ export const queryKeys = {
   /** Settings › Storage › Search Index: indexed against total meetings and chats. */
   indexStats: () => ['index-stats'] as const,
   meetings: () => ['meetings'] as const,
+  /** The sidebar, a page at a time; under `meetings` so every meeting write refreshes it (chat writes refresh it too) */
+  sidebar: () => ['meetings', 'sidebar'] as const,
   /** Calendar events (EventKit) in one range on screen, by ISO start/end; all of them reread on `calendar://changed` */
   calendarEvents: (start: string, end: string) => ['calendar-events', start, end] as const,
   calendarEventsAll: () => ['calendar-events'] as const,

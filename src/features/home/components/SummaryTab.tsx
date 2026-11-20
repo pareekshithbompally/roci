@@ -17,17 +17,15 @@ interface SummaryPaneProps {
   phase: MeetingPhase;
   transcribedBy: ModelCredit | null;
   summarizedBy: ModelCredit | null;
-  /** The meeting is still loading: the tab stays blank rather than saying there is no summary. */
-  loading?: boolean;
 }
 
-export const SummaryPane: React.FC<SummaryPaneProps> = ({ result, phase, transcribedBy, summarizedBy, loading }) => {
+export const SummaryPane: React.FC<SummaryPaneProps> = ({ result, phase, transcribedBy, summarizedBy }) => {
   const writing = !result.summary && !result.structuredSummary && isMeetingBusy(phase);
   return (
     <>
       <FadeScroll className={cn('flex-1 pt-4 pb-6', LAYOUT.pageGutter)}>
         <div className={LAYOUT.pageColumn}>
-          {loading ? null : writing
+          {writing
             ? <SummaryWriting label={phase.kind === 'summarizing' ? SUMMARY.copy.summarizing : SUMMARY.copy.transcribing} />
             : <SummaryView summary={result.summary} structuredSummary={result.structuredSummary} />}
         </div>
@@ -43,7 +41,7 @@ export const SummaryPane: React.FC<SummaryPaneProps> = ({ result, phase, transcr
   );
 };
 
-export const SummaryTab: React.FC<{ result: ProcessedResult; phase: MeetingPhase; meetingId?: string; loading: boolean }> = ({ result, phase, meetingId, loading }) => {
+export const SummaryTab: React.FC<{ result: ProcessedResult; phase: MeetingPhase; meetingId?: string }> = ({ result, phase, meetingId }) => {
   const { data: stats } = useMeetingStats(meetingId);
-  return <SummaryPane result={result} phase={phase} transcribedBy={stats?.transcribedBy ?? null} summarizedBy={stats?.summarizedBy ?? null} loading={loading} />;
+  return <SummaryPane result={result} phase={phase} transcribedBy={stats?.transcribedBy ?? null} summarizedBy={stats?.summarizedBy ?? null} />;
 };

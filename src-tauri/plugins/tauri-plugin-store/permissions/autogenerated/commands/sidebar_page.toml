@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-sidebar-page"
+description = "Enables the sidebar_page command without any pre-configured scope."
+commands.allow = ["sidebar_page"]
+
+[[permission]]
+identifier = "deny-sidebar-page"
+description = "Denies the sidebar_page command without any pre-configured scope."
+commands.deny = ["sidebar_page"]

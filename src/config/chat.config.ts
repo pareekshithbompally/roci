@@ -4,6 +4,8 @@ import type { ReasoningEffort } from '@shared/types';
 
 /** Number of items to show initially in the unified sidebar. More load on scroll. */
 export const SIDEBAR_PAGE_SIZE = 25;
+/** Placeholder rows shown while the sidebar's next page loads. */
+export const SIDEBAR_SHIMMER_ROWS = 3;
 
 /** Most chats kept loaded in memory; the first-loaded one (never the one being opened) makes room. */
 export const MAX_LOADED_SESSIONS = 10;

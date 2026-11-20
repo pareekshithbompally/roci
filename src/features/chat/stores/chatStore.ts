@@ -36,6 +36,7 @@ import { AppStatus } from '@shared/types';
 import { NOTIFICATIONS_CONFIG } from '@config/notifications.config';
 import { notifyAppEvent } from '@shared/utils/appEvents';
 import { queryKeys } from '@shared/query/queryKeys';
+import { sidebarEdits } from '@shared/query/sidebar';
 import { CHAT_MAX_ATTACHMENTS, TOOL_RESULT_PREVIEW_CHARS } from '@config/chat.config';
 import { UI_CONFIG } from '@config/ui.config';
 import { canSendDraft, chatModelOf, draftTitle } from '@features/chat/utils';
@@ -49,11 +50,12 @@ function notifyReply(sessionId: string, text: string): void {
   notifyAppEvent({ id: `chat:${sessionId}`, kind: 'chatReplies', tone: 'success', inFront: 'quiet', title: 'Reply ready', body });
 }
 
-/** Query re-reads the chat list from disk (after every chat write). */
+/** Query re-reads the chat list and the sidebar from disk (after every chat write). */
 function invalidateChats(): void {
-  queryClient.invalidateQueries({ queryKey: queryKeys.chats() }).catch((error: unknown) =>
-    console.error('[ChatStore] Failed to invalidate chats query:', error)
-  );
+  for (const queryKey of [queryKeys.chats(), queryKeys.sidebar()]) {
+    queryClient.invalidateQueries({ queryKey }).catch((error: unknown) =>
+      console.error('[ChatStore] Failed to refresh after a chat write:', queryKey, error));
+  }
 }
 
 /** What one tool event changes on its row in the streaming message. */
@@ -572,6 +574,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
       loadedSessions.delete(sessionId);
       return { loadedSessions, currentSessionId: state.currentSessionId === sessionId ? null : state.currentSessionId };
     });
+    await sidebarEdits.remove(sessionId);
     const deleted = await writeChat((index) => index.filter((e) => e.id !== sessionId), () => chatService.deleteSession(sessionId), 'delete chat');
     if (!deleted) throw new Error(`Chat ${sessionId} was not deleted`);
   },
@@ -586,6 +589,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
     // Memory first, so a save landing during the rename writes the new title too.
     const existing = sessionOf(sessionId);
     if (existing) putSession({ ...existing, title: newTitle });
+    await sidebarEdits.rename(sessionId, newTitle);
     await writeChat(
       (index) => index.map((e) => (e.id === sessionId ? { ...e, title: newTitle } : e)),
       () => chatService.renameSession(sessionId, newTitle),

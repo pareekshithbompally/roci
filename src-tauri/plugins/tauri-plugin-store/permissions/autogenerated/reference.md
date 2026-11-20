@@ -33,6 +33,7 @@ Allows all store plugin commands
 - `allow-categories-create`
 - `allow-categories-delete`
 - `allow-chats-list`
+- `allow-sidebar-page`
 - `allow-chats-get`
 - `allow-chats-upsert`
 - `allow-chats-rename`
@@ -1777,6 +1778,32 @@ Enables the settings_set command without any pre-configured scope.
 <td>
 
 Denies the settings_set command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-sidebar-page`
+
+</td>
+<td>
+
+Enables the sidebar_page command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-sidebar-page`
+
+</td>
+<td>
+
+Denies the sidebar_page command without any pre-configured scope.
 
 </td>
 </tr>

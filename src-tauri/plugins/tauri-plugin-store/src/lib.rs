@@ -86,6 +86,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::categories_delete,
             // Chat domain (Phase 2)
             commands::chats_list,
+            commands::sidebar_page,
             commands::chats_get,
             commands::chats_upsert,
             commands::chats_rename,

@@ -1,6 +1,6 @@
 /** Chats domain — list/get/upsert/rename/delete chat sessions. */
 
-import { call, extractDataBlob, rowToMessage } from '@services/db/internal';
+import { call, extractDataBlob, rowToMessage, toChatIndexEntry, type ChatIndexRow } from '@services/db/internal';
 import type { ChatMessage, ChatSession, ChatIndexEntry } from '@shared/types';
 import type { PaginatedResult } from '@services/db/types';
 import { appFileOf } from '@shared/utils/chatParts';
@@ -13,20 +13,8 @@ function assetPathsOf(messages: ChatMessage[]): string[] {
 export const chats = {
   /** List chat sessions, ordered by last_message_at DESC. */
   async list(limit = 50, offset = 0): Promise<PaginatedResult<ChatIndexEntry>> {
-    const result = await call<{
-      items: Array<{ id: string; title: string; last_message_at: number; message_count: number }>;
-      total: number;
-    }>('chats_list', { limit, offset });
-
-    return {
-      items: result.items.map((item) => ({
-        id: item.id,
-        title: item.title,
-        lastMessageAt: item.last_message_at,
-        messageCount: item.message_count,
-      })),
-      total: result.total,
-    };
+    const result = await call<{ items: ChatIndexRow[]; total: number }>('chats_list', { limit, offset });
+    return { items: result.items.map(toChatIndexEntry), total: result.total };
   },
 
   /** Get a full chat session with messages. */

@@ -33,6 +33,7 @@ const COMMANDS: &[&str] = &[
     "categories_delete",
     // Chat domain
     "chats_list",
+    "sidebar_page",
     "chats_get",
     "chats_upsert",
     "chats_rename",

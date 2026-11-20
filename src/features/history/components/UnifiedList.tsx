@@ -1,7 +1,6 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React from 'react';
 import { useHistory } from '@shared/contexts/HistoryContext';
 import { useChatStore } from '@features/chat';
-import { SIDEBAR_PAGE_SIZE } from '@config/chat.config';
 import { meetingPipeline } from '@features/recording';
 import { useMeetingParts } from '@shared/stores/meetingProgressStore';
 import { deriveMeetingPhase } from '@shared/types/meetingPhase';
@@ -10,18 +9,27 @@ import { useAIReadiness } from '@features/settings';
 import { useSentinel } from '@shared/hooks/useSentinel';
 import { useDeleteSession } from '@features/history/hooks/useDeleteSession';
 import { SidebarShimmer } from '@features/history/components/SidebarShimmer';
+import { SIDEBAR_SHIMMER_ROWS } from '@config/chat.config';
 import { UnifiedSidebarItem } from './UnifiedSidebarItem';
 import { RenameModal } from '@shared/components';
 import type { UnifiedSidebarItem as UnifiedSidebarItemType } from '@shared/types';
 import { Text } from '@shared/ui';
 
-const LOAD_MORE_COOLDOWN_MS = 300;
+/** The paged recents list: more rows load as its end scrolls into view. Search results come whole and have none. */
+export interface UnifiedListPaging {
+  /** The first page is loading: placeholder rows, not the empty message. */
+  loading: boolean;
+  hasMore: boolean;
+  loadingMore: boolean;
+  loadMore: () => void;
+}
 
 interface UnifiedListProps {
   items: UnifiedSidebarItemType[];
   selectedId: string | null;
   onSelect: (item: UnifiedSidebarItemType) => void;
   searchQuery: string;
+  paging?: UnifiedListPaging;
 }
 
 export const UnifiedList: React.FC<UnifiedListProps> = ({
@@ -29,6 +37,7 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
   selectedId,
   onSelect,
   searchQuery,
+  paging,
 }) => {
   const history = useHistory();
   const renameSession = useChatStore((s) => s.renameSession);
@@ -38,40 +47,10 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
   const aiReady = useAIReadiness();
 
   const [renameItem, setRenameItem] = React.useState<UnifiedSidebarItemType | null>(null);
-  const [displayCount, setDisplayCount] = useState(SIDEBAR_PAGE_SIZE);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const canLoadMore = !!paging?.hasMore && !paging.loadingMore;
+  const sentinelRef = useSentinel({ onIntersect: () => paging?.loadMore(), enabled: canLoadMore });
 
-  // Reset display when the source list changes identity
-  useEffect(() => {
-    setDisplayCount(SIDEBAR_PAGE_SIZE);
-  }, [items]);
-
-  const hasMore = displayCount < items.length;
-
-  const loadMoreTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    return () => {
-      if (loadMoreTimerRef.current) clearTimeout(loadMoreTimerRef.current);
-    };
-  }, []);
-
-  const loadMore = useCallback(() => {
-    if (!hasMore || isLoadingMore) return;
-    setIsLoadingMore(true);
-
-    if (loadMoreTimerRef.current) clearTimeout(loadMoreTimerRef.current);
-    loadMoreTimerRef.current = setTimeout(() => {
-      setDisplayCount((prev) => Math.min(prev + SIDEBAR_PAGE_SIZE, items.length));
-      setIsLoadingMore(false);
-    }, LOAD_MORE_COOLDOWN_MS);
-  }, [hasMore, isLoadingMore, items.length]);
-
-  const sentinelRef = useSentinel({
-    onIntersect: loadMore,
-    enabled: hasMore && !isLoadingMore,
-  });
-
-  const displayedItems = items.slice(0, displayCount);
+  if (paging?.loading) return <SidebarShimmer count={SIDEBAR_SHIMMER_ROWS} />;
 
   if (items.length === 0) {
     return (
@@ -102,7 +81,7 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
   return (
     <>
       <div>
-        {displayedItems.map((item) => {
+        {items.map((item) => {
           const phase = item.type === 'meeting' ? deriveMeetingPhase(item.historyItem?.status, parts[item.id] ?? null) : undefined;
           return (
             <UnifiedSidebarItem
@@ -119,13 +98,9 @@ export const UnifiedList: React.FC<UnifiedListProps> = ({
           );
         })}
 
-        {isLoadingMore && hasMore && (
-          <SidebarShimmer count={Math.min(SIDEBAR_PAGE_SIZE, items.length - displayCount)} />
-        )}
+        {paging?.loadingMore && <SidebarShimmer count={SIDEBAR_SHIMMER_ROWS} />}
 
-        {hasMore && !isLoadingMore && (
-          <div ref={sentinelRef} className="h-1" aria-hidden="true" />
-        )}
+        {canLoadMore && <div ref={sentinelRef} className="h-1" aria-hidden="true" />}
       </div>
 
       <RenameModal

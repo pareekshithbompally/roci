@@ -4,6 +4,7 @@ export { ActivityButton } from './ActivityButton';
 export { ConfirmHost } from './ConfirmHost';
 export { EmptyState } from './EmptyState';
 export { RemovedNotice } from './RemovedNotice';
+export { LoadingPane } from './LoadingPane';
 export { HighlightedText, MarkedExcerpt } from './HighlightedText';
 export { MeetingStatus } from './MeetingStatus';
 export { PermissionAction } from './PermissionAction';

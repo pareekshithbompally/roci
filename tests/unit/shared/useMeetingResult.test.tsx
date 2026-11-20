@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const detail = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@services/meeting.service', () => ({ meetingService: { getMeetingDetail: detail.get } }));
-vi.mock('@shared/contexts/HistoryContext', () => ({ useHistoryData: () => ({ items: [{ id: 'm1', title: 'Weekly sync', categories: [] }] }) }));
 
 import { useMeetingResult } from '@shared/hooks/useMeetingResult';
 import { queryKeys } from '@shared/query/queryKeys';
@@ -19,12 +18,12 @@ function setup() {
 const stored = (title: string, text: string) => ({ index: { id: 'm1', title, categories: [] }, transcript: { text }, notes: [], todos: [] });
 
 describe('useMeetingResult', () => {
-  it('shows the listed title at once, then the meeting from disk', async () => {
+  it('is loading (the view shows its loader) until the meeting is read from disk, nothing before', async () => {
     let finish: (value: unknown) => void = () => undefined;
     detail.get.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
     const { wrapper } = setup();
     const { result } = renderHook(() => useMeetingResult('m1'), { wrapper });
-    expect(result.current).toMatchObject({ loading: true, result: { title: 'Weekly sync', transcript: '' } });
+    expect(result.current).toEqual({ loading: true, result: null });
     finish(stored('Weekly sync', 'hello'));
     await waitFor(() => expect(result.current).toMatchObject({ loading: false, result: { transcript: 'hello' } }));
   });
@@ -41,6 +40,6 @@ describe('useMeetingResult', () => {
   it('is nothing when no meeting is open', () => {
     const { wrapper } = setup();
     const { result } = renderHook(() => useMeetingResult(null), { wrapper });
-    expect(result.current.result).toBeNull();
+    expect(result.current).toEqual({ loading: false, result: null });
   });
 });

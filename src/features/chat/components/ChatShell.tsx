@@ -1,7 +1,7 @@
 /** Shared chat layout for ChatView and MeetingChatPopout: messages, composer, citation drawers, speech input. */
 
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
-import { ArrowDown, Loader2 } from 'lucide-react';
+import { ArrowDown } from 'lucide-react';
 import { useChatStore, useCurrentSession } from '@features/chat/stores';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useHistoryData } from '@shared/contexts/HistoryContext';
@@ -26,7 +26,8 @@ import { MENTION_RECENT_MEETINGS } from '@config/chat.config';
 import { ANIMATION_CONFIG } from '@config/animations.config';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { MeetingCitation, WebCitation } from '@shared/types';
-import { IconButton, Icon, PageScroll, Text, cn } from '@shared/ui';
+import { IconButton, PageScroll, Text, cn } from '@shared/ui';
+import { LoadingPane } from '@shared/components';
 
 const ScrollToBottomBtn: React.FC<{ onClick: () => void }> = ({ onClick }) => (
   <IconButton
@@ -234,10 +235,10 @@ export const ChatShell: React.FC<ChatShellProps> = ({
     <div className={cn('relative flex h-full w-full flex-col overflow-hidden', className)}>
       {headerSlot}
 
-      {isLoadingSession || currentMessages.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center">
-          {isLoadingSession ? <Icon icon={Loader2} size="md" tone="faint" className="animate-spin" /> : emptyState}
-        </div>
+      {isLoadingSession ? (
+        <LoadingPane />
+      ) : currentMessages.length === 0 ? (
+        <div className="flex flex-1 items-center justify-center">{emptyState}</div>
       ) : (
         // Messages fade out at both edges: under the titlebar and into the composer.
         <div className="relative min-h-0 flex-1">

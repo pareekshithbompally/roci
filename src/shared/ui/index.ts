@@ -13,6 +13,7 @@ export * from './tabs';
 export * from './tooltip';
 export { cn } from './utils';
 export { Icon, ICON_STROKE_WIDTH, ICON_SIZE_PX } from './icon';
+export { Spinner } from './spinner';
 export { RociMark } from './roci-mark';
 export { AppMark } from './app-mark';
 export type { IconProps, IconSize } from './icon';

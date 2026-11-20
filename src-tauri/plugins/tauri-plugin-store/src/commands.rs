@@ -774,58 +774,8 @@ pub async fn meetings_list(
         let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
 
-        let total: i64 = db.query_row(
-            "SELECT COUNT(*) FROM meetings",
-            [],
-            |row| row.get(0),
-        )?;
-
-        let mut stmt = db.prepare(
-            "SELECT m.id, m.title, m.input_source, m.status, m.failed_step, m.error,
-                    m.calendar_event_id, m.calendar_meta, m.created_at, m.updated_at,
-                    (SELECT a.path FROM assets a WHERE a.meeting_id = m.id AND a.kind = 'recording'
-                     ORDER BY a.created_at LIMIT 1),
-                    m.audio_removed_at
-             FROM meetings m
-             ORDER BY m.created_at DESC
-             LIMIT ?1 OFFSET ?2",
-        )?;
-
-        type ListRow = (String, String, Option<String>, MeetingStatus, Option<String>, Option<String>, i64, i64, Option<String>, Option<i64>);
-        let meeting_rows: Vec<ListRow> = stmt
-            .query_map(rusqlite::params![limit, offset], |row| {
-                Ok((
-                    row.get(0)?, row.get(1)?, row.get(2)?, status_at(row, 3)?,
-                    row.get(6)?, row.get(7)?, row.get(8)?, row.get(9)?, row.get(10)?, row.get(11)?,
-                ))
-            })?
-            .filter_map(|r| r.ok())
-            .collect();
-
-        let meeting_ids: Vec<String> = meeting_rows.iter().map(|r| r.0.clone()).collect();
-        let category_map = get_meeting_categories_for_ids(db, &meeting_ids)?;
-
-        let items: Vec<MeetingRow> = meeting_rows
-            .into_iter()
-            .map(|(id, title, input_source, status, ceid, cmeta, cat, uat, recording, audio_removed_at)| {
-                let categories = category_map.get(&id).cloned().unwrap_or_default();
-                let rec_fn = recording.as_deref().map(assets::recording_filename);
-                MeetingRow {
-                    id,
-                    title,
-                    input_source,
-                    status,
-                    calendar_event_id: ceid,
-                    calendar_meta: cmeta,
-                    created_at: cat,
-                    updated_at: uat,
-                    categories,
-                    recording_filename: rec_fn,
-                    audio_removed_at,
-                }
-            })
-            .collect();
-
+        let total: i64 = db.query_row("SELECT COUNT(*) FROM meetings", [], |row| row.get(0))?;
+        let items = meeting_rows(db, "ORDER BY m.created_at DESC LIMIT ?1 OFFSET ?2", rusqlite::params![limit, offset])?;
         Ok(MeetingListResult { items, total })
     })
     .await
@@ -2034,6 +1984,114 @@ pub async fn providers_delete(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
+/// Meeting list rows (no transcript or summary) for a query tail (`WHERE` / `ORDER BY` / `LIMIT` over `meetings m`); a row that
+/// can't be read fails the read rather than vanishing from the list.
+fn meeting_rows(db: &Connection, tail: &str, params: impl rusqlite::Params) -> Result<Vec<MeetingRow>, StoreError> {
+    let mut stmt = db.prepare(&format!(
+        "SELECT m.id, m.title, m.input_source, m.status, m.failed_step, m.error,
+                m.calendar_event_id, m.calendar_meta, m.created_at, m.updated_at,
+                (SELECT a.path FROM assets a WHERE a.meeting_id = m.id AND a.kind = 'recording'
+                 ORDER BY a.created_at LIMIT 1),
+                m.audio_removed_at
+         FROM meetings m {tail}"
+    ))?;
+    type ListRow = (String, String, Option<String>, MeetingStatus, Option<String>, Option<String>, i64, i64, Option<String>, Option<i64>);
+    let rows: Vec<ListRow> = stmt
+        .query_map(params, |row| {
+            Ok((
+                row.get(0)?, row.get(1)?, row.get(2)?, status_at(row, 3)?,
+                row.get(6)?, row.get(7)?, row.get(8)?, row.get(9)?, row.get(10)?, row.get(11)?,
+            ))
+        })?
+        .collect::<Result<_, _>>()?;
+    let ids: Vec<String> = rows.iter().map(|r| r.0.clone()).collect();
+    let category_map = get_meeting_categories_for_ids(db, &ids)?;
+    Ok(rows
+        .into_iter()
+        .map(|(id, title, input_source, status, ceid, cmeta, cat, uat, recording, audio_removed_at)| MeetingRow {
+            categories: category_map.get(&id).cloned().unwrap_or_default(),
+            recording_filename: recording.as_deref().map(assets::recording_filename),
+            id, title, input_source, status,
+            calendar_event_id: ceid, calendar_meta: cmeta, created_at: cat, updated_at: uat, audio_removed_at,
+        })
+        .collect())
+}
+
+/// Chat list rows (no messages) for a query tail over `chats c`; a row that can't be read fails the read.
+fn chat_rows(db: &Connection, tail: &str, params: impl rusqlite::Params) -> Result<Vec<ChatIndexRow>, StoreError> {
+    Ok(db
+        .prepare(&format!(
+            "SELECT c.id, c.title, c.last_message_at,
+                    (SELECT COUNT(*) FROM chat_messages WHERE chat_id = c.id) AS message_count
+             FROM chats c {tail}"
+        ))?
+        .query_map(params, |row| {
+            Ok(ChatIndexRow { id: row.get(0)?, title: row.get(1)?, last_message_at: row.get(2)?, message_count: row.get(3)? })
+        })?
+        .collect::<Result<_, _>>()?)
+}
+
+// ── Sidebar ──
+
+/// Where a sidebar page ends: its last item's time and id (newest first; equal times ordered by id).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SidebarCursor {
+    pub at: i64,
+    pub id: String,
+}
+
+/// One sidebar row: a meeting (by when it was made) or a chat that has messages (by its last message).
+#[derive(Debug, Serialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum SidebarItem {
+    Meeting(MeetingRow),
+    Chat(ChatIndexRow),
+}
+
+impl SidebarItem {
+    fn key(&self) -> (i64, &str) {
+        match self {
+            SidebarItem::Meeting(m) => (m.created_at, m.id.as_str()),
+            SidebarItem::Chat(c) => (c.last_message_at, c.id.as_str()),
+        }
+    }
+}
+
+/// The next `limit` sidebar items after `before` (from the newest when none): meetings and chats merged by time, names and
+/// status only, so the sidebar loads a page at a time and has no cap.
+fn sidebar_page_impl(db: &Connection, before: Option<&SidebarCursor>, limit: u32) -> Result<Vec<SidebarItem>, StoreError> {
+    let (at, id) = before.map_or((None, ""), |c| (Some(c.at), c.id.as_str()));
+    let meetings = meeting_rows(
+        db,
+        "WHERE ?1 IS NULL OR m.created_at < ?1 OR (m.created_at = ?1 AND m.id < ?2)
+         ORDER BY m.created_at DESC, m.id DESC LIMIT ?3",
+        rusqlite::params![at, id, limit],
+    )?;
+    let chats = chat_rows(
+        db,
+        "WHERE EXISTS (SELECT 1 FROM chat_messages WHERE chat_id = c.id)
+           AND (?1 IS NULL OR c.last_message_at < ?1 OR (c.last_message_at = ?1 AND c.id < ?2))
+         ORDER BY c.last_message_at DESC, c.id DESC LIMIT ?3",
+        rusqlite::params![at, id, limit],
+    )?;
+    let mut items: Vec<SidebarItem> = meetings.into_iter().map(SidebarItem::Meeting).chain(chats.into_iter().map(SidebarItem::Chat)).collect();
+    items.sort_by(|a, b| b.key().cmp(&a.key()));
+    items.truncate(limit as usize);
+    Ok(items)
+}
+
+#[tauri::command]
+pub async fn sidebar_page(state: State<'_, StoreState>, before: Option<SidebarCursor>, limit: u32) -> Result<Vec<SidebarItem>, StoreError> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
+        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+        sidebar_page_impl(db, before.as_ref(), limit)
+    })
+    .await
+    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+}
+
 // ── Chat Domain Commands ──
 
 #[tauri::command]
@@ -2051,25 +2109,7 @@ pub async fn chats_list(
 
         let total: i64 = db.query_row("SELECT COUNT(*) FROM chats", [], |row| row.get(0))?;
 
-        let mut stmt = db.prepare(
-            "SELECT c.id, c.title, c.last_message_at,
-                    (SELECT COUNT(*) FROM chat_messages WHERE chat_id = c.id) AS message_count
-             FROM chats c
-             ORDER BY c.last_message_at DESC
-             LIMIT ?1 OFFSET ?2",
-        )?;
-
-        let items: Vec<ChatIndexRow> = stmt
-            .query_map(rusqlite::params![limit, offset], |row| {
-                Ok(ChatIndexRow {
-                    id: row.get(0)?,
-                    title: row.get(1)?,
-                    last_message_at: row.get(2)?,
-                    message_count: row.get(3)?,
-                })
-            })?
-            .filter_map(|r| r.ok())
-            .collect();
+        let items = chat_rows(db, "ORDER BY c.last_message_at DESC LIMIT ?1 OFFSET ?2", rusqlite::params![limit, offset])?;
 
         Ok(ChatsListResult { items, total })
     })
@@ -4085,6 +4125,31 @@ mod tests {
              CREATE TEMP TRIGGER w_d AFTER DELETE ON chat_messages BEGIN INSERT INTO writes VALUES (1); END;",
         )
         .unwrap();
+    }
+
+    #[test]
+    fn the_sidebar_pages_through_meetings_and_chats_by_time_with_nothing_missing() {
+        let conn = db();
+        for (i, id) in ["m1", "m2", "m3"].iter().enumerate() {
+            seed_meeting(&conn, id);
+            conn.execute("UPDATE meetings SET created_at = ?2 WHERE id = ?1", rusqlite::params![id, (i as i64 + 1) * 10]).unwrap();
+        }
+        for (id, at) in [("c1", 15), ("c2", 25), ("empty", 99)] {
+            let mut input = chat(if id == "empty" { vec![] } else { vec![msg(&format!("{id}-q"), "hi")] });
+            input.id = id.into();
+            input.last_message_at = at;
+            chats_upsert_impl(&conn, &input).unwrap();
+        }
+        let mut seen = Vec::new();
+        let mut before: Option<SidebarCursor> = None;
+        loop {
+            let page = sidebar_page_impl(&conn, before.as_ref(), 2).unwrap();
+            if page.is_empty() { break; }
+            let (at, id) = page.last().unwrap().key();
+            before = Some(SidebarCursor { at, id: id.to_string() });
+            seen.extend(page.iter().map(|item| item.key().1.to_string()));
+        }
+        assert_eq!(seen, vec!["m3", "c2", "m2", "c1", "m1"], "newest first, every item once; a chat with no messages isn't listed");
     }
 
     #[test]

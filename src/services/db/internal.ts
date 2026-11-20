@@ -3,6 +3,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { parseStoreError } from './errors';
 import type {
+  ChatIndexEntry,
   ChatMessage,
   NoteEntry,
   TodoEntry,
@@ -212,6 +213,21 @@ export function toMeetingStatus(row: MeetingStatusRow): MeetingStatus {
   if (row.error) status.error = row.error;
   return status;
 }
+
+/** A chat list row as Rust sends it (no messages). */
+export interface ChatIndexRow {
+  id: string;
+  title: string;
+  last_message_at: number;
+  message_count: number;
+}
+
+export const toChatIndexEntry = (row: ChatIndexRow): ChatIndexEntry => ({
+  id: row.id,
+  title: row.title,
+  lastMessageAt: row.last_message_at,
+  messageCount: row.message_count,
+});
 
 export function toMeetingIndexEntry(row: MeetingRow): MeetingIndexEntry {
   const entry: MeetingIndexEntry = {
