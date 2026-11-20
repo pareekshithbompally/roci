@@ -8,6 +8,10 @@ import { getProviderType } from '@shared/utils/modelResolver';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { getModelDisplayName } from '@shared/utils/provider.utils';
 import { fitsJob, profileOf } from '@services/ai/models';
+import type { ModelProfile } from '@services/ai/models';
+import { modalitiesService } from '@services/modalities';
+import { AiError } from '@services/ai/errors';
+import { CHAT_CATALOG_COPY } from '@config/chat.config';
 import { followModelLoad, generationStats, promptProgress } from '@services/ai/llamaServer';
 import { listStyleOf } from '@services/providers/listers';
 import { followMlxLoad } from '@services/mlx.service';
@@ -36,11 +40,21 @@ export function stripWebCitations(text: string, webSearchActive: boolean): strin
   return text.replace(/<\/?cite[^>]*>/g, '').replace(/\[(\d+)\](?!\()/g, '');
 }
 
+/** The models.dev list (what each model can do) before the chat reads it; the reply says so while it's fetched. */
+async function loadModelFacts(onChunk: OrchestratorCallbacks['onChunk']): Promise<void> {
+  if (modalitiesService.isLoaded()) return;
+  onChunk('', { progress: { stage: 'loading-catalog', percent: null } });
+  await modalitiesService.ensureLoaded();
+  if (!modalitiesService.isLoaded()) throw new AiError('network', CHAT_CATALOG_COPY.unavailable);
+  // Back to the plain "working" line until the model's first word.
+  onChunk('', {});
+}
+
 /** The chat's model, ready to call — or why it can't run. */
-function chatModelOrThrow(resolved: ResolvedModel): ResolvedModel {
+function chatModelOrThrow(resolved: ResolvedModel, profile: ModelProfile): ResolvedModel {
   const keyProblem = missingKey(resolved);
   if (keyProblem) throw keyProblem;
-  if (!fitsJob(profileOf(resolved.provider, resolved.model), 'chat')) {
+  if (!fitsJob(profile, 'chat')) {
     throw new Error(`${getModelDisplayName(resolved.model)} doesn't chat (it doesn't take and give text). Pick a chat model.`);
   }
   return resolved;
@@ -55,10 +69,11 @@ interface ChatTools {
   toolset: ChatToolset;
 }
 
-async function buildTools(options: OrchestratorOptions, webSearchTools: ToolSet | undefined, mcpSettings: McpSettings): Promise<ChatTools> {
+/** Roci's tools go only to a model that takes tools; the provider's own web search goes either way. */
+async function buildTools(options: OrchestratorOptions, webSearchTools: ToolSet | undefined, mcpSettings: McpSettings, takesTools: boolean): Promise<ChatTools> {
   const webSearch = !!webSearchTools;
   const none: ChatTools = { tools: webSearchTools, sources: new Map(), toolset: { ...NO_TOOLS, webSearch } };
-  if (options.skipRetrieval) return none;
+  if (!takesTools) return none;
   const { settings, providers } = options;
   const prefs = chatToolPreferences(settings);
   const reservedNames = new Set([...toolRegistry.getToolNames(), GENERATE_IMAGE_TOOL]);
@@ -155,11 +170,13 @@ export async function orchestrate(
   const { messages, model, prompt, settings, signal, reasoningEffort } = options;
   const { onChunk } = callbacks;
 
-  const resolved = chatModelOrThrow(model);
+  await loadModelFacts(onChunk);
+  const profile = profileOf(model.provider, model.model);
+  const resolved = chatModelOrThrow(model, profile);
   const webSearchTools = chatToolPreferences(settings).webSearch ? getWebSearchTools(resolved) : undefined;
   const mcpSettings = await loadMcpSettings();
-  const { tools, sources: toolSources, toolset } = await buildTools(options, webSearchTools, mcpSettings);
-  const { input, output } = profileOf(resolved.provider, resolved.model);
+  const { tools, sources: toolSources, toolset } = await buildTools(options, webSearchTools, mcpSettings, profile.tools);
+  const { input, output } = profile;
   const systemPrompt = buildChatSystemPrompt({ ...prompt, tools: toolset, modalities: { input, output } });
   const { maxToolCalls } = mcpSettings;
   // A local llama-server reports loading the model and reading the prompt before it replies.

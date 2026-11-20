@@ -53,11 +53,17 @@ export const DICTATION_COPY = {
 
 /** What a reply's header says before its first word, in the order it's checked. */
 export const CHAT_LOADING_COPY = {
+  'loading-catalog': 'Getting model list',
   'loading-weights': 'Loading weights',
   'loading-draft': 'Loading draft',
   'loading-projector': 'Loading projector',
   'reading-prompt': 'Reading your message',
   working: 'Working on it…',
+} as const;
+
+/** A reply that can't start because the models.dev list (what each model can do) isn't on this Mac and can't be downloaded. */
+export const CHAT_CATALOG_COPY = {
+  unavailable: 'Couldn’t get the model list from models.dev. Check your connection, then send again.',
 } as const;
 
 /** The detail beside the reply header's status, from what a local server reports. */

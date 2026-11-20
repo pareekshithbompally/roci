@@ -39,7 +39,6 @@ import { queryKeys } from '@shared/query/queryKeys';
 import { CHAT_MAX_ATTACHMENTS, TOOL_RESULT_PREVIEW_CHARS } from '@config/chat.config';
 import { UI_CONFIG } from '@config/ui.config';
 import { canSendDraft, chatModelOf, draftTitle } from '@features/chat/utils';
-import { profileOf } from '@services/ai/models';
 import type { ModelRef } from '@services/ai/models';
 import { errorMessage } from '@shared/utils/errors';
 
@@ -359,7 +358,6 @@ async function streamReply(reply: Reply, request: ReplyRequest, tally: StreamTal
     patchMessage(reply.sessionId, reply.messageId, (m) => ({ ...m, state: 'streaming' }));
   };
 
-  const hasToolSupport = profileOf(resolved.provider, resolved.model).tools;
   const webUrls = new Set<string>();
 
   return orchestrate(
@@ -373,7 +371,6 @@ async function streamReply(reply: Reply, request: ReplyRequest, tally: StreamTal
       settings,
       providers,
       signal,
-      skipRetrieval: !hasToolSupport,
       reasoningEffort: session.reasoningEffort ?? 'provider-default',
     },
     {

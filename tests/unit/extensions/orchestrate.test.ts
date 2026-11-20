@@ -35,6 +35,15 @@ vi.mock('@extensions/tools', () => ({
   GENERATE_IMAGE_TOOL: 'generate_image',
 }));
 
+const catalog = vi.hoisted(() => ({ loaded: true, fetches: true }));
+vi.mock('@services/modalities', () => ({
+  modalitiesService: {
+    isLoaded: () => catalog.loaded,
+    ensureLoaded: async () => { catalog.loaded = catalog.fetches; },
+    catalogReport: () => null,
+  },
+}));
+
 const invalidateQueries = vi.hoisted(() => vi.fn());
 vi.mock('@shared/query/queryClient', () => ({ queryClient: { invalidateQueries } }));
 
@@ -61,6 +70,8 @@ const run = (settings: Partial<AppSettings>) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  catalog.loaded = true;
+  catalog.fetches = true;
   invalidateQueries.mockResolvedValue(undefined);
   getWebSearchTools.mockReturnValue({ webSearch: {} });
   listStyleOf.mockResolvedValue('openai');
@@ -114,5 +125,27 @@ describe('orchestrate — llama-server tool support', () => {
     resolved.current = { provider: 'local:ollama', modelId: 'm', baseUrl: 'u', model: { id: 'm' } };
     await run({});
     expect(invalidateQueries).not.toHaveBeenCalled();
+  });
+});
+
+describe('orchestrate — the models.dev list', () => {
+  it('says it is getting the model list on a Mac without one, then goes back to the plain line', async () => {
+    catalog.loaded = false;
+    await run({});
+    expect(callbacks.onChunk).toHaveBeenNthCalledWith(1, '', { progress: { stage: 'loading-catalog', percent: null } });
+    expect(callbacks.onChunk).toHaveBeenNthCalledWith(2, '', {});
+    expect(streamText).toHaveBeenCalledOnce();
+  });
+
+  it('says nothing about it once the list is loaded', async () => {
+    await run({});
+    expect(callbacks.onChunk).not.toHaveBeenCalledWith('', { progress: { stage: 'loading-catalog', percent: null } });
+  });
+
+  it('stops with a plain reason when the list can\'t be downloaded, before calling the model', async () => {
+    catalog.loaded = false;
+    catalog.fetches = false;
+    await expect(run({})).rejects.toThrow(/model list from models.dev/);
+    expect(streamText).not.toHaveBeenCalled();
   });
 });

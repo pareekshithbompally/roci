@@ -19,8 +19,6 @@ export interface OrchestratorOptions {
   settings: AppSettings;
   providers: ModelProvider[];
   signal?: AbortSignal;
-  /** Whether to skip tool attachment (model doesn't support tools). Default: false */
-  skipRetrieval?: boolean;
   /** The chat's thinking level. */
   reasoningEffort: ReasoningEffort;
 }
