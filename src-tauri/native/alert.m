@@ -11,6 +11,7 @@ void roci_alert(const char *title, const char *message, const char *confirmLabel
   NSAlert *alert = [NSAlert new];
   alert.messageText = @(title);
   alert.informativeText = @(message);
+  alert.icon = NSApp.applicationIconImage; // the default asks the bundle, which a dev build doesn't have
   NSButton *confirm = [alert addButtonWithTitle:@(confirmLabel)];
   NSButton *cancel = [alert addButtonWithTitle:@(cancelLabel)];
   cancel.keyEquivalent = @"\033";
