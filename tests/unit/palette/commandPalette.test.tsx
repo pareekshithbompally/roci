@@ -22,7 +22,7 @@ const ITEMS = [
 
 vi.mock('@features/history/hooks/useUnifiedSidebar', () => ({ useUnifiedSidebar: () => ({ items: ITEMS }) }));
 vi.mock('@features/history/hooks/useOpenSession', () => ({ useOpenSession: () => mocks.openSession }));
-vi.mock('@extensions/rag/client', () => ({ vectorDB: { searchSessions: mocks.searchSessions } }));
+vi.mock('@services/db', () => ({ store: { searchSessions: mocks.searchSessions } }));
 vi.mock('@features/chat', () => ({ startNewChat: mocks.startNewChat }));
 vi.mock('@features/recording', () => ({ useToggleRecording: () => mocks.toggleRecording, useRecordingMeetingId: () => null }));
 vi.mock('@shared/contexts/ThemeContext', () => ({ useThemeContext: () => ({ isDark: true, setTheme: mocks.setTheme }) }));

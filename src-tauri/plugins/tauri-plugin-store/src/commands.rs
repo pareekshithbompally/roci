@@ -349,16 +349,13 @@ pub struct ChunkData {
     pub end_pos: Option<i32>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct DbStats {
-    pub total_meetings: i64,
-    pub total_chunks: i64,
-    pub transcript_chunks: i64,
-    pub chat_sessions: i64,
-    pub chat_chunks: i64,
-    pub db_size_bytes: u64,
-    pub fts_chunks: i64,
-    pub fts_chat_chunks: i64,
+/// The search index as Settings shows it: meetings and chats that have pieces, and how many pieces of each kind.
+#[derive(Debug, Serialize)]
+pub struct IndexStats {
+    pub indexed_meetings: i64,
+    pub indexed_chats: i64,
+    pub transcript_pieces: i64,
+    pub chat_pieces: i64,
 }
 
 // ── Chat Indexing Structs ──
@@ -1978,7 +1975,7 @@ pub struct ItemCursor {
 }
 
 /// One kind of item: a meeting (by when it was made) or a chat that has messages (by its last message).
-#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ItemKind {
     Meeting,
@@ -2454,48 +2451,20 @@ pub(crate) fn append_chunks_impl(db: &Connection, meeting_id: &str, chunks: &[Ch
     Ok(())
 }
 
+fn index_stats_impl(db: &Connection) -> Result<IndexStats, StoreError> {
+    Ok(db.query_row(
+        "SELECT (SELECT COUNT(DISTINCT meeting_id) FROM chunks),
+                (SELECT COUNT(DISTINCT chat_id) FROM chat_chunks),
+                (SELECT COUNT(*) FROM chunks WHERE chunk_type = 'transcript'),
+                (SELECT COUNT(*) FROM chat_chunks)",
+        [],
+        |row| Ok(IndexStats { indexed_meetings: row.get(0)?, indexed_chats: row.get(1)?, transcript_pieces: row.get(2)?, chat_pieces: row.get(3)? }),
+    )?)
+}
+
 #[tauri::command]
-pub async fn get_stats(
-    state: State<'_, StoreState>,
-) -> Result<DbStats, StoreError> {
-    let conn_arc = Arc::clone(&state.conn);
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
-        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
-
-        let count = |sql: &str| -> i64 {
-            db.query_row(sql, [], |row| row.get(0)).unwrap_or(0)
-        };
-
-        let total_meetings = count("SELECT COUNT(*) FROM meetings");
-        let total_chunks = count("SELECT COUNT(*) FROM chunks");
-        let transcript_chunks = count("SELECT COUNT(*) FROM chunks WHERE chunk_type = 'transcript'");
-        let chat_sessions = count("SELECT COUNT(*) FROM chats");
-        let chat_chunks = count("SELECT COUNT(*) FROM chat_chunks");
-        let fts_chunks = count("SELECT COUNT(*) FROM chunks_fts");
-        let fts_chat_chunks = count("SELECT COUNT(*) FROM chat_chunks_fts");
-
-        let page_count: i64 = db
-            .query_row("PRAGMA page_count", [], |row| row.get(0))
-            .unwrap_or(0);
-        let page_size: i64 = db
-            .query_row("PRAGMA page_size", [], |row| row.get(0))
-            .unwrap_or(4096);
-        let db_size_bytes = (page_count * page_size) as u64;
-
-        Ok(DbStats {
-            total_meetings,
-            total_chunks,
-            transcript_chunks,
-            chat_sessions,
-            chat_chunks,
-            db_size_bytes,
-            fts_chunks,
-            fts_chat_chunks,
-        })
-    })
-    .await
-    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+pub async fn index_stats(state: State<'_, StoreState>) -> Result<IndexStats, StoreError> {
+    on_db(&state, index_stats_impl).await
 }
 
 // ── Usage Tracking Commands ──
@@ -2756,13 +2725,6 @@ pub(crate) struct ChunkStore {
 pub(crate) const MEETING_CHUNKS: ChunkStore = ChunkStore { chunks: "chunks", vectors: "vec_chunks", owner: "meeting_id", positions: true };
 pub(crate) const CHAT_CHUNKS: ChunkStore = ChunkStore { chunks: "chat_chunks", vectors: "chat_vec_chunks", owner: "chat_id", positions: false };
 
-/// Whose search pieces a command reads: a meeting's or a chat's.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ChunkOwner {
-    Meeting,
-    Chat,
-}
 /// An owner's search pieces after a save: a piece whose text is unchanged keeps its row and vector (replaced only when a new
 /// vector is sent), a changed or new piece is written, and pieces past the end are removed — so an edit writes and embeds
 /// only what changed. The full-text index follows by trigger.

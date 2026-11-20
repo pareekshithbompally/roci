@@ -1,4 +1,4 @@
-/** Settings › Storage › Search Index: how many meetings and chats are indexed, against how many there are. */
+/** Settings › Storage › Search Index: how many meetings and chats are indexed (have pieces), against how many there are. */
 
 import { useQuery } from '@tanstack/react-query';
 import { store } from '@services/db';
@@ -8,16 +8,15 @@ import { queryKeys } from '@shared/query/queryKeys';
 export interface IndexStats {
   meetings: { indexed: number; onDisk: number };
   chats: { indexed: number; onDisk: number };
-  chunks: { total: number; transcript: number };
+  pieces: { transcript: number; chat: number };
 }
 
 async function loadIndexStats(): Promise<IndexStats> {
-  const { vectorDB } = await import('@extensions/rag');
-  const [stats, counts] = await Promise.all([vectorDB.getStats(), store.items.count()]);
+  const [stats, counts] = await Promise.all([store.indexStats(), store.items.count()]);
   return {
-    meetings: { indexed: stats.total_meetings, onDisk: counts.meetings },
-    chats: { indexed: stats.chat_sessions, onDisk: counts.chats },
-    chunks: { total: stats.total_chunks, transcript: stats.transcript_chunks },
+    meetings: { indexed: stats.indexed_meetings, onDisk: counts.meetings },
+    chats: { indexed: stats.indexed_chats, onDisk: counts.chats },
+    pieces: { transcript: stats.transcript_pieces, chat: stats.chat_pieces },
   };
 }
 

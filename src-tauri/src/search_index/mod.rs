@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
-use tauri_plugin_store::index::{self, ChatLine, MeetingText, Owner, Piece};
+use tauri_plugin_store::index::{self, ChatLine, MeetingText, ItemKind, ChunkData};
 use tauri_plugin_store::{ChatSearchHit, MeetingChange, SearchHit};
 
 use crate::mlx;
@@ -37,7 +37,7 @@ pub enum Scope {
 }
 
 enum Input {
-    Saved(Owner, String),
+    Saved(ItemKind, String),
     /// Search's embedding model just finished downloading.
     EmbedderReady,
     Rebuild(Scope, Sender<Result<(), String>>),
@@ -66,12 +66,12 @@ pub fn start(app: AppHandle) {
     let meetings = sender.clone();
     tauri_plugin_store::on_meeting_change(move |change| {
         if let MeetingChange::Saved(id) = change {
-            let _ = meetings.send(Input::Saved(Owner::Meeting, id.clone()));
+            let _ = meetings.send(Input::Saved(ItemKind::Meeting, id.clone()));
         }
     });
     let chats = sender.clone();
     tauri_plugin_store::on_chat_saved(move |id| {
-        let _ = chats.send(Input::Saved(Owner::Chat, id.to_string()));
+        let _ = chats.send(Input::Saved(ItemKind::Chat, id.to_string()));
     });
     let _ = SENDER.set(sender);
 }
@@ -85,8 +85,9 @@ pub fn embedder_ready() {
 
 // ── Worker ──
 
+/// The worker: saves gather until [`SETTLE`] passes, then each saved item is indexed once; downloads and rebuilds run as they come.
 fn follow(app: &AppHandle, receiver: &Receiver<Input>) {
-    let mut pending: BTreeSet<(Owner, String)> = BTreeSet::new();
+    let mut pending: BTreeSet<(ItemKind, String)> = BTreeSet::new();
     let mut due: Option<Instant> = None;
     loop {
         let input = match due {
@@ -113,7 +114,8 @@ fn follow(app: &AppHandle, receiver: &Receiver<Input>) {
     }
 }
 
-fn report(result: Result<(), String>, owner: Owner, id: &str) {
+/// Logs an item that couldn't be indexed (the next save tries again).
+fn report(result: Result<(), String>, owner: ItemKind, id: &str) {
     if let Err(error) = result {
         log::error!("[search-index] indexing {owner:?} {id} failed: {error}");
     }
@@ -121,10 +123,10 @@ fn report(result: Result<(), String>, owner: Owner, id: &str) {
 
 /// One meeting or chat, from the store: its pieces saved, the ones without a vector embedded. A meeting still waiting for its
 /// transcript, or one that's gone, is left as it is.
-fn index_one(app: &AppHandle, owner: Owner, id: &str) -> Result<(), String> {
+fn index_one(app: &AppHandle, owner: ItemKind, id: &str) -> Result<(), String> {
     let source = match owner {
-        Owner::Meeting => Source::Meeting(index::meeting_text(app, id).map_err(|e| e.to_string())?),
-        Owner::Chat => Source::Chat(index::chat_lines(app, id).map_err(|e| e.to_string())?),
+        ItemKind::Meeting => Source::Meeting(index::meeting_text(app, id).map_err(|e| e.to_string())?),
+        ItemKind::Chat => Source::Chat(index::chat_lines(app, id).map_err(|e| e.to_string())?),
     };
     let Some(pieces) = pieces_of(source) else { return Ok(()) };
     let pieces = with_new_vectors(app, owner, id, pieces)?;
@@ -139,7 +141,7 @@ enum Source {
 
 /// The pieces an item is saved as; `None` leaves its index as it is (gone, or a meeting still waiting for its transcript,
 /// whose live stretches stay until it's in).
-fn pieces_of(source: Source) -> Option<Vec<Piece>> {
+fn pieces_of(source: Source) -> Option<Vec<ChunkData>> {
     match source {
         Source::Meeting(Some(text)) if !text.waiting => Some(pieces::meeting(&text)),
         Source::Chat(Some(lines)) => Some(pieces::chat(&lines)),
@@ -148,7 +150,7 @@ fn pieces_of(source: Source) -> Option<Vec<Piece>> {
 }
 
 /// Vectors for the pieces whose text has none yet (an unchanged piece keeps its own); none while the model isn't downloaded.
-fn with_new_vectors(app: &AppHandle, owner: Owner, id: &str, mut pieces: Vec<Piece>) -> Result<Vec<Piece>, String> {
+fn with_new_vectors(app: &AppHandle, owner: ItemKind, id: &str, mut pieces: Vec<ChunkData>) -> Result<Vec<ChunkData>, String> {
     let have: BTreeSet<String> = index::embedded_texts(app, owner, id).map_err(|e| e.to_string())?.into_iter().collect();
     let missing: Vec<usize> = (0..pieces.len()).filter(|&i| !have.contains(&pieces[i].chunk_text)).collect();
     let texts: Vec<String> = missing.iter().map(|&i| pieces[i].chunk_text.clone()).collect();
@@ -183,15 +185,15 @@ fn catch_up(app: &AppHandle) {
 
 /// Everything in `scope` cleared and indexed again, reporting progress.
 fn rebuild(app: &AppHandle, scope: Scope) -> Result<(), String> {
-    let owners: &[Owner] = match scope {
-        Scope::All => &[Owner::Meeting, Owner::Chat],
-        Scope::Meetings => &[Owner::Meeting],
-        Scope::Chats => &[Owner::Chat],
+    let owners: &[ItemKind] = match scope {
+        Scope::All => &[ItemKind::Meeting, ItemKind::Chat],
+        Scope::Meetings => &[ItemKind::Meeting],
+        Scope::Chats => &[ItemKind::Chat],
     };
     for &owner in owners {
         index::clear(app, owner).map_err(|e| e.to_string())?;
         let ids = index::all_ids(app, owner).map_err(|e| e.to_string())?;
-        let kind = Some(if owner == Owner::Meeting { "meetings" } else { "chats" });
+        let kind = Some(if owner == ItemKind::Meeting { "meetings" } else { "chats" });
         for (i, id) in ids.iter().enumerate() {
             emit(app, Progress { kind, current: i + 1, total: ids.len(), done: false });
             report(index_one(app, owner, id), owner, id);
@@ -201,6 +203,7 @@ fn rebuild(app: &AppHandle, scope: Scope) -> Result<(), String> {
     Ok(())
 }
 
+/// Sends a rebuild's progress to the webview.
 fn emit(app: &AppHandle, progress: Progress) {
     if let Err(error) = app.emit(PROGRESS_EVENT, progress) {
         log::warn!("[search-index] progress event failed: {error}");

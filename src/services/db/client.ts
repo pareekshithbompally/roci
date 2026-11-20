@@ -1,7 +1,7 @@
 /** The single TS entry for DB operations; each mutation is a Rust store command in one SQLite transaction. */
 
 import { call } from './internal';
-import type { StoreMeta } from './types';
+import type { IndexStats, SessionSearchHit, SessionSearchParams } from './types';
 import { meetings } from './domains/meetings';
 import { assets } from './domains/assets';
 import { storage } from './domains/storage';
@@ -21,14 +21,14 @@ export const store = {
     await call<void>('initialize');
   },
 
-  /** Return index metadata (schema version, embedding model, dimensions). */
-  async getMeta(): Promise<StoreMeta> {
-    return call<StoreMeta>('get_meta');
+  /** The search index's counts (Settings › Search Index). */
+  async indexStats(): Promise<IndexStats> {
+    return call<IndexStats>('index_stats');
   },
 
-  /** Return database statistics. */
-  async getStats(): Promise<unknown> {
-    return call<unknown>('get_stats');
+  /** The ⌘K search over meeting and chat titles and contents, as you type. */
+  async searchSessions(params: SessionSearchParams): Promise<SessionSearchHit[]> {
+    return call<SessionSearchHit[]>('search_sessions', { params });
   },
 
   meetings,

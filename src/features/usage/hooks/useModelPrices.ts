@@ -7,6 +7,7 @@ import { priceUnpricedUsage } from '@extensions/usage';
 import { modelsToPrice } from '@features/usage/model/prices';
 import type { ModelPrice } from '@shared/types/modelProviders';
 
+/** The models to price (no price, and the user's own) and saving a price. */
 export function useModelPrices() {
   useModelCatalog();
   const { providers, updateProvider } = useSettings();

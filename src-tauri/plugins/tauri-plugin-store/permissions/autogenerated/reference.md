@@ -5,7 +5,7 @@ Allows all store plugin commands
 #### This default permission set includes the following:
 
 - `allow-initialize`
-- `allow-get-stats`
+- `allow-index-stats`
 - `allow-meetings-get`
 - `allow-meetings-existing`
 - `allow-meetings-upsert`
@@ -464,32 +464,6 @@ Denies the get_meeting_usage command without any pre-configured scope.
 <tr>
 <td>
 
-`store:allow-get-stats`
-
-</td>
-<td>
-
-Enables the get_stats command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-get-stats`
-
-</td>
-<td>
-
-Denies the get_stats command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
 `store:allow-get-usage-summary`
 
 </td>
@@ -509,6 +483,32 @@ Enables the get_usage_summary command without any pre-configured scope.
 <td>
 
 Denies the get_usage_summary command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:allow-index-stats`
+
+</td>
+<td>
+
+Enables the index_stats command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`store:deny-index-stats`
+
+</td>
+<td>
+
+Denies the index_stats command without any pre-configured scope.
 
 </td>
 </tr>

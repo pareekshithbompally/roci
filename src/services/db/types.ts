@@ -9,21 +9,26 @@ export interface PaginatedResult<T> {
 /** Map of settings key → value. */
 export type SettingsMap = Record<string, unknown>;
 
-/** Store health probe result. */
-export interface StoreMeta {
-  schema_version: string;
-  embedding_model: string;
-  embedding_dim: string;
+/** The search index as Settings shows it: meetings and chats that have pieces, and how many pieces of each kind. */
+export interface IndexStats {
+  indexed_meetings: number;
+  indexed_chats: number;
+  transcript_pieces: number;
+  chat_pieces: number;
 }
 
-/** Store statistics. */
-export interface StoreStats {
-  total_meetings: number;
-  total_chunks: number;
-  transcript_chunks: number;
-  chat_sessions: number;
-  chat_chunks: number;
-  db_size_bytes: number;
-  fts_chunks: number;
-  fts_chat_chunks: number;
+export interface SessionSearchParams {
+  query: string;
+  /** Max results per source type. Total results ≤ limit × 2. */
+  limit: number;
+}
+
+export interface SessionSearchHit {
+  source_type: 'meeting' | 'chat';
+  source_id: string;
+  title: string;
+  /** Excerpt with <<MARK>> / <</MARK>> around matched terms; empty for title-only matches. */
+  excerpt: string;
+  timestamp: number;
+  match_type: 'title' | 'content';
 }

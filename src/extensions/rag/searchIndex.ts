@@ -83,6 +83,7 @@ export interface IndexProgress {
   done: boolean;
 }
 
+/** Follows a rebuild's progress; resolves the unsubscribe. */
 export async function onIndexProgress(listener: (progress: IndexProgress) => void): Promise<UnlistenFn> {
   if (!isTauriEnvironment()) return () => undefined;
   return listen<IndexProgress>('search-index://progress', ({ payload }) => listener(payload));

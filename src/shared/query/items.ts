@@ -70,6 +70,7 @@ export const itemCountsQuery = {
 
 /** For code outside React (AI tools, URL actions): the same reads, cached the same way. */
 export const fetchMeetingBrief = (id: string): Promise<HistoryItem | null> => queryClient.fetchQuery(meetingBriefQuery(id));
+/** The first `limit` meetings matching `filter`, for code outside React. */
 export const fetchMeetings = (filter: Omit<ItemFilter, 'kind'>, limit: number): Promise<HistoryItem[]> =>
   queryClient.fetchQuery(meetingsFoundQuery(filter, limit));
 

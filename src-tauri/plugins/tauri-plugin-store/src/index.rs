@@ -3,7 +3,7 @@
 //! The webview never handles pieces or vectors.
 
 use crate::commands::{
-    append_chunks_impl, chats_get_impl, embedded_chunk_texts_impl, meetings_get_impl, save_chunks, ChatSearchHit, ChunkOwner,
+    append_chunks_impl, chats_get_impl, embedded_chunk_texts_impl, meetings_get_impl, save_chunks, ChatSearchHit,
     StoreState, CHAT_CHUNKS, MEETING_CHUNKS,
 };
 use crate::error::StoreError;
@@ -12,8 +12,7 @@ use rusqlite::{Connection, OptionalExtension};
 use serde_json::Value;
 use tauri::{AppHandle, Manager, Runtime};
 
-pub use crate::commands::ChunkData as Piece;
-pub use crate::commands::ChunkOwner as Owner;
+pub use crate::commands::{ChunkData, ItemKind};
 
 /// A meeting's searchable text.
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -102,20 +101,20 @@ pub fn chat_lines<R: Runtime>(app: &AppHandle<R>, id: &str) -> Result<Option<Vec
     .flatten())
 }
 
-const fn store_of(owner: &Owner) -> &'static crate::commands::ChunkStore {
-    match owner {
-        ChunkOwner::Meeting => &MEETING_CHUNKS,
-        ChunkOwner::Chat => &CHAT_CHUNKS,
+const fn store_of(kind: &ItemKind) -> &'static crate::commands::ChunkStore {
+    match kind {
+        ItemKind::Meeting => &MEETING_CHUNKS,
+        ItemKind::Chat => &CHAT_CHUNKS,
     }
 }
 
 /// The texts of the owner's pieces that already have a vector.
-pub fn embedded_texts<R: Runtime>(app: &AppHandle<R>, owner: Owner, id: &str) -> Result<Vec<String>, StoreError> {
+pub fn embedded_texts<R: Runtime>(app: &AppHandle<R>, owner: ItemKind, id: &str) -> Result<Vec<String>, StoreError> {
     Ok(with_db(app, |db| embedded_chunk_texts_impl(db, store_of(&owner), id))?.unwrap_or_default())
 }
 
 /// Saves the owner's pieces in one transaction, keeping unchanged ones (and their vectors) as they are.
-pub fn save_pieces<R: Runtime>(app: &AppHandle<R>, owner: Owner, id: &str, pieces: &[Piece]) -> Result<(), StoreError> {
+pub fn save_pieces<R: Runtime>(app: &AppHandle<R>, owner: ItemKind, id: &str, pieces: &[ChunkData]) -> Result<(), StoreError> {
     with_db(app, |db| {
         let tx = db.unchecked_transaction()?;
         save_chunks(&tx, store_of(&owner), id, pieces)?;
@@ -126,37 +125,38 @@ pub fn save_pieces<R: Runtime>(app: &AppHandle<R>, owner: Owner, id: &str, piece
 }
 
 /// Adds pieces after the meeting's last one (a meeting indexed stretch by stretch while it records).
-pub fn append_pieces<R: Runtime>(app: &AppHandle<R>, meeting_id: &str, pieces: &[Piece]) -> Result<(), StoreError> {
+pub fn append_pieces<R: Runtime>(app: &AppHandle<R>, meeting_id: &str, pieces: &[ChunkData]) -> Result<(), StoreError> {
     with_db(app, |db| append_chunks_impl(db, meeting_id, pieces))?;
     Ok(())
 }
 
-fn without_vectors_impl(db: &Connection) -> Result<Vec<(Owner, String)>, StoreError> {
+/// Meetings and chats with a piece that has no vector yet, on an open database.
+fn without_vectors_impl(db: &Connection) -> Result<Vec<(ItemKind, String)>, StoreError> {
     let ids = |sql: &str| -> Result<Vec<String>, StoreError> { Ok(db.prepare(sql)?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?) };
     let meetings = ids("SELECT DISTINCT c.meeting_id FROM chunks c WHERE NOT EXISTS (SELECT 1 FROM vec_chunks v WHERE v.chunk_id = c.id)")?;
     let chats = ids("SELECT DISTINCT c.chat_id FROM chat_chunks c WHERE NOT EXISTS (SELECT 1 FROM chat_vec_chunks v WHERE v.chunk_id = c.id)")?;
-    Ok(meetings.into_iter().map(|id| (ChunkOwner::Meeting, id)).chain(chats.into_iter().map(|id| (ChunkOwner::Chat, id))).collect())
+    Ok(meetings.into_iter().map(|id| (ItemKind::Meeting, id)).chain(chats.into_iter().map(|id| (ItemKind::Chat, id))).collect())
 }
 
 /// Meetings and chats with a piece that has no vector yet.
-pub fn without_vectors<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<(Owner, String)>, StoreError> {
+pub fn without_vectors<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<(ItemKind, String)>, StoreError> {
     Ok(with_db(app, without_vectors_impl)?.unwrap_or_default())
 }
 
 /// Every meeting or chat (with messages) id, newest first: what a rebuild indexes.
-pub fn all_ids<R: Runtime>(app: &AppHandle<R>, owner: Owner) -> Result<Vec<String>, StoreError> {
+pub fn all_ids<R: Runtime>(app: &AppHandle<R>, owner: ItemKind) -> Result<Vec<String>, StoreError> {
     let sql = match owner {
-        ChunkOwner::Meeting => "SELECT id FROM meetings ORDER BY created_at DESC",
-        ChunkOwner::Chat => "SELECT c.id FROM chats c WHERE EXISTS (SELECT 1 FROM chat_messages WHERE chat_id = c.id) ORDER BY last_message_at DESC",
+        ItemKind::Meeting => "SELECT id FROM meetings ORDER BY created_at DESC",
+        ItemKind::Chat => "SELECT c.id FROM chats c WHERE EXISTS (SELECT 1 FROM chat_messages WHERE chat_id = c.id) ORDER BY last_message_at DESC",
     };
     Ok(with_db(app, |db| Ok(db.prepare(sql)?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?))?.unwrap_or_default())
 }
 
 /// Clears one owner's pieces and vectors (a rebuild then indexes everything again).
-pub fn clear<R: Runtime>(app: &AppHandle<R>, owner: Owner) -> Result<(), StoreError> {
+pub fn clear<R: Runtime>(app: &AppHandle<R>, owner: ItemKind) -> Result<(), StoreError> {
     let sql = match owner {
-        ChunkOwner::Meeting => "DELETE FROM vec_chunks; DELETE FROM chunks; INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild');",
-        ChunkOwner::Chat => "DELETE FROM chat_vec_chunks; DELETE FROM chat_chunks; INSERT INTO chat_chunks_fts(chat_chunks_fts) VALUES('rebuild');",
+        ItemKind::Meeting => "DELETE FROM vec_chunks; DELETE FROM chunks; INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild');",
+        ItemKind::Chat => "DELETE FROM chat_vec_chunks; DELETE FROM chat_chunks; INSERT INTO chat_chunks_fts(chat_chunks_fts) VALUES('rebuild');",
     };
     with_db(app, |db| Ok(db.execute_batch(sql)?))?;
     Ok(())
@@ -204,7 +204,7 @@ mod tests {
         let conn = db();
         seed_meeting(&conn, "m1");
         seed_meeting(&conn, "m2");
-        let piece = |text: &str, embedded: bool| Piece {
+        let piece = |text: &str, embedded: bool| ChunkData {
             chunk_index: 0, chunk_text: text.into(), chunk_type: "transcript".into(),
             embedding: embedded.then(|| vec![0.5; crate::schema::DEFAULT_DIM as usize]), start_pos: None, end_pos: None,
         };
@@ -212,6 +212,6 @@ mod tests {
         save_chunks(&tx, &MEETING_CHUNKS, "m1", &[piece("has one", true)]).unwrap();
         save_chunks(&tx, &MEETING_CHUNKS, "m2", &[piece("has none", false)]).unwrap();
         tx.commit().unwrap();
-        assert_eq!(without_vectors_impl(&conn).unwrap(), vec![(ChunkOwner::Meeting, "m2".to_string())]);
+        assert_eq!(without_vectors_impl(&conn).unwrap(), vec![(ItemKind::Meeting, "m2".to_string())]);
     }
 }

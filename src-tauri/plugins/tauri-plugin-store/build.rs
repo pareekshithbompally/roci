@@ -1,7 +1,7 @@
 const COMMANDS: &[&str] = &[
     // Init / maintenance
     "initialize",
-    "get_stats",
+    "index_stats",
     // Meeting domain
     "meetings_get",
     "meetings_existing",

@@ -57,7 +57,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         .invoke_handler(tauri::generate_handler![
             // Init / maintenance
             commands::initialize,
-            commands::get_stats,
+            commands::index_stats,
             // Meeting domain (Phase 1)
             commands::meetings_get,
             commands::meetings_existing,

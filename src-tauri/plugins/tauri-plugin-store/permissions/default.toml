@@ -2,7 +2,7 @@
 description = "Allows all store plugin commands"
 permissions = [
   "allow-initialize",
-  "allow-get-stats",
+  "allow-index-stats",
   "allow-meetings-get",
   "allow-meetings-existing",
   "allow-meetings-upsert",

@@ -3,14 +3,14 @@ import { renderHook, act } from '@testing-library/react';
 import { SESSION_SEARCH_DEBOUNCE_MS } from '@config/chat.config';
 import type { UnifiedSidebarItem } from '@shared/types';
 
-vi.mock('@extensions/rag/client', () => ({
-  vectorDB: { searchSessions: vi.fn(async () => []) },
+vi.mock('@services/db', () => ({
+  store: { searchSessions: vi.fn(async () => []) },
 }));
 
-import { vectorDB } from '@extensions/rag/client';
+import { store } from '@services/db';
 import { useSessionSearch } from '@features/history/hooks/useSessionSearch';
 
-const searchSessions = vectorDB.searchSessions as unknown as ReturnType<typeof vi.fn>;
+const searchSessions = store.searchSessions as unknown as ReturnType<typeof vi.fn>;
 
 const ITEMS = [
   { id: 'm1', type: 'meeting', title: 'Weekly Sync', timestamp: 2 },

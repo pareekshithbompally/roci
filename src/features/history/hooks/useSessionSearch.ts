@@ -5,8 +5,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { vectorDB } from '@extensions/rag/client';
-import type { SessionSearchHit } from '@extensions/rag/client';
+import { store, type SessionSearchHit } from '@services/db';
 import { SESSION_SEARCH_DEBOUNCE_MS, SESSION_SEARCH_MIN_QUERY_LENGTH, SESSION_SEARCH_LIMIT } from '@config/chat.config';
 import { matchesAllWords } from '@shared/utils/textMatch';
 import type { UnifiedSidebarItem } from '@shared/types';
@@ -74,7 +73,7 @@ export function useSessionSearch(items: UnifiedSidebarItem[], query: string, lim
     const gen = ++generation.current;
     if (!asksIndex) return;
     const timer = setTimeout(() => {
-      vectorDB.searchSessions({ query: trimmed, limit })
+      store.searchSessions({ query: trimmed, limit })
         .then((hits) => {
           if (gen !== generation.current) return;
           setError(null);

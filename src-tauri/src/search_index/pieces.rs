@@ -1,7 +1,7 @@
 //! How meetings and chats are split into search pieces: sentence pieces with overlap for long text, a meeting's title and
 //! summary as one piece and its notes and to-dos as another, and a chat's turns (a long answer split like a transcript).
 
-use tauri_plugin_store::index::{ChatLine, MeetingText, Piece};
+use tauri_plugin_store::index::{ChatLine, MeetingText, ChunkData};
 
 /// Longest piece, in characters; long text is cut at sentence ends below it.
 const MAX_PIECE_CHARS: usize = 2000;
@@ -20,6 +20,7 @@ pub struct Span {
     pub end: usize,
 }
 
+/// Length in characters (not bytes).
 fn chars(s: &str) -> usize {
     s.chars().count()
 }
@@ -65,6 +66,7 @@ fn hard_split(text: &str, max: usize) -> Vec<String> {
     parts
 }
 
+/// A sentence too long for a piece, cut at commas and semicolons, else at spaces.
 fn clause_parts(sentence: &str, max: usize) -> Vec<String> {
     let parts = split_after(sentence, &[',', ';']);
     if parts.len() <= 1 { hard_split(sentence, max) } else { parts }
@@ -115,8 +117,9 @@ pub fn split_long(text: &str) -> Vec<Span> {
     spans
 }
 
-fn piece(index: usize, text: String, kind: &str, span: Option<&Span>) -> Piece {
-    Piece {
+/// One piece to save; its vector is added later, when it needs one.
+fn piece(index: usize, text: String, kind: &str, span: Option<&Span>) -> ChunkData {
+    ChunkData {
         chunk_index: index as i32,
         chunk_text: text,
         chunk_type: kind.into(),
@@ -127,12 +130,12 @@ fn piece(index: usize, text: String, kind: &str, span: Option<&Span>) -> Piece {
 }
 
 /// A transcript stretch's pieces, numbered from 0.
-pub fn transcript(text: &str) -> Vec<Piece> {
+pub fn transcript(text: &str) -> Vec<ChunkData> {
     split_long(text).iter().enumerate().map(|(i, s)| piece(i, s.text.clone(), "transcript", Some(s))).collect()
 }
 
 /// A meeting's pieces: its title and summary first, then its transcript, then its notes and to-dos.
-pub fn meeting(text: &MeetingText) -> Vec<Piece> {
+pub fn meeting(text: &MeetingText) -> Vec<ChunkData> {
     let mut pieces = Vec::new();
     let head = [text.title.as_str(), text.summary.as_str()].iter().filter(|s| !s.is_empty()).copied().collect::<Vec<_>>().join(". ");
     if !head.trim().is_empty() {
@@ -149,7 +152,7 @@ pub fn meeting(text: &MeetingText) -> Vec<Piece> {
 }
 
 /// A chat's pieces: each question with the answer after it; a long answer is split, each part with its question.
-pub fn chat(lines: &[ChatLine]) -> Vec<Piece> {
+pub fn chat(lines: &[ChatLine]) -> Vec<ChunkData> {
     let mut pieces = Vec::new();
     let mut i = 0;
     while i < lines.len() {
@@ -185,7 +188,7 @@ mod tests {
         }
     }
 
-    fn kinds(pieces: &[Piece], kind: &str) -> Vec<String> {
+    fn kinds(pieces: &[ChunkData], kind: &str) -> Vec<String> {
         pieces.iter().filter(|p| p.chunk_type == kind).map(|p| p.chunk_text.clone()).collect()
     }
 

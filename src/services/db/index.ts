@@ -3,4 +3,4 @@ export type { ItemCursor, ItemEntry, ItemFilter, ItemKind } from './domains/item
 export type { GlobalTodoEntry } from './internal';
 export { StoreError, parseStoreError } from './errors';
 export type { StoreErrorCode } from './errors';
-export type { PaginatedResult, SettingsMap, StoreMeta, StoreStats } from './types';
+export type { IndexStats, PaginatedResult, SessionSearchHit, SessionSearchParams, SettingsMap } from './types';

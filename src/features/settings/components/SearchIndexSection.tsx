@@ -88,7 +88,7 @@ export const SearchIndexSection: React.FC = () => {
         label="Meetings"
         indexed={indexStats?.meetings.indexed}
         total={indexStats?.meetings.onDisk}
-        detail={indexStats ? `${indexStats.chunks.transcript} transcript chunks` : PENDING}
+        detail={indexStats ? `${indexStats.pieces.transcript} transcript pieces` : PENDING}
         onReindex={() => void reindex('meetings')}
         busy={running === 'meetings'}
         disabled={indexBusy}
@@ -97,7 +97,7 @@ export const SearchIndexSection: React.FC = () => {
         label="Chats"
         indexed={indexStats?.chats.indexed}
         total={indexStats?.chats.onDisk}
-        detail={indexStats ? `${indexStats.chunks.total - indexStats.chunks.transcript} chat chunks` : PENDING}
+        detail={indexStats ? `${indexStats.pieces.chat} chat pieces` : PENDING}
         onReindex={() => void reindex('chats')}
         busy={running === 'chats'}
         disabled={indexBusy}
