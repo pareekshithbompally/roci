@@ -27,6 +27,13 @@ pub struct TimedText {
     pub end: f64,
 }
 
+/// What the engine heard: its timed segments, and each word's own time when the model gives them.
+#[derive(Debug, Default, Serialize)]
+pub struct Timed {
+    pub segments: Vec<TimedText>,
+    pub words: Vec<TimedText>,
+}
+
 pub struct Loaded {
     id: &'static str,
     pub session: Session,
@@ -97,16 +104,18 @@ impl Engine {
 
     /// Transcribes 16 kHz mono samples with the model at `path`, holding the engine and the GPU one window at a time, so a
     /// meeting's live chunks get in between the windows of a long file (always engine, then GPU: dictation holds both that way).
-    pub fn transcribe(&self, id: &'static str, path: &Path, pcm: &[f32], language: &str) -> Result<Vec<TimedText>, LocalError> {
+    pub fn transcribe(&self, id: &'static str, path: &Path, pcm: &[f32], language: &str) -> Result<Timed, LocalError> {
         let max_samples = self.with_loaded(id, path, |loaded| Ok(loaded.max_samples))?;
-        let mut out = Vec::new();
+        let mut out = Timed::default();
         for window in windows(pcm, max_samples) {
             let span = (seconds(window.start), seconds(window.end));
             let transcript = self.with_loaded(id, path, |loaded| {
                 let options = loaded.run_options(language);
                 gpu::run(Priority::Realtime, || loaded.session.run(&pcm[window], &options)).map_err(engine_error)
             })?;
-            out.extend(timed(transcript, span));
+            let heard = timed(transcript, span);
+            out.segments.extend(heard.segments);
+            out.words.extend(heard.words);
         }
         Ok(out)
     }
@@ -155,20 +164,26 @@ fn seconds(sample: usize) -> f64 {
     sample as f64 / SAMPLE_RATE as f64
 }
 
-/// Timed segments shifted onto the audio's clock; untimed text gives one piece spanning its window.
-fn timed(transcript: transcribe_cpp::Transcript, (start, end): (f64, f64)) -> Vec<TimedText> {
+/// Timed segments and words shifted onto the audio's clock; untimed text gives one segment spanning its window.
+fn timed(transcript: transcribe_cpp::Transcript, (start, end): (f64, f64)) -> Timed {
     let at = |ms: i64| start + ms as f64 / 1000.0;
-    let segments: Vec<TimedText> = transcript
+    let words = transcript
+        .words
+        .into_iter()
+        .filter(|w| !w.text.trim().is_empty())
+        .map(|w| TimedText { text: w.text.trim().to_string(), start: at(w.t0_ms.max(0)), end: at(w.t1_ms.max(w.t0_ms).max(0)) })
+        .collect();
+    let mut segments: Vec<TimedText> = transcript
         .segments
         .into_iter()
         .filter(|s| s.t1_ms > s.t0_ms && !s.text.trim().is_empty())
         .map(|s| TimedText { text: s.text.trim().to_string(), start: at(s.t0_ms), end: at(s.t1_ms) })
         .collect();
     let text = transcript.text.trim();
-    if !segments.is_empty() || text.is_empty() {
-        return segments;
+    if segments.is_empty() && !text.is_empty() {
+        segments.push(TimedText { text: text.to_string(), start, end });
     }
-    vec![TimedText { text: text.to_string(), start, end }]
+    Timed { segments, words }
 }
 
 /// The audio as runs the model accepts: whole, or windows of at most `max` samples cut at quiet moments.

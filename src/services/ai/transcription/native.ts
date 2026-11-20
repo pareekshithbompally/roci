@@ -10,11 +10,16 @@ export interface TimedText {
   end: number;
 }
 
+/** What a native engine heard: timed segments, and words when it gives them (Rust `Timed`, Swift transcription). */
+interface NativeTranscript {
+  segments: TimedText[];
+  words: TimedText[];
+}
+
+const spanOf = (p: TimedText) => ({ text: p.text, startSecond: p.start, endSecond: p.end });
+
 /** Sends one WAV part to a native transcription command; rejects with the command's own error. */
 export async function transcribeNatively(command: string, wav: Uint8Array, headers: Record<string, string>): Promise<TranscriptResult> {
-  const pieces = await invoke<TimedText[]>(command, wav, { headers });
-  return {
-    text: pieces.map((p) => p.text).join(' ').trim(),
-    segments: pieces.map((p) => ({ text: p.text, startSecond: p.start, endSecond: p.end })),
-  };
+  const { segments, words } = await invoke<NativeTranscript>(command, wav, { headers });
+  return { text: segments.map((p) => p.text).join(' ').trim(), segments: segments.map(spanOf), words: words.map(spanOf) };
 }

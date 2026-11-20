@@ -26,6 +26,8 @@ export interface TranscribeOptions {
   signal?: AbortSignal;
   /** Called before each part (long audio is sent in parts). */
   onProgress?: (progress: TranscriptionProgress) => void;
+  /** A live meeting chunk: sent whole when it holds speech, not cut into its speech spans. */
+  whole?: boolean;
   /** Speech detection; defaults to the Silero VAD worker. Injected in tests. */
   vad?: (samples: Float32Array, sampleRate: number) => Promise<SpeechRange[]>;
   /** One-part transcription; defaults to the provider's adapter. Injected in tests. */
@@ -42,10 +44,13 @@ export async function speechModelFor(selection: SpeechSelection, providers: Mode
   return { model, resolved };
 }
 
+const shifted = (spans: TranscriptSegment[], by: number): TranscriptSegment[] =>
+  spans.map((s) => ({ ...s, startSecond: s.startSecond + by, endSecond: s.endSecond + by }));
+
 /** Part segments shifted to the recording's clock; a part without segments becomes one. */
 function placeSegments(result: TranscriptResult, startSecond: number, endSecond: number): TranscriptSegment[] {
   if (result.segments.length === 0) return [{ text: result.text, startSecond, endSecond }];
-  return result.segments.map((s) => ({ ...s, startSecond: s.startSecond + startSecond, endSecond: s.endSecond + startSecond }));
+  return shifted(result.segments, startSecond);
 }
 
 /** Strips the leading "." Whisper-style engines emit for pre-roll silence. */
@@ -101,15 +106,17 @@ function toChunks(
   return chunks;
 }
 
-/** Only speech reaches the model, so silence can't become hallucinated text; a VAD failure sends all audio. */
+/** Only speech reaches the model, so silence can't become hallucinated text; a VAD failure sends all audio. A whole chunk goes
+ *  as it is when it holds any speech, and not at all when it holds none. */
 async function speechChunks(
   samples: Float32Array,
   maxPartSamples: number,
-  vad: TranscribeOptions['vad'],
+  { vad, whole }: Pick<TranscribeOptions, 'vad' | 'whole'>,
 ): Promise<Chunk[]> {
   try {
     // The service transfers (neuters) its input; the copy keeps this buffer intact.
     const ranges = await (vad ?? getSpeechSegments)(samples.slice(), sampleRate);
+    if (whole) return ranges.length > 0 ? [{ samples, startSecond: 0 }] : [];
     return toChunks(ranges, samples, sampleRate, maxPartSamples);
   } catch (error: unknown) {
     console.error('[Transcription] VAD failed, transcribing full audio:', error);
@@ -129,6 +136,7 @@ async function transcribeChunks(
 ): Promise<TranscriptResult> {
   const texts: string[] = [];
   const segments: TranscriptSegment[] = [];
+  const words: TranscriptSegment[] = [];
   let adapterTimed = false;
   let usage: TokenUsage | undefined;
 
@@ -143,18 +151,19 @@ async function transcribeChunks(
     adapterTimed ||= result.segments.length > 0;
     const endSecond = chunk.startSecond + chunk.samples.length / sampleRate;
     segments.push(...placeSegments({ ...result, text: cleaned }, chunk.startSecond, endSecond));
+    words.push(...shifted(result.words ?? [], chunk.startSecond));
   }
 
   // Timestamps when the engine gave them or the audio was split; one untimed part stays plain text.
   const timed = adapterTimed || texts.length > 1;
-  return { text: texts.join('\n\n'), segments: timed ? segments : [], usage };
+  return { text: texts.join('\n\n'), segments: timed ? segments : [], words, usage };
 }
 
 export async function runTranscription(
   audio: Blob,
   selection: SpeechSelection,
   providers: ModelProvider[],
-  { signal, onProgress, vad, transcribePart }: TranscribeOptions = {},
+  { signal, onProgress, vad, whole, transcribePart }: TranscribeOptions = {},
 ): Promise<TranscriptResult> {
   const adapterId = adapterFor(selection, providers);
   if (!adapterId) {
@@ -163,7 +172,7 @@ export async function runTranscription(
   const { model, resolved } = await speechModelFor(selection, providers);
 
   const samples = await toMonoSamples(audio, sampleRate);
-  const chunks = await speechChunks(samples, TRANSCRIPTION_CONFIG.partSeconds[adapterId] * sampleRate, vad);
+  const chunks = await speechChunks(samples, TRANSCRIPTION_CONFIG.partSeconds[adapterId] * sampleRate, { vad, whole });
   if (chunks.length === 0) return { text: '', segments: [] };
 
   return transcribeChunks(chunks, transcribePart ?? ADAPTERS[adapterId], { model, resolved, signal }, onProgress);

@@ -11,6 +11,8 @@ export interface TranscriptSegment {
 export interface TranscriptResult {
   text: string;
   segments: TranscriptSegment[];
+  /** Each word's own time, when the engine gives them (Roci's own engine does). */
+  words?: TranscriptSegment[];
   /** Tokens spent, for engines billed by tokens (multimodal prompt); summed across parts. */
   usage?: TokenUsage;
 }

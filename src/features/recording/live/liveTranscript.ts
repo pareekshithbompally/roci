@@ -13,6 +13,7 @@ import type { LiveChunk } from '@shared/types/native';
 import type { AppSettings } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { draftEntriesOf, meetingLiveActions } from './meetingLiveStore';
+import { acceptChunk, finishTrack, newTrack, type TrackTranscript } from './trackTranscript';
 
 /** One transcribed chunk of one source, on the recording's timeline. */
 export interface LiveEntry {
@@ -42,6 +43,8 @@ interface Session {
   streams: LiveStreams<MeetingSourceId> | null;
   /** The streams opened at Record, each taken by its side's first frame; a window reloaded mid-recording opens its own. */
   opened: Partial<Record<MeetingSourceId, LiveStream>>;
+  /** Each side's transcript as its chunks are joined (chunks only; a stream settles its own lines). */
+  tracks: Map<MeetingSourceId, TrackTranscript>;
   unlisten: () => void;
   /** Nothing lost: every chunk since the recording began arrived and was transcribed, so the draft can stand as the transcript. */
   complete: boolean;
@@ -108,7 +111,19 @@ function checkSequence(current: Session, chunk: LiveChunk): void {
   current.expected[chunk.source] = chunk.seq + 1;
 }
 
-/** Through the one transcription entry (usage, model checks, cancel); a silent chunk is simply no lines. */
+/** A side's transcript, starting from the lines it already has (kept across a reload). */
+function trackOf(current: Session, source: MeetingSourceId): TrackTranscript {
+  const track = current.tracks.get(source) ?? newTrack(source, current.entries.filter((e) => e.source === source));
+  current.tracks.set(source, track);
+  return track;
+}
+
+/** The session's lines with a side's lines brought up to date. */
+function showTrack(current: Session, track: TrackTranscript): void {
+  current.entries = [...current.entries.filter((e) => e.source !== track.source), ...track.entries];
+}
+
+/** Through the one transcription entry (usage, model checks, cancel), the whole chunk at once; a silent chunk is no lines. */
 async function transcribeChunk(current: Session, chunk: LiveChunk, read: Reader): Promise<void> {
   const { settings, providers } = read();
   try {
@@ -116,53 +131,18 @@ async function transcribeChunk(current: Session, chunk: LiveChunk, read: Reader)
       signal: current.controller.signal,
       meetingId: current.meetingId,
       silence: 'empty',
+      whole: true,
     });
     if (session !== current) return;
-    current.entries.push(...spliceChunk(current.entries, chunk, chunkEntries(chunk, result)));
+    const track = trackOf(current, chunk.source);
+    acceptChunk(track, chunk, result);
+    showTrack(current, track);
     showDraft(current);
   } catch (error: unknown) {
     if (current.controller.signal.aborted) return;
     console.error('[liveTranscript] chunk failed:', error);
     markFailed(current, errorMessage(error));
   }
-}
-
-/** A chunk's lines on the recording's timeline: the model's own segment times when it gives them, else one line spanning the chunk. */
-export function chunkEntries(chunk: Pick<LiveChunk, 'source' | 'startMs' | 'endMs'>, result: TranscriptResult): LiveEntry[] {
-  const { source, startMs, endMs } = chunk;
-  const segments = result.segments.filter((s) => s.text.trim());
-  if (segments.length > 0) {
-    return segments.map((s) => ({ source, startMs: startMs + s.startSecond * 1_000, endMs: startMs + s.endSecond * 1_000, text: s.text.trim(), timed: true }));
-  }
-  const text = result.text.trim();
-  return text ? [{ source, startMs, endMs, text, timed: false }] : [];
-}
-
-const wordsOf = (text: string) => text.split(/\s+/).filter(Boolean);
-const norm = (word: string) => word.toLowerCase().replace(/[^\p{L}\p{N}']/gu, '');
-
-/** The words of `next` that repeat the end of `previous` (re-heard overlap), dropped: the longest run of up to SEAM_MAX_WORDS
- *  words ending `previous` found within the first SEAM_SLACK words of `next`. */
-export function spliceSeam(previous: string, next: string): string {
-  const before = wordsOf(previous).map(norm);
-  const after = wordsOf(next);
-  const afterNorm = after.map(norm);
-  for (let run = Math.min(LIVE.seam.maxWords, before.length, after.length); run >= LIVE.seam.minWords; run--) {
-    const tail = before.slice(-run).join(' ');
-    for (let at = 0; at <= LIVE.seam.slack && at + run <= after.length; at++) {
-      if (afterNorm.slice(at, at + run).join(' ') === tail) return after.slice(at + run).join(' ');
-    }
-  }
-  return next;
-}
-
-/** A chunk's lines after its overlap: the first line loses the words the previous line of its source already has. */
-function spliceChunk(entries: LiveEntry[], chunk: LiveChunk, lines: LiveEntry[]): LiveEntry[] {
-  const previous = chunk.overlapMs > 0 ? entries.filter((e) => e.source === chunk.source).at(-1) : undefined;
-  if (!previous || lines.length === 0) return lines;
-  const [first, ...rest] = lines;
-  const text = spliceSeam(previous.text, first.text);
-  return text ? [{ ...first, text }, ...rest] : rest;
 }
 
 /** Falling behind (a model slower than the meeting): a source with more than the backlog limit waiting drops its oldest chunks,
@@ -345,7 +325,7 @@ export const liveTranscript = {
     // after a reload mid-recording the kept lines carry on; the chunks missed meanwhile leave the draft not whole
     const current: Session = {
       meetingId, entries: [...draftEntriesOf(meetingId)], expected: {}, echo: Promise.resolve(), controller: new AbortController(),
-      waiting: [], draining: null, streams: null, opened: prepared, unlisten: () => undefined, complete: true,
+      waiting: [], draining: null, streams: null, opened: prepared, tracks: new Map(), unlisten: () => undefined, complete: true,
     };
     prepared = {};
     if (streaming) current.streams = liveStreams((side) => openStream(current, read, side), streamSink(current));
@@ -369,6 +349,10 @@ export const liveTranscript = {
     await settle(current).finally(() => signal?.removeEventListener('abort', stop));
     current.unlisten();
     cancelStreams(current.opened);
+    for (const track of current.tracks.values()) {
+      finishTrack(track);
+      showTrack(current, track);
+    }
     const entries = await withoutEcho(current.entries);
     if (session === current) {
       session = null;

@@ -58,7 +58,7 @@ mod tests {
             let (pcm, rate) = crate::mlx::speak(Path::new(dir), "The quarterly review is on Friday morning.", None).unwrap();
             assert!(pcm.len() > rate as usize, "{dir}: under a second of audio");
             let pcm = playback::resample(&pcm, rate, 16_000).unwrap();
-            let heard: String = stt.transcribe("parakeet-unified-en", &parakeet, &pcm, "en").unwrap().into_iter().map(|t| t.text).collect();
+            let heard: String = stt.transcribe("parakeet-unified-en", &parakeet, &pcm, "en").unwrap().segments.into_iter().map(|t| t.text).collect();
             println!("{dir}: {heard}");
             let heard = heard.to_lowercase();
             assert!(heard.contains("quarterly") && heard.contains("friday"), "{dir} was heard as {heard:?}");

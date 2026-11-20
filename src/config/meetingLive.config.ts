@@ -18,9 +18,10 @@ export const MEETING_LIVE_CONFIG = {
   /** A source with more audio than this waiting to be transcribed drops its oldest chunks to catch up; the draft then says it
    *  has a gap (ms). */
   maxBacklogMs: 120_000,
-  /** A hard-cut chunk's re-heard start: up to this many words matching the end of the previous line, found within the first
-   *  `slack` words (the model may hear the overlap a little differently), and at least `minWords` so a lone repeated word stays. */
-  seam: { maxWords: 12, minWords: 2, slack: 3 },
+  /** A hard-cut chunk's re-heard start: with word times, the chunks join at a word both heard within `anchorMs` of each other
+   *  inside the overlap; without, its first `minWords`–`maxWords` words repeating the previous line are dropped. A sentence ends
+   *  at . ? ! or a pause of `sentencePauseMs`. */
+  seam: { maxWords: 12, minWords: 2, anchorMs: 300, sentencePauseMs: 600 },
   /** Echo of the other side through the speakers: microphone entries closer than `utteranceGapMs` are judged together; when the
    *  sound can't tell, an utterance is echo if `similarity` of its words (fuzzily) appear in the other side's speech within
    *  `windowMs`; a line of at least `sentenceWords` words the sound shows is local survives its echoing neighbours. */

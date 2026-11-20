@@ -58,6 +58,9 @@ struct LiveChunk {
     /// Leading audio the previous chunk already covered, which the webview splices at the seam.
     #[cfg_attr(test, ts(type = "number"))]
     overlap_ms: u64,
+    /// Trailing audio the next chunk transcribes again; its words stay open until that chunk settles them.
+    #[cfg_attr(test, ts(type = "number"))]
+    tail_ms: u64,
     /// 16 kHz mono 16-bit little-endian PCM, base64.
     pcm: String,
     /// This source's chunks sent before this one (0, 1, 2…): a number the webview skips is a chunk it never got.
@@ -71,6 +74,8 @@ struct Chunk {
     start: usize,
     /// Leading samples shared with the previous chunk.
     overlap: usize,
+    /// Trailing samples the next chunk transcribes again.
+    tail: usize,
     samples: Vec<f32>,
 }
 
@@ -111,6 +116,7 @@ impl Chunker {
         (self.end() >= self.chunk_start + MIN_TAIL).then(|| Chunk {
             start: begin,
             overlap: self.overlap,
+            tail: 0,
             samples: self.buffer[begin - self.buffer_start..].to_vec(),
         })
     }
@@ -131,7 +137,7 @@ impl Chunker {
             None => return None,
         };
         let begin = start - self.overlap;
-        let chunk = Chunk { start: begin, overlap: self.overlap, samples: self.buffer[begin - self.buffer_start..cut - self.buffer_start].to_vec() };
+        let chunk = Chunk { start: begin, overlap: self.overlap, tail: next_overlap, samples: self.buffer[begin - self.buffer_start..cut - self.buffer_start].to_vec() };
         let keep_from = cut - next_overlap;
         self.buffer.drain(..keep_from - self.buffer_start);
         self.buffer_start = keep_from;
@@ -153,14 +159,14 @@ impl Framer {
         self.buffer.extend_from_slice(samples);
         let mut frames = Vec::new();
         while self.buffer.len() >= STREAM_FRAME {
-            frames.push(Chunk { start: self.start, overlap: 0, samples: self.buffer.drain(..STREAM_FRAME).collect() });
+            frames.push(Chunk { start: self.start, overlap: 0, tail: 0, samples: self.buffer.drain(..STREAM_FRAME).collect() });
             self.start += STREAM_FRAME;
         }
         frames
     }
 
     fn finish(self) -> Option<Chunk> {
-        (!self.buffer.is_empty()).then(|| Chunk { start: self.start, overlap: 0, samples: self.buffer })
+        (!self.buffer.is_empty()).then(|| Chunk { start: self.start, overlap: 0, tail: 0, samples: self.buffer })
     }
 }
 
@@ -245,6 +251,7 @@ impl Source {
             start_ms: self.ms(chunk.start),
             end_ms: self.ms(chunk.start + chunk.samples.len()),
             overlap_ms: (chunk.overlap * 1_000 / RATE) as u64,
+            tail_ms: (chunk.tail * 1_000 / RATE) as u64,
             pcm: base64::engine::general_purpose::STANDARD.encode(bytes),
             seq,
         }
@@ -372,9 +379,9 @@ mod tests {
     #[test]
     fn silence_is_never_sent() {
         let mut seed = 11;
-        let silent = Chunk { start: 0, overlap: 0, samples: noise(1_000, -80.0, &mut seed) };
+        let silent = Chunk { start: 0, overlap: 0, tail: 0, samples: noise(1_000, -80.0, &mut seed) };
         assert!(silent.is_silent());
-        assert!(!Chunk { start: 0, overlap: 0, samples: noise(1_000, -20.0, &mut seed) }.is_silent());
+        assert!(!Chunk { start: 0, overlap: 0, tail: 0, samples: noise(1_000, -20.0, &mut seed) }.is_silent());
     }
 
     #[test]

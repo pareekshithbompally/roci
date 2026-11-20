@@ -11,7 +11,7 @@ use tauri::State;
 
 use crate::bridge;
 use crate::types::{
-    AppleError, Availability, Empty, Granted, LiveText, ModelStatus, Reply, SpeechSegment, SpeechStatus, StreamEvent, Text,
+    AppleError, Availability, Empty, Granted, LiveText, ModelStatus, Reply, SpeechStatus, StreamEvent, Text,
     Transcription,
 };
 
@@ -123,7 +123,7 @@ pub async fn speech_prepare(language: String) -> Result<(), AppleError> {
 
 /// Transcribes a raw-body WAV part (header `x-language`) via a temp file, since SpeechAnalyzer reads files.
 #[command]
-pub async fn speech_transcribe(request: Request<'_>) -> Result<Vec<SpeechSegment>, AppleError> {
+pub async fn speech_transcribe(request: Request<'_>) -> Result<Transcription, AppleError> {
     let wav = raw_body(&request, "a raw WAV body")?;
     let language = header(&request, LANGUAGE_HEADER).unwrap_or(DEFAULT_LANGUAGE).to_string();
     off_main(move || {
@@ -132,7 +132,7 @@ pub async fn speech_transcribe(request: Request<'_>) -> Result<Vec<SpeechSegment
         std::fs::write(&path, &wav).map_err(|e| AppleError::Failed(e.to_string()))?;
         let result = take::<Transcription>(bridge::speech_transcribe(&path.to_string_lossy(), &language));
         let _ = std::fs::remove_file(&path);
-        result.map(|t| t.segments)
+        result
     })
     .await
 }

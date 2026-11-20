@@ -4,7 +4,7 @@
 use tauri::ipc::Request;
 use tauri::{AppHandle, Manager, State};
 
-use super::engine::{self, TimedText};
+use super::engine::{self, Timed};
 use super::live::{LiveSession, LiveText};
 use super::SttState;
 use crate::ipc::{header, raw_body};
@@ -17,7 +17,7 @@ const LANGUAGE_HEADER: &str = "x-stt-language";
 
 /// Transcribes one WAV raw body; headers `x-stt-model` (required) and `x-stt-language` (default `en`).
 #[tauri::command]
-pub async fn stt_transcribe(app: AppHandle, request: Request<'_>) -> Result<Vec<TimedText>, LocalError> {
+pub async fn stt_transcribe(app: AppHandle, request: Request<'_>) -> Result<Timed, LocalError> {
     let wav = raw_body(&request).ok_or_else(|| LocalError::BadInput("expected a raw WAV body".into()))?;
     let model = catalog::find_kind(header(&request, MODEL_HEADER).unwrap_or_default(), Kind::Speech)?;
     let language = header(&request, LANGUAGE_HEADER).unwrap_or(LANGUAGE).to_string();

@@ -7,6 +7,10 @@ export type LiveChunk = { source: MeetingSource, startMs: number, endMs: number,
  */
 overlapMs: number, 
 /**
+ * Trailing audio the next chunk transcribes again; its words stay open until that chunk settles them.
+ */
+tailMs: number, 
+/**
  * 16 kHz mono 16-bit little-endian PCM, base64.
  */
 pcm: string, 

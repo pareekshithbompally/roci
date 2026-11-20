@@ -114,9 +114,12 @@ pub struct SpeechSegment {
     pub text: String,
 }
 
-#[derive(Deserialize)]
+/// Timed segments, and words when the analyzer gives them (the same shape as Roci's own engine).
+#[derive(Serialize, Deserialize)]
 pub struct Transcription {
     pub segments: Vec<SpeechSegment>,
+    #[serde(default)]
+    pub words: Vec<SpeechSegment>,
 }
 
 /// A live speech stream's text so far: the settled words, then the ones still being revised.
