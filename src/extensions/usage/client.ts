@@ -111,7 +111,8 @@ export interface MeetingUsage {
   model: string;
   input_tokens: number;
   output_tokens: number;
-  estimated_cost: number;
+  /** Null when the call's price is unknown. */
+  estimated_cost: number | null;
   timestamp: number;
 }
 

@@ -188,6 +188,12 @@ export const vectorDB = {
     await invoke('plugin:store|upsert_chat_chunks', { sessionId, chunks });
   },
 
+  /** The texts of a chat's search turns that already have a vector. */
+  async getEmbeddedChatTurns(sessionId: string): Promise<string[]> {
+    await ensureInitialized();
+    return invoke('plugin:store|chat_embedded_turns', { sessionId });
+  },
+
   async isChatSessionStale(sessionId: string, contentHash: string): Promise<boolean> {
     await ensureInitialized();
     return invoke('plugin:store|chat_is_stale', { sessionId, contentHash });

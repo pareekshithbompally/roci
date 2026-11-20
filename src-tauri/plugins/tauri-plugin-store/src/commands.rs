@@ -876,7 +876,7 @@ pub(crate) fn meetings_get_impl(db: &Connection, id: &str) -> Result<MeetingDeta
                 segments: row.get(3)?,
                 created_at: row.get(4)?,
             }),
-        ).optional().ok().flatten();
+        ).optional()?;
 
         let summary: Option<SummaryRow> = db.query_row(
             "SELECT overview, data, created_at, updated_at FROM summaries WHERE meeting_id = ?1",
@@ -887,7 +887,7 @@ pub(crate) fn meetings_get_impl(db: &Connection, id: &str) -> Result<MeetingDeta
                 created_at: row.get(2)?,
                 updated_at: row.get(3)?,
             }),
-        ).optional().ok().flatten();
+        ).optional()?;
 
         let mut rec_stmt = db.prepare(
             "SELECT id, path, duration_seconds, created_at FROM assets
@@ -2129,8 +2129,8 @@ fn chats_get_impl(db: &Connection, id: &str) -> Result<ChatSessionResult, StoreE
                     created_at: row.get(7)?,
                 })
             })?
-            .filter_map(|r| r.ok())
-            .collect();
+            // A message that can't be read fails the load: skipping it would lose it for good on the next save.
+            .collect::<Result<_, _>>()?;
 
         Ok(ChatSessionResult {
             id: chat.0,
@@ -2181,29 +2181,7 @@ fn chats_upsert_impl(db: &Connection, input: &ChatsUpsertInput) -> Result<(), St
             rusqlite::params![input.id, input.title, input.meeting_id, created_at, input.last_message_at],
         )?;
 
-        // Replace messages: delete all existing, then batch-insert new ones
-        tx.execute("DELETE FROM chat_messages WHERE chat_id = ?1", [&input.id])?;
-
-        {
-            let mut insert_stmt = tx.prepare(
-                "INSERT INTO chat_messages (id, chat_id, seq, role, text, provider, model, data, created_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            )?;
-
-            for (i, msg) in input.messages.iter().enumerate() {
-                insert_stmt.execute(rusqlite::params![
-                    msg.id,
-                    input.id,
-                    i as i32,
-                    msg.role,
-                    msg.text,
-                    msg.provider,
-                    msg.model,
-                    msg.data,
-                    msg.created_at,
-                ])?;
-            }
-        } // drop insert_stmt before commit
+        save_chat_messages(&tx, input)?;
 
         let op = if is_new { "create" } else { "update" };
         assets::sync_chat_assets(&tx, &input.id, &input.asset_paths)?;
@@ -2211,6 +2189,35 @@ fn chats_upsert_impl(db: &Connection, input: &ChatsUpsertInput) -> Result<(), St
 
         tx.commit()?;
         Ok(())
+}
+
+/// A chat's messages written by change: removed ones deleted, new ones added, changed ones updated, unchanged ones not touched,
+/// so continuing a conversation writes the new turn, not the whole chat again.
+fn save_chat_messages(tx: &Connection, input: &ChatsUpsertInput) -> Result<(), StoreError> {
+    let kept: std::collections::HashSet<&str> = input.messages.iter().map(|m| m.id.as_str()).collect();
+    let stored: Vec<String> = tx
+        .prepare("SELECT id FROM chat_messages WHERE chat_id = ?1")?
+        .query_map([&input.id], |row| row.get(0))?
+        .collect::<Result<_, _>>()?;
+    for id in stored.iter().filter(|id| !kept.contains(id.as_str())) {
+        tx.execute("DELETE FROM chat_messages WHERE id = ?1", [id])?;
+    }
+    let mut upsert = tx.prepare(
+        "INSERT INTO chat_messages (id, chat_id, seq, role, text, provider, model, data, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+         ON CONFLICT(id) DO UPDATE SET
+            seq = excluded.seq, role = excluded.role, text = excluded.text,
+            provider = excluded.provider, model = excluded.model, data = excluded.data
+         WHERE chat_messages.seq IS NOT excluded.seq OR chat_messages.text IS NOT excluded.text
+            OR chat_messages.data IS NOT excluded.data OR chat_messages.provider IS NOT excluded.provider
+            OR chat_messages.model IS NOT excluded.model OR chat_messages.role IS NOT excluded.role",
+    )?;
+    for (i, msg) in input.messages.iter().enumerate() {
+        upsert.execute(rusqlite::params![
+            msg.id, input.id, i as i32, msg.role, msg.text, msg.provider, msg.model, msg.data, msg.created_at,
+        ])?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -2802,13 +2809,14 @@ pub struct MeetingUsageRow {
     pub model: String,
     pub input_tokens: i64,
     pub output_tokens: i64,
-    pub estimated_cost: f64,
+    /// None when the call's price is unknown (never shown as free).
+    pub estimated_cost: Option<f64>,
     pub timestamp: i64,
 }
 
 fn meeting_usage_impl(db: &Connection, meeting_id: &str) -> Result<Vec<MeetingUsageRow>, StoreError> {
     let mut stmt = db.prepare(
-        "SELECT category, provider, model, input_tokens, output_tokens, COALESCE(estimated_cost, 0), timestamp
+        "SELECT category, provider, model, input_tokens, output_tokens, estimated_cost, timestamp
          FROM usage_log WHERE session_id = ?1 ORDER BY timestamp DESC",
     )?;
     let rows = stmt
@@ -2843,6 +2851,7 @@ pub async fn get_meeting_usage(
 }
 
 /// Prices a model's calls saved without a price (NULL) from their tokens, at the price the user just set; returns how many.
+/// Same as `costOf` in extensions/usage/pricing.ts for a user's price, which has no cache rates (cached input costs the input rate).
 fn price_unpriced_usage_impl(
     db: &Connection,
     provider: &str,
@@ -3032,6 +3041,72 @@ pub async fn mark_chat_indexed(
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
+/// A chat's search turns after a save: an unchanged turn keeps its row and vector (replaced only when a new vector is sent), a changed
+/// or new turn is written, and turns past the end are removed — so a new reply writes and embeds one turn, not the whole chat.
+fn save_chat_chunks(tx: &Connection, chat_id: &str, chunks: &[ChatChunkData]) -> Result<(), StoreError> {
+    for chunk in chunks {
+        let stored: Option<(i64, String)> = tx
+            .query_row(
+                "SELECT id, chunk_text FROM chat_chunks WHERE chat_id = ?1 AND chunk_index = ?2",
+                rusqlite::params![chat_id, chunk.chunk_index],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        let chunk_id = match stored {
+            Some((id, text)) if text == chunk.chunk_text => id,
+            Some((id, _)) => {
+                tx.execute("UPDATE chat_chunks SET chunk_text = ?2, chunk_type = ?3 WHERE id = ?1", rusqlite::params![id, chunk.chunk_text, chunk.chunk_type])?;
+                tx.execute("DELETE FROM chat_vec_chunks WHERE chunk_id = ?1", [id])?;
+                id
+            }
+            None => {
+                tx.execute(
+                    "INSERT INTO chat_chunks (chat_id, chunk_index, chunk_text, chunk_type) VALUES (?1, ?2, ?3, ?4)",
+                    rusqlite::params![chat_id, chunk.chunk_index, chunk.chunk_text, chunk.chunk_type],
+                )?;
+                tx.last_insert_rowid()
+            }
+        };
+        if let Some(embedding) = &chunk.embedding {
+            let bytes: Vec<u8> = embedding.iter().flat_map(|f| f.to_le_bytes()).collect();
+            tx.execute("DELETE FROM chat_vec_chunks WHERE chunk_id = ?1", [chunk_id])?;
+            tx.execute("INSERT INTO chat_vec_chunks (chunk_id, embedding) VALUES (?1, ?2)", rusqlite::params![chunk_id, bytes])?;
+        }
+    }
+    let gone: Vec<i64> = tx
+        .prepare("SELECT id FROM chat_chunks WHERE chat_id = ?1 AND chunk_index >= ?2")?
+        .query_map(rusqlite::params![chat_id, chunks.len() as i64], |row| row.get(0))?
+        .collect::<Result<_, _>>()?;
+    for id in gone {
+        tx.execute("DELETE FROM chat_vec_chunks WHERE chunk_id = ?1", [id])?;
+        tx.execute("DELETE FROM chat_chunks WHERE id = ?1", [id])?;
+    }
+    Ok(())
+}
+
+/// The texts of a chat's search turns that already have a vector, so a save embeds only the turns that don't.
+fn chat_embedded_turns_impl(db: &Connection, chat_id: &str) -> Result<Vec<String>, StoreError> {
+    Ok(db
+        .prepare(
+            "SELECT c.chunk_text FROM chat_chunks c
+             WHERE c.chat_id = ?1 AND EXISTS (SELECT 1 FROM chat_vec_chunks v WHERE v.chunk_id = c.id)",
+        )?
+        .query_map([chat_id], |row| row.get(0))?
+        .collect::<Result<_, _>>()?)
+}
+
+#[tauri::command]
+pub async fn chat_embedded_turns(state: State<'_, StoreState>, session_id: String) -> Result<Vec<String>, StoreError> {
+    let conn_arc = Arc::clone(&state.conn);
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = conn_arc.lock().map_err(|e| StoreError::from(format!("Lock error: {}", e)))?;
+        let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
+        chat_embedded_turns_impl(db, &session_id)
+    })
+    .await
+    .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
+}
+
 #[tauri::command]
 pub async fn upsert_chat_chunks(
     state: State<'_, StoreState>,
@@ -3044,42 +3119,7 @@ pub async fn upsert_chat_chunks(
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
 
         let tx = db.unchecked_transaction()?;
-
-        let old_chunk_ids: Vec<i64> = {
-            let mut stmt = tx.prepare("SELECT id FROM chat_chunks WHERE chat_id = ?1")?;
-            let rows: Vec<i64> = stmt.query_map([&session_id], |row| row.get(0))?
-                .filter_map(|r| r.ok())
-                .collect();
-            rows
-        };
-
-        for chunk_id in &old_chunk_ids {
-            tx.execute("DELETE FROM chat_vec_chunks WHERE chunk_id = ?1", [chunk_id])?;
-        }
-
-        tx.execute("DELETE FROM chat_chunks WHERE chat_id = ?1", [&session_id])?;
-
-        for chunk in &chunks {
-            tx.execute(
-                "INSERT INTO chat_chunks (chat_id, chunk_index, chunk_text, chunk_type)
-                 VALUES (?1, ?2, ?3, ?4)",
-                rusqlite::params![session_id, chunk.chunk_index, chunk.chunk_text, chunk.chunk_type],
-            )?;
-
-            let chunk_row_id = tx.last_insert_rowid();
-
-            if let Some(embedding) = &chunk.embedding {
-                let embedding_bytes: Vec<u8> = embedding
-                    .iter()
-                    .flat_map(|f| f.to_le_bytes())
-                    .collect();
-                tx.execute(
-                    "INSERT INTO chat_vec_chunks (chunk_id, embedding) VALUES (?1, ?2)",
-                    rusqlite::params![chunk_row_id, embedding_bytes],
-                )?;
-            }
-        }
-
+        save_chat_chunks(&tx, &session_id, &chunks)?;
         tx.commit()?;
         log::info!("[store] Upserted {} chat chunks for session {}", chunks.len(), session_id);
         Ok(())
@@ -4016,6 +4056,65 @@ mod tests {
         assert_eq!(got.messages[1].id, "msg-b");
         assert_eq!(got.messages[1].role, "model");
         assert!(got.messages[1].data.is_none());
+    }
+
+    fn msg(id: &str, text: &str) -> ChatMessageInput {
+        ChatMessageInput { id: id.into(), role: "user".into(), text: text.into(), provider: None, model: None, data: None, created_at: 1 }
+    }
+
+    fn chat(messages: Vec<ChatMessageInput>) -> ChatsUpsertInput {
+        ChatsUpsertInput { id: "c1".into(), title: "t".into(), meeting_id: None, asset_paths: vec![], last_message_at: 1, messages, created_at: Some(1) }
+    }
+
+    /// Counts every insert, update and delete on chat_messages from now on.
+    fn count_message_writes(conn: &Connection) {
+        conn.execute_batch(
+            "CREATE TEMP TABLE writes(n INTEGER);
+             CREATE TEMP TRIGGER w_i AFTER INSERT ON chat_messages BEGIN INSERT INTO writes VALUES (1); END;
+             CREATE TEMP TRIGGER w_u AFTER UPDATE ON chat_messages BEGIN INSERT INTO writes VALUES (1); END;
+             CREATE TEMP TRIGGER w_d AFTER DELETE ON chat_messages BEGIN INSERT INTO writes VALUES (1); END;",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn continuing_a_chat_writes_only_what_changed() {
+        let conn = db();
+        chats_upsert_impl(&conn, &chat(vec![msg("a", "hi"), msg("b", "hello")])).unwrap();
+        count_message_writes(&conn);
+
+        chats_upsert_impl(&conn, &chat(vec![msg("a", "hi"), msg("b", "hello, edited"), msg("c", "new")])).unwrap();
+        let writes: i64 = conn.query_row("SELECT COUNT(*) FROM writes", [], |r| r.get(0)).unwrap();
+        assert_eq!(writes, 2, "one changed message and one new one; the unchanged one is not touched");
+
+        chats_upsert_impl(&conn, &chat(vec![msg("a", "hi"), msg("c", "new")])).unwrap();
+        let got = chats_get_impl(&conn, "c1").unwrap();
+        assert_eq!(got.messages.iter().map(|m| (m.id.as_str(), m.seq)).collect::<Vec<_>>(), vec![("a", 0), ("c", 1)]);
+    }
+
+    fn turn(index: i32, text: &str, embedded: bool) -> ChatChunkData {
+        ChatChunkData { chunk_index: index, chunk_text: text.into(), chunk_type: "turn".into(), embedding: embedded.then(|| vec![0.5; crate::schema::DEFAULT_DIM as usize]) }
+    }
+
+    #[test]
+    fn a_chats_search_turns_keep_their_vectors_unless_they_change() {
+        let conn = db();
+        chats_upsert_impl(&conn, &chat(vec![msg("a", "hi")])).unwrap();
+        let save = |turns: &[ChatChunkData]| {
+            let tx = conn.unchecked_transaction().unwrap();
+            save_chat_chunks(&tx, "c1", turns).unwrap();
+            tx.commit().unwrap();
+        };
+        let embedded = || { let mut t = chat_embedded_turns_impl(&conn, "c1").unwrap(); t.sort(); t };
+
+        save(&[turn(0, "one", true), turn(1, "two", true)]);
+        save(&[turn(0, "one", false), turn(1, "two", false), turn(2, "three", true)]);
+        assert_eq!(embedded(), vec!["one", "three", "two"], "unchanged turns keep their vectors; only the new one was sent");
+
+        save(&[turn(0, "one", false), turn(1, "two, edited", false)]);
+        assert_eq!(embedded(), vec!["one"], "a changed turn loses its old vector and the turn past the end is gone");
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM chat_chunks WHERE chat_id = 'c1'", [], |r| r.get(0)).unwrap();
+        assert_eq!(count, 2);
     }
 
     // ── mark_chat_indexed isolation (dual-write guard) ────────────────

@@ -128,6 +128,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             // Chat indexing
             commands::mark_chat_indexed,
             commands::upsert_chat_chunks,
+            commands::chat_embedded_turns,
             commands::chat_is_stale,
             commands::chats_get_stale,
             commands::get_chats_needing_embeddings,

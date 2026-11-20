@@ -24,6 +24,8 @@ export const USAGE_CONFIG = {
     emptyPeriod: 'No usage in this period.',
     loadFailed: 'Couldn’t load usage',
     allTitle: 'All usage',
+    /** A cost that can't be worked out: a paid model with no known price (never shown as free). */
+    noPrice: 'no price',
     /** Beside the estimated cost when some calls ran on cloud models with no known price (left out of the total). */
     unpriced: (calls: number) => `${calls} ${calls === 1 ? 'call has' : 'calls have'} no price`,
     /** Settings › Usage › Model Prices: prices for paid models models.dev doesn't price. */

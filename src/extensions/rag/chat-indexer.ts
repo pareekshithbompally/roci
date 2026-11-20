@@ -184,7 +184,14 @@ async function indexAllSessions(
   return indexed;
 }
 
-/** Chunk → embed → upsert; content_hash is stamped only after the chunks are confirmed in the DB. */
+/** The turns to embed: those without a vector yet (a turn whose text is unchanged keeps the one it has); none when embeddings are off. */
+async function turnsToEmbed(sessionId: string, texts: string[], options?: ChatIndexOptions): Promise<Set<string>> {
+  if (options?.includeEmbeddings === false) return new Set();
+  const embedded = new Set(await vectorDB.getEmbeddedChatTurns(sessionId));
+  return new Set(texts.filter((text) => !embedded.has(text)));
+}
+
+/** Chunk → embed the new turns → upsert; content_hash is stamped only after the chunks are confirmed in the DB. */
 async function indexSessionInternal(
   session: ChatSession,
   contentHash: string,
@@ -206,11 +213,11 @@ async function indexSessionInternal(
     return { status: 'skipped', reason: 'no_chunks', chunkCount: 0, embeddingCount: 0 };
   }
 
-  const chunkTexts = chunks.map(c => c.text);
-  let embeddings: number[][] | null = null;
-  if (options?.includeEmbeddings !== false) {
+  const newTexts = [...await turnsToEmbed(session.id, chunks.map((c) => c.text), options)];
+  const vectors = new Map<string, number[]>();
+  if (newTexts.length > 0) {
     try {
-      embeddings = await embedDocuments(chunkTexts);
+      (await embedDocuments(newTexts)).forEach((vector, i) => vectors.set(newTexts[i], vector));
     } catch (error) {
       if (!isEmbeddingMissing(error)) {
         console.error(`[ChatIndexer] Embedding failed for session "${session.title}":`, error);
@@ -218,11 +225,11 @@ async function indexSessionInternal(
     }
   }
 
-  const chunkDataList: ChatChunkData[] = chunks.map((chunk, i) => ({
+  const chunkDataList: ChatChunkData[] = chunks.map((chunk) => ({
     chunk_index: chunk.index,
     chunk_text: chunk.text,
     chunk_type: chunk.type,
-    embedding: embeddings?.[i],
+    embedding: vectors.get(chunk.text),
   }));
 
   await vectorDB.upsertChatChunks(session.id, chunkDataList);
@@ -234,7 +241,7 @@ async function indexSessionInternal(
   return {
     status: 'indexed',
     chunkCount: chunkDataList.length,
-    embeddingCount: embeddings?.length ?? 0,
+    embeddingCount: vectors.size,
   };
 }
 

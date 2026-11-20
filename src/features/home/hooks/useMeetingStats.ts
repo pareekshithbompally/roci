@@ -17,7 +17,8 @@ export interface ModelCredit {
 export interface SummaryCredit extends ModelCredit {
   inputTokens: number;
   outputTokens: number;
-  cost: number;
+  /** Null when the summary model's price is unknown. */
+  cost: number | null;
 }
 
 export interface MeetingStats {

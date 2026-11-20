@@ -8,7 +8,7 @@ import { SHOW_IN_FINDER, showInFinder } from '@shared/utils/savedFileToast';
 import { platform } from '@platform/index';
 import { AUDIO_CONFIG, type AudioCaptureSource } from '@config/audio.config';
 import { formatDuration, formatFileSize, formatDateTime } from '@shared/utils/formatters';
-import { formatCost, formatTokenCount } from '@extensions/usage/format';
+import { formatCostOrUnknown, formatTokenCount } from '@extensions/usage/format';
 import { useMeetingStats, type MeetingStats } from '@features/home/hooks/useMeetingStats';
 import { APP_CONFIG } from '@config/app.config';
 import { ModelName } from './ModelCreditLine';
@@ -82,7 +82,7 @@ const SummarySection: React.FC<{ stats: MeetingStats }> = ({ stats }) => {
       <StatRow label="Model"><ModelName credit={summary} /></StatRow>
       {billed && (
         <StatRow label="Usage">
-          <Value>{formatTokenCount(summary.inputTokens)} in · {formatTokenCount(summary.outputTokens)} out · {formatCost(summary.cost)}</Value>
+          <Value>{formatTokenCount(summary.inputTokens)} in · {formatTokenCount(summary.outputTokens)} out · {formatCostOrUnknown(summary.cost)}</Value>
         </StatRow>
       )}
     </Section>

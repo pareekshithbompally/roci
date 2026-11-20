@@ -1,5 +1,7 @@
 /** Compact token count and cost formatters for the usage UI. */
 
+import { USAGE_CONFIG } from '@config/usage.config';
+
 /** Format token count with SI suffixes: "1.2k", "125.3k", "1.5M" */
 export function formatTokenCount(n: number): string {
   if (n === 0) return '0';
@@ -15,4 +17,9 @@ export function formatCost(usd: number, precise = false): string {
   if (usd === 0) return 'Free';
   if (usd < 0.01) return precise ? `$${Number(usd.toPrecision(2))}` : '< $0.01';
   return `$${usd.toFixed(2)}`;
+}
+
+/** A cost that may be unknown: "no price" when it is, else `formatCost`. */
+export function formatCostOrUnknown(usd: number | null | undefined, precise = false): string {
+  return usd == null ? USAGE_CONFIG.copy.noPrice : formatCost(usd, precise);
 }

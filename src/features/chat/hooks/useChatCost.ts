@@ -1,9 +1,10 @@
 /** What chat replies cost, by the one price rule (Settings › Usage uses the same): a price set later shows on old replies too. */
 
+import { useMemo } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useModelCatalog } from '@shared/hooks/useModelCatalog';
 import { costOf, priceOf } from '@extensions/usage';
-import { formatCost } from '@extensions/usage/format';
+import { formatCost, formatCostOrUnknown } from '@extensions/usage/format';
 import { CHAT_COST_COPY } from '@config/chat.config';
 import type { ChatMessage } from '@shared/types';
 import type { ModelProvider } from '@shared/types/modelProviders';
@@ -31,15 +32,17 @@ export function useReplyCost(reply: PricedReply): string | null {
   useModelCatalog();
   const { providers } = useSettings();
   if (!reply.usage) return null;
-  const cost = replyCost(providers, reply);
-  return cost === undefined ? CHAT_COST_COPY.noPrice : formatCost(cost, true);
+  return formatCostOrUnknown(replyCost(providers, reply), true);
 }
 
-/** The chat's cost so far as the context ring shows it, with a note when some replies have no price; null before any reply. */
+/** The chat's cost so far as the context ring shows it, with a note when some replies have no price; null before any reply.
+ *  Worked out again only when the messages, prices or models.dev list change (not on each keystroke in the composer). */
 export function useChatCost(messages: ChatMessage[]): { total: string; note?: string } | null {
-  useModelCatalog();
+  const catalogLoaded = useModelCatalog();
   const { providers } = useSettings();
-  const cost = chatCostOf(providers, messages);
-  if (!cost) return null;
-  return { total: formatCost(cost.total, true), ...(cost.unpriced > 0 && { note: CHAT_COST_COPY.unpriced(cost.unpriced) }) };
+  return useMemo(() => {
+    const cost = chatCostOf(providers, messages);
+    if (!cost) return null;
+    return { total: formatCost(cost.total, true), ...(cost.unpriced > 0 && { note: CHAT_COST_COPY.unpriced(cost.unpriced) }) };
+  }, [providers, messages, catalogLoaded]);
 }

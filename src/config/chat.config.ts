@@ -68,7 +68,6 @@ export const CHAT_CATALOG_COPY = {
 
 /** What chat replies cost (the reply's gauge, the context ring), by the same price rule as Settings › Usage. */
 export const CHAT_COST_COPY = {
-  noPrice: 'no price',
   unpriced: (replies: number) => `${replies} ${replies === 1 ? 'reply has' : 'replies have'} no price`,
 } as const;
 
