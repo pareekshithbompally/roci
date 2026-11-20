@@ -11,7 +11,7 @@ import { endSearch, startSearch, toggleSearch } from '@shared/stores/searchStore
 import { HomeView } from '@features/home';
 import { SettingsPanel } from '@features/settings';
 import { useAppUpdate, scheduleStartupCheck } from '@features/settings';
-import { useMenubarSpeechModels, useMenubarReports, useLocalModelDownloads, useLocalModelIdle, freshSpeechSources } from '@features/settings';
+import { useMenubarSpeechModels, useMenubarReports, useStorageRetention, useLocalModelDownloads, useLocalModelIdle, freshSpeechSources } from '@features/settings';
 import { RemindersView } from '@features/todos';
 import { GalleryView } from '@features/gallery';
 import { DictationsView } from '@features/dictations';
@@ -91,6 +91,7 @@ const App: React.FC = () => {
   useDownloadToasts();
   useLocalModelDownloads();
   useLocalModelIdle();
+  useStorageRetention();
   useRemindersRuntime();
   useHexRuntime();
   useMcpHostRuntime();

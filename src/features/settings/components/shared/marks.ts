@@ -6,3 +6,6 @@ import type { ChoiceMark } from '@shared/utils/modelResolver';
 
 /** A speech model on this Mac that shows dictation as it's spoken. */
 export const LIVE_TRANSCRIPTION_MARK: ChoiceMark = { icon: Captions, label: TRANSCRIPTION_CONFIG.liveCopy.mark };
+
+/** Shown in a value slot until its data loads, so rows keep their place. */
+export const PENDING = '—';

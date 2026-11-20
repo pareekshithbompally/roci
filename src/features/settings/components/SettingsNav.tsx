@@ -1,20 +1,20 @@
 /** Settings nav in the left sidebar; edits save on edit, so switching panels needs no dirty-state guard. */
 
 import React from 'react';
-import { Bell, Box, ChartColumn, Puzzle, Settings, Sparkles } from 'lucide-react';
+import { Bell, Box, ChartColumn, HardDrive, Puzzle, Settings, Sparkles } from 'lucide-react';
 import { SiModelcontextprotocol } from '@icons-pack/react-simple-icons';
 import { useAppStore, useAppActions } from '@shared/stores/appStore';
 import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore';
 import { platform } from '@platform/index';
 import { hasIntegrations } from './IntegrationsPanel';
-import { IconTile, Row, type TileGlyph } from '@shared/ui';
+import { IconTile, Row, RowGroupLabel, type TileGlyph } from '@shared/ui';
 
 export interface SettingsNavItem {
   id: SettingsPanelType;
   label: string;
   icon: TileGlyph;
   /** Tile hue, from the row's domain. */
-  /** Heading of the group the row sits in on a phone's grouped Settings list. */
+  /** Heading of the group the row sits in (App, AI, Data), on the Mac sidebar and the phone's Settings list. */
   group: string;
   /** False hides the section on devices without the feature; omitted means always shown. */
   available?: boolean;
@@ -23,18 +23,25 @@ export interface SettingsNavItem {
 }
 
 export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
-  { id: 'general', label: 'General', icon: Settings, group: 'App', keywords: ['capture', 'audio source', 'microphone', 'storage', 'disk usage', 'imports', 'search index'] },
+  { id: 'general', label: 'General', icon: Settings, group: 'App', keywords: ['capture', 'audio source', 'microphone', 'imports', 'theme', 'updates'] },
   { id: 'notifications', label: 'Notifications', icon: Bell, group: 'App', available: platform.hasNotifications, keywords: ['meeting reminders', 'alerts'] },
   { id: 'integrations', label: 'Integrations', icon: Puzzle, group: 'App', available: hasIntegrations, keywords: ['calendar', 'reminders', 'apple notes', 'spotlight', 'hex', 'coding agents'] },
-  { id: 'defaultModels', label: 'Default Models', icon: Sparkles, group: 'AI', keywords: ['chat model', 'transcription', 'speech', 'summary', 'images'] },
   { id: 'providers', label: 'Providers', icon: Box, group: 'AI', keywords: ['api key', 'openai', 'anthropic', 'gemini', 'local models', 'ollama'] },
+  { id: 'defaultModels', label: 'Default Models', icon: Sparkles, group: 'AI', keywords: ['chat model', 'transcription', 'speech', 'summary', 'images'] },
   { id: 'mcp', label: 'MCP Servers', icon: SiModelcontextprotocol, group: 'AI', available: platform.hasMcp, keywords: ['tools', 'servers'] },
-  { id: 'usage', label: 'Usage', icon: ChartColumn, group: 'Activity', keywords: ['cost', 'tokens', 'spend'] },
+  { id: 'storage', label: 'Storage', icon: HardDrive, group: 'Data', keywords: ['disk usage', 'space', 'keep', 'retention', 'delete', 'cache', 'search index', 'finder', 'models.dev', 'catalog'] },
+  { id: 'usage', label: 'Usage', icon: ChartColumn, group: 'Data', keywords: ['cost', 'tokens', 'spend'] },
 ];
 
 
 /** The sections this device has: what the sidebar, the phone's Settings list and the ⌘K palette all show. */
 export const SETTINGS_SECTIONS = SETTINGS_NAV_ITEMS.filter(({ available }) => available !== false);
+
+/** Those sections under their group headings, in list order: the one grouping the sidebar and the phone list share. */
+export const SETTINGS_GROUPS = [...new Set(SETTINGS_SECTIONS.map(({ group }) => group))].map((group) => ({
+  group,
+  items: SETTINGS_SECTIONS.filter((item) => item.group === group),
+}));
 
 export const SettingsNav: React.FC = () => {
   const activePanel = useAppStore((s) => s.activeSettingsPanel);
@@ -43,16 +50,21 @@ export const SettingsNav: React.FC = () => {
 
   return (
     <nav aria-label="Settings sections" className="flex flex-col">
-      {SETTINGS_SECTIONS.map(({ id, label, icon }) => (
-        <Row
-          key={id}
-          selected={activePanel === id}
-          onClick={() => setActiveSettingsPanel(id)}
-          aria-current={activePanel === id ? 'page' : undefined}
-        >
-          <IconTile icon={icon} />
-          <span className="flex-1 text-left truncate">{label}</span>
-        </Row>
+      {SETTINGS_GROUPS.map(({ group, items }) => (
+        <React.Fragment key={group}>
+          <RowGroupLabel>{group}</RowGroupLabel>
+          {items.map(({ id, label, icon }) => (
+            <Row
+              key={id}
+              selected={activePanel === id}
+              onClick={() => setActiveSettingsPanel(id)}
+              aria-current={activePanel === id ? 'page' : undefined}
+            >
+              <IconTile icon={icon} />
+              <span className="flex-1 text-left truncate">{label}</span>
+            </Row>
+          ))}
+        </React.Fragment>
       ))}
     </nav>
   );

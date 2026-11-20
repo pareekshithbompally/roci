@@ -10,6 +10,7 @@ export { useAIReadiness, useOpenAISetup } from './useAIReadiness';
 export type { AIReadiness } from './useAIReadiness';
 export { useMenubarSpeechModels } from './useMenubarSpeechModels';
 export { useMenubarReports } from './useMenubarReports';
+export { useStorageRetention } from './useStorageRetention';
 export { useLocalModelIdle, useLocalModelControls, useLocalModelDownloads, downloadSetup } from './useLocalModels';
 export {
   useMcpConfig,

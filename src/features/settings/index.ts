@@ -14,13 +14,12 @@ export {
 // Hooks
 export { useLocalServers } from './hooks/useLocalServers';
 export { useProviderConnection } from './hooks/useProviderConnection';
-export { useSettings, useAppUpdate, scheduleStartupCheck, useMenubarSpeechModels, useMenubarReports, useLocalModelDownloads, useLocalModelIdle, useLiveDictation, useSelectedSpeechOption, freshSpeechSources } from './hooks';
+export { useSettings, useAppUpdate, scheduleStartupCheck, useMenubarSpeechModels, useMenubarReports, useStorageRetention, useLocalModelDownloads, useLocalModelIdle, useLiveDictation, useSelectedSpeechOption, freshSpeechSources } from './hooks';
 export type { LiveDictation, AIReadiness } from './hooks';
 export { useAIReadiness, useOpenAISetup } from './hooks';
 
 // Stores
 export { systemInfoStore, useSystemInfo } from './stores';
-export type { IndexStats, DiskUsageEntry } from './stores';
 
 // Re-export context for provider usage
 export { SettingsProvider, useSettings as useSettingsContext } from '@shared/contexts/SettingsContext';

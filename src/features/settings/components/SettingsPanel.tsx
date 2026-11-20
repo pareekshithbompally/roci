@@ -3,11 +3,12 @@
 import React, { useEffect } from 'react';
 import { systemInfoStore } from '@features/settings/stores/systemInfoStore';
 import { useAppStore } from '@shared/stores/appStore';
-import { SETTINGS_NAV_ITEMS, SETTINGS_SECTIONS } from './SettingsNav';
+import { SETTINGS_GROUPS, SETTINGS_NAV_ITEMS } from './SettingsNav';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { ProvidersPanel } from './ProvidersPanel';
 import { ProvidersPanelErrorBoundary } from './ProvidersPanelErrorBoundary';
 import { GeneralPanel } from './GeneralPanel';
+import { StoragePanel } from './StoragePanel';
 import { DefaultModelsPanel } from './DefaultModelsPanel';
 import { UsagePanel } from '@features/usage';
 import { IntegrationsPanel } from './IntegrationsPanel';
@@ -19,6 +20,7 @@ import type { SettingsPanel as SettingsPanelType } from '@shared/stores/appStore
 
 const PANEL_COMPONENTS: Record<SettingsPanelType, React.FC> = {
   general: GeneralPanel,
+  storage: StoragePanel,
   defaultModels: DefaultModelsPanel,
   providers: ProvidersPanel,
   integrations: IntegrationsPanel,
@@ -47,14 +49,11 @@ export const SettingsHome: React.FC = () => {
   const { push } = useNavStack();
   // System panel data (paths, disk, index) loads while the user is still on this list, as on the desktop.
   useEffect(() => systemInfoStore.preload(), []);
-  const items = SETTINGS_SECTIONS;
-  const groups = [...new Set(items.map(({ group }) => group))];
-
   return (
     <div className="flex flex-col gap-section p-4">
-      {groups.map((group) => (
+      {SETTINGS_GROUPS.map(({ group, items }) => (
         <Section key={group} title={group}>
-          {items.filter((item) => item.group === group).map(({ id, label, icon }) => (
+          {items.map(({ id, label, icon }) => (
             <CardRow key={id} title={label} leading={<IconTile icon={icon} />} onOpen={() => push(settingsScreen(id))} />
           ))}
         </Section>
