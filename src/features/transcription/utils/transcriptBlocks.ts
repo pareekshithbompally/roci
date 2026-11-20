@@ -6,6 +6,8 @@ import type { StoredTranscriptSegment } from '@shared/types';
 
 export interface TranscriptBlock {
   speaker?: string;
+  /** When the turn began ("0:42"), when the transcript is timed. */
+  time?: string;
   text: string;
   /** The silence before this turn ("1:12"), when long enough to mark. */
   silenceBefore?: string;
@@ -15,9 +17,11 @@ const SPEAKER_LINE = /^\[([^\]\d][^\]]*)\]$/;
 const TIME_PREFIX = /^\[(\d{1,2}:\d{2})\]\s*/;
 const SENTENCE_END = /[.!?…]["')\]]?$/;
 
-/** Speaker turns: a speaker's lines closer than the join gap are one turn; a long silence before a turn is marked. */
+/** Speaker turns, each with the time it began: a speaker's lines closer than the join gap are one turn; a long silence before a
+ *  turn is marked. */
 export function blocksFromSegments(segments: StoredTranscriptSegment[]): TranscriptBlock[] {
   const { joinGapSeconds, markSilenceSeconds } = TRANSCRIPTION_CONFIG.turns;
+  const timed = segments.some((s) => s.endSecond > 0);
   const blocks: TranscriptBlock[] = [];
   let heardUntil: number | null = null;
   for (const segment of segments) {
@@ -27,7 +31,10 @@ export function blocksFromSegments(segments: StoredTranscriptSegment[]): Transcr
     const gap = heardUntil === null ? 0 : segment.startSecond - heardUntil;
     const turn = blocks.at(-1);
     if (turn && turn.speaker === speaker && gap <= joinGapSeconds) turn.text = `${turn.text} ${text}`;
-    else blocks.push({ speaker, text, silenceBefore: gap >= markSilenceSeconds ? formatDuration(gap) : undefined });
+    else {
+      const time = timed ? formatDuration(segment.startSecond) : undefined;
+      blocks.push({ speaker, time, text, silenceBefore: gap >= markSilenceSeconds ? formatDuration(gap) : undefined });
+    }
     heardUntil = Math.max(heardUntil ?? 0, segment.endSecond);
   }
   return blocks;

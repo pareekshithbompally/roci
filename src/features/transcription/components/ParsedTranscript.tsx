@@ -15,13 +15,13 @@ interface ParsedTranscriptProps {
 
 interface BlockProps {
   block: TranscriptBlock;
-  /** Speaker line only when the speaker changes. */
+  /** A turn's speaker and time; a plain-text transcript shows its speaker only when it changes. */
   showHeader: boolean;
   highlight: string;
   ref?: React.Ref<HTMLElement>;
 }
 
-/** One turn: a long silence before it, the speaker when it changes, then reading text. */
+/** One turn: a long silence before it, its speaker and time, then reading text. */
 const Block: React.FC<BlockProps> = ({ block, showHeader, highlight, ref }) => {
   const isMatch = highlight !== '' && block.text.toLowerCase().includes(highlight.toLowerCase());
   return (
@@ -29,7 +29,12 @@ const Block: React.FC<BlockProps> = ({ block, showHeader, highlight, ref }) => {
       {block.silenceBefore && (
         <Text as="p" variant="figureSmall" tone="faint">{`${block.silenceBefore} ${TRANSCRIPTION_CONFIG.turns.silence}`}</Text>
       )}
-      {showHeader && <Text variant="headline">{block.speaker}</Text>}
+      {showHeader && (
+        <div className="flex items-baseline gap-2 mb-0.5">
+          {block.speaker && <Text variant="headline">{block.speaker}</Text>}
+          {block.time && <Text variant="figureSmall" tone="faint">{block.time}</Text>}
+        </div>
+      )}
       <Text as="p" variant="reading">
         <HighlightedText text={block.text} highlight={isMatch ? highlight : ''} />
       </Text>
@@ -69,7 +74,7 @@ const ParsedTranscript: React.FC<ParsedTranscriptProps> = ({ text, segments, hig
           key={i}
           ref={(el) => { refs.current[i] = el; }}
           block={block}
-          showHeader={!!block.speaker && block.speaker !== blocks[i - 1]?.speaker}
+          showHeader={!!block.time || (!!block.speaker && block.speaker !== blocks[i - 1]?.speaker)}
           highlight={highlight}
         />
       ))}

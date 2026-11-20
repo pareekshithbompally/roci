@@ -37,17 +37,17 @@ describe('blocksFromSegments', () => {
       { text: 'Next point.', startSecond: 20, endSecond: 22, speaker: 'Others' },
     ]);
     expect(blocks).toEqual([
-      { speaker: 'You', text: 'Life seems decent, it is not complicated at all.', silenceBefore: undefined },
-      { speaker: 'Others', text: 'Agreed.', silenceBefore: undefined },
-      { speaker: 'Others', text: 'Next point.', silenceBefore: undefined },
+      { speaker: 'You', time: '0:02', text: 'Life seems decent, it is not complicated at all.', silenceBefore: undefined },
+      { speaker: 'Others', time: '0:12', text: 'Agreed.', silenceBefore: undefined },
+      { speaker: 'Others', time: '0:20', text: 'Next point.', silenceBefore: undefined },
     ]);
   });
 
-  it('marks a long silence before a turn instead of timing every line', () => {
+  it('marks a long silence before a turn', () => {
     const blocks = blocksFromSegments([
       { text: 'Before.', startSecond: 0, endSecond: 4, speaker: 'You' },
       { text: 'After.', startSecond: 76, endSecond: 80, speaker: 'You' },
     ]);
-    expect(blocks[1]).toEqual({ speaker: 'You', text: 'After.', silenceBefore: '1:12' });
+    expect(blocks[1]).toEqual({ speaker: 'You', time: '1:16', text: 'After.', silenceBefore: '1:12' });
   });
 });
