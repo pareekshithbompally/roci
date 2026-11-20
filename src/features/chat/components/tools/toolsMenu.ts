@@ -7,6 +7,7 @@ import type { NativeMenuEntry, NativeMenuResult } from '@services/tauri';
 import type { ToolCatalog } from '@features/chat/hooks';
 import type { CatalogGroup, ToolSwitches } from '@features/chat/hooks/toolCatalog';
 import { TOOLS_MENU_COPY as COPY } from '@config/chatTools.config';
+import { formatTokenCount } from '@extensions/usage/format';
 
 /** Row ids the menu reports back. */
 export const TOOLS_MENU_IDS = {
@@ -17,6 +18,8 @@ export const TOOLS_MENU_IDS = {
   chooseImageModel: 'choose-image-model',
   manageMcp: 'manage-mcp',
   toolPrefix: 'tool:',
+  /** A server's own switch; only the tool switches it flips are read back. */
+  serverPrefix: 'server-tools:',
 } as const;
 
 const ID = TOOLS_MENU_IDS;
@@ -42,18 +45,25 @@ function builtInEntries(catalog: ToolCatalog): NativeMenuEntry[] {
   return [web, image, ...meetings];
 }
 
-/** A connected server fans out to a switch per tool; one still connecting or without tools is a plain, disabled row. */
+/** A connected server fans out to its own switch for all its tools, then a switch per tool; one still connecting or
+ *  without tools is a plain, disabled row. */
 function serverEntry(group: CatalogGroup, icon: string | null): NativeMenuEntry {
   const look = icon ? { icon } : glyph(SiModelcontextprotocol);
   if (group.status !== 'connected' || group.tools.length === 0) {
     const subtitle = group.status === 'connected' ? COPY.noTools : COPY.connecting;
     return { kind: 'row', id: `server:${group.key}`, title: group.label, subtitle, enabled: false, ...look };
   }
+  // What all of them add: true whichever switches are flipped while the menu is open.
+  const allTokens = group.tools.reduce((sum, tool) => sum + tool.tokens, 0);
+  const all: NativeMenuEntry = {
+    kind: 'toggle', id: `${ID.serverPrefix}${group.key}`, title: COPY.allTools, subtitle: COPY.tokensEach(formatTokenCount(allTokens)),
+    on: group.enabledCount > 0, enabled: true, leads: true,
+  };
   return {
     kind: 'submenu', title: group.label, subtitle: COPY.onOf(group.enabledCount, group.tools.length), ...look,
-    items: group.tools.map((tool): NativeMenuEntry => ({
+    items: [all, { kind: 'separator' }, ...group.tools.map((tool): NativeMenuEntry => ({
       kind: 'toggle', id: `${ID.toolPrefix}${tool.key}`, title: tool.name, subtitle: tool.destructive ? COPY.writes : undefined, on: tool.enabled, enabled: true,
-    })),
+    }))],
   };
 }
 

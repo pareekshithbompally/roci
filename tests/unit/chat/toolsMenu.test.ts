@@ -10,12 +10,12 @@ const catalog = (over: Partial<ToolCatalog> = {}): ToolCatalog => ({
   modelSupportsTools: true,
   modelName: 'gpt-5',
   webSearch: { available: true, enabled: true, providerLabel: 'OpenAI', toggle: vi.fn() },
-  imageGeneration: { available: true, enabled: false, modelLabel: 'gpt-image-1.5', toggle: vi.fn() },
+  imageGeneration: { available: true, enabled: false, modelLabel: 'gpt-image-1.5', toggle: vi.fn(), tokens: 90 },
   builtIn: { key: 'builtin', label: 'Meetings & chats', status: 'builtin', perTool: false, icon: null, enabledCount: 3, tools: [{ key: 'a', name: 'a', description: null, destructive: false, enabled: true }] },
   servers: [
     { key: 'fs', label: 'fs', status: 'connected', perTool: true, icon: 'https://x/icon.png', enabledCount: 1, tools: [
-      { key: 'fs/read', name: 'read', description: null, destructive: false, enabled: true },
-      { key: 'fs/write', name: 'write', description: null, destructive: true, enabled: false },
+      { key: 'fs/read', name: 'read', description: null, destructive: false, enabled: true, tokens: 400 },
+      { key: 'fs/write', name: 'write', description: null, destructive: true, enabled: false, tokens: 1_100 },
     ] },
     { key: 'slow', label: 'slow', status: 'connecting', perTool: true, icon: null, enabledCount: 0, tools: [] },
   ],
@@ -24,12 +24,15 @@ const catalog = (over: Partial<ToolCatalog> = {}): ToolCatalog => ({
 } as unknown as ToolCatalog);
 
 describe('Mac Tools menu', () => {
-  it('built-in tools are switch rows; each connected server fans out to a switch per tool, with its own icon', () => {
+  it('built-in tools are switch rows; each connected server fans out to its own switch, then a switch per tool', () => {
     const entries = toolsMenu(catalog(), true, new Map([['fs', 'data:server-icon']]));
     expect(entries.map((e) => e.kind)).toEqual(['header', 'toggle', 'toggle', 'toggle', 'separator', 'header', 'submenu', 'row', 'separator', 'toggle', 'row']);
     const fs = entries[6];
     expect(fs).toMatchObject({ kind: 'submenu', title: 'fs', subtitle: '1 of 2 on', icon: 'data:server-icon' });
     if (fs.kind === 'submenu') expect(fs.items).toEqual([
+      // What all its tools add, whichever are flipped while the menu is open.
+      { kind: 'toggle', id: 'server-tools:fs', title: 'All tools', subtitle: '≈1.5k tokens each message', on: true, enabled: true, leads: true },
+      { kind: 'separator' },
       { kind: 'toggle', id: 'tool:fs/read', title: 'read', subtitle: undefined, on: true, enabled: true },
       { kind: 'toggle', id: 'tool:fs/write', title: 'write', subtitle: 'Writes', on: false, enabled: true },
     ]);
@@ -43,12 +46,13 @@ describe('Mac Tools menu', () => {
   });
 
   it('without an image model, image generation is a row that opens Settings', () => {
-    const entries = toolsMenu(catalog({ imageGeneration: { available: false, enabled: false, modelLabel: '', toggle: vi.fn() } }), false, new Map());
+    const entries = toolsMenu(catalog({ imageGeneration: { available: false, enabled: false, modelLabel: '', toggle: vi.fn(), tokens: 0 } }), false, new Map());
     expect(entries[2]).toMatchObject({ kind: 'row', id: TOOLS_MENU_IDS.chooseImageModel });
   });
 
   it('every switch flipped while open becomes one set of changes, applied in one write', () => {
-    const changes = toolSwitches({ 'web-search': false, 'meeting-tools': false, 'tool:fs/write': true, 'tool:fs/read': false, 'ask-before-running': false });
+    // A server's own switch is never read back: only the tool switches it flipped are.
+    const changes = toolSwitches({ 'web-search': false, 'meeting-tools': false, 'tool:fs/write': true, 'tool:fs/read': false, 'ask-before-running': false, 'server-tools:fs': true });
     expect(changes).toEqual({ webSearch: false, imageGeneration: undefined, meetingTools: false, mcpTools: { 'fs/write': true, 'fs/read': false } });
     const prefs = { meetingTools: true, imageGeneration: true, webSearch: true, disabledMcpTools: ['fs/write'] };
     expect(withSwitches(prefs, changes)).toEqual({ meetingTools: false, imageGeneration: true, webSearch: false, disabledMcpTools: ['fs/read'] });

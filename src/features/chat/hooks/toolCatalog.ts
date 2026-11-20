@@ -1,8 +1,10 @@
-/** View model for the Tools picker: built-in group plus one group per MCP server, with enabled counts. */
+/** View model for the Tools picker: built-in group plus one group per MCP server, with enabled counts and their tokens. */
 
 import { mcpToolKey } from '@config/mcp.config';
 import type { McpServers } from '@config/mcp.config';
 import type { McpTool } from '@services/mcp.service';
+import { mcpToolShape } from '@extensions/tools/mcp-tools';
+import { toolPromptTokens, type ToolShape } from '@extensions/tools/tool-tokens';
 import type { ChatToolPreferences } from '@shared/types';
 
 export type ToolGroupStatus = 'builtin' | 'connected' | 'connecting' | 'off';
@@ -14,6 +16,8 @@ export interface CatalogTool {
   description: string | null;
   destructive: boolean;
   enabled: boolean;
+  /** What it adds to each request, estimated (`toolPromptTokens`). */
+  tokens: number;
 }
 
 export interface CatalogGroup {
@@ -26,10 +30,13 @@ export interface CatalogGroup {
   icon: string | null;
   tools: CatalogTool[];
   enabledCount: number;
+  /** Tokens its switched-on tools add to each request. */
+  enabledTokens: number;
 }
 
 export interface CatalogInput {
-  builtInNames: string[];
+  /** Roci's own tools, as the model reads them. */
+  builtInTools: ToolShape[];
   builtInLabel: string;
   servers: McpServers;
   connected: string[];
@@ -39,23 +46,25 @@ export interface CatalogInput {
   serverIcons?: ReadonlyMap<string, string | null>;
 }
 
-function withCount(group: Omit<CatalogGroup, 'enabledCount'>): CatalogGroup {
-  return { ...group, enabledCount: group.tools.filter((t) => t.enabled).length };
+function withCount(group: Omit<CatalogGroup, 'enabledCount' | 'enabledTokens'>): CatalogGroup {
+  const on = group.tools.filter((t) => t.enabled);
+  return { ...group, enabledCount: on.length, enabledTokens: on.reduce((sum, t) => sum + t.tokens, 0) };
 }
 
-function builtInGroup({ builtInNames, builtInLabel, prefs }: CatalogInput): CatalogGroup {
+function builtInGroup({ builtInTools, builtInLabel, prefs }: CatalogInput): CatalogGroup {
   return withCount({
     key: 'builtin',
     label: builtInLabel,
     status: 'builtin',
     perTool: false,
     icon: null,
-    tools: builtInNames.map((name) => ({
-      key: name,
-      name,
+    tools: builtInTools.map((tool) => ({
+      key: tool.name,
+      name: tool.name,
       description: null,
       destructive: false,
       enabled: prefs.meetingTools,
+      tokens: toolPromptTokens(tool),
     })),
   });
 }
@@ -79,7 +88,14 @@ function mcpGroups({ servers, connected, mcpTools, prefs, serverIcons }: Catalog
         .filter((tool) => tool.server === server)
         .map((tool) => {
           const key = mcpToolKey(server, tool.name);
-          return { key, name: tool.name, description: tool.description, destructive: tool.destructive, enabled: !disabled.has(key) };
+          return {
+            key,
+            name: tool.name,
+            description: tool.description,
+            destructive: tool.destructive,
+            enabled: !disabled.has(key),
+            tokens: toolPromptTokens(mcpToolShape(tool)),
+          };
         }),
     }),
   );
@@ -89,11 +105,17 @@ export function buildCatalog(input: CatalogInput): { builtIn: CatalogGroup; serv
   return { builtIn: builtInGroup(input), servers: mcpGroups(input) };
 }
 
+/** The groups whose tools chat sends: the built-in group and connected servers. */
+const sent = (groups: CatalogGroup[]) => groups.filter((g) => g.status === 'builtin' || g.status === 'connected');
+
 /** Tools the model will actually get: enabled tools of the built-in group and connected servers. */
 export function countEnabled(groups: CatalogGroup[]): number {
-  return groups
-    .filter((g) => g.status === 'builtin' || g.status === 'connected')
-    .reduce((sum, g) => sum + g.enabledCount, 0);
+  return sent(groups).reduce((sum, g) => sum + g.enabledCount, 0);
+}
+
+/** Tokens those tools add to each request. */
+export function tokensEnabled(groups: CatalogGroup[]): number {
+  return sent(groups).reduce((sum, g) => sum + g.enabledTokens, 0);
 }
 
 /** Next `disabledMcpTools` after switching `keys` on or off. */

@@ -1,12 +1,14 @@
 /** Fits a transcript to a known context window, keeping the opening and the end joined by `[…]`. */
 
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
+import { TOKEN_ESTIMATE } from '@config/tokens.config';
 import { profileOf } from '@services/ai/models';
 import { appleIntelligence } from '@services/ai/apple/appleIntelligence.service';
 import { modalitiesService } from '@services/modalities';
 import { getProviderType, type ResolvedModel } from '@shared/utils/modelResolver';
 
-const { charsPerToken, outputTokens, headShare } = TRANSCRIPTION_CONFIG.summaryBudget;
+const { outputTokens, headShare } = TRANSCRIPTION_CONFIG.summaryBudget;
+const { charsPerToken } = TOKEN_ESTIMATE;
 export const GAP_MARKER = '\n[…]\n';
 
 /** The model's context window in tokens: Apple's reported window, else the model catalog's; null when unknown. */

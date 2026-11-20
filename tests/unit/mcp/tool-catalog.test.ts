@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { buildCatalog, countEnabled, setToolsEnabled } from '@features/chat/hooks/toolCatalog';
+import { buildCatalog, countEnabled, setToolsEnabled, tokensEnabled } from '@features/chat/hooks/toolCatalog';
+import { mcpToolShape } from '@extensions/tools/mcp-tools';
+import { toolPromptTokens } from '@extensions/tools/tool-tokens';
 import type { CatalogInput } from '@features/chat/hooks/toolCatalog';
 
 const tool = (server: string, name: string, destructive = false) => ({
@@ -7,7 +9,10 @@ const tool = (server: string, name: string, destructive = false) => ({
 });
 
 const input = (over: Partial<CatalogInput> = {}): CatalogInput => ({
-  builtInNames: ['search_meetings', 'get_meeting'],
+  builtInTools: [
+    { name: 'search_meetings', description: 'Search meetings.', parameters: { type: 'object', properties: {} } },
+    { name: 'get_meeting', description: 'Read one meeting.', parameters: { type: 'object', properties: {} } },
+  ],
   builtInLabel: 'Meetings & chats',
   servers: {
     fs: { command: 'npx', args: [], env: {}, active: true },
@@ -35,6 +40,16 @@ describe('tool catalog', () => {
     expect(countEnabled([builtIn, ...servers])).toBe(3);
     const off = buildCatalog(input({ prefs: { meetingTools: false, imageGeneration: true, webSearch: true, disabledMcpTools: [] } }));
     expect(countEnabled([off.builtIn, ...off.servers])).toBe(2);
+  });
+
+  it('sizes each tool as the model reads it, and sums only the switched-on tools chat sends', () => {
+    const { builtIn, servers } = buildCatalog(input());
+    const read = toolPromptTokens(mcpToolShape(tool('fs', 'read_file')));
+    expect(servers[0].tools[0].tokens).toBe(read);
+    expect(servers[0].enabledTokens).toBe(read);
+    expect(tokensEnabled([builtIn, ...servers])).toBe(builtIn.enabledTokens + read);
+    const off = buildCatalog(input({ prefs: { meetingTools: false, imageGeneration: true, webSearch: true, disabledMcpTools: [] } }));
+    expect(off.builtIn.enabledTokens).toBe(0);
   });
 
   it('switches tool keys on and off without duplicates', () => {

@@ -11,6 +11,8 @@ import { ToolsPicker } from './tools/ToolsPicker';
 import { ReasoningPicker } from './ReasoningPicker';
 import { ComposerAddSheet } from './ComposerAddSheet';
 import { useAttachOptions } from '@features/chat/hooks/useAttachOptions';
+import { useToolCatalog } from '@features/chat/hooks';
+import { toolsShare } from './tools/toolsShare';
 import { ComposerAddMenu } from './ComposerAddMenu';
 import { ContextRing, Icon, IconButton, Input, Popover, PopoverAnchor, Surface, Text, Textarea, cn } from '@shared/ui';
 import type { ContextRingCost } from '@shared/ui';
@@ -142,6 +144,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Only what the chat's model takes is offered.
   const attach = useAttachOptions();
+  // The composer's one tool catalog: the Tools menu (or the phone's sheet) and the context ring read it.
+  const toolCatalog = useToolCatalog();
   const [showMentionPopup, setShowMentionPopup] = useState(false);
   // One hint per composer (picked when it opens): it varies between chats without a timer waking the app.
   const [hintIndex] = useState(() => Math.floor(Math.random() * PLACEHOLDER_HINTS.length));
@@ -510,11 +514,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               {onAttach && <ComposerAddMenu attachOptions={attach.options} onPickFiles={openFilePicker} disabled={disabled} onScreenshot={attach.images ? onScreenshot : undefined} />}
 
               <ModelPicker compact />
-              <ToolsPicker />
+              <ToolsPicker catalog={toolCatalog} />
               <ReasoningPicker />
 
               {/* Context-window gauge (hides when the limit is unknown or no usage yet) */}
-              <ContextRing usage={contextUsage ?? null} cost={chatCost ?? undefined} />
+              <ContextRing usage={contextUsage ?? null} tools={toolsShare(toolCatalog)} cost={chatCost ?? undefined} />
             </div>
 
             {sendControls}
@@ -535,7 +539,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       </Popover>
 
       {phone && (
-        <ComposerAddSheet open={addOpen} onOpenChange={setAddOpen} attachOptions={attach.options} onPickFiles={onAttach && !disabled ? openFilePicker : undefined} contextUsage={contextUsage} />
+        <ComposerAddSheet open={addOpen} onOpenChange={setAddOpen} attachOptions={attach.options} onPickFiles={onAttach && !disabled ? openFilePicker : undefined} contextUsage={contextUsage} toolCatalog={toolCatalog} />
       )}
 
       {/* Image Quick Look Overlay — portaled to body to escape overflow-hidden ancestors */}

@@ -1,5 +1,6 @@
 // A native menu at a point in the key window: section headers, two-line rows (icon, title, grey subtitle) that pick and close,
-// switch rows that toggle and keep the menu open (highlighted under the pointer like any row), and fan-out submenus. Returns what was picked and switched as JSON.
+// switch rows that toggle and keep the menu open (highlighted under the pointer like any row; a leading switch flips the
+// others in its menu), and fan-out submenus. Returns what was picked and switched as JSON.
 
 #import <AppKit/AppKit.h>
 
@@ -69,6 +70,8 @@ static const CGFloat kHighlightRadius = 5;
 /// table row does. A click anywhere on it flips the switch; the menu stays open.
 @interface RociMenuRow : NSControl
 @property(nonatomic, strong) RociMenuSwitch *toggle;
+/// Leads the other switch rows in its menu: flipping it flips them; it shows on while any of them is.
+@property(nonatomic) BOOL leads;
 @property(nonatomic, strong) NSVisualEffectView *highlight;
 @end
 
@@ -104,11 +107,23 @@ static const CGFloat kHighlightRadius = 5;
 }
 - (void)mouseDown:(NSEvent *)event {
   if (!self.enabled) return;
-  self.toggle.on = !self.toggle.on;
-  self.toggle.needsDisplay = YES;
+  [self setOn:!self.toggle.on];
   [self sendAction:self.action to:self.target];
 }
+- (void)setOn:(BOOL)on {
+  self.toggle.on = on;
+  self.toggle.needsDisplay = YES;
+}
 @end
+
+/// The other switch rows in `row`'s menu.
+static NSArray<RociMenuRow *> *rociSiblingRows(RociMenuRow *row) {
+  NSMutableArray<RociMenuRow *> *rows = [NSMutableArray array];
+  for (NSMenuItem *item in row.enclosingMenuItem.menu.itemArray) {
+    if ([item.view isKindOfClass:[RociMenuRow class]] && item.view != row) [rows addObject:(RociMenuRow *)item.view];
+  }
+  return rows;
+}
 
 /// One open menu's shared state: what its rows report back, and the accent its switches turn on in.
 @interface RociMenuTarget : NSObject
@@ -123,8 +138,29 @@ static const CGFloat kHighlightRadius = 5;
 - (void)pick:(NSMenuItem *)item {
   self.chosen = item.representedObject;
 }
+/// A flipped switch is reported; a leading one is not, only the rows it flipped, so the result never contradicts them.
 - (void)flip:(RociMenuRow *)row {
+  NSArray<RociMenuRow *> *siblings = rociSiblingRows(row);
+  if (row.leads) {
+    for (RociMenuRow *sibling in siblings) {
+      if (!sibling.enabled || sibling.toggle.on == row.toggle.on) continue;
+      [sibling setOn:row.toggle.on];
+      self.toggled[sibling.identifier] = @(row.toggle.on);
+    }
+    return;
+  }
   self.toggled[row.identifier] = @(row.toggle.on);
+  [self followLeader:[siblings arrayByAddingObject:row]];
+}
+/// The leading switch among `rows`, if any, shows on while any other row is on.
+- (void)followLeader:(NSArray<RociMenuRow *> *)rows {
+  RociMenuRow *leader = nil;
+  BOOL anyOn = NO;
+  for (RociMenuRow *row in rows) {
+    if (row.leads) leader = row;
+    else anyOn = anyOn || row.toggle.on;
+  }
+  [leader setOn:anyOn];
 }
 @end
 
@@ -183,6 +219,7 @@ static NSMenuItem *rociSwitchItem(NSDictionary *entry, RociMenuTarget *target, C
   row.target = target;
   row.action = @selector(flip:);
   row.toggle = control;
+  row.leads = [entry[@"leads"] boolValue];
 
   if (image) {
     NSImageView *view = [NSImageView imageViewWithImage:image];

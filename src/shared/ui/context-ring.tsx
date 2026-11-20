@@ -1,4 +1,5 @@
-/** Context-window gauge for the composer: an arc of used/total with a breakdown popover (and the chat's cost so far); nothing when usage is null. */
+/** Context-window gauge for the composer: an arc of used/total with a breakdown popover (the switched-on tools' share, and
+ *  the chat's cost so far); nothing when usage is null. */
 
 import React from 'react';
 import type { ContextUsage, ContextLevel } from '@shared/hooks/useContextUsage';
@@ -81,8 +82,14 @@ export interface ContextRingCost {
   note?: string;
 }
 
-/** What fills the window after the last reply, the room left, and what the chat has cost. */
-const Breakdown: React.FC<{ usage: ContextUsage; cost?: ContextRingCost }> = ({ usage, cost }) => (
+/** What the switched-on tools add to each message, already formatted, with a note (e.g. how many are on). */
+export interface ContextRingTools {
+  total: string;
+  note?: string;
+}
+
+/** What fills the window after the last reply, the tools' share, the room left, and what the chat has cost. */
+const Breakdown: React.FC<{ usage: ContextUsage; tools?: ContextRingTools; cost?: ContextRingCost }> = ({ usage, tools, cost }) => (
   <div className="flex flex-col gap-1.5 px-1 py-1">
     <div className="flex items-baseline justify-between">
       <Text variant="label" tone="primary">
@@ -100,6 +107,7 @@ const Breakdown: React.FC<{ usage: ContextUsage; cost?: ContextRingCost }> = ({ 
         sub={usage.cached > 0 ? `${usage.cached.toLocaleString()} from cache` : undefined}
       />
       <BreakdownRow label="Last reply" value={formatTokens(usage.reply)} />
+      {tools && <BreakdownRow label="Tools, each message" value={tools.total} sub={tools.note} />}
       <BreakdownRow label="Room left" value={formatTokens(usage.left)} />
       {cost && <BreakdownRow label="Cost so far" value={cost.total} sub={cost.note} />}
     </div>
@@ -109,12 +117,14 @@ const Breakdown: React.FC<{ usage: ContextUsage; cost?: ContextRingCost }> = ({ 
 export interface ContextRingProps {
   /** Null hides the ring (unknown limit or no usage yet). */
   usage: ContextUsage | null;
+  /** The switched-on tools' share of each message; its row is left out when absent. */
+  tools?: ContextRingTools;
   /** The chat's cost so far; its row is left out when absent. */
   cost?: ContextRingCost;
   className?: string;
 }
 
-export function ContextRing({ usage, cost, className }: ContextRingProps) {
+export function ContextRing({ usage, tools, cost, className }: ContextRingProps) {
   if (!usage) return null;
   return (
     <Popover>
@@ -133,7 +143,7 @@ export function ContextRing({ usage, cost, className }: ContextRingProps) {
         </button>
       </PopoverTrigger>
       <PopoverContent width="md" side="top" align="end" sideOffset={8}>
-        <Breakdown usage={usage} cost={cost} />
+        <Breakdown usage={usage} tools={tools} cost={cost} />
       </PopoverContent>
     </Popover>
   );

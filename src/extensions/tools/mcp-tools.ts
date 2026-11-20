@@ -10,6 +10,7 @@ import { useToolApprovalStore } from '@shared/stores/toolApprovalStore';
 import { DEFAULT_MCP_SETTINGS, MCP_CONFIG, mcpToolKey } from '@config/mcp.config';
 import type { McpSettings } from '@config/mcp.config';
 import type { JSONSchema, ToolDefinition, ToolResult } from './types';
+import type { ToolShape } from './tool-tokens';
 
 /** Settings › MCP, read once per chat turn: the saved values, or the defaults where MCP isn't available.
  *  `maxToolCalls` is a whole number of at least one, however the file was edited. */
@@ -50,11 +51,18 @@ export async function loadMcpTools(
   }
 }
 
-function toDefinition(tool: McpTool, gate: ApprovalGate): ToolDefinition {
+/** An MCP tool as the model reads it (chat sends this; the Tools menu sizes it). */
+export function mcpToolShape(tool: McpTool): ToolShape {
   return {
     name: tool.name,
     description: tool.description || `Tool "${tool.name}" from the ${tool.server} MCP server.`,
     parameters: toObjectSchema(tool.inputSchema),
+  };
+}
+
+function toDefinition(tool: McpTool, gate: ApprovalGate): ToolDefinition {
+  return {
+    ...mcpToolShape(tool),
     source: tool.server,
     // Rust bounds the call; the approval prompt may wait on the user, so the bridge must not time it out.
     timeoutMs: null,

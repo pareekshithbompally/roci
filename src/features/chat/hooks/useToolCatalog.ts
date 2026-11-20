@@ -1,7 +1,8 @@
 /** Tools picker state and actions; every toggle writes the saved chat tool preferences. */
 
 import { useCallback, useMemo } from 'react';
-import { toolRegistry } from '@extensions/tools';
+import { generateImageTool, toolRegistry } from '@extensions/tools';
+import { toolPromptTokens } from '@extensions/tools/tool-tokens';
 import { useSettings } from '@shared/contexts/SettingsContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { useChatModel } from './useChatModel';
@@ -22,7 +23,7 @@ import {
   useMcpUpdateListener,
 } from '@features/settings/hooks';
 import { toggleServer, updateSettings } from '@features/settings/components/mcp';
-import { buildCatalog, countEnabled, setToolsEnabled, withSwitches } from './toolCatalog';
+import { buildCatalog, countEnabled, setToolsEnabled, tokensEnabled, withSwitches } from './toolCatalog';
 import type { ToolSwitches } from './toolCatalog';
 import type { CatalogGroup } from './toolCatalog';
 
@@ -40,7 +41,9 @@ function useImageGenerationToggle(prefs: ChatToolPreferences) {
     () => setSettings({ chatTools: { ...prefs, imageGeneration: !prefs.imageGeneration } }),
     [prefs, setSettings],
   );
-  return { available, enabled: available && prefs.imageGeneration, modelLabel, toggle };
+  // The definition chat sends; its name, description and schema don't depend on the model it draws with.
+  const tokens = useMemo(() => toolPromptTokens(generateImageTool({ settings, providers })), [settings, providers]);
+  return { available, enabled: available && prefs.imageGeneration, modelLabel, toggle, tokens };
 }
 
 export function useToolCatalog() {
@@ -63,7 +66,7 @@ export function useToolCatalog() {
   const catalog = useMemo(
     () =>
       buildCatalog({
-        builtInNames: toolRegistry.getToolNames(),
+        builtInTools: toolRegistry.getTools(),
         builtInLabel: CHAT_TOOLS_CONFIG.meetingGroupLabel,
         servers: mcpConfig?.mcpServers ?? {},
         connected,
@@ -142,6 +145,8 @@ export function useToolCatalog() {
     builtIn: catalog.builtIn,
     servers: catalog.servers,
     enabledCount: countEnabled([catalog.builtIn, ...catalog.servers]) + (imageGeneration.enabled ? 1 : 0),
+    /** Tokens the switched-on tools add to each request (web search is the provider's own and isn't counted). */
+    enabledTokens: tokensEnabled([catalog.builtIn, ...catalog.servers]) + (imageGeneration.enabled ? imageGeneration.tokens : 0),
     askBeforeRunning: !(mcpConfig?.mcpSettings.allowAllTools ?? false),
     connectingServer: reconfigure.isPending ? reconfigure.variables?.affected[0] : undefined,
     setGroupEnabled,

@@ -40,6 +40,10 @@ export const TOOLS_MENU_COPY = {
   pickToolModel: 'Pick a model with tool calling',
   toolCount: (n: number) => `${n} ${n === 1 ? 'tool' : 'tools'}`,
   onOf: (on: number, total: number) => `${on} of ${total} on`,
+  /** A server's own switch, first in its fan-out: it turns all of that server's tools on or off. */
+  allTools: 'All tools',
+  /** What switched-on tools add to each message (an estimate, already formatted). */
+  tokensEach: (tokens: string) => `≈${tokens} tokens each message`,
   writes: 'Writes',
   connecting: 'Connecting…',
   noTools: 'No tools',

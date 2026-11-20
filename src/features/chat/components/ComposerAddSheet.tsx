@@ -10,6 +10,7 @@ import { BottomSheet, CardRow, Icon, Section, SheetBody } from '@shared/ui';
 import { ChatToolRows } from './tools/ChatToolRows';
 import type { ContextUsage } from '@shared/hooks/useContextUsage';
 import type { AttachOption } from '@features/chat/hooks/useAttachOptions';
+import type { ToolCatalog } from '@features/chat/hooks';
 
 
 interface ComposerAddSheetProps {
@@ -21,9 +22,11 @@ interface ComposerAddSheetProps {
   onPickFiles?: (accept: string) => void;
   /** The chat's context window (the Mac shows it in the composer toolbar); null until known. */
   contextUsage?: ContextUsage | null;
+  /** The composer's one tool catalog. */
+  toolCatalog: ToolCatalog;
 }
 
-export const ComposerAddSheet: React.FC<ComposerAddSheetProps> = ({ open, onOpenChange, attachOptions, onPickFiles, contextUsage }) => {
+export const ComposerAddSheet: React.FC<ComposerAddSheetProps> = ({ open, onOpenChange, attachOptions, onPickFiles, contextUsage, toolCatalog }) => {
   const importActions = useImportMeetingActions();
   const startRecording = useStartRecording();
   const recordingNow = useRecordingMeetingId() !== null;
@@ -57,7 +60,7 @@ export const ComposerAddSheet: React.FC<ComposerAddSheetProps> = ({ open, onOpen
             <CardRow key={id} title={label} leading={<Icon icon={icon} size="sm" />} onPress={closeThen(run)} />
           ))}
         </Section>
-        <ChatToolRows onChooseImageModel={closeThen(() => openSettings('defaultModels'))} contextUsage={contextUsage} />
+        <ChatToolRows catalog={toolCatalog} onChooseImageModel={closeThen(() => openSettings('defaultModels'))} contextUsage={contextUsage} />
       </SheetBody>
     </BottomSheet>
   );

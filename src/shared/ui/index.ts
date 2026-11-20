@@ -55,7 +55,7 @@ export type { DrawerProps } from './drawer';
 export { Thumbnail } from './thumbnail';
 export type { ThumbnailProps } from './thumbnail';
 export { ContextRing } from './context-ring';
-export type { ContextRingCost, ContextRingProps } from './context-ring';
+export type { ContextRingCost, ContextRingProps, ContextRingTools } from './context-ring';
 export { Toaster, showToast, dismissToast } from './sonner';
 export type { ToastTone, ToastAction } from './sonner';
 export { TopBar } from './top-bar';

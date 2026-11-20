@@ -30,7 +30,6 @@ import {
   cn,
 } from '@shared/ui';
 import type { CheckboxState, CommandRowProps } from '@shared/ui';
-import { useToolCatalog } from '@features/chat/hooks';
 import type { ToolCatalog } from '@features/chat/hooks';
 import type { CatalogGroup } from '@features/chat/hooks/toolCatalog';
 import { ServerIcon } from '@shared/components';
@@ -40,8 +39,8 @@ import { cachedImage } from '@services/imageCache';
 import { MENU_GAP_PT } from '@config/ui.config';
 import { TOOLS_MENU_IDS, toolSwitches, toolsMenu } from './toolsMenu';
 
-export const ToolsPicker: React.FC = () => {
-  const catalog = useToolCatalog();
+/** `catalog`: the composer's one tool catalog (its context ring reads the same). */
+export const ToolsPicker: React.FC<{ catalog: ToolCatalog }> = ({ catalog }) => {
   const [open, setOpen] = useState(false);
   const [flyout, setFlyout] = useState<string | null>(null);
   const { openSettings } = useAppActions();

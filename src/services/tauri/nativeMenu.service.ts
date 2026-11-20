@@ -16,7 +16,11 @@ export type NativeMenuEntry =
   | { kind: 'header'; title: string }
   | { kind: 'separator' }
   | ({ kind: 'row'; id: string; title: string; /** Grey second line. */ subtitle?: string; checked?: boolean; enabled: boolean } & MenuIcon)
-  | ({ kind: 'toggle'; id: string; title: string; subtitle?: string; on: boolean; enabled: boolean } & MenuIcon)
+  | ({
+      kind: 'toggle'; id: string; title: string; subtitle?: string; on: boolean; enabled: boolean;
+      /** Leads the other switches in its menu: flipping it flips them, and it shows on while any of them is. */
+      leads?: boolean;
+    } & MenuIcon)
   | ({ kind: 'submenu'; title: string; subtitle?: string; items: NativeMenuEntry[] } & MenuIcon);
 
 /** What happened while it was open: the row picked (null when dismissed) and each switch's final state. */

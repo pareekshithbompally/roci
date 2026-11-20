@@ -6,9 +6,10 @@ import { CardRow, ChoiceControl, ContextRing, Icon, Section, Switch, Text } from
 import type { ContextUsage } from '@shared/hooks/useContextUsage';
 import { ServerIcon } from '@shared/components';
 import { CHAT_REASONING_COPY, REASONING_EFFORT_LEVELS } from '@config/chat.config';
-import { useToolCatalog } from '@features/chat/hooks';
+import type { ToolCatalog } from '@features/chat/hooks';
 import type { CatalogGroup } from '@features/chat/hooks/toolCatalog';
 import { useReasoningControl } from '@features/chat/components/ReasoningPicker';
+import { toolsShare } from './toolsShare';
 
 const leading = (icon: LucideIcon) => <Icon icon={icon} size="sm" />;
 
@@ -22,14 +23,15 @@ const GroupRow: React.FC<{ group: CatalogGroup; icon?: LucideIcon; onChange: (on
 );
 
 interface ChatToolRowsProps {
+  /** The composer's one tool catalog. */
+  catalog: ToolCatalog;
   /** Opens Settings at Default Models (an image model is chosen there). */
   onChooseImageModel: () => void;
   /** How full the chat's context window is; the row shows once it is known. */
   contextUsage?: ContextUsage | null;
 }
 
-export const ChatToolRows: React.FC<ChatToolRowsProps> = ({ onChooseImageModel, contextUsage }) => {
-  const catalog = useToolCatalog();
+export const ChatToolRows: React.FC<ChatToolRowsProps> = ({ catalog, onChooseImageModel, contextUsage }) => {
   const reasoning = useReasoningControl();
   const { webSearch, imageGeneration, modelSupportsTools } = catalog;
   const servers = catalog.servers.filter((g) => g.status === 'connected' && g.tools.length > 0);
@@ -40,7 +42,7 @@ export const ChatToolRows: React.FC<ChatToolRowsProps> = ({ onChooseImageModel, 
       {contextUsage && (
         <CardRow
           title="Context"
-          leading={<ContextRing usage={contextUsage} />}
+          leading={<ContextRing usage={contextUsage} tools={toolsShare(catalog)} />}
           actions={<Text tone="muted">{`${contextUsage.percent}% used`}</Text>}
         />
       )}

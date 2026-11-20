@@ -95,8 +95,6 @@ export const TRANSCRIPTION_CONFIG = {
 
   /** Fitting a transcript into the Summary model's context window. */
   summaryBudget: {
-    /** Characters per token for budgeting (conservative). */
-    charsPerToken: 3,
     /** Tokens kept free for the model's answer. */
     outputTokens: 1_000,
     /** The opening's share of an excerpt; the rest is the end. */
