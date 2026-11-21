@@ -30,6 +30,8 @@ export interface MeetingJobPart {
 
 export type MeetingPhase =
   | { kind: 'recording' }
+  /** A recording on hold (the recorder is paused); the record screen shows it. */
+  | { kind: 'paused' }
   | { kind: 'pending' }
   | { kind: 'transcribing'; part: MeetingJobPart | null }
   | { kind: 'transcribed' }
@@ -58,5 +60,5 @@ export function deriveMeetingPhase(status: MeetingStatus | undefined, part: Meet
 
 /** True while capture, transcription or a summary is running. */
 export function isMeetingBusy(phase: MeetingPhase): boolean {
-  return phase.kind === 'recording' || phase.kind === 'transcribing' || phase.kind === 'summarizing';
+  return phase.kind === 'recording' || phase.kind === 'paused' || phase.kind === 'transcribing' || phase.kind === 'summarizing';
 }

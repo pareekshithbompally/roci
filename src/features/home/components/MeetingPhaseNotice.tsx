@@ -9,6 +9,7 @@ import type { CalloutVariant } from '@shared/ui';
 
 const VARIANT: Record<MeetingPhase['kind'], CalloutVariant> = {
   recording: 'neutral',
+  paused: 'neutral',
   pending: 'warning',
   transcribing: 'neutral',
   transcribed: 'warning',

@@ -1,6 +1,6 @@
 /** Words, colour and icon for each meeting status; read only by `MeetingStatus`. */
 
-import { AlertCircle, AudioWaveform, Loader2, Mic, type LucideIcon } from 'lucide-react';
+import { AlertCircle, AudioWaveform, Loader2, Mic, Pause, type LucideIcon } from 'lucide-react';
 import type { MeetingPhase, MeetingPipelineStage } from '@shared/types/meetingPhase';
 import { MENU_SYMBOLS } from '@config/ui.config';
 
@@ -20,6 +20,7 @@ export const BUSY_MEETINGS_SHOWN = 20;
 
 export const MEETING_PHASE_STYLE: Record<Kind, MeetingPhaseStyle> = {
   recording: { icon: Mic, iconTone: 'danger', spin: false, badge: 'error' },
+  paused: { icon: Pause, iconTone: 'warning', spin: false, badge: 'warning' },
   pending: { icon: Mic, iconTone: 'warning', spin: false, badge: 'warning' },
   transcribing: { icon: Loader2, iconTone: 'ai', spin: true, badge: 'info' },
   transcribed: { icon: AlertCircle, iconTone: 'warning', spin: false, badge: 'warning' },
@@ -39,6 +40,8 @@ export function meetingPhaseLabel(phase: MeetingPhase): string {
   switch (phase.kind) {
     case 'recording':
       return 'Recording';
+    case 'paused':
+      return 'Paused';
     case 'pending':
       return 'Not transcribed';
     case 'transcribed':
@@ -104,6 +107,8 @@ export function meetingPhaseDetail(phase: MeetingPhase): string | null {
   switch (phase.kind) {
     case 'recording':
       return 'Recording now. It is saved here when you stop.';
+    case 'paused':
+      return 'Recording is paused. Resume to carry on.';
     case 'pending':
       return "This recording hasn't been transcribed yet.";
     case 'transcribed':

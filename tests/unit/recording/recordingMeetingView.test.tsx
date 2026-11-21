@@ -1,7 +1,7 @@
 /** Record screen through the real public path: store → view → stop → RESULTS. */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 const audio = vi.hoisted(() => ({
   recorderState: vi.fn(async () => ({ state: 'idle' as const })),
@@ -122,6 +122,16 @@ describe('RecordingMeetingView', () => {
     fireEvent.click(screen.getByRole('tab', { name: /AI notes/ }));
     expect(screen.queryByRole('textbox', { name: 'Your notes' })).not.toBeInTheDocument();
     expect(screen.getByText(/No Summary model is chosen/)).toBeInTheDocument();
+  });
+
+  it('the status badge follows the recorder: Recording, then Paused while it is paused', () => {
+    startRecording();
+    const { rerender } = render(<RecordingMeetingView />);
+    expect(screen.getByText('Recording')).toBeInTheDocument();
+    act(() => useRecordingStore.setState({ paused: true }));
+    rerender(<RecordingMeetingView />);
+    expect(screen.getByText('Paused')).toBeInTheDocument();
+    expect(screen.queryByText('Recording')).not.toBeInTheDocument();
   });
 
   it('keeps one status while chunks are transcribed, and says so when the live transcript stops', () => {
