@@ -24,8 +24,8 @@ const MAX_FOUND: i64 = 50;
 /// Most nodes one graph view draws (the most central first).
 const MAX_DRAWN: i64 = 300;
 /// GraphQLite's algorithms as the view runs them: PageRank (damping, iterations) and Louvain (resolution).
-const PAGERANK: &str = "RETURN pageRank(0.85, 20)";
-const LOUVAIN: &str = "RETURN louvain(1.0)";
+const PAGERANK: &str = "pageRank(0.85, 20)";
+const LOUVAIN: &str = "louvain(1.0)";
 /// What an entity can be, as the webview names it and as the graph labels it.
 const ENTITY_KINDS: [(&str, &str); 5] =
     [("person", "Person"), ("organization", "Organization"), ("project", "Project"), ("event", "Event"), ("topic", "Topic")];
@@ -88,11 +88,7 @@ pub(crate) fn entity_id(db: &Connection, entity: &EntityRef, now: i64) -> Result
 
 /// The id of the entity `label` + `name` (any case), created when new; `name` and `label` already checked.
 fn merged(db: &Connection, name: &str, label: &str, kind: &str, now: i64) -> Result<String, StoreError> {
-    #[derive(Deserialize)]
-    struct Id {
-        id: String,
-    }
-    let found: Vec<Id> = graph::rows(
+    let found = graph::ids(
         db,
         &format!(
             "MERGE (e:{label} {{key: $key}})
@@ -102,36 +98,50 @@ fn merged(db: &Connection, name: &str, label: &str, kind: &str, now: i64) -> Res
         ),
         json!({ "key": name.to_lowercase(), "id": generate_id(), "name": name, "kind": kind, "now": now }),
     )?;
-    found.into_iter().next().map(|row| row.id).ok_or_else(|| StoreError::from("Entity not saved"))
+    found.into_iter().next().ok_or_else(|| StoreError::from("Entity not saved"))
 }
 
-/// Entities nothing links to any more.
-pub(crate) fn drop_orphans(db: &Connection) -> Result<(), StoreError> {
-    graph::run(db, "MATCH (e) WHERE e.kind IS NOT NULL AND NOT (e)--() DELETE e", json!({}))?;
+/// The entities among `among` that nothing links to any more (only those a change touched are looked at).
+pub(crate) fn drop_orphans(db: &Connection, among: &[String]) -> Result<(), StoreError> {
+    if among.is_empty() {
+        return Ok(());
+    }
+    graph::run(db, "MATCH (e) WHERE e.id IN $ids AND e.kind IS NOT NULL AND NOT (e)--() DELETE e", json!({ "ids": among }))?;
     Ok(())
+}
+
+/// Removes a meeting's links (what it discussed, the relations it stated); returns the entities they touched. A relation's
+/// ends are always entities the meeting discussed.
+fn unlink_meeting(db: &Connection, meeting_id: &str) -> Result<Vec<String>, StoreError> {
+    let id = json!({ "id": meeting_id });
+    let touched = graph::ids(db, "MATCH (:Meeting {id: $id})-[:DISCUSSED]->(e) RETURN e.id AS id", id.clone())?;
+    graph::run(db, "MATCH ()-[r:RELATES {source: $id}]->() DELETE r", id.clone())?;
+    graph::run(db, "MATCH (:Meeting {id: $id})-[r:DISCUSSED]->() DELETE r", id)?;
+    Ok(touched)
 }
 
 /// Removes what a meeting added (its node, its links, its relations) and the entities left without any links.
 pub(crate) fn forget_meeting(db: &Connection, meeting_id: &str) -> Result<(), StoreError> {
-    let id = json!({ "id": meeting_id });
-    graph::run(db, "MATCH ()-[r:RELATES {source: $id}]->() DELETE r", id.clone())?;
-    graph::run(db, "MATCH (m:Meeting {id: $id}) DETACH DELETE m", id)?;
-    drop_orphans(db)
+    let touched = unlink_meeting(db, meeting_id)?;
+    graph::run(db, "MATCH (m:Meeting {id: $id}) DETACH DELETE m", json!({ "id": meeting_id }))?;
+    drop_orphans(db, &touched)
 }
 
 /// Records a meeting's knowledge in the caller's transaction, replacing what it had: the meeting (by id only — its title
 /// and time stay in `meetings`), each entity it discussed, and each relation between two of them. Entities that are
 /// invalid, and relations naming one the meeting didn't list, are skipped (a model's slip mustn't lose its summary); a
-/// failing write is an error, so the summary isn't saved with half its knowledge.
+/// failing write is an error, so the summary isn't saved with half its knowledge. An entity the new analysis names again
+/// keeps its node (and id); one it no longer names goes if nothing else links to it.
 pub(crate) fn record_meeting(db: &Connection, meeting_id: &str, knowledge: &MeetingKnowledge, now: i64) -> Result<(), StoreError> {
-    forget_meeting(db, meeting_id)?;
+    let touched = unlink_meeting(db, meeting_id)?;
     graph::run(db, "MERGE (:Meeting {id: $id})", json!({ "id": meeting_id }))?;
     let mut ids = HashMap::new();
     for entity in knowledge.entities.iter().take(MAX_ENTITIES) {
         let Ok((name, label)) = checked(entity) else { continue };
         let entity_id = merged(db, &name, label, &entity.entity_type, now)?;
         graph::run(db, "MATCH (m:Meeting {id: $m}), (e {id: $e}) MERGE (m)-[:DISCUSSED]->(e)", json!({ "m": meeting_id, "e": entity_id }))?;
-        ids.insert(name.to_lowercase(), entity_id);
+        // A name listed twice (two kinds) keeps its first: relations name their ends by name only.
+        ids.entry(name.to_lowercase()).or_insert(entity_id);
     }
     for relation in knowledge.relations.iter().take(MAX_RELATIONS) {
         let ends = (ids.get(&relation.from.trim().to_lowercase()), ids.get(&relation.to.trim().to_lowercase()));
@@ -145,7 +155,7 @@ pub(crate) fn record_meeting(db: &Connection, meeting_id: &str, knowledge: &Meet
             json!({ "from": from, "to": to, "type": name, "source": meeting_id }),
         )?;
     }
-    Ok(())
+    drop_orphans(db, &touched)
 }
 
 // ── Reading ──
@@ -232,10 +242,6 @@ pub(crate) fn entity_detail(db: &Connection, id: &str) -> Result<Option<EntityDe
     struct Text {
         text: String,
     }
-    #[derive(Deserialize)]
-    struct Id {
-        id: String,
-    }
     let facts = graph::rows::<Text>(db, "MATCH (f:Fact)-[:ABOUT]->({id: $id}) RETURN f.text AS text ORDER BY f.updated_at DESC", params.clone())?;
     let mut relations: Vec<EntityRelation> = graph::rows(
         db,
@@ -247,7 +253,7 @@ pub(crate) fn entity_detail(db: &Connection, id: &str) -> Result<Option<EntityDe
         "MATCH ({id: $id})<-[r:RELATES]-(o) RETURN r.type AS relation, o.name AS other, o.kind AS other_type, false AS outgoing, r.source AS meeting_id",
         params.clone(),
     )?);
-    let ids: Vec<String> = graph::rows::<Id>(db, "MATCH (m:Meeting)-[:DISCUSSED]->({id: $id}) RETURN m.id AS id", params)?.into_iter().map(|m| m.id).collect();
+    let ids = graph::ids(db, "MATCH (m:Meeting)-[:DISCUSSED]->({id: $id}) RETURN m.id AS id", params)?;
     let meetings = meetings_by_id(db, &ids)?;
     Ok(Some(EntityDetail { entity, facts: facts.into_iter().map(|f| f.text).collect(), relations, meetings }))
 }
@@ -298,23 +304,15 @@ struct Drawn {
 fn drawable(db: &Connection) -> Result<Vec<Drawn>, StoreError> {
     let mut nodes: Vec<Drawn> = graph::rows(db, "MATCH (e) WHERE e.kind IS NOT NULL RETURN e.id AS id, e.name AS label, e.kind AS kind", json!({}))?;
     nodes.extend(graph::rows::<Drawn>(db, "MATCH (f:Fact)-[:ABOUT]->() RETURN DISTINCT f.id AS id, f.text AS label, 'fact' AS kind", json!({}))?);
-    #[derive(Deserialize)]
-    struct Id {
-        id: String,
-    }
-    let ids: Vec<String> = graph::rows::<Id>(db, "MATCH (m:Meeting) RETURN m.id AS id", json!({}))?.into_iter().map(|m| m.id).collect();
+    let ids = graph::ids(db, "MATCH (m:Meeting) RETURN m.id AS id", json!({}))?;
     nodes.extend(meetings_by_id(db, &ids)?.into_iter().map(|m| Drawn { id: m.id, label: m.title, kind: "meeting".into() }));
     Ok(nodes)
 }
 
 /// The ids within two links of `focus`, itself included.
 fn neighbourhood(db: &Connection, focus: &str) -> Result<HashSet<String>, StoreError> {
-    #[derive(Deserialize)]
-    struct Id {
-        id: String,
-    }
-    let near = graph::rows::<Id>(db, "MATCH ({id: $id})-[*1..2]-(n) RETURN DISTINCT n.id AS id", json!({ "id": focus }))?;
-    Ok(near.into_iter().map(|n| n.id).chain([focus.to_string()]).collect())
+    let near = graph::ids(db, "MATCH ({id: $id})-[*1..2]-(n) RETURN DISTINCT n.id AS id", json!({ "id": focus }))?;
+    Ok(near.into_iter().chain([focus.to_string()]).collect())
 }
 
 /// The graph to draw: around `focus` (two links out) or the most central `limit` nodes, each ranked by PageRank and grouped
@@ -340,15 +338,13 @@ pub(crate) fn graph_view(db: &Connection, focus: Option<&str>, limit: i64) -> Re
         .collect();
     nodes.sort_by(|a, b| b.rank.total_cmp(&a.rank));
     nodes.truncate(limit.clamp(1, MAX_DRAWN) as usize);
-    let shown: HashSet<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
+    let shown: Vec<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
     let edges = graph::rows::<GraphEdge>(
         db,
-        "MATCH (a)-[r]->(b) RETURN a.id AS source, b.id AS target, coalesce(r.type, toLower(type(r))) AS relation",
-        json!({}),
-    )?
-    .into_iter()
-    .filter(|e| shown.contains(e.source.as_str()) && shown.contains(e.target.as_str()))
-    .collect();
+        "MATCH (a)-[r]->(b) WHERE a.id IN $ids AND b.id IN $ids
+         RETURN a.id AS source, b.id AS target, coalesce(r.type, toLower(type(r))) AS relation",
+        json!({ "ids": shown }),
+    )?;
     Ok(GraphView { nodes, edges })
 }
 
@@ -400,6 +396,8 @@ mod tests {
         assert_eq!((detail.facts.len(), detail.relations.len()), (1, 1), "her approved fact and the meeting's relation");
         assert!(detail.meetings.is_empty(), "m1 isn't in `meetings` here, so no row to show");
 
+        record_meeting(&db, "m1", &first, 3).unwrap();
+        assert_eq!(find_entities(&db, "priya", 10).unwrap()[0].id, priya[0].id, "analysed again, an entity keeps its id");
         let view = graph_view(&db, Some(priya[0].id.as_str()), 50).unwrap();
         assert_eq!(view.nodes.len(), 4, "Priya, her memory, Q3 Launch and Pricing (via m1, which has no row in `meetings` to title it)");
         assert_eq!(view.edges.iter().filter(|e| e.relation == "leads").count(), 1);

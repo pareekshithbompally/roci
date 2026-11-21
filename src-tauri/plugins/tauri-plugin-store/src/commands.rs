@@ -708,6 +708,8 @@ pub async fn initialize<R: Runtime>(
 
         log::info!("[store] Database initialized successfully");
         *guard = Some(db);
+        drop(guard);
+        crate::changes::notify_database_open();
         Ok(())
     })
     .await

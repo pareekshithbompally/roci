@@ -18,7 +18,7 @@ mod search;
 mod session_search;
 mod usage;
 
-pub use changes::{meeting_detail, meeting_ids, on_chat_saved, on_meeting_change, MeetingChange};
+pub use changes::{meeting_detail, meeting_ids, on_chat_saved, on_database_open, on_meeting_change, MeetingChange};
 pub use commands::ChatSearchHit;
 pub use search::SearchHit;
 pub use commands::{MeetingCreateInput, MeetingDetail, MeetingStatus, NoteRow, SummaryRow, TodoRow, TranscriptRow};

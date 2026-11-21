@@ -85,8 +85,12 @@ impl VocabularySlot {
         prompt_chars(&architecture).map_or(Self::None, Self::Prompt)
     }
 
-    /// `options` with the saved vocabulary added. Streams take only the bias: a prompt is for whole-clip runs.
+    /// `options` with the saved vocabulary added; none while the boost is Off. Streams take only the bias: a prompt is for
+    /// whole-clip runs.
     pub fn apply(self, options: RunOptions, stream: bool) -> RunOptions {
+        if boost() == RecognitionBoost::Off {
+            return options;
+        }
         match self {
             Self::Bias => match transcription_bias() {
                 Some((terms, bias)) => RunOptions { vocabulary: terms, family: Some(RunExtension::ParakeetVocabulary(bias)), ..options },
@@ -98,13 +102,14 @@ impl VocabularySlot {
     }
 }
 
-/// The terms and options a Parakeet run biases toward; None while the list is empty or the boost is off.
+/// The recognition boost as set now.
+fn boost() -> RecognitionBoost {
+    RecognitionBoost::from_index(BOOST.load(Ordering::Relaxed))
+}
+
+/// The terms and options a Parakeet run biases toward; None while the list is empty.
 fn transcription_bias() -> Option<(Vec<String>, ParakeetVocabularyOptions)> {
-    let boost = RecognitionBoost::from_index(BOOST.load(Ordering::Relaxed));
-    if boost == RecognitionBoost::Off {
-        return None;
-    }
-    bias_for(&lock(&SAVED), boost)
+    bias_for(&lock(&SAVED), boost())
 }
 
 fn bias_for(entries: &[VocabularyEntry], boost: RecognitionBoost) -> Option<(Vec<String>, ParakeetVocabularyOptions)> {

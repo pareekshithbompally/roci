@@ -26,10 +26,20 @@ pub(crate) fn rows<T: DeserializeOwned>(db: &Connection, cypher: &str, params: V
         .collect()
 }
 
-/// A graph algorithm (`RETURN pageRank(0.85, 20)`): its result per node, each read as a `T` (the node's own `id` is its
-/// `user_id`).
+/// The `id` column of each row `cypher` returns.
+pub(crate) fn ids(db: &Connection, cypher: &str, params: Value) -> Result<Vec<String>, StoreError> {
+    #[derive(serde::Deserialize)]
+    struct Row {
+        id: String,
+    }
+    Ok(rows::<Row>(db, cypher, params)?.into_iter().map(|row| row.id).collect())
+}
+
+/// A graph algorithm (`pageRank(0.85, 20)`): its result per node, each read as a `T` (the node's own `id` is its `user_id`).
 pub(crate) fn algorithm<T: DeserializeOwned>(db: &Connection, call: &str) -> Result<Vec<T>, StoreError> {
-    let Some(Value::Object(mut row)) = run(db, call, json!({}))?.pop() else { return Ok(vec![]) };
-    let results = row.remove("column_0").unwrap_or(Value::Array(vec![]));
-    serde_json::from_value(results).map_err(|e| StoreError::from(format!("graph algorithm: {e}")))
+    let Some(Value::Object(mut row)) = run(db, &format!("RETURN {call} AS result"), json!({}))?.pop() else {
+        return Err(StoreError::from(format!("graph algorithm {call}: no result")));
+    };
+    let results = row.remove("result").ok_or_else(|| StoreError::from(format!("graph algorithm {call}: no result column")))?;
+    serde_json::from_value(results).map_err(|e| StoreError::from(format!("graph algorithm {call}: {e}")))
 }

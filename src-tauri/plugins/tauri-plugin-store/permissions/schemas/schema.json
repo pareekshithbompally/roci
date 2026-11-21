@@ -691,18 +691,6 @@
           "markdownDescription": "Denies the meetings_rename command without any pre-configured scope."
         },
         {
-          "description": "Enables the meetings_set_status command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-meetings-set-status",
-          "markdownDescription": "Enables the meetings_set_status command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the meetings_set_status command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-meetings-set-status",
-          "markdownDescription": "Denies the meetings_set_status command without any pre-configured scope."
-        },
-        {
           "description": "Enables the meetings_upsert command without any pre-configured scope.",
           "type": "string",
           "const": "allow-meetings-upsert",
@@ -737,18 +725,6 @@
           "type": "string",
           "const": "deny-memories-delete-all",
           "markdownDescription": "Denies the memories_delete_all command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the memories_list command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-memories-list",
-          "markdownDescription": "Enables the memories_list command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the memories_list command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-memories-list",
-          "markdownDescription": "Denies the memories_list command without any pre-configured scope."
         },
         {
           "description": "Enables the memories_upsert command without any pre-configured scope.",

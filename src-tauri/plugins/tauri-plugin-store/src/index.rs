@@ -100,7 +100,6 @@ pub fn chat_lines<R: Runtime>(app: &AppHandle<R>, id: &str) -> Result<Option<Vec
     .flatten())
 }
 
-
 /// The texts of the owner's pieces that already have a vector.
 pub fn embedded_texts<R: Runtime>(app: &AppHandle<R>, owner: ItemKind, id: &str) -> Result<Vec<String>, StoreError> {
     Ok(with_db(app, |db| embedded_chunk_texts_impl(db, owner, id))?.unwrap_or_default())

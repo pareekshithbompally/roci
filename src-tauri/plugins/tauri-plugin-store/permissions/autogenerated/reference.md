@@ -940,32 +940,6 @@ Denies the meetings_rename command without any pre-configured scope.
 <tr>
 <td>
 
-`store:allow-meetings-set-status`
-
-</td>
-<td>
-
-Enables the meetings_set_status command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-meetings-set-status`
-
-</td>
-<td>
-
-Denies the meetings_set_status command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
 `store:allow-meetings-upsert`
 
 </td>
@@ -1037,32 +1011,6 @@ Enables the memories_delete_all command without any pre-configured scope.
 <td>
 
 Denies the memories_delete_all command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:allow-memories-list`
-
-</td>
-<td>
-
-Enables the memories_list command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`store:deny-memories-list`
-
-</td>
-<td>
-
-Denies the memories_list command without any pre-configured scope.
 
 </td>
 </tr>

@@ -61,6 +61,10 @@ pub struct MemoryInput {
     pub pinned: bool,
 }
 
+/// The facts a delete removes, as `f`.
+const ONE_FACT: &str = "MATCH (f:Fact {id: $id})";
+const EVERY_FACT: &str = "MATCH (f:Fact)";
+
 const MEMORY_FIELDS: &str = "f.id AS id, f.text AS text, f.source AS source, e.id AS entity_id, f.pinned AS pinned, \
                              f.created_at AS created_at, f.updated_at AS updated_at";
 
@@ -103,11 +107,12 @@ pub(crate) fn upsert(db: &Connection, input: &MemoryInput, now: i64) -> Result<M
          SET f.text = $text, f.pinned = $pinned, f.updated_at = $now",
         fact,
     )?;
+    let was_about = graph::ids(&tx, "MATCH (:Fact {id: $id})-[:ABOUT]->(e) RETURN e.id AS id", json!({ "id": id }))?;
     graph::run(&tx, "MATCH (:Fact {id: $id})-[r:ABOUT]->() DELETE r", json!({ "id": id }))?;
     if let Some(entity) = &entity {
         graph::run(&tx, "MATCH (f:Fact {id: $id}), (e {id: $entity}) WHERE e.kind IS NOT NULL CREATE (f)-[:ABOUT]->(e)", json!({ "id": id, "entity": entity }))?;
     }
-    drop_orphans(&tx)?;
+    drop_orphans(&tx, &was_about)?;
     let saved = graph::rows(
         &tx,
         &format!("MATCH (f:Fact {{id: $id}}) OPTIONAL MATCH (f)-[:ABOUT]->(e) RETURN {MEMORY_FIELDS}"),
@@ -119,11 +124,12 @@ pub(crate) fn upsert(db: &Connection, input: &MemoryInput, now: i64) -> Result<M
     Ok(saved)
 }
 
-/// Deletes the facts `cypher` matches (all, or one by `$id`) and the entities left without any, in one transaction.
-fn delete(db: &Connection, cypher: &str, params: serde_json::Value) -> Result<(), StoreError> {
+/// Deletes the facts `facts` matches (as `f`: all, or one by `$id`) and the entities left without any, in one transaction.
+fn delete(db: &Connection, facts: &str, params: serde_json::Value) -> Result<(), StoreError> {
     let tx = db.unchecked_transaction()?;
-    graph::run(&tx, cypher, params)?;
-    drop_orphans(&tx)?;
+    let about = graph::ids(&tx, &format!("{facts}-[:ABOUT]->(e) RETURN DISTINCT e.id AS id"), params.clone())?;
+    graph::run(&tx, &format!("{facts} DETACH DELETE f"), params)?;
+    drop_orphans(&tx, &about)?;
     tx.commit()?;
     Ok(())
 }
@@ -140,13 +146,13 @@ pub async fn memories_upsert(state: State<'_, StoreState>, memory: MemoryInput) 
 
 #[tauri::command]
 pub async fn memories_delete(state: State<'_, StoreState>, id: String) -> Result<(), StoreError> {
-    on_db(&state, move |db| delete(db, "MATCH (f:Fact {id: $id}) DETACH DELETE f", json!({ "id": id }))).await
+    on_db(&state, move |db| delete(db, ONE_FACT, json!({ "id": id }))).await
 }
 
 /// Forgets everything: every fact and the entities they were about.
 #[tauri::command]
 pub async fn memories_delete_all(state: State<'_, StoreState>) -> Result<(), StoreError> {
-    on_db(&state, |db| delete(db, "MATCH (f:Fact) DETACH DELETE f", json!({}))).await
+    on_db(&state, |db| delete(db, EVERY_FACT, json!({}))).await
 }
 
 #[cfg(test)]
@@ -185,7 +191,7 @@ mod tests {
     fn an_entity_goes_with_its_last_memory() {
         let db = open_migrated_test_db();
         let m = upsert(&db, &input("Works at Acme", Some(("Priya", "person"))), 1).unwrap();
-        delete(&db, "MATCH (f:Fact {id: $id}) DETACH DELETE f", json!({ "id": m.id })).unwrap();
+        delete(&db, ONE_FACT, json!({ "id": m.id })).unwrap();
         assert!(graph(&db).unwrap().entities.is_empty());
     }
 

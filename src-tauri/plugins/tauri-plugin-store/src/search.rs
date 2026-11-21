@@ -38,8 +38,11 @@ pub struct ChunkHit {
 
 /// RRF's smoothing constant (60 is the standard).
 const RRF_K: f64 = 60.0;
-/// BM25 cutoff (FTS5 ranks are negative, lower is better): a match near 0 only shares common words.
+/// BM25 cutoff (FTS5 ranks are negative, lower is better): a match near 0 only shares common words. Applied only beside the
+/// vector leg — alone, keywords are all there is, and in a small library every rank sits near 0.
 const BM25_MAX_RANK: f64 = -0.5;
+/// Most owners one search returns (sqlite-vec's KNN takes at most 4096, after overfetch).
+const MAX_LIMIT: usize = 1000;
 /// Each leg fetches this many times the owners asked for, so fusion has room to agree.
 const OVERFETCH: usize = 3;
 
@@ -111,11 +114,12 @@ pub fn hybrid_search(conn: &Connection, q: &SearchQuery) -> Result<Vec<ChunkHit>
     let sql = fused(&legs);
     let within = q.within.map(|ids| serde_json::to_string(ids)).transpose().map_err(|e| e.to_string())?;
     let vector = q.embedding.map(vector_bytes);
-    let fetch = (q.limit * OVERFETCH) as i64;
+    let fetch = (q.limit.clamp(1, MAX_LIMIT) * OVERFETCH) as i64;
+    let bm25_max = if q.embedding.is_some() { BM25_MAX_RANK } else { f64::MAX };
     let named: Vec<(&str, &dyn rusqlite::ToSql)> = vec![
         (":words", &words),
         (":kind", &q.kind),
-        (":bm25_max", &BM25_MAX_RANK),
+        (":bm25_max", &bm25_max),
         (":within", &within),
         (":fetch", &fetch),
         (":vector", &vector),

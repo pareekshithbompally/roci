@@ -1,4 +1,5 @@
-//! Announces committed meeting writes so other Rust code (e.g. the Spotlight index) can follow.
+//! Announces what other Rust code follows (the Spotlight and search indexes): committed meeting writes and chat saves, and
+//! the database opening.
 
 use crate::commands::{meetings_get_impl, MeetingDetail, StoreState};
 use crate::error::StoreError;
@@ -12,48 +13,58 @@ pub enum MeetingChange {
     Deleted(String),
 }
 
-type Handler = Arc<dyn Fn(&MeetingChange) + Send + Sync>;
+/// The handlers of one event, called on the thread that caused it.
+struct Handlers<T: ?Sized>(Mutex<Vec<Arc<T>>>);
 
-static HANDLERS: Mutex<Vec<Handler>> = Mutex::new(Vec::new());
+impl<T: ?Sized> Handlers<T> {
+    const fn new() -> Self {
+        Self(Mutex::new(Vec::new()))
+    }
+
+    fn add(&self, handler: Arc<T>) {
+        if let Ok(mut handlers) = self.0.lock() {
+            handlers.push(handler);
+        }
+    }
+
+    /// Cloned out, so a handler may register another.
+    fn all(&self) -> Vec<Arc<T>> {
+        self.0.lock().map(|handlers| handlers.clone()).unwrap_or_default()
+    }
+}
+
+static MEETING_CHANGED: Handlers<dyn Fn(&MeetingChange) + Send + Sync> = Handlers::new();
+static CHAT_SAVED: Handlers<dyn Fn(&str) + Send + Sync> = Handlers::new();
+static DATABASE_OPEN: Handlers<dyn Fn() + Send + Sync> = Handlers::new();
 
 /// Register a handler called after every committed meeting write, on the writer's thread.
 pub fn on_meeting_change(handler: impl Fn(&MeetingChange) + Send + Sync + 'static) {
-    if let Ok(mut handlers) = HANDLERS.lock() {
-        handlers.push(Arc::new(handler));
-    }
+    MEETING_CHANGED.add(Arc::new(handler));
 }
 
-/// Call after commit and lock release; handlers are cloned out so one may register another.
+/// Call after commit and lock release.
 pub(crate) fn notify(change: MeetingChange) {
-    let handlers: Vec<Handler> = match HANDLERS.lock() {
-        Ok(handlers) => handlers.clone(),
-        Err(_) => return,
-    };
-    for handler in handlers {
-        handler(&change);
-    }
+    MEETING_CHANGED.all().iter().for_each(|handler| handler(&change));
 }
-
-type ChatHandler = Arc<dyn Fn(&str) + Send + Sync>;
-
-static CHAT_HANDLERS: Mutex<Vec<ChatHandler>> = Mutex::new(Vec::new());
 
 /// Register a handler called after every committed chat save (its id), on the writer's thread.
 pub fn on_chat_saved(handler: impl Fn(&str) + Send + Sync + 'static) {
-    if let Ok(mut handlers) = CHAT_HANDLERS.lock() {
-        handlers.push(Arc::new(handler));
-    }
+    CHAT_SAVED.add(Arc::new(handler));
 }
 
 /// Call after commit and lock release.
 pub(crate) fn notify_chat_saved(id: &str) {
-    let handlers: Vec<ChatHandler> = match CHAT_HANDLERS.lock() {
-        Ok(handlers) => handlers.clone(),
-        Err(_) => return,
-    };
-    for handler in handlers {
-        handler(id);
-    }
+    CHAT_SAVED.all().iter().for_each(|handler| handler(id));
+}
+
+/// Register a handler called once the database is open (at launch, when the webview first asks for it).
+pub fn on_database_open(handler: impl Fn() + Send + Sync + 'static) {
+    DATABASE_OPEN.add(Arc::new(handler));
+}
+
+/// Call after the database opens and its lock is released.
+pub(crate) fn notify_database_open() {
+    DATABASE_OPEN.all().iter().for_each(|handler| handler());
 }
 
 /// Blocking; never on the main thread. Empty until the database is open.
