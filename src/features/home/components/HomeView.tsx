@@ -1,4 +1,4 @@
-/** Home view switched on app status; with Real-time transcription on, the record screen owns it while recording. */
+/** Home view switched on app status; with Live Transcript on, the record screen owns it while recording. */
 
 import React from 'react';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
@@ -24,7 +24,7 @@ export const HomeView: React.FC = () => {
   const hasSelectedChat = useChatCurrentSessionId() !== null;
   const hasSelectedMeeting = selectedHistoryId !== null;
 
-  // With Real-time transcription on, a recording owns the home column (record screen, results after Stop); off, only its activity trace shows.
+  // With Live Transcript on, a recording owns the home column (record screen, results after Stop); off, only its activity trace shows.
   const showRecordingView = recordingMeetingId !== null && !!settings.liveTranscription;
   // Status takes precedence over selections: "New Chat" sets IDLE, which shows IdleView
   const showChatView = status === AppStatus.CHAT && hasSelectedChat;

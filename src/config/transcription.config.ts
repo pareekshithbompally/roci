@@ -12,15 +12,16 @@ export const TRANSCRIPTION_CONFIG = {
   sampleRate: SAMPLE_RATE,
   /** Live dictation: the mic is sent to the engine in slices this long, ms. */
   liveChunkMs: 100,
-  /** Real-time transcription copy for the General setting and the mark on speech models that support it. */
+  /** Live transcript copy: the General setting, and the mark on speech models known to stream. */
   liveCopy: {
-    description: 'Words appear while you talk, in meetings and dictation.',
-    /** What the chosen speech model does live: streams everywhere, dictation only, tried at each start, or near-live chunks. */
-    streams: 'Your speech model streams: words appear as you speak.',
-    dictationOnly: 'Your speech model streams dictation; in meetings, words come about 8 seconds behind.',
-    tried: 'Words appear as you speak when your speech model streams; otherwise about 8 seconds behind.',
-    chunks: 'Your speech model works near-live: words come about 8 seconds behind.',
-    mark: 'Real-time',
+    title: 'Live Transcript',
+    description: 'Shows the transcript while you record and dictate.',
+    /** When the chosen speech model's words appear: as you speak (it streams), every few seconds (chunks), or either. */
+    streams: 'With your speech model, words appear as you speak.',
+    dictationOnly: 'With your speech model, words appear as you speak in dictation, and every few seconds in meetings.',
+    tried: 'With your speech model, words appear as you speak if it streams, otherwise every few seconds.',
+    chunks: 'With your speech model, words appear every few seconds.',
+    mark: 'Live',
   },
   /** Spoken language sent to engines that take one; a language setting is out of scope. */
   language: 'en',

@@ -59,7 +59,7 @@ export function useSelectedSpeechOption(): SpeechModelOption | undefined {
   }, [transcriptionProvider, transcriptionModel, options]);
 }
 
-/** Real-time dictation is tried when it is on and the model's engine streams (the clip is kept, so a refusal loses nothing);
+/** Live dictation is tried when Live Transcript is on and the model's engine streams (the clip is kept, so a refusal loses nothing);
  *  null → transcribe the clip at the end. */
 export function useLiveDictation(): LiveDictation | null {
   const { settings, providers } = useSettings();
@@ -71,7 +71,7 @@ export function useLiveDictation(): LiveDictation | null {
   }, [live, option, providers]);
 }
 
-/** What the chosen speech model does live, for the Real-time Transcription footer: a model known to stream streams in meetings
+/** What the chosen speech model does live, for the Live Transcript footer: a model known to stream streams in meetings
  *  when its engine runs a stream per side, else dictation only; a cloud model is tried; no streaming engine means chunks. */
 export function useLiveModeLine(): string | null {
   const { providers } = useSettings();

@@ -143,12 +143,12 @@ export const GeneralPanel: React.FC = () => {
           footer={[TRANSCRIPTION_CONFIG.liveCopy.description, liveLine, FOOTER.afterRecording].filter(Boolean).join(' ')}
         >
           <CardRow
-            title="Real-time Transcription"
+            title={TRANSCRIPTION_CONFIG.liveCopy.title}
             actions={
               <Switch
                 checked={!!settings.liveTranscription}
                 onCheckedChange={(checked) => setSettings({ liveTranscription: checked })}
-                aria-label="Real-time transcription"
+                aria-label={TRANSCRIPTION_CONFIG.liveCopy.title}
               />
             }
           />

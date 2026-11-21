@@ -1,5 +1,5 @@
 /** Starts a recording with the source chosen in Settings › General › Capture (iPhone and iPad record the microphone). With
- *  Real-time transcription on it first tries real-time for each side, so the recorder knows to send frames or chunks. */
+ *  Live Transcript on it first tries real-time for each side, so the recorder knows to send frames or chunks. */
 
 import { useCallback } from 'react';
 import { useSettings } from '@shared/contexts/SettingsContext';

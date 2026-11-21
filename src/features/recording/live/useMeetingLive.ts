@@ -1,4 +1,4 @@
-/** Starts the in-call transcript when a meeting starts recording with Real-time transcription on, streamed or in chunks as the
+/** Starts the in-call transcript when a meeting starts recording with Live Transcript on, streamed or in chunks as the
  *  recorder was started; mounted once for the app. */
 
 import { useEffect, useRef } from 'react';
