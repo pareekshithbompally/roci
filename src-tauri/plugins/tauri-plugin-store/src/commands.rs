@@ -318,7 +318,7 @@ pub struct SettingsSetInput {
 
 // ── Providers Structs ──
 
-/// A provider as the webview gets it: its API key read from the API keys file.
+/// A provider as the webview gets it: its API key decrypted from its row, also in its settings' API-key field.
 #[derive(Debug, Serialize)]
 pub struct ProviderRow {
     pub provider: String,
@@ -329,7 +329,7 @@ pub struct ProviderRow {
     pub updated_at: i64,
 }
 
-/// A provider to save: its API key goes to the API keys file, the rest to roci.db.
+/// A provider to save: its API key is encrypted into its row; its settings are saved without it.
 #[derive(Debug, Deserialize)]
 pub struct ProviderUpsertInput {
     pub provider: String,
@@ -673,7 +673,6 @@ pub async fn initialize<R: Runtime>(
         .map_err(|e| StoreError::from(format!("Failed to get app data dir: {}", e)))?;
     std::fs::create_dir_all(&app_data)
         .map_err(|e| StoreError::from(format!("Failed to create app data dir: {}", e)))?;
-    crate::api_keys::set_dir(&app_data);
     let db_path = app_data.join("roci.db");
 
     let conn_arc = Arc::clone(&state.conn);
@@ -1761,31 +1760,40 @@ pub async fn providers_list(
         let db = guard.as_ref().ok_or(StoreError::from("Database not initialized"))?;
 
         let mut stmt = db.prepare(
-            "SELECT provider, active, base_url, data, updated_at FROM providers ORDER BY provider",
+            "SELECT provider, active, base_url, data, updated_at, api_key FROM providers ORDER BY provider",
         )?;
-        let rows: Vec<ProviderRow> = stmt
+        let rows: Vec<(ProviderRow, Option<Vec<u8>>)> = stmt
             .query_map([], |row| {
-                Ok(ProviderRow {
+                let provider = ProviderRow {
                     provider: row.get(0)?,
                     active: row.get::<_, i32>(1)? != 0,
                     api_key: None,
                     base_url: row.get(2)?,
                     data: row.get(3)?,
                     updated_at: row.get(4)?,
-                })
+                };
+                Ok((provider, row.get(5)?))
             })?
             .collect::<Result<_, _>>()?;
-        rows.into_iter().map(with_saved_key).collect()
+        Ok(rows.into_iter().map(|(row, sealed)| with_key(row, sealed.as_deref())).collect())
     })
     .await
     .map_err(|e| StoreError::from(format!("spawn_blocking join: {}", e)))?
 }
 
-/// The row with its saved key, in `api_key` and in its settings' API-key field.
-fn with_saved_key(row: ProviderRow) -> Result<ProviderRow, StoreError> {
-    let key = crate::api_keys::read(&row.provider)?.unwrap_or_default();
+/// The row with its decrypted key, in `api_key` and in its settings' API-key field. A key that can't be decrypted reads as
+/// none (logged): its provider asks for the key again instead of hiding every provider.
+fn with_key(row: ProviderRow, sealed: Option<&[u8]>) -> ProviderRow {
+    let key = match sealed.map(crate::api_keys::open) {
+        Some(Ok(key)) => key,
+        Some(Err(e)) => {
+            log::warn!("[store] {} API key unreadable: {}", row.provider, e);
+            String::new()
+        }
+        None => String::new(),
+    };
     let data = crate::api_keys::with_key_in_settings(row.data, &key);
-    Ok(ProviderRow { api_key: (!key.is_empty()).then_some(key), data, ..row })
+    ProviderRow { api_key: (!key.is_empty()).then_some(key), data, ..row }
 }
 
 #[tauri::command]
@@ -1802,29 +1810,29 @@ pub async fn providers_upsert(
         let key = input.api_key.as_deref().map(str::trim).filter(|k| !k.is_empty()).map(str::to_string)
             .or_else(|| crate::api_keys::key_in_settings(input.data.as_deref()))
             .unwrap_or_default();
-        crate::api_keys::save(&input.provider, &key)?;
+        let sealed = if key.is_empty() { None } else { Some(crate::api_keys::seal(&key)?) };
         let data = crate::api_keys::with_key_in_settings(input.data, "");
 
         let tx = db.unchecked_transaction()?;
 
         tx.execute(
-            "INSERT INTO providers (provider, active, base_url, data, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5)
+            "INSERT INTO providers (provider, active, base_url, data, updated_at, api_key)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
              ON CONFLICT(provider) DO UPDATE SET
                 active = excluded.active,
                 base_url = excluded.base_url,
                 data = excluded.data,
-                updated_at = excluded.updated_at",
+                updated_at = excluded.updated_at,
+                api_key = excluded.api_key",
             rusqlite::params![
                 input.provider,
                 input.active.unwrap_or(false) as i32,
                 input.base_url,
                 data,
                 now,
+                sealed,
             ],
         )?;
-
-
         tx.commit()?;
         Ok(())
     })
@@ -1871,7 +1879,6 @@ pub async fn providers_delete(
         if affected == 0 {
             return Err(StoreError::from("Provider not found"));
         }
-        crate::api_keys::remove(&provider)?;
         Ok(())
     })
     .await

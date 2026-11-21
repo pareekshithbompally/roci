@@ -2,7 +2,7 @@ use crate::assets;
 use rusqlite::Connection;
 
 /// Current schema version for the new roci.db.
-pub const SCHEMA_VERSION: u32 = 14;
+pub const SCHEMA_VERSION: u32 = 15;
 
 /// Default embedding model and dimension.
 pub const DEFAULT_MODEL: &str = "mlx-community/Qwen3-Embedding-0.6B-8bit";
@@ -32,12 +32,12 @@ pub(crate) fn open_migrated_test_db() -> Connection {
     conn
 }
 
-/// Creates the schema in a new database, or brings a v10–v13 database to the current version with its data. Any other
+/// Creates the schema in a new database, or brings a v10–v14 database to the current version with its data. Any other
 /// version is refused, not upgraded: pre-release, there is nothing else to carry forward.
 pub fn migrate(conn: &Connection) -> Result<(), String> {
     match get_schema_version(conn) {
         0 => create_new(conn)?,
-        version @ 10..=13 => upgrade_from(conn, version)?,
+        version @ 10..=14 => upgrade_from(conn, version)?,
         SCHEMA_VERSION => {}
         other => {
             let e = format!("roci.db is schema v{other}, this build is v{SCHEMA_VERSION}: remove it to start fresh");
@@ -64,26 +64,28 @@ fn upgrade_v11(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
-/// v11 → v12: API keys move out of roci.db. Each saved key (its column, or its settings field) is put in the API keys
-/// file first; only then are the settings fields blanked and the column dropped, in one transaction.
+/// v11 → v12: API keys stop being plain text. Each saved key (its plain-text column, or its settings field) is encrypted
+/// into the new `api_key` column, the settings fields are blanked and the old column dropped, in one transaction.
 fn upgrade_v12(conn: &Connection) -> Result<(), String> {
     let rows: Vec<(String, Option<String>, Option<String>)> = conn
         .prepare("SELECT provider, api_key_encrypted, data FROM providers")
         .and_then(|mut stmt| stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?.collect())
         .map_err(|e| format!("v12 read providers: {}", e))?;
     let tx = conn.unchecked_transaction().map_err(|e| format!("begin v12: {}", e))?;
+    tx.execute_batch("ALTER TABLE providers ADD COLUMN api_key BLOB;").map_err(|e| format!("v12 key column: {}", e))?;
     for (provider, column, data) in rows {
         let key = column.filter(|k| !k.trim().is_empty()).or_else(|| crate::api_keys::key_in_settings(data.as_deref()));
-        if let Some(key) = key {
-            crate::api_keys::save(&provider, key.trim()).map_err(|e| e.to_string())?;
-        }
-        tx.execute("UPDATE providers SET data = ?2 WHERE provider = ?1", rusqlite::params![provider, crate::api_keys::with_key_in_settings(data, "")])
-            .map_err(|e| format!("v12 blank {provider}: {}", e))?;
+        let sealed = key.map(|key| crate::api_keys::seal(key.trim())).transpose().map_err(|e| e.to_string())?;
+        tx.execute(
+            "UPDATE providers SET data = ?2, api_key = ?3 WHERE provider = ?1",
+            rusqlite::params![provider, crate::api_keys::with_key_in_settings(data, ""), sealed],
+        )
+        .map_err(|e| format!("v12 {provider}: {}", e))?;
     }
     tx.execute_batch("ALTER TABLE providers DROP COLUMN api_key_encrypted;").map_err(|e| format!("v12: {}", e))?;
     set_schema_version(&tx, 12)?;
     tx.commit().map_err(|e| format!("commit v12: {}", e))?;
-    log::info!("[store] Schema v11→v12 (API keys out of roci.db)");
+    log::info!("[store] Schema v11→v12 (API keys encrypted in their rows)");
     Ok(())
 }
 
@@ -98,7 +100,26 @@ fn upgrade_from(conn: &Connection, version: u32) -> Result<(), String> {
     if version <= 12 {
         upgrade_v13(conn)?;
     }
-    upgrade_v14(conn)
+    if version <= 13 {
+        upgrade_v14(conn)?;
+    }
+    upgrade_v15(conn)
+}
+
+/// v14 → v15: a provider's API key is kept encrypted in its row; a database v12 made already has the column.
+fn upgrade_v15(conn: &Connection) -> Result<(), String> {
+    let tx = conn.unchecked_transaction().map_err(|e| format!("begin v15: {}", e))?;
+    let has_column: bool = tx
+        .query_row("SELECT COUNT(*) FROM pragma_table_info('providers') WHERE name = 'api_key'", [], |r| r.get::<_, i64>(0))
+        .map(|count| count > 0)
+        .map_err(|e| format!("v15 read providers: {}", e))?;
+    if !has_column {
+        tx.execute_batch("ALTER TABLE providers ADD COLUMN api_key BLOB;").map_err(|e| format!("v15: {}", e))?;
+    }
+    set_schema_version(&tx, 15)?;
+    tx.commit().map_err(|e| format!("commit v15: {}", e))?;
+    log::info!("[store] Schema v14→v15 (API keys encrypted in their rows)");
+    Ok(())
 }
 
 /// v13 → v14: a speech call's audio length is kept with its usage, so speech billed by the minute is priced and counted.
@@ -337,7 +358,9 @@ fn create_baseline(conn: &Connection) -> Result<(), String> {
             active            INTEGER NOT NULL DEFAULT 0,
             base_url          TEXT,
             data              TEXT,
-            updated_at        INTEGER NOT NULL
+            updated_at        INTEGER NOT NULL,
+            -- AES-256-GCM under the Keychain's Roci Safe Storage key (api_keys.rs); NULL when none is saved.
+            api_key           BLOB
         );
 
         CREATE TABLE categories (
@@ -517,6 +540,31 @@ mod tests {
 
     fn init_db(conn: &Connection) {
         migrate(conn).expect("migrate");
+    }
+
+    fn has_api_key_column(conn: &Connection) -> bool {
+        conn.query_row("SELECT COUNT(*) FROM pragma_table_info('providers') WHERE name = 'api_key'", [], |r| r.get::<_, i64>(0))
+            .expect("read providers")
+            > 0
+    }
+
+    #[test]
+    fn providers_keep_their_encrypted_key_in_the_row_and_v15_adds_it_to_older_databases() {
+        let conn = open_test_db();
+        init_db(&conn);
+        assert!(has_api_key_column(&conn));
+
+        let older = open_test_db();
+        older
+            .execute_batch(
+                "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+                 CREATE TABLE providers (provider TEXT PRIMARY KEY, active INTEGER NOT NULL DEFAULT 0, base_url TEXT, data TEXT, updated_at INTEGER NOT NULL);",
+            )
+            .expect("v14 providers");
+        upgrade_v15(&older).expect("v15");
+        assert!(has_api_key_column(&older));
+        assert_eq!(get_schema_version(&older), 15);
+        upgrade_v15(&older).expect("v15 again keeps the column");
     }
 
     #[test]
