@@ -1,22 +1,21 @@
-/** "Your Servers": model servers the user runs (Ollama, LM Studio, llama-server), here or on another computer. One add
- *  form and one row state for both layouts: the Mac sidebar group, and the phone's card whose rows push their detail. */
+/** "Your Servers": model servers the user runs (Ollama, LM Studio, llama-server), here or on another computer: the section
+ *  on the Providers list, and the Add Server form its page shows. */
 
 import React, { useState } from 'react';
-import { Plus, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { useToast } from '@shared/contexts/ToastContext';
 import { LOCAL_EMPTY_HINT, LOCAL_SERVERS_GROUP, LOCAL_URL_DRAFT } from '@config/localServers.config';
 import { useLocalServers } from '@features/settings/hooks/useLocalServers';
 import { ProvidersAvatar } from '@shared/components';
 import { getProviderTitle, serverAppOf } from '@shared/utils/provider.utils';
 import { platform } from '@platform/index';
-import { ProviderGroup, ProviderListItem } from './ProviderListItem';
-import type { ProviderRowState } from './ProviderListItem';
+import type { ProviderRowState } from './ProviderStatus';
 import { serverHost } from '@services/providers/localServers';
 import type { LocalRow } from '@services/providers/localServers';
-import { Button, CardRow, IconButton, Input, Section, Status, Text, useNavStack } from '@shared/ui';
+import { Button, CardRow, ICON_TILE_PX, IconButton, Input, Section, Status } from '@shared/ui';
 import type { DotTone } from '@shared/ui';
 
-const ADD_TITLE = 'Add Server';
+export const ADD_SERVER_TITLE = 'Add Server';
 
 function rowState(row: LocalRow): ProviderRowState {
   if (!row.saved?.active) return 'off';
@@ -42,7 +41,7 @@ interface AddServerFormProps {
 }
 
 /** A server's address, then Add: Roci asks the server for its models before saving it (errors in a toast). */
-const AddServerForm: React.FC<AddServerFormProps> = ({ onAdded, onCancel }) => {
+export const AddServerForm: React.FC<AddServerFormProps> = ({ onAdded, onCancel }) => {
   const { showToast } = useToast();
   const { addUrl } = useLocalServers();
   const [address, setAddress] = useState(LOCAL_URL_DRAFT);
@@ -89,105 +88,46 @@ const AddServerForm: React.FC<AddServerFormProps> = ({ onAdded, onCancel }) => {
   );
 };
 
-interface LocalServersSectionProps {
-  selectedProvider: string | null;
-  onSelect: (provider: string) => void;
+interface ServersSectionProps {
+  /** Opens a server's page (the same page a cloud provider's row opens). */
+  onOpen: (id: string) => void;
+  /** Opens the Add Server page. */
+  onAdd: () => void;
 }
 
-/** Mac and iPad: the sidebar group; Rescan where servers run on this device, Add opens the form in place. */
-export const LocalServersSection: React.FC<LocalServersSectionProps> = ({ selectedProvider, onSelect }) => {
+/** "Your Servers": one row per server (a detected one is saved as it opens), Add Server, and Rescan where servers run here. */
+export const ServersSection: React.FC<ServersSectionProps> = ({ onOpen, onAdd }) => {
   const { showToast } = useToast();
   const { rows, isScanning, enable, rescan } = useLocalServers();
-  const [adding, setAdding] = useState(false);
-
-  const handleRescan = () => {
-    rescan().catch((error: unknown) => {
-      console.error('[LocalServersSection] Rescan failed:', error);
-      showToast('Could not rescan servers', 'error');
-    });
-  };
-
-  const handleSelect = (row: LocalRow) => {
-    if (row.saved) onSelect(row.id);
-    else enable(row);
-  };
-
-  const actions = (
-    <>
-      {platform.runsLocalServers && (
-        <IconButton icon={RefreshCw} label="Rescan servers" size="sm" spin={isScanning} onClick={handleRescan} />
-      )}
-      <IconButton icon={Plus} label="Add a server by its address" size="sm" onClick={() => setAdding(true)} />
-    </>
-  );
-
-  return (
-    <ProviderGroup title={LOCAL_SERVERS_GROUP} accessory={actions}>
-      {rows.map((row) => (
-        <ProviderListItem
-          key={row.id}
-          provider={row.id}
-          selected={selectedProvider === row.id}
-          state={rowState(row)}
-          onSelect={() => handleSelect(row)}
-          detail={rowDetail(row)}
-        />
-      ))}
-
-      {adding && <AddServerForm onAdded={() => setAdding(false)} onCancel={() => setAdding(false)} />}
-
-      {rows.length === 0 && !adding && (
-        <Text as="p" variant="helper" tone="faint" className="px-2">{LOCAL_EMPTY_HINT}</Text>
-      )}
-    </ProviderGroup>
-  );
-};
-
-interface PhoneServersSectionProps {
-  /** Pushes a saved server's detail (the same screen a cloud provider's row opens). */
-  onOpen: (id: string) => void;
-}
-
-/** iPhone: one card of servers (each row pushes its detail), then Add Server, which pushes the same form. */
-export const PhoneServersSection: React.FC<PhoneServersSectionProps> = ({ onOpen }) => {
-  const { push, remove } = useNavStack();
-  const { rows, enable } = useLocalServers();
 
   const openRow = (row: LocalRow) => {
     if (!row.saved) enable(row);
     onOpen(row.id);
   };
 
-  // The form closes its own screen by id: a pushed screen's content keeps the callbacks it was pushed with.
-  const openAdd = () => {
-    const screen = push({
-      title: ADD_TITLE,
-      content: (
-        <div className="p-4">
-          <AddServerForm
-            onAdded={(id) => {
-              remove(screen);
-              onOpen(id);
-            }}
-            onCancel={() => remove(screen)}
-          />
-        </div>
-      ),
+  const handleRescan = () => {
+    rescan().catch((error: unknown) => {
+      console.error('[ServersSection] Rescan failed:', error);
+      showToast('Could not rescan servers', 'error');
     });
   };
 
+  const rescanAction = platform.runsLocalServers && (
+    <IconButton icon={RefreshCw} label="Rescan servers" size="sm" spin={isScanning} onClick={handleRescan} />
+  );
+
   return (
-    <Section title={LOCAL_SERVERS_GROUP} footer={rows.length === 0 ? LOCAL_EMPTY_HINT : undefined}>
+    <Section title={LOCAL_SERVERS_GROUP} accessory={rescanAction} footer={rows.length === 0 ? LOCAL_EMPTY_HINT : undefined}>
       {rows.map((row) => (
         <CardRow
           key={row.id}
           title={getProviderTitle(row.id)}
-          leading={<ProvidersAvatar provider={row.id} size={20} />}
+          leading={<ProvidersAvatar provider={row.id} size={ICON_TILE_PX} />}
           status={<Status tone={ROW_TONE[rowState(row)]}>{rowDetail(row)}</Status>}
           onOpen={() => openRow(row)}
         />
       ))}
-      <CardRow title={ADD_TITLE} tone="accent" onPress={openAdd} />
+      <CardRow title={ADD_SERVER_TITLE} tone="accent" onPress={onAdd} />
     </Section>
   );
 };

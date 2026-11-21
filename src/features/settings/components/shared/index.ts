@@ -5,3 +5,5 @@ export { KeyValueEditor, pairsToRecord } from './KeyValueEditor';
 export type { KeyValuePair } from './KeyValueEditor';
 export { ModelSelect } from './ModelSelect';
 export { LIVE_TRANSCRIPTION_MARK, PENDING } from './marks';
+export { usePaneDrill } from './usePaneDrill';
+export type { DrillPage } from './usePaneDrill';

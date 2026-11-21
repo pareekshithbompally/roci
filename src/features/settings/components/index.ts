@@ -3,7 +3,7 @@ export { SettingsNav, SETTINGS_NAV_ITEMS, SETTINGS_SECTIONS } from './SettingsNa
 export type { SettingsNavItem } from './SettingsNav';
 export { ProvidersPanel } from './ProvidersPanel';
 export { ProviderConnection } from './ProviderConnection';
-export { ProviderStatus, cloudRowState } from './ProviderListItem';
+export { ProviderStatus, cloudRowState } from './ProviderStatus';
 export { GeneralPanel } from './GeneralPanel';
 export { DefaultModelsPanel } from './DefaultModelsPanel';
 export { IntegrationsPanel } from './IntegrationsPanel';

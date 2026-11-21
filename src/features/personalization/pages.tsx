@@ -15,7 +15,7 @@ export interface PersonalizationPage {
   id: string;
   label: string;
   icon: TileGlyph;
-  /** The page; `onBack` on Mac and iPad, where it replaces the landing list in the pane. */
+  /** The page; `onBack` closes it (usePaneDrill). */
   Page: React.FC<{ onBack?: () => void }>;
   /** The page's state on its row (a count), when it has one. */
   Status?: React.FC;

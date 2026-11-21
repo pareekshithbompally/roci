@@ -5,7 +5,7 @@ import { useSettings } from '@shared/contexts/SettingsContext';
 import { ProvidersAvatar } from '@shared/components';
 import { canListModels } from '@shared/utils/modelResolver';
 import { getProviderTitle, isKnownPortServer, isLocalProviderId, serverAppOf } from '@shared/utils/provider.utils';
-import { Card, CardRow, Picker, Section, Switch } from '@shared/ui';
+import { Card, CardRow, ICON_TILE_PX, Picker, Section, Switch } from '@shared/ui';
 import { LAYOUT } from '@config/layout.config';
 import { SERVER_APP_PICKER, SERVER_APPS } from '@config/localServers.config';
 import { serverHost } from '@services/providers/localServers';
@@ -93,7 +93,7 @@ export const ProviderDetail: React.FC<ProviderDetailProps> = ({ provider }) => {
     <>
       <Card>
         <CardRow
-          leading={<ProvidersAvatar provider={id} size={20} />}
+          leading={<ProvidersAvatar provider={id} size={ICON_TILE_PX} />}
           title={title}
           description={serverAppOf(id) && provider.base_url ? serverHost(provider.base_url) : undefined}
           actions={

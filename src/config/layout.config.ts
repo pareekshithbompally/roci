@@ -23,10 +23,12 @@ export const LAYOUT = {
   /** Proposal cards above the chat box: past a few rows the list scrolls inside the card. */
   proposalList: 'max-h-64 overflow-y-auto',
 
-  /** Page column — Settings and the meeting view share one centred reading width */
+  /** Page column — the meeting view's centred reading width */
   pageColumn: 'max-w-4xl mx-auto w-full',
-  /** A box a page column sits in that doesn't scroll (toolbar, fixed body): it keeps the scrollbar's room like a `steady`
-   *  PageScroll, so columns line up under their title and never shift between pages. */
+  /** Settings panes: one tighter centred column for every pane and drilled-in page (macOS System Settings proportions). */
+  settingsColumn: 'max-w-2xl mx-auto w-full',
+  /** A box a page column sits in that doesn't scroll (a page's toolbar): it keeps the scrollbar's room like the `steady`
+   *  PageScroll below it, so the column lines up under its title and never shifts between pages. */
   pageColumnFrame: 'custom-scrollbar overflow-y-scroll',
 
   /** Plain settings pop-ups (options, sources): they hug their value up to this width, right-aligned in the row */

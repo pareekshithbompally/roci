@@ -29,7 +29,6 @@ export class ProvidersPanelErrorBoundary extends Component<Props, State> {
   handleReset = (): void => {
     this.setState({ hasError: false, error: null });
     try {
-      localStorage.removeItem('roci_last_provider_selection');
       localStorage.removeItem('roci_model_providers');
       window.location.reload();
     } catch (error) {

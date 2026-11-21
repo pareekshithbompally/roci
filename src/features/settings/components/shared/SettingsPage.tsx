@@ -11,8 +11,8 @@ interface SettingsToolbarProps {
   title: React.ReactNode;
   /** Controls at the right of the title (Add, time range…). */
   accessory?: React.ReactNode;
-  /** A drilled-in page (Mac, iPad): the back / forward capsule before the title returns to the page it came from. A phone's
-   *  bar has its own. */
+  /** A drilled-in page (Mac, iPad): ‹ in the back / forward capsule, which leads every page's title (dimmed where there is
+   *  nowhere to go, as in System Settings) so titles start at one place. A phone's bar has its own. */
   onBack?: () => void;
   /** Goes forward again to the page last left with back (System Settings). */
   onForward?: () => void;
@@ -27,7 +27,7 @@ const SettingsToolbar: React.FC<SettingsToolbarProps> = ({ title, accessory, onB
   return (
     <header
       className={cn(
-        LAYOUT.pageColumn,
+        LAYOUT.settingsColumn,
         paneToolbar.base,
         'pointer-events-none flex shrink-0 items-center justify-between gap-4',
         platform.hasWindowChrome ? paneToolbar.titlebar : paneToolbar.plain,
@@ -35,11 +35,9 @@ const SettingsToolbar: React.FC<SettingsToolbarProps> = ({ title, accessory, onB
       )}
     >
       <div className="flex min-w-0 items-center gap-3">
-        {(onBack || onForward) && (
-          <div className="pointer-events-auto">
-            <BackForward onBack={onBack} onForward={onForward} />
-          </div>
-        )}
+        <div className="pointer-events-auto">
+          <BackForward onBack={onBack} onForward={onForward} />
+        </div>
         <Text as="h1" variant="title" truncate>{title}</Text>
       </div>
       {accessory && <div className="pointer-events-auto flex shrink-0 items-center gap-1">{accessory}</div>}
@@ -48,8 +46,6 @@ const SettingsToolbar: React.FC<SettingsToolbarProps> = ({ title, accessory, onB
 };
 
 type SettingsPageProps = Omit<SettingsToolbarProps, 'title'> & {
-  /** `scroll` (default): the page scrolls under the toolbar; `fill`: under the header, the body (`flex-1`) fills the pane for self-scrolling columns. */
-  layout?: 'scroll' | 'fill';
   children?: React.ReactNode;
 } & (
   /** A pane's top level: its sidebar entry sets the title and the header (icon, name, what it covers) that leads the page. */
@@ -80,27 +76,17 @@ const PhonePage: React.FC<SettingsPageProps> = ({ accessory, pane, children }) =
 export const SettingsPage: React.FC<SettingsPageProps> = (props) =>
   useFormFactor() === 'phone' ? <PhonePage {...props} /> : <DesktopPage {...props} />;
 
-/** Mac, iPad: the toolbar, then the header and rows in one column at the same place on every pane; `fill` keeps the header
- *  fixed above columns that scroll themselves. */
-const DesktopPage: React.FC<SettingsPageProps> = ({ layout = 'scroll', pane, title, children, ...toolbar }) => (
+/** Mac, iPad: the toolbar, then the header and rows in one column, at the same place on every pane and page. */
+const DesktopPage: React.FC<SettingsPageProps> = ({ pane, title, children, ...toolbar }) => (
   <div className="flex h-full flex-col">
     <div className={cn(LAYOUT.pageGutter, LAYOUT.pageColumnFrame)}>
       <SettingsToolbar title={title ?? paneItem(pane)?.label} {...toolbar} />
     </div>
-    {layout === 'scroll' ? (
-      <PageScroll steady underTitlebar={false} className={`min-h-0 flex-1 ${LAYOUT.pageGutter} ${paneToolbar.below} pb-6`}>
-        <div className={`${LAYOUT.pageColumn} space-y-section`}>
-          <Hero pane={pane} />
-          {children}
-        </div>
-      </PageScroll>
-    ) : (
-      <div className={`flex min-h-0 flex-1 ${LAYOUT.pageGutter} ${LAYOUT.pageColumnFrame} ${paneToolbar.below} pb-6`}>
-        <div className={`${LAYOUT.pageColumn} flex min-h-0 flex-1 flex-col gap-section`}>
-          <Hero pane={pane} />
-          {children}
-        </div>
+    <PageScroll steady underTitlebar={false} className={`min-h-0 flex-1 ${LAYOUT.pageGutter} ${paneToolbar.below} pb-6`}>
+      <div className={`${LAYOUT.settingsColumn} space-y-section`}>
+        <Hero pane={pane} />
+        {children}
       </div>
-    )}
+    </PageScroll>
   </div>
 );
