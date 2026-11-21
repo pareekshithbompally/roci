@@ -4,7 +4,8 @@
 
 import { experimental_streamTranscribe as streamTranscribe } from 'ai';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
-import { createTranscriptionModel, type TranscriptionFamily } from '@services/ai/provider';
+import { createTranscriptionModel } from '@services/ai/provider';
+import type { SdkSpeechFamily } from '@config/transcription.config';
 import { samplesToPcm16, streamResampler } from '@shared/utils/wav.utils';
 import type { LiveStream, LiveText, StreamingEngine } from './streaming';
 
@@ -12,7 +13,7 @@ const joined = (a: string, b: string) => [a, b].filter((t) => t.trim()).join(' '
 
 /** Opens a stream and waits for the provider to take it: the SDK settles `warnings` when the stream starts, and rejects it when
  *  the model can't stream (OpenAI and ElevenLabs refuse such a model before connecting). */
-async function openStream(family: TranscriptionFamily, model: Parameters<typeof createTranscriptionModel>[1]): Promise<LiveStream> {
+async function openStream(family: SdkSpeechFamily, model: Parameters<typeof createTranscriptionModel>[1]): Promise<LiveStream> {
   let push: ReadableStreamDefaultController<Uint8Array> | null = null;
   const audio = new ReadableStream<Uint8Array>({ start: (controller) => { push = controller; } });
   const stop = new AbortController();
@@ -66,7 +67,7 @@ async function openStream(family: TranscriptionFamily, model: Parameters<typeof 
 }
 
 /** A cloud engine: each stream is its own connection, so any number run at once. */
-export function sdkStreaming(family: TranscriptionFamily): StreamingEngine {
+export function sdkStreaming(family: SdkSpeechFamily): StreamingEngine {
   return {
     concurrent: Number.POSITIVE_INFINITY,
     async open({ model, resolved }) {

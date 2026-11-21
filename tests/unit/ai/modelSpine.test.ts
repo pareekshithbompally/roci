@@ -35,8 +35,8 @@ describe('profileOf — first source to state a fact wins', () => {
     });
   });
 
-  it('an unknown model on a speech provider is assumed to transcribe', () => {
-    expect(profileOf('deepgram', { id: 'whatever' })).toMatchObject({ input: ['audio'], output: ['text'], known: false });
+  it('no provider decides what a model is: one no source describes is assumed a language model wherever it is listed', () => {
+    expect(profileOf('deepgram', { id: 'whatever' })).toMatchObject({ input: ['text'], output: ['text'], known: false });
   });
 
   it('models.dev describes a model it lists', () => {

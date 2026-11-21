@@ -35,6 +35,8 @@ interface ModelsDevCost {
   output?: number;
   cache_read?: number;
   cache_write?: number;
+  /** Roci's seed only: USD per minute of audio (models.dev has no field for it). */
+  per_minute?: number;
 }
 
 interface ModelsDevModel {
@@ -117,7 +119,7 @@ function reportOf(model: ModelsDevModel): ModelReport {
 }
 
 /** A seeded model as the catalog describes its models. */
-const asCatalogModel = (model: SeedModel): ModelsDevModel => ({ id: model.id, modalities: model.modalities });
+const asCatalogModel = (model: SeedModel): ModelsDevModel => ({ id: model.id, modalities: model.modalities, cost: model.cost });
 
 /** The catalog as kept on disk, with when it was fetched. */
 interface SavedCatalog {
@@ -219,15 +221,18 @@ class ModalitiesService {
     return similar ? { report: reportOf(similar), exact: false } : null;
   }
 
-  /** Pricing from models.dev cost data; null when the model or its cost is missing. */
+  /** A model's price from its catalog entry: per 1M tokens when both token rates are stated, per minute of audio when that is;
+   *  null when neither is. */
   getPricing(providerName: string, modelId: string): ModelPricing | null {
-    const model = this.findModel(providerName, modelId);
-    if (!model?.cost?.input || !model?.cost?.output) return null;
+    const cost = this.findModel(providerName, modelId)?.cost;
+    const tokens = !!cost?.input && !!cost?.output;
+    if (!cost || (!tokens && cost.per_minute === undefined)) return null;
     return {
-      inputPer1M: model.cost.input,
-      outputPer1M: model.cost.output,
-      cacheReadPer1M: model.cost.cache_read,
-      cacheWritePer1M: model.cost.cache_write,
+      inputPer1M: tokens ? cost.input ?? 0 : 0,
+      outputPer1M: tokens ? cost.output ?? 0 : 0,
+      cacheReadPer1M: cost.cache_read,
+      cacheWritePer1M: cost.cache_write,
+      perMinute: cost.per_minute,
     };
   }
 

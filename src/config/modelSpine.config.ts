@@ -18,7 +18,6 @@ export interface NameRule {
   output: readonly Modality[];
 }
 
-const AUDIO_TO_TEXT = { input: ['audio'], output: ['text'] } as const;
 
 export const MODEL_SPINE_CONFIG = {
   jobs: {
@@ -41,8 +40,7 @@ export const MODEL_SPINE_CONFIG = {
     { pattern: /image|imagen|dall-e/i, input: ['text', 'image'], output: ['image'] },
   ] satisfies NameRule[],
 
-  /** What a provider's unknown models are: speech providers serve speech; any other serves language models. */
-  providerModalities: { deepgram: AUDIO_TO_TEXT, elevenlabs: AUDIO_TO_TEXT } as Record<string, { input: readonly Modality[]; output: readonly Modality[] }>,
+  /** What a model no source describes is taken to be. */
   assumedModalities: { input: ['text'], output: ['text'] } as { input: readonly Modality[]; output: readonly Modality[] },
 
   /** A model a server you run passes on to its maker's cloud (Ollama's `gemma4:31b-cloud`): paid, and listed in the

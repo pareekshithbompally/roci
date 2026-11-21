@@ -53,9 +53,9 @@ function nameRuleLayer(model: ProfiledModel): Layer | null {
   return rule ? { source: 'name-rule', report: { input: [...rule.input], output: [...rule.output] } } : null;
 }
 
-/** Speech providers serve speech, any other serves language models; tools and thinking only when a source says so. */
-function defaultLayer(provider: string): Layer {
-  const { input, output } = MODEL_SPINE_CONFIG.providerModalities[provider] ?? MODEL_SPINE_CONFIG.assumedModalities;
+/** A model no source describes is taken to be a language model; tools and thinking only when a source says so. */
+function defaultLayer(): Layer {
+  const { input, output } = MODEL_SPINE_CONFIG.assumedModalities;
   return { source: 'default', report: { input: [...input], output: [...output], tools: false, reasoning: false } };
 }
 
@@ -88,7 +88,7 @@ function layersOf(provider: string, model: ProfiledModel): Layer[] {
     catalog?.source === 'catalog' && catalog,
     nameRuleLayer(model),
     catalog?.source === 'similar-name' && catalog,
-    defaultLayer(provider),
+    defaultLayer(),
   ];
   return layers.filter((layer): layer is Layer => !!layer);
 }

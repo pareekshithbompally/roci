@@ -7,7 +7,7 @@ import { VERBATIM_TRANSCRIBE_PROMPT } from '@core/ai/prompts/transcription.promp
 import { hexTranscribePart } from './hex';
 import { appleSpeechTranscribePart } from './appleSpeech';
 import { onDeviceTranscribePart } from './onDevice';
-import type { TranscriptionAdapterId } from '@config/transcription.config';
+import { SDK_SPEECH_FAMILIES, type SdkSpeechFamily, type TranscriptionAdapterId } from '@config/transcription.config';
 import type { TranscriptionModel } from 'ai';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { PartRequest, TranscribePart, TranscriptResult } from './types';
@@ -54,10 +54,9 @@ const viaMultimodalPrompt: TranscribePart = async (request): Promise<TranscriptR
   return { text: result.text.trim(), segments: [], usage: extractTokenUsage(result.usage) };
 };
 
+/** Every AI SDK speech family through the SDK; the rest through their own engine. */
 export const ADAPTERS: Record<TranscriptionAdapterId, TranscribePart> = {
-  'openai-compatible': viaSDK((r) => createTranscriptionModel('openai-compatible', r)),
-  deepgram: viaSDK((r) => createTranscriptionModel('deepgram', r)),
-  elevenlabs: viaSDK((r) => createTranscriptionModel('elevenlabs', r)),
+  ...(Object.fromEntries(SDK_SPEECH_FAMILIES.map((family) => [family, viaSDK((r) => createTranscriptionModel(family, r))])) as Record<SdkSpeechFamily, TranscribePart>),
   multimodal: viaMultimodalPrompt,
   hex: hexTranscribePart,
   'apple-speech': appleSpeechTranscribePart,

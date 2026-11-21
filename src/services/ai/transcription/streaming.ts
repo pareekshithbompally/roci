@@ -1,7 +1,7 @@
 /** The speech engines that stream — words as they are said — keyed by adapter, with how many streams each runs at once. Whether
  *  a model streams is found by opening its stream: a model that can't refuses it (see live.ts). */
 
-import type { TranscriptionAdapterId } from '@config/transcription.config';
+import { SDK_SPEECH_FAMILIES, type TranscriptionAdapterId } from '@config/transcription.config';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { onDeviceStreaming } from './onDevice';
 import { appleSpeechStreaming } from './appleSpeech';
@@ -29,10 +29,9 @@ export interface StreamingEngine {
   open(request: { model: string; resolved: ResolvedModel | null; language: string }): Promise<LiveStream>;
 }
 
+/** Every AI SDK speech family streams through the SDK (a model that can't refuses); engines on this Mac stream their own way. */
 export const STREAMING: Partial<Record<TranscriptionAdapterId, StreamingEngine>> = {
+  ...Object.fromEntries(SDK_SPEECH_FAMILIES.map((family) => [family, sdkStreaming(family)])),
   'on-device': onDeviceStreaming,
   'apple-speech': appleSpeechStreaming,
-  'openai-compatible': sdkStreaming('openai-compatible'),
-  deepgram: sdkStreaming('deepgram'),
-  elevenlabs: sdkStreaming('elevenlabs'),
 };

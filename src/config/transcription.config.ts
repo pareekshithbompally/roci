@@ -3,7 +3,11 @@
 import { LOCAL_MODELS_CONFIG } from '@config/localModels.config';
 import type { IntegrationId } from '@shared/utils/integrations';
 
-export type TranscriptionAdapterId = 'openai-compatible' | 'deepgram' | 'elevenlabs' | 'multimodal' | 'hex' | 'apple-speech' | 'on-device';
+/** The speech-to-text API families the AI SDK builds a transcription model for (one package each, in services/ai/provider.ts). */
+export const SDK_SPEECH_FAMILIES = ['openai-compatible', 'deepgram', 'elevenlabs'] as const;
+export type SdkSpeechFamily = (typeof SDK_SPEECH_FAMILIES)[number];
+/** How a speech model runs: an AI SDK family, a chat model hearing audio (multimodal), or an engine on this Mac. */
+export type TranscriptionAdapterId = SdkSpeechFamily | 'multimodal' | 'hex' | 'apple-speech' | 'on-device';
 
 /** Every part, chunk and stream is 16-bit PCM at this rate, mono. */
 const SAMPLE_RATE = 16_000;

@@ -12,6 +12,7 @@ import { createElevenLabs } from '@ai-sdk/elevenlabs';
 import { anthropic } from '@ai-sdk/anthropic';
 import { google } from '@ai-sdk/google';
 import { openai } from '@ai-sdk/openai';
+import type { SdkSpeechFamily } from '@config/transcription.config';
 import { getPlatformFetch } from '@services/platform-fetch';
 import { mlxLanguageModel } from '@services/ai/onDevice/mlxLanguageModel';
 import { profileOf } from '@services/ai/models';
@@ -131,20 +132,16 @@ export function createSpeechModel(resolved: ResolvedModel): SpeechModel {
   }
 }
 
-/** The speech-to-text API families an AI SDK transcription model can be built for. */
-export type TranscriptionFamily = 'openai-compatible' | 'deepgram' | 'elevenlabs';
+/** Each AI SDK speech family's package, building its transcription model (one line per family). */
+const TRANSCRIPTION_PACKAGES: Record<SdkSpeechFamily, (resolved: ResolvedModel, fetch: typeof globalThis.fetch) => TranscriptionModel> = {
+  'openai-compatible': (r, fetch) => createOpenAI({ apiKey: r.apiKey, baseURL: r.baseUrl || undefined, fetch }).transcription(r.modelId),
+  deepgram: (r, fetch) => createDeepgram({ apiKey: r.apiKey, fetch }).transcription(r.modelId),
+  elevenlabs: (r, fetch) => createElevenLabs({ apiKey: r.apiKey, fetch }).transcription(r.modelId),
+};
 
 /** A cloud speech-to-text model (audio in, text out), built here like every other model. */
-export function createTranscriptionModel(family: TranscriptionFamily, resolved: ResolvedModel): TranscriptionModel {
-  const fetch = getPlatformFetch();
-  switch (family) {
-    case 'openai-compatible':
-      return createOpenAI({ apiKey: resolved.apiKey, baseURL: resolved.baseUrl || undefined, fetch }).transcription(resolved.modelId);
-    case 'deepgram':
-      return createDeepgram({ apiKey: resolved.apiKey, fetch }).transcription(resolved.modelId);
-    case 'elevenlabs':
-      return createElevenLabs({ apiKey: resolved.apiKey, fetch }).transcription(resolved.modelId);
-  }
+export function createTranscriptionModel(family: SdkSpeechFamily, resolved: ResolvedModel): TranscriptionModel {
+  return TRANSCRIPTION_PACKAGES[family](resolved, getPlatformFetch());
 }
 
 /** Gemini and OpenAI only return a thinking model's thoughts when asked; Anthropic and local servers always do. */
