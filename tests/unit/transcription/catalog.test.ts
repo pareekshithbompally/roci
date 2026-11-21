@@ -125,3 +125,14 @@ describe('picker order', () => {
     expect(providers.indexOf('on-device')).toBeLessThan(providers.indexOf('openai'));
   });
 });
+
+describe('speech-only providers', () => {
+  it('a model added by name on Deepgram or ElevenLabs is a speech model on its own AI SDK route', () => {
+    const added = [provider('deepgram', [{ id: 'nova-3' }]), provider('elevenlabs', [{ id: 'scribe_v2' }])];
+    const options = speechModelOptions(added, {});
+    expect(options.map((o) => modelKey(o))).toEqual(expect.arrayContaining([modelKey({ provider: 'deepgram', model: 'nova-3' }), modelKey({ provider: 'elevenlabs', model: 'scribe_v2' })]));
+    expect(adapterFor({ provider: 'deepgram', model: 'nova-3' }, added)).toBe('deepgram');
+    expect(adapterFor({ provider: 'elevenlabs', model: 'scribe_v2' }, added)).toBe('elevenlabs');
+  });
+});
+

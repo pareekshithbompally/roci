@@ -63,7 +63,7 @@ const ServerAppRow: React.FC<ProviderDetailProps> = ({ provider }) => {
 /**
  * Local servers: which app they are (unless found on that app's own port), their settings, and the models the live probe syncs (no Test; the probe is the check).
  * Cloud providers that can list models: Test, and Add model from that list. Speech-only providers (Deepgram,
- * ElevenLabs): the key alone; their models are picked in Transcription.
+ * ElevenLabs): the key, and models added by name.
  */
 const ProviderBody: React.FC<ProviderDetailProps> = ({ provider }) => {
   if (isLocalProviderId(provider.provider)) {
@@ -76,7 +76,12 @@ const ProviderBody: React.FC<ProviderDetailProps> = ({ provider }) => {
     );
   }
   if (canListModels(provider)) return <ListedProviderDetail provider={provider} />;
-  return <ProviderConnection provider={provider} />;
+  return (
+    <>
+      <ProviderConnection provider={provider} />
+      <ProviderModels provider={provider} addByName />
+    </>
+  );
 };
 
 export const ProviderDetail: React.FC<ProviderDetailProps> = ({ provider }) => {

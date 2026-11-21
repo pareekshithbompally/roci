@@ -19,17 +19,21 @@ interface ProviderModelsProps {
   provider: ModelProvider;
   /** Loads the model list Add searches; absent for local servers, which sync their own models. */
   connection?: ProviderConnection;
+  /** No model list to load (speech-only providers): Add takes the model's name as typed. */
+  addByName?: boolean;
 }
 
 interface AddModelPickerProps {
   provider: string;
-  connection: ProviderConnection;
+  /** Absent: nothing to load, the model is added by its name. */
+  connection?: ProviderConnection;
   added: ReadonlySet<string>;
   onAdd: (model: ListedModel) => void;
 }
 
 /** What the list says while it has no rows to show. */
-function emptyText(status: ConnectionStatus): string {
+function emptyText(status: ConnectionStatus | undefined): string {
+  if (!status) return 'Type the model’s name, as Browse Models lists it';
   if (status.state === 'checking') return 'Loading models…';
   if (status.state === 'failed') return status.message;
   return 'No models found';
@@ -37,22 +41,22 @@ function emptyText(status: ConnectionStatus): string {
 
 /**
  * "Add model" on the Models label: opening it loads the provider's model list (or reuses Test's); a name the list
- * lacks, or any name when the list can't load, can be added as typed.
+ * lacks, or any name when the list can't load or there is none, can be added as typed.
  */
 const AddModelPicker: React.FC<AddModelPickerProps> = ({ provider, connection, added, onAdd }) => {
   // Re-renders when the catalog arrives, so its facts join what the provider reported.
   useModelCatalog();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const { status } = connection;
-  const available = status.state === 'connected' ? status.models : [];
+  const status = connection?.status;
+  const available = status?.state === 'connected' ? status.models : [];
   const typed = search.trim();
   const unlisted = typed !== '' && !added.has(typed) && !available.some((m) => m.id === typed);
 
   const changeOpen = (next: boolean) => {
     setPickerOpen(next);
     if (!next) setSearch('');
-    if (next && (status.state === 'untested' || status.state === 'failed')) connection.test();
+    if (next && (status?.state === 'untested' || status?.state === 'failed')) connection?.test();
   };
 
   const add = (model: ListedModel) => {
@@ -75,7 +79,7 @@ const AddModelPicker: React.FC<AddModelPickerProps> = ({ provider, connection, a
       trigger={<CardRow role="button" tabIndex={0} title="Add Model" tone="accent" className="cursor-pointer" />}
     >
       {unlisted && (
-        <CommandGroup heading="Not in the provider's list">
+        <CommandGroup heading={connection ? "Not in the provider's list" : undefined}>
           <CommandRow value={typed} onSelect={() => add({ id: typed, report: {} })} leading={<Icon icon={Plus} size="sm" tone="faint" />} label={`Add “${typed}”`} />
         </CommandGroup>
       )}
@@ -92,7 +96,7 @@ const AddModelPicker: React.FC<AddModelPickerProps> = ({ provider, connection, a
   );
 };
 
-export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connection }) => {
+export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connection, addByName = false }) => {
   const { updateProvider } = useSettings();
   const [renaming, setRenaming] = useState<Model | null>(null);
   // Re-renders when the catalog arrives, so its facts join what the provider reported.
@@ -100,7 +104,7 @@ export const ProviderModels: React.FC<ProviderModelsProps> = ({ provider, connec
   const models = provider.models ?? [];
   const id = provider.provider;
 
-  const canAdd = !!connection && connection.status.state !== 'incomplete';
+  const canAdd = addByName || (!!connection && connection.status.state !== 'incomplete');
   if (models.length === 0 && !canAdd) return null;
 
   const setModels = (next: Model[]) => updateProvider(id, { models: next });
