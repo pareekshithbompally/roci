@@ -1,17 +1,26 @@
-/** Show in Finder, the one way everywhere: Finder's own icon at list-art size in a round push button (named on hover);
- *  nothing where there is no Finder. */
+/** Show in Finder, the one way everywhere: the kit's square toolbar IconButton with Finder's own icon (macOS's, else the
+ *  bundled one), named on hover; nothing where there is no Finder. */
 
 import React from 'react';
-import { Button } from '@shared/ui';
+import { IconButton } from '@shared/ui';
 import { APP_CONFIG } from '@config/app.config';
 import { UI_CONFIG } from '@config/ui.config';
 import { platform } from '@platform/index';
 import { SHOW_IN_FINDER, showInFinder } from '@shared/utils/savedFileToast';
-import { AppIcon } from './AppIcon';
+import { useAppIcon } from './AppIcon';
 
-export const ShowInFinderButton: React.FC<{ path: string | null | undefined }> = ({ path }) =>
-  platform.hasFileManager ? (
-    <Button variant="outline" size="iconSm" disabled={!path} onClick={() => path && showInFinder(path)} aria-label={SHOW_IN_FINDER} title={SHOW_IN_FINDER}>
-      <AppIcon app={APP_CONFIG.macApps.finder} size="tile" fallback={UI_CONFIG.appIcons.finder} />
-    </Button>
-  ) : null;
+export const ShowInFinderButton: React.FC<{ path: string | null | undefined }> = ({ path }) => {
+  const finder = useAppIcon(APP_CONFIG.macApps.finder) ?? UI_CONFIG.appIcons.finder;
+  if (!platform.hasFileManager) return null;
+  return (
+    <IconButton
+      image={finder}
+      appIcon
+      label={SHOW_IN_FINDER}
+      size="toolbar"
+      variant="outline"
+      disabled={!path}
+      onClick={() => path && showInFinder(path)}
+    />
+  );
+};

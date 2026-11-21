@@ -4,6 +4,8 @@ import type { LucideIcon } from 'lucide-react';
 import { cn } from './utils';
 import { platform } from '@platform/index';
 import { Icon, type IconSize } from './icon';
+import { LIST_ART_PX } from './icon-tile';
+import { UI_CONFIG } from '@config/ui.config';
 
 /** Canonical button: colour lives in `variant`, shape in `size`; call sites never pass colour or padding classes. */
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'dangerTint' | 'success' | 'accent' | 'accentTint' | 'ghost' | 'dangerGhost' | 'link' | 'ai' | 'bar';
@@ -86,8 +88,7 @@ export function Button({ variant = 'primary', size = 'sm', loading, className, t
   );
 }
 
-export interface IconButtonProps extends Omit<ButtonProps, 'size' | 'children'> {
-  icon: LucideIcon;
+export type IconButtonProps = Omit<ButtonProps, 'size' | 'children'> & {
   /** Accessible name — required: an icon alone has none. */
   label: string;
   size?: 'xs' | 'toolbar' | 'sm' | 'md' | 'fab';
@@ -95,7 +96,12 @@ export interface IconButtonProps extends Omit<ButtonProps, 'size' | 'children'> 
   filled?: boolean;
   /** Rotate the glyph while work runs (Rescan, Sync) */
   spin?: boolean;
-}
+} & (
+  | { icon: LucideIcon; image?: never; appIcon?: never }
+  /** An image instead of a glyph (an app's icon, Show in Finder), at list-art size; `appIcon`: a macOS app icon, whose body
+   *  sits inside padding, scaled so the body is list-art size. */
+  | { image: string; appIcon?: boolean; icon?: never }
+);
 
 /** Each icon-button size as its button shape and glyph size; toolbar glyphs match the labelled controls beside them. */
 const ICON_BUTTON_SIZES: Record<NonNullable<IconButtonProps['size']>, { button: ButtonSize; icon: IconSize }> = {
@@ -107,11 +113,14 @@ const ICON_BUTTON_SIZES: Record<NonNullable<IconButtonProps['size']>, { button: 
   fab: { button: 'fab', icon: 'md' },
 };
 
-export function IconButton({ icon, label, size = 'md', variant = 'ghost', filled, spin, ...props }: IconButtonProps) {
+export function IconButton({ icon, image, appIcon, label, size = 'md', variant = 'ghost', filled, spin, ...props }: IconButtonProps) {
   const shape = ICON_BUTTON_SIZES[size];
+  const imagePx = appIcon ? Math.round(LIST_ART_PX / UI_CONFIG.appIconBody) : LIST_ART_PX;
   return (
     <Button variant={variant} size={shape.button} aria-label={label} title={label} {...props}>
-      <Icon icon={icon} size={shape.icon} className={cn(filled && 'fill-current', spin && 'animate-spin')} />
+      {image
+        ? <img src={image} alt="" aria-hidden width={imagePx} height={imagePx} className="max-w-none shrink-0" />
+        : icon && <Icon icon={icon} size={shape.icon} className={cn(filled && 'fill-current', spin && 'animate-spin')} />}
     </Button>
   );
 }
