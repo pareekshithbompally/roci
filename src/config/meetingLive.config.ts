@@ -11,8 +11,8 @@ export const MEETING_LIVE_CONFIG = {
   storageKey: 'roci-meeting-live',
   /** Chunks are mono 16-bit PCM at the transcription sample rate. */
   sampleRate: TRANSCRIPTION_CONFIG.sampleRate,
-  /** The sides a capture source records; a meeting that streams runs one stream per side. */
-  sides: { microphone: ['microphone'], system: ['system'], systemAndMicrophone: ['microphone', 'system'] } satisfies Record<AudioCaptureSource, MeetingSource[]>,
+  /** The sides a capture source records; a meeting that streams runs one stream per side (an imported file streams none). */
+  sides: { microphone: ['microphone'], system: ['system'], systemAndMicrophone: ['microphone', 'system'], 'file-upload': [] } satisfies Record<AudioCaptureSource, MeetingSource[]>,
   /** The speaker label of each source in the transcript. */
   speakers: { microphone: 'You', system: 'Others' } satisfies Record<MeetingSource, string>,
   /** A source with more audio than this waiting to be transcribed drops its oldest chunks to catch up; the draft then says it

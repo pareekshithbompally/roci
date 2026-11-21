@@ -41,7 +41,8 @@ async function openStream(family: TranscriptionFamily, model: Parameters<typeof 
   const failed = () => {
     if (failure) throw failure;
   };
-  await result.warnings.catch((error: unknown) => {
+  // `warnings` is a then-able, not a Promise: wrapped so its rejection is caught.
+  await Promise.resolve(result.warnings).catch((error: unknown) => {
     stop.abort();
     throw error;
   });
