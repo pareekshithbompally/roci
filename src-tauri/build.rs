@@ -3,6 +3,7 @@ fn main() {
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
         link_macos_swift_runtime();
         link_mlx();
+        link_clang_runtime();
         compile_permission_guide();
         compile_choice_menu();
         compile_native_alert();
@@ -48,6 +49,18 @@ fn compile_app_intents() {
 fn link_macos_swift_runtime() {
     println!("cargo:rustc-link-search=native=/usr/lib/swift");
     println!("cargo:rustc-link-arg=-Wl,-rpath,/usr/lib/swift");
+}
+
+/// Clang's runtime, which the Objective-C and Swift objects expect (`__isPlatformVersionAtLeast`, behind `@available`) and
+/// rustc's `-nodefaultlibs` link leaves out: linked as clang links it for any Xcode app.
+fn link_clang_runtime() {
+    let output = std::process::Command::new("xcrun")
+        .args(["clang", "--print-file-name=libclang_rt.osx.a"])
+        .output()
+        .expect("xcrun clang is required to find its runtime");
+    assert!(output.status.success(), "xcrun clang --print-file-name failed");
+    let runtime = String::from_utf8(output.stdout).expect("clang prints a UTF-8 path");
+    println!("cargo:rustc-link-arg={}", runtime.trim());
 }
 
 /// RociMLX.framework (scripts/build-mlx.sh): found in `frameworks/` when developing, in the app's Frameworks once bundled.
