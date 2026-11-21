@@ -27,6 +27,11 @@ export const MEETING_LIVE_CONFIG = {
    *  `windowMs`; a line of at least `sentenceWords` words the sound shows is local survives its echoing neighbours. */
   echo: { windowMs: 1_500, utteranceGapMs: 700, sentenceWords: 3, similarity: 0.6 },
   copy: {
+    /** The recording's controls. */
+    pause: 'Pause',
+    resume: 'Resume',
+    stop: 'Stop',
+    stopping: 'Stopping…',
     /** Stops and keeps the audio and live transcript; the summary waits for Summarize. */
     saveForLater: 'Save for Later',
     /** The recording's models, named under its title. */

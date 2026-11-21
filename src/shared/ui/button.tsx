@@ -6,7 +6,7 @@ import { platform } from '@platform/index';
 import { Icon, type IconSize } from './icon';
 
 /** Canonical button: colour lives in `variant`, shape in `size`; call sites never pass colour or padding classes. */
-export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'success' | 'accent' | 'ghost' | 'dangerGhost' | 'link' | 'ai' | 'bar';
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'dangerTint' | 'success' | 'accent' | 'accentTint' | 'ghost' | 'dangerGhost' | 'link' | 'ai' | 'bar';
 
 export type ButtonSize = 'inline' | 'toolbar' | 'sm' | 'md' | 'lg' | 'icon' | 'iconSm' | 'iconXs' | 'fab';
 
@@ -16,8 +16,12 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   /** The system push button (macOS 26 / iOS 26): a filled control-grey capsule, no outline. */
   outline: 'bg-control text-primary hover:bg-control-hover',
   danger: 'bg-danger text-on-accent hover:opacity-90',
+  /** A screen's one red action, as a tint (Stop a recording, beside the Recording badge in the same red). */
+  dangerTint: 'bg-danger-subtle text-danger hover:opacity-80',
   success: 'bg-success text-on-accent hover:opacity-90',
   accent: 'bg-accent text-on-accent hover:opacity-90',
+  /** The next step, called out quietly (Resume a paused recording). */
+  accentTint: 'bg-accent-wash text-accent hover:opacity-80',
   ghost: 'text-muted hover:text-primary hover:bg-hover',
   /** Quiet destructive (trash icons, Remove) — red only on hover */
   dangerGhost: 'text-faint hover:text-danger hover:bg-danger-subtle',

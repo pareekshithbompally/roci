@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { Clock, Pause, Play, Square } from 'lucide-react';
 import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import { useSettings } from '@shared/contexts/SettingsContext';
-import { Button, Icon, Text, TitlebarSpacer } from '@shared/ui';
+import { Button, Icon, IconButton, Text, TitlebarSpacer } from '@shared/ui';
 import { MeetingStatus, ModelCreditLine } from '@shared/components';
 import type { MeetingPhase } from '@shared/types/meetingPhase';
 import { LAYOUT } from '@config/layout.config';
@@ -39,22 +39,31 @@ function useClock(): string {
   return formatClock(recordedSeconds(useRecordingStore.getState()));
 }
 
+/** One labelled, coloured action (Stop, in the Recording badge's red); Pause / Resume and Save for Later are icons with their
+ *  names on hover, Resume tinted while paused as the step that's next (Voice Memos, QuickTime). */
 const Controls: React.FC<{ paused: boolean; busy: boolean; beforeStop: () => Promise<void> }> = ({ paused, busy, beforeStop }) => (
-  <div className="flex shrink-0 items-center gap-2">
-    <Button variant="secondary" size="sm" disabled={busy} onClick={() => void (paused ? recording.resume() : recording.pause()).catch(report('pause'))}>
-      <Icon icon={paused ? Play : Pause} size="xs" />
-      {paused ? 'Resume' : 'Pause'}
-    </Button>
+  <div className="flex shrink-0 items-center gap-1">
+    <IconButton
+      icon={paused ? Play : Pause}
+      label={paused ? LIVE.copy.resume : LIVE.copy.pause}
+      size="sm"
+      variant={paused ? 'accentTint' : 'ghost'}
+      disabled={busy}
+      onClick={() => void (paused ? recording.resume() : recording.pause()).catch(report('pause'))}
+    />
     {/* Offered once paused: keep the audio and transcribe later, instead of now. */}
     {paused && (
-      <Button variant="secondary" size="sm" disabled={busy} onClick={() => void beforeStop().catch(report('save notes')).then(() => recording.stop(true)).catch(report('save for later'))}>
-        <Icon icon={Clock} size="xs" />
-        {LIVE.copy.saveForLater}
-      </Button>
+      <IconButton
+        icon={Clock}
+        label={LIVE.copy.saveForLater}
+        size="sm"
+        disabled={busy}
+        onClick={() => void beforeStop().catch(report('save notes')).then(() => recording.stop(true)).catch(report('save for later'))}
+      />
     )}
-    <Button variant="outline" size="sm" disabled={busy} onClick={() => void beforeStop().catch(report('save notes')).then(() => recording.stop()).catch(report('stop'))}>
+    <Button variant="dangerTint" size="sm" disabled={busy} onClick={() => void beforeStop().catch(report('save notes')).then(() => recording.stop()).catch(report('stop'))}>
       <Icon icon={Square} size="xs" className="fill-current" />
-      {busy ? 'Stopping…' : 'Stop'}
+      {busy ? LIVE.copy.stopping : LIVE.copy.stop}
     </Button>
   </div>
 );
