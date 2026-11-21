@@ -20,9 +20,11 @@ import { useChatModelLock } from '@features/chat/stores';
 interface ModelPickerProps {
   /** Compact mode for inline display */
   compact?: boolean;
+  /** The model's logo alone (a narrow composer); its name on hover and in the menu. */
+  iconOnly?: boolean;
 }
 
-export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => {
+export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false, iconOnly = false }) => {
   const { providers, settings, setSettings, saveSettings } = useSettings();
   const [open, setOpen] = useState(false);
   const catalogLoaded = useModelCatalog();
@@ -56,15 +58,17 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({ compact = false }) => 
       variant="ghost"
       size="toolbar"
       disabled={!hasModels || !!locked}
-      title={locked ? undefined : hasModels ? MODEL_PICKER_COPY.select : MODEL_PICKER_COPY.noModels}
+      title={locked ? undefined : iconOnly && selected ? selected.label : hasModels ? MODEL_PICKER_COPY.select : MODEL_PICKER_COPY.noModels}
       onClick={onClick}
     >
       {selected ? (
         <>
           <ModelIcon provider={selected.provider} modelId={selected.modelId} size={compact ? 14 : 16} />
-          <Text variant="label" tone="inherit" truncate className="max-w-32">
-            {selected.label}
-          </Text>
+          {!iconOnly && (
+            <Text variant="label" tone="inherit" truncate className="max-w-32">
+              {selected.label}
+            </Text>
+          )}
         </>
       ) : (
         <Text variant="label" tone="faint">

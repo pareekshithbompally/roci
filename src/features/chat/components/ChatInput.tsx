@@ -22,7 +22,8 @@ import { LAYOUT } from '@config/layout.config';
 import { shortcutLabel } from '@features/shortcuts';
 import { registerChatComposer } from '@features/chat/stores';
 import { canSendDraft } from '@features/chat/utils';
-import { COMPOSER_MAX_HEIGHT_PX, DICTATION_COPY } from '@config/chat.config';
+import { COMPOSER_ICON_ONLY_BELOW_PX, COMPOSER_MAX_HEIGHT_PX, DICTATION_COPY } from '@config/chat.config';
+import { useElementWidth } from '@shared/hooks/useElementWidth';
 import { useRecordingMeetingId } from '@features/recording';
 import { platform } from '@platform/index';
 import type { MeetingListItem } from '@services/meetingReferenceService';
@@ -82,6 +83,10 @@ interface ChatInputProps {
   onSpeechStop?: () => void;
   onSpeechTogglePause?: () => void;
   onSpeechCancel?: () => void;
+  /** The field's hint in place of the rotating ones (the meeting chat: "Ask about this meeting…"). */
+  placeholder?: string;
+  /** The meeting this chat is about (the meeting chat window): attached, but its chip isn't repeated in the box. */
+  scopeMeetingId?: string;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -108,8 +113,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onSpeechStop,
   onSpeechTogglePause,
   onSpeechCancel,
+  placeholder,
+  scopeMeetingId,
 }) => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // The composer's own width decides its toolbar: icons only when narrow (the meeting chat window, a narrow window).
+  const frameRef = useRef<HTMLDivElement>(null);
+  const width = useElementWidth(frameRef);
+  const iconOnly = width !== null && width < COMPOSER_ICON_ONLY_BELOW_PX;
   const fileInputRef = useRef<HTMLInputElement>(null);
   /** Where the "@" or "/" that opened the popup sits in the draft. */
   const triggerAt = useRef(-1);
@@ -267,7 +278,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         variant="bare"
         ref={inputRef}
         aria-label="Message"
-        placeholder={phone ? PHONE_PLACEHOLDER : PLACEHOLDER_HINTS[hintIndex]}
+        placeholder={placeholder ?? (phone ? PHONE_PLACEHOLDER : PLACEHOLDER_HINTS[hintIndex])}
         value={value}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
@@ -281,10 +292,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     </Text>
   );
 
-  // Phone: every item in the row is one control height, so +, the text line and send share a centre line (Messages).
-  const controlSize = phone ? 'sm' : 'md';
+  // Every item in the row is one control height, so the toolbar (or, on a phone, +, the text line) and send share a centre line.
+  const controlSize = 'sm';
   const sendControls = (
-    <div className="flex items-center gap-2">
+    <div className="flex shrink-0 items-center gap-2">
       {canDictate && !phone && (
         <IconButton icon={Mic} label={micLabel} size="toolbar" onClick={onSpeechStart} disabled={disabled || micHeld} />
       )}
@@ -300,12 +311,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Mac: the toolbar under the field (attach, model, tools, thinking, context gauge, then send).
   const toolbar = (
-    <div className="flex items-center justify-between px-3 pb-2">
-      <div className="flex items-center gap-0.5">
+    <div className="flex items-center justify-between gap-2 px-3 pb-2">
+      {/* Gives way before send does: the send controls never leave the row. */}
+      <div className="flex min-w-0 items-center gap-0.5">
         {/* Attach: files and screenshots only; tools have their own picker. */}
         {onAttach && <ComposerAddMenu attachOptions={attach.options} onPickFiles={openFilePicker} disabled={disabled} onScreenshot={attach.images ? onScreenshot : undefined} />}
-        <ModelPicker compact />
-        <ToolsPicker catalog={toolCatalog} />
+        <ModelPicker compact iconOnly={iconOnly} />
+        <ToolsPicker catalog={toolCatalog} iconOnly={iconOnly} />
         <ReasoningPicker />
         {/* Context-window gauge (hides when the limit is unknown or no usage yet). */}
         <ContextRing usage={contextUsage ?? null} tools={toolsShare(toolCatalog)} cost={chatCost ?? undefined} />
@@ -315,7 +327,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   );
 
   return (
-    <div className={cn('relative px-4 py-2', LAYOUT.chatColumn, phone && 'flex items-end gap-2')}>
+    <div ref={frameRef} className={cn('relative px-4 py-2', LAYOUT.chatColumn, phone && 'flex items-end gap-2')}>
       {/* Phone (Messages): the round + stands apart from the capsule field; while dictating the pill has the row alone. */}
       {phone && !voiceActive && <IconButton icon={Plus} label="Add" size="fab" variant="bar" onClick={() => setAddOpen(true)} />}
       <Popover anchored open={popup !== null} onOpenChange={(open) => { if (!open) closeMentionPopup(); }}>
@@ -353,7 +365,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               inert={voiceActive || undefined}
               style={voiceActive ? { pointerEvents: 'none' } : undefined}
             >
-              <ContextChips meetings={selectedMeetings} onRemove={handleRemoveMeeting} />
+              <ContextChips meetings={scopeMeetingId ? selectedMeetings.filter((m) => m.id !== scopeMeetingId) : selectedMeetings} onRemove={handleRemoveMeeting} />
               <AttachmentStrip attachments={attachments} onRemove={onRemoveAttachment} />
               <Input ref={fileInputRef} type="file" multiple accept={attach.accept} onChange={handleFileChange} className="hidden" />
               {phone ? (

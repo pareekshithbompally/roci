@@ -39,7 +39,12 @@ const ScrollToBottomBtn: React.FC<{ onClick: () => void }> = ({ onClick }) => (
 );
 
 export interface ChatShellProps {
-  emptyStateMessage: string;
+  /** A quiet line in the empty chat; none where the field's own hint says it (the meeting chat). */
+  emptyStateMessage?: string;
+  /** The field's hint in place of the rotating ones. */
+  placeholder?: string;
+  /** The meeting this chat is about (the meeting chat window): attached, its chip not repeated in the box. */
+  scopeMeetingId?: string;
   headerSlot?: React.ReactNode;
   className?: string;
   /** Shared-element id so the composer glides in from the landing page (main chat view only). */
@@ -50,6 +55,8 @@ export interface ChatShellProps {
 
 export const ChatShell: React.FC<ChatShellProps> = ({
   emptyStateMessage,
+  placeholder,
+  scopeMeetingId,
   headerSlot,
   className = '',
   composerLayoutId,
@@ -190,7 +197,7 @@ export const ChatShell: React.FC<ChatShellProps> = ({
   const isLoadingSession = isSessionLoading && !currentSession;
   const emptyState = (
     <AnimatePresence initial={false}>
-      {!voice.isVoiceActive && (
+      {!voice.isVoiceActive && emptyStateMessage && (
         <motion.div
           key="empty-state"
           initial={{ opacity: 0, y: 8 }}
@@ -275,6 +282,8 @@ export const ChatShell: React.FC<ChatShellProps> = ({
           onSpeechStop={voice.handleSpeechStop}
           onSpeechTogglePause={voice.speech.togglePause}
           onSpeechCancel={voice.speech.cancel}
+          placeholder={placeholder}
+          scopeMeetingId={scopeMeetingId}
         />
       </motion.div>
 

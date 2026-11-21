@@ -40,7 +40,8 @@ import { MENU_GAP_PT } from '@config/ui.config';
 import { TOOLS_MENU_IDS, toolSwitches, toolsMenu } from './toolsMenu';
 
 /** `catalog`: the composer's one tool catalog (its context ring reads the same). */
-export const ToolsPicker: React.FC<{ catalog: ToolCatalog }> = ({ catalog }) => {
+/** `iconOnly`: the glyph alone (a narrow composer), still saying how many tools are on to VoiceOver and on hover. */
+export const ToolsPicker: React.FC<{ catalog: ToolCatalog; iconOnly?: boolean }> = ({ catalog, iconOnly = false }) => {
   const [open, setOpen] = useState(false);
   const [flyout, setFlyout] = useState<string | null>(null);
   const { openSettings } = useAppActions();
@@ -76,7 +77,7 @@ export const ToolsPicker: React.FC<{ catalog: ToolCatalog }> = ({ catalog }) => 
       onClick={onClick}
     >
       <Icon icon={SlidersHorizontal} size="xs" />
-      Tools
+      {!iconOnly && 'Tools'}
       {webSearch.enabled && <Icon icon={Globe} size="xs" tone="accent" label="Web search on" />}
       <Icon icon={ChevronDown} size="xs" className={cn('transition-transform', open && 'rotate-180')} />
     </Button>

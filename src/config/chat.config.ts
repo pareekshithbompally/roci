@@ -34,6 +34,12 @@ export const SUGGESTION_COUNT = 3;
 /** The composer's textarea grows with its text up to this height, px, then scrolls. */
 export const COMPOSER_MAX_HEIGHT_PX = 200;
 
+/** Under this width, px (the meeting chat's window, a narrow main window), the composer's toolbar shows icons only. */
+export const COMPOSER_ICON_ONLY_BELOW_PX = 520;
+
+/** The meeting chat window: its field's hint (the window is already about the meeting, so nothing else repeats it). */
+export const MEETING_CHAT_PLACEHOLDER = 'Ask about this meeting…';
+
 /** Meetings offered in the composer's @ list, newest first. */
 export const MENTION_RECENT_MEETINGS = 20;
 

@@ -5,6 +5,7 @@ import { ChevronDown, Maximize2, SquarePen } from 'lucide-react';
 import { IconButton, Surface, Text } from '@shared/ui';
 import { useMeetingBrief } from '@shared/hooks/useMeetings';
 import { UI_CONFIG } from '@config/ui.config';
+import { MEETING_CHAT_PLACEHOLDER } from '@config/chat.config';
 import { closeMeetingChat, expandMeetingChat, useChatCurrentSessionId, useChatStore } from '@features/chat/stores';
 import { ChatShell } from './ChatShell';
 
@@ -69,10 +70,7 @@ export const MeetingChatPopout: React.FC<MeetingChatPopoutProps> = ({ meetingId,
       role="dialog"
       aria-label={`Chat about ${meetingTitle}`}
     >
-      <ChatShell
-        emptyStateMessage="Ask about this meeting..."
-        headerSlot={header}
-      />
+      <ChatShell placeholder={MEETING_CHAT_PLACEHOLDER} scopeMeetingId={meetingId} headerSlot={header} />
     </Surface>
   );
 };
