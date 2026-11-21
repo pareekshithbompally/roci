@@ -1,7 +1,7 @@
 /** Saves a meeting's transcript and summary; each save advances its status, and the store announces it (meeting://changed). */
 
 import type { MeetingSummary, StoredTranscriptSegment } from '@shared/types';
-import type { NewTranscript } from '@shared/types/native';
+import type { MeetingKnowledge, NewTranscript } from '@shared/types/native';
 import { store } from '@services/db';
 import { normalizeDueDate } from '@shared/utils/todo.utils';
 import { remindersSync } from '@services/reminders';
@@ -12,6 +12,8 @@ interface SummarySave {
   title: string;
   summary: MeetingSummary;
   categories: string[];
+  /** What the meeting was about, when it was analysed here; none keeps its knowledge as it is. */
+  knowledge?: MeetingKnowledge;
 }
 
 interface TranscriptInput {

@@ -21,7 +21,7 @@ import { liveStreams, type StreamLine } from '@services/ai/transcription/liveStr
 
 const open = (list: object[]) => {
   parts.list = list;
-  return sdkStreaming('openai-compatible').open({ model: 'm', resolved: {} as never, language: 'en' });
+  return sdkStreaming('openai-compatible').open({ model: 'm', resolved: {} as never, language: 'en', terms: [] });
 };
 const run = async (list: object[]) => (await open(list)).finish();
 
@@ -66,7 +66,7 @@ describe('cloud stream reader', () => {
     ];
     const lines: StreamLine<'mic'>[] = [];
     const engine = sdkStreaming('openai-compatible');
-    const session = liveStreams<'mic'>(() => engine.open({ model: 'm', resolved: {} as never, language: 'en' }), {
+    const session = liveStreams<'mic'>(() => engine.open({ model: 'm', resolved: {} as never, language: 'en', terms: [] }), {
       line: (line) => lines.push(line),
       partial: () => undefined,
       fail: (reason) => { throw new Error(reason); },

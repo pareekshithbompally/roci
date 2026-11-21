@@ -1,6 +1,7 @@
 /** The one transcription pipeline: audio → 16 kHz mono parts → adapter per part → one offset-timed result. */
 
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
+import { savedTerms } from '@shared/utils/personalization';
 import { encodeWavInt16, splitSamples, toMonoSamples } from '@shared/utils/wav.utils';
 import { mergeTokenUsage } from '@services/ai/types';
 import { getProviderTitle } from '@shared/utils/provider.utils';
@@ -176,5 +177,5 @@ export async function runTranscription(
   const chunks = await speechChunks(samples, TRANSCRIPTION_CONFIG.partSeconds[adapterId] * sampleRate, { vad, whole });
   if (chunks.length === 0) return { text: '', segments: [] };
 
-  return transcribeChunks(chunks, transcribePart ?? ADAPTERS[adapterId], { model, resolved, signal }, onProgress);
+  return transcribeChunks(chunks, transcribePart ?? ADAPTERS[adapterId], { model, resolved, terms: savedTerms(), signal }, onProgress);
 }

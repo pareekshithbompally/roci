@@ -8,6 +8,7 @@ import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { generateStructured } from '@services/ai/structured';
 import { AiError } from '@services/ai/errors';
 import { contextTokensFor, excerptTranscript, transcriptBudget } from './excerpt';
+import { promptPersonalization } from '@shared/utils/personalization';
 
 export async function analyzeTranscript(args: {
   transcript: string;
@@ -25,6 +26,7 @@ export async function analyzeTranscript(args: {
     categories: args.categories,
     meetingContext: args.meetingContext,
     userNotes: args.userNotes,
+    personalization: promptPersonalization(),
     temporalContext: formatTemporalContext(),
   });
   const budget = transcriptBudget(await contextTokensFor(args.resolved), instructions);

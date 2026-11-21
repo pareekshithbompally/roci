@@ -9,7 +9,7 @@ import { speechModelOptions } from '@services/ai/transcription/catalog';
 
 const PLUGIN = 'plugin:apple-intelligence|';
 const engine = STREAMING['apple-speech']!;
-const open = () => engine.open({ model: 'apple-speech', resolved: null, language: 'en' });
+const open = () => engine.open({ model: 'apple-speech', resolved: null, language: 'en', terms: [] });
 const startedIds = () => invoke.mock.calls.filter(([command]) => command === `${PLUGIN}speech_live_start`).map(([, args]) => args.id);
 
 beforeEach(() => {

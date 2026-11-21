@@ -9,6 +9,7 @@ use std::sync::{Mutex, Once};
 use serde::Serialize;
 use transcribe_cpp::{DeviceType, Model, RunOptions, Session, SessionOptions};
 
+use super::vocabulary::{drop_prompt_echo, VocabularySlot};
 use crate::models::gpu::{self, Priority};
 use crate::models::LocalError;
 use crate::sync::lock;
@@ -43,12 +44,16 @@ pub struct Loaded {
     pub streams: bool,
     /// The language codes the model takes (`en`, or locales like `en-US`); empty = any.
     languages: Vec<String>,
+    /// How runs take the custom vocabulary.
+    vocabulary: VocabularySlot,
 }
 
 impl Loaded {
-    /// Run options in the model's own spelling of `language`.
-    pub fn run_options(&self, language: &str) -> RunOptions {
-        RunOptions { language: hint_for(&self.languages, language), ..RunOptions::default() }
+    /// Run options in the model's own spelling of `language`, with the custom vocabulary as of now (a stream takes only
+    /// Parakeet's bias, a whole-clip run the context prompt too).
+    pub fn run_options(&self, language: &str, stream: bool) -> RunOptions {
+        let options = RunOptions { language: hint_for(&self.languages, language), ..RunOptions::default() };
+        self.vocabulary.apply(options, stream)
     }
 }
 
@@ -110,8 +115,12 @@ impl Engine {
         for window in windows(pcm, max_samples) {
             let span = (seconds(window.start), seconds(window.end));
             let transcript = self.with_loaded(id, path, |loaded| {
-                let options = loaded.run_options(language);
-                gpu::run(Priority::Realtime, || loaded.session.run(&pcm[window], &options)).map_err(engine_error)
+                let options = loaded.run_options(language, false);
+                let mut transcript = gpu::run(Priority::Realtime, || loaded.session.run(&pcm[window], &options)).map_err(engine_error)?;
+                if let Some(prompt) = &options.prompt {
+                    drop_prompt_echo(&mut transcript, prompt);
+                }
+                Ok(transcript)
             })?;
             let heard = timed(transcript, span);
             out.segments.extend(heard.segments);
@@ -146,6 +155,7 @@ fn load(id: &'static str, path: &Path) -> Result<Loaded, LocalError> {
     let on_gpu = model.device().is_ok_and(|d| matches!(d.device_type, DeviceType::Gpu | DeviceType::Igpu));
     let session_options = SessionOptions { n_threads: if on_gpu { 1 } else { 0 }, ..SessionOptions::default() };
     let session = model.session_with(&session_options).map_err(engine_error)?;
+    let vocabulary = VocabularySlot::of(&model);
     log::info!("[stt] loaded {id} on {} (max {max_ms} ms per run)", model.backend());
     Ok(Loaded {
         id,
@@ -153,6 +163,7 @@ fn load(id: &'static str, path: &Path) -> Result<Loaded, LocalError> {
         max_samples: max_ms * SAMPLE_RATE / 1000,
         streams: capabilities.supports_streaming,
         languages: capabilities.languages,
+        vocabulary,
     })
 }
 

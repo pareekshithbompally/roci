@@ -32,7 +32,7 @@ const resolvedFor = (provider: string): ResolvedModel => ({
   providerConfig: {} as ResolvedModel['providerConfig'],
 });
 
-const analysis = { title: 'T', summary: { overview: 'o', keyDiscussionPoints: [], decisionsMade: [], actionItems: [], nextSteps: [] }, categories: [] };
+const analysis = { title: 'T', summary: { overview: 'o', keyDiscussionPoints: [], decisionsMade: [], actionItems: [], nextSteps: [] }, categories: [], knowledge: { entities: [], relations: [] } };
 
 beforeEach(() => {
   vi.clearAllMocks();

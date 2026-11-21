@@ -3,6 +3,7 @@
 pub mod commands;
 pub(crate) mod engine;
 mod live;
+mod vocabulary;
 
 use std::sync::Mutex;
 

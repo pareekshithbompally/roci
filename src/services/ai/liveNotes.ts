@@ -1,7 +1,8 @@
 /** One live-notes update with the Summary model, through the one structured call: the user's notes, the points so far and the
  *  new transcript in; the changes out. */
 
-import { LIVE_NOTES_PROMPT, buildLiveNotesInput, liveNotesSchema } from '@core/ai';
+import { liveNotesPrompt, buildLiveNotesInput, liveNotesSchema } from '@core/ai';
+import { promptPersonalization } from '@shared/utils/personalization';
 import type { LiveNotesChange, LiveNotesInput } from '@core/ai';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import { generateStructured } from './structured';
@@ -21,7 +22,7 @@ export async function refreshLiveNotes(args: {
   const reply: { points: LiveNotesChange[]; filled?: LiveNotesChange[] } = await generateStructured({
     job: 'liveNotes',
     model: args.resolved,
-    instructions: LIVE_NOTES_PROMPT,
+    instructions: liveNotesPrompt(promptPersonalization()),
     prompt: buildLiveNotesInput(args.input),
     schema: liveNotesSchema(args.input.notes.map((n) => n.id)),
     usage: { category: 'liveNotes', sessionId: args.meetingId },

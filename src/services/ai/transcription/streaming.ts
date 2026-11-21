@@ -26,7 +26,7 @@ export interface StreamingEngine {
   /** Streams it runs at once: a meeting needs two (you and the call), dictation one. */
   concurrent: number;
   /** Opens a stream; rejects when the model can't stream. */
-  open(request: { model: string; resolved: ResolvedModel | null; language: string }): Promise<LiveStream>;
+  open(request: { model: string; resolved: ResolvedModel | null; language: string; terms: string[] }): Promise<LiveStream>;
 }
 
 /** Every AI SDK speech family streams through the SDK (a model that can't refuses); engines on this Mac stream their own way. */

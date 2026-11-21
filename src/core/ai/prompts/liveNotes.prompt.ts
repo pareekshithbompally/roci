@@ -2,6 +2,7 @@
  *  liveNotesSchema. */
 
 import { SPEAKER_NAMING, TRANSCRIPT_GUIDE } from './transcript.prompt';
+import { personalizationSections, type PromptPersonalization } from './personalization.prompt';
 
 export interface LiveNotesInput {
   /** The user's lines, oldest first, under short ids ("n1"); `at` is the recording clock when typed ("12:38"), when known. */
@@ -18,7 +19,7 @@ export interface LiveNotesInput {
   transcript: string;
 }
 
-export const LIVE_NOTES_PROMPT = `You write live notes for a meeting while it happens. Every few seconds you get the transcript since your last update; turn it into clear notes the user can read at a glance. You also get the newest points and older ones the talk came back to, and earlier talk that relates to the user's notes.
+const LIVE_NOTES = `You write live notes for a meeting while it happens. Every few seconds you get the transcript since your last update; turn it into clear notes the user can read at a glance. You also get the newest points and older ones the talk came back to, and earlier talk that relates to the user's notes.
 
 ## Points
 
@@ -38,6 +39,11 @@ The user may type shorthand notes. They show what matters to them: fill in every
 ${TRANSCRIPT_GUIDE}
 
 ${SPEAKER_NAMING}`;
+
+/** The live-notes instructions, with what the user set in Personalization. */
+export function liveNotesPrompt(personalization: PromptPersonalization): string {
+  return [LIVE_NOTES, personalizationSections(personalization, 'transcript')].filter(Boolean).join('\n\n');
+}
 
 const section = (title: string, lines: string[]) => `## ${title}\n\n${lines.length > 0 ? lines.join('\n') : '(none)'}`;
 

@@ -4,6 +4,7 @@
 
 import type { ModelProvider } from '@shared/types/modelProviders';
 import { TRANSCRIPTION_CONFIG } from '@config/transcription.config';
+import { savedTerms } from '@shared/utils/personalization';
 import { toAiError } from '@services/ai/errors';
 import { recordUsage } from '@extensions/usage';
 import { adapterFor } from './catalog';
@@ -62,7 +63,7 @@ export async function openLiveStream(selection: SpeechSelection, providers: Mode
     const engine = STREAMING[adapterFor(selection, providers) ?? 'multimodal'];
     if (!engine) throw new Error(`${selection.model} doesn't stream.`);
     const { model, resolved } = await speechModelFor(selection, providers);
-    return tracked(await engine.open({ model, resolved, language: TRANSCRIPTION_CONFIG.language }), selection, sessionOf);
+    return tracked(await engine.open({ model, resolved, language: TRANSCRIPTION_CONFIG.language, terms: savedTerms() }), selection, sessionOf);
   } catch (error: unknown) {
     throw toAiError(error, 'speech', selection.provider);
   }

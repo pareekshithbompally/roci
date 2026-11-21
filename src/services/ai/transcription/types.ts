@@ -36,6 +36,8 @@ export interface PartRequest {
   model: string;
   /** The provider + model with its key and base URL; null for keyless engines (Hex, Apple speech). */
   resolved: ResolvedModel | null;
+  /** The custom vocabulary's terms, in priority order (engines that take terms read them). */
+  terms: string[];
   signal?: AbortSignal;
 }
 

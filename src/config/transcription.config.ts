@@ -37,6 +37,13 @@ export const TRANSCRIPTION_CONFIG = {
    *  silence this long (s) before a turn is marked. */
   turns: { joinGapSeconds: 3, markSilenceSeconds: 30, silence: 'pause' },
 
+  /** The custom vocabulary as cloud speech APIs take it: a context prompt of the first terms within `promptChars` (Whisper's
+   *  prompt holds 224 tokens), or a key-term list within the API's own limits (ElevenLabs streaming: 50 terms of ≤20 characters). */
+  vocabularyHints: {
+    promptChars: 500,
+    keyterms: { max: 50, maxChars: 20 },
+  },
+
   /** Longest part per adapter in seconds (32 kB/s): OpenAI-compatible caps uploads at 25 MB, Hex at 64 MiB. */
   partSeconds: {
     'openai-compatible': 600,

@@ -7,6 +7,8 @@ import type { LocalErrorPayload } from '@services/localModels.service';
 import { transcribeNatively } from './native';
 import type { TranscribePart } from './types';
 import type { LiveText, StreamingEngine } from './streaming';
+import type { RecognitionBoost } from '@config/personalization.config';
+import type { VocabularyEntry } from '@shared/types';
 import { platform } from '@platform/index';
 
 function onDeviceErrorMessage(error: unknown, model: string): string {
@@ -24,6 +26,10 @@ export const onDeviceTranscribePart: TranscribePart = ({ wav, model }) =>
     .catch((error: unknown) => {
       throw new Error(onDeviceErrorMessage(error, model), { cause: error });
     });
+
+/** The custom vocabulary and boost the engine's runs read from now on. */
+export const setSpeechVocabulary = (entries: VocabularyEntry[], boost: RecognitionBoost): Promise<void> =>
+  invoke('stt_set_vocabulary', { entries, boost });
 
 const display = (text: LiveText) => `${text.committed}${text.tentative}`.trim();
 

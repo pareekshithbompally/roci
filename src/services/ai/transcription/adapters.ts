@@ -3,14 +3,15 @@
 import { experimental_transcribe as transcribe, generateText } from 'ai';
 import { createModel, createTranscriptionModel } from '@services/ai/provider';
 import { extractTokenUsage } from '@services/ai/types';
-import { VERBATIM_TRANSCRIBE_PROMPT } from '@core/ai/prompts/transcription.prompt';
+import { verbatimTranscribePrompt } from '@core/ai/prompts/transcription.prompt';
 import { hexTranscribePart } from './hex';
 import { appleSpeechTranscribePart } from './appleSpeech';
 import { onDeviceTranscribePart } from './onDevice';
 import { SDK_SPEECH_FAMILIES, type SdkSpeechFamily, type TranscriptionAdapterId } from '@config/transcription.config';
-import type { TranscriptionModel } from 'ai';
 import type { ResolvedModel } from '@shared/utils/modelResolver';
 import type { PartRequest, TranscribePart, TranscriptResult } from './types';
+import { fileHints } from './vocabularyHints';
+import { withoutPromptEcho } from './promptEcho';
 
 /** Keyed adapters always receive a resolved model: the pipeline resolves one for every keyed provider. */
 function resolvedOf(request: PartRequest): ResolvedModel {
@@ -18,15 +19,17 @@ function resolvedOf(request: PartRequest): ResolvedModel {
   return request.resolved;
 }
 
-/** Any AI SDK transcription model → the shared result shape. */
-const viaSDK = (modelFor: (resolved: ResolvedModel) => TranscriptionModel): TranscribePart =>
+/** An AI SDK speech family's transcription model → the shared result shape, with the custom vocabulary as the family takes it. */
+const viaSDK = (family: SdkSpeechFamily): TranscribePart =>
   async (request) => {
+    const hints = fileHints(family, request.terms);
     const result = await transcribe({
-      model: modelFor(resolvedOf(request)),
+      model: createTranscriptionModel(family, resolvedOf(request)),
       audio: request.wav,
+      providerOptions: hints.providerOptions,
       abortSignal: request.signal,
     });
-    return {
+    const transcript: TranscriptResult = {
       text: result.text,
       segments: result.segments.map((s) => ({
         text: s.text,
@@ -35,6 +38,7 @@ const viaSDK = (modelFor: (resolved: ResolvedModel) => TranscriptionModel): Tran
         speaker: (s as Record<string, unknown>).speaker as string | undefined,
       })),
     };
+    return hints.prompt ? withoutPromptEcho(transcript, hints.prompt) : transcript;
   };
 
 const viaMultimodalPrompt: TranscribePart = async (request): Promise<TranscriptResult> => {
@@ -46,7 +50,7 @@ const viaMultimodalPrompt: TranscribePart = async (request): Promise<TranscriptR
         role: 'user',
         content: [
           { type: 'file', data: request.wav, mediaType: 'audio/wav' } as const,
-          { type: 'text', text: VERBATIM_TRANSCRIBE_PROMPT } as const,
+          { type: 'text', text: verbatimTranscribePrompt(request.terms) } as const,
         ],
       },
     ],
@@ -56,7 +60,7 @@ const viaMultimodalPrompt: TranscribePart = async (request): Promise<TranscriptR
 
 /** Every AI SDK speech family through the SDK; the rest through their own engine. */
 export const ADAPTERS: Record<TranscriptionAdapterId, TranscribePart> = {
-  ...(Object.fromEntries(SDK_SPEECH_FAMILIES.map((family) => [family, viaSDK((r) => createTranscriptionModel(family, r))])) as Record<SdkSpeechFamily, TranscribePart>),
+  ...(Object.fromEntries(SDK_SPEECH_FAMILIES.map((family) => [family, viaSDK(family)])) as Record<SdkSpeechFamily, TranscribePart>),
   multimodal: viaMultimodalPrompt,
   hex: hexTranscribePart,
   'apple-speech': appleSpeechTranscribePart,

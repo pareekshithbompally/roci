@@ -47,6 +47,7 @@ pub fn extend(builder: Builder<Wry>) -> Builder<Wry> {
       search_index::index_stretch,
       search_index::rebuild_search_index,
       stt::commands::stt_transcribe,
+      stt::commands::stt_set_vocabulary,
       stt::commands::stt_live_start,
       stt::commands::stt_live_feed,
       stt::commands::stt_live_finish,

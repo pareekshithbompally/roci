@@ -4,6 +4,8 @@
 
 import { z } from 'zod';
 import type { MeetingSummary } from '@shared/types';
+import type { MeetingKnowledge } from '@shared/types/native';
+import { ENTITY_KINDS } from '@config/knowledge.config';
 import { readReply } from './reply';
 
 const line = z.string().trim().min(1);
@@ -28,7 +30,20 @@ export function meetingSummarySchema(withNotes: boolean) {
   });
 }
 
-/** The analysis: a title, the summary, and categories (only the user's own when they have some). */
+/** What the meeting was about, for the knowledge graph: who and what it discussed, and what it stated between them. */
+const knowledgeSchema = z.strictObject({
+  entities: z.array(z.strictObject({
+    name: line.describe('The name as the meeting used it: "Priya Raman", "Acme", "Q3 Launch", "Pricing".'),
+    entity_type: z.enum(ENTITY_KINDS).describe('topic: a subject that may come up in later meetings, not a sentence.'),
+  })).describe('The people, organizations, projects, events and topics this meeting was about, each once, at most 12.'),
+  relations: z.array(z.strictObject({
+    from: line.describe('One of the entities, by name.'),
+    relation: line.describe('Active voice, 1–4 words: "leads", "works at", "owns".'),
+    to: line.describe('Another of the entities, by name.'),
+  })).describe('Lasting facts the meeting stated between two of the entities. Empty if none.'),
+}).describe('Who and what the meeting was about.');
+
+/** The analysis: a title, the summary, categories (only the user's own when they have some), and what it was about. */
 export function analysisSchema(categories: string[], withNotes: boolean) {
   const [first, ...rest] = categories;
   const category = first ? z.enum([first, ...rest]) : line;
@@ -36,6 +51,7 @@ export function analysisSchema(categories: string[], withNotes: boolean) {
     title: z.string().trim().describe('A title of at most 6 words naming the main topic.'),
     summary: meetingSummarySchema(withNotes),
     categories: z.array(category).describe(categories.length > 0 ? 'One or more of the listed categories that fit.' : 'One to three short categories that fit.'),
+    knowledge: knowledgeSchema,
   });
 }
 
@@ -44,6 +60,7 @@ export interface AnalysisResult {
   title: string;
   summary: MeetingSummary;
   categories: string[];
+  knowledge: MeetingKnowledge;
 }
 
 /** A stored summary as a whole `MeetingSummary`: every list present, so no reader can crash on a field a model left out. */

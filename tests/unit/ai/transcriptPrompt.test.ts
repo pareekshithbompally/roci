@@ -3,7 +3,8 @@ import { MEETING_LIVE_CONFIG } from '@config/meetingLive.config';
 import {
   buildChatSystemPrompt,
   buildTranscriptionPrompt,
-  LIVE_NOTES_PROMPT,
+  liveNotesPrompt,
+  NO_PERSONALIZATION,
   NO_TOOLS,
   SPEAKERS,
   SPEAKER_NAMING,
@@ -34,9 +35,9 @@ describe('transcript guide', () => {
 
   it('is the same text in the summary, live notes, and chat with meeting tools', () => {
     expect(summary()).toContain(TRANSCRIPT_GUIDE);
-    expect(LIVE_NOTES_PROMPT).toContain(TRANSCRIPT_GUIDE);
+    expect(liveNotesPrompt(NO_PERSONALIZATION)).toContain(TRANSCRIPT_GUIDE);
     expect(summary()).toContain(SPEAKER_NAMING);
-    expect(LIVE_NOTES_PROMPT).toContain(SPEAKER_NAMING);
+    expect(liveNotesPrompt(NO_PERSONALIZATION)).toContain(SPEAKER_NAMING);
     const chat = (meetings: boolean) => buildChatSystemPrompt({
       tools: { ...NO_TOOLS, meetings }, modalities: { input: ['text'], output: ['text'] }, meetingCount: 1, timeContext: '',
     });

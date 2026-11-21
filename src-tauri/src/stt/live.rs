@@ -84,7 +84,7 @@ fn serve(loaded: &mut Loaded, language: &str, ready: &Sender<Result<(), LocalErr
     if !loaded.streams {
         return Err(LocalError::BadInput("this model can't transcribe live".into()));
     }
-    let options = loaded.run_options(language);
+    let options = loaded.run_options(language, true);
     let mut stream = loaded.session.stream(&options, &StreamOptions::default()).map_err(engine_error)?;
     let _ = ready.send(Ok(()));
     for (request, reply) in inbox {

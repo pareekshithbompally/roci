@@ -6,6 +6,7 @@ use tauri::{AppHandle, Manager, State};
 
 use super::engine::{self, Timed};
 use super::live::{LiveSession, LiveText};
+use super::vocabulary::{self, RecognitionBoost, VocabularyEntry};
 use super::SttState;
 use crate::ipc::{header, raw_body};
 use crate::models::catalog::{self, Kind};
@@ -44,6 +45,12 @@ fn schedule_idle_unload(app: AppHandle) {
         tokio::time::sleep(idle).await;
         app.state::<SttState>().engine.unload_if_idle(generation);
     });
+}
+
+/// Sets the custom vocabulary and recognition boost runs read from now on (Settings › Personalization › Vocabulary).
+#[tauri::command]
+pub fn stt_set_vocabulary(entries: Vec<VocabularyEntry>, boost: RecognitionBoost) {
+    vocabulary::apply(entries, boost);
 }
 
 /// Begins live dictation with a model that streams (ends any running one).
